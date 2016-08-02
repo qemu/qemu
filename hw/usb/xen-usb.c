@@ -90,6 +90,8 @@ struct usbback_req {
     void                     *buffer;
     void                     *isoc_buffer;
     struct libusb_transfer   *xfer;
+
+    bool                     cancelled;
 };
 
 struct usbback_hotplug {
@@ -301,20 +303,23 @@ static void usbback_do_response(struct usbback_req *usbback_req, int32_t status,
         usbback_req->isoc_buffer = NULL;
     }
 
-    res = RING_GET_RESPONSE(&usbif->urb_ring, usbif->urb_ring.rsp_prod_pvt);
-    res->id = usbback_req->req.id;
-    res->status = status;
-    res->actual_length = actual_length;
-    res->error_count = error_count;
-    res->start_frame = 0;
-    usbif->urb_ring.rsp_prod_pvt++;
-    RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&usbif->urb_ring, notify);
+    if (usbif->urb_sring) {
+        res = RING_GET_RESPONSE(&usbif->urb_ring, usbif->urb_ring.rsp_prod_pvt);
+        res->id = usbback_req->req.id;
+        res->status = status;
+        res->actual_length = actual_length;
+        res->error_count = error_count;
+        res->start_frame = 0;
+        usbif->urb_ring.rsp_prod_pvt++;
+        RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&usbif->urb_ring, notify);
 
-    if (notify) {
-        xen_be_send_notify(xendev);
+        if (notify) {
+            xen_be_send_notify(xendev);
+        }
     }
 
-    usbback_put_req(usbback_req);
+    if (!usbback_req->cancelled)
+        usbback_put_req(usbback_req);
 }
 
 static void usbback_do_response_ret(struct usbback_req *usbback_req,
@@ -366,15 +371,14 @@ static void usbback_set_address(struct usbback_info *usbif,
     }
 }
 
-static bool usbback_cancel_req(struct usbback_req *usbback_req)
+static void usbback_cancel_req(struct usbback_req *usbback_req)
 {
-    bool ret = false;
-
     if (usb_packet_is_inflight(&usbback_req->packet)) {
         usb_cancel_packet(&usbback_req->packet);
-        ret = true;
+        QTAILQ_REMOVE(&usbback_req->stub->submit_q, usbback_req, q);
+        usbback_req->cancelled = true;
+        usbback_do_response_ret(usbback_req, -EPROTO);
     }
-    return ret;
 }
 
 static void usbback_process_unlink_req(struct usbback_req *usbback_req)
@@ -391,7 +395,7 @@ static void usbback_process_unlink_req(struct usbback_req *usbback_req)
     devnum = usbif_pipedevice(usbback_req->req.pipe);
     if (unlikely(devnum == 0)) {
         usbback_req->stub = usbif->ports +
-                            usbif_pipeportnum(usbback_req->req.pipe);
+                            usbif_pipeportnum(usbback_req->req.pipe) - 1;
         if (unlikely(!usbback_req->stub)) {
             ret = -ENODEV;
             goto fail_response;
@@ -406,9 +410,7 @@ static void usbback_process_unlink_req(struct usbback_req *usbback_req)
 
     QTAILQ_FOREACH(unlink_req, &usbback_req->stub->submit_q, q) {
         if (unlink_req->req.id == id) {
-            if (usbback_cancel_req(unlink_req)) {
-                usbback_do_response_ret(unlink_req, -EPROTO);
-            }
+            usbback_cancel_req(unlink_req);
             break;
         }
     }
@@ -681,6 +683,33 @@ static void usbback_hotplug_enq(struct usbback_info *usbif, unsigned port)
     usbback_hotplug_notify(usbif);
 }
 
+static void usbback_portid_drain(struct usbback_info *usbif, unsigned port)
+{
+    struct usbback_req *req, *tmp;
+    bool sched = false;
+
+    QTAILQ_FOREACH_SAFE(req, &usbif->ports[port - 1].submit_q, q, tmp) {
+        usbback_cancel_req(req);
+        sched = true;
+    }
+
+    if (sched) {
+        qemu_bh_schedule(usbif->bh);
+    }
+}
+
+static void usbback_portid_detach(struct usbback_info *usbif, unsigned port)
+{
+    if (!usbif->ports[port - 1].attached) {
+        return;
+    }
+
+    usbif->ports[port - 1].speed = USBIF_SPEED_NONE;
+    usbif->ports[port - 1].attached = false;
+    usbback_portid_drain(usbif, port);
+    usbback_hotplug_enq(usbif, port);
+}
+
 static void usbback_portid_remove(struct usbback_info *usbif, unsigned port)
 {
     USBPort *p;
@@ -694,9 +723,7 @@ static void usbback_portid_remove(struct usbback_info *usbif, unsigned port)
 
     object_unparent(OBJECT(usbif->ports[port - 1].dev));
     usbif->ports[port - 1].dev = NULL;
-    usbif->ports[port - 1].speed = USBIF_SPEED_NONE;
-    usbif->ports[port - 1].attached = false;
-    usbback_hotplug_enq(usbif, port);
+    usbback_portid_detach(usbif, port);
 
     TR_BUS(&usbif->xendev, "port %d removed\n", port);
 }
@@ -801,7 +828,6 @@ static void usbback_process_port(struct usbback_info *usbif, unsigned port)
 static void usbback_disconnect(struct XenDevice *xendev)
 {
     struct usbback_info *usbif;
-    struct usbback_req *req, *tmp;
     unsigned int i;
 
     TR_BUS(xendev, "start\n");
@@ -820,11 +846,8 @@ static void usbback_disconnect(struct XenDevice *xendev)
     }
 
     for (i = 0; i < usbif->num_ports; i++) {
-        if (!usbif->ports[i].dev) {
-            continue;
-        }
-        QTAILQ_FOREACH_SAFE(req, &usbif->ports[i].submit_q, q, tmp) {
-            usbback_cancel_req(req);
+        if (usbif->ports[i].dev) {
+            usbback_portid_drain(usbif, i + 1);
         }
     }
 
@@ -944,8 +967,7 @@ static void xen_bus_detach(USBPort *port)
 
     usbif = port->opaque;
     TR_BUS(&usbif->xendev, "\n");
-    usbif->ports[port->index].attached = false;
-    usbback_hotplug_enq(usbif, port->index + 1);
+    usbback_portid_detach(usbif, port->index + 1);
 }
 
 static void xen_bus_child_detach(USBPort *port, USBDevice *child)
@@ -958,9 +980,16 @@ static void xen_bus_child_detach(USBPort *port, USBDevice *child)
 
 static void xen_bus_complete(USBPort *port, USBPacket *packet)
 {
+    struct usbback_req *usbback_req;
     struct usbback_info *usbif;
 
-    usbif = port->opaque;
+    usbback_req = container_of(packet, struct usbback_req, packet);
+    if (usbback_req->cancelled) {
+        g_free(usbback_req);
+        return;
+    }
+
+    usbif = usbback_req->usbif;
     TR_REQ(&usbif->xendev, "\n");
     usbback_packet_complete(packet);
 }
@@ -1037,6 +1066,7 @@ static int usbback_free(struct XenDevice *xendev)
     }
 
     usb_bus_release(&usbif->bus);
+    object_unparent(OBJECT(&usbif->bus));
 
     TR_BUS(xendev, "finished\n");
 
