@@ -143,6 +143,11 @@ static void vnc_init_basic_info_from_server_addr(QIOChannelSocket *ioc,
 {
     SocketAddress *addr = NULL;
 
+    if (!ioc) {
+        error_setg(errp, "No listener socket available");
+        return;
+    }
+
     addr = qio_channel_socket_get_local_address(ioc, errp);
     if (!addr) {
         return;
