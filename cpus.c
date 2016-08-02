@@ -983,7 +983,7 @@ static void qemu_tcg_destroy_vcpu(CPUState *cpu)
 {
 }
 
-static void flush_queued_work(CPUState *cpu)
+static void process_queued_cpu_work(CPUState *cpu)
 {
     struct qemu_work_item *wi;
 
@@ -1018,7 +1018,7 @@ static void qemu_wait_io_event_common(CPUState *cpu)
         cpu->stopped = true;
         qemu_cond_broadcast(&qemu_pause_cond);
     }
-    flush_queued_work(cpu);
+    process_queued_cpu_work(cpu);
     cpu->thread_kicked = false;
 }
 
