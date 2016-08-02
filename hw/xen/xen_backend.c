@@ -780,6 +780,16 @@ int xen_be_register(const char *type, struct XenDevOps *ops)
     return xenstore_scan(type, xen_domid, ops);
 }
 
+void xen_be_register_common(void)
+{
+    xen_be_register("console", &xen_console_ops);
+    xen_be_register("vkbd", &xen_kbdmouse_ops);
+    xen_be_register("qdisk", &xen_blkdev_ops);
+#ifdef CONFIG_USB_LIBUSB
+    xen_be_register("qusb", &xen_usb_ops);
+#endif
+}
+
 int xen_be_bind_evtchn(struct XenDevice *xendev)
 {
     if (xendev->local_port != -1) {

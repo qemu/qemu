@@ -67,14 +67,9 @@ static void xen_init_pv(MachineState *machine)
         break;
     }
 
-    xen_be_register("console", &xen_console_ops);
-    xen_be_register("vkbd", &xen_kbdmouse_ops);
+    xen_be_register_common();
     xen_be_register("vfb", &xen_framebuffer_ops);
-    xen_be_register("qdisk", &xen_blkdev_ops);
     xen_be_register("qnic", &xen_netdev_ops);
-#ifdef CONFIG_USB_LIBUSB
-    xen_be_register("qusb", &xen_usb_ops);
-#endif
 
     /* configure framebuffer */
     if (xenfb_enabled) {
