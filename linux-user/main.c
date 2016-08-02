@@ -3777,6 +3777,16 @@ void cpu_loop(CPUTLGState *env)
 
 THREAD CPUState *thread_cpu;
 
+bool qemu_cpu_is_self(CPUState *cpu)
+{
+    return thread_cpu == cpu;
+}
+
+void qemu_cpu_kick(CPUState *cpu)
+{
+    cpu_exit(cpu);
+}
+
 void task_settid(TaskState *ts)
 {
     if (ts->ts_tid == 0) {
