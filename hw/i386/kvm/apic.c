@@ -125,7 +125,7 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
     }
 }
 
-static void kvm_apic_put(void *data)
+static void kvm_apic_put(CPUState *cs, void *data)
 {
     APICCommonState *s = data;
     struct kvm_lapic_state kapic;
@@ -146,10 +146,9 @@ static void kvm_apic_post_load(APICCommonState *s)
     run_on_cpu(CPU(s->cpu), kvm_apic_put, s);
 }
 
-static void do_inject_external_nmi(void *data)
+static void do_inject_external_nmi(CPUState *cpu, void *data)
 {
     APICCommonState *s = data;
-    CPUState *cpu = CPU(s->cpu);
     uint32_t lvt;
     int ret;
 

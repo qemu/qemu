@@ -557,9 +557,8 @@ static const VMStateDescription vmstate_timers = {
     }
 };
 
-static void cpu_throttle_thread(void *opaque)
+static void cpu_throttle_thread(CPUState *cpu, void *opaque)
 {
-    CPUState *cpu = opaque;
     double pct;
     double throttle_ratio;
     long sleeptime_ns;
@@ -589,7 +588,7 @@ static void cpu_throttle_timer_tick(void *opaque)
     }
     CPU_FOREACH(cpu) {
         if (!atomic_xchg(&cpu->throttle_thread_scheduled, 1)) {
-            async_run_on_cpu(cpu, cpu_throttle_thread, cpu);
+            async_run_on_cpu(cpu, cpu_throttle_thread, NULL);
         }
     }
 
@@ -917,12 +916,12 @@ void qemu_init_cpu_loop(void)
     qemu_thread_get_self(&io_thread);
 }
 
-void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
+void run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
 {
     struct qemu_work_item wi;
 
     if (qemu_cpu_is_self(cpu)) {
-        func(data);
+        func(cpu, data);
         return;
     }
 
@@ -950,12 +949,12 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
     }
 }
 
-void async_run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
+void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
 {
     struct qemu_work_item *wi;
 
     if (qemu_cpu_is_self(cpu)) {
-        func(data);
+        func(cpu, data);
         return;
     }
 
@@ -1006,7 +1005,7 @@ static void flush_queued_work(CPUState *cpu)
             cpu->queued_work_last = NULL;
         }
         qemu_mutex_unlock(&cpu->work_mutex);
-        wi->func(wi->data);
+        wi->func(cpu, wi->data);
         qemu_mutex_lock(&cpu->work_mutex);
         if (wi->free) {
             g_free(wi);
