@@ -321,48 +321,28 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
 /*
  * release xen backend device.
  */
-static struct XenDevice *xen_be_del_xendev(int dom, int dev)
+static void xen_be_del_xendev(struct XenDevice *xendev)
 {
-    struct XenDevice *xendev, *xnext;
-
-    /*
-     * This is pretty much like QTAILQ_FOREACH(xendev, &xendevs, next) but
-     * we save the next pointer in xnext because we might free xendev.
-     */
-    xnext = xendevs.tqh_first;
-    while (xnext) {
-        xendev = xnext;
-        xnext = xendev->next.tqe_next;
-
-        if (xendev->dom != dom) {
-            continue;
-        }
-        if (xendev->dev != dev && dev != -1) {
-            continue;
-        }
-
-        if (xendev->ops->free) {
-            xendev->ops->free(xendev);
-        }
-
-        if (xendev->fe) {
-            char token[XEN_BUFSIZE];
-            snprintf(token, sizeof(token), "fe:%p", xendev);
-            xs_unwatch(xenstore, xendev->fe, token);
-            g_free(xendev->fe);
-        }
-
-        if (xendev->evtchndev != NULL) {
-            xenevtchn_close(xendev->evtchndev);
-        }
-        if (xendev->gnttabdev != NULL) {
-            xengnttab_close(xendev->gnttabdev);
-        }
-
-        QTAILQ_REMOVE(&xendevs, xendev, next);
-        g_free(xendev);
+    if (xendev->ops->free) {
+        xendev->ops->free(xendev);
     }
-    return NULL;
+
+    if (xendev->fe) {
+        char token[XEN_BUFSIZE];
+        snprintf(token, sizeof(token), "fe:%p", xendev);
+        xs_unwatch(xenstore, xendev->fe, token);
+        g_free(xendev->fe);
+    }
+
+    if (xendev->evtchndev != NULL) {
+        xenevtchn_close(xendev->evtchndev);
+    }
+    if (xendev->gnttabdev != NULL) {
+        xengnttab_close(xendev->gnttabdev);
+    }
+
+    QTAILQ_REMOVE(&xendevs, xendev, next);
+    g_free(xendev);
 }
 
 /*
@@ -682,7 +662,7 @@ static void xenstore_update_be(char *watch, char *type, int dom,
     if (xendev != NULL) {
         bepath = xs_read(xenstore, 0, xendev->be, &len);
         if (bepath == NULL) {
-            xen_be_del_xendev(dom, dev);
+            xen_be_del_xendev(xendev);
         } else {
             free(bepath);
             xen_be_backend_changed(xendev, path);
