@@ -916,6 +916,22 @@ void qemu_init_cpu_loop(void)
     qemu_thread_get_self(&io_thread);
 }
 
+static void queue_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi)
+{
+    qemu_mutex_lock(&cpu->work_mutex);
+    if (cpu->queued_work_first == NULL) {
+        cpu->queued_work_first = wi;
+    } else {
+        cpu->queued_work_last->next = wi;
+    }
+    cpu->queued_work_last = wi;
+    wi->next = NULL;
+    wi->done = false;
+    qemu_mutex_unlock(&cpu->work_mutex);
+
+    qemu_cpu_kick(cpu);
+}
+
 void run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
 {
     struct qemu_work_item wi;
@@ -929,18 +945,7 @@ void run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
     wi.data = data;
     wi.free = false;
 
-    qemu_mutex_lock(&cpu->work_mutex);
-    if (cpu->queued_work_first == NULL) {
-        cpu->queued_work_first = &wi;
-    } else {
-        cpu->queued_work_last->next = &wi;
-    }
-    cpu->queued_work_last = &wi;
-    wi.next = NULL;
-    wi.done = false;
-    qemu_mutex_unlock(&cpu->work_mutex);
-
-    qemu_cpu_kick(cpu);
+    queue_work_on_cpu(cpu, &wi);
     while (!atomic_mb_read(&wi.done)) {
         CPUState *self_cpu = current_cpu;
 
@@ -963,18 +968,7 @@ void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
     wi->data = data;
     wi->free = true;
 
-    qemu_mutex_lock(&cpu->work_mutex);
-    if (cpu->queued_work_first == NULL) {
-        cpu->queued_work_first = wi;
-    } else {
-        cpu->queued_work_last->next = wi;
-    }
-    cpu->queued_work_last = wi;
-    wi->next = NULL;
-    wi->done = false;
-    qemu_mutex_unlock(&cpu->work_mutex);
-
-    qemu_cpu_kick(cpu);
+    queue_work_on_cpu(cpu, wi);
 }
 
 static void qemu_kvm_destroy_vcpu(CPUState *cpu)
