@@ -247,7 +247,8 @@ unsigned iov_copy(struct iovec *dst_iov, unsigned int dst_iov_cnt,
 {
     size_t len;
     unsigned int i, j;
-    for (i = 0, j = 0; i < iov_cnt && j < dst_iov_cnt && bytes; i++) {
+    for (i = 0, j = 0;
+         i < iov_cnt && j < dst_iov_cnt && (offset || bytes); i++) {
         if (offset >= iov[i].iov_len) {
             offset -= iov[i].iov_len;
             continue;
