@@ -1,5 +1,5 @@
 # shared objects
-obj-y += ppc.o ppc_booke.o
+obj-y += ppc.o ppc_booke.o fdt.o
 # IBM pSeries (sPAPR)
 obj-$(CONFIG_PSERIES) += spapr.o spapr_vio.o spapr_events.o
 obj-$(CONFIG_PSERIES) += spapr_hcall.o spapr_iommu.o spapr_rtas.o

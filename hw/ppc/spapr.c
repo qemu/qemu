@@ -250,40 +250,6 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
     return ret;
 }
 
-
-static size_t create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
-                                     size_t maxsize)
-{
-    size_t maxcells = maxsize / sizeof(uint32_t);
-    int i, j, count;
-    uint32_t *p = prop;
-
-    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
-        struct ppc_one_seg_page_size *sps = &env->sps.sps[i];
-
-        if (!sps->page_shift) {
-            break;
-        }
-        for (count = 0; count < PPC_PAGE_SIZES_MAX_SZ; count++) {
-            if (sps->enc[count].page_shift == 0) {
-                break;
-            }
-        }
-        if ((p - prop) >= (maxcells - 3 - count * 2)) {
-            break;
-        }
-        *(p++) = cpu_to_be32(sps->page_shift);
-        *(p++) = cpu_to_be32(sps->slb_enc);
-        *(p++) = cpu_to_be32(count);
-        for (j = 0; j < count; j++) {
-            *(p++) = cpu_to_be32(sps->enc[j].page_shift);
-            *(p++) = cpu_to_be32(sps->enc[j].pte_enc);
-        }
-    }
-
-    return (p - prop) * sizeof(uint32_t);
-}
-
 static hwaddr spapr_node0_size(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
@@ -689,7 +655,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
         _FDT((fdt_setprop_cell(fdt, offset, "ibm,dfp", 1)));
     }
 
-    page_sizes_prop_size = create_page_sizes_prop(env, page_sizes_prop,
+    page_sizes_prop_size = ppc_create_page_sizes_prop(env, page_sizes_prop,
                                                   sizeof(page_sizes_prop));
     if (page_sizes_prop_size) {
         _FDT((fdt_setprop(fdt, offset, "ibm,segment-page-sizes",

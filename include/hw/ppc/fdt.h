@@ -12,6 +12,8 @@
 
 #include "qemu/error-report.h"
 
+typedef struct CPUPPCState CPUPPCState;
+
 #define _FDT(exp)                                                  \
     do {                                                           \
         int ret = (exp);                                           \
@@ -21,5 +23,8 @@
             exit(1);                                               \
         }                                                          \
     } while (0)
+
+size_t ppc_create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
+                                  size_t maxsize);
 
 #endif /* PPC_FDT_H */
