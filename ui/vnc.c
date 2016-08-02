@@ -224,7 +224,7 @@ static VncServerInfo *vnc_server_info_get(VncDisplay *vd)
     VncServerInfo *info;
     Error *err = NULL;
 
-    info = g_malloc(sizeof(*info));
+    info = g_malloc0(sizeof(*info));
     vnc_init_basic_info_from_server_addr(vd->lsock,
                                          qapi_VncServerInfo_base(info), &err);
     info->has_auth = true;
