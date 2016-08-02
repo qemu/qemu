@@ -3150,6 +3150,9 @@ void vnc_display_init(const char *id)
     if (!vs->kbd_layout)
         exit(1);
 
+    vs->share_policy = VNC_SHARE_POLICY_ALLOW_EXCLUSIVE;
+    vs->connections_limit = 32;
+
     qemu_mutex_init(&vs->mutex);
     vnc_start_worker_thread();
 
