@@ -107,9 +107,8 @@ docker-run-%: docker-qemu-src
 	fi
 	$(if $(filter $(TESTS),$(CMD)),$(if $(filter $(IMAGES),$(IMAGE)), \
 		$(call quiet-command,\
-			if $(SRC_PATH)/tests/docker/docker.py images \
-				--format={{.Repository}}:{{.Tag}} | \
-					grep -qx qemu:$(IMAGE); then \
+			if $(SRC_PATH)/tests/docker/docker.py images | \
+				awk '$$1=="qemu" && $$2=="$(IMAGE)"{found=1} END{exit(!found)}'; then \
 				$(SRC_PATH)/tests/docker/docker.py run $(if $V,,--rm) \
 				-t \
 				$(if $(DEBUG),-i,--net=none) \
