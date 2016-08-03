@@ -496,7 +496,7 @@ static int vfio_populate_device(VFIODevice *vbasedev)
         irq.index = i;
         ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_IRQ_INFO, &irq);
         if (ret) {
-            error_printf("vfio: error getting device %s irq info",
+            error_report("vfio: error getting device %s irq info",
                          vbasedev->name);
             goto irq_err;
         } else {
