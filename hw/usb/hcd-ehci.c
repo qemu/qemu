@@ -2206,29 +2206,28 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
 
 static void ehci_update_frindex(EHCIState *ehci, int uframes)
 {
-    int i;
-
     if (!ehci_enabled(ehci) && ehci->pstate == EST_INACTIVE) {
         return;
     }
 
-    for (i = 0; i < uframes; i++) {
-        ehci->frindex++;
+    /* Generate FLR interrupt if frame index rolls over 0x2000 */
+    if ((ehci->frindex % 0x2000) + uframes >= 0x2000) {
+        ehci_raise_irq(ehci, USBSTS_FLR);
+    }
 
-        if (ehci->frindex == 0x00002000) {
-            ehci_raise_irq(ehci, USBSTS_FLR);
-        }
-
-        if (ehci->frindex == 0x00004000) {
-            ehci_raise_irq(ehci, USBSTS_FLR);
-            ehci->frindex = 0;
-            if (ehci->usbsts_frindex >= 0x00004000) {
-                ehci->usbsts_frindex -= 0x00004000;
-            } else {
-                ehci->usbsts_frindex = 0;
-            }
+    /* How many times will frindex roll over 0x4000 with this frame count?
+     * usbsts_frindex is decremented by 0x4000 on rollover until it reaches 0
+     */
+    int rollovers = (ehci->frindex + uframes) / 0x4000;
+    if (rollovers > 0) {
+        if (ehci->usbsts_frindex >= (rollovers * 0x4000)) {
+            ehci->usbsts_frindex -= 0x4000 * rollovers;
+        } else {
+            ehci->usbsts_frindex = 0;
         }
     }
+
+    ehci->frindex = (ehci->frindex + uframes) % 0x4000;
 }
 
 static void ehci_frame_timer(void *opaque)

@@ -1318,9 +1318,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
         error_report("xen backend core setup failed");
         goto err;
     }
-    xen_be_register("console", &xen_console_ops);
-    xen_be_register("vkbd", &xen_kbdmouse_ops);
-    xen_be_register("qdisk", &xen_blkdev_ops);
+    xen_be_register_common();
     xen_read_physmap(state);
     return;
 
