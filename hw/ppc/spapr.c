@@ -2376,7 +2376,10 @@ static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
     int i;
     HotpluggableCPUList *head = NULL;
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     int spapr_max_cores = max_cpus / smp_threads;
+
+    g_assert(smc->dr_cpu_enabled);
 
     for (i = 0; i < spapr_max_cores; i++) {
         HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
@@ -2432,7 +2435,9 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->plug = spapr_machine_device_plug;
     hc->unplug = spapr_machine_device_unplug;
     mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
-    mc->query_hotpluggable_cpus = spapr_query_hotpluggable_cpus;
+    if (smc->dr_cpu_enabled) {
+        mc->query_hotpluggable_cpus = spapr_query_hotpluggable_cpus;
+    }
 
     smc->dr_lmb_enabled = true;
     smc->dr_cpu_enabled = true;
