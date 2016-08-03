@@ -462,7 +462,7 @@ static void *acpi_set_bsel(PCIBus *bus, void *opaque)
 
         *bus_bsel = (*bsel_alloc)++;
         object_property_add_uint32_ptr(OBJECT(bus), ACPI_PCIHP_PROP_BSEL,
-                                       bus_bsel, NULL);
+                                       bus_bsel, &error_abort);
     }
 
     return bsel_alloc;
@@ -471,7 +471,7 @@ static void *acpi_set_bsel(PCIBus *bus, void *opaque)
 static void acpi_set_pci_info(void)
 {
     PCIBus *bus = find_i440fx(); /* TODO: Q35 support */
-    unsigned bsel_alloc = 0;
+    unsigned bsel_alloc = ACPI_PCIHP_BSEL_DEFAULT;
 
     if (bus) {
         /* Scan all PCI buses. Set property to enable acpi based hotplug. */
