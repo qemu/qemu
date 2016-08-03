@@ -1656,6 +1656,7 @@ void cpu_loop(CPUPPCState *env)
             /* XXX: check this. Seems bugged */
             switch (env->error_code & 0xFF000000) {
             case 0x40000000:
+            case 0x42000000:
                 info.si_signo = TARGET_SIGSEGV;
                 info.si_errno = 0;
                 info.si_code = TARGET_SEGV_MAPERR;
