@@ -381,7 +381,7 @@ ISADevice *pc_find_fdc0(void)
         error_report("warning: multiple floppy disk controllers with "
                      "iobase=0x3f0 have been found");
         error_printf("the one being picked for CMOS setup might not reflect "
-                     "your intent");
+                     "your intent\n");
     }
 
     return state.floppy;
