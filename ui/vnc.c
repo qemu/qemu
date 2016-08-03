@@ -143,6 +143,11 @@ static void vnc_init_basic_info_from_server_addr(QIOChannelSocket *ioc,
 {
     SocketAddress *addr = NULL;
 
+    if (!ioc) {
+        error_setg(errp, "No listener socket available");
+        return;
+    }
+
     addr = qio_channel_socket_get_local_address(ioc, errp);
     if (!addr) {
         return;
@@ -219,7 +224,7 @@ static VncServerInfo *vnc_server_info_get(VncDisplay *vd)
     VncServerInfo *info;
     Error *err = NULL;
 
-    info = g_malloc(sizeof(*info));
+    info = g_malloc0(sizeof(*info));
     vnc_init_basic_info_from_server_addr(vd->lsock,
                                          qapi_VncServerInfo_base(info), &err);
     info->has_auth = true;
@@ -3144,6 +3149,9 @@ void vnc_display_init(const char *id)
 
     if (!vs->kbd_layout)
         exit(1);
+
+    vs->share_policy = VNC_SHARE_POLICY_ALLOW_EXCLUSIVE;
+    vs->connections_limit = 32;
 
     qemu_mutex_init(&vs->mutex);
     vnc_start_worker_thread();
