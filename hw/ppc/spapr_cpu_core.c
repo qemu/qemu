@@ -166,17 +166,10 @@ void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     int index = cc->core_id / smp_threads;
     int smt = kvmppc_smt_threads();
 
+    g_assert(smc->dr_cpu_enabled);
+
     drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, index * smt);
     spapr->cores[index] = OBJECT(dev);
-
-    if (!smc->dr_cpu_enabled) {
-        /*
-         * This is a cold plugged CPU core but the machine doesn't support
-         * DR. So skip the hotplug path ensuring that the core is brought
-         * up online with out an associated DR connector.
-         */
-        return;
-    }
 
     g_assert(drc);
 
@@ -225,13 +218,13 @@ void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     char *base_core_type = spapr_get_cpu_core_type(machine->cpu_model);
     const char *type = object_get_typename(OBJECT(dev));
 
-    if (strcmp(base_core_type, type)) {
-        error_setg(&local_err, "CPU core type should be %s", base_core_type);
+    if (!smc->dr_cpu_enabled) {
+        error_setg(&local_err, "CPU hotplug not supported for this machine");
         goto out;
     }
 
-    if (!smc->dr_cpu_enabled && dev->hotplugged) {
-        error_setg(&local_err, "CPU hotplug not supported for this machine");
+    if (strcmp(base_core_type, type)) {
+        error_setg(&local_err, "CPU core type should be %s", base_core_type);
         goto out;
     }
 
