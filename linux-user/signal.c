@@ -4454,7 +4454,12 @@ struct target_mcontext {
     target_ulong mc_gregs[48];
     /* Includes fpscr.  */
     uint64_t mc_fregs[33];
+#if defined(TARGET_PPC64)
+    /* Pointer to the vector regs */
+    target_ulong v_regs;
+#else
     target_ulong mc_pad[2];
+#endif
     /* We need to handle Altivec and SPE at the same time, which no
        kernel needs to do.  Fortunately, the kernel defines this bit to
        be Altivec-register-large all the time, rather than trying to
@@ -4464,15 +4469,30 @@ struct target_mcontext {
         uint32_t spe[33];
         /* Altivec vector registers.  The packing of VSCR and VRSAVE
            varies depending on whether we're PPC64 or not: PPC64 splits
-           them apart; PPC32 stuffs them together.  */
+           them apart; PPC32 stuffs them together.
+           We also need to account for the VSX registers on PPC64
+        */
 #if defined(TARGET_PPC64)
-#define QEMU_NVRREG 34
+#define QEMU_NVRREG (34 + 16)
+        /* On ppc64, this mcontext structure is naturally *unaligned*,
+         * or rather it is aligned on a 8 bytes boundary but not on
+         * a 16 bytes one. This pad fixes it up. This is also why the
+         * vector regs are referenced by the v_regs pointer above so
+         * any amount of padding can be added here
+         */
+        target_ulong pad;
 #else
+        /* On ppc32, we are already aligned to 16 bytes */
 #define QEMU_NVRREG 33
 #endif
-        ppc_avr_t altivec[QEMU_NVRREG];
+        /* We cannot use ppc_avr_t here as we do *not* want the implied
+         * 16-bytes alignment that would result from it. This would have
+         * the effect of making the whole struct target_mcontext aligned
+         * which breaks the layout of struct target_ucontext on ppc64.
+         */
+        uint64_t altivec[QEMU_NVRREG][2];
 #undef QEMU_NVRREG
-    } mc_vregs __attribute__((__aligned__(16)));
+    } mc_vregs;
 };
 
 /* See arch/powerpc/include/asm/sigcontext.h.  */
@@ -4626,6 +4646,16 @@ static target_ulong get_sigframe(struct target_sigaction *ka,
     return (oldsp - frame_size) & ~0xFUL;
 }
 
+#if ((defined(TARGET_WORDS_BIGENDIAN) && defined(HOST_WORDS_BIGENDIAN)) || \
+     (!defined(HOST_WORDS_BIGENDIAN) && !defined(TARGET_WORDS_BIGENDIAN)))
+#define PPC_VEC_HI      0
+#define PPC_VEC_LO      1
+#else
+#define PPC_VEC_HI      1
+#define PPC_VEC_LO      0
+#endif
+
+
 static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)
 {
     target_ulong msr = env->msr;
@@ -4652,18 +4682,33 @@ static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)
 
     /* Save Altivec registers if necessary.  */
     if (env->insns_flags & PPC_ALTIVEC) {
+        uint32_t *vrsave;
         for (i = 0; i < ARRAY_SIZE(env->avr); i++) {
             ppc_avr_t *avr = &env->avr[i];
-            ppc_avr_t *vreg = &frame->mc_vregs.altivec[i];
+            ppc_avr_t *vreg = (ppc_avr_t *)&frame->mc_vregs.altivec[i];
 
-            __put_user(avr->u64[0], &vreg->u64[0]);
-            __put_user(avr->u64[1], &vreg->u64[1]);
+            __put_user(avr->u64[PPC_VEC_HI], &vreg->u64[0]);
+            __put_user(avr->u64[PPC_VEC_LO], &vreg->u64[1]);
         }
         /* Set MSR_VR in the saved MSR value to indicate that
            frame->mc_vregs contains valid data.  */
         msr |= MSR_VR;
-        __put_user((uint32_t)env->spr[SPR_VRSAVE],
-                   &frame->mc_vregs.altivec[32].u32[3]);
+#if defined(TARGET_PPC64)
+        vrsave = (uint32_t *)&frame->mc_vregs.altivec[33];
+        /* 64-bit needs to put a pointer to the vectors in the frame */
+        __put_user(h2g(frame->mc_vregs.altivec), &frame->v_regs);
+#else
+        vrsave = (uint32_t *)&frame->mc_vregs.altivec[32];
+#endif
+        __put_user((uint32_t)env->spr[SPR_VRSAVE], vrsave);
+    }
+
+    /* Save VSX second halves */
+    if (env->insns_flags2 & PPC2_VSX) {
+        uint64_t *vsregs = (uint64_t *)&frame->mc_vregs.altivec[34];
+        for (i = 0; i < ARRAY_SIZE(env->vsr); i++) {
+            __put_user(env->vsr[i], &vsregs[i]);
+        }
     }
 
     /* Save floating point registers.  */
@@ -4743,17 +4788,39 @@ static void restore_user_regs(CPUPPCState *env,
 
     /* Restore Altivec registers if necessary.  */
     if (env->insns_flags & PPC_ALTIVEC) {
+        ppc_avr_t *v_regs;
+        uint32_t *vrsave;
+#if defined(TARGET_PPC64)
+        uint64_t v_addr;
+        /* 64-bit needs to recover the pointer to the vectors from the frame */
+        __get_user(v_addr, &frame->v_regs);
+        v_regs = g2h(v_addr);
+#else
+        v_regs = (ppc_avr_t *)frame->mc_vregs.altivec;
+#endif
         for (i = 0; i < ARRAY_SIZE(env->avr); i++) {
             ppc_avr_t *avr = &env->avr[i];
-            ppc_avr_t *vreg = &frame->mc_vregs.altivec[i];
+            ppc_avr_t *vreg = &v_regs[i];
 
-            __get_user(avr->u64[0], &vreg->u64[0]);
-            __get_user(avr->u64[1], &vreg->u64[1]);
+            __get_user(avr->u64[PPC_VEC_HI], &vreg->u64[0]);
+            __get_user(avr->u64[PPC_VEC_LO], &vreg->u64[1]);
         }
         /* Set MSR_VEC in the saved MSR value to indicate that
            frame->mc_vregs contains valid data.  */
-        __get_user(env->spr[SPR_VRSAVE],
-                   (target_ulong *)(&frame->mc_vregs.altivec[32].u32[3]));
+#if defined(TARGET_PPC64)
+        vrsave = (uint32_t *)&v_regs[33];
+#else
+        vrsave = (uint32_t *)&v_regs[32];
+#endif
+        __get_user(env->spr[SPR_VRSAVE], vrsave);
+    }
+
+    /* Restore VSX second halves */
+    if (env->insns_flags2 & PPC2_VSX) {
+        uint64_t *vsregs = (uint64_t *)&frame->mc_vregs.altivec[34];
+        for (i = 0; i < ARRAY_SIZE(env->vsr); i++) {
+            __get_user(env->vsr[i], &vsregs[i]);
+        }
     }
 
     /* Restore floating point registers.  */
@@ -4784,6 +4851,7 @@ static void restore_user_regs(CPUPPCState *env,
     }
 }
 
+#if !defined(TARGET_PPC64)
 static void setup_frame(int sig, struct target_sigaction *ka,
                         target_sigset_t *set, CPUPPCState *env)
 {
@@ -4791,9 +4859,6 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     struct target_sigcontext *sc;
     target_ulong frame_addr, newsp;
     int err = 0;
-#if defined(TARGET_PPC64)
-    struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
-#endif
 
     frame_addr = get_sigframe(ka, env, sizeof(*frame));
     trace_user_setup_frame(env, frame_addr);
@@ -4803,11 +4868,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     __put_user(ka->_sa_handler, &sc->handler);
     __put_user(set->sig[0], &sc->oldmask);
-#if TARGET_ABI_BITS == 64
-    __put_user(set->sig[0] >> 32, &sc->_unused[3]);
-#else
     __put_user(set->sig[1], &sc->_unused[3]);
-#endif
     __put_user(h2g(&frame->mctx), &sc->regs);
     __put_user(sig, &sc->signal);
 
@@ -4836,22 +4897,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     env->gpr[3] = sig;
     env->gpr[4] = frame_addr + offsetof(struct target_sigframe, sctx);
 
-#if defined(TARGET_PPC64)
-    if (get_ppc64_abi(image) < 2) {
-        /* ELFv1 PPC64 function pointers are pointers to OPD entries. */
-        struct target_func_ptr *handler =
-            (struct target_func_ptr *)g2h(ka->_sa_handler);
-        env->nip = tswapl(handler->entry);
-        env->gpr[2] = tswapl(handler->toc);
-    } else {
-        /* ELFv2 PPC64 function pointers are entry points, but R12
-         * must also be set */
-        env->nip = tswapl((target_ulong) ka->_sa_handler);
-        env->gpr[12] = env->nip;
-    }
-#else
     env->nip = (target_ulong) ka->_sa_handler;
-#endif
 
     /* Signal handlers are entered in big-endian mode.  */
     env->msr &= ~(1ull << MSR_LE);
@@ -4863,6 +4909,7 @@ sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
     force_sigsegv(sig);
 }
+#endif /* !defined(TARGET_PPC64) */
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
                            target_siginfo_t *info,
@@ -4960,6 +5007,7 @@ sigsegv:
 
 }
 
+#if !defined(TARGET_PPC64)
 long do_sigreturn(CPUPPCState *env)
 {
     struct target_sigcontext *sc = NULL;
@@ -4996,6 +5044,7 @@ sigsegv:
     force_sig(TARGET_SIGSEGV);
     return -TARGET_QEMU_ESIGRETURN;
 }
+#endif /* !defined(TARGET_PPC64) */
 
 /* See arch/powerpc/kernel/signal_32.c.  */
 static int do_setcontext(struct target_ucontext *ucp, CPUPPCState *env, int sig)
@@ -5939,7 +5988,8 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
 #endif
         /* prepare the stack frame of the virtual CPU */
 #if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64) \
-    || defined(TARGET_OPENRISC) || defined(TARGET_TILEGX)
+        || defined(TARGET_OPENRISC) || defined(TARGET_TILEGX) \
+        || defined(TARGET_PPC64)
         /* These targets do not have traditional signals.  */
         setup_rt_frame(sig, sa, &k->info, &target_old_set, cpu_env);
 #else

@@ -120,7 +120,9 @@
 #define TARGET_NR_sysinfo                116
 #define TARGET_NR_ipc                    117
 #define TARGET_NR_fsync                  118
+#if !defined(TARGET_PPC64)
 #define TARGET_NR_sigreturn              119
+#endif
 #define TARGET_NR_clone                  120
 #define TARGET_NR_setdomainname          121
 #define TARGET_NR_uname                  122
