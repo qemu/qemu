@@ -1158,6 +1158,20 @@ F: block/qapi.c
 F: qapi/block*.json
 T: git git://repo.or.cz/qemu/armbru.git block-next
 
+Dirty Bitmaps
+M: Fam Zheng <famz@redhat.com>
+M: John Snow <jsnow@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: util/hbitmap.c
+F: block/dirty-bitmap.c
+F: include/qemu/hbitmap.h
+F: include/block/dirty-bitmap.h
+F: tests/test-hbitmap.c
+F: docs/bitmaps.md
+T: git git://github.com/famz/qemu.git bitmaps
+T: git git://github.com/jnsnow/qemu.git bitmaps
+
 Character device backends
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
