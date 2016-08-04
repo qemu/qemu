@@ -19,6 +19,9 @@
 #ifdef CONFIG_TRACE_LOG
 #include "qemu/log.h"
 #endif
+#ifdef CONFIG_TRACE_SYSLOG
+#include <syslog.h>
+#endif
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
@@ -248,6 +251,10 @@ bool trace_init_backends(void)
         fprintf(stderr, "failed to initialize ftrace backend.\n");
         return false;
     }
+#endif
+
+#ifdef CONFIG_TRACE_SYSLOG
+    openlog(NULL, LOG_PID, LOG_DAEMON);
 #endif
 
     return true;

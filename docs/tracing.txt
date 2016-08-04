@@ -192,6 +192,18 @@ After running qemu by root user, you can get the trace:
 
 Restriction: "ftrace" backend is restricted to Linux only.
 
+=== Syslog ===
+
+The "syslog" backend sends trace events using the POSIX syslog API. The log
+is opened specifying the LOG_DAEMON facility and LOG_PID option (so events
+are tagged with the pid of the particular QEMU process that generated
+them). All events are logged at LOG_INFO level.
+
+NOTE: syslog may squash duplicate consecutive trace events and apply rate
+      limiting.
+
+Restriction: "syslog" backend is restricted to POSIX compliant OS.
+
 ==== Monitor commands ====
 
 * trace-file on|off|flush|set <path>
