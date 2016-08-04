@@ -954,7 +954,7 @@ static void nvme_class_init(ObjectClass *oc, void *data)
     pc->class_id = PCI_CLASS_STORAGE_EXPRESS;
     pc->vendor_id = PCI_VENDOR_ID_INTEL;
     pc->device_id = 0x5845;
-    pc->revision = 1;
+    pc->revision = 2;
     pc->is_express = 1;
 
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
