@@ -29,8 +29,6 @@
 
 #define MAX_IOAPICS                     1
 
-#define IOAPIC_VERSION                  0x11
-
 #define IOAPIC_LVT_DEST_SHIFT           56
 #define IOAPIC_LVT_DEST_IDX_SHIFT       48
 #define IOAPIC_LVT_MASKED_SHIFT         16
@@ -71,6 +69,7 @@
 
 #define IOAPIC_IOREGSEL                 0x00
 #define IOAPIC_IOWIN                    0x10
+#define IOAPIC_EOI                      0x40
 
 #define IOAPIC_REG_ID                   0x00
 #define IOAPIC_REG_VER                  0x01
@@ -109,6 +108,7 @@ struct IOAPICCommonState {
     uint32_t irr;
     uint64_t ioredtbl[IOAPIC_NUM_PINS];
     Notifier machine_done;
+    uint8_t version;
 };
 
 void ioapic_reset_common(DeviceState *dev);

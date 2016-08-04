@@ -318,7 +318,7 @@ static void sigbus_handler(int signal)
     siglongjmp(sigjump, 1);
 }
 
-void os_mem_prealloc(int fd, char *area, size_t memory)
+void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
 {
     int ret;
     struct sigaction act, oldact;
@@ -330,8 +330,9 @@ void os_mem_prealloc(int fd, char *area, size_t memory)
 
     ret = sigaction(SIGBUS, &act, &oldact);
     if (ret) {
-        perror("os_mem_prealloc: failed to install signal handler");
-        exit(1);
+        error_setg_errno(errp, errno,
+            "os_mem_prealloc: failed to install signal handler");
+        return;
     }
 
     /* unblock SIGBUS */
@@ -340,9 +341,8 @@ void os_mem_prealloc(int fd, char *area, size_t memory)
     pthread_sigmask(SIG_UNBLOCK, &set, &oldset);
 
     if (sigsetjmp(sigjump, 1)) {
-        fprintf(stderr, "os_mem_prealloc: Insufficient free host memory "
-                        "pages available to allocate guest RAM\n");
-        exit(1);
+        error_setg(errp, "os_mem_prealloc: Insufficient free host memory "
+            "pages available to allocate guest RAM\n");
     } else {
         int i;
         size_t hpagesize = qemu_fd_getpagesize(fd);
@@ -352,15 +352,15 @@ void os_mem_prealloc(int fd, char *area, size_t memory)
         for (i = 0; i < numpages; i++) {
             memset(area + (hpagesize * i), 0, 1);
         }
-
-        ret = sigaction(SIGBUS, &oldact, NULL);
-        if (ret) {
-            perror("os_mem_prealloc: failed to reinstall signal handler");
-            exit(1);
-        }
-
-        pthread_sigmask(SIG_SETMASK, &oldset, NULL);
     }
+
+    ret = sigaction(SIGBUS, &oldact, NULL);
+    if (ret) {
+        /* Terminate QEMU since it can't recover from error */
+        perror("os_mem_prealloc: failed to reinstall signal handler");
+        exit(1);
+    }
+    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 }
 
 

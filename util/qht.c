@@ -445,7 +445,11 @@ void *qht_do_lookup(struct qht_bucket *head, qht_lookup_func_t func,
     do {
         for (i = 0; i < QHT_BUCKET_ENTRIES; i++) {
             if (b->hashes[i] == hash) {
-                void *p = atomic_read(&b->pointers[i]);
+                /* The pointer is dereferenced before seqlock_read_retry,
+                 * so (unlike qht_insert__locked) we need to use
+                 * atomic_rcu_read here.
+                 */
+                void *p = atomic_rcu_read(&b->pointers[i]);
 
                 if (likely(p) && likely(func(p, userp))) {
                     return p;
@@ -535,6 +539,7 @@ static bool qht_insert__locked(struct qht *ht, struct qht_map *map,
         atomic_rcu_set(&prev->next, b);
     }
     b->hashes[i] = hash;
+    /* smp_wmb() implicit in seqlock_write_begin.  */
     atomic_set(&b->pointers[i], p);
     seqlock_write_end(&head->sequence);
     return true;
@@ -784,11 +789,16 @@ void qht_statistics_init(struct qht *ht, struct qht_stats *stats)
 
     map = atomic_rcu_read(&ht->map);
 
-    stats->head_buckets = map->n_buckets;
     stats->used_head_buckets = 0;
     stats->entries = 0;
     qdist_init(&stats->chain);
     qdist_init(&stats->occupancy);
+    /* bail out if the qht has not yet been initialized */
+    if (unlikely(map == NULL)) {
+        stats->head_buckets = 0;
+        return;
+    }
+    stats->head_buckets = map->n_buckets;
 
     for (i = 0; i < map->n_buckets; i++) {
         struct qht_bucket *head = &map->buckets[i];

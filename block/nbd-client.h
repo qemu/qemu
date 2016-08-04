@@ -20,7 +20,7 @@
 typedef struct NbdClientSession {
     QIOChannelSocket *sioc; /* The master data channel */
     QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
-    uint32_t nbdflags;
+    uint16_t nbdflags;
     off_t size;
 
     CoMutex send_mutex;

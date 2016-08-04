@@ -463,6 +463,7 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
             exit(1);
         }
 
+        host_memory_backend_set_mapped(backend, true);
         memory_region_add_subregion(mr, addr, seg);
         vmstate_register_ram_global(seg);
         addr += size;

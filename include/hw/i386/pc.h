@@ -388,7 +388,7 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .value = "off",\
     },\
     {\
-        .driver   = "apic",\
+        .driver   = "apic-common",\
         .property = "legacy-instance-id",\
         .value    = "on",\
     },

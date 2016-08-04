@@ -624,34 +624,6 @@ fail:
     return NULL;
 }
 
-int inet_listen(const char *str, char *ostr, int olen,
-                int socktype, int port_offset, Error **errp)
-{
-    char *optstr;
-    int sock = -1;
-    InetSocketAddress *addr;
-
-    addr = inet_parse(str, errp);
-    if (addr != NULL) {
-        sock = inet_listen_saddr(addr, port_offset, true, errp);
-        if (sock != -1 && ostr) {
-            optstr = strchr(str, ',');
-            if (addr->ipv6) {
-                snprintf(ostr, olen, "[%s]:%s%s",
-                         addr->host,
-                         addr->port,
-                         optstr ? optstr : "");
-            } else {
-                snprintf(ostr, olen, "%s:%s%s",
-                         addr->host,
-                         addr->port,
-                         optstr ? optstr : "");
-            }
-        }
-        qapi_free_InetSocketAddress(addr);
-    }
-    return sock;
-}
 
 /**
  * Create a blocking socket and connect it to an address.
@@ -669,36 +641,6 @@ int inet_connect(const char *str, Error **errp)
     addr = inet_parse(str, errp);
     if (addr != NULL) {
         sock = inet_connect_saddr(addr, errp, NULL, NULL);
-        qapi_free_InetSocketAddress(addr);
-    }
-    return sock;
-}
-
-/**
- * Create a non-blocking socket and connect it to an address.
- * Calls the callback function with fd in case of success or -1 in case of
- * error.
- *
- * @str: address string
- * @callback: callback function that is called when connect completes,
- *            cannot be NULL.
- * @opaque: opaque for callback function
- * @errp: set in case of an error
- *
- * Returns: -1 on immediate error, file descriptor on success.
- **/
-int inet_nonblocking_connect(const char *str,
-                             NonBlockingConnectHandler *callback,
-                             void *opaque, Error **errp)
-{
-    int sock = -1;
-    InetSocketAddress *addr;
-
-    g_assert(callback != NULL);
-
-    addr = inet_parse(str, errp);
-    if (addr != NULL) {
-        sock = inet_connect_saddr(addr, errp, callback, opaque);
         qapi_free_InetSocketAddress(addr);
     }
     return sock;
@@ -892,22 +834,6 @@ int unix_connect(const char *path, Error **errp)
     return sock;
 }
 
-
-int unix_nonblocking_connect(const char *path,
-                             NonBlockingConnectHandler *callback,
-                             void *opaque, Error **errp)
-{
-    UnixSocketAddress *saddr;
-    int sock = -1;
-
-    g_assert(callback != NULL);
-
-    saddr = g_new0(UnixSocketAddress, 1);
-    saddr->path = g_strdup(path);
-    sock = unix_connect_saddr(saddr, errp, callback, opaque);
-    qapi_free_UnixSocketAddress(saddr);
-    return sock;
-}
 
 SocketAddress *socket_parse(const char *str, Error **errp)
 {

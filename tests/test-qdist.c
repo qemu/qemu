@@ -360,10 +360,16 @@ static void test_none(void)
     g_assert(isnan(qdist_xmax(&dist)));
 
     pr = qdist_pr_plain(&dist, 0);
-    g_assert(pr == NULL);
+    g_assert_cmpstr(pr, ==, "(empty)");
+    g_free(pr);
 
     pr = qdist_pr_plain(&dist, 2);
-    g_assert(pr == NULL);
+    g_assert_cmpstr(pr, ==, "(empty)");
+    g_free(pr);
+
+    pr = qdist_pr(&dist, 0, QDIST_PR_BORDER);
+    g_assert_cmpstr(pr, ==, "(empty)");
+    g_free(pr);
 
     qdist_destroy(&dist);
 }

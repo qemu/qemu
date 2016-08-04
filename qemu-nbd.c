@@ -251,7 +251,7 @@ static void *nbd_client_thread(void *arg)
 {
     char *device = arg;
     off_t size;
-    uint32_t nbdflags;
+    uint16_t nbdflags;
     QIOChannelSocket *sioc;
     int fd;
     int ret;
@@ -465,7 +465,7 @@ int main(int argc, char **argv)
     BlockBackend *blk;
     BlockDriverState *bs;
     off_t dev_offset = 0;
-    uint32_t nbdflags = 0;
+    uint16_t nbdflags = 0;
     bool disconnect = false;
     const char *bindto = "0.0.0.0";
     const char *port = NULL;
