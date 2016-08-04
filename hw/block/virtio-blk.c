@@ -656,10 +656,6 @@ static void virtio_blk_reset(VirtIODevice *vdev)
     AioContext *ctx;
     VirtIOBlockReq *req;
 
-    /*
-     * This should cancel pending requests, but can't do nicely until there
-     * are per-device request lists.
-     */
     ctx = blk_get_aio_context(s->blk);
     aio_context_acquire(ctx);
     blk_drain(s->blk);
