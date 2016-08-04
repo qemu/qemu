@@ -469,19 +469,22 @@ static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeCmd *cmd)
     return NVME_SUCCESS;
 }
 
-static uint16_t nvme_identify(NvmeCtrl *n, NvmeCmd *cmd)
+static uint16_t nvme_identify_ctrl(NvmeCtrl *n, NvmeIdentify *c)
+{
+    uint64_t prp1 = le64_to_cpu(c->prp1);
+    uint64_t prp2 = le64_to_cpu(c->prp2);
+
+    return nvme_dma_read_prp(n, (uint8_t *)&n->id_ctrl, sizeof(n->id_ctrl),
+        prp1, prp2);
+}
+
+static uint16_t nvme_identify_ns(NvmeCtrl *n, NvmeIdentify *c)
 {
     NvmeNamespace *ns;
-    NvmeIdentify *c = (NvmeIdentify *)cmd;
-    uint32_t cns  = le32_to_cpu(c->cns);
     uint32_t nsid = le32_to_cpu(c->nsid);
     uint64_t prp1 = le64_to_cpu(c->prp1);
     uint64_t prp2 = le64_to_cpu(c->prp2);
 
-    if (cns) {
-        return nvme_dma_read_prp(n, (uint8_t *)&n->id_ctrl, sizeof(n->id_ctrl),
-            prp1, prp2);
-    }
     if (nsid == 0 || nsid > n->num_namespaces) {
         return NVME_INVALID_NSID | NVME_DNR;
     }
@@ -489,6 +492,48 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeCmd *cmd)
     ns = &n->namespaces[nsid - 1];
     return nvme_dma_read_prp(n, (uint8_t *)&ns->id_ns, sizeof(ns->id_ns),
         prp1, prp2);
+}
+
+static uint16_t nvme_identify_nslist(NvmeCtrl *n, NvmeIdentify *c)
+{
+    static const int data_len = 4096;
+    uint32_t min_nsid = le32_to_cpu(c->nsid);
+    uint64_t prp1 = le64_to_cpu(c->prp1);
+    uint64_t prp2 = le64_to_cpu(c->prp2);
+    uint32_t *list;
+    uint16_t ret;
+    int i, j = 0;
+
+    list = g_malloc0(data_len);
+    for (i = 0; i < n->num_namespaces; i++) {
+        if (i < min_nsid) {
+            continue;
+        }
+        list[j++] = cpu_to_le32(i + 1);
+        if (j == data_len / sizeof(uint32_t)) {
+            break;
+        }
+    }
+    ret = nvme_dma_read_prp(n, (uint8_t *)list, data_len, prp1, prp2);
+    g_free(list);
+    return ret;
+}
+
+
+static uint16_t nvme_identify(NvmeCtrl *n, NvmeCmd *cmd)
+{
+    NvmeIdentify *c = (NvmeIdentify *)cmd;
+
+    switch (le32_to_cpu(c->cns)) {
+    case 0x00:
+        return nvme_identify_ns(n, c);
+    case 0x01:
+        return nvme_identify_ctrl(n, c);
+    case 0x02:
+        return nvme_identify_nslist(n, c);
+    default:
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
 }
 
 static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
