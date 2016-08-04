@@ -103,7 +103,7 @@ static void test_dispatch_cmd(void)
 }
 
 /* test commands that return an error due to invalid parameters */
-static void test_dispatch_cmd_error(void)
+static void test_dispatch_cmd_failure(void)
 {
     QDict *req = qdict_new();
     QObject *resp;
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/0.15/dispatch_cmd", test_dispatch_cmd);
-    g_test_add_func("/0.15/dispatch_cmd_error", test_dispatch_cmd_error);
+    g_test_add_func("/0.15/dispatch_cmd_failure", test_dispatch_cmd_failure);
     g_test_add_func("/0.15/dispatch_cmd_io", test_dispatch_cmd_io);
     g_test_add_func("/0.15/dealloc_types", test_dealloc_types);
     g_test_add_func("/0.15/dealloc_partial", test_dealloc_partial);

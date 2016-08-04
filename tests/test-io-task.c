@@ -110,7 +110,7 @@ static void test_task_data_free(void)
 }
 
 
-static void test_task_error(void)
+static void test_task_failure(void)
 {
     QIOTask *task;
     Object *obj = object_new(TYPE_DUMMY);
@@ -214,7 +214,7 @@ static void test_task_thread_complete(void)
 }
 
 
-static void test_task_thread_error(void)
+static void test_task_thread_failure(void)
 {
     QIOTask *task;
     Object *obj = object_new(TYPE_DUMMY);
@@ -262,8 +262,8 @@ int main(int argc, char **argv)
     type_register_static(&dummy_info);
     g_test_add_func("/crypto/task/complete", test_task_complete);
     g_test_add_func("/crypto/task/datafree", test_task_data_free);
-    g_test_add_func("/crypto/task/error", test_task_error);
+    g_test_add_func("/crypto/task/failure", test_task_failure);
     g_test_add_func("/crypto/task/thread_complete", test_task_thread_complete);
-    g_test_add_func("/crypto/task/thread_error", test_task_thread_error);
+    g_test_add_func("/crypto/task/thread_failure", test_task_thread_failure);
     return g_test_run();
 }
