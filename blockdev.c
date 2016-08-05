@@ -1937,7 +1937,8 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
 {
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
     BlockdevBackup *backup;
-    BlockBackend *blk, *target;
+    BlockBackend *blk;
+    BlockDriverState *target;
     Error *local_err = NULL;
 
     assert(common->action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
@@ -1954,15 +1955,14 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
         return;
     }
 
-    target = blk_by_name(backup->target);
+    target = bdrv_lookup_bs(backup->target, backup->target, errp);
     if (!target) {
-        error_setg(errp, "Device '%s' not found", backup->target);
         return;
     }
 
     /* AioContext is released in .clean() */
     state->aio_context = blk_get_aio_context(blk);
-    if (state->aio_context != blk_get_aio_context(target)) {
+    if (state->aio_context != bdrv_get_aio_context(target)) {
         state->aio_context = NULL;
         error_setg(errp, "Backup between two IO threads is not implemented");
         return;
