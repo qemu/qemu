@@ -133,6 +133,7 @@ static bool qtest_opened;
  *  < OK
  *
  * ADDR, SIZE, VALUE are all integers parsed with strtoul() with a base of 0.
+ * For 'memset' a zero size is permitted and does nothing.
  *
  * DATA is an arbitrarily long hex number prefixed with '0x'.  If it's smaller
  * than the expected size, the value will be zero filled at the end of the data
@@ -493,10 +494,12 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         len = strtoull(words[2], NULL, 0);
         pattern = strtoull(words[3], NULL, 0);
 
-        data = g_malloc(len);
-        memset(data, pattern, len);
-        cpu_physical_memory_write(addr, data, len);
-        g_free(data);
+        if (len) {
+            data = g_malloc(len);
+            memset(data, pattern, len);
+            cpu_physical_memory_write(addr, data, len);
+            g_free(data);
+        }
 
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
