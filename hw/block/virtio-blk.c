@@ -654,14 +654,19 @@ static void virtio_blk_reset(VirtIODevice *vdev)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
     AioContext *ctx;
+    VirtIOBlockReq *req;
 
-    /*
-     * This should cancel pending requests, but can't do nicely until there
-     * are per-device request lists.
-     */
     ctx = blk_get_aio_context(s->blk);
     aio_context_acquire(ctx);
     blk_drain(s->blk);
+
+    /* We drop queued requests after blk_drain() because blk_drain() itself can
+     * produce them. */
+    while (s->rq) {
+        req = s->rq;
+        s->rq = req->next;
+        virtio_blk_free_request(req);
+    }
 
     if (s->dataplane) {
         virtio_blk_data_plane_stop(s->dataplane);
