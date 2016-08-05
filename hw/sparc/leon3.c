@@ -171,7 +171,11 @@ static void leon3_generic_hw_init(MachineState *machine)
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
 
-    bios_size = get_image_size(filename);
+    if (filename) {
+        bios_size = get_image_size(filename);
+    } else {
+        bios_size = -1;
+    }
 
     if (bios_size > prom_size) {
         fprintf(stderr, "qemu: could not load prom '%s': file too big\n",
