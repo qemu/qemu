@@ -24,8 +24,6 @@ QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), -no-integrated-as)
 QEMU_CFLAGS += -m32 -include $(SRC_PATH)/pc-bios/optionrom/code16gcc.h
 endif
 
-# Drop gcov and glib flags
-CFLAGS := $(filter -O% -g%, $(CFLAGS))
 QEMU_INCLUDES += -I$(SRC_PATH)
 
 Wa = -Wa,
