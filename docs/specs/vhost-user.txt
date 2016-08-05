@@ -37,6 +37,8 @@ consists of 3 header fields and a payload:
  * Flags: 32-bit bit field:
    - Lower 2 bits are the version (currently 0x01)
    - Bit 2 is the reply flag - needs to be sent on each reply from the slave
+   - Bit 3 is the need_reply flag - see VHOST_USER_PROTOCOL_F_REPLY_ACK for
+     details.
  * Size - 32-bit size of the payload
 
 
@@ -125,6 +127,8 @@ the ones that do:
  * VHOST_GET_PROTOCOL_FEATURES
  * VHOST_GET_VRING_BASE
  * VHOST_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+
+[ Also see the section on REPLY_ACK protocol extension. ]
 
 There are several messages that the master sends with file descriptors passed
 in the ancillary data:
@@ -254,6 +258,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_MQ             0
 #define VHOST_USER_PROTOCOL_F_LOG_SHMFD      1
 #define VHOST_USER_PROTOCOL_F_RARP           2
+#define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
 
 Message types
 -------------
@@ -464,3 +469,24 @@ Message types
       is present in VHOST_USER_GET_PROTOCOL_FEATURES.
       The first 6 bytes of the payload contain the mac address of the guest to
       allow the vhost user backend to construct and broadcast the fake RARP.
+
+VHOST_USER_PROTOCOL_F_REPLY_ACK:
+-------------------------------
+The original vhost-user specification only demands replies for certain
+commands. This differs from the vhost protocol implementation where commands
+are sent over an ioctl() call and block until the client has completed.
+
+With this protocol extension negotiated, the sender (QEMU) can set the
+"need_reply" [Bit 3] flag to any command. This indicates that
+the client MUST respond with a Payload VhostUserMsg indicating success or
+failure. The payload should be set to zero on success or non-zero on failure,
+unless the message already has an explicit reply body.
+
+The response payload gives QEMU a deterministic indication of the result
+of the command. Today, QEMU is expected to terminate the main vhost-user
+loop upon receiving such errors. In future, qemu could be taught to be more
+resilient for selective requests.
+
+For the message types that already solicit a reply from the client, the
+presence of VHOST_USER_PROTOCOL_F_REPLY_ACK or need_reply bit being set brings
+no behavioural change. (See the 'Communication' section for details.)
