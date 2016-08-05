@@ -153,7 +153,6 @@ void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
 void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                      Error **errp)
 {
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(OBJECT(hotplug_dev));
     sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
     sPAPRCPUCore *core = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(dev);
@@ -165,8 +164,6 @@ void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     int fdt_offset = 0;
     int index = cc->core_id / smp_threads;
     int smt = kvmppc_smt_threads();
-
-    g_assert(smc->dr_cpu_enabled);
 
     drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, index * smt);
     spapr->cores[index] = OBJECT(dev);
@@ -209,7 +206,7 @@ void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                          Error **errp)
 {
     MachineState *machine = MACHINE(OBJECT(hotplug_dev));
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(OBJECT(hotplug_dev));
+    MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
     sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
     int spapr_max_cores = max_cpus / smp_threads;
     int index;
@@ -218,7 +215,7 @@ void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     char *base_core_type = spapr_get_cpu_core_type(machine->cpu_model);
     const char *type = object_get_typename(OBJECT(dev));
 
-    if (!smc->dr_cpu_enabled) {
+    if (!mc->query_hotpluggable_cpus) {
         error_setg(&local_err, "CPU hotplug not supported for this machine");
         goto out;
     }
