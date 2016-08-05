@@ -280,4 +280,28 @@ static inline void g_hash_table_add(GHashTable *hash_table, gpointer key)
     } while (0)
 #endif
 
+#if !GLIB_CHECK_VERSION(2, 28, 0)
+static inline void g_list_free_full(GList *list, GDestroyNotify free_func)
+{
+    GList *l;
+
+    for (l = list; l; l = l->next) {
+        free_func(l->data);
+    }
+
+    g_list_free(list);
+}
+
+static inline void g_slist_free_full(GSList *list, GDestroyNotify free_func)
+{
+    GSList *l;
+
+    for (l = list; l; l = l->next) {
+        free_func(l->data);
+    }
+
+    g_slist_free(list);
+}
+#endif
+
 #endif
