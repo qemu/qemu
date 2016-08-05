@@ -712,7 +712,7 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
         pci_dev = PCI_DEVICE(dev);
 
         for (i = 0 ; i < PCI_SLOT_MAX; i++) {
-            if (s->pbdev[i]->pdev == pci_dev) {
+            if (s->pbdev[i] && s->pbdev[i]->pdev == pci_dev) {
                 pbdev = s->pbdev[i];
                 break;
             }
