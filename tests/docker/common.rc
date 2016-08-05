@@ -24,6 +24,7 @@ requires()
 build_qemu()
 {
     $QEMU_SRC/configure \
+        --enable-werror \
         ${TARGET_LIST:+"--target-list=${TARGET_LIST}"} \
         --prefix="$PWD/install" \
         $EXTRA_CONFIGURE_OPTS \
