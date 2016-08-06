@@ -322,7 +322,7 @@ static void gen_debug_exception(DisasContext *ctx)
      */
     if ((ctx->exception != POWERPC_EXCP_BRANCH) &&
         (ctx->exception != POWERPC_EXCP_SYNC)) {
-        gen_update_nip(ctx, ctx->nip - 4);
+        gen_update_nip(ctx, ctx->nip);
     }
     t0 = tcg_const_i32(EXCP_DEBUG);
     gen_helper_raise_exception(cpu_env, t0);
