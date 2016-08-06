@@ -115,8 +115,8 @@ struct MTPControl {
 struct MTPData {
     uint16_t     code;
     uint32_t     trans;
-    uint32_t     offset;
-    uint32_t     length;
+    uint64_t     offset;
+    uint64_t     length;
     uint32_t     alloc;
     uint8_t      *data;
     bool         first;
@@ -883,7 +883,12 @@ static MTPData *usb_mtp_get_object_info(MTPState *s, MTPControl *c,
     usb_mtp_add_u32(d, QEMU_STORAGE_ID);
     usb_mtp_add_u16(d, o->format);
     usb_mtp_add_u16(d, 0);
-    usb_mtp_add_u32(d, o->stat.st_size);
+
+    if (o->stat.st_size > 0xFFFFFFFF) {
+        usb_mtp_add_u32(d, 0xFFFFFFFF);
+    } else {
+        usb_mtp_add_u32(d, o->stat.st_size);
+    }
 
     usb_mtp_add_u16(d, 0);
     usb_mtp_add_u32(d, 0);
@@ -1193,10 +1198,15 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
         }
         if (s->data_in !=  NULL) {
             MTPData *d = s->data_in;
-            int dlen = d->length - d->offset;
+            uint64_t dlen = d->length - d->offset;
             if (d->first) {
                 trace_usb_mtp_data_in(s->dev.addr, d->trans, d->length);
-                container.length = cpu_to_le32(d->length + sizeof(container));
+                if (d->length + sizeof(container) > 0xFFFFFFFF) {
+                    container.length = cpu_to_le32(0xFFFFFFFF);
+                } else {
+                    container.length =
+                        cpu_to_le32(d->length + sizeof(container));
+                }
                 container.type   = cpu_to_le16(TYPE_DATA);
                 container.code   = cpu_to_le16(d->code);
                 container.trans  = cpu_to_le32(d->trans);
