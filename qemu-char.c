@@ -786,6 +786,13 @@ static GSource *mux_chr_add_watch(CharDriverState *s, GIOCondition cond)
     return d->drv->chr_add_watch(d->drv, cond);
 }
 
+static void mux_chr_close(struct CharDriverState *chr)
+{
+    MuxDriver *d = chr->opaque;
+
+    g_free(d);
+}
+
 static CharDriverState *qemu_chr_open_mux(const char *id,
                                           ChardevBackend *backend,
                                           ChardevReturn *ret, Error **errp)
@@ -810,6 +817,7 @@ static CharDriverState *qemu_chr_open_mux(const char *id,
     chr->opaque = d;
     d->drv = drv;
     d->focus = -1;
+    chr->chr_close = mux_chr_close;
     chr->chr_write = mux_chr_write;
     chr->chr_update_read_handler = mux_chr_update_read_handler;
     chr->chr_accept_input = mux_chr_accept_input;
@@ -2763,6 +2771,7 @@ static int tcp_set_msgfds(CharDriverState *chr, int *fds, int num)
     /* clear old pending fd array */
     g_free(s->write_msgfds);
     s->write_msgfds = NULL;
+    s->write_msgfds_num = 0;
 
     if (!s->connected ||
         !qio_channel_has_feature(s->ioc,
@@ -2843,6 +2852,35 @@ static GSource *tcp_chr_add_watch(CharDriverState *chr, GIOCondition cond)
     return qio_channel_create_watch(s->ioc, cond);
 }
 
+static void tcp_chr_free_connection(CharDriverState *chr)
+{
+    TCPCharDriver *s = chr->opaque;
+    int i;
+
+    if (!s->connected) {
+        return;
+    }
+
+    if (s->read_msgfds_num) {
+        for (i = 0; i < s->read_msgfds_num; i++) {
+            close(s->read_msgfds[i]);
+        }
+        g_free(s->read_msgfds);
+        s->read_msgfds = NULL;
+        s->read_msgfds_num = 0;
+    }
+
+    tcp_set_msgfds(chr, NULL, 0);
+    remove_fd_in_watch(chr);
+    object_unref(OBJECT(s->sioc));
+    s->sioc = NULL;
+    object_unref(OBJECT(s->ioc));
+    s->ioc = NULL;
+    g_free(chr->filename);
+    chr->filename = NULL;
+    s->connected = 0;
+}
+
 static void tcp_chr_disconnect(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
@@ -2851,18 +2889,12 @@ static void tcp_chr_disconnect(CharDriverState *chr)
         return;
     }
 
-    s->connected = 0;
+    tcp_chr_free_connection(chr);
+
     if (s->listen_ioc) {
         s->listen_tag = qio_channel_add_watch(
             QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
     }
-    tcp_set_msgfds(chr, NULL, 0);
-    remove_fd_in_watch(chr);
-    object_unref(OBJECT(s->sioc));
-    s->sioc = NULL;
-    object_unref(OBJECT(s->ioc));
-    s->ioc = NULL;
-    g_free(chr->filename);
     chr->filename = SocketAddress_to_str("disconnected:", s->addr,
                                          s->is_listen, s->is_telnet);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
@@ -3177,17 +3209,14 @@ int qemu_chr_wait_connected(CharDriverState *chr, Error **errp)
 static void tcp_chr_close(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
-    int i;
+
+    tcp_chr_free_connection(chr);
 
     if (s->reconnect_timer) {
         g_source_remove(s->reconnect_timer);
         s->reconnect_timer = 0;
     }
     qapi_free_SocketAddress(s->addr);
-    remove_fd_in_watch(chr);
-    if (s->ioc) {
-        object_unref(OBJECT(s->ioc));
-    }
     if (s->listen_tag) {
         g_source_remove(s->listen_tag);
         s->listen_tag = 0;
@@ -3195,17 +3224,8 @@ static void tcp_chr_close(CharDriverState *chr)
     if (s->listen_ioc) {
         object_unref(OBJECT(s->listen_ioc));
     }
-    if (s->read_msgfds_num) {
-        for (i = 0; i < s->read_msgfds_num; i++) {
-            close(s->read_msgfds[i]);
-        }
-        g_free(s->read_msgfds);
-    }
     if (s->tls_creds) {
         object_unref(OBJECT(s->tls_creds));
-    }
-    if (s->write_msgfds_num) {
-        g_free(s->write_msgfds);
     }
     g_free(s);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
