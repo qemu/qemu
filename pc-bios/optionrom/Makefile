@@ -11,6 +11,7 @@ $(call set-vpath, $(SRC_PATH)/pc-bios/optionrom)
 
 # Drop -fstack-protector and the like
 QEMU_CFLAGS := $(filter -W%, $(QEMU_CFLAGS)) $(CFLAGS_NOPIE) -ffreestanding
+QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), -fno-stack-protector)
 QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), -m16)
 ifeq ($(filter -m16, $(QEMU_CFLAGS)),)
 # Attempt to work around compilers that lack -m16 (GCC <= 4.8, clang <= ??)
