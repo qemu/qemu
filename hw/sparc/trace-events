@@ -1,4 +1,4 @@
-# See docs/trace-events.txt for syntax documentation.
+# See docs/tracing.txt for syntax documentation.
 
 # hw/sparc/sun4m.c
 sun4m_cpu_interrupt(unsigned int level) "Set CPU IRQ %d"

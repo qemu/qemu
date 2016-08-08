@@ -1,4 +1,4 @@
-# See docs/trace-events.txt for syntax documentation.
+# See docs/tracing.txt for syntax documentation.
 
 # audio/alsaaudio.c
 alsa_revents(int revents) "revents = %d"

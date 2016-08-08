@@ -1,4 +1,4 @@
-# See docs/trace-events.txt for syntax documentation.
+# See docs/tracing.txt for syntax documentation.
 
 # hw/ppc/spapr_pci.c
 spapr_pci_msi(const char *msg, uint32_t ca) "%s (cfg=%x)"
