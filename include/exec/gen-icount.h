@@ -59,7 +59,7 @@ static void gen_tb_end(TranslationBlock *tb, int num_insns)
     }
 
     /* Terminate the linked list.  */
-    tcg_ctx.gen_op_buf[tcg_ctx.gen_last_op_idx].next = -1;
+    tcg_ctx.gen_op_buf[tcg_ctx.gen_op_buf[0].prev].next = 0;
 }
 
 static inline void gen_io_start(void)

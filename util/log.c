@@ -32,15 +32,22 @@ int qemu_loglevel;
 static int log_append = 0;
 static GArray *debug_regions;
 
-void qemu_log(const char *fmt, ...)
+/* Return the number of characters emitted.  */
+int qemu_log(const char *fmt, ...)
 {
-    va_list ap;
-
-    va_start(ap, fmt);
+    int ret = 0;
     if (qemu_logfile) {
-        vfprintf(qemu_logfile, fmt, ap);
+        va_list ap;
+        va_start(ap, fmt);
+        ret = vfprintf(qemu_logfile, fmt, ap);
+        va_end(ap);
+
+        /* Don't pass back error results.  */
+        if (ret < 0) {
+            ret = 0;
+        }
     }
-    va_end(ap);
+    return ret;
 }
 
 static bool log_uses_own_buffers;
@@ -240,8 +247,9 @@ const QEMULogItem qemu_log_items[] = {
     { CPU_LOG_TB_OP, "op",
       "show micro ops for each compiled TB" },
     { CPU_LOG_TB_OP_OPT, "op_opt",
-      "show micro ops (x86 only: before eflags optimization) and\n"
-      "after liveness analysis" },
+      "show micro ops after optimization" },
+    { CPU_LOG_TB_OP_IND, "op_ind",
+      "show micro ops before indirect lowering" },
     { CPU_LOG_INT, "int",
       "show interrupts/exceptions in short format" },
     { CPU_LOG_EXEC, "exec",
