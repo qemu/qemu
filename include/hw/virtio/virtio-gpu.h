@@ -19,6 +19,7 @@
 #include "ui/console.h"
 #include "hw/virtio/virtio.h"
 #include "hw/pci/pci.h"
+#include "qemu/log.h"
 
 #include "standard-headers/linux/virtio_gpu.h"
 #define TYPE_VIRTIO_GPU "virtio-gpu-device"
