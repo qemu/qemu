@@ -385,7 +385,9 @@ static void spapr_tce_reset(DeviceState *dev)
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
     size_t table_size = tcet->nb_table * sizeof(uint64_t);
 
-    memset(tcet->table, 0, table_size);
+    if (tcet->nb_table) {
+        memset(tcet->table, 0, table_size);
+    }
 }
 
 static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
