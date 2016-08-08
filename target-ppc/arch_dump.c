@@ -220,6 +220,11 @@ int cpu_get_dump_info(ArchDumpInfo *info,
     } else {
         info->d_endian = ELFDATA2LSB;
     }
+    /* 64KB is the max page size for pseries kernel */
+    if (strncmp(object_get_typename(qdev_get_machine()),
+                "pseries-", 8) == 0) {
+        info->page_size = (1U << 16);
+    }
 
     return 0;
 }
