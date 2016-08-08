@@ -231,7 +231,7 @@ void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 
     if (cc->core_id % smp_threads) {
-        error_setg(&local_err, "invalid core id %d\n", cc->core_id);
+        error_setg(&local_err, "invalid core id %d", cc->core_id);
         goto out;
     }
 

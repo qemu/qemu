@@ -3490,7 +3490,7 @@ typedef struct BenchData {
 static void bench_undrained_flush_cb(void *opaque, int ret)
 {
     if (ret < 0) {
-        error_report("Failed flush request: %s\n", strerror(-ret));
+        error_report("Failed flush request: %s", strerror(-ret));
         exit(EXIT_FAILURE);
     }
 }
@@ -3501,7 +3501,7 @@ static void bench_cb(void *opaque, int ret)
     BlockAIOCB *acb;
 
     if (ret < 0) {
-        error_report("Failed request: %s\n", strerror(-ret));
+        error_report("Failed request: %s", strerror(-ret));
         exit(EXIT_FAILURE);
     }
 

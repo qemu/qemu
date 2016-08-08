@@ -2143,7 +2143,7 @@ void kvm_device_access(int fd, int group, uint64_t attr,
     if (err < 0) {
         error_report("KVM_%s_DEVICE_ATTR failed: %s",
                      write ? "SET" : "GET", strerror(-err));
-        error_printf("Group %d attr 0x%016" PRIx64, group, attr);
+        error_printf("Group %d attr 0x%016" PRIx64 "\n", group, attr);
         abort();
     }
 }

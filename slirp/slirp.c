@@ -1197,8 +1197,8 @@ static void slirp_socket_save(QEMUFile *f, struct socket *so)
         qemu_put_be16(f, so->so_fport);
         break;
     default:
-        error_report(
-                "so_ffamily unknown, unable to save so_faddr and so_fport\n");
+        error_report("so_ffamily unknown, unable to save so_faddr and"
+                     " so_fport");
     }
     qemu_put_be16(f, so->so_lfamily);
     switch (so->so_lfamily) {
@@ -1207,8 +1207,8 @@ static void slirp_socket_save(QEMUFile *f, struct socket *so)
         qemu_put_be16(f, so->so_lport);
         break;
     default:
-        error_report(
-                "so_ffamily unknown, unable to save so_laddr and so_lport\n");
+        error_report("so_ffamily unknown, unable to save so_laddr and"
+                     " so_lport");
     }
     qemu_put_byte(f, so->so_iptos);
     qemu_put_byte(f, so->so_emu);
