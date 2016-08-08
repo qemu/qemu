@@ -419,6 +419,10 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
             mirror_wait_for_io(s);
         }
 
+        if (s->ret < 0) {
+            return 0;
+        }
+
         mirror_clip_sectors(s, sector_num, &io_sectors);
         switch (mirror_method) {
         case MIRROR_METHOD_COPY:
