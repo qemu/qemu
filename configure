@@ -4699,7 +4699,16 @@ roms=
 if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
         "$targetos" != "Darwin" -a "$targetos" != "SunOS" -a \
         "$softmmu" = yes ; then
-  roms="optionrom"
+    # Different host OS linkers have different ideas about the name of the ELF
+    # emulation. Linux and OpenBSD use 'elf_i386'; FreeBSD uses the _fbsd
+    # variant; and Windows uses i386pe.
+    for emu in elf_i386 elf_i386_fbsd i386pe; do
+        if "$ld" -verbose 2>&1 | grep -q "^[[:space:]]*$emu[[:space:]]*$"; then
+            ld_i386_emulation="$emu"
+            roms="optionrom"
+            break
+        fi
+    done
 fi
 if test "$cpu" = "ppc64" -a "$targetos" != "Darwin" ; then
   roms="$roms spapr-rtas"
@@ -5539,6 +5548,7 @@ fi
 echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
 echo "LDFLAGS_NOPIE=$LDFLAGS_NOPIE" >> $config_host_mak
 echo "LD_REL_FLAGS=$LD_REL_FLAGS" >> $config_host_mak
+echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
 echo "LIBS+=$LIBS" >> $config_host_mak
 echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak
 echo "PTHREAD_LIB=$PTHREAD_LIB" >> $config_host_mak
