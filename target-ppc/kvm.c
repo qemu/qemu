@@ -2409,8 +2409,11 @@ static int kvm_ppc_register_host_cpu_type(void)
     type_info.class_init = NULL;
     type_register(&type_info);
     g_free((void *)type_info.name);
-    type_info.instance_size = 0;
-    type_info.instance_init = NULL;
+
+    /* Register generic spapr CPU family class for current host CPU type */
+    type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, dc->desc);
+    type_register(&type_info);
+    g_free((void *)type_info.name);
 #endif
 
     return 0;
