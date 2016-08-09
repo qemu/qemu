@@ -2394,6 +2394,13 @@ static int kvm_ppc_register_host_cpu_type(void)
     type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
     type_register(&type_info);
 
+    /* Register generic family CPU class for a family */
+    pvr_pcc = ppc_cpu_get_family_class(pvr_pcc);
+    dc = DEVICE_CLASS(pvr_pcc);
+    type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
+    type_info.name = g_strdup_printf("%s-"TYPE_POWERPC_CPU, dc->desc);
+    type_register(&type_info);
+
 #if defined(TARGET_PPC64)
     type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, "host");
     type_info.parent = TYPE_SPAPR_CPU_CORE,
@@ -2405,13 +2412,6 @@ static int kvm_ppc_register_host_cpu_type(void)
     type_info.instance_size = 0;
     type_info.instance_init = NULL;
 #endif
-
-    /* Register generic family CPU class for a family */
-    pvr_pcc = ppc_cpu_get_family_class(pvr_pcc);
-    dc = DEVICE_CLASS(pvr_pcc);
-    type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
-    type_info.name = g_strdup_printf("%s-"TYPE_POWERPC_CPU, dc->desc);
-    type_register(&type_info);
 
     return 0;
 }
