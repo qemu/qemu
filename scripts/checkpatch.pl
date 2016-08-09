@@ -22,7 +22,7 @@ my $tst_only;
 my $emacs = 0;
 my $terse = 0;
 my $file = 0;
-my $check = 0;
+my $no_warnings = 0;
 my $summary = 1;
 my $mailback = 0;
 my $summary_file = 0;
@@ -45,7 +45,7 @@ Options:
   --emacs                    emacs compile window format
   --terse                    one line per report
   -f, --file                 treat FILE as regular source file
-  --subjective, --strict     enable more subjective tests
+  --strict                   fail if only warnings are found
   --root=PATH                PATH to the kernel tree root
   --no-summary               suppress the per-file summary
   --mailback                 only produce a report in case of warnings/errors
@@ -71,8 +71,7 @@ GetOptions(
 	'emacs!'	=> \$emacs,
 	'terse!'	=> \$terse,
 	'f|file!'	=> \$file,
-	'subjective!'	=> \$check,
-	'strict!'	=> \$check,
+	'strict!'	=> \$no_warnings,
 	'root=s'	=> \$root,
 	'summary!'	=> \$summary,
 	'mailback!'	=> \$mailback,
@@ -1070,12 +1069,6 @@ sub WARN {
 	if (report("WARNING: $_[0]\n")) {
 		our $clean = 0;
 		our $cnt_warn++;
-	}
-}
-sub CHK {
-	if ($check && report("CHECK: $_[0]\n")) {
-		our $clean = 0;
-		our $cnt_chk++;
 	}
 }
 
@@ -2599,7 +2592,6 @@ sub process {
 	if ($summary && !($clean == 1 && $quiet == 1)) {
 		print "$filename " if ($summary_file);
 		print "total: $cnt_error errors, $cnt_warn warnings, " .
-			(($check)? "$cnt_chk checks, " : "") .
 			"$cnt_lines lines checked\n";
 		print "\n" if ($quiet == 0);
 	}
@@ -2622,5 +2614,5 @@ sub process {
 		print "CHECKPATCH in MAINTAINERS.\n";
 	}
 
-	return $clean;
+	return ($no_warnings ? $clean : $cnt_error == 0);
 }
