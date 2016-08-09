@@ -158,6 +158,10 @@ painful. These are:
  * you may assume that right shift of a signed integer duplicates
    the sign bit (ie it is an arithmetic shift, not a logical shift)
 
+In addition, QEMU assumes that the compiler does not use the latitude
+given in C99 and C11 to treat aspects of signed '<<' as undefined, as
+documented in the GNU Compiler Collection manual starting at version 4.0.
+
 7. Error handling and reporting
 
 7.1 Reporting errors to the human user
