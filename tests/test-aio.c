@@ -452,7 +452,7 @@ static void test_timer_schedule(void)
 {
     TimerTestData data = { .n = 0, .ctx = ctx, .ns = SCALE_MS * 750LL,
                            .max = 2,
-                           .clock_type = QEMU_CLOCK_VIRTUAL };
+                           .clock_type = QEMU_CLOCK_REALTIME };
     EventNotifier e;
 
     /* aio_poll will not block to wait for timers to complete unless it has
@@ -782,7 +782,7 @@ static void test_source_timer_schedule(void)
 {
     TimerTestData data = { .n = 0, .ctx = ctx, .ns = SCALE_MS * 750LL,
                            .max = 2,
-                           .clock_type = QEMU_CLOCK_VIRTUAL };
+                           .clock_type = QEMU_CLOCK_REALTIME };
     EventNotifier e;
     int64_t expiry;
 

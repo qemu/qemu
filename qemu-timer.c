@@ -129,7 +129,7 @@ static void qemu_clock_init(QEMUClockType type)
     assert(main_loop_tlg.tl[type] == NULL);
 
     clock->type = type;
-    clock->enabled = true;
+    clock->enabled = (type == QEMU_CLOCK_VIRTUAL ? false : true);
     clock->last = INT64_MIN;
     QLIST_INIT(&clock->timerlists);
     notifier_list_init(&clock->reset_notifiers);
