@@ -670,8 +670,8 @@ static void dec_barrel(DisasContext *dc)
         return;
     }
 
-    s = dc->imm & (1 << 10);
-    t = dc->imm & (1 << 9);
+    s = extract32(dc->imm, 10, 1);
+    t = extract32(dc->imm, 9, 1);
 
     LOG_DIS("bs%s%s r%d r%d r%d\n",
             s ? "l" : "r", t ? "a" : "l", dc->rd, dc->ra, dc->rb);
