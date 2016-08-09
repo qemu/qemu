@@ -1815,6 +1815,11 @@ static void ppc_spapr_init(MachineState *machine)
     if (mc->query_hotpluggable_cpus) {
         char *type = spapr_get_cpu_core_type(machine->cpu_model);
 
+        if (!object_class_by_name(type)) {
+            error_report("Unable to find sPAPR CPU Core definition");
+            exit(1);
+        }
+
         spapr->cores = g_new0(Object *, spapr_max_cores);
         for (i = 0; i < spapr_max_cores; i++) {
             int core_id = i * smp_threads;
@@ -1826,15 +1831,7 @@ static void ppc_spapr_init(MachineState *machine)
             qemu_register_reset(spapr_drc_reset, drc);
 
             if (i < spapr_cores) {
-                char *type = spapr_get_cpu_core_type(machine->cpu_model);
-                Object *core;
-
-                if (!object_class_by_name(type)) {
-                    error_report("Unable to find sPAPR CPU Core definition");
-                    exit(1);
-                }
-
-                core  = object_new(type);
+                Object *core  = object_new(type);
                 object_property_set_int(core, smp_threads, "nr-threads",
                                         &error_fatal);
                 object_property_set_int(core, core_id, CPU_CORE_PROP_CORE_ID,
