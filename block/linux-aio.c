@@ -221,7 +221,13 @@ static void ioq_submit(LinuxAioState *s)
             break;
         }
         if (ret < 0) {
-            abort();
+            /* Fail the first request, retry the rest */
+            aiocb = QSIMPLEQ_FIRST(&s->io_q.pending);
+            QSIMPLEQ_REMOVE_HEAD(&s->io_q.pending, next);
+            s->io_q.in_queue--;
+            aiocb->ret = ret;
+            qemu_laio_process_completion(aiocb);
+            continue;
         }
 
         s->io_q.in_flight += ret;
