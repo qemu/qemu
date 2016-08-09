@@ -186,7 +186,7 @@ static QemuOptsList runtime_tcp_opts = {
         },
         {
             .name = GLUSTER_OPT_PORT,
-            .type = QEMU_OPT_NUMBER,
+            .type = QEMU_OPT_STRING,
             .help = "port number on which glusterd is listening (default 24007)",
         },
         {
