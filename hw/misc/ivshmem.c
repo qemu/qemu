@@ -628,7 +628,6 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     s->msg_buffered_bytes = 0;
 
     fd = qemu_chr_fe_get_msgfd(s->server_chr);
-    IVSHMEM_DPRINTF("posn is %" PRId64 ", fd is %d\n", msg, fd);
 
     process_msg(s, msg, fd, &err);
     if (err) {
