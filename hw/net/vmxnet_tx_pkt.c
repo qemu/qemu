@@ -178,6 +178,11 @@ static bool vmxnet_tx_pkt_parse_headers(struct VmxnetTxPkt *pkt)
         }
 
         l3_hdr->iov_len = IP_HDR_GET_LEN(l3_hdr->iov_base);
+        if(l3_hdr->iov_len < sizeof(struct ip_header))
+        {
+            l3_hdr->iov_len = 0;
+            return false;
+        }
         pkt->l4proto = ((struct ip_header *) l3_hdr->iov_base)->ip_p;
 
         /* copy optional IPv4 header data */
