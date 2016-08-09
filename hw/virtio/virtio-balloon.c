@@ -34,13 +34,11 @@
 
 static void balloon_page(void *addr, int deflate)
 {
-#if defined(__linux__)
     if (!qemu_balloon_is_inhibited() && (!kvm_enabled() ||
                                          kvm_has_sync_mmu())) {
         qemu_madvise(addr, BALLOON_PAGE_SIZE,
                 deflate ? QEMU_MADV_WILLNEED : QEMU_MADV_DONTNEED);
     }
-#endif
 }
 
 static const char *balloon_stat_names[] = {
