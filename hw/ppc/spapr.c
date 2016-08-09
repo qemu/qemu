@@ -1815,7 +1815,7 @@ static void ppc_spapr_init(MachineState *machine)
     if (mc->query_hotpluggable_cpus) {
         char *type = spapr_get_cpu_core_type(machine->cpu_model);
 
-        if (!object_class_by_name(type)) {
+        if (type == NULL) {
             error_report("Unable to find sPAPR CPU Core definition");
             exit(1);
         }
