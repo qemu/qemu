@@ -383,6 +383,7 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
     if (ret < 0) {
         if (ide_handle_rw_error(s, -ret, ide_dma_cmd_to_retry(s->dma_cmd))) {
             if (s->bus->error_status) {
+                s->bus->dma->aiocb = NULL;
                 return;
             }
             goto eot;
