@@ -197,6 +197,10 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     }
 
     D(qemu_log("%s %zd rxbase=%x\n", __func__, size, rxbase));
+    if (size > (R_MAX - R_RX_BUF0 - rxbase) * 4) {
+        D(qemu_log("ethlite packet is too big, size=%x\n", size));
+        return -1;
+    }
     memcpy(&s->regs[rxbase + R_RX_BUF0], buf, size);
 
     s->regs[rxbase + R_RX_CTRL0] |= CTRL_S;
