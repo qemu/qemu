@@ -42,8 +42,11 @@ int qemu_spice_set_pw_expire(time_t expires);
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
                             const char *subject);
 
-#define SPICE_NEEDS_SET_MM_TIME                                       \
-  (!defined(SPICE_SERVER_VERSION) || (SPICE_SERVER_VERSION < 0xc06))
+#if !defined(SPICE_SERVER_VERSION) || (SPICE_SERVER_VERSION < 0xc06)
+#define SPICE_NEEDS_SET_MM_TIME 1
+#else
+#define SPICE_NEEDS_SET_MM_TIME 0
+#endif
 
 #if SPICE_SERVER_VERSION >= 0x000c02
 void qemu_spice_register_ports(void);
