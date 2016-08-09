@@ -1319,6 +1319,9 @@ sub process {
 # ignore non-hunk lines and lines being removed
 		next if (!$hunk_line || $line =~ /^-/);
 
+# ignore files that are being periodically imported from Linux
+		next if ($realfile =~ /^(linux-headers|include\/standard-headers)\//);
+
 #trailing whitespace
 		if ($line =~ /^\+.*\015/) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
