@@ -1334,7 +1334,7 @@ sub process {
 		}
 
 # check we are in a valid source file if not then ignore this hunk
-		next if ($realfile !~ /\.(h|c|cpp|s|S|pl|sh)$/);
+		next if ($realfile !~ /\.(h|c|cpp|s|S|pl|py|sh)$/);
 
 #80 column limit
 		if ($line =~ /^\+/ &&
@@ -1354,10 +1354,11 @@ sub process {
 			WARN("adding a line without newline at end of file\n" . $herecurr);
 		}
 
-# check we are in a valid source file C or perl if not then ignore this hunk
-		next if ($realfile !~ /\.(h|c|cpp|pl)$/);
+# tabs are only allowed in assembly source code, and in
+# some scripts we imported from other projects.
+		next if ($realfile =~ /\.(s|S)$/);
+		next if ($realfile =~ /(checkpatch|get_maintainer|texi2pod)\.pl$/);
 
-# in QEMU, no tabs are allowed
 		if ($rawline =~ /^\+.*\t/) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
 			ERROR("code indent should never use tabs\n" . $herevet);
