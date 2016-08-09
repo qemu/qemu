@@ -681,13 +681,14 @@ static void dec_barrel(DisasContext *dc)
     tcg_gen_mov_tl(t0, *(dec_alu_op_b(dc)));
     tcg_gen_andi_tl(t0, t0, 31);
 
-    if (s)
+    if (s) {
         tcg_gen_shl_tl(cpu_R[dc->rd], cpu_R[dc->ra], t0);
-    else {
-        if (t)
+    } else {
+        if (t) {
             tcg_gen_sar_tl(cpu_R[dc->rd], cpu_R[dc->ra], t0);
-        else
+        } else {
             tcg_gen_shr_tl(cpu_R[dc->rd], cpu_R[dc->ra], t0);
+        }
     }
 }
 
