@@ -1,0 +1,8 @@
+FROM centos:6
+RUN yum install -y \
+    tar git make gcc g++ \
+    zlib-devel SDL-devel pixman-devel \
+    epel-release
+RUN yum install -y libfdt-devel ccache
+RUN yum downgrade -y http://vault.centos.org/6.0/os/x86_64/Packages/glib2-2.22.5-5.el6.x86_64.rpm
+RUN yum install -y http://vault.centos.org/6.0/os/x86_64/Packages/glib2-devel-2.22.5-5.el6.x86_64.rpm
