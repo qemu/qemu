@@ -198,7 +198,7 @@ enum {
 typedef struct float_status {
     signed char float_detect_tininess;
     signed char float_rounding_mode;
-    signed char float_exception_flags;
+    uint8_t     float_exception_flags;
     signed char floatx80_rounding_precision;
     /* should denormalised results go to zero and set the inexact flag? */
     flag flush_to_zero;
@@ -274,7 +274,7 @@ static inline flag get_default_nan_mode(float_status *status)
 | Routine to raise any or all of the software IEC/IEEE floating-point
 | exception flags.
 *----------------------------------------------------------------------------*/
-void float_raise(int8_t flags, float_status *status);
+void float_raise(uint8_t flags, float_status *status);
 
 /*----------------------------------------------------------------------------
 | If `a' is denormal and we are in flush-to-zero mode then set the
