@@ -1354,6 +1354,11 @@ sub process {
 			WARN("adding a line without newline at end of file\n" . $herecurr);
 		}
 
+# check for RCS/CVS revision markers
+		if ($rawline =~ /^\+.*\$(Revision|Log|Id)(?:\$|\b)/) {
+			WARN("CVS style keyword markers, these will _not_ be updated\n". $herecurr);
+		}
+
 # tabs are only allowed in assembly source code, and in
 # some scripts we imported from other projects.
 		next if ($realfile =~ /\.(s|S)$/);
@@ -1367,11 +1372,6 @@ sub process {
 
 # check we are in a valid C source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|cpp)$/);
-
-# check for RCS/CVS revision markers
-		if ($rawline =~ /^\+.*\$(Revision|Log|Id)(?:\$|)/) {
-			WARN("CVS style keyword markers, these will _not_ be updated\n". $herecurr);
-		}
 
 # Check for potential 'bare' types
 		my ($stat, $cond, $line_nr_next, $remain_next, $off_next,
