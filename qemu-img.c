@@ -173,7 +173,8 @@ static void QEMU_NORETURN help(void)
            "(default: 512)\n"
            "  'count=N' copy only N input blocks\n"
            "  'if=FILE' read from FILE\n"
-           "  'of=FILE' write to FILE\n";
+           "  'of=FILE' write to FILE\n"
+           "  'skip=N' skip N bs-sized blocks at the start of input\n";
 
     printf("%s\nSupported formats:", help_msg);
     bdrv_iterate_format(format_print, NULL);
@@ -3807,6 +3808,7 @@ out:
 #define C_COUNT   02
 #define C_IF      04
 #define C_OF      010
+#define C_SKIP    020
 
 struct DdInfo {
     unsigned int flags;
@@ -3817,6 +3819,7 @@ struct DdIo {
     int bsz;    /* Block size */
     char *filename;
     uint8_t *buf;
+    int64_t offset;
 };
 
 struct DdOpts {
@@ -3877,6 +3880,22 @@ static int img_dd_of(const char *arg,
     return 0;
 }
 
+static int img_dd_skip(const char *arg,
+                       struct DdIo *in, struct DdIo *out,
+                       struct DdInfo *dd)
+{
+    char *end;
+
+    in->offset = qemu_strtosz_suffix(arg, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
+
+    if (in->offset < 0 || *end) {
+        error_report("invalid number: '%s'", arg);
+        return 1;
+    }
+
+    return 0;
+}
+
 static int img_dd(int argc, char **argv)
 {
     int ret = 0;
@@ -3900,12 +3919,14 @@ static int img_dd(int argc, char **argv)
     struct DdIo in = {
         .bsz = 512, /* Block size is by default 512 bytes */
         .filename = NULL,
-        .buf = NULL
+        .buf = NULL,
+        .offset = 0
     };
     struct DdIo out = {
         .bsz = 512,
         .filename = NULL,
-        .buf = NULL
+        .buf = NULL,
+        .offset = 0
     };
 
     const struct DdOpts options[] = {
@@ -3913,6 +3934,7 @@ static int img_dd(int argc, char **argv)
         { "count", img_dd_count, C_COUNT },
         { "if", img_dd_if, C_IF },
         { "of", img_dd_of, C_OF },
+        { "skip", img_dd_skip, C_SKIP },
         { NULL, NULL, 0 }
     };
     const struct option long_options[] = {
@@ -4032,7 +4054,14 @@ static int img_dd(int argc, char **argv)
         size = dd.count * in.bsz;
     }
 
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size, &error_abort);
+    /* Overflow means the specified offset is beyond input image's size */
+    if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
+                              size < in.bsz * in.offset)) {
+        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, 0, &error_abort);
+    } else {
+        qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
+                            size - in.bsz * in.offset, &error_abort);
+    }
 
     ret = bdrv_create(drv, out.filename, opts, &local_err);
     if (ret < 0) {
@@ -4051,9 +4080,20 @@ static int img_dd(int argc, char **argv)
         goto out;
     }
 
+    if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
+                              size < in.offset * in.bsz)) {
+        /* We give a warning if the skip option is bigger than the input
+         * size and create an empty output disk image (i.e. like dd(1)).
+         */
+        error_report("%s: cannot skip to specified offset", in.filename);
+        in_pos = size;
+    } else {
+        in_pos = in.offset * in.bsz;
+    }
+
     in.buf = g_new(uint8_t, in.bsz);
 
-    for (in_pos = 0, out_pos = 0; in_pos < size; block_count++) {
+    for (out_pos = 0; in_pos < size; block_count++) {
         int in_ret, out_ret;
 
         if (in_pos + in.bsz > size) {

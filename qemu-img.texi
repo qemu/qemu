@@ -151,6 +151,8 @@ sets the number of input blocks to copy
 sets the input file
 @item of=@var{output}
 sets the output file
+@item skip=@var{blocks}
+sets the number of input blocks to skip
 @end table
 
 Command description:
@@ -324,7 +326,7 @@ skipped. This is useful for formats such as @code{rbd} if the target
 volume has already been created with site specific options that cannot
 be supplied through qemu-img.
 
-@item dd [-f @var{fmt}] [-O @var{output_fmt}] [bs=@var{block_size}] [count=@var{blocks}] if=@var{input} of=@var{output}
+@item dd [-f @var{fmt}] [-O @var{output_fmt}] [bs=@var{block_size}] [count=@var{blocks}] [skip=@var{blocks}] if=@var{input} of=@var{output}
 
 Dd copies from @var{input} file to @var{output} file converting it from
 @var{fmt} format to @var{output_fmt} format.
