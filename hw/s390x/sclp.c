@@ -26,7 +26,12 @@
 
 static inline SCLPDevice *get_sclp_device(void)
 {
-    return SCLP(object_resolve_path_type("", TYPE_SCLP, NULL));
+    static SCLPDevice *sclp;
+
+    if (!sclp) {
+        sclp = SCLP(object_resolve_path_type("", TYPE_SCLP, NULL));
+    }
+    return sclp;
 }
 
 /* Provide information about the configuration, CPUs and storage */
