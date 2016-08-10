@@ -718,11 +718,7 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
                 break;
             }
         }
-
-        if (!pbdev) {
-            object_unparent(OBJECT(pci_dev));
-            return;
-        }
+        assert(pbdev != NULL);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
         pbdev = S390_PCI_DEVICE(dev);
         pci_dev = pbdev->pdev;
