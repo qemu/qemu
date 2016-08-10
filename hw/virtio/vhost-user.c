@@ -31,6 +31,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_MQ = 0,
     VHOST_USER_PROTOCOL_F_LOG_SHMFD = 1,
     VHOST_USER_PROTOCOL_F_RARP = 2,
+    VHOST_USER_PROTOCOL_F_REPLY_ACK = 3,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -84,6 +85,7 @@ typedef struct VhostUserMsg {
 
 #define VHOST_USER_VERSION_MASK     (0x3)
 #define VHOST_USER_REPLY_MASK       (0x1<<2)
+#define VHOST_USER_NEED_REPLY_MASK  (0x1 << 3)
     uint32_t flags;
     uint32_t size; /* the following payload size */
     union {
@@ -156,6 +158,25 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 
 fail:
     return -1;
+}
+
+static int process_message_reply(struct vhost_dev *dev,
+                                 VhostUserRequest request)
+{
+    VhostUserMsg msg;
+
+    if (vhost_user_read(dev, &msg) < 0) {
+        return -1;
+    }
+
+    if (msg.request != request) {
+        error_report("Received unexpected msg type."
+                     "Expected %d received %d",
+                     request, msg.request);
+        return -1;
+    }
+
+    return msg.payload.u64 ? -1 : 0;
 }
 
 static bool vhost_user_one_time_request(VhostUserRequest request)
@@ -237,55 +258,6 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
                          VHOST_USER_SET_LOG_BASE, msg.request);
             return -1;
         }
-    }
-
-    return 0;
-}
-
-static int vhost_user_set_mem_table(struct vhost_dev *dev,
-                                    struct vhost_memory *mem)
-{
-    int fds[VHOST_MEMORY_MAX_NREGIONS];
-    int i, fd;
-    size_t fd_num = 0;
-    VhostUserMsg msg = {
-        .request = VHOST_USER_SET_MEM_TABLE,
-        .flags = VHOST_USER_VERSION,
-    };
-
-    for (i = 0; i < dev->mem->nregions; ++i) {
-        struct vhost_memory_region *reg = dev->mem->regions + i;
-        ram_addr_t offset;
-        MemoryRegion *mr;
-
-        assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
-        mr = memory_region_from_host((void *)(uintptr_t)reg->userspace_addr,
-                                     &offset);
-        fd = memory_region_get_fd(mr);
-        if (fd > 0) {
-            msg.payload.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
-            msg.payload.memory.regions[fd_num].memory_size  = reg->memory_size;
-            msg.payload.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
-            msg.payload.memory.regions[fd_num].mmap_offset = offset;
-            assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
-            fds[fd_num++] = fd;
-        }
-    }
-
-    msg.payload.memory.nregions = fd_num;
-
-    if (!fd_num) {
-        error_report("Failed initializing vhost-user memory map, "
-                     "consider using -object memory-backend-file share=on");
-        return -1;
-    }
-
-    msg.size = sizeof(msg.payload.memory.nregions);
-    msg.size += sizeof(msg.payload.memory.padding);
-    msg.size += fd_num * sizeof(VhostUserMemoryRegion);
-
-    if (vhost_user_write(dev, &msg, fds, fd_num) < 0) {
-        return -1;
     }
 
     return 0;
@@ -503,6 +475,73 @@ static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
 static int vhost_user_get_features(struct vhost_dev *dev, uint64_t *features)
 {
     return vhost_user_get_u64(dev, VHOST_USER_GET_FEATURES, features);
+}
+
+static int vhost_user_set_mem_table(struct vhost_dev *dev,
+                                    struct vhost_memory *mem)
+{
+    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int i, fd;
+    size_t fd_num = 0;
+    uint64_t features;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_MEM_TABLE,
+        .flags = VHOST_USER_VERSION,
+    };
+
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    for (i = 0; i < dev->mem->nregions; ++i) {
+        struct vhost_memory_region *reg = dev->mem->regions + i;
+        ram_addr_t offset;
+        MemoryRegion *mr;
+
+        assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
+        mr = memory_region_from_host((void *)(uintptr_t)reg->userspace_addr,
+                                     &offset);
+        fd = memory_region_get_fd(mr);
+        if (fd > 0) {
+            msg.payload.memory.regions[fd_num].userspace_addr
+                                             = reg->userspace_addr;
+            msg.payload.memory.regions[fd_num].memory_size  = reg->memory_size;
+            msg.payload.memory.regions[fd_num].guest_phys_addr
+                                             = reg->guest_phys_addr;
+            msg.payload.memory.regions[fd_num].mmap_offset = offset;
+            assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
+            fds[fd_num++] = fd;
+        }
+    }
+
+    msg.payload.memory.nregions = fd_num;
+
+    if (!fd_num) {
+        error_report("Failed initializing vhost-user memory map, "
+                     "consider using -object memory-backend-file share=on");
+        return -1;
+    }
+
+    msg.size = sizeof(msg.payload.memory.nregions);
+    msg.size += sizeof(msg.payload.memory.padding);
+    msg.size += fd_num * sizeof(VhostUserMemoryRegion);
+
+    vhost_user_write(dev, &msg, fds, fd_num);
+
+    if (reply_supported) {
+        return process_message_reply(dev, msg.request);
+    } else {
+        /* Note: It is (yet) unknown when the client application has finished
+         * remapping the GPA.
+         * Attempt to prevent a race by sending a command that requires a reply.
+         */
+        vhost_user_get_features(dev, &features);
+    }
+
+    return 0;
 }
 
 static int vhost_user_set_owner(struct vhost_dev *dev)

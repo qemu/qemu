@@ -428,7 +428,7 @@ int vhost_set_vring_enable(NetClientState *nc, int enable)
 
     nc->vring_enable = enable;
 
-    if (vhost_ops->vhost_set_vring_enable) {
+    if (vhost_ops && vhost_ops->vhost_set_vring_enable) {
         return vhost_ops->vhost_set_vring_enable(&net->dev, enable);
     }
 
