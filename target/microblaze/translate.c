@@ -690,6 +690,7 @@ static void dec_barrel(DisasContext *dc)
             tcg_gen_shr_tl(cpu_R[dc->rd], cpu_R[dc->ra], t0);
         }
     }
+    tcg_temp_free(t0);
 }
 
 static void dec_bit(DisasContext *dc)
