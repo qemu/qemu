@@ -93,6 +93,19 @@ char *spapr_get_cpu_core_type(const char *model)
 
     core_type = g_strdup_printf("%s-%s", model_pieces[0], TYPE_SPAPR_CPU_CORE);
     g_strfreev(model_pieces);
+
+    /* Check whether it exists or whether we have to look up an alias name */
+    if (!object_class_by_name(core_type)) {
+        const char *realmodel;
+
+        g_free(core_type);
+        realmodel = ppc_cpu_lookup_alias(model);
+        if (realmodel) {
+            return spapr_get_cpu_core_type(realmodel);
+        }
+        return NULL;
+    }
+
     return core_type;
 }
 
@@ -354,41 +367,32 @@ typedef struct SPAPRCoreInfo {
 } SPAPRCoreInfo;
 
 static const SPAPRCoreInfo spapr_cores[] = {
-    /* 970 and aliaes */
+    /* 970 */
     { .name = "970_v2.2", .initfn = spapr_cpu_core_970_initfn },
-    { .name = "970", .initfn = spapr_cpu_core_970_initfn },
 
-    /* 970MP variants and aliases */
+    /* 970MP variants */
     { .name = "970MP_v1.0", .initfn = spapr_cpu_core_970MP_v10_initfn },
     { .name = "970mp_v1.0", .initfn = spapr_cpu_core_970MP_v10_initfn },
     { .name = "970MP_v1.1", .initfn = spapr_cpu_core_970MP_v11_initfn },
     { .name = "970mp_v1.1", .initfn = spapr_cpu_core_970MP_v11_initfn },
-    { .name = "970mp", .initfn = spapr_cpu_core_970MP_v11_initfn },
 
-    /* POWER5 and aliases */
+    /* POWER5+ */
     { .name = "POWER5+_v2.1", .initfn = spapr_cpu_core_POWER5plus_initfn },
-    { .name = "POWER5+", .initfn = spapr_cpu_core_POWER5plus_initfn },
 
-    /* POWER7 and aliases */
+    /* POWER7 */
     { .name = "POWER7_v2.3", .initfn = spapr_cpu_core_POWER7_initfn },
-    { .name = "POWER7", .initfn = spapr_cpu_core_POWER7_initfn },
 
-    /* POWER7+ and aliases */
+    /* POWER7+ */
     { .name = "POWER7+_v2.1", .initfn = spapr_cpu_core_POWER7plus_initfn },
-    { .name = "POWER7+", .initfn = spapr_cpu_core_POWER7plus_initfn },
 
-    /* POWER8 and aliases */
+    /* POWER8 */
     { .name = "POWER8_v2.0", .initfn = spapr_cpu_core_POWER8_initfn },
-    { .name = "POWER8", .initfn = spapr_cpu_core_POWER8_initfn },
-    { .name = "power8", .initfn = spapr_cpu_core_POWER8_initfn },
 
-    /* POWER8E and aliases */
+    /* POWER8E */
     { .name = "POWER8E_v2.1", .initfn = spapr_cpu_core_POWER8E_initfn },
-    { .name = "POWER8E", .initfn = spapr_cpu_core_POWER8E_initfn },
 
-    /* POWER8NVL and aliases */
+    /* POWER8NVL */
     { .name = "POWER8NVL_v1.0", .initfn = spapr_cpu_core_POWER8NVL_initfn },
-    { .name = "POWER8NVL", .initfn = spapr_cpu_core_POWER8NVL_initfn },
 
     { .name = NULL }
 };
