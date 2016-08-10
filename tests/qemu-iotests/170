@@ -1,0 +1,67 @@
+#! /bin/bash
+#
+# qemu-img dd test
+#
+# Copyright (C) 2016 Reda Sallahi
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+owner=fullmanet@gmail.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+status=1
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f "$TEST_IMG.out"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+. ./common.rc
+. ./common.filter
+. ./common.pattern
+
+_supported_fmt generic
+_supported_proto file
+_supported_os Linux
+
+echo
+echo "== Creating image =="
+
+size=1M
+_make_test_img $size
+_check_test_img
+
+$QEMU_IO -c "write -P 0xa 0 $size" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== Converting the image with dd =="
+
+$QEMU_IMG dd if="$TEST_IMG" of="$TEST_IMG.out" -O "$IMGFMT"
+TEST_IMG="$TEST_IMG.out" _check_test_img
+
+echo
+echo "== Compare the images with qemu-img compare =="
+
+$QEMU_IMG compare "$TEST_IMG" "$TEST_IMG.out"
+
+echo
+echo "*** done"
+rm -f "$seq.full"
+status=0
