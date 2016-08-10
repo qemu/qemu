@@ -25,7 +25,7 @@ asm(
 ".global _start\n"
 "_start:\n"
 "   .short 0xaa55\n"
-"   .byte 0\n" /* size in 512 units, filled in by signrom.py */
+"   .byte 3\n" /* desired size in 512 units; signrom.py adds padding */
 "   .byte 0xcb\n" /* far return without prefix */
 "   .org 0x18\n"
 "   .short 0\n"
@@ -157,7 +157,11 @@ static inline uint32_t be32_to_cpu(uint32_t x)
     return bswap32(x);
 }
 
-static void bios_cfg_read_entry(void *buf, uint16_t entry, uint32_t len)
+/* clang is happy to inline this function, and bloats the
+ * ROM.
+ */
+static __attribute__((__noinline__))
+void bios_cfg_read_entry(void *buf, uint16_t entry, uint32_t len)
 {
     FWCfgDmaAccess access;
     uint32_t control = (entry << 16) | BIOS_CFG_DMA_CTL_SELECT

@@ -31,7 +31,11 @@ Do not leave whitespace dangling off the ends of lines.
 
 2. Line width
 
-Lines are 80 characters; not longer.
+Lines should be 80 characters; try not to make them longer.
+
+Sometimes it is hard to do, especially when dealing with QEMU subsystems
+that use long function or symbol names.  Even in that case, do not make
+lines much longer than 80 characters.
 
 Rationale:
  - Some people like to tile their 24" screens with a 6x4 matrix of 80x24
@@ -39,6 +43,8 @@ Rationale:
    let them keep doing it.
  - Code and especially patches is much more readable if limited to a sane
    line length.  Eighty is traditional.
+ - The four-space indentation makes the most common excuse ("But look
+   at all that white space on the left!") moot.
  - It is the QEMU coding style.
 
 3. Naming
