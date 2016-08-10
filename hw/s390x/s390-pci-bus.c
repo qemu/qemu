@@ -649,6 +649,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
             pbdev = s390_pci_device_new(dev->id);
             if (!pbdev) {
                 error_setg(errp, "create zpci device failed");
+                return;
             }
         }
 
