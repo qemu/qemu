@@ -317,7 +317,10 @@ static void curses_refresh(DisplayChangeListener *dcl)
                 qemu_input_event_send_key_delay(0);
             }
         } else {
-            keysym = curses2qemu[chr];
+            keysym = -1;
+            if (chr < CURSES_KEYS) {
+                keysym = curses2qemu[chr];
+            }
             if (keysym == -1)
                 keysym = chr;
 
