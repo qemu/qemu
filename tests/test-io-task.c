@@ -140,20 +140,18 @@ struct TestThreadWorkerData {
     GMainLoop *loop;
 };
 
-static int test_task_thread_worker(QIOTask *task,
-                                   Error **errp,
-                                   gpointer opaque)
+static void test_task_thread_worker(QIOTask *task,
+                                    gpointer opaque)
 {
     struct TestThreadWorkerData *data = opaque;
 
     data->worker = g_thread_self();
 
     if (data->fail) {
-        error_setg(errp, "Testing fail");
-        return -1;
+        Error *err = NULL;
+        error_setg(&err, "Testing fail");
+        qio_task_set_error(task, err);
     }
-
-    return 0;
 }
 
 

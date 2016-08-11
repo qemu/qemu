@@ -29,9 +29,8 @@ typedef struct QIOTask QIOTask;
 typedef void (*QIOTaskFunc)(QIOTask *task,
                             gpointer opaque);
 
-typedef int (*QIOTaskWorker)(QIOTask *task,
-                             Error **errp,
-                             gpointer opaque);
+typedef void (*QIOTaskWorker)(QIOTask *task,
+                              gpointer opaque);
 
 /**
  * QIOTask:
@@ -163,18 +162,16 @@ typedef int (*QIOTaskWorker)(QIOTask *task,
  * socket listen using QIOTask would require:
  *
  * <example>
- *    static int myobject_listen_worker(QIOTask *task,
- *                                      Error **errp,
- *                                      gpointer opaque)
+ *    static void myobject_listen_worker(QIOTask *task,
+ *                                       gpointer opaque)
  *    {
  *       QMyObject obj = QMY_OBJECT(qio_task_get_source(task));
  *       SocketAddress *addr = opaque;
+ *       Error *err = NULL;
  *
- *       obj->fd = socket_listen(addr, errp);
- *       if (obj->fd < 0) {
- *          return -1;
- *       }
- *       return 0;
+ *       obj->fd = socket_listen(addr, &err);
+ *
+         qio_task_set_error(task, err);
  *    }
  *
  *    void myobject_listen_async(QMyObject *obj,

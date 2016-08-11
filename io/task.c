@@ -77,8 +77,6 @@ struct QIOTaskThreadData {
     QIOTaskWorker worker;
     gpointer opaque;
     GDestroyNotify destroy;
-    Error *err;
-    int ret;
 };
 
 
@@ -87,9 +85,6 @@ static gboolean gio_task_thread_result(gpointer opaque)
     struct QIOTaskThreadData *data = opaque;
 
     trace_qio_task_thread_result(data->task);
-    if (data->err) {
-        qio_task_set_error(data->task, data->err);
-    }
     qio_task_complete(data->task);
 
     if (data->destroy) {
@@ -107,10 +102,7 @@ static gpointer qio_task_thread_worker(gpointer opaque)
     struct QIOTaskThreadData *data = opaque;
 
     trace_qio_task_thread_run(data->task);
-    data->ret = data->worker(data->task, &data->err, data->opaque);
-    if (data->ret < 0 && data->err == NULL) {
-        error_setg(&data->err, "Task worker failed but did not set an error");
-    }
+    data->worker(data->task, data->opaque);
 
     /* We're running in the background thread, and must only
      * ever report the task results in the main event loop
