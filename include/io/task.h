@@ -240,6 +240,33 @@ void qio_task_abort(QIOTask *task,
 
 
 /**
+ * qio_task_set_result_pointer:
+ * @task: the task struct
+ * @result: pointer to the result data
+ *
+ * Associate an opaque result with the task,
+ * which can later be retrieved with the
+ * qio_task_get_result_pointer() method
+ *
+ */
+void qio_task_set_result_pointer(QIOTask *task,
+                                 gpointer result,
+                                 GDestroyNotify notify);
+
+
+/**
+ * qio_task_get_result_pointer:
+ * @task: the task struct
+ *
+ * Retrieve the opaque result data associated
+ * with the task, if any.
+ *
+ * Returns: the task result, or NULL
+ */
+gpointer qio_task_get_result_pointer(QIOTask *task);
+
+
+/**
  * qio_task_get_source:
  * @task: the task struct
  *

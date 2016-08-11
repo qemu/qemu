@@ -29,6 +29,8 @@ struct QIOTask {
     QIOTaskFunc func;
     gpointer opaque;
     GDestroyNotify destroy;
+    gpointer result;
+    GDestroyNotify destroyResult;
 };
 
 
@@ -56,6 +58,9 @@ static void qio_task_free(QIOTask *task)
 {
     if (task->destroy) {
         task->destroy(task->opaque);
+    }
+    if (task->destroyResult) {
+        task->destroyResult(task->result);
     }
     object_unref(task->source);
 
@@ -151,6 +156,21 @@ void qio_task_abort(QIOTask *task,
     task->func(task->source, err, task->opaque);
     trace_qio_task_abort(task);
     qio_task_free(task);
+}
+
+
+void qio_task_set_result_pointer(QIOTask *task,
+                                 gpointer result,
+                                 GDestroyNotify destroy)
+{
+    task->result = result;
+    task->destroyResult = destroy;
+}
+
+
+gpointer qio_task_get_result_pointer(QIOTask *task)
+{
+    return task->result;
 }
 
 
