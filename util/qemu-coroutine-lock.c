@@ -129,6 +129,7 @@ void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex)
     }
 
     mutex->locked = true;
+    mutex->holder = self;
 
     trace_qemu_co_mutex_lock_return(mutex, self);
 }
@@ -140,9 +141,11 @@ void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex)
     trace_qemu_co_mutex_unlock_entry(mutex, self);
 
     assert(mutex->locked == true);
+    assert(mutex->holder == self);
     assert(qemu_in_coroutine());
 
     mutex->locked = false;
+    mutex->holder = NULL;
     qemu_co_queue_next(&mutex->queue);
 
     trace_qemu_co_mutex_unlock_return(mutex, self);
