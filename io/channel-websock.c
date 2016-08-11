@@ -279,8 +279,8 @@ static gboolean qio_channel_websock_handshake_send(QIOChannel *ioc,
 
     if (ret < 0) {
         trace_qio_channel_websock_handshake_fail(ioc);
-        qio_task_abort(task, err);
-        error_free(err);
+        qio_task_set_error(task, err);
+        qio_task_complete(task);
         return FALSE;
     }
 
@@ -307,8 +307,8 @@ static gboolean qio_channel_websock_handshake_io(QIOChannel *ioc,
     ret = qio_channel_websock_handshake_read(wioc, &err);
     if (ret < 0) {
         trace_qio_channel_websock_handshake_fail(ioc);
-        qio_task_abort(task, err);
-        error_free(err);
+        qio_task_set_error(task, err);
+        qio_task_complete(task);
         return FALSE;
     }
     if (ret == 0) {

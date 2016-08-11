@@ -24,15 +24,16 @@
 #include "io/channel-websock.h"
 #include "qemu/bswap.h"
 
-static void vncws_tls_handshake_done(Object *source,
-                                     Error *err,
+static void vncws_tls_handshake_done(QIOTask *task,
                                      gpointer user_data)
 {
     VncState *vs = user_data;
+    Error *err = NULL;
 
-    if (err) {
+    if (qio_task_propagate_error(task, &err)) {
         VNC_DEBUG("Handshake failed %s\n", error_get_pretty(err));
         vnc_client_error(vs);
+        error_free(err);
     } else {
         VNC_DEBUG("TLS handshake complete, starting websocket handshake\n");
         vs->ioc_tag = qio_channel_add_watch(
@@ -83,15 +84,16 @@ gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
 }
 
 
-static void vncws_handshake_done(Object *source,
-                                 Error *err,
+static void vncws_handshake_done(QIOTask *task,
                                  gpointer user_data)
 {
     VncState *vs = user_data;
+    Error *err = NULL;
 
-    if (err) {
+    if (qio_task_propagate_error(task, &err)) {
         VNC_DEBUG("Websock handshake failed %s\n", error_get_pretty(err));
         vnc_client_error(vs);
+        error_free(err);
     } else {
         VNC_DEBUG("Websock handshake complete, starting VNC protocol\n");
         vnc_start_protocol(vs);

@@ -70,22 +70,23 @@ static void socket_connect_data_free(void *opaque)
     g_free(data);
 }
 
-static void socket_outgoing_migration(Object *src,
-                                      Error *err,
+static void socket_outgoing_migration(QIOTask *task,
                                       gpointer opaque)
 {
     struct SocketConnectData *data = opaque;
-    QIOChannel *sioc = QIO_CHANNEL(src);
+    QIOChannel *sioc = QIO_CHANNEL(qio_task_get_source(task));
+    Error *err = NULL;
 
-    if (err) {
+    if (qio_task_propagate_error(task, &err)) {
         trace_migration_socket_outgoing_error(error_get_pretty(err));
         data->s->to_dst_file = NULL;
         migrate_fd_error(data->s, err);
+        error_free(err);
     } else {
         trace_migration_socket_outgoing_connected(data->hostname);
         migration_channel_connect(data->s, sioc, data->hostname);
     }
-    object_unref(src);
+    object_unref(OBJECT(sioc));
 }
 
 static void socket_start_outgoing_migration(MigrationState *s,

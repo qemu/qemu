@@ -26,8 +26,7 @@
 
 typedef struct QIOTask QIOTask;
 
-typedef void (*QIOTaskFunc)(Object *source,
-                            Error *err,
+typedef void (*QIOTaskFunc)(QIOTask *task,
                             gpointer opaque);
 
 typedef int (*QIOTaskWorker)(QIOTask *task,
@@ -44,7 +43,7 @@ typedef int (*QIOTaskWorker)(QIOTask *task,
  * a public API which accepts a task callback:
  *
  * <example>
- *   <title>Task callback function signature</title>
+ *   <title>Task function signature</title>
  *   <programlisting>
  *  void myobject_operation(QMyObject *obj,
  *                          QIOTaskFunc *func,
@@ -57,12 +56,36 @@ typedef int (*QIOTaskWorker)(QIOTask *task,
  * is data to pass to it. The optional 'notify' function is used
  * to free 'opaque' when no longer needed.
  *
- * Now, lets say the implementation of this method wants to set
- * a timer to run once a second checking for completion of some
- * activity. It would do something like
+ * When the operation completes, the 'func' callback will be
+ * invoked, allowing the calling code to determine the result
+ * of the operation. An example QIOTaskFunc implementation may
+ * look like
  *
  * <example>
- *   <title>Task callback function implementation</title>
+ *   <title>Task callback implementation</title>
+ *   <programlisting>
+ *  static void myobject_operation_notify(QIOTask *task,
+ *                                        gpointer opaque)
+ *  {
+ *      Error *err = NULL;
+ *      if (qio_task_propagate_error(task, &err)) {
+ *          ...deal with the failure...
+ *          error_free(err);
+ *      } else {
+ *          QMyObject *src = QMY_OBJECT(qio_task_get_source(task));
+ *          ...deal with the completion...
+ *      }
+ *  }
+ *   </programlisting>
+ * </example>
+ *
+ * Now, lets say the implementation of the method using the
+ * task wants to set a timer to run once a second checking
+ * for completion of some activity. It would do something
+ * like
+ *
+ * <example>
+ *   <title>Task function implementation</title>
  *   <programlisting>
  *    void myobject_operation(QMyObject *obj,
  *                            QIOTaskFunc *func,
@@ -102,8 +125,8 @@ typedef int (*QIOTaskWorker)(QIOTask *task,
  *
  *      ...check something important...
  *       if (err) {
- *           qio_task_abort(task, err);
- *           error_free(task);
+ *           qio_task_set_error(task, err);
+ *           qio_task_complete(task);
  *           return FALSE;
  *       } else if (...work is completed ...) {
  *           qio_task_complete(task);
@@ -114,6 +137,10 @@ typedef int (*QIOTaskWorker)(QIOTask *task,
  *   }
  *   </programlisting>
  * </example>
+ *
+ * The 'qio_task_complete' call in this method will trigger
+ * the callback func 'myobject_operation_notify' shown
+ * earlier to deal with the results.
  *
  * Once this function returns false, object_unref will be called
  * automatically on the task causing it to be released and the
@@ -187,8 +214,8 @@ typedef int (*QIOTaskWorker)(QIOTask *task,
  * 'err' attribute in the task object to determine if
  * the operation was successful or not.
  *
- * The returned task will be released when one of
- * qio_task_abort() or qio_task_complete() are invoked.
+ * The returned task will be released when qio_task_complete()
+ * is invoked.
  *
  * Returns: the task struct
  */
@@ -204,10 +231,8 @@ QIOTask *qio_task_new(Object *source,
  * @opaque: opaque data to pass to @worker
  * @destroy: function to free @opaque
  *
- * Run a task in a background thread. If @worker
- * returns 0 it will call qio_task_complete() in
- * the main event thread context. If @worker
- * returns -1 it will call qio_task_abort() in
+ * Run a task in a background thread. When @worker
+ * returns it will call qio_task_complete() in
  * the main event thread context.
  */
 void qio_task_run_in_thread(QIOTask *task,
@@ -219,24 +244,10 @@ void qio_task_run_in_thread(QIOTask *task,
  * qio_task_complete:
  * @task: the task struct
  *
- * Mark the operation as successfully completed
- * and free the memory for @task.
+ * Invoke the completion callback for @task and
+ * then free its memory.
  */
 void qio_task_complete(QIOTask *task);
-
-/**
- * qio_task_abort:
- * @task: the task struct
- * @err: the error to record for the operation
- *
- * Mark the operation as failed, with @err providing
- * details about the failure. The @err may be freed
- * afer the function returns, as the notification
- * callback is invoked synchronously. The @task will
- * be freed when this call completes.
- */
-void qio_task_abort(QIOTask *task,
-                    Error *err);
 
 
 /**

@@ -87,13 +87,11 @@ static gboolean gio_task_thread_result(gpointer opaque)
     struct QIOTaskThreadData *data = opaque;
 
     trace_qio_task_thread_result(data->task);
-    if (data->ret == 0) {
-        qio_task_complete(data->task);
-    } else {
-        qio_task_abort(data->task, data->err);
+    if (data->err) {
+        qio_task_set_error(data->task, data->err);
     }
+    qio_task_complete(data->task);
 
-    error_free(data->err);
     if (data->destroy) {
         data->destroy(data->opaque);
     }
@@ -149,16 +147,8 @@ void qio_task_run_in_thread(QIOTask *task,
 
 void qio_task_complete(QIOTask *task)
 {
-    task->func(task->source, NULL, task->opaque);
+    task->func(task, task->opaque);
     trace_qio_task_complete(task);
-    qio_task_free(task);
-}
-
-void qio_task_abort(QIOTask *task,
-                    Error *err)
-{
-    task->func(task->source, err, task->opaque);
-    trace_qio_task_abort(task);
     qio_task_free(task);
 }
 

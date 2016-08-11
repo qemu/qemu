@@ -50,14 +50,13 @@ struct TestTaskData {
 };
 
 
-static void task_callback(Object *source,
-                          Error *err,
+static void task_callback(QIOTask *task,
                           gpointer opaque)
 {
     struct TestTaskData *data = opaque;
 
-    data->source = source;
-    data->err = err;
+    data->source = qio_task_get_source(task);
+    qio_task_propagate_error(task, &data->err);
 }
 
 
@@ -120,9 +119,9 @@ static void test_task_failure(void)
 
     error_setg(&err, "Some error");
 
-    qio_task_abort(task, err);
+    qio_task_set_error(task, err);
+    qio_task_complete(task);
 
-    error_free(err);
     object_unref(obj);
 
     g_assert(data.source == obj);
@@ -158,14 +157,13 @@ static int test_task_thread_worker(QIOTask *task,
 }
 
 
-static void test_task_thread_callback(Object *source,
-                                      Error *err,
+static void test_task_thread_callback(QIOTask *task,
                                       gpointer opaque)
 {
     struct TestThreadWorkerData *data = opaque;
 
-    data->source = source;
-    data->err = err;
+    data->source = qio_task_get_source(task);
+    qio_task_propagate_error(task, &data->err);
 
     data->complete = g_thread_self();
 

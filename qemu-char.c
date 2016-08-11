@@ -3277,14 +3277,13 @@ static void tcp_chr_telnet_init(CharDriverState *chr)
 }
 
 
-static void tcp_chr_tls_handshake(Object *source,
-                                  Error *err,
+static void tcp_chr_tls_handshake(QIOTask *task,
                                   gpointer user_data)
 {
     CharDriverState *chr = user_data;
     TCPCharDriver *s = chr->opaque;
 
-    if (err) {
+    if (qio_task_propagate_error(task, NULL)) {
         tcp_chr_disconnect(chr);
     } else {
         if (s->do_telnetopt) {
@@ -3492,20 +3491,23 @@ static void tcp_chr_free(CharDriverState *chr)
 }
 
 
-static void qemu_chr_socket_connected(Object *src, Error *err, void *opaque)
+static void qemu_chr_socket_connected(QIOTask *task, void *opaque)
 {
-    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(src);
+    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
     CharDriverState *chr = opaque;
     TCPCharDriver *s = chr->opaque;
+    Error *err = NULL;
 
-    if (err) {
+    if (qio_task_propagate_error(task, &err)) {
         check_report_connect_error(chr, err);
-        object_unref(src);
-        return;
+        error_free(err);
+        goto cleanup;
     }
 
     s->connect_err_reported = false;
     tcp_chr_new_client(chr, sioc);
+
+ cleanup:
     object_unref(OBJECT(sioc));
 }
 
