@@ -168,7 +168,6 @@ static int qio_channel_socket_connect_worker(QIOTask *task,
                                           addr,
                                           errp);
 
-    object_unref(OBJECT(ioc));
     return ret;
 }
 
@@ -231,7 +230,6 @@ static int qio_channel_socket_listen_worker(QIOTask *task,
                                          addr,
                                          errp);
 
-    object_unref(OBJECT(ioc));
     return ret;
 }
 
@@ -309,7 +307,6 @@ static int qio_channel_socket_dgram_worker(QIOTask *task,
                                         data->remoteAddr,
                                         errp);
 
-    object_unref(OBJECT(ioc));
     return ret;
 }
 

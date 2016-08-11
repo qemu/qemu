@@ -200,8 +200,6 @@ static gboolean qio_channel_tls_handshake_io(QIOChannel *ioc,
     qio_channel_tls_handshake_task(
        tioc, task);
 
-    object_unref(OBJECT(tioc));
-
     return FALSE;
 }
 

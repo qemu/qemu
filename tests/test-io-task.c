@@ -76,7 +76,6 @@ static void test_task_complete(void)
     g_assert(obj == src);
 
     object_unref(obj);
-    object_unref(src);
 
     g_assert(data.source == obj);
     g_assert(data.err == NULL);

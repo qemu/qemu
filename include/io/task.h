@@ -244,9 +244,10 @@ void qio_task_abort(QIOTask *task,
  * @task: the task struct
  *
  * Get the source object associated with the background
- * task. This returns a new reference to the object,
- * which the caller must released with object_unref()
- * when no longer required.
+ * task. The caller does not own a reference on the
+ * returned Object, and so should call object_ref()
+ * if it wants to keep the object pointer outside the
+ * lifetime of the QIOTask object.
  *
  * Returns: the source object
  */
