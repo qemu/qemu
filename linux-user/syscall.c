@@ -9389,7 +9389,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             int64_t res;
 #if !defined(__NR_llseek)
-            res = lseek(arg1, ((uint64_t)arg2 << 32) | arg3, arg5);
+            res = lseek(arg1, ((uint64_t)arg2 << 32) | (abi_ulong)arg3, arg5);
             if (res == -1) {
                 ret = get_errno(res);
             } else {
