@@ -85,8 +85,9 @@ static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
     DeviceState *dev = DEVICE(port);
+    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
-    if (vcon->chr) {
+    if (vcon->chr && !k->is_console) {
         qemu_chr_fe_set_open(vcon->chr, guest_connected);
     }
 
@@ -156,9 +157,25 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
     }
 
     if (vcon->chr) {
-        vcon->chr->explicit_fe_open = 1;
-        qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read, chr_event,
-                              vcon);
+        /*
+         * For consoles we don't block guest data transfer just
+         * because nothing is connected - we'll just let it go
+         * whetherever the chardev wants - /dev/null probably.
+         *
+         * For serial ports we need 100% reliable data transfer
+         * so we use the opened/closed signals from chardev to
+         * trigger open/close of the device
+         */
+        if (k->is_console) {
+            vcon->chr->explicit_fe_open = 0;
+            qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read,
+                                  NULL, vcon);
+            virtio_serial_open(port);
+        } else {
+            vcon->chr->explicit_fe_open = 1;
+            qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read,
+                                  chr_event, vcon);
+        }
     }
 }
 
