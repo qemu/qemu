@@ -49,7 +49,7 @@ typedef int (*QIOTaskWorker)(QIOTask *task,
  *  void myobject_operation(QMyObject *obj,
  *                          QIOTaskFunc *func,
  *                          gpointer opaque,
- *                          GDestroyNotify *notify);
+ *                          GDestroyNotify notify);
  *   </programlisting>
  * </example>
  *
@@ -67,7 +67,7 @@ typedef int (*QIOTaskWorker)(QIOTask *task,
  *    void myobject_operation(QMyObject *obj,
  *                            QIOTaskFunc *func,
  *                            gpointer opaque,
- *                            GDestroyNotify *notify)
+ *                            GDestroyNotify notify)
  *    {
  *      QIOTask *task;
  *
@@ -154,7 +154,7 @@ typedef int (*QIOTaskWorker)(QIOTask *task,
  *                               SocketAddress *addr,
  *                               QIOTaskFunc *func,
  *                               gpointer opaque,
- *                               GDestroyNotify *notify)
+ *                               GDestroyNotify notify)
  *    {
  *      QIOTask *task;
  *      SocketAddress *addrCopy;
