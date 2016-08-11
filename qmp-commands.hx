@@ -4802,8 +4802,6 @@ The consoles are visible in the qom tree, under
 /backend/console[$index]. They have a device link and head property, so
 it is possible to map which console belongs to which device and display.
 
-Note: this command is experimental, and not a stable API.
-
 Example (1):
 
 Press left mouse button.
