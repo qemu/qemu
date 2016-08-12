@@ -507,6 +507,43 @@ static QemuOptsList qemu_fw_cfg_opts = {
     },
 };
 
+#ifdef CONFIG_LIBISCSI
+static QemuOptsList qemu_iscsi_opts = {
+    .name = "iscsi",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_iscsi_opts.head),
+    .desc = {
+        {
+            .name = "user",
+            .type = QEMU_OPT_STRING,
+            .help = "username for CHAP authentication to target",
+        },{
+            .name = "password",
+            .type = QEMU_OPT_STRING,
+            .help = "password for CHAP authentication to target",
+        },{
+            .name = "password-secret",
+            .type = QEMU_OPT_STRING,
+            .help = "ID of the secret providing password for CHAP "
+                    "authentication to target",
+        },{
+            .name = "header-digest",
+            .type = QEMU_OPT_STRING,
+            .help = "HeaderDigest setting. "
+                    "{CRC32C|CRC32C-NONE|NONE-CRC32C|NONE}",
+        },{
+            .name = "initiator-name",
+            .type = QEMU_OPT_STRING,
+            .help = "Initiator iqn name to use when connecting",
+        },{
+            .name = "timeout",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Request timeout in seconds (default 0 = no timeout)",
+        },
+        { /* end of list */ }
+    },
+};
+#endif
+
 /**
  * Get machine options
  *
@@ -3017,6 +3054,9 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
+#ifdef CONFIG_LIBISCSI
+    qemu_add_opts(&qemu_iscsi_opts);
+#endif
     module_call_init(MODULE_INIT_OPTS);
 
     runstate_init();
