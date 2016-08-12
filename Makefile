@@ -76,6 +76,8 @@ GENERATED_HEADERS += trace/generated-ust-provider.h
 GENERATED_SOURCES += trace/generated-ust.c
 endif
 
+GENERATED_HEADERS += module_block.h
+
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them
 Makefile: ;
@@ -351,6 +353,11 @@ ivshmem-client$(EXESUF): $(ivshmem-client-obj-y) libqemuutil.a libqemustub.a
 	$(call LINK, $^)
 ivshmem-server$(EXESUF): $(ivshmem-server-obj-y) libqemuutil.a libqemustub.a
 	$(call LINK, $^)
+
+module_block.h: $(SRC_PATH)/scripts/modules/module_block.py config-host.mak
+	$(call quiet-command,$(PYTHON) $< $@ \
+	$(addprefix $(SRC_PATH)/,$(patsubst %.mo,%.c,$(block-obj-m))), \
+	"  GEN   $@")
 
 clean:
 # avoid old build problems by removing potentially incorrect old files
