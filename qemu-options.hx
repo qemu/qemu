@@ -982,13 +982,14 @@ DEF("nographic", 0, QEMU_OPTION_nographic,
 STEXI
 @item -nographic
 @findex -nographic
-Normally, QEMU uses SDL to display the VGA output. With this option,
-you can totally disable graphical output so that QEMU is a simple
-command line application. The emulated serial port is redirected on
-the console and muxed with the monitor (unless redirected elsewhere
-explicitly). Therefore, you can still use QEMU to debug a Linux kernel
-with a serial console.  Use @key{C-a h} for help on switching between
-the console and monitor.
+Normally, if QEMU is compiled with graphical window support, it displays
+output such as guest graphics, guest console, and the QEMU monitor in a
+window. With this option, you can totally disable graphical output so
+that QEMU is a simple command line application. The emulated serial port
+is redirected on the console and muxed with the monitor (unless
+redirected elsewhere explicitly). Therefore, you can still use QEMU to
+debug a Linux kernel with a serial console. Use @key{C-a h} for help on
+switching between the console and monitor.
 ETEXI
 
 DEF("curses", 0, QEMU_OPTION_curses,
@@ -997,9 +998,11 @@ DEF("curses", 0, QEMU_OPTION_curses,
 STEXI
 @item -curses
 @findex -curses
-Normally, QEMU uses SDL to display the VGA output.  With this option,
-QEMU can display the VGA output when in text mode using a
-curses/ncurses interface.  Nothing is displayed in graphical mode.
+Normally, if QEMU is compiled with graphical window support, it displays
+output such as guest graphics, guest console, and the QEMU monitor in a
+window. With this option, QEMU can display the VGA output when in text
+mode using a curses/ncurses interface. Nothing is displayed in graphical
+mode.
 ETEXI
 
 DEF("no-frame", 0, QEMU_OPTION_no_frame,
@@ -1243,13 +1246,14 @@ DEF("vnc", HAS_ARG, QEMU_OPTION_vnc ,
 STEXI
 @item -vnc @var{display}[,@var{option}[,@var{option}[,...]]]
 @findex -vnc
-Normally, QEMU uses SDL to display the VGA output.  With this option,
-you can have QEMU listen on VNC display @var{display} and redirect the VGA
-display over the VNC session.  It is very useful to enable the usb
-tablet device when using this option (option @option{-usbdevice
-tablet}). When using the VNC display, you must use the @option{-k}
-parameter to set the keyboard layout if you are not using en-us. Valid
-syntax for the @var{display} is
+Normally, if QEMU is compiled with graphical window support, it displays
+output such as guest graphics, guest console, and the QEMU monitor in a
+window. With this option, you can have QEMU listen on VNC display
+@var{display} and redirect the VGA display over the VNC session. It is
+very useful to enable the usb tablet device when using this option
+(option @option{-usbdevice tablet}). When using the VNC display, you
+must use the @option{-k} parameter to set the keyboard layout if you are
+not using en-us. Valid syntax for the @var{display} is
 
 @table @option
 
