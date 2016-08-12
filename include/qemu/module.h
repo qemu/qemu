@@ -52,9 +52,12 @@ typedef enum {
 #define qapi_init(function) module_init(function, MODULE_INIT_QAPI)
 #define type_init(function) module_init(function, MODULE_INIT_QOM)
 
+#define block_module_load_one(lib) module_load_one("block-", lib)
+
 void register_module_init(void (*fn)(void), module_init_type type);
 void register_dso_module_init(void (*fn)(void), module_init_type type);
 
 void module_call_init(module_init_type type);
+void module_load_one(const char *prefix, const char *lib_name);
 
 #endif
