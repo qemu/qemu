@@ -29,6 +29,7 @@ block-obj-y += crypto.o
 
 common-obj-y += stream.o
 
+nfs.o-libs         := $(LIBNFS_LIBS)
 iscsi.o-cflags     := $(LIBISCSI_CFLAGS)
 iscsi.o-libs       := $(LIBISCSI_LIBS)
 curl.o-cflags      := $(CURL_CFLAGS)
