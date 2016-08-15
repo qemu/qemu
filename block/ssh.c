@@ -508,36 +508,73 @@ static int authenticate(BDRVSSHState *s, const char *user, Error **errp)
     return ret;
 }
 
+static QemuOptsList ssh_runtime_opts = {
+    .name = "ssh",
+    .head = QTAILQ_HEAD_INITIALIZER(ssh_runtime_opts.head),
+    .desc = {
+        {
+            .name = "host",
+            .type = QEMU_OPT_STRING,
+            .help = "Host to connect to",
+        },
+        {
+            .name = "port",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Port to connect to",
+        },
+        {
+            .name = "path",
+            .type = QEMU_OPT_STRING,
+            .help = "Path of the image on the host",
+        },
+        {
+            .name = "user",
+            .type = QEMU_OPT_STRING,
+            .help = "User as which to connect",
+        },
+        {
+            .name = "host_key_check",
+            .type = QEMU_OPT_STRING,
+            .help = "Defines how and what to check the host key against",
+        },
+    },
+};
+
 static int connect_to_ssh(BDRVSSHState *s, QDict *options,
                           int ssh_flags, int creat_mode, Error **errp)
 {
     int r, ret;
+    QemuOpts *opts = NULL;
+    Error *local_err = NULL;
     const char *host, *user, *path, *host_key_check;
     int port;
 
-    if (!qdict_haskey(options, "host")) {
+    opts = qemu_opts_create(&ssh_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (local_err) {
+        ret = -EINVAL;
+        error_propagate(errp, local_err);
+        goto err;
+    }
+
+    host = qemu_opt_get(opts, "host");
+    if (!host) {
         ret = -EINVAL;
         error_setg(errp, "No hostname was specified");
         goto err;
     }
-    host = qdict_get_str(options, "host");
 
-    if (qdict_haskey(options, "port")) {
-        port = qdict_get_int(options, "port");
-    } else {
-        port = 22;
-    }
+    port = qemu_opt_get_number(opts, "port", 22);
 
-    if (!qdict_haskey(options, "path")) {
+    path = qemu_opt_get(opts, "path");
+    if (!path) {
         ret = -EINVAL;
         error_setg(errp, "No path was specified");
         goto err;
     }
-    path = qdict_get_str(options, "path");
 
-    if (qdict_haskey(options, "user")) {
-        user = qdict_get_str(options, "user");
-    } else {
+    user = qemu_opt_get(opts, "user");
+    if (!user) {
         user = g_get_user_name();
         if (!user) {
             error_setg_errno(errp, errno, "Can't get user name");
@@ -546,9 +583,8 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         }
     }
 
-    if (qdict_haskey(options, "host_key_check")) {
-        host_key_check = qdict_get_str(options, "host_key_check");
-    } else {
+    host_key_check = qemu_opt_get(opts, "host_key_check");
+    if (!host_key_check) {
         host_key_check = "yes";
     }
 
@@ -612,20 +648,13 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         goto err;
     }
 
+    qemu_opts_del(opts);
+
     r = libssh2_sftp_fstat(s->sftp_handle, &s->attrs);
     if (r < 0) {
         sftp_error_setg(errp, s, "failed to read file attributes");
         return -EINVAL;
     }
-
-    /* Delete the options we've used; any not deleted will cause the
-     * block layer to give an error about unused options.
-     */
-    qdict_del(options, "host");
-    qdict_del(options, "port");
-    qdict_del(options, "user");
-    qdict_del(options, "path");
-    qdict_del(options, "host_key_check");
 
     return 0;
 
@@ -645,6 +674,8 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         libssh2_session_free(s->session);
     }
     s->session = NULL;
+
+    qemu_opts_del(opts);
 
     return ret;
 }
