@@ -19,7 +19,7 @@
 /* Channel subsystem constants. */
 #define MAX_SCHID 65535
 #define MAX_SSID 3
-#define MAX_CSSID 254 /* 255 is reserved */
+#define MAX_CSSID 255
 #define MAX_CHPID 255
 
 #define MAX_CIWS 62
