@@ -92,6 +92,7 @@
 #define CRISV10_IND_JUMP_M       4
 #define CRISV10_IND_DIP          5
 #define CRISV10_IND_JUMP_R       6
+#define CRISV17_IND_ADDC         6
 #define CRISV10_IND_BOUND        7
 #define CRISV10_IND_BCC_M        7
 #define CRISV10_IND_MOVE_M_SPR   8
