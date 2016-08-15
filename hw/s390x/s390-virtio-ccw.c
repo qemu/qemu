@@ -24,6 +24,7 @@
 #include "qemu/config-file.h"
 #include "s390-pci-bus.h"
 #include "hw/s390x/storage-keys.h"
+#include "hw/s390x/storage-attributes.h"
 #include "hw/compat.h"
 #include "ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
@@ -103,6 +104,8 @@ void s390_memory_init(ram_addr_t mem_size)
 
     /* Initialize storage key device */
     s390_skeys_init();
+    /* Initialize storage attributes device */
+    s390_stattrib_init();
 }
 
 static SaveVMHandlers savevm_gtod = {
@@ -406,7 +409,12 @@ static const TypeInfo ccw_machine_info = {
     type_init(ccw_machine_register_##suffix)
 
 #define CCW_COMPAT_2_9 \
-        HW_COMPAT_2_9
+        HW_COMPAT_2_9 \
+        {\
+            .driver   = TYPE_S390_STATTRIB,\
+            .property = "migration-enabled",\
+            .value    = "off",\
+        },
 
 #define CCW_COMPAT_2_8 \
         HW_COMPAT_2_8 \
