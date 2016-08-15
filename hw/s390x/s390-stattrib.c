@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/boards.h"
+#include "qmp-commands.h"
 #include "migration/qemu-file.h"
 #include "migration/register.h"
 #include "hw/s390x/storage-attributes.h"
@@ -26,6 +27,15 @@
 #define STATTR_FLAG_ERROR   0x04ULL
 #define STATTR_FLAG_DONE    0x08ULL
 
+static S390StAttribState *s390_get_stattrib_device(void)
+{
+    S390StAttribState *sas;
+
+    sas = S390_STATTRIB(object_resolve_path_type("", TYPE_S390_STATTRIB, NULL));
+    assert(sas);
+    return sas;
+}
+
 void s390_stattrib_init(void)
 {
     Object *obj;
@@ -40,6 +50,58 @@ void s390_stattrib_init(void)
     object_unref(obj);
 
     qdev_init_nofail(DEVICE(obj));
+}
+
+/* Console commands: */
+
+void hmp_migrationmode(Monitor *mon, const QDict *qdict)
+{
+    S390StAttribState *sas = s390_get_stattrib_device();
+    S390StAttribClass *sac = S390_STATTRIB_GET_CLASS(sas);
+    uint64_t what = qdict_get_int(qdict, "mode");
+    int r;
+
+    r = sac->set_migrationmode(sas, what);
+    if (r < 0) {
+        monitor_printf(mon, "Error: %s", strerror(-r));
+    }
+}
+
+void hmp_info_cmma(Monitor *mon, const QDict *qdict)
+{
+    S390StAttribState *sas = s390_get_stattrib_device();
+    S390StAttribClass *sac = S390_STATTRIB_GET_CLASS(sas);
+    uint64_t addr = qdict_get_int(qdict, "addr");
+    uint64_t buflen = qdict_get_try_int(qdict, "count", 8);
+    uint8_t *vals;
+    int cx, len;
+
+    vals = g_try_malloc(buflen);
+    if (!vals) {
+        monitor_printf(mon, "Error: %s\n", strerror(errno));
+        return;
+    }
+
+    len = sac->peek_stattr(sas, addr / TARGET_PAGE_SIZE, buflen, vals);
+    if (len < 0) {
+        monitor_printf(mon, "Error: %s", strerror(-len));
+        goto out;
+    }
+
+    monitor_printf(mon, "  CMMA attributes, "
+                   "pages %" PRIu64 "+%d (0x%" PRIx64 "):\n",
+                   addr / TARGET_PAGE_SIZE, len, addr & ~TARGET_PAGE_MASK);
+    for (cx = 0; cx < len; cx++) {
+        if (cx % 8 == 7) {
+            monitor_printf(mon, "%02x\n", vals[cx]);
+        } else {
+            monitor_printf(mon, "%02x", vals[cx]);
+        }
+    }
+    monitor_printf(mon, "\n");
+
+out:
+    g_free(vals);
 }
 
 /* Migration support: */
