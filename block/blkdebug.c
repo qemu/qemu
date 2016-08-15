@@ -39,6 +39,9 @@ typedef struct BDRVBlkdebugState {
     int new_state;
     int align;
 
+    /* For blkdebug_refresh_filename() */
+    char *config_file;
+
     QLIST_HEAD(, BlkdebugRule) rules[BLKDBG__MAX];
     QSIMPLEQ_HEAD(, BlkdebugRule) active_rules;
     QLIST_HEAD(, BlkdebugSuspendedReq) suspended_reqs;
@@ -351,7 +354,6 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVBlkdebugState *s = bs->opaque;
     QemuOpts *opts;
     Error *local_err = NULL;
-    const char *config;
     uint64_t align;
     int ret;
 
@@ -364,8 +366,8 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Read rules from config file or command line options */
-    config = qemu_opt_get(opts, "config");
-    ret = read_config(s, config, options, errp);
+    s->config_file = g_strdup(qemu_opt_get(opts, "config"));
+    ret = read_config(s, s->config_file, options, errp);
     if (ret) {
         goto out;
     }
@@ -398,6 +400,9 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
 fail_unref:
     bdrv_unref_child(bs, bs->file);
 out:
+    if (ret < 0) {
+        g_free(s->config_file);
+    }
     qemu_opts_del(opts);
     return ret;
 }
@@ -515,6 +520,8 @@ static void blkdebug_close(BlockDriverState *bs)
             remove_rule(rule);
         }
     }
+
+    g_free(s->config_file);
 }
 
 static void suspend_request(BlockDriverState *bs, BlkdebugRule *rule)
@@ -679,6 +686,7 @@ static int blkdebug_truncate(BlockDriverState *bs, int64_t offset)
 
 static void blkdebug_refresh_filename(BlockDriverState *bs, QDict *options)
 {
+    BDRVBlkdebugState *s = bs->opaque;
     QDict *opts;
     const QDictEntry *e;
     bool force_json = false;
@@ -700,8 +708,7 @@ static void blkdebug_refresh_filename(BlockDriverState *bs, QDict *options)
 
     if (!force_json && bs->file->bs->exact_filename[0]) {
         snprintf(bs->exact_filename, sizeof(bs->exact_filename),
-                 "blkdebug:%s:%s",
-                 qdict_get_try_str(options, "config") ?: "",
+                 "blkdebug:%s:%s", s->config_file ?: "",
                  bs->file->bs->exact_filename);
     }
 
