@@ -105,7 +105,7 @@ struct ethhdr {
     unsigned short h_proto;            /* packet type ID field */
 };
 
-struct arphdr {
+struct slirp_arphdr {
     unsigned short ar_hrd;      /* format of hardware address */
     unsigned short ar_pro;      /* format of protocol address */
     unsigned char  ar_hln;      /* length of hardware address */
@@ -124,7 +124,7 @@ struct arphdr {
 #define ARP_TABLE_SIZE 16
 
 typedef struct ArpTable {
-    struct arphdr table[ARP_TABLE_SIZE];
+    struct slirp_arphdr table[ARP_TABLE_SIZE];
     int next_victim;
 } ArpTable;
 
