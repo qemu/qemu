@@ -1,0 +1,96 @@
+#!/bin/bash
+#
+# Test case for specifying runtime options of the wrong type to some
+# block drivers
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+status=1	# failure is the default!
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt generic
+_supported_os Linux
+
+echo
+echo '=== NBD ==='
+# NBD expects all of its arguments to be strings
+
+# So this should not crash
+$QEMU_IMG info 'json:{"driver": "nbd", "host": 42}'
+
+# And this should not treat @port as if it had not been specified
+# (We cannot use localhost with an invalid port here, but we need to use a
+#  non-existing domain, because otherwise the error message will not contain
+#  the port)
+$QEMU_IMG info 'json:{"driver": "nbd", "host": "does.not.exist.example.com", "port": 42}'
+
+# This is a test for NBD's bdrv_refresh_filename() implementation: It expects
+# either host or path to be set, but it must not assume that they are set to
+# strings in the options QDict
+$QEMU_NBD -k "$PWD/42" -f raw null-co:// &
+sleep 0.5
+$QEMU_IMG info 'json:{"driver": "nbd", "path": 42}' | grep '^image'
+rm -f 42
+
+
+echo
+echo '=== SSH ==='
+# SSH expects all of its arguments to be strings, except for @port, which is
+# expected to be an integer
+
+# So "0" should be converted to an integer here (instead of crashing)
+$QEMU_IMG info 'json:{"driver": "ssh", "host": "localhost", "port": "0", "path": "/foo"}'
+# The same, basically (all values for --image-opts are seen as strings in qemu)
+$QEMU_IMG info --image-opts \
+    driver=ssh,host=localhost,port=0,path=/foo
+
+# This, however, should fail because of the wrong type
+$QEMU_IMG info 'json:{"driver": "ssh", "host": "localhost", "port": 0.42, "path": "/foo"}'
+# Not really the same: Here, "0.42" will be passed instead of 0.42, but still,
+# qemu should not try to convert "0.42" to an integer
+$QEMU_IMG info --image-opts \
+    driver=ssh,host=localhost,port=0.42,path=/foo
+
+
+echo
+echo '=== blkdebug ==='
+# blkdebug expects all of its arguments to be strings, but its
+# bdrv_refresh_filename() implementation should not assume that they have been
+# passed as strings in the original options QDict.
+# So this should emit blkdebug:42:null-co:// as the filename:
+touch 42
+$QEMU_IMG info 'json:{"driver": "blkdebug", "config": 42,
+                      "image.driver": "null-co"}' \
+    | grep '^image'
+rm -f 42
+
+
+# success, all done
+echo
+echo '*** done'
+rm -f $seq.full
+status=0
