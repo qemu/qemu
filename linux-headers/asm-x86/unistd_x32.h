@@ -306,9 +306,7 @@
 #define __NR_vmsplice (__X32_SYSCALL_BIT + 532)
 #define __NR_move_pages (__X32_SYSCALL_BIT + 533)
 #define __NR_preadv (__X32_SYSCALL_BIT + 534)
-#define __NR_preadv2 (__X32_SYSCALL_BIT + 534)
 #define __NR_pwritev (__X32_SYSCALL_BIT + 535)
-#define __NR_pwritev2 (__X32_SYSCALL_BIT + 535)
 #define __NR_rt_tgsigqueueinfo (__X32_SYSCALL_BIT + 536)
 #define __NR_recvmmsg (__X32_SYSCALL_BIT + 537)
 #define __NR_sendmmsg (__X32_SYSCALL_BIT + 538)
@@ -319,5 +317,7 @@
 #define __NR_io_setup (__X32_SYSCALL_BIT + 543)
 #define __NR_io_submit (__X32_SYSCALL_BIT + 544)
 #define __NR_execveat (__X32_SYSCALL_BIT + 545)
+#define __NR_preadv2 (__X32_SYSCALL_BIT + 546)
+#define __NR_pwritev2 (__X32_SYSCALL_BIT + 547)
 
 #endif /* _ASM_X86_UNISTD_X32_H */
