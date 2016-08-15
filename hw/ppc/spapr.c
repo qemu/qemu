@@ -1812,6 +1812,8 @@ static void ppc_spapr_init(MachineState *machine)
         machine->cpu_model = kvm_enabled() ? "host" : "POWER7";
     }
 
+    ppc_cpu_parse_features(machine->cpu_model);
+
     if (mc->query_hotpluggable_cpus) {
         char *type = spapr_get_cpu_core_type(machine->cpu_model);
 
