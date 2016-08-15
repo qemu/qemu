@@ -1,4 +1,4 @@
-# See docs/trace-events.txt for syntax documentation.
+# See docs/tracing.txt for syntax documentation.
 
 # target-s390x/mmu_helper.c
 get_skeys_nonzero(int rc) "SKEY: Call to get_skeys unexpectedly returned %d"

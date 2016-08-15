@@ -1,4 +1,4 @@
-# See docs/trace-events.txt for syntax documentation.
+# See docs/tracing.txt for syntax documentation.
 
 # hw/audio/cs4231.c
 cs4231_mem_readl_dreg(uint32_t reg, uint32_t ret) "read dreg %d: 0x%02x"

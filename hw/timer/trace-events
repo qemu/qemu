@@ -1,4 +1,4 @@
-# See docs/trace-events.txt for syntax documentation.
+# See docs/tracing.txt for syntax documentation.
 
 # hw/timer/slavio_timer.c
 slavio_timer_get_out(uint64_t limit, uint32_t counthigh, uint32_t count) "limit %"PRIx64" count %x%08x"

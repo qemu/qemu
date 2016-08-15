@@ -1,4 +1,4 @@
-# See docs/trace-events.txt for syntax documentation.
+# See docs/tracing.txt for syntax documentation.
 
 # hw/i386/xen/xen_platform.c
 xen_platform_log(char *s) "xen platform: %s"

@@ -1,4 +1,4 @@
-# See docs/trace-events.txt for syntax documentation.
+# See docs/tracing.txt for syntax documentation.
 
 # hw/s390x/css.c
 css_enable_facility(const char *facility) "CSS: enable %s"

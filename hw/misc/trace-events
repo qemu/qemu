@@ -1,4 +1,4 @@
-# See docs/trace-events.txt for syntax documentation.
+# See docs/tracing.txt for syntax documentation.
 
 # hw/misc/eccmemctl.c
 ecc_mem_writel_mer(uint32_t val) "Write memory enable %08x"
