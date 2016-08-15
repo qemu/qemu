@@ -2049,9 +2049,8 @@ void xen_pt_config_init(XenPCIPassthroughState *s, Error **errp)
                 for (j = 0; regs->size != 0; j++, regs++) {
                     xen_pt_config_reg_init(s, reg_grp_entry, regs, &err);
                     if (err) {
-                        error_append_hint(&err, "Failed to initialize %d/%zu"
-                                " reg 0x%x in grp_type = 0x%x (%d/%zu)",
-                                j, ARRAY_SIZE(xen_pt_emu_reg_grps[i].emu_regs),
+                        error_append_hint(&err, "Failed to init register %d"
+                                " offsets 0x%x in grp_type = 0x%x (%d/%zu)", j,
                                 regs->offset, xen_pt_emu_reg_grps[i].grp_type,
                                 i, ARRAY_SIZE(xen_pt_emu_reg_grps));
                         error_propagate(errp, err);
