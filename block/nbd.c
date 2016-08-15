@@ -188,13 +188,13 @@ out:
     g_free(file);
 }
 
-static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options, char **export,
+static SocketAddress *nbd_config(BDRVNBDState *s, QemuOpts *opts, char **export,
                                  Error **errp)
 {
     SocketAddress *saddr;
 
-    if (qdict_haskey(options, "path") == qdict_haskey(options, "host")) {
-        if (qdict_haskey(options, "path")) {
+    if (!qemu_opt_get(opts, "path") == !qemu_opt_get(opts, "host")) {
+        if (qemu_opt_get(opts, "path")) {
             error_setg(errp, "path and host may not be used at the same time.");
         } else {
             error_setg(errp, "one of path and host must be specified.");
@@ -204,32 +204,25 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options, char **export,
 
     saddr = g_new0(SocketAddress, 1);
 
-    if (qdict_haskey(options, "path")) {
+    if (qemu_opt_get(opts, "path")) {
         UnixSocketAddress *q_unix;
         saddr->type = SOCKET_ADDRESS_KIND_UNIX;
         q_unix = saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
-        q_unix->path = g_strdup(qdict_get_str(options, "path"));
-        qdict_del(options, "path");
+        q_unix->path = g_strdup(qemu_opt_get(opts, "path"));
     } else {
         InetSocketAddress *inet;
         saddr->type = SOCKET_ADDRESS_KIND_INET;
         inet = saddr->u.inet.data = g_new0(InetSocketAddress, 1);
-        inet->host = g_strdup(qdict_get_str(options, "host"));
-        if (!qdict_get_try_str(options, "port")) {
+        inet->host = g_strdup(qemu_opt_get(opts, "host"));
+        inet->port = g_strdup(qemu_opt_get(opts, "port"));
+        if (!inet->port) {
             inet->port = g_strdup_printf("%d", NBD_DEFAULT_PORT);
-        } else {
-            inet->port = g_strdup(qdict_get_str(options, "port"));
         }
-        qdict_del(options, "host");
-        qdict_del(options, "port");
     }
 
     s->client.is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
 
-    *export = g_strdup(qdict_get_try_str(options, "export"));
-    if (*export) {
-        qdict_del(options, "export");
-    }
+    *export = g_strdup(qemu_opt_get(opts, "export"));
 
     return saddr;
 }
@@ -292,27 +285,67 @@ static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, Error **errp)
 }
 
 
+static QemuOptsList nbd_runtime_opts = {
+    .name = "nbd",
+    .head = QTAILQ_HEAD_INITIALIZER(nbd_runtime_opts.head),
+    .desc = {
+        {
+            .name = "host",
+            .type = QEMU_OPT_STRING,
+            .help = "TCP host to connect to",
+        },
+        {
+            .name = "port",
+            .type = QEMU_OPT_STRING,
+            .help = "TCP port to connect to",
+        },
+        {
+            .name = "path",
+            .type = QEMU_OPT_STRING,
+            .help = "Unix socket path to connect to",
+        },
+        {
+            .name = "export",
+            .type = QEMU_OPT_STRING,
+            .help = "Name of the NBD export to open",
+        },
+        {
+            .name = "tls-creds",
+            .type = QEMU_OPT_STRING,
+            .help = "ID of the TLS credentials to use",
+        },
+    },
+};
+
 static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     BDRVNBDState *s = bs->opaque;
+    QemuOpts *opts = NULL;
+    Error *local_err = NULL;
     char *export = NULL;
     QIOChannelSocket *sioc = NULL;
-    SocketAddress *saddr;
+    SocketAddress *saddr = NULL;
     const char *tlscredsid;
     QCryptoTLSCreds *tlscreds = NULL;
     const char *hostname = NULL;
     int ret = -EINVAL;
 
+    opts = qemu_opts_create(&nbd_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto error;
+    }
+
     /* Pop the config into our state object. Exit if invalid. */
-    saddr = nbd_config(s, options, &export, errp);
+    saddr = nbd_config(s, opts, &export, errp);
     if (!saddr) {
         goto error;
     }
 
-    tlscredsid = g_strdup(qdict_get_try_str(options, "tls-creds"));
+    tlscredsid = g_strdup(qemu_opt_get(opts, "tls-creds"));
     if (tlscredsid) {
-        qdict_del(options, "tls-creds");
         tlscreds = nbd_get_tls_creds(tlscredsid, errp);
         if (!tlscreds) {
             goto error;
@@ -346,6 +379,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
     qapi_free_SocketAddress(saddr);
     g_free(export);
+    qemu_opts_del(opts);
     return ret;
 }
 
