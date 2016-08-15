@@ -2565,7 +2565,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         /* Zero-pad last write if image size is not cluster aligned */
         memset(buf + bytes, 0, s->cluster_size - bytes);
     }
-    qemu_iovec_to_buf(qiov, 0, buf, s->cluster_size);
+    qemu_iovec_to_buf(qiov, 0, buf, bytes);
 
     out_buf = g_malloc(s->cluster_size);
 
