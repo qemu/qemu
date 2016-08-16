@@ -39,6 +39,7 @@
 #include "io/channel-file.h"
 #include "io/channel-tls.h"
 #include "sysemu/replay.h"
+#include "qemu/help_option.h"
 
 #include <zlib.h>
 
@@ -3879,16 +3880,26 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
     const char *id = qemu_opts_id(opts);
     char *bid = NULL;
 
-    if (id == NULL) {
-        error_setg(errp, "chardev: no id specified");
-        goto err;
-    }
-
     if (qemu_opt_get(opts, "backend") == NULL) {
         error_setg(errp, "chardev: \"%s\" missing backend",
                    qemu_opts_id(opts));
         goto err;
     }
+
+    if (is_help_option(qemu_opt_get(opts, "backend"))) {
+        fprintf(stderr, "Available chardev backend types:\n");
+        for (i = backends; i; i = i->next) {
+            cd = i->data;
+            fprintf(stderr, "%s\n", cd->name);
+        }
+        exit(!is_help_option(qemu_opt_get(opts, "backend")));
+    }
+
+    if (id == NULL) {
+        error_setg(errp, "chardev: no id specified");
+        goto err;
+    }
+
     for (i = backends; i; i = i->next) {
         cd = i->data;
 

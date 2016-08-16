@@ -2152,6 +2152,7 @@ The general form of a character device option is:
 ETEXI
 
 DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
+    "-chardev help\n"
     "-chardev null,id=id[,mux=on|off][,logfile=PATH][,logappend=on|off]\n"
     "-chardev socket,id=id[,host=host],port=port[,to=to][,ipv4][,ipv6][,nodelay][,reconnect=seconds]\n"
     "         [,server][,nowait][,telnet][,reconnect=seconds][,mux=on|off]\n"
@@ -2216,6 +2217,8 @@ Backend is one of:
 @option{spicevmc}.
 @option{spiceport}.
 The specific backend will determine the applicable options.
+
+Use "-chardev help" to print all available chardev backend types.
 
 All devices must have an id, which can be any string up to 127 characters long.
 It is used to uniquely identify this device in other command line directives.
