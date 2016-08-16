@@ -73,6 +73,9 @@ typedef int (*vhost_migration_done_op)(struct vhost_dev *dev,
 typedef bool (*vhost_backend_can_merge_op)(struct vhost_dev *dev,
                                            uint64_t start1, uint64_t size1,
                                            uint64_t start2, uint64_t size2);
+typedef int (*vhost_vsock_set_guest_cid_op)(struct vhost_dev *dev,
+                                            uint64_t guest_cid);
+typedef int (*vhost_vsock_set_running_op)(struct vhost_dev *dev, int start);
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
@@ -102,6 +105,8 @@ typedef struct VhostOps {
     vhost_requires_shm_log_op vhost_requires_shm_log;
     vhost_migration_done_op vhost_migration_done;
     vhost_backend_can_merge_op vhost_backend_can_merge;
+    vhost_vsock_set_guest_cid_op vhost_vsock_set_guest_cid;
+    vhost_vsock_set_running_op vhost_vsock_set_running;
 } VhostOps;
 
 extern const VhostOps user_ops;

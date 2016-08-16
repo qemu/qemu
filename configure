@@ -229,6 +229,7 @@ xfs=""
 
 vhost_net="no"
 vhost_scsi="no"
+vhost_vsock="no"
 kvm="no"
 rdma=""
 gprof="no"
@@ -674,6 +675,7 @@ Haiku)
   kvm="yes"
   vhost_net="yes"
   vhost_scsi="yes"
+  vhost_vsock="yes"
   QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$(pwd)/linux-headers $QEMU_INCLUDES"
 ;;
 esac
@@ -1016,6 +1018,10 @@ for opt do
   --disable-vhost-scsi) vhost_scsi="no"
   ;;
   --enable-vhost-scsi) vhost_scsi="yes"
+  ;;
+  --disable-vhost-vsock) vhost_vsock="no"
+  ;;
+  --enable-vhost-vsock) vhost_vsock="yes"
   ;;
   --disable-opengl) opengl="no"
   ;;
@@ -4883,6 +4889,7 @@ echo "uuid support      $uuid"
 echo "libcap-ng support $cap_ng"
 echo "vhost-net support $vhost_net"
 echo "vhost-scsi support $vhost_scsi"
+echo "vhost-vsock support $vhost_vsock"
 echo "Trace backends    $trace_backends"
 if have_backend "simple"; then
 echo "Trace output file $trace_file-<pid>"
@@ -5263,6 +5270,9 @@ if test "$vhost_scsi" = "yes" ; then
 fi
 if test "$vhost_net" = "yes" ; then
   echo "CONFIG_VHOST_NET_USED=y" >> $config_host_mak
+fi
+if test "$vhost_vsock" = "yes" ; then
+  echo "CONFIG_VHOST_VSOCK=y" >> $config_host_mak
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_host_mak

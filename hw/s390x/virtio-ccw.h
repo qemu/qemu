@@ -23,6 +23,9 @@
 #include "hw/virtio/virtio-balloon.h"
 #include "hw/virtio/virtio-rng.h"
 #include "hw/virtio/virtio-bus.h"
+#ifdef CONFIG_VHOST_VSOCK
+#include "hw/virtio/vhost-vsock.h"
+#endif /* CONFIG_VHOST_VSOCK */
 
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/css.h"
@@ -196,5 +199,17 @@ typedef struct V9fsCCWState {
 } V9fsCCWState;
 
 #endif /* CONFIG_VIRTFS */
+
+#ifdef CONFIG_VHOST_VSOCK
+#define TYPE_VHOST_VSOCK_CCW "vhost-vsock-ccw"
+#define VHOST_VSOCK_CCW(obj) \
+    OBJECT_CHECK(VHostVSockCCWState, (obj), TYPE_VHOST_VSOCK_CCW)
+
+typedef struct VHostVSockCCWState {
+    VirtioCcwDevice parent_obj;
+    VHostVSock vdev;
+} VHostVSockCCWState;
+
+#endif /* CONFIG_VHOST_VSOCK */
 
 #endif

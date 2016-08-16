@@ -172,6 +172,19 @@ static int vhost_kernel_get_vq_index(struct vhost_dev *dev, int idx)
     return idx - dev->vq_index;
 }
 
+#ifdef CONFIG_VHOST_VSOCK
+static int vhost_kernel_vsock_set_guest_cid(struct vhost_dev *dev,
+                                            uint64_t guest_cid)
+{
+    return vhost_kernel_call(dev, VHOST_VSOCK_SET_GUEST_CID, &guest_cid);
+}
+
+static int vhost_kernel_vsock_set_running(struct vhost_dev *dev, int start)
+{
+    return vhost_kernel_call(dev, VHOST_VSOCK_SET_RUNNING, &start);
+}
+#endif /* CONFIG_VHOST_VSOCK */
+
 static const VhostOps kernel_ops = {
         .backend_type = VHOST_BACKEND_TYPE_KERNEL,
         .vhost_backend_init = vhost_kernel_init,
@@ -197,6 +210,10 @@ static const VhostOps kernel_ops = {
         .vhost_set_owner = vhost_kernel_set_owner,
         .vhost_reset_device = vhost_kernel_reset_device,
         .vhost_get_vq_index = vhost_kernel_get_vq_index,
+#ifdef CONFIG_VHOST_VSOCK
+        .vhost_vsock_set_guest_cid = vhost_kernel_vsock_set_guest_cid,
+        .vhost_vsock_set_running = vhost_kernel_vsock_set_running,
+#endif /* CONFIG_VHOST_VSOCK */
 };
 
 int vhost_set_backend_type(struct vhost_dev *dev, VhostBackendType backend_type)

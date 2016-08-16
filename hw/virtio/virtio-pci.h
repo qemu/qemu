@@ -31,6 +31,9 @@
 #ifdef CONFIG_VHOST_SCSI
 #include "hw/virtio/vhost-scsi.h"
 #endif
+#ifdef CONFIG_VHOST_VSOCK
+#include "hw/virtio/vhost-vsock.h"
+#endif
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 typedef struct VirtIOBlkPCI VirtIOBlkPCI;
@@ -44,6 +47,7 @@ typedef struct VirtIOInputPCI VirtIOInputPCI;
 typedef struct VirtIOInputHIDPCI VirtIOInputHIDPCI;
 typedef struct VirtIOInputHostPCI VirtIOInputHostPCI;
 typedef struct VirtIOGPUPCI VirtIOGPUPCI;
+typedef struct VHostVSockPCI VHostVSockPCI;
 
 /* virtio-pci-bus */
 
@@ -328,6 +332,20 @@ struct VirtIOGPUPCI {
     VirtIOPCIProxy parent_obj;
     VirtIOGPU vdev;
 };
+
+#ifdef CONFIG_VHOST_VSOCK
+/*
+ * vhost-vsock-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VHOST_VSOCK_PCI "vhost-vsock-pci"
+#define VHOST_VSOCK_PCI(obj) \
+        OBJECT_CHECK(VHostVSockPCI, (obj), TYPE_VHOST_VSOCK_PCI)
+
+struct VHostVSockPCI {
+    VirtIOPCIProxy parent_obj;
+    VHostVSock vdev;
+};
+#endif
 
 /* Virtio ABI version, if we increment this, we break the guest driver. */
 #define VIRTIO_PCI_ABI_VERSION          0
