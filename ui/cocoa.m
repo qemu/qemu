@@ -33,6 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
 #include "sysemu/blockdev.h"
+#include "qemu-version.h"
 #include <Carbon/Carbon.h>
 
 #ifndef MAC_OS_X_VERSION_10_5
@@ -63,7 +64,7 @@ typedef struct {
     int bitsPerPixel;
 } QEMUScreen;
 
-NSWindow *normalWindow;
+NSWindow *normalWindow, *about_window;
 static DisplayChangeListener *dcl;
 static int last_buttons;
 
@@ -670,7 +671,9 @@ QemuCocoaView *cocoaView;
         case NSLeftMouseUp:
             mouse_event = true;
             if (!isMouseGrabbed && [self screenContainsPoint:p]) {
-                [self grabMouse];
+                if([[self window] isKeyWindow]) {
+                    [self grabMouse];
+                }
             }
             break;
         case NSRightMouseUp:
@@ -824,6 +827,8 @@ QemuCocoaView *cocoaView;
 - (void)changeDeviceMedia:(id)sender;
 - (BOOL)verifyQuit;
 - (void)openDocumentation:(NSString *)filename;
+- (IBAction) do_about_menu_item: (id) sender;
+- (void)make_about_window;
 @end
 
 @implementation QemuCocoaAppController
@@ -876,6 +881,7 @@ QemuCocoaView *cocoaView;
         supportedImageFileTypes = [NSArray arrayWithObjects: @"img", @"iso", @"dmg",
                                  @"qcow", @"qcow2", @"cloop", @"vmdk", @"cdr",
                                   nil];
+        [self make_about_window];
     }
     return self;
 }
@@ -1138,6 +1144,101 @@ QemuCocoaView *cocoaView;
     }
 }
 
+/* The action method for the About menu item */
+- (IBAction) do_about_menu_item: (id) sender
+{
+    [about_window makeKeyAndOrderFront: nil];
+}
+
+/* Create and display the about dialog */
+- (void)make_about_window
+{
+    /* Make the window */
+    int x = 0, y = 0, about_width = 400, about_height = 200;
+    NSRect window_rect = NSMakeRect(x, y, about_width, about_height);
+    about_window = [[NSWindow alloc] initWithContentRect:window_rect
+                    styleMask:NSTitledWindowMask | NSClosableWindowMask |
+                    NSMiniaturizableWindowMask
+                    backing:NSBackingStoreBuffered
+                    defer:NO];
+    [about_window setTitle: @"About"];
+    [about_window setReleasedWhenClosed: NO];
+    [about_window center];
+    NSView *superView = [about_window contentView];
+
+    /* Create the dimensions of the picture */
+    int picture_width = 80, picture_height = 80;
+    x = (about_width - picture_width)/2;
+    y = about_height - picture_height - 10;
+    NSRect picture_rect = NSMakeRect(x, y, picture_width, picture_height);
+
+    /* Get the path to the QEMU binary */
+    NSString *binary_name = [NSString stringWithCString: gArgv[0]
+                                      encoding: NSASCIIStringEncoding];
+    binary_name = [binary_name lastPathComponent];
+    NSString *program_path = [[NSString alloc] initWithFormat: @"%@/%@",
+    [[NSBundle mainBundle] bundlePath], binary_name];
+
+    /* Make the picture of QEMU */
+    NSImageView *picture_view = [[NSImageView alloc] initWithFrame:
+                                                     picture_rect];
+    NSImage *qemu_image = [[NSWorkspace sharedWorkspace] iconForFile:
+                                                         program_path];
+    [picture_view setImage: qemu_image];
+    [picture_view setImageScaling: NSImageScaleProportionallyUpOrDown];
+    [superView addSubview: picture_view];
+
+    /* Make the name label */
+    x = 0;
+    y = y - 25;
+    int name_width = about_width, name_height = 20;
+    NSRect name_rect = NSMakeRect(x, y, name_width, name_height);
+    NSTextField *name_label = [[NSTextField alloc] initWithFrame: name_rect];
+    [name_label setEditable: NO];
+    [name_label setBezeled: NO];
+    [name_label setDrawsBackground: NO];
+    [name_label setAlignment: NSCenterTextAlignment];
+    NSString *qemu_name = [[NSString alloc] initWithCString: gArgv[0]
+                                            encoding: NSASCIIStringEncoding];
+    qemu_name = [qemu_name lastPathComponent];
+    [name_label setStringValue: qemu_name];
+    [superView addSubview: name_label];
+
+    /* Set the version label's attributes */
+    x = 0;
+    y = 50;
+    int version_width = about_width, version_height = 20;
+    NSRect version_rect = NSMakeRect(x, y, version_width, version_height);
+    NSTextField *version_label = [[NSTextField alloc] initWithFrame:
+                                                      version_rect];
+    [version_label setEditable: NO];
+    [version_label setBezeled: NO];
+    [version_label setAlignment: NSCenterTextAlignment];
+    [version_label setDrawsBackground: NO];
+
+    /* Create the version string*/
+    NSString *version_string;
+    version_string = [[NSString alloc] initWithFormat:
+    @"QEMU emulator version %s%s", QEMU_VERSION, QEMU_PKGVERSION];
+    [version_label setStringValue: version_string];
+    [superView addSubview: version_label];
+
+    /* Make copyright label */
+    x = 0;
+    y = 35;
+    int copyright_width = about_width, copyright_height = 20;
+    NSRect copyright_rect = NSMakeRect(x, y, copyright_width, copyright_height);
+    NSTextField *copyright_label = [[NSTextField alloc] initWithFrame:
+                                                        copyright_rect];
+    [copyright_label setEditable: NO];
+    [copyright_label setBezeled: NO];
+    [copyright_label setDrawsBackground: NO];
+    [copyright_label setAlignment: NSCenterTextAlignment];
+    [copyright_label setStringValue: [NSString stringWithFormat: @"%s",
+                                     QEMU_COPYRIGHT]];
+    [superView addSubview: copyright_label];
+}
+
 @end
 
 
@@ -1185,7 +1286,7 @@ int main (int argc, const char * argv[]) {
 
     // Application menu
     menu = [[NSMenu alloc] initWithTitle:@""];
-    [menu addItemWithTitle:@"About QEMU" action:@selector(orderFrontStandardAboutPanel:) keyEquivalent:@""]; // About QEMU
+    [menu addItemWithTitle:@"About QEMU" action:@selector(do_about_menu_item:) keyEquivalent:@""]; // About QEMU
     [menu addItem:[NSMenuItem separatorItem]]; //Separator
     [menu addItemWithTitle:@"Hide QEMU" action:@selector(hide:) keyEquivalent:@"h"]; //Hide QEMU
     menuItem = (NSMenuItem *)[menu addItemWithTitle:@"Hide Others" action:@selector(hideOtherApplications:) keyEquivalent:@"h"]; // Hide Others
