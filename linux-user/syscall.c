@@ -1783,30 +1783,58 @@ static abi_long host_to_target_data_bridge_nlattr(struct nlattr *nlattr,
     uint64_t *u64;
 
     switch (nlattr->nla_type) {
+#ifdef IFLA_BR_FDB_FLUSH
     /* no data */
     case IFLA_BR_FDB_FLUSH:
         break;
+#endif
+#ifdef IFLA_BR_GROUP_ADDR
     /* binary */
     case IFLA_BR_GROUP_ADDR:
         break;
+#endif
     /* uint8_t */
     case IFLA_BR_VLAN_FILTERING:
+#ifdef IFLA_BR_TOPOLOGY_CHANGE
     case IFLA_BR_TOPOLOGY_CHANGE:
+#endif
+#ifdef IFLA_BR_TOPOLOGY_CHANGE_DETECTED
     case IFLA_BR_TOPOLOGY_CHANGE_DETECTED:
+#endif
+#ifdef IFLA_BR_MCAST_ROUTER
     case IFLA_BR_MCAST_ROUTER:
+#endif
+#ifdef IFLA_BR_MCAST_SNOOPING
     case IFLA_BR_MCAST_SNOOPING:
+#endif
+#ifdef IFLA_BR_MCAST_QUERY_USE_IFADDR
     case IFLA_BR_MCAST_QUERY_USE_IFADDR:
+#endif
+#ifdef IFLA_BR_MCAST_QUERIER
     case IFLA_BR_MCAST_QUERIER:
+#endif
+#ifdef IFLA_BR_NF_CALL_IPTABLES
     case IFLA_BR_NF_CALL_IPTABLES:
+#endif
+#ifdef IFLA_BR_NF_CALL_IP6TABLES
     case IFLA_BR_NF_CALL_IP6TABLES:
+#endif
+#ifdef IFLA_BR_NF_CALL_ARPTABLES
     case IFLA_BR_NF_CALL_ARPTABLES:
+#endif
         break;
     /* uint16_t */
     case IFLA_BR_PRIORITY:
     case IFLA_BR_VLAN_PROTOCOL:
+#ifdef IFLA_BR_GROUP_FWD_MASK
     case IFLA_BR_GROUP_FWD_MASK:
+#endif
+#ifdef IFLA_BR_ROOT_PORT
     case IFLA_BR_ROOT_PORT:
+#endif
+#ifdef IFLA_BR_VLAN_DEFAULT_PVID
     case IFLA_BR_VLAN_DEFAULT_PVID:
+#endif
         u16 = NLA_DATA(nlattr);
         *u16 = tswap16(*u16);
         break;
@@ -1816,31 +1844,65 @@ static abi_long host_to_target_data_bridge_nlattr(struct nlattr *nlattr,
     case IFLA_BR_MAX_AGE:
     case IFLA_BR_AGEING_TIME:
     case IFLA_BR_STP_STATE:
+#ifdef IFLA_BR_ROOT_PATH_COST
     case IFLA_BR_ROOT_PATH_COST:
+#endif
+#ifdef IFLA_BR_MCAST_HASH_ELASTICITY
     case IFLA_BR_MCAST_HASH_ELASTICITY:
+#endif
+#ifdef IFLA_BR_MCAST_HASH_MAX
     case IFLA_BR_MCAST_HASH_MAX:
+#endif
+#ifdef IFLA_BR_MCAST_LAST_MEMBER_CNT
     case IFLA_BR_MCAST_LAST_MEMBER_CNT:
+#endif
+#ifdef IFLA_BR_MCAST_STARTUP_QUERY_CNT
     case IFLA_BR_MCAST_STARTUP_QUERY_CNT:
+#endif
         u32 = NLA_DATA(nlattr);
         *u32 = tswap32(*u32);
         break;
     /* uint64_t */
+#ifdef IFLA_BR_HELLO_TIMER
     case IFLA_BR_HELLO_TIMER:
+#endif
+#ifdef IFLA_BR_TCN_TIMER
     case IFLA_BR_TCN_TIMER:
+#endif
+#ifdef IFLA_BR_GC_TIMER
     case IFLA_BR_GC_TIMER:
+#endif
+#ifdef IFLA_BR_TOPOLOGY_CHANGE_TIMER
     case IFLA_BR_TOPOLOGY_CHANGE_TIMER:
+#endif
+#ifdef IFLA_BR_MCAST_LAST_MEMBER_INTVL
     case IFLA_BR_MCAST_LAST_MEMBER_INTVL:
+#endif
+#ifdef IFLA_BR_MCAST_MEMBERSHIP_INTVL
     case IFLA_BR_MCAST_MEMBERSHIP_INTVL:
+#endif
+#ifdef IFLA_BR_MCAST_QUERIER_INTVL
     case IFLA_BR_MCAST_QUERIER_INTVL:
+#endif
+#ifdef IFLA_BR_MCAST_QUERY_INTVL
     case IFLA_BR_MCAST_QUERY_INTVL:
+#endif
+#ifdef IFLA_BR_MCAST_QUERY_RESPONSE_INTVL
     case IFLA_BR_MCAST_QUERY_RESPONSE_INTVL:
+#endif
+#ifdef IFLA_BR_MCAST_STARTUP_QUERY_INTVL
     case IFLA_BR_MCAST_STARTUP_QUERY_INTVL:
+#endif
         u64 = NLA_DATA(nlattr);
         *u64 = tswap64(*u64);
         break;
     /* ifla_bridge_id: uin8_t[] */
+#ifdef IFLA_BR_ROOT_ID
     case IFLA_BR_ROOT_ID:
+#endif
+#ifdef IFLA_BR_BRIDGE_ID
     case IFLA_BR_BRIDGE_ID:
+#endif
         break;
     default:
         gemu_log("Unknown IFLA_BR type %d\n", nlattr->nla_type);
@@ -1868,16 +1930,30 @@ static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
     case IFLA_BRPORT_PROXYARP:
     case IFLA_BRPORT_LEARNING_SYNC:
     case IFLA_BRPORT_PROXYARP_WIFI:
+#ifdef IFLA_BRPORT_TOPOLOGY_CHANGE_ACK
     case IFLA_BRPORT_TOPOLOGY_CHANGE_ACK:
+#endif
+#ifdef IFLA_BRPORT_CONFIG_PENDING
     case IFLA_BRPORT_CONFIG_PENDING:
+#endif
+#ifdef IFLA_BRPORT_MULTICAST_ROUTER
     case IFLA_BRPORT_MULTICAST_ROUTER:
+#endif
         break;
     /* uint16_t */
     case IFLA_BRPORT_PRIORITY:
+#ifdef IFLA_BRPORT_DESIGNATED_PORT
     case IFLA_BRPORT_DESIGNATED_PORT:
+#endif
+#ifdef IFLA_BRPORT_DESIGNATED_COST
     case IFLA_BRPORT_DESIGNATED_COST:
+#endif
+#ifdef IFLA_BRPORT_ID
     case IFLA_BRPORT_ID:
+#endif
+#ifdef IFLA_BRPORT_NO
     case IFLA_BRPORT_NO:
+#endif
         u16 = NLA_DATA(nlattr);
         *u16 = tswap16(*u16);
         break;
@@ -1887,15 +1963,25 @@ static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
         *u32 = tswap32(*u32);
         break;
     /* uint64_t */
+#ifdef IFLA_BRPORT_MESSAGE_AGE_TIMER
     case IFLA_BRPORT_MESSAGE_AGE_TIMER:
+#endif
+#ifdef IFLA_BRPORT_FORWARD_DELAY_TIMER
     case IFLA_BRPORT_FORWARD_DELAY_TIMER:
+#endif
+#ifdef IFLA_BRPORT_HOLD_TIMER
     case IFLA_BRPORT_HOLD_TIMER:
+#endif
         u64 = NLA_DATA(nlattr);
         *u64 = tswap64(*u64);
         break;
     /* ifla_bridge_id: uint8_t[] */
+#ifdef IFLA_BRPORT_ROOT_ID
     case IFLA_BRPORT_ROOT_ID:
+#endif
+#ifdef IFLA_BRPORT_BRIDGE_ID
     case IFLA_BRPORT_BRIDGE_ID:
+#endif
         break;
     default:
         gemu_log("Unknown IFLA_BRPORT type %d\n", nlattr->nla_type);
