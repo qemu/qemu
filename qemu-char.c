@@ -3176,7 +3176,9 @@ static int tcp_chr_wait_connected(CharDriverState *chr, Error **errp)
     TCPCharDriver *s = chr->opaque;
     QIOChannelSocket *sioc;
 
-    while (!s->connected) {
+    /* It can't wait on s->connected, since it is set asynchronously
+     * in TLS and telnet cases, only wait for an accepted socket */
+    while (!s->ioc) {
         if (s->is_listen) {
             fprintf(stderr, "QEMU waiting for connection on: %s\n",
                     chr->filename);
