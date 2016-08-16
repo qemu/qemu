@@ -692,6 +692,8 @@ void *vnc_server_fb_ptr(VncDisplay *vd, int x, int y)
 
 static void vnc_update_server_surface(VncDisplay *vd)
 {
+    int width, height;
+
     qemu_pixman_image_unref(vd->server);
     vd->server = NULL;
 
@@ -699,10 +701,15 @@ static void vnc_update_server_surface(VncDisplay *vd)
         return;
     }
 
+    width = vnc_width(vd);
+    height = vnc_height(vd);
     vd->server = pixman_image_create_bits(VNC_SERVER_FB_FORMAT,
-                                          vnc_width(vd),
-                                          vnc_height(vd),
+                                          width, height,
                                           NULL, 0);
+
+    memset(vd->guest.dirty, 0x00, sizeof(vd->guest.dirty));
+    vnc_set_area_dirty(vd->guest.dirty, vd, 0, 0,
+                       width, height);
 }
 
 static void vnc_dpy_switch(DisplayChangeListener *dcl,
@@ -710,7 +717,6 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
 {
     VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
     VncState *vs;
-    int width, height;
 
     vnc_abort_display_jobs(vd);
     vd->ds = surface;
@@ -722,11 +728,6 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
     qemu_pixman_image_unref(vd->guest.fb);
     vd->guest.fb = pixman_image_ref(surface->image);
     vd->guest.format = surface->format;
-    width = vnc_width(vd);
-    height = vnc_height(vd);
-    memset(vd->guest.dirty, 0x00, sizeof(vd->guest.dirty));
-    vnc_set_area_dirty(vd->guest.dirty, vd, 0, 0,
-                       width, height);
 
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         vnc_colordepth(vs);
@@ -736,7 +737,8 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
         }
         memset(vs->dirty, 0x00, sizeof(vs->dirty));
         vnc_set_area_dirty(vs->dirty, vd, 0, 0,
-                           width, height);
+                           vnc_width(vd),
+                           vnc_height(vd));
     }
 }
 
