@@ -2358,7 +2358,8 @@ out:
     /* Notify any pending flushes that we have completed */
     bs->flushed_gen = current_gen;
     bs->active_flush_req = NULL;
-    qemu_co_queue_restart_all(&bs->flush_queue);
+    /* Return value is ignored - it's ok if wait queue is empty */
+    qemu_co_queue_next(&bs->flush_queue);
 
     tracked_request_end(&req);
     return ret;
