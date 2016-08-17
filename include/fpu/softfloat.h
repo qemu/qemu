@@ -658,6 +658,21 @@ static inline int floatx80_is_any_nan(floatx80 a)
     return ((a.high & 0x7fff) == 0x7fff) && (a.low<<1);
 }
 
+/*----------------------------------------------------------------------------
+| Return whether the given value is an invalid floatx80 encoding.
+| Invalid floatx80 encodings arise when the integer bit is not set, but
+| the exponent is not zero. The only times the integer bit is permitted to
+| be zero is in subnormal numbers and the value zero.
+| This includes what the Intel software developer's manual calls pseudo-NaNs,
+| pseudo-infinities and un-normal numbers. It does not include
+| pseudo-denormals, which must still be correctly handled as inputs even
+| if they are never generated as outputs.
+*----------------------------------------------------------------------------*/
+static inline bool floatx80_invalid_encoding(floatx80 a)
+{
+    return (a.low & (1ULL << 63)) == 0 && (a.high & 0x7FFF) != 0;
+}
+
 #define floatx80_zero make_floatx80(0x0000, 0x0000000000000000LL)
 #define floatx80_one make_floatx80(0x3fff, 0x8000000000000000LL)
 #define floatx80_ln2 make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL)
