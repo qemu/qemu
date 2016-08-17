@@ -2283,11 +2283,11 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     int current_gen = bs->write_gen;
 
     /* Wait until any previous flushes are completed */
-    while (bs->flush_started_gen != bs->flushed_gen) {
+    while (bs->active_flush_req != NULL) {
         qemu_co_queue_wait(&bs->flush_queue);
     }
 
-    bs->flush_started_gen = current_gen;
+    bs->active_flush_req = &req;
 
     /* Write back all layers by calling one driver function */
     if (bs->drv->bdrv_co_flush) {
@@ -2357,6 +2357,7 @@ flush_parent:
 out:
     /* Notify any pending flushes that we have completed */
     bs->flushed_gen = current_gen;
+    bs->active_flush_req = NULL;
     qemu_co_queue_restart_all(&bs->flush_queue);
 
     tracked_request_end(&req);
