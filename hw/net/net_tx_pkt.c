@@ -65,10 +65,9 @@ void net_tx_pkt_init(struct NetTxPkt **pkt, PCIDevice *pci_dev,
 
     p->pci_dev = pci_dev;
 
-    p->vec = g_malloc((sizeof *p->vec) *
-        (max_frags + NET_TX_PKT_PL_START_FRAG));
+    p->vec = g_new(struct iovec, max_frags + NET_TX_PKT_PL_START_FRAG);
 
-    p->raw = g_malloc((sizeof *p->raw) * max_frags);
+    p->raw = g_new(struct iovec, max_frags);
 
     p->max_payload_frags = max_frags;
     p->max_raw_frags = max_frags;
