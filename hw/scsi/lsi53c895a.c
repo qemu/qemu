@@ -326,7 +326,7 @@ static void lsi_soft_reset(LSIState *s)
     s->istat0 = 0;
     s->istat1 = 0;
     s->dcmd = 0x40;
-    s->dstat = LSI_DSTAT_DFE;
+    s->dstat = 0;
     s->dien = 0;
     s->sist0 = 0;
     s->sist1 = 0;
