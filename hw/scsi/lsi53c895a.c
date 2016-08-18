@@ -19,6 +19,7 @@
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
 #include "sysemu/dma.h"
+#include "qemu/log.h"
 
 //#define DEBUG_LSI
 //#define DEBUG_LSI_REG
@@ -34,7 +35,6 @@ do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__); exit(1);} while 
 do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 #endif
 
-#ifdef DEBUG_LSI_REG
 static const char *names[] = {
     "SCNTL0", "SCNTL1", "SCNTL2", "SCNTL3", "SCID", "SXFER", "SDID", "GPREG",
     "SFBR", "SOCL", "SSID", "SBCL", "DSTAT", "SSTAT0", "SSTAT1", "SSTAT2",
@@ -49,7 +49,6 @@ static const char *names[] = {
     "SIDL", "0x51", "0x52", "0x53", "SODL", "0x55", "0x56", "0x57",
     "SBDL", "0x59", "0x5a", "0x5b", "SCRATCHB0", "SCRATCHB1", "SCRATCHB2", "SCRATCHB3",
 };
-#endif
 
 #define LSI_MAX_DEVS 7
 
@@ -1715,8 +1714,14 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         break;
     }
     default:
-        BADF("readb 0x%x\n", offset);
-        exit(1);
+    {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "lsi_scsi: invalid read from reg %s %x\n",
+                      offset < ARRAY_SIZE(names) ? names[offset] : "???",
+                      offset);
+        ret = 0xff;
+        break;
+    }
     }
 #undef CASE_GET_REG24
 #undef CASE_GET_REG32
@@ -1959,7 +1964,10 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             shift = (offset & 3) * 8;
             s->scratch[n] = deposit32(s->scratch[n], shift, 8, val);
         } else {
-            BADF("Unhandled writeb 0x%x = 0x%x\n", offset, val);
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "lsi_scsi: invalid write to reg %s %x (0x%02x)\n",
+                          offset < ARRAY_SIZE(names) ? names[offset] : "???",
+                          offset, val);
         }
     }
 #undef CASE_SET_REG24
