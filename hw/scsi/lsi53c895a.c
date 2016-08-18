@@ -34,6 +34,23 @@ do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__); exit(1);} while 
 do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 #endif
 
+#ifdef DEBUG_LSI_REG
+static const char *names[] = {
+    "SCNTL0", "SCNTL1", "SCNTL2", "SCNTL3", "SCID", "SXFER", "SDID", "GPREG",
+    "SFBR", "SOCL", "SSID", "SBCL", "DSTAT", "SSTAT0", "SSTAT1", "SSTAT2",
+    "DSA0", "DSA1", "DSA2", "DSA3", "ISTAT", "0x15", "0x16", "0x17",
+    "CTEST0", "CTEST1", "CTEST2", "CTEST3", "TEMP0", "TEMP1", "TEMP2", "TEMP3",
+    "DFIFO", "CTEST4", "CTEST5", "CTEST6", "DBC0", "DBC1", "DBC2", "DCMD",
+    "DNAD0", "DNAD1", "DNAD2", "DNAD3", "DSP0", "DSP1", "DSP2", "DSP3",
+    "DSPS0", "DSPS1", "DSPS2", "DSPS3", "SCRATCHA0", "SCRATCHA1", "SCRATCHA2", "SCRATCHA3",
+    "DMODE", "DIEN", "SBR", "DCNTL", "ADDER0", "ADDER1", "ADDER2", "ADDER3",
+    "SIEN0", "SIEN1", "SIST0", "SIST1", "SLPAR", "0x45", "MACNTL", "GPCNTL",
+    "STIME0", "STIME1", "RESPID", "0x4b", "STEST0", "STEST1", "STEST2", "STEST3",
+    "SIDL", "0x51", "0x52", "0x53", "SODL", "0x55", "0x56", "0x57",
+    "SBDL", "0x59", "0x5a", "0x5b", "SCRATCHB0", "SCRATCHB1", "SCRATCHB2", "SCRATCHB3",
+};
+#endif
+
 #define LSI_MAX_DEVS 7
 
 #define LSI_SCNTL0_TRG    0x01
@@ -1480,155 +1497,200 @@ again:
 
 static uint8_t lsi_reg_readb(LSIState *s, int offset)
 {
-    uint8_t tmp;
+    uint8_t ret;
+
 #define CASE_GET_REG24(name, addr) \
-    case addr: return s->name & 0xff; \
-    case addr + 1: return (s->name >> 8) & 0xff; \
-    case addr + 2: return (s->name >> 16) & 0xff;
+    case addr: ret = s->name & 0xff; break; \
+    case addr + 1: ret = (s->name >> 8) & 0xff; break; \
+    case addr + 2: ret = (s->name >> 16) & 0xff; break;
 
 #define CASE_GET_REG32(name, addr) \
-    case addr: return s->name & 0xff; \
-    case addr + 1: return (s->name >> 8) & 0xff; \
-    case addr + 2: return (s->name >> 16) & 0xff; \
-    case addr + 3: return (s->name >> 24) & 0xff;
+    case addr: ret = s->name & 0xff; break; \
+    case addr + 1: ret = (s->name >> 8) & 0xff; break; \
+    case addr + 2: ret = (s->name >> 16) & 0xff; break; \
+    case addr + 3: ret = (s->name >> 24) & 0xff; break;
 
-#ifdef DEBUG_LSI_REG
-    DPRINTF("Read reg %x\n", offset);
-#endif
     switch (offset) {
     case 0x00: /* SCNTL0 */
-        return s->scntl0;
+        ret = s->scntl0;
+        break;
     case 0x01: /* SCNTL1 */
-        return s->scntl1;
+        ret = s->scntl1;
+        break;
     case 0x02: /* SCNTL2 */
-        return s->scntl2;
+        ret = s->scntl2;
+        break;
     case 0x03: /* SCNTL3 */
-        return s->scntl3;
+        ret = s->scntl3;
+        break;
     case 0x04: /* SCID */
-        return s->scid;
+        ret = s->scid;
+        break;
     case 0x05: /* SXFER */
-        return s->sxfer;
+        ret = s->sxfer;
+        break;
     case 0x06: /* SDID */
-        return s->sdid;
+        ret = s->sdid;
+        break;
     case 0x07: /* GPREG0 */
-        return 0x7f;
+        ret = 0x7f;
+        break;
     case 0x08: /* Revision ID */
-        return 0x00;
+        ret = 0x00;
+        break;
     case 0x09: /* SOCL */
-        return s->socl;
+        ret = s->socl;
+        break;
     case 0xa: /* SSID */
-        return s->ssid;
+        ret = s->ssid;
+        break;
     case 0xb: /* SBCL */
         /* ??? This is not correct. However it's (hopefully) only
            used for diagnostics, so should be ok.  */
-        return 0;
+        ret = 0;
+        break;
     case 0xc: /* DSTAT */
-        tmp = s->dstat | LSI_DSTAT_DFE;
+        ret = s->dstat | LSI_DSTAT_DFE;
         if ((s->istat0 & LSI_ISTAT0_INTF) == 0)
             s->dstat = 0;
         lsi_update_irq(s);
-        return tmp;
+        break;
     case 0x0d: /* SSTAT0 */
-        return s->sstat0;
+        ret = s->sstat0;
+        break;
     case 0x0e: /* SSTAT1 */
-        return s->sstat1;
+        ret = s->sstat1;
+        break;
     case 0x0f: /* SSTAT2 */
-        return s->scntl1 & LSI_SCNTL1_CON ? 0 : 2;
+        ret = s->scntl1 & LSI_SCNTL1_CON ? 0 : 2;
+        break;
     CASE_GET_REG32(dsa, 0x10)
     case 0x14: /* ISTAT0 */
-        return s->istat0;
+        ret = s->istat0;
+        break;
     case 0x15: /* ISTAT1 */
-        return s->istat1;
+        ret = s->istat1;
+        break;
     case 0x16: /* MBOX0 */
-        return s->mbox0;
+        ret = s->mbox0;
+        break;
     case 0x17: /* MBOX1 */
-        return s->mbox1;
+        ret = s->mbox1;
+        break;
     case 0x18: /* CTEST0 */
-        return 0xff;
+        ret = 0xff;
+        break;
     case 0x19: /* CTEST1 */
-        return 0;
+        ret = 0;
+        break;
     case 0x1a: /* CTEST2 */
-        tmp = s->ctest2 | LSI_CTEST2_DACK | LSI_CTEST2_CM;
+        ret = s->ctest2 | LSI_CTEST2_DACK | LSI_CTEST2_CM;
         if (s->istat0 & LSI_ISTAT0_SIGP) {
             s->istat0 &= ~LSI_ISTAT0_SIGP;
-            tmp |= LSI_CTEST2_SIGP;
+            ret |= LSI_CTEST2_SIGP;
         }
-        return tmp;
+        break;
     case 0x1b: /* CTEST3 */
-        return s->ctest3;
+        ret = s->ctest3;
+        break;
     CASE_GET_REG32(temp, 0x1c)
     case 0x20: /* DFIFO */
-        return 0;
+        ret = 0;
+        break;
     case 0x21: /* CTEST4 */
-        return s->ctest4;
+        ret = s->ctest4;
+        break;
     case 0x22: /* CTEST5 */
-        return s->ctest5;
+        ret = s->ctest5;
+        break;
     case 0x23: /* CTEST6 */
-         return 0;
+        ret = 0;
+        break;
     CASE_GET_REG24(dbc, 0x24)
     case 0x27: /* DCMD */
-        return s->dcmd;
+        ret = s->dcmd;
+        break;
     CASE_GET_REG32(dnad, 0x28)
     CASE_GET_REG32(dsp, 0x2c)
     CASE_GET_REG32(dsps, 0x30)
     CASE_GET_REG32(scratch[0], 0x34)
     case 0x38: /* DMODE */
-        return s->dmode;
+        ret = s->dmode;
+        break;
     case 0x39: /* DIEN */
-        return s->dien;
+        ret = s->dien;
+        break;
     case 0x3a: /* SBR */
-        return s->sbr;
+        ret = s->sbr;
+        break;
     case 0x3b: /* DCNTL */
-        return s->dcntl;
+        ret = s->dcntl;
+        break;
     /* ADDER Output (Debug of relative jump address) */
     CASE_GET_REG32(adder, 0x3c)
     case 0x40: /* SIEN0 */
-        return s->sien0;
+        ret = s->sien0;
+        break;
     case 0x41: /* SIEN1 */
-        return s->sien1;
+        ret = s->sien1;
+        break;
     case 0x42: /* SIST0 */
-        tmp = s->sist0;
+        ret = s->sist0;
         s->sist0 = 0;
         lsi_update_irq(s);
-        return tmp;
+        break;
     case 0x43: /* SIST1 */
-        tmp = s->sist1;
+        ret = s->sist1;
         s->sist1 = 0;
         lsi_update_irq(s);
-        return tmp;
+        break;
     case 0x46: /* MACNTL */
-        return 0x0f;
+        ret = 0x0f;
+        break;
     case 0x47: /* GPCNTL0 */
-        return 0x0f;
+        ret = 0x0f;
+        break;
     case 0x48: /* STIME0 */
-        return s->stime0;
+        ret = s->stime0;
+        break;
     case 0x4a: /* RESPID0 */
-        return s->respid0;
+        ret = s->respid0;
+        break;
     case 0x4b: /* RESPID1 */
-        return s->respid1;
+        ret = s->respid1;
+        break;
     case 0x4d: /* STEST1 */
-        return s->stest1;
+        ret = s->stest1;
+        break;
     case 0x4e: /* STEST2 */
-        return s->stest2;
+        ret = s->stest2;
+        break;
     case 0x4f: /* STEST3 */
-        return s->stest3;
+        ret = s->stest3;
+        break;
     case 0x50: /* SIDL */
         /* This is needed by the linux drivers.  We currently only update it
            during the MSG IN phase.  */
-        return s->sidl;
+        ret = s->sidl;
+        break;
     case 0x52: /* STEST4 */
-        return 0xe0;
+        ret = 0xe0;
+        break;
     case 0x56: /* CCNTL0 */
-        return s->ccntl0;
+        ret = s->ccntl0;
+        break;
     case 0x57: /* CCNTL1 */
-        return s->ccntl1;
+        ret = s->ccntl1;
+        break;
     case 0x58: /* SBDL */
         /* Some drivers peek at the data bus during the MSG IN phase.  */
         if ((s->sstat1 & PHASE_MASK) == PHASE_MI)
             return s->msg[0];
-        return 0;
+        ret = 0;
+        break;
     case 0x59: /* SBDL high */
-        return 0;
+        ret = 0;
+        break;
     CASE_GET_REG32(mmrs, 0xa0)
     CASE_GET_REG32(mmws, 0xa4)
     CASE_GET_REG32(sfs, 0xa8)
@@ -1643,18 +1705,28 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
     CASE_GET_REG32(ia, 0xd4)
     CASE_GET_REG32(sbc, 0xd8)
     CASE_GET_REG32(csbc, 0xdc)
-    }
-    if (offset >= 0x5c && offset < 0xa0) {
+    case 0x5c ... 0x9f:
+    {
         int n;
         int shift;
         n = (offset - 0x58) >> 2;
         shift = (offset & 3) * 8;
-        return (s->scratch[n] >> shift) & 0xff;
+        ret = (s->scratch[n] >> shift) & 0xff;
+        break;
     }
-    BADF("readb 0x%x\n", offset);
-    exit(1);
+    default:
+        BADF("readb 0x%x\n", offset);
+        exit(1);
+    }
 #undef CASE_GET_REG24
 #undef CASE_GET_REG32
+
+#ifdef DEBUG_LSI_REG
+    DPRINTF("Read reg %s %x = %02x\n",
+            offset < ARRAY_SIZE(names) ? names[offset] : "???", offset, ret);
+#endif
+
+    return ret;
 }
 
 static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
@@ -1671,7 +1743,8 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     case addr + 3: s->name &= 0x00ffffff; s->name |= val << 24; break;
 
 #ifdef DEBUG_LSI_REG
-    DPRINTF("Write reg %x = %02x\n", offset, val);
+    DPRINTF("Write reg %s %x = %02x\n",
+            offset < ARRAY_SIZE(names) ? names[offset] : "???", offset, val);
 #endif
     switch (offset) {
     case 0x00: /* SCNTL0 */
