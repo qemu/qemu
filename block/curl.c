@@ -169,7 +169,7 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
     state->sock_fd = fd;
     s = state->s;
 
-    DPRINTF("CURL (AIO): Sock action %d on fd %d\n", action, fd);
+    DPRINTF("CURL (AIO): Sock action %d on fd %d\n", action, (int)fd);
     switch (action) {
         case CURL_POLL_IN:
             aio_set_fd_handler(s->aio_context, fd, false,
