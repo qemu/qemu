@@ -443,8 +443,8 @@ struct BlockDriverState {
                          note this is a reference count */
 
     CoQueue flush_queue;            /* Serializing flush queue */
+    BdrvTrackedRequest *active_flush_req; /* Flush request in flight */
     unsigned int write_gen;         /* Current data generation */
-    unsigned int flush_started_gen; /* Generation for which flush has started */
     unsigned int flushed_gen;       /* Flushed write generation */
 
     BlockDriver *drv; /* NULL means no media */
