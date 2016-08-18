@@ -48,6 +48,26 @@ static inline gint64 qemu_g_get_monotonic_time(void)
 gint g_poll_fixed(GPollFD *fds, guint nfds, gint timeout);
 #endif
 
+#if !GLIB_CHECK_VERSION(2, 30, 0)
+/* Not a 100% compatible implementation, but good enough for most
+ * cases. Placeholders are only supported at the end of the
+ * template. */
+static inline gchar *qemu_g_dir_make_tmp(gchar const *tmpl, GError **error)
+{
+    gchar *path = g_build_filename(g_get_tmp_dir(), tmpl ?: ".XXXXXX", NULL);
+
+    if (mkdtemp(path) != NULL) {
+        return path;
+    }
+    /* Error occurred, clean up. */
+    g_set_error(error, G_FILE_ERROR, g_file_error_from_errno(errno),
+                "mkdtemp() failed");
+    g_free(path);
+    return NULL;
+}
+#define g_dir_make_tmp(tmpl, error) qemu_g_dir_make_tmp(tmpl, error)
+#endif /* glib 2.30 */
+
 #if !GLIB_CHECK_VERSION(2, 31, 0)
 /* before glib-2.31, GMutex and GCond was dynamic-only (there was a separate
  * GStaticMutex, but it didn't work with condition variables).
