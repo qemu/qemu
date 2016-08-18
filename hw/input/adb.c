@@ -62,6 +62,9 @@ do { printf("ADB: " fmt , ## __VA_ARGS__); } while (0)
 /* error codes */
 #define ADB_RET_NOTPRESENT (-2)
 
+/* The adb keyboard doesn't have every key imaginable */
+#define NO_KEY 0xff
+
 static void adb_device_reset(ADBDevice *d)
 {
     qdev_reset_all(DEVICE(d));
@@ -191,6 +194,8 @@ typedef struct ADBKeyboardClass {
 } ADBKeyboardClass;
 
 int qcode_to_adb_keycode[] = {
+     /* Make sure future additions are automatically set to NO_KEY */
+    [0 ... 0xff]               = NO_KEY,
 
     [Q_KEY_CODE_SHIFT]         = ADB_KEY_LEFT_SHIFT,
     [Q_KEY_CODE_SHIFT_R]       = ADB_KEY_RIGHT_SHIFT,
@@ -306,19 +311,6 @@ int qcode_to_adb_keycode[] = {
     [Q_KEY_CODE_PGUP]          = ADB_KEY_PAGE_UP,
     [Q_KEY_CODE_PGDN]          = ADB_KEY_PAGE_DOWN,
 
-    [Q_KEY_CODE_LESS]          = 0xa,
-    [Q_KEY_CODE_STOP]          = 0,
-    [Q_KEY_CODE_AGAIN]         = 0,
-    [Q_KEY_CODE_PROPS]         = 0,
-    [Q_KEY_CODE_UNDO]          = 0,
-    [Q_KEY_CODE_FRONT]         = 0,
-    [Q_KEY_CODE_COPY]          = 0,
-    [Q_KEY_CODE_OPEN]          = 0,
-    [Q_KEY_CODE_PASTE]         = 0,
-    [Q_KEY_CODE_FIND]          = 0,
-    [Q_KEY_CODE_CUT]           = 0,
-    [Q_KEY_CODE_LF]            = 0,
-    [Q_KEY_CODE_COMPOSE]       = 0,
     [Q_KEY_CODE_POWER]         = ADB_KEY_POWER
 };
 
@@ -446,7 +438,10 @@ static void adb_keyboard_event(DeviceState *dev, QemuConsole *src,
         return;
     }
     keycode = qcode_to_adb_keycode[qcode];
-
+    if (keycode == NO_KEY) {  /* We don't want to send this to the guest */
+        ADB_DPRINTF("Ignoring NO_KEY\n");
+        return;
+    }
     if (evt->u.key.data->down == false) { /* if key release event */
         keycode = keycode | 0x80;   /* create keyboard break code */
     }
