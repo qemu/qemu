@@ -210,6 +210,7 @@ typedef struct {
     MemoryRegion mmio_io;
     MemoryRegion ram_io;
     MemoryRegion io_io;
+    AddressSpace pci_io_as;
 
     int carry; /* ??? Should this be an a visible register somewhere?  */
     int status;
@@ -407,6 +408,30 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val);
 static void lsi_execute_script(LSIState *s);
 static void lsi_reselect(LSIState *s, lsi_request *p);
 
+static inline int lsi_mem_read(LSIState *s, dma_addr_t addr,
+                               void *buf, dma_addr_t len)
+{
+    if (s->dmode & LSI_DMODE_SIOM) {
+        address_space_read(&s->pci_io_as, addr, MEMTXATTRS_UNSPECIFIED,
+                           buf, len);
+        return 0;
+    } else {
+        return pci_dma_read(PCI_DEVICE(s), addr, buf, len);
+    }
+}
+
+static inline int lsi_mem_write(LSIState *s, dma_addr_t addr,
+                                const void *buf, dma_addr_t len)
+{
+    if (s->dmode & LSI_DMODE_DIOM) {
+        address_space_write(&s->pci_io_as, addr, MEMTXATTRS_UNSPECIFIED,
+                            buf, len);
+        return 0;
+    } else {
+        return pci_dma_write(PCI_DEVICE(s), addr, buf, len);
+    }
+}
+
 static inline uint32_t read_dword(LSIState *s, uint32_t addr)
 {
     uint32_t buf;
@@ -550,7 +575,6 @@ static void lsi_bad_selection(LSIState *s, uint32_t id)
 /* Initiate a SCSI layer data transfer.  */
 static void lsi_do_dma(LSIState *s, int out)
 {
-    PCIDevice *pci_dev;
     uint32_t count;
     dma_addr_t addr;
     SCSIDevice *dev;
@@ -562,7 +586,6 @@ static void lsi_do_dma(LSIState *s, int out)
         return;
     }
 
-    pci_dev = PCI_DEVICE(s);
     dev = s->current->req->dev;
     assert(dev);
 
@@ -588,9 +611,9 @@ static void lsi_do_dma(LSIState *s, int out)
     }
     /* ??? Set SFBR to first data byte.  */
     if (out) {
-        pci_dma_read(pci_dev, addr, s->current->dma_buf, count);
+        lsi_mem_read(s, addr, s->current->dma_buf, count);
     } else {
-        pci_dma_write(pci_dev, addr, s->current->dma_buf, count);
+        lsi_mem_write(s, addr, s->current->dma_buf, count);
     }
     s->current->dma_len -= count;
     if (s->current->dma_len == 0) {
@@ -1022,15 +1045,14 @@ bad:
 #define LSI_BUF_SIZE 4096
 static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
 {
-    PCIDevice *d = PCI_DEVICE(s);
     int n;
     uint8_t buf[LSI_BUF_SIZE];
 
     DPRINTF("memcpy dest 0x%08x src 0x%08x count %d\n", dest, src, count);
     while (count) {
         n = (count > LSI_BUF_SIZE) ? LSI_BUF_SIZE : count;
-        pci_dma_read(d, src, buf, n);
-        pci_dma_write(d, dest, buf, n);
+        lsi_mem_read(s, src, buf, n);
+        lsi_mem_write(s, dest, buf, n);
         src += n;
         dest += n;
         count -= n;
@@ -1877,9 +1899,6 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     CASE_SET_REG32(dsps, 0x30)
     CASE_SET_REG32(scratch[0], 0x34)
     case 0x38: /* DMODE */
-        if (val & (LSI_DMODE_SIOM | LSI_DMODE_DIOM)) {
-            BADF("IO mappings not implemented\n");
-        }
         s->dmode = val;
         break;
     case 0x39: /* DIEN */
@@ -2189,6 +2208,8 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
     memory_region_init_io(&s->io_io, OBJECT(s), &lsi_io_ops, s,
                           "lsi-io", 256);
 
+    address_space_init(&s->pci_io_as, pci_address_space_io(dev), "lsi-pci-io");
+
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio_io);
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
@@ -2198,6 +2219,13 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
     if (!d->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, errp);
     }
+}
+
+static void lsi_scsi_unrealize(DeviceState *dev, Error **errp)
+{
+    LSIState *s = LSI53C895A(dev);
+
+    address_space_destroy(&s->pci_io_as);
 }
 
 static void lsi_class_init(ObjectClass *klass, void *data)
@@ -2210,6 +2238,7 @@ static void lsi_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_LSI_53C895A;
     k->class_id = PCI_CLASS_STORAGE_SCSI;
     k->subsystem_id = 0x1000;
+    dc->unrealize = lsi_scsi_unrealize;
     dc->reset = lsi_scsi_reset;
     dc->vmsd = &vmstate_lsi_scsi;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
