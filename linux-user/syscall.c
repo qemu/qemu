@@ -289,6 +289,161 @@ static bitmask_transtbl fcntl_flags_tbl[] = {
   { 0, 0, 0, 0 }
 };
 
+enum {
+    QEMU_IFLA_BR_UNSPEC,
+    QEMU_IFLA_BR_FORWARD_DELAY,
+    QEMU_IFLA_BR_HELLO_TIME,
+    QEMU_IFLA_BR_MAX_AGE,
+    QEMU_IFLA_BR_AGEING_TIME,
+    QEMU_IFLA_BR_STP_STATE,
+    QEMU_IFLA_BR_PRIORITY,
+    QEMU_IFLA_BR_VLAN_FILTERING,
+    QEMU_IFLA_BR_VLAN_PROTOCOL,
+    QEMU_IFLA_BR_GROUP_FWD_MASK,
+    QEMU_IFLA_BR_ROOT_ID,
+    QEMU_IFLA_BR_BRIDGE_ID,
+    QEMU_IFLA_BR_ROOT_PORT,
+    QEMU_IFLA_BR_ROOT_PATH_COST,
+    QEMU_IFLA_BR_TOPOLOGY_CHANGE,
+    QEMU_IFLA_BR_TOPOLOGY_CHANGE_DETECTED,
+    QEMU_IFLA_BR_HELLO_TIMER,
+    QEMU_IFLA_BR_TCN_TIMER,
+    QEMU_IFLA_BR_TOPOLOGY_CHANGE_TIMER,
+    QEMU_IFLA_BR_GC_TIMER,
+    QEMU_IFLA_BR_GROUP_ADDR,
+    QEMU_IFLA_BR_FDB_FLUSH,
+    QEMU_IFLA_BR_MCAST_ROUTER,
+    QEMU_IFLA_BR_MCAST_SNOOPING,
+    QEMU_IFLA_BR_MCAST_QUERY_USE_IFADDR,
+    QEMU_IFLA_BR_MCAST_QUERIER,
+    QEMU_IFLA_BR_MCAST_HASH_ELASTICITY,
+    QEMU_IFLA_BR_MCAST_HASH_MAX,
+    QEMU_IFLA_BR_MCAST_LAST_MEMBER_CNT,
+    QEMU_IFLA_BR_MCAST_STARTUP_QUERY_CNT,
+    QEMU_IFLA_BR_MCAST_LAST_MEMBER_INTVL,
+    QEMU_IFLA_BR_MCAST_MEMBERSHIP_INTVL,
+    QEMU_IFLA_BR_MCAST_QUERIER_INTVL,
+    QEMU_IFLA_BR_MCAST_QUERY_INTVL,
+    QEMU_IFLA_BR_MCAST_QUERY_RESPONSE_INTVL,
+    QEMU_IFLA_BR_MCAST_STARTUP_QUERY_INTVL,
+    QEMU_IFLA_BR_NF_CALL_IPTABLES,
+    QEMU_IFLA_BR_NF_CALL_IP6TABLES,
+    QEMU_IFLA_BR_NF_CALL_ARPTABLES,
+    QEMU_IFLA_BR_VLAN_DEFAULT_PVID,
+    QEMU_IFLA_BR_PAD,
+    QEMU_IFLA_BR_VLAN_STATS_ENABLED,
+    QEMU_IFLA_BR_MCAST_STATS_ENABLED,
+    QEMU___IFLA_BR_MAX,
+};
+
+enum {
+    QEMU_IFLA_UNSPEC,
+    QEMU_IFLA_ADDRESS,
+    QEMU_IFLA_BROADCAST,
+    QEMU_IFLA_IFNAME,
+    QEMU_IFLA_MTU,
+    QEMU_IFLA_LINK,
+    QEMU_IFLA_QDISC,
+    QEMU_IFLA_STATS,
+    QEMU_IFLA_COST,
+    QEMU_IFLA_PRIORITY,
+    QEMU_IFLA_MASTER,
+    QEMU_IFLA_WIRELESS,
+    QEMU_IFLA_PROTINFO,
+    QEMU_IFLA_TXQLEN,
+    QEMU_IFLA_MAP,
+    QEMU_IFLA_WEIGHT,
+    QEMU_IFLA_OPERSTATE,
+    QEMU_IFLA_LINKMODE,
+    QEMU_IFLA_LINKINFO,
+    QEMU_IFLA_NET_NS_PID,
+    QEMU_IFLA_IFALIAS,
+    QEMU_IFLA_NUM_VF,
+    QEMU_IFLA_VFINFO_LIST,
+    QEMU_IFLA_STATS64,
+    QEMU_IFLA_VF_PORTS,
+    QEMU_IFLA_PORT_SELF,
+    QEMU_IFLA_AF_SPEC,
+    QEMU_IFLA_GROUP,
+    QEMU_IFLA_NET_NS_FD,
+    QEMU_IFLA_EXT_MASK,
+    QEMU_IFLA_PROMISCUITY,
+    QEMU_IFLA_NUM_TX_QUEUES,
+    QEMU_IFLA_NUM_RX_QUEUES,
+    QEMU_IFLA_CARRIER,
+    QEMU_IFLA_PHYS_PORT_ID,
+    QEMU_IFLA_CARRIER_CHANGES,
+    QEMU_IFLA_PHYS_SWITCH_ID,
+    QEMU_IFLA_LINK_NETNSID,
+    QEMU_IFLA_PHYS_PORT_NAME,
+    QEMU_IFLA_PROTO_DOWN,
+    QEMU_IFLA_GSO_MAX_SEGS,
+    QEMU_IFLA_GSO_MAX_SIZE,
+    QEMU_IFLA_PAD,
+    QEMU_IFLA_XDP,
+    QEMU___IFLA_MAX
+};
+
+enum {
+    QEMU_IFLA_BRPORT_UNSPEC,
+    QEMU_IFLA_BRPORT_STATE,
+    QEMU_IFLA_BRPORT_PRIORITY,
+    QEMU_IFLA_BRPORT_COST,
+    QEMU_IFLA_BRPORT_MODE,
+    QEMU_IFLA_BRPORT_GUARD,
+    QEMU_IFLA_BRPORT_PROTECT,
+    QEMU_IFLA_BRPORT_FAST_LEAVE,
+    QEMU_IFLA_BRPORT_LEARNING,
+    QEMU_IFLA_BRPORT_UNICAST_FLOOD,
+    QEMU_IFLA_BRPORT_PROXYARP,
+    QEMU_IFLA_BRPORT_LEARNING_SYNC,
+    QEMU_IFLA_BRPORT_PROXYARP_WIFI,
+    QEMU_IFLA_BRPORT_ROOT_ID,
+    QEMU_IFLA_BRPORT_BRIDGE_ID,
+    QEMU_IFLA_BRPORT_DESIGNATED_PORT,
+    QEMU_IFLA_BRPORT_DESIGNATED_COST,
+    QEMU_IFLA_BRPORT_ID,
+    QEMU_IFLA_BRPORT_NO,
+    QEMU_IFLA_BRPORT_TOPOLOGY_CHANGE_ACK,
+    QEMU_IFLA_BRPORT_CONFIG_PENDING,
+    QEMU_IFLA_BRPORT_MESSAGE_AGE_TIMER,
+    QEMU_IFLA_BRPORT_FORWARD_DELAY_TIMER,
+    QEMU_IFLA_BRPORT_HOLD_TIMER,
+    QEMU_IFLA_BRPORT_FLUSH,
+    QEMU_IFLA_BRPORT_MULTICAST_ROUTER,
+    QEMU_IFLA_BRPORT_PAD,
+    QEMU___IFLA_BRPORT_MAX
+};
+
+enum {
+    QEMU_IFLA_INFO_UNSPEC,
+    QEMU_IFLA_INFO_KIND,
+    QEMU_IFLA_INFO_DATA,
+    QEMU_IFLA_INFO_XSTATS,
+    QEMU_IFLA_INFO_SLAVE_KIND,
+    QEMU_IFLA_INFO_SLAVE_DATA,
+    QEMU___IFLA_INFO_MAX,
+};
+
+enum {
+    QEMU_IFLA_INET_UNSPEC,
+    QEMU_IFLA_INET_CONF,
+    QEMU___IFLA_INET_MAX,
+};
+
+enum {
+    QEMU_IFLA_INET6_UNSPEC,
+    QEMU_IFLA_INET6_FLAGS,
+    QEMU_IFLA_INET6_CONF,
+    QEMU_IFLA_INET6_STATS,
+    QEMU_IFLA_INET6_MCAST,
+    QEMU_IFLA_INET6_CACHEINFO,
+    QEMU_IFLA_INET6_ICMP6STATS,
+    QEMU_IFLA_INET6_TOKEN,
+    QEMU_IFLA_INET6_ADDR_GEN_MODE,
+    QEMU___IFLA_INET6_MAX
+};
+
 typedef abi_long (*TargetFdDataFunc)(void *, size_t);
 typedef abi_long (*TargetFdAddrFunc)(void *, abi_ulong, socklen_t);
 typedef struct TargetFdTrans {
@@ -1784,66 +1939,66 @@ static abi_long host_to_target_data_bridge_nlattr(struct nlattr *nlattr,
 
     switch (nlattr->nla_type) {
     /* no data */
-    case IFLA_BR_FDB_FLUSH:
+    case QEMU_IFLA_BR_FDB_FLUSH:
         break;
     /* binary */
-    case IFLA_BR_GROUP_ADDR:
+    case QEMU_IFLA_BR_GROUP_ADDR:
         break;
     /* uint8_t */
-    case IFLA_BR_VLAN_FILTERING:
-    case IFLA_BR_TOPOLOGY_CHANGE:
-    case IFLA_BR_TOPOLOGY_CHANGE_DETECTED:
-    case IFLA_BR_MCAST_ROUTER:
-    case IFLA_BR_MCAST_SNOOPING:
-    case IFLA_BR_MCAST_QUERY_USE_IFADDR:
-    case IFLA_BR_MCAST_QUERIER:
-    case IFLA_BR_NF_CALL_IPTABLES:
-    case IFLA_BR_NF_CALL_IP6TABLES:
-    case IFLA_BR_NF_CALL_ARPTABLES:
+    case QEMU_IFLA_BR_VLAN_FILTERING:
+    case QEMU_IFLA_BR_TOPOLOGY_CHANGE:
+    case QEMU_IFLA_BR_TOPOLOGY_CHANGE_DETECTED:
+    case QEMU_IFLA_BR_MCAST_ROUTER:
+    case QEMU_IFLA_BR_MCAST_SNOOPING:
+    case QEMU_IFLA_BR_MCAST_QUERY_USE_IFADDR:
+    case QEMU_IFLA_BR_MCAST_QUERIER:
+    case QEMU_IFLA_BR_NF_CALL_IPTABLES:
+    case QEMU_IFLA_BR_NF_CALL_IP6TABLES:
+    case QEMU_IFLA_BR_NF_CALL_ARPTABLES:
         break;
     /* uint16_t */
-    case IFLA_BR_PRIORITY:
-    case IFLA_BR_VLAN_PROTOCOL:
-    case IFLA_BR_GROUP_FWD_MASK:
-    case IFLA_BR_ROOT_PORT:
-    case IFLA_BR_VLAN_DEFAULT_PVID:
+    case QEMU_IFLA_BR_PRIORITY:
+    case QEMU_IFLA_BR_VLAN_PROTOCOL:
+    case QEMU_IFLA_BR_GROUP_FWD_MASK:
+    case QEMU_IFLA_BR_ROOT_PORT:
+    case QEMU_IFLA_BR_VLAN_DEFAULT_PVID:
         u16 = NLA_DATA(nlattr);
         *u16 = tswap16(*u16);
         break;
     /* uint32_t */
-    case IFLA_BR_FORWARD_DELAY:
-    case IFLA_BR_HELLO_TIME:
-    case IFLA_BR_MAX_AGE:
-    case IFLA_BR_AGEING_TIME:
-    case IFLA_BR_STP_STATE:
-    case IFLA_BR_ROOT_PATH_COST:
-    case IFLA_BR_MCAST_HASH_ELASTICITY:
-    case IFLA_BR_MCAST_HASH_MAX:
-    case IFLA_BR_MCAST_LAST_MEMBER_CNT:
-    case IFLA_BR_MCAST_STARTUP_QUERY_CNT:
+    case QEMU_IFLA_BR_FORWARD_DELAY:
+    case QEMU_IFLA_BR_HELLO_TIME:
+    case QEMU_IFLA_BR_MAX_AGE:
+    case QEMU_IFLA_BR_AGEING_TIME:
+    case QEMU_IFLA_BR_STP_STATE:
+    case QEMU_IFLA_BR_ROOT_PATH_COST:
+    case QEMU_IFLA_BR_MCAST_HASH_ELASTICITY:
+    case QEMU_IFLA_BR_MCAST_HASH_MAX:
+    case QEMU_IFLA_BR_MCAST_LAST_MEMBER_CNT:
+    case QEMU_IFLA_BR_MCAST_STARTUP_QUERY_CNT:
         u32 = NLA_DATA(nlattr);
         *u32 = tswap32(*u32);
         break;
     /* uint64_t */
-    case IFLA_BR_HELLO_TIMER:
-    case IFLA_BR_TCN_TIMER:
-    case IFLA_BR_GC_TIMER:
-    case IFLA_BR_TOPOLOGY_CHANGE_TIMER:
-    case IFLA_BR_MCAST_LAST_MEMBER_INTVL:
-    case IFLA_BR_MCAST_MEMBERSHIP_INTVL:
-    case IFLA_BR_MCAST_QUERIER_INTVL:
-    case IFLA_BR_MCAST_QUERY_INTVL:
-    case IFLA_BR_MCAST_QUERY_RESPONSE_INTVL:
-    case IFLA_BR_MCAST_STARTUP_QUERY_INTVL:
+    case QEMU_IFLA_BR_HELLO_TIMER:
+    case QEMU_IFLA_BR_TCN_TIMER:
+    case QEMU_IFLA_BR_GC_TIMER:
+    case QEMU_IFLA_BR_TOPOLOGY_CHANGE_TIMER:
+    case QEMU_IFLA_BR_MCAST_LAST_MEMBER_INTVL:
+    case QEMU_IFLA_BR_MCAST_MEMBERSHIP_INTVL:
+    case QEMU_IFLA_BR_MCAST_QUERIER_INTVL:
+    case QEMU_IFLA_BR_MCAST_QUERY_INTVL:
+    case QEMU_IFLA_BR_MCAST_QUERY_RESPONSE_INTVL:
+    case QEMU_IFLA_BR_MCAST_STARTUP_QUERY_INTVL:
         u64 = NLA_DATA(nlattr);
         *u64 = tswap64(*u64);
         break;
     /* ifla_bridge_id: uin8_t[] */
-    case IFLA_BR_ROOT_ID:
-    case IFLA_BR_BRIDGE_ID:
+    case QEMU_IFLA_BR_ROOT_ID:
+    case QEMU_IFLA_BR_BRIDGE_ID:
         break;
     default:
-        gemu_log("Unknown IFLA_BR type %d\n", nlattr->nla_type);
+        gemu_log("Unknown QEMU_IFLA_BR type %d\n", nlattr->nla_type);
         break;
     }
     return 0;
@@ -1858,47 +2013,47 @@ static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
 
     switch (nlattr->nla_type) {
     /* uint8_t */
-    case IFLA_BRPORT_STATE:
-    case IFLA_BRPORT_MODE:
-    case IFLA_BRPORT_GUARD:
-    case IFLA_BRPORT_PROTECT:
-    case IFLA_BRPORT_FAST_LEAVE:
-    case IFLA_BRPORT_LEARNING:
-    case IFLA_BRPORT_UNICAST_FLOOD:
-    case IFLA_BRPORT_PROXYARP:
-    case IFLA_BRPORT_LEARNING_SYNC:
-    case IFLA_BRPORT_PROXYARP_WIFI:
-    case IFLA_BRPORT_TOPOLOGY_CHANGE_ACK:
-    case IFLA_BRPORT_CONFIG_PENDING:
-    case IFLA_BRPORT_MULTICAST_ROUTER:
+    case QEMU_IFLA_BRPORT_STATE:
+    case QEMU_IFLA_BRPORT_MODE:
+    case QEMU_IFLA_BRPORT_GUARD:
+    case QEMU_IFLA_BRPORT_PROTECT:
+    case QEMU_IFLA_BRPORT_FAST_LEAVE:
+    case QEMU_IFLA_BRPORT_LEARNING:
+    case QEMU_IFLA_BRPORT_UNICAST_FLOOD:
+    case QEMU_IFLA_BRPORT_PROXYARP:
+    case QEMU_IFLA_BRPORT_LEARNING_SYNC:
+    case QEMU_IFLA_BRPORT_PROXYARP_WIFI:
+    case QEMU_IFLA_BRPORT_TOPOLOGY_CHANGE_ACK:
+    case QEMU_IFLA_BRPORT_CONFIG_PENDING:
+    case QEMU_IFLA_BRPORT_MULTICAST_ROUTER:
         break;
     /* uint16_t */
-    case IFLA_BRPORT_PRIORITY:
-    case IFLA_BRPORT_DESIGNATED_PORT:
-    case IFLA_BRPORT_DESIGNATED_COST:
-    case IFLA_BRPORT_ID:
-    case IFLA_BRPORT_NO:
+    case QEMU_IFLA_BRPORT_PRIORITY:
+    case QEMU_IFLA_BRPORT_DESIGNATED_PORT:
+    case QEMU_IFLA_BRPORT_DESIGNATED_COST:
+    case QEMU_IFLA_BRPORT_ID:
+    case QEMU_IFLA_BRPORT_NO:
         u16 = NLA_DATA(nlattr);
         *u16 = tswap16(*u16);
         break;
     /* uin32_t */
-    case IFLA_BRPORT_COST:
+    case QEMU_IFLA_BRPORT_COST:
         u32 = NLA_DATA(nlattr);
         *u32 = tswap32(*u32);
         break;
     /* uint64_t */
-    case IFLA_BRPORT_MESSAGE_AGE_TIMER:
-    case IFLA_BRPORT_FORWARD_DELAY_TIMER:
-    case IFLA_BRPORT_HOLD_TIMER:
+    case QEMU_IFLA_BRPORT_MESSAGE_AGE_TIMER:
+    case QEMU_IFLA_BRPORT_FORWARD_DELAY_TIMER:
+    case QEMU_IFLA_BRPORT_HOLD_TIMER:
         u64 = NLA_DATA(nlattr);
         *u64 = tswap64(*u64);
         break;
     /* ifla_bridge_id: uint8_t[] */
-    case IFLA_BRPORT_ROOT_ID:
-    case IFLA_BRPORT_BRIDGE_ID:
+    case QEMU_IFLA_BRPORT_ROOT_ID:
+    case QEMU_IFLA_BRPORT_BRIDGE_ID:
         break;
     default:
-        gemu_log("Unknown IFLA_BRPORT type %d\n", nlattr->nla_type);
+        gemu_log("Unknown QEMU_IFLA_BRPORT type %d\n", nlattr->nla_type);
         break;
     }
     return 0;
@@ -1918,20 +2073,20 @@ static abi_long host_to_target_data_linkinfo_nlattr(struct nlattr *nlattr,
 
     switch (nlattr->nla_type) {
     /* string */
-    case IFLA_INFO_KIND:
+    case QEMU_IFLA_INFO_KIND:
         li_context->name = NLA_DATA(nlattr);
         li_context->len = nlattr->nla_len - NLA_HDRLEN;
         break;
-    case IFLA_INFO_SLAVE_KIND:
+    case QEMU_IFLA_INFO_SLAVE_KIND:
         li_context->slave_name = NLA_DATA(nlattr);
         li_context->slave_len = nlattr->nla_len - NLA_HDRLEN;
         break;
     /* stats */
-    case IFLA_INFO_XSTATS:
+    case QEMU_IFLA_INFO_XSTATS:
         /* FIXME: only used by CAN */
         break;
     /* nested */
-    case IFLA_INFO_DATA:
+    case QEMU_IFLA_INFO_DATA:
         if (strncmp(li_context->name, "bridge",
                     li_context->len) == 0) {
             return host_to_target_for_each_nlattr(NLA_DATA(nlattr),
@@ -1939,10 +2094,10 @@ static abi_long host_to_target_data_linkinfo_nlattr(struct nlattr *nlattr,
                                                   NULL,
                                              host_to_target_data_bridge_nlattr);
         } else {
-            gemu_log("Unknown IFLA_INFO_KIND %s\n", li_context->name);
+            gemu_log("Unknown QEMU_IFLA_INFO_KIND %s\n", li_context->name);
         }
         break;
-    case IFLA_INFO_SLAVE_DATA:
+    case QEMU_IFLA_INFO_SLAVE_DATA:
         if (strncmp(li_context->slave_name, "bridge",
                     li_context->slave_len) == 0) {
             return host_to_target_for_each_nlattr(NLA_DATA(nlattr),
@@ -1950,12 +2105,12 @@ static abi_long host_to_target_data_linkinfo_nlattr(struct nlattr *nlattr,
                                                   NULL,
                                        host_to_target_slave_data_bridge_nlattr);
         } else {
-            gemu_log("Unknown IFLA_INFO_SLAVE_KIND %s\n",
+            gemu_log("Unknown QEMU_IFLA_INFO_SLAVE_KIND %s\n",
                      li_context->slave_name);
         }
         break;
     default:
-        gemu_log("Unknown host IFLA_INFO type: %d\n", nlattr->nla_type);
+        gemu_log("Unknown host QEMU_IFLA_INFO type: %d\n", nlattr->nla_type);
         break;
     }
 
@@ -1969,7 +2124,7 @@ static abi_long host_to_target_data_inet_nlattr(struct nlattr *nlattr,
     int i;
 
     switch (nlattr->nla_type) {
-    case IFLA_INET_CONF:
+    case QEMU_IFLA_INET_CONF:
         u32 = NLA_DATA(nlattr);
         for (i = 0; i < (nlattr->nla_len - NLA_HDRLEN) / sizeof(*u32);
              i++) {
@@ -1992,18 +2147,18 @@ static abi_long host_to_target_data_inet6_nlattr(struct nlattr *nlattr,
 
     switch (nlattr->nla_type) {
     /* binaries */
-    case IFLA_INET6_TOKEN:
+    case QEMU_IFLA_INET6_TOKEN:
         break;
     /* uint8_t */
-    case IFLA_INET6_ADDR_GEN_MODE:
+    case QEMU_IFLA_INET6_ADDR_GEN_MODE:
         break;
     /* uint32_t */
-    case IFLA_INET6_FLAGS:
+    case QEMU_IFLA_INET6_FLAGS:
         u32 = NLA_DATA(nlattr);
         *u32 = tswap32(*u32);
         break;
     /* uint32_t[] */
-    case IFLA_INET6_CONF:
+    case QEMU_IFLA_INET6_CONF:
         u32 = NLA_DATA(nlattr);
         for (i = 0; i < (nlattr->nla_len - NLA_HDRLEN) / sizeof(*u32);
              i++) {
@@ -2011,7 +2166,7 @@ static abi_long host_to_target_data_inet6_nlattr(struct nlattr *nlattr,
         }
         break;
     /* ifla_cacheinfo */
-    case IFLA_INET6_CACHEINFO:
+    case QEMU_IFLA_INET6_CACHEINFO:
         ci = NLA_DATA(nlattr);
         ci->max_reasm_len = tswap32(ci->max_reasm_len);
         ci->tstamp = tswap32(ci->tstamp);
@@ -2019,8 +2174,8 @@ static abi_long host_to_target_data_inet6_nlattr(struct nlattr *nlattr,
         ci->retrans_time = tswap32(ci->retrans_time);
         break;
     /* uint64_t[] */
-    case IFLA_INET6_STATS:
-    case IFLA_INET6_ICMP6STATS:
+    case QEMU_IFLA_INET6_STATS:
+    case QEMU_IFLA_INET6_ICMP6STATS:
         u64 = NLA_DATA(nlattr);
         for (i = 0; i < (nlattr->nla_len - NLA_HDRLEN) / sizeof(*u64);
              i++) {
@@ -2062,37 +2217,37 @@ static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
 
     switch (rtattr->rta_type) {
     /* binary stream */
-    case IFLA_ADDRESS:
-    case IFLA_BROADCAST:
+    case QEMU_IFLA_ADDRESS:
+    case QEMU_IFLA_BROADCAST:
     /* string */
-    case IFLA_IFNAME:
-    case IFLA_QDISC:
+    case QEMU_IFLA_IFNAME:
+    case QEMU_IFLA_QDISC:
         break;
     /* uin8_t */
-    case IFLA_OPERSTATE:
-    case IFLA_LINKMODE:
-    case IFLA_CARRIER:
-    case IFLA_PROTO_DOWN:
+    case QEMU_IFLA_OPERSTATE:
+    case QEMU_IFLA_LINKMODE:
+    case QEMU_IFLA_CARRIER:
+    case QEMU_IFLA_PROTO_DOWN:
         break;
     /* uint32_t */
-    case IFLA_MTU:
-    case IFLA_LINK:
-    case IFLA_WEIGHT:
-    case IFLA_TXQLEN:
-    case IFLA_CARRIER_CHANGES:
-    case IFLA_NUM_RX_QUEUES:
-    case IFLA_NUM_TX_QUEUES:
-    case IFLA_PROMISCUITY:
-    case IFLA_EXT_MASK:
-    case IFLA_LINK_NETNSID:
-    case IFLA_GROUP:
-    case IFLA_MASTER:
-    case IFLA_NUM_VF:
+    case QEMU_IFLA_MTU:
+    case QEMU_IFLA_LINK:
+    case QEMU_IFLA_WEIGHT:
+    case QEMU_IFLA_TXQLEN:
+    case QEMU_IFLA_CARRIER_CHANGES:
+    case QEMU_IFLA_NUM_RX_QUEUES:
+    case QEMU_IFLA_NUM_TX_QUEUES:
+    case QEMU_IFLA_PROMISCUITY:
+    case QEMU_IFLA_EXT_MASK:
+    case QEMU_IFLA_LINK_NETNSID:
+    case QEMU_IFLA_GROUP:
+    case QEMU_IFLA_MASTER:
+    case QEMU_IFLA_NUM_VF:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
         break;
     /* struct rtnl_link_stats */
-    case IFLA_STATS:
+    case QEMU_IFLA_STATS:
         st = RTA_DATA(rtattr);
         st->rx_packets = tswap32(st->rx_packets);
         st->tx_packets = tswap32(st->tx_packets);
@@ -2125,7 +2280,7 @@ static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
         st->tx_compressed = tswap32(st->tx_compressed);
         break;
     /* struct rtnl_link_stats64 */
-    case IFLA_STATS64:
+    case QEMU_IFLA_STATS64:
         st64 = RTA_DATA(rtattr);
         st64->rx_packets = tswap64(st64->rx_packets);
         st64->tx_packets = tswap64(st64->tx_packets);
@@ -2158,7 +2313,7 @@ static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
         st64->tx_compressed = tswap64(st64->tx_compressed);
         break;
     /* struct rtnl_link_ifmap */
-    case IFLA_MAP:
+    case QEMU_IFLA_MAP:
         map = RTA_DATA(rtattr);
         map->mem_start = tswap64(map->mem_start);
         map->mem_end = tswap64(map->mem_end);
@@ -2166,17 +2321,17 @@ static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
         map->irq = tswap16(map->irq);
         break;
     /* nested */
-    case IFLA_LINKINFO:
+    case QEMU_IFLA_LINKINFO:
         memset(&li_context, 0, sizeof(li_context));
         return host_to_target_for_each_nlattr(RTA_DATA(rtattr), rtattr->rta_len,
                                               &li_context,
                                            host_to_target_data_linkinfo_nlattr);
-    case IFLA_AF_SPEC:
+    case QEMU_IFLA_AF_SPEC:
         return host_to_target_for_each_nlattr(RTA_DATA(rtattr), rtattr->rta_len,
                                               NULL,
                                              host_to_target_data_spec_nlattr);
     default:
-        gemu_log("Unknown host IFLA type: %d\n", rtattr->rta_type);
+        gemu_log("Unknown host QEMU_IFLA type: %d\n", rtattr->rta_type);
         break;
     }
     return 0;
@@ -2343,7 +2498,7 @@ static abi_long target_to_host_data_link_rtattr(struct rtattr *rtattr)
 {
     switch (rtattr->rta_type) {
     default:
-        gemu_log("Unknown target IFLA type: %d\n", rtattr->rta_type);
+        gemu_log("Unknown target QEMU_IFLA type: %d\n", rtattr->rta_type);
         break;
     }
     return 0;
