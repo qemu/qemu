@@ -2133,6 +2133,18 @@
 #
 # @tcp:        host address and port number
 #
+# This is similar to SocketAddress, only distinction:
+#
+# 1. GlusterServer is a flat union, SocketAddress is a simple union.
+#    A flat union is nicer than simple because it avoids nesting
+#    (i.e. more {}) on the wire.
+#
+# 2. GlusterServer lacks case 'fd', since gluster doesn't let you
+#    pass in a file descriptor.
+#
+# GlusterServer is actually not Gluster-specific, its a
+# compatibility evolved into an alternate for SocketAddress.
+#
 # Since: 2.7
 ##
 { 'union': 'GlusterServer',
