@@ -1035,6 +1035,9 @@ typedef struct CPUX86State {
     uint64_t tsc;
     uint64_t tsc_adjust;
     uint64_t tsc_deadline;
+    uint64_t tsc_aux;
+
+    uint64_t xcr0;
 
     uint64_t mcg_status;
     uint64_t msr_ia32_misc_enable;
@@ -1050,6 +1053,8 @@ typedef struct CPUX86State {
 
     uint64_t pat;
     uint32_t smbase;
+
+    uint32_t pkru;
 
     /* End of state preserved by INIT (dummy marker).  */
     struct {} end_init_save;
@@ -1135,19 +1140,14 @@ typedef struct CPUX86State {
     uint64_t mcg_ctl;
     uint64_t mcg_ext_ctl;
     uint64_t mce_banks[MCE_BANKS_DEF*4];
-
-    uint64_t tsc_aux;
+    uint64_t xstate_bv;
 
     /* vmstate */
     uint16_t fpus_vmstate;
     uint16_t fptag_vmstate;
     uint16_t fpregs_format_vmstate;
-    uint64_t xstate_bv;
 
-    uint64_t xcr0;
     uint64_t xss;
-
-    uint32_t pkru;
 
     TPRAccess tpr_access_type;
 } CPUX86State;
