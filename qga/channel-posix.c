@@ -130,7 +130,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path, GAChannelMethod
     switch (c->method) {
     case GA_CHANNEL_VIRTIO_SERIAL: {
         int fd = qemu_open(path, O_RDWR | O_NONBLOCK
-#ifndef CONFIG_SOLARIS
+#if !defined(CONFIG_SOLARIS) && !defined(__MSYS__)
                            | O_ASYNC
 #endif
                            );

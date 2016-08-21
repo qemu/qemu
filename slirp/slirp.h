@@ -15,7 +15,7 @@ typedef char *caddr_t;
 # include <iphlpapi.h>
 
 #else
-# if !defined(__HAIKU__)
+# if !defined(__HAIKU__) && !defined(__MSYS__)
 #  define O_BINARY 0
 # endif
 #endif

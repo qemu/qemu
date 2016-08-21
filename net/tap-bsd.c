@@ -42,7 +42,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     int fd;
 #ifdef TAPGIFNAME
     struct ifreq ifr;
-#else
+#elif !defined(__MSYS__)
     char *dev;
     struct stat s;
 #endif
@@ -83,7 +83,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
         return -1;
     }
     pstrcpy(ifname, ifname_size, ifr.ifr_name);
-#else
+#elif !defined(__MSYS__)
     if (fstat(fd, &s) < 0) {
         error_setg_errno(errp, errno, "could not stat %s", dname);
         return -1;

@@ -566,6 +566,10 @@ MINGW32*)
     audio_drv_list=""
   fi
 ;;
+MSYS_NT-*)
+  bsd="yes"
+  audio_drv_list="dsound"
+;;
 GNU/kFreeBSD)
   bsd="yes"
   audio_drv_list="oss"
@@ -680,7 +684,13 @@ esac
 
 if [ "$bsd" = "yes" ] ; then
   if [ "$darwin" != "yes" ] ; then
-    bsd_user="yes"
+    case $targetos in
+      MSYS_NT-*)
+      ;;
+      *)
+        bsd_user="yes"
+      ;;
+  	esac
   fi
 fi
 

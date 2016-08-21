@@ -44,7 +44,7 @@
 #ifdef CONFIG_BSD
 #include <sys/ioctl.h>
 #include <sys/queue.h>
-#ifndef __DragonFly__
+#if !defined(__DragonFly__) && !defined(__MSYS__)
 #include <sys/disk.h>
 #endif
 #endif

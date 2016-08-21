@@ -35,7 +35,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 
-#if defined(__GLIBC__)
+#if defined(__GLIBC__) || defined(__MSYS__)
 # include <pty.h>
 #elif defined CONFIG_BSD
 # include <termios.h>
