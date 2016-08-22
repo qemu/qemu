@@ -69,7 +69,6 @@ typedef struct E1000EState {
     uint16_t subsys_ven_used;
     uint16_t subsys_used;
 
-    uint32_t intr_state;
     bool disable_vnet;
 
     E1000ECore core;
@@ -88,8 +87,6 @@ typedef struct E1000EState {
 
 #define E1000E_MSIX_TABLE   (0x0000)
 #define E1000E_MSIX_PBA     (0x2000)
-
-#define E1000E_USE_MSIX    BIT(0)
 
 static uint64_t
 e1000e_mmio_read(void *opaque, hwaddr addr, unsigned size)
@@ -302,8 +299,6 @@ e1000e_init_msix(E1000EState *s)
     } else {
         if (!e1000e_use_msix_vectors(s, E1000E_MSIX_VEC_NUM)) {
             msix_uninit(d, &s->msix, &s->msix);
-        } else {
-            s->intr_state |= E1000E_USE_MSIX;
         }
     }
 }
@@ -311,7 +306,7 @@ e1000e_init_msix(E1000EState *s)
 static void
 e1000e_cleanup_msix(E1000EState *s)
 {
-    if (s->intr_state & E1000E_USE_MSIX) {
+    if (msix_enabled(PCI_DEVICE(s))) {
         e1000e_unuse_msix_vectors(s, E1000E_MSIX_VEC_NUM);
         msix_uninit(PCI_DEVICE(s), &s->msix, &s->msix);
     }
@@ -601,7 +596,6 @@ static const VMStateDescription e1000e_vmstate = {
         VMSTATE_MSIX(parent_obj, E1000EState),
 
         VMSTATE_UINT32(ioaddr, E1000EState),
-        VMSTATE_UINT32(intr_state, E1000EState),
         VMSTATE_UINT32(core.rxbuf_min_shift, E1000EState),
         VMSTATE_UINT8(core.rx_desc_len, E1000EState),
         VMSTATE_UINT32_ARRAY(core.rxbuf_sizes, E1000EState,
