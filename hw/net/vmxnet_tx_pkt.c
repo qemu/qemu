@@ -60,10 +60,9 @@ void vmxnet_tx_pkt_init(struct VmxnetTxPkt **pkt, uint32_t max_frags,
 {
     struct VmxnetTxPkt *p = g_malloc0(sizeof *p);
 
-    p->vec = g_malloc((sizeof *p->vec) *
-        (max_frags + VMXNET_TX_PKT_PL_START_FRAG));
+    p->vec = g_new(struct iovec, max_frags + VMXNET_TX_PKT_PL_START_FRAG);
 
-    p->raw = g_malloc((sizeof *p->raw) * max_frags);
+    p->raw = g_new(struct iovec, max_frags);
 
     p->max_payload_frags = max_frags;
     p->max_raw_frags = max_frags;
