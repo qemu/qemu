@@ -9,7 +9,7 @@
 #define B 2
 #define R 1
 
-static inline int cris_swap(const int mode, int x)
+static always_inline int cris_swap(const int mode, int x)
 {
 	switch (mode)
 	{

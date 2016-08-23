@@ -3,6 +3,8 @@
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 
+#define always_inline inline __attribute__((always_inline))
+
 #define CURRENT_LOCATION __FILE__ ":" TOSTRING(__LINE__)
 
 #define err()                         \

@@ -4,14 +4,14 @@
 #include "sys.h"
 #include "crisutils.h"
 
-static inline int cris_abs(int n)
+static always_inline int cris_abs(int n)
 {
 	int r;
 	asm ("abs\t%1, %0\n" : "=r" (r) : "r" (n));
 	return r;
 }
 
-static inline void
+static always_inline void
 verify_abs(int val, int res,
 	   const int n, const int z, const int v, const int c)
 {
