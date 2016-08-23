@@ -542,6 +542,7 @@ static bool swap_commutative2(TCGArg *p1, TCGArg *p2)
 void tcg_optimize(TCGContext *s)
 {
     int oi, oi_next, nb_temps, nb_globals;
+    TCGArg *prev_mb_args = NULL;
 
     /* Array VALS has an element for each temp.
        If this temp holds a constant then its value is kept in VALS' element.
@@ -1294,6 +1295,44 @@ void tcg_optimize(TCGContext *s)
                 }
             }
             break;
+        }
+
+        /* Eliminate duplicate and redundant fence instructions.  */
+        if (prev_mb_args) {
+            switch (opc) {
+            case INDEX_op_mb:
+                /* Merge two barriers of the same type into one,
+                 * or a weaker barrier into a stronger one,
+                 * or two weaker barriers into a stronger one.
+                 *   mb X; mb Y => mb X|Y
+                 *   mb; strl => mb; st
+                 *   ldaq; mb => ld; mb
+                 *   ldaq; strl => ld; mb; st
+                 * Other combinations are also merged into a strong
+                 * barrier.  This is stricter than specified but for
+                 * the purposes of TCG is better than not optimizing.
+                 */
+                prev_mb_args[0] |= args[0];
+                tcg_op_remove(s, op);
+                break;
+
+            default:
+                /* Opcodes that end the block stop the optimization.  */
+                if ((def->flags & TCG_OPF_BB_END) == 0) {
+                    break;
+                }
+                /* fallthru */
+            case INDEX_op_qemu_ld_i32:
+            case INDEX_op_qemu_ld_i64:
+            case INDEX_op_qemu_st_i32:
+            case INDEX_op_qemu_st_i64:
+            case INDEX_op_call:
+                /* Opcodes that touch guest memory stop the optimization.  */
+                prev_mb_args = NULL;
+                break;
+            }
+        } else if (opc == INDEX_op_mb) {
+            prev_mb_args = args;
         }
     }
 }
