@@ -13,6 +13,15 @@
 #include "translate-all.h"
 
 
+void trace_event_set_state_dynamic_init(TraceEvent *ev, bool state)
+{
+    TraceEventID id = trace_event_get_id(ev);
+    assert(trace_event_get_state_static(ev));
+    /* Ignore "vcpu" property, since no vCPUs have been created yet */
+    trace_events_enabled_count += state - trace_events_dstate[id];
+    trace_events_dstate[id] = state;
+}
+
 void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
 {
     CPUState *vcpu;

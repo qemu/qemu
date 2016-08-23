@@ -274,6 +274,9 @@ char *trace_opt_parse(const char *optarg);
  *
  * Re-synchronize initial event state with vCPUs (which can be created after
  * trace_init_events()).
+ *
+ * Precondition: event states won't be changed between trace_enable_events() and
+ * trace_init_vcpu_events() (e.g., through QMP).
  */
 void trace_init_vcpu_events(void);
 
