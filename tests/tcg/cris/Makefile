@@ -108,7 +108,6 @@ TESTCASES += check_stat4.ctst
 TESTCASES += check_openpf1.ctst
 TESTCASES += check_openpf2.ctst
 TESTCASES += check_openpf3.ctst
-TESTCASES += check_openpf4.ctst
 TESTCASES += check_openpf5.ctst
 TESTCASES += check_mapbrk.ctst
 TESTCASES += check_mmap1.ctst
