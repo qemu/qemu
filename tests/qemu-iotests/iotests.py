@@ -50,6 +50,7 @@ cachemode = os.environ.get('CACHEMODE')
 qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
 
 socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
+debug = False
 
 def qemu_img(*args):
     '''Run qemu-img and return the exit code'''
@@ -134,6 +135,8 @@ class VM(qtest.QEMUQtestMachine):
     def __init__(self):
         super(VM, self).__init__(qemu_prog, qemu_opts, test_dir=test_dir,
                                  socket_scm_helper=socket_scm_helper)
+        if debug:
+            self._debug = True
         self._num_drives = 0
 
     def add_drive_raw(self, opts):
@@ -317,6 +320,8 @@ def verify_quorum():
 
 def main(supported_fmts=[], supported_oses=['linux']):
     '''Run tests'''
+
+    global debug
 
     # We are using TEST_DIR and QEMU_DEFAULT_MACHINE as proxies to
     # indicate that we're not being run via "check". There may be
