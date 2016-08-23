@@ -1753,6 +1753,12 @@ static void xhci_xfer_report(XHCITransfer *xfer)
         unsigned int chunk = 0;
 
         switch (TRB_TYPE(*trb)) {
+        case TR_SETUP:
+            chunk = trb->status & 0x1ffff;
+            if (chunk > 8) {
+                chunk = 8;
+            }
+            break;
         case TR_DATA:
         case TR_NORMAL:
         case TR_ISOCH:
