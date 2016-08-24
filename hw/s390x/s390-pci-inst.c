@@ -316,6 +316,7 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     uint64_t offset;
     uint64_t data;
     MemoryRegion *mr;
+    MemTxResult result;
     uint8_t len;
     uint32_t fh;
     uint8_t pcias;
@@ -365,8 +366,12 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             return 0;
         }
         mr = pbdev->pdev->io_regions[pcias].memory;
-        memory_region_dispatch_read(mr, offset, &data, len,
-                                    MEMTXATTRS_UNSPECIFIED);
+        result = memory_region_dispatch_read(mr, offset, &data, len,
+                                             MEMTXATTRS_UNSPECIFIED);
+        if (result != MEMTX_OK) {
+            program_interrupt(env, PGM_OPERAND, 4);
+            return 0;
+        }
     } else if (pcias == 15) {
         if ((4 - (offset & 0x3)) < len) {
             program_interrupt(env, PGM_OPERAND, 4);
@@ -444,6 +449,7 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     uint64_t offset, data;
     S390PCIBusDevice *pbdev;
     MemoryRegion *mr;
+    MemTxResult result;
     uint8_t len;
     uint32_t fh;
     uint8_t pcias;
@@ -502,8 +508,12 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             mr = pbdev->pdev->io_regions[pcias].memory;
         }
 
-        memory_region_dispatch_write(mr, offset, data, len,
+        result = memory_region_dispatch_write(mr, offset, data, len,
                                      MEMTXATTRS_UNSPECIFIED);
+        if (result != MEMTX_OK) {
+            program_interrupt(env, PGM_OPERAND, 4);
+            return 0;
+        }
     } else if (pcias == 15) {
         if ((4 - (offset & 0x3)) < len) {
             program_interrupt(env, PGM_OPERAND, 4);
@@ -633,6 +643,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     CPUS390XState *env = &cpu->env;
     S390PCIBusDevice *pbdev;
     MemoryRegion *mr;
+    MemTxResult result;
     int i;
     uint32_t fh;
     uint8_t pcias;
@@ -690,7 +701,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
 
     mr = pbdev->pdev->io_regions[pcias].memory;
     if (!memory_region_access_valid(mr, env->regs[r3], len, true)) {
-        program_interrupt(env, PGM_ADDRESSING, 6);
+        program_interrupt(env, PGM_OPERAND, 6);
         return 0;
     }
 
@@ -699,9 +710,13 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     }
 
     for (i = 0; i < len / 8; i++) {
-        memory_region_dispatch_write(mr, env->regs[r3] + i * 8,
+        result = memory_region_dispatch_write(mr, env->regs[r3] + i * 8,
                                      ldq_p(buffer + i * 8), 8,
                                      MEMTXATTRS_UNSPECIFIED);
+        if (result != MEMTX_OK) {
+            program_interrupt(env, PGM_OPERAND, 6);
+            return 0;
+        }
     }
 
     setcc(cpu, ZPCI_PCI_LS_OK);
