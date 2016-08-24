@@ -33,19 +33,27 @@ void *memset (void *s, int c, size_t n) {
 }
 
 void exit (int status) {
-	asm volatile ("moveq 1, $r9\n" /* NR_exit.  */
-		      "break 13\n");
+	register unsigned int callno asm ("r9") = 1; /* NR_exit */
+
+	asm volatile ("break 13\n"
+		      :
+		      : "r" (callno)
+		      : "memory" );
 	while(1)
 		;
 }
 
 ssize_t write (int fd, const void *buf, size_t count) {
-	int r;
-	asm ("move.d %0, $r10\n"
-	     "move.d %1, $r11\n"
-	     "move.d %2, $r12\n"
-	     "moveq 4, $r9\n" /* NR_write.  */
-	     "break 13\n" : : "r" (fd), "r" (buf), "r" (count) : "memory");
-	asm ("move.d $r10, %0\n" : "=r" (r));
+	register unsigned int callno asm ("r9") = 4; /* NR_write */
+	register unsigned int r10 asm ("r10") = fd;
+	register const void *r11 asm ("r11") = buf;
+	register size_t r12 asm ("r12") = count;
+	register unsigned int r asm ("r10");
+
+	asm volatile ("break 13\n"
+	     : "=r" (r)
+	     : "r" (callno), "0" (r10), "r" (r11), "r" (r12)
+	     : "memory");
+
 	return r;
 }
