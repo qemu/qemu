@@ -370,6 +370,17 @@ static QCryptoCipherTestData test_data[] = {
             "eb4a427d1923ce3ff262735779a418f2"
             "0a282df920147beabe421ee5319d0568",
     },
+    {
+        /* Bad config - cast5-128 has 8 byte block size
+         * which is incompatible with XTS
+         */
+        .path = "/crypto/cipher/cast5-xts-128",
+        .alg = QCRYPTO_CIPHER_ALG_CAST5_128,
+        .mode = QCRYPTO_CIPHER_MODE_XTS,
+        .key =
+            "27182818284590452353602874713526"
+            "31415926535897932384626433832795",
+    }
 };
 
 
@@ -432,15 +443,23 @@ static void test_cipher(const void *opaque)
     const QCryptoCipherTestData *data = opaque;
 
     QCryptoCipher *cipher;
-    uint8_t *key, *iv, *ciphertext, *plaintext, *outtext;
-    size_t nkey, niv, nciphertext, nplaintext;
-    char *outtexthex;
+    uint8_t *key, *iv = NULL, *ciphertext = NULL,
+        *plaintext = NULL, *outtext = NULL;
+    size_t nkey, niv = 0, nciphertext = 0, nplaintext = 0;
+    char *outtexthex = NULL;
     size_t ivsize, keysize, blocksize;
+    Error *err = NULL;
 
     nkey = unhex_string(data->key, &key);
-    niv = unhex_string(data->iv, &iv);
-    nciphertext = unhex_string(data->ciphertext, &ciphertext);
-    nplaintext = unhex_string(data->plaintext, &plaintext);
+    if (data->iv) {
+        niv = unhex_string(data->iv, &iv);
+    }
+    if (data->ciphertext) {
+        nciphertext = unhex_string(data->ciphertext, &ciphertext);
+    }
+    if (data->plaintext) {
+        nplaintext = unhex_string(data->plaintext, &plaintext);
+    }
 
     g_assert(nciphertext == nplaintext);
 
@@ -449,8 +468,15 @@ static void test_cipher(const void *opaque)
     cipher = qcrypto_cipher_new(
         data->alg, data->mode,
         key, nkey,
-        &error_abort);
-    g_assert(cipher != NULL);
+        &err);
+    if (data->plaintext) {
+        g_assert(err == NULL);
+        g_assert(cipher != NULL);
+    } else {
+        error_free_or_abort(&err);
+        g_assert(cipher == NULL);
+        goto cleanup;
+    }
 
     keysize = qcrypto_cipher_get_key_len(data->alg);
     blocksize = qcrypto_cipher_get_block_len(data->alg);
@@ -498,6 +524,7 @@ static void test_cipher(const void *opaque)
 
     g_assert_cmpstr(outtexthex, ==, data->plaintext);
 
+ cleanup:
     g_free(outtext);
     g_free(outtexthex);
     g_free(key);
