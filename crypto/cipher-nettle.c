@@ -361,6 +361,13 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         goto error;
     }
 
+    if (mode == QCRYPTO_CIPHER_MODE_XTS &&
+        ctx->blocksize != XTS_BLOCK_SIZE) {
+        error_setg(errp, "Cipher block size %zu must equal XTS block size %d",
+                   ctx->blocksize, XTS_BLOCK_SIZE);
+        goto error;
+    }
+
     ctx->iv = g_new0(uint8_t, ctx->blocksize);
     cipher->opaque = ctx;
 
@@ -456,11 +463,6 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
         break;
 
     case QCRYPTO_CIPHER_MODE_XTS:
-        if (ctx->blocksize != XTS_BLOCK_SIZE) {
-            error_setg(errp, "Block size must be %d not %zu",
-                       XTS_BLOCK_SIZE, ctx->blocksize);
-            return -1;
-        }
         xts_decrypt(ctx->ctx, ctx->ctx_tweak,
                     ctx->alg_encrypt_wrapper, ctx->alg_decrypt_wrapper,
                     ctx->iv, len, out, in);
