@@ -1257,6 +1257,11 @@ F: net/slirp.c
 F: include/net/slirp.h
 T: git git://git.kiszka.org/qemu.git queues/slirp
 
+Stubs
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Maintained
+F: stubs/
+
 Tracing
 M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
