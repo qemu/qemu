@@ -268,6 +268,7 @@ void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
                        unsigned int len)
 {
     vq->last_avail_idx--;
+    vq->inuse--;
     virtqueue_unmap_sg(vq, elem, len);
 }
 
@@ -1648,6 +1649,21 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
             }
             vdev->vq[i].used_idx = vring_used_idx(&vdev->vq[i]);
             vdev->vq[i].shadow_avail_idx = vring_avail_idx(&vdev->vq[i]);
+
+            /*
+             * Some devices migrate VirtQueueElements that have been popped
+             * from the avail ring but not yet returned to the used ring.
+             */
+            vdev->vq[i].inuse = vdev->vq[i].last_avail_idx -
+                                vdev->vq[i].used_idx;
+            if (vdev->vq[i].inuse > vdev->vq[i].vring.num) {
+                error_report("VQ %d size 0x%x < last_avail_idx 0x%x - "
+                             "used_idx 0x%x",
+                             i, vdev->vq[i].vring.num,
+                             vdev->vq[i].last_avail_idx,
+                             vdev->vq[i].used_idx);
+                return -1;
+            }
         }
     }
 
