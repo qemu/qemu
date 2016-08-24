@@ -315,6 +315,7 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     S390PCIBusDevice *pbdev;
     uint64_t offset;
     uint64_t data;
+    MemoryRegion *mr;
     uint8_t len;
     uint32_t fh;
     uint8_t pcias;
@@ -363,7 +364,7 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             program_interrupt(env, PGM_OPERAND, 4);
             return 0;
         }
-        MemoryRegion *mr = pbdev->pdev->io_regions[pcias].memory;
+        mr = pbdev->pdev->io_regions[pcias].memory;
         memory_region_dispatch_read(mr, offset, &data, len,
                                     MEMTXATTRS_UNSPECIFIED);
     } else if (pcias == 15) {
@@ -442,6 +443,7 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     CPUS390XState *env = &cpu->env;
     uint64_t offset, data;
     S390PCIBusDevice *pbdev;
+    MemoryRegion *mr;
     uint8_t len;
     uint32_t fh;
     uint8_t pcias;
@@ -491,7 +493,7 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             program_interrupt(env, PGM_OPERAND, 4);
             return 0;
         }
-        MemoryRegion *mr;
+
         if (trap_msix(pbdev, offset, pcias)) {
             offset = offset - pbdev->msix.table_offset;
             mr = &pbdev->pdev->msix_table_mmio;
