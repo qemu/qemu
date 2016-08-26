@@ -2101,6 +2101,13 @@ void qemu_console_resize(QemuConsole *s, int width, int height)
     DisplaySurface *surface;
 
     assert(s->console_type == GRAPHIC_CONSOLE);
+
+    if (s->surface &&
+        pixman_image_get_width(s->surface->image) == width &&
+        pixman_image_get_height(s->surface->image) == height) {
+        return;
+    }
+
     surface = qemu_create_displaysurface(width, height);
     dpy_gfx_replace_surface(s, surface);
 }
