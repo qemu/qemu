@@ -173,6 +173,7 @@ controls = [
             16: 'RDSEED exiting',
             18: 'EPT-violation #VE',
             20: 'Enable XSAVES/XRSTORS',
+            25: 'TSC scaling',
             },
         cap_msr = MSR_IA32_VMX_PROCBASED_CTLS2,
         ),
