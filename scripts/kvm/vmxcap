@@ -79,6 +79,7 @@ class Misc(object):
     def show(self):
         print self.name
         value = msr().read(self.msr, 0)
+        print '  Hex: 0x%x' % (value)
         def first_bit(key):
             if type(key) is tuple:
                 return key[0]
