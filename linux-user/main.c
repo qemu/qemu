@@ -111,7 +111,6 @@ int cpu_get_pic_interrupt(CPUX86State *env)
    We don't require a full sync, only that no cpus are executing guest code.
    The alternative is to map target atomic ops onto host equivalents,
    which requires quite a lot of per host/target work.  */
-static QemuMutex cpu_list_lock;
 static QemuMutex exclusive_lock;
 static QemuCond exclusive_cond;
 static QemuCond exclusive_resume;
@@ -119,7 +118,6 @@ static int pending_cpus;
 
 void qemu_init_cpu_loop(void)
 {
-    qemu_mutex_init(&cpu_list_lock);
     qemu_mutex_init(&exclusive_lock);
     qemu_cond_init(&exclusive_cond);
     qemu_cond_init(&exclusive_resume);
@@ -128,6 +126,7 @@ void qemu_init_cpu_loop(void)
 /* Make sure everything is in a consistent state for calling fork().  */
 void fork_start(void)
 {
+    cpu_list_lock();
     qemu_mutex_lock(&tcg_ctx.tb_ctx.tb_lock);
     qemu_mutex_lock(&exclusive_lock);
     mmap_fork_start();
@@ -147,14 +146,15 @@ void fork_end(int child)
         }
         pending_cpus = 0;
         qemu_mutex_init(&exclusive_lock);
-        qemu_mutex_init(&cpu_list_lock);
         qemu_cond_init(&exclusive_cond);
         qemu_cond_init(&exclusive_resume);
         qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
+        qemu_init_cpu_list();
         gdbserver_fork(thread_cpu);
     } else {
         qemu_mutex_unlock(&exclusive_lock);
         qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
+        cpu_list_unlock();
     }
 }
 
@@ -219,16 +219,6 @@ static inline void cpu_exec_end(CPUState *cpu)
     }
     exclusive_idle();
     qemu_mutex_unlock(&exclusive_lock);
-}
-
-void cpu_list_lock(void)
-{
-    qemu_mutex_lock(&cpu_list_lock);
-}
-
-void cpu_list_unlock(void)
-{
-    qemu_mutex_unlock(&cpu_list_lock);
 }
 
 
@@ -4229,6 +4219,7 @@ int main(int argc, char **argv, char **envp)
     int ret;
     int execfd;
 
+    qemu_init_cpu_list();
     qemu_init_cpu_loop();
     module_call_init(MODULE_INIT_QOM);
 

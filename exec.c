@@ -598,36 +598,11 @@ AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)
 }
 #endif
 
-static bool cpu_index_auto_assigned;
-
-static int cpu_get_free_index(void)
-{
-    CPUState *some_cpu;
-    int cpu_index = 0;
-
-    cpu_index_auto_assigned = true;
-    CPU_FOREACH(some_cpu) {
-        cpu_index++;
-    }
-    return cpu_index;
-}
-
 void cpu_exec_exit(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    cpu_list_lock();
-    if (!QTAILQ_IN_USE(cpu, node)) {
-        /* there is nothing to undo since cpu_exec_init() hasn't been called */
-        cpu_list_unlock();
-        return;
-    }
-
-    assert(!(cpu_index_auto_assigned && cpu != QTAILQ_LAST(&cpus, CPUTailQ)));
-
-    QTAILQ_REMOVE(&cpus, cpu, node);
-    cpu->cpu_index = UNASSIGNED_CPU_INDEX;
-    cpu_list_unlock();
+    cpu_list_remove(cpu);
 
     if (cc->vmsd != NULL) {
         vmstate_unregister(NULL, cc->vmsd, cpu);
@@ -663,15 +638,7 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
     object_ref(OBJECT(cpu->memory));
 #endif
 
-    cpu_list_lock();
-    if (cpu->cpu_index == UNASSIGNED_CPU_INDEX) {
-        cpu->cpu_index = cpu_get_free_index();
-        assert(cpu->cpu_index != UNASSIGNED_CPU_INDEX);
-    } else {
-        assert(!cpu_index_auto_assigned);
-    }
-    QTAILQ_INSERT_TAIL(&cpus, cpu, node);
-    cpu_list_unlock();
+    cpu_list_add(cpu);
 
 #ifndef CONFIG_USER_ONLY
     if (qdev_get_vmsd(DEVICE(cpu)) == NULL) {

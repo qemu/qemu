@@ -545,6 +545,18 @@ static inline int cpu_asidx_from_attrs(CPUState *cpu, MemTxAttrs attrs)
 #endif
 
 /**
+ * cpu_list_add:
+ * @cpu: The CPU to be added to the list of CPUs.
+ */
+void cpu_list_add(CPUState *cpu);
+
+/**
+ * cpu_list_remove:
+ * @cpu: The CPU to be removed from the list of CPUs.
+ */
+void cpu_list_remove(CPUState *cpu);
+
+/**
  * cpu_reset:
  * @cpu: The CPU whose state is to be reset.
  */

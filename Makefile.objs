@@ -89,7 +89,7 @@ endif
 
 #######################################################################
 # Target-independent parts used in system and user emulation
-common-obj-y += tcg-runtime.o
+common-obj-y += tcg-runtime.o cpus-common.o
 common-obj-y += hw/
 common-obj-y += qom/
 common-obj-y += disas/
