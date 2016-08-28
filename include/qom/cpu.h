@@ -656,6 +656,20 @@ void run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
 void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
 
 /**
+ * async_safe_run_on_cpu:
+ * @cpu: The vCPU to run on.
+ * @func: The function to be executed.
+ * @data: Data to pass to the function.
+ *
+ * Schedules the function @func for execution on the vCPU @cpu asynchronously,
+ * while all other vCPUs are sleeping.
+ *
+ * Unlike run_on_cpu and async_run_on_cpu, the function is run outside the
+ * BQL.
+ */
+void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
+
+/**
  * qemu_get_cpu:
  * @index: The CPUState@cpu_index value of the CPU to obtain.
  *
