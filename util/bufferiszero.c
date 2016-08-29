@@ -24,245 +24,211 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/cutils.h"
+#include "qemu/bswap.h"
 
 
 /* vector definitions */
-#ifdef __ALTIVEC__
+
+extern void link_error(void);
+
+#define ACCEL_BUFFER_ZERO(NAME, SIZE, VECTYPE, NONZERO)         \
+static bool NAME(const void *buf, size_t len)                   \
+{                                                               \
+    const void *end = buf + len;                                \
+    do {                                                        \
+        const VECTYPE *p = buf;                                 \
+        VECTYPE t;                                              \
+        if (SIZE == sizeof(VECTYPE) * 4) {                      \
+            t = (p[0] | p[1]) | (p[2] | p[3]);                  \
+        } else if (SIZE == sizeof(VECTYPE) * 8) {               \
+            t  = p[0] | p[1];                                   \
+            t |= p[2] | p[3];                                   \
+            t |= p[4] | p[5];                                   \
+            t |= p[6] | p[7];                                   \
+        } else {                                                \
+            link_error();                                       \
+        }                                                       \
+        if (unlikely(NONZERO(t))) {                             \
+            return false;                                       \
+        }                                                       \
+        buf += SIZE;                                            \
+    } while (buf < end);                                        \
+    return true;                                                \
+}
+
+static bool
+buffer_zero_int(const void *buf, size_t len)
+{
+    if (unlikely(len < 8)) {
+        /* For a very small buffer, simply accumulate all the bytes.  */
+        const unsigned char *p = buf;
+        const unsigned char *e = buf + len;
+        unsigned char t = 0;
+
+        do {
+            t |= *p++;
+        } while (p < e);
+
+        return t == 0;
+    } else {
+        /* Otherwise, use the unaligned memory access functions to
+           handle the beginning and end of the buffer, with a couple
+           of loops handling the middle aligned section.  */
+        uint64_t t = ldq_he_p(buf);
+        const uint64_t *p = (uint64_t *)(((uintptr_t)buf + 8) & -8);
+        const uint64_t *e = (uint64_t *)(((uintptr_t)buf + len) & -8);
+
+        for (; p + 8 <= e; p += 8) {
+            __builtin_prefetch(p + 8);
+            if (t) {
+                return false;
+            }
+            t = p[0] | p[1] | p[2] | p[3] | p[4] | p[5] | p[6] | p[7];
+        }
+        while (p < e) {
+            t |= *p++;
+        }
+        t |= ldq_he_p(buf + len - 8);
+
+        return t == 0;
+    }
+}
+
+#if defined(__ALTIVEC__)
 #include <altivec.h>
 /* The altivec.h header says we're allowed to undef these for
  * C++ compatibility.  Here we don't care about C++, but we
  * undef them anyway to avoid namespace pollution.
+ * altivec.h may redefine the bool macro as vector type.
+ * Reset it to POSIX semantics.
  */
 #undef vector
 #undef pixel
 #undef bool
-#define VECTYPE        __vector unsigned char
-#define ALL_EQ(v1, v2) vec_all_eq(v1, v2)
-#define VEC_OR(v1, v2) ((v1) | (v2))
-/* altivec.h may redefine the bool macro as vector type.
- * Reset it to POSIX semantics. */
 #define bool _Bool
-#elif defined __SSE2__
+#define DO_NONZERO(X)  vec_any_ne(X, (__vector unsigned char){ 0 })
+ACCEL_BUFFER_ZERO(buffer_zero_ppc, 128, __vector unsigned char, DO_NONZERO)
+
+static bool select_accel_fn(const void *buf, size_t len)
+{
+    uintptr_t ibuf = (uintptr_t)buf;
+    if (len % 128 == 0 && ibuf % sizeof(__vector unsigned char) == 0) {
+        return buffer_zero_ppc(buf, len);
+    }
+    return buffer_zero_int(buf, len);
+}
+
+#elif defined(CONFIG_AVX2_OPT) || (defined(CONFIG_CPUID_H) && defined(__SSE2__))
+#include <cpuid.h>
+
+/* Do not use push_options pragmas unnecessarily, because clang
+ * does not support them.
+ */
+#ifndef __SSE2__
+#pragma GCC push_options
+#pragma GCC target("sse2")
+#endif
 #include <emmintrin.h>
-#define VECTYPE        __m128i
-#define ALL_EQ(v1, v2) (_mm_movemask_epi8(_mm_cmpeq_epi8(v1, v2)) == 0xFFFF)
-#define VEC_OR(v1, v2) (_mm_or_si128(v1, v2))
-#elif defined(__aarch64__)
-#include "arm_neon.h"
-#define VECTYPE        uint64x2_t
-#define ALL_EQ(v1, v2) \
-        ((vgetq_lane_u64(v1, 0) == vgetq_lane_u64(v2, 0)) && \
-         (vgetq_lane_u64(v1, 1) == vgetq_lane_u64(v2, 1)))
-#define VEC_OR(v1, v2) ((v1) | (v2))
-#else
-#define VECTYPE        unsigned long
-#define ALL_EQ(v1, v2) ((v1) == (v2))
-#define VEC_OR(v1, v2) ((v1) | (v2))
+#define SSE2_NONZERO(X) \
+    (_mm_movemask_epi8(_mm_cmpeq_epi8((X), _mm_setzero_si128())) != 0xFFFF)
+ACCEL_BUFFER_ZERO(buffer_zero_sse2, 64, __m128i, SSE2_NONZERO)
+#ifndef __SSE2__
+#pragma GCC pop_options
 #endif
 
-#define BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR 8
-
-static bool
-can_use_buffer_find_nonzero_offset_inner(const void *buf, size_t len)
-{
-    return (len % (BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR
-                   * sizeof(VECTYPE)) == 0
-            && ((uintptr_t) buf) % sizeof(VECTYPE) == 0);
-}
-
-/*
- * Searches for an area with non-zero content in a buffer
- *
- * Attention! The len must be a multiple of
- * BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR * sizeof(VECTYPE)
- * and addr must be a multiple of sizeof(VECTYPE) due to
- * restriction of optimizations in this function.
- *
- * can_use_buffer_find_nonzero_offset_inner() can be used to
- * check these requirements.
- *
- * The return value is the offset of the non-zero area rounded
- * down to a multiple of sizeof(VECTYPE) for the first
- * BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR chunks and down to
- * BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR * sizeof(VECTYPE)
- * afterwards.
- *
- * If the buffer is all zero the return value is equal to len.
- */
-
-static size_t buffer_find_nonzero_offset_inner(const void *buf, size_t len)
-{
-    const VECTYPE *p = buf;
-    const VECTYPE zero = (VECTYPE){0};
-    size_t i;
-
-    assert(can_use_buffer_find_nonzero_offset_inner(buf, len));
-
-    if (!len) {
-        return 0;
-    }
-
-    for (i = 0; i < BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR; i++) {
-        if (!ALL_EQ(p[i], zero)) {
-            return i * sizeof(VECTYPE);
-        }
-    }
-
-    for (i = BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR;
-         i < len / sizeof(VECTYPE);
-         i += BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR) {
-        VECTYPE tmp0 = VEC_OR(p[i + 0], p[i + 1]);
-        VECTYPE tmp1 = VEC_OR(p[i + 2], p[i + 3]);
-        VECTYPE tmp2 = VEC_OR(p[i + 4], p[i + 5]);
-        VECTYPE tmp3 = VEC_OR(p[i + 6], p[i + 7]);
-        VECTYPE tmp01 = VEC_OR(tmp0, tmp1);
-        VECTYPE tmp23 = VEC_OR(tmp2, tmp3);
-        if (!ALL_EQ(VEC_OR(tmp01, tmp23), zero)) {
-            break;
-        }
-    }
-
-    return i * sizeof(VECTYPE);
-}
-
-#if defined CONFIG_AVX2_OPT
+#ifdef CONFIG_AVX2_OPT
 #pragma GCC push_options
 #pragma GCC target("avx2")
-#include <cpuid.h>
 #include <immintrin.h>
-
-#define AVX2_VECTYPE        __m256i
-#define AVX2_ALL_EQ(v1, v2) \
-    (_mm256_movemask_epi8(_mm256_cmpeq_epi8(v1, v2)) == 0xFFFFFFFF)
-#define AVX2_VEC_OR(v1, v2) (_mm256_or_si256(v1, v2))
-
-static bool
-can_use_buffer_find_nonzero_offset_avx2(const void *buf, size_t len)
-{
-    return (len % (BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR
-                   * sizeof(AVX2_VECTYPE)) == 0
-            && ((uintptr_t) buf) % sizeof(AVX2_VECTYPE) == 0);
-}
-
-static size_t buffer_find_nonzero_offset_avx2(const void *buf, size_t len)
-{
-    const AVX2_VECTYPE *p = buf;
-    const AVX2_VECTYPE zero = (AVX2_VECTYPE){0};
-    size_t i;
-
-    assert(can_use_buffer_find_nonzero_offset_avx2(buf, len));
-
-    if (!len) {
-        return 0;
-    }
-
-    for (i = 0; i < BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR; i++) {
-        if (!AVX2_ALL_EQ(p[i], zero)) {
-            return i * sizeof(AVX2_VECTYPE);
-        }
-    }
-
-    for (i = BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR;
-         i < len / sizeof(AVX2_VECTYPE);
-         i += BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR) {
-        AVX2_VECTYPE tmp0 = AVX2_VEC_OR(p[i + 0], p[i + 1]);
-        AVX2_VECTYPE tmp1 = AVX2_VEC_OR(p[i + 2], p[i + 3]);
-        AVX2_VECTYPE tmp2 = AVX2_VEC_OR(p[i + 4], p[i + 5]);
-        AVX2_VECTYPE tmp3 = AVX2_VEC_OR(p[i + 6], p[i + 7]);
-        AVX2_VECTYPE tmp01 = AVX2_VEC_OR(tmp0, tmp1);
-        AVX2_VECTYPE tmp23 = AVX2_VEC_OR(tmp2, tmp3);
-        if (!AVX2_ALL_EQ(AVX2_VEC_OR(tmp01, tmp23), zero)) {
-            break;
-        }
-    }
-
-    return i * sizeof(AVX2_VECTYPE);
-}
-
-static bool avx2_support(void)
-{
-    int a, b, c, d;
-
-    if (__get_cpuid_max(0, NULL) < 7) {
-        return false;
-    }
-
-    __cpuid_count(7, 0, a, b, c, d);
-
-    return b & bit_AVX2;
-}
-
-static bool can_use_buffer_find_nonzero_offset(const void *buf, size_t len) \
-         __attribute__ ((ifunc("can_use_buffer_find_nonzero_offset_ifunc")));
-static size_t buffer_find_nonzero_offset(const void *buf, size_t len) \
-         __attribute__ ((ifunc("buffer_find_nonzero_offset_ifunc")));
-
-static void *buffer_find_nonzero_offset_ifunc(void)
-{
-    typeof(buffer_find_nonzero_offset) *func = (avx2_support()) ?
-        buffer_find_nonzero_offset_avx2 : buffer_find_nonzero_offset_inner;
-
-    return func;
-}
-
-static void *can_use_buffer_find_nonzero_offset_ifunc(void)
-{
-    typeof(can_use_buffer_find_nonzero_offset) *func = (avx2_support()) ?
-        can_use_buffer_find_nonzero_offset_avx2 :
-        can_use_buffer_find_nonzero_offset_inner;
-
-    return func;
-}
+#define AVX2_NONZERO(X)  !_mm256_testz_si256((X), (X))
+ACCEL_BUFFER_ZERO(buffer_zero_avx2, 128, __m256i, AVX2_NONZERO)
 #pragma GCC pop_options
-#else
-static bool can_use_buffer_find_nonzero_offset(const void *buf, size_t len)
+#endif
+
+#define CACHE_AVX2    2
+#define CACHE_AVX1    4
+#define CACHE_SSE4    8
+#define CACHE_SSE2    16
+
+static unsigned cpuid_cache;
+
+static void __attribute__((constructor)) init_cpuid_cache(void)
 {
-    return can_use_buffer_find_nonzero_offset_inner(buf, len);
+    int max = __get_cpuid_max(0, NULL);
+    int a, b, c, d;
+    unsigned cache = 0;
+
+    if (max >= 1) {
+        __cpuid(1, a, b, c, d);
+        if (d & bit_SSE2) {
+            cache |= CACHE_SSE2;
+        }
+#ifdef CONFIG_AVX2_OPT
+        if (c & bit_SSE4_1) {
+            cache |= CACHE_SSE4;
+        }
+
+        /* We must check that AVX is not just available, but usable.  */
+        if ((c & bit_OSXSAVE) && (c & bit_AVX)) {
+            __asm("xgetbv" : "=a"(a), "=d"(d) : "c"(0));
+            if ((a & 6) == 6) {
+                cache |= CACHE_AVX1;
+                if (max >= 7) {
+                    __cpuid_count(7, 0, a, b, c, d);
+                    if (b & bit_AVX2) {
+                        cache |= CACHE_AVX2;
+                    }
+                }
+            }
+        }
+#endif
+    }
+    cpuid_cache = cache;
 }
 
-static size_t buffer_find_nonzero_offset(const void *buf, size_t len)
+static bool select_accel_fn(const void *buf, size_t len)
 {
-    return buffer_find_nonzero_offset_inner(buf, len);
+    uintptr_t ibuf = (uintptr_t)buf;
+#ifdef CONFIG_AVX2_OPT
+    if (len % 128 == 0 && ibuf % 32 == 0 && (cpuid_cache & CACHE_AVX2)) {
+        return buffer_zero_avx2(buf, len);
+    }
+#endif
+    if (len % 64 == 0 && ibuf % 16 == 0 && (cpuid_cache & CACHE_SSE2)) {
+        return buffer_zero_sse2(buf, len);
+    }
+    return buffer_zero_int(buf, len);
 }
+
+#elif defined(__aarch64__)
+#include "arm_neon.h"
+
+#define DO_NONZERO(X)  (vgetq_lane_u64((X), 0) | vgetq_lane_u64((X), 1))
+ACCEL_BUFFER_ZERO(buffer_zero_neon, 128, uint64x2_t, DO_NONZERO)
+
+static bool select_accel_fn(const void *buf, size_t len)
+{
+    uintptr_t ibuf = (uintptr_t)buf;
+    if (len % 128 == 0 && ibuf % sizeof(uint64x2_t) == 0) {
+        return buffer_zero_neon(buf, len);
+    }
+    return buffer_zero_int(buf, len);
+}
+
+#else
+#define select_accel_fn  buffer_zero_int
 #endif
 
 /*
  * Checks if a buffer is all zeroes
- *
- * Attention! The len must be a multiple of 4 * sizeof(long) due to
- * restriction of optimizations in this function.
  */
 bool buffer_is_zero(const void *buf, size_t len)
 {
-    /*
-     * Use long as the biggest available internal data type that fits into the
-     * CPU register and unroll the loop to smooth out the effect of memory
-     * latency.
-     */
-
-    size_t i;
-    long d0, d1, d2, d3;
-    const long * const data = buf;
-
-    /* use vector optimized zero check if possible */
-    if (can_use_buffer_find_nonzero_offset(buf, len)) {
-        return buffer_find_nonzero_offset(buf, len) == len;
+    if (unlikely(len == 0)) {
+        return true;
     }
 
-    assert(len % (4 * sizeof(long)) == 0);
-    len /= sizeof(long);
-
-    for (i = 0; i < len; i += 4) {
-        d0 = data[i + 0];
-        d1 = data[i + 1];
-        d2 = data[i + 2];
-        d3 = data[i + 3];
-
-        if (d0 || d1 || d2 || d3) {
-            return false;
-        }
-    }
-
-    return true;
+    /* Use an optimized zero check if possible.  Note that this also
+       includes a check for an unrolled loop over 64-bit integers.  */
+    return select_accel_fn(buf, len);
 }
-
