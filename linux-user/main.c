@@ -294,6 +294,8 @@ void cpu_loop(CPUX86State *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case 0x80:
             /* linux syscall from int $0x80 */
@@ -735,6 +737,8 @@ void cpu_loop(CPUARMState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case EXCP_UDEF:
             {
@@ -1071,6 +1075,7 @@ void cpu_loop(CPUARMState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
 
         switch (trapnr) {
         case EXCP_SWI:
@@ -1159,6 +1164,8 @@ void cpu_loop(CPUUniCore32State *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch (trapnr) {
         case UC32_EXCP_PRIV:
             {
@@ -1364,6 +1371,7 @@ void cpu_loop (CPUSPARCState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
 
         /* Compute PSR before exposing state.  */
         if (env->cc_op != CC_OP_FLAGS) {
@@ -1636,6 +1644,8 @@ void cpu_loop(CPUPPCState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case POWERPC_EXCP_NONE:
             /* Just go on */
@@ -2482,6 +2492,8 @@ void cpu_loop(CPUMIPSState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case EXCP_SYSCALL:
             env->active_tc.PC += 4;
@@ -2722,6 +2734,7 @@ void cpu_loop(CPUOpenRISCState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
         gdbsig = 0;
 
         switch (trapnr) {
@@ -2816,6 +2829,7 @@ void cpu_loop(CPUSH4State *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
 
         switch (trapnr) {
         case 0x160:
@@ -2882,6 +2896,8 @@ void cpu_loop(CPUCRISState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch (trapnr) {
         case 0xaa:
             {
@@ -2947,6 +2963,8 @@ void cpu_loop(CPUMBState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch (trapnr) {
         case 0xaa:
             {
@@ -3064,6 +3082,8 @@ void cpu_loop(CPUM68KState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case EXCP_ILLEGAL:
             {
@@ -3207,6 +3227,7 @@ void cpu_loop(CPUAlphaState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
 
         /* All of the traps imply a transition through PALcode, which
            implies an REI instruction has been executed.  Which means
@@ -3399,6 +3420,8 @@ void cpu_loop(CPUS390XState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch (trapnr) {
         case EXCP_INTERRUPT:
             /* Just indicate that signals should be handled asap.  */
@@ -3708,6 +3731,8 @@ void cpu_loop(CPUTLGState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch (trapnr) {
         case TILEGX_EXCP_SYSCALL:
         {

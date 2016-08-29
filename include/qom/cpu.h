@@ -233,14 +233,7 @@ struct kvm_run;
 
 /* work queue */
 typedef void (*run_on_cpu_func)(CPUState *cpu, void *data);
-
-struct qemu_work_item {
-    struct qemu_work_item *next;
-    run_on_cpu_func func;
-    void *data;
-    int done;
-    bool free;
-};
+struct qemu_work_item;
 
 /**
  * CPUState:
@@ -630,6 +623,18 @@ void qemu_cpu_kick(CPUState *cpu);
 bool cpu_is_stopped(CPUState *cpu);
 
 /**
+ * do_run_on_cpu:
+ * @cpu: The vCPU to run on.
+ * @func: The function to be executed.
+ * @data: Data to pass to the function.
+ * @mutex: Mutex to release while waiting for @func to run.
+ *
+ * Used internally in the implementation of run_on_cpu.
+ */
+void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data,
+                   QemuMutex *mutex);
+
+/**
  * run_on_cpu:
  * @cpu: The vCPU to run on.
  * @func: The function to be executed.
@@ -806,6 +811,12 @@ void cpu_remove(CPUState *cpu);
  * Requests the CPU to be removed and waits till it is removed.
  */
 void cpu_remove_sync(CPUState *cpu);
+
+/**
+ * process_queued_cpu_work() - process all items on CPU work queue
+ * @cpu: The CPU which work queue to process.
+ */
+void process_queued_cpu_work(CPUState *cpu);
 
 /**
  * qemu_init_vcpu:
