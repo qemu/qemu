@@ -162,6 +162,19 @@ static void __attribute__((constructor)) init_cpuid_cache(void)
     cpuid_cache = cache;
 }
 
+#define HAVE_NEXT_ACCEL
+bool test_buffer_is_zero_next_accel(void)
+{
+    /* If no bits set, we just tested buffer_zero_int, and there
+       are no more acceleration options to test.  */
+    if (cpuid_cache == 0) {
+        return false;
+    }
+    /* Disable the accelerator we used before and select a new one.  */
+    cpuid_cache &= cpuid_cache - 1;
+    return true;
+}
+
 static bool select_accel_fn(const void *buf, size_t len)
 {
     uintptr_t ibuf = (uintptr_t)buf;
@@ -178,6 +191,13 @@ static bool select_accel_fn(const void *buf, size_t len)
 
 #else
 #define select_accel_fn  buffer_zero_int
+#endif
+
+#ifndef HAVE_NEXT_ACCEL
+bool test_buffer_is_zero_next_accel(void)
+{
+    return false;
+}
 #endif
 
 /*

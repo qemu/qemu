@@ -169,6 +169,7 @@ int64_t qemu_strtosz_suffix_unit(const char *nptr, char **end,
 #define STR_OR_NULL(str) ((str) ? (str) : "null")
 
 bool buffer_is_zero(const void *buf, size_t len);
+bool test_buffer_is_zero_next_accel(void);
 
 /*
  * Implementation of ULEB128 (http://en.wikipedia.org/wiki/LEB128)
