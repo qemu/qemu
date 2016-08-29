@@ -599,8 +599,8 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             }
 
             l = strlen(s->serial);
-            if (l > 20) {
-                l = 20;
+            if (l > 36) {
+                l = 36;
             }
 
             DPRINTF("Inquiry EVPD[Serial number] "
