@@ -94,31 +94,7 @@ buffer_zero_int(const void *buf, size_t len)
     }
 }
 
-#if defined(__ALTIVEC__)
-#include <altivec.h>
-/* The altivec.h header says we're allowed to undef these for
- * C++ compatibility.  Here we don't care about C++, but we
- * undef them anyway to avoid namespace pollution.
- * altivec.h may redefine the bool macro as vector type.
- * Reset it to POSIX semantics.
- */
-#undef vector
-#undef pixel
-#undef bool
-#define bool _Bool
-#define DO_NONZERO(X)  vec_any_ne(X, (__vector unsigned char){ 0 })
-ACCEL_BUFFER_ZERO(buffer_zero_ppc, 128, __vector unsigned char, DO_NONZERO)
-
-static bool select_accel_fn(const void *buf, size_t len)
-{
-    uintptr_t ibuf = (uintptr_t)buf;
-    if (len % 128 == 0 && ibuf % sizeof(__vector unsigned char) == 0) {
-        return buffer_zero_ppc(buf, len);
-    }
-    return buffer_zero_int(buf, len);
-}
-
-#elif defined(CONFIG_AVX2_OPT) || (defined(CONFIG_CPUID_H) && defined(__SSE2__))
+#if defined(CONFIG_AVX2_OPT) || (defined(CONFIG_CPUID_H) && defined(__SSE2__))
 #include <cpuid.h>
 
 /* Do not use push_options pragmas unnecessarily, because clang
