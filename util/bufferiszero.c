@@ -38,6 +38,8 @@ static bool NAME(const void *buf, size_t len)                   \
     do {                                                        \
         const VECTYPE *p = buf;                                 \
         VECTYPE t;                                              \
+        __builtin_prefetch(buf + SIZE);                         \
+        barrier();                                              \
         if (SIZE == sizeof(VECTYPE) * 4) {                      \
             t = (p[0] | p[1]) | (p[2] | p[3]);                  \
         } else if (SIZE == sizeof(VECTYPE) * 8) {               \
@@ -218,6 +220,9 @@ bool buffer_is_zero(const void *buf, size_t len)
     if (unlikely(len == 0)) {
         return true;
     }
+
+    /* Fetch the beginning of the buffer while we select the accelerator.  */
+    __builtin_prefetch(buf);
 
     /* Use an optimized zero check if possible.  Note that this also
        includes a check for an unrolled loop over 64-bit integers.  */
