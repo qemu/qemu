@@ -192,9 +192,9 @@ static bool avx2_support(void)
     return b & bit_AVX2;
 }
 
-bool can_use_buffer_find_nonzero_offset(const void *buf, size_t len) \
+static bool can_use_buffer_find_nonzero_offset(const void *buf, size_t len) \
          __attribute__ ((ifunc("can_use_buffer_find_nonzero_offset_ifunc")));
-size_t buffer_find_nonzero_offset(const void *buf, size_t len) \
+static size_t buffer_find_nonzero_offset(const void *buf, size_t len) \
          __attribute__ ((ifunc("buffer_find_nonzero_offset_ifunc")));
 
 static void *buffer_find_nonzero_offset_ifunc(void)
@@ -215,12 +215,12 @@ static void *can_use_buffer_find_nonzero_offset_ifunc(void)
 }
 #pragma GCC pop_options
 #else
-bool can_use_buffer_find_nonzero_offset(const void *buf, size_t len)
+static bool can_use_buffer_find_nonzero_offset(const void *buf, size_t len)
 {
     return can_use_buffer_find_nonzero_offset_inner(buf, len);
 }
 
-size_t buffer_find_nonzero_offset(const void *buf, size_t len)
+static size_t buffer_find_nonzero_offset(const void *buf, size_t len)
 {
     return buffer_find_nonzero_offset_inner(buf, len);
 }

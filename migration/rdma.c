@@ -1934,10 +1934,7 @@ retry:
              * memset() + madvise() the entire chunk without RDMA.
              */
 
-            if (can_use_buffer_find_nonzero_offset((void *)(uintptr_t)sge.addr,
-                                                   length)
-                   && buffer_find_nonzero_offset((void *)(uintptr_t)sge.addr,
-                                                    length) == length) {
+            if (buffer_is_zero((void *)(uintptr_t)sge.addr, length)) {
                 RDMACompress comp = {
                                         .offset = current_addr,
                                         .value = 0,
