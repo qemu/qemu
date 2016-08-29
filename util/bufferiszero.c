@@ -200,21 +200,6 @@ static bool select_accel_fn(const void *buf, size_t len)
     return buffer_zero_int(buf, len);
 }
 
-#elif defined(__aarch64__)
-#include "arm_neon.h"
-
-#define DO_NONZERO(X)  (vgetq_lane_u64((X), 0) | vgetq_lane_u64((X), 1))
-ACCEL_BUFFER_ZERO(buffer_zero_neon, 128, uint64x2_t, DO_NONZERO)
-
-static bool select_accel_fn(const void *buf, size_t len)
-{
-    uintptr_t ibuf = (uintptr_t)buf;
-    if (len % 128 == 0 && ibuf % sizeof(uint64x2_t) == 0) {
-        return buffer_zero_neon(buf, len);
-    }
-    return buffer_zero_int(buf, len);
-}
-
 #else
 #define select_accel_fn  buffer_zero_int
 #endif
