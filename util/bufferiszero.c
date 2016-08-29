@@ -37,7 +37,6 @@
 #undef pixel
 #undef bool
 #define VECTYPE        __vector unsigned char
-#define SPLAT(p)       vec_splat(vec_ld(0, p), 0)
 #define ALL_EQ(v1, v2) vec_all_eq(v1, v2)
 #define VEC_OR(v1, v2) ((v1) | (v2))
 /* altivec.h may redefine the bool macro as vector type.
@@ -46,7 +45,6 @@
 #elif defined __SSE2__
 #include <emmintrin.h>
 #define VECTYPE        __m128i
-#define SPLAT(p)       _mm_set1_epi8(*(p))
 #define ALL_EQ(v1, v2) (_mm_movemask_epi8(_mm_cmpeq_epi8(v1, v2)) == 0xFFFF)
 #define VEC_OR(v1, v2) (_mm_or_si128(v1, v2))
 #elif defined(__aarch64__)
@@ -58,7 +56,6 @@
 #define VEC_OR(v1, v2) ((v1) | (v2))
 #else
 #define VECTYPE        unsigned long
-#define SPLAT(p)       (*(p) * (~0UL / 255))
 #define ALL_EQ(v1, v2) ((v1) == (v2))
 #define VEC_OR(v1, v2) ((v1) | (v2))
 #endif
@@ -135,7 +132,6 @@ static size_t buffer_find_nonzero_offset_inner(const void *buf, size_t len)
 #include <immintrin.h>
 
 #define AVX2_VECTYPE        __m256i
-#define AVX2_SPLAT(p)       _mm256_set1_epi8(*(p))
 #define AVX2_ALL_EQ(v1, v2) \
     (_mm256_movemask_epi8(_mm256_cmpeq_epi8(v1, v2)) == 0xFFFFFFFF)
 #define AVX2_VEC_OR(v1, v2) (_mm256_or_si256(v1, v2))
