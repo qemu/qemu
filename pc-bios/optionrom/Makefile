@@ -10,10 +10,7 @@ $(call set-vpath, $(SRC_PATH)/pc-bios/optionrom)
 .PHONY : all clean build-all
 
 # Compiling with no optimization creates ROMs that are too large
-ifeq ($(filter -O%, $(CFLAGS)),)
-override CFLAGS += -O2
-endif
-ifeq ($(filter -O%, $(CFLAGS)),-O0)
+ifeq ($(lastword $(filter -O%, -O0 $(CFLAGS))),-O0)
 override CFLAGS += -O2
 endif
 
