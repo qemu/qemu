@@ -669,6 +669,9 @@ F: hw/s390x/
 F: include/hw/s390x/
 F: pc-bios/s390-ccw/
 F: hw/watchdog/wdt_diag288.c
+F: include/hw/watchdog/wdt_diag288.h
+F: pc-bios/s390-ccw.img
+F: default-configs/s390x-softmmu.mak
 T: git git://github.com/cohuck/qemu.git s390-next
 T: git git://github.com/borntraeger/qemu.git s390-next
 
