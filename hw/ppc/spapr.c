@@ -1814,6 +1814,9 @@ static void ppc_spapr_init(MachineState *machine)
         /* Enable H_LOGICAL_CI_* so SLOF can talk to in-kernel devices */
         kvmppc_enable_logical_ci_hcalls();
         kvmppc_enable_set_mode_hcall();
+
+        /* H_CLEAR_MOD/_REF are mandatory in PAPR, but off by default */
+        kvmppc_enable_clear_ref_mod_hcalls();
     }
 
     /* allocate RAM */
