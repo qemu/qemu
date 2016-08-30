@@ -2168,7 +2168,7 @@ e1000e_update_interrupt_state(E1000ECore *core)
     }
 }
 
-static inline void
+static void
 e1000e_set_interrupt_cause(E1000ECore *core, uint32_t val)
 {
     trace_e1000e_irq_set_cause_entry(val, core->mac[ICR]);
