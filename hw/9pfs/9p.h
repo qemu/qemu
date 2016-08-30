@@ -236,6 +236,7 @@ typedef struct V9fsState
     int32_t root_fid;
     Error *migration_blocker;
     V9fsConf fsconf;
+    V9fsQID root_qid;
 } V9fsState;
 
 /* 9p2000.L open flags */

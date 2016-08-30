@@ -1010,6 +1010,7 @@ static void v9fs_attach(void *opaque)
         goto out;
     }
     err += offset;
+    memcpy(&s->root_qid, &qid, sizeof(qid));
     trace_v9fs_attach_return(pdu->tag, pdu->id,
                              qid.type, qid.version, qid.path);
     /*
@@ -1261,6 +1262,14 @@ static bool name_is_illegal(const char *name)
     return !*name || strchr(name, '/') != NULL;
 }
 
+static bool not_same_qid(const V9fsQID *qid1, const V9fsQID *qid2)
+{
+    return
+        qid1->type != qid2->type ||
+        qid1->version != qid2->version ||
+        qid1->path != qid2->path;
+}
+
 static void v9fs_walk(void *opaque)
 {
     int name_idx;
@@ -1276,6 +1285,7 @@ static void v9fs_walk(void *opaque)
     V9fsFidState *newfidp = NULL;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
+    V9fsQID qid;
 
     err = pdu_unmarshal(pdu, offset, "ddw", &fid, &newfid, &nwnames);
     if (err < 0) {
@@ -1309,6 +1319,12 @@ static void v9fs_walk(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
+
+    err = fid_to_qid(pdu, fidp, &qid);
+    if (err < 0) {
+        goto out;
+    }
+
     v9fs_path_init(&dpath);
     v9fs_path_init(&path);
     /*
@@ -1318,16 +1334,22 @@ static void v9fs_walk(void *opaque)
     v9fs_path_copy(&dpath, &fidp->path);
     v9fs_path_copy(&path, &fidp->path);
     for (name_idx = 0; name_idx < nwnames; name_idx++) {
-        err = v9fs_co_name_to_path(pdu, &dpath, wnames[name_idx].data, &path);
-        if (err < 0) {
-            goto out;
+        if (not_same_qid(&pdu->s->root_qid, &qid) ||
+            strcmp("..", wnames[name_idx].data)) {
+            err = v9fs_co_name_to_path(pdu, &dpath, wnames[name_idx].data,
+                                       &path);
+            if (err < 0) {
+                goto out;
+            }
+
+            err = v9fs_co_lstat(pdu, &path, &stbuf);
+            if (err < 0) {
+                goto out;
+            }
+            stat_to_qid(&stbuf, &qid);
+            v9fs_path_copy(&dpath, &path);
         }
-        err = v9fs_co_lstat(pdu, &path, &stbuf);
-        if (err < 0) {
-            goto out;
-        }
-        stat_to_qid(&stbuf, &qids[name_idx]);
-        v9fs_path_copy(&dpath, &path);
+        memcpy(&qids[name_idx], &qid, sizeof(qid));
     }
     if (fid == newfid) {
         BUG_ON(fidp->fid_type != P9_FID_NONE);
