@@ -25,7 +25,7 @@ Goals
 
 The primary model being worked on is the soft MMU target to be able to
 emulate the Shix 2.0 board by Alexis Polti, described at
-http://perso.enst.fr/~polti/realisations/shix20/
+https://web.archive.org/web/20070917001736/http://perso.enst.fr/~polti/realisations/shix20/
 
 Ultimately, qemu will be coupled with a system C or a verilog
 simulator to simulate the whole board functionalities.
