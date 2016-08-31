@@ -152,7 +152,7 @@ pvscsi_log2(uint32_t input)
     return log;
 }
 
-static int
+static void
 pvscsi_ring_init_data(PVSCSIRingInfo *m, PVSCSICmdDescSetupRings *ri)
 {
     int i;
@@ -160,10 +160,6 @@ pvscsi_ring_init_data(PVSCSIRingInfo *m, PVSCSICmdDescSetupRings *ri)
     uint32_t req_ring_size, cmp_ring_size;
     m->rs_pa = ri->ringsStatePPN << VMW_PAGE_SHIFT;
 
-    if ((ri->reqRingNumPages > PVSCSI_SETUP_RINGS_MAX_NUM_PAGES)
-        || (ri->cmpRingNumPages > PVSCSI_SETUP_RINGS_MAX_NUM_PAGES)) {
-        return -1;
-    }
     req_ring_size = ri->reqRingNumPages * PVSCSI_MAX_NUM_REQ_ENTRIES_PER_PAGE;
     cmp_ring_size = ri->cmpRingNumPages * PVSCSI_MAX_NUM_CMP_ENTRIES_PER_PAGE;
     txr_len_log2 = pvscsi_log2(req_ring_size - 1);
@@ -195,8 +191,6 @@ pvscsi_ring_init_data(PVSCSIRingInfo *m, PVSCSICmdDescSetupRings *ri)
 
     /* Flush ring state page changes */
     smp_wmb();
-
-    return 0;
 }
 
 static int
@@ -746,7 +740,7 @@ pvscsi_dbg_dump_tx_rings_config(PVSCSICmdDescSetupRings *rc)
 
     trace_pvscsi_tx_rings_num_pages("Confirm Ring", rc->cmpRingNumPages);
     for (i = 0; i < rc->cmpRingNumPages; i++) {
-        trace_pvscsi_tx_rings_ppn("Confirm Ring", rc->reqRingPPNs[i]);
+        trace_pvscsi_tx_rings_ppn("Confirm Ring", rc->cmpRingPPNs[i]);
     }
 }
 
@@ -779,10 +773,15 @@ pvscsi_on_cmd_setup_rings(PVSCSIState *s)
 
     trace_pvscsi_on_cmd_arrived("PVSCSI_CMD_SETUP_RINGS");
 
-    pvscsi_dbg_dump_tx_rings_config(rc);
-    if (pvscsi_ring_init_data(&s->rings, rc) < 0) {
+    if (!rc->reqRingNumPages
+        || rc->reqRingNumPages > PVSCSI_SETUP_RINGS_MAX_NUM_PAGES
+        || !rc->cmpRingNumPages
+        || rc->cmpRingNumPages > PVSCSI_SETUP_RINGS_MAX_NUM_PAGES) {
         return PVSCSI_COMMAND_PROCESSING_FAILED;
     }
+
+    pvscsi_dbg_dump_tx_rings_config(rc);
+    pvscsi_ring_init_data(&s->rings, rc);
 
     s->rings_info_valid = TRUE;
     return PVSCSI_COMMAND_PROCESSING_SUCCEEDED;
