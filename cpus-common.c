@@ -153,11 +153,6 @@ void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
 {
     struct qemu_work_item *wi;
 
-    if (qemu_cpu_is_self(cpu)) {
-        func(cpu, data);
-        return;
-    }
-
     wi = g_malloc0(sizeof(struct qemu_work_item));
     wi->func = func;
     wi->data = data;
