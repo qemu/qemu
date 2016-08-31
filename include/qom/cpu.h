@@ -242,7 +242,8 @@ struct qemu_work_item;
  * @nr_threads: Number of threads within this CPU.
  * @numa_node: NUMA node this CPU is belonging to.
  * @host_tid: Host thread ID.
- * @running: #true if CPU is currently running (usermode).
+ * @running: #true if CPU is currently running;
+ * valid under cpu_list_lock.
  * @created: Indicates whether the CPU thread has been successfully created.
  * @interrupt_request: Indicates a pending interrupt request.
  * @halted: Nonzero if the CPU is in suspended state.
@@ -817,6 +818,47 @@ void cpu_remove_sync(CPUState *cpu);
  * @cpu: The CPU which work queue to process.
  */
 void process_queued_cpu_work(CPUState *cpu);
+
+/**
+ * cpu_exec_start:
+ * @cpu: The CPU for the current thread.
+ *
+ * Record that a CPU has started execution and can be interrupted with
+ * cpu_exit.
+ */
+void cpu_exec_start(CPUState *cpu);
+
+/**
+ * cpu_exec_end:
+ * @cpu: The CPU for the current thread.
+ *
+ * Record that a CPU has stopped execution and exclusive sections
+ * can be executed without interrupting it.
+ */
+void cpu_exec_end(CPUState *cpu);
+
+/**
+ * start_exclusive:
+ *
+ * Wait for a concurrent exclusive section to end, and then start
+ * a section of work that is run while other CPUs are not running
+ * between cpu_exec_start and cpu_exec_end.  CPUs that are running
+ * cpu_exec are exited immediately.  CPUs that call cpu_exec_start
+ * during the exclusive section go to sleep until this CPU calls
+ * end_exclusive.
+ *
+ * Returns with the CPU list lock taken (which nests outside all
+ * other locks except the BQL).
+ */
+void start_exclusive(void);
+
+/**
+ * end_exclusive:
+ *
+ * Concludes an exclusive execution section started by start_exclusive.
+ * Releases the CPU list lock.
+ */
+void end_exclusive(void);
 
 /**
  * qemu_init_vcpu:

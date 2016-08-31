@@ -67,23 +67,6 @@ int cpu_get_pic_interrupt(CPUX86State *env)
 }
 #endif
 
-/* These are no-ops because we are not threadsafe.  */
-static inline void cpu_exec_start(CPUState *cpu)
-{
-}
-
-static inline void cpu_exec_end(CPUState *cpu)
-{
-}
-
-static inline void start_exclusive(void)
-{
-}
-
-static inline void end_exclusive(void)
-{
-}
-
 void fork_start(void)
 {
 }

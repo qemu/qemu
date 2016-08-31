@@ -1457,7 +1457,9 @@ static int tcg_cpu_exec(CPUState *cpu)
         cpu->icount_decr.u16.low = decr;
         cpu->icount_extra = count;
     }
+    cpu_exec_start(cpu);
     ret = cpu_exec(cpu);
+    cpu_exec_end(cpu);
 #ifdef CONFIG_PROFILER
     tcg_time += profile_getclock() - ti;
 #endif

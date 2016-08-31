@@ -107,28 +107,11 @@ int cpu_get_pic_interrupt(CPUX86State *env)
 /***********************************************************/
 /* Helper routines for implementing atomic operations.  */
 
-/* To implement exclusive operations we force all cpus to syncronise.
-   We don't require a full sync, only that no cpus are executing guest code.
-   The alternative is to map target atomic ops onto host equivalents,
-   which requires quite a lot of per host/target work.  */
-static QemuMutex exclusive_lock;
-static QemuCond exclusive_cond;
-static QemuCond exclusive_resume;
-static int pending_cpus;
-
-void qemu_init_cpu_loop(void)
-{
-    qemu_mutex_init(&exclusive_lock);
-    qemu_cond_init(&exclusive_cond);
-    qemu_cond_init(&exclusive_resume);
-}
-
 /* Make sure everything is in a consistent state for calling fork().  */
 void fork_start(void)
 {
     cpu_list_lock();
     qemu_mutex_lock(&tcg_ctx.tb_ctx.tb_lock);
-    qemu_mutex_lock(&exclusive_lock);
     mmap_fork_start();
 }
 
@@ -144,83 +127,14 @@ void fork_end(int child)
                 QTAILQ_REMOVE(&cpus, cpu, node);
             }
         }
-        pending_cpus = 0;
-        qemu_mutex_init(&exclusive_lock);
-        qemu_cond_init(&exclusive_cond);
-        qemu_cond_init(&exclusive_resume);
         qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
         qemu_init_cpu_list();
         gdbserver_fork(thread_cpu);
     } else {
-        qemu_mutex_unlock(&exclusive_lock);
         qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
         cpu_list_unlock();
     }
 }
-
-/* Wait for pending exclusive operations to complete.  The exclusive lock
-   must be held.  */
-static inline void exclusive_idle(void)
-{
-    while (pending_cpus) {
-        qemu_cond_wait(&exclusive_resume, &exclusive_lock);
-    }
-}
-
-/* Start an exclusive operation.
-   Must only be called from outside cpu_exec.   */
-static inline void start_exclusive(void)
-{
-    CPUState *other_cpu;
-
-    qemu_mutex_lock(&exclusive_lock);
-    exclusive_idle();
-
-    pending_cpus = 1;
-    /* Make all other cpus stop executing.  */
-    CPU_FOREACH(other_cpu) {
-        if (other_cpu->running) {
-            pending_cpus++;
-            cpu_exit(other_cpu);
-        }
-    }
-    while (pending_cpus > 1) {
-        qemu_cond_wait(&exclusive_cond, &exclusive_lock);
-    }
-}
-
-/* Finish an exclusive operation.  */
-static inline void __attribute__((unused)) end_exclusive(void)
-{
-    pending_cpus = 0;
-    qemu_cond_broadcast(&exclusive_resume);
-    qemu_mutex_unlock(&exclusive_lock);
-}
-
-/* Wait for exclusive ops to finish, and begin cpu execution.  */
-static inline void cpu_exec_start(CPUState *cpu)
-{
-    qemu_mutex_lock(&exclusive_lock);
-    exclusive_idle();
-    cpu->running = true;
-    qemu_mutex_unlock(&exclusive_lock);
-}
-
-/* Mark cpu as not executing, and release pending exclusive ops.  */
-static inline void cpu_exec_end(CPUState *cpu)
-{
-    qemu_mutex_lock(&exclusive_lock);
-    cpu->running = false;
-    if (pending_cpus > 1) {
-        pending_cpus--;
-        if (pending_cpus == 1) {
-            qemu_cond_signal(&exclusive_cond);
-        }
-    }
-    exclusive_idle();
-    qemu_mutex_unlock(&exclusive_lock);
-}
-
 
 #ifdef TARGET_I386
 /***********************************************************/
@@ -4245,7 +4159,6 @@ int main(int argc, char **argv, char **envp)
     int execfd;
 
     qemu_init_cpu_list();
-    qemu_init_cpu_loop();
     module_call_init(MODULE_INIT_QOM);
 
     if ((envlist = envlist_create()) == NULL) {

@@ -23,11 +23,21 @@
 #include "sysemu/cpus.h"
 
 static QemuMutex qemu_cpu_list_lock;
+static QemuCond exclusive_cond;
+static QemuCond exclusive_resume;
 static QemuCond qemu_work_cond;
+
+static int pending_cpus;
 
 void qemu_init_cpu_list(void)
 {
+    /* This is needed because qemu_init_cpu_list is also called by the
+     * child process in a fork.  */
+    pending_cpus = 0;
+
     qemu_mutex_init(&qemu_cpu_list_lock);
+    qemu_cond_init(&exclusive_cond);
+    qemu_cond_init(&exclusive_resume);
     qemu_cond_init(&qemu_work_cond);
 }
 
@@ -55,6 +65,12 @@ static int cpu_get_free_index(void)
     return cpu_index;
 }
 
+static void finish_safe_work(CPUState *cpu)
+{
+    cpu_exec_start(cpu);
+    cpu_exec_end(cpu);
+}
+
 void cpu_list_add(CPUState *cpu)
 {
     qemu_mutex_lock(&qemu_cpu_list_lock);
@@ -66,6 +82,8 @@ void cpu_list_add(CPUState *cpu)
     }
     QTAILQ_INSERT_TAIL(&cpus, cpu, node);
     qemu_mutex_unlock(&qemu_cpu_list_lock);
+
+    finish_safe_work(cpu);
 }
 
 void cpu_list_remove(CPUState *cpu)
@@ -146,6 +164,70 @@ void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
     wi->free = true;
 
     queue_work_on_cpu(cpu, wi);
+}
+
+/* Wait for pending exclusive operations to complete.  The CPU list lock
+   must be held.  */
+static inline void exclusive_idle(void)
+{
+    while (pending_cpus) {
+        qemu_cond_wait(&exclusive_resume, &qemu_cpu_list_lock);
+    }
+}
+
+/* Start an exclusive operation.
+   Must only be called from outside cpu_exec, takes
+   qemu_cpu_list_lock.   */
+void start_exclusive(void)
+{
+    CPUState *other_cpu;
+
+    qemu_mutex_lock(&qemu_cpu_list_lock);
+    exclusive_idle();
+
+    /* Make all other cpus stop executing.  */
+    pending_cpus = 1;
+    CPU_FOREACH(other_cpu) {
+        if (other_cpu->running) {
+            pending_cpus++;
+            qemu_cpu_kick(other_cpu);
+        }
+    }
+    while (pending_cpus > 1) {
+        qemu_cond_wait(&exclusive_cond, &qemu_cpu_list_lock);
+    }
+}
+
+/* Finish an exclusive operation.  Releases qemu_cpu_list_lock.  */
+void end_exclusive(void)
+{
+    pending_cpus = 0;
+    qemu_cond_broadcast(&exclusive_resume);
+    qemu_mutex_unlock(&qemu_cpu_list_lock);
+}
+
+/* Wait for exclusive ops to finish, and begin cpu execution.  */
+void cpu_exec_start(CPUState *cpu)
+{
+    qemu_mutex_lock(&qemu_cpu_list_lock);
+    exclusive_idle();
+    cpu->running = true;
+    qemu_mutex_unlock(&qemu_cpu_list_lock);
+}
+
+/* Mark cpu as not executing, and release pending exclusive ops.  */
+void cpu_exec_end(CPUState *cpu)
+{
+    qemu_mutex_lock(&qemu_cpu_list_lock);
+    cpu->running = false;
+    if (pending_cpus > 1) {
+        pending_cpus--;
+        if (pending_cpus == 1) {
+            qemu_cond_signal(&exclusive_cond);
+        }
+    }
+    exclusive_idle();
+    qemu_mutex_unlock(&qemu_cpu_list_lock);
 }
 
 void process_queued_cpu_work(CPUState *cpu)
