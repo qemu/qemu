@@ -13,7 +13,8 @@
  *     gcc pan.c -O2
  *     ./a.out -a
  *
- * Tunable processor macros: N_CPUS, N_EXCLUSIVE, N_CYCLES, TEST_EXPENSIVE.
+ * Tunable processor macros: N_CPUS, N_EXCLUSIVE, N_CYCLES, USE_MUTEX,
+ *                           TEST_EXPENSIVE.
  */
 
 // Define the missing parameters for the model
@@ -22,8 +23,10 @@
 #warning defaulting to 2 CPU processes
 #endif
 
-// the expensive test is not so expensive for <= 3 CPUs
-#if N_CPUS <= 3
+// the expensive test is not so expensive for <= 2 CPUs
+// If the mutex is used, it's also cheap (300 MB / 4 seconds) for 3 CPUs
+// For 3 CPUs and the lock-free option it needs 1.5 GB of RAM
+#if N_CPUS <= 2 || (N_CPUS <= 3 && defined USE_MUTEX)
 #define TEST_EXPENSIVE
 #endif
 
@@ -107,6 +110,8 @@ byte has_waiter[N_CPUS];
     COND_BROADCAST(exclusive_resume);                             \
     MUTEX_UNLOCK(mutex);
 
+#ifdef USE_MUTEX
+// Simple version using mutexes
 #define cpu_exec_start(id)                                                   \
     MUTEX_LOCK(mutex);                                                       \
     exclusive_idle();                                                        \
@@ -127,6 +132,48 @@ byte has_waiter[N_CPUS];
         :: else -> skip;                                                     \
     fi;                                                                      \
     MUTEX_UNLOCK(mutex);
+#else
+// Wait-free fast path, only needs mutex when concurrent with
+// an exclusive section
+#define cpu_exec_start(id)                                                   \
+    running[id] = 1;                                                         \
+    if                                                                       \
+        :: pending_cpus -> {                                                 \
+            MUTEX_LOCK(mutex);                                               \
+            if                                                               \
+                :: !has_waiter[id] -> {                                      \
+                    running[id] = 0;                                         \
+                    exclusive_idle();                                        \
+                    running[id] = 1;                                         \
+                }                                                            \
+                :: else -> skip;                                             \
+            fi;                                                              \
+            MUTEX_UNLOCK(mutex);                                             \
+        }                                                                    \
+        :: else -> skip;                                                     \
+    fi;
+
+#define cpu_exec_end(id)                                                     \
+    running[id] = 0;                                                         \
+    if                                                                       \
+        :: pending_cpus -> {                                                 \
+            MUTEX_LOCK(mutex);                                               \
+            if                                                               \
+                :: has_waiter[id] -> {                                       \
+                    has_waiter[id] = 0;                                      \
+                    pending_cpus--;                                          \
+                    if                                                       \
+                        :: pending_cpus == 1 -> COND_BROADCAST(exclusive_cond); \
+                        :: else -> skip;                                     \
+                    fi;                                                      \
+                }                                                            \
+                :: else -> skip;                                             \
+            fi;                                                              \
+            MUTEX_UNLOCK(mutex);                                             \
+        }                                                                    \
+        :: else -> skip;                                                     \
+    fi
+#endif
 
 // Promela processes
 

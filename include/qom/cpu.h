@@ -242,7 +242,8 @@ struct qemu_work_item;
  * @nr_threads: Number of threads within this CPU.
  * @numa_node: NUMA node this CPU is belonging to.
  * @host_tid: Host thread ID.
- * @running: #true if CPU is currently running;
+ * @running: #true if CPU is currently running (lockless).
+ * @has_waiter: #true if a CPU is currently waiting for the cpu_exec_end;
  * valid under cpu_list_lock.
  * @created: Indicates whether the CPU thread has been successfully created.
  * @interrupt_request: Indicates a pending interrupt request.
@@ -296,7 +297,7 @@ struct CPUState {
 #endif
     int thread_id;
     uint32_t host_tid;
-    bool running;
+    bool running, has_waiter;
     struct QemuCond *halt_cond;
     bool thread_kicked;
     bool created;
