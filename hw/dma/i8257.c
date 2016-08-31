@@ -600,6 +600,8 @@ static void i8257_class_init(ObjectClass *klass, void *data)
     idc->release_DREQ = i8257_dma_release_DREQ;
     idc->schedule = i8257_dma_schedule;
     idc->register_channel = i8257_dma_register_channel;
+    /* Reason: needs to be wired up by isa_bus_dma() to work */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo i8257_info = {
