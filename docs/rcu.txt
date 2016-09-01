@@ -37,7 +37,7 @@ do not matter; as soon as all previous critical sections have finished,
 there cannot be any readers who hold references to the data structure,
 and these can now be safely reclaimed (e.g., freed or unref'ed).
 
-Here is a picutre:
+Here is a picture:
 
         thread 1                  thread 2                  thread 3
     -------------------    ------------------------    -------------------
