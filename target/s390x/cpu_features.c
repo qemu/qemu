@@ -337,8 +337,9 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
     int bit_nr;
 
     if (type == S390_FEAT_TYPE_STFL && test_bit(S390_FEAT_ZARCH, features)) {
-        /* z/Architecture is always active if around */
-        data[0] |= 0x20;
+        /* Features that are always active */
+        data[0] |= 0x20;  /* z/Architecture */
+        data[17] |= 0x20; /* Configuration-z-architectural-mode */
     }
 
     feat = find_first_bit(features, S390_FEAT_MAX);
