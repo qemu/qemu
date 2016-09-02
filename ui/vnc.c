@@ -911,6 +911,10 @@ static void vnc_dpy_copy(DisplayChangeListener *dcl,
         }
     }
 
+    if (!vd->server) {
+        /* no client connected */
+        return;
+    }
     /* do bitblit op on the local surface too */
     pitch = vnc_server_fb_stride(vd);
     src_row = vnc_server_fb_ptr(vd, src_x, src_y);
