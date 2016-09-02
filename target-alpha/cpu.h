@@ -230,7 +230,6 @@ struct CPUAlphaState {
     uint64_t pc;
     uint64_t unique;
     uint64_t lock_addr;
-    uint64_t lock_st_addr;
     uint64_t lock_value;
 
     /* The FPCR, and disassembled portions thereof.  */
@@ -346,9 +345,6 @@ enum {
     EXCP_ARITH,
     EXCP_FEN,
     EXCP_CALL_PAL,
-    /* For Usermode emulation.  */
-    EXCP_STL_C,
-    EXCP_STQ_C,
 };
 
 /* Alpha-specific interrupt pending bits.  */

@@ -306,12 +306,6 @@ void alpha_cpu_do_interrupt(CPUState *cs)
         case EXCP_CALL_PAL:
             name = "call_pal";
             break;
-        case EXCP_STL_C:
-            name = "stl_c";
-            break;
-        case EXCP_STQ_C:
-            name = "stq_c";
-            break;
         }
         qemu_log("INT %6d: %s(%#x) pc=%016" PRIx64 " sp=%016" PRIx64 "\n",
                  ++count, name, env->error_code, env->pc, env->ir[IR_SP]);

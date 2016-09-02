@@ -2926,51 +2926,6 @@ void cpu_loop(CPUM68KState *env)
 #endif /* TARGET_M68K */
 
 #ifdef TARGET_ALPHA
-static void do_store_exclusive(CPUAlphaState *env, int reg, int quad)
-{
-    target_ulong addr, val, tmp;
-    target_siginfo_t info;
-    int ret = 0;
-
-    addr = env->lock_addr;
-    tmp = env->lock_st_addr;
-    env->lock_addr = -1;
-    env->lock_st_addr = 0;
-
-    start_exclusive();
-    mmap_lock();
-
-    if (addr == tmp) {
-        if (quad ? get_user_s64(val, addr) : get_user_s32(val, addr)) {
-            goto do_sigsegv;
-        }
-
-        if (val == env->lock_value) {
-            tmp = env->ir[reg];
-            if (quad ? put_user_u64(tmp, addr) : put_user_u32(tmp, addr)) {
-                goto do_sigsegv;
-            }
-            ret = 1;
-        }
-    }
-    env->ir[reg] = ret;
-    env->pc += 4;
-
-    mmap_unlock();
-    end_exclusive();
-    return;
-
- do_sigsegv:
-    mmap_unlock();
-    end_exclusive();
-
-    info.si_signo = TARGET_SIGSEGV;
-    info.si_errno = 0;
-    info.si_code = TARGET_SEGV_MAPERR;
-    info._sifields._sigfault._addr = addr;
-    queue_signal(env, TARGET_SIGSEGV, QEMU_SI_FAULT, &info);
-}
-
 void cpu_loop(CPUAlphaState *env)
 {
     CPUState *cs = CPU(alpha_env_get_cpu(env));
@@ -3144,10 +3099,6 @@ void cpu_loop(CPUAlphaState *env)
                 info.si_code = TARGET_TRAP_BRKPT;
                 queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             }
-            break;
-        case EXCP_STL_C:
-        case EXCP_STQ_C:
-            do_store_exclusive(env, env->error_code, trapnr - EXCP_STL_C);
             break;
         case EXCP_INTERRUPT:
             /* Just indicate that signals should be handled asap.  */
