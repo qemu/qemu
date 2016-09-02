@@ -221,7 +221,6 @@ void cpu_exec_end(CPUState *cpu)
             qemu_cond_signal(&exclusive_cond);
         }
     }
-    exclusive_idle();
     qemu_mutex_unlock(&qemu_cpu_list_lock);
 }
 
