@@ -687,8 +687,10 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #define DATA_SIZE 4
 #include "atomic_template.h"
 
+#ifdef CONFIG_ATOMIC64
 #define DATA_SIZE 8
 #include "atomic_template.h"
+#endif
 
 #ifdef CONFIG_ATOMIC128
 #define DATA_SIZE 16
@@ -713,8 +715,10 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #define DATA_SIZE 4
 #include "atomic_template.h"
 
+#ifdef CONFIG_ATOMIC64
 #define DATA_SIZE 8
 #include "atomic_template.h"
+#endif
 
 /* Code access functions.  */
 

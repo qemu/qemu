@@ -2040,14 +2040,20 @@ typedef void (*gen_atomic_op_i32)(TCGv_i32, TCGv_env, TCGv, TCGv_i32);
 typedef void (*gen_atomic_op_i64)(TCGv_i64, TCGv_env, TCGv, TCGv_i64);
 #endif
 
+#ifdef CONFIG_ATOMIC64
+# define WITH_ATOMIC64(X) X,
+#else
+# define WITH_ATOMIC64(X)
+#endif
+
 static void * const table_cmpxchg[16] = {
     [MO_8] = gen_helper_atomic_cmpxchgb,
     [MO_16 | MO_LE] = gen_helper_atomic_cmpxchgw_le,
     [MO_16 | MO_BE] = gen_helper_atomic_cmpxchgw_be,
     [MO_32 | MO_LE] = gen_helper_atomic_cmpxchgl_le,
     [MO_32 | MO_BE] = gen_helper_atomic_cmpxchgl_be,
-    [MO_64 | MO_LE] = gen_helper_atomic_cmpxchgq_le,
-    [MO_64 | MO_BE] = gen_helper_atomic_cmpxchgq_be,
+    WITH_ATOMIC64([MO_64 | MO_LE] = gen_helper_atomic_cmpxchgq_le)
+    WITH_ATOMIC64([MO_64 | MO_BE] = gen_helper_atomic_cmpxchgq_be)
 };
 
 void tcg_gen_atomic_cmpxchg_i32(TCGv_i32 retv, TCGv addr, TCGv_i32 cmpv,
@@ -2117,6 +2123,7 @@ void tcg_gen_atomic_cmpxchg_i64(TCGv_i64 retv, TCGv addr, TCGv_i64 cmpv,
         }
         tcg_temp_free_i64(t1);
     } else if ((memop & MO_SIZE) == MO_64) {
+#ifdef CONFIG_ATOMIC64
         gen_atomic_cx_i64 gen;
 
         gen = table_cmpxchg[memop & (MO_SIZE | MO_BSWAP)];
@@ -2131,6 +2138,9 @@ void tcg_gen_atomic_cmpxchg_i64(TCGv_i64 retv, TCGv addr, TCGv_i64 cmpv,
 #else
         gen(retv, tcg_ctx.tcg_env, addr, cmpv, newv);
 #endif
+#else
+        gen_helper_exit_atomic(tcg_ctx.tcg_env);
+#endif /* CONFIG_ATOMIC64 */
     } else {
         TCGv_i32 c32 = tcg_temp_new_i32();
         TCGv_i32 n32 = tcg_temp_new_i32();
@@ -2218,6 +2228,7 @@ static void do_atomic_op_i64(TCGv_i64 ret, TCGv addr, TCGv_i64 val,
     memop = tcg_canonicalize_memop(memop, 1, 0);
 
     if ((memop & MO_SIZE) == MO_64) {
+#ifdef CONFIG_ATOMIC64
         gen_atomic_op_i64 gen;
 
         gen = table[memop & (MO_SIZE | MO_BSWAP)];
@@ -2232,6 +2243,9 @@ static void do_atomic_op_i64(TCGv_i64 ret, TCGv addr, TCGv_i64 val,
 #else
         gen(ret, tcg_ctx.tcg_env, addr, val);
 #endif
+#else
+        gen_helper_exit_atomic(tcg_ctx.tcg_env);
+#endif /* CONFIG_ATOMIC64 */
     } else {
         TCGv_i32 v32 = tcg_temp_new_i32();
         TCGv_i32 r32 = tcg_temp_new_i32();
@@ -2256,8 +2270,8 @@ static void * const table_##NAME[16] = {                                \
     [MO_16 | MO_BE] = gen_helper_atomic_##NAME##w_be,                   \
     [MO_32 | MO_LE] = gen_helper_atomic_##NAME##l_le,                   \
     [MO_32 | MO_BE] = gen_helper_atomic_##NAME##l_be,                   \
-    [MO_64 | MO_LE] = gen_helper_atomic_##NAME##q_le,                   \
-    [MO_64 | MO_BE] = gen_helper_atomic_##NAME##q_be,                   \
+    WITH_ATOMIC64([MO_64 | MO_LE] = gen_helper_atomic_##NAME##q_le)     \
+    WITH_ATOMIC64([MO_64 | MO_BE] = gen_helper_atomic_##NAME##q_be)     \
 };                                                                      \
 void tcg_gen_atomic_##NAME##_i32                                        \
     (TCGv_i32 ret, TCGv addr, TCGv_i32 val, TCGArg idx, TCGMemOp memop) \
