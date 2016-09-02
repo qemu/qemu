@@ -2658,15 +2658,19 @@ typedef int32_t target_timer_t;
 
 struct target_sigevent {
     target_sigval_t sigev_value;
-    int32_t sigev_signo;
-    int32_t sigev_notify;
+    abi_int sigev_signo;
+    abi_int sigev_notify;
     union {
-        int32_t _pad[TARGET_SIGEV_PAD_SIZE];
-        int32_t _tid;
+        abi_int _pad[TARGET_SIGEV_PAD_SIZE];
+        abi_int _tid;
 
+        /* The kernel (and thus QEMU) never looks at these;
+         * they're only used as part of the ABI between a
+         * userspace program and libc.
+         */
         struct {
-            void (*_function)(sigval_t);
-            void *_attribute;
+            abi_ulong _function;
+            abi_ulong _attribute;
         } _sigev_thread;
     } _sigev_un;
 };
