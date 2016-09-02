@@ -171,8 +171,7 @@ static inline void exclusive_idle(void)
 }
 
 /* Start an exclusive operation.
-   Must only be called from outside cpu_exec, takes
-   qemu_cpu_list_lock.   */
+   Must only be called from outside cpu_exec.  */
 void start_exclusive(void)
 {
     CPUState *other_cpu;
@@ -191,11 +190,17 @@ void start_exclusive(void)
     while (pending_cpus > 1) {
         qemu_cond_wait(&exclusive_cond, &qemu_cpu_list_lock);
     }
+
+    /* Can release mutex, no one will enter another exclusive
+     * section until end_exclusive resets pending_cpus to 0.
+     */
+    qemu_mutex_unlock(&qemu_cpu_list_lock);
 }
 
-/* Finish an exclusive operation.  Releases qemu_cpu_list_lock.  */
+/* Finish an exclusive operation.  */
 void end_exclusive(void)
 {
+    qemu_mutex_lock(&qemu_cpu_list_lock);
     pending_cpus = 0;
     qemu_cond_broadcast(&exclusive_resume);
     qemu_mutex_unlock(&qemu_cpu_list_lock);

@@ -846,9 +846,6 @@ void cpu_exec_end(CPUState *cpu);
  * cpu_exec are exited immediately.  CPUs that call cpu_exec_start
  * during the exclusive section go to sleep until this CPU calls
  * end_exclusive.
- *
- * Returns with the CPU list lock taken (which nests outside all
- * other locks except the BQL).
  */
 void start_exclusive(void);
 
@@ -856,7 +853,6 @@ void start_exclusive(void);
  * end_exclusive:
  *
  * Concludes an exclusive execution section started by start_exclusive.
- * Releases the CPU list lock.
  */
 void end_exclusive(void);
 

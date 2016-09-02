@@ -98,9 +98,11 @@ byte has_waiter[N_CPUS];
     do                                                            \
       :: pending_cpus > 1 -> COND_WAIT(exclusive_cond, mutex);    \
       :: else             -> break;                               \
-    od
+    od;                                                           \
+    MUTEX_UNLOCK(mutex);
 
 #define end_exclusive()                                           \
+    MUTEX_LOCK(mutex);                                            \
     pending_cpus = 0;                                             \
     COND_BROADCAST(exclusive_resume);                             \
     MUTEX_UNLOCK(mutex);
