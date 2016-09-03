@@ -126,6 +126,14 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
     int prot = 0;
     int ret = MM_K_ACV;
 
+    /* Handle physical accesses.  */
+    if (mmu_idx == MMU_PHYS_IDX) {
+        phys = addr;
+        prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        ret = -1;
+        goto exit;
+    }
+
     /* Ensure that the virtual address is properly sign-extended from
        the last implemented virtual address bit.  */
     if (saddr >> TARGET_VIRT_ADDR_SPACE_BITS != saddr >> 63) {

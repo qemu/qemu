@@ -392,7 +392,8 @@ static inline void gen_store_mem(DisasContext *ctx,
 }
 
 static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
-                                        int32_t disp16, int quad)
+                                        int32_t disp16, int mem_idx,
+                                        TCGMemOp op)
 {
     TCGv addr;
 
@@ -414,7 +415,7 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
     /* ??? This is handled via a complicated version of compare-and-swap
        in the cpu_loop.  Hopefully one day we'll have a real CAS opcode
        in TCG so that this isn't necessary.  */
-    return gen_excp(ctx, quad ? EXCP_STQ_C : EXCP_STL_C, ra);
+    return gen_excp(ctx, (op & MO_SIZE) == MO_64 ? EXCP_STQ_C : EXCP_STL_C, ra);
 #else
     /* ??? In system mode we are never multi-threaded, so CAS can be
        implemented via a non-atomic load-compare-store sequence.  */
@@ -427,11 +428,10 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
         tcg_gen_brcond_i64(TCG_COND_NE, addr, cpu_lock_addr, lab_fail);
 
         val = tcg_temp_new();
-        tcg_gen_qemu_ld_i64(val, addr, ctx->mem_idx, quad ? MO_LEQ : MO_LESL);
+        tcg_gen_qemu_ld_i64(val, addr, mem_idx, op);
         tcg_gen_brcond_i64(TCG_COND_NE, val, cpu_lock_value, lab_fail);
 
-        tcg_gen_qemu_st_i64(ctx->ir[ra], addr, ctx->mem_idx,
-                            quad ? MO_LEQ : MO_LEUL);
+        tcg_gen_qemu_st_i64(ctx->ir[ra], addr, mem_idx, op);
         tcg_gen_movi_i64(ctx->ir[ra], 1);
         tcg_gen_br(lab_done);
 
@@ -2423,19 +2423,19 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             switch ((insn >> 12) & 0xF) {
             case 0x0:
                 /* Longword physical access (hw_ldl/p) */
-                gen_helper_ldl_phys(va, cpu_env, addr);
+                tcg_gen_qemu_ld_i64(va, addr, MMU_PHYS_IDX, MO_LESL);
                 break;
             case 0x1:
                 /* Quadword physical access (hw_ldq/p) */
-                gen_helper_ldq_phys(va, cpu_env, addr);
+                tcg_gen_qemu_ld_i64(va, addr, MMU_PHYS_IDX, MO_LEQ);
                 break;
             case 0x2:
                 /* Longword physical access with lock (hw_ldl_l/p) */
-                gen_helper_ldl_l_phys(va, cpu_env, addr);
+                gen_qemu_ldl_l(va, addr, MMU_PHYS_IDX);
                 break;
             case 0x3:
                 /* Quadword physical access with lock (hw_ldq_l/p) */
-                gen_helper_ldq_l_phys(va, cpu_env, addr);
+                gen_qemu_ldq_l(va, addr, MMU_PHYS_IDX);
                 break;
             case 0x4:
                 /* Longword virtual PTE fetch (hw_ldl/v) */
@@ -2674,27 +2674,34 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #ifndef CONFIG_USER_ONLY
         REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
         {
-            TCGv addr = tcg_temp_new();
-            va = load_gpr(ctx, ra);
-            vb = load_gpr(ctx, rb);
-
-            tcg_gen_addi_i64(addr, vb, disp12);
             switch ((insn >> 12) & 0xF) {
             case 0x0:
                 /* Longword physical access */
-                gen_helper_stl_phys(cpu_env, addr, va);
+                va = load_gpr(ctx, ra);
+                vb = load_gpr(ctx, rb);
+                tmp = tcg_temp_new();
+                tcg_gen_addi_i64(tmp, vb, disp12);
+                tcg_gen_qemu_st_i64(va, tmp, MMU_PHYS_IDX, MO_LESL);
+                tcg_temp_free(tmp);
                 break;
             case 0x1:
                 /* Quadword physical access */
-                gen_helper_stq_phys(cpu_env, addr, va);
+                va = load_gpr(ctx, ra);
+                vb = load_gpr(ctx, rb);
+                tmp = tcg_temp_new();
+                tcg_gen_addi_i64(tmp, vb, disp12);
+                tcg_gen_qemu_st_i64(va, tmp, MMU_PHYS_IDX, MO_LEQ);
+                tcg_temp_free(tmp);
                 break;
             case 0x2:
                 /* Longword physical access with lock */
-                gen_helper_stl_c_phys(dest_gpr(ctx, ra), cpu_env, addr, va);
+                ret = gen_store_conditional(ctx, ra, rb, disp12,
+                                            MMU_PHYS_IDX, MO_LESL);
                 break;
             case 0x3:
                 /* Quadword physical access with lock */
-                gen_helper_stq_c_phys(dest_gpr(ctx, ra), cpu_env, addr, va);
+                ret = gen_store_conditional(ctx, ra, rb, disp12,
+                                            MMU_PHYS_IDX, MO_LEQ);
                 break;
             case 0x4:
                 /* Longword virtual access */
@@ -2733,7 +2740,6 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 /* Invalid */
                 goto invalid_opc;
             }
-            tcg_temp_free(addr);
             break;
         }
 #else
@@ -2797,11 +2803,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x2E:
         /* STL_C */
-        ret = gen_store_conditional(ctx, ra, rb, disp16, 0);
+        ret = gen_store_conditional(ctx, ra, rb, disp16,
+                                    ctx->mem_idx, MO_LESL);
         break;
     case 0x2F:
         /* STQ_C */
-        ret = gen_store_conditional(ctx, ra, rb, disp16, 1);
+        ret = gen_store_conditional(ctx, ra, rb, disp16,
+                                    ctx->mem_idx, MO_LEQ);
         break;
     case 0x30:
         /* BR */
