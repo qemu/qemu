@@ -621,6 +621,13 @@ CpuModelCompareInfo *qmp_query_cpu_model_comparison(CpuModelInfo *modela,
     return arch_query_cpu_model_comparison(modela, modelb, errp);
 }
 
+CpuModelBaselineInfo *qmp_query_cpu_model_baseline(CpuModelInfo *modela,
+                                                   CpuModelInfo *modelb,
+                                                   Error **errp)
+{
+    return arch_query_cpu_model_baseline(modela, modelb, errp);
+}
+
 void qmp_add_client(const char *protocol, const char *fdname,
                     bool has_skipauth, bool skipauth, bool has_tls, bool tls,
                     Error **errp)
