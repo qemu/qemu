@@ -40,6 +40,8 @@
 #define PVSCSI_MAX_DEVS                   (64)
 #define PVSCSI_MSIX_NUM_VECTORS           (1)
 
+#define PVSCSI_MAX_SG_ELEM                2048
+
 #define PVSCSI_MAX_CMD_DATA_WORDS \
     (sizeof(PVSCSICmdDescSetupRings)/sizeof(uint32_t))
 
@@ -628,17 +630,16 @@ pvscsi_queue_pending_descriptor(PVSCSIState *s, SCSIDevice **d,
 static void
 pvscsi_convert_sglist(PVSCSIRequest *r)
 {
-    int chunk_size;
+    uint32_t chunk_size, elmcnt = 0;
     uint64_t data_length = r->req.dataLen;
     PVSCSISGState sg = r->sg;
-    while (data_length) {
-        while (!sg.resid) {
+    while (data_length && elmcnt < PVSCSI_MAX_SG_ELEM) {
+        while (!sg.resid && elmcnt++ < PVSCSI_MAX_SG_ELEM) {
             pvscsi_get_next_sg_elem(&sg);
             trace_pvscsi_convert_sglist(r->req.context, r->sg.dataAddr,
                                         r->sg.resid);
         }
-        assert(data_length > 0);
-        chunk_size = MIN((unsigned) data_length, sg.resid);
+        chunk_size = MIN(data_length, sg.resid);
         if (chunk_size) {
             qemu_sglist_add(&r->sgl, sg.dataAddr, chunk_size);
         }
