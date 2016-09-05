@@ -12,10 +12,65 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "gen-features.h"
 #include "qapi/error.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
 #endif
+
+#define CPUDEF_INIT(_type, _gen, _ec_ga, _mha_pow, _hmfai, _name, _desc) \
+    {                                                                    \
+        .name = _name,                                                   \
+        .type = _type,                                                   \
+        .gen = _gen,                                                     \
+        .ec_ga = _ec_ga,                                                 \
+        .mha_pow = _mha_pow,                                             \
+        .hmfai = _hmfai,                                                 \
+        .desc = _desc,                                                   \
+        .base_init = { S390_FEAT_LIST_GEN ## _gen ## _GA ## _ec_ga ## _BASE },  \
+        .default_init = { S390_FEAT_LIST_GEN ## _gen ## _GA ## _ec_ga ## _DEFAULT },  \
+        .full_init = { S390_FEAT_LIST_GEN ## _gen ## _GA ## _ec_ga ## _FULL },  \
+    }
+
+/*
+ * CPU definiton list in order of release. For now, base features of a
+ * following release are always a subset of base features of the previous
+ * release. Same is correct for the other feature sets.
+ * A BC release always follows the corresponding EC release.
+ */
+static S390CPUDef s390_cpu_defs[] = {
+    CPUDEF_INIT(0x2064, 7, 1, 38, 0x00000000U, "z900", "IBM zSeries 900 GA1"),
+    CPUDEF_INIT(0x2064, 7, 2, 38, 0x00000000U, "z900.2", "IBM zSeries 900 GA2"),
+    CPUDEF_INIT(0x2064, 7, 3, 38, 0x00000000U, "z900.3", "IBM zSeries 900 GA3"),
+    CPUDEF_INIT(0x2066, 7, 3, 38, 0x00000000U, "z800", "IBM zSeries 800 GA1"),
+    CPUDEF_INIT(0x2084, 8, 1, 38, 0x00000000U, "z990", "IBM zSeries 990 GA1"),
+    CPUDEF_INIT(0x2084, 8, 2, 38, 0x00000000U, "z990.2", "IBM zSeries 990 GA2"),
+    CPUDEF_INIT(0x2084, 8, 3, 38, 0x00000000U, "z990.3", "IBM zSeries 990 GA3"),
+    CPUDEF_INIT(0x2086, 8, 3, 38, 0x00000000U, "z890", "IBM zSeries 880 GA1"),
+    CPUDEF_INIT(0x2084, 8, 4, 38, 0x00000000U, "z990.4", "IBM zSeries 990 GA4"),
+    CPUDEF_INIT(0x2086, 8, 4, 38, 0x00000000U, "z890.2", "IBM zSeries 880 GA2"),
+    CPUDEF_INIT(0x2084, 8, 5, 38, 0x00000000U, "z990.5", "IBM zSeries 990 GA5"),
+    CPUDEF_INIT(0x2086, 8, 5, 38, 0x00000000U, "z890.3", "IBM zSeries 880 GA3"),
+    CPUDEF_INIT(0x2094, 9, 1, 40, 0x00000000U, "z9EC", "IBM System z9 EC GA1"),
+    CPUDEF_INIT(0x2094, 9, 2, 40, 0x00000000U, "z9EC.2", "IBM System z9 EC GA2"),
+    CPUDEF_INIT(0x2096, 9, 2, 40, 0x00000000U, "z9BC", "IBM System z9 BC GA1"),
+    CPUDEF_INIT(0x2094, 9, 3, 40, 0x00000000U, "z9EC.3", "IBM System z9 EC GA3"),
+    CPUDEF_INIT(0x2096, 9, 3, 40, 0x00000000U, "z9BC.2", "IBM System z9 BC GA2"),
+    CPUDEF_INIT(0x2097, 10, 1, 43, 0x00000000U, "z10EC", "IBM System z10 EC GA1"),
+    CPUDEF_INIT(0x2097, 10, 2, 43, 0x00000000U, "z10EC.2", "IBM System z10 EC GA2"),
+    CPUDEF_INIT(0x2098, 10, 2, 43, 0x00000000U, "z10BC", "IBM System z10 BC GA1"),
+    CPUDEF_INIT(0x2097, 10, 3, 43, 0x00000000U, "z10EC.3", "IBM System z10 EC GA3"),
+    CPUDEF_INIT(0x2098, 10, 3, 43, 0x00000000U, "z10BC.2", "IBM System z10 BC GA2"),
+    CPUDEF_INIT(0x2817, 11, 1, 44, 0x08000000U, "z196", "IBM zEnterprise 196 GA1"),
+    CPUDEF_INIT(0x2817, 11, 2, 44, 0x08000000U, "z196.2", "IBM zEnterprise 196 GA2"),
+    CPUDEF_INIT(0x2818, 11, 2, 44, 0x08000000U, "z114", "IBM zEnterprise 114 GA1"),
+    CPUDEF_INIT(0x2827, 12, 1, 44, 0x08000000U, "zEC12", "IBM zEnterprise EC12 GA1"),
+    CPUDEF_INIT(0x2827, 12, 2, 44, 0x08000000U, "zEC12.2", "IBM zEnterprise EC12 GA2"),
+    CPUDEF_INIT(0x2828, 12, 2, 44, 0x08000000U, "zBC12", "IBM zEnterprise BC12 GA1"),
+    CPUDEF_INIT(0x2964, 13, 1, 47, 0x08000000U, "z13", "IBM z13 GA1"),
+    CPUDEF_INIT(0x2964, 13, 2, 47, 0x08000000U, "z13.2", "IBM z13 GA2"),
+    CPUDEF_INIT(0x2965, 13, 2, 47, 0x08000000U, "z13s", "IBM z13s GA1"),
+};
 
 struct S390PrintCpuListInfo {
     FILE *f;
@@ -96,6 +151,10 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     }
 }
 
+static void s390_cpu_model_initfn(Object *obj)
+{
+}
+
 #ifdef CONFIG_KVM
 static void s390_host_cpu_model_initfn(Object *obj)
 {
@@ -145,6 +204,27 @@ static void s390_host_cpu_model_class_init(ObjectClass *oc, void *data)
 }
 #endif
 
+static void s390_base_cpu_model_class_init(ObjectClass *oc, void *data)
+{
+    S390CPUClass *xcc = S390_CPU_CLASS(oc);
+
+    /* all base models are migration safe */
+    xcc->cpu_def = (const S390CPUDef *) data;
+    xcc->is_migration_safe = true;
+    xcc->is_static = true;
+    xcc->desc = xcc->cpu_def->desc;
+}
+
+static void s390_cpu_model_class_init(ObjectClass *oc, void *data)
+{
+    S390CPUClass *xcc = S390_CPU_CLASS(oc);
+
+    /* model that can change between QEMU versions */
+    xcc->cpu_def = (const S390CPUDef *) data;
+    xcc->is_migration_safe = true;
+    xcc->desc = xcc->cpu_def->desc;
+}
+
 static void s390_qemu_cpu_model_class_init(ObjectClass *oc, void *data)
 {
     S390CPUClass *xcc = S390_CPU_CLASS(oc);
@@ -161,6 +241,12 @@ static void s390_qemu_cpu_model_class_init(ObjectClass *oc, void *data)
 static char *s390_cpu_type_name(const char *model_name)
 {
     return g_strdup_printf(S390_CPU_TYPE_NAME("%s"), model_name);
+}
+
+/* Generate type name for a base cpu model. Caller has to free the string. */
+static char *s390_base_cpu_type_name(const char *model_name)
+{
+    return g_strdup_printf(S390_CPU_TYPE_NAME("%s-base"), model_name);
 }
 
 ObjectClass *s390_cpu_class_by_name(const char *name)
@@ -193,6 +279,44 @@ static const TypeInfo host_s390_cpu_type_info = {
 
 static void register_types(void)
 {
+    int i;
+
+    /* init all bitmaps from gnerated data initially */
+    for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
+        s390_init_feat_bitmap(s390_cpu_defs[i].base_init,
+                              s390_cpu_defs[i].base_feat);
+        s390_init_feat_bitmap(s390_cpu_defs[i].default_init,
+                              s390_cpu_defs[i].default_feat);
+        s390_init_feat_bitmap(s390_cpu_defs[i].full_init,
+                              s390_cpu_defs[i].full_feat);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
+        char *base_name = s390_base_cpu_type_name(s390_cpu_defs[i].name);
+        TypeInfo ti_base = {
+            .name = base_name,
+            .parent = TYPE_S390_CPU,
+            .instance_init = s390_cpu_model_initfn,
+            .instance_finalize = s390_cpu_model_finalize,
+            .class_init = s390_base_cpu_model_class_init,
+            .class_data = (void *) &s390_cpu_defs[i],
+        };
+        char *name = s390_cpu_type_name(s390_cpu_defs[i].name);
+        TypeInfo ti = {
+            .name = name,
+            .parent = TYPE_S390_CPU,
+            .instance_init = s390_cpu_model_initfn,
+            .instance_finalize = s390_cpu_model_finalize,
+            .class_init = s390_cpu_model_class_init,
+            .class_data = (void *) &s390_cpu_defs[i],
+        };
+
+        type_register_static(&ti_base);
+        type_register_static(&ti);
+        g_free(base_name);
+        g_free(name);
+    }
+
     type_register_static(&qemu_s390_cpu_type_info);
 #ifdef CONFIG_KVM
     type_register_static(&host_s390_cpu_type_info);
