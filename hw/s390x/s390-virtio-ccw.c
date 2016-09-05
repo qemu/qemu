@@ -249,6 +249,11 @@ bool ri_allowed(void)
 
             return s390mc->ri_allowed;
         }
+        /*
+         * Make sure the "none" machine can have ri, otherwise it won't * be
+         * unlocked in KVM and therefore the host CPU model might be wrong.
+         */
+        return true;
     }
     return 0;
 }
