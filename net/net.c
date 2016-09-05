@@ -1179,6 +1179,7 @@ void hmp_host_net_remove(Monitor *mon, const QDict *qdict)
 
     qemu_del_net_client(nc->peer);
     qemu_del_net_client(nc);
+    qemu_opts_del(qemu_opts_find(qemu_find_opts("net"), device));
 }
 
 void netdev_add(QemuOpts *opts, Error **errp)
