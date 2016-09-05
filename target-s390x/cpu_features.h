@@ -63,6 +63,30 @@ void s390_add_from_feat_block(S390FeatBitmap features, S390FeatType type,
 void s390_feat_bitmap_to_ascii(const S390FeatBitmap features, void *opaque,
                                void (*fn)(const char *name, void *opaque));
 
+/* static groups that will never change */
+typedef enum {
+    S390_FEAT_GROUP_PLO,
+    S390_FEAT_GROUP_TOD_CLOCK_STEERING,
+    S390_FEAT_GROUP_GEN13_PTFF_ENH,
+    S390_FEAT_GROUP_MSA,
+    S390_FEAT_GROUP_MSA_EXT_1,
+    S390_FEAT_GROUP_MSA_EXT_2,
+    S390_FEAT_GROUP_MSA_EXT_3,
+    S390_FEAT_GROUP_MSA_EXT_4,
+    S390_FEAT_GROUP_MSA_EXT_5,
+    S390_FEAT_GROUP_MAX,
+} S390FeatGroup;
+
+/* Definition of a CPU feature group */
+typedef struct {
+    const char *name;       /* name exposed to the user */
+    const char *desc;       /* description exposed to the user */
+    S390FeatBitmap feat;    /* features contained in the group */
+    S390FeatInit init;      /* used to init feat from generated data */
+} S390FeatGroupDef;
+
+const S390FeatGroupDef *s390_feat_group_def(S390FeatGroup group);
+
 #define BE_BIT_NR(BIT) (BIT ^ (BITS_PER_LONG - 1))
 #define BE_BIT(BIT) (1ULL < BE_BIT_NR(BIT))
 

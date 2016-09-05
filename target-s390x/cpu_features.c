@@ -11,7 +11,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/module.h"
 #include "cpu_features.h"
+#include "gen-features.h"
 
 #define FEAT_INIT(_name, _type, _bit, _desc) \
     {                                                \
@@ -335,14 +337,68 @@ void s390_add_from_feat_block(S390FeatBitmap features, S390FeatType type,
     }
 }
 
-void s390_feat_bitmap_to_ascii(const S390FeatBitmap bitmap, void *opaque,
+void s390_feat_bitmap_to_ascii(const S390FeatBitmap features, void *opaque,
                                void (*fn)(const char *name, void *opaque))
 {
+    S390FeatBitmap bitmap, tmp;
+    S390FeatGroup group;
     S390Feat feat;
 
+    bitmap_copy(bitmap, features, S390_FEAT_MAX);
+
+    /* process whole groups first */
+    for (group = 0; group < S390_FEAT_GROUP_MAX; group++) {
+        const S390FeatGroupDef *def = s390_feat_group_def(group);
+
+        bitmap_and(tmp, bitmap, def->feat, S390_FEAT_MAX);
+        if (bitmap_equal(tmp, def->feat, S390_FEAT_MAX)) {
+            bitmap_andnot(bitmap, bitmap, def->feat, S390_FEAT_MAX);
+            fn(def->name, opaque);
+        }
+    }
+
+    /* report leftovers as separate features */
     feat = find_first_bit(bitmap, S390_FEAT_MAX);
     while (feat < S390_FEAT_MAX) {
         fn(s390_feat_def(feat)->name, opaque);
         feat = find_next_bit(bitmap, S390_FEAT_MAX, feat + 1);
     };
 }
+
+#define FEAT_GROUP_INIT(_name, _group, _desc)        \
+    {                                                \
+        .name = _name,                               \
+        .desc = _desc,                               \
+        .init = { S390_FEAT_GROUP_LIST_ ## _group }, \
+    }
+
+/* indexed by feature group number for easy lookup */
+static S390FeatGroupDef s390_feature_groups[] = {
+    FEAT_GROUP_INIT("plo", PLO, "Perform-locked-operation facility"),
+    FEAT_GROUP_INIT("tods", TOD_CLOCK_STEERING, "Tod-clock-steering facility"),
+    FEAT_GROUP_INIT("gen13ptff", GEN13_PTFF, "PTFF enhancements introduced with z13"),
+    FEAT_GROUP_INIT("msa", MSA, "Message-security-assist facility"),
+    FEAT_GROUP_INIT("msa1", MSA_EXT_1, "Message-security-assist-extension 1 facility"),
+    FEAT_GROUP_INIT("msa2", MSA_EXT_2, "Message-security-assist-extension 2 facility"),
+    FEAT_GROUP_INIT("msa3", MSA_EXT_3, "Message-security-assist-extension 3 facility"),
+    FEAT_GROUP_INIT("msa4", MSA_EXT_4, "Message-security-assist-extension 4 facility"),
+    FEAT_GROUP_INIT("msa5", MSA_EXT_5, "Message-security-assist-extension 5 facility"),
+};
+
+const S390FeatGroupDef *s390_feat_group_def(S390FeatGroup group)
+{
+    return &s390_feature_groups[group];
+}
+
+static void init_groups(void)
+{
+    int i;
+
+    /* init all bitmaps from gnerated data initially */
+    for (i = 0; i < ARRAY_SIZE(s390_feature_groups); i++) {
+        s390_init_feat_bitmap(s390_feature_groups[i].init,
+                              s390_feature_groups[i].feat);
+    }
+}
+
+type_init(init_groups)
