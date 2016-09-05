@@ -3143,7 +3143,8 @@
 #   global properties may affect expansion of CPU models. Using
 #   query-cpu-model-expansion while using these is not advised.
 #
-# Some architectures may not support all expansion types.
+# Some architectures may not support all expansion types. s390x supports
+# "full" and "static".
 #
 # Returns: a CpuModelExpansionInfo. Returns an error if expanding CPU models is
 #          not supported, if the model cannot be expanded, if the model contains

@@ -16,6 +16,9 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/qmp-input-visitor.h"
+#include "qapi/qmp/qbool.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
 #endif
@@ -302,6 +305,150 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     object_class_foreach(create_cpu_model_list, TYPE_S390_CPU, false, &list);
 
     return list;
+}
+
+static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
+                                Error **errp)
+{
+    const QDict *qdict = NULL;
+    const QDictEntry *e;
+    Visitor *visitor;
+    ObjectClass *oc;
+    S390CPU *cpu;
+    Object *obj;
+
+    if (info->props) {
+        qdict = qobject_to_qdict(info->props);
+        if (!qdict) {
+            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
+            return;
+        }
+    }
+
+    oc = cpu_class_by_name(TYPE_S390_CPU, info->name);
+    if (!oc) {
+        error_setg(errp, "The CPU definition \'%s\' is unknown.", info->name);
+        return;
+    }
+    if (S390_CPU_CLASS(oc)->kvm_required && !kvm_enabled()) {
+        error_setg(errp, "The CPU definition '%s' requires KVM", info->name);
+        return;
+    }
+    obj = object_new(object_class_get_name(oc));
+    cpu = S390_CPU(obj);
+
+    if (!cpu->model) {
+        error_setg(errp, "Details about the host CPU model are not available, "
+                         "it cannot be used.");
+        object_unref(obj);
+        return;
+    }
+
+    if (qdict) {
+        visitor = qmp_input_visitor_new(info->props, true);
+        visit_start_struct(visitor, NULL, NULL, 0, errp);
+        if (*errp) {
+            object_unref(obj);
+            return;
+        }
+        for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
+            object_property_set(obj, visitor, e->key, errp);
+            if (*errp) {
+                break;
+            }
+        }
+        if (!*errp) {
+            visit_check_struct(visitor, errp);
+        }
+        visit_end_struct(visitor, NULL);
+        visit_free(visitor);
+        if (*errp) {
+            object_unref(obj);
+            return;
+        }
+    }
+
+    /* copy the model and throw the cpu away */
+    memcpy(model, cpu->model, sizeof(*model));
+    object_unref(obj);
+}
+
+static void qdict_add_disabled_feat(const char *name, void *opaque)
+{
+    qdict_put((QDict *) opaque, name, qbool_from_bool(false));
+}
+
+static void qdict_add_enabled_feat(const char *name, void *opaque)
+{
+    qdict_put((QDict *) opaque, name, qbool_from_bool(true));
+}
+
+/* convert S390CPUDef into a static CpuModelInfo */
+static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
+                                bool delta_changes)
+{
+    QDict *qdict = qdict_new();
+    S390FeatBitmap bitmap;
+
+    /* always fallback to the static base model */
+    info->name = g_strdup_printf("%s-base", model->def->name);
+
+    if (delta_changes) {
+        /* features deleted from the base feature set */
+        bitmap_andnot(bitmap, model->def->base_feat, model->features,
+                      S390_FEAT_MAX);
+        if (!bitmap_empty(bitmap, S390_FEAT_MAX)) {
+            s390_feat_bitmap_to_ascii(bitmap, qdict, qdict_add_disabled_feat);
+        }
+
+        /* features added to the base feature set */
+        bitmap_andnot(bitmap, model->features, model->def->base_feat,
+                      S390_FEAT_MAX);
+        if (!bitmap_empty(bitmap, S390_FEAT_MAX)) {
+            s390_feat_bitmap_to_ascii(bitmap, qdict, qdict_add_enabled_feat);
+        }
+    } else {
+        /* expand all features */
+        s390_feat_bitmap_to_ascii(model->features, qdict,
+                                  qdict_add_enabled_feat);
+        bitmap_complement(bitmap, model->features, S390_FEAT_MAX);
+        s390_feat_bitmap_to_ascii(bitmap, qdict, qdict_add_disabled_feat);
+    }
+
+    if (!qdict_size(qdict)) {
+        QDECREF(qdict);
+    } else {
+        info->props = QOBJECT(qdict);
+        info->has_props = true;
+    }
+}
+
+CpuModelExpansionInfo *arch_query_cpu_model_expansion(CpuModelExpansionType type,
+                                                      CpuModelInfo *model,
+                                                      Error **errp)
+{
+    CpuModelExpansionInfo *expansion_info = NULL;
+    S390CPUModel s390_model;
+    bool delta_changes = false;
+
+    /* convert it to our internal representation */
+    cpu_model_from_info(&s390_model, model, errp);
+    if (*errp) {
+        return NULL;
+    }
+
+    if (type == CPU_MODEL_EXPANSION_TYPE_STATIC) {
+        delta_changes = true;
+    } else if (type != CPU_MODEL_EXPANSION_TYPE_FULL) {
+        error_setg(errp, "The requested expansion type is not supported.");
+        return NULL;
+    }
+
+    /* convert it back to a static representation */
+    expansion_info = g_malloc0(sizeof(*expansion_info));
+    expansion_info->model = g_malloc0(sizeof(*expansion_info->model));
+    cpu_info_from_model(expansion_info->model, &s390_model, delta_changes);
+    return expansion_info;
 }
 #endif
 
