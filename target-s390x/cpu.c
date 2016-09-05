@@ -445,6 +445,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
      * object_unref().
      */
     dc->cannot_destroy_with_object_finalize_yet = true;
+    s390_cpu_model_class_register_props(oc);
 }
 
 static const TypeInfo s390_cpu_type_info = {
