@@ -182,6 +182,35 @@
     S390_FEAT_MSA_EXT_5, \
     S390_FEAT_PPNO_SHA_512_DRNG
 
+/* cpu feature groups */
+static uint16_t group_PLO[] = {
+    S390_FEAT_GROUP_PLO,
+};
+static uint16_t group_TOD_CLOCK_STEERING[] = {
+    S390_FEAT_GROUP_TOD_CLOCK_STEERING,
+};
+static uint16_t group_GEN13_PTFF[] = {
+    S390_FEAT_GROUP_GEN13_PTFF,
+};
+static uint16_t group_MSA[] = {
+    S390_FEAT_GROUP_MSA,
+};
+static uint16_t group_MSA_EXT_1[] = {
+    S390_FEAT_GROUP_MSA_EXT_1,
+};
+static uint16_t group_MSA_EXT_2[] = {
+    S390_FEAT_GROUP_MSA_EXT_2,
+};
+static uint16_t group_MSA_EXT_3[] = {
+    S390_FEAT_GROUP_MSA_EXT_3,
+};
+static uint16_t group_MSA_EXT_4[] = {
+    S390_FEAT_GROUP_MSA_EXT_4,
+};
+static uint16_t group_MSA_EXT_5[] = {
+    S390_FEAT_GROUP_MSA_EXT_5,
+};
+
 /* base features in order of release */
 static uint16_t base_GEN7_GA1[] = {
     S390_FEAT_GROUP_PLO,
@@ -435,6 +464,34 @@ static CpuFeatDefSpec CpuFeatDef[] = {
     CPU_FEAT_INITIALIZER(GEN13_GA2),
 };
 
+#define FEAT_GROUP_INITIALIZER(_name)                  \
+    {                                                  \
+        .name = "S390_FEAT_GROUP_LIST_" #_name,        \
+        .bits =                                        \
+            { .data = group_##_name,                   \
+              .len = ARRAY_SIZE(group_##_name) },      \
+    }
+
+typedef struct {
+    const char *name;
+    BitSpec bits;
+} FeatGroupDefSpec;
+
+/*******************************
+ * feature groups
+ *******************************/
+static FeatGroupDefSpec FeatGroupDef[] = {
+    FEAT_GROUP_INITIALIZER(PLO),
+    FEAT_GROUP_INITIALIZER(TOD_CLOCK_STEERING),
+    FEAT_GROUP_INITIALIZER(GEN13_PTFF),
+    FEAT_GROUP_INITIALIZER(MSA),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_1),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_2),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_3),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_4),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_5),
+};
+
 static void set_bits(uint64_t list[], BitSpec bits)
 {
     uint32_t i;
@@ -492,6 +549,28 @@ static void print_feature_defs(void)
     }
 }
 
+static void print_feature_group_defs(void)
+{
+    int i, j;
+
+    printf("\n/* CPU feature group list data */\n");
+
+    for (i = 0; i < ARRAY_SIZE(FeatGroupDef); i++) {
+        uint64_t feat[S390_FEAT_MAX / 64 + 1] = {};
+
+        set_bits(feat, FeatGroupDef[i].bits);
+        printf("#define %s\t", FeatGroupDef[i].name);
+        for (j = 0; j < ARRAY_SIZE(feat); j++) {
+            printf("0x%016"PRIx64"ULL", feat[j]);
+            if (j < ARRAY_SIZE(feat) - 1) {
+                printf(",");
+            } else {
+                printf("\n");
+            }
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     printf("/*\n"
@@ -506,6 +585,7 @@ int main(int argc, char *argv[])
            " */\n\n"
            "#ifndef %s\n#define %s\n", __FILE__, _YEARS, _NAME_H, _NAME_H);
     print_feature_defs();
+    print_feature_group_defs();
     printf("\n#endif\n");
     return 0;
 }
