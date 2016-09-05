@@ -74,6 +74,20 @@ static S390CPUDef s390_cpu_defs[] = {
     CPUDEF_INIT(0x2965, 13, 2, 47, 0x08000000U, "z13s", "IBM z13s GA1"),
 };
 
+uint8_t s390_get_mha_pow(void)
+{
+    static S390CPU *cpu;
+
+    if (!cpu) {
+        cpu = S390_CPU(qemu_get_cpu(0));
+    }
+
+    if (!cpu || !cpu->model) {
+        return 0;
+    }
+    return cpu->model->def->mha_pow;
+}
+
 uint32_t s390_get_ibc_val(void)
 {
     uint16_t unblocked_ibc, lowest_ibc;

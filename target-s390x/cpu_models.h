@@ -51,6 +51,7 @@ typedef struct S390CPUModel {
 
 #define S390_GEN_Z10 0xa
 
+uint8_t s390_get_mha_pow(void);
 uint32_t s390_get_ibc_val(void);
 static inline uint16_t s390_ibc_from_cpu_model(const S390CPUModel *model)
 {
