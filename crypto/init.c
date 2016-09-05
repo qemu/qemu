@@ -59,8 +59,7 @@
 
 #if (defined(CONFIG_GCRYPT) &&                  \
      (!defined(CONFIG_GNUTLS) ||                \
-      !defined(GNUTLS_VERSION_NUMBER) ||       \
-      (GNUTLS_VERSION_NUMBER < 0x020c00)) &&    \
+     (LIBGNUTLS_VERSION_NUMBER < 0x020c00)) &&    \
      (!defined(GCRYPT_VERSION_NUMBER) ||        \
       (GCRYPT_VERSION_NUMBER < 0x010600)))
 #define QCRYPTO_INIT_GCRYPT_THREADS
