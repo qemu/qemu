@@ -155,6 +155,9 @@ bool s390_has_feat(S390Feat feat)
             if (feat == S390_FEAT_RUNTIME_INSTRUMENTATION) {
                 return kvm_s390_get_ri();
             }
+            if (feat == S390_FEAT_MSA_EXT_3) {
+                return true;
+            }
         }
 #endif
         return 0;

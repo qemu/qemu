@@ -260,8 +260,10 @@ static void kvm_s390_init_dea_kw(void)
 
 void kvm_s390_crypto_reset(void)
 {
-    kvm_s390_init_aes_kw();
-    kvm_s390_init_dea_kw();
+    if (s390_has_feat(S390_FEAT_MSA_EXT_3)) {
+        kvm_s390_init_aes_kw();
+        kvm_s390_init_dea_kw();
+    }
 }
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
