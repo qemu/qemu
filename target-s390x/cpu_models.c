@@ -162,6 +162,61 @@ bool s390_has_feat(S390Feat feat)
     return test_bit(feat, cpu->model->features);
 }
 
+uint8_t s390_get_gen_for_cpu_type(uint16_t type)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
+        if (s390_cpu_defs[i].type == type) {
+            return s390_cpu_defs[i].gen;
+        }
+    }
+    return 0;
+}
+
+const S390CPUDef *s390_find_cpu_def(uint16_t type, uint8_t gen, uint8_t ec_ga,
+                                    S390FeatBitmap features)
+{
+    const S390CPUDef *last_compatible = NULL;
+    int i;
+
+    if (!gen) {
+        ec_ga = 0;
+    }
+    if (!gen && type) {
+        gen = s390_get_gen_for_cpu_type(type);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
+        const S390CPUDef *def = &s390_cpu_defs[i];
+        S390FeatBitmap missing;
+
+        /* don't even try newer generations if we know the generation */
+        if (gen) {
+            if (def->gen > gen) {
+                break;
+            } else if (def->gen == gen && ec_ga && def->ec_ga > ec_ga) {
+                break;
+            }
+        }
+
+        if (features) {
+            /* see if the model satisfies the minimum features */
+            bitmap_andnot(missing, def->base_feat, features, S390_FEAT_MAX);
+            if (!bitmap_empty(missing, S390_FEAT_MAX)) {
+                break;
+            }
+        }
+
+        /* stop the search if we found the exact model */
+        if (def->type == type && def->ec_ga == ec_ga) {
+            return def;
+        }
+        last_compatible = def;
+    }
+    return last_compatible;
+}
+
 struct S390PrintCpuListInfo {
     FILE *f;
     fprintf_function print;
@@ -324,7 +379,7 @@ static S390CPUModel *get_max_cpu_model(Error **errp)
     }
 
     if (kvm_enabled()) {
-        error_setg(errp, "KVM does not support CPU models.");
+        kvm_s390_get_host_cpu_model(&max_model, errp);
     } else {
         /* TCG enulates a z900 */
         max_model.def = &s390_cpu_defs[0];
@@ -357,8 +412,7 @@ static inline void apply_cpu_model(const S390CPUModel *model, Error **errp)
     }
 
     if (kvm_enabled()) {
-        /* FIXME KVM */
-        error_setg(errp, "KVM doesn't support CPU models.");
+        kvm_s390_apply_cpu_model(model, errp);
     } else if (model) {
         /* FIXME TCG - use data for stdip/stfl */
     }
@@ -563,6 +617,21 @@ static void s390_cpu_model_initfn(Object *obj)
 #ifdef CONFIG_KVM
 static void s390_host_cpu_model_initfn(Object *obj)
 {
+    S390CPU *cpu = S390_CPU(obj);
+    Error *err = NULL;
+
+    if (!kvm_enabled() || !kvm_s390_cpu_models_supported()) {
+        return;
+    }
+
+    cpu->model = g_malloc0(sizeof(*cpu->model));
+    kvm_s390_get_host_cpu_model(cpu->model, &err);
+    if (err) {
+        error_report_err(err);
+        g_free(cpu->model);
+        /* fallback to unsupported cpu models */
+        cpu->model = NULL;
+    }
 }
 #endif
 

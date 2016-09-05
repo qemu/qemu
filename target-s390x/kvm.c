@@ -2312,3 +2312,298 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
 {
     abort();
 }
+
+static inline int test_bit_inv(long nr, const unsigned long *addr)
+{
+    return test_bit(BE_BIT_NR(nr), addr);
+}
+
+static inline void set_bit_inv(long nr, unsigned long *addr)
+{
+    set_bit(BE_BIT_NR(nr), addr);
+}
+
+static int query_cpu_subfunc(S390FeatBitmap features)
+{
+    struct kvm_s390_vm_cpu_subfunc prop;
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_CPU_MODEL,
+        .attr = KVM_S390_VM_CPU_MACHINE_SUBFUNC,
+        .addr = (uint64_t) &prop,
+    };
+    int rc;
+
+    rc = kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+    if (rc) {
+        return  rc;
+    }
+
+    /*
+     * We're going to add all subfunctions now, if the corresponding feature
+     * is available that unlocks the query functions.
+     */
+    s390_add_from_feat_block(features, S390_FEAT_TYPE_PLO, prop.plo);
+    if (test_bit(S390_FEAT_TOD_CLOCK_STEERING, features)) {
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_PTFF, prop.ptff);
+    }
+    if (test_bit(S390_FEAT_MSA, features)) {
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_KMAC, prop.kmac);
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_KMC, prop.kmc);
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_KM, prop.km);
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_KIMD, prop.kimd);
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_KLMD, prop.klmd);
+    }
+    if (test_bit(S390_FEAT_MSA_EXT_3, features)) {
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_PCKMO, prop.pckmo);
+    }
+    if (test_bit(S390_FEAT_MSA_EXT_4, features)) {
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_KMCTR, prop.kmctr);
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_KMF, prop.kmf);
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_KMO, prop.kmo);
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_PCC, prop.pcc);
+    }
+    if (test_bit(S390_FEAT_MSA_EXT_5, features)) {
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_PPNO, prop.ppno);
+    }
+    return 0;
+}
+
+static int configure_cpu_subfunc(const S390FeatBitmap features)
+{
+    struct kvm_s390_vm_cpu_subfunc prop = {};
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_CPU_MODEL,
+        .attr = KVM_S390_VM_CPU_PROCESSOR_SUBFUNC,
+        .addr = (uint64_t) &prop,
+    };
+
+    if (!kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,
+                           KVM_S390_VM_CPU_PROCESSOR_SUBFUNC)) {
+        /* hardware support might be missing, IBC will handle most of this */
+        return 0;
+    }
+
+    s390_fill_feat_block(features, S390_FEAT_TYPE_PLO, prop.plo);
+    if (test_bit(S390_FEAT_TOD_CLOCK_STEERING, features)) {
+        s390_fill_feat_block(features, S390_FEAT_TYPE_PTFF, prop.ptff);
+        prop.ptff[0] |= 0x80; /* query is always available */
+    }
+    if (test_bit(S390_FEAT_MSA, features)) {
+        s390_fill_feat_block(features, S390_FEAT_TYPE_KMAC, prop.kmac);
+        prop.kmac[0] |= 0x80; /* query is always available */
+        s390_fill_feat_block(features, S390_FEAT_TYPE_KMC, prop.kmc);
+        prop.kmc[0] |= 0x80; /* query is always available */
+        s390_fill_feat_block(features, S390_FEAT_TYPE_KM, prop.km);
+        prop.km[0] |= 0x80; /* query is always available */
+        s390_fill_feat_block(features, S390_FEAT_TYPE_KIMD, prop.kimd);
+        prop.kimd[0] |= 0x80; /* query is always available */
+        s390_fill_feat_block(features, S390_FEAT_TYPE_KLMD, prop.klmd);
+        prop.klmd[0] |= 0x80; /* query is always available */
+    }
+    if (test_bit(S390_FEAT_MSA_EXT_3, features)) {
+        s390_fill_feat_block(features, S390_FEAT_TYPE_PCKMO, prop.pckmo);
+        prop.pckmo[0] |= 0x80; /* query is always available */
+    }
+    if (test_bit(S390_FEAT_MSA_EXT_4, features)) {
+        s390_fill_feat_block(features, S390_FEAT_TYPE_KMCTR, prop.kmctr);
+        prop.kmctr[0] |= 0x80; /* query is always available */
+        s390_fill_feat_block(features, S390_FEAT_TYPE_KMF, prop.kmf);
+        prop.kmf[0] |= 0x80; /* query is always available */
+        s390_fill_feat_block(features, S390_FEAT_TYPE_KMO, prop.kmo);
+        prop.kmo[0] |= 0x80; /* query is always available */
+        s390_fill_feat_block(features, S390_FEAT_TYPE_PCC, prop.pcc);
+        prop.pcc[0] |= 0x80; /* query is always available */
+    }
+    if (test_bit(S390_FEAT_MSA_EXT_5, features)) {
+        s390_fill_feat_block(features, S390_FEAT_TYPE_PPNO, prop.ppno);
+        prop.ppno[0] |= 0x80; /* query is always available */
+    }
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+}
+
+static int kvm_to_feat[][2] = {
+    { KVM_S390_VM_CPU_FEAT_ESOP, S390_FEAT_ESOP },
+    { KVM_S390_VM_CPU_FEAT_SIEF2, S390_FEAT_SIE_F2 },
+    { KVM_S390_VM_CPU_FEAT_64BSCAO , S390_FEAT_SIE_64BSCAO },
+    { KVM_S390_VM_CPU_FEAT_SIIF, S390_FEAT_SIE_SIIF },
+    { KVM_S390_VM_CPU_FEAT_GPERE, S390_FEAT_SIE_GPERE },
+    { KVM_S390_VM_CPU_FEAT_GSLS, S390_FEAT_SIE_GSLS },
+    { KVM_S390_VM_CPU_FEAT_IB, S390_FEAT_SIE_IB },
+    { KVM_S390_VM_CPU_FEAT_CEI, S390_FEAT_SIE_CEI },
+    { KVM_S390_VM_CPU_FEAT_IBS, S390_FEAT_SIE_IBS },
+    { KVM_S390_VM_CPU_FEAT_SKEY, S390_FEAT_SIE_SKEY },
+    { KVM_S390_VM_CPU_FEAT_CMMA, S390_FEAT_SIE_CMMA },
+    { KVM_S390_VM_CPU_FEAT_PFMFI, S390_FEAT_SIE_PFMFI},
+    { KVM_S390_VM_CPU_FEAT_SIGPIF, S390_FEAT_SIE_SIGPIF},
+};
+
+static int query_cpu_feat(S390FeatBitmap features)
+{
+    struct kvm_s390_vm_cpu_feat prop;
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_CPU_MODEL,
+        .attr = KVM_S390_VM_CPU_MACHINE_FEAT,
+        .addr = (uint64_t) &prop,
+    };
+    int rc;
+    int i;
+
+    rc = kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+    if (rc) {
+        return  rc;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(kvm_to_feat); i++) {
+        if (test_bit_inv(kvm_to_feat[i][0], (unsigned long *)prop.feat)) {
+            set_bit(kvm_to_feat[i][1], features);
+        }
+    }
+    return 0;
+}
+
+static int configure_cpu_feat(const S390FeatBitmap features)
+{
+    struct kvm_s390_vm_cpu_feat prop = {};
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_CPU_MODEL,
+        .attr = KVM_S390_VM_CPU_PROCESSOR_FEAT,
+        .addr = (uint64_t) &prop,
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(kvm_to_feat); i++) {
+        if (test_bit(kvm_to_feat[i][1], features)) {
+            set_bit_inv(kvm_to_feat[i][0], (unsigned long *)prop.feat);
+        }
+    }
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+}
+
+bool kvm_s390_cpu_models_supported(void)
+{
+    return kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,
+                             KVM_S390_VM_CPU_MACHINE) &&
+           kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,
+                             KVM_S390_VM_CPU_PROCESSOR) &&
+           kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,
+                             KVM_S390_VM_CPU_MACHINE_FEAT) &&
+           kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,
+                             KVM_S390_VM_CPU_PROCESSOR_FEAT) &&
+           kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,
+                             KVM_S390_VM_CPU_MACHINE_SUBFUNC);
+}
+
+void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
+{
+    struct kvm_s390_vm_cpu_machine prop = {};
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_CPU_MODEL,
+        .attr = KVM_S390_VM_CPU_MACHINE,
+        .addr = (uint64_t) &prop,
+    };
+    uint16_t unblocked_ibc = 0, cpu_type = 0;
+    int rc;
+
+    memset(model, 0, sizeof(*model));
+
+    if (!kvm_s390_cpu_models_supported()) {
+        error_setg(errp, "KVM doesn't support CPU models");
+        return;
+    }
+
+    /* query the basic cpu model properties */
+    rc = kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+    if (rc) {
+        error_setg(errp, "KVM: Error querying host CPU model: %d", rc);
+        return;
+    }
+
+    cpu_type = cpuid_type(prop.cpuid);
+    if (has_ibc(prop.ibc)) {
+        model->lowest_ibc = lowest_ibc(prop.ibc);
+        unblocked_ibc = unblocked_ibc(prop.ibc);
+    }
+    model->cpu_id = cpuid_id(prop.cpuid);
+    model->cpu_ver = 0xff;
+
+    /* get supported cpu features indicated via STFL(E) */
+    s390_add_from_feat_block(model->features, S390_FEAT_TYPE_STFL,
+                             (uint8_t *) prop.fac_mask);
+    /* dat-enhancement facility 2 has no bit but was introduced with stfle */
+    if (test_bit(S390_FEAT_STFLE, model->features)) {
+        set_bit(S390_FEAT_DAT_ENH_2, model->features);
+    }
+    /* get supported cpu features indicated e.g. via SCLP */
+    rc = query_cpu_feat(model->features);
+    if (rc) {
+        error_setg(errp, "KVM: Error querying CPU features: %d", rc);
+        return;
+    }
+    /* get supported cpu subfunctions indicated via query / test bit */
+    rc = query_cpu_subfunc(model->features);
+    if (rc) {
+        error_setg(errp, "KVM: Error querying CPU subfunctions: %d", rc);
+        return;
+    }
+
+    if (s390_known_cpu_type(cpu_type)) {
+        /* we want the exact model, even if some features are missing */
+        model->def = s390_find_cpu_def(cpu_type, ibc_gen(unblocked_ibc),
+                                       ibc_ec_ga(unblocked_ibc), NULL);
+    } else {
+        /* model unknown, e.g. too new - search using features */
+        model->def = s390_find_cpu_def(0, ibc_gen(unblocked_ibc),
+                                       ibc_ec_ga(unblocked_ibc),
+                                       model->features);
+    }
+    if (!model->def) {
+        error_setg(errp, "KVM: host CPU model could not be identified");
+        return;
+    }
+    /* strip of features that are not part of the maximum model */
+    bitmap_and(model->features, model->features, model->def->full_feat,
+               S390_FEAT_MAX);
+}
+
+void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
+{
+    struct kvm_s390_vm_cpu_processor prop  = {
+        .fac_list = { 0 },
+    };
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_CPU_MODEL,
+        .attr = KVM_S390_VM_CPU_PROCESSOR,
+        .addr = (uint64_t) &prop,
+    };
+    int rc;
+
+    if (!model) {
+        return;
+    }
+    if (!kvm_s390_cpu_models_supported()) {
+        error_setg(errp, "KVM doesn't support CPU models");
+        return;
+    }
+    prop.cpuid = s390_cpuid_from_cpu_model(model);
+    prop.ibc = s390_ibc_from_cpu_model(model);
+    /* configure cpu features indicated via STFL(e) */
+    s390_fill_feat_block(model->features, S390_FEAT_TYPE_STFL,
+                         (uint8_t *) prop.fac_list);
+    rc = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+    if (rc) {
+        error_setg(errp, "KVM: Error configuring the CPU model: %d", rc);
+        return;
+    }
+    /* configure cpu features indicated e.g. via SCLP */
+    rc = configure_cpu_feat(model->features);
+    if (rc) {
+        error_setg(errp, "KVM: Error configuring CPU features: %d", rc);
+        return;
+    }
+    /* configure cpu subfunctions indicated via query / test bit */
+    rc = configure_cpu_subfunc(model->features);
+    if (rc) {
+        error_setg(errp, "KVM: Error configuring CPU subfunctions: %d", rc);
+        return;
+    }
+}
