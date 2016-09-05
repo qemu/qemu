@@ -450,6 +450,90 @@ CpuModelExpansionInfo *arch_query_cpu_model_expansion(CpuModelExpansionType type
     cpu_info_from_model(expansion_info->model, &s390_model, delta_changes);
     return expansion_info;
 }
+
+static void list_add_feat(const char *name, void *opaque)
+{
+    strList **last = (strList **) opaque;
+    strList *entry;
+
+    entry = g_malloc0(sizeof(*entry));
+    entry->value = g_strdup(name);
+    entry->next = *last;
+    *last = entry;
+}
+
+CpuModelCompareInfo *arch_query_cpu_model_comparison(CpuModelInfo *infoa,
+                                                     CpuModelInfo *infob,
+                                                     Error **errp)
+{
+    CpuModelCompareResult feat_result, gen_result;
+    CpuModelCompareInfo *compare_info;
+    S390FeatBitmap missing, added;
+    S390CPUModel modela, modelb;
+
+    /* convert both models to our internal representation */
+    cpu_model_from_info(&modela, infoa, errp);
+    if (*errp) {
+        return NULL;
+    }
+    cpu_model_from_info(&modelb, infob, errp);
+    if (*errp) {
+        return NULL;
+    }
+    compare_info = g_malloc0(sizeof(*compare_info));
+
+    /* check the cpu generation and ga level */
+    if (modela.def->gen == modelb.def->gen) {
+        if (modela.def->ec_ga == modelb.def->ec_ga) {
+            /* ec and corresponding bc are identical */
+            gen_result = CPU_MODEL_COMPARE_RESULT_IDENTICAL;
+        } else if (modela.def->ec_ga < modelb.def->ec_ga) {
+            gen_result = CPU_MODEL_COMPARE_RESULT_SUBSET;
+        } else {
+            gen_result = CPU_MODEL_COMPARE_RESULT_SUPERSET;
+        }
+    } else if (modela.def->gen < modelb.def->gen) {
+        gen_result = CPU_MODEL_COMPARE_RESULT_SUBSET;
+    } else {
+        gen_result = CPU_MODEL_COMPARE_RESULT_SUPERSET;
+    }
+    if (gen_result != CPU_MODEL_COMPARE_RESULT_IDENTICAL) {
+        /* both models cannot be made identical */
+        list_add_feat("type", &compare_info->responsible_properties);
+    }
+
+    /* check the feature set */
+    if (bitmap_equal(modela.features, modelb.features, S390_FEAT_MAX)) {
+        feat_result = CPU_MODEL_COMPARE_RESULT_IDENTICAL;
+    } else {
+        bitmap_andnot(missing, modela.features, modelb.features, S390_FEAT_MAX);
+        s390_feat_bitmap_to_ascii(missing,
+                                  &compare_info->responsible_properties,
+                                  list_add_feat);
+        bitmap_andnot(added, modelb.features, modela.features, S390_FEAT_MAX);
+        s390_feat_bitmap_to_ascii(added, &compare_info->responsible_properties,
+                                  list_add_feat);
+        if (bitmap_empty(missing, S390_FEAT_MAX)) {
+            feat_result = CPU_MODEL_COMPARE_RESULT_SUBSET;
+        } else if (bitmap_empty(added, S390_FEAT_MAX)) {
+            feat_result = CPU_MODEL_COMPARE_RESULT_SUPERSET;
+        } else {
+            feat_result = CPU_MODEL_COMPARE_RESULT_INCOMPATIBLE;
+        }
+    }
+
+    /* combine the results */
+    if (gen_result == feat_result) {
+        compare_info->result = gen_result;
+    } else if (feat_result == CPU_MODEL_COMPARE_RESULT_IDENTICAL) {
+        compare_info->result = gen_result;
+    } else if (gen_result == CPU_MODEL_COMPARE_RESULT_IDENTICAL) {
+        compare_info->result = feat_result;
+    } else {
+        compare_info->result = CPU_MODEL_COMPARE_RESULT_INCOMPATIBLE;
+    }
+    return compare_info;
+}
 #endif
 
 static void check_consistency(const S390CPUModel *model)
