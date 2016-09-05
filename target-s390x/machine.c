@@ -78,12 +78,7 @@ static const VMStateDescription vmstate_fpu = {
 
 static bool vregs_needed(void *opaque)
 {
-#ifdef CONFIG_KVM
-    if (kvm_enabled()) {
-        return kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS);
-    }
-#endif
-    return 0;
+    return s390_has_feat(S390_FEAT_VECTOR);
 }
 
 static const VMStateDescription vmstate_vregs = {
@@ -147,12 +142,7 @@ static const VMStateDescription vmstate_vregs = {
 
 static bool riccb_needed(void *opaque)
 {
-#ifdef CONFIG_KVM
-    if (kvm_enabled()) {
-        return kvm_s390_get_ri();
-    }
-#endif
-    return 0;
+    return s390_has_feat(S390_FEAT_RUNTIME_INSTRUMENTATION);
 }
 
 const VMStateDescription vmstate_riccb = {

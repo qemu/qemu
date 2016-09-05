@@ -1539,7 +1539,7 @@ static void sigp_store_adtl_status(void *arg)
 {
     SigpInfo *si = arg;
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS)) {
+    if (!s390_has_feat(S390_FEAT_VECTOR)) {
         set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
         return;
     }
@@ -2119,7 +2119,7 @@ static uint64_t build_channel_report_mcic(void)
         MCIC_VB_WP | MCIC_VB_MS | MCIC_VB_PM | MCIC_VB_IA | MCIC_VB_FP |
         MCIC_VB_GR | MCIC_VB_CR | MCIC_VB_ST | MCIC_VB_AR | MCIC_VB_PR |
         MCIC_VB_FC | MCIC_VB_CT | MCIC_VB_CC;
-    if (kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS)) {
+    if (s390_has_feat(S390_FEAT_VECTOR)) {
         mcic |= MCIC_VB_VR;
     }
     return mcic;

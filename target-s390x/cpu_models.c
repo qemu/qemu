@@ -73,6 +73,31 @@ static S390CPUDef s390_cpu_defs[] = {
     CPUDEF_INIT(0x2965, 13, 2, 47, 0x08000000U, "z13s", "IBM z13s GA1"),
 };
 
+bool s390_has_feat(S390Feat feat)
+{
+    static S390CPU *cpu;
+
+    if (!cpu) {
+        cpu = S390_CPU(qemu_get_cpu(0));
+    }
+
+    if (!cpu || !cpu->model) {
+#ifdef CONFIG_KVM
+        if (kvm_enabled()) {
+            if (feat == S390_FEAT_VECTOR) {
+                return kvm_check_extension(kvm_state,
+                                           KVM_CAP_S390_VECTOR_REGISTERS);
+            }
+            if (feat == S390_FEAT_RUNTIME_INSTRUMENTATION) {
+                return kvm_s390_get_ri();
+            }
+        }
+#endif
+        return 0;
+    }
+    return test_bit(feat, cpu->model->features);
+}
+
 struct S390PrintCpuListInfo {
     FILE *f;
     fprintf_function print;
