@@ -3948,6 +3948,12 @@ EQMP
     },
 
     {
+        .name       = "query-cpu-model-comparison",
+        .args_type  = "modela:q,modelb:q",
+        .mhandler.cmd_new = qmp_marshal_query_cpu_model_comparison,
+    },
+
+    {
         .name       = "query-target",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_target,

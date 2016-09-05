@@ -3158,6 +3158,92 @@
             'model': 'CpuModelInfo' },
   'returns': 'CpuModelExpansionInfo' }
 
+##
+# @CpuModelCompareResult:
+#
+# An enumeration of CPU model comparation results. The result is usually
+# calcualted using e.g. CPU features or CPU generations.
+#
+# @incompatible: If model A is incompatible to model B, model A is not
+#                guaranteed to run where model B runs and the other way around.
+#
+# @identical: If model A is identical to model B, model A is guaranteed to run
+#             where model B runs and the other way around.
+#
+# @superset: If model A is a superset of model B, model B is guaranteed to run
+#            where model A runs. There are no guarantees about the other way.
+#
+# @subset: If model A is a subset of model B, model A is guaranteed to run
+#          where model B runs. There are no guarantees about the other way.
+#
+# Since: 2.8.0
+##
+{ 'enum': 'CpuModelCompareResult',
+  'data': [ 'incompatible', 'identical', 'superset', 'subset' ] }
+
+##
+# @CpuModelCompareInfo
+#
+# The result of a CPU model comparison.
+#
+# @result: The result of the compare operation.
+# @responsible-properties: List of properties that led to the comparison result
+#                          not being identical.
+#
+# @responsible-properties is a list of QOM property names that led to
+# both CPUs not being detected as identical. For identical models, this
+# list is empty.
+# If a QOM property is read-only, that means there's no known way to make the
+# CPU models identical. If the special property name "type" is included, the
+# models are by definition not identical and cannot be made identical.
+#
+# Since: 2.8.0
+##
+{ 'struct': 'CpuModelCompareInfo',
+  'data': {'result': 'CpuModelCompareResult',
+           'responsible-properties': ['str']
+          }
+}
+
+##
+# @query-cpu-model-comparison:
+#
+# Compares two CPU models, returning how they compare in a specific
+# configuration. The results indicates how both models compare regarding
+# runnability. This result can be used by tooling to make decisions if a
+# certain CPU model will run in a certain configuration or if a compatible
+# CPU model has to be created by baselining.
+#
+# Usually, a CPU model is compared against the maximum possible CPU model
+# of a ceratin configuration (e.g. the "host" model for KVM). If that CPU
+# model is identical or a subset, it will run in that configuration.
+#
+# The result returned by this command may be affected by:
+#
+# * QEMU version: CPU models may look different depending on the QEMU version.
+#   (Except for CPU models reported as "static" in query-cpu-definitions.)
+# * machine-type: CPU model  may look different depending on the machine-type.
+#   (Except for CPU models reported as "static" in query-cpu-definitions.)
+# * machine options (including accelerator): in some architectures, CPU models
+#   may look different depending on machine and accelerator options. (Except for
+#   CPU models reported as "static" in query-cpu-definitions.)
+# * "-cpu" arguments and global properties: arguments to the -cpu option and
+#   global properties may affect expansion of CPU models. Using
+#   query-cpu-model-expansion while using these is not advised.
+#
+# Some architectures may not support comparing CPU models.
+#
+# Returns: a CpuModelBaselineInfo. Returns an error if comparing CPU models is
+#          not supported, if a model cannot be used, if a model contains
+#          an unknown cpu definition name, unknown properties or properties
+#          with wrong types.
+#
+# Since: 2.8.0
+##
+{ 'command': 'query-cpu-model-comparison',
+  'data': { 'modela': 'CpuModelInfo', 'modelb': 'CpuModelInfo' },
+  'returns': 'CpuModelCompareInfo' }
+
 # @AddfdInfo:
 #
 # Information about a file descriptor that was added to an fd set.
