@@ -14,6 +14,7 @@
 #include "cpu.h"
 #include "gen-features.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
 #endif
@@ -103,8 +104,24 @@ void s390_cpu_list(FILE *f, fprintf_function print)
         .f = f,
         .print = print,
     };
+    S390FeatGroup group;
+    S390Feat feat;
 
     object_class_foreach(print_cpu_model_list, TYPE_S390_CPU, false, &info);
+
+    (*print)(f, "\nRecognized feature flags:\n");
+    for (feat = 0; feat < S390_FEAT_MAX; feat++) {
+        const S390FeatDef *def = s390_feat_def(feat);
+
+        (*print)(f, "%-20s %-50s\n", def->name, def->desc);
+    }
+
+    (*print)(f, "\nRecognized feature groups:\n");
+    for (group = 0; group < S390_FEAT_GROUP_MAX; group++) {
+        const S390FeatGroupDef *def = s390_feat_group_def(group);
+
+        (*print)(f, "%-20s %-50s\n", def->name, def->desc);
+    }
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -148,6 +165,138 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     if (xcc->kvm_required && !kvm_enabled()) {
         error_setg(errp, "CPU definition requires KVM");
         return;
+    }
+}
+
+static void get_feature(Object *obj, Visitor *v, const char *name,
+                        void *opaque, Error **errp)
+{
+    S390Feat feat = (S390Feat) opaque;
+    S390CPU *cpu = S390_CPU(obj);
+    bool value;
+
+    if (!cpu->model) {
+        error_setg(errp, "Details about the host CPU model are not available, "
+                         "features cannot be queried.");
+        return;
+    }
+
+    value = test_bit(feat, cpu->model->features);
+    visit_type_bool(v, name, &value, errp);
+}
+
+static void set_feature(Object *obj, Visitor *v, const char *name,
+                        void *opaque, Error **errp)
+{
+    S390Feat feat = (S390Feat) opaque;
+    DeviceState *dev = DEVICE(obj);
+    S390CPU *cpu = S390_CPU(obj);
+    bool value;
+
+    if (dev->realized) {
+        error_setg(errp, "Attempt to set property '%s' on '%s' after "
+                   "it was realized", name, object_get_typename(obj));
+        return;
+    } else if (!cpu->model) {
+        error_setg(errp, "Details about the host CPU model are not available, "
+                         "features cannot be changed.");
+        return;
+    }
+
+    visit_type_bool(v, name, &value, errp);
+    if (*errp) {
+        return;
+    }
+    if (value) {
+        if (!test_bit(feat, cpu->model->def->full_feat)) {
+            error_setg(errp, "Feature '%s' is not available for CPU model '%s',"
+                       " it was introduced with later models.",
+                       name, cpu->model->def->name);
+            return;
+        }
+        set_bit(feat, cpu->model->features);
+    } else {
+        clear_bit(feat, cpu->model->features);
+    }
+}
+
+static void get_feature_group(Object *obj, Visitor *v, const char *name,
+                              void *opaque, Error **errp)
+{
+    S390FeatGroup group = (S390FeatGroup) opaque;
+    const S390FeatGroupDef *def = s390_feat_group_def(group);
+    S390CPU *cpu = S390_CPU(obj);
+    S390FeatBitmap tmp;
+    bool value;
+
+    if (!cpu->model) {
+        error_setg(errp, "Details about the host CPU model are not available, "
+                         "features cannot be queried.");
+        return;
+    }
+
+    /* a group is enabled if all features are enabled */
+    bitmap_and(tmp, cpu->model->features, def->feat, S390_FEAT_MAX);
+    value = bitmap_equal(tmp, def->feat, S390_FEAT_MAX);
+    visit_type_bool(v, name, &value, errp);
+}
+
+static void set_feature_group(Object *obj, Visitor *v, const char *name,
+                              void *opaque, Error **errp)
+{
+    S390FeatGroup group = (S390FeatGroup) opaque;
+    const S390FeatGroupDef *def = s390_feat_group_def(group);
+    DeviceState *dev = DEVICE(obj);
+    S390CPU *cpu = S390_CPU(obj);
+    bool value;
+
+    if (dev->realized) {
+        error_setg(errp, "Attempt to set property '%s' on '%s' after "
+                   "it was realized", name, object_get_typename(obj));
+        return;
+    } else if (!cpu->model) {
+        error_setg(errp, "Details about the host CPU model are not available, "
+                         "features cannot be changed.");
+        return;
+    }
+
+    visit_type_bool(v, name, &value, errp);
+    if (*errp) {
+        return;
+    }
+    if (value) {
+        /* groups are added in one shot, so an intersect is sufficient */
+        if (!bitmap_intersects(def->feat, cpu->model->def->full_feat,
+                               S390_FEAT_MAX)) {
+            error_setg(errp, "Group '%s' is not available for CPU model '%s',"
+                       " it was introduced with later models.",
+                       name, cpu->model->def->name);
+            return;
+        }
+        bitmap_or(cpu->model->features, cpu->model->features, def->feat,
+                  S390_FEAT_MAX);
+    } else {
+        bitmap_andnot(cpu->model->features, cpu->model->features, def->feat,
+                      S390_FEAT_MAX);
+    }
+}
+
+void s390_cpu_model_register_props(Object *obj)
+{
+    S390FeatGroup group;
+    S390Feat feat;
+
+    for (feat = 0; feat < S390_FEAT_MAX; feat++) {
+        const S390FeatDef *def = s390_feat_def(feat);
+        object_property_add(obj, def->name, "bool", get_feature,
+                            set_feature, NULL, (void *) feat, NULL);
+        object_property_set_description(obj, def->name, def->desc , NULL);
+    }
+    for (group = 0; group < S390_FEAT_GROUP_MAX; group++) {
+        const S390FeatGroupDef *def = s390_feat_group_def(group);
+        object_property_add(obj, def->name, "bool", get_feature_group,
+                            set_feature_group, NULL, (void *) group, NULL);
+        object_property_set_description(obj, def->name, def->desc , NULL);
     }
 }
 
