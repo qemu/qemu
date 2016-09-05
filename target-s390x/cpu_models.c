@@ -74,6 +74,20 @@ static S390CPUDef s390_cpu_defs[] = {
     CPUDEF_INIT(0x2965, 13, 2, 47, 0x08000000U, "z13s", "IBM z13s GA1"),
 };
 
+void s390_get_feat_block(S390FeatType type, uint8_t *data)
+{
+    static S390CPU *cpu;
+
+    if (!cpu) {
+        cpu = S390_CPU(qemu_get_cpu(0));
+    }
+
+    if (!cpu || !cpu->model) {
+        return;
+    }
+    s390_fill_feat_block(cpu->model->features, type, data);
+}
+
 bool s390_has_feat(S390Feat feat)
 {
     static S390CPU *cpu;

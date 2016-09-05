@@ -49,6 +49,7 @@ typedef struct S390CPUModel {
     uint8_t cpu_ver;        /* CPU version, usually "ff" for kvm */
 } S390CPUModel;
 
+void s390_get_feat_block(S390FeatType type, uint8_t *data);
 bool s390_has_feat(S390Feat feat);
 
 #endif /* TARGET_S390X_CPU_MODELS_H */

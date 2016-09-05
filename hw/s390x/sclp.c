@@ -36,11 +36,14 @@ static inline SCLPDevice *get_sclp_device(void)
 
 static void prepare_cpu_entries(SCLPDevice *sclp, CPUEntry *entry, int count)
 {
+    uint8_t features[SCCB_CPU_FEATURE_LEN] = { 0 };
     int i;
 
+    s390_get_feat_block(S390_FEAT_TYPE_SCLP_CPU, features);
     for (i = 0; i < count; i++) {
         entry[i].address = i;
         entry[i].type = 0;
+        memcpy(entry[i].features, features, sizeof(entry[i].features));
     }
 }
 
@@ -63,6 +66,12 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     read_info->entries_cpu = cpu_to_be16(cpu_count);
     read_info->offset_cpu = cpu_to_be16(offsetof(ReadInfo, entries));
     read_info->highest_cpu = cpu_to_be16(max_cpus);
+
+    /* Configuration Characteristic (Extension) */
+    s390_get_feat_block(S390_FEAT_TYPE_SCLP_CONF_CHAR,
+                         read_info->conf_char);
+    s390_get_feat_block(S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT,
+                         read_info->conf_char_ext);
 
     prepare_cpu_entries(sclp, read_info->entries, cpu_count);
 
