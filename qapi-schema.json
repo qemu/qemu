@@ -3283,7 +3283,8 @@
 #   global properties may affect expansion of CPU models. Using
 #   query-cpu-model-expansion while using these is not advised.
 #
-# Some architectures may not support baselining CPU models.
+# Some architectures may not support baselining CPU models. s390x supports
+# baselining CPU models.
 #
 # Returns: a CpuModelBaselineInfo. Returns an error if baselining CPU models is
 #          not supported, if a model cannot be used, if a model contains

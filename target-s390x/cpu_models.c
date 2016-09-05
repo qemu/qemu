@@ -534,6 +534,61 @@ CpuModelCompareInfo *arch_query_cpu_model_comparison(CpuModelInfo *infoa,
     }
     return compare_info;
 }
+
+CpuModelBaselineInfo *arch_query_cpu_model_baseline(CpuModelInfo *infoa,
+                                                    CpuModelInfo *infob,
+                                                    Error **errp)
+{
+    CpuModelBaselineInfo *baseline_info;
+    S390CPUModel modela, modelb, model;
+    uint16_t cpu_type;
+    uint8_t max_gen_ga;
+    uint8_t max_gen;
+
+    /* convert both models to our internal representation */
+    cpu_model_from_info(&modela, infoa, errp);
+    if (*errp) {
+        return NULL;
+    }
+
+    cpu_model_from_info(&modelb, infob, errp);
+    if (*errp) {
+        return NULL;
+    }
+
+    /* features both models support */
+    bitmap_and(model.features, modela.features, modelb.features, S390_FEAT_MAX);
+
+    /* detect the maximum model not regarding features */
+    if (modela.def->gen == modelb.def->gen) {
+        if (modela.def->type == modelb.def->type) {
+            cpu_type = modela.def->type;
+        } else {
+            cpu_type = 0;
+        }
+        max_gen = modela.def->gen;
+        max_gen_ga = MIN(modela.def->ec_ga, modelb.def->ec_ga);
+    } else if (modela.def->gen > modelb.def->gen) {
+        cpu_type = modelb.def->type;
+        max_gen = modelb.def->gen;
+        max_gen_ga = modelb.def->ec_ga;
+    } else {
+        cpu_type = modela.def->type;
+        max_gen = modela.def->gen;
+        max_gen_ga = modela.def->ec_ga;
+    }
+
+    model.def = s390_find_cpu_def(cpu_type, max_gen, max_gen_ga,
+                                  model.features);
+    /* strip off features not part of the max model */
+    bitmap_and(model.features, model.features, model.def->full_feat,
+               S390_FEAT_MAX);
+
+    baseline_info = g_malloc0(sizeof(*baseline_info));
+    baseline_info->model = g_malloc0(sizeof(*baseline_info->model));
+    cpu_info_from_model(baseline_info->model, &model, true);
+    return baseline_info;
+}
 #endif
 
 static void check_consistency(const S390CPUModel *model)
