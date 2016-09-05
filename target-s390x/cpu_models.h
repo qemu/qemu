@@ -39,4 +39,14 @@ typedef struct S390CPUDef {
     S390FeatInit full_init;
 } S390CPUDef;
 
+/* CPU model based on a CPU definition */
+typedef struct S390CPUModel {
+    const S390CPUDef *def;
+    S390FeatBitmap features;
+    /* values copied from the "host" model, can change during migration */
+    uint16_t lowest_ibc;    /* lowest IBC that the hardware supports */
+    uint32_t cpu_id;        /* CPU id */
+    uint8_t cpu_ver;        /* CPU version, usually "ff" for kvm */
+} S390CPUModel;
+
 #endif /* TARGET_S390X_CPU_MODELS_H */

@@ -188,6 +188,7 @@ struct S390CPU {
 
     CPUS390XState env;
     int64_t id;
+    S390CPUModel *model;
     /* needed for live migration */
     void *irqstate;
     uint32_t irqstate_saved_size;

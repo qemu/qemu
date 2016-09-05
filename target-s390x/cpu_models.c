@@ -153,6 +153,21 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
 
 static void s390_cpu_model_initfn(Object *obj)
 {
+    S390CPU *cpu = S390_CPU(obj);
+    S390CPUClass *xcc = S390_CPU_GET_CLASS(cpu);
+
+    cpu->model = g_malloc0(sizeof(*cpu->model));
+    /* copy the model, so we can modify it */
+    cpu->model->def = xcc->cpu_def;
+    if (xcc->is_static) {
+        /* base model - features will never change */
+        bitmap_copy(cpu->model->features, cpu->model->def->base_feat,
+                    S390_FEAT_MAX);
+    } else {
+        /* latest model - features can change */
+        bitmap_copy(cpu->model->features,
+                    cpu->model->def->default_feat, S390_FEAT_MAX);
+    }
 }
 
 #ifdef CONFIG_KVM
@@ -163,10 +178,21 @@ static void s390_host_cpu_model_initfn(Object *obj)
 
 static void s390_qemu_cpu_model_initfn(Object *obj)
 {
+    S390CPU *cpu = S390_CPU(obj);
+
+    cpu->model = g_malloc0(sizeof(*cpu->model));
+    /* TCG emulates a z900 */
+    cpu->model->def = &s390_cpu_defs[0];
+    bitmap_copy(cpu->model->features, cpu->model->def->default_feat,
+                S390_FEAT_MAX);
 }
 
 static void s390_cpu_model_finalize(Object *obj)
 {
+    S390CPU *cpu = S390_CPU(obj);
+
+    g_free(cpu->model);
+    cpu->model = NULL;
 }
 
 static bool get_is_migration_safe(Object *obj, Error **errp)
