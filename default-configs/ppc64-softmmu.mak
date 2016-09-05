@@ -4,7 +4,6 @@ include pci.mak
 include sound.mak
 include usb.mak
 CONFIG_VIRTIO_VGA=y
-CONFIG_ISA_MMIO=y
 CONFIG_ESCC=y
 CONFIG_M48T59=y
 CONFIG_SERIAL=y

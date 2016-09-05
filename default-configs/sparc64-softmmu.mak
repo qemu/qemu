@@ -2,7 +2,6 @@
 
 include pci.mak
 include usb.mak
-CONFIG_ISA_MMIO=y
 CONFIG_M48T59=y
 CONFIG_PTIMER=y
 CONFIG_SERIAL=y
