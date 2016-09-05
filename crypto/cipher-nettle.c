@@ -227,7 +227,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_MODE_XTS:
         break;
     default:
-        error_setg(errp, "Unsupported cipher mode %d", mode);
+        error_setg(errp, "Unsupported cipher mode %s",
+                   QCryptoCipherMode_lookup[mode]);
         return NULL;
     }
 
@@ -357,7 +358,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         break;
 
     default:
-        error_setg(errp, "Unsupported cipher algorithm %d", alg);
+        error_setg(errp, "Unsupported cipher algorithm %s",
+                   QCryptoCipherAlgorithm_lookup[alg]);
         goto error;
     }
 
@@ -429,8 +431,8 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
         break;
 
     default:
-        error_setg(errp, "Unsupported cipher algorithm %d",
-                   cipher->alg);
+        error_setg(errp, "Unsupported cipher mode %s",
+                   QCryptoCipherMode_lookup[cipher->mode]);
         return -1;
     }
     return 0;
@@ -469,8 +471,8 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
         break;
 
     default:
-        error_setg(errp, "Unsupported cipher algorithm %d",
-                   cipher->alg);
+        error_setg(errp, "Unsupported cipher mode %s",
+                   QCryptoCipherMode_lookup[cipher->mode]);
         return -1;
     }
     return 0;

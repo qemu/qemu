@@ -70,7 +70,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         gcrymode = GCRY_CIPHER_MODE_CBC;
         break;
     default:
-        error_setg(errp, "Unsupported cipher mode %d", mode);
+        error_setg(errp, "Unsupported cipher mode %s",
+                   QCryptoCipherMode_lookup[mode]);
         return NULL;
     }
 
@@ -120,7 +121,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         break;
 
     default:
-        error_setg(errp, "Unsupported cipher algorithm %d", alg);
+        error_setg(errp, "Unsupported cipher algorithm %s",
+                   QCryptoCipherAlgorithm_lookup[alg]);
         return NULL;
     }
 
