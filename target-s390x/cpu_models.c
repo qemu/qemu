@@ -15,6 +15,7 @@
 #include "gen-features.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qemu/error-report.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
 #endif
@@ -183,14 +184,166 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 }
 #endif
 
+static void check_consistency(const S390CPUModel *model)
+{
+    static int dep[][2] = {
+        { S390_FEAT_IPTE_RANGE, S390_FEAT_DAT_ENH },
+        { S390_FEAT_IDTE_SEGMENT, S390_FEAT_DAT_ENH },
+        { S390_FEAT_IDTE_REGION, S390_FEAT_DAT_ENH },
+        { S390_FEAT_IDTE_REGION, S390_FEAT_IDTE_SEGMENT },
+        { S390_FEAT_LOCAL_TLB_CLEARING, S390_FEAT_DAT_ENH},
+        { S390_FEAT_LONG_DISPLACEMENT_FAST, S390_FEAT_LONG_DISPLACEMENT },
+        { S390_FEAT_DFP_FAST, S390_FEAT_DFP },
+        { S390_FEAT_TRANSACTIONAL_EXE, S390_FEAT_STFLE_49 },
+        { S390_FEAT_EDAT_2, S390_FEAT_EDAT},
+        { S390_FEAT_MSA_EXT_5, S390_FEAT_KIMD_SHA_512 },
+        { S390_FEAT_MSA_EXT_5, S390_FEAT_KLMD_SHA_512 },
+        { S390_FEAT_MSA_EXT_4, S390_FEAT_MSA_EXT_3 },
+        { S390_FEAT_SIE_CMMA, S390_FEAT_CMM },
+        { S390_FEAT_SIE_CMMA, S390_FEAT_SIE_GSLS },
+        { S390_FEAT_SIE_PFMFI, S390_FEAT_EDAT },
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(dep); i++) {
+        if (test_bit(dep[i][0], model->features) &&
+            !test_bit(dep[i][1], model->features)) {
+            error_report("Warning: \'%s\' requires \'%s\'.",
+                         s390_feat_def(dep[i][0])->name,
+                         s390_feat_def(dep[i][1])->name);
+        }
+    }
+}
+
+static void error_prepend_missing_feat(const char *name, void *opaque)
+{
+    error_prepend((Error **) opaque, "%s ", name);
+}
+
+static void check_compatibility(const S390CPUModel *max_model,
+                                const S390CPUModel *model, Error **errp)
+{
+    S390FeatBitmap missing;
+
+    if (model->def->gen > max_model->def->gen) {
+        error_setg(errp, "Selected CPU generation is too new. Maximum "
+                   "supported model in the configuration: \'%s\'",
+                   max_model->def->name);
+        return;
+    } else if (model->def->gen == max_model->def->gen &&
+               model->def->ec_ga > max_model->def->ec_ga) {
+        error_setg(errp, "Selected CPU GA level is too new. Maximum "
+                   "supported model in the configuration: \'%s\'",
+                   max_model->def->name);
+        return;
+    }
+
+    /* detect the missing features to properly report them */
+    bitmap_andnot(missing, model->features, max_model->features, S390_FEAT_MAX);
+    if (bitmap_empty(missing, S390_FEAT_MAX)) {
+        return;
+    }
+
+    error_setg(errp, " ");
+    s390_feat_bitmap_to_ascii(missing, errp, error_prepend_missing_feat);
+    error_prepend(errp, "Some features requested in the CPU model are not "
+                  "available in the configuration: ");
+}
+
+static S390CPUModel *get_max_cpu_model(Error **errp)
+{
+#ifndef CONFIG_USER_ONLY
+    static S390CPUModel max_model;
+    static bool cached;
+
+    if (cached) {
+        return &max_model;
+    }
+
+    if (kvm_enabled()) {
+        error_setg(errp, "KVM does not support CPU models.");
+    } else {
+        /* TCG enulates a z900 */
+        max_model.def = &s390_cpu_defs[0];
+        bitmap_copy(max_model.features, max_model.def->default_feat,
+                    S390_FEAT_MAX);
+    }
+    if (!*errp) {
+        cached = true;
+        return &max_model;
+    }
+#endif
+    return NULL;
+}
+
+static inline void apply_cpu_model(const S390CPUModel *model, Error **errp)
+{
+#ifndef CONFIG_USER_ONLY
+    static S390CPUModel applied_model;
+    static bool applied;
+
+    /*
+     * We have the same model for all VCPUs. KVM can only be configured before
+     * any VCPUs are defined in KVM.
+     */
+    if (applied) {
+        if (model && memcmp(&applied_model, model, sizeof(S390CPUModel))) {
+            error_setg(errp, "Mixed CPU models are not supported on s390x.");
+        }
+        return;
+    }
+
+    if (kvm_enabled()) {
+        /* FIXME KVM */
+        error_setg(errp, "KVM doesn't support CPU models.");
+    } else if (model) {
+        /* FIXME TCG - use data for stdip/stfl */
+    }
+
+    if (!*errp) {
+        applied = true;
+        if (model) {
+            applied_model = *model;
+        }
+    }
+#endif
+}
+
 void s390_realize_cpu_model(CPUState *cs, Error **errp)
 {
     S390CPUClass *xcc = S390_CPU_GET_CLASS(cs);
+    S390CPU *cpu = S390_CPU(cs);
+    const S390CPUModel *max_model;
 
     if (xcc->kvm_required && !kvm_enabled()) {
         error_setg(errp, "CPU definition requires KVM");
         return;
     }
+
+    if (!cpu->model) {
+        /* no host model support -> perform compatibility stuff */
+        apply_cpu_model(NULL, errp);
+        return;
+    }
+
+    max_model = get_max_cpu_model(errp);
+    if (*errp) {
+        error_prepend(errp, "CPU models are not available: ");
+        return;
+    }
+
+    /* copy over properties that can vary */
+    cpu->model->lowest_ibc = max_model->lowest_ibc;
+    cpu->model->cpu_id = max_model->cpu_id;
+    cpu->model->cpu_ver = max_model->cpu_ver;
+
+    check_consistency(cpu->model);
+    check_compatibility(max_model, cpu->model, errp);
+    if (*errp) {
+        return;
+    }
+
+    apply_cpu_model(cpu->model, errp);
 }
 
 static void get_feature(Object *obj, Visitor *v, const char *name,
