@@ -44,30 +44,6 @@
 #define CR0_RESET       0xE0UL
 #define CR14_RESET      0xC2000000UL;
 
-/* generate CPU information for cpu -? */
-void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf)
-{
-#ifdef CONFIG_KVM
-    (*cpu_fprintf)(f, "s390 %16s\n", "host");
-#endif
-}
-
-#ifndef CONFIG_USER_ONLY
-CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
-{
-    CpuDefinitionInfoList *entry;
-    CpuDefinitionInfo *info;
-
-    info = g_malloc0(sizeof(*info));
-    info->name = g_strdup("host");
-
-    entry = g_malloc0(sizeof(*entry));
-    entry->value = info;
-
-    return entry;
-}
-#endif
-
 static void s390_cpu_set_pc(CPUState *cs, vaddr value)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -205,6 +181,12 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     S390CPU *cpu = S390_CPU(dev);
     CPUS390XState *env = &cpu->env;
     Error *err = NULL;
+
+    /* the model has to be realized before qemu_init_vcpu() due to kvm */
+    s390_realize_cpu_model(cs, &err);
+    if (err) {
+        goto out;
+    }
 
 #if !defined(CONFIG_USER_ONLY)
     if (cpu->id >= max_cpus) {
@@ -435,6 +417,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     scc->cpu_reset = s390_cpu_reset;
     scc->initial_cpu_reset = s390_cpu_initial_reset;
     cc->reset = s390_cpu_full_reset;
+    cc->class_by_name = s390_cpu_class_by_name,
     cc->has_work = s390_cpu_has_work;
     cc->do_interrupt = s390_cpu_do_interrupt;
     cc->dump_state = s390_cpu_dump_state;
@@ -470,7 +453,7 @@ static const TypeInfo s390_cpu_type_info = {
     .instance_size = sizeof(S390CPU),
     .instance_init = s390_cpu_initfn,
     .instance_finalize = s390_cpu_finalize,
-    .abstract = false,
+    .abstract = true,
     .class_size = sizeof(S390CPUClass),
     .class_init = s390_cpu_class_init,
 };

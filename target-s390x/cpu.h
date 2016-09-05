@@ -633,6 +633,8 @@ extern void subsystem_reset(void);
 
 void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #define cpu_list s390_cpu_list
+void s390_realize_cpu_model(CPUState *cs, Error **errp);
+ObjectClass *s390_cpu_class_by_name(const char *name);
 
 #define EXCP_EXT 1 /* external interrupt */
 #define EXCP_SVC 2 /* supervisor call (syscall) */

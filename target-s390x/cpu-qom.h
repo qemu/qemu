@@ -45,6 +45,10 @@ typedef struct S390CPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
+    bool kvm_required;
+    bool is_static;
+    bool is_migration_safe;
+    const char *desc;
 
     int64_t next_cpu_id;
 
