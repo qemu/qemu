@@ -3038,10 +3038,22 @@
 #
 # @name: the name of the CPU definition
 #
+# @migration-safe: #optional whether a CPU definition can be safely used for
+#                  migration in combination with a QEMU compatibility machine
+#                  when migrating between different QMU versions and between
+#                  hosts with different sets of (hardware or software)
+#                  capabilities. If not provided, information is not available
+#                  and callers should not assume the CPU definition to be
+#                  migration-safe. (since 2.8)
+#
+# @static: whether a CPU definition is static and will not change depending on
+#          QEMU version, machine type, machine options and accelerator options.
+#          A static model is always migration-safe. (since 2.8)
+#
 # Since: 1.2.0
 ##
 { 'struct': 'CpuDefinitionInfo',
-  'data': { 'name': 'str' } }
+  'data': { 'name': 'str', '*migration-safe': 'bool', 'static': 'bool' } }
 
 ##
 # @query-cpu-definitions:
