@@ -175,6 +175,18 @@ int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
     return kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
 }
 
+static bool kvm_s390_cmma_available(void)
+{
+    static bool initialized, value;
+
+    if (!initialized) {
+        initialized = true;
+        value = kvm_vm_check_mem_attr(kvm_state, KVM_S390_VM_MEM_ENABLE_CMMA) &&
+                kvm_vm_check_mem_attr(kvm_state, KVM_S390_VM_MEM_CLR_CMMA);
+    }
+    return value;
+}
+
 void kvm_s390_cmma_reset(void)
 {
     int rc;
@@ -183,11 +195,15 @@ void kvm_s390_cmma_reset(void)
         .attr = KVM_S390_VM_MEM_CLR_CMMA,
     };
 
+    if (!mem_path || !kvm_s390_cmma_available()) {
+        return;
+    }
+
     rc = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
     trace_kvm_clear_cmma(rc);
 }
 
-static void kvm_s390_enable_cmma(KVMState *s)
+static void kvm_s390_enable_cmma(void)
 {
     int rc;
     struct kvm_device_attr attr = {
@@ -195,12 +211,7 @@ static void kvm_s390_enable_cmma(KVMState *s)
         .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
     };
 
-    if (!kvm_vm_check_mem_attr(s, KVM_S390_VM_MEM_ENABLE_CMMA) ||
-        !kvm_vm_check_mem_attr(s, KVM_S390_VM_MEM_CLR_CMMA)) {
-        return;
-    }
-
-    rc = kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
+    rc = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
     trace_kvm_enable_cmma(rc);
 }
 
@@ -259,10 +270,6 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
     cap_mem_op = kvm_check_extension(s, KVM_CAP_S390_MEM_OP);
     cap_s390_irq = kvm_check_extension(s, KVM_CAP_S390_INJECT_IRQ);
-
-    if (!mem_path) {
-        kvm_s390_enable_cmma(s);
-    }
 
     if (!kvm_check_extension(s, KVM_CAP_S390_GMAP)
         || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
@@ -2550,6 +2557,11 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
         return;
     }
 
+    /* with cpu model support, CMM is only indicated if really available */
+    if (kvm_s390_cmma_available()) {
+        set_bit(S390_FEAT_CMM, model->features);
+    }
+
     if (s390_known_cpu_type(cpu_type)) {
         /* we want the exact model, even if some features are missing */
         model->def = s390_find_cpu_def(cpu_type, ibc_gen(unblocked_ibc),
@@ -2582,6 +2594,10 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
     int rc;
 
     if (!model) {
+        /* compatibility handling if cpu models are disabled */
+        if (kvm_s390_cmma_available() && !mem_path) {
+            kvm_s390_enable_cmma();
+        }
         return;
     }
     if (!kvm_s390_cpu_models_supported()) {
@@ -2609,5 +2625,14 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
     if (rc) {
         error_setg(errp, "KVM: Error configuring CPU subfunctions: %d", rc);
         return;
+    }
+    /* enable CMM via CMMA - disable on hugetlbfs */
+    if (test_bit(S390_FEAT_CMM, model->features)) {
+        if (mem_path) {
+            error_report("Warning: CMM will not be enabled because it is not "
+                         "compatible to hugetlbfs.");
+        } else {
+            kvm_s390_enable_cmma();
+        }
     }
 }
