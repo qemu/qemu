@@ -460,7 +460,6 @@ S: Maintained
 F: hw/*/xilinx_*
 F: hw/*/cadence_*
 F: hw/misc/zynq_slcr.c
-F: include/hw/xilinx.h
 X: hw/ssi/xilinx_*
 
 Xilinx ZynqMP
@@ -469,7 +468,7 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/xlnx*.c
-F: include/hw/*/xlnx*.c
+F: include/hw/*/xlnx*.h
 
 ARM ACPI Subsystem
 M: Shannon Zhao <zhaoshenglong@huawei.com>
@@ -699,7 +698,7 @@ F: hw/i2c/smbus_ich9.c
 F: hw/acpi/piix4.c
 F: hw/acpi/ich9.c
 F: include/hw/acpi/ich9.h
-F: include/hw/acpi/piix.h
+F: include/hw/acpi/piix4.h
 F: hw/misc/sga.c
 
 PC Chipset
@@ -805,10 +804,8 @@ F: hw/mem/*
 F: hw/acpi/*
 F: hw/smbios/*
 F: hw/i386/acpi-build.[hc]
-F: hw/i386/*dsl
 F: hw/arm/virt-acpi-build.c
 F: include/hw/arm/virt-acpi-build.h
-F: scripts/acpi*py
 
 ppc4xx
 M: Alexander Graf <agraf@suse.de>
@@ -910,7 +907,6 @@ L: qemu-block@nongnu.org
 S: Supported
 F: hw/block/virtio-blk.c
 F: hw/block/dataplane/*
-F: hw/virtio/dataplane/*
 T: git git://github.com/stefanha/qemu.git block
 
 virtio-ccw
@@ -1071,12 +1067,6 @@ L: qemu-devel@nongnu.org
 S: Supported
 F: qom/cpu.c
 F: include/qom/cpu.h
-
-ICC Bus
-M: Igor Mammedov <imammedo@redhat.com>
-S: Supported
-F: include/hw/cpu/icc_bus.h
-F: hw/cpu/icc_bus.c
 
 Device Tree
 M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
@@ -1593,7 +1583,7 @@ M: Kevin Wolf <kwolf@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/linux-aio.c
-F: block/raw-aio.h
+F: include/block/raw-aio.h
 F: block/raw-posix.c
 F: block/raw-win32.c
 F: block/raw_bsd.c
