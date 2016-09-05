@@ -67,6 +67,8 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     read_info->offset_cpu = cpu_to_be16(offsetof(ReadInfo, entries));
     read_info->highest_cpu = cpu_to_be16(max_cpus);
 
+    read_info->ibc_val = cpu_to_be32(s390_get_ibc_val());
+
     /* Configuration Characteristic (Extension) */
     s390_get_feat_block(S390_FEAT_TYPE_SCLP_CONF_CHAR,
                          read_info->conf_char);

@@ -49,6 +49,18 @@ typedef struct S390CPUModel {
     uint8_t cpu_ver;        /* CPU version, usually "ff" for kvm */
 } S390CPUModel;
 
+#define S390_GEN_Z10 0xa
+
+uint32_t s390_get_ibc_val(void);
+static inline uint16_t s390_ibc_from_cpu_model(const S390CPUModel *model)
+{
+    uint16_t ibc = 0;
+
+    if (model->def->gen >= S390_GEN_Z10) {
+        ibc = ((model->def->gen - S390_GEN_Z10) << 4) + model->def->ec_ga;
+    }
+    return ibc;
+}
 void s390_get_feat_block(S390FeatType type, uint8_t *data);
 bool s390_has_feat(S390Feat feat);
 
