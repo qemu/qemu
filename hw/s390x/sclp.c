@@ -111,6 +111,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
         read_info->facilities |= cpu_to_be64(SCLP_FC_ASSIGN_ATTACH_READ_STOR);
     }
     read_info->mha_pow = s390_get_mha_pow();
+    read_info->hmfai = cpu_to_be32(s390_get_hmfai());
 
     rnsize = 1 << (sclp->increment_size - 20);
     if (rnsize <= 128) {

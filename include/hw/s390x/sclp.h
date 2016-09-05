@@ -131,7 +131,8 @@ typedef struct ReadInfo {
     uint8_t  _reserved6[116 - 112];     /* 112-115 */
     uint8_t  conf_char_ext[120 - 116];   /* 116-119 */
     uint16_t highest_cpu;
-    uint8_t  _reserved5[128 - 122];     /* 122-127 */
+    uint8_t  _reserved5[124 - 122];     /* 122-123 */
+    uint32_t hmfai;
     struct CPUEntry entries[0];
 } QEMU_PACKED ReadInfo;
 
