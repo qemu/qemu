@@ -15,6 +15,19 @@ exit_and_skip()
 if [ -z $FAKEROOT ]; then
     echo "Please install fakeroot to enable bootstraping" >&2
     exit_and_skip
+
+fi
+
+if [ -z "${DEB_ARCH}" ]; then
+    echo "Please set DEB_ARCH to choose an architecture (e.g. armhf)" >&2
+    exit_and_skip
+
+fi
+
+if [ -z "${DEB_TYPE}" ]; then
+    echo "Please set DEB_TYPE to a Debian archive name (e.g. testing)" >&2
+    exit_and_skip
+
 fi
 
 # We check in order for
