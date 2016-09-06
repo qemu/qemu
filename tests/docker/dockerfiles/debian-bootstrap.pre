@@ -57,6 +57,7 @@ if [ -z $DEBOOTSTRAP_DIR ]; then
         git clone ${DEBOOTSTRAP_SOURCE} ./debootstrap.git
         export DEBOOTSTRAP_DIR=./debootstrap.git
         DEBOOTSTRAP=./debootstrap.git/debootstrap
+        (cd "${DEBOOTSTRAP_DIR}" && "${FAKEROOT}" make )
     fi
 else
     DEBOOTSTRAP=${DEBOOTSTRAP_DIR}/debootstrap
