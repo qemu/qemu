@@ -13,7 +13,7 @@ exit_and_skip()
 # fakeroot is needed to run the bootstrap stage
 #
 if [ -z $FAKEROOT ]; then
-    echo "Please install fakeroot to enable bootstraping"
+    echo "Please install fakeroot to enable bootstraping" >&2
     exit_and_skip
 fi
 
@@ -38,7 +38,7 @@ if [ -z $DEBOOTSTRAP_DIR ]; then
 else
     DEBOOTSTRAP=${DEBOOTSTRAP_DIR}/debootstrap
     if [ ! -f $DEBOOTSTRAP ]; then
-        echo "Couldn't find script at ${DEBOOTSTRAP}"
+        echo "Couldn't find script at ${DEBOOTSTRAP}" >&2
         exit_and_skip
     fi
 fi
@@ -48,7 +48,7 @@ fi
 #
 BINFMT_DIR=/proc/sys/fs/binfmt_misc
 if [ ! -e $BINFMT_DIR ]; then
-   echo "binfmt_misc needs enabling for a QEMU bootstrap to work"
+   echo "binfmt_misc needs enabling for a QEMU bootstrap to work" >&2
    exit_and_skip
 else
     # DEB_ARCH and QEMU arch names are not totally aligned
@@ -76,7 +76,7 @@ else
         ;;
     esac
     if [ ! -e "${BINFMT_DIR}/$QEMU" ]; then
-        echo "No binfmt_misc rule to run $QEMU, can't bootstrap"
+        echo "No binfmt_misc rule to run $QEMU, can't bootstrap" >&2
         exit_and_skip
     fi
 fi
