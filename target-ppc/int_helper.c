@@ -1792,6 +1792,26 @@ VSPLT(w, u32)
 #undef VSPLT
 #undef SPLAT_ELEMENT
 #undef _SPLAT_MASKED
+#if defined(HOST_WORDS_BIGENDIAN)
+#define VINSERT(suffix, element)                                            \
+    void helper_vinsert##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \
+    {                                                                       \
+        memmove(&r->u8[index], &b->u8[8 - sizeof(r->element)],              \
+               sizeof(r->element[0]));                                      \
+    }
+#else
+#define VINSERT(suffix, element)                                            \
+    void helper_vinsert##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \
+    {                                                                       \
+        uint32_t d = (16 - index) - sizeof(r->element[0]);                  \
+        memmove(&r->u8[d], &b->u8[8], sizeof(r->element[0]));               \
+    }
+#endif
+VINSERT(b, u8)
+VINSERT(h, u16)
+VINSERT(w, u32)
+VINSERT(d, u64)
+#undef VINSERT
 
 #define VSPLTI(suffix, element, splat_type)                     \
     void helper_vspltis##suffix(ppc_avr_t *r, uint32_t splat)   \

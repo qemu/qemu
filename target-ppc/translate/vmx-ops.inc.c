@@ -41,6 +41,9 @@ GEN_HANDLER_E(name, 0x04, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ALTIVEC_207)
 #define GEN_VXFORM_300(name, opc2, opc3)                                \
 GEN_HANDLER_E(name, 0x04, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ISA300)
 
+#define GEN_VXFORM_300_EXT(name, opc2, opc3, inval)                     \
+GEN_HANDLER_E(name, 0x04, opc2, opc3, inval, PPC_NONE, PPC2_ISA300)
+
 #define GEN_VXFORM_DUAL(name0, name1, opc2, opc3, type0, type1) \
 GEN_HANDLER_E(name0##_##name1, 0x4, opc2, opc3, 0x00000000, type0, type1)
 
@@ -191,11 +194,16 @@ GEN_VXRFORM(vcmpgefp, 3, 7)
 GEN_VXRFORM_DUAL(vcmpgtfp, vcmpgtud, 3, 11, PPC_ALTIVEC, PPC_NONE)
 GEN_VXRFORM_DUAL(vcmpbfp, vcmpgtsd, 3, 15, PPC_ALTIVEC, PPC_NONE)
 
-#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
-    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
-GEN_VXFORM_SIMM(vspltisb, 6, 12),
-GEN_VXFORM_SIMM(vspltish, 6, 13),
-GEN_VXFORM_SIMM(vspltisw, 6, 14),
+#define GEN_VXFORM_DUAL_INV(name0, name1, opc2, opc3, inval0, inval1, type) \
+GEN_OPCODE_DUAL(name0##_##name1, 0x04, opc2, opc3, inval0, inval1, type, \
+                                                               PPC_NONE)
+GEN_VXFORM_DUAL_INV(vspltisb, vinsertb, 6, 12, 0x00000000, 0x100000,
+                                               PPC2_ALTIVEC_207),
+GEN_VXFORM_DUAL_INV(vspltish, vinserth, 6, 13, 0x00000000, 0x100000,
+                                               PPC2_ALTIVEC_207),
+GEN_VXFORM_DUAL_INV(vspltisw, vinsertw, 6, 14, 0x00000000, 0x100000,
+                                               PPC2_ALTIVEC_207),
+GEN_VXFORM_300_EXT(vinsertd, 6, 15, 0x100000),
 
 #define GEN_VXFORM_NOA(name, opc2, opc3)                                \
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x001f0000, PPC_ALTIVEC)

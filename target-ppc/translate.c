@@ -498,6 +498,8 @@ EXTRACT_HELPER(UIMM, 0, 16);
 EXTRACT_HELPER(SIMM5, 16, 5);
 /* 5 bits signed immediate value */
 EXTRACT_HELPER(UIMM5, 16, 5);
+/* 4 bits unsigned immediate value */
+EXTRACT_HELPER(UIMM4, 16, 4);
 /* Bit count */
 EXTRACT_HELPER(NB, 11, 5);
 /* Shift count */

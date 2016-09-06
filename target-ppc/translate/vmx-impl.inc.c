@@ -639,13 +639,45 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
         tcg_temp_free_ptr(rd);                                          \
     }
 
+#define GEN_VXFORM_UIMM_SPLAT(name, opc2, opc3, splat_max)              \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+    {                                                                   \
+        TCGv_ptr rb, rd;                                                \
+        uint8_t uimm = UIMM4(ctx->opcode);                              \
+        TCGv_i32 t0 = tcg_temp_new_i32();                               \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        if (uimm > splat_max) {                                         \
+            uimm = 0;                                                   \
+        }                                                               \
+        tcg_gen_movi_i32(t0, uimm);                                     \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        gen_helper_##name(rd, rb, t0);                                  \
+        tcg_temp_free_i32(t0);                                          \
+        tcg_temp_free_ptr(rb);                                          \
+        tcg_temp_free_ptr(rd);                                          \
+    }
+
 GEN_VXFORM_UIMM(vspltb, 6, 8);
 GEN_VXFORM_UIMM(vsplth, 6, 9);
 GEN_VXFORM_UIMM(vspltw, 6, 10);
+GEN_VXFORM_UIMM_SPLAT(vinsertb, 6, 12, 15);
+GEN_VXFORM_UIMM_SPLAT(vinserth, 6, 13, 14);
+GEN_VXFORM_UIMM_SPLAT(vinsertw, 6, 14, 12);
+GEN_VXFORM_UIMM_SPLAT(vinsertd, 6, 15, 8);
 GEN_VXFORM_UIMM_ENV(vcfux, 5, 12);
 GEN_VXFORM_UIMM_ENV(vcfsx, 5, 13);
 GEN_VXFORM_UIMM_ENV(vctuxs, 5, 14);
 GEN_VXFORM_UIMM_ENV(vctsxs, 5, 15);
+GEN_VXFORM_DUAL(vspltisb, PPC_NONE, PPC2_ALTIVEC_207,
+                      vinsertb, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltish, PPC_NONE, PPC2_ALTIVEC_207,
+                      vinserth, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltisw, PPC_NONE, PPC2_ALTIVEC_207,
+                      vinsertw, PPC_NONE, PPC2_ISA300);
 
 static void gen_vsldoi(DisasContext *ctx)
 {
