@@ -1126,6 +1126,29 @@ void helper_vperm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
     *r = result;
 }
 
+void helper_vpermr(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
+                  ppc_avr_t *c)
+{
+    ppc_avr_t result;
+    int i;
+
+    VECTOR_FOR_INORDER_I(i, u8) {
+        int s = c->u8[i] & 0x1f;
+#if defined(HOST_WORDS_BIGENDIAN)
+        int index = 15 - (s & 0xf);
+#else
+        int index = s & 0xf;
+#endif
+
+        if (s & 0x10) {
+            result.u8[i] = a->u8[index];
+        } else {
+            result.u8[i] = b->u8[index];
+        }
+    }
+    *r = result;
+}
+
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VBPERMQ_INDEX(avr, i) ((avr)->u8[(i)])
 #define VBPERMD_INDEX(i) (i)

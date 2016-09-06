@@ -766,6 +766,24 @@ static void gen_vmladduhm(DisasContext *ctx)
     tcg_temp_free_ptr(rd);
 }
 
+static void gen_vpermr(DisasContext *ctx)
+{
+    TCGv_ptr ra, rb, rc, rd;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    ra = gen_avr_ptr(rA(ctx->opcode));
+    rb = gen_avr_ptr(rB(ctx->opcode));
+    rc = gen_avr_ptr(rC(ctx->opcode));
+    rd = gen_avr_ptr(rD(ctx->opcode));
+    gen_helper_vpermr(cpu_env, rd, ra, rb, rc);
+    tcg_temp_free_ptr(ra);
+    tcg_temp_free_ptr(rb);
+    tcg_temp_free_ptr(rc);
+    tcg_temp_free_ptr(rd);
+}
+
 GEN_VAFORM_PAIRED(vmsumubm, vmsummbm, 18)
 GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19)
 GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20)
