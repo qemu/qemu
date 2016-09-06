@@ -188,6 +188,7 @@ struct S390CPU {
 
     CPUS390XState env;
     int64_t id;
+    S390CPUModel *model;
     /* needed for live migration */
     void *irqstate;
     uint32_t irqstate_saved_size;
@@ -393,6 +394,8 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
     *flags = ((env->psw.mask >> 32) & ~FLAG_MASK_CC) |
              ((env->psw.mask & PSW_MASK_32) ? FLAG_MASK_32 : 0);
 }
+
+#define MAX_ILEN 6
 
 /* While the PoO talks about ILC (a number between 1-3) what is actually
    stored in LowCore is shifted left one bit (an even between 2-6).  As
@@ -631,6 +634,10 @@ extern void subsystem_reset(void);
 
 void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #define cpu_list s390_cpu_list
+void s390_cpu_model_register_props(Object *obj);
+void s390_cpu_model_class_register_props(ObjectClass *oc);
+void s390_realize_cpu_model(CPUState *cs, Error **errp);
+ObjectClass *s390_cpu_class_by_name(const char *name);
 
 #define EXCP_EXT 1 /* external interrupt */
 #define EXCP_SVC 2 /* supervisor call (syscall) */

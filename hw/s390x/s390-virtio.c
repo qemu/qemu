@@ -101,7 +101,11 @@ void s390_init_cpus(MachineState *machine)
     gchar *name;
 
     if (machine->cpu_model == NULL) {
-        machine->cpu_model = "host";
+        if (kvm_enabled()) {
+            machine->cpu_model = "host";
+        } else {
+            machine->cpu_model = "qemu";
+        }
     }
 
     cpu_states = g_new0(S390CPU *, max_cpus);

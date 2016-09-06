@@ -14,6 +14,7 @@ MAKEFLAGS += -rR
 %.cpp:
 %.m:
 %.mak:
+clean-target:
 
 # Flags for C++ compilation
 QEMU_CXXFLAGS = -D__STDC_LIMIT_MACROS $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wnested-externs -Wold-style-declaration -Wold-style-definition -Wredundant-decls, $(QEMU_CFLAGS))

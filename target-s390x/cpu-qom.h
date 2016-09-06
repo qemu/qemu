@@ -21,6 +21,7 @@
 #define QEMU_S390_CPU_QOM_H
 
 #include "qom/cpu.h"
+#include "cpu_models.h"
 
 #define TYPE_S390_CPU "s390-cpu"
 
@@ -45,6 +46,11 @@ typedef struct S390CPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
+    const S390CPUDef *cpu_def;
+    bool kvm_required;
+    bool is_static;
+    bool is_migration_safe;
+    const char *desc;
 
     int64_t next_cpu_id;
 

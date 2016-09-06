@@ -26,7 +26,25 @@
 
 static inline SCLPDevice *get_sclp_device(void)
 {
-    return SCLP(object_resolve_path_type("", TYPE_SCLP, NULL));
+    static SCLPDevice *sclp;
+
+    if (!sclp) {
+        sclp = SCLP(object_resolve_path_type("", TYPE_SCLP, NULL));
+    }
+    return sclp;
+}
+
+static void prepare_cpu_entries(SCLPDevice *sclp, CPUEntry *entry, int count)
+{
+    uint8_t features[SCCB_CPU_FEATURE_LEN] = { 0 };
+    int i;
+
+    s390_get_feat_block(S390_FEAT_TYPE_SCLP_CPU, features);
+    for (i = 0; i < count; i++) {
+        entry[i].address = i;
+        entry[i].type = 0;
+        memcpy(entry[i].features, features, sizeof(entry[i].features));
+    }
 }
 
 /* Provide information about the configuration, CPUs and storage */
@@ -37,7 +55,6 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     sclpMemoryHotplugDev *mhd = get_sclp_memory_hotplug_dev();
     CPUState *cpu;
     int cpu_count = 0;
-    int i = 0;
     int rnsize, rnmax;
     int slots = MIN(machine->ram_slots, s390_get_memslot_count(kvm_state));
 
@@ -50,10 +67,15 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     read_info->offset_cpu = cpu_to_be16(offsetof(ReadInfo, entries));
     read_info->highest_cpu = cpu_to_be16(max_cpus);
 
-    for (i = 0; i < cpu_count; i++) {
-        read_info->entries[i].address = i;
-        read_info->entries[i].type = 0;
-    }
+    read_info->ibc_val = cpu_to_be32(s390_get_ibc_val());
+
+    /* Configuration Characteristic (Extension) */
+    s390_get_feat_block(S390_FEAT_TYPE_SCLP_CONF_CHAR,
+                         read_info->conf_char);
+    s390_get_feat_block(S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT,
+                         read_info->conf_char_ext);
+
+    prepare_cpu_entries(sclp, read_info->entries, cpu_count);
 
     read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO |
                                         SCLP_HAS_PCI_RECONFIG);
@@ -88,6 +110,8 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
 
         read_info->facilities |= cpu_to_be64(SCLP_FC_ASSIGN_ATTACH_READ_STOR);
     }
+    read_info->mha_pow = s390_get_mha_pow();
+    read_info->hmfai = cpu_to_be32(s390_get_hmfai());
 
     rnsize = 1 << (sclp->increment_size - 20);
     if (rnsize <= 128) {
@@ -304,7 +328,6 @@ static void sclp_read_cpu_info(SCLPDevice *sclp, SCCB *sccb)
     ReadCpuInfo *cpu_info = (ReadCpuInfo *) sccb;
     CPUState *cpu;
     int cpu_count = 0;
-    int i = 0;
 
     CPU_FOREACH(cpu) {
         cpu_count++;
@@ -318,10 +341,7 @@ static void sclp_read_cpu_info(SCLPDevice *sclp, SCCB *sccb)
     cpu_info->offset_standby = cpu_to_be16(cpu_info->offset_configured
         + cpu_info->nr_configured*sizeof(CPUEntry));
 
-    for (i = 0; i < cpu_count; i++) {
-        cpu_info->entries[i].address = i;
-        cpu_info->entries[i].type = 0;
-    }
+    prepare_cpu_entries(sclp, cpu_info->entries, cpu_count);
 
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
 }

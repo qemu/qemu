@@ -3942,6 +3942,24 @@ EQMP
     },
 
     {
+        .name       = "query-cpu-model-expansion",
+        .args_type  = "type:s,model:q",
+        .mhandler.cmd_new = qmp_marshal_query_cpu_model_expansion,
+    },
+
+    {
+        .name       = "query-cpu-model-comparison",
+        .args_type  = "modela:q,modelb:q",
+        .mhandler.cmd_new = qmp_marshal_query_cpu_model_comparison,
+    },
+
+    {
+        .name       = "query-cpu-model-baseline",
+        .args_type  = "modela:q,modelb:q",
+        .mhandler.cmd_new = qmp_marshal_query_cpu_model_baseline,
+    },
+
+    {
         .name       = "query-target",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_target,
