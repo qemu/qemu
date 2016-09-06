@@ -1520,7 +1520,7 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
                           &notify_pio_ops,
                           virtio_bus_get_device(&proxy->bus),
                           "virtio-pci-notify-pio",
-                          proxy->notify.size);
+                          proxy->notify_pio.size);
 }
 
 static void virtio_pci_modern_region_map(VirtIOPCIProxy *proxy,
