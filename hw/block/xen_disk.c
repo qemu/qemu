@@ -976,14 +976,16 @@ static int blk_connect(struct XenDevice *xendev)
         blkdev->feature_persistent = !!pers;
     }
 
-    blkdev->protocol = BLKIF_PROTOCOL_NATIVE;
-    if (blkdev->xendev.protocol) {
-        if (strcmp(blkdev->xendev.protocol, XEN_IO_PROTO_ABI_X86_32) == 0) {
-            blkdev->protocol = BLKIF_PROTOCOL_X86_32;
-        }
-        if (strcmp(blkdev->xendev.protocol, XEN_IO_PROTO_ABI_X86_64) == 0) {
-            blkdev->protocol = BLKIF_PROTOCOL_X86_64;
-        }
+    if (!blkdev->xendev.protocol) {
+        blkdev->protocol = BLKIF_PROTOCOL_NATIVE;
+    } else if (strcmp(blkdev->xendev.protocol, XEN_IO_PROTO_ABI_NATIVE) == 0) {
+        blkdev->protocol = BLKIF_PROTOCOL_NATIVE;
+    } else if (strcmp(blkdev->xendev.protocol, XEN_IO_PROTO_ABI_X86_32) == 0) {
+        blkdev->protocol = BLKIF_PROTOCOL_X86_32;
+    } else if (strcmp(blkdev->xendev.protocol, XEN_IO_PROTO_ABI_X86_64) == 0) {
+        blkdev->protocol = BLKIF_PROTOCOL_X86_64;
+    } else {
+        blkdev->protocol = BLKIF_PROTOCOL_NATIVE;
     }
 
     blkdev->sring = xengnttab_map_grant_ref(blkdev->xendev.gnttabdev,
