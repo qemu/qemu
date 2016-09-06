@@ -88,8 +88,7 @@ struct qemu_work_item {
     struct qemu_work_item *next;
     run_on_cpu_func func;
     void *data;
-    int done;
-    bool free;
+    bool free, done;
 };
 
 static void queue_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi)
@@ -120,6 +119,7 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data,
 
     wi.func = func;
     wi.data = data;
+    wi.done = false;
     wi.free = false;
 
     queue_work_on_cpu(cpu, &wi);
