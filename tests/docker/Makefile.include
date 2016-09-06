@@ -44,6 +44,9 @@ docker-image: ${DOCKER_TARGETS}
 
 # General rule for building docker images
 docker-image-%: $(DOCKER_FILES_DIR)/%.docker
+	@if test "$@" = docker-image-debian-bootstrap -a -z "$(EXECUTABLE)"; then \
+		echo WARNING: EXECUTABLE is not set, debootstrap may fail. 2>&1 ; \
+	fi
 	$(call quiet-command,\
 		$(SRC_PATH)/tests/docker/docker.py build qemu:$* $< \
 		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) \
