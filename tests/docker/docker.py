@@ -25,6 +25,10 @@ from tarfile import TarFile, TarInfo
 from StringIO import StringIO
 from shutil import copy, rmtree
 
+
+DEVNULL = open(os.devnull, 'wb')
+
+
 def _text_checksum(text):
     """Calculate a digest string unique to the text content"""
     return hashlib.sha1(text).hexdigest()
@@ -34,8 +38,7 @@ def _guess_docker_command():
     commands = [["docker"], ["sudo", "-n", "docker"]]
     for cmd in commands:
         if subprocess.call(cmd + ["images"],
-                           stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE) == 0:
+                           stdout=DEVNULL, stderr=DEVNULL) == 0:
             return cmd
     commands_txt = "\n".join(["  " + " ".join(x) for x in commands])
     raise Exception("Cannot find working docker command. Tried:\n%s" % \
@@ -98,7 +101,7 @@ class Docker(object):
 
     def _do(self, cmd, quiet=True, infile=None, **kwargs):
         if quiet:
-            kwargs["stdout"] = subprocess.PIPE
+            kwargs["stdout"] = DEVNULL
         if infile:
             kwargs["stdin"] = infile
         return subprocess.call(self._command + cmd, **kwargs)
