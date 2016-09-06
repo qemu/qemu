@@ -2083,6 +2083,21 @@ VGENERIC_DO(clzd, u64)
 #undef clzw
 #undef clzd
 
+#define ctzb(v) ((v) ? ctz32(v) : 8)
+#define ctzh(v) ((v) ? ctz32(v) : 16)
+#define ctzw(v) ctz32((v))
+#define ctzd(v) ctz64((v))
+
+VGENERIC_DO(ctzb, u8)
+VGENERIC_DO(ctzh, u16)
+VGENERIC_DO(ctzw, u32)
+VGENERIC_DO(ctzd, u64)
+
+#undef ctzb
+#undef ctzh
+#undef ctzw
+#undef ctzd
+
 #define popcntb(v) ctpop8(v)
 #define popcnth(v) ctpop16(v)
 #define popcntw(v) ctpop32(v)
