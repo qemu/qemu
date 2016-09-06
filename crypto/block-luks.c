@@ -920,6 +920,9 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     uint64_t iters;
 
     memcpy(&luks_opts, &options->u.luks, sizeof(luks_opts));
+    if (!luks_opts.has_iter_time) {
+        luks_opts.iter_time = 1000;
+    }
     if (!luks_opts.has_cipher_alg) {
         luks_opts.cipher_alg = QCRYPTO_CIPHER_ALG_AES_256;
     }
@@ -1075,6 +1078,16 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         goto error;
     }
 
+    if (iters > (ULLONG_MAX / luks_opts.iter_time)) {
+        error_setg_errno(errp, ERANGE,
+                         "PBKDF iterations %llu too large to scale",
+                         (unsigned long long)iters);
+        goto error;
+    }
+
+    /* iter_time was in millis, but count_iters reported for secs */
+    iters = iters * luks_opts.iter_time / 1000;
+
     /* Why /= 8 ?  That matches cryptsetup, but there's no
      * explanation why they chose /= 8... Probably so that
      * if all 8 keyslots are active we only spend 1 second
@@ -1144,6 +1157,17 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         error_propagate(errp, local_err);
         goto error;
     }
+
+    if (iters > (ULLONG_MAX / luks_opts.iter_time)) {
+        error_setg_errno(errp, ERANGE,
+                         "PBKDF iterations %llu too large to scale",
+                         (unsigned long long)iters);
+        goto error;
+    }
+
+    /* iter_time was in millis, but count_iters reported for secs */
+    iters = iters * luks_opts.iter_time / 1000;
+
     /* Why /= 2 ?  That matches cryptsetup, but there's no
      * explanation why they chose /= 2... */
     iters /= 2;
