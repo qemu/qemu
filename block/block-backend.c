@@ -410,6 +410,22 @@ bool bdrv_has_blk(BlockDriverState *bs)
 }
 
 /*
+ * Returns true if @bs has only BlockBackends as parents.
+ */
+bool bdrv_is_root_node(BlockDriverState *bs)
+{
+    BdrvChild *c;
+
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->role != &child_root) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/*
  * Return @blk's DriveInfo if any, else null.
  */
 DriveInfo *blk_legacy_dinfo(BlockBackend *blk)
@@ -725,21 +741,6 @@ static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
     }
 
     return 0;
-}
-
-static int blk_check_request(BlockBackend *blk, int64_t sector_num,
-                             int nb_sectors)
-{
-    if (sector_num < 0 || sector_num > INT64_MAX / BDRV_SECTOR_SIZE) {
-        return -EIO;
-    }
-
-    if (nb_sectors < 0 || nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
-        return -EIO;
-    }
-
-    return blk_check_byte_request(blk, sector_num * BDRV_SECTOR_SIZE,
-                                  nb_sectors * BDRV_SECTOR_SIZE);
 }
 
 int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
@@ -1484,15 +1485,11 @@ int coroutine_fn blk_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                           flags | BDRV_REQ_ZERO_WRITE);
 }
 
-int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
-                         const uint8_t *buf, int nb_sectors)
+int blk_pwrite_compressed(BlockBackend *blk, int64_t offset, const void *buf,
+                          int count)
 {
-    int ret = blk_check_request(blk, sector_num, nb_sectors);
-    if (ret < 0) {
-        return ret;
-    }
-
-    return bdrv_write_compressed(blk_bs(blk), sector_num, buf, nb_sectors);
+    return blk_prw(blk, offset, (void *) buf, count, blk_write_entry,
+                   BDRV_REQ_WRITE_COMPRESSED);
 }
 
 int blk_truncate(BlockBackend *blk, int64_t offset)

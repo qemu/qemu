@@ -1109,8 +1109,19 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
     const char *format = qdict_get_try_str(qdict, "format");
     bool reuse = qdict_get_try_bool(qdict, "reuse", false);
     bool full = qdict_get_try_bool(qdict, "full", false);
-    enum NewImageMode mode;
+    bool compress = qdict_get_try_bool(qdict, "compress", false);
     Error *err = NULL;
+    DriveBackup backup = {
+        .device = (char *)device,
+        .target = (char *)filename,
+        .has_format = !!format,
+        .format = (char *)format,
+        .sync = full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
+        .has_mode = true,
+        .mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS,
+        .has_compress = !!compress,
+        .compress = compress,
+    };
 
     if (!filename) {
         error_setg(&err, QERR_MISSING_PARAMETER, "target");
@@ -1118,16 +1129,7 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    if (reuse) {
-        mode = NEW_IMAGE_MODE_EXISTING;
-    } else {
-        mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
-    }
-
-    qmp_drive_backup(false, NULL, device, filename, !!format, format,
-                     full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
-                     true, mode, false, 0, false, NULL,
-                     false, 0, false, 0, &err);
+    qmp_drive_backup(&backup, &err);
     hmp_handle_error(mon, &err);
 }
 
@@ -1921,11 +1923,22 @@ void hmp_chardev_remove(Monitor *mon, const QDict *qdict)
 void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 {
     BlockBackend *blk;
+    BlockBackend *local_blk = NULL;
     const char* device = qdict_get_str(qdict, "device");
     const char* command = qdict_get_str(qdict, "command");
     Error *err = NULL;
 
     blk = blk_by_name(device);
+    if (!blk) {
+        BlockDriverState *bs = bdrv_lookup_bs(NULL, device, &err);
+        if (bs) {
+            blk = local_blk = blk_new();
+            blk_insert_bs(blk, bs);
+        } else {
+            goto fail;
+        }
+    }
+
     if (blk) {
         AioContext *aio_context = blk_get_aio_context(blk);
         aio_context_acquire(aio_context);
@@ -1938,6 +1951,8 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
                   "Device '%s' not found", device);
     }
 
+fail:
+    blk_unref(local_blk);
     hmp_handle_error(mon, &err);
 }
 

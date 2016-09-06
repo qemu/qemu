@@ -58,7 +58,8 @@
 ##
 # @BlockdevSnapshotInternal
 #
-# @device: the name of the device to generate the snapshot from
+# @device: the device name or node-name of a root node to generate the snapshot
+#          from
 #
 # @name: the name of the internal snapshot to be created
 #
@@ -80,7 +81,7 @@
 # For the arguments, see the documentation of BlockdevSnapshotInternal.
 #
 # Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
+#          If @device is not a valid block device, GenericError
 #          If any snapshot matching @name exists, or @name is empty,
 #          GenericError
 #          If the format of the image used does not support it,
@@ -99,14 +100,15 @@
 # both. One of the name or id is required. Return SnapshotInfo for the
 # successfully deleted snapshot.
 #
-# @device: the name of the device to delete the snapshot from
+# @device: the device name or node-name of a root node to delete the snapshot
+#          from
 #
 # @id: optional the snapshot's ID to be deleted
 #
 # @name: optional the snapshot's name to be deleted
 #
 # Returns: SnapshotInfo on success
-#          If @device is not a valid block device, DeviceNotFound
+#          If @device is not a valid block device, GenericError
 #          If snapshot not found, GenericError
 #          If the format of the image used does not support it,
 #          BlockFormatFeatureNotSupported
@@ -159,9 +161,9 @@
 ##
 # @nbd-server-add:
 #
-# Export a device to QEMU's embedded NBD server.
+# Export a block node to QEMU's embedded NBD server.
 #
-# @device: Block device to be exported
+# @device: The device name or node name of the node to be exported
 #
 # @writable: Whether clients should be able to write to the device via the
 #     NBD connection (default false). #optional

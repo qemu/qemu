@@ -143,6 +143,7 @@ bool qemu_co_queue_empty(CoQueue *queue);
  */
 typedef struct CoMutex {
     bool locked;
+    Coroutine *holder;
     CoQueue queue;
 } CoMutex;
 

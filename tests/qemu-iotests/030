@@ -126,7 +126,7 @@ class TestSingleDrive(iotests.QMPTestCase):
 
     def test_device_not_found(self):
         result = self.vm.qmp('block-stream', device='nonexistent')
-        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
 
 class TestSmallerBackingFile(iotests.QMPTestCase):

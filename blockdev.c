@@ -1174,6 +1174,28 @@ fail:
     return dinfo;
 }
 
+static BlockDriverState *qmp_get_root_bs(const char *name, Error **errp)
+{
+    BlockDriverState *bs;
+
+    bs = bdrv_lookup_bs(name, name, errp);
+    if (bs == NULL) {
+        return NULL;
+    }
+
+    if (!bdrv_is_root_node(bs)) {
+        error_setg(errp, "Need a root block node");
+        return NULL;
+    }
+
+    if (!bdrv_is_inserted(bs)) {
+        error_setg(errp, "Device has no medium");
+        return NULL;
+    }
+
+    return bs;
+}
+
 void hmp_commit(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
@@ -1284,21 +1306,17 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
                                                          Error **errp)
 {
     BlockDriverState *bs;
-    BlockBackend *blk;
     AioContext *aio_context;
     QEMUSnapshotInfo sn;
     Error *local_err = NULL;
     SnapshotInfo *info = NULL;
     int ret;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, errp);
+    if (!bs) {
         return NULL;
     }
-
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
     if (!has_id) {
@@ -1313,12 +1331,6 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
         error_setg(errp, "Name or id must be provided");
         goto out_aio_context;
     }
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, "Device '%s' has no medium", device);
-        goto out_aio_context;
-    }
-    bs = blk_bs(blk);
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT_DELETE, errp)) {
         goto out_aio_context;
@@ -1499,7 +1511,6 @@ static void internal_snapshot_prepare(BlkActionState *common,
     Error *local_err = NULL;
     const char *device;
     const char *name;
-    BlockBackend *blk;
     BlockDriverState *bs;
     QEMUSnapshotInfo old_sn, *sn;
     bool ret;
@@ -1522,22 +1533,14 @@ static void internal_snapshot_prepare(BlkActionState *common,
         return;
     }
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, errp);
+    if (!bs) {
         return;
     }
 
     /* AioContext is released in .clean() */
-    state->aio_context = blk_get_aio_context(blk);
+    state->aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(state->aio_context);
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
-        return;
-    }
-    bs = blk_bs(blk);
 
     state->bs = bs;
     bdrv_drained_begin(bs);
@@ -1838,56 +1841,31 @@ typedef struct DriveBackupState {
     BlockJob *job;
 } DriveBackupState;
 
-static void do_drive_backup(const char *job_id, const char *device,
-                            const char *target, bool has_format,
-                            const char *format, enum MirrorSyncMode sync,
-                            bool has_mode, enum NewImageMode mode,
-                            bool has_speed, int64_t speed,
-                            bool has_bitmap, const char *bitmap,
-                            bool has_on_source_error,
-                            BlockdevOnError on_source_error,
-                            bool has_on_target_error,
-                            BlockdevOnError on_target_error,
-                            BlockJobTxn *txn, Error **errp);
+static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
+                            Error **errp);
 
 static void drive_backup_prepare(BlkActionState *common, Error **errp)
 {
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
-    BlockBackend *blk;
+    BlockDriverState *bs;
     DriveBackup *backup;
     Error *local_err = NULL;
 
     assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
     backup = common->action->u.drive_backup.data;
 
-    blk = blk_by_name(backup->device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", backup->device);
-        return;
-    }
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, backup->device);
+    bs = qmp_get_root_bs(backup->device, errp);
+    if (!bs) {
         return;
     }
 
     /* AioContext is released in .clean() */
-    state->aio_context = blk_get_aio_context(blk);
+    state->aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(state->aio_context);
-    bdrv_drained_begin(blk_bs(blk));
-    state->bs = blk_bs(blk);
+    bdrv_drained_begin(bs);
+    state->bs = bs;
 
-    do_drive_backup(backup->has_job_id ? backup->job_id : NULL,
-                    backup->device, backup->target,
-                    backup->has_format, backup->format,
-                    backup->sync,
-                    backup->has_mode, backup->mode,
-                    backup->has_speed, backup->speed,
-                    backup->has_bitmap, backup->bitmap,
-                    backup->has_on_source_error, backup->on_source_error,
-                    backup->has_on_target_error, backup->on_target_error,
-                    common->block_job_txn, &local_err);
+    do_drive_backup(backup, common->block_job_txn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1924,34 +1902,21 @@ typedef struct BlockdevBackupState {
     AioContext *aio_context;
 } BlockdevBackupState;
 
-static void do_blockdev_backup(const char *job_id, const char *device,
-                               const char *target, enum MirrorSyncMode sync,
-                               bool has_speed, int64_t speed,
-                               bool has_on_source_error,
-                               BlockdevOnError on_source_error,
-                               bool has_on_target_error,
-                               BlockdevOnError on_target_error,
-                               BlockJobTxn *txn, Error **errp);
+static void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
+                               Error **errp);
 
 static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
 {
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
     BlockdevBackup *backup;
-    BlockBackend *blk;
-    BlockDriverState *target;
+    BlockDriverState *bs, *target;
     Error *local_err = NULL;
 
     assert(common->action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
     backup = common->action->u.blockdev_backup.data;
 
-    blk = blk_by_name(backup->device);
-    if (!blk) {
-        error_setg(errp, "Device '%s' not found", backup->device);
-        return;
-    }
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, backup->device);
+    bs = qmp_get_root_bs(backup->device, errp);
+    if (!bs) {
         return;
     }
 
@@ -1961,22 +1926,17 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
     }
 
     /* AioContext is released in .clean() */
-    state->aio_context = blk_get_aio_context(blk);
+    state->aio_context = bdrv_get_aio_context(bs);
     if (state->aio_context != bdrv_get_aio_context(target)) {
         state->aio_context = NULL;
         error_setg(errp, "Backup between two IO threads is not implemented");
         return;
     }
     aio_context_acquire(state->aio_context);
-    state->bs = blk_bs(blk);
+    state->bs = bs;
     bdrv_drained_begin(state->bs);
 
-    do_blockdev_backup(backup->has_job_id ? backup->job_id : NULL,
-                       backup->device, backup->target, backup->sync,
-                       backup->has_speed, backup->speed,
-                       backup->has_on_source_error, backup->on_source_error,
-                       backup->has_on_target_error, backup->on_target_error,
-                       common->block_job_txn, &local_err);
+    do_blockdev_backup(backup, common->block_job_txn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -2983,7 +2943,6 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_on_error, BlockdevOnError on_error,
                       Error **errp)
 {
-    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *base_bs = NULL;
     AioContext *aio_context;
@@ -2994,21 +2953,13 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         on_error = BLOCKDEV_ON_ERROR_REPORT;
     }
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, errp);
+    if (!bs) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, "Device '%s' has no medium", device);
-        goto out;
-    }
-    bs = blk_bs(blk);
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_STREAM, errp)) {
         goto out;
@@ -3055,7 +3006,6 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                       bool has_speed, int64_t speed,
                       Error **errp)
 {
-    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *base_bs, *top_bs;
     AioContext *aio_context;
@@ -3074,21 +3024,21 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
      *  live commit feature versions; for this to work, we must make sure to
      *  perform the device lookup before any generic errors that may occur in a
      *  scenario in which all optional arguments are omitted. */
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, &local_err);
+    if (!bs) {
+        bs = bdrv_lookup_bs(device, device, NULL);
+        if (!bs) {
+            error_free(local_err);
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", device);
+        } else {
+            error_propagate(errp, local_err);
+        }
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, "Device '%s' has no medium", device);
-        goto out;
-    }
-    bs = blk_bs(blk);
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, errp)) {
         goto out;
@@ -3155,19 +3105,8 @@ out:
     aio_context_release(aio_context);
 }
 
-static void do_drive_backup(const char *job_id, const char *device,
-                            const char *target, bool has_format,
-                            const char *format, enum MirrorSyncMode sync,
-                            bool has_mode, enum NewImageMode mode,
-                            bool has_speed, int64_t speed,
-                            bool has_bitmap, const char *bitmap,
-                            bool has_on_source_error,
-                            BlockdevOnError on_source_error,
-                            bool has_on_target_error,
-                            BlockdevOnError on_target_error,
-                            BlockJobTxn *txn, Error **errp)
+static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn, Error **errp)
 {
-    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     BlockDriverState *source = NULL;
@@ -3178,39 +3117,36 @@ static void do_drive_backup(const char *job_id, const char *device,
     int flags;
     int64_t size;
 
-    if (!has_speed) {
-        speed = 0;
+    if (!backup->has_speed) {
+        backup->speed = 0;
     }
-    if (!has_on_source_error) {
-        on_source_error = BLOCKDEV_ON_ERROR_REPORT;
+    if (!backup->has_on_source_error) {
+        backup->on_source_error = BLOCKDEV_ON_ERROR_REPORT;
     }
-    if (!has_on_target_error) {
-        on_target_error = BLOCKDEV_ON_ERROR_REPORT;
+    if (!backup->has_on_target_error) {
+        backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
     }
-    if (!has_mode) {
-        mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    if (!backup->has_mode) {
+        backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    }
+    if (!backup->has_job_id) {
+        backup->job_id = NULL;
+    }
+    if (!backup->has_compress) {
+        backup->compress = false;
     }
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(backup->device, errp);
+    if (!bs) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    /* Although backup_run has this check too, we need to use bs->drv below, so
-     * do an early check redundantly. */
-    if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
-        goto out;
-    }
-    bs = blk_bs(blk);
-
-    if (!has_format) {
-        format = mode == NEW_IMAGE_MODE_EXISTING ? NULL : bs->drv->format_name;
+    if (!backup->has_format) {
+        backup->format = backup->mode == NEW_IMAGE_MODE_EXISTING ?
+                         NULL : (char*) bs->drv->format_name;
     }
 
     /* Early check to avoid creating target */
@@ -3222,13 +3158,13 @@ static void do_drive_backup(const char *job_id, const char *device,
 
     /* See if we have a backing HD we can use to create our new image
      * on top of. */
-    if (sync == MIRROR_SYNC_MODE_TOP) {
+    if (backup->sync == MIRROR_SYNC_MODE_TOP) {
         source = backing_bs(bs);
         if (!source) {
-            sync = MIRROR_SYNC_MODE_FULL;
+            backup->sync = MIRROR_SYNC_MODE_FULL;
         }
     }
-    if (sync == MIRROR_SYNC_MODE_NONE) {
+    if (backup->sync == MIRROR_SYNC_MODE_NONE) {
         source = bs;
     }
 
@@ -3238,14 +3174,14 @@ static void do_drive_backup(const char *job_id, const char *device,
         goto out;
     }
 
-    if (mode != NEW_IMAGE_MODE_EXISTING) {
-        assert(format);
+    if (backup->mode != NEW_IMAGE_MODE_EXISTING) {
+        assert(backup->format);
         if (source) {
-            bdrv_img_create(target, format, source->filename,
+            bdrv_img_create(backup->target, backup->format, source->filename,
                             source->drv->format_name, NULL,
                             size, flags, &local_err, false);
         } else {
-            bdrv_img_create(target, format, NULL, NULL, NULL,
+            bdrv_img_create(backup->target, backup->format, NULL, NULL, NULL,
                             size, flags, &local_err, false);
         }
     }
@@ -3255,30 +3191,30 @@ static void do_drive_backup(const char *job_id, const char *device,
         goto out;
     }
 
-    if (format) {
+    if (backup->format) {
         options = qdict_new();
-        qdict_put(options, "driver", qstring_from_str(format));
+        qdict_put(options, "driver", qstring_from_str(backup->format));
     }
 
-    target_bs = bdrv_open(target, NULL, options, flags, errp);
+    target_bs = bdrv_open(backup->target, NULL, options, flags, errp);
     if (!target_bs) {
         goto out;
     }
 
     bdrv_set_aio_context(target_bs, aio_context);
 
-    if (has_bitmap) {
-        bmap = bdrv_find_dirty_bitmap(bs, bitmap);
+    if (backup->has_bitmap) {
+        bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
         if (!bmap) {
-            error_setg(errp, "Bitmap '%s' could not be found", bitmap);
+            error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
             bdrv_unref(target_bs);
             goto out;
         }
     }
 
-    backup_start(job_id, bs, target_bs, speed, sync, bmap,
-                 on_source_error, on_target_error,
-                 block_job_cb, bs, txn, &local_err);
+    backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
+                 bmap, backup->compress, backup->on_source_error,
+                 backup->on_target_error, block_job_cb, bs, txn, &local_err);
     bdrv_unref(target_bs);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -3289,24 +3225,9 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_drive_backup(bool has_job_id, const char *job_id,
-                      const char *device, const char *target,
-                      bool has_format, const char *format,
-                      enum MirrorSyncMode sync,
-                      bool has_mode, enum NewImageMode mode,
-                      bool has_speed, int64_t speed,
-                      bool has_bitmap, const char *bitmap,
-                      bool has_on_source_error, BlockdevOnError on_source_error,
-                      bool has_on_target_error, BlockdevOnError on_target_error,
-                      Error **errp)
+void qmp_drive_backup(DriveBackup *arg, Error **errp)
 {
-    return do_drive_backup(has_job_id ? job_id : NULL, device, target,
-                           has_format, format, sync,
-                           has_mode, mode, has_speed, speed,
-                           has_bitmap, bitmap,
-                           has_on_source_error, on_source_error,
-                           has_on_target_error, on_target_error,
-                           NULL, errp);
+    return do_drive_backup(arg, NULL, errp);
 }
 
 BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
@@ -3314,47 +3235,38 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
     return bdrv_named_nodes_list(errp);
 }
 
-void do_blockdev_backup(const char *job_id, const char *device,
-                        const char *target, enum MirrorSyncMode sync,
-                         bool has_speed, int64_t speed,
-                         bool has_on_source_error,
-                         BlockdevOnError on_source_error,
-                         bool has_on_target_error,
-                         BlockdevOnError on_target_error,
-                         BlockJobTxn *txn, Error **errp)
+void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
 {
-    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     Error *local_err = NULL;
     AioContext *aio_context;
 
-    if (!has_speed) {
-        speed = 0;
+    if (!backup->has_speed) {
+        backup->speed = 0;
     }
-    if (!has_on_source_error) {
-        on_source_error = BLOCKDEV_ON_ERROR_REPORT;
+    if (!backup->has_on_source_error) {
+        backup->on_source_error = BLOCKDEV_ON_ERROR_REPORT;
     }
-    if (!has_on_target_error) {
-        on_target_error = BLOCKDEV_ON_ERROR_REPORT;
+    if (!backup->has_on_target_error) {
+        backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
+    }
+    if (!backup->has_job_id) {
+        backup->job_id = NULL;
+    }
+    if (!backup->has_compress) {
+        backup->compress = false;
     }
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_setg(errp, "Device '%s' not found", device);
+    bs = qmp_get_root_bs(backup->device, errp);
+    if (!bs) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (!blk_is_available(blk)) {
-        error_setg(errp, "Device '%s' has no medium", device);
-        goto out;
-    }
-    bs = blk_bs(blk);
-
-    target_bs = bdrv_lookup_bs(target, target, errp);
+    target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
     if (!target_bs) {
         goto out;
     }
@@ -3370,8 +3282,9 @@ void do_blockdev_backup(const char *job_id, const char *device,
             goto out;
         }
     }
-    backup_start(job_id, bs, target_bs, speed, sync, NULL, on_source_error,
-                 on_target_error, block_job_cb, bs, txn, &local_err);
+    backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
+                 NULL, backup->compress, backup->on_source_error,
+                 backup->on_target_error, block_job_cb, bs, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
     }
@@ -3379,21 +3292,9 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_blockdev_backup(bool has_job_id, const char *job_id,
-                         const char *device, const char *target,
-                         enum MirrorSyncMode sync,
-                         bool has_speed, int64_t speed,
-                         bool has_on_source_error,
-                         BlockdevOnError on_source_error,
-                         bool has_on_target_error,
-                         BlockdevOnError on_target_error,
-                         Error **errp)
+void qmp_blockdev_backup(BlockdevBackup *arg, Error **errp)
 {
-    do_blockdev_backup(has_job_id ? job_id : NULL, device, target,
-                       sync, has_speed, speed,
-                       has_on_source_error, on_source_error,
-                       has_on_target_error, on_target_error,
-                       NULL, errp);
+    do_blockdev_backup(arg, NULL, errp);
 }
 
 /* Parameter check and block job starting for drive mirroring.
@@ -3469,7 +3370,6 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
 void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 {
     BlockDriverState *bs;
-    BlockBackend *blk;
     BlockDriverState *source, *target_bs;
     AioContext *aio_context;
     BlockMirrorBackingMode backing_mode;
@@ -3479,21 +3379,14 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     int64_t size;
     const char *format = arg->format;
 
-    blk = blk_by_name(arg->device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", arg->device);
+    bs = qmp_get_root_bs(arg->device, errp);
+    if (!bs) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, arg->device);
-        goto out;
-    }
-    bs = blk_bs(blk);
     if (!arg->has_mode) {
         arg->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
@@ -3630,21 +3523,13 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          Error **errp)
 {
     BlockDriverState *bs;
-    BlockBackend *blk;
     BlockDriverState *target_bs;
     AioContext *aio_context;
     BlockMirrorBackingMode backing_mode = MIRROR_LEAVE_BACKING_CHAIN;
     Error *local_err = NULL;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_setg(errp, "Device '%s' not found", device);
-        return;
-    }
-    bs = blk_bs(blk);
-
+    bs = qmp_get_root_bs(device, errp);
     if (!bs) {
-        error_setg(errp, "Device '%s' has no media", device);
         return;
     }
 
@@ -3785,7 +3670,6 @@ void qmp_change_backing_file(const char *device,
                              const char *backing_file,
                              Error **errp)
 {
-    BlockBackend *blk;
     BlockDriverState *bs = NULL;
     AioContext *aio_context;
     BlockDriverState *image_bs = NULL;
@@ -3794,21 +3678,13 @@ void qmp_change_backing_file(const char *device,
     int open_flags;
     int ret;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, errp);
+    if (!bs) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, "Device '%s' has no medium", device);
-        goto out;
-    }
-    bs = blk_bs(blk);
 
     image_bs = bdrv_lookup_bs(NULL, image_node_name, &local_err);
     if (local_err) {

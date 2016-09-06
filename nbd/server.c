@@ -69,6 +69,7 @@ struct NBDExport {
 
     AioContext *ctx;
 
+    BlockBackend *eject_notifier_blk;
     Notifier eject_notifier;
 };
 
@@ -807,11 +808,18 @@ static void nbd_eject_notifier(Notifier *n, void *data)
     nbd_export_close(exp);
 }
 
-NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
+NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
                           uint16_t nbdflags, void (*close)(NBDExport *),
+                          bool writethrough, BlockBackend *on_eject_blk,
                           Error **errp)
 {
+    BlockBackend *blk;
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
+
+    blk = blk_new();
+    blk_insert_bs(blk, bs);
+    blk_set_enable_write_cache(blk, !writethrough);
+
     exp->refcount = 1;
     QTAILQ_INIT(&exp->clients);
     exp->blk = blk;
@@ -827,11 +835,14 @@ NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
 
     exp->close = close;
     exp->ctx = blk_get_aio_context(blk);
-    blk_ref(blk);
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
 
-    exp->eject_notifier.notify = nbd_eject_notifier;
-    blk_add_remove_bs_notifier(blk, &exp->eject_notifier);
+    if (on_eject_blk) {
+        blk_ref(on_eject_blk);
+        exp->eject_notifier_blk = on_eject_blk;
+        exp->eject_notifier.notify = nbd_eject_notifier;
+        blk_add_remove_bs_notifier(on_eject_blk, &exp->eject_notifier);
+    }
 
     /*
      * NBD exports are used for non-shared storage migration.  Make sure
@@ -844,6 +855,7 @@ NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
     return exp;
 
 fail:
+    blk_unref(blk);
     g_free(exp);
     return NULL;
 }
@@ -914,7 +926,10 @@ void nbd_export_put(NBDExport *exp)
         }
 
         if (exp->blk) {
-            notifier_remove(&exp->eject_notifier);
+            if (exp->eject_notifier_blk) {
+                notifier_remove(&exp->eject_notifier);
+                blk_unref(exp->eject_notifier_blk);
+            }
             blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
                                             blk_aio_detach, exp);
             blk_unref(exp->blk);

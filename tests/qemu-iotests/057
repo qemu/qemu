@@ -182,7 +182,7 @@ class TestSingleTransaction(ImageSnapshotTestCase):
                               'name': 'a' },
                   }]
         result = self.vm.qmp('transaction', actions = actions)
-        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_error_exist(self):
         self.createSnapshotInTransaction(1)
@@ -239,7 +239,7 @@ class TestSnapshotDelete(ImageSnapshotTestCase):
         result = self.vm.qmp('blockdev-snapshot-delete-internal-sync',
                               device = 'drive_error',
                               id = '0')
-        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_error_no_id_and_name(self):
         result = self.vm.qmp('blockdev-snapshot-delete-internal-sync',

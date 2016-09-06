@@ -913,75 +913,32 @@ static int qcow_make_empty(BlockDriverState *bs)
     return 0;
 }
 
-typedef struct QcowWriteCo {
-    BlockDriverState *bs;
-    int64_t sector_num;
-    const uint8_t *buf;
-    int nb_sectors;
-    int ret;
-} QcowWriteCo;
-
-static void qcow_write_co_entry(void *opaque)
-{
-    QcowWriteCo *co = opaque;
-    QEMUIOVector qiov;
-
-    struct iovec iov = (struct iovec) {
-        .iov_base   = (uint8_t*) co->buf,
-        .iov_len    = co->nb_sectors * BDRV_SECTOR_SIZE,
-    };
-    qemu_iovec_init_external(&qiov, &iov, 1);
-
-    co->ret = qcow_co_writev(co->bs, co->sector_num, co->nb_sectors, &qiov);
-}
-
-/* Wrapper for non-coroutine contexts */
-static int qcow_write(BlockDriverState *bs, int64_t sector_num,
-                      const uint8_t *buf, int nb_sectors)
-{
-    Coroutine *co;
-    AioContext *aio_context = bdrv_get_aio_context(bs);
-    QcowWriteCo data = {
-        .bs         = bs,
-        .sector_num = sector_num,
-        .buf        = buf,
-        .nb_sectors = nb_sectors,
-        .ret        = -EINPROGRESS,
-    };
-    co = qemu_coroutine_create(qcow_write_co_entry, &data);
-    qemu_coroutine_enter(co);
-    while (data.ret == -EINPROGRESS) {
-        aio_poll(aio_context, true);
-    }
-    return data.ret;
-}
-
 /* XXX: put compressed sectors first, then all the cluster aligned
    tables to avoid losing bytes in alignment */
-static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
-                                 const uint8_t *buf, int nb_sectors)
+static coroutine_fn int
+qcow_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
+                           uint64_t bytes, QEMUIOVector *qiov)
 {
     BDRVQcowState *s = bs->opaque;
+    QEMUIOVector hd_qiov;
+    struct iovec iov;
     z_stream strm;
     int ret, out_len;
-    uint8_t *out_buf;
+    uint8_t *buf, *out_buf;
     uint64_t cluster_offset;
 
-    if (nb_sectors != s->cluster_sectors) {
-        ret = -EINVAL;
-
-        /* Zero-pad last write if image size is not cluster aligned */
-        if (sector_num + nb_sectors == bs->total_sectors &&
-            nb_sectors < s->cluster_sectors) {
-            uint8_t *pad_buf = qemu_blockalign(bs, s->cluster_size);
-            memset(pad_buf, 0, s->cluster_size);
-            memcpy(pad_buf, buf, nb_sectors * BDRV_SECTOR_SIZE);
-            ret = qcow_write_compressed(bs, sector_num,
-                                        pad_buf, s->cluster_sectors);
-            qemu_vfree(pad_buf);
+    buf = qemu_blockalign(bs, s->cluster_size);
+    if (bytes != s->cluster_size) {
+        if (bytes > s->cluster_size ||
+            offset + bytes != bs->total_sectors << BDRV_SECTOR_BITS)
+        {
+            qemu_vfree(buf);
+            return -EINVAL;
         }
-        return ret;
+        /* Zero-pad last write if image size is not cluster aligned */
+        memset(buf + bytes, 0, s->cluster_size - bytes);
     }
+    qemu_iovec_to_buf(qiov, 0, buf, qiov->size);
 
     out_buf = g_malloc(s->cluster_size);
 
@@ -1012,27 +969,35 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
-        ret = qcow_write(bs, sector_num, buf, s->cluster_sectors);
+        ret = qcow_co_writev(bs, offset >> BDRV_SECTOR_BITS,
+                             bytes >> BDRV_SECTOR_BITS, qiov);
         if (ret < 0) {
             goto fail;
         }
-    } else {
-        cluster_offset = get_cluster_offset(bs, sector_num << 9, 2,
-                                            out_len, 0, 0);
-        if (cluster_offset == 0) {
-            ret = -EIO;
-            goto fail;
-        }
-
-        cluster_offset &= s->cluster_offset_mask;
-        ret = bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len);
-        if (ret < 0) {
-            goto fail;
-        }
+        goto success;
     }
+    qemu_co_mutex_lock(&s->lock);
+    cluster_offset = get_cluster_offset(bs, offset, 2, out_len, 0, 0);
+    qemu_co_mutex_unlock(&s->lock);
+    if (cluster_offset == 0) {
+        ret = -EIO;
+        goto fail;
+    }
+    cluster_offset &= s->cluster_offset_mask;
 
+    iov = (struct iovec) {
+        .iov_base   = out_buf,
+        .iov_len    = out_len,
+    };
+    qemu_iovec_init_external(&hd_qiov, &iov, 1);
+    ret = bdrv_co_pwritev(bs->file, cluster_offset, out_len, &hd_qiov, 0);
+    if (ret < 0) {
+        goto fail;
+    }
+success:
     ret = 0;
 fail:
+    qemu_vfree(buf);
     g_free(out_buf);
     return ret;
 }
@@ -1085,7 +1050,7 @@ static BlockDriver bdrv_qcow = {
 
     .bdrv_set_key           = qcow_set_key,
     .bdrv_make_empty        = qcow_make_empty,
-    .bdrv_write_compressed  = qcow_write_compressed,
+    .bdrv_co_pwritev_compressed = qcow_co_pwritev_compressed,
     .bdrv_get_info          = qcow_get_info,
 
     .create_opts            = &qcow_create_opts,

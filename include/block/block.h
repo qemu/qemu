@@ -65,9 +65,10 @@ typedef enum {
     BDRV_REQ_MAY_UNMAP          = 0x4,
     BDRV_REQ_NO_SERIALISING     = 0x8,
     BDRV_REQ_FUA                = 0x10,
+    BDRV_REQ_WRITE_COMPRESSED   = 0x20,
 
     /* Mask of valid flags */
-    BDRV_REQ_MASK               = 0x1f,
+    BDRV_REQ_MASK               = 0x3f,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {
@@ -399,8 +400,6 @@ const char *bdrv_get_node_name(const BlockDriverState *bs);
 const char *bdrv_get_device_name(const BlockDriverState *bs);
 const char *bdrv_get_device_or_node_name(const BlockDriverState *bs);
 int bdrv_get_flags(BlockDriverState *bs);
-int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
-                          const uint8_t *buf, int nb_sectors);
 int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
 ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs);
 void bdrv_round_sectors_to_clusters(BlockDriverState *bs,

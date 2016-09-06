@@ -1120,7 +1120,7 @@ Arguments:
 
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
-- "device": The device's ID, must be unique (json-string)
+- "device": The device name or node-name of a root node (json-string)
 - "base": The file name of the backing image above which copying starts
           (json-string, optional)
 - "backing-file": The backing file string to write into the active layer. This
@@ -1166,7 +1166,7 @@ Arguments:
 
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
-- "device": The device's ID, must be unique (json-string)
+- "device": The device name or node-name of a root node (json-string)
 - "base": The file name of the backing image to write data into.
           If not specified, this is the deepest backing image
           (json-string, optional)
@@ -1217,7 +1217,8 @@ EQMP
     {
         .name       = "drive-backup",
         .args_type  = "job-id:s?,sync:s,device:B,target:s,speed:i?,mode:s?,"
-                      "format:s?,bitmap:s?,on-source-error:s?,on-target-error:s?",
+                      "format:s?,bitmap:s?,compress:b?,"
+                      "on-source-error:s?,on-target-error:s?",
         .mhandler.cmd_new = qmp_marshal_drive_backup,
     },
 
@@ -1235,7 +1236,7 @@ Arguments:
 
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
-- "device": the name of the device which should be copied.
+- "device": the device name or node-name of a root node which should be copied.
             (json-string)
 - "target": the target of the new image. If the file exists, or if it is a
             device, the existing file/device will be used as the new
@@ -1253,6 +1254,8 @@ Arguments:
 - "mode": whether and how QEMU should create a new image
           (NewImageMode, optional, default 'absolute-paths')
 - "speed": the maximum speed, in bytes per second (json-int, optional)
+- "compress": true to compress data, if the target format supports it.
+              (json-bool, optional, default false)
 - "on-source-error": the action to take on an error on the source, default
                      'report'.  'stop' and 'enospc' can only be used
                      if the block device supports io-status.
@@ -1272,7 +1275,7 @@ EQMP
 
     {
         .name       = "blockdev-backup",
-        .args_type  = "job-id:s?,sync:s,device:B,target:B,speed:i?,"
+        .args_type  = "job-id:s?,sync:s,device:B,target:B,speed:i?,compress:b?,"
                       "on-source-error:s?,on-target-error:s?",
         .mhandler.cmd_new = qmp_marshal_blockdev_backup,
     },
@@ -1288,7 +1291,7 @@ Arguments:
 
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
-- "device": the name of the device which should be copied.
+- "device": the device name or node-name of a root node which should be copied.
             (json-string)
 - "target": the name of the backup target device. (json-string)
 - "sync": what parts of the disk image should be copied to the destination;
@@ -1296,6 +1299,8 @@ Arguments:
           sectors allocated in the topmost image, or "none" to only replicate
           new I/O (MirrorSyncMode).
 - "speed": the maximum speed, in bytes per second (json-int, optional)
+- "compress": true to compress data, if the target format supports it.
+              (json-bool, optional, default false)
 - "on-source-error": the action to take on an error on the source, default
                      'report'.  'stop' and 'enospc' can only be used
                      if the block device supports io-status.
@@ -1407,7 +1412,8 @@ actions array:
       - "mode": whether and how QEMU should create the snapshot file
         (NewImageMode, optional, default "absolute-paths")
       When "type" is "blockdev-snapshot-internal-sync":
-      - "device": device name to snapshot (json-string)
+      - "device": the device name or node-name of a root node to snapshot
+                  (json-string)
       - "name": name of the new snapshot (json-string)
 
 Example:
@@ -1608,7 +1614,8 @@ name already exists, the operation will fail.
 
 Arguments:
 
-- "device": device name to snapshot (json-string)
+- "device": the device name or node-name of a root node to snapshot
+            (json-string)
 - "name": name of the new snapshot (json-string)
 
 Example:
@@ -1639,7 +1646,7 @@ fail.
 
 Arguments:
 
-- "device": device name (json-string)
+- "device": the device name or node-name of a root node (json-string)
 - "id": ID of the snapshot (json-string, optional)
 - "name": name of the snapshot (json-string, optional)
 
@@ -1687,7 +1694,8 @@ Arguments:
 
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
-- "device": device name to operate on (json-string)
+- "device": the device name or node-name of a root node whose writes should be
+            mirrored. (json-string)
 - "target": name of new image file (json-string)
 - "format": format of new image (json-string, optional)
 - "node-name": the name of the new block driver state in the node graph
@@ -1747,7 +1755,8 @@ Arguments:
 
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
-- "device": device name to operate on (json-string)
+- "device": The device name or node-name of a root node whose writes should be
+            mirrored (json-string)
 - "target": device name to mirror to (json-string)
 - "replaces": the block driver node name to replace when finished
               (json-string, optional)
@@ -1803,7 +1812,8 @@ Arguments:
                         "device".
                         (json-string, optional)
 
-- "device":             The name of the device.
+- "device":             The device name or node-name of the root node that owns
+                        image-node-name.
                         (json-string)
 
 - "backing-file":       The string to write as the backing file.  This string is

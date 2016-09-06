@@ -504,7 +504,7 @@ static int do_write_compressed(BlockBackend *blk, char *buf, int64_t offset,
         return -ERANGE;
     }
 
-    ret = blk_write_compressed(blk, offset >> 9, (uint8_t *)buf, count >> 9);
+    ret = blk_pwrite_compressed(blk, offset, buf, count);
     if (ret < 0) {
         return ret;
     }

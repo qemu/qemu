@@ -132,6 +132,10 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
     if (job_id == NULL) {
         job_id = bdrv_get_device_name(bs);
+        if (!*job_id) {
+            error_setg(errp, "An explicit job ID is required for this node");
+            return NULL;
+        }
     }
 
     if (!id_wellformed(job_id)) {
