@@ -441,7 +441,9 @@ void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
-    qemu_chr_fe_write(s, (uint8_t *)buf, strlen(buf));
+    /* XXX this blocks entire thread. Rewrite to use
+     * qemu_chr_fe_write and background I/O callbacks */
+    qemu_chr_fe_write_all(s, (uint8_t *)buf, strlen(buf));
     va_end(ap);
 }
 
@@ -557,7 +559,9 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
                          (secs / 60) % 60,
                          secs % 60,
                          (int)(ti % 1000));
-                qemu_chr_fe_write(d->drv, (uint8_t *)buf1, strlen(buf1));
+                /* XXX this blocks entire thread. Rewrite to use
+                 * qemu_chr_fe_write and background I/O callbacks */
+                qemu_chr_fe_write_all(d->drv, (uint8_t *)buf1, strlen(buf1));
                 d->linestart = 0;
             }
             ret += qemu_chr_fe_write(d->drv, buf+i, 1);
@@ -595,13 +599,15 @@ static void mux_print_help(CharDriverState *chr)
                  "\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r",
                  term_escape_char);
     }
-    qemu_chr_fe_write(chr, (uint8_t *)cbuf, strlen(cbuf));
+    /* XXX this blocks entire thread. Rewrite to use
+     * qemu_chr_fe_write and background I/O callbacks */
+    qemu_chr_fe_write_all(chr, (uint8_t *)cbuf, strlen(cbuf));
     for (i = 0; mux_help[i] != NULL; i++) {
         for (j=0; mux_help[i][j] != '\0'; j++) {
             if (mux_help[i][j] == '%')
-                qemu_chr_fe_write(chr, (uint8_t *)ebuf, strlen(ebuf));
+                qemu_chr_fe_write_all(chr, (uint8_t *)ebuf, strlen(ebuf));
             else
-                qemu_chr_fe_write(chr, (uint8_t *)&mux_help[i][j], 1);
+                qemu_chr_fe_write_all(chr, (uint8_t *)&mux_help[i][j], 1);
         }
     }
 }
@@ -626,7 +632,7 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
         case 'x':
             {
                  const char *term =  "QEMU: Terminated\n\r";
-                 qemu_chr_fe_write(chr, (uint8_t *)term, strlen(term));
+                 qemu_chr_fe_write_all(chr, (uint8_t *)term, strlen(term));
                  exit(0);
                  break;
             }
