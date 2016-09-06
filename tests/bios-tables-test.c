@@ -711,9 +711,12 @@ static void test_acpi_one(const char *params, test_data *data)
 {
     char *args;
 
-    args = g_strdup_printf("-net none -display none %s "
+    /* Disable kernel irqchip to be able to override apic irq0. */
+    args = g_strdup_printf("-machine %s,accel=%s,kernel-irqchip=off "
+                           "-net none -display none %s "
                            "-drive id=hd0,if=none,file=%s,format=raw "
                            "-device ide-hd,drive=hd0 ",
+                           data->machine, "kvm:tcg",
                            params ? params : "", disk);
 
     qtest_start(args);
@@ -758,7 +761,7 @@ static void test_acpi_piix4_tcg(void)
     data.machine = MACHINE_PC;
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one("-machine accel=tcg", &data);
+    test_acpi_one(NULL, &data);
     free_test_data(&data);
 }
 
@@ -771,7 +774,7 @@ static void test_acpi_piix4_tcg_bridge(void)
     data.variant = ".bridge";
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one("-machine accel=tcg -device pci-bridge,chassis_nr=1", &data);
+    test_acpi_one("-device pci-bridge,chassis_nr=1", &data);
     free_test_data(&data);
 }
 
@@ -783,7 +786,7 @@ static void test_acpi_q35_tcg(void)
     data.machine = MACHINE_Q35;
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one("-machine q35,accel=tcg", &data);
+    test_acpi_one(NULL, &data);
     free_test_data(&data);
 }
 
@@ -796,7 +799,7 @@ static void test_acpi_q35_tcg_bridge(void)
     data.variant = ".bridge";
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one("-machine q35,accel=tcg -device pci-bridge,chassis_nr=1",
+    test_acpi_one("-device pci-bridge,chassis_nr=1",
                   &data);
     free_test_data(&data);
 }
@@ -808,8 +811,7 @@ static void test_acpi_piix4_tcg_cphp(void)
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".cphp";
-    test_acpi_one("-machine accel=tcg"
-                  " -smp 2,cores=3,sockets=2,maxcpus=6",
+    test_acpi_one("-smp 2,cores=3,sockets=2,maxcpus=6",
                   &data);
     free_test_data(&data);
 }
@@ -821,8 +823,7 @@ static void test_acpi_q35_tcg_cphp(void)
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".cphp";
-    test_acpi_one("-machine q35,accel=tcg"
-                  " -smp 2,cores=3,sockets=2,maxcpus=6",
+    test_acpi_one(" -smp 2,cores=3,sockets=2,maxcpus=6",
                   &data);
     free_test_data(&data);
 }
@@ -840,7 +841,7 @@ static void test_acpi_q35_tcg_ipmi(void)
     data.variant = ".ipmibt";
     data.required_struct_types = ipmi_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(ipmi_required_struct_types);
-    test_acpi_one("-machine q35,accel=tcg -device ipmi-bmc-sim,id=bmc0"
+    test_acpi_one("-device ipmi-bmc-sim,id=bmc0"
                   " -device isa-ipmi-bt,bmc=bmc0",
                   &data);
     free_test_data(&data);
@@ -858,7 +859,7 @@ static void test_acpi_piix4_tcg_ipmi(void)
     data.variant = ".ipmikcs";
     data.required_struct_types = ipmi_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(ipmi_required_struct_types);
-    test_acpi_one("-machine accel=tcg -device ipmi-bmc-sim,id=bmc0"
+    test_acpi_one("-device ipmi-bmc-sim,id=bmc0"
                   " -device isa-ipmi-kcs,irq=0,bmc=bmc0",
                   &data);
     free_test_data(&data);
@@ -876,14 +877,14 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qtest_add_func("acpi/piix4/tcg", test_acpi_piix4_tcg);
-        qtest_add_func("acpi/piix4/tcg/bridge", test_acpi_piix4_tcg_bridge);
-        qtest_add_func("acpi/q35/tcg", test_acpi_q35_tcg);
-        qtest_add_func("acpi/q35/tcg/bridge", test_acpi_q35_tcg_bridge);
-        qtest_add_func("acpi/piix4/tcg/ipmi", test_acpi_piix4_tcg_ipmi);
-        qtest_add_func("acpi/q35/tcg/ipmi", test_acpi_q35_tcg_ipmi);
-        qtest_add_func("acpi/piix4/tcg/cpuhp", test_acpi_piix4_tcg_cphp);
-        qtest_add_func("acpi/q35/tcg/cpuhp", test_acpi_q35_tcg_cphp);
+        qtest_add_func("acpi/piix4", test_acpi_piix4_tcg);
+        qtest_add_func("acpi/piix4/bridge", test_acpi_piix4_tcg_bridge);
+        qtest_add_func("acpi/q35", test_acpi_q35_tcg);
+        qtest_add_func("acpi/q35/bridge", test_acpi_q35_tcg_bridge);
+        qtest_add_func("acpi/piix4/ipmi", test_acpi_piix4_tcg_ipmi);
+        qtest_add_func("acpi/q35/ipmi", test_acpi_q35_tcg_ipmi);
+        qtest_add_func("acpi/piix4/cpuhp", test_acpi_piix4_tcg_cphp);
+        qtest_add_func("acpi/q35/cpuhp", test_acpi_q35_tcg_cphp);
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);
