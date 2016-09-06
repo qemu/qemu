@@ -41,7 +41,9 @@ static void rng_egd_request_entropy(RngBackend *b, RngRequest *req)
         header[0] = 0x02;
         header[1] = len;
 
-        qemu_chr_fe_write(s->chr, header, sizeof(header));
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
+        qemu_chr_fe_write_all(s->chr, header, sizeof(header));
 
         size -= len;
     }

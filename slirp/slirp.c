@@ -1072,7 +1072,9 @@ int slirp_add_exec(Slirp *slirp, int do_pty, const void *args,
 ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
 {
     if (so->s == -1 && so->extra) {
-        qemu_chr_fe_write(so->extra, buf, len);
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
+        qemu_chr_fe_write_all(so->extra, buf, len);
         return len;
     }
 

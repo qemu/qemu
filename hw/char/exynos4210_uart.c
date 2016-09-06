@@ -387,7 +387,9 @@ static void exynos4210_uart_write(void *opaque, hwaddr offset,
             s->reg[I_(UTRSTAT)] &= ~(UTRSTAT_TRANSMITTER_EMPTY |
                     UTRSTAT_Tx_BUFFER_EMPTY);
             ch = (uint8_t)val;
-            qemu_chr_fe_write(s->chr, &ch, 1);
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
+            qemu_chr_fe_write_all(s->chr, &ch, 1);
 #if DEBUG_Tx_DATA
             fprintf(stderr, "%c", ch);
 #endif

@@ -68,6 +68,27 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
          */
         if (ret < 0)
             ret = 0;
+
+        /* XXX we should be queuing data to send later for the
+         * console devices too rather than silently dropping
+         * console data on EAGAIN. The Linux virtio-console
+         * hvc driver though does sends with spinlocks held,
+         * so if we enable throttling that'll stall the entire
+         * guest kernel, not merely the process writing to the
+         * console.
+         *
+         * While we could queue data for later write without
+         * enabling throttling, this would result in the guest
+         * being able to trigger arbitrary memory usage in QEMU
+         * buffering data for later writes.
+         *
+         * So fixing this problem likely requires fixing the
+         * Linux virtio-console hvc driver to not hold spinlocks
+         * while writing, and instead merely block the process
+         * that's writing. QEMU would then need some way to detect
+         * if the guest had the fixed driver too, before we can
+         * use throttling on host side.
+         */
         if (!k->is_console) {
             virtio_serial_throttle_port(port, true);
             if (!vcon->watch) {

@@ -182,7 +182,9 @@ static void imx_serial_write(void *opaque, hwaddr offset,
         ch = value;
         if (s->ucr2 & UCR2_TXEN) {
             if (s->chr) {
-                qemu_chr_fe_write(s->chr, &ch, 1);
+                /* XXX this blocks entire thread. Rewrite to use
+                 * qemu_chr_fe_write and background I/O callbacks */
+                qemu_chr_fe_write_all(s->chr, &ch, 1);
             }
             s->usr1 &= ~USR1_TRDY;
             imx_update(s);

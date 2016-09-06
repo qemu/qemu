@@ -89,7 +89,9 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     scon->buf[scon->length] = *buf;
     scon->length += 1;
     if (scon->echo) {
-        qemu_chr_fe_write(scon->chr, buf, size);
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
+        qemu_chr_fe_write_all(scon->chr, buf, size);
     }
 }
 

@@ -203,7 +203,9 @@ static void grlib_apbuart_write(void *opaque, hwaddr addr,
         /* Transmit when character device available and transmitter enabled */
         if ((uart->chr) && (uart->control & UART_TRANSMIT_ENABLE)) {
             c = value & 0xFF;
-            qemu_chr_fe_write(uart->chr, &c, 1);
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
+            qemu_chr_fe_write_all(uart->chr, &c, 1);
             /* Generate interrupt */
             if (uart->control & UART_TRANSMIT_INTERRUPT) {
                 qemu_irq_pulse(uart->irq);

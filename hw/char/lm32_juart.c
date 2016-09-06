@@ -76,6 +76,8 @@ void lm32_juart_set_jtx(DeviceState *d, uint32_t jtx)
 
     s->jtx = jtx;
     if (s->chr) {
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
         qemu_chr_fe_write_all(s->chr, &ch, 1);
     }
 }
