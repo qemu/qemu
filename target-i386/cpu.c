@@ -298,14 +298,18 @@ static const char *svm_feature_name[] = {
 };
 
 static const char *cpuid_7_0_ebx_feature_name[] = {
-    "fsgsbase", "tsc_adjust", NULL, "bmi1", "hle", "avx2", NULL, "smep",
-    "bmi2", "erms", "invpcid", "rtm", NULL, NULL, "mpx", NULL,
-    "avx512f", NULL, "rdseed", "adx", "smap", NULL, "pcommit", "clflushopt",
-    "clwb", NULL, "avx512pf", "avx512er", "avx512cd", NULL, NULL, NULL,
+    "fsgsbase", "tsc_adjust", NULL, "bmi1",
+    "hle", "avx2", NULL, "smep",
+    "bmi2", "erms", "invpcid", "rtm",
+    NULL, NULL, "mpx", NULL,
+    "avx512f", "avx512dq", "rdseed", "adx",
+    "smap", "avx512ifma", "pcommit", "clflushopt",
+    "clwb", NULL, "avx512pf", "avx512er",
+    "avx512cd", NULL, "avx512bw", "avx512vl",
 };
 
 static const char *cpuid_7_0_ecx_feature_name[] = {
-    NULL, NULL, "umip", "pku",
+    NULL, "avx512vbmi", "umip", "pku",
     "ospke", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
