@@ -4192,6 +4192,18 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# check if we have posix_syslog
+
+posix_syslog=no
+cat > $TMPC << EOF
+#include <syslog.h>
+int main(void) { openlog("qemu", LOG_PID, LOG_DAEMON); syslog(LOG_INFO, "configure"); return 0; }
+EOF
+if compile_prog "" "" ; then
+    posix_syslog=yes
+fi
+
+##########################################
 # check if trace backend exists
 
 $python "$source_path/scripts/tracetool.py" "--backends=$trace_backends" --check-backends  > /dev/null 2> /dev/null
@@ -5466,6 +5478,13 @@ if have_backend "ftrace"; then
     echo "CONFIG_TRACE_FTRACE=y" >> $config_host_mak
   else
     feature_not_found "ftrace(trace backend)" "ftrace requires Linux"
+  fi
+fi
+if have_backend "syslog"; then
+  if test "$posix_syslog" = "yes" ; then
+    echo "CONFIG_TRACE_SYSLOG=y" >> $config_host_mak
+  else
+    feature_not_found "syslog(trace backend)" "syslog not available"
   fi
 fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak

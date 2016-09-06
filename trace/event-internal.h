@@ -29,5 +29,6 @@ typedef struct TraceEvent {
     const bool sstate;
 } TraceEvent;
 
+void trace_event_set_state_dynamic_init(TraceEvent *ev, bool state);
 
 #endif /* TRACE__EVENT_INTERNAL_H */
