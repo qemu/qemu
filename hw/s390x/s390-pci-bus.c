@@ -404,17 +404,6 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
 
     DPRINTF("iommu trans addr 0x%" PRIx64 "\n", addr);
 
-    /* s390 does not have an APIC mapped to main storage so we use
-     * a separate AddressSpace only for msix notifications
-     */
-    if (addr == ZPCI_MSI_ADDR) {
-        ret.iova = addr;
-        ret.translated_addr = addr;
-        ret.addr_mask = 0xfff;
-        ret.perm = IOMMU_RW;
-        return ret;
-    }
-
     if (addr < pbdev->pba || addr > pbdev->pal) {
         return ret;
     }
