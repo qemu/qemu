@@ -261,6 +261,7 @@ GEN_VXFORM_DUAL(vclzh, vpopcnth, 1, 29, PPC_NONE, PPC2_ALTIVEC_207),
 GEN_VXFORM_DUAL(vclzw, vpopcntw, 1, 30, PPC_NONE, PPC2_ALTIVEC_207),
 GEN_VXFORM_DUAL(vclzd, vpopcntd, 1, 31, PPC_NONE, PPC2_ALTIVEC_207),
 
+GEN_VXFORM_300(vbpermd, 6, 23),
 GEN_VXFORM_207(vbpermq, 6, 21),
 GEN_VXFORM_207(vgbbd, 6, 20),
 GEN_VXFORM_207(vpmsumb, 4, 16),

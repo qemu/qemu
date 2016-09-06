@@ -1128,11 +1128,31 @@ void helper_vperm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
 
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VBPERMQ_INDEX(avr, i) ((avr)->u8[(i)])
+#define VBPERMD_INDEX(i) (i)
 #define VBPERMQ_DW(index) (((index) & 0x40) != 0)
+#define EXTRACT_BIT(avr, i, index) (extract64((avr)->u64[i], index, 1))
 #else
 #define VBPERMQ_INDEX(avr, i) ((avr)->u8[15-(i)])
+#define VBPERMD_INDEX(i) (1 - i)
 #define VBPERMQ_DW(index) (((index) & 0x40) == 0)
+#define EXTRACT_BIT(avr, i, index) \
+        (extract64((avr)->u64[1 - i], 63 - index, 1))
 #endif
+
+void helper_vbpermd(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i, j;
+    ppc_avr_t result = { .u64 = { 0, 0 } };
+    VECTOR_FOR_INORDER_I(i, u64) {
+        for (j = 0; j < 8; j++) {
+            int index = VBPERMQ_INDEX(b, (i * 8) + j);
+            if (index < 64 && EXTRACT_BIT(a, i, index)) {
+                result.u64[VBPERMD_INDEX(i)] |= (0x80 >> j);
+            }
+        }
+    }
+    *r = result;
+}
 
 void helper_vbpermq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {

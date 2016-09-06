@@ -792,6 +792,7 @@ GEN_VXFORM_DUAL(vclzw, PPC_NONE, PPC2_ALTIVEC_207, \
                 vpopcntw, PPC_NONE, PPC2_ALTIVEC_207)
 GEN_VXFORM_DUAL(vclzd, PPC_NONE, PPC2_ALTIVEC_207, \
                 vpopcntd, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXFORM(vbpermd, 6, 23);
 GEN_VXFORM(vbpermq, 6, 21);
 GEN_VXFORM_NOA(vgbbd, 6, 20);
 GEN_VXFORM(vpmsumb, 4, 16)
