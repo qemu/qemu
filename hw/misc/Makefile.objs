@@ -52,4 +52,4 @@ obj-$(CONFIG_PVPANIC) += pvpanic.o
 obj-$(CONFIG_EDU) += edu.o
 obj-$(CONFIG_HYPERV_TESTDEV) += hyperv_testdev.o
 obj-$(CONFIG_AUX) += auxbus.o
-obj-$(CONFIG_ASPEED_SOC) += aspeed_scu.o
+obj-$(CONFIG_ASPEED_SOC) += aspeed_scu.o aspeed_sdmc.o

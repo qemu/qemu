@@ -194,7 +194,7 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
      * the LPAE long descriptor format, or the short descriptor format
      */
     if (arm_s1_regime_using_lpae_format(env, cpu_mmu_index(env, false))) {
-        env->exception.fsr = 0x21;
+        env->exception.fsr = (1 << 9) | 0x21;
     } else {
         env->exception.fsr = 0x1;
     }

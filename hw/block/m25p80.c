@@ -1189,9 +1189,9 @@ static Property m25p80_properties[] = {
 };
 
 static const VMStateDescription vmstate_m25p80 = {
-    .name = "xilinx_spi",
-    .version_id = 3,
-    .minimum_version_id = 1,
+    .name = "m25p80",
+    .version_id = 0,
+    .minimum_version_id = 0,
     .pre_save = m25p80_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(state, Flash),
@@ -1200,20 +1200,19 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_UINT32(pos, Flash),
         VMSTATE_UINT8(needed_bytes, Flash),
         VMSTATE_UINT8(cmd_in_progress, Flash),
-        VMSTATE_UNUSED(4),
         VMSTATE_UINT32(cur_addr, Flash),
         VMSTATE_BOOL(write_enable, Flash),
-        VMSTATE_BOOL_V(reset_enable, Flash, 2),
-        VMSTATE_UINT8_V(ear, Flash, 2),
-        VMSTATE_BOOL_V(four_bytes_address_mode, Flash, 2),
-        VMSTATE_UINT32_V(nonvolatile_cfg, Flash, 2),
-        VMSTATE_UINT32_V(volatile_cfg, Flash, 2),
-        VMSTATE_UINT32_V(enh_volatile_cfg, Flash, 2),
-        VMSTATE_BOOL_V(quad_enable, Flash, 3),
-        VMSTATE_UINT8_V(spansion_cr1nv, Flash, 3),
-        VMSTATE_UINT8_V(spansion_cr2nv, Flash, 3),
-        VMSTATE_UINT8_V(spansion_cr3nv, Flash, 3),
-        VMSTATE_UINT8_V(spansion_cr4nv, Flash, 3),
+        VMSTATE_BOOL(reset_enable, Flash),
+        VMSTATE_UINT8(ear, Flash),
+        VMSTATE_BOOL(four_bytes_address_mode, Flash),
+        VMSTATE_UINT32(nonvolatile_cfg, Flash),
+        VMSTATE_UINT32(volatile_cfg, Flash),
+        VMSTATE_UINT32(enh_volatile_cfg, Flash),
+        VMSTATE_BOOL(quad_enable, Flash),
+        VMSTATE_UINT8(spansion_cr1nv, Flash),
+        VMSTATE_UINT8(spansion_cr2nv, Flash),
+        VMSTATE_UINT8(spansion_cr3nv, Flash),
+        VMSTATE_UINT8(spansion_cr4nv, Flash),
         VMSTATE_END_OF_LIST()
     }
 };
