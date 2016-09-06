@@ -1812,6 +1812,31 @@ VINSERT(h, u16)
 VINSERT(w, u32)
 VINSERT(d, u64)
 #undef VINSERT
+#if defined(HOST_WORDS_BIGENDIAN)
+#define VEXTRACT(suffix, element)                                            \
+    void helper_vextract##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \
+    {                                                                        \
+        uint32_t es = sizeof(r->element[0]);                                 \
+        memmove(&r->u8[8 - es], &b->u8[index], es);                          \
+        memset(&r->u8[8], 0, 8);                                             \
+        memset(&r->u8[0], 0, 8 - es);                                        \
+    }
+#else
+#define VEXTRACT(suffix, element)                                            \
+    void helper_vextract##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \
+    {                                                                        \
+        uint32_t es = sizeof(r->element[0]);                                 \
+        uint32_t s = (16 - index) - es;                                      \
+        memmove(&r->u8[8], &b->u8[s], es);                                   \
+        memset(&r->u8[0], 0, 8);                                             \
+        memset(&r->u8[8 + es], 0, 8 - es);                                   \
+    }
+#endif
+VEXTRACT(ub, u8)
+VEXTRACT(uh, u16)
+VEXTRACT(uw, u32)
+VEXTRACT(d, u64)
+#undef VEXTRACT
 
 #define VSPLTI(suffix, element, splat_type)                     \
     void helper_vspltis##suffix(ppc_avr_t *r, uint32_t splat)   \

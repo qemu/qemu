@@ -664,6 +664,10 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
 GEN_VXFORM_UIMM(vspltb, 6, 8);
 GEN_VXFORM_UIMM(vsplth, 6, 9);
 GEN_VXFORM_UIMM(vspltw, 6, 10);
+GEN_VXFORM_UIMM_SPLAT(vextractub, 6, 8, 15);
+GEN_VXFORM_UIMM_SPLAT(vextractuh, 6, 9, 14);
+GEN_VXFORM_UIMM_SPLAT(vextractuw, 6, 10, 12);
+GEN_VXFORM_UIMM_SPLAT(vextractd, 6, 11, 8);
 GEN_VXFORM_UIMM_SPLAT(vinsertb, 6, 12, 15);
 GEN_VXFORM_UIMM_SPLAT(vinserth, 6, 13, 14);
 GEN_VXFORM_UIMM_SPLAT(vinsertw, 6, 14, 12);
@@ -672,6 +676,12 @@ GEN_VXFORM_UIMM_ENV(vcfux, 5, 12);
 GEN_VXFORM_UIMM_ENV(vcfsx, 5, 13);
 GEN_VXFORM_UIMM_ENV(vctuxs, 5, 14);
 GEN_VXFORM_UIMM_ENV(vctsxs, 5, 15);
+GEN_VXFORM_DUAL(vspltb, PPC_NONE, PPC2_ALTIVEC_207,
+                      vextractub, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vsplth, PPC_NONE, PPC2_ALTIVEC_207,
+                      vextractuh, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltw, PPC_NONE, PPC2_ALTIVEC_207,
+                      vextractuw, PPC_NONE, PPC2_ISA300);
 GEN_VXFORM_DUAL(vspltisb, PPC_NONE, PPC2_ALTIVEC_207,
                       vinsertb, PPC_NONE, PPC2_ISA300);
 GEN_VXFORM_DUAL(vspltish, PPC_NONE, PPC2_ALTIVEC_207,

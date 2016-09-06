@@ -197,6 +197,13 @@ GEN_VXRFORM_DUAL(vcmpbfp, vcmpgtsd, 3, 15, PPC_ALTIVEC, PPC_NONE)
 #define GEN_VXFORM_DUAL_INV(name0, name1, opc2, opc3, inval0, inval1, type) \
 GEN_OPCODE_DUAL(name0##_##name1, 0x04, opc2, opc3, inval0, inval1, type, \
                                                                PPC_NONE)
+GEN_VXFORM_DUAL_INV(vspltb, vextractub, 6, 8, 0x00000000, 0x100000,
+                                               PPC2_ALTIVEC_207),
+GEN_VXFORM_DUAL_INV(vsplth, vextractuh, 6, 9, 0x00000000, 0x100000,
+                                               PPC2_ALTIVEC_207),
+GEN_VXFORM_DUAL_INV(vspltw, vextractuw, 6, 10, 0x00000000, 0x100000,
+                                               PPC2_ALTIVEC_207),
+GEN_VXFORM_300_EXT(vextractd, 6, 11, 0x100000),
 GEN_VXFORM_DUAL_INV(vspltisb, vinsertb, 6, 12, 0x00000000, 0x100000,
                                                PPC2_ALTIVEC_207),
 GEN_VXFORM_DUAL_INV(vspltish, vinserth, 6, 13, 0x00000000, 0x100000,
@@ -226,9 +233,6 @@ GEN_VXFORM_NOA(vrfiz, 5, 9),
 
 #define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
-GEN_VXFORM_UIMM(vspltb, 6, 8),
-GEN_VXFORM_UIMM(vsplth, 6, 9),
-GEN_VXFORM_UIMM(vspltw, 6, 10),
 GEN_VXFORM_UIMM(vcfux, 5, 12),
 GEN_VXFORM_UIMM(vcfsx, 5, 13),
 GEN_VXFORM_UIMM(vctuxs, 5, 14),
