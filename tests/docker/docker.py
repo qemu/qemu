@@ -239,8 +239,9 @@ class BuildCommand(SubCommand):
             # Is there a .pre file to run in the build context?
             docker_pre = os.path.splitext(args.dockerfile)[0]+".pre"
             if os.path.exists(docker_pre):
+                stdout = DEVNULL if args.quiet else None
                 rc = subprocess.call(os.path.realpath(docker_pre),
-                                     cwd=docker_dir)
+                                     cwd=docker_dir, stdout=stdout)
                 if rc == 3:
                     print "Skip"
                     return 0
