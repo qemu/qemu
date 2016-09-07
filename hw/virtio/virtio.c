@@ -272,6 +272,28 @@ void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
     virtqueue_unmap_sg(vq, elem, len);
 }
 
+/* virtqueue_rewind:
+ * @vq: The #VirtQueue
+ * @num: Number of elements to push back
+ *
+ * Pretend that elements weren't popped from the virtqueue.  The next
+ * virtqueue_pop() will refetch the oldest element.
+ *
+ * Use virtqueue_discard() instead if you have a VirtQueueElement.
+ *
+ * Returns: true on success, false if @num is greater than the number of in use
+ * elements.
+ */
+bool virtqueue_rewind(VirtQueue *vq, unsigned int num)
+{
+    if (num > vq->inuse) {
+        return false;
+    }
+    vq->last_avail_idx -= num;
+    vq->inuse -= num;
+    return true;
+}
+
 void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx)
 {
