@@ -822,6 +822,7 @@ void virtio_reset(void *opaque)
         vdev->vq[i].signalled_used_valid = false;
         vdev->vq[i].notification = true;
         vdev->vq[i].vring.num = vdev->vq[i].vring.num_default;
+        vdev->vq[i].inuse = 0;
     }
 }
 
