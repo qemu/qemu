@@ -3832,21 +3832,6 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     QDict *qdict;
     Error *local_err = NULL;
 
-    /* TODO Sort it out in raw-posix and drive_new(): Reject aio=native with
-     * cache.direct=false instead of silently switching to aio=threads, except
-     * when called from drive_new().
-     *
-     * For now, simply forbidding the combination for all drivers will do. */
-    if (options->has_aio && options->aio == BLOCKDEV_AIO_OPTIONS_NATIVE) {
-        bool direct = options->has_cache &&
-                      options->cache->has_direct &&
-                      options->cache->direct;
-        if (!direct) {
-            error_setg(errp, "aio=native requires cache.direct=true");
-            goto fail;
-        }
-    }
-
     visit_type_BlockdevOptions(v, NULL, &options, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
