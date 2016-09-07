@@ -2490,7 +2490,7 @@ static int configure_cpu_feat(const S390FeatBitmap features)
 
 bool kvm_s390_cpu_models_supported(void)
 {
-    if (!ri_allowed()) {
+    if (!cpu_model_allowed()) {
         /* compatibility machines interfere with the cpu model */
         return false;
     }
