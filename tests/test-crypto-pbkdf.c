@@ -358,6 +358,7 @@ static void test_pbkdf_timing(void)
     iters = qcrypto_pbkdf2_count_iters(QCRYPTO_HASH_ALG_SHA256,
                                        key, sizeof(key),
                                        salt, sizeof(salt),
+                                       32,
                                        &error_abort);
 
     g_assert(iters >= (1 << 15));

@@ -1072,6 +1072,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
                                        masterkey, luks->header.key_bytes,
                                        luks->header.master_key_salt,
                                        QCRYPTO_BLOCK_LUKS_SALT_LEN,
+                                       QCRYPTO_BLOCK_LUKS_DIGEST_LEN,
                                        &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1152,6 +1153,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
                                        (uint8_t *)password, strlen(password),
                                        luks->header.key_slots[0].salt,
                                        QCRYPTO_BLOCK_LUKS_SALT_LEN,
+                                       luks->header.key_bytes,
                                        &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
