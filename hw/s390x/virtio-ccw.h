@@ -99,7 +99,7 @@ struct VirtioCcwDevice {
 };
 
 /* The maximum virtio revision we support. */
-#define VIRTIO_CCW_MAX_REV 1
+#define VIRTIO_CCW_MAX_REV 2
 static inline int virtio_ccw_rev_max(VirtioCcwDevice *dev)
 {
     return dev->max_rev;
