@@ -28,7 +28,11 @@ bool qcrypto_pbkdf2_supports(QCryptoHashAlgorithm hash)
     switch (hash) {
     case QCRYPTO_HASH_ALG_MD5:
     case QCRYPTO_HASH_ALG_SHA1:
+    case QCRYPTO_HASH_ALG_SHA224:
     case QCRYPTO_HASH_ALG_SHA256:
+    case QCRYPTO_HASH_ALG_SHA384:
+    case QCRYPTO_HASH_ALG_SHA512:
+    case QCRYPTO_HASH_ALG_RIPEMD160:
         return true;
     default:
         return false;
@@ -45,7 +49,11 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
     static const int hash_map[QCRYPTO_HASH_ALG__MAX] = {
         [QCRYPTO_HASH_ALG_MD5] = GCRY_MD_MD5,
         [QCRYPTO_HASH_ALG_SHA1] = GCRY_MD_SHA1,
+        [QCRYPTO_HASH_ALG_SHA224] = GCRY_MD_SHA224,
         [QCRYPTO_HASH_ALG_SHA256] = GCRY_MD_SHA256,
+        [QCRYPTO_HASH_ALG_SHA384] = GCRY_MD_SHA384,
+        [QCRYPTO_HASH_ALG_SHA512] = GCRY_MD_SHA512,
+        [QCRYPTO_HASH_ALG_RIPEMD160] = GCRY_MD_RMD160,
     };
     int ret;
 
@@ -58,7 +66,9 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
 
     if (hash >= G_N_ELEMENTS(hash_map) ||
         hash_map[hash] == GCRY_MD_NONE) {
-        error_setg(errp, "Unexpected hash algorithm %d", hash);
+        error_setg_errno(errp, ENOSYS,
+                         "PBKDF does not support hash algorithm %s",
+                         QCryptoHashAlgorithm_lookup[hash]);
         return -1;
     }
 
