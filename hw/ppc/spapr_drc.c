@@ -816,7 +816,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
                       drc_indexes->data,
                       drc_indexes->len * sizeof(uint32_t));
     if (ret) {
-        fprintf(stderr, "Couldn't create ibm,drc-indexes property\n");
+        error_report("Couldn't create ibm,drc-indexes property");
         goto out;
     }
 
@@ -824,21 +824,21 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
                       drc_power_domains->data,
                       drc_power_domains->len * sizeof(uint32_t));
     if (ret) {
-        fprintf(stderr, "Couldn't finalize ibm,drc-power-domains property\n");
+        error_report("Couldn't finalize ibm,drc-power-domains property");
         goto out;
     }
 
     ret = fdt_setprop(fdt, fdt_offset, "ibm,drc-names",
                       drc_names->str, drc_names->len);
     if (ret) {
-        fprintf(stderr, "Couldn't finalize ibm,drc-names property\n");
+        error_report("Couldn't finalize ibm,drc-names property");
         goto out;
     }
 
     ret = fdt_setprop(fdt, fdt_offset, "ibm,drc-types",
                       drc_types->str, drc_types->len);
     if (ret) {
-        fprintf(stderr, "Couldn't finalize ibm,drc-types property\n");
+        error_report("Couldn't finalize ibm,drc-types property");
         goto out;
     }
 

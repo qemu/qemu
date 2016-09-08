@@ -7459,7 +7459,8 @@ enum BOOK3S_CPU_TYPE {
     BOOK3S_CPU_POWER5PLUS,
     BOOK3S_CPU_POWER6,
     BOOK3S_CPU_POWER7,
-    BOOK3S_CPU_POWER8
+    BOOK3S_CPU_POWER8,
+    BOOK3S_CPU_POWER9
 };
 
 static void gen_fscr_facility_check(DisasContext *ctx, int facility_sprn,
@@ -7469,7 +7470,6 @@ static void gen_fscr_facility_check(DisasContext *ctx, int facility_sprn,
     TCGv_i32 t2 = tcg_const_i32(sprn);
     TCGv_i32 t3 = tcg_const_i32(cause);
 
-    gen_update_current_nip(ctx);
     gen_helper_fscr_facility_check(cpu_env, t1, t2, t3);
 
     tcg_temp_free_i32(t3);
@@ -7484,7 +7484,6 @@ static void gen_msr_facility_check(DisasContext *ctx, int facility_sprn,
     TCGv_i32 t2 = tcg_const_i32(sprn);
     TCGv_i32 t3 = tcg_const_i32(cause);
 
-    gen_update_current_nip(ctx);
     gen_helper_msr_facility_check(cpu_env, t1, t2, t3);
 
     tcg_temp_free_i32(t3);
@@ -8241,6 +8240,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         break;
     case BOOK3S_CPU_POWER7:
     case BOOK3S_CPU_POWER8:
+    case BOOK3S_CPU_POWER9:
         gen_spr_book3s_ids(env);
         gen_spr_amr(env, version >= BOOK3S_CPU_POWER8);
         gen_spr_book3s_purr(env);
@@ -8293,6 +8293,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         break;
     case BOOK3S_CPU_POWER7:
     case BOOK3S_CPU_POWER8:
+    case BOOK3S_CPU_POWER9:
     default:
         env->slb_nr = 32;
         break;
@@ -8310,6 +8311,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         ppcPOWER7_irq_init(ppc_env_get_cpu(env));
         break;
     case BOOK3S_CPU_POWER8:
+    case BOOK3S_CPU_POWER9:
         init_excp_POWER8(env);
         ppcPOWER7_irq_init(ppc_env_get_cpu(env));
         break;
@@ -8772,6 +8774,86 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x8000;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
 }
+static void init_proc_POWER9(CPUPPCState *env)
+{
+    init_proc_book3s_64(env, BOOK3S_CPU_POWER9);
+}
+
+static bool ppc_pvr_match_power9(PowerPCCPUClass *pcc, uint32_t pvr)
+{
+    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER9_BASE) {
+        return true;
+    }
+    return false;
+}
+
+POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    dc->fw_name = "PowerPC,POWER9";
+    dc->desc = "POWER9";
+    dc->props = powerpc_servercpu_properties;
+    pcc->pvr_match = ppc_pvr_match_power9;
+    pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06 | PCR_COMPAT_2_07;
+    pcc->init_proc = init_proc_POWER9;
+    pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_FRSQRTES |
+                       PPC_FLOAT_STFIWX |
+                       PPC_FLOAT_EXT |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_64B | PPC_64BX | PPC_ALTIVEC |
+                       PPC_SEGMENT_64B | PPC_SLBI |
+                       PPC_POPCNTB | PPC_POPCNTWD |
+                       PPC_CILDST;
+    pcc->insns_flags2 = PPC2_VSX | PPC2_VSX207 | PPC2_DFP | PPC2_DBRX |
+                        PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
+                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
+                        PPC2_FP_TST_ISA206 | PPC2_BCTAR_ISA207 |
+                        PPC2_LSQ_ISA207 | PPC2_ALTIVEC_207 |
+                        PPC2_ISA205 | PPC2_ISA207S | PPC2_FP_CVT_S64 |
+                        PPC2_TM | PPC2_PM_ISA206 | PPC2_ISA300;
+    pcc->msr_mask = (1ull << MSR_SF) |
+                    (1ull << MSR_TM) |
+                    (1ull << MSR_VR) |
+                    (1ull << MSR_VSX) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
+    /* Using 2.07 defines until new radix model is added. */
+    pcc->mmu_model = POWERPC_MMU_2_07;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
+    /* segment page size remain the same */
+    pcc->sps = &POWER7_POWER8_sps;
+#endif
+    pcc->excp_model = POWERPC_EXCP_POWER8;
+    pcc->bus_model = PPC_FLAGS_INPUT_POWER7;
+    pcc->bfd_mach = bfd_mach_ppc64;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR |
+                 POWERPC_FLAG_VSX | POWERPC_FLAG_TM;
+    pcc->l1_dcache_size = 0x8000;
+    pcc->l1_icache_size = 0x8000;
+    pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
+}
 
 #if !defined(CONFIG_USER_ONLY)
 
@@ -9169,13 +9251,47 @@ static int register_dblind_insn (opc_handler_t **ppc_opcodes,
     return 0;
 }
 
+static int register_trplind_insn(opc_handler_t **ppc_opcodes,
+                                 unsigned char idx1, unsigned char idx2,
+                                 unsigned char idx3, unsigned char idx4,
+                                 opc_handler_t *handler)
+{
+    opc_handler_t **table;
+
+    if (register_ind_in_table(ppc_opcodes, idx1, idx2, NULL) < 0) {
+        printf("*** ERROR: unable to join indirect table idx "
+               "[%02x-%02x]\n", idx1, idx2);
+        return -1;
+    }
+    table = ind_table(ppc_opcodes[idx1]);
+    if (register_ind_in_table(table, idx2, idx3, NULL) < 0) {
+        printf("*** ERROR: unable to join 2nd-level indirect table idx "
+               "[%02x-%02x-%02x]\n", idx1, idx2, idx3);
+        return -1;
+    }
+    table = ind_table(table[idx2]);
+    if (register_ind_in_table(table, idx3, idx4, handler) < 0) {
+        printf("*** ERROR: unable to insert opcode "
+               "[%02x-%02x-%02x-%02x]\n", idx1, idx2, idx3, idx4);
+        return -1;
+    }
+    return 0;
+}
 static int register_insn (opc_handler_t **ppc_opcodes, opcode_t *insn)
 {
     if (insn->opc2 != 0xFF) {
         if (insn->opc3 != 0xFF) {
-            if (register_dblind_insn(ppc_opcodes, insn->opc1, insn->opc2,
-                                     insn->opc3, &insn->handler) < 0)
-                return -1;
+            if (insn->opc4 != 0xFF) {
+                if (register_trplind_insn(ppc_opcodes, insn->opc1, insn->opc2,
+                                          insn->opc3, insn->opc4,
+                                          &insn->handler) < 0) {
+                    return -1;
+                }
+            } else {
+                if (register_dblind_insn(ppc_opcodes, insn->opc1, insn->opc2,
+                                         insn->opc3, &insn->handler) < 0)
+                    return -1;
+            }
         } else {
             if (register_ind_insn(ppc_opcodes, insn->opc1,
                                   insn->opc2, &insn->handler) < 0)
@@ -9251,7 +9367,7 @@ static void dump_ppc_insns (CPUPPCState *env)
 {
     opc_handler_t **table, *handler;
     const char *p, *q;
-    uint8_t opc1, opc2, opc3;
+    uint8_t opc1, opc2, opc3, opc4;
 
     printf("Instructions set:\n");
     /* opc1 is 6 bits long */
@@ -9271,34 +9387,51 @@ static void dump_ppc_insns (CPUPPCState *env)
                     for (opc3 = 0; opc3 < PPC_CPU_INDIRECT_OPCODES_LEN;
                             opc3++) {
                         handler = table[opc3];
-                        if (handler->handler != &gen_invalid) {
-                            /* Special hack to properly dump SPE insns */
-                            p = strchr(handler->oname, '_');
-                            if (p == NULL) {
-                                printf("INSN: %02x %02x %02x (%02d %04d) : "
-                                       "%s\n",
-                                       opc1, opc2, opc3, opc1,
-                                       (opc3 << 5) | opc2,
-                                       handler->oname);
-                            } else {
-                                q = "speundef";
-                                if ((p - handler->oname) != strlen(q) ||
-                                    memcmp(handler->oname, q, strlen(q)) != 0) {
-                                    /* First instruction */
-                                    printf("INSN: %02x %02x %02x (%02d %04d) : "
-                                           "%.*s\n",
-                                           opc1, opc2 << 1, opc3, opc1,
-                                           (opc3 << 6) | (opc2 << 1),
-                                           (int)(p - handler->oname),
+                        if (is_indirect_opcode(handler)) {
+                            table = ind_table(handler);
+                            /* opc4 is 5 bits long */
+                            for (opc4 = 0; opc4 < PPC_CPU_INDIRECT_OPCODES_LEN;
+                                 opc4++) {
+                                handler = table[opc4];
+                                if (handler->handler != &gen_invalid) {
+                                    printf("INSN: %02x %02x %02x %02x -- "
+                                           "(%02d %04d %02d) : %s\n",
+                                           opc1, opc2, opc3, opc4,
+                                           opc1, (opc3 << 5) | opc2, opc4,
                                            handler->oname);
                                 }
-                                if (strcmp(p + 1, q) != 0) {
-                                    /* Second instruction */
+                            }
+                        } else {
+                            if (handler->handler != &gen_invalid) {
+                                /* Special hack to properly dump SPE insns */
+                                p = strchr(handler->oname, '_');
+                                if (p == NULL) {
                                     printf("INSN: %02x %02x %02x (%02d %04d) : "
                                            "%s\n",
-                                           opc1, (opc2 << 1) | 1, opc3, opc1,
-                                           (opc3 << 6) | (opc2 << 1) | 1,
-                                           p + 1);
+                                           opc1, opc2, opc3, opc1,
+                                           (opc3 << 5) | opc2,
+                                           handler->oname);
+                                } else {
+                                    q = "speundef";
+                                    if ((p - handler->oname) != strlen(q)
+                                        || (memcmp(handler->oname, q, strlen(q))
+                                            != 0)) {
+                                        /* First instruction */
+                                        printf("INSN: %02x %02x %02x"
+                                               "(%02d %04d) : %.*s\n",
+                                               opc1, opc2 << 1, opc3, opc1,
+                                               (opc3 << 6) | (opc2 << 1),
+                                               (int)(p - handler->oname),
+                                               handler->oname);
+                                    }
+                                    if (strcmp(p + 1, q) != 0) {
+                                        /* Second instruction */
+                                        printf("INSN: %02x %02x %02x "
+                                               "(%02d %04d) : %s\n", opc1,
+                                               (opc2 << 1) | 1, opc3, opc1,
+                                               (opc3 << 6) | (opc2 << 1) | 1,
+                                               p + 1);
+                                    }
                                 }
                             }
                         }
@@ -9774,8 +9907,8 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(dev);
     CPUPPCState *env = &cpu->env;
-    opc_handler_t **table;
-    int i, j;
+    opc_handler_t **table, **table_2;
+    int i, j, k;
 
     cpu_exec_exit(CPU(dev));
 
@@ -9786,10 +9919,20 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
         if (is_indirect_opcode(env->opcodes[i])) {
             table = ind_table(env->opcodes[i]);
             for (j = 0; j < PPC_CPU_INDIRECT_OPCODES_LEN; j++) {
-                if (table[j] != &invalid_handler &&
-                        is_indirect_opcode(table[j])) {
+                if (table[j] == &invalid_handler) {
+                    continue;
+                }
+                if (is_indirect_opcode(table[j])) {
+                    table_2 = ind_table(table[j]);
+                    for (k = 0; k < PPC_CPU_INDIRECT_OPCODES_LEN; k++) {
+                        if (table_2[k] != &invalid_handler &&
+                            is_indirect_opcode(table_2[k])) {
+                            g_free((opc_handler_t *)((uintptr_t)table_2[k] &
+                                                     ~PPC_INDIRECT));
+                        }
+                    }
                     g_free((opc_handler_t *)((uintptr_t)table[j] &
-                        ~PPC_INDIRECT));
+                                             ~PPC_INDIRECT));
                 }
             }
             g_free((opc_handler_t *)((uintptr_t)env->opcodes[i] &

@@ -145,10 +145,42 @@ target_ulong helper_cntlzw(target_ulong t)
     return clz32(t);
 }
 
+target_ulong helper_cnttzw(target_ulong t)
+{
+    return ctz32(t);
+}
+
 #if defined(TARGET_PPC64)
+/* if x = 0xab, returns 0xababababababababa */
+#define pattern(x) (((x) & 0xff) * (~(target_ulong)0 / 0xff))
+
+/* substract 1 from each byte, and with inverse, check if MSB is set at each
+ * byte.
+ * i.e. ((0x00 - 0x01) & ~(0x00)) & 0x80
+ *      (0xFF & 0xFF) & 0x80 = 0x80 (zero found)
+ */
+#define haszero(v) (((v) - pattern(0x01)) & ~(v) & pattern(0x80))
+
+/* When you XOR the pattern and there is a match, that byte will be zero */
+#define hasvalue(x, n)  (haszero((x) ^ pattern(n)))
+
+uint32_t helper_cmpeqb(target_ulong ra, target_ulong rb)
+{
+    return hasvalue(rb, ra) ? 1 << CRF_GT : 0;
+}
+
+#undef pattern
+#undef haszero
+#undef hasvalue
+
 target_ulong helper_cntlzd(target_ulong t)
 {
     return clz64(t);
+}
+
+target_ulong helper_cnttzd(target_ulong t)
+{
+    return ctz64(t);
 }
 #endif
 
@@ -597,6 +629,30 @@ VAVG(w, s32, int64_t, u32, uint64_t)
 #undef VAVG_DO
 #undef VAVG
 
+#define VABSDU_DO(name, element)                                        \
+void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)           \
+{                                                                       \
+    int i;                                                              \
+                                                                        \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
+        r->element[i] = (a->element[i] > b->element[i]) ?               \
+            (a->element[i] - b->element[i]) :                           \
+            (b->element[i] - a->element[i]);                            \
+    }                                                                   \
+}
+
+/* VABSDU - Vector absolute difference unsigned
+ *   name    - instruction mnemonic suffix (b: byte, h: halfword, w: word)
+ *   element - element type to access from vector
+ */
+#define VABSDU(type, element)                   \
+    VABSDU_DO(absdu##type, element)
+VABSDU(b, u8)
+VABSDU(h, u16)
+VABSDU(w, u32)
+#undef VABSDU_DO
+#undef VABSDU
+
 #define VCF(suffix, cvt, element)                                       \
     void helper_vcf##suffix(CPUPPCState *env, ppc_avr_t *r,             \
                             ppc_avr_t *b, uint32_t uim)                 \
@@ -662,6 +718,42 @@ VCMP(gtsw, >, s32)
 VCMP(gtsd, >, s64)
 #undef VCMP_DO
 #undef VCMP
+
+#define VCMPNEZ_DO(suffix, element, etype, record)                   \
+void helper_vcmpnez##suffix(CPUPPCState *env, ppc_avr_t *r,          \
+                            ppc_avr_t *a, ppc_avr_t *b)                 \
+{                                                                       \
+    etype ones = (etype)-1;                                             \
+    etype all = ones;                                                   \
+    etype none = 0;                                                     \
+    int i;                                                              \
+                                                                        \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
+        etype result = ((a->element[i] == 0)                            \
+                           || (b->element[i] == 0)                      \
+                           || (a->element[i] != b->element[i]) ?        \
+                           ones : 0x0);                                 \
+        r->element[i] = result;                                         \
+        all &= result;                                                  \
+        none |= result;                                                 \
+    }                                                                   \
+    if (record) {                                                       \
+        env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);           \
+    }                                                                   \
+}
+
+/* VCMPNEZ - Vector compare not equal to zero
+ *   suffix  - instruction mnemonic suffix (b: byte, h: halfword, w: word)
+ *   element - element type to access from vector
+ */
+#define VCMPNEZ(suffix, element, etype)         \
+    VCMPNEZ_DO(suffix, element, etype, 0)       \
+    VCMPNEZ_DO(suffix##_dot, element, etype, 1)
+VCMPNEZ(b, u8, uint8_t)
+VCMPNEZ(h, u16, uint16_t)
+VCMPNEZ(w, u32, uint32_t)
+#undef VCMPNEZ_DO
+#undef VCMPNEZ
 
 #define VCMPFP_DO(suffix, compare, order, record)                       \
     void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \
@@ -1603,6 +1695,37 @@ VSL(h, u16, 0x0F)
 VSL(w, u32, 0x1F)
 VSL(d, u64, 0x3F)
 #undef VSL
+
+void helper_vslv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    unsigned int shift, bytes, size;
+
+    size = ARRAY_SIZE(r->u8);
+    for (i = 0; i < size; i++) {
+        shift = b->u8[i] & 0x7;             /* extract shift value */
+        bytes = (a->u8[i] << 8) +             /* extract adjacent bytes */
+            (((i + 1) < size) ? a->u8[i + 1] : 0);
+        r->u8[i] = (bytes << shift) >> 8;   /* shift and store result */
+    }
+}
+
+void helper_vsrv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    unsigned int shift, bytes;
+
+    /* Use reverse order, as destination and source register can be same. Its
+     * being modified in place saving temporary, reverse order will guarantee
+     * that computed result is not fed back.
+     */
+    for (i = ARRAY_SIZE(r->u8) - 1; i >= 0; i--) {
+        shift = b->u8[i] & 0x7;                 /* extract shift value */
+        bytes = ((i ? a->u8[i - 1] : 0) << 8) + a->u8[i];
+                                                /* extract adjacent bytes */
+        r->u8[i] = (bytes >> shift) & 0xFF;     /* shift and store result */
+    }
+}
 
 void helper_vsldoi(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t shift)
 {

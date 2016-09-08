@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "qemu/log.h"
@@ -276,7 +277,7 @@ int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq)
     uint8_t byte;
 
     if (!dev->crq.qsize) {
-        fprintf(stderr, "spapr_vio_send_creq on uninitialized queue\n");
+        error_report("spapr_vio_send_creq on uninitialized queue");
         return -1;
     }
 

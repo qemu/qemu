@@ -195,6 +195,7 @@ struct DisasContext {
     /* Routine used to access memory */
     bool pr, hv, dr, le_mode;
     bool lazy_tlb_flush;
+    bool need_access_type;
     int mem_idx;
     int access_type;
     /* Translation flags */
@@ -250,20 +251,9 @@ struct opc_handler_t {
 #endif
 };
 
-static inline void gen_reset_fpstatus(void)
-{
-    gen_helper_reset_fpstatus(cpu_env);
-}
-
-static inline void gen_compute_fprf(TCGv_i64 arg)
-{
-    gen_helper_compute_fprf(cpu_env, arg);
-    gen_helper_float_check_status(cpu_env);
-}
-
 static inline void gen_set_access_type(DisasContext *ctx, int access_type)
 {
-    if (ctx->access_type != access_type) {
+    if (ctx->need_access_type && ctx->access_type != access_type) {
         tcg_gen_movi_i32(cpu_access_type, access_type);
         ctx->access_type = access_type;
     }
@@ -277,18 +267,15 @@ static inline void gen_update_nip(DisasContext *ctx, target_ulong nip)
     tcg_gen_movi_tl(cpu_nip, nip);
 }
 
-void gen_update_current_nip(void *opaque)
-{
-    DisasContext *ctx = opaque;
-
-    tcg_gen_movi_tl(cpu_nip, ctx->nip);
-}
-
 static void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
 {
     TCGv_i32 t0, t1;
+
+    /* These are all synchronous exceptions, we set the PC back to
+     * the faulting instruction
+     */
     if (ctx->exception == POWERPC_EXCP_NONE) {
-        gen_update_nip(ctx, ctx->nip);
+        gen_update_nip(ctx, ctx->nip - 4);
     }
     t0 = tcg_const_i32(excp);
     t1 = tcg_const_i32(error);
@@ -301,9 +288,25 @@ static void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
 static void gen_exception(DisasContext *ctx, uint32_t excp)
 {
     TCGv_i32 t0;
+
+    /* These are all synchronous exceptions, we set the PC back to
+     * the faulting instruction
+     */
     if (ctx->exception == POWERPC_EXCP_NONE) {
-        gen_update_nip(ctx, ctx->nip);
+        gen_update_nip(ctx, ctx->nip - 4);
     }
+    t0 = tcg_const_i32(excp);
+    gen_helper_raise_exception(cpu_env, t0);
+    tcg_temp_free_i32(t0);
+    ctx->exception = (excp);
+}
+
+static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
+                              target_ulong nip)
+{
+    TCGv_i32 t0;
+
+    gen_update_nip(ctx, nip);
     t0 = tcg_const_i32(excp);
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
@@ -314,9 +317,12 @@ static void gen_debug_exception(DisasContext *ctx)
 {
     TCGv_i32 t0;
 
+    /* These are all synchronous exceptions, we set the PC back to
+     * the faulting instruction
+     */
     if ((ctx->exception != POWERPC_EXCP_BRANCH) &&
         (ctx->exception != POWERPC_EXCP_SYNC)) {
-        gen_update_nip(ctx, ctx->nip);
+        gen_update_nip(ctx, ctx->nip - 4);
     }
     t0 = tcg_const_i32(EXCP_DEBUG);
     gen_helper_raise_exception(cpu_env, t0);
@@ -367,12 +373,13 @@ GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type, PPC_NONE)
 #define GEN_HANDLER2_E(name, onam, opc1, opc2, opc3, inval, type, type2)      \
 GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type, type2)
 
+#define GEN_HANDLER_E_2(name, opc1, opc2, opc3, opc4, inval, type, type2)     \
+GEN_OPCODE3(name, opc1, opc2, opc3, opc4, inval, type, type2)
+
 typedef struct opcode_t {
-    unsigned char opc1, opc2, opc3;
+    unsigned char opc1, opc2, opc3, opc4;
 #if HOST_LONG_BITS == 64 /* Explicitly align to 64 bits */
-    unsigned char pad[5];
-#else
-    unsigned char pad[1];
+    unsigned char pad[4];
 #endif
     opc_handler_t handler;
     const char *oname;
@@ -432,12 +439,28 @@ static inline uint32_t name(uint32_t opcode)                                  \
     return (((opcode >> (shift1)) & ((1 << (nb1)) - 1)) << nb2) |             \
             ((opcode >> (shift2)) & ((1 << (nb2)) - 1));                      \
 }
+
+#define EXTRACT_HELPER_DXFORM(name,                                           \
+                              d0_bits, shift_op_d0, shift_d0,                 \
+                              d1_bits, shift_op_d1, shift_d1,                 \
+                              d2_bits, shift_op_d2, shift_d2)                 \
+static inline int16_t name(uint32_t opcode)                                   \
+{                                                                             \
+    return                                                                    \
+        (((opcode >> (shift_op_d0)) & ((1 << (d0_bits)) - 1)) << (shift_d0)) | \
+        (((opcode >> (shift_op_d1)) & ((1 << (d1_bits)) - 1)) << (shift_d1)) | \
+        (((opcode >> (shift_op_d2)) & ((1 << (d2_bits)) - 1)) << (shift_d2));  \
+}
+
+
 /* Opcode part 1 */
 EXTRACT_HELPER(opc1, 26, 6);
 /* Opcode part 2 */
 EXTRACT_HELPER(opc2, 1, 5);
 /* Opcode part 3 */
 EXTRACT_HELPER(opc3, 6, 5);
+/* Opcode part 4 */
+EXTRACT_HELPER(opc4, 16, 5);
 /* Update Cr0 flags */
 EXTRACT_HELPER(Rc, 0, 1);
 /* Update Cr6 flags (Altivec) */
@@ -500,6 +523,9 @@ EXTRACT_HELPER(FPIMM, 12, 4);
 EXTRACT_HELPER(FPL, 25, 1);
 EXTRACT_HELPER(FPFLM, 17, 8);
 EXTRACT_HELPER(FPW, 16, 1);
+
+/* addpcis */
+EXTRACT_HELPER_DXFORM(DX, 10, 6, 6, 5, 16, 1, 1, 0, 0)
 
 /***                            Jump target decoding                       ***/
 /* Immediate address */
@@ -572,7 +598,7 @@ EXTRACT_HELPER(SP, 19, 2);
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
-    .pad  = { 0, },                                                           \
+    .opc4 = 0xff,                                                             \
     .handler = {                                                              \
         .inval1  = invl,                                                      \
         .type = _typ,                                                         \
@@ -587,7 +613,7 @@ EXTRACT_HELPER(SP, 19, 2);
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
-    .pad  = { 0, },                                                           \
+    .opc4 = 0xff,                                                             \
     .handler = {                                                              \
         .inval1  = invl1,                                                     \
         .inval2  = invl2,                                                     \
@@ -603,7 +629,7 @@ EXTRACT_HELPER(SP, 19, 2);
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
-    .pad  = { 0, },                                                           \
+    .opc4 = 0xff,                                                             \
     .handler = {                                                              \
         .inval1  = invl,                                                      \
         .type = _typ,                                                         \
@@ -613,13 +639,28 @@ EXTRACT_HELPER(SP, 19, 2);
     },                                                                        \
     .oname = onam,                                                            \
 }
+#define GEN_OPCODE3(name, op1, op2, op3, op4, invl, _typ, _typ2)              \
+{                                                                             \
+    .opc1 = op1,                                                              \
+    .opc2 = op2,                                                              \
+    .opc3 = op3,                                                              \
+    .opc4 = op4,                                                              \
+    .handler = {                                                              \
+        .inval1  = invl,                                                      \
+        .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
+        .handler = &gen_##name,                                               \
+        .oname = stringify(name),                                             \
+    },                                                                        \
+    .oname = stringify(name),                                                 \
+}
 #else
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ, _typ2)                    \
 {                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
-    .pad  = { 0, },                                                           \
+    .opc4 = 0xff,                                                             \
     .handler = {                                                              \
         .inval1  = invl,                                                      \
         .type = _typ,                                                         \
@@ -633,7 +674,7 @@ EXTRACT_HELPER(SP, 19, 2);
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
-    .pad  = { 0, },                                                           \
+    .opc4 = 0xff,                                                             \
     .handler = {                                                              \
         .inval1  = invl1,                                                     \
         .inval2  = invl2,                                                     \
@@ -648,7 +689,7 @@ EXTRACT_HELPER(SP, 19, 2);
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
-    .pad  = { 0, },                                                           \
+    .opc4 = 0xff,                                                             \
     .handler = {                                                              \
         .inval1  = invl,                                                      \
         .type = _typ,                                                         \
@@ -656,6 +697,20 @@ EXTRACT_HELPER(SP, 19, 2);
         .handler = &gen_##name,                                               \
     },                                                                        \
     .oname = onam,                                                            \
+}
+#define GEN_OPCODE3(name, op1, op2, op3, op4, invl, _typ, _typ2)              \
+{                                                                             \
+    .opc1 = op1,                                                              \
+    .opc2 = op2,                                                              \
+    .opc3 = op3,                                                              \
+    .opc4 = op4,                                                              \
+    .handler = {                                                              \
+        .inval1  = invl,                                                      \
+        .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
+        .handler = &gen_##name,                                               \
+    },                                                                        \
+    .oname = stringify(name),                                                 \
 }
 #endif
 
@@ -799,6 +854,53 @@ static void gen_cmpli(DisasContext *ctx)
                       0, crfD(ctx->opcode));
     }
 }
+
+/* cmprb - range comparison: isupper, isaplha, islower*/
+static void gen_cmprb(DisasContext *ctx)
+{
+    TCGv_i32 src1 = tcg_temp_new_i32();
+    TCGv_i32 src2 = tcg_temp_new_i32();
+    TCGv_i32 src2lo = tcg_temp_new_i32();
+    TCGv_i32 src2hi = tcg_temp_new_i32();
+    TCGv_i32 crf = cpu_crf[crfD(ctx->opcode)];
+
+    tcg_gen_trunc_tl_i32(src1, cpu_gpr[rA(ctx->opcode)]);
+    tcg_gen_trunc_tl_i32(src2, cpu_gpr[rB(ctx->opcode)]);
+
+    tcg_gen_andi_i32(src1, src1, 0xFF);
+    tcg_gen_ext8u_i32(src2lo, src2);
+    tcg_gen_shri_i32(src2, src2, 8);
+    tcg_gen_ext8u_i32(src2hi, src2);
+
+    tcg_gen_setcond_i32(TCG_COND_LEU, src2lo, src2lo, src1);
+    tcg_gen_setcond_i32(TCG_COND_LEU, src2hi, src1, src2hi);
+    tcg_gen_and_i32(crf, src2lo, src2hi);
+
+    if (ctx->opcode & 0x00200000) {
+        tcg_gen_shri_i32(src2, src2, 8);
+        tcg_gen_ext8u_i32(src2lo, src2);
+        tcg_gen_shri_i32(src2, src2, 8);
+        tcg_gen_ext8u_i32(src2hi, src2);
+        tcg_gen_setcond_i32(TCG_COND_LEU, src2lo, src2lo, src1);
+        tcg_gen_setcond_i32(TCG_COND_LEU, src2hi, src1, src2hi);
+        tcg_gen_and_i32(src2lo, src2lo, src2hi);
+        tcg_gen_or_i32(crf, crf, src2lo);
+    }
+    tcg_gen_shli_i32(crf, crf, CRF_GT);
+    tcg_temp_free_i32(src1);
+    tcg_temp_free_i32(src2);
+    tcg_temp_free_i32(src2lo);
+    tcg_temp_free_i32(src2hi);
+}
+
+#if defined(TARGET_PPC64)
+/* cmpeqb */
+static void gen_cmpeqb(DisasContext *ctx)
+{
+    gen_helper_cmpeqb(cpu_crf[crfD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                      cpu_gpr[rB(ctx->opcode)]);
+}
+#endif
 
 /* isel (PowerPC 2.03 specification) */
 static void gen_isel(DisasContext *ctx)
@@ -984,44 +1086,50 @@ static void gen_addis(DisasContext *ctx)
     }
 }
 
+/* addpcis */
+static void gen_addpcis(DisasContext *ctx)
+{
+    target_long d = DX(ctx->opcode);
+
+    tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], ctx->nip + (d << 16));
+}
+
 static inline void gen_op_arith_divw(DisasContext *ctx, TCGv ret, TCGv arg1,
                                      TCGv arg2, int sign, int compute_ov)
 {
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
-    TCGv_i32 t0 = tcg_temp_local_new_i32();
-    TCGv_i32 t1 = tcg_temp_local_new_i32();
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 t2 = tcg_temp_new_i32();
+    TCGv_i32 t3 = tcg_temp_new_i32();
 
     tcg_gen_trunc_tl_i32(t0, arg1);
     tcg_gen_trunc_tl_i32(t1, arg2);
-    tcg_gen_brcondi_i32(TCG_COND_EQ, t1, 0, l1);
     if (sign) {
-        TCGLabel *l3 = gen_new_label();
-        tcg_gen_brcondi_i32(TCG_COND_NE, t1, -1, l3);
-        tcg_gen_brcondi_i32(TCG_COND_EQ, t0, INT32_MIN, l1);
-        gen_set_label(l3);
-        tcg_gen_div_i32(t0, t0, t1);
+        tcg_gen_setcondi_i32(TCG_COND_EQ, t2, t0, INT_MIN);
+        tcg_gen_setcondi_i32(TCG_COND_EQ, t3, t1, -1);
+        tcg_gen_and_i32(t2, t2, t3);
+        tcg_gen_setcondi_i32(TCG_COND_EQ, t3, t1, 0);
+        tcg_gen_or_i32(t2, t2, t3);
+        tcg_gen_movi_i32(t3, 0);
+        tcg_gen_movcond_i32(TCG_COND_NE, t1, t2, t3, t2, t1);
+        tcg_gen_div_i32(t3, t0, t1);
+        tcg_gen_extu_i32_tl(ret, t3);
     } else {
-        tcg_gen_divu_i32(t0, t0, t1);
+        tcg_gen_setcondi_i32(TCG_COND_EQ, t2, t1, 0);
+        tcg_gen_movi_i32(t3, 0);
+        tcg_gen_movcond_i32(TCG_COND_NE, t1, t2, t3, t2, t1);
+        tcg_gen_divu_i32(t3, t0, t1);
+        tcg_gen_extu_i32_tl(ret, t3);
     }
     if (compute_ov) {
-        tcg_gen_movi_tl(cpu_ov, 0);
+        tcg_gen_extu_i32_tl(cpu_ov, t2);
+        tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
     }
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    if (sign) {
-        tcg_gen_sari_i32(t0, t0, 31);
-    } else {
-        tcg_gen_movi_i32(t0, 0);
-    }
-    if (compute_ov) {
-        tcg_gen_movi_tl(cpu_ov, 1);
-        tcg_gen_movi_tl(cpu_so, 1);
-    }
-    gen_set_label(l2);
-    tcg_gen_extu_i32_tl(ret, t0);
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(t3);
+
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, ret);
 }
@@ -1062,37 +1170,41 @@ GEN_DIVE(divweo, divwe, 1);
 static inline void gen_op_arith_divd(DisasContext *ctx, TCGv ret, TCGv arg1,
                                      TCGv arg2, int sign, int compute_ov)
 {
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+    TCGv_i64 t3 = tcg_temp_new_i64();
 
-    tcg_gen_brcondi_i64(TCG_COND_EQ, arg2, 0, l1);
+    tcg_gen_mov_i64(t0, arg1);
+    tcg_gen_mov_i64(t1, arg2);
     if (sign) {
-        TCGLabel *l3 = gen_new_label();
-        tcg_gen_brcondi_i64(TCG_COND_NE, arg2, -1, l3);
-        tcg_gen_brcondi_i64(TCG_COND_EQ, arg1, INT64_MIN, l1);
-        gen_set_label(l3);
-        tcg_gen_div_i64(ret, arg1, arg2);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t2, t0, INT64_MIN);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t3, t1, -1);
+        tcg_gen_and_i64(t2, t2, t3);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t3, t1, 0);
+        tcg_gen_or_i64(t2, t2, t3);
+        tcg_gen_movi_i64(t3, 0);
+        tcg_gen_movcond_i64(TCG_COND_NE, t1, t2, t3, t2, t1);
+        tcg_gen_div_i64(ret, t0, t1);
     } else {
-        tcg_gen_divu_i64(ret, arg1, arg2);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t2, t1, 0);
+        tcg_gen_movi_i64(t3, 0);
+        tcg_gen_movcond_i64(TCG_COND_NE, t1, t2, t3, t2, t1);
+        tcg_gen_divu_i64(ret, t0, t1);
     }
     if (compute_ov) {
-        tcg_gen_movi_tl(cpu_ov, 0);
+        tcg_gen_mov_tl(cpu_ov, t2);
+        tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
     }
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    if (sign) {
-        tcg_gen_sari_i64(ret, arg1, 63);
-    } else {
-        tcg_gen_movi_i64(ret, 0);
-    }
-    if (compute_ov) {
-        tcg_gen_movi_tl(cpu_ov, 1);
-        tcg_gen_movi_tl(cpu_so, 1);
-    }
-    gen_set_label(l2);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+    tcg_temp_free_i64(t3);
+
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, ret);
 }
+
 #define GEN_INT_ARITH_DIVD(name, opc3, sign, compute_ov)                      \
 static void glue(gen_, name)(DisasContext *ctx)                                       \
 {                                                                             \
@@ -1111,6 +1223,98 @@ GEN_DIVE(divdeu, divdeu, 0);
 GEN_DIVE(divdeuo, divdeu, 1);
 GEN_DIVE(divde, divde, 0);
 GEN_DIVE(divdeo, divde, 1);
+#endif
+
+static inline void gen_op_arith_modw(DisasContext *ctx, TCGv ret, TCGv arg1,
+                                     TCGv arg2, int sign)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+
+    tcg_gen_trunc_tl_i32(t0, arg1);
+    tcg_gen_trunc_tl_i32(t1, arg2);
+    if (sign) {
+        TCGv_i32 t2 = tcg_temp_new_i32();
+        TCGv_i32 t3 = tcg_temp_new_i32();
+        tcg_gen_setcondi_i32(TCG_COND_EQ, t2, t0, INT_MIN);
+        tcg_gen_setcondi_i32(TCG_COND_EQ, t3, t1, -1);
+        tcg_gen_and_i32(t2, t2, t3);
+        tcg_gen_setcondi_i32(TCG_COND_EQ, t3, t1, 0);
+        tcg_gen_or_i32(t2, t2, t3);
+        tcg_gen_movi_i32(t3, 0);
+        tcg_gen_movcond_i32(TCG_COND_NE, t1, t2, t3, t2, t1);
+        tcg_gen_rem_i32(t3, t0, t1);
+        tcg_gen_ext_i32_tl(ret, t3);
+        tcg_temp_free_i32(t2);
+        tcg_temp_free_i32(t3);
+    } else {
+        TCGv_i32 t2 = tcg_const_i32(1);
+        TCGv_i32 t3 = tcg_const_i32(0);
+        tcg_gen_movcond_i32(TCG_COND_EQ, t1, t1, t3, t2, t1);
+        tcg_gen_remu_i32(t3, t0, t1);
+        tcg_gen_extu_i32_tl(ret, t3);
+        tcg_temp_free_i32(t2);
+        tcg_temp_free_i32(t3);
+    }
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
+}
+
+#define GEN_INT_ARITH_MODW(name, opc3, sign)                                \
+static void glue(gen_, name)(DisasContext *ctx)                             \
+{                                                                           \
+    gen_op_arith_modw(ctx, cpu_gpr[rD(ctx->opcode)],                        \
+                      cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],   \
+                      sign);                                                \
+}
+
+GEN_INT_ARITH_MODW(moduw, 0x08, 0);
+GEN_INT_ARITH_MODW(modsw, 0x18, 1);
+
+#if defined(TARGET_PPC64)
+static inline void gen_op_arith_modd(DisasContext *ctx, TCGv ret, TCGv arg1,
+                                     TCGv arg2, int sign)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_mov_i64(t0, arg1);
+    tcg_gen_mov_i64(t1, arg2);
+    if (sign) {
+        TCGv_i64 t2 = tcg_temp_new_i64();
+        TCGv_i64 t3 = tcg_temp_new_i64();
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t2, t0, INT64_MIN);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t3, t1, -1);
+        tcg_gen_and_i64(t2, t2, t3);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t3, t1, 0);
+        tcg_gen_or_i64(t2, t2, t3);
+        tcg_gen_movi_i64(t3, 0);
+        tcg_gen_movcond_i64(TCG_COND_NE, t1, t2, t3, t2, t1);
+        tcg_gen_rem_i64(ret, t0, t1);
+        tcg_temp_free_i64(t2);
+        tcg_temp_free_i64(t3);
+    } else {
+        TCGv_i64 t2 = tcg_const_i64(1);
+        TCGv_i64 t3 = tcg_const_i64(0);
+        tcg_gen_movcond_i64(TCG_COND_EQ, t1, t1, t3, t2, t1);
+        tcg_gen_remu_i64(ret, t0, t1);
+        tcg_temp_free_i64(t2);
+        tcg_temp_free_i64(t3);
+    }
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+}
+
+#define GEN_INT_ARITH_MODD(name, opc3, sign)                            \
+static void glue(gen_, name)(DisasContext *ctx)                           \
+{                                                                         \
+  gen_op_arith_modd(ctx, cpu_gpr[rD(ctx->opcode)],                        \
+                    cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],   \
+                    sign);                                                \
+}
+
+GEN_INT_ARITH_MODD(modud, 0x08, 0);
+GEN_INT_ARITH_MODD(modsd, 0x18, 1);
 #endif
 
 /* mulhw  mulhw. */
@@ -1428,6 +1632,16 @@ static void gen_cntlzw(DisasContext *ctx)
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
 }
+
+/* cnttzw */
+static void gen_cnttzw(DisasContext *ctx)
+{
+    gen_helper_cnttzw(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
+    }
+}
+
 /* eqv & eqv. */
 GEN_LOGICAL2(eqv, tcg_gen_eqv_tl, 0x08, PPC_INTEGER);
 /* extsb & extsb. */
@@ -1448,7 +1662,7 @@ static void gen_pause(DisasContext *ctx)
     tcg_temp_free_i32(t0);
 
     /* Stop translation, this gives other CPUs a chance to run */
-    gen_exception_err(ctx, EXCP_HLT, 1);
+    gen_exception_nip(ctx, EXCP_HLT, ctx->nip);
 }
 #endif /* defined(TARGET_PPC64) */
 
@@ -1667,6 +1881,15 @@ static void gen_cntlzd(DisasContext *ctx)
     gen_helper_cntlzd(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
+}
+
+/* cnttzd */
+static void gen_cnttzd(DisasContext *ctx)
+{
+    gen_helper_cnttzd(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
+    }
 }
 #endif
 
@@ -2106,6 +2329,30 @@ static void gen_sradi1(DisasContext *ctx)
     gen_sradi(ctx, 1);
 }
 
+/* extswsli & extswsli. */
+static inline void gen_extswsli(DisasContext *ctx, int n)
+{
+    int sh = SH(ctx->opcode) + (n << 5);
+    TCGv dst = cpu_gpr[rA(ctx->opcode)];
+    TCGv src = cpu_gpr[rS(ctx->opcode)];
+
+    tcg_gen_ext32s_tl(dst, src);
+    tcg_gen_shli_tl(dst, dst, sh);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_set_Rc0(ctx, dst);
+    }
+}
+
+static void gen_extswsli0(DisasContext *ctx)
+{
+    gen_extswsli(ctx, 0);
+}
+
+static void gen_extswsli1(DisasContext *ctx)
+{
+    gen_extswsli(ctx, 1);
+}
+
 /* srd & srd. */
 static void gen_srd(DisasContext *ctx)
 {
@@ -2125,602 +2372,6 @@ static void gen_srd(DisasContext *ctx)
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
 }
 #endif
-
-#if defined(TARGET_PPC64)
-static void gen_set_cr1_from_fpscr(DisasContext *ctx)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_trunc_tl_i32(tmp, cpu_fpscr);
-    tcg_gen_shri_i32(cpu_crf[1], tmp, 28);
-    tcg_temp_free_i32(tmp);
-}
-#else
-static void gen_set_cr1_from_fpscr(DisasContext *ctx)
-{
-    tcg_gen_shri_tl(cpu_crf[1], cpu_fpscr, 28);
-}
-#endif
-
-/***                       Floating-Point arithmetic                       ***/
-#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat, set_fprf, type)           \
-static void gen_f##name(DisasContext *ctx)                                    \
-{                                                                             \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
-    gen_reset_fpstatus();                                                     \
-    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_env,                       \
-                     cpu_fpr[rA(ctx->opcode)],                                \
-                     cpu_fpr[rC(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);     \
-    if (isfloat) {                                                            \
-        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,                    \
-                        cpu_fpr[rD(ctx->opcode)]);                            \
-    }                                                                         \
-    if (set_fprf) {                                                           \
-        gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);                           \
-    }                                                                         \
-    if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
-        gen_set_cr1_from_fpscr(ctx);                                          \
-    }                                                                         \
-}
-
-#define GEN_FLOAT_ACB(name, op2, set_fprf, type)                              \
-_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0, set_fprf, type);                     \
-_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1, set_fprf, type);
-
-#define _GEN_FLOAT_AB(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
-static void gen_f##name(DisasContext *ctx)                                    \
-{                                                                             \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
-    gen_reset_fpstatus();                                                     \
-    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_env,                       \
-                     cpu_fpr[rA(ctx->opcode)],                                \
-                     cpu_fpr[rB(ctx->opcode)]);                               \
-    if (isfloat) {                                                            \
-        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,                    \
-                        cpu_fpr[rD(ctx->opcode)]);                            \
-    }                                                                         \
-    if (set_fprf) {                                                           \
-        gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);                           \
-    }                                                                         \
-    if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
-        gen_set_cr1_from_fpscr(ctx);                                          \
-    }                                                                         \
-}
-#define GEN_FLOAT_AB(name, op2, inval, set_fprf, type)                        \
-_GEN_FLOAT_AB(name, name, 0x3F, op2, inval, 0, set_fprf, type);               \
-_GEN_FLOAT_AB(name##s, name, 0x3B, op2, inval, 1, set_fprf, type);
-
-#define _GEN_FLOAT_AC(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
-static void gen_f##name(DisasContext *ctx)                                    \
-{                                                                             \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
-    gen_reset_fpstatus();                                                     \
-    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_env,                       \
-                     cpu_fpr[rA(ctx->opcode)],                                \
-                     cpu_fpr[rC(ctx->opcode)]);                               \
-    if (isfloat) {                                                            \
-        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,                    \
-                        cpu_fpr[rD(ctx->opcode)]);                            \
-    }                                                                         \
-    if (set_fprf) {                                                           \
-        gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);                           \
-    }                                                                         \
-    if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
-        gen_set_cr1_from_fpscr(ctx);                                          \
-    }                                                                         \
-}
-#define GEN_FLOAT_AC(name, op2, inval, set_fprf, type)                        \
-_GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0, set_fprf, type);               \
-_GEN_FLOAT_AC(name##s, name, 0x3B, op2, inval, 1, set_fprf, type);
-
-#define GEN_FLOAT_B(name, op2, op3, set_fprf, type)                           \
-static void gen_f##name(DisasContext *ctx)                                    \
-{                                                                             \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
-    gen_reset_fpstatus();                                                     \
-    gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_env,                     \
-                       cpu_fpr[rB(ctx->opcode)]);                             \
-    if (set_fprf) {                                                           \
-        gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);                           \
-    }                                                                         \
-    if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
-        gen_set_cr1_from_fpscr(ctx);                                          \
-    }                                                                         \
-}
-
-#define GEN_FLOAT_BS(name, op1, op2, set_fprf, type)                          \
-static void gen_f##name(DisasContext *ctx)                                    \
-{                                                                             \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
-    gen_reset_fpstatus();                                                     \
-    gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_env,                     \
-                       cpu_fpr[rB(ctx->opcode)]);                             \
-    if (set_fprf) {                                                           \
-        gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);                           \
-    }                                                                         \
-    if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
-        gen_set_cr1_from_fpscr(ctx);                                          \
-    }                                                                         \
-}
-
-/* fadd - fadds */
-GEN_FLOAT_AB(add, 0x15, 0x000007C0, 1, PPC_FLOAT);
-/* fdiv - fdivs */
-GEN_FLOAT_AB(div, 0x12, 0x000007C0, 1, PPC_FLOAT);
-/* fmul - fmuls */
-GEN_FLOAT_AC(mul, 0x19, 0x0000F800, 1, PPC_FLOAT);
-
-/* fre */
-GEN_FLOAT_BS(re, 0x3F, 0x18, 1, PPC_FLOAT_EXT);
-
-/* fres */
-GEN_FLOAT_BS(res, 0x3B, 0x18, 1, PPC_FLOAT_FRES);
-
-/* frsqrte */
-GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A, 1, PPC_FLOAT_FRSQRTE);
-
-/* frsqrtes */
-static void gen_frsqrtes(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_reset_fpstatus();
-    gen_helper_frsqrte(cpu_fpr[rD(ctx->opcode)], cpu_env,
-                       cpu_fpr[rB(ctx->opcode)]);
-    gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,
-                    cpu_fpr[rD(ctx->opcode)]);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
-
-/* fsel */
-_GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0, 0, PPC_FLOAT_FSEL);
-/* fsub - fsubs */
-GEN_FLOAT_AB(sub, 0x14, 0x000007C0, 1, PPC_FLOAT);
-/* Optional: */
-
-/* fsqrt */
-static void gen_fsqrt(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_reset_fpstatus();
-    gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_env,
-                     cpu_fpr[rB(ctx->opcode)]);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
-
-static void gen_fsqrts(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_reset_fpstatus();
-    gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_env,
-                     cpu_fpr[rB(ctx->opcode)]);
-    gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,
-                    cpu_fpr[rD(ctx->opcode)]);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
-
-/***                     Floating-Point multiply-and-add                   ***/
-/* fmadd - fmadds */
-GEN_FLOAT_ACB(madd, 0x1D, 1, PPC_FLOAT);
-/* fmsub - fmsubs */
-GEN_FLOAT_ACB(msub, 0x1C, 1, PPC_FLOAT);
-/* fnmadd - fnmadds */
-GEN_FLOAT_ACB(nmadd, 0x1F, 1, PPC_FLOAT);
-/* fnmsub - fnmsubs */
-GEN_FLOAT_ACB(nmsub, 0x1E, 1, PPC_FLOAT);
-
-/***                     Floating-Point round & convert                    ***/
-/* fctiw */
-GEN_FLOAT_B(ctiw, 0x0E, 0x00, 0, PPC_FLOAT);
-/* fctiwu */
-GEN_FLOAT_B(ctiwu, 0x0E, 0x04, 0, PPC2_FP_CVT_ISA206);
-/* fctiwz */
-GEN_FLOAT_B(ctiwz, 0x0F, 0x00, 0, PPC_FLOAT);
-/* fctiwuz */
-GEN_FLOAT_B(ctiwuz, 0x0F, 0x04, 0, PPC2_FP_CVT_ISA206);
-/* frsp */
-GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT);
-/* fcfid */
-GEN_FLOAT_B(cfid, 0x0E, 0x1A, 1, PPC2_FP_CVT_S64);
-/* fcfids */
-GEN_FLOAT_B(cfids, 0x0E, 0x1A, 0, PPC2_FP_CVT_ISA206);
-/* fcfidu */
-GEN_FLOAT_B(cfidu, 0x0E, 0x1E, 0, PPC2_FP_CVT_ISA206);
-/* fcfidus */
-GEN_FLOAT_B(cfidus, 0x0E, 0x1E, 0, PPC2_FP_CVT_ISA206);
-/* fctid */
-GEN_FLOAT_B(ctid, 0x0E, 0x19, 0, PPC2_FP_CVT_S64);
-/* fctidu */
-GEN_FLOAT_B(ctidu, 0x0E, 0x1D, 0, PPC2_FP_CVT_ISA206);
-/* fctidz */
-GEN_FLOAT_B(ctidz, 0x0F, 0x19, 0, PPC2_FP_CVT_S64);
-/* fctidu */
-GEN_FLOAT_B(ctiduz, 0x0F, 0x1D, 0, PPC2_FP_CVT_ISA206);
-
-/* frin */
-GEN_FLOAT_B(rin, 0x08, 0x0C, 1, PPC_FLOAT_EXT);
-/* friz */
-GEN_FLOAT_B(riz, 0x08, 0x0D, 1, PPC_FLOAT_EXT);
-/* frip */
-GEN_FLOAT_B(rip, 0x08, 0x0E, 1, PPC_FLOAT_EXT);
-/* frim */
-GEN_FLOAT_B(rim, 0x08, 0x0F, 1, PPC_FLOAT_EXT);
-
-static void gen_ftdiv(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    gen_helper_ftdiv(cpu_crf[crfD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],
-                     cpu_fpr[rB(ctx->opcode)]);
-}
-
-static void gen_ftsqrt(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    gen_helper_ftsqrt(cpu_crf[crfD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
-}
-
-
-
-/***                         Floating-Point compare                        ***/
-
-/* fcmpo */
-static void gen_fcmpo(DisasContext *ctx)
-{
-    TCGv_i32 crf;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_reset_fpstatus();
-    crf = tcg_const_i32(crfD(ctx->opcode));
-    gen_helper_fcmpo(cpu_env, cpu_fpr[rA(ctx->opcode)],
-                     cpu_fpr[rB(ctx->opcode)], crf);
-    tcg_temp_free_i32(crf);
-    gen_helper_float_check_status(cpu_env);
-}
-
-/* fcmpu */
-static void gen_fcmpu(DisasContext *ctx)
-{
-    TCGv_i32 crf;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_reset_fpstatus();
-    crf = tcg_const_i32(crfD(ctx->opcode));
-    gen_helper_fcmpu(cpu_env, cpu_fpr[rA(ctx->opcode)],
-                     cpu_fpr[rB(ctx->opcode)], crf);
-    tcg_temp_free_i32(crf);
-    gen_helper_float_check_status(cpu_env);
-}
-
-/***                         Floating-point move                           ***/
-/* fabs */
-/* XXX: beware that fabs never checks for NaNs nor update FPSCR */
-static void gen_fabs(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    tcg_gen_andi_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)],
-                     ~(1ULL << 63));
-    if (unlikely(Rc(ctx->opcode))) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
-
-/* fmr  - fmr. */
-/* XXX: beware that fmr never checks for NaNs nor update FPSCR */
-static void gen_fmr(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
-    if (unlikely(Rc(ctx->opcode))) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
-
-/* fnabs */
-/* XXX: beware that fnabs never checks for NaNs nor update FPSCR */
-static void gen_fnabs(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    tcg_gen_ori_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)],
-                    1ULL << 63);
-    if (unlikely(Rc(ctx->opcode))) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
-
-/* fneg */
-/* XXX: beware that fneg never checks for NaNs nor update FPSCR */
-static void gen_fneg(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    tcg_gen_xori_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)],
-                     1ULL << 63);
-    if (unlikely(Rc(ctx->opcode))) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
-
-/* fcpsgn: PowerPC 2.05 specification */
-/* XXX: beware that fcpsgn never checks for NaNs nor update FPSCR */
-static void gen_fcpsgn(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    tcg_gen_deposit_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],
-                        cpu_fpr[rB(ctx->opcode)], 0, 63);
-    if (unlikely(Rc(ctx->opcode))) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
-
-static void gen_fmrgew(DisasContext *ctx)
-{
-    TCGv_i64 b0;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    b0 = tcg_temp_new_i64();
-    tcg_gen_shri_i64(b0, cpu_fpr[rB(ctx->opcode)], 32);
-    tcg_gen_deposit_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],
-                        b0, 0, 32);
-    tcg_temp_free_i64(b0);
-}
-
-static void gen_fmrgow(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    tcg_gen_deposit_i64(cpu_fpr[rD(ctx->opcode)],
-                        cpu_fpr[rB(ctx->opcode)],
-                        cpu_fpr[rA(ctx->opcode)],
-                        32, 32);
-}
-
-/***                  Floating-Point status & ctrl register                ***/
-
-/* mcrfs */
-static void gen_mcrfs(DisasContext *ctx)
-{
-    TCGv tmp = tcg_temp_new();
-    TCGv_i32 tmask;
-    TCGv_i64 tnew_fpscr = tcg_temp_new_i64();
-    int bfa;
-    int nibble;
-    int shift;
-
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    bfa = crfS(ctx->opcode);
-    nibble = 7 - bfa;
-    shift = 4 * nibble;
-    tcg_gen_shri_tl(tmp, cpu_fpscr, shift);
-    tcg_gen_trunc_tl_i32(cpu_crf[crfD(ctx->opcode)], tmp);
-    tcg_gen_andi_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)], 0xf);
-    tcg_temp_free(tmp);
-    tcg_gen_extu_tl_i64(tnew_fpscr, cpu_fpscr);
-    /* Only the exception bits (including FX) should be cleared if read */
-    tcg_gen_andi_i64(tnew_fpscr, tnew_fpscr, ~((0xF << shift) & FP_EX_CLEAR_BITS));
-    /* FEX and VX need to be updated, so don't set fpscr directly */
-    tmask = tcg_const_i32(1 << nibble);
-    gen_helper_store_fpscr(cpu_env, tnew_fpscr, tmask);
-    tcg_temp_free_i32(tmask);
-    tcg_temp_free_i64(tnew_fpscr);
-}
-
-/* mffs */
-static void gen_mffs(DisasContext *ctx)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    gen_reset_fpstatus();
-    tcg_gen_extu_tl_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpscr);
-    if (unlikely(Rc(ctx->opcode))) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
-
-/* mtfsb0 */
-static void gen_mtfsb0(DisasContext *ctx)
-{
-    uint8_t crb;
-
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    crb = 31 - crbD(ctx->opcode);
-    gen_reset_fpstatus();
-    if (likely(crb != FPSCR_FEX && crb != FPSCR_VX)) {
-        TCGv_i32 t0;
-        /* NIP cannot be restored if the memory exception comes from an helper */
-        gen_update_nip(ctx, ctx->nip - 4);
-        t0 = tcg_const_i32(crb);
-        gen_helper_fpscr_clrbit(cpu_env, t0);
-        tcg_temp_free_i32(t0);
-    }
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
-    }
-}
-
-/* mtfsb1 */
-static void gen_mtfsb1(DisasContext *ctx)
-{
-    uint8_t crb;
-
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    crb = 31 - crbD(ctx->opcode);
-    gen_reset_fpstatus();
-    /* XXX: we pretend we can only do IEEE floating-point computations */
-    if (likely(crb != FPSCR_FEX && crb != FPSCR_VX && crb != FPSCR_NI)) {
-        TCGv_i32 t0;
-        /* NIP cannot be restored if the memory exception comes from an helper */
-        gen_update_nip(ctx, ctx->nip - 4);
-        t0 = tcg_const_i32(crb);
-        gen_helper_fpscr_setbit(cpu_env, t0);
-        tcg_temp_free_i32(t0);
-    }
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
-    }
-    /* We can raise a differed exception */
-    gen_helper_float_check_status(cpu_env);
-}
-
-/* mtfsf */
-static void gen_mtfsf(DisasContext *ctx)
-{
-    TCGv_i32 t0;
-    int flm, l, w;
-
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    flm = FPFLM(ctx->opcode);
-    l = FPL(ctx->opcode);
-    w = FPW(ctx->opcode);
-    if (unlikely(w & !(ctx->insns_flags2 & PPC2_ISA205))) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-        return;
-    }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_reset_fpstatus();
-    if (l) {
-        t0 = tcg_const_i32((ctx->insns_flags2 & PPC2_ISA205) ? 0xffff : 0xff);
-    } else {
-        t0 = tcg_const_i32(flm << (w * 8));
-    }
-    gen_helper_store_fpscr(cpu_env, cpu_fpr[rB(ctx->opcode)], t0);
-    tcg_temp_free_i32(t0);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
-    }
-    /* We can raise a differed exception */
-    gen_helper_float_check_status(cpu_env);
-}
-
-/* mtfsfi */
-static void gen_mtfsfi(DisasContext *ctx)
-{
-    int bf, sh, w;
-    TCGv_i64 t0;
-    TCGv_i32 t1;
-
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    w = FPW(ctx->opcode);
-    bf = FPBF(ctx->opcode);
-    if (unlikely(w & !(ctx->insns_flags2 & PPC2_ISA205))) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-        return;
-    }
-    sh = (8 * w) + 7 - bf;
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_reset_fpstatus();
-    t0 = tcg_const_i64(((uint64_t)FPIMM(ctx->opcode)) << (4 * sh));
-    t1 = tcg_const_i32(1 << sh);
-    gen_helper_store_fpscr(cpu_env, t0, t1);
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i32(t1);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
-    }
-    /* We can raise a differed exception */
-    gen_helper_float_check_status(cpu_env);
-}
 
 /***                           Addressing modes                            ***/
 /* Register indirect with immediate index : EA = (rA|0) + SIMM */
@@ -2790,17 +2441,22 @@ static inline void gen_check_align(DisasContext *ctx, TCGv EA, int mask)
     TCGLabel *l1 = gen_new_label();
     TCGv t0 = tcg_temp_new();
     TCGv_i32 t1, t2;
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     tcg_gen_andi_tl(t0, EA, mask);
     tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
     t1 = tcg_const_i32(POWERPC_EXCP_ALIGN);
-    t2 = tcg_const_i32(0);
+    t2 = tcg_const_i32(ctx->opcode & 0x03FF0000);
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_raise_exception_err(cpu_env, t1, t2);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t2);
     gen_set_label(l1);
     tcg_temp_free(t0);
+}
+
+static inline void gen_align_no_le(DisasContext *ctx)
+{
+    gen_exception_err(ctx, POWERPC_EXCP_ALIGN,
+                      (ctx->opcode & 0x03FF0000) | POWERPC_EXCP_ALIGN_LE);
 }
 
 /***                             Integer load                              ***/
@@ -3023,10 +2679,9 @@ static void gen_lq(DisasContext *ctx)
     }
 
     if (!le_is_supported && ctx->le_mode) {
-        gen_exception_err(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_LE);
+        gen_align_no_le(ctx);
         return;
     }
-
     ra = rA(ctx->opcode);
     rd = rD(ctx->opcode);
     if (unlikely((rd & 1) || rd == ra)) {
@@ -3157,7 +2812,7 @@ static void gen_std(DisasContext *ctx)
         }
 
         if (!le_is_supported && ctx->le_mode) {
-            gen_exception_err(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_LE);
+            gen_align_no_le(ctx);
             return;
         }
 
@@ -3260,9 +2915,12 @@ static void gen_lmw(DisasContext *ctx)
 {
     TCGv t0;
     TCGv_i32 t1;
+
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     gen_set_access_type(ctx, ACCESS_INT);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     t1 = tcg_const_i32(rD(ctx->opcode));
     gen_addr_imm_index(ctx, t0, 0);
@@ -3276,9 +2934,12 @@ static void gen_stmw(DisasContext *ctx)
 {
     TCGv t0;
     TCGv_i32 t1;
+
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     gen_set_access_type(ctx, ACCESS_INT);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     t1 = tcg_const_i32(rS(ctx->opcode));
     gen_addr_imm_index(ctx, t0, 0);
@@ -3304,6 +2965,10 @@ static void gen_lswi(DisasContext *ctx)
     int ra = rA(ctx->opcode);
     int nr;
 
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     if (nb == 0)
         nb = 32;
     nr = (nb + 3) / 4;
@@ -3312,8 +2977,6 @@ static void gen_lswi(DisasContext *ctx)
         return;
     }
     gen_set_access_type(ctx, ACCESS_INT);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_register(ctx, t0);
     t1 = tcg_const_i32(nb);
@@ -3329,9 +2992,12 @@ static void gen_lswx(DisasContext *ctx)
 {
     TCGv t0;
     TCGv_i32 t1, t2, t3;
+
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     gen_set_access_type(ctx, ACCESS_INT);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
     t1 = tcg_const_i32(rD(ctx->opcode));
@@ -3350,9 +3016,12 @@ static void gen_stswi(DisasContext *ctx)
     TCGv t0;
     TCGv_i32 t1, t2;
     int nb = NB(ctx->opcode);
+
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     gen_set_access_type(ctx, ACCESS_INT);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_register(ctx, t0);
     if (nb == 0)
@@ -3370,9 +3039,12 @@ static void gen_stswx(DisasContext *ctx)
 {
     TCGv t0;
     TCGv_i32 t1, t2;
+
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     gen_set_access_type(ctx, ACCESS_INT);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
     t1 = tcg_temp_new_i32();
@@ -3453,16 +3125,12 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
                                   int reg, int size)
 {
     TCGv t0 = tcg_temp_new();
-    uint32_t save_exception = ctx->exception;
 
     tcg_gen_st_tl(EA, cpu_env, offsetof(CPUPPCState, reserve_ea));
     tcg_gen_movi_tl(t0, (size << 5) | reg);
     tcg_gen_st_tl(t0, cpu_env, offsetof(CPUPPCState, reserve_info));
     tcg_temp_free(t0);
-    gen_update_nip(ctx, ctx->nip-4);
-    ctx->exception = POWERPC_EXCP_BRANCH;
-    gen_exception(ctx, POWERPC_EXCP_STCX);
-    ctx->exception = save_exception;
+    gen_exception_err(ctx, POWERPC_EXCP_STCX, 0);
 }
 #else
 static void gen_conditional_store(DisasContext *ctx, TCGv EA,
@@ -3601,7 +3269,7 @@ static void gen_wait(DisasContext *ctx)
                    -offsetof(PowerPCCPU, env) + offsetof(CPUState, halted));
     tcg_temp_free_i32(t0);
     /* Stop translation, as the CPU is supposed to sleep from now */
-    gen_exception_err(ctx, EXCP_HLT, 1);
+    gen_exception_nip(ctx, EXCP_HLT, ctx->nip);
 }
 
 #if defined(TARGET_PPC64)
@@ -3666,336 +3334,6 @@ static void gen_rvwinkle(DisasContext *ctx)
 }
 #endif /* #if defined(TARGET_PPC64) */
 
-/***                         Floating-point load                           ***/
-#define GEN_LDF(name, ldop, opc, type)                                        \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_FLOAT);                                   \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_imm_index(ctx, EA, 0);                                           \
-    gen_qemu_##ldop(ctx, cpu_fpr[rD(ctx->opcode)], EA);                       \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_LDUF(name, ldop, opc, type)                                       \
-static void glue(gen_, name##u)(DisasContext *ctx)                                    \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    if (unlikely(rA(ctx->opcode) == 0)) {                                     \
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);                   \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_FLOAT);                                   \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_imm_index(ctx, EA, 0);                                           \
-    gen_qemu_##ldop(ctx, cpu_fpr[rD(ctx->opcode)], EA);                       \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_LDUXF(name, ldop, opc, type)                                      \
-static void glue(gen_, name##ux)(DisasContext *ctx)                                   \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    if (unlikely(rA(ctx->opcode) == 0)) {                                     \
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);                   \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_FLOAT);                                   \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_reg_index(ctx, EA);                                              \
-    gen_qemu_##ldop(ctx, cpu_fpr[rD(ctx->opcode)], EA);                       \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_LDXF(name, ldop, opc2, opc3, type)                                \
-static void glue(gen_, name##x)(DisasContext *ctx)                                    \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_FLOAT);                                   \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_reg_index(ctx, EA);                                              \
-    gen_qemu_##ldop(ctx, cpu_fpr[rD(ctx->opcode)], EA);                       \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_LDFS(name, ldop, op, type)                                        \
-GEN_LDF(name, ldop, op | 0x20, type);                                         \
-GEN_LDUF(name, ldop, op | 0x21, type);                                        \
-GEN_LDUXF(name, ldop, op | 0x01, type);                                       \
-GEN_LDXF(name, ldop, 0x17, op | 0x00, type)
-
-static inline void gen_qemu_ld32fs(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
-{
-    TCGv t0 = tcg_temp_new();
-    TCGv_i32 t1 = tcg_temp_new_i32();
-    gen_qemu_ld32u(ctx, t0, arg2);
-    tcg_gen_trunc_tl_i32(t1, t0);
-    tcg_temp_free(t0);
-    gen_helper_float32_to_float64(arg1, cpu_env, t1);
-    tcg_temp_free_i32(t1);
-}
-
- /* lfd lfdu lfdux lfdx */
-GEN_LDFS(lfd, ld64, 0x12, PPC_FLOAT);
- /* lfs lfsu lfsux lfsx */
-GEN_LDFS(lfs, ld32fs, 0x10, PPC_FLOAT);
-
-/* lfdp */
-static void gen_lfdp(DisasContext *ctx)
-{
-    TCGv EA;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    EA = tcg_temp_new();
-    gen_addr_imm_index(ctx, EA, 0);
-    /* We only need to swap high and low halves. gen_qemu_ld64 does necessary
-       64-bit byteswap already. */
-    if (unlikely(ctx->le_mode)) {
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
-        tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
-    } else {
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
-        tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
-    }
-    tcg_temp_free(EA);
-}
-
-/* lfdpx */
-static void gen_lfdpx(DisasContext *ctx)
-{
-    TCGv EA;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    /* We only need to swap high and low halves. gen_qemu_ld64 does necessary
-       64-bit byteswap already. */
-    if (unlikely(ctx->le_mode)) {
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
-        tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
-    } else {
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
-        tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
-    }
-    tcg_temp_free(EA);
-}
-
-/* lfiwax */
-static void gen_lfiwax(DisasContext *ctx)
-{
-    TCGv EA;
-    TCGv t0;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    EA = tcg_temp_new();
-    t0 = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    gen_qemu_ld32s(ctx, t0, EA);
-    tcg_gen_ext_tl_i64(cpu_fpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(EA);
-    tcg_temp_free(t0);
-}
-
-/* lfiwzx */
-static void gen_lfiwzx(DisasContext *ctx)
-{
-    TCGv EA;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    gen_qemu_ld32u_i64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
-    tcg_temp_free(EA);
-}
-/***                         Floating-point store                          ***/
-#define GEN_STF(name, stop, opc, type)                                        \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_FLOAT);                                   \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_imm_index(ctx, EA, 0);                                           \
-    gen_qemu_##stop(ctx, cpu_fpr[rS(ctx->opcode)], EA);                       \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_STUF(name, stop, opc, type)                                       \
-static void glue(gen_, name##u)(DisasContext *ctx)                                    \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    if (unlikely(rA(ctx->opcode) == 0)) {                                     \
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);                   \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_FLOAT);                                   \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_imm_index(ctx, EA, 0);                                           \
-    gen_qemu_##stop(ctx, cpu_fpr[rS(ctx->opcode)], EA);                       \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_STUXF(name, stop, opc, type)                                      \
-static void glue(gen_, name##ux)(DisasContext *ctx)                                   \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    if (unlikely(rA(ctx->opcode) == 0)) {                                     \
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);                   \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_FLOAT);                                   \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_reg_index(ctx, EA);                                              \
-    gen_qemu_##stop(ctx, cpu_fpr[rS(ctx->opcode)], EA);                       \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_STXF(name, stop, opc2, opc3, type)                                \
-static void glue(gen_, name##x)(DisasContext *ctx)                                    \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_FLOAT);                                   \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_reg_index(ctx, EA);                                              \
-    gen_qemu_##stop(ctx, cpu_fpr[rS(ctx->opcode)], EA);                       \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_STFS(name, stop, op, type)                                        \
-GEN_STF(name, stop, op | 0x20, type);                                         \
-GEN_STUF(name, stop, op | 0x21, type);                                        \
-GEN_STUXF(name, stop, op | 0x01, type);                                       \
-GEN_STXF(name, stop, 0x17, op | 0x00, type)
-
-static inline void gen_qemu_st32fs(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
-{
-    TCGv_i32 t0 = tcg_temp_new_i32();
-    TCGv t1 = tcg_temp_new();
-    gen_helper_float64_to_float32(t0, cpu_env, arg1);
-    tcg_gen_extu_i32_tl(t1, t0);
-    tcg_temp_free_i32(t0);
-    gen_qemu_st32(ctx, t1, arg2);
-    tcg_temp_free(t1);
-}
-
-/* stfd stfdu stfdux stfdx */
-GEN_STFS(stfd, st64, 0x16, PPC_FLOAT);
-/* stfs stfsu stfsux stfsx */
-GEN_STFS(stfs, st32fs, 0x14, PPC_FLOAT);
-
-/* stfdp */
-static void gen_stfdp(DisasContext *ctx)
-{
-    TCGv EA;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    EA = tcg_temp_new();
-    gen_addr_imm_index(ctx, EA, 0);
-    /* We only need to swap high and low halves. gen_qemu_st64 does necessary
-       64-bit byteswap already. */
-    if (unlikely(ctx->le_mode)) {
-        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
-        tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
-    } else {
-        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
-        tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
-    }
-    tcg_temp_free(EA);
-}
-
-/* stfdpx */
-static void gen_stfdpx(DisasContext *ctx)
-{
-    TCGv EA;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    /* We only need to swap high and low halves. gen_qemu_st64 does necessary
-       64-bit byteswap already. */
-    if (unlikely(ctx->le_mode)) {
-        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
-        tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
-    } else {
-        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
-        tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
-    }
-    tcg_temp_free(EA);
-}
-
-/* Optional: */
-static inline void gen_qemu_st32fiw(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
-{
-    TCGv t0 = tcg_temp_new();
-    tcg_gen_trunc_i64_tl(t0, arg1),
-    gen_qemu_st32(ctx, t0, arg2);
-    tcg_temp_free(t0);
-}
-/* stfiwx */
-GEN_STXF(stfiw, st32fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX);
-
 static inline void gen_update_cfar(DisasContext *ctx, target_ulong nip)
 {
 #if defined(TARGET_PPC64)
@@ -4034,10 +3372,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
                 (CPU_BRANCH_STEP | CPU_SINGLE_STEP)) &&
                 (ctx->exception == POWERPC_EXCP_BRANCH ||
                  ctx->exception == POWERPC_EXCP_TRACE)) {
-                target_ulong tmp = ctx->nip;
-                ctx->nip = dest;
-                gen_exception(ctx, POWERPC_EXCP_TRACE);
-                ctx->nip = tmp;
+                gen_exception_nip(ctx, POWERPC_EXCP_TRACE, dest);
             }
             if (ctx->singlestep_enabled & GDBSTUB_SINGLE_STEP) {
                 gen_debug_exception(ctx);
@@ -4072,7 +3407,7 @@ static void gen_b(DisasContext *ctx)
     if (LK(ctx->opcode)) {
         gen_setlr(ctx, ctx->nip);
     }
-    gen_update_cfar(ctx, ctx->nip);
+    gen_update_cfar(ctx, ctx->nip - 4);
     gen_goto_tb(ctx, 0, target);
 }
 
@@ -4137,7 +3472,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         }
         tcg_temp_free_i32(temp);
     }
-    gen_update_cfar(ctx, ctx->nip);
+    gen_update_cfar(ctx, ctx->nip - 4);
     if (type == BCOND_IM) {
         target_ulong li = (target_long)((int16_t)(BD(ctx->opcode)));
         if (likely(AA(ctx->opcode) == 0)) {
@@ -4145,8 +3480,10 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         } else {
             gen_goto_tb(ctx, 0, li);
         }
-        gen_set_label(l1);
-        gen_goto_tb(ctx, 1, ctx->nip);
+        if ((bo & 0x14) != 0x14) {
+            gen_set_label(l1);
+            gen_goto_tb(ctx, 1, ctx->nip);
+        }
     } else {
         if (NARROW_MODE(ctx)) {
             tcg_gen_andi_tl(cpu_nip, target, (uint32_t)~3);
@@ -4154,9 +3491,11 @@ static inline void gen_bcond(DisasContext *ctx, int type)
             tcg_gen_andi_tl(cpu_nip, target, ~3);
         }
         tcg_gen_exit_tb(0);
-        gen_set_label(l1);
-        gen_update_nip(ctx, ctx->nip);
-        tcg_gen_exit_tb(0);
+        if ((bo & 0x14) != 0x14) {
+            gen_set_label(l1);
+            gen_update_nip(ctx, ctx->nip);
+            tcg_gen_exit_tb(0);
+        }
     }
     if (type == BCOND_LR || type == BCOND_CTR || type == BCOND_TAR) {
         tcg_temp_free(target);
@@ -4252,7 +3591,7 @@ static void gen_rfi(DisasContext *ctx)
      */
     /* Restore CPU state */
     CHK_SV;
-    gen_update_cfar(ctx, ctx->nip);
+    gen_update_cfar(ctx, ctx->nip - 4);
     gen_helper_rfi(cpu_env);
     gen_sync_exception(ctx);
 #endif
@@ -4266,7 +3605,7 @@ static void gen_rfid(DisasContext *ctx)
 #else
     /* Restore CPU state */
     CHK_SV;
-    gen_update_cfar(ctx, ctx->nip);
+    gen_update_cfar(ctx, ctx->nip - 4);
     gen_helper_rfid(cpu_env);
     gen_sync_exception(ctx);
 #endif
@@ -4301,12 +3640,30 @@ static void gen_sc(DisasContext *ctx)
 
 /***                                Trap                                   ***/
 
+/* Check for unconditional traps (always or never) */
+static bool check_unconditional_trap(DisasContext *ctx)
+{
+    /* Trap never */
+    if (TO(ctx->opcode) == 0) {
+        return true;
+    }
+    /* Trap always */
+    if (TO(ctx->opcode) == 31) {
+        gen_exception_err(ctx, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
+        return true;
+    }
+    return false;
+}
+
 /* tw */
 static void gen_tw(DisasContext *ctx)
 {
-    TCGv_i32 t0 = tcg_const_i32(TO(ctx->opcode));
-    /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip);
+    TCGv_i32 t0;
+
+    if (check_unconditional_trap(ctx)) {
+        return;
+    }
+    t0 = tcg_const_i32(TO(ctx->opcode));
     gen_helper_tw(cpu_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                   t0);
     tcg_temp_free_i32(t0);
@@ -4315,10 +3672,14 @@ static void gen_tw(DisasContext *ctx)
 /* twi */
 static void gen_twi(DisasContext *ctx)
 {
-    TCGv t0 = tcg_const_tl(SIMM(ctx->opcode));
-    TCGv_i32 t1 = tcg_const_i32(TO(ctx->opcode));
-    /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip);
+    TCGv t0;
+    TCGv_i32 t1;
+
+    if (check_unconditional_trap(ctx)) {
+        return;
+    }
+    t0 = tcg_const_tl(SIMM(ctx->opcode));
+    t1 = tcg_const_i32(TO(ctx->opcode));
     gen_helper_tw(cpu_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
@@ -4328,9 +3689,12 @@ static void gen_twi(DisasContext *ctx)
 /* td */
 static void gen_td(DisasContext *ctx)
 {
-    TCGv_i32 t0 = tcg_const_i32(TO(ctx->opcode));
-    /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip);
+    TCGv_i32 t0;
+
+    if (check_unconditional_trap(ctx)) {
+        return;
+    }
+    t0 = tcg_const_i32(TO(ctx->opcode));
     gen_helper_td(cpu_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                   t0);
     tcg_temp_free_i32(t0);
@@ -4339,10 +3703,14 @@ static void gen_td(DisasContext *ctx)
 /* tdi */
 static void gen_tdi(DisasContext *ctx)
 {
-    TCGv t0 = tcg_const_tl(SIMM(ctx->opcode));
-    TCGv_i32 t1 = tcg_const_i32(TO(ctx->opcode));
-    /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip);
+    TCGv t0;
+    TCGv_i32 t1;
+
+    if (check_unconditional_trap(ctx)) {
+        return;
+    }
+    t0 = tcg_const_tl(SIMM(ctx->opcode));
+    t1 = tcg_const_i32(TO(ctx->opcode));
     gen_helper_td(cpu_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
@@ -4684,6 +4052,27 @@ static void gen_mtspr(DisasContext *ctx)
     }
 }
 
+#if defined(TARGET_PPC64)
+/* setb */
+static void gen_setb(DisasContext *ctx)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t8 = tcg_temp_new_i32();
+    TCGv_i32 tm1 = tcg_temp_new_i32();
+    int crf = crfS(ctx->opcode);
+
+    tcg_gen_setcondi_i32(TCG_COND_GEU, t0, cpu_crf[crf], 4);
+    tcg_gen_movi_i32(t8, 8);
+    tcg_gen_movi_i32(tm1, -1);
+    tcg_gen_movcond_i32(TCG_COND_GEU, t0, cpu_crf[crf], t8, tm1, t0);
+    tcg_gen_ext_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);
+
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t8);
+    tcg_temp_free_i32(tm1);
+}
+#endif
+
 /***                         Cache management                              ***/
 
 /* dcbf */
@@ -4764,27 +4153,22 @@ static void gen_dcbtls(DisasContext *ctx)
 static void gen_dcbz(DisasContext *ctx)
 {
     TCGv tcgv_addr;
-    TCGv_i32 tcgv_is_dcbzl;
-    int is_dcbzl = ctx->opcode & 0x00200000 ? 1 : 0;
+    TCGv_i32 tcgv_op;
 
     gen_set_access_type(ctx, ACCESS_CACHE);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     tcgv_addr = tcg_temp_new();
-    tcgv_is_dcbzl = tcg_const_i32(is_dcbzl);
-
+    tcgv_op = tcg_const_i32(ctx->opcode & 0x03FF000);
     gen_addr_reg_index(ctx, tcgv_addr);
-    gen_helper_dcbz(cpu_env, tcgv_addr, tcgv_is_dcbzl);
-
+    gen_helper_dcbz(cpu_env, tcgv_addr, tcgv_op);
     tcg_temp_free(tcgv_addr);
-    tcg_temp_free_i32(tcgv_is_dcbzl);
+    tcg_temp_free_i32(tcgv_op);
 }
 
 /* dst / dstt */
 static void gen_dst(DisasContext *ctx)
 {
     if (rA(ctx->opcode) == 0) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
     } else {
         /* interpreted as no-op */
     }
@@ -4794,7 +4178,7 @@ static void gen_dst(DisasContext *ctx)
 static void gen_dstst(DisasContext *ctx)
 {
     if (rA(ctx->opcode) == 0) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
     } else {
         /* interpreted as no-op */
     }
@@ -4812,8 +4196,6 @@ static void gen_icbi(DisasContext *ctx)
 {
     TCGv t0;
     gen_set_access_type(ctx, ACCESS_CACHE);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
     gen_helper_icbi(cpu_env, t0);
@@ -5299,8 +4681,6 @@ static void gen_lscbx(DisasContext *ctx)
     TCGv_i32 t3 = tcg_const_i32(rB(ctx->opcode));
 
     gen_addr_reg_index(ctx, t0);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_lscbx(t0, cpu_env, t0, t1, t2, t3);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t2);
@@ -5942,141 +5322,6 @@ static void gen_rfsvc(DisasContext *ctx)
 
 /* svc is not implemented for now */
 
-/* POWER2 specific instructions */
-/* Quad manipulation (load/store two floats at a time) */
-
-/* lfq */
-static void gen_lfq(DisasContext *ctx)
-{
-    int rd = rD(ctx->opcode);
-    TCGv t0;
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    t0 = tcg_temp_new();
-    gen_addr_imm_index(ctx, t0, 0);
-    gen_qemu_ld64(ctx, cpu_fpr[rd], t0);
-    gen_addr_add(ctx, t0, t0, 8);
-    gen_qemu_ld64(ctx, cpu_fpr[(rd + 1) % 32], t0);
-    tcg_temp_free(t0);
-}
-
-/* lfqu */
-static void gen_lfqu(DisasContext *ctx)
-{
-    int ra = rA(ctx->opcode);
-    int rd = rD(ctx->opcode);
-    TCGv t0, t1;
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    t0 = tcg_temp_new();
-    t1 = tcg_temp_new();
-    gen_addr_imm_index(ctx, t0, 0);
-    gen_qemu_ld64(ctx, cpu_fpr[rd], t0);
-    gen_addr_add(ctx, t1, t0, 8);
-    gen_qemu_ld64(ctx, cpu_fpr[(rd + 1) % 32], t1);
-    if (ra != 0)
-        tcg_gen_mov_tl(cpu_gpr[ra], t0);
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-}
-
-/* lfqux */
-static void gen_lfqux(DisasContext *ctx)
-{
-    int ra = rA(ctx->opcode);
-    int rd = rD(ctx->opcode);
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    TCGv t0, t1;
-    t0 = tcg_temp_new();
-    gen_addr_reg_index(ctx, t0);
-    gen_qemu_ld64(ctx, cpu_fpr[rd], t0);
-    t1 = tcg_temp_new();
-    gen_addr_add(ctx, t1, t0, 8);
-    gen_qemu_ld64(ctx, cpu_fpr[(rd + 1) % 32], t1);
-    tcg_temp_free(t1);
-    if (ra != 0)
-        tcg_gen_mov_tl(cpu_gpr[ra], t0);
-    tcg_temp_free(t0);
-}
-
-/* lfqx */
-static void gen_lfqx(DisasContext *ctx)
-{
-    int rd = rD(ctx->opcode);
-    TCGv t0;
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    t0 = tcg_temp_new();
-    gen_addr_reg_index(ctx, t0);
-    gen_qemu_ld64(ctx, cpu_fpr[rd], t0);
-    gen_addr_add(ctx, t0, t0, 8);
-    gen_qemu_ld64(ctx, cpu_fpr[(rd + 1) % 32], t0);
-    tcg_temp_free(t0);
-}
-
-/* stfq */
-static void gen_stfq(DisasContext *ctx)
-{
-    int rd = rD(ctx->opcode);
-    TCGv t0;
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    t0 = tcg_temp_new();
-    gen_addr_imm_index(ctx, t0, 0);
-    gen_qemu_st64(ctx, cpu_fpr[rd], t0);
-    gen_addr_add(ctx, t0, t0, 8);
-    gen_qemu_st64(ctx, cpu_fpr[(rd + 1) % 32], t0);
-    tcg_temp_free(t0);
-}
-
-/* stfqu */
-static void gen_stfqu(DisasContext *ctx)
-{
-    int ra = rA(ctx->opcode);
-    int rd = rD(ctx->opcode);
-    TCGv t0, t1;
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    t0 = tcg_temp_new();
-    gen_addr_imm_index(ctx, t0, 0);
-    gen_qemu_st64(ctx, cpu_fpr[rd], t0);
-    t1 = tcg_temp_new();
-    gen_addr_add(ctx, t1, t0, 8);
-    gen_qemu_st64(ctx, cpu_fpr[(rd + 1) % 32], t1);
-    tcg_temp_free(t1);
-    if (ra != 0)
-        tcg_gen_mov_tl(cpu_gpr[ra], t0);
-    tcg_temp_free(t0);
-}
-
-/* stfqux */
-static void gen_stfqux(DisasContext *ctx)
-{
-    int ra = rA(ctx->opcode);
-    int rd = rD(ctx->opcode);
-    TCGv t0, t1;
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    t0 = tcg_temp_new();
-    gen_addr_reg_index(ctx, t0);
-    gen_qemu_st64(ctx, cpu_fpr[rd], t0);
-    t1 = tcg_temp_new();
-    gen_addr_add(ctx, t1, t0, 8);
-    gen_qemu_st64(ctx, cpu_fpr[(rd + 1) % 32], t1);
-    tcg_temp_free(t1);
-    if (ra != 0)
-        tcg_gen_mov_tl(cpu_gpr[ra], t0);
-    tcg_temp_free(t0);
-}
-
-/* stfqx */
-static void gen_stfqx(DisasContext *ctx)
-{
-    int rd = rD(ctx->opcode);
-    TCGv t0;
-    gen_set_access_type(ctx, ACCESS_FLOAT);
-    t0 = tcg_temp_new();
-    gen_addr_reg_index(ctx, t0);
-    gen_qemu_st64(ctx, cpu_fpr[rd], t0);
-    gen_addr_add(ctx, t0, t0, 8);
-    gen_qemu_st64(ctx, cpu_fpr[(rd + 1) % 32], t0);
-    tcg_temp_free(t0);
-}
-
 /* BookE specific instructions */
 
 /* XXX: not implemented on 440 ? */
@@ -6326,8 +5571,6 @@ static void gen_mfdcr(DisasContext *ctx)
     TCGv dcrn;
 
     CHK_SV;
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     dcrn = tcg_const_tl(SPR(ctx->opcode));
     gen_helper_load_dcr(cpu_gpr[rD(ctx->opcode)], cpu_env, dcrn);
     tcg_temp_free(dcrn);
@@ -6343,8 +5586,6 @@ static void gen_mtdcr(DisasContext *ctx)
     TCGv dcrn;
 
     CHK_SV;
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     dcrn = tcg_const_tl(SPR(ctx->opcode));
     gen_helper_store_dcr(cpu_env, dcrn, cpu_gpr[rS(ctx->opcode)]);
     tcg_temp_free(dcrn);
@@ -6359,8 +5600,6 @@ static void gen_mfdcrx(DisasContext *ctx)
     GEN_PRIV;
 #else
     CHK_SV;
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_load_dcr(cpu_gpr[rD(ctx->opcode)], cpu_env,
                         cpu_gpr[rA(ctx->opcode)]);
     /* Note: Rc update flag set leads to undefined state of Rc0 */
@@ -6375,8 +5614,6 @@ static void gen_mtdcrx(DisasContext *ctx)
     GEN_PRIV;
 #else
     CHK_SV;
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_store_dcr(cpu_env, cpu_gpr[rA(ctx->opcode)],
                          cpu_gpr[rS(ctx->opcode)]);
     /* Note: Rc update flag set leads to undefined state of Rc0 */
@@ -6386,8 +5623,6 @@ static void gen_mtdcrx(DisasContext *ctx)
 /* mfdcrux (PPC 460) : user-mode access to DCR */
 static void gen_mfdcrux(DisasContext *ctx)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_load_dcr(cpu_gpr[rD(ctx->opcode)], cpu_env,
                         cpu_gpr[rA(ctx->opcode)]);
     /* Note: Rc update flag set leads to undefined state of Rc0 */
@@ -6396,8 +5631,6 @@ static void gen_mfdcrux(DisasContext *ctx)
 /* mtdcrux (PPC 460) : user-mode access to DCR */
 static void gen_mtdcrux(DisasContext *ctx)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_store_dcr(cpu_env, cpu_gpr[rA(ctx->opcode)],
                          cpu_gpr[rS(ctx->opcode)]);
     /* Note: Rc update flag set leads to undefined state of Rc0 */
@@ -6696,7 +5929,6 @@ static void gen_tlbwe_booke206(DisasContext *ctx)
     GEN_PRIV;
 #else
     CHK_SV;
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_booke206_tlbwe(cpu_env);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
@@ -6839,2952 +6071,40 @@ static void gen_msgsnd(DisasContext *ctx)
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
-/***                      Altivec vector extension                         ***/
-/* Altivec registers moves */
-
-static inline TCGv_ptr gen_avr_ptr(int reg)
-{
-    TCGv_ptr r = tcg_temp_new_ptr();
-    tcg_gen_addi_ptr(r, cpu_env, offsetof(CPUPPCState, avr[reg]));
-    return r;
-}
-
-#define GEN_VR_LDX(name, opc2, opc3)                                          \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(!ctx->altivec_enabled)) {                                    \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_reg_index(ctx, EA);                                              \
-    tcg_gen_andi_tl(EA, EA, ~0xf);                                            \
-    /* We only need to swap high and low halves. gen_qemu_ld64 does necessary \
-       64-bit byteswap already. */                                            \
-    if (ctx->le_mode) {                                                       \
-        gen_qemu_ld64(ctx, cpu_avrl[rD(ctx->opcode)], EA);                    \
-        tcg_gen_addi_tl(EA, EA, 8);                                           \
-        gen_qemu_ld64(ctx, cpu_avrh[rD(ctx->opcode)], EA);                    \
-    } else {                                                                  \
-        gen_qemu_ld64(ctx, cpu_avrh[rD(ctx->opcode)], EA);                    \
-        tcg_gen_addi_tl(EA, EA, 8);                                           \
-        gen_qemu_ld64(ctx, cpu_avrl[rD(ctx->opcode)], EA);                    \
-    }                                                                         \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_VR_STX(name, opc2, opc3)                                          \
-static void gen_st##name(DisasContext *ctx)                                   \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(!ctx->altivec_enabled)) {                                    \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_reg_index(ctx, EA);                                              \
-    tcg_gen_andi_tl(EA, EA, ~0xf);                                            \
-    /* We only need to swap high and low halves. gen_qemu_st64 does necessary \
-       64-bit byteswap already. */                                            \
-    if (ctx->le_mode) {                                                       \
-        gen_qemu_st64(ctx, cpu_avrl[rD(ctx->opcode)], EA);                    \
-        tcg_gen_addi_tl(EA, EA, 8);                                           \
-        gen_qemu_st64(ctx, cpu_avrh[rD(ctx->opcode)], EA);                    \
-    } else {                                                                  \
-        gen_qemu_st64(ctx, cpu_avrh[rD(ctx->opcode)], EA);                    \
-        tcg_gen_addi_tl(EA, EA, 8);                                           \
-        gen_qemu_st64(ctx, cpu_avrl[rD(ctx->opcode)], EA);                    \
-    }                                                                         \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_VR_LVE(name, opc2, opc3, size)                              \
-static void gen_lve##name(DisasContext *ctx)                            \
-    {                                                                   \
-        TCGv EA;                                                        \
-        TCGv_ptr rs;                                                    \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        gen_set_access_type(ctx, ACCESS_INT);                           \
-        EA = tcg_temp_new();                                            \
-        gen_addr_reg_index(ctx, EA);                                    \
-        if (size > 1) {                                                 \
-            tcg_gen_andi_tl(EA, EA, ~(size - 1));                       \
-        }                                                               \
-        rs = gen_avr_ptr(rS(ctx->opcode));                              \
-        gen_helper_lve##name(cpu_env, rs, EA);                          \
-        tcg_temp_free(EA);                                              \
-        tcg_temp_free_ptr(rs);                                          \
-    }
-
-#define GEN_VR_STVE(name, opc2, opc3, size)                             \
-static void gen_stve##name(DisasContext *ctx)                           \
-    {                                                                   \
-        TCGv EA;                                                        \
-        TCGv_ptr rs;                                                    \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        gen_set_access_type(ctx, ACCESS_INT);                           \
-        EA = tcg_temp_new();                                            \
-        gen_addr_reg_index(ctx, EA);                                    \
-        if (size > 1) {                                                 \
-            tcg_gen_andi_tl(EA, EA, ~(size - 1));                       \
-        }                                                               \
-        rs = gen_avr_ptr(rS(ctx->opcode));                              \
-        gen_helper_stve##name(cpu_env, rs, EA);                         \
-        tcg_temp_free(EA);                                              \
-        tcg_temp_free_ptr(rs);                                          \
-    }
-
-GEN_VR_LDX(lvx, 0x07, 0x03);
-/* As we don't emulate the cache, lvxl is stricly equivalent to lvx */
-GEN_VR_LDX(lvxl, 0x07, 0x0B);
-
-GEN_VR_LVE(bx, 0x07, 0x00, 1);
-GEN_VR_LVE(hx, 0x07, 0x01, 2);
-GEN_VR_LVE(wx, 0x07, 0x02, 4);
-
-GEN_VR_STX(svx, 0x07, 0x07);
-/* As we don't emulate the cache, stvxl is stricly equivalent to stvx */
-GEN_VR_STX(svxl, 0x07, 0x0F);
-
-GEN_VR_STVE(bx, 0x07, 0x04, 1);
-GEN_VR_STVE(hx, 0x07, 0x05, 2);
-GEN_VR_STVE(wx, 0x07, 0x06, 4);
-
-static void gen_lvsl(DisasContext *ctx)
-{
-    TCGv_ptr rd;
-    TCGv EA;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    rd = gen_avr_ptr(rD(ctx->opcode));
-    gen_helper_lvsl(rd, EA);
-    tcg_temp_free(EA);
-    tcg_temp_free_ptr(rd);
-}
-
-static void gen_lvsr(DisasContext *ctx)
-{
-    TCGv_ptr rd;
-    TCGv EA;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    rd = gen_avr_ptr(rD(ctx->opcode));
-    gen_helper_lvsr(rd, EA);
-    tcg_temp_free(EA);
-    tcg_temp_free_ptr(rd);
-}
-
-static void gen_mfvscr(DisasContext *ctx)
-{
-    TCGv_i32 t;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    tcg_gen_movi_i64(cpu_avrh[rD(ctx->opcode)], 0);
-    t = tcg_temp_new_i32();
-    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUPPCState, vscr));
-    tcg_gen_extu_i32_i64(cpu_avrl[rD(ctx->opcode)], t);
-    tcg_temp_free_i32(t);
-}
-
-static void gen_mtvscr(DisasContext *ctx)
-{
-    TCGv_ptr p;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    p = gen_avr_ptr(rB(ctx->opcode));
-    gen_helper_mtvscr(cpu_env, p);
-    tcg_temp_free_ptr(p);
-}
-
-/* Logical operations */
-#define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
-{                                                                       \
-    if (unlikely(!ctx->altivec_enabled)) {                              \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
-        return;                                                         \
-    }                                                                   \
-    tcg_op(cpu_avrh[rD(ctx->opcode)], cpu_avrh[rA(ctx->opcode)], cpu_avrh[rB(ctx->opcode)]); \
-    tcg_op(cpu_avrl[rD(ctx->opcode)], cpu_avrl[rA(ctx->opcode)], cpu_avrl[rB(ctx->opcode)]); \
-}
-
-GEN_VX_LOGICAL(vand, tcg_gen_and_i64, 2, 16);
-GEN_VX_LOGICAL(vandc, tcg_gen_andc_i64, 2, 17);
-GEN_VX_LOGICAL(vor, tcg_gen_or_i64, 2, 18);
-GEN_VX_LOGICAL(vxor, tcg_gen_xor_i64, 2, 19);
-GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20);
-GEN_VX_LOGICAL(veqv, tcg_gen_eqv_i64, 2, 26);
-GEN_VX_LOGICAL(vnand, tcg_gen_nand_i64, 2, 22);
-GEN_VX_LOGICAL(vorc, tcg_gen_orc_i64, 2, 21);
-
-#define GEN_VXFORM(name, opc2, opc3)                                    \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
-{                                                                       \
-    TCGv_ptr ra, rb, rd;                                                \
-    if (unlikely(!ctx->altivec_enabled)) {                              \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
-        return;                                                         \
-    }                                                                   \
-    ra = gen_avr_ptr(rA(ctx->opcode));                                  \
-    rb = gen_avr_ptr(rB(ctx->opcode));                                  \
-    rd = gen_avr_ptr(rD(ctx->opcode));                                  \
-    gen_helper_##name (rd, ra, rb);                                     \
-    tcg_temp_free_ptr(ra);                                              \
-    tcg_temp_free_ptr(rb);                                              \
-    tcg_temp_free_ptr(rd);                                              \
-}
-
-#define GEN_VXFORM_ENV(name, opc2, opc3)                                \
-static void glue(gen_, name)(DisasContext *ctx)                         \
-{                                                                       \
-    TCGv_ptr ra, rb, rd;                                                \
-    if (unlikely(!ctx->altivec_enabled)) {                              \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
-        return;                                                         \
-    }                                                                   \
-    ra = gen_avr_ptr(rA(ctx->opcode));                                  \
-    rb = gen_avr_ptr(rB(ctx->opcode));                                  \
-    rd = gen_avr_ptr(rD(ctx->opcode));                                  \
-    gen_helper_##name(cpu_env, rd, ra, rb);                             \
-    tcg_temp_free_ptr(ra);                                              \
-    tcg_temp_free_ptr(rb);                                              \
-    tcg_temp_free_ptr(rd);                                              \
-}
-
-#define GEN_VXFORM3(name, opc2, opc3)                                   \
-static void glue(gen_, name)(DisasContext *ctx)                         \
-{                                                                       \
-    TCGv_ptr ra, rb, rc, rd;                                            \
-    if (unlikely(!ctx->altivec_enabled)) {                              \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
-        return;                                                         \
-    }                                                                   \
-    ra = gen_avr_ptr(rA(ctx->opcode));                                  \
-    rb = gen_avr_ptr(rB(ctx->opcode));                                  \
-    rc = gen_avr_ptr(rC(ctx->opcode));                                  \
-    rd = gen_avr_ptr(rD(ctx->opcode));                                  \
-    gen_helper_##name(rd, ra, rb, rc);                                  \
-    tcg_temp_free_ptr(ra);                                              \
-    tcg_temp_free_ptr(rb);                                              \
-    tcg_temp_free_ptr(rc);                                              \
-    tcg_temp_free_ptr(rd);                                              \
-}
-
-/*
- * Support for Altivec instruction pairs that use bit 31 (Rc) as
- * an opcode bit.  In general, these pairs come from different
- * versions of the ISA, so we must also support a pair of flags for
- * each instruction.
- */
-#define GEN_VXFORM_DUAL(name0, flg0, flg2_0, name1, flg1, flg2_1)          \
-static void glue(gen_, name0##_##name1)(DisasContext *ctx)             \
-{                                                                      \
-    if ((Rc(ctx->opcode) == 0) &&                                      \
-        ((ctx->insns_flags & flg0) || (ctx->insns_flags2 & flg2_0))) { \
-        gen_##name0(ctx);                                              \
-    } else if ((Rc(ctx->opcode) == 1) &&                               \
-        ((ctx->insns_flags & flg1) || (ctx->insns_flags2 & flg2_1))) { \
-        gen_##name1(ctx);                                              \
-    } else {                                                           \
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);            \
-    }                                                                  \
-}
-
-GEN_VXFORM(vaddubm, 0, 0);
-GEN_VXFORM(vadduhm, 0, 1);
-GEN_VXFORM(vadduwm, 0, 2);
-GEN_VXFORM(vaddudm, 0, 3);
-GEN_VXFORM(vsububm, 0, 16);
-GEN_VXFORM(vsubuhm, 0, 17);
-GEN_VXFORM(vsubuwm, 0, 18);
-GEN_VXFORM(vsubudm, 0, 19);
-GEN_VXFORM(vmaxub, 1, 0);
-GEN_VXFORM(vmaxuh, 1, 1);
-GEN_VXFORM(vmaxuw, 1, 2);
-GEN_VXFORM(vmaxud, 1, 3);
-GEN_VXFORM(vmaxsb, 1, 4);
-GEN_VXFORM(vmaxsh, 1, 5);
-GEN_VXFORM(vmaxsw, 1, 6);
-GEN_VXFORM(vmaxsd, 1, 7);
-GEN_VXFORM(vminub, 1, 8);
-GEN_VXFORM(vminuh, 1, 9);
-GEN_VXFORM(vminuw, 1, 10);
-GEN_VXFORM(vminud, 1, 11);
-GEN_VXFORM(vminsb, 1, 12);
-GEN_VXFORM(vminsh, 1, 13);
-GEN_VXFORM(vminsw, 1, 14);
-GEN_VXFORM(vminsd, 1, 15);
-GEN_VXFORM(vavgub, 1, 16);
-GEN_VXFORM(vavguh, 1, 17);
-GEN_VXFORM(vavguw, 1, 18);
-GEN_VXFORM(vavgsb, 1, 20);
-GEN_VXFORM(vavgsh, 1, 21);
-GEN_VXFORM(vavgsw, 1, 22);
-GEN_VXFORM(vmrghb, 6, 0);
-GEN_VXFORM(vmrghh, 6, 1);
-GEN_VXFORM(vmrghw, 6, 2);
-GEN_VXFORM(vmrglb, 6, 4);
-GEN_VXFORM(vmrglh, 6, 5);
-GEN_VXFORM(vmrglw, 6, 6);
-
-static void gen_vmrgew(DisasContext *ctx)
-{
-    TCGv_i64 tmp;
-    int VT, VA, VB;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    VT = rD(ctx->opcode);
-    VA = rA(ctx->opcode);
-    VB = rB(ctx->opcode);
-    tmp = tcg_temp_new_i64();
-    tcg_gen_shri_i64(tmp, cpu_avrh[VB], 32);
-    tcg_gen_deposit_i64(cpu_avrh[VT], cpu_avrh[VA], tmp, 0, 32);
-    tcg_gen_shri_i64(tmp, cpu_avrl[VB], 32);
-    tcg_gen_deposit_i64(cpu_avrl[VT], cpu_avrl[VA], tmp, 0, 32);
-    tcg_temp_free_i64(tmp);
-}
-
-static void gen_vmrgow(DisasContext *ctx)
-{
-    int VT, VA, VB;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    VT = rD(ctx->opcode);
-    VA = rA(ctx->opcode);
-    VB = rB(ctx->opcode);
-
-    tcg_gen_deposit_i64(cpu_avrh[VT], cpu_avrh[VB], cpu_avrh[VA], 32, 32);
-    tcg_gen_deposit_i64(cpu_avrl[VT], cpu_avrl[VB], cpu_avrl[VA], 32, 32);
-}
-
-GEN_VXFORM(vmuloub, 4, 0);
-GEN_VXFORM(vmulouh, 4, 1);
-GEN_VXFORM(vmulouw, 4, 2);
-GEN_VXFORM(vmuluwm, 4, 2);
-GEN_VXFORM_DUAL(vmulouw, PPC_ALTIVEC, PPC_NONE,
-                vmuluwm, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM(vmulosb, 4, 4);
-GEN_VXFORM(vmulosh, 4, 5);
-GEN_VXFORM(vmulosw, 4, 6);
-GEN_VXFORM(vmuleub, 4, 8);
-GEN_VXFORM(vmuleuh, 4, 9);
-GEN_VXFORM(vmuleuw, 4, 10);
-GEN_VXFORM(vmulesb, 4, 12);
-GEN_VXFORM(vmulesh, 4, 13);
-GEN_VXFORM(vmulesw, 4, 14);
-GEN_VXFORM(vslb, 2, 4);
-GEN_VXFORM(vslh, 2, 5);
-GEN_VXFORM(vslw, 2, 6);
-GEN_VXFORM(vsld, 2, 23);
-GEN_VXFORM(vsrb, 2, 8);
-GEN_VXFORM(vsrh, 2, 9);
-GEN_VXFORM(vsrw, 2, 10);
-GEN_VXFORM(vsrd, 2, 27);
-GEN_VXFORM(vsrab, 2, 12);
-GEN_VXFORM(vsrah, 2, 13);
-GEN_VXFORM(vsraw, 2, 14);
-GEN_VXFORM(vsrad, 2, 15);
-GEN_VXFORM(vslo, 6, 16);
-GEN_VXFORM(vsro, 6, 17);
-GEN_VXFORM(vaddcuw, 0, 6);
-GEN_VXFORM(vsubcuw, 0, 22);
-GEN_VXFORM_ENV(vaddubs, 0, 8);
-GEN_VXFORM_ENV(vadduhs, 0, 9);
-GEN_VXFORM_ENV(vadduws, 0, 10);
-GEN_VXFORM_ENV(vaddsbs, 0, 12);
-GEN_VXFORM_ENV(vaddshs, 0, 13);
-GEN_VXFORM_ENV(vaddsws, 0, 14);
-GEN_VXFORM_ENV(vsububs, 0, 24);
-GEN_VXFORM_ENV(vsubuhs, 0, 25);
-GEN_VXFORM_ENV(vsubuws, 0, 26);
-GEN_VXFORM_ENV(vsubsbs, 0, 28);
-GEN_VXFORM_ENV(vsubshs, 0, 29);
-GEN_VXFORM_ENV(vsubsws, 0, 30);
-GEN_VXFORM(vadduqm, 0, 4);
-GEN_VXFORM(vaddcuq, 0, 5);
-GEN_VXFORM3(vaddeuqm, 30, 0);
-GEN_VXFORM3(vaddecuq, 30, 0);
-GEN_VXFORM_DUAL(vaddeuqm, PPC_NONE, PPC2_ALTIVEC_207, \
-            vaddecuq, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM(vsubuqm, 0, 20);
-GEN_VXFORM(vsubcuq, 0, 21);
-GEN_VXFORM3(vsubeuqm, 31, 0);
-GEN_VXFORM3(vsubecuq, 31, 0);
-GEN_VXFORM_DUAL(vsubeuqm, PPC_NONE, PPC2_ALTIVEC_207, \
-            vsubecuq, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM(vrlb, 2, 0);
-GEN_VXFORM(vrlh, 2, 1);
-GEN_VXFORM(vrlw, 2, 2);
-GEN_VXFORM(vrld, 2, 3);
-GEN_VXFORM(vsl, 2, 7);
-GEN_VXFORM(vsr, 2, 11);
-GEN_VXFORM_ENV(vpkuhum, 7, 0);
-GEN_VXFORM_ENV(vpkuwum, 7, 1);
-GEN_VXFORM_ENV(vpkudum, 7, 17);
-GEN_VXFORM_ENV(vpkuhus, 7, 2);
-GEN_VXFORM_ENV(vpkuwus, 7, 3);
-GEN_VXFORM_ENV(vpkudus, 7, 19);
-GEN_VXFORM_ENV(vpkshus, 7, 4);
-GEN_VXFORM_ENV(vpkswus, 7, 5);
-GEN_VXFORM_ENV(vpksdus, 7, 21);
-GEN_VXFORM_ENV(vpkshss, 7, 6);
-GEN_VXFORM_ENV(vpkswss, 7, 7);
-GEN_VXFORM_ENV(vpksdss, 7, 23);
-GEN_VXFORM(vpkpx, 7, 12);
-GEN_VXFORM_ENV(vsum4ubs, 4, 24);
-GEN_VXFORM_ENV(vsum4sbs, 4, 28);
-GEN_VXFORM_ENV(vsum4shs, 4, 25);
-GEN_VXFORM_ENV(vsum2sws, 4, 26);
-GEN_VXFORM_ENV(vsumsws, 4, 30);
-GEN_VXFORM_ENV(vaddfp, 5, 0);
-GEN_VXFORM_ENV(vsubfp, 5, 1);
-GEN_VXFORM_ENV(vmaxfp, 5, 16);
-GEN_VXFORM_ENV(vminfp, 5, 17);
-
-#define GEN_VXRFORM1(opname, name, str, opc2, opc3)                     \
-static void glue(gen_, name)(DisasContext *ctx)                         \
-    {                                                                   \
-        TCGv_ptr ra, rb, rd;                                            \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        ra = gen_avr_ptr(rA(ctx->opcode));                              \
-        rb = gen_avr_ptr(rB(ctx->opcode));                              \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##opname(cpu_env, rd, ra, rb);                       \
-        tcg_temp_free_ptr(ra);                                          \
-        tcg_temp_free_ptr(rb);                                          \
-        tcg_temp_free_ptr(rd);                                          \
-    }
-
-#define GEN_VXRFORM(name, opc2, opc3)                                \
-    GEN_VXRFORM1(name, name, #name, opc2, opc3)                      \
-    GEN_VXRFORM1(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
-
-/*
- * Support for Altivec instructions that use bit 31 (Rc) as an opcode
- * bit but also use bit 21 as an actual Rc bit.  In general, thse pairs
- * come from different versions of the ISA, so we must also support a
- * pair of flags for each instruction.
- */
-#define GEN_VXRFORM_DUAL(name0, flg0, flg2_0, name1, flg1, flg2_1)     \
-static void glue(gen_, name0##_##name1)(DisasContext *ctx)             \
-{                                                                      \
-    if ((Rc(ctx->opcode) == 0) &&                                      \
-        ((ctx->insns_flags & flg0) || (ctx->insns_flags2 & flg2_0))) { \
-        if (Rc21(ctx->opcode) == 0) {                                  \
-            gen_##name0(ctx);                                          \
-        } else {                                                       \
-            gen_##name0##_(ctx);                                       \
-        }                                                              \
-    } else if ((Rc(ctx->opcode) == 1) &&                               \
-        ((ctx->insns_flags & flg1) || (ctx->insns_flags2 & flg2_1))) { \
-        if (Rc21(ctx->opcode) == 0) {                                  \
-            gen_##name1(ctx);                                          \
-        } else {                                                       \
-            gen_##name1##_(ctx);                                       \
-        }                                                              \
-    } else {                                                           \
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);            \
-    }                                                                  \
-}
-
-GEN_VXRFORM(vcmpequb, 3, 0)
-GEN_VXRFORM(vcmpequh, 3, 1)
-GEN_VXRFORM(vcmpequw, 3, 2)
-GEN_VXRFORM(vcmpequd, 3, 3)
-GEN_VXRFORM(vcmpgtsb, 3, 12)
-GEN_VXRFORM(vcmpgtsh, 3, 13)
-GEN_VXRFORM(vcmpgtsw, 3, 14)
-GEN_VXRFORM(vcmpgtsd, 3, 15)
-GEN_VXRFORM(vcmpgtub, 3, 8)
-GEN_VXRFORM(vcmpgtuh, 3, 9)
-GEN_VXRFORM(vcmpgtuw, 3, 10)
-GEN_VXRFORM(vcmpgtud, 3, 11)
-GEN_VXRFORM(vcmpeqfp, 3, 3)
-GEN_VXRFORM(vcmpgefp, 3, 7)
-GEN_VXRFORM(vcmpgtfp, 3, 11)
-GEN_VXRFORM(vcmpbfp, 3, 15)
-
-GEN_VXRFORM_DUAL(vcmpeqfp, PPC_ALTIVEC, PPC_NONE, \
-                 vcmpequd, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXRFORM_DUAL(vcmpbfp, PPC_ALTIVEC, PPC_NONE, \
-                 vcmpgtsd, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXRFORM_DUAL(vcmpgtfp, PPC_ALTIVEC, PPC_NONE, \
-                 vcmpgtud, PPC_NONE, PPC2_ALTIVEC_207)
-
-#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
-static void glue(gen_, name)(DisasContext *ctx)                         \
-    {                                                                   \
-        TCGv_ptr rd;                                                    \
-        TCGv_i32 simm;                                                  \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        simm = tcg_const_i32(SIMM5(ctx->opcode));                       \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, simm);                                   \
-        tcg_temp_free_i32(simm);                                        \
-        tcg_temp_free_ptr(rd);                                          \
-    }
-
-GEN_VXFORM_SIMM(vspltisb, 6, 12);
-GEN_VXFORM_SIMM(vspltish, 6, 13);
-GEN_VXFORM_SIMM(vspltisw, 6, 14);
-
-#define GEN_VXFORM_NOA(name, opc2, opc3)                                \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
-    {                                                                   \
-        TCGv_ptr rb, rd;                                                \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        rb = gen_avr_ptr(rB(ctx->opcode));                              \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, rb);                                     \
-        tcg_temp_free_ptr(rb);                                          \
-        tcg_temp_free_ptr(rd);                                         \
-    }
-
-#define GEN_VXFORM_NOA_ENV(name, opc2, opc3)                            \
-static void glue(gen_, name)(DisasContext *ctx)                         \
-    {                                                                   \
-        TCGv_ptr rb, rd;                                                \
-                                                                        \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        rb = gen_avr_ptr(rB(ctx->opcode));                              \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name(cpu_env, rd, rb);                             \
-        tcg_temp_free_ptr(rb);                                          \
-        tcg_temp_free_ptr(rd);                                          \
-    }
-
-GEN_VXFORM_NOA(vupkhsb, 7, 8);
-GEN_VXFORM_NOA(vupkhsh, 7, 9);
-GEN_VXFORM_NOA(vupkhsw, 7, 25);
-GEN_VXFORM_NOA(vupklsb, 7, 10);
-GEN_VXFORM_NOA(vupklsh, 7, 11);
-GEN_VXFORM_NOA(vupklsw, 7, 27);
-GEN_VXFORM_NOA(vupkhpx, 7, 13);
-GEN_VXFORM_NOA(vupklpx, 7, 15);
-GEN_VXFORM_NOA_ENV(vrefp, 5, 4);
-GEN_VXFORM_NOA_ENV(vrsqrtefp, 5, 5);
-GEN_VXFORM_NOA_ENV(vexptefp, 5, 6);
-GEN_VXFORM_NOA_ENV(vlogefp, 5, 7);
-GEN_VXFORM_NOA_ENV(vrfim, 5, 11);
-GEN_VXFORM_NOA_ENV(vrfin, 5, 8);
-GEN_VXFORM_NOA_ENV(vrfip, 5, 10);
-GEN_VXFORM_NOA_ENV(vrfiz, 5, 9);
-
-#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
-    {                                                                   \
-        TCGv_ptr rd;                                                    \
-        TCGv_i32 simm;                                                  \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        simm = tcg_const_i32(SIMM5(ctx->opcode));                       \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, simm);                                   \
-        tcg_temp_free_i32(simm);                                        \
-        tcg_temp_free_ptr(rd);                                          \
-    }
-
-#define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
-    {                                                                   \
-        TCGv_ptr rb, rd;                                                \
-        TCGv_i32 uimm;                                                  \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        uimm = tcg_const_i32(UIMM5(ctx->opcode));                       \
-        rb = gen_avr_ptr(rB(ctx->opcode));                              \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, rb, uimm);                               \
-        tcg_temp_free_i32(uimm);                                        \
-        tcg_temp_free_ptr(rb);                                          \
-        tcg_temp_free_ptr(rd);                                          \
-    }
-
-#define GEN_VXFORM_UIMM_ENV(name, opc2, opc3)                           \
-static void glue(gen_, name)(DisasContext *ctx)                         \
-    {                                                                   \
-        TCGv_ptr rb, rd;                                                \
-        TCGv_i32 uimm;                                                  \
-                                                                        \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        uimm = tcg_const_i32(UIMM5(ctx->opcode));                       \
-        rb = gen_avr_ptr(rB(ctx->opcode));                              \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name(cpu_env, rd, rb, uimm);                       \
-        tcg_temp_free_i32(uimm);                                        \
-        tcg_temp_free_ptr(rb);                                          \
-        tcg_temp_free_ptr(rd);                                          \
-    }
-
-GEN_VXFORM_UIMM(vspltb, 6, 8);
-GEN_VXFORM_UIMM(vsplth, 6, 9);
-GEN_VXFORM_UIMM(vspltw, 6, 10);
-GEN_VXFORM_UIMM_ENV(vcfux, 5, 12);
-GEN_VXFORM_UIMM_ENV(vcfsx, 5, 13);
-GEN_VXFORM_UIMM_ENV(vctuxs, 5, 14);
-GEN_VXFORM_UIMM_ENV(vctsxs, 5, 15);
-
-static void gen_vsldoi(DisasContext *ctx)
-{
-    TCGv_ptr ra, rb, rd;
-    TCGv_i32 sh;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    ra = gen_avr_ptr(rA(ctx->opcode));
-    rb = gen_avr_ptr(rB(ctx->opcode));
-    rd = gen_avr_ptr(rD(ctx->opcode));
-    sh = tcg_const_i32(VSH(ctx->opcode));
-    gen_helper_vsldoi (rd, ra, rb, sh);
-    tcg_temp_free_ptr(ra);
-    tcg_temp_free_ptr(rb);
-    tcg_temp_free_ptr(rd);
-    tcg_temp_free_i32(sh);
-}
-
-#define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
-static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
-    {                                                                   \
-        TCGv_ptr ra, rb, rc, rd;                                        \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        ra = gen_avr_ptr(rA(ctx->opcode));                              \
-        rb = gen_avr_ptr(rB(ctx->opcode));                              \
-        rc = gen_avr_ptr(rC(ctx->opcode));                              \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        if (Rc(ctx->opcode)) {                                          \
-            gen_helper_##name1(cpu_env, rd, ra, rb, rc);                \
-        } else {                                                        \
-            gen_helper_##name0(cpu_env, rd, ra, rb, rc);                \
-        }                                                               \
-        tcg_temp_free_ptr(ra);                                          \
-        tcg_temp_free_ptr(rb);                                          \
-        tcg_temp_free_ptr(rc);                                          \
-        tcg_temp_free_ptr(rd);                                          \
-    }
-
-GEN_VAFORM_PAIRED(vmhaddshs, vmhraddshs, 16)
-
-static void gen_vmladduhm(DisasContext *ctx)
-{
-    TCGv_ptr ra, rb, rc, rd;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    ra = gen_avr_ptr(rA(ctx->opcode));
-    rb = gen_avr_ptr(rB(ctx->opcode));
-    rc = gen_avr_ptr(rC(ctx->opcode));
-    rd = gen_avr_ptr(rD(ctx->opcode));
-    gen_helper_vmladduhm(rd, ra, rb, rc);
-    tcg_temp_free_ptr(ra);
-    tcg_temp_free_ptr(rb);
-    tcg_temp_free_ptr(rc);
-    tcg_temp_free_ptr(rd);
-}
-
-GEN_VAFORM_PAIRED(vmsumubm, vmsummbm, 18)
-GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19)
-GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20)
-GEN_VAFORM_PAIRED(vsel, vperm, 21)
-GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23)
-
-GEN_VXFORM_NOA(vclzb, 1, 28)
-GEN_VXFORM_NOA(vclzh, 1, 29)
-GEN_VXFORM_NOA(vclzw, 1, 30)
-GEN_VXFORM_NOA(vclzd, 1, 31)
-GEN_VXFORM_NOA(vpopcntb, 1, 28)
-GEN_VXFORM_NOA(vpopcnth, 1, 29)
-GEN_VXFORM_NOA(vpopcntw, 1, 30)
-GEN_VXFORM_NOA(vpopcntd, 1, 31)
-GEN_VXFORM_DUAL(vclzb, PPC_NONE, PPC2_ALTIVEC_207, \
-                vpopcntb, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vclzh, PPC_NONE, PPC2_ALTIVEC_207, \
-                vpopcnth, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vclzw, PPC_NONE, PPC2_ALTIVEC_207, \
-                vpopcntw, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vclzd, PPC_NONE, PPC2_ALTIVEC_207, \
-                vpopcntd, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM(vbpermq, 6, 21);
-GEN_VXFORM_NOA(vgbbd, 6, 20);
-GEN_VXFORM(vpmsumb, 4, 16)
-GEN_VXFORM(vpmsumh, 4, 17)
-GEN_VXFORM(vpmsumw, 4, 18)
-GEN_VXFORM(vpmsumd, 4, 19)
-
-#define GEN_BCD(op)                                 \
-static void gen_##op(DisasContext *ctx)             \
-{                                                   \
-    TCGv_ptr ra, rb, rd;                            \
-    TCGv_i32 ps;                                    \
-                                                    \
-    if (unlikely(!ctx->altivec_enabled)) {          \
-        gen_exception(ctx, POWERPC_EXCP_VPU);       \
-        return;                                     \
-    }                                               \
-                                                    \
-    ra = gen_avr_ptr(rA(ctx->opcode));              \
-    rb = gen_avr_ptr(rB(ctx->opcode));              \
-    rd = gen_avr_ptr(rD(ctx->opcode));              \
-                                                    \
-    ps = tcg_const_i32((ctx->opcode & 0x200) != 0); \
-                                                    \
-    gen_helper_##op(cpu_crf[6], rd, ra, rb, ps);    \
-                                                    \
-    tcg_temp_free_ptr(ra);                          \
-    tcg_temp_free_ptr(rb);                          \
-    tcg_temp_free_ptr(rd);                          \
-    tcg_temp_free_i32(ps);                          \
-}
-
-GEN_BCD(bcdadd)
-GEN_BCD(bcdsub)
-
-GEN_VXFORM_DUAL(vsububm, PPC_ALTIVEC, PPC_NONE, \
-                bcdadd, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vsububs, PPC_ALTIVEC, PPC_NONE, \
-                bcdadd, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vsubuhm, PPC_ALTIVEC, PPC_NONE, \
-                bcdsub, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vsubuhs, PPC_ALTIVEC, PPC_NONE, \
-                bcdsub, PPC_NONE, PPC2_ALTIVEC_207)
-
-static void gen_vsbox(DisasContext *ctx)
-{
-    TCGv_ptr ra, rd;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    ra = gen_avr_ptr(rA(ctx->opcode));
-    rd = gen_avr_ptr(rD(ctx->opcode));
-    gen_helper_vsbox(rd, ra);
-    tcg_temp_free_ptr(ra);
-    tcg_temp_free_ptr(rd);
-}
-
-GEN_VXFORM(vcipher, 4, 20)
-GEN_VXFORM(vcipherlast, 4, 20)
-GEN_VXFORM(vncipher, 4, 21)
-GEN_VXFORM(vncipherlast, 4, 21)
-
-GEN_VXFORM_DUAL(vcipher, PPC_NONE, PPC2_ALTIVEC_207,
-                vcipherlast, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vncipher, PPC_NONE, PPC2_ALTIVEC_207,
-                vncipherlast, PPC_NONE, PPC2_ALTIVEC_207)
-
-#define VSHASIGMA(op)                         \
-static void gen_##op(DisasContext *ctx)       \
-{                                             \
-    TCGv_ptr ra, rd;                          \
-    TCGv_i32 st_six;                          \
-    if (unlikely(!ctx->altivec_enabled)) {    \
-        gen_exception(ctx, POWERPC_EXCP_VPU); \
-        return;                               \
-    }                                         \
-    ra = gen_avr_ptr(rA(ctx->opcode));        \
-    rd = gen_avr_ptr(rD(ctx->opcode));        \
-    st_six = tcg_const_i32(rB(ctx->opcode));  \
-    gen_helper_##op(rd, ra, st_six);          \
-    tcg_temp_free_ptr(ra);                    \
-    tcg_temp_free_ptr(rd);                    \
-    tcg_temp_free_i32(st_six);                \
-}
-
-VSHASIGMA(vshasigmaw)
-VSHASIGMA(vshasigmad)
-
-GEN_VXFORM3(vpermxor, 22, 0xFF)
-GEN_VXFORM_DUAL(vsldoi, PPC_ALTIVEC, PPC_NONE,
-                vpermxor, PPC_NONE, PPC2_ALTIVEC_207)
-
-/***                           VSX extension                               ***/
-
-static inline TCGv_i64 cpu_vsrh(int n)
-{
-    if (n < 32) {
-        return cpu_fpr[n];
-    } else {
-        return cpu_avrh[n-32];
-    }
-}
-
-static inline TCGv_i64 cpu_vsrl(int n)
-{
-    if (n < 32) {
-        return cpu_vsr[n];
-    } else {
-        return cpu_avrl[n-32];
-    }
-}
-
-#define VSX_LOAD_SCALAR(name, operation)                      \
-static void gen_##name(DisasContext *ctx)                     \
-{                                                             \
-    TCGv EA;                                                  \
-    if (unlikely(!ctx->vsx_enabled)) {                        \
-        gen_exception(ctx, POWERPC_EXCP_VSXU);                \
-        return;                                               \
-    }                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                     \
-    EA = tcg_temp_new();                                      \
-    gen_addr_reg_index(ctx, EA);                              \
-    gen_qemu_##operation(ctx, cpu_vsrh(xT(ctx->opcode)), EA); \
-    /* NOTE: cpu_vsrl is undefined */                         \
-    tcg_temp_free(EA);                                        \
-}
-
-VSX_LOAD_SCALAR(lxsdx, ld64)
-VSX_LOAD_SCALAR(lxsiwax, ld32s_i64)
-VSX_LOAD_SCALAR(lxsiwzx, ld32u_i64)
-VSX_LOAD_SCALAR(lxsspx, ld32fs)
-
-static void gen_lxvd2x(DisasContext *ctx)
-{
-    TCGv EA;
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    gen_qemu_ld64(ctx, cpu_vsrh(xT(ctx->opcode)), EA);
-    tcg_gen_addi_tl(EA, EA, 8);
-    gen_qemu_ld64(ctx, cpu_vsrl(xT(ctx->opcode)), EA);
-    tcg_temp_free(EA);
-}
-
-static void gen_lxvdsx(DisasContext *ctx)
-{
-    TCGv EA;
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    gen_qemu_ld64(ctx, cpu_vsrh(xT(ctx->opcode)), EA);
-    tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrh(xT(ctx->opcode)));
-    tcg_temp_free(EA);
-}
-
-static void gen_lxvw4x(DisasContext *ctx)
-{
-    TCGv EA;
-    TCGv_i64 tmp;
-    TCGv_i64 xth = cpu_vsrh(xT(ctx->opcode));
-    TCGv_i64 xtl = cpu_vsrl(xT(ctx->opcode));
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    EA = tcg_temp_new();
-    tmp = tcg_temp_new_i64();
-
-    gen_addr_reg_index(ctx, EA);
-    gen_qemu_ld32u_i64(ctx, tmp, EA);
-    tcg_gen_addi_tl(EA, EA, 4);
-    gen_qemu_ld32u_i64(ctx, xth, EA);
-    tcg_gen_deposit_i64(xth, xth, tmp, 32, 32);
-
-    tcg_gen_addi_tl(EA, EA, 4);
-    gen_qemu_ld32u_i64(ctx, tmp, EA);
-    tcg_gen_addi_tl(EA, EA, 4);
-    gen_qemu_ld32u_i64(ctx, xtl, EA);
-    tcg_gen_deposit_i64(xtl, xtl, tmp, 32, 32);
-
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(tmp);
-}
-
-#define VSX_STORE_SCALAR(name, operation)                     \
-static void gen_##name(DisasContext *ctx)                     \
-{                                                             \
-    TCGv EA;                                                  \
-    if (unlikely(!ctx->vsx_enabled)) {                        \
-        gen_exception(ctx, POWERPC_EXCP_VSXU);                \
-        return;                                               \
-    }                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                     \
-    EA = tcg_temp_new();                                      \
-    gen_addr_reg_index(ctx, EA);                              \
-    gen_qemu_##operation(ctx, cpu_vsrh(xS(ctx->opcode)), EA); \
-    tcg_temp_free(EA);                                        \
-}
-
-VSX_STORE_SCALAR(stxsdx, st64)
-VSX_STORE_SCALAR(stxsiwx, st32_i64)
-VSX_STORE_SCALAR(stxsspx, st32fs)
-
-static void gen_stxvd2x(DisasContext *ctx)
-{
-    TCGv EA;
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    gen_qemu_st64(ctx, cpu_vsrh(xS(ctx->opcode)), EA);
-    tcg_gen_addi_tl(EA, EA, 8);
-    gen_qemu_st64(ctx, cpu_vsrl(xS(ctx->opcode)), EA);
-    tcg_temp_free(EA);
-}
-
-static void gen_stxvw4x(DisasContext *ctx)
-{
-    TCGv_i64 tmp;
-    TCGv EA;
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    tmp = tcg_temp_new_i64();
-
-    tcg_gen_shri_i64(tmp, cpu_vsrh(xS(ctx->opcode)), 32);
-    gen_qemu_st32_i64(ctx, tmp, EA);
-    tcg_gen_addi_tl(EA, EA, 4);
-    gen_qemu_st32_i64(ctx, cpu_vsrh(xS(ctx->opcode)), EA);
-
-    tcg_gen_shri_i64(tmp, cpu_vsrl(xS(ctx->opcode)), 32);
-    tcg_gen_addi_tl(EA, EA, 4);
-    gen_qemu_st32_i64(ctx, tmp, EA);
-    tcg_gen_addi_tl(EA, EA, 4);
-    gen_qemu_st32_i64(ctx, cpu_vsrl(xS(ctx->opcode)), EA);
-
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(tmp);
-}
-
-#define MV_VSRW(name, tcgop1, tcgop2, target, source)           \
-static void gen_##name(DisasContext *ctx)                       \
-{                                                               \
-    if (xS(ctx->opcode) < 32) {                                 \
-        if (unlikely(!ctx->fpu_enabled)) {                      \
-            gen_exception(ctx, POWERPC_EXCP_FPU);               \
-            return;                                             \
-        }                                                       \
-    } else {                                                    \
-        if (unlikely(!ctx->altivec_enabled)) {                  \
-            gen_exception(ctx, POWERPC_EXCP_VPU);               \
-            return;                                             \
-        }                                                       \
-    }                                                           \
-    TCGv_i64 tmp = tcg_temp_new_i64();                          \
-    tcg_gen_##tcgop1(tmp, source);                              \
-    tcg_gen_##tcgop2(target, tmp);                              \
-    tcg_temp_free_i64(tmp);                                     \
-}
-
-
-MV_VSRW(mfvsrwz, ext32u_i64, trunc_i64_tl, cpu_gpr[rA(ctx->opcode)], \
-        cpu_vsrh(xS(ctx->opcode)))
-MV_VSRW(mtvsrwa, extu_tl_i64, ext32s_i64, cpu_vsrh(xT(ctx->opcode)), \
-        cpu_gpr[rA(ctx->opcode)])
-MV_VSRW(mtvsrwz, extu_tl_i64, ext32u_i64, cpu_vsrh(xT(ctx->opcode)), \
-        cpu_gpr[rA(ctx->opcode)])
 
 #if defined(TARGET_PPC64)
-#define MV_VSRD(name, target, source)                           \
-static void gen_##name(DisasContext *ctx)                       \
-{                                                               \
-    if (xS(ctx->opcode) < 32) {                                 \
-        if (unlikely(!ctx->fpu_enabled)) {                      \
-            gen_exception(ctx, POWERPC_EXCP_FPU);               \
-            return;                                             \
-        }                                                       \
-    } else {                                                    \
-        if (unlikely(!ctx->altivec_enabled)) {                  \
-            gen_exception(ctx, POWERPC_EXCP_VPU);               \
-            return;                                             \
-        }                                                       \
-    }                                                           \
-    tcg_gen_mov_i64(target, source);                            \
-}
-
-MV_VSRD(mfvsrd, cpu_gpr[rA(ctx->opcode)], cpu_vsrh(xS(ctx->opcode)))
-MV_VSRD(mtvsrd, cpu_vsrh(xT(ctx->opcode)), cpu_gpr[rA(ctx->opcode)])
-
-#endif
-
-static void gen_xxpermdi(DisasContext *ctx)
+static void gen_maddld(DisasContext *ctx)
 {
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
+    TCGv_i64 t1 = tcg_temp_new_i64();
 
-    if (unlikely((xT(ctx->opcode) == xA(ctx->opcode)) ||
-                 (xT(ctx->opcode) == xB(ctx->opcode)))) {
-        TCGv_i64 xh, xl;
-
-        xh = tcg_temp_new_i64();
-        xl = tcg_temp_new_i64();
-
-        if ((DM(ctx->opcode) & 2) == 0) {
-            tcg_gen_mov_i64(xh, cpu_vsrh(xA(ctx->opcode)));
-        } else {
-            tcg_gen_mov_i64(xh, cpu_vsrl(xA(ctx->opcode)));
-        }
-        if ((DM(ctx->opcode) & 1) == 0) {
-            tcg_gen_mov_i64(xl, cpu_vsrh(xB(ctx->opcode)));
-        } else {
-            tcg_gen_mov_i64(xl, cpu_vsrl(xB(ctx->opcode)));
-        }
-
-        tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), xh);
-        tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), xl);
-
-        tcg_temp_free_i64(xh);
-        tcg_temp_free_i64(xl);
-    } else {
-        if ((DM(ctx->opcode) & 2) == 0) {
-            tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), cpu_vsrh(xA(ctx->opcode)));
-        } else {
-            tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), cpu_vsrl(xA(ctx->opcode)));
-        }
-        if ((DM(ctx->opcode) & 1) == 0) {
-            tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrh(xB(ctx->opcode)));
-        } else {
-            tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrl(xB(ctx->opcode)));
-        }
-    }
-}
-
-#define OP_ABS 1
-#define OP_NABS 2
-#define OP_NEG 3
-#define OP_CPSGN 4
-#define SGN_MASK_DP  0x8000000000000000ull
-#define SGN_MASK_SP 0x8000000080000000ull
-
-#define VSX_SCALAR_MOVE(name, op, sgn_mask)                       \
-static void glue(gen_, name)(DisasContext * ctx)                  \
-    {                                                             \
-        TCGv_i64 xb, sgm;                                         \
-        if (unlikely(!ctx->vsx_enabled)) {                        \
-            gen_exception(ctx, POWERPC_EXCP_VSXU);                \
-            return;                                               \
-        }                                                         \
-        xb = tcg_temp_new_i64();                                  \
-        sgm = tcg_temp_new_i64();                                 \
-        tcg_gen_mov_i64(xb, cpu_vsrh(xB(ctx->opcode)));           \
-        tcg_gen_movi_i64(sgm, sgn_mask);                          \
-        switch (op) {                                             \
-            case OP_ABS: {                                        \
-                tcg_gen_andc_i64(xb, xb, sgm);                    \
-                break;                                            \
-            }                                                     \
-            case OP_NABS: {                                       \
-                tcg_gen_or_i64(xb, xb, sgm);                      \
-                break;                                            \
-            }                                                     \
-            case OP_NEG: {                                        \
-                tcg_gen_xor_i64(xb, xb, sgm);                     \
-                break;                                            \
-            }                                                     \
-            case OP_CPSGN: {                                      \
-                TCGv_i64 xa = tcg_temp_new_i64();                 \
-                tcg_gen_mov_i64(xa, cpu_vsrh(xA(ctx->opcode)));   \
-                tcg_gen_and_i64(xa, xa, sgm);                     \
-                tcg_gen_andc_i64(xb, xb, sgm);                    \
-                tcg_gen_or_i64(xb, xb, xa);                       \
-                tcg_temp_free_i64(xa);                            \
-                break;                                            \
-            }                                                     \
-        }                                                         \
-        tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), xb);           \
-        tcg_temp_free_i64(xb);                                    \
-        tcg_temp_free_i64(sgm);                                   \
-    }
-
-VSX_SCALAR_MOVE(xsabsdp, OP_ABS, SGN_MASK_DP)
-VSX_SCALAR_MOVE(xsnabsdp, OP_NABS, SGN_MASK_DP)
-VSX_SCALAR_MOVE(xsnegdp, OP_NEG, SGN_MASK_DP)
-VSX_SCALAR_MOVE(xscpsgndp, OP_CPSGN, SGN_MASK_DP)
-
-#define VSX_VECTOR_MOVE(name, op, sgn_mask)                      \
-static void glue(gen_, name)(DisasContext * ctx)                 \
-    {                                                            \
-        TCGv_i64 xbh, xbl, sgm;                                  \
-        if (unlikely(!ctx->vsx_enabled)) {                       \
-            gen_exception(ctx, POWERPC_EXCP_VSXU);               \
-            return;                                              \
-        }                                                        \
-        xbh = tcg_temp_new_i64();                                \
-        xbl = tcg_temp_new_i64();                                \
-        sgm = tcg_temp_new_i64();                                \
-        tcg_gen_mov_i64(xbh, cpu_vsrh(xB(ctx->opcode)));         \
-        tcg_gen_mov_i64(xbl, cpu_vsrl(xB(ctx->opcode)));         \
-        tcg_gen_movi_i64(sgm, sgn_mask);                         \
-        switch (op) {                                            \
-            case OP_ABS: {                                       \
-                tcg_gen_andc_i64(xbh, xbh, sgm);                 \
-                tcg_gen_andc_i64(xbl, xbl, sgm);                 \
-                break;                                           \
-            }                                                    \
-            case OP_NABS: {                                      \
-                tcg_gen_or_i64(xbh, xbh, sgm);                   \
-                tcg_gen_or_i64(xbl, xbl, sgm);                   \
-                break;                                           \
-            }                                                    \
-            case OP_NEG: {                                       \
-                tcg_gen_xor_i64(xbh, xbh, sgm);                  \
-                tcg_gen_xor_i64(xbl, xbl, sgm);                  \
-                break;                                           \
-            }                                                    \
-            case OP_CPSGN: {                                     \
-                TCGv_i64 xah = tcg_temp_new_i64();               \
-                TCGv_i64 xal = tcg_temp_new_i64();               \
-                tcg_gen_mov_i64(xah, cpu_vsrh(xA(ctx->opcode))); \
-                tcg_gen_mov_i64(xal, cpu_vsrl(xA(ctx->opcode))); \
-                tcg_gen_and_i64(xah, xah, sgm);                  \
-                tcg_gen_and_i64(xal, xal, sgm);                  \
-                tcg_gen_andc_i64(xbh, xbh, sgm);                 \
-                tcg_gen_andc_i64(xbl, xbl, sgm);                 \
-                tcg_gen_or_i64(xbh, xbh, xah);                   \
-                tcg_gen_or_i64(xbl, xbl, xal);                   \
-                tcg_temp_free_i64(xah);                          \
-                tcg_temp_free_i64(xal);                          \
-                break;                                           \
-            }                                                    \
-        }                                                        \
-        tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), xbh);         \
-        tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), xbl);         \
-        tcg_temp_free_i64(xbh);                                  \
-        tcg_temp_free_i64(xbl);                                  \
-        tcg_temp_free_i64(sgm);                                  \
-    }
-
-VSX_VECTOR_MOVE(xvabsdp, OP_ABS, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvnabsdp, OP_NABS, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvnegdp, OP_NEG, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvcpsgndp, OP_CPSGN, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvabssp, OP_ABS, SGN_MASK_SP)
-VSX_VECTOR_MOVE(xvnabssp, OP_NABS, SGN_MASK_SP)
-VSX_VECTOR_MOVE(xvnegsp, OP_NEG, SGN_MASK_SP)
-VSX_VECTOR_MOVE(xvcpsgnsp, OP_CPSGN, SGN_MASK_SP)
-
-#define GEN_VSX_HELPER_2(name, op1, op2, inval, type)                         \
-static void gen_##name(DisasContext * ctx)                                    \
-{                                                                             \
-    TCGv_i32 opc;                                                             \
-    if (unlikely(!ctx->vsx_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_VSXU);                                \
-        return;                                                               \
-    }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
-    opc = tcg_const_i32(ctx->opcode);                                         \
-    gen_helper_##name(cpu_env, opc);                                          \
-    tcg_temp_free_i32(opc);                                                   \
-}
-
-#define GEN_VSX_HELPER_XT_XB_ENV(name, op1, op2, inval, type) \
-static void gen_##name(DisasContext * ctx)                    \
-{                                                             \
-    if (unlikely(!ctx->vsx_enabled)) {                        \
-        gen_exception(ctx, POWERPC_EXCP_VSXU);                \
-        return;                                               \
-    }                                                         \
-    /* NIP cannot be restored if the exception comes */       \
-    /* from a helper. */                                      \
-    gen_update_nip(ctx, ctx->nip - 4);                        \
-                                                              \
-    gen_helper_##name(cpu_vsrh(xT(ctx->opcode)), cpu_env,     \
-                      cpu_vsrh(xB(ctx->opcode)));             \
-}
-
-GEN_VSX_HELPER_2(xsadddp, 0x00, 0x04, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xssubdp, 0x00, 0x05, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsmuldp, 0x00, 0x06, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsdivdp, 0x00, 0x07, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsredp, 0x14, 0x05, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xssqrtdp, 0x16, 0x04, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsrsqrtedp, 0x14, 0x04, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xstdivdp, 0x14, 0x07, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xstsqrtdp, 0x14, 0x06, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsmaddadp, 0x04, 0x04, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsmaddmdp, 0x04, 0x05, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsmsubadp, 0x04, 0x06, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsmsubmdp, 0x04, 0x07, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsnmaddadp, 0x04, 0x14, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsnmaddmdp, 0x04, 0x15, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsnmsubadp, 0x04, 0x16, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsnmsubmdp, 0x04, 0x17, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xscmpodp, 0x0C, 0x05, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xscmpudp, 0x0C, 0x04, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsmaxdp, 0x00, 0x14, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsmindp, 0x00, 0x15, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xscvdpsp, 0x12, 0x10, 0, PPC2_VSX)
-GEN_VSX_HELPER_XT_XB_ENV(xscvdpspn, 0x16, 0x10, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xscvspdp, 0x12, 0x14, 0, PPC2_VSX)
-GEN_VSX_HELPER_XT_XB_ENV(xscvspdpn, 0x16, 0x14, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xscvdpsxds, 0x10, 0x15, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xscvdpsxws, 0x10, 0x05, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xscvdpuxds, 0x10, 0x14, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xscvdpuxws, 0x10, 0x04, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xscvsxddp, 0x10, 0x17, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xscvuxddp, 0x10, 0x16, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsrdpi, 0x12, 0x04, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsrdpic, 0x16, 0x06, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsrdpim, 0x12, 0x07, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsrdpip, 0x12, 0x06, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xsrdpiz, 0x12, 0x05, 0, PPC2_VSX)
-GEN_VSX_HELPER_XT_XB_ENV(xsrsp, 0x12, 0x11, 0, PPC2_VSX207)
-
-GEN_VSX_HELPER_2(xsaddsp, 0x00, 0x00, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xssubsp, 0x00, 0x01, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsmulsp, 0x00, 0x02, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsdivsp, 0x00, 0x03, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsresp, 0x14, 0x01, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xssqrtsp, 0x16, 0x00, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsrsqrtesp, 0x14, 0x00, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsmaddasp, 0x04, 0x00, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsmaddmsp, 0x04, 0x01, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsmsubasp, 0x04, 0x02, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsmsubmsp, 0x04, 0x03, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsnmaddasp, 0x04, 0x10, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsnmaddmsp, 0x04, 0x11, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsnmsubasp, 0x04, 0x12, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xsnmsubmsp, 0x04, 0x13, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xscvsxdsp, 0x10, 0x13, 0, PPC2_VSX207)
-GEN_VSX_HELPER_2(xscvuxdsp, 0x10, 0x12, 0, PPC2_VSX207)
-
-GEN_VSX_HELPER_2(xvadddp, 0x00, 0x0C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvsubdp, 0x00, 0x0D, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmuldp, 0x00, 0x0E, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvdivdp, 0x00, 0x0F, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvredp, 0x14, 0x0D, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvsqrtdp, 0x16, 0x0C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrsqrtedp, 0x14, 0x0C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvtdivdp, 0x14, 0x0F, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvtsqrtdp, 0x14, 0x0E, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmaddadp, 0x04, 0x0C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmaddmdp, 0x04, 0x0D, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmsubadp, 0x04, 0x0E, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmsubmdp, 0x04, 0x0F, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvnmaddadp, 0x04, 0x1C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvnmaddmdp, 0x04, 0x1D, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvnmsubadp, 0x04, 0x1E, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvnmsubmdp, 0x04, 0x1F, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmaxdp, 0x00, 0x1C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmindp, 0x00, 0x1D, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpeqdp, 0x0C, 0x0C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpgtdp, 0x0C, 0x0D, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpgedp, 0x0C, 0x0E, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvdpsp, 0x12, 0x18, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvdpsxds, 0x10, 0x1D, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvdpsxws, 0x10, 0x0D, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvdpuxds, 0x10, 0x1C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvdpuxws, 0x10, 0x0C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvsxddp, 0x10, 0x1F, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvuxddp, 0x10, 0x1E, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvsxwdp, 0x10, 0x0F, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvuxwdp, 0x10, 0x0E, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrdpi, 0x12, 0x0C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrdpic, 0x16, 0x0E, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrdpim, 0x12, 0x0F, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrdpip, 0x12, 0x0E, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrdpiz, 0x12, 0x0D, 0, PPC2_VSX)
-
-GEN_VSX_HELPER_2(xvaddsp, 0x00, 0x08, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvsubsp, 0x00, 0x09, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmulsp, 0x00, 0x0A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvdivsp, 0x00, 0x0B, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvresp, 0x14, 0x09, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvsqrtsp, 0x16, 0x08, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrsqrtesp, 0x14, 0x08, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvtdivsp, 0x14, 0x0B, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvtsqrtsp, 0x14, 0x0A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmaddasp, 0x04, 0x08, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmaddmsp, 0x04, 0x09, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmsubasp, 0x04, 0x0A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmsubmsp, 0x04, 0x0B, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvnmaddasp, 0x04, 0x18, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvnmaddmsp, 0x04, 0x19, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvnmsubasp, 0x04, 0x1A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvnmsubmsp, 0x04, 0x1B, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvmaxsp, 0x00, 0x18, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvminsp, 0x00, 0x19, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpeqsp, 0x0C, 0x08, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpgtsp, 0x0C, 0x09, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpgesp, 0x0C, 0x0A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvspdp, 0x12, 0x1C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvspsxds, 0x10, 0x19, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvspsxws, 0x10, 0x09, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvspuxds, 0x10, 0x18, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvspuxws, 0x10, 0x08, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvsxdsp, 0x10, 0x1B, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvuxdsp, 0x10, 0x1A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvsxwsp, 0x10, 0x0B, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcvuxwsp, 0x10, 0x0A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrspi, 0x12, 0x08, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrspic, 0x16, 0x0A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrspim, 0x12, 0x0B, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrspip, 0x12, 0x0A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvrspiz, 0x12, 0x09, 0, PPC2_VSX)
-
-#define VSX_LOGICAL(name, tcg_op)                                    \
-static void glue(gen_, name)(DisasContext * ctx)                     \
-    {                                                                \
-        if (unlikely(!ctx->vsx_enabled)) {                           \
-            gen_exception(ctx, POWERPC_EXCP_VSXU);                   \
-            return;                                                  \
-        }                                                            \
-        tcg_op(cpu_vsrh(xT(ctx->opcode)), cpu_vsrh(xA(ctx->opcode)), \
-            cpu_vsrh(xB(ctx->opcode)));                              \
-        tcg_op(cpu_vsrl(xT(ctx->opcode)), cpu_vsrl(xA(ctx->opcode)), \
-            cpu_vsrl(xB(ctx->opcode)));                              \
-    }
-
-VSX_LOGICAL(xxland, tcg_gen_and_i64)
-VSX_LOGICAL(xxlandc, tcg_gen_andc_i64)
-VSX_LOGICAL(xxlor, tcg_gen_or_i64)
-VSX_LOGICAL(xxlxor, tcg_gen_xor_i64)
-VSX_LOGICAL(xxlnor, tcg_gen_nor_i64)
-VSX_LOGICAL(xxleqv, tcg_gen_eqv_i64)
-VSX_LOGICAL(xxlnand, tcg_gen_nand_i64)
-VSX_LOGICAL(xxlorc, tcg_gen_orc_i64)
-
-#define VSX_XXMRG(name, high)                               \
-static void glue(gen_, name)(DisasContext * ctx)            \
-    {                                                       \
-        TCGv_i64 a0, a1, b0, b1;                            \
-        if (unlikely(!ctx->vsx_enabled)) {                  \
-            gen_exception(ctx, POWERPC_EXCP_VSXU);          \
-            return;                                         \
-        }                                                   \
-        a0 = tcg_temp_new_i64();                            \
-        a1 = tcg_temp_new_i64();                            \
-        b0 = tcg_temp_new_i64();                            \
-        b1 = tcg_temp_new_i64();                            \
-        if (high) {                                         \
-            tcg_gen_mov_i64(a0, cpu_vsrh(xA(ctx->opcode))); \
-            tcg_gen_mov_i64(a1, cpu_vsrh(xA(ctx->opcode))); \
-            tcg_gen_mov_i64(b0, cpu_vsrh(xB(ctx->opcode))); \
-            tcg_gen_mov_i64(b1, cpu_vsrh(xB(ctx->opcode))); \
-        } else {                                            \
-            tcg_gen_mov_i64(a0, cpu_vsrl(xA(ctx->opcode))); \
-            tcg_gen_mov_i64(a1, cpu_vsrl(xA(ctx->opcode))); \
-            tcg_gen_mov_i64(b0, cpu_vsrl(xB(ctx->opcode))); \
-            tcg_gen_mov_i64(b1, cpu_vsrl(xB(ctx->opcode))); \
-        }                                                   \
-        tcg_gen_shri_i64(a0, a0, 32);                       \
-        tcg_gen_shri_i64(b0, b0, 32);                       \
-        tcg_gen_deposit_i64(cpu_vsrh(xT(ctx->opcode)),      \
-                            b0, a0, 32, 32);                \
-        tcg_gen_deposit_i64(cpu_vsrl(xT(ctx->opcode)),      \
-                            b1, a1, 32, 32);                \
-        tcg_temp_free_i64(a0);                              \
-        tcg_temp_free_i64(a1);                              \
-        tcg_temp_free_i64(b0);                              \
-        tcg_temp_free_i64(b1);                              \
-    }
-
-VSX_XXMRG(xxmrghw, 1)
-VSX_XXMRG(xxmrglw, 0)
-
-static void gen_xxsel(DisasContext * ctx)
-{
-    TCGv_i64 a, b, c;
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    a = tcg_temp_new_i64();
-    b = tcg_temp_new_i64();
-    c = tcg_temp_new_i64();
-
-    tcg_gen_mov_i64(a, cpu_vsrh(xA(ctx->opcode)));
-    tcg_gen_mov_i64(b, cpu_vsrh(xB(ctx->opcode)));
-    tcg_gen_mov_i64(c, cpu_vsrh(xC(ctx->opcode)));
-
-    tcg_gen_and_i64(b, b, c);
-    tcg_gen_andc_i64(a, a, c);
-    tcg_gen_or_i64(cpu_vsrh(xT(ctx->opcode)), a, b);
-
-    tcg_gen_mov_i64(a, cpu_vsrl(xA(ctx->opcode)));
-    tcg_gen_mov_i64(b, cpu_vsrl(xB(ctx->opcode)));
-    tcg_gen_mov_i64(c, cpu_vsrl(xC(ctx->opcode)));
-
-    tcg_gen_and_i64(b, b, c);
-    tcg_gen_andc_i64(a, a, c);
-    tcg_gen_or_i64(cpu_vsrl(xT(ctx->opcode)), a, b);
-
-    tcg_temp_free_i64(a);
-    tcg_temp_free_i64(b);
-    tcg_temp_free_i64(c);
-}
-
-static void gen_xxspltw(DisasContext *ctx)
-{
-    TCGv_i64 b, b2;
-    TCGv_i64 vsr = (UIM(ctx->opcode) & 2) ?
-                   cpu_vsrl(xB(ctx->opcode)) :
-                   cpu_vsrh(xB(ctx->opcode));
-
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-
-    b = tcg_temp_new_i64();
-    b2 = tcg_temp_new_i64();
-
-    if (UIM(ctx->opcode) & 1) {
-        tcg_gen_ext32u_i64(b, vsr);
-    } else {
-        tcg_gen_shri_i64(b, vsr, 32);
-    }
-
-    tcg_gen_shli_i64(b2, b, 32);
-    tcg_gen_or_i64(cpu_vsrh(xT(ctx->opcode)), b, b2);
-    tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrh(xT(ctx->opcode)));
-
-    tcg_temp_free_i64(b);
-    tcg_temp_free_i64(b2);
-}
-
-static void gen_xxsldwi(DisasContext *ctx)
-{
-    TCGv_i64 xth, xtl;
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    xth = tcg_temp_new_i64();
-    xtl = tcg_temp_new_i64();
-
-    switch (SHW(ctx->opcode)) {
-        case 0: {
-            tcg_gen_mov_i64(xth, cpu_vsrh(xA(ctx->opcode)));
-            tcg_gen_mov_i64(xtl, cpu_vsrl(xA(ctx->opcode)));
-            break;
-        }
-        case 1: {
-            TCGv_i64 t0 = tcg_temp_new_i64();
-            tcg_gen_mov_i64(xth, cpu_vsrh(xA(ctx->opcode)));
-            tcg_gen_shli_i64(xth, xth, 32);
-            tcg_gen_mov_i64(t0, cpu_vsrl(xA(ctx->opcode)));
-            tcg_gen_shri_i64(t0, t0, 32);
-            tcg_gen_or_i64(xth, xth, t0);
-            tcg_gen_mov_i64(xtl, cpu_vsrl(xA(ctx->opcode)));
-            tcg_gen_shli_i64(xtl, xtl, 32);
-            tcg_gen_mov_i64(t0, cpu_vsrh(xB(ctx->opcode)));
-            tcg_gen_shri_i64(t0, t0, 32);
-            tcg_gen_or_i64(xtl, xtl, t0);
-            tcg_temp_free_i64(t0);
-            break;
-        }
-        case 2: {
-            tcg_gen_mov_i64(xth, cpu_vsrl(xA(ctx->opcode)));
-            tcg_gen_mov_i64(xtl, cpu_vsrh(xB(ctx->opcode)));
-            break;
-        }
-        case 3: {
-            TCGv_i64 t0 = tcg_temp_new_i64();
-            tcg_gen_mov_i64(xth, cpu_vsrl(xA(ctx->opcode)));
-            tcg_gen_shli_i64(xth, xth, 32);
-            tcg_gen_mov_i64(t0, cpu_vsrh(xB(ctx->opcode)));
-            tcg_gen_shri_i64(t0, t0, 32);
-            tcg_gen_or_i64(xth, xth, t0);
-            tcg_gen_mov_i64(xtl, cpu_vsrh(xB(ctx->opcode)));
-            tcg_gen_shli_i64(xtl, xtl, 32);
-            tcg_gen_mov_i64(t0, cpu_vsrl(xB(ctx->opcode)));
-            tcg_gen_shri_i64(t0, t0, 32);
-            tcg_gen_or_i64(xtl, xtl, t0);
-            tcg_temp_free_i64(t0);
-            break;
-        }
-    }
-
-    tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), xth);
-    tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), xtl);
-
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-}
-
-/*** Decimal Floating Point ***/
-
-static inline TCGv_ptr gen_fprp_ptr(int reg)
-{
-    TCGv_ptr r = tcg_temp_new_ptr();
-    tcg_gen_addi_ptr(r, cpu_env, offsetof(CPUPPCState, fpr[reg]));
-    return r;
-}
-
-#define GEN_DFP_T_A_B_Rc(name)                   \
-static void gen_##name(DisasContext *ctx)        \
-{                                                \
-    TCGv_ptr rd, ra, rb;                         \
-    if (unlikely(!ctx->fpu_enabled)) {           \
-        gen_exception(ctx, POWERPC_EXCP_FPU);    \
-        return;                                  \
-    }                                            \
-    gen_update_nip(ctx, ctx->nip - 4);           \
-    rd = gen_fprp_ptr(rD(ctx->opcode));          \
-    ra = gen_fprp_ptr(rA(ctx->opcode));          \
-    rb = gen_fprp_ptr(rB(ctx->opcode));          \
-    gen_helper_##name(cpu_env, rd, ra, rb);      \
-    if (unlikely(Rc(ctx->opcode) != 0)) {        \
-        gen_set_cr1_from_fpscr(ctx);             \
-    }                                            \
-    tcg_temp_free_ptr(rd);                       \
-    tcg_temp_free_ptr(ra);                       \
-    tcg_temp_free_ptr(rb);                       \
-}
-
-#define GEN_DFP_BF_A_B(name)                      \
-static void gen_##name(DisasContext *ctx)         \
-{                                                 \
-    TCGv_ptr ra, rb;                              \
-    if (unlikely(!ctx->fpu_enabled)) {            \
-        gen_exception(ctx, POWERPC_EXCP_FPU);     \
-        return;                                   \
-    }                                             \
-    gen_update_nip(ctx, ctx->nip - 4);            \
-    ra = gen_fprp_ptr(rA(ctx->opcode));           \
-    rb = gen_fprp_ptr(rB(ctx->opcode));           \
-    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], \
-                      cpu_env, ra, rb);           \
-    tcg_temp_free_ptr(ra);                        \
-    tcg_temp_free_ptr(rb);                        \
-}
-
-#define GEN_DFP_BF_A_DCM(name)                    \
-static void gen_##name(DisasContext *ctx)         \
-{                                                 \
-    TCGv_ptr ra;                                  \
-    TCGv_i32 dcm;                                 \
-    if (unlikely(!ctx->fpu_enabled)) {            \
-        gen_exception(ctx, POWERPC_EXCP_FPU);     \
-        return;                                   \
-    }                                             \
-    gen_update_nip(ctx, ctx->nip - 4);            \
-    ra = gen_fprp_ptr(rA(ctx->opcode));           \
-    dcm = tcg_const_i32(DCM(ctx->opcode));        \
-    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], \
-                      cpu_env, ra, dcm);          \
-    tcg_temp_free_ptr(ra);                        \
-    tcg_temp_free_i32(dcm);                       \
-}
-
-#define GEN_DFP_T_B_U32_U32_Rc(name, u32f1, u32f2)    \
-static void gen_##name(DisasContext *ctx)             \
-{                                                     \
-    TCGv_ptr rt, rb;                                  \
-    TCGv_i32 u32_1, u32_2;                            \
-    if (unlikely(!ctx->fpu_enabled)) {                \
-        gen_exception(ctx, POWERPC_EXCP_FPU);         \
-        return;                                       \
-    }                                                 \
-    gen_update_nip(ctx, ctx->nip - 4);                \
-    rt = gen_fprp_ptr(rD(ctx->opcode));               \
-    rb = gen_fprp_ptr(rB(ctx->opcode));               \
-    u32_1 = tcg_const_i32(u32f1(ctx->opcode));        \
-    u32_2 = tcg_const_i32(u32f2(ctx->opcode));        \
-    gen_helper_##name(cpu_env, rt, rb, u32_1, u32_2); \
-    if (unlikely(Rc(ctx->opcode) != 0)) {             \
-        gen_set_cr1_from_fpscr(ctx);                  \
-    }                                                 \
-    tcg_temp_free_ptr(rt);                            \
-    tcg_temp_free_ptr(rb);                            \
-    tcg_temp_free_i32(u32_1);                         \
-    tcg_temp_free_i32(u32_2);                         \
-}
-
-#define GEN_DFP_T_A_B_I32_Rc(name, i32fld)       \
-static void gen_##name(DisasContext *ctx)        \
-{                                                \
-    TCGv_ptr rt, ra, rb;                         \
-    TCGv_i32 i32;                                \
-    if (unlikely(!ctx->fpu_enabled)) {           \
-        gen_exception(ctx, POWERPC_EXCP_FPU);    \
-        return;                                  \
-    }                                            \
-    gen_update_nip(ctx, ctx->nip - 4);           \
-    rt = gen_fprp_ptr(rD(ctx->opcode));          \
-    ra = gen_fprp_ptr(rA(ctx->opcode));          \
-    rb = gen_fprp_ptr(rB(ctx->opcode));          \
-    i32 = tcg_const_i32(i32fld(ctx->opcode));    \
-    gen_helper_##name(cpu_env, rt, ra, rb, i32); \
-    if (unlikely(Rc(ctx->opcode) != 0)) {        \
-        gen_set_cr1_from_fpscr(ctx);             \
-    }                                            \
-    tcg_temp_free_ptr(rt);                       \
-    tcg_temp_free_ptr(rb);                       \
-    tcg_temp_free_ptr(ra);                       \
-    tcg_temp_free_i32(i32);                      \
-    }
-
-#define GEN_DFP_T_B_Rc(name)                     \
-static void gen_##name(DisasContext *ctx)        \
-{                                                \
-    TCGv_ptr rt, rb;                             \
-    if (unlikely(!ctx->fpu_enabled)) {           \
-        gen_exception(ctx, POWERPC_EXCP_FPU);    \
-        return;                                  \
-    }                                            \
-    gen_update_nip(ctx, ctx->nip - 4);           \
-    rt = gen_fprp_ptr(rD(ctx->opcode));          \
-    rb = gen_fprp_ptr(rB(ctx->opcode));          \
-    gen_helper_##name(cpu_env, rt, rb);          \
-    if (unlikely(Rc(ctx->opcode) != 0)) {        \
-        gen_set_cr1_from_fpscr(ctx);             \
-    }                                            \
-    tcg_temp_free_ptr(rt);                       \
-    tcg_temp_free_ptr(rb);                       \
-    }
-
-#define GEN_DFP_T_FPR_I32_Rc(name, fprfld, i32fld) \
-static void gen_##name(DisasContext *ctx)          \
-{                                                  \
-    TCGv_ptr rt, rs;                               \
-    TCGv_i32 i32;                                  \
-    if (unlikely(!ctx->fpu_enabled)) {             \
-        gen_exception(ctx, POWERPC_EXCP_FPU);      \
-        return;                                    \
-    }                                              \
-    gen_update_nip(ctx, ctx->nip - 4);             \
-    rt = gen_fprp_ptr(rD(ctx->opcode));            \
-    rs = gen_fprp_ptr(fprfld(ctx->opcode));        \
-    i32 = tcg_const_i32(i32fld(ctx->opcode));      \
-    gen_helper_##name(cpu_env, rt, rs, i32);       \
-    if (unlikely(Rc(ctx->opcode) != 0)) {          \
-        gen_set_cr1_from_fpscr(ctx);               \
-    }                                              \
-    tcg_temp_free_ptr(rt);                         \
-    tcg_temp_free_ptr(rs);                         \
-    tcg_temp_free_i32(i32);                        \
-}
-
-GEN_DFP_T_A_B_Rc(dadd)
-GEN_DFP_T_A_B_Rc(daddq)
-GEN_DFP_T_A_B_Rc(dsub)
-GEN_DFP_T_A_B_Rc(dsubq)
-GEN_DFP_T_A_B_Rc(dmul)
-GEN_DFP_T_A_B_Rc(dmulq)
-GEN_DFP_T_A_B_Rc(ddiv)
-GEN_DFP_T_A_B_Rc(ddivq)
-GEN_DFP_BF_A_B(dcmpu)
-GEN_DFP_BF_A_B(dcmpuq)
-GEN_DFP_BF_A_B(dcmpo)
-GEN_DFP_BF_A_B(dcmpoq)
-GEN_DFP_BF_A_DCM(dtstdc)
-GEN_DFP_BF_A_DCM(dtstdcq)
-GEN_DFP_BF_A_DCM(dtstdg)
-GEN_DFP_BF_A_DCM(dtstdgq)
-GEN_DFP_BF_A_B(dtstex)
-GEN_DFP_BF_A_B(dtstexq)
-GEN_DFP_BF_A_B(dtstsf)
-GEN_DFP_BF_A_B(dtstsfq)
-GEN_DFP_T_B_U32_U32_Rc(dquai, SIMM5, RMC)
-GEN_DFP_T_B_U32_U32_Rc(dquaiq, SIMM5, RMC)
-GEN_DFP_T_A_B_I32_Rc(dqua, RMC)
-GEN_DFP_T_A_B_I32_Rc(dquaq, RMC)
-GEN_DFP_T_A_B_I32_Rc(drrnd, RMC)
-GEN_DFP_T_A_B_I32_Rc(drrndq, RMC)
-GEN_DFP_T_B_U32_U32_Rc(drintx, FPW, RMC)
-GEN_DFP_T_B_U32_U32_Rc(drintxq, FPW, RMC)
-GEN_DFP_T_B_U32_U32_Rc(drintn, FPW, RMC)
-GEN_DFP_T_B_U32_U32_Rc(drintnq, FPW, RMC)
-GEN_DFP_T_B_Rc(dctdp)
-GEN_DFP_T_B_Rc(dctqpq)
-GEN_DFP_T_B_Rc(drsp)
-GEN_DFP_T_B_Rc(drdpq)
-GEN_DFP_T_B_Rc(dcffix)
-GEN_DFP_T_B_Rc(dcffixq)
-GEN_DFP_T_B_Rc(dctfix)
-GEN_DFP_T_B_Rc(dctfixq)
-GEN_DFP_T_FPR_I32_Rc(ddedpd, rB, SP)
-GEN_DFP_T_FPR_I32_Rc(ddedpdq, rB, SP)
-GEN_DFP_T_FPR_I32_Rc(denbcd, rB, SP)
-GEN_DFP_T_FPR_I32_Rc(denbcdq, rB, SP)
-GEN_DFP_T_B_Rc(dxex)
-GEN_DFP_T_B_Rc(dxexq)
-GEN_DFP_T_A_B_Rc(diex)
-GEN_DFP_T_A_B_Rc(diexq)
-GEN_DFP_T_FPR_I32_Rc(dscli, rA, DCM)
-GEN_DFP_T_FPR_I32_Rc(dscliq, rA, DCM)
-GEN_DFP_T_FPR_I32_Rc(dscri, rA, DCM)
-GEN_DFP_T_FPR_I32_Rc(dscriq, rA, DCM)
-
-/***                           SPE extension                               ***/
-/* Register moves */
-
-static inline void gen_evmra(DisasContext *ctx)
-{
-
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-
-    TCGv_i64 tmp = tcg_temp_new_i64();
-
-    /* tmp := rA_lo + rA_hi << 32 */
-    tcg_gen_concat_tl_i64(tmp, cpu_gpr[rA(ctx->opcode)], cpu_gprh[rA(ctx->opcode)]);
-
-    /* spe_acc := tmp */
-    tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUPPCState, spe_acc));
-    tcg_temp_free_i64(tmp);
-
-    /* rD := rA */
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)]);
-}
-
-static inline void gen_load_gpr64(TCGv_i64 t, int reg)
-{
-    tcg_gen_concat_tl_i64(t, cpu_gpr[reg], cpu_gprh[reg]);
-}
-
-static inline void gen_store_gpr64(int reg, TCGv_i64 t)
-{
-    tcg_gen_extr_i64_tl(cpu_gpr[reg], cpu_gprh[reg], t);
-}
-
-#define GEN_SPE(name0, name1, opc2, opc3, inval0, inval1, type)         \
-static void glue(gen_, name0##_##name1)(DisasContext *ctx)                    \
-{                                                                             \
-    if (Rc(ctx->opcode))                                                      \
-        gen_##name1(ctx);                                                     \
-    else                                                                      \
-        gen_##name0(ctx);                                                     \
-}
-
-/* Handler for undefined SPE opcodes */
-static inline void gen_speundef(DisasContext *ctx)
-{
-    gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-}
-
-/* SPE logic */
-#define GEN_SPEOP_LOGIC2(name, tcg_op)                                        \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    tcg_op(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],                \
-           cpu_gpr[rB(ctx->opcode)]);                                         \
-    tcg_op(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)],              \
-           cpu_gprh[rB(ctx->opcode)]);                                        \
-}
-
-GEN_SPEOP_LOGIC2(evand, tcg_gen_and_tl);
-GEN_SPEOP_LOGIC2(evandc, tcg_gen_andc_tl);
-GEN_SPEOP_LOGIC2(evxor, tcg_gen_xor_tl);
-GEN_SPEOP_LOGIC2(evor, tcg_gen_or_tl);
-GEN_SPEOP_LOGIC2(evnor, tcg_gen_nor_tl);
-GEN_SPEOP_LOGIC2(eveqv, tcg_gen_eqv_tl);
-GEN_SPEOP_LOGIC2(evorc, tcg_gen_orc_tl);
-GEN_SPEOP_LOGIC2(evnand, tcg_gen_nand_tl);
-
-/* SPE logic immediate */
-#define GEN_SPEOP_TCG_LOGIC_IMM2(name, tcg_opi)                               \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i32 t0;                                                              \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    t0 = tcg_temp_new_i32();                                                  \
-                                                                              \
-    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);                       \
-    tcg_opi(t0, t0, rB(ctx->opcode));                                         \
-    tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);                        \
-                                                                              \
-    tcg_gen_trunc_tl_i32(t0, cpu_gprh[rA(ctx->opcode)]);                      \
-    tcg_opi(t0, t0, rB(ctx->opcode));                                         \
-    tcg_gen_extu_i32_tl(cpu_gprh[rD(ctx->opcode)], t0);                       \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
-}
-GEN_SPEOP_TCG_LOGIC_IMM2(evslwi, tcg_gen_shli_i32);
-GEN_SPEOP_TCG_LOGIC_IMM2(evsrwiu, tcg_gen_shri_i32);
-GEN_SPEOP_TCG_LOGIC_IMM2(evsrwis, tcg_gen_sari_i32);
-GEN_SPEOP_TCG_LOGIC_IMM2(evrlwi, tcg_gen_rotli_i32);
-
-/* SPE arithmetic */
-#define GEN_SPEOP_ARITH1(name, tcg_op)                                        \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i32 t0;                                                              \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    t0 = tcg_temp_new_i32();                                                  \
-                                                                              \
-    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);                       \
-    tcg_op(t0, t0);                                                           \
-    tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);                        \
-                                                                              \
-    tcg_gen_trunc_tl_i32(t0, cpu_gprh[rA(ctx->opcode)]);                      \
-    tcg_op(t0, t0);                                                           \
-    tcg_gen_extu_i32_tl(cpu_gprh[rD(ctx->opcode)], t0);                       \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
-}
-
-static inline void gen_op_evabs(TCGv_i32 ret, TCGv_i32 arg1)
-{
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
-
-    tcg_gen_brcondi_i32(TCG_COND_GE, arg1, 0, l1);
-    tcg_gen_neg_i32(ret, arg1);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_mov_i32(ret, arg1);
-    gen_set_label(l2);
-}
-GEN_SPEOP_ARITH1(evabs, gen_op_evabs);
-GEN_SPEOP_ARITH1(evneg, tcg_gen_neg_i32);
-GEN_SPEOP_ARITH1(evextsb, tcg_gen_ext8s_i32);
-GEN_SPEOP_ARITH1(evextsh, tcg_gen_ext16s_i32);
-static inline void gen_op_evrndw(TCGv_i32 ret, TCGv_i32 arg1)
-{
-    tcg_gen_addi_i32(ret, arg1, 0x8000);
-    tcg_gen_ext16u_i32(ret, ret);
-}
-GEN_SPEOP_ARITH1(evrndw, gen_op_evrndw);
-GEN_SPEOP_ARITH1(evcntlsw, gen_helper_cntlsw32);
-GEN_SPEOP_ARITH1(evcntlzw, gen_helper_cntlzw32);
-
-#define GEN_SPEOP_ARITH2(name, tcg_op)                                        \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i32 t0, t1;                                                          \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    t0 = tcg_temp_new_i32();                                                  \
-    t1 = tcg_temp_new_i32();                                                  \
-                                                                              \
-    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);                       \
-    tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);                       \
-    tcg_op(t0, t0, t1);                                                       \
-    tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);                        \
-                                                                              \
-    tcg_gen_trunc_tl_i32(t0, cpu_gprh[rA(ctx->opcode)]);                      \
-    tcg_gen_trunc_tl_i32(t1, cpu_gprh[rB(ctx->opcode)]);                      \
-    tcg_op(t0, t0, t1);                                                       \
-    tcg_gen_extu_i32_tl(cpu_gprh[rD(ctx->opcode)], t0);                       \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
-    tcg_temp_free_i32(t1);                                                    \
-}
-
-static inline void gen_op_evsrwu(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
-{
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
-    TCGv_i32 t0 = tcg_temp_local_new_i32();
-
-    /* No error here: 6 bits are used */
-    tcg_gen_andi_i32(t0, arg2, 0x3F);
-    tcg_gen_brcondi_i32(TCG_COND_GE, t0, 32, l1);
-    tcg_gen_shr_i32(ret, arg1, t0);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i32(ret, 0);
-    gen_set_label(l2);
-    tcg_temp_free_i32(t0);
-}
-GEN_SPEOP_ARITH2(evsrwu, gen_op_evsrwu);
-static inline void gen_op_evsrws(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
-{
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
-    TCGv_i32 t0 = tcg_temp_local_new_i32();
-
-    /* No error here: 6 bits are used */
-    tcg_gen_andi_i32(t0, arg2, 0x3F);
-    tcg_gen_brcondi_i32(TCG_COND_GE, t0, 32, l1);
-    tcg_gen_sar_i32(ret, arg1, t0);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i32(ret, 0);
-    gen_set_label(l2);
-    tcg_temp_free_i32(t0);
-}
-GEN_SPEOP_ARITH2(evsrws, gen_op_evsrws);
-static inline void gen_op_evslw(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
-{
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
-    TCGv_i32 t0 = tcg_temp_local_new_i32();
-
-    /* No error here: 6 bits are used */
-    tcg_gen_andi_i32(t0, arg2, 0x3F);
-    tcg_gen_brcondi_i32(TCG_COND_GE, t0, 32, l1);
-    tcg_gen_shl_i32(ret, arg1, t0);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i32(ret, 0);
-    gen_set_label(l2);
-    tcg_temp_free_i32(t0);
-}
-GEN_SPEOP_ARITH2(evslw, gen_op_evslw);
-static inline void gen_op_evrlw(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
-{
-    TCGv_i32 t0 = tcg_temp_new_i32();
-    tcg_gen_andi_i32(t0, arg2, 0x1F);
-    tcg_gen_rotl_i32(ret, arg1, t0);
-    tcg_temp_free_i32(t0);
-}
-GEN_SPEOP_ARITH2(evrlw, gen_op_evrlw);
-static inline void gen_evmergehi(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gprh[rB(ctx->opcode)]);
-    tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)]);
-}
-GEN_SPEOP_ARITH2(evaddw, tcg_gen_add_i32);
-static inline void gen_op_evsubf(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
-{
-    tcg_gen_sub_i32(ret, arg2, arg1);
-}
-GEN_SPEOP_ARITH2(evsubfw, gen_op_evsubf);
-
-/* SPE arithmetic immediate */
-#define GEN_SPEOP_ARITH_IMM2(name, tcg_op)                                    \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i32 t0;                                                              \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    t0 = tcg_temp_new_i32();                                                  \
-                                                                              \
-    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rB(ctx->opcode)]);                       \
-    tcg_op(t0, t0, rA(ctx->opcode));                                          \
-    tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);                        \
-                                                                              \
-    tcg_gen_trunc_tl_i32(t0, cpu_gprh[rB(ctx->opcode)]);                      \
-    tcg_op(t0, t0, rA(ctx->opcode));                                          \
-    tcg_gen_extu_i32_tl(cpu_gprh[rD(ctx->opcode)], t0);                       \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
-}
-GEN_SPEOP_ARITH_IMM2(evaddiw, tcg_gen_addi_i32);
-GEN_SPEOP_ARITH_IMM2(evsubifw, tcg_gen_subi_i32);
-
-/* SPE comparison */
-#define GEN_SPEOP_COMP(name, tcg_cond)                                        \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    TCGLabel *l1 = gen_new_label();                                           \
-    TCGLabel *l2 = gen_new_label();                                           \
-    TCGLabel *l3 = gen_new_label();                                           \
-    TCGLabel *l4 = gen_new_label();                                           \
-                                                                              \
-    tcg_gen_ext32s_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);    \
-    tcg_gen_ext32s_tl(cpu_gpr[rB(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);    \
-    tcg_gen_ext32s_tl(cpu_gprh[rA(ctx->opcode)], cpu_gprh[rA(ctx->opcode)]);  \
-    tcg_gen_ext32s_tl(cpu_gprh[rB(ctx->opcode)], cpu_gprh[rB(ctx->opcode)]);  \
-                                                                              \
-    tcg_gen_brcond_tl(tcg_cond, cpu_gpr[rA(ctx->opcode)],                     \
-                       cpu_gpr[rB(ctx->opcode)], l1);                         \
-    tcg_gen_movi_i32(cpu_crf[crfD(ctx->opcode)], 0);                          \
-    tcg_gen_br(l2);                                                           \
-    gen_set_label(l1);                                                        \
-    tcg_gen_movi_i32(cpu_crf[crfD(ctx->opcode)],                              \
-                     CRF_CL | CRF_CH_OR_CL | CRF_CH_AND_CL);                  \
-    gen_set_label(l2);                                                        \
-    tcg_gen_brcond_tl(tcg_cond, cpu_gprh[rA(ctx->opcode)],                    \
-                       cpu_gprh[rB(ctx->opcode)], l3);                        \
-    tcg_gen_andi_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)],  \
-                     ~(CRF_CH | CRF_CH_AND_CL));                              \
-    tcg_gen_br(l4);                                                           \
-    gen_set_label(l3);                                                        \
-    tcg_gen_ori_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)],   \
-                    CRF_CH | CRF_CH_OR_CL);                                   \
-    gen_set_label(l4);                                                        \
-}
-GEN_SPEOP_COMP(evcmpgtu, TCG_COND_GTU);
-GEN_SPEOP_COMP(evcmpgts, TCG_COND_GT);
-GEN_SPEOP_COMP(evcmpltu, TCG_COND_LTU);
-GEN_SPEOP_COMP(evcmplts, TCG_COND_LT);
-GEN_SPEOP_COMP(evcmpeq, TCG_COND_EQ);
-
-/* SPE misc */
-static inline void gen_brinc(DisasContext *ctx)
-{
-    /* Note: brinc is usable even if SPE is disabled */
-    gen_helper_brinc(cpu_gpr[rD(ctx->opcode)],
-                     cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
-}
-static inline void gen_evmergelo(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
-}
-static inline void gen_evmergehilo(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
-    tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)]);
-}
-static inline void gen_evmergelohi(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    if (rD(ctx->opcode) == rA(ctx->opcode)) {
-        TCGv tmp = tcg_temp_new();
-        tcg_gen_mov_tl(tmp, cpu_gpr[rA(ctx->opcode)]);
-        tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gprh[rB(ctx->opcode)]);
-        tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], tmp);
-        tcg_temp_free(tmp);
-    } else {
-        tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gprh[rB(ctx->opcode)]);
-        tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
-    }
-}
-static inline void gen_evsplati(DisasContext *ctx)
-{
-    uint64_t imm = ((int32_t)(rA(ctx->opcode) << 27)) >> 27;
-
-    tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], imm);
-    tcg_gen_movi_tl(cpu_gprh[rD(ctx->opcode)], imm);
-}
-static inline void gen_evsplatfi(DisasContext *ctx)
-{
-    uint64_t imm = rA(ctx->opcode) << 27;
-
-    tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], imm);
-    tcg_gen_movi_tl(cpu_gprh[rD(ctx->opcode)], imm);
-}
-
-static inline void gen_evsel(DisasContext *ctx)
-{
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
-    TCGLabel *l3 = gen_new_label();
-    TCGLabel *l4 = gen_new_label();
-    TCGv_i32 t0 = tcg_temp_local_new_i32();
-
-    tcg_gen_andi_i32(t0, cpu_crf[ctx->opcode & 0x07], 1 << 3);
-    tcg_gen_brcondi_i32(TCG_COND_EQ, t0, 0, l1);
-    tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)]);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rB(ctx->opcode)]);
-    gen_set_label(l2);
-    tcg_gen_andi_i32(t0, cpu_crf[ctx->opcode & 0x07], 1 << 2);
-    tcg_gen_brcondi_i32(TCG_COND_EQ, t0, 0, l3);
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_br(l4);
-    gen_set_label(l3);
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
-    gen_set_label(l4);
-    tcg_temp_free_i32(t0);
-}
-
-static void gen_evsel0(DisasContext *ctx)
-{
-    gen_evsel(ctx);
-}
-
-static void gen_evsel1(DisasContext *ctx)
-{
-    gen_evsel(ctx);
-}
-
-static void gen_evsel2(DisasContext *ctx)
-{
-    gen_evsel(ctx);
-}
-
-static void gen_evsel3(DisasContext *ctx)
-{
-    gen_evsel(ctx);
-}
-
-/* Multiply */
-
-static inline void gen_evmwumi(DisasContext *ctx)
-{
-    TCGv_i64 t0, t1;
-
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-
-    /* t0 := rA; t1 := rB */
-    tcg_gen_extu_tl_i64(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ext32u_i64(t0, t0);
-    tcg_gen_extu_tl_i64(t1, cpu_gpr[rB(ctx->opcode)]);
-    tcg_gen_ext32u_i64(t1, t1);
-
-    tcg_gen_mul_i64(t0, t0, t1);  /* t0 := rA * rB */
-
-    gen_store_gpr64(rD(ctx->opcode), t0); /* rD := t0 */
-
-    tcg_temp_free_i64(t0);
+    tcg_gen_mul_i64(t1, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+    tcg_gen_add_i64(cpu_gpr[rD(ctx->opcode)], t1, cpu_gpr[rC(ctx->opcode)]);
     tcg_temp_free_i64(t1);
 }
 
-static inline void gen_evmwumia(DisasContext *ctx)
+/* maddhd maddhdu */
+static void gen_maddhd_maddhdu(DisasContext *ctx)
 {
-    TCGv_i64 tmp;
+    TCGv_i64 lo = tcg_temp_new_i64();
+    TCGv_i64 hi = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
 
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
+    if (Rc(ctx->opcode)) {
+        tcg_gen_mulu2_i64(lo, hi, cpu_gpr[rA(ctx->opcode)],
+                          cpu_gpr[rB(ctx->opcode)]);
+        tcg_gen_movi_i64(t1, 0);
+    } else {
+        tcg_gen_muls2_i64(lo, hi, cpu_gpr[rA(ctx->opcode)],
+                          cpu_gpr[rB(ctx->opcode)]);
+        tcg_gen_sari_i64(t1, cpu_gpr[rC(ctx->opcode)], 63);
     }
-
-    gen_evmwumi(ctx);            /* rD := rA * rB */
-
-    tmp = tcg_temp_new_i64();
-
-    /* acc := rD */
-    gen_load_gpr64(tmp, rD(ctx->opcode));
-    tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUPPCState, spe_acc));
-    tcg_temp_free_i64(tmp);
-}
-
-static inline void gen_evmwumiaa(DisasContext *ctx)
-{
-    TCGv_i64 acc;
-    TCGv_i64 tmp;
-
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-
-    gen_evmwumi(ctx);           /* rD := rA * rB */
-
-    acc = tcg_temp_new_i64();
-    tmp = tcg_temp_new_i64();
-
-    /* tmp := rD */
-    gen_load_gpr64(tmp, rD(ctx->opcode));
-
-    /* Load acc */
-    tcg_gen_ld_i64(acc, cpu_env, offsetof(CPUPPCState, spe_acc));
-
-    /* acc := tmp + acc */
-    tcg_gen_add_i64(acc, acc, tmp);
-
-    /* Store acc */
-    tcg_gen_st_i64(acc, cpu_env, offsetof(CPUPPCState, spe_acc));
-
-    /* rD := acc */
-    gen_store_gpr64(rD(ctx->opcode), acc);
-
-    tcg_temp_free_i64(acc);
-    tcg_temp_free_i64(tmp);
-}
-
-static inline void gen_evmwsmi(DisasContext *ctx)
-{
-    TCGv_i64 t0, t1;
-
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-
-    /* t0 := rA; t1 := rB */
-    tcg_gen_extu_tl_i64(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ext32s_i64(t0, t0);
-    tcg_gen_extu_tl_i64(t1, cpu_gpr[rB(ctx->opcode)]);
-    tcg_gen_ext32s_i64(t1, t1);
-
-    tcg_gen_mul_i64(t0, t0, t1);  /* t0 := rA * rB */
-
-    gen_store_gpr64(rD(ctx->opcode), t0); /* rD := t0 */
-
-    tcg_temp_free_i64(t0);
+    tcg_gen_add2_i64(t1, cpu_gpr[rD(ctx->opcode)], lo, hi,
+                     cpu_gpr[rC(ctx->opcode)], t1);
+    tcg_temp_free_i64(lo);
+    tcg_temp_free_i64(hi);
     tcg_temp_free_i64(t1);
 }
-
-static inline void gen_evmwsmia(DisasContext *ctx)
-{
-    TCGv_i64 tmp;
-
-    gen_evmwsmi(ctx);            /* rD := rA * rB */
-
-    tmp = tcg_temp_new_i64();
-
-    /* acc := rD */
-    gen_load_gpr64(tmp, rD(ctx->opcode));
-    tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUPPCState, spe_acc));
-
-    tcg_temp_free_i64(tmp);
-}
-
-static inline void gen_evmwsmiaa(DisasContext *ctx)
-{
-    TCGv_i64 acc = tcg_temp_new_i64();
-    TCGv_i64 tmp = tcg_temp_new_i64();
-
-    gen_evmwsmi(ctx);           /* rD := rA * rB */
-
-    acc = tcg_temp_new_i64();
-    tmp = tcg_temp_new_i64();
-
-    /* tmp := rD */
-    gen_load_gpr64(tmp, rD(ctx->opcode));
-
-    /* Load acc */
-    tcg_gen_ld_i64(acc, cpu_env, offsetof(CPUPPCState, spe_acc));
-
-    /* acc := tmp + acc */
-    tcg_gen_add_i64(acc, acc, tmp);
-
-    /* Store acc */
-    tcg_gen_st_i64(acc, cpu_env, offsetof(CPUPPCState, spe_acc));
-
-    /* rD := acc */
-    gen_store_gpr64(rD(ctx->opcode), acc);
-
-    tcg_temp_free_i64(acc);
-    tcg_temp_free_i64(tmp);
-}
-
-GEN_SPE(evaddw,      speundef,    0x00, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE); ////
-GEN_SPE(evaddiw,     speundef,    0x01, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE);
-GEN_SPE(evsubfw,     speundef,    0x02, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE); ////
-GEN_SPE(evsubifw,    speundef,    0x03, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE);
-GEN_SPE(evabs,       evneg,       0x04, 0x08, 0x0000F800, 0x0000F800, PPC_SPE); ////
-GEN_SPE(evextsb,     evextsh,     0x05, 0x08, 0x0000F800, 0x0000F800, PPC_SPE); ////
-GEN_SPE(evrndw,      evcntlzw,    0x06, 0x08, 0x0000F800, 0x0000F800, PPC_SPE); ////
-GEN_SPE(evcntlsw,    brinc,       0x07, 0x08, 0x0000F800, 0x00000000, PPC_SPE); //
-GEN_SPE(evmra,       speundef,    0x02, 0x13, 0x0000F800, 0xFFFFFFFF, PPC_SPE);
-GEN_SPE(speundef,    evand,       0x08, 0x08, 0xFFFFFFFF, 0x00000000, PPC_SPE); ////
-GEN_SPE(evandc,      speundef,    0x09, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE); ////
-GEN_SPE(evxor,       evor,        0x0B, 0x08, 0x00000000, 0x00000000, PPC_SPE); ////
-GEN_SPE(evnor,       eveqv,       0x0C, 0x08, 0x00000000, 0x00000000, PPC_SPE); ////
-GEN_SPE(evmwumi,     evmwsmi,     0x0C, 0x11, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(evmwumia,    evmwsmia,    0x1C, 0x11, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(evmwumiaa,   evmwsmiaa,   0x0C, 0x15, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,    evorc,       0x0D, 0x08, 0xFFFFFFFF, 0x00000000, PPC_SPE); ////
-GEN_SPE(evnand,      speundef,    0x0F, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE); ////
-GEN_SPE(evsrwu,      evsrws,      0x10, 0x08, 0x00000000, 0x00000000, PPC_SPE); ////
-GEN_SPE(evsrwiu,     evsrwis,     0x11, 0x08, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(evslw,       speundef,    0x12, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE); ////
-GEN_SPE(evslwi,      speundef,    0x13, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE);
-GEN_SPE(evrlw,       evsplati,    0x14, 0x08, 0x00000000, 0x0000F800, PPC_SPE); //
-GEN_SPE(evrlwi,      evsplatfi,   0x15, 0x08, 0x00000000, 0x0000F800, PPC_SPE);
-GEN_SPE(evmergehi,   evmergelo,   0x16, 0x08, 0x00000000, 0x00000000, PPC_SPE); ////
-GEN_SPE(evmergehilo, evmergelohi, 0x17, 0x08, 0x00000000, 0x00000000, PPC_SPE); ////
-GEN_SPE(evcmpgtu,    evcmpgts,    0x18, 0x08, 0x00600000, 0x00600000, PPC_SPE); ////
-GEN_SPE(evcmpltu,    evcmplts,    0x19, 0x08, 0x00600000, 0x00600000, PPC_SPE); ////
-GEN_SPE(evcmpeq,     speundef,    0x1A, 0x08, 0x00600000, 0xFFFFFFFF, PPC_SPE); ////
-
-/* SPE load and stores */
-static inline void gen_addr_spe_imm_index(DisasContext *ctx, TCGv EA, int sh)
-{
-    target_ulong uimm = rB(ctx->opcode);
-
-    if (rA(ctx->opcode) == 0) {
-        tcg_gen_movi_tl(EA, uimm << sh);
-    } else {
-        tcg_gen_addi_tl(EA, cpu_gpr[rA(ctx->opcode)], uimm << sh);
-        if (NARROW_MODE(ctx)) {
-            tcg_gen_ext32u_tl(EA, EA);
-        }
-    }
-}
-
-static inline void gen_op_evldd(DisasContext *ctx, TCGv addr)
-{
-    TCGv_i64 t0 = tcg_temp_new_i64();
-    gen_qemu_ld64(ctx, t0, addr);
-    gen_store_gpr64(rD(ctx->opcode), t0);
-    tcg_temp_free_i64(t0);
-}
-
-static inline void gen_op_evldw(DisasContext *ctx, TCGv addr)
-{
-    gen_qemu_ld32u(ctx, cpu_gprh[rD(ctx->opcode)], addr);
-    gen_addr_add(ctx, addr, addr, 4);
-    gen_qemu_ld32u(ctx, cpu_gpr[rD(ctx->opcode)], addr);
-}
-
-static inline void gen_op_evldh(DisasContext *ctx, TCGv addr)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_qemu_ld16u(ctx, t0, addr);
-    tcg_gen_shli_tl(cpu_gprh[rD(ctx->opcode)], t0, 16);
-    gen_addr_add(ctx, addr, addr, 2);
-    gen_qemu_ld16u(ctx, t0, addr);
-    tcg_gen_or_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rD(ctx->opcode)], t0);
-    gen_addr_add(ctx, addr, addr, 2);
-    gen_qemu_ld16u(ctx, t0, addr);
-    tcg_gen_shli_tl(cpu_gprh[rD(ctx->opcode)], t0, 16);
-    gen_addr_add(ctx, addr, addr, 2);
-    gen_qemu_ld16u(ctx, t0, addr);
-    tcg_gen_or_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
-}
-
-static inline void gen_op_evlhhesplat(DisasContext *ctx, TCGv addr)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_qemu_ld16u(ctx, t0, addr);
-    tcg_gen_shli_tl(t0, t0, 16);
-    tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], t0);
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
-}
-
-static inline void gen_op_evlhhousplat(DisasContext *ctx, TCGv addr)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_qemu_ld16u(ctx, t0, addr);
-    tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], t0);
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
-}
-
-static inline void gen_op_evlhhossplat(DisasContext *ctx, TCGv addr)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_qemu_ld16s(ctx, t0, addr);
-    tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], t0);
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
-}
-
-static inline void gen_op_evlwhe(DisasContext *ctx, TCGv addr)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_qemu_ld16u(ctx, t0, addr);
-    tcg_gen_shli_tl(cpu_gprh[rD(ctx->opcode)], t0, 16);
-    gen_addr_add(ctx, addr, addr, 2);
-    gen_qemu_ld16u(ctx, t0, addr);
-    tcg_gen_shli_tl(cpu_gpr[rD(ctx->opcode)], t0, 16);
-    tcg_temp_free(t0);
-}
-
-static inline void gen_op_evlwhou(DisasContext *ctx, TCGv addr)
-{
-    gen_qemu_ld16u(ctx, cpu_gprh[rD(ctx->opcode)], addr);
-    gen_addr_add(ctx, addr, addr, 2);
-    gen_qemu_ld16u(ctx, cpu_gpr[rD(ctx->opcode)], addr);
-}
-
-static inline void gen_op_evlwhos(DisasContext *ctx, TCGv addr)
-{
-    gen_qemu_ld16s(ctx, cpu_gprh[rD(ctx->opcode)], addr);
-    gen_addr_add(ctx, addr, addr, 2);
-    gen_qemu_ld16s(ctx, cpu_gpr[rD(ctx->opcode)], addr);
-}
-
-static inline void gen_op_evlwwsplat(DisasContext *ctx, TCGv addr)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_qemu_ld32u(ctx, t0, addr);
-    tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], t0);
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
-}
-
-static inline void gen_op_evlwhsplat(DisasContext *ctx, TCGv addr)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_qemu_ld16u(ctx, t0, addr);
-    tcg_gen_shli_tl(cpu_gprh[rD(ctx->opcode)], t0, 16);
-    tcg_gen_or_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rD(ctx->opcode)], t0);
-    gen_addr_add(ctx, addr, addr, 2);
-    gen_qemu_ld16u(ctx, t0, addr);
-    tcg_gen_shli_tl(cpu_gpr[rD(ctx->opcode)], t0, 16);
-    tcg_gen_or_tl(cpu_gpr[rD(ctx->opcode)], cpu_gprh[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
-}
-
-static inline void gen_op_evstdd(DisasContext *ctx, TCGv addr)
-{
-    TCGv_i64 t0 = tcg_temp_new_i64();
-    gen_load_gpr64(t0, rS(ctx->opcode));
-    gen_qemu_st64(ctx, t0, addr);
-    tcg_temp_free_i64(t0);
-}
-
-static inline void gen_op_evstdw(DisasContext *ctx, TCGv addr)
-{
-    gen_qemu_st32(ctx, cpu_gprh[rS(ctx->opcode)], addr);
-    gen_addr_add(ctx, addr, addr, 4);
-    gen_qemu_st32(ctx, cpu_gpr[rS(ctx->opcode)], addr);
-}
-
-static inline void gen_op_evstdh(DisasContext *ctx, TCGv addr)
-{
-    TCGv t0 = tcg_temp_new();
-    tcg_gen_shri_tl(t0, cpu_gprh[rS(ctx->opcode)], 16);
-    gen_qemu_st16(ctx, t0, addr);
-    gen_addr_add(ctx, addr, addr, 2);
-    gen_qemu_st16(ctx, cpu_gprh[rS(ctx->opcode)], addr);
-    gen_addr_add(ctx, addr, addr, 2);
-    tcg_gen_shri_tl(t0, cpu_gpr[rS(ctx->opcode)], 16);
-    gen_qemu_st16(ctx, t0, addr);
-    tcg_temp_free(t0);
-    gen_addr_add(ctx, addr, addr, 2);
-    gen_qemu_st16(ctx, cpu_gpr[rS(ctx->opcode)], addr);
-}
-
-static inline void gen_op_evstwhe(DisasContext *ctx, TCGv addr)
-{
-    TCGv t0 = tcg_temp_new();
-    tcg_gen_shri_tl(t0, cpu_gprh[rS(ctx->opcode)], 16);
-    gen_qemu_st16(ctx, t0, addr);
-    gen_addr_add(ctx, addr, addr, 2);
-    tcg_gen_shri_tl(t0, cpu_gpr[rS(ctx->opcode)], 16);
-    gen_qemu_st16(ctx, t0, addr);
-    tcg_temp_free(t0);
-}
-
-static inline void gen_op_evstwho(DisasContext *ctx, TCGv addr)
-{
-    gen_qemu_st16(ctx, cpu_gprh[rS(ctx->opcode)], addr);
-    gen_addr_add(ctx, addr, addr, 2);
-    gen_qemu_st16(ctx, cpu_gpr[rS(ctx->opcode)], addr);
-}
-
-static inline void gen_op_evstwwe(DisasContext *ctx, TCGv addr)
-{
-    gen_qemu_st32(ctx, cpu_gprh[rS(ctx->opcode)], addr);
-}
-
-static inline void gen_op_evstwwo(DisasContext *ctx, TCGv addr)
-{
-    gen_qemu_st32(ctx, cpu_gpr[rS(ctx->opcode)], addr);
-}
-
-#define GEN_SPEOP_LDST(name, opc2, sh)                                        \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
-{                                                                             \
-    TCGv t0;                                                                  \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    t0 = tcg_temp_new();                                                      \
-    if (Rc(ctx->opcode)) {                                                    \
-        gen_addr_spe_imm_index(ctx, t0, sh);                                  \
-    } else {                                                                  \
-        gen_addr_reg_index(ctx, t0);                                          \
-    }                                                                         \
-    gen_op_##name(ctx, t0);                                                   \
-    tcg_temp_free(t0);                                                        \
-}
-
-GEN_SPEOP_LDST(evldd, 0x00, 3);
-GEN_SPEOP_LDST(evldw, 0x01, 3);
-GEN_SPEOP_LDST(evldh, 0x02, 3);
-GEN_SPEOP_LDST(evlhhesplat, 0x04, 1);
-GEN_SPEOP_LDST(evlhhousplat, 0x06, 1);
-GEN_SPEOP_LDST(evlhhossplat, 0x07, 1);
-GEN_SPEOP_LDST(evlwhe, 0x08, 2);
-GEN_SPEOP_LDST(evlwhou, 0x0A, 2);
-GEN_SPEOP_LDST(evlwhos, 0x0B, 2);
-GEN_SPEOP_LDST(evlwwsplat, 0x0C, 2);
-GEN_SPEOP_LDST(evlwhsplat, 0x0E, 2);
-
-GEN_SPEOP_LDST(evstdd, 0x10, 3);
-GEN_SPEOP_LDST(evstdw, 0x11, 3);
-GEN_SPEOP_LDST(evstdh, 0x12, 3);
-GEN_SPEOP_LDST(evstwhe, 0x18, 2);
-GEN_SPEOP_LDST(evstwho, 0x1A, 2);
-GEN_SPEOP_LDST(evstwwe, 0x1C, 2);
-GEN_SPEOP_LDST(evstwwo, 0x1E, 2);
-
-/* Multiply and add - TODO */
-#if 0
-GEN_SPE(speundef,       evmhessf,      0x01, 0x10, 0xFFFFFFFF, 0x00000000, PPC_SPE);//
-GEN_SPE(speundef,       evmhossf,      0x03, 0x10, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmheumi,       evmhesmi,      0x04, 0x10, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhesmf,      0x05, 0x10, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmhoumi,       evmhosmi,      0x06, 0x10, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhosmf,      0x07, 0x10, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhessfa,     0x11, 0x10, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhossfa,     0x13, 0x10, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmheumia,      evmhesmia,     0x14, 0x10, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhesmfa,     0x15, 0x10, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmhoumia,      evmhosmia,     0x16, 0x10, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhosmfa,     0x17, 0x10, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-
-GEN_SPE(speundef,       evmwhssf,      0x03, 0x11, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmwlumi,       speundef,      0x04, 0x11, 0x00000000, 0xFFFFFFFF, PPC_SPE);
-GEN_SPE(evmwhumi,       evmwhsmi,      0x06, 0x11, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwhsmf,      0x07, 0x11, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwssf,       0x09, 0x11, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwsmf,       0x0D, 0x11, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwhssfa,     0x13, 0x11, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmwlumia,      speundef,      0x14, 0x11, 0x00000000, 0xFFFFFFFF, PPC_SPE);
-GEN_SPE(evmwhumia,      evmwhsmia,     0x16, 0x11, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwhsmfa,     0x17, 0x11, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwssfa,      0x19, 0x11, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwsmfa,      0x1D, 0x11, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-
-GEN_SPE(evadduiaaw,     evaddsiaaw,    0x00, 0x13, 0x0000F800, 0x0000F800, PPC_SPE);
-GEN_SPE(evsubfusiaaw,   evsubfssiaaw,  0x01, 0x13, 0x0000F800, 0x0000F800, PPC_SPE);
-GEN_SPE(evaddumiaaw,    evaddsmiaaw,   0x04, 0x13, 0x0000F800, 0x0000F800, PPC_SPE);
-GEN_SPE(evsubfumiaaw,   evsubfsmiaaw,  0x05, 0x13, 0x0000F800, 0x0000F800, PPC_SPE);
-GEN_SPE(evdivws,        evdivwu,       0x06, 0x13, 0x00000000, 0x00000000, PPC_SPE);
-
-GEN_SPE(evmheusiaaw,    evmhessiaaw,   0x00, 0x14, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhessfaaw,   0x01, 0x14, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmhousiaaw,    evmhossiaaw,   0x02, 0x14, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhossfaaw,   0x03, 0x14, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmheumiaaw,    evmhesmiaaw,   0x04, 0x14, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhesmfaaw,   0x05, 0x14, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmhoumiaaw,    evmhosmiaaw,   0x06, 0x14, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhosmfaaw,   0x07, 0x14, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmhegumiaa,    evmhegsmiaa,   0x14, 0x14, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhegsmfaa,   0x15, 0x14, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmhogumiaa,    evmhogsmiaa,   0x16, 0x14, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhogsmfaa,   0x17, 0x14, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-
-GEN_SPE(evmwlusiaaw,    evmwlssiaaw,   0x00, 0x15, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(evmwlumiaaw,    evmwlsmiaaw,   0x04, 0x15, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwssfaa,     0x09, 0x15, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwsmfaa,     0x0D, 0x15, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-
-GEN_SPE(evmheusianw,    evmhessianw,   0x00, 0x16, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhessfanw,   0x01, 0x16, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmhousianw,    evmhossianw,   0x02, 0x16, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhossfanw,   0x03, 0x16, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmheumianw,    evmhesmianw,   0x04, 0x16, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhesmfanw,   0x05, 0x16, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmhoumianw,    evmhosmianw,   0x06, 0x16, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhosmfanw,   0x07, 0x16, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmhegumian,    evmhegsmian,   0x14, 0x16, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhegsmfan,   0x15, 0x16, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmhigumian,    evmhigsmian,   0x16, 0x16, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmhogsmfan,   0x17, 0x16, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-
-GEN_SPE(evmwlusianw,    evmwlssianw,   0x00, 0x17, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(evmwlumianw,    evmwlsmianw,   0x04, 0x17, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwssfan,     0x09, 0x17, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-GEN_SPE(evmwumian,      evmwsmian,     0x0C, 0x17, 0x00000000, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evmwsmfan,     0x0D, 0x17, 0xFFFFFFFF, 0x00000000, PPC_SPE);
-#endif
-
-/***                      SPE floating-point extension                     ***/
-#define GEN_SPEFPUOP_CONV_32_32(name)                                         \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i32 t0 = tcg_temp_new_i32();                                         \
-    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rB(ctx->opcode)]);                       \
-    gen_helper_##name(t0, cpu_env, t0);                                       \
-    tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);                        \
-    tcg_temp_free_i32(t0);                                                    \
-}
-#define GEN_SPEFPUOP_CONV_32_64(name)                                         \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i64 t0 = tcg_temp_new_i64();                                         \
-    TCGv_i32 t1 = tcg_temp_new_i32();                                         \
-    gen_load_gpr64(t0, rB(ctx->opcode));                                      \
-    gen_helper_##name(t1, cpu_env, t0);                                       \
-    tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t1);                        \
-    tcg_temp_free_i64(t0);                                                    \
-    tcg_temp_free_i32(t1);                                                    \
-}
-#define GEN_SPEFPUOP_CONV_64_32(name)                                         \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i64 t0 = tcg_temp_new_i64();                                         \
-    TCGv_i32 t1 = tcg_temp_new_i32();                                         \
-    tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);                       \
-    gen_helper_##name(t0, cpu_env, t1);                                       \
-    gen_store_gpr64(rD(ctx->opcode), t0);                                     \
-    tcg_temp_free_i64(t0);                                                    \
-    tcg_temp_free_i32(t1);                                                    \
-}
-#define GEN_SPEFPUOP_CONV_64_64(name)                                         \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i64 t0 = tcg_temp_new_i64();                                         \
-    gen_load_gpr64(t0, rB(ctx->opcode));                                      \
-    gen_helper_##name(t0, cpu_env, t0);                                       \
-    gen_store_gpr64(rD(ctx->opcode), t0);                                     \
-    tcg_temp_free_i64(t0);                                                    \
-}
-#define GEN_SPEFPUOP_ARITH2_32_32(name)                                       \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i32 t0, t1;                                                          \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    t0 = tcg_temp_new_i32();                                                  \
-    t1 = tcg_temp_new_i32();                                                  \
-    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);                       \
-    tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);                       \
-    gen_helper_##name(t0, cpu_env, t0, t1);                                   \
-    tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);                        \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
-    tcg_temp_free_i32(t1);                                                    \
-}
-#define GEN_SPEFPUOP_ARITH2_64_64(name)                                       \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i64 t0, t1;                                                          \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    t0 = tcg_temp_new_i64();                                                  \
-    t1 = tcg_temp_new_i64();                                                  \
-    gen_load_gpr64(t0, rA(ctx->opcode));                                      \
-    gen_load_gpr64(t1, rB(ctx->opcode));                                      \
-    gen_helper_##name(t0, cpu_env, t0, t1);                                   \
-    gen_store_gpr64(rD(ctx->opcode), t0);                                     \
-    tcg_temp_free_i64(t0);                                                    \
-    tcg_temp_free_i64(t1);                                                    \
-}
-#define GEN_SPEFPUOP_COMP_32(name)                                            \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i32 t0, t1;                                                          \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    t0 = tcg_temp_new_i32();                                                  \
-    t1 = tcg_temp_new_i32();                                                  \
-                                                                              \
-    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);                       \
-    tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);                       \
-    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], cpu_env, t0, t1);           \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
-    tcg_temp_free_i32(t1);                                                    \
-}
-#define GEN_SPEFPUOP_COMP_64(name)                                            \
-static inline void gen_##name(DisasContext *ctx)                              \
-{                                                                             \
-    TCGv_i64 t0, t1;                                                          \
-    if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
-        return;                                                               \
-    }                                                                         \
-    t0 = tcg_temp_new_i64();                                                  \
-    t1 = tcg_temp_new_i64();                                                  \
-    gen_load_gpr64(t0, rA(ctx->opcode));                                      \
-    gen_load_gpr64(t1, rB(ctx->opcode));                                      \
-    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], cpu_env, t0, t1);           \
-    tcg_temp_free_i64(t0);                                                    \
-    tcg_temp_free_i64(t1);                                                    \
-}
-
-/* Single precision floating-point vectors operations */
-/* Arithmetic */
-GEN_SPEFPUOP_ARITH2_64_64(evfsadd);
-GEN_SPEFPUOP_ARITH2_64_64(evfssub);
-GEN_SPEFPUOP_ARITH2_64_64(evfsmul);
-GEN_SPEFPUOP_ARITH2_64_64(evfsdiv);
-static inline void gen_evfsabs(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_andi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
-                    ~0x80000000);
-    tcg_gen_andi_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)],
-                    ~0x80000000);
-}
-static inline void gen_evfsnabs(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_ori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
-                   0x80000000);
-    tcg_gen_ori_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)],
-                   0x80000000);
-}
-static inline void gen_evfsneg(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_xori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
-                    0x80000000);
-    tcg_gen_xori_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)],
-                    0x80000000);
-}
-
-/* Conversion */
-GEN_SPEFPUOP_CONV_64_64(evfscfui);
-GEN_SPEFPUOP_CONV_64_64(evfscfsi);
-GEN_SPEFPUOP_CONV_64_64(evfscfuf);
-GEN_SPEFPUOP_CONV_64_64(evfscfsf);
-GEN_SPEFPUOP_CONV_64_64(evfsctui);
-GEN_SPEFPUOP_CONV_64_64(evfsctsi);
-GEN_SPEFPUOP_CONV_64_64(evfsctuf);
-GEN_SPEFPUOP_CONV_64_64(evfsctsf);
-GEN_SPEFPUOP_CONV_64_64(evfsctuiz);
-GEN_SPEFPUOP_CONV_64_64(evfsctsiz);
-
-/* Comparison */
-GEN_SPEFPUOP_COMP_64(evfscmpgt);
-GEN_SPEFPUOP_COMP_64(evfscmplt);
-GEN_SPEFPUOP_COMP_64(evfscmpeq);
-GEN_SPEFPUOP_COMP_64(evfststgt);
-GEN_SPEFPUOP_COMP_64(evfststlt);
-GEN_SPEFPUOP_COMP_64(evfststeq);
-
-/* Opcodes definitions */
-GEN_SPE(evfsadd,   evfssub,   0x00, 0x0A, 0x00000000, 0x00000000, PPC_SPE_SINGLE); //
-GEN_SPE(evfsabs,   evfsnabs,  0x02, 0x0A, 0x0000F800, 0x0000F800, PPC_SPE_SINGLE); //
-GEN_SPE(evfsneg,   speundef,  0x03, 0x0A, 0x0000F800, 0xFFFFFFFF, PPC_SPE_SINGLE); //
-GEN_SPE(evfsmul,   evfsdiv,   0x04, 0x0A, 0x00000000, 0x00000000, PPC_SPE_SINGLE); //
-GEN_SPE(evfscmpgt, evfscmplt, 0x06, 0x0A, 0x00600000, 0x00600000, PPC_SPE_SINGLE); //
-GEN_SPE(evfscmpeq, speundef,  0x07, 0x0A, 0x00600000, 0xFFFFFFFF, PPC_SPE_SINGLE); //
-GEN_SPE(evfscfui,  evfscfsi,  0x08, 0x0A, 0x00180000, 0x00180000, PPC_SPE_SINGLE); //
-GEN_SPE(evfscfuf,  evfscfsf,  0x09, 0x0A, 0x00180000, 0x00180000, PPC_SPE_SINGLE); //
-GEN_SPE(evfsctui,  evfsctsi,  0x0A, 0x0A, 0x00180000, 0x00180000, PPC_SPE_SINGLE); //
-GEN_SPE(evfsctuf,  evfsctsf,  0x0B, 0x0A, 0x00180000, 0x00180000, PPC_SPE_SINGLE); //
-GEN_SPE(evfsctuiz, speundef,  0x0C, 0x0A, 0x00180000, 0xFFFFFFFF, PPC_SPE_SINGLE); //
-GEN_SPE(evfsctsiz, speundef,  0x0D, 0x0A, 0x00180000, 0xFFFFFFFF, PPC_SPE_SINGLE); //
-GEN_SPE(evfststgt, evfststlt, 0x0E, 0x0A, 0x00600000, 0x00600000, PPC_SPE_SINGLE); //
-GEN_SPE(evfststeq, speundef,  0x0F, 0x0A, 0x00600000, 0xFFFFFFFF, PPC_SPE_SINGLE); //
-
-/* Single precision floating-point operations */
-/* Arithmetic */
-GEN_SPEFPUOP_ARITH2_32_32(efsadd);
-GEN_SPEFPUOP_ARITH2_32_32(efssub);
-GEN_SPEFPUOP_ARITH2_32_32(efsmul);
-GEN_SPEFPUOP_ARITH2_32_32(efsdiv);
-static inline void gen_efsabs(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_andi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], (target_long)~0x80000000LL);
-}
-static inline void gen_efsnabs(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_ori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
-}
-static inline void gen_efsneg(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_xori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
-}
-
-/* Conversion */
-GEN_SPEFPUOP_CONV_32_32(efscfui);
-GEN_SPEFPUOP_CONV_32_32(efscfsi);
-GEN_SPEFPUOP_CONV_32_32(efscfuf);
-GEN_SPEFPUOP_CONV_32_32(efscfsf);
-GEN_SPEFPUOP_CONV_32_32(efsctui);
-GEN_SPEFPUOP_CONV_32_32(efsctsi);
-GEN_SPEFPUOP_CONV_32_32(efsctuf);
-GEN_SPEFPUOP_CONV_32_32(efsctsf);
-GEN_SPEFPUOP_CONV_32_32(efsctuiz);
-GEN_SPEFPUOP_CONV_32_32(efsctsiz);
-GEN_SPEFPUOP_CONV_32_64(efscfd);
-
-/* Comparison */
-GEN_SPEFPUOP_COMP_32(efscmpgt);
-GEN_SPEFPUOP_COMP_32(efscmplt);
-GEN_SPEFPUOP_COMP_32(efscmpeq);
-GEN_SPEFPUOP_COMP_32(efststgt);
-GEN_SPEFPUOP_COMP_32(efststlt);
-GEN_SPEFPUOP_COMP_32(efststeq);
-
-/* Opcodes definitions */
-GEN_SPE(efsadd,   efssub,   0x00, 0x0B, 0x00000000, 0x00000000, PPC_SPE_SINGLE); //
-GEN_SPE(efsabs,   efsnabs,  0x02, 0x0B, 0x0000F800, 0x0000F800, PPC_SPE_SINGLE); //
-GEN_SPE(efsneg,   speundef, 0x03, 0x0B, 0x0000F800, 0xFFFFFFFF, PPC_SPE_SINGLE); //
-GEN_SPE(efsmul,   efsdiv,   0x04, 0x0B, 0x00000000, 0x00000000, PPC_SPE_SINGLE); //
-GEN_SPE(efscmpgt, efscmplt, 0x06, 0x0B, 0x00600000, 0x00600000, PPC_SPE_SINGLE); //
-GEN_SPE(efscmpeq, efscfd,   0x07, 0x0B, 0x00600000, 0x00180000, PPC_SPE_SINGLE); //
-GEN_SPE(efscfui,  efscfsi,  0x08, 0x0B, 0x00180000, 0x00180000, PPC_SPE_SINGLE); //
-GEN_SPE(efscfuf,  efscfsf,  0x09, 0x0B, 0x00180000, 0x00180000, PPC_SPE_SINGLE); //
-GEN_SPE(efsctui,  efsctsi,  0x0A, 0x0B, 0x00180000, 0x00180000, PPC_SPE_SINGLE); //
-GEN_SPE(efsctuf,  efsctsf,  0x0B, 0x0B, 0x00180000, 0x00180000, PPC_SPE_SINGLE); //
-GEN_SPE(efsctuiz, speundef, 0x0C, 0x0B, 0x00180000, 0xFFFFFFFF, PPC_SPE_SINGLE); //
-GEN_SPE(efsctsiz, speundef, 0x0D, 0x0B, 0x00180000, 0xFFFFFFFF, PPC_SPE_SINGLE); //
-GEN_SPE(efststgt, efststlt, 0x0E, 0x0B, 0x00600000, 0x00600000, PPC_SPE_SINGLE); //
-GEN_SPE(efststeq, speundef, 0x0F, 0x0B, 0x00600000, 0xFFFFFFFF, PPC_SPE_SINGLE); //
-
-/* Double precision floating-point operations */
-/* Arithmetic */
-GEN_SPEFPUOP_ARITH2_64_64(efdadd);
-GEN_SPEFPUOP_ARITH2_64_64(efdsub);
-GEN_SPEFPUOP_ARITH2_64_64(efdmul);
-GEN_SPEFPUOP_ARITH2_64_64(efddiv);
-static inline void gen_efdabs(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_andi_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)],
-                    ~0x80000000);
-}
-static inline void gen_efdnabs(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ori_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)],
-                   0x80000000);
-}
-static inline void gen_efdneg(DisasContext *ctx)
-{
-    if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_SPEU);
-        return;
-    }
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_xori_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)],
-                    0x80000000);
-}
-
-/* Conversion */
-GEN_SPEFPUOP_CONV_64_32(efdcfui);
-GEN_SPEFPUOP_CONV_64_32(efdcfsi);
-GEN_SPEFPUOP_CONV_64_32(efdcfuf);
-GEN_SPEFPUOP_CONV_64_32(efdcfsf);
-GEN_SPEFPUOP_CONV_32_64(efdctui);
-GEN_SPEFPUOP_CONV_32_64(efdctsi);
-GEN_SPEFPUOP_CONV_32_64(efdctuf);
-GEN_SPEFPUOP_CONV_32_64(efdctsf);
-GEN_SPEFPUOP_CONV_32_64(efdctuiz);
-GEN_SPEFPUOP_CONV_32_64(efdctsiz);
-GEN_SPEFPUOP_CONV_64_32(efdcfs);
-GEN_SPEFPUOP_CONV_64_64(efdcfuid);
-GEN_SPEFPUOP_CONV_64_64(efdcfsid);
-GEN_SPEFPUOP_CONV_64_64(efdctuidz);
-GEN_SPEFPUOP_CONV_64_64(efdctsidz);
-
-/* Comparison */
-GEN_SPEFPUOP_COMP_64(efdcmpgt);
-GEN_SPEFPUOP_COMP_64(efdcmplt);
-GEN_SPEFPUOP_COMP_64(efdcmpeq);
-GEN_SPEFPUOP_COMP_64(efdtstgt);
-GEN_SPEFPUOP_COMP_64(efdtstlt);
-GEN_SPEFPUOP_COMP_64(efdtsteq);
-
-/* Opcodes definitions */
-GEN_SPE(efdadd,    efdsub,    0x10, 0x0B, 0x00000000, 0x00000000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdcfuid,  efdcfsid,  0x11, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdabs,    efdnabs,   0x12, 0x0B, 0x0000F800, 0x0000F800, PPC_SPE_DOUBLE); //
-GEN_SPE(efdneg,    speundef,  0x13, 0x0B, 0x0000F800, 0xFFFFFFFF, PPC_SPE_DOUBLE); //
-GEN_SPE(efdmul,    efddiv,    0x14, 0x0B, 0x00000000, 0x00000000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdctuidz, efdctsidz, 0x15, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdcmpgt,  efdcmplt,  0x16, 0x0B, 0x00600000, 0x00600000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdcmpeq,  efdcfs,    0x17, 0x0B, 0x00600000, 0x00180000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdcfui,   efdcfsi,   0x18, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdcfuf,   efdcfsf,   0x19, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdctui,   efdctsi,   0x1A, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdctuf,   efdctsf,   0x1B, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdctuiz,  speundef,  0x1C, 0x0B, 0x00180000, 0xFFFFFFFF, PPC_SPE_DOUBLE); //
-GEN_SPE(efdctsiz,  speundef,  0x1D, 0x0B, 0x00180000, 0xFFFFFFFF, PPC_SPE_DOUBLE); //
-GEN_SPE(efdtstgt,  efdtstlt,  0x1E, 0x0B, 0x00600000, 0x00600000, PPC_SPE_DOUBLE); //
-GEN_SPE(efdtsteq,  speundef,  0x1F, 0x0B, 0x00600000, 0xFFFFFFFF, PPC_SPE_DOUBLE); //
+#endif /* defined(TARGET_PPC64) */
 
 static void gen_tbegin(DisasContext *ctx)
 {
@@ -9865,18 +6185,33 @@ static inline void gen_##name(DisasContext *ctx)               \
 GEN_TM_PRIV_NOOP(treclaim);
 GEN_TM_PRIV_NOOP(trechkpt);
 
+#include "translate/fp-impl.inc.c"
+
+#include "translate/vmx-impl.inc.c"
+
+#include "translate/vsx-impl.inc.c"
+
+#include "translate/dfp-impl.inc.c"
+
+#include "translate/spe-impl.inc.c"
+
 static opcode_t opcodes[] = {
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpl, 0x1F, 0x00, 0x01, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpli, 0x0A, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
+#if defined(TARGET_PPC64)
+GEN_HANDLER_E(cmpeqb, 0x1F, 0x00, 0x07, 0x00600000, PPC_NONE, PPC2_ISA300),
+#endif
 GEN_HANDLER_E(cmpb, 0x1F, 0x1C, 0x0F, 0x00000001, PPC_NONE, PPC2_ISA205),
+GEN_HANDLER_E(cmprb, 0x1F, 0x00, 0x06, 0x00400001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL),
 GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(addis, 0x0F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER_E(addpcis, 0x13, 0x2, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(mulhw, 0x1F, 0x0B, 0x02, 0x00000400, PPC_INTEGER),
 GEN_HANDLER(mulhwu, 0x1F, 0x0B, 0x00, 0x00000400, PPC_INTEGER),
 GEN_HANDLER(mullw, 0x1F, 0x0B, 0x07, 0x00000000, PPC_INTEGER),
@@ -9891,6 +6226,7 @@ GEN_HANDLER(subfic, 0x08, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(andi_, "andi.", 0x1C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(andis_, "andis.", 0x1D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(cntlzw, 0x1F, 0x1A, 0x00, 0x00000000, PPC_INTEGER),
+GEN_HANDLER_E(cnttzw, 0x1F, 0x1A, 0x10, 0x00000000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(or, 0x1F, 0x1C, 0x0D, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(xor, 0x1F, 0x1C, 0x09, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(ori, 0x18, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
@@ -9903,6 +6239,7 @@ GEN_HANDLER_E(prtyw, 0x1F, 0x1A, 0x04, 0x0000F801, PPC_NONE, PPC2_ISA205),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(popcntd, 0x1F, 0x1A, 0x0F, 0x0000F801, PPC_POPCNTWD),
 GEN_HANDLER(cntlzd, 0x1F, 0x1A, 0x01, 0x00000000, PPC_64B),
+GEN_HANDLER_E(cnttzd, 0x1F, 0x1A, 0x11, 0x00000000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(prtyd, 0x1F, 0x1A, 0x05, 0x0000F801, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER_E(bpermd, 0x1F, 0x1C, 0x07, 0x00000001, PPC_NONE, PPC2_PERM_ISA206),
 #endif
@@ -9919,25 +6256,11 @@ GEN_HANDLER(srad, 0x1F, 0x1A, 0x18, 0x00000000, PPC_64B),
 GEN_HANDLER2(sradi0, "sradi", 0x1F, 0x1A, 0x19, 0x00000000, PPC_64B),
 GEN_HANDLER2(sradi1, "sradi", 0x1F, 0x1B, 0x19, 0x00000000, PPC_64B),
 GEN_HANDLER(srd, 0x1F, 0x1B, 0x10, 0x00000000, PPC_64B),
+GEN_HANDLER2_E(extswsli0, "extswsli", 0x1F, 0x1A, 0x1B, 0x00000000,
+               PPC_NONE, PPC2_ISA300),
+GEN_HANDLER2_E(extswsli1, "extswsli", 0x1F, 0x1B, 0x1B, 0x00000000,
+               PPC_NONE, PPC2_ISA300),
 #endif
-GEN_HANDLER(frsqrtes, 0x3B, 0x1A, 0xFF, 0x001F07C0, PPC_FLOAT_FRSQRTES),
-GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT),
-GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT),
-GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x01, 0x00600001, PPC_FLOAT),
-GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT),
-GEN_HANDLER(fabs, 0x3F, 0x08, 0x08, 0x001F0000, PPC_FLOAT),
-GEN_HANDLER(fmr, 0x3F, 0x08, 0x02, 0x001F0000, PPC_FLOAT),
-GEN_HANDLER(fnabs, 0x3F, 0x08, 0x04, 0x001F0000, PPC_FLOAT),
-GEN_HANDLER(fneg, 0x3F, 0x08, 0x01, 0x001F0000, PPC_FLOAT),
-GEN_HANDLER_E(fcpsgn, 0x3F, 0x08, 0x00, 0x00000000, PPC_NONE, PPC2_ISA205),
-GEN_HANDLER_E(fmrgew, 0x3F, 0x06, 0x1E, 0x00000001, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(fmrgow, 0x3F, 0x06, 0x1A, 0x00000001, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT),
-GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT),
-GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT),
-GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT),
-GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x00000000, PPC_FLOAT),
-GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006e0800, PPC_FLOAT),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B),
 GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX),
@@ -9995,6 +6318,7 @@ GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MFTB),
 GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B),
+GEN_HANDLER_E(setb, 0x1F, 0x00, 0x04, 0x0003F801, PPC_NONE, PPC2_ISA300),
 #endif
 GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001EF801, PPC_MISC),
 GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000000, PPC_MISC),
@@ -10143,10 +6467,11 @@ GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC),
 GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC),
 GEN_HANDLER(vmladduhm, 0x04, 0x11, 0xFF, 0x00000000, PPC_ALTIVEC),
-GEN_HANDLER2(evsel0, "evsel", 0x04, 0x1c, 0x09, 0x00000000, PPC_SPE),
-GEN_HANDLER2(evsel1, "evsel", 0x04, 0x1d, 0x09, 0x00000000, PPC_SPE),
-GEN_HANDLER2(evsel2, "evsel", 0x04, 0x1e, 0x09, 0x00000000, PPC_SPE),
-GEN_HANDLER2(evsel3, "evsel", 0x04, 0x1f, 0x09, 0x00000000, PPC_SPE),
+#if defined(TARGET_PPC64)
+GEN_HANDLER_E(maddhd_maddhdu, 0x04, 0x18, 0xFF, 0x00000000, PPC_NONE,
+              PPC2_ISA300),
+GEN_HANDLER_E(maddld, 0x04, 0x19, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA300),
+#endif
 
 #undef GEN_INT_ARITH_ADD
 #undef GEN_INT_ARITH_ADD_CONST
@@ -10177,6 +6502,8 @@ GEN_HANDLER_E(divwe, 0x1F, 0x0B, 0x0D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divweo, 0x1F, 0x0B, 0x1D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divweu, 0x1F, 0x0B, 0x0C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divweuo, 0x1F, 0x0B, 0x1C, 0, PPC_NONE, PPC2_DIVE_ISA206),
+GEN_HANDLER_E(modsw, 0x1F, 0x0B, 0x18, 0x00000001, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(moduw, 0x1F, 0x0B, 0x08, 0x00000001, PPC_NONE, PPC2_ISA300),
 
 #if defined(TARGET_PPC64)
 #undef GEN_INT_ARITH_DIVD
@@ -10191,6 +6518,8 @@ GEN_HANDLER_E(divdeu, 0x1F, 0x09, 0x0C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divdeuo, 0x1F, 0x09, 0x1C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divde, 0x1F, 0x09, 0x0D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divdeo, 0x1F, 0x09, 0x1D, 0, PPC_NONE, PPC2_DIVE_ISA206),
+GEN_HANDLER_E(modsd, 0x1F, 0x09, 0x18, 0x00000001, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(modud, 0x1F, 0x09, 0x08, 0x00000001, PPC_NONE, PPC2_ISA300),
 
 #undef GEN_INT_ARITH_MUL_HELPER
 #define GEN_INT_ARITH_MUL_HELPER(name, opc3)                                  \
@@ -10258,66 +6587,6 @@ GEN_PPC64_R2(rldcl, 0x1E, 0x08),
 GEN_PPC64_R2(rldcr, 0x1E, 0x09),
 GEN_PPC64_R4(rldimi, 0x1E, 0x06),
 #endif
-
-#undef _GEN_FLOAT_ACB
-#undef GEN_FLOAT_ACB
-#undef _GEN_FLOAT_AB
-#undef GEN_FLOAT_AB
-#undef _GEN_FLOAT_AC
-#undef GEN_FLOAT_AC
-#undef GEN_FLOAT_B
-#undef GEN_FLOAT_BS
-#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat, set_fprf, type)           \
-GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, type)
-#define GEN_FLOAT_ACB(name, op2, set_fprf, type)                              \
-_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0, set_fprf, type),                     \
-_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1, set_fprf, type)
-#define _GEN_FLOAT_AB(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
-GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type)
-#define GEN_FLOAT_AB(name, op2, inval, set_fprf, type)                        \
-_GEN_FLOAT_AB(name, name, 0x3F, op2, inval, 0, set_fprf, type),               \
-_GEN_FLOAT_AB(name##s, name, 0x3B, op2, inval, 1, set_fprf, type)
-#define _GEN_FLOAT_AC(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
-GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type)
-#define GEN_FLOAT_AC(name, op2, inval, set_fprf, type)                        \
-_GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0, set_fprf, type),               \
-_GEN_FLOAT_AC(name##s, name, 0x3B, op2, inval, 1, set_fprf, type)
-#define GEN_FLOAT_B(name, op2, op3, set_fprf, type)                           \
-GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, type)
-#define GEN_FLOAT_BS(name, op1, op2, set_fprf, type)                          \
-GEN_HANDLER(f##name, op1, op2, 0xFF, 0x001F07C0, type)
-
-GEN_FLOAT_AB(add, 0x15, 0x000007C0, 1, PPC_FLOAT),
-GEN_FLOAT_AB(div, 0x12, 0x000007C0, 1, PPC_FLOAT),
-GEN_FLOAT_AC(mul, 0x19, 0x0000F800, 1, PPC_FLOAT),
-GEN_FLOAT_BS(re, 0x3F, 0x18, 1, PPC_FLOAT_EXT),
-GEN_FLOAT_BS(res, 0x3B, 0x18, 1, PPC_FLOAT_FRES),
-GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A, 1, PPC_FLOAT_FRSQRTE),
-_GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0, 0, PPC_FLOAT_FSEL),
-GEN_FLOAT_AB(sub, 0x14, 0x000007C0, 1, PPC_FLOAT),
-GEN_FLOAT_ACB(madd, 0x1D, 1, PPC_FLOAT),
-GEN_FLOAT_ACB(msub, 0x1C, 1, PPC_FLOAT),
-GEN_FLOAT_ACB(nmadd, 0x1F, 1, PPC_FLOAT),
-GEN_FLOAT_ACB(nmsub, 0x1E, 1, PPC_FLOAT),
-GEN_HANDLER_E(ftdiv, 0x3F, 0x00, 0x04, 1, PPC_NONE, PPC2_FP_TST_ISA206),
-GEN_HANDLER_E(ftsqrt, 0x3F, 0x00, 0x05, 1, PPC_NONE, PPC2_FP_TST_ISA206),
-GEN_FLOAT_B(ctiw, 0x0E, 0x00, 0, PPC_FLOAT),
-GEN_HANDLER_E(fctiwu, 0x3F, 0x0E, 0x04, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
-GEN_FLOAT_B(ctiwz, 0x0F, 0x00, 0, PPC_FLOAT),
-GEN_HANDLER_E(fctiwuz, 0x3F, 0x0F, 0x04, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
-GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT),
-GEN_HANDLER_E(fcfid, 0x3F, 0x0E, 0x1A, 0x001F0000, PPC_NONE, PPC2_FP_CVT_S64),
-GEN_HANDLER_E(fcfids, 0x3B, 0x0E, 0x1A, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
-GEN_HANDLER_E(fcfidu, 0x3F, 0x0E, 0x1E, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
-GEN_HANDLER_E(fcfidus, 0x3B, 0x0E, 0x1E, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
-GEN_HANDLER_E(fctid, 0x3F, 0x0E, 0x19, 0x001F0000, PPC_NONE, PPC2_FP_CVT_S64),
-GEN_HANDLER_E(fctidu, 0x3F, 0x0E, 0x1D, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
-GEN_HANDLER_E(fctidz, 0x3F, 0x0F, 0x19, 0x001F0000, PPC_NONE, PPC2_FP_CVT_S64),
-GEN_HANDLER_E(fctiduz, 0x3F, 0x0F, 0x1D, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
-GEN_FLOAT_B(rin, 0x08, 0x0C, 1, PPC_FLOAT_EXT),
-GEN_FLOAT_B(riz, 0x08, 0x0D, 1, PPC_FLOAT_EXT),
-GEN_FLOAT_B(rip, 0x08, 0x0E, 1, PPC_FLOAT_EXT),
-GEN_FLOAT_B(rim, 0x08, 0x0F, 1, PPC_FLOAT_EXT),
 
 #undef GEN_LD
 #undef GEN_LDU
@@ -10392,57 +6661,6 @@ GEN_STX_HVRM(stbcix, st8, 0x15, 0x1e, PPC_CILDST)
 GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER)
 GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER)
 
-#undef GEN_LDF
-#undef GEN_LDUF
-#undef GEN_LDUXF
-#undef GEN_LDXF
-#undef GEN_LDFS
-#define GEN_LDF(name, ldop, opc, type)                                        \
-GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
-#define GEN_LDUF(name, ldop, opc, type)                                       \
-GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type),
-#define GEN_LDUXF(name, ldop, opc, type)                                      \
-GEN_HANDLER(name##ux, 0x1F, 0x17, opc, 0x00000001, type),
-#define GEN_LDXF(name, ldop, opc2, opc3, type)                                \
-GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type),
-#define GEN_LDFS(name, ldop, op, type)                                        \
-GEN_LDF(name, ldop, op | 0x20, type)                                          \
-GEN_LDUF(name, ldop, op | 0x21, type)                                         \
-GEN_LDUXF(name, ldop, op | 0x01, type)                                        \
-GEN_LDXF(name, ldop, 0x17, op | 0x00, type)
-
-GEN_LDFS(lfd, ld64, 0x12, PPC_FLOAT)
-GEN_LDFS(lfs, ld32fs, 0x10, PPC_FLOAT)
-GEN_HANDLER_E(lfiwax, 0x1f, 0x17, 0x1a, 0x00000001, PPC_NONE, PPC2_ISA205),
-GEN_HANDLER_E(lfiwzx, 0x1f, 0x17, 0x1b, 0x1, PPC_NONE, PPC2_FP_CVT_ISA206),
-GEN_HANDLER_E(lfdp, 0x39, 0xFF, 0xFF, 0x00200003, PPC_NONE, PPC2_ISA205),
-GEN_HANDLER_E(lfdpx, 0x1F, 0x17, 0x18, 0x00200001, PPC_NONE, PPC2_ISA205),
-
-#undef GEN_STF
-#undef GEN_STUF
-#undef GEN_STUXF
-#undef GEN_STXF
-#undef GEN_STFS
-#define GEN_STF(name, stop, opc, type)                                        \
-GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
-#define GEN_STUF(name, stop, opc, type)                                       \
-GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type),
-#define GEN_STUXF(name, stop, opc, type)                                      \
-GEN_HANDLER(name##ux, 0x1F, 0x17, opc, 0x00000001, type),
-#define GEN_STXF(name, stop, opc2, opc3, type)                                \
-GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type),
-#define GEN_STFS(name, stop, op, type)                                        \
-GEN_STF(name, stop, op | 0x20, type)                                          \
-GEN_STUF(name, stop, op | 0x21, type)                                         \
-GEN_STUXF(name, stop, op | 0x01, type)                                        \
-GEN_STXF(name, stop, 0x17, op | 0x00, type)
-
-GEN_STFS(stfd, st64, 0x16, PPC_FLOAT)
-GEN_STFS(stfs, st32fs, 0x14, PPC_FLOAT)
-GEN_STXF(stfiw, st32fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX)
-GEN_HANDLER_E(stfdp, 0x3D, 0xFF, 0xFF, 0x00200003, PPC_NONE, PPC2_ISA205),
-GEN_HANDLER_E(stfdpx, 0x1F, 0x17, 0x1C, 0x00200001, PPC_NONE, PPC2_ISA205),
-
 #undef GEN_CRLOGIC
 #define GEN_CRLOGIC(name, tcg_op, opc)                                        \
 GEN_HANDLER(name, 0x13, 0x01, opc, 0x00000001, PPC_INTEGER)
@@ -10501,807 +6719,6 @@ GEN_MAC_HANDLER(mulhhwu, 0x08, 0x00),
 GEN_MAC_HANDLER(mullhw, 0x08, 0x0D),
 GEN_MAC_HANDLER(mullhwu, 0x08, 0x0C),
 
-#undef GEN_VR_LDX
-#undef GEN_VR_STX
-#undef GEN_VR_LVE
-#undef GEN_VR_STVE
-#define GEN_VR_LDX(name, opc2, opc3)                                          \
-GEN_HANDLER(name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-#define GEN_VR_STX(name, opc2, opc3)                                          \
-GEN_HANDLER(st##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-#define GEN_VR_LVE(name, opc2, opc3)                                    \
-    GEN_HANDLER(lve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-#define GEN_VR_STVE(name, opc2, opc3)                                   \
-    GEN_HANDLER(stve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-GEN_VR_LDX(lvx, 0x07, 0x03),
-GEN_VR_LDX(lvxl, 0x07, 0x0B),
-GEN_VR_LVE(bx, 0x07, 0x00),
-GEN_VR_LVE(hx, 0x07, 0x01),
-GEN_VR_LVE(wx, 0x07, 0x02),
-GEN_VR_STX(svx, 0x07, 0x07),
-GEN_VR_STX(svxl, 0x07, 0x0F),
-GEN_VR_STVE(bx, 0x07, 0x04),
-GEN_VR_STVE(hx, 0x07, 0x05),
-GEN_VR_STVE(wx, 0x07, 0x06),
-
-#undef GEN_VX_LOGICAL
-#define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
-GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
-
-#undef GEN_VX_LOGICAL_207
-#define GEN_VX_LOGICAL_207(name, tcg_op, opc2, opc3) \
-GEN_HANDLER_E(name, 0x04, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ALTIVEC_207)
-
-GEN_VX_LOGICAL(vand, tcg_gen_and_i64, 2, 16),
-GEN_VX_LOGICAL(vandc, tcg_gen_andc_i64, 2, 17),
-GEN_VX_LOGICAL(vor, tcg_gen_or_i64, 2, 18),
-GEN_VX_LOGICAL(vxor, tcg_gen_xor_i64, 2, 19),
-GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20),
-GEN_VX_LOGICAL_207(veqv, tcg_gen_eqv_i64, 2, 26),
-GEN_VX_LOGICAL_207(vnand, tcg_gen_nand_i64, 2, 22),
-GEN_VX_LOGICAL_207(vorc, tcg_gen_orc_i64, 2, 21),
-
-#undef GEN_VXFORM
-#define GEN_VXFORM(name, opc2, opc3)                                    \
-GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
-
-#undef GEN_VXFORM_207
-#define GEN_VXFORM_207(name, opc2, opc3) \
-GEN_HANDLER_E(name, 0x04, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ALTIVEC_207)
-
-#undef GEN_VXFORM_DUAL
-#define GEN_VXFORM_DUAL(name0, name1, opc2, opc3, type0, type1) \
-GEN_HANDLER_E(name0##_##name1, 0x4, opc2, opc3, 0x00000000, type0, type1)
-
-#undef GEN_VXRFORM_DUAL
-#define GEN_VXRFORM_DUAL(name0, name1, opc2, opc3, tp0, tp1) \
-GEN_HANDLER_E(name0##_##name1, 0x4, opc2, opc3, 0x00000000, tp0, tp1), \
-GEN_HANDLER_E(name0##_##name1, 0x4, opc2, (opc3 | 0x10), 0x00000000, tp0, tp1),
-
-GEN_VXFORM(vaddubm, 0, 0),
-GEN_VXFORM(vadduhm, 0, 1),
-GEN_VXFORM(vadduwm, 0, 2),
-GEN_VXFORM_207(vaddudm, 0, 3),
-GEN_VXFORM_DUAL(vsububm, bcdadd, 0, 16, PPC_ALTIVEC, PPC_NONE),
-GEN_VXFORM_DUAL(vsubuhm, bcdsub, 0, 17, PPC_ALTIVEC, PPC_NONE),
-GEN_VXFORM(vsubuwm, 0, 18),
-GEN_VXFORM_207(vsubudm, 0, 19),
-GEN_VXFORM(vmaxub, 1, 0),
-GEN_VXFORM(vmaxuh, 1, 1),
-GEN_VXFORM(vmaxuw, 1, 2),
-GEN_VXFORM_207(vmaxud, 1, 3),
-GEN_VXFORM(vmaxsb, 1, 4),
-GEN_VXFORM(vmaxsh, 1, 5),
-GEN_VXFORM(vmaxsw, 1, 6),
-GEN_VXFORM_207(vmaxsd, 1, 7),
-GEN_VXFORM(vminub, 1, 8),
-GEN_VXFORM(vminuh, 1, 9),
-GEN_VXFORM(vminuw, 1, 10),
-GEN_VXFORM_207(vminud, 1, 11),
-GEN_VXFORM(vminsb, 1, 12),
-GEN_VXFORM(vminsh, 1, 13),
-GEN_VXFORM(vminsw, 1, 14),
-GEN_VXFORM_207(vminsd, 1, 15),
-GEN_VXFORM(vavgub, 1, 16),
-GEN_VXFORM(vavguh, 1, 17),
-GEN_VXFORM(vavguw, 1, 18),
-GEN_VXFORM(vavgsb, 1, 20),
-GEN_VXFORM(vavgsh, 1, 21),
-GEN_VXFORM(vavgsw, 1, 22),
-GEN_VXFORM(vmrghb, 6, 0),
-GEN_VXFORM(vmrghh, 6, 1),
-GEN_VXFORM(vmrghw, 6, 2),
-GEN_VXFORM(vmrglb, 6, 4),
-GEN_VXFORM(vmrglh, 6, 5),
-GEN_VXFORM(vmrglw, 6, 6),
-GEN_VXFORM_207(vmrgew, 6, 30),
-GEN_VXFORM_207(vmrgow, 6, 26),
-GEN_VXFORM(vmuloub, 4, 0),
-GEN_VXFORM(vmulouh, 4, 1),
-GEN_VXFORM_DUAL(vmulouw, vmuluwm, 4, 2, PPC_ALTIVEC, PPC_NONE),
-GEN_VXFORM(vmulosb, 4, 4),
-GEN_VXFORM(vmulosh, 4, 5),
-GEN_VXFORM_207(vmulosw, 4, 6),
-GEN_VXFORM(vmuleub, 4, 8),
-GEN_VXFORM(vmuleuh, 4, 9),
-GEN_VXFORM_207(vmuleuw, 4, 10),
-GEN_VXFORM(vmulesb, 4, 12),
-GEN_VXFORM(vmulesh, 4, 13),
-GEN_VXFORM_207(vmulesw, 4, 14),
-GEN_VXFORM(vslb, 2, 4),
-GEN_VXFORM(vslh, 2, 5),
-GEN_VXFORM(vslw, 2, 6),
-GEN_VXFORM_207(vsld, 2, 23),
-GEN_VXFORM(vsrb, 2, 8),
-GEN_VXFORM(vsrh, 2, 9),
-GEN_VXFORM(vsrw, 2, 10),
-GEN_VXFORM_207(vsrd, 2, 27),
-GEN_VXFORM(vsrab, 2, 12),
-GEN_VXFORM(vsrah, 2, 13),
-GEN_VXFORM(vsraw, 2, 14),
-GEN_VXFORM_207(vsrad, 2, 15),
-GEN_VXFORM(vslo, 6, 16),
-GEN_VXFORM(vsro, 6, 17),
-GEN_VXFORM(vaddcuw, 0, 6),
-GEN_VXFORM(vsubcuw, 0, 22),
-GEN_VXFORM(vaddubs, 0, 8),
-GEN_VXFORM(vadduhs, 0, 9),
-GEN_VXFORM(vadduws, 0, 10),
-GEN_VXFORM(vaddsbs, 0, 12),
-GEN_VXFORM(vaddshs, 0, 13),
-GEN_VXFORM(vaddsws, 0, 14),
-GEN_VXFORM_DUAL(vsububs, bcdadd, 0, 24, PPC_ALTIVEC, PPC_NONE),
-GEN_VXFORM_DUAL(vsubuhs, bcdsub, 0, 25, PPC_ALTIVEC, PPC_NONE),
-GEN_VXFORM(vsubuws, 0, 26),
-GEN_VXFORM(vsubsbs, 0, 28),
-GEN_VXFORM(vsubshs, 0, 29),
-GEN_VXFORM(vsubsws, 0, 30),
-GEN_VXFORM_207(vadduqm, 0, 4),
-GEN_VXFORM_207(vaddcuq, 0, 5),
-GEN_VXFORM_DUAL(vaddeuqm, vaddecuq, 30, 0xFF, PPC_NONE, PPC2_ALTIVEC_207),
-GEN_VXFORM_207(vsubuqm, 0, 20),
-GEN_VXFORM_207(vsubcuq, 0, 21),
-GEN_VXFORM_DUAL(vsubeuqm, vsubecuq, 31, 0xFF, PPC_NONE, PPC2_ALTIVEC_207),
-GEN_VXFORM(vrlb, 2, 0),
-GEN_VXFORM(vrlh, 2, 1),
-GEN_VXFORM(vrlw, 2, 2),
-GEN_VXFORM_207(vrld, 2, 3),
-GEN_VXFORM(vsl, 2, 7),
-GEN_VXFORM(vsr, 2, 11),
-GEN_VXFORM(vpkuhum, 7, 0),
-GEN_VXFORM(vpkuwum, 7, 1),
-GEN_VXFORM_207(vpkudum, 7, 17),
-GEN_VXFORM(vpkuhus, 7, 2),
-GEN_VXFORM(vpkuwus, 7, 3),
-GEN_VXFORM_207(vpkudus, 7, 19),
-GEN_VXFORM(vpkshus, 7, 4),
-GEN_VXFORM(vpkswus, 7, 5),
-GEN_VXFORM_207(vpksdus, 7, 21),
-GEN_VXFORM(vpkshss, 7, 6),
-GEN_VXFORM(vpkswss, 7, 7),
-GEN_VXFORM_207(vpksdss, 7, 23),
-GEN_VXFORM(vpkpx, 7, 12),
-GEN_VXFORM(vsum4ubs, 4, 24),
-GEN_VXFORM(vsum4sbs, 4, 28),
-GEN_VXFORM(vsum4shs, 4, 25),
-GEN_VXFORM(vsum2sws, 4, 26),
-GEN_VXFORM(vsumsws, 4, 30),
-GEN_VXFORM(vaddfp, 5, 0),
-GEN_VXFORM(vsubfp, 5, 1),
-GEN_VXFORM(vmaxfp, 5, 16),
-GEN_VXFORM(vminfp, 5, 17),
-
-#undef GEN_VXRFORM1
-#undef GEN_VXRFORM
-#define GEN_VXRFORM1(opname, name, str, opc2, opc3)                     \
-    GEN_HANDLER2(name, str, 0x4, opc2, opc3, 0x00000000, PPC_ALTIVEC),
-#define GEN_VXRFORM(name, opc2, opc3)                                \
-    GEN_VXRFORM1(name, name, #name, opc2, opc3)                      \
-    GEN_VXRFORM1(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
-GEN_VXRFORM(vcmpequb, 3, 0)
-GEN_VXRFORM(vcmpequh, 3, 1)
-GEN_VXRFORM(vcmpequw, 3, 2)
-GEN_VXRFORM(vcmpgtsb, 3, 12)
-GEN_VXRFORM(vcmpgtsh, 3, 13)
-GEN_VXRFORM(vcmpgtsw, 3, 14)
-GEN_VXRFORM(vcmpgtub, 3, 8)
-GEN_VXRFORM(vcmpgtuh, 3, 9)
-GEN_VXRFORM(vcmpgtuw, 3, 10)
-GEN_VXRFORM_DUAL(vcmpeqfp, vcmpequd, 3, 3, PPC_ALTIVEC, PPC_NONE)
-GEN_VXRFORM(vcmpgefp, 3, 7)
-GEN_VXRFORM_DUAL(vcmpgtfp, vcmpgtud, 3, 11, PPC_ALTIVEC, PPC_NONE)
-GEN_VXRFORM_DUAL(vcmpbfp, vcmpgtsd, 3, 15, PPC_ALTIVEC, PPC_NONE)
-
-#undef GEN_VXFORM_SIMM
-#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
-    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
-GEN_VXFORM_SIMM(vspltisb, 6, 12),
-GEN_VXFORM_SIMM(vspltish, 6, 13),
-GEN_VXFORM_SIMM(vspltisw, 6, 14),
-
-#undef GEN_VXFORM_NOA
-#define GEN_VXFORM_NOA(name, opc2, opc3)                                \
-    GEN_HANDLER(name, 0x04, opc2, opc3, 0x001f0000, PPC_ALTIVEC)
-GEN_VXFORM_NOA(vupkhsb, 7, 8),
-GEN_VXFORM_NOA(vupkhsh, 7, 9),
-GEN_VXFORM_207(vupkhsw, 7, 25),
-GEN_VXFORM_NOA(vupklsb, 7, 10),
-GEN_VXFORM_NOA(vupklsh, 7, 11),
-GEN_VXFORM_207(vupklsw, 7, 27),
-GEN_VXFORM_NOA(vupkhpx, 7, 13),
-GEN_VXFORM_NOA(vupklpx, 7, 15),
-GEN_VXFORM_NOA(vrefp, 5, 4),
-GEN_VXFORM_NOA(vrsqrtefp, 5, 5),
-GEN_VXFORM_NOA(vexptefp, 5, 6),
-GEN_VXFORM_NOA(vlogefp, 5, 7),
-GEN_VXFORM_NOA(vrfim, 5, 11),
-GEN_VXFORM_NOA(vrfin, 5, 8),
-GEN_VXFORM_NOA(vrfip, 5, 10),
-GEN_VXFORM_NOA(vrfiz, 5, 9),
-
-#undef GEN_VXFORM_UIMM
-#define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
-    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
-GEN_VXFORM_UIMM(vspltb, 6, 8),
-GEN_VXFORM_UIMM(vsplth, 6, 9),
-GEN_VXFORM_UIMM(vspltw, 6, 10),
-GEN_VXFORM_UIMM(vcfux, 5, 12),
-GEN_VXFORM_UIMM(vcfsx, 5, 13),
-GEN_VXFORM_UIMM(vctuxs, 5, 14),
-GEN_VXFORM_UIMM(vctsxs, 5, 15),
-
-#undef GEN_VAFORM_PAIRED
-#define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
-    GEN_HANDLER(name0##_##name1, 0x04, opc2, 0xFF, 0x00000000, PPC_ALTIVEC)
-GEN_VAFORM_PAIRED(vmhaddshs, vmhraddshs, 16),
-GEN_VAFORM_PAIRED(vmsumubm, vmsummbm, 18),
-GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19),
-GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20),
-GEN_VAFORM_PAIRED(vsel, vperm, 21),
-GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23),
-
-GEN_VXFORM_DUAL(vclzb, vpopcntb, 1, 28, PPC_NONE, PPC2_ALTIVEC_207),
-GEN_VXFORM_DUAL(vclzh, vpopcnth, 1, 29, PPC_NONE, PPC2_ALTIVEC_207),
-GEN_VXFORM_DUAL(vclzw, vpopcntw, 1, 30, PPC_NONE, PPC2_ALTIVEC_207),
-GEN_VXFORM_DUAL(vclzd, vpopcntd, 1, 31, PPC_NONE, PPC2_ALTIVEC_207),
-
-GEN_VXFORM_207(vbpermq, 6, 21),
-GEN_VXFORM_207(vgbbd, 6, 20),
-GEN_VXFORM_207(vpmsumb, 4, 16),
-GEN_VXFORM_207(vpmsumh, 4, 17),
-GEN_VXFORM_207(vpmsumw, 4, 18),
-GEN_VXFORM_207(vpmsumd, 4, 19),
-
-GEN_VXFORM_207(vsbox, 4, 23),
-
-GEN_VXFORM_DUAL(vcipher, vcipherlast, 4, 20, PPC_NONE, PPC2_ALTIVEC_207),
-GEN_VXFORM_DUAL(vncipher, vncipherlast, 4, 21, PPC_NONE, PPC2_ALTIVEC_207),
-
-GEN_VXFORM_207(vshasigmaw, 1, 26),
-GEN_VXFORM_207(vshasigmad, 1, 27),
-
-GEN_VXFORM_DUAL(vsldoi, vpermxor, 22, 0xFF, PPC_ALTIVEC, PPC_NONE),
-
-GEN_HANDLER_E(lxsdx, 0x1F, 0x0C, 0x12, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(lxsiwax, 0x1F, 0x0C, 0x02, 0, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(lxsiwzx, 0x1F, 0x0C, 0x00, 0, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(lxsspx, 0x1F, 0x0C, 0x10, 0, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(lxvd2x, 0x1F, 0x0C, 0x1A, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(lxvdsx, 0x1F, 0x0C, 0x0A, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(lxvw4x, 0x1F, 0x0C, 0x18, 0, PPC_NONE, PPC2_VSX),
-
-GEN_HANDLER_E(stxsdx, 0x1F, 0xC, 0x16, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(stxsiwx, 0x1F, 0xC, 0x04, 0, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(stxsspx, 0x1F, 0xC, 0x14, 0, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(stxvd2x, 0x1F, 0xC, 0x1E, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(stxvw4x, 0x1F, 0xC, 0x1C, 0, PPC_NONE, PPC2_VSX),
-
-GEN_HANDLER_E(mfvsrwz, 0x1F, 0x13, 0x03, 0x0000F800, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(mtvsrwa, 0x1F, 0x13, 0x06, 0x0000F800, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(mtvsrwz, 0x1F, 0x13, 0x07, 0x0000F800, PPC_NONE, PPC2_VSX207),
-#if defined(TARGET_PPC64)
-GEN_HANDLER_E(mfvsrd, 0x1F, 0x13, 0x01, 0x0000F800, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(mtvsrd, 0x1F, 0x13, 0x05, 0x0000F800, PPC_NONE, PPC2_VSX207),
-#endif
-
-#undef GEN_XX2FORM
-#define GEN_XX2FORM(name, opc2, opc3, fl2)                           \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0, opc3, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 0, PPC_NONE, fl2)
-
-#undef GEN_XX3FORM
-#define GEN_XX3FORM(name, opc2, opc3, fl2)                           \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0, opc3, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 2, opc3, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 3, opc3, 0, PPC_NONE, fl2)
-
-#undef GEN_XX2IFORM
-#define GEN_XX2IFORM(name, opc2, opc3, fl2)                           \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0, opc3, 1, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 1, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 2, opc3, 1, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 3, opc3, 1, PPC_NONE, fl2)
-
-#undef GEN_XX3_RC_FORM
-#define GEN_XX3_RC_FORM(name, opc2, opc3, fl2)                          \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x00, opc3 | 0x00, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x01, opc3 | 0x00, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x02, opc3 | 0x00, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x03, opc3 | 0x00, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x00, opc3 | 0x10, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x01, opc3 | 0x10, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x02, opc3 | 0x10, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x03, opc3 | 0x10, 0, PPC_NONE, fl2)
-
-#undef GEN_XX3FORM_DM
-#define GEN_XX3FORM_DM(name, opc2, opc3) \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x00, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x01, opc3|0x00, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x02, opc3|0x00, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x03, opc3|0x00, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x04, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x01, opc3|0x04, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x02, opc3|0x04, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x03, opc3|0x04, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x08, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x01, opc3|0x08, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x02, opc3|0x08, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x03, opc3|0x08, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x0C, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x01, opc3|0x0C, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x02, opc3|0x0C, 0, PPC_NONE, PPC2_VSX),\
-GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x03, opc3|0x0C, 0, PPC_NONE, PPC2_VSX)
-
-GEN_XX2FORM(xsabsdp, 0x12, 0x15, PPC2_VSX),
-GEN_XX2FORM(xsnabsdp, 0x12, 0x16, PPC2_VSX),
-GEN_XX2FORM(xsnegdp, 0x12, 0x17, PPC2_VSX),
-GEN_XX3FORM(xscpsgndp, 0x00, 0x16, PPC2_VSX),
-
-GEN_XX2FORM(xvabsdp, 0x12, 0x1D, PPC2_VSX),
-GEN_XX2FORM(xvnabsdp, 0x12, 0x1E, PPC2_VSX),
-GEN_XX2FORM(xvnegdp, 0x12, 0x1F, PPC2_VSX),
-GEN_XX3FORM(xvcpsgndp, 0x00, 0x1E, PPC2_VSX),
-GEN_XX2FORM(xvabssp, 0x12, 0x19, PPC2_VSX),
-GEN_XX2FORM(xvnabssp, 0x12, 0x1A, PPC2_VSX),
-GEN_XX2FORM(xvnegsp, 0x12, 0x1B, PPC2_VSX),
-GEN_XX3FORM(xvcpsgnsp, 0x00, 0x1A, PPC2_VSX),
-
-GEN_XX3FORM(xsadddp, 0x00, 0x04, PPC2_VSX),
-GEN_XX3FORM(xssubdp, 0x00, 0x05, PPC2_VSX),
-GEN_XX3FORM(xsmuldp, 0x00, 0x06, PPC2_VSX),
-GEN_XX3FORM(xsdivdp, 0x00, 0x07, PPC2_VSX),
-GEN_XX2FORM(xsredp,  0x14, 0x05, PPC2_VSX),
-GEN_XX2FORM(xssqrtdp,  0x16, 0x04, PPC2_VSX),
-GEN_XX2FORM(xsrsqrtedp,  0x14, 0x04, PPC2_VSX),
-GEN_XX3FORM(xstdivdp,  0x14, 0x07, PPC2_VSX),
-GEN_XX2FORM(xstsqrtdp,  0x14, 0x06, PPC2_VSX),
-GEN_XX3FORM(xsmaddadp, 0x04, 0x04, PPC2_VSX),
-GEN_XX3FORM(xsmaddmdp, 0x04, 0x05, PPC2_VSX),
-GEN_XX3FORM(xsmsubadp, 0x04, 0x06, PPC2_VSX),
-GEN_XX3FORM(xsmsubmdp, 0x04, 0x07, PPC2_VSX),
-GEN_XX3FORM(xsnmaddadp, 0x04, 0x14, PPC2_VSX),
-GEN_XX3FORM(xsnmaddmdp, 0x04, 0x15, PPC2_VSX),
-GEN_XX3FORM(xsnmsubadp, 0x04, 0x16, PPC2_VSX),
-GEN_XX3FORM(xsnmsubmdp, 0x04, 0x17, PPC2_VSX),
-GEN_XX2IFORM(xscmpodp,  0x0C, 0x05, PPC2_VSX),
-GEN_XX2IFORM(xscmpudp,  0x0C, 0x04, PPC2_VSX),
-GEN_XX3FORM(xsmaxdp, 0x00, 0x14, PPC2_VSX),
-GEN_XX3FORM(xsmindp, 0x00, 0x15, PPC2_VSX),
-GEN_XX2FORM(xscvdpsp, 0x12, 0x10, PPC2_VSX),
-GEN_XX2FORM(xscvdpspn, 0x16, 0x10, PPC2_VSX207),
-GEN_XX2FORM(xscvspdp, 0x12, 0x14, PPC2_VSX),
-GEN_XX2FORM(xscvspdpn, 0x16, 0x14, PPC2_VSX207),
-GEN_XX2FORM(xscvdpsxds, 0x10, 0x15, PPC2_VSX),
-GEN_XX2FORM(xscvdpsxws, 0x10, 0x05, PPC2_VSX),
-GEN_XX2FORM(xscvdpuxds, 0x10, 0x14, PPC2_VSX),
-GEN_XX2FORM(xscvdpuxws, 0x10, 0x04, PPC2_VSX),
-GEN_XX2FORM(xscvsxddp, 0x10, 0x17, PPC2_VSX),
-GEN_XX2FORM(xscvuxddp, 0x10, 0x16, PPC2_VSX),
-GEN_XX2FORM(xsrdpi, 0x12, 0x04, PPC2_VSX),
-GEN_XX2FORM(xsrdpic, 0x16, 0x06, PPC2_VSX),
-GEN_XX2FORM(xsrdpim, 0x12, 0x07, PPC2_VSX),
-GEN_XX2FORM(xsrdpip, 0x12, 0x06, PPC2_VSX),
-GEN_XX2FORM(xsrdpiz, 0x12, 0x05, PPC2_VSX),
-
-GEN_XX3FORM(xsaddsp, 0x00, 0x00, PPC2_VSX207),
-GEN_XX3FORM(xssubsp, 0x00, 0x01, PPC2_VSX207),
-GEN_XX3FORM(xsmulsp, 0x00, 0x02, PPC2_VSX207),
-GEN_XX3FORM(xsdivsp, 0x00, 0x03, PPC2_VSX207),
-GEN_XX2FORM(xsresp,  0x14, 0x01, PPC2_VSX207),
-GEN_XX2FORM(xsrsp, 0x12, 0x11, PPC2_VSX207),
-GEN_XX2FORM(xssqrtsp,  0x16, 0x00, PPC2_VSX207),
-GEN_XX2FORM(xsrsqrtesp,  0x14, 0x00, PPC2_VSX207),
-GEN_XX3FORM(xsmaddasp, 0x04, 0x00, PPC2_VSX207),
-GEN_XX3FORM(xsmaddmsp, 0x04, 0x01, PPC2_VSX207),
-GEN_XX3FORM(xsmsubasp, 0x04, 0x02, PPC2_VSX207),
-GEN_XX3FORM(xsmsubmsp, 0x04, 0x03, PPC2_VSX207),
-GEN_XX3FORM(xsnmaddasp, 0x04, 0x10, PPC2_VSX207),
-GEN_XX3FORM(xsnmaddmsp, 0x04, 0x11, PPC2_VSX207),
-GEN_XX3FORM(xsnmsubasp, 0x04, 0x12, PPC2_VSX207),
-GEN_XX3FORM(xsnmsubmsp, 0x04, 0x13, PPC2_VSX207),
-GEN_XX2FORM(xscvsxdsp, 0x10, 0x13, PPC2_VSX207),
-GEN_XX2FORM(xscvuxdsp, 0x10, 0x12, PPC2_VSX207),
-
-GEN_XX3FORM(xvadddp, 0x00, 0x0C, PPC2_VSX),
-GEN_XX3FORM(xvsubdp, 0x00, 0x0D, PPC2_VSX),
-GEN_XX3FORM(xvmuldp, 0x00, 0x0E, PPC2_VSX),
-GEN_XX3FORM(xvdivdp, 0x00, 0x0F, PPC2_VSX),
-GEN_XX2FORM(xvredp,  0x14, 0x0D, PPC2_VSX),
-GEN_XX2FORM(xvsqrtdp,  0x16, 0x0C, PPC2_VSX),
-GEN_XX2FORM(xvrsqrtedp,  0x14, 0x0C, PPC2_VSX),
-GEN_XX3FORM(xvtdivdp, 0x14, 0x0F, PPC2_VSX),
-GEN_XX2FORM(xvtsqrtdp, 0x14, 0x0E, PPC2_VSX),
-GEN_XX3FORM(xvmaddadp, 0x04, 0x0C, PPC2_VSX),
-GEN_XX3FORM(xvmaddmdp, 0x04, 0x0D, PPC2_VSX),
-GEN_XX3FORM(xvmsubadp, 0x04, 0x0E, PPC2_VSX),
-GEN_XX3FORM(xvmsubmdp, 0x04, 0x0F, PPC2_VSX),
-GEN_XX3FORM(xvnmaddadp, 0x04, 0x1C, PPC2_VSX),
-GEN_XX3FORM(xvnmaddmdp, 0x04, 0x1D, PPC2_VSX),
-GEN_XX3FORM(xvnmsubadp, 0x04, 0x1E, PPC2_VSX),
-GEN_XX3FORM(xvnmsubmdp, 0x04, 0x1F, PPC2_VSX),
-GEN_XX3FORM(xvmaxdp, 0x00, 0x1C, PPC2_VSX),
-GEN_XX3FORM(xvmindp, 0x00, 0x1D, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpeqdp, 0x0C, 0x0C, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpgtdp, 0x0C, 0x0D, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpgedp, 0x0C, 0x0E, PPC2_VSX),
-GEN_XX2FORM(xvcvdpsp, 0x12, 0x18, PPC2_VSX),
-GEN_XX2FORM(xvcvdpsxds, 0x10, 0x1D, PPC2_VSX),
-GEN_XX2FORM(xvcvdpsxws, 0x10, 0x0D, PPC2_VSX),
-GEN_XX2FORM(xvcvdpuxds, 0x10, 0x1C, PPC2_VSX),
-GEN_XX2FORM(xvcvdpuxws, 0x10, 0x0C, PPC2_VSX),
-GEN_XX2FORM(xvcvsxddp, 0x10, 0x1F, PPC2_VSX),
-GEN_XX2FORM(xvcvuxddp, 0x10, 0x1E, PPC2_VSX),
-GEN_XX2FORM(xvcvsxwdp, 0x10, 0x0F, PPC2_VSX),
-GEN_XX2FORM(xvcvuxwdp, 0x10, 0x0E, PPC2_VSX),
-GEN_XX2FORM(xvrdpi, 0x12, 0x0C, PPC2_VSX),
-GEN_XX2FORM(xvrdpic, 0x16, 0x0E, PPC2_VSX),
-GEN_XX2FORM(xvrdpim, 0x12, 0x0F, PPC2_VSX),
-GEN_XX2FORM(xvrdpip, 0x12, 0x0E, PPC2_VSX),
-GEN_XX2FORM(xvrdpiz, 0x12, 0x0D, PPC2_VSX),
-
-GEN_XX3FORM(xvaddsp, 0x00, 0x08, PPC2_VSX),
-GEN_XX3FORM(xvsubsp, 0x00, 0x09, PPC2_VSX),
-GEN_XX3FORM(xvmulsp, 0x00, 0x0A, PPC2_VSX),
-GEN_XX3FORM(xvdivsp, 0x00, 0x0B, PPC2_VSX),
-GEN_XX2FORM(xvresp, 0x14, 0x09, PPC2_VSX),
-GEN_XX2FORM(xvsqrtsp, 0x16, 0x08, PPC2_VSX),
-GEN_XX2FORM(xvrsqrtesp, 0x14, 0x08, PPC2_VSX),
-GEN_XX3FORM(xvtdivsp, 0x14, 0x0B, PPC2_VSX),
-GEN_XX2FORM(xvtsqrtsp, 0x14, 0x0A, PPC2_VSX),
-GEN_XX3FORM(xvmaddasp, 0x04, 0x08, PPC2_VSX),
-GEN_XX3FORM(xvmaddmsp, 0x04, 0x09, PPC2_VSX),
-GEN_XX3FORM(xvmsubasp, 0x04, 0x0A, PPC2_VSX),
-GEN_XX3FORM(xvmsubmsp, 0x04, 0x0B, PPC2_VSX),
-GEN_XX3FORM(xvnmaddasp, 0x04, 0x18, PPC2_VSX),
-GEN_XX3FORM(xvnmaddmsp, 0x04, 0x19, PPC2_VSX),
-GEN_XX3FORM(xvnmsubasp, 0x04, 0x1A, PPC2_VSX),
-GEN_XX3FORM(xvnmsubmsp, 0x04, 0x1B, PPC2_VSX),
-GEN_XX3FORM(xvmaxsp, 0x00, 0x18, PPC2_VSX),
-GEN_XX3FORM(xvminsp, 0x00, 0x19, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpeqsp, 0x0C, 0x08, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpgtsp, 0x0C, 0x09, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpgesp, 0x0C, 0x0A, PPC2_VSX),
-GEN_XX2FORM(xvcvspdp, 0x12, 0x1C, PPC2_VSX),
-GEN_XX2FORM(xvcvspsxds, 0x10, 0x19, PPC2_VSX),
-GEN_XX2FORM(xvcvspsxws, 0x10, 0x09, PPC2_VSX),
-GEN_XX2FORM(xvcvspuxds, 0x10, 0x18, PPC2_VSX),
-GEN_XX2FORM(xvcvspuxws, 0x10, 0x08, PPC2_VSX),
-GEN_XX2FORM(xvcvsxdsp, 0x10, 0x1B, PPC2_VSX),
-GEN_XX2FORM(xvcvuxdsp, 0x10, 0x1A, PPC2_VSX),
-GEN_XX2FORM(xvcvsxwsp, 0x10, 0x0B, PPC2_VSX),
-GEN_XX2FORM(xvcvuxwsp, 0x10, 0x0A, PPC2_VSX),
-GEN_XX2FORM(xvrspi, 0x12, 0x08, PPC2_VSX),
-GEN_XX2FORM(xvrspic, 0x16, 0x0A, PPC2_VSX),
-GEN_XX2FORM(xvrspim, 0x12, 0x0B, PPC2_VSX),
-GEN_XX2FORM(xvrspip, 0x12, 0x0A, PPC2_VSX),
-GEN_XX2FORM(xvrspiz, 0x12, 0x09, PPC2_VSX),
-
-#undef VSX_LOGICAL
-#define VSX_LOGICAL(name, opc2, opc3, fl2) \
-GEN_XX3FORM(name, opc2, opc3, fl2)
-
-VSX_LOGICAL(xxland, 0x8, 0x10, PPC2_VSX),
-VSX_LOGICAL(xxlandc, 0x8, 0x11, PPC2_VSX),
-VSX_LOGICAL(xxlor, 0x8, 0x12, PPC2_VSX),
-VSX_LOGICAL(xxlxor, 0x8, 0x13, PPC2_VSX),
-VSX_LOGICAL(xxlnor, 0x8, 0x14, PPC2_VSX),
-VSX_LOGICAL(xxleqv, 0x8, 0x17, PPC2_VSX207),
-VSX_LOGICAL(xxlnand, 0x8, 0x16, PPC2_VSX207),
-VSX_LOGICAL(xxlorc, 0x8, 0x15, PPC2_VSX207),
-GEN_XX3FORM(xxmrghw, 0x08, 0x02, PPC2_VSX),
-GEN_XX3FORM(xxmrglw, 0x08, 0x06, PPC2_VSX),
-GEN_XX2FORM(xxspltw, 0x08, 0x0A, PPC2_VSX),
-GEN_XX3FORM_DM(xxsldwi, 0x08, 0x00),
-
-#define GEN_XXSEL_ROW(opc3) \
-GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x18, opc3, 0, PPC_NONE, PPC2_VSX), \
-GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x19, opc3, 0, PPC_NONE, PPC2_VSX), \
-GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1A, opc3, 0, PPC_NONE, PPC2_VSX), \
-GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1B, opc3, 0, PPC_NONE, PPC2_VSX), \
-GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1C, opc3, 0, PPC_NONE, PPC2_VSX), \
-GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1D, opc3, 0, PPC_NONE, PPC2_VSX), \
-GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1E, opc3, 0, PPC_NONE, PPC2_VSX), \
-GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1F, opc3, 0, PPC_NONE, PPC2_VSX), \
-
-GEN_XXSEL_ROW(0x00)
-GEN_XXSEL_ROW(0x01)
-GEN_XXSEL_ROW(0x02)
-GEN_XXSEL_ROW(0x03)
-GEN_XXSEL_ROW(0x04)
-GEN_XXSEL_ROW(0x05)
-GEN_XXSEL_ROW(0x06)
-GEN_XXSEL_ROW(0x07)
-GEN_XXSEL_ROW(0x08)
-GEN_XXSEL_ROW(0x09)
-GEN_XXSEL_ROW(0x0A)
-GEN_XXSEL_ROW(0x0B)
-GEN_XXSEL_ROW(0x0C)
-GEN_XXSEL_ROW(0x0D)
-GEN_XXSEL_ROW(0x0E)
-GEN_XXSEL_ROW(0x0F)
-GEN_XXSEL_ROW(0x10)
-GEN_XXSEL_ROW(0x11)
-GEN_XXSEL_ROW(0x12)
-GEN_XXSEL_ROW(0x13)
-GEN_XXSEL_ROW(0x14)
-GEN_XXSEL_ROW(0x15)
-GEN_XXSEL_ROW(0x16)
-GEN_XXSEL_ROW(0x17)
-GEN_XXSEL_ROW(0x18)
-GEN_XXSEL_ROW(0x19)
-GEN_XXSEL_ROW(0x1A)
-GEN_XXSEL_ROW(0x1B)
-GEN_XXSEL_ROW(0x1C)
-GEN_XXSEL_ROW(0x1D)
-GEN_XXSEL_ROW(0x1E)
-GEN_XXSEL_ROW(0x1F)
-
-GEN_XX3FORM_DM(xxpermdi, 0x08, 0x01),
-
-#undef GEN_DFP_T_A_B_Rc
-#undef GEN_DFP_BF_A_B
-#undef GEN_DFP_BF_A_DCM
-#undef GEN_DFP_T_B_U32_U32_Rc
-#undef GEN_DFP_T_A_B_I32_Rc
-#undef GEN_DFP_T_B_Rc
-#undef GEN_DFP_T_FPR_I32_Rc
-
-#define _GEN_DFP_LONG(name, op1, op2, mask) \
-GEN_HANDLER_E(name, 0x3B, op1, op2, mask, PPC_NONE, PPC2_DFP)
-
-#define _GEN_DFP_LONGx2(name, op1, op2, mask) \
-GEN_HANDLER_E(name, 0x3B, op1, 0x00 | op2, mask, PPC_NONE, PPC2_DFP), \
-GEN_HANDLER_E(name, 0x3B, op1, 0x10 | op2, mask, PPC_NONE, PPC2_DFP)
-
-#define _GEN_DFP_LONGx4(name, op1, op2, mask) \
-GEN_HANDLER_E(name, 0x3B, op1, 0x00 | op2, mask, PPC_NONE, PPC2_DFP), \
-GEN_HANDLER_E(name, 0x3B, op1, 0x08 | op2, mask, PPC_NONE, PPC2_DFP), \
-GEN_HANDLER_E(name, 0x3B, op1, 0x10 | op2, mask, PPC_NONE, PPC2_DFP), \
-GEN_HANDLER_E(name, 0x3B, op1, 0x18 | op2, mask, PPC_NONE, PPC2_DFP)
-
-#define _GEN_DFP_QUAD(name, op1, op2, mask) \
-GEN_HANDLER_E(name, 0x3F, op1, op2, mask, PPC_NONE, PPC2_DFP)
-
-#define _GEN_DFP_QUADx2(name, op1, op2, mask) \
-GEN_HANDLER_E(name, 0x3F, op1, 0x00 | op2, mask, PPC_NONE, PPC2_DFP), \
-GEN_HANDLER_E(name, 0x3F, op1, 0x10 | op2, mask, PPC_NONE, PPC2_DFP)
-
-#define _GEN_DFP_QUADx4(name, op1, op2, mask)                         \
-GEN_HANDLER_E(name, 0x3F, op1, 0x00 | op2, mask, PPC_NONE, PPC2_DFP), \
-GEN_HANDLER_E(name, 0x3F, op1, 0x08 | op2, mask, PPC_NONE, PPC2_DFP), \
-GEN_HANDLER_E(name, 0x3F, op1, 0x10 | op2, mask, PPC_NONE, PPC2_DFP), \
-GEN_HANDLER_E(name, 0x3F, op1, 0x18 | op2, mask, PPC_NONE, PPC2_DFP)
-
-#define GEN_DFP_T_A_B_Rc(name, op1, op2) \
-_GEN_DFP_LONG(name, op1, op2, 0x00000000)
-
-#define GEN_DFP_Tp_Ap_Bp_Rc(name, op1, op2) \
-_GEN_DFP_QUAD(name, op1, op2, 0x00210800)
-
-#define GEN_DFP_Tp_A_Bp_Rc(name, op1, op2) \
-_GEN_DFP_QUAD(name, op1, op2, 0x00200800)
-
-#define GEN_DFP_T_B_Rc(name, op1, op2) \
-_GEN_DFP_LONG(name, op1, op2, 0x001F0000)
-
-#define GEN_DFP_Tp_Bp_Rc(name, op1, op2) \
-_GEN_DFP_QUAD(name, op1, op2, 0x003F0800)
-
-#define GEN_DFP_Tp_B_Rc(name, op1, op2) \
-_GEN_DFP_QUAD(name, op1, op2, 0x003F0000)
-
-#define GEN_DFP_T_Bp_Rc(name, op1, op2) \
-_GEN_DFP_QUAD(name, op1, op2, 0x001F0800)
-
-#define GEN_DFP_BF_A_B(name, op1, op2) \
-_GEN_DFP_LONG(name, op1, op2, 0x00000001)
-
-#define GEN_DFP_BF_Ap_Bp(name, op1, op2) \
-_GEN_DFP_QUAD(name, op1, op2, 0x00610801)
-
-#define GEN_DFP_BF_A_Bp(name, op1, op2) \
-_GEN_DFP_QUAD(name, op1, op2, 0x00600801)
-
-#define GEN_DFP_BF_A_DCM(name, op1, op2) \
-_GEN_DFP_LONGx2(name, op1, op2, 0x00600001)
-
-#define GEN_DFP_BF_Ap_DCM(name, op1, op2) \
-_GEN_DFP_QUADx2(name, op1, op2, 0x00610001)
-
-#define GEN_DFP_T_A_B_RMC_Rc(name, op1, op2) \
-_GEN_DFP_LONGx4(name, op1, op2, 0x00000000)
-
-#define GEN_DFP_Tp_Ap_Bp_RMC_Rc(name, op1, op2) \
-_GEN_DFP_QUADx4(name, op1, op2, 0x02010800)
-
-#define GEN_DFP_Tp_A_Bp_RMC_Rc(name, op1, op2) \
-_GEN_DFP_QUADx4(name, op1, op2, 0x02000800)
-
-#define GEN_DFP_TE_T_B_RMC_Rc(name, op1, op2) \
-_GEN_DFP_LONGx4(name, op1, op2, 0x00000000)
-
-#define GEN_DFP_TE_Tp_Bp_RMC_Rc(name, op1, op2) \
-_GEN_DFP_QUADx4(name, op1, op2, 0x00200800)
-
-#define GEN_DFP_R_T_B_RMC_Rc(name, op1, op2) \
-_GEN_DFP_LONGx4(name, op1, op2, 0x001E0000)
-
-#define GEN_DFP_R_Tp_Bp_RMC_Rc(name, op1, op2) \
-_GEN_DFP_QUADx4(name, op1, op2, 0x003E0800)
-
-#define GEN_DFP_SP_T_B_Rc(name, op1, op2) \
-_GEN_DFP_LONG(name, op1, op2, 0x00070000)
-
-#define GEN_DFP_SP_Tp_Bp_Rc(name, op1, op2) \
-_GEN_DFP_QUAD(name, op1, op2, 0x00270800)
-
-#define GEN_DFP_S_T_B_Rc(name, op1, op2) \
-_GEN_DFP_LONG(name, op1, op2, 0x000F0000)
-
-#define GEN_DFP_S_Tp_Bp_Rc(name, op1, op2) \
-_GEN_DFP_QUAD(name, op1, op2, 0x002F0800)
-
-#define GEN_DFP_T_A_SH_Rc(name, op1, op2) \
-_GEN_DFP_LONGx2(name, op1, op2, 0x00000000)
-
-#define GEN_DFP_Tp_Ap_SH_Rc(name, op1, op2) \
-_GEN_DFP_QUADx2(name, op1, op2, 0x00210000)
-
-GEN_DFP_T_A_B_Rc(dadd, 0x02, 0x00),
-GEN_DFP_Tp_Ap_Bp_Rc(daddq, 0x02, 0x00),
-GEN_DFP_T_A_B_Rc(dsub, 0x02, 0x10),
-GEN_DFP_Tp_Ap_Bp_Rc(dsubq, 0x02, 0x10),
-GEN_DFP_T_A_B_Rc(dmul, 0x02, 0x01),
-GEN_DFP_Tp_Ap_Bp_Rc(dmulq, 0x02, 0x01),
-GEN_DFP_T_A_B_Rc(ddiv, 0x02, 0x11),
-GEN_DFP_Tp_Ap_Bp_Rc(ddivq, 0x02, 0x11),
-GEN_DFP_BF_A_B(dcmpu, 0x02, 0x14),
-GEN_DFP_BF_Ap_Bp(dcmpuq, 0x02, 0x14),
-GEN_DFP_BF_A_B(dcmpo, 0x02, 0x04),
-GEN_DFP_BF_Ap_Bp(dcmpoq, 0x02, 0x04),
-GEN_DFP_BF_A_DCM(dtstdc, 0x02, 0x06),
-GEN_DFP_BF_Ap_DCM(dtstdcq, 0x02, 0x06),
-GEN_DFP_BF_A_DCM(dtstdg, 0x02, 0x07),
-GEN_DFP_BF_Ap_DCM(dtstdgq, 0x02, 0x07),
-GEN_DFP_BF_A_B(dtstex, 0x02, 0x05),
-GEN_DFP_BF_Ap_Bp(dtstexq, 0x02, 0x05),
-GEN_DFP_BF_A_B(dtstsf, 0x02, 0x15),
-GEN_DFP_BF_A_Bp(dtstsfq, 0x02, 0x15),
-GEN_DFP_TE_T_B_RMC_Rc(dquai, 0x03, 0x02),
-GEN_DFP_TE_Tp_Bp_RMC_Rc(dquaiq, 0x03, 0x02),
-GEN_DFP_T_A_B_RMC_Rc(dqua, 0x03, 0x00),
-GEN_DFP_Tp_Ap_Bp_RMC_Rc(dquaq, 0x03, 0x00),
-GEN_DFP_T_A_B_RMC_Rc(drrnd, 0x03, 0x01),
-GEN_DFP_Tp_A_Bp_RMC_Rc(drrndq, 0x03, 0x01),
-GEN_DFP_R_T_B_RMC_Rc(drintx, 0x03, 0x03),
-GEN_DFP_R_Tp_Bp_RMC_Rc(drintxq, 0x03, 0x03),
-GEN_DFP_R_T_B_RMC_Rc(drintn, 0x03, 0x07),
-GEN_DFP_R_Tp_Bp_RMC_Rc(drintnq, 0x03, 0x07),
-GEN_DFP_T_B_Rc(dctdp, 0x02, 0x08),
-GEN_DFP_Tp_B_Rc(dctqpq, 0x02, 0x08),
-GEN_DFP_T_B_Rc(drsp, 0x02, 0x18),
-GEN_DFP_Tp_Bp_Rc(drdpq, 0x02, 0x18),
-GEN_DFP_T_B_Rc(dcffix, 0x02, 0x19),
-GEN_DFP_Tp_B_Rc(dcffixq, 0x02, 0x19),
-GEN_DFP_T_B_Rc(dctfix, 0x02, 0x09),
-GEN_DFP_T_Bp_Rc(dctfixq, 0x02, 0x09),
-GEN_DFP_SP_T_B_Rc(ddedpd, 0x02, 0x0a),
-GEN_DFP_SP_Tp_Bp_Rc(ddedpdq, 0x02, 0x0a),
-GEN_DFP_S_T_B_Rc(denbcd, 0x02, 0x1a),
-GEN_DFP_S_Tp_Bp_Rc(denbcdq, 0x02, 0x1a),
-GEN_DFP_T_B_Rc(dxex, 0x02, 0x0b),
-GEN_DFP_T_Bp_Rc(dxexq, 0x02, 0x0b),
-GEN_DFP_T_A_B_Rc(diex, 0x02, 0x1b),
-GEN_DFP_Tp_A_Bp_Rc(diexq, 0x02, 0x1b),
-GEN_DFP_T_A_SH_Rc(dscli, 0x02, 0x02),
-GEN_DFP_Tp_Ap_SH_Rc(dscliq, 0x02, 0x02),
-GEN_DFP_T_A_SH_Rc(dscri, 0x02, 0x03),
-GEN_DFP_Tp_Ap_SH_Rc(dscriq, 0x02, 0x03),
-
-#undef GEN_SPE
-#define GEN_SPE(name0, name1, opc2, opc3, inval0, inval1, type) \
-    GEN_OPCODE_DUAL(name0##_##name1, 0x04, opc2, opc3, inval0, inval1, type, PPC_NONE)
-GEN_SPE(evaddw,      speundef,    0x00, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE),
-GEN_SPE(evaddiw,     speundef,    0x01, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE),
-GEN_SPE(evsubfw,     speundef,    0x02, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE),
-GEN_SPE(evsubifw,    speundef,    0x03, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE),
-GEN_SPE(evabs,       evneg,       0x04, 0x08, 0x0000F800, 0x0000F800, PPC_SPE),
-GEN_SPE(evextsb,     evextsh,     0x05, 0x08, 0x0000F800, 0x0000F800, PPC_SPE),
-GEN_SPE(evrndw,      evcntlzw,    0x06, 0x08, 0x0000F800, 0x0000F800, PPC_SPE),
-GEN_SPE(evcntlsw,    brinc,       0x07, 0x08, 0x0000F800, 0x00000000, PPC_SPE),
-GEN_SPE(evmra,       speundef,    0x02, 0x13, 0x0000F800, 0xFFFFFFFF, PPC_SPE),
-GEN_SPE(speundef,    evand,       0x08, 0x08, 0xFFFFFFFF, 0x00000000, PPC_SPE),
-GEN_SPE(evandc,      speundef,    0x09, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE),
-GEN_SPE(evxor,       evor,        0x0B, 0x08, 0x00000000, 0x00000000, PPC_SPE),
-GEN_SPE(evnor,       eveqv,       0x0C, 0x08, 0x00000000, 0x00000000, PPC_SPE),
-GEN_SPE(evmwumi,     evmwsmi,     0x0C, 0x11, 0x00000000, 0x00000000, PPC_SPE),
-GEN_SPE(evmwumia,    evmwsmia,    0x1C, 0x11, 0x00000000, 0x00000000, PPC_SPE),
-GEN_SPE(evmwumiaa,   evmwsmiaa,   0x0C, 0x15, 0x00000000, 0x00000000, PPC_SPE),
-GEN_SPE(speundef,    evorc,       0x0D, 0x08, 0xFFFFFFFF, 0x00000000, PPC_SPE),
-GEN_SPE(evnand,      speundef,    0x0F, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE),
-GEN_SPE(evsrwu,      evsrws,      0x10, 0x08, 0x00000000, 0x00000000, PPC_SPE),
-GEN_SPE(evsrwiu,     evsrwis,     0x11, 0x08, 0x00000000, 0x00000000, PPC_SPE),
-GEN_SPE(evslw,       speundef,    0x12, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE),
-GEN_SPE(evslwi,      speundef,    0x13, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE),
-GEN_SPE(evrlw,       evsplati,    0x14, 0x08, 0x00000000, 0x0000F800, PPC_SPE),
-GEN_SPE(evrlwi,      evsplatfi,   0x15, 0x08, 0x00000000, 0x0000F800, PPC_SPE),
-GEN_SPE(evmergehi,   evmergelo,   0x16, 0x08, 0x00000000, 0x00000000, PPC_SPE),
-GEN_SPE(evmergehilo, evmergelohi, 0x17, 0x08, 0x00000000, 0x00000000, PPC_SPE),
-GEN_SPE(evcmpgtu,    evcmpgts,    0x18, 0x08, 0x00600000, 0x00600000, PPC_SPE),
-GEN_SPE(evcmpltu,    evcmplts,    0x19, 0x08, 0x00600000, 0x00600000, PPC_SPE),
-GEN_SPE(evcmpeq,     speundef,    0x1A, 0x08, 0x00600000, 0xFFFFFFFF, PPC_SPE),
-
-GEN_SPE(evfsadd,     evfssub,     0x00, 0x0A, 0x00000000, 0x00000000, PPC_SPE_SINGLE),
-GEN_SPE(evfsabs,     evfsnabs,    0x02, 0x0A, 0x0000F800, 0x0000F800, PPC_SPE_SINGLE),
-GEN_SPE(evfsneg,     speundef,    0x03, 0x0A, 0x0000F800, 0xFFFFFFFF, PPC_SPE_SINGLE),
-GEN_SPE(evfsmul,     evfsdiv,     0x04, 0x0A, 0x00000000, 0x00000000, PPC_SPE_SINGLE),
-GEN_SPE(evfscmpgt,   evfscmplt,   0x06, 0x0A, 0x00600000, 0x00600000, PPC_SPE_SINGLE),
-GEN_SPE(evfscmpeq,   speundef,    0x07, 0x0A, 0x00600000, 0xFFFFFFFF, PPC_SPE_SINGLE),
-GEN_SPE(evfscfui,    evfscfsi,    0x08, 0x0A, 0x00180000, 0x00180000, PPC_SPE_SINGLE),
-GEN_SPE(evfscfuf,    evfscfsf,    0x09, 0x0A, 0x00180000, 0x00180000, PPC_SPE_SINGLE),
-GEN_SPE(evfsctui,    evfsctsi,    0x0A, 0x0A, 0x00180000, 0x00180000, PPC_SPE_SINGLE),
-GEN_SPE(evfsctuf,    evfsctsf,    0x0B, 0x0A, 0x00180000, 0x00180000, PPC_SPE_SINGLE),
-GEN_SPE(evfsctuiz,   speundef,    0x0C, 0x0A, 0x00180000, 0xFFFFFFFF, PPC_SPE_SINGLE),
-GEN_SPE(evfsctsiz,   speundef,    0x0D, 0x0A, 0x00180000, 0xFFFFFFFF, PPC_SPE_SINGLE),
-GEN_SPE(evfststgt,   evfststlt,   0x0E, 0x0A, 0x00600000, 0x00600000, PPC_SPE_SINGLE),
-GEN_SPE(evfststeq,   speundef,    0x0F, 0x0A, 0x00600000, 0xFFFFFFFF, PPC_SPE_SINGLE),
-
-GEN_SPE(efsadd,      efssub,      0x00, 0x0B, 0x00000000, 0x00000000, PPC_SPE_SINGLE),
-GEN_SPE(efsabs,      efsnabs,     0x02, 0x0B, 0x0000F800, 0x0000F800, PPC_SPE_SINGLE),
-GEN_SPE(efsneg,      speundef,    0x03, 0x0B, 0x0000F800, 0xFFFFFFFF, PPC_SPE_SINGLE),
-GEN_SPE(efsmul,      efsdiv,      0x04, 0x0B, 0x00000000, 0x00000000, PPC_SPE_SINGLE),
-GEN_SPE(efscmpgt,    efscmplt,    0x06, 0x0B, 0x00600000, 0x00600000, PPC_SPE_SINGLE),
-GEN_SPE(efscmpeq,    efscfd,      0x07, 0x0B, 0x00600000, 0x00180000, PPC_SPE_SINGLE),
-GEN_SPE(efscfui,     efscfsi,     0x08, 0x0B, 0x00180000, 0x00180000, PPC_SPE_SINGLE),
-GEN_SPE(efscfuf,     efscfsf,     0x09, 0x0B, 0x00180000, 0x00180000, PPC_SPE_SINGLE),
-GEN_SPE(efsctui,     efsctsi,     0x0A, 0x0B, 0x00180000, 0x00180000, PPC_SPE_SINGLE),
-GEN_SPE(efsctuf,     efsctsf,     0x0B, 0x0B, 0x00180000, 0x00180000, PPC_SPE_SINGLE),
-GEN_SPE(efsctuiz,    speundef,    0x0C, 0x0B, 0x00180000, 0xFFFFFFFF, PPC_SPE_SINGLE),
-GEN_SPE(efsctsiz,    speundef,    0x0D, 0x0B, 0x00180000, 0xFFFFFFFF, PPC_SPE_SINGLE),
-GEN_SPE(efststgt,    efststlt,    0x0E, 0x0B, 0x00600000, 0x00600000, PPC_SPE_SINGLE),
-GEN_SPE(efststeq,    speundef,    0x0F, 0x0B, 0x00600000, 0xFFFFFFFF, PPC_SPE_SINGLE),
-
-GEN_SPE(efdadd,      efdsub,      0x10, 0x0B, 0x00000000, 0x00000000, PPC_SPE_DOUBLE),
-GEN_SPE(efdcfuid,    efdcfsid,    0x11, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE),
-GEN_SPE(efdabs,      efdnabs,     0x12, 0x0B, 0x0000F800, 0x0000F800, PPC_SPE_DOUBLE),
-GEN_SPE(efdneg,      speundef,    0x13, 0x0B, 0x0000F800, 0xFFFFFFFF, PPC_SPE_DOUBLE),
-GEN_SPE(efdmul,      efddiv,      0x14, 0x0B, 0x00000000, 0x00000000, PPC_SPE_DOUBLE),
-GEN_SPE(efdctuidz,   efdctsidz,   0x15, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE),
-GEN_SPE(efdcmpgt,    efdcmplt,    0x16, 0x0B, 0x00600000, 0x00600000, PPC_SPE_DOUBLE),
-GEN_SPE(efdcmpeq,    efdcfs,      0x17, 0x0B, 0x00600000, 0x00180000, PPC_SPE_DOUBLE),
-GEN_SPE(efdcfui,     efdcfsi,     0x18, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE),
-GEN_SPE(efdcfuf,     efdcfsf,     0x19, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE),
-GEN_SPE(efdctui,     efdctsi,     0x1A, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE),
-GEN_SPE(efdctuf,     efdctsf,     0x1B, 0x0B, 0x00180000, 0x00180000, PPC_SPE_DOUBLE),
-GEN_SPE(efdctuiz,    speundef,    0x1C, 0x0B, 0x00180000, 0xFFFFFFFF, PPC_SPE_DOUBLE),
-GEN_SPE(efdctsiz,    speundef,    0x1D, 0x0B, 0x00180000, 0xFFFFFFFF, PPC_SPE_DOUBLE),
-GEN_SPE(efdtstgt,    efdtstlt,    0x1E, 0x0B, 0x00600000, 0x00600000, PPC_SPE_DOUBLE),
-GEN_SPE(efdtsteq,    speundef,    0x1F, 0x0B, 0x00600000, 0xFFFFFFFF, PPC_SPE_DOUBLE),
-
-#undef GEN_SPEOP_LDST
-#define GEN_SPEOP_LDST(name, opc2, sh)                                        \
-GEN_HANDLER(name, 0x04, opc2, 0x0C, 0x00000000, PPC_SPE)
-GEN_SPEOP_LDST(evldd, 0x00, 3),
-GEN_SPEOP_LDST(evldw, 0x01, 3),
-GEN_SPEOP_LDST(evldh, 0x02, 3),
-GEN_SPEOP_LDST(evlhhesplat, 0x04, 1),
-GEN_SPEOP_LDST(evlhhousplat, 0x06, 1),
-GEN_SPEOP_LDST(evlhhossplat, 0x07, 1),
-GEN_SPEOP_LDST(evlwhe, 0x08, 2),
-GEN_SPEOP_LDST(evlwhou, 0x0A, 2),
-GEN_SPEOP_LDST(evlwhos, 0x0B, 2),
-GEN_SPEOP_LDST(evlwwsplat, 0x0C, 2),
-GEN_SPEOP_LDST(evlwhsplat, 0x0E, 2),
-
-GEN_SPEOP_LDST(evstdd, 0x10, 3),
-GEN_SPEOP_LDST(evstdw, 0x11, 3),
-GEN_SPEOP_LDST(evstdh, 0x12, 3),
-GEN_SPEOP_LDST(evstwhe, 0x18, 2),
-GEN_SPEOP_LDST(evstwho, 0x1A, 2),
-GEN_SPEOP_LDST(evstwwe, 0x1C, 2),
-GEN_SPEOP_LDST(evstwwo, 0x1E, 2),
-
 GEN_HANDLER2_E(tbegin, "tbegin", 0x1F, 0x0E, 0x14, 0x01DFF800, \
                PPC_NONE, PPC2_TM),
 GEN_HANDLER2_E(tend,   "tend",   0x1F, 0x0E, 0x15, 0x01FFF800, \
@@ -11324,6 +6741,16 @@ GEN_HANDLER2_E(treclaim, "treclaim", 0x1F, 0x0E, 0x1D, 0x03E0F800, \
                PPC_NONE, PPC2_TM),
 GEN_HANDLER2_E(trechkpt, "trechkpt", 0x1F, 0x0E, 0x1F, 0x03FFF800, \
                PPC_NONE, PPC2_TM),
+
+#include "translate/fp-ops.inc.c"
+
+#include "translate/vmx-ops.inc.c"
+
+#include "translate/vsx-ops.inc.c"
+
+#include "translate/dfp-ops.inc.c"
+
+#include "translate/spe-ops.inc.c"
 };
 
 #include "helper_regs.h"
@@ -11569,6 +6996,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
     ctx.insns_flags = env->insns_flags;
     ctx.insns_flags2 = env->insns_flags2;
     ctx.access_type = -1;
+    ctx.need_access_type = !(env->mmu_model & POWERPC_MMU_64B);
     ctx.le_mode = !!(env->hflags & (1 << MSR_LE));
     ctx.default_tcg_memop_mask = ctx.le_mode ? MO_LE : MO_BE;
 #if defined(TARGET_PPC64)
@@ -11650,9 +7078,10 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         } else {
             ctx.opcode = cpu_ldl_code(env, ctx.nip);
         }
-        LOG_DISAS("translate opcode %08x (%02x %02x %02x) (%s)\n",
-                    ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
-                    opc3(ctx.opcode), ctx.le_mode ? "little" : "big");
+        LOG_DISAS("translate opcode %08x (%02x %02x %02x %02x) (%s)\n",
+                  ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
+                  opc3(ctx.opcode), opc4(ctx.opcode),
+                  ctx.le_mode ? "little" : "big");
         ctx.nip += 4;
         table = env->opcodes;
         handler = table[opc1(ctx.opcode)];
@@ -11662,14 +7091,20 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
             if (is_indirect_opcode(handler)) {
                 table = ind_table(handler);
                 handler = table[opc3(ctx.opcode)];
+                if (is_indirect_opcode(handler)) {
+                    table = ind_table(handler);
+                    handler = table[opc4(ctx.opcode)];
+                }
             }
         }
         /* Is opcode *REALLY* valid ? */
         if (unlikely(handler->handler == &gen_invalid)) {
             qemu_log_mask(LOG_GUEST_ERROR, "invalid/unsupported opcode: "
-                          "%02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
+                          "%02x - %02x - %02x - %02x (%08x) "
+                          TARGET_FMT_lx " %d\n",
                           opc1(ctx.opcode), opc2(ctx.opcode),
-                          opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
+                          opc3(ctx.opcode), opc4(ctx.opcode),
+                          ctx.opcode, ctx.nip - 4, (int)msr_ir);
         } else {
             uint32_t inval;
 
@@ -11681,9 +7116,10 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
 
             if (unlikely((ctx.opcode & inval) != 0)) {
                 qemu_log_mask(LOG_GUEST_ERROR, "invalid bits: %08x for opcode: "
-                              "%02x - %02x - %02x (%08x) " TARGET_FMT_lx "\n",
-                              ctx.opcode & inval, opc1(ctx.opcode),
-                              opc2(ctx.opcode), opc3(ctx.opcode),
+                              "%02x - %02x - %02x - %02x (%08x) "
+                              TARGET_FMT_lx "\n", ctx.opcode & inval,
+                              opc1(ctx.opcode), opc2(ctx.opcode),
+                              opc3(ctx.opcode), opc4(ctx.opcode),
                               ctx.opcode, ctx.nip - 4);
                 gen_inval_exception(ctxp, POWERPC_EXCP_INVAL_INVAL);
                 break;
@@ -11699,7 +7135,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
                      ctx.exception != POWERPC_SYSCALL &&
                      ctx.exception != POWERPC_EXCP_TRAP &&
                      ctx.exception != POWERPC_EXCP_BRANCH)) {
-            gen_exception(ctxp, POWERPC_EXCP_TRACE);
+            gen_exception_nip(ctxp, POWERPC_EXCP_TRACE, ctx.nip);
         } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
                             (cs->singlestep_enabled) ||
                             singlestep ||
@@ -11710,9 +7146,9 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
             break;
         }
         if (tcg_check_temp_count()) {
-            fprintf(stderr, "Opcode %02x %02x %02x (%08x) leaked temporaries\n",
-                    opc1(ctx.opcode), opc2(ctx.opcode), opc3(ctx.opcode),
-                    ctx.opcode);
+            fprintf(stderr, "Opcode %02x %02x %02x %02x (%08x) leaked "
+                    "temporaries\n", opc1(ctx.opcode), opc2(ctx.opcode),
+                    opc3(ctx.opcode), opc4(ctx.opcode), ctx.opcode);
             exit(1);
         }
     }

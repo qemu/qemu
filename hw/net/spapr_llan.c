@@ -106,6 +106,7 @@ typedef struct VIOsPAPRVLANDevice {
     VIOsPAPRDevice sdev;
     NICConf nicconf;
     NICState *nic;
+    MACAddr perm_mac;
     bool isopen;
     hwaddr buf_list;
     uint32_t add_buf_ptr, use_buf_ptr, rx_bufs;
@@ -316,6 +317,10 @@ static void spapr_vlan_reset(VIOsPAPRDevice *sdev)
             spapr_vlan_reset_rx_pool(dev->rx_pool[i]);
         }
     }
+
+    memcpy(&dev->nicconf.macaddr.a, &dev->perm_mac.a,
+           sizeof(dev->nicconf.macaddr.a));
+    qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
 }
 
 static void spapr_vlan_realize(VIOsPAPRDevice *sdev, Error **errp)
@@ -323,6 +328,8 @@ static void spapr_vlan_realize(VIOsPAPRDevice *sdev, Error **errp)
     VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
 
     qemu_macaddr_default_if_unset(&dev->nicconf.macaddr);
+
+    memcpy(&dev->perm_mac.a, &dev->nicconf.macaddr.a, sizeof(dev->perm_mac.a));
 
     dev->nic = qemu_new_nic(&net_spapr_vlan_info, &dev->nicconf,
                             object_get_typename(OBJECT(sdev)), sdev->qdev.id, dev);
@@ -756,6 +763,27 @@ static target_ulong h_multicast_ctrl(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_change_logical_lan_mac(PowerPCCPU *cpu,
+                                             sPAPRMachineState *spapr,
+                                             target_ulong opcode,
+                                             target_ulong *args)
+{
+    target_ulong reg = args[0];
+    target_ulong macaddr = args[1];
+    VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
+    int i;
+
+    for (i = 0; i < ETH_ALEN; i++) {
+        dev->nicconf.macaddr.a[ETH_ALEN - i - 1] = macaddr & 0xff;
+        macaddr >>= 8;
+    }
+
+    qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
+
+    return H_SUCCESS;
+}
+
 static Property spapr_vlan_properties[] = {
     DEFINE_SPAPR_PROPERTIES(VIOsPAPRVLANDevice, sdev),
     DEFINE_NIC_PROPERTIES(VIOsPAPRVLANDevice, nicconf),
@@ -854,6 +882,8 @@ static void spapr_vlan_register_types(void)
     spapr_register_hypercall(H_ADD_LOGICAL_LAN_BUFFER,
                              h_add_logical_lan_buffer);
     spapr_register_hypercall(H_MULTICAST_CTRL, h_multicast_ctrl);
+    spapr_register_hypercall(H_CHANGE_LOGICAL_LAN_MAC,
+                             h_change_logical_lan_mac);
     type_register_static(&spapr_vlan_info);
 }
 

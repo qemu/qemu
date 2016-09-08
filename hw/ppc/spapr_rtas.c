@@ -27,6 +27,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/char.h"
 #include "hw/qdev.h"
@@ -716,7 +717,7 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
 
     ret = fdt_add_mem_rsv(fdt, rtas_addr, rtas_size);
     if (ret < 0) {
-        fprintf(stderr, "Couldn't add RTAS reserve entry: %s\n",
+        error_report("Couldn't add RTAS reserve entry: %s",
                 fdt_strerror(ret));
         return ret;
     }
@@ -724,7 +725,7 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
     ret = qemu_fdt_setprop_cell(fdt, "/rtas", "linux,rtas-base",
                                 rtas_addr);
     if (ret < 0) {
-        fprintf(stderr, "Couldn't add linux,rtas-base property: %s\n",
+        error_report("Couldn't add linux,rtas-base property: %s",
                 fdt_strerror(ret));
         return ret;
     }
@@ -732,7 +733,7 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
     ret = qemu_fdt_setprop_cell(fdt, "/rtas", "linux,rtas-entry",
                                 rtas_addr);
     if (ret < 0) {
-        fprintf(stderr, "Couldn't add linux,rtas-entry property: %s\n",
+        error_report("Couldn't add linux,rtas-entry property: %s",
                 fdt_strerror(ret));
         return ret;
     }
@@ -740,7 +741,7 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
     ret = qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-size",
                                 rtas_size);
     if (ret < 0) {
-        fprintf(stderr, "Couldn't add rtas-size property: %s\n",
+        error_report("Couldn't add rtas-size property: %s",
                 fdt_strerror(ret));
         return ret;
     }
@@ -755,7 +756,7 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
         ret = qemu_fdt_setprop_cell(fdt, "/rtas", call->name,
                                     i + RTAS_TOKEN_BASE);
         if (ret < 0) {
-            fprintf(stderr, "Couldn't add rtas token for %s: %s\n",
+            error_report("Couldn't add rtas token for %s: %s",
                     call->name, fdt_strerror(ret));
             return ret;
         }
@@ -770,7 +771,7 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
     ret = qemu_fdt_setprop(fdt, "/rtas", "ibm,lrdr-capacity", lrdr_capacity,
                      sizeof(lrdr_capacity));
     if (ret < 0) {
-        fprintf(stderr, "Couldn't add ibm,lrdr-capacity rtas property\n");
+        error_report("Couldn't add ibm,lrdr-capacity rtas property");
         return ret;
     }
 

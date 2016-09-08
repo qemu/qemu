@@ -1202,7 +1202,6 @@ extern const struct VMStateDescription vmstate_ppc_cpu;
 PowerPCCPU *cpu_ppc_init(const char *cpu_model);
 void ppc_translate_init(void);
 const char *ppc_cpu_lookup_alias(const char *alias);
-void gen_update_current_nip(void *opaque);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -2095,6 +2094,8 @@ enum {
     PPC2_TM            = 0x0000000000020000ULL,
     /* Server PM instructgions (ISA 2.06, Book III)                          */
     PPC2_PM_ISA206     = 0x0000000000040000ULL,
+    /* POWER ISA 3.0                                                         */
+    PPC2_ISA300        = 0x0000000000080000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
                         PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \
@@ -2102,7 +2103,8 @@ enum {
                         PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | \
                         PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207 | \
                         PPC2_ALTIVEC_207 | PPC2_ISA207S | PPC2_DFP | \
-                        PPC2_FP_CVT_S64 | PPC2_TM | PPC2_PM_ISA206)
+                        PPC2_FP_CVT_S64 | PPC2_TM | PPC2_PM_ISA206 | \
+                        PPC2_ISA300)
 };
 
 /*****************************************************************************/
@@ -2295,6 +2297,14 @@ static inline void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
     *cs_base = 0;
     *flags = env->hflags;
 }
+
+void QEMU_NORETURN raise_exception(CPUPPCState *env, uint32_t exception);
+void QEMU_NORETURN raise_exception_ra(CPUPPCState *env, uint32_t exception,
+                                      uintptr_t raddr);
+void QEMU_NORETURN raise_exception_err(CPUPPCState *env, uint32_t exception,
+                                       uint32_t error_code);
+void QEMU_NORETURN raise_exception_err_ra(CPUPPCState *env, uint32_t exception,
+                                          uint32_t error_code, uintptr_t raddr);
 
 #if !defined(CONFIG_USER_ONLY)
 static inline int booke206_tlbm_id(CPUPPCState *env, ppcmas_tlb_t *tlbm)

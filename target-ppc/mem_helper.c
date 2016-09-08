@@ -57,9 +57,9 @@ void helper_lmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
     for (; reg < 32; reg++) {
         if (needs_byteswap(env)) {
-            env->gpr[reg] = bswap32(cpu_ldl_data(env, addr));
+            env->gpr[reg] = bswap32(cpu_ldl_data_ra(env, addr, GETPC()));
         } else {
-            env->gpr[reg] = cpu_ldl_data(env, addr);
+            env->gpr[reg] = cpu_ldl_data_ra(env, addr, GETPC());
         }
         addr = addr_add(env, addr, 4);
     }
@@ -69,31 +69,39 @@ void helper_stmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
     for (; reg < 32; reg++) {
         if (needs_byteswap(env)) {
-            cpu_stl_data(env, addr, bswap32((uint32_t)env->gpr[reg]));
+            cpu_stl_data_ra(env, addr, bswap32((uint32_t)env->gpr[reg]),
+                                                   GETPC());
         } else {
-            cpu_stl_data(env, addr, (uint32_t)env->gpr[reg]);
+            cpu_stl_data_ra(env, addr, (uint32_t)env->gpr[reg], GETPC());
         }
         addr = addr_add(env, addr, 4);
     }
 }
 
-void helper_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb, uint32_t reg)
+static void do_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
+                   uint32_t reg, uintptr_t raddr)
 {
     int sh;
 
     for (; nb > 3; nb -= 4) {
-        env->gpr[reg] = cpu_ldl_data(env, addr);
+        env->gpr[reg] = cpu_ldl_data_ra(env, addr, raddr);
         reg = (reg + 1) % 32;
         addr = addr_add(env, addr, 4);
     }
     if (unlikely(nb > 0)) {
         env->gpr[reg] = 0;
         for (sh = 24; nb > 0; nb--, sh -= 8) {
-            env->gpr[reg] |= cpu_ldub_data(env, addr) << sh;
+            env->gpr[reg] |= cpu_ldub_data_ra(env, addr, raddr) << sh;
             addr = addr_add(env, addr, 1);
         }
     }
 }
+
+void helper_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb, uint32_t reg)
+{
+    do_lsw(env, addr, nb, reg, GETPC());
+}
+
 /* PPC32 specification says we must generate an exception if
  * rA is in the range of registers to be loaded.
  * In an other hand, IBM says this is valid, but rA won't be loaded.
@@ -106,12 +114,11 @@ void helper_lswx(CPUPPCState *env, target_ulong addr, uint32_t reg,
         int num_used_regs = (xer_bc + 3) / 4;
         if (unlikely((ra != 0 && lsw_reg_in_range(reg, num_used_regs, ra)) ||
                      lsw_reg_in_range(reg, num_used_regs, rb))) {
-            env->nip += 4;     /* Compensate the "nip - 4" from gen_lswx() */
-            helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                       POWERPC_EXCP_INVAL |
-                                       POWERPC_EXCP_INVAL_LSWX);
+            raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL |
+                                   POWERPC_EXCP_INVAL_LSWX, GETPC());
         } else {
-            helper_lsw(env, addr, xer_bc, reg);
+            do_lsw(env, addr, xer_bc, reg, GETPC());
         }
     }
 }
@@ -122,46 +129,51 @@ void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
     int sh;
 
     for (; nb > 3; nb -= 4) {
-        cpu_stl_data(env, addr, env->gpr[reg]);
+        cpu_stl_data_ra(env, addr, env->gpr[reg], GETPC());
         reg = (reg + 1) % 32;
         addr = addr_add(env, addr, 4);
     }
     if (unlikely(nb > 0)) {
         for (sh = 24; nb > 0; nb--, sh -= 8) {
-            cpu_stb_data(env, addr, (env->gpr[reg] >> sh) & 0xFF);
+            cpu_stb_data_ra(env, addr, (env->gpr[reg] >> sh) & 0xFF, GETPC());
             addr = addr_add(env, addr, 1);
         }
     }
 }
 
-static void do_dcbz(CPUPPCState *env, target_ulong addr, int dcache_line_size)
+void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode)
 {
-    int i;
-
-    addr &= ~(dcache_line_size - 1);
-    for (i = 0; i < dcache_line_size; i += 4) {
-        cpu_stl_data(env, addr + i, 0);
-    }
-    if (env->reserve_addr == addr) {
-        env->reserve_addr = (target_ulong)-1ULL;
-    }
-}
-
-void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t is_dcbzl)
-{
-    int dcbz_size = env->dcache_line_size;
+    target_ulong mask, dcbz_size = env->dcache_line_size;
+    uint32_t i;
+    void *haddr;
 
 #if defined(TARGET_PPC64)
-    if (!is_dcbzl &&
-        (env->excp_model == POWERPC_EXCP_970) &&
-        ((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1) {
+    /* Check for dcbz vs dcbzl on 970 */
+    if (env->excp_model == POWERPC_EXCP_970 &&
+        !(opcode & 0x00200000) && ((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1) {
         dcbz_size = 32;
     }
 #endif
 
-    /* XXX add e500mc support */
+    /* Align address */
+    mask = ~(dcbz_size - 1);
+    addr &= mask;
 
-    do_dcbz(env, addr, dcbz_size);
+    /* Check reservation */
+    if ((env->reserve_addr & mask) == (addr & mask))  {
+        env->reserve_addr = (target_ulong)-1ULL;
+    }
+
+    /* Try fast path translate */
+    haddr = tlb_vaddr_to_host(env, addr, MMU_DATA_STORE, env->dmmu_idx);
+    if (haddr) {
+        memset(haddr, 0, dcbz_size);
+    } else {
+        /* Slow path */
+        for (i = 0; i < dcbz_size; i += 8) {
+            cpu_stq_data_ra(env, addr + i, 0, GETPC());
+        }
+    }
 }
 
 void helper_icbi(CPUPPCState *env, target_ulong addr)
@@ -172,7 +184,7 @@ void helper_icbi(CPUPPCState *env, target_ulong addr)
      * (not a fetch) by the MMU. To be sure it will be so,
      * do the load "by hand".
      */
-    cpu_ldl_data(env, addr);
+    cpu_ldl_data_ra(env, addr, GETPC());
 }
 
 /* XXX: to be tested */
@@ -183,7 +195,7 @@ target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
 
     d = 24;
     for (i = 0; i < xer_bc; i++) {
-        c = cpu_ldub_data(env, addr);
+        c = cpu_ldub_data_ra(env, addr, GETPC());
         addr = addr_add(env, addr, 1);
         /* ra (if not 0) and rb are never modified */
         if (likely(reg != rb && (ra == 0 || reg != ra))) {

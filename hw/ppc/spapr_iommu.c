@@ -310,8 +310,8 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
     char tmp[32];
 
     if (spapr_tce_find_by_liobn(liobn)) {
-        fprintf(stderr, "Attempted to create TCE table with duplicate"
-                " LIOBN 0x%x\n", liobn);
+        error_report("Attempted to create TCE table with duplicate"
+                " LIOBN 0x%x", liobn);
         return NULL;
     }
 

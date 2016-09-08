@@ -86,6 +86,7 @@ enum powerpc_mmu_t {
     POWERPC_MMU_2_07       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
                              | POWERPC_MMU_64K
                              | POWERPC_MMU_AMR | 0x00000004,
+    /* FIXME Add POWERPC_MMU_3_OO defines */
     /* Architecture 2.07 "degraded" (no 1T segments)           */
     POWERPC_MMU_2_07a      = POWERPC_MMU_64 | POWERPC_MMU_AMR
                              | 0x00000004,
