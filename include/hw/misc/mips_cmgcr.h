@@ -41,6 +41,9 @@
 #define GCR_L2_CONFIG_BYPASS_SHF    20
 #define GCR_L2_CONFIG_BYPASS_MSK    ((0x1ULL) << GCR_L2_CONFIG_BYPASS_SHF)
 
+/* GCR_BASE register fields */
+#define GCR_BASE_GCRBASE_MSK     0xffffffff8000ULL
+
 /* GCR_GIC_BASE register fields */
 #define GCR_GIC_BASE_GICEN_MSK   1
 #define GCR_GIC_BASE_GICBASE_MSK 0xFFFFFFFE0000ULL
