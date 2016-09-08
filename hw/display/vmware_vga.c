@@ -676,11 +676,13 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
             cursor.bpp = vmsvga_fifo_read(s);
 
             args = SVGA_BITMAP_SIZE(x, y) + SVGA_PIXMAP_SIZE(x, y, cursor.bpp);
-            if (cursor.width > 256 ||
-                cursor.height > 256 ||
-                cursor.bpp > 32 ||
-                SVGA_BITMAP_SIZE(x, y) > sizeof cursor.mask ||
-                SVGA_PIXMAP_SIZE(x, y, cursor.bpp) > sizeof cursor.image) {
+            if (cursor.width > 256
+                || cursor.height > 256
+                || cursor.bpp > 32
+                || SVGA_BITMAP_SIZE(x, y)
+                    > sizeof(cursor.mask) / sizeof(cursor.mask[0])
+                || SVGA_PIXMAP_SIZE(x, y, cursor.bpp)
+                    > sizeof(cursor.image) / sizeof(cursor.image[0])) {
                     goto badcmd;
             }
 
