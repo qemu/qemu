@@ -3585,10 +3585,13 @@ static void gen_rfi(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     GEN_PRIV;
 #else
-    /* FIXME: This instruction doesn't exist anymore on 64-bit server
-     * processors compliant with arch 2.x, we should remove it there,
-     * but we need to fix OpenBIOS not to use it on 970 first
+    /* This instruction doesn't exist anymore on 64-bit server
+     * processors compliant with arch 2.x
      */
+    if (ctx->insns_flags & PPC_SEGMENT_64B) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        return;
+    }
     /* Restore CPU state */
     CHK_SV;
     gen_update_cfar(ctx, ctx->nip - 4);
