@@ -164,6 +164,8 @@ int load_uimage(const char *filename, hwaddr *ep,
  */
 int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz);
 
+ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src, size_t srclen);
+
 ssize_t read_targphys(const char *name,
                       int fd, hwaddr dst_addr, size_t nbytes);
 void pstrcpy_targphys(const char *name,
@@ -213,5 +215,9 @@ void hmp_info_roms(Monitor *mon, const QDict *qdict);
 
 int rom_add_vga(const char *file);
 int rom_add_option(const char *file, int32_t bootindex);
+
+/* This is the usual maximum in uboot, so if a uImage overflows this, it would
+ * overflow on real hardware too. */
+#define UBOOT_MAX_GUNZIP_BYTES (64 << 20)
 
 #endif

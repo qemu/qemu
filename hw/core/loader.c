@@ -527,12 +527,7 @@ static void zfree(void *x, void *addr)
 
 #define DEFLATED	8
 
-/* This is the usual maximum in uboot, so if a uImage overflows this, it would
- * overflow on real hardware too. */
-#define UBOOT_MAX_GUNZIP_BYTES (64 << 20)
-
-static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
-                      size_t srclen)
+ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src, size_t srclen)
 {
     z_stream s;
     ssize_t dstbytes;
