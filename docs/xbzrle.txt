@@ -42,7 +42,7 @@ nzrun = length byte...
 length = uleb128 encoded integer
 
 On the sender side XBZRLE is used as a compact delta encoding of page updates,
-retrieving the old page content from the cache (default size of 512 MB). The
+retrieving the old page content from the cache (default size of 64MB). The
 receiving side uses the existing page's content and XBZRLE to decode the new
 page's content.
 
@@ -73,7 +73,7 @@ e9 07 0f 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 03 01 67 01 01 69
 
 Cache update strategy
 =====================
-Keeping the hot pages in the cache is effective for decreased cache
+Keeping the hot pages in the cache is effective for decreasing cache
 misses. XBZRLE uses a counter as the age of each page. The counter will
 increase after each ram dirty bitmap sync. When a cache conflict is
 detected, XBZRLE will only evict pages in the cache that are older than
