@@ -122,6 +122,17 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
      */
     vpci_dev->modern_mem_bar = 2;
     vpci_dev->msix_bar = 4;
+
+    if (!(vpci_dev->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ)) {
+        /*
+         * with page-per-vq=off there is no padding space we can use
+         * for the stdvga registers.  Make the common and isr regions
+         * smaller then.
+         */
+        vpci_dev->common.size /= 2;
+        vpci_dev->isr.size /= 2;
+    }
+
     offset = memory_region_size(&vpci_dev->modern_bar);
     offset -= vpci_dev->notify.size;
     vpci_dev->notify.offset = offset;
