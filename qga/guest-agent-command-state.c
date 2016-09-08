@@ -71,3 +71,9 @@ GACommandState *ga_command_state_new(void)
     cs->groups = NULL;
     return cs;
 }
+
+void ga_command_state_free(GACommandState *cs)
+{
+    g_slist_free_full(cs->groups, g_free);
+    g_free(cs);
+}

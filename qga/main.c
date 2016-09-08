@@ -1175,6 +1175,7 @@ static void config_free(GAConfig *config)
 #ifdef CONFIG_FSFREEZE
     g_free(config->fsfreeze_hook);
 #endif
+    g_list_free_full(config->blacklist, g_free);
     g_free(config);
 }
 
@@ -1310,11 +1311,6 @@ static int run_agent(GAState *s, GAConfig *config)
     return EXIT_SUCCESS;
 }
 
-static void free_blacklist_entry(gpointer entry, gpointer unused)
-{
-    g_free(entry);
-}
-
 int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
@@ -1375,11 +1371,12 @@ int main(int argc, char **argv)
 end:
     if (s->command_state) {
         ga_command_state_cleanup_all(s->command_state);
+        ga_command_state_free(s->command_state);
+        json_message_parser_destroy(&s->parser);
     }
     if (s->channel) {
         ga_channel_free(s->channel);
     }
-    g_list_foreach(config->blacklist, free_blacklist_entry, NULL);
     g_free(s->pstate_filepath);
     g_free(s->state_filepath_isfrozen);
 
@@ -1388,6 +1385,10 @@ end:
     }
 
     config_free(config);
+    if (s->main_loop) {
+        g_main_loop_unref(s->main_loop);
+    }
+    g_free(s);
 
     return ret;
 }

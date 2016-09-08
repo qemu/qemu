@@ -208,6 +208,9 @@ static void test_io(void)
                } while(k < j);
            }
        }
+       iov_free(iov, niov);
+       g_free(buf);
+       g_free(siov);
        exit(0);
 
     } else {
@@ -246,6 +249,10 @@ static void test_io(void)
                test_iov_bytes(iov, niov, i, j - i);
            }
         }
+
+       iov_free(iov, niov);
+       g_free(buf);
+       g_free(siov);
      }
 #endif
 }

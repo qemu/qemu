@@ -692,6 +692,7 @@ struct FDCtrl {
     /* Timers state */
     uint8_t timer0;
     uint8_t timer1;
+    PortioList portio_list;
 };
 
 static FloppyDriveType get_fallback_drive_type(FDrive *drv)
@@ -2495,7 +2496,8 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
     FDCtrl *fdctrl = &isa->state;
     Error *err = NULL;
 
-    isa_register_portio_list(isadev, isa->iobase, fdc_portio_list, fdctrl,
+    isa_register_portio_list(isadev, &fdctrl->portio_list,
+                             isa->iobase, fdc_portio_list, fdctrl,
                              "fdc");
 
     isa_init_irq(isadev, &fdctrl->irq, isa->irq);

@@ -378,7 +378,7 @@ static void test_qemu_strtol_hex(void)
 
 static void test_qemu_strtol_max(void)
 {
-    const char *str = g_strdup_printf("%ld", LONG_MAX);
+    char *str = g_strdup_printf("%ld", LONG_MAX);
     char f = 'X';
     const char *endptr = &f;
     long res = 999;
@@ -389,6 +389,7 @@ static void test_qemu_strtol_max(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, LONG_MAX);
     g_assert(endptr == str + strlen(str));
+    g_free(str);
 }
 
 static void test_qemu_strtol_overflow(void)
@@ -497,7 +498,7 @@ static void test_qemu_strtol_full_trailing(void)
 
 static void test_qemu_strtol_full_max(void)
 {
-    const char *str = g_strdup_printf("%ld", LONG_MAX);
+    char *str = g_strdup_printf("%ld", LONG_MAX);
     long res;
     int err;
 
@@ -505,6 +506,7 @@ static void test_qemu_strtol_full_max(void)
 
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, LONG_MAX);
+    g_free(str);
 }
 
 static void test_qemu_strtoul_correct(void)
@@ -662,7 +664,7 @@ static void test_qemu_strtoul_hex(void)
 
 static void test_qemu_strtoul_max(void)
 {
-    const char *str = g_strdup_printf("%lu", ULONG_MAX);
+    char *str = g_strdup_printf("%lu", ULONG_MAX);
     char f = 'X';
     const char *endptr = &f;
     unsigned long res = 999;
@@ -673,6 +675,7 @@ static void test_qemu_strtoul_max(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, ULONG_MAX);
     g_assert(endptr == str + strlen(str));
+    g_free(str);
 }
 
 static void test_qemu_strtoul_overflow(void)
@@ -776,7 +779,7 @@ static void test_qemu_strtoul_full_trailing(void)
 
 static void test_qemu_strtoul_full_max(void)
 {
-    const char *str = g_strdup_printf("%lu", ULONG_MAX);
+    char *str = g_strdup_printf("%lu", ULONG_MAX);
     unsigned long res = 999;
     int err;
 
@@ -784,6 +787,7 @@ static void test_qemu_strtoul_full_max(void)
 
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, ULONG_MAX);
+    g_free(str);
 }
 
 static void test_qemu_strtoll_correct(void)
@@ -941,7 +945,7 @@ static void test_qemu_strtoll_hex(void)
 
 static void test_qemu_strtoll_max(void)
 {
-    const char *str = g_strdup_printf("%lld", LLONG_MAX);
+    char *str = g_strdup_printf("%lld", LLONG_MAX);
     char f = 'X';
     const char *endptr = &f;
     int64_t res = 999;
@@ -952,6 +956,7 @@ static void test_qemu_strtoll_max(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, LLONG_MAX);
     g_assert(endptr == str + strlen(str));
+    g_free(str);
 }
 
 static void test_qemu_strtoll_overflow(void)
@@ -1058,7 +1063,7 @@ static void test_qemu_strtoll_full_trailing(void)
 static void test_qemu_strtoll_full_max(void)
 {
 
-    const char *str = g_strdup_printf("%lld", LLONG_MAX);
+    char *str = g_strdup_printf("%lld", LLONG_MAX);
     int64_t res;
     int err;
 
@@ -1066,6 +1071,7 @@ static void test_qemu_strtoll_full_max(void)
 
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, LLONG_MAX);
+    g_free(str);
 }
 
 static void test_qemu_strtoull_correct(void)
@@ -1223,7 +1229,7 @@ static void test_qemu_strtoull_hex(void)
 
 static void test_qemu_strtoull_max(void)
 {
-    const char *str = g_strdup_printf("%llu", ULLONG_MAX);
+    char *str = g_strdup_printf("%llu", ULLONG_MAX);
     char f = 'X';
     const char *endptr = &f;
     uint64_t res = 999;
@@ -1234,6 +1240,7 @@ static void test_qemu_strtoull_max(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, ULLONG_MAX);
     g_assert(endptr == str + strlen(str));
+    g_free(str);
 }
 
 static void test_qemu_strtoull_overflow(void)
@@ -1339,7 +1346,7 @@ static void test_qemu_strtoull_full_trailing(void)
 
 static void test_qemu_strtoull_full_max(void)
 {
-    const char *str = g_strdup_printf("%lld", ULLONG_MAX);
+    char *str = g_strdup_printf("%lld", ULLONG_MAX);
     uint64_t res = 999;
     int err;
 
@@ -1347,6 +1354,7 @@ static void test_qemu_strtoull_full_max(void)
 
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, ULLONG_MAX);
+    g_free(str);
 }
 
 static void test_qemu_strtosz_simple(void)

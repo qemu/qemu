@@ -1876,6 +1876,14 @@ static void sd_instance_init(Object *obj)
     sd->ocr_power_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sd_ocr_powerup, sd);
 }
 
+static void sd_instance_finalize(Object *obj)
+{
+    SDState *sd = SD_CARD(obj);
+
+    timer_del(sd->ocr_power_timer);
+    timer_free(sd->ocr_power_timer);
+}
+
 static void sd_realize(DeviceState *dev, Error **errp)
 {
     SDState *sd = SD_CARD(dev);
@@ -1927,6 +1935,7 @@ static const TypeInfo sd_info = {
     .class_size = sizeof(SDCardClass),
     .class_init = sd_class_init,
     .instance_init = sd_instance_init,
+    .instance_finalize = sd_instance_finalize,
 };
 
 static void sd_register_types(void)

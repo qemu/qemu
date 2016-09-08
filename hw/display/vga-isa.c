@@ -39,6 +39,8 @@ typedef struct ISAVGAState {
     ISADevice parent_obj;
 
     struct VGACommonState state;
+    PortioList portio_vga;
+    PortioList portio_vbe;
 } ISAVGAState;
 
 static void vga_isa_reset(DeviceState *dev)
@@ -60,9 +62,11 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
     vga_common_init(s, OBJECT(dev), true);
     s->legacy_address_space = isa_address_space(isadev);
     vga_io_memory = vga_init_io(s, OBJECT(dev), &vga_ports, &vbe_ports);
-    isa_register_portio_list(isadev, 0x3b0, vga_ports, s, "vga");
+    isa_register_portio_list(isadev, &d->portio_vga,
+                             0x3b0, vga_ports, s, "vga");
     if (vbe_ports) {
-        isa_register_portio_list(isadev, 0x1ce, vbe_ports, s, "vbe");
+        isa_register_portio_list(isadev, &d->portio_vbe,
+                                 0x1ce, vbe_ports, s, "vbe");
     }
     memory_region_add_subregion_overlap(isa_address_space(isadev),
                                         0x000a0000,

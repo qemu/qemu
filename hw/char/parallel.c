@@ -80,6 +80,7 @@ typedef struct ParallelState {
     uint32_t last_read_offset; /* For debugging */
     /* Memory-mapped interface */
     int it_shift;
+    PortioList portio_list;
 } ParallelState;
 
 #define TYPE_ISA_PARALLEL "isa-parallel"
@@ -532,7 +533,7 @@ static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
         s->status = dummy;
     }
 
-    isa_register_portio_list(isadev, base,
+    isa_register_portio_list(isadev, &s->portio_list, base,
                              (s->hw_driver
                               ? &isa_parallel_portio_hw_list[0]
                               : &isa_parallel_portio_sw_list[0]),

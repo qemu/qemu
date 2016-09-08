@@ -76,6 +76,7 @@ static void test_interface_impl(const char *type)
 
     g_assert(iobj);
     g_assert(ioc->test == PATTERN);
+    object_unref(obj);
 }
 
 static void interface_direct_test(void)

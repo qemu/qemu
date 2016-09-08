@@ -78,8 +78,7 @@ static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
 {
     const char *typename = object_get_typename(OBJECT(bus));
     BusClass *bc;
-    char *buf;
-    int i, len, bus_id;
+    int i, bus_id;
 
     bus->parent = parent;
 
@@ -88,23 +87,15 @@ static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
     } else if (bus->parent && bus->parent->id) {
         /* parent device has id -> use it plus parent-bus-id for bus name */
         bus_id = bus->parent->num_child_bus;
-
-        len = strlen(bus->parent->id) + 16;
-        buf = g_malloc(len);
-        snprintf(buf, len, "%s.%d", bus->parent->id, bus_id);
-        bus->name = buf;
+        bus->name = g_strdup_printf("%s.%d", bus->parent->id, bus_id);
     } else {
         /* no id -> use lowercase bus type plus global bus-id for bus name */
         bc = BUS_GET_CLASS(bus);
         bus_id = bc->automatic_ids++;
-
-        len = strlen(typename) + 16;
-        buf = g_malloc(len);
-        len = snprintf(buf, len, "%s.%d", typename, bus_id);
-        for (i = 0; i < len; i++) {
-            buf[i] = qemu_tolower(buf[i]);
+        bus->name = g_strdup_printf("%s.%d", typename, bus_id);
+        for (i = 0; bus->name[i]; i++) {
+            bus->name[i] = qemu_tolower(bus->name[i]);
         }
-        bus->name = buf;
     }
 
     if (bus->parent) {
@@ -229,7 +220,7 @@ static void qbus_finalize(Object *obj)
 {
     BusState *bus = BUS(obj);
 
-    g_free((char *)bus->name);
+    g_free(bus->name);
 }
 
 static const TypeInfo bus_info = {

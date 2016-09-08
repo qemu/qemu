@@ -74,7 +74,6 @@ static void pc_init1(MachineState *machine,
     ISABus *isa_bus;
     PCII440FXState *i440fx_state;
     int piix3_devfn = -1;
-    qemu_irq *gsi;
     qemu_irq *i8259;
     qemu_irq smi_irq;
     GSIState *gsi_state;
@@ -185,16 +184,16 @@ static void pc_init1(MachineState *machine,
     gsi_state = g_malloc0(sizeof(*gsi_state));
     if (kvm_ioapic_in_kernel()) {
         kvm_pc_setup_irq_routing(pcmc->pci_enabled);
-        gsi = qemu_allocate_irqs(kvm_pc_gsi_handler, gsi_state,
-                                 GSI_NUM_PINS);
+        pcms->gsi = qemu_allocate_irqs(kvm_pc_gsi_handler, gsi_state,
+                                       GSI_NUM_PINS);
     } else {
-        gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
+        pcms->gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
     }
 
     if (pcmc->pci_enabled) {
         pci_bus = i440fx_init(host_type,
                               pci_type,
-                              &i440fx_state, &piix3_devfn, &isa_bus, gsi,
+                              &i440fx_state, &piix3_devfn, &isa_bus, pcms->gsi,
                               system_memory, system_io, machine->ram_size,
                               pcms->below_4g_mem_size,
                               pcms->above_4g_mem_size,
@@ -207,7 +206,7 @@ static void pc_init1(MachineState *machine,
                               &error_abort);
         no_hpet = 1;
     }
-    isa_bus_irqs(isa_bus, gsi);
+    isa_bus_irqs(isa_bus, pcms->gsi);
 
     if (kvm_pic_in_kernel()) {
         i8259 = kvm_i8259_init(isa_bus);
@@ -225,7 +224,7 @@ static void pc_init1(MachineState *machine,
         ioapic_init_gsi(gsi_state, "i440fx");
     }
 
-    pc_register_ferr_irq(gsi[13]);
+    pc_register_ferr_irq(pcms->gsi[13]);
 
     pc_vga_init(isa_bus, pcmc->pci_enabled ? pci_bus : NULL);
 
@@ -235,7 +234,7 @@ static void pc_init1(MachineState *machine,
     }
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, true,
+    pc_basic_device_init(isa_bus, pcms->gsi, &rtc_state, true,
                          (pcms->vmport != ON_OFF_AUTO_ON), 0x4);
 
     pc_nic_init(isa_bus, pci_bus);
@@ -279,7 +278,7 @@ static void pc_init1(MachineState *machine,
         smi_irq = qemu_allocate_irq(pc_acpi_smi_interrupt, first_cpu, 0);
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
-                              gsi[9], smi_irq,
+                              pcms->gsi[9], smi_irq,
                               pc_machine_is_smm_enabled(pcms),
                               &piix4_pm);
         smbus_eeprom_init(smbus, 8, NULL, 0);

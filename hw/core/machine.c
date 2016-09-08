@@ -561,6 +561,7 @@ static void machine_class_finalize(ObjectClass *klass, void *data)
     if (mc->compat_props) {
         g_array_free(mc->compat_props, true);
     }
+    g_free(mc->name);
 }
 
 void machine_register_compat_props(MachineState *machine)

@@ -93,7 +93,7 @@ struct MachineClass {
     /*< public >*/
 
     const char *family; /* NULL iff @name identifies a standalone machtype */
-    const char *name;
+    char *name;
     const char *alias;
     const char *desc;
 

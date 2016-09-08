@@ -28,6 +28,7 @@ void ga_command_state_add(GACommandState *cs,
 void ga_command_state_init_all(GACommandState *cs);
 void ga_command_state_cleanup_all(GACommandState *cs);
 GACommandState *ga_command_state_new(void);
+void ga_command_state_free(GACommandState *cs);
 bool ga_logging_enabled(GAState *s);
 void ga_disable_logging(GAState *s);
 void ga_enable_logging(GAState *s);

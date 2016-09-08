@@ -789,7 +789,7 @@ static gint crs_range_compare(gconstpointer a, gconstpointer b)
 static void crs_replace_with_free_ranges(GPtrArray *ranges,
                                          uint64_t start, uint64_t end)
 {
-    GPtrArray *free_ranges = g_ptr_array_new_with_free_func(crs_range_free);
+    GPtrArray *free_ranges = g_ptr_array_new();
     uint64_t free_base = start;
     int i;
 
@@ -813,7 +813,7 @@ static void crs_replace_with_free_ranges(GPtrArray *ranges,
         g_ptr_array_add(ranges, g_ptr_array_index(free_ranges, i));
     }
 
-    g_ptr_array_free(free_ranges, false);
+    g_ptr_array_free(free_ranges, true);
 }
 
 /*
