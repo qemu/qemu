@@ -117,10 +117,10 @@ run_qemu <<EOF
       "options": {
         "driver": "$IMGFMT",
         "node-name": "disk",
-        "aio": "native",
         "file": {
             "driver": "file",
-            "filename": "$TEST_IMG"
+            "filename": "$TEST_IMG",
+            "aio": "native"
         }
       }
     }
