@@ -2071,7 +2071,8 @@ static abi_ulong *restore_sigframe_v2_iwmmxt(CPUARMState *env,
     return (abi_ulong*)(iwmmxtframe + 1);
 }
 
-static int do_sigframe_return_v2(CPUARMState *env, target_ulong frame_addr,
+static int do_sigframe_return_v2(CPUARMState *env,
+                                 target_ulong context_addr,
                                  struct target_ucontext_v2 *uc)
 {
     sigset_t host_set;
@@ -2098,8 +2099,11 @@ static int do_sigframe_return_v2(CPUARMState *env, target_ulong frame_addr,
         }
     }
 
-    if (do_sigaltstack(frame_addr + offsetof(struct target_ucontext_v2, tuc_stack), 0, get_sp_from_cpustate(env)) == -EFAULT)
+    if (do_sigaltstack(context_addr
+                       + offsetof(struct target_ucontext_v2, tuc_stack),
+                       0, get_sp_from_cpustate(env)) == -EFAULT) {
         return 1;
+    }
 
 #if 0
     /* Send SIGTRAP if we're single-stepping */
@@ -2130,7 +2134,10 @@ static long do_sigreturn_v2(CPUARMState *env)
         goto badframe;
     }
 
-    if (do_sigframe_return_v2(env, frame_addr, &frame->uc)) {
+    if (do_sigframe_return_v2(env,
+                              frame_addr
+                              + offsetof(struct sigframe_v2, uc),
+                              &frame->uc)) {
         goto badframe;
     }
 
@@ -2217,7 +2224,10 @@ static long do_rt_sigreturn_v2(CPUARMState *env)
         goto badframe;
     }
 
-    if (do_sigframe_return_v2(env, frame_addr, &frame->uc)) {
+    if (do_sigframe_return_v2(env,
+                              frame_addr
+                              + offsetof(struct rt_sigframe_v2, uc),
+                              &frame->uc)) {
         goto badframe;
     }
 
