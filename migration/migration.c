@@ -796,6 +796,7 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "cpu_throttle_initial",
                    "an integer in the range of 1 to 99");
+        return;
     }
     if (params->has_cpu_throttle_increment &&
         (params->cpu_throttle_increment < 1 ||
@@ -803,6 +804,7 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "cpu_throttle_increment",
                    "an integer in the range of 1 to 99");
+        return;
     }
 
     if (params->has_compress_level) {
