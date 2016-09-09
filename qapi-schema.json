@@ -668,75 +668,45 @@
 #
 # @migrate-set-parameters
 #
-# Set the following migration parameters
-#
-# @compress-level: compression level
-#
-# @compress-threads: compression thread count
-#
-# @decompress-threads: decompression thread count
-#
-# @cpu-throttle-initial: Initial percentage of time guest cpus are throttled
-#                        when migration auto-converge is activated. The
-#                        default value is 20. (Since 2.7)
-#
-# @cpu-throttle-increment: throttle percentage increase each time
-#                          auto-converge detects that migration is not making
-#                          progress. The default value is 10. (Since 2.7)
-#
-# @tls-creds: ID of the 'tls-creds' object that provides credentials for
-#             establishing a TLS connection over the migration data channel.
-#             On the outgoing side of the migration, the credentials must
-#             be for a 'client' endpoint, while for the incoming side the
-#             credentials must be for a 'server' endpoint. Setting this
-#             will enable TLS for all migrations. The default is unset,
-#             resulting in unsecured migration at the QEMU level. (Since 2.7)
-#
-# @tls-hostname: hostname of the target host for the migration. This is
-#                required when using x509 based TLS credentials and the
-#                migration URI does not already include a hostname. For
-#                example if using fd: or exec: based migration, the
-#                hostname must be provided so that the server's x509
-#                certificate identity can be validated. (Since 2.7)
+# Set various migration parameters.  See MigrationParameters for details.
 #
 # Since: 2.4
 ##
 { 'command': 'migrate-set-parameters',
-  'data': { '*compress-level': 'int',
-            '*compress-threads': 'int',
-            '*decompress-threads': 'int',
-            '*cpu-throttle-initial': 'int',
-            '*cpu-throttle-increment': 'int',
-            '*tls-creds': 'str',
-            '*tls-hostname': 'str'} }
+  'data': 'MigrationParameters' }
 
 #
 # @MigrationParameters
 #
-# @compress-level: compression level
+# Optional members can be omitted on input ('migrate-set-parameters')
+# but most members will always be present on output
+# ('query-migrate-parameters'), with the exception of tls-creds and
+# tls-hostname.
 #
-# @compress-threads: compression thread count
+# @compress-level: #optional compression level
 #
-# @decompress-threads: decompression thread count
+# @compress-threads: #optional compression thread count
 #
-# @cpu-throttle-initial: Initial percentage of time guest cpus are throttled
-#                        when migration auto-converge is activated. The
-#                        default value is 20. (Since 2.7)
+# @decompress-threads: #optional decompression thread count
 #
-# @cpu-throttle-increment: throttle percentage increase each time
+# @cpu-throttle-initial: #optional Initial percentage of time guest cpus are
+#                        throttledwhen migration auto-converge is activated.
+#                        The default value is 20. (Since 2.7)
+#
+# @cpu-throttle-increment: #optional throttle percentage increase each time
 #                          auto-converge detects that migration is not making
 #                          progress. The default value is 10. (Since 2.7)
 #
-# @tls-creds: ID of the 'tls-creds' object that provides credentials for
-#             establishing a TLS connection over the migration data channel.
-#             On the outgoing side of the migration, the credentials must
-#             be for a 'client' endpoint, while for the incoming side the
+# @tls-creds: #optional ID of the 'tls-creds' object that provides credentials
+#             for establishing a TLS connection over the migration data
+#             channel. On the outgoing side of the migration, the credentials
+#             must be for a 'client' endpoint, while for the incoming side the
 #             credentials must be for a 'server' endpoint. Setting this
 #             will enable TLS for all migrations. The default is unset,
 #             resulting in unsecured migration at the QEMU level. (Since 2.7)
 #
-# @tls-hostname: hostname of the target host for the migration. This is
-#                required when using x509 based TLS credentials and the
+# @tls-hostname: #optional hostname of the target host for the migration. This
+#                is required when using x509 based TLS credentials and the
 #                migration URI does not already include a hostname. For
 #                example if using fd: or exec: based migration, the
 #                hostname must be provided so that the server's x509
@@ -745,14 +715,13 @@
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
-  'data': { 'compress-level': 'int',
-            'compress-threads': 'int',
-            'decompress-threads': 'int',
-            'cpu-throttle-initial': 'int',
-            'cpu-throttle-increment': 'int',
-            'tls-creds': 'str',
-            'tls-hostname': 'str'} }
-
+  'data': { '*compress-level': 'int',
+            '*compress-threads': 'int',
+            '*decompress-threads': 'int',
+            '*cpu-throttle-initial': 'int',
+            '*cpu-throttle-increment': 'int',
+            '*tls-creds': 'str',
+            '*tls-hostname': 'str'} }
 ##
 # @query-migrate-parameters
 #

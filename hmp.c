@@ -284,27 +284,32 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
 
     if (params) {
         monitor_printf(mon, "parameters:");
+        assert(params->has_compress_level);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_COMPRESS_LEVEL],
             params->compress_level);
+        assert(params->has_compress_threads);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_COMPRESS_THREADS],
             params->compress_threads);
+        assert(params->has_decompress_threads);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_DECOMPRESS_THREADS],
             params->decompress_threads);
+        assert(params->has_cpu_throttle_initial);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL],
             params->cpu_throttle_initial);
+        assert(params->has_cpu_throttle_increment);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT],
             params->cpu_throttle_increment);
         monitor_printf(mon, " %s: '%s'",
             MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_CREDS],
-            params->tls_creds ? : "");
+            params->has_tls_creds ? params->tls_creds : "");
         monitor_printf(mon, " %s: '%s'",
             MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_HOSTNAME],
-            params->tls_hostname ? : "");
+            params->has_tls_hostname ? params->tls_hostname : "");
         monitor_printf(mon, "\n");
     }
 

@@ -559,12 +559,19 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     MigrationState *s = migrate_get_current();
 
     params = g_malloc0(sizeof(*params));
+    params->has_compress_level = true;
     params->compress_level = s->parameters.compress_level;
+    params->has_compress_threads = true;
     params->compress_threads = s->parameters.compress_threads;
+    params->has_decompress_threads = true;
     params->decompress_threads = s->parameters.decompress_threads;
+    params->has_cpu_throttle_initial = true;
     params->cpu_throttle_initial = s->parameters.cpu_throttle_initial;
+    params->has_cpu_throttle_increment = true;
     params->cpu_throttle_increment = s->parameters.cpu_throttle_increment;
+    params->has_tls_creds = !!s->parameters.tls_creds;
     params->tls_creds = g_strdup(s->parameters.tls_creds);
+    params->has_tls_hostname = !!s->parameters.tls_hostname;
     params->tls_hostname = g_strdup(s->parameters.tls_hostname);
 
     return params;
