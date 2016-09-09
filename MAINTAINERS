@@ -226,6 +226,7 @@ M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
 S: Maintained
 F: target-tricore/
 F: hw/tricore/
+F: include/hw/tricore/
 
 Guest CPU Cores (KVM):
 ----------------------
