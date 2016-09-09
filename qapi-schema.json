@@ -672,7 +672,7 @@
 #
 # Since: 2.4
 ##
-{ 'command': 'migrate-set-parameters',
+{ 'command': 'migrate-set-parameters', 'boxed': true,
   'data': 'MigrationParameters' }
 
 #
