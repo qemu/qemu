@@ -135,6 +135,7 @@ typedef struct TestServer {
     CompatGCond data_cond;
     int log_fd;
     uint64_t rings;
+    bool test_fail;
 } TestServer;
 
 static const char *tmpfs;
@@ -248,6 +249,12 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     VhostUserMsg msg;
     uint8_t *p = (uint8_t *) &msg;
     int fd;
+
+    if (s->test_fail) {
+        qemu_chr_disconnect(chr);
+        /* now switch to non-failure */
+        s->test_fail = false;
+    }
 
     if (size != VHOST_USER_HDR_SIZE) {
         g_test_message("Wrong message size received %d\n", size);
@@ -715,6 +722,35 @@ static void test_reconnect(void)
     g_test_trap_assert_passed();
     g_free(path);
 }
+
+static void test_connect_fail_subprocess(void)
+{
+    TestServer *s = test_server_new("connect-fail");
+    char *cmd;
+
+    s->test_fail = true;
+    g_thread_new("connect", connect_thread, s);
+    cmd = GET_QEMU_CMDE(s, 2, ",server", "");
+    qtest_start(cmd);
+    g_free(cmd);
+
+    init_virtio_dev(s);
+    wait_for_fds(s);
+    wait_for_rings_started(s, 2);
+
+    qtest_end();
+    test_server_free(s);
+}
+
+static void test_connect_fail(void)
+{
+    gchar *path = g_strdup_printf("/%s/vhost-user/connect-fail/subprocess",
+                                  qtest_get_arch());
+    g_test_trap_subprocess(path, 0, 0);
+    g_test_trap_assert_passed();
+    g_free(path);
+}
+
 #endif
 
 int main(int argc, char **argv)
@@ -766,6 +802,9 @@ int main(int argc, char **argv)
     qtest_add_func("/vhost-user/reconnect/subprocess",
                    test_reconnect_subprocess);
     qtest_add_func("/vhost-user/reconnect", test_reconnect);
+    qtest_add_func("/vhost-user/connect-fail/subprocess",
+                   test_connect_fail_subprocess);
+    qtest_add_func("/vhost-user/connect-fail", test_connect_fail);
 #endif
 
     ret = g_test_run();
