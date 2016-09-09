@@ -830,6 +830,7 @@ Network devices
 M: Jason Wang <jasowang@redhat.com>
 S: Odd Fixes
 F: hw/net/
+F: tests/virtio-net-test.c
 T: git git://github.com/jasowang/qemu.git net
 
 SCSI
@@ -837,6 +838,7 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 S: Supported
 F: include/hw/scsi/*
 F: hw/scsi/*
+F: tests/virtio-scsi-test.c
 T: git git://github.com/bonzini/qemu.git scsi-next
 
 LSI53C895A
@@ -889,6 +891,7 @@ S: Supported
 F: hw/*/virtio*
 F: net/vhost-user.c
 F: include/hw/virtio/
+F: tests/virtio-balloon-test.c
 
 virtio-9p
 M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
@@ -907,6 +910,7 @@ S: Supported
 F: hw/block/virtio-blk.c
 F: hw/block/dataplane/*
 F: hw/virtio/dataplane/*
+F: tests/virtio-blk-test.c
 T: git git://github.com/stefanha/qemu.git block
 
 virtio-ccw
@@ -929,6 +933,8 @@ S: Supported
 F: hw/char/virtio-serial-bus.c
 F: hw/char/virtio-console.c
 F: include/hw/virtio/virtio-serial.h
+F: tests/virtio-console-test.c
+F: tests/virtio-serial-test.c
 
 virtio-rng
 M: Amit Shah <amit.shah@redhat.com>
@@ -937,6 +943,7 @@ F: hw/virtio/virtio-rng.c
 F: include/hw/virtio/virtio-rng.h
 F: include/sysemu/rng*.h
 F: backends/rng*.c
+F: tests/virtio-rng-test.c
 
 nvme
 M: Keith Busch <keith.busch@intel.com>
