@@ -1776,7 +1776,7 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
         proxy->disable_legacy = pcie_port ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
 
-    if (!(virtio_pci_modern(proxy) || virtio_pci_legacy(proxy))) {
+    if (!virtio_pci_modern(proxy) && !virtio_pci_legacy(proxy)) {
         error_setg(errp, "device cannot work as neither modern nor legacy mode"
                    " is enabled");
         error_append_hint(errp, "Set either disable-modern or disable-legacy"
