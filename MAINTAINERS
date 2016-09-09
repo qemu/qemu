@@ -187,6 +187,7 @@ S: Odd Fixes
 F: target-sh4/
 F: hw/sh4/
 F: disas/sh4.c
+F: include/hw/sh4/
 
 SPARC
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
