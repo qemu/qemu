@@ -3,6 +3,8 @@
 # Simple wrapper for debootstrap, run in the docker build context
 #
 FAKEROOT=`which fakeroot 2> /dev/null`
+# debootstrap < 1.0.67 generates empty sources.list, see Debian#732255
+MIN_DEBOOTSTRAP_VERSION=1.0.67
 
 exit_and_skip()
 {
@@ -13,8 +15,21 @@ exit_and_skip()
 # fakeroot is needed to run the bootstrap stage
 #
 if [ -z $FAKEROOT ]; then
-    echo "Please install fakeroot to enable bootstraping"
+    echo "Please install fakeroot to enable bootstraping" >&2
     exit_and_skip
+
+fi
+
+if [ -z "${DEB_ARCH}" ]; then
+    echo "Please set DEB_ARCH to choose an architecture (e.g. armhf)" >&2
+    exit_and_skip
+
+fi
+
+if [ -z "${DEB_TYPE}" ]; then
+    echo "Please set DEB_TYPE to a Debian archive name (e.g. testing)" >&2
+    exit_and_skip
+
 fi
 
 # We check in order for
@@ -27,18 +42,27 @@ fi
 #
 
 if [ -z $DEBOOTSTRAP_DIR ]; then
+    NEED_DEBOOTSTRAP=false
     DEBOOTSTRAP=`which debootstrap 2> /dev/null`
     if [ -z $DEBOOTSTRAP ]; then
         echo "No debootstrap installed, attempting to install from SCM"
+        NEED_DEBOOTSTRAP=true
+    elif ! (echo "${MIN_DEBOOTSTRAP_VERSION}" ; "${DEBOOTSTRAP}" --version \
+            | cut -d ' ' -f 2) | sort -t . -n -k 1,1 -k 2,2 -k 3,3 -c &>/dev/null; then
+        echo "debootstrap too old, attempting to install from SCM"
+        NEED_DEBOOTSTRAP=true
+    fi
+    if $NEED_DEBOOTSTRAP; then
         DEBOOTSTRAP_SOURCE=https://anonscm.debian.org/git/d-i/debootstrap.git
         git clone ${DEBOOTSTRAP_SOURCE} ./debootstrap.git
         export DEBOOTSTRAP_DIR=./debootstrap.git
         DEBOOTSTRAP=./debootstrap.git/debootstrap
+        (cd "${DEBOOTSTRAP_DIR}" && "${FAKEROOT}" make )
     fi
 else
     DEBOOTSTRAP=${DEBOOTSTRAP_DIR}/debootstrap
     if [ ! -f $DEBOOTSTRAP ]; then
-        echo "Couldn't find script at ${DEBOOTSTRAP}"
+        echo "Couldn't find script at ${DEBOOTSTRAP}" >&2
         exit_and_skip
     fi
 fi
@@ -48,7 +72,7 @@ fi
 #
 BINFMT_DIR=/proc/sys/fs/binfmt_misc
 if [ ! -e $BINFMT_DIR ]; then
-   echo "binfmt_misc needs enabling for a QEMU bootstrap to work"
+   echo "binfmt_misc needs enabling for a QEMU bootstrap to work" >&2
    exit_and_skip
 else
     # DEB_ARCH and QEMU arch names are not totally aligned
@@ -76,7 +100,7 @@ else
         ;;
     esac
     if [ ! -e "${BINFMT_DIR}/$QEMU" ]; then
-        echo "No binfmt_misc rule to run $QEMU, can't bootstrap"
+        echo "No binfmt_misc rule to run $QEMU, can't bootstrap" >&2
         exit_and_skip
     fi
 fi

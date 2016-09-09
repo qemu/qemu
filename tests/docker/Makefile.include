@@ -44,6 +44,9 @@ docker-image: ${DOCKER_TARGETS}
 
 # General rule for building docker images
 docker-image-%: $(DOCKER_FILES_DIR)/%.docker
+	@if test "$@" = docker-image-debian-bootstrap -a -z "$(EXECUTABLE)"; then \
+		echo WARNING: EXECUTABLE is not set, debootstrap may fail. 2>&1 ; \
+	fi
 	$(call quiet-command,\
 		$(SRC_PATH)/tests/docker/docker.py build qemu:$* $< \
 		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) \
@@ -116,7 +119,7 @@ docker-run-%: docker-qemu-src
 				-e EXTRA_CONFIGURE_OPTS=$(EXTRA_CONFIGURE_OPTS) \
 				-e V=$V -e J=$J -e DEBUG=$(DEBUG)\
 				-e CCACHE_DIR=/var/tmp/ccache \
-				-v $$(realpath $(DOCKER_SRC_COPY)):/var/tmp/qemu:z$(COMMA)ro \
+				-v $$(readlink -e $(DOCKER_SRC_COPY)):/var/tmp/qemu:z$(COMMA)ro \
 				-v $(DOCKER_CCACHE_DIR):/var/tmp/ccache:z \
 				qemu:$(IMAGE) \
 				/var/tmp/qemu/run \
