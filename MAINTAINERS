@@ -202,6 +202,7 @@ M: Guan Xuetao <gxt@mprc.pku.edu.cn>
 S: Maintained
 F: target-unicore32/
 F: hw/unicore32/
+F: include/hw/unicore32/
 
 X86
 M: Paolo Bonzini <pbonzini@redhat.com>
