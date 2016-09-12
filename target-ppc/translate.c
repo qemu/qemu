@@ -2492,6 +2492,8 @@ static void glue(gen_qemu_, glue(ldop, _i64))(DisasContext *ctx,    \
     tcg_gen_qemu_ld_i64(val, addr, ctx->mem_idx, op);               \
 }
 
+GEN_QEMU_LOAD_64(ld8u,  DEF_MEMOP(MO_UB))
+GEN_QEMU_LOAD_64(ld16u, DEF_MEMOP(MO_UW))
 GEN_QEMU_LOAD_64(ld32u, DEF_MEMOP(MO_UL))
 GEN_QEMU_LOAD_64(ld32s, DEF_MEMOP(MO_SL))
 GEN_QEMU_LOAD_64(ld64,  DEF_MEMOP(MO_Q))

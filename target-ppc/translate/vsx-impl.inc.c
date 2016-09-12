@@ -36,6 +36,8 @@ static void gen_##name(DisasContext *ctx)                     \
 
 VSX_LOAD_SCALAR(lxsdx, ld64_i64)
 VSX_LOAD_SCALAR(lxsiwax, ld32s_i64)
+VSX_LOAD_SCALAR(lxsibzx, ld8u_i64)
+VSX_LOAD_SCALAR(lxsihzx, ld16u_i64)
 VSX_LOAD_SCALAR(lxsiwzx, ld32u_i64)
 VSX_LOAD_SCALAR(lxsspx, ld32fs)
 
