@@ -371,7 +371,6 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg);
 
 void kvm_irqchip_add_irq_route(KVMState *s, int gsi, int irqchip, int pin);
 
-void kvm_put_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
 void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
 
 struct kvm_guest_debug;
