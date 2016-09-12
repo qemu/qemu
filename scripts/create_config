@@ -7,7 +7,13 @@ while read line; do
 case $line in
  VERSION=*) # configuration
     version=${line#*=}
+    major=$(echo "$version" | cut -d. -f1)
+    minor=$(echo "$version" | cut -d. -f2)
+    micro=$(echo "$version" | cut -d. -f3)
     echo "#define QEMU_VERSION \"$version\""
+    echo "#define QEMU_VERSION_MAJOR $major"
+    echo "#define QEMU_VERSION_MINOR $minor"
+    echo "#define QEMU_VERSION_MICRO $micro"
     ;;
  qemu_*dir=*) # qemu-specific directory configuration
     name=${line%=*}
