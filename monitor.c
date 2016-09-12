@@ -617,7 +617,7 @@ static void monitor_qapi_event_init(void)
     qmp_event_set_func_emit(monitor_qapi_event_queue);
 }
 
-static void qmp_capabilities(QDict *params, QObject **ret_data, Error **errp)
+void qmp_qmp_capabilities(Error **errp)
 {
     cur_mon->qmp.in_command_mode = true;
 }
@@ -3656,7 +3656,7 @@ static int monitor_can_read(void *opaque)
 static bool invalid_qmp_mode(const Monitor *mon, const mon_cmd_t *cmd,
                              Error **errp)
 {
-    bool is_cap = cmd->mhandler.cmd_new == qmp_capabilities;
+    bool is_cap = cmd->mhandler.cmd_new == qmp_marshal_qmp_capabilities;
 
     if (is_cap && mon->qmp.in_command_mode) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,

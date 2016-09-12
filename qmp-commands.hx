@@ -2219,7 +2219,7 @@ EQMP
         .args_type  = "",
         .params     = "",
         .help       = "enable QMP capabilities",
-        .mhandler.cmd_new = qmp_capabilities,
+        .mhandler.cmd_new = qmp_marshal_qmp_capabilities,
     },
 
 SQMP

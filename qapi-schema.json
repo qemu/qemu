@@ -21,6 +21,27 @@
 { 'include': 'qapi/introspect.json' }
 
 ##
+# @qmp_capabilities:
+#
+# Enable QMP capabilities.
+#
+# Arguments: None.
+#
+# Example:
+#
+# -> { "execute": "qmp_capabilities" }
+# <- { "return": {} }
+#
+# Notes: This command is valid exactly when first connecting: it must be
+# issued before any other command will be accepted, and will fail once the
+# monitor is accepting other commands. (see qemu docs/qmp-spec.txt)
+#
+# Since: 0.13
+#
+##
+{ 'command': 'qmp_capabilities' }
+
+##
 # @LostTickPolicy:
 #
 # Policy for handling lost ticks in timer devices.
