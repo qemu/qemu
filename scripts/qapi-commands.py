@@ -84,10 +84,7 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
 
 
 def gen_marshal_proto(name):
-    ret = 'void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)' % c_name(name)
-    if not middle_mode:
-        ret = 'static ' + ret
-    return ret
+    return 'void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)' % c_name(name)
 
 
 def gen_marshal_decl(name):
@@ -222,8 +219,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         if ret_type and ret_type not in self._visited_ret_types:
             self._visited_ret_types.add(ret_type)
             self.defn += gen_marshal_output(ret_type)
-        if middle_mode:
-            self.decl += gen_marshal_decl(name)
+        self.decl += gen_marshal_decl(name)
         self.defn += gen_marshal(name, arg_type, boxed, ret_type)
         if not middle_mode:
             self._regy += gen_register_command(name, success_response)
