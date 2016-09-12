@@ -115,7 +115,7 @@ static void gen_##name(DisasContext *ctx)                     \
     tcg_temp_free(EA);                                        \
 }
 
-VSX_STORE_SCALAR(stxsdx, st64)
+VSX_STORE_SCALAR(stxsdx, st64_i64)
 VSX_STORE_SCALAR(stxsiwx, st32_i64)
 VSX_STORE_SCALAR(stxsspx, st32fs)
 
@@ -129,9 +129,9 @@ static void gen_stxvd2x(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_INT);
     EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    gen_qemu_st64(ctx, cpu_vsrh(xS(ctx->opcode)), EA);
+    gen_qemu_st64_i64(ctx, cpu_vsrh(xS(ctx->opcode)), EA);
     tcg_gen_addi_tl(EA, EA, 8);
-    gen_qemu_st64(ctx, cpu_vsrl(xS(ctx->opcode)), EA);
+    gen_qemu_st64_i64(ctx, cpu_vsrl(xS(ctx->opcode)), EA);
     tcg_temp_free(EA);
 }
 

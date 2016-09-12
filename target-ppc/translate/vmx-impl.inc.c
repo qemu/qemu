@@ -52,16 +52,16 @@ static void gen_st##name(DisasContext *ctx)                                   \
     EA = tcg_temp_new();                                                      \
     gen_addr_reg_index(ctx, EA);                                              \
     tcg_gen_andi_tl(EA, EA, ~0xf);                                            \
-    /* We only need to swap high and low halves. gen_qemu_st64 does necessary \
-       64-bit byteswap already. */                                            \
+    /* We only need to swap high and low halves. gen_qemu_st64_i64 does       \
+       necessary 64-bit byteswap already. */                                  \
     if (ctx->le_mode) {                                                       \
-        gen_qemu_st64(ctx, cpu_avrl[rD(ctx->opcode)], EA);                    \
+        gen_qemu_st64_i64(ctx, cpu_avrl[rD(ctx->opcode)], EA);                \
         tcg_gen_addi_tl(EA, EA, 8);                                           \
-        gen_qemu_st64(ctx, cpu_avrh[rD(ctx->opcode)], EA);                    \
+        gen_qemu_st64_i64(ctx, cpu_avrh[rD(ctx->opcode)], EA);                \
     } else {                                                                  \
-        gen_qemu_st64(ctx, cpu_avrh[rD(ctx->opcode)], EA);                    \
+        gen_qemu_st64_i64(ctx, cpu_avrh[rD(ctx->opcode)], EA);                \
         tcg_gen_addi_tl(EA, EA, 8);                                           \
-        gen_qemu_st64(ctx, cpu_avrl[rD(ctx->opcode)], EA);                    \
+        gen_qemu_st64_i64(ctx, cpu_avrl[rD(ctx->opcode)], EA);                \
     }                                                                         \
     tcg_temp_free(EA);                                                        \
 }

@@ -85,7 +85,7 @@ GEN_STUF(name, stop, op | 0x21, type)                                         \
 GEN_STUXF(name, stop, op | 0x01, type)                                        \
 GEN_STXF(name, stop, 0x17, op | 0x00, type)
 
-GEN_STFS(stfd, st64, 0x16, PPC_FLOAT)
+GEN_STFS(stfd, st64_i64, 0x16, PPC_FLOAT)
 GEN_STFS(stfs, st32fs, 0x14, PPC_FLOAT)
 GEN_STXF(stfiw, st32fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX)
 GEN_HANDLER_E(stfdp, 0x3D, 0xFF, 0xFF, 0x00200003, PPC_NONE, PPC2_ISA205),

@@ -2519,12 +2519,7 @@ static void glue(gen_qemu_, glue(stop, _i64))(DisasContext *ctx,  \
 }
 
 GEN_QEMU_STORE_64(st32, DEF_MEMOP(MO_UL))
-
-static inline void gen_qemu_st64(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
-{
-    TCGMemOp op = MO_Q | ctx->default_tcg_memop_mask;
-    tcg_gen_qemu_st_i64(arg1, arg2, ctx->mem_idx, op);
-}
+GEN_QEMU_STORE_64(st64, DEF_MEMOP(MO_Q))
 
 #define GEN_LD(name, ldop, opc, type)                                         \
 static void glue(gen_, name)(DisasContext *ctx)                                       \
@@ -2769,9 +2764,9 @@ GEN_STS(sth, st16, 0x0C, PPC_INTEGER);
 /* stw stwu stwux stwx */
 GEN_STS(stw, st32, 0x04, PPC_INTEGER);
 #if defined(TARGET_PPC64)
-GEN_STUX(std, st64, 0x15, 0x05, PPC_64B);
-GEN_STX(std, st64, 0x15, 0x04, PPC_64B);
-GEN_STX_HVRM(stdcix, st64, 0x15, 0x1f, PPC_CILDST)
+GEN_STUX(std, st64_i64, 0x15, 0x05, PPC_64B);
+GEN_STX(std, st64_i64, 0x15, 0x04, PPC_64B);
+GEN_STX_HVRM(stdcix, st64_i64, 0x15, 0x1f, PPC_CILDST)
 GEN_STX_HVRM(stwcix, st32, 0x15, 0x1c, PPC_CILDST)
 GEN_STX_HVRM(sthcix, st16, 0x15, 0x1d, PPC_CILDST)
 GEN_STX_HVRM(stbcix, st8, 0x15, 0x1e, PPC_CILDST)
@@ -2808,16 +2803,16 @@ static void gen_std(DisasContext *ctx)
         EA = tcg_temp_new();
         gen_addr_imm_index(ctx, EA, 0x03);
 
-        /* We only need to swap high and low halves. gen_qemu_st64 does
+        /* We only need to swap high and low halves. gen_qemu_st64_i64 does
            necessary 64-bit byteswap already. */
         if (unlikely(ctx->le_mode)) {
-            gen_qemu_st64(ctx, cpu_gpr[rs+1], EA);
+            gen_qemu_st64_i64(ctx, cpu_gpr[rs + 1], EA);
             gen_addr_add(ctx, EA, EA, 8);
-            gen_qemu_st64(ctx, cpu_gpr[rs], EA);
+            gen_qemu_st64_i64(ctx, cpu_gpr[rs], EA);
         } else {
-            gen_qemu_st64(ctx, cpu_gpr[rs], EA);
+            gen_qemu_st64_i64(ctx, cpu_gpr[rs], EA);
             gen_addr_add(ctx, EA, EA, 8);
-            gen_qemu_st64(ctx, cpu_gpr[rs+1], EA);
+            gen_qemu_st64_i64(ctx, cpu_gpr[rs + 1], EA);
         }
         tcg_temp_free(EA);
     } else {
@@ -2831,7 +2826,7 @@ static void gen_std(DisasContext *ctx)
         gen_set_access_type(ctx, ACCESS_INT);
         EA = tcg_temp_new();
         gen_addr_imm_index(ctx, EA, 0x03);
-        gen_qemu_st64(ctx, cpu_gpr[rs], EA);
+        gen_qemu_st64_i64(ctx, cpu_gpr[rs], EA);
         if (Rc(ctx->opcode))
             tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);
         tcg_temp_free(EA);
@@ -3113,7 +3108,7 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
     tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
 #if defined(TARGET_PPC64)
     if (size == 8) {
-        gen_qemu_st64(ctx, cpu_gpr[reg], EA);
+        gen_qemu_st64_i64(ctx, cpu_gpr[reg], EA);
     } else
 #endif
     if (size == 4) {
@@ -3130,10 +3125,10 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
             gpr1 = cpu_gpr[reg];
             gpr2 = cpu_gpr[reg+1];
         }
-        gen_qemu_st64(ctx, gpr1, EA);
+        gen_qemu_st64_i64(ctx, gpr1, EA);
         EA8 = tcg_temp_local_new();
         gen_addr_add(ctx, EA8, EA, 8);
-        gen_qemu_st64(ctx, gpr2, EA8);
+        gen_qemu_st64_i64(ctx, gpr2, EA8);
         tcg_temp_free(EA8);
 #endif
     } else {
@@ -6622,10 +6617,10 @@ GEN_STS(stb, st8, 0x06, PPC_INTEGER)
 GEN_STS(sth, st16, 0x0C, PPC_INTEGER)
 GEN_STS(stw, st32, 0x04, PPC_INTEGER)
 #if defined(TARGET_PPC64)
-GEN_STUX(std, st64, 0x15, 0x05, PPC_64B)
-GEN_STX(std, st64, 0x15, 0x04, PPC_64B)
+GEN_STUX(std, st64_i64, 0x15, 0x05, PPC_64B)
+GEN_STX(std, st64_i64, 0x15, 0x04, PPC_64B)
 GEN_STX_E(stdbr, st64r, 0x14, 0x14, PPC_NONE, PPC2_DBRX, CHK_NONE)
-GEN_STX_HVRM(stdcix, st64, 0x15, 0x1f, PPC_CILDST)
+GEN_STX_HVRM(stdcix, st64_i64, 0x15, 0x1f, PPC_CILDST)
 GEN_STX_HVRM(stwcix, st32, 0x15, 0x1c, PPC_CILDST)
 GEN_STX_HVRM(sthcix, st16, 0x15, 0x1d, PPC_CILDST)
 GEN_STX_HVRM(stbcix, st8, 0x15, 0x1e, PPC_CILDST)
