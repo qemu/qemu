@@ -55,7 +55,6 @@
 /qemu-monitor-info.texi
 /qemu-version.h
 /qemu-version.h.tmp
-/qmp-commands.txt
 /vscclient
 /fsdev/virtfs-proxy-helper
 *.[1-9]

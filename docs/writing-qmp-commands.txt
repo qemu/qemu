@@ -119,16 +119,6 @@ There are a few things to be noticed:
 5. Printing to the terminal is discouraged for QMP commands, we do it here
    because it's the easiest way to demonstrate a QMP command
 
-Now a little hack is needed. As we're still using the old QMP server we need
-to add the new command to its internal dispatch table. This step won't be
-required in the near future. Open the qmp-commands.hx file and add the
-following at the bottom:
-
-    {
-        .name       = "hello-world",
-        .args_type  = "",
-    },
-
 You're done. Now build qemu, run it as suggested in the "Testing" section,
 and then type the following QMP command:
 
@@ -172,20 +162,6 @@ There are two important details to be noticed:
    if the optional argument is present or false otherwise
 2. The C implementation signature must follow the schema's argument ordering,
    which is defined by the "data" member
-
-The last step is to update the qmp-commands.hx file:
-
-    {
-        .name       = "hello-world",
-        .args_type  = "message:s?",
-    },
-
-Notice that the "args_type" member got our "message" argument. The character
-"s" stands for "string" and "?" means it's optional. This too must be ordered
-according to the C implementation and schema file. You can look for more
-examples in the qmp-commands.hx file if you need to define more arguments.
-
-Again, this step won't be required in the future.
 
 Time to test our new version of the "hello-world" command. Build qemu, run it as
 described in the "Testing" section and then send two commands:
@@ -452,13 +428,6 @@ There are a number of things to be noticed:
 6. You have to include the "qmp-commands.h" header file in qemu-timer.c,
    otherwise qemu won't build
 
-The last step is to add the corresponding entry in the qmp-commands.hx file:
-
-    {
-        .name       = "query-alarm-clock",
-        .args_type  = "",
-    },
-
 Time to test the new command. Build qemu, run it as described in the "Testing"
 section and try this:
 
@@ -596,13 +565,6 @@ Notice that the "current" variable is used as "true" only in the first
 iteration of the loop. That's because the alarm timer method in use is the
 first element of the alarm_timers array. Also notice that QAPI lists are handled
 by hand and we return the head of the list.
-
-To test this you have to add the corresponding qmp-commands.hx entry:
-
-    {
-        .name       = "query-alarm-methods",
-        .args_type  = "",
-    },
 
 Now Build qemu, run it as explained in the "Testing" section and try our new
 command:
