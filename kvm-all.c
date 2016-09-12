@@ -2148,6 +2148,7 @@ void kvm_device_access(int fd, int group, uint64_t attr,
     }
 }
 
+/* Return 1 on success, 0 on failure */
 int kvm_has_sync_mmu(void)
 {
     return kvm_check_extension(kvm_state, KVM_CAP_SYNC_MMU);
@@ -2188,20 +2189,6 @@ int kvm_has_gsi_routing(void)
 int kvm_has_intx_set_mask(void)
 {
     return kvm_state->intx_set_mask;
-}
-
-void kvm_setup_guest_memory(void *start, size_t size)
-{
-    if (!kvm_has_sync_mmu()) {
-        int ret = qemu_madvise(start, size, QEMU_MADV_DONTFORK);
-
-        if (ret) {
-            perror("qemu_madvise");
-            fprintf(stderr,
-                    "Need MADV_DONTFORK in absence of synchronous KVM MMU\n");
-            exit(1);
-        }
-    }
 }
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG

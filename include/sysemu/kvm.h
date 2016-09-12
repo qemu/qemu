@@ -221,7 +221,6 @@ int kvm_destroy_vcpu(CPUState *cpu);
 #ifdef NEED_CPU_H
 #include "cpu.h"
 
-void kvm_setup_guest_memory(void *start, size_t size);
 void kvm_flush_coalesced_mmio_buffer(void);
 
 int kvm_insert_breakpoint(CPUState *cpu, target_ulong addr,
