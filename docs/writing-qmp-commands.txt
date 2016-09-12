@@ -127,7 +127,6 @@ following at the bottom:
     {
         .name       = "hello-world",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_hello_world,
     },
 
 You're done. Now build qemu, run it as suggested in the "Testing" section,
@@ -179,7 +178,6 @@ The last step is to update the qmp-commands.hx file:
     {
         .name       = "hello-world",
         .args_type  = "message:s?",
-        .mhandler.cmd_new = qmp_marshal_hello_world,
     },
 
 Notice that the "args_type" member got our "message" argument. The character
@@ -454,12 +452,11 @@ There are a number of things to be noticed:
 6. You have to include the "qmp-commands.h" header file in qemu-timer.c,
    otherwise qemu won't build
 
-The last step is to add the correspoding entry in the qmp-commands.hx file:
+The last step is to add the corresponding entry in the qmp-commands.hx file:
 
     {
         .name       = "query-alarm-clock",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_alarm_clock,
     },
 
 Time to test the new command. Build qemu, run it as described in the "Testing"
@@ -518,7 +515,7 @@ in the monitor.c file. The entry for the "info alarmclock" follows:
         .args_type  = "",
         .params     = "",
         .help       = "show information about the alarm clock",
-        .mhandler.info = hmp_info_alarm_clock,
+        .mhandler.cmd = hmp_info_alarm_clock,
     },
 
 To test this, run qemu and type "info alarmclock" in the user monitor.
@@ -605,7 +602,6 @@ To test this you have to add the corresponding qmp-commands.hx entry:
     {
         .name       = "query-alarm-methods",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_alarm_methods,
     },
 
 Now Build qemu, run it as explained in the "Testing" section and try our new

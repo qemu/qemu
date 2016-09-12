@@ -63,7 +63,6 @@ EQMP
     {
         .name       = "quit",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_quit,
     },
 
 SQMP
@@ -84,7 +83,6 @@ EQMP
     {
         .name       = "eject",
         .args_type  = "force:-f,device:B",
-        .mhandler.cmd_new = qmp_marshal_eject,
     },
 
 SQMP
@@ -110,7 +108,6 @@ EQMP
     {
         .name       = "change",
         .args_type  = "device:B,target:F,arg:s?",
-        .mhandler.cmd_new = qmp_marshal_change,
     },
 
 SQMP
@@ -146,7 +143,6 @@ EQMP
     {
         .name       = "screendump",
         .args_type  = "filename:F",
-        .mhandler.cmd_new = qmp_marshal_screendump,
     },
 
 SQMP
@@ -169,7 +165,6 @@ EQMP
     {
         .name       = "stop",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_stop,
     },
 
 SQMP
@@ -190,7 +185,6 @@ EQMP
     {
         .name       = "cont",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_cont,
     },
 
 SQMP
@@ -211,7 +205,6 @@ EQMP
     {
         .name       = "system_wakeup",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_system_wakeup,
     },
 
 SQMP
@@ -232,7 +225,6 @@ EQMP
     {
         .name       = "system_reset",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_system_reset,
     },
 
 SQMP
@@ -253,7 +245,6 @@ EQMP
     {
         .name       = "system_powerdown",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_system_powerdown,
     },
 
 SQMP
@@ -276,7 +267,6 @@ EQMP
         .args_type  = "device:O",
         .params     = "driver[,prop=value][,...]",
         .help       = "add device, like -device on the command line",
-        .mhandler.cmd_new = qmp_device_add,
     },
 
 SQMP
@@ -310,7 +300,6 @@ EQMP
     {
         .name       = "device_del",
         .args_type  = "id:s",
-        .mhandler.cmd_new = qmp_marshal_device_del,
     },
 
 SQMP
@@ -338,7 +327,6 @@ EQMP
     {
         .name       = "send-key",
         .args_type  = "keys:q,hold-time:i?",
-        .mhandler.cmd_new = qmp_marshal_send_key,
     },
 
 SQMP
@@ -369,7 +357,6 @@ EQMP
     {
         .name       = "cpu",
         .args_type  = "index:i",
-        .mhandler.cmd_new = qmp_marshal_cpu,
     },
 
 SQMP
@@ -394,7 +381,6 @@ EQMP
     {
         .name       = "cpu-add",
         .args_type  = "id:i",
-        .mhandler.cmd_new = qmp_marshal_cpu_add,
     },
 
 SQMP
@@ -417,7 +403,6 @@ EQMP
     {
         .name       = "memsave",
         .args_type  = "val:l,size:i,filename:s,cpu:i?",
-        .mhandler.cmd_new = qmp_marshal_memsave,
     },
 
 SQMP
@@ -446,7 +431,6 @@ EQMP
     {
         .name       = "pmemsave",
         .args_type  = "val:l,size:i,filename:s",
-        .mhandler.cmd_new = qmp_marshal_pmemsave,
     },
 
 SQMP
@@ -474,7 +458,6 @@ EQMP
     {
         .name       = "inject-nmi",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_inject_nmi,
     },
 
 SQMP
@@ -497,7 +480,6 @@ EQMP
     {
         .name       = "ringbuf-write",
         .args_type  = "device:s,data:s,format:s?",
-        .mhandler.cmd_new = qmp_marshal_ringbuf_write,
     },
 
 SQMP
@@ -526,7 +508,6 @@ EQMP
     {
         .name       = "ringbuf-read",
         .args_type  = "device:s,size:i,format:s?",
-        .mhandler.cmd_new = qmp_marshal_ringbuf_read,
     },
 
 SQMP
@@ -562,7 +543,6 @@ EQMP
     {
         .name       = "xen-save-devices-state",
         .args_type  = "filename:F",
-    .mhandler.cmd_new = qmp_marshal_xen_save_devices_state,
     },
 
 SQMP
@@ -589,7 +569,6 @@ EQMP
     {
         .name       = "xen-load-devices-state",
         .args_type  = "filename:F",
-        .mhandler.cmd_new = qmp_marshal_xen_load_devices_state,
     },
 
 SQMP
@@ -616,7 +595,6 @@ EQMP
     {
         .name       = "xen-set-global-dirty-log",
         .args_type  = "enable:b",
-        .mhandler.cmd_new = qmp_marshal_xen_set_global_dirty_log,
     },
 
 SQMP
@@ -640,7 +618,6 @@ EQMP
     {
         .name       = "migrate",
         .args_type  = "detach:-d,blk:-b,inc:-i,uri:s",
-        .mhandler.cmd_new = qmp_marshal_migrate,
     },
 
 SQMP
@@ -673,7 +650,6 @@ EQMP
     {
         .name       = "migrate_cancel",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_migrate_cancel,
     },
 
 SQMP
@@ -694,7 +670,6 @@ EQMP
     {
         .name       = "migrate-incoming",
         .args_type  = "uri:s",
-        .mhandler.cmd_new = qmp_marshal_migrate_incoming,
     },
 
 SQMP
@@ -722,7 +697,6 @@ EQMP
     {
         .name       = "migrate-set-cache-size",
         .args_type  = "value:o",
-        .mhandler.cmd_new = qmp_marshal_migrate_set_cache_size,
     },
 
 SQMP
@@ -745,7 +719,6 @@ EQMP
     {
         .name       = "migrate-start-postcopy",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_migrate_start_postcopy,
     },
 
 SQMP
@@ -764,7 +737,6 @@ EQMP
     {
         .name       = "query-migrate-cache-size",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_migrate_cache_size,
     },
 
 SQMP
@@ -786,7 +758,6 @@ EQMP
     {
         .name       = "migrate_set_speed",
         .args_type  = "value:o",
-        .mhandler.cmd_new = qmp_marshal_migrate_set_speed,
     },
 
 SQMP
@@ -809,7 +780,6 @@ EQMP
     {
         .name       = "migrate_set_downtime",
         .args_type  = "value:T",
-        .mhandler.cmd_new = qmp_marshal_migrate_set_downtime,
     },
 
 SQMP
@@ -834,7 +804,6 @@ EQMP
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",
         .help       = "set migration information for remote display",
-        .mhandler.cmd_new = qmp_marshal_client_migrate_info,
     },
 
 SQMP
@@ -868,7 +837,6 @@ EQMP
         .args_type  = "paging:b,protocol:s,detach:b?,begin:i?,end:i?,format:s?",
         .params     = "-p protocol [-d] [begin] [length] [format]",
         .help       = "dump guest memory to file",
-        .mhandler.cmd_new = qmp_marshal_dump_guest_memory,
     },
 
 SQMP
@@ -907,7 +875,6 @@ EQMP
     {
         .name       = "query-dump-guest-memory-capability",
         .args_type  = "",
-    .mhandler.cmd_new = qmp_marshal_query_dump_guest_memory_capability,
     },
 
 SQMP
@@ -929,7 +896,6 @@ EQMP
         .args_type  = "",
         .params     = "",
         .help       = "query background dump status",
-        .mhandler.cmd_new = qmp_marshal_query_dump,
     },
 
 SQMP
@@ -952,7 +918,6 @@ EQMP
     {
         .name       = "dump-skeys",
         .args_type  = "filename:F",
-        .mhandler.cmd_new = qmp_marshal_dump_skeys,
     },
 #endif
 
@@ -976,7 +941,6 @@ EQMP
     {
         .name       = "netdev_add",
         .args_type  = "netdev:O",
-        .mhandler.cmd_new = qmp_netdev_add,
     },
 
 SQMP
@@ -1007,7 +971,6 @@ EQMP
     {
         .name       = "netdev_del",
         .args_type  = "id:s",
-        .mhandler.cmd_new = qmp_marshal_netdev_del,
     },
 
 SQMP
@@ -1031,7 +994,6 @@ EQMP
     {
         .name       = "object-add",
         .args_type  = "qom-type:s,id:s,props:q?",
-        .mhandler.cmd_new = qmp_marshal_object_add,
     },
 
 SQMP
@@ -1057,7 +1019,6 @@ EQMP
     {
         .name       = "object-del",
         .args_type  = "id:s",
-        .mhandler.cmd_new = qmp_marshal_object_del,
     },
 
 SQMP
@@ -1082,7 +1043,6 @@ EQMP
     {
         .name       = "block_resize",
         .args_type  = "device:s?,node-name:s?,size:o",
-        .mhandler.cmd_new = qmp_marshal_block_resize,
     },
 
 SQMP
@@ -1107,7 +1067,6 @@ EQMP
     {
         .name       = "block-stream",
         .args_type  = "job-id:s?,device:B,base:s?,speed:o?,backing-file:s?,on-error:s?",
-        .mhandler.cmd_new = qmp_marshal_block_stream,
     },
 
 SQMP
@@ -1152,7 +1111,6 @@ EQMP
     {
         .name       = "block-commit",
         .args_type  = "job-id:s?,device:B,base:s?,top:s?,backing-file:s?,speed:o?",
-        .mhandler.cmd_new = qmp_marshal_block_commit,
     },
 
 SQMP
@@ -1219,7 +1177,6 @@ EQMP
         .args_type  = "job-id:s?,sync:s,device:B,target:s,speed:i?,mode:s?,"
                       "format:s?,bitmap:s?,compress:b?,"
                       "on-source-error:s?,on-target-error:s?",
-        .mhandler.cmd_new = qmp_marshal_drive_backup,
     },
 
 SQMP
@@ -1277,7 +1234,6 @@ EQMP
         .name       = "blockdev-backup",
         .args_type  = "job-id:s?,sync:s,device:B,target:B,speed:i?,compress:b?,"
                       "on-source-error:s?,on-target-error:s?",
-        .mhandler.cmd_new = qmp_marshal_blockdev_backup,
     },
 
 SQMP
@@ -1321,33 +1277,27 @@ EQMP
     {
         .name       = "block-job-set-speed",
         .args_type  = "device:B,speed:o",
-        .mhandler.cmd_new = qmp_marshal_block_job_set_speed,
     },
 
     {
         .name       = "block-job-cancel",
         .args_type  = "device:B,force:b?",
-        .mhandler.cmd_new = qmp_marshal_block_job_cancel,
     },
     {
         .name       = "block-job-pause",
         .args_type  = "device:B",
-        .mhandler.cmd_new = qmp_marshal_block_job_pause,
     },
     {
         .name       = "block-job-resume",
         .args_type  = "device:B",
-        .mhandler.cmd_new = qmp_marshal_block_job_resume,
     },
     {
         .name       = "block-job-complete",
         .args_type  = "device:B",
-        .mhandler.cmd_new = qmp_marshal_block_job_complete,
     },
     {
         .name       = "transaction",
         .args_type  = "actions:q,properties:q?",
-        .mhandler.cmd_new = qmp_marshal_transaction,
     },
 
 SQMP
@@ -1442,7 +1392,6 @@ EQMP
     {
         .name       = "block-dirty-bitmap-add",
         .args_type  = "node:B,name:s,granularity:i?",
-        .mhandler.cmd_new = qmp_marshal_block_dirty_bitmap_add,
     },
 
 SQMP
@@ -1470,7 +1419,6 @@ EQMP
     {
         .name       = "block-dirty-bitmap-remove",
         .args_type  = "node:B,name:s",
-        .mhandler.cmd_new = qmp_marshal_block_dirty_bitmap_remove,
     },
 
 SQMP
@@ -1498,7 +1446,6 @@ EQMP
     {
         .name       = "block-dirty-bitmap-clear",
         .args_type  = "node:B,name:s",
-        .mhandler.cmd_new = qmp_marshal_block_dirty_bitmap_clear,
     },
 
 SQMP
@@ -1527,7 +1474,6 @@ EQMP
     {
         .name       = "blockdev-snapshot-sync",
         .args_type  = "device:s?,node-name:s?,snapshot-file:s,snapshot-node-name:s?,format:s?,mode:s?",
-        .mhandler.cmd_new = qmp_marshal_blockdev_snapshot_sync,
     },
 
 SQMP
@@ -1563,7 +1509,6 @@ EQMP
     {
         .name       = "blockdev-snapshot",
         .args_type  = "node:s,overlay:s",
-        .mhandler.cmd_new = qmp_marshal_blockdev_snapshot,
     },
 
 SQMP
@@ -1601,7 +1546,6 @@ EQMP
     {
         .name       = "blockdev-snapshot-internal-sync",
         .args_type  = "device:B,name:s",
-        .mhandler.cmd_new = qmp_marshal_blockdev_snapshot_internal_sync,
     },
 
 SQMP
@@ -1631,8 +1575,6 @@ EQMP
     {
         .name       = "blockdev-snapshot-delete-internal-sync",
         .args_type  = "device:B,id:s?,name:s?",
-        .mhandler.cmd_new =
-                      qmp_marshal_blockdev_snapshot_delete_internal_sync,
     },
 
 SQMP
@@ -1676,7 +1618,6 @@ EQMP
                       "on-source-error:s?,on-target-error:s?,"
                       "unmap:b?,"
                       "granularity:i?,buf-size:i?",
-        .mhandler.cmd_new = qmp_marshal_drive_mirror,
     },
 
 SQMP
@@ -1741,7 +1682,6 @@ EQMP
         .args_type  = "job-id:s?,sync:s,device:B,target:B,replaces:s?,speed:i?,"
                       "on-source-error:s?,on-target-error:s?,"
                       "granularity:i?,buf-size:i?",
-        .mhandler.cmd_new = qmp_marshal_blockdev_mirror,
     },
 
 SQMP
@@ -1790,7 +1730,6 @@ EQMP
     {
         .name       = "change-backing-file",
         .args_type  = "device:s,image-node-name:s,backing-file:s",
-        .mhandler.cmd_new = qmp_marshal_change_backing_file,
     },
 
 SQMP
@@ -1830,7 +1769,6 @@ EQMP
     {
         .name       = "balloon",
         .args_type  = "value:M",
-        .mhandler.cmd_new = qmp_marshal_balloon,
     },
 
 SQMP
@@ -1853,7 +1791,6 @@ EQMP
     {
         .name       = "set_link",
         .args_type  = "name:s,up:b",
-        .mhandler.cmd_new = qmp_marshal_set_link,
     },
 
 SQMP
@@ -1879,7 +1816,6 @@ EQMP
         .args_type  = "fdname:s",
         .params     = "getfd name",
         .help       = "receive a file descriptor via SCM rights and assign it a name",
-        .mhandler.cmd_new = qmp_marshal_getfd,
     },
 
 SQMP
@@ -1912,7 +1848,6 @@ EQMP
         .args_type  = "fdname:s",
         .params     = "closefd name",
         .help       = "close a file descriptor previously passed via SCM rights",
-        .mhandler.cmd_new = qmp_marshal_closefd,
     },
 
 SQMP
@@ -1937,7 +1872,6 @@ EQMP
         .args_type  = "fdset-id:i?,opaque:s?",
         .params     = "add-fd fdset-id opaque",
         .help       = "Add a file descriptor, that was passed via SCM rights, to an fd set",
-        .mhandler.cmd_new = qmp_marshal_add_fd,
     },
 
 SQMP
@@ -1976,7 +1910,6 @@ EQMP
         .args_type  = "fdset-id:i,fd:i?",
         .params     = "remove-fd fdset-id fd",
         .help       = "Remove a file descriptor from an fd set",
-        .mhandler.cmd_new = qmp_marshal_remove_fd,
     },
 
 SQMP
@@ -2008,7 +1941,6 @@ EQMP
         .name       = "query-fdsets",
         .args_type  = "",
         .help       = "Return information describing all fd sets",
-        .mhandler.cmd_new = qmp_marshal_query_fdsets,
     },
 
 SQMP
@@ -2057,7 +1989,6 @@ EQMP
     {
         .name       = "block_passwd",
         .args_type  = "device:s?,node-name:s?,password:s",
-        .mhandler.cmd_new = qmp_marshal_block_passwd,
     },
 
 SQMP
@@ -2083,7 +2014,6 @@ EQMP
     {
         .name       = "block_set_io_throttle",
         .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l,bps_max:l?,bps_rd_max:l?,bps_wr_max:l?,iops_max:l?,iops_rd_max:l?,iops_wr_max:l?,bps_max_length:l?,bps_rd_max_length:l?,bps_wr_max_length:l?,iops_max_length:l?,iops_rd_max_length:l?,iops_wr_max_length:l?,iops_size:l?,group:s?",
-        .mhandler.cmd_new = qmp_marshal_block_set_io_throttle,
     },
 
 SQMP
@@ -2140,7 +2070,6 @@ EQMP
     {
         .name       = "set_password",
         .args_type  = "protocol:s,password:s,connected:s?",
-        .mhandler.cmd_new = qmp_marshal_set_password,
     },
 
 SQMP
@@ -2166,7 +2095,6 @@ EQMP
     {
         .name       = "expire_password",
         .args_type  = "protocol:s,time:s",
-        .mhandler.cmd_new = qmp_marshal_expire_password,
     },
 
 SQMP
@@ -2191,7 +2119,6 @@ EQMP
     {
         .name       = "add_client",
         .args_type  = "protocol:s,fdname:s,skipauth:b?,tls:b?",
-        .mhandler.cmd_new = qmp_marshal_add_client,
     },
 
 SQMP
@@ -2219,7 +2146,6 @@ EQMP
         .args_type  = "",
         .params     = "",
         .help       = "enable QMP capabilities",
-        .mhandler.cmd_new = qmp_marshal_qmp_capabilities,
     },
 
 SQMP
@@ -2242,7 +2168,6 @@ EQMP
     {
         .name       = "human-monitor-command",
         .args_type  = "command-line:s,cpu-index:i?",
-        .mhandler.cmd_new = qmp_marshal_human_monitor_command,
     },
 
 SQMP
@@ -2321,7 +2246,6 @@ EQMP
     {
         .name       = "query-version",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_version,
     },
 
 SQMP
@@ -2358,7 +2282,6 @@ EQMP
     {
         .name       = "query-commands",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_commands,
     },
 
 SQMP
@@ -2395,7 +2318,6 @@ EQMP
     {
         .name       = "query-events",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_events,
     },
 
 SQMP
@@ -2412,7 +2334,6 @@ EQMP
     {
         .name       = "query-qmp-schema",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_query_qmp_schema,
     },
 
 SQMP
@@ -2457,7 +2378,6 @@ EQMP
     {
         .name       = "query-chardev",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_chardev,
     },
 
 SQMP
@@ -2498,7 +2418,6 @@ EQMP
     {
         .name       = "query-chardev-backends",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_chardev_backends,
     },
 
 SQMP
@@ -2682,7 +2601,6 @@ EQMP
     {
         .name       = "query-block",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_block,
     },
 
 SQMP
@@ -2879,7 +2797,6 @@ EQMP
     {
         .name       = "query-blockstats",
         .args_type  = "query-nodes:b?",
-        .mhandler.cmd_new = qmp_marshal_query_blockstats,
     },
 
 SQMP
@@ -2934,7 +2851,6 @@ EQMP
     {
         .name       = "query-cpus",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_cpus,
     },
 
 SQMP
@@ -2973,7 +2889,6 @@ EQMP
     {
         .name       = "query-iothreads",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_iothreads,
     },
 
 SQMP
@@ -3190,7 +3105,6 @@ EQMP
     {
         .name       = "query-pci",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_pci,
     },
 
 SQMP
@@ -3214,7 +3128,6 @@ EQMP
     {
         .name       = "query-kvm",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_kvm,
     },
 
 SQMP
@@ -3254,7 +3167,6 @@ EQMP
     {
         .name       = "query-status",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_status,
     },
 
 SQMP
@@ -3298,7 +3210,6 @@ EQMP
     {
         .name       = "query-mice",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_mice,
     },
 
 SQMP
@@ -3361,12 +3272,10 @@ EQMP
     {
         .name       = "query-vnc",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_vnc,
     },
     {
         .name       = "query-vnc-servers",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_vnc_servers,
     },
 
 SQMP
@@ -3443,7 +3352,6 @@ EQMP
     {
         .name       = "query-spice",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_spice,
     },
 #endif
 
@@ -3467,7 +3375,6 @@ EQMP
     {
         .name       = "query-name",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_name,
     },
 
 SQMP
@@ -3490,7 +3397,6 @@ EQMP
     {
         .name       = "query-uuid",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_uuid,
     },
 
 SQMP
@@ -3539,7 +3445,6 @@ EQMP
     {
         .name       = "query-command-line-options",
         .args_type  = "option:s?",
-        .mhandler.cmd_new = qmp_marshal_query_command_line_options,
     },
 
 SQMP
@@ -3717,7 +3622,6 @@ EQMP
     {
         .name       = "query-migrate",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_migrate,
     },
 
 SQMP
@@ -3747,7 +3651,6 @@ EQMP
         .name       = "migrate-set-capabilities",
         .args_type  = "capabilities:q",
         .params     = "capability:s,state:b",
-        .mhandler.cmd_new = qmp_marshal_migrate_set_capabilities,
     },
 SQMP
 query-migrate-capabilities
@@ -3784,7 +3687,6 @@ EQMP
     {
         .name       = "query-migrate-capabilities",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_migrate_capabilities,
     },
 
 SQMP
@@ -3814,7 +3716,6 @@ EQMP
         .name       = "migrate-set-parameters",
         .args_type  =
             "compress-level:i?,compress-threads:i?,decompress-threads:i?,cpu-throttle-initial:i?,cpu-throttle-increment:i?",
-        .mhandler.cmd_new = qmp_marshal_migrate_set_parameters,
     },
 SQMP
 query-migrate-parameters
@@ -3851,7 +3752,6 @@ EQMP
     {
         .name       = "query-migrate-parameters",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_migrate_parameters,
     },
 
 SQMP
@@ -3879,106 +3779,88 @@ EQMP
     {
         .name       = "query-balloon",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_balloon,
     },
 
     {
         .name       = "query-block-jobs",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_block_jobs,
     },
 
     {
         .name       = "qom-list",
         .args_type  = "path:s",
-        .mhandler.cmd_new = qmp_marshal_qom_list,
     },
 
     {
         .name       = "qom-set",
 	.args_type  = "path:s,property:s,value:q",
-        .mhandler.cmd_new = qmp_marshal_qom_set,
     },
 
     {
         .name       = "qom-get",
 	.args_type  = "path:s,property:s",
-        .mhandler.cmd_new = qmp_marshal_qom_get,
     },
 
     {
         .name       = "nbd-server-start",
         .args_type  = "addr:q,tls-creds:s?",
-        .mhandler.cmd_new = qmp_marshal_nbd_server_start,
     },
     {
         .name       = "nbd-server-add",
         .args_type  = "device:B,writable:b?",
-        .mhandler.cmd_new = qmp_marshal_nbd_server_add,
     },
     {
         .name       = "nbd-server-stop",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_nbd_server_stop,
     },
 
     {
         .name       = "change-vnc-password",
         .args_type  = "password:s",
-        .mhandler.cmd_new = qmp_marshal_change_vnc_password,
     },
     {
         .name       = "qom-list-types",
         .args_type  = "implements:s?,abstract:b?",
-        .mhandler.cmd_new = qmp_marshal_qom_list_types,
     },
 
     {
         .name       = "device-list-properties",
         .args_type  = "typename:s",
-        .mhandler.cmd_new = qmp_marshal_device_list_properties,
     },
 
     {
         .name       = "query-machines",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_machines,
     },
 
     {
         .name       = "query-cpu-definitions",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_cpu_definitions,
     },
 
     {
         .name       = "query-cpu-model-expansion",
         .args_type  = "type:s,model:q",
-        .mhandler.cmd_new = qmp_marshal_query_cpu_model_expansion,
     },
 
     {
         .name       = "query-cpu-model-comparison",
         .args_type  = "modela:q,modelb:q",
-        .mhandler.cmd_new = qmp_marshal_query_cpu_model_comparison,
     },
 
     {
         .name       = "query-cpu-model-baseline",
         .args_type  = "modela:q,modelb:q",
-        .mhandler.cmd_new = qmp_marshal_query_cpu_model_baseline,
     },
 
     {
         .name       = "query-target",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_target,
     },
 
     {
         .name       = "query-tpm",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_tpm,
     },
 
 SQMP
@@ -4012,7 +3894,6 @@ EQMP
     {
         .name       = "query-tpm-models",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_tpm_models,
     },
 
 SQMP
@@ -4033,7 +3914,6 @@ EQMP
     {
         .name       = "query-tpm-types",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_tpm_types,
     },
 
 SQMP
@@ -4054,7 +3934,6 @@ EQMP
     {
         .name       = "chardev-add",
         .args_type  = "id:s,backend:q",
-        .mhandler.cmd_new = qmp_marshal_chardev_add,
     },
 
 SQMP
@@ -4091,7 +3970,6 @@ EQMP
     {
         .name       = "chardev-remove",
         .args_type  = "id:s",
-        .mhandler.cmd_new = qmp_marshal_chardev_remove,
     },
 
 
@@ -4114,7 +3992,6 @@ EQMP
     {
         .name       = "query-rx-filter",
         .args_type  = "name:s?",
-        .mhandler.cmd_new = qmp_marshal_query_rx_filter,
     },
 
 SQMP
@@ -4180,7 +4057,6 @@ EQMP
     {
         .name       = "blockdev-add",
         .args_type  = "options:q",
-        .mhandler.cmd_new = qmp_marshal_blockdev_add,
     },
 
 SQMP
@@ -4239,7 +4115,6 @@ EQMP
     {
         .name       = "x-blockdev-del",
         .args_type  = "id:s?,node-name:s?",
-        .mhandler.cmd_new = qmp_marshal_x_blockdev_del,
     },
 
 SQMP
@@ -4296,7 +4171,6 @@ EQMP
     {
         .name       = "blockdev-open-tray",
         .args_type  = "device:s,force:b?",
-        .mhandler.cmd_new = qmp_marshal_blockdev_open_tray,
     },
 
 SQMP
@@ -4344,7 +4218,6 @@ EQMP
     {
         .name       = "blockdev-close-tray",
         .args_type  = "device:s",
-        .mhandler.cmd_new = qmp_marshal_blockdev_close_tray,
     },
 
 SQMP
@@ -4379,7 +4252,6 @@ EQMP
     {
         .name       = "x-blockdev-remove-medium",
         .args_type  = "device:s",
-        .mhandler.cmd_new = qmp_marshal_x_blockdev_remove_medium,
     },
 
 SQMP
@@ -4427,7 +4299,6 @@ EQMP
     {
         .name       = "x-blockdev-insert-medium",
         .args_type  = "device:s,node-name:s",
-        .mhandler.cmd_new = qmp_marshal_x_blockdev_insert_medium,
     },
 
 SQMP
@@ -4467,7 +4338,6 @@ EQMP
     {
         .name       = "x-blockdev-change",
         .args_type  = "parent:B,child:B?,node:B?",
-        .mhandler.cmd_new = qmp_marshal_x_blockdev_change,
     },
 
 SQMP
@@ -4520,7 +4390,6 @@ EQMP
     {
         .name       = "query-named-block-nodes",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_named_block_nodes,
     },
 
 SQMP
@@ -4582,7 +4451,6 @@ EQMP
     {
         .name       = "blockdev-change-medium",
         .args_type  = "device:B,filename:F,format:s?,read-only-mode:s?",
-        .mhandler.cmd_new = qmp_marshal_blockdev_change_medium,
     },
 
 SQMP
@@ -4635,7 +4503,6 @@ EQMP
     {
         .name       = "query-memdev",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_memdev,
     },
 
 SQMP
@@ -4673,7 +4540,6 @@ EQMP
     {
         .name       = "query-memory-devices",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_memory_devices,
     },
 
 SQMP
@@ -4700,7 +4566,6 @@ EQMP
     {
         .name       = "query-acpi-ospm-status",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_acpi_ospm_status,
     },
 
 SQMP
@@ -4723,7 +4588,6 @@ EQMP
     {
         .name       = "rtc-reset-reinjection",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_rtc_reset_reinjection,
     },
 #endif
 
@@ -4744,7 +4608,6 @@ EQMP
     {
         .name       = "trace-event-get-state",
         .args_type  = "name:s,vcpu:i?",
-        .mhandler.cmd_new = qmp_marshal_trace_event_get_state,
     },
 
 SQMP
@@ -4776,7 +4639,6 @@ EQMP
     {
         .name       = "trace-event-set-state",
         .args_type  = "name:s,enable:b,ignore-unavailable:b?,vcpu:i?",
-        .mhandler.cmd_new = qmp_marshal_trace_event_set_state,
     },
 
 SQMP
@@ -4811,7 +4673,6 @@ EQMP
     {
         .name       = "input-send-event",
         .args_type  = "console:i?,events:q",
-        .mhandler.cmd_new = qmp_marshal_input_send_event,
     },
 
 SQMP
@@ -4875,7 +4736,6 @@ EQMP
     {
         .name       = "block-set-write-threshold",
         .args_type  = "node-name:s,write-threshold:l",
-        .mhandler.cmd_new = qmp_marshal_block_set_write_threshold,
     },
 
 SQMP
@@ -4903,7 +4763,6 @@ EQMP
     {
         .name       = "query-rocker",
         .args_type  = "name:s",
-        .mhandler.cmd_new = qmp_marshal_query_rocker,
     },
 
 SQMP
@@ -4924,7 +4783,6 @@ EQMP
     {
         .name       = "query-rocker-ports",
         .args_type  = "name:s",
-        .mhandler.cmd_new = qmp_marshal_query_rocker_ports,
     },
 
 SQMP
@@ -4949,7 +4807,6 @@ EQMP
     {
         .name       = "query-rocker-of-dpa-flows",
         .args_type  = "name:s,tbl-id:i?",
-        .mhandler.cmd_new = qmp_marshal_query_rocker_of_dpa_flows,
     },
 
 SQMP
@@ -4978,7 +4835,6 @@ EQMP
     {
         .name       = "query-rocker-of-dpa-groups",
         .args_type  = "name:s,type:i?",
-        .mhandler.cmd_new = qmp_marshal_query_rocker_of_dpa_groups,
     },
 
 SQMP
@@ -5009,7 +4865,6 @@ EQMP
     {
         .name       = "query-gic-capabilities",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_gic_capabilities,
     },
 #endif
 
@@ -5033,7 +4888,6 @@ EQMP
     {
         .name       = "query-hotpluggable-cpus",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_hotpluggable_cpus,
     },
 
 SQMP

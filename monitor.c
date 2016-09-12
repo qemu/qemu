@@ -1009,10 +1009,6 @@ static void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
 }
 
 /*
- * Note: right now, this function is never called.  It will be called
- * shortly when we stop using QAPI 'middle mode'.  The rest of this
- * comment is written as if that was the case already.
- *
  * We used to define commands in qmp-commands.hx in addition to the
  * QAPI schema.  This permitted defining some of them only in certain
  * configurations.  query-commands has always reflected that (good,
@@ -3976,6 +3972,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     QObject *obj, *data;
     QDict *input, *args;
     const mon_cmd_t *cmd;
+    QmpCommand *qcmd;
     const char *cmd_name;
     Monitor *mon = cur_mon;
 
@@ -4001,7 +3998,8 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     cmd_name = qdict_get_str(input, "execute");
     trace_handle_qmp_command(mon, cmd_name);
     cmd = qmp_find_cmd(cmd_name);
-    if (!cmd) {
+    qcmd = qmp_find_command(cmd_name);
+    if (!qcmd || !cmd) {
         error_set(&local_err, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "The command %s has not been found", cmd_name);
         goto err_out;
@@ -4023,7 +4021,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err_out;
     }
 
-    cmd->mhandler.cmd_new(args, &data, &local_err);
+    qcmd->fn(args, &data, &local_err);
 
 err_out:
     monitor_protocol_emitter(mon, data, local_err);
@@ -4095,7 +4093,9 @@ static QObject *get_qmp_greeting(void)
     QObject *ver = NULL;
 
     qmp_marshal_query_version(NULL, &ver, NULL);
-    return qobject_from_jsonf("{'QMP':{'version': %p,'capabilities': []}}",ver);
+
+    return qobject_from_jsonf("{'QMP': {'version': %p, 'capabilities': []}}",
+                              ver);
 }
 
 static void monitor_qmp_event(void *opaque, int event)
