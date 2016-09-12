@@ -57,6 +57,7 @@
 #define CPUID_2_L1D_32KB_8WAY_64B 0x2c
 #define CPUID_2_L1I_32KB_8WAY_64B 0x30
 #define CPUID_2_L2_2MB_8WAY_64B   0x7d
+#define CPUID_2_L3_16MB_16WAY_64B 0x4d
 
 
 /* CPUID Leaf 4 constants: */
@@ -131,11 +132,18 @@
 #define L2_LINES_PER_TAG       1
 #define L2_SIZE_KB_AMD       512
 
-/* No L3 cache: */
+/* Level 3 unified cache: */
 #define L3_SIZE_KB             0 /* disabled */
 #define L3_ASSOCIATIVITY       0 /* disabled */
 #define L3_LINES_PER_TAG       0 /* disabled */
 #define L3_LINE_SIZE           0 /* disabled */
+#define L3_N_LINE_SIZE         64
+#define L3_N_ASSOCIATIVITY     16
+#define L3_N_SETS           16384
+#define L3_N_PARTITIONS         1
+#define L3_N_DESCRIPTOR CPUID_2_L3_16MB_16WAY_64B
+#define L3_N_LINES_PER_TAG      1
+#define L3_N_SIZE_KB_AMD    16384
 
 /* TLB definitions: */
 
@@ -2279,6 +2287,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 {
     X86CPU *cpu = x86_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
+    uint32_t pkg_offset;
 
     /* test if maximum index reached */
     if (index & 0x80000000) {
@@ -2332,7 +2341,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         *eax = 1; /* Number of CPUID[EAX=2] calls required */
         *ebx = 0;
-        *ecx = 0;
+        if (!cpu->enable_l3_cache) {
+            *ecx = 0;
+        } else {
+            *ecx = L3_N_DESCRIPTOR;
+        }
         *edx = (L1D_DESCRIPTOR << 16) | \
                (L1I_DESCRIPTOR <<  8) | \
                (L2_DESCRIPTOR);
@@ -2377,6 +2390,25 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                        ((L2_ASSOCIATIVITY - 1) << 22);
                 *ecx = L2_SETS - 1;
                 *edx = CPUID_4_NO_INVD_SHARING;
+                break;
+            case 3: /* L3 cache info */
+                if (!cpu->enable_l3_cache) {
+                    *eax = 0;
+                    *ebx = 0;
+                    *ecx = 0;
+                    *edx = 0;
+                    break;
+                }
+                *eax |= CPUID_4_TYPE_UNIFIED | \
+                        CPUID_4_LEVEL(3) | \
+                        CPUID_4_SELF_INIT_LEVEL;
+                pkg_offset = apicid_pkg_offset(cs->nr_cores, cs->nr_threads);
+                *eax |= ((1 << pkg_offset) - 1) << 14;
+                *ebx = (L3_N_LINE_SIZE - 1) | \
+                       ((L3_N_PARTITIONS - 1) << 12) | \
+                       ((L3_N_ASSOCIATIVITY - 1) << 22);
+                *ecx = L3_N_SETS - 1;
+                *edx = CPUID_4_INCLUSIVE | CPUID_4_COMPLEX_IDX;
                 break;
             default: /* end of info */
                 *eax = 0;
@@ -2589,9 +2621,15 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ecx = (L2_SIZE_KB_AMD << 16) | \
                (AMD_ENC_ASSOC(L2_ASSOCIATIVITY) << 12) | \
                (L2_LINES_PER_TAG << 8) | (L2_LINE_SIZE);
-        *edx = ((L3_SIZE_KB/512) << 18) | \
-               (AMD_ENC_ASSOC(L3_ASSOCIATIVITY) << 12) | \
-               (L3_LINES_PER_TAG << 8) | (L3_LINE_SIZE);
+        if (!cpu->enable_l3_cache) {
+            *edx = ((L3_SIZE_KB / 512) << 18) | \
+                   (AMD_ENC_ASSOC(L3_ASSOCIATIVITY) << 12) | \
+                   (L3_LINES_PER_TAG << 8) | (L3_LINE_SIZE);
+        } else {
+            *edx = ((L3_N_SIZE_KB_AMD / 512) << 18) | \
+                   (AMD_ENC_ASSOC(L3_N_ASSOCIATIVITY) << 12) | \
+                   (L3_N_LINES_PER_TAG << 8) | (L3_N_LINE_SIZE);
+        }
         break;
     case 0x80000007:
         *eax = 0;
@@ -3368,6 +3406,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_STRING("hv-vendor-id", X86CPU, hyperv_vendor_id),
     DEFINE_PROP_BOOL("cpuid-0xb", X86CPU, enable_cpuid_0xb, true),
     DEFINE_PROP_BOOL("lmce", X86CPU, enable_lmce, false),
+    DEFINE_PROP_BOOL("l3-cache", X86CPU, enable_l3_cache, true),
     DEFINE_PROP_END_OF_LIST()
 };
 
