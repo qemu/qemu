@@ -356,20 +356,12 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
     const char **throttling_group, ThrottleConfig *throttle_cfg,
     BlockdevDetectZeroesOptions *detect_zeroes, Error **errp)
 {
-    const char *discard;
     Error *local_error = NULL;
     const char *aio;
 
     if (bdrv_flags) {
         if (qemu_opt_get_bool(opts, "copy-on-read", false)) {
             *bdrv_flags |= BDRV_O_COPY_ON_READ;
-        }
-
-        if ((discard = qemu_opt_get(opts, "discard")) != NULL) {
-            if (bdrv_parse_discard_flags(discard, bdrv_flags) != 0) {
-                error_setg(errp, "Invalid discard option");
-                return;
-            }
         }
 
         if ((aio = qemu_opt_get(opts, "aio")) != NULL) {
@@ -447,15 +439,6 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
                             &local_error);
         if (local_error) {
             error_propagate(errp, local_error);
-            return;
-        }
-
-        if (bdrv_flags &&
-            *detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
-            !(*bdrv_flags & BDRV_O_UNMAP))
-        {
-            error_setg(errp, "setting detect-zeroes to unmap is not allowed "
-                             "without setting discard operation to unmap");
             return;
         }
     }
@@ -3990,10 +3973,6 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "enable/disable snapshot mode",
         },{
-            .name = "discard",
-            .type = QEMU_OPT_STRING,
-            .help = "discard operation (ignore/off, unmap/on)",
-        },{
             .name = "aio",
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",
@@ -4125,10 +4104,6 @@ static QemuOptsList qemu_root_bds_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(qemu_root_bds_opts.head),
     .desc = {
         {
-            .name = "discard",
-            .type = QEMU_OPT_STRING,
-            .help = "discard operation (ignore/off, unmap/on)",
-        },{
             .name = "aio",
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",

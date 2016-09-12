@@ -765,7 +765,7 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
     /* Our block drivers take care to send flushes and respect unmap policy,
      * so we can default to enable both on lower layers regardless of the
      * corresponding parent options. */
-    flags |= BDRV_O_UNMAP;
+    qdict_set_default_str(child_options, BDRV_OPT_DISCARD, "unmap");
 
     /* Clear flags that only apply to the top layer */
     flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ |
@@ -960,6 +960,11 @@ static QemuOptsList bdrv_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "try to optimize zero writes (off, on, unmap)",
         },
+        {
+            .name = "discard",
+            .type = QEMU_OPT_STRING,
+            .help = "discard operation (ignore/off, unmap/on)",
+        },
         { /* end of list */ }
     },
 };
@@ -976,6 +981,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     const char *filename;
     const char *driver_name = NULL;
     const char *node_name = NULL;
+    const char *discard;
     const char *detect_zeroes;
     QemuOpts *opts;
     BlockDriver *drv;
@@ -1040,6 +1046,15 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
             bdrv_enable_copy_on_read(bs);
         } else {
             error_setg(errp, "Can't use copy-on-read on read-only device");
+            ret = -EINVAL;
+            goto fail_opts;
+        }
+    }
+
+    discard = qemu_opt_get(opts, "discard");
+    if (discard != NULL) {
+        if (bdrv_parse_discard_flags(discard, &bs->open_flags) != 0) {
+            error_setg(errp, "Invalid discard option");
             ret = -EINVAL;
             goto fail_opts;
         }
