@@ -36,6 +36,7 @@
 #include "hw/sysbus.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/ppc.h"
 #include "sysemu/watchdog.h"
 #include "trace.h"
@@ -2364,19 +2365,6 @@ PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
     return pvr_pcc;
 }
 
-#if defined(TARGET_PPC64)
-static void spapr_cpu_core_host_initfn(Object *obj)
-{
-    sPAPRCPUCore *core = SPAPR_CPU_CORE(obj);
-    char *name = g_strdup_printf("%s-" TYPE_POWERPC_CPU, "host");
-    ObjectClass *oc = object_class_by_name(name);
-
-    g_assert(oc);
-    g_free((void *)name);
-    core->cpu_class = oc;
-}
-#endif
-
 static int kvm_ppc_register_host_cpu_type(void)
 {
     TypeInfo type_info = {
@@ -2404,14 +2392,16 @@ static int kvm_ppc_register_host_cpu_type(void)
 #if defined(TARGET_PPC64)
     type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, "host");
     type_info.parent = TYPE_SPAPR_CPU_CORE,
-    type_info.instance_size = sizeof(sPAPRCPUCore),
-    type_info.instance_init = spapr_cpu_core_host_initfn,
-    type_info.class_init = NULL;
+    type_info.instance_size = sizeof(sPAPRCPUCore);
+    type_info.instance_init = NULL;
+    type_info.class_init = spapr_cpu_core_class_init;
+    type_info.class_data = (void *) "host";
     type_register(&type_info);
     g_free((void *)type_info.name);
 
     /* Register generic spapr CPU family class for current host CPU type */
     type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, dc->desc);
+    type_info.class_data = (void *) dc->desc;
     type_register(&type_info);
     g_free((void *)type_info.name);
 #endif
