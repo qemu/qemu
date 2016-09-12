@@ -79,6 +79,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/qtest.h"
 #include "qemu/cutils.h"
+#include "qapi/qmp/dispatch.h"
 
 /* for hmp_info_irq/pic */
 #if defined(TARGET_SPARC)
@@ -1006,6 +1007,18 @@ static void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
 {
     *ret_data = qobject_from_json(qmp_schema_json);
 }
+
+static void qmp_init_marshal(void)
+{
+    qmp_register_command("query-qmp-schema", qmp_query_qmp_schema,
+                         QCO_NO_OPTIONS);
+    qmp_register_command("device_add", qmp_device_add,
+                         QCO_NO_OPTIONS);
+    qmp_register_command("netdev_add", qmp_netdev_add,
+                         QCO_NO_OPTIONS);
+}
+
+qapi_init(qmp_init_marshal);
 
 /* set the current CPU defined by the user */
 int monitor_set_cpu(int cpu_index)
