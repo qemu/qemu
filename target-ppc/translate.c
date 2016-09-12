@@ -2510,6 +2510,9 @@ GEN_QEMU_STORE_TL(st8,  DEF_MEMOP(MO_UB))
 GEN_QEMU_STORE_TL(st16, DEF_MEMOP(MO_UW))
 GEN_QEMU_STORE_TL(st32, DEF_MEMOP(MO_UL))
 
+GEN_QEMU_STORE_TL(st16r, BSWAP_MEMOP(MO_UW))
+GEN_QEMU_STORE_TL(st32r, BSWAP_MEMOP(MO_UL))
+
 #define GEN_QEMU_STORE_64(stop, op)                               \
 static void glue(gen_qemu_, glue(stop, _i64))(DisasContext *ctx,  \
                                               TCGv_i64 val,       \
@@ -2520,6 +2523,10 @@ static void glue(gen_qemu_, glue(stop, _i64))(DisasContext *ctx,  \
 
 GEN_QEMU_STORE_64(st32, DEF_MEMOP(MO_UL))
 GEN_QEMU_STORE_64(st64, DEF_MEMOP(MO_Q))
+
+#if defined(TARGET_PPC64)
+GEN_QEMU_STORE_64(st64r, BSWAP_MEMOP(MO_Q))
+#endif
 
 #define GEN_LD(name, ldop, opc, type)                                         \
 static void glue(gen_, name)(DisasContext *ctx)                                       \
@@ -2844,33 +2851,14 @@ GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
 #if defined(TARGET_PPC64)
 /* ldbrx */
 GEN_LDX_E(ldbr, ld64ur_i64, 0x14, 0x10, PPC_NONE, PPC2_DBRX, CHK_NONE);
+/* stdbrx */
+GEN_STX_E(stdbr, st64r_i64, 0x14, 0x14, PPC_NONE, PPC2_DBRX, CHK_NONE);
 #endif  /* TARGET_PPC64 */
 
 /* sthbrx */
-static inline void gen_qemu_st16r(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    TCGMemOp op = MO_UW | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
-    tcg_gen_qemu_st_tl(arg1, arg2, ctx->mem_idx, op);
-}
 GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER);
-
 /* stwbrx */
-static inline void gen_qemu_st32r(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    TCGMemOp op = MO_UL | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
-    tcg_gen_qemu_st_tl(arg1, arg2, ctx->mem_idx, op);
-}
 GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER);
-
-#if defined(TARGET_PPC64)
-/* stdbrx */
-static inline void gen_qemu_st64r(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    TCGMemOp op = MO_Q | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
-    tcg_gen_qemu_st_i64(arg1, arg2, ctx->mem_idx, op);
-}
-GEN_STX_E(stdbr, st64r, 0x14, 0x14, PPC_NONE, PPC2_DBRX, CHK_NONE);
-#endif  /* TARGET_PPC64 */
 
 /***                    Integer load and store multiple                    ***/
 
@@ -6619,7 +6607,7 @@ GEN_STS(stw, st32, 0x04, PPC_INTEGER)
 #if defined(TARGET_PPC64)
 GEN_STUX(std, st64_i64, 0x15, 0x05, PPC_64B)
 GEN_STX(std, st64_i64, 0x15, 0x04, PPC_64B)
-GEN_STX_E(stdbr, st64r, 0x14, 0x14, PPC_NONE, PPC2_DBRX, CHK_NONE)
+GEN_STX_E(stdbr, st64r_i64, 0x14, 0x14, PPC_NONE, PPC2_DBRX, CHK_NONE)
 GEN_STX_HVRM(stdcix, st64_i64, 0x15, 0x1f, PPC_CILDST)
 GEN_STX_HVRM(stwcix, st32, 0x15, 0x1c, PPC_CILDST)
 GEN_STX_HVRM(sthcix, st16, 0x15, 0x1d, PPC_CILDST)
