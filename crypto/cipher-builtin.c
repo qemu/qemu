@@ -244,7 +244,8 @@ static int qcrypto_cipher_init_aes(QCryptoCipher *cipher,
     if (cipher->mode != QCRYPTO_CIPHER_MODE_CBC &&
         cipher->mode != QCRYPTO_CIPHER_MODE_ECB &&
         cipher->mode != QCRYPTO_CIPHER_MODE_XTS) {
-        error_setg(errp, "Unsupported cipher mode %d", cipher->mode);
+        error_setg(errp, "Unsupported cipher mode %s",
+                   QCryptoCipherMode_lookup[cipher->mode]);
         return -1;
     }
 
@@ -376,7 +377,8 @@ static int qcrypto_cipher_init_des_rfb(QCryptoCipher *cipher,
     QCryptoCipherBuiltin *ctxt;
 
     if (cipher->mode != QCRYPTO_CIPHER_MODE_ECB) {
-        error_setg(errp, "Unsupported cipher mode %d", cipher->mode);
+        error_setg(errp, "Unsupported cipher mode %s",
+                   QCryptoCipherMode_lookup[cipher->mode]);
         return -1;
     }
 
@@ -442,7 +444,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         break;
     default:
         error_setg(errp,
-                   "Unsupported cipher algorithm %d", cipher->alg);
+                   "Unsupported cipher algorithm %s",
+                   QCryptoCipherAlgorithm_lookup[cipher->alg]);
         goto error;
     }
 

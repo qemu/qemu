@@ -227,7 +227,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_MODE_XTS:
         break;
     default:
-        error_setg(errp, "Unsupported cipher mode %d", mode);
+        error_setg(errp, "Unsupported cipher mode %s",
+                   QCryptoCipherMode_lookup[mode]);
         return NULL;
     }
 
@@ -357,7 +358,15 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         break;
 
     default:
-        error_setg(errp, "Unsupported cipher algorithm %d", alg);
+        error_setg(errp, "Unsupported cipher algorithm %s",
+                   QCryptoCipherAlgorithm_lookup[alg]);
+        goto error;
+    }
+
+    if (mode == QCRYPTO_CIPHER_MODE_XTS &&
+        ctx->blocksize != XTS_BLOCK_SIZE) {
+        error_setg(errp, "Cipher block size %zu must equal XTS block size %d",
+                   ctx->blocksize, XTS_BLOCK_SIZE);
         goto error;
     }
 
@@ -422,8 +431,8 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
         break;
 
     default:
-        error_setg(errp, "Unsupported cipher algorithm %d",
-                   cipher->alg);
+        error_setg(errp, "Unsupported cipher mode %s",
+                   QCryptoCipherMode_lookup[cipher->mode]);
         return -1;
     }
     return 0;
@@ -456,19 +465,14 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
         break;
 
     case QCRYPTO_CIPHER_MODE_XTS:
-        if (ctx->blocksize != XTS_BLOCK_SIZE) {
-            error_setg(errp, "Block size must be %d not %zu",
-                       XTS_BLOCK_SIZE, ctx->blocksize);
-            return -1;
-        }
         xts_decrypt(ctx->ctx, ctx->ctx_tweak,
                     ctx->alg_encrypt_wrapper, ctx->alg_decrypt_wrapper,
                     ctx->iv, len, out, in);
         break;
 
     default:
-        error_setg(errp, "Unsupported cipher algorithm %d",
-                   cipher->alg);
+        error_setg(errp, "Unsupported cipher mode %s",
+                   QCryptoCipherMode_lookup[cipher->mode]);
         return -1;
     }
     return 0;

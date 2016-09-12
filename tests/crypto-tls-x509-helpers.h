@@ -26,7 +26,6 @@
 
 #if !(defined WIN32) && \
     defined(CONFIG_TASN1) && \
-    defined(LIBGNUTLS_VERSION_NUMBER) && \
     (LIBGNUTLS_VERSION_NUMBER >= 0x020600)
 # define QCRYPTO_HAVE_TLS_TEST_SUPPORT
 #endif
