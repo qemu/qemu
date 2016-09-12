@@ -166,7 +166,6 @@ struct MonFdset {
 };
 
 typedef struct {
-    QObject *id;
     JSONMessageParser parser;
     /*
      * When a client connects, we're in capabilities negotiation mode.
@@ -228,8 +227,6 @@ static int mon_refcount;
 
 static mon_cmd_t mon_cmds[];
 static mon_cmd_t info_cmds[];
-
-static const mon_cmd_t qmp_cmds[];
 
 Monitor *cur_mon;
 
@@ -400,49 +397,6 @@ static void monitor_json_emitter(Monitor *mon, const QObject *data)
 
     QDECREF(json);
 }
-
-static QDict *build_qmp_error_dict(Error *err)
-{
-    QObject *obj;
-
-    obj = qobject_from_jsonf("{ 'error': { 'class': %s, 'desc': %s } }",
-                             QapiErrorClass_lookup[error_get_class(err)],
-                             error_get_pretty(err));
-
-    return qobject_to_qdict(obj);
-}
-
-static void monitor_protocol_emitter(Monitor *mon, QObject *data,
-                                     Error *err)
-{
-    QDict *qmp;
-
-    trace_monitor_protocol_emitter(mon);
-
-    if (!err) {
-        /* success response */
-        qmp = qdict_new();
-        if (data) {
-            qobject_incref(data);
-            qdict_put_obj(qmp, "return", data);
-        } else {
-            /* return an empty QDict by default */
-            qdict_put(qmp, "return", qdict_new());
-        }
-    } else {
-        /* error response */
-        qmp = build_qmp_error_dict(err);
-    }
-
-    if (mon->qmp.id) {
-        qdict_put_obj(qmp, "id", mon->qmp.id);
-        mon->qmp.id = NULL;
-    }
-
-    monitor_json_emitter(mon, QOBJECT(qmp));
-    QDECREF(qmp);
-}
-
 
 static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {
     /* Limit guest-triggerable events to 1 per second */
@@ -2211,11 +2165,6 @@ static mon_cmd_t mon_cmds[] = {
     { NULL, NULL, },
 };
 
-static const mon_cmd_t qmp_cmds[] = {
-#include "qmp-commands-old.h"
-    { /* NULL */ },
-};
-
 /*******************************************************************/
 
 static const char *pch;
@@ -2564,11 +2513,6 @@ static const mon_cmd_t *search_dispatch_table(const mon_cmd_t *disp_table,
     }
 
     return NULL;
-}
-
-static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
-{
-    return search_dispatch_table(qmp_cmds, cmdname);
 }
 
 /*
@@ -3722,199 +3666,6 @@ static bool invalid_qmp_mode(const Monitor *mon, const char *cmd,
 }
 
 /*
- * Argument validation rules:
- *
- * 1. The argument must exist in cmd_args qdict
- * 2. The argument type must be the expected one
- *
- * Special case: If the argument doesn't exist in cmd_args and
- *               the QMP_ACCEPT_UNKNOWNS flag is set, then the
- *               checking is skipped for it.
- */
-static void check_client_args_type(const QDict *client_args,
-                                   const QDict *cmd_args, int flags,
-                                   Error **errp)
-{
-    const QDictEntry *ent;
-
-    for (ent = qdict_first(client_args); ent;ent = qdict_next(client_args,ent)){
-        QObject *obj;
-        QString *arg_type;
-        const QObject *client_arg = qdict_entry_value(ent);
-        const char *client_arg_name = qdict_entry_key(ent);
-
-        obj = qdict_get(cmd_args, client_arg_name);
-        if (!obj) {
-            if (flags & QMP_ACCEPT_UNKNOWNS) {
-                /* handler accepts unknowns */
-                continue;
-            }
-            /* client arg doesn't exist */
-            error_setg(errp, QERR_INVALID_PARAMETER, client_arg_name);
-            return;
-        }
-
-        arg_type = qobject_to_qstring(obj);
-        assert(arg_type != NULL);
-
-        /* check if argument's type is correct */
-        switch (qstring_get_str(arg_type)[0]) {
-        case 'F':
-        case 'B':
-        case 's':
-            if (qobject_type(client_arg) != QTYPE_QSTRING) {
-                error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
-                           client_arg_name, "string");
-                return;
-            }
-        break;
-        case 'i':
-        case 'l':
-        case 'M':
-        case 'o':
-            if (qobject_type(client_arg) != QTYPE_QINT) {
-                error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
-                           client_arg_name, "int");
-                return;
-            }
-            break;
-        case 'T':
-            if (qobject_type(client_arg) != QTYPE_QINT &&
-                qobject_type(client_arg) != QTYPE_QFLOAT) {
-                error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
-                           client_arg_name, "number");
-                return;
-            }
-            break;
-        case 'b':
-        case '-':
-            if (qobject_type(client_arg) != QTYPE_QBOOL) {
-                error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
-                           client_arg_name, "bool");
-                return;
-            }
-            break;
-        case 'O':
-            assert(flags & QMP_ACCEPT_UNKNOWNS);
-            break;
-        case 'q':
-            /* Any QObject can be passed.  */
-            break;
-        case '/':
-        case '.':
-            /*
-             * These types are not supported by QMP and thus are not
-             * handled here. Fall through.
-             */
-        default:
-            abort();
-        }
-    }
-}
-
-/*
- * - Check if the client has passed all mandatory args
- * - Set special flags for argument validation
- */
-static void check_mandatory_args(const QDict *cmd_args,
-                                 const QDict *client_args, int *flags,
-                                 Error **errp)
-{
-    const QDictEntry *ent;
-
-    for (ent = qdict_first(cmd_args); ent; ent = qdict_next(cmd_args, ent)) {
-        const char *cmd_arg_name = qdict_entry_key(ent);
-        QString *type = qobject_to_qstring(qdict_entry_value(ent));
-        assert(type != NULL);
-
-        if (qstring_get_str(type)[0] == 'O') {
-            assert((*flags & QMP_ACCEPT_UNKNOWNS) == 0);
-            *flags |= QMP_ACCEPT_UNKNOWNS;
-        } else if (qstring_get_str(type)[0] != '-' &&
-                   qstring_get_str(type)[1] != '?' &&
-                   !qdict_haskey(client_args, cmd_arg_name)) {
-            error_setg(errp, QERR_MISSING_PARAMETER, cmd_arg_name);
-            return;
-        }
-    }
-}
-
-static QDict *qdict_from_args_type(const char *args_type)
-{
-    int i;
-    QDict *qdict;
-    QString *key, *type, *cur_qs;
-
-    assert(args_type != NULL);
-
-    qdict = qdict_new();
-
-    if (args_type == NULL || args_type[0] == '\0') {
-        /* no args, empty qdict */
-        goto out;
-    }
-
-    key = qstring_new();
-    type = qstring_new();
-
-    cur_qs = key;
-
-    for (i = 0;; i++) {
-        switch (args_type[i]) {
-            case ',':
-            case '\0':
-                qdict_put(qdict, qstring_get_str(key), type);
-                QDECREF(key);
-                if (args_type[i] == '\0') {
-                    goto out;
-                }
-                type = qstring_new(); /* qdict has ref */
-                cur_qs = key = qstring_new();
-                break;
-            case ':':
-                cur_qs = type;
-                break;
-            default:
-                qstring_append_chr(cur_qs, args_type[i]);
-                break;
-        }
-    }
-
-out:
-    return qdict;
-}
-
-/*
- * Client argument checking rules:
- *
- * 1. Client must provide all mandatory arguments
- * 2. Each argument provided by the client must be expected
- * 3. Each argument provided by the client must have the type expected
- *    by the command
- */
-static void qmp_check_client_args(const mon_cmd_t *cmd, QDict *client_args,
-                                  Error **errp)
-{
-    Error *err = NULL;
-    int flags;
-    QDict *cmd_args;
-
-    cmd_args = qdict_from_args_type(cmd->args_type);
-
-    flags = 0;
-    check_mandatory_args(cmd_args, client_args, &flags, &err);
-    if (err) {
-        goto out;
-    }
-
-    check_client_args_type(client_args, cmd_args, flags, &err);
-
-out:
-    error_propagate(errp, err);
-    QDECREF(cmd_args);
-}
-
-/*
  * Input object checking rules
  *
  * 1. Input object must be a dict
@@ -3972,67 +3723,58 @@ static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
 
 static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 {
-    Error *local_err = NULL;
-    QObject *obj, *data;
-    QDict *input, *args;
-    const mon_cmd_t *cmd;
-    QmpCommand *qcmd;
+    QObject *req, *rsp = NULL, *id = NULL;
+    QDict *qdict = NULL;
     const char *cmd_name;
     Monitor *mon = cur_mon;
+    Error *err = NULL;
 
-    args = input = NULL;
-    data = NULL;
-
-    obj = json_parser_parse(tokens, NULL);
-    if (!obj) {
-        // FIXME: should be triggered in json_parser_parse()
-        error_setg(&local_err, QERR_JSON_PARSING);
+    req = json_parser_parse_err(tokens, NULL, &err);
+    if (err || !req || qobject_type(req) != QTYPE_QDICT) {
+        if (!err) {
+            error_setg(&err, QERR_JSON_PARSING);
+        }
         goto err_out;
     }
 
-    input = qmp_check_input_obj(obj, &local_err);
-    if (!input) {
-        qobject_decref(obj);
+    qdict = qmp_check_input_obj(req, &err);
+    if (!qdict) {
         goto err_out;
     }
 
-    mon->qmp.id = qdict_get(input, "id");
-    qobject_incref(mon->qmp.id);
+    id = qdict_get(qdict, "id");
+    qobject_incref(id);
+    qdict_del(qdict, "id");
 
-    cmd_name = qdict_get_str(input, "execute");
+    cmd_name = qdict_get_str(qdict, "execute");
     trace_handle_qmp_command(mon, cmd_name);
-    cmd = qmp_find_cmd(cmd_name);
-    qcmd = qmp_find_command(cmd_name);
-    if (!qcmd || !cmd) {
-        error_set(&local_err, ERROR_CLASS_COMMAND_NOT_FOUND,
-                  "The command %s has not been found", cmd_name);
-        goto err_out;
-    }
-    if (invalid_qmp_mode(mon, cmd_name, &local_err)) {
+
+    if (invalid_qmp_mode(mon, cmd_name, &err)) {
         goto err_out;
     }
 
-    obj = qdict_get(input, "arguments");
-    if (!obj) {
-        args = qdict_new();
-    } else {
-        args = qobject_to_qdict(obj);
-        QINCREF(args);
-    }
-
-    qmp_check_client_args(cmd, args, &local_err);
-    if (local_err) {
-        goto err_out;
-    }
-
-    qcmd->fn(args, &data, &local_err);
+    rsp = qmp_dispatch(req);
 
 err_out:
-    monitor_protocol_emitter(mon, data, local_err);
-    qobject_decref(data);
-    error_free(local_err);
-    QDECREF(input);
-    QDECREF(args);
+    if (err) {
+        qdict = qdict_new();
+        qdict_put_obj(qdict, "error", qmp_build_error_object(err));
+        error_free(err);
+        rsp = QOBJECT(qdict);
+    }
+
+    if (rsp) {
+        if (id) {
+            qdict_put_obj(qobject_to_qdict(rsp), "id", id);
+            id = NULL;
+        }
+
+        monitor_json_emitter(mon, rsp);
+    }
+
+    qobject_decref(id);
+    qobject_decref(rsp);
+    qobject_decref(req);
 }
 
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
