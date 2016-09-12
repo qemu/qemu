@@ -206,8 +206,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._visited_ret_types = set()
 
     def visit_end(self):
-        if not middle_mode:
-            self.defn += gen_registry(self._regy)
+        self.defn += gen_registry(self._regy)
         self._regy = None
         self._visited_ret_types = None
 
@@ -221,18 +220,10 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
             self.defn += gen_marshal_output(ret_type)
         self.decl += gen_marshal_decl(name)
         self.defn += gen_marshal(name, arg_type, boxed, ret_type)
-        if not middle_mode:
-            self._regy += gen_register_command(name, success_response)
+        self._regy += gen_register_command(name, success_response)
 
 
-middle_mode = False
-
-(input_file, output_dir, do_c, do_h, prefix, opts) = \
-    parse_command_line("m", ["middle"])
-
-for o, a in opts:
-    if o in ("-m", "--middle"):
-        middle_mode = True
+(input_file, output_dir, do_c, do_h, prefix, opts) = parse_command_line()
 
 c_comment = '''
 /*
