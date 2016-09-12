@@ -91,7 +91,7 @@ eject
 
 Eject a removable medium.
 
-Arguments: 
+Arguments:
 
 - force: force ejection (json-bool, optional)
 - device: device name (json-string)
@@ -1395,7 +1395,6 @@ EQMP
     },
 
 SQMP
-
 block-dirty-bitmap-add
 ----------------------
 Since 2.4
@@ -1422,7 +1421,6 @@ EQMP
     },
 
 SQMP
-
 block-dirty-bitmap-remove
 -------------------------
 Since 2.4
@@ -1449,7 +1447,6 @@ EQMP
     },
 
 SQMP
-
 block-dirty-bitmap-clear
 ------------------------
 Since 2.4
@@ -2176,7 +2173,7 @@ human-monitor-command
 
 Execute a Human Monitor command.
 
-Arguments: 
+Arguments:
 
 - command-line: the command name and its arguments, just like the
                 Human Monitor's shell (json-string)
@@ -2988,7 +2985,7 @@ Example:
                   },
                   "function":0,
                   "regions":[
-   
+
                   ]
                },
                {
@@ -3005,7 +3002,7 @@ Example:
                   },
                   "function":0,
                   "regions":[
-   
+
                   ]
                },
                {
@@ -3467,8 +3464,8 @@ The main json-object contains the following:
 - "setup-time" amount of setup time in milliseconds _before_ the
                iterations begin but _after_ the QMP command is issued.
                This is designed to provide an accounting of any activities
-               (such as RDMA pinning) which may be expensive, but do not 
-               actually occur during the iterative migration rounds 
+               (such as RDMA pinning) which may be expensive, but do not
+               actually occur during the iterative migration rounds
                themselves. (json-int)
 - "downtime": only present when migration has finished correctly
               total amount in ms for downtime that happened (json-int)
@@ -4393,8 +4390,8 @@ EQMP
     },
 
 SQMP
-@query-named-block-nodes
-------------------------
+query-named-block-nodes
+-----------------------
 
 Return a list of BlockDeviceInfo for all the named block driver nodes
 
@@ -4543,7 +4540,7 @@ EQMP
     },
 
 SQMP
-@query-memory-devices
+query-memory-devices
 --------------------
 
 Return a list of memory devices.
@@ -4561,6 +4558,7 @@ Example:
                         "slot": 0},
                    "type": "dimm"
                  } ] }
+
 EQMP
 
     {
@@ -4569,8 +4567,8 @@ EQMP
     },
 
 SQMP
-@query-acpi-ospm-status
---------------------
+query-acpi-ospm-status
+----------------------
 
 Return list of ACPIOSTInfo for devices that support status reporting
 via ACPI _OST method.
@@ -4582,6 +4580,7 @@ Example:
                  { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
                  { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
    ]}
+
 EQMP
 
 #if defined TARGET_I386
@@ -4603,6 +4602,7 @@ Example:
 
 -> { "execute": "rtc-reset-reinjection" }
 <- { "return": {} }
+
 EQMP
 
     {
@@ -4634,6 +4634,7 @@ Example:
 
 -> { "execute": "trace-event-get-state", "arguments": { "name": "qemu_memalign" } }
 <- { "return": [ { "name": "qemu_memalign", "state": "disabled" } ] }
+
 EQMP
 
     {
@@ -4668,6 +4669,7 @@ Example:
 
 -> { "execute": "trace-event-set-state", "arguments": { "name": "qemu_memalign", "enable": "true" } }
 <- { "return": {} }
+
 EQMP
 
     {
@@ -4676,8 +4678,8 @@ EQMP
     },
 
 SQMP
-@input-send-event
------------------
+input-send-event
+----------------
 
 Send input event to guest.
 
