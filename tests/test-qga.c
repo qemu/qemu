@@ -198,6 +198,26 @@ static void test_qga_ping(gconstpointer fix)
     QDECREF(ret);
 }
 
+static void test_qga_invalid_args(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    QDict *ret, *error;
+    const gchar *class, *desc;
+
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-ping', "
+                 "'arguments': {'foo': 42 }}");
+    g_assert_nonnull(ret);
+
+    error = qdict_get_qdict(ret, "error");
+    class = qdict_get_try_str(error, "class");
+    desc = qdict_get_try_str(error, "desc");
+
+    g_assert_cmpstr(class, ==, "GenericError");
+    g_assert_cmpstr(desc, ==, "QMP input object member 'foo' is unexpected");
+
+    QDECREF(ret);
+}
+
 static void test_qga_invalid_cmd(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
@@ -911,6 +931,7 @@ int main(int argc, char **argv)
     g_test_add_data_func("/qga/file-write-read", &fix, test_qga_file_write_read);
     g_test_add_data_func("/qga/get-time", &fix, test_qga_get_time);
     g_test_add_data_func("/qga/invalid-cmd", &fix, test_qga_invalid_cmd);
+    g_test_add_data_func("/qga/invalid-args", &fix, test_qga_invalid_args);
     g_test_add_data_func("/qga/fsfreeze-status", &fix,
                          test_qga_fsfreeze_status);
 
