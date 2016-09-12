@@ -2546,6 +2546,7 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
     BlockBackend *blk;
     BlockDriverState *medium_bs = NULL;
     int bdrv_flags;
+    bool detect_zeroes;
     int rc;
     QDict *options = NULL;
     Error *err = NULL;
@@ -2585,8 +2586,12 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
         abort();
     }
 
+    options = qdict_new();
+    detect_zeroes = blk_get_detect_zeroes_from_root_state(blk);
+    qdict_put(options, "detect-zeroes",
+              qstring_from_str(detect_zeroes ? "on" : "off"));
+
     if (has_format) {
-        options = qdict_new();
         qdict_put(options, "driver", qstring_from_str(format));
     }
 
@@ -2622,8 +2627,6 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
         error_propagate(errp, err);
         goto fail;
     }
-
-    blk_apply_root_state(blk, medium_bs);
 
     qmp_blockdev_close_tray(has_device, device, has_id, id, errp);
 

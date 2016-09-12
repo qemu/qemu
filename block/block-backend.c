@@ -1592,13 +1592,12 @@ void blk_update_root_state(BlockBackend *blk)
 }
 
 /*
- * Applies the information in the root state to the given BlockDriverState. This
- * does not include the flags which have to be specified for bdrv_open(), use
- * blk_get_open_flags_from_root_state() to inquire them.
+ * Returns the detect-zeroes setting to be used for bdrv_open() of a
+ * BlockDriverState which is supposed to inherit the root state.
  */
-void blk_apply_root_state(BlockBackend *blk, BlockDriverState *bs)
+bool blk_get_detect_zeroes_from_root_state(BlockBackend *blk)
 {
-    bs->detect_zeroes = blk->root_state.detect_zeroes;
+    return blk->root_state.detect_zeroes;
 }
 
 /*
