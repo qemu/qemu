@@ -130,13 +130,10 @@ typedef struct mon_cmd_t {
     const char *args_type;
     const char *params;
     const char *help;
-    union {
-        void (*cmd)(Monitor *mon, const QDict *qdict);
-        void (*cmd_new)(QDict *params, QObject **ret_data, Error **errp);
-    } mhandler;
-    /* @sub_table is a list of 2nd level of commands. If it do not exist,
-     * mhandler should be used. If it exist, sub_table[?].mhandler should be
-     * used, and mhandler of 1st level plays the role of help function.
+    void (*cmd)(Monitor *mon, const QDict *qdict);
+    /* @sub_table is a list of 2nd level of commands. If it does not exist,
+     * cmd should be used. If it exists, sub_table[?].cmd should be
+     * used, and cmd of 1st level plays the role of help function.
      */
     struct mon_cmd_t *sub_table;
     void (*command_completion)(ReadLineState *rs, int nb_args, const char *str);
@@ -3005,7 +3002,7 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
         return;
     }
 
-    cmd->mhandler.cmd(mon, qdict);
+    cmd->cmd(mon, qdict);
     QDECREF(qdict);
 }
 

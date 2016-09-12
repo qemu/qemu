@@ -335,7 +335,7 @@ we should add it to the hmp-commands.hx file:
         .args_type  = "message:s?",
         .params     = "hello-world [message]",
         .help       = "Print message to the standard output",
-        .mhandler.cmd = hmp_hello_world,
+        .cmd        = hmp_hello_world,
     },
 
 STEXI
@@ -515,7 +515,7 @@ in the monitor.c file. The entry for the "info alarmclock" follows:
         .args_type  = "",
         .params     = "",
         .help       = "show information about the alarm clock",
-        .mhandler.cmd = hmp_info_alarm_clock,
+        .cmd        = hmp_info_alarm_clock,
     },
 
 To test this, run qemu and type "info alarmclock" in the user monitor.
