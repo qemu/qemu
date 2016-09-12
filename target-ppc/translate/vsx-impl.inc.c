@@ -34,7 +34,7 @@ static void gen_##name(DisasContext *ctx)                     \
     tcg_temp_free(EA);                                        \
 }
 
-VSX_LOAD_SCALAR(lxsdx, ld64)
+VSX_LOAD_SCALAR(lxsdx, ld64_i64)
 VSX_LOAD_SCALAR(lxsiwax, ld32s_i64)
 VSX_LOAD_SCALAR(lxsiwzx, ld32u_i64)
 VSX_LOAD_SCALAR(lxsspx, ld32fs)
@@ -49,9 +49,9 @@ static void gen_lxvd2x(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_INT);
     EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    gen_qemu_ld64(ctx, cpu_vsrh(xT(ctx->opcode)), EA);
+    gen_qemu_ld64_i64(ctx, cpu_vsrh(xT(ctx->opcode)), EA);
     tcg_gen_addi_tl(EA, EA, 8);
-    gen_qemu_ld64(ctx, cpu_vsrl(xT(ctx->opcode)), EA);
+    gen_qemu_ld64_i64(ctx, cpu_vsrl(xT(ctx->opcode)), EA);
     tcg_temp_free(EA);
 }
 
@@ -65,7 +65,7 @@ static void gen_lxvdsx(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_INT);
     EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    gen_qemu_ld64(ctx, cpu_vsrh(xT(ctx->opcode)), EA);
+    gen_qemu_ld64_i64(ctx, cpu_vsrh(xT(ctx->opcode)), EA);
     tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrh(xT(ctx->opcode)));
     tcg_temp_free(EA);
 }

@@ -2488,12 +2488,7 @@ static void glue(gen_qemu_, glue(ldop, _i64))(DisasContext *ctx,    \
 
 GEN_QEMU_LOAD_64(ld32u, DEF_MEMOP(MO_UL))
 GEN_QEMU_LOAD_64(ld32s, DEF_MEMOP(MO_SL))
-
-static inline void gen_qemu_ld64(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
-{
-    TCGMemOp op = MO_Q | ctx->default_tcg_memop_mask;
-    tcg_gen_qemu_ld_i64(arg1, arg2, ctx->mem_idx, op);
-}
+GEN_QEMU_LOAD_64(ld64,  DEF_MEMOP(MO_Q))
 
 static inline void gen_qemu_st8(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
@@ -2612,12 +2607,12 @@ GEN_LDUX(lwa, ld32s, 0x15, 0x0B, PPC_64B);
 /* lwax */
 GEN_LDX(lwa, ld32s, 0x15, 0x0A, PPC_64B);
 /* ldux */
-GEN_LDUX(ld, ld64, 0x15, 0x01, PPC_64B);
+GEN_LDUX(ld, ld64_i64, 0x15, 0x01, PPC_64B);
 /* ldx */
-GEN_LDX(ld, ld64, 0x15, 0x00, PPC_64B);
+GEN_LDX(ld, ld64_i64, 0x15, 0x00, PPC_64B);
 
 /* CI load/store variants */
-GEN_LDX_HVRM(ldcix, ld64, 0x15, 0x1b, PPC_CILDST)
+GEN_LDX_HVRM(ldcix, ld64_i64, 0x15, 0x1b, PPC_CILDST)
 GEN_LDX_HVRM(lwzcix, ld32u, 0x15, 0x15, PPC_CILDST)
 GEN_LDX_HVRM(lhzcix, ld16u, 0x15, 0x19, PPC_CILDST)
 GEN_LDX_HVRM(lbzcix, ld8u, 0x15, 0x1a, PPC_CILDST)
@@ -2640,7 +2635,7 @@ static void gen_ld(DisasContext *ctx)
         gen_qemu_ld32s(ctx, cpu_gpr[rD(ctx->opcode)], EA);
     } else {
         /* ld - ldu */
-        gen_qemu_ld64(ctx, cpu_gpr[rD(ctx->opcode)], EA);
+        gen_qemu_ld64_i64(ctx, cpu_gpr[rD(ctx->opcode)], EA);
     }
     if (Rc(ctx->opcode))
         tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);
@@ -2677,16 +2672,16 @@ static void gen_lq(DisasContext *ctx)
     EA = tcg_temp_new();
     gen_addr_imm_index(ctx, EA, 0x0F);
 
-    /* We only need to swap high and low halves. gen_qemu_ld64 does necessary
-       64-bit byteswap already. */
+    /* We only need to swap high and low halves. gen_qemu_ld64_i64 does
+       necessary 64-bit byteswap already. */
     if (unlikely(ctx->le_mode)) {
-        gen_qemu_ld64(ctx, cpu_gpr[rd+1], EA);
+        gen_qemu_ld64_i64(ctx, cpu_gpr[rd + 1], EA);
         gen_addr_add(ctx, EA, EA, 8);
-        gen_qemu_ld64(ctx, cpu_gpr[rd], EA);
+        gen_qemu_ld64_i64(ctx, cpu_gpr[rd], EA);
     } else {
-        gen_qemu_ld64(ctx, cpu_gpr[rd], EA);
+        gen_qemu_ld64_i64(ctx, cpu_gpr[rd], EA);
         gen_addr_add(ctx, EA, EA, 8);
-        gen_qemu_ld64(ctx, cpu_gpr[rd+1], EA);
+        gen_qemu_ld64_i64(ctx, cpu_gpr[rd + 1], EA);
     }
     tcg_temp_free(EA);
 }
@@ -3184,7 +3179,7 @@ STCX(stwcx_, 4);
 
 #if defined(TARGET_PPC64)
 /* ldarx */
-LARX(ldarx, 8, ld64);
+LARX(ldarx, 8, ld64_i64);
 
 /* lqarx */
 static void gen_lqarx(DisasContext *ctx)
@@ -3210,11 +3205,11 @@ static void gen_lqarx(DisasContext *ctx)
         gpr1 = cpu_gpr[rd];
         gpr2 = cpu_gpr[rd+1];
     }
-    gen_qemu_ld64(ctx, gpr1, EA);
+    gen_qemu_ld64_i64(ctx, gpr1, EA);
     tcg_gen_mov_tl(cpu_reserve, EA);
 
     gen_addr_add(ctx, EA, EA, 8);
-    gen_qemu_ld64(ctx, gpr2, EA);
+    gen_qemu_ld64_i64(ctx, gpr2, EA);
 
     tcg_gen_st_tl(gpr1, cpu_env, offsetof(CPUPPCState, reserve_val));
     tcg_gen_st_tl(gpr2, cpu_env, offsetof(CPUPPCState, reserve_val2));
@@ -6601,12 +6596,12 @@ GEN_LDS(lwz, ld32u, 0x00, PPC_INTEGER)
 #if defined(TARGET_PPC64)
 GEN_LDUX(lwa, ld32s, 0x15, 0x0B, PPC_64B)
 GEN_LDX(lwa, ld32s, 0x15, 0x0A, PPC_64B)
-GEN_LDUX(ld, ld64, 0x15, 0x01, PPC_64B)
-GEN_LDX(ld, ld64, 0x15, 0x00, PPC_64B)
+GEN_LDUX(ld, ld64_i64, 0x15, 0x01, PPC_64B)
+GEN_LDX(ld, ld64_i64, 0x15, 0x00, PPC_64B)
 GEN_LDX_E(ldbr, ld64ur, 0x14, 0x10, PPC_NONE, PPC2_DBRX, CHK_NONE)
 
 /* HV/P7 and later only */
-GEN_LDX_HVRM(ldcix, ld64, 0x15, 0x1b, PPC_CILDST)
+GEN_LDX_HVRM(ldcix, ld64_i64, 0x15, 0x1b, PPC_CILDST)
 GEN_LDX_HVRM(lwzcix, ld32u, 0x15, 0x18, PPC_CILDST)
 GEN_LDX_HVRM(lhzcix, ld16u, 0x15, 0x19, PPC_CILDST)
 GEN_LDX_HVRM(lbzcix, ld8u, 0x15, 0x1a, PPC_CILDST)

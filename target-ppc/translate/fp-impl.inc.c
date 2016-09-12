@@ -672,7 +672,7 @@ static inline void gen_qemu_ld32fs(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
 }
 
  /* lfd lfdu lfdux lfdx */
-GEN_LDFS(lfd, ld64, 0x12, PPC_FLOAT);
+GEN_LDFS(lfd, ld64_i64, 0x12, PPC_FLOAT);
  /* lfs lfsu lfsux lfsx */
 GEN_LDFS(lfs, ld32fs, 0x10, PPC_FLOAT);
 
@@ -687,16 +687,16 @@ static void gen_lfdp(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_FLOAT);
     EA = tcg_temp_new();
     gen_addr_imm_index(ctx, EA, 0);
-    /* We only need to swap high and low halves. gen_qemu_ld64 does necessary
-       64-bit byteswap already. */
+    /* We only need to swap high and low halves. gen_qemu_ld64_i64 does
+       necessary 64-bit byteswap already. */
     if (unlikely(ctx->le_mode)) {
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
+        gen_qemu_ld64_i64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
         tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
+        gen_qemu_ld64_i64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
     } else {
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
+        gen_qemu_ld64_i64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
         tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
+        gen_qemu_ld64_i64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
     }
     tcg_temp_free(EA);
 }
@@ -712,16 +712,16 @@ static void gen_lfdpx(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_FLOAT);
     EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    /* We only need to swap high and low halves. gen_qemu_ld64 does necessary
-       64-bit byteswap already. */
+    /* We only need to swap high and low halves. gen_qemu_ld64_i64 does
+       necessary 64-bit byteswap already. */
     if (unlikely(ctx->le_mode)) {
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
+        gen_qemu_ld64_i64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
         tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
+        gen_qemu_ld64_i64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
     } else {
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
+        gen_qemu_ld64_i64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
         tcg_gen_addi_tl(EA, EA, 8);
-        gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
+        gen_qemu_ld64_i64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
     }
     tcg_temp_free(EA);
 }
@@ -924,9 +924,9 @@ static void gen_lfq(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_FLOAT);
     t0 = tcg_temp_new();
     gen_addr_imm_index(ctx, t0, 0);
-    gen_qemu_ld64(ctx, cpu_fpr[rd], t0);
+    gen_qemu_ld64_i64(ctx, cpu_fpr[rd], t0);
     gen_addr_add(ctx, t0, t0, 8);
-    gen_qemu_ld64(ctx, cpu_fpr[(rd + 1) % 32], t0);
+    gen_qemu_ld64_i64(ctx, cpu_fpr[(rd + 1) % 32], t0);
     tcg_temp_free(t0);
 }
 
@@ -940,9 +940,9 @@ static void gen_lfqu(DisasContext *ctx)
     t0 = tcg_temp_new();
     t1 = tcg_temp_new();
     gen_addr_imm_index(ctx, t0, 0);
-    gen_qemu_ld64(ctx, cpu_fpr[rd], t0);
+    gen_qemu_ld64_i64(ctx, cpu_fpr[rd], t0);
     gen_addr_add(ctx, t1, t0, 8);
-    gen_qemu_ld64(ctx, cpu_fpr[(rd + 1) % 32], t1);
+    gen_qemu_ld64_i64(ctx, cpu_fpr[(rd + 1) % 32], t1);
     if (ra != 0)
         tcg_gen_mov_tl(cpu_gpr[ra], t0);
     tcg_temp_free(t0);
@@ -958,10 +958,10 @@ static void gen_lfqux(DisasContext *ctx)
     TCGv t0, t1;
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_qemu_ld64(ctx, cpu_fpr[rd], t0);
+    gen_qemu_ld64_i64(ctx, cpu_fpr[rd], t0);
     t1 = tcg_temp_new();
     gen_addr_add(ctx, t1, t0, 8);
-    gen_qemu_ld64(ctx, cpu_fpr[(rd + 1) % 32], t1);
+    gen_qemu_ld64_i64(ctx, cpu_fpr[(rd + 1) % 32], t1);
     tcg_temp_free(t1);
     if (ra != 0)
         tcg_gen_mov_tl(cpu_gpr[ra], t0);
@@ -976,9 +976,9 @@ static void gen_lfqx(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_FLOAT);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_qemu_ld64(ctx, cpu_fpr[rd], t0);
+    gen_qemu_ld64_i64(ctx, cpu_fpr[rd], t0);
     gen_addr_add(ctx, t0, t0, 8);
-    gen_qemu_ld64(ctx, cpu_fpr[(rd + 1) % 32], t0);
+    gen_qemu_ld64_i64(ctx, cpu_fpr[(rd + 1) % 32], t0);
     tcg_temp_free(t0);
 }
 
