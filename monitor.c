@@ -957,21 +957,28 @@ static void hmp_info_help(Monitor *mon, const QDict *qdict)
     help_cmd(mon, "info");
 }
 
-CommandInfoList *qmp_query_commands(Error **errp)
+static void query_commands_cb(QmpCommand *cmd, void *opaque)
 {
-    CommandInfoList *info, *cmd_list = NULL;
-    const mon_cmd_t *cmd;
+    CommandInfoList *info, **list = opaque;
 
-    for (cmd = qmp_cmds; cmd->name != NULL; cmd++) {
-        info = g_malloc0(sizeof(*info));
-        info->value = g_malloc0(sizeof(*info->value));
-        info->value->name = g_strdup(cmd->name);
-
-        info->next = cmd_list;
-        cmd_list = info;
+    if (!cmd->enabled) {
+        return;
     }
 
-    return cmd_list;
+    info = g_malloc0(sizeof(*info));
+    info->value = g_malloc0(sizeof(*info->value));
+    info->value->name = g_strdup(cmd->name);
+    info->next = *list;
+    *list = info;
+}
+
+CommandInfoList *qmp_query_commands(Error **errp)
+{
+    CommandInfoList *list = NULL;
+
+    qmp_for_each_command(query_commands_cb, &list);
+
+    return list;
 }
 
 EventInfoList *qmp_query_events(Error **errp)
