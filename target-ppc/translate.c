@@ -2463,6 +2463,7 @@ static inline void gen_align_no_le(DisasContext *ctx)
 
 /***                             Integer load                              ***/
 #define DEF_MEMOP(op) ((op) | ctx->default_tcg_memop_mask)
+#define BSWAP_MEMOP(op) ((op) | (ctx->default_tcg_memop_mask ^ MO_BSWAP))
 
 #define GEN_QEMU_LOAD_TL(ldop, op)                                      \
 static void glue(gen_qemu_, ldop)(DisasContext *ctx,                    \
@@ -2478,6 +2479,9 @@ GEN_QEMU_LOAD_TL(ld16s, DEF_MEMOP(MO_SW))
 GEN_QEMU_LOAD_TL(ld32u, DEF_MEMOP(MO_UL))
 GEN_QEMU_LOAD_TL(ld32s, DEF_MEMOP(MO_SL))
 
+GEN_QEMU_LOAD_TL(ld16ur, BSWAP_MEMOP(MO_UW))
+GEN_QEMU_LOAD_TL(ld32ur, BSWAP_MEMOP(MO_UL))
+
 #define GEN_QEMU_LOAD_64(ldop, op)                                  \
 static void glue(gen_qemu_, glue(ldop, _i64))(DisasContext *ctx,    \
                                              TCGv_i64 val,          \
@@ -2489,6 +2493,10 @@ static void glue(gen_qemu_, glue(ldop, _i64))(DisasContext *ctx,    \
 GEN_QEMU_LOAD_64(ld32u, DEF_MEMOP(MO_UL))
 GEN_QEMU_LOAD_64(ld32s, DEF_MEMOP(MO_SL))
 GEN_QEMU_LOAD_64(ld64,  DEF_MEMOP(MO_Q))
+
+#if defined(TARGET_PPC64)
+GEN_QEMU_LOAD_64(ld64ur, BSWAP_MEMOP(MO_Q))
+#endif
 
 static inline void gen_qemu_st8(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
@@ -2836,29 +2844,14 @@ static void gen_std(DisasContext *ctx)
 /***                Integer load and store with byte reverse               ***/
 
 /* lhbrx */
-static inline void gen_qemu_ld16ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    TCGMemOp op = MO_UW | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
-    tcg_gen_qemu_ld_tl(arg1, arg2, ctx->mem_idx, op);
-}
 GEN_LDX(lhbr, ld16ur, 0x16, 0x18, PPC_INTEGER);
 
 /* lwbrx */
-static inline void gen_qemu_ld32ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    TCGMemOp op = MO_UL | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
-    tcg_gen_qemu_ld_tl(arg1, arg2, ctx->mem_idx, op);
-}
 GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
 
 #if defined(TARGET_PPC64)
 /* ldbrx */
-static inline void gen_qemu_ld64ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    TCGMemOp op = MO_Q | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
-    tcg_gen_qemu_ld_i64(arg1, arg2, ctx->mem_idx, op);
-}
-GEN_LDX_E(ldbr, ld64ur, 0x14, 0x10, PPC_NONE, PPC2_DBRX, CHK_NONE);
+GEN_LDX_E(ldbr, ld64ur_i64, 0x14, 0x10, PPC_NONE, PPC2_DBRX, CHK_NONE);
 #endif  /* TARGET_PPC64 */
 
 /* sthbrx */
@@ -6598,7 +6591,7 @@ GEN_LDUX(lwa, ld32s, 0x15, 0x0B, PPC_64B)
 GEN_LDX(lwa, ld32s, 0x15, 0x0A, PPC_64B)
 GEN_LDUX(ld, ld64_i64, 0x15, 0x01, PPC_64B)
 GEN_LDX(ld, ld64_i64, 0x15, 0x00, PPC_64B)
-GEN_LDX_E(ldbr, ld64ur, 0x14, 0x10, PPC_NONE, PPC2_DBRX, CHK_NONE)
+GEN_LDX_E(ldbr, ld64ur_i64, 0x14, 0x10, PPC_NONE, PPC2_DBRX, CHK_NONE)
 
 /* HV/P7 and later only */
 GEN_LDX_HVRM(ldcix, ld64_i64, 0x15, 0x1b, PPC_CILDST)
