@@ -38,10 +38,16 @@ bool qcrypto_pbkdf2_supports(QCryptoHashAlgorithm hash)
 int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
                    const uint8_t *key, size_t nkey,
                    const uint8_t *salt, size_t nsalt,
-                   unsigned int iterations,
+                   uint64_t iterations,
                    uint8_t *out, size_t nout,
                    Error **errp)
 {
+    if (iterations > UINT_MAX) {
+        error_setg_errno(errp, ERANGE,
+                         "PBKDF iterations %llu must be less than %u",
+                         (long long unsigned)iterations, UINT_MAX);
+        return -1;
+    }
     switch (hash) {
     case QCRYPTO_HASH_ALG_SHA1:
         pbkdf2_hmac_sha1(nkey, key,
