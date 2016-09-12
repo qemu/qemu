@@ -3105,22 +3105,6 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
         gen_qemu_st32(ctx, cpu_gpr[reg], EA);
     } else if (size == 2) {
         gen_qemu_st16(ctx, cpu_gpr[reg], EA);
-#if defined(TARGET_PPC64)
-    } else if (size == 16) {
-        TCGv gpr1, gpr2 , EA8;
-        if (unlikely(ctx->le_mode)) {
-            gpr1 = cpu_gpr[reg+1];
-            gpr2 = cpu_gpr[reg];
-        } else {
-            gpr1 = cpu_gpr[reg];
-            gpr2 = cpu_gpr[reg+1];
-        }
-        gen_qemu_st64_i64(ctx, gpr1, EA);
-        EA8 = tcg_temp_local_new();
-        gen_addr_add(ctx, EA8, EA, 8);
-        gen_qemu_st64_i64(ctx, gpr2, EA8);
-        tcg_temp_free(EA8);
-#endif
     } else {
         gen_qemu_st8(ctx, cpu_gpr[reg], EA);
     }
@@ -3133,11 +3117,6 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
 static void gen_##name(DisasContext *ctx)                 \
 {                                                         \
     TCGv t0;                                              \
-    if (unlikely((len == 16) && (rD(ctx->opcode) & 1))) { \
-        gen_inval_exception(ctx,                          \
-                            POWERPC_EXCP_INVAL_INVAL);    \
-        return;                                           \
-    }                                                     \
     gen_set_access_type(ctx, ACCESS_RES);                 \
     t0 = tcg_temp_local_new();                            \
     gen_addr_reg_index(ctx, t0);                          \
@@ -3190,9 +3169,55 @@ static void gen_lqarx(DisasContext *ctx)
     tcg_temp_free(EA);
 }
 
+/* stqcx. */
+static void gen_stqcx_(DisasContext *ctx)
+{
+    TCGv EA;
+    int reg = rS(ctx->opcode);
+    int len = 16;
+#if !defined(CONFIG_USER_ONLY)
+    TCGLabel *l1;
+    TCGv gpr1, gpr2;
+#endif
+
+    if (unlikely((rD(ctx->opcode) & 1))) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_RES);
+    EA = tcg_temp_local_new();
+    gen_addr_reg_index(ctx, EA);
+    if (len > 1) {
+        gen_check_align(ctx, EA, (len) - 1);
+    }
+
+#if defined(CONFIG_USER_ONLY)
+    gen_conditional_store(ctx, EA, reg, 16);
+#else
+    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
+    l1 = gen_new_label();
+    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, l1);
+    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
+
+    if (unlikely(ctx->le_mode)) {
+        gpr1 = cpu_gpr[reg + 1];
+        gpr2 = cpu_gpr[reg];
+    } else {
+        gpr1 = cpu_gpr[reg];
+        gpr2 = cpu_gpr[reg + 1];
+    }
+    tcg_gen_qemu_st_tl(gpr1, EA, ctx->mem_idx, DEF_MEMOP(MO_Q));
+    gen_addr_add(ctx, EA, EA, 8);
+    tcg_gen_qemu_st_tl(gpr2, EA, ctx->mem_idx, DEF_MEMOP(MO_Q));
+
+    gen_set_label(l1);
+    tcg_gen_movi_tl(cpu_reserve, -1);
+#endif
+    tcg_temp_free(EA);
+}
+
 /* stdcx. */
 STCX(stdcx_, 8);
-STCX(stqcx_, 16);
 #endif /* defined(TARGET_PPC64) */
 
 /* sync */
