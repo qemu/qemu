@@ -1008,6 +1008,38 @@ static void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
     *ret_data = qobject_from_json(qmp_schema_json);
 }
 
+/*
+ * Note: right now, this function is never called.  It will be called
+ * shortly when we stop using QAPI 'middle mode'.  The rest of this
+ * comment is written as if that was the case already.
+ *
+ * We used to define commands in qmp-commands.hx in addition to the
+ * QAPI schema.  This permitted defining some of them only in certain
+ * configurations.  query-commands has always reflected that (good,
+ * because it lets QMP clients figure out what's actually available),
+ * while query-qmp-schema never did (not so good).  This function is a
+ * hack to keep the configuration-specific commands defined exactly as
+ * before, even though qmp-commands.hx is gone.
+ *
+ * FIXME Educate the QAPI schema on configuration-specific commands,
+ * and drop this hack.
+ */
+static void qmp_unregister_commands_hack(void)
+{
+#ifndef CONFIG_SPICE
+    qmp_unregister_command("query-spice");
+#endif
+#ifndef TARGET_I386
+    qmp_unregister_command("rtc-reset-reinjection");
+#endif
+#ifndef TARGET_S390X
+    qmp_unregister_command("dump-skeys");
+#endif
+#ifndef TARGET_ARM
+    qmp_unregister_command("query-gic-capabilities");
+#endif
+}
+
 static void qmp_init_marshal(void)
 {
     qmp_register_command("query-qmp-schema", qmp_query_qmp_schema,
@@ -1016,6 +1048,9 @@ static void qmp_init_marshal(void)
                          QCO_NO_OPTIONS);
     qmp_register_command("netdev_add", qmp_netdev_add,
                          QCO_NO_OPTIONS);
+
+    /* call it after the rest of qapi_init() */
+    register_module_init(qmp_unregister_commands_hack, MODULE_INIT_QAPI);
 }
 
 qapi_init(qmp_init_marshal);
