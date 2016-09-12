@@ -647,6 +647,26 @@ static void gen_xxspltw(DisasContext *ctx)
     tcg_temp_free_i64(b2);
 }
 
+#define pattern(x) (((x) & 0xff) * (~(uint64_t)0 / 0xff))
+
+static void gen_xxspltib(DisasContext *ctx)
+{
+    unsigned char uim8 = IMM8(ctx->opcode);
+    if (xS(ctx->opcode) < 32) {
+        if (unlikely(!ctx->altivec_enabled)) {
+            gen_exception(ctx, POWERPC_EXCP_VPU);
+            return;
+        }
+    } else {
+        if (unlikely(!ctx->vsx_enabled)) {
+            gen_exception(ctx, POWERPC_EXCP_VSXU);
+            return;
+        }
+    }
+    tcg_gen_movi_i64(cpu_vsrh(xT(ctx->opcode)), pattern(uim8));
+    tcg_gen_movi_i64(cpu_vsrl(xT(ctx->opcode)), pattern(uim8));
+}
+
 static void gen_xxsldwi(DisasContext *ctx)
 {
     TCGv_i64 xth, xtl;
