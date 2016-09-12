@@ -118,6 +118,9 @@ static void gen_##name(DisasContext *ctx)                     \
 }
 
 VSX_STORE_SCALAR(stxsdx, st64_i64)
+
+VSX_STORE_SCALAR(stxsibx, st8_i64)
+VSX_STORE_SCALAR(stxsihx, st16_i64)
 VSX_STORE_SCALAR(stxsiwx, st32_i64)
 VSX_STORE_SCALAR(stxsspx, st32fs)
 
