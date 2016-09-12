@@ -658,7 +658,6 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
     BlockDriverState *bs;
     QemuOpts *opts;
     Error *local_error = NULL;
-    BlockdevDetectZeroesOptions detect_zeroes;
     int bdrv_flags = 0;
 
     opts = qemu_opts_create(&qemu_root_bds_opts, NULL, 1, errp);
@@ -673,7 +672,7 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
     }
 
     extract_common_blockdev_options(opts, &bdrv_flags, NULL, NULL,
-                                    &detect_zeroes, &local_error);
+                                    NULL, &local_error);
     if (local_error) {
         error_propagate(errp, local_error);
         goto fail;
@@ -694,8 +693,6 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
     if (!bs) {
         goto fail_no_bs_opts;
     }
-
-    bs->detect_zeroes = detect_zeroes;
 
 fail_no_bs_opts:
     qemu_opts_del(opts);
@@ -4136,10 +4133,6 @@ static QemuOptsList qemu_root_bds_opts = {
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,
             .help = "copy read data from backing file into image file",
-        },{
-            .name = "detect-zeroes",
-            .type = QEMU_OPT_STRING,
-            .help = "try to optimize zero writes (off, on, unmap)",
         },
         { /* end of list */ }
     },
