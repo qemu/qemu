@@ -3653,21 +3653,21 @@ static int monitor_can_read(void *opaque)
     return (mon->suspend_cnt == 0) ? 1 : 0;
 }
 
-static bool invalid_qmp_mode(const Monitor *mon, const mon_cmd_t *cmd,
+static bool invalid_qmp_mode(const Monitor *mon, const char *cmd,
                              Error **errp)
 {
-    bool is_cap = cmd->mhandler.cmd_new == qmp_marshal_qmp_capabilities;
+    bool is_cap = g_str_equal(cmd, "qmp_capabilities");
 
     if (is_cap && mon->qmp.in_command_mode) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "Capabilities negotiation is already complete, command "
-                  "'%s' ignored", cmd->name);
+                  "'%s' ignored", cmd);
         return true;
     }
     if (!is_cap && !mon->qmp.in_command_mode) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "Expecting capabilities negotiation with "
-                  "'qmp_capabilities' before command '%s'", cmd->name);
+                  "'qmp_capabilities' before command '%s'", cmd);
         return true;
     }
     return false;
@@ -3958,7 +3958,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
                   "The command %s has not been found", cmd_name);
         goto err_out;
     }
-    if (invalid_qmp_mode(mon, cmd, &local_err)) {
+    if (invalid_qmp_mode(mon, cmd_name, &local_err)) {
         goto err_out;
     }
 
