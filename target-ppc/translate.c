@@ -2498,30 +2498,27 @@ GEN_QEMU_LOAD_64(ld64,  DEF_MEMOP(MO_Q))
 GEN_QEMU_LOAD_64(ld64ur, BSWAP_MEMOP(MO_Q))
 #endif
 
-static inline void gen_qemu_st8(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    tcg_gen_qemu_st8(arg1, arg2, ctx->mem_idx);
+#define GEN_QEMU_STORE_TL(stop, op)                                     \
+static void glue(gen_qemu_, stop)(DisasContext *ctx,                    \
+                                  TCGv val,                             \
+                                  TCGv addr)                            \
+{                                                                       \
+    tcg_gen_qemu_st_tl(val, addr, ctx->mem_idx, op);                    \
 }
 
-static inline void gen_qemu_st16(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    TCGMemOp op = MO_UW | ctx->default_tcg_memop_mask;
-    tcg_gen_qemu_st_tl(arg1, arg2, ctx->mem_idx, op);
+GEN_QEMU_STORE_TL(st8,  DEF_MEMOP(MO_UB))
+GEN_QEMU_STORE_TL(st16, DEF_MEMOP(MO_UW))
+GEN_QEMU_STORE_TL(st32, DEF_MEMOP(MO_UL))
+
+#define GEN_QEMU_STORE_64(stop, op)                               \
+static void glue(gen_qemu_, glue(stop, _i64))(DisasContext *ctx,  \
+                                              TCGv_i64 val,       \
+                                              TCGv addr)          \
+{                                                                 \
+    tcg_gen_qemu_st_i64(val, addr, ctx->mem_idx, op);             \
 }
 
-static inline void gen_qemu_st32(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    TCGMemOp op = MO_UL | ctx->default_tcg_memop_mask;
-    tcg_gen_qemu_st_tl(arg1, arg2, ctx->mem_idx, op);
-}
-
-static void gen_qemu_st32_i64(DisasContext *ctx, TCGv_i64 val, TCGv addr)
-{
-    TCGv tmp = tcg_temp_new();
-    tcg_gen_trunc_i64_tl(tmp, val);
-    gen_qemu_st32(ctx, tmp, addr);
-    tcg_temp_free(tmp);
-}
+GEN_QEMU_STORE_64(st32, DEF_MEMOP(MO_UL))
 
 static inline void gen_qemu_st64(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
 {
