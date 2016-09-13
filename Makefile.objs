@@ -15,6 +15,7 @@ block-obj-$(CONFIG_POSIX) += aio-posix.o
 block-obj-$(CONFIG_WIN32) += aio-win32.o
 block-obj-y += block/
 block-obj-y += qemu-io-cmds.o
+block-obj-$(CONFIG_REPLICATION) += replication.o
 
 block-obj-m = block/
 

@@ -83,7 +83,9 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     }
     memset(new_l1_table, 0, align_offset(new_l1_size2, 512));
 
-    memcpy(new_l1_table, s->l1_table, s->l1_size * sizeof(uint64_t));
+    if (s->l1_size) {
+        memcpy(new_l1_table, s->l1_table, s->l1_size * sizeof(uint64_t));
+    }
 
     /* write new table (align to cluster) */
     BLKDBG_EVENT(bs->file, BLKDBG_L1_GROW_ALLOC_TABLE);

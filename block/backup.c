@@ -17,6 +17,7 @@
 #include "block/block.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
+#include "block/block_backup.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/ratelimit.h"
@@ -26,13 +27,6 @@
 
 #define BACKUP_CLUSTER_SIZE_DEFAULT (1 << 16)
 #define SLICE_TIME 100000000ULL /* ns */
-
-typedef struct CowRequest {
-    int64_t start;
-    int64_t end;
-    QLIST_ENTRY(CowRequest) list;
-    CoQueue wait_queue; /* coroutines blocked on this request */
-} CowRequest;
 
 typedef struct BackupBlockJob {
     BlockJob common;
@@ -253,6 +247,57 @@ static void backup_attached_aio_context(BlockJob *job, AioContext *aio_context)
     BackupBlockJob *s = container_of(job, BackupBlockJob, common);
 
     blk_set_aio_context(s->target, aio_context);
+}
+
+void backup_do_checkpoint(BlockJob *job, Error **errp)
+{
+    BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
+    int64_t len;
+
+    assert(job->driver->job_type == BLOCK_JOB_TYPE_BACKUP);
+
+    if (backup_job->sync_mode != MIRROR_SYNC_MODE_NONE) {
+        error_setg(errp, "The backup job only supports block checkpoint in"
+                   " sync=none mode");
+        return;
+    }
+
+    len = DIV_ROUND_UP(backup_job->common.len, backup_job->cluster_size);
+    bitmap_zero(backup_job->done_bitmap, len);
+}
+
+void backup_wait_for_overlapping_requests(BlockJob *job, int64_t sector_num,
+                                          int nb_sectors)
+{
+    BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
+    int64_t sectors_per_cluster = cluster_size_sectors(backup_job);
+    int64_t start, end;
+
+    assert(job->driver->job_type == BLOCK_JOB_TYPE_BACKUP);
+
+    start = sector_num / sectors_per_cluster;
+    end = DIV_ROUND_UP(sector_num + nb_sectors, sectors_per_cluster);
+    wait_for_overlapping_requests(backup_job, start, end);
+}
+
+void backup_cow_request_begin(CowRequest *req, BlockJob *job,
+                              int64_t sector_num,
+                              int nb_sectors)
+{
+    BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
+    int64_t sectors_per_cluster = cluster_size_sectors(backup_job);
+    int64_t start, end;
+
+    assert(job->driver->job_type == BLOCK_JOB_TYPE_BACKUP);
+
+    start = sector_num / sectors_per_cluster;
+    end = DIV_ROUND_UP(sector_num + nb_sectors, sectors_per_cluster);
+    cow_request_begin(req, backup_job, start, end);
+}
+
+void backup_cow_request_end(CowRequest *req)
+{
+    cow_request_end(req);
 }
 
 static const BlockJobDriver backup_job_driver = {

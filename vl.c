@@ -121,6 +121,7 @@ int main(int argc, char **argv)
 #include "crypto/init.h"
 #include "sysemu/replay.h"
 #include "qapi/qmp/qerror.h"
+#include "sysemu/iothread.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -4616,6 +4617,7 @@ int main(int argc, char **argv, char **envp)
     trace_init_vcpu_events();
     main_loop();
     replay_disable_events();
+    iothread_stop_all();
 
     bdrv_close_all();
     pause_all_vcpus();

@@ -1624,6 +1624,15 @@ L: qemu-block@nongnu.org
 S: Supported
 F: tests/image-fuzzer/
 
+Replication
+M: Wen Congyang <wency@cn.fujitsu.com>
+M: Changlong Xie <xiecl.fnst@cn.fujitsu.com>
+S: Supported
+F: replication*
+F: block/replication.c
+F: tests/test-replication.c
+F: docs/block-replication.txt
+
 Build and test automation
 -------------------------
 M: Alex Bennée <alex.bennee@linaro.org>

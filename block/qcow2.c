@@ -1804,7 +1804,10 @@ static size_t header_ext_add(char *buf, uint32_t magic, const void *s,
         .magic  = cpu_to_be32(magic),
         .len    = cpu_to_be32(len),
     };
-    memcpy(buf + sizeof(QCowExtension), s, len);
+
+    if (len) {
+        memcpy(buf + sizeof(QCowExtension), s, len);
+    }
 
     return ext_len;
 }
