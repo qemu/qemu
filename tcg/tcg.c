@@ -40,8 +40,6 @@
 #define NO_CPU_IO_DEFS
 #include "cpu.h"
 
-#include "qemu/host-utils.h"
-#include "qemu/timer.h"
 #include "exec/cpu-common.h"
 #include "exec/exec-all.h"
 
