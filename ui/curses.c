@@ -181,7 +181,7 @@ static kbd_layout_t *kbd_layout = NULL;
 
 static void curses_refresh(DisplayChangeListener *dcl)
 {
-    int chr, nextchr, keysym, keycode, keycode_alt;
+    int chr, keysym, keycode, keycode_alt;
 
     curses_winch_check();
 
@@ -195,15 +195,9 @@ static void curses_refresh(DisplayChangeListener *dcl)
 
     graphic_hw_text_update(NULL, screen);
 
-    nextchr = ERR;
     while (1) {
         /* while there are any pending key strokes to process */
-        if (nextchr == ERR)
-            chr = getch();
-        else {
-            chr = nextchr;
-            nextchr = ERR;
-        }
+        chr = getch();
 
         if (chr == ERR)
             break;
@@ -224,13 +218,12 @@ static void curses_refresh(DisplayChangeListener *dcl)
 
         /* alt key */
         if (keycode == 1) {
-            nextchr = getch();
+            int nextchr = getch();
 
             if (nextchr != ERR) {
                 chr = nextchr;
                 keycode_alt = ALT;
-                keycode = curses2keycode[nextchr];
-                nextchr = ERR;
+                keycode = curses2keycode[chr];
 
                 if (keycode != -1) {
                     keycode |= ALT;
@@ -317,7 +310,10 @@ static void curses_refresh(DisplayChangeListener *dcl)
                 qemu_input_event_send_key_delay(0);
             }
         } else {
-            keysym = curses2qemu[chr];
+            keysym = -1;
+            if (chr < CURSES_KEYS) {
+                keysym = curses2qemu[chr];
+            }
             if (keysym == -1)
                 keysym = chr;
 
