@@ -2329,8 +2329,8 @@ struct target_flock {
 struct target_flock64 {
     short  l_type;
     short  l_whence;
-#if defined(TARGET_PPC) || defined(TARGET_X86_64) || defined(TARGET_MIPS) \
-    || defined(TARGET_SPARC) || defined(TARGET_HPPA) \
+#if defined(TARGET_PPC) || defined(TARGET_X86_64) \
+    || defined(TARGET_MIPS) || defined(TARGET_SPARC) \
     || defined(TARGET_MICROBLAZE) || defined(TARGET_TILEGX)
     int __pad;
 #endif
