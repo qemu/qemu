@@ -114,6 +114,13 @@ ACCEL_BUFFER_ZERO(buffer_zero_sse2, 64, __m128i, SSE2_NONZERO)
 
 #ifdef CONFIG_AVX2_OPT
 #pragma GCC push_options
+#pragma GCC target("sse4")
+#include <smmintrin.h>
+#define SSE4_NONZERO(X)  !_mm_testz_si128((X), (X))
+ACCEL_BUFFER_ZERO(buffer_zero_sse4, 64, __m128i, SSE4_NONZERO)
+#pragma GCC pop_options
+
+#pragma GCC push_options
 #pragma GCC target("avx2")
 #include <immintrin.h>
 #define AVX2_NONZERO(X)  !_mm256_testz_si256((X), (X))
@@ -181,6 +188,9 @@ static bool select_accel_fn(const void *buf, size_t len)
 #ifdef CONFIG_AVX2_OPT
     if (len % 128 == 0 && ibuf % 32 == 0 && (cpuid_cache & CACHE_AVX2)) {
         return buffer_zero_avx2(buf, len);
+    }
+    if (len % 64 == 0 && ibuf % 16 == 0 && (cpuid_cache & CACHE_SSE4)) {
+        return buffer_zero_sse4(buf, len);
     }
 #endif
     if (len % 64 == 0 && ibuf % 16 == 0 && (cpuid_cache & CACHE_SSE2)) {
