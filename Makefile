@@ -669,3 +669,40 @@ endif
 -include $(wildcard *.d tests/*.d)
 
 include $(SRC_PATH)/tests/docker/Makefile.include
+
+.PHONY: help
+help:
+	@echo  'Generic targets:'
+	@echo  '  all             - Build all'
+	@echo  '  dir/file.o      - Build specified target only'
+	@echo  '  install         - Install QEMU, documentation and tools'
+	@echo  '  ctags/TAGS      - Generate tags file for editors'
+	@echo  '  cscope          - Generate cscope index'
+	@echo  ''
+	@$(if $(TARGET_DIRS), \
+		echo 'Architecture specific targets:'; \
+		$(foreach t, $(TARGET_DIRS), \
+		printf "  %-30s - Build for %s\\n" $(patsubst %,subdir-%,$(t)) $(t);) \
+		echo '')
+	@echo  'Cleaning targets:'
+	@echo  '  clean           - Remove most generated files but keep the config'
+	@echo  '  distclean       - Remove all generated files'
+	@echo  '  dist            - Build a distributable tarball'
+	@echo  ''
+	@echo  'Test targets:'
+	@echo  '  check           - Run all tests (check-help for details)'
+	@echo  '  docker          - Help about targets running tests inside Docker containers'
+	@echo  ''
+	@echo  'Documentation targets:'
+	@echo  '  dvi html info pdf'
+	@echo  '                  - Build documentation in specified format'
+	@echo  ''
+ifdef CONFIG_WIN32
+	@echo  'Windows targets:'
+	@echo  '  installer       - Build NSIS-based installer for qemu-ga'
+ifdef QEMU_GA_MSI_ENABLED
+	@echo  '  msi             - Build MSI-based installer for qemu-ga'
+endif
+	@echo  ''
+endif
+	@echo  '  make V=0|1 [targets] 0 => quiet build (default), 1 => verbose build'
