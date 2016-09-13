@@ -2636,6 +2636,8 @@
 #
 # @downscript: #optional script to shut down the interface
 #
+# @br: #optional bridge name (since 2.8)
+#
 # @helper: #optional command to execute to configure bridge
 #
 # @sndbuf: #optional send buffer limit. Understands [TGMKkb] suffixes.
@@ -2665,6 +2667,7 @@
     '*fds':        'str',
     '*script':     'str',
     '*downscript': 'str',
+    '*br':         'str',
     '*helper':     'str',
     '*sndbuf':     'size',
     '*vnet_hdr':   'bool',

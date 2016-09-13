@@ -1598,10 +1598,11 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                configure a host TAP network backend with ID 'str'\n"
 #else
     "-netdev tap,id=str[,fd=h][,fds=x:y:...:z][,ifname=name][,script=file][,downscript=dfile]\n"
-    "         [,helper=helper][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off]\n"
+    "         [,br=bridge][,helper=helper][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off]\n"
     "         [,vhostfd=h][,vhostfds=x:y:...:z][,vhostforce=on|off][,queues=n]\n"
     "         [,poll-us=n]\n"
     "                configure a host TAP network backend with ID 'str'\n"
+    "                connected to a bridge (default=" DEFAULT_BRIDGE_INTERFACE ")\n"
     "                use network scripts 'file' (default=" DEFAULT_NETWORK_SCRIPT ")\n"
     "                to configure it and 'dfile' (default=" DEFAULT_NETWORK_DOWN_SCRIPT ")\n"
     "                to deconfigure it\n"
@@ -1888,8 +1889,8 @@ processed and applied to -net user. Mixing them with the new configuration
 syntax gives undefined results. Their use for new applications is discouraged
 as they will be removed from future versions.
 
-@item -netdev tap,id=@var{id}[,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}][,helper=@var{helper}]
-@itemx -net tap[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}][,helper=@var{helper}]
+@item -netdev tap,id=@var{id}[,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}][,br=@var{bridge}][,helper=@var{helper}]
+@itemx -net tap[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}][,br=@var{bridge}][,helper=@var{helper}]
 Connect the host TAP network interface @var{name} to VLAN @var{n}.
 
 Use the network script @var{file} to configure it and the network script
@@ -1900,8 +1901,9 @@ automatically provides one. The default network configure script is
 to disable script execution.
 
 If running QEMU as an unprivileged user, use the network helper
-@var{helper} to configure the TAP interface. The default network
-helper executable is @file{/path/to/qemu-bridge-helper}.
+@var{helper} to configure the TAP interface and attach it to the bridge.
+The default network helper executable is @file{/path/to/qemu-bridge-helper}
+and the default bridge device is @file{br0}.
 
 @option{fd}=@var{h} can be used to specify the handle of an already
 opened host TAP interface.
