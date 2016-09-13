@@ -812,7 +812,7 @@ uint32_t HELPER(get_mac_extf)(CPUM68KState *env, uint32_t acc)
 {
     uint32_t val;
     val = env->macc[acc] & 0x00ff;
-    val = (env->macc[acc] >> 32) & 0xff00;
+    val |= (env->macc[acc] >> 32) & 0xff00;
     val |= (env->macc[acc + 1] << 16) & 0x00ff0000;
     val |= (env->macc[acc + 1] >> 16) & 0xff000000;
     return val;

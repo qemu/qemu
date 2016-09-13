@@ -421,7 +421,7 @@ static void bt_submit_raw_acl(struct bt_piconet_s *net, int length, uint8_t *dat
 
 /* HCI layer emulation */
 
-/* Note: we could ignore endiannes because unswapped handles will still
+/* Note: we could ignore endianness because unswapped handles will still
  * be valid as connection identifiers for the guest - they don't have to
  * be continuously allocated.  We do it though, to preserve similar
  * behaviour between hosts.  Some things, like the BD_ADDR cannot be

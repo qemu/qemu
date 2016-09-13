@@ -235,7 +235,10 @@ consider the following values:
   - Water leaks from the bucket at a rate of 100 IOPS.
   - Water can be added to the bucket at a rate of 2000 IOPS.
   - The size of the bucket is 2000 x 60 = 120000
-  - If 'iops-total-max' is unset then the bucket size is 100 x 60.
+  - If 'iops-total-max-length' is unset then it defaults to 1 and the
+    size of the bucket is 2000.
+  - If 'iops-total-max' is unset then 'iops-total-max-length' must be
+    unset as well. In this case the bucket size is 100.
 
 The bucket is initially empty, therefore water can be added until it's
 full at a rate of 2000 IOPS (the burst rate). Once the bucket is full

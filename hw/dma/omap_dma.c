@@ -1975,7 +1975,7 @@ static void omap_dma4_write(void *opaque, hwaddr addr,
         ch->endian[1] =(value >> 19) & 1;
         ch->endian_lock[1] =(value >> 18) & 1;
         if (ch->endian[0] != ch->endian[1])
-            fprintf(stderr, "%s: DMA endiannes conversion enable attempt\n",
+            fprintf(stderr, "%s: DMA endianness conversion enable attempt\n",
                             __FUNCTION__);
         ch->write_mode = (value >> 16) & 3;
         ch->burst[1] = (value & 0xc000) >> 14;

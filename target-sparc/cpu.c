@@ -117,8 +117,7 @@ static int cpu_sparc_register(SPARCCPU *cpu, const char *cpu_model)
         return -1;
     }
 
-    env->def = g_new0(sparc_def_t, 1);
-    memcpy(env->def, def, sizeof(*def));
+    env->def = g_memdup(def, sizeof(*def));
 
     featurestr = strtok(NULL, ",");
     sparc_cpu_parse_features(CPU(cpu), featurestr, &err);

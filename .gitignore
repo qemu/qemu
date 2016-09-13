@@ -53,6 +53,8 @@
 /qemu-bridge-helper
 /qemu-monitor.texi
 /qemu-monitor-info.texi
+/qemu-version.h
+/qemu-version.h.tmp
 /qmp-commands.txt
 /vscclient
 /fsdev/virtfs-proxy-helper
