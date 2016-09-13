@@ -3715,8 +3715,7 @@ static void usb_xhci_exit(PCIDevice *dev)
     /* destroy msix memory region */
     if (dev->msix_table && dev->msix_pba
         && dev->msix_entry_used) {
-        memory_region_del_subregion(&xhci->mem, &dev->msix_table_mmio);
-        memory_region_del_subregion(&xhci->mem, &dev->msix_pba_mmio);
+        msix_uninit(dev, &xhci->mem, &xhci->mem);
     }
 
     usb_bus_release(&xhci->bus);
