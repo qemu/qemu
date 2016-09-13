@@ -2391,31 +2391,21 @@ static void gen_swap_asi(DisasContext *dc, TCGv dst, TCGv src,
     }
 }
 
-static void gen_cas_asi(DisasContext *dc, TCGv addr, TCGv cmpr,
+static void gen_cas_asi(DisasContext *dc, TCGv addr, TCGv cmpv,
                         int insn, int rd)
 {
     DisasASI da = get_asi(dc, insn, MO_TEUL);
-    TCGv cmpv, oldv, tmpv;
+    TCGv oldv;
 
     switch (da.type) {
     case GET_ASI_EXCP:
         return;
     case GET_ASI_DIRECT:
-        cmpv = tcg_temp_new();
         oldv = tcg_temp_new();
-        tmpv = tcg_temp_new();
-        tcg_gen_ext32u_tl(cmpv, cmpr);
-
-        /* ??? Should be atomic.  */
-        tcg_gen_qemu_ld_tl(oldv, addr, da.mem_idx, da.memop);
-        tcg_gen_movcond_tl(TCG_COND_EQ, tmpv, oldv, cmpv,
-                           gen_load_gpr(dc, rd), oldv);
-        tcg_gen_qemu_st_tl(tmpv, addr, da.mem_idx, da.memop);
-
+        tcg_gen_atomic_cmpxchg_tl(oldv, addr, cmpv, gen_load_gpr(dc, rd),
+                                  da.mem_idx, da.memop);
         gen_store_gpr(dc, rd, oldv);
-        tcg_temp_free(cmpv);
         tcg_temp_free(oldv);
-        tcg_temp_free(tmpv);
         break;
     default:
         /* ??? Should be DAE_invalid_asi.  */
@@ -2770,24 +2760,17 @@ static void gen_casx_asi(DisasContext *dc, TCGv addr, TCGv cmpv,
                          int insn, int rd)
 {
     DisasASI da = get_asi(dc, insn, MO_TEQ);
-    TCGv oldv, tmpv;
+    TCGv oldv;
 
     switch (da.type) {
     case GET_ASI_EXCP:
         return;
     case GET_ASI_DIRECT:
         oldv = tcg_temp_new();
-        tmpv = tcg_temp_new();
-
-        /* ??? Should be atomic.  */
-        tcg_gen_qemu_ld_tl(oldv, addr, da.mem_idx, da.memop);
-        tcg_gen_movcond_tl(TCG_COND_EQ, tmpv, oldv, cmpv,
-                           gen_load_gpr(dc, rd), oldv);
-        tcg_gen_qemu_st_tl(tmpv, addr, da.mem_idx, da.memop);
-
+        tcg_gen_atomic_cmpxchg_tl(oldv, addr, cmpv, gen_load_gpr(dc, rd),
+                                  da.mem_idx, da.memop);
         gen_store_gpr(dc, rd, oldv);
         tcg_temp_free(oldv);
-        tcg_temp_free(tmpv);
         break;
     default:
         /* ??? Should be DAE_invalid_asi.  */
