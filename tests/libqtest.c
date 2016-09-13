@@ -751,6 +751,16 @@ void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size)
     g_strfreev(args);
 }
 
+uint64_t qtest_rtas_call(QTestState *s, const char *name,
+                         uint32_t nargs, uint64_t args,
+                         uint32_t nret, uint64_t ret)
+{
+    qtest_sendf(s, "rtas %s %u 0x%"PRIx64" %u 0x%"PRIx64"\n",
+                name, nargs, args, nret, ret);
+    qtest_rsp(s, 0);
+    return 0;
+}
+
 void qtest_add_func(const char *str, void (*fn)(void))
 {
     gchar *path = g_strdup_printf("/%s/%s", qtest_get_arch(), str);

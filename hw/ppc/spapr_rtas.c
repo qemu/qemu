@@ -37,6 +37,7 @@
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "hw/ppc/spapr_rtas.h"
 #include "hw/ppc/ppc.h"
 #include "qapi-event.h"
 #include "hw/boards.h"
@@ -689,6 +690,24 @@ target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     hcall_dprintf("Unknown RTAS token 0x%x\n", token);
     rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+    return H_PARAMETER;
+}
+
+uint64_t qtest_rtas_call(char *cmd, uint32_t nargs, uint64_t args,
+                         uint32_t nret, uint64_t rets)
+{
+    int token;
+
+    for (token = 0; token < RTAS_TOKEN_MAX - RTAS_TOKEN_BASE; token++) {
+        if (strcmp(cmd, rtas_table[token].name) == 0) {
+            sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+            PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
+
+            rtas_table[token].fn(cpu, spapr, token + RTAS_TOKEN_BASE,
+                                 nargs, args, nret, rets);
+            return H_SUCCESS;
+        }
+    }
     return H_PARAMETER;
 }
 

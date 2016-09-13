@@ -318,6 +318,21 @@ uint64_t qtest_readq(QTestState *s, uint64_t addr);
 void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size);
 
 /**
+ * qtest_rtas_call:
+ * @s: #QTestState instance to operate on.
+ * @name: name of the command to call.
+ * @nargs: Number of args.
+ * @args: Guest address to read args from.
+ * @nret: Number of return value.
+ * @ret: Guest address to write return values to.
+ *
+ * Call an RTAS function
+ */
+uint64_t qtest_rtas_call(QTestState *s, const char *name,
+                         uint32_t nargs, uint64_t args,
+                         uint32_t nret, uint64_t ret);
+
+/**
  * qtest_bufread:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to read from.

@@ -268,6 +268,7 @@ check-qtest-ppc64-y += tests/prom-env-test$(EXESUF)
 check-qtest-ppc64-y += tests/drive_del-test$(EXESUF)
 check-qtest-ppc64-y += tests/postcopy-test$(EXESUF)
 check-qtest-ppc64-y += tests/boot-serial-test$(EXESUF)
+check-qtest-ppc64-y += tests/rtas-test$(EXESUF)
 
 check-qtest-sh4-y = tests/endianness-test$(EXESUF)
 
@@ -585,6 +586,7 @@ libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o tests/libqos/malloc.o
 libqos-obj-y += tests/libqos/i2c.o tests/libqos/libqos.o
 libqos-spapr-obj-y = $(libqos-obj-y) tests/libqos/malloc-spapr.o
 libqos-spapr-obj-y += tests/libqos/libqos-spapr.o
+libqos-spapr-obj-y += tests/libqos/rtas.o
 libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o
 libqos-pc-obj-y += tests/libqos/malloc-pc.o tests/libqos/libqos-pc.o
 libqos-pc-obj-y += tests/libqos/ahci.o
@@ -599,6 +601,7 @@ tests/m48t59-test$(EXESUF): tests/m48t59-test.o
 tests/endianness-test$(EXESUF): tests/endianness-test.o
 tests/spapr-phb-test$(EXESUF): tests/spapr-phb-test.o $(libqos-obj-y)
 tests/prom-env-test$(EXESUF): tests/prom-env-test.o $(libqos-obj-y)
+tests/rtas-test$(EXESUF): tests/rtas-test.o $(libqos-spapr-obj-y)
 tests/fdc-test$(EXESUF): tests/fdc-test.o
 tests/ide-test$(EXESUF): tests/ide-test.o $(libqos-pc-obj-y)
 tests/ahci-test$(EXESUF): tests/ahci-test.o $(libqos-pc-obj-y)
