@@ -56,6 +56,14 @@ spapr_drc_realize_child(uint32_t index, char *childname) "drc: 0x%"PRIx32", chil
 spapr_drc_realize_complete(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_unrealize(uint32_t index) "drc: 0x%"PRIx32
 
+# hw/ppc/spapr_rtas.c
+spapr_rtas_set_indicator_invalid(uint32_t index) "sensor index: 0x%"PRIx32
+spapr_rtas_set_indicator_not_supported(uint32_t index, uint32_t type) "sensor index: 0x%"PRIx32", type: %"PRIu32
+spapr_rtas_get_sensor_state_not_supported(uint32_t index, uint32_t type) "sensor index: 0x%"PRIx32", type: %"PRIu32
+spapr_rtas_get_sensor_state_invalid(uint32_t index) "sensor index: 0x%"PRIx32
+spapr_rtas_ibm_configure_connector_invalid(uint32_t index) "DRC index: 0x%"PRIx32
+spapr_rtas_ibm_configure_connector_missing_fdt(uint32_t index) "DRC index: 0x%"PRIx32
+
 # hw/ppc/ppc.c
 ppc_tb_adjust(uint64_t offs1, uint64_t offs2, int64_t diff, int64_t seconds) "adjusted from 0x%"PRIx64" to 0x%"PRIx64", diff %"PRId64" (%"PRId64"s)"
 
