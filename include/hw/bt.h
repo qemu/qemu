@@ -128,7 +128,7 @@ enum {
     __csrhci_pins,
 };
 qemu_irq *csrhci_pins_get(CharDriverState *chr);
-CharDriverState *uart_hci_init(qemu_irq wakeup);
+CharDriverState *uart_hci_init(void);
 
 /* bt-l2cap.c */
 struct bt_l2cap_device_s;
