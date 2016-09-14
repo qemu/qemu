@@ -628,6 +628,10 @@ F: pc-bios/spapr-rtas.bin
 F: pc-bios/slof.bin
 F: docs/specs/ppc-spapr-hcalls.txt
 F: docs/specs/ppc-spapr-hotplug.txt
+F: tests/spapr*
+F: tests/libqos/*spapr*
+F: tests/rtas*
+F: tests/libqos/rtas*
 
 virtex_ml507
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
