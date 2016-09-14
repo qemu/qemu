@@ -236,6 +236,13 @@ static void virtio_scsi_cancel_notify(Notifier *notifier, void *data)
     g_free(n);
 }
 
+static inline void virtio_scsi_ctx_check(VirtIOSCSI *s, SCSIDevice *d)
+{
+    if (s->dataplane_started && d && blk_is_available(d->conf.blk)) {
+        assert(blk_get_aio_context(d->conf.blk) == s->ctx);
+    }
+}
+
 /* Return 0 if the request is ready to be completed and return to guest;
  * -EINPROGRESS if the request is submitted and will be completed later, in the
  *  case of async cancellation. */
@@ -247,9 +254,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
     int target;
     int ret = 0;
 
-    if (s->dataplane_started && d) {
-        assert(blk_get_aio_context(d->conf.blk) == s->ctx);
-    }
+    virtio_scsi_ctx_check(s, d);
     /* Here VIRTIO_SCSI_S_OK means "FUNCTION COMPLETE".  */
     req->resp.tmf.response = VIRTIO_SCSI_S_OK;
 
@@ -539,9 +544,7 @@ static bool virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req
         virtio_scsi_complete_cmd_req(req);
         return false;
     }
-    if (s->dataplane_started) {
-        assert(blk_get_aio_context(d->conf.blk) == s->ctx);
-    }
+    virtio_scsi_ctx_check(s, d);
     req->sreq = scsi_req_new(d, req->req.cmd.tag,
                              virtio_scsi_get_lun(req->req.cmd.lun),
                              req->req.cmd.cdb, req);
