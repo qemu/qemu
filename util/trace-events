@@ -1,5 +1,11 @@
 # See docs/tracing.txt for syntax documentation.
 
+# util/buffer.c
+buffer_resize(const char *buf, size_t olen, size_t len) "%s: old %zd, new %zd"
+buffer_move_empty(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
+buffer_move(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
+buffer_free(const char *buf, size_t len) "%s: capacity %zd"
+
 # util/oslib-win32.c
 # util/oslib-posix.c
 qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
