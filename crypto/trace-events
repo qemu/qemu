@@ -17,3 +17,4 @@ qcrypto_tls_creds_x509_load_cert_list(void *creds, const char *file) "TLS creds 
 
 # crypto/tlssession.c
 qcrypto_tls_session_new(void *session, void *creds, const char *hostname, const char *aclname, int endpoint) "TLS session new session=%p creds=%p hostname=%s aclname=%s endpoint=%d"
+qcrypto_tls_session_check_creds(void *session, const char *status) "TLS session check creds session=%p status=%s"
