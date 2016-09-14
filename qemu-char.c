@@ -1230,6 +1230,9 @@ static CharDriverState *qemu_chr_open_stdio(const char *id,
     sigaction(SIGCONT, &act, NULL);
 
     chr = qemu_chr_open_fd(0, 1, common, errp);
+    if (!chr) {
+        return NULL;
+    }
     chr->chr_close = qemu_chr_close_stdio;
     chr->chr_set_echo = qemu_chr_set_echo_stdio;
     if (opts->has_signal) {
@@ -1686,6 +1689,9 @@ static CharDriverState *qemu_chr_open_tty_fd(int fd,
 
     tty_serial_init(fd, 115200, 'N', 8, 1);
     chr = qemu_chr_open_fd(fd, fd, backend, errp);
+    if (!chr) {
+        return NULL;
+    }
     chr->chr_ioctl = tty_serial_ioctl;
     chr->chr_close = qemu_chr_close_tty;
     return chr;
