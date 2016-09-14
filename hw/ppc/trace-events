@@ -64,6 +64,10 @@ spapr_rtas_get_sensor_state_invalid(uint32_t index) "sensor index: 0x%"PRIx32
 spapr_rtas_ibm_configure_connector_invalid(uint32_t index) "DRC index: 0x%"PRIx32
 spapr_rtas_ibm_configure_connector_missing_fdt(uint32_t index) "DRC index: 0x%"PRIx32
 
+# hw/ppc/spapr_vio.c
+spapr_vio_h_reg_crq(uint64_t reg, uint64_t queue_addr, uint64_t queue_len) "CRQ for dev 0x%" PRIx64 " registered at 0x%" PRIx64 "/0x%" PRIx64
+spapr_vio_free_crq(uint32_t reg) "CRQ for dev 0x%" PRIx32 " freed"
+
 # hw/ppc/ppc.c
 ppc_tb_adjust(uint64_t offs1, uint64_t offs2, int64_t diff, int64_t seconds) "adjusted from 0x%"PRIx64" to 0x%"PRIx64", diff %"PRId64" (%"PRId64"s)"
 

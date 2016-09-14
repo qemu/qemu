@@ -36,18 +36,9 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/xics.h"
+#include "trace.h"
 
 #include <libfdt.h>
-
-/* #define DEBUG_SPAPR */
-
-#ifdef DEBUG_SPAPR
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
 
 static Property spapr_vio_props[] = {
     DEFINE_PROP_UINT32("irq", VIOsPAPRDevice, irq, 0), \
@@ -202,9 +193,7 @@ static target_ulong h_reg_crq(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     dev->crq.qsize = queue_len;
     dev->crq.qnext = 0;
 
-    DPRINTF("CRQ for dev 0x" TARGET_FMT_lx " registered at 0x"
-            TARGET_FMT_lx "/0x" TARGET_FMT_lx "\n",
-            reg, queue_addr, queue_len);
+    trace_spapr_vio_h_reg_crq(reg, queue_addr, queue_len);
     return H_SUCCESS;
 }
 
@@ -214,7 +203,7 @@ static target_ulong free_crq(VIOsPAPRDevice *dev)
     dev->crq.qsize = 0;
     dev->crq.qnext = 0;
 
-    DPRINTF("CRQ for dev 0x%" PRIx32 " freed\n", dev->reg);
+    trace_spapr_vio_free_crq(dev->reg);
 
     return H_SUCCESS;
 }
