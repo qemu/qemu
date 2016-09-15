@@ -26,38 +26,6 @@
 #include "qemu/cutils.h"
 #include "qemu/bswap.h"
 
-
-/* vector definitions */
-
-extern void link_error(void);
-
-#define ACCEL_BUFFER_ZERO(NAME, SIZE, VECTYPE, NONZERO)         \
-static bool NAME(const void *buf, size_t len)                   \
-{                                                               \
-    const void *end = buf + len;                                \
-    do {                                                        \
-        const VECTYPE *p = buf;                                 \
-        VECTYPE t;                                              \
-        __builtin_prefetch(buf + SIZE);                         \
-        barrier();                                              \
-        if (SIZE == sizeof(VECTYPE) * 4) {                      \
-            t = (p[0] | p[1]) | (p[2] | p[3]);                  \
-        } else if (SIZE == sizeof(VECTYPE) * 8) {               \
-            t  = p[0] | p[1];                                   \
-            t |= p[2] | p[3];                                   \
-            t |= p[4] | p[5];                                   \
-            t |= p[6] | p[7];                                   \
-        } else {                                                \
-            link_error();                                       \
-        }                                                       \
-        if (unlikely(NONZERO(t))) {                             \
-            return false;                                       \
-        }                                                       \
-        buf += SIZE;                                            \
-    } while (buf < end);                                        \
-    return true;                                                \
-}
-
 static bool
 buffer_zero_int(const void *buf, size_t len)
 {
@@ -96,47 +64,174 @@ buffer_zero_int(const void *buf, size_t len)
     }
 }
 
-#if defined(CONFIG_AVX2_OPT) || (defined(CONFIG_CPUID_H) && defined(__SSE2__))
-#include <cpuid.h>
-
+#if defined(CONFIG_AVX2_OPT) || defined(__SSE2__)
 /* Do not use push_options pragmas unnecessarily, because clang
  * does not support them.
  */
-#ifndef __SSE2__
+#ifdef CONFIG_AVX2_OPT
 #pragma GCC push_options
 #pragma GCC target("sse2")
 #endif
 #include <emmintrin.h>
-#define SSE2_NONZERO(X) \
-    (_mm_movemask_epi8(_mm_cmpeq_epi8((X), _mm_setzero_si128())) != 0xFFFF)
-ACCEL_BUFFER_ZERO(buffer_zero_sse2, 64, __m128i, SSE2_NONZERO)
-#ifndef __SSE2__
+
+/* Note that each of these vectorized functions require len >= 64.  */
+
+static bool
+buffer_zero_sse2(const void *buf, size_t len)
+{
+    __m128i t = _mm_loadu_si128(buf);
+    __m128i *p = (__m128i *)(((uintptr_t)buf + 5 * 16) & -16);
+    __m128i *e = (__m128i *)(((uintptr_t)buf + len) & -16);
+    __m128i zero = _mm_setzero_si128();
+
+    /* Loop over 16-byte aligned blocks of 64.  */
+    while (likely(p <= e)) {
+        __builtin_prefetch(p);
+        t = _mm_cmpeq_epi8(t, zero);
+        if (unlikely(_mm_movemask_epi8(t) != 0xFFFF)) {
+            return false;
+        }
+        t = p[-4] | p[-3] | p[-2] | p[-1];
+        p += 4;
+    }
+
+    /* Finish the aligned tail.  */
+    t |= e[-3];
+    t |= e[-2];
+    t |= e[-1];
+
+    /* Finish the unaligned tail.  */
+    t |= _mm_loadu_si128(buf + len - 16);
+
+    return _mm_movemask_epi8(_mm_cmpeq_epi8(t, zero)) == 0xFFFF;
+}
+#ifdef CONFIG_AVX2_OPT
 #pragma GCC pop_options
 #endif
 
 #ifdef CONFIG_AVX2_OPT
+/* Note that due to restrictions/bugs wrt __builtin functions in gcc <= 4.8,
+ * the includes have to be within the corresponding push_options region, and
+ * therefore the regions themselves have to be ordered with increasing ISA.
+ */
 #pragma GCC push_options
 #pragma GCC target("sse4")
 #include <smmintrin.h>
-#define SSE4_NONZERO(X)  !_mm_testz_si128((X), (X))
-ACCEL_BUFFER_ZERO(buffer_zero_sse4, 64, __m128i, SSE4_NONZERO)
-#pragma GCC pop_options
 
+static bool
+buffer_zero_sse4(const void *buf, size_t len)
+{
+    __m128i t = _mm_loadu_si128(buf);
+    __m128i *p = (__m128i *)(((uintptr_t)buf + 5 * 16) & -16);
+    __m128i *e = (__m128i *)(((uintptr_t)buf + len) & -16);
+
+    /* Loop over 16-byte aligned blocks of 64.  */
+    while (likely(p <= e)) {
+        __builtin_prefetch(p);
+        if (unlikely(!_mm_testz_si128(t, t))) {
+            return false;
+        }
+        t = p[-4] | p[-3] | p[-2] | p[-1];
+        p += 4;
+    }
+
+    /* Finish the aligned tail.  */
+    t |= e[-3];
+    t |= e[-2];
+    t |= e[-1];
+
+    /* Finish the unaligned tail.  */
+    t |= _mm_loadu_si128(buf + len - 16);
+
+    return _mm_testz_si128(t, t);
+}
+
+#pragma GCC pop_options
 #pragma GCC push_options
 #pragma GCC target("avx2")
 #include <immintrin.h>
-#define AVX2_NONZERO(X)  !_mm256_testz_si256((X), (X))
-ACCEL_BUFFER_ZERO(buffer_zero_avx2, 128, __m256i, AVX2_NONZERO)
+
+static bool
+buffer_zero_avx2(const void *buf, size_t len)
+{
+    /* Begin with an unaligned head of 32 bytes.  */
+    __m256i t = _mm256_loadu_si256(buf);
+    __m256i *p = (__m256i *)(((uintptr_t)buf + 5 * 32) & -32);
+    __m256i *e = (__m256i *)(((uintptr_t)buf + len) & -32);
+
+    if (likely(p <= e)) {
+        /* Loop over 32-byte aligned blocks of 128.  */
+        do {
+            __builtin_prefetch(p);
+            if (unlikely(!_mm256_testz_si256(t, t))) {
+                return false;
+            }
+            t = p[-4] | p[-3] | p[-2] | p[-1];
+            p += 4;
+        } while (p <= e);
+    } else {
+        t |= _mm256_loadu_si256(buf + 32);
+        if (len <= 128) {
+            goto last2;
+        }
+    }
+
+    /* Finish the last block of 128 unaligned.  */
+    t |= _mm256_loadu_si256(buf + len - 4 * 32);
+    t |= _mm256_loadu_si256(buf + len - 3 * 32);
+ last2:
+    t |= _mm256_loadu_si256(buf + len - 2 * 32);
+    t |= _mm256_loadu_si256(buf + len - 1 * 32);
+
+    return _mm256_testz_si256(t, t);
+}
 #pragma GCC pop_options
+#endif /* CONFIG_AVX2_OPT */
+
+/* Note that for test_buffer_is_zero_next_accel, the most preferred
+ * ISA must have the least significant bit.
+ */
+#define CACHE_AVX2    1
+#define CACHE_SSE4    2
+#define CACHE_SSE2    4
+
+/* Make sure that these variables are appropriately initialized when
+ * SSE2 is enabled on the compiler command-line, but the compiler is
+ * too old to support <cpuid.h>.
+ */
+#ifdef CONFIG_AVX2_OPT
+# define INIT_CACHE 0
+# define INIT_ACCEL buffer_zero_int
+#else
+# ifndef __SSE2__
+#  error "ISA selection confusion"
+# endif
+# define INIT_CACHE CACHE_SSE2
+# define INIT_ACCEL buffer_zero_sse2
 #endif
 
-#define CACHE_AVX2    2
-#define CACHE_AVX1    4
-#define CACHE_SSE4    8
-#define CACHE_SSE2    16
+static unsigned cpuid_cache = INIT_CACHE;
+static bool (*buffer_accel)(const void *, size_t) = INIT_ACCEL;
 
-static unsigned cpuid_cache;
+static void init_accel(unsigned cache)
+{
+    bool (*fn)(const void *, size_t) = buffer_zero_int;
+    if (cache & CACHE_SSE2) {
+        fn = buffer_zero_sse2;
+    }
+#ifdef CONFIG_AVX2_OPT
+    if (cache & CACHE_SSE4) {
+        fn = buffer_zero_sse4;
+    }
+    if (cache & CACHE_AVX2) {
+        fn = buffer_zero_avx2;
+    }
+#endif
+    buffer_accel = fn;
+}
 
+#ifdef CONFIG_AVX2_OPT
+#include <cpuid.h>
 static void __attribute__((constructor)) init_cpuid_cache(void)
 {
     int max = __get_cpuid_max(0, NULL);
@@ -154,24 +249,21 @@ static void __attribute__((constructor)) init_cpuid_cache(void)
         }
 
         /* We must check that AVX is not just available, but usable.  */
-        if ((c & bit_OSXSAVE) && (c & bit_AVX)) {
-            __asm("xgetbv" : "=a"(a), "=d"(d) : "c"(0));
-            if ((a & 6) == 6) {
-                cache |= CACHE_AVX1;
-                if (max >= 7) {
-                    __cpuid_count(7, 0, a, b, c, d);
-                    if (b & bit_AVX2) {
-                        cache |= CACHE_AVX2;
-                    }
-                }
+        if ((c & bit_OSXSAVE) && (c & bit_AVX) && max >= 7) {
+            int bv;
+            __asm("xgetbv" : "=a"(bv), "=d"(d) : "c"(0));
+            __cpuid_count(7, 0, a, b, c, d);
+            if ((bv & 6) == 6 && (b & bit_AVX2)) {
+                cache |= CACHE_AVX2;
             }
         }
 #endif
     }
     cpuid_cache = cache;
+    init_accel(cache);
 }
+#endif /* CONFIG_AVX2_OPT */
 
-#define HAVE_NEXT_ACCEL
 bool test_buffer_is_zero_next_accel(void)
 {
     /* If no bits set, we just tested buffer_zero_int, and there
@@ -181,31 +273,20 @@ bool test_buffer_is_zero_next_accel(void)
     }
     /* Disable the accelerator we used before and select a new one.  */
     cpuid_cache &= cpuid_cache - 1;
+    init_accel(cpuid_cache);
     return true;
 }
 
 static bool select_accel_fn(const void *buf, size_t len)
 {
-    uintptr_t ibuf = (uintptr_t)buf;
-#ifdef CONFIG_AVX2_OPT
-    if (len % 128 == 0 && ibuf % 32 == 0 && (cpuid_cache & CACHE_AVX2)) {
-        return buffer_zero_avx2(buf, len);
-    }
-    if (len % 64 == 0 && ibuf % 16 == 0 && (cpuid_cache & CACHE_SSE4)) {
-        return buffer_zero_sse4(buf, len);
-    }
-#endif
-    if (len % 64 == 0 && ibuf % 16 == 0 && (cpuid_cache & CACHE_SSE2)) {
-        return buffer_zero_sse2(buf, len);
+    if (likely(len >= 64)) {
+        return buffer_accel(buf, len);
     }
     return buffer_zero_int(buf, len);
 }
 
 #else
 #define select_accel_fn  buffer_zero_int
-#endif
-
-#ifndef HAVE_NEXT_ACCEL
 bool test_buffer_is_zero_next_accel(void)
 {
     return false;

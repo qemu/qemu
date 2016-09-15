@@ -275,53 +275,42 @@ const QEMULogItem qemu_log_items[] = {
     { 0, NULL, NULL },
 };
 
-static int cmp1(const char *s1, int n, const char *s2)
-{
-    if (strlen(s2) != n) {
-        return 0;
-    }
-    return memcmp(s1, s2, n) == 0;
-}
-
 /* takes a comma separated list of log masks. Return 0 if error. */
 int qemu_str_to_log_mask(const char *str)
 {
     const QEMULogItem *item;
-    int mask;
-    const char *p, *p1;
+    int mask = 0;
+    char **parts = g_strsplit(str, ",", 0);
+    char **tmp;
 
-    p = str;
-    mask = 0;
-    for (;;) {
-        p1 = strchr(p, ',');
-        if (!p1) {
-            p1 = p + strlen(p);
-        }
-        if (cmp1(p,p1-p,"all")) {
+    for (tmp = parts; tmp && *tmp; tmp++) {
+        if (g_str_equal(*tmp, "all")) {
             for (item = qemu_log_items; item->mask != 0; item++) {
                 mask |= item->mask;
             }
 #ifdef CONFIG_TRACE_LOG
-        } else if (strncmp(p, "trace:", 6) == 0 && p + 6 != p1) {
-            trace_enable_events(p + 6);
+        } else if (g_str_has_prefix(*tmp, "trace:") && (*tmp)[6] != '\0') {
+            trace_enable_events((*tmp) + 6);
             mask |= LOG_TRACE;
 #endif
         } else {
             for (item = qemu_log_items; item->mask != 0; item++) {
-                if (cmp1(p, p1 - p, item->name)) {
+                if (g_str_equal(*tmp, item->name)) {
                     goto found;
                 }
             }
-            return 0;
+            goto error;
         found:
             mask |= item->mask;
         }
-        if (*p1 != ',') {
-            break;
-        }
-        p = p1 + 1;
     }
+
+    g_strfreev(parts);
     return mask;
+
+ error:
+    g_strfreev(parts);
+    return 0;
 }
 
 void qemu_print_log_usage(FILE *f)

@@ -159,6 +159,9 @@ static CharDriverState *qemu_chr_open_msmouse(const char *id,
     CharDriverState *chr;
 
     chr = qemu_chr_alloc(common, errp);
+    if (!chr) {
+        return NULL;
+    }
     chr->chr_write = msmouse_chr_write;
     chr->chr_close = msmouse_chr_close;
     chr->chr_accept_input = msmouse_chr_accept_input;

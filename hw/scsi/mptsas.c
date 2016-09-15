@@ -304,7 +304,7 @@ static int mptsas_process_scsi_io_request(MPTSASState *s,
         goto bad;
     }
 
-    req = g_new(MPTSASRequest, 1);
+    req = g_new0(MPTSASRequest, 1);
     QTAILQ_INSERT_TAIL(&s->pending, req, next);
     req->scsi_io = *scsi_io;
     req->dev = s;
