@@ -496,7 +496,9 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
             vfio_update_kvm_msi_virq(vector, *msg, pdev);
         }
     } else {
-        vfio_add_kvm_msi_virq(vdev, vector, nr, true);
+        if (msg) {
+            vfio_add_kvm_msi_virq(vdev, vector, nr, true);
+        }
     }
 
     /*
