@@ -9,7 +9,7 @@ code fragments ("basic blocks") from target code (any of the
 targets supported by QEMU) to a code representation which
 can be run on a host.
 
-QEMU can create native code for some hosts (arm, hppa, i386, ia64, ppc, ppc64,
+QEMU can create native code for some hosts (arm, i386, ia64, ppc, ppc64,
 s390, sparc, x86_64). For others, unofficial host support was written.
 
 By adding a code generator for a virtual machine and using an

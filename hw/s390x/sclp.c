@@ -426,7 +426,7 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
         goto out;
     }
 
-    sclp_c->execute(sclp, (SCCB *)&work_sccb, code);
+    sclp_c->execute(sclp, &work_sccb, code);
 
     cpu_physical_memory_write(sccb, &work_sccb,
                               be16_to_cpu(work_sccb.h.length));

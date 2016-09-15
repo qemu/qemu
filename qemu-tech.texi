@@ -89,8 +89,7 @@ QEMU generic features:
 
 @item
 Working on x86, x86_64 and PowerPC32/64 hosts. Being tested on ARM,
-HPPA, Sparc32 and Sparc64. Previous versions had some support for
-Alpha and S390 hosts, but TCG (see below) doesn't support those yet.
+S390x, Sparc32 and Sparc64.
 
 @item Self-modifying code support.
 

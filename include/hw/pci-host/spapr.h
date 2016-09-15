@@ -106,8 +106,6 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,
                           void *fdt);
 
-void spapr_pci_msi_init(sPAPRMachineState *spapr, hwaddr addr);
-
 void spapr_pci_rtas_init(void);
 
 sPAPRPHBState *spapr_pci_find_phb(sPAPRMachineState *spapr, uint64_t buid);

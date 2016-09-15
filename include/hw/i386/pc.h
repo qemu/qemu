@@ -216,7 +216,6 @@ void vmmouse_set_data(const uint32_t *data);
 /* pckbd.c */
 #define I8042_A20_LINE "a20"
 
-void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                    MemoryRegion *region, ram_addr_t size,
                    hwaddr mask);
@@ -284,7 +283,6 @@ int cmos_get_fd_drive_type(FloppyDriveType fd0);
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
                       int smm_enabled, DeviceState **piix4_pm);
-void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 
 /* hpet.c */
 extern int no_hpet;

@@ -624,8 +624,6 @@ static inline unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
     return 0;
 }
 #endif
-void cpu_lock(void);
-void cpu_unlock(void);
 
 extern void subsystem_reset(void);
 

@@ -180,7 +180,7 @@ static void fw_cfg_bootsplash(FWCfgState *s)
         temp = qemu_opt_get(opts, "splash-time");
         if (temp != NULL) {
             p = (char *)temp;
-            boot_splash_time = strtol(p, (char **)&p, 10);
+            boot_splash_time = strtol(p, &p, 10);
         }
     }
 
@@ -240,7 +240,7 @@ static void fw_cfg_reboot(FWCfgState *s)
         temp = qemu_opt_get(opts, "reboot-timeout");
         if (temp != NULL) {
             p = (char *)temp;
-            reboot_timeout = strtol(p, (char **)&p, 10);
+            reboot_timeout = strtol(p, &p, 10);
         }
     }
     /* validate the input */

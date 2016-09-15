@@ -1049,7 +1049,7 @@ static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
     const char *host_spec, *vdi_spec;
     int nr_sep, ret;
 
-    strstart(filename, "sheepdog:", (const char **)&filename);
+    strstart(filename, "sheepdog:", &filename);
     p = q = g_strdup(filename);
 
     /* count the number of separators */
@@ -2652,7 +2652,7 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
     req.opcode = SD_OP_READ_VDIS;
     req.data_length = max;
 
-    ret = do_req(fd, s->aio_context, (SheepdogReq *)&req,
+    ret = do_req(fd, s->aio_context, &req,
                  vdi_inuse, &wlen, &rlen);
 
     closesocket(fd);

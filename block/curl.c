@@ -675,11 +675,28 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     curl_easy_setopt(state->curl, CURLOPT_HEADERDATA, s);
     if (curl_easy_perform(state->curl))
         goto out;
-    curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &d);
-    if (d)
-        s->len = (size_t)d;
-    else if(!s->len)
+    if (curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &d)) {
         goto out;
+    }
+    /* Prior CURL 7.19.4 return value of 0 could mean that the file size is not
+     * know or the size is zero. From 7.19.4 CURL returns -1 if size is not
+     * known and zero if it is realy zero-length file. */
+#if LIBCURL_VERSION_NUM >= 0x071304
+    if (d < 0) {
+        pstrcpy(state->errmsg, CURL_ERROR_SIZE,
+                "Server didn't report file size.");
+        goto out;
+    }
+#else
+    if (d <= 0) {
+        pstrcpy(state->errmsg, CURL_ERROR_SIZE,
+                "Unknown file size or zero-length file.");
+        goto out;
+    }
+#endif
+
+    s->len = (size_t)d;
+
     if ((!strncasecmp(s->url, "http://", strlen("http://"))
         || !strncasecmp(s->url, "https://", strlen("https://")))
         && !s->accept_range) {

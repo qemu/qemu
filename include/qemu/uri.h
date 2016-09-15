@@ -102,8 +102,6 @@ typedef struct QueryParams {
 } QueryParams;
 
 struct QueryParams *query_params_new (int init_alloc);
-int query_param_append (QueryParams *ps, const char *name, const char *value);
-extern char *query_param_to_string (const QueryParams *ps);
 extern QueryParams *query_params_parse (const char *query);
 extern void query_params_free (QueryParams *ps);
 

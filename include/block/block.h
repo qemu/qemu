@@ -185,11 +185,6 @@ typedef enum BlockOpType {
     BLOCK_OP_TYPE_MAX,
 } BlockOpType;
 
-void bdrv_info_print(Monitor *mon, const QObject *data);
-void bdrv_info(Monitor *mon, QObject **ret_data);
-void bdrv_stats_print(Monitor *mon, const QObject *data);
-void bdrv_info_stats(Monitor *mon, QObject **ret_data);
-
 /* disk I/O throttling */
 void bdrv_init(void);
 void bdrv_init_with_whitelist(void);
@@ -393,7 +388,6 @@ bool bdrv_is_encrypted(BlockDriverState *bs);
 bool bdrv_key_required(BlockDriverState *bs);
 int bdrv_set_key(BlockDriverState *bs, const char *key);
 void bdrv_add_key(BlockDriverState *bs, const char *key, Error **errp);
-int bdrv_query_missing_keys(void);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque);
 const char *bdrv_get_node_name(const BlockDriverState *bs);

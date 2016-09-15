@@ -75,10 +75,6 @@ int slow_bitmap_equal(const unsigned long *bitmap1,
                       const unsigned long *bitmap2, long bits);
 void slow_bitmap_complement(unsigned long *dst, const unsigned long *src,
                             long bits);
-void slow_bitmap_shift_right(unsigned long *dst,
-                             const unsigned long *src, int shift, long bits);
-void slow_bitmap_shift_left(unsigned long *dst,
-                            const unsigned long *src, int shift, long bits);
 int slow_bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
                     const unsigned long *bitmap2, long bits);
 void slow_bitmap_or(unsigned long *dst, const unsigned long *bitmap1,

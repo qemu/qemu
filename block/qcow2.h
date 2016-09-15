@@ -530,7 +530,6 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size);
 int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index);
-void qcow2_l2_cache_reset(BlockDriverState *bs);
 int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset);
 int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
                           uint8_t *out_buf, const uint8_t *in_buf,

@@ -138,8 +138,6 @@ NetClientState *qemu_get_queue(NICState *nic);
 NICState *qemu_get_nic(NetClientState *nc);
 void *qemu_get_nic_opaque(NetClientState *nc);
 void qemu_del_net_client(NetClientState *nc);
-NetClientState *qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
-                                              const char *client_str);
 typedef void (*qemu_nic_foreach)(NICState *nic, void *opaque);
 void qemu_foreach_nic(qemu_nic_foreach func, void *opaque);
 int qemu_can_send_packet(NetClientState *nc);

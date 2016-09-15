@@ -394,9 +394,7 @@ QemuUIInfo *qemu_console_get_ui_info(QemuConsole *con);
 int qemu_console_get_width(QemuConsole *con, int fallback);
 int qemu_console_get_height(QemuConsole *con, int fallback);
 
-void text_consoles_set_display(DisplayState *ds);
 void console_select(unsigned int index);
-void console_color_init(DisplayState *ds);
 void qemu_console_resize(QemuConsole *con, int width, int height);
 void qemu_console_copy(QemuConsole *con, int src_x, int src_y,
                        int dst_x, int dst_y, int w, int h);

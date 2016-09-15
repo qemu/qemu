@@ -55,10 +55,4 @@ void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
 
 #define TYPE_PPC4xx_PCI_HOST_BRIDGE "ppc4xx-pcihost"
 
-PCIBus *ppc4xx_pci_init(CPUPPCState *env, qemu_irq pci_irqs[4],
-                        hwaddr config_space,
-                        hwaddr int_ack,
-                        hwaddr special_cycle,
-                        hwaddr registers);
-
 #endif /* PPC4XX_H */

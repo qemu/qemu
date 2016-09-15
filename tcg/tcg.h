@@ -723,7 +723,6 @@ static inline bool tcg_op_buf_full(void)
 
 void *tcg_malloc_internal(TCGContext *s, int size);
 void tcg_pool_reset(TCGContext *s);
-void tcg_pool_delete(TCGContext *s);
 
 void tb_lock(void);
 void tb_unlock(void);
@@ -907,7 +906,6 @@ void tcg_optimize(TCGContext *s);
 /* only used for debugging purposes */
 void tcg_dump_ops(TCGContext *s);
 
-void dump_ops(const uint16_t *opc_buf, const TCGArg *opparam_buf);
 TCGv_i32 tcg_const_i32(int32_t val);
 TCGv_i64 tcg_const_i64(int64_t val);
 TCGv_i32 tcg_const_local_i32(int32_t val);
