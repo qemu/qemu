@@ -733,6 +733,9 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 
+    /* Copy the read-only option from the parent */
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
+
     /* aio=native doesn't work for cache.direct=off, so disable it for the
      * temporary snapshot */
     *child_flags &= ~BDRV_O_NATIVE_AIO;
@@ -754,6 +757,9 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
      * the parent. */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
+
+    /* Inherit the read-only option from the parent if it's not set */
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
 
     /* Our block drivers take care to send flushes and respect unmap policy,
      * so we can default to enable both on lower layers regardless of the
@@ -808,7 +814,8 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
 
     /* backing files always opened read-only */
-    flags &= ~(BDRV_O_RDWR | BDRV_O_COPY_ON_READ);
+    qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "on");
+    flags &= ~BDRV_O_COPY_ON_READ;
 
     /* snapshot=on is handled on the top layer */
     flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_TEMPORARY);
@@ -855,6 +862,14 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
     if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_DIRECT, false)) {
         *flags |= BDRV_O_NOCACHE;
     }
+
+    *flags &= ~BDRV_O_RDWR;
+
+    assert(qemu_opt_find(opts, BDRV_OPT_READ_ONLY));
+    if (!qemu_opt_get_bool(opts, BDRV_OPT_READ_ONLY, false)) {
+        *flags |= BDRV_O_RDWR;
+    }
+
 }
 
 static void update_options_from_flags(QDict *options, int flags)
@@ -866,6 +881,10 @@ static void update_options_from_flags(QDict *options, int flags)
     if (!qdict_haskey(options, BDRV_OPT_CACHE_NO_FLUSH)) {
         qdict_put(options, BDRV_OPT_CACHE_NO_FLUSH,
                   qbool_from_bool(flags & BDRV_O_NO_FLUSH));
+    }
+    if (!qdict_haskey(options, BDRV_OPT_READ_ONLY)) {
+        qdict_put(options, BDRV_OPT_READ_ONLY,
+                  qbool_from_bool(!(flags & BDRV_O_RDWR)));
     }
 }
 
@@ -929,6 +948,11 @@ static QemuOptsList bdrv_runtime_opts = {
             .name = BDRV_OPT_CACHE_NO_FLUSH,
             .type = QEMU_OPT_BOOL,
             .help = "Ignore flush requests",
+        },
+        {
+            .name = BDRV_OPT_READ_ONLY,
+            .type = QEMU_OPT_BOOL,
+            .help = "Node is opened in read-only mode",
         },
         { /* end of list */ }
     },
@@ -1674,14 +1698,22 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         goto fail;
     }
 
-    if (flags & BDRV_O_RDWR) {
-        flags |= BDRV_O_ALLOW_RDWR;
+    /* Set the BDRV_O_RDWR and BDRV_O_ALLOW_RDWR flags.
+     * FIXME: we're parsing the QDict to avoid having to create a
+     * QemuOpts just for this, but neither option is optimal. */
+    if (g_strcmp0(qdict_get_try_str(options, BDRV_OPT_READ_ONLY), "on") &&
+        !qdict_get_try_bool(options, BDRV_OPT_READ_ONLY, false)) {
+        flags |= (BDRV_O_RDWR | BDRV_O_ALLOW_RDWR);
+    } else {
+        flags &= ~BDRV_O_RDWR;
     }
 
     if (flags & BDRV_O_SNAPSHOT) {
         snapshot_options = qdict_new();
         bdrv_temp_snapshot_options(&snapshot_flags, snapshot_options,
                                    flags, options);
+        /* Let bdrv_backing_options() override "read-only" */
+        qdict_del(options, BDRV_OPT_READ_ONLY);
         bdrv_backing_options(&flags, options, flags, options);
     }
 

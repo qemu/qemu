@@ -360,9 +360,6 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
     const char *aio;
 
     if (bdrv_flags) {
-        if (!qemu_opt_get_bool(opts, "read-only", false)) {
-            *bdrv_flags |= BDRV_O_RDWR;
-        }
         if (qemu_opt_get_bool(opts, "copy-on-read", false)) {
             *bdrv_flags |= BDRV_O_COPY_ON_READ;
         }
@@ -471,7 +468,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
     bool account_invalid, account_failed;
-    bool writethrough;
+    bool writethrough, read_only;
     BlockBackend *blk;
     BlockDriverState *bs;
     ThrottleConfig cfg;
@@ -567,6 +564,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         bdrv_flags |= BDRV_O_SNAPSHOT;
     }
 
+    read_only = qemu_opt_get_bool(opts, BDRV_OPT_READ_ONLY, false);
+
     /* init */
     if ((!file || !*file) && !qdict_size(bs_opts)) {
         BlockBackendRootState *blk_rs;
@@ -574,7 +573,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         blk = blk_new();
         blk_rs = blk_get_root_state(blk);
         blk_rs->open_flags    = bdrv_flags;
-        blk_rs->read_only     = !(bdrv_flags & BDRV_O_RDWR);
+        blk_rs->read_only     = read_only;
         blk_rs->detect_zeroes = detect_zeroes;
 
         QDECREF(bs_opts);
@@ -588,6 +587,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
          * Apply the defaults here instead. */
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
+        qdict_set_default_str(bs_opts, BDRV_OPT_READ_ONLY,
+                              read_only ? "on" : "off");
         assert((bdrv_flags & BDRV_O_CACHE_MASK) == 0);
 
         if (runstate_check(RUN_STATE_INMIGRATE)) {
@@ -682,6 +683,7 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
      * Apply the defaults here instead. */
     qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
+    qdict_set_default_str(bs_opts, BDRV_OPT_READ_ONLY, "off");
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         bdrv_flags |= BDRV_O_INACTIVE;
@@ -4158,10 +4160,6 @@ static QemuOptsList qemu_root_bds_opts = {
             .name = "aio",
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",
-        },{
-            .name = "read-only",
-            .type = QEMU_OPT_BOOL,
-            .help = "open drive file as read-only",
         },{
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,

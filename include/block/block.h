@@ -107,6 +107,7 @@ typedef struct HDGeometry {
 #define BDRV_OPT_CACHE_WB       "cache.writeback"
 #define BDRV_OPT_CACHE_DIRECT   "cache.direct"
 #define BDRV_OPT_CACHE_NO_FLUSH "cache.no-flush"
+#define BDRV_OPT_READ_ONLY      "read-only"
 
 
 #define BDRV_SECTOR_BITS   9
