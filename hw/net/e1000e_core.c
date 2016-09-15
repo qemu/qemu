@@ -1710,7 +1710,8 @@ e1000e_receive_iov(E1000ECore *core, const struct iovec *iov, int iovcnt)
         }
 
         /* Perform ACK receive detection */
-        if (e1000e_is_tcp_ack(core, core->rx_pkt)) {
+        if  (!(core->mac[RFCTL] & E1000_RFCTL_ACK_DIS) &&
+             (e1000e_is_tcp_ack(core, core->rx_pkt))) {
             n |= E1000_ICS_ACK;
         }
 
