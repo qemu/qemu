@@ -2131,7 +2131,7 @@ e1000e_update_interrupt_state(E1000ECore *core)
 
     /* Set ICR[OTHER] for MSI-X */
     if (is_msix) {
-        if (core->mac[ICR] & core->mac[IMS] & E1000_ICR_OTHER_CAUSES) {
+        if (core->mac[ICR] & E1000_ICR_OTHER_CAUSES) {
             core->mac[ICR] |= E1000_ICR_OTHER;
             trace_e1000e_irq_add_msi_other(core->mac[ICR]);
         }
