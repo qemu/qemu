@@ -129,7 +129,6 @@ struct MigrationSrcPageRequest {
 
 struct MigrationState
 {
-    int64_t bandwidth_limit;
     size_t bytes_xfer;
     size_t xfer_limit;
     QemuThread thread;

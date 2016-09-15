@@ -2910,7 +2910,9 @@ Set migration parameters
                           throttled for auto-converge (json-int)
 - "cpu-throttle-increment": set throttle increasing percentage for
                             auto-converge (json-int)
-
+- "max-bandwidth": set maximum speed for migrations (in bytes/sec) (json-int)
+- "downtime-limit": set maximum tolerated downtime (in milliseconds) for
+                    migrations (json-int)
 Arguments:
 
 Example:
@@ -2931,7 +2933,10 @@ Query current migration parameters
                                     throttled (json-int)
          - "cpu-throttle-increment" : throttle increasing percentage for
                                       auto-converge (json-int)
-
+         - "max-bandwidth" : maximium migration speed in bytes per second
+                             (json-int)
+         - "downtime-limit" : maximum tolerated downtime of migration in
+                              milliseconds (json-int)
 Arguments:
 
 Example:
@@ -2943,7 +2948,9 @@ Example:
          "cpu-throttle-increment": 10,
          "compress-threads": 8,
          "compress-level": 1,
-         "cpu-throttle-initial": 20
+         "cpu-throttle-initial": 20,
+         "max-bandwidth": 33554432,
+         "downtime-limit": 300
       }
    }
 

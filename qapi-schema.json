@@ -658,12 +658,19 @@
 #                hostname must be provided so that the server's x509
 #                certificate identity can be validated. (Since 2.7)
 #
+# @max-bandwidth: to set maximum speed for migration. maximum speed in
+#                 bytes per second. (Since 2.8)
+#
+# @downtime-limit: set maximum tolerated downtime for migration. maximum
+#                  downtime in milliseconds (Since 2.8)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
            'cpu-throttle-initial', 'cpu-throttle-increment',
-           'tls-creds', 'tls-hostname'] }
+           'tls-creds', 'tls-hostname', 'max-bandwidth',
+           'downtime-limit'] }
 
 #
 # @migrate-set-parameters
@@ -712,6 +719,12 @@
 #                hostname must be provided so that the server's x509
 #                certificate identity can be validated. (Since 2.7)
 #
+# @max-bandwidth: to set maximum speed for migration. maximum speed in
+#                 bytes per second. (Since 2.8)
+#
+# @downtime-limit: set maximum tolerated downtime for migration. maximum
+#                  downtime in milliseconds (Since 2.8)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -721,7 +734,9 @@
             '*cpu-throttle-initial': 'int',
             '*cpu-throttle-increment': 'int',
             '*tls-creds': 'str',
-            '*tls-hostname': 'str'} }
+            '*tls-hostname': 'str',
+            '*max-bandwidth': 'int',
+            '*downtime-limit': 'int'} }
 ##
 # @query-migrate-parameters
 #
@@ -1803,6 +1818,8 @@
 #
 # Returns: nothing on success
 #
+# Notes: This command is deprecated in favor of 'migrate-set-parameters'
+#
 # Since: 0.14.0
 ##
 { 'command': 'migrate_set_downtime', 'data': {'value': 'number'} }
@@ -1816,7 +1833,7 @@
 #
 # Returns: nothing on success
 #
-# Notes: A value lesser than zero will be automatically round up to zero.
+# Notes: This command is deprecated in favor of 'migrate-set-parameters'
 #
 # Since: 0.14.0
 ##

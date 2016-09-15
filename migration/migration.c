@@ -44,6 +44,10 @@
 #define BUFFER_DELAY     100
 #define XFER_LIMIT_RATIO (1000 / BUFFER_DELAY)
 
+/* Time in milliseconds we are allowed to stop the source,
+ * for sending the last part */
+#define DEFAULT_MIGRATE_SET_DOWNTIME 300
+
 /* Default compression thread count */
 #define DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT 8
 /* Default decompression thread count, usually decompression is at
@@ -80,7 +84,6 @@ MigrationState *migrate_get_current(void)
     static bool once;
     static MigrationState current_migration = {
         .state = MIGRATION_STATUS_NONE,
-        .bandwidth_limit = MAX_THROTTLE,
         .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
         .mbps = -1,
         .parameters = {
@@ -89,6 +92,8 @@ MigrationState *migrate_get_current(void)
             .decompress_threads = DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
             .cpu_throttle_initial = DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL,
             .cpu_throttle_increment = DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT,
+            .max_bandwidth = MAX_THROTTLE,
+            .downtime_limit = DEFAULT_MIGRATE_SET_DOWNTIME,
         },
     };
 
@@ -517,17 +522,6 @@ void migrate_send_rp_pong(MigrationIncomingState *mis,
     migrate_send_rp_message(mis, MIG_RP_MSG_PONG, sizeof(buf), &buf);
 }
 
-/* amount of nanoseconds we are willing to wait for migration to be down.
- * the choice of nanoseconds is because it is the maximum resolution that
- * get_clock() can achieve. It is an internal measure. All user-visible
- * units must be in seconds */
-static uint64_t max_downtime = 300000000;
-
-uint64_t migrate_max_downtime(void)
-{
-    return max_downtime;
-}
-
 MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
 {
     MigrationCapabilityStatusList *head = NULL;
@@ -573,6 +567,10 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->tls_creds = g_strdup(s->parameters.tls_creds);
     params->has_tls_hostname = !!s->parameters.tls_hostname;
     params->tls_hostname = g_strdup(s->parameters.tls_hostname);
+    params->has_max_bandwidth = true;
+    params->max_bandwidth = s->parameters.max_bandwidth;
+    params->has_downtime_limit = true;
+    params->downtime_limit = s->parameters.downtime_limit;
 
     return params;
 }
@@ -806,6 +804,19 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
                    "an integer in the range of 1 to 99");
         return;
     }
+    if (params->has_max_bandwidth &&
+        (params->max_bandwidth < 0 || params->max_bandwidth > SIZE_MAX)) {
+        error_setg(errp, "Parameter 'max_bandwidth' expects an integer in the"
+                         " range of 0 to %zu bytes/second", SIZE_MAX);
+        return;
+    }
+    if (params->has_downtime_limit &&
+        (params->downtime_limit < 0 || params->downtime_limit > 2000000)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "downtime_limit",
+                   "an integer in the range of 0 to 2000000 milliseconds");
+        return;
+    }
 
     if (params->has_compress_level) {
         s->parameters.compress_level = params->compress_level;
@@ -829,6 +840,16 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
     if (params->has_tls_hostname) {
         g_free(s->parameters.tls_hostname);
         s->parameters.tls_hostname = g_strdup(params->tls_hostname);
+    }
+    if (params->has_max_bandwidth) {
+        s->parameters.max_bandwidth = params->max_bandwidth;
+        if (s->to_dst_file) {
+            qemu_file_set_rate_limit(s->to_dst_file,
+                                s->parameters.max_bandwidth / XFER_LIMIT_RATIO);
+        }
+    }
+    if (params->has_downtime_limit) {
+        s->parameters.downtime_limit = params->downtime_limit;
     }
 }
 
@@ -1163,28 +1184,25 @@ int64_t qmp_query_migrate_cache_size(Error **errp)
 
 void qmp_migrate_set_speed(int64_t value, Error **errp)
 {
-    MigrationState *s;
+    MigrationParameters p = {
+        .has_max_bandwidth = true,
+        .max_bandwidth = value,
+    };
 
-    if (value < 0) {
-        value = 0;
-    }
-    if (value > SIZE_MAX) {
-        value = SIZE_MAX;
-    }
-
-    s = migrate_get_current();
-    s->bandwidth_limit = value;
-    if (s->to_dst_file) {
-        qemu_file_set_rate_limit(s->to_dst_file,
-                                 s->bandwidth_limit / XFER_LIMIT_RATIO);
-    }
+    qmp_migrate_set_parameters(&p, errp);
 }
 
 void qmp_migrate_set_downtime(double value, Error **errp)
 {
-    value *= 1e9;
-    value = MAX(0, MIN(UINT64_MAX, value));
-    max_downtime = (uint64_t)value;
+    value *= 1000; /* Convert to milliseconds */
+    value = MAX(0, MIN(INT64_MAX, value));
+
+    MigrationParameters p = {
+        .has_downtime_limit = true,
+        .downtime_limit = value,
+    };
+
+    qmp_migrate_set_parameters(&p, errp);
 }
 
 bool migrate_postcopy_ram(void)
@@ -1791,7 +1809,7 @@ static void *migration_thread(void *opaque)
                                          initial_bytes;
             uint64_t time_spent = current_time - initial_time;
             double bandwidth = (double)transferred_bytes / time_spent;
-            max_size = bandwidth * migrate_max_downtime() / 1000000;
+            max_size = bandwidth * s->parameters.downtime_limit;
 
             s->mbps = (((double) transferred_bytes * 8.0) /
                     ((double) time_spent / 1000.0)) / 1000.0 / 1000.0;
@@ -1850,13 +1868,12 @@ static void *migration_thread(void *opaque)
 
 void migrate_fd_connect(MigrationState *s)
 {
-    /* This is a best 1st approximation. ns to ms */
-    s->expected_downtime = max_downtime/1000000;
+    s->expected_downtime = s->parameters.downtime_limit;
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
 
     qemu_file_set_blocking(s->to_dst_file, true);
     qemu_file_set_rate_limit(s->to_dst_file,
-                             s->bandwidth_limit / XFER_LIMIT_RATIO);
+                             s->parameters.max_bandwidth / XFER_LIMIT_RATIO);
 
     /* Notify before starting migration thread */
     notifier_list_notify(&migration_state_notifiers, s);
