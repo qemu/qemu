@@ -743,10 +743,13 @@ static void usb_host_speed_compat(USBHostDevice *s)
                         rc = libusb_get_ss_endpoint_companion_descriptor
                             (ctx, endp, &endp_ss_comp);
                         if (rc == LIBUSB_SUCCESS) {
+                            int streams = endp_ss_comp->bmAttributes & 0x1f;
+                            if (streams) {
+                                compat_full = false;
+                                compat_high = false;
+                            }
                             libusb_free_ss_endpoint_companion_descriptor
                                 (endp_ss_comp);
-                            compat_full = false;
-                            compat_high = false;
                         }
 #endif
                         break;

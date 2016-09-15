@@ -48,6 +48,9 @@ enum mtp_code {
     CMD_GET_OBJECT_INFO            = 0x1008,
     CMD_GET_OBJECT                 = 0x1009,
     CMD_GET_PARTIAL_OBJECT         = 0x101b,
+    CMD_GET_OBJECT_PROPS_SUPPORTED = 0x9801,
+    CMD_GET_OBJECT_PROP_DESC       = 0x9802,
+    CMD_GET_OBJECT_PROP_VALUE      = 0x9803,
 
     /* response codes */
     RES_OK                         = 0x2001,
@@ -59,10 +62,12 @@ enum mtp_code {
     RES_INCOMPLETE_TRANSFER        = 0x2007,
     RES_INVALID_STORAGE_ID         = 0x2008,
     RES_INVALID_OBJECT_HANDLE      = 0x2009,
+    RES_INVALID_OBJECT_FORMAT_CODE = 0x200b,
     RES_SPEC_BY_FORMAT_UNSUPPORTED = 0x2014,
     RES_INVALID_PARENT_OBJECT      = 0x201a,
     RES_INVALID_PARAMETER          = 0x201d,
     RES_SESSION_ALREADY_OPEN       = 0x201e,
+    RES_INVALID_OBJECT_PROP_CODE   = 0xA801,
 
     /* format codes */
     FMT_UNDEFINED_OBJECT           = 0x3000,
@@ -72,6 +77,22 @@ enum mtp_code {
     EVT_OBJ_ADDED                  = 0x4002,
     EVT_OBJ_REMOVED                = 0x4003,
     EVT_OBJ_INFO_CHANGED           = 0x4007,
+
+    /* object properties */
+    PROP_STORAGE_ID                = 0xDC01,
+    PROP_OBJECT_FORMAT             = 0xDC02,
+    PROP_OBJECT_COMPRESSED_SIZE    = 0xDC04,
+    PROP_PARENT_OBJECT             = 0xDC0B,
+    PROP_PERSISTENT_UNIQUE_OBJECT_IDENTIFIER = 0xDC41,
+    PROP_NAME                      = 0xDC44,
+};
+
+enum mtp_data_type {
+    DATA_TYPE_UINT16  = 0x0004,
+    DATA_TYPE_UINT32  = 0x0006,
+    DATA_TYPE_UINT64  = 0x0008,
+    DATA_TYPE_UINT128 = 0x000a,
+    DATA_TYPE_STRING  = 0xffff,
 };
 
 typedef struct {
@@ -115,8 +136,8 @@ struct MTPControl {
 struct MTPData {
     uint16_t     code;
     uint32_t     trans;
-    uint32_t     offset;
-    uint32_t     length;
+    uint64_t     offset;
+    uint64_t     length;
     uint32_t     alloc;
     uint8_t      *data;
     bool         first;
@@ -778,6 +799,9 @@ static MTPData *usb_mtp_get_device_info(MTPState *s, MTPControl *c)
         CMD_GET_OBJECT_INFO,
         CMD_GET_OBJECT,
         CMD_GET_PARTIAL_OBJECT,
+        CMD_GET_OBJECT_PROPS_SUPPORTED,
+        CMD_GET_OBJECT_PROP_DESC,
+        CMD_GET_OBJECT_PROP_VALUE,
     };
     static const uint16_t fmt[] = {
         FMT_UNDEFINED_OBJECT,
@@ -883,7 +907,12 @@ static MTPData *usb_mtp_get_object_info(MTPState *s, MTPControl *c,
     usb_mtp_add_u32(d, QEMU_STORAGE_ID);
     usb_mtp_add_u16(d, o->format);
     usb_mtp_add_u16(d, 0);
-    usb_mtp_add_u32(d, o->stat.st_size);
+
+    if (o->stat.st_size > 0xFFFFFFFF) {
+        usb_mtp_add_u32(d, 0xFFFFFFFF);
+    } else {
+        usb_mtp_add_u32(d, o->stat.st_size);
+    }
 
     usb_mtp_add_u16(d, 0);
     usb_mtp_add_u32(d, 0);
@@ -961,6 +990,122 @@ static MTPData *usb_mtp_get_partial_object(MTPState *s, MTPControl *c,
     d->length = c->argv[2];
     if (d->length > o->stat.st_size - offset) {
         d->length = o->stat.st_size - offset;
+    }
+
+    return d;
+}
+
+static MTPData *usb_mtp_get_object_props_supported(MTPState *s, MTPControl *c)
+{
+    static const uint16_t props[] = {
+        PROP_STORAGE_ID,
+        PROP_OBJECT_FORMAT,
+        PROP_OBJECT_COMPRESSED_SIZE,
+        PROP_PARENT_OBJECT,
+        PROP_PERSISTENT_UNIQUE_OBJECT_IDENTIFIER,
+        PROP_NAME,
+    };
+    MTPData *d = usb_mtp_data_alloc(c);
+    usb_mtp_add_u16_array(d, ARRAY_SIZE(props), props);
+
+    return d;
+}
+
+static MTPData *usb_mtp_get_object_prop_desc(MTPState *s, MTPControl *c)
+{
+    MTPData *d = usb_mtp_data_alloc(c);
+    switch (c->argv[0]) {
+    case PROP_STORAGE_ID:
+        usb_mtp_add_u16(d, PROP_STORAGE_ID);
+        usb_mtp_add_u16(d, DATA_TYPE_UINT32);
+        usb_mtp_add_u8(d, 0x00);
+        usb_mtp_add_u32(d, 0x00000000);
+        usb_mtp_add_u32(d, 0x00000000);
+        usb_mtp_add_u8(d, 0x00);
+        break;
+    case PROP_OBJECT_FORMAT:
+        usb_mtp_add_u16(d, PROP_OBJECT_FORMAT);
+        usb_mtp_add_u16(d, DATA_TYPE_UINT16);
+        usb_mtp_add_u8(d, 0x00);
+        usb_mtp_add_u16(d, 0x0000);
+        usb_mtp_add_u32(d, 0x00000000);
+        usb_mtp_add_u8(d, 0x00);
+        break;
+    case PROP_OBJECT_COMPRESSED_SIZE:
+        usb_mtp_add_u16(d, PROP_OBJECT_COMPRESSED_SIZE);
+        usb_mtp_add_u16(d, DATA_TYPE_UINT64);
+        usb_mtp_add_u8(d, 0x00);
+        usb_mtp_add_u64(d, 0x0000000000000000);
+        usb_mtp_add_u32(d, 0x00000000);
+        usb_mtp_add_u8(d, 0x00);
+        break;
+    case PROP_PARENT_OBJECT:
+        usb_mtp_add_u16(d, PROP_PARENT_OBJECT);
+        usb_mtp_add_u16(d, DATA_TYPE_UINT32);
+        usb_mtp_add_u8(d, 0x00);
+        usb_mtp_add_u32(d, 0x00000000);
+        usb_mtp_add_u32(d, 0x00000000);
+        usb_mtp_add_u8(d, 0x00);
+        break;
+    case PROP_PERSISTENT_UNIQUE_OBJECT_IDENTIFIER:
+        usb_mtp_add_u16(d, PROP_PERSISTENT_UNIQUE_OBJECT_IDENTIFIER);
+        usb_mtp_add_u16(d, DATA_TYPE_UINT128);
+        usb_mtp_add_u8(d, 0x00);
+        usb_mtp_add_u64(d, 0x0000000000000000);
+        usb_mtp_add_u64(d, 0x0000000000000000);
+        usb_mtp_add_u32(d, 0x00000000);
+        usb_mtp_add_u8(d, 0x00);
+        break;
+    case PROP_NAME:
+        usb_mtp_add_u16(d, PROP_NAME);
+        usb_mtp_add_u16(d, DATA_TYPE_STRING);
+        usb_mtp_add_u8(d, 0x00);
+        usb_mtp_add_u8(d, 0x00);
+        usb_mtp_add_u32(d, 0x00000000);
+        usb_mtp_add_u8(d, 0x00);
+        break;
+    default:
+        usb_mtp_data_free(d);
+        return NULL;
+    }
+
+    return d;
+}
+
+static MTPData *usb_mtp_get_object_prop_value(MTPState *s, MTPControl *c,
+                                              MTPObject *o)
+{
+    MTPData *d = usb_mtp_data_alloc(c);
+    switch (c->argv[1]) {
+    case PROP_STORAGE_ID:
+        usb_mtp_add_u32(d, QEMU_STORAGE_ID);
+        break;
+    case PROP_OBJECT_FORMAT:
+        usb_mtp_add_u16(d, o->format);
+        break;
+    case PROP_OBJECT_COMPRESSED_SIZE:
+        usb_mtp_add_u64(d, o->stat.st_size);
+        break;
+    case PROP_PARENT_OBJECT:
+        if (o->parent == NULL) {
+            usb_mtp_add_u32(d, 0x00000000);
+        } else {
+            usb_mtp_add_u32(d, o->parent->handle);
+        }
+        break;
+    case PROP_PERSISTENT_UNIQUE_OBJECT_IDENTIFIER:
+        /* Should be persistant between sessions,
+         * but using our objedt ID is "good enough"
+         * for now */
+        usb_mtp_add_u64(d, 0x0000000000000000);
+        usb_mtp_add_u64(d, o->handle);
+        break;
+    case PROP_NAME:
+        usb_mtp_add_str(d, o->name);
+        break;
+    default:
+        usb_mtp_data_free(d);
+        return NULL;
     }
 
     return d;
@@ -1113,6 +1258,43 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         nres = 1;
         res0 = data_in->length;
         break;
+    case CMD_GET_OBJECT_PROPS_SUPPORTED:
+        if (c->argv[0] != FMT_UNDEFINED_OBJECT &&
+            c->argv[0] != FMT_ASSOCIATION) {
+            usb_mtp_queue_result(s, RES_INVALID_OBJECT_FORMAT_CODE,
+                                 c->trans, 0, 0, 0);
+            return;
+        }
+        data_in = usb_mtp_get_object_props_supported(s, c);
+        break;
+    case CMD_GET_OBJECT_PROP_DESC:
+        if (c->argv[1] != FMT_UNDEFINED_OBJECT &&
+            c->argv[1] != FMT_ASSOCIATION) {
+            usb_mtp_queue_result(s, RES_INVALID_OBJECT_FORMAT_CODE,
+                                 c->trans, 0, 0, 0);
+            return;
+        }
+        data_in = usb_mtp_get_object_prop_desc(s, c);
+        if (data_in == NULL) {
+            usb_mtp_queue_result(s, RES_INVALID_OBJECT_PROP_CODE,
+                                 c->trans, 0, 0, 0);
+            return;
+        }
+        break;
+    case CMD_GET_OBJECT_PROP_VALUE:
+        o = usb_mtp_object_lookup(s, c->argv[0]);
+        if (o == NULL) {
+            usb_mtp_queue_result(s, RES_INVALID_OBJECT_HANDLE,
+                                 c->trans, 0, 0, 0);
+            return;
+        }
+        data_in = usb_mtp_get_object_prop_value(s, c, o);
+        if (data_in == NULL) {
+            usb_mtp_queue_result(s, RES_INVALID_OBJECT_PROP_CODE,
+                                 c->trans, 0, 0, 0);
+            return;
+        }
+        break;
     default:
         trace_usb_mtp_op_unknown(s->dev.addr, c->code);
         usb_mtp_queue_result(s, RES_OPERATION_NOT_SUPPORTED,
@@ -1193,10 +1375,15 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
         }
         if (s->data_in !=  NULL) {
             MTPData *d = s->data_in;
-            int dlen = d->length - d->offset;
+            uint64_t dlen = d->length - d->offset;
             if (d->first) {
                 trace_usb_mtp_data_in(s->dev.addr, d->trans, d->length);
-                container.length = cpu_to_le32(d->length + sizeof(container));
+                if (d->length + sizeof(container) > 0xFFFFFFFF) {
+                    container.length = cpu_to_le32(0xFFFFFFFF);
+                } else {
+                    container.length =
+                        cpu_to_le32(d->length + sizeof(container));
+                }
                 container.type   = cpu_to_le16(TYPE_DATA);
                 container.code   = cpu_to_le16(d->code);
                 container.trans  = cpu_to_le32(d->trans);
