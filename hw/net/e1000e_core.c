@@ -2015,13 +2015,17 @@ e1000e_msix_notify_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
 
     trace_e1000e_irq_icr_clear_eiac(core->mac[ICR], core->mac[EIAC]);
 
-    if (core->mac[EIAC] & E1000_ICR_OTHER) {
-        effective_eiac = (core->mac[EIAC] & E1000_EIAC_MASK) |
-                         E1000_ICR_OTHER_CAUSES;
-    } else {
-        effective_eiac = core->mac[EIAC] & E1000_EIAC_MASK;
+    effective_eiac = core->mac[EIAC] & cause;
+
+    if (effective_eiac == E1000_ICR_OTHER) {
+        effective_eiac |= E1000_ICR_OTHER_CAUSES;
     }
+
     core->mac[ICR] &= ~effective_eiac;
+
+    if (!(core->mac[CTRL_EXT] & E1000_CTRL_EXT_IAME)) {
+        core->mac[IMS] &= ~effective_eiac;
+    }
 }
 
 static void
