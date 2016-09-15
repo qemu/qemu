@@ -178,6 +178,8 @@ static void uart_write(void *opaque, hwaddr addr,
     switch (addr) {
     case R_RXTX:
         if (s->chr) {
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
             qemu_chr_fe_write_all(s->chr, &ch, 1);
         }
         break;

@@ -77,6 +77,8 @@ static void digic_uart_write(void *opaque, hwaddr addr, uint64_t value,
     switch (addr) {
     case R_TX:
         if (s->chr) {
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
             qemu_chr_fe_write_all(s->chr, &ch, 1);
         }
         break;

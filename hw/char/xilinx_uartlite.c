@@ -144,7 +144,9 @@ uart_write(void *opaque, hwaddr addr,
 
         case R_TX:
             if (s->chr)
-                qemu_chr_fe_write(s->chr, &ch, 1);
+                /* XXX this blocks entire thread. Rewrite to use
+                 * qemu_chr_fe_write and background I/O callbacks */
+                qemu_chr_fe_write_all(s->chr, &ch, 1);
 
             s->regs[addr] = value;
 

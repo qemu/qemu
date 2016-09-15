@@ -769,14 +769,16 @@ static void omap_sti_fifo_write(void *opaque, hwaddr addr,
 
     if (ch == STI_TRACE_CONTROL_CHANNEL) {
         /* Flush channel <i>value</i>.  */
-        qemu_chr_fe_write(s->chr, (const uint8_t *) "\r", 1);
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
+        qemu_chr_fe_write_all(s->chr, (const uint8_t *) "\r", 1);
     } else if (ch == STI_TRACE_CONSOLE_CHANNEL || 1) {
         if (value == 0xc0 || value == 0xc3) {
             /* Open channel <i>ch</i>.  */
         } else if (value == 0x00)
-            qemu_chr_fe_write(s->chr, (const uint8_t *) "\n", 1);
+            qemu_chr_fe_write_all(s->chr, (const uint8_t *) "\n", 1);
         else
-            qemu_chr_fe_write(s->chr, &byte, 1);
+            qemu_chr_fe_write_all(s->chr, &byte, 1);
     }
 }
 

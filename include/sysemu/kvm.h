@@ -221,7 +221,6 @@ int kvm_destroy_vcpu(CPUState *cpu);
 #ifdef NEED_CPU_H
 #include "cpu.h"
 
-void kvm_setup_guest_memory(void *start, size_t size);
 void kvm_flush_coalesced_mmio_buffer(void);
 
 int kvm_insert_breakpoint(CPUState *cpu, target_ulong addr,
@@ -372,7 +371,6 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg);
 
 void kvm_irqchip_add_irq_route(KVMState *s, int gsi, int irqchip, int pin);
 
-void kvm_put_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
 void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
 
 struct kvm_guest_debug;

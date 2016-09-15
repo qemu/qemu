@@ -191,8 +191,12 @@ int64_t cpu_icount_to_ns(int64_t icount)
     return icount << icount_time_shift;
 }
 
-/* return the host CPU cycle counter and handle stop/restart */
-/* Caller must hold the BQL */
+/* return the time elapsed in VM between vm_start and vm_stop.  Unless
+ * icount is active, cpu_get_ticks() uses units of the host CPU cycle
+ * counter.
+ *
+ * Caller must hold the BQL
+ */
 int64_t cpu_get_ticks(void)
 {
     int64_t ticks;
@@ -219,17 +223,19 @@ int64_t cpu_get_ticks(void)
 
 static int64_t cpu_get_clock_locked(void)
 {
-    int64_t ticks;
+    int64_t time;
 
-    ticks = timers_state.cpu_clock_offset;
+    time = timers_state.cpu_clock_offset;
     if (timers_state.cpu_ticks_enabled) {
-        ticks += get_clock();
+        time += get_clock();
     }
 
-    return ticks;
+    return time;
 }
 
-/* return the host CPU monotonic time */
+/* Return the monotonic time elapsed in VM, i.e.,
+ * the time between vm_start and vm_stop
+ */
 int64_t cpu_get_clock(void)
 {
     int64_t ti;

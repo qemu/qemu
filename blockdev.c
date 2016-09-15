@@ -3907,7 +3907,7 @@ void qmp_x_blockdev_del(bool has_id, const char *id,
             goto out;
         }
 
-        if (!blk && !bs->monitor_list.tqe_prev) {
+        if (!blk && !QTAILQ_IN_USE(bs, monitor_list)) {
             error_setg(errp, "Node %s is not owned by the monitor",
                        bs->node_name);
             goto out;

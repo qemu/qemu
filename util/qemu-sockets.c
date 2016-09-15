@@ -491,10 +491,10 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
         goto err;
     }
 
-    if (0 != (rc = getaddrinfo(addr, port, &ai, &peer))) {
+    if ((rc = getaddrinfo(addr, port, &ai, &peer)) != 0) {
         error_setg(errp, "address resolution failed for %s:%s: %s", addr, port,
                    gai_strerror(rc));
-	goto err;
+        goto err;
     }
 
     /* lookup local addr */
@@ -517,7 +517,7 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
         port = "0";
     }
 
-    if (0 != (rc = getaddrinfo(addr, port, &ai, &local))) {
+    if ((rc = getaddrinfo(addr, port, &ai, &local)) != 0) {
         error_setg(errp, "address resolution failed for %s:%s: %s", addr, port,
                    gai_strerror(rc));
         goto err;
@@ -548,12 +548,16 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
     return sock;
 
 err:
-    if (-1 != sock)
+    if (sock != -1) {
         closesocket(sock);
-    if (local)
+    }
+    if (local) {
         freeaddrinfo(local);
-    if (peer)
+    }
+    if (peer) {
         freeaddrinfo(peer);
+    }
+
     return -1;
 }
 
@@ -573,20 +577,20 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
     if (str[0] == ':') {
         /* no host given */
         host[0] = '\0';
-        if (1 != sscanf(str, ":%32[^,]%n", port, &pos)) {
+        if (sscanf(str, ":%32[^,]%n", port, &pos) != 1) {
             error_setg(errp, "error parsing port in address '%s'", str);
             goto fail;
         }
     } else if (str[0] == '[') {
         /* IPv6 addr */
-        if (2 != sscanf(str, "[%64[^]]]:%32[^,]%n", host, port, &pos)) {
+        if (sscanf(str, "[%64[^]]]:%32[^,]%n", host, port, &pos) != 2) {
             error_setg(errp, "error parsing IPv6 address '%s'", str);
             goto fail;
         }
         addr->ipv6 = addr->has_ipv6 = true;
     } else {
         /* hostname or IPv4 addr */
-        if (2 != sscanf(str, "%64[^:]:%32[^,]%n", host, port, &pos)) {
+        if (sscanf(str, "%64[^:]:%32[^,]%n", host, port, &pos) != 2) {
             error_setg(errp, "error parsing address '%s'", str);
             goto fail;
         }
@@ -816,8 +820,10 @@ int unix_listen(const char *str, char *ostr, int olen, Error **errp)
 
     sock = unix_listen_saddr(saddr, true, errp);
 
-    if (sock != -1 && ostr)
+    if (sock != -1 && ostr) {
         snprintf(ostr, olen, "%s%s", saddr->path, optstr ? optstr : "");
+    }
+
     qapi_free_UnixSocketAddress(saddr);
     return sock;
 }

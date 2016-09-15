@@ -773,6 +773,7 @@ static TranslationBlock *tb_alloc(target_ulong pc)
     tb = &tcg_ctx.tb_ctx.tbs[tcg_ctx.tb_ctx.nb_tbs++];
     tb->pc = pc;
     tb->cflags = 0;
+    tb->invalid = false;
     return tb;
 }
 
@@ -848,13 +849,17 @@ void tb_flush(CPUState *cpu)
         > tcg_ctx.code_gen_buffer_size) {
         cpu_abort(cpu, "Internal error: code buffer overflow\n");
     }
-    tcg_ctx.tb_ctx.nb_tbs = 0;
 
     CPU_FOREACH(cpu) {
-        memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
-        cpu->tb_flushed = true;
+        int i;
+
+        for (i = 0; i < TB_JMP_CACHE_SIZE; ++i) {
+            atomic_set(&cpu->tb_jmp_cache[i], NULL);
+        }
+        atomic_mb_set(&cpu->tb_flushed, true);
     }
 
+    tcg_ctx.tb_ctx.nb_tbs = 0;
     qht_reset_size(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
     page_flush_tb();
 
@@ -990,6 +995,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     uint32_t h;
     tb_page_addr_t phys_pc;
 
+    atomic_set(&tb->invalid, true);
+
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
     h = tb_hash_func(phys_pc, tb->pc, tb->flags);
@@ -1010,8 +1017,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
     CPU_FOREACH(cpu) {
-        if (cpu->tb_jmp_cache[h] == tb) {
-            cpu->tb_jmp_cache[h] = NULL;
+        if (atomic_read(&cpu->tb_jmp_cache[h]) == tb) {
+            atomic_set(&cpu->tb_jmp_cache[h], NULL);
         }
     }
 
@@ -1124,10 +1131,6 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
 {
     uint32_t h;
 
-    /* add in the hash table */
-    h = tb_hash_func(phys_pc, tb->pc, tb->flags);
-    qht_insert(&tcg_ctx.tb_ctx.htable, tb, h);
-
     /* add in the page list */
     tb_alloc_page(tb, 0, phys_pc & TARGET_PAGE_MASK);
     if (phys_page2 != -1) {
@@ -1135,6 +1138,10 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     } else {
         tb->page_addr[1] = -1;
     }
+
+    /* add in the hash table */
+    h = tb_hash_func(phys_pc, tb->pc, tb->flags);
+    qht_insert(&tcg_ctx.tb_ctx.htable, tb, h);
 
 #ifdef DEBUG_TB_CHECK
     tb_page_check();

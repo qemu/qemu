@@ -715,6 +715,10 @@ F: hw/misc/pc-testdev.c
 F: hw/timer/hpet*
 F: hw/timer/i8254*
 F: hw/timer/mc146818rtc*
+F: include/hw/i2c/pm_smbus.h
+F: include/hw/timer/hpet.h
+F: include/hw/timer/i8254*
+F: include/hw/timer/mc146818rtc*
 
 Machine core
 M: Eduardo Habkost <ehabkost@redhat.com>
@@ -831,7 +835,7 @@ T: git git://github.com/jasowang/qemu.git net
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Supported
-F: include/hw/scsi*
+F: include/hw/scsi/*
 F: hw/scsi/*
 T: git git://github.com/bonzini/qemu.git scsi-next
 
@@ -1256,6 +1260,11 @@ F: slirp/
 F: net/slirp.c
 F: include/net/slirp.h
 T: git git://git.kiszka.org/qemu.git queues/slirp
+
+Stubs
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Maintained
+F: stubs/
 
 Tracing
 M: Stefan Hajnoczi <stefanha@redhat.com>

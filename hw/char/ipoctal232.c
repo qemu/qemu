@@ -360,7 +360,9 @@ static void io_write(IPackDevice *ip, uint8_t addr, uint16_t val)
             DPRINTF("Write THR%c (0x%x)\n", channel + 'a', reg);
             if (ch->dev) {
                 uint8_t thr = reg;
-                qemu_chr_fe_write(ch->dev, &thr, 1);
+                /* XXX this blocks entire thread. Rewrite to use
+                 * qemu_chr_fe_write and background I/O callbacks */
+                qemu_chr_fe_write_all(ch->dev, &thr, 1);
             }
         } else {
             DPRINTF("Write THR%c (0x%x), Tx disabled\n", channel + 'a', reg);

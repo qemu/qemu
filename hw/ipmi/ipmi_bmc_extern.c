@@ -100,12 +100,16 @@ ipmb_checksum(const unsigned char *data, int size, unsigned char start)
 
 static void continue_send(IPMIBmcExtern *ibe)
 {
+    int ret;
     if (ibe->outlen == 0) {
         goto check_reset;
     }
  send:
-    ibe->outpos += qemu_chr_fe_write(ibe->chr, ibe->outbuf + ibe->outpos,
-                                     ibe->outlen - ibe->outpos);
+    ret = qemu_chr_fe_write(ibe->chr, ibe->outbuf + ibe->outpos,
+                            ibe->outlen - ibe->outpos);
+    if (ret > 0) {
+        ibe->outpos += ret;
+    }
     if (ibe->outpos < ibe->outlen) {
         /* Not fully transmitted, try again in a 10ms */
         timer_mod_ns(ibe->extern_timer,

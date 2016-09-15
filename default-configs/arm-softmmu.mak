@@ -3,7 +3,6 @@
 include pci.mak
 include usb.mak
 CONFIG_VGA=y
-CONFIG_ISA_MMIO=y
 CONFIG_NAND=y
 CONFIG_ECC=y
 CONFIG_SERIAL=y

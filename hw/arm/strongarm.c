@@ -1108,7 +1108,9 @@ static void strongarm_uart_tx(void *opaque)
     if (s->utcr3 & UTCR3_LBM) /* loopback */ {
         strongarm_uart_receive(s, &s->tx_fifo[s->tx_start], 1);
     } else if (s->chr) {
-        qemu_chr_fe_write(s->chr, &s->tx_fifo[s->tx_start], 1);
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
+        qemu_chr_fe_write_all(s->chr, &s->tx_fifo[s->tx_start], 1);
     }
 
     s->tx_start = (s->tx_start + 1) % 8;

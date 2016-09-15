@@ -79,6 +79,7 @@ class Misc(object):
     def show(self):
         print self.name
         value = msr().read(self.msr, 0)
+        print '  Hex: 0x%x' % (value)
         def first_bit(key):
             if type(key) is tuple:
                 return key[0]
@@ -172,6 +173,7 @@ controls = [
             16: 'RDSEED exiting',
             18: 'EPT-violation #VE',
             20: 'Enable XSAVES/XRSTORS',
+            25: 'TSC scaling',
             },
         cap_msr = MSR_IA32_VMX_PROCBASED_CTLS2,
         ),

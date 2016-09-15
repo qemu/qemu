@@ -239,7 +239,7 @@ static void netfilter_finalize(Object *obj)
     }
 
     if (nf->netdev && !QTAILQ_EMPTY(&nf->netdev->filters) &&
-        nf->next.tqe_prev) {
+        QTAILQ_IN_USE(nf, next)) {
         QTAILQ_REMOVE(&nf->netdev->filters, nf, next);
     }
     g_free(nf->netdev_id);

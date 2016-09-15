@@ -89,7 +89,9 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     scon->buf[scon->length] = *buf;
     scon->length += 1;
     if (scon->echo) {
-        qemu_chr_fe_write(scon->chr, buf, size);
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
+        qemu_chr_fe_write_all(scon->chr, buf, size);
     }
 }
 
@@ -191,9 +193,6 @@ static int read_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr,
  */
 static int write_console_data(SCLPEvent *event, const uint8_t *buf, int len)
 {
-    int ret = 0;
-    const uint8_t *buf_offset;
-
     SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
 
     if (!scon->chr) {
@@ -201,21 +200,9 @@ static int write_console_data(SCLPEvent *event, const uint8_t *buf, int len)
         return len;
     }
 
-    buf_offset = buf;
-    while (len > 0) {
-        ret = qemu_chr_fe_write(scon->chr, buf, len);
-        if (ret == 0) {
-            /* a pty doesn't seem to be connected - no error */
-            len = 0;
-        } else if (ret == -EAGAIN || (ret > 0 && ret < len)) {
-            len -= ret;
-            buf_offset += ret;
-        } else {
-            len = 0;
-        }
-    }
-
-    return ret;
+    /* XXX this blocks entire thread. Rewrite to use
+     * qemu_chr_fe_write and background I/O callbacks */
+    return qemu_chr_fe_write_all(scon->chr, buf, len);
 }
 
 static int process_mdb(SCLPEvent *event, MDBO *mdbo)

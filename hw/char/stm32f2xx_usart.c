@@ -153,6 +153,8 @@ static void stm32f2xx_usart_write(void *opaque, hwaddr addr,
         if (value < 0xF000) {
             ch = value;
             if (s->chr) {
+                /* XXX this blocks entire thread. Rewrite to use
+                 * qemu_chr_fe_write and background I/O callbacks */
                 qemu_chr_fe_write_all(s->chr, &ch, 1);
             }
             s->usart_sr |= USART_SR_TC;

@@ -146,7 +146,9 @@ static void pl011_write(void *opaque, hwaddr offset,
         /* ??? Check if transmitter is enabled.  */
         ch = value;
         if (s->chr)
-            qemu_chr_fe_write(s->chr, &ch, 1);
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
+            qemu_chr_fe_write_all(s->chr, &ch, 1);
         s->int_level |= PL011_INT_TX;
         pl011_update(s);
         break;

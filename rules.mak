@@ -51,7 +51,7 @@ process-archive-undefs = $(filter-out %.a %.mo,$1) \
                               $(call undefined-symbols,$(filter %.mo,$1)))) \
                 $(filter %.a,$1)
 
-extract-libs = $(strip $(foreach o,$1,$($o-libs)))
+extract-libs = $(strip $(foreach o,$(filter-out %.mo,$1),$($o-libs)))
 expand-objs = $(strip $(sort $(filter %.o,$1)) \
                   $(foreach o,$(filter %.mo,$1),$($o-objs)) \
                   $(filter-out %.o %.mo,$1))

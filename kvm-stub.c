@@ -73,10 +73,6 @@ int kvm_has_many_ioeventfds(void)
     return 0;
 }
 
-void kvm_setup_guest_memory(void *start, size_t size)
-{
-}
-
 int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap)
 {
     return -ENOSYS;

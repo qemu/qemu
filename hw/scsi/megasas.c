@@ -1981,7 +1981,11 @@ static void megasas_handle_frame(MegasasState *s, uint64_t frame_addr,
         break;
     }
     if (frame_status != MFI_STAT_INVALID_STATUS) {
-        cmd->frame->header.cmd_status = frame_status;
+        if (cmd->frame) {
+            cmd->frame->header.cmd_status = frame_status;
+        } else {
+            megasas_frame_set_cmd_status(s, frame_addr, frame_status);
+        }
         megasas_unmap_frame(s, cmd);
         megasas_complete_frame(s, cmd->context);
     }

@@ -22,23 +22,20 @@
  * @QEMU_CLOCK_REALTIME: Real time clock
  *
  * The real time clock should be used only for stuff which does not
- * change the virtual machine state, as it is run even if the virtual
- * machine is stopped. The real time clock has a frequency of 1000
- * Hz.
+ * change the virtual machine state, as it runs even if the virtual
+ * machine is stopped.
  *
  * @QEMU_CLOCK_VIRTUAL: virtual clock
  *
- * The virtual clock is only run during the emulation. It is stopped
- * when the virtual machine is stopped. Virtual timers use a high
- * precision clock, usually cpu cycles (use ticks_per_sec).
+ * The virtual clock only runs during the emulation. It stops
+ * when the virtual machine is stopped.
  *
  * @QEMU_CLOCK_HOST: host clock
  *
- * The host clock should be use for device models that emulate accurate
+ * The host clock should be used for device models that emulate accurate
  * real time sources. It will continue to run when the virtual machine
  * is suspended, and it will reflect system time changes the host may
- * undergo (e.g. due to NTP). The host clock has the same precision as
- * the virtual clock.
+ * undergo (e.g. due to NTP).
  *
  * @QEMU_CLOCK_VIRTUAL_RT: realtime clock used for icount warp
  *
@@ -75,10 +72,6 @@ struct QEMUTimer {
 };
 
 extern QEMUTimerListGroup main_loop_tlg;
-
-/*
- * QEMUClockType
- */
 
 /*
  * qemu_clock_get_ns;

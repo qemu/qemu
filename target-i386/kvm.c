@@ -2416,19 +2416,6 @@ static int kvm_get_apic(X86CPU *cpu)
     return 0;
 }
 
-static int kvm_put_apic(X86CPU *cpu)
-{
-    DeviceState *apic = cpu->apic_state;
-    struct kvm_lapic_state kapic;
-
-    if (apic && kvm_irqchip_in_kernel()) {
-        kvm_put_apic_state(apic, &kapic);
-
-        return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_LAPIC, &kapic);
-    }
-    return 0;
-}
-
 static int kvm_put_vcpu_events(X86CPU *cpu, int level)
 {
     CPUState *cs = CPU(cpu);
@@ -2667,10 +2654,6 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     }
     if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_mp_state(x86_cpu);
-        if (ret < 0) {
-            return ret;
-        }
-        ret = kvm_put_apic(x86_cpu);
         if (ret < 0) {
             return ret;
         }

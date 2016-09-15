@@ -169,7 +169,9 @@ static void bcm2835_aux_write(void *opaque, hwaddr offset, uint64_t value,
         /* "DLAB bit set means access baudrate register" is NYI */
         ch = value;
         if (s->chr) {
-            qemu_chr_fe_write(s->chr, &ch, 1);
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
+            qemu_chr_fe_write_all(s->chr, &ch, 1);
         }
         break;
 

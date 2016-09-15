@@ -557,7 +557,9 @@ static void escc_mem_write(void *opaque, hwaddr addr,
         s->tx = val;
         if (s->wregs[W_TXCTRL2] & TXCTRL2_TXEN) { // tx enabled
             if (s->chr)
-                qemu_chr_fe_write(s->chr, &s->tx, 1);
+                /* XXX this blocks entire thread. Rewrite to use
+                 * qemu_chr_fe_write and background I/O callbacks */
+                qemu_chr_fe_write_all(s->chr, &s->tx, 1);
             else if (s->type == kbd && !s->disabled) {
                 handle_kbd_command(s, val);
             }
