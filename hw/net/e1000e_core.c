@@ -2347,7 +2347,7 @@ e1000e_set_pbaclr(E1000ECore *core, int index, uint32_t val)
 
     core->mac[PBACLR] = val & E1000_PBACLR_VALID_MASK;
 
-    if (msix_enabled(core->owner)) {
+    if (!msix_enabled(core->owner)) {
         return;
     }
 
