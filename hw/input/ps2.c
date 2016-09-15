@@ -296,16 +296,18 @@ void ps2_write_keyboard(void *opaque, int val)
         break;
     case KBD_CMD_SCANCODE:
         if (val == 0) {
+            ps2_queue(&s->common, KBD_REPLY_ACK);
             if (s->scancode_set == 1)
                 ps2_put_keycode(s, 0x43);
             else if (s->scancode_set == 2)
                 ps2_put_keycode(s, 0x41);
             else if (s->scancode_set == 3)
                 ps2_put_keycode(s, 0x3f);
-        } else {
-            if (val >= 1 && val <= 3)
-                s->scancode_set = val;
+        } else if (val >= 1 && val <= 3) {
+            s->scancode_set = val;
             ps2_queue(&s->common, KBD_REPLY_ACK);
+        } else {
+            ps2_queue(&s->common, KBD_REPLY_RESEND);
         }
         s->common.write_cmd = -1;
         break;
