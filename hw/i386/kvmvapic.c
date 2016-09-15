@@ -768,6 +768,7 @@ static void kvmvapic_vm_state_change(void *opaque, int running,
     }
 
     qemu_del_vm_change_state_handler(s->vmsentry);
+    s->vmsentry = NULL;
 }
 
 static int vapic_post_load(void *opaque, int version_id)
