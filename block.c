@@ -1925,6 +1925,13 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         options = qdict_new();
     }
 
+    /* Check if this BlockDriverState is already in the queue */
+    QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
+        if (bs == bs_entry->state.bs) {
+            break;
+        }
+    }
+
     /*
      * Precedence of options:
      * 1. Explicitly passed in options (highest)
@@ -1945,7 +1952,11 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     }
 
     /* Old explicitly set values (don't overwrite by inherited value) */
-    old_options = qdict_clone_shallow(bs->explicit_options);
+    if (bs_entry) {
+        old_options = qdict_clone_shallow(bs_entry->state.explicit_options);
+    } else {
+        old_options = qdict_clone_shallow(bs->explicit_options);
+    }
     bdrv_join_options(bs, options, old_options);
     QDECREF(old_options);
 
@@ -1984,8 +1995,13 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
                                 child->role, options, flags);
     }
 
-    bs_entry = g_new0(BlockReopenQueueEntry, 1);
-    QSIMPLEQ_INSERT_TAIL(bs_queue, bs_entry, entry);
+    if (!bs_entry) {
+        bs_entry = g_new0(BlockReopenQueueEntry, 1);
+        QSIMPLEQ_INSERT_TAIL(bs_queue, bs_entry, entry);
+    } else {
+        QDECREF(bs_entry->state.options);
+        QDECREF(bs_entry->state.explicit_options);
+    }
 
     bs_entry->state.bs = bs;
     bs_entry->state.options = options;
