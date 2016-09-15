@@ -953,7 +953,7 @@ e1000e_has_rxbufs(E1000ECore *core, const E1000E_RingInfo *r,
                          core->rx_desc_buf_size;
 }
 
-static inline void
+void
 e1000e_start_recv(E1000ECore *core)
 {
     int i;
