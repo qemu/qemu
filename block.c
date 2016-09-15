@@ -1675,6 +1675,17 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         goto fail;
     }
 
+    if (flags & BDRV_O_RDWR) {
+        flags |= BDRV_O_ALLOW_RDWR;
+    }
+
+    if (flags & BDRV_O_SNAPSHOT) {
+        snapshot_options = qdict_new();
+        bdrv_temp_snapshot_options(&snapshot_flags, snapshot_options,
+                                   flags, options);
+        bdrv_backing_options(&flags, options, flags, options);
+    }
+
     bs->open_flags = flags;
     bs->options = options;
     options = qdict_clone_shallow(options);
@@ -1699,18 +1710,6 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
     /* Open image file without format layer */
     if ((flags & BDRV_O_PROTOCOL) == 0) {
-        if (flags & BDRV_O_RDWR) {
-            flags |= BDRV_O_ALLOW_RDWR;
-        }
-        if (flags & BDRV_O_SNAPSHOT) {
-            snapshot_options = qdict_new();
-            bdrv_temp_snapshot_options(&snapshot_flags, snapshot_options,
-                                       flags, options);
-            bdrv_backing_options(&flags, options, flags, options);
-        }
-
-        bs->open_flags = flags;
-
         file = bdrv_open_child(filename, options, "file", bs,
                                &child_file, true, &local_err);
         if (local_err) {
