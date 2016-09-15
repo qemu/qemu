@@ -52,8 +52,8 @@ typedef struct {
     unsigned int pit_count;
     unsigned int samples;
     unsigned int play_pos;
-    int data_on;
-    int dummy_refresh_clock;
+    uint8_t data_on;
+    uint8_t dummy_refresh_clock;
 } PCSpkState;
 
 static const char *s_spk = "pcspk";
@@ -187,6 +187,18 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
     pcspk_state = s;
 }
 
+static const VMStateDescription vmstate_spk = {
+    .name = "pcspk",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(data_on, PCSpkState),
+        VMSTATE_UINT8(dummy_refresh_clock, PCSpkState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static Property pcspk_properties[] = {
     DEFINE_PROP_UINT32("iobase", PCSpkState, iobase,  -1),
     DEFINE_PROP_END_OF_LIST(),
@@ -198,6 +210,7 @@ static void pcspk_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = pcspk_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
+    dc->vmsd = &vmstate_spk;
     dc->props = pcspk_properties;
     /* Reason: realize sets global pcspk_state */
     dc->cannot_instantiate_with_device_add_yet = true;
