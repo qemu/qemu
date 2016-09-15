@@ -290,7 +290,7 @@ void ps2_write_keyboard(void *opaque, int val)
             ps2_queue(&s->common, KBD_REPLY_POR);
             break;
         default:
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_queue(&s->common, KBD_REPLY_RESEND);
             break;
         }
         break;
