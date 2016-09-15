@@ -141,7 +141,6 @@ static void kvm_apic_put(void *data)
 
 static void kvm_apic_post_load(APICCommonState *s)
 {
-    fprintf(stderr, "%s: Yeh\n", __func__);
     run_on_cpu(CPU(s->cpu), kvm_apic_put, s);
 }
 
