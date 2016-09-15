@@ -2097,15 +2097,9 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
     save_globals(s, allocated_regs);
 }
 
-static void tcg_reg_alloc_movi(TCGContext *s, const TCGArg *args,
-                               TCGLifeData arg_life)
+static void tcg_reg_alloc_do_movi(TCGContext *s, TCGTemp *ots,
+                                  tcg_target_ulong val, TCGLifeData arg_life)
 {
-    TCGTemp *ots;
-    tcg_target_ulong val;
-
-    ots = &s->temps[args[0]];
-    val = args[1];
-
     if (ots->fixed_reg) {
         /* For fixed registers, we do not do any constant propagation.  */
         tcg_out_movi(s, ots->type, ots->reg, val);
@@ -2126,6 +2120,15 @@ static void tcg_reg_alloc_movi(TCGContext *s, const TCGArg *args,
     }
 }
 
+static void tcg_reg_alloc_movi(TCGContext *s, const TCGArg *args,
+                               TCGLifeData arg_life)
+{
+    TCGTemp *ots = &s->temps[args[0]];
+    tcg_target_ulong val = args[1];
+
+    tcg_reg_alloc_do_movi(s, ots, val, arg_life);
+}
+
 static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
                               const TCGArg *args, TCGLifeData arg_life)
 {
@@ -2141,21 +2144,29 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
     otype = ots->type;
     itype = ts->type;
 
-    /* If the source value is not in a register, and we're going to be
-       forced to have it in a register in order to perform the copy,
-       then copy the SOURCE value into its own register first.  That way
-       we don't have to reload SOURCE the next time it is used. */
-    if (((NEED_SYNC_ARG(0) || ots->fixed_reg) && ts->val_type != TEMP_VAL_REG)
-        || ts->val_type == TEMP_VAL_MEM) {
+    if (ts->val_type == TEMP_VAL_CONST) {
+        /* propagate constant or generate sti */
+        tcg_target_ulong val = ts->val;
+        if (IS_DEAD_ARG(1)) {
+            temp_dead(s, ts);
+        }
+        tcg_reg_alloc_do_movi(s, ots, val, arg_life);
+        return;
+    }
+
+    /* If the source value is in memory we're going to be forced
+       to have it in a register in order to perform the copy.  Copy
+       the SOURCE value into its own register first, that way we
+       don't have to reload SOURCE the next time it is used. */
+    if (ts->val_type == TEMP_VAL_MEM) {
         temp_load(s, ts, tcg_target_available_regs[itype], allocated_regs);
     }
 
+    tcg_debug_assert(ts->val_type == TEMP_VAL_REG);
     if (IS_DEAD_ARG(0) && !ots->fixed_reg) {
         /* mov to a non-saved dead register makes no sense (even with
            liveness analysis disabled). */
         tcg_debug_assert(NEED_SYNC_ARG(0));
-        /* The code above should have moved the temp to a register. */
-        tcg_debug_assert(ts->val_type == TEMP_VAL_REG);
         if (!ots->mem_allocated) {
             temp_allocate_frame(s, args[0]);
         }
@@ -2164,20 +2175,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
             temp_dead(s, ts);
         }
         temp_dead(s, ots);
-    } else if (ts->val_type == TEMP_VAL_CONST) {
-        /* propagate constant */
-        if (ots->val_type == TEMP_VAL_REG) {
-            s->reg_to_temp[ots->reg] = NULL;
-        }
-        ots->val_type = TEMP_VAL_CONST;
-        ots->val = ts->val;
-        if (IS_DEAD_ARG(1)) {
-            temp_dead(s, ts);
-        }
     } else {
-        /* The code in the first if block should have moved the
-           temp to a register. */
-        tcg_debug_assert(ts->val_type == TEMP_VAL_REG);
         if (IS_DEAD_ARG(1) && !ts->fixed_reg && !ots->fixed_reg) {
             /* the mov can be suppressed */
             if (ots->val_type == TEMP_VAL_REG) {
