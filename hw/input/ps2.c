@@ -94,12 +94,10 @@ typedef struct {
 typedef struct {
     PS2State common;
     int scan_enabled;
-    /* QEMU uses translated PC scancodes internally.  To avoid multiple
-       conversions we do the translation (if any) in the PS/2 emulation
-       not the keyboard controller.  */
     int translate;
     int scancode_set; /* 1=XT, 2=AT, 3=PS/2 */
     int ledstate;
+    bool need_high_bit;
 } PS2KbdState;
 
 typedef struct {
@@ -138,6 +136,41 @@ static const unsigned char ps2_raw_keycode_set3[128] = {
  19,  25,  57,  81,  83,  92,  95,  98,  99, 100, 101, 103, 104, 106, 109, 110
 };
 
+static uint8_t translate_table[256] = {
+    0xff, 0x43, 0x41, 0x3f, 0x3d, 0x3b, 0x3c, 0x58,
+    0x64, 0x44, 0x42, 0x40, 0x3e, 0x0f, 0x29, 0x59,
+    0x65, 0x38, 0x2a, 0x70, 0x1d, 0x10, 0x02, 0x5a,
+    0x66, 0x71, 0x2c, 0x1f, 0x1e, 0x11, 0x03, 0x5b,
+    0x67, 0x2e, 0x2d, 0x20, 0x12, 0x05, 0x04, 0x5c,
+    0x68, 0x39, 0x2f, 0x21, 0x14, 0x13, 0x06, 0x5d,
+    0x69, 0x31, 0x30, 0x23, 0x22, 0x15, 0x07, 0x5e,
+    0x6a, 0x72, 0x32, 0x24, 0x16, 0x08, 0x09, 0x5f,
+    0x6b, 0x33, 0x25, 0x17, 0x18, 0x0b, 0x0a, 0x60,
+    0x6c, 0x34, 0x35, 0x26, 0x27, 0x19, 0x0c, 0x61,
+    0x6d, 0x73, 0x28, 0x74, 0x1a, 0x0d, 0x62, 0x6e,
+    0x3a, 0x36, 0x1c, 0x1b, 0x75, 0x2b, 0x63, 0x76,
+    0x55, 0x56, 0x77, 0x78, 0x79, 0x7a, 0x0e, 0x7b,
+    0x7c, 0x4f, 0x7d, 0x4b, 0x47, 0x7e, 0x7f, 0x6f,
+    0x52, 0x53, 0x50, 0x4c, 0x4d, 0x48, 0x01, 0x45,
+    0x57, 0x4e, 0x51, 0x4a, 0x37, 0x49, 0x46, 0x54,
+    0x80, 0x81, 0x82, 0x41, 0x54, 0x85, 0x86, 0x87,
+    0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
+    0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+    0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
+    0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
+    0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
+    0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7,
+    0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
+    0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
+    0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
+    0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7,
+    0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
+    0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7,
+    0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
+    0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+    0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
+};
+
 void ps2_queue(void *opaque, int b)
 {
     PS2State *s = (PS2State *)opaque;
@@ -152,29 +185,26 @@ void ps2_queue(void *opaque, int b)
     s->update_irq(s->update_arg, 1);
 }
 
-/*
-   keycode is expressed as follow:
-   bit 7    - 0 key pressed, 1 = key released
-   bits 6-0 - translated scancode set 2
- */
+/* keycode is the untranslated scancode in the current scancode set. */
 static void ps2_put_keycode(void *opaque, int keycode)
 {
     PS2KbdState *s = opaque;
 
     trace_ps2_put_keycode(opaque, keycode);
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
-    /* XXX: add support for scancode set 1 */
-    if (!s->translate && keycode < 0xe0 && s->scancode_set > 1) {
-        if (keycode & 0x80) {
-            ps2_queue(&s->common, 0xf0);
+
+    if (s->translate) {
+        if (keycode == 0xf0) {
+            s->need_high_bit = true;
+        } else if (s->need_high_bit) {
+            ps2_queue(&s->common, translate_table[keycode] | 0x80);
+            s->need_high_bit = false;
+        } else {
+            ps2_queue(&s->common, translate_table[keycode]);
         }
-        if (s->scancode_set == 2) {
-            keycode = ps2_raw_keycode[keycode & 0x7f];
-        } else if (s->scancode_set == 3) {
-            keycode = ps2_raw_keycode_set3[keycode & 0x7f];
-        }
-      }
-    ps2_queue(&s->common, keycode);
+    } else {
+        ps2_queue(&s->common, keycode);
+    }
 }
 
 static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
@@ -183,13 +213,41 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
     PS2KbdState *s = (PS2KbdState *)dev;
     int scancodes[3], i, count;
     InputKeyEvent *key = evt->u.key.data;
+    int keycode;
 
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     count = qemu_input_key_value_to_scancode(key->key,
                                              key->down,
                                              scancodes);
+
+    /* handle invalid key */
+    if (count == 1 && scancodes[0] == 0x00) {
+        ps2_queue(&s->common, 0x00);
+        return;
+    } else if (count == 1 && scancodes[0] == 0x80) {
+        if (s->translate || s->scancode_set == 1) {
+            ps2_queue(&s->common, 0x80);
+        } else {
+            ps2_queue(&s->common, 0xf0);
+            ps2_queue(&s->common, 0x00);
+        }
+        return;
+    }
+
     for (i = 0; i < count; i++) {
-        ps2_put_keycode(s, scancodes[i]);
+        /* XXX: add support for scancode set 1 */
+        keycode = scancodes[i];
+        if (keycode < 0xe0 && (s->scancode_set > 1 || s->translate)) {
+            if (keycode & 0x80) {
+                ps2_put_keycode(&s->common, 0xf0);
+            }
+            if (s->scancode_set == 1 || s->scancode_set == 2) {
+                keycode = ps2_raw_keycode[keycode & 0x7f];
+            } else if (s->scancode_set == 3) {
+                keycode = ps2_raw_keycode_set3[keycode & 0x7f];
+            }
+        }
+        ps2_put_keycode(s, keycode);
     }
 }
 
@@ -297,12 +355,7 @@ void ps2_write_keyboard(void *opaque, int val)
     case KBD_CMD_SCANCODE:
         if (val == 0) {
             ps2_queue(&s->common, KBD_REPLY_ACK);
-            if (s->scancode_set == 1)
-                ps2_put_keycode(s, 0x43);
-            else if (s->scancode_set == 2)
-                ps2_put_keycode(s, 0x41);
-            else if (s->scancode_set == 3)
-                ps2_put_keycode(s, 0x3f);
+            ps2_put_keycode(s, s->scancode_set);
         } else if (val >= 1 && val <= 3) {
             s->scancode_set = val;
             ps2_queue(&s->common, KBD_REPLY_ACK);
@@ -692,6 +745,23 @@ static const VMStateDescription vmstate_ps2_keyboard_ledstate = {
     }
 };
 
+static bool ps2_keyboard_need_high_bit_needed(void *opaque)
+{
+    PS2KbdState *s = opaque;
+    return s->need_high_bit != 0; /* 0 is the usual state */
+}
+
+static const VMStateDescription vmstate_ps2_keyboard_need_high_bit = {
+    .name = "ps2kbd/need_high_bit",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ps2_keyboard_need_high_bit_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(need_high_bit, PS2KbdState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int ps2_kbd_post_load(void* opaque, int version_id)
 {
     PS2KbdState *s = (PS2KbdState*)opaque;
@@ -728,6 +798,7 @@ static const VMStateDescription vmstate_ps2_keyboard = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_ps2_keyboard_ledstate,
+        &vmstate_ps2_keyboard_need_high_bit,
         NULL
     }
 };
