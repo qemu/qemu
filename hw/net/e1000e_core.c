@@ -2008,8 +2008,8 @@ e1000e_msix_notify_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
     }
 
     if (core->mac[CTRL_EXT] & E1000_CTRL_EXT_EIAME) {
-        trace_e1000e_irq_ims_clear_eiame(core->mac[IAM], cause);
-        e1000e_clear_ims_bits(core, core->mac[IAM] & cause);
+        trace_e1000e_irq_iam_clear_eiame(core->mac[IAM], cause);
+        core->mac[IAM] &= ~cause;
     }
 
     trace_e1000e_irq_icr_clear_eiac(core->mac[ICR], core->mac[EIAC]);
