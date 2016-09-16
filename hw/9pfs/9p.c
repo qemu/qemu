@@ -1333,13 +1333,14 @@ static void v9fs_walk(void *opaque)
         goto out_nofid;
     }
 
+    v9fs_path_init(&dpath);
+    v9fs_path_init(&path);
+
     err = fid_to_qid(pdu, fidp, &qid);
     if (err < 0) {
         goto out;
     }
 
-    v9fs_path_init(&dpath);
-    v9fs_path_init(&path);
     /*
      * Both dpath and path initially poin to fidp.
      * Needed to handle request with nwnames == 0
