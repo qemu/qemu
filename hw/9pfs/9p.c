@@ -810,15 +810,15 @@ static int stat_to_v9stat(V9fsPDU *pdu, V9fsPath *name,
     v9stat->mtime = stbuf->st_mtime;
     v9stat->length = stbuf->st_size;
 
-    v9fs_string_null(&v9stat->uid);
-    v9fs_string_null(&v9stat->gid);
-    v9fs_string_null(&v9stat->muid);
+    v9fs_string_free(&v9stat->uid);
+    v9fs_string_free(&v9stat->gid);
+    v9fs_string_free(&v9stat->muid);
 
     v9stat->n_uid = stbuf->st_uid;
     v9stat->n_gid = stbuf->st_gid;
     v9stat->n_muid = 0;
 
-    v9fs_string_null(&v9stat->extension);
+    v9fs_string_free(&v9stat->extension);
 
     if (v9stat->mode & P9_STAT_MODE_SYMLINK) {
         err = v9fs_co_readlink(pdu, name, &v9stat->extension);
