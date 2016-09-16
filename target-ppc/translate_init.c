@@ -9943,7 +9943,8 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
 
 int ppc_get_compat_smt_threads(PowerPCCPU *cpu)
 {
-    int ret = MIN(smp_threads, kvmppc_smt_threads());
+    CPUState *cs = CPU(cpu);
+    int ret = MIN(cs->nr_threads, kvmppc_smt_threads());
 
     switch (cpu->cpu_version) {
     case CPU_POWERPC_LOGICAL_2_05:

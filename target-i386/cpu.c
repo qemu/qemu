@@ -2498,13 +2498,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 
         switch (count) {
         case 0:
-            *eax = apicid_core_offset(smp_cores, smp_threads);
-            *ebx = smp_threads;
+            *eax = apicid_core_offset(cs->nr_cores, cs->nr_threads);
+            *ebx = cs->nr_threads;
             *ecx |= CPUID_TOPOLOGY_LEVEL_SMT;
             break;
         case 1:
-            *eax = apicid_pkg_offset(smp_cores, smp_threads);
-            *ebx = smp_cores * smp_threads;
+            *eax = apicid_pkg_offset(cs->nr_cores, cs->nr_threads);
+            *ebx = cs->nr_cores * cs->nr_threads;
             *ecx |= CPUID_TOPOLOGY_LEVEL_CORE;
             break;
         default:
