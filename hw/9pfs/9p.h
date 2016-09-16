@@ -327,6 +327,7 @@ static inline uint8_t v9fs_request_cancelled(V9fsPDU *pdu)
 extern void v9fs_reclaim_fd(V9fsPDU *pdu);
 extern void v9fs_path_init(V9fsPath *path);
 extern void v9fs_path_free(V9fsPath *path);
+extern void v9fs_path_sprintf(V9fsPath *path, const char *fmt, ...);
 extern void v9fs_path_copy(V9fsPath *lhs, V9fsPath *rhs);
 extern int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
                              const char *name, V9fsPath *path);

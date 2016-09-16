@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <glib/gprintf.h>
 #include "hw/virtio/virtio.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -177,6 +178,20 @@ void v9fs_path_free(V9fsPath *path)
     g_free(path->data);
     path->data = NULL;
     path->size = 0;
+}
+
+
+void GCC_FMT_ATTR(2, 3)
+v9fs_path_sprintf(V9fsPath *path, const char *fmt, ...)
+{
+    va_list ap;
+
+    v9fs_path_free(path);
+
+    va_start(ap, fmt);
+    /* Bump the size for including terminating NULL */
+    path->size = g_vasprintf(&path->data, fmt, ap) + 1;
+    va_end(ap);
 }
 
 void v9fs_path_copy(V9fsPath *lhs, V9fsPath *rhs)
@@ -917,10 +932,8 @@ static void v9fs_fix_path(V9fsPath *dst, V9fsPath *src, int len)
     V9fsPath str;
     v9fs_path_init(&str);
     v9fs_path_copy(&str, dst);
-    v9fs_string_sprintf((V9fsString *)dst, "%s%s", src->data, str.data+len);
+    v9fs_path_sprintf(dst, "%s%s", src->data, str.data + len);
     v9fs_path_free(&str);
-    /* +1 to include terminating NULL */
-    dst->size++;
 }
 
 static inline bool is_ro_export(FsContext *ctx)
