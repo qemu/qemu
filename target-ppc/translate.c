@@ -528,6 +528,10 @@ EXTRACT_HELPER(FPW, 16, 1);
 
 /* addpcis */
 EXTRACT_HELPER_DXFORM(DX, 10, 6, 6, 5, 16, 1, 1, 0, 0)
+#if defined(TARGET_PPC64)
+/* darn */
+EXTRACT_HELPER(L, 16, 2);
+#endif
 
 /***                            Jump target decoding                       ***/
 /* Immediate address */
@@ -1893,6 +1897,21 @@ static void gen_cnttzd(DisasContext *ctx)
     gen_helper_cnttzd(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
+    }
+}
+
+/* darn */
+static void gen_darn(DisasContext *ctx)
+{
+    int l = L(ctx->opcode);
+
+    if (l == 0) {
+        gen_helper_darn32(cpu_gpr[rD(ctx->opcode)]);
+    } else if (l <= 2) {
+        /* Return 64-bit random for both CRN and RRN */
+        gen_helper_darn64(cpu_gpr[rD(ctx->opcode)]);
+    } else {
+        tcg_gen_movi_i64(cpu_gpr[rD(ctx->opcode)], -1);
     }
 }
 #endif
@@ -6216,6 +6235,7 @@ GEN_HANDLER_E(prtyw, 0x1F, 0x1A, 0x04, 0x0000F801, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER(popcntd, 0x1F, 0x1A, 0x0F, 0x0000F801, PPC_POPCNTWD),
 GEN_HANDLER(cntlzd, 0x1F, 0x1A, 0x01, 0x00000000, PPC_64B),
 GEN_HANDLER_E(cnttzd, 0x1F, 0x1A, 0x11, 0x00000000, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(darn, 0x1F, 0x13, 0x17, 0x001CF801, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(prtyd, 0x1F, 0x1A, 0x05, 0x0000F801, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER_E(bpermd, 0x1F, 0x1C, 0x07, 0x00000001, PPC_NONE, PPC2_PERM_ISA206),
 #endif

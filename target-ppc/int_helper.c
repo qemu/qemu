@@ -182,6 +182,22 @@ target_ulong helper_cnttzd(target_ulong t)
 {
     return ctz64(t);
 }
+
+/* Return invalid random number.
+ *
+ * FIXME: Add rng backend or other mechanism to get cryptographically suitable
+ * random number
+ */
+target_ulong helper_darn32(void)
+{
+    return -1;
+}
+
+target_ulong helper_darn64(void)
+{
+    return -1;
+}
+
 #endif
 
 #if defined(TARGET_PPC64)

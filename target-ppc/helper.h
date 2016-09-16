@@ -50,6 +50,8 @@ DEF_HELPER_FLAGS_1(cnttzd, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(popcntd, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_2(bpermd, TCG_CALL_NO_RWG_SE, i64, i64, i64)
 DEF_HELPER_3(srad, tl, env, tl, tl)
+DEF_HELPER_0(darn32, tl)
+DEF_HELPER_0(darn64, tl)
 #endif
 
 DEF_HELPER_FLAGS_1(cntlsw32, TCG_CALL_NO_RWG_SE, i32, i32)
