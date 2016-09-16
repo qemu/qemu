@@ -1236,6 +1236,10 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
                 tcg_abort();
             }
             break;
+        case INDEX_op_mb:
+            /* Ensure ordering for all kinds */
+            smp_mb();
+            break;
         default:
             TODO();
             break;

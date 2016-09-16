@@ -372,6 +372,11 @@ typedef enum {
     I3510_EOR       = 0x4a000000,
     I3510_EON       = 0x4a200000,
     I3510_ANDS      = 0x6a000000,
+
+    /* System instructions.  */
+    DMB_ISH         = 0xd50338bf,
+    DMB_LD          = 0x00000100,
+    DMB_ST          = 0x00000200,
 } AArch64Insn;
 
 static inline uint32_t tcg_in32(TCGContext *s)
@@ -981,6 +986,18 @@ static inline void tcg_out_addsub2(TCGContext *s, int ext, TCGReg rl,
     tcg_out_mov(s, ext, orig_rl, rl);
 }
 
+static inline void tcg_out_mb(TCGContext *s, TCGArg a0)
+{
+    static const uint32_t sync[] = {
+        [0 ... TCG_MO_ALL]            = DMB_ISH | DMB_LD | DMB_ST,
+        [TCG_MO_ST_ST]                = DMB_ISH | DMB_ST,
+        [TCG_MO_LD_LD]                = DMB_ISH | DMB_LD,
+        [TCG_MO_LD_ST]                = DMB_ISH | DMB_LD,
+        [TCG_MO_LD_ST | TCG_MO_LD_LD] = DMB_ISH | DMB_LD,
+    };
+    tcg_out32(s, sync[a0 & TCG_MO_ALL]);
+}
+
 #ifdef CONFIG_SOFTMMU
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     TCGMemOpIdx oi, uintptr_t ra)
@@ -1081,23 +1098,24 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp opc,
     int tlb_offset = is_read ?
         offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
         : offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
-    int a_bits = get_alignment_bits(opc);
+    unsigned a_bits = get_alignment_bits(opc);
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned a_mask = (1u << a_bits) - 1;
+    unsigned s_mask = (1u << s_bits) - 1;
     TCGReg base = TCG_AREG0, x3;
     uint64_t tlb_mask;
 
     /* For aligned accesses, we check the first byte and include the alignment
        bits within the address.  For unaligned access, we check that we don't
        cross pages using the address of the last byte of the access.  */
-    if (a_bits >= 0) {
-        /* A byte access or an alignment check required */
-        tlb_mask = TARGET_PAGE_MASK | ((1 << a_bits) - 1);
+    if (a_bits >= s_bits) {
         x3 = addr_reg;
     } else {
         tcg_out_insn(s, 3401, ADDI, TARGET_LONG_BITS == 64,
-                     TCG_REG_X3, addr_reg, (1 << (opc & MO_SIZE)) - 1);
-        tlb_mask = TARGET_PAGE_MASK;
+                     TCG_REG_X3, addr_reg, s_mask - a_mask);
         x3 = TCG_REG_X3;
     }
+    tlb_mask = (uint64_t)TARGET_PAGE_MASK | a_mask;
 
     /* Extract the TLB index from the address into X0.
        X0<CPU_TLB_BITS:0> =
@@ -1648,6 +1666,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_insn(s, 3508, SMULH, TCG_TYPE_I64, a0, a1, a2);
         break;
 
+    case INDEX_op_mb:
+        tcg_out_mb(s, a0);
+        break;
+
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
@@ -1772,6 +1794,7 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_muluh_i64, { "r", "r", "r" } },
     { INDEX_op_mulsh_i64, { "r", "r", "r" } },
 
+    { INDEX_op_mb, { } },
     { -1 },
 };
 

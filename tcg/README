@@ -402,6 +402,23 @@ double-word product T0.  The later is returned in two single-word outputs.
 
 Similar to mulu2, except the two inputs T1 and T2 are signed.
 
+********* Memory Barrier support
+
+* mb <$arg>
+
+Generate a target memory barrier instruction to ensure memory ordering as being
+enforced by a corresponding guest memory barrier instruction. The ordering
+enforced by the backend may be stricter than the ordering required by the guest.
+It cannot be weaker. This opcode takes a constant argument which is required to
+generate the appropriate barrier instruction. The backend should take care to
+emit the target barrier instruction only when necessary i.e., for SMP guests and
+when MTTCG is enabled.
+
+The guest translators should generate this opcode for all guest instructions
+which have ordering side effects.
+
+Please see docs/atomics.txt for more information on memory barriers.
+
 ********* 64-bit guest on 32-bit host support
 
 The following opcodes are internal to TCG.  Thus they are to be implemented by

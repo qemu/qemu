@@ -343,6 +343,7 @@ static tcg_insn_unit *tb_ret_addr;
 #define FACILITY_EXT_IMM	(1ULL << (63 - 21))
 #define FACILITY_GEN_INST_EXT	(1ULL << (63 - 34))
 #define FACILITY_LOAD_ON_COND   (1ULL << (63 - 45))
+#define FACILITY_FAST_BCR_SER   FACILITY_LOAD_ON_COND
 
 static uint64_t facilities;
 
@@ -1505,21 +1506,18 @@ QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
 static TCGReg tcg_out_tlb_read(TCGContext* s, TCGReg addr_reg, TCGMemOp opc,
                                int mem_index, bool is_ld)
 {
-    int a_bits = get_alignment_bits(opc);
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned a_bits = get_alignment_bits(opc);
+    unsigned s_mask = (1 << s_bits) - 1;
+    unsigned a_mask = (1 << a_bits) - 1;
     int ofs, a_off;
     uint64_t tlb_mask;
 
     /* For aligned accesses, we check the first byte and include the alignment
        bits within the address.  For unaligned access, we check that we don't
        cross pages using the address of the last byte of the access.  */
-    if (a_bits >= 0) {
-        /* A byte access or an alignment check required */
-        a_off = 0;
-        tlb_mask = TARGET_PAGE_MASK | ((1 << a_bits) - 1);
-    } else {
-        a_off = (1 << (opc & MO_SIZE)) - 1;
-        tlb_mask = TARGET_PAGE_MASK;
-    }
+    a_off = (a_bits >= s_bits ? 0 : s_mask - a_mask);
+    tlb_mask = (uint64_t)TARGET_PAGE_MASK | a_mask;
 
     if (facilities & FACILITY_GEN_INST_EXT) {
         tcg_out_risbg(s, TCG_REG_R2, addr_reg,
@@ -2172,6 +2170,15 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tgen_deposit(s, args[0], args[2], args[3], args[4]);
         break;
 
+    case INDEX_op_mb:
+        /* The host memory model is quite strong, we simply need to
+           serialize the instruction stream.  */
+        if (args[0] & TCG_MO_ST_LD) {
+            tcg_out_insn(s, RR, BCR,
+                         facilities & FACILITY_FAST_BCR_SER ? 14 : 15, 0);
+        }
+        break;
+
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
@@ -2293,6 +2300,7 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_movcond_i64, { "r", "r", "rC", "r", "0" } },
     { INDEX_op_deposit_i64, { "r", "0", "r" } },
 
+    { INDEX_op_mb, { } },
     { -1 },
 };
 

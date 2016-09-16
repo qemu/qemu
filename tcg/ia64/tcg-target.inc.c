@@ -247,6 +247,7 @@ enum {
     OPC_LD4_M3                = 0x0a080000000ull,
     OPC_LD8_M1                = 0x080c0000000ull,
     OPC_LD8_M3                = 0x0a0c0000000ull,
+    OPC_MF_M24                = 0x00110000000ull,
     OPC_MUX1_I3               = 0x0eca0000000ull,
     OPC_NOP_B9                = 0x04008000000ull,
     OPC_NOP_F16               = 0x00008000000ull,
@@ -1496,10 +1497,18 @@ QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
    R1, R3 are clobbered, leaving R56 free for...
    BSWAP_1, BSWAP_2 and I-slot insns for swapping data for store.  */
 static inline void tcg_out_qemu_tlb(TCGContext *s, TCGReg addr_reg,
-                                    TCGMemOp s_bits, int off_rw, int off_add,
+                                    TCGMemOp opc, int off_rw, int off_add,
                                     uint64_t bswap1, uint64_t bswap2)
 {
-     /*
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned a_bits = get_alignment_bits(opc);
+
+    /* We don't support unaligned accesses, but overalignment is easy.  */
+    if (a_bits < s_bits) {
+        a_bits = s_bits;
+    }
+
+    /*
         .mii
         mov	r2 = off_rw
         extr.u	r3 = addr_reg, ...		# extract tlb page
@@ -1521,7 +1530,7 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGReg addr_reg,
         cmp.eq	p6, p7 = r3, r58
         nop
         ;;
-      */
+    */
     tcg_out_bundle(s, miI,
                    tcg_opc_movi_a(TCG_REG_P0, TCG_REG_R2, off_rw),
                    tcg_opc_i11(TCG_REG_P0, OPC_EXTR_U_I11, TCG_REG_R3,
@@ -1536,8 +1545,8 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGReg addr_reg,
                                TCG_REG_R3, 63 - CPU_TLB_ENTRY_BITS,
                                63 - CPU_TLB_ENTRY_BITS),
                    tcg_opc_i14(TCG_REG_P0, OPC_DEP_I14, TCG_REG_R1, 0,
-                               TCG_REG_R57, 63 - s_bits,
-                               TARGET_PAGE_BITS - s_bits - 1));
+                               TCG_REG_R57, 63 - a_bits,
+                               TARGET_PAGE_BITS - a_bits - 1));
     tcg_out_bundle(s, MmI,
                    tcg_opc_a1 (TCG_REG_P0, OPC_ADD_A1,
                                TCG_REG_R2, TCG_REG_R2, TCG_REG_R3),
@@ -1661,7 +1670,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args)
     s_bits = opc & MO_SIZE;
 
     /* Read the TLB entry */
-    tcg_out_qemu_tlb(s, addr_reg, s_bits,
+    tcg_out_qemu_tlb(s, addr_reg, opc,
                      offsetof(CPUArchState, tlb_table[mem_index][0].addr_read),
                      offsetof(CPUArchState, tlb_table[mem_index][0].addend),
                      INSN_NOP_I, INSN_NOP_I);
@@ -1739,7 +1748,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args)
         pre1 = tcg_opc_ext_i(TCG_REG_P0, opc, TCG_REG_R58, data_reg);
     }
 
-    tcg_out_qemu_tlb(s, addr_reg, s_bits,
+    tcg_out_qemu_tlb(s, addr_reg, opc,
                      offsetof(CPUArchState, tlb_table[mem_index][0].addr_write),
                      offsetof(CPUArchState, tlb_table[mem_index][0].addend),
                      pre1, pre2);
@@ -2223,6 +2232,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, args);
         break;
 
+    case INDEX_op_mb:
+        tcg_out_bundle(s, mmI, OPC_MF_M24, INSN_NOP_M, INSN_NOP_I);
+        break;
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
@@ -2336,6 +2348,7 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_qemu_st_i32, { "SZ", "r" } },
     { INDEX_op_qemu_st_i64, { "SZ", "r" } },
 
+    { INDEX_op_mb, { } },
     { -1 },
 };
 

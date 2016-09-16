@@ -8310,12 +8310,12 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
              * this purpose use the actual register value passed to us
              * so that we get the fault address right.
              */
-            helper_ret_stb_mmu(env, vaddr_in, 0, oi, GETRA());
+            helper_ret_stb_mmu(env, vaddr_in, 0, oi, GETPC());
             /* Now we can populate the other TLB entries, if any */
             for (i = 0; i < maxidx; i++) {
                 uint64_t va = vaddr + TARGET_PAGE_SIZE * i;
                 if (va != (vaddr_in & TARGET_PAGE_MASK)) {
-                    helper_ret_stb_mmu(env, va, 0, oi, GETRA());
+                    helper_ret_stb_mmu(env, va, 0, oi, GETPC());
                 }
             }
         }
@@ -8332,7 +8332,7 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
          *    bounce buffer was in use
          */
         for (i = 0; i < blocklen; i++) {
-            helper_ret_stb_mmu(env, vaddr + i, 0, oi, GETRA());
+            helper_ret_stb_mmu(env, vaddr + i, 0, oi, GETPC());
         }
     }
 #else

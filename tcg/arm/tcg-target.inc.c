@@ -313,6 +313,10 @@ typedef enum {
     INSN_LDRD_REG  = 0x000000d0,
     INSN_STRD_IMM  = 0x004000f0,
     INSN_STRD_REG  = 0x000000f0,
+
+    INSN_DMB_ISH   = 0x5bf07ff5,
+    INSN_DMB_MCR   = 0xba0f07ee,
+
 } ARMInsn;
 
 #define SHIFT_IMM_LSL(im)	(((im) << 7) | 0x00)
@@ -1066,6 +1070,15 @@ static inline void tcg_out_goto_label(TCGContext *s, int cond, TCGLabel *l)
     }
 }
 
+static inline void tcg_out_mb(TCGContext *s, TCGArg a0)
+{
+    if (use_armv7_instructions) {
+        tcg_out32(s, INSN_DMB_ISH);
+    } else if (use_armv6_instructions) {
+        tcg_out32(s, INSN_DMB_MCR);
+    }
+}
+
 #ifdef CONFIG_SOFTMMU
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
@@ -1168,7 +1181,7 @@ QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
    containing the addend of the tlb entry.  Clobbers R0, R1, R2, TMP.  */
 
 static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
-                               TCGMemOp s_bits, int mem_index, bool is_load)
+                               TCGMemOp opc, int mem_index, bool is_load)
 {
     TCGReg base = TCG_AREG0;
     int cmp_off =
@@ -1176,6 +1189,8 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
          ? offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
          : offsetof(CPUArchState, tlb_table[mem_index][0].addr_write));
     int add_off = offsetof(CPUArchState, tlb_table[mem_index][0].addend);
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned a_bits = get_alignment_bits(opc);
 
     /* Should generate something like the following:
      *   shr    tmp, addrlo, #TARGET_PAGE_BITS                    (1)
@@ -1216,10 +1231,13 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
         }
     }
 
-    /* Check alignment.  */
-    if (s_bits) {
-        tcg_out_dat_imm(s, COND_AL, ARITH_TST,
-                        0, addrlo, (1 << s_bits) - 1);
+    /* Check alignment.  We don't support inline unaligned acceses,
+       but we can easily support overalignment checks.  */
+    if (a_bits < s_bits) {
+        a_bits = s_bits;
+    }
+    if (a_bits) {
+        tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, addrlo, (1 << a_bits) - 1);
     }
 
     /* Load the tlb addend.  */
@@ -1499,7 +1517,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 
 #ifdef CONFIG_SOFTMMU
     mem_index = get_mmuidx(oi);
-    addend = tcg_out_tlb_read(s, addrlo, addrhi, opc & MO_SIZE, mem_index, 1);
+    addend = tcg_out_tlb_read(s, addrlo, addrhi, opc, mem_index, 1);
 
     /* This a conditional BL only to load a pointer within this opcode into LR
        for the slow path.  We will not be using the value for a tail call.  */
@@ -1630,7 +1648,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 
 #ifdef CONFIG_SOFTMMU
     mem_index = get_mmuidx(oi);
-    addend = tcg_out_tlb_read(s, addrlo, addrhi, opc & MO_SIZE, mem_index, 0);
+    addend = tcg_out_tlb_read(s, addrlo, addrhi, opc, mem_index, 0);
 
     tcg_out_qemu_st_index(s, COND_EQ, opc, datalo, datahi, addrlo, addend);
 
@@ -1923,6 +1941,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_udiv(s, COND_AL, args[0], args[1], args[2]);
         break;
 
+    case INDEX_op_mb:
+        tcg_out_mb(s, args[0]);
+        break;
+
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
@@ -1997,6 +2019,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_div_i32, { "r", "r", "r" } },
     { INDEX_op_divu_i32, { "r", "r", "r" } },
 
+    { INDEX_op_mb, { } },
     { -1 },
 };
 

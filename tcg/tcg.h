@@ -287,20 +287,19 @@ typedef enum TCGMemOp {
      * MO_ALIGN accesses will result in a call to the CPU's
      * do_unaligned_access hook if the guest address is not aligned.
      * The default depends on whether the target CPU defines ALIGNED_ONLY.
+     *
      * Some architectures (e.g. ARMv8) need the address which is aligned
      * to a size more than the size of the memory access.
-     * To support such check it's enough the current costless alignment
-     * check implementation in QEMU, but we need to support
-     * an alignment size specifying.
-     * MO_ALIGN supposes a natural alignment
-     * (i.e. the alignment size is the size of a memory access).
-     * Note that an alignment size must be equal or greater
-     * than an access size.
+     * Some architectures (e.g. SPARCv9) need an address which is aligned,
+     * but less strictly than the natural alignment.
+     *
+     * MO_ALIGN supposes the alignment size is the size of a memory access.
+     *
      * There are three options:
-     * - an alignment to the size of an access (MO_ALIGN);
-     * - an alignment to the specified size that is equal or greater than
-     *   an access size (MO_ALIGN_x where 'x' is a size in bytes);
      * - unaligned access permitted (MO_UNALN).
+     * - an alignment to the size of an access (MO_ALIGN);
+     * - an alignment to a specified size, which may be more or less than
+     *   the access size (MO_ALIGN_x where 'x' is a size in bytes);
      */
     MO_ASHIFT = 4,
     MO_AMASK = 7 << MO_ASHIFT,
@@ -353,38 +352,26 @@ typedef enum TCGMemOp {
  * @memop: TCGMemOp value
  *
  * Extract the alignment size from the memop.
- *
- * Returns: 0 in case of byte access (which is always aligned);
- *          positive value - number of alignment bits;
- *          negative value if unaligned access enabled
- *          and this is not a byte access.
  */
-static inline int get_alignment_bits(TCGMemOp memop)
+static inline unsigned get_alignment_bits(TCGMemOp memop)
 {
-    int a = memop & MO_AMASK;
-    int s = memop & MO_SIZE;
-    int r;
+    unsigned a = memop & MO_AMASK;
 
     if (a == MO_UNALN) {
-        /* Negative value if unaligned access enabled,
-         * or zero value in case of byte access.
-         */
-        return -s;
+        /* No alignment required.  */
+        a = 0;
     } else if (a == MO_ALIGN) {
-        /* A natural alignment: return a number of access size bits */
-        r = s;
+        /* A natural alignment requirement.  */
+        a = memop & MO_SIZE;
     } else {
-        /* Specific alignment size. It must be equal or greater
-         * than the access size.
-         */
-        r = a >> MO_ASHIFT;
-        tcg_debug_assert(r >= s);
+        /* A specific alignment requirement.  */
+        a = a >> MO_ASHIFT;
     }
 #if defined(CONFIG_SOFTMMU)
     /* The requested alignment cannot overlap the TLB flags.  */
-    tcg_debug_assert((TLB_FLAGS_MASK & ((1 << r) - 1)) == 0);
+    tcg_debug_assert((TLB_FLAGS_MASK & ((1 << a) - 1)) == 0);
 #endif
-    return r;
+    return a;
 }
 
 typedef tcg_target_ulong TCGArg;
@@ -477,6 +464,23 @@ static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_PTR(TCGv_ptr t)
 /* used to align parameters */
 #define TCG_CALL_DUMMY_TCGV     MAKE_TCGV_I32(-1)
 #define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
+
+typedef enum {
+    /* Used to indicate the type of accesses on which ordering
+       is to be ensured.  Modeled after SPARC barriers.  */
+    TCG_MO_LD_LD  = 0x01,
+    TCG_MO_ST_LD  = 0x02,
+    TCG_MO_LD_ST  = 0x04,
+    TCG_MO_ST_ST  = 0x08,
+    TCG_MO_ALL    = 0x0F,  /* OR of the above */
+
+    /* Used to indicate the kind of ordering which is to be ensured by the
+       instruction.  These types are derived from x86/aarch64 instructions.
+       It should be noted that these are different from C11 semantics.  */
+    TCG_BAR_LDAQ  = 0x10,  /* Following ops will not come forward */
+    TCG_BAR_STRL  = 0x20,  /* Previous ops will not be delayed */
+    TCG_BAR_SC    = 0x30,  /* No ops cross barrier; OR of the above */
+} TCGBar;
 
 /* Conditions.  Note that these are laid out for easy manipulation by
    the functions below:

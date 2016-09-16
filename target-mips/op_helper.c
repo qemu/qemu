@@ -4122,10 +4122,10 @@ void helper_msa_ld_ ## TYPE(CPUMIPSState *env, uint32_t wd,             \
 }
 
 #if !defined(CONFIG_USER_ONLY)
-MSA_LD_DF(DF_BYTE,   b, helper_ret_ldub_mmu, oi, GETRA())
-MSA_LD_DF(DF_HALF,   h, helper_ret_lduw_mmu, oi, GETRA())
-MSA_LD_DF(DF_WORD,   w, helper_ret_ldul_mmu, oi, GETRA())
-MSA_LD_DF(DF_DOUBLE, d, helper_ret_ldq_mmu,  oi, GETRA())
+MSA_LD_DF(DF_BYTE,   b, helper_ret_ldub_mmu, oi, GETPC())
+MSA_LD_DF(DF_HALF,   h, helper_ret_lduw_mmu, oi, GETPC())
+MSA_LD_DF(DF_WORD,   w, helper_ret_ldul_mmu, oi, GETPC())
+MSA_LD_DF(DF_DOUBLE, d, helper_ret_ldq_mmu,  oi, GETPC())
 #else
 MSA_LD_DF(DF_BYTE,   b, cpu_ldub_data)
 MSA_LD_DF(DF_HALF,   h, cpu_lduw_data)
@@ -4161,17 +4161,17 @@ void helper_msa_st_ ## TYPE(CPUMIPSState *env, uint32_t wd,             \
     int mmu_idx = cpu_mmu_index(env, false);				\
     int i;                                                              \
     MEMOP_IDX(DF)                                                       \
-    ensure_writable_pages(env, addr, mmu_idx, GETRA());                 \
+    ensure_writable_pages(env, addr, mmu_idx, GETPC());                 \
     for (i = 0; i < DF_ELEMENTS(DF); i++) {                             \
         ST_INSN(env, addr + (i << DF), pwd->TYPE[i], ##__VA_ARGS__);    \
     }                                                                   \
 }
 
 #if !defined(CONFIG_USER_ONLY)
-MSA_ST_DF(DF_BYTE,   b, helper_ret_stb_mmu, oi, GETRA())
-MSA_ST_DF(DF_HALF,   h, helper_ret_stw_mmu, oi, GETRA())
-MSA_ST_DF(DF_WORD,   w, helper_ret_stl_mmu, oi, GETRA())
-MSA_ST_DF(DF_DOUBLE, d, helper_ret_stq_mmu, oi, GETRA())
+MSA_ST_DF(DF_BYTE,   b, helper_ret_stb_mmu, oi, GETPC())
+MSA_ST_DF(DF_HALF,   h, helper_ret_stw_mmu, oi, GETPC())
+MSA_ST_DF(DF_WORD,   w, helper_ret_stl_mmu, oi, GETPC())
+MSA_ST_DF(DF_DOUBLE, d, helper_ret_stq_mmu, oi, GETPC())
 #else
 MSA_ST_DF(DF_BYTE,   b, cpu_stb_data)
 MSA_ST_DF(DF_HALF,   h, cpu_stw_data)

@@ -2338,11 +2338,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x4000:
             /* MB */
-            /* No-op */
+            tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
             break;
         case 0x4400:
             /* WMB */
-            /* No-op */
+            tcg_gen_mb(TCG_MO_ST_ST | TCG_BAR_SC);
             break;
         case 0x8000:
             /* FETCH */

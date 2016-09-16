@@ -260,6 +260,8 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     int64_t ti = profile_getclock();
 #endif
 
+    searched_pc -= GETPC_ADJ;
+
     if (searched_pc < host_pc) {
         return -1;
     }

@@ -469,6 +469,10 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define STHX   XO31(407)
 #define STWX   XO31(151)
 
+#define EIEIO  XO31(854)
+#define HWSYNC XO31(598)
+#define LWSYNC (HWSYNC | (1u << 21))
+
 #define SPR(a, b) ((((a)<<5)|(b))<<11)
 #define LR     SPR(8, 0)
 #define CTR    SPR(9, 0)
@@ -1243,6 +1247,18 @@ static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
     tcg_out_bc(s, BC | BI(7, CR_EQ) | BO_COND_TRUE, arg_label(args[5]));
 }
 
+static void tcg_out_mb(TCGContext *s, TCGArg a0)
+{
+    uint32_t insn = HWSYNC;
+    a0 &= TCG_MO_ALL;
+    if (a0 == TCG_MO_LD_LD) {
+        insn = LWSYNC;
+    } else if (a0 == TCG_MO_ST_ST) {
+        insn = EIEIO;
+    }
+    tcg_out32(s, insn);
+}
+
 #ifdef __powerpc64__
 void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
 {
@@ -1404,8 +1420,8 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGMemOp opc,
            : offsetof(CPUArchState, tlb_table[mem_index][0].addr_write));
     int add_off = offsetof(CPUArchState, tlb_table[mem_index][0].addend);
     TCGReg base = TCG_AREG0;
-    TCGMemOp s_bits = opc & MO_SIZE;
-    int a_bits = get_alignment_bits(opc);
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned a_bits = get_alignment_bits(opc);
 
     /* Extract the page index, shifted into place for tlb index.  */
     if (TCG_TARGET_REG_BITS == 64) {
@@ -1458,39 +1474,43 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGMemOp opc,
     tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R3, TCG_REG_R3, add_off);
 
     /* Clear the non-page, non-alignment bits from the address */
-    if (TCG_TARGET_REG_BITS == 32 || TARGET_LONG_BITS == 32) {
-        /* We don't support unaligned accesses on 32-bits, preserve
-         * the bottom bits and thus trigger a comparison failure on
-         * unaligned accesses
+    if (TCG_TARGET_REG_BITS == 32) {
+        /* We don't support unaligned accesses on 32-bits.
+         * Preserve the bottom bits and thus trigger a comparison
+         * failure on unaligned accesses.
          */
-        if (a_bits < 0) {
+        if (a_bits < s_bits) {
             a_bits = s_bits;
         }
         tcg_out_rlw(s, RLWINM, TCG_REG_R0, addrlo, 0,
                     (32 - a_bits) & 31, 31 - TARGET_PAGE_BITS);
-    } else if (a_bits) {
-        /* More than byte access, we need to handle alignment */
-        if (a_bits > 0) {
-            /* Alignment required by the front-end, same as 32-bits */
-            tcg_out_rld(s, RLDICL, TCG_REG_R0, addrlo,
+    } else {
+        TCGReg t = addrlo;
+
+        /* If the access is unaligned, we need to make sure we fail if we
+         * cross a page boundary.  The trick is to add the access size-1
+         * to the address before masking the low bits.  That will make the
+         * address overflow to the next page if we cross a page boundary,
+         * which will then force a mismatch of the TLB compare.
+         */
+        if (a_bits < s_bits) {
+            unsigned a_mask = (1 << a_bits) - 1;
+            unsigned s_mask = (1 << s_bits) - 1;
+            tcg_out32(s, ADDI | TAI(TCG_REG_R0, t, s_mask - a_mask));
+            t = TCG_REG_R0;
+        }
+
+        /* Mask the address for the requested alignment.  */
+        if (TARGET_LONG_BITS == 32) {
+            tcg_out_rlw(s, RLWINM, TCG_REG_R0, t, 0,
+                        (32 - a_bits) & 31, 31 - TARGET_PAGE_BITS);
+        } else if (a_bits == 0) {
+            tcg_out_rld(s, RLDICR, TCG_REG_R0, t, 0, 63 - TARGET_PAGE_BITS);
+        } else {
+            tcg_out_rld(s, RLDICL, TCG_REG_R0, t,
                         64 - TARGET_PAGE_BITS, TARGET_PAGE_BITS - a_bits);
             tcg_out_rld(s, RLDICL, TCG_REG_R0, TCG_REG_R0, TARGET_PAGE_BITS, 0);
-       } else {
-           /* We support unaligned accesses, we need to make sure we fail
-            * if we cross a page boundary. The trick is to add the
-            * access_size-1 to the address before masking the low bits.
-            * That will make the address overflow to the next page if we
-            * cross a page boundary which will then force a mismatch of
-            * the TLB compare since the next page cannot possibly be in
-            * the same TLB index.
-            */
-            tcg_out32(s, ADDI | TAI(TCG_REG_R0, addrlo, (1 << s_bits) - 1));
-            tcg_out_rld(s, RLDICR, TCG_REG_R0, TCG_REG_R0,
-                        0, 63 - TARGET_PAGE_BITS);
         }
-    } else {
-        /* Byte access, just chop off the bits below the page index */
-        tcg_out_rld(s, RLDICR, TCG_REG_R0, addrlo, 0, 63 - TARGET_PAGE_BITS);
     }
 
     if (TCG_TARGET_REG_BITS < TARGET_LONG_BITS) {
@@ -2449,6 +2469,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out32(s, MULHD | TAB(args[0], args[1], args[2]));
         break;
 
+    case INDEX_op_mb:
+        tcg_out_mb(s, args[0]);
+        break;
+
     case INDEX_op_mov_i32:   /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_movi_i32:  /* Always emitted via tcg_out_movi.  */
@@ -2596,6 +2620,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_qemu_st_i64, { "S", "S", "S", "S" } },
 #endif
 
+    { INDEX_op_mb, { } },
     { -1 },
 };
 

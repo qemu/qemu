@@ -249,6 +249,8 @@ static const int tcg_target_call_oarg_regs[] = {
 #define STWA       (INSN_OP(3) | INSN_OP3(0x14))
 #define STXA       (INSN_OP(3) | INSN_OP3(0x1e))
 
+#define MEMBAR     (INSN_OP(2) | INSN_OP3(0x28) | INSN_RS1(15) | (1 << 13))
+
 #ifndef ASI_PRIMARY_LITTLE
 #define ASI_PRIMARY_LITTLE 0x88
 #endif
@@ -835,6 +837,12 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *dest)
     tcg_out_nop(s);
 }
 
+static void tcg_out_mb(TCGContext *s, TCGArg a0)
+{
+    /* Note that the TCG memory order constants mirror the Sparc MEMBAR.  */
+    tcg_out32(s, MEMBAR | (a0 & TCG_MO_ALL));
+}
+
 #ifdef CONFIG_SOFTMMU
 static tcg_insn_unit *qemu_ld_trampoline[16];
 static tcg_insn_unit *qemu_st_trampoline[16];
@@ -996,19 +1004,25 @@ static void tcg_target_qemu_prologue(TCGContext *s)
    is in the returned register, maybe %o0.  The TLB addend is in %o1.  */
 
 static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
-                               TCGMemOp s_bits, int which)
+                               TCGMemOp opc, int which)
 {
     const TCGReg r0 = TCG_REG_O0;
     const TCGReg r1 = TCG_REG_O1;
     const TCGReg r2 = TCG_REG_O2;
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned a_bits = get_alignment_bits(opc);
     int tlb_ofs;
 
     /* Shift the page number down.  */
     tcg_out_arithi(s, r1, addr, TARGET_PAGE_BITS, SHIFT_SRL);
 
-    /* Mask out the page offset, except for the required alignment.  */
+    /* Mask out the page offset, except for the required alignment.
+       We don't support unaligned accesses.  */
+    if (a_bits < s_bits) {
+        a_bits = s_bits;
+    }
     tcg_out_movi(s, TCG_TYPE_TL, TCG_REG_T1,
-                 TARGET_PAGE_MASK | ((1 << s_bits) - 1));
+                 TARGET_PAGE_MASK | ((1 << a_bits) - 1));
 
     /* Mask the tlb index.  */
     tcg_out_arithi(s, r1, r1, CPU_TLB_SIZE - 1, ARITH_AND);
@@ -1087,7 +1101,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
     tcg_insn_unit *func;
     tcg_insn_unit *label_ptr;
 
-    addrz = tcg_out_tlb_load(s, addr, memi, memop & MO_SIZE,
+    addrz = tcg_out_tlb_load(s, addr, memi, memop,
                              offsetof(CPUTLBEntry, addr_read));
 
     /* The fast path is exactly one insn.  Thus we can perform the
@@ -1169,7 +1183,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     tcg_insn_unit *func;
     tcg_insn_unit *label_ptr;
 
-    addrz = tcg_out_tlb_load(s, addr, memi, memop & MO_SIZE,
+    addrz = tcg_out_tlb_load(s, addr, memi, memop,
                              offsetof(CPUTLBEntry, addr_write));
 
     /* The fast path is exactly one insn.  Thus we can perform the entire
@@ -1460,6 +1474,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 	tcg_out_arithc(s, a0, TCG_REG_G0, a1, const_args[1], c);
 	break;
 
+    case INDEX_op_mb:
+        tcg_out_mb(s, a0);
+        break;
+
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
@@ -1561,6 +1579,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_qemu_st_i32, { "sZ", "A" } },
     { INDEX_op_qemu_st_i64, { "SZ", "A" } },
 
+    { INDEX_op_mb, { } },
     { -1 },
 };
 

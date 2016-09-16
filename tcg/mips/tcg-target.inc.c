@@ -292,6 +292,7 @@ typedef enum {
     OPC_JALR     = OPC_SPECIAL | 0x09,
     OPC_MOVZ     = OPC_SPECIAL | 0x0A,
     OPC_MOVN     = OPC_SPECIAL | 0x0B,
+    OPC_SYNC     = OPC_SPECIAL | 0x0F,
     OPC_MFHI     = OPC_SPECIAL | 0x10,
     OPC_MFLO     = OPC_SPECIAL | 0x12,
     OPC_MULT     = OPC_SPECIAL | 0x18,
@@ -339,6 +340,14 @@ typedef enum {
      * backwards-compatible at the assembly level.
      */
     OPC_MUL      = use_mips32r6_instructions ? OPC_MUL_R6 : OPC_MUL_R5,
+
+    /* MIPS r6 introduced names for weaker variants of SYNC.  These are
+       backward compatible to previous architecture revisions.  */
+    OPC_SYNC_WMB     = OPC_SYNC | 0x04 << 5,
+    OPC_SYNC_MB      = OPC_SYNC | 0x10 << 5,
+    OPC_SYNC_ACQUIRE = OPC_SYNC | 0x11 << 5,
+    OPC_SYNC_RELEASE = OPC_SYNC | 0x12 << 5,
+    OPC_SYNC_RMB     = OPC_SYNC | 0x13 << 5,
 } MIPSInsn;
 
 /*
@@ -1040,7 +1049,9 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg base, TCGReg addrl,
                              TCGReg addrh, TCGMemOpIdx oi,
                              tcg_insn_unit *label_ptr[2], bool is_load)
 {
-    TCGMemOp s_bits = get_memop(oi) & MO_SIZE;
+    TCGMemOp opc = get_memop(oi);
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned a_bits = get_alignment_bits(opc);
     int mem_index = get_mmuidx(oi);
     int cmp_off
         = (is_load
@@ -1071,10 +1082,15 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg base, TCGReg addrl,
     tcg_out_opc_imm(s, OPC_LW, TCG_TMP0, TCG_REG_A0,
                     cmp_off + (TARGET_LONG_BITS == 64 ? LO_OFF : 0));
 
+    /* We don't currently support unaligned accesses.
+       We could do so with mips32r6.  */
+    if (a_bits < s_bits) {
+        a_bits = s_bits;
+    }
     /* Mask the page bits, keeping the alignment bits to compare against.
        In between on 32-bit targets, load the tlb addend for the fast path.  */
     tcg_out_movi(s, TCG_TYPE_I32, TCG_TMP1,
-                 TARGET_PAGE_MASK | ((1 << s_bits) - 1));
+                 TARGET_PAGE_MASK | ((1 << a_bits) - 1));
     if (TARGET_LONG_BITS == 32) {
         tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0, add_off);
     }
@@ -1377,6 +1393,22 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 #endif
 }
 
+static void tcg_out_mb(TCGContext *s, TCGArg a0)
+{
+    static const MIPSInsn sync[] = {
+        /* Note that SYNC_MB is a slightly weaker than SYNC 0,
+           as the former is an ordering barrier and the latter
+           is a completion barrier.  */
+        [0 ... TCG_MO_ALL]            = OPC_SYNC_MB,
+        [TCG_MO_LD_LD]                = OPC_SYNC_RMB,
+        [TCG_MO_ST_ST]                = OPC_SYNC_WMB,
+        [TCG_MO_LD_ST]                = OPC_SYNC_RELEASE,
+        [TCG_MO_LD_ST | TCG_MO_ST_ST] = OPC_SYNC_RELEASE,
+        [TCG_MO_LD_ST | TCG_MO_LD_LD] = OPC_SYNC_ACQUIRE,
+    };
+    tcg_out32(s, sync[a0 & TCG_MO_ALL]);
+}
+
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                               const TCGArg *args, const int *const_args)
 {
@@ -1646,6 +1678,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                         const_args[4], const_args[5], true);
         break;
 
+    case INDEX_op_mb:
+        tcg_out_mb(s, a0);
+        break;
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
@@ -1726,6 +1761,8 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_qemu_ld_i64, { "L", "L", "lZ", "lZ" } },
     { INDEX_op_qemu_st_i64, { "SZ", "SZ", "SZ", "SZ" } },
 #endif
+
+    { INDEX_op_mb, { } },
     { -1 },
 };
 
