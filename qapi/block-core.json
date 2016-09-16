@@ -900,7 +900,7 @@
 #          otherwise. (Since 2.4)
 #
 # @compress: #optional true to compress data, if the target format supports it.
-#            (default: false) (since 2.7)
+#            (default: false) (since 2.8)
 #
 # @on-source-error: #optional the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
@@ -941,7 +941,7 @@
 #         for unlimited.
 #
 # @compress: #optional true to compress data, if the target format supports it.
-#            (default: false) (since 2.7)
+#            (default: false) (since 2.8)
 #
 # @on-source-error: #optional the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
