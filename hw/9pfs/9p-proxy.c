@@ -777,7 +777,6 @@ static int proxy_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
         errno = -retval;
         retval = -1;
     }
-    v9fs_string_free(&fullname);
     return retval;
 }
 
