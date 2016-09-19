@@ -333,6 +333,7 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: host couldn't handle guest format %d\n",
                       __func__, c2d.format);
+        g_free(res);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
         return;
     }
