@@ -28,6 +28,7 @@
 #define MAX_CIWS 62
 
 #define VIRTUAL_CSSID 0xfe
+#define VIRTIO_CCW_CHPID 0   /* used by convention */
 
 typedef struct CIW {
     uint8_t type;
@@ -115,6 +116,7 @@ bool css_devno_used(uint8_t cssid, uint8_t ssid, uint16_t devno);
 void css_subch_assign(uint8_t cssid, uint8_t ssid, uint16_t schid,
                       uint16_t devno, SubchDev *sch);
 void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type);
+unsigned int css_find_free_chpid(uint8_t cssid);
 uint16_t css_build_subchannel_id(SubchDev *sch);
 void css_reset(void);
 void css_reset_sch(SubchDev *sch);
