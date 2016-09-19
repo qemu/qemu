@@ -2333,7 +2333,13 @@ struct target_flock {
     short l_whence;
     abi_long l_start;
     abi_long l_len;
+#if defined(TARGET_MIPS)
+    abi_long l_sysid;
+#endif
     int l_pid;
+#if defined(TARGET_MIPS)
+    abi_long pad[4];
+#endif
 };
 
 struct target_flock64 {
