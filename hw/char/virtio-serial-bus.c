@@ -145,6 +145,15 @@ static void discard_vq_data(VirtQueue *vq, VirtIODevice *vdev)
     virtio_notify(vdev, vq);
 }
 
+static void discard_throttle_data(VirtIOSerialPort *port)
+{
+    if (port->elem) {
+        virtqueue_detach_element(port->ovq, port->elem, 0);
+        g_free(port->elem);
+        port->elem = NULL;
+    }
+}
+
 static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
                                  VirtIODevice *vdev)
 {
@@ -267,6 +276,7 @@ int virtio_serial_close(VirtIOSerialPort *port)
      * consume, reset the throttling flag and discard the data.
      */
     port->throttled = false;
+    discard_throttle_data(port);
     discard_vq_data(port->ovq, VIRTIO_DEVICE(port->vser));
 
     send_control_event(port->vser, port->id, VIRTIO_CONSOLE_PORT_OPEN, 0);
@@ -591,6 +601,9 @@ static void guest_reset(VirtIOSerial *vser)
 
     QTAILQ_FOREACH(port, &vser->ports, next) {
         vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+
+        discard_throttle_data(port);
+
         if (port->guest_connected) {
             port->guest_connected = false;
             if (vsc->set_guest_connected) {
@@ -901,6 +914,7 @@ static void remove_port(VirtIOSerial *vser, uint32_t port_id)
     assert(port);
 
     /* Flush out any unconsumed buffers first */
+    discard_throttle_data(port);
     discard_vq_data(port->ovq, VIRTIO_DEVICE(port->vser));
 
     send_control_event(vser, port->id, VIRTIO_CONSOLE_PORT_REMOVE, 1);
