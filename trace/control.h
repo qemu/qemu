@@ -239,6 +239,14 @@ bool trace_init_backends(void);
 void trace_init_file(const char *file);
 
 /**
+ * trace_init_vcpu:
+ * @vcpu: Added vCPU.
+ *
+ * Set initial dynamic event state for a hot-plugged vCPU.
+ */
+void trace_init_vcpu(CPUState *vcpu);
+
+/**
  * trace_list_events:
  *
  * List all available events.
@@ -268,17 +276,6 @@ extern QemuOptsList qemu_trace_opts;
  * Returns the filename to save trace to.  It must be freed with g_free().
  */
 char *trace_opt_parse(const char *optarg);
-
-/**
- * trace_init_vcpu_events:
- *
- * Re-synchronize initial event state with vCPUs (which can be created after
- * trace_init_events()).
- *
- * Precondition: event states won't be changed between trace_enable_events() and
- * trace_init_vcpu_events() (e.g., through QMP).
- */
-void trace_init_vcpu_events(void);
 
 
 #include "trace/control-internal.h"
