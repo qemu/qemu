@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "trace.h"
 #include "trace/control.h"
 #include "translate-all.h"
 
@@ -117,4 +118,6 @@ void trace_init_vcpu(CPUState *vcpu)
             }
         }
     }
+
+    trace_guest_cpu_enter(vcpu);
 }
