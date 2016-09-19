@@ -62,29 +62,33 @@ static int qcrypto_pbkdf2_get_thread_cpu(unsigned long long *val_ms,
 #endif
 }
 
-int qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
-                               const uint8_t *key, size_t nkey,
-                               const uint8_t *salt, size_t nsalt,
-                               Error **errp)
+uint64_t qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
+                                    const uint8_t *key, size_t nkey,
+                                    const uint8_t *salt, size_t nsalt,
+                                    size_t nout,
+                                    Error **errp)
 {
-    uint8_t out[32];
-    long long int iterations = (1 << 15);
+    uint64_t ret = -1;
+    uint8_t *out;
+    uint64_t iterations = (1 << 15);
     unsigned long long delta_ms, start_ms, end_ms;
+
+    out = g_new(uint8_t, nout);
 
     while (1) {
         if (qcrypto_pbkdf2_get_thread_cpu(&start_ms, errp) < 0) {
-            return -1;
+            goto cleanup;
         }
         if (qcrypto_pbkdf2(hash,
                            key, nkey,
                            salt, nsalt,
                            iterations,
-                           out, sizeof(out),
+                           out, nout,
                            errp) < 0) {
-            return -1;
+            goto cleanup;
         }
         if (qcrypto_pbkdf2_get_thread_cpu(&end_ms, errp) < 0) {
-            return -1;
+            goto cleanup;
         }
 
         delta_ms = end_ms - start_ms;
@@ -100,11 +104,10 @@ int qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
 
     iterations = iterations * 1000 / delta_ms;
 
-    if (iterations > INT32_MAX) {
-        error_setg(errp, "Iterations %lld too large for a 32-bit int",
-                   iterations);
-        return -1;
-    }
+    ret = iterations;
 
-    return iterations;
+ cleanup:
+    memset(out, 0, nout);
+    g_free(out);
+    return ret;
 }

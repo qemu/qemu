@@ -261,7 +261,6 @@ static QCryptoPbkdfTestData test_data[] = {
                "\xcc\x4a\x5e\x6d\xca\x04\xec\x58",
         .nout = 32
     },
-#if 0
     {
         .path = "/crypto/pbkdf/nonrfc/sha512/iter1200",
         .hash = QCRYPTO_HASH_ALG_SHA512,
@@ -279,6 +278,58 @@ static QCryptoPbkdfTestData test_data[] = {
                "\x76\x14\x80\xf3\xe3\x7a\x22\xb9",
         .nout = 32
     },
+    {
+        .path = "/crypto/pbkdf/nonrfc/sha224/iter1200",
+        .hash = QCRYPTO_HASH_ALG_SHA224,
+        .iterations = 1200,
+        .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+               "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+               "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+               "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        .nkey = 129,
+        .salt = "pass phrase exceeds block size",
+        .nsalt = 30,
+        .out = "\x13\x3b\x88\x0c\x0e\x52\xa2\x41"
+               "\x49\x33\x35\xa6\xc3\x83\xae\x23"
+               "\xf6\x77\x43\x9e\x5b\x30\x92\x3e"
+               "\x4a\x3a\xaa\x24\x69\x3c\xed\x20",
+        .nout = 32
+    },
+    {
+        .path = "/crypto/pbkdf/nonrfc/sha384/iter1200",
+        .hash = QCRYPTO_HASH_ALG_SHA384,
+        .iterations = 1200,
+        .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+               "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+               "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+               "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        .nkey = 129,
+        .salt = "pass phrase exceeds block size",
+        .nsalt = 30,
+        .out = "\xfe\xe3\xe1\x84\xc9\x25\x3e\x10"
+               "\x47\xc8\x7d\x53\xc6\xa5\xe3\x77"
+               "\x29\x41\x76\xbd\x4b\xe3\x9b\xac"
+               "\x05\x6c\x11\xdd\x17\xc5\x93\x80",
+        .nout = 32
+    },
+    {
+        .path = "/crypto/pbkdf/nonrfc/ripemd160/iter1200",
+        .hash = QCRYPTO_HASH_ALG_RIPEMD160,
+        .iterations = 1200,
+        .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+               "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+               "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+               "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        .nkey = 129,
+        .salt = "pass phrase exceeds block size",
+        .nsalt = 30,
+        .out = "\xd6\xcb\xd8\xa7\xdb\x0c\xa2\x2a"
+               "\x23\x5e\x47\xaf\xdb\xda\xa8\xef"
+               "\xe4\x01\x0d\x6f\xb5\x33\xc8\xbd"
+               "\xce\xbf\x91\x14\x8b\x5c\x48\x41",
+        .nout = 32
+    },
+#if 0
     {
         .path = "/crypto/pbkdf/nonrfc/whirlpool/iter1200",
         .hash = QCRYPTO_HASH_ALG_WHIRLPOOL,
@@ -358,6 +409,7 @@ static void test_pbkdf_timing(void)
     iters = qcrypto_pbkdf2_count_iters(QCRYPTO_HASH_ALG_SHA256,
                                        key, sizeof(key),
                                        salt, sizeof(salt),
+                                       32,
                                        &error_abort);
 
     g_assert(iters >= (1 << 15));

@@ -185,6 +185,9 @@
 #                  Currently defaults to 'sha256'
 # @hash-alg: #optional the master key hash algorithm
 #            Currently defaults to 'sha256'
+# @iter-time: #optional number of milliseconds to spend in
+#             PBKDF passphrase processing. Currently defaults
+#             to 2000. (since 2.8)
 # Since: 2.6
 ##
 { 'struct': 'QCryptoBlockCreateOptionsLUKS',
@@ -193,7 +196,8 @@
             '*cipher-mode': 'QCryptoCipherMode',
             '*ivgen-alg': 'QCryptoIVGenAlgorithm',
             '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
-            '*hash-alg': 'QCryptoHashAlgorithm'}}
+            '*hash-alg': 'QCryptoHashAlgorithm',
+            '*iter-time': 'int'}}
 
 
 ##

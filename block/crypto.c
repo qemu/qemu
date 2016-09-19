@@ -33,6 +33,7 @@
 #define BLOCK_CRYPTO_OPT_LUKS_IVGEN_ALG "ivgen-alg"
 #define BLOCK_CRYPTO_OPT_LUKS_IVGEN_HASH_ALG "ivgen-hash-alg"
 #define BLOCK_CRYPTO_OPT_LUKS_HASH_ALG "hash-alg"
+#define BLOCK_CRYPTO_OPT_LUKS_ITER_TIME "iter-time"
 
 typedef struct BlockCrypto BlockCrypto;
 
@@ -182,6 +183,11 @@ static QemuOptsList block_crypto_create_opts_luks = {
             .name = BLOCK_CRYPTO_OPT_LUKS_HASH_ALG,
             .type = QEMU_OPT_STRING,
             .help = "Name of encryption hash algorithm",
+        },
+        {
+            .name = BLOCK_CRYPTO_OPT_LUKS_ITER_TIME,
+            .type = QEMU_OPT_NUMBER,
+            .help = "Time to spend in PBKDF in milliseconds",
         },
         { /* end of list */ }
     },

@@ -122,7 +122,7 @@ bool qcrypto_pbkdf2_supports(QCryptoHashAlgorithm hash);
 int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
                    const uint8_t *key, size_t nkey,
                    const uint8_t *salt, size_t nsalt,
-                   unsigned int iterations,
+                   uint64_t iterations,
                    uint8_t *out, size_t nout,
                    Error **errp);
 
@@ -133,6 +133,7 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
  * @nkey: the length of @key in bytes
  * @salt: a random salt
  * @nsalt: length of @salt in bytes
+ * @nout: size of desired derived key
  * @errp: pointer to a NULL-initialized error object
  *
  * Time the PBKDF2 algorithm to determine how many
@@ -140,13 +141,16 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
  * key from a user password provided in @key in 1
  * second of compute time. The result of this can
  * be used as a the @iterations parameter of a later
- * call to qcrypto_pbkdf2().
+ * call to qcrypto_pbkdf2(). The value of @nout should
+ * match that value that will later be provided with
+ * a call to qcrypto_pbkdf2().
  *
  * Returns: number of iterations in 1 second, -1 on error
  */
-int qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
-                               const uint8_t *key, size_t nkey,
-                               const uint8_t *salt, size_t nsalt,
-                               Error **errp);
+uint64_t qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
+                                    const uint8_t *key, size_t nkey,
+                                    const uint8_t *salt, size_t nsalt,
+                                    size_t nout,
+                                    Error **errp);
 
 #endif /* QCRYPTO_PBKDF_H */
