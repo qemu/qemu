@@ -148,6 +148,11 @@ colo_filter_rewriter_conn_offset(uint32_t offset) ": offset=%u\n"
 # Targets: all
 vcpu guest_cpu_enter(void)
 
+# Reset the state of a virtual (guest) CPU
+#
+# Targets: all
+vcpu guest_cpu_reset(void)
+
 # @vaddr: Access' virtual address.
 # @info : Access' information (see below).
 #
