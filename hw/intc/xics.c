@@ -505,8 +505,11 @@ static void ics_reject(ICSState *ics, int nr)
     ICSIRQState *irq = ics->irqs + nr - ics->offset;
 
     trace_xics_ics_reject(nr, nr - ics->offset);
-    irq->status |= XICS_STATUS_REJECTED; /* Irrelevant but harmless for LSI */
-    irq->status &= ~XICS_STATUS_SENT; /* Irrelevant but harmless for MSI */
+    if (irq->flags & XICS_FLAGS_IRQ_MSI) {
+        irq->status |= XICS_STATUS_REJECTED;
+    } else if (irq->flags & XICS_FLAGS_IRQ_LSI) {
+        irq->status &= ~XICS_STATUS_SENT;
+    }
 }
 
 static void ics_resend(ICSState *ics)
