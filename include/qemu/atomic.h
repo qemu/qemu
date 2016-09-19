@@ -72,16 +72,16 @@
  * Add one here, and similarly in smp_rmb() and smp_read_barrier_depends().
  */
 
-#define smp_mb()    ({ barrier(); __atomic_thread_fence(__ATOMIC_SEQ_CST); })
-#define smp_wmb()   ({ barrier(); __atomic_thread_fence(__ATOMIC_RELEASE); })
-#define smp_rmb()   ({ barrier(); __atomic_thread_fence(__ATOMIC_ACQUIRE); })
+#define smp_mb()                     ({ barrier(); __atomic_thread_fence(__ATOMIC_SEQ_CST); })
+#define smp_mb_release()             ({ barrier(); __atomic_thread_fence(__ATOMIC_RELEASE); })
+#define smp_mb_acquire()             ({ barrier(); __atomic_thread_fence(__ATOMIC_ACQUIRE); })
 
 /* Most compilers currently treat consume and acquire the same, but really
  * no processors except Alpha need a barrier here.  Leave it in if
  * using Thread Sanitizer to avoid warnings, otherwise optimize it away.
  */
 #if defined(__SANITIZE_THREAD__)
-#define smp_read_barrier_depends() ({ barrier(); __atomic_thread_fence(__ATOMIC_CONSUME); })
+#define smp_read_barrier_depends()   ({ barrier(); __atomic_thread_fence(__ATOMIC_CONSUME); })
 #elif defined(__alpha__)
 #define smp_read_barrier_depends()   asm volatile("mb":::"memory")
 #else
@@ -149,13 +149,13 @@
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));   \
     typeof_strip_qual(*ptr) _val;                       \
      __atomic_load(ptr, &_val, __ATOMIC_RELAXED);       \
-     smp_rmb();                                         \
+     smp_mb_acquire();                                  \
     _val;                                               \
     })
 
 #define atomic_mb_set(ptr, i)  do {                     \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));   \
-    smp_wmb();                                          \
+    smp_mb_release();                                   \
     __atomic_store_n(ptr, i, __ATOMIC_RELAXED);         \
     smp_mb();                                           \
 } while(0)
@@ -238,8 +238,8 @@
  * here (a compiler barrier only).  QEMU doesn't do accesses to write-combining
  * qemu memory or non-temporal load/stores from C code.
  */
-#define smp_wmb()   barrier()
-#define smp_rmb()   barrier()
+#define smp_mb_release()   barrier()
+#define smp_mb_acquire()   barrier()
 
 /*
  * __sync_lock_test_and_set() is documented to be an acquire barrier only,
@@ -263,13 +263,15 @@
  * smp_mb has the same problem as on x86 for not-very-new GCC
  * (http://patchwork.ozlabs.org/patch/126184/, Nov 2011).
  */
-#define smp_wmb()   ({ asm volatile("eieio" ::: "memory"); (void)0; })
+#define smp_wmb()          ({ asm volatile("eieio" ::: "memory"); (void)0; })
 #if defined(__powerpc64__)
-#define smp_rmb()   ({ asm volatile("lwsync" ::: "memory"); (void)0; })
+#define smp_mb_release()   ({ asm volatile("lwsync" ::: "memory"); (void)0; })
+#define smp_mb_acquire()   ({ asm volatile("lwsync" ::: "memory"); (void)0; })
 #else
-#define smp_rmb()   ({ asm volatile("sync" ::: "memory"); (void)0; })
+#define smp_mb_release()   ({ asm volatile("sync" ::: "memory"); (void)0; })
+#define smp_mb_acquire()   ({ asm volatile("sync" ::: "memory"); (void)0; })
 #endif
-#define smp_mb()    ({ asm volatile("sync" ::: "memory"); (void)0; })
+#define smp_mb()           ({ asm volatile("sync" ::: "memory"); (void)0; })
 
 #endif /* _ARCH_PPC */
 
@@ -277,18 +279,18 @@
  * For (host) platforms we don't have explicit barrier definitions
  * for, we use the gcc __sync_synchronize() primitive to generate a
  * full barrier.  This should be safe on all platforms, though it may
- * be overkill for smp_wmb() and smp_rmb().
+ * be overkill for smp_mb_acquire() and smp_mb_release().
  */
 #ifndef smp_mb
-#define smp_mb()    __sync_synchronize()
+#define smp_mb()           __sync_synchronize()
 #endif
 
-#ifndef smp_wmb
-#define smp_wmb()   __sync_synchronize()
+#ifndef smp_mb_acquire
+#define smp_mb_acquire()   __sync_synchronize()
 #endif
 
-#ifndef smp_rmb
-#define smp_rmb()   __sync_synchronize()
+#ifndef smp_mb_release
+#define smp_mb_release()   __sync_synchronize()
 #endif
 
 #ifndef smp_read_barrier_depends
@@ -365,13 +367,13 @@
  */
 #define atomic_mb_read(ptr)    ({           \
     typeof(*ptr) _val = atomic_read(ptr);   \
-    smp_rmb();                              \
+    smp_mb_acquire();                       \
     _val;                                   \
 })
 
 #ifndef atomic_mb_set
 #define atomic_mb_set(ptr, i)  do {         \
-    smp_wmb();                              \
+    smp_mb_release();                       \
     atomic_set(ptr, i);                     \
     smp_mb();                               \
 } while (0)
@@ -404,4 +406,12 @@
 #define atomic_or(ptr, n)      ((void) __sync_fetch_and_or(ptr, n))
 
 #endif /* __ATOMIC_RELAXED */
+
+#ifndef smp_wmb
+#define smp_wmb()   smp_mb_release()
+#endif
+#ifndef smp_rmb
+#define smp_rmb()   smp_mb_acquire()
+#endif
+
 #endif /* QEMU_ATOMIC_H */
