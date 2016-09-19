@@ -2164,7 +2164,7 @@ struct target_statfs64 {
 #define TARGET_F_SETLK         6
 #define TARGET_F_SETLKW        7
 #define TARGET_F_SETOWN        24       /*  for sockets. */
-#define TARGET_F_GETOWN        25       /*  for sockets. */
+#define TARGET_F_GETOWN        23       /*  for sockets. */
 #else
 #define TARGET_F_GETLK         5
 #define TARGET_F_SETLK         6
