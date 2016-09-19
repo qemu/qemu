@@ -135,44 +135,18 @@
     __atomic_store_n(ptr, i, __ATOMIC_RELEASE);       \
 } while(0)
 
-/* atomic_mb_read/set semantics map Java volatile variables. They are
- * less expensive on some platforms (notably POWER & ARMv7) than fully
- * sequentially consistent operations.
- *
- * As long as they are used as paired operations they are safe to
- * use. See docs/atomic.txt for more discussion.
- */
-
-#if defined(_ARCH_PPC)
-#define atomic_mb_read(ptr)                             \
+#define atomic_load_acquire(ptr)                        \
     ({                                                  \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));   \
     typeof_strip_qual(*ptr) _val;                       \
-     __atomic_load(ptr, &_val, __ATOMIC_RELAXED);       \
-     smp_mb_acquire();                                  \
+    __atomic_load(ptr, &_val, __ATOMIC_ACQUIRE);        \
     _val;                                               \
     })
 
-#define atomic_mb_set(ptr, i)  do {                     \
+#define atomic_store_release(ptr, i)  do {              \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));   \
-    smp_mb_release();                                   \
-    __atomic_store_n(ptr, i, __ATOMIC_RELAXED);         \
-    smp_mb();                                           \
+    __atomic_store_n(ptr, i, __ATOMIC_RELEASE);         \
 } while(0)
-#else
-#define atomic_mb_read(ptr)                             \
-    ({                                                  \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));   \
-    typeof_strip_qual(*ptr) _val;                       \
-    __atomic_load(ptr, &_val, __ATOMIC_SEQ_CST);        \
-    _val;                                               \
-    })
-
-#define atomic_mb_set(ptr, i)  do {                     \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));   \
-    __atomic_store_n(ptr, i, __ATOMIC_SEQ_CST);         \
-} while(0)
-#endif
 
 
 /* All the remaining operations are fully sequentially consistent */
@@ -247,11 +221,6 @@
  * to make it a full barrier also at the compiler level.
  */
 #define atomic_xchg(ptr, i)    (barrier(), __sync_lock_test_and_set(ptr, i))
-
-/*
- * Load/store with Java volatile semantics.
- */
-#define atomic_mb_set(ptr, i)  ((void)atomic_xchg(ptr, i))
 
 #elif defined(_ARCH_PPC)
 
@@ -343,41 +312,16 @@
     atomic_set(ptr, i);                           \
 } while (0)
 
-/* These have the same semantics as Java volatile variables.
- * See http://gee.cs.oswego.edu/dl/jmm/cookbook.html:
- * "1. Issue a StoreStore barrier (wmb) before each volatile store."
- *  2. Issue a StoreLoad barrier after each volatile store.
- *     Note that you could instead issue one before each volatile load, but
- *     this would be slower for typical programs using volatiles in which
- *     reads greatly outnumber writes. Alternatively, if available, you
- *     can implement volatile store as an atomic instruction (for example
- *     XCHG on x86) and omit the barrier. This may be more efficient if
- *     atomic instructions are cheaper than StoreLoad barriers.
- *  3. Issue LoadLoad and LoadStore barriers after each volatile load."
- *
- * If you prefer to think in terms of "pairing" of memory barriers,
- * an atomic_mb_read pairs with an atomic_mb_set.
- *
- * And for the few ia64 lovers that exist, an atomic_mb_read is a ld.acq,
- * while an atomic_mb_set is a st.rel followed by a memory barrier.
- *
- * These are a bit weaker than __atomic_load/store with __ATOMIC_SEQ_CST
- * (see docs/atomics.txt), and I'm not sure that __ATOMIC_ACQ_REL is enough.
- * Just always use the barriers manually by the rules above.
- */
-#define atomic_mb_read(ptr)    ({           \
+#define atomic_load_acquire(ptr)    ({      \
     typeof(*ptr) _val = atomic_read(ptr);   \
     smp_mb_acquire();                       \
     _val;                                   \
 })
 
-#ifndef atomic_mb_set
-#define atomic_mb_set(ptr, i)  do {         \
+#define atomic_store_release(ptr, i)  do {  \
     smp_mb_release();                       \
     atomic_set(ptr, i);                     \
-    smp_mb();                               \
 } while (0)
-#endif
 
 #ifndef atomic_xchg
 #if defined(__clang__)
@@ -412,6 +356,33 @@
 #endif
 #ifndef smp_rmb
 #define smp_rmb()   smp_mb_acquire()
+#endif
+
+/* This is more efficient than a store plus a fence.  */
+#if !defined(__SANITIZE_THREAD__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__s390x__)
+#define atomic_mb_set(ptr, i)  ((void)atomic_xchg(ptr, i))
+#endif
+#endif
+
+/* atomic_mb_read/set semantics map Java volatile variables. They are
+ * less expensive on some platforms (notably POWER) than fully
+ * sequentially consistent operations.
+ *
+ * As long as they are used as paired operations they are safe to
+ * use. See docs/atomic.txt for more discussion.
+ */
+
+#ifndef atomic_mb_read
+#define atomic_mb_read(ptr)                             \
+    atomic_load_acquire(ptr)
+#endif
+
+#ifndef atomic_mb_set
+#define atomic_mb_set(ptr, i)  do {                     \
+    atomic_store_release(ptr, i);                       \
+    smp_mb();                                           \
+} while(0)
 #endif
 
 #endif /* QEMU_ATOMIC_H */

@@ -374,8 +374,9 @@ and memory barriers, and the equivalents in QEMU:
   note that smp_store_mb() is a little weaker than atomic_mb_set().
   atomic_mb_read() compiles to the same instructions as Linux's
   smp_load_acquire(), but this should be treated as an implementation
-  detail.  If required, QEMU might later add atomic_load_acquire() and
-  atomic_store_release() macros.
+  detail.  QEMU does have atomic_load_acquire() and atomic_store_release()
+  macros, but for now they are only used within atomic.h.  This may
+  change in the future.
 
 
 SOURCES
