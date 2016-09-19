@@ -1576,17 +1576,47 @@ static void virtio_pci_modern_io_region_unmap(VirtIOPCIProxy *proxy,
                                 &region->mr);
 }
 
+static void virtio_pci_pre_plugged(DeviceState *d, Error **errp)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    if (virtio_pci_modern(proxy)) {
+        virtio_add_feature(&vdev->host_features, VIRTIO_F_VERSION_1);
+    }
+
+    virtio_add_feature(&vdev->host_features, VIRTIO_F_BAD_FEATURE);
+}
+
 /* This is called by virtio-bus just after the device is plugged. */
 static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
     VirtioBusState *bus = &proxy->bus;
     bool legacy = virtio_pci_legacy(proxy);
-    bool modern = virtio_pci_modern(proxy);
+    bool modern;
     bool modern_pio = proxy->flags & VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY;
     uint8_t *config;
     uint32_t size;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    /*
+     * Virtio capabilities present without
+     * VIRTIO_F_VERSION_1 confuses guests
+     */
+    if (!virtio_has_feature(vdev->host_features, VIRTIO_F_VERSION_1)) {
+        virtio_pci_disable_modern(proxy);
+
+        if (!legacy) {
+            error_setg(errp, "Device doesn't support modern mode, and legacy"
+                             " mode is disabled");
+            error_append_hint(errp, "Set disable-legacy to off\n");
+
+            return;
+        }
+    }
+
+    modern = virtio_pci_modern(proxy);
 
     config = proxy->pci_dev.config;
     if (proxy->class_code) {
@@ -1629,7 +1659,6 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 
         struct virtio_pci_cfg_cap *cfg_mask;
 
-        virtio_add_feature(&vdev->host_features, VIRTIO_F_VERSION_1);
         virtio_pci_modern_regions_init(proxy);
 
         virtio_pci_modern_mem_region_map(proxy, &proxy->common, &cap);
@@ -1694,8 +1723,6 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     if (!kvm_has_many_ioeventfds()) {
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
     }
-
-    virtio_add_feature(&vdev->host_features, VIRTIO_F_BAD_FEATURE);
 }
 
 static void virtio_pci_device_unplugged(DeviceState *d)
@@ -2508,6 +2535,7 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->query_guest_notifiers = virtio_pci_query_guest_notifiers;
     k->set_guest_notifiers = virtio_pci_set_guest_notifiers;
     k->vmstate_change = virtio_pci_vmstate_change;
+    k->pre_plugged = virtio_pci_pre_plugged;
     k->device_plugged = virtio_pci_device_plugged;
     k->device_unplugged = virtio_pci_device_unplugged;
     k->query_nvectors = virtio_pci_query_nvectors;

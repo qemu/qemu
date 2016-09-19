@@ -181,6 +181,11 @@ static inline void virtio_pci_force_virtio_1(VirtIOPCIProxy *proxy)
     proxy->disable_legacy = ON_OFF_AUTO_ON;
 }
 
+static inline void virtio_pci_disable_modern(VirtIOPCIProxy *proxy)
+{
+    proxy->disable_modern = true;
+}
+
 /*
  * virtio-scsi-pci: This extends VirtioPCIProxy.
  */
