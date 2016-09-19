@@ -132,6 +132,8 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
 
+static QemuMutex qemu_sigp_mutex;
+
 static int cap_sync_regs;
 static int cap_async_pf;
 static int cap_mem_op;
@@ -286,6 +288,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             cap_ri = 1;
         }
     }
+
+    qemu_mutex_init(&qemu_sigp_mutex);
 
     return 0;
 }
@@ -1774,6 +1778,11 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     status_reg = &env->regs[r1];
     param = (r1 % 2) ? env->regs[r1] : env->regs[r1 + 1];
 
+    if (qemu_mutex_trylock(&qemu_sigp_mutex)) {
+        ret = SIGP_CC_BUSY;
+        goto out;
+    }
+
     switch (order) {
     case SIGP_SET_ARCH:
         ret = sigp_set_architecture(cpu, param, status_reg);
@@ -1783,7 +1792,9 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         dst_cpu = s390_cpu_addr2state(env->regs[r3]);
         ret = handle_sigp_single_dst(dst_cpu, order, param, status_reg);
     }
+    qemu_mutex_unlock(&qemu_sigp_mutex);
 
+out:
     trace_kvm_sigp_finished(order, CPU(cpu)->cpu_index,
                             dst_cpu ? CPU(dst_cpu)->cpu_index : -1, ret);
 
