@@ -218,6 +218,8 @@ struct target_pt_regs {
 #undef TARGET_ENOTRECOVERABLE
 #define TARGET_ENOTRECOVERABLE 166     /* State not recoverable */
 
+#undef TARGET_EDQUOT
+#define TARGET_EDQUOT          1133    /* Quota exceeded */
 
 #define UNAME_MACHINE "mips64"
 #define UNAME_MINIMUM_RELEASE "2.6.32"
