@@ -119,17 +119,6 @@ There are a few things to be noticed:
 5. Printing to the terminal is discouraged for QMP commands, we do it here
    because it's the easiest way to demonstrate a QMP command
 
-Now a little hack is needed. As we're still using the old QMP server we need
-to add the new command to its internal dispatch table. This step won't be
-required in the near future. Open the qmp-commands.hx file and add the
-following at the bottom:
-
-    {
-        .name       = "hello-world",
-        .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_hello_world,
-    },
-
 You're done. Now build qemu, run it as suggested in the "Testing" section,
 and then type the following QMP command:
 
@@ -173,21 +162,6 @@ There are two important details to be noticed:
    if the optional argument is present or false otherwise
 2. The C implementation signature must follow the schema's argument ordering,
    which is defined by the "data" member
-
-The last step is to update the qmp-commands.hx file:
-
-    {
-        .name       = "hello-world",
-        .args_type  = "message:s?",
-        .mhandler.cmd_new = qmp_marshal_hello_world,
-    },
-
-Notice that the "args_type" member got our "message" argument. The character
-"s" stands for "string" and "?" means it's optional. This too must be ordered
-according to the C implementation and schema file. You can look for more
-examples in the qmp-commands.hx file if you need to define more arguments.
-
-Again, this step won't be required in the future.
 
 Time to test our new version of the "hello-world" command. Build qemu, run it as
 described in the "Testing" section and then send two commands:
@@ -337,7 +311,7 @@ we should add it to the hmp-commands.hx file:
         .args_type  = "message:s?",
         .params     = "hello-world [message]",
         .help       = "Print message to the standard output",
-        .mhandler.cmd = hmp_hello_world,
+        .cmd        = hmp_hello_world,
     },
 
 STEXI
@@ -454,14 +428,6 @@ There are a number of things to be noticed:
 6. You have to include the "qmp-commands.h" header file in qemu-timer.c,
    otherwise qemu won't build
 
-The last step is to add the correspoding entry in the qmp-commands.hx file:
-
-    {
-        .name       = "query-alarm-clock",
-        .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_alarm_clock,
-    },
-
 Time to test the new command. Build qemu, run it as described in the "Testing"
 section and try this:
 
@@ -518,7 +484,7 @@ in the monitor.c file. The entry for the "info alarmclock" follows:
         .args_type  = "",
         .params     = "",
         .help       = "show information about the alarm clock",
-        .mhandler.info = hmp_info_alarm_clock,
+        .cmd        = hmp_info_alarm_clock,
     },
 
 To test this, run qemu and type "info alarmclock" in the user monitor.
@@ -599,14 +565,6 @@ Notice that the "current" variable is used as "true" only in the first
 iteration of the loop. That's because the alarm timer method in use is the
 first element of the alarm_timers array. Also notice that QAPI lists are handled
 by hand and we return the head of the list.
-
-To test this you have to add the corresponding qmp-commands.hx entry:
-
-    {
-        .name       = "query-alarm-methods",
-        .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_query_alarm_methods,
-    },
 
 Now Build qemu, run it as explained in the "Testing" section and try our new
 command:

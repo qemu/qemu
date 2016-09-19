@@ -964,9 +964,9 @@ Example:
 
 Used to generate the marshaling/dispatch functions for the commands
 defined in the schema. The generated code implements
-qmp_marshal_COMMAND() (mentioned in qmp-commands.hx, and registered
-automatically), and declares qmp_COMMAND() that the user must
-implement.  The following files are generated:
+qmp_marshal_COMMAND() (registered automatically), and declares
+qmp_COMMAND() that the user must implement.  The following files are
+generated:
 
 $(prefix)qmp-marshal.c: command marshal/dispatch functions for each
                         QMP command defined in the schema. Functions

@@ -21,6 +21,27 @@
 { 'include': 'qapi/introspect.json' }
 
 ##
+# @qmp_capabilities:
+#
+# Enable QMP capabilities.
+#
+# Arguments: None.
+#
+# Example:
+#
+# -> { "execute": "qmp_capabilities" }
+# <- { "return": {} }
+#
+# Notes: This command is valid exactly when first connecting: it must be
+# issued before any other command will be accepted, and will fail once the
+# monitor is accepting other commands. (see qemu docs/qmp-spec.txt)
+#
+# Since: 0.13
+#
+##
+{ 'command': 'qmp_capabilities' }
+
+##
 # @LostTickPolicy:
 #
 # Policy for handling lost ticks in timer devices.
@@ -2178,6 +2199,46 @@
 # Since: 1.3
 ##
 { 'command': 'xen-set-global-dirty-log', 'data': { 'enable': 'bool' } }
+
+##
+# @device_add:
+#
+# @driver: the name of the new device's driver
+#
+# @bus: #optional the device's parent bus (device tree path)
+#
+# @id: the device's ID, must be unique
+#
+# Additional arguments depend on the type.
+#
+# Add a device.
+#
+# Notes:
+# 1. For detailed information about this command, please refer to the
+#    'docs/qdev-device-use.txt' file.
+#
+# 2. It's possible to list device properties by running QEMU with the
+#    "-device DEVICE,help" command-line argument, where DEVICE is the
+#    device's name
+#
+# Example:
+#
+# -> { "execute": "device_add",
+#      "arguments": { "driver": "e1000", "id": "net1",
+#                     "bus": "pci.0",
+#                     "mac": "52:54:00:12:34:56" } }
+# <- { "return": {} }
+#
+# TODO This command effectively bypasses QAPI completely due to its
+# "additional arguments" business.  It shouldn't have been added to
+# the schema in this form.  It should be qapified properly, or
+# replaced by a properly qapified command.
+#
+# Since: 0.13
+##
+{ 'command': 'device_add',
+  'data': {'driver': 'str', 'id': 'str'},
+  'gen': false } # so we can get the additional arguments
 
 ##
 # @device_del:

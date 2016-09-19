@@ -98,7 +98,6 @@ qemu_co_mutex_unlock_return(void *mutex, void *self) "mutex %p self %p"
 
 # monitor.c
 handle_qmp_command(void *mon, const char *cmd_name) "mon %p cmd_name \"%s\""
-monitor_protocol_emitter(void *mon) "mon %p"
 monitor_protocol_event_handler(uint32_t event, void *qdict) "event=%d data=%p"
 monitor_protocol_event_emit(uint32_t event, void *data) "event=%d data=%p"
 monitor_protocol_event_queue(uint32_t event, void *qdict, uint64_t rate) "event=%d data=%p rate=%" PRId64

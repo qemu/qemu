@@ -51,21 +51,11 @@ NameInfo *qmp_query_name(Error **errp)
 VersionInfo *qmp_query_version(Error **errp)
 {
     VersionInfo *info = g_new0(VersionInfo, 1);
-    const char *version = QEMU_VERSION;
-    const char *tmp;
-    int err;
 
     info->qemu = g_new0(VersionTriple, 1);
-    err = qemu_strtoll(version, &tmp, 10, &info->qemu->major);
-    assert(err == 0);
-    tmp++;
-
-    err = qemu_strtoll(tmp, &tmp, 10, &info->qemu->minor);
-    assert(err == 0);
-    tmp++;
-
-    err = qemu_strtoll(tmp, &tmp, 10, &info->qemu->micro);
-    assert(err == 0);
+    info->qemu->major = QEMU_VERSION_MAJOR;
+    info->qemu->minor = QEMU_VERSION_MINOR;
+    info->qemu->micro = QEMU_VERSION_MICRO;
     info->package = g_strdup(QEMU_PKGVERSION);
 
     return info;
