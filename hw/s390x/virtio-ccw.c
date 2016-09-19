@@ -455,6 +455,26 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             }
         }
         break;
+    case CCW_CMD_READ_STATUS:
+        if (check_len) {
+            if (ccw.count != sizeof(status)) {
+                ret = -EINVAL;
+                break;
+            }
+        } else if (ccw.count < sizeof(status)) {
+            /* Can't execute command. */
+            ret = -EINVAL;
+            break;
+        }
+        if (!ccw.cda) {
+            ret = -EFAULT;
+        } else {
+            address_space_stb(&address_space_memory, ccw.cda, vdev->status,
+                                        MEMTXATTRS_UNSPECIFIED, NULL);
+            sch->curr_status.scsw.count = ccw.count - sizeof(vdev->status);;
+            ret = 0;
+        }
+        break;
     case CCW_CMD_WRITE_STATUS:
         if (check_len) {
             if (ccw.count != sizeof(status)) {

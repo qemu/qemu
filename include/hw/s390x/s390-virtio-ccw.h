@@ -36,9 +36,12 @@ typedef struct S390CcwMachineClass {
 
     /*< public >*/
     bool ri_allowed;
+    bool cpu_model_allowed;
 } S390CcwMachineClass;
 
 /* runtime-instrumentation allowed by the machine */
 bool ri_allowed(void);
+/* cpu model allowed by the machine */
+bool cpu_model_allowed(void);
 
 #endif

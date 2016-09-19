@@ -3163,7 +3163,7 @@
 # @CpuModelCompareResult:
 #
 # An enumeration of CPU model comparation results. The result is usually
-# calcualted using e.g. CPU features or CPU generations.
+# calculated using e.g. CPU features or CPU generations.
 #
 # @incompatible: If model A is incompatible to model B, model A is not
 #                guaranteed to run where model B runs and the other way around.
@@ -3216,14 +3216,14 @@
 # CPU model has to be created by baselining.
 #
 # Usually, a CPU model is compared against the maximum possible CPU model
-# of a ceratin configuration (e.g. the "host" model for KVM). If that CPU
+# of a certain configuration (e.g. the "host" model for KVM). If that CPU
 # model is identical or a subset, it will run in that configuration.
 #
 # The result returned by this command may be affected by:
 #
 # * QEMU version: CPU models may look different depending on the QEMU version.
 #   (Except for CPU models reported as "static" in query-cpu-definitions.)
-# * machine-type: CPU model  may look different depending on the machine-type.
+# * machine-type: CPU model may look different depending on the machine-type.
 #   (Except for CPU models reported as "static" in query-cpu-definitions.)
 # * machine options (including accelerator): in some architectures, CPU models
 #   may look different depending on machine and accelerator options. (Except for
@@ -3274,7 +3274,7 @@
 #
 # * QEMU version: CPU models may look different depending on the QEMU version.
 #   (Except for CPU models reported as "static" in query-cpu-definitions.)
-# * machine-type: CPU model  may look different depending on the machine-type.
+# * machine-type: CPU model may look different depending on the machine-type.
 #   (Except for CPU models reported as "static" in query-cpu-definitions.)
 # * machine options (including accelerator): in some architectures, CPU models
 #   may look different depending on machine and accelerator options. (Except for

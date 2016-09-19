@@ -45,6 +45,7 @@
 #define CCW_CMD_SET_IND      0x43
 #define CCW_CMD_SET_CONF_IND 0x53
 #define CCW_CMD_READ_VQ_CONF 0x32
+#define CCW_CMD_READ_STATUS  0x72
 #define CCW_CMD_SET_IND_ADAPTER 0x73
 #define CCW_CMD_SET_VIRTIO_REV 0x83
 
@@ -98,7 +99,7 @@ struct VirtioCcwDevice {
 };
 
 /* The maximum virtio revision we support. */
-#define VIRTIO_CCW_MAX_REV 1
+#define VIRTIO_CCW_MAX_REV 2
 static inline int virtio_ccw_rev_max(VirtioCcwDevice *dev)
 {
     return dev->max_rev;
