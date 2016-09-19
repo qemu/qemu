@@ -25,11 +25,6 @@ void v9fs_string_free(V9fsString *str)
     str->size = 0;
 }
 
-void v9fs_string_null(V9fsString *str)
-{
-    v9fs_string_free(str);
-}
-
 void GCC_FMT_ATTR(2, 3)
 v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
 {
