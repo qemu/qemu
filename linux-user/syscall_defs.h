@@ -898,7 +898,11 @@ struct target_pollfd {
 #define TARGET_KDSETLED        0x4B32	/* set led state [lights, not flags] */
 #define TARGET_KDSIGACCEPT     0x4B4E
 
+#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SH4)
+#define TARGET_SIOCATMARK      TARGET_IOR('s', 7, int)
+#else
 #define TARGET_SIOCATMARK      0x8905
+#endif
 
 /* Networking ioctls */
 #define TARGET_SIOCADDRT       0x890B          /* add routing table entry */
