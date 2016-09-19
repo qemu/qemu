@@ -2374,7 +2374,7 @@ console with the given dimensions.
 @item -chardev ringbuf ,id=@var{id} [,size=@var{size}]
 
 Create a ring buffer with fixed size @option{size}.
-@var{size} must be a power of two, and defaults to @code{64K}).
+@var{size} must be a power of two and defaults to @code{64K}.
 
 @item -chardev file ,id=@var{id} ,path=@var{path}
 
