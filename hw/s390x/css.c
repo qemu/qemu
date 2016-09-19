@@ -775,7 +775,7 @@ int css_do_xsch(SubchDev *sch)
     PMCW *p = &sch->curr_status.pmcw;
     int ret;
 
-    if (!(p->flags & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA))) {
+    if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
         ret = -ENODEV;
         goto out;
     }
@@ -815,7 +815,7 @@ int css_do_csch(SubchDev *sch)
     PMCW *p = &sch->curr_status.pmcw;
     int ret;
 
-    if (!(p->flags & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA))) {
+    if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
         ret = -ENODEV;
         goto out;
     }
@@ -837,7 +837,7 @@ int css_do_hsch(SubchDev *sch)
     PMCW *p = &sch->curr_status.pmcw;
     int ret;
 
-    if (!(p->flags & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA))) {
+    if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
         ret = -ENODEV;
         goto out;
     }
@@ -913,7 +913,7 @@ int css_do_ssch(SubchDev *sch, ORB *orb)
     PMCW *p = &sch->curr_status.pmcw;
     int ret;
 
-    if (!(p->flags & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA))) {
+    if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
         ret = -ENODEV;
         goto out;
     }
@@ -990,7 +990,7 @@ int css_do_tsch_get_irb(SubchDev *sch, IRB *target_irb, int *irb_len)
     uint16_t stctl;
     IRB irb;
 
-    if (!(p->flags & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA))) {
+    if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
         return 3;
     }
 
@@ -1196,7 +1196,7 @@ int css_do_rsch(SubchDev *sch)
     PMCW *p = &sch->curr_status.pmcw;
     int ret;
 
-    if (!(p->flags & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA))) {
+    if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
         ret = -ENODEV;
         goto out;
     }
