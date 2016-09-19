@@ -495,6 +495,11 @@ static void virtqueue_map_desc(unsigned int *p_num_sg, hwaddr *addr, struct iove
         }
 
         iov[num_sg].iov_base = cpu_physical_memory_map(pa, &len, is_write);
+        if (!iov[num_sg].iov_base) {
+            error_report("virtio: bogus descriptor or out of resources");
+            exit(1);
+        }
+
         iov[num_sg].iov_len = len;
         addr[num_sg] = pa;
 
