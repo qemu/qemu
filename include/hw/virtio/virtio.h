@@ -155,6 +155,8 @@ void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num);
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len);
 void virtqueue_flush(VirtQueue *vq, unsigned int count);
+void virtqueue_detach_element(VirtQueue *vq, const VirtQueueElement *elem,
+                              unsigned int len);
 void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
                        unsigned int len);
 bool virtqueue_rewind(VirtQueue *vq, unsigned int num);

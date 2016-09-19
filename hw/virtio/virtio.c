@@ -264,12 +264,35 @@ static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
                                   0, elem->out_sg[i].iov_len);
 }
 
+/* virtqueue_detach_element:
+ * @vq: The #VirtQueue
+ * @elem: The #VirtQueueElement
+ * @len: number of bytes written
+ *
+ * Detach the element from the virtqueue.  This function is suitable for device
+ * reset or other situations where a #VirtQueueElement is simply freed and will
+ * not be pushed or discarded.
+ */
+void virtqueue_detach_element(VirtQueue *vq, const VirtQueueElement *elem,
+                              unsigned int len)
+{
+    vq->inuse--;
+    virtqueue_unmap_sg(vq, elem, len);
+}
+
+/* virtqueue_discard:
+ * @vq: The #VirtQueue
+ * @elem: The #VirtQueueElement
+ * @len: number of bytes written
+ *
+ * Pretend the most recent element wasn't popped from the virtqueue.  The next
+ * call to virtqueue_pop() will refetch the element.
+ */
 void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
                        unsigned int len)
 {
     vq->last_avail_idx--;
-    vq->inuse--;
-    virtqueue_unmap_sg(vq, elem, len);
+    virtqueue_detach_element(vq, elem, len);
 }
 
 /* virtqueue_rewind:
