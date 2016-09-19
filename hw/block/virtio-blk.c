@@ -665,6 +665,7 @@ static void virtio_blk_reset(VirtIODevice *vdev)
     while (s->rq) {
         req = s->rq;
         s->rq = req->next;
+        virtqueue_detach_element(req->vq, &req->elem, 0);
         virtio_blk_free_request(req);
     }
 
