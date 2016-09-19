@@ -673,22 +673,27 @@ F: hw/sh4/shix.c
 SPARC Machines
 --------------
 Sun4m
-M: Blue Swirl <blauwirbel@gmail.com>
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Maintained
 F: hw/sparc/sun4m.c
+F: hw/dma/sparc32_dma.c
+F: hw/dma/sun4m_iommu.c
+F: include/hw/sparc/sparc32_dma.h
+F: include/hw/sparc/sun4m.h
+F: pc-bios/openbios-sparc32
 
 Sun4u
-M: Blue Swirl <blauwirbel@gmail.com>
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Maintained
 F: hw/sparc64/sun4u.c
+F: pc-bios/openbios-sparc64
 
 Leon3
 M: Fabien Chouteau <chouteau@adacore.com>
 S: Maintained
 F: hw/sparc/leon3.c
 F: hw/*/grlib*
+F: include/hw/sparc/grlib.h
 
 S390 Machines
 -------------
