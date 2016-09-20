@@ -2410,12 +2410,15 @@
 # This command is still a work in progress and is considered experimental.
 # Stay away from it unless you want to help with its development.
 #
-# @device: block device name
+# @device: #optional Block device name (deprecated, use @id instead)
+#
+# @id:     #optional The name or QOM path of the guest device (since: 2.8)
 #
 # Since: 2.5
 ##
 { 'command': 'x-blockdev-remove-medium',
-  'data': { 'device': 'str' } }
+  'data': { '*device': 'str',
+            '*id': 'str' } }
 
 ##
 # @x-blockdev-insert-medium:

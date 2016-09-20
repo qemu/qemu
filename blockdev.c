@@ -2281,7 +2281,7 @@ void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
     }
     error_free(local_err);
 
-    qmp_x_blockdev_remove_medium(device, errp);
+    qmp_x_blockdev_remove_medium(true, device, false, NULL, errp);
 }
 
 void qmp_block_passwd(bool has_device, const char *device,
@@ -2415,30 +2415,34 @@ void qmp_blockdev_close_tray(bool has_device, const char *device,
     blk_dev_change_media_cb(blk, true);
 }
 
-void qmp_x_blockdev_remove_medium(const char *device, Error **errp)
+void qmp_x_blockdev_remove_medium(bool has_device, const char *device,
+                                  bool has_id, const char *id, Error **errp)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
     AioContext *aio_context;
-    bool has_device;
+    bool has_attached_device;
 
-    blk = blk_by_name(device);
+    device = has_device ? device : NULL;
+    id = has_id ? id : NULL;
+
+    blk = qmp_get_blk(device, id, errp);
     if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
         return;
     }
 
     /* For BBs without a device, we can exchange the BDS tree at will */
-    has_device = blk_get_attached_dev(blk);
+    has_attached_device = blk_get_attached_dev(blk);
 
-    if (has_device && !blk_dev_has_removable_media(blk)) {
-        error_setg(errp, "Device '%s' is not removable", device);
+    if (has_attached_device && !blk_dev_has_removable_media(blk)) {
+        error_setg(errp, "Device '%s' is not removable", device ?: id);
         return;
     }
 
-    if (has_device && blk_dev_has_tray(blk) && !blk_dev_is_tray_open(blk)) {
-        error_setg(errp, "Tray of device '%s' is not open", device);
+    if (has_attached_device && blk_dev_has_tray(blk) &&
+        !blk_dev_is_tray_open(blk))
+    {
+        error_setg(errp, "Tray of device '%s' is not open", device ?: id);
         return;
     }
 
@@ -2604,7 +2608,7 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     error_free(err);
     err = NULL;
 
-    qmp_x_blockdev_remove_medium(device, &err);
+    qmp_x_blockdev_remove_medium(true, device, false, NULL, errp);
     if (err) {
         error_propagate(errp, err);
         goto fail;
