@@ -12,7 +12,9 @@ rcutorture
 test-aio
 test-base64
 test-bitops
+test-blockjob
 test-blockjob-txn
+test-bufferiszero
 test-clone-visitor
 test-coroutine
 test-crypto-afsplit
