@@ -801,7 +801,7 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
     object_unref(OBJECT(dev));
 }
 
-void qmp_device_del(const char *id, Error **errp)
+static DeviceState *find_device_state(const char *id, Error **errp)
 {
     Object *obj;
 
@@ -819,15 +819,23 @@ void qmp_device_del(const char *id, Error **errp)
     if (!obj) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                   "Device '%s' not found", id);
-        return;
+        return NULL;
     }
 
     if (!object_dynamic_cast(obj, TYPE_DEVICE)) {
         error_setg(errp, "%s is not a hotpluggable device", id);
-        return;
+        return NULL;
     }
 
-    qdev_unplug(DEVICE(obj), errp);
+    return DEVICE(obj);
+}
+
+void qmp_device_del(const char *id, Error **errp)
+{
+    DeviceState *dev = find_device_state(id, errp);
+    if (dev != NULL) {
+        qdev_unplug(dev, errp);
+    }
 }
 
 void qdev_machine_init(void)
