@@ -761,7 +761,6 @@ struct X86CPUDefinition {
     const char *name;
     uint32_t level;
     uint32_t xlevel;
-    uint32_t xlevel2;
     /* vendor is zero-terminated, 12 character ASCII string */
     char vendor[CPUID_VENDOR_SZ + 1];
     int family;
@@ -2214,7 +2213,6 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
     object_property_set_int(OBJECT(cpu), def->model, "model", errp);
     object_property_set_int(OBJECT(cpu), def->stepping, "stepping", errp);
     object_property_set_int(OBJECT(cpu), def->xlevel, "xlevel", errp);
-    object_property_set_int(OBJECT(cpu), def->xlevel2, "xlevel2", errp);
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", errp);
     for (w = 0; w < FEATURE_WORDS; w++) {
         env->features[w] = def->features[w];
