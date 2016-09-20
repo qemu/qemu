@@ -28,6 +28,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
+#include "sysemu/block-backend.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -836,6 +837,23 @@ void qmp_device_del(const char *id, Error **errp)
     if (dev != NULL) {
         qdev_unplug(dev, errp);
     }
+}
+
+BlockBackend *blk_by_qdev_id(const char *id, Error **errp)
+{
+    DeviceState *dev;
+    BlockBackend *blk;
+
+    dev = find_device_state(id, errp);
+    if (dev == NULL) {
+        return NULL;
+    }
+
+    blk = blk_by_dev(dev);
+    if (!blk) {
+        error_setg(errp, "Device does not have a block device backend");
+    }
+    return blk;
 }
 
 void qdev_machine_init(void)
