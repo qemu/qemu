@@ -1243,7 +1243,7 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     } else {
         tcg_out_modrm_offset(s, OPC_LEA + trexw, r1, addrlo, s_mask - a_mask);
     }
-    tlb_mask = TARGET_PAGE_MASK | a_mask;
+    tlb_mask = (target_ulong)TARGET_PAGE_MASK | a_mask;
 
     tcg_out_shifti(s, SHIFT_SHR + tlbrexw, r0,
                    TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
