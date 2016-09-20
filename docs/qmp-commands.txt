@@ -3458,7 +3458,9 @@ and loading a new image file which is inserted as the new medium.
 
 Arguments:
 
-- "device": device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 - "filename": filename of the new image (json-string)
 - "format": format of the new image (json-string, optional)
 - "read-only-mode": new read-only mode (json-string, optional)
@@ -3469,7 +3471,7 @@ Examples:
 1. Change a removable medium
 
 -> { "execute": "blockdev-change-medium",
-             "arguments": { "device": "ide1-cd0",
+             "arguments": { "id": "ide0-1-0",
                             "filename": "/srv/images/Fedora-12-x86_64-DVD.iso",
                             "format": "raw" } }
 <- { "return": {} }
@@ -3477,7 +3479,7 @@ Examples:
 2. Load a read-only medium into a writable drive
 
 -> { "execute": "blockdev-change-medium",
-             "arguments": { "device": "isa-fd0",
+             "arguments": { "id": "floppyA",
                             "filename": "/srv/images/ro.img",
                             "format": "raw",
                             "read-only-mode": "retain" } }
@@ -3487,7 +3489,7 @@ Examples:
        "desc": "Could not open '/srv/images/ro.img': Permission denied" } }
 
 -> { "execute": "blockdev-change-medium",
-             "arguments": { "device": "isa-fd0",
+             "arguments": { "id": "floppyA",
                             "filename": "/srv/images/ro.img",
                             "format": "raw",
                             "read-only-mode": "read-only" } }

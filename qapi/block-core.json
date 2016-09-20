@@ -2470,7 +2470,10 @@
 # combines blockdev-open-tray, x-blockdev-remove-medium,
 # x-blockdev-insert-medium and blockdev-close-tray).
 #
-# @device:          block device name
+# @device:          #optional Block device name (deprecated, use @id instead)
+#
+# @id:              #optional The name or QOM path of the guest device
+#                   (since: 2.8)
 #
 # @filename:        filename of the new image to be loaded
 #
@@ -2483,7 +2486,8 @@
 # Since: 2.5
 ##
 { 'command': 'blockdev-change-medium',
-  'data': { 'device': 'str',
+  'data': { '*device': 'str',
+            '*id': 'str',
             'filename': 'str',
             '*format': 'str',
             '*read-only-mode': 'BlockdevChangeReadOnlyMode' } }

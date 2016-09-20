@@ -1422,8 +1422,9 @@ void hmp_change(Monitor *mon, const QDict *qdict)
             }
         }
 
-        qmp_blockdev_change_medium(device, target, !!arg, arg,
-                                   !!read_only, read_only_mode, &err);
+        qmp_blockdev_change_medium(true, device, false, NULL, target,
+                                   !!arg, arg, !!read_only, read_only_mode,
+                                   &err);
         if (err &&
             error_get_class(err) == ERROR_CLASS_DEVICE_ENCRYPTED) {
             error_free(err);

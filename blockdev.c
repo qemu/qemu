@@ -2540,7 +2540,9 @@ void qmp_x_blockdev_insert_medium(bool has_device, const char *device,
     qmp_blockdev_insert_anon_medium(blk, bs, errp);
 }
 
-void qmp_blockdev_change_medium(const char *device, const char *filename,
+void qmp_blockdev_change_medium(bool has_device, const char *device,
+                                bool has_id, const char *id,
+                                const char *filename,
                                 bool has_format, const char *format,
                                 bool has_read_only,
                                 BlockdevChangeReadOnlyMode read_only,
@@ -2553,10 +2555,10 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     QDict *options = NULL;
     Error *err = NULL;
 
-    blk = blk_by_name(device);
+    blk = qmp_get_blk(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      errp);
     if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
         goto fail;
     }
 
@@ -2604,7 +2606,9 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
         goto fail;
     }
 
-    rc = do_open_tray(device, NULL, false, &err);
+    rc = do_open_tray(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      false, &err);
     if (rc && rc != -ENOSYS) {
         error_propagate(errp, err);
         goto fail;
@@ -2612,7 +2616,7 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     error_free(err);
     err = NULL;
 
-    qmp_x_blockdev_remove_medium(true, device, false, NULL, errp);
+    qmp_x_blockdev_remove_medium(has_device, device, has_id, id, errp);
     if (err) {
         error_propagate(errp, err);
         goto fail;
@@ -2626,7 +2630,7 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
 
     blk_apply_root_state(blk, medium_bs);
 
-    qmp_blockdev_close_tray(true, device, false, NULL, errp);
+    qmp_blockdev_close_tray(has_device, device, has_id, id, errp);
 
 fail:
     /* If the medium has been inserted, the device has its own reference, so

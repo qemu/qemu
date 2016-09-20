@@ -1119,8 +1119,10 @@ QemuCocoaView *cocoaView;
         }
 
         Error *err = NULL;
-        qmp_blockdev_change_medium([drive cStringUsingEncoding:
+        qmp_blockdev_change_medium(true,
+                                   [drive cStringUsingEncoding:
                                           NSASCIIStringEncoding],
+                                   false, NULL,
                                    [file cStringUsingEncoding:
                                          NSASCIIStringEncoding],
                                    true, "raw",
