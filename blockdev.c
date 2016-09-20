@@ -2468,34 +2468,26 @@ out:
     aio_context_release(aio_context);
 }
 
-static void qmp_blockdev_insert_anon_medium(const char *device,
+static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
                                             BlockDriverState *bs, Error **errp)
 {
-    BlockBackend *blk;
     bool has_device;
-
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
-        return;
-    }
 
     /* For BBs without a device, we can exchange the BDS tree at will */
     has_device = blk_get_attached_dev(blk);
 
     if (has_device && !blk_dev_has_removable_media(blk)) {
-        error_setg(errp, "Device '%s' is not removable", device);
+        error_setg(errp, "Device is not removable");
         return;
     }
 
     if (has_device && blk_dev_has_tray(blk) && !blk_dev_is_tray_open(blk)) {
-        error_setg(errp, "Tray of device '%s' is not open", device);
+        error_setg(errp, "Tray of the device is not open");
         return;
     }
 
     if (blk_bs(blk)) {
-        error_setg(errp, "There already is a medium in device '%s'", device);
+        error_setg(errp, "There already is a medium in the device");
         return;
     }
 
@@ -2511,10 +2503,19 @@ static void qmp_blockdev_insert_anon_medium(const char *device,
     }
 }
 
-void qmp_x_blockdev_insert_medium(const char *device, const char *node_name,
-                                  Error **errp)
+void qmp_x_blockdev_insert_medium(bool has_device, const char *device,
+                                  bool has_id, const char *id,
+                                  const char *node_name, Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
+
+    blk = qmp_get_blk(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      errp);
+    if (!blk) {
+        return;
+    }
 
     bs = bdrv_find_node(node_name);
     if (!bs) {
@@ -2528,7 +2529,7 @@ void qmp_x_blockdev_insert_medium(const char *device, const char *node_name,
         return;
     }
 
-    qmp_blockdev_insert_anon_medium(device, bs, errp);
+    qmp_blockdev_insert_anon_medium(blk, bs, errp);
 }
 
 void qmp_blockdev_change_medium(const char *device, const char *filename,
@@ -2609,7 +2610,7 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
         goto fail;
     }
 
-    qmp_blockdev_insert_anon_medium(device, medium_bs, &err);
+    qmp_blockdev_insert_anon_medium(blk, medium_bs, &err);
     if (err) {
         error_propagate(errp, err);
         goto fail;
