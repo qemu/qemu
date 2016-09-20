@@ -37,9 +37,12 @@ def _guess_docker_command():
     """ Guess a working docker command or raise exception if not found"""
     commands = [["docker"], ["sudo", "-n", "docker"]]
     for cmd in commands:
-        if subprocess.call(cmd + ["images"],
-                           stdout=DEVNULL, stderr=DEVNULL) == 0:
-            return cmd
+        try:
+            if subprocess.call(cmd + ["images"],
+                               stdout=DEVNULL, stderr=DEVNULL) == 0:
+                return cmd
+        except OSError:
+            pass
     commands_txt = "\n".join(["  " + " ".join(x) for x in commands])
     raise Exception("Cannot find working docker command. Tried:\n%s" % \
                     commands_txt)
