@@ -13,9 +13,12 @@
 /* PCI bus */
 
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
+#define PCI_BUS_NUM(x)          (((x) >> 8) & 0xff)
 #define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
 #define PCI_FUNC(devfn)         ((devfn) & 0x07)
 #define PCI_BUILD_BDF(bus, devfn)     ((bus << 8) | (devfn))
+#define PCI_BUS_MAX             256
+#define PCI_DEVFN_MAX           256
 #define PCI_SLOT_MAX            32
 #define PCI_FUNC_MAX            8
 
