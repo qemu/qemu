@@ -2453,6 +2453,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
 
     VTD_DPRINTF(GENERAL, "");
+    x86_iommu->type = TYPE_INTEL;
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
     memory_region_init_io(&s->csrmem, OBJECT(s), &vtd_mem_ops, s,
                           "intel_iommu", DMAR_REG_SIZE);

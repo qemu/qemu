@@ -1130,11 +1130,13 @@ static void amdvi_reset(DeviceState *dev)
 static void amdvi_realize(DeviceState *dev, Error **err)
 {
     AMDVIState *s = AMD_IOMMU_DEVICE(dev);
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
     PCIBus *bus = PC_MACHINE(qdev_get_machine())->bus;
     s->iotlb = g_hash_table_new_full(amdvi_uint64_hash,
                                      amdvi_uint64_equal, g_free, g_free);
 
     /* This device should take care of IOMMU PCI properties */
+    x86_iommu->type = TYPE_AMD;
     qdev_set_parent_bus(DEVICE(&s->pci), &bus->qbus);
     object_property_set_bool(OBJECT(&s->pci), true, "realized", err);
     s->capab_offset = pci_add_capability(&s->pci.dev, AMDVI_CAPAB_ID_SEC, 0,
