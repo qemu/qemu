@@ -1459,7 +1459,9 @@ Change I/O throttle limits for a block drive.
 
 Arguments:
 
-- "device": device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 - "bps": total throughput limit in bytes per second (json-int)
 - "bps_rd": read throughput limit in bytes per second (json-int)
 - "bps_wr": write throughput limit in bytes per second (json-int)
@@ -1483,7 +1485,7 @@ Arguments:
 
 Example:
 
--> { "execute": "block_set_io_throttle", "arguments": { "device": "virtio0",
+-> { "execute": "block_set_io_throttle", "arguments": { "id": "ide0-1-0",
                                                "bps": 1000000,
                                                "bps_rd": 0,
                                                "bps_wr": 0,

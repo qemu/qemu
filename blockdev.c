@@ -2647,10 +2647,10 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
     BlockBackend *blk;
     AioContext *aio_context;
 
-    blk = blk_by_name(arg->device);
+    blk = qmp_get_blk(arg->has_device ? arg->device : NULL,
+                      arg->has_id ? arg->id : NULL,
+                      errp);
     if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", arg->device);
         return;
     }
 
@@ -2659,7 +2659,7 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
 
     bs = blk_bs(blk);
     if (!bs) {
-        error_setg(errp, "Device '%s' has no medium", arg->device);
+        error_setg(errp, "Device has no medium");
         goto out;
     }
 
@@ -2723,7 +2723,9 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
          * just update the throttling group. */
         if (!blk_get_public(blk)->throttle_state) {
             blk_io_limits_enable(blk,
-                                 arg->has_group ? arg->group : arg->device);
+                                 arg->has_group ? arg->group :
+                                 arg->has_device ? arg->device :
+                                 arg->id);
         } else if (arg->has_group) {
             blk_io_limits_update_group(blk, arg->group);
         }

@@ -1377,7 +1377,9 @@
 #
 # A set of parameters describing block throttling.
 #
-# @device: The name of the device
+# @device: #optional Block device name (deprecated, use @id instead)
+#
+# @id: #optional The name or QOM path of the guest device (since: 2.8)
 #
 # @bps: total throughput limit in bytes per second
 #
@@ -1446,8 +1448,8 @@
 # Since: 1.1
 ##
 { 'struct': 'BlockIOThrottle',
-  'data': { 'device': 'str', 'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
-            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
+  'data': { '*device': 'str', '*id': 'str', 'bps': 'int', 'bps_rd': 'int',
+            'bps_wr': 'int', 'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
             '*iops_rd_max': 'int', '*iops_wr_max': 'int',
