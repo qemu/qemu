@@ -157,9 +157,9 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
 static inline void check_tlb_flush(CPUPPCState *env)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
-    if (env->tlb_need_flush) {
-        env->tlb_need_flush = 0;
+    if (env->tlb_need_flush & TLB_NEED_LOCAL_FLUSH) {
         tlb_flush(cs, 1);
+        env->tlb_need_flush &= ~TLB_NEED_LOCAL_FLUSH;
     }
 }
 #else

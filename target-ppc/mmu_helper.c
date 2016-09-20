@@ -1965,7 +1965,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
          * we just mark the TLB to be flushed later (context synchronizing
          * event or sync instruction on 32-bit).
          */
-        env->tlb_need_flush = 1;
+        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
         break;
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
@@ -1979,7 +1979,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
          *      and we still don't have a tlb_flush_mask(env, n, mask) in QEMU,
          *      we just invalidate all TLBs
          */
-        env->tlb_need_flush = 1;
+        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
         break;
 #endif /* defined(TARGET_PPC64) */
     default:
@@ -2065,7 +2065,7 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
             }
         }
 #else
-        env->tlb_need_flush = 1;
+        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
 #endif
     }
 }

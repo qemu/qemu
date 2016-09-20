@@ -110,7 +110,7 @@ void helper_slbia(CPUPPCState *env)
              *      and we still don't have a tlb_flush_mask(env, n, mask)
              *      in QEMU, we just invalidate all TLBs
              */
-            env->tlb_need_flush = 1;
+            env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
         }
     }
 }
@@ -132,7 +132,7 @@ void helper_slbie(CPUPPCState *env, target_ulong addr)
          *      and we still don't have a tlb_flush_mask(env, n, mask)
          *      in QEMU, we just invalidate all TLBs
          */
-        env->tlb_need_flush = 1;
+        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
     }
 }
 
