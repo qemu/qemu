@@ -877,7 +877,8 @@ typedef union X86LegacyXSaveArea {
 typedef struct X86XSaveHeader {
     uint64_t xstate_bv;
     uint64_t xcomp_bv;
-    uint8_t reserved[48];
+    uint64_t reserve0;
+    uint8_t reserved[40];
 } X86XSaveHeader;
 
 /* Ext. save area 2: AVX State */
@@ -1392,13 +1393,6 @@ int cpu_x86_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
 /* cpu.c */
-typedef struct ExtSaveArea {
-    uint32_t feature, bits;
-    uint32_t offset, size;
-} ExtSaveArea;
-
-extern const ExtSaveArea x86_ext_save_areas[];
-
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
                    uint32_t *ecx, uint32_t *edx);
