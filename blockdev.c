@@ -633,33 +633,10 @@ err_no_opts:
     return NULL;
 }
 
-static QemuOptsList qemu_root_bds_opts;
-
 /* Takes the ownership of bs_opts */
 static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
 {
-    BlockDriverState *bs;
-    QemuOpts *opts;
-    Error *local_error = NULL;
     int bdrv_flags = 0;
-
-    opts = qemu_opts_create(&qemu_root_bds_opts, NULL, 1, errp);
-    if (!opts) {
-        goto fail;
-    }
-
-    qemu_opts_absorb_qdict(opts, bs_opts, &local_error);
-    if (local_error) {
-        error_propagate(errp, local_error);
-        goto fail;
-    }
-
-    extract_common_blockdev_options(opts, &bdrv_flags, NULL, NULL,
-                                    NULL, &local_error);
-    if (local_error) {
-        error_propagate(errp, local_error);
-        goto fail;
-    }
 
     /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
      * with other callers) rather than what we want as the real defaults.
@@ -672,19 +649,7 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
         bdrv_flags |= BDRV_O_INACTIVE;
     }
 
-    bs = bdrv_open(NULL, NULL, bs_opts, bdrv_flags, errp);
-    if (!bs) {
-        goto fail_no_bs_opts;
-    }
-
-fail_no_bs_opts:
-    qemu_opts_del(opts);
-    return bs;
-
-fail:
-    qemu_opts_del(opts);
-    QDECREF(bs_opts);
-    return NULL;
+    return bdrv_open(NULL, NULL, bs_opts, bdrv_flags, errp);
 }
 
 void blockdev_close_all_bdrv_states(void)
@@ -4094,23 +4059,6 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "whether to account for failed I/O operations "
                     "in the statistics",
-        },
-        { /* end of list */ }
-    },
-};
-
-static QemuOptsList qemu_root_bds_opts = {
-    .name = "root-bds",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_root_bds_opts.head),
-    .desc = {
-        {
-            .name = "aio",
-            .type = QEMU_OPT_STRING,
-            .help = "host AIO implementation (threads, native)",
-        },{
-            .name = "copy-on-read",
-            .type = QEMU_OPT_BOOL,
-            .help = "copy read data from backing file into image file",
         },
         { /* end of list */ }
     },
