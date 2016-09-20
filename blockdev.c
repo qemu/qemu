@@ -2265,7 +2265,9 @@ exit:
     block_job_txn_unref(block_job_txn);
 }
 
-void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
+void qmp_eject(bool has_device, const char *device,
+               bool has_id, const char *id,
+               bool has_force, bool force, Error **errp)
 {
     Error *local_err = NULL;
     int rc;
@@ -2274,14 +2276,16 @@ void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
         force = false;
     }
 
-    rc = do_open_tray(device, NULL, force, &local_err);
+    rc = do_open_tray(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      force, &local_err);
     if (rc && rc != -ENOSYS) {
         error_propagate(errp, local_err);
         return;
     }
     error_free(local_err);
 
-    qmp_x_blockdev_remove_medium(true, device, false, NULL, errp);
+    qmp_x_blockdev_remove_medium(has_device, device, has_id, id, errp);
 }
 
 void qmp_block_passwd(bool has_device, const char *device,

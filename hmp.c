@@ -1376,7 +1376,7 @@ void hmp_eject(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
     Error *err = NULL;
 
-    qmp_eject(device, true, force, &err);
+    qmp_eject(true, device, false, NULL, true, force, &err);
     hmp_handle_error(mon, &err);
 }
 

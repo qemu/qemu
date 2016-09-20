@@ -1085,7 +1085,8 @@ QemuCocoaView *cocoaView;
     }
 
     Error *err = NULL;
-    qmp_eject([drive cStringUsingEncoding: NSASCIIStringEncoding], false, false, &err);
+    qmp_eject(true, [drive cStringUsingEncoding: NSASCIIStringEncoding],
+              false, NULL, false, false, &err);
     handleAnyDeviceErrors(err);
 }
 
