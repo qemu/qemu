@@ -201,7 +201,7 @@ static target_ulong h_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     switch (ret) {
     case REMOVE_SUCCESS:
-        check_tlb_flush(env);
+        check_tlb_flush(env, true);
         return H_SUCCESS;
 
     case REMOVE_NOT_FOUND:
@@ -282,7 +282,7 @@ static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         }
     }
  exit:
-    check_tlb_flush(env);
+    check_tlb_flush(env, true);
 
     return rc;
 }

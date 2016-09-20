@@ -154,7 +154,7 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static inline void check_tlb_flush(CPUPPCState *env)
+static inline void check_tlb_flush(CPUPPCState *env, bool global)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
     if (env->tlb_need_flush & TLB_NEED_LOCAL_FLUSH) {
@@ -163,7 +163,7 @@ static inline void check_tlb_flush(CPUPPCState *env)
     }
 }
 #else
-static inline void check_tlb_flush(CPUPPCState *env) { }
+static inline void check_tlb_flush(CPUPPCState *env, bool global) { }
 #endif
 
 #endif /* HELPER_REGS_H */
