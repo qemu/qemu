@@ -912,7 +912,7 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu,
      * invalidate, and we still don't have a tlb_flush_mask(env, n,
      * mask) in QEMU, we just invalidate all TLBs
      */
-    tlb_flush(CPU(cpu), 1);
+    cpu->env.tlb_need_flush = TLB_NEED_GLOBAL_FLUSH | TLB_NEED_LOCAL_FLUSH;
 }
 
 void ppc_hash64_update_rmls(CPUPPCState *env)

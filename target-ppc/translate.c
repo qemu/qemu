@@ -4441,6 +4441,7 @@ static void gen_tlbie(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     GEN_PRIV;
 #else
+    TCGv_i32 t1;
     CHK_HV;
 
     if (NARROW_MODE(ctx)) {
@@ -4451,6 +4452,11 @@ static void gen_tlbie(DisasContext *ctx)
     } else {
         gen_helper_tlbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
     }
+    t1 = tcg_temp_new_i32();
+    tcg_gen_ld_i32(t1, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
+    tcg_gen_ori_i32(t1, t1, TLB_NEED_GLOBAL_FLUSH);
+    tcg_gen_st_i32(t1, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
+    tcg_temp_free_i32(t1);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 

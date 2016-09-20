@@ -161,6 +161,23 @@ static inline void check_tlb_flush(CPUPPCState *env, bool global)
         tlb_flush(cs, 1);
         env->tlb_need_flush &= ~TLB_NEED_LOCAL_FLUSH;
     }
+
+    /* Propagate TLB invalidations to other CPUs when the guest uses broadcast
+     * TLB invalidation instructions.
+     */
+    if (global && (env->tlb_need_flush & TLB_NEED_GLOBAL_FLUSH)) {
+        CPUState *other_cs;
+        CPU_FOREACH(other_cs) {
+            if (other_cs != cs) {
+                PowerPCCPU *cpu = POWERPC_CPU(other_cs);
+                CPUPPCState *other_env = &cpu->env;
+
+                other_env->tlb_need_flush &= ~TLB_NEED_LOCAL_FLUSH;
+                tlb_flush(other_cs, 1);
+            }
+        }
+        env->tlb_need_flush &= ~TLB_NEED_GLOBAL_FLUSH;
+    }
 }
 #else
 static inline void check_tlb_flush(CPUPPCState *env, bool global) { }

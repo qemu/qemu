@@ -1010,6 +1010,7 @@ struct CPUPPCState {
     bool kvm_sw_tlb;  /* non-zero if KVM SW TLB API is active                */
     uint32_t tlb_need_flush; /* Delayed flush needed */
 #define TLB_NEED_LOCAL_FLUSH   0x1
+#define TLB_NEED_GLOBAL_FLUSH  0x2
 #endif
 
     /* Other registers */

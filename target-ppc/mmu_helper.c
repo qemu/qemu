@@ -2757,7 +2757,7 @@ static inline void booke206_invalidate_ea_tlb(CPUPPCState *env, int tlbn,
 
 void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUState *cs;
 
     if (address & 0x4) {
         /* flush all entries */
@@ -2774,11 +2774,15 @@ void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
     if (address & 0x8) {
         /* flush TLB1 entries */
         booke206_invalidate_ea_tlb(env, 1, address);
-        tlb_flush(CPU(cpu), 1);
+        CPU_FOREACH(cs) {
+            tlb_flush(cs, 1);
+        }
     } else {
         /* flush TLB0 entries */
         booke206_invalidate_ea_tlb(env, 0, address);
-        tlb_flush_page(CPU(cpu), address & MAS2_EPN_MASK);
+        CPU_FOREACH(cs) {
+            tlb_flush_page(cs, address & MAS2_EPN_MASK);
+        }
     }
 }
 
