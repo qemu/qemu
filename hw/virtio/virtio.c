@@ -1343,6 +1343,13 @@ static bool virtio_extra_state_needed(void *opaque)
         k->has_extra_state(qbus->parent);
 }
 
+static bool virtio_broken_needed(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+
+    return vdev->broken;
+}
+
 static const VMStateDescription vmstate_virtqueue = {
     .name = "virtqueue_state",
     .version_id = 1,
@@ -1457,6 +1464,17 @@ static const VMStateDescription vmstate_virtio_64bit_features = {
     }
 };
 
+static const VMStateDescription vmstate_virtio_broken = {
+    .name = "virtio/broken",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = &virtio_broken_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(broken, VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_virtio = {
     .name = "virtio",
     .version_id = 1,
@@ -1470,6 +1488,7 @@ static const VMStateDescription vmstate_virtio = {
         &vmstate_virtio_64bit_features,
         &vmstate_virtio_virtqueues,
         &vmstate_virtio_ringsize,
+        &vmstate_virtio_broken,
         &vmstate_virtio_extra_state,
         NULL
     }
