@@ -49,8 +49,8 @@ def transaction_bitmap_clear(node, name, **kwargs):
 
 
 def transaction_drive_backup(device, target, **kwargs):
-    return transaction_action('drive-backup', device=device, target=target,
-                              **kwargs)
+    return transaction_action('drive-backup', job_id=device, device=device,
+                              target=target, **kwargs)
 
 
 class Bitmap:
@@ -177,7 +177,8 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
     def create_anchor_backup(self, drive=None):
         if drive is None:
             drive = self.drives[-1]
-        res = self.do_qmp_backup(device=drive['id'], sync='full',
+        res = self.do_qmp_backup(job_id=drive['id'],
+                                 device=drive['id'], sync='full',
                                  format=drive['fmt'], target=drive['backup'])
         self.assertTrue(res)
         self.files.append(drive['backup'])
@@ -188,7 +189,8 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
         if bitmap is None:
             bitmap = self.bitmaps[-1]
         _, reference = bitmap.last_target()
-        res = self.do_qmp_backup(device=bitmap.drive['id'], sync='full',
+        res = self.do_qmp_backup(job_id=bitmap.drive['id'],
+                                 device=bitmap.drive['id'], sync='full',
                                  format=bitmap.drive['fmt'], target=reference)
         self.assertTrue(res)
 
@@ -221,7 +223,8 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
             parent, _ = bitmap.last_target()
 
         target = self.prepare_backup(bitmap, parent)
-        res = self.do_qmp_backup(device=bitmap.drive['id'],
+        res = self.do_qmp_backup(job_id=bitmap.drive['id'],
+                                 device=bitmap.drive['id'],
                                  sync='incremental', bitmap=bitmap.name,
                                  format=bitmap.drive['fmt'], target=target,
                                  mode='existing')
@@ -414,7 +417,7 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
 
         # Create a blkdebug interface to this img as 'drive1'
         result = self.vm.qmp('blockdev-add', options={
-            'id': drive1['id'],
+            'node-name': drive1['id'],
             'driver': drive1['fmt'],
             'file': {
                 'driver': 'blkdebug',
@@ -558,7 +561,7 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
 
         drive0 = self.drives[0]
         result = self.vm.qmp('blockdev-add', options={
-            'id': drive0['id'],
+            'node-name': drive0['id'],
             'driver': drive0['fmt'],
             'file': {
                 'driver': 'blkdebug',
