@@ -83,6 +83,8 @@ int main(int argc, char **argv)
                    "-cpu core2duo", "xlevel", 0x80000008);
     add_cpuid_test("x86/cpuid/phenom/xlevel",
                    "-cpu phenom", "xlevel", 0x8000001A);
+    add_cpuid_test("x86/cpuid/athlon/xlevel",
+                   "-cpu athlon", "xlevel", 0x80000008);
 
     /* If level is not large enough, it should increase automatically: */
     /* CPUID[6].EAX: */
@@ -112,6 +114,9 @@ int main(int argc, char **argv)
     /* CPUID[C000_0001].EDX: */
     add_cpuid_test("x86/cpuid/auto-xlevel2/phenom/xstore",
                    "-cpu phenom,+xstore", "xlevel2", 0xC0000001);
+    /* SVM needs CPUID[0x8000000A] */
+    add_cpuid_test("x86/cpuid/auto-xlevel/athlon/svm",
+                   "-cpu athlon,+svm", "xlevel", 0x8000000A);
 
 
     /* If level is already large enough, it shouldn't change: */
@@ -131,17 +136,17 @@ int main(int argc, char **argv)
 
     /* if xlevel is already large enough, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-xlevel/phenom/3dnow",
-                   "-cpu phenom,+3dnow,+sse4a,+invtsc,+npt",
+                   "-cpu phenom,+3dnow,+sse4a,+invtsc,+npt,+svm",
                    "xlevel", 0x8000001A);
     /* If xlevel is explicitly set, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/80000002",
-                   "-cpu 486,xlevel=0x80000002,+3dnow,+sse4a,+invtsc,+npt",
+                   "-cpu 486,xlevel=0x80000002,+3dnow,+sse4a,+invtsc,+npt,+svm",
                    "xlevel", 0x80000002);
     add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/8000001A",
-                   "-cpu 486,xlevel=0x8000001A,+3dnow,+sse4a,+invtsc,+npt",
+                   "-cpu 486,xlevel=0x8000001A,+3dnow,+sse4a,+invtsc,+npt,+svm",
                    "xlevel", 0x8000001A);
     add_cpuid_test("x86/cpuid/auto-xlevel/phenom/fixed/0",
-                   "-cpu 486,xlevel=0,+3dnow,+sse4a,+invtsc,+npt",
+                   "-cpu 486,xlevel=0,+3dnow,+sse4a,+invtsc,+npt,+svm",
                    "xlevel", 0);
 
     /* if xlevel2 is already large enough, it shouldn't change: */
@@ -156,7 +161,7 @@ int main(int argc, char **argv)
                    "-machine pc-i440fx-2.7 -cpu 486,+arat,+avx512vbmi,+xsaveopt",
                    "level", 1);
     add_cpuid_test("x86/cpuid/auto-xlevel/pc-2.7",
-                   "-machine pc-i440fx-2.7 -cpu 486,+3dnow,+sse4a,+invtsc,+npt",
+                   "-machine pc-i440fx-2.7 -cpu 486,+3dnow,+sse4a,+invtsc,+npt,+svm",
                    "xlevel", 0);
     add_cpuid_test("x86/cpuid/auto-xlevel2/pc-2.7",
                    "-machine pc-i440fx-2.7 -cpu 486,+xstore",
