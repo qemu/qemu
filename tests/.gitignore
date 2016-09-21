@@ -70,6 +70,7 @@ test-string-output-visitor
 test-thread-pool
 test-throttle
 test-timed-average
+test-uuid
 test-visitor-serialization
 test-vmstate
 test-write-threshold
