@@ -347,9 +347,9 @@ static int virtqueue_num_heads(VirtQueue *vq, unsigned int idx)
 
     /* Check it isn't doing very strange things with descriptor numbers. */
     if (num_heads > vq->vring.num) {
-        error_report("Guest moved used index from %u to %u",
+        virtio_error(vq->vdev, "Guest moved used index from %u to %u",
                      idx, vq->shadow_avail_idx);
-        exit(1);
+        return -EINVAL;
     }
     /* On success, callers read a descriptor at vq->last_avail_idx.
      * Make sure descriptor read does not bypass avail index read. */
@@ -417,7 +417,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
     idx = vq->last_avail_idx;
 
     total_bufs = in_total = out_total = 0;
-    while (virtqueue_num_heads(vq, idx)) {
+    while ((rc = virtqueue_num_heads(vq, idx)) > 0) {
         VirtIODevice *vdev = vq->vdev;
         unsigned int max, num_bufs, indirect = 0;
         VRingDesc desc;
@@ -478,6 +478,11 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
         else
             total_bufs++;
     }
+
+    if (rc < 0) {
+        goto err;
+    }
+
 done:
     if (in_bytes) {
         *in_bytes = in_total;
