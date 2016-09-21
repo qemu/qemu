@@ -377,28 +377,33 @@ static unsigned int virtqueue_get_head(VirtQueue *vq, unsigned int idx)
     return head;
 }
 
-static unsigned virtqueue_read_next_desc(VirtIODevice *vdev, VRingDesc *desc,
-                                         hwaddr desc_pa, unsigned int max)
-{
-    unsigned int next;
+enum {
+    VIRTQUEUE_READ_DESC_ERROR = -1,
+    VIRTQUEUE_READ_DESC_DONE = 0,   /* end of chain */
+    VIRTQUEUE_READ_DESC_MORE = 1,   /* more buffers in chain */
+};
 
+static int virtqueue_read_next_desc(VirtIODevice *vdev, VRingDesc *desc,
+                                    hwaddr desc_pa, unsigned int max,
+                                    unsigned int *next)
+{
     /* If this descriptor says it doesn't chain, we're done. */
     if (!(desc->flags & VRING_DESC_F_NEXT)) {
-        return max;
+        return VIRTQUEUE_READ_DESC_DONE;
     }
 
     /* Check they're not leading us off end of descriptors. */
-    next = desc->next;
+    *next = desc->next;
     /* Make sure compiler knows to grab that: we don't want it changing! */
     smp_wmb();
 
-    if (next >= max) {
-        error_report("Desc next is %u", next);
-        exit(1);
+    if (*next >= max) {
+        virtio_error(vdev, "Desc next is %u", *next);
+        return VIRTQUEUE_READ_DESC_ERROR;
     }
 
-    vring_desc_read(vdev, desc, desc_pa, next);
-    return next;
+    vring_desc_read(vdev, desc, desc_pa, *next);
+    return VIRTQUEUE_READ_DESC_MORE;
 }
 
 void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
@@ -407,6 +412,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
 {
     unsigned int idx;
     unsigned int total_bufs, in_total, out_total;
+    int rc;
 
     idx = vq->last_avail_idx;
 
@@ -459,7 +465,13 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
             if (in_total >= max_in_bytes && out_total >= max_out_bytes) {
                 goto done;
             }
-        } while ((i = virtqueue_read_next_desc(vdev, &desc, desc_pa, max)) != max);
+
+            rc = virtqueue_read_next_desc(vdev, &desc, desc_pa, max, &i);
+        } while (rc == VIRTQUEUE_READ_DESC_MORE);
+
+        if (rc == VIRTQUEUE_READ_DESC_ERROR) {
+            goto err;
+        }
 
         if (!indirect)
             total_bufs = num_bufs;
@@ -621,6 +633,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     hwaddr addr[VIRTQUEUE_MAX_SIZE];
     struct iovec iov[VIRTQUEUE_MAX_SIZE];
     VRingDesc desc;
+    int rc;
 
     if (unlikely(vdev->broken)) {
         return NULL;
@@ -688,7 +701,13 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
             virtio_error(vdev, "Looped descriptor");
             goto err_undo_map;
         }
-    } while ((i = virtqueue_read_next_desc(vdev, &desc, desc_pa, max)) != max);
+
+        rc = virtqueue_read_next_desc(vdev, &desc, desc_pa, max, &i);
+    } while (rc == VIRTQUEUE_READ_DESC_MORE);
+
+    if (rc == VIRTQUEUE_READ_DESC_ERROR) {
+        goto err_undo_map;
+    }
 
     /* Now copy what we have collected and mapped */
     elem = virtqueue_alloc_element(sz, out_num, in_num);
