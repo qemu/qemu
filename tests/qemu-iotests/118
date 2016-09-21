@@ -648,12 +648,8 @@ class TestBlockJobsAfterCycle(ChangeBaseClass):
         qemu_img('create', '-f', iotests.imgfmt, old_img, '1M')
 
         self.vm = iotests.VM()
+        self.vm.add_drive_raw("id=drive0,driver=null-co,if=none")
         self.vm.launch()
-
-        result = self.vm.qmp('blockdev-add',
-                             options={'id': 'drive0',
-                                      'driver': 'null-co'})
-        self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/inserted/image/format', 'null-co')
