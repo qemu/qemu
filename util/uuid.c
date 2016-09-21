@@ -61,12 +61,34 @@ char *qemu_uuid_unparse_strdup(const QemuUUID *uuid)
                            uu[13], uu[14], uu[15]);
 }
 
+static bool qemu_uuid_is_valid(const char *str)
+{
+    int i;
+
+    for (i = 0; i < strlen(str); i++) {
+        const char c = str[i];
+        if (i == 8 || i == 13 || i == 18 || i == 23) {
+            if (str[i] != '-') {
+                return false;
+            }
+        } else {
+            if ((c >= '0' && c <= '9') ||
+                (c >= 'A' && c <= 'F') ||
+                (c >= 'a' && c <= 'f')) {
+                continue;
+            }
+            return false;
+        }
+    }
+    return i == 36;
+}
+
 int qemu_uuid_parse(const char *str, QemuUUID *uuid)
 {
     unsigned char *uu = &uuid->data[0];
     int ret;
 
-    if (strlen(str) != 36) {
+    if (!qemu_uuid_is_valid(str)) {
         return -1;
     }
 
