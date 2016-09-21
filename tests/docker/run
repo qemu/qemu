@@ -57,13 +57,16 @@ cd "$QEMU_SRC/tests/docker"
 
 CMD="$QEMU_SRC/tests/docker/$@"
 
-if test -n "$DEBUG"; then
-    echo "* Prepared to run command:"
-    echo "  $CMD"
-    echo "* Hit Ctrl-D to continue, or type 'exit 1' to abort"
-    echo
-    $SHELL
+if test -z "$DEBUG"; then
+    exec $CMD
 fi
+
+# DEBUG workflow
+echo "* Prepared to run command:"
+echo "  $CMD"
+echo "* Hit Ctrl-D to continue, or type 'exit 1' to abort"
+echo
+$SHELL
 
 if "$CMD"; then
     exit 0
