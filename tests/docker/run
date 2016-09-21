@@ -40,6 +40,17 @@ for p in dtc pixman; do
     fi
 done
 
+if test -n "$SHOW_ENV"; then
+    if test -f /packages.txt; then
+        echo "Packages installed:"
+        cat /packages.txt
+        echo
+    fi
+    echo "Environment variables:"
+    env
+    echo
+fi
+
 export QEMU_SRC="$TEST_DIR/src"
 
 cd "$QEMU_SRC/tests/docker"
