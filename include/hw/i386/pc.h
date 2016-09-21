@@ -374,6 +374,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = TYPE_X86_CPU,\
         .property = "l3-cache",\
         .value    = "off",\
+    },\
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "full-cpuid-auto-level",\
+        .value    = "off",\
     },
 
 #define PC_COMPAT_2_6 \

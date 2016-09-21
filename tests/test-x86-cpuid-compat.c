@@ -85,19 +85,64 @@ int main(int argc, char **argv)
                    "-cpu phenom", "xlevel", 0x8000001A);
 
     /* If level is not large enough, it should increase automatically: */
+    /* CPUID[6].EAX: */
+    add_cpuid_test("x86/cpuid/auto-level/phenom/arat",
+                   "-cpu 486,+arat", "level", 6);
     /* CPUID[EAX=7,ECX=0].EBX: */
     add_cpuid_test("x86/cpuid/auto-level/phenom/fsgsbase",
                    "-cpu phenom,+fsgsbase", "level", 7);
+    /* CPUID[EAX=7,ECX=0].ECX: */
+    add_cpuid_test("x86/cpuid/auto-level/phenom/avx512vbmi",
+                   "-cpu phenom,+avx512vbmi", "level", 7);
+    /* CPUID[EAX=0xd,ECX=1].EAX: */
+    add_cpuid_test("x86/cpuid/auto-level/phenom/xsaveopt",
+                   "-cpu phenom,+xsaveopt", "level", 0xd);
+    /* CPUID[8000_0001].EDX: */
+    add_cpuid_test("x86/cpuid/auto-xlevel/486/3dnow",
+                   "-cpu 486,+3dnow", "xlevel", 0x80000001);
+    /* CPUID[8000_0001].ECX: */
+    add_cpuid_test("x86/cpuid/auto-xlevel/486/sse4a",
+                   "-cpu 486,+sse4a", "xlevel", 0x80000001);
+    /* CPUID[8000_0007].EDX: */
+    add_cpuid_test("x86/cpuid/auto-xlevel/486/invtsc",
+                   "-cpu 486,+invtsc", "xlevel", 0x80000007);
+    /* CPUID[8000_000A].EDX: */
+    add_cpuid_test("x86/cpuid/auto-xlevel/486/npt",
+                   "-cpu 486,+npt", "xlevel", 0x8000000A);
+    /* CPUID[C000_0001].EDX: */
+    add_cpuid_test("x86/cpuid/auto-xlevel2/phenom/xstore",
+                   "-cpu phenom,+xstore", "xlevel2", 0xC0000001);
+
 
     /* If level is already large enough, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-level/SandyBridge/multiple",
                    "-cpu SandyBridge,+arat,+fsgsbase,+avx512vbmi",
                    "level", 0xd);
+    /* If level is explicitly set, it shouldn't change: */
+    add_cpuid_test("x86/cpuid/auto-level/486/fixed/0xF",
+                   "-cpu 486,level=0xF,+arat,+fsgsbase,+avx512vbmi,+xsaveopt",
+                   "level", 0xF);
+    add_cpuid_test("x86/cpuid/auto-level/486/fixed/2",
+                   "-cpu 486,level=2,+arat,+fsgsbase,+avx512vbmi,+xsaveopt",
+                   "level", 2);
+    add_cpuid_test("x86/cpuid/auto-level/486/fixed/0",
+                   "-cpu 486,level=0,+arat,+fsgsbase,+avx512vbmi,+xsaveopt",
+                   "level", 0);
 
     /* if xlevel is already large enough, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-xlevel/phenom/3dnow",
                    "-cpu phenom,+3dnow,+sse4a,+invtsc,+npt",
                    "xlevel", 0x8000001A);
+    /* If xlevel is explicitly set, it shouldn't change: */
+    add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/80000002",
+                   "-cpu 486,xlevel=0x80000002,+3dnow,+sse4a,+invtsc,+npt",
+                   "xlevel", 0x80000002);
+    add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/8000001A",
+                   "-cpu 486,xlevel=0x8000001A,+3dnow,+sse4a,+invtsc,+npt",
+                   "xlevel", 0x8000001A);
+    add_cpuid_test("x86/cpuid/auto-xlevel/phenom/fixed/0",
+                   "-cpu 486,xlevel=0,+3dnow,+sse4a,+invtsc,+npt",
+                   "xlevel", 0);
 
     /* if xlevel2 is already large enough, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-xlevel2/486/fixed",
