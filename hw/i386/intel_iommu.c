@@ -27,6 +27,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/i386/pc.h"
+#include "hw/i386/apic-msidef.h"
 #include "hw/boards.h"
 #include "hw/i386/x86-iommu.h"
 #include "hw/pci-host/q35.h"
@@ -2209,6 +2210,8 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
         }
     } else {
         uint8_t vector = origin->data & 0xff;
+        uint8_t trigger_mode = (origin->data >> MSI_DATA_TRIGGER_SHIFT) & 0x1;
+
         VTD_DPRINTF(IR, "received IOAPIC interrupt");
         /* IOAPIC entry vector should be aligned with IRTE vector
          * (see vt-d spec 5.1.5.1). */
@@ -2217,6 +2220,15 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
                         "entry: %d, IRTE: %d, index: %d",
                         vector, irq.vector, index);
         }
+
+        /* The Trigger Mode field must match the Trigger Mode in the IRTE.
+         * (see vt-d spec 5.1.5.1). */
+        if (trigger_mode != irq.trigger_mode) {
+            VTD_DPRINTF(GENERAL, "IOAPIC trigger mode inconsistent: "
+                        "entry: %u, IRTE: %u, index: %d",
+                        trigger_mode, irq.trigger_mode, index);
+        }
+
     }
 
     /*
