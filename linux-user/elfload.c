@@ -741,8 +741,12 @@ static uint32_t get_elf_hwcap(void)
        Altivec/FP/SPE support.  Anything else is just a bonus.  */
 #define GET_FEATURE(flag, feature)                                      \
     do { if (cpu->env.insns_flags & flag) { features |= feature; } } while (0)
-#define GET_FEATURE2(flag, feature)                                      \
-    do { if (cpu->env.insns_flags2 & flag) { features |= feature; } } while (0)
+#define GET_FEATURE2(flags, feature) \
+    do { \
+        if ((cpu->env.insns_flags2 & flags) == flags) { \
+            features |= feature; \
+        } \
+    } while (0)
     GET_FEATURE(PPC_64B, QEMU_PPC_FEATURE_64);
     GET_FEATURE(PPC_FLOAT, QEMU_PPC_FEATURE_HAS_FPU);
     GET_FEATURE(PPC_ALTIVEC, QEMU_PPC_FEATURE_HAS_ALTIVEC);
