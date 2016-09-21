@@ -303,6 +303,10 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
 
     virtqueue_unmap_sg(vq, elem, len);
 
+    if (unlikely(vq->vdev->broken)) {
+        return;
+    }
+
     idx = (idx + vq->used_idx) % vq->vring.num;
 
     uelem.id = elem->index;
@@ -313,6 +317,12 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
 void virtqueue_flush(VirtQueue *vq, unsigned int count)
 {
     uint16_t old, new;
+
+    if (unlikely(vq->vdev->broken)) {
+        vq->inuse -= count;
+        return;
+    }
+
     /* Make sure buffer is written before we update index. */
     smp_wmb();
     trace_virtqueue_flush(vq, count);
@@ -583,6 +593,9 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     struct iovec iov[VIRTQUEUE_MAX_SIZE];
     VRingDesc desc;
 
+    if (unlikely(vdev->broken)) {
+        return NULL;
+    }
     if (virtio_queue_empty(vq)) {
         return NULL;
     }
@@ -747,6 +760,10 @@ static void virtio_notify_vector(VirtIODevice *vdev, uint16_t vector)
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
+    if (unlikely(vdev->broken)) {
+        return;
+    }
+
     if (k->notify) {
         k->notify(qbus->parent, vector);
     }
@@ -830,6 +847,7 @@ void virtio_reset(void *opaque)
         k->reset(vdev);
     }
 
+    vdev->broken = false;
     vdev->guest_features = 0;
     vdev->queue_sel = 0;
     vdev->status = 0;
@@ -1136,6 +1154,10 @@ static void virtio_queue_notify_vq(VirtQueue *vq)
 {
     if (vq->vring.desc && vq->handle_output) {
         VirtIODevice *vdev = vq->vdev;
+
+        if (unlikely(vdev->broken)) {
+            return;
+        }
 
         trace_virtio_queue_notify(vdev, vq - vdev->vq, vq);
         vq->handle_output(vdev, vq);
@@ -1758,6 +1780,7 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     vdev->config_vector = VIRTIO_NO_VECTOR;
     vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_QUEUE_MAX);
     vdev->vm_running = runstate_is_running();
+    vdev->broken = false;
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         vdev->vq[i].vector = VIRTIO_NO_VECTOR;
         vdev->vq[i].vdev = vdev;
@@ -1942,6 +1965,22 @@ void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name)
 {
     g_free(vdev->bus_name);
     vdev->bus_name = g_strdup(bus_name);
+}
+
+void GCC_FMT_ATTR(2, 3) virtio_error(VirtIODevice *vdev, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error_vreport(fmt, ap);
+    va_end(ap);
+
+    vdev->broken = true;
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+        virtio_set_status(vdev, vdev->status | VIRTIO_CONFIG_S_NEEDS_RESET);
+        virtio_notify_config(vdev);
+    }
 }
 
 static void virtio_device_realize(DeviceState *dev, Error **errp)
