@@ -416,7 +416,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
         unsigned int max, num_bufs, indirect = 0;
         VRingDesc desc;
         hwaddr desc_pa;
-        int i;
+        unsigned int i;
 
         max = vq->vring.num;
         num_bufs = total_bufs;
