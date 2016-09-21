@@ -484,30 +484,33 @@ int virtqueue_avail_bytes(VirtQueue *vq, unsigned int in_bytes,
     return in_bytes <= in_total && out_bytes <= out_total;
 }
 
-static void virtqueue_map_desc(unsigned int *p_num_sg, hwaddr *addr, struct iovec *iov,
+static bool virtqueue_map_desc(VirtIODevice *vdev, unsigned int *p_num_sg,
+                               hwaddr *addr, struct iovec *iov,
                                unsigned int max_num_sg, bool is_write,
                                hwaddr pa, size_t sz)
 {
+    bool ok = false;
     unsigned num_sg = *p_num_sg;
     assert(num_sg <= max_num_sg);
 
     if (!sz) {
-        error_report("virtio: zero sized buffers are not allowed");
-        exit(1);
+        virtio_error(vdev, "virtio: zero sized buffers are not allowed");
+        goto out;
     }
 
     while (sz) {
         hwaddr len = sz;
 
         if (num_sg == max_num_sg) {
-            error_report("virtio: too many write descriptors in indirect table");
-            exit(1);
+            virtio_error(vdev, "virtio: too many write descriptors in "
+                               "indirect table");
+            goto out;
         }
 
         iov[num_sg].iov_base = cpu_physical_memory_map(pa, &len, is_write);
         if (!iov[num_sg].iov_base) {
-            error_report("virtio: bogus descriptor or out of resources");
-            exit(1);
+            virtio_error(vdev, "virtio: bogus descriptor or out of resources");
+            goto out;
         }
 
         iov[num_sg].iov_len = len;
@@ -517,7 +520,28 @@ static void virtqueue_map_desc(unsigned int *p_num_sg, hwaddr *addr, struct iove
         pa += len;
         num_sg++;
     }
+    ok = true;
+
+out:
     *p_num_sg = num_sg;
+    return ok;
+}
+
+/* Only used by error code paths before we have a VirtQueueElement (therefore
+ * virtqueue_unmap_sg() can't be used).  Assumes buffers weren't written to
+ * yet.
+ */
+static void virtqueue_undo_map_desc(unsigned int out_num, unsigned int in_num,
+                                    struct iovec *iov)
+{
+    unsigned int i;
+
+    for (i = 0; i < out_num + in_num; i++) {
+        int is_write = i >= out_num;
+
+        cpu_physical_memory_unmap(iov->iov_base, iov->iov_len, is_write, 0);
+        iov++;
+    }
 }
 
 static void virtqueue_map_iovec(struct iovec *sg, hwaddr *addr,
@@ -609,8 +633,8 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     max = vq->vring.num;
 
     if (vq->inuse >= vq->vring.num) {
-        error_report("Virtqueue size exceeded");
-        exit(1);
+        virtio_error(vdev, "Virtqueue size exceeded");
+        return NULL;
     }
 
     i = head = virtqueue_get_head(vq, vq->last_avail_idx++);
@@ -621,8 +645,8 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     vring_desc_read(vdev, &desc, desc_pa, i);
     if (desc.flags & VRING_DESC_F_INDIRECT) {
         if (desc.len % sizeof(VRingDesc)) {
-            error_report("Invalid size for indirect buffer table");
-            exit(1);
+            virtio_error(vdev, "Invalid size for indirect buffer table");
+            return NULL;
         }
 
         /* loop over the indirect descriptor table */
@@ -634,22 +658,30 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
 
     /* Collect all the descriptors */
     do {
+        bool map_ok;
+
         if (desc.flags & VRING_DESC_F_WRITE) {
-            virtqueue_map_desc(&in_num, addr + out_num, iov + out_num,
-                               VIRTQUEUE_MAX_SIZE - out_num, true, desc.addr, desc.len);
+            map_ok = virtqueue_map_desc(vdev, &in_num, addr + out_num,
+                                        iov + out_num,
+                                        VIRTQUEUE_MAX_SIZE - out_num, true,
+                                        desc.addr, desc.len);
         } else {
             if (in_num) {
-                error_report("Incorrect order for descriptors");
-                exit(1);
+                virtio_error(vdev, "Incorrect order for descriptors");
+                goto err_undo_map;
             }
-            virtqueue_map_desc(&out_num, addr, iov,
-                               VIRTQUEUE_MAX_SIZE, false, desc.addr, desc.len);
+            map_ok = virtqueue_map_desc(vdev, &out_num, addr, iov,
+                                        VIRTQUEUE_MAX_SIZE, false,
+                                        desc.addr, desc.len);
+        }
+        if (!map_ok) {
+            goto err_undo_map;
         }
 
         /* If we've got too many, that implies a descriptor loop. */
         if ((in_num + out_num) > max) {
-            error_report("Looped descriptor");
-            exit(1);
+            virtio_error(vdev, "Looped descriptor");
+            goto err_undo_map;
         }
     } while ((i = virtqueue_read_next_desc(vdev, &desc, desc_pa, max)) != max);
 
@@ -669,6 +701,10 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
 
     trace_virtqueue_pop(vq, elem, elem->in_num, elem->out_num);
     return elem;
+
+err_undo_map:
+    virtqueue_undo_map_desc(out_num, in_num, iov);
+    return NULL;
 }
 
 /* Reading and writing a structure directly to QEMUFile is *awful*, but
