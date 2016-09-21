@@ -2407,7 +2407,7 @@ sub process {
 # we have e.g. CONFIG_LINUX and CONFIG_WIN32 for common cases
 # where they might be necessary.
 		if ($line =~ m@^.\s*\#\s*if.*\b__@) {
-			ERROR("architecture specific defines should be avoided\n" .  $herecurr);
+			WARN("architecture specific defines should be avoided\n" .  $herecurr);
 		}
 
 # Check that the storage class is at the beginning of a declaration
