@@ -28,7 +28,7 @@
 #include <sys/resource.h>
 #endif
 
-#if defined(CONFIG_UUID) && (defined(_WIN32) || defined RUSAGE_THREAD)
+#if (defined(_WIN32) || defined RUSAGE_THREAD)
 #define TEST_LUKS
 #else
 #undef TEST_LUKS
