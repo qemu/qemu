@@ -303,7 +303,8 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
         break;
     }
     case RTAS_SYSPARM_UUID:
-        ret = sysparm_st(buffer, length, qemu_uuid, (qemu_uuid_set ? 16 : 0));
+        ret = sysparm_st(buffer, length, (unsigned char *)&qemu_uuid,
+                         (qemu_uuid_set ? 16 : 0));
         break;
     default:
         ret = RTAS_OUT_NOT_SUPPORTED;

@@ -9,6 +9,7 @@
 #include "qemu/notify.h"
 #include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
+#include "qemu/uuid.h"
 #include "qom/object.h"
 
 /* vl.c */
@@ -16,7 +17,7 @@
 extern const char *bios_name;
 
 extern const char *qemu_name;
-extern uint8_t qemu_uuid[];
+extern QemuUUID qemu_uuid;
 extern bool qemu_uuid_set;
 
 bool runstate_check(RunState state);

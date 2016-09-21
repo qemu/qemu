@@ -80,7 +80,7 @@ static struct {
 
 static struct {
     const char *manufacturer, *product, *version, *serial, *sku, *family;
-    /* uuid is in qemu_uuid[] */
+    /* uuid is in qemu_uuid */
 } type1;
 
 static struct {
@@ -409,7 +409,7 @@ static void smbios_build_type_1_fields(void)
          * BIOS.
          */
         smbios_add_field(1, offsetof(struct smbios_type_1, uuid),
-                         qemu_uuid, 16);
+                         &qemu_uuid, 16);
     }
 }
 
@@ -484,9 +484,9 @@ static void smbios_build_type_0_table(void)
 /* Encode UUID from the big endian encoding described on RFC4122 to the wire
  * format specified by SMBIOS version 2.6.
  */
-static void smbios_encode_uuid(struct smbios_uuid *uuid, const uint8_t *buf)
+static void smbios_encode_uuid(struct smbios_uuid *uuid, QemuUUID *in)
 {
-    memcpy(uuid, buf, 16);
+    memcpy(uuid, &in, 16);
     if (smbios_uuid_encoded) {
         uuid->time_low = bswap32(uuid->time_low);
         uuid->time_mid = bswap16(uuid->time_mid);
@@ -503,7 +503,7 @@ static void smbios_build_type_1_table(void)
     SMBIOS_TABLE_SET_STR(1, version_str, type1.version);
     SMBIOS_TABLE_SET_STR(1, serial_number_str, type1.serial);
     if (qemu_uuid_set) {
-        smbios_encode_uuid(&t->uuid, qemu_uuid);
+        smbios_encode_uuid(&t->uuid, &qemu_uuid);
     } else {
         memset(&t->uuid, 0, 16);
     }
@@ -1002,7 +1002,7 @@ void smbios_entry_add(QemuOpts *opts)
 
             val = qemu_opt_get(opts, "uuid");
             if (val) {
-                if (qemu_uuid_parse(val, qemu_uuid) != 0) {
+                if (qemu_uuid_parse(val, &qemu_uuid) != 0) {
                     error_report("Invalid UUID");
                     exit(1);
                 }

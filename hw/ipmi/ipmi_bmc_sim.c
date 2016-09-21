@@ -1773,7 +1773,7 @@ static void ipmi_sim_realize(DeviceState *dev, Error **errp)
     ibs->acpi_power_state[1] = 0;
 
     if (qemu_uuid_set) {
-        memcpy(&ibs->uuid, qemu_uuid, 16);
+        memcpy(&ibs->uuid, &qemu_uuid, 16);
     } else {
         memset(&ibs->uuid, 0, 16);
     }
