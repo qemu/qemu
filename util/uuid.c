@@ -40,7 +40,7 @@ void qemu_uuid_generate(QemuUUID *uuid)
 
 int qemu_uuid_is_null(const QemuUUID *uu)
 {
-    QemuUUID null_uuid = { 0 };
+    static QemuUUID null_uuid;
     return memcmp(uu, &null_uuid, sizeof(QemuUUID)) == 0;
 }
 
