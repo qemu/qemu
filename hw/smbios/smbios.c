@@ -20,6 +20,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
+#include "qemu/uuid.h"
 #include "sysemu/cpus.h"
 #include "hw/smbios/smbios.h"
 #include "hw/loader.h"

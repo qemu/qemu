@@ -36,7 +36,7 @@
 #include "block/block_int.h"
 #include "block/scsi.h"
 #include "qemu/iov.h"
-#include "sysemu/sysemu.h"
+#include "qemu/uuid.h"
 #include "qmp-commands.h"
 #include "qapi/qmp/qstring.h"
 #include "crypto/secret.h"
