@@ -2844,7 +2844,7 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
 
     bs = bdrv_find_node(id);
     if (bs) {
-        qmp_x_blockdev_del(false, NULL, true, id, &local_err);
+        qmp_x_blockdev_del(id, &local_err);
         if (local_err) {
             error_report_err(local_err);
         }
@@ -3827,7 +3827,6 @@ out:
 void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 {
     BlockDriverState *bs;
-    BlockBackend *blk = NULL;
     QObject *obj;
     Visitor *v = qmp_output_visitor_new(&obj);
     QDict *qdict;
@@ -3859,37 +3858,21 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    if (options->has_id) {
-        blk = blockdev_init(NULL, qdict, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            goto fail;
-        }
-
-        bs = blk_bs(blk);
-    } else {
-        if (!qdict_get_try_str(qdict, "node-name")) {
-            error_setg(errp, "'id' and/or 'node-name' need to be specified for "
-                       "the root node");
-            goto fail;
-        }
-
-        bs = bds_tree_init(qdict, errp);
-        if (!bs) {
-            goto fail;
-        }
-
-        QTAILQ_INSERT_TAIL(&monitor_bdrv_states, bs, monitor_list);
+    if (!qdict_get_try_str(qdict, "node-name")) {
+        error_setg(errp, "'node-name' must be specified for the root node");
+        goto fail;
     }
 
+    bs = bds_tree_init(qdict, errp);
+    if (!bs) {
+        goto fail;
+    }
+
+    QTAILQ_INSERT_TAIL(&monitor_bdrv_states, bs, monitor_list);
+
     if (bs && bdrv_key_required(bs)) {
-        if (blk) {
-            monitor_remove_blk(blk);
-            blk_unref(blk);
-        } else {
-            QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
-            bdrv_unref(bs);
-        }
+        QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
+        bdrv_unref(bs);
         error_setg(errp, "blockdev-add doesn't support encrypted devices");
         goto fail;
     }
@@ -3898,80 +3881,41 @@ fail:
     visit_free(v);
 }
 
-void qmp_x_blockdev_del(bool has_id, const char *id,
-                        bool has_node_name, const char *node_name, Error **errp)
+void qmp_x_blockdev_del(const char *node_name, Error **errp)
 {
     AioContext *aio_context;
-    BlockBackend *blk;
     BlockDriverState *bs;
 
-    if (has_id && has_node_name) {
-        error_setg(errp, "Only one of id and node-name must be specified");
-        return;
-    } else if (!has_id && !has_node_name) {
-        error_setg(errp, "No block device specified");
+    bs = bdrv_find_node(node_name);
+    if (!bs) {
+        error_setg(errp, "Cannot find node %s", node_name);
         return;
     }
-
-    if (has_id) {
-        /* blk_by_name() never returns a BB that is not owned by the monitor */
-        blk = blk_by_name(id);
-        if (!blk) {
-            error_setg(errp, "Cannot find block backend %s", id);
-            return;
-        }
-        if (blk_legacy_dinfo(blk)) {
-            error_setg(errp, "Deleting block backend added with drive-add"
-                       " is not supported");
-            return;
-        }
-        if (blk_get_refcnt(blk) > 1) {
-            error_setg(errp, "Block backend %s is in use", id);
-            return;
-        }
-        bs = blk_bs(blk);
-        aio_context = blk_get_aio_context(blk);
-    } else {
-        blk = NULL;
-        bs = bdrv_find_node(node_name);
-        if (!bs) {
-            error_setg(errp, "Cannot find node %s", node_name);
-            return;
-        }
-        if (bdrv_has_blk(bs)) {
-            error_setg(errp, "Node %s is in use", node_name);
-            return;
-        }
-        aio_context = bdrv_get_aio_context(bs);
+    if (bdrv_has_blk(bs)) {
+        error_setg(errp, "Node %s is in use", node_name);
+        return;
     }
-
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (bs) {
-        if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, errp)) {
-            goto out;
-        }
-
-        if (!blk && !QTAILQ_IN_USE(bs, monitor_list)) {
-            error_setg(errp, "Node %s is not owned by the monitor",
-                       bs->node_name);
-            goto out;
-        }
-
-        if (bs->refcnt > 1) {
-            error_setg(errp, "Block device %s is in use",
-                       bdrv_get_device_or_node_name(bs));
-            goto out;
-        }
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, errp)) {
+        goto out;
     }
 
-    if (blk) {
-        monitor_remove_blk(blk);
-        blk_unref(blk);
-    } else {
-        QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
-        bdrv_unref(bs);
+    if (!bs->monitor_list.tqe_prev) {
+        error_setg(errp, "Node %s is not owned by the monitor",
+                   bs->node_name);
+        goto out;
     }
+
+    if (bs->refcnt > 1) {
+        error_setg(errp, "Block device %s is in use",
+                   bdrv_get_device_or_node_name(bs));
+        goto out;
+    }
+
+    QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
+    bdrv_unref(bs);
 
 out:
     aio_context_release(aio_context);

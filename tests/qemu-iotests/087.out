@@ -6,7 +6,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Testing:
 QMP_VERSION
 {"return": {}}
-{"error": {"class": "GenericError", "desc": "'id' and/or 'node-name' need to be specified for the root node"}}
+{"error": {"class": "GenericError", "desc": "'node-name' must be specified for the root node"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 
