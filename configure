@@ -317,7 +317,6 @@ vte=""
 virglrenderer=""
 tpm="yes"
 libssh2=""
-vhdx=""
 numa=""
 tcmalloc="no"
 jemalloc="no"
@@ -1103,6 +1102,9 @@ for opt do
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
       echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
   ;;
+  --enable-vhdx|--disable-vhdx)
+      echo "$0: $opt is obsolete, VHDX driver is always built" >&2
+  ;;
   --disable-gtk) gtk="no"
   ;;
   --enable-gtk) gtk="yes"
@@ -1142,10 +1144,6 @@ for opt do
   --disable-libssh2) libssh2="no"
   ;;
   --enable-libssh2) libssh2="yes"
-  ;;
-  --enable-vhdx) vhdx="yes"
-  ;;
-  --disable-vhdx) vhdx="no"
   ;;
   --disable-numa) numa="no"
   ;;
@@ -1389,7 +1387,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   archipelago     Archipelago backend
   tpm             TPM support
   libssh2         ssh block device support
-  vhdx            support for the Microsoft VHDX image format
   numa            libnuma support
   tcmalloc        tcmalloc support
   jemalloc        jemalloc support
@@ -2690,19 +2687,6 @@ EOF
   fi
 fi
 
-if test "$vhdx" = "yes" ; then
-    if test "$uuid" = "no" ; then
-        error_exit "uuid required for VHDX support"
-    fi
-elif test "$vhdx" != "no" ; then
-    if test "$uuid" = "yes" ; then
-        vhdx=yes
-    else
-        vhdx=no
-    fi
-fi
-
-##########################################
 # xfsctl() probe, used for raw-posix
 if test "$xfs" != "no" ; then
   cat > $TMPC << EOF
@@ -4917,7 +4901,6 @@ echo "TPM support       $tpm"
 echo "libssh2 support   $libssh2"
 echo "TPM passthrough   $tpm_passthrough"
 echo "QOM debugging     $qom_cast_debug"
-echo "vhdx              $vhdx"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
@@ -5441,10 +5424,6 @@ if test "$libssh2" = "yes" ; then
   echo "CONFIG_LIBSSH2=m" >> $config_host_mak
   echo "LIBSSH2_CFLAGS=$libssh2_cflags" >> $config_host_mak
   echo "LIBSSH2_LIBS=$libssh2_libs" >> $config_host_mak
-fi
-
-if test "$vhdx" = "yes" ; then
-  echo "CONFIG_VHDX=y" >> $config_host_mak
 fi
 
 # USB host support

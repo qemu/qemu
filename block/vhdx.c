@@ -25,8 +25,7 @@
 #include "qemu/bswap.h"
 #include "block/vhdx.h"
 #include "migration/migration.h"
-
-#include <uuid/uuid.h>
+#include "qemu/uuid.h"
 
 /* Options for VHDX creation */
 
@@ -213,11 +212,11 @@ bool vhdx_checksum_is_valid(uint8_t *buf, size_t size, int crc_offset)
  */
 void vhdx_guid_generate(MSGUID *guid)
 {
-    uuid_t uuid;
+    QemuUUID uuid;
     assert(guid != NULL);
 
-    uuid_generate(uuid);
-    memcpy(guid, uuid, sizeof(MSGUID));
+    qemu_uuid_generate(&uuid);
+    memcpy(guid, &uuid, sizeof(MSGUID));
 }
 
 /* Check for region overlaps inside the VHDX image */
