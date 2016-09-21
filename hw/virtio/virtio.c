@@ -426,14 +426,14 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
 
         if (desc.flags & VRING_DESC_F_INDIRECT) {
             if (desc.len % sizeof(VRingDesc)) {
-                error_report("Invalid size for indirect buffer table");
-                exit(1);
+                virtio_error(vdev, "Invalid size for indirect buffer table");
+                goto err;
             }
 
             /* If we've got too many, that implies a descriptor loop. */
             if (num_bufs >= max) {
-                error_report("Looped descriptor");
-                exit(1);
+                virtio_error(vdev, "Looped descriptor");
+                goto err;
             }
 
             /* loop over the indirect descriptor table */
@@ -447,8 +447,8 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
         do {
             /* If we've got too many, that implies a descriptor loop. */
             if (++num_bufs > max) {
-                error_report("Looped descriptor");
-                exit(1);
+                virtio_error(vdev, "Looped descriptor");
+                goto err;
             }
 
             if (desc.flags & VRING_DESC_F_WRITE) {
@@ -473,6 +473,11 @@ done:
     if (out_bytes) {
         *out_bytes = out_total;
     }
+    return;
+
+err:
+    in_total = out_total = 0;
+    goto done;
 }
 
 int virtqueue_avail_bytes(VirtQueue *vq, unsigned int in_bytes,
