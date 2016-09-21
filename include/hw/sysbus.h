@@ -75,7 +75,7 @@ struct SysBusDevice {
     uint32_t pio[QDEV_MAX_PIO];
 };
 
-typedef int FindSysbusDeviceFunc(SysBusDevice *sbdev, void *opaque);
+typedef void FindSysbusDeviceFunc(SysBusDevice *sbdev, void *opaque);
 
 void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory);
 MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n);

@@ -332,7 +332,7 @@ static bool machine_get_enforce_config_section(Object *obj, Error **errp)
     return ms->enforce_config_section;
 }
 
-static int error_on_sysbus_device(SysBusDevice *sbdev, void *opaque)
+static void error_on_sysbus_device(SysBusDevice *sbdev, void *opaque)
 {
     error_report("Option '-device %s' cannot be handled by this machine",
                  object_class_get_name(object_get_class(OBJECT(sbdev))));
