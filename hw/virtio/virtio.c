@@ -1613,7 +1613,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
                          "inconsistent with Host index 0x%x",
                          i, vdev->vq[i].last_avail_idx);
                 return -1;
-	}
+        }
         if (k->load_queue) {
             ret = k->load_queue(qbus->parent, i, f);
             if (ret)
