@@ -118,7 +118,7 @@ run_qemu <<EOF
     "arguments": {
         "options": {
             "driver": "$IMGFMT",
-            "id": "drive0-debug",
+            "node-name": "drive0-debug",
             "file": {
                 "driver": "blkdebug",
                 "image": "drive0",
@@ -159,7 +159,7 @@ run_qemu <<EOF
     "arguments": {
         "options": {
             "driver": "blkverify",
-            "id": "drive0-verify",
+            "node-name": "drive0-verify",
             "test": "drive0",
             "raw": {
                 "driver": "file",
@@ -195,7 +195,7 @@ run_qemu <<EOF
     "arguments": {
         "options": {
             "driver": "blkverify",
-            "id": "drive0-verify",
+            "node-name": "drive0-verify",
             "test": {
                 "driver": "$IMGFMT",
                 "file": {
@@ -234,7 +234,7 @@ run_qemu <<EOF
     "arguments": {
         "options": {
             "driver": "$IMGFMT",
-            "id": "drive0-debug",
+            "node-name": "drive0-debug",
             "file": {
                 "driver": "blkdebug",
                 "image": "drive0",
