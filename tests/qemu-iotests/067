@@ -121,7 +121,7 @@ run_qemu <<EOF
   "arguments": {
       "options": {
         "driver": "$IMGFMT",
-        "id": "disk",
+        "node-name": "disk",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -129,13 +129,13 @@ run_qemu <<EOF
       }
     }
   }
-{ "execute": "query-block" }
+{ "execute": "query-named-block-nodes" }
 { "execute": "device_add",
    "arguments": { "driver": "virtio-blk", "drive": "disk",
                   "id": "virtio0" } }
 { "execute": "device_del", "arguments": { "id": "virtio0" } }
 { "execute": "system_reset" }
-{ "execute": "query-block" }
+{ "execute": "query-named-block-nodes" }
 { "execute": "quit" }
 EOF
 
