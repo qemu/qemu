@@ -65,6 +65,7 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(prctl), 245 },
     { SCMP_SYS(signalfd), 245 },
     { SCMP_SYS(getrlimit), 245 },
+    { SCMP_SYS(getrusage), 245 },
     { SCMP_SYS(set_tid_address), 245 },
     { SCMP_SYS(statfs), 245 },
     { SCMP_SYS(unlink), 245 },
