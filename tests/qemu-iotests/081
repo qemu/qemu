@@ -119,7 +119,7 @@ run_qemu <<EOF
     "arguments": {
         "options": {
             "driver": "quorum",
-            "id": "drive0-quorum",
+            "node-name": "drive0-quorum",
             "vote-threshold": 2,
             "children": [
                 {
