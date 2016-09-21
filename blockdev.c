@@ -1803,8 +1803,7 @@ static void external_snapshot_prepare(BlkActionState *common,
     }
 
     if (bdrv_has_blk(state->new_bs)) {
-        error_setg(errp, "The snapshot is already in use by %s",
-                   bdrv_get_parent_name(state->new_bs));
+        error_setg(errp, "The snapshot is already in use");
         return;
     }
 
@@ -2532,8 +2531,7 @@ void qmp_x_blockdev_insert_medium(bool has_device, const char *device,
     }
 
     if (bdrv_has_blk(bs)) {
-        error_setg(errp, "Node '%s' is already in use by '%s'", node_name,
-                   bdrv_get_parent_name(bs));
+        error_setg(errp, "Node '%s' is already in use", node_name);
         return;
     }
 
@@ -3941,8 +3939,7 @@ void qmp_x_blockdev_del(bool has_id, const char *id,
             return;
         }
         if (bdrv_has_blk(bs)) {
-            error_setg(errp, "Node %s is in use by %s",
-                       node_name, bdrv_get_parent_name(bs));
+            error_setg(errp, "Node %s is in use", node_name);
             return;
         }
         aio_context = bdrv_get_aio_context(bs);
