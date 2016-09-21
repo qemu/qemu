@@ -1342,6 +1342,13 @@ F: include/qemu/throttle.h
 F: util/throttle.c
 L: qemu-block@nongnu.org
 
+UUID
+M: Fam Zheng <famz@redhat.com>
+S: Supported
+F: util/uuid.c
+F: include/qemu/uuid.h
+F: tests/test-uuid.c
+
 Usermode Emulation
 ------------------
 Overall
