@@ -1,4 +1,4 @@
-FROM fedora:23
+FROM fedora:latest
 ENV PACKAGES \
     ccache git tar PyYAML sparse flex bison \
     glib2-devel pixman-devel zlib-devel SDL-devel libfdt-devel \
