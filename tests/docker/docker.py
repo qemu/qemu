@@ -21,6 +21,7 @@ import uuid
 import argparse
 import tempfile
 import re
+import signal
 from tarfile import TarFile, TarInfo
 from StringIO import StringIO
 from shutil import copy, rmtree
@@ -101,6 +102,8 @@ class Docker(object):
         self._command = _guess_docker_command()
         self._instances = []
         atexit.register(self._kill_instances)
+        signal.signal(signal.SIGTERM, self._kill_instances)
+        signal.signal(signal.SIGHUP, self._kill_instances)
 
     def _do(self, cmd, quiet=True, infile=None, **kwargs):
         if quiet:
@@ -133,7 +136,7 @@ class Docker(object):
         self._do_kill_instances(False, False)
         return 0
 
-    def _kill_instances(self):
+    def _kill_instances(self, *args, **kwargs):
         return self._do_kill_instances(True)
 
     def _output(self, cmd, **kwargs):
