@@ -1183,8 +1183,9 @@ Human Monitor (HMP)
 M: Luiz Capitulino <lcapitulino@redhat.com>
 S: Maintained
 F: monitor.c
-F: hmp.c
-F: hmp-commands.hx
+F: hmp.[ch]
+F: hmp-commands*.hx
+F: include/monitor/hmp-target.h
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 Network device backends
