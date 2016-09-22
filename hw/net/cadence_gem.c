@@ -27,6 +27,7 @@
 
 #include "hw/net/cadence_gem.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "net/checksum.h"
 
 #ifdef CADENCE_GEM_ERR_DEBUG
@@ -141,6 +142,37 @@
 #define GEM_DESCONF5      (0x00000290/4)
 #define GEM_DESCONF6      (0x00000294/4)
 #define GEM_DESCONF7      (0x00000298/4)
+
+#define GEM_SCREENING_TYPE1_REGISTER_0  (0x00000500 / 4)
+
+#define GEM_ST1R_UDP_PORT_MATCH_ENABLE  (1 << 29)
+#define GEM_ST1R_DSTC_ENABLE            (1 << 28)
+#define GEM_ST1R_UDP_PORT_MATCH_SHIFT   (12)
+#define GEM_ST1R_UDP_PORT_MATCH_WIDTH   (27 - GEM_ST1R_UDP_PORT_MATCH_SHIFT + 1)
+#define GEM_ST1R_DSTC_MATCH_SHIFT       (4)
+#define GEM_ST1R_DSTC_MATCH_WIDTH       (11 - GEM_ST1R_DSTC_MATCH_SHIFT + 1)
+#define GEM_ST1R_QUEUE_SHIFT            (0)
+#define GEM_ST1R_QUEUE_WIDTH            (3 - GEM_ST1R_QUEUE_SHIFT + 1)
+
+#define GEM_SCREENING_TYPE2_REGISTER_0  (0x00000540 / 4)
+
+#define GEM_ST2R_COMPARE_A_ENABLE       (1 << 18)
+#define GEM_ST2R_COMPARE_A_SHIFT        (13)
+#define GEM_ST2R_COMPARE_WIDTH          (17 - GEM_ST2R_COMPARE_A_SHIFT + 1)
+#define GEM_ST2R_ETHERTYPE_ENABLE       (1 << 12)
+#define GEM_ST2R_ETHERTYPE_INDEX_SHIFT  (9)
+#define GEM_ST2R_ETHERTYPE_INDEX_WIDTH  (11 - GEM_ST2R_ETHERTYPE_INDEX_SHIFT \
+                                            + 1)
+#define GEM_ST2R_QUEUE_SHIFT            (0)
+#define GEM_ST2R_QUEUE_WIDTH            (3 - GEM_ST2R_QUEUE_SHIFT + 1)
+
+#define GEM_SCREENING_TYPE2_ETHERTYPE_REG_0     (0x000006e0 / 4)
+#define GEM_TYPE2_COMPARE_0_WORD_0              (0x00000700 / 4)
+
+#define GEM_T2CW1_COMPARE_OFFSET_SHIFT  (7)
+#define GEM_T2CW1_COMPARE_OFFSET_WIDTH  (8 - GEM_T2CW1_COMPARE_OFFSET_SHIFT + 1)
+#define GEM_T2CW1_OFFSET_VALUE_SHIFT    (0)
+#define GEM_T2CW1_OFFSET_VALUE_WIDTH    (6 - GEM_T2CW1_OFFSET_VALUE_SHIFT + 1)
 
 /*****************************************/
 #define GEM_NWCTRL_TXSTART     0x00000200 /* Transmit Enable */
@@ -602,6 +634,126 @@ static int gem_mac_address_filter(CadenceGEMState *s, const uint8_t *packet)
     return GEM_RX_REJECT;
 }
 
+/* Figure out which queue the received data should be sent to */
+static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
+                                 unsigned rxbufsize)
+{
+    uint32_t reg;
+    bool matched, mismatched;
+    int i, j;
+
+    for (i = 0; i < s->num_type1_screeners; i++) {
+        reg = s->regs[GEM_SCREENING_TYPE1_REGISTER_0 + i];
+        matched = false;
+        mismatched = false;
+
+        /* Screening is based on UDP Port */
+        if (reg & GEM_ST1R_UDP_PORT_MATCH_ENABLE) {
+            uint16_t udp_port = rxbuf_ptr[14 + 22] << 8 | rxbuf_ptr[14 + 23];
+            if (udp_port == extract32(reg, GEM_ST1R_UDP_PORT_MATCH_SHIFT,
+                                           GEM_ST1R_UDP_PORT_MATCH_WIDTH)) {
+                matched = true;
+            } else {
+                mismatched = true;
+            }
+        }
+
+        /* Screening is based on DS/TC */
+        if (reg & GEM_ST1R_DSTC_ENABLE) {
+            uint8_t dscp = rxbuf_ptr[14 + 1];
+            if (dscp == extract32(reg, GEM_ST1R_DSTC_MATCH_SHIFT,
+                                       GEM_ST1R_DSTC_MATCH_WIDTH)) {
+                matched = true;
+            } else {
+                mismatched = true;
+            }
+        }
+
+        if (matched && !mismatched) {
+            return extract32(reg, GEM_ST1R_QUEUE_SHIFT, GEM_ST1R_QUEUE_WIDTH);
+        }
+    }
+
+    for (i = 0; i < s->num_type2_screeners; i++) {
+        reg = s->regs[GEM_SCREENING_TYPE2_REGISTER_0 + i];
+        matched = false;
+        mismatched = false;
+
+        if (reg & GEM_ST2R_ETHERTYPE_ENABLE) {
+            uint16_t type = rxbuf_ptr[12] << 8 | rxbuf_ptr[13];
+            int et_idx = extract32(reg, GEM_ST2R_ETHERTYPE_INDEX_SHIFT,
+                                        GEM_ST2R_ETHERTYPE_INDEX_WIDTH);
+
+            if (et_idx > s->num_type2_screeners) {
+                qemu_log_mask(LOG_GUEST_ERROR, "Out of range ethertype "
+                              "register index: %d\n", et_idx);
+            }
+            if (type == s->regs[GEM_SCREENING_TYPE2_ETHERTYPE_REG_0 +
+                                et_idx]) {
+                matched = true;
+            } else {
+                mismatched = true;
+            }
+        }
+
+        /* Compare A, B, C */
+        for (j = 0; j < 3; j++) {
+            uint32_t cr0, cr1, mask;
+            uint16_t rx_cmp;
+            int offset;
+            int cr_idx = extract32(reg, GEM_ST2R_COMPARE_A_SHIFT + j * 6,
+                                        GEM_ST2R_COMPARE_WIDTH);
+
+            if (!(reg & (GEM_ST2R_COMPARE_A_ENABLE << (j * 6)))) {
+                continue;
+            }
+            if (cr_idx > s->num_type2_screeners) {
+                qemu_log_mask(LOG_GUEST_ERROR, "Out of range compare "
+                              "register index: %d\n", cr_idx);
+            }
+
+            cr0 = s->regs[GEM_TYPE2_COMPARE_0_WORD_0 + cr_idx * 2];
+            cr1 = s->regs[GEM_TYPE2_COMPARE_0_WORD_0 + cr_idx * 2 + 1];
+            offset = extract32(cr1, GEM_T2CW1_OFFSET_VALUE_SHIFT,
+                                    GEM_T2CW1_OFFSET_VALUE_WIDTH);
+
+            switch (extract32(cr1, GEM_T2CW1_COMPARE_OFFSET_SHIFT,
+                                   GEM_T2CW1_COMPARE_OFFSET_WIDTH)) {
+            case 3: /* Skip UDP header */
+                qemu_log_mask(LOG_UNIMP, "TCP compare offsets"
+                              "unimplemented - assuming UDP\n");
+                offset += 8;
+                /* Fallthrough */
+            case 2: /* skip the IP header */
+                offset += 20;
+                /* Fallthrough */
+            case 1: /* Count from after the ethertype */
+                offset += 14;
+                break;
+            case 0:
+                /* Offset from start of frame */
+                break;
+            }
+
+            rx_cmp = rxbuf_ptr[offset] << 8 | rxbuf_ptr[offset];
+            mask = extract32(cr0, 0, 16);
+
+            if ((rx_cmp & mask) == (extract32(cr0, 16, 16) & mask)) {
+                matched = true;
+            } else {
+                mismatched = true;
+            }
+        }
+
+        if (matched && !mismatched) {
+            return extract32(reg, GEM_ST2R_QUEUE_SHIFT, GEM_ST2R_QUEUE_WIDTH);
+        }
+    }
+
+    /* We made it here, assume it's queue 0 */
+    return 0;
+}
+
 static void gem_get_rx_desc(CadenceGEMState *s)
 {
     DB_PRINT("read descriptor 0x%x\n", (unsigned)s->rx_desc_addr[0]);
@@ -711,6 +863,9 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     }
 
     DB_PRINT("config bufsize: %d packet size: %ld\n", rxbufsize, size);
+
+    /* Find which queue we are targetting */
+    q = get_queue_from_screen(s, rxbuf_ptr, rxbufsize);
 
     while (bytes_to_copy) {
         /* Do nothing if receive is not enabled. */
@@ -1228,6 +1383,14 @@ static void gem_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Invalid num-priority-queues value: %" PRIx8,
                    s->num_priority_queues);
         return;
+    } else if (s->num_type1_screeners > MAX_TYPE1_SCREENERS) {
+        error_setg(errp, "Invalid num-type1-screeners value: %" PRIx8,
+                   s->num_type1_screeners);
+        return;
+    } else if (s->num_type2_screeners > MAX_TYPE2_SCREENERS) {
+        error_setg(errp, "Invalid num-type2-screeners value: %" PRIx8,
+                   s->num_type2_screeners);
+        return;
     }
 
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[0]);
@@ -1254,8 +1417,8 @@ static void gem_init(Object *obj)
 
 static const VMStateDescription vmstate_cadence_gem = {
     .name = "cadence_gem",
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, CadenceGEMState, CADENCE_GEM_MAXREG),
         VMSTATE_UINT16_ARRAY(phy_regs, CadenceGEMState, 32),
@@ -1273,6 +1436,10 @@ static Property gem_properties[] = {
     DEFINE_NIC_PROPERTIES(CadenceGEMState, conf),
     DEFINE_PROP_UINT8("num-priority-queues", CadenceGEMState,
                       num_priority_queues, 1),
+    DEFINE_PROP_UINT8("num-type1-screeners", CadenceGEMState,
+                      num_type1_screeners, 4),
+    DEFINE_PROP_UINT8("num-type2-screeners", CadenceGEMState,
+                      num_type2_screeners, 4),
     DEFINE_PROP_END_OF_LIST(),
 };
 
