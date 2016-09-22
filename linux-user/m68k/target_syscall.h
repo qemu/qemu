@@ -24,6 +24,8 @@ struct target_pt_regs {
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
 
+#define TARGET_WANT_OLD_SYS_SELECT
+
 void do_m68k_simcall(CPUM68KState *, int);
 
 #endif /* M68K_TARGET_SYSCALL_H */

@@ -154,6 +154,100 @@ print_signal(abi_ulong arg, int last)
     gemu_log("%s%s", signal_name, get_comma(last));
 }
 
+static void print_si_code(int arg)
+{
+    const char *codename = NULL;
+
+    switch (arg) {
+    case SI_USER:
+        codename = "SI_USER";
+        break;
+    case SI_KERNEL:
+        codename = "SI_KERNEL";
+        break;
+    case SI_QUEUE:
+        codename = "SI_QUEUE";
+        break;
+    case SI_TIMER:
+        codename = "SI_TIMER";
+        break;
+    case SI_MESGQ:
+        codename = "SI_MESGQ";
+        break;
+    case SI_ASYNCIO:
+        codename = "SI_ASYNCIO";
+        break;
+    case SI_SIGIO:
+        codename = "SI_SIGIO";
+        break;
+    case SI_TKILL:
+        codename = "SI_TKILL";
+        break;
+    default:
+        gemu_log("%d", arg);
+        return;
+    }
+    gemu_log("%s", codename);
+}
+
+static void print_siginfo(const target_siginfo_t *tinfo)
+{
+    /* Print a target_siginfo_t in the format desired for printing
+     * signals being taken. We assume the target_siginfo_t is in the
+     * internal form where the top 16 bits of si_code indicate which
+     * part of the union is valid, rather than in the guest-visible
+     * form where the bottom 16 bits are sign-extended into the top 16.
+     */
+    int si_type = extract32(tinfo->si_code, 16, 16);
+    int si_code = sextract32(tinfo->si_code, 0, 16);
+
+    gemu_log("{si_signo=");
+    print_signal(tinfo->si_signo, 1);
+    gemu_log(", si_code=");
+    print_si_code(si_code);
+
+    switch (si_type) {
+    case QEMU_SI_KILL:
+        gemu_log(", si_pid = %u, si_uid = %u",
+                 (unsigned int)tinfo->_sifields._kill._pid,
+                 (unsigned int)tinfo->_sifields._kill._uid);
+        break;
+    case QEMU_SI_TIMER:
+        gemu_log(", si_timer1 = %u, si_timer2 = %u",
+                 tinfo->_sifields._timer._timer1,
+                 tinfo->_sifields._timer._timer2);
+        break;
+    case QEMU_SI_POLL:
+        gemu_log(", si_band = %d, si_fd = %d",
+                 tinfo->_sifields._sigpoll._band,
+                 tinfo->_sifields._sigpoll._fd);
+        break;
+    case QEMU_SI_FAULT:
+        gemu_log(", si_addr = ");
+        print_pointer(tinfo->_sifields._sigfault._addr, 1);
+        break;
+    case QEMU_SI_CHLD:
+        gemu_log(", si_pid = %u, si_uid = %u, si_status = %d"
+                 ", si_utime=" TARGET_ABI_FMT_ld
+                 ", si_stime=" TARGET_ABI_FMT_ld,
+                 (unsigned int)(tinfo->_sifields._sigchld._pid),
+                 (unsigned int)(tinfo->_sifields._sigchld._uid),
+                 tinfo->_sifields._sigchld._status,
+                 tinfo->_sifields._sigchld._utime,
+                 tinfo->_sifields._sigchld._stime);
+        break;
+    case QEMU_SI_RT:
+        gemu_log(", si_pid = %u, si_uid = %u, si_sigval = " TARGET_ABI_FMT_ld,
+                 (unsigned int)tinfo->_sifields._rt._pid,
+                 (unsigned int)tinfo->_sifields._rt._uid,
+                 tinfo->_sifields._rt._sigval.sival_ptr);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    gemu_log("}");
+}
+
 static void
 print_sockaddr(abi_ulong addr, abi_long addrlen)
 {
@@ -2189,4 +2283,16 @@ print_syscall_ret(int num, abi_long ret)
             }
             break;
         }
+}
+
+void print_taken_signal(int target_signum, const target_siginfo_t *tinfo)
+{
+    /* Print the strace output for a signal being taken:
+     * --- SIGSEGV {si_signo=SIGSEGV, si_code=SI_KERNEL, si_addr=0} ---
+     */
+    gemu_log("--- ");
+    print_signal(target_signum, 1);
+    gemu_log(" ");
+    print_siginfo(tinfo);
+    gemu_log(" ---\n");
 }

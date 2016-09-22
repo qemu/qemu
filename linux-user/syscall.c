@@ -112,8 +112,56 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 
 #include "qemu.h"
 
-#define CLONE_NPTL_FLAGS2 (CLONE_SETTLS | \
-    CLONE_PARENT_SETTID | CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID)
+#ifndef CLONE_IO
+#define CLONE_IO                0x80000000      /* Clone io context */
+#endif
+
+/* We can't directly call the host clone syscall, because this will
+ * badly confuse libc (breaking mutexes, for example). So we must
+ * divide clone flags into:
+ *  * flag combinations that look like pthread_create()
+ *  * flag combinations that look like fork()
+ *  * flags we can implement within QEMU itself
+ *  * flags we can't support and will return an error for
+ */
+/* For thread creation, all these flags must be present; for
+ * fork, none must be present.
+ */
+#define CLONE_THREAD_FLAGS                              \
+    (CLONE_VM | CLONE_FS | CLONE_FILES |                \
+     CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM)
+
+/* These flags are ignored:
+ * CLONE_DETACHED is now ignored by the kernel;
+ * CLONE_IO is just an optimisation hint to the I/O scheduler
+ */
+#define CLONE_IGNORED_FLAGS                     \
+    (CLONE_DETACHED | CLONE_IO)
+
+/* Flags for fork which we can implement within QEMU itself */
+#define CLONE_OPTIONAL_FORK_FLAGS               \
+    (CLONE_SETTLS | CLONE_PARENT_SETTID |       \
+     CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID)
+
+/* Flags for thread creation which we can implement within QEMU itself */
+#define CLONE_OPTIONAL_THREAD_FLAGS                             \
+    (CLONE_SETTLS | CLONE_PARENT_SETTID |                       \
+     CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | CLONE_PARENT)
+
+#define CLONE_INVALID_FORK_FLAGS                                        \
+    (~(CSIGNAL | CLONE_OPTIONAL_FORK_FLAGS | CLONE_IGNORED_FLAGS))
+
+#define CLONE_INVALID_THREAD_FLAGS                                      \
+    (~(CSIGNAL | CLONE_THREAD_FLAGS | CLONE_OPTIONAL_THREAD_FLAGS |     \
+       CLONE_IGNORED_FLAGS))
+
+/* CLONE_VFORK is special cased early in do_fork(). The other flag bits
+ * have almost all been allocated. We cannot support any of
+ * CLONE_NEWNS, CLONE_NEWCGROUP, CLONE_NEWUTS, CLONE_NEWIPC,
+ * CLONE_NEWUSER, CLONE_NEWPID, CLONE_NEWNET, CLONE_PTRACE, CLONE_UNTRACED.
+ * The checks against the invalid thread masks above will catch these.
+ * (The one remaining unallocated bit is 0x1000 which used to be CLONE_PID.)
+ */
 
 //#define DEBUG
 /* Define DEBUG_ERESTARTSYS to force every syscall to be restarted
@@ -520,16 +568,7 @@ static int sys_getcwd1(char *buf, size_t size)
 }
 
 #ifdef TARGET_NR_utimensat
-#ifdef CONFIG_UTIMENSAT
-static int sys_utimensat(int dirfd, const char *pathname,
-    const struct timespec times[2], int flags)
-{
-    if (pathname == NULL)
-        return futimens(dirfd, times);
-    else
-        return utimensat(dirfd, pathname, times, flags);
-}
-#elif defined(__NR_utimensat)
+#if defined(__NR_utimensat)
 #define __NR_sys_utimensat __NR_utimensat
 _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
           const struct timespec *,tsp,int,flags)
@@ -1405,6 +1444,29 @@ static abi_long do_select(int n,
 
     return ret;
 }
+
+#if defined(TARGET_WANT_OLD_SYS_SELECT)
+static abi_long do_old_select(abi_ulong arg1)
+{
+    struct target_sel_arg_struct *sel;
+    abi_ulong inp, outp, exp, tvp;
+    long nsel;
+
+    if (!lock_user_struct(VERIFY_READ, sel, arg1, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    nsel = tswapal(sel->n);
+    inp = tswapal(sel->inp);
+    outp = tswapal(sel->outp);
+    exp = tswapal(sel->exp);
+    tvp = tswapal(sel->tvp);
+
+    unlock_user_struct(sel, arg1, 0);
+
+    return do_select(nsel, inp, outp, exp, tvp);
+}
+#endif
 #endif
 
 static abi_long do_pipe2(int host_pipe[], int flags)
@@ -3119,7 +3181,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
 }
 
 static struct iovec *lock_iovec(int type, abi_ulong target_addr,
-                                int count, int copy)
+                                abi_ulong count, int copy)
 {
     struct target_iovec *target_vec;
     struct iovec *vec;
@@ -3132,7 +3194,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         errno = 0;
         return NULL;
     }
-    if (count < 0 || count > IOV_MAX) {
+    if (count > IOV_MAX) {
         errno = EINVAL;
         return NULL;
     }
@@ -3207,7 +3269,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
 }
 
 static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
-                         int count, int copy)
+                         abi_ulong count, int copy)
 {
     struct target_iovec *target_vec;
     int i;
@@ -3462,7 +3524,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
 {
     abi_long ret, len;
     struct msghdr msg;
-    int count;
+    abi_ulong count;
     struct iovec *vec;
     abi_ulong target_vec;
 
@@ -3472,7 +3534,14 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
         ret = target_to_host_sockaddr(fd, msg.msg_name,
                                       tswapal(msgp->msg_name),
                                       msg.msg_namelen);
-        if (ret) {
+        if (ret == -TARGET_EFAULT) {
+            /* For connected sockets msg_name and msg_namelen must
+             * be ignored, so returning EFAULT immediately is wrong.
+             * Instead, pass a bad msg_name to the host kernel, and
+             * let it decide whether to return EFAULT or not.
+             */
+            msg.msg_name = (void *)-1;
+        } else if (ret) {
             goto out2;
         }
     } else {
@@ -3485,6 +3554,15 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
 
     count = tswapal(msgp->msg_iovlen);
     target_vec = tswapal(msgp->msg_iov);
+
+    if (count > IOV_MAX) {
+        /* sendrcvmsg returns a different errno for this condition than
+         * readv/writev, so we must catch it here before lock_iovec() does.
+         */
+        ret = -TARGET_EMSGSIZE;
+        goto out2;
+    }
+
     vec = lock_iovec(send ? VERIFY_READ : VERIFY_WRITE,
                      target_vec, count, send);
     if (vec == NULL) {
@@ -3525,7 +3603,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
             }
             if (!is_error(ret)) {
                 msgp->msg_namelen = tswap32(msg.msg_namelen);
-                if (msg.msg_name != NULL) {
+                if (msg.msg_name != NULL && msg.msg_name != (void *)-1) {
                     ret = host_to_target_sockaddr(tswapal(msgp->msg_name),
                                     msg.msg_name, msg.msg_namelen);
                     if (ret) {
@@ -4568,18 +4646,50 @@ static inline abi_long do_shmctl(int shmid, int cmd, abi_long buf)
     return ret;
 }
 
-static inline abi_ulong do_shmat(int shmid, abi_ulong shmaddr, int shmflg)
+#ifndef TARGET_FORCE_SHMLBA
+/* For most architectures, SHMLBA is the same as the page size;
+ * some architectures have larger values, in which case they should
+ * define TARGET_FORCE_SHMLBA and provide a target_shmlba() function.
+ * This corresponds to the kernel arch code defining __ARCH_FORCE_SHMLBA
+ * and defining its own value for SHMLBA.
+ *
+ * The kernel also permits SHMLBA to be set by the architecture to a
+ * value larger than the page size without setting __ARCH_FORCE_SHMLBA;
+ * this means that addresses are rounded to the large size if
+ * SHM_RND is set but addresses not aligned to that size are not rejected
+ * as long as they are at least page-aligned. Since the only architecture
+ * which uses this is ia64 this code doesn't provide for that oddity.
+ */
+static inline abi_ulong target_shmlba(CPUArchState *cpu_env)
+{
+    return TARGET_PAGE_SIZE;
+}
+#endif
+
+static inline abi_ulong do_shmat(CPUArchState *cpu_env,
+                                 int shmid, abi_ulong shmaddr, int shmflg)
 {
     abi_long raddr;
     void *host_raddr;
     struct shmid_ds shm_info;
     int i,ret;
+    abi_ulong shmlba;
 
     /* find out the length of the shared memory segment */
     ret = get_errno(shmctl(shmid, IPC_STAT, &shm_info));
     if (is_error(ret)) {
         /* can't get length, bail out */
         return ret;
+    }
+
+    shmlba = target_shmlba(cpu_env);
+
+    if (shmaddr & (shmlba - 1)) {
+        if (shmflg & SHM_RND) {
+            shmaddr &= ~(shmlba - 1);
+        } else {
+            return -TARGET_EINVAL;
+        }
     }
 
     mmap_lock();
@@ -4640,7 +4750,8 @@ static inline abi_long do_shmdt(abi_ulong shmaddr)
 #ifdef TARGET_NR_ipc
 /* ??? This only works with linear mappings.  */
 /* do_ipc() must return target values and target errnos. */
-static abi_long do_ipc(unsigned int call, abi_long first,
+static abi_long do_ipc(CPUArchState *cpu_env,
+                       unsigned int call, abi_long first,
                        abi_long second, abi_long third,
                        abi_long ptr, abi_long fifth)
 {
@@ -4709,7 +4820,7 @@ static abi_long do_ipc(unsigned int call, abi_long first,
         default:
         {
             abi_ulong raddr;
-            raddr = do_shmat(first, ptr, second);
+            raddr = do_shmat(cpu_env, first, ptr, second);
             if (is_error(raddr))
                 return get_errno(raddr);
             if (put_user_ual(raddr, third))
@@ -4994,13 +5105,18 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
 
     guest_data = arg + host_dm->data_start;
     if ((guest_data - arg) < 0) {
-        ret = -EINVAL;
+        ret = -TARGET_EINVAL;
         goto out;
     }
     guest_data_size = host_dm->data_size - host_dm->data_start;
     host_data = (char*)host_dm + host_dm->data_start;
 
     argptr = lock_user(VERIFY_READ, guest_data, guest_data_size, 1);
+    if (!argptr) {
+        ret = -TARGET_EFAULT;
+        goto out;
+    }
+
     switch (ie->host_cmd) {
     case DM_REMOVE_ALL:
     case DM_LIST_DEVICES:
@@ -5966,8 +6082,9 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
     TaskState *ts;
     CPUState *new_cpu;
     CPUArchState *new_env;
-    unsigned int nptl_flags;
     sigset_t sigmask;
+
+    flags &= ~CLONE_IGNORED_FLAGS;
 
     /* Emulate vfork() with fork() */
     if (flags & CLONE_VFORK)
@@ -5977,6 +6094,11 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         TaskState *parent_ts = (TaskState *)cpu->opaque;
         new_thread_info info;
         pthread_attr_t attr;
+
+        if (((flags & CLONE_THREAD_FLAGS) != CLONE_THREAD_FLAGS) ||
+            (flags & CLONE_INVALID_THREAD_FLAGS)) {
+            return -TARGET_EINVAL;
+        }
 
         ts = g_new0(TaskState, 1);
         init_task_state(ts);
@@ -5989,15 +6111,14 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         ts->bprm = parent_ts->bprm;
         ts->info = parent_ts->info;
         ts->signal_mask = parent_ts->signal_mask;
-        nptl_flags = flags;
-        flags &= ~CLONE_NPTL_FLAGS2;
 
-        if (nptl_flags & CLONE_CHILD_CLEARTID) {
+        if (flags & CLONE_CHILD_CLEARTID) {
             ts->child_tidptr = child_tidptr;
         }
 
-        if (nptl_flags & CLONE_SETTLS)
+        if (flags & CLONE_SETTLS) {
             cpu_set_tls (new_env, newtls);
+        }
 
         /* Grab a mutex so that thread setup appears atomic.  */
         pthread_mutex_lock(&clone_lock);
@@ -6007,10 +6128,12 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         pthread_mutex_lock(&info.mutex);
         pthread_cond_init(&info.cond, NULL);
         info.env = new_env;
-        if (nptl_flags & CLONE_CHILD_SETTID)
+        if (flags & CLONE_CHILD_SETTID) {
             info.child_tidptr = child_tidptr;
-        if (nptl_flags & CLONE_PARENT_SETTID)
+        }
+        if (flags & CLONE_PARENT_SETTID) {
             info.parent_tidptr = parent_tidptr;
+        }
 
         ret = pthread_attr_init(&attr);
         ret = pthread_attr_setstacksize(&attr, NEW_STACK_SIZE);
@@ -6029,8 +6152,6 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
             /* Wait for the child to initialize.  */
             pthread_cond_wait(&info.cond, &info.mutex);
             ret = info.tid;
-            if (flags & CLONE_PARENT_SETTID)
-                put_user_u32(ret, parent_tidptr);
         } else {
             ret = -1;
         }
@@ -6040,7 +6161,12 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         pthread_mutex_unlock(&clone_lock);
     } else {
         /* if no CLONE_VM, we consider it is a fork */
-        if ((flags & ~(CSIGNAL | CLONE_NPTL_FLAGS2)) != 0) {
+        if (flags & CLONE_INVALID_FORK_FLAGS) {
+            return -TARGET_EINVAL;
+        }
+
+        /* We can't support custom termination signals */
+        if ((flags & CSIGNAL) != TARGET_SIGCHLD) {
             return -TARGET_EINVAL;
         }
 
@@ -8565,24 +8691,15 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #if defined(TARGET_NR_select)
     case TARGET_NR_select:
-#if defined(TARGET_S390X) || defined(TARGET_ALPHA)
-        ret = do_select(arg1, arg2, arg3, arg4, arg5);
+#if defined(TARGET_WANT_NI_OLD_SELECT)
+        /* some architectures used to have old_select here
+         * but now ENOSYS it.
+         */
+        ret = -TARGET_ENOSYS;
+#elif defined(TARGET_WANT_OLD_SYS_SELECT)
+        ret = do_old_select(arg1);
 #else
-        {
-            struct target_sel_arg_struct *sel;
-            abi_ulong inp, outp, exp, tvp;
-            long nsel;
-
-            if (!lock_user_struct(VERIFY_READ, sel, arg1, 1))
-                goto efault;
-            nsel = tswapal(sel->n);
-            inp = tswapal(sel->inp);
-            outp = tswapal(sel->outp);
-            exp = tswapal(sel->exp);
-            tvp = tswapal(sel->tvp);
-            unlock_user_struct(sel, arg1, 0);
-            ret = do_select(nsel, inp, outp, exp, tvp);
-        }
+        ret = do_select(arg1, arg2, arg3, arg4, arg5);
 #endif
         break;
 #endif
@@ -9292,8 +9409,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #ifdef TARGET_NR_ipc
     case TARGET_NR_ipc:
-	ret = do_ipc(arg1, arg2, arg3, arg4, arg5, arg6);
-	break;
+        ret = do_ipc(cpu_env, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
 #endif
 #ifdef TARGET_NR_semget
     case TARGET_NR_semget:
@@ -9342,7 +9459,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_shmat
     case TARGET_NR_shmat:
-        ret = do_shmat(arg1, arg2, arg3);
+        ret = do_shmat(cpu_env, arg1, arg2, arg3);
         break;
 #endif
 #ifdef TARGET_NR_shmdt
@@ -9654,6 +9771,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             pfd = NULL;
             target_pfd = NULL;
             if (nfds) {
+                if (nfds > (INT_MAX / sizeof(struct target_pollfd))) {
+                    ret = -TARGET_EINVAL;
+                    break;
+                }
+
                 target_pfd = lock_user(VERIFY_WRITE, arg1,
                                        sizeof(struct target_pollfd) * nfds, 1);
                 if (!target_pfd) {
@@ -10527,7 +10649,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     info.si_code = si_code;
                     info._sifields._sigfault._addr
                         = ((CPUArchState *)cpu_env)->pc;
-                    queue_signal((CPUArchState *)cpu_env, info.si_signo, &info);
+                    queue_signal((CPUArchState *)cpu_env, info.si_signo,
+                                 QEMU_SI_FAULT, &info);
                 }
             }
             break;
@@ -11259,6 +11382,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
     case TARGET_NR_mq_unlink:
         p = lock_user_string(arg1 - 1);
+        if (!p) {
+            ret = -TARGET_EFAULT;
+            break;
+        }
         ret = get_errno(mq_unlink(p));
         unlock_user (p, arg1, 0);
         break;
@@ -11494,6 +11621,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         int maxevents = arg3;
         int timeout = arg4;
 
+        if (maxevents <= 0 || maxevents > TARGET_EP_MAX_EVENTS) {
+            ret = -TARGET_EINVAL;
+            break;
+        }
+
         target_ep = lock_user(VERIFY_WRITE, arg2,
                               maxevents * sizeof(struct target_epoll_event), 1);
         if (!target_ep) {
@@ -11606,7 +11738,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             info.si_errno = 0;
             info.si_code = TARGET_SEGV_MAPERR;
             info._sifields._sigfault._addr = arg6;
-            queue_signal((CPUArchState *)cpu_env, info.si_signo, &info);
+            queue_signal((CPUArchState *)cpu_env, info.si_signo,
+                         QEMU_SI_FAULT, &info);
             ret = 0xdeadbeef;
 
         }

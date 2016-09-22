@@ -74,5 +74,6 @@ struct target_revectored_struct {
 #define TARGET_MINSIGSTKSZ 2048
 #define TARGET_MLOCKALL_MCL_CURRENT 0x2000
 #define TARGET_MLOCKALL_MCL_FUTURE  0x4000
+#define TARGET_WANT_NI_OLD_SELECT
 
 #endif /* PPC_TARGET_SYSCALL_H */
