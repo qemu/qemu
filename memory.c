@@ -1499,7 +1499,7 @@ bool memory_region_is_skip_dump(MemoryRegion *mr)
 uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr)
 {
     uint8_t mask = mr->dirty_log_mask;
-    if (global_dirty_log) {
+    if (global_dirty_log && mr->ram_block) {
         mask |= (1 << DIRTY_MEMORY_MIGRATION);
     }
     return mask;
@@ -2171,8 +2171,10 @@ void memory_global_dirty_log_sync(void)
         as = listener->address_space;
         view = address_space_get_flatview(as);
         FOR_EACH_FLAT_RANGE(fr, view) {
-            MemoryRegionSection mrs = section_from_flat_range(fr, as);
-            listener->log_sync(listener, &mrs);
+            if (fr->dirty_log_mask) {
+                MemoryRegionSection mrs = section_from_flat_range(fr, as);
+                listener->log_sync(listener, &mrs);
+            }
         }
         flatview_unref(view);
     }
