@@ -489,6 +489,18 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .cpuid_eax = 6, .cpuid_reg = R_EAX,
         .tcg_features = TCG_6_EAX_FEATURES,
     },
+    [FEAT_XSAVE_COMP_LO] = {
+        .cpuid_eax = 0xD,
+        .cpuid_needs_ecx = true, .cpuid_ecx = 0,
+        .cpuid_reg = R_EAX,
+        .tcg_features = ~0U,
+    },
+    [FEAT_XSAVE_COMP_HI] = {
+        .cpuid_eax = 0xD,
+        .cpuid_needs_ecx = true, .cpuid_ecx = 0,
+        .cpuid_reg = R_EDX,
+        .tcg_features = ~0U,
+    },
 };
 
 typedef struct X86RegisterInfo32 {
@@ -560,6 +572,12 @@ static uint32_t xsave_area_size(uint64_t mask)
         }
     }
     return ret;
+}
+
+static inline uint64_t x86_cpu_xsave_components(X86CPU *cpu)
+{
+    return ((uint64_t)cpu->env.features[FEAT_XSAVE_COMP_HI]) << 32 |
+           cpu->env.features[FEAT_XSAVE_COMP_LO];
 }
 
 const char *get_register_name_32(unsigned int reg)
@@ -2514,15 +2532,15 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
 
         if (count == 0) {
-            *ecx = xsave_area_size(env->xsave_components);
-            *eax = env->xsave_components;
-            *edx = env->xsave_components >> 32;
+            *ecx = xsave_area_size(x86_cpu_xsave_components(cpu));
+            *eax = env->features[FEAT_XSAVE_COMP_LO];
+            *edx = env->features[FEAT_XSAVE_COMP_HI];
             *ebx = *ecx;
         } else if (count == 1) {
             *eax = env->features[FEAT_XSAVE];
         } else if (count < ARRAY_SIZE(x86_ext_save_areas)) {
-            const ExtSaveArea *esa = &x86_ext_save_areas[count];
-            if ((env->xsave_components >> count) & 1) {
+            if ((x86_cpu_xsave_components(cpu) >> count) & 1) {
+                const ExtSaveArea *esa = &x86_ext_save_areas[count];
                 *eax = esa->size;
                 *ebx = esa->offset;
             }
@@ -2957,26 +2975,22 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     int i;
+    uint64_t mask;
 
     if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
         return;
     }
 
-    env->xsave_components = (XSTATE_FP_MASK | XSTATE_SSE_MASK);
+    mask = (XSTATE_FP_MASK | XSTATE_SSE_MASK);
     for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
         const ExtSaveArea *esa = &x86_ext_save_areas[i];
         if (env->features[esa->feature] & esa->bits) {
-            env->xsave_components |= (1ULL << i);
+            mask |= (1ULL << i);
         }
     }
 
-    if (kvm_enabled()) {
-        KVMState *s = kvm_state;
-        uint64_t kvm_mask = kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EDX);
-        kvm_mask <<= 32;
-        kvm_mask |= kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX);
-        env->xsave_components &= kvm_mask;
-    }
+    env->features[FEAT_XSAVE_COMP_LO] = mask;
+    env->features[FEAT_XSAVE_COMP_HI] = mask >> 32;
 }
 
 #define IS_INTEL_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_INTEL_1 && \
