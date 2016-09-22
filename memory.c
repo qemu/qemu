@@ -97,12 +97,6 @@ static AddrRange addrrange_intersection(AddrRange r1, AddrRange r2)
 
 enum ListenerDirection { Forward, Reverse };
 
-static bool memory_listener_match(MemoryListener *listener,
-                                  MemoryRegionSection *section)
-{
-    return listener->address_space == section->address_space;
-}
-
 #define MEMORY_LISTENER_CALL_GLOBAL(_callback, _direction, _args...)    \
     do {                                                                \
         MemoryListener *_listener;                                      \
@@ -128,24 +122,23 @@ static bool memory_listener_match(MemoryListener *listener,
         }                                                               \
     } while (0)
 
-#define MEMORY_LISTENER_CALL(_callback, _direction, _section, _args...) \
+#define MEMORY_LISTENER_CALL(_as, _callback, _direction, _section, _args...) \
     do {                                                                \
         MemoryListener *_listener;                                      \
+        struct memory_listeners_as *list = &(_as)->listeners;           \
                                                                         \
         switch (_direction) {                                           \
         case Forward:                                                   \
-            QTAILQ_FOREACH(_listener, &memory_listeners, link) {        \
-                if (_listener->_callback                                \
-                    && memory_listener_match(_listener, _section)) {    \
+            QTAILQ_FOREACH(_listener, list, link_as) {                  \
+                if (_listener->_callback) {                             \
                     _listener->_callback(_listener, _section, ##_args); \
                 }                                                       \
             }                                                           \
             break;                                                      \
         case Reverse:                                                   \
-            QTAILQ_FOREACH_REVERSE(_listener, &memory_listeners,        \
-                                   memory_listeners, link) {            \
-                if (_listener->_callback                                \
-                    && memory_listener_match(_listener, _section)) {    \
+            QTAILQ_FOREACH_REVERSE(_listener, list, memory_listeners_as, \
+                                   link_as) {                           \
+                if (_listener->_callback) {                             \
                     _listener->_callback(_listener, _section, ##_args); \
                 }                                                       \
             }                                                           \
@@ -159,7 +152,7 @@ static bool memory_listener_match(MemoryListener *listener,
 #define MEMORY_LISTENER_UPDATE_REGION(fr, as, dir, callback, _args...)  \
     do {                                                                \
         MemoryRegionSection mrs = section_from_flat_range(fr, as);      \
-        MEMORY_LISTENER_CALL(callback, dir, &mrs, ##_args);             \
+        MEMORY_LISTENER_CALL(as, callback, dir, &mrs, ##_args);         \
     } while(0)
 
 struct CoalescedMemoryRange {
@@ -748,7 +741,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                 .offset_within_address_space = int128_get64(fd->addr.start),
                 .size = fd->addr.size,
             };
-            MEMORY_LISTENER_CALL(eventfd_del, Forward, &section,
+            MEMORY_LISTENER_CALL(as, eventfd_del, Forward, &section,
                                  fd->match_data, fd->data, fd->e);
             ++iold;
         } else if (inew < fds_new_nb
@@ -761,7 +754,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                 .offset_within_address_space = int128_get64(fd->addr.start),
                 .size = fd->addr.size,
             };
-            MEMORY_LISTENER_CALL(eventfd_add, Reverse, &section,
+            MEMORY_LISTENER_CALL(as, eventfd_add, Reverse, &section,
                                  fd->match_data, fd->data, fd->e);
             ++inew;
         } else {
@@ -1773,7 +1766,7 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
                 .size = fr->addr.size,
             };
 
-            MEMORY_LISTENER_CALL(coalesced_mmio_del, Reverse, &section,
+            MEMORY_LISTENER_CALL(as, coalesced_mmio_del, Reverse, &section,
                                  int128_get64(fr->addr.start),
                                  int128_get64(fr->addr.size));
             QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
@@ -1784,7 +1777,7 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
                     continue;
                 }
                 tmp = addrrange_intersection(tmp, fr->addr);
-                MEMORY_LISTENER_CALL(coalesced_mmio_add, Forward, &section,
+                MEMORY_LISTENER_CALL(as, coalesced_mmio_add, Forward, &section,
                                      int128_get64(tmp.start),
                                      int128_get64(tmp.size));
             }
@@ -2265,12 +2258,26 @@ void memory_listener_register(MemoryListener *listener, AddressSpace *as)
         QTAILQ_INSERT_BEFORE(other, listener, link);
     }
 
+    if (QTAILQ_EMPTY(&as->listeners)
+        || listener->priority >= QTAILQ_LAST(&as->listeners,
+                                             memory_listeners)->priority) {
+        QTAILQ_INSERT_TAIL(&as->listeners, listener, link_as);
+    } else {
+        QTAILQ_FOREACH(other, &as->listeners, link_as) {
+            if (listener->priority < other->priority) {
+                break;
+            }
+        }
+        QTAILQ_INSERT_BEFORE(other, listener, link_as);
+    }
+
     listener_add_address_space(listener, as);
 }
 
 void memory_listener_unregister(MemoryListener *listener)
 {
     QTAILQ_REMOVE(&memory_listeners, listener, link);
+    QTAILQ_REMOVE(&listener->address_space->listeners, listener, link_as);
 }
 
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
@@ -2284,6 +2291,7 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     flatview_init(as->current_map);
     as->ioeventfd_nb = 0;
     as->ioeventfds = NULL;
+    QTAILQ_INIT(&as->listeners);
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
     as->name = g_strdup(name ? name : "anonymous");
     address_space_init_dispatch(as);
@@ -2293,14 +2301,10 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 
 static void do_address_space_destroy(AddressSpace *as)
 {
-    MemoryListener *listener;
     bool do_free = as->malloced;
 
     address_space_destroy_dispatch(as);
-
-    QTAILQ_FOREACH(listener, &memory_listeners, link) {
-        assert(listener->address_space != as);
-    }
+    assert(QTAILQ_EMPTY(&as->listeners));
 
     flatview_unref(as->current_map);
     g_free(as->name);
