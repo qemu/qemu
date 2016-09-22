@@ -15,6 +15,7 @@
 #include "hw/i386/apic_internal.h"
 #include "hw/pci/msi.h"
 #include "sysemu/kvm.h"
+#include "target-i386/kvm_i386.h"
 
 static inline void kvm_apic_set_reg(struct kvm_lapic_state *kapic,
                                     int reg_id, uint32_t val)
@@ -130,6 +131,7 @@ static void kvm_apic_put(void *data)
     struct kvm_lapic_state kapic;
     int ret;
 
+    kvm_put_apicbase(s->cpu, s->apicbase);
     kvm_put_apic_state(s, &kapic);
 
     ret = kvm_vcpu_ioctl(CPU(s->cpu), KVM_SET_LAPIC, &kapic);
