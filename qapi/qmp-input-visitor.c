@@ -338,6 +338,12 @@ static void qmp_input_type_any(Visitor *v, const char *name, QObject **obj,
     QmpInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qmp_input_get_object(qiv, name, true);
 
+    if (!qobj) {
+        error_setg(errp, QERR_MISSING_PARAMETER, name ? name : "null");
+        *obj = NULL;
+        return;
+    }
+
     qobject_incref(qobj);
     *obj = qobj;
 }
@@ -346,6 +352,11 @@ static void qmp_input_type_null(Visitor *v, const char *name, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qmp_input_get_object(qiv, name, true);
+
+    if (!qobj) {
+        error_setg(errp, QERR_MISSING_PARAMETER, name ? name : "null");
+        return;
+    }
 
     if (qobject_type(qobj) != QTYPE_QNULL) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
