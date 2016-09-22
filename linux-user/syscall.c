@@ -789,6 +789,9 @@ static uint16_t host_to_target_errno_table[ERRNO_TABLE_SIZE] = {
 #ifdef ENOTRECOVERABLE
     [ENOTRECOVERABLE]	= TARGET_ENOTRECOVERABLE,
 #endif
+#ifdef ENOMSG
+    [ENOMSG]            = TARGET_ENOMSG,
+#endif
 };
 
 static inline int host_to_target_errno(int err)
