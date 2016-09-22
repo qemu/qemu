@@ -28,7 +28,7 @@ static struct arm_boot_info palmetto_bmc_binfo = {
 };
 
 typedef struct PalmettoBMCState {
-    AST2400State soc;
+    AspeedSoCState soc;
     MemoryRegion ram;
 } PalmettoBMCState;
 
@@ -63,7 +63,7 @@ static void palmetto_bmc_init(MachineState *machine)
     PalmettoBMCState *bmc;
 
     bmc = g_new0(PalmettoBMCState, 1);
-    object_initialize(&bmc->soc, (sizeof(bmc->soc)), TYPE_AST2400);
+    object_initialize(&bmc->soc, (sizeof(bmc->soc)), TYPE_ASPEED_SOC);
     object_property_add_child(OBJECT(machine), "soc", OBJECT(&bmc->soc),
                               &error_abort);
 

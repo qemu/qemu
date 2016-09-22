@@ -1,5 +1,5 @@
 /*
- * AST2400 SoC
+ * ASPEED SoC family
  *
  * Andrew Jeffery <andrew@aj.id.au>
  * Jeremy Kerr <jk@ozlabs.org>
@@ -20,20 +20,19 @@
 #include "qemu/log.h"
 #include "hw/i2c/aspeed_i2c.h"
 
-#define AST2400_UART_5_BASE      0x00184000
-#define AST2400_IOMEM_SIZE       0x00200000
-#define AST2400_IOMEM_BASE       0x1E600000
-#define AST2400_SMC_BASE         AST2400_IOMEM_BASE /* Legacy SMC */
-#define AST2400_FMC_BASE         0X1E620000
-#define AST2400_SPI_BASE         0X1E630000
-#define AST2400_VIC_BASE         0x1E6C0000
-#define AST2400_SDMC_BASE        0x1E6E0000
-#define AST2400_SCU_BASE         0x1E6E2000
-#define AST2400_TIMER_BASE       0x1E782000
-#define AST2400_I2C_BASE         0x1E78A000
+#define ASPEED_SOC_UART_5_BASE      0x00184000
+#define ASPEED_SOC_IOMEM_SIZE       0x00200000
+#define ASPEED_SOC_IOMEM_BASE       0x1E600000
+#define ASPEED_SOC_FMC_BASE         0x1E620000
+#define ASPEED_SOC_SPI_BASE         0x1E630000
+#define ASPEED_SOC_VIC_BASE         0x1E6C0000
+#define ASPEED_SOC_SDMC_BASE        0x1E6E0000
+#define ASPEED_SOC_SCU_BASE         0x1E6E2000
+#define ASPEED_SOC_TIMER_BASE       0x1E782000
+#define ASPEED_SOC_I2C_BASE         0x1E78A000
 
-#define AST2400_FMC_FLASH_BASE   0x20000000
-#define AST2400_SPI_FLASH_BASE   0x30000000
+#define ASPEED_SOC_FMC_FLASH_BASE   0x20000000
+#define ASPEED_SOC_SPI_FLASH_BASE   0x30000000
 
 static const int uart_irqs[] = { 9, 32, 33, 34, 10 };
 static const int timer_irqs[] = { 16, 17, 18, 35, 36, 37, 38, 39, };
@@ -43,29 +42,29 @@ static const int timer_irqs[] = { 16, 17, 18, 35, 36, 37, 38, 39, };
  * handled by a device mapping.
  */
 
-static uint64_t ast2400_io_read(void *p, hwaddr offset, unsigned size)
+static uint64_t aspeed_soc_io_read(void *p, hwaddr offset, unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " [%u]\n",
                   __func__, offset, size);
     return 0;
 }
 
-static void ast2400_io_write(void *opaque, hwaddr offset, uint64_t value,
+static void aspeed_soc_io_write(void *opaque, hwaddr offset, uint64_t value,
                 unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " <- 0x%" PRIx64 " [%u]\n",
                   __func__, offset, value, size);
 }
 
-static const MemoryRegionOps ast2400_io_ops = {
-    .read = ast2400_io_read,
-    .write = ast2400_io_write,
+static const MemoryRegionOps aspeed_soc_io_ops = {
+    .read = aspeed_soc_io_read,
+    .write = aspeed_soc_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void ast2400_init(Object *obj)
+static void aspeed_soc_init(Object *obj)
 {
-    AST2400State *s = AST2400(obj);
+    AspeedSoCState *s = ASPEED_SOC(obj);
 
     s->cpu = cpu_arm_init("arm926");
 
@@ -106,17 +105,17 @@ static void ast2400_init(Object *obj)
                          AST2400_A0_SILICON_REV);
 }
 
-static void ast2400_realize(DeviceState *dev, Error **errp)
+static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 {
     int i;
-    AST2400State *s = AST2400(dev);
+    AspeedSoCState *s = ASPEED_SOC(dev);
     Error *err = NULL, *local_err = NULL;
 
     /* IO space */
-    memory_region_init_io(&s->iomem, NULL, &ast2400_io_ops, NULL,
-            "ast2400.io", AST2400_IOMEM_SIZE);
-    memory_region_add_subregion_overlap(get_system_memory(), AST2400_IOMEM_BASE,
-            &s->iomem, -1);
+    memory_region_init_io(&s->iomem, NULL, &aspeed_soc_io_ops, NULL,
+            "aspeed_soc.io", ASPEED_SOC_IOMEM_SIZE);
+    memory_region_add_subregion_overlap(get_system_memory(),
+                                        ASPEED_SOC_IOMEM_BASE, &s->iomem, -1);
 
     /* VIC */
     object_property_set_bool(OBJECT(&s->vic), true, "realized", &err);
@@ -124,7 +123,7 @@ static void ast2400_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->vic), 0, AST2400_VIC_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->vic), 0, ASPEED_SOC_VIC_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->vic), 0,
                        qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ));
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->vic), 1,
@@ -136,7 +135,7 @@ static void ast2400_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->timerctrl), 0, AST2400_TIMER_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->timerctrl), 0, ASPEED_SOC_TIMER_BASE);
     for (i = 0; i < ARRAY_SIZE(timer_irqs); i++) {
         qemu_irq irq = qdev_get_gpio_in(DEVICE(&s->vic), timer_irqs[i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->timerctrl), i, irq);
@@ -148,12 +147,12 @@ static void ast2400_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->scu), 0, AST2400_SCU_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->scu), 0, ASPEED_SOC_SCU_BASE);
 
     /* UART - attach an 8250 to the IO space as our UART5 */
     if (serial_hds[0]) {
         qemu_irq uart5 = qdev_get_gpio_in(DEVICE(&s->vic), uart_irqs[4]);
-        serial_mm_init(&s->iomem, AST2400_UART_5_BASE, 2,
+        serial_mm_init(&s->iomem, ASPEED_SOC_UART_5_BASE, 2,
                        uart5, 38400, serial_hds[0], DEVICE_LITTLE_ENDIAN);
     }
 
@@ -163,7 +162,7 @@ static void ast2400_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c), 0, AST2400_I2C_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c), 0, ASPEED_SOC_I2C_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c), 0,
                        qdev_get_gpio_in(DEVICE(&s->vic), 12));
 
@@ -175,8 +174,8 @@ static void ast2400_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->smc), 0, AST2400_FMC_BASE);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->smc), 1, AST2400_FMC_FLASH_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->smc), 0, ASPEED_SOC_FMC_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->smc), 1, ASPEED_SOC_FMC_FLASH_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->smc), 0,
                        qdev_get_gpio_in(DEVICE(&s->vic), 19));
 
@@ -188,8 +187,8 @@ static void ast2400_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi), 0, AST2400_SPI_BASE);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi), 1, AST2400_SPI_FLASH_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi), 0, ASPEED_SOC_SPI_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi), 1, ASPEED_SOC_SPI_FLASH_BASE);
 
     /* SDMC - SDRAM Memory Controller */
     object_property_set_bool(OBJECT(&s->sdmc), true, "realized", &err);
@@ -197,14 +196,14 @@ static void ast2400_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sdmc), 0, AST2400_SDMC_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sdmc), 0, ASPEED_SOC_SDMC_BASE);
 }
 
-static void ast2400_class_init(ObjectClass *oc, void *data)
+static void aspeed_soc_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->realize = ast2400_realize;
+    dc->realize = aspeed_soc_realize;
 
     /*
      * Reason: creates an ARM CPU, thus use after free(), see
@@ -213,17 +212,17 @@ static void ast2400_class_init(ObjectClass *oc, void *data)
     dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
-static const TypeInfo ast2400_type_info = {
-    .name = TYPE_AST2400,
+static const TypeInfo aspeed_soc_type_info = {
+    .name = TYPE_ASPEED_SOC,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AST2400State),
-    .instance_init = ast2400_init,
-    .class_init = ast2400_class_init,
+    .instance_size = sizeof(AspeedSoCState),
+    .instance_init = aspeed_soc_init,
+    .class_init = aspeed_soc_class_init,
 };
 
-static void ast2400_register_types(void)
+static void aspeed_soc_register_types(void)
 {
-    type_register_static(&ast2400_type_info);
+    type_register_static(&aspeed_soc_type_info);
 }
 
-type_init(ast2400_register_types)
+type_init(aspeed_soc_register_types)

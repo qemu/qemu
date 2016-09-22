@@ -1,5 +1,5 @@
 /*
- * ASPEED AST2400 SoC
+ * ASPEED SoC family
  *
  * Andrew Jeffery <andrew@aj.id.au>
  *
@@ -9,8 +9,8 @@
  * the COPYING file in the top-level directory.
  */
 
-#ifndef AST2400_H
-#define AST2400_H
+#ifndef ASPEED_SOC_H
+#define ASPEED_SOC_H
 
 #include "hw/arm/arm.h"
 #include "hw/intc/aspeed_vic.h"
@@ -20,7 +20,7 @@
 #include "hw/i2c/aspeed_i2c.h"
 #include "hw/ssi/aspeed_smc.h"
 
-typedef struct AST2400State {
+typedef struct AspeedSoCState {
     /*< private >*/
     DeviceState parent;
 
@@ -34,11 +34,11 @@ typedef struct AST2400State {
     AspeedSMCState smc;
     AspeedSMCState spi;
     AspeedSDMCState sdmc;
-} AST2400State;
+} AspeedSoCState;
 
-#define TYPE_AST2400 "ast2400"
-#define AST2400(obj) OBJECT_CHECK(AST2400State, (obj), TYPE_AST2400)
+#define TYPE_ASPEED_SOC "aspeed-soc"
+#define ASPEED_SOC(obj) OBJECT_CHECK(AspeedSoCState, (obj), TYPE_ASPEED_SOC)
 
 #define AST2400_SDRAM_BASE       0x40000000
 
-#endif /* AST2400_H */
+#endif /* ASPEED_SOC_H */
