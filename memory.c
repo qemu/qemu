@@ -158,14 +158,10 @@ static bool memory_listener_match(MemoryListener *listener,
 
 /* No need to ref/unref .mr, the FlatRange keeps it alive.  */
 #define MEMORY_LISTENER_UPDATE_REGION(fr, as, dir, callback, _args...)  \
-    MEMORY_LISTENER_CALL(callback, dir, (&(MemoryRegionSection) {       \
-        .mr = (fr)->mr,                                                 \
-        .address_space = (as),                                          \
-        .offset_within_region = (fr)->offset_in_region,                 \
-        .size = (fr)->addr.size,                                        \
-        .offset_within_address_space = int128_get64((fr)->addr.start),  \
-        .readonly = (fr)->readonly,                                     \
-              }), ##_args)
+    do {                                                                \
+        MemoryRegionSection mrs = section_from_flat_range(fr, as);      \
+        MEMORY_LISTENER_CALL(callback, dir, &mrs, ##_args);             \
+    } while(0)
 
 struct CoalescedMemoryRange {
     AddrRange addr;
@@ -244,6 +240,19 @@ typedef struct AddressSpaceOps AddressSpaceOps;
 
 #define FOR_EACH_FLAT_RANGE(var, view)          \
     for (var = (view)->ranges; var < (view)->ranges + (view)->nr; ++var)
+
+static inline MemoryRegionSection
+section_from_flat_range(FlatRange *fr, AddressSpace *as)
+{
+    return (MemoryRegionSection) {
+        .mr = fr->mr,
+        .address_space = as,
+        .offset_within_region = fr->offset_in_region,
+        .size = fr->addr.size,
+        .offset_within_address_space = int128_get64(fr->addr.start),
+        .readonly = fr->readonly,
+    };
+}
 
 static bool flatrange_equal(FlatRange *a, FlatRange *b)
 {
@@ -2156,16 +2165,27 @@ bool memory_region_present(MemoryRegion *container, hwaddr addr)
     return mr && mr != container;
 }
 
-void address_space_sync_dirty_bitmap(AddressSpace *as)
+void memory_global_dirty_log_sync(void)
 {
+    MemoryListener *listener;
+    AddressSpace *as;
     FlatView *view;
     FlatRange *fr;
 
-    view = address_space_get_flatview(as);
-    FOR_EACH_FLAT_RANGE(fr, view) {
-        MEMORY_LISTENER_UPDATE_REGION(fr, as, Forward, log_sync);
+    QTAILQ_FOREACH(listener, &memory_listeners, link) {
+        if (!listener->log_sync) {
+            continue;
+        }
+        /* Global listeners are being phased out.  */
+        assert(listener->address_space_filter);
+        as = listener->address_space_filter;
+        view = address_space_get_flatview(as);
+        FOR_EACH_FLAT_RANGE(fr, view) {
+            MemoryRegionSection mrs = section_from_flat_range(fr, as);
+            listener->log_sync(listener, &mrs);
+        }
+        flatview_unref(view);
     }
-    flatview_unref(view);
 }
 
 void memory_global_dirty_log_start(void)

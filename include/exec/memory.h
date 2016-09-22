@@ -1188,12 +1188,11 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size);
 
 /**
- * address_space_sync_dirty_bitmap: synchronize the dirty log for all memory
+ * memory_global_dirty_log_sync: synchronize the dirty log for all memory
  *
- * Synchronizes the dirty page log for an entire address space.
- * @as: the address space that contains the memory being synchronized
+ * Synchronizes the dirty page log for all address spaces.
  */
-void address_space_sync_dirty_bitmap(AddressSpace *as);
+void memory_global_dirty_log_sync(void);
 
 /**
  * memory_region_transaction_begin: Start a transaction.
