@@ -25,7 +25,6 @@
 # Since: 1.3
 #
 ##
-
 { 'struct': 'SnapshotInfo',
   'data': { 'id': 'str', 'name': 'str', 'vm-state-size': 'int',
             'date-sec': 'int', 'date-nsec': 'int',
@@ -81,7 +80,6 @@
 #
 # Since: 1.7
 ##
-
 { 'union': 'ImageInfoSpecific',
   'data': {
       'qcow2': 'ImageInfoSpecificQCow2',
@@ -129,7 +127,6 @@
 # Since: 1.3
 #
 ##
-
 { 'struct': 'ImageInfo',
   'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
            '*actual-size': 'int', 'virtual-size': 'int',
@@ -181,7 +178,6 @@
 # Since: 1.4
 #
 ##
-
 { 'struct': 'ImageCheck',
   'data': {'filename': 'str', 'format': 'str', 'check-errors': 'int',
            '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
@@ -518,7 +514,6 @@
 #
 # Since: 2.5
 ##
-
 { 'struct': 'BlockDeviceTimedStats',
   'data': { 'interval_length': 'int', 'min_rd_latency_ns': 'int',
             'max_rd_latency_ns': 'int', 'avg_rd_latency_ns': 'int',
