@@ -29,7 +29,7 @@
         } \
     } while (0)
 
-static char const *imx_gpt_reg_name(uint32_t reg)
+static const char *imx_gpt_reg_name(uint32_t reg)
 {
     switch (reg) {
     case 0:

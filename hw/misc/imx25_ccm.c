@@ -27,7 +27,7 @@
         } \
     } while (0)
 
-static char const *imx25_ccm_reg_name(uint32_t reg)
+static const char *imx25_ccm_reg_name(uint32_t reg)
 {
     static char unknown[20];
 

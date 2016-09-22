@@ -26,7 +26,7 @@
         } \
     } while (0)
 
-static char const *imx6_ccm_reg_name(uint32_t reg)
+static const char *imx6_ccm_reg_name(uint32_t reg)
 {
     static char unknown[20];
 
@@ -99,7 +99,7 @@ static char const *imx6_ccm_reg_name(uint32_t reg)
     }
 }
 
-static char const *imx6_analog_reg_name(uint32_t reg)
+static const char *imx6_analog_reg_name(uint32_t reg)
 {
     static char unknown[20];
 
