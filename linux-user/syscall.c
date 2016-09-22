@@ -9320,14 +9320,52 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = do_setsockopt(arg1, arg2, arg3, arg4, (socklen_t) arg5);
         break;
 #endif
-
+#if defined(TARGET_NR_syslog)
     case TARGET_NR_syslog:
-        if (!(p = lock_user_string(arg2)))
-            goto efault;
-        ret = get_errno(sys_syslog((int)arg1, p, (int)arg3));
-        unlock_user(p, arg2, 0);
-        break;
+        {
+            int len = arg2;
 
+            switch (arg1) {
+            case TARGET_SYSLOG_ACTION_CLOSE:         /* Close log */
+            case TARGET_SYSLOG_ACTION_OPEN:          /* Open log */
+            case TARGET_SYSLOG_ACTION_CLEAR:         /* Clear ring buffer */
+            case TARGET_SYSLOG_ACTION_CONSOLE_OFF:   /* Disable logging */
+            case TARGET_SYSLOG_ACTION_CONSOLE_ON:    /* Enable logging */
+            case TARGET_SYSLOG_ACTION_CONSOLE_LEVEL: /* Set messages level */
+            case TARGET_SYSLOG_ACTION_SIZE_UNREAD:   /* Number of chars */
+            case TARGET_SYSLOG_ACTION_SIZE_BUFFER:   /* Size of the buffer */
+                {
+                    ret = get_errno(sys_syslog((int)arg1, NULL, (int)arg3));
+                }
+                break;
+            case TARGET_SYSLOG_ACTION_READ:          /* Read from log */
+            case TARGET_SYSLOG_ACTION_READ_CLEAR:    /* Read/clear msgs */
+            case TARGET_SYSLOG_ACTION_READ_ALL:      /* Read last messages */
+                {
+                    ret = -TARGET_EINVAL;
+                    if (len < 0) {
+                        goto fail;
+                    }
+                    ret = 0;
+                    if (len == 0) {
+                        break;
+                    }
+                    p = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+                    if (!p) {
+                        ret = -TARGET_EFAULT;
+                        goto fail;
+                    }
+                    ret = get_errno(sys_syslog((int)arg1, p, (int)arg3));
+                    unlock_user(p, arg2, arg3);
+                }
+                break;
+            default:
+                ret = -EINVAL;
+                break;
+            }
+        }
+        break;
+#endif
     case TARGET_NR_setitimer:
         {
             struct itimerval value, ovalue, *pvalue;

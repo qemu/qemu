@@ -1827,6 +1827,78 @@ print_rt_sigprocmask(const struct syscallname *name,
 }
 #endif
 
+#ifdef TARGET_NR_syslog
+static void
+print_syslog_action(abi_ulong arg, int last)
+{
+    const char *type;
+
+    switch (arg) {
+        case TARGET_SYSLOG_ACTION_CLOSE: {
+            type = "SYSLOG_ACTION_CLOSE";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_OPEN: {
+            type = "SYSLOG_ACTION_OPEN";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_READ: {
+            type = "SYSLOG_ACTION_READ";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_READ_ALL: {
+            type = "SYSLOG_ACTION_READ_ALL";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_READ_CLEAR: {
+            type = "SYSLOG_ACTION_READ_CLEAR";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CLEAR: {
+            type = "SYSLOG_ACTION_CLEAR";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CONSOLE_OFF: {
+            type = "SYSLOG_ACTION_CONSOLE_OFF";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CONSOLE_ON: {
+            type = "SYSLOG_ACTION_CONSOLE_ON";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CONSOLE_LEVEL: {
+            type = "SYSLOG_ACTION_CONSOLE_LEVEL";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_SIZE_UNREAD: {
+            type = "SYSLOG_ACTION_SIZE_UNREAD";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_SIZE_BUFFER: {
+            type = "SYSLOG_ACTION_SIZE_BUFFER";
+            break;
+        }
+        default: {
+            print_raw_param("%ld", arg, last);
+            return;
+        }
+    }
+    gemu_log("%s%s", type, get_comma(last));
+}
+
+static void
+print_syslog(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_syslog_action(arg0, 0);
+    print_pointer(arg1, 0);
+    print_raw_param("%d", arg2, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
 #ifdef TARGET_NR_mknod
 static void
 print_mknod(const struct syscallname *name,

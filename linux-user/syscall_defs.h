@@ -2682,4 +2682,29 @@ struct target_user_cap_data {
     uint32_t inheritable;
 };
 
+/* from kernel's include/linux/syslog.h */
+
+/* Close the log.  Currently a NOP. */
+#define TARGET_SYSLOG_ACTION_CLOSE          0
+/* Open the log. Currently a NOP. */
+#define TARGET_SYSLOG_ACTION_OPEN           1
+/* Read from the log. */
+#define TARGET_SYSLOG_ACTION_READ           2
+/* Read all messages remaining in the ring buffer. */
+#define TARGET_SYSLOG_ACTION_READ_ALL       3
+/* Read and clear all messages remaining in the ring buffer */
+#define TARGET_SYSLOG_ACTION_READ_CLEAR     4
+/* Clear ring buffer. */
+#define TARGET_SYSLOG_ACTION_CLEAR          5
+/* Disable printk's to console */
+#define TARGET_SYSLOG_ACTION_CONSOLE_OFF    6
+/* Enable printk's to console */
+#define TARGET_SYSLOG_ACTION_CONSOLE_ON     7
+/* Set level of messages printed to console */
+#define TARGET_SYSLOG_ACTION_CONSOLE_LEVEL  8
+/* Return number of unread characters in the log buffer */
+#define TARGET_SYSLOG_ACTION_SIZE_UNREAD    9
+/* Return size of the log buffer */
+#define TARGET_SYSLOG_ACTION_SIZE_BUFFER   10
+
 #endif

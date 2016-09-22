@@ -1486,7 +1486,7 @@
 { TARGET_NR_sys_kexec_load, "sys_kexec_load" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_syslog
-{ TARGET_NR_syslog, "syslog" , NULL, NULL, NULL },
+{ TARGET_NR_syslog, "syslog" , NULL, print_syslog, NULL },
 #endif
 #ifdef TARGET_NR_sysmips
 { TARGET_NR_sysmips, "sysmips" , NULL, NULL, NULL },
