@@ -31,6 +31,19 @@ typedef struct AspeedBoardState {
     MemoryRegion ram;
 } AspeedBoardState;
 
+typedef struct AspeedBoardConfig {
+    const char *soc_name;
+    uint32_t hw_strap1;
+} AspeedBoardConfig;
+
+enum {
+    PALMETTO_BMC,
+};
+
+static const AspeedBoardConfig aspeed_boards[] = {
+    [PALMETTO_BMC] = { "ast2400-a0", 0x120CE416 },
+};
+
 static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
                                       Error **errp)
 {
@@ -57,13 +70,14 @@ static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
     }
 }
 
-static void aspeed_board_init(MachineState *machine)
+static void aspeed_board_init(MachineState *machine,
+                              const AspeedBoardConfig *cfg)
 {
     AspeedBoardState *bmc;
     AspeedSoCClass *sc;
 
     bmc = g_new0(AspeedBoardState, 1);
-    object_initialize(&bmc->soc, (sizeof(bmc->soc)), "ast2400-a0");
+    object_initialize(&bmc->soc, (sizeof(bmc->soc)), cfg->soc_name);
     object_property_add_child(OBJECT(machine), "soc", OBJECT(&bmc->soc),
                               &error_abort);
 
@@ -74,7 +88,7 @@ static void aspeed_board_init(MachineState *machine)
                                 &bmc->ram);
     object_property_add_const_link(OBJECT(&bmc->soc), "ram", OBJECT(&bmc->ram),
                                    &error_abort);
-    object_property_set_int(OBJECT(&bmc->soc), 0x120CE416, "hw-strap1",
+    object_property_set_int(OBJECT(&bmc->soc), cfg->hw_strap1, "hw-strap1",
                             &error_abort);
     object_property_set_bool(OBJECT(&bmc->soc), true, "realized",
                              &error_abort);
@@ -93,7 +107,7 @@ static void aspeed_board_init(MachineState *machine)
 
 static void palmetto_bmc_init(MachineState *machine)
 {
-    aspeed_board_init(machine);
+    aspeed_board_init(machine, &aspeed_boards[PALMETTO_BMC]);
 }
 
 static void palmetto_bmc_class_init(ObjectClass *oc, void *data)
