@@ -145,7 +145,6 @@ static void palmetto_bmc_class_init(ObjectClass *oc, void *data)
     mc->no_sdcard = 1;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
-    mc->no_sdcard = 1;
     mc->no_parallel = 1;
 }
 
