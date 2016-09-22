@@ -2490,7 +2490,6 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx &= 0xffff; /* The count doesn't need to be reliable. */
         break;
     case 0xD: {
-        KVMState *s = cs->kvm_state;
         uint64_t ena_mask;
         int i;
 
@@ -2502,20 +2501,28 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
             break;
         }
+
+        ena_mask = (XSTATE_FP_MASK | XSTATE_SSE_MASK);
+        for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
+            const ExtSaveArea *esa = &x86_ext_save_areas[i];
+            if (env->features[esa->feature] & esa->bits) {
+                ena_mask |= (1ULL << i);
+            }
+        }
+
         if (kvm_enabled()) {
-            ena_mask = kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EDX);
-            ena_mask <<= 32;
-            ena_mask |= kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX);
-        } else {
-            ena_mask = -1;
+            KVMState *s = cs->kvm_state;
+            uint64_t kvm_mask = kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EDX);
+            kvm_mask <<= 32;
+            kvm_mask |= kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX);
+            ena_mask &= kvm_mask;
         }
 
         if (count == 0) {
             *ecx = 0x240;
             for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
                 const ExtSaveArea *esa = &x86_ext_save_areas[i];
-                if ((env->features[esa->feature] & esa->bits)
-                    && ((ena_mask >> i) & 1) != 0) {
+                if ((ena_mask >> i) & 1) {
                     if (i < 32) {
                         *eax |= 1u << i;
                     } else {
@@ -2530,8 +2537,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *eax = env->features[FEAT_XSAVE];
         } else if (count < ARRAY_SIZE(x86_ext_save_areas)) {
             const ExtSaveArea *esa = &x86_ext_save_areas[count];
-            if ((env->features[esa->feature] & esa->bits)
-                && ((ena_mask >> count) & 1) != 0) {
+            if ((ena_mask >> count) & 1) {
                 *eax = esa->size;
                 *ebx = esa->offset;
             }
