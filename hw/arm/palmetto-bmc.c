@@ -15,7 +15,7 @@
 #include "cpu.h"
 #include "exec/address-spaces.h"
 #include "hw/arm/arm.h"
-#include "hw/arm/ast2400.h"
+#include "hw/arm/aspeed_soc.h"
 #include "hw/boards.h"
 #include "qemu/log.h"
 #include "sysemu/block-backend.h"
