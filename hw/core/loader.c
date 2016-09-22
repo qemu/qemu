@@ -133,9 +133,15 @@ ssize_t read_targphys(const char *name,
     return did;
 }
 
-/* return the size or -1 if error */
 int load_image_targphys(const char *filename,
                         hwaddr addr, uint64_t max_sz)
+{
+    return load_image_targphys_as(filename, addr, max_sz, NULL);
+}
+
+/* return the size or -1 if error */
+int load_image_targphys_as(const char *filename,
+                           hwaddr addr, uint64_t max_sz, AddressSpace *as)
 {
     int size;
 
@@ -144,7 +150,7 @@ int load_image_targphys(const char *filename,
         return -1;
     }
     if (size > 0) {
-        rom_add_file_fixed(filename, addr, -1);
+        rom_add_file_fixed_as(filename, addr, -1, as);
     }
     return size;
 }
