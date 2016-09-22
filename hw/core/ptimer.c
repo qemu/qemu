@@ -44,6 +44,7 @@ static void ptimer_reload(ptimer_state *s)
     }
     if (s->delta == 0 || s->period == 0) {
         fprintf(stderr, "Timer with period zero, disabling\n");
+        timer_del(s->timer);
         s->enabled = 0;
         return;
     }
