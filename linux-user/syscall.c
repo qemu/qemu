@@ -11457,16 +11457,18 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_mq_open) && defined(__NR_mq_open)
     case TARGET_NR_mq_open:
         {
-            struct mq_attr posix_mq_attr, *attrp;
+            struct mq_attr posix_mq_attr;
+            int host_flags;
 
-            p = lock_user_string(arg1 - 1);
-            if (arg4 != 0) {
-                copy_from_user_mq_attr (&posix_mq_attr, arg4);
-                attrp = &posix_mq_attr;
-            } else {
-                attrp = 0;
+            host_flags = target_to_host_bitmask(arg2, fcntl_flags_tbl);
+            if (copy_from_user_mq_attr(&posix_mq_attr, arg4) != 0) {
+                goto efault;
             }
-            ret = get_errno(mq_open(p, arg2, arg3, attrp));
+            p = lock_user_string(arg1 - 1);
+            if (!p) {
+                goto efault;
+            }
+            ret = get_errno(mq_open(p, host_flags, arg3, &posix_mq_attr));
             unlock_user (p, arg1, 0);
         }
         break;
