@@ -120,14 +120,14 @@ extern bool rom_file_has_mr;
 
 int rom_add_file(const char *file, const char *fw_dir,
                  hwaddr addr, int32_t bootindex,
-                 bool option_rom, MemoryRegion *mr);
+                 bool option_rom, MemoryRegion *mr, AddressSpace *as);
 MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
                            size_t max_len, hwaddr addr,
                            const char *fw_file_name,
                            FWCfgReadCallback fw_callback,
                            void *callback_opaque);
 int rom_add_elf_program(const char *name, void *data, size_t datasize,
-                        size_t romsize, hwaddr addr);
+                        size_t romsize, hwaddr addr, AddressSpace *as);
 int rom_check_and_register_reset(void);
 void rom_set_fw(FWCfgState *f);
 void rom_set_order_override(int order);
@@ -137,11 +137,13 @@ void *rom_ptr(hwaddr addr);
 void hmp_info_roms(Monitor *mon, const QDict *qdict);
 
 #define rom_add_file_fixed(_f, _a, _i)          \
-    rom_add_file(_f, NULL, _a, _i, false, NULL)
+    rom_add_file(_f, NULL, _a, _i, false, NULL, NULL)
 #define rom_add_blob_fixed(_f, _b, _l, _a)      \
     rom_add_blob(_f, _b, _l, _l, _a, NULL, NULL, NULL)
 #define rom_add_file_mr(_f, _mr, _i)            \
-    rom_add_file(_f, NULL, 0, _i, false, _mr)
+    rom_add_file(_f, NULL, 0, _i, false, _mr, NULL)
+#define rom_add_file_as(_f, _as, _i)            \
+    rom_add_file(_f, NULL, 0, _i, false, NULL, _as)
 
 #define PC_ROM_MIN_VGA     0xc0000
 #define PC_ROM_MIN_OPTION  0xc8000
