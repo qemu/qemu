@@ -40,8 +40,21 @@ enum {
     PALMETTO_BMC,
 };
 
+#define PALMETTO_BMC_HW_STRAP1 (                                        \
+        SCU_AST2400_HW_STRAP_DRAM_SIZE(DRAM_SIZE_256MB) |               \
+        SCU_AST2400_HW_STRAP_DRAM_CONFIG(2 /* DDR3 with CL=6, CWL=5 */) | \
+        SCU_AST2400_HW_STRAP_ACPI_DIS |                                 \
+        SCU_AST2400_HW_STRAP_SET_CLK_SOURCE(AST2400_CLK_48M_IN) |       \
+        SCU_HW_STRAP_VGA_CLASS_CODE |                                   \
+        SCU_HW_STRAP_LPC_RESET_PIN |                                    \
+        SCU_HW_STRAP_SPI_MODE(SCU_HW_STRAP_SPI_M_S_EN) |                \
+        SCU_AST2400_HW_STRAP_SET_CPU_AHB_RATIO(AST2400_CPU_AHB_RATIO_2_1) | \
+        SCU_HW_STRAP_SPI_WIDTH |                                        \
+        SCU_HW_STRAP_VGA_SIZE_SET(VGA_16M_DRAM) |                       \
+        SCU_AST2400_HW_STRAP_BOOT_MODE(AST2400_SPI_BOOT))
+
 static const AspeedBoardConfig aspeed_boards[] = {
-    [PALMETTO_BMC] = { "ast2400-a0", 0x120CE416 },
+    [PALMETTO_BMC] = { "ast2400-a0", PALMETTO_BMC_HW_STRAP1 },
 };
 
 static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
