@@ -192,7 +192,7 @@ static void aspeed_sdmc_reset(DeviceState *dev)
     case AST2400_A0_SILICON_REV:
         s->regs[R_CONF] |=
             ASPEED_SDMC_VGA_COMPAT |
-            ASPEED_SDMC_DRAM_SIZE(ast2400_rambits());
+            ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
         break;
 
     case AST2500_A0_SILICON_REV:
@@ -200,7 +200,7 @@ static void aspeed_sdmc_reset(DeviceState *dev)
         s->regs[R_CONF] |=
             ASPEED_SDMC_HW_VERSION(1) |
             ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
-            ASPEED_SDMC_DRAM_SIZE(ast2500_rambits());
+            ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
         break;
 
     default:
@@ -217,6 +217,18 @@ static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Unknown silicon revision: 0x%" PRIx32,
                 s->silicon_rev);
         return;
+    }
+
+    switch (s->silicon_rev) {
+    case AST2400_A0_SILICON_REV:
+        s->ram_bits = ast2400_rambits();
+        break;
+    case AST2500_A0_SILICON_REV:
+    case AST2500_A1_SILICON_REV:
+        s->ram_bits = ast2500_rambits();
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_sdmc_ops, s,
