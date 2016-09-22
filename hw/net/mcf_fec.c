@@ -177,7 +177,7 @@ static void mcf_fec_do_tx(mcf_fec_state *s)
         if (bd.flags & FEC_BD_L) {
             /* Last buffer in frame.  */
             DPRINTF("Sending packet\n");
-            qemu_send_packet(qemu_get_queue(s->nic), frame, len);
+            qemu_send_packet(qemu_get_queue(s->nic), frame, frame_size);
             ptr = frame;
             frame_size = 0;
             s->eir |= FEC_INT_TXF;
