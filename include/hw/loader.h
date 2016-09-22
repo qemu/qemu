@@ -14,8 +14,28 @@
 int get_image_size(const char *filename);
 int load_image(const char *filename, uint8_t *addr); /* deprecated */
 ssize_t load_image_size(const char *filename, void *addr, size_t size);
+
+/**load_image_targphys_as:
+ * @filename: Path to the image file
+ * @addr: Address to load the image to
+ * @max_sz: The maximum size of the image to load
+ * @as: The AddressSpace to load the ELF to. The value of address_space_memory
+ *      is used if nothing is supplied here.
+ *
+ * Load a fixed image into memory.
+ *
+ * Returns the size of the loaded image on success, -1 otherwise.
+ */
+int load_image_targphys_as(const char *filename,
+                           hwaddr addr, uint64_t max_sz, AddressSpace *as);
+
+/** load_image_targphys:
+ * Same as load_image_targphys_as(), but doesn't allow the caller to specify
+ * an AddressSpace.
+ */
 int load_image_targphys(const char *filename, hwaddr,
                         uint64_t max_sz);
+
 /**
  * load_image_mr: load an image into a memory region
  * @filename: Path to the image file
@@ -45,7 +65,7 @@ int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz);
 #define ELF_LOAD_WRONG_ENDIAN -4
 const char *load_elf_strerror(int error);
 
-/** load_elf:
+/** load_elf_as:
  * @filename: Path of ELF file
  * @translate_fn: optional function to translate load addresses
  * @translate_opaque: opaque data passed to @translate_fn
@@ -59,6 +79,8 @@ const char *load_elf_strerror(int error);
  * @data_swab: Set to order of byte swapping for data. 0 for no swap, 1
  *             for swapping bytes within halfwords, 2 for bytes within
  *             words and 3 for within doublewords.
+ * @as: The AddressSpace to load the ELF to. The value of address_space_memory
+ *      is used if nothing is supplied here.
  *
  * Load an ELF file's contents to the emulated system's address space.
  * Clients may optionally specify a callback to perform address
@@ -68,8 +90,19 @@ const char *load_elf_strerror(int error);
  * load will fail if the target ELF does not match. Some architectures
  * have some architecture-specific behaviours that come into effect when
  * their particular values for @elf_machine are set.
+ * If @elf_machine is EM_NONE then the machine type will be read from the
+ * ELF header and no checks will be carried out against the machine type.
  */
+int load_elf_as(const char *filename,
+                uint64_t (*translate_fn)(void *, uint64_t),
+                void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
+                uint64_t *highaddr, int big_endian, int elf_machine,
+                int clear_lsb, int data_swab, AddressSpace *as);
 
+/** load_elf:
+ * Same as load_elf_as(), but doesn't allow the caller to specify an
+ * AddressSpace.
+ */
 int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
              void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
              uint64_t *highaddr, int big_endian, int elf_machine,
@@ -89,6 +122,30 @@ void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp);
 
 int load_aout(const char *filename, hwaddr addr, int max_sz,
               int bswap_needed, hwaddr target_page_size);
+
+/** load_uimage_as:
+ * @filename: Path of uimage file
+ * @ep: Populated with program entry point. Ignored if NULL.
+ * @loadaddr: Populated with the load address. Ignored if NULL.
+ * @is_linux: Is set to true if the image loaded is Linux. Ignored if NULL.
+ * @translate_fn: optional function to translate load addresses
+ * @translate_opaque: opaque data passed to @translate_fn
+ * @as: The AddressSpace to load the ELF to. The value of address_space_memory
+ *      is used if nothing is supplied here.
+ *
+ * Loads a u-boot image into memory.
+ *
+ * Returns the size of the loaded image on success, -1 otherwise.
+ */
+int load_uimage_as(const char *filename, hwaddr *ep,
+                   hwaddr *loadaddr, int *is_linux,
+                   uint64_t (*translate_fn)(void *, uint64_t),
+                   void *translate_opaque, AddressSpace *as);
+
+/** load_uimage:
+ * Same as load_uimage_as(), but doesn't allow the caller to specify an
+ * AddressSpace.
+ */
 int load_uimage(const char *filename, hwaddr *ep,
                 hwaddr *loadaddr, int *is_linux,
                 uint64_t (*translate_fn)(void *, uint64_t),
@@ -118,14 +175,14 @@ extern bool rom_file_has_mr;
 
 int rom_add_file(const char *file, const char *fw_dir,
                  hwaddr addr, int32_t bootindex,
-                 bool option_rom, MemoryRegion *mr);
+                 bool option_rom, MemoryRegion *mr, AddressSpace *as);
 MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
                            size_t max_len, hwaddr addr,
                            const char *fw_file_name,
                            FWCfgReadCallback fw_callback,
                            void *callback_opaque);
 int rom_add_elf_program(const char *name, void *data, size_t datasize,
-                        size_t romsize, hwaddr addr);
+                        size_t romsize, hwaddr addr, AddressSpace *as);
 int rom_check_and_register_reset(void);
 void rom_set_fw(FWCfgState *f);
 void rom_set_order_override(int order);
@@ -135,11 +192,17 @@ void *rom_ptr(hwaddr addr);
 void hmp_info_roms(Monitor *mon, const QDict *qdict);
 
 #define rom_add_file_fixed(_f, _a, _i)          \
-    rom_add_file(_f, NULL, _a, _i, false, NULL)
+    rom_add_file(_f, NULL, _a, _i, false, NULL, NULL)
 #define rom_add_blob_fixed(_f, _b, _l, _a)      \
     rom_add_blob(_f, _b, _l, _l, _a, NULL, NULL, NULL)
 #define rom_add_file_mr(_f, _mr, _i)            \
-    rom_add_file(_f, NULL, 0, _i, false, _mr)
+    rom_add_file(_f, NULL, 0, _i, false, _mr, NULL)
+#define rom_add_file_as(_f, _as, _i)            \
+    rom_add_file(_f, NULL, 0, _i, false, NULL, _as)
+#define rom_add_file_fixed_as(_f, _a, _i, _as)          \
+    rom_add_file(_f, NULL, _a, _i, false, NULL, _as)
+#define rom_add_blob_fixed_as(_f, _b, _l, _a, _as)      \
+    rom_add_blob(_f, _b, _l, _l, _a, NULL, NULL, _as)
 
 #define PC_ROM_MIN_VGA     0xc0000
 #define PC_ROM_MIN_OPTION  0xc8000

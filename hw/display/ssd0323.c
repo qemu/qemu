@@ -48,18 +48,18 @@ typedef struct {
     SSISlave ssidev;
     QemuConsole *con;
 
-    int cmd_len;
-    int cmd;
-    int cmd_data[8];
-    int row;
-    int row_start;
-    int row_end;
-    int col;
-    int col_start;
-    int col_end;
-    int redraw;
-    int remap;
-    enum ssd0323_mode mode;
+    uint32_t cmd_len;
+    int32_t cmd;
+    int32_t cmd_data[8];
+    int32_t row;
+    int32_t row_start;
+    int32_t row_end;
+    int32_t col;
+    int32_t col_start;
+    int32_t col_end;
+    int32_t redraw;
+    int32_t remap;
+    uint32_t mode;
     uint8_t framebuffer[128 * 80 / 2];
 } ssd0323_state;
 
@@ -279,82 +279,61 @@ static void ssd0323_cd(void *opaque, int n, int level)
     s->mode = level ? SSD0323_DATA : SSD0323_CMD;
 }
 
-static void ssd0323_save(QEMUFile *f, void *opaque)
+static int ssd0323_post_load(void *opaque, int version_id)
 {
-    SSISlave *ss = SSI_SLAVE(opaque);
     ssd0323_state *s = (ssd0323_state *)opaque;
-    int i;
 
-    qemu_put_be32(f, s->cmd_len);
-    qemu_put_be32(f, s->cmd);
-    for (i = 0; i < 8; i++)
-        qemu_put_be32(f, s->cmd_data[i]);
-    qemu_put_be32(f, s->row);
-    qemu_put_be32(f, s->row_start);
-    qemu_put_be32(f, s->row_end);
-    qemu_put_be32(f, s->col);
-    qemu_put_be32(f, s->col_start);
-    qemu_put_be32(f, s->col_end);
-    qemu_put_be32(f, s->redraw);
-    qemu_put_be32(f, s->remap);
-    qemu_put_be32(f, s->mode);
-    qemu_put_buffer(f, s->framebuffer, sizeof(s->framebuffer));
-
-    qemu_put_be32(f, ss->cs);
-}
-
-static int ssd0323_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SSISlave *ss = SSI_SLAVE(opaque);
-    ssd0323_state *s = (ssd0323_state *)opaque;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->cmd_len = qemu_get_be32(f);
-    if (s->cmd_len < 0 || s->cmd_len > ARRAY_SIZE(s->cmd_data)) {
+    if (s->cmd_len > ARRAY_SIZE(s->cmd_data)) {
         return -EINVAL;
     }
-    s->cmd = qemu_get_be32(f);
-    for (i = 0; i < 8; i++)
-        s->cmd_data[i] = qemu_get_be32(f);
-    s->row = qemu_get_be32(f);
     if (s->row < 0 || s->row >= 80) {
         return -EINVAL;
     }
-    s->row_start = qemu_get_be32(f);
     if (s->row_start < 0 || s->row_start >= 80) {
         return -EINVAL;
     }
-    s->row_end = qemu_get_be32(f);
     if (s->row_end < 0 || s->row_end >= 80) {
         return -EINVAL;
     }
-    s->col = qemu_get_be32(f);
     if (s->col < 0 || s->col >= 64) {
         return -EINVAL;
     }
-    s->col_start = qemu_get_be32(f);
     if (s->col_start < 0 || s->col_start >= 64) {
         return -EINVAL;
     }
-    s->col_end = qemu_get_be32(f);
     if (s->col_end < 0 || s->col_end >= 64) {
         return -EINVAL;
     }
-    s->redraw = qemu_get_be32(f);
-    s->remap = qemu_get_be32(f);
-    s->mode = qemu_get_be32(f);
     if (s->mode != SSD0323_CMD && s->mode != SSD0323_DATA) {
         return -EINVAL;
     }
-    qemu_get_buffer(f, s->framebuffer, sizeof(s->framebuffer));
-
-    ss->cs = qemu_get_be32(f);
 
     return 0;
 }
+
+static const VMStateDescription vmstate_ssd0323 = {
+    .name = "ssd0323_oled",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .post_load = ssd0323_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(cmd_len, ssd0323_state),
+        VMSTATE_INT32(cmd, ssd0323_state),
+        VMSTATE_INT32_ARRAY(cmd_data, ssd0323_state, 8),
+        VMSTATE_INT32(row, ssd0323_state),
+        VMSTATE_INT32(row_start, ssd0323_state),
+        VMSTATE_INT32(row_end, ssd0323_state),
+        VMSTATE_INT32(col, ssd0323_state),
+        VMSTATE_INT32(col_start, ssd0323_state),
+        VMSTATE_INT32(col_end, ssd0323_state),
+        VMSTATE_INT32(redraw, ssd0323_state),
+        VMSTATE_INT32(remap, ssd0323_state),
+        VMSTATE_UINT32(mode, ssd0323_state),
+        VMSTATE_BUFFER(framebuffer, ssd0323_state),
+        VMSTATE_SSI_SLAVE(ssidev, ssd0323_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const GraphicHwOps ssd0323_ops = {
     .invalidate  = ssd0323_invalidate_display,
@@ -372,18 +351,17 @@ static void ssd0323_realize(SSISlave *d, Error **errp)
     qemu_console_resize(s->con, 128 * MAGNIFY, 64 * MAGNIFY);
 
     qdev_init_gpio_in(dev, ssd0323_cd, 1);
-
-    register_savevm(dev, "ssd0323_oled", -1, 1,
-                    ssd0323_save, ssd0323_load, s);
 }
 
 static void ssd0323_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
     k->realize = ssd0323_realize;
     k->transfer = ssd0323_transfer;
     k->cs_polarity = SSI_CS_HIGH;
+    dc->vmsd = &vmstate_ssd0323;
 }
 
 static const TypeInfo ssd0323_info = {

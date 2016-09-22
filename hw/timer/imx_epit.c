@@ -30,7 +30,7 @@
         } \
     } while (0)
 
-static char const *imx_epit_reg_name(uint32_t reg)
+static const char *imx_epit_reg_name(uint32_t reg)
 {
     switch (reg) {
     case 0:
@@ -314,10 +314,10 @@ static void imx_epit_realize(DeviceState *dev, Error **errp)
                           0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    s->timer_reload = ptimer_init(NULL);
+    s->timer_reload = ptimer_init(NULL, PTIMER_POLICY_DEFAULT);
 
     bh = qemu_bh_new(imx_epit_cmp, s);
-    s->timer_cmp = ptimer_init(bh);
+    s->timer_cmp = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
 }
 
 static void imx_epit_class_init(ObjectClass *klass, void *data)

@@ -263,7 +263,8 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                               void *translate_opaque,
                               int must_swab, uint64_t *pentry,
                               uint64_t *lowaddr, uint64_t *highaddr,
-                              int elf_machine, int clear_lsb, int data_swab)
+                              int elf_machine, int clear_lsb, int data_swab,
+                              AddressSpace *as)
 {
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
@@ -278,6 +279,11 @@ static int glue(load_elf, SZ)(const char *name, int fd,
         goto fail;
     if (must_swab) {
         glue(bswap_ehdr, SZ)(&ehdr);
+    }
+
+    if (elf_machine <= EM_NONE) {
+        /* The caller didn't specify an ARCH, we can figure it out */
+        elf_machine = ehdr.e_machine;
     }
 
     switch (elf_machine) {
@@ -400,7 +406,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
             snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
 
             /* rom_add_elf_program() seize the ownership of 'data' */
-            rom_add_elf_program(label, data, file_size, mem_size, addr);
+            rom_add_elf_program(label, data, file_size, mem_size, addr, as);
 
             total_size += mem_size;
             if (addr < low)

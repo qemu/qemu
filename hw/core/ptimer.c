@@ -11,6 +11,7 @@
 #include "hw/ptimer.h"
 #include "qemu/host-utils.h"
 #include "sysemu/replay.h"
+#include "sysemu/qtest.h"
 
 struct ptimer_state
 {
@@ -21,6 +22,7 @@ struct ptimer_state
     int64_t period;
     int64_t last_event;
     int64_t next_event;
+    uint8_t policy_mask;
     QEMUBH *bh;
     QEMUTimer *timer;
 };
@@ -43,7 +45,10 @@ static void ptimer_reload(ptimer_state *s)
         s->delta = s->limit;
     }
     if (s->delta == 0 || s->period == 0) {
-        fprintf(stderr, "Timer with period zero, disabling\n");
+        if (!qtest_enabled()) {
+            fprintf(stderr, "Timer with period zero, disabling\n");
+        }
+        timer_del(s->timer);
         s->enabled = 0;
         return;
     }
@@ -161,7 +166,9 @@ void ptimer_run(ptimer_state *s, int oneshot)
     bool was_disabled = !s->enabled;
 
     if (was_disabled && s->period == 0) {
-        fprintf(stderr, "Timer with period zero, disabling\n");
+        if (!qtest_enabled()) {
+            fprintf(stderr, "Timer with period zero, disabling\n");
+        }
         return;
     }
     s->enabled = oneshot ? 2 : 1;
@@ -242,12 +249,13 @@ const VMStateDescription vmstate_ptimer = {
     }
 };
 
-ptimer_state *ptimer_init(QEMUBH *bh)
+ptimer_state *ptimer_init(QEMUBH *bh, uint8_t policy_mask)
 {
     ptimer_state *s;
 
     s = (ptimer_state *)g_malloc0(sizeof(ptimer_state));
     s->bh = bh;
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ptimer_tick, s);
+    s->policy_mask = policy_mask;
     return s;
 }

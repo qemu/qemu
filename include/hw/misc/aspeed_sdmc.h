@@ -25,6 +25,8 @@ typedef struct AspeedSDMCState {
 
     uint32_t regs[ASPEED_SDMC_NR_REGS];
     uint32_t silicon_rev;
+    uint32_t ram_bits;
+    uint64_t ram_size;
 
 } AspeedSDMCState;
 

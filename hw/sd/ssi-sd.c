@@ -31,7 +31,7 @@ do { fprintf(stderr, "ssi_sd: error: " fmt , ## __VA_ARGS__);} while (0)
 #endif
 
 typedef enum {
-    SSI_SD_CMD,
+    SSI_SD_CMD = 0,
     SSI_SD_CMDARG,
     SSI_SD_RESPONSE,
     SSI_SD_DATA_START,
@@ -40,13 +40,13 @@ typedef enum {
 
 typedef struct {
     SSISlave ssidev;
-    ssi_sd_mode mode;
+    uint32_t mode;
     int cmd;
     uint8_t cmdarg[4];
     uint8_t response[5];
-    int arglen;
-    int response_pos;
-    int stopping;
+    int32_t arglen;
+    int32_t response_pos;
+    int32_t stopping;
     SDState *sd;
 } ssi_sd_state;
 
@@ -198,61 +198,46 @@ static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
     return 0xff;
 }
 
-static void ssi_sd_save(QEMUFile *f, void *opaque)
+static int ssi_sd_post_load(void *opaque, int version_id)
 {
-    SSISlave *ss = SSI_SLAVE(opaque);
     ssi_sd_state *s = (ssi_sd_state *)opaque;
-    int i;
 
-    qemu_put_be32(f, s->mode);
-    qemu_put_be32(f, s->cmd);
-    for (i = 0; i < 4; i++)
-        qemu_put_be32(f, s->cmdarg[i]);
-    for (i = 0; i < 5; i++)
-        qemu_put_be32(f, s->response[i]);
-    qemu_put_be32(f, s->arglen);
-    qemu_put_be32(f, s->response_pos);
-    qemu_put_be32(f, s->stopping);
-
-    qemu_put_be32(f, ss->cs);
-}
-
-static int ssi_sd_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SSISlave *ss = SSI_SLAVE(opaque);
-    ssi_sd_state *s = (ssi_sd_state *)opaque;
-    int i;
-
-    if (version_id != 1)
+    if (s->mode > SSI_SD_DATA_READ) {
         return -EINVAL;
-
-    s->mode = qemu_get_be32(f);
-    s->cmd = qemu_get_be32(f);
-    for (i = 0; i < 4; i++)
-        s->cmdarg[i] = qemu_get_be32(f);
-    for (i = 0; i < 5; i++)
-        s->response[i] = qemu_get_be32(f);
-    s->arglen = qemu_get_be32(f);
+    }
     if (s->mode == SSI_SD_CMDARG &&
         (s->arglen < 0 || s->arglen >= ARRAY_SIZE(s->cmdarg))) {
         return -EINVAL;
     }
-    s->response_pos = qemu_get_be32(f);
-    s->stopping = qemu_get_be32(f);
     if (s->mode == SSI_SD_RESPONSE &&
         (s->response_pos < 0 || s->response_pos >= ARRAY_SIZE(s->response) ||
         (!s->stopping && s->arglen > ARRAY_SIZE(s->response)))) {
         return -EINVAL;
     }
 
-    ss->cs = qemu_get_be32(f);
-
     return 0;
 }
 
+static const VMStateDescription vmstate_ssi_sd = {
+    .name = "ssi_sd",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .post_load = ssi_sd_post_load,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT32(mode, ssi_sd_state),
+        VMSTATE_INT32(cmd, ssi_sd_state),
+        VMSTATE_UINT8_ARRAY(cmdarg, ssi_sd_state, 4),
+        VMSTATE_UINT8_ARRAY(response, ssi_sd_state, 5),
+        VMSTATE_INT32(arglen, ssi_sd_state),
+        VMSTATE_INT32(response_pos, ssi_sd_state),
+        VMSTATE_INT32(stopping, ssi_sd_state),
+        VMSTATE_SSI_SLAVE(ssidev, ssi_sd_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void ssi_sd_realize(SSISlave *d, Error **errp)
 {
-    DeviceState *dev = DEVICE(d);
     ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, d);
     DriveInfo *dinfo;
 
@@ -264,16 +249,17 @@ static void ssi_sd_realize(SSISlave *d, Error **errp)
         error_setg(errp, "Device initialization failed.");
         return;
     }
-    register_savevm(dev, "ssi_sd", -1, 1, ssi_sd_save, ssi_sd_load, s);
 }
 
 static void ssi_sd_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
     k->realize = ssi_sd_realize;
     k->transfer = ssi_sd_transfer;
     k->cs_polarity = SSI_CS_LOW;
+    dc->vmsd = &vmstate_ssi_sd;
 }
 
 static const TypeInfo ssi_sd_info = {

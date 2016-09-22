@@ -12,11 +12,34 @@
 #include "qemu/timer.h"
 #include "migration/vmstate.h"
 
+/* The default ptimer policy retains backward compatibility with the legacy
+ * timers. Custom policies are adjusting the default one. Consider providing
+ * a correct policy for your timer.
+ *
+ * The rough edges of the default policy:
+ *  - Starting to run with a period = 0 emits error message and stops the
+ *    timer without a trigger.
+ *
+ *  - Setting period to 0 of the running timer emits error message and
+ *    stops the timer without a trigger.
+ *
+ *  - Starting to run with counter = 0 or setting it to "0" while timer
+ *    is running causes a trigger and reloads counter with a limit value.
+ *    If limit = 0, ptimer emits error message and stops the timer.
+ *
+ *  - Counter value of the running timer is one less than the actual value.
+ *
+ *  - Changing period/frequency of the running timer loses time elapsed
+ *    since the last period, effectively restarting the timer with a
+ *    counter = counter value at the moment of change (.i.e. one less).
+ */
+#define PTIMER_POLICY_DEFAULT               0
+
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;
 typedef void (*ptimer_cb)(void *opaque);
 
-ptimer_state *ptimer_init(QEMUBH *bh);
+ptimer_state *ptimer_init(QEMUBH *bh, uint8_t policy_mask);
 void ptimer_set_period(ptimer_state *s, int64_t period);
 void ptimer_set_freq(ptimer_state *s, uint32_t freq);
 uint64_t ptimer_get_limit(ptimer_state *s);

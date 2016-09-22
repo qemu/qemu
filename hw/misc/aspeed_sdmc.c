@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "hw/misc/aspeed_sdmc.h"
 #include "hw/misc/aspeed_scu.h"
 #include "hw/qdev-properties.h"
@@ -139,9 +140,9 @@ static const MemoryRegionOps aspeed_sdmc_ops = {
     .valid.max_access_size = 4,
 };
 
-static int ast2400_rambits(void)
+static int ast2400_rambits(AspeedSDMCState *s)
 {
-    switch (ram_size >> 20) {
+    switch (s->ram_size >> 20) {
     case 64:
         return ASPEED_SDMC_DRAM_64MB;
     case 128:
@@ -151,18 +152,19 @@ static int ast2400_rambits(void)
     case 512:
         return ASPEED_SDMC_DRAM_512MB;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid RAM size: 0x"
-                      RAM_ADDR_FMT "\n", __func__, ram_size);
         break;
     }
 
-    /* set a minimum default */
-    return ASPEED_SDMC_DRAM_64MB;
+    /* use a common default */
+    error_report("warning: Invalid RAM size 0x%" PRIx64
+                 ". Using default 256M", s->ram_size);
+    s->ram_size = 256 << 20;
+    return ASPEED_SDMC_DRAM_256MB;
 }
 
-static int ast2500_rambits(void)
+static int ast2500_rambits(AspeedSDMCState *s)
 {
-    switch (ram_size >> 20) {
+    switch (s->ram_size >> 20) {
     case 128:
         return ASPEED_SDMC_AST2500_128MB;
     case 256:
@@ -172,13 +174,14 @@ static int ast2500_rambits(void)
     case 1024:
         return ASPEED_SDMC_AST2500_1024MB;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid RAM size: 0x"
-                      RAM_ADDR_FMT "\n", __func__, ram_size);
         break;
     }
 
-    /* set a minimum default */
-    return ASPEED_SDMC_AST2500_128MB;
+    /* use a common default */
+    error_report("warning: Invalid RAM size 0x%" PRIx64
+                 ". Using default 512M", s->ram_size);
+    s->ram_size = 512 << 20;
+    return ASPEED_SDMC_AST2500_512MB;
 }
 
 static void aspeed_sdmc_reset(DeviceState *dev)
@@ -192,14 +195,15 @@ static void aspeed_sdmc_reset(DeviceState *dev)
     case AST2400_A0_SILICON_REV:
         s->regs[R_CONF] |=
             ASPEED_SDMC_VGA_COMPAT |
-            ASPEED_SDMC_DRAM_SIZE(ast2400_rambits());
+            ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
         break;
 
     case AST2500_A0_SILICON_REV:
+    case AST2500_A1_SILICON_REV:
         s->regs[R_CONF] |=
             ASPEED_SDMC_HW_VERSION(1) |
             ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
-            ASPEED_SDMC_DRAM_SIZE(ast2500_rambits());
+            ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
         break;
 
     default:
@@ -216,6 +220,18 @@ static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Unknown silicon revision: 0x%" PRIx32,
                 s->silicon_rev);
         return;
+    }
+
+    switch (s->silicon_rev) {
+    case AST2400_A0_SILICON_REV:
+        s->ram_bits = ast2400_rambits(s);
+        break;
+    case AST2500_A0_SILICON_REV:
+    case AST2500_A1_SILICON_REV:
+        s->ram_bits = ast2500_rambits(s);
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_sdmc_ops, s,
@@ -235,6 +251,7 @@ static const VMStateDescription vmstate_aspeed_sdmc = {
 
 static Property aspeed_sdmc_properties[] = {
     DEFINE_PROP_UINT32("silicon-rev", AspeedSDMCState, silicon_rev, 0),
+    DEFINE_PROP_UINT64("ram-size", AspeedSDMCState, ram_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

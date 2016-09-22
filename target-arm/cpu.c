@@ -1129,6 +1129,51 @@ static const ARMCPRegInfo cortexa15_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static void cortex_a7_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,cortex-a7";
+    set_feature(&cpu->env, ARM_FEATURE_V7);
+    set_feature(&cpu->env, ARM_FEATURE_VFP4);
+    set_feature(&cpu->env, ARM_FEATURE_NEON);
+    set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
+    set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
+    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
+    set_feature(&cpu->env, ARM_FEATURE_LPAE);
+    set_feature(&cpu->env, ARM_FEATURE_EL3);
+    cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A7;
+    cpu->midr = 0x410fc075;
+    cpu->reset_fpsid = 0x41023075;
+    cpu->mvfr0 = 0x10110222;
+    cpu->mvfr1 = 0x11111111;
+    cpu->ctr = 0x84448003;
+    cpu->reset_sctlr = 0x00c50078;
+    cpu->id_pfr0 = 0x00001131;
+    cpu->id_pfr1 = 0x00011011;
+    cpu->id_dfr0 = 0x02010555;
+    cpu->pmceid0 = 0x00000000;
+    cpu->pmceid1 = 0x00000000;
+    cpu->id_afr0 = 0x00000000;
+    cpu->id_mmfr0 = 0x10101105;
+    cpu->id_mmfr1 = 0x40000000;
+    cpu->id_mmfr2 = 0x01240000;
+    cpu->id_mmfr3 = 0x02102211;
+    cpu->id_isar0 = 0x01101110;
+    cpu->id_isar1 = 0x13112111;
+    cpu->id_isar2 = 0x21232041;
+    cpu->id_isar3 = 0x11112131;
+    cpu->id_isar4 = 0x10011142;
+    cpu->dbgdidr = 0x3515f005;
+    cpu->clidr = 0x0a200023;
+    cpu->ccsidr[0] = 0x701fe00a; /* 32K L1 dcache */
+    cpu->ccsidr[1] = 0x201fe00a; /* 32K L1 icache */
+    cpu->ccsidr[2] = 0x711fe07a; /* 4096K L2 unified cache */
+    define_arm_cp_regs(cpu, cortexa15_cp_reginfo); /* Same as A15 */
+}
+
 static void cortex_a15_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1385,6 +1430,7 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "cortex-m4",   .initfn = cortex_m4_initfn,
                              .class_init = arm_v7m_class_init },
     { .name = "cortex-r5",   .initfn = cortex_r5_initfn },
+    { .name = "cortex-a7",   .initfn = cortex_a7_initfn },
     { .name = "cortex-a8",   .initfn = cortex_a8_initfn },
     { .name = "cortex-a9",   .initfn = cortex_a9_initfn },
     { .name = "cortex-a15",  .initfn = cortex_a15_initfn },

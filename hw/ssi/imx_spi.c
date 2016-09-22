@@ -25,7 +25,7 @@
         } \
     } while (0)
 
-static char const *imx_spi_reg_name(uint32_t reg)
+static const char *imx_spi_reg_name(uint32_t reg)
 {
     static char unknown[20];
 

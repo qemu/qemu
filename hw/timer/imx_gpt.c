@@ -29,7 +29,7 @@
         } \
     } while (0)
 
-static char const *imx_gpt_reg_name(uint32_t reg)
+static const char *imx_gpt_reg_name(uint32_t reg)
 {
     switch (reg) {
     case 0:
@@ -461,7 +461,7 @@ static void imx_gpt_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 
     bh = qemu_bh_new(imx_gpt_timeout, s);
-    s->timer = ptimer_init(bh);
+    s->timer = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
 }
 
 static void imx_gpt_class_init(ObjectClass *klass, void *data)

@@ -322,9 +322,9 @@ static int etraxfs_timer_init(SysBusDevice *dev)
     t->bh_t0 = qemu_bh_new(timer0_hit, t);
     t->bh_t1 = qemu_bh_new(timer1_hit, t);
     t->bh_wd = qemu_bh_new(watchdog_hit, t);
-    t->ptimer_t0 = ptimer_init(t->bh_t0);
-    t->ptimer_t1 = ptimer_init(t->bh_t1);
-    t->ptimer_wd = ptimer_init(t->bh_wd);
+    t->ptimer_t0 = ptimer_init(t->bh_t0, PTIMER_POLICY_DEFAULT);
+    t->ptimer_t1 = ptimer_init(t->bh_t1, PTIMER_POLICY_DEFAULT);
+    t->ptimer_wd = ptimer_init(t->bh_wd, PTIMER_POLICY_DEFAULT);
 
     sysbus_init_irq(dev, &t->irq);
     sysbus_init_irq(dev, &t->nmi);
