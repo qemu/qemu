@@ -68,6 +68,8 @@ const char *load_elf_strerror(int error);
  * load will fail if the target ELF does not match. Some architectures
  * have some architecture-specific behaviours that come into effect when
  * their particular values for @elf_machine are set.
+ * If @elf_machine is EM_NONE then the machine type will be read from the
+ * ELF header and no checks will be carried out against the machine type.
  */
 
 int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),

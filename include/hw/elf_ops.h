@@ -280,6 +280,11 @@ static int glue(load_elf, SZ)(const char *name, int fd,
         glue(bswap_ehdr, SZ)(&ehdr);
     }
 
+    if (elf_machine <= EM_NONE) {
+        /* The caller didn't specify an ARCH, we can figure it out */
+        elf_machine = ehdr.e_machine;
+    }
+
     switch (elf_machine) {
         case EM_PPC64:
             if (ehdr.e_machine != EM_PPC64) {
