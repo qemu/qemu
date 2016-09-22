@@ -108,17 +108,25 @@ static void aspeed_board_init(MachineState *machine,
 
     sc = ASPEED_SOC_GET_CLASS(&bmc->soc);
 
-    memory_region_allocate_system_memory(&bmc->ram, NULL, "ram", ram_size);
-    memory_region_add_subregion(get_system_memory(), sc->info->sdram_base,
-                                &bmc->ram);
-    object_property_add_const_link(OBJECT(&bmc->soc), "ram", OBJECT(&bmc->ram),
-                                   &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), ram_size, "ram-size",
                            &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), cfg->hw_strap1, "hw-strap1",
                             &error_abort);
     object_property_set_bool(OBJECT(&bmc->soc), true, "realized",
                              &error_abort);
+
+    /*
+     * Allocate RAM after the memory controller has checked the size
+     * was valid. If not, a default value is used.
+     */
+    ram_size = object_property_get_int(OBJECT(&bmc->soc), "ram-size",
+                                       &error_abort);
+
+    memory_region_allocate_system_memory(&bmc->ram, NULL, "ram", ram_size);
+    memory_region_add_subregion(get_system_memory(), sc->info->sdram_base,
+                                &bmc->ram);
+    object_property_add_const_link(OBJECT(&bmc->soc), "ram", OBJECT(&bmc->ram),
+                                   &error_abort);
 
     aspeed_board_init_flashes(&bmc->soc.smc, "n25q256a", &error_abort);
     aspeed_board_init_flashes(&bmc->soc.spi, "mx25l25635e", &error_abort);
