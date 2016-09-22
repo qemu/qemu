@@ -11,6 +11,7 @@
 #include "hw/ptimer.h"
 #include "qemu/host-utils.h"
 #include "sysemu/replay.h"
+#include "sysemu/qtest.h"
 
 struct ptimer_state
 {
@@ -44,7 +45,9 @@ static void ptimer_reload(ptimer_state *s)
         s->delta = s->limit;
     }
     if (s->delta == 0 || s->period == 0) {
-        fprintf(stderr, "Timer with period zero, disabling\n");
+        if (!qtest_enabled()) {
+            fprintf(stderr, "Timer with period zero, disabling\n");
+        }
         timer_del(s->timer);
         s->enabled = 0;
         return;
@@ -163,7 +166,9 @@ void ptimer_run(ptimer_state *s, int oneshot)
     bool was_disabled = !s->enabled;
 
     if (was_disabled && s->period == 0) {
-        fprintf(stderr, "Timer with period zero, disabling\n");
+        if (!qtest_enabled()) {
+            fprintf(stderr, "Timer with period zero, disabling\n");
+        }
         return;
     }
     s->enabled = oneshot ? 2 : 1;
