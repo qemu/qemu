@@ -4578,7 +4578,6 @@ if test "$libnfs" != "no" ; then
   if $pkg_config --atleast-version=1.9.3 libnfs; then
     libnfs="yes"
     libnfs_libs=$($pkg_config --libs libnfs)
-    LIBS="$LIBS $libnfs_libs"
   else
     if test "$libnfs" = "yes" ; then
       feature_not_found "libnfs" "Install libnfs devel >= 1.9.3"
@@ -5351,7 +5350,8 @@ if test "$libiscsi" = "yes" ; then
 fi
 
 if test "$libnfs" = "yes" ; then
-  echo "CONFIG_LIBNFS=y" >> $config_host_mak
+  echo "CONFIG_LIBNFS=m" >> $config_host_mak
+  echo "LIBNFS_LIBS=$libnfs_libs" >> $config_host_mak
 fi
 
 if test "$seccomp" = "yes"; then

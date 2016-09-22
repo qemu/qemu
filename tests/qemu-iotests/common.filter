@@ -44,6 +44,15 @@ _filter_imgfmt()
     sed -e "s#$IMGFMT#IMGFMT#g"
 }
 
+# Replace error message when the format is not supported and delete
+# the output lines after the first one
+_filter_qemu_img_check()
+{
+    sed -e '/allocated.*fragmented.*compressed clusters/d' \
+        -e 's/qemu-img: This image format does not support checks/No errors were found on the image./' \
+        -e '/Image end offset: [0-9]\+/d'
+}
+
 # Removes \r from messages
 _filter_win32()
 {

@@ -139,6 +139,22 @@ Parameters to convert subcommand:
 Skip the creation of the target volume
 @end table
 
+Parameters to dd subcommand:
+
+@table @option
+
+@item bs=@var{block_size}
+defines the block size
+@item count=@var{blocks}
+sets the number of input blocks to copy
+@item if=@var{input}
+sets the input file
+@item of=@var{output}
+sets the output file
+@item skip=@var{blocks}
+sets the number of input blocks to skip
+@end table
+
 Command description:
 
 @table @option
@@ -309,6 +325,17 @@ If the @code{-n} option is specified, the target volume creation will be
 skipped. This is useful for formats such as @code{rbd} if the target
 volume has already been created with site specific options that cannot
 be supplied through qemu-img.
+
+@item dd [-f @var{fmt}] [-O @var{output_fmt}] [bs=@var{block_size}] [count=@var{blocks}] [skip=@var{blocks}] if=@var{input} of=@var{output}
+
+Dd copies from @var{input} file to @var{output} file converting it from
+@var{fmt} format to @var{output_fmt} format.
+
+The data is by default read and written using blocks of 512 bytes but can be
+modified by specifying @var{block_size}. If count=@var{blocks} is specified
+dd will stop reading input after reading @var{blocks} input blocks.
+
+The size syntax is similar to dd(1)'s size syntax.
 
 @item info [-f @var{fmt}] [--output=@var{ofmt}] [--backing-chain] @var{filename}
 
