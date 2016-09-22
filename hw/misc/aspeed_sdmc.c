@@ -140,9 +140,9 @@ static const MemoryRegionOps aspeed_sdmc_ops = {
     .valid.max_access_size = 4,
 };
 
-static int ast2400_rambits(void)
+static int ast2400_rambits(AspeedSDMCState *s)
 {
-    switch (ram_size >> 20) {
+    switch (s->ram_size >> 20) {
     case 64:
         return ASPEED_SDMC_DRAM_64MB;
     case 128:
@@ -156,14 +156,15 @@ static int ast2400_rambits(void)
     }
 
     /* use a common default */
-    error_report("warning: Invalid RAM size 0x" RAM_ADDR_FMT
-                 ". Using default 256M", ram_size);
+    error_report("warning: Invalid RAM size 0x%" PRIx64
+                 ". Using default 256M", s->ram_size);
+    s->ram_size = 256 << 20;
     return ASPEED_SDMC_DRAM_256MB;
 }
 
-static int ast2500_rambits(void)
+static int ast2500_rambits(AspeedSDMCState *s)
 {
-    switch (ram_size >> 20) {
+    switch (s->ram_size >> 20) {
     case 128:
         return ASPEED_SDMC_AST2500_128MB;
     case 256:
@@ -177,8 +178,9 @@ static int ast2500_rambits(void)
     }
 
     /* use a common default */
-    error_report("warning: Invalid RAM size 0x" RAM_ADDR_FMT
-                 ". Using default 512M", ram_size);
+    error_report("warning: Invalid RAM size 0x%" PRIx64
+                 ". Using default 512M", s->ram_size);
+    s->ram_size = 512 << 20;
     return ASPEED_SDMC_AST2500_512MB;
 }
 
@@ -222,11 +224,11 @@ static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
 
     switch (s->silicon_rev) {
     case AST2400_A0_SILICON_REV:
-        s->ram_bits = ast2400_rambits();
+        s->ram_bits = ast2400_rambits(s);
         break;
     case AST2500_A0_SILICON_REV:
     case AST2500_A1_SILICON_REV:
-        s->ram_bits = ast2500_rambits();
+        s->ram_bits = ast2500_rambits(s);
         break;
     default:
         g_assert_not_reached();
@@ -249,6 +251,7 @@ static const VMStateDescription vmstate_aspeed_sdmc = {
 
 static Property aspeed_sdmc_properties[] = {
     DEFINE_PROP_UINT32("silicon-rev", AspeedSDMCState, silicon_rev, 0),
+    DEFINE_PROP_UINT64("ram-size", AspeedSDMCState, ram_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

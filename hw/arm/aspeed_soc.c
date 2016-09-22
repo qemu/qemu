@@ -113,6 +113,8 @@ static void aspeed_soc_init(Object *obj)
     qdev_set_parent_bus(DEVICE(&s->sdmc), sysbus_get_default());
     qdev_prop_set_uint32(DEVICE(&s->sdmc), "silicon-rev",
                          sc->info->silicon_rev);
+    object_property_add_alias(obj, "ram-size", OBJECT(&s->sdmc),
+                              "ram-size", &error_abort);
 }
 
 static void aspeed_soc_realize(DeviceState *dev, Error **errp)
