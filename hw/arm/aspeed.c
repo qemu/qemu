@@ -21,17 +21,17 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 
-static struct arm_boot_info palmetto_bmc_binfo = {
+static struct arm_boot_info aspeed_board_binfo = {
     .board_id = -1, /* device-tree-only board */
     .nb_cpus = 1,
 };
 
-typedef struct PalmettoBMCState {
+typedef struct AspeedBoardState {
     AspeedSoCState soc;
     MemoryRegion ram;
-} PalmettoBMCState;
+} AspeedBoardState;
 
-static void palmetto_bmc_init_flashes(AspeedSMCState *s, const char *flashtype,
+static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
                                       Error **errp)
 {
     int i ;
@@ -57,12 +57,12 @@ static void palmetto_bmc_init_flashes(AspeedSMCState *s, const char *flashtype,
     }
 }
 
-static void palmetto_bmc_init(MachineState *machine)
+static void aspeed_board_init(MachineState *machine)
 {
-    PalmettoBMCState *bmc;
+    AspeedBoardState *bmc;
     AspeedSoCClass *sc;
 
-    bmc = g_new0(PalmettoBMCState, 1);
+    bmc = g_new0(AspeedBoardState, 1);
     object_initialize(&bmc->soc, (sizeof(bmc->soc)), "ast2400-a0");
     object_property_add_child(OBJECT(machine), "soc", OBJECT(&bmc->soc),
                               &error_abort);
@@ -79,21 +79,28 @@ static void palmetto_bmc_init(MachineState *machine)
     object_property_set_bool(OBJECT(&bmc->soc), true, "realized",
                              &error_abort);
 
-    palmetto_bmc_init_flashes(&bmc->soc.smc, "n25q256a", &error_abort);
-    palmetto_bmc_init_flashes(&bmc->soc.spi, "mx25l25635e", &error_abort);
+    aspeed_board_init_flashes(&bmc->soc.smc, "n25q256a", &error_abort);
+    aspeed_board_init_flashes(&bmc->soc.spi, "mx25l25635e", &error_abort);
 
-    palmetto_bmc_binfo.kernel_filename = machine->kernel_filename;
-    palmetto_bmc_binfo.initrd_filename = machine->initrd_filename;
-    palmetto_bmc_binfo.kernel_cmdline = machine->kernel_cmdline;
-    palmetto_bmc_binfo.ram_size = ram_size;
-    palmetto_bmc_binfo.loader_start = sc->info->sdram_base;
+    aspeed_board_binfo.kernel_filename = machine->kernel_filename;
+    aspeed_board_binfo.initrd_filename = machine->initrd_filename;
+    aspeed_board_binfo.kernel_cmdline = machine->kernel_cmdline;
+    aspeed_board_binfo.ram_size = ram_size;
+    aspeed_board_binfo.loader_start = sc->info->sdram_base;
 
-    arm_load_kernel(ARM_CPU(first_cpu), &palmetto_bmc_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), &aspeed_board_binfo);
 }
 
-static void palmetto_bmc_machine_init(MachineClass *mc)
+static void palmetto_bmc_init(MachineState *machine)
 {
-    mc->desc = "OpenPOWER Palmetto BMC";
+    aspeed_board_init(machine);
+}
+
+static void palmetto_bmc_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "OpenPOWER Palmetto BMC (ARM926EJ-S)";
     mc->init = palmetto_bmc_init;
     mc->max_cpus = 1;
     mc->no_sdcard = 1;
@@ -103,4 +110,15 @@ static void palmetto_bmc_machine_init(MachineClass *mc)
     mc->no_parallel = 1;
 }
 
-DEFINE_MACHINE("palmetto-bmc", palmetto_bmc_machine_init);
+static const TypeInfo palmetto_bmc_type = {
+    .name = MACHINE_TYPE_NAME("palmetto-bmc"),
+    .parent = TYPE_MACHINE,
+    .class_init = palmetto_bmc_class_init,
+};
+
+static void aspeed_machine_init(void)
+{
+    type_register_static(&palmetto_bmc_type);
+}
+
+type_init(aspeed_machine_init)
