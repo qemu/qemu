@@ -707,10 +707,8 @@ check_solid_tile32(VncState *vs, int x, int y, int w, int h,
 static bool check_solid_tile(VncState *vs, int x, int y, int w, int h,
                              uint32_t* color, bool samecolor)
 {
-    switch (VNC_SERVER_FB_BYTES) {
-    case 4:
-        return check_solid_tile32(vs, x, y, w, h, color, samecolor);
-    }
+    QEMU_BUILD_BUG_ON(VNC_SERVER_FB_BYTES != 4);
+    return check_solid_tile32(vs, x, y, w, h, color, samecolor);
 }
 
 static void find_best_solid_area(VncState *vs, int x, int y, int w, int h,
