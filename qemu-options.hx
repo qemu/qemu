@@ -610,6 +610,53 @@ DEF("blockdev", HAS_ARG, QEMU_OPTION_blockdev,
     "          [,read-only=on|off][,detect-zeroes=on|off|unmap]\n"
     "          [,driver specific parameters...]\n"
     "                configure a block backend\n", QEMU_ARCH_ALL)
+STEXI
+@item -blockdev @var{option}[,@var{option}[,@var{option}[,...]]]
+@findex -blockdev
+
+Define a new block driver node.
+
+@table @option
+@item Valid options for any block driver node:
+
+@table @code
+@item driver
+Specifies the block driver to use for the given node.
+@item node-name
+This defines the name of the block driver node by which it will be referenced
+later. The name must be unique, i.e. it must not match the name of a different
+block driver node, or (if you use @option{-drive} as well) the ID of a drive.
+
+If no node name is specified, it is automatically generated. The generated node
+name is not intended to be predictable and changes between QEMU invocations.
+For the top level, an explicit node name must be specified.
+@item read-only
+Open the node read-only. Guest write attempts will fail.
+@item cache.direct
+The host page cache can be avoided with @option{cache.direct=on}. This will
+attempt to do disk IO directly to the guest's memory. QEMU may still perform an
+internal copy of the data.
+@item cache.no-flush
+In case you don't care about data integrity over host failures, you can use
+@option{cache.no-flush=on}. This option tells QEMU that it never needs to write
+any data to the disk but can instead keep things in cache. If anything goes
+wrong, like your host losing power, the disk storage getting disconnected
+accidentally, etc. your image will most probably be rendered unusable.
+@item discard=@var{discard}
+@var{discard} is one of "ignore" (or "off") or "unmap" (or "on") and controls
+whether @code{discard} (also known as @code{trim} or @code{unmap}) requests are
+ignored or passed to the filesystem. Some machine types may not support
+discard requests.
+@item detect-zeroes=@var{detect-zeroes}
+@var{detect-zeroes} is "off", "on" or "unmap" and enables the automatic
+conversion of plain zero writes by the OS to driver specific optimized
+zero write commands. You may even choose "unmap" if @var{discard} is set
+to "unmap" to allow a zero write to be converted to an @code{unmap} operation.
+@end table
+
+@end table
+
+ETEXI
 
 DEF("drive", HAS_ARG, QEMU_OPTION_drive,
     "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
@@ -630,7 +677,12 @@ STEXI
 @item -drive @var{option}[,@var{option}[,@var{option}[,...]]]
 @findex -drive
 
-Define a new drive. Valid options are:
+Define a new drive. This includes creating a block driver node (the backend) as
+well as a guest device, and is mostly a shortcut for defining the corresponding
+@option{-blockdev} and @option{-device} options.
+
+@option{-drive} accepts all options that are accepted by @option{-blockdev}. In
+addition, it knows the following options:
 
 @table @option
 @item file=@var{file}
@@ -657,11 +709,31 @@ These options have the same definition as they have in @option{-hdachs}.
 @var{snapshot} is "on" or "off" and controls snapshot mode for the given drive
 (see @option{-snapshot}).
 @item cache=@var{cache}
-@var{cache} is "none", "writeback", "unsafe", "directsync" or "writethrough" and controls how the host cache is used to access block data.
+@var{cache} is "none", "writeback", "unsafe", "directsync" or "writethrough"
+and controls how the host cache is used to access block data. This is a
+shortcut that sets the @option{cache.direct} and @option{cache.no-flush}
+options (as in @option{-blockdev}), and additionally @option{cache.writeback},
+which provides a default for the @option{write-cache} option of block guest
+devices (as in @option{-device}). The modes correspond to the following
+settings:
+
+@c Our texi2pod.pl script doesn't support @multitable, so fall back to using
+@c plain ASCII art (well, UTF-8 art really). This looks okay both in the manpage
+@c and the HTML output.
+@example
+@             │ cache.writeback   cache.direct   cache.no-flush
+─────────────┼─────────────────────────────────────────────────
+writeback    │ on                off            off
+none         │ on                on             off
+writethrough │ off               off            off
+directsync   │ off               on             off
+unsafe       │ on                off            on
+@end example
+
+The default mode is @option{cache=writeback}.
+
 @item aio=@var{aio}
 @var{aio} is "threads", or "native" and selects between pthread based disk I/O and native Linux AIO.
-@item discard=@var{discard}
-@var{discard} is one of "ignore" (or "off") or "unmap" (or "on") and controls whether @dfn{discard} (also known as @dfn{trim} or @dfn{unmap}) requests are ignored or passed to the filesystem.  Some machine types may not support discard requests.
 @item format=@var{format}
 Specify which disk @var{format} will be used rather than detecting
 the format.  Can be used to specify format=raw to avoid interpreting
@@ -676,16 +748,9 @@ Specify which @var{action} to take on write and read errors. Valid actions are:
 "report" (report the error to the guest), "enospc" (pause QEMU only if the
 host disk is full; report the error to the guest otherwise).
 The default setting is @option{werror=enospc} and @option{rerror=report}.
-@item readonly
-Open drive @option{file} as read-only. Guest write attempts will fail.
 @item copy-on-read=@var{copy-on-read}
 @var{copy-on-read} is "on" or "off" and enables whether to copy read backing
 file sectors into the image file.
-@item detect-zeroes=@var{detect-zeroes}
-@var{detect-zeroes} is "off", "on" or "unmap" and enables the automatic
-conversion of plain zero writes by the OS to driver specific optimized
-zero write commands. You may even choose "unmap" if @var{discard} is set
-to "unmap" to allow a zero write to be converted to an UNMAP operation.
 @item bps=@var{b},bps_rd=@var{r},bps_wr=@var{w}
 Specify bandwidth throttling limits in bytes per second, either for all request
 types or for reads or writes only.  Small values can lead to timeouts or hangs
@@ -712,34 +777,19 @@ prevent guests from circumventing throttling limits by using many small disks
 instead of a single larger disk.
 @end table
 
-By default, the @option{cache=writeback} mode is used. It will report data
+By default, the @option{cache.writeback=on} mode is used. It will report data
 writes as completed as soon as the data is present in the host page cache.
 This is safe as long as your guest OS makes sure to correctly flush disk caches
 where needed. If your guest OS does not handle volatile disk write caches
 correctly and your host crashes or loses power, then the guest may experience
 data corruption.
 
-For such guests, you should consider using @option{cache=writethrough}. This
+For such guests, you should consider using @option{cache.writeback=off}. This
 means that the host page cache will be used to read and write data, but write
 notification will be sent to the guest only after QEMU has made sure to flush
 each write to the disk. Be aware that this has a major impact on performance.
 
-The host page cache can be avoided entirely with @option{cache=none}.  This will
-attempt to do disk IO directly to the guest's memory.  QEMU may still perform
-an internal copy of the data. Note that this is considered a writeback mode and
-the guest OS must handle the disk write cache correctly in order to avoid data
-corruption on host crashes.
-
-The host page cache can be avoided while only sending write notifications to
-the guest when the data has been flushed to the disk using
-@option{cache=directsync}.
-
-In case you don't care about data integrity over host failures, use
-@option{cache=unsafe}. This option tells QEMU that it never needs to write any
-data to the disk but can instead keep things in cache. If anything goes wrong,
-like your host losing power, the disk storage getting disconnected accidentally,
-etc. your image will most probably be rendered unusable.   When using
-the @option{-snapshot} option, unsafe caching is always used.
+When using the @option{-snapshot} option, unsafe caching is always used.
 
 Copy-on-read avoids accessing the same backing file sectors repeatedly and is
 useful when the backing file is over a slow network.  By default copy-on-read
