@@ -32,6 +32,8 @@
 
 #define CADENCE_GEM_MAXREG        (0x00000640/4) /* Last valid GEM address */
 
+#define MAX_PRIORITY_QUEUES             8
+
 typedef struct CadenceGEMState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -40,7 +42,10 @@ typedef struct CadenceGEMState {
     MemoryRegion iomem;
     NICState *nic;
     NICConf conf;
-    qemu_irq irq;
+    qemu_irq irq[MAX_PRIORITY_QUEUES];
+
+    /* Static properties */
+    uint8_t num_priority_queues;
 
     /* GEM registers backing store */
     uint32_t regs[CADENCE_GEM_MAXREG];
@@ -59,12 +64,12 @@ typedef struct CadenceGEMState {
     uint8_t phy_loop; /* Are we in phy loopback? */
 
     /* The current DMA descriptor pointers */
-    uint32_t rx_desc_addr;
-    uint32_t tx_desc_addr;
+    uint32_t rx_desc_addr[MAX_PRIORITY_QUEUES];
+    uint32_t tx_desc_addr[MAX_PRIORITY_QUEUES];
 
     uint8_t can_rx_state; /* Debug only */
 
-    unsigned rx_desc[2];
+    unsigned rx_desc[MAX_PRIORITY_QUEUES][2];
 
     bool sar_active[4];
 } CadenceGEMState;
