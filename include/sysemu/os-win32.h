@@ -103,6 +103,21 @@ static inline char *realpath(const char *path, char *resolved_path)
     return resolved_path;
 }
 
+/* ??? Mingw appears to export _lock_file and _unlock_file as the functions
+ * with which to lock a stdio handle.  But something is wrong in the markup,
+ * either in the header or the library, such that we get undefined references
+ * to "_imp___lock_file" etc when linking.  Since we seem to have no other
+ * alternative, and the usage within the logging functions isn't critical,
+ * ignore FILE locking.
+ */
+
+static inline void qemu_flockfile(FILE *f)
+{
+}
+
+static inline void qemu_funlockfile(FILE *f)
+{
+}
 
 /* We wrap all the sockets functions so that we can
  * set errno based on WSAGetLastError()

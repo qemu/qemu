@@ -1813,12 +1813,14 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
 #if !SIM_COMPAT
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
+        qemu_log_lock();
         qemu_log("--------------\n");
 #if DISAS_GNU
         log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
 #endif
         qemu_log("\nisize=%d osize=%d\n",
                  dc->pc - pc_start, tcg_op_buf_count());
+        qemu_log_unlock();
     }
 #endif
 #endif

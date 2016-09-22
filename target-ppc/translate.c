@@ -7211,9 +7211,11 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         int flags;
         flags = env->bfd_mach;
         flags |= ctx.le_mode << 16;
+        qemu_log_lock();
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
         log_target_disas(cs, pc_start, ctx.nip - pc_start, flags);
         qemu_log("\n");
+        qemu_log_unlock();
     }
 #endif
 }

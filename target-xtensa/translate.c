@@ -3155,10 +3155,12 @@ void gen_intermediate_code(CPUXtensaState *env, TranslationBlock *tb)
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
+        qemu_log_lock();
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
         log_target_disas(cs, pc_start, dc.pc - pc_start, 0);
         qemu_log("\n");
+        qemu_log_unlock();
     }
 #endif
     tb->size = dc.pc - pc_start;

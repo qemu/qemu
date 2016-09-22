@@ -5432,9 +5432,11 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
 #if defined(S390X_DEBUG_DISAS)
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
+        qemu_log_lock();
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
         log_target_disas(cs, pc_start, dc.pc - pc_start, 1);
         qemu_log("\n");
+        qemu_log_unlock();
     }
 #endif
 }
