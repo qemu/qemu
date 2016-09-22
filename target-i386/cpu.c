@@ -548,6 +548,20 @@ static const ExtSaveArea x86_ext_save_areas[] = {
             .size = sizeof(XSavePKRU) },
 };
 
+static uint32_t xsave_area_size(uint64_t mask)
+{
+    int i;
+    uint64_t ret = sizeof(X86LegacyXSaveArea) + sizeof(X86XSaveHeader);
+
+    for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
+        const ExtSaveArea *esa = &x86_ext_save_areas[i];
+        if ((mask >> i) & 1) {
+            ret = MAX(ret, esa->offset + esa->size);
+        }
+    }
+    return ret;
+}
+
 const char *get_register_name_32(unsigned int reg)
 {
     if (reg >= CPU_NB_REGS32) {
@@ -2519,13 +2533,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
 
         if (count == 0) {
-            *ecx = 0x240;
-            for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
-                const ExtSaveArea *esa = &x86_ext_save_areas[i];
-                if ((ena_mask >> i) & 1) {
-                    *ecx = MAX(*ecx, esa->offset + esa->size);
-                }
-            }
+            *ecx = xsave_area_size(ena_mask);;
             *eax = ena_mask;
             *edx = ena_mask >> 32;
             *ebx = *ecx;
