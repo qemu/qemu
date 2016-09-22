@@ -39,6 +39,21 @@ typedef struct AspeedSoCState {
 #define TYPE_ASPEED_SOC "aspeed-soc"
 #define ASPEED_SOC(obj) OBJECT_CHECK(AspeedSoCState, (obj), TYPE_ASPEED_SOC)
 
-#define AST2400_SDRAM_BASE       0x40000000
+typedef struct AspeedSoCInfo {
+    const char *name;
+    const char *cpu_model;
+    uint32_t silicon_rev;
+    hwaddr sdram_base;
+} AspeedSoCInfo;
+
+typedef struct AspeedSoCClass {
+    DeviceClass parent_class;
+    AspeedSoCInfo *info;
+} AspeedSoCClass;
+
+#define ASPEED_SOC_CLASS(klass)                                         \
+    OBJECT_CLASS_CHECK(AspeedSoCClass, (klass), TYPE_ASPEED_SOC)
+#define ASPEED_SOC_GET_CLASS(obj)                               \
+    OBJECT_GET_CLASS(AspeedSoCClass, (obj), TYPE_ASPEED_SOC)
 
 #endif /* ASPEED_SOC_H */

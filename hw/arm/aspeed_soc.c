@@ -37,6 +37,13 @@
 static const int uart_irqs[] = { 9, 32, 33, 34, 10 };
 static const int timer_irqs[] = { 16, 17, 18, 35, 36, 37, 38, 39, };
 
+#define AST2400_SDRAM_BASE       0x40000000
+
+static const AspeedSoCInfo aspeed_socs[] = {
+    { "ast2400-a0", "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE },
+    { "ast2400",    "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE },
+};
+
 /*
  * IO handlers: simply catch any reads/writes to IO addresses that aren't
  * handled by a device mapping.
@@ -65,8 +72,9 @@ static const MemoryRegionOps aspeed_soc_io_ops = {
 static void aspeed_soc_init(Object *obj)
 {
     AspeedSoCState *s = ASPEED_SOC(obj);
+    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
 
-    s->cpu = cpu_arm_init("arm926");
+    s->cpu = cpu_arm_init(sc->info->cpu_model);
 
     object_initialize(&s->vic, sizeof(s->vic), TYPE_ASPEED_VIC);
     object_property_add_child(obj, "vic", OBJECT(&s->vic), NULL);
@@ -84,7 +92,7 @@ static void aspeed_soc_init(Object *obj)
     object_property_add_child(obj, "scu", OBJECT(&s->scu), NULL);
     qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
     qdev_prop_set_uint32(DEVICE(&s->scu), "silicon-rev",
-                         AST2400_A0_SILICON_REV);
+                         sc->info->silicon_rev);
     object_property_add_alias(obj, "hw-strap1", OBJECT(&s->scu),
                               "hw-strap1", &error_abort);
     object_property_add_alias(obj, "hw-strap2", OBJECT(&s->scu),
@@ -102,7 +110,7 @@ static void aspeed_soc_init(Object *obj)
     object_property_add_child(obj, "sdmc", OBJECT(&s->sdmc), NULL);
     qdev_set_parent_bus(DEVICE(&s->sdmc), sysbus_get_default());
     qdev_prop_set_uint32(DEVICE(&s->sdmc), "silicon-rev",
-                         AST2400_A0_SILICON_REV);
+                         sc->info->silicon_rev);
 }
 
 static void aspeed_soc_realize(DeviceState *dev, Error **errp)
@@ -202,7 +210,9 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 static void aspeed_soc_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    AspeedSoCClass *sc = ASPEED_SOC_CLASS(oc);
 
+    sc->info = (AspeedSoCInfo *) data;
     dc->realize = aspeed_soc_realize;
 
     /*
@@ -213,16 +223,28 @@ static void aspeed_soc_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo aspeed_soc_type_info = {
-    .name = TYPE_ASPEED_SOC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedSoCState),
-    .instance_init = aspeed_soc_init,
-    .class_init = aspeed_soc_class_init,
+    .name           = TYPE_ASPEED_SOC,
+    .parent         = TYPE_DEVICE,
+    .instance_init  = aspeed_soc_init,
+    .instance_size  = sizeof(AspeedSoCState),
+    .class_size     = sizeof(AspeedSoCClass),
+    .abstract       = true,
 };
 
 static void aspeed_soc_register_types(void)
 {
+    int i;
+
     type_register_static(&aspeed_soc_type_info);
+    for (i = 0; i < ARRAY_SIZE(aspeed_socs); ++i) {
+        TypeInfo ti = {
+            .name       = aspeed_socs[i].name,
+            .parent     = TYPE_ASPEED_SOC,
+            .class_init = aspeed_soc_class_init,
+            .class_data = (void *) &aspeed_socs[i],
+        };
+        type_register(&ti);
+    }
 }
 
 type_init(aspeed_soc_register_types)

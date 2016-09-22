@@ -22,8 +22,7 @@
 #include "sysemu/blockdev.h"
 
 static struct arm_boot_info palmetto_bmc_binfo = {
-    .loader_start = AST2400_SDRAM_BASE,
-    .board_id = 0,
+    .board_id = -1, /* device-tree-only board */
     .nb_cpus = 1,
 };
 
@@ -61,14 +60,17 @@ static void palmetto_bmc_init_flashes(AspeedSMCState *s, const char *flashtype,
 static void palmetto_bmc_init(MachineState *machine)
 {
     PalmettoBMCState *bmc;
+    AspeedSoCClass *sc;
 
     bmc = g_new0(PalmettoBMCState, 1);
-    object_initialize(&bmc->soc, (sizeof(bmc->soc)), TYPE_ASPEED_SOC);
+    object_initialize(&bmc->soc, (sizeof(bmc->soc)), "ast2400-a0");
     object_property_add_child(OBJECT(machine), "soc", OBJECT(&bmc->soc),
                               &error_abort);
 
+    sc = ASPEED_SOC_GET_CLASS(&bmc->soc);
+
     memory_region_allocate_system_memory(&bmc->ram, NULL, "ram", ram_size);
-    memory_region_add_subregion(get_system_memory(), AST2400_SDRAM_BASE,
+    memory_region_add_subregion(get_system_memory(), sc->info->sdram_base,
                                 &bmc->ram);
     object_property_add_const_link(OBJECT(&bmc->soc), "ram", OBJECT(&bmc->ram),
                                    &error_abort);
@@ -84,6 +86,8 @@ static void palmetto_bmc_init(MachineState *machine)
     palmetto_bmc_binfo.initrd_filename = machine->initrd_filename;
     palmetto_bmc_binfo.kernel_cmdline = machine->kernel_cmdline;
     palmetto_bmc_binfo.ram_size = ram_size;
+    palmetto_bmc_binfo.loader_start = sc->info->sdram_base;
+
     arm_load_kernel(ARM_CPU(first_cpu), &palmetto_bmc_binfo);
 }
 
