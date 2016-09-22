@@ -100,8 +100,7 @@ enum ListenerDirection { Forward, Reverse };
 static bool memory_listener_match(MemoryListener *listener,
                                   MemoryRegionSection *section)
 {
-    return !listener->address_space_filter
-        || listener->address_space_filter == section->address_space;
+    return listener->address_space == section->address_space;
 }
 
 #define MEMORY_LISTENER_CALL_GLOBAL(_callback, _direction, _args...)    \
@@ -2176,9 +2175,7 @@ void memory_global_dirty_log_sync(void)
         if (!listener->log_sync) {
             continue;
         }
-        /* Global listeners are being phased out.  */
-        assert(listener->address_space_filter);
-        as = listener->address_space_filter;
+        as = listener->address_space;
         view = address_space_get_flatview(as);
         FOR_EACH_FLAT_RANGE(fr, view) {
             MemoryRegionSection mrs = section_from_flat_range(fr, as);
@@ -2218,11 +2215,6 @@ static void listener_add_address_space(MemoryListener *listener,
     FlatView *view;
     FlatRange *fr;
 
-    if (listener->address_space_filter
-        && listener->address_space_filter != as) {
-        return;
-    }
-
     if (listener->begin) {
         listener->begin(listener);
     }
@@ -2255,12 +2247,11 @@ static void listener_add_address_space(MemoryListener *listener,
     flatview_unref(view);
 }
 
-void memory_listener_register(MemoryListener *listener, AddressSpace *filter)
+void memory_listener_register(MemoryListener *listener, AddressSpace *as)
 {
     MemoryListener *other = NULL;
-    AddressSpace *as;
 
-    listener->address_space_filter = filter;
+    listener->address_space = as;
     if (QTAILQ_EMPTY(&memory_listeners)
         || listener->priority >= QTAILQ_LAST(&memory_listeners,
                                              memory_listeners)->priority) {
@@ -2274,9 +2265,7 @@ void memory_listener_register(MemoryListener *listener, AddressSpace *filter)
         QTAILQ_INSERT_BEFORE(other, listener, link);
     }
 
-    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        listener_add_address_space(listener, as);
-    }
+    listener_add_address_space(listener, as);
 }
 
 void memory_listener_unregister(MemoryListener *listener)
@@ -2310,7 +2299,7 @@ static void do_address_space_destroy(AddressSpace *as)
     address_space_destroy_dispatch(as);
 
     QTAILQ_FOREACH(listener, &memory_listeners, link) {
-        assert(listener->address_space_filter != as);
+        assert(listener->address_space != as);
     }
 
     flatview_unref(as->current_map);
