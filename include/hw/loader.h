@@ -102,6 +102,30 @@ void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp);
 
 int load_aout(const char *filename, hwaddr addr, int max_sz,
               int bswap_needed, hwaddr target_page_size);
+
+/** load_uimage_as:
+ * @filename: Path of uimage file
+ * @ep: Populated with program entry point. Ignored if NULL.
+ * @loadaddr: Populated with the load address. Ignored if NULL.
+ * @is_linux: Is set to true if the image loaded is Linux. Ignored if NULL.
+ * @translate_fn: optional function to translate load addresses
+ * @translate_opaque: opaque data passed to @translate_fn
+ * @as: The AddressSpace to load the ELF to. The value of address_space_memory
+ *      is used if nothing is supplied here.
+ *
+ * Loads a u-boot image into memory.
+ *
+ * Returns the size of the loaded image on success, -1 otherwise.
+ */
+int load_uimage_as(const char *filename, hwaddr *ep,
+                   hwaddr *loadaddr, int *is_linux,
+                   uint64_t (*translate_fn)(void *, uint64_t),
+                   void *translate_opaque, AddressSpace *as);
+
+/** load_uimage:
+ * Same as load_uimage_as(), but doesn't allow the caller to specify an
+ * AddressSpace.
+ */
 int load_uimage(const char *filename, hwaddr *ep,
                 hwaddr *loadaddr, int *is_linux,
                 uint64_t (*translate_fn)(void *, uint64_t),
@@ -155,6 +179,8 @@ void hmp_info_roms(Monitor *mon, const QDict *qdict);
     rom_add_file(_f, NULL, 0, _i, false, _mr, NULL)
 #define rom_add_file_as(_f, _as, _i)            \
     rom_add_file(_f, NULL, 0, _i, false, NULL, _as)
+#define rom_add_blob_fixed_as(_f, _b, _l, _a, _as)      \
+    rom_add_blob(_f, _b, _l, _l, _a, NULL, NULL, _as)
 
 #define PC_ROM_MIN_VGA     0xc0000
 #define PC_ROM_MIN_OPTION  0xc8000

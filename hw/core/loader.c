@@ -581,7 +581,7 @@ static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
 static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
                             int *is_linux, uint8_t image_type,
                             uint64_t (*translate_fn)(void *, uint64_t),
-                            void *translate_opaque)
+                            void *translate_opaque, AddressSpace *as)
 {
     int fd;
     int size;
@@ -682,7 +682,7 @@ static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
         hdr->ih_size = bytes;
     }
 
-    rom_add_blob_fixed(filename, data, hdr->ih_size, address);
+    rom_add_blob_fixed_as(filename, data, hdr->ih_size, address, as);
 
     ret = hdr->ih_size;
 
@@ -698,14 +698,23 @@ int load_uimage(const char *filename, hwaddr *ep, hwaddr *loadaddr,
                 void *translate_opaque)
 {
     return load_uboot_image(filename, ep, loadaddr, is_linux, IH_TYPE_KERNEL,
-                            translate_fn, translate_opaque);
+                            translate_fn, translate_opaque, NULL);
+}
+
+int load_uimage_as(const char *filename, hwaddr *ep, hwaddr *loadaddr,
+                   int *is_linux,
+                   uint64_t (*translate_fn)(void *, uint64_t),
+                   void *translate_opaque, AddressSpace *as)
+{
+    return load_uboot_image(filename, ep, loadaddr, is_linux, IH_TYPE_KERNEL,
+                            translate_fn, translate_opaque, as);
 }
 
 /* Load a ramdisk.  */
 int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz)
 {
     return load_uboot_image(filename, NULL, &addr, NULL, IH_TYPE_RAMDISK,
-                            NULL, NULL);
+                            NULL, NULL, NULL);
 }
 
 /* Load a gzip-compressed kernel to a dynamically allocated buffer. */
