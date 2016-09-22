@@ -363,7 +363,7 @@ static int grlib_gptimer_init(SysBusDevice *dev)
 
         timer->unit   = unit;
         timer->bh     = qemu_bh_new(grlib_gptimer_hit, timer);
-        timer->ptimer = ptimer_init(timer->bh);
+        timer->ptimer = ptimer_init(timer->bh, PTIMER_POLICY_DEFAULT);
         timer->id     = i;
 
         /* One IRQ line for each timer */

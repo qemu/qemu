@@ -267,7 +267,7 @@ static void a10_pit_init(Object *obj)
         tc->container = s;
         tc->index = i;
         bh[i] = qemu_bh_new(a10_pit_timer_cb, tc);
-        s->timer[i] = ptimer_init(bh[i]);
+        s->timer[i] = ptimer_init(bh[i], PTIMER_POLICY_DEFAULT);
     }
 }
 

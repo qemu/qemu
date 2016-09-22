@@ -1431,15 +1431,16 @@ static void exynos4210_mct_init(Object *obj)
 
     /* Global timer */
     bh[0] = qemu_bh_new(exynos4210_gfrc_event, s);
-    s->g_timer.ptimer_frc = ptimer_init(bh[0]);
+    s->g_timer.ptimer_frc = ptimer_init(bh[0], PTIMER_POLICY_DEFAULT);
     memset(&s->g_timer.reg, 0, sizeof(struct gregs));
 
     /* Local timers */
     for (i = 0; i < 2; i++) {
         bh[0] = qemu_bh_new(exynos4210_ltick_event, &s->l_timer[i]);
         bh[1] = qemu_bh_new(exynos4210_lfrc_event, &s->l_timer[i]);
-        s->l_timer[i].tick_timer.ptimer_tick = ptimer_init(bh[0]);
-        s->l_timer[i].ptimer_frc = ptimer_init(bh[1]);
+        s->l_timer[i].tick_timer.ptimer_tick =
+                                   ptimer_init(bh[0], PTIMER_POLICY_DEFAULT);
+        s->l_timer[i].ptimer_frc = ptimer_init(bh[1], PTIMER_POLICY_DEFAULT);
         s->l_timer[i].id = i;
     }
 
