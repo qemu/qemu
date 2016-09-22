@@ -1455,9 +1455,6 @@
 #ifdef TARGET_NR_sync
 { TARGET_NR_sync, "sync" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_sync_file_range
-{ TARGET_NR_sync_file_range, "sync_file_range" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_syncfs
 { TARGET_NR_syncfs, "syncfs" , NULL, NULL, NULL },
 #endif
