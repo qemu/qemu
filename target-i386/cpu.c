@@ -2523,15 +2523,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
                 const ExtSaveArea *esa = &x86_ext_save_areas[i];
                 if ((ena_mask >> i) & 1) {
-                    if (i < 32) {
-                        *eax |= 1u << i;
-                    } else {
-                        *edx |= 1u << (i - 32);
-                    }
                     *ecx = MAX(*ecx, esa->offset + esa->size);
                 }
             }
-            *eax |= ena_mask & (XSTATE_FP_MASK | XSTATE_SSE_MASK);
+            *eax = ena_mask;
+            *edx = ena_mask >> 32;
             *ebx = *ecx;
         } else if (count == 1) {
             *eax = env->features[FEAT_XSAVE];
