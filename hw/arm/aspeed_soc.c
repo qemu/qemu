@@ -38,10 +38,12 @@ static const int uart_irqs[] = { 9, 32, 33, 34, 10 };
 static const int timer_irqs[] = { 16, 17, 18, 35, 36, 37, 38, 39, };
 
 #define AST2400_SDRAM_BASE       0x40000000
+#define AST2500_SDRAM_BASE       0x80000000
 
 static const AspeedSoCInfo aspeed_socs[] = {
     { "ast2400-a0", "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE },
     { "ast2400",    "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE },
+    { "ast2500-a1", "arm1176", AST2500_A1_SILICON_REV, AST2500_SDRAM_BASE },
 };
 
 /*

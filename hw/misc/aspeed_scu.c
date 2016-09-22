@@ -120,6 +120,41 @@ static const uint32_t ast2400_a0_resets[ASPEED_SCU_NR_REGS] = {
      [BMC_DEV_ID]      = 0x00002402U
 };
 
+/* SCU70 bit 23: 0 24Mhz. bit 11:9: 0b001 AXI:ABH ratio 2:1 */
+/* AST2500 revision A1 */
+
+static const uint32_t ast2500_a1_resets[ASPEED_SCU_NR_REGS] = {
+     [SYS_RST_CTRL]    = 0xFFCFFEDCU,
+     [CLK_SEL]         = 0xF3F40000U,
+     [CLK_STOP_CTRL]   = 0x19FC3E8BU,
+     [D2PLL_PARAM]     = 0x00026108U,
+     [MPLL_PARAM]      = 0x00030291U,
+     [HPLL_PARAM]      = 0x93000400U,
+     [MISC_CTRL1]      = 0x00000010U,
+     [PCI_CTRL1]       = 0x20001A03U,
+     [PCI_CTRL2]       = 0x20001A03U,
+     [PCI_CTRL3]       = 0x04000030U,
+     [SYS_RST_STATUS]  = 0x00000001U,
+     [SOC_SCRATCH1]    = 0x000000C0U, /* SoC completed DRAM init */
+     [MISC_CTRL2]      = 0x00000023U,
+     [RNG_CTRL]        = 0x0000000EU,
+     [PINMUX_CTRL2]    = 0x0000F000U,
+     [PINMUX_CTRL3]    = 0x03000000U,
+     [PINMUX_CTRL4]    = 0x00000000U,
+     [PINMUX_CTRL5]    = 0x0000A000U,
+     [WDT_RST_CTRL]    = 0x023FFFF3U,
+     [PINMUX_CTRL8]    = 0xFFFF0000U,
+     [PINMUX_CTRL9]    = 0x000FFFFFU,
+     [FREE_CNTR4]      = 0x000000FFU,
+     [FREE_CNTR4_EXT]  = 0x000000FFU,
+     [CPU2_BASE_SEG1]  = 0x80000000U,
+     [CPU2_BASE_SEG4]  = 0x1E600000U,
+     [CPU2_BASE_SEG5]  = 0xC0000000U,
+     [UART_HPLL_CLK]   = 0x00001903U,
+     [PCIE_CTRL]       = 0x0000007BU,
+     [BMC_DEV_ID]      = 0x00002402U
+};
+
 static uint64_t aspeed_scu_read(void *opaque, hwaddr offset, unsigned size)
 {
     AspeedSCUState *s = ASPEED_SCU(opaque);
@@ -198,6 +233,10 @@ static void aspeed_scu_reset(DeviceState *dev)
     case AST2400_A0_SILICON_REV:
         reset = ast2400_a0_resets;
         break;
+    case AST2500_A0_SILICON_REV:
+    case AST2500_A1_SILICON_REV:
+        reset = ast2500_a1_resets;
+        break;
     default:
         g_assert_not_reached();
     }
@@ -208,7 +247,11 @@ static void aspeed_scu_reset(DeviceState *dev)
     s->regs[HW_STRAP2] = s->hw_strap2;
 }
 
-static uint32_t aspeed_silicon_revs[] = { AST2400_A0_SILICON_REV, };
+static uint32_t aspeed_silicon_revs[] = {
+    AST2400_A0_SILICON_REV,
+    AST2500_A0_SILICON_REV,
+    AST2500_A1_SILICON_REV,
+};
 
 bool is_supported_silicon_rev(uint32_t silicon_rev)
 {

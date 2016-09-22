@@ -196,6 +196,7 @@ static void aspeed_sdmc_reset(DeviceState *dev)
         break;
 
     case AST2500_A0_SILICON_REV:
+    case AST2500_A1_SILICON_REV:
         s->regs[R_CONF] |=
             ASPEED_SDMC_HW_VERSION(1) |
             ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
