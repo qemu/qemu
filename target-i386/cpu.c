@@ -2514,7 +2514,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *ecx = 0x240;
             for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
                 const ExtSaveArea *esa = &x86_ext_save_areas[i];
-                if ((env->features[esa->feature] & esa->bits) == esa->bits
+                if ((env->features[esa->feature] & esa->bits)
                     && ((ena_mask >> i) & 1) != 0) {
                     if (i < 32) {
                         *eax |= 1u << i;
@@ -2530,7 +2530,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *eax = env->features[FEAT_XSAVE];
         } else if (count < ARRAY_SIZE(x86_ext_save_areas)) {
             const ExtSaveArea *esa = &x86_ext_save_areas[count];
-            if ((env->features[esa->feature] & esa->bits) == esa->bits
+            if ((env->features[esa->feature] & esa->bits)
                 && ((ena_mask >> count) & 1) != 0) {
                 *eax = esa->size;
                 *ebx = esa->offset;
@@ -2766,7 +2766,7 @@ static void x86_cpu_reset(CPUState *s)
     }
     for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
         const ExtSaveArea *esa = &x86_ext_save_areas[i];
-        if ((env->features[esa->feature] & esa->bits) == esa->bits) {
+        if (env->features[esa->feature] & esa->bits) {
             xcr0 |= 1ull << i;
         }
     }
