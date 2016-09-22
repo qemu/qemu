@@ -1122,6 +1122,7 @@ typedef struct CPUX86State {
     uint32_t cpuid_vendor3;
     uint32_t cpuid_version;
     FeatureWordArray features;
+    uint64_t xsave_components;
     uint32_t cpuid_model[12];
 
     /* MTRRs */
