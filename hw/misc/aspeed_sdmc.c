@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "hw/misc/aspeed_sdmc.h"
 #include "hw/misc/aspeed_scu.h"
 #include "hw/qdev-properties.h"
@@ -151,13 +152,13 @@ static int ast2400_rambits(void)
     case 512:
         return ASPEED_SDMC_DRAM_512MB;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid RAM size: 0x"
-                      RAM_ADDR_FMT "\n", __func__, ram_size);
         break;
     }
 
-    /* set a minimum default */
-    return ASPEED_SDMC_DRAM_64MB;
+    /* use a common default */
+    error_report("warning: Invalid RAM size 0x" RAM_ADDR_FMT
+                 ". Using default 256M", ram_size);
+    return ASPEED_SDMC_DRAM_256MB;
 }
 
 static int ast2500_rambits(void)
@@ -172,13 +173,13 @@ static int ast2500_rambits(void)
     case 1024:
         return ASPEED_SDMC_AST2500_1024MB;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid RAM size: 0x"
-                      RAM_ADDR_FMT "\n", __func__, ram_size);
         break;
     }
 
-    /* set a minimum default */
-    return ASPEED_SDMC_AST2500_128MB;
+    /* use a common default */
+    error_report("warning: Invalid RAM size 0x" RAM_ADDR_FMT
+                 ". Using default 512M", ram_size);
+    return ASPEED_SDMC_AST2500_512MB;
 }
 
 static void aspeed_sdmc_reset(DeviceState *dev)
