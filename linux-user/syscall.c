@@ -3897,89 +3897,94 @@ fail:
 }
 
 #ifdef TARGET_NR_socketcall
-/* do_socketcall() Must return target values and target errnos. */
+/* do_socketcall() must return target values and target errnos. */
 static abi_long do_socketcall(int num, abi_ulong vptr)
 {
-    static const unsigned ac[] = { /* number of arguments per call */
-        [SOCKOP_socket] = 3,      /* domain, type, protocol */
-        [SOCKOP_bind] = 3,        /* sockfd, addr, addrlen */
-        [SOCKOP_connect] = 3,     /* sockfd, addr, addrlen */
-        [SOCKOP_listen] = 2,      /* sockfd, backlog */
-        [SOCKOP_accept] = 3,      /* sockfd, addr, addrlen */
-        [SOCKOP_accept4] = 4,     /* sockfd, addr, addrlen, flags */
-        [SOCKOP_getsockname] = 3, /* sockfd, addr, addrlen */
-        [SOCKOP_getpeername] = 3, /* sockfd, addr, addrlen */
-        [SOCKOP_socketpair] = 4,  /* domain, type, protocol, tab */
-        [SOCKOP_send] = 4,        /* sockfd, msg, len, flags */
-        [SOCKOP_recv] = 4,        /* sockfd, msg, len, flags */
-        [SOCKOP_sendto] = 6,      /* sockfd, msg, len, flags, addr, addrlen */
-        [SOCKOP_recvfrom] = 6,    /* sockfd, msg, len, flags, addr, addrlen */
-        [SOCKOP_shutdown] = 2,    /* sockfd, how */
-        [SOCKOP_sendmsg] = 3,     /* sockfd, msg, flags */
-        [SOCKOP_recvmsg] = 3,     /* sockfd, msg, flags */
-        [SOCKOP_sendmmsg] = 4,    /* sockfd, msgvec, vlen, flags */
-        [SOCKOP_recvmmsg] = 4,    /* sockfd, msgvec, vlen, flags */
-        [SOCKOP_setsockopt] = 5,  /* sockfd, level, optname, optval, optlen */
-        [SOCKOP_getsockopt] = 5,  /* sockfd, level, optname, optval, optlen */
+    static const unsigned nargs[] = { /* number of arguments per operation */
+        [TARGET_SYS_SOCKET] = 3,      /* domain, type, protocol */
+        [TARGET_SYS_BIND] = 3,        /* fd, addr, addrlen */
+        [TARGET_SYS_CONNECT] = 3,     /* fd, addr, addrlen */
+        [TARGET_SYS_LISTEN] = 2,      /* fd, backlog */
+        [TARGET_SYS_ACCEPT] = 3,      /* fd, addr, addrlen */
+        [TARGET_SYS_GETSOCKNAME] = 3, /* fd, addr, addrlen */
+        [TARGET_SYS_GETPEERNAME] = 3, /* fd, addr, addrlen */
+        [TARGET_SYS_SOCKETPAIR] = 4,  /* domain, type, protocol, tab */
+        [TARGET_SYS_SEND] = 4,        /* fd, msg, len, flags */
+        [TARGET_SYS_RECV] = 4,        /* fd, msg, len, flags */
+        [TARGET_SYS_SENDTO] = 6,      /* fd, msg, len, flags, addr, addrlen */
+        [TARGET_SYS_RECVFROM] = 6,    /* fd, msg, len, flags, addr, addrlen */
+        [TARGET_SYS_SHUTDOWN] = 2,    /* fd, how */
+        [TARGET_SYS_SETSOCKOPT] = 5,  /* fd, level, optname, optval, optlen */
+        [TARGET_SYS_GETSOCKOPT] = 5,  /* fd, level, optname, optval, optlen */
+        [TARGET_SYS_SENDMSG] = 3,     /* fd, msg, flags */
+        [TARGET_SYS_RECVMSG] = 3,     /* fd, msg, flags */
+        [TARGET_SYS_ACCEPT4] = 4,     /* fd, addr, addrlen, flags */
+        [TARGET_SYS_RECVMMSG] = 4,    /* fd, msgvec, vlen, flags */
+        [TARGET_SYS_SENDMMSG] = 4,    /* fd, msgvec, vlen, flags */
     };
     abi_long a[6]; /* max 6 args */
+    unsigned i;
 
-    /* first, collect the arguments in a[] according to ac[] */
-    if (num >= 0 && num < ARRAY_SIZE(ac)) {
-        unsigned i;
-        assert(ARRAY_SIZE(a) >= ac[num]); /* ensure we have space for args */
-        for (i = 0; i < ac[num]; ++i) {
-            if (get_user_ual(a[i], vptr + i * sizeof(abi_long)) != 0) {
-                return -TARGET_EFAULT;
-            }
+    /* check the range of the first argument num */
+    /* (TARGET_SYS_SENDMMSG is the highest among TARGET_SYS_xxx) */
+    if (num < 1 || num > TARGET_SYS_SENDMMSG) {
+        return -TARGET_EINVAL;
+    }
+    /* ensure we have space for args */
+    if (nargs[num] > ARRAY_SIZE(a)) {
+        return -TARGET_EINVAL;
+    }
+    /* collect the arguments in a[] according to nargs[] */
+    for (i = 0; i < nargs[num]; ++i) {
+        if (get_user_ual(a[i], vptr + i * sizeof(abi_long)) != 0) {
+            return -TARGET_EFAULT;
         }
     }
-
-    /* now when we have the args, actually handle the call */
+    /* now when we have the args, invoke the appropriate underlying function */
     switch (num) {
-    case SOCKOP_socket: /* domain, type, protocol */
+    case TARGET_SYS_SOCKET: /* domain, type, protocol */
         return do_socket(a[0], a[1], a[2]);
-    case SOCKOP_bind: /* sockfd, addr, addrlen */
+    case TARGET_SYS_BIND: /* sockfd, addr, addrlen */
         return do_bind(a[0], a[1], a[2]);
-    case SOCKOP_connect: /* sockfd, addr, addrlen */
+    case TARGET_SYS_CONNECT: /* sockfd, addr, addrlen */
         return do_connect(a[0], a[1], a[2]);
-    case SOCKOP_listen: /* sockfd, backlog */
+    case TARGET_SYS_LISTEN: /* sockfd, backlog */
         return get_errno(listen(a[0], a[1]));
-    case SOCKOP_accept: /* sockfd, addr, addrlen */
+    case TARGET_SYS_ACCEPT: /* sockfd, addr, addrlen */
         return do_accept4(a[0], a[1], a[2], 0);
-    case SOCKOP_accept4: /* sockfd, addr, addrlen, flags */
-        return do_accept4(a[0], a[1], a[2], a[3]);
-    case SOCKOP_getsockname: /* sockfd, addr, addrlen */
+    case TARGET_SYS_GETSOCKNAME: /* sockfd, addr, addrlen */
         return do_getsockname(a[0], a[1], a[2]);
-    case SOCKOP_getpeername: /* sockfd, addr, addrlen */
+    case TARGET_SYS_GETPEERNAME: /* sockfd, addr, addrlen */
         return do_getpeername(a[0], a[1], a[2]);
-    case SOCKOP_socketpair: /* domain, type, protocol, tab */
+    case TARGET_SYS_SOCKETPAIR: /* domain, type, protocol, tab */
         return do_socketpair(a[0], a[1], a[2], a[3]);
-    case SOCKOP_send: /* sockfd, msg, len, flags */
+    case TARGET_SYS_SEND: /* sockfd, msg, len, flags */
         return do_sendto(a[0], a[1], a[2], a[3], 0, 0);
-    case SOCKOP_recv: /* sockfd, msg, len, flags */
+    case TARGET_SYS_RECV: /* sockfd, msg, len, flags */
         return do_recvfrom(a[0], a[1], a[2], a[3], 0, 0);
-    case SOCKOP_sendto: /* sockfd, msg, len, flags, addr, addrlen */
+    case TARGET_SYS_SENDTO: /* sockfd, msg, len, flags, addr, addrlen */
         return do_sendto(a[0], a[1], a[2], a[3], a[4], a[5]);
-    case SOCKOP_recvfrom: /* sockfd, msg, len, flags, addr, addrlen */
+    case TARGET_SYS_RECVFROM: /* sockfd, msg, len, flags, addr, addrlen */
         return do_recvfrom(a[0], a[1], a[2], a[3], a[4], a[5]);
-    case SOCKOP_shutdown: /* sockfd, how */
+    case TARGET_SYS_SHUTDOWN: /* sockfd, how */
         return get_errno(shutdown(a[0], a[1]));
-    case SOCKOP_sendmsg: /* sockfd, msg, flags */
-        return do_sendrecvmsg(a[0], a[1], a[2], 1);
-    case SOCKOP_recvmsg: /* sockfd, msg, flags */
-        return do_sendrecvmsg(a[0], a[1], a[2], 0);
-    case SOCKOP_sendmmsg: /* sockfd, msgvec, vlen, flags */
-        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 1);
-    case SOCKOP_recvmmsg: /* sockfd, msgvec, vlen, flags */
-        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 0);
-    case SOCKOP_setsockopt: /* sockfd, level, optname, optval, optlen */
+    case TARGET_SYS_SETSOCKOPT: /* sockfd, level, optname, optval, optlen */
         return do_setsockopt(a[0], a[1], a[2], a[3], a[4]);
-    case SOCKOP_getsockopt: /* sockfd, level, optname, optval, optlen */
+    case TARGET_SYS_GETSOCKOPT: /* sockfd, level, optname, optval, optlen */
         return do_getsockopt(a[0], a[1], a[2], a[3], a[4]);
+    case TARGET_SYS_SENDMSG: /* sockfd, msg, flags */
+        return do_sendrecvmsg(a[0], a[1], a[2], 1);
+    case TARGET_SYS_RECVMSG: /* sockfd, msg, flags */
+        return do_sendrecvmsg(a[0], a[1], a[2], 0);
+    case TARGET_SYS_ACCEPT4: /* sockfd, addr, addrlen, flags */
+        return do_accept4(a[0], a[1], a[2], a[3]);
+    case TARGET_SYS_RECVMMSG: /* sockfd, msgvec, vlen, flags */
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 0);
+    case TARGET_SYS_SENDMMSG: /* sockfd, msgvec, vlen, flags */
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 1);
     default:
         gemu_log("Unsupported socketcall: %d\n", num);
-        return -TARGET_ENOSYS;
+        return -TARGET_EINVAL;
     }
 }
 #endif

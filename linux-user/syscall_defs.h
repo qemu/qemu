@@ -9,26 +9,28 @@
 
 #include "syscall_nr.h"
 
-#define SOCKOP_socket           1
-#define SOCKOP_bind             2
-#define SOCKOP_connect          3
-#define SOCKOP_listen           4
-#define SOCKOP_accept           5
-#define SOCKOP_getsockname      6
-#define SOCKOP_getpeername      7
-#define SOCKOP_socketpair       8
-#define SOCKOP_send             9
-#define SOCKOP_recv             10
-#define SOCKOP_sendto           11
-#define SOCKOP_recvfrom         12
-#define SOCKOP_shutdown         13
-#define SOCKOP_setsockopt       14
-#define SOCKOP_getsockopt       15
-#define SOCKOP_sendmsg          16
-#define SOCKOP_recvmsg          17
-#define SOCKOP_accept4          18
-#define SOCKOP_recvmmsg         19
-#define SOCKOP_sendmmsg         20
+
+/* socket operations for socketcall() */
+#define TARGET_SYS_SOCKET       1         /* socket()              */
+#define TARGET_SYS_BIND         2         /* bind()                */
+#define TARGET_SYS_CONNECT      3         /* connect()             */
+#define TARGET_SYS_LISTEN       4         /* listen()              */
+#define TARGET_SYS_ACCEPT       5         /* accept()              */
+#define TARGET_SYS_GETSOCKNAME  6         /* getsockname()         */
+#define TARGET_SYS_GETPEERNAME  7         /* getpeername()         */
+#define TARGET_SYS_SOCKETPAIR   8         /* socketpair()          */
+#define TARGET_SYS_SEND         9         /* send()                */
+#define TARGET_SYS_RECV         10        /* recv()                */
+#define TARGET_SYS_SENDTO       11        /* sendto()              */
+#define TARGET_SYS_RECVFROM     12        /* recvfrom()            */
+#define TARGET_SYS_SHUTDOWN     13        /* shutdown()            */
+#define TARGET_SYS_SETSOCKOPT   14        /* setsockopt()          */
+#define TARGET_SYS_GETSOCKOPT   15        /* getsockopt()          */
+#define TARGET_SYS_SENDMSG      16        /* sendmsg()             */
+#define TARGET_SYS_RECVMSG      17        /* recvmsg()             */
+#define TARGET_SYS_ACCEPT4      18        /* accept4()             */
+#define TARGET_SYS_RECVMMSG     19        /* recvmmsg()            */
+#define TARGET_SYS_SENDMMSG     20        /* sendmmsg()            */
 
 #define IPCOP_semop		1
 #define IPCOP_semget		2

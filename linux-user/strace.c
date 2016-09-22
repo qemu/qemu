@@ -1675,29 +1675,32 @@ print_optint:
 }
 
 #define PRINT_SOCKOP(name, func) \
-    [SOCKOP_##name] = { #name, func }
+    [TARGET_SYS_##name] = { #name, func }
 
 static struct {
     const char *name;
     void (*print)(const char *, abi_long);
 } scall[] = {
-    PRINT_SOCKOP(socket, do_print_socket),
-    PRINT_SOCKOP(bind, do_print_sockaddr),
-    PRINT_SOCKOP(connect, do_print_sockaddr),
-    PRINT_SOCKOP(listen, do_print_listen),
-    PRINT_SOCKOP(accept, do_print_sockaddr),
-    PRINT_SOCKOP(getsockname, do_print_sockaddr),
-    PRINT_SOCKOP(getpeername, do_print_sockaddr),
-    PRINT_SOCKOP(socketpair, do_print_socketpair),
-    PRINT_SOCKOP(send, do_print_sendrecv),
-    PRINT_SOCKOP(recv, do_print_sendrecv),
-    PRINT_SOCKOP(sendto, do_print_msgaddr),
-    PRINT_SOCKOP(recvfrom, do_print_msgaddr),
-    PRINT_SOCKOP(shutdown, do_print_shutdown),
-    PRINT_SOCKOP(sendmsg, do_print_msg),
-    PRINT_SOCKOP(recvmsg, do_print_msg),
-    PRINT_SOCKOP(setsockopt, do_print_sockopt),
-    PRINT_SOCKOP(getsockopt, do_print_sockopt),
+    PRINT_SOCKOP(SOCKET, do_print_socket),
+    PRINT_SOCKOP(BIND, do_print_sockaddr),
+    PRINT_SOCKOP(CONNECT, do_print_sockaddr),
+    PRINT_SOCKOP(LISTEN, do_print_listen),
+    PRINT_SOCKOP(ACCEPT, do_print_sockaddr),
+    PRINT_SOCKOP(GETSOCKNAME, do_print_sockaddr),
+    PRINT_SOCKOP(GETPEERNAME, do_print_sockaddr),
+    PRINT_SOCKOP(SOCKETPAIR, do_print_socketpair),
+    PRINT_SOCKOP(SEND, do_print_sendrecv),
+    PRINT_SOCKOP(RECV, do_print_sendrecv),
+    PRINT_SOCKOP(SENDTO, do_print_msgaddr),
+    PRINT_SOCKOP(RECVFROM, do_print_msgaddr),
+    PRINT_SOCKOP(SHUTDOWN, do_print_shutdown),
+    PRINT_SOCKOP(SETSOCKOPT, do_print_sockopt),
+    PRINT_SOCKOP(GETSOCKOPT, do_print_sockopt),
+    PRINT_SOCKOP(SENDMSG, do_print_msg),
+    PRINT_SOCKOP(RECVMSG, do_print_msg),
+    PRINT_SOCKOP(ACCEPT4, NULL),
+    PRINT_SOCKOP(RECVMMSG, NULL),
+    PRINT_SOCKOP(SENDMMSG, NULL),
 };
 
 static void
