@@ -9,7 +9,7 @@ however it is also possible to save the state of all devices to file,
 without saving the RAM or the block devices of the VM.
 
 This operation is called "xen-save-devices-state" (see
-QMP/qmp-commands.txt)
+qmp-commands.txt)
 
 
 The binary format used in the file is the following:
