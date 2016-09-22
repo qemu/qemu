@@ -19,7 +19,8 @@
 { TARGET_NR_add_key, "add_key" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_adjtimex
-{ TARGET_NR_adjtimex, "adjtimex" , NULL, NULL, NULL },
+{ TARGET_NR_adjtimex, "adjtimex" , "%s(%p)", NULL,
+                      print_syscall_ret_adjtimex },
 #endif
 #ifdef TARGET_NR_afs_syscall
 { TARGET_NR_afs_syscall, "afs_syscall" , NULL, NULL, NULL },

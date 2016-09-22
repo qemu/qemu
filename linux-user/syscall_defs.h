@@ -207,6 +207,34 @@ struct target_itimerspec {
     struct target_timespec it_value;
 };
 
+struct target_timex {
+    abi_uint modes;              /* Mode selector */
+    abi_long offset;             /* Time offset */
+    abi_long freq;               /* Frequency offset */
+    abi_long maxerror;           /* Maximum error (microseconds) */
+    abi_long esterror;           /* Estimated error (microseconds) */
+    abi_int status;              /* Clock command/status */
+    abi_long constant;           /* PLL (phase-locked loop) time constant */
+    abi_long precision;          /* Clock precision (microseconds, ro) */
+    abi_long tolerance;          /* Clock freq. tolerance (ppm, ro) */
+    struct target_timeval time;  /* Current time */
+    abi_long tick;               /* Microseconds between clock ticks */
+    abi_long ppsfreq;            /* PPS (pulse per second) frequency */
+    abi_long jitter;             /* PPS jitter (ro); nanoseconds */
+    abi_int shift;               /* PPS interval duration (seconds) */
+    abi_long stabil;             /* PPS stability */
+    abi_long jitcnt;             /* PPS jitter limit exceeded (ro) */
+    abi_long calcnt;             /* PPS calibration intervals */
+    abi_long errcnt;             /* PPS calibration errors */
+    abi_long stbcnt;             /* PPS stability limit exceeded */
+    abi_int tai;                 /* TAI offset */
+
+    /* Further padding bytes to allow for future expansion */
+    abi_int:32; abi_int:32; abi_int:32; abi_int:32;
+    abi_int:32; abi_int:32; abi_int:32; abi_int:32;
+    abi_int:32; abi_int:32; abi_int:32;
+};
+
 typedef abi_long target_clock_t;
 
 #define TARGET_HZ 100

@@ -577,6 +577,52 @@ print_syscall_ret_newselect(const struct syscallname *name, abi_long ret)
 }
 #endif
 
+/* special meanings of adjtimex()' non-negative return values */
+#define TARGET_TIME_OK       0   /* clock synchronized, no leap second */
+#define TARGET_TIME_INS      1   /* insert leap second */
+#define TARGET_TIME_DEL      2   /* delete leap second */
+#define TARGET_TIME_OOP      3   /* leap second in progress */
+#define TARGET_TIME_WAIT     4   /* leap second has occurred */
+#define TARGET_TIME_ERROR    5   /* clock not synchronized */
+static void
+print_syscall_ret_adjtimex(const struct syscallname *name, abi_long ret)
+{
+    const char *errstr = NULL;
+
+    gemu_log(" = ");
+    if (ret < 0) {
+        gemu_log("-1 errno=%d", errno);
+        errstr = target_strerror(-ret);
+        if (errstr) {
+            gemu_log(" (%s)", errstr);
+        }
+    } else {
+        gemu_log(TARGET_ABI_FMT_ld, ret);
+        switch (ret) {
+        case TARGET_TIME_OK:
+            gemu_log(" TIME_OK (clock synchronized, no leap second)");
+            break;
+        case TARGET_TIME_INS:
+            gemu_log(" TIME_INS (insert leap second)");
+            break;
+        case TARGET_TIME_DEL:
+            gemu_log(" TIME_DEL (delete leap second)");
+            break;
+        case TARGET_TIME_OOP:
+            gemu_log(" TIME_OOP (leap second in progress)");
+            break;
+        case TARGET_TIME_WAIT:
+            gemu_log(" TIME_WAIT (leap second has occurred)");
+            break;
+        case TARGET_TIME_ERROR:
+            gemu_log(" TIME_ERROR (clock not synchronized)");
+            break;
+        }
+    }
+
+    gemu_log("\n");
+}
+
 UNUSED static struct flags access_flags[] = {
     FLAG_GENERIC(F_OK),
     FLAG_GENERIC(R_OK),

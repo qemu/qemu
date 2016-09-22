@@ -35,6 +35,7 @@
 #include <sys/swap.h>
 #include <linux/capability.h>
 #include <sched.h>
+#include <sys/timex.h>
 #ifdef __ia64__
 int __clone2(int (*fn)(void *), void *child_stack_base,
              size_t stack_size, int flags, void *arg, ...);
@@ -6770,6 +6771,77 @@ static inline abi_long host_to_target_itimerspec(abi_ulong target_addr,
     return 0;
 }
 
+static inline abi_long target_to_host_timex(struct timex *host_tx,
+                                            abi_long target_addr)
+{
+    struct target_timex *target_tx;
+
+    if (!lock_user_struct(VERIFY_READ, target_tx, target_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    __get_user(host_tx->modes, &target_tx->modes);
+    __get_user(host_tx->offset, &target_tx->offset);
+    __get_user(host_tx->freq, &target_tx->freq);
+    __get_user(host_tx->maxerror, &target_tx->maxerror);
+    __get_user(host_tx->esterror, &target_tx->esterror);
+    __get_user(host_tx->status, &target_tx->status);
+    __get_user(host_tx->constant, &target_tx->constant);
+    __get_user(host_tx->precision, &target_tx->precision);
+    __get_user(host_tx->tolerance, &target_tx->tolerance);
+    __get_user(host_tx->time.tv_sec, &target_tx->time.tv_sec);
+    __get_user(host_tx->time.tv_usec, &target_tx->time.tv_usec);
+    __get_user(host_tx->tick, &target_tx->tick);
+    __get_user(host_tx->ppsfreq, &target_tx->ppsfreq);
+    __get_user(host_tx->jitter, &target_tx->jitter);
+    __get_user(host_tx->shift, &target_tx->shift);
+    __get_user(host_tx->stabil, &target_tx->stabil);
+    __get_user(host_tx->jitcnt, &target_tx->jitcnt);
+    __get_user(host_tx->calcnt, &target_tx->calcnt);
+    __get_user(host_tx->errcnt, &target_tx->errcnt);
+    __get_user(host_tx->stbcnt, &target_tx->stbcnt);
+    __get_user(host_tx->tai, &target_tx->tai);
+
+    unlock_user_struct(target_tx, target_addr, 0);
+    return 0;
+}
+
+static inline abi_long host_to_target_timex(abi_long target_addr,
+                                            struct timex *host_tx)
+{
+    struct target_timex *target_tx;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_tx, target_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+
+    __put_user(host_tx->modes, &target_tx->modes);
+    __put_user(host_tx->offset, &target_tx->offset);
+    __put_user(host_tx->freq, &target_tx->freq);
+    __put_user(host_tx->maxerror, &target_tx->maxerror);
+    __put_user(host_tx->esterror, &target_tx->esterror);
+    __put_user(host_tx->status, &target_tx->status);
+    __put_user(host_tx->constant, &target_tx->constant);
+    __put_user(host_tx->precision, &target_tx->precision);
+    __put_user(host_tx->tolerance, &target_tx->tolerance);
+    __put_user(host_tx->time.tv_sec, &target_tx->time.tv_sec);
+    __put_user(host_tx->time.tv_usec, &target_tx->time.tv_usec);
+    __put_user(host_tx->tick, &target_tx->tick);
+    __put_user(host_tx->ppsfreq, &target_tx->ppsfreq);
+    __put_user(host_tx->jitter, &target_tx->jitter);
+    __put_user(host_tx->shift, &target_tx->shift);
+    __put_user(host_tx->stabil, &target_tx->stabil);
+    __put_user(host_tx->jitcnt, &target_tx->jitcnt);
+    __put_user(host_tx->calcnt, &target_tx->calcnt);
+    __put_user(host_tx->errcnt, &target_tx->errcnt);
+    __put_user(host_tx->stbcnt, &target_tx->stbcnt);
+    __put_user(host_tx->tai, &target_tx->tai);
+
+    unlock_user_struct(target_tx, target_addr, 1);
+    return 0;
+}
+
+
 static inline abi_long target_to_host_sigevent(struct sigevent *host_sevp,
                                                abi_ulong target_addr)
 {
@@ -9543,7 +9615,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #endif
     case TARGET_NR_adjtimex:
-        goto unimplemented;
+        {
+            struct timex host_buf;
+
+            if (target_to_host_timex(&host_buf, arg1) != 0) {
+                goto efault;
+            }
+            ret = get_errno(adjtimex(&host_buf));
+            if (!is_error(ret)) {
+                if (host_to_target_timex(arg1, &host_buf) != 0) {
+                    goto efault;
+                }
+            }
+        }
+        break;
 #ifdef TARGET_NR_create_module
     case TARGET_NR_create_module:
 #endif
