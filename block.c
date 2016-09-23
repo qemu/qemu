@@ -733,6 +733,9 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 
+    /* Copy the read-only option from the parent */
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
+
     /* aio=native doesn't work for cache.direct=off, so disable it for the
      * temporary snapshot */
     *child_flags &= ~BDRV_O_NATIVE_AIO;
@@ -754,6 +757,9 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
      * the parent. */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
+
+    /* Inherit the read-only option from the parent if it's not set */
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
 
     /* Our block drivers take care to send flushes and respect unmap policy,
      * so we can default to enable both on lower layers regardless of the
@@ -808,7 +814,8 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
 
     /* backing files always opened read-only */
-    flags &= ~(BDRV_O_RDWR | BDRV_O_COPY_ON_READ);
+    qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "on");
+    flags &= ~BDRV_O_COPY_ON_READ;
 
     /* snapshot=on is handled on the top layer */
     flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_TEMPORARY);
@@ -855,6 +862,14 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
     if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_DIRECT, false)) {
         *flags |= BDRV_O_NOCACHE;
     }
+
+    *flags &= ~BDRV_O_RDWR;
+
+    assert(qemu_opt_find(opts, BDRV_OPT_READ_ONLY));
+    if (!qemu_opt_get_bool(opts, BDRV_OPT_READ_ONLY, false)) {
+        *flags |= BDRV_O_RDWR;
+    }
+
 }
 
 static void update_options_from_flags(QDict *options, int flags)
@@ -866,6 +881,10 @@ static void update_options_from_flags(QDict *options, int flags)
     if (!qdict_haskey(options, BDRV_OPT_CACHE_NO_FLUSH)) {
         qdict_put(options, BDRV_OPT_CACHE_NO_FLUSH,
                   qbool_from_bool(flags & BDRV_O_NO_FLUSH));
+    }
+    if (!qdict_haskey(options, BDRV_OPT_READ_ONLY)) {
+        qdict_put(options, BDRV_OPT_READ_ONLY,
+                  qbool_from_bool(!(flags & BDRV_O_RDWR)));
     }
 }
 
@@ -930,6 +949,11 @@ static QemuOptsList bdrv_runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Ignore flush requests",
         },
+        {
+            .name = BDRV_OPT_READ_ONLY,
+            .type = QEMU_OPT_BOOL,
+            .help = "Node is opened in read-only mode",
+        },
         { /* end of list */ }
     },
 };
@@ -960,6 +984,8 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         ret = -EINVAL;
         goto fail_opts;
     }
+
+    update_flags_from_options(&bs->open_flags, opts);
 
     driver_name = qemu_opt_get(opts, "driver");
     drv = bdrv_find_format(driver_name);
@@ -1021,9 +1047,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
 
     bs->drv = drv;
     bs->opaque = g_malloc0(drv->instance_size);
-
-    /* Apply cache mode options */
-    update_flags_from_options(&bs->open_flags, opts);
 
     /* Open the image, either directly or using a protocol */
     open_flags = bdrv_open_flags(bs, bs->open_flags);
@@ -1675,6 +1698,25 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         goto fail;
     }
 
+    /* Set the BDRV_O_RDWR and BDRV_O_ALLOW_RDWR flags.
+     * FIXME: we're parsing the QDict to avoid having to create a
+     * QemuOpts just for this, but neither option is optimal. */
+    if (g_strcmp0(qdict_get_try_str(options, BDRV_OPT_READ_ONLY), "on") &&
+        !qdict_get_try_bool(options, BDRV_OPT_READ_ONLY, false)) {
+        flags |= (BDRV_O_RDWR | BDRV_O_ALLOW_RDWR);
+    } else {
+        flags &= ~BDRV_O_RDWR;
+    }
+
+    if (flags & BDRV_O_SNAPSHOT) {
+        snapshot_options = qdict_new();
+        bdrv_temp_snapshot_options(&snapshot_flags, snapshot_options,
+                                   flags, options);
+        /* Let bdrv_backing_options() override "read-only" */
+        qdict_del(options, BDRV_OPT_READ_ONLY);
+        bdrv_backing_options(&flags, options, flags, options);
+    }
+
     bs->open_flags = flags;
     bs->options = options;
     options = qdict_clone_shallow(options);
@@ -1699,18 +1741,6 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
     /* Open image file without format layer */
     if ((flags & BDRV_O_PROTOCOL) == 0) {
-        if (flags & BDRV_O_RDWR) {
-            flags |= BDRV_O_ALLOW_RDWR;
-        }
-        if (flags & BDRV_O_SNAPSHOT) {
-            snapshot_options = qdict_new();
-            bdrv_temp_snapshot_options(&snapshot_flags, snapshot_options,
-                                       flags, options);
-            bdrv_backing_options(&flags, options, flags, options);
-        }
-
-        bs->open_flags = flags;
-
         file = bdrv_open_child(filename, options, "file", bs,
                                &child_file, true, &local_err);
         if (local_err) {
@@ -1895,6 +1925,13 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         options = qdict_new();
     }
 
+    /* Check if this BlockDriverState is already in the queue */
+    QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
+        if (bs == bs_entry->state.bs) {
+            break;
+        }
+    }
+
     /*
      * Precedence of options:
      * 1. Explicitly passed in options (highest)
@@ -1915,7 +1952,11 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     }
 
     /* Old explicitly set values (don't overwrite by inherited value) */
-    old_options = qdict_clone_shallow(bs->explicit_options);
+    if (bs_entry) {
+        old_options = qdict_clone_shallow(bs_entry->state.explicit_options);
+    } else {
+        old_options = qdict_clone_shallow(bs->explicit_options);
+    }
     bdrv_join_options(bs, options, old_options);
     QDECREF(old_options);
 
@@ -1954,8 +1995,13 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
                                 child->role, options, flags);
     }
 
-    bs_entry = g_new0(BlockReopenQueueEntry, 1);
-    QSIMPLEQ_INSERT_TAIL(bs_queue, bs_entry, entry);
+    if (!bs_entry) {
+        bs_entry = g_new0(BlockReopenQueueEntry, 1);
+        QSIMPLEQ_INSERT_TAIL(bs_queue, bs_entry, entry);
+    } else {
+        QDECREF(bs_entry->state.options);
+        QDECREF(bs_entry->state.explicit_options);
+    }
 
     bs_entry->state.bs = bs;
     bs_entry->state.options = options;
@@ -3011,11 +3057,6 @@ bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag)
     }
 
     return false;
-}
-
-int bdrv_is_snapshot(BlockDriverState *bs)
-{
-    return !!(bs->open_flags & BDRV_O_SNAPSHOT);
 }
 
 /* backing_file can either be relative, or absolute, or a protocol.  If it is

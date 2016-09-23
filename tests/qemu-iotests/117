@@ -52,14 +52,14 @@ _send_qemu_cmd $QEMU_HANDLE \
 
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'blockdev-add',
-       'arguments': { 'options': { 'id': 'protocol',
+       'arguments': { 'options': { 'node-name': 'protocol',
                                    'driver': 'file',
                                    'filename': '$TEST_IMG' } } }" \
     'return'
 
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'blockdev-add',
-       'arguments': { 'options': { 'id': 'format',
+       'arguments': { 'options': { 'node-name': 'format',
                                    'driver': '$IMGFMT',
                                    'file': 'protocol' } } }" \
     'return'

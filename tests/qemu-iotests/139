@@ -31,6 +31,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
     def setUp(self):
         iotests.qemu_img('create', '-f', iotests.imgfmt, base_img, '1M')
         self.vm = iotests.VM()
+        self.vm.add_device("virtio-scsi-pci,id=virtio-scsi")
         self.vm.launch()
 
     def tearDown(self):
@@ -39,42 +40,12 @@ class TestBlockdevDel(iotests.QMPTestCase):
         if os.path.isfile(new_img):
             os.remove(new_img)
 
-    # Check whether a BlockBackend exists
-    def checkBlockBackend(self, backend, node, must_exist = True):
-        result = self.vm.qmp('query-block')
-        backends = filter(lambda x: x['device'] == backend, result['return'])
-        self.assertLessEqual(len(backends), 1)
-        self.assertEqual(must_exist, len(backends) == 1)
-        if must_exist:
-            if node:
-                self.assertEqual(backends[0]['inserted']['node-name'], node)
-            else:
-                self.assertFalse(backends[0].has_key('inserted'))
-
     # Check whether a BlockDriverState exists
     def checkBlockDriverState(self, node, must_exist = True):
         result = self.vm.qmp('query-named-block-nodes')
         nodes = filter(lambda x: x['node-name'] == node, result['return'])
         self.assertLessEqual(len(nodes), 1)
         self.assertEqual(must_exist, len(nodes) == 1)
-
-    # Add a new BlockBackend (with its attached BlockDriverState)
-    def addBlockBackend(self, backend, node):
-        file_node = '%s_file' % node
-        self.checkBlockBackend(backend, node, False)
-        self.checkBlockDriverState(node, False)
-        self.checkBlockDriverState(file_node, False)
-        opts = {'driver': iotests.imgfmt,
-                'id': backend,
-                'node-name': node,
-                'file': {'driver': 'file',
-                         'node-name': file_node,
-                         'filename': base_img}}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, options = opts)
-        self.assert_qmp(result, 'return', {})
-        self.checkBlockBackend(backend, node)
-        self.checkBlockDriverState(node)
-        self.checkBlockDriverState(file_node)
 
     # Add a BlockDriverState without a BlockBackend
     def addBlockDriverState(self, node):
@@ -105,23 +76,6 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
         self.checkBlockDriverState(node)
 
-    # Delete a BlockBackend
-    def delBlockBackend(self, backend, node, expect_error = False,
-                        destroys_media = True):
-        self.checkBlockBackend(backend, node)
-        if node:
-            self.checkBlockDriverState(node)
-        result = self.vm.qmp('x-blockdev-del', id = backend)
-        if expect_error:
-            self.assert_qmp(result, 'error/class', 'GenericError')
-            if node:
-                self.checkBlockDriverState(node)
-        else:
-            self.assert_qmp(result, 'return', {})
-            if node:
-                self.checkBlockDriverState(node, not destroys_media)
-        self.checkBlockBackend(backend, node, must_exist = expect_error)
-
     # Delete a BlockDriverState
     def delBlockDriverState(self, node, expect_error = False):
         self.checkBlockDriverState(node)
@@ -133,51 +87,47 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.checkBlockDriverState(node, expect_error)
 
     # Add a device model
-    def addDeviceModel(self, device, backend):
+    def addDeviceModel(self, device, backend, driver = 'virtio-blk-pci'):
         result = self.vm.qmp('device_add', id = device,
-                             driver = 'virtio-blk-pci', drive = backend)
+                             driver = driver, drive = backend)
         self.assert_qmp(result, 'return', {})
 
     # Delete a device model
-    def delDeviceModel(self, device):
+    def delDeviceModel(self, device, is_virtio_blk = True):
         result = self.vm.qmp('device_del', id = device)
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('system_reset')
         self.assert_qmp(result, 'return', {})
 
-        device_path = '/machine/peripheral/%s/virtio-backend' % device
-        event = self.vm.event_wait(name="DEVICE_DELETED",
-                                   match={'data': {'path': device_path}})
-        self.assertNotEqual(event, None)
+        if is_virtio_blk:
+            device_path = '/machine/peripheral/%s/virtio-backend' % device
+            event = self.vm.event_wait(name="DEVICE_DELETED",
+                                       match={'data': {'path': device_path}})
+            self.assertNotEqual(event, None)
 
         event = self.vm.event_wait(name="DEVICE_DELETED",
                                    match={'data': {'device': device}})
         self.assertNotEqual(event, None)
 
     # Remove a BlockDriverState
-    def ejectDrive(self, backend, node, expect_error = False,
+    def ejectDrive(self, device, node, expect_error = False,
                    destroys_media = True):
-        self.checkBlockBackend(backend, node)
         self.checkBlockDriverState(node)
-        result = self.vm.qmp('eject', device = backend)
+        result = self.vm.qmp('eject', id = device)
         if expect_error:
             self.assert_qmp(result, 'error/class', 'GenericError')
             self.checkBlockDriverState(node)
-            self.checkBlockBackend(backend, node)
         else:
             self.assert_qmp(result, 'return', {})
             self.checkBlockDriverState(node, not destroys_media)
-            self.checkBlockBackend(backend, None)
 
     # Insert a BlockDriverState
-    def insertDrive(self, backend, node):
-        self.checkBlockBackend(backend, None)
+    def insertDrive(self, device, node):
         self.checkBlockDriverState(node)
         result = self.vm.qmp('x-blockdev-insert-medium',
-                             device = backend, node_name = node)
+                             id = device, node_name = node)
         self.assert_qmp(result, 'return', {})
-        self.checkBlockBackend(backend, node)
         self.checkBlockDriverState(node)
 
     # Create a snapshot using 'blockdev-snapshot-sync'
@@ -204,26 +154,23 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.checkBlockDriverState(overlay)
 
     # Create a mirror
-    def createMirror(self, backend, node, new_node):
-        self.checkBlockBackend(backend, node)
+    def createMirror(self, node, new_node):
         self.checkBlockDriverState(new_node, False)
-        opts = {'device': backend,
+        opts = {'device': node,
+                'job-id': node,
                 'target': new_img,
                 'node-name': new_node,
                 'sync': 'top',
                 'format': iotests.imgfmt}
         result = self.vm.qmp('drive-mirror', conv_keys=False, **opts)
         self.assert_qmp(result, 'return', {})
-        self.checkBlockBackend(backend, node)
         self.checkBlockDriverState(new_node)
 
     # Complete an existing block job
-    def completeBlockJob(self, backend, node_before, node_after):
-        self.checkBlockBackend(backend, node_before)
-        result = self.vm.qmp('block-job-complete', device=backend)
+    def completeBlockJob(self, id, node_before, node_after):
+        result = self.vm.qmp('block-job-complete', device=id)
         self.assert_qmp(result, 'return', {})
-        self.wait_until_completed(backend)
-        self.checkBlockBackend(backend, node_after)
+        self.wait_until_completed(id)
 
     # Add a BlkDebug node
     # Note that the purpose of this is to test the x-blockdev-del
@@ -297,89 +244,78 @@ class TestBlockdevDel(iotests.QMPTestCase):
     # The tests start here #
     ########################
 
-    def testWrongParameters(self):
-        self.addBlockBackend('drive0', 'node0')
-        result = self.vm.qmp('x-blockdev-del')
-        self.assert_qmp(result, 'error/class', 'GenericError')
-        result = self.vm.qmp('x-blockdev-del', id='drive0', node_name='node0')
-        self.assert_qmp(result, 'error/class', 'GenericError')
-        self.delBlockBackend('drive0', 'node0')
-
-    def testBlockBackend(self):
-        self.addBlockBackend('drive0', 'node0')
-        # You cannot delete a BDS that is attached to a backend
-        self.delBlockDriverState('node0', expect_error = True)
-        self.delBlockBackend('drive0', 'node0')
-
     def testBlockDriverState(self):
         self.addBlockDriverState('node0')
         # You cannot delete a file BDS directly
         self.delBlockDriverState('node0_file', expect_error = True)
         self.delBlockDriverState('node0')
 
-    def testEject(self):
-        self.addBlockBackend('drive0', 'node0')
-        self.ejectDrive('drive0', 'node0')
-        self.delBlockBackend('drive0', None)
-
     def testDeviceModel(self):
-        self.addBlockBackend('drive0', 'node0')
-        self.addDeviceModel('device0', 'drive0')
-        self.ejectDrive('drive0', 'node0', expect_error = True)
-        self.delBlockBackend('drive0', 'node0', expect_error = True)
+        self.addBlockDriverState('node0')
+        self.addDeviceModel('device0', 'node0')
+        self.ejectDrive('device0', 'node0', expect_error = True)
+        self.delBlockDriverState('node0', expect_error = True)
         self.delDeviceModel('device0')
-        self.delBlockBackend('drive0', 'node0')
+        self.delBlockDriverState('node0')
 
     def testAttachMedia(self):
         # This creates a BlockBackend and removes its media
-        self.addBlockBackend('drive0', 'node0')
-        self.ejectDrive('drive0', 'node0')
-        # This creates a new BlockDriverState and inserts it into the backend
+        self.addBlockDriverState('node0')
+        self.addDeviceModel('device0', 'node0', 'scsi-cd')
+        self.ejectDrive('device0', 'node0', destroys_media = False)
+        self.delBlockDriverState('node0')
+
+        # This creates a new BlockDriverState and inserts it into the device
         self.addBlockDriverState('node1')
-        self.insertDrive('drive0', 'node1')
-        # The backend can't be removed: the new BDS has an extra reference
-        self.delBlockBackend('drive0', 'node1', expect_error = True)
+        self.insertDrive('device0', 'node1')
+        # The node can't be removed: the new device has an extra reference
         self.delBlockDriverState('node1', expect_error = True)
         # The BDS still exists after being ejected, but now it can be removed
-        self.ejectDrive('drive0', 'node1', destroys_media = False)
+        self.ejectDrive('device0', 'node1', destroys_media = False)
         self.delBlockDriverState('node1')
-        self.delBlockBackend('drive0', None)
+        self.delDeviceModel('device0', False)
 
     def testSnapshotSync(self):
-        self.addBlockBackend('drive0', 'node0')
+        self.addBlockDriverState('node0')
+        self.addDeviceModel('device0', 'node0')
         self.createSnapshotSync('node0', 'overlay0')
         # This fails because node0 is now being used as a backing image
         self.delBlockDriverState('node0', expect_error = True)
-        # This succeeds because overlay0 only has the backend reference
-        self.delBlockBackend('drive0', 'overlay0')
-        self.checkBlockDriverState('node0', False)
+        self.delBlockDriverState('overlay0', expect_error = True)
+        # This succeeds because device0 only has the backend reference
+        self.delDeviceModel('device0')
+        # FIXME Would still be there if blockdev-snapshot-sync took a ref
+        self.checkBlockDriverState('overlay0', False)
+        self.delBlockDriverState('node0')
 
     def testSnapshot(self):
-        self.addBlockBackend('drive0', 'node0')
+        self.addBlockDriverState('node0')
+        self.addDeviceModel('device0', 'node0', 'scsi-cd')
         self.addBlockDriverStateOverlay('overlay0')
         self.createSnapshot('node0', 'overlay0')
-        self.delBlockBackend('drive0', 'overlay0', expect_error = True)
         self.delBlockDriverState('node0', expect_error = True)
         self.delBlockDriverState('overlay0', expect_error = True)
-        self.ejectDrive('drive0', 'overlay0', destroys_media = False)
-        self.delBlockBackend('drive0', None)
+        self.ejectDrive('device0', 'overlay0', destroys_media = False)
         self.delBlockDriverState('node0', expect_error = True)
         self.delBlockDriverState('overlay0')
-        self.checkBlockDriverState('node0', False)
+        self.delBlockDriverState('node0')
 
     def testMirror(self):
-        self.addBlockBackend('drive0', 'node0')
-        self.createMirror('drive0', 'node0', 'mirror0')
+        self.addBlockDriverState('node0')
+        self.addDeviceModel('device0', 'node0', 'scsi-cd')
+        self.createMirror('node0', 'mirror0')
         # The block job prevents removing the device
-        self.delBlockBackend('drive0', 'node0', expect_error = True)
         self.delBlockDriverState('node0', expect_error = True)
         self.delBlockDriverState('mirror0', expect_error = True)
-        self.wait_ready('drive0')
-        self.completeBlockJob('drive0', 'node0', 'mirror0')
+        self.wait_ready('node0')
+        self.completeBlockJob('node0', 'node0', 'mirror0')
         self.assert_no_active_block_jobs()
-        self.checkBlockDriverState('node0', False)
-        # This succeeds because the backend now points to mirror0
-        self.delBlockBackend('drive0', 'mirror0')
+        # This succeeds because the device now points to mirror0
+        self.delBlockDriverState('node0')
+        self.delBlockDriverState('mirror0', expect_error = True)
+        self.delDeviceModel('device0', False)
+        # FIXME mirror0 disappears, drive-mirror doesn't take a reference
+        #self.delBlockDriverState('mirror0')
 
     def testBlkDebug(self):
         self.addBlkDebug('debug0', 'node0')

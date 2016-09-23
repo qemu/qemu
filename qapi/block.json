@@ -125,7 +125,9 @@
 #
 # Ejects a device from a removable drive.
 #
-# @device:  The name of the device
+# @device:  #optional Block device name (deprecated, use @id instead)
+#
+# @id:      #optional The name or QOM path of the guest device (since: 2.8)
 #
 # @force:   @optional If true, eject regardless of whether the drive is locked.
 #           If not specified, the default value is false.
@@ -137,7 +139,10 @@
 #
 # Since: 0.14.0
 ##
-{ 'command': 'eject', 'data': {'device': 'str', '*force': 'bool'} }
+{ 'command': 'eject',
+  'data': { '*device': 'str',
+            '*id': 'str',
+            '*force': 'bool' } }
 
 ##
 # @nbd-server-start:

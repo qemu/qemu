@@ -51,7 +51,7 @@ test_blockjob()
         "{'execute': 'blockdev-add',
           'arguments': {
               'options': {
-                  'id': 'drv0',
+                  'node-name': 'drv0',
                   'driver': '$IMGFMT',
                   'file': {
                       'driver': 'file',
@@ -66,18 +66,18 @@ test_blockjob()
 
     # We want this to return an error because the block job is still running
     _send_qemu_cmd $QEMU_HANDLE \
-        "{'execute': 'x-blockdev-remove-medium',
-          'arguments': {'device': 'drv0'}}" \
+        "{'execute': 'x-blockdev-del',
+          'arguments': {'node-name': 'drv0'}}" \
         'error'
 
     _send_qemu_cmd $QEMU_HANDLE \
         "{'execute': 'block-job-cancel',
-          'arguments': {'device': 'drv0'}}" \
+          'arguments': {'device': 'job0'}}" \
         "$3"
 
     _send_qemu_cmd $QEMU_HANDLE \
         "{'execute': 'x-blockdev-del',
-          'arguments': {'id': 'drv0'}}" \
+          'arguments': {'node-name': 'drv0'}}" \
         'return'
 }
 
@@ -101,7 +101,8 @@ echo
 
 test_blockjob \
     "{'execute': 'drive-backup',
-      'arguments': {'device': 'drv0',
+      'arguments': {'job-id': 'job0',
+                    'device': 'drv0',
                     'target': '$TEST_DIR/o.$IMGFMT',
                     'format': '$IMGFMT',
                     'sync': 'none'}}" \
@@ -117,7 +118,8 @@ echo
 
 test_blockjob \
     "{'execute': 'drive-mirror',
-      'arguments': {'device': 'drv0',
+      'arguments': {'job-id': 'job0',
+                    'device': 'drv0',
                     'target': '$TEST_DIR/o.$IMGFMT',
                     'format': '$IMGFMT',
                     'sync': 'none'}}" \
@@ -134,7 +136,7 @@ echo
 
 test_blockjob \
     "{'execute': 'block-commit',
-      'arguments': {'device': 'drv0'}}" \
+      'arguments': {'job-id': 'job0', 'device': 'drv0'}}" \
     'BLOCK_JOB_READY' \
     'BLOCK_JOB_COMPLETED'
 
@@ -150,7 +152,8 @@ $QEMU_IO -c 'write 0 1M' "$TEST_DIR/m.$IMGFMT" | _filter_qemu_io
 
 test_blockjob \
     "{'execute': 'block-commit',
-      'arguments': {'device': 'drv0',
+      'arguments': {'job-id': 'job0',
+                    'device': 'drv0',
                     'top':    '$TEST_DIR/m.$IMGFMT',
                     'speed':  1}}" \
     'return' \
@@ -172,7 +175,8 @@ $QEMU_IO -c 'write 0 1M' "$TEST_DIR/b.$IMGFMT" | _filter_qemu_io
 
 test_blockjob \
     "{'execute': 'block-stream',
-      'arguments': {'device': 'drv0',
+      'arguments': {'job-id': 'job0',
+                    'device': 'drv0',
                     'speed': 1}}" \
     'return' \
     'BLOCK_JOB_CANCELLED'

@@ -107,6 +107,7 @@ typedef struct HDGeometry {
 #define BDRV_OPT_CACHE_WB       "cache.writeback"
 #define BDRV_OPT_CACHE_DIRECT   "cache.direct"
 #define BDRV_OPT_CACHE_NO_FLUSH "cache.no-flush"
+#define BDRV_OPT_READ_ONLY      "read-only"
 
 
 #define BDRV_SECTOR_BITS   9
@@ -414,7 +415,6 @@ void bdrv_get_full_backing_filename_from_filename(const char *backed,
                                                   const char *backing,
                                                   char *dest, size_t sz,
                                                   Error **errp);
-int bdrv_is_snapshot(BlockDriverState *bs);
 
 int path_has_protocol(const char *path);
 int path_is_absolute(const char *path);

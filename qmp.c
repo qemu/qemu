@@ -431,8 +431,8 @@ void qmp_change(const char *device, const char *target,
     if (strcmp(device, "vnc") == 0) {
         qmp_change_vnc(target, has_arg, arg, errp);
     } else {
-        qmp_blockdev_change_medium(device, target, has_arg, arg, false, 0,
-                                   errp);
+        qmp_blockdev_change_medium(true, device, false, NULL, target,
+                                   has_arg, arg, false, 0, errp);
     }
 }
 

@@ -1376,7 +1376,7 @@ void hmp_eject(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
     Error *err = NULL;
 
-    qmp_eject(device, true, force, &err);
+    qmp_eject(true, device, false, NULL, true, force, &err);
     hmp_handle_error(mon, &err);
 }
 
@@ -1422,8 +1422,9 @@ void hmp_change(Monitor *mon, const QDict *qdict)
             }
         }
 
-        qmp_blockdev_change_medium(device, target, !!arg, arg,
-                                   !!read_only, read_only_mode, &err);
+        qmp_blockdev_change_medium(true, device, false, NULL, target,
+                                   !!arg, arg, !!read_only, read_only_mode,
+                                   &err);
         if (err &&
             error_get_class(err) == ERROR_CLASS_DEVICE_ENCRYPTED) {
             error_free(err);
@@ -1924,6 +1925,7 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 {
     BlockBackend *blk;
     BlockBackend *local_blk = NULL;
+    AioContext *aio_context;
     const char* device = qdict_get_str(qdict, "device");
     const char* command = qdict_get_str(qdict, "command");
     Error *err = NULL;
@@ -1939,17 +1941,12 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
         }
     }
 
-    if (blk) {
-        AioContext *aio_context = blk_get_aio_context(blk);
-        aio_context_acquire(aio_context);
+    aio_context = blk_get_aio_context(blk);
+    aio_context_acquire(aio_context);
 
-        qemuio_command(blk, command);
+    qemuio_command(blk, command);
 
-        aio_context_release(aio_context);
-    } else {
-        error_set(&err, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
-    }
+    aio_context_release(aio_context);
 
 fail:
     blk_unref(local_blk);

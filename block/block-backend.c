@@ -560,6 +560,25 @@ void *blk_get_attached_dev(BlockBackend *blk)
 }
 
 /*
+ * Return the BlockBackend which has the device model @dev attached if it
+ * exists, else null.
+ *
+ * @dev must not be null.
+ */
+BlockBackend *blk_by_dev(void *dev)
+{
+    BlockBackend *blk = NULL;
+
+    assert(dev != NULL);
+    while ((blk = blk_all_next(blk)) != NULL) {
+        if (blk->dev == dev) {
+            return blk;
+        }
+    }
+    return NULL;
+}
+
+/*
  * Set @blk's device model callbacks to @ops.
  * @opaque is the opaque argument to pass to the callbacks.
  * This is for use by device models.

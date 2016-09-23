@@ -68,9 +68,9 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/
 
 === Invalid command - snapshot node used as active layer ===
 
-{"error": {"class": "GenericError", "desc": "The snapshot is already in use by virtio0"}}
-{"error": {"class": "GenericError", "desc": "The snapshot is already in use by virtio0"}}
-{"error": {"class": "GenericError", "desc": "The snapshot is already in use by virtio1"}}
+{"error": {"class": "GenericError", "desc": "The snapshot is already in use"}}
+{"error": {"class": "GenericError", "desc": "The snapshot is already in use"}}
+{"error": {"class": "GenericError", "desc": "The snapshot is already in use"}}
 
 === Invalid command - snapshot node used as backing hd ===
 

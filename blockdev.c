@@ -56,7 +56,8 @@
 static QTAILQ_HEAD(, BlockDriverState) monitor_bdrv_states =
     QTAILQ_HEAD_INITIALIZER(monitor_bdrv_states);
 
-static int do_open_tray(const char *device, bool force, Error **errp);
+static int do_open_tray(const char *blk_name, const char *qdev_id,
+                        bool force, Error **errp);
 
 static const char *const if_name[IF_COUNT] = {
     [IF_NONE] = "none",
@@ -360,9 +361,6 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
     const char *aio;
 
     if (bdrv_flags) {
-        if (!qemu_opt_get_bool(opts, "read-only", false)) {
-            *bdrv_flags |= BDRV_O_RDWR;
-        }
         if (qemu_opt_get_bool(opts, "copy-on-read", false)) {
             *bdrv_flags |= BDRV_O_COPY_ON_READ;
         }
@@ -471,7 +469,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
     bool account_invalid, account_failed;
-    bool writethrough;
+    bool writethrough, read_only;
     BlockBackend *blk;
     BlockDriverState *bs;
     ThrottleConfig cfg;
@@ -567,6 +565,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         bdrv_flags |= BDRV_O_SNAPSHOT;
     }
 
+    read_only = qemu_opt_get_bool(opts, BDRV_OPT_READ_ONLY, false);
+
     /* init */
     if ((!file || !*file) && !qdict_size(bs_opts)) {
         BlockBackendRootState *blk_rs;
@@ -574,7 +574,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         blk = blk_new();
         blk_rs = blk_get_root_state(blk);
         blk_rs->open_flags    = bdrv_flags;
-        blk_rs->read_only     = !(bdrv_flags & BDRV_O_RDWR);
+        blk_rs->read_only     = read_only;
         blk_rs->detect_zeroes = detect_zeroes;
 
         QDECREF(bs_opts);
@@ -588,6 +588,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
          * Apply the defaults here instead. */
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
+        qdict_set_default_str(bs_opts, BDRV_OPT_READ_ONLY,
+                              read_only ? "on" : "off");
         assert((bdrv_flags & BDRV_O_CACHE_MASK) == 0);
 
         if (runstate_check(RUN_STATE_INMIGRATE)) {
@@ -682,6 +684,7 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
      * Apply the defaults here instead. */
     qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
+    qdict_set_default_str(bs_opts, BDRV_OPT_READ_ONLY, "off");
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         bdrv_flags |= BDRV_O_INACTIVE;
@@ -805,7 +808,7 @@ QemuOptsList qemu_legacy_drive_opts = {
 
         /* Options that are passed on, but have special semantics with -drive */
         {
-            .name = "read-only",
+            .name = BDRV_OPT_READ_ONLY,
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
         },{
@@ -871,7 +874,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 
         { "group",          "throttling.group" },
 
-        { "readonly",       "read-only" },
+        { "readonly",       BDRV_OPT_READ_ONLY },
     };
 
     for (i = 0; i < ARRAY_SIZE(opt_renames); i++) {
@@ -943,7 +946,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     }
 
     /* copy-on-read is disabled with a warning for read-only devices */
-    read_only |= qemu_opt_get_bool(legacy_opts, "read-only", false);
+    read_only |= qemu_opt_get_bool(legacy_opts, BDRV_OPT_READ_ONLY, false);
     copy_on_read = qemu_opt_get_bool(legacy_opts, "copy-on-read", false);
 
     if (read_only && copy_on_read) {
@@ -951,7 +954,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         copy_on_read = false;
     }
 
-    qdict_put(bs_opts, "read-only",
+    qdict_put(bs_opts, BDRV_OPT_READ_ONLY,
               qstring_from_str(read_only ? "on" : "off"));
     qdict_put(bs_opts, "copy-on-read",
               qstring_from_str(copy_on_read ? "on" :"off"));
@@ -1194,6 +1197,29 @@ static BlockDriverState *qmp_get_root_bs(const char *name, Error **errp)
     }
 
     return bs;
+}
+
+static BlockBackend *qmp_get_blk(const char *blk_name, const char *qdev_id,
+                                 Error **errp)
+{
+    BlockBackend *blk;
+
+    if (!blk_name == !qdev_id) {
+        error_setg(errp, "Need exactly one of 'device' and 'id'");
+        return NULL;
+    }
+
+    if (qdev_id) {
+        blk = blk_by_qdev_id(qdev_id, errp);
+    } else {
+        blk = blk_by_name(blk_name);
+        if (blk == NULL) {
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", blk_name);
+        }
+    }
+
+    return blk;
 }
 
 void hmp_commit(Monitor *mon, const QDict *qdict)
@@ -1777,8 +1803,7 @@ static void external_snapshot_prepare(BlkActionState *common,
     }
 
     if (bdrv_has_blk(state->new_bs)) {
-        error_setg(errp, "The snapshot is already in use by %s",
-                   bdrv_get_parent_name(state->new_bs));
+        error_setg(errp, "The snapshot is already in use");
         return;
     }
 
@@ -2239,7 +2264,9 @@ exit:
     block_job_txn_unref(block_job_txn);
 }
 
-void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
+void qmp_eject(bool has_device, const char *device,
+               bool has_id, const char *id,
+               bool has_force, bool force, Error **errp)
 {
     Error *local_err = NULL;
     int rc;
@@ -2248,14 +2275,16 @@ void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
         force = false;
     }
 
-    rc = do_open_tray(device, force, &local_err);
+    rc = do_open_tray(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      force, &local_err);
     if (rc && rc != -ENOSYS) {
         error_propagate(errp, local_err);
         return;
     }
     error_free(local_err);
 
-    qmp_x_blockdev_remove_medium(device, errp);
+    qmp_x_blockdev_remove_medium(has_device, device, has_id, id, errp);
 }
 
 void qmp_block_passwd(bool has_device, const char *device,
@@ -2293,15 +2322,15 @@ void qmp_block_passwd(bool has_device, const char *device,
  * If the guest was asked to open the tray, return -EINPROGRESS.
  * Else, return 0.
  */
-static int do_open_tray(const char *device, bool force, Error **errp)
+static int do_open_tray(const char *blk_name, const char *qdev_id,
+                        bool force, Error **errp)
 {
     BlockBackend *blk;
+    const char *device = qdev_id ?: blk_name;
     bool locked;
 
-    blk = blk_by_name(device);
+    blk = qmp_get_blk(blk_name, qdev_id, errp);
     if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
         return -ENODEV;
     }
 
@@ -2337,7 +2366,9 @@ static int do_open_tray(const char *device, bool force, Error **errp)
     return 0;
 }
 
-void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
+void qmp_blockdev_open_tray(bool has_device, const char *device,
+                            bool has_id, const char *id,
+                            bool has_force, bool force,
                             Error **errp)
 {
     Error *local_err = NULL;
@@ -2346,7 +2377,9 @@ void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
     if (!has_force) {
         force = false;
     }
-    rc = do_open_tray(device, force, &local_err);
+    rc = do_open_tray(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      force, &local_err);
     if (rc && rc != -ENOSYS && rc != -EINPROGRESS) {
         error_propagate(errp, local_err);
         return;
@@ -2354,19 +2387,22 @@ void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
     error_free(local_err);
 }
 
-void qmp_blockdev_close_tray(const char *device, Error **errp)
+void qmp_blockdev_close_tray(bool has_device, const char *device,
+                             bool has_id, const char *id,
+                             Error **errp)
 {
     BlockBackend *blk;
 
-    blk = blk_by_name(device);
+    device = has_device ? device : NULL;
+    id = has_id ? id : NULL;
+
+    blk = qmp_get_blk(device, id, errp);
     if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
         return;
     }
 
     if (!blk_dev_has_removable_media(blk)) {
-        error_setg(errp, "Device '%s' is not removable", device);
+        error_setg(errp, "Device '%s' is not removable", device ?: id);
         return;
     }
 
@@ -2382,30 +2418,34 @@ void qmp_blockdev_close_tray(const char *device, Error **errp)
     blk_dev_change_media_cb(blk, true);
 }
 
-void qmp_x_blockdev_remove_medium(const char *device, Error **errp)
+void qmp_x_blockdev_remove_medium(bool has_device, const char *device,
+                                  bool has_id, const char *id, Error **errp)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
     AioContext *aio_context;
-    bool has_device;
+    bool has_attached_device;
 
-    blk = blk_by_name(device);
+    device = has_device ? device : NULL;
+    id = has_id ? id : NULL;
+
+    blk = qmp_get_blk(device, id, errp);
     if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
         return;
     }
 
     /* For BBs without a device, we can exchange the BDS tree at will */
-    has_device = blk_get_attached_dev(blk);
+    has_attached_device = blk_get_attached_dev(blk);
 
-    if (has_device && !blk_dev_has_removable_media(blk)) {
-        error_setg(errp, "Device '%s' is not removable", device);
+    if (has_attached_device && !blk_dev_has_removable_media(blk)) {
+        error_setg(errp, "Device '%s' is not removable", device ?: id);
         return;
     }
 
-    if (has_device && blk_dev_has_tray(blk) && !blk_dev_is_tray_open(blk)) {
-        error_setg(errp, "Tray of device '%s' is not open", device);
+    if (has_attached_device && blk_dev_has_tray(blk) &&
+        !blk_dev_is_tray_open(blk))
+    {
+        error_setg(errp, "Tray of device '%s' is not open", device ?: id);
         return;
     }
 
@@ -2435,34 +2475,26 @@ out:
     aio_context_release(aio_context);
 }
 
-static void qmp_blockdev_insert_anon_medium(const char *device,
+static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
                                             BlockDriverState *bs, Error **errp)
 {
-    BlockBackend *blk;
     bool has_device;
-
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
-        return;
-    }
 
     /* For BBs without a device, we can exchange the BDS tree at will */
     has_device = blk_get_attached_dev(blk);
 
     if (has_device && !blk_dev_has_removable_media(blk)) {
-        error_setg(errp, "Device '%s' is not removable", device);
+        error_setg(errp, "Device is not removable");
         return;
     }
 
     if (has_device && blk_dev_has_tray(blk) && !blk_dev_is_tray_open(blk)) {
-        error_setg(errp, "Tray of device '%s' is not open", device);
+        error_setg(errp, "Tray of the device is not open");
         return;
     }
 
     if (blk_bs(blk)) {
-        error_setg(errp, "There already is a medium in device '%s'", device);
+        error_setg(errp, "There already is a medium in the device");
         return;
     }
 
@@ -2478,10 +2510,19 @@ static void qmp_blockdev_insert_anon_medium(const char *device,
     }
 }
 
-void qmp_x_blockdev_insert_medium(const char *device, const char *node_name,
-                                  Error **errp)
+void qmp_x_blockdev_insert_medium(bool has_device, const char *device,
+                                  bool has_id, const char *id,
+                                  const char *node_name, Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
+
+    blk = qmp_get_blk(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      errp);
+    if (!blk) {
+        return;
+    }
 
     bs = bdrv_find_node(node_name);
     if (!bs) {
@@ -2490,15 +2531,16 @@ void qmp_x_blockdev_insert_medium(const char *device, const char *node_name,
     }
 
     if (bdrv_has_blk(bs)) {
-        error_setg(errp, "Node '%s' is already in use by '%s'", node_name,
-                   bdrv_get_parent_name(bs));
+        error_setg(errp, "Node '%s' is already in use", node_name);
         return;
     }
 
-    qmp_blockdev_insert_anon_medium(device, bs, errp);
+    qmp_blockdev_insert_anon_medium(blk, bs, errp);
 }
 
-void qmp_blockdev_change_medium(const char *device, const char *filename,
+void qmp_blockdev_change_medium(bool has_device, const char *device,
+                                bool has_id, const char *id,
+                                const char *filename,
                                 bool has_format, const char *format,
                                 bool has_read_only,
                                 BlockdevChangeReadOnlyMode read_only,
@@ -2511,10 +2553,10 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     QDict *options = NULL;
     Error *err = NULL;
 
-    blk = blk_by_name(device);
+    blk = qmp_get_blk(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      errp);
     if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
         goto fail;
     }
 
@@ -2562,7 +2604,9 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
         goto fail;
     }
 
-    rc = do_open_tray(device, false, &err);
+    rc = do_open_tray(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      false, &err);
     if (rc && rc != -ENOSYS) {
         error_propagate(errp, err);
         goto fail;
@@ -2570,13 +2614,13 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     error_free(err);
     err = NULL;
 
-    qmp_x_blockdev_remove_medium(device, &err);
+    qmp_x_blockdev_remove_medium(has_device, device, has_id, id, errp);
     if (err) {
         error_propagate(errp, err);
         goto fail;
     }
 
-    qmp_blockdev_insert_anon_medium(device, medium_bs, &err);
+    qmp_blockdev_insert_anon_medium(blk, medium_bs, &err);
     if (err) {
         error_propagate(errp, err);
         goto fail;
@@ -2584,7 +2628,7 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
 
     blk_apply_root_state(blk, medium_bs);
 
-    qmp_blockdev_close_tray(device, errp);
+    qmp_blockdev_close_tray(has_device, device, has_id, id, errp);
 
 fail:
     /* If the medium has been inserted, the device has its own reference, so
@@ -2601,10 +2645,10 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
     BlockBackend *blk;
     AioContext *aio_context;
 
-    blk = blk_by_name(arg->device);
+    blk = qmp_get_blk(arg->has_device ? arg->device : NULL,
+                      arg->has_id ? arg->id : NULL,
+                      errp);
     if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", arg->device);
         return;
     }
 
@@ -2613,7 +2657,7 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
 
     bs = blk_bs(blk);
     if (!bs) {
-        error_setg(errp, "Device '%s' has no medium", arg->device);
+        error_setg(errp, "Device has no medium");
         goto out;
     }
 
@@ -2677,7 +2721,9 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
          * just update the throttling group. */
         if (!blk_get_public(blk)->throttle_state) {
             blk_io_limits_enable(blk,
-                                 arg->has_group ? arg->group : arg->device);
+                                 arg->has_group ? arg->group :
+                                 arg->has_device ? arg->device :
+                                 arg->id);
         } else if (arg->has_group) {
             blk_io_limits_update_group(blk, arg->group);
         }
@@ -2798,7 +2844,7 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
 
     bs = bdrv_find_node(id);
     if (bs) {
-        qmp_x_blockdev_del(false, NULL, true, id, &local_err);
+        qmp_x_blockdev_del(id, &local_err);
         if (local_err) {
             error_report_err(local_err);
         }
@@ -3781,7 +3827,6 @@ out:
 void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 {
     BlockDriverState *bs;
-    BlockBackend *blk = NULL;
     QObject *obj;
     Visitor *v = qmp_output_visitor_new(&obj);
     QDict *qdict;
@@ -3813,37 +3858,21 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    if (options->has_id) {
-        blk = blockdev_init(NULL, qdict, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            goto fail;
-        }
-
-        bs = blk_bs(blk);
-    } else {
-        if (!qdict_get_try_str(qdict, "node-name")) {
-            error_setg(errp, "'id' and/or 'node-name' need to be specified for "
-                       "the root node");
-            goto fail;
-        }
-
-        bs = bds_tree_init(qdict, errp);
-        if (!bs) {
-            goto fail;
-        }
-
-        QTAILQ_INSERT_TAIL(&monitor_bdrv_states, bs, monitor_list);
+    if (!qdict_get_try_str(qdict, "node-name")) {
+        error_setg(errp, "'node-name' must be specified for the root node");
+        goto fail;
     }
 
+    bs = bds_tree_init(qdict, errp);
+    if (!bs) {
+        goto fail;
+    }
+
+    QTAILQ_INSERT_TAIL(&monitor_bdrv_states, bs, monitor_list);
+
     if (bs && bdrv_key_required(bs)) {
-        if (blk) {
-            monitor_remove_blk(blk);
-            blk_unref(blk);
-        } else {
-            QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
-            bdrv_unref(bs);
-        }
+        QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
+        bdrv_unref(bs);
         error_setg(errp, "blockdev-add doesn't support encrypted devices");
         goto fail;
     }
@@ -3852,81 +3881,41 @@ fail:
     visit_free(v);
 }
 
-void qmp_x_blockdev_del(bool has_id, const char *id,
-                        bool has_node_name, const char *node_name, Error **errp)
+void qmp_x_blockdev_del(const char *node_name, Error **errp)
 {
     AioContext *aio_context;
-    BlockBackend *blk;
     BlockDriverState *bs;
 
-    if (has_id && has_node_name) {
-        error_setg(errp, "Only one of id and node-name must be specified");
-        return;
-    } else if (!has_id && !has_node_name) {
-        error_setg(errp, "No block device specified");
+    bs = bdrv_find_node(node_name);
+    if (!bs) {
+        error_setg(errp, "Cannot find node %s", node_name);
         return;
     }
-
-    if (has_id) {
-        /* blk_by_name() never returns a BB that is not owned by the monitor */
-        blk = blk_by_name(id);
-        if (!blk) {
-            error_setg(errp, "Cannot find block backend %s", id);
-            return;
-        }
-        if (blk_legacy_dinfo(blk)) {
-            error_setg(errp, "Deleting block backend added with drive-add"
-                       " is not supported");
-            return;
-        }
-        if (blk_get_refcnt(blk) > 1) {
-            error_setg(errp, "Block backend %s is in use", id);
-            return;
-        }
-        bs = blk_bs(blk);
-        aio_context = blk_get_aio_context(blk);
-    } else {
-        blk = NULL;
-        bs = bdrv_find_node(node_name);
-        if (!bs) {
-            error_setg(errp, "Cannot find node %s", node_name);
-            return;
-        }
-        if (bdrv_has_blk(bs)) {
-            error_setg(errp, "Node %s is in use by %s",
-                       node_name, bdrv_get_parent_name(bs));
-            return;
-        }
-        aio_context = bdrv_get_aio_context(bs);
+    if (bdrv_has_blk(bs)) {
+        error_setg(errp, "Node %s is in use", node_name);
+        return;
     }
-
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (bs) {
-        if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, errp)) {
-            goto out;
-        }
-
-        if (!blk && !QTAILQ_IN_USE(bs, monitor_list)) {
-            error_setg(errp, "Node %s is not owned by the monitor",
-                       bs->node_name);
-            goto out;
-        }
-
-        if (bs->refcnt > 1) {
-            error_setg(errp, "Block device %s is in use",
-                       bdrv_get_device_or_node_name(bs));
-            goto out;
-        }
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, errp)) {
+        goto out;
     }
 
-    if (blk) {
-        monitor_remove_blk(blk);
-        blk_unref(blk);
-    } else {
-        QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
-        bdrv_unref(bs);
+    if (!bs->monitor_list.tqe_prev) {
+        error_setg(errp, "Node %s is not owned by the monitor",
+                   bs->node_name);
+        goto out;
     }
+
+    if (bs->refcnt > 1) {
+        error_setg(errp, "Block device %s is in use",
+                   bdrv_get_device_or_node_name(bs));
+        goto out;
+    }
+
+    QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
+    bdrv_unref(bs);
 
 out:
     aio_context_release(aio_context);
@@ -4040,7 +4029,7 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "write error action",
         },{
-            .name = "read-only",
+            .name = BDRV_OPT_READ_ONLY,
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
         },{
@@ -4158,10 +4147,6 @@ static QemuOptsList qemu_root_bds_opts = {
             .name = "aio",
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",
-        },{
-            .name = "read-only",
-            .type = QEMU_OPT_BOOL,
-            .help = "open drive file as read-only",
         },{
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,

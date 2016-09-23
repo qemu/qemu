@@ -77,50 +77,12 @@ echo
 echo === Duplicate ID ===
 echo
 
-run_qemu <<EOF
+run_qemu -drive driver=$IMGFMT,id=disk,node-name=test-node,file="$TEST_IMG" <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "blockdev-add",
   "arguments": {
       "options": {
         "driver": "$IMGFMT",
-        "id": "disk",
-        "node-name": "test-node",
-        "file": {
-            "driver": "file",
-            "filename": "$TEST_IMG"
-        }
-      }
-    }
-  }
-{ "execute": "blockdev-add",
-  "arguments": {
-      "options": {
-        "driver": "$IMGFMT",
-        "id": "disk",
-        "file": {
-            "driver": "file",
-            "filename": "$TEST_IMG"
-        }
-      }
-    }
-  }
-{ "execute": "blockdev-add",
-  "arguments": {
-      "options": {
-        "driver": "$IMGFMT",
-        "id": "test-node",
-        "file": {
-            "driver": "file",
-            "filename": "$TEST_IMG"
-        }
-      }
-    }
-  }
-{ "execute": "blockdev-add",
-  "arguments": {
-      "options": {
-        "driver": "$IMGFMT",
-        "id": "disk2",
         "node-name": "disk",
         "file": {
             "driver": "file",
@@ -133,21 +95,7 @@ run_qemu <<EOF
   "arguments": {
       "options": {
         "driver": "$IMGFMT",
-        "id": "disk2",
         "node-name": "test-node",
-        "file": {
-            "driver": "file",
-            "filename": "$TEST_IMG"
-        }
-      }
-    }
-  }
-{ "execute": "blockdev-add",
-  "arguments": {
-      "options": {
-        "driver": "$IMGFMT",
-        "id": "disk3",
-        "node-name": "disk3",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -168,7 +116,7 @@ run_qemu <<EOF
   "arguments": {
       "options": {
         "driver": "$IMGFMT",
-        "id": "disk",
+        "node-name": "disk",
         "aio": "native",
         "file": {
             "driver": "file",
@@ -191,7 +139,7 @@ run_qemu -S <<EOF
   "arguments": {
       "options": {
         "driver": "$IMGFMT",
-        "id": "disk",
+        "node-name": "disk",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -208,7 +156,7 @@ run_qemu <<EOF
   "arguments": {
       "options": {
         "driver": "$IMGFMT",
-        "id": "disk",
+        "node-name": "disk",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -229,7 +177,7 @@ run_qemu -S <<EOF
 { "execute": "blockdev-add",
   "arguments": {
       "options": {
-        "id": "disk"
+        "node-name": "disk"
       }
     }
   }

@@ -6,22 +6,18 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Testing:
 QMP_VERSION
 {"return": {}}
-{"error": {"class": "GenericError", "desc": "'id' and/or 'node-name' need to be specified for the root node"}}
+{"error": {"class": "GenericError", "desc": "'node-name' must be specified for the root node"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 
 
 === Duplicate ID ===
 
-Testing:
+Testing: -drive driver=IMGFMT,id=disk,node-name=test-node,file=TEST_DIR/t.IMGFMT
 QMP_VERSION
 {"return": {}}
-{"return": {}}
-{"error": {"class": "GenericError", "desc": "Device with id 'disk' already exists"}}
-{"error": {"class": "GenericError", "desc": "Device name 'test-node' conflicts with an existing node name"}}
 {"error": {"class": "GenericError", "desc": "node-name=disk is conflicting with a device id"}}
 {"error": {"class": "GenericError", "desc": "Duplicate node name"}}
-{"error": {"class": "GenericError", "desc": "Device name 'disk3' conflicts with an existing node name"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 

@@ -72,12 +72,14 @@ Eject a removable medium.
 
 Arguments:
 
-- force: force ejection (json-bool, optional)
-- device: device name (json-string)
+- "force": force ejection (json-bool, optional)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 
 Example:
 
--> { "execute": "eject", "arguments": { "device": "ide1-cd0" } }
+-> { "execute": "eject", "arguments": { "id": "ide0-1-0" } }
 <- { "return": {} }
 
 Note: The "force" argument defaults to false.
@@ -1457,7 +1459,9 @@ Change I/O throttle limits for a block drive.
 
 Arguments:
 
-- "device": device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 - "bps": total throughput limit in bytes per second (json-int)
 - "bps_rd": read throughput limit in bytes per second (json-int)
 - "bps_wr": write throughput limit in bytes per second (json-int)
@@ -1481,7 +1485,7 @@ Arguments:
 
 Example:
 
--> { "execute": "block_set_io_throttle", "arguments": { "device": "virtio0",
+-> { "execute": "block_set_io_throttle", "arguments": { "id": "ide0-1-0",
                                                "bps": 1000000,
                                                "bps_rd": 0,
                                                "bps_wr": 0,
@@ -3137,7 +3141,7 @@ Example (2):
      "arguments": {
          "options": {
            "driver": "qcow2",
-           "id": "my_disk",
+           "node-name": "my_disk",
            "discard": "unmap",
            "cache": {
                "direct": true,
@@ -3164,18 +3168,9 @@ x-blockdev-del
 ------------
 Since 2.5
 
-Deletes a block device thas has been added using blockdev-add.
-The selected device can be either a block backend or a graph node.
-
-In the former case the backend will be destroyed, along with its
-inserted medium if there's any. The command will fail if the backend
-or its medium are in use.
-
-In the latter case the node will be destroyed. The command will fail
-if the node is attached to a block backend or is otherwise being
-used.
-
-One of "id" or "node-name" must be specified, but not both.
+Deletes a block device that has been added using blockdev-add.
+The command will fail if the node is attached to a device or is
+otherwise being used.
 
 This command is still a work in progress and is considered
 experimental. Stay away from it unless you want to help with its
@@ -3183,8 +3178,7 @@ development.
 
 Arguments:
 
-- "id": Name of the block backend device to delete (json-string, optional)
-- "node-name": Name of the graph node to delete (json-string, optional)
+- "node-name": Name of the graph node to delete (json-string)
 
 Example:
 
@@ -3192,7 +3186,7 @@ Example:
      "arguments": {
          "options": {
              "driver": "qcow2",
-             "id": "drive0",
+             "node-name": "node0",
              "file": {
                  "driver": "file",
                  "filename": "test.qcow2"
@@ -3204,7 +3198,7 @@ Example:
 <- { "return": {} }
 
 -> { "execute": "x-blockdev-del",
-     "arguments": { "id": "drive0" }
+     "arguments": { "node-name": "node0" }
    }
 <- { "return": {} }
 
@@ -3228,7 +3222,9 @@ which no such event will be generated, these include:
 
 Arguments:
 
-- "device": block device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 - "force": if false (the default), an eject request will be sent to the guest if
            it has locked the tray (and the tray will not be opened immediately);
            if true, the tray will be opened regardless of whether it is locked
@@ -3237,7 +3233,7 @@ Arguments:
 Example:
 
 -> { "execute": "blockdev-open-tray",
-     "arguments": { "device": "ide1-cd0" } }
+     "arguments": { "id": "ide0-1-0" } }
 
 <- { "timestamp": { "seconds": 1418751016,
                     "microseconds": 716996 },
@@ -3258,12 +3254,14 @@ If the tray was already closed before, this will be a no-op.
 
 Arguments:
 
-- "device": block device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 
 Example:
 
 -> { "execute": "blockdev-close-tray",
-     "arguments": { "device": "ide1-cd0" } }
+     "arguments": { "id": "ide0-1-0" } }
 
 <- { "timestamp": { "seconds": 1418751345,
                     "microseconds": 272147 },
@@ -3286,18 +3284,20 @@ Stay away from it unless you want to help with its development.
 
 Arguments:
 
-- "device": block device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 
 Example:
 
 -> { "execute": "x-blockdev-remove-medium",
-     "arguments": { "device": "ide1-cd0" } }
+     "arguments": { "id": "ide0-1-0" } }
 
 <- { "error": { "class": "GenericError",
-                "desc": "Tray of device 'ide1-cd0' is not open" } }
+                "desc": "Tray of device 'ide0-1-0' is not open" } }
 
 -> { "execute": "blockdev-open-tray",
-     "arguments": { "device": "ide1-cd0" } }
+     "arguments": { "id": "ide0-1-0" } }
 
 <- { "timestamp": { "seconds": 1418751627,
                     "microseconds": 549958 },
@@ -3308,7 +3308,7 @@ Example:
 <- { "return": {} }
 
 -> { "execute": "x-blockdev-remove-medium",
-     "arguments": { "device": "ide1-cd0" } }
+     "arguments": { "device": "ide0-1-0" } }
 
 <- { "return": {} }
 
@@ -3324,7 +3324,9 @@ Stay away from it unless you want to help with its development.
 
 Arguments:
 
-- "device": block device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 - "node-name": root node of the BDS tree to insert into the block device
 
 Example:
@@ -3338,7 +3340,7 @@ Example:
 <- { "return": {} }
 
 -> { "execute": "x-blockdev-insert-medium",
-     "arguments": { "device": "ide1-cd0",
+     "arguments": { "id": "ide0-1-0",
                     "node-name": "node0" } }
 
 <- { "return": {} }
@@ -3448,7 +3450,9 @@ and loading a new image file which is inserted as the new medium.
 
 Arguments:
 
-- "device": device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 - "filename": filename of the new image (json-string)
 - "format": format of the new image (json-string, optional)
 - "read-only-mode": new read-only mode (json-string, optional)
@@ -3459,7 +3463,7 @@ Examples:
 1. Change a removable medium
 
 -> { "execute": "blockdev-change-medium",
-             "arguments": { "device": "ide1-cd0",
+             "arguments": { "id": "ide0-1-0",
                             "filename": "/srv/images/Fedora-12-x86_64-DVD.iso",
                             "format": "raw" } }
 <- { "return": {} }
@@ -3467,7 +3471,7 @@ Examples:
 2. Load a read-only medium into a writable drive
 
 -> { "execute": "blockdev-change-medium",
-             "arguments": { "device": "isa-fd0",
+             "arguments": { "id": "floppyA",
                             "filename": "/srv/images/ro.img",
                             "format": "raw",
                             "read-only-mode": "retain" } }
@@ -3477,7 +3481,7 @@ Examples:
        "desc": "Could not open '/srv/images/ro.img': Permission denied" } }
 
 -> { "execute": "blockdev-change-medium",
-             "arguments": { "device": "isa-fd0",
+             "arguments": { "id": "floppyA",
                             "filename": "/srv/images/ro.img",
                             "format": "raw",
                             "read-only-mode": "read-only" } }

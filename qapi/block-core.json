@@ -900,7 +900,7 @@
 #          otherwise. (Since 2.4)
 #
 # @compress: #optional true to compress data, if the target format supports it.
-#            (default: false) (since 2.7)
+#            (default: false) (since 2.8)
 #
 # @on-source-error: #optional the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
@@ -941,7 +941,7 @@
 #         for unlimited.
 #
 # @compress: #optional true to compress data, if the target format supports it.
-#            (default: false) (since 2.7)
+#            (default: false) (since 2.8)
 #
 # @on-source-error: #optional the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
@@ -1377,7 +1377,9 @@
 #
 # A set of parameters describing block throttling.
 #
-# @device: The name of the device
+# @device: #optional Block device name (deprecated, use @id instead)
+#
+# @id: #optional The name or QOM path of the guest device (since: 2.8)
 #
 # @bps: total throughput limit in bytes per second
 #
@@ -1446,8 +1448,8 @@
 # Since: 1.1
 ##
 { 'struct': 'BlockIOThrottle',
-  'data': { 'device': 'str', 'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
-            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
+  'data': { '*device': 'str', '*id': 'str', 'bps': 'int', 'bps_rd': 'int',
+            'bps_wr': 'int', 'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
             '*iops_rd_max': 'int', '*iops_wr_max': 'int',
@@ -2215,13 +2217,8 @@
 # block devices, independent of the block driver:
 #
 # @driver:        block driver name
-# @id:            #optional id by which the new block device can be referred to.
-#                 This option is only allowed on the top level of blockdev-add.
-#                 A BlockBackend will be created by blockdev-add if and only if
-#                 this option is given.
-# @node-name:     #optional the name of a block driver state node (Since 2.0).
-#                 This option is required on the top level of blockdev-add if
-#                 the @id option is not given there.
+# @node-name:     #optional the node name of the new node (Since 2.0).
+#                 This option is required on the top level of blockdev-add.
 # @discard:       #optional discard-related options (default: ignore)
 # @cache:         #optional cache-related options
 # @aio:           #optional AIO backend (default: threads)
@@ -2236,8 +2233,6 @@
 ##
 { 'union': 'BlockdevOptions',
   'base': { 'driver': 'BlockdevDriver',
-# TODO 'id' is a BB-level option, remove it
-            '*id': 'str',
             '*node-name': 'str',
             '*discard': 'BlockdevDiscardOptions',
             '*cache': 'BlockdevCacheOptions',
@@ -2321,29 +2316,18 @@
 # @x-blockdev-del:
 #
 # Deletes a block device that has been added using blockdev-add.
-# The selected device can be either a block backend or a graph node.
-#
-# In the former case the backend will be destroyed, along with its
-# inserted medium if there's any. The command will fail if the backend
-# or its medium are in use.
-#
-# In the latter case the node will be destroyed. The command will fail
-# if the node is attached to a block backend or is otherwise being
-# used.
-#
-# One of @id or @node-name must be specified, but not both.
+# The command will fail if the node is attached to a device or is
+# otherwise being used.
 #
 # This command is still a work in progress and is considered
 # experimental. Stay away from it unless you want to help with its
 # development.
 #
-# @id: #optional Name of the block backend device to delete.
-#
-# @node-name: #optional Name of the graph node to delete.
+# @node-name: Name of the graph node to delete.
 #
 # Since: 2.5
 ##
-{ 'command': 'x-blockdev-del', 'data': { '*id': 'str', '*node-name': 'str' } }
+{ 'command': 'x-blockdev-del', 'data': { 'node-name': 'str' } }
 
 ##
 # @blockdev-open-tray:
@@ -2363,7 +2347,9 @@
 #   to it
 # - if the guest device does not have an actual tray
 #
-# @device: block device name
+# @device: #optional Block device name (deprecated, use @id instead)
+#
+# @id:     #optional The name or QOM path of the guest device (since: 2.8)
 #
 # @force:  #optional if false (the default), an eject request will be sent to
 #          the guest if it has locked the tray (and the tray will not be opened
@@ -2373,7 +2359,8 @@
 # Since: 2.5
 ##
 { 'command': 'blockdev-open-tray',
-  'data': { 'device': 'str',
+  'data': { '*device': 'str',
+            '*id': 'str',
             '*force': 'bool' } }
 
 ##
@@ -2385,12 +2372,15 @@
 #
 # If the tray was already closed before, this will be a no-op.
 #
-# @device: block device name
+# @device:  #optional Block device name (deprecated, use @id instead)
+#
+# @id:      #optional The name or QOM path of the guest device (since: 2.8)
 #
 # Since: 2.5
 ##
 { 'command': 'blockdev-close-tray',
-  'data': { 'device': 'str' } }
+  'data': { '*device': 'str',
+            '*id': 'str' } }
 
 ##
 # @x-blockdev-remove-medium:
@@ -2404,12 +2394,15 @@
 # This command is still a work in progress and is considered experimental.
 # Stay away from it unless you want to help with its development.
 #
-# @device: block device name
+# @device: #optional Block device name (deprecated, use @id instead)
+#
+# @id:     #optional The name or QOM path of the guest device (since: 2.8)
 #
 # Since: 2.5
 ##
 { 'command': 'x-blockdev-remove-medium',
-  'data': { 'device': 'str' } }
+  'data': { '*device': 'str',
+            '*id': 'str' } }
 
 ##
 # @x-blockdev-insert-medium:
@@ -2421,14 +2414,17 @@
 # This command is still a work in progress and is considered experimental.
 # Stay away from it unless you want to help with its development.
 #
-# @device:    block device name
+# @device:    #optional Block device name (deprecated, use @id instead)
+#
+# @id:        #optional The name or QOM path of the guest device (since: 2.8)
 #
 # @node-name: name of a node in the block driver state graph
 #
 # Since: 2.5
 ##
 { 'command': 'x-blockdev-insert-medium',
-  'data': { 'device': 'str',
+  'data': { '*device': 'str',
+            '*id': 'str',
             'node-name': 'str'} }
 
 
@@ -2458,7 +2454,10 @@
 # combines blockdev-open-tray, x-blockdev-remove-medium,
 # x-blockdev-insert-medium and blockdev-close-tray).
 #
-# @device:          block device name
+# @device:          #optional Block device name (deprecated, use @id instead)
+#
+# @id:              #optional The name or QOM path of the guest device
+#                   (since: 2.8)
 #
 # @filename:        filename of the new image to be loaded
 #
@@ -2471,7 +2470,8 @@
 # Since: 2.5
 ##
 { 'command': 'blockdev-change-medium',
-  'data': { 'device': 'str',
+  'data': { '*device': 'str',
+            '*id': 'str',
             'filename': 'str',
             '*format': 'str',
             '*read-only-mode': 'BlockdevChangeReadOnlyMode' } }
