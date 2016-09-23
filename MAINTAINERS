@@ -933,6 +933,8 @@ virtio
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: hw/*/virtio*
+F: hw/virtio/Makefile.objs
+F: hw/virtio/trace-events
 F: net/vhost-user.c
 F: include/hw/virtio/
 F: tests/virtio-balloon-test.c
