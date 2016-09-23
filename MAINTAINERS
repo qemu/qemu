@@ -118,6 +118,7 @@ S: Maintained
 F: target-arm/
 F: hw/arm/
 F: hw/cpu/a*mpcore.c
+F: include/hw/cpu/a*mpcore.h
 F: disas/arm.c
 F: disas/arm-a64.cc
 F: disas/libvixl/
@@ -420,6 +421,7 @@ M: Peter Chubb <peter.chubb@nicta.com.au>
 L: qemu-arm@nongnu.org
 S: Odd fixes
 F: hw/*/imx*
+F: include/hw/*/imx*
 F: hw/arm/kzm.c
 F: include/hw/arm/fsl-imx31.h
 
@@ -428,6 +430,7 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/integratorcp.c
+F: hw/misc/arm_integrator_debug.c
 
 Musicpal
 M: Jan Kiszka <jan.kiszka@web.de>
@@ -452,6 +455,7 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/realview*
+F: hw/cpu/realview_mpcore.c
 F: hw/intc/realview_gic.c
 F: include/hw/intc/realview_gic.h
 
@@ -464,6 +468,7 @@ F: hw/arm/spitz.c
 F: hw/arm/tosa.c
 F: hw/arm/z2.c
 F: hw/*/pxa2xx*
+F: hw/misc/mst_fpga.c
 F: include/hw/arm/pxa.h
 
 Stellaris
@@ -485,7 +490,8 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/xilinx_*
 F: hw/*/cadence_*
-F: hw/misc/zynq_slcr.c
+F: hw/misc/zynq*
+F: include/hw/misc/zynq*
 X: hw/ssi/xilinx_*
 
 Xilinx ZynqMP
