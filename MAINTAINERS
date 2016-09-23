@@ -710,6 +710,8 @@ S: Maintained
 F: hw/sparc/sun4m.c
 F: hw/dma/sparc32_dma.c
 F: hw/dma/sun4m_iommu.c
+F: hw/misc/eccmemctl.c
+F: hw/misc/slavio_misc.c
 F: include/hw/sparc/sparc32_dma.h
 F: include/hw/sparc/sun4m.h
 F: pc-bios/openbios-sparc32
