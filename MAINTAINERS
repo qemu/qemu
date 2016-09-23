@@ -116,6 +116,7 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: target-cris/
 F: hw/cris/
+F: include/hw/cris/
 F: tests/tcg/cris/
 F: disas/cris.c
 
