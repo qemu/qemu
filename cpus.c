@@ -751,7 +751,7 @@ static int do_vm_stop(RunState state)
 
     bdrv_drain_all();
     replay_disable_events();
-    ret = blk_flush_all();
+    ret = bdrv_flush_all();
 
     return ret;
 }
@@ -1408,7 +1408,7 @@ int vm_stop_force_state(RunState state)
         bdrv_drain_all();
         /* Make sure to return an error if the flush in a previous vm_stop()
          * failed. */
-        return blk_flush_all();
+        return bdrv_flush_all();
     }
 }
 
