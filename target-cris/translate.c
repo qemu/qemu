@@ -3135,29 +3135,6 @@ void gen_intermediate_code(CPUCRISState *env, struct TranslationBlock *tb)
 
     dc->cpustate_changed = 0;
 
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-        qemu_log(
-                "pc=%x %x flg=%" PRIx64 " bt=%x ds=%u ccs=%x\n"
-                "pid=%x usp=%x\n"
-                "%x.%x.%x.%x\n"
-                "%x.%x.%x.%x\n"
-                "%x.%x.%x.%x\n"
-                "%x.%x.%x.%x\n",
-                dc->pc, dc->ppc,
-                (uint64_t)tb->flags,
-                env->btarget, (unsigned)tb->flags & 7,
-                env->pregs[PR_CCS],
-                env->pregs[PR_PID], env->pregs[PR_USP],
-                env->regs[0], env->regs[1], env->regs[2], env->regs[3],
-                env->regs[4], env->regs[5], env->regs[6], env->regs[7],
-                env->regs[8], env->regs[9],
-                env->regs[10], env->regs[11],
-                env->regs[12], env->regs[13],
-                env->regs[14], env->regs[15]);
-        qemu_log("--------------\n");
-        qemu_log("IN: %s\n", lookup_symbol(pc_start));
-    }
-
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
@@ -3313,6 +3290,8 @@ void gen_intermediate_code(CPUCRISState *env, struct TranslationBlock *tb)
 #if !DISAS_CRIS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
+        qemu_log("--------------\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
         log_target_disas(cs, pc_start, dc->pc - pc_start,
                          env->pregs[PR_VR]);
         qemu_log("\nisize=%d osize=%d\n",
