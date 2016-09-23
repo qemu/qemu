@@ -1828,40 +1828,45 @@ qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis)
 static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
 {
     uint8_t section_type;
-    int ret;
+    int ret = 0;
 
     while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
-
+        ret = 0;
         trace_qemu_loadvm_state_section(section_type);
         switch (section_type) {
         case QEMU_VM_SECTION_START:
         case QEMU_VM_SECTION_FULL:
             ret = qemu_loadvm_section_start_full(f, mis);
             if (ret < 0) {
-                return ret;
+                goto out;
             }
             break;
         case QEMU_VM_SECTION_PART:
         case QEMU_VM_SECTION_END:
             ret = qemu_loadvm_section_part_end(f, mis);
             if (ret < 0) {
-                return ret;
+                goto out;
             }
             break;
         case QEMU_VM_COMMAND:
             ret = loadvm_process_command(f);
             trace_qemu_loadvm_state_section_command(ret);
             if ((ret < 0) || (ret & LOADVM_QUIT)) {
-                return ret;
+                goto out;
             }
             break;
         default:
             error_report("Unknown savevm section type %d", section_type);
-            return -EINVAL;
+            ret = -EINVAL;
+            goto out;
         }
     }
 
-    return 0;
+out:
+    if (ret < 0) {
+        qemu_file_set_error(f, ret);
+    }
+    return ret;
 }
 
 int qemu_loadvm_state(QEMUFile *f)
