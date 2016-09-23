@@ -93,7 +93,7 @@ typedef struct VFIOGuestIOMMU {
     VFIOContainer *container;
     MemoryRegion *iommu;
     hwaddr iommu_offset;
-    Notifier n;
+    IOMMUNotifier n;
     QLIST_ENTRY(VFIOGuestIOMMU) giommu_next;
 } VFIOGuestIOMMU;
 

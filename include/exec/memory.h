@@ -67,6 +67,27 @@ struct IOMMUTLBEntry {
     IOMMUAccessFlags perm;
 };
 
+/*
+ * Bitmap for different IOMMUNotifier capabilities. Each notifier can
+ * register with one or multiple IOMMU Notifier capability bit(s).
+ */
+typedef enum {
+    IOMMU_NOTIFIER_NONE = 0,
+    /* Notify cache invalidations */
+    IOMMU_NOTIFIER_UNMAP = 0x1,
+    /* Notify entry changes (newly created entries) */
+    IOMMU_NOTIFIER_MAP = 0x2,
+} IOMMUNotifierFlag;
+
+#define IOMMU_NOTIFIER_ALL (IOMMU_NOTIFIER_MAP | IOMMU_NOTIFIER_UNMAP)
+
+struct IOMMUNotifier {
+    void (*notify)(struct IOMMUNotifier *notifier, IOMMUTLBEntry *data);
+    IOMMUNotifierFlag notifier_flags;
+    QLIST_ENTRY(IOMMUNotifier) node;
+};
+typedef struct IOMMUNotifier IOMMUNotifier;
+
 /* New-style MMIO accessors can indicate that the transaction failed.
  * A zero (MEMTX_OK) response means success; anything else is a failure
  * of some kind. The memory subsystem will bitwise-OR together results
@@ -201,7 +222,7 @@ struct MemoryRegion {
     const char *name;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
-    NotifierList iommu_notify;
+    QLIST_HEAD(, IOMMUNotifier) iommu_notify;
 };
 
 /**
@@ -607,6 +628,15 @@ uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr);
 /**
  * memory_region_notify_iommu: notify a change in an IOMMU translation entry.
  *
+ * The notification type will be decided by entry.perm bits:
+ *
+ * - For UNMAP (cache invalidation) notifies: set entry.perm to IOMMU_NONE.
+ * - For MAP (newly added entry) notifies: set entry.perm to the
+ *   permission of the page (which is definitely !IOMMU_NONE).
+ *
+ * Note: for any IOMMU implementation, an in-place mapping change
+ * should be notified with an UNMAP followed by a MAP.
+ *
  * @mr: the memory region that was changed
  * @entry: the new entry in the IOMMU translation table.  The entry
  *         replaces all old entries for the same virtual I/O address range.
@@ -620,11 +650,12 @@ void memory_region_notify_iommu(MemoryRegion *mr,
  * IOMMU translation entries.
  *
  * @mr: the memory region to observe
- * @n: the notifier to be added; the notifier receives a pointer to an
- *     #IOMMUTLBEntry as the opaque value; the pointer ceases to be
- *     valid on exit from the notifier.
+ * @n: the IOMMUNotifier to be added; the notify callback receives a
+ *     pointer to an #IOMMUTLBEntry as the opaque value; the pointer
+ *     ceases to be valid on exit from the notifier.
  */
-void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n);
+void memory_region_register_iommu_notifier(MemoryRegion *mr,
+                                           IOMMUNotifier *n);
 
 /**
  * memory_region_iommu_replay: replay existing IOMMU translations to
@@ -636,7 +667,8 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n);
  * @is_write: Whether to treat the replay as a translate "write"
  *     through the iommu
  */
-void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write);
+void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
+                                bool is_write);
 
 /**
  * memory_region_unregister_iommu_notifier: unregister a notifier for
@@ -646,7 +678,8 @@ void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write);
  *      needs to be called
  * @n: the notifier to be removed.
  */
-void memory_region_unregister_iommu_notifier(MemoryRegion *mr, Notifier *n);
+void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
+                                             IOMMUNotifier *n);
 
 /**
  * memory_region_name: get a memory region's name

@@ -1413,7 +1413,7 @@ void memory_region_init_iommu(MemoryRegion *mr,
     memory_region_init(mr, owner, name, size);
     mr->iommu_ops = ops,
     mr->terminates = true;  /* then re-forwards */
-    notifier_list_init(&mr->iommu_notify);
+    QLIST_INIT(&mr->iommu_notify);
 }
 
 static void memory_region_finalize(Object *obj)
@@ -1508,13 +1508,16 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
     return memory_region_get_dirty_log_mask(mr) & (1 << client);
 }
 
-void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n)
+void memory_region_register_iommu_notifier(MemoryRegion *mr,
+                                           IOMMUNotifier *n)
 {
+    /* We need to register for at least one bitfield */
+    assert(n->notifier_flags != IOMMU_NOTIFIER_NONE);
     if (mr->iommu_ops->notify_started &&
-        QLIST_EMPTY(&mr->iommu_notify.notifiers)) {
+        QLIST_EMPTY(&mr->iommu_notify)) {
         mr->iommu_ops->notify_started(mr);
     }
-    notifier_list_add(&mr->iommu_notify, n);
+    QLIST_INSERT_HEAD(&mr->iommu_notify, n, node);
 }
 
 uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr)
@@ -1526,7 +1529,8 @@ uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr)
     return TARGET_PAGE_SIZE;
 }
 
-void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write)
+void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
+                                bool is_write)
 {
     hwaddr addr, granularity;
     IOMMUTLBEntry iotlb;
@@ -1547,11 +1551,12 @@ void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write)
     }
 }
 
-void memory_region_unregister_iommu_notifier(MemoryRegion *mr, Notifier *n)
+void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
+                                             IOMMUNotifier *n)
 {
-    notifier_remove(n);
+    QLIST_REMOVE(n, node);
     if (mr->iommu_ops->notify_stopped &&
-        QLIST_EMPTY(&mr->iommu_notify.notifiers)) {
+        QLIST_EMPTY(&mr->iommu_notify)) {
         mr->iommu_ops->notify_stopped(mr);
     }
 }
@@ -1559,8 +1564,22 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr, Notifier *n)
 void memory_region_notify_iommu(MemoryRegion *mr,
                                 IOMMUTLBEntry entry)
 {
+    IOMMUNotifier *iommu_notifier;
+    IOMMUNotifierFlag request_flags;
+
     assert(memory_region_is_iommu(mr));
-    notifier_list_notify(&mr->iommu_notify, &entry);
+
+    if (entry.perm & IOMMU_RW) {
+        request_flags = IOMMU_NOTIFIER_MAP;
+    } else {
+        request_flags = IOMMU_NOTIFIER_UNMAP;
+    }
+
+    QLIST_FOREACH(iommu_notifier, &mr->iommu_notify, node) {
+        if (iommu_notifier->notifier_flags & request_flags) {
+            iommu_notifier->notify(iommu_notifier, &entry);
+        }
+    }
 }
 
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
