@@ -1,4 +1,8 @@
-/* public domain */
+/* compiler.h: macros to abstract away compiler specifics
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
+ */
 
 #ifndef COMPILER_H
 #define COMPILER_H
