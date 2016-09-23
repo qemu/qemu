@@ -1813,19 +1813,22 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
 
     IscsiLun *iscsilun = bs->opaque;
     uint64_t max_xfer_len = iscsilun->use_16_for_rw ? 0xffffffff : 0xffff;
+    unsigned int block_size = MAX(BDRV_SECTOR_SIZE, iscsilun->block_size);
 
-    bs->bl.request_alignment = iscsilun->block_size;
+    assert(iscsilun->block_size >= BDRV_SECTOR_SIZE || bs->sg);
+
+    bs->bl.request_alignment = block_size;
 
     if (iscsilun->bl.max_xfer_len) {
         max_xfer_len = MIN(max_xfer_len, iscsilun->bl.max_xfer_len);
     }
 
-    if (max_xfer_len * iscsilun->block_size < INT_MAX) {
+    if (max_xfer_len * block_size < INT_MAX) {
         bs->bl.max_transfer = max_xfer_len * iscsilun->block_size;
     }
 
     if (iscsilun->lbp.lbpu) {
-        if (iscsilun->bl.max_unmap < 0xffffffff / iscsilun->block_size) {
+        if (iscsilun->bl.max_unmap < 0xffffffff / block_size) {
             bs->bl.max_pdiscard =
                 iscsilun->bl.max_unmap * iscsilun->block_size;
         }
@@ -1835,7 +1838,7 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.pdiscard_alignment = iscsilun->block_size;
     }
 
-    if (iscsilun->bl.max_ws_len < 0xffffffff / iscsilun->block_size) {
+    if (iscsilun->bl.max_ws_len < 0xffffffff / block_size) {
         bs->bl.max_pwrite_zeroes =
             iscsilun->bl.max_ws_len * iscsilun->block_size;
     }
@@ -1846,7 +1849,7 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.pwrite_zeroes_alignment = iscsilun->block_size;
     }
     if (iscsilun->bl.opt_xfer_len &&
-        iscsilun->bl.opt_xfer_len < INT_MAX / iscsilun->block_size) {
+        iscsilun->bl.opt_xfer_len < INT_MAX / block_size) {
         bs->bl.opt_transfer = pow2floor(iscsilun->bl.opt_xfer_len *
                                         iscsilun->block_size);
     }

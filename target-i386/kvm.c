@@ -1532,6 +1532,22 @@ static void kvm_msr_entry_add(X86CPU *cpu, uint32_t index, uint64_t value)
     msrs->nmsrs++;
 }
 
+static int kvm_put_one_msr(X86CPU *cpu, int index, uint64_t value)
+{
+    kvm_msr_buf_reset(cpu);
+    kvm_msr_entry_add(cpu, index, value);
+
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, cpu->kvm_msr_buf);
+}
+
+void kvm_put_apicbase(X86CPU *cpu, uint64_t value)
+{
+    int ret;
+
+    ret = kvm_put_one_msr(cpu, MSR_IA32_APICBASE, value);
+    assert(ret == 1);
+}
+
 static int kvm_put_tscdeadline_msr(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
@@ -1541,10 +1557,7 @@ static int kvm_put_tscdeadline_msr(X86CPU *cpu)
         return 0;
     }
 
-    kvm_msr_buf_reset(cpu);
-    kvm_msr_entry_add(cpu, MSR_IA32_TSCDEADLINE, env->tsc_deadline);
-
-    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, cpu->kvm_msr_buf);
+    ret = kvm_put_one_msr(cpu, MSR_IA32_TSCDEADLINE, env->tsc_deadline);
     if (ret < 0) {
         return ret;
     }
@@ -1567,11 +1580,8 @@ static int kvm_put_msr_feature_control(X86CPU *cpu)
         return 0;
     }
 
-    kvm_msr_buf_reset(cpu);
-    kvm_msr_entry_add(cpu, MSR_IA32_FEATURE_CONTROL,
-                      cpu->env.msr_ia32_feature_control);
-
-    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, cpu->kvm_msr_buf);
+    ret = kvm_put_one_msr(cpu, MSR_IA32_FEATURE_CONTROL,
+                          cpu->env.msr_ia32_feature_control);
     if (ret < 0) {
         return ret;
     }
@@ -2442,6 +2452,7 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     events.nmi.pad = 0;
 
     events.sipi_vector = env->sipi_vector;
+    events.flags = 0;
 
     if (has_msr_smbase) {
         events.smi.smm = !!(env->hflags & HF_SMM_MASK);
@@ -2461,7 +2472,6 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
         events.flags |= KVM_VCPUEVENT_VALID_SMM;
     }
 
-    events.flags = 0;
     if (level >= KVM_PUT_RESET_STATE) {
         events.flags |=
             KVM_VCPUEVENT_VALID_NMI_PENDING | KVM_VCPUEVENT_VALID_SIPI_VECTOR;
