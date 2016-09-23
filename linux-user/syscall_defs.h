@@ -898,7 +898,11 @@ struct target_pollfd {
 #define TARGET_KDSETLED        0x4B32	/* set led state [lights, not flags] */
 #define TARGET_KDSIGACCEPT     0x4B4E
 
+#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SH4)
+#define TARGET_SIOCATMARK      TARGET_IOR('s', 7, int)
+#else
 #define TARGET_SIOCATMARK      0x8905
+#endif
 
 /* Networking ioctls */
 #define TARGET_SIOCADDRT       0x890B          /* add routing table entry */
@@ -2160,7 +2164,7 @@ struct target_statfs64 {
 #define TARGET_F_SETLK         6
 #define TARGET_F_SETLKW        7
 #define TARGET_F_SETOWN        24       /*  for sockets. */
-#define TARGET_F_GETOWN        25       /*  for sockets. */
+#define TARGET_F_GETOWN        23       /*  for sockets. */
 #else
 #define TARGET_F_GETLK         5
 #define TARGET_F_SETLK         6
@@ -2329,7 +2333,13 @@ struct target_flock {
     short l_whence;
     abi_long l_start;
     abi_long l_len;
+#if defined(TARGET_MIPS)
+    abi_long l_sysid;
+#endif
     int l_pid;
+#if defined(TARGET_MIPS)
+    abi_long pad[4];
+#endif
 };
 
 struct target_flock64 {

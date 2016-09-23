@@ -658,7 +658,7 @@ static inline int next_free_host_timer(void)
 static inline int regpairs_aligned(void *cpu_env) {
     return ((((CPUARMState *)cpu_env)->eabi) == 1) ;
 }
-#elif defined(TARGET_MIPS)
+#elif defined(TARGET_MIPS) && (TARGET_ABI_BITS == 32)
 static inline int regpairs_aligned(void *cpu_env) { return 1; }
 #elif defined(TARGET_PPC) && !defined(TARGET_PPC64)
 /* SysV AVI for PPC32 expects 64bit parameters to be passed on odd/even pairs
@@ -757,6 +757,7 @@ static uint16_t host_to_target_errno_table[ERRNO_TABLE_SIZE] = {
     [ENAVAIL]		= TARGET_ENAVAIL,
     [EISNAM]		= TARGET_EISNAM,
     [EREMOTEIO]		= TARGET_EREMOTEIO,
+    [EDQUOT]            = TARGET_EDQUOT,
     [ESHUTDOWN]		= TARGET_ESHUTDOWN,
     [ETOOMANYREFS]	= TARGET_ETOOMANYREFS,
     [ETIMEDOUT]		= TARGET_ETIMEDOUT,

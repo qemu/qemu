@@ -45,4 +45,20 @@ struct target_shmid_ds {
     abi_ulong __unused2;
 };
 
+#define TARGET_SEMID64_DS
+
+/*
+ * The semid64_ds structure for the MIPS architecture.
+ * Note extra padding because this structure is passed back and forth
+ * between kernel and user space.
+ */
+struct target_semid64_ds {
+    struct target_ipc_perm sem_perm;
+    abi_ulong sem_otime;
+    abi_ulong sem_ctime;
+    abi_ulong sem_nsems;
+    abi_ulong __unused1;
+    abi_ulong __unused2;
+};
+
 #endif
