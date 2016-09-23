@@ -1,6 +1,8 @@
 FROM centos:6
-RUN yum install -y \
+RUN yum install -y epel-release
+ENV PACKAGES libfdt-devel ccache \
     tar git make gcc g++ \
     zlib-devel glib2-devel SDL-devel pixman-devel \
     epel-release
-RUN yum install -y libfdt-devel ccache
+RUN yum install -y $PACKAGES
+RUN rpm -q $PACKAGES | sort > /packages.txt

@@ -117,7 +117,7 @@ docker-run-%: docker-qemu-src
 				$(if $(DEBUG),-i,--net=none) \
 				-e TARGET_LIST=$(TARGET_LIST) \
 				-e EXTRA_CONFIGURE_OPTS=$(EXTRA_CONFIGURE_OPTS) \
-				-e V=$V -e J=$J -e DEBUG=$(DEBUG)\
+				-e V=$V -e J=$J -e DEBUG=$(DEBUG) -e SHOW_ENV=$(SHOW_ENV)\
 				-e CCACHE_DIR=/var/tmp/ccache \
 				-v $$(readlink -e $(DOCKER_SRC_COPY)):/var/tmp/qemu:z$(COMMA)ro \
 				-v $(DOCKER_CCACHE_DIR):/var/tmp/ccache:z \

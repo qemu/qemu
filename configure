@@ -212,7 +212,6 @@ sdlabi=""
 virtfs=""
 vnc="yes"
 sparse="no"
-uuid=""
 vde=""
 vnc_sasl=""
 vnc_jpeg=""
@@ -317,7 +316,6 @@ vte=""
 virglrenderer=""
 tpm="yes"
 libssh2=""
-vhdx=""
 numa=""
 tcmalloc="no"
 jemalloc="no"
@@ -887,10 +885,6 @@ for opt do
   ;;
   --disable-slirp) slirp="no"
   ;;
-  --disable-uuid) uuid="no"
-  ;;
-  --enable-uuid) uuid="yes"
-  ;;
   --disable-vde) vde="no"
   ;;
   --enable-vde) vde="yes"
@@ -1103,6 +1097,12 @@ for opt do
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
       echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
   ;;
+  --enable-vhdx|--disable-vhdx)
+      echo "$0: $opt is obsolete, VHDX driver is always built" >&2
+  ;;
+  --enable-uuid|--disable-uuid)
+      echo "$0: $opt is obsolete, UUID support is always built" >&2
+  ;;
   --disable-gtk) gtk="no"
   ;;
   --enable-gtk) gtk="yes"
@@ -1142,10 +1142,6 @@ for opt do
   --disable-libssh2) libssh2="no"
   ;;
   --enable-libssh2) libssh2="yes"
-  ;;
-  --enable-vhdx) vhdx="yes"
-  ;;
-  --disable-vhdx) vhdx="no"
   ;;
   --disable-numa) numa="no"
   ;;
@@ -1365,7 +1361,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   bluez           bluez stack connectivity
   kvm             KVM acceleration support
   rdma            RDMA-based migration support
-  uuid            uuid support
   vde             support for vde network
   netmap          support for netmap network
   linux-aio       Linux AIO support
@@ -1389,7 +1384,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   archipelago     Archipelago backend
   tpm             TPM support
   libssh2         ssh block device support
-  vhdx            support for the Microsoft VHDX image format
   numa            libnuma support
   tcmalloc        tcmalloc support
   jemalloc        jemalloc support
@@ -2659,47 +2653,6 @@ int main(void)
 EOF
 if compile_prog "" "" ; then
    fnmatch="yes"
-fi
-
-##########################################
-# uuid_generate() probe, used for vdi block driver
-# Note that on some systems (notably MacOSX) no extra library
-# need be linked to get the uuid functions.
-if test "$uuid" != "no" ; then
-  uuid_libs="-luuid"
-  cat > $TMPC << EOF
-#include <uuid/uuid.h>
-int main(void)
-{
-    uuid_t my_uuid;
-    uuid_generate(my_uuid);
-    return 0;
-}
-EOF
-  if compile_prog "" "" ; then
-    uuid="yes"
-  elif compile_prog "" "$uuid_libs" ; then
-    uuid="yes"
-    libs_softmmu="$uuid_libs $libs_softmmu"
-    libs_tools="$uuid_libs $libs_tools"
-  else
-    if test "$uuid" = "yes" ; then
-      feature_not_found "uuid" "Install libuuid devel"
-    fi
-    uuid=no
-  fi
-fi
-
-if test "$vhdx" = "yes" ; then
-    if test "$uuid" = "no" ; then
-        error_exit "uuid required for VHDX support"
-    fi
-elif test "$vhdx" != "no" ; then
-    if test "$uuid" = "yes" ; then
-        vhdx=yes
-    else
-        vhdx=no
-    fi
 fi
 
 ##########################################
@@ -4075,7 +4028,7 @@ EOF
   if compile_prog "$vss_win32_include" "" ; then
     guest_agent_with_vss="yes"
     QEMU_CFLAGS="$QEMU_CFLAGS $vss_win32_include"
-    libs_qga="-lole32 -loleaut32 -lshlwapi -luuid -lstdc++ -Wl,--enable-stdcall-fixup $libs_qga"
+    libs_qga="-lole32 -loleaut32 -lshlwapi -lstdc++ -Wl,--enable-stdcall-fixup $libs_qga"
     qga_vss_provider="qga/vss-win32/qga-vss.dll qga/vss-win32/qga-vss.tlb"
   else
     if test "$vss_win32_sdk" != "" ; then
@@ -4883,7 +4836,6 @@ echo "preadv support    $preadv"
 echo "fdatasync         $fdatasync"
 echo "madvise           $madvise"
 echo "posix_madvise     $posix_madvise"
-echo "uuid support      $uuid"
 echo "libcap-ng support $cap_ng"
 echo "vhost-net support $vhost_net"
 echo "vhost-scsi support $vhost_scsi"
@@ -4917,7 +4869,6 @@ echo "TPM support       $tpm"
 echo "libssh2 support   $libssh2"
 echo "TPM passthrough   $tpm_passthrough"
 echo "QOM debugging     $qom_cast_debug"
-echo "vhdx              $vhdx"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
@@ -5073,9 +5024,6 @@ if test "$vnc_png" = "yes" ; then
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
-fi
-if test "$uuid" = "yes" ; then
-  echo "CONFIG_UUID=y" >> $config_host_mak
 fi
 if test "$xfs" = "yes" ; then
   echo "CONFIG_XFS=y" >> $config_host_mak
@@ -5441,10 +5389,6 @@ if test "$libssh2" = "yes" ; then
   echo "CONFIG_LIBSSH2=m" >> $config_host_mak
   echo "LIBSSH2_CFLAGS=$libssh2_cflags" >> $config_host_mak
   echo "LIBSSH2_LIBS=$libssh2_libs" >> $config_host_mak
-fi
-
-if test "$vhdx" = "yes" ; then
-  echo "CONFIG_VHDX=y" >> $config_host_mak
 fi
 
 # USB host support

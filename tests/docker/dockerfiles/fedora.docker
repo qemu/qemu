@@ -1,7 +1,17 @@
-FROM fedora:23
-RUN dnf install -y \
+FROM fedora:latest
+ENV PACKAGES \
     ccache git tar PyYAML sparse flex bison \
     glib2-devel pixman-devel zlib-devel SDL-devel libfdt-devel \
     gcc gcc-c++ clang make perl which bc findutils \
-    mingw{32,64}-{pixman,glib2,gmp,SDL,pkg-config,gtk2,gtk3,gnutls,nettle,libtasn1,libjpeg-turbo,libpng,curl,libssh2,bzip2}
+    mingw32-pixman mingw32-glib2 mingw32-gmp mingw32-SDL mingw32-pkg-config \
+    mingw32-gtk2 mingw32-gtk3 mingw32-gnutls mingw32-nettle mingw32-libtasn1 \
+    mingw32-libjpeg-turbo mingw32-libpng mingw32-curl mingw32-libssh2 \
+    mingw32-bzip2 \
+    mingw64-pixman mingw64-glib2 mingw64-gmp mingw64-SDL mingw64-pkg-config \
+    mingw64-gtk2 mingw64-gtk3 mingw64-gnutls mingw64-nettle mingw64-libtasn1 \
+    mingw64-libjpeg-turbo mingw64-libpng mingw64-curl mingw64-libssh2 \
+    mingw64-bzip2
+
+RUN dnf install -y $PACKAGES
+RUN rpm -q $PACKAGES | sort > /packages.txt
 ENV FEATURES mingw clang pyyaml

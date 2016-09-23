@@ -21,6 +21,7 @@ import uuid
 import argparse
 import tempfile
 import re
+import signal
 from tarfile import TarFile, TarInfo
 from StringIO import StringIO
 from shutil import copy, rmtree
@@ -37,9 +38,12 @@ def _guess_docker_command():
     """ Guess a working docker command or raise exception if not found"""
     commands = [["docker"], ["sudo", "-n", "docker"]]
     for cmd in commands:
-        if subprocess.call(cmd + ["images"],
-                           stdout=DEVNULL, stderr=DEVNULL) == 0:
-            return cmd
+        try:
+            if subprocess.call(cmd + ["images"],
+                               stdout=DEVNULL, stderr=DEVNULL) == 0:
+                return cmd
+        except OSError:
+            pass
     commands_txt = "\n".join(["  " + " ".join(x) for x in commands])
     raise Exception("Cannot find working docker command. Tried:\n%s" % \
                     commands_txt)
@@ -98,6 +102,8 @@ class Docker(object):
         self._command = _guess_docker_command()
         self._instances = []
         atexit.register(self._kill_instances)
+        signal.signal(signal.SIGTERM, self._kill_instances)
+        signal.signal(signal.SIGHUP, self._kill_instances)
 
     def _do(self, cmd, quiet=True, infile=None, **kwargs):
         if quiet:
@@ -130,7 +136,7 @@ class Docker(object):
         self._do_kill_instances(False, False)
         return 0
 
-    def _kill_instances(self):
+    def _kill_instances(self, *args, **kwargs):
         return self._do_kill_instances(True)
 
     def _output(self, cmd, **kwargs):

@@ -30,9 +30,7 @@
 #include "qemu/module.h"
 #include "migration/migration.h"
 #include "qemu/bswap.h"
-#if defined(CONFIG_UUID)
-#include <uuid/uuid.h>
-#endif
+#include "qemu/uuid.h"
 
 /**************************************************************/
 
@@ -89,7 +87,7 @@ typedef struct vhd_footer {
     uint32_t    checksum;
 
     /* UUID used to identify a parent hard disk (backing file) */
-    uint8_t     uuid[16];
+    QemuUUID    uuid;
 
     uint8_t     in_saved_state;
 } QEMU_PACKED VHDFooter;
@@ -980,9 +978,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
 
     footer->type = cpu_to_be32(disk_type);
 
-#if defined(CONFIG_UUID)
-    uuid_generate(footer->uuid);
-#endif
+    qemu_uuid_generate(&footer->uuid);
 
     footer->checksum = cpu_to_be32(vpc_checksum(buf, HEADER_SIZE));
 

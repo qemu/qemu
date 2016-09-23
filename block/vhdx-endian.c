@@ -21,9 +21,6 @@
 #include "qemu/bswap.h"
 #include "block/vhdx.h"
 
-#include <uuid/uuid.h>
-
-
 /*
  * All the VHDX formats on disk are little endian - the following
  * are helper import/export functions to correctly convert

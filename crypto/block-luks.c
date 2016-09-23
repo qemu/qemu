@@ -29,10 +29,7 @@
 #include "crypto/pbkdf.h"
 #include "crypto/secret.h"
 #include "crypto/random.h"
-
-#ifdef CONFIG_UUID
-#include <uuid/uuid.h>
-#endif
+#include "qemu/uuid.h"
 
 #include "qemu/coroutine.h"
 
@@ -877,18 +874,12 @@ qcrypto_block_luks_open(QCryptoBlock *block,
 }
 
 
-static int
-qcrypto_block_luks_uuid_gen(uint8_t *uuidstr, Error **errp)
+static void
+qcrypto_block_luks_uuid_gen(uint8_t *uuidstr)
 {
-#ifdef CONFIG_UUID
-    uuid_t uuid;
-    uuid_generate(uuid);
-    uuid_unparse(uuid, (char *)uuidstr);
-    return 0;
-#else
-    error_setg(errp, "Unable to generate uuids on this platform");
-    return -1;
-#endif
+    QemuUUID uuid;
+    qemu_uuid_generate(&uuid);
+    qemu_uuid_unparse(&uuid, (char *)uuidstr);
 }
 
 static int
@@ -965,10 +956,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
      * it out to disk
      */
     luks->header.version = QCRYPTO_BLOCK_LUKS_VERSION;
-    if (qcrypto_block_luks_uuid_gen(luks->header.uuid,
-                                    errp) < 0) {
-        goto error;
-    }
+    qcrypto_block_luks_uuid_gen(luks->header.uuid);
 
     cipher_alg = qcrypto_block_luks_cipher_alg_lookup(luks_opts.cipher_alg,
                                                       errp);
