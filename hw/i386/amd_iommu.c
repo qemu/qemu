@@ -21,6 +21,7 @@
  */
 #include "qemu/osdep.h"
 #include "hw/i386/amd_iommu.h"
+#include "qemu/error-report.h"
 #include "trace.h"
 
 /* used AMD-Vi MMIO registers */
@@ -1072,9 +1073,12 @@ static void amdvi_iommu_notify_flag_changed(MemoryRegion *iommu,
 {
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
 
-    hw_error("device %02x.%02x.%x requires iommu notifier which is not "
-             "currently supported", as->bus_num, PCI_SLOT(as->devfn),
-             PCI_FUNC(as->devfn));
+    if (new & IOMMU_NOTIFIER_MAP) {
+        error_report("device %02x.%02x.%x requires iommu notifier which is not "
+                     "currently supported", as->bus_num, PCI_SLOT(as->devfn),
+                     PCI_FUNC(as->devfn));
+        exit(1);
+    }
 }
 
 static void amdvi_init(AMDVIState *s)
