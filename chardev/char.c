@@ -696,7 +696,8 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
         return opts;
     }
     if (strstart(filename, "tcp:", &p) ||
-        strstart(filename, "telnet:", &p)) {
+        strstart(filename, "telnet:", &p) ||
+        strstart(filename, "tn3270:", &p)) {
         if (sscanf(p, "%64[^:]:%32[^,]%n", host, port, &pos) < 2) {
             host[0] = 0;
             if (sscanf(p, ":%32[^,]%n", port, &pos) < 1)
@@ -712,8 +713,11 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
                 goto fail;
             }
         }
-        if (strstart(filename, "telnet:", &p))
+        if (strstart(filename, "telnet:", &p)) {
             qemu_opt_set(opts, "telnet", "on", &error_abort);
+        } else if (strstart(filename, "tn3270:", &p)) {
+            qemu_opt_set(opts, "tn3270", "on", &error_abort);
+        }
         return opts;
     }
     if (strstart(filename, "udp:", &p)) {
@@ -1175,6 +1179,9 @@ QemuOptsList qemu_chardev_opts = {
             .type = QEMU_OPT_NUMBER,
         },{
             .name = "telnet",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "tn3270",
             .type = QEMU_OPT_BOOL,
         },{
             .name = "tls-creds",
