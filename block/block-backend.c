@@ -1640,28 +1640,6 @@ int blk_commit_all(void)
     return 0;
 }
 
-int blk_flush_all(void)
-{
-    BlockBackend *blk = NULL;
-    int result = 0;
-
-    while ((blk = blk_all_next(blk)) != NULL) {
-        AioContext *aio_context = blk_get_aio_context(blk);
-        int ret;
-
-        aio_context_acquire(aio_context);
-        if (blk_is_inserted(blk)) {
-            ret = blk_flush(blk);
-            if (ret < 0 && !result) {
-                result = ret;
-            }
-        }
-        aio_context_release(aio_context);
-    }
-
-    return result;
-}
-
 
 /* throttling disk I/O limits */
 void blk_set_io_limits(BlockBackend *blk, ThrottleConfig *cfg)
