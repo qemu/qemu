@@ -1670,13 +1670,6 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
         cpu_abort(cs, "Microblaze: unaligned PC=%x\n", pc_start);
     }
 
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-#if !SIM_COMPAT
-        qemu_log("--------------\n");
-        log_cpu_state(CPU(cpu), 0);
-#endif
-    }
-
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
@@ -1820,7 +1813,7 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
 #if !SIM_COMPAT
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
-        qemu_log("\n");
+        qemu_log("--------------\n");
 #if DISAS_GNU
         log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
 #endif
