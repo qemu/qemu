@@ -1642,14 +1642,26 @@ bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
 
 void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 {
+    MemoryListener *listener;
     AddressSpace *as;
+    FlatView *view;
     FlatRange *fr;
 
-    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        FlatView *view = address_space_get_flatview(as);
+    /* If the same address space has multiple log_sync listeners, we
+     * visit that address space's FlatView multiple times.  But because
+     * log_sync listeners are rare, it's still cheaper than walking each
+     * address space once.
+     */
+    QTAILQ_FOREACH(listener, &memory_listeners, link) {
+        if (!listener->log_sync) {
+            continue;
+        }
+        as = listener->address_space;
+        view = address_space_get_flatview(as);
         FOR_EACH_FLAT_RANGE(fr, view) {
             if (fr->mr == mr) {
-                MEMORY_LISTENER_UPDATE_REGION(fr, as, Forward, log_sync);
+                MemoryRegionSection mrs = section_from_flat_range(fr, as);
+                listener->log_sync(listener, &mrs);
             }
         }
         flatview_unref(view);
