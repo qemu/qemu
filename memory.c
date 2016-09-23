@@ -1414,6 +1414,7 @@ void memory_region_init_iommu(MemoryRegion *mr,
     mr->iommu_ops = ops,
     mr->terminates = true;  /* then re-forwards */
     QLIST_INIT(&mr->iommu_notify);
+    mr->iommu_notify_flags = IOMMU_NOTIFIER_NONE;
 }
 
 static void memory_region_finalize(Object *obj)
@@ -1508,16 +1509,31 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
     return memory_region_get_dirty_log_mask(mr) & (1 << client);
 }
 
+static void memory_region_update_iommu_notify_flags(MemoryRegion *mr)
+{
+    IOMMUNotifierFlag flags = IOMMU_NOTIFIER_NONE;
+    IOMMUNotifier *iommu_notifier;
+
+    QLIST_FOREACH(iommu_notifier, &mr->iommu_notify, node) {
+        flags |= iommu_notifier->notifier_flags;
+    }
+
+    if (flags != mr->iommu_notify_flags &&
+        mr->iommu_ops->notify_flag_changed) {
+        mr->iommu_ops->notify_flag_changed(mr, mr->iommu_notify_flags,
+                                           flags);
+    }
+
+    mr->iommu_notify_flags = flags;
+}
+
 void memory_region_register_iommu_notifier(MemoryRegion *mr,
                                            IOMMUNotifier *n)
 {
     /* We need to register for at least one bitfield */
     assert(n->notifier_flags != IOMMU_NOTIFIER_NONE);
-    if (mr->iommu_ops->notify_started &&
-        QLIST_EMPTY(&mr->iommu_notify)) {
-        mr->iommu_ops->notify_started(mr);
-    }
     QLIST_INSERT_HEAD(&mr->iommu_notify, n, node);
+    memory_region_update_iommu_notify_flags(mr);
 }
 
 uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr)
@@ -1555,10 +1571,7 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
                                              IOMMUNotifier *n)
 {
     QLIST_REMOVE(n, node);
-    if (mr->iommu_ops->notify_stopped &&
-        QLIST_EMPTY(&mr->iommu_notify)) {
-        mr->iommu_ops->notify_stopped(mr);
-    }
+    memory_region_update_iommu_notify_flags(mr);
 }
 
 void memory_region_notify_iommu(MemoryRegion *mr,

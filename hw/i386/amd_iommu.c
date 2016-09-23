@@ -1066,7 +1066,9 @@ static const MemoryRegionOps mmio_mem_ops = {
     }
 };
 
-static void amdvi_iommu_notify_started(MemoryRegion *iommu)
+static void amdvi_iommu_notify_flag_changed(MemoryRegion *iommu,
+                                            IOMMUNotifierFlag old,
+                                            IOMMUNotifierFlag new)
 {
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
 
@@ -1080,7 +1082,7 @@ static void amdvi_init(AMDVIState *s)
     amdvi_iotlb_reset(s);
 
     s->iommu_ops.translate = amdvi_translate;
-    s->iommu_ops.notify_started = amdvi_iommu_notify_started;
+    s->iommu_ops.notify_flag_changed = amdvi_iommu_notify_flag_changed;
     s->devtab_len = 0;
     s->cmdbuf_len = 0;
     s->cmdbuf_head = 0;
