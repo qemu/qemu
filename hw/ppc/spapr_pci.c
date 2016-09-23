@@ -47,6 +47,7 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/kvm.h"
 #include "sysemu/hostmem.h"
+#include "sysemu/numa.h"
 
 #include "hw/vfio/vfio.h"
 
@@ -1544,6 +1545,7 @@ static Property spapr_phb_properties[] = {
     DEFINE_PROP_BOOL("ddw", sPAPRPHBState, ddw_enabled, true),
     DEFINE_PROP_UINT64("pgsz", sPAPRPHBState, page_size_mask,
                        (1ULL << 12) | (1ULL << 16)),
+    DEFINE_PROP_UINT32("numa_node", sPAPRPHBState, numa_node, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1805,6 +1807,11 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
         cpu_to_be32(1),
         cpu_to_be32(RTAS_IBM_RESET_PE_DMA_WINDOW)
     };
+    uint32_t associativity[] = {cpu_to_be32(0x4),
+                                cpu_to_be32(0x0),
+                                cpu_to_be32(0x0),
+                                cpu_to_be32(0x0),
+                                cpu_to_be32(phb->numa_node)};
     sPAPRTCETable *tcet;
     PCIBus *bus = PCI_HOST_BRIDGE(phb)->bus;
     sPAPRFDT s_fdt;
@@ -1835,6 +1842,12 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
                          sizeof(ddw_applicable)));
         _FDT(fdt_setprop(fdt, bus_off, "ibm,ddw-extensions",
                          &ddw_extensions, sizeof(ddw_extensions)));
+    }
+
+    /* Advertise NUMA via ibm,associativity */
+    if (nb_numa_nodes > 1) {
+        _FDT(fdt_setprop(fdt, bus_off, "ibm,associativity", associativity,
+                         sizeof(associativity)));
     }
 
     /* Build the interrupt-map, this must matches what is done

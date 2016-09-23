@@ -201,7 +201,7 @@ static target_ulong h_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     switch (ret) {
     case REMOVE_SUCCESS:
-        check_tlb_flush(env);
+        check_tlb_flush(env, true);
         return H_SUCCESS;
 
     case REMOVE_NOT_FOUND:
@@ -282,7 +282,7 @@ static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         }
     }
  exit:
-    check_tlb_flush(env);
+    check_tlb_flush(env, true);
 
     return rc;
 }
@@ -319,6 +319,8 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     ppc_hash64_store_hpte(cpu, pte_index,
                           (v & ~HPTE64_V_VALID) | HPTE64_V_HPTE_DIRTY, 0);
     ppc_hash64_tlb_flush_hpte(cpu, pte_index, v, r);
+    /* Flush the tlb */
+    check_tlb_flush(env, true);
     /* Don't need a memory barrier, due to qemu's global lock */
     ppc_hash64_store_hpte(cpu, pte_index, v | HPTE64_V_HPTE_DIRTY, r);
     return H_SUCCESS;

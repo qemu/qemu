@@ -27,6 +27,10 @@
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/error-report.h"
+#include "qemu/cutils.h"
+#ifdef TARGET_PPC64
+#include "hw/ppc/spapr_rtas.h"
+#endif
 
 #define MAX_IRQ 256
 
@@ -325,12 +329,13 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
     } else if (strcmp(words[0], "outb") == 0 ||
                strcmp(words[0], "outw") == 0 ||
                strcmp(words[0], "outl") == 0) {
-        uint16_t addr;
-        uint32_t value;
+        unsigned long addr;
+        unsigned long value;
 
         g_assert(words[1] && words[2]);
-        addr = strtoul(words[1], NULL, 0);
-        value = strtoul(words[2], NULL, 0);
+        g_assert(qemu_strtoul(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtoul(words[2], NULL, 0, &value) == 0);
+        g_assert(addr <= 0xffff);
 
         if (words[0][3] == 'b') {
             cpu_outb(addr, value);
@@ -344,11 +349,12 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
     } else if (strcmp(words[0], "inb") == 0 ||
         strcmp(words[0], "inw") == 0 ||
         strcmp(words[0], "inl") == 0) {
-        uint16_t addr;
+        unsigned long addr;
         uint32_t value = -1U;
 
         g_assert(words[1]);
-        addr = strtoul(words[1], NULL, 0);
+        g_assert(qemu_strtoul(words[1], NULL, 0, &addr) == 0);
+        g_assert(addr <= 0xffff);
 
         if (words[0][2] == 'b') {
             value = cpu_inb(addr);
@@ -367,8 +373,8 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         uint64_t value;
 
         g_assert(words[1] && words[2]);
-        addr = strtoull(words[1], NULL, 0);
-        value = strtoull(words[2], NULL, 0);
+        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtoull(words[2], NULL, 0, &value) == 0);
 
         if (words[0][5] == 'b') {
             uint8_t data = value;
@@ -396,7 +402,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         uint64_t value = UINT64_C(-1);
 
         g_assert(words[1]);
-        addr = strtoull(words[1], NULL, 0);
+        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
 
         if (words[0][4] == 'b') {
             uint8_t data;
@@ -422,8 +428,8 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         char *enc;
 
         g_assert(words[1] && words[2]);
-        addr = strtoull(words[1], NULL, 0);
-        len = strtoull(words[2], NULL, 0);
+        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
 
         data = g_malloc(len);
         cpu_physical_memory_read(addr, data, len);
@@ -444,8 +450,8 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         gchar *b64_data;
 
         g_assert(words[1] && words[2]);
-        addr = strtoull(words[1], NULL, 0);
-        len = strtoull(words[2], NULL, 0);
+        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
 
         data = g_malloc(len);
         cpu_physical_memory_read(addr, data, len);
@@ -461,8 +467,8 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         size_t data_len;
 
         g_assert(words[1] && words[2] && words[3]);
-        addr = strtoull(words[1], NULL, 0);
-        len = strtoull(words[2], NULL, 0);
+        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
 
         data_len = strlen(words[3]);
         if (data_len < 3) {
@@ -487,12 +493,12 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
     } else if (strcmp(words[0], "memset") == 0) {
         uint64_t addr, len;
         uint8_t *data;
-        uint8_t pattern;
+        unsigned long pattern;
 
         g_assert(words[1] && words[2] && words[3]);
-        addr = strtoull(words[1], NULL, 0);
-        len = strtoull(words[2], NULL, 0);
-        pattern = strtoull(words[3], NULL, 0);
+        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
+        g_assert(qemu_strtoul(words[3], NULL, 0, &pattern) == 0);
 
         if (len) {
             data = g_malloc(len);
@@ -510,8 +516,8 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         gsize out_len;
 
         g_assert(words[1] && words[2] && words[3]);
-        addr = strtoull(words[1], NULL, 0);
-        len = strtoull(words[2], NULL, 0);
+        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
 
         data_len = strlen(words[3]);
         if (data_len < 3) {
@@ -531,11 +537,25 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
 
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
+#ifdef TARGET_PPC64
+    } else if (strcmp(words[0], "rtas") == 0) {
+        uint64_t res, args, ret;
+        unsigned long nargs, nret;
+
+        g_assert(qemu_strtoul(words[2], NULL, 0, &nargs) == 0);
+        g_assert(qemu_strtoull(words[3], NULL, 0, &args) == 0);
+        g_assert(qemu_strtoul(words[4], NULL, 0, &nret) == 0);
+        g_assert(qemu_strtoull(words[5], NULL, 0, &ret) == 0);
+        res = qtest_rtas_call(words[1], nargs, args, nret, ret);
+
+        qtest_send_prefix(chr);
+        qtest_sendf(chr, "OK %"PRIu64"\n", res);
+#endif
     } else if (qtest_enabled() && strcmp(words[0], "clock_step") == 0) {
         int64_t ns;
 
         if (words[1]) {
-            ns = strtoll(words[1], NULL, 0);
+            g_assert(qemu_strtoll(words[1], NULL, 0, &ns) == 0);
         } else {
             ns = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
         }
@@ -547,7 +567,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         int64_t ns;
 
         g_assert(words[1]);
-        ns = strtoll(words[1], NULL, 0);
+        g_assert(qemu_strtoll(words[1], NULL, 0, &ns) == 0);
         qtest_clock_warp(ns);
         qtest_send_prefix(chr);
         qtest_sendf(chr, "OK %"PRIi64"\n",

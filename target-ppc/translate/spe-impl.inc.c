@@ -617,7 +617,7 @@ static inline void gen_addr_spe_imm_index(DisasContext *ctx, TCGv EA, int sh)
 static inline void gen_op_evldd(DisasContext *ctx, TCGv addr)
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
-    gen_qemu_ld64(ctx, t0, addr);
+    gen_qemu_ld64_i64(ctx, t0, addr);
     gen_store_gpr64(rD(ctx->opcode), t0);
     tcg_temp_free_i64(t0);
 }
@@ -725,7 +725,7 @@ static inline void gen_op_evstdd(DisasContext *ctx, TCGv addr)
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
     gen_load_gpr64(t0, rS(ctx->opcode));
-    gen_qemu_st64(ctx, t0, addr);
+    gen_qemu_st64_i64(ctx, t0, addr);
     tcg_temp_free_i64(t0);
 }
 

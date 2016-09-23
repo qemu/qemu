@@ -154,16 +154,33 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static inline void check_tlb_flush(CPUPPCState *env)
+static inline void check_tlb_flush(CPUPPCState *env, bool global)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
-    if (env->tlb_need_flush) {
-        env->tlb_need_flush = 0;
+    if (env->tlb_need_flush & TLB_NEED_LOCAL_FLUSH) {
         tlb_flush(cs, 1);
+        env->tlb_need_flush &= ~TLB_NEED_LOCAL_FLUSH;
+    }
+
+    /* Propagate TLB invalidations to other CPUs when the guest uses broadcast
+     * TLB invalidation instructions.
+     */
+    if (global && (env->tlb_need_flush & TLB_NEED_GLOBAL_FLUSH)) {
+        CPUState *other_cs;
+        CPU_FOREACH(other_cs) {
+            if (other_cs != cs) {
+                PowerPCCPU *cpu = POWERPC_CPU(other_cs);
+                CPUPPCState *other_env = &cpu->env;
+
+                other_env->tlb_need_flush &= ~TLB_NEED_LOCAL_FLUSH;
+                tlb_flush(other_cs, 1);
+            }
+        }
+        env->tlb_need_flush &= ~TLB_NEED_GLOBAL_FLUSH;
     }
 }
 #else
-static inline void check_tlb_flush(CPUPPCState *env) { }
+static inline void check_tlb_flush(CPUPPCState *env, bool global) { }
 #endif
 
 #endif /* HELPER_REGS_H */

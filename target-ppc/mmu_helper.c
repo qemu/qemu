@@ -1965,7 +1965,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
          * we just mark the TLB to be flushed later (context synchronizing
          * event or sync instruction on 32-bit).
          */
-        env->tlb_need_flush = 1;
+        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
         break;
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
@@ -1979,7 +1979,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
          *      and we still don't have a tlb_flush_mask(env, n, mask) in QEMU,
          *      we just invalidate all TLBs
          */
-        env->tlb_need_flush = 1;
+        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
         break;
 #endif /* defined(TARGET_PPC64) */
     default:
@@ -2065,7 +2065,7 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
             }
         }
 #else
-        env->tlb_need_flush = 1;
+        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
 #endif
     }
 }
@@ -2757,7 +2757,7 @@ static inline void booke206_invalidate_ea_tlb(CPUPPCState *env, int tlbn,
 
 void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUState *cs;
 
     if (address & 0x4) {
         /* flush all entries */
@@ -2774,11 +2774,15 @@ void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
     if (address & 0x8) {
         /* flush TLB1 entries */
         booke206_invalidate_ea_tlb(env, 1, address);
-        tlb_flush(CPU(cpu), 1);
+        CPU_FOREACH(cs) {
+            tlb_flush(cs, 1);
+        }
     } else {
         /* flush TLB0 entries */
         booke206_invalidate_ea_tlb(env, 0, address);
-        tlb_flush_page(CPU(cpu), address & MAS2_EPN_MASK);
+        CPU_FOREACH(cs) {
+            tlb_flush_page(cs, address & MAS2_EPN_MASK);
+        }
     }
 }
 
@@ -2867,9 +2871,14 @@ void helper_booke206_tlbflush(CPUPPCState *env, target_ulong type)
 }
 
 
-void helper_check_tlb_flush(CPUPPCState *env)
+void helper_check_tlb_flush_local(CPUPPCState *env)
 {
-    check_tlb_flush(env);
+    check_tlb_flush(env, false);
+}
+
+void helper_check_tlb_flush_global(CPUPPCState *env)
+{
+    check_tlb_flush(env, true);
 }
 
 /*****************************************************************************/

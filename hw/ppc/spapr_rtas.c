@@ -37,6 +37,7 @@
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "hw/ppc/spapr_rtas.h"
 #include "hw/ppc/ppc.h"
 #include "qapi-event.h"
 #include "hw/boards.h"
@@ -44,16 +45,7 @@
 #include <libfdt.h>
 #include "hw/ppc/spapr_drc.h"
 #include "qemu/cutils.h"
-
-/* #define DEBUG_SPAPR */
-
-#ifdef DEBUG_SPAPR
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
+#include "trace.h"
 
 static sPAPRConfigureConnectorState *spapr_ccs_find(sPAPRMachineState *spapr,
                                                     uint32_t drc_index)
@@ -436,8 +428,7 @@ static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     /* if this is a DR sensor we can assume sensor_index == drc_index */
     drc = spapr_dr_connector_by_index(sensor_index);
     if (!drc) {
-        DPRINTF("rtas_set_indicator: invalid sensor/DRC index: %xh\n",
-                sensor_index);
+        trace_spapr_rtas_set_indicator_invalid(sensor_index);
         ret = RTAS_OUT_PARAM_ERROR;
         goto out;
     }
@@ -476,8 +467,7 @@ out:
 
 out_unimplemented:
     /* currently only DR-related sensors are implemented */
-    DPRINTF("rtas_set_indicator: sensor/indicator not implemented: %d\n",
-            sensor_type);
+    trace_spapr_rtas_set_indicator_not_supported(sensor_index, sensor_type);
     rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
 }
 
@@ -503,16 +493,15 @@ static void rtas_get_sensor_state(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     if (sensor_type != RTAS_SENSOR_TYPE_ENTITY_SENSE) {
         /* currently only DR-related sensors are implemented */
-        DPRINTF("rtas_get_sensor_state: sensor/indicator not implemented: %d\n",
-                sensor_type);
+        trace_spapr_rtas_get_sensor_state_not_supported(sensor_index,
+                                                        sensor_type);
         ret = RTAS_OUT_NOT_SUPPORTED;
         goto out;
     }
 
     drc = spapr_dr_connector_by_index(sensor_index);
     if (!drc) {
-        DPRINTF("rtas_get_sensor_state: invalid sensor/DRC index: %xh\n",
-                sensor_index);
+        trace_spapr_rtas_get_sensor_state_invalid(sensor_index);
         ret = RTAS_OUT_PARAM_ERROR;
         goto out;
     }
@@ -569,8 +558,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     drc_index = rtas_ld(wa_addr, 0);
     drc = spapr_dr_connector_by_index(drc_index);
     if (!drc) {
-        DPRINTF("rtas_ibm_configure_connector: invalid DRC index: %xh\n",
-                drc_index);
+        trace_spapr_rtas_ibm_configure_connector_invalid(drc_index);
         rc = RTAS_OUT_PARAM_ERROR;
         goto out;
     }
@@ -578,8 +566,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     fdt = drck->get_fdt(drc, NULL);
     if (!fdt) {
-        DPRINTF("rtas_ibm_configure_connector: Missing FDT for DRC index: %xh\n",
-                drc_index);
+        trace_spapr_rtas_ibm_configure_connector_missing_fdt(drc_index);
         rc = SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE;
         goto out;
     }
@@ -690,6 +677,24 @@ target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     hcall_dprintf("Unknown RTAS token 0x%x\n", token);
     rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+    return H_PARAMETER;
+}
+
+uint64_t qtest_rtas_call(char *cmd, uint32_t nargs, uint64_t args,
+                         uint32_t nret, uint64_t rets)
+{
+    int token;
+
+    for (token = 0; token < RTAS_TOKEN_MAX - RTAS_TOKEN_BASE; token++) {
+        if (strcmp(cmd, rtas_table[token].name) == 0) {
+            sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+            PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
+
+            rtas_table[token].fn(cpu, spapr, token + RTAS_TOKEN_BASE,
+                                 nargs, args, nret, rets);
+            return H_SUCCESS;
+        }
+    }
     return H_PARAMETER;
 }
 

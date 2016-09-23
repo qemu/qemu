@@ -270,3 +270,19 @@ e1000e_cfg_support_virtio(bool support) "Virtio header supported: %d"
 
 e1000e_vm_state_running(void) "VM state is running"
 e1000e_vm_state_stopped(void) "VM state is stopped"
+
+# hw/net/spapr_llan.c
+spapr_vlan_get_rx_bd_from_pool_found(int pool, int32_t count, uint32_t rx_bufs) "pool=%d count=%"PRId32" rxbufs=%"PRIu32
+spapr_vlan_get_rx_bd_from_page(int buf_ptr, uint64_t bd) "use_buf_ptr=%d bd=0x%016"PRIx64
+spapr_vlan_get_rx_bd_from_page_found(uint32_t use_buf_ptr, uint32_t rx_bufs) "ptr=%"PRIu32" rxbufs=%"PRIu32
+spapr_vlan_receive(const char *id, uint32_t rx_bufs) "[%s] rx_bufs=%"PRIu32
+spapr_vlan_receive_dma_completed(void) "DMA write completed"
+spapr_vlan_receive_wrote(uint64_t ptr, uint64_t hi, uint64_t lo) "rxq entry (ptr=0x%"PRIx64"): 0x%016"PRIx64" 0x%016"PRIx64
+spapr_vlan_add_rxbuf_to_pool_create(int pool, uint64_t len) "created RX pool %d for size %"PRIu64
+spapr_vlan_add_rxbuf_to_pool(int pool, uint64_t len, int32_t count) "add buf using pool %d (size %"PRIu64", count=%"PRId32")"
+spapr_vlan_add_rxbuf_to_page(uint32_t ptr, uint32_t rx_bufs, uint64_t bd) "added buf ptr=%"PRIu32"  rx_bufs=%"PRIu32" bd=0x%016"PRIx64
+spapr_vlan_h_add_logical_lan_buffer(uint64_t reg, uint64_t buf) "H_ADD_LOGICAL_LAN_BUFFER(0x%"PRIx64", 0x%"PRIx64")"
+spapr_vlan_h_send_logical_lan(uint64_t reg, uint64_t continue_token) "H_SEND_LOGICAL_LAN(0x%"PRIx64", <bufs>, 0x%"PRIx64")"
+spapr_vlan_h_send_logical_lan_rxbufs(uint32_t rx_bufs) "rxbufs = %"PRIu32
+spapr_vlan_h_send_logical_lan_buf_desc(uint64_t buf) "   buf desc: 0x%"PRIx64
+spapr_vlan_h_send_logical_lan_total(int nbufs, unsigned total_len) "%d buffers, total length 0x%x"

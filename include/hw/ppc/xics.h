@@ -149,7 +149,7 @@ struct ICSState {
 
 static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)
 {
-    return (nr >= ics->offset)
+    return (ics->offset != 0) && (nr >= ics->offset)
         && (nr < (ics->offset + ics->nr_irqs));
 }
 

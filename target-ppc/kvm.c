@@ -36,6 +36,7 @@
 #include "hw/sysbus.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/ppc.h"
 #include "sysemu/watchdog.h"
 #include "trace.h"
@@ -427,6 +428,7 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     CPUPPCState *env = &cpu->env;
     long rampagesize;
     int iq, ik, jq, jk;
+    bool has_64k_pages = false;
 
     /* We only handle page sizes for 64-bit server guests for now */
     if (!(env->mmu_model & POWERPC_MMU_64)) {
@@ -470,6 +472,9 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
                                      ksps->enc[jk].page_shift)) {
                 continue;
             }
+            if (ksps->enc[jk].page_shift == 16) {
+                has_64k_pages = true;
+            }
             qsps->enc[jq].page_shift = ksps->enc[jk].page_shift;
             qsps->enc[jq].pte_enc = ksps->enc[jk].pte_enc;
             if (++jq >= PPC_PAGE_SIZES_MAX_SZ) {
@@ -483,6 +488,9 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     env->slb_nr = smmu_info.slb_size;
     if (!(smmu_info.flags & KVM_PPC_1T_SEGMENTS)) {
         env->mmu_model &= ~POWERPC_MMU_1TSEG;
+    }
+    if (!has_64k_pages) {
+        env->mmu_model &= ~POWERPC_MMU_64K;
     }
 }
 #else /* defined (TARGET_PPC64) */
@@ -2055,6 +2063,12 @@ void kvmppc_enable_set_mode_hcall(void)
     kvmppc_enable_hcall(kvm_state, H_SET_MODE);
 }
 
+void kvmppc_enable_clear_ref_mod_hcalls(void)
+{
+    kvmppc_enable_hcall(kvm_state, H_CLEAR_REF);
+    kvmppc_enable_hcall(kvm_state, H_CLEAR_MOD);
+}
+
 void kvmppc_set_papr(PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -2364,19 +2378,6 @@ PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
     return pvr_pcc;
 }
 
-#if defined(TARGET_PPC64)
-static void spapr_cpu_core_host_initfn(Object *obj)
-{
-    sPAPRCPUCore *core = SPAPR_CPU_CORE(obj);
-    char *name = g_strdup_printf("%s-" TYPE_POWERPC_CPU, "host");
-    ObjectClass *oc = object_class_by_name(name);
-
-    g_assert(oc);
-    g_free((void *)name);
-    core->cpu_class = oc;
-}
-#endif
-
 static int kvm_ppc_register_host_cpu_type(void)
 {
     TypeInfo type_info = {
@@ -2404,14 +2405,16 @@ static int kvm_ppc_register_host_cpu_type(void)
 #if defined(TARGET_PPC64)
     type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, "host");
     type_info.parent = TYPE_SPAPR_CPU_CORE,
-    type_info.instance_size = sizeof(sPAPRCPUCore),
-    type_info.instance_init = spapr_cpu_core_host_initfn,
-    type_info.class_init = NULL;
+    type_info.instance_size = sizeof(sPAPRCPUCore);
+    type_info.instance_init = NULL;
+    type_info.class_init = spapr_cpu_core_class_init;
+    type_info.class_data = (void *) "host";
     type_register(&type_info);
     g_free((void *)type_info.name);
 
     /* Register generic spapr CPU family class for current host CPU type */
     type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, dc->desc);
+    type_info.class_data = (void *) dc->desc;
     type_register(&type_info);
     g_free((void *)type_info.name);
 #endif

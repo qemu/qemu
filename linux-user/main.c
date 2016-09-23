@@ -1992,12 +1992,12 @@ void cpu_loop(CPUPPCState *env)
             if (ret == -TARGET_ERESTARTSYS) {
                 break;
             }
-            env->nip += 4;
             if (ret == (target_ulong)(-TARGET_QEMU_ESIGRETURN)) {
                 /* Returning from a successful sigreturn syscall.
                    Avoid corrupting register state.  */
                 break;
             }
+            env->nip += 4;
             if (ret > (target_ulong)(-515)) {
                 env->crf[0] |= 0x1;
                 ret = -ret;
