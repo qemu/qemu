@@ -2804,6 +2804,9 @@ static int qio_channel_rdma_close(QIOChannel *ioc,
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
     trace_qemu_rdma_close();
     if (rioc->rdma) {
+        if (!rioc->rdma->error_state) {
+            rioc->rdma->error_state = qemu_file_get_error(rioc->file);
+        }
         qemu_rdma_cleanup(rioc->rdma);
         g_free(rioc->rdma);
         rioc->rdma = NULL;
