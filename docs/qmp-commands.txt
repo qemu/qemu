@@ -77,19 +77,3 @@ Notes:
 
 (2) It's possible to list device properties by running QEMU with the
     "-device DEVICE,\?" command-line argument, where DEVICE is the device's name
-
-cpu
----
-
-Set the default CPU.
-
-Arguments:
-
-- "index": the CPU's index (json-int)
-
-Example:
-
--> { "execute": "cpu", "arguments": { "index": 0 } }
-<- { "return": {} }
-
-Note: CPUs' indexes are obtained with the 'query-cpus' command.
