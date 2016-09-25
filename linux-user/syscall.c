@@ -305,6 +305,11 @@ _syscall3(int, ioprio_set, int, which, int, who, int, ioprio)
 _syscall3(int, getrandom, void *, buf, size_t, buflen, unsigned int, flags)
 #endif
 
+#if defined(TARGET_NR_kcmp) && defined(__NR_kcmp)
+_syscall5(int, kcmp, pid_t, pid1, pid_t, pid2, int, type,
+          unsigned long, idx1, unsigned long, idx2)
+#endif
+
 static bitmask_transtbl fcntl_flags_tbl[] = {
   { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
   { TARGET_O_ACCMODE,   TARGET_O_RDWR,      O_ACCMODE,   O_RDWR,      },
@@ -12078,6 +12083,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_unshare) && defined(CONFIG_SETNS)
     case TARGET_NR_unshare:
         ret = get_errno(unshare(arg1));
+        break;
+#endif
+#if defined(TARGET_NR_kcmp) && defined(__NR_kcmp)
+    case TARGET_NR_kcmp:
+        ret = get_errno(kcmp(arg1, arg2, arg3, arg4, arg5));
         break;
 #endif
 
