@@ -93,17 +93,3 @@ Example:
 <- { "return": {} }
 
 Note: CPUs' indexes are obtained with the 'query-cpus' command.
-
-qmp_capabilities
-----------------
-
-Enable QMP capabilities.
-
-Arguments: None.
-
-Example:
-
--> { "execute": "qmp_capabilities" }
-<- { "return": {} }
-
-Note: This command must be issued before issuing any other command.
