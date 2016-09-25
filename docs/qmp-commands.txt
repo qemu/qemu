@@ -46,34 +46,8 @@ If you're planning to adopt QMP, please observe the following:
     3. Errors, in special, are not documented. Applications should NOT check
        for specific errors classes or data (it's strongly recommended to only
        check for the "error" key)
-
 2. Regular Commands
 ===================
 
 Server's responses in the examples below are always a success response, please
 refer to the QMP specification for more details on error responses.
-
-device_add
-----------
-
-Add a device.
-
-Arguments:
-
-- "driver": the name of the new device's driver (json-string)
-- "bus": the device's parent bus (device tree path, json-string, optional)
-- "id": the device's ID, must be unique (json-string)
-- device properties
-
-Example:
-
--> { "execute": "device_add", "arguments": { "driver": "e1000", "id": "net1" } }
-<- { "return": {} }
-
-Notes:
-
-(1) For detailed information about this command, please refer to the
-    'docs/qdev-device-use.txt' file.
-
-(2) It's possible to list device properties by running QEMU with the
-    "-device DEVICE,\?" command-line argument, where DEVICE is the device's name
