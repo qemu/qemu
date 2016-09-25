@@ -107,15 +107,3 @@ Example:
 <- { "return": {} }
 
 Note: This command must be issued before issuing any other command.
-
-3. Query Commands
-=================
-
-
-query-qmp-schema
-----------------
-
-Return the QMP wire schema.  The returned value is a json-array of
-named schema entities.  Entities are commands, events and various
-types.  See docs/qapi-code-gen.txt for information on their structure
-and intended use.
