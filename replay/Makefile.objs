@@ -5,3 +5,4 @@ common-obj-y += replay-time.o
 common-obj-y += replay-input.o
 common-obj-y += replay-char.o
 common-obj-y += replay-snapshot.o
+common-obj-y += replay-net.o
