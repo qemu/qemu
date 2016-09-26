@@ -25,6 +25,7 @@
 #include "hw/sysbus.h"
 #include "trace.h"
 #include "hw/lm32/lm32_pic.h"
+#include "hw/intc/intc.h"
 
 #define TYPE_LM32_PIC "lm32-pic"
 #define LM32_PIC(obj) OBJECT_CHECK(LM32PicState, (obj), TYPE_LM32_PIC)
@@ -38,7 +39,7 @@ struct LM32PicState {
     uint32_t irq_state;
 
     /* statistics */
-    uint32_t stats_irq_count[32];
+    uint64_t stats_irq_count[32];
 };
 typedef struct LM32PicState LM32PicState;
 
@@ -152,6 +153,22 @@ static void pic_reset(DeviceState *d)
     }
 }
 
+static bool lm32_get_statistics(InterruptStatsProvider *obj,
+                                uint64_t **irq_counts, unsigned int *nb_irqs)
+{
+    LM32PicState *s = LM32_PIC(obj);
+    *irq_counts = s->stats_irq_count;
+    *nb_irqs = ARRAY_SIZE(s->stats_irq_count);
+    return true;
+}
+
+static void lm32_print_info(InterruptStatsProvider *obj, Monitor *mon)
+{
+    LM32PicState *s = LM32_PIC(obj);
+    monitor_printf(mon, "lm32-pic: im=%08x ip=%08x irq_state=%08x\n",
+            s->im, s->ip, s->irq_state);
+}
+
 static void lm32_pic_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -166,13 +183,13 @@ static void lm32_pic_init(Object *obj)
 
 static const VMStateDescription vmstate_lm32_pic = {
     .name = "lm32-pic",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(im, LM32PicState),
         VMSTATE_UINT32(ip, LM32PicState),
         VMSTATE_UINT32(irq_state, LM32PicState),
-        VMSTATE_UINT32_ARRAY(stats_irq_count, LM32PicState, 32),
+        VMSTATE_UINT64_ARRAY(stats_irq_count, LM32PicState, 32),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -180,9 +197,12 @@ static const VMStateDescription vmstate_lm32_pic = {
 static void lm32_pic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     dc->reset = pic_reset;
     dc->vmsd = &vmstate_lm32_pic;
+    ic->get_statistics = lm32_get_statistics;
+    ic->print_info = lm32_print_info;
 }
 
 static const TypeInfo lm32_pic_info = {
@@ -191,6 +211,10 @@ static const TypeInfo lm32_pic_info = {
     .instance_size = sizeof(LM32PicState),
     .instance_init = lm32_pic_init,
     .class_init    = lm32_pic_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_INTERRUPT_STATS_PROVIDER },
+        { }
+    },
 };
 
 static void lm32_pic_register_types(void)
