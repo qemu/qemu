@@ -2614,7 +2614,7 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
     error_free(err);
     err = NULL;
 
-    qmp_x_blockdev_remove_medium(has_device, device, has_id, id, errp);
+    qmp_x_blockdev_remove_medium(has_device, device, has_id, id, &err);
     if (err) {
         error_propagate(errp, err);
         goto fail;
