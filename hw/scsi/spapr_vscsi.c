@@ -658,7 +658,7 @@ static void vscsi_process_login(VSCSIState *s, vscsi_req *req)
     struct srp_login_rsp *rsp = &iu->srp.login_rsp;
     uint64_t tag = iu->srp.rsp.tag;
 
-    trace_spapr_vscsi__process_login();
+    trace_spapr_vscsi_process_login();
 
     /* TODO handle case that requested size is wrong and
      * buffer format is wrong
