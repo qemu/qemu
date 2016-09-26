@@ -89,11 +89,12 @@
 # @ecb: Electronic Code Book
 # @cbc: Cipher Block Chaining
 # @xts: XEX with tweaked code book and ciphertext stealing
+# @ctr: Counter (Since 2.8)
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherMode',
   'prefix': 'QCRYPTO_CIPHER_MODE',
-  'data': ['ecb', 'cbc', 'xts']}
+  'data': ['ecb', 'cbc', 'xts', 'ctr']}
 
 
 ##

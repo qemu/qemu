@@ -28,6 +28,7 @@
 #include <nettle/cast128.h>
 #include <nettle/serpent.h>
 #include <nettle/twofish.h>
+#include <nettle/ctr.h>
 
 typedef void (*QCryptoCipherNettleFuncWrapper)(const void *ctx,
                                                size_t length,
@@ -186,7 +187,7 @@ struct QCryptoCipherNettle {
     QCryptoCipherNettleFuncNative alg_decrypt_native;
     QCryptoCipherNettleFuncWrapper alg_encrypt_wrapper;
     QCryptoCipherNettleFuncWrapper alg_decrypt_wrapper;
-
+    /* Initialization vector or Counter */
     uint8_t *iv;
     size_t blocksize;
 };
@@ -236,6 +237,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_MODE_ECB:
     case QCRYPTO_CIPHER_MODE_CBC:
     case QCRYPTO_CIPHER_MODE_XTS:
+    case QCRYPTO_CIPHER_MODE_CTR:
         break;
     default:
         error_setg(errp, "Unsupported cipher mode %s",
@@ -441,6 +443,12 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
                     ctx->iv, len, out, in);
         break;
 
+    case QCRYPTO_CIPHER_MODE_CTR:
+        ctr_crypt(ctx->ctx, ctx->alg_encrypt_native,
+                    ctx->blocksize, ctx->iv,
+                    len, out, in);
+        break;
+
     default:
         error_setg(errp, "Unsupported cipher mode %s",
                    QCryptoCipherMode_lookup[cipher->mode]);
@@ -479,6 +487,11 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
         xts_decrypt(ctx->ctx, ctx->ctx_tweak,
                     ctx->alg_encrypt_wrapper, ctx->alg_decrypt_wrapper,
                     ctx->iv, len, out, in);
+        break;
+    case QCRYPTO_CIPHER_MODE_CTR:
+        ctr_crypt(ctx->ctx, ctx->alg_encrypt_native,
+                    ctx->blocksize, ctx->iv,
+                    len, out, in);
         break;
 
     default:
