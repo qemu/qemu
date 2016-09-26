@@ -3038,6 +3038,10 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         cpu->env.features[w] &= ~minus_features[w];
     }
 
+    if (!kvm_enabled() || !cpu->expose_kvm) {
+        env->features[FEAT_KVM] = 0;
+    }
+
     x86_cpu_enable_xsave_components(cpu);
 
     /* CPUID[EAX=7,ECX=0].EBX always increased level automatically: */
