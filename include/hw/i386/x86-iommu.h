@@ -37,6 +37,12 @@
 typedef struct X86IOMMUState X86IOMMUState;
 typedef struct X86IOMMUClass X86IOMMUClass;
 
+typedef enum IommuType {
+    TYPE_INTEL,
+    TYPE_AMD,
+    TYPE_NONE
+} IommuType;
+
 struct X86IOMMUClass {
     SysBusDeviceClass parent;
     /* Intel/AMD specific realize() hook */
@@ -67,6 +73,7 @@ typedef struct IEC_Notifier IEC_Notifier;
 struct X86IOMMUState {
     SysBusDevice busdev;
     bool intr_supported;        /* Whether vIOMMU supports IR */
+    IommuType type;             /* IOMMU type - AMD/Intel     */
     QLIST_HEAD(, IEC_Notifier) iec_notifiers; /* IEC notify list */
 };
 
@@ -75,6 +82,11 @@ struct X86IOMMUState {
  * @return: pointer to default IOMMU device
  */
 X86IOMMUState *x86_iommu_get_default(void);
+
+/*
+ * x86_iommu_get_type - get IOMMU type
+ */
+IommuType x86_iommu_get_type(void);
 
 /**
  * x86_iommu_iec_register_notifier - register IEC (Interrupt Entry

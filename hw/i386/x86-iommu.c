@@ -71,6 +71,11 @@ X86IOMMUState *x86_iommu_get_default(void)
     return x86_iommu_default;
 }
 
+IommuType x86_iommu_get_type(void)
+{
+    return x86_iommu_default->type;
+}
+
 static void x86_iommu_realize(DeviceState *dev, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
@@ -79,6 +84,7 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
     if (x86_class->realize) {
         x86_class->realize(dev, errp);
     }
+
     x86_iommu_set_default(X86_IOMMU_DEVICE(dev));
 }
 
