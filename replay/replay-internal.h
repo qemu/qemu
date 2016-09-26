@@ -62,10 +62,12 @@ typedef struct ReplayState {
     uint64_t current_step;
     /*! Number of instructions to be executed before other events happen. */
     int instructions_count;
+    /*! Type of the currently executed event. */
+    unsigned int data_kind;
+    /*! Flag which indicates that event is not processed yet. */
+    unsigned int has_unread_data;
 } ReplayState;
 extern ReplayState replay_state;
-
-extern unsigned int replay_data_kind;
 
 /* File for replay writing */
 extern FILE *replay_file;
@@ -98,7 +100,7 @@ void replay_check_error(void);
     the next event from the log. */
 void replay_finish_event(void);
 /*! Reads data type from the file and stores it in the
-    replay_data_kind variable. */
+    data_kind variable. */
 void replay_fetch_data_kind(void);
 
 /*! Saves queued events (like instructions and sound). */
