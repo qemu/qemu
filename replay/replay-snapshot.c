@@ -50,6 +50,7 @@ static const VMStateDescription vmstate_replay = {
         VMSTATE_UINT32(data_kind, ReplayState),
         VMSTATE_UINT32(has_unread_data, ReplayState),
         VMSTATE_UINT64(file_offset, ReplayState),
+        VMSTATE_UINT64(block_request_id, ReplayState),
         VMSTATE_END_OF_LIST()
     },
 };

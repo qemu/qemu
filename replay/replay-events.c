@@ -309,3 +309,11 @@ bool replay_events_enabled(void)
 {
     return events_enabled;
 }
+
+uint64_t blkreplay_next_id(void)
+{
+    if (replay_events_enabled()) {
+        return replay_state.block_request_id++;
+    }
+    return 0;
+}

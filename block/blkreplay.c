@@ -20,11 +20,6 @@ typedef struct Request {
     QEMUBH *bh;
 } Request;
 
-/* Next request id.
-   This counter is global, because requests from different
-   block devices should not get overlapping ids. */
-static uint64_t request_id;
-
 static int blkreplay_open(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp)
 {
@@ -84,7 +79,7 @@ static void block_request_create(uint64_t reqid, BlockDriverState *bs,
 static int coroutine_fn blkreplay_co_preadv(BlockDriverState *bs,
     uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
-    uint64_t reqid = request_id++;
+    uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
     block_request_create(reqid, bs, qemu_coroutine_self());
     qemu_coroutine_yield();
@@ -95,7 +90,7 @@ static int coroutine_fn blkreplay_co_preadv(BlockDriverState *bs,
 static int coroutine_fn blkreplay_co_pwritev(BlockDriverState *bs,
     uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
-    uint64_t reqid = request_id++;
+    uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
     block_request_create(reqid, bs, qemu_coroutine_self());
     qemu_coroutine_yield();
@@ -106,7 +101,7 @@ static int coroutine_fn blkreplay_co_pwritev(BlockDriverState *bs,
 static int coroutine_fn blkreplay_co_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int count, BdrvRequestFlags flags)
 {
-    uint64_t reqid = request_id++;
+    uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_pwrite_zeroes(bs->file, offset, count, flags);
     block_request_create(reqid, bs, qemu_coroutine_self());
     qemu_coroutine_yield();
@@ -117,7 +112,7 @@ static int coroutine_fn blkreplay_co_pwrite_zeroes(BlockDriverState *bs,
 static int coroutine_fn blkreplay_co_pdiscard(BlockDriverState *bs,
                                               int64_t offset, int count)
 {
-    uint64_t reqid = request_id++;
+    uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_pdiscard(bs->file->bs, offset, count);
     block_request_create(reqid, bs, qemu_coroutine_self());
     qemu_coroutine_yield();
@@ -127,7 +122,7 @@ static int coroutine_fn blkreplay_co_pdiscard(BlockDriverState *bs,
 
 static int coroutine_fn blkreplay_co_flush(BlockDriverState *bs)
 {
-    uint64_t reqid = request_id++;
+    uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_flush(bs->file->bs);
     block_request_create(reqid, bs, qemu_coroutine_self());
     qemu_coroutine_yield();

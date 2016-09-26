@@ -784,6 +784,7 @@ void vm_start(void)
     if (runstate_is_running()) {
         qapi_event_send_stop(&error_abort);
     } else {
+        replay_enable_events();
         cpu_enable_ticks();
         runstate_set(RUN_STATE_RUNNING);
         vm_state_notify(1, RUN_STATE_RUNNING);

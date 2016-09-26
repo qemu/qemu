@@ -68,6 +68,10 @@ typedef struct ReplayState {
     unsigned int has_unread_data;
     /*! Temporary variable for saving current log offset. */
     uint64_t file_offset;
+    /*! Next block operation id.
+        This counter is global, because requests from different
+        block devices should not get overlapping ids. */
+    uint64_t block_request_id;
 } ReplayState;
 extern ReplayState replay_state;
 
@@ -123,8 +127,6 @@ void replay_read_next_clock(unsigned int kind);
 void replay_init_events(void);
 /*! Clears internal data structures for events handling */
 void replay_finish_events(void);
-/*! Enables storing events in the queue */
-void replay_enable_events(void);
 /*! Flushes events queue */
 void replay_flush_events(void);
 /*! Clears events list before loading new VM state */
