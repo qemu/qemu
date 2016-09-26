@@ -172,8 +172,6 @@ STEXI
 Show the command line history.
 ETEXI
 
-#if defined(TARGET_I386) || defined(TARGET_PPC) || defined(TARGET_MIPS) || \
-    defined(TARGET_LM32) || (defined(TARGET_SPARC) && !defined(TARGET_SPARC64))
     {
         .name       = "irq",
         .args_type  = "",
@@ -192,10 +190,9 @@ ETEXI
         .name       = "pic",
         .args_type  = "",
         .params     = "",
-        .help       = "show i8259 (PIC) state",
+        .help       = "show PIC state",
         .cmd        = hmp_info_pic,
     },
-#endif
 
 STEXI
 @item info pic
