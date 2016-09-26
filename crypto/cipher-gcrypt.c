@@ -24,7 +24,8 @@
 #include <gcrypt.h>
 
 
-bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
+bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
+                             QCryptoCipherMode mode)
 {
     switch (alg) {
     case QCRYPTO_CIPHER_ALG_DES_RFB:
@@ -37,6 +38,16 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
     case QCRYPTO_CIPHER_ALG_SERPENT_256:
     case QCRYPTO_CIPHER_ALG_TWOFISH_128:
     case QCRYPTO_CIPHER_ALG_TWOFISH_256:
+        break;
+    default:
+        return false;
+    }
+
+    switch (mode) {
+    case QCRYPTO_CIPHER_MODE_ECB:
+    case QCRYPTO_CIPHER_MODE_CBC:
+    case QCRYPTO_CIPHER_MODE_XTS:
+    case QCRYPTO_CIPHER_MODE_CTR:
         return true;
     default:
         return false;

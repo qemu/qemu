@@ -85,13 +85,15 @@ struct QCryptoCipher {
 /**
  * qcrypto_cipher_supports:
  * @alg: the cipher algorithm
+ * @mode: the cipher mode
  *
- * Determine if @alg cipher algorithm is supported by the
+ * Determine if @alg cipher algorithm in @mode is supported by the
  * current configured build
  *
  * Returns: true if the algorithm is supported, false otherwise
  */
-bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg);
+bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
+                             QCryptoCipherMode mode);
 
 /**
  * qcrypto_cipher_get_block_len:

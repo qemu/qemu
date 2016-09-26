@@ -153,7 +153,8 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EINVAL;
         goto fail;
     }
-    if (!qcrypto_cipher_supports(QCRYPTO_CIPHER_ALG_AES_128)) {
+    if (!qcrypto_cipher_supports(QCRYPTO_CIPHER_ALG_AES_128,
+                                 QCRYPTO_CIPHER_MODE_CBC)) {
         error_setg(errp, "AES cipher not available");
         ret = -EINVAL;
         goto fail;
