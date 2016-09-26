@@ -99,7 +99,6 @@ static bool has_msr_hv_vpindex;
 static bool has_msr_hv_runtime;
 static bool has_msr_hv_synic;
 static bool has_msr_hv_stimer;
-static bool has_msr_mtrr;
 static bool has_msr_xss;
 
 static bool has_msr_architectural_pmu;
@@ -975,9 +974,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
     cpu->kvm_msr_buf = g_malloc0(MSR_BUF_SIZE);
 
-    if (env->features[FEAT_1_EDX] & CPUID_MTRR) {
-        has_msr_mtrr = true;
-    }
     if (!(env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_RDTSCP)) {
         has_msr_tsc_aux = false;
     }
@@ -1735,7 +1731,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
                                 env->msr_hv_stimer_count[j]);
             }
         }
-        if (has_msr_mtrr) {
+        if (env->features[FEAT_1_EDX] & CPUID_MTRR) {
             uint64_t phys_mask = MAKE_64BIT_MASK(0, cpu->phys_bits);
 
             kvm_msr_entry_add(cpu, MSR_MTRRdefType, env->mtrr_deftype);
@@ -2125,7 +2121,7 @@ static int kvm_get_msrs(X86CPU *cpu)
             kvm_msr_entry_add(cpu, msr, 0);
         }
     }
-    if (has_msr_mtrr) {
+    if (env->features[FEAT_1_EDX] & CPUID_MTRR) {
         kvm_msr_entry_add(cpu, MSR_MTRRdefType, 0);
         kvm_msr_entry_add(cpu, MSR_MTRRfix64K_00000, 0);
         kvm_msr_entry_add(cpu, MSR_MTRRfix16K_80000, 0);
