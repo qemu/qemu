@@ -43,35 +43,6 @@ struct LM32PicState {
 };
 typedef struct LM32PicState LM32PicState;
 
-static LM32PicState *pic;
-void lm32_hmp_info_pic(Monitor *mon, const QDict *qdict)
-{
-    if (pic == NULL) {
-        return;
-    }
-
-    monitor_printf(mon, "lm32-pic: im=%08x ip=%08x irq_state=%08x\n",
-            pic->im, pic->ip, pic->irq_state);
-}
-
-void lm32_hmp_info_irq(Monitor *mon, const QDict *qdict)
-{
-    int i;
-    uint32_t count;
-
-    if (pic == NULL) {
-        return;
-    }
-
-    monitor_printf(mon, "IRQ statistics:\n");
-    for (i = 0; i < 32; i++) {
-        count = pic->stats_irq_count[i];
-        if (count > 0) {
-            monitor_printf(mon, "%2d: %u\n", i, count);
-        }
-    }
-}
-
 static void update_irq(LM32PicState *s)
 {
     s->ip |= s->irq_state;
@@ -177,8 +148,6 @@ static void lm32_pic_init(Object *obj)
 
     qdev_init_gpio_in(dev, irq_handler, 32);
     sysbus_init_irq(sbd, &s->parent_irq);
-
-    pic = s;
 }
 
 static const VMStateDescription vmstate_lm32_pic = {
