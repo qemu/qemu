@@ -292,6 +292,7 @@ void replay_configure(QemuOpts *opts)
         exit(1);
     }
 
+    replay_vmstate_register();
     replay_enable(fname, mode);
 
 out:
