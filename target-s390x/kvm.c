@@ -1999,7 +1999,7 @@ static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr, uint8_t ar)
         strcpy((char *)sysib.ext_names[0], "KVMguest");
     }
     /* Insert UUID */
-    memcpy(sysib.vm[0].uuid, qemu_uuid, sizeof(sysib.vm[0].uuid));
+    memcpy(sysib.vm[0].uuid, &qemu_uuid, sizeof(sysib.vm[0].uuid));
 
     s390_cpu_virt_mem_write(cpu, addr, ar, &sysib, sizeof(sysib));
 }
