@@ -509,6 +509,7 @@ enum xhci_flags {
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
                          unsigned int epid, unsigned int streamid);
+static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid);
 static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
                                 unsigned int epid);
 static void xhci_xfer_report(XHCITransfer *xfer);
@@ -1362,7 +1363,7 @@ static void xhci_set_ep_state(XHCIState *xhci, XHCIEPContext *epctx,
 static void xhci_ep_kick_timer(void *opaque)
 {
     XHCIEPContext *epctx = opaque;
-    xhci_kick_ep(epctx->xhci, epctx->slotid, epctx->epid, 0);
+    xhci_kick_epctx(epctx, 0);
 }
 
 static XHCIEPContext *xhci_alloc_epctx(XHCIState *xhci,
@@ -2008,7 +2009,7 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 
     xhci_complete_packet(xfer);
     if (!xfer->running_async && !xfer->running_retry) {
-        xhci_kick_ep(xhci, xfer->slotid, xfer->epid, 0);
+        xhci_kick_epctx(xfer->epctx, 0);
     }
     return 0;
 }
@@ -2112,7 +2113,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
 
     xhci_complete_packet(xfer);
     if (!xfer->running_async && !xfer->running_retry) {
-        xhci_kick_ep(xhci, xfer->slotid, xfer->epid, xfer->streamid);
+        xhci_kick_epctx(xfer->epctx, xfer->streamid);
     }
     return 0;
 }
@@ -2126,16 +2127,8 @@ static int xhci_fire_transfer(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
                          unsigned int epid, unsigned int streamid)
 {
-    XHCIStreamContext *stctx;
     XHCIEPContext *epctx;
-    XHCITransfer *xfer;
-    XHCIRing *ring;
-    USBEndpoint *ep = NULL;
-    uint64_t mfindex;
-    int length;
-    int i;
 
-    trace_usb_xhci_ep_kick(slotid, epid, streamid);
     assert(slotid >= 1 && slotid <= xhci->numslots);
     assert(epid >= 1 && epid <= 31);
 
@@ -2150,11 +2143,27 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         return;
     }
 
+    xhci_kick_epctx(epctx, streamid);
+}
+
+static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
+{
+    XHCIState *xhci = epctx->xhci;
+    XHCIStreamContext *stctx;
+    XHCITransfer *xfer;
+    XHCIRing *ring;
+    USBEndpoint *ep = NULL;
+    uint64_t mfindex;
+    int length;
+    int i;
+
+    trace_usb_xhci_ep_kick(epctx->slotid, epctx->epid, streamid);
+
     /* If the device has been detached, but the guest has not noticed this
        yet the 2 above checks will succeed, but we must NOT continue */
-    if (!xhci->slots[slotid - 1].uport ||
-        !xhci->slots[slotid - 1].uport->dev ||
-        !xhci->slots[slotid - 1].uport->dev->attached) {
+    if (!xhci->slots[epctx->slotid - 1].uport ||
+        !xhci->slots[epctx->slotid - 1].uport->dev ||
+        !xhci->slots[epctx->slotid - 1].uport->dev->attached) {
         return;
     }
 
@@ -2235,7 +2244,7 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         }
         xfer->streamid = streamid;
 
-        if (epid == 1) {
+        if (epctx->epid == 1) {
             xhci_fire_ctl_transfer(xhci, xfer);
         } else {
             xhci_fire_transfer(xhci, xfer, epctx);
@@ -2255,7 +2264,7 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         }
     }
 
-    ep = xhci_epid_to_usbep(xhci, slotid, epid);
+    ep = xhci_epid_to_usbep(xhci, epctx->slotid, epctx->epid);
     if (ep) {
         usb_device_flush_ep_queue(ep->dev, ep);
     }
@@ -3486,7 +3495,7 @@ static void xhci_complete(USBPort *port, USBPacket *packet)
         return;
     }
     xhci_complete_packet(xfer);
-    xhci_kick_ep(xfer->epctx->xhci, xfer->slotid, xfer->epid, xfer->streamid);
+    xhci_kick_epctx(xfer->epctx, xfer->streamid);
     if (xfer->complete) {
         xhci_ep_free_xfer(xfer);
     }
