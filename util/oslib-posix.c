@@ -499,3 +499,45 @@ pid_t qemu_fork(Error **errp)
     }
     return pid;
 }
+
+void *qemu_alloc_stack(size_t *sz)
+{
+    void *ptr, *guardpage;
+    size_t pagesz = getpagesize();
+#ifdef _SC_THREAD_STACK_MIN
+    /* avoid stacks smaller than _SC_THREAD_STACK_MIN */
+    long min_stack_sz = sysconf(_SC_THREAD_STACK_MIN);
+    *sz = MAX(MAX(min_stack_sz, 0), *sz);
+#endif
+    /* adjust stack size to a multiple of the page size */
+    *sz = ROUND_UP(*sz, pagesz);
+    /* allocate one extra page for the guard page */
+    *sz += pagesz;
+
+    ptr = mmap(NULL, *sz, PROT_READ | PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (ptr == MAP_FAILED) {
+        abort();
+    }
+
+#if defined(HOST_IA64)
+    /* separate register stack */
+    guardpage = ptr + (((*sz - pagesz) / 2) & ~pagesz);
+#elif defined(HOST_HPPA)
+    /* stack grows up */
+    guardpage = ptr + *sz - pagesz;
+#else
+    /* stack grows down */
+    guardpage = ptr;
+#endif
+    if (mprotect(guardpage, pagesz, PROT_NONE) != 0) {
+        abort();
+    }
+
+    return ptr;
+}
+
+void qemu_free_stack(void *stack, size_t sz)
+{
+    munmap(stack, sz);
+}
