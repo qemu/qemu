@@ -16,6 +16,7 @@
 #define QEMU_COLO_PROXY_H
 
 #include "slirp/slirp.h"
+#include "qemu/jhash.h"
 
 #define HASHTABLE_MAX_SIZE 16384
 
