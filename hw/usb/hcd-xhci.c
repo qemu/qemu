@@ -386,7 +386,6 @@ struct XHCIEPContext {
 
     XHCIRing ring;
     unsigned int next_xfer;
-    unsigned int comp_xfer;
     XHCITransfer transfers[TD_QUEUE];
     XHCITransfer *retry;
     EPType type;
