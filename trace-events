@@ -139,6 +139,12 @@ memory_region_subpage_write(int cpu_index, void *mr, uint64_t offset, uint64_t v
 memory_region_tb_read(int cpu_index, uint64_t addr, uint64_t value, unsigned size) "cpu %d addr %#"PRIx64" value %#"PRIx64" size %u"
 memory_region_tb_write(int cpu_index, uint64_t addr, uint64_t value, unsigned size) "cpu %d addr %#"PRIx64" value %#"PRIx64" size %u"
 
+# net/colo.c
+colo_proxy_main(const char *chr) ": %s"
+
+# net/colo-compare.c
+colo_compare_main(const char *chr) ": %s"
+
 ### Guest events, keep at bottom
 
 # @vaddr: Access' virtual address.

@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "trace.h"
 #include "qemu-common.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
@@ -26,13 +27,34 @@
 #include "sysemu/char.h"
 #include "qemu/sockets.h"
 #include "qapi-visit.h"
+#include "net/colo.h"
 
 #define TYPE_COLO_COMPARE "colo-compare"
 #define COLO_COMPARE(obj) \
     OBJECT_CHECK(CompareState, (obj), TYPE_COLO_COMPARE)
 
-#define COMPARE_READ_LEN_MAX NET_BUFSIZE
-
+/*
+  + CompareState ++
+  |               |
+  +---------------+   +---------------+         +---------------+
+  |conn list      +--->conn           +--------->conn           |
+  +---------------+   +---------------+         +---------------+
+  |               |     |           |             |          |
+  +---------------+ +---v----+  +---v----+    +---v----+ +---v----+
+                    |primary |  |secondary    |primary | |secondary
+                    |packet  |  |packet  +    |packet  | |packet  +
+                    +--------+  +--------+    +--------+ +--------+
+                        |           |             |          |
+                    +---v----+  +---v----+    +---v----+ +---v----+
+                    |primary |  |secondary    |primary | |secondary
+                    |packet  |  |packet  +    |packet  | |packet  +
+                    +--------+  +--------+    +--------+ +--------+
+                        |           |             |          |
+                    +---v----+  +---v----+    +---v----+ +---v----+
+                    |primary |  |secondary    |primary | |secondary
+                    |packet  |  |packet  +    |packet  | |packet  +
+                    +--------+  +--------+    +--------+ +--------+
+*/
 typedef struct CompareState {
     Object parent;
 
@@ -44,6 +66,9 @@ typedef struct CompareState {
     CharDriverState *chr_out;
     SocketReadState pri_rs;
     SocketReadState sec_rs;
+
+    /* hashtable to save connection */
+    GHashTable *connection_track_table;
 } CompareState;
 
 typedef struct CompareClass {
@@ -53,6 +78,76 @@ typedef struct CompareClass {
 typedef struct CompareChardevProps {
     bool is_socket;
 } CompareChardevProps;
+
+enum {
+    PRIMARY_IN = 0,
+    SECONDARY_IN,
+};
+
+static int compare_chr_send(CharDriverState *out,
+                            const uint8_t *buf,
+                            uint32_t size);
+
+/*
+ * Return 0 on success, if return -1 means the pkt
+ * is unsupported(arp and ipv6) and will be sent later
+ */
+static int packet_enqueue(CompareState *s, int mode)
+{
+    Packet *pkt = NULL;
+
+    if (mode == PRIMARY_IN) {
+        pkt = packet_new(s->pri_rs.buf, s->pri_rs.packet_len);
+    } else {
+        pkt = packet_new(s->sec_rs.buf, s->sec_rs.packet_len);
+    }
+
+    if (parse_packet_early(pkt)) {
+        packet_destroy(pkt, NULL);
+        pkt = NULL;
+        return -1;
+    }
+    /* TODO: get connection key from pkt */
+
+    /*
+     * TODO: use connection key get conn from
+     * connection_track_table
+     */
+
+    /*
+     * TODO: insert pkt to it's conn->primary_list
+     * or conn->secondary_list
+     */
+
+    return 0;
+}
+
+static int compare_chr_send(CharDriverState *out,
+                            const uint8_t *buf,
+                            uint32_t size)
+{
+    int ret = 0;
+    uint32_t len = htonl(size);
+
+    if (!size) {
+        return 0;
+    }
+
+    ret = qemu_chr_fe_write_all(out, (uint8_t *)&len, sizeof(len));
+    if (ret != sizeof(len)) {
+        goto err;
+    }
+
+    ret = qemu_chr_fe_write_all(out, (uint8_t *)buf, size);
+    if (ret != size) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    return ret < 0 ? ret : -EIO;
+}
 
 static char *compare_get_pri_indev(Object *obj, Error **errp)
 {
@@ -101,12 +196,21 @@ static void compare_set_outdev(Object *obj, const char *value, Error **errp)
 
 static void compare_pri_rs_finalize(SocketReadState *pri_rs)
 {
-    /* if packet_enqueue pri pkt failed we will send unsupported packet */
+    CompareState *s = container_of(pri_rs, CompareState, pri_rs);
+
+    if (packet_enqueue(s, PRIMARY_IN)) {
+        trace_colo_compare_main("primary: unsupported packet in");
+        compare_chr_send(s->chr_out, pri_rs->buf, pri_rs->packet_len);
+    }
 }
 
 static void compare_sec_rs_finalize(SocketReadState *sec_rs)
 {
-    /* if packet_enqueue sec pkt failed we will notify trace */
+    CompareState *s = container_of(sec_rs, CompareState, sec_rs);
+
+    if (packet_enqueue(s, SECONDARY_IN)) {
+        trace_colo_compare_main("secondary: unsupported packet in");
+    }
 }
 
 static int compare_chardev_opts(void *opaque,
@@ -203,6 +307,8 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
 
     net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize);
     net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize);
+
+    /* use g_hash_table_new_full() to new a hashtable */
 
     return;
 }
