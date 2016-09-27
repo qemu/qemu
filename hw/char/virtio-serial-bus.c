@@ -541,6 +541,7 @@ static uint64_t get_features(VirtIODevice *vdev, uint64_t features,
 
     vser = VIRTIO_SERIAL(vdev);
 
+    features |= vser->host_features;
     if (vser->bus.max_nr_ports > 1) {
         virtio_add_feature(&features, VIRTIO_CONSOLE_F_MULTIPORT);
     }
@@ -1003,6 +1004,7 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSerial *vser = VIRTIO_SERIAL(dev);
     uint32_t i, max_supported_ports;
+    size_t config_size = sizeof(struct virtio_console_config);
 
     if (!vser->serial.max_virtserial_ports) {
         error_setg(errp, "Maximum number of serial ports not specified");
@@ -1017,10 +1019,12 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    /* We don't support emergency write, skip it for now. */
-    /* TODO: cleaner fix, depending on host features. */
+    if (!virtio_has_feature(vser->host_features,
+                            VIRTIO_CONSOLE_F_EMERG_WRITE)) {
+        config_size = offsetof(struct virtio_console_config, emerg_wr);
+    }
     virtio_init(vdev, "virtio-serial", VIRTIO_ID_CONSOLE,
-                offsetof(struct virtio_console_config, emerg_wr));
+                config_size);
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
     qbus_create_inplace(&vser->bus, sizeof(vser->bus), TYPE_VIRTIO_SERIAL_BUS,
@@ -1116,6 +1120,8 @@ VMSTATE_VIRTIO_DEVICE(console, 3, virtio_serial_load, virtio_vmstate_save);
 static Property virtio_serial_properties[] = {
     DEFINE_PROP_UINT32("max_ports", VirtIOSerial, serial.max_virtserial_ports,
                                                   31),
+    DEFINE_PROP_BIT64("emergency-write", VirtIOSerial, host_features,
+                      VIRTIO_CONSOLE_F_EMERG_WRITE, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
