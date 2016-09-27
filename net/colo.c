@@ -134,6 +134,8 @@ Connection *connection_new(ConnectionKey *key)
 
     conn->ip_proto = key->ip_proto;
     conn->processing = false;
+    conn->offset = 0;
+    conn->syn_flag = 0;
     g_queue_init(&conn->primary_list);
     g_queue_init(&conn->secondary_list);
 

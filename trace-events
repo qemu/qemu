@@ -150,6 +150,11 @@ colo_compare_ip_info(int psize, const char *sta, const char *stb, int ssize, con
 colo_old_packet_check_found(int64_t old_time) "%" PRId64
 colo_compare_miscompare(void) ""
 
+# net/filter-rewriter.c
+colo_filter_rewriter_debug(void) ""
+colo_filter_rewriter_pkt_info(const char *func, const char *src, const char *dst, uint32_t seq, uint32_t ack, uint32_t flag) "%s: src/dst: %s/%s p: seq/ack=%u/%u  flags=%x\n"
+colo_filter_rewriter_conn_offset(uint32_t offset) ": offset=%u\n"
+
 ### Guest events, keep at bottom
 
 # @vaddr: Access' virtual address.

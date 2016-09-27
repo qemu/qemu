@@ -62,6 +62,13 @@ typedef struct Connection {
     /* flag to enqueue unprocessed_connections */
     bool processing;
     uint8_t ip_proto;
+    /* offset = secondary_seq - primary_seq */
+    tcp_seq  offset;
+    /*
+     * we use this flag update offset func
+     * run once in independent tcp connection
+     */
+    int syn_flag;
 } Connection;
 
 uint32_t connection_key_hash(const void *opaque);
