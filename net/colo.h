@@ -17,6 +17,7 @@
 
 #include "slirp/slirp.h"
 #include "qemu/jhash.h"
+#include "qemu/timer.h"
 
 #define HASHTABLE_MAX_SIZE 16384
 
@@ -40,6 +41,8 @@ typedef struct Packet {
     };
     uint8_t *transport_header;
     int size;
+    /* Time of packet creation, in wall clock ms */
+    int64_t creation_ms;
 } Packet;
 
 typedef struct ConnectionKey {

@@ -143,6 +143,7 @@ Packet *packet_new(const void *data, int size)
 
     pkt->data = g_memdup(data, size);
     pkt->size = size;
+    pkt->creation_ms = qemu_clock_get_ms(QEMU_CLOCK_HOST);
 
     return pkt;
 }
