@@ -34,7 +34,7 @@ typedef struct {
     Coroutine base;
     void *stack;
     sigjmp_buf env;
-} CoroutineUContext;
+} CoroutineSigAltStack;
 
 /**
  * Per-thread coroutine bookkeeping
@@ -44,7 +44,7 @@ typedef struct {
     Coroutine *current;
 
     /** The default coroutine */
-    CoroutineUContext leader;
+    CoroutineSigAltStack leader;
 
     /** Information for the signal handler (trampoline) */
     sigjmp_buf tr_reenter;
@@ -89,7 +89,7 @@ static void __attribute__((constructor)) coroutine_init(void)
  * (from the signal handler when it is not signal handling, read ahead
  * for more information).
  */
-static void coroutine_bootstrap(CoroutineUContext *self, Coroutine *co)
+static void coroutine_bootstrap(CoroutineSigAltStack *self, Coroutine *co)
 {
     /* Initialize longjmp environment and switch back the caller */
     if (!sigsetjmp(self->env, 0)) {
@@ -109,7 +109,7 @@ static void coroutine_bootstrap(CoroutineUContext *self, Coroutine *co)
  */
 static void coroutine_trampoline(int signal)
 {
-    CoroutineUContext *self;
+    CoroutineSigAltStack *self;
     Coroutine *co;
     CoroutineThreadState *coTS;
 
@@ -144,7 +144,7 @@ static void coroutine_trampoline(int signal)
 Coroutine *qemu_coroutine_new(void)
 {
     const size_t stack_size = 1 << 20;
-    CoroutineUContext *co;
+    CoroutineSigAltStack *co;
     CoroutineThreadState *coTS;
     struct sigaction sa;
     struct sigaction osa;
@@ -251,7 +251,7 @@ Coroutine *qemu_coroutine_new(void)
 
 void qemu_coroutine_delete(Coroutine *co_)
 {
-    CoroutineUContext *co = DO_UPCAST(CoroutineUContext, base, co_);
+    CoroutineSigAltStack *co = DO_UPCAST(CoroutineSigAltStack, base, co_);
 
     g_free(co->stack);
     g_free(co);
@@ -260,8 +260,8 @@ void qemu_coroutine_delete(Coroutine *co_)
 CoroutineAction qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
                                       CoroutineAction action)
 {
-    CoroutineUContext *from = DO_UPCAST(CoroutineUContext, base, from_);
-    CoroutineUContext *to = DO_UPCAST(CoroutineUContext, base, to_);
+    CoroutineSigAltStack *from = DO_UPCAST(CoroutineSigAltStack, base, from_);
+    CoroutineSigAltStack *to = DO_UPCAST(CoroutineSigAltStack, base, to_);
     CoroutineThreadState *s = coroutine_get_thread_state();
     int ret;
 
