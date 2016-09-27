@@ -1364,6 +1364,15 @@ F: util/uuid.c
 F: include/qemu/uuid.h
 F: tests/test-uuid.c
 
+COLO Proxy
+M: Zhang Chen <zhangchen.fnst@cn.fujitsu.com>
+M: Li Zhijian <lizhijian@cn.fujitsu.com>
+S: Supported
+F: docs/colo-proxy.txt
+F: net/colo*
+F: net/filter-rewriter.c
+F: net/filter-mirror.c
+
 Usermode Emulation
 ------------------
 Overall
