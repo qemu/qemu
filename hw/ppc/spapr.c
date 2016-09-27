@@ -1110,7 +1110,7 @@ static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
     }
 }
 
-static int find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
+static void find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
 {
     bool matched = false;
 
@@ -1123,8 +1123,6 @@ static int find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
                      qdev_fw_name(DEVICE(sbdev)));
         exit(1);
     }
-
-    return 0;
 }
 
 static void ppc_spapr_reset(void)
