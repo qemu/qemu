@@ -75,6 +75,19 @@ static VirtIOSerialPort *find_port_by_name(char *name)
     return NULL;
 }
 
+static VirtIOSerialPort *find_first_connected_console(VirtIOSerial *vser)
+{
+    VirtIOSerialPort *port;
+
+    QTAILQ_FOREACH(port, &vser->ports, next) {
+        VirtIOSerialPortClass const *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+        if (vsc->is_console && port->host_connected) {
+            return port;
+        }
+    }
+    return NULL;
+}
+
 static bool use_multiport(VirtIOSerial *vser)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vser);
@@ -545,6 +558,29 @@ static void get_config(VirtIODevice *vdev, uint8_t *config_data)
     config->rows = 0;
     config->max_nr_ports = virtio_tswap32(vdev,
                                           vser->serial.max_virtserial_ports);
+}
+
+/* Guest sent new config info */
+static void set_config(VirtIODevice *vdev, const uint8_t *config_data)
+{
+    VirtIOSerial *vser = VIRTIO_SERIAL(vdev);
+    struct virtio_console_config *config =
+        (struct virtio_console_config *)config_data;
+    uint8_t emerg_wr_lo = le32_to_cpu(config->emerg_wr);
+    VirtIOSerialPort *port = find_first_connected_console(vser);
+    VirtIOSerialPortClass *vsc;
+
+    if (!config->emerg_wr) {
+        return;
+    }
+    /* Make sure we don't misdetect an emergency write when the guest
+     * does a short config write after an emergency write. */
+    config->emerg_wr = 0;
+    if (!port) {
+        return;
+    }
+    vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+    (void)vsc->have_data(port, &emerg_wr_lo, 1);
 }
 
 static void guest_reset(VirtIOSerial *vser)
@@ -1098,6 +1134,7 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
     vdc->unrealize = virtio_serial_device_unrealize;
     vdc->get_features = get_features;
     vdc->get_config = get_config;
+    vdc->set_config = set_config;
     vdc->set_status = set_status;
     vdc->reset = vser_reset;
     vdc->save = virtio_serial_save_device;
