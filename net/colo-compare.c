@@ -19,6 +19,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "net/net.h"
+#include "net/eth.h"
 #include "qom/object_interfaces.h"
 #include "qemu/iov.h"
 #include "qom/object.h"
@@ -178,9 +179,131 @@ static int colo_packet_compare(Packet *ppkt, Packet *spkt)
     }
 }
 
-static int colo_packet_compare_all(Packet *spkt, Packet *ppkt)
+/*
+ * Called from the compare thread on the primary
+ * for compare tcp packet
+ * compare_tcp copied from Dr. David Alan Gilbert's branch
+ */
+static int colo_packet_compare_tcp(Packet *spkt, Packet *ppkt)
 {
-    trace_colo_compare_main("compare all");
+    struct tcphdr *ptcp, *stcp;
+    int res;
+    char *sdebug, *ddebug;
+
+    trace_colo_compare_main("compare tcp");
+    if (ppkt->size != spkt->size) {
+        if (trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
+            trace_colo_compare_main("pkt size not same");
+        }
+        return -1;
+    }
+
+    ptcp = (struct tcphdr *)ppkt->transport_header;
+    stcp = (struct tcphdr *)spkt->transport_header;
+
+    /*
+     * The 'identification' field in the IP header is *very* random
+     * it almost never matches.  Fudge this by ignoring differences in
+     * unfragmented packets; they'll normally sort themselves out if different
+     * anyway, and it should recover at the TCP level.
+     * An alternative would be to get both the primary and secondary to rewrite
+     * somehow; but that would need some sync traffic to sync the state
+     */
+    if (ntohs(ppkt->ip->ip_off) & IP_DF) {
+        spkt->ip->ip_id = ppkt->ip->ip_id;
+        /* and the sum will be different if the IDs were different */
+        spkt->ip->ip_sum = ppkt->ip->ip_sum;
+    }
+
+    res = memcmp(ppkt->data + ETH_HLEN, spkt->data + ETH_HLEN,
+                (spkt->size - ETH_HLEN));
+
+    if (res != 0 && trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
+        sdebug = strdup(inet_ntoa(ppkt->ip->ip_src));
+        ddebug = strdup(inet_ntoa(ppkt->ip->ip_dst));
+        fprintf(stderr, "%s: src/dst: %s/%s p: seq/ack=%u/%u"
+                " s: seq/ack=%u/%u res=%d flags=%x/%x\n",
+                __func__, sdebug, ddebug,
+                (unsigned int)ntohl(ptcp->th_seq),
+                (unsigned int)ntohl(ptcp->th_ack),
+                (unsigned int)ntohl(stcp->th_seq),
+                (unsigned int)ntohl(stcp->th_ack),
+                res, ptcp->th_flags, stcp->th_flags);
+
+        fprintf(stderr, "Primary len = %d\n", ppkt->size);
+        qemu_hexdump((char *)ppkt->data, stderr, "colo-compare", ppkt->size);
+        fprintf(stderr, "Secondary len = %d\n", spkt->size);
+        qemu_hexdump((char *)spkt->data, stderr, "colo-compare", spkt->size);
+
+        g_free(sdebug);
+        g_free(ddebug);
+    }
+
+    return res;
+}
+
+/*
+ * Called from the compare thread on the primary
+ * for compare udp packet
+ */
+static int colo_packet_compare_udp(Packet *spkt, Packet *ppkt)
+{
+    int ret;
+
+    trace_colo_compare_main("compare udp");
+    ret = colo_packet_compare(ppkt, spkt);
+
+    if (ret) {
+        trace_colo_compare_udp_miscompare("primary pkt size", ppkt->size);
+        qemu_hexdump((char *)ppkt->data, stderr, "colo-compare", ppkt->size);
+        trace_colo_compare_udp_miscompare("Secondary pkt size", spkt->size);
+        qemu_hexdump((char *)spkt->data, stderr, "colo-compare", spkt->size);
+    }
+
+    return ret;
+}
+
+/*
+ * Called from the compare thread on the primary
+ * for compare icmp packet
+ */
+static int colo_packet_compare_icmp(Packet *spkt, Packet *ppkt)
+{
+    int network_length;
+
+    trace_colo_compare_main("compare icmp");
+    network_length = ppkt->ip->ip_hl * 4;
+    if (ppkt->size != spkt->size ||
+        ppkt->size < network_length + ETH_HLEN) {
+        return -1;
+    }
+
+    if (colo_packet_compare(ppkt, spkt)) {
+        trace_colo_compare_icmp_miscompare("primary pkt size",
+                                           ppkt->size);
+        qemu_hexdump((char *)ppkt->data, stderr, "colo-compare",
+                     ppkt->size);
+        trace_colo_compare_icmp_miscompare("Secondary pkt size",
+                                           spkt->size);
+        qemu_hexdump((char *)spkt->data, stderr, "colo-compare",
+                     spkt->size);
+        return -1;
+    } else {
+        return 0;
+    }
+}
+
+/*
+ * Called from the compare thread on the primary
+ * for compare other packet
+ */
+static int colo_packet_compare_other(Packet *spkt, Packet *ppkt)
+{
+    trace_colo_compare_main("compare other");
+    trace_colo_compare_ip_info(ppkt->size, inet_ntoa(ppkt->ip->ip_src),
+                               inet_ntoa(ppkt->ip->ip_dst), spkt->size,
+                               inet_ntoa(spkt->ip->ip_src),
+                               inet_ntoa(spkt->ip->ip_dst));
     return colo_packet_compare(ppkt, spkt);
 }
 
@@ -242,8 +365,24 @@ static void colo_compare_connection(void *opaque, void *user_data)
         qemu_mutex_lock(&s->timer_check_lock);
         pkt = g_queue_pop_tail(&conn->primary_list);
         qemu_mutex_unlock(&s->timer_check_lock);
-        result = g_queue_find_custom(&conn->secondary_list,
-                              pkt, (GCompareFunc)colo_packet_compare_all);
+        switch (conn->ip_proto) {
+        case IPPROTO_TCP:
+            result = g_queue_find_custom(&conn->secondary_list,
+                     pkt, (GCompareFunc)colo_packet_compare_tcp);
+            break;
+        case IPPROTO_UDP:
+            result = g_queue_find_custom(&conn->secondary_list,
+                     pkt, (GCompareFunc)colo_packet_compare_udp);
+            break;
+        case IPPROTO_ICMP:
+            result = g_queue_find_custom(&conn->secondary_list,
+                     pkt, (GCompareFunc)colo_packet_compare_icmp);
+            break;
+        default:
+            result = g_queue_find_custom(&conn->secondary_list,
+                     pkt, (GCompareFunc)colo_packet_compare_other);
+            break;
+        }
 
         if (result) {
             ret = compare_chr_send(s->chr_out, pkt->data, pkt->size);
