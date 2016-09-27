@@ -114,6 +114,20 @@ void fill_connection_key(Packet *pkt, ConnectionKey *key)
     }
 }
 
+void reverse_connection_key(ConnectionKey *key)
+{
+    struct in_addr tmp_ip;
+    uint16_t tmp_port;
+
+    tmp_ip = key->src;
+    key->src = key->dst;
+    key->dst = tmp_ip;
+
+    tmp_port = key->src_port;
+    key->src_port = key->dst_port;
+    key->dst_port = tmp_port;
+}
+
 Connection *connection_new(ConnectionKey *key)
 {
     Connection *conn = g_slice_new(Connection);
