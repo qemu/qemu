@@ -50,6 +50,10 @@
 
 #include "qemu/mmap-alloc.h"
 
+#ifdef CONFIG_DEBUG_STACK_USAGE
+#include "qemu/error-report.h"
+#endif
+
 int qemu_get_thread_id(void)
 {
 #if defined(__linux__)
@@ -503,6 +507,9 @@ pid_t qemu_fork(Error **errp)
 void *qemu_alloc_stack(size_t *sz)
 {
     void *ptr, *guardpage;
+#ifdef CONFIG_DEBUG_STACK_USAGE
+    void *ptr2;
+#endif
     size_t pagesz = getpagesize();
 #ifdef _SC_THREAD_STACK_MIN
     /* avoid stacks smaller than _SC_THREAD_STACK_MIN */
@@ -534,10 +541,38 @@ void *qemu_alloc_stack(size_t *sz)
         abort();
     }
 
+#ifdef CONFIG_DEBUG_STACK_USAGE
+    for (ptr2 = ptr + pagesz; ptr2 < ptr + *sz; ptr2 += sizeof(uint32_t)) {
+        *(uint32_t *)ptr2 = 0xdeadbeaf;
+    }
+#endif
+
     return ptr;
 }
 
+#ifdef CONFIG_DEBUG_STACK_USAGE
+static __thread unsigned int max_stack_usage;
+#endif
+
 void qemu_free_stack(void *stack, size_t sz)
 {
+#ifdef CONFIG_DEBUG_STACK_USAGE
+    unsigned int usage;
+    void *ptr;
+
+    for (ptr = stack + getpagesize(); ptr < stack + sz;
+         ptr += sizeof(uint32_t)) {
+        if (*(uint32_t *)ptr != 0xdeadbeaf) {
+            break;
+        }
+    }
+    usage = sz - (uintptr_t) (ptr - stack);
+    if (usage > max_stack_usage) {
+        error_report("thread %d max stack usage increased from %u to %u",
+                     qemu_get_thread_id(), max_stack_usage, usage);
+        max_stack_usage = usage;
+    }
+#endif
+
     munmap(stack, sz);
 }

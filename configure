@@ -296,6 +296,7 @@ libiscsi=""
 libnfs=""
 coroutine=""
 coroutine_pool=""
+debug_stack_usage="no"
 seccomp=""
 glusterfs=""
 glusterfs_xlator_opt="no"
@@ -1003,6 +1004,8 @@ for opt do
   --disable-coroutine-pool) coroutine_pool="no"
   ;;
   --enable-coroutine-pool) coroutine_pool="yes"
+  ;;
+  --enable-debug-stack-usage) debug_stack_usage="yes"
   ;;
   --disable-docs) docs="no"
   ;;
@@ -4331,6 +4334,17 @@ if test "$coroutine" = "gthread" -a "$coroutine_pool" = "yes"; then
   error_exit "'gthread' coroutine backend does not support pool (use --disable-coroutine-pool)"
 fi
 
+if test "$debug_stack_usage" = "yes"; then
+  if test "$cpu" = "ia64" -o "$cpu" = "hppa"; then
+    error_exit "stack usage debugging is not supported for $cpu"
+  fi
+  if test "$coroutine_pool" = "yes"; then
+    echo "WARN: disabling coroutine pool for stack usage debugging"
+    coroutine_pool=no
+  fi
+fi
+
+
 ##########################################
 # check if we have open_by_handle_at
 
@@ -4916,6 +4930,7 @@ echo "QGA MSI support   $guest_agent_msi"
 echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
+echo "debug stack usage $debug_stack_usage"
 echo "GlusterFS support $glusterfs"
 echo "Archipelago support $archipelago"
 echo "gcov              $gcov_tool"
@@ -5382,6 +5397,10 @@ if test "$coroutine_pool" = "yes" ; then
   echo "CONFIG_COROUTINE_POOL=1" >> $config_host_mak
 else
   echo "CONFIG_COROUTINE_POOL=0" >> $config_host_mak
+fi
+
+if test "$debug_stack_usage" = "yes" ; then
+  echo "CONFIG_DEBUG_STACK_USAGE=y" >> $config_host_mak
 fi
 
 if test "$open_by_handle_at" = "yes" ; then
