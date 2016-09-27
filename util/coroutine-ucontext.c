@@ -82,7 +82,7 @@ static void coroutine_trampoline(int i0, int i1)
 
 Coroutine *qemu_coroutine_new(void)
 {
-    const size_t stack_size = 1 << 20;
+    const size_t stack_size = COROUTINE_STACK_SIZE;
     CoroutineUContext *co;
     ucontext_t old_uc, uc;
     sigjmp_buf old_env;

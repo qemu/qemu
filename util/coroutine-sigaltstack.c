@@ -143,7 +143,7 @@ static void coroutine_trampoline(int signal)
 
 Coroutine *qemu_coroutine_new(void)
 {
-    const size_t stack_size = 1 << 20;
+    const size_t stack_size = COROUTINE_STACK_SIZE;
     CoroutineSigAltStack *co;
     CoroutineThreadState *coTS;
     struct sigaction sa;
