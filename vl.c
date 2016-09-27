@@ -2846,7 +2846,8 @@ static bool object_create_initial(const char *type)
         g_str_equal(type, "filter-dump") ||
         g_str_equal(type, "filter-mirror") ||
         g_str_equal(type, "filter-redirector") ||
-        g_str_equal(type, "colo-compare")) {
+        g_str_equal(type, "colo-compare") ||
+        g_str_equal(type, "filter-rewriter")) {
         return false;
     }
 

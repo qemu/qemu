@@ -3887,6 +3887,19 @@ Create a filter-redirector we need to differ outdev id from indev id, id can not
 be the same. we can just use indev or outdev, but at least one of indev or outdev
 need to be specified.
 
+@item -object filter-rewriter,id=@var{id},netdev=@var{netdevid},rewriter-mode=@var{mode}[,queue=@var{all|rx|tx}]
+
+Filter-rewriter is a part of COLO project.It will rewrite tcp packet to
+secondary from primary to keep secondary tcp connection,and rewrite
+tcp packet to primary from secondary make tcp packet can be handled by
+client.
+
+usage:
+colo secondary:
+-object filter-redirector,id=f1,netdev=hn0,queue=tx,indev=red0
+-object filter-redirector,id=f2,netdev=hn0,queue=rx,outdev=red1
+-object filter-rewriter,id=rew0,netdev=hn0,queue=all
+
 @item -object filter-dump,id=@var{id},netdev=@var{dev},file=@var{filename}][,maxlen=@var{len}]
 
 Dump the network traffic on netdev @var{dev} to the file specified by
