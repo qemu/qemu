@@ -575,6 +575,13 @@ int qemu_read_password(char *buf, int buf_size)
 }
 
 
+char *qemu_get_pid_name(pid_t pid)
+{
+    /* XXX Implement me */
+    abort();
+}
+
+
 pid_t qemu_fork(Error **errp)
 {
     errno = ENOSYS;
