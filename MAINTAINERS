@@ -1023,6 +1023,8 @@ Rocker
 M: Jiri Pirko <jiri@resnulli.us>
 S: Maintained
 F: hw/net/rocker/
+F: tests/rocker/
+F: docs/specs/rocker.txt
 
 NVDIMM
 M: Xiao Guangrong <guangrong.xiao@linux.intel.com>
