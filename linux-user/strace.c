@@ -90,10 +90,8 @@ if( cmd == val ) { \
     output_cmd( IPC_STAT );
     output_cmd( IPC_INFO );
     /* msgctl() commands */
-    #ifdef __USER_MISC
     output_cmd( MSG_STAT );
     output_cmd( MSG_INFO );
-    #endif
     /* shmctl() commands */
     output_cmd( SHM_LOCK );
     output_cmd( SHM_UNLOCK );
