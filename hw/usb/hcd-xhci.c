@@ -352,8 +352,6 @@ typedef struct XHCITransfer {
     bool complete;
     bool int_req;
     unsigned int iso_pkts;
-    unsigned int slotid;
-    unsigned int epid;
     unsigned int streamid;
     bool in_xfer;
     bool iso_xfer;
@@ -1450,8 +1448,6 @@ static XHCITransfer *xhci_ep_alloc_xfer(XHCIEPContext *epctx,
 
     xfer = g_new0(XHCITransfer, 1);
     xfer->epctx = epctx;
-    xfer->slotid = epctx->slotid;
-    xfer->epid = epctx->epid;
     xfer->trbs = g_new(XHCITRB, length);
     xfer->trb_count = length;
     usb_packet_init(&xfer->packet);
@@ -1816,8 +1812,8 @@ static void xhci_xfer_report(XHCITransfer *xfer)
         if (!reported && ((trb->control & TRB_TR_IOC) ||
                           (shortpkt && (trb->control & TRB_TR_ISP)) ||
                           (xfer->status != CC_SUCCESS && left == 0))) {
-            event.slotid = xfer->slotid;
-            event.epid = xfer->epid;
+            event.slotid = xfer->epctx->slotid;
+            event.epid = xfer->epctx->epid;
             event.length = (trb->status & 0x1ffff) - chunk;
             event.flags = 0;
             event.ptr = trb->addr;
@@ -1886,7 +1882,7 @@ static int xhci_setup_packet(XHCITransfer *xfer)
     if (xfer->packet.ep) {
         ep = xfer->packet.ep;
     } else {
-        ep = xhci_epid_to_usbep(xhci, xfer->slotid, xfer->epid);
+        ep = xhci_epid_to_usbep(xhci, xfer->epctx->slotid, xfer->epctx->epid);
         if (!ep) {
             DPRINTF("xhci: slot %d has no device\n",
                     xfer->slotid);
@@ -1966,7 +1962,8 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     trb_setup = &xfer->trbs[0];
     trb_status = &xfer->trbs[xfer->trb_count-1];
 
-    trace_usb_xhci_xfer_start(xfer, xfer->slotid, xfer->epid, xfer->streamid);
+    trace_usb_xhci_xfer_start(xfer, xfer->epctx->slotid,
+                              xfer->epctx->epid, xfer->streamid);
 
     /* at most one Event Data TRB allowed after STATUS */
     if (TRB_TYPE(*trb_status) == TR_EVDATA && xfer->trb_count > 2) {
@@ -2120,7 +2117,8 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
 
 static int xhci_fire_transfer(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx)
 {
-    trace_usb_xhci_xfer_start(xfer, xfer->slotid, xfer->epid, xfer->streamid);
+    trace_usb_xhci_xfer_start(xfer, xfer->epctx->slotid,
+                              xfer->epctx->epid, xfer->streamid);
     return xhci_submit(xhci, xfer, epctx);
 }
 
