@@ -33,6 +33,8 @@
 #define COLO_COMPARE(obj) \
     OBJECT_CHECK(CompareState, (obj), TYPE_COLO_COMPARE)
 
+#define MAX_QUEUE_SIZE 1024
+
 /*
   + CompareState ++
   |               |
@@ -67,6 +69,11 @@ typedef struct CompareState {
     SocketReadState pri_rs;
     SocketReadState sec_rs;
 
+    /* connection list: the connections belonged to this NIC could be found
+     * in this list.
+     * element type: Connection
+     */
+    GQueue conn_list;
     /* hashtable to save connection */
     GHashTable *connection_track_table;
 } CompareState;
@@ -94,7 +101,9 @@ static int compare_chr_send(CharDriverState *out,
  */
 static int packet_enqueue(CompareState *s, int mode)
 {
+    ConnectionKey key;
     Packet *pkt = NULL;
+    Connection *conn;
 
     if (mode == PRIMARY_IN) {
         pkt = packet_new(s->pri_rs.buf, s->pri_rs.packet_len);
@@ -107,17 +116,34 @@ static int packet_enqueue(CompareState *s, int mode)
         pkt = NULL;
         return -1;
     }
-    /* TODO: get connection key from pkt */
+    fill_connection_key(pkt, &key);
 
-    /*
-     * TODO: use connection key get conn from
-     * connection_track_table
-     */
+    conn = connection_get(s->connection_track_table,
+                          &key,
+                          &s->conn_list);
 
-    /*
-     * TODO: insert pkt to it's conn->primary_list
-     * or conn->secondary_list
-     */
+    if (!conn->processing) {
+        g_queue_push_tail(&s->conn_list, conn);
+        conn->processing = true;
+    }
+
+    if (mode == PRIMARY_IN) {
+        if (g_queue_get_length(&conn->primary_list) <=
+                               MAX_QUEUE_SIZE) {
+            g_queue_push_tail(&conn->primary_list, pkt);
+        } else {
+            error_report("colo compare primary queue size too big,"
+                         "drop packet");
+        }
+    } else {
+        if (g_queue_get_length(&conn->secondary_list) <=
+                               MAX_QUEUE_SIZE) {
+            g_queue_push_tail(&conn->secondary_list, pkt);
+        } else {
+            error_report("colo compare secondary queue size too big,"
+                         "drop packet");
+        }
+    }
 
     return 0;
 }
@@ -308,7 +334,12 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize);
     net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize);
 
-    /* use g_hash_table_new_full() to new a hashtable */
+    g_queue_init(&s->conn_list);
+
+    s->connection_track_table = g_hash_table_new_full(connection_key_hash,
+                                                      connection_key_equal,
+                                                      g_free,
+                                                      connection_destroy);
 
     return;
 }
@@ -348,6 +379,8 @@ static void colo_compare_finalize(Object *obj)
     if (s->chr_out) {
         qemu_chr_fe_release(s->chr_out);
     }
+
+    g_queue_free(&s->conn_list);
 
     g_free(s->pri_indev);
     g_free(s->sec_indev);

@@ -20,6 +20,18 @@
 
 #define HASHTABLE_MAX_SIZE 16384
 
+#ifndef IPPROTO_DCCP
+#define IPPROTO_DCCP 33
+#endif
+
+#ifndef IPPROTO_SCTP
+#define IPPROTO_SCTP 132
+#endif
+
+#ifndef IPPROTO_UDPLITE
+#define IPPROTO_UDPLITE 136
+#endif
+
 typedef struct Packet {
     void *data;
     union {
@@ -30,7 +42,34 @@ typedef struct Packet {
     int size;
 } Packet;
 
+typedef struct ConnectionKey {
+    /* (src, dst) must be grouped, in the same way than in IP header */
+    struct in_addr src;
+    struct in_addr dst;
+    uint16_t src_port;
+    uint16_t dst_port;
+    uint8_t ip_proto;
+} QEMU_PACKED ConnectionKey;
+
+typedef struct Connection {
+    /* connection primary send queue: element type: Packet */
+    GQueue primary_list;
+    /* connection secondary send queue: element type: Packet */
+    GQueue secondary_list;
+    /* flag to enqueue unprocessed_connections */
+    bool processing;
+    uint8_t ip_proto;
+} Connection;
+
+uint32_t connection_key_hash(const void *opaque);
+int connection_key_equal(const void *opaque1, const void *opaque2);
 int parse_packet_early(Packet *pkt);
+void fill_connection_key(Packet *pkt, ConnectionKey *key);
+Connection *connection_new(ConnectionKey *key);
+void connection_destroy(void *opaque);
+Connection *connection_get(GHashTable *connection_track_table,
+                           ConnectionKey *key,
+                           GQueue *conn_list);
 void connection_hashtable_reset(GHashTable *connection_track_table);
 Packet *packet_new(const void *data, int size);
 void packet_destroy(void *opaque, void *user_data);
