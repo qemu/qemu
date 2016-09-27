@@ -1675,8 +1675,12 @@ static void qemu_kill_report(void)
              */
             error_report("terminating on signal %d", shutdown_signal);
         } else {
-            error_report("terminating on signal %d from pid " FMT_pid,
-                         shutdown_signal, shutdown_pid);
+            char *shutdown_cmd = qemu_get_pid_name(shutdown_pid);
+
+            error_report("terminating on signal %d from pid " FMT_pid " (%s)",
+                         shutdown_signal, shutdown_pid,
+                         shutdown_cmd ? shutdown_cmd : "<unknown process>");
+            g_free(shutdown_cmd);
         }
         shutdown_signal = -1;
     }
