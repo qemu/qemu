@@ -33,6 +33,7 @@
 typedef struct {
     Coroutine base;
     void *stack;
+    size_t stack_size;
     sigjmp_buf env;
 } CoroutineSigAltStack;
 
@@ -143,7 +144,6 @@ static void coroutine_trampoline(int signal)
 
 Coroutine *qemu_coroutine_new(void)
 {
-    const size_t stack_size = COROUTINE_STACK_SIZE;
     CoroutineSigAltStack *co;
     CoroutineThreadState *coTS;
     struct sigaction sa;
@@ -164,7 +164,8 @@ Coroutine *qemu_coroutine_new(void)
      */
 
     co = g_malloc0(sizeof(*co));
-    co->stack = g_malloc(stack_size);
+    co->stack_size = COROUTINE_STACK_SIZE;
+    co->stack = qemu_alloc_stack(&co->stack_size);
     co->base.entry_arg = &old_env; /* stash away our jmp_buf */
 
     coTS = coroutine_get_thread_state();
@@ -189,7 +190,7 @@ Coroutine *qemu_coroutine_new(void)
      * Set the new stack.
      */
     ss.ss_sp = co->stack;
-    ss.ss_size = stack_size;
+    ss.ss_size = co->stack_size;
     ss.ss_flags = 0;
     if (sigaltstack(&ss, &oss) < 0) {
         abort();
@@ -253,7 +254,7 @@ void qemu_coroutine_delete(Coroutine *co_)
 {
     CoroutineSigAltStack *co = DO_UPCAST(CoroutineSigAltStack, base, co_);
 
-    g_free(co->stack);
+    qemu_free_stack(co->stack, co->stack_size);
     g_free(co);
 }
 
