@@ -65,7 +65,8 @@ struct CharDriverState {
     int (*chr_sync_read)(struct CharDriverState *s,
                          const uint8_t *buf, int len);
     GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
-    void (*chr_update_read_handler)(struct CharDriverState *s);
+    void (*chr_update_read_handler)(struct CharDriverState *s,
+                                    GMainContext *context);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
     int (*get_msgfds)(struct CharDriverState *s, int* fds, int num);
     int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
@@ -421,6 +422,14 @@ void qemu_chr_add_handlers(CharDriverState *s,
                            IOReadHandler *fd_read,
                            IOEventHandler *fd_event,
                            void *opaque);
+
+/* This API can make handler run in the context what you pass to. */
+void qemu_chr_add_handlers_full(CharDriverState *s,
+                                IOCanReadHandler *fd_can_read,
+                                IOReadHandler *fd_read,
+                                IOEventHandler *fd_event,
+                                void *opaque,
+                                GMainContext *context);
 
 void qemu_chr_be_generic_open(CharDriverState *s);
 void qemu_chr_accept_input(CharDriverState *s);
