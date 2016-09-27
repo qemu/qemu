@@ -16,3 +16,6 @@ common-obj-$(CONFIG_NETMAP) += netmap.o
 common-obj-y += filter.o
 common-obj-y += filter-buffer.o
 common-obj-y += filter-mirror.o
+common-obj-y += colo-compare.o
+common-obj-y += colo.o
+common-obj-y += filter-rewriter.o

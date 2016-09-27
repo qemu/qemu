@@ -1,0 +1,188 @@
+COLO-proxy
+----------
+Copyright (c) 2016 Intel Corporation
+Copyright (c) 2016 HUAWEI TECHNOLOGIES CO., LTD.
+Copyright (c) 2016 Fujitsu, Corp.
+
+This work is licensed under the terms of the GNU GPL, version 2 or later.
+See the COPYING file in the top-level directory.
+
+This document gives an overview of COLO proxy's design.
+
+== Background ==
+COLO-proxy is a part of COLO project. It is used
+to compare the network package to help COLO decide
+whether to do checkpoint. With COLO-proxy's help,
+COLO greatly improves the performance.
+
+The filter-redirector, filter-mirror, colo-compare
+and filter-rewriter compose the COLO-proxy.
+
+== Architecture ==
+
+COLO-Proxy is based on qemu netfilter and it's a plugin for qemu netfilter
+(except colo-compare). It keep Secondary VM connect normally to
+client and compare packets sent by PVM with sent by SVM.
+If the packet difference, notify COLO-frame to do checkpoint and send
+all primary packet has queued. Otherwise just send the queued primary
+packet and drop the queued secondary packet.
+
+Below is a COLO proxy ascii figure:
+
+ Primary qemu                                                           Secondary qemu
++--------------------------------------------------------------+       +----------------------------------------------------------------+
+| +----------------------------------------------------------+ |       |  +-----------------------------------------------------------+ |
+| |                                                          | |       |  |                                                           | |
+| |                        guest                             | |       |  |                        guest                              | |
+| |                                                          | |       |  |                                                           | |
+| +-------^--------------------------+-----------------------+ |       |  +---------------------+--------+----------------------------+ |
+|         |                          |                         |       |                        ^        |                              |
+|         |                          |                         |       |                        |        |                              |
+|         |  +------------------------------------------------------+  |                        |        |                              |
+|netfilter|  |                       |                         |    |  |   netfilter            |        |                              |
+| +----------+ +----------------------------+                  |    |  |  +-----------------------------------------------------------+ |
+| |       |  |                       |      |        out       |    |  |  |                     |        |  filter excute order       | |
+| |       |  |          +-----------------------------+        |    |  |  |                     |        | +------------------->      | |
+| |       |  |          |            |      |         |        |    |  |  |                     |        |   TCP                      | |
+| | +-----+--+-+  +-----v----+ +-----v----+ |pri +----+----+sec|    |  |  | +------------+  +---+----+---v+rewriter++  +------------+ | |
+| | |          |  |          | |          | |in  |         |in |    |  |  | |            |  |        |              |  |            | | |
+| | |  filter  |  |  filter  | |  filter  +------>  colo   <------+ +-------->  filter   +--> adjust |   adjust     +-->   filter   | | |
+| | |  mirror  |  |redirector| |redirector| |    | compare |   |  |    |  | | redirector |  | ack    |   seq        |  | redirector | | |
+| | |          |  |          | |          | |    |         |   |  |    |  | |            |  |        |              |  |            | | |
+| | +----^-----+  +----+-----+ +----------+ |    +---------+   |  |    |  | +------------+  +--------+--------------+  +---+--------+ | |
+| |      |   tx        |   rx           rx  |                  |  |    |  |            tx                        all       |  rx      | |
+| |      |             |                    |                  |  |    |  +-----------------------------------------------------------+ |
+| |      |             +--------------+     |                  |  |    |                                                   |            |
+| |      |   filter excute order      |     |                  |  |    |                                                   |            |
+| |      |  +---------------->        |     |                  |  +--------------------------------------------------------+            |
+| +-----------------------------------------+                  |       |                                                                |
+|        |                            |                        |       |                                                                |
++--------------------------------------------------------------+       +----------------------------------------------------------------+
+         |guest receive               | guest send
+         |                            |
++--------+----------------------------v------------------------+
+|                                                              |                          NOTE: filter direction is rx/tx/all
+|                         tap                                  |                          rx:receive packets sent to the netdev
+|                                                              |                          tx:receive packets sent by the netdev
++--------------------------------------------------------------+
+
+1.Guest receive packet route:
+
+Primary:
+
+Tap --> Mirror Client Filter
+Mirror client will send packet to guest,at the
+same time, copy and forward packet to secondary
+mirror server.
+
+Secondary:
+
+Mirror Server Filter --> TCP Rewriter
+If receive packet is TCP packet,we will adjust ack
+and update TCP checksum, then send to secondary
+guest. Otherwise directly send to guest.
+
+2.Guest send packet route:
+
+Primary:
+
+Guest --> Redirect Server Filter
+Redirect server filter receive primary guest packet
+but do nothing, just pass to next filter.
+
+Redirect Server Filter --> COLO-Compare
+COLO-compare receive primary guest packet then
+waiting scondary redirect packet to compare it.
+If packet same,send queued primary packet and clear
+queued secondary packet, Otherwise send primary packet
+and do checkpoint.
+
+COLO-Compare --> Another Redirector Filter
+The redirector get packet from colo-compare by use
+chardev socket.
+
+Redirector Filter --> Tap
+Send the packet.
+
+Secondary:
+
+Guest --> TCP Rewriter Filter
+If the packet is TCP packet,we will adjust seq
+and update TCP checksum. Then send it to
+redirect client filter. Otherwise directly send to
+redirect client filter.
+
+Redirect Client Filter --> Redirect Server Filter
+Forward packet to primary.
+
+== Components introduction ==
+
+Filter-mirror is a netfilter plugin.
+It gives qemu the ability to mirror
+packets to a chardev.
+
+Filter-redirector is a netfilter plugin.
+It gives qemu the ability to redirect net packet.
+Redirector can redirect filter's net packet to outdev,
+and redirect indev's packet to filter.
+
+                    filter
+                      +
+          redirector  |
+             +--------------+
+             |        |     |
+             |        |     |
+             |        |     |
+  indev +---------+   +---------->  outdev
+             |    |         |
+             |    |         |
+             |    |         |
+             +--------------+
+                  |
+                  v
+                filter
+
+COLO-compare, we do packet comparing job.
+Packets coming from the primary char indev will be sent to outdev.
+Packets coming from the secondary char dev will be dropped after comparing.
+COLO-comapre need two input chardev and one output chardev:
+primary_in=chardev1-id (source: primary send packet)
+secondary_in=chardev2-id (source: secondary send packet)
+outdev=chardev3-id
+
+Filter-rewriter will rewrite some of secondary packet to make
+secondary guest's tcp connection established successfully.
+In this module we will rewrite tcp packet's ack to the secondary
+from primary,and rewrite tcp packet's seq to the primary from
+secondary.
+
+== Usage ==
+
+Here, we use demo ip and port discribe more clearly.
+Primary(ip:3.3.3.3):
+-netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown
+-device e1000,id=e0,netdev=hn0,mac=52:a4:00:12:78:66
+-chardev socket,id=mirror0,host=3.3.3.3,port=9003,server,nowait
+-chardev socket,id=compare1,host=3.3.3.3,port=9004,server,nowait
+-chardev socket,id=compare0,host=3.3.3.3,port=9001,server,nowait
+-chardev socket,id=compare0-0,host=3.3.3.3,port=9001
+-chardev socket,id=compare_out,host=3.3.3.3,port=9005,server,nowait
+-chardev socket,id=compare_out0,host=3.3.3.3,port=9005
+-object filter-mirror,id=m0,netdev=hn0,queue=tx,outdev=mirror0
+-object filter-redirector,netdev=hn0,id=redire0,queue=rx,indev=compare_out
+-object filter-redirector,netdev=hn0,id=redire1,queue=rx,outdev=compare0
+-object colo-compare,id=comp0,primary_in=compare0-0,secondary_in=compare1,outdev=compare_out0
+
+Secondary(ip:3.3.3.8):
+-netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,down script=/etc/qemu-ifdown
+-device e1000,netdev=hn0,mac=52:a4:00:12:78:66
+-chardev socket,id=red0,host=3.3.3.3,port=9003
+-chardev socket,id=red1,host=3.3.3.3,port=9004
+-object filter-redirector,id=f1,netdev=hn0,queue=tx,indev=red0
+-object filter-redirector,id=f2,netdev=hn0,queue=rx,outdev=red1
+
+Note:
+  a.COLO-proxy must work with COLO-frame and Block-replication.
+  b.Primary COLO must be started firstly, because COLO-proxy needs
+    chardev socket server running before secondary started.
+  c.Filter-rewriter only rewrite tcp packet.

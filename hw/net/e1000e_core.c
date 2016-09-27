@@ -953,7 +953,7 @@ e1000e_has_rxbufs(E1000ECore *core, const E1000E_RingInfo *r,
                          core->rx_desc_buf_size;
 }
 
-static inline void
+void
 e1000e_start_recv(E1000ECore *core)
 {
     int i;
@@ -1710,7 +1710,8 @@ e1000e_receive_iov(E1000ECore *core, const struct iovec *iov, int iovcnt)
         }
 
         /* Perform ACK receive detection */
-        if (e1000e_is_tcp_ack(core, core->rx_pkt)) {
+        if  (!(core->mac[RFCTL] & E1000_RFCTL_ACK_DIS) &&
+             (e1000e_is_tcp_ack(core, core->rx_pkt))) {
             n |= E1000_ICS_ACK;
         }
 
@@ -1807,6 +1808,7 @@ e1000e_core_set_link_status(E1000ECore *core)
                                    core->autoneg_timer);
         } else {
             e1000x_update_regs_on_link_up(core->mac, core->phy[0]);
+            e1000e_start_recv(core);
         }
     }
 
@@ -2007,19 +2009,23 @@ e1000e_msix_notify_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
     }
 
     if (core->mac[CTRL_EXT] & E1000_CTRL_EXT_EIAME) {
-        trace_e1000e_irq_ims_clear_eiame(core->mac[IAM], cause);
-        e1000e_clear_ims_bits(core, core->mac[IAM] & cause);
+        trace_e1000e_irq_iam_clear_eiame(core->mac[IAM], cause);
+        core->mac[IAM] &= ~cause;
     }
 
     trace_e1000e_irq_icr_clear_eiac(core->mac[ICR], core->mac[EIAC]);
 
-    if (core->mac[EIAC] & E1000_ICR_OTHER) {
-        effective_eiac = (core->mac[EIAC] & E1000_EIAC_MASK) |
-                         E1000_ICR_OTHER_CAUSES;
-    } else {
-        effective_eiac = core->mac[EIAC] & E1000_EIAC_MASK;
+    effective_eiac = core->mac[EIAC] & cause;
+
+    if (effective_eiac == E1000_ICR_OTHER) {
+        effective_eiac |= E1000_ICR_OTHER_CAUSES;
     }
+
     core->mac[ICR] &= ~effective_eiac;
+
+    if (!(core->mac[CTRL_EXT] & E1000_CTRL_EXT_IAME)) {
+        core->mac[IMS] &= ~effective_eiac;
+    }
 }
 
 static void
@@ -2130,7 +2136,7 @@ e1000e_update_interrupt_state(E1000ECore *core)
 
     /* Set ICR[OTHER] for MSI-X */
     if (is_msix) {
-        if (core->mac[ICR] & core->mac[IMS] & E1000_ICR_OTHER_CAUSES) {
+        if (core->mac[ICR] & E1000_ICR_OTHER_CAUSES) {
             core->mac[ICR] |= E1000_ICR_OTHER;
             trace_e1000e_irq_add_msi_other(core->mac[ICR]);
         }
@@ -2168,7 +2174,7 @@ e1000e_update_interrupt_state(E1000ECore *core)
     }
 }
 
-static inline void
+static void
 e1000e_set_interrupt_cause(E1000ECore *core, uint32_t val)
 {
     trace_e1000e_irq_set_cause_entry(val, core->mac[ICR]);
@@ -2187,6 +2193,8 @@ e1000e_autoneg_timer(void *opaque)
     E1000ECore *core = opaque;
     if (!qemu_get_queue(core->owner_nic)->link_down) {
         e1000x_update_regs_on_autoneg_done(core->mac, core->phy[0]);
+        e1000e_start_recv(core);
+
         e1000e_update_flowctl_status(core);
         /* signal link status change to the guest */
         e1000e_set_interrupt_cause(core, E1000_ICR_LSC);
@@ -2344,7 +2352,7 @@ e1000e_set_pbaclr(E1000ECore *core, int index, uint32_t val)
 
     core->mac[PBACLR] = val & E1000_PBACLR_VALID_MASK;
 
-    if (msix_enabled(core->owner)) {
+    if (!msix_enabled(core->owner)) {
         return;
     }
 

@@ -449,11 +449,12 @@ void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
 
 static void remove_fd_in_watch(CharDriverState *chr);
 
-void qemu_chr_add_handlers(CharDriverState *s,
-                           IOCanReadHandler *fd_can_read,
-                           IOReadHandler *fd_read,
-                           IOEventHandler *fd_event,
-                           void *opaque)
+void qemu_chr_add_handlers_full(CharDriverState *s,
+                                IOCanReadHandler *fd_can_read,
+                                IOReadHandler *fd_read,
+                                IOEventHandler *fd_event,
+                                void *opaque,
+                                GMainContext *context)
 {
     int fe_open;
 
@@ -467,8 +468,9 @@ void qemu_chr_add_handlers(CharDriverState *s,
     s->chr_read = fd_read;
     s->chr_event = fd_event;
     s->handler_opaque = opaque;
-    if (fe_open && s->chr_update_read_handler)
-        s->chr_update_read_handler(s);
+    if (fe_open && s->chr_update_read_handler) {
+        s->chr_update_read_handler(s, context);
+    }
 
     if (!s->explicit_fe_open) {
         qemu_chr_fe_set_open(s, fe_open);
@@ -479,6 +481,16 @@ void qemu_chr_add_handlers(CharDriverState *s,
     if (fe_open && s->be_open) {
         qemu_chr_be_generic_open(s);
     }
+}
+
+void qemu_chr_add_handlers(CharDriverState *s,
+                           IOCanReadHandler *fd_can_read,
+                           IOReadHandler *fd_read,
+                           IOEventHandler *fd_event,
+                           void *opaque)
+{
+    qemu_chr_add_handlers_full(s, fd_can_read, fd_read,
+                               fd_event, opaque, NULL);
 }
 
 static int null_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
@@ -722,7 +734,8 @@ static void mux_chr_event(void *opaque, int event)
         mux_chr_send_event(d, i, event);
 }
 
-static void mux_chr_update_read_handler(CharDriverState *chr)
+static void mux_chr_update_read_handler(CharDriverState *chr,
+                                        GMainContext *context)
 {
     MuxDriver *d = chr->opaque;
 
@@ -736,8 +749,10 @@ static void mux_chr_update_read_handler(CharDriverState *chr)
     d->chr_event[d->mux_cnt] = chr->chr_event;
     /* Fix up the real driver with mux routines */
     if (d->mux_cnt == 0) {
-        qemu_chr_add_handlers(d->drv, mux_chr_can_read, mux_chr_read,
-                              mux_chr_event, chr);
+        qemu_chr_add_handlers_full(d->drv, mux_chr_can_read,
+                                   mux_chr_read,
+                                   mux_chr_event,
+                                   chr, context);
     }
     if (d->focus != -1) {
         mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_OUT);
@@ -853,6 +868,7 @@ typedef struct IOWatchPoll
     IOCanReadHandler *fd_can_read;
     GSourceFunc fd_read;
     void *opaque;
+    GMainContext *context;
 } IOWatchPoll;
 
 static IOWatchPoll *io_watch_poll_from_source(GSource *source)
@@ -860,7 +876,8 @@ static IOWatchPoll *io_watch_poll_from_source(GSource *source)
     return container_of(source, IOWatchPoll, parent);
 }
 
-static gboolean io_watch_poll_prepare(GSource *source, gint *timeout_)
+static gboolean io_watch_poll_prepare(GSource *source,
+                                      gint *timeout_)
 {
     IOWatchPoll *iwp = io_watch_poll_from_source(source);
     bool now_active = iwp->fd_can_read(iwp->opaque) > 0;
@@ -873,7 +890,7 @@ static gboolean io_watch_poll_prepare(GSource *source, gint *timeout_)
         iwp->src = qio_channel_create_watch(
             iwp->ioc, G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL);
         g_source_set_callback(iwp->src, iwp->fd_read, iwp->opaque, NULL);
-        g_source_attach(iwp->src, NULL);
+        g_source_attach(iwp->src, iwp->context);
     } else {
         g_source_destroy(iwp->src);
         g_source_unref(iwp->src);
@@ -920,19 +937,22 @@ static GSourceFuncs io_watch_poll_funcs = {
 static guint io_add_watch_poll(QIOChannel *ioc,
                                IOCanReadHandler *fd_can_read,
                                QIOChannelFunc fd_read,
-                               gpointer user_data)
+                               gpointer user_data,
+                               GMainContext *context)
 {
     IOWatchPoll *iwp;
     int tag;
 
-    iwp = (IOWatchPoll *) g_source_new(&io_watch_poll_funcs, sizeof(IOWatchPoll));
+    iwp = (IOWatchPoll *) g_source_new(&io_watch_poll_funcs,
+                                       sizeof(IOWatchPoll));
     iwp->fd_can_read = fd_can_read;
     iwp->opaque = user_data;
     iwp->ioc = ioc;
     iwp->fd_read = (GSourceFunc) fd_read;
     iwp->src = NULL;
+    iwp->context = context;
 
-    tag = g_source_attach(&iwp->parent, NULL);
+    tag = g_source_attach(&iwp->parent, context);
     g_source_unref(&iwp->parent);
     return tag;
 }
@@ -1064,7 +1084,8 @@ static GSource *fd_chr_add_watch(CharDriverState *chr, GIOCondition cond)
     return qio_channel_create_watch(s->ioc_out, cond);
 }
 
-static void fd_chr_update_read_handler(CharDriverState *chr)
+static void fd_chr_update_read_handler(CharDriverState *chr,
+                                       GMainContext *context)
 {
     FDCharDriver *s = chr->opaque;
 
@@ -1072,7 +1093,8 @@ static void fd_chr_update_read_handler(CharDriverState *chr)
     if (s->ioc_in) {
         chr->fd_in_tag = io_add_watch_poll(s->ioc_in,
                                            fd_chr_read_poll,
-                                           fd_chr_read, chr);
+                                           fd_chr_read, chr,
+                                           context);
     }
 }
 
@@ -1319,7 +1341,8 @@ static void pty_chr_update_read_handler_locked(CharDriverState *chr)
     }
 }
 
-static void pty_chr_update_read_handler(CharDriverState *chr)
+static void pty_chr_update_read_handler(CharDriverState *chr,
+                                        GMainContext *context)
 {
     qemu_mutex_lock(&chr->chr_write_lock);
     pty_chr_update_read_handler_locked(chr);
@@ -1423,7 +1446,8 @@ static void pty_chr_state(CharDriverState *chr, int connected)
         if (!chr->fd_in_tag) {
             chr->fd_in_tag = io_add_watch_poll(s->ioc,
                                                pty_chr_read_poll,
-                                               pty_chr_read, chr);
+                                               pty_chr_read,
+                                               chr, NULL);
         }
     }
 }
@@ -2565,7 +2589,8 @@ static gboolean udp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     return TRUE;
 }
 
-static void udp_chr_update_read_handler(CharDriverState *chr)
+static void udp_chr_update_read_handler(CharDriverState *chr,
+                                        GMainContext *context)
 {
     NetCharDriver *s = chr->opaque;
 
@@ -2573,7 +2598,8 @@ static void udp_chr_update_read_handler(CharDriverState *chr)
     if (s->ioc) {
         chr->fd_in_tag = io_add_watch_poll(s->ioc,
                                            udp_chr_read_poll,
-                                           udp_chr_read, chr);
+                                           udp_chr_read, chr,
+                                           context);
     }
 }
 
@@ -2976,12 +3002,14 @@ static void tcp_chr_connect(void *opaque)
     if (s->ioc) {
         chr->fd_in_tag = io_add_watch_poll(s->ioc,
                                            tcp_chr_read_poll,
-                                           tcp_chr_read, chr);
+                                           tcp_chr_read,
+                                           chr, NULL);
     }
     qemu_chr_be_generic_open(chr);
 }
 
-static void tcp_chr_update_read_handler(CharDriverState *chr)
+static void tcp_chr_update_read_handler(CharDriverState *chr,
+                                        GMainContext *context)
 {
     TCPCharDriver *s = chr->opaque;
 
@@ -2993,7 +3021,8 @@ static void tcp_chr_update_read_handler(CharDriverState *chr)
     if (s->ioc) {
         chr->fd_in_tag = io_add_watch_poll(s->ioc,
                                            tcp_chr_read_poll,
-                                           tcp_chr_read, chr);
+                                           tcp_chr_read, chr,
+                                           context);
     }
 }
 

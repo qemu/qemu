@@ -144,3 +144,6 @@ e1000e_receive(E1000ECore *core, const uint8_t *buf, size_t size);
 
 ssize_t
 e1000e_receive_iov(E1000ECore *core, const struct iovec *iov, int iovcnt);
+
+void
+e1000e_start_recv(E1000ECore *core);
