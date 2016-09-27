@@ -49,7 +49,7 @@
 #define TD_QUEUE 24
 
 /* Very pessimistic, let's hope it's enough for all cases */
-#define EV_QUEUE (((3*TD_QUEUE)+16)*MAXSLOTS)
+#define EV_QUEUE (((3 * 24) + 16) * MAXSLOTS)
 /* Do not deliver ER Full events. NEC's driver does some things not bound
  * to the specs when it gets them */
 #define ER_FULL_HACK
