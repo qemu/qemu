@@ -130,6 +130,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 }
                 if (ret < 0) {
                     qemu_file_set_error(f, ret);
+                    error_report("Failed to load %s:%s", vmsd->name,
+                                 field->name);
                     trace_vmstate_load_field_error(field->name, ret);
                     return ret;
                 }
