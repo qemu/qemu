@@ -559,12 +559,19 @@ static void spapr_populate_pa_features(CPUPPCState *env, void *fdt, int offset)
     uint8_t *pa_features;
     size_t pa_size;
 
-    if (env->mmu_model == POWERPC_MMU_2_06) {
+    switch (env->mmu_model) {
+    case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06a:
         pa_features = pa_features_206;
         pa_size = sizeof(pa_features_206);
-    } else { /* env->mmu_model == POWERPC_MMU_2_07 */
+        break;
+    case POWERPC_MMU_2_07:
+    case POWERPC_MMU_2_07a:
         pa_features = pa_features_207;
         pa_size = sizeof(pa_features_207);
+        break;
+    default:
+        return;
     }
 
     if (env->ci_large_pages) {
