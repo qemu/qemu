@@ -155,6 +155,25 @@ static void gen_lxvh8x(DisasContext *ctx)
     tcg_temp_free(EA);
 }
 
+static void gen_lxvb16x(DisasContext *ctx)
+{
+    TCGv EA;
+    TCGv_i64 xth = cpu_vsrh(xT(ctx->opcode));
+    TCGv_i64 xtl = cpu_vsrl(xT(ctx->opcode));
+
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    tcg_gen_qemu_ld_i64(xth, EA, ctx->mem_idx, MO_BEQ);
+    tcg_gen_addi_tl(EA, EA, 8);
+    tcg_gen_qemu_ld_i64(xtl, EA, ctx->mem_idx, MO_BEQ);
+    tcg_temp_free(EA);
+}
+
 #define VSX_STORE_SCALAR(name, operation)                     \
 static void gen_##name(DisasContext *ctx)                     \
 {                                                             \
