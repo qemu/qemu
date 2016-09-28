@@ -37,10 +37,6 @@ cpu_out(unsigned int addr, char size, unsigned int val) "addr %#x(%c) value %u"
 # balloon.c
 # Since requests are raised via monitor, not many tracepoints are needed.
 balloon_event(void *opaque, unsigned long addr) "opaque %p addr %lu"
-virtio_balloon_handle_output(const char *name, uint64_t gpa) "section name: %s gpa: %"PRIx64
-virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d actual: %d"
-virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
-virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: %"PRIx64" num_pages: %d"
 
 # vl.c
 vm_state_notify(int running, int reason) "running %d reason %d"
@@ -82,19 +78,6 @@ cpu_ioreq_move(void *req, uint32_t dir, uint32_t df, uint32_t data_is_ptr, uint6
 xen_map_cache(uint64_t phys_addr) "want %#"PRIx64
 xen_remap_bucket(uint64_t index) "index %#"PRIx64
 xen_map_cache_return(void* ptr) "%p"
-
-# qemu-coroutine.c
-qemu_coroutine_enter(void *from, void *to, void *opaque) "from %p to %p opaque %p"
-qemu_coroutine_yield(void *from, void *to) "from %p to %p"
-qemu_coroutine_terminate(void *co) "self %p"
-
-# qemu-coroutine-lock.c
-qemu_co_queue_run_restart(void *co) "co %p"
-qemu_co_queue_next(void *nxt) "next %p"
-qemu_co_mutex_lock_entry(void *mutex, void *self) "mutex %p self %p"
-qemu_co_mutex_lock_return(void *mutex, void *self) "mutex %p self %p"
-qemu_co_mutex_unlock_entry(void *mutex, void *self) "mutex %p self %p"
-qemu_co_mutex_unlock_return(void *mutex, void *self) "mutex %p self %p"
 
 # monitor.c
 handle_qmp_command(void *mon, const char *cmd_name) "mon %p cmd_name \"%s\""
@@ -157,6 +140,19 @@ colo_filter_rewriter_conn_offset(uint32_t offset) ": offset=%u\n"
 
 ### Guest events, keep at bottom
 
+
+## vCPU
+
+# Hot-plug a new virtual (guest) CPU
+#
+# Targets: all
+vcpu guest_cpu_enter(void)
+
+# Reset the state of a virtual (guest) CPU
+#
+# Targets: all
+vcpu guest_cpu_reset(void)
+
 # @vaddr: Access' virtual address.
 # @info : Access' information (see below).
 #
@@ -173,6 +169,7 @@ colo_filter_rewriter_conn_offset(uint32_t offset) ": offset=%u\n"
 #     bool    store      : 1; /* wheter it's a store operation */
 # };
 #
+# Mode: user, softmmu
 # Targets: TCG(all)
 disable vcpu tcg guest_mem_before(TCGv vaddr, uint8_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
 
@@ -181,6 +178,7 @@ disable vcpu tcg guest_mem_before(TCGv vaddr, uint8_t info) "info=%d", "vaddr=0x
 #
 # Start executing a guest system call in syscall emulation mode.
 #
+# Mode: user
 # Targets: TCG(all)
 disable vcpu guest_user_syscall(uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6, uint64_t arg7, uint64_t arg8) "num=0x%016"PRIx64" arg1=0x%016"PRIx64" arg2=0x%016"PRIx64" arg3=0x%016"PRIx64" arg4=0x%016"PRIx64" arg5=0x%016"PRIx64" arg6=0x%016"PRIx64" arg7=0x%016"PRIx64" arg8=0x%016"PRIx64
 
@@ -189,5 +187,6 @@ disable vcpu guest_user_syscall(uint64_t num, uint64_t arg1, uint64_t arg2, uint
 #
 # Finish executing a guest system call in syscall emulation mode.
 #
+# Mode: user
 # Targets: TCG(all)
 disable vcpu guest_user_syscall_ret(uint64_t num, uint64_t ret) "num=0x%016"PRIx64" ret=0x%016"PRIx64

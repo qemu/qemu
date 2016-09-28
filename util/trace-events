@@ -1,5 +1,24 @@
 # See docs/tracing.txt for syntax documentation.
 
+# util/buffer.c
+buffer_resize(const char *buf, size_t olen, size_t len) "%s: old %zd, new %zd"
+buffer_move_empty(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
+buffer_move(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
+buffer_free(const char *buf, size_t len) "%s: capacity %zd"
+
+# util/qemu-coroutine.c
+qemu_coroutine_enter(void *from, void *to, void *opaque) "from %p to %p opaque %p"
+qemu_coroutine_yield(void *from, void *to) "from %p to %p"
+qemu_coroutine_terminate(void *co) "self %p"
+
+# util/qemu-coroutine-lock.c
+qemu_co_queue_run_restart(void *co) "co %p"
+qemu_co_queue_next(void *nxt) "next %p"
+qemu_co_mutex_lock_entry(void *mutex, void *self) "mutex %p self %p"
+qemu_co_mutex_lock_return(void *mutex, void *self) "mutex %p self %p"
+qemu_co_mutex_unlock_entry(void *mutex, void *self) "mutex %p self %p"
+qemu_co_mutex_unlock_return(void *mutex, void *self) "mutex %p self %p"
+
 # util/oslib-win32.c
 # util/oslib-posix.c
 qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"

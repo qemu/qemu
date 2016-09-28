@@ -4660,7 +4660,6 @@ int main(int argc, char **argv, char **envp)
 
     os_setup_post();
 
-    trace_init_vcpu_events();
     main_loop();
     replay_disable_events();
     iothread_stop_all();
