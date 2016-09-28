@@ -11,6 +11,9 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
+BUILD_DIR=/var/tmp/qemu-build
+mkdir $BUILD_DIR
+
 requires()
 {
     for c in $@; do
