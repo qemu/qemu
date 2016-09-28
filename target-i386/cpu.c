@@ -258,6 +258,7 @@ typedef struct FeatureWordInfo {
     int cpuid_reg;        /* output register (R_* constant) */
     uint32_t tcg_features; /* Feature flags supported by TCG */
     uint32_t unmigratable_flags; /* Feature flags known to be unmigratable */
+    uint32_t migratable_flags; /* Feature flags known to be migratable */
 } FeatureWordInfo;
 
 static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
@@ -494,6 +495,10 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .cpuid_needs_ecx = true, .cpuid_ecx = 0,
         .cpuid_reg = R_EAX,
         .tcg_features = ~0U,
+        .migratable_flags = XSTATE_FP_MASK | XSTATE_SSE_MASK |
+            XSTATE_YMM_MASK | XSTATE_BNDREGS_MASK | XSTATE_BNDCSR_MASK |
+            XSTATE_OPMASK_MASK | XSTATE_ZMM_Hi256_MASK | XSTATE_Hi16_ZMM_MASK |
+            XSTATE_PKRU_MASK,
     },
     [FEAT_XSAVE_COMP_HI] = {
         .cpuid_eax = 0xD,
@@ -600,15 +605,13 @@ static uint32_t x86_cpu_get_migratable_flags(FeatureWord w)
 
     for (i = 0; i < 32; i++) {
         uint32_t f = 1U << i;
-        /* If the feature name is unknown, it is not supported by QEMU yet */
-        if (!wi->feat_names[i]) {
-            continue;
+
+        /* If the feature name is known, it is implicitly considered migratable,
+         * unless it is explicitly set in unmigratable_flags */
+        if ((wi->migratable_flags & f) ||
+            (wi->feat_names[i] && !(wi->unmigratable_flags & f))) {
+            r |= f;
         }
-        /* Skip features known to QEMU, but explicitly marked as unmigratable */
-        if (wi->unmigratable_flags & f) {
-            continue;
-        }
-        r |= f;
     }
     return r;
 }
