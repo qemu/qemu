@@ -181,9 +181,6 @@ GEN_HANDLER2_E(name, str, 0x4, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ISA300),
     GEN_VXRFORM1_300(name, name, #name, opc2, opc3)                         \
     GEN_VXRFORM1_300(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
 
-GEN_VXRFORM(vcmpequb, 3, 0)
-GEN_VXRFORM(vcmpequh, 3, 1)
-GEN_VXRFORM(vcmpequw, 3, 2)
 GEN_VXRFORM_300(vcmpnezb, 3, 4)
 GEN_VXRFORM_300(vcmpnezh, 3, 5)
 GEN_VXRFORM_300(vcmpnezw, 3, 6)
@@ -197,6 +194,9 @@ GEN_VXRFORM_DUAL(vcmpeqfp, vcmpequd, 3, 3, PPC_ALTIVEC, PPC_NONE)
 GEN_VXRFORM(vcmpgefp, 3, 7)
 GEN_VXRFORM_DUAL(vcmpgtfp, vcmpgtud, 3, 11, PPC_ALTIVEC, PPC_NONE)
 GEN_VXRFORM_DUAL(vcmpbfp, vcmpgtsd, 3, 15, PPC_ALTIVEC, PPC_NONE)
+GEN_VXRFORM_DUAL(vcmpequb, vcmpneb, 3, 0, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXRFORM_DUAL(vcmpequh, vcmpneh, 3, 1, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXRFORM_DUAL(vcmpequw, vcmpnew, 3, 2, PPC_NONE, PPC2_ALTIVEC_207)
 
 #define GEN_VXFORM_DUAL_INV(name0, name1, opc2, opc3, inval0, inval1, type) \
 GEN_OPCODE_DUAL(name0##_##name1, 0x04, opc2, opc3, inval0, inval1, type, \

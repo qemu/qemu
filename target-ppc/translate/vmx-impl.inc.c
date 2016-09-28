@@ -510,7 +510,16 @@ GEN_VXRFORM(vcmpeqfp, 3, 3)
 GEN_VXRFORM(vcmpgefp, 3, 7)
 GEN_VXRFORM(vcmpgtfp, 3, 11)
 GEN_VXRFORM(vcmpbfp, 3, 15)
+GEN_VXRFORM(vcmpneb, 3, 0)
+GEN_VXRFORM(vcmpneh, 3, 1)
+GEN_VXRFORM(vcmpnew, 3, 2)
 
+GEN_VXRFORM_DUAL(vcmpequb, PPC_NONE, PPC2_ALTIVEC_207, \
+                 vcmpneb, PPC_NONE, PPC2_ISA300)
+GEN_VXRFORM_DUAL(vcmpequh, PPC_NONE, PPC2_ALTIVEC_207, \
+                 vcmpneh, PPC_NONE, PPC2_ISA300)
+GEN_VXRFORM_DUAL(vcmpequw, PPC_NONE, PPC2_ALTIVEC_207, \
+                 vcmpnew, PPC_NONE, PPC2_ISA300)
 GEN_VXRFORM_DUAL(vcmpeqfp, PPC_ALTIVEC, PPC_NONE, \
                  vcmpequd, PPC_NONE, PPC2_ALTIVEC_207)
 GEN_VXRFORM_DUAL(vcmpbfp, PPC_ALTIVEC, PPC_NONE, \
