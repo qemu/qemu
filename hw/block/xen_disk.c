@@ -119,6 +119,9 @@ struct XenBlkDev {
     unsigned int        persistent_gnt_count;
     unsigned int        max_grants;
 
+    /* Grant copy */
+    gboolean            feature_grant_copy;
+
     /* qemu block driver */
     DriveInfo           *dinfo;
     BlockBackend        *blk;
@@ -489,6 +492,106 @@ static int ioreq_map(struct ioreq *ioreq)
     return 0;
 }
 
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 480
+
+static void ioreq_free_copy_buffers(struct ioreq *ioreq)
+{
+    int i;
+
+    for (i = 0; i < ioreq->v.niov; i++) {
+        ioreq->page[i] = NULL;
+    }
+
+    qemu_vfree(ioreq->pages);
+}
+
+static int ioreq_init_copy_buffers(struct ioreq *ioreq)
+{
+    int i;
+
+    if (ioreq->v.niov == 0) {
+        return 0;
+    }
+
+    ioreq->pages = qemu_memalign(XC_PAGE_SIZE, ioreq->v.niov * XC_PAGE_SIZE);
+
+    for (i = 0; i < ioreq->v.niov; i++) {
+        ioreq->page[i] = ioreq->pages + i * XC_PAGE_SIZE;
+        ioreq->v.iov[i].iov_base = ioreq->page[i];
+    }
+
+    return 0;
+}
+
+static int ioreq_grant_copy(struct ioreq *ioreq)
+{
+    xengnttab_handle *gnt = ioreq->blkdev->xendev.gnttabdev;
+    xengnttab_grant_copy_segment_t segs[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+    int i, count, rc;
+    int64_t file_blk = ioreq->blkdev->file_blk;
+
+    if (ioreq->v.niov == 0) {
+        return 0;
+    }
+
+    count = ioreq->v.niov;
+
+    for (i = 0; i < count; i++) {
+        if (ioreq->req.operation == BLKIF_OP_READ) {
+            segs[i].flags = GNTCOPY_dest_gref;
+            segs[i].dest.foreign.ref = ioreq->refs[i];
+            segs[i].dest.foreign.domid = ioreq->domids[i];
+            segs[i].dest.foreign.offset = ioreq->req.seg[i].first_sect * file_blk;
+            segs[i].source.virt = ioreq->v.iov[i].iov_base;
+        } else {
+            segs[i].flags = GNTCOPY_source_gref;
+            segs[i].source.foreign.ref = ioreq->refs[i];
+            segs[i].source.foreign.domid = ioreq->domids[i];
+            segs[i].source.foreign.offset = ioreq->req.seg[i].first_sect * file_blk;
+            segs[i].dest.virt = ioreq->v.iov[i].iov_base;
+        }
+        segs[i].len = (ioreq->req.seg[i].last_sect
+                       - ioreq->req.seg[i].first_sect + 1) * file_blk;
+    }
+
+    rc = xengnttab_grant_copy(gnt, count, segs);
+
+    if (rc) {
+        xen_be_printf(&ioreq->blkdev->xendev, 0,
+                      "failed to copy data %d\n", rc);
+        ioreq->aio_errors++;
+        return -1;
+    }
+
+    for (i = 0; i < count; i++) {
+        if (segs[i].status != GNTST_okay) {
+            xen_be_printf(&ioreq->blkdev->xendev, 3,
+                          "failed to copy data %d for gref %d, domid %d\n",
+                          segs[i].status, ioreq->refs[i], ioreq->domids[i]);
+            ioreq->aio_errors++;
+            rc = -1;
+        }
+    }
+
+    return rc;
+}
+#else
+static void ioreq_free_copy_buffers(struct ioreq *ioreq)
+{
+    abort();
+}
+
+static int ioreq_init_copy_buffers(struct ioreq *ioreq)
+{
+    abort();
+}
+
+static int ioreq_grant_copy(struct ioreq *ioreq)
+{
+    abort();
+}
+#endif
+
 static int ioreq_runio_qemu_aio(struct ioreq *ioreq);
 
 static void qemu_aio_complete(void *opaque, int ret)
@@ -511,8 +614,31 @@ static void qemu_aio_complete(void *opaque, int ret)
         return;
     }
 
+    if (ioreq->blkdev->feature_grant_copy) {
+        switch (ioreq->req.operation) {
+        case BLKIF_OP_READ:
+            /* in case of failure ioreq->aio_errors is increased */
+            if (ret == 0) {
+                ioreq_grant_copy(ioreq);
+            }
+            ioreq_free_copy_buffers(ioreq);
+            break;
+        case BLKIF_OP_WRITE:
+        case BLKIF_OP_FLUSH_DISKCACHE:
+            if (!ioreq->req.nr_segments) {
+                break;
+            }
+            ioreq_free_copy_buffers(ioreq);
+            break;
+        default:
+            break;
+        }
+    }
+
     ioreq->status = ioreq->aio_errors ? BLKIF_RSP_ERROR : BLKIF_RSP_OKAY;
-    ioreq_unmap(ioreq);
+    if (!ioreq->blkdev->feature_grant_copy) {
+        ioreq_unmap(ioreq);
+    }
     ioreq_finish(ioreq);
     switch (ioreq->req.operation) {
     case BLKIF_OP_WRITE:
@@ -538,8 +664,18 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
 
-    if (ioreq->req.nr_segments && ioreq_map(ioreq) == -1) {
-        goto err_no_map;
+    if (ioreq->blkdev->feature_grant_copy) {
+        ioreq_init_copy_buffers(ioreq);
+        if (ioreq->req.nr_segments && (ioreq->req.operation == BLKIF_OP_WRITE ||
+            ioreq->req.operation == BLKIF_OP_FLUSH_DISKCACHE) &&
+            ioreq_grant_copy(ioreq)) {
+                ioreq_free_copy_buffers(ioreq);
+                goto err;
+        }
+    } else {
+        if (ioreq->req.nr_segments && ioreq_map(ioreq)) {
+            goto err;
+        }
     }
 
     ioreq->aio_inflight++;
@@ -582,6 +718,9 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
     }
     default:
         /* unknown operation (shouldn't happen -- parse catches this) */
+        if (!ioreq->blkdev->feature_grant_copy) {
+            ioreq_unmap(ioreq);
+        }
         goto err;
     }
 
@@ -590,8 +729,6 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
     return 0;
 
 err:
-    ioreq_unmap(ioreq);
-err_no_map:
     ioreq_finish(ioreq);
     ioreq->status = BLKIF_RSP_ERROR;
     return -1;
@@ -1033,6 +1170,12 @@ static int blk_connect(struct XenDevice *xendev)
     }
 
     xen_be_bind_evtchn(&blkdev->xendev);
+
+    blkdev->feature_grant_copy =
+                (xengnttab_grant_copy(blkdev->xendev.gnttabdev, 0, NULL) == 0);
+
+    xen_be_printf(&blkdev->xendev, 3, "grant copy operation %s\n",
+                  blkdev->feature_grant_copy ? "enabled" : "disabled");
 
     xen_be_printf(&blkdev->xendev, 1, "ok: proto %s, ring-ref %d, "
                   "remote port %d, local port %d\n",
