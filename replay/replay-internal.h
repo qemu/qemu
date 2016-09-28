@@ -62,10 +62,18 @@ typedef struct ReplayState {
     uint64_t current_step;
     /*! Number of instructions to be executed before other events happen. */
     int instructions_count;
+    /*! Type of the currently executed event. */
+    unsigned int data_kind;
+    /*! Flag which indicates that event is not processed yet. */
+    unsigned int has_unread_data;
+    /*! Temporary variable for saving current log offset. */
+    uint64_t file_offset;
+    /*! Next block operation id.
+        This counter is global, because requests from different
+        block devices should not get overlapping ids. */
+    uint64_t block_request_id;
 } ReplayState;
 extern ReplayState replay_state;
-
-extern unsigned int replay_data_kind;
 
 /* File for replay writing */
 extern FILE *replay_file;
@@ -98,7 +106,7 @@ void replay_check_error(void);
     the next event from the log. */
 void replay_finish_event(void);
 /*! Reads data type from the file and stores it in the
-    replay_data_kind variable. */
+    data_kind variable. */
 void replay_fetch_data_kind(void);
 
 /*! Saves queued events (like instructions and sound). */
@@ -119,8 +127,6 @@ void replay_read_next_clock(unsigned int kind);
 void replay_init_events(void);
 /*! Clears internal data structures for events handling */
 void replay_finish_events(void);
-/*! Enables storing events in the queue */
-void replay_enable_events(void);
 /*! Flushes events queue */
 void replay_flush_events(void);
 /*! Clears events list before loading new VM state */
@@ -154,5 +160,12 @@ void replay_event_char_read_run(void *opaque);
 void replay_event_char_read_save(void *opaque);
 /*! Reads char event read from the file. */
 void *replay_event_char_read_load(void);
+
+/* VMState-related functions */
+
+/* Registers replay VMState.
+   Should be called before virtual devices initialization
+   to make cached timers available for post_load functions. */
+void replay_vmstate_register(void);
 
 #endif

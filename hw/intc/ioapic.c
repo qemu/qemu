@@ -416,7 +416,7 @@ static void ioapic_realize(DeviceState *dev, Error **errp)
 }
 
 static Property ioapic_properties[] = {
-    DEFINE_PROP_UINT8("version", IOAPICCommonState, version, 0x11),
+    DEFINE_PROP_UINT8("version", IOAPICCommonState, version, 0x20),
     DEFINE_PROP_END_OF_LIST(),
 };
 

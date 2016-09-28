@@ -502,17 +502,14 @@ static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb,
 #define decode_basedisp_rs decode_basedisp_s
 
 /* helper functions for run_on_cpu() */
-static inline void s390_do_cpu_reset(void *arg)
+static inline void s390_do_cpu_reset(CPUState *cs, void *arg)
 {
-    CPUState *cs = arg;
     S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
 
     scc->cpu_reset(cs);
 }
-static inline void s390_do_cpu_full_reset(void *arg)
+static inline void s390_do_cpu_full_reset(CPUState *cs, void *arg)
 {
-    CPUState *cs = arg;
-
     cpu_reset(cs);
 }
 

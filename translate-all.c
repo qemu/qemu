@@ -834,12 +834,19 @@ static void page_flush_tb(void)
 }
 
 /* flush all the translation blocks */
-/* XXX: tb_flush is currently not thread safe */
-void tb_flush(CPUState *cpu)
+static void do_tb_flush(CPUState *cpu, void *data)
 {
-    if (!tcg_enabled()) {
-        return;
+    unsigned tb_flush_req = (unsigned) (uintptr_t) data;
+
+    tb_lock();
+
+    /* If it's already been done on request of another CPU,
+     * just retry.
+     */
+    if (tcg_ctx.tb_ctx.tb_flush_count != tb_flush_req) {
+        goto done;
     }
+
 #if defined(DEBUG_FLUSH)
     printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%ld\n",
            (unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer),
@@ -858,7 +865,6 @@ void tb_flush(CPUState *cpu)
         for (i = 0; i < TB_JMP_CACHE_SIZE; ++i) {
             atomic_set(&cpu->tb_jmp_cache[i], NULL);
         }
-        atomic_mb_set(&cpu->tb_flushed, true);
     }
 
     tcg_ctx.tb_ctx.nb_tbs = 0;
@@ -868,7 +874,19 @@ void tb_flush(CPUState *cpu)
     tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
     /* XXX: flush processor icache at this point if cache flush is
        expensive */
-    tcg_ctx.tb_ctx.tb_flush_count++;
+    atomic_mb_set(&tcg_ctx.tb_ctx.tb_flush_count,
+                  tcg_ctx.tb_ctx.tb_flush_count + 1);
+
+done:
+    tb_unlock();
+}
+
+void tb_flush(CPUState *cpu)
+{
+    if (tcg_enabled()) {
+        uintptr_t tb_flush_req = atomic_mb_read(&tcg_ctx.tb_ctx.tb_flush_count);
+        async_safe_run_on_cpu(cpu, do_tb_flush, (void *) tb_flush_req);
+    }
 }
 
 #ifdef DEBUG_TB_CHECK
@@ -1175,9 +1193,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
  buffer_overflow:
         /* flush must be done */
         tb_flush(cpu);
-        /* cannot fail at this point */
-        tb = tb_alloc(pc);
-        assert(tb != NULL);
+        mmap_unlock();
+        cpu_loop_exit(cpu);
     }
 
     gen_code_buf = tcg_ctx.code_gen_ptr;
@@ -1775,7 +1792,8 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     qht_statistics_destroy(&hst);
 
     cpu_fprintf(f, "\nStatistics:\n");
-    cpu_fprintf(f, "TB flush count      %d\n", tcg_ctx.tb_ctx.tb_flush_count);
+    cpu_fprintf(f, "TB flush count      %u\n",
+            atomic_read(&tcg_ctx.tb_ctx.tb_flush_count));
     cpu_fprintf(f, "TB invalidate count %d\n",
             tcg_ctx.tb_ctx.tb_phys_invalidate_count);
     cpu_fprintf(f, "TLB flush count     %d\n", tlb_flush_count);

@@ -2988,7 +2988,7 @@ for i in $glib_modules; do
     if $pkg_config --atleast-version=$glib_req_ver $i; then
         glib_cflags=$($pkg_config --cflags $i)
         glib_libs=$($pkg_config --libs $i)
-        CFLAGS="$glib_cflags $CFLAGS"
+        QEMU_CFLAGS="$glib_cflags $QEMU_CFLAGS"
         LIBS="$glib_libs $LIBS"
         libs_qga="$glib_libs $libs_qga"
     else
@@ -5195,7 +5195,6 @@ fi
 if test "$glib_subprocess" = "yes" ; then
   echo "CONFIG_HAS_GLIB_SUBPROCESS_TESTS=y" >> $config_host_mak
 fi
-echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "CONFIG_GTKABI=$gtkabi" >> $config_host_mak

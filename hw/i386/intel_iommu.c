@@ -1974,14 +1974,20 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
-static void vtd_iommu_notify_started(MemoryRegion *iommu)
+static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
+                                          IOMMUNotifierFlag old,
+                                          IOMMUNotifierFlag new)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
 
-    hw_error("Device at bus %s addr %02x.%d requires iommu notifier which "
-             "is currently not supported by intel-iommu emulation",
-             vtd_as->bus->qbus.name, PCI_SLOT(vtd_as->devfn),
-             PCI_FUNC(vtd_as->devfn));
+    if (new & IOMMU_NOTIFIER_MAP) {
+        error_report("Device at bus %s addr %02x.%d requires iommu "
+                     "notifier which is currently not supported by "
+                     "intel-iommu emulation",
+                     vtd_as->bus->qbus.name, PCI_SLOT(vtd_as->devfn),
+                     PCI_FUNC(vtd_as->devfn));
+        exit(1);
+    }
 }
 
 static const VMStateDescription vtd_vmstate = {
@@ -2348,7 +2354,7 @@ static void vtd_init(IntelIOMMUState *s)
     memset(s->womask, 0, DMAR_REG_SIZE);
 
     s->iommu_ops.translate = vtd_iommu_translate;
-    s->iommu_ops.notify_started = vtd_iommu_notify_started;
+    s->iommu_ops.notify_flag_changed = vtd_iommu_notify_flag_changed;
     s->root = 0;
     s->root_extended = false;
     s->dmar_enabled = false;

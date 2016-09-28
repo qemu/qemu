@@ -126,7 +126,7 @@ static int modified_clear_reset(S390CPU *cpu)
     pause_all_vcpus();
     cpu_synchronize_all_states();
     CPU_FOREACH(t) {
-        run_on_cpu(t, s390_do_cpu_full_reset, t);
+        run_on_cpu(t, s390_do_cpu_full_reset, NULL);
     }
     s390_cmma_reset();
     subsystem_reset();
@@ -145,7 +145,7 @@ static int load_normal_reset(S390CPU *cpu)
     pause_all_vcpus();
     cpu_synchronize_all_states();
     CPU_FOREACH(t) {
-        run_on_cpu(t, s390_do_cpu_reset, t);
+        run_on_cpu(t, s390_do_cpu_reset, NULL);
     }
     s390_cmma_reset();
     subsystem_reset();

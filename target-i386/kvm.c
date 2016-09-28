@@ -150,10 +150,8 @@ static int kvm_get_tsc(CPUState *cs)
     return 0;
 }
 
-static inline void do_kvm_synchronize_tsc(void *arg)
+static inline void do_kvm_synchronize_tsc(CPUState *cpu, void *arg)
 {
-    CPUState *cpu = arg;
-
     kvm_get_tsc(cpu);
 }
 
@@ -163,7 +161,7 @@ void kvm_synchronize_all_tsc(void)
 
     if (kvm_enabled()) {
         CPU_FOREACH(cpu) {
-            run_on_cpu(cpu, do_kvm_synchronize_tsc, cpu);
+            run_on_cpu(cpu, do_kvm_synchronize_tsc, NULL);
         }
     }
 }

@@ -67,23 +67,6 @@ int cpu_get_pic_interrupt(CPUX86State *env)
 }
 #endif
 
-/* These are no-ops because we are not threadsafe.  */
-static inline void cpu_exec_start(CPUArchState *env)
-{
-}
-
-static inline void cpu_exec_end(CPUArchState *env)
-{
-}
-
-static inline void start_exclusive(void)
-{
-}
-
-static inline void end_exclusive(void)
-{
-}
-
 void fork_start(void)
 {
 }
@@ -93,14 +76,6 @@ void fork_end(int child)
     if (child) {
         gdbserver_fork(thread_cpu);
     }
-}
-
-void cpu_list_lock(void)
-{
-}
-
-void cpu_list_unlock(void)
-{
 }
 
 #ifdef TARGET_I386
@@ -172,7 +147,11 @@ void cpu_loop(CPUX86State *env)
     //target_siginfo_t info;
 
     for(;;) {
+        cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
+        cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case 0x80:
             /* syscall from int $0x80 */
@@ -513,7 +492,10 @@ void cpu_loop(CPUSPARCState *env)
     //target_siginfo_t info;
 
     while (1) {
+        cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
+        cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
 
         switch (trapnr) {
 #ifndef TARGET_SPARC64
@@ -748,6 +730,7 @@ int main(int argc, char **argv)
     if (argc <= 1)
         usage();
 
+    qemu_init_cpu_list();
     module_call_init(MODULE_INIT_QOM);
 
     if ((envlist = envlist_create()) == NULL) {

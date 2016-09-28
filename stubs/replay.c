@@ -67,3 +67,8 @@ void replay_char_read_all_save_buf(uint8_t *buf, int offset)
 void replay_block_event(QEMUBH *bh, uint64_t id)
 {
 }
+
+uint64_t blkreplay_next_id(void)
+{
+    return 0;
+}

@@ -105,6 +105,8 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint);
 
 /*! Disables storing events in the queue */
 void replay_disable_events(void);
+/*! Enables storing events in the queue */
+void replay_enable_events(void);
 /*! Returns true when saving events is enabled */
 bool replay_events_enabled(void);
 /*! Adds bottom half event to the queue */
@@ -115,6 +117,8 @@ void replay_input_event(QemuConsole *src, InputEvent *evt);
 void replay_input_sync_event(void);
 /*! Adds block layer event to the queue */
 void replay_block_event(QEMUBH *bh, uint64_t id);
+/*! Returns ID for the next block event */
+uint64_t blkreplay_next_id(void);
 
 /* Character device */
 

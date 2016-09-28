@@ -279,7 +279,7 @@ static Event *replay_read_event(int checkpoint)
 /* Called with replay mutex locked */
 void replay_read_events(int checkpoint)
 {
-    while (replay_data_kind == EVENT_ASYNC) {
+    while (replay_state.data_kind == EVENT_ASYNC) {
         Event *event = replay_read_event(checkpoint);
         if (!event) {
             break;
@@ -308,4 +308,12 @@ void replay_finish_events(void)
 bool replay_events_enabled(void)
 {
     return events_enabled;
+}
+
+uint64_t blkreplay_next_id(void)
+{
+    if (replay_events_enabled()) {
+        return replay_state.block_request_id++;
+    }
+    return 0;
 }

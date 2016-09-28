@@ -38,15 +38,15 @@ bool replay_next_event_is(int event)
 
     /* nothing to skip - not all instructions used */
     if (replay_state.instructions_count != 0) {
-        assert(replay_data_kind == EVENT_INSTRUCTION);
+        assert(replay_state.data_kind == EVENT_INSTRUCTION);
         return event == EVENT_INSTRUCTION;
     }
 
     while (true) {
-        if (event == replay_data_kind) {
+        if (event == replay_state.data_kind) {
             res = true;
         }
-        switch (replay_data_kind) {
+        switch (replay_state.data_kind) {
         case EVENT_SHUTDOWN:
             replay_finish_event();
             qemu_system_shutdown_request();
@@ -85,7 +85,7 @@ void replay_account_executed_instructions(void)
             replay_state.instructions_count -= count;
             replay_state.current_step += count;
             if (replay_state.instructions_count == 0) {
-                assert(replay_data_kind == EVENT_INSTRUCTION);
+                assert(replay_state.data_kind == EVENT_INSTRUCTION);
                 replay_finish_event();
                 /* Wake up iothread. This is required because
                    timers will not expire until clock counters
@@ -188,7 +188,7 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint)
     if (replay_mode == REPLAY_MODE_PLAY) {
         if (replay_next_event_is(EVENT_CHECKPOINT + checkpoint)) {
             replay_finish_event();
-        } else if (replay_data_kind != EVENT_ASYNC) {
+        } else if (replay_state.data_kind != EVENT_ASYNC) {
             res = false;
             goto out;
         }
@@ -196,7 +196,7 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint)
         /* replay_read_events may leave some unread events.
            Return false if not all of the events associated with
            checkpoint were processed */
-        res = replay_data_kind != EVENT_ASYNC;
+        res = replay_state.data_kind != EVENT_ASYNC;
     } else if (replay_mode == REPLAY_MODE_RECORD) {
         replay_put_event(EVENT_CHECKPOINT + checkpoint);
         replay_save_events(checkpoint);
@@ -237,9 +237,10 @@ static void replay_enable(const char *fname, int mode)
     replay_filename = g_strdup(fname);
 
     replay_mode = mode;
-    replay_data_kind = -1;
+    replay_state.data_kind = -1;
     replay_state.instructions_count = 0;
     replay_state.current_step = 0;
+    replay_state.has_unread_data = 0;
 
     /* skip file header for RECORD and check it for PLAY */
     if (replay_mode == REPLAY_MODE_RECORD) {
@@ -291,6 +292,7 @@ void replay_configure(QemuOpts *opts)
         exit(1);
     }
 
+    replay_vmstate_register();
     replay_enable(fname, mode);
 
 out:
