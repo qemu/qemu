@@ -219,6 +219,8 @@ GEN_VXFORM_300_EO(vctzb, 0x01, 0x18, 0x1C),
 GEN_VXFORM_300_EO(vctzh, 0x01, 0x18, 0x1D),
 GEN_VXFORM_300_EO(vctzw, 0x01, 0x18, 0x1E),
 GEN_VXFORM_300_EO(vctzd, 0x01, 0x18, 0x1F),
+GEN_VXFORM_300_EO(vclzlsbb, 0x01, 0x18, 0x0),
+GEN_VXFORM_300_EO(vctzlsbb, 0x01, 0x18, 0x1),
 GEN_VXFORM_300(vpermr, 0x1D, 0xFF),
 
 #define GEN_VXFORM_NOA(name, opc2, opc3)                                \

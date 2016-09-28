@@ -593,6 +593,18 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
         tcg_temp_free_ptr(rd);                                          \
     }
 
+#define GEN_VXFORM_NOA_3(name, opc2, opc3, opc4)                        \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+    {                                                                   \
+        TCGv_ptr rb;                                                    \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        gen_helper_##name(cpu_gpr[rD(ctx->opcode)], rb);                \
+        tcg_temp_free_ptr(rb);                                          \
+    }
 GEN_VXFORM_NOA(vupkhsb, 7, 8);
 GEN_VXFORM_NOA(vupkhsh, 7, 9);
 GEN_VXFORM_NOA(vupkhsw, 7, 25);
@@ -807,6 +819,8 @@ GEN_VXFORM_NOA_2(vctzb, 1, 24, 28)
 GEN_VXFORM_NOA_2(vctzh, 1, 24, 29)
 GEN_VXFORM_NOA_2(vctzw, 1, 24, 30)
 GEN_VXFORM_NOA_2(vctzd, 1, 24, 31)
+GEN_VXFORM_NOA_3(vclzlsbb, 1, 24, 0)
+GEN_VXFORM_NOA_3(vctzlsbb, 1, 24, 1)
 GEN_VXFORM_NOA(vpopcntb, 1, 28)
 GEN_VXFORM_NOA(vpopcnth, 1, 29)
 GEN_VXFORM_NOA(vpopcntw, 1, 30)

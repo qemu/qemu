@@ -881,6 +881,36 @@ VCT(uxs, cvtsduw, u32)
 VCT(sxs, cvtsdsw, s32)
 #undef VCT
 
+target_ulong helper_vclzlsbb(ppc_avr_t *r)
+{
+    target_ulong count = 0;
+    int i;
+    VECTOR_FOR_INORDER_I(i, u8) {
+        if (r->u8[i] & 0x01) {
+            break;
+        }
+        count++;
+    }
+    return count;
+}
+
+target_ulong helper_vctzlsbb(ppc_avr_t *r)
+{
+    target_ulong count = 0;
+    int i;
+#if defined(HOST_WORDS_BIGENDIAN)
+    for (i = ARRAY_SIZE(r->u8) - 1; i >= 0; i--) {
+#else
+    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
+#endif
+        if (r->u8[i] & 0x01) {
+            break;
+        }
+        count++;
+    }
+    return count;
+}
+
 void helper_vmhaddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
                       ppc_avr_t *b, ppc_avr_t *c)
 {
