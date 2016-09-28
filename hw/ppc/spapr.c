@@ -555,7 +555,7 @@ static void spapr_populate_pa_features(CPUPPCState *env, void *fdt, int offset)
         0xf6, 0x1f, 0xc7, 0xc0, 0x80, 0xf0,
         0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
-        0x80, 0x00, 0x80, 0x00, 0x80, 0x00 };
+        0x80, 0x00, 0x80, 0x00, 0x00, 0x00 };
     uint8_t *pa_features;
     size_t pa_size;
 
@@ -583,6 +583,9 @@ static void spapr_populate_pa_features(CPUPPCState *env, void *fdt, int offset)
          * We dd this bit back here if we are confident this is not an issue
          */
         pa_features[3] |= 0x20;
+    }
+    if (kvmppc_has_cap_htm() && pa_size > 24) {
+        pa_features[24] |= 0x80;    /* Transactional memory support */
     }
 
     _FDT((fdt_setprop(fdt, offset, "ibm,pa-features", pa_features, pa_size)));
