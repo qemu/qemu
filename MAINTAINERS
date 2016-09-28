@@ -1245,8 +1245,8 @@ F: qapi/*.json
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
 QObject
-M: Luiz Capitulino <lcapitulino@redhat.com>
-S: Maintained
+M: Markus Armbruster <armbru@redhat.com>
+S: Supported
 F: qobject/
 F: include/qapi/qmp/
 X: include/qapi/qmp/dispatch.h
@@ -1256,7 +1256,7 @@ F: tests/check-qint.c
 F: tests/check-qjson.c
 F: tests/check-qlist.c
 F: tests/check-qstring.c
-T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
+T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
 QEMU Guest Agent
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
