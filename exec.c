@@ -255,7 +255,7 @@ static void phys_page_set(AddressSpaceDispatch *d,
 /* Compact a non leaf page entry. Simply detect that the entry has a single child,
  * and update our entry so we can skip it and go directly to the destination.
  */
-static void phys_page_compact(PhysPageEntry *lp, Node *nodes, unsigned long *compacted)
+static void phys_page_compact(PhysPageEntry *lp, Node *nodes)
 {
     unsigned valid_ptr = P_L2_SIZE;
     int valid = 0;
@@ -275,7 +275,7 @@ static void phys_page_compact(PhysPageEntry *lp, Node *nodes, unsigned long *com
         valid_ptr = i;
         valid++;
         if (p[i].skip) {
-            phys_page_compact(&p[i], nodes, compacted);
+            phys_page_compact(&p[i], nodes);
         }
     }
 
@@ -307,10 +307,8 @@ static void phys_page_compact(PhysPageEntry *lp, Node *nodes, unsigned long *com
 
 static void phys_page_compact_all(AddressSpaceDispatch *d, int nodes_nb)
 {
-    DECLARE_BITMAP(compacted, nodes_nb);
-
     if (d->phys_map.skip) {
-        phys_page_compact(&d->phys_map, d->map.nodes, compacted);
+        phys_page_compact(&d->phys_map, d->map.nodes);
     }
 }
 
