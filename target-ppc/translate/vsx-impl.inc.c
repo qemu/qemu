@@ -226,6 +226,37 @@ static void gen_stxvw4x(DisasContext *ctx)
     tcg_temp_free(EA);
 }
 
+static void gen_stxvh8x(DisasContext *ctx)
+{
+    TCGv_i64 xsh = cpu_vsrh(xS(ctx->opcode));
+    TCGv_i64 xsl = cpu_vsrl(xS(ctx->opcode));
+    TCGv EA;
+
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    if (ctx->le_mode) {
+        TCGv_i64 outh = tcg_temp_new_i64();
+        TCGv_i64 outl = tcg_temp_new_i64();
+
+        gen_bswap16x8(outh, outl, xsh, xsl);
+        tcg_gen_qemu_st_i64(outh, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_addi_tl(EA, EA, 8);
+        tcg_gen_qemu_st_i64(outl, EA, ctx->mem_idx, MO_BEQ);
+        tcg_temp_free_i64(outh);
+        tcg_temp_free_i64(outl);
+    } else {
+        tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_addi_tl(EA, EA, 8);
+        tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEQ);
+    }
+    tcg_temp_free(EA);
+}
+
 #define MV_VSRW(name, tcgop1, tcgop2, target, source)           \
 static void gen_##name(DisasContext *ctx)                       \
 {                                                               \
