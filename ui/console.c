@@ -123,6 +123,7 @@ struct QemuConsole {
     DisplaySurface *surface;
     int dcls;
     DisplayChangeListener *gl;
+    bool gl_block;
 
     /* Graphic console state.  */
     Object *device;
@@ -264,10 +265,10 @@ void graphic_hw_update(QemuConsole *con)
 
 void graphic_hw_gl_block(QemuConsole *con, bool block)
 {
-    if (!con) {
-        con = active_console;
-    }
-    if (con && con->hw_ops->gl_block) {
+    assert(con != NULL);
+
+    con->gl_block = block;
+    if (con->hw_ops->gl_block) {
         con->hw_ops->gl_block(con->hw, block);
     }
 }
@@ -1879,6 +1880,12 @@ bool qemu_console_is_fixedsize(QemuConsole *con)
     return con && (con->console_type != TEXT_CONSOLE);
 }
 
+bool qemu_console_is_gl_blocked(QemuConsole *con)
+{
+    assert(con != NULL);
+    return con->gl_block;
+}
+
 char *qemu_console_get_label(QemuConsole *con)
 {
     if (con->console_type == GRAPHIC_CONSOLE) {
@@ -2101,6 +2108,13 @@ void qemu_console_resize(QemuConsole *s, int width, int height)
     DisplaySurface *surface;
 
     assert(s->console_type == GRAPHIC_CONSOLE);
+
+    if (s->surface &&
+        pixman_image_get_width(s->surface->image) == width &&
+        pixman_image_get_height(s->surface->image) == height) {
+        return;
+    }
+
     surface = qemu_create_displaysurface(width, height);
     dpy_gfx_replace_surface(s, surface);
 }
