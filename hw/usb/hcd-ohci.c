@@ -2139,7 +2139,7 @@ static const TypeInfo ohci_pci_info = {
 
 static Property ohci_sysbus_properties[] = {
     DEFINE_PROP_UINT32("num-ports", OHCISysBusState, num_ports, 3),
-    DEFINE_PROP_DMAADDR("dma-offset", OHCISysBusState, dma_offset, 3),
+    DEFINE_PROP_DMAADDR("dma-offset", OHCISysBusState, dma_offset, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
