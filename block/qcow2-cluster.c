@@ -1558,7 +1558,7 @@ fail:
  * clusters.
  */
 static int zero_single_l2(BlockDriverState *bs, uint64_t offset,
-                          uint64_t nb_clusters)
+                          uint64_t nb_clusters, int flags)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l2_table;
@@ -1582,7 +1582,7 @@ static int zero_single_l2(BlockDriverState *bs, uint64_t offset,
 
         /* Update L2 entries */
         qcow2_cache_entry_mark_dirty(bs, s->l2_table_cache, l2_table);
-        if (old_offset & QCOW_OFLAG_COMPRESSED) {
+        if (old_offset & QCOW_OFLAG_COMPRESSED || flags & BDRV_REQ_MAY_UNMAP) {
             l2_table[l2_index + i] = cpu_to_be64(QCOW_OFLAG_ZERO);
             qcow2_free_any_clusters(bs, old_offset, 1, QCOW2_DISCARD_REQUEST);
         } else {
@@ -1595,7 +1595,8 @@ static int zero_single_l2(BlockDriverState *bs, uint64_t offset,
     return nb_clusters;
 }
 
-int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors)
+int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors,
+                        int flags)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t nb_clusters;
@@ -1612,7 +1613,7 @@ int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors)
     s->cache_discards = true;
 
     while (nb_clusters > 0) {
-        ret = zero_single_l2(bs, offset, nb_clusters);
+        ret = zero_single_l2(bs, offset, nb_clusters, flags);
         if (ret < 0) {
             goto fail;
         }
