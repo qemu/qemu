@@ -21,7 +21,7 @@
 #include "elf.h"
 #include "exec/address-spaces.h"
 
-#define SYS_FREQ 66000000
+#define SYS_FREQ 166666666
 
 #define PCSR_EN         0x0001
 #define PCSR_RLD        0x0002
