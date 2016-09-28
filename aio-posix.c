@@ -431,11 +431,13 @@ bool aio_poll(AioContext *ctx, bool blocking)
     assert(npfd == 0);
 
     /* fill pollfds */
-    QLIST_FOREACH(node, &ctx->aio_handlers, node) {
-        if (!node->deleted && node->pfd.events
-            && !aio_epoll_enabled(ctx)
-            && aio_node_check(ctx, node->is_external)) {
-            add_pollfd(node);
+
+    if (!aio_epoll_enabled(ctx)) {
+        QLIST_FOREACH(node, &ctx->aio_handlers, node) {
+            if (!node->deleted && node->pfd.events
+                && aio_node_check(ctx, node->is_external)) {
+                add_pollfd(node);
+            }
         }
     }
 

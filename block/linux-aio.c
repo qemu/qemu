@@ -94,9 +94,12 @@ static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
 
     laiocb->ret = ret;
     if (laiocb->co) {
-        /* Jump and continue completion for foreign requests, don't do
-         * anything for current request, it will be completed shortly. */
-        if (laiocb->co != qemu_coroutine_self()) {
+        /* If the coroutine is already entered it must be in ioq_submit() and
+         * will notice laio->ret has been filled in when it eventually runs
+         * later.  Coroutines cannot be entered recursively so avoid doing
+         * that!
+         */
+        if (!qemu_coroutine_entered(laiocb->co)) {
             qemu_coroutine_enter(laiocb->co);
         }
     } else {

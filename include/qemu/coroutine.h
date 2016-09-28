@@ -92,6 +92,19 @@ Coroutine *coroutine_fn qemu_coroutine_self(void);
  */
 bool qemu_in_coroutine(void);
 
+/**
+ * Return true if the coroutine is currently entered
+ *
+ * A coroutine is "entered" if it has not yielded from the current
+ * qemu_coroutine_enter() call used to run it.  This does not mean that the
+ * coroutine is currently executing code since it may have transferred control
+ * to another coroutine using qemu_coroutine_enter().
+ *
+ * When several coroutines enter each other there may be no way to know which
+ * ones have already been entered.  In such situations this function can be
+ * used to avoid recursively entering coroutines.
+ */
+bool qemu_coroutine_entered(Coroutine *co);
 
 
 /**
