@@ -36,7 +36,7 @@ typedef struct Sun4vRtc {
 static uint64_t sun4v_rtc_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    uint64_t val = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
+    uint64_t val = get_clock_realtime() / NANOSECONDS_PER_SECOND;
     if (!(addr & 4ULL)) {
         /* accessing the high 32 bits */
         val >>= 32;

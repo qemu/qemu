@@ -1,1 +1,2 @@
+obj-y += sparc64.o
 obj-y += sun4u.o
