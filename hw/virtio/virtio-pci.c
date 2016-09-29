@@ -1551,7 +1551,7 @@ static void virtio_pci_modern_mem_region_map(VirtIOPCIProxy *proxy,
                                              struct virtio_pci_cap *cap)
 {
     virtio_pci_modern_region_map(proxy, region, cap,
-                                 &proxy->modern_bar, proxy->modern_mem_bar);
+                                 &proxy->modern_bar, proxy->modern_mem_bar_idx);
 }
 
 static void virtio_pci_modern_io_region_map(VirtIOPCIProxy *proxy,
@@ -1559,7 +1559,7 @@ static void virtio_pci_modern_io_region_map(VirtIOPCIProxy *proxy,
                                             struct virtio_pci_cap *cap)
 {
     virtio_pci_modern_region_map(proxy, region, cap,
-                                 &proxy->io_bar, proxy->modern_io_bar);
+                                 &proxy->io_bar, proxy->modern_io_bar_idx);
 }
 
 static void virtio_pci_modern_mem_region_unmap(VirtIOPCIProxy *proxy,
@@ -1670,14 +1670,14 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
             memory_region_init(&proxy->io_bar, OBJECT(proxy),
                                "virtio-pci-io", 0x4);
 
-            pci_register_bar(&proxy->pci_dev, proxy->modern_io_bar,
+            pci_register_bar(&proxy->pci_dev, proxy->modern_io_bar_idx,
                              PCI_BASE_ADDRESS_SPACE_IO, &proxy->io_bar);
 
             virtio_pci_modern_io_region_map(proxy, &proxy->notify_pio,
                                             &notify_pio.cap);
         }
 
-        pci_register_bar(&proxy->pci_dev, proxy->modern_mem_bar,
+        pci_register_bar(&proxy->pci_dev, proxy->modern_mem_bar_idx,
                          PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_PREFETCH |
                          PCI_BASE_ADDRESS_MEM_TYPE_64,
@@ -1693,7 +1693,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 
     if (proxy->nvectors) {
         int err = msix_init_exclusive_bar(&proxy->pci_dev, proxy->nvectors,
-                                          proxy->msix_bar);
+                                          proxy->msix_bar_idx);
         if (err) {
             /* Notice when a system that supports MSIx can't initialize it.  */
             if (err != -ENOTSUP) {
@@ -1716,7 +1716,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
                               &virtio_pci_config_ops,
                               proxy, "virtio-pci", size);
 
-        pci_register_bar(&proxy->pci_dev, proxy->legacy_io_bar,
+        pci_register_bar(&proxy->pci_dev, proxy->legacy_io_bar_idx,
                          PCI_BASE_ADDRESS_SPACE_IO, &proxy->bar);
     }
 
@@ -1760,10 +1760,10 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
      *   region 4+5 --  virtio modern memory (64bit) bar
      *
      */
-    proxy->legacy_io_bar  = 0;
-    proxy->msix_bar       = 1;
-    proxy->modern_io_bar  = 2;
-    proxy->modern_mem_bar = 4;
+    proxy->legacy_io_bar_idx  = 0;
+    proxy->msix_bar_idx       = 1;
+    proxy->modern_io_bar_idx  = 2;
+    proxy->modern_mem_bar_idx = 4;
 
     proxy->common.offset = 0x0;
     proxy->common.size = 0x1000;
