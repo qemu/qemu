@@ -194,26 +194,26 @@ GEN_VXRFORM_DUAL(vcmpeqfp, vcmpequd, 3, 3, PPC_ALTIVEC, PPC_NONE)
 GEN_VXRFORM(vcmpgefp, 3, 7)
 GEN_VXRFORM_DUAL(vcmpgtfp, vcmpgtud, 3, 11, PPC_ALTIVEC, PPC_NONE)
 GEN_VXRFORM_DUAL(vcmpbfp, vcmpgtsd, 3, 15, PPC_ALTIVEC, PPC_NONE)
-GEN_VXRFORM_DUAL(vcmpequb, vcmpneb, 3, 0, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXRFORM_DUAL(vcmpequh, vcmpneh, 3, 1, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXRFORM_DUAL(vcmpequw, vcmpnew, 3, 2, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXRFORM_DUAL(vcmpequb, vcmpneb, 3, 0, PPC_ALTIVEC, PPC_NONE)
+GEN_VXRFORM_DUAL(vcmpequh, vcmpneh, 3, 1, PPC_ALTIVEC, PPC_NONE)
+GEN_VXRFORM_DUAL(vcmpequw, vcmpnew, 3, 2, PPC_ALTIVEC, PPC_NONE)
 
 #define GEN_VXFORM_DUAL_INV(name0, name1, opc2, opc3, inval0, inval1, type) \
 GEN_OPCODE_DUAL(name0##_##name1, 0x04, opc2, opc3, inval0, inval1, type, \
                                                                PPC_NONE)
 GEN_VXFORM_DUAL_INV(vspltb, vextractub, 6, 8, 0x00000000, 0x100000,
-                                               PPC2_ALTIVEC_207),
+                                               PPC_ALTIVEC),
 GEN_VXFORM_DUAL_INV(vsplth, vextractuh, 6, 9, 0x00000000, 0x100000,
-                                               PPC2_ALTIVEC_207),
+                                               PPC_ALTIVEC),
 GEN_VXFORM_DUAL_INV(vspltw, vextractuw, 6, 10, 0x00000000, 0x100000,
-                                               PPC2_ALTIVEC_207),
+                                               PPC_ALTIVEC),
 GEN_VXFORM_300_EXT(vextractd, 6, 11, 0x100000),
 GEN_VXFORM_DUAL_INV(vspltisb, vinsertb, 6, 12, 0x00000000, 0x100000,
-                                               PPC2_ALTIVEC_207),
+                                               PPC_ALTIVEC),
 GEN_VXFORM_DUAL_INV(vspltish, vinserth, 6, 13, 0x00000000, 0x100000,
-                                               PPC2_ALTIVEC_207),
+                                               PPC_ALTIVEC),
 GEN_VXFORM_DUAL_INV(vspltisw, vinsertw, 6, 14, 0x00000000, 0x100000,
-                                               PPC2_ALTIVEC_207),
+                                               PPC_ALTIVEC),
 GEN_VXFORM_300_EXT(vinsertd, 6, 15, 0x100000),
 GEN_VXFORM_300_EO(vctzb, 0x01, 0x18, 0x1C),
 GEN_VXFORM_300_EO(vctzh, 0x01, 0x18, 0x1D),

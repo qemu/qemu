@@ -514,11 +514,11 @@ GEN_VXRFORM(vcmpneb, 3, 0)
 GEN_VXRFORM(vcmpneh, 3, 1)
 GEN_VXRFORM(vcmpnew, 3, 2)
 
-GEN_VXRFORM_DUAL(vcmpequb, PPC_NONE, PPC2_ALTIVEC_207, \
+GEN_VXRFORM_DUAL(vcmpequb, PPC_ALTIVEC, PPC_NONE, \
                  vcmpneb, PPC_NONE, PPC2_ISA300)
-GEN_VXRFORM_DUAL(vcmpequh, PPC_NONE, PPC2_ALTIVEC_207, \
+GEN_VXRFORM_DUAL(vcmpequh, PPC_ALTIVEC, PPC_NONE, \
                  vcmpneh, PPC_NONE, PPC2_ISA300)
-GEN_VXRFORM_DUAL(vcmpequw, PPC_NONE, PPC2_ALTIVEC_207, \
+GEN_VXRFORM_DUAL(vcmpequw, PPC_ALTIVEC, PPC_NONE, \
                  vcmpnew, PPC_NONE, PPC2_ISA300)
 GEN_VXRFORM_DUAL(vcmpeqfp, PPC_ALTIVEC, PPC_NONE, \
                  vcmpequd, PPC_NONE, PPC2_ALTIVEC_207)
@@ -712,18 +712,18 @@ GEN_VXFORM_UIMM_ENV(vcfux, 5, 12);
 GEN_VXFORM_UIMM_ENV(vcfsx, 5, 13);
 GEN_VXFORM_UIMM_ENV(vctuxs, 5, 14);
 GEN_VXFORM_UIMM_ENV(vctsxs, 5, 15);
-GEN_VXFORM_DUAL(vspltb, PPC_NONE, PPC2_ALTIVEC_207,
-                      vextractub, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vsplth, PPC_NONE, PPC2_ALTIVEC_207,
-                      vextractuh, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltw, PPC_NONE, PPC2_ALTIVEC_207,
-                      vextractuw, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltisb, PPC_NONE, PPC2_ALTIVEC_207,
-                      vinsertb, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltish, PPC_NONE, PPC2_ALTIVEC_207,
-                      vinserth, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltisw, PPC_NONE, PPC2_ALTIVEC_207,
-                      vinsertw, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltb, PPC_ALTIVEC, PPC_NONE,
+                vextractub, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vsplth, PPC_ALTIVEC, PPC_NONE,
+                vextractuh, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltw, PPC_ALTIVEC, PPC_NONE,
+                vextractuw, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltisb, PPC_ALTIVEC, PPC_NONE,
+                vinsertb, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltish, PPC_ALTIVEC, PPC_NONE,
+                vinserth, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltisw, PPC_ALTIVEC, PPC_NONE,
+                vinsertw, PPC_NONE, PPC2_ISA300);
 
 static void gen_vsldoi(DisasContext *ctx)
 {
