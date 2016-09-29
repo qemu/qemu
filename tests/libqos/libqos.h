@@ -8,11 +8,14 @@
 typedef struct QOSOps {
     QGuestAllocator *(*init_allocator)(QAllocOpts);
     void (*uninit_allocator)(QGuestAllocator *);
+    QPCIBus *(*qpci_init)(QGuestAllocator *alloc);
+    void (*qpci_free)(QPCIBus *bus);
 } QOSOps;
 
 typedef struct QOSState {
     QTestState *qts;
     QGuestAllocator *alloc;
+    QPCIBus *pcibus;
     QOSOps *ops;
 } QOSState;
 

@@ -143,7 +143,7 @@ static QPCIDevice *get_pci_device(uint16_t *bmdma_base)
     uint16_t vendor_id, device_id;
 
     if (!pcibus) {
-        pcibus = qpci_init_pc();
+        pcibus = qpci_init_pc(NULL);
     }
 
     /* Find PCI device and verify it's the right one */

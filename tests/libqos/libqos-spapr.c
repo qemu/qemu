@@ -1,10 +1,13 @@
 #include "qemu/osdep.h"
 #include "libqos/libqos-spapr.h"
 #include "libqos/malloc-spapr.h"
+#include "libqos/pci-spapr.h"
 
 static QOSOps qos_ops = {
     .init_allocator = spapr_alloc_init_flags,
-    .uninit_allocator = spapr_alloc_uninit
+    .uninit_allocator = spapr_alloc_uninit,
+    .qpci_init = qpci_init_spapr,
+    .qpci_free = qpci_free_spapr,
 };
 
 QOSState *qtest_spapr_vboot(const char *cmdline_fmt, va_list ap)

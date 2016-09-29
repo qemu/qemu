@@ -212,7 +212,7 @@ static void qpci_pc_iounmap(QPCIBus *bus, void *data)
     /* FIXME */
 }
 
-QPCIBus *qpci_init_pc(void)
+QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
 {
     QPCIBusPC *ret;
 

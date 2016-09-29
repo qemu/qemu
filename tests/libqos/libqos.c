@@ -20,8 +20,13 @@ QOSState *qtest_vboot(QOSOps *ops, const char *cmdline_fmt, va_list ap)
     cmdline = g_strdup_vprintf(cmdline_fmt, ap);
     qs->qts = qtest_start(cmdline);
     qs->ops = ops;
-    if (ops && ops->init_allocator) {
-        qs->alloc = ops->init_allocator(ALLOC_NO_FLAGS);
+    if (ops) {
+        if (ops->init_allocator) {
+            qs->alloc = ops->init_allocator(ALLOC_NO_FLAGS);
+        }
+        if (ops->qpci_init && qs->alloc) {
+            qs->pcibus = ops->qpci_init(qs->alloc);
+        }
     }
 
     g_free(cmdline);
@@ -49,9 +54,15 @@ QOSState *qtest_boot(QOSOps *ops, const char *cmdline_fmt, ...)
  */
 void qtest_shutdown(QOSState *qs)
 {
-    if (qs->alloc && qs->ops && qs->ops->uninit_allocator) {
-        qs->ops->uninit_allocator(qs->alloc);
-        qs->alloc = NULL;
+    if (qs->ops) {
+        if (qs->pcibus && qs->ops->qpci_free) {
+            qs->ops->qpci_free(qs->pcibus);
+            qs->pcibus = NULL;
+        }
+        if (qs->alloc && qs->ops->uninit_allocator) {
+            qs->ops->uninit_allocator(qs->alloc);
+            qs->alloc = NULL;
+        }
     }
     qtest_quit(qs->qts);
     g_free(qs);
