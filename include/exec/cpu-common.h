@@ -63,6 +63,7 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
 void qemu_ram_set_idstr(RAMBlock *block, const char *name, DeviceState *dev);
 void qemu_ram_unset_idstr(RAMBlock *block);
 const char *qemu_ram_get_idstr(RAMBlock *rb);
+size_t qemu_ram_pagesize(RAMBlock *block);
 
 void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
                             int len, int is_write);

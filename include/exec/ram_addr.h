@@ -36,6 +36,7 @@ struct RAMBlock {
     /* RCU-enabled, writes protected by the ramlist lock */
     QLIST_ENTRY(RAMBlock) next;
     int fd;
+    size_t page_size;
 };
 
 static inline bool offset_in_ramblock(RAMBlock *b, ram_addr_t offset)
