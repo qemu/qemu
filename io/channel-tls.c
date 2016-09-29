@@ -111,7 +111,7 @@ qio_channel_tls_new_client(QIOChannel *master,
     ioc = QIO_CHANNEL(tioc);
 
     tioc->master = master;
-    if (master->features & (1 << QIO_CHANNEL_FEATURE_SHUTDOWN)) {
+    if (qio_channel_has_feature(master, QIO_CHANNEL_FEATURE_SHUTDOWN)) {
         ioc->features |= (1 << QIO_CHANNEL_FEATURE_SHUTDOWN);
     }
     object_ref(OBJECT(master));
