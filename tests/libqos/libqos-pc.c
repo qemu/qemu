@@ -8,6 +8,7 @@ static QOSOps qos_ops = {
     .uninit_allocator = pc_alloc_uninit,
     .qpci_init = qpci_init_pc,
     .qpci_free = qpci_free_pc,
+    .shutdown = qtest_pc_shutdown,
 };
 
 QOSState *qtest_pc_vboot(const char *cmdline_fmt, va_list ap)
@@ -31,5 +32,5 @@ QOSState *qtest_pc_boot(const char *cmdline_fmt, ...)
 
 void qtest_pc_shutdown(QOSState *qs)
 {
-    return qtest_shutdown(qs);
+    return qtest_common_shutdown(qs);
 }

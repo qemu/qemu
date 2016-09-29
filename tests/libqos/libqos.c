@@ -52,7 +52,7 @@ QOSState *qtest_boot(QOSOps *ops, const char *cmdline_fmt, ...)
 /**
  * Tear down the QEMU instance.
  */
-void qtest_shutdown(QOSState *qs)
+void qtest_common_shutdown(QOSState *qs)
 {
     if (qs->ops) {
         if (qs->pcibus && qs->ops->qpci_free) {
@@ -66,6 +66,15 @@ void qtest_shutdown(QOSState *qs)
     }
     qtest_quit(qs->qts);
     g_free(qs);
+}
+
+void qtest_shutdown(QOSState *qs)
+{
+    if (qs->ops && qs->ops->shutdown) {
+        qs->ops->shutdown(qs);
+    } else {
+        qtest_common_shutdown(qs);
+    }
 }
 
 void set_context(QOSState *s)
