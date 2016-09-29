@@ -570,10 +570,17 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     idle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, kvm_kick_cpu, cpu);
 
-    /* Some targets support access to KVM's guest TLB. */
     switch (cenv->mmu_model) {
     case POWERPC_MMU_BOOKE206:
+        /* This target supports access to KVM's guest TLB */
         ret = kvm_booke206_tlb_init(cpu);
+        break;
+    case POWERPC_MMU_2_07:
+        if (!cap_htm && !kvmppc_is_pr(cs->kvm_state)) {
+            /* KVM-HV has transactional memory on POWER8 also without the
+             * KVM_CAP_PPC_HTM extension, so enable it here instead. */
+            cap_htm = true;
+        }
         break;
     default:
         break;
