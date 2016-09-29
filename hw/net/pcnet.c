@@ -1429,8 +1429,11 @@ static void pcnet_csr_writew(PCNetState *s, uint32_t rap, uint32_t new_value)
     case 47: /* POLLINT */
     case 72:
     case 74:
+        break;
     case 76: /* RCVRL */
     case 78: /* XMTRL */
+        val = (val > 0) ? val : 512;
+        break;
     case 112:
        if (CSR_STOP(s) || CSR_SPND(s))
            break;
