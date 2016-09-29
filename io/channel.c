@@ -30,6 +30,13 @@ bool qio_channel_has_feature(QIOChannel *ioc,
 }
 
 
+void qio_channel_set_feature(QIOChannel *ioc,
+                             QIOChannelFeature feature)
+{
+    ioc->features |= (1 << feature);
+}
+
+
 ssize_t qio_channel_readv_full(QIOChannel *ioc,
                                const struct iovec *iov,
                                size_t niov,

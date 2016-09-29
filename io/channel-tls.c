@@ -112,7 +112,7 @@ qio_channel_tls_new_client(QIOChannel *master,
 
     tioc->master = master;
     if (qio_channel_has_feature(master, QIO_CHANNEL_FEATURE_SHUTDOWN)) {
-        ioc->features |= (1 << QIO_CHANNEL_FEATURE_SHUTDOWN);
+        qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_SHUTDOWN);
     }
     object_ref(OBJECT(master));
 

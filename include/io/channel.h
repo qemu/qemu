@@ -149,6 +149,16 @@ bool qio_channel_has_feature(QIOChannel *ioc,
                              QIOChannelFeature feature);
 
 /**
+ * qio_channel_set_feature:
+ * @ioc: the channel object
+ * @feature: the feature to set support for
+ *
+ * Add channel support for the feature named in @feature.
+ */
+void qio_channel_set_feature(QIOChannel *ioc,
+                             QIOChannelFeature feature);
+
+/**
  * qio_channel_readv_full:
  * @ioc: the channel object
  * @iov: the array of memory regions to read data into

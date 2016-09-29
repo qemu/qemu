@@ -498,7 +498,7 @@ qio_channel_websock_new_server(QIOChannel *master)
 
     wioc->master = master;
     if (qio_channel_has_feature(master, QIO_CHANNEL_FEATURE_SHUTDOWN)) {
-        ioc->features |= (1 << QIO_CHANNEL_FEATURE_SHUTDOWN);
+        qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_SHUTDOWN);
     }
     object_ref(OBJECT(master));
 
