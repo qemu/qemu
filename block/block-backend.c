@@ -565,6 +565,23 @@ void *blk_get_attached_dev(BlockBackend *blk)
     return blk->dev;
 }
 
+/* Return the qdev ID, or if no ID is assigned the QOM path, of the block
+ * device attached to the BlockBackend. */
+static char *blk_get_attached_dev_id(BlockBackend *blk)
+{
+    DeviceState *dev;
+
+    assert(!blk->legacy_dev);
+    dev = blk->dev;
+
+    if (!dev) {
+        return g_strdup("");
+    } else if (dev->id) {
+        return g_strdup(dev->id);
+    }
+    return object_get_canonical_path(OBJECT(dev));
+}
+
 /*
  * Return the BlockBackend which has the device model @dev attached if it
  * exists, else null.
@@ -612,13 +629,17 @@ void blk_dev_change_media_cb(BlockBackend *blk, bool load)
     if (blk->dev_ops && blk->dev_ops->change_media_cb) {
         bool tray_was_open, tray_is_open;
 
+        assert(!blk->legacy_dev);
+
         tray_was_open = blk_dev_is_tray_open(blk);
         blk->dev_ops->change_media_cb(blk->dev_opaque, load);
         tray_is_open = blk_dev_is_tray_open(blk);
 
         if (tray_was_open != tray_is_open) {
-            qapi_event_send_device_tray_moved(blk_name(blk), tray_is_open,
+            char *id = blk_get_attached_dev_id(blk);
+            qapi_event_send_device_tray_moved(blk_name(blk), id, tray_is_open,
                                               &error_abort);
+            g_free(id);
         }
     }
 }
@@ -1316,9 +1337,19 @@ void blk_lock_medium(BlockBackend *blk, bool locked)
 void blk_eject(BlockBackend *blk, bool eject_flag)
 {
     BlockDriverState *bs = blk_bs(blk);
+    char *id;
+
+    /* blk_eject is only called by qdevified devices */
+    assert(!blk->legacy_dev);
 
     if (bs) {
         bdrv_eject(bs, eject_flag);
+
+        id = blk_get_attached_dev_id(blk);
+        qapi_event_send_device_tray_moved(blk_name(blk), id,
+                                          eject_flag, &error_abort);
+        g_free(id);
+
     }
 }
 

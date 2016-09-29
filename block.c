@@ -3360,16 +3360,9 @@ int bdrv_media_changed(BlockDriverState *bs)
 void bdrv_eject(BlockDriverState *bs, bool eject_flag)
 {
     BlockDriver *drv = bs->drv;
-    const char *device_name;
 
     if (drv && drv->bdrv_eject) {
         drv->bdrv_eject(bs, eject_flag);
-    }
-
-    device_name = bdrv_get_device_name(bs);
-    if (device_name[0] != '\0') {
-        qapi_event_send_device_tray_moved(device_name,
-                                          eject_flag, &error_abort);
     }
 }
 

@@ -3239,6 +3239,7 @@ Example:
                     "microseconds": 716996 },
      "event": "DEVICE_TRAY_MOVED",
      "data": { "device": "ide1-cd0",
+               "id": "ide0-1-0",
                "tray-open": true } }
 
 <- { "return": {} }
@@ -3267,6 +3268,7 @@ Example:
                     "microseconds": 272147 },
      "event": "DEVICE_TRAY_MOVED",
      "data": { "device": "ide1-cd0",
+               "id": "ide0-1-0",
                "tray-open": false } }
 
 <- { "return": {} }
@@ -3303,6 +3305,7 @@ Example:
                     "microseconds": 549958 },
      "event": "DEVICE_TRAY_MOVED",
      "data": { "device": "ide1-cd0",
+               "id": "ide0-1-0",
                "tray-open": true } }
 
 <- { "return": {} }
