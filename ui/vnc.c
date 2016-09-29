@@ -3029,7 +3029,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     qio_channel_set_blocking(vs->ioc, false, NULL);
     if (websocket) {
         vs->websocket = 1;
-        if (vd->ws_tls) {
+        if (vd->tlscreds) {
             vs->ioc_tag = qio_channel_add_watch(
                 vs->ioc, G_IO_IN, vncws_tls_handshake_io, vs, NULL);
         } else {
@@ -3379,9 +3379,6 @@ vnc_display_setup_auth(VncDisplay *vs,
     if (password) {
         if (vs->tlscreds) {
             vs->auth = VNC_AUTH_VENCRYPT;
-            if (websocket) {
-                vs->ws_tls = true;
-            }
             if (object_dynamic_cast(OBJECT(vs->tlscreds),
                                     TYPE_QCRYPTO_TLS_CREDS_X509)) {
                 VNC_DEBUG("Initializing VNC server with x509 password auth\n");
@@ -3409,9 +3406,6 @@ vnc_display_setup_auth(VncDisplay *vs,
     } else if (sasl) {
         if (vs->tlscreds) {
             vs->auth = VNC_AUTH_VENCRYPT;
-            if (websocket) {
-                vs->ws_tls = true;
-            }
             if (object_dynamic_cast(OBJECT(vs->tlscreds),
                                     TYPE_QCRYPTO_TLS_CREDS_X509)) {
                 VNC_DEBUG("Initializing VNC server with x509 SASL auth\n");
@@ -3439,9 +3433,6 @@ vnc_display_setup_auth(VncDisplay *vs,
     } else {
         if (vs->tlscreds) {
             vs->auth = VNC_AUTH_VENCRYPT;
-            if (websocket) {
-                vs->ws_tls = true;
-            }
             if (object_dynamic_cast(OBJECT(vs->tlscreds),
                                     TYPE_QCRYPTO_TLS_CREDS_X509)) {
                 VNC_DEBUG("Initializing VNC server with x509 no auth\n");

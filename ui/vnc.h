@@ -172,7 +172,6 @@ struct VncDisplay
     int auth;
     int subauth; /* Used by VeNCrypt */
     int ws_auth; /* Used by websockets */
-    bool ws_tls; /* Used by websockets */
     bool lossy;
     bool non_adaptive;
     QCryptoTLSCreds *tlscreds;
