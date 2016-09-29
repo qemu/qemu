@@ -1222,13 +1222,13 @@ void vnc_disconnect_finish(VncState *vs)
     audio_del(vs);
     vnc_release_modifiers(vs);
 
-    if (vs->initialized) {
-        QTAILQ_REMOVE(&vs->vd->clients, vs, next);
+    if (vs->mouse_mode_notifier.notify != NULL) {
         qemu_remove_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
-        if (QTAILQ_EMPTY(&vs->vd->clients)) {
-            /* last client gone */
-            vnc_update_server_surface(vs->vd);
-        }
+    }
+    QTAILQ_REMOVE(&vs->vd->clients, vs, next);
+    if (QTAILQ_EMPTY(&vs->vd->clients)) {
+        /* last client gone */
+        vnc_update_server_surface(vs->vd);
     }
 
     if (vs->vd->lock_key_sync)
@@ -2978,6 +2978,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
                         bool skipauth, bool websocket)
 {
     VncState *vs = g_new0(VncState, 1);
+    bool first_client = QTAILQ_EMPTY(&vd->clients);
     int i;
 
     vs->sioc = sioc;
@@ -3045,26 +3046,6 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     vnc_qmp_event(vs, QAPI_EVENT_VNC_CONNECTED);
     vnc_set_share_mode(vs, VNC_SHARE_MODE_CONNECTING);
 
-    if (!vs->websocket) {
-        vnc_init_state(vs);
-    }
-
-    if (vd->num_connecting > vd->connections_limit) {
-        QTAILQ_FOREACH(vs, &vd->clients, next) {
-            if (vs->share_mode == VNC_SHARE_MODE_CONNECTING) {
-                vnc_disconnect_start(vs);
-                return;
-            }
-        }
-    }
-}
-
-void vnc_init_state(VncState *vs)
-{
-    vs->initialized = true;
-    VncDisplay *vd = vs->vd;
-    bool first_client = QTAILQ_EMPTY(&vd->clients);
-
     vs->last_x = -1;
     vs->last_y = -1;
 
@@ -3083,6 +3064,22 @@ void vnc_init_state(VncState *vs)
 
     graphic_hw_update(vd->dcl.con);
 
+    if (!vs->websocket) {
+        vnc_init_state(vs);
+    }
+
+    if (vd->num_connecting > vd->connections_limit) {
+        QTAILQ_FOREACH(vs, &vd->clients, next) {
+            if (vs->share_mode == VNC_SHARE_MODE_CONNECTING) {
+                vnc_disconnect_start(vs);
+                return;
+            }
+        }
+    }
+}
+
+void vnc_init_state(VncState *vs)
+{
     vnc_write(vs, "RFB 003.008\n", 12);
     vnc_flush(vs);
     vnc_read_when(vs, protocol_version, 12);

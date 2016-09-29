@@ -307,7 +307,6 @@ struct VncState
     QEMUPutLEDEntry *led;
 
     bool abort;
-    bool initialized;
     QemuMutex output_mutex;
     QEMUBH *bh;
     Buffer jobs_buffer;
