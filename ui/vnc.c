@@ -3092,8 +3092,6 @@ void vnc_init_state(VncState *vs)
 
     vs->mouse_mode_notifier.notify = check_pointer_type_change;
     qemu_add_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
-
-    /* vs might be free()ed here */
 }
 
 static gboolean vnc_listen_io(QIOChannel *ioc,
