@@ -908,7 +908,7 @@ eot:
 
 static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
 {
-    s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
+    s->status = READY_STAT | SEEK_STAT | DRQ_STAT;
     s->io_buffer_size = 0;
     s->dma_cmd = dma_cmd;
 
