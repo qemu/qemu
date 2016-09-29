@@ -102,6 +102,16 @@ static void kvm_kick_cpu(void *opaque)
     qemu_cpu_kick(CPU(cpu));
 }
 
+/* Check whether we are running with KVM-PR (instead of KVM-HV).  This
+ * should only be used for fallback tests - generally we should use
+ * explicit capabilities for the features we want, rather than
+ * assuming what is/isn't available depending on the KVM variant. */
+static bool kvmppc_is_pr(KVMState *ks)
+{
+    /* Assume KVM-PR if the GET_PVINFO capability is available */
+    return kvm_check_extension(ks, KVM_CAP_PPC_GET_PVINFO) != 0;
+}
+
 static int kvm_ppc_register_host_cpu_type(void);
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
@@ -223,10 +233,9 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
      *
      * For that to work we make a few assumptions:
      *
-     * - If KVM_CAP_PPC_GET_PVINFO is supported we are running "PR"
-     *   KVM which only supports 4K and 16M pages, but supports them
-     *   regardless of the backing store characteritics. We also don't
-     *   support 1T segments.
+     * - Check whether we are running "PR" KVM which only supports 4K
+     *   and 16M pages, but supports them regardless of the backing
+     *   store characteritics. We also don't support 1T segments.
      *
      *   This is safe as if HV KVM ever supports that capability or PR
      *   KVM grows supports for more page/segment sizes, those versions
@@ -241,7 +250,7 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
      *   implements KVM_CAP_PPC_GET_SMMU_INFO and thus doesn't hit
      *   this fallback.
      */
-    if (kvm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_PVINFO)) {
+    if (kvmppc_is_pr(cs->kvm_state)) {
         /* No flags */
         info->flags = 0;
         info->slb_size = 64;
@@ -2270,11 +2279,8 @@ int kvmppc_reset_htab(int shift_hint)
 
     /* We have a kernel that predates the htab reset calls.  For PR
      * KVM, we need to allocate the htab ourselves, for an HV KVM of
-     * this era, it has allocated a 16MB fixed size hash table
-     * already.  Kernels of this era have the GET_PVINFO capability
-     * only on PR, so we use this hack to determine the right
-     * answer */
-    if (kvm_check_extension(kvm_state, KVM_CAP_PPC_GET_PVINFO)) {
+     * this era, it has allocated a 16MB fixed size hash table already. */
+    if (kvmppc_is_pr(kvm_state)) {
         /* PR - tell caller to allocate htab */
         return 0;
     } else {
