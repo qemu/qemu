@@ -3325,7 +3325,9 @@ static QemuOptsList qemu_vnc_opts = {
 
 
 static int
-vnc_display_setup_auth(VncDisplay *vd,
+vnc_display_setup_auth(int *auth,
+                       int *subauth,
+                       QCryptoTLSCreds *tlscreds,
                        bool password,
                        bool sasl,
                        bool websocket,
@@ -3378,86 +3380,56 @@ vnc_display_setup_auth(VncDisplay *vd,
      * VNC auth mechs for plain VNC vs websockets VNC, the end
      * result has the same security characteristics.
      */
-    if (password) {
-        if (vd->tlscreds) {
-            vd->auth = VNC_AUTH_VENCRYPT;
-            if (object_dynamic_cast(OBJECT(vd->tlscreds),
-                                    TYPE_QCRYPTO_TLS_CREDS_X509)) {
-                VNC_DEBUG("Initializing VNC server with x509 password auth\n");
-                vd->subauth = VNC_AUTH_VENCRYPT_X509VNC;
-            } else if (object_dynamic_cast(OBJECT(vd->tlscreds),
-                                           TYPE_QCRYPTO_TLS_CREDS_ANON)) {
-                VNC_DEBUG("Initializing VNC server with TLS password auth\n");
-                vd->subauth = VNC_AUTH_VENCRYPT_TLSVNC;
-            } else {
-                error_setg(errp,
-                           "Unsupported TLS cred type %s",
-                           object_get_typename(OBJECT(vd->tlscreds)));
-                return -1;
-            }
-        } else {
+    if (websocket || !tlscreds) {
+        if (password) {
             VNC_DEBUG("Initializing VNC server with password auth\n");
-            vd->auth = VNC_AUTH_VNC;
-            vd->subauth = VNC_AUTH_INVALID;
-        }
-        if (websocket) {
-            vd->ws_auth = VNC_AUTH_VNC;
-        } else {
-            vd->ws_auth = VNC_AUTH_INVALID;
-        }
-    } else if (sasl) {
-        if (vd->tlscreds) {
-            vd->auth = VNC_AUTH_VENCRYPT;
-            if (object_dynamic_cast(OBJECT(vd->tlscreds),
-                                    TYPE_QCRYPTO_TLS_CREDS_X509)) {
-                VNC_DEBUG("Initializing VNC server with x509 SASL auth\n");
-                vd->subauth = VNC_AUTH_VENCRYPT_X509SASL;
-            } else if (object_dynamic_cast(OBJECT(vd->tlscreds),
-                                           TYPE_QCRYPTO_TLS_CREDS_ANON)) {
-                VNC_DEBUG("Initializing VNC server with TLS SASL auth\n");
-                vd->subauth = VNC_AUTH_VENCRYPT_TLSSASL;
-            } else {
-                error_setg(errp,
-                           "Unsupported TLS cred type %s",
-                           object_get_typename(OBJECT(vd->tlscreds)));
-                return -1;
-            }
-        } else {
+            *auth = VNC_AUTH_VNC;
+        } else if (sasl) {
             VNC_DEBUG("Initializing VNC server with SASL auth\n");
-            vd->auth = VNC_AUTH_SASL;
-            vd->subauth = VNC_AUTH_INVALID;
-        }
-        if (websocket) {
-            vd->ws_auth = VNC_AUTH_SASL;
-        } else {
-            vd->ws_auth = VNC_AUTH_INVALID;
-        }
-    } else {
-        if (vd->tlscreds) {
-            vd->auth = VNC_AUTH_VENCRYPT;
-            if (object_dynamic_cast(OBJECT(vd->tlscreds),
-                                    TYPE_QCRYPTO_TLS_CREDS_X509)) {
-                VNC_DEBUG("Initializing VNC server with x509 no auth\n");
-                vd->subauth = VNC_AUTH_VENCRYPT_X509NONE;
-            } else if (object_dynamic_cast(OBJECT(vd->tlscreds),
-                                           TYPE_QCRYPTO_TLS_CREDS_ANON)) {
-                VNC_DEBUG("Initializing VNC server with TLS no auth\n");
-                vd->subauth = VNC_AUTH_VENCRYPT_TLSNONE;
-            } else {
-                error_setg(errp,
-                           "Unsupported TLS cred type %s",
-                           object_get_typename(OBJECT(vd->tlscreds)));
-                return -1;
-            }
+            *auth = VNC_AUTH_SASL;
         } else {
             VNC_DEBUG("Initializing VNC server with no auth\n");
-            vd->auth = VNC_AUTH_NONE;
-            vd->subauth = VNC_AUTH_INVALID;
+            *auth = VNC_AUTH_NONE;
         }
-        if (websocket) {
-            vd->ws_auth = VNC_AUTH_NONE;
+        *subauth = VNC_AUTH_INVALID;
+    } else {
+        bool is_x509 = object_dynamic_cast(OBJECT(tlscreds),
+                                           TYPE_QCRYPTO_TLS_CREDS_X509) != NULL;
+        bool is_anon = object_dynamic_cast(OBJECT(tlscreds),
+                                           TYPE_QCRYPTO_TLS_CREDS_ANON) != NULL;
+
+        if (!is_x509 && !is_anon) {
+            error_setg(errp,
+                       "Unsupported TLS cred type %s",
+                       object_get_typename(OBJECT(tlscreds)));
+            return -1;
+        }
+        *auth = VNC_AUTH_VENCRYPT;
+        if (password) {
+            if (is_x509) {
+                VNC_DEBUG("Initializing VNC server with x509 password auth\n");
+                *subauth = VNC_AUTH_VENCRYPT_X509VNC;
+            } else {
+                VNC_DEBUG("Initializing VNC server with TLS password auth\n");
+                *subauth = VNC_AUTH_VENCRYPT_TLSVNC;
+            }
+
+        } else if (sasl) {
+            if (is_x509) {
+                VNC_DEBUG("Initializing VNC server with x509 SASL auth\n");
+                *subauth = VNC_AUTH_VENCRYPT_X509SASL;
+            } else {
+                VNC_DEBUG("Initializing VNC server with TLS SASL auth\n");
+                *subauth = VNC_AUTH_VENCRYPT_TLSSASL;
+            }
         } else {
-            vd->ws_auth = VNC_AUTH_INVALID;
+            if (is_x509) {
+                VNC_DEBUG("Initializing VNC server with x509 no auth\n");
+                *subauth = VNC_AUTH_VENCRYPT_X509NONE;
+            } else {
+                VNC_DEBUG("Initializing VNC server with TLS no auth\n");
+                *subauth = VNC_AUTH_VENCRYPT_TLSNONE;
+            }
         }
     }
     return 0;
@@ -3769,7 +3741,15 @@ void vnc_display_open(const char *id, Error **errp)
     }
 #endif
 
-    if (vnc_display_setup_auth(vd, password, sasl, ws_enabled, errp) < 0) {
+    if (vnc_display_setup_auth(&vd->auth, &vd->subauth,
+                               vd->tlscreds, password,
+                               sasl, false, errp) < 0) {
+        goto fail;
+    }
+
+    if (vnc_display_setup_auth(&vd->ws_auth, &vd->ws_subauth,
+                               vd->tlscreds, password,
+                               sasl, true, errp) < 0) {
         goto fail;
     }
 
