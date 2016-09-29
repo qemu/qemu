@@ -3102,8 +3102,6 @@ static gboolean vnc_listen_io(QIOChannel *ioc,
     QIOChannelSocket *sioc = NULL;
     Error *err = NULL;
 
-    /* Catch-up */
-    graphic_hw_update(vd->dcl.con);
     sioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc), &err);
     if (sioc != NULL) {
         qio_channel_set_delay(QIO_CHANNEL(sioc), false);
