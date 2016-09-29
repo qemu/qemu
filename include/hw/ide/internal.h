@@ -482,6 +482,7 @@ struct IDEBus {
     uint32_t retry_nsector;
     PortioList portio_list;
     PortioList portio2_list;
+    VMChangeStateEntry *vmstate;
 };
 
 #define TYPE_IDE_DEVICE "ide-device"
