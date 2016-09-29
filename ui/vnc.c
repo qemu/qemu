@@ -3086,7 +3086,6 @@ void vnc_init_state(VncState *vs)
     vnc_write(vs, "RFB 003.008\n", 12);
     vnc_flush(vs);
     vnc_read_when(vs, protocol_version, 12);
-    reset_keys(vs);
     if (vs->vd->lock_key_sync)
         vs->led = qemu_add_led_event_handler(kbd_leds, vs);
 
