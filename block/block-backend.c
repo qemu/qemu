@@ -1197,8 +1197,9 @@ static void send_qmp_error_event(BlockBackend *blk,
     IoOperationType optype;
 
     optype = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
-    qapi_event_send_block_io_error(blk_name(blk), optype, action,
-                                   blk_iostatus_is_enabled(blk),
+    qapi_event_send_block_io_error(blk_name(blk),
+                                   bdrv_get_node_name(blk_bs(blk)), optype,
+                                   action, blk_iostatus_is_enabled(blk),
                                    error == ENOSPC, strerror(error),
                                    &error_abort);
 }
