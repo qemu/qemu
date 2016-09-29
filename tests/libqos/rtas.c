@@ -69,3 +69,48 @@ int qrtas_get_time_of_day(QGuestAllocator *alloc, struct tm *tm, uint32_t *ns)
 
     return res;
 }
+
+uint32_t qrtas_ibm_read_pci_config(QGuestAllocator *alloc, uint64_t buid,
+                                   uint32_t addr, uint32_t size)
+{
+    int res;
+    uint32_t args[4], ret[2];
+
+    args[0] = addr;
+    args[1] = buid >> 32;
+    args[2] = buid & 0xffffffff;
+    args[3] = size;
+    res = qrtas_call(alloc, "ibm,read-pci-config", 4, args, 2, ret);
+    if (res != 0) {
+        return -1;
+    }
+
+    if (ret[0] != 0) {
+        return -1;
+    }
+
+    return ret[1];
+}
+
+int qrtas_ibm_write_pci_config(QGuestAllocator *alloc, uint64_t buid,
+                               uint32_t addr, uint32_t size, uint32_t val)
+{
+    int res;
+    uint32_t args[5], ret[1];
+
+    args[0] = addr;
+    args[1] = buid >> 32;
+    args[2] = buid & 0xffffffff;
+    args[3] = size;
+    args[4] = val;
+    res = qrtas_call(alloc, "ibm,write-pci-config", 5, args, 1, ret);
+    if (res != 0) {
+        return -1;
+    }
+
+    if (ret[0] != 0) {
+        return -1;
+    }
+
+    return 0;
+}

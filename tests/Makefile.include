@@ -591,6 +591,7 @@ libqos-obj-y += tests/libqos/i2c.o tests/libqos/libqos.o
 libqos-spapr-obj-y = $(libqos-obj-y) tests/libqos/malloc-spapr.o
 libqos-spapr-obj-y += tests/libqos/libqos-spapr.o
 libqos-spapr-obj-y += tests/libqos/rtas.o
+libqos-spapr-obj-y += tests/libqos/pci-spapr.o
 libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o
 libqos-pc-obj-y += tests/libqos/malloc-pc.o tests/libqos/libqos-pc.o
 libqos-pc-obj-y += tests/libqos/ahci.o
