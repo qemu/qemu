@@ -491,6 +491,37 @@ static void test_io_channel_unix_fd_pass(void)
     }
     g_free(fdrecv);
 }
+
+static void test_io_channel_unix_listen_cleanup(void)
+{
+    QIOChannelSocket *ioc;
+    struct sockaddr_un un;
+    int sock;
+
+#define TEST_SOCKET "test-io-channel-socket.sock"
+
+    ioc = qio_channel_socket_new();
+
+    /* Manually bind ioc without calling the qio api to avoid setting
+     * the LISTEN feature */
+    sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
+    memset(&un, 0, sizeof(un));
+    un.sun_family = AF_UNIX;
+    snprintf(un.sun_path, sizeof(un.sun_path), "%s", TEST_SOCKET);
+    unlink(TEST_SOCKET);
+    bind(sock, (struct sockaddr *)&un, sizeof(un));
+    ioc->fd = sock;
+    ioc->localAddrLen = sizeof(ioc->localAddr);
+    getsockname(sock, (struct sockaddr *)&ioc->localAddr,
+                &ioc->localAddrLen);
+
+    g_assert(g_file_test(TEST_SOCKET, G_FILE_TEST_EXISTS));
+    object_unref(OBJECT(ioc));
+    g_assert(g_file_test(TEST_SOCKET, G_FILE_TEST_EXISTS));
+
+    unlink(TEST_SOCKET);
+}
+
 #endif /* _WIN32 */
 
 
@@ -562,6 +593,8 @@ int main(int argc, char **argv)
                     test_io_channel_unix_async);
     g_test_add_func("/io/channel/socket/unix-fd-pass",
                     test_io_channel_unix_fd_pass);
+    g_test_add_func("/io/channel/socket/unix-listen-cleanup",
+                    test_io_channel_unix_listen_cleanup);
 #endif /* _WIN32 */
 
     return g_test_run();
