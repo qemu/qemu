@@ -38,6 +38,7 @@ struct BlockBackend {
     BlockBackendPublic public;
 
     void *dev;                  /* attached device model, if any */
+    bool legacy_dev;            /* true if dev is not a DeviceState */
     /* TODO change to DeviceState when all users are qdevified */
     const BlockDevOps *dev_ops;
     void *dev_opaque;
@@ -506,20 +507,25 @@ void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
     }
 }
 
-/*
- * Attach device model @dev to @blk.
- * Return 0 on success, -EBUSY when a device model is attached already.
- */
-int blk_attach_dev(BlockBackend *blk, void *dev)
-/* TODO change to DeviceState *dev when all users are qdevified */
+static int blk_do_attach_dev(BlockBackend *blk, void *dev)
 {
     if (blk->dev) {
         return -EBUSY;
     }
     blk_ref(blk);
     blk->dev = dev;
+    blk->legacy_dev = false;
     blk_iostatus_reset(blk);
     return 0;
+}
+
+/*
+ * Attach device model @dev to @blk.
+ * Return 0 on success, -EBUSY when a device model is attached already.
+ */
+int blk_attach_dev(BlockBackend *blk, DeviceState *dev)
+{
+    return blk_do_attach_dev(blk, dev);
 }
 
 /*
@@ -527,11 +533,12 @@ int blk_attach_dev(BlockBackend *blk, void *dev)
  * @blk must not have a device model attached already.
  * TODO qdevified devices don't use this, remove when devices are qdevified
  */
-void blk_attach_dev_nofail(BlockBackend *blk, void *dev)
+void blk_attach_dev_legacy(BlockBackend *blk, void *dev)
 {
-    if (blk_attach_dev(blk, dev) < 0) {
+    if (blk_do_attach_dev(blk, dev) < 0) {
         abort();
     }
+    blk->legacy_dev = true;
 }
 
 /*
@@ -585,6 +592,11 @@ BlockBackend *blk_by_dev(void *dev)
 void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
                      void *opaque)
 {
+    /* All drivers that use blk_set_dev_ops() are qdevified and we want to keep
+     * it that way, so we can assume blk->dev is a DeviceState if blk->dev_ops
+     * is set. */
+    assert(!blk->legacy_dev);
+
     blk->dev_ops = ops;
     blk->dev_opaque = opaque;
 }

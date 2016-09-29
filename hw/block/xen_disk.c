@@ -1079,7 +1079,7 @@ static int blk_connect(struct XenDevice *xendev)
          * so we can blk_unref() unconditionally */
         blk_ref(blkdev->blk);
     }
-    blk_attach_dev_nofail(blkdev->blk, blkdev);
+    blk_attach_dev_legacy(blkdev->blk, blkdev);
     blkdev->file_size = blk_getlength(blkdev->blk);
     if (blkdev->file_size < 0) {
         BlockDriverState *bs = blk_bs(blkdev->blk);
