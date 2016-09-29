@@ -3065,7 +3065,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     graphic_hw_update(vd->dcl.con);
 
     if (!vs->websocket) {
-        vnc_init_state(vs);
+        vnc_start_protocol(vs);
     }
 
     if (vd->num_connecting > vd->connections_limit) {
@@ -3078,7 +3078,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     }
 }
 
-void vnc_init_state(VncState *vs)
+void vnc_start_protocol(VncState *vs)
 {
     vnc_write(vs, "RFB 003.008\n", 12);
     vnc_flush(vs);

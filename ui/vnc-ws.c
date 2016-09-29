@@ -92,7 +92,7 @@ static void vncws_handshake_done(Object *source,
         vnc_client_error(vs);
     } else {
         VNC_DEBUG("Websock handshake complete, starting VNC protocol\n");
-        vnc_init_state(vs);
+        vnc_start_protocol(vs);
         vs->ioc_tag = qio_channel_add_watch(
             vs->ioc, G_IO_IN, vnc_client_io, vs, NULL);
     }
