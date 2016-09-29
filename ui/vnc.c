@@ -371,7 +371,7 @@ VncInfo *qmp_query_vnc(Error **errp)
     VncDisplay *vd = vnc_display_find(NULL);
     SocketAddress *addr = NULL;
 
-    if (vd == NULL || !vd->enabled) {
+    if (vd == NULL || !vd->lsock) {
         info->enabled = false;
     } else {
         info->enabled = true;
@@ -3169,7 +3169,6 @@ static void vnc_display_close(VncDisplay *vs)
 {
     if (!vs)
         return;
-    vs->enabled = false;
     vs->is_unix = false;
     if (vs->lsock != NULL) {
         if (vs->lsock_tag) {
@@ -3178,7 +3177,6 @@ static void vnc_display_close(VncDisplay *vs)
         object_unref(OBJECT(vs->lsock));
         vs->lsock = NULL;
     }
-    vs->ws_enabled = false;
     if (vs->lwebsock != NULL) {
         if (vs->lwebsock_tag) {
             g_source_remove(vs->lwebsock_tag);
@@ -3538,6 +3536,7 @@ void vnc_display_open(const char *id, Error **errp)
     int acl = 0;
     int lock_key_sync = 1;
     int key_delay_ms;
+    bool ws_enabled = false;
 
     if (!vs) {
         error_setg(errp, "VNC display not active");
@@ -3573,7 +3572,7 @@ void vnc_display_open(const char *id, Error **errp)
             }
 
             wsaddr = g_new0(SocketAddress, 1);
-            vs->ws_enabled = true;
+            ws_enabled = true;
         }
 
         if (strncmp(vnc, "unix:", 5) == 0) {
@@ -3581,7 +3580,7 @@ void vnc_display_open(const char *id, Error **errp)
             saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
             saddr->u.q_unix.data->path = g_strdup(vnc + 5);
 
-            if (vs->ws_enabled) {
+            if (ws_enabled) {
                 error_setg(errp, "UNIX sockets not supported with websock");
                 goto fail;
             }
@@ -3617,7 +3616,7 @@ void vnc_display_open(const char *id, Error **errp)
             inet->ipv6 = ipv6;
             inet->has_ipv6 = has_ipv6;
 
-            if (vs->ws_enabled) {
+            if (ws_enabled) {
                 wsaddr->type = SOCKET_ADDRESS_KIND_INET;
                 inet = wsaddr->u.inet.data = g_new0(InetSocketAddress, 1);
                 inet->host = g_strdup(saddr->u.inet.data->host);
@@ -3777,7 +3776,7 @@ void vnc_display_open(const char *id, Error **errp)
     }
 #endif
 
-    if (vnc_display_setup_auth(vs, password, sasl, vs->ws_enabled, errp) < 0) {
+    if (vnc_display_setup_auth(vs, password, sasl, ws_enabled, errp) < 0) {
         goto fail;
     }
 
@@ -3816,7 +3815,7 @@ void vnc_display_open(const char *id, Error **errp)
         QIOChannelSocket *sioc = NULL;
         vs->lsock = NULL;
         vs->lwebsock = NULL;
-        if (vs->ws_enabled) {
+        if (ws_enabled) {
             error_setg(errp, "Cannot use websockets in reverse mode");
             goto fail;
         }
@@ -3833,9 +3832,8 @@ void vnc_display_open(const char *id, Error **errp)
             goto fail;
         }
         vs->is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
-        vs->enabled = true;
 
-        if (vs->ws_enabled) {
+        if (ws_enabled) {
             vs->lwebsock = qio_channel_socket_new();
             if (qio_channel_socket_listen_sync(vs->lwebsock,
                                                wsaddr, errp) < 0) {
@@ -3848,7 +3846,7 @@ void vnc_display_open(const char *id, Error **errp)
         vs->lsock_tag = qio_channel_add_watch(
             QIO_CHANNEL(vs->lsock),
             G_IO_IN, vnc_listen_io, vs, NULL);
-        if (vs->ws_enabled) {
+        if (ws_enabled) {
             vs->lwebsock_tag = qio_channel_add_watch(
                 QIO_CHANNEL(vs->lwebsock),
                 G_IO_IN, vnc_listen_io, vs, NULL);
@@ -3866,8 +3864,7 @@ void vnc_display_open(const char *id, Error **errp)
 fail:
     qapi_free_SocketAddress(saddr);
     qapi_free_SocketAddress(wsaddr);
-    vs->enabled = false;
-    vs->ws_enabled = false;
+    ws_enabled = false;
 }
 
 void vnc_display_add_client(const char *id, int csock, bool skipauth)

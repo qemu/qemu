@@ -150,7 +150,6 @@ struct VncDisplay
     guint lsock_tag;
     QIOChannelSocket *lwebsock;
     guint lwebsock_tag;
-    bool ws_enabled;
     DisplaySurface *ds;
     DisplayChangeListener dcl;
     kbd_layout_t *kbd_layout;
@@ -167,7 +166,6 @@ struct VncDisplay
 
     const char *id;
     QTAILQ_ENTRY(VncDisplay) next;
-    bool enabled;
     bool is_unix;
     char *password;
     time_t expires;
