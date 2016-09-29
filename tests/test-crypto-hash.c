@@ -89,8 +89,6 @@ static void test_hash_alloc(void)
 {
     size_t i;
 
-    g_assert(qcrypto_init(NULL) == 0);
-
     for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
         uint8_t *result = NULL;
         size_t resultlen = 0;
@@ -122,8 +120,6 @@ static void test_hash_alloc(void)
 static void test_hash_prealloc(void)
 {
     size_t i;
-
-    g_assert(qcrypto_init(NULL) == 0);
 
     for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
         uint8_t *result;
@@ -161,8 +157,6 @@ static void test_hash_iov(void)
 {
     size_t i;
 
-    g_assert(qcrypto_init(NULL) == 0);
-
     for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
         struct iovec iov[3] = {
             { .iov_base = (char *)INPUT_TEXT1, .iov_len = strlen(INPUT_TEXT1) },
@@ -199,8 +193,6 @@ static void test_hash_digest(void)
 {
     size_t i;
 
-    g_assert(qcrypto_init(NULL) == 0);
-
     for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
         int ret;
         char *digest;
@@ -230,8 +222,6 @@ static void test_hash_base64(void)
 {
     size_t i;
 
-    g_assert(qcrypto_init(NULL) == 0);
-
     for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
         int ret;
         char *digest;
@@ -253,6 +243,8 @@ static void test_hash_base64(void)
 
 int main(int argc, char **argv)
 {
+    g_assert(qcrypto_init(NULL) == 0);
+
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/crypto/hash/iov", test_hash_iov);
     g_test_add_func("/crypto/hash/alloc", test_hash_alloc);
