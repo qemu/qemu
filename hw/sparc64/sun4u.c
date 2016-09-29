@@ -542,7 +542,6 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 enum {
     sun4u_id = 0,
     sun4v_id = 64,
-    niagara_id,
 };
 
 static const struct hwdef hwdefs[] = {
@@ -560,13 +559,6 @@ static const struct hwdef hwdefs[] = {
         .prom_addr = 0x1fff0000000ULL,
         .console_serial_base = 0,
     },
-    /* Sun4v generic Niagara machine */
-    {
-        .default_cpu_model = "Sun UltraSparc T1",
-        .machine_id = niagara_id,
-        .prom_addr = 0xfff0000000ULL,
-        .console_serial_base = 0xfff0c2c000ULL,
-    },
 };
 
 /* Sun4u hardware initialisation */
@@ -579,12 +571,6 @@ static void sun4u_init(MachineState *machine)
 static void sun4v_init(MachineState *machine)
 {
     sun4uv_init(get_system_memory(), machine, &hwdefs[1]);
-}
-
-/* Niagara hardware initialisation */
-static void niagara_init(MachineState *machine)
-{
-    sun4uv_init(get_system_memory(), machine, &hwdefs[2]);
 }
 
 static void sun4u_class_init(ObjectClass *oc, void *data)
@@ -620,22 +606,6 @@ static const TypeInfo sun4v_type = {
     .class_init = sun4v_class_init,
 };
 
-static void niagara_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->desc = "Sun4v platform, Niagara";
-    mc->init = niagara_init;
-    mc->max_cpus = 1; /* XXX for now */
-    mc->default_boot_order = "c";
-}
-
-static const TypeInfo niagara_type = {
-    .name = MACHINE_TYPE_NAME("Niagara"),
-    .parent = TYPE_MACHINE,
-    .class_init = niagara_class_init,
-};
-
 static void sun4u_register_types(void)
 {
     type_register_static(&ebus_info);
@@ -644,7 +614,6 @@ static void sun4u_register_types(void)
 
     type_register_static(&sun4u_type);
     type_register_static(&sun4v_type);
-    type_register_static(&niagara_type);
 }
 
 type_init(sun4u_register_types)
