@@ -403,7 +403,7 @@ static void qio_channel_socket_finalize(Object *obj)
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(obj);
 
     if (ioc->fd != -1) {
-        if (QIO_CHANNEL(ioc)->features & QIO_CHANNEL_FEATURE_LISTEN) {
+        if (QIO_CHANNEL(ioc)->features & (1 << QIO_CHANNEL_FEATURE_LISTEN)) {
             Error *err = NULL;
 
             socket_listen_cleanup(ioc->fd, &err);
