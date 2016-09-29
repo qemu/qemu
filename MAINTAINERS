@@ -620,6 +620,7 @@ S: Maintained
 F: hw/ppc/mac_oldworld.c
 F: hw/pci-host/grackle.c
 F: hw/misc/macio/
+F: hw/intc/heathrow_pic.c
 
 PReP
 L: qemu-devel@nongnu.org
@@ -628,6 +629,7 @@ S: Odd Fixes
 F: hw/ppc/prep.c
 F: hw/pci-host/prep.[hc]
 F: hw/isa/pc87312.[hc]
+F: pc-bios/ppc_rom.bin
 
 sPAPR
 M: David Gibson <david@gibson.dropbear.id.au>
