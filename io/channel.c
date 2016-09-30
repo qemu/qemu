@@ -37,6 +37,14 @@ void qio_channel_set_feature(QIOChannel *ioc,
 }
 
 
+void qio_channel_set_name(QIOChannel *ioc,
+                          const char *name)
+{
+    g_free(ioc->name);
+    ioc->name = g_strdup(name);
+}
+
+
 ssize_t qio_channel_readv_full(QIOChannel *ioc,
                                const struct iovec *iov,
                                size_t niov,
@@ -136,7 +144,13 @@ GSource *qio_channel_create_watch(QIOChannel *ioc,
                                   GIOCondition condition)
 {
     QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
-    return klass->io_create_watch(ioc, condition);
+    GSource *ret = klass->io_create_watch(ioc, condition);
+
+    if (ioc->name) {
+        g_source_set_name(ret, ioc->name);
+    }
+
+    return ret;
 }
 
 
@@ -282,24 +296,24 @@ void qio_channel_wait(QIOChannel *ioc,
 }
 
 
-#ifdef _WIN32
 static void qio_channel_finalize(Object *obj)
 {
     QIOChannel *ioc = QIO_CHANNEL(obj);
 
+    g_free(ioc->name);
+
+#ifdef _WIN32
     if (ioc->event) {
         CloseHandle(ioc->event);
     }
-}
 #endif
+}
 
 static const TypeInfo qio_channel_info = {
     .parent = TYPE_OBJECT,
     .name = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannel),
-#ifdef _WIN32
     .instance_finalize = qio_channel_finalize,
-#endif
     .abstract = true,
     .class_size = sizeof(QIOChannelClass),
 };

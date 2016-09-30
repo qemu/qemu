@@ -304,4 +304,11 @@ static inline void g_slist_free_full(GSList *list, GDestroyNotify free_func)
 }
 #endif
 
+#if !GLIB_CHECK_VERSION(2, 26, 0)
+static inline void g_source_set_name(GSource *source, const char *name)
+{
+    /* This is just a debugging aid, so leaving it a no-op */
+}
+#endif
+
 #endif

@@ -79,6 +79,7 @@ typedef gboolean (*QIOChannelFunc)(QIOChannel *ioc,
 struct QIOChannel {
     Object parent;
     unsigned int features; /* bitmask of QIOChannelFeatures */
+    char *name;
 #ifdef _WIN32
     HANDLE event; /* For use with GSource on Win32 */
 #endif
@@ -157,6 +158,18 @@ bool qio_channel_has_feature(QIOChannel *ioc,
  */
 void qio_channel_set_feature(QIOChannel *ioc,
                              QIOChannelFeature feature);
+
+/**
+ * qio_channel_set_name:
+ * @ioc: the channel object
+ * @name: the name of the channel
+ *
+ * Sets the name of the channel, which serves as an aid
+ * to debugging. The name is used when creating GSource
+ * watches for this channel.
+ */
+void qio_channel_set_name(QIOChannel *ioc,
+                          const char *name);
 
 /**
  * qio_channel_readv_full:
