@@ -29,8 +29,8 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
-void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
-                             VirtIOBlockReq *req)
+static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
+                                    VirtIOBlockReq *req)
 {
     req->dev = s;
     req->vq = vq;
@@ -40,7 +40,7 @@ void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
     req->mr_next = NULL;
 }
 
-void virtio_blk_free_request(VirtIOBlockReq *req)
+static void virtio_blk_free_request(VirtIOBlockReq *req)
 {
     if (req) {
         g_free(req);
@@ -381,7 +381,7 @@ static int multireq_compare(const void *a, const void *b)
     }
 }
 
-void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
+static void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
 {
     int i = 0, start = 0, num_reqs = 0, niov = 0, nb_sectors = 0;
     uint32_t max_transfer;
@@ -468,7 +468,7 @@ static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
     return true;
 }
 
-void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
+static void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
     uint32_t type;
     struct iovec *in_iov = req->elem.in_sg;
