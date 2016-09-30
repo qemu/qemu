@@ -64,6 +64,7 @@ static QObject *qmp_input_get_object(QmpInputVisitor *qiv,
 
     if (QSLIST_EMPTY(&qiv->stack)) {
         /* Starting at root, name is ignored. */
+        assert(qiv->root);
         return qiv->root;
     }
 
@@ -395,6 +396,7 @@ Visitor *qmp_input_visitor_new(QObject *obj, bool strict)
 {
     QmpInputVisitor *v;
 
+    assert(obj);
     v = g_malloc0(sizeof(*v));
 
     v->visitor.type = VISITOR_INPUT;
