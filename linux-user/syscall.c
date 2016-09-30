@@ -7476,13 +7476,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             break;
         }
 
+        cpu_list_lock();
+
         if (CPU_NEXT(first_cpu)) {
             TaskState *ts;
 
-            cpu_list_lock();
             /* Remove the CPU from the list.  */
             QTAILQ_REMOVE(&cpus, cpu, node);
+
             cpu_list_unlock();
+
             ts = cpu->opaque;
             if (ts->child_tidptr) {
                 put_user_u32(0, ts->child_tidptr);
@@ -7495,6 +7498,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             rcu_unregister_thread();
             pthread_exit(NULL);
         }
+
+        cpu_list_unlock();
 #ifdef TARGET_GPROF
         _mcleanup();
 #endif
