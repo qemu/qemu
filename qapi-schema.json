@@ -3101,10 +3101,31 @@
 #          QEMU version, machine type, machine options and accelerator options.
 #          A static model is always migration-safe. (since 2.8)
 #
+# @unavailable-features: #optional List of properties that prevent
+#                        the CPU model from running in the current
+#                        host. (since 2.8)
+#
+# @unavailable-features is a list of QOM property names that
+# represent CPU model attributes that prevent the CPU from running.
+# If the QOM property is read-only, that means there's no known
+# way to make the CPU model run in the current host. Implementations
+# that choose not to provide specific information return the
+# property name "type".
+# If the property is read-write, it means that it MAY be possible
+# to run the CPU model in the current host if that property is
+# changed. Management software can use it as hints to suggest or
+# choose an alternative for the user, or just to generate meaningful
+# error messages explaining why the CPU model can't be used.
+# If @unavailable-features is an empty list, the CPU model is
+# runnable using the current host and machine-type.
+# If @unavailable-features is not present, runnability
+# information for the CPU is not available.
+#
 # Since: 1.2.0
 ##
 { 'struct': 'CpuDefinitionInfo',
-  'data': { 'name': 'str', '*migration-safe': 'bool', 'static': 'bool' } }
+  'data': { 'name': 'str', '*migration-safe': 'bool', 'static': 'bool',
+            '*unavailable-features': [ 'str' ] } }
 
 ##
 # @query-cpu-definitions:
