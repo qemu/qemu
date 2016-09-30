@@ -16,6 +16,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/base64.h"
 #include "qemu/cutils.h"
+#include "qemu/atomic.h"
 
 /* Maximum captured guest-exec out_data/err_data - 16MB */
 #define GUEST_EXEC_MAX_OUTPUT (16*1024*1024)
@@ -82,7 +83,7 @@ struct GuestExecIOData {
     guchar *data;
     gsize size;
     gsize length;
-    gint closed;
+    bool closed;
     bool truncated;
     const char *name;
 };
@@ -93,7 +94,7 @@ struct GuestExecInfo {
     int64_t pid_numeric;
     gint status;
     bool has_output;
-    gint finished;
+    bool finished;
     GuestExecIOData in;
     GuestExecIOData out;
     GuestExecIOData err;
@@ -156,13 +157,13 @@ GuestExecStatus *qmp_guest_exec_status(int64_t pid, Error **err)
 
     ges = g_new0(GuestExecStatus, 1);
 
-    bool finished = g_atomic_int_get(&gei->finished);
+    bool finished = atomic_mb_read(&gei->finished);
 
     /* need to wait till output channels are closed
      * to be sure we captured all output at this point */
     if (gei->has_output) {
-        finished = finished && g_atomic_int_get(&gei->out.closed);
-        finished = finished && g_atomic_int_get(&gei->err.closed);
+        finished = finished && atomic_mb_read(&gei->out.closed);
+        finished = finished && atomic_mb_read(&gei->err.closed);
     }
 
     ges->exited = finished;
@@ -264,7 +265,7 @@ static void guest_exec_child_watch(GPid pid, gint status, gpointer data)
             (int32_t)gpid_to_int64(pid), (uint32_t)status);
 
     gei->status = status;
-    gei->finished = true;
+    atomic_mb_set(&gei->finished, true);
 
     g_spawn_close_pid(pid);
 }
@@ -320,7 +321,7 @@ static gboolean guest_exec_input_watch(GIOChannel *ch,
 done:
     g_io_channel_shutdown(ch, true, NULL);
     g_io_channel_unref(ch);
-    g_atomic_int_set(&p->closed, 1);
+    atomic_mb_set(&p->closed, true);
     g_free(p->data);
 
     return false;
@@ -374,7 +375,7 @@ static gboolean guest_exec_output_watch(GIOChannel *ch,
 close:
     g_io_channel_shutdown(ch, true, NULL);
     g_io_channel_unref(ch);
-    g_atomic_int_set(&p->closed, 1);
+    atomic_mb_set(&p->closed, true);
     return false;
 }
 
