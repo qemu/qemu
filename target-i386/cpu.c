@@ -1550,6 +1550,14 @@ static PropValue kvm_default_props[] = {
     { NULL, NULL },
 };
 
+/* TCG-specific defaults that override all CPU models when using TCG
+ */
+static PropValue tcg_default_props[] = {
+    { "vme", "off" },
+    { NULL, NULL },
+};
+
+
 void x86_cpu_change_kvm_default(const char *prop, const char *value)
 {
     PropValue *pv;
@@ -2283,6 +2291,8 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
         }
 
         x86_cpu_apply_props(cpu, kvm_default_props);
+    } else if (tcg_enabled()) {
+        x86_cpu_apply_props(cpu, tcg_default_props);
     }
 
     env->features[FEAT_1_ECX] |= CPUID_EXT_HYPERVISOR;
