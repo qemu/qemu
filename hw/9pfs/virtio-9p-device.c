@@ -57,12 +57,12 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
         }
 
         BUG_ON(elem->out_num == 0 || elem->in_num == 0);
-        QEMU_BUILD_BUG_ON(sizeof out != 7);
+        QEMU_BUILD_BUG_ON(sizeof(out) != 7);
 
         v->elems[pdu->idx] = elem;
         len = iov_to_buf(elem->out_sg, elem->out_num, 0,
-                         &out, sizeof out);
-        BUG_ON(len != sizeof out);
+                         &out, sizeof(out));
+        BUG_ON(len != sizeof(out));
 
         pdu->size = le32_to_cpu(out.size_le);
 
