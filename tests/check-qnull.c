@@ -10,8 +10,8 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
-#include "qapi/qmp-input-visitor.h"
-#include "qapi/qmp-output-visitor.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 #include "qapi/error.h"
 
 /*

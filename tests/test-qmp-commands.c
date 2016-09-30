@@ -4,7 +4,7 @@
 #include "test-qmp-commands.h"
 #include "qapi/qmp/dispatch.h"
 #include "qemu/module.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "tests/test-qapi-types.h"
 #include "tests/test-qapi-visit.h"
 

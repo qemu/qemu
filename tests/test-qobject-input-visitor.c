@@ -1,5 +1,5 @@
 /*
- * QMP Input Visitor unit-tests.
+ * QObject Input Visitor unit-tests.
  *
  * Copyright (C) 2011-2016 Red Hat Inc.
  *
@@ -14,7 +14,7 @@
 
 #include "qemu-common.h"
 #include "qapi/error.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"
 #include "qapi/qmp/types.h"

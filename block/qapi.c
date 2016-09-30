@@ -29,7 +29,7 @@
 #include "block/write-threshold.h"
 #include "qmp-commands.h"
 #include "qapi-visit.h"
-#include "qapi/qmp-output-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/types.h"
 #include "sysemu/block-backend.h"
 #include "qemu/cutils.h"

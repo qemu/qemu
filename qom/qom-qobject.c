@@ -15,8 +15,8 @@
 #include "qom/object.h"
 #include "qom/qom-qobject.h"
 #include "qapi/visitor.h"
-#include "qapi/qmp-input-visitor.h"
-#include "qapi/qmp-output-visitor.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 
 void object_property_set_qobject(Object *obj, QObject *value,
                                  const char *name, Error **errp)

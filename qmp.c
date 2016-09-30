@@ -31,7 +31,7 @@
 #include "qom/qom-qobject.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qobject.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "hw/boards.h"
 #include "qom/object_interfaces.h"
 #include "hw/mem/pc-dimm.h"

@@ -13,7 +13,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/qmp-output-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 #include "qapi/visitor-impl.h"
 #include "qemu/queue.h"
 #include "qemu-common.h"
@@ -152,7 +152,7 @@ static void qmp_output_type_int64(Visitor *v, const char *name, int64_t *obj,
 static void qmp_output_type_uint64(Visitor *v, const char *name, uint64_t *obj,
                                    Error **errp)
 {
-    /* FIXME: QMP outputs values larger than INT64_MAX as negative */
+    /* FIXME values larger than INT64_MAX become negative */
     QmpOutputVisitor *qov = to_qov(v);
     qmp_output_add(qov, name, qint_from_int(*obj));
 }

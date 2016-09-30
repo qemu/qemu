@@ -17,7 +17,7 @@
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/qbool.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
