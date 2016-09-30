@@ -880,6 +880,7 @@ static int virtio_net_handle_mq(VirtIONet *n, uint8_t cmd,
 
     return VIRTIO_NET_OK;
 }
+
 static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -897,8 +898,10 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         }
         if (iov_size(elem->in_sg, elem->in_num) < sizeof(status) ||
             iov_size(elem->out_sg, elem->out_num) < sizeof(ctrl)) {
-            error_report("virtio-net ctrl missing headers");
-            exit(1);
+            virtio_error(vdev, "virtio-net ctrl missing headers");
+            virtqueue_detach_element(vq, elem, 0);
+            g_free(elem);
+            break;
         }
 
         iov_cnt = elem->out_num;
