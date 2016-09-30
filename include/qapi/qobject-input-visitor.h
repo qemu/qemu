@@ -17,7 +17,7 @@
 #include "qapi/visitor.h"
 #include "qapi/qmp/qobject.h"
 
-typedef struct QmpInputVisitor QmpInputVisitor;
+typedef struct QObjectInputVisitor QObjectInputVisitor;
 
 /*
  * Return a new input visitor that converts a QObject to a QAPI object.
@@ -25,6 +25,6 @@ typedef struct QmpInputVisitor QmpInputVisitor;
  * Set @strict to reject a parse that doesn't consume all keys of a
  * dictionary; otherwise excess input is ignored.
  */
-Visitor *qmp_input_visitor_new(QObject *obj, bool strict);
+Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
 
 #endif
