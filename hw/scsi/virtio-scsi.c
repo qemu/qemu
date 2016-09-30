@@ -644,8 +644,9 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
 
     if ((uint32_t) virtio_ldl_p(vdev, &scsiconf->sense_size) >= 65536 ||
         (uint32_t) virtio_ldl_p(vdev, &scsiconf->cdb_size) >= 256) {
-        error_report("bad data written to virtio-scsi configuration space");
-        exit(1);
+        virtio_error(vdev,
+                     "bad data written to virtio-scsi configuration space");
+        return;
     }
 
     vs->sense_size = virtio_ldl_p(vdev, &scsiconf->sense_size);
