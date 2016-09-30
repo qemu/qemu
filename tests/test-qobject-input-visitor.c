@@ -747,10 +747,11 @@ static void test_visitor_in_native_list_number(TestInputVisitorData *data,
 }
 
 static void input_visitor_test_add(const char *testpath,
-                                   TestInputVisitorData *data,
-                                   void (*test_func)(TestInputVisitorData *data, const void *user_data))
+                                   const void *user_data,
+                                   void (*test_func)(TestInputVisitorData *data,
+                                                     const void *user_data))
 {
-    g_test_add(testpath, TestInputVisitorData, data, NULL, test_func,
+    g_test_add(testpath, TestInputVisitorData, user_data, NULL, test_func,
                visitor_input_teardown);
 }
 
@@ -833,77 +834,64 @@ static void test_visitor_in_wrong_type(TestInputVisitorData *data,
 
 int main(int argc, char **argv)
 {
-    TestInputVisitorData in_visitor_data;
-
     g_test_init(&argc, &argv, NULL);
 
     input_visitor_test_add("/visitor/input/int",
-                           &in_visitor_data, test_visitor_in_int);
+                           NULL, test_visitor_in_int);
     input_visitor_test_add("/visitor/input/int_overflow",
-                           &in_visitor_data, test_visitor_in_int_overflow);
+                           NULL, test_visitor_in_int_overflow);
     input_visitor_test_add("/visitor/input/bool",
-                           &in_visitor_data, test_visitor_in_bool);
+                           NULL, test_visitor_in_bool);
     input_visitor_test_add("/visitor/input/number",
-                           &in_visitor_data, test_visitor_in_number);
+                           NULL, test_visitor_in_number);
     input_visitor_test_add("/visitor/input/string",
-                           &in_visitor_data, test_visitor_in_string);
+                           NULL, test_visitor_in_string);
     input_visitor_test_add("/visitor/input/enum",
-                           &in_visitor_data, test_visitor_in_enum);
+                           NULL, test_visitor_in_enum);
     input_visitor_test_add("/visitor/input/struct",
-                           &in_visitor_data, test_visitor_in_struct);
+                           NULL, test_visitor_in_struct);
     input_visitor_test_add("/visitor/input/struct-nested",
-                           &in_visitor_data, test_visitor_in_struct_nested);
+                           NULL, test_visitor_in_struct_nested);
     input_visitor_test_add("/visitor/input/list",
-                           &in_visitor_data, test_visitor_in_list);
+                           NULL, test_visitor_in_list);
     input_visitor_test_add("/visitor/input/any",
-                           &in_visitor_data, test_visitor_in_any);
+                           NULL, test_visitor_in_any);
     input_visitor_test_add("/visitor/input/null",
-                           &in_visitor_data, test_visitor_in_null);
+                           NULL, test_visitor_in_null);
     input_visitor_test_add("/visitor/input/union-flat",
-                           &in_visitor_data, test_visitor_in_union_flat);
+                           NULL, test_visitor_in_union_flat);
     input_visitor_test_add("/visitor/input/alternate",
-                           &in_visitor_data, test_visitor_in_alternate);
+                           NULL, test_visitor_in_alternate);
     input_visitor_test_add("/visitor/input/errors",
-                           &in_visitor_data, test_visitor_in_errors);
+                           NULL, test_visitor_in_errors);
     input_visitor_test_add("/visitor/input/wrong-type",
-                           &in_visitor_data, test_visitor_in_wrong_type);
+                           NULL, test_visitor_in_wrong_type);
     input_visitor_test_add("/visitor/input/alternate-number",
-                           &in_visitor_data, test_visitor_in_alternate_number);
+                           NULL, test_visitor_in_alternate_number);
     input_visitor_test_add("/visitor/input/native_list/int",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_int);
+                           NULL, test_visitor_in_native_list_int);
     input_visitor_test_add("/visitor/input/native_list/int8",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_int8);
+                           NULL, test_visitor_in_native_list_int8);
     input_visitor_test_add("/visitor/input/native_list/int16",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_int16);
+                           NULL, test_visitor_in_native_list_int16);
     input_visitor_test_add("/visitor/input/native_list/int32",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_int32);
+                           NULL, test_visitor_in_native_list_int32);
     input_visitor_test_add("/visitor/input/native_list/int64",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_int64);
+                           NULL, test_visitor_in_native_list_int64);
     input_visitor_test_add("/visitor/input/native_list/uint8",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_uint8);
+                           NULL, test_visitor_in_native_list_uint8);
     input_visitor_test_add("/visitor/input/native_list/uint16",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_uint16);
+                           NULL, test_visitor_in_native_list_uint16);
     input_visitor_test_add("/visitor/input/native_list/uint32",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_uint32);
+                           NULL, test_visitor_in_native_list_uint32);
     input_visitor_test_add("/visitor/input/native_list/uint64",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_uint64);
+                           NULL, test_visitor_in_native_list_uint64);
     input_visitor_test_add("/visitor/input/native_list/bool",
-                           &in_visitor_data, test_visitor_in_native_list_bool);
+                           NULL, test_visitor_in_native_list_bool);
     input_visitor_test_add("/visitor/input/native_list/str",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_string);
+                           NULL, test_visitor_in_native_list_string);
     input_visitor_test_add("/visitor/input/native_list/number",
-                           &in_visitor_data,
-                           test_visitor_in_native_list_number);
+                           NULL, test_visitor_in_native_list_number);
 
     g_test_run();
 
