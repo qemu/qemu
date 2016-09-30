@@ -309,6 +309,10 @@ static inline void g_source_set_name(GSource *source, const char *name)
 {
     /* This is just a debugging aid, so leaving it a no-op */
 }
+static inline void g_source_set_name_by_id(guint tag, const char *name)
+{
+    /* This is just a debugging aid, so leaving it a no-op */
+}
 #endif
 
 #endif

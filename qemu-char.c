@@ -934,7 +934,8 @@ static GSourceFuncs io_watch_poll_funcs = {
 };
 
 /* Can only be used for read */
-static guint io_add_watch_poll(QIOChannel *ioc,
+static guint io_add_watch_poll(CharDriverState *chr,
+                               QIOChannel *ioc,
                                IOCanReadHandler *fd_can_read,
                                QIOChannelFunc fd_read,
                                gpointer user_data,
@@ -942,6 +943,7 @@ static guint io_add_watch_poll(QIOChannel *ioc,
 {
     IOWatchPoll *iwp;
     int tag;
+    char *name;
 
     iwp = (IOWatchPoll *) g_source_new(&io_watch_poll_funcs,
                                        sizeof(IOWatchPoll));
@@ -951,6 +953,10 @@ static guint io_add_watch_poll(QIOChannel *ioc,
     iwp->fd_read = (GSourceFunc) fd_read;
     iwp->src = NULL;
     iwp->context = context;
+
+    name = g_strdup_printf("chardev-iowatch-%s", chr->label);
+    g_source_set_name((GSource *)iwp, name);
+    g_free(name);
 
     tag = g_source_attach(&iwp->parent, context);
     g_source_unref(&iwp->parent);
@@ -1091,7 +1097,7 @@ static void fd_chr_update_read_handler(CharDriverState *chr,
 
     remove_fd_in_watch(chr);
     if (s->ioc_in) {
-        chr->fd_in_tag = io_add_watch_poll(s->ioc_in,
+        chr->fd_in_tag = io_add_watch_poll(chr, s->ioc_in,
                                            fd_chr_read_poll,
                                            fd_chr_read, chr,
                                            context);
@@ -1120,6 +1126,7 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out,
 {
     CharDriverState *chr;
     FDCharDriver *s;
+    char *name;
 
     chr = qemu_chr_alloc(backend, errp);
     if (!chr) {
@@ -1127,7 +1134,13 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out,
     }
     s = g_new0(FDCharDriver, 1);
     s->ioc_in = QIO_CHANNEL(qio_channel_file_new_fd(fd_in));
+    name = g_strdup_printf("chardev-file-in-%s", chr->label);
+    qio_channel_set_name(QIO_CHANNEL(s->ioc_in), name);
+    g_free(name);
     s->ioc_out = QIO_CHANNEL(qio_channel_file_new_fd(fd_out));
+    name = g_strdup_printf("chardev-file-out-%s", chr->label);
+    qio_channel_set_name(QIO_CHANNEL(s->ioc_out), name);
+    g_free(name);
     qemu_set_nonblock(fd_out);
     s->chr = chr;
     chr->opaque = s;
@@ -1305,6 +1318,7 @@ static gboolean pty_chr_timer(gpointer opaque)
 static void pty_chr_rearm_timer(CharDriverState *chr, int ms)
 {
     PtyCharDriver *s = chr->opaque;
+    char *name;
 
     if (s->timer_tag) {
         g_source_remove(s->timer_tag);
@@ -1312,10 +1326,14 @@ static void pty_chr_rearm_timer(CharDriverState *chr, int ms)
     }
 
     if (ms == 1000) {
+        name = g_strdup_printf("pty-timer-secs-%s", chr->label);
         s->timer_tag = g_timeout_add_seconds(1, pty_chr_timer, chr);
     } else {
+        name = g_strdup_printf("pty-timer-ms-%s", chr->label);
         s->timer_tag = g_timeout_add(ms, pty_chr_timer, chr);
     }
+    g_source_set_name_by_id(s->timer_tag, name);
+    g_free(name);
 }
 
 /* Called with chr_write_lock held.  */
@@ -1444,7 +1462,7 @@ static void pty_chr_state(CharDriverState *chr, int connected)
             s->open_tag = g_idle_add(qemu_chr_be_generic_open_func, chr);
         }
         if (!chr->fd_in_tag) {
-            chr->fd_in_tag = io_add_watch_poll(s->ioc,
+            chr->fd_in_tag = io_add_watch_poll(chr, s->ioc,
                                                pty_chr_read_poll,
                                                pty_chr_read,
                                                chr, NULL);
@@ -1478,6 +1496,7 @@ static CharDriverState *qemu_chr_open_pty(const char *id,
     int master_fd, slave_fd;
     char pty_name[PATH_MAX];
     ChardevCommon *common = backend->u.pty.data;
+    char *name;
 
     master_fd = qemu_openpty_raw(&slave_fd, pty_name);
     if (master_fd < 0) {
@@ -1510,6 +1529,9 @@ static CharDriverState *qemu_chr_open_pty(const char *id,
     chr->explicit_be_open = true;
 
     s->ioc = QIO_CHANNEL(qio_channel_file_new_fd(master_fd));
+    name = g_strdup_printf("chardev-pty-%s", chr->label);
+    qio_channel_set_name(QIO_CHANNEL(s->ioc), name);
+    g_free(name);
     s->timer_tag = 0;
 
     return chr;
@@ -2596,7 +2618,7 @@ static void udp_chr_update_read_handler(CharDriverState *chr,
 
     remove_fd_in_watch(chr);
     if (s->ioc) {
-        chr->fd_in_tag = io_add_watch_poll(s->ioc,
+        chr->fd_in_tag = io_add_watch_poll(chr, s->ioc,
                                            udp_chr_read_poll,
                                            udp_chr_read, chr,
                                            context);
@@ -2673,9 +2695,13 @@ static gboolean socket_reconnect_timeout(gpointer opaque);
 static void qemu_chr_socket_restart_timer(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
+    char *name;
     assert(s->connected == 0);
     s->reconnect_timer = g_timeout_add_seconds(s->reconnect_time,
                                                socket_reconnect_timeout, chr);
+    name = g_strdup_printf("chardev-socket-reconnect-%s", chr->label);
+    g_source_set_name_by_id(s->reconnect_timer, name);
+    g_free(name);
 }
 
 static void check_report_connect_error(CharDriverState *chr,
@@ -3000,7 +3026,7 @@ static void tcp_chr_connect(void *opaque)
 
     s->connected = 1;
     if (s->ioc) {
-        chr->fd_in_tag = io_add_watch_poll(s->ioc,
+        chr->fd_in_tag = io_add_watch_poll(chr, s->ioc,
                                            tcp_chr_read_poll,
                                            tcp_chr_read,
                                            chr, NULL);
@@ -3019,7 +3045,7 @@ static void tcp_chr_update_read_handler(CharDriverState *chr,
 
     remove_fd_in_watch(chr);
     if (s->ioc) {
-        chr->fd_in_tag = io_add_watch_poll(s->ioc,
+        chr->fd_in_tag = io_add_watch_poll(chr, s->ioc,
                                            tcp_chr_read_poll,
                                            tcp_chr_read, chr,
                                            context);
@@ -3117,6 +3143,7 @@ static void tcp_chr_tls_init(CharDriverState *chr)
     TCPCharDriver *s = chr->opaque;
     QIOChannelTLS *tioc;
     Error *err = NULL;
+    gchar *name;
 
     if (s->is_listen) {
         tioc = qio_channel_tls_new_server(
@@ -3134,6 +3161,11 @@ static void tcp_chr_tls_init(CharDriverState *chr)
         tcp_chr_disconnect(chr);
         return;
     }
+    name = g_strdup_printf("chardev-tls-%s-%s",
+                           s->is_listen ? "server" : "client",
+                           chr->label);
+    qio_channel_set_name(QIO_CHANNEL(tioc), name);
+    g_free(name);
     object_unref(OBJECT(s->ioc));
     s->ioc = QIO_CHANNEL(tioc);
 
@@ -3143,6 +3175,19 @@ static void tcp_chr_tls_init(CharDriverState *chr)
                               NULL);
 }
 
+
+static void tcp_chr_set_client_ioc_name(CharDriverState *chr,
+                                        QIOChannelSocket *sioc)
+{
+    TCPCharDriver *s = chr->opaque;
+    char *name;
+    name = g_strdup_printf("chardev-tcp-%s-%s",
+                           s->is_listen ? "server" : "client",
+                           chr->label);
+    qio_channel_set_name(QIO_CHANNEL(sioc), name);
+    g_free(name);
+
+}
 
 static int tcp_chr_new_client(CharDriverState *chr, QIOChannelSocket *sioc)
 {
@@ -3189,6 +3234,7 @@ static int tcp_chr_add_client(CharDriverState *chr, int fd)
     if (!sioc) {
         return -1;
     }
+    tcp_chr_set_client_ioc_name(chr, sioc);
     ret = tcp_chr_new_client(chr, sioc);
     object_unref(OBJECT(sioc));
     return ret;
@@ -3230,6 +3276,7 @@ static int tcp_chr_wait_connected(CharDriverState *chr, Error **errp)
             qio_channel_set_blocking(QIO_CHANNEL(s->listen_ioc), false, NULL);
         } else {
             sioc = qio_channel_socket_new();
+            tcp_chr_set_client_ioc_name(chr, sioc);
             if (qio_channel_socket_connect_sync(sioc, s->addr, errp) < 0) {
                 object_unref(OBJECT(sioc));
                 return -1;
@@ -4443,6 +4490,7 @@ static gboolean socket_reconnect_timeout(gpointer opaque)
     }
 
     sioc = qio_channel_socket_new();
+    tcp_chr_set_client_ioc_name(chr, sioc);
     qio_channel_socket_connect_async(sioc, s->addr,
                                      qemu_chr_socket_connected,
                                      chr, NULL);
@@ -4544,12 +4592,19 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
 
     if (s->reconnect_time) {
         sioc = qio_channel_socket_new();
+        tcp_chr_set_client_ioc_name(chr, sioc);
         qio_channel_socket_connect_async(sioc, s->addr,
                                          qemu_chr_socket_connected,
                                          chr, NULL);
     } else {
         if (s->is_listen) {
+            char *name;
             sioc = qio_channel_socket_new();
+
+            name = g_strdup_printf("chardev-tcp-listener-%s", chr->label);
+            qio_channel_set_name(QIO_CHANNEL(sioc), name);
+            g_free(name);
+
             if (qio_channel_socket_listen_sync(sioc, s->addr, errp) < 0) {
                 goto error;
             }
@@ -4590,6 +4645,8 @@ static CharDriverState *qmp_chardev_open_udp(const char *id,
     ChardevUdp *udp = backend->u.udp.data;
     ChardevCommon *common = qapi_ChardevUdp_base(udp);
     QIOChannelSocket *sioc = qio_channel_socket_new();
+    char *name;
+    CharDriverState *chr;
 
     if (qio_channel_socket_dgram_sync(sioc,
                                       udp->local, udp->remote,
@@ -4597,7 +4654,13 @@ static CharDriverState *qmp_chardev_open_udp(const char *id,
         object_unref(OBJECT(sioc));
         return NULL;
     }
-    return qemu_chr_open_udp(sioc, common, errp);
+    chr = qemu_chr_open_udp(sioc, common, errp);
+
+    name = g_strdup_printf("chardev-udp-%s", chr->label);
+    qio_channel_set_name(QIO_CHANNEL(sioc), name);
+    g_free(name);
+
+    return chr;
 }
 
 
