@@ -349,6 +349,7 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
         return NULL;
     }
 
+    qio_channel_set_name(QIO_CHANNEL(tioc), "nbd-server-tls");
     TRACE("Starting TLS handshake");
     data.loop = g_main_loop_new(g_main_context_default(), FALSE);
     qio_channel_tls_handshake(tioc,

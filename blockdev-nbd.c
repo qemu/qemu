@@ -44,6 +44,7 @@ static gboolean nbd_accept(QIOChannel *ioc, GIOCondition condition,
         return TRUE;
     }
 
+    qio_channel_set_name(QIO_CHANNEL(cioc), "nbd-server");
     nbd_client_new(NULL, cioc,
                    nbd_server->tlscreds, NULL,
                    nbd_client_put);
@@ -111,6 +112,8 @@ void qmp_nbd_server_start(SocketAddress *addr,
     nbd_server = g_new0(NBDServerData, 1);
     nbd_server->watch = -1;
     nbd_server->listen_ioc = qio_channel_socket_new();
+    qio_channel_set_name(QIO_CHANNEL(nbd_server->listen_ioc),
+                         "nbd-listener");
     if (qio_channel_socket_listen_sync(
             nbd_server->listen_ioc, addr, errp) < 0) {
         goto error;

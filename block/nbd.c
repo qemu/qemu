@@ -248,6 +248,7 @@ static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
     Error *local_err = NULL;
 
     sioc = qio_channel_socket_new();
+    qio_channel_set_name(QIO_CHANNEL(sioc), "nbd-client");
 
     qio_channel_socket_connect_sync(sioc,
                                     saddr,
