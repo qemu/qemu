@@ -150,6 +150,13 @@ M: Yongbok Kim <yongbok.kim@imgtec.com>
 S: Maintained
 F: target-mips/
 F: hw/mips/
+F: hw/misc/mips_*
+F: hw/intc/mips_gic.c
+F: hw/timer/mips_gictimer.c
+F: include/hw/mips/
+F: include/hw/misc/mips_*
+F: include/hw/intc/mips_gic.h
+F: include/hw/timer/mips_gictimer.h
 F: tests/tcg/mips/
 F: disas/mips.c
 
