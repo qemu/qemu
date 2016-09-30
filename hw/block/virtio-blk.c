@@ -468,30 +468,32 @@ static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
     return true;
 }
 
-static void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
+static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
     uint32_t type;
     struct iovec *in_iov = req->elem.in_sg;
     struct iovec *iov = req->elem.out_sg;
     unsigned in_num = req->elem.in_num;
     unsigned out_num = req->elem.out_num;
+    VirtIOBlock *s = req->dev;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
     if (req->elem.out_num < 1 || req->elem.in_num < 1) {
-        error_report("virtio-blk missing headers");
-        exit(1);
+        virtio_error(vdev, "virtio-blk missing headers");
+        return -1;
     }
 
     if (unlikely(iov_to_buf(iov, out_num, 0, &req->out,
                             sizeof(req->out)) != sizeof(req->out))) {
-        error_report("virtio-blk request outhdr too short");
-        exit(1);
+        virtio_error(vdev, "virtio-blk request outhdr too short");
+        return -1;
     }
 
     iov_discard_front(&iov, &out_num, sizeof(req->out));
 
     if (in_iov[in_num - 1].iov_len < sizeof(struct virtio_blk_inhdr)) {
-        error_report("virtio-blk request inhdr too short");
-        exit(1);
+        virtio_error(vdev, "virtio-blk request inhdr too short");
+        return -1;
     }
 
     /* We always touch the last byte, so just see how big in_iov is.  */
@@ -529,7 +531,7 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
             block_acct_invalid(blk_get_stats(req->dev->blk),
                                is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
             virtio_blk_free_request(req);
-            return;
+            return 0;
         }
 
         block_acct_start(blk_get_stats(req->dev->blk),
@@ -576,6 +578,7 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
         virtio_blk_free_request(req);
     }
+    return 0;
 }
 
 void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
@@ -586,7 +589,11 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     blk_io_plug(s->blk);
 
     while ((req = virtio_blk_get_request(s, vq))) {
-        virtio_blk_handle_request(req, &mrb);
+        if (virtio_blk_handle_request(req, &mrb)) {
+            virtqueue_detach_element(req->vq, &req->elem, 0);
+            virtio_blk_free_request(req);
+            break;
+        }
     }
 
     if (mrb.num_reqs) {
@@ -625,7 +632,18 @@ static void virtio_blk_dma_restart_bh(void *opaque)
 
     while (req) {
         VirtIOBlockReq *next = req->next;
-        virtio_blk_handle_request(req, &mrb);
+        if (virtio_blk_handle_request(req, &mrb)) {
+            /* Device is now broken and won't do any processing until it gets
+             * reset. Already queued requests will be lost: let's purge them.
+             */
+            while (req) {
+                next = req->next;
+                virtqueue_detach_element(req->vq, &req->elem, 0);
+                virtio_blk_free_request(req);
+                req = next;
+            }
+            break;
+        }
         req = next;
     }
 
