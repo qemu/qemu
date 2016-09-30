@@ -38,6 +38,7 @@ void exec_start_outgoing_migration(MigrationState *s, const char *command, Error
         return;
     }
 
+    qio_channel_set_name(ioc, "migration-exec-outgoing");
     migration_channel_connect(s, ioc, NULL);
     object_unref(OBJECT(ioc));
 }
@@ -64,6 +65,7 @@ void exec_start_incoming_migration(const char *command, Error **errp)
         return;
     }
 
+    qio_channel_set_name(ioc, "migration-exec-incoming");
     qio_channel_add_watch(ioc,
                           G_IO_IN,
                           exec_accept_incoming_migration,
