@@ -1249,15 +1249,19 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
         out_num = elem->out_num;
         out_sg = elem->out_sg;
         if (out_num < 1) {
-            error_report("virtio-net header not in first element");
-            exit(1);
+            virtio_error(vdev, "virtio-net header not in first element");
+            virtqueue_detach_element(q->tx_vq, elem, 0);
+            g_free(elem);
+            return -EINVAL;
         }
 
         if (n->has_vnet_hdr) {
             if (iov_to_buf(out_sg, out_num, 0, &mhdr, n->guest_hdr_len) <
                 n->guest_hdr_len) {
-                error_report("virtio-net header incorrect");
-                exit(1);
+                virtio_error(vdev, "virtio-net header incorrect");
+                virtqueue_detach_element(q->tx_vq, elem, 0);
+                g_free(elem);
+                return -EINVAL;
             }
             if (n->needs_vnet_hdr_swap) {
                 virtio_net_hdr_swap(vdev, (void *) &mhdr);
@@ -1325,7 +1329,9 @@ static void virtio_net_handle_tx_timer(VirtIODevice *vdev, VirtQueue *vq)
         virtio_queue_set_notification(vq, 1);
         timer_del(q->tx_timer);
         q->tx_waiting = 0;
-        virtio_net_flush_tx(q);
+        if (virtio_net_flush_tx(q) == -EINVAL) {
+            return;
+        }
     } else {
         timer_mod(q->tx_timer,
                        qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
@@ -1396,8 +1402,9 @@ static void virtio_net_tx_bh(void *opaque)
     }
 
     ret = virtio_net_flush_tx(q);
-    if (ret == -EBUSY) {
-        return; /* Notification re-enable handled by tx_complete */
+    if (ret == -EBUSY || ret == -EINVAL) {
+        return; /* Notification re-enable handled by tx_complete or device
+                 * broken */
     }
 
     /* If we flush a full burst of packets, assume there are
@@ -1412,7 +1419,10 @@ static void virtio_net_tx_bh(void *opaque)
      * anything that may have come in while we weren't looking.  If
      * we find something, assume the guest is still active and reschedule */
     virtio_queue_set_notification(q->tx_vq, 1);
-    if (virtio_net_flush_tx(q) > 0) {
+    ret = virtio_net_flush_tx(q);
+    if (ret == -EINVAL) {
+        return;
+    } else if (ret > 0) {
         virtio_queue_set_notification(q->tx_vq, 0);
         qemu_bh_schedule(q->tx_bh);
         q->tx_waiting = 1;
