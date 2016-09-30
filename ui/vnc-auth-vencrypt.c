@@ -116,6 +116,7 @@ static int protocol_client_vencrypt_auth(VncState *vs, uint8_t *data, size_t len
             return 0;
         }
 
+        qio_channel_set_name(QIO_CHANNEL(tls), "vnc-server-tls");
         VNC_DEBUG("Start TLS VeNCrypt handshake process\n");
         object_unref(OBJECT(vs->ioc));
         vs->ioc = QIO_CHANNEL(tls);

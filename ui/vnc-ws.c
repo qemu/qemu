@@ -67,6 +67,8 @@ gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
         return TRUE;
     }
 
+    qio_channel_set_name(QIO_CHANNEL(tls), "vnc-ws-server-tls");
+
     VNC_DEBUG("Start TLS WS handshake process\n");
     object_unref(OBJECT(vs->ioc));
     vs->ioc = QIO_CHANNEL(tls);
@@ -113,6 +115,7 @@ gboolean vncws_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
     }
 
     wioc = qio_channel_websock_new_server(vs->ioc);
+    qio_channel_set_name(QIO_CHANNEL(wioc), "vnc-ws-server-websock");
 
     object_unref(OBJECT(vs->ioc));
     vs->ioc = QIO_CHANNEL(wioc);
