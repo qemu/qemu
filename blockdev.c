@@ -3776,7 +3776,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 {
     BlockDriverState *bs;
     QObject *obj;
-    Visitor *v = qmp_output_visitor_new(&obj);
+    Visitor *v = qobject_output_visitor_new(&obj);
     QDict *qdict;
     Error *local_err = NULL;
 

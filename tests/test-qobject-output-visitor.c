@@ -28,7 +28,7 @@ typedef struct TestOutputVisitorData {
 static void visitor_output_setup(TestOutputVisitorData *data,
                                  const void *unused)
 {
-    data->ov = qmp_output_visitor_new(&data->obj);
+    data->ov = qobject_output_visitor_new(&data->obj);
     g_assert(data->ov);
 }
 

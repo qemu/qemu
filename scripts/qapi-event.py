@@ -98,7 +98,7 @@ def gen_event_send(name, arg_type, boxed):
 
     if arg_type and not arg_type.is_empty():
         ret += mcgen('''
-    v = qmp_output_visitor_new(&obj);
+    v = qobject_output_visitor_new(&obj);
 ''')
         if not arg_type.is_implicit():
             ret += mcgen('''

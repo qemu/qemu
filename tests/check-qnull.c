@@ -52,7 +52,7 @@ static void qnull_visit_test(void)
     visit_type_null(v, NULL, &error_abort);
     visit_free(v);
 
-    v = qmp_output_visitor_new(&obj);
+    v = qobject_output_visitor_new(&obj);
     visit_type_null(v, NULL, &error_abort);
     visit_complete(v, &obj);
     g_assert(obj == &qnull_);
