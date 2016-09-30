@@ -145,7 +145,7 @@ F: disas/microblaze.c
 
 MIPS
 M: Aurelien Jarno <aurelien@aurel32.net>
-M: Leon Alrae <leon.alrae@imgtec.com>
+M: Yongbok Kim <yongbok.kim@imgtec.com>
 S: Maintained
 F: target-mips/
 F: hw/mips/
