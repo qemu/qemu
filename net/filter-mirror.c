@@ -198,7 +198,7 @@ static void filter_mirror_setup(NetFilterState *nf, Error **errp)
     MirrorState *s = FILTER_MIRROR(nf);
 
     if (!s->outdev) {
-        error_setg(errp, "filter filter mirror needs 'outdev' "
+        error_setg(errp, "filter mirror needs 'outdev' "
                    "property set");
         return;
     }
@@ -315,7 +315,7 @@ filter_mirror_set_outdev(Object *obj, const char *value, Error **errp)
     g_free(s->outdev);
     s->outdev = g_strdup(value);
     if (!s->outdev) {
-        error_setg(errp, "filter filter mirror needs 'outdev' "
+        error_setg(errp, "filter mirror needs 'outdev' "
                    "property set");
         return;
     }
