@@ -1628,6 +1628,9 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
     cpu_x86_fill_model_id(host_cpudef.model_id);
 
     xcc->cpu_def = &host_cpudef;
+    xcc->model_description =
+        "KVM processor with all supported host features "
+        "(only available in KVM mode)";
 
     /* level, xlevel, xlevel2, and the feature words are initialized on
      * instance_init, because they require KVM to be initialized.
@@ -2098,23 +2101,62 @@ static void listflags(FILE *f, fprintf_function print, const char **featureset)
     }
 }
 
-/* generate CPU information. */
+/* Sort alphabetically by type name, listing kvm_required models last. */
+static gint x86_cpu_list_compare(gconstpointer a, gconstpointer b)
+{
+    ObjectClass *class_a = (ObjectClass *)a;
+    ObjectClass *class_b = (ObjectClass *)b;
+    X86CPUClass *cc_a = X86_CPU_CLASS(class_a);
+    X86CPUClass *cc_b = X86_CPU_CLASS(class_b);
+    const char *name_a, *name_b;
+
+    if (cc_a->kvm_required != cc_b->kvm_required) {
+        /* kvm_required items go last */
+        return cc_a->kvm_required ? 1 : -1;
+    } else {
+        name_a = object_class_get_name(class_a);
+        name_b = object_class_get_name(class_b);
+        return strcmp(name_a, name_b);
+    }
+}
+
+static GSList *get_sorted_cpu_model_list(void)
+{
+    GSList *list = object_class_get_list(TYPE_X86_CPU, false);
+    list = g_slist_sort(list, x86_cpu_list_compare);
+    return list;
+}
+
+static void x86_cpu_list_entry(gpointer data, gpointer user_data)
+{
+    ObjectClass *oc = data;
+    X86CPUClass *cc = X86_CPU_CLASS(oc);
+    CPUListState *s = user_data;
+    char *name = x86_cpu_class_get_model_name(cc);
+    const char *desc = cc->model_description;
+    if (!desc) {
+        desc = cc->cpu_def->model_id;
+    }
+
+    (*s->cpu_fprintf)(s->file, "x86 %16s  %-48s\n",
+                      name, desc);
+    g_free(name);
+}
+
+/* list available CPU models and flags */
 void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    X86CPUDefinition *def;
-    char buf[256];
     int i;
+    CPUListState s = {
+        .file = f,
+        .cpu_fprintf = cpu_fprintf,
+    };
+    GSList *list;
 
-    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
-        def = &builtin_x86_defs[i];
-        snprintf(buf, sizeof(buf), "%s", def->name);
-        (*cpu_fprintf)(f, "x86 %16s  %-48s\n", buf, def->model_id);
-    }
-#ifdef CONFIG_KVM
-    (*cpu_fprintf)(f, "x86 %16s  %-48s\n", "host",
-                   "KVM processor with all supported host features "
-                   "(only available in KVM mode)");
-#endif
+    (*cpu_fprintf)(f, "Available CPUs:\n");
+    list = get_sorted_cpu_model_list();
+    g_slist_foreach(list, x86_cpu_list_entry, &s);
+    g_slist_free(list);
 
     (*cpu_fprintf)(f, "\nRecognized CPUID flags:\n");
     for (i = 0; i < ARRAY_SIZE(feature_word_info); i++) {
@@ -2126,26 +2168,29 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     }
 }
 
+static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
+{
+    ObjectClass *oc = data;
+    X86CPUClass *cc = X86_CPU_CLASS(oc);
+    CpuDefinitionInfoList **cpu_list = user_data;
+    CpuDefinitionInfoList *entry;
+    CpuDefinitionInfo *info;
+
+    info = g_malloc0(sizeof(*info));
+    info->name = x86_cpu_class_get_model_name(cc);
+
+    entry = g_malloc0(sizeof(*entry));
+    entry->value = info;
+    entry->next = *cpu_list;
+    *cpu_list = entry;
+}
+
 CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 {
     CpuDefinitionInfoList *cpu_list = NULL;
-    X86CPUDefinition *def;
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
-        CpuDefinitionInfoList *entry;
-        CpuDefinitionInfo *info;
-
-        def = &builtin_x86_defs[i];
-        info = g_malloc0(sizeof(*info));
-        info->name = g_strdup(def->name);
-
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = cpu_list;
-        cpu_list = entry;
-    }
-
+    GSList *list = get_sorted_cpu_model_list();
+    g_slist_foreach(list, x86_cpu_definition_entry, &cpu_list);
+    g_slist_free(list);
     return cpu_list;
 }
 

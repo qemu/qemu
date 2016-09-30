@@ -63,6 +63,10 @@ typedef struct X86CPUClass {
 
     bool kvm_required;
 
+    /* Optional description of CPU model.
+     * If unavailable, cpu_def->model_id is used */
+    const char *model_description;
+
     DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 } X86CPUClass;
