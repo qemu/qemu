@@ -535,6 +535,20 @@ typedef struct ExtSaveArea {
 } ExtSaveArea;
 
 static const ExtSaveArea x86_ext_save_areas[] = {
+    [XSTATE_FP_BIT] = {
+        /* x87 FP state component is always enabled if XSAVE is supported */
+        .feature = FEAT_1_ECX, .bits = CPUID_EXT_XSAVE,
+        /* x87 state is in the legacy region of the XSAVE area */
+        .offset = 0,
+        .size = sizeof(X86LegacyXSaveArea) + sizeof(X86XSaveHeader),
+    },
+    [XSTATE_SSE_BIT] = {
+        /* SSE state component is always enabled if XSAVE is supported */
+        .feature = FEAT_1_ECX, .bits = CPUID_EXT_XSAVE,
+        /* SSE state is in the legacy region of the XSAVE area */
+        .offset = 0,
+        .size = sizeof(X86LegacyXSaveArea) + sizeof(X86XSaveHeader),
+    },
     [XSTATE_YMM_BIT] =
           { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
             .offset = offsetof(X86XSaveArea, avx_state),
@@ -568,9 +582,9 @@ static const ExtSaveArea x86_ext_save_areas[] = {
 static uint32_t xsave_area_size(uint64_t mask)
 {
     int i;
-    uint64_t ret = sizeof(X86LegacyXSaveArea) + sizeof(X86XSaveHeader);
+    uint64_t ret = 0;
 
-    for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
+    for (i = 0; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
         const ExtSaveArea *esa = &x86_ext_save_areas[i];
         if ((mask >> i) & 1) {
             ret = MAX(ret, esa->offset + esa->size);
@@ -2961,8 +2975,8 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
         return;
     }
 
-    mask = (XSTATE_FP_MASK | XSTATE_SSE_MASK);
-    for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
+    mask = 0;
+    for (i = 0; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
         const ExtSaveArea *esa = &x86_ext_save_areas[i];
         if (env->features[esa->feature] & esa->bits) {
             mask |= (1ULL << i);
