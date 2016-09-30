@@ -17,8 +17,6 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
-#include <linux/mman.h>
-#include <linux/unistd.h>
 
 #include "qemu.h"
 #include "qemu-common.h"
@@ -681,10 +679,8 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
     mmap_lock();
 
     if (flags & MREMAP_FIXED) {
-        host_addr = (void *) syscall(__NR_mremap, g2h(old_addr),
-                                     old_size, new_size,
-                                     flags,
-                                     g2h(new_addr));
+        host_addr = mremap(g2h(old_addr), old_size, new_size,
+                           flags, g2h(new_addr));
 
         if (reserved_va && host_addr != MAP_FAILED) {
             /* If new and old addresses overlap then the above mremap will
@@ -700,10 +696,8 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
             errno = ENOMEM;
             host_addr = MAP_FAILED;
         } else {
-            host_addr = (void *) syscall(__NR_mremap, g2h(old_addr),
-                                         old_size, new_size,
-                                         flags | MREMAP_FIXED,
-                                         g2h(mmap_start));
+            host_addr = mremap(g2h(old_addr), old_size, new_size,
+                               flags | MREMAP_FIXED, g2h(mmap_start));
             if (reserved_va) {
                 mmap_reserve(old_addr, old_size);
             }
