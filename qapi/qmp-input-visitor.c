@@ -84,6 +84,7 @@ static QObject *qmp_input_get_object(QmpInputVisitor *qiv,
         assert(qobject_type(qobj) == QTYPE_QLIST);
         assert(!name);
         ret = qlist_entry_obj(tos->entry);
+        assert(ret);
         if (consume) {
             tos->entry = qlist_next(tos->entry);
         }
