@@ -278,12 +278,12 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     },
     [FEAT_1_ECX] = {
         .feat_names = {
-            "pni|sse3" /* Intel,AMD sse3 */, "pclmulqdq|pclmuldq", "dtes64", "monitor",
+            "pni" /* Intel,AMD sse3 */, "pclmulqdq", "dtes64", "monitor",
             "ds-cpl", "vmx", "smx", "est",
             "tm2", "ssse3", "cid", NULL,
             "fma", "cx16", "xtpr", "pdcm",
-            NULL, "pcid", "dca", "sse4.1|sse4-1",
-            "sse4.2|sse4-2", "x2apic", "movbe", "popcnt",
+            NULL, "pcid", "dca", "sse4.1",
+            "sse4.2", "x2apic", "movbe", "popcnt",
             "tsc-deadline", "aes", "xsave", "osxsave",
             "avx", "f16c", "rdrand", "hypervisor",
         },
@@ -302,9 +302,9 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL /* cx8 */, NULL /* apic */, NULL, "syscall",
             NULL /* mtrr */, NULL /* pge */, NULL /* mca */, NULL /* cmov */,
             NULL /* pat */, NULL /* pse36 */, NULL, NULL /* Linux mp */,
-            "nx|xd", NULL, "mmxext", NULL /* mmx */,
-            NULL /* fxsr */, "fxsr-opt|ffxsr", "pdpe1gb", "rdtscp",
-            NULL, "lm|i64", "3dnowext", "3dnow",
+            "nx", NULL, "mmxext", NULL /* mmx */,
+            NULL /* fxsr */, "fxsr-opt", "pdpe1gb", "rdtscp",
+            NULL, "lm", "3dnowext", "3dnow",
         },
         .cpuid_eax = 0x80000001, .cpuid_reg = R_EDX,
         .tcg_features = TCG_EXT2_FEATURES,
@@ -3321,31 +3321,22 @@ static void x86_cpu_register_feature_bit_props(X86CPU *cpu,
                                                FeatureWord w,
                                                int bitnr)
 {
-    Object *obj = OBJECT(cpu);
-    int i;
-    char **names;
     FeatureWordInfo *fi = &feature_word_info[w];
+    const char *name = fi->feat_names[bitnr];
 
-    if (!fi->feat_names[bitnr]) {
+    if (!name) {
         return;
     }
-
-    names = g_strsplit(fi->feat_names[bitnr], "|", 0);
 
     /* Property names should use "-" instead of "_".
      * Old names containing underscores are registered as aliases
      * using object_property_add_alias()
      */
-    assert(!strchr(names[0], '_'));
-    x86_cpu_register_bit_prop(cpu, names[0], &cpu->env.features[w], bitnr);
-
-    for (i = 1; names[i]; i++) {
-        assert(!strchr(names[i], '_'));
-        object_property_add_alias(obj, names[i], obj, names[0],
-                                  &error_abort);
-    }
-
-    g_strfreev(names);
+    assert(!strchr(name, '_'));
+    /* aliases don't use "|" delimiters anymore, they are registered
+     * manually using object_property_add_alias() */
+    assert(!strchr(name, '|'));
+    x86_cpu_register_bit_prop(cpu, name, &cpu->env.features[w], bitnr);
 }
 
 static void x86_cpu_initfn(Object *obj)
@@ -3392,6 +3383,14 @@ static void x86_cpu_initfn(Object *obj)
             x86_cpu_register_feature_bit_props(cpu, w, bitnr);
         }
     }
+
+    object_property_add_alias(obj, "sse3", obj, "pni", &error_abort);
+    object_property_add_alias(obj, "pclmuldq", obj, "pclmulqdq", &error_abort);
+    object_property_add_alias(obj, "sse4-1", obj, "sse4.1", &error_abort);
+    object_property_add_alias(obj, "sse4-2", obj, "sse4.2", &error_abort);
+    object_property_add_alias(obj, "xd", obj, "nx", &error_abort);
+    object_property_add_alias(obj, "ffxsr", obj, "fxsr-opt", &error_abort);
+    object_property_add_alias(obj, "i64", obj, "lm", &error_abort);
 
     object_property_add_alias(obj, "ds_cpl", obj, "ds-cpl", &error_abort);
     object_property_add_alias(obj, "tsc_adjust", obj, "tsc-adjust", &error_abort);
