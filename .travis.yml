@@ -9,6 +9,7 @@ cache: ccache
 addons:
   apt:
     packages:
+      # Build dependencies
       - libaio-dev
       - libattr1-dev
       - libbrlapi-dev
@@ -89,6 +90,7 @@ matrix:
     - env: CONFIG=""
       os: osx
       compiler: clang
+    # Plain Trusty Build
     - env: CONFIG=""
       sudo: required
       addons:
@@ -99,3 +101,46 @@ matrix:
         - sudo apt-get build-dep -qq qemu
         - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
         - git submodule update --init --recursive
+    # Using newer GCC with sanitizers
+    - addons:
+        apt:
+          sources:
+            # PPAs for newer toolchains
+            - ubuntu-toolchain-r-test
+          packages:
+            # Extra toolchains
+            - gcc-5
+            - g++-5
+            # Build dependencies
+            - libaio-dev
+            - libattr1-dev
+            - libbrlapi-dev
+            - libcap-ng-dev
+            - libgnutls-dev
+            - libgtk-3-dev
+            - libiscsi-dev
+            - liblttng-ust-dev
+            - libnfs-dev
+            - libncurses5-dev
+            - libnss3-dev
+            - libpixman-1-dev
+            - libpng12-dev
+            - librados-dev
+            - libsdl1.2-dev
+            - libseccomp-dev
+            - libspice-protocol-dev
+            - libspice-server-dev
+            - libssh2-1-dev
+            - liburcu-dev
+            - libusb-1.0-0-dev
+            - libvte-2.90-dev
+            - sparse
+            - uuid-dev
+      language: generic
+      compiler: none
+      env:
+        - COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
+        - CONFIG="--cc=gcc-5 --cxx=g++-5 --disable-pie --disable-linux-user --with-coroutine=gthread"
+        - TEST_CMD=""
+      before_script:
+        - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || cat config.log
