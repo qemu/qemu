@@ -379,7 +379,7 @@ static void qht_bucket_reset__locked(struct qht_bucket *head)
             if (b->pointers[i] == NULL) {
                 goto done;
             }
-            b->hashes[i] = 0;
+            atomic_set(&b->hashes[i], 0);
             atomic_set(&b->pointers[i], NULL);
         }
         b = b->next;
@@ -444,7 +444,7 @@ void *qht_do_lookup(struct qht_bucket *head, qht_lookup_func_t func,
 
     do {
         for (i = 0; i < QHT_BUCKET_ENTRIES; i++) {
-            if (b->hashes[i] == hash) {
+            if (atomic_read(&b->hashes[i]) == hash) {
                 /* The pointer is dereferenced before seqlock_read_retry,
                  * so (unlike qht_insert__locked) we need to use
                  * atomic_rcu_read here.
@@ -538,8 +538,8 @@ static bool qht_insert__locked(struct qht *ht, struct qht_map *map,
     if (new) {
         atomic_rcu_set(&prev->next, b);
     }
-    b->hashes[i] = hash;
     /* smp_wmb() implicit in seqlock_write_begin.  */
+    atomic_set(&b->hashes[i], hash);
     atomic_set(&b->pointers[i], p);
     seqlock_write_end(&head->sequence);
     return true;
@@ -607,10 +607,10 @@ qht_entry_move(struct qht_bucket *to, int i, struct qht_bucket *from, int j)
     qht_debug_assert(to->pointers[i]);
     qht_debug_assert(from->pointers[j]);
 
-    to->hashes[i] = from->hashes[j];
+    atomic_set(&to->hashes[i], from->hashes[j]);
     atomic_set(&to->pointers[i], from->pointers[j]);
 
-    from->hashes[j] = 0;
+    atomic_set(&from->hashes[j], 0);
     atomic_set(&from->pointers[j], NULL);
 }
 
