@@ -3455,6 +3455,28 @@ static void x86_cpu_initfn(Object *obj)
         }
     }
 
+    object_property_add_alias(obj, "ds_cpl", obj, "ds-cpl", &error_abort);
+    object_property_add_alias(obj, "tsc_adjust", obj, "tsc-adjust", &error_abort);
+    object_property_add_alias(obj, "fxsr_opt", obj, "fxsr-opt", &error_abort);
+    object_property_add_alias(obj, "lahf_lm", obj, "lahf-lm", &error_abort);
+    object_property_add_alias(obj, "cmp_legacy", obj, "cmp-legacy", &error_abort);
+    object_property_add_alias(obj, "nodeid_msr", obj, "nodeid-msr", &error_abort);
+    object_property_add_alias(obj, "perfctr_core", obj, "perfctr-core", &error_abort);
+    object_property_add_alias(obj, "perfctr_nb", obj, "perfctr-nb", &error_abort);
+    object_property_add_alias(obj, "kvm_nopiodelay", obj, "kvm-nopiodelay", &error_abort);
+    object_property_add_alias(obj, "kvm_mmu", obj, "kvm-mmu", &error_abort);
+    object_property_add_alias(obj, "kvm_asyncpf", obj, "kvm-asyncpf", &error_abort);
+    object_property_add_alias(obj, "kvm_steal_time", obj, "kvm-steal-time", &error_abort);
+    object_property_add_alias(obj, "kvm_pv_eoi", obj, "kvm-pv-eoi", &error_abort);
+    object_property_add_alias(obj, "kvm_pv_unhalt", obj, "kvm-pv-unhalt", &error_abort);
+    object_property_add_alias(obj, "svm_lock", obj, "svm-lock", &error_abort);
+    object_property_add_alias(obj, "nrip_save", obj, "nrip-save", &error_abort);
+    object_property_add_alias(obj, "tsc_scale", obj, "tsc-scale", &error_abort);
+    object_property_add_alias(obj, "vmcb_clean", obj, "vmcb-clean", &error_abort);
+    object_property_add_alias(obj, "pause_filter", obj, "pause-filter", &error_abort);
+    object_property_add_alias(obj, "sse4_1", obj, "sse4.1", &error_abort);
+    object_property_add_alias(obj, "sse4_2", obj, "sse4.2", &error_abort);
+
     x86_cpu_load_def(cpu, xcc->cpu_def, &error_abort);
 }
 
