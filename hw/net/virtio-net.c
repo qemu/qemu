@@ -1130,21 +1130,24 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
 
         elem = virtqueue_pop(q->rx_vq, sizeof(VirtQueueElement));
         if (!elem) {
-            if (i == 0)
-                return -1;
-            error_report("virtio-net unexpected empty queue: "
-                         "i %zd mergeable %d offset %zd, size %zd, "
-                         "guest hdr len %zd, host hdr len %zd "
-                         "guest features 0x%" PRIx64,
-                         i, n->mergeable_rx_bufs, offset, size,
-                         n->guest_hdr_len, n->host_hdr_len,
-                         vdev->guest_features);
-            exit(1);
+            if (i) {
+                virtio_error(vdev, "virtio-net unexpected empty queue: "
+                             "i %zd mergeable %d offset %zd, size %zd, "
+                             "guest hdr len %zd, host hdr len %zd "
+                             "guest features 0x%" PRIx64,
+                             i, n->mergeable_rx_bufs, offset, size,
+                             n->guest_hdr_len, n->host_hdr_len,
+                             vdev->guest_features);
+            }
+            return -1;
         }
 
         if (elem->in_num < 1) {
-            error_report("virtio-net receive queue contains no in buffers");
-            exit(1);
+            virtio_error(vdev,
+                         "virtio-net receive queue contains no in buffers");
+            virtqueue_detach_element(q->rx_vq, elem, 0);
+            g_free(elem);
+            return -1;
         }
 
         sg = elem->in_sg;
