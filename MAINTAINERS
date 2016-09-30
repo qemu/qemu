@@ -675,10 +675,12 @@ R2D
 M: Magnus Damm <magnus.damm@gmail.com>
 S: Maintained
 F: hw/sh4/r2d.c
+F: hw/intc/sh_intc.c
+F: hw/timer/sh_timer.c
 
 Shix
 M: Magnus Damm <magnus.damm@gmail.com>
-S: Orphan
+S: Odd Fixes
 F: hw/sh4/shix.c
 
 SPARC Machines
