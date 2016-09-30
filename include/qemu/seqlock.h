@@ -31,7 +31,7 @@ static inline void seqlock_init(QemuSeqLock *sl)
 /* Lock out other writers and update the count.  */
 static inline void seqlock_write_begin(QemuSeqLock *sl)
 {
-    ++sl->sequence;
+    atomic_set(&sl->sequence, sl->sequence + 1);
 
     /* Write sequence before updating other fields.  */
     smp_wmb();
@@ -42,7 +42,7 @@ static inline void seqlock_write_end(QemuSeqLock *sl)
     /* Write other fields before finalizing sequence.  */
     smp_wmb();
 
-    ++sl->sequence;
+    atomic_set(&sl->sequence, sl->sequence + 1);
 }
 
 static inline unsigned seqlock_read_begin(QemuSeqLock *sl)
