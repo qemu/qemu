@@ -44,6 +44,25 @@ struct QEMUBH {
     bool deleted;
 };
 
+void aio_bh_schedule_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
+{
+    QEMUBH *bh;
+    bh = g_new(QEMUBH, 1);
+    *bh = (QEMUBH){
+        .ctx = ctx,
+        .cb = cb,
+        .opaque = opaque,
+    };
+    qemu_mutex_lock(&ctx->bh_lock);
+    bh->next = ctx->first_bh;
+    bh->scheduled = 1;
+    bh->deleted = 1;
+    /* Make sure that the members are ready before putting bh into list */
+    smp_wmb();
+    ctx->first_bh = bh;
+    qemu_mutex_unlock(&ctx->bh_lock);
+}
+
 QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
 {
     QEMUBH *bh;
@@ -86,7 +105,7 @@ int aio_bh_poll(AioContext *ctx)
          * thread sees the zero before bh->cb has run, and thus will call
          * aio_notify again if necessary.
          */
-        if (!bh->deleted && atomic_xchg(&bh->scheduled, 0)) {
+        if (atomic_xchg(&bh->scheduled, 0)) {
             /* Idle BHs and the notify BH don't count as progress */
             if (!bh->idle && bh != ctx->notify_dummy_bh) {
                 ret = 1;
@@ -104,7 +123,7 @@ int aio_bh_poll(AioContext *ctx)
         bhp = &ctx->first_bh;
         while (*bhp) {
             bh = *bhp;
-            if (bh->deleted) {
+            if (bh->deleted && !bh->scheduled) {
                 *bhp = bh->next;
                 g_free(bh);
             } else {
@@ -168,7 +187,7 @@ aio_compute_timeout(AioContext *ctx)
     QEMUBH *bh;
 
     for (bh = ctx->first_bh; bh; bh = bh->next) {
-        if (!bh->deleted && bh->scheduled) {
+        if (bh->scheduled) {
             if (bh->idle) {
                 /* idle bottom halves will be polled at least
                  * every 10ms */
@@ -216,7 +235,7 @@ aio_ctx_check(GSource *source)
     aio_notify_accept(ctx);
 
     for (bh = ctx->first_bh; bh; bh = bh->next) {
-        if (!bh->deleted && bh->scheduled) {
+        if (bh->scheduled) {
             return true;
         }
     }
