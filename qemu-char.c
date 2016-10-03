@@ -469,7 +469,7 @@ void qemu_chr_add_handlers_full(CharDriverState *s,
     s->chr_read = fd_read;
     s->chr_event = fd_event;
     s->handler_opaque = opaque;
-    if (fe_open && s->chr_update_read_handler) {
+    if (s->chr_update_read_handler) {
         s->chr_update_read_handler(s, context);
     }
 
