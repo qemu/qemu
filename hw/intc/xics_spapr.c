@@ -114,7 +114,7 @@ static void rtas_set_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                           uint32_t nret, target_ulong rets)
 {
     ICSState *ics = QLIST_FIRST(&spapr->xics->ics);
-    uint32_t nr, server, priority;
+    uint32_t nr, srcno, server, priority;
 
     if ((nargs != 3) || (nret != 1)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -135,7 +135,8 @@ static void rtas_set_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
 
-    ics_write_xive(ics, nr, server, priority, priority);
+    srcno = nr - ics->offset;
+    ics_simple_write_xive(ics, srcno, server, priority, priority);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
@@ -146,7 +147,7 @@ static void rtas_get_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                           uint32_t nret, target_ulong rets)
 {
     ICSState *ics = QLIST_FIRST(&spapr->xics->ics);
-    uint32_t nr;
+    uint32_t nr, srcno;
 
     if ((nargs != 1) || (nret != 3)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -165,8 +166,9 @@ static void rtas_get_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     }
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
-    rtas_st(rets, 1, ics->irqs[nr - ics->offset].server);
-    rtas_st(rets, 2, ics->irqs[nr - ics->offset].priority);
+    srcno = nr - ics->offset;
+    rtas_st(rets, 1, ics->irqs[srcno].server);
+    rtas_st(rets, 2, ics->irqs[srcno].priority);
 }
 
 static void rtas_int_off(PowerPCCPU *cpu, sPAPRMachineState *spapr,
@@ -175,7 +177,7 @@ static void rtas_int_off(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                          uint32_t nret, target_ulong rets)
 {
     ICSState *ics = QLIST_FIRST(&spapr->xics->ics);
-    uint32_t nr;
+    uint32_t nr, srcno;
 
     if ((nargs != 1) || (nret != 1)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -193,8 +195,9 @@ static void rtas_int_off(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
 
-    ics_write_xive(ics, nr, ics->irqs[nr - ics->offset].server, 0xff,
-                   ics->irqs[nr - ics->offset].priority);
+    srcno = nr - ics->offset;
+    ics_simple_write_xive(ics, srcno, ics->irqs[srcno].server, 0xff,
+                          ics->irqs[srcno].priority);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
@@ -205,7 +208,7 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                         uint32_t nret, target_ulong rets)
 {
     ICSState *ics = QLIST_FIRST(&spapr->xics->ics);
-    uint32_t nr;
+    uint32_t nr, srcno;
 
     if ((nargs != 1) || (nret != 1)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -223,9 +226,10 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
 
-    ics_write_xive(ics, nr, ics->irqs[nr - ics->offset].server,
-                   ics->irqs[nr - ics->offset].saved_priority,
-                   ics->irqs[nr - ics->offset].saved_priority);
+    srcno = nr - ics->offset;
+    ics_simple_write_xive(ics, srcno, ics->irqs[srcno].server,
+                          ics->irqs[srcno].saved_priority,
+                          ics->irqs[srcno].saved_priority);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
@@ -307,7 +311,7 @@ static void xics_spapr_initfn(Object *obj)
     XICSState *xics = XICS_SPAPR(obj);
     ICSState *ics;
 
-    ics = ICS(object_new(TYPE_ICS));
+    ics = ICS_SIMPLE(object_new(TYPE_ICS_SIMPLE));
     object_property_add_child(obj, "ics", OBJECT(ics), NULL);
     ics->xics = xics;
     QLIST_INSERT_HEAD(&xics->ics, ics, list);

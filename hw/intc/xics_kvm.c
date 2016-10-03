@@ -272,7 +272,7 @@ static void ics_kvm_set_irq(void *opaque, int srcno, int val)
 
 static void ics_kvm_reset(DeviceState *dev)
 {
-    ICSState *ics = ICS(dev);
+    ICSState *ics = ICS_SIMPLE(dev);
     int i;
     uint8_t flags[ics->nr_irqs];
 
@@ -293,7 +293,7 @@ static void ics_kvm_reset(DeviceState *dev)
 
 static void ics_kvm_realize(DeviceState *dev, Error **errp)
 {
-    ICSState *ics = ICS(dev);
+    ICSState *ics = ICS_SIMPLE(dev);
 
     if (!ics->nr_irqs) {
         error_setg(errp, "Number of interrupts needs to be greater 0");
@@ -306,7 +306,7 @@ static void ics_kvm_realize(DeviceState *dev, Error **errp)
 static void ics_kvm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ICSStateClass *icsc = ICS_CLASS(klass);
+    ICSStateClass *icsc = ICS_BASE_CLASS(klass);
 
     dc->realize = ics_kvm_realize;
     dc->reset = ics_kvm_reset;
@@ -315,8 +315,8 @@ static void ics_kvm_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ics_kvm_info = {
-    .name = TYPE_KVM_ICS,
-    .parent = TYPE_ICS,
+    .name = TYPE_ICS_KVM,
+    .parent = TYPE_ICS_SIMPLE,
     .instance_size = sizeof(ICSState),
     .class_init = ics_kvm_class_init,
 };
@@ -488,7 +488,7 @@ static void xics_kvm_initfn(Object *obj)
     XICSState *xics = XICS_COMMON(obj);
     ICSState *ics;
 
-    ics = ICS(object_new(TYPE_KVM_ICS));
+    ics = ICS_SIMPLE(object_new(TYPE_ICS_KVM));
     object_property_add_child(obj, "ics", OBJECT(ics), NULL);
     ics->xics = xics;
     QLIST_INSERT_HEAD(&xics->ics, ics, list);

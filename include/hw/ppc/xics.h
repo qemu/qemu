@@ -119,22 +119,29 @@ struct ICPState {
     bool cap_irq_xics_enabled;
 };
 
-#define TYPE_ICS "ics"
-#define ICS(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS)
+#define TYPE_ICS_BASE "ics-base"
+#define ICS_BASE(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_BASE)
 
-#define TYPE_KVM_ICS "icskvm"
-#define KVM_ICS(obj) OBJECT_CHECK(ICSState, (obj), TYPE_KVM_ICS)
+/* Retain ics for sPAPR for migration from existing sPAPR guests */
+#define TYPE_ICS_SIMPLE "ics"
+#define ICS_SIMPLE(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_SIMPLE)
 
-#define ICS_CLASS(klass) \
-     OBJECT_CLASS_CHECK(ICSStateClass, (klass), TYPE_ICS)
-#define ICS_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(ICSStateClass, (obj), TYPE_ICS)
+#define TYPE_ICS_KVM "icskvm"
+#define ICS_KVM(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_KVM)
+
+#define ICS_BASE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(ICSStateClass, (klass), TYPE_ICS_BASE)
+#define ICS_BASE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(ICSStateClass, (obj), TYPE_ICS_BASE)
 
 struct ICSStateClass {
     DeviceClass parent_class;
 
     void (*pre_save)(ICSState *s);
     int (*post_load)(ICSState *s, int version_id);
+    void (*reject)(ICSState *s, uint32_t irq);
+    void (*resend)(ICSState *s);
+    void (*eoi)(ICSState *s, uint32_t irq);
 };
 
 struct ICSState {
@@ -191,8 +198,8 @@ uint32_t icp_accept(ICPState *ss);
 uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr);
 void icp_eoi(XICSState *icp, int server, uint32_t xirr);
 
-void ics_write_xive(ICSState *ics, int nr, int server,
-                    uint8_t priority, uint8_t saved_priority);
+void ics_simple_write_xive(ICSState *ics, int nr, int server,
+                           uint8_t priority, uint8_t saved_priority);
 
 void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 
