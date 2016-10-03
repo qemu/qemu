@@ -379,6 +379,21 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = TYPE_X86_CPU,\
         .property = "full-cpuid-auto-level",\
         .value    = "off",\
+    },\
+    {\
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,\
+        .property = "family",\
+        .value    = "15",\
+    },\
+    {\
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,\
+        .property = "model",\
+        .value    = "6",\
+    },\
+    {\
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,\
+        .property = "stepping",\
+        .value    = "1",\
     },
 
 #define PC_COMPAT_2_6 \
