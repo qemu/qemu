@@ -453,7 +453,7 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
         dev->qdev.id = id;
     }
 
-    dev->irq = xics_spapr_alloc(spapr->xics, 0, dev->irq, false, &local_err);
+    dev->irq = xics_spapr_alloc(spapr->xics, dev->irq, false, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
