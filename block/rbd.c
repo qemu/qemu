@@ -71,7 +71,6 @@ typedef enum {
 
 typedef struct RBDAIOCB {
     BlockAIOCB common;
-    QEMUBH *bh;
     int64_t ret;
     QEMUIOVector *qiov;
     char *bounce;
@@ -602,7 +601,6 @@ static const AIOCBInfo rbd_aiocb_info = {
 static void rbd_finish_bh(void *opaque)
 {
     RADOSCB *rcb = opaque;
-    qemu_bh_delete(rcb->acb->bh);
     qemu_rbd_complete_aio(rcb);
 }
 
@@ -621,9 +619,8 @@ static void rbd_finish_aiocb(rbd_completion_t c, RADOSCB *rcb)
     rcb->ret = rbd_aio_get_return_value(c);
     rbd_aio_release(c);
 
-    acb->bh = aio_bh_new(bdrv_get_aio_context(acb->common.bs),
-                         rbd_finish_bh, rcb);
-    qemu_bh_schedule(acb->bh);
+    aio_bh_schedule_oneshot(bdrv_get_aio_context(acb->common.bs),
+                            rbd_finish_bh, rcb);
 }
 
 static int rbd_aio_discard_wrapper(rbd_image_t image,
@@ -679,7 +676,6 @@ static BlockAIOCB *rbd_start_aio(BlockDriverState *bs,
     acb->ret = 0;
     acb->error = 0;
     acb->s = s;
-    acb->bh = NULL;
 
     if (cmd == RBD_AIO_WRITE) {
         qemu_iovec_to_buf(acb->qiov, 0, acb->bounce, qiov->size);

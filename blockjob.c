@@ -588,7 +588,6 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
 
 typedef struct {
     BlockJob *job;
-    QEMUBH *bh;
     AioContext *aio_context;
     BlockJobDeferToMainLoopFn *fn;
     void *opaque;
@@ -598,8 +597,6 @@ static void block_job_defer_to_main_loop_bh(void *opaque)
 {
     BlockJobDeferToMainLoopData *data = opaque;
     AioContext *aio_context;
-
-    qemu_bh_delete(data->bh);
 
     /* Prevent race with block_job_defer_to_main_loop() */
     aio_context_acquire(data->aio_context);
@@ -624,13 +621,13 @@ void block_job_defer_to_main_loop(BlockJob *job,
 {
     BlockJobDeferToMainLoopData *data = g_malloc(sizeof(*data));
     data->job = job;
-    data->bh = qemu_bh_new(block_job_defer_to_main_loop_bh, data);
     data->aio_context = blk_get_aio_context(job->blk);
     data->fn = fn;
     data->opaque = opaque;
     job->deferred_to_main_loop = true;
 
-    qemu_bh_schedule(data->bh);
+    aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                            block_job_defer_to_main_loop_bh, data);
 }
 
 BlockJobTxn *block_job_txn_new(void)

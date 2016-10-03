@@ -65,7 +65,6 @@ struct BlockBackend {
 
 typedef struct BlockBackendAIOCB {
     BlockAIOCB common;
-    QEMUBH *bh;
     BlockBackend *blk;
     int ret;
 } BlockBackendAIOCB;
@@ -898,7 +897,6 @@ int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags)
 static void error_callback_bh(void *opaque)
 {
     struct BlockBackendAIOCB *acb = opaque;
-    qemu_bh_delete(acb->bh);
     acb->common.cb(acb->common.opaque, acb->ret);
     qemu_aio_unref(acb);
 }
@@ -908,16 +906,12 @@ BlockAIOCB *blk_abort_aio_request(BlockBackend *blk,
                                   void *opaque, int ret)
 {
     struct BlockBackendAIOCB *acb;
-    QEMUBH *bh;
 
     acb = blk_aio_get(&block_backend_aiocb_info, blk, cb, opaque);
     acb->blk = blk;
     acb->ret = ret;
 
-    bh = aio_bh_new(blk_get_aio_context(blk), error_callback_bh, acb);
-    acb->bh = bh;
-    qemu_bh_schedule(bh);
-
+    aio_bh_schedule_oneshot(blk_get_aio_context(blk), error_callback_bh, acb);
     return &acb->common;
 }
 
@@ -926,7 +920,6 @@ typedef struct BlkAioEmAIOCB {
     BlkRwCo rwco;
     int bytes;
     bool has_returned;
-    QEMUBH* bh;
 } BlkAioEmAIOCB;
 
 static const AIOCBInfo blk_aio_em_aiocb_info = {
@@ -935,10 +928,6 @@ static const AIOCBInfo blk_aio_em_aiocb_info = {
 
 static void blk_aio_complete(BlkAioEmAIOCB *acb)
 {
-    if (acb->bh) {
-        assert(acb->has_returned);
-        qemu_bh_delete(acb->bh);
-    }
     if (acb->has_returned) {
         acb->common.cb(acb->common.opaque, acb->rwco.ret);
         qemu_aio_unref(acb);
@@ -947,7 +936,10 @@ static void blk_aio_complete(BlkAioEmAIOCB *acb)
 
 static void blk_aio_complete_bh(void *opaque)
 {
-    blk_aio_complete(opaque);
+    BlkAioEmAIOCB *acb = opaque;
+
+    assert(acb->has_returned);
+    blk_aio_complete(acb);
 }
 
 static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
@@ -967,7 +959,6 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
         .ret    = NOT_DONE,
     };
     acb->bytes = bytes;
-    acb->bh = NULL;
     acb->has_returned = false;
 
     co = qemu_coroutine_create(co_entry, acb);
@@ -975,8 +966,8 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
 
     acb->has_returned = true;
     if (acb->rwco.ret != NOT_DONE) {
-        acb->bh = aio_bh_new(blk_get_aio_context(blk), blk_aio_complete_bh, acb);
-        qemu_bh_schedule(acb->bh);
+        aio_bh_schedule_oneshot(blk_get_aio_context(blk),
+                                blk_aio_complete_bh, acb);
     }
 
     return &acb->common;

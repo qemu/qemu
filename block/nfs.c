@@ -57,7 +57,6 @@ typedef struct NFSRPC {
     QEMUIOVector *iov;
     struct stat *st;
     Coroutine *co;
-    QEMUBH *bh;
     NFSClient *client;
 } NFSRPC;
 
@@ -103,7 +102,6 @@ static void nfs_co_generic_bh_cb(void *opaque)
 {
     NFSRPC *task = opaque;
     task->complete = 1;
-    qemu_bh_delete(task->bh);
     qemu_coroutine_enter(task->co);
 }
 
@@ -127,9 +125,8 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
         error_report("NFS Error: %s", nfs_get_error(nfs));
     }
     if (task->co) {
-        task->bh = aio_bh_new(task->client->aio_context,
-                              nfs_co_generic_bh_cb, task);
-        qemu_bh_schedule(task->bh);
+        aio_bh_schedule_oneshot(task->client->aio_context,
+                                nfs_co_generic_bh_cb, task);
     } else {
         task->complete = 1;
     }

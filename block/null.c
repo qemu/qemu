@@ -124,7 +124,6 @@ static coroutine_fn int null_co_flush(BlockDriverState *bs)
 
 typedef struct {
     BlockAIOCB common;
-    QEMUBH *bh;
     QEMUTimer timer;
 } NullAIOCB;
 
@@ -136,7 +135,6 @@ static void null_bh_cb(void *opaque)
 {
     NullAIOCB *acb = opaque;
     acb->common.cb(acb->common.opaque, 0);
-    qemu_bh_delete(acb->bh);
     qemu_aio_unref(acb);
 }
 
@@ -164,8 +162,7 @@ static inline BlockAIOCB *null_aio_common(BlockDriverState *bs,
         timer_mod_ns(&acb->timer,
                      qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + s->latency_ns);
     } else {
-        acb->bh = aio_bh_new(bdrv_get_aio_context(bs), null_bh_cb, acb);
-        qemu_bh_schedule(acb->bh);
+        aio_bh_schedule_oneshot(bdrv_get_aio_context(bs), null_bh_cb, acb);
     }
     return &acb->common;
 }

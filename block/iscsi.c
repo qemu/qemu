@@ -95,7 +95,6 @@ typedef struct IscsiTask {
     int do_retry;
     struct scsi_task *task;
     Coroutine *co;
-    QEMUBH *bh;
     IscsiLun *iscsilun;
     QEMUTimer retry_timer;
     int err_code;
@@ -167,7 +166,6 @@ static void iscsi_co_generic_bh_cb(void *opaque)
 {
     struct IscsiTask *iTask = opaque;
     iTask->complete = 1;
-    qemu_bh_delete(iTask->bh);
     qemu_coroutine_enter(iTask->co);
 }
 
@@ -299,9 +297,8 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
 
 out:
     if (iTask->co) {
-        iTask->bh = aio_bh_new(iTask->iscsilun->aio_context,
-                               iscsi_co_generic_bh_cb, iTask);
-        qemu_bh_schedule(iTask->bh);
+        aio_bh_schedule_oneshot(iTask->iscsilun->aio_context,
+                                 iscsi_co_generic_bh_cb, iTask);
     } else {
         iTask->complete = 1;
     }
