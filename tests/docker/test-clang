@@ -15,6 +15,8 @@
 
 requires clang
 
+cd "$BUILD_DIR"
+
 OPTS="--enable-debug --cxx=clang++ --cc=clang --host-cc=clang"
 # -fsanitize=undefined is broken on Fedora 23, skip it for now
 # See also: https://bugzilla.redhat.com/show_bug.cgi?id=1263834
