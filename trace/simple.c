@@ -24,7 +24,7 @@
 #define HEADER_MAGIC 0xf2b177cb0aa429b4ULL
 
 /** Trace file version number, bump if format changes */
-#define HEADER_VERSION 3
+#define HEADER_VERSION 4
 
 /** Records were dropped event ID */
 #define DROPPED_EVENT_ID (~(uint64_t)0 - 1)
@@ -55,6 +55,9 @@ static volatile gint dropped_events;
 static uint32_t trace_pid;
 static FILE *trace_fp;
 static char *trace_file_name;
+
+#define TRACE_RECORD_TYPE_MAPPING 0
+#define TRACE_RECORD_TYPE_EVENT   1
 
 /* * Trace buffer entry */
 typedef struct {
@@ -160,6 +163,7 @@ static gpointer writeout_thread(gpointer opaque)
     unsigned int idx = 0;
     int dropped_count;
     size_t unused __attribute__ ((unused));
+    uint64_t type = TRACE_RECORD_TYPE_EVENT;
 
     for (;;) {
         wait_for_trace_records_available();
@@ -174,10 +178,12 @@ static gpointer writeout_thread(gpointer opaque)
             } while (!g_atomic_int_compare_and_exchange(&dropped_events,
                                                         dropped_count, 0));
             dropped.rec.arguments[0] = dropped_count;
+            unused = fwrite(&type, sizeof(type), 1, trace_fp);
             unused = fwrite(&dropped.rec, dropped.rec.length, 1, trace_fp);
         }
 
         while (get_trace_record(idx, &recordptr)) {
+            unused = fwrite(&type, sizeof(type), 1, trace_fp);
             unused = fwrite(recordptr, recordptr->length, 1, trace_fp);
             writeout_idx += recordptr->length;
             free(recordptr); /* don't use g_free, can deadlock when traced */
@@ -273,6 +279,28 @@ void trace_record_finish(TraceBufferRecord *rec)
     }
 }
 
+static int st_write_event_mapping(void)
+{
+    uint64_t type = TRACE_RECORD_TYPE_MAPPING;
+    TraceEventIter iter;
+    TraceEvent *ev;
+
+    trace_event_iter_init(&iter, NULL);
+    while ((ev = trace_event_iter_next(&iter)) != NULL) {
+        uint64_t id = trace_event_get_id(ev);
+        const char *name = trace_event_get_name(ev);
+        uint32_t len = strlen(name);
+        if (fwrite(&type, sizeof(type), 1, trace_fp) != 1 ||
+            fwrite(&id, sizeof(id), 1, trace_fp) != 1 ||
+            fwrite(&len, sizeof(len), 1, trace_fp) != 1 ||
+            fwrite(name, len, 1, trace_fp) != 1) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 void st_set_trace_file_enabled(bool enable)
 {
     if (enable == !!trace_fp) {
@@ -297,7 +325,8 @@ void st_set_trace_file_enabled(bool enable)
             return;
         }
 
-        if (fwrite(&header, sizeof header, 1, trace_fp) != 1) {
+        if (fwrite(&header, sizeof header, 1, trace_fp) != 1 ||
+            st_write_event_mapping() < 0) {
             fclose(trace_fp);
             trace_fp = NULL;
             return;
