@@ -152,7 +152,6 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
 int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int count);
 int blk_co_flush(BlockBackend *blk);
 int blk_flush(BlockBackend *blk);
-int blk_flush_all(void);
 int blk_commit_all(void);
 void blk_drain(BlockBackend *blk);
 void blk_drain_all(void);
@@ -199,7 +198,7 @@ void blk_io_unplug(BlockBackend *blk);
 BlockAcctStats *blk_get_stats(BlockBackend *blk);
 BlockBackendRootState *blk_get_root_state(BlockBackend *blk);
 void blk_update_root_state(BlockBackend *blk);
-void blk_apply_root_state(BlockBackend *blk, BlockDriverState *bs);
+bool blk_get_detect_zeroes_from_root_state(BlockBackend *blk);
 int blk_get_open_flags_from_root_state(BlockBackend *blk);
 
 void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,

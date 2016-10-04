@@ -143,6 +143,7 @@ typedef struct BDRVRawState {
     bool has_discard:1;
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
+    bool use_linux_aio:1;
     bool has_fallocate;
     bool needs_alignment;
 } BDRVRawState;
@@ -367,18 +368,6 @@ static void raw_parse_flags(int bdrv_flags, int *open_flags)
     }
 }
 
-#ifdef CONFIG_LINUX_AIO
-static bool raw_use_aio(int bdrv_flags)
-{
-    /*
-     * Currently Linux do AIO only for files opened with O_DIRECT
-     * specified so check NOCACHE flag too
-     */
-    return (bdrv_flags & (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) ==
-                         (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO);
-}
-#endif
-
 static void raw_parse_filename(const char *filename, QDict *options,
                                Error **errp)
 {
@@ -399,6 +388,11 @@ static QemuOptsList raw_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "File name of the image",
         },
+        {
+            .name = "aio",
+            .type = QEMU_OPT_STRING,
+            .help = "host AIO implementation (threads, native)",
+        },
         { /* end of list */ }
     },
 };
@@ -410,6 +404,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     QemuOpts *opts;
     Error *local_err = NULL;
     const char *filename = NULL;
+    BlockdevAioOptions aio, aio_default;
     int fd, ret;
     struct stat st;
 
@@ -429,6 +424,18 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         goto fail;
     }
 
+    aio_default = (bdrv_flags & BDRV_O_NATIVE_AIO)
+                  ? BLOCKDEV_AIO_OPTIONS_NATIVE
+                  : BLOCKDEV_AIO_OPTIONS_THREADS;
+    aio = qapi_enum_parse(BlockdevAioOptions_lookup, qemu_opt_get(opts, "aio"),
+                          BLOCKDEV_AIO_OPTIONS__MAX, aio_default, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+    s->use_linux_aio = (aio == BLOCKDEV_AIO_OPTIONS_NATIVE);
+
     s->open_flags = open_flags;
     raw_parse_flags(bdrv_flags, &s->open_flags);
 
@@ -444,14 +451,15 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     s->fd = fd;
 
 #ifdef CONFIG_LINUX_AIO
-    if (!raw_use_aio(bdrv_flags) && (bdrv_flags & BDRV_O_NATIVE_AIO)) {
+     /* Currently Linux does AIO only for files opened with O_DIRECT */
+    if (s->use_linux_aio && !(s->open_flags & O_DIRECT)) {
         error_setg(errp, "aio=native was specified, but it requires "
                          "cache.direct=on, which was not specified.");
         ret = -EINVAL;
         goto fail;
     }
 #else
-    if (bdrv_flags & BDRV_O_NATIVE_AIO) {
+    if (s->use_linux_aio) {
         error_setg(errp, "aio=native was specified, but is not supported "
                          "in this build.");
         ret = -EINVAL;
@@ -1256,7 +1264,7 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
         if (!bdrv_qiov_is_aligned(bs, qiov)) {
             type |= QEMU_AIO_MISALIGNED;
 #ifdef CONFIG_LINUX_AIO
-        } else if (bs->open_flags & BDRV_O_NATIVE_AIO) {
+        } else if (s->use_linux_aio) {
             LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
             assert(qiov->size == bytes);
             return laio_co_submit(bs, aio, s->fd, offset, qiov, type);
@@ -1285,7 +1293,8 @@ static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, uint64_t offset,
 static void raw_aio_plug(BlockDriverState *bs)
 {
 #ifdef CONFIG_LINUX_AIO
-    if (bs->open_flags & BDRV_O_NATIVE_AIO) {
+    BDRVRawState *s = bs->opaque;
+    if (s->use_linux_aio) {
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
         laio_io_plug(bs, aio);
     }
@@ -1295,7 +1304,8 @@ static void raw_aio_plug(BlockDriverState *bs)
 static void raw_aio_unplug(BlockDriverState *bs)
 {
 #ifdef CONFIG_LINUX_AIO
-    if (bs->open_flags & BDRV_O_NATIVE_AIO) {
+    BDRVRawState *s = bs->opaque;
+    if (s->use_linux_aio) {
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
         laio_io_unplug(bs, aio);
     }

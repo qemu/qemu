@@ -42,6 +42,7 @@
 #include "qapi-event.h"
 #include "qemu/cutils.h"
 #include "qemu/id.h"
+#include "qapi/util.h"
 
 #ifdef CONFIG_BSD
 #include <sys/ioctl.h>
@@ -764,7 +765,7 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
     /* Our block drivers take care to send flushes and respect unmap policy,
      * so we can default to enable both on lower layers regardless of the
      * corresponding parent options. */
-    flags |= BDRV_O_UNMAP;
+    qdict_set_default_str(child_options, BDRV_OPT_DISCARD, "unmap");
 
     /* Clear flags that only apply to the top layer */
     flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ |
@@ -954,6 +955,16 @@ static QemuOptsList bdrv_runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Node is opened in read-only mode",
         },
+        {
+            .name = "detect-zeroes",
+            .type = QEMU_OPT_STRING,
+            .help = "try to optimize zero writes (off, on, unmap)",
+        },
+        {
+            .name = "discard",
+            .type = QEMU_OPT_STRING,
+            .help = "discard operation (ignore/off, unmap/on)",
+        },
         { /* end of list */ }
     },
 };
@@ -970,6 +981,8 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     const char *filename;
     const char *driver_name = NULL;
     const char *node_name = NULL;
+    const char *discard;
+    const char *detect_zeroes;
     QemuOpts *opts;
     BlockDriver *drv;
     Error *local_err = NULL;
@@ -1036,6 +1049,41 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
             ret = -EINVAL;
             goto fail_opts;
         }
+    }
+
+    discard = qemu_opt_get(opts, "discard");
+    if (discard != NULL) {
+        if (bdrv_parse_discard_flags(discard, &bs->open_flags) != 0) {
+            error_setg(errp, "Invalid discard option");
+            ret = -EINVAL;
+            goto fail_opts;
+        }
+    }
+
+    detect_zeroes = qemu_opt_get(opts, "detect-zeroes");
+    if (detect_zeroes) {
+        BlockdevDetectZeroesOptions value =
+            qapi_enum_parse(BlockdevDetectZeroesOptions_lookup,
+                            detect_zeroes,
+                            BLOCKDEV_DETECT_ZEROES_OPTIONS__MAX,
+                            BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
+                            &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            ret = -EINVAL;
+            goto fail_opts;
+        }
+
+        if (value == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
+            !(bs->open_flags & BDRV_O_UNMAP))
+        {
+            error_setg(errp, "setting detect-zeroes to unmap is not allowed "
+                             "without setting discard operation to unmap");
+            ret = -EINVAL;
+            goto fail_opts;
+        }
+
+        bs->detect_zeroes = value;
     }
 
     if (filename != NULL) {

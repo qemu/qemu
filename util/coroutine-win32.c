@@ -71,7 +71,7 @@ static void CALLBACK coroutine_trampoline(void *co_)
 
 Coroutine *qemu_coroutine_new(void)
 {
-    const size_t stack_size = 1 << 20;
+    const size_t stack_size = COROUTINE_STACK_SIZE;
     CoroutineWin32 *co;
 
     co = g_malloc0(sizeof(*co));
