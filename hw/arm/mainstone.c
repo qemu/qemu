@@ -88,7 +88,7 @@ static const struct keymap map[0xE0] = {
      * Matrix position {5,4} and other keys are missing here.
      * TODO: Compare with Linux code and test real hardware.
      */
-    [0x1c] = {5,5}, /* enter (TODO: might be wrong) */
+    [0x1c] = {5,4}, /* enter */
     [0xc8] = {6,0}, /* up */
     [0xd0] = {6,1}, /* down */
     [0xcb] = {6,2}, /* left */
