@@ -60,9 +60,10 @@ TraceEvent *trace_event_name(const char *name)
 {
     assert(name != NULL);
 
-    TraceEventID i;
-    for (i = 0; i < trace_event_count(); i++) {
-        TraceEvent *ev = trace_event_id(i);
+    TraceEventIter iter;
+    TraceEvent *ev;
+    trace_event_iter_init(&iter, NULL);
+    while ((ev = trace_event_iter_next(&iter)) != NULL) {
         if (strcmp(trace_event_get_name(ev), name) == 0) {
             return ev;
         }
@@ -105,21 +106,18 @@ TraceEvent *trace_event_pattern(const char *pat, TraceEvent *ev)
 {
     assert(pat != NULL);
 
-    TraceEventID i;
-
-    if (ev == NULL) {
-        i = -1;
-    } else {
-        i = trace_event_get_id(ev);
-    }
-    i++;
-
-    while (i < trace_event_count()) {
-        TraceEvent *res = trace_event_id(i);
-        if (pattern_glob(pat, trace_event_get_name(res))) {
-            return res;
+    bool matched = ev ? false : true;
+    TraceEventIter iter;
+    TraceEvent *thisev;
+    trace_event_iter_init(&iter, pat);
+    while ((thisev = trace_event_iter_next(&iter)) != NULL) {
+        if (matched) {
+            return thisev;
+        } else {
+            if (ev == thisev) {
+                matched = true;
+            }
         }
-        i++;
     }
 
     return NULL;
@@ -148,10 +146,11 @@ TraceEvent *trace_event_iter_next(TraceEventIter *iter)
 
 void trace_list_events(void)
 {
-    int i;
-    for (i = 0; i < trace_event_count(); i++) {
-        TraceEvent *res = trace_event_id(i);
-        fprintf(stderr, "%s\n", trace_event_get_name(res));
+    TraceEventIter iter;
+    TraceEvent *ev;
+    trace_event_iter_init(&iter, NULL);
+    while ((ev = trace_event_iter_next(&iter)) != NULL) {
+        fprintf(stderr, "%s\n", trace_event_get_name(ev));
     }
 }
 
@@ -159,25 +158,31 @@ static void do_trace_enable_events(const char *line_buf)
 {
     const bool enable = ('-' != line_buf[0]);
     const char *line_ptr = enable ? line_buf : line_buf + 1;
+    TraceEventIter iter;
+    TraceEvent *ev;
+    bool is_pattern = trace_event_is_pattern(line_ptr);
 
-    if (trace_event_is_pattern(line_ptr)) {
-        TraceEvent *ev = NULL;
-        while ((ev = trace_event_pattern(line_ptr, ev)) != NULL) {
-            if (trace_event_get_state_static(ev)) {
-                trace_event_set_state_dynamic_init(ev, enable);
+    trace_event_iter_init(&iter, line_ptr);
+    while ((ev = trace_event_iter_next(&iter)) != NULL) {
+        if (!trace_event_get_state_static(ev)) {
+            if (!is_pattern) {
+                error_report("WARNING: trace event '%s' is not traceable",
+                             line_ptr);
+                return;
             }
+            continue;
         }
-    } else {
-        TraceEvent *ev = trace_event_name(line_ptr);
-        if (ev == NULL) {
-            error_report("WARNING: trace event '%s' does not exist",
-                         line_ptr);
-        } else if (!trace_event_get_state_static(ev)) {
-            error_report("WARNING: trace event '%s' is not traceable",
-                         line_ptr);
-        } else {
-            trace_event_set_state_dynamic_init(ev, enable);
+
+        /* start tracing */
+        trace_event_set_state_dynamic(ev, enable);
+        if (!is_pattern) {
+            return;
         }
+    }
+
+    if (!is_pattern) {
+        error_report("WARNING: trace event '%s' does not exist",
+                     line_ptr);
     }
 }
 

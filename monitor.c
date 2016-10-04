@@ -3330,13 +3330,14 @@ void info_trace_events_completion(ReadLineState *rs, int nb_args, const char *st
     len = strlen(str);
     readline_set_completion_index(rs, len);
     if (nb_args == 2) {
-        TraceEventID id;
-        for (id = 0; id < trace_event_count(); id++) {
-            const char *event_name = trace_event_get_name(trace_event_id(id));
-            if (!strncmp(str, event_name, len)) {
-                readline_add_completion(rs, event_name);
-            }
+        TraceEventIter iter;
+        TraceEvent *ev;
+        char *pattern = g_strdup_printf("%s*", str);
+        trace_event_iter_init(&iter, pattern);
+        while ((ev = trace_event_iter_next(&iter)) != NULL) {
+            readline_add_completion(rs, trace_event_get_name(ev));
         }
+        g_free(pattern);
     }
 }
 
@@ -3347,13 +3348,14 @@ void trace_event_completion(ReadLineState *rs, int nb_args, const char *str)
     len = strlen(str);
     readline_set_completion_index(rs, len);
     if (nb_args == 2) {
-        TraceEventID id;
-        for (id = 0; id < trace_event_count(); id++) {
-            const char *event_name = trace_event_get_name(trace_event_id(id));
-            if (!strncmp(str, event_name, len)) {
-                readline_add_completion(rs, event_name);
-            }
+        TraceEventIter iter;
+        TraceEvent *ev;
+        char *pattern = g_strdup_printf("%s*", str);
+        trace_event_iter_init(&iter, pattern);
+        while ((ev = trace_event_iter_next(&iter)) != NULL) {
+            readline_add_completion(rs, trace_event_get_name(ev));
         }
+        g_free(pattern);
     } else if (nb_args == 3) {
         add_completion_option(rs, str, "on");
         add_completion_option(rs, str, "off");

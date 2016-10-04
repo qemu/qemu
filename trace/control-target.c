@@ -98,9 +98,10 @@ static bool adding_first_cpu(void)
 
 void trace_init_vcpu(CPUState *vcpu)
 {
-    TraceEvent *ev = NULL;
-
-    while ((ev = trace_event_pattern("*", ev)) != NULL) {
+    TraceEventIter iter;
+    TraceEvent *ev;
+    trace_event_iter_init(&iter, NULL);
+    while ((ev = trace_event_iter_next(&iter)) != NULL) {
         if (trace_event_is_vcpu(ev) &&
             trace_event_get_state_static(ev) &&
             trace_event_get_state_dynamic(ev)) {
@@ -118,6 +119,5 @@ void trace_init_vcpu(CPUState *vcpu)
             }
         }
     }
-
     trace_guest_cpu_enter(vcpu);
 }
