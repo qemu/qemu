@@ -1029,6 +1029,12 @@ M: Dmitry Fleytman <dmitry@daynix.com>
 S: Maintained
 F: hw/net/e1000e*
 
+Generic Loader
+M: Alistair Francis <alistair.francis@xilinx.com>
+S: Maintained
+F: hw/core/generic-loader.c
+F: include/hw/core/generic-loader.h
+
 Subsystems
 ----------
 Audio
