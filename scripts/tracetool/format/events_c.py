@@ -28,22 +28,29 @@ def generate(events, backend):
     for e in events:
         out('uint16_t %s;' % e.api(e.QEMU_DSTATE))
 
-    out('TraceEvent trace_events[TRACE_EVENT_COUNT] = {')
-
     for e in events:
         if "vcpu" in e.properties:
             vcpu_id = "TRACE_VCPU_" + e.name.upper()
         else:
             vcpu_id = "TRACE_VCPU_EVENT_COUNT"
-        out('    { .id = %(id)s, .vcpu_id = %(vcpu_id)s,'
-            ' .name = \"%(name)s\",'
-            ' .sstate = %(sstate)s,',
-            ' .dstate = &%(dstate)s, }, ',
+        out('TraceEvent %(event)s = {',
+            '    .id = %(id)s,',
+            '    .vcpu_id = %(vcpu_id)s,',
+            '    .name = \"%(name)s\",',
+            '    .sstate = %(sstate)s,',
+            '    .dstate = &%(dstate)s ',
+            '};',
+            event = e.api(e.QEMU_EVENT),
             id = "TRACE_" + e.name.upper(),
             vcpu_id = vcpu_id,
             name = e.name,
             sstate = "TRACE_%s_ENABLED" % e.name.upper(),
             dstate = e.api(e.QEMU_DSTATE))
+
+    out('TraceEvent *trace_events[TRACE_EVENT_COUNT] = {')
+
+    for e in events:
+        out('    &%(event)s,', event = e.api(e.QEMU_EVENT))
 
     out('};',
         '')

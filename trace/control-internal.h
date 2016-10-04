@@ -15,7 +15,7 @@
 #include "qom/cpu.h"
 
 
-extern TraceEvent trace_events[];
+extern TraceEvent *trace_events[];
 extern int trace_events_enabled_count;
 
 
