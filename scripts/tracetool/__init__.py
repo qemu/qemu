@@ -364,14 +364,14 @@ def try_import(mod_name, attr_name=None, attr_default=None):
         return False, None
 
 
-def generate(fevents, format, backends,
+def generate(events, format, backends,
              binary=None, probe_prefix=None):
     """Generate the output for the given (format, backends) pair.
 
     Parameters
     ----------
-    fevents : file
-        Event description file.
+    events : list
+        list of Event objects to generate for
     format : str
         Output format name.
     backends : list
@@ -400,7 +400,5 @@ def generate(fevents, format, backends,
     import tracetool.backend.dtrace
     tracetool.backend.dtrace.BINARY = binary
     tracetool.backend.dtrace.PROBEPREFIX = probe_prefix
-
-    events = read_events(fevents)
 
     tracetool.format.generate(events, format, backend)

@@ -129,8 +129,10 @@ def main(args):
         if probe_prefix is None:
             probe_prefix = ".".join(["qemu", target_type, target_name])
 
+    events = tracetool.read_events(sys.stdin)
+
     try:
-        tracetool.generate(sys.stdin, arg_format, arg_backends,
+        tracetool.generate(events, arg_format, arg_backends,
                            binary=binary, probe_prefix=probe_prefix)
     except tracetool.TracetoolError as e:
         error_opt(str(e))
