@@ -13,6 +13,10 @@
 #include "qemu-common.h"
 #include "trace/generated-events.h"
 
+typedef struct TraceEventIter {
+    size_t event;
+    const char *pattern;
+} TraceEventIter;
 
 /**
  * TraceEventID:
@@ -24,6 +28,29 @@
  * See also: "trace/generated-events.h"
  */
 enum TraceEventID;
+
+
+/**
+ * trace_event_iter_init:
+ * @iter: the event iterator struct
+ * @pattern: optional pattern to filter events on name
+ *
+ * Initialize the event iterator struct @iter,
+ * optionally using @pattern to filter out events
+ * with non-matching names.
+ */
+void trace_event_iter_init(TraceEventIter *iter, const char *pattern);
+
+/**
+ * trace_event_iter_next:
+ * @iter: the event iterator struct
+ *
+ * Get the next event, if any. When this returns NULL,
+ * the iterator should no longer be used.
+ *
+ * Returns: the next event, or NULL if no more events exist
+ */
+TraceEvent *trace_event_iter_next(TraceEventIter *iter);
 
 /**
  * trace_event_id:
