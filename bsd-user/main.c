@@ -695,6 +695,16 @@ static void usage(void)
 
 THREAD CPUState *thread_cpu;
 
+bool qemu_cpu_is_self(CPUState *cpu)
+{
+    return thread_cpu == cpu;
+}
+
+void qemu_cpu_kick(CPUState *cpu)
+{
+    cpu_exit(cpu);
+}
+
 /* Assumes contents are already zeroed.  */
 void init_task_state(TaskState *ts)
 {
