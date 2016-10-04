@@ -147,25 +147,19 @@
 #define GEM_INT_Q1_MASK                 (0x00000640 / 4)
 
 #define GEM_TRANSMIT_Q1_PTR             (0x00000440 / 4)
-#define GEM_TRANSMIT_Q15_PTR            (GEM_TRANSMIT_Q1_PTR + 14)
+#define GEM_TRANSMIT_Q7_PTR             (GEM_TRANSMIT_Q1_PTR + 6)
 
 #define GEM_RECEIVE_Q1_PTR              (0x00000480 / 4)
-#define GEM_RECEIVE_Q15_PTR             (GEM_RECEIVE_Q1_PTR + 14)
+#define GEM_RECEIVE_Q7_PTR              (GEM_RECEIVE_Q1_PTR + 6)
 
 #define GEM_INT_Q1_ENABLE               (0x00000600 / 4)
 #define GEM_INT_Q7_ENABLE               (GEM_INT_Q1_ENABLE + 6)
-#define GEM_INT_Q8_ENABLE               (0x00000660 / 4)
-#define GEM_INT_Q15_ENABLE              (GEM_INT_Q8_ENABLE + 7)
 
 #define GEM_INT_Q1_DISABLE              (0x00000620 / 4)
 #define GEM_INT_Q7_DISABLE              (GEM_INT_Q1_DISABLE + 6)
-#define GEM_INT_Q8_DISABLE              (0x00000680 / 4)
-#define GEM_INT_Q15_DISABLE             (GEM_INT_Q8_DISABLE + 7)
 
 #define GEM_INT_Q1_MASK                 (0x00000640 / 4)
 #define GEM_INT_Q7_MASK                 (GEM_INT_Q1_MASK + 6)
-#define GEM_INT_Q8_MASK                 (0x000006A0 / 4)
-#define GEM_INT_Q15_MASK                (GEM_INT_Q8_MASK + 7)
 
 #define GEM_SCREENING_TYPE1_REGISTER_0  (0x00000500 / 4)
 
@@ -1372,13 +1366,13 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
     case GEM_RXQBASE:
         s->rx_desc_addr[0] = val;
         break;
-    case GEM_RECEIVE_Q1_PTR ... GEM_RECEIVE_Q15_PTR:
+    case GEM_RECEIVE_Q1_PTR ... GEM_RECEIVE_Q7_PTR:
         s->rx_desc_addr[offset - GEM_RECEIVE_Q1_PTR + 1] = val;
         break;
     case GEM_TXQBASE:
         s->tx_desc_addr[0] = val;
         break;
-    case GEM_TRANSMIT_Q1_PTR ... GEM_TRANSMIT_Q15_PTR:
+    case GEM_TRANSMIT_Q1_PTR ... GEM_TRANSMIT_Q7_PTR:
         s->tx_desc_addr[offset - GEM_TRANSMIT_Q1_PTR + 1] = val;
         break;
     case GEM_RXSTATUS:
@@ -1392,20 +1386,12 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         s->regs[GEM_INT_Q1_MASK + offset - GEM_INT_Q1_ENABLE] &= ~val;
         gem_update_int_status(s);
         break;
-    case GEM_INT_Q8_ENABLE ... GEM_INT_Q15_ENABLE:
-        s->regs[GEM_INT_Q8_MASK + offset - GEM_INT_Q8_ENABLE] &= ~val;
-        gem_update_int_status(s);
-        break;
     case GEM_IDR:
         s->regs[GEM_IMR] |= val;
         gem_update_int_status(s);
         break;
     case GEM_INT_Q1_DISABLE ... GEM_INT_Q7_DISABLE:
         s->regs[GEM_INT_Q1_MASK + offset - GEM_INT_Q1_DISABLE] |= val;
-        gem_update_int_status(s);
-        break;
-    case GEM_INT_Q8_DISABLE ... GEM_INT_Q15_DISABLE:
-        s->regs[GEM_INT_Q8_MASK + offset - GEM_INT_Q8_DISABLE] |= val;
         gem_update_int_status(s);
         break;
     case GEM_SPADDR1LO:
