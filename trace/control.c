@@ -102,26 +102,6 @@ static bool pattern_glob(const char *pat, const char *ev)
     }
 }
 
-TraceEvent *trace_event_pattern(const char *pat, TraceEvent *ev)
-{
-    assert(pat != NULL);
-
-    bool matched = ev ? false : true;
-    TraceEventIter iter;
-    TraceEvent *thisev;
-    trace_event_iter_init(&iter, pat);
-    while ((thisev = trace_event_iter_next(&iter)) != NULL) {
-        if (matched) {
-            return thisev;
-        } else {
-            if (ev == thisev) {
-                matched = true;
-            }
-        }
-    }
-
-    return NULL;
-}
 
 void trace_event_iter_init(TraceEventIter *iter, const char *pattern)
 {

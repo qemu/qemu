@@ -52,21 +52,6 @@ void trace_event_iter_init(TraceEventIter *iter, const char *pattern);
  */
 TraceEvent *trace_event_iter_next(TraceEventIter *iter);
 
-/**
- * trace_event_id:
- * @id: Event identifier.
- *
- * Get an event by its identifier.
- *
- * This routine has a constant cost, as opposed to trace_event_name and
- * trace_event_pattern.
- *
- * Pre-conditions: The identifier is valid.
- *
- * Returns: pointer to #TraceEvent.
- *
- */
-static TraceEvent *trace_event_id(TraceEventID id);
 
 /**
  * trace_event_name:
@@ -79,30 +64,11 @@ static TraceEvent *trace_event_id(TraceEventID id);
 TraceEvent *trace_event_name(const char *name);
 
 /**
- * trace_event_pattern:
- * @pat: Event name pattern.
- * @ev: Event to start searching from (not included).
- *
- * Get all events with a given name pattern.
- *
- * Returns: pointer to #TraceEvent or NULL if not found.
- */
-TraceEvent *trace_event_pattern(const char *pat, TraceEvent *ev);
-
-/**
  * trace_event_is_pattern:
  *
  * Whether the given string is an event name pattern.
  */
 static bool trace_event_is_pattern(const char *str);
-
-/**
- * trace_event_count:
- *
- * Return the number of events.
- */
-static TraceEventID trace_event_count(void);
-
 
 
 /**
@@ -194,31 +160,6 @@ static bool trace_event_get_state_dynamic(TraceEvent *ev);
  */
 static bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu, TraceEvent *ev);
 
-/**
- * trace_event_set_state:
- *
- * Set the tracing state of an event (only if possible).
- */
-#define trace_event_set_state(id, state)                \
-    do {                                                \
-        if ((id ##_ENABLED)) {                          \
-            TraceEvent *_e = trace_event_id(id);        \
-            trace_event_set_state_dynamic(_e, state);   \
-        }                                               \
-    } while (0)
-
-/**
- * trace_event_set_vcpu_state:
- *
- * Set the tracing state of an event for the given vCPU (only if not disabled).
- */
-#define trace_event_set_vcpu_state(vcpu, id, state)                     \
-    do {                                                                \
-        if ((id ##_ENABLED)) {                                          \
-            TraceEvent *_e = trace_event_id(id);                        \
-            trace_event_set_vcpu_state_dynamic(vcpu, _e, state);        \
-        }                                                               \
-    } while (0)
 
 /**
  * trace_event_set_state_dynamic:
