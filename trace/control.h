@@ -11,7 +11,7 @@
 #define TRACE__CONTROL_H
 
 #include "qemu-common.h"
-#include "trace/generated-events.h"
+#include "event-internal.h"
 
 typedef struct TraceEventIter {
     size_t event;

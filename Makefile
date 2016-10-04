@@ -56,9 +56,6 @@ GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
 GENERATED_HEADERS += qmp-introspect.h
 GENERATED_SOURCES += qmp-introspect.c
 
-GENERATED_HEADERS += trace/generated-events.h
-GENERATED_SOURCES += trace/generated-events.c
-
 GENERATED_HEADERS += trace/generated-tracers.h
 ifeq ($(findstring dtrace,$(TRACE_BACKENDS)),dtrace)
 GENERATED_HEADERS += trace/generated-tracers-dtrace.h
