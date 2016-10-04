@@ -32,10 +32,6 @@ def generate(events, backend):
     for e in events:
         out('extern uint16_t %s;' % e.api(e.QEMU_DSTATE))
 
-    numvcpu = len([e for e in events if "vcpu" in e.properties])
-
-    out("#define TRACE_VCPU_EVENT_COUNT %d" % numvcpu)
-
     # static state
     for e in events:
         if 'disable' in e.properties:
