@@ -12,7 +12,7 @@
 import struct
 import re
 import inspect
-from tracetool import _read_events, Event
+from tracetool import read_events, Event
 from tracetool.backend.simple import is_string
 
 header_event_id = 0xffffffffffffffff
@@ -129,7 +129,7 @@ class Analyzer(object):
 def process(events, log, analyzer, read_header=True):
     """Invoke an analyzer on each event in a log."""
     if isinstance(events, str):
-        events = _read_events(open(events, 'r'))
+        events = read_events(open(events, 'r'))
     if isinstance(log, str):
         log = open(log, 'rb')
 
@@ -188,7 +188,7 @@ def run(analyzer):
                          '<trace-file>\n' % sys.argv[0])
         sys.exit(1)
 
-    events = _read_events(open(sys.argv[1], 'r'))
+    events = read_events(open(sys.argv[1], 'r'))
     process(events, sys.argv[2], analyzer, read_header=read_header)
 
 if __name__ == '__main__':

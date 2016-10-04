@@ -282,7 +282,17 @@ class Event(object):
                      self)
 
 
-def _read_events(fobj):
+def read_events(fobj):
+    """Generate the output for the given (format, backends) pair.
+
+    Parameters
+    ----------
+    fobj : file
+        Event description file.
+
+    Returns a list of Event objects
+    """
+
     events = []
     for line in fobj:
         if not line.strip():
@@ -391,6 +401,6 @@ def generate(fevents, format, backends,
     tracetool.backend.dtrace.BINARY = binary
     tracetool.backend.dtrace.PROBEPREFIX = probe_prefix
 
-    events = _read_events(fevents)
+    events = read_events(fevents)
 
     tracetool.format.generate(events, format, backend)
