@@ -15,6 +15,7 @@
 
 typedef struct TraceEventIter {
     size_t event;
+    size_t group;
     const char *pattern;
 } TraceEventIter;
 

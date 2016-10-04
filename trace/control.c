@@ -29,6 +29,13 @@
 
 int trace_events_enabled_count;
 
+typedef struct TraceEventGroup {
+    TraceEvent **events;
+} TraceEventGroup;
+
+static TraceEventGroup *event_groups;
+static size_t nevent_groups;
+
 QemuOptsList qemu_trace_opts = {
     .name = "trace",
     .implied_opt_name = "enable",
@@ -48,6 +55,14 @@ QemuOptsList qemu_trace_opts = {
         { /* end of list */ }
     },
 };
+
+
+void trace_event_register_group(TraceEvent **events)
+{
+    event_groups = g_renew(TraceEventGroup, event_groups, nevent_groups + 1);
+    event_groups[nevent_groups].events = events;
+    nevent_groups++;
+}
 
 
 TraceEvent *trace_event_name(const char *name)
@@ -100,14 +115,20 @@ static bool pattern_glob(const char *pat, const char *ev)
 void trace_event_iter_init(TraceEventIter *iter, const char *pattern)
 {
     iter->event = 0;
+    iter->group = 0;
     iter->pattern = pattern;
 }
 
 TraceEvent *trace_event_iter_next(TraceEventIter *iter)
 {
-    while (trace_events[iter->event] != NULL) {
-        TraceEvent *ev = trace_events[iter->event];
+    while (iter->group < nevent_groups &&
+           event_groups[iter->group].events[iter->event] != NULL) {
+        TraceEvent *ev = event_groups[iter->group].events[iter->event];
         iter->event++;
+        if (event_groups[iter->group].events[iter->event] == NULL) {
+            iter->event = 0;
+            iter->group++;
+        }
         if (!iter->pattern ||
             pattern_glob(iter->pattern,
                          trace_event_get_name(ev))) {

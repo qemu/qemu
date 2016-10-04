@@ -60,3 +60,9 @@ def generate(events, backend):
     out('  NULL,',
         '};',
         '')
+
+    out('static void trace_register_events(void)',
+        '{',
+        '    trace_event_register_group(trace_events);',
+        '}',
+        'trace_init(trace_register_events)')

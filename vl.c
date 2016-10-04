@@ -3024,6 +3024,8 @@ int main(int argc, char **argv, char **envp)
     Error *err = NULL;
     bool list_data_dirs = false;
 
+    module_call_init(MODULE_INIT_TRACE);
+
     qemu_init_cpu_list();
     qemu_init_cpu_loop();
     qemu_mutex_lock_iothread();
