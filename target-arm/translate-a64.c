@@ -2025,7 +2025,7 @@ static void disas_ld_lit(DisasContext *s, uint32_t insn)
         do_fp_ld(s, rt, tcg_addr, size);
     } else {
         /* Only unsigned 32bit loads target 32bit registers.  */
-        bool iss_sf = opc == 0 ? 32 : 64;
+        bool iss_sf = opc != 0;
 
         do_gpr_ld(s, tcg_rt, tcg_addr, size, is_signed, false,
                   true, rt, iss_sf, false);
