@@ -51,6 +51,12 @@ bool ftrace_init(void)
         snprintf(path, PATH_MAX, "%s/tracing/tracing_on", debugfs);
         trace_fd = open(path, O_WRONLY);
         if (trace_fd < 0) {
+            if (errno == EACCES) {
+                trace_marker_fd = open("/dev/null", O_WRONLY);
+                if (trace_marker_fd != -1) {
+                    return true;
+                }
+            }
             perror("Could not open ftrace 'tracing_on' file");
             return false;
         } else {
