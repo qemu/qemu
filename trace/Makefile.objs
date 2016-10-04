@@ -22,7 +22,7 @@ $(obj)/generated-ust-provider.h-timestamp: $(BUILD_DIR)/trace-events-all $(trace
 	$(call quiet-command,$(TRACETOOL) \
 		--format=ust-events-h \
 		--backends=$(TRACE_BACKENDS) \
-		< $< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
+		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
 
 $(obj)/generated-ust.c: $(obj)/generated-ust.c-timestamp $(BUILD_DIR)/config-host.mak
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
@@ -30,7 +30,7 @@ $(obj)/generated-ust.c-timestamp: $(BUILD_DIR)/trace-events-all $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=ust-events-c \
 		--backends=$(TRACE_BACKENDS) \
-		< $< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
+		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
 
 $(obj)/generated-tracers.h: $(obj)/generated-ust-provider.h
 $(obj)/generated-tracers.c: $(obj)/generated-ust.c
@@ -50,7 +50,7 @@ $(obj)/generated-tracers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=h \
 		--backends=$(TRACE_BACKENDS) \
-		< $< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
+		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
 
 ##############################
 # non-DTrace
@@ -61,7 +61,7 @@ $(obj)/generated-tracers.c-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=c \
 		--backends=$(TRACE_BACKENDS) \
-		< $< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
+		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
 
 $(obj)/generated-tracers.o: $(obj)/generated-tracers.c $(obj)/generated-tracers.h
 
@@ -79,7 +79,7 @@ $(obj)/generated-tracers-dtrace.dtrace-timestamp: $(BUILD_DIR)/trace-events-all 
 	$(call quiet-command,$(TRACETOOL) \
 		--format=d \
 		--backends=$(TRACE_BACKENDS) \
-		< $< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
+		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
 
 $(obj)/generated-tracers-dtrace.h: $(obj)/generated-tracers-dtrace.dtrace
 	$(call quiet-command,dtrace -o $@ -h -s $<,"GEN","$@")
@@ -98,7 +98,7 @@ $(obj)/generated-helpers-wrappers.h-timestamp: $(BUILD_DIR)/trace-events-all $(B
 	$(call quiet-command,$(TRACETOOL) \
 		--format=tcg-helper-wrapper-h \
 		--backend=$(TRACE_BACKENDS) \
-		< $< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
+		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
 
 $(obj)/generated-helpers.h: $(obj)/generated-helpers.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
@@ -106,7 +106,7 @@ $(obj)/generated-helpers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=tcg-helper-h \
 		--backend=$(TRACE_BACKENDS) \
-		< $< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
+		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
 
 $(obj)/generated-helpers.c: $(obj)/generated-helpers.c-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
@@ -114,7 +114,7 @@ $(obj)/generated-helpers.c-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=tcg-helper-c \
 		--backend=$(TRACE_BACKENDS) \
-		< $< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
+		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
 
 $(obj)/generated-helpers.o: $(obj)/generated-helpers.c
 
@@ -127,7 +127,7 @@ $(obj)/generated-tcg-tracers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_
 	$(call quiet-command,$(TRACETOOL) \
 		--format=tcg-h \
 		--backend=$(TRACE_BACKENDS) \
-		< $< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
+		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
 
 
 ######################################################################

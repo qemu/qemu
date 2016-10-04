@@ -55,7 +55,7 @@ $(QEMU_PROG).stp-installed: $(BUILD_DIR)/trace-events-all
 		--binary=$(bindir)/$(QEMU_PROG) \
 		--target-name=$(TARGET_NAME) \
 		--target-type=$(TARGET_TYPE) \
-		< $< > $@,"GEN","$(TARGET_DIR)$(QEMU_PROG).stp-installed")
+		$< > $@,"GEN","$(TARGET_DIR)$(QEMU_PROG).stp-installed")
 
 $(QEMU_PROG).stp: $(BUILD_DIR)/trace-events-all
 	$(call quiet-command,$(TRACETOOL) \
@@ -64,14 +64,14 @@ $(QEMU_PROG).stp: $(BUILD_DIR)/trace-events-all
 		--binary=$(realpath .)/$(QEMU_PROG) \
 		--target-name=$(TARGET_NAME) \
 		--target-type=$(TARGET_TYPE) \
-		< $< > $@,"GEN","$(TARGET_DIR)$(QEMU_PROG).stp")
+		$< > $@,"GEN","$(TARGET_DIR)$(QEMU_PROG).stp")
 
 $(QEMU_PROG)-simpletrace.stp: $(BUILD_DIR)/trace-events-all
 	$(call quiet-command,$(TRACETOOL) \
 		--format=simpletrace-stap \
 		--backends=$(TRACE_BACKENDS) \
 		--probe-prefix=qemu.$(TARGET_TYPE).$(TARGET_NAME) \
-		< $< > $@,"GEN","$(TARGET_DIR)$(QEMU_PROG)-simpletrace.stp")
+		$< > $@,"GEN","$(TARGET_DIR)$(QEMU_PROG)-simpletrace.stp")
 
 else
 stap:

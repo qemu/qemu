@@ -129,7 +129,10 @@ def main(args):
         if probe_prefix is None:
             probe_prefix = ".".join(["qemu", target_type, target_name])
 
-    events = tracetool.read_events(sys.stdin)
+    if len(args) != 1:
+        error_opt("missing trace-events filepath")
+    with open(args[0], "r") as fh:
+        events = tracetool.read_events(fh)
 
     try:
         tracetool.generate(events, arg_format, arg_backends,
