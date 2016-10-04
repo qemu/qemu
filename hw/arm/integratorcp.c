@@ -252,6 +252,26 @@ static void integratorcm_init(Object *obj)
     /* ??? What should the high bits of this value be?  */
     s->cm_auxosc = 0x0007feff;
     s->cm_sdram = 0x00011122;
+    memcpy(integrator_spd + 73, "QEMU-MEMORY", 11);
+    s->cm_init = 0x00000112;
+    s->cm_refcnt_offset = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 24,
+                                   1000);
+    memory_region_init_ram(&s->flash, obj, "integrator.flash", 0x100000,
+                           &error_fatal);
+    vmstate_register_ram_global(&s->flash);
+
+    memory_region_init_io(&s->iomem, obj, &integratorcm_ops, s,
+                          "integratorcm", 0x00800000);
+    sysbus_init_mmio(dev, &s->iomem);
+
+    integratorcm_do_remap(s);
+    /* ??? Save/restore.  */
+}
+
+static void integratorcm_realize(DeviceState *d, Error **errp)
+{
+    IntegratorCMState *s = INTEGRATOR_CM(d);
+
     if (s->memsz >= 256) {
         integrator_spd[31] = 64;
         s->cm_sdram |= 0x10;
@@ -267,20 +287,6 @@ static void integratorcm_init(Object *obj)
     } else {
         integrator_spd[31] = 2;
     }
-    memcpy(integrator_spd + 73, "QEMU-MEMORY", 11);
-    s->cm_init = 0x00000112;
-    s->cm_refcnt_offset = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 24,
-                                   1000);
-    memory_region_init_ram(&s->flash, obj, "integrator.flash", 0x100000,
-                           &error_fatal);
-    vmstate_register_ram_global(&s->flash);
-
-    memory_region_init_io(&s->iomem, obj, &integratorcm_ops, s,
-                          "integratorcm", 0x00800000);
-    sysbus_init_mmio(dev, &s->iomem);
-
-    integratorcm_do_remap(s);
-    /* ??? Save/restore.  */
 }
 
 /* Integrator/CP hardware emulation.  */
@@ -633,6 +639,7 @@ static void core_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->props = core_properties;
+    dc->realize = integratorcm_realize;
 }
 
 static const TypeInfo core_info = {

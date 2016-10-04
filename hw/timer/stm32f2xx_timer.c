@@ -51,6 +51,15 @@ static void stm32f2xx_timer_interrupt(void *opaque)
         qemu_irq_pulse(s->irq);
         stm32f2xx_timer_set_alarm(s, s->hit_time);
     }
+
+    if (s->tim_ccmr1 & (TIM_CCMR1_OC2M2 | TIM_CCMR1_OC2M1) &&
+        !(s->tim_ccmr1 & TIM_CCMR1_OC2M0) &&
+        s->tim_ccmr1 & TIM_CCMR1_OC2PE &&
+        s->tim_ccer & TIM_CCER_CC2E) {
+        /* PWM 2 - Mode 1 */
+        DB_PRINT("PWM2 Duty Cycle: %d%%\n",
+                s->tim_ccr2 / (100 * (s->tim_psc + 1)));
+    }
 }
 
 static inline int64_t stm32f2xx_ns_to_ticks(STM32F2XXTimerState *s, int64_t t)

@@ -1,5 +1,5 @@
 /*
- * STM32F205 SoC
+ * STM32F2XX SPI
  *
  * Copyright (c) 2014 Alistair Francis <alistair@alistair23.me>
  *
@@ -22,45 +22,51 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_ARM_STM32F205_SOC_H
-#define HW_ARM_STM32F205_SOC_H
+#ifndef HW_STM32F2XX_SPI_H
+#define HW_STM32F2XX_SPI_H
 
-#include "hw/misc/stm32f2xx_syscfg.h"
-#include "hw/timer/stm32f2xx_timer.h"
-#include "hw/char/stm32f2xx_usart.h"
-#include "hw/adc/stm32f2xx_adc.h"
-#include "hw/or-irq.h"
-#include "hw/ssi/stm32f2xx_spi.h"
+#include "hw/sysbus.h"
+#include "hw/hw.h"
+#include "hw/ssi/ssi.h"
 
-#define TYPE_STM32F205_SOC "stm32f205-soc"
-#define STM32F205_SOC(obj) \
-    OBJECT_CHECK(STM32F205State, (obj), TYPE_STM32F205_SOC)
+#define STM_SPI_CR1     0x00
+#define STM_SPI_CR2     0x04
+#define STM_SPI_SR      0x08
+#define STM_SPI_DR      0x0C
+#define STM_SPI_CRCPR   0x10
+#define STM_SPI_RXCRCR  0x14
+#define STM_SPI_TXCRCR  0x18
+#define STM_SPI_I2SCFGR 0x1C
+#define STM_SPI_I2SPR   0x20
 
-#define STM_NUM_USARTS 6
-#define STM_NUM_TIMERS 4
-#define STM_NUM_ADCS 3
-#define STM_NUM_SPIS 3
+#define STM_SPI_CR1_SPE  (1 << 6)
+#define STM_SPI_CR1_MSTR (1 << 2)
 
-#define FLASH_BASE_ADDRESS 0x08000000
-#define FLASH_SIZE (1024 * 1024)
-#define SRAM_BASE_ADDRESS 0x20000000
-#define SRAM_SIZE (128 * 1024)
+#define STM_SPI_SR_RXNE   1
 
-typedef struct STM32F205State {
-    /*< private >*/
+#define TYPE_STM32F2XX_SPI "stm32f2xx-spi"
+#define STM32F2XX_SPI(obj) \
+    OBJECT_CHECK(STM32F2XXSPIState, (obj), TYPE_STM32F2XX_SPI)
+
+typedef struct {
+    /* <private> */
     SysBusDevice parent_obj;
-    /*< public >*/
 
-    char *kernel_filename;
-    char *cpu_model;
+    /* <public> */
+    MemoryRegion mmio;
 
-    STM32F2XXSyscfgState syscfg;
-    STM32F2XXUsartState usart[STM_NUM_USARTS];
-    STM32F2XXTimerState timer[STM_NUM_TIMERS];
-    STM32F2XXADCState adc[STM_NUM_ADCS];
-    STM32F2XXSPIState spi[STM_NUM_SPIS];
+    uint32_t spi_cr1;
+    uint32_t spi_cr2;
+    uint32_t spi_sr;
+    uint32_t spi_dr;
+    uint32_t spi_crcpr;
+    uint32_t spi_rxcrcr;
+    uint32_t spi_txcrcr;
+    uint32_t spi_i2scfgr;
+    uint32_t spi_i2spr;
 
-    qemu_or_irq *adc_irqs;
-} STM32F205State;
+    qemu_irq irq;
+    SSIBus *ssi;
+} STM32F2XXSPIState;
 
-#endif
+#endif /* HW_STM32F2XX_SPI_H */

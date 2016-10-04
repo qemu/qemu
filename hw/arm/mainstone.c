@@ -73,8 +73,10 @@ static const struct keymap map[0xE0] = {
     [0x2f] = {3,3}, /* v */
     [0x11] = {3,4}, /* w */
     [0x2d] = {3,5}, /* x */
+    [0x34] = {4,0}, /* . */
     [0x15] = {4,2}, /* y */
     [0x2c] = {4,3}, /* z */
+    [0x35] = {4,4}, /* / */
     [0xc7] = {5,0}, /* Home */
     [0x2a] = {5,1}, /* shift */
     /*
@@ -88,7 +90,8 @@ static const struct keymap map[0xE0] = {
      * Matrix position {5,4} and other keys are missing here.
      * TODO: Compare with Linux code and test real hardware.
      */
-    [0x1c] = {5,5}, /* enter (TODO: might be wrong) */
+    [0x1c] = {5,4}, /* enter */
+    [0x0e] = {5,5}, /* backspace */
     [0xc8] = {6,0}, /* up */
     [0xd0] = {6,1}, /* down */
     [0xcb] = {6,2}, /* left */

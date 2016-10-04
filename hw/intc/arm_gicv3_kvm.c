@@ -85,6 +85,7 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
     GICv3State *s = KVM_ARM_GICV3(dev);
     KVMARMGICv3Class *kgc = KVM_ARM_GICV3_GET_CLASS(s);
     Error *local_err = NULL;
+    int i;
 
     DPRINTF("kvm_arm_gicv3_realize\n");
 
@@ -127,6 +128,18 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
      */
     error_setg(&s->migration_blocker, "vGICv3 migration is not implemented");
     migrate_add_blocker(s->migration_blocker);
+
+    if (kvm_has_gsi_routing()) {
+        /* set up irq routing */
+        kvm_init_irq_routing(kvm_state);
+        for (i = 0; i < s->num_irq - GIC_INTERNAL; ++i) {
+            kvm_irqchip_add_irq_route(kvm_state, i, 0, i);
+        }
+
+        kvm_gsi_routing_allowed = true;
+
+        kvm_irqchip_commit_routes(kvm_state);
+    }
 }
 
 static void kvm_arm_gicv3_class_init(ObjectClass *klass, void *data)
