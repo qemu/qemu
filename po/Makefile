@@ -10,7 +10,7 @@ all:
 .PHONY:	all build clean install update
 
 %.mo: %.po
-	$(call quiet-command, msgfmt -o $@ $<, "  GEN   $@")
+	$(call quiet-command, msgfmt -o $@ $<,"GEN","$@")
 
 -include ../config-host.mak
 include $(SRC_PATH)/rules.mak
@@ -46,7 +46,7 @@ $(PO_PATH)/messages.po: $(SRC_PATH)/ui/gtk.c
           xgettext -o - --from-code=UTF-8 --foreign-user \
 	    --package-name=QEMU --package-version=$(VERSION) \
 	    --msgid-bugs-address=qemu-devel@nongnu.org -k_ -C ui/gtk.c | \
-	  sed -e s/CHARSET/UTF-8/) >$@, "  GEN   $@")
+	  sed -e s/CHARSET/UTF-8/) >$@,"GEN","$@")
 
 $(PO_PATH)/%.po: $(PO_PATH)/messages.po
-	$(call quiet-command, msgmerge -q $@ $< > $@.bak && mv $@.bak $@, "  GEN   $@")
+	$(call quiet-command, msgmerge -q $@ $< > $@.bak && mv $@.bak $@,"GEN","$@")

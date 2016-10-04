@@ -25,7 +25,7 @@ make-archive-maybe = $(if $(wildcard $1/*), \
 		else \
 			git archive -1 $$(git stash create) --format=tar.gz; \
 		fi) > $2, \
-		"  ARCHIVE $(notdir $2)"))
+		"ARCHIVE","$(notdir $2)"))
 
 CUR_TIME := $(shell date +%Y-%m-%d-%H.%M.%S.$$$$)
 DOCKER_SRC_COPY := docker-src.$(CUR_TIME)
@@ -36,7 +36,7 @@ $(DOCKER_SRC_COPY):
 	$(call make-archive-maybe, $(SRC_PATH)/dtc, $@/dtc.tgz)
 	$(call make-archive-maybe, $(SRC_PATH)/pixman, $@/pixman.tgz)
 	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
-		"  COPY RUNNER")
+		"COPY","RUNNER")
 
 docker-qemu-src: $(DOCKER_SRC_COPY)
 
@@ -51,7 +51,7 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		$(SRC_PATH)/tests/docker/docker.py build qemu:$* $< \
 		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) \
 		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)),\
-		"  BUILD $*")
+		"BUILD","$*")
 
 # Expand all the pre-requistes for each docker image and test combination
 $(foreach i,$(DOCKER_IMAGES), \
@@ -125,7 +125,7 @@ docker-run-%: docker-qemu-src
 				/var/tmp/qemu/run \
 				$(CMD); \
 			fi \
-			, "  RUN $(CMD) in $(IMAGE)")))
+			,"RUN","$(CMD) in $(IMAGE)")))
 
 docker-clean:
 	$(call quiet-command, $(SRC_PATH)/tests/docker/docker.py clean)

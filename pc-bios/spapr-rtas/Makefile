@@ -15,10 +15,10 @@ $(call set-vpath, $(SRC_PATH)/pc-bios/spapr-rtas)
 build-all: spapr-rtas.bin
 
 %.img: %.o
-	$(call quiet-command,$(CC) -nostdlib -o $@ $<,"  Building $(TARGET_DIR)$@")
+	$(call quiet-command,$(CC) -nostdlib -o $@ $<,"Building","$(TARGET_DIR)$@")
 
 %.bin: %.img
-	$(call quiet-command,$(OBJCOPY) -O binary -j .text $< $@,"  Building $(TARGET_DIR)$@")
+	$(call quiet-command,$(OBJCOPY) -O binary -j .text $< $@,"Building","$(TARGET_DIR)$@")
 
 clean:
 	rm -f *.o *.d *.img *.bin *~
