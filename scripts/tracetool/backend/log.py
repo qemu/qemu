@@ -20,8 +20,7 @@ PUBLIC = True
 
 
 def generate_h_begin(events):
-    out('#include "trace/control.h"',
-        '#include "qemu/log.h"',
+    out('#include "qemu/log.h"',
         '')
 
 

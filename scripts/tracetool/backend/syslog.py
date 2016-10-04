@@ -21,7 +21,6 @@ PUBLIC = True
 
 def generate_h_begin(events):
     out('#include <syslog.h>',
-        '#include "trace/control.h"',
         '')
 
 

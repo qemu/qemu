@@ -21,7 +21,6 @@ PUBLIC = True
 
 def generate_h_begin(events):
     out('#include "trace/ftrace.h"',
-        '#include "trace/control.h"',
         '')
 
 
