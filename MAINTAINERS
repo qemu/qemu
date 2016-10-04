@@ -479,6 +479,21 @@ S: Maintained
 F: hw/arm/virt-acpi-build.c
 F: include/hw/arm/virt-acpi-build.h
 
+STM32F205
+M: Alistair Francis <alistair@alistair23.me>
+S: Maintained
+F: hw/arm/stm32f205_soc.c
+F: hw/misc/stm32f2xx_syscfg.c
+F: hw/char/stm32f2xx_usart.c
+F: hw/timer/stm32f2xx_timer.c
+F: hw/adc/*
+F: hw/ssi/stm32f2xx_spi.c
+
+Netduino 2
+M: Alistair Francis <alistair@alistair23.me>
+S: Maintained
+F: hw/arm/netduino2.c
+
 CRIS Machines
 -------------
 Axis Dev88
