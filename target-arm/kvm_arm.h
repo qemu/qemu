@@ -255,4 +255,23 @@ struct kvm_guest_debug_arch;
 
 void kvm_arm_copy_hw_debug_data(struct kvm_guest_debug_arch *ptr);
 
+/**
+ * its_class_name
+ *
+ * Return the ITS class name to use depending on whether KVM acceleration
+ * and KVM CAP_SIGNAL_MSI are supported
+ *
+ * Returns: class name to use or NULL
+ */
+static inline const char *its_class_name(void)
+{
+    if (kvm_irqchip_in_kernel()) {
+        /* KVM implementation requires this capability */
+        return kvm_direct_msi_enabled() ? "arm-its-kvm" : NULL;
+    } else {
+        /* Software emulation is not implemented yet */
+        return NULL;
+    }
+}
+
 #endif
