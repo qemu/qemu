@@ -16,7 +16,7 @@ __email__      = "stefanha@linux.vnet.ibm.com"
 from tracetool import out
 
 
-def generate(events, backend):
+def generate(events, backend, group):
     active_events = [e for e in events
                      if "disable" not in e.properties]
 
@@ -47,7 +47,8 @@ def generate(events, backend):
             sstate = "TRACE_%s_ENABLED" % e.name.upper(),
             dstate = e.api(e.QEMU_DSTATE))
 
-    out('TraceEvent *trace_events[] = {')
+    out('TraceEvent *%(group)s_trace_events[] = {',
+        group = group.lower())
 
     for e in events:
         out('    &%(event)s,', event = e.api(e.QEMU_EVENT))
@@ -56,13 +57,14 @@ def generate(events, backend):
         '};',
         '')
 
-    out('static void trace_register_events(void)',
+    out('static void trace_%(group)s_register_events(void)',
         '{',
-        '    trace_event_register_group(trace_events);',
+        '    trace_event_register_group(%(group)s_trace_events);',
         '}',
-        'trace_init(trace_register_events)')
+        'trace_init(trace_%(group)s_register_events)',
+        group = group.lower())
 
-    backend.generate_begin(active_events)
+    backend.generate_begin(active_events, group)
     for event in active_events:
-        backend.generate(event)
-    backend.generate_end(active_events)
+        backend.generate(event, group)
+    backend.generate_end(active_events, group)

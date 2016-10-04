@@ -364,7 +364,7 @@ def try_import(mod_name, attr_name=None, attr_default=None):
         return False, None
 
 
-def generate(events, format, backends,
+def generate(events, group, format, backends,
              binary=None, probe_prefix=None):
     """Generate the output for the given (format, backends) pair.
 
@@ -372,6 +372,8 @@ def generate(events, format, backends,
     ----------
     events : list
         list of Event objects to generate for
+    group: str
+        Name of the tracing group
     format : str
         Output format name.
     backends : list
@@ -401,4 +403,4 @@ def generate(events, format, backends,
     tracetool.backend.dtrace.BINARY = binary
     tracetool.backend.dtrace.PROBEPREFIX = probe_prefix
 
-    tracetool.format.generate(events, format, backend)
+    tracetool.format.generate(events, format, backend, group)

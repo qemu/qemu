@@ -16,7 +16,7 @@ __email__      = "stefanha@redhat.com"
 from tracetool import out
 
 
-def generate(events, backend):
+def generate(events, backend, group):
     events = [e for e in events
               if "disabled" not in e.properties]
 
