@@ -19,6 +19,12 @@
  * @vcpu_id: Unique per-vCPU event identifier.
  * @name: Event name.
  * @sstate: Static tracing state.
+ * @dstate: Dynamic tracing state
+ *
+ * Interpretation of @dstate depends on whether the event has the 'vcpu'
+ *  property:
+ * - false: Boolean value indicating whether the event is active.
+ * - true : Integral counting the number of vCPUs that have this event enabled.
  *
  * Opaque generic description of a tracing event.
  */
@@ -27,6 +33,7 @@ typedef struct TraceEvent {
     TraceEventVCPUID vcpu_id;
     const char * name;
     const bool sstate;
+    uint16_t *dstate;
 } TraceEvent;
 
 void trace_event_set_state_dynamic_init(TraceEvent *ev, bool state);

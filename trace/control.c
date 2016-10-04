@@ -28,12 +28,6 @@
 #include "monitor/monitor.h"
 
 int trace_events_enabled_count;
-/*
- * Interpretation depends on wether the event has the 'vcpu' property:
- * - false: Boolean value indicating whether the event is active.
- * - true : Integral counting the number of vCPUs that have this event enabled.
- */
-uint16_t trace_events_dstate[TRACE_EVENT_COUNT];
 
 QemuOptsList qemu_trace_opts = {
     .name = "trace",

@@ -265,11 +265,12 @@ class Event(object):
 
     QEMU_TRACE               = "trace_%(name)s"
     QEMU_TRACE_TCG           = QEMU_TRACE + "_tcg"
+    QEMU_DSTATE              = "_TRACE_%(NAME)s_DSTATE"
 
     def api(self, fmt=None):
         if fmt is None:
             fmt = Event.QEMU_TRACE
-        return fmt % {"name": self.name}
+        return fmt % {"name": self.name, "NAME": self.name.upper()}
 
     def transform(self, *trans):
         """Return a new Event with transformed Arguments."""

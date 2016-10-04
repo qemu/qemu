@@ -16,7 +16,6 @@
 
 
 extern TraceEvent trace_events[];
-extern uint16_t trace_events_dstate[];
 extern int trace_events_enabled_count;
 
 
@@ -54,18 +53,13 @@ static inline bool trace_event_get_state_static(TraceEvent *ev)
     return ev->sstate;
 }
 
-static inline bool trace_event_get_state_dynamic_by_id(TraceEventID id)
-{
-    /* it's on fast path, avoid consistency checks (asserts) */
-    return unlikely(trace_events_enabled_count) && trace_events_dstate[id];
-}
+/* it's on fast path, avoid consistency checks (asserts) */
+#define trace_event_get_state_dynamic_by_id(id) \
+    (unlikely(trace_events_enabled_count) && _ ## id ## _DSTATE)
 
 static inline bool trace_event_get_state_dynamic(TraceEvent *ev)
 {
-    TraceEventID id;
-    assert(trace_event_get_state_static(ev));
-    id = trace_event_get_id(ev);
-    return trace_event_get_state_dynamic_by_id(id);
+    return unlikely(trace_events_enabled_count) && *ev->dstate;
 }
 
 static inline bool trace_event_get_vcpu_state_dynamic_by_vcpu_id(CPUState *vcpu,

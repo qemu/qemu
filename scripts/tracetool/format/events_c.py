@@ -25,6 +25,9 @@ def generate(events, backend):
         '#include "trace/control.h"',
         '')
 
+    for e in events:
+        out('uint16_t %s;' % e.api(e.QEMU_DSTATE))
+
     out('TraceEvent trace_events[TRACE_EVENT_COUNT] = {')
 
     for e in events:
@@ -34,11 +37,13 @@ def generate(events, backend):
             vcpu_id = "TRACE_VCPU_EVENT_COUNT"
         out('    { .id = %(id)s, .vcpu_id = %(vcpu_id)s,'
             ' .name = \"%(name)s\",'
-            ' .sstate = %(sstate)s },',
+            ' .sstate = %(sstate)s,',
+            ' .dstate = &%(dstate)s, }, ',
             id = "TRACE_" + e.name.upper(),
             vcpu_id = vcpu_id,
             name = e.name,
-            sstate = "TRACE_%s_ENABLED" % e.name.upper())
+            sstate = "TRACE_%s_ENABLED" % e.name.upper(),
+            dstate = e.api(e.QEMU_DSTATE))
 
     out('};',
         '')
