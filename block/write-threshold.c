@@ -76,8 +76,7 @@ static int coroutine_fn before_write_notify(NotifierWithReturn *notifier,
 static void write_threshold_register_notifier(BlockDriverState *bs)
 {
     bs->write_threshold_notifier.notify = before_write_notify;
-    notifier_with_return_list_add(&bs->before_write_notifiers,
-                                  &bs->write_threshold_notifier);
+    bdrv_add_before_write_notifier(bs, &bs->write_threshold_notifier);
 }
 
 static void write_threshold_update(BlockDriverState *bs,
