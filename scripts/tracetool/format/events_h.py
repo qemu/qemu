@@ -29,27 +29,12 @@ def generate(events, backend):
         out('extern TraceEvent %(event)s;',
             event = e.api(e.QEMU_EVENT))
 
-    # event identifiers
-    out('typedef enum {')
-
-    for e in events:
-        out('    TRACE_%s,' % e.name.upper())
-
-    out('    TRACE_EVENT_COUNT',
-        '} TraceEventID;')
-
     for e in events:
         out('extern uint16_t %s;' % e.api(e.QEMU_DSTATE))
 
-    # per-vCPU event identifiers
-    out('typedef enum {')
+    numvcpu = len([e for e in events if "vcpu" in e.properties])
 
-    for e in events:
-        if "vcpu" in e.properties:
-            out('    TRACE_VCPU_%s,' % e.name.upper())
-
-    out('    TRACE_VCPU_EVENT_COUNT',
-        '} TraceEventVCPUID;')
+    out("#define TRACE_VCPU_EVENT_COUNT %d" % numvcpu)
 
     # static state
     for e in events:

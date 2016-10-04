@@ -18,17 +18,6 @@ typedef struct TraceEventIter {
     const char *pattern;
 } TraceEventIter;
 
-/**
- * TraceEventID:
- *
- * Unique tracing event identifier.
- *
- * These are named as 'TRACE_${EVENT_NAME}'.
- *
- * See also: "trace/generated-events.h"
- */
-enum TraceEventID;
-
 
 /**
  * trace_event_iter_init:
@@ -76,17 +65,17 @@ static bool trace_event_is_pattern(const char *str);
  *
  * Get the identifier of an event.
  */
-static TraceEventID trace_event_get_id(TraceEvent *ev);
+static uint32_t trace_event_get_id(TraceEvent *ev);
 
 /**
  * trace_event_get_vcpu_id:
  *
  * Get the per-vCPU identifier of an event.
  *
- * Special value #TRACE_VCPU_EVENT_COUNT means the event is not vCPU-specific
+ * Special value #TRACE_VCPU_EVENT_NONE means the event is not vCPU-specific
  * (does not have the "vcpu" property).
  */
-static TraceEventVCPUID trace_event_get_vcpu_id(TraceEvent *ev);
+static uint32_t trace_event_get_vcpu_id(TraceEvent *ev);
 
 /**
  * trace_event_is_vcpu:
@@ -104,14 +93,12 @@ static const char * trace_event_get_name(TraceEvent *ev);
 
 /**
  * trace_event_get_state:
- * @id: Event identifier.
+ * @id: Event identifier name.
  *
  * Get the tracing state of an event (both static and dynamic).
  *
  * If the event has the disabled property, the check will have no performance
  * impact.
- *
- * As a down side, you must always use an immediate #TraceEventID value.
  */
 #define trace_event_get_state(id)                       \
     ((id ##_ENABLED) && trace_event_get_state_dynamic_by_id(id))
@@ -119,19 +106,18 @@ static const char * trace_event_get_name(TraceEvent *ev);
 /**
  * trace_event_get_vcpu_state:
  * @vcpu: Target vCPU.
- * @id: Event identifier (TraceEventID).
- * @vcpu_id: Per-vCPU event identifier (TraceEventVCPUID).
+ * @id: Event identifier name.
  *
  * Get the tracing state of an event (both static and dynamic) for the given
  * vCPU.
  *
  * If the event has the disabled property, the check will have no performance
  * impact.
- *
- * As a down side, you must always use an immediate #TraceEventID value.
  */
-#define trace_event_get_vcpu_state(vcpu, id, vcpu_id)                   \
-    ((id ##_ENABLED) && trace_event_get_vcpu_state_dynamic_by_vcpu_id(vcpu, vcpu_id))
+#define trace_event_get_vcpu_state(vcpu, id)                            \
+    ((id ##_ENABLED) &&                                                 \
+     trace_event_get_vcpu_state_dynamic_by_vcpu_id(                     \
+         vcpu, _ ## id ## _EVENT.vcpu_id))
 
 /**
  * trace_event_get_state_static:

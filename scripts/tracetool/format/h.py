@@ -32,8 +32,7 @@ def generate(events, backend):
         if "vcpu" in e.properties:
             trace_cpu = next(iter(e.args))[1]
             cond = "trace_event_get_vcpu_state(%(cpu)s,"\
-                   " TRACE_%(id)s,"\
-                   " TRACE_VCPU_%(id)s)"\
+                   " TRACE_%(id)s)"\
                    % dict(
                        cpu=trace_cpu,
                        id=e.name.upper())

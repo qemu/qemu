@@ -80,11 +80,11 @@ def generate_c(event):
         '        return;',
         '    }',
         '',
-        '    if (trace_record_start(&rec, %(event_id)s, %(size_str)s)) {',
+        '    if (trace_record_start(&rec, %(event_obj)s.id, %(size_str)s)) {',
         '        return; /* Trace Buffer Full, Event Dropped ! */',
         '    }',
         cond=cond,
-        event_id=event_id,
+        event_obj=event.api(event.QEMU_EVENT),
         size_str=sizestr)
 
     if len(event.args) > 0:

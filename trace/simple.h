@@ -33,7 +33,7 @@ typedef struct {
  *
  * @arglen  number of bytes required for arguments
  */
-int trace_record_start(TraceBufferRecord *rec, TraceEventID id, size_t arglen);
+int trace_record_start(TraceBufferRecord *rec, uint32_t id, size_t arglen);
 
 /**
  * Append a 64-bit argument to a trace record

@@ -60,7 +60,7 @@ void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
 void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
                                         TraceEvent *ev, bool state)
 {
-    TraceEventVCPUID vcpu_id;
+    uint32_t vcpu_id;
     bool state_pre;
     assert(trace_event_get_state_static(ev));
     assert(trace_event_is_vcpu(ev));

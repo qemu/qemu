@@ -105,7 +105,7 @@ void trace_event_iter_init(TraceEventIter *iter, const char *pattern)
 
 TraceEvent *trace_event_iter_next(TraceEventIter *iter)
 {
-    while (iter->event < TRACE_EVENT_COUNT) {
+    while (trace_events[iter->event] != NULL) {
         TraceEvent *ev = trace_events[iter->event];
         iter->event++;
         if (!iter->pattern ||

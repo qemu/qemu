@@ -17,8 +17,8 @@
 #include "trace/control.h"
 #include "trace/simple.h"
 
-/** Trace file header event ID */
-#define HEADER_EVENT_ID (~(uint64_t)0) /* avoids conflicting with TraceEventIDs */
+/** Trace file header event ID, picked to avoid conflict with real event IDs */
+#define HEADER_EVENT_ID (~(uint64_t)0)
 
 /** Trace file magic number */
 #define HEADER_MAGIC 0xf2b177cb0aa429b4ULL
@@ -58,7 +58,7 @@ static char *trace_file_name;
 
 /* * Trace buffer entry */
 typedef struct {
-    uint64_t event; /*   TraceEventID */
+    uint64_t event; /* event ID value */
     uint64_t timestamp_ns;
     uint32_t length;   /*    in bytes */
     uint32_t pid;
@@ -202,7 +202,7 @@ void trace_record_write_str(TraceBufferRecord *rec, const char *s, uint32_t slen
     rec->rec_off = write_to_buffer(rec->rec_off, (void*)s, slen);
 }
 
-int trace_record_start(TraceBufferRecord *rec, TraceEventID event, size_t datasize)
+int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
 {
     unsigned int idx, rec_off, old_idx, new_idx;
     uint32_t rec_len = sizeof(TraceRecord) + datasize;

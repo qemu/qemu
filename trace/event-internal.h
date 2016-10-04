@@ -10,6 +10,12 @@
 #ifndef TRACE__EVENT_INTERNAL_H
 #define TRACE__EVENT_INTERNAL_H
 
+/*
+ * Special value for TraceEvent.vcpu_id field to indicate
+ * that the event is not VCPU specific
+ */
+#define TRACE_VCPU_EVENT_NONE ((uint32_t)-1)
+
 /**
  * TraceEvent:
  * @id: Unique event identifier.
