@@ -1,5 +1,6 @@
 devices-dirs-$(call land, $(CONFIG_VIRTIO),$(call land,$(CONFIG_VIRTFS),$(CONFIG_PCI))) += 9pfs/
 devices-dirs-$(CONFIG_ACPI) += acpi/
+devices-dirs-$(CONFIG_SOFTMMU) += adc/
 devices-dirs-$(CONFIG_SOFTMMU) += audio/
 devices-dirs-$(CONFIG_SOFTMMU) += block/
 devices-dirs-$(CONFIG_SOFTMMU) += bt/
