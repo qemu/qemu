@@ -232,6 +232,13 @@ extern QemuOptsList qemu_trace_opts;
  */
 char *trace_opt_parse(const char *optarg);
 
+/**
+ * trace_get_vcpu_event_count:
+ *
+ * Return the number of known vcpu-specific events
+ */
+uint32_t trace_get_vcpu_event_count(void);
+
 
 #include "trace/control-internal.h"
 

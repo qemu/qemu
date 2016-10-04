@@ -290,3 +290,8 @@ char *trace_opt_parse(const char *optarg)
 
     return trace_file;
 }
+
+uint32_t trace_get_vcpu_event_count(void)
+{
+    return TRACE_VCPU_EVENT_COUNT;
+}
