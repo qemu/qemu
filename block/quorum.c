@@ -130,7 +130,7 @@ struct QuorumAIOCB {
 
     bool is_read;
     int vote_ret;
-    int child_iter;             /* which child to read in fifo pattern */
+    int children_read;          /* how many children have been read from */
 };
 
 static bool quorum_vote(QuorumAIOCB *acb);
@@ -165,8 +165,7 @@ static void quorum_aio_finalize(QuorumAIOCB *acb)
     acb->common.cb(acb->common.opaque, ret);
 
     if (acb->is_read) {
-        /* on the quorum case acb->child_iter == s->num_children - 1 */
-        for (i = 0; i <= acb->child_iter; i++) {
+        for (i = 0; i < acb->children_read; i++) {
             qemu_vfree(acb->qcrs[i].buf);
             qemu_iovec_destroy(&acb->qcrs[i].qiov);
         }
@@ -301,14 +300,13 @@ static void quorum_aio_cb(void *opaque, int ret)
 
     if (acb->is_read && s->read_pattern == QUORUM_READ_PATTERN_FIFO) {
         /* We try to read next child in FIFO order if we fail to read */
-        if (ret < 0 && (acb->child_iter + 1) < s->num_children) {
-            acb->child_iter++;
+        if (ret < 0 && acb->children_read < s->num_children) {
             read_fifo_child(acb);
             return;
         }
 
         if (ret == 0) {
-            quorum_copy_qiov(acb->qiov, &acb->qcrs[acb->child_iter].qiov);
+            quorum_copy_qiov(acb->qiov, &acb->qcrs[acb->children_read - 1].qiov);
         }
         acb->vote_ret = ret;
         quorum_aio_finalize(acb);
@@ -653,6 +651,7 @@ static BlockAIOCB *read_quorum_children(QuorumAIOCB *acb)
     BDRVQuorumState *s = acb->common.bs->opaque;
     int i;
 
+    acb->children_read = s->num_children;
     for (i = 0; i < s->num_children; i++) {
         acb->qcrs[i].buf = qemu_blockalign(s->children[i]->bs, acb->qiov->size);
         qemu_iovec_init(&acb->qcrs[i].qiov, acb->qiov->niov);
@@ -671,16 +670,14 @@ static BlockAIOCB *read_quorum_children(QuorumAIOCB *acb)
 static BlockAIOCB *read_fifo_child(QuorumAIOCB *acb)
 {
     BDRVQuorumState *s = acb->common.bs->opaque;
+    int n = acb->children_read++;
 
-    acb->qcrs[acb->child_iter].buf =
-        qemu_blockalign(s->children[acb->child_iter]->bs, acb->qiov->size);
-    qemu_iovec_init(&acb->qcrs[acb->child_iter].qiov, acb->qiov->niov);
-    qemu_iovec_clone(&acb->qcrs[acb->child_iter].qiov, acb->qiov,
-                     acb->qcrs[acb->child_iter].buf);
-    acb->qcrs[acb->child_iter].aiocb =
-        bdrv_aio_readv(s->children[acb->child_iter], acb->sector_num,
-                       &acb->qcrs[acb->child_iter].qiov, acb->nb_sectors,
-                       quorum_aio_cb, &acb->qcrs[acb->child_iter]);
+    acb->qcrs[n].buf = qemu_blockalign(s->children[n]->bs, acb->qiov->size);
+    qemu_iovec_init(&acb->qcrs[n].qiov, acb->qiov->niov);
+    qemu_iovec_clone(&acb->qcrs[n].qiov, acb->qiov, acb->qcrs[n].buf);
+    acb->qcrs[n].aiocb = bdrv_aio_readv(s->children[n], acb->sector_num,
+                                        &acb->qcrs[n].qiov, acb->nb_sectors,
+                                        quorum_aio_cb, &acb->qcrs[n]);
 
     return &acb->common;
 }
@@ -696,13 +693,12 @@ static BlockAIOCB *quorum_aio_readv(BlockDriverState *bs,
     QuorumAIOCB *acb = quorum_aio_get(s, bs, qiov, sector_num,
                                       nb_sectors, cb, opaque);
     acb->is_read = true;
+    acb->children_read = 0;
 
     if (s->read_pattern == QUORUM_READ_PATTERN_QUORUM) {
-        acb->child_iter = s->num_children - 1;
         return read_quorum_children(acb);
     }
 
-    acb->child_iter = 0;
     return read_fifo_child(acb);
 }
 
