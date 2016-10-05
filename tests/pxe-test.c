@@ -25,7 +25,7 @@ static void test_pxe_one(const char *params, bool ipv6)
 {
     char *args;
 
-    args = g_strdup_printf("-machine accel=tcg -boot order=n "
+    args = g_strdup_printf("-machine accel=tcg -nodefaults -boot order=n "
                            "-netdev user,id=" NETNAME ",tftp=./,bootfile=%s,"
                            "ipv4=%s,ipv6=%s %s", disk, ipv6 ? "off" : "on",
                            ipv6 ? "on" : "off", params);
@@ -48,7 +48,7 @@ static void test_pxe_virtio_pci(void)
 
 static void test_pxe_spapr_vlan(void)
 {
-    test_pxe_one("-vga none -device spapr-vlan,netdev=" NETNAME, true);
+    test_pxe_one("-device spapr-vlan,netdev=" NETNAME, true);
 }
 
 int main(int argc, char *argv[])
