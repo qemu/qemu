@@ -550,3 +550,15 @@ MemdevList *qmp_query_memdev(Error **errp)
     object_child_foreach(obj, query_memdev, &list);
     return list;
 }
+
+int numa_get_node_for_cpu(int idx)
+{
+    int i;
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        if (test_bit(idx, numa_info[i].node_cpu)) {
+            break;
+        }
+    }
+    return i;
+}

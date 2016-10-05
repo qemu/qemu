@@ -779,11 +779,9 @@ static FWCfgState *bochs_bios_init(AddressSpace *as, PCMachineState *pcms)
     for (i = 0; i < max_cpus; i++) {
         unsigned int apic_id = x86_cpu_apic_id_from_index(i);
         assert(apic_id < pcms->apic_id_limit);
-        for (j = 0; j < nb_numa_nodes; j++) {
-            if (test_bit(i, numa_info[j].node_cpu)) {
-                numa_fw_cfg[apic_id + 1] = cpu_to_le64(j);
-                break;
-            }
+        j = numa_get_node_for_cpu(i);
+        if (j < nb_numa_nodes) {
+            numa_fw_cfg[apic_id + 1] = cpu_to_le64(j);
         }
     }
     for (i = 0; i < nb_numa_nodes; i++) {

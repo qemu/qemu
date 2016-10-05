@@ -2410,18 +2410,15 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     srat->reserved1 = cpu_to_le32(1);
 
     for (i = 0; i < apic_ids->len; i++) {
-        int j;
+        int j = numa_get_node_for_cpu(i);
         int apic_id = apic_ids->cpus[i].arch_id;
 
         core = acpi_data_push(table_data, sizeof *core);
         core->type = ACPI_SRAT_PROCESSOR_APIC;
         core->length = sizeof(*core);
         core->local_apic_id = apic_id;
-        for (j = 0; j < nb_numa_nodes; j++) {
-            if (test_bit(i, numa_info[j].node_cpu)) {
+        if (j < nb_numa_nodes) {
                 core->proximity_lo = j;
-                break;
-            }
         }
         memset(core->proximity_hi, 0, 3);
         core->local_sapic_eid = 0;
