@@ -129,11 +129,13 @@ memory_region_tb_write(int cpu_index, uint64_t addr, uint64_t value, unsigned si
 
 # Hot-plug a new virtual (guest) CPU
 #
+# Mode: user, softmmu
 # Targets: all
 vcpu guest_cpu_enter(void)
 
 # Reset the state of a virtual (guest) CPU
 #
+# Mode: user, softmmu
 # Targets: all
 vcpu guest_cpu_reset(void)
 
