@@ -133,7 +133,8 @@ struct qht_map {
 /* trigger a resize when n_added_buckets > n_buckets / div */
 #define QHT_NR_ADDED_BUCKETS_THRESHOLD_DIV 8
 
-static void qht_do_resize(struct qht *ht, struct qht_map *new);
+static void qht_do_resize_reset(struct qht *ht, struct qht_map *new,
+                                bool reset);
 static void qht_grow_maybe(struct qht *ht);
 
 #ifdef QHT_DEBUG
@@ -408,6 +409,16 @@ void qht_reset(struct qht *ht)
     qht_map_unlock_buckets(map);
 }
 
+static inline void qht_do_resize(struct qht *ht, struct qht_map *new)
+{
+    qht_do_resize_reset(ht, new, false);
+}
+
+static inline void qht_do_resize_and_reset(struct qht *ht, struct qht_map *new)
+{
+    qht_do_resize_reset(ht, new, true);
+}
+
 bool qht_reset_size(struct qht *ht, size_t n_elems)
 {
     struct qht_map *new = NULL;
@@ -421,13 +432,7 @@ bool qht_reset_size(struct qht *ht, size_t n_elems)
     if (n_buckets != map->n_buckets) {
         new = qht_map_create(n_buckets);
     }
-
-    qht_map_lock_buckets(map);
-    qht_map_reset__all_locked(map);
-    if (new) {
-        qht_do_resize(ht, new);
-    }
-    qht_map_unlock_buckets(map);
+    qht_do_resize_and_reset(ht, new);
     qemu_mutex_unlock(&ht->lock);
 
     return !!new;
@@ -559,9 +564,7 @@ static __attribute__((noinline)) void qht_grow_maybe(struct qht *ht)
     if (qht_map_needs_resize(map)) {
         struct qht_map *new = qht_map_create(map->n_buckets * 2);
 
-        qht_map_lock_buckets(map);
         qht_do_resize(ht, new);
-        qht_map_unlock_buckets(map);
     }
     qemu_mutex_unlock(&ht->lock);
 }
@@ -737,24 +740,31 @@ static void qht_map_copy(struct qht *ht, void *p, uint32_t hash, void *userp)
 }
 
 /*
- * Call with ht->lock and all bucket locks held.
- *
- * Creating the @new map here would add unnecessary delay while all the locks
- * are held--holding up the bucket locks is particularly bad, since no writes
- * can occur while these are held. Thus, we let callers create the new map,
- * hopefully without the bucket locks held.
+ * Atomically perform a resize and/or reset.
+ * Call with ht->lock held.
  */
-static void qht_do_resize(struct qht *ht, struct qht_map *new)
+static void qht_do_resize_reset(struct qht *ht, struct qht_map *new, bool reset)
 {
     struct qht_map *old;
 
     old = ht->map;
-    g_assert_cmpuint(new->n_buckets, !=, old->n_buckets);
+    qht_map_lock_buckets(old);
 
+    if (reset) {
+        qht_map_reset__all_locked(old);
+    }
+
+    if (new == NULL) {
+        qht_map_unlock_buckets(old);
+        return;
+    }
+
+    g_assert_cmpuint(new->n_buckets, !=, old->n_buckets);
     qht_map_iter__all_locked(ht, old, qht_map_copy, new);
     qht_map_debug__all_locked(new);
 
     atomic_rcu_set(&ht->map, new);
+    qht_map_unlock_buckets(old);
     call_rcu(old, qht_map_destroy, rcu);
 }
 
@@ -766,12 +776,9 @@ bool qht_resize(struct qht *ht, size_t n_elems)
     qemu_mutex_lock(&ht->lock);
     if (n_buckets != ht->map->n_buckets) {
         struct qht_map *new;
-        struct qht_map *old = ht->map;
 
         new = qht_map_create(n_buckets);
-        qht_map_lock_buckets(old);
         qht_do_resize(ht, new);
-        qht_map_unlock_buckets(old);
         ret = true;
     }
     qemu_mutex_unlock(&ht->lock);
