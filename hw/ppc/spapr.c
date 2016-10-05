@@ -1775,7 +1775,7 @@ static void ppc_spapr_init(MachineState *machine)
 
     /* init CPUs */
     if (machine->cpu_model == NULL) {
-        machine->cpu_model = kvm_enabled() ? "host" : "POWER7";
+        machine->cpu_model = kvm_enabled() ? "host" : smc->tcg_default_cpu;
     }
 
     ppc_cpu_parse_features(machine->cpu_model);
@@ -2402,6 +2402,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
 
     smc->dr_lmb_enabled = true;
+    smc->tcg_default_cpu = "POWER8";
     mc->query_hotpluggable_cpus = spapr_query_hotpluggable_cpus;
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
@@ -2478,7 +2479,10 @@ static void spapr_machine_2_7_instance_options(MachineState *machine)
 
 static void spapr_machine_2_7_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_2_8_class_options(mc);
+    smc->tcg_default_cpu = "POWER7";
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_7);
 }
 
