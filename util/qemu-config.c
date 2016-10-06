@@ -6,7 +6,7 @@
 #include "qmp-commands.h"
 
 static QemuOptsList *vm_config_groups[48];
-static QemuOptsList *drive_config_groups[4];
+static QemuOptsList *drive_config_groups[5];
 
 static QemuOptsList *find_list(QemuOptsList **lists, const char *group,
                                Error **errp)

@@ -926,7 +926,7 @@ out:
     g_free(gen_node_name);
 }
 
-static QemuOptsList bdrv_runtime_opts = {
+QemuOptsList bdrv_runtime_opts = {
     .name = "bdrv_common",
     .head = QTAILQ_HEAD_INITIALIZER(bdrv_runtime_opts.head),
     .desc = {
