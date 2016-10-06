@@ -77,6 +77,9 @@ static void test_usb_storage_hotplug(void)
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
+    const char *cmd = "-device piix3-usb-uhci,id=uhci,addr=1d.0"
+                      " -drive id=drive0,if=none,file=/dev/null,format=raw"
+                      " -device usb-tablet,bus=uhci.0,port=1";
     int ret;
 
     g_test_init(&argc, &argv, NULL);
@@ -87,13 +90,13 @@ int main(int argc, char **argv)
     qtest_add_func("/uhci/pci/hotplug/usb-storage", test_usb_storage_hotplug);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qs = qtest_pc_boot("-device piix3-usb-uhci,id=uhci,addr=1d.0"
-                           " -drive id=drive0,if=none,file=/dev/null,format=raw"
-                           " -device usb-tablet,bus=uhci.0,port=1");
+        qs = qtest_pc_boot(cmd);
     } else if (strcmp(arch, "ppc64") == 0) {
-        qs = qtest_spapr_boot("-device piix3-usb-uhci,id=uhci,addr=1d.0"
-                           " -drive id=drive0,if=none,file=/dev/null,format=raw"
-                           " -device usb-tablet,bus=uhci.0,port=1");
+        qs = qtest_spapr_boot(cmd);
+    } else {
+        g_printerr("usb-hcd-uhci-test tests are only "
+                   "available on x86 or ppc64\n");
+        exit(EXIT_FAILURE);
     }
     ret = g_test_run();
     qtest_shutdown(qs);
