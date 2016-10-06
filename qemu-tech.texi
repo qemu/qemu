@@ -287,16 +287,8 @@ are very complicated and highly CPU dependent. QEMU uses some tricks
 which make it relatively easily portable and simple while achieving good
 performances.
 
-After the release of version 0.9.1, QEMU switched to a new method of
-generating code, Tiny Code Generator or TCG. TCG relaxes the
-dependency on the exact version of the compiler used. The basic idea
-is to split every target instruction into a couple of RISC-like TCG
-ops (see @code{target-i386/translate.c}). Some optimizations can be
-performed at this stage, including liveness analysis and trivial
-constant expression evaluation. TCG ops are then implemented in the
-host CPU back end, also known as TCG target (see
-@code{tcg/i386/tcg-target.inc.c}). For more information, please take a
-look at @code{tcg/README}.
+QEMU's dynamic translation backend is called TCG, for "Tiny Code
+Generator". For more information, please take a look at @code{tcg/README}.
 
 @node Condition code optimisations
 @section Condition code optimisations
