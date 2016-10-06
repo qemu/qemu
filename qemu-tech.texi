@@ -31,7 +31,6 @@
 @menu
 * Introduction::
 * QEMU Internals::
-* Regression Tests::
 @end menu
 @end ifnottex
 
@@ -463,39 +462,5 @@ Kernel Based Virtual Machine (KVM).
 QEMU-SystemC, a hardware co-simulator.
 
 @end table
-
-@node Regression Tests
-@chapter Regression Tests
-
-In the directory @file{tests/}, various interesting testing programs
-are available. They are used for regression testing.
-
-@menu
-* test-i386::
-* linux-test::
-@end menu
-
-@node test-i386
-@section @file{test-i386}
-
-This program executes most of the 16 bit and 32 bit x86 instructions and
-generates a text output. It can be compared with the output obtained with
-a real CPU or another emulator. The target @code{make test} runs this
-program and a @code{diff} on the generated output.
-
-The Linux system call @code{modify_ldt()} is used to create x86 selectors
-to test some 16 bit addressing and 32 bit with segmentation cases.
-
-The Linux system call @code{vm86()} is used to test vm86 emulation.
-
-Various exceptions are raised to test most of the x86 user space
-exception reporting.
-
-@node linux-test
-@section @file{linux-test}
-
-This program tests various Linux system calls. It is used to verify
-that the system call parameters are correctly converted between target
-and host CPUs.
 
 @bye
