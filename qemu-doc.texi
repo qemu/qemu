@@ -35,6 +35,7 @@
 * QEMU PC System emulator::
 * QEMU System emulator for non PC targets::
 * QEMU User space emulator::
+* Implementation notes::
 * License::
 * Index::
 @end menu
@@ -2948,6 +2949,8 @@ Act as if the host page size was 'pagesize' bytes
 Run the emulation in single step mode.
 @end table
 
+
+@include qemu-tech.texi
 
 @node License
 @appendix License

@@ -1,32 +1,5 @@
-\input texinfo @c -*- texinfo -*-
-@c %**start of header
-@setfilename qemu-tech.info
-
-@documentlanguage en
-@documentencoding UTF-8
-
-@settitle QEMU Internals
-@exampleindent 0
-@paragraphindent 0
-@c %**end of header
-
-@ifinfo
-@direntry
-* QEMU Internals: (qemu-tech).   The QEMU Emulator Internals.
-@end direntry
-@end ifinfo
-
-@iftex
-@titlepage
-@sp 7
-@center @titlefont{QEMU Internals}
-@sp 3
-@end titlepage
-@end iftex
-
-@ifnottex
-@node Top
-@top
+@node Implementation notes
+@appendix Implementation notes
 
 @menu
 * CPU emulation::
@@ -34,12 +7,9 @@
 * QEMU compared to other emulators::
 * Bibliography::
 @end menu
-@end ifnottex
-
-@contents
 
 @node CPU emulation
-@chapter CPU emulation
+@section CPU emulation
 
 @menu
 * x86::     x86 and x86-64 emulation
@@ -51,7 +21,7 @@
 @end menu
 
 @node x86
-@section x86 and x86-64 emulation
+@subsection x86 and x86-64 emulation
 
 QEMU x86 target features:
 
@@ -86,7 +56,7 @@ normal use.
 @end itemize
 
 @node ARM
-@section ARM emulation
+@subsection ARM emulation
 
 @itemize
 
@@ -99,7 +69,7 @@ normal use.
 @end itemize
 
 @node MIPS
-@section MIPS emulation
+@subsection MIPS emulation
 
 @itemize
 
@@ -126,7 +96,7 @@ Current QEMU limitations:
 @end itemize
 
 @node PPC
-@section PowerPC emulation
+@subsection PowerPC emulation
 
 @itemize
 
@@ -138,7 +108,7 @@ FPU and MMU.
 @end itemize
 
 @node SPARC
-@section Sparc32 and Sparc64 emulation
+@subsection Sparc32 and Sparc64 emulation
 
 @itemize
 
@@ -166,7 +136,7 @@ Current QEMU limitations:
 @end itemize
 
 @node Xtensa
-@section Xtensa emulation
+@subsection Xtensa emulation
 
 @itemize
 
@@ -191,7 +161,7 @@ may be created from overlay with minimal amount of hand-written code.
 @end itemize
 
 @node Translator Internals
-@chapter Translator Internals
+@section Translator Internals
 
 QEMU is a dynamic translator. When it first encounters a piece of code,
 it converts it to the host instruction set. Usually dynamic translators
@@ -294,7 +264,7 @@ translation blocks.
 @end table
 
 @node QEMU compared to other emulators
-@chapter QEMU compared to other emulators
+@section QEMU compared to other emulators
 
 Like bochs [1], QEMU emulates an x86 CPU. But QEMU is much faster than
 bochs as it uses dynamic compilation. Bochs is closely tied to x86 PC
@@ -345,7 +315,7 @@ VirtualBox [9], Xen [10] and KVM [11] are based on QEMU. QEMU-SystemC
 developed in SystemC.
 
 @node Bibliography
-@chapter Bibliography
+@section Bibliography
 
 @table @asis
 
@@ -399,5 +369,3 @@ Kernel Based Virtual Machine (KVM).
 QEMU-SystemC, a hardware co-simulator.
 
 @end table
-
-@bye
