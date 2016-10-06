@@ -1645,6 +1645,27 @@ void virtio_vmstate_save(QEMUFile *f, void *opaque, size_t size)
     virtio_save(VIRTIO_DEVICE(opaque), f);
 }
 
+/* A wrapper for use as a VMState .put function */
+static void virtio_device_put(QEMUFile *f, void *opaque, size_t size)
+{
+    virtio_save(VIRTIO_DEVICE(opaque), f);
+}
+
+/* A wrapper for use as a VMState .get function */
+static int virtio_device_get(QEMUFile *f, void *opaque, size_t size)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
+    DeviceClass *dc = DEVICE_CLASS(VIRTIO_DEVICE_GET_CLASS(vdev));
+
+    return virtio_load(vdev, f, dc->vmsd->version_id);
+}
+
+const VMStateInfo  virtio_vmstate_info = {
+    .name = "virtio",
+    .get = virtio_device_get,
+    .put = virtio_device_put,
+};
+
 static int virtio_set_features_nocheck(VirtIODevice *vdev, uint64_t val)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);

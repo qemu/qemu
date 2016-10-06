@@ -179,6 +179,20 @@ void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 void virtio_save(VirtIODevice *vdev, QEMUFile *f);
 void virtio_vmstate_save(QEMUFile *f, void *opaque, size_t size);
 
+extern const VMStateInfo virtio_vmstate_info;
+
+#ifdef VMSTATE_VIRTIO_DEVICE_USE_NEW
+
+#define VMSTATE_VIRTIO_DEVICE \
+    {                                         \
+        .name = "virtio",                     \
+        .info = &virtio_vmstate_info,         \
+        .flags = VMS_SINGLE,                  \
+    }
+
+#else
+/* TODO remove conditional as soon as all users are converted */
+
 #define VMSTATE_VIRTIO_DEVICE(devname, v, getf, putf) \
     static const VMStateDescription vmstate_virtio_ ## devname = { \
         .name = "virtio-" #devname ,          \
@@ -197,6 +211,8 @@ void virtio_vmstate_save(QEMUFile *f, void *opaque, size_t size);
             VMSTATE_END_OF_LIST()             \
         }                                     \
     }
+
+#endif
 
 int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id);
 
