@@ -7096,6 +7096,14 @@ static void decode_rrr_divide(CPUTriCoreState *env, DisasContext *ctx)
     case OPC2_32_RRR_SUB_F:
         gen_helper_fsub(cpu_gpr_d[r4], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r3]);
         break;
+    case OPC2_32_RRR_MADD_F:
+        gen_helper_fmadd(cpu_gpr_d[r4], cpu_env, cpu_gpr_d[r1],
+                         cpu_gpr_d[r2], cpu_gpr_d[r3]);
+        break;
+    case OPC2_32_RRR_MSUB_F:
+        gen_helper_fmsub(cpu_gpr_d[r4], cpu_env, cpu_gpr_d[r1],
+                         cpu_gpr_d[r2], cpu_gpr_d[r3]);
+        break;
     default:
         generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
     }
