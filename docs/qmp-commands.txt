@@ -20,7 +20,7 @@ Also, the following notation is used to denote data flow:
 -> data issued by the Client
 <- Server data response
 
-Please, refer to the QMP specification (QMP/qmp-spec.txt) for detailed
+Please, refer to the QMP specification (docs/qmp-spec.txt) for detailed
 information on the Server command and response formats.
 
 NOTE: This document is temporary and will be replaced soon.
