@@ -31,7 +31,6 @@
 @menu
 * CPU emulation::
 * Translator Internals::
-* Device emulation::
 * QEMU compared to other emulators::
 * Bibliography::
 @end menu
@@ -194,15 +193,6 @@ may be created from overlay with minimal amount of hand-written code.
 @node Translator Internals
 @chapter Translator Internals
 
-@menu
-* CPU state optimisations::
-* Translation cache::
-* Direct block chaining::
-* Self-modifying code and translated code invalidation::
-* Exception support::
-* MMU emulation::
-@end menu
-
 QEMU is a dynamic translator. When it first encounters a piece of code,
 it converts it to the host instruction set. Usually dynamic translators
 are very complicated and highly CPU dependent. QEMU uses some tricks
@@ -212,33 +202,23 @@ performances.
 QEMU's dynamic translation backend is called TCG, for "Tiny Code
 Generator". For more information, please take a look at @code{tcg/README}.
 
-@node CPU state optimisations
-@section CPU state optimisations
+Some notable features of QEMU's dynamic translator are:
 
+@table @strong
+
+@item CPU state optimisations:
 The target CPUs have many internal states which change the way it
 evaluates instructions. In order to achieve a good speed, the
 translation phase considers that some state information of the virtual
 CPU cannot change in it. The state is recorded in the Translation
 Block (TB). If the state changes (e.g. privilege level), a new TB will
 be generated and the previous TB won't be used anymore until the state
-matches the state recorded in the previous TB. For example, if the SS,
+matches the state recorded in the previous TB. The same idea can be applied
+to other aspects of the CPU state.  For example, on x86, if the SS,
 DS and ES segments have a zero base, then the translator does not even
 generate an addition for the segment base.
 
-[The FPU stack pointer register is not handled that way yet].
-
-@node Translation cache
-@section Translation cache
-
-A 32 MByte cache holds the most recently used translations. For
-simplicity, it is completely flushed when it is full. A translation unit
-contains just a single basic block (a block of x86 instructions
-terminated by a jump or by a virtual CPU state change which the
-translator cannot deduce statically).
-
-@node Direct block chaining
-@section Direct block chaining
-
+@item Direct block chaining:
 After each translated basic block is executed, QEMU uses the simulated
 Program Counter (PC) and other cpu state information (such as the CS
 segment base value) to find the next basic block.
@@ -252,18 +232,17 @@ it easier to make the jump target modification atomic. On some host
 architectures (such as x86 or PowerPC), the @code{JUMP} opcode is
 directly patched so that the block chaining has no overhead.
 
-@node Self-modifying code and translated code invalidation
-@section Self-modifying code and translated code invalidation
-
+@item Self-modifying code and translated code invalidation:
 Self-modifying code is a special challenge in x86 emulation because no
 instruction cache invalidation is signaled by the application when code
 is modified.
 
-When translated code is generated for a basic block, the corresponding
-host page is write protected if it is not already read-only. Then, if
-a write access is done to the page, Linux raises a SEGV signal. QEMU
-then invalidates all the translated code in the page and enables write
-accesses to the page.
+User-mode emulation marks a host page as write-protected (if it is
+not already read-only) every time translated code is generated for a
+basic block.  Then, if a write access is done to the page, Linux raises
+a SEGV signal. QEMU then invalidates all the translated code in the page
+and enables write accesses to the page.  For system emulation, write
+protection is achieved through the software MMU.
 
 Correct translated code invalidation is done efficiently by maintaining
 a linked list of every translated block contained in a given page. Other
@@ -275,63 +254,44 @@ necessary. However, QEMU still requires that the generated code always
 matches the target instructions in memory in order to handle
 exceptions correctly.
 
-@node Exception support
-@section Exception support
-
+@item Exception support:
 longjmp() is used when an exception such as division by zero is
 encountered.
 
 The host SIGSEGV and SIGBUS signal handlers are used to get invalid
-memory accesses. The simulated program counter is found by
-retranslating the corresponding basic block and by looking where the
-host program counter was at the exception point.
+memory accesses.  QEMU keeps a map from host program counter to
+target program counter, and looks up where the exception happened
+based on the host program counter at the exception point.
 
-The virtual CPU cannot retrieve the exact @code{EFLAGS} register because
-in some cases it is not computed because of condition code
-optimisations. It is not a big concern because the emulated code can
-still be restarted in any cases.
+On some targets, some bits of the virtual CPU's state are not flushed to the
+memory until the end of the translation block.  This is done for internal
+emulation state that is rarely accessed directly by the program and/or changes
+very often throughout the execution of a translation block---this includes
+condition codes on x86, delay slots on SPARC, conditional execution on
+ARM, and so on.  This state is stored for each target instruction, and
+looked up on exceptions.
 
-@node MMU emulation
-@section MMU emulation
-
-For system emulation QEMU supports a soft MMU. In that mode, the MMU
+@item MMU emulation:
+For system emulation QEMU uses a software MMU. In that mode, the MMU
 virtual to physical address translation is done at every memory
-access. QEMU uses an address translation cache to speed up the
-translation.
+access.
 
+QEMU uses an address translation cache (TLB) to speed up the translation.
 In order to avoid flushing the translated code each time the MMU
-mappings change, QEMU uses a physically indexed translation cache. It
+mappings change, all caches in QEMU are physically indexed.  This
 means that each basic block is indexed with its physical address.
 
-When MMU mappings change, only the chaining of the basic blocks is
-reset (i.e. a basic block can no longer jump directly to another one).
+In order to avoid invalidating the basic block chain when MMU mappings
+change, chaining is only performed when the destination of the jump
+shares a page with the basic block that is performing the jump.
 
-@node Device emulation
-@chapter Device emulation
-
-Systems emulated by QEMU are organized by boards. At initialization
-phase, each board instantiates a number of CPUs, devices, RAM and
-ROM. Each device in turn can assign I/O ports or memory areas (for
-MMIO) to its handlers. When the emulation starts, an access to the
-ports or MMIO memory areas assigned to the device causes the
-corresponding handler to be called.
-
-RAM and ROM are handled more optimally, only the offset to the host
-memory needs to be added to the guest address.
-
-The video RAM of VGA and other display cards is special: it can be
-read or written directly like RAM, but write accesses cause the memory
-to be marked with VGA_DIRTY flag as well.
-
-QEMU supports some device classes like serial and parallel ports, USB,
-drives and network devices, by providing APIs for easier connection to
-the generic, higher level implementations. The API hides the
-implementation details from the devices, like native device use or
-advanced block device formats like QCOW.
-
-Usually the devices implement a reset method and register support for
-saving and loading of the device state. The devices can also use
-timers, especially together with the use of bottom halves (BHs).
+The MMU can also distinguish RAM and ROM memory areas from MMIO memory
+areas.  Access is faster for RAM and ROM because the translation cache also
+hosts the offset between guest address and host memory.  Accessing MMIO
+memory areas instead calls out to C code for device emulation.
+Finally, the MMU helps tracking dirty pages and pages pointed to by
+translation blocks.
+@end table
 
 @node QEMU compared to other emulators
 @chapter QEMU compared to other emulators
