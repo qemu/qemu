@@ -11,6 +11,8 @@
  *
  */
 
+#define VMSTATE_VIRTIO_DEVICE_USE_NEW
+
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
@@ -822,13 +824,6 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
     }
 }
 
-static void virtio_blk_save(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-
-    virtio_save(vdev, f);
-}
-    
 static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
@@ -845,14 +840,6 @@ static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
         req = req->next;
     }
     qemu_put_sbyte(f, 0);
-}
-
-static int virtio_blk_load(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIOBlock *s = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
-
-    return virtio_load(vdev, f, 2);
 }
 
 static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
@@ -975,7 +962,15 @@ static void virtio_blk_instance_init(Object *obj)
                                   DEVICE(obj), NULL);
 }
 
-VMSTATE_VIRTIO_DEVICE(blk, 2, virtio_blk_load, virtio_blk_save);
+static const VMStateDescription vmstate_virtio_blk = {
+    .name = "virtio-blk",
+    .minimum_version_id = 2,
+    .version_id = 2,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 static Property virtio_blk_properties[] = {
     DEFINE_BLOCK_PROPERTIES(VirtIOBlock, conf.conf),
