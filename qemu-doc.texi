@@ -57,65 +57,69 @@
 QEMU is a FAST! processor emulator using dynamic translation to
 achieve good emulation speed.
 
+@cindex operating modes
 QEMU has two operating modes:
 
 @itemize
-@cindex operating modes
-
-@item
 @cindex system emulation
-Full system emulation. In this mode, QEMU emulates a full system (for
+@item Full system emulation. In this mode, QEMU emulates a full system (for
 example a PC), including one or several processors and various
 peripherals. It can be used to launch different Operating Systems
 without rebooting the PC or to debug system code.
 
-@item
 @cindex user mode emulation
-User mode emulation. In this mode, QEMU can launch
+@item User mode emulation. In this mode, QEMU can launch
 processes compiled for one CPU on another CPU. It can be used to
 launch the Wine Windows API emulator (@url{http://www.winehq.org}) or
 to ease cross-compilation and cross-debugging.
 
 @end itemize
 
-QEMU can run without a host kernel driver and yet gives acceptable
-performance.
+QEMU has the following features:
 
-For system emulation, the following hardware targets are supported:
 @itemize
-@cindex emulated target systems
-@cindex supported target systems
-@item PC (x86 or x86_64 processor)
-@item ISA PC (old style PC without PCI bus)
-@item PREP (PowerPC processor)
-@item G3 Beige PowerMac (PowerPC processor)
-@item Mac99 PowerMac (PowerPC processor, in progress)
-@item Sun4m/Sun4c/Sun4d (32-bit Sparc processor)
-@item Sun4u/Sun4v (64-bit Sparc processor, in progress)
-@item Malta board (32-bit and 64-bit MIPS processors)
-@item MIPS Magnum (64-bit MIPS processor)
-@item ARM Integrator/CP (ARM)
-@item ARM Versatile baseboard (ARM)
-@item ARM RealView Emulation/Platform baseboard (ARM)
-@item Spitz, Akita, Borzoi, Terrier and Tosa PDAs (PXA270 processor)
-@item Luminary Micro LM3S811EVB (ARM Cortex-M3)
-@item Luminary Micro LM3S6965EVB (ARM Cortex-M3)
-@item Freescale MCF5208EVB (ColdFire V2).
-@item Arnewsh MCF5206 evaluation board (ColdFire V2).
-@item Palm Tungsten|E PDA (OMAP310 processor)
-@item N800 and N810 tablets (OMAP2420 processor)
-@item MusicPal (MV88W8618 ARM processor)
-@item Gumstix "Connex" and "Verdex" motherboards (PXA255/270).
-@item Siemens SX1 smartphone (OMAP310 processor)
-@item AXIS-Devboard88 (CRISv32 ETRAX-FS).
-@item Petalogix Spartan 3aDSP1800 MMU ref design (MicroBlaze).
-@item Avnet LX60/LX110/LX200 boards (Xtensa)
+@item QEMU can run without a host kernel driver and yet gives acceptable
+performance.  It uses dynamic translation to native code for reasonable speed,
+with support for self-modifying code and precise exceptions.
+
+@item It is portable to several operating systems (GNU/Linux, *BSD, Mac OS X,
+Windows) and architectures.
+
+@item It performs accurate software emulation of the FPU.
 @end itemize
 
-@cindex supported user mode targets
-For user emulation, x86 (32 and 64 bit), PowerPC (32 and 64 bit),
-ARM, MIPS (32 bit only), Sparc (32 and 64 bit),
-Alpha, ColdFire(m68k), CRISv32 and MicroBlaze CPUs are supported.
+QEMU user mode emulation has the following features:
+@itemize
+@item Generic Linux system call converter, including most ioctls.
+
+@item clone() emulation using native CPU clone() to use Linux scheduler for threads.
+
+@item Accurate signal handling by remapping host signals to target signals.
+@end itemize
+
+QEMU full system emulation has the following features:
+@itemize
+@item
+QEMU uses a full software MMU for maximum portability.
+
+@item
+QEMU can optionally use an in-kernel accelerator, like kvm. The accelerators 
+execute most of the guest code natively, while
+continuing to emulate the rest of the machine.
+
+@item
+Various hardware devices can be emulated and in some cases, host
+devices (e.g. serial and parallel ports, USB, drives) can be used
+transparently by the guest Operating System. Host device passthrough
+can be used for talking to external physical peripherals (e.g. a
+webcam, modem or tape drive).
+
+@item
+Symmetric multiprocessing (SMP) support.  Currently, an in-kernel
+accelerator is required to use more than one host CPU for emulation.
+
+@end itemize
+
 
 @node Installation
 @chapter Installation

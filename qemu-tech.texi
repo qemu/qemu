@@ -41,7 +41,6 @@
 @chapter Introduction
 
 @menu
-* intro_features::         Features
 * intro_x86_emulation::    x86 and x86-64 emulation
 * intro_arm_emulation::    ARM emulation
 * intro_mips_emulation::   MIPS emulation
@@ -50,93 +49,6 @@
 * intro_xtensa_emulation:: Xtensa emulation
 * intro_other_emulation::  Other CPU emulation
 @end menu
-
-@node intro_features
-@section Features
-
-QEMU is a FAST! processor emulator using a portable dynamic
-translator.
-
-QEMU has two operating modes:
-
-@itemize @minus
-
-@item
-Full system emulation. In this mode (full platform virtualization),
-QEMU emulates a full system (usually a PC), including a processor and
-various peripherals. It can be used to launch several different
-Operating Systems at once without rebooting the host machine or to
-debug system code.
-
-@item
-User mode emulation. In this mode (application level virtualization),
-QEMU can launch processes compiled for one CPU on another CPU, however
-the Operating Systems must match. This can be used for example to ease
-cross-compilation and cross-debugging.
-@end itemize
-
-As QEMU requires no host kernel driver to run, it is very safe and
-easy to use.
-
-QEMU generic features:
-
-@itemize
-
-@item User space only or full system emulation.
-
-@item Using dynamic translation to native code for reasonable speed.
-
-@item
-Working on x86, x86_64 and PowerPC32/64 hosts. Being tested on ARM,
-S390x, Sparc32 and Sparc64.
-
-@item Self-modifying code support.
-
-@item Precise exceptions support.
-
-@item
-Floating point library supporting both full software emulation and
-native host FPU instructions.
-
-@end itemize
-
-QEMU user mode emulation features:
-@itemize
-@item Generic Linux system call converter, including most ioctls.
-
-@item clone() emulation using native CPU clone() to use Linux scheduler for threads.
-
-@item Accurate signal handling by remapping host signals to target signals.
-@end itemize
-
-Linux user emulator (Linux host only) can be used to launch the Wine
-Windows API emulator (@url{http://www.winehq.org}). A BSD user emulator for BSD
-hosts is under development. It would also be possible to develop a
-similar user emulator for Solaris.
-
-QEMU full system emulation features:
-@itemize
-@item
-QEMU uses a full software MMU for maximum portability.
-
-@item
-QEMU can optionally use an in-kernel accelerator, like kvm. The accelerators 
-execute some of the guest code natively, while
-continuing to emulate the rest of the machine.
-
-@item
-Various hardware devices can be emulated and in some cases, host
-devices (e.g. serial and parallel ports, USB, drives) can be used
-transparently by the guest Operating System. Host device passthrough
-can be used for talking to external physical peripherals (e.g. a
-webcam, modem or tape drive).
-
-@item
-Symmetric multiprocessing (SMP) even on a host with a single CPU. On a
-SMP host system, QEMU can use only one CPU fully due to difficulty in
-implementing atomic memory accesses efficiently.
-
-@end itemize
 
 @node intro_x86_emulation
 @section x86 and x86-64 emulation
