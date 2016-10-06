@@ -13,6 +13,8 @@
  *
  */
 
+#define VMSTATE_VIRTIO_DEVICE_USE_NEW
+
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "standard-headers/linux/virtio_ids.h"
@@ -681,22 +683,6 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
     s->events_dropped = false;
 }
 
-/* The device does not have anything to save beyond the virtio data.
- * Request data is saved with callbacks from SCSI devices.
- */
-static void virtio_scsi_save(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-    virtio_save(vdev, f);
-}
-
-static int virtio_scsi_load(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-
-    return virtio_load(vdev, f, 1);
-}
-
 void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
                             uint32_t event, uint32_t reason)
 {
@@ -940,7 +926,15 @@ static Property virtio_scsi_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-VMSTATE_VIRTIO_DEVICE(scsi, 1, virtio_scsi_load, virtio_scsi_save);
+static const VMStateDescription vmstate_virtio_scsi = {
+    .name = "virtio-scsi",
+    .minimum_version_id = 1,
+    .version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 static void virtio_scsi_common_class_init(ObjectClass *klass, void *data)
 {
