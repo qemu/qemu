@@ -29,27 +29,29 @@
 @top
 
 @menu
-* Introduction::
-* QEMU Internals::
+* CPU emulation::
+* Translator Internals::
+* Device emulation::
+* QEMU compared to other emulators::
+* Bibliography::
 @end menu
 @end ifnottex
 
 @contents
 
-@node Introduction
-@chapter Introduction
+@node CPU emulation
+@chapter CPU emulation
 
 @menu
-* intro_x86_emulation::    x86 and x86-64 emulation
-* intro_arm_emulation::    ARM emulation
-* intro_mips_emulation::   MIPS emulation
-* intro_ppc_emulation::    PowerPC emulation
-* intro_sparc_emulation::  Sparc32 and Sparc64 emulation
-* intro_xtensa_emulation:: Xtensa emulation
-* intro_other_emulation::  Other CPU emulation
+* x86::     x86 and x86-64 emulation
+* ARM::     ARM emulation
+* MIPS::    MIPS emulation
+* PPC::     PowerPC emulation
+* SPARC::   Sparc32 and Sparc64 emulation
+* Xtensa::  Xtensa emulation
 @end menu
 
-@node intro_x86_emulation
+@node x86
 @section x86 and x86-64 emulation
 
 QEMU x86 target features:
@@ -84,7 +86,7 @@ normal use.
 
 @end itemize
 
-@node intro_arm_emulation
+@node ARM
 @section ARM emulation
 
 @itemize
@@ -97,7 +99,7 @@ normal use.
 
 @end itemize
 
-@node intro_mips_emulation
+@node MIPS
 @section MIPS emulation
 
 @itemize
@@ -124,7 +126,7 @@ Current QEMU limitations:
 
 @end itemize
 
-@node intro_ppc_emulation
+@node PPC
 @section PowerPC emulation
 
 @itemize
@@ -136,7 +138,7 @@ FPU and MMU.
 
 @end itemize
 
-@node intro_sparc_emulation
+@node SPARC
 @section Sparc32 and Sparc64 emulation
 
 @itemize
@@ -164,7 +166,7 @@ Current QEMU limitations:
 
 @end itemize
 
-@node intro_xtensa_emulation
+@node Xtensa
 @section Xtensa emulation
 
 @itemize
@@ -189,93 +191,17 @@ may be created from overlay with minimal amount of hand-written code.
 
 @end itemize
 
-@node intro_other_emulation
-@section Other CPU emulation
-
-In addition to the above, QEMU supports emulation of other CPUs with
-varying levels of success. These are:
-
-@itemize
-
-@item
-Alpha
-@item
-CRIS
-@item
-M68k
-@item
-SH4
-@end itemize
-
-@node QEMU Internals
-@chapter QEMU Internals
+@node Translator Internals
+@chapter Translator Internals
 
 @menu
-* QEMU compared to other emulators::
-* Portable dynamic translation::
 * CPU state optimisations::
 * Translation cache::
 * Direct block chaining::
 * Self-modifying code and translated code invalidation::
 * Exception support::
 * MMU emulation::
-* Device emulation::
-* Bibliography::
 @end menu
-
-@node QEMU compared to other emulators
-@section QEMU compared to other emulators
-
-Like bochs [1], QEMU emulates an x86 CPU. But QEMU is much faster than
-bochs as it uses dynamic compilation. Bochs is closely tied to x86 PC
-emulation while QEMU can emulate several processors.
-
-Like Valgrind [2], QEMU does user space emulation and dynamic
-translation. Valgrind is mainly a memory debugger while QEMU has no
-support for it (QEMU could be used to detect out of bound memory
-accesses as Valgrind, but it has no support to track uninitialised data
-as Valgrind does). The Valgrind dynamic translator generates better code
-than QEMU (in particular it does register allocation) but it is closely
-tied to an x86 host and target and has no support for precise exceptions
-and system emulation.
-
-EM86 [3] is the closest project to user space QEMU (and QEMU still uses
-some of its code, in particular the ELF file loader). EM86 was limited
-to an alpha host and used a proprietary and slow interpreter (the
-interpreter part of the FX!32 Digital Win32 code translator [4]).
-
-TWIN from Willows Software was a Windows API emulator like Wine. It is less
-accurate than Wine but includes a protected mode x86 interpreter to launch
-x86 Windows executables. Such an approach has greater potential because most
-of the Windows API is executed natively but it is far more difficult to
-develop because all the data structures and function parameters exchanged
-between the API and the x86 code must be converted.
-
-User mode Linux [5] was the only solution before QEMU to launch a
-Linux kernel as a process while not needing any host kernel
-patches. However, user mode Linux requires heavy kernel patches while
-QEMU accepts unpatched Linux kernels. The price to pay is that QEMU is
-slower.
-
-The Plex86 [6] PC virtualizer is done in the same spirit as the now
-obsolete qemu-fast system emulator. It requires a patched Linux kernel
-to work (you cannot launch the same kernel on your PC), but the
-patches are really small. As it is a PC virtualizer (no emulation is
-done except for some privileged instructions), it has the potential of
-being faster than QEMU. The downside is that a complicated (and
-potentially unsafe) host kernel patch is needed.
-
-The commercial PC Virtualizers (VMWare [7], VirtualPC [8]) are faster
-than QEMU (without virtualization), but they all need specific, proprietary
-and potentially unsafe host drivers. Moreover, they are unable to
-provide cycle exact simulation as an emulator can.
-
-VirtualBox [9], Xen [10] and KVM [11] are based on QEMU. QEMU-SystemC
-[12] uses QEMU to simulate a system where some hardware devices are
-developed in SystemC.
-
-@node Portable dynamic translation
-@section Portable dynamic translation
 
 QEMU is a dynamic translator. When it first encounters a piece of code,
 it converts it to the host instruction set. Usually dynamic translators
@@ -381,7 +307,7 @@ When MMU mappings change, only the chaining of the basic blocks is
 reset (i.e. a basic block can no longer jump directly to another one).
 
 @node Device emulation
-@section Device emulation
+@chapter Device emulation
 
 Systems emulated by QEMU are organized by boards. At initialization
 phase, each board instantiates a number of CPUs, devices, RAM and
@@ -407,8 +333,59 @@ Usually the devices implement a reset method and register support for
 saving and loading of the device state. The devices can also use
 timers, especially together with the use of bottom halves (BHs).
 
+@node QEMU compared to other emulators
+@chapter QEMU compared to other emulators
+
+Like bochs [1], QEMU emulates an x86 CPU. But QEMU is much faster than
+bochs as it uses dynamic compilation. Bochs is closely tied to x86 PC
+emulation while QEMU can emulate several processors.
+
+Like Valgrind [2], QEMU does user space emulation and dynamic
+translation. Valgrind is mainly a memory debugger while QEMU has no
+support for it (QEMU could be used to detect out of bound memory
+accesses as Valgrind, but it has no support to track uninitialised data
+as Valgrind does). The Valgrind dynamic translator generates better code
+than QEMU (in particular it does register allocation) but it is closely
+tied to an x86 host and target and has no support for precise exceptions
+and system emulation.
+
+EM86 [3] is the closest project to user space QEMU (and QEMU still uses
+some of its code, in particular the ELF file loader). EM86 was limited
+to an alpha host and used a proprietary and slow interpreter (the
+interpreter part of the FX!32 Digital Win32 code translator [4]).
+
+TWIN from Willows Software was a Windows API emulator like Wine. It is less
+accurate than Wine but includes a protected mode x86 interpreter to launch
+x86 Windows executables. Such an approach has greater potential because most
+of the Windows API is executed natively but it is far more difficult to
+develop because all the data structures and function parameters exchanged
+between the API and the x86 code must be converted.
+
+User mode Linux [5] was the only solution before QEMU to launch a
+Linux kernel as a process while not needing any host kernel
+patches. However, user mode Linux requires heavy kernel patches while
+QEMU accepts unpatched Linux kernels. The price to pay is that QEMU is
+slower.
+
+The Plex86 [6] PC virtualizer is done in the same spirit as the now
+obsolete qemu-fast system emulator. It requires a patched Linux kernel
+to work (you cannot launch the same kernel on your PC), but the
+patches are really small. As it is a PC virtualizer (no emulation is
+done except for some privileged instructions), it has the potential of
+being faster than QEMU. The downside is that a complicated (and
+potentially unsafe) host kernel patch is needed.
+
+The commercial PC Virtualizers (VMWare [7], VirtualPC [8]) are faster
+than QEMU (without virtualization), but they all need specific, proprietary
+and potentially unsafe host drivers. Moreover, they are unable to
+provide cycle exact simulation as an emulator can.
+
+VirtualBox [9], Xen [10] and KVM [11] are based on QEMU. QEMU-SystemC
+[12] uses QEMU to simulate a system where some hardware devices are
+developed in SystemC.
+
 @node Bibliography
-@section Bibliography
+@chapter Bibliography
 
 @table @asis
 
