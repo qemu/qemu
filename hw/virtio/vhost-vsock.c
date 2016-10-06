@@ -11,8 +11,6 @@
  * top-level directory.
  */
 
-#define VMSTATE_VIRTIO_DEVICE_USE_NEW
-
 #include <sys/ioctl.h>
 #include "qemu/osdep.h"
 #include "standard-headers/linux/virtio_vsock.h"

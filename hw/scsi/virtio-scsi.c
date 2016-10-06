@@ -13,8 +13,6 @@
  *
  */
 
-#define VMSTATE_VIRTIO_DEVICE_USE_NEW
-
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "standard-headers/linux/virtio_ids.h"

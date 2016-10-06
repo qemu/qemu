@@ -1640,12 +1640,6 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 }
 
 /* A wrapper for use as a VMState .put function */
-void virtio_vmstate_save(QEMUFile *f, void *opaque, size_t size)
-{
-    virtio_save(VIRTIO_DEVICE(opaque), f);
-}
-
-/* A wrapper for use as a VMState .put function */
 static void virtio_device_put(QEMUFile *f, void *opaque, size_t size)
 {
     virtio_save(VIRTIO_DEVICE(opaque), f);

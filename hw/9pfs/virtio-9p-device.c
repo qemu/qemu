@@ -11,8 +11,6 @@
  *
  */
 
-#define VMSTATE_VIRTIO_DEVICE_USE_NEW
-
 #include "qemu/osdep.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/sockets.h"
