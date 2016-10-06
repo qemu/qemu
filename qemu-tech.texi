@@ -32,7 +32,6 @@
 * Introduction::
 * QEMU Internals::
 * Regression Tests::
-* Index::
 @end menu
 @end ifnottex
 
@@ -690,9 +689,5 @@ exception reporting.
 This program tests various Linux system calls. It is used to verify
 that the system call parameters are correctly converted between target
 and host CPUs.
-
-@node Index
-@chapter Index
-@printindex cp
 
 @bye
