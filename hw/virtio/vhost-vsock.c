@@ -11,6 +11,8 @@
  * top-level directory.
  */
 
+#define VMSTATE_VIRTIO_DEVICE_USE_NEW
+
 #include <sys/ioctl.h>
 #include "qemu/osdep.h"
 #include "standard-headers/linux/virtio_vsock.h"
@@ -236,17 +238,6 @@ out:
     g_free(elem);
 }
 
-static void vhost_vsock_save(QEMUFile *f, void *opaque, size_t size)
-{
-    VHostVSock *vsock = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(vsock);
-
-    /* At this point, backend must be stopped, otherwise
-     * it might keep writing to memory. */
-    assert(!vsock->vhost_dev.started);
-    virtio_save(vdev, f);
-}
-
 static void vhost_vsock_post_load_timer_cleanup(VHostVSock *vsock)
 {
     if (!vsock->post_load_timer) {
@@ -266,16 +257,19 @@ static void vhost_vsock_post_load_timer_cb(void *opaque)
     vhost_vsock_send_transport_reset(vsock);
 }
 
-static int vhost_vsock_load(QEMUFile *f, void *opaque, size_t size)
+static void vhost_vsock_pre_save(void *opaque)
+{
+    VHostVSock *vsock = opaque;
+
+    /* At this point, backend must be stopped, otherwise
+     * it might keep writing to memory. */
+    assert(!vsock->vhost_dev.started);
+}
+
+static int vhost_vsock_post_load(void *opaque, int version_id)
 {
     VHostVSock *vsock = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(vsock);
-    int ret;
-
-    ret = virtio_load(vdev, f, VHOST_VSOCK_SAVEVM_VERSION);
-    if (ret) {
-        return ret;
-    }
 
     if (virtio_queue_get_addr(vdev, 2)) {
         /* Defer transport reset event to a vm clock timer so that virtqueue
@@ -288,12 +282,20 @@ static int vhost_vsock_load(QEMUFile *f, void *opaque, size_t size)
                          vsock);
         timer_mod(vsock->post_load_timer, 1);
     }
-
     return 0;
 }
 
-VMSTATE_VIRTIO_DEVICE(vhost_vsock, VHOST_VSOCK_SAVEVM_VERSION,
-                      vhost_vsock_load, vhost_vsock_save);
+static const VMStateDescription vmstate_virtio_vhost_vsock = {
+    .name = "virtio-vhost_vsock",
+    .minimum_version_id = VHOST_VSOCK_SAVEVM_VERSION,
+    .version_id = VHOST_VSOCK_SAVEVM_VERSION,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+    .pre_save = vhost_vsock_pre_save,
+    .post_load = vhost_vsock_post_load,
+};
 
 static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
 {
