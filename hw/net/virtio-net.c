@@ -11,6 +11,8 @@
  *
  */
 
+#define VMSTATE_VIRTIO_DEVICE_USE_NEW
+
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
 #include "hw/virtio/virtio.h"
@@ -1514,17 +1516,6 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
     virtio_net_set_queues(n);
 }
 
-static void virtio_net_save(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIONet *n = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
-
-    /* At this point, backend must be stopped, otherwise
-     * it might keep writing to memory. */
-    assert(!n->vhost_started);
-    virtio_save(vdev, f);
-}
-
 static void virtio_net_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -1558,14 +1549,6 @@ static void virtio_net_save_device(VirtIODevice *vdev, QEMUFile *f)
     if (virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
         qemu_put_be64(f, n->curr_guest_offloads);
     }
-}
-
-static int virtio_net_load(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIONet *n = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
-
-    return virtio_load(vdev, f, VIRTIO_NET_VM_VERSION);
 }
 
 static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
@@ -1870,8 +1853,25 @@ static void virtio_net_instance_init(Object *obj)
                                   DEVICE(n), NULL);
 }
 
-VMSTATE_VIRTIO_DEVICE(net, VIRTIO_NET_VM_VERSION, virtio_net_load,
-                      virtio_net_save);
+static void virtio_net_pre_save(void *opaque)
+{
+    VirtIONet *n = opaque;
+
+    /* At this point, backend must be stopped, otherwise
+     * it might keep writing to memory. */
+    assert(!n->vhost_started);
+}
+
+static const VMStateDescription vmstate_virtio_net = {
+    .name = "virtio-net",
+    .minimum_version_id = VIRTIO_NET_VM_VERSION,
+    .version_id = VIRTIO_NET_VM_VERSION,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+    .pre_save = virtio_net_pre_save,
+};
 
 static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT("csum", VirtIONet, host_features, VIRTIO_NET_F_CSUM, true),
