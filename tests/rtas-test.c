@@ -22,7 +22,7 @@ static void test_rtas_get_time_of_day(void)
     t2 = mktimegm(&tm);
     g_assert(t2 - t1 < 5); /* 5 sec max to run the test */
 
-    qtest_spapr_shutdown(qs);
+    qtest_shutdown(qs);
 }
 
 int main(int argc, char *argv[])

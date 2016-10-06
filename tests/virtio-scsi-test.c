@@ -146,7 +146,7 @@ static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
 
     vs = g_new0(QVirtIOSCSI, 1);
     vs->alloc = pc_alloc_init();
-    vs->bus = qpci_init_pc();
+    vs->bus = qpci_init_pc(NULL);
 
     dev = qvirtio_pci_device_find(vs->bus, VIRTIO_ID_SCSI);
     vs->dev = (QVirtioDevice *)dev;

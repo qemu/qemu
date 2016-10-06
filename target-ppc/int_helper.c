@@ -735,20 +735,24 @@ VCMP(gtsd, >, s64)
 #undef VCMP_DO
 #undef VCMP
 
-#define VCMPNEZ_DO(suffix, element, etype, record)                   \
-void helper_vcmpnez##suffix(CPUPPCState *env, ppc_avr_t *r,          \
+#define VCMPNE_DO(suffix, element, etype, cmpzero, record)              \
+void helper_vcmpne##suffix(CPUPPCState *env, ppc_avr_t *r,              \
                             ppc_avr_t *a, ppc_avr_t *b)                 \
 {                                                                       \
     etype ones = (etype)-1;                                             \
     etype all = ones;                                                   \
-    etype none = 0;                                                     \
+    etype result, none = 0;                                             \
     int i;                                                              \
                                                                         \
     for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
-        etype result = ((a->element[i] == 0)                            \
+        if (cmpzero) {                                                  \
+            result = ((a->element[i] == 0)                              \
                            || (b->element[i] == 0)                      \
                            || (a->element[i] != b->element[i]) ?        \
                            ones : 0x0);                                 \
+        } else {                                                        \
+            result = (a->element[i] != b->element[i]) ? ones : 0x0;     \
+        }                                                               \
         r->element[i] = result;                                         \
         all &= result;                                                  \
         none |= result;                                                 \
@@ -762,14 +766,17 @@ void helper_vcmpnez##suffix(CPUPPCState *env, ppc_avr_t *r,          \
  *   suffix  - instruction mnemonic suffix (b: byte, h: halfword, w: word)
  *   element - element type to access from vector
  */
-#define VCMPNEZ(suffix, element, etype)         \
-    VCMPNEZ_DO(suffix, element, etype, 0)       \
-    VCMPNEZ_DO(suffix##_dot, element, etype, 1)
-VCMPNEZ(b, u8, uint8_t)
-VCMPNEZ(h, u16, uint16_t)
-VCMPNEZ(w, u32, uint32_t)
-#undef VCMPNEZ_DO
-#undef VCMPNEZ
+#define VCMPNE(suffix, element, etype, cmpzero)         \
+    VCMPNE_DO(suffix, element, etype, cmpzero, 0)       \
+    VCMPNE_DO(suffix##_dot, element, etype, cmpzero, 1)
+VCMPNE(zb, u8, uint8_t, 1)
+VCMPNE(zh, u16, uint16_t, 1)
+VCMPNE(zw, u32, uint32_t, 1)
+VCMPNE(b, u8, uint8_t, 0)
+VCMPNE(h, u16, uint16_t, 0)
+VCMPNE(w, u32, uint32_t, 0)
+#undef VCMPNE_DO
+#undef VCMPNE
 
 #define VCMPFP_DO(suffix, compare, order, record)                       \
     void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \
@@ -873,6 +880,36 @@ void helper_vcmpbfp_dot(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
 VCT(uxs, cvtsduw, u32)
 VCT(sxs, cvtsdsw, s32)
 #undef VCT
+
+target_ulong helper_vclzlsbb(ppc_avr_t *r)
+{
+    target_ulong count = 0;
+    int i;
+    VECTOR_FOR_INORDER_I(i, u8) {
+        if (r->u8[i] & 0x01) {
+            break;
+        }
+        count++;
+    }
+    return count;
+}
+
+target_ulong helper_vctzlsbb(ppc_avr_t *r)
+{
+    target_ulong count = 0;
+    int i;
+#if defined(HOST_WORDS_BIGENDIAN)
+    for (i = ARRAY_SIZE(r->u8) - 1; i >= 0; i--) {
+#else
+    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
+#endif
+        if (r->u8[i] & 0x01) {
+            break;
+        }
+        count++;
+    }
+    return count;
+}
 
 void helper_vmhaddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
                       ppc_avr_t *b, ppc_avr_t *c)

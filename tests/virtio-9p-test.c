@@ -63,7 +63,7 @@ static QVirtIO9P *qvirtio_9p_pci_init(void)
 
     v9p = g_new0(QVirtIO9P, 1);
     v9p->alloc = pc_alloc_init();
-    v9p->bus = qpci_init_pc();
+    v9p->bus = qpci_init_pc(NULL);
 
     dev = qvirtio_pci_device_find(v9p->bus, VIRTIO_ID_9P);
     g_assert_nonnull(dev);

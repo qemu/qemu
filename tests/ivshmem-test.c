@@ -105,7 +105,7 @@ static void setup_vm_cmd(IVState *s, const char *cmd, bool msix)
     uint64_t barsize;
 
     s->qtest = qtest_start(cmd);
-    s->pcibus = qpci_init_pc();
+    s->pcibus = qpci_init_pc(NULL);
     s->dev = get_device(s->pcibus);
 
     s->reg_base = qpci_iomap(s->dev, 0, &barsize);

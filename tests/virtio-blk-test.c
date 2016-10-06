@@ -75,7 +75,7 @@ static QPCIBus *pci_test_start(void)
     g_free(tmp_path);
     g_free(cmdline);
 
-    return qpci_init_pc();
+    return qpci_init_pc(NULL);
 }
 
 static void arm_test_start(void)

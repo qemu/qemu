@@ -62,7 +62,7 @@ static QPCIBus *pci_test_start(int socket)
     qtest_start(cmdline);
     g_free(cmdline);
 
-    return qpci_init_pc();
+    return qpci_init_pc(NULL);
 }
 
 static void driver_init(const QVirtioBus *bus, QVirtioDevice *dev)
