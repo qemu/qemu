@@ -333,3 +333,17 @@ uint32_t helper_ftouz(CPUTriCoreState *env, uint32_t arg)
     }
     return result;
 }
+
+void helper_updfl(CPUTriCoreState *env, uint32_t arg)
+{
+    env->FPU_FS =  extract32(arg, 7, 1) & extract32(arg, 15, 1);
+    env->FPU_FI = (extract32(arg, 6, 1) & extract32(arg, 14, 1)) << 31;
+    env->FPU_FV = (extract32(arg, 5, 1) & extract32(arg, 13, 1)) << 31;
+    env->FPU_FZ = (extract32(arg, 4, 1) & extract32(arg, 12, 1)) << 31;
+    env->FPU_FU = (extract32(arg, 3, 1) & extract32(arg, 11, 1)) << 31;
+    /* clear FX and RM */
+    env->PSW &= ~(extract32(arg, 10, 1) << 26);
+    env->PSW |= (extract32(arg, 2, 1) & extract32(arg, 10, 1)) << 26;
+
+    fpu_set_state(env);
+}
