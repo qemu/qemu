@@ -2600,6 +2600,7 @@ static abi_long target_to_host_data_route_rtattr(struct rtattr *rtattr)
     case RTA_GATEWAY:
         break;
     /* u32 */
+    case RTA_PRIORITY:
     case RTA_OIF:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
