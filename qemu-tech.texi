@@ -221,8 +221,6 @@ SH4
 * Exception support::
 * MMU emulation::
 * Device emulation::
-* Hardware interrupts::
-* User emulation specific details::
 * Bibliography::
 @end menu
 
@@ -409,75 +407,6 @@ advanced block device formats like QCOW.
 Usually the devices implement a reset method and register support for
 saving and loading of the device state. The devices can also use
 timers, especially together with the use of bottom halves (BHs).
-
-@node Hardware interrupts
-@section Hardware interrupts
-
-In order to be faster, QEMU does not check at every basic block if a
-hardware interrupt is pending. Instead, the user must asynchronously
-call a specific function to tell that an interrupt is pending. This
-function resets the chaining of the currently executing basic
-block. It ensures that the execution will return soon in the main loop
-of the CPU emulator. Then the main loop can test if the interrupt is
-pending and handle it.
-
-@node User emulation specific details
-@section User emulation specific details
-
-@subsection Linux system call translation
-
-QEMU includes a generic system call translator for Linux. It means that
-the parameters of the system calls can be converted to fix the
-endianness and 32/64 bit issues. The IOCTLs are converted with a generic
-type description system (see @file{ioctls.h} and @file{thunk.c}).
-
-QEMU supports host CPUs which have pages bigger than 4KB. It records all
-the mappings the process does and try to emulated the @code{mmap()}
-system calls in cases where the host @code{mmap()} call would fail
-because of bad page alignment.
-
-@subsection Linux signals
-
-Normal and real-time signals are queued along with their information
-(@code{siginfo_t}) as it is done in the Linux kernel. Then an interrupt
-request is done to the virtual CPU. When it is interrupted, one queued
-signal is handled by generating a stack frame in the virtual CPU as the
-Linux kernel does. The @code{sigreturn()} system call is emulated to return
-from the virtual signal handler.
-
-Some signals (such as SIGALRM) directly come from the host. Other
-signals are synthesized from the virtual CPU exceptions such as SIGFPE
-when a division by zero is done (see @code{main.c:cpu_loop()}).
-
-The blocked signal mask is still handled by the host Linux kernel so
-that most signal system calls can be redirected directly to the host
-Linux kernel. Only the @code{sigaction()} and @code{sigreturn()} system
-calls need to be fully emulated (see @file{signal.c}).
-
-@subsection clone() system call and threads
-
-The Linux clone() system call is usually used to create a thread. QEMU
-uses the host clone() system call so that real host threads are created
-for each emulated thread. One virtual CPU instance is created for each
-thread.
-
-The virtual x86 CPU atomic operations are emulated with a global lock so
-that their semantic is preserved.
-
-Note that currently there are still some locking issues in QEMU. In
-particular, the translated cache flush is not protected yet against
-reentrancy.
-
-@subsection Self-virtualization
-
-QEMU was conceived so that ultimately it can emulate itself. Although
-it is not very useful, it is an important test to show the power of the
-emulator.
-
-Achieving self-virtualization is not easy because there may be address
-space conflicts. QEMU user emulators solve this problem by being an
-executable ELF shared object as the ld-linux.so ELF interpreter. That
-way, it can be relocated at load time.
 
 @node Bibliography
 @section Bibliography
