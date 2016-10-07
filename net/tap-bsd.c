@@ -35,6 +35,10 @@
 #include <net/if_tap.h>
 #endif
 
+#if defined(__OpenBSD__)
+#include <sys/param.h>
+#endif
+
 #ifndef __FreeBSD__
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
              int vnet_hdr_required, int mq_required, Error **errp)
@@ -55,7 +59,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
         if (*ifname) {
             snprintf(dname, sizeof dname, "/dev/%s", ifname);
         } else {
-#if defined(__OpenBSD__)
+#if defined(__OpenBSD__) && OpenBSD < 201605
             snprintf(dname, sizeof dname, "/dev/tun%d", i);
 #else
             snprintf(dname, sizeof dname, "/dev/tap%d", i);
