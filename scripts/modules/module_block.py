@@ -37,7 +37,6 @@ def add_module(fheader, library, format_name, protocol_name):
 def process_file(fheader, filename):
     # This parser assumes the coding style rules are being followed
     with open(filename, "r") as cfile:
-        found_something = False
         found_start = False
         library, _ = os.path.splitext(os.path.basename(filename))
         for line in cfile:
@@ -51,15 +50,9 @@ def process_file(fheader, filename):
                     add_module(fheader, library, format_name, protocol_name)
                     found_start = False
             elif line.find("static BlockDriver") != -1:
-                found_something = True
                 found_start = True
                 format_name = ""
                 protocol_name = ""
-
-        if not found_something:
-            print("No BlockDriver struct found in " + filename + ". \
-                    Is this really a module?", file=sys.stderr)
-            sys.exit(1)
 
 def print_top(fheader):
     fheader.write('''/* AUTOMATICALLY GENERATED, DO NOT MODIFY */

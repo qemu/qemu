@@ -163,13 +163,27 @@ void module_load_one(const char *prefix, const char *lib_name)
     char *fname = NULL;
     char *exec_dir;
     char *dirs[3];
+    char *module_name;
     int i = 0;
     int ret;
+    static GHashTable *loaded_modules;
 
     if (!g_module_supported()) {
         fprintf(stderr, "Module is not supported by system.\n");
         return;
     }
+
+    if (!loaded_modules) {
+        loaded_modules = g_hash_table_new(g_str_hash, g_str_equal);
+    }
+
+    module_name = g_strdup_printf("%s%s", prefix, lib_name);
+
+    if (g_hash_table_lookup(loaded_modules, module_name)) {
+        g_free(module_name);
+        return;
+    }
+    g_hash_table_insert(loaded_modules, module_name, module_name);
 
     exec_dir = qemu_get_exec_dir();
     dirs[i++] = g_strdup_printf("%s", CONFIG_QEMU_MODDIR);
@@ -180,8 +194,8 @@ void module_load_one(const char *prefix, const char *lib_name)
     exec_dir = NULL;
 
     for (i = 0; i < ARRAY_SIZE(dirs); i++) {
-        fname = g_strdup_printf("%s/%s%s%s",
-                dirs[i], prefix, lib_name, HOST_DSOSUF);
+        fname = g_strdup_printf("%s/%s%s",
+                dirs[i], module_name, HOST_DSOSUF);
         ret = module_load_file(fname);
         g_free(fname);
         fname = NULL;
