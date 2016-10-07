@@ -194,10 +194,9 @@ class TestSingleBlockdev(TestSingleDrive):
     def setUp(self):
         TestSingleDrive.setUp(self)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, target_img)
-        args = {'options':
-                    {'driver': iotests.imgfmt,
-                     'node-name': self.qmp_target,
-                     'file': { 'filename': target_img, 'driver': 'file' } } }
+        args = {'driver': iotests.imgfmt,
+                'node-name': self.qmp_target,
+                'file': { 'filename': target_img, 'driver': 'file' } }
         result = self.vm.qmp("blockdev-add", **args)
         self.assert_qmp(result, 'return', {})
 
@@ -782,8 +781,8 @@ class TestRepairQuorum(iotests.QMPTestCase):
         self.vm.launch()
 
         #assemble the quorum block device from the individual files
-        args = { "options" : { "driver": "quorum", "node-name": "quorum0",
-                 "vote-threshold": 2, "children": [ "img0", "img1", "img2" ] } }
+        args = { "driver": "quorum", "node-name": "quorum0",
+                 "vote-threshold": 2, "children": [ "img0", "img1", "img2" ] }
         if self.has_quorum():
             result = self.vm.qmp("blockdev-add", **args)
             self.assert_qmp(result, 'return', {})

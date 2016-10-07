@@ -63,10 +63,10 @@ class BaseClass(iotests.QMPTestCase):
         # Add the BDS via blockdev-add so it stays around after the mirror block
         # job has been completed
         result = self.vm.qmp('blockdev-add',
-                             options={'node-name': 'source',
-                                      'driver': iotests.imgfmt,
-                                      'file': {'driver': 'file',
-                                               'filename': source_img}})
+                             node_name='source',
+                             driver=iotests.imgfmt,
+                             file={'driver': 'file',
+                                   'filename': source_img})
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('x-blockdev-insert-medium',
@@ -90,7 +90,7 @@ class BaseClass(iotests.QMPTestCase):
                 if self.target_blockdev_backing:
                     options['backing'] = self.target_blockdev_backing
 
-                result = self.vm.qmp('blockdev-add', options=options)
+                result = self.vm.qmp('blockdev-add', **options)
                 self.assert_qmp(result, 'return', {})
 
     def tearDown(self):

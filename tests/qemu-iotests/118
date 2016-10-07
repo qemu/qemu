@@ -229,10 +229,10 @@ class GeneralChangeTestsBaseClass(ChangeBaseClass):
 
     def test_cycle(self):
         result = self.vm.qmp('blockdev-add',
-                             options={'node-name': 'new',
-                                      'driver': iotests.imgfmt,
-                                      'file': {'filename': new_img,
-                                               'driver': 'file'}})
+                             node_name='new',
+                             driver=iotests.imgfmt,
+                             file={'filename': new_img,
+                                    'driver': 'file'})
         self.assert_qmp(result, 'return', {})
 
         if self.device_name is not None:
@@ -309,10 +309,10 @@ class GeneralChangeTestsBaseClass(ChangeBaseClass):
             return
 
         result = self.vm.qmp('blockdev-add',
-                             options={'node-name': 'new',
-                                      'driver': iotests.imgfmt,
-                                      'file': {'filename': new_img,
-                                               'driver': 'file'}})
+                             node_name='new',
+                             driver=iotests.imgfmt,
+                             file={'filename': new_img,
+                                   'driver': 'file'})
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('x-blockdev-insert-medium', device='drive0',
@@ -341,10 +341,10 @@ class TestInitiallyFilled(GeneralChangeTestsBaseClass):
 
     def test_insert_on_filled(self):
         result = self.vm.qmp('blockdev-add',
-                             options={'node-name': 'new',
-                                      'driver': iotests.imgfmt,
-                                      'file': {'filename': new_img,
-                                               'driver': 'file'}})
+                             node_name='new',
+                             driver=iotests.imgfmt,
+                             file={'filename': new_img,
+                                   'driver': 'file'})
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('blockdev-open-tray', device='drive0')
@@ -609,11 +609,11 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/image/filename', old_img)
 
         result = self.vm.qmp('blockdev-add',
-                             options={'node-name': 'new',
-                                      'driver': iotests.imgfmt,
-                                      'read-only': True,
-                                      'file': {'filename': new_img,
-                                               'driver': 'file'}})
+                             node_name='new',
+                             driver=iotests.imgfmt,
+                             read_only=True,
+                             file={'filename': new_img,
+                                    'driver': 'file'})
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('query-block')
@@ -663,10 +663,10 @@ class TestBlockJobsAfterCycle(ChangeBaseClass):
         self.assert_qmp_absent(result, 'return[0]/inserted')
 
         result = self.vm.qmp('blockdev-add',
-                             options={'node-name': 'node0',
-                                      'driver': iotests.imgfmt,
-                                      'file': {'filename': old_img,
-                                               'driver': 'file'}})
+                             node_name='node0',
+                             driver=iotests.imgfmt,
+                             file={'filename': old_img,
+                                   'driver': 'file'})
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('x-blockdev-insert-medium', device='drive0',

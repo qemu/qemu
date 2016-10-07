@@ -2312,11 +2312,11 @@
 # block drivers among other things.  Stay away from it unless you want
 # to help with its development.
 #
-# @options: block device options for the new device
+# For the arguments, see the documentation of BlockdevOptions.
 #
 # Since: 1.7
 ##
-{ 'command': 'blockdev-add', 'data': { 'options': 'BlockdevOptions' } }
+{ 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true }
 
 ##
 # @x-blockdev-del:

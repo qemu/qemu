@@ -1090,11 +1090,11 @@ Arguments:
 Example:
 
 -> { "execute": "blockdev-add",
-                "arguments": { "options": { "driver": "qcow2",
-                                            "node-name": "node1534",
-                                            "file": { "driver": "file",
-                                                      "filename": "hd1.qcow2" },
-                                            "backing": "" } } }
+                "arguments": { "driver": "qcow2",
+                               "node-name": "node1534",
+                               "file": { "driver": "file",
+                                         "filename": "hd1.qcow2" },
+                               "backing": "" } }
 
 <- { "return": {} }
 
@@ -3130,41 +3130,37 @@ This command is still a work in progress.  It doesn't support all
 block drivers among other things.  Stay away from it unless you want
 to help with its development.
 
-Arguments:
-
-- "options": block driver options
+For the arguments, see the QAPI schema documentation of BlockdevOptions.
 
 Example (1):
 
 -> { "execute": "blockdev-add",
-    "arguments": { "options" : { "driver": "qcow2",
-                                 "file": { "driver": "file",
-                                           "filename": "test.qcow2" } } } }
+    "arguments": { "driver": "qcow2",
+                   "file": { "driver": "file",
+                             "filename": "test.qcow2" } } }
 <- { "return": {} }
 
 Example (2):
 
 -> { "execute": "blockdev-add",
      "arguments": {
-         "options": {
-           "driver": "qcow2",
-           "node-name": "my_disk",
-           "discard": "unmap",
-           "cache": {
-               "direct": true,
-               "writeback": true
-           },
-           "file": {
-               "driver": "file",
-               "filename": "/tmp/test.qcow2"
-           },
-           "backing": {
-               "driver": "raw",
-               "file": {
-                   "driver": "file",
-                   "filename": "/dev/fdset/4"
-               }
-           }
+         "driver": "qcow2",
+         "node-name": "my_disk",
+         "discard": "unmap",
+         "cache": {
+             "direct": true,
+             "writeback": true
+         },
+         "file": {
+             "driver": "file",
+             "filename": "/tmp/test.qcow2"
+         },
+         "backing": {
+             "driver": "raw",
+             "file": {
+                 "driver": "file",
+                 "filename": "/dev/fdset/4"
+             }
          }
        }
      }
@@ -3191,13 +3187,11 @@ Example:
 
 -> { "execute": "blockdev-add",
      "arguments": {
-         "options": {
-             "driver": "qcow2",
-             "node-name": "node0",
-             "file": {
-                 "driver": "file",
-                 "filename": "test.qcow2"
-             }
+         "driver": "qcow2",
+         "node-name": "node0",
+         "file": {
+             "driver": "file",
+             "filename": "test.qcow2"
          }
      }
    }
@@ -3342,10 +3336,10 @@ Arguments:
 Example:
 
 -> { "execute": "blockdev-add",
-     "arguments": { "options": { "node-name": "node0",
-                                 "driver": "raw",
-                                 "file": { "driver": "file",
-                                           "filename": "fedora.iso" } } } }
+     "arguments": { { "node-name": "node0",
+                      "driver": "raw",
+                      "file": { "driver": "file",
+                                "filename": "fedora.iso" } } }
 
 <- { "return": {} }
 
@@ -3383,10 +3377,10 @@ Example:
 
 Add a new node to a quorum
 -> { "execute": "blockdev-add",
-     "arguments": { "options": { "driver": "raw",
-                                 "node-name": "new_node",
-                                 "file": { "driver": "file",
-                                           "filename": "test.raw" } } } }
+     "arguments": { "driver": "raw",
+                    "node-name": "new_node",
+                    "file": { "driver": "file",
+                              "filename": "test.raw" } } }
 <- { "return": {} }
 -> { "execute": "x-blockdev-change",
      "arguments": { "parent": "disk1",

@@ -416,10 +416,10 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
                                            ('0xcd', '32M', '124k')))
 
         # Create a blkdebug interface to this img as 'drive1'
-        result = self.vm.qmp('blockdev-add', options={
-            'node-name': drive1['id'],
-            'driver': drive1['fmt'],
-            'file': {
+        result = self.vm.qmp('blockdev-add',
+            node_name=drive1['id'],
+            driver=drive1['fmt'],
+            file={
                 'driver': 'blkdebug',
                 'image': {
                     'driver': 'file',
@@ -438,7 +438,7 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
                     'once': True
                 }],
             }
-        })
+        )
         self.assert_qmp(result, 'return', {})
 
         # Create bitmaps and full backups for both drives
@@ -560,10 +560,10 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
         '''
 
         drive0 = self.drives[0]
-        result = self.vm.qmp('blockdev-add', options={
-            'node-name': drive0['id'],
-            'driver': drive0['fmt'],
-            'file': {
+        result = self.vm.qmp('blockdev-add',
+            node_name=drive0['id'],
+            driver=drive0['fmt'],
+            file={
                 'driver': 'blkdebug',
                 'image': {
                     'driver': 'file',
@@ -582,7 +582,7 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
                     'once': True
                 }],
             }
-        })
+        )
         self.assert_qmp(result, 'return', {})
 
         self.create_anchor_backup(drive0)
