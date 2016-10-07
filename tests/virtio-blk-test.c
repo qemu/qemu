@@ -125,7 +125,7 @@ static inline void virtio_blk_fix_request(QVirtioBlkReq *req)
     bool host_endian = false;
 #endif
 
-    if (qtest_big_endian() != host_endian) {
+    if (target_big_endian() != host_endian) {
         req->type = bswap32(req->type);
         req->ioprio = bswap32(req->ioprio);
         req->sector = bswap64(req->sector);
