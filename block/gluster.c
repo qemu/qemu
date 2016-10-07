@@ -668,7 +668,10 @@ static void qemu_gluster_parse_flags(int bdrv_flags, int *open_flags)
  */
 static bool qemu_gluster_test_seek(struct glfs_fd *fd)
 {
-    off_t ret, eof;
+    off_t ret = 0;
+
+#if defined SEEK_HOLE && defined SEEK_DATA
+    off_t eof;
 
     eof = glfs_lseek(fd, 0, SEEK_END);
     if (eof < 0) {
@@ -678,6 +681,8 @@ static bool qemu_gluster_test_seek(struct glfs_fd *fd)
 
     /* this should always fail with ENXIO if SEEK_DATA is supported */
     ret = glfs_lseek(fd, eof, SEEK_DATA);
+#endif
+
     return (ret < 0) && (errno == ENXIO);
 }
 
@@ -1178,11 +1183,13 @@ static int find_allocation(BlockDriverState *bs, off_t start,
                            off_t *data, off_t *hole)
 {
     BDRVGlusterState *s = bs->opaque;
-    off_t offs;
 
     if (!s->supports_seek_data) {
-        return -ENOTSUP;
+        goto exit;
     }
+
+#if defined SEEK_HOLE && defined SEEK_DATA
+    off_t offs;
 
     /*
      * SEEK_DATA cases:
@@ -1247,6 +1254,10 @@ static int find_allocation(BlockDriverState *bs, off_t start,
 
     /* D1 and H1 */
     return -EBUSY;
+#endif
+
+exit:
+    return -ENOTSUP;
 }
 
 /*
