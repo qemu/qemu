@@ -63,6 +63,17 @@ W: http://wiki.qemu.org/SecurityProcess
 M: Michael S. Tsirkin <mst@redhat.com>
 L: secalert@redhat.com
 
+Trivial patches
+---------------
+Trivial patches
+M: Michael Tokarev <mjt@tls.msk.ru>
+M: Laurent Vivier <laurent@vivier.eu>
+S: Maintained
+L: qemu-trivial@nongnu.org
+K: ^Subject:.*(?i)trivial
+T: git git://git.corpit.ru/qemu.git trivial-patches
+T: git git://github.com/vivier/qemu.git trivial-patches
+
 Guest CPU cores (TCG):
 ----------------------
 Overall
