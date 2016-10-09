@@ -202,6 +202,10 @@ static inline unsigned exp_random(double mean)
 #define SCSI_SENSE_ASCQ_PARAMETER_LIST_LENGTH_ERROR        0x1a00
 #endif
 
+#ifndef LIBISCSI_API_VERSION
+#define LIBISCSI_API_VERSION 20130701
+#endif
+
 static int iscsi_translate_sense(struct scsi_sense *sense)
 {
     int ret;
@@ -592,6 +596,20 @@ iscsi_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
     if (iscsilun->use_16_for_rw) {
+#if LIBISCSI_API_VERSION >= (20160603)
+        iTask.task = iscsi_write16_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                            NULL, num_sectors * iscsilun->block_size,
+                                            iscsilun->block_size, 0, 0, fua, 0, 0,
+                                            iscsi_co_generic_cb, &iTask,
+                                            (struct scsi_iovec *)iov->iov, iov->niov);
+    } else {
+        iTask.task = iscsi_write10_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                            NULL, num_sectors * iscsilun->block_size,
+                                            iscsilun->block_size, 0, 0, fua, 0, 0,
+                                            iscsi_co_generic_cb, &iTask,
+                                            (struct scsi_iovec *)iov->iov, iov->niov);
+    }
+#else
         iTask.task = iscsi_write16_task(iscsilun->iscsi, iscsilun->lun, lba,
                                         NULL, num_sectors * iscsilun->block_size,
                                         iscsilun->block_size, 0, 0, fua, 0, 0,
@@ -602,11 +620,14 @@ retry:
                                         iscsilun->block_size, 0, 0, fua, 0, 0,
                                         iscsi_co_generic_cb, &iTask);
     }
+#endif
     if (iTask.task == NULL) {
         return -ENOMEM;
     }
+#if LIBISCSI_API_VERSION < (20160603)
     scsi_task_set_iov_out(iTask.task, (struct scsi_iovec *) iov->iov,
                           iov->niov);
+#endif
     while (!iTask.complete) {
         iscsi_set_events(iscsilun);
         qemu_coroutine_yield();
@@ -789,6 +810,21 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
     if (iscsilun->use_16_for_rw) {
+#if LIBISCSI_API_VERSION >= (20160603)
+        iTask.task = iscsi_read16_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                           num_sectors * iscsilun->block_size,
+                                           iscsilun->block_size, 0, 0, 0, 0, 0,
+                                           iscsi_co_generic_cb, &iTask,
+                                           (struct scsi_iovec *)iov->iov, iov->niov);
+    } else {
+        iTask.task = iscsi_read10_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                           num_sectors * iscsilun->block_size,
+                                           iscsilun->block_size,
+                                           0, 0, 0, 0, 0,
+                                           iscsi_co_generic_cb, &iTask,
+                                           (struct scsi_iovec *)iov->iov, iov->niov);
+    }
+#else
         iTask.task = iscsi_read16_task(iscsilun->iscsi, iscsilun->lun, lba,
                                        num_sectors * iscsilun->block_size,
                                        iscsilun->block_size, 0, 0, 0, 0, 0,
@@ -800,11 +836,13 @@ retry:
                                        0, 0, 0, 0, 0,
                                        iscsi_co_generic_cb, &iTask);
     }
+#endif
     if (iTask.task == NULL) {
         return -ENOMEM;
     }
+#if LIBISCSI_API_VERSION < (20160603)
     scsi_task_set_iov_in(iTask.task, (struct scsi_iovec *) iov->iov, iov->niov);
-
+#endif
     while (!iTask.complete) {
         iscsi_set_events(iscsilun);
         qemu_coroutine_yield();
@@ -1649,7 +1687,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* timeout handling is broken in libiscsi before 1.15.0 */
     timeout = parse_timeout(iscsi_url->target);
-#if defined(LIBISCSI_API_VERSION) && LIBISCSI_API_VERSION >= 20150621
+#if LIBISCSI_API_VERSION >= 20150621
     iscsi_set_timeout(iscsi, timeout);
 #else
     if (timeout) {
