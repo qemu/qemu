@@ -742,11 +742,12 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
 
     /* In doubt sent page as normal */
     bytes_xmit = 0;
+    /* This just copies the page to f? */
     ret = ram_control_save_page(f, block->offset,
                            offset, TARGET_PAGE_SIZE, &bytes_xmit);
     if (bytes_xmit) {
         *bytes_transferred += bytes_xmit;
-        pages = 1;
+        pages = 1; //1 == success 
     }
 
     XBZRLE_cache_lock();
@@ -754,10 +755,13 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
     current_addr = block->offset + offset;
 
     if (block == last_sent_block) {
-        offset |= RAM_SAVE_FLAG_CONTINUE;
+        /* XXX Continue sending in same block */
+        offset |= RAM_SAVE_FLAG_CONTINUE; /* 0x20 */
+        /* WHy do this? Are blocks of size 0x20? */
     }
     if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
         if (ret != RAM_SAVE_CONTROL_DELAYED) {
+            /* 1 success page copied , non-delayed */
             if (bytes_xmit > 0) {
                 acct_info.norm_pages++;
             } else if (bytes_xmit == 0) {
@@ -765,6 +769,7 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
             }
         }
     } else {
+        /* Just save page header, no content? */
         pages = save_zero_page(f, block, offset, p, bytes_transferred);
         if (pages > 0) {
             /* Must let xbzrle know, otherwise a previous (now 0'd) cached
@@ -781,14 +786,20 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
                 send_async = false;
             }
         }
-    }
+    } /* End else block */
 
     /* XBZRLE overflow or normal page */
-    if (pages == -1) {
+    if (pages == -1) { /*pages =1 if bytes xmitted  */ 
+        /* Write page offset */
+        /* offset may've been 0x20'ed */
         *bytes_transferred += save_page_header(f, block,
                                                offset | RAM_SAVE_FLAG_PAGE);
         if (send_async) {
+            /* p = block->host+offset---the physical address offset, 
+               we write offset first above, and then the actual phy addr? */
             qemu_put_buffer_async(f, p, TARGET_PAGE_SIZE);
+            /* f, buf, size. Size is ? */
+            /* Maybe this just writes 0s? */
         } else {
             qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
         }
@@ -1332,7 +1343,7 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
 
     pss.block = last_seen_block;
     pss.offset = last_offset;
-    pss.complete_round = false;
+    pss.complete_round = false; //XXX flagged true by found_dirty_block to signify looped 
 
     if (!pss.block) {
         pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
@@ -1991,7 +2002,9 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         }
         pages_sent += pages;
         acct_info.iterations++;
-
+        /* XXX This IS number of RAM iterations 
+           Insert limiter here!  */
+        
         /* we want to check in the 1st loop, just in case it was the 1st time
            and we had to sync the dirty bitmap.
            qemu_get_clock_ns() is a bit expensive, so we only check each some

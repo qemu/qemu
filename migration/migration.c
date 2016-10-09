@@ -602,6 +602,7 @@ static void get_xbzrle_cache_stats(MigrationInfo *info)
     }
 }
 
+/* XXX QEMU monitor info */
 static void populate_ram_info(MigrationInfo *info, MigrationState *s)
 {
     info->has_ram = true;
@@ -615,7 +616,9 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->mbps = s->mbps;
     info->ram->dirty_sync_count = s->dirty_sync_count;
     info->ram->postcopy_requests = s->postcopy_requests;
-
+    
+    //info->ram->iterations = s->iterations ;
+    
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
         info->ram->dirty_pages_rate = s->dirty_pages_rate;
@@ -1756,6 +1759,11 @@ static void *migration_thread(void *opaque)
             pending_size = pend_nonpost + pend_post;
             trace_migrate_pending(pending_size, max_size,
                                   pend_post, pend_nonpost);
+            /** Ideally, iteration check here 
+             * But the ram_find_and_save_block is called through
+             * 3 levels of functions . */
+            /* Can either make the iterations a global variable
+             Or.... */
             if (pending_size && pending_size >= max_size) {
                 /* Still a significant amount to transfer */
 
@@ -1773,6 +1781,7 @@ static void *migration_thread(void *opaque)
                 }
                 /* Just another iteration step */
                 qemu_savevm_state_iterate(s->to_dst_file, entered_postcopy);
+                /* XXX */
             } else {
                 trace_migration_thread_low_pending(pending_size);
                 migration_completion(s, current_active_state,
