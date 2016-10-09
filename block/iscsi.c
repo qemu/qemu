@@ -1644,7 +1644,13 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -ENOMEM;
         goto out;
     }
-
+#if LIBISCSI_API_VERSION >= (20160603)
+    if (iscsi_init_transport(iscsi, iscsi_url->transport)) {
+        error_setg(errp, ("Error initializing transport."));
+        ret = -EINVAL;
+        goto out;
+    }
+#endif
     if (iscsi_set_targetname(iscsi, iscsi_url->target)) {
         error_setg(errp, "iSCSI: Failed to set target name.");
         ret = -EINVAL;
@@ -2048,9 +2054,48 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_attach_aio_context = iscsi_attach_aio_context,
 };
 
+#if LIBISCSI_API_VERSION >= (20160603)
+static BlockDriver bdrv_iser = {
+    .format_name     = "iser",
+    .protocol_name   = "iser",
+
+    .instance_size   = sizeof(IscsiLun),
+    .bdrv_needs_filename = true,
+    .bdrv_file_open  = iscsi_open,
+    .bdrv_close      = iscsi_close,
+    .bdrv_create     = iscsi_create,
+    .create_opts     = &iscsi_create_opts,
+    .bdrv_reopen_prepare   = iscsi_reopen_prepare,
+    .bdrv_reopen_commit    = iscsi_reopen_commit,
+    .bdrv_invalidate_cache = iscsi_invalidate_cache,
+
+    .bdrv_getlength  = iscsi_getlength,
+    .bdrv_get_info   = iscsi_get_info,
+    .bdrv_truncate   = iscsi_truncate,
+    .bdrv_refresh_limits = iscsi_refresh_limits,
+
+    .bdrv_co_get_block_status = iscsi_co_get_block_status,
+    .bdrv_co_pdiscard      = iscsi_co_pdiscard,
+    .bdrv_co_pwrite_zeroes = iscsi_co_pwrite_zeroes,
+    .bdrv_co_readv         = iscsi_co_readv,
+    .bdrv_co_writev_flags  = iscsi_co_writev_flags,
+    .bdrv_co_flush_to_disk = iscsi_co_flush,
+
+#ifdef __linux__
+    .bdrv_aio_ioctl   = iscsi_aio_ioctl,
+#endif
+
+    .bdrv_detach_aio_context = iscsi_detach_aio_context,
+    .bdrv_attach_aio_context = iscsi_attach_aio_context,
+};
+#endif
+
 static void iscsi_block_init(void)
 {
     bdrv_register(&bdrv_iscsi);
+#if LIBISCSI_API_VERSION >= (20160603)
+    bdrv_register(&bdrv_iser);
+#endif
 }
 
 block_init(iscsi_block_init);
