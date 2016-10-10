@@ -48,6 +48,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/statfs.h>
+#include <time.h>
 #include <utime.h>
 #include <sys/sysinfo.h>
 #include <sys/signalfd.h>
@@ -9681,6 +9682,23 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
         }
         break;
+#if defined(TARGET_NR_clock_adjtime) && defined(CONFIG_CLOCK_ADJTIME)
+    case TARGET_NR_clock_adjtime:
+        {
+            struct timex htx, *phtx = &htx;
+
+            if (target_to_host_timex(phtx, arg2) != 0) {
+                goto efault;
+            }
+            ret = get_errno(clock_adjtime(arg1, phtx));
+            if (!is_error(ret) && phtx) {
+                if (host_to_target_timex(arg2, phtx) != 0) {
+                    goto efault;
+                }
+            }
+        }
+        break;
+#endif
 #ifdef TARGET_NR_create_module
     case TARGET_NR_create_module:
 #endif

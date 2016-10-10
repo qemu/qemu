@@ -3911,6 +3911,21 @@ if compile_prog "" "" ; then
   setns=yes
 fi
 
+# clock_adjtime probe
+clock_adjtime=no
+cat > $TMPC <<EOF
+#include <time.h>
+
+int main(void)
+{
+    return clock_adjtime(0, 0);
+}
+EOF
+clock_adjtime=no
+if compile_prog "" "" ; then
+  clock_adjtime=yes
+fi
+
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
   if has makeinfo && has pod2man; then
@@ -5195,6 +5210,9 @@ if test "$timerfd" = "yes" ; then
 fi
 if test "$setns" = "yes" ; then
   echo "CONFIG_SETNS=y" >> $config_host_mak
+fi
+if test "$clock_adjtime" = "yes" ; then
+  echo "CONFIG_CLOCK_ADJTIME=y" >> $config_host_mak
 fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak

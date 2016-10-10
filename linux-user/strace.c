@@ -435,6 +435,69 @@ print_fdset(int n, abi_ulong target_fds_addr)
 }
 #endif
 
+#ifdef TARGET_NR_clock_adjtime
+/* IDs of the various system clocks */
+#define TARGET_CLOCK_REALTIME              0
+#define TARGET_CLOCK_MONOTONIC             1
+#define TARGET_CLOCK_PROCESS_CPUTIME_ID    2
+#define TARGET_CLOCK_THREAD_CPUTIME_ID     3
+#define TARGET_CLOCK_MONOTONIC_RAW         4
+#define TARGET_CLOCK_REALTIME_COARSE       5
+#define TARGET_CLOCK_MONOTONIC_COARSE      6
+#define TARGET_CLOCK_BOOTTIME              7
+#define TARGET_CLOCK_REALTIME_ALARM        8
+#define TARGET_CLOCK_BOOTTIME_ALARM        9
+#define TARGET_CLOCK_SGI_CYCLE             10
+#define TARGET_CLOCK_TAI                   11
+
+static void
+print_clockid(int clockid, int last)
+{
+    switch (clockid) {
+    case TARGET_CLOCK_REALTIME:
+        gemu_log("CLOCK_REALTIME");
+        break;
+    case TARGET_CLOCK_MONOTONIC:
+        gemu_log("CLOCK_MONOTONIC");
+        break;
+    case TARGET_CLOCK_PROCESS_CPUTIME_ID:
+        gemu_log("CLOCK_PROCESS_CPUTIME_ID");
+        break;
+    case TARGET_CLOCK_THREAD_CPUTIME_ID:
+        gemu_log("CLOCK_THREAD_CPUTIME_ID");
+        break;
+    case TARGET_CLOCK_MONOTONIC_RAW:
+        gemu_log("CLOCK_MONOTONIC_RAW");
+        break;
+    case TARGET_CLOCK_REALTIME_COARSE:
+        gemu_log("CLOCK_REALTIME_COARSE");
+        break;
+    case TARGET_CLOCK_MONOTONIC_COARSE:
+        gemu_log("CLOCK_MONOTONIC_COARSE");
+        break;
+    case TARGET_CLOCK_BOOTTIME:
+        gemu_log("CLOCK_BOOTTIME");
+        break;
+    case TARGET_CLOCK_REALTIME_ALARM:
+        gemu_log("CLOCK_REALTIME_ALARM");
+        break;
+    case TARGET_CLOCK_BOOTTIME_ALARM:
+        gemu_log("CLOCK_BOOTTIME_ALARM");
+        break;
+    case TARGET_CLOCK_SGI_CYCLE:
+        gemu_log("CLOCK_SGI_CYCLE");
+        break;
+    case TARGET_CLOCK_TAI:
+        gemu_log("CLOCK_TAI");
+        break;
+    default:
+        gemu_log("%d", clockid);
+        break;
+    }
+    gemu_log("%s", get_comma(last));
+}
+#endif
+
 /*
  * Sysycall specific output functions
  */
@@ -1092,6 +1155,19 @@ print_chmod(const struct syscallname *name,
     print_syscall_prologue(name);
     print_string(arg0, 0);
     print_file_mode(arg1, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
+#ifdef TARGET_NR_clock_adjtime
+static void
+print_clock_adjtime(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_clockid(arg0, 0);
+    print_pointer(arg1, 1);
     print_syscall_epilogue(name);
 }
 #endif

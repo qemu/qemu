@@ -79,6 +79,9 @@
 #ifdef TARGET_NR_chroot
 { TARGET_NR_chroot, "chroot" , NULL, NULL, NULL },
 #endif
+#ifdef TARGET_NR_clock_adjtime
+{ TARGET_NR_clock_adjtime, "clock_adjtime" , NULL, print_clock_adjtime, NULL },
+#endif
 #ifdef TARGET_NR_clock_getres
 { TARGET_NR_clock_getres, "clock_getres" , NULL, NULL, NULL },
 #endif
