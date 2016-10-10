@@ -75,6 +75,9 @@ static void iothread_instance_finalize(Object *obj)
     iothread_stop(obj, NULL);
     qemu_cond_destroy(&iothread->init_done_cond);
     qemu_mutex_destroy(&iothread->init_done_lock);
+    if (!iothread->ctx) {
+        return;
+    }
     aio_context_unref(iothread->ctx);
 }
 

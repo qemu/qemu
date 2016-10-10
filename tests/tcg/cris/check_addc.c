@@ -4,7 +4,7 @@
 #include "sys.h"
 #include "crisutils.h"
 
-static inline int cris_addc(int a, const int b)
+static always_inline int cris_addc(int a, const int b)
 {
 	asm ("addc\t%1, %0\n" : "+r" (a) : "r" (b));
 	return a;

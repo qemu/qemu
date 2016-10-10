@@ -850,6 +850,74 @@ static void qemu_spice_gl_block_timer(void *opaque)
     fprintf(stderr, "WARNING: spice: no gl-draw-done within one second\n");
 }
 
+static void spice_gl_refresh(DisplayChangeListener *dcl)
+{
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+    uint64_t cookie;
+
+    if (!ssd->ds || qemu_console_is_gl_blocked(ssd->dcl.con)) {
+        return;
+    }
+
+    graphic_hw_update(dcl->con);
+    if (ssd->gl_updates && ssd->have_surface) {
+        qemu_spice_gl_block(ssd, true);
+        cookie = (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_GL_DRAW_DONE, 0);
+        spice_qxl_gl_draw_async(&ssd->qxl, 0, 0,
+                                surface_width(ssd->ds),
+                                surface_height(ssd->ds),
+                                cookie);
+        ssd->gl_updates = 0;
+    }
+}
+
+static void spice_gl_update(DisplayChangeListener *dcl,
+                            int x, int y, int w, int h)
+{
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+
+    surface_gl_update_texture(ssd->gls, ssd->ds, x, y, w, h);
+    ssd->gl_updates++;
+}
+
+static void spice_gl_switch(DisplayChangeListener *dcl,
+                            struct DisplaySurface *new_surface)
+{
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+    EGLint stride, fourcc;
+    int fd;
+
+    if (ssd->ds) {
+        surface_gl_destroy_texture(ssd->gls, ssd->ds);
+    }
+    ssd->ds = new_surface;
+    if (ssd->ds) {
+        surface_gl_create_texture(ssd->gls, ssd->ds);
+        fd = egl_get_fd_for_texture(ssd->ds->texture,
+                                    &stride, &fourcc);
+        if (fd < 0) {
+            surface_gl_destroy_texture(ssd->gls, ssd->ds);
+            return;
+        }
+
+        dprint(1, "%s: %dx%d (stride %d/%d, fourcc 0x%x)\n", __func__,
+               surface_width(ssd->ds), surface_height(ssd->ds),
+               surface_stride(ssd->ds), stride, fourcc);
+
+        /* note: spice server will close the fd */
+        spice_qxl_gl_scanout(&ssd->qxl, fd,
+                             surface_width(ssd->ds),
+                             surface_height(ssd->ds),
+                             stride, fourcc, false);
+        ssd->have_surface = true;
+        ssd->have_scanout = false;
+
+        qemu_spice_gl_monitor_config(ssd, 0, 0,
+                                     surface_width(ssd->ds),
+                                     surface_height(ssd->ds));
+    }
+}
+
 static QEMUGLContext qemu_spice_gl_create_context(DisplayChangeListener *dcl,
                                                   QEMUGLParams *params)
 {
@@ -887,6 +955,8 @@ static void qemu_spice_gl_scanout(DisplayChangeListener *dcl,
     /* note: spice server will close the fd */
     spice_qxl_gl_scanout(&ssd->qxl, fd, backing_width, backing_height,
                          stride, fourcc, y_0_top);
+    ssd->have_surface = false;
+    ssd->have_scanout = (tex_id != 0);
 
     qemu_spice_gl_monitor_config(ssd, x, y, w, h);
 }
@@ -897,6 +967,10 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
     uint64_t cookie;
 
+    if (!ssd->have_scanout) {
+        return;
+    }
+
     dprint(2, "%s: %dx%d+%d+%d\n", __func__, w, h, x, y);
     qemu_spice_gl_block(ssd, true);
     cookie = (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_GL_DRAW_DONE, 0);
@@ -904,13 +978,13 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
 }
 
 static const DisplayChangeListenerOps display_listener_gl_ops = {
-    .dpy_name             = "spice-egl",
-    .dpy_gfx_update       = display_update,
-    .dpy_gfx_switch       = display_switch,
-    .dpy_gfx_check_format = qemu_pixman_check_format,
-    .dpy_refresh          = display_refresh,
-    .dpy_mouse_set        = display_mouse_set,
-    .dpy_cursor_define    = display_mouse_define,
+    .dpy_name                = "spice-egl",
+    .dpy_gfx_update          = spice_gl_update,
+    .dpy_gfx_switch          = spice_gl_switch,
+    .dpy_gfx_check_format    = console_gl_check_format,
+    .dpy_refresh             = spice_gl_refresh,
+    .dpy_mouse_set           = display_mouse_set,
+    .dpy_cursor_define       = display_mouse_define,
 
     .dpy_gl_ctx_create       = qemu_spice_gl_create_context,
     .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
@@ -933,10 +1007,12 @@ static void qemu_spice_display_init_one(QemuConsole *con)
 #ifdef HAVE_SPICE_GL
     if (display_opengl) {
         ssd->dcl.ops = &display_listener_gl_ops;
-        ssd->dmabuf_fd = -1;
         ssd->gl_unblock_bh = qemu_bh_new(qemu_spice_gl_unblock_bh, ssd);
         ssd->gl_unblock_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
                                              qemu_spice_gl_block_timer, ssd);
+        ssd->gls = console_gl_init_context();
+        ssd->have_surface = false;
+        ssd->have_scanout = false;
     }
 #endif
     ssd->dcl.con = con;

@@ -81,12 +81,6 @@
 #include "qemu/cutils.h"
 #include "qapi/qmp/dispatch.h"
 
-/* for hmp_info_irq/pic */
-#if defined(TARGET_SPARC)
-#include "hw/sparc/sun4m.h"
-#endif
-#include "hw/lm32/lm32_pic.h"
-
 #if defined(TARGET_S390X)
 #include "hw/s390x/storage-keys.h"
 #endif
@@ -991,6 +985,15 @@ static void qmp_unregister_commands_hack(void)
 #endif
 #ifndef TARGET_ARM
     qmp_unregister_command("query-gic-capabilities");
+#endif
+#if !defined(TARGET_S390X)
+    qmp_unregister_command("query-cpu-model-expansion");
+    qmp_unregister_command("query-cpu-model-baseline");
+    qmp_unregister_command("query-cpu-model-comparison");
+#endif
+#if !defined(TARGET_PPC) && !defined(TARGET_ARM) && !defined(TARGET_I386) \
+    && !defined(TARGET_S390X)
+    qmp_unregister_command("query-cpu-definitions");
 #endif
 }
 

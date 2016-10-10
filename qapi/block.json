@@ -195,14 +195,18 @@
 # Emitted whenever the tray of a removable device is moved by the guest or by
 # HMP/QMP commands
 #
-# @device: device name
+# @device: Block device name. This is always present for compatibility
+#          reasons, but it can be empty ("") if the image does not
+#          have a device name associated.
+#
+# @id: The name or QOM path of the guest device
 #
 # @tray-open: true if the tray has been opened or false if it has been closed
 #
 # Since: 1.1
 ##
 { 'event': 'DEVICE_TRAY_MOVED',
-  'data': { 'device': 'str', 'tray-open': 'bool' } }
+  'data': { 'device': 'str', 'id': 'str', 'tray-open': 'bool' } }
 
 ##
 # @QuorumOpType

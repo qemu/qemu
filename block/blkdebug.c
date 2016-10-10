@@ -49,7 +49,6 @@ typedef struct BDRVBlkdebugState {
 
 typedef struct BlkdebugAIOCB {
     BlockAIOCB common;
-    QEMUBH *bh;
     int ret;
 } BlkdebugAIOCB;
 
@@ -410,7 +409,6 @@ out:
 static void error_callback_bh(void *opaque)
 {
     struct BlkdebugAIOCB *acb = opaque;
-    qemu_bh_delete(acb->bh);
     acb->common.cb(acb->common.opaque, acb->ret);
     qemu_aio_unref(acb);
 }
@@ -421,7 +419,6 @@ static BlockAIOCB *inject_error(BlockDriverState *bs,
     BDRVBlkdebugState *s = bs->opaque;
     int error = rule->options.inject.error;
     struct BlkdebugAIOCB *acb;
-    QEMUBH *bh;
     bool immediately = rule->options.inject.immediately;
 
     if (rule->options.inject.once) {
@@ -436,9 +433,7 @@ static BlockAIOCB *inject_error(BlockDriverState *bs,
     acb = qemu_aio_get(&blkdebug_aiocb_info, bs, cb, opaque);
     acb->ret = -error;
 
-    bh = aio_bh_new(bdrv_get_aio_context(bs), error_callback_bh, acb);
-    acb->bh = bh;
-    qemu_bh_schedule(bh);
+    aio_bh_schedule_oneshot(bdrv_get_aio_context(bs), error_callback_bh, acb);
 
     return &acb->common;
 }

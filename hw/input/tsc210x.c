@@ -47,24 +47,25 @@ typedef struct {
     uint8_t out_fifo[16384];
     uint16_t model;
 
-    int x, y;
-    int pressure;
+    int32_t x, y;
+    bool pressure;
 
-    int state, page, offset, irq;
-    uint16_t command, dav;
+    uint8_t page, offset;
+    uint16_t dav;
 
-    int busy;
-    int enabled;
-    int host_mode;
-    int function;
-    int nextfunction;
-    int precision;
-    int nextprecision;
-    int filter;
-    int pin_func;
-    int ref;
-    int timing;
-    int noise;
+    bool state;
+    bool irq;
+    bool command;
+    bool busy;
+    bool enabled;
+    bool host_mode;
+    uint8_t function, nextfunction;
+    uint8_t precision, nextprecision;
+    uint8_t filter;
+    uint8_t pin_func;
+    uint8_t ref;
+    uint8_t timing;
+    uint8_t noise;
 
     uint16_t audio_ctrl1;
     uint16_t audio_ctrl2;
@@ -72,7 +73,7 @@ typedef struct {
     uint16_t pll[3];
     uint16_t volume;
     int64_t volume_change;
-    int softstep;
+    bool softstep;
     uint16_t dac_power;
     int64_t powerdown;
     uint16_t filter_data[0x14];
@@ -93,6 +94,7 @@ typedef struct {
         int mode;
         int intr;
     } kb;
+    int64_t now; /* Time at migration */
 } TSC210xState;
 
 static const int resolution[4] = { 12, 8, 10, 12 };
@@ -154,14 +156,14 @@ static const uint16_t mode_regs[16] = {
 
 static void tsc210x_reset(TSC210xState *s)
 {
-    s->state = 0;
+    s->state = false;
     s->pin_func = 2;
-    s->enabled = 0;
-    s->busy = 0;
+    s->enabled = false;
+    s->busy = false;
     s->nextfunction = 0;
     s->ref = 0;
     s->timing = 0;
-    s->irq = 0;
+    s->irq = false;
     s->dav = 0;
 
     s->audio_ctrl1 = 0x0000;
@@ -172,7 +174,7 @@ static void tsc210x_reset(TSC210xState *s)
     s->pll[2] = 0x1fff;
     s->volume = 0xffff;
     s->dac_power = 0x8540;
-    s->softstep = 1;
+    s->softstep = true;
     s->volume_change = 0;
     s->powerdown = 0;
     s->filter_data[0x00] = 0x6be3;
@@ -566,7 +568,7 @@ static void tsc2102_control_register_write(
         s->enabled = !(value & 0x4000);
         if (s->busy && !s->enabled)
             timer_del(s->timer);
-        s->busy &= s->enabled;
+        s->busy = s->busy && s->enabled;
         s->nextfunction = (value >> 10) & 0xf;
         s->nextprecision = (value >> 8) & 3;
         s->filter = value & 0xff;
@@ -773,7 +775,7 @@ static void tsc2102_audio_register_write(
 static void tsc210x_pin_update(TSC210xState *s)
 {
     int64_t expires;
-    int pin_state;
+    bool pin_state;
 
     switch (s->pin_func) {
     case 0:
@@ -788,7 +790,7 @@ static void tsc210x_pin_update(TSC210xState *s)
     }
 
     if (!s->enabled)
-        pin_state = 0;
+        pin_state = false;
 
     if (pin_state != s->irq) {
         s->irq = pin_state;
@@ -814,7 +816,7 @@ static void tsc210x_pin_update(TSC210xState *s)
     case TSC_MODE_TEMP1:
     case TSC_MODE_TEMP2:
         if (s->dav)
-            s->enabled = 0;
+            s->enabled = false;
         break;
 
     case TSC_MODE_AUX_SCAN:
@@ -832,7 +834,7 @@ static void tsc210x_pin_update(TSC210xState *s)
     if (!s->enabled || s->busy || s->dav)
         return;
 
-    s->busy = 1;
+    s->busy = true;
     s->precision = s->nextprecision;
     s->function = s->nextfunction;
     expires = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
@@ -867,7 +869,7 @@ static uint16_t tsc210x_read(TSC210xState *s)
 
     /* Allow sequential reads.  */
     s->offset ++;
-    s->state = 0;
+    s->state = false;
     return ret;
 }
 
@@ -878,10 +880,10 @@ static void tsc210x_write(TSC210xState *s, uint16_t value)
      * command and data every second time.
      */
     if (!s->state) {
-        s->command = value >> 15;
+        s->command = (value >> 15) != 0;
         s->page = (value >> 11) & 0x0f;
         s->offset = (value >> 5) & 0x3f;
-        s->state = 1;
+        s->state = true;
     } else {
         if (s->command)
             fprintf(stderr, "tsc210x_write: SPI overrun!\n");
@@ -901,7 +903,7 @@ static void tsc210x_write(TSC210xState *s, uint16_t value)
             }
 
         tsc210x_pin_update(s);
-        s->state = 0;
+        s->state = false;
     }
 }
 
@@ -933,7 +935,7 @@ static void tsc210x_timer_tick(void *opaque)
     if (!s->busy)
         return;
 
-    s->busy = 0;
+    s->busy = false;
     s->dav |= mode_regs[s->function];
     tsc210x_pin_update(s);
     qemu_irq_lower(s->davint);
@@ -974,108 +976,34 @@ static void tsc210x_i2s_set_rate(TSC210xState *s, int in, int out)
     s->i2s_rx_rate = in;
 }
 
-static void tsc210x_save(QEMUFile *f, void *opaque)
+static void tsc210x_pre_save(void *opaque)
 {
     TSC210xState *s = (TSC210xState *) opaque;
-    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    int i;
-
-    qemu_put_be16(f, s->x);
-    qemu_put_be16(f, s->y);
-    qemu_put_byte(f, s->pressure);
-
-    qemu_put_byte(f, s->state);
-    qemu_put_byte(f, s->page);
-    qemu_put_byte(f, s->offset);
-    qemu_put_byte(f, s->command);
-
-    qemu_put_byte(f, s->irq);
-    qemu_put_be16s(f, &s->dav);
-
-    timer_put(f, s->timer);
-    qemu_put_byte(f, s->enabled);
-    qemu_put_byte(f, s->host_mode);
-    qemu_put_byte(f, s->function);
-    qemu_put_byte(f, s->nextfunction);
-    qemu_put_byte(f, s->precision);
-    qemu_put_byte(f, s->nextprecision);
-    qemu_put_byte(f, s->filter);
-    qemu_put_byte(f, s->pin_func);
-    qemu_put_byte(f, s->ref);
-    qemu_put_byte(f, s->timing);
-    qemu_put_be32(f, s->noise);
-
-    qemu_put_be16s(f, &s->audio_ctrl1);
-    qemu_put_be16s(f, &s->audio_ctrl2);
-    qemu_put_be16s(f, &s->audio_ctrl3);
-    qemu_put_be16s(f, &s->pll[0]);
-    qemu_put_be16s(f, &s->pll[1]);
-    qemu_put_be16s(f, &s->volume);
-    qemu_put_sbe64(f, (s->volume_change - now));
-    qemu_put_sbe64(f, (s->powerdown - now));
-    qemu_put_byte(f, s->softstep);
-    qemu_put_be16s(f, &s->dac_power);
-
-    for (i = 0; i < 0x14; i ++)
-        qemu_put_be16s(f, &s->filter_data[i]);
+    s->now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 }
 
-static int tsc210x_load(QEMUFile *f, void *opaque, int version_id)
+static int tsc210x_post_load(void *opaque, int version_id)
 {
     TSC210xState *s = (TSC210xState *) opaque;
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    int i;
 
-    s->x = qemu_get_be16(f);
-    s->y = qemu_get_be16(f);
-    s->pressure = qemu_get_byte(f);
-
-    s->state = qemu_get_byte(f);
-    s->page = qemu_get_byte(f);
-    s->offset = qemu_get_byte(f);
-    s->command = qemu_get_byte(f);
-
-    s->irq = qemu_get_byte(f);
-    qemu_get_be16s(f, &s->dav);
-
-    timer_get(f, s->timer);
-    s->enabled = qemu_get_byte(f);
-    s->host_mode = qemu_get_byte(f);
-    s->function = qemu_get_byte(f);
-    if (s->function < 0 || s->function >= ARRAY_SIZE(mode_regs)) {
+    if (s->function >= ARRAY_SIZE(mode_regs)) {
         return -EINVAL;
     }
-    s->nextfunction = qemu_get_byte(f);
-    if (s->nextfunction < 0 || s->nextfunction >= ARRAY_SIZE(mode_regs)) {
+    if (s->nextfunction >= ARRAY_SIZE(mode_regs)) {
         return -EINVAL;
     }
-    s->precision = qemu_get_byte(f);
-    if (s->precision < 0 || s->precision >= ARRAY_SIZE(resolution)) {
+    if (s->precision >= ARRAY_SIZE(resolution)) {
         return -EINVAL;
     }
-    s->nextprecision = qemu_get_byte(f);
-    if (s->nextprecision < 0 || s->nextprecision >= ARRAY_SIZE(resolution)) {
+    if (s->nextprecision >= ARRAY_SIZE(resolution)) {
         return -EINVAL;
     }
-    s->filter = qemu_get_byte(f);
-    s->pin_func = qemu_get_byte(f);
-    s->ref = qemu_get_byte(f);
-    s->timing = qemu_get_byte(f);
-    s->noise = qemu_get_be32(f);
 
-    qemu_get_be16s(f, &s->audio_ctrl1);
-    qemu_get_be16s(f, &s->audio_ctrl2);
-    qemu_get_be16s(f, &s->audio_ctrl3);
-    qemu_get_be16s(f, &s->pll[0]);
-    qemu_get_be16s(f, &s->pll[1]);
-    qemu_get_be16s(f, &s->volume);
-    s->volume_change = qemu_get_sbe64(f) + now;
-    s->powerdown = qemu_get_sbe64(f) + now;
-    s->softstep = qemu_get_byte(f);
-    qemu_get_be16s(f, &s->dac_power);
-
-    for (i = 0; i < 0x14; i ++)
-        qemu_get_be16s(f, &s->filter_data[i]);
+    s->volume_change -= s->now;
+    s->volume_change += now;
+    s->powerdown -= s->now;
+    s->powerdown += now;
 
     s->busy = timer_pending(s->timer);
     qemu_set_irq(s->pint, !s->irq);
@@ -1083,6 +1011,60 @@ static int tsc210x_load(QEMUFile *f, void *opaque, int version_id)
 
     return 0;
 }
+
+static VMStateField vmstatefields_tsc210x[] = {
+    VMSTATE_BOOL(enabled, TSC210xState),
+    VMSTATE_BOOL(host_mode, TSC210xState),
+    VMSTATE_BOOL(irq, TSC210xState),
+    VMSTATE_BOOL(command, TSC210xState),
+    VMSTATE_BOOL(pressure, TSC210xState),
+    VMSTATE_BOOL(softstep, TSC210xState),
+    VMSTATE_BOOL(state, TSC210xState),
+    VMSTATE_UINT16(dav, TSC210xState),
+    VMSTATE_INT32(x, TSC210xState),
+    VMSTATE_INT32(y, TSC210xState),
+    VMSTATE_UINT8(offset, TSC210xState),
+    VMSTATE_UINT8(page, TSC210xState),
+    VMSTATE_UINT8(filter, TSC210xState),
+    VMSTATE_UINT8(pin_func, TSC210xState),
+    VMSTATE_UINT8(ref, TSC210xState),
+    VMSTATE_UINT8(timing, TSC210xState),
+    VMSTATE_UINT8(noise, TSC210xState),
+    VMSTATE_UINT8(function, TSC210xState),
+    VMSTATE_UINT8(nextfunction, TSC210xState),
+    VMSTATE_UINT8(precision, TSC210xState),
+    VMSTATE_UINT8(nextprecision, TSC210xState),
+    VMSTATE_UINT16(audio_ctrl1, TSC210xState),
+    VMSTATE_UINT16(audio_ctrl2, TSC210xState),
+    VMSTATE_UINT16(audio_ctrl3, TSC210xState),
+    VMSTATE_UINT16_ARRAY(pll, TSC210xState, 3),
+    VMSTATE_UINT16(volume, TSC210xState),
+    VMSTATE_UINT16(dac_power, TSC210xState),
+    VMSTATE_INT64(volume_change, TSC210xState),
+    VMSTATE_INT64(powerdown, TSC210xState),
+    VMSTATE_INT64(now, TSC210xState),
+    VMSTATE_UINT16_ARRAY(filter_data, TSC210xState, 0x14),
+    VMSTATE_TIMER_PTR(timer, TSC210xState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription vmstate_tsc2102 = {
+    .name = "tsc2102",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_save = tsc210x_pre_save,
+    .post_load = tsc210x_post_load,
+    .fields = vmstatefields_tsc210x,
+};
+
+static const VMStateDescription vmstate_tsc2301 = {
+    .name = "tsc2301",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_save = tsc210x_pre_save,
+    .post_load = tsc210x_post_load,
+    .fields = vmstatefields_tsc210x,
+};
 
 uWireSlave *tsc2102_init(qemu_irq pint)
 {
@@ -1125,8 +1107,7 @@ uWireSlave *tsc2102_init(qemu_irq pint)
     AUD_register_card(s->name, &s->card);
 
     qemu_register_reset((void *) tsc210x_reset, s);
-    register_savevm(NULL, s->name, -1, 0,
-                    tsc210x_save, tsc210x_load, s);
+    vmstate_register(NULL, 0, &vmstate_tsc2102, s);
 
     return &s->chip;
 }
@@ -1174,7 +1155,7 @@ uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq, qemu_irq dav)
     AUD_register_card(s->name, &s->card);
 
     qemu_register_reset((void *) tsc210x_reset, s);
-    register_savevm(NULL, s->name, -1, 0, tsc210x_save, tsc210x_load, s);
+    vmstate_register(NULL, 0, &vmstate_tsc2301, s);
 
     return &s->chip;
 }

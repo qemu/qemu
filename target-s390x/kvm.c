@@ -132,6 +132,8 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
 
+static QemuMutex qemu_sigp_mutex;
+
 static int cap_sync_regs;
 static int cap_async_pf;
 static int cap_mem_op;
@@ -286,6 +288,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             cap_ri = 1;
         }
     }
+
+    qemu_mutex_init(&qemu_sigp_mutex);
 
     return 0;
 }
@@ -1385,7 +1389,6 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
 }
 
 typedef struct SigpInfo {
-    S390CPU *cpu;
     uint64_t param;
     int cc;
     uint64_t *status_reg;
@@ -1398,38 +1401,40 @@ static void set_sigp_status(SigpInfo *si, uint64_t status)
     si->cc = SIGP_CC_STATUS_STORED;
 }
 
-static void sigp_start(void *arg)
+static void sigp_start(CPUState *cs, void *arg)
 {
+    S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg;
 
-    if (s390_cpu_get_state(si->cpu) != CPU_STATE_STOPPED) {
+    if (s390_cpu_get_state(cpu) != CPU_STATE_STOPPED) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
         return;
     }
 
-    s390_cpu_set_state(CPU_STATE_OPERATING, si->cpu);
+    s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_stop(void *arg)
+static void sigp_stop(CPUState *cs, void *arg)
 {
+    S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg;
     struct kvm_s390_irq irq = {
         .type = KVM_S390_SIGP_STOP,
     };
 
-    if (s390_cpu_get_state(si->cpu) != CPU_STATE_OPERATING) {
+    if (s390_cpu_get_state(cpu) != CPU_STATE_OPERATING) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
         return;
     }
 
     /* disabled wait - sleeping in user space */
-    if (CPU(si->cpu)->halted) {
-        s390_cpu_set_state(CPU_STATE_STOPPED, si->cpu);
+    if (cs->halted) {
+        s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
     } else {
         /* execute the stop function */
-        si->cpu->env.sigp_order = SIGP_STOP;
-        kvm_s390_vcpu_interrupt(si->cpu, &irq);
+        cpu->env.sigp_order = SIGP_STOP;
+        kvm_s390_vcpu_interrupt(cpu, &irq);
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
@@ -1496,56 +1501,58 @@ static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
     return 0;
 }
 
-static void sigp_stop_and_store_status(void *arg)
+static void sigp_stop_and_store_status(CPUState *cs, void *arg)
 {
+    S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg;
     struct kvm_s390_irq irq = {
         .type = KVM_S390_SIGP_STOP,
     };
 
     /* disabled wait - sleeping in user space */
-    if (s390_cpu_get_state(si->cpu) == CPU_STATE_OPERATING &&
-        CPU(si->cpu)->halted) {
-        s390_cpu_set_state(CPU_STATE_STOPPED, si->cpu);
+    if (s390_cpu_get_state(cpu) == CPU_STATE_OPERATING && cs->halted) {
+        s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
     }
 
-    switch (s390_cpu_get_state(si->cpu)) {
+    switch (s390_cpu_get_state(cpu)) {
     case CPU_STATE_OPERATING:
-        si->cpu->env.sigp_order = SIGP_STOP_STORE_STATUS;
-        kvm_s390_vcpu_interrupt(si->cpu, &irq);
+        cpu->env.sigp_order = SIGP_STOP_STORE_STATUS;
+        kvm_s390_vcpu_interrupt(cpu, &irq);
         /* store will be performed when handling the stop intercept */
         break;
     case CPU_STATE_STOPPED:
         /* already stopped, just store the status */
-        cpu_synchronize_state(CPU(si->cpu));
-        kvm_s390_store_status(si->cpu, KVM_S390_STORE_STATUS_DEF_ADDR, true);
+        cpu_synchronize_state(cs);
+        kvm_s390_store_status(cpu, KVM_S390_STORE_STATUS_DEF_ADDR, true);
         break;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_store_status_at_address(void *arg)
+static void sigp_store_status_at_address(CPUState *cs, void *arg)
 {
+    S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg;
     uint32_t address = si->param & 0x7ffffe00u;
 
     /* cpu has to be stopped */
-    if (s390_cpu_get_state(si->cpu) != CPU_STATE_STOPPED) {
+    if (s390_cpu_get_state(cpu) != CPU_STATE_STOPPED) {
         set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
         return;
     }
 
-    cpu_synchronize_state(CPU(si->cpu));
+    cpu_synchronize_state(cs);
 
-    if (kvm_s390_store_status(si->cpu, address, false)) {
+    if (kvm_s390_store_status(cpu, address, false)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
         return;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_store_adtl_status(void *arg)
+static void sigp_store_adtl_status(CPUState *cs, void *arg)
 {
+    S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg;
 
     if (!s390_has_feat(S390_FEAT_VECTOR)) {
@@ -1554,7 +1561,7 @@ static void sigp_store_adtl_status(void *arg)
     }
 
     /* cpu has to be stopped */
-    if (s390_cpu_get_state(si->cpu) != CPU_STATE_STOPPED) {
+    if (s390_cpu_get_state(cpu) != CPU_STATE_STOPPED) {
         set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
         return;
     }
@@ -1565,31 +1572,32 @@ static void sigp_store_adtl_status(void *arg)
         return;
     }
 
-    cpu_synchronize_state(CPU(si->cpu));
+    cpu_synchronize_state(cs);
 
-    if (kvm_s390_store_adtl_status(si->cpu, si->param)) {
+    if (kvm_s390_store_adtl_status(cpu, si->param)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
         return;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_restart(void *arg)
+static void sigp_restart(CPUState *cs, void *arg)
 {
+    S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg;
     struct kvm_s390_irq irq = {
         .type = KVM_S390_RESTART,
     };
 
-    switch (s390_cpu_get_state(si->cpu)) {
+    switch (s390_cpu_get_state(cpu)) {
     case CPU_STATE_STOPPED:
         /* the restart irq has to be delivered prior to any other pending irq */
-        cpu_synchronize_state(CPU(si->cpu));
-        do_restart_interrupt(&si->cpu->env);
-        s390_cpu_set_state(CPU_STATE_OPERATING, si->cpu);
+        cpu_synchronize_state(cs);
+        do_restart_interrupt(&cpu->env);
+        s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
         break;
     case CPU_STATE_OPERATING:
-        kvm_s390_vcpu_interrupt(si->cpu, &irq);
+        kvm_s390_vcpu_interrupt(cpu, &irq);
         break;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
@@ -1597,20 +1605,18 @@ static void sigp_restart(void *arg)
 
 int kvm_s390_cpu_restart(S390CPU *cpu)
 {
-    SigpInfo si = {
-        .cpu = cpu,
-    };
+    SigpInfo si = {};
 
     run_on_cpu(CPU(cpu), sigp_restart, &si);
     DPRINTF("DONE: KVM cpu restart: %p\n", &cpu->env);
     return 0;
 }
 
-static void sigp_initial_cpu_reset(void *arg)
+static void sigp_initial_cpu_reset(CPUState *cs, void *arg)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     SigpInfo *si = arg;
-    CPUState *cs = CPU(si->cpu);
-    S390CPUClass *scc = S390_CPU_GET_CLASS(si->cpu);
 
     cpu_synchronize_state(cs);
     scc->initial_cpu_reset(cs);
@@ -1618,11 +1624,11 @@ static void sigp_initial_cpu_reset(void *arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_cpu_reset(void *arg)
+static void sigp_cpu_reset(CPUState *cs, void *arg)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     SigpInfo *si = arg;
-    CPUState *cs = CPU(si->cpu);
-    S390CPUClass *scc = S390_CPU_GET_CLASS(si->cpu);
 
     cpu_synchronize_state(cs);
     scc->cpu_reset(cs);
@@ -1630,12 +1636,13 @@ static void sigp_cpu_reset(void *arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_set_prefix(void *arg)
+static void sigp_set_prefix(CPUState *cs, void *arg)
 {
+    S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg;
     uint32_t addr = si->param & 0x7fffe000u;
 
-    cpu_synchronize_state(CPU(si->cpu));
+    cpu_synchronize_state(cs);
 
     if (!address_space_access_valid(&address_space_memory, addr,
                                     sizeof(struct LowCore), false)) {
@@ -1644,13 +1651,13 @@ static void sigp_set_prefix(void *arg)
     }
 
     /* cpu has to be stopped */
-    if (s390_cpu_get_state(si->cpu) != CPU_STATE_STOPPED) {
+    if (s390_cpu_get_state(cpu) != CPU_STATE_STOPPED) {
         set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
         return;
     }
 
-    si->cpu->env.psa = addr;
-    cpu_synchronize_post_init(CPU(si->cpu));
+    cpu->env.psa = addr;
+    cpu_synchronize_post_init(cs);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
@@ -1658,7 +1665,6 @@ static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
                                   uint64_t param, uint64_t *status_reg)
 {
     SigpInfo si = {
-        .cpu = dst_cpu,
         .param = param,
         .status_reg = status_reg,
     };
@@ -1774,6 +1780,11 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     status_reg = &env->regs[r1];
     param = (r1 % 2) ? env->regs[r1] : env->regs[r1 + 1];
 
+    if (qemu_mutex_trylock(&qemu_sigp_mutex)) {
+        ret = SIGP_CC_BUSY;
+        goto out;
+    }
+
     switch (order) {
     case SIGP_SET_ARCH:
         ret = sigp_set_architecture(cpu, param, status_reg);
@@ -1783,7 +1794,9 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         dst_cpu = s390_cpu_addr2state(env->regs[r3]);
         ret = handle_sigp_single_dst(dst_cpu, order, param, status_reg);
     }
+    qemu_mutex_unlock(&qemu_sigp_mutex);
 
+out:
     trace_kvm_sigp_finished(order, CPU(cpu)->cpu_index,
                             dst_cpu ? CPU(dst_cpu)->cpu_index : -1, ret);
 
@@ -1988,7 +2001,7 @@ static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr, uint8_t ar)
         strcpy((char *)sysib.ext_names[0], "KVMguest");
     }
     /* Insert UUID */
-    memcpy(sysib.vm[0].uuid, qemu_uuid, sizeof(sysib.vm[0].uuid));
+    memcpy(sysib.vm[0].uuid, &qemu_uuid, sizeof(sysib.vm[0].uuid));
 
     s390_cpu_virt_mem_write(cpu, addr, ar, &sysib, sizeof(sysib));
 }

@@ -34,6 +34,7 @@
 typedef struct {
     Coroutine base;
     void *stack;
+    size_t stack_size;
     sigjmp_buf env;
 
 #ifdef CONFIG_VALGRIND_H
@@ -82,7 +83,6 @@ static void coroutine_trampoline(int i0, int i1)
 
 Coroutine *qemu_coroutine_new(void)
 {
-    const size_t stack_size = 1 << 20;
     CoroutineUContext *co;
     ucontext_t old_uc, uc;
     sigjmp_buf old_env;
@@ -101,17 +101,18 @@ Coroutine *qemu_coroutine_new(void)
     }
 
     co = g_malloc0(sizeof(*co));
-    co->stack = g_malloc(stack_size);
+    co->stack_size = COROUTINE_STACK_SIZE;
+    co->stack = qemu_alloc_stack(&co->stack_size);
     co->base.entry_arg = &old_env; /* stash away our jmp_buf */
 
     uc.uc_link = &old_uc;
     uc.uc_stack.ss_sp = co->stack;
-    uc.uc_stack.ss_size = stack_size;
+    uc.uc_stack.ss_size = co->stack_size;
     uc.uc_stack.ss_flags = 0;
 
 #ifdef CONFIG_VALGRIND_H
     co->valgrind_stack_id =
-        VALGRIND_STACK_REGISTER(co->stack, co->stack + stack_size);
+        VALGRIND_STACK_REGISTER(co->stack, co->stack + co->stack_size);
 #endif
 
     arg.p = co;
@@ -149,7 +150,7 @@ void qemu_coroutine_delete(Coroutine *co_)
     valgrind_stack_deregister(co);
 #endif
 
-    g_free(co->stack);
+    qemu_free_stack(co->stack, co->stack_size);
     g_free(co);
 }
 

@@ -388,6 +388,16 @@ void os_mem_prealloc(int fd, char *area, size_t sz, Error **errp);
 int qemu_read_password(char *buf, int buf_size);
 
 /**
+ * qemu_get_pid_name:
+ * @pid: pid of a process
+ *
+ * For given @pid fetch its name. Caller is responsible for
+ * freeing the string when no longer needed.
+ * Returns allocated string on success, NULL on failure.
+ */
+char *qemu_get_pid_name(pid_t pid);
+
+/**
  * qemu_fork:
  *
  * A version of fork that avoids signal handler race

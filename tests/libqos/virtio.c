@@ -147,7 +147,7 @@ void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr)
 
     for (i = 0; i < vq->size - 1; i++) {
         /* vq->desc[i].addr */
-        writew(vq->desc + (16 * i), 0);
+        writeq(vq->desc + (16 * i), 0);
         /* vq->desc[i].next */
         writew(vq->desc + (16 * i) + 14, i + 1);
     }

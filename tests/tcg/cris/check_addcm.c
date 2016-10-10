@@ -5,14 +5,14 @@
 #include "crisutils.h"
 
 /* need to avoid acr as source here.  */
-static inline int cris_addc_m(int a, const int *b)
+static always_inline int cris_addc_m(int a, const int *b)
 {
 	asm volatile ("addc [%1], %0\n" : "+r" (a) : "r" (b));
 	return a;
 }
 
 /* 'b' is a crisv32 constrain to avoid postinc with $acr.  */
-static inline int cris_addc_pi_m(int a, int **b)
+static always_inline int cris_addc_pi_m(int a, int **b)
 {
 	asm volatile ("addc [%1+], %0\n" : "+r" (a), "+b" (*b));
 	return a;

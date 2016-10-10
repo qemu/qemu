@@ -13,57 +13,57 @@ void _err(void) {
 	_fail(tst_cc_loc);
 }
 
-static inline void cris_tst_cc_n1(void)
+static always_inline void cris_tst_cc_n1(void)
 {
 	asm volatile ("bpl _err\n"
 		      "nop\n");
 }
-static inline void cris_tst_cc_n0(void)
+static always_inline void cris_tst_cc_n0(void)
 {
 	asm volatile ("bmi _err\n"
 		      "nop\n");
 }
 
-static inline void cris_tst_cc_z1(void)
+static always_inline void cris_tst_cc_z1(void)
 {
 	asm volatile ("bne _err\n"
 		      "nop\n");
 }
-static inline void cris_tst_cc_z0(void)
+static always_inline void cris_tst_cc_z0(void)
 {
 	asm volatile ("beq _err\n"
 		      "nop\n");
 }
-static inline void cris_tst_cc_v1(void)
+static always_inline void cris_tst_cc_v1(void)
 {
 	asm volatile ("bvc _err\n"
 		      "nop\n");
 }
-static inline void cris_tst_cc_v0(void)
+static always_inline void cris_tst_cc_v0(void)
 {
 	asm volatile ("bvs _err\n"
 		      "nop\n");
 }
 
-static inline void cris_tst_cc_c1(void)
+static always_inline void cris_tst_cc_c1(void)
 {
 	asm volatile ("bcc _err\n"
 		      "nop\n");
 }
-static inline void cris_tst_cc_c0(void)
+static always_inline void cris_tst_cc_c0(void)
 {
 	asm volatile ("bcs _err\n"
 		      "nop\n");
 }
 
-static inline void cris_tst_mov_cc(int n, int z)
+static always_inline void cris_tst_mov_cc(int n, int z)
 {
 	if (n) cris_tst_cc_n1(); else cris_tst_cc_n0();
 	if (z) cris_tst_cc_z1(); else cris_tst_cc_z0();
 	asm volatile ("" : : "g" (_err));
 }
 
-static inline void cris_tst_cc(const int n, const int z,
+static always_inline void cris_tst_cc(const int n, const int z,
 			       const int v, const int c)
 {
 	if (n) cris_tst_cc_n1(); else cris_tst_cc_n0();

@@ -25,7 +25,6 @@
 # Since: 1.3
 #
 ##
-
 { 'struct': 'SnapshotInfo',
   'data': { 'id': 'str', 'name': 'str', 'vm-state-size': 'int',
             'date-sec': 'int', 'date-nsec': 'int',
@@ -81,7 +80,6 @@
 #
 # Since: 1.7
 ##
-
 { 'union': 'ImageInfoSpecific',
   'data': {
       'qcow2': 'ImageInfoSpecificQCow2',
@@ -129,7 +127,6 @@
 # Since: 1.3
 #
 ##
-
 { 'struct': 'ImageInfo',
   'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
            '*actual-size': 'int', 'virtual-size': 'int',
@@ -181,7 +178,6 @@
 # Since: 1.4
 #
 ##
-
 { 'struct': 'ImageCheck',
   'data': {'filename': 'str', 'format': 'str', 'check-errors': 'int',
            '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
@@ -518,7 +514,6 @@
 #
 # Since: 2.5
 ##
-
 { 'struct': 'BlockDeviceTimedStats',
   'data': { 'interval_length': 'int', 'min_rd_latency_ns': 'int',
             'max_rd_latency_ns': 'int', 'avg_rd_latency_ns': 'int',
@@ -1721,15 +1716,16 @@
 ##
 # @BlockdevOptionsFile
 #
-# Driver specific block device options for the file backend and similar
-# protocols.
+# Driver specific block device options for the file backend.
 #
 # @filename:    path to the image file
+# @aio:         #optional AIO backend (default: threads) (since: 2.8)
 #
 # Since: 1.7
 ##
 { 'struct': 'BlockdevOptionsFile',
-  'data': { 'filename': 'str' } }
+  'data': { 'filename': 'str',
+            '*aio': 'BlockdevAioOptions' } }
 
 ##
 # @BlockdevOptionsNull
@@ -2211,6 +2207,18 @@
             '*top-id': 'str' } }
 
 ##
+# @BlockdevOptionsCurl
+#
+# Driver specific block device options for the curl backend.
+#
+# @filename:    path to the image file
+#
+# Since: 1.7
+##
+{ 'struct': 'BlockdevOptionsCurl',
+  'data': { 'filename': 'str' } }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.  Many options are available for all
@@ -2221,7 +2229,6 @@
 #                 This option is required on the top level of blockdev-add.
 # @discard:       #optional discard-related options (default: ignore)
 # @cache:         #optional cache-related options
-# @aio:           #optional AIO backend (default: threads)
 # @read-only:     #optional whether the block device should be read-only
 #                 (default: false)
 # @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
@@ -2236,7 +2243,6 @@
             '*node-name': 'str',
             '*discard': 'BlockdevDiscardOptions',
             '*cache': 'BlockdevCacheOptions',
-            '*aio': 'BlockdevAioOptions',
             '*read-only': 'bool',
             '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
   'discriminator': 'driver',
@@ -2248,13 +2254,13 @@
       'cloop':      'BlockdevOptionsGenericFormat',
       'dmg':        'BlockdevOptionsGenericFormat',
       'file':       'BlockdevOptionsFile',
-      'ftp':        'BlockdevOptionsFile',
-      'ftps':       'BlockdevOptionsFile',
+      'ftp':        'BlockdevOptionsCurl',
+      'ftps':       'BlockdevOptionsCurl',
       'gluster':    'BlockdevOptionsGluster',
       'host_cdrom': 'BlockdevOptionsFile',
       'host_device':'BlockdevOptionsFile',
-      'http':       'BlockdevOptionsFile',
-      'https':      'BlockdevOptionsFile',
+      'http':       'BlockdevOptionsCurl',
+      'https':      'BlockdevOptionsCurl',
 # TODO iscsi: Wait for structured options
       'luks':       'BlockdevOptionsLUKS',
 # TODO nbd: Should take InetSocketAddress for 'host'?
@@ -2271,7 +2277,7 @@
       'replication':'BlockdevOptionsReplication',
 # TODO sheepdog: Wait for structured options
 # TODO ssh: Should take InetSocketAddress for 'host'?
-      'tftp':       'BlockdevOptionsFile',
+      'tftp':       'BlockdevOptionsCurl',
       'vdi':        'BlockdevOptionsGenericFormat',
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
@@ -2534,7 +2540,13 @@
 #
 # Emitted when a disk I/O error occurs
 #
-# @device: device name
+# @device: device name. This is always present for compatibility
+#          reasons, but it can be empty ("") if the image does not
+#          have a device name associated.
+#
+# @node-name: node name. Note that errors may be reported for the root node
+#             that is directly attached to a guest device rather than for the
+#             node where the error occurred. (Since: 2.8)
 #
 # @operation: I/O operation
 #
@@ -2555,7 +2567,7 @@
 # Since: 0.13.0
 ##
 { 'event': 'BLOCK_IO_ERROR',
-  'data': { 'device': 'str', 'operation': 'IoOperationType',
+  'data': { 'device': 'str', 'node-name': 'str', 'operation': 'IoOperationType',
             'action': 'BlockErrorAction', '*nospace': 'bool',
             'reason': 'str' } }
 

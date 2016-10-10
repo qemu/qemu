@@ -96,7 +96,6 @@ struct BDRVCURLState;
 
 typedef struct CURLAIOCB {
     BlockAIOCB common;
-    QEMUBH *bh;
     QEMUIOVector *qiov;
 
     int64_t sector_num;
@@ -739,9 +738,6 @@ static void curl_readv_bh_cb(void *p)
     CURLAIOCB *acb = p;
     BDRVCURLState *s = acb->common.bs->opaque;
 
-    qemu_bh_delete(acb->bh);
-    acb->bh = NULL;
-
     size_t start = acb->sector_num * SECTOR_SIZE;
     size_t end;
 
@@ -805,8 +801,7 @@ static BlockAIOCB *curl_aio_readv(BlockDriverState *bs,
     acb->sector_num = sector_num;
     acb->nb_sectors = nb_sectors;
 
-    acb->bh = aio_bh_new(bdrv_get_aio_context(bs), curl_readv_bh_cb, acb);
-    qemu_bh_schedule(acb->bh);
+    aio_bh_schedule_oneshot(bdrv_get_aio_context(bs), curl_readv_bh_cb, acb);
     return &acb->common;
 }
 

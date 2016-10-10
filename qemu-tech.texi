@@ -1,146 +1,27 @@
-\input texinfo @c -*- texinfo -*-
-@c %**start of header
-@setfilename qemu-tech.info
-
-@documentlanguage en
-@documentencoding UTF-8
-
-@settitle QEMU Internals
-@exampleindent 0
-@paragraphindent 0
-@c %**end of header
-
-@ifinfo
-@direntry
-* QEMU Internals: (qemu-tech).   The QEMU Emulator Internals.
-@end direntry
-@end ifinfo
-
-@iftex
-@titlepage
-@sp 7
-@center @titlefont{QEMU Internals}
-@sp 3
-@end titlepage
-@end iftex
-
-@ifnottex
-@node Top
-@top
+@node Implementation notes
+@appendix Implementation notes
 
 @menu
-* Introduction::
-* QEMU Internals::
-* Regression Tests::
-* Index::
+* CPU emulation::
+* Translator Internals::
+* QEMU compared to other emulators::
+* Bibliography::
 @end menu
-@end ifnottex
 
-@contents
-
-@node Introduction
-@chapter Introduction
+@node CPU emulation
+@section CPU emulation
 
 @menu
-* intro_features::         Features
-* intro_x86_emulation::    x86 and x86-64 emulation
-* intro_arm_emulation::    ARM emulation
-* intro_mips_emulation::   MIPS emulation
-* intro_ppc_emulation::    PowerPC emulation
-* intro_sparc_emulation::  Sparc32 and Sparc64 emulation
-* intro_xtensa_emulation:: Xtensa emulation
-* intro_other_emulation::  Other CPU emulation
+* x86::     x86 and x86-64 emulation
+* ARM::     ARM emulation
+* MIPS::    MIPS emulation
+* PPC::     PowerPC emulation
+* SPARC::   Sparc32 and Sparc64 emulation
+* Xtensa::  Xtensa emulation
 @end menu
 
-@node intro_features
-@section Features
-
-QEMU is a FAST! processor emulator using a portable dynamic
-translator.
-
-QEMU has two operating modes:
-
-@itemize @minus
-
-@item
-Full system emulation. In this mode (full platform virtualization),
-QEMU emulates a full system (usually a PC), including a processor and
-various peripherals. It can be used to launch several different
-Operating Systems at once without rebooting the host machine or to
-debug system code.
-
-@item
-User mode emulation. In this mode (application level virtualization),
-QEMU can launch processes compiled for one CPU on another CPU, however
-the Operating Systems must match. This can be used for example to ease
-cross-compilation and cross-debugging.
-@end itemize
-
-As QEMU requires no host kernel driver to run, it is very safe and
-easy to use.
-
-QEMU generic features:
-
-@itemize
-
-@item User space only or full system emulation.
-
-@item Using dynamic translation to native code for reasonable speed.
-
-@item
-Working on x86, x86_64 and PowerPC32/64 hosts. Being tested on ARM,
-S390x, Sparc32 and Sparc64.
-
-@item Self-modifying code support.
-
-@item Precise exceptions support.
-
-@item
-Floating point library supporting both full software emulation and
-native host FPU instructions.
-
-@end itemize
-
-QEMU user mode emulation features:
-@itemize
-@item Generic Linux system call converter, including most ioctls.
-
-@item clone() emulation using native CPU clone() to use Linux scheduler for threads.
-
-@item Accurate signal handling by remapping host signals to target signals.
-@end itemize
-
-Linux user emulator (Linux host only) can be used to launch the Wine
-Windows API emulator (@url{http://www.winehq.org}). A BSD user emulator for BSD
-hosts is under development. It would also be possible to develop a
-similar user emulator for Solaris.
-
-QEMU full system emulation features:
-@itemize
-@item
-QEMU uses a full software MMU for maximum portability.
-
-@item
-QEMU can optionally use an in-kernel accelerator, like kvm. The accelerators 
-execute some of the guest code natively, while
-continuing to emulate the rest of the machine.
-
-@item
-Various hardware devices can be emulated and in some cases, host
-devices (e.g. serial and parallel ports, USB, drives) can be used
-transparently by the guest Operating System. Host device passthrough
-can be used for talking to external physical peripherals (e.g. a
-webcam, modem or tape drive).
-
-@item
-Symmetric multiprocessing (SMP) even on a host with a single CPU. On a
-SMP host system, QEMU can use only one CPU fully due to difficulty in
-implementing atomic memory accesses efficiently.
-
-@end itemize
-
-@node intro_x86_emulation
-@section x86 and x86-64 emulation
+@node x86
+@subsection x86 and x86-64 emulation
 
 QEMU x86 target features:
 
@@ -174,8 +55,8 @@ normal use.
 
 @end itemize
 
-@node intro_arm_emulation
-@section ARM emulation
+@node ARM
+@subsection ARM emulation
 
 @itemize
 
@@ -187,8 +68,8 @@ normal use.
 
 @end itemize
 
-@node intro_mips_emulation
-@section MIPS emulation
+@node MIPS
+@subsection MIPS emulation
 
 @itemize
 
@@ -214,8 +95,8 @@ Current QEMU limitations:
 
 @end itemize
 
-@node intro_ppc_emulation
-@section PowerPC emulation
+@node PPC
+@subsection PowerPC emulation
 
 @itemize
 
@@ -226,8 +107,8 @@ FPU and MMU.
 
 @end itemize
 
-@node intro_sparc_emulation
-@section Sparc32 and Sparc64 emulation
+@node SPARC
+@subsection Sparc32 and Sparc64 emulation
 
 @itemize
 
@@ -254,8 +135,8 @@ Current QEMU limitations:
 
 @end itemize
 
-@node intro_xtensa_emulation
-@section Xtensa emulation
+@node Xtensa
+@subsection Xtensa emulation
 
 @itemize
 
@@ -279,42 +160,108 @@ may be created from overlay with minimal amount of hand-written code.
 
 @end itemize
 
-@node intro_other_emulation
-@section Other CPU emulation
+@node Translator Internals
+@section Translator Internals
 
-In addition to the above, QEMU supports emulation of other CPUs with
-varying levels of success. These are:
+QEMU is a dynamic translator. When it first encounters a piece of code,
+it converts it to the host instruction set. Usually dynamic translators
+are very complicated and highly CPU dependent. QEMU uses some tricks
+which make it relatively easily portable and simple while achieving good
+performances.
 
-@itemize
+QEMU's dynamic translation backend is called TCG, for "Tiny Code
+Generator". For more information, please take a look at @code{tcg/README}.
 
-@item
-Alpha
-@item
-CRIS
-@item
-M68k
-@item
-SH4
-@end itemize
+Some notable features of QEMU's dynamic translator are:
 
-@node QEMU Internals
-@chapter QEMU Internals
+@table @strong
 
-@menu
-* QEMU compared to other emulators::
-* Portable dynamic translation::
-* Condition code optimisations::
-* CPU state optimisations::
-* Translation cache::
-* Direct block chaining::
-* Self-modifying code and translated code invalidation::
-* Exception support::
-* MMU emulation::
-* Device emulation::
-* Hardware interrupts::
-* User emulation specific details::
-* Bibliography::
-@end menu
+@item CPU state optimisations:
+The target CPUs have many internal states which change the way it
+evaluates instructions. In order to achieve a good speed, the
+translation phase considers that some state information of the virtual
+CPU cannot change in it. The state is recorded in the Translation
+Block (TB). If the state changes (e.g. privilege level), a new TB will
+be generated and the previous TB won't be used anymore until the state
+matches the state recorded in the previous TB. The same idea can be applied
+to other aspects of the CPU state.  For example, on x86, if the SS,
+DS and ES segments have a zero base, then the translator does not even
+generate an addition for the segment base.
+
+@item Direct block chaining:
+After each translated basic block is executed, QEMU uses the simulated
+Program Counter (PC) and other cpu state information (such as the CS
+segment base value) to find the next basic block.
+
+In order to accelerate the most common cases where the new simulated PC
+is known, QEMU can patch a basic block so that it jumps directly to the
+next one.
+
+The most portable code uses an indirect jump. An indirect jump makes
+it easier to make the jump target modification atomic. On some host
+architectures (such as x86 or PowerPC), the @code{JUMP} opcode is
+directly patched so that the block chaining has no overhead.
+
+@item Self-modifying code and translated code invalidation:
+Self-modifying code is a special challenge in x86 emulation because no
+instruction cache invalidation is signaled by the application when code
+is modified.
+
+User-mode emulation marks a host page as write-protected (if it is
+not already read-only) every time translated code is generated for a
+basic block.  Then, if a write access is done to the page, Linux raises
+a SEGV signal. QEMU then invalidates all the translated code in the page
+and enables write accesses to the page.  For system emulation, write
+protection is achieved through the software MMU.
+
+Correct translated code invalidation is done efficiently by maintaining
+a linked list of every translated block contained in a given page. Other
+linked lists are also maintained to undo direct block chaining.
+
+On RISC targets, correctly written software uses memory barriers and
+cache flushes, so some of the protection above would not be
+necessary. However, QEMU still requires that the generated code always
+matches the target instructions in memory in order to handle
+exceptions correctly.
+
+@item Exception support:
+longjmp() is used when an exception such as division by zero is
+encountered.
+
+The host SIGSEGV and SIGBUS signal handlers are used to get invalid
+memory accesses.  QEMU keeps a map from host program counter to
+target program counter, and looks up where the exception happened
+based on the host program counter at the exception point.
+
+On some targets, some bits of the virtual CPU's state are not flushed to the
+memory until the end of the translation block.  This is done for internal
+emulation state that is rarely accessed directly by the program and/or changes
+very often throughout the execution of a translation block---this includes
+condition codes on x86, delay slots on SPARC, conditional execution on
+ARM, and so on.  This state is stored for each target instruction, and
+looked up on exceptions.
+
+@item MMU emulation:
+For system emulation QEMU uses a software MMU. In that mode, the MMU
+virtual to physical address translation is done at every memory
+access.
+
+QEMU uses an address translation cache (TLB) to speed up the translation.
+In order to avoid flushing the translated code each time the MMU
+mappings change, all caches in QEMU are physically indexed.  This
+means that each basic block is indexed with its physical address.
+
+In order to avoid invalidating the basic block chain when MMU mappings
+change, chaining is only performed when the destination of the jump
+shares a page with the basic block that is performing the jump.
+
+The MMU can also distinguish RAM and ROM memory areas from MMIO memory
+areas.  Access is faster for RAM and ROM because the translation cache also
+hosts the offset between guest address and host memory.  Accessing MMIO
+memory areas instead calls out to C code for device emulation.
+Finally, the MMU helps tracking dirty pages and pages pointed to by
+translation blocks.
+@end table
 
 @node QEMU compared to other emulators
 @section QEMU compared to other emulators
@@ -366,240 +313,6 @@ provide cycle exact simulation as an emulator can.
 VirtualBox [9], Xen [10] and KVM [11] are based on QEMU. QEMU-SystemC
 [12] uses QEMU to simulate a system where some hardware devices are
 developed in SystemC.
-
-@node Portable dynamic translation
-@section Portable dynamic translation
-
-QEMU is a dynamic translator. When it first encounters a piece of code,
-it converts it to the host instruction set. Usually dynamic translators
-are very complicated and highly CPU dependent. QEMU uses some tricks
-which make it relatively easily portable and simple while achieving good
-performances.
-
-After the release of version 0.9.1, QEMU switched to a new method of
-generating code, Tiny Code Generator or TCG. TCG relaxes the
-dependency on the exact version of the compiler used. The basic idea
-is to split every target instruction into a couple of RISC-like TCG
-ops (see @code{target-i386/translate.c}). Some optimizations can be
-performed at this stage, including liveness analysis and trivial
-constant expression evaluation. TCG ops are then implemented in the
-host CPU back end, also known as TCG target (see
-@code{tcg/i386/tcg-target.inc.c}). For more information, please take a
-look at @code{tcg/README}.
-
-@node Condition code optimisations
-@section Condition code optimisations
-
-Lazy evaluation of CPU condition codes (@code{EFLAGS} register on x86)
-is important for CPUs where every instruction sets the condition
-codes. It tends to be less important on conventional RISC systems
-where condition codes are only updated when explicitly requested. On
-Sparc64, costly update of both 32 and 64 bit condition codes can be
-avoided with lazy evaluation.
-
-Instead of computing the condition codes after each x86 instruction,
-QEMU just stores one operand (called @code{CC_SRC}), the result
-(called @code{CC_DST}) and the type of operation (called
-@code{CC_OP}). When the condition codes are needed, the condition
-codes can be calculated using this information. In addition, an
-optimized calculation can be performed for some instruction types like
-conditional branches.
-
-@code{CC_OP} is almost never explicitly set in the generated code
-because it is known at translation time.
-
-The lazy condition code evaluation is used on x86, m68k, cris and
-Sparc. ARM uses a simplified variant for the N and Z flags.
-
-@node CPU state optimisations
-@section CPU state optimisations
-
-The target CPUs have many internal states which change the way it
-evaluates instructions. In order to achieve a good speed, the
-translation phase considers that some state information of the virtual
-CPU cannot change in it. The state is recorded in the Translation
-Block (TB). If the state changes (e.g. privilege level), a new TB will
-be generated and the previous TB won't be used anymore until the state
-matches the state recorded in the previous TB. For example, if the SS,
-DS and ES segments have a zero base, then the translator does not even
-generate an addition for the segment base.
-
-[The FPU stack pointer register is not handled that way yet].
-
-@node Translation cache
-@section Translation cache
-
-A 32 MByte cache holds the most recently used translations. For
-simplicity, it is completely flushed when it is full. A translation unit
-contains just a single basic block (a block of x86 instructions
-terminated by a jump or by a virtual CPU state change which the
-translator cannot deduce statically).
-
-@node Direct block chaining
-@section Direct block chaining
-
-After each translated basic block is executed, QEMU uses the simulated
-Program Counter (PC) and other cpu state information (such as the CS
-segment base value) to find the next basic block.
-
-In order to accelerate the most common cases where the new simulated PC
-is known, QEMU can patch a basic block so that it jumps directly to the
-next one.
-
-The most portable code uses an indirect jump. An indirect jump makes
-it easier to make the jump target modification atomic. On some host
-architectures (such as x86 or PowerPC), the @code{JUMP} opcode is
-directly patched so that the block chaining has no overhead.
-
-@node Self-modifying code and translated code invalidation
-@section Self-modifying code and translated code invalidation
-
-Self-modifying code is a special challenge in x86 emulation because no
-instruction cache invalidation is signaled by the application when code
-is modified.
-
-When translated code is generated for a basic block, the corresponding
-host page is write protected if it is not already read-only. Then, if
-a write access is done to the page, Linux raises a SEGV signal. QEMU
-then invalidates all the translated code in the page and enables write
-accesses to the page.
-
-Correct translated code invalidation is done efficiently by maintaining
-a linked list of every translated block contained in a given page. Other
-linked lists are also maintained to undo direct block chaining.
-
-On RISC targets, correctly written software uses memory barriers and
-cache flushes, so some of the protection above would not be
-necessary. However, QEMU still requires that the generated code always
-matches the target instructions in memory in order to handle
-exceptions correctly.
-
-@node Exception support
-@section Exception support
-
-longjmp() is used when an exception such as division by zero is
-encountered.
-
-The host SIGSEGV and SIGBUS signal handlers are used to get invalid
-memory accesses. The simulated program counter is found by
-retranslating the corresponding basic block and by looking where the
-host program counter was at the exception point.
-
-The virtual CPU cannot retrieve the exact @code{EFLAGS} register because
-in some cases it is not computed because of condition code
-optimisations. It is not a big concern because the emulated code can
-still be restarted in any cases.
-
-@node MMU emulation
-@section MMU emulation
-
-For system emulation QEMU supports a soft MMU. In that mode, the MMU
-virtual to physical address translation is done at every memory
-access. QEMU uses an address translation cache to speed up the
-translation.
-
-In order to avoid flushing the translated code each time the MMU
-mappings change, QEMU uses a physically indexed translation cache. It
-means that each basic block is indexed with its physical address.
-
-When MMU mappings change, only the chaining of the basic blocks is
-reset (i.e. a basic block can no longer jump directly to another one).
-
-@node Device emulation
-@section Device emulation
-
-Systems emulated by QEMU are organized by boards. At initialization
-phase, each board instantiates a number of CPUs, devices, RAM and
-ROM. Each device in turn can assign I/O ports or memory areas (for
-MMIO) to its handlers. When the emulation starts, an access to the
-ports or MMIO memory areas assigned to the device causes the
-corresponding handler to be called.
-
-RAM and ROM are handled more optimally, only the offset to the host
-memory needs to be added to the guest address.
-
-The video RAM of VGA and other display cards is special: it can be
-read or written directly like RAM, but write accesses cause the memory
-to be marked with VGA_DIRTY flag as well.
-
-QEMU supports some device classes like serial and parallel ports, USB,
-drives and network devices, by providing APIs for easier connection to
-the generic, higher level implementations. The API hides the
-implementation details from the devices, like native device use or
-advanced block device formats like QCOW.
-
-Usually the devices implement a reset method and register support for
-saving and loading of the device state. The devices can also use
-timers, especially together with the use of bottom halves (BHs).
-
-@node Hardware interrupts
-@section Hardware interrupts
-
-In order to be faster, QEMU does not check at every basic block if a
-hardware interrupt is pending. Instead, the user must asynchronously
-call a specific function to tell that an interrupt is pending. This
-function resets the chaining of the currently executing basic
-block. It ensures that the execution will return soon in the main loop
-of the CPU emulator. Then the main loop can test if the interrupt is
-pending and handle it.
-
-@node User emulation specific details
-@section User emulation specific details
-
-@subsection Linux system call translation
-
-QEMU includes a generic system call translator for Linux. It means that
-the parameters of the system calls can be converted to fix the
-endianness and 32/64 bit issues. The IOCTLs are converted with a generic
-type description system (see @file{ioctls.h} and @file{thunk.c}).
-
-QEMU supports host CPUs which have pages bigger than 4KB. It records all
-the mappings the process does and try to emulated the @code{mmap()}
-system calls in cases where the host @code{mmap()} call would fail
-because of bad page alignment.
-
-@subsection Linux signals
-
-Normal and real-time signals are queued along with their information
-(@code{siginfo_t}) as it is done in the Linux kernel. Then an interrupt
-request is done to the virtual CPU. When it is interrupted, one queued
-signal is handled by generating a stack frame in the virtual CPU as the
-Linux kernel does. The @code{sigreturn()} system call is emulated to return
-from the virtual signal handler.
-
-Some signals (such as SIGALRM) directly come from the host. Other
-signals are synthesized from the virtual CPU exceptions such as SIGFPE
-when a division by zero is done (see @code{main.c:cpu_loop()}).
-
-The blocked signal mask is still handled by the host Linux kernel so
-that most signal system calls can be redirected directly to the host
-Linux kernel. Only the @code{sigaction()} and @code{sigreturn()} system
-calls need to be fully emulated (see @file{signal.c}).
-
-@subsection clone() system call and threads
-
-The Linux clone() system call is usually used to create a thread. QEMU
-uses the host clone() system call so that real host threads are created
-for each emulated thread. One virtual CPU instance is created for each
-thread.
-
-The virtual x86 CPU atomic operations are emulated with a global lock so
-that their semantic is preserved.
-
-Note that currently there are still some locking issues in QEMU. In
-particular, the translated cache flush is not protected yet against
-reentrancy.
-
-@subsection Self-virtualization
-
-QEMU was conceived so that ultimately it can emulate itself. Although
-it is not very useful, it is an important test to show the power of the
-emulator.
-
-Achieving self-virtualization is not easy because there may be address
-space conflicts. QEMU user emulators solve this problem by being an
-executable ELF shared object as the ld-linux.so ELF interpreter. That
-way, it can be relocated at load time.
 
 @node Bibliography
 @section Bibliography
@@ -656,43 +369,3 @@ Kernel Based Virtual Machine (KVM).
 QEMU-SystemC, a hardware co-simulator.
 
 @end table
-
-@node Regression Tests
-@chapter Regression Tests
-
-In the directory @file{tests/}, various interesting testing programs
-are available. They are used for regression testing.
-
-@menu
-* test-i386::
-* linux-test::
-@end menu
-
-@node test-i386
-@section @file{test-i386}
-
-This program executes most of the 16 bit and 32 bit x86 instructions and
-generates a text output. It can be compared with the output obtained with
-a real CPU or another emulator. The target @code{make test} runs this
-program and a @code{diff} on the generated output.
-
-The Linux system call @code{modify_ldt()} is used to create x86 selectors
-to test some 16 bit addressing and 32 bit with segmentation cases.
-
-The Linux system call @code{vm86()} is used to test vm86 emulation.
-
-Various exceptions are raised to test most of the x86 user space
-exception reporting.
-
-@node linux-test
-@section @file{linux-test}
-
-This program tests various Linux system calls. It is used to verify
-that the system call parameters are correctly converted between target
-and host CPUs.
-
-@node Index
-@chapter Index
-@printindex cp
-
-@bye

@@ -15,6 +15,8 @@
 
 requires mingw dtc
 
+cd "$BUILD_DIR"
+
 for prefix in x86_64-w64-mingw32- i686-w64-mingw32-; do
     TARGET_LIST=x86_64-softmmu,aarch64-softmmu \
         build_qemu --cross-prefix=$prefix \

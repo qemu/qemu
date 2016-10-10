@@ -13,19 +13,18 @@
 #include "kvm_ppc.h"
 
 struct SPRSyncState {
-    CPUState *cs;
     int spr;
     target_ulong value;
     target_ulong mask;
 };
 
-static void do_spr_sync(void *arg)
+static void do_spr_sync(CPUState *cs, void *arg)
 {
     struct SPRSyncState *s = arg;
-    PowerPCCPU *cpu = POWERPC_CPU(s->cs);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
 
-    cpu_synchronize_state(s->cs);
+    cpu_synchronize_state(cs);
     env->spr[s->spr] &= ~s->mask;
     env->spr[s->spr] |= s->value;
 }
@@ -34,7 +33,6 @@ static void set_spr(CPUState *cs, int spr, target_ulong value,
                     target_ulong mask)
 {
     struct SPRSyncState s = {
-        .cs = cs,
         .spr = spr,
         .value = value,
         .mask = mask
@@ -909,17 +907,17 @@ static target_ulong cas_get_option_vector(int vector, target_ulong table)
 }
 
 typedef struct {
-    PowerPCCPU *cpu;
     uint32_t cpu_version;
     Error *err;
 } SetCompatState;
 
-static void do_set_compat(void *arg)
+static void do_set_compat(CPUState *cs, void *arg)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
     SetCompatState *s = arg;
 
-    cpu_synchronize_state(CPU(s->cpu));
-    ppc_set_compat(s->cpu, s->cpu_version, &s->err);
+    cpu_synchronize_state(cs);
+    ppc_set_compat(cpu, s->cpu_version, &s->err);
 }
 
 #define get_compat_level(cpuver) ( \
@@ -1015,7 +1013,6 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
     if (old_cpu_version != cpu_version) {
         CPU_FOREACH(cs) {
             SetCompatState s = {
-                .cpu = POWERPC_CPU(cs),
                 .cpu_version = cpu_version,
                 .err = NULL,
             };

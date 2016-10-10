@@ -80,6 +80,7 @@ static int cap_ppc_watchdog;
 static int cap_papr;
 static int cap_htab_fd;
 static int cap_fixup_hcalls;
+static int cap_htm;             /* Hardware transactional memory support */
 
 static uint32_t debug_inst_opcode;
 
@@ -99,6 +100,16 @@ static void kvm_kick_cpu(void *opaque)
     PowerPCCPU *cpu = opaque;
 
     qemu_cpu_kick(CPU(cpu));
+}
+
+/* Check whether we are running with KVM-PR (instead of KVM-HV).  This
+ * should only be used for fallback tests - generally we should use
+ * explicit capabilities for the features we want, rather than
+ * assuming what is/isn't available depending on the KVM variant. */
+static bool kvmppc_is_pr(KVMState *ks)
+{
+    /* Assume KVM-PR if the GET_PVINFO capability is available */
+    return kvm_check_extension(ks, KVM_CAP_PPC_GET_PVINFO) != 0;
 }
 
 static int kvm_ppc_register_host_cpu_type(void);
@@ -122,6 +133,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      * only activated after this by kvmppc_set_papr() */
     cap_htab_fd = kvm_check_extension(s, KVM_CAP_PPC_HTAB_FD);
     cap_fixup_hcalls = kvm_check_extension(s, KVM_CAP_PPC_FIXUP_HCALL);
+    cap_htm = kvm_vm_check_extension(s, KVM_CAP_PPC_HTM);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -221,10 +233,9 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
      *
      * For that to work we make a few assumptions:
      *
-     * - If KVM_CAP_PPC_GET_PVINFO is supported we are running "PR"
-     *   KVM which only supports 4K and 16M pages, but supports them
-     *   regardless of the backing store characteritics. We also don't
-     *   support 1T segments.
+     * - Check whether we are running "PR" KVM which only supports 4K
+     *   and 16M pages, but supports them regardless of the backing
+     *   store characteritics. We also don't support 1T segments.
      *
      *   This is safe as if HV KVM ever supports that capability or PR
      *   KVM grows supports for more page/segment sizes, those versions
@@ -239,7 +250,7 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
      *   implements KVM_CAP_PPC_GET_SMMU_INFO and thus doesn't hit
      *   this fallback.
      */
-    if (kvm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_PVINFO)) {
+    if (kvmppc_is_pr(cs->kvm_state)) {
         /* No flags */
         info->flags = 0;
         info->slb_size = 64;
@@ -559,10 +570,17 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     idle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, kvm_kick_cpu, cpu);
 
-    /* Some targets support access to KVM's guest TLB. */
     switch (cenv->mmu_model) {
     case POWERPC_MMU_BOOKE206:
+        /* This target supports access to KVM's guest TLB */
         ret = kvm_booke206_tlb_init(cpu);
+        break;
+    case POWERPC_MMU_2_07:
+        if (!cap_htm && !kvmppc_is_pr(cs->kvm_state)) {
+            /* KVM-HV has transactional memory on POWER8 also without the
+             * KVM_CAP_PPC_HTM extension, so enable it here instead. */
+            cap_htm = true;
+        }
         break;
     default:
         break;
@@ -2268,11 +2286,8 @@ int kvmppc_reset_htab(int shift_hint)
 
     /* We have a kernel that predates the htab reset calls.  For PR
      * KVM, we need to allocate the htab ourselves, for an HV KVM of
-     * this era, it has allocated a 16MB fixed size hash table
-     * already.  Kernels of this era have the GET_PVINFO capability
-     * only on PR, so we use this hack to determine the right
-     * answer */
-    if (kvm_check_extension(kvm_state, KVM_CAP_PPC_GET_PVINFO)) {
+     * this era, it has allocated a 16MB fixed size hash table already. */
+    if (kvmppc_is_pr(kvm_state)) {
         /* PR - tell caller to allocate htab */
         return 0;
     } else {
@@ -2351,6 +2366,11 @@ bool kvmppc_has_cap_htab_fd(void)
 bool kvmppc_has_cap_fixup_hcalls(void)
 {
     return cap_fixup_hcalls;
+}
+
+bool kvmppc_has_cap_htm(void)
+{
+    return cap_htm;
 }
 
 static PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)

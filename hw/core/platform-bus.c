@@ -74,7 +74,7 @@ hwaddr platform_bus_get_mmio_addr(PlatformBusDevice *pbus, SysBusDevice *sbdev,
     return object_property_get_int(OBJECT(sbdev_mr), "addr", NULL);
 }
 
-static int platform_bus_count_irqs(SysBusDevice *sbdev, void *opaque)
+static void platform_bus_count_irqs(SysBusDevice *sbdev, void *opaque)
 {
     PlatformBusDevice *pbus = opaque;
     qemu_irq sbirq;
@@ -93,8 +93,6 @@ static int platform_bus_count_irqs(SysBusDevice *sbdev, void *opaque)
             }
         }
     }
-
-    return 0;
 }
 
 /*
@@ -168,7 +166,7 @@ static void platform_bus_map_mmio(PlatformBusDevice *pbus, SysBusDevice *sbdev,
  * For each sysbus device, look for unassigned IRQ lines as well as
  * unassociated MMIO regions. Connect them to the platform bus if available.
  */
-static int link_sysbus_device(SysBusDevice *sbdev, void *opaque)
+static void link_sysbus_device(SysBusDevice *sbdev, void *opaque)
 {
     PlatformBusDevice *pbus = opaque;
     int i;
@@ -180,8 +178,6 @@ static int link_sysbus_device(SysBusDevice *sbdev, void *opaque)
     for (i = 0; sysbus_has_mmio(sbdev, i); i++) {
         platform_bus_map_mmio(pbus, sbdev, i);
     }
-
-    return 0;
 }
 
 static void platform_bus_init_notify(Notifier *notifier, void *data)

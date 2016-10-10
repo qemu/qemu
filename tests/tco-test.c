@@ -57,7 +57,7 @@ static void test_init(TestData *d)
     qtest_irq_intercept_in(qs, "ioapic");
     g_free(s);
 
-    bus = qpci_init_pc();
+    bus = qpci_init_pc(NULL);
     d->dev = qpci_device_find(bus, QPCI_DEVFN(0x1f, 0x00));
     g_assert(d->dev != NULL);
 

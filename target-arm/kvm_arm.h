@@ -13,6 +13,7 @@
 
 #include "sysemu/kvm.h"
 #include "exec/memory.h"
+#include "qemu/error-report.h"
 
 /**
  * kvm_arm_vcpu_init:
@@ -223,7 +224,20 @@ static inline const char *gic_class_name(void)
  *
  * Returns: class name to use
  */
-const char *gicv3_class_name(void);
+static inline const char *gicv3_class_name(void)
+{
+    if (kvm_irqchip_in_kernel()) {
+#ifdef TARGET_AARCH64
+        return "kvm-arm-gicv3";
+#else
+        error_report("KVM GICv3 acceleration is not supported on this "
+                     "platform");
+        exit(1);
+#endif
+    } else {
+        return "arm-gicv3";
+    }
+}
 
 /**
  * kvm_arm_handle_debug:
@@ -254,5 +268,24 @@ bool kvm_arm_hw_debug_active(CPUState *cs);
 struct kvm_guest_debug_arch;
 
 void kvm_arm_copy_hw_debug_data(struct kvm_guest_debug_arch *ptr);
+
+/**
+ * its_class_name
+ *
+ * Return the ITS class name to use depending on whether KVM acceleration
+ * and KVM CAP_SIGNAL_MSI are supported
+ *
+ * Returns: class name to use or NULL
+ */
+static inline const char *its_class_name(void)
+{
+    if (kvm_irqchip_in_kernel()) {
+        /* KVM implementation requires this capability */
+        return kvm_direct_msi_enabled() ? "arm-its-kvm" : NULL;
+    } else {
+        /* Software emulation is not implemented yet */
+        return NULL;
+    }
+}
 
 #endif

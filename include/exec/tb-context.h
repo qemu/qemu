@@ -38,7 +38,7 @@ struct TBContext {
     QemuMutex tb_lock;
 
     /* statistics */
-    int tb_flush_count;
+    unsigned tb_flush_count;
     int tb_phys_invalidate_count;
 };
 

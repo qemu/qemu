@@ -87,6 +87,7 @@ struct VirtIODevice
     VirtQueue *vq;
     uint16_t device_id;
     bool vm_running;
+    bool broken; /* device in invalid state, needs reset */
     VMChangeStateEntry *vmstate;
     char *bus_name;
     uint8_t device_endian;
@@ -134,6 +135,8 @@ void virtio_instance_init_common(Object *proxy_obj, void *data,
 void virtio_init(VirtIODevice *vdev, const char *name,
                          uint16_t device_id, size_t config_size);
 void virtio_cleanup(VirtIODevice *vdev);
+
+void virtio_error(VirtIODevice *vdev, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 
 /* Set the child bus name. */
 void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name);

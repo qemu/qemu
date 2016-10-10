@@ -23,6 +23,11 @@ typedef struct CPUListState {
     FILE *file;
 } CPUListState;
 
+/* The CPU list lock nests outside tb_lock/tb_unlock.  */
+void qemu_init_cpu_list(void);
+void cpu_list_lock(void);
+void cpu_list_unlock(void);
+
 #if !defined(CONFIG_USER_ONLY)
 
 enum device_endian {

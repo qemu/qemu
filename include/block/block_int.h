@@ -722,7 +722,7 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
  * @errp: Error object.
  *
  * Start a mirroring operation on @bs.  Clusters that are allocated
- * in @bs will be written to @bs until the job is cancelled or
+ * in @bs will be written to @target until the job is cancelled or
  * manually completed.  At the end of a successful mirroring job,
  * @bs will be switched to read from @target.
  */

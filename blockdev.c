@@ -356,20 +356,12 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
     const char **throttling_group, ThrottleConfig *throttle_cfg,
     BlockdevDetectZeroesOptions *detect_zeroes, Error **errp)
 {
-    const char *discard;
     Error *local_error = NULL;
     const char *aio;
 
     if (bdrv_flags) {
         if (qemu_opt_get_bool(opts, "copy-on-read", false)) {
             *bdrv_flags |= BDRV_O_COPY_ON_READ;
-        }
-
-        if ((discard = qemu_opt_get(opts, "discard")) != NULL) {
-            if (bdrv_parse_discard_flags(discard, bdrv_flags) != 0) {
-                error_setg(errp, "Invalid discard option");
-                return;
-            }
         }
 
         if ((aio = qemu_opt_get(opts, "aio")) != NULL) {
@@ -447,15 +439,6 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
                             &local_error);
         if (local_error) {
             error_propagate(errp, local_error);
-            return;
-        }
-
-        if (bdrv_flags &&
-            *detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
-            !(*bdrv_flags & BDRV_O_UNMAP))
-        {
-            error_setg(errp, "setting detect-zeroes to unmap is not allowed "
-                             "without setting discard operation to unmap");
             return;
         }
     }
@@ -650,34 +633,10 @@ err_no_opts:
     return NULL;
 }
 
-static QemuOptsList qemu_root_bds_opts;
-
 /* Takes the ownership of bs_opts */
 static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
 {
-    BlockDriverState *bs;
-    QemuOpts *opts;
-    Error *local_error = NULL;
-    BlockdevDetectZeroesOptions detect_zeroes;
     int bdrv_flags = 0;
-
-    opts = qemu_opts_create(&qemu_root_bds_opts, NULL, 1, errp);
-    if (!opts) {
-        goto fail;
-    }
-
-    qemu_opts_absorb_qdict(opts, bs_opts, &local_error);
-    if (local_error) {
-        error_propagate(errp, local_error);
-        goto fail;
-    }
-
-    extract_common_blockdev_options(opts, &bdrv_flags, NULL, NULL,
-                                    &detect_zeroes, &local_error);
-    if (local_error) {
-        error_propagate(errp, local_error);
-        goto fail;
-    }
 
     /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
      * with other callers) rather than what we want as the real defaults.
@@ -690,21 +649,7 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
         bdrv_flags |= BDRV_O_INACTIVE;
     }
 
-    bs = bdrv_open(NULL, NULL, bs_opts, bdrv_flags, errp);
-    if (!bs) {
-        goto fail_no_bs_opts;
-    }
-
-    bs->detect_zeroes = detect_zeroes;
-
-fail_no_bs_opts:
-    qemu_opts_del(opts);
-    return bs;
-
-fail:
-    qemu_opts_del(opts);
-    QDECREF(bs_opts);
-    return NULL;
+    return bdrv_open(NULL, NULL, bs_opts, bdrv_flags, errp);
 }
 
 void blockdev_close_all_bdrv_states(void)
@@ -2549,6 +2494,7 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
     BlockBackend *blk;
     BlockDriverState *medium_bs = NULL;
     int bdrv_flags;
+    bool detect_zeroes;
     int rc;
     QDict *options = NULL;
     Error *err = NULL;
@@ -2588,8 +2534,12 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
         abort();
     }
 
+    options = qdict_new();
+    detect_zeroes = blk_get_detect_zeroes_from_root_state(blk);
+    qdict_put(options, "detect-zeroes",
+              qstring_from_str(detect_zeroes ? "on" : "off"));
+
     if (has_format) {
-        options = qdict_new();
         qdict_put(options, "driver", qstring_from_str(format));
     }
 
@@ -2614,7 +2564,7 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
     error_free(err);
     err = NULL;
 
-    qmp_x_blockdev_remove_medium(has_device, device, has_id, id, errp);
+    qmp_x_blockdev_remove_medium(has_device, device, has_id, id, &err);
     if (err) {
         error_propagate(errp, err);
         goto fail;
@@ -2625,8 +2575,6 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
         error_propagate(errp, err);
         goto fail;
     }
-
-    blk_apply_root_state(blk, medium_bs);
 
     qmp_blockdev_close_tray(has_device, device, has_id, id, errp);
 
@@ -3832,21 +3780,6 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     QDict *qdict;
     Error *local_err = NULL;
 
-    /* TODO Sort it out in raw-posix and drive_new(): Reject aio=native with
-     * cache.direct=false instead of silently switching to aio=threads, except
-     * when called from drive_new().
-     *
-     * For now, simply forbidding the combination for all drivers will do. */
-    if (options->has_aio && options->aio == BLOCKDEV_AIO_OPTIONS_NATIVE) {
-        bool direct = options->has_cache &&
-                      options->cache->has_direct &&
-                      options->cache->direct;
-        if (!direct) {
-            error_setg(errp, "aio=native requires cache.direct=true");
-            goto fail;
-        }
-    }
-
     visit_type_BlockdevOptions(v, NULL, &options, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -4005,10 +3938,6 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "enable/disable snapshot mode",
         },{
-            .name = "discard",
-            .type = QEMU_OPT_STRING,
-            .help = "discard operation (ignore/off, unmap/on)",
-        },{
             .name = "aio",
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",
@@ -4130,31 +4059,6 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "whether to account for failed I/O operations "
                     "in the statistics",
-        },
-        { /* end of list */ }
-    },
-};
-
-static QemuOptsList qemu_root_bds_opts = {
-    .name = "root-bds",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_root_bds_opts.head),
-    .desc = {
-        {
-            .name = "discard",
-            .type = QEMU_OPT_STRING,
-            .help = "discard operation (ignore/off, unmap/on)",
-        },{
-            .name = "aio",
-            .type = QEMU_OPT_STRING,
-            .help = "host AIO implementation (threads, native)",
-        },{
-            .name = "copy-on-read",
-            .type = QEMU_OPT_BOOL,
-            .help = "copy read data from backing file into image file",
-        },{
-            .name = "detect-zeroes",
-            .type = QEMU_OPT_STRING,
-            .help = "try to optimize zero writes (off, on, unmap)",
         },
         { /* end of list */ }
     },

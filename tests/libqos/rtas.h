@@ -8,4 +8,8 @@
 #include "libqos/malloc.h"
 
 int qrtas_get_time_of_day(QGuestAllocator *alloc, struct tm *tm, uint32_t *ns);
+uint32_t qrtas_ibm_read_pci_config(QGuestAllocator *alloc, uint64_t buid,
+                                   uint32_t addr, uint32_t size);
+int qrtas_ibm_write_pci_config(QGuestAllocator *alloc, uint64_t buid,
+                               uint32_t addr, uint32_t size, uint32_t val);
 #endif /* LIBQOS_RTAS_H */

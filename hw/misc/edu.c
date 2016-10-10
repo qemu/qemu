@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h" /* iothread mutex */
 #include "qapi/visitor.h"
@@ -69,11 +70,20 @@ typedef struct {
     uint64_t dma_mask;
 } EduState;
 
+static bool edu_msi_enabled(EduState *edu)
+{
+    return msi_enabled(&edu->pdev);
+}
+
 static void edu_raise_irq(EduState *edu, uint32_t val)
 {
     edu->irq_status |= val;
     if (edu->irq_status) {
-        pci_set_irq(&edu->pdev, 1);
+        if (edu_msi_enabled(edu)) {
+            msi_notify(&edu->pdev, 0);
+        } else {
+            pci_set_irq(&edu->pdev, 1);
+        }
     }
 }
 
@@ -81,7 +91,7 @@ static void edu_lower_irq(EduState *edu, uint32_t val)
 {
     edu->irq_status &= ~val;
 
-    if (!edu->irq_status) {
+    if (!edu->irq_status && !edu_msi_enabled(edu)) {
         pci_set_irq(&edu->pdev, 0);
     }
 }
@@ -341,6 +351,10 @@ static void pci_edu_realize(PCIDevice *pdev, Error **errp)
                        edu, QEMU_THREAD_JOINABLE);
 
     pci_config_set_interrupt_pin(pci_conf, 1);
+
+    if (msi_init(pdev, 0, 1, true, false, errp)) {
+        return;
+    }
 
     memory_region_init_io(&edu->mmio, OBJECT(edu), &edu_mmio_ops, edu,
                     "edu-mmio", 1 << 20);

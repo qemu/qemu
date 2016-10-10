@@ -626,7 +626,7 @@ static void migration_bitmap_sync(void)
     }
 
     trace_migration_bitmap_sync_start();
-    address_space_sync_dirty_bitmap(&address_space_memory);
+    memory_global_dirty_log_sync();
 
     qemu_mutex_lock(&migration_bitmap_mutex);
     rcu_read_lock();

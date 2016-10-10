@@ -483,7 +483,7 @@ typedef struct VAPICEnableTPRReporting {
     bool enable;
 } VAPICEnableTPRReporting;
 
-static void vapic_do_enable_tpr_reporting(void *data)
+static void vapic_do_enable_tpr_reporting(CPUState *cpu, void *data)
 {
     VAPICEnableTPRReporting *info = data;
 
@@ -734,10 +734,10 @@ static void vapic_realize(DeviceState *dev, Error **errp)
     nb_option_roms++;
 }
 
-static void do_vapic_enable(void *data)
+static void do_vapic_enable(CPUState *cs, void *data)
 {
     VAPICROMState *s = data;
-    X86CPU *cpu = X86_CPU(first_cpu);
+    X86CPU *cpu = X86_CPU(cs);
 
     static const uint8_t enabled = 1;
     cpu_physical_memory_write(s->vapic_paddr + offsetof(VAPICState, enabled),

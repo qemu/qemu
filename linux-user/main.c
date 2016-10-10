@@ -107,21 +107,11 @@ int cpu_get_pic_interrupt(CPUX86State *env)
 /***********************************************************/
 /* Helper routines for implementing atomic operations.  */
 
-/* To implement exclusive operations we force all cpus to syncronise.
-   We don't require a full sync, only that no cpus are executing guest code.
-   The alternative is to map target atomic ops onto host equivalents,
-   which requires quite a lot of per host/target work.  */
-static pthread_mutex_t cpu_list_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t exclusive_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t exclusive_cond = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t exclusive_resume = PTHREAD_COND_INITIALIZER;
-static int pending_cpus;
-
 /* Make sure everything is in a consistent state for calling fork().  */
 void fork_start(void)
 {
+    cpu_list_lock();
     qemu_mutex_lock(&tcg_ctx.tb_ctx.tb_lock);
-    pthread_mutex_lock(&exclusive_lock);
     mmap_fork_start();
 }
 
@@ -137,92 +127,14 @@ void fork_end(int child)
                 QTAILQ_REMOVE(&cpus, cpu, node);
             }
         }
-        pending_cpus = 0;
-        pthread_mutex_init(&exclusive_lock, NULL);
-        pthread_mutex_init(&cpu_list_mutex, NULL);
-        pthread_cond_init(&exclusive_cond, NULL);
-        pthread_cond_init(&exclusive_resume, NULL);
         qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
+        qemu_init_cpu_list();
         gdbserver_fork(thread_cpu);
     } else {
-        pthread_mutex_unlock(&exclusive_lock);
         qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
+        cpu_list_unlock();
     }
 }
-
-/* Wait for pending exclusive operations to complete.  The exclusive lock
-   must be held.  */
-static inline void exclusive_idle(void)
-{
-    while (pending_cpus) {
-        pthread_cond_wait(&exclusive_resume, &exclusive_lock);
-    }
-}
-
-/* Start an exclusive operation.
-   Must only be called from outside cpu_exec.   */
-static inline void start_exclusive(void)
-{
-    CPUState *other_cpu;
-
-    pthread_mutex_lock(&exclusive_lock);
-    exclusive_idle();
-
-    pending_cpus = 1;
-    /* Make all other cpus stop executing.  */
-    CPU_FOREACH(other_cpu) {
-        if (other_cpu->running) {
-            pending_cpus++;
-            cpu_exit(other_cpu);
-        }
-    }
-    if (pending_cpus > 1) {
-        pthread_cond_wait(&exclusive_cond, &exclusive_lock);
-    }
-}
-
-/* Finish an exclusive operation.  */
-static inline void __attribute__((unused)) end_exclusive(void)
-{
-    pending_cpus = 0;
-    pthread_cond_broadcast(&exclusive_resume);
-    pthread_mutex_unlock(&exclusive_lock);
-}
-
-/* Wait for exclusive ops to finish, and begin cpu execution.  */
-static inline void cpu_exec_start(CPUState *cpu)
-{
-    pthread_mutex_lock(&exclusive_lock);
-    exclusive_idle();
-    cpu->running = true;
-    pthread_mutex_unlock(&exclusive_lock);
-}
-
-/* Mark cpu as not executing, and release pending exclusive ops.  */
-static inline void cpu_exec_end(CPUState *cpu)
-{
-    pthread_mutex_lock(&exclusive_lock);
-    cpu->running = false;
-    if (pending_cpus > 1) {
-        pending_cpus--;
-        if (pending_cpus == 1) {
-            pthread_cond_signal(&exclusive_cond);
-        }
-    }
-    exclusive_idle();
-    pthread_mutex_unlock(&exclusive_lock);
-}
-
-void cpu_list_lock(void)
-{
-    pthread_mutex_lock(&cpu_list_mutex);
-}
-
-void cpu_list_unlock(void)
-{
-    pthread_mutex_unlock(&cpu_list_mutex);
-}
-
 
 #ifdef TARGET_I386
 /***********************************************************/
@@ -296,6 +208,8 @@ void cpu_loop(CPUX86State *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case 0x80:
             /* linux syscall from int $0x80 */
@@ -737,6 +651,8 @@ void cpu_loop(CPUARMState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case EXCP_UDEF:
             {
@@ -1073,6 +989,7 @@ void cpu_loop(CPUARMState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
 
         switch (trapnr) {
         case EXCP_SWI:
@@ -1161,6 +1078,8 @@ void cpu_loop(CPUUniCore32State *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch (trapnr) {
         case UC32_EXCP_PRIV:
             {
@@ -1366,6 +1285,7 @@ void cpu_loop (CPUSPARCState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
 
         /* Compute PSR before exposing state.  */
         if (env->cc_op != CC_OP_FLAGS) {
@@ -1638,6 +1558,8 @@ void cpu_loop(CPUPPCState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case POWERPC_EXCP_NONE:
             /* Just go on */
@@ -2484,6 +2406,8 @@ void cpu_loop(CPUMIPSState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case EXCP_SYSCALL:
             env->active_tc.PC += 4;
@@ -2724,6 +2648,7 @@ void cpu_loop(CPUOpenRISCState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
         gdbsig = 0;
 
         switch (trapnr) {
@@ -2818,6 +2743,7 @@ void cpu_loop(CPUSH4State *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
 
         switch (trapnr) {
         case 0x160:
@@ -2884,6 +2810,8 @@ void cpu_loop(CPUCRISState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch (trapnr) {
         case 0xaa:
             {
@@ -2949,6 +2877,8 @@ void cpu_loop(CPUMBState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch (trapnr) {
         case 0xaa:
             {
@@ -3066,6 +2996,8 @@ void cpu_loop(CPUM68KState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch(trapnr) {
         case EXCP_ILLEGAL:
             {
@@ -3209,6 +3141,7 @@ void cpu_loop(CPUAlphaState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
 
         /* All of the traps imply a transition through PALcode, which
            implies an REI instruction has been executed.  Which means
@@ -3401,6 +3334,8 @@ void cpu_loop(CPUS390XState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch (trapnr) {
         case EXCP_INTERRUPT:
             /* Just indicate that signals should be handled asap.  */
@@ -3710,6 +3645,8 @@ void cpu_loop(CPUTLGState *env)
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
+        process_queued_cpu_work(cs);
+
         switch (trapnr) {
         case TILEGX_EXCP_SYSCALL:
         {
@@ -3768,6 +3705,16 @@ void cpu_loop(CPUTLGState *env)
 #endif
 
 THREAD CPUState *thread_cpu;
+
+bool qemu_cpu_is_self(CPUState *cpu)
+{
+    return thread_cpu == cpu;
+}
+
+void qemu_cpu_kick(CPUState *cpu)
+{
+    cpu_exit(cpu);
+}
 
 void task_settid(TaskState *ts)
 {
@@ -4211,6 +4158,7 @@ int main(int argc, char **argv, char **envp)
     int ret;
     int execfd;
 
+    qemu_init_cpu_list();
     module_call_init(MODULE_INIT_QOM);
 
     if ((envlist = envlist_create()) == NULL) {
@@ -4800,7 +4748,6 @@ int main(int argc, char **argv, char **envp)
         }
         gdb_handlesig(cpu, 0);
     }
-    trace_init_vcpu_events();
     cpu_loop(env);
     /* never exits */
     return 0;

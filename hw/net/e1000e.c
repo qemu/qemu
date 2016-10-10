@@ -400,7 +400,7 @@ static void e1000e_write_config(PCIDevice *pci_dev, uint32_t address,
 
     if (range_covers_byte(address, len, PCI_COMMAND) &&
         (pci_dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
-        qemu_flush_queued_packets(qemu_get_queue(s->nic));
+        e1000e_start_recv(&s->core);
     }
 }
 

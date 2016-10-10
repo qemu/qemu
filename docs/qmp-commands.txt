@@ -20,7 +20,7 @@ Also, the following notation is used to denote data flow:
 -> data issued by the Client
 <- Server data response
 
-Please, refer to the QMP specification (QMP/qmp-spec.txt) for detailed
+Please, refer to the QMP specification (docs/qmp-spec.txt) for detailed
 information on the Server command and response formats.
 
 NOTE: This document is temporary and will be replaced soon.
@@ -3239,6 +3239,7 @@ Example:
                     "microseconds": 716996 },
      "event": "DEVICE_TRAY_MOVED",
      "data": { "device": "ide1-cd0",
+               "id": "ide0-1-0",
                "tray-open": true } }
 
 <- { "return": {} }
@@ -3267,6 +3268,7 @@ Example:
                     "microseconds": 272147 },
      "event": "DEVICE_TRAY_MOVED",
      "data": { "device": "ide1-cd0",
+               "id": "ide0-1-0",
                "tray-open": false } }
 
 <- { "return": {} }
@@ -3303,6 +3305,7 @@ Example:
                     "microseconds": 549958 },
      "event": "DEVICE_TRAY_MOVED",
      "data": { "device": "ide1-cd0",
+               "id": "ide0-1-0",
                "tray-open": true } }
 
 <- { "return": {} }

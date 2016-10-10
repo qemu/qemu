@@ -502,17 +502,14 @@ static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb,
 #define decode_basedisp_rs decode_basedisp_s
 
 /* helper functions for run_on_cpu() */
-static inline void s390_do_cpu_reset(void *arg)
+static inline void s390_do_cpu_reset(CPUState *cs, void *arg)
 {
-    CPUState *cs = arg;
     S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
 
     scc->cpu_reset(cs);
 }
-static inline void s390_do_cpu_full_reset(void *arg)
+static inline void s390_do_cpu_full_reset(CPUState *cs, void *arg)
 {
-    CPUState *cs = arg;
-
     cpu_reset(cs);
 }
 
@@ -674,6 +671,13 @@ ObjectClass *s390_cpu_class_by_name(const char *name);
 
 /* CC optimization */
 
+/* Instead of computing the condition codes after each x86 instruction,
+ * QEMU just stores the result (called CC_DST), the type of operation
+ * (called CC_OP) and whatever operands are needed (CC_SRC and possibly
+ * CC_VR). When the condition codes are needed, the condition codes can
+ * be calculated using this information. Condition codes are not generated
+ * if they are only needed for conditional branches.
+ */
 enum cc_op {
     CC_OP_CONST0 = 0,           /* CC is 0 */
     CC_OP_CONST1,               /* CC is 1 */

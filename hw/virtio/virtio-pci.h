@@ -143,10 +143,10 @@ struct VirtIOPCIProxy {
     MemoryRegion io_bar;
     MemoryRegion modern_cfg;
     AddressSpace modern_as;
-    uint32_t legacy_io_bar;
-    uint32_t msix_bar;
-    uint32_t modern_io_bar;
-    uint32_t modern_mem_bar;
+    uint32_t legacy_io_bar_idx;
+    uint32_t msix_bar_idx;
+    uint32_t modern_io_bar_idx;
+    uint32_t modern_mem_bar_idx;
     int config_cap;
     uint32_t flags;
     bool disable_modern;

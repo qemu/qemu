@@ -46,9 +46,14 @@
 
 #ifdef __FreeBSD__
 #include <sys/sysctl.h>
+#include <libutil.h>
 #endif
 
 #include "qemu/mmap-alloc.h"
+
+#ifdef CONFIG_DEBUG_STACK_USAGE
+#include "qemu/error-report.h"
+#endif
 
 int qemu_get_thread_id(void)
 {
@@ -430,6 +435,32 @@ int qemu_read_password(char *buf, int buf_size)
 }
 
 
+char *qemu_get_pid_name(pid_t pid)
+{
+    char *name = NULL;
+
+#if defined(__FreeBSD__)
+    /* BSDs don't have /proc, but they provide a nice substitute */
+    struct kinfo_proc *proc = kinfo_getproc(pid);
+
+    if (proc) {
+        name = g_strdup(proc->ki_comm);
+        free(proc);
+    }
+#else
+    /* Assume a system with reasonable procfs */
+    char *pid_path;
+    size_t len;
+
+    pid_path = g_strdup_printf("/proc/%d/cmdline", pid);
+    g_file_get_contents(pid_path, &name, &len, NULL);
+    g_free(pid_path);
+#endif
+
+    return name;
+}
+
+
 pid_t qemu_fork(Error **errp)
 {
     sigset_t oldmask, newmask;
@@ -498,4 +529,77 @@ pid_t qemu_fork(Error **errp)
         }
     }
     return pid;
+}
+
+void *qemu_alloc_stack(size_t *sz)
+{
+    void *ptr, *guardpage;
+#ifdef CONFIG_DEBUG_STACK_USAGE
+    void *ptr2;
+#endif
+    size_t pagesz = getpagesize();
+#ifdef _SC_THREAD_STACK_MIN
+    /* avoid stacks smaller than _SC_THREAD_STACK_MIN */
+    long min_stack_sz = sysconf(_SC_THREAD_STACK_MIN);
+    *sz = MAX(MAX(min_stack_sz, 0), *sz);
+#endif
+    /* adjust stack size to a multiple of the page size */
+    *sz = ROUND_UP(*sz, pagesz);
+    /* allocate one extra page for the guard page */
+    *sz += pagesz;
+
+    ptr = mmap(NULL, *sz, PROT_READ | PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (ptr == MAP_FAILED) {
+        abort();
+    }
+
+#if defined(HOST_IA64)
+    /* separate register stack */
+    guardpage = ptr + (((*sz - pagesz) / 2) & ~pagesz);
+#elif defined(HOST_HPPA)
+    /* stack grows up */
+    guardpage = ptr + *sz - pagesz;
+#else
+    /* stack grows down */
+    guardpage = ptr;
+#endif
+    if (mprotect(guardpage, pagesz, PROT_NONE) != 0) {
+        abort();
+    }
+
+#ifdef CONFIG_DEBUG_STACK_USAGE
+    for (ptr2 = ptr + pagesz; ptr2 < ptr + *sz; ptr2 += sizeof(uint32_t)) {
+        *(uint32_t *)ptr2 = 0xdeadbeaf;
+    }
+#endif
+
+    return ptr;
+}
+
+#ifdef CONFIG_DEBUG_STACK_USAGE
+static __thread unsigned int max_stack_usage;
+#endif
+
+void qemu_free_stack(void *stack, size_t sz)
+{
+#ifdef CONFIG_DEBUG_STACK_USAGE
+    unsigned int usage;
+    void *ptr;
+
+    for (ptr = stack + getpagesize(); ptr < stack + sz;
+         ptr += sizeof(uint32_t)) {
+        if (*(uint32_t *)ptr != 0xdeadbeaf) {
+            break;
+        }
+    }
+    usage = sz - (uintptr_t) (ptr - stack);
+    if (usage > max_stack_usage) {
+        error_report("thread %d max stack usage increased from %u to %u",
+                     qemu_get_thread_id(), max_stack_usage, usage);
+        max_stack_usage = usage;
+    }
+#endif
+
+    munmap(stack, sz);
 }

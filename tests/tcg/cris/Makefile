@@ -23,6 +23,7 @@ SYS        = sys.o
 TESTCASES += check_abs.tst
 TESTCASES += check_addc.tst
 TESTCASES += check_addcm.tst
+TESTCASES += check_addcv17.tst
 TESTCASES += check_addo.tst
 TESTCASES += check_addoq.tst
 TESTCASES += check_addi.tst
@@ -108,14 +109,12 @@ TESTCASES += check_stat4.ctst
 TESTCASES += check_openpf1.ctst
 TESTCASES += check_openpf2.ctst
 TESTCASES += check_openpf3.ctst
-TESTCASES += check_openpf4.ctst
 TESTCASES += check_openpf5.ctst
 TESTCASES += check_mapbrk.ctst
 TESTCASES += check_mmap1.ctst
 TESTCASES += check_mmap2.ctst
 TESTCASES += check_mmap3.ctst
 TESTCASES += check_sigalrm.ctst
-TESTCASES += check_time1.ctst
 TESTCASES += check_time2.ctst
 TESTCASES += check_settls1.ctst
 
@@ -136,13 +135,27 @@ all: build
 %.ctst: %.o
 	$(CC) $(CFLAGS) $(LDLIBS) $< -o $@
 
+
+sysv10.o: sys.c
+	$(CC) $(CFLAGS) -mcpu=v10 -c $< -o $@
+
+crtv10.o: crt.s
+	$(AS) $(ASFLAGS) -mcpu=v10 -c $< -o $@
+
+check_addcv17.tst: ASFLAGS += -mcpu=v10
+check_addcv17.tst: CRT := crtv10.o
+check_addcv17.tst: SYS := sysv10.o
+check_addcv17.tst: crtv10.o sysv10.o
+
 build: $(CRT) $(SYS) $(TESTCASES)
 
 check: $(CRT) $(SYS) $(TESTCASES)
 	@echo -e "\nQEMU simulator."
 	for case in $(TESTCASES); do \
 		echo -n "$$case "; \
-		$(SIM) ./$$case; \
+		SIMARGS=; \
+		case $$case in *v17*) SIMARGS="-cpu crisv17";; esac; \
+		$(SIM) $$SIMARGS ./$$case; \
 	done
 check-g: $(CRT) $(SYS) $(TESTCASES)
 	@echo -e "\nGDB simulator."
@@ -152,4 +165,4 @@ check-g: $(CRT) $(SYS) $(TESTCASES)
 	done
 
 clean:
-	$(RM) -fr $(TESTCASES) $(CRT) $(SYS)
+	$(RM) -fr $(TESTCASES) *.o

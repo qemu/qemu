@@ -296,6 +296,7 @@ libiscsi=""
 libnfs=""
 coroutine=""
 coroutine_pool=""
+debug_stack_usage="no"
 seccomp=""
 glusterfs=""
 glusterfs_xlator_opt="no"
@@ -1003,6 +1004,8 @@ for opt do
   --disable-coroutine-pool) coroutine_pool="no"
   ;;
   --enable-coroutine-pool) coroutine_pool="yes"
+  ;;
+  --enable-debug-stack-usage) debug_stack_usage="yes"
   ;;
   --disable-docs) docs="no"
   ;;
@@ -1950,6 +1953,61 @@ EOF
     xen=no
 
   # Xen unstable
+  elif
+      cat > $TMPC <<EOF &&
+/*
+ * If we have stable libs the we don't want the libxc compat
+ * layers, regardless of what CFLAGS we may have been given.
+ *
+ * Also, check if xengnttab_grant_copy_segment_t is defined and
+ * grant copy operation is implemented.
+ */
+#undef XC_WANT_COMPAT_EVTCHN_API
+#undef XC_WANT_COMPAT_GNTTAB_API
+#undef XC_WANT_COMPAT_MAP_FOREIGN_API
+#include <xenctrl.h>
+#include <xenstore.h>
+#include <xenevtchn.h>
+#include <xengnttab.h>
+#include <xenforeignmemory.h>
+#include <stdint.h>
+#include <xen/hvm/hvm_info_table.h>
+#if !defined(HVM_MAX_VCPUS)
+# error HVM_MAX_VCPUS not defined
+#endif
+int main(void) {
+  xc_interface *xc = NULL;
+  xenforeignmemory_handle *xfmem;
+  xenevtchn_handle *xe;
+  xengnttab_handle *xg;
+  xen_domain_handle_t handle;
+  xengnttab_grant_copy_segment_t* seg = NULL;
+
+  xs_daemon_open();
+
+  xc = xc_interface_open(0, 0, 0);
+  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
+  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
+  xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
+  xc_hvm_create_ioreq_server(xc, 0, HVM_IOREQSRV_BUFIOREQ_ATOMIC, NULL);
+  xc_domain_create(xc, 0, handle, 0, NULL, NULL);
+
+  xfmem = xenforeignmemory_open(0, 0);
+  xenforeignmemory_map(xfmem, 0, 0, 0, 0, 0);
+
+  xe = xenevtchn_open(0, 0);
+  xenevtchn_fd(xe);
+
+  xg = xengnttab_open(0, 0);
+  xengnttab_grant_copy(xg, 0, seg);
+
+  return 0;
+}
+EOF
+      compile_prog "" "$xen_libs $xen_stable_libs"
+    then
+    xen_ctrl_version=480
+    xen=yes
   elif
       cat > $TMPC <<EOF &&
 /*
@@ -2933,7 +2991,7 @@ for i in $glib_modules; do
     if $pkg_config --atleast-version=$glib_req_ver $i; then
         glib_cflags=$($pkg_config --cflags $i)
         glib_libs=$($pkg_config --libs $i)
-        CFLAGS="$glib_cflags $CFLAGS"
+        QEMU_CFLAGS="$glib_cflags $QEMU_CFLAGS"
         LIBS="$glib_libs $LIBS"
         libs_qga="$glib_libs $libs_qga"
     else
@@ -4276,6 +4334,17 @@ if test "$coroutine" = "gthread" -a "$coroutine_pool" = "yes"; then
   error_exit "'gthread' coroutine backend does not support pool (use --disable-coroutine-pool)"
 fi
 
+if test "$debug_stack_usage" = "yes"; then
+  if test "$cpu" = "ia64" -o "$cpu" = "hppa"; then
+    error_exit "stack usage debugging is not supported for $cpu"
+  fi
+  if test "$coroutine_pool" = "yes"; then
+    echo "WARN: disabling coroutine pool for stack usage debugging"
+    coroutine_pool=no
+  fi
+fi
+
+
 ##########################################
 # check if we have open_by_handle_at
 
@@ -4861,6 +4930,7 @@ echo "QGA MSI support   $guest_agent_msi"
 echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
+echo "debug stack usage $debug_stack_usage"
 echo "GlusterFS support $glusterfs"
 echo "Archipelago support $archipelago"
 echo "gcov              $gcov_tool"
@@ -5140,7 +5210,6 @@ fi
 if test "$glib_subprocess" = "yes" ; then
   echo "CONFIG_HAS_GLIB_SUBPROCESS_TESTS=y" >> $config_host_mak
 fi
-echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "CONFIG_GTKABI=$gtkabi" >> $config_host_mak
@@ -5328,6 +5397,10 @@ if test "$coroutine_pool" = "yes" ; then
   echo "CONFIG_COROUTINE_POOL=1" >> $config_host_mak
 else
   echo "CONFIG_COROUTINE_POOL=0" >> $config_host_mak
+fi
+
+if test "$debug_stack_usage" = "yes" ; then
+  echo "CONFIG_DEBUG_STACK_USAGE=y" >> $config_host_mak
 fi
 
 if test "$open_by_handle_at" = "yes" ; then

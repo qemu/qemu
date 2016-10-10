@@ -14,10 +14,10 @@ endif
 $(feat-dst)gen-features.h: $(feat-dst)gen-features.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 $(feat-dst)gen-features.h-timestamp: $(feat-dst)gen-features
-	$(call quiet-command,$< >$@,"  GEN   $(TARGET_DIR)gen-features.h")
+	$(call quiet-command,$< >$@,"GEN","$(TARGET_DIR)gen-features.h")
 
 $(feat-dst)gen-features: $(feat-src)gen-features.c
-	$(call quiet-command,$(HOST_CC) $(QEMU_INCLUDES) -o $@ $<,"  CC    $(TARGET_DIR)gen-features")
+	$(call quiet-command,$(HOST_CC) $(QEMU_INCLUDES) -o $@ $<,"CC","$(TARGET_DIR)gen-features")
 
 clean-target:
 	rm -f gen-features.h-timestamp

@@ -16,11 +16,8 @@
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 
-unsigned int replay_data_kind = -1;
-static unsigned int replay_has_unread_data;
-
 /* Mutex to protect reading and writing events to the log.
-   replay_data_kind and replay_has_unread_data are also protected
+   data_kind and has_unread_data are also protected
    by this mutex.
    It also protects replay events queue which stores events to be
    written or read to the log. */
@@ -150,15 +147,16 @@ void replay_check_error(void)
 void replay_fetch_data_kind(void)
 {
     if (replay_file) {
-        if (!replay_has_unread_data) {
-            replay_data_kind = replay_get_byte();
-            if (replay_data_kind == EVENT_INSTRUCTION) {
+        if (!replay_state.has_unread_data) {
+            replay_state.data_kind = replay_get_byte();
+            if (replay_state.data_kind == EVENT_INSTRUCTION) {
                 replay_state.instructions_count = replay_get_dword();
             }
             replay_check_error();
-            replay_has_unread_data = 1;
-            if (replay_data_kind >= EVENT_COUNT) {
-                error_report("Replay: unknown event kind %d", replay_data_kind);
+            replay_state.has_unread_data = 1;
+            if (replay_state.data_kind >= EVENT_COUNT) {
+                error_report("Replay: unknown event kind %d",
+                             replay_state.data_kind);
                 exit(1);
             }
         }
@@ -167,7 +165,7 @@ void replay_fetch_data_kind(void)
 
 void replay_finish_event(void)
 {
-    replay_has_unread_data = 0;
+    replay_state.has_unread_data = 0;
     replay_fetch_data_kind();
 }
 

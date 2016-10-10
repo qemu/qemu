@@ -1113,7 +1113,6 @@ out:
 
 typedef struct MCEInjectionParams {
     Monitor *mon;
-    X86CPU *cpu;
     int bank;
     uint64_t status;
     uint64_t mcg_status;
@@ -1122,14 +1121,14 @@ typedef struct MCEInjectionParams {
     int flags;
 } MCEInjectionParams;
 
-static void do_inject_x86_mce(void *data)
+static void do_inject_x86_mce(CPUState *cs, void *data)
 {
     MCEInjectionParams *params = data;
-    CPUX86State *cenv = &params->cpu->env;
-    CPUState *cpu = CPU(params->cpu);
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *cenv = &cpu->env;
     uint64_t *banks = cenv->mce_banks + 4 * params->bank;
 
-    cpu_synchronize_state(cpu);
+    cpu_synchronize_state(cs);
 
     /*
      * If there is an MCE exception being processed, ignore this SRAO MCE
@@ -1149,7 +1148,7 @@ static void do_inject_x86_mce(void *data)
         if ((cenv->mcg_cap & MCG_CTL_P) && cenv->mcg_ctl != ~(uint64_t)0) {
             monitor_printf(params->mon,
                            "CPU %d: Uncorrected error reporting disabled\n",
-                           cpu->cpu_index);
+                           cs->cpu_index);
             return;
         }
 
@@ -1161,7 +1160,7 @@ static void do_inject_x86_mce(void *data)
             monitor_printf(params->mon,
                            "CPU %d: Uncorrected error reporting disabled for"
                            " bank %d\n",
-                           cpu->cpu_index, params->bank);
+                           cs->cpu_index, params->bank);
             return;
         }
 
@@ -1170,7 +1169,7 @@ static void do_inject_x86_mce(void *data)
             monitor_printf(params->mon,
                            "CPU %d: Previous MCE still in progress, raising"
                            " triple fault\n",
-                           cpu->cpu_index);
+                           cs->cpu_index);
             qemu_log_mask(CPU_LOG_RESET, "Triple fault\n");
             qemu_system_reset_request();
             return;
@@ -1182,7 +1181,7 @@ static void do_inject_x86_mce(void *data)
         banks[3] = params->misc;
         cenv->mcg_status = params->mcg_status;
         banks[1] = params->status;
-        cpu_interrupt(cpu, CPU_INTERRUPT_MCE);
+        cpu_interrupt(cs, CPU_INTERRUPT_MCE);
     } else if (!(banks[1] & MCI_STATUS_VAL)
                || !(banks[1] & MCI_STATUS_UC)) {
         if (banks[1] & MCI_STATUS_VAL) {
@@ -1204,7 +1203,6 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
     CPUX86State *cenv = &cpu->env;
     MCEInjectionParams params = {
         .mon = mon,
-        .cpu = cpu,
         .bank = bank,
         .status = status,
         .mcg_status = mcg_status,
@@ -1245,7 +1243,6 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
             if (other_cs == cs) {
                 continue;
             }
-            params.cpu = X86_CPU(other_cs);
             run_on_cpu(other_cs, do_inject_x86_mce, &params);
         }
     }

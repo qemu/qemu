@@ -486,7 +486,7 @@ static void smbios_build_type_0_table(void)
  */
 static void smbios_encode_uuid(struct smbios_uuid *uuid, QemuUUID *in)
 {
-    memcpy(uuid, &in, 16);
+    memcpy(uuid, in, 16);
     if (smbios_uuid_encoded) {
         uuid->time_low = bswap32(uuid->time_low);
         uuid->time_mid = bswap16(uuid->time_mid);

@@ -140,14 +140,14 @@ static void gen_BUG(DisasContext *dc, const char *file, int line)
     cpu_abort(CPU(dc->cpu), "%s:%d\n", file, line);
 }
 
-static const char *regnames[] =
+static const char *regnames_v32[] =
 {
     "$r0", "$r1", "$r2", "$r3",
     "$r4", "$r5", "$r6", "$r7",
     "$r8", "$r9", "$r10", "$r11",
     "$r12", "$r13", "$sp", "$acr",
 };
-static const char *pregnames[] =
+static const char *pregnames_v32[] =
 {
     "$bz", "$vr", "$pid", "$srs",
     "$wz", "$exs", "$eda", "$mof",
@@ -3327,11 +3327,19 @@ void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 {
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
+    const char **regnames;
+    const char **pregnames;
     int i;
-    uint32_t srs;
 
     if (!env || !f) {
         return;
+    }
+    if (env->pregs[PR_VR] < 32) {
+        pregnames = pregnames_v10;
+        regnames = regnames_v10;
+    } else {
+        pregnames = pregnames_v32;
+        regnames = regnames_v32;
     }
 
     cpu_fprintf(f, "PC=%x CCS=%x btaken=%d btarget=%x\n"
@@ -3354,14 +3362,16 @@ void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
             cpu_fprintf(f, "\n");
         }
     }
-    srs = env->pregs[PR_SRS];
-    cpu_fprintf(f, "\nsupport function regs bank %x:\n", srs);
-    if (srs < ARRAY_SIZE(env->sregs)) {
-        for (i = 0; i < 16; i++) {
-            cpu_fprintf(f, "s%2.2d=%8.8x ",
-                    i, env->sregs[srs][i]);
-            if ((i + 1) % 4 == 0) {
-                cpu_fprintf(f, "\n");
+    if (env->pregs[PR_VR] >= 32) {
+        uint32_t srs = env->pregs[PR_SRS];
+        cpu_fprintf(f, "\nsupport function regs bank %x:\n", srs);
+        if (srs < ARRAY_SIZE(env->sregs)) {
+            for (i = 0; i < 16; i++) {
+                cpu_fprintf(f, "s%2.2d=%8.8x ",
+                        i, env->sregs[srs][i]);
+                if ((i + 1) % 4 == 0) {
+                    cpu_fprintf(f, "\n");
+                }
             }
         }
     }
@@ -3406,12 +3416,12 @@ void cris_initialize_tcg(void)
     for (i = 0; i < 16; i++) {
         cpu_R[i] = tcg_global_mem_new(cpu_env,
                                       offsetof(CPUCRISState, regs[i]),
-                                      regnames[i]);
+                                      regnames_v32[i]);
     }
     for (i = 0; i < 16; i++) {
         cpu_PR[i] = tcg_global_mem_new(cpu_env,
                                        offsetof(CPUCRISState, pregs[i]),
-                                       pregnames[i]);
+                                       pregnames_v32[i]);
     }
 }
 

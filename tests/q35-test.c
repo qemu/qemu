@@ -42,7 +42,7 @@ static void test_smram_lock(void)
     QPCIDevice *pcidev;
     QDict *response;
 
-    pcibus = qpci_init_pc();
+    pcibus = qpci_init_pc(NULL);
     g_assert(pcibus != NULL);
 
     pcidev = qpci_device_find(pcibus, 0);

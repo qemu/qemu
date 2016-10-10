@@ -246,6 +246,16 @@ static void crisv11_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
 }
 
+static void crisv17_cpu_class_init(ObjectClass *oc, void *data)
+{
+    CPUClass *cc = CPU_CLASS(oc);
+    CRISCPUClass *ccc = CRIS_CPU_CLASS(oc);
+
+    ccc->vr = 17;
+    cc->do_interrupt = crisv10_cpu_do_interrupt;
+    cc->gdb_read_register = crisv10_cpu_gdb_read_register;
+}
+
 static void crisv32_cpu_class_init(ObjectClass *oc, void *data)
 {
     CRISCPUClass *ccc = CRIS_CPU_CLASS(oc);
@@ -272,6 +282,10 @@ static const TypeInfo cris_cpu_model_type_infos[] = {
         .name = TYPE("crisv11"),
         .parent = TYPE_CRIS_CPU,
         .class_init = crisv11_cpu_class_init,
+    }, {
+        .name = TYPE("crisv17"),
+        .parent = TYPE_CRIS_CPU,
+        .class_init = crisv17_cpu_class_init,
     }, {
         .name = TYPE("crisv32"),
         .parent = TYPE_CRIS_CPU,

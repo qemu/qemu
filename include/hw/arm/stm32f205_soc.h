@@ -28,6 +28,9 @@
 #include "hw/misc/stm32f2xx_syscfg.h"
 #include "hw/timer/stm32f2xx_timer.h"
 #include "hw/char/stm32f2xx_usart.h"
+#include "hw/adc/stm32f2xx_adc.h"
+#include "hw/or-irq.h"
+#include "hw/ssi/stm32f2xx_spi.h"
 
 #define TYPE_STM32F205_SOC "stm32f205-soc"
 #define STM32F205_SOC(obj) \
@@ -35,6 +38,8 @@
 
 #define STM_NUM_USARTS 6
 #define STM_NUM_TIMERS 4
+#define STM_NUM_ADCS 3
+#define STM_NUM_SPIS 3
 
 #define FLASH_BASE_ADDRESS 0x08000000
 #define FLASH_SIZE (1024 * 1024)
@@ -52,6 +57,10 @@ typedef struct STM32F205State {
     STM32F2XXSyscfgState syscfg;
     STM32F2XXUsartState usart[STM_NUM_USARTS];
     STM32F2XXTimerState timer[STM_NUM_TIMERS];
+    STM32F2XXADCState adc[STM_NUM_ADCS];
+    STM32F2XXSPIState spi[STM_NUM_SPIS];
+
+    qemu_or_irq *adc_irqs;
 } STM32F205State;
 
 #endif

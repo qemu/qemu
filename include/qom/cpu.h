@@ -232,13 +232,8 @@ struct kvm_run;
 #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
 
 /* work queue */
-struct qemu_work_item {
-    struct qemu_work_item *next;
-    void (*func)(void *data);
-    void *data;
-    int done;
-    bool free;
-};
+typedef void (*run_on_cpu_func)(CPUState *cpu, void *data);
+struct qemu_work_item;
 
 /**
  * CPUState:
@@ -247,7 +242,9 @@ struct qemu_work_item {
  * @nr_threads: Number of threads within this CPU.
  * @numa_node: NUMA node this CPU is belonging to.
  * @host_tid: Host thread ID.
- * @running: #true if CPU is currently running (usermode).
+ * @running: #true if CPU is currently running (lockless).
+ * @has_waiter: #true if a CPU is currently waiting for the cpu_exec_end;
+ * valid under cpu_list_lock.
  * @created: Indicates whether the CPU thread has been successfully created.
  * @interrupt_request: Indicates a pending interrupt request.
  * @halted: Nonzero if the CPU is in suspended state.
@@ -257,7 +254,6 @@ struct qemu_work_item {
  * @crash_occurred: Indicates the OS reported a crash (panic) for this CPU
  * @tcg_exit_req: Set to force TCG to stop executing linked TBs for this
  *           CPU and return to its top level loop.
- * @tb_flushed: Indicates the translation buffer has been flushed.
  * @singlestep_enabled: Flags for single-stepping.
  * @icount_extra: Instructions until next timer event.
  * @icount_decr: Number of cycles left, with interrupt flag in high bit.
@@ -301,7 +297,7 @@ struct CPUState {
 #endif
     int thread_id;
     uint32_t host_tid;
-    bool running;
+    bool running, has_waiter;
     struct QemuCond *halt_cond;
     bool thread_kicked;
     bool created;
@@ -310,7 +306,6 @@ struct CPUState {
     bool unplug;
     bool crash_occurred;
     bool exit_request;
-    bool tb_flushed;
     uint32_t interrupt_request;
     int singlestep_enabled;
     int64_t icount_extra;
@@ -543,6 +538,18 @@ static inline int cpu_asidx_from_attrs(CPUState *cpu, MemTxAttrs attrs)
 #endif
 
 /**
+ * cpu_list_add:
+ * @cpu: The CPU to be added to the list of CPUs.
+ */
+void cpu_list_add(CPUState *cpu);
+
+/**
+ * cpu_list_remove:
+ * @cpu: The CPU to be removed from the list of CPUs.
+ */
+void cpu_list_remove(CPUState *cpu);
+
+/**
  * cpu_reset:
  * @cpu: The CPU whose state is to be reset.
  */
@@ -616,6 +623,18 @@ void qemu_cpu_kick(CPUState *cpu);
 bool cpu_is_stopped(CPUState *cpu);
 
 /**
+ * do_run_on_cpu:
+ * @cpu: The vCPU to run on.
+ * @func: The function to be executed.
+ * @data: Data to pass to the function.
+ * @mutex: Mutex to release while waiting for @func to run.
+ *
+ * Used internally in the implementation of run_on_cpu.
+ */
+void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data,
+                   QemuMutex *mutex);
+
+/**
  * run_on_cpu:
  * @cpu: The vCPU to run on.
  * @func: The function to be executed.
@@ -623,7 +642,7 @@ bool cpu_is_stopped(CPUState *cpu);
  *
  * Schedules the function @func for execution on the vCPU @cpu.
  */
-void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
+void run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
 
 /**
  * async_run_on_cpu:
@@ -633,7 +652,21 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
  *
  * Schedules the function @func for execution on the vCPU @cpu asynchronously.
  */
-void async_run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
+void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
+
+/**
+ * async_safe_run_on_cpu:
+ * @cpu: The vCPU to run on.
+ * @func: The function to be executed.
+ * @data: Data to pass to the function.
+ *
+ * Schedules the function @func for execution on the vCPU @cpu asynchronously,
+ * while all other vCPUs are sleeping.
+ *
+ * Unlike run_on_cpu and async_run_on_cpu, the function is run outside the
+ * BQL.
+ */
+void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
 
 /**
  * qemu_get_cpu:
@@ -792,6 +825,49 @@ void cpu_remove(CPUState *cpu);
  * Requests the CPU to be removed and waits till it is removed.
  */
 void cpu_remove_sync(CPUState *cpu);
+
+/**
+ * process_queued_cpu_work() - process all items on CPU work queue
+ * @cpu: The CPU which work queue to process.
+ */
+void process_queued_cpu_work(CPUState *cpu);
+
+/**
+ * cpu_exec_start:
+ * @cpu: The CPU for the current thread.
+ *
+ * Record that a CPU has started execution and can be interrupted with
+ * cpu_exit.
+ */
+void cpu_exec_start(CPUState *cpu);
+
+/**
+ * cpu_exec_end:
+ * @cpu: The CPU for the current thread.
+ *
+ * Record that a CPU has stopped execution and exclusive sections
+ * can be executed without interrupting it.
+ */
+void cpu_exec_end(CPUState *cpu);
+
+/**
+ * start_exclusive:
+ *
+ * Wait for a concurrent exclusive section to end, and then start
+ * a section of work that is run while other CPUs are not running
+ * between cpu_exec_start and cpu_exec_end.  CPUs that are running
+ * cpu_exec are exited immediately.  CPUs that call cpu_exec_start
+ * during the exclusive section go to sleep until this CPU calls
+ * end_exclusive.
+ */
+void start_exclusive(void);
+
+/**
+ * end_exclusive:
+ *
+ * Concludes an exclusive execution section started by start_exclusive.
+ */
+void end_exclusive(void);
 
 /**
  * qemu_init_vcpu:

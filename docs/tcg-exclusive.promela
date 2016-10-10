@@ -1,0 +1,225 @@
+/*
+ * This model describes the implementation of exclusive sections in
+ * cpus-common.c (start_exclusive, end_exclusive, cpu_exec_start,
+ * cpu_exec_end).
+ *
+ * Author: Paolo Bonzini <pbonzini@redhat.com>
+ *
+ * This file is in the public domain.  If you really want a license,
+ * the WTFPL will do.
+ *
+ * To verify it:
+ *     spin -a docs/tcg-exclusive.promela
+ *     gcc pan.c -O2
+ *     ./a.out -a
+ *
+ * Tunable processor macros: N_CPUS, N_EXCLUSIVE, N_CYCLES, USE_MUTEX,
+ *                           TEST_EXPENSIVE.
+ */
+
+// Define the missing parameters for the model
+#ifndef N_CPUS
+#define N_CPUS 2
+#warning defaulting to 2 CPU processes
+#endif
+
+// the expensive test is not so expensive for <= 2 CPUs
+// If the mutex is used, it's also cheap (300 MB / 4 seconds) for 3 CPUs
+// For 3 CPUs and the lock-free option it needs 1.5 GB of RAM
+#if N_CPUS <= 2 || (N_CPUS <= 3 && defined USE_MUTEX)
+#define TEST_EXPENSIVE
+#endif
+
+#ifndef N_EXCLUSIVE
+# if !defined N_CYCLES || N_CYCLES <= 1 || defined TEST_EXPENSIVE
+#  define N_EXCLUSIVE     2
+#  warning defaulting to 2 concurrent exclusive sections
+# else
+#  define N_EXCLUSIVE     1
+#  warning defaulting to 1 concurrent exclusive sections
+# endif
+#endif
+#ifndef N_CYCLES
+# if N_EXCLUSIVE <= 1 || defined TEST_EXPENSIVE
+#  define N_CYCLES        2
+#  warning defaulting to 2 CPU cycles
+# else
+#  define N_CYCLES        1
+#  warning defaulting to 1 CPU cycles
+# endif
+#endif
+
+
+// synchronization primitives.  condition variables require a
+// process-local "cond_t saved;" variable.
+
+#define mutex_t              byte
+#define MUTEX_LOCK(m)        atomic { m == 0 -> m = 1 }
+#define MUTEX_UNLOCK(m)      m = 0
+
+#define cond_t               int
+#define COND_WAIT(c, m)      {                                  \
+                               saved = c;                       \
+                               MUTEX_UNLOCK(m);                 \
+                               c != saved -> MUTEX_LOCK(m);     \
+                             }
+#define COND_BROADCAST(c)    c++
+
+// this is the logic from cpus-common.c
+
+mutex_t mutex;
+cond_t exclusive_cond;
+cond_t exclusive_resume;
+byte pending_cpus;
+
+byte running[N_CPUS];
+byte has_waiter[N_CPUS];
+
+#define exclusive_idle()                                          \
+  do                                                              \
+      :: pending_cpus -> COND_WAIT(exclusive_resume, mutex);      \
+      :: else         -> break;                                   \
+  od
+
+#define start_exclusive()                                         \
+    MUTEX_LOCK(mutex);                                            \
+    exclusive_idle();                                             \
+    pending_cpus = 1;                                             \
+                                                                  \
+    i = 0;                                                        \
+    do                                                            \
+       :: i < N_CPUS -> {                                         \
+           if                                                     \
+              :: running[i] -> has_waiter[i] = 1; pending_cpus++; \
+              :: else       -> skip;                              \
+           fi;                                                    \
+           i++;                                                   \
+       }                                                          \
+       :: else -> break;                                          \
+    od;                                                           \
+                                                                  \
+    do                                                            \
+      :: pending_cpus > 1 -> COND_WAIT(exclusive_cond, mutex);    \
+      :: else             -> break;                               \
+    od;                                                           \
+    MUTEX_UNLOCK(mutex);
+
+#define end_exclusive()                                           \
+    MUTEX_LOCK(mutex);                                            \
+    pending_cpus = 0;                                             \
+    COND_BROADCAST(exclusive_resume);                             \
+    MUTEX_UNLOCK(mutex);
+
+#ifdef USE_MUTEX
+// Simple version using mutexes
+#define cpu_exec_start(id)                                                   \
+    MUTEX_LOCK(mutex);                                                       \
+    exclusive_idle();                                                        \
+    running[id] = 1;                                                         \
+    MUTEX_UNLOCK(mutex);
+
+#define cpu_exec_end(id)                                                     \
+    MUTEX_LOCK(mutex);                                                       \
+    running[id] = 0;                                                         \
+    if                                                                       \
+        :: pending_cpus -> {                                                 \
+            pending_cpus--;                                                  \
+            if                                                               \
+                :: pending_cpus == 1 -> COND_BROADCAST(exclusive_cond);      \
+                :: else -> skip;                                             \
+            fi;                                                              \
+        }                                                                    \
+        :: else -> skip;                                                     \
+    fi;                                                                      \
+    MUTEX_UNLOCK(mutex);
+#else
+// Wait-free fast path, only needs mutex when concurrent with
+// an exclusive section
+#define cpu_exec_start(id)                                                   \
+    running[id] = 1;                                                         \
+    if                                                                       \
+        :: pending_cpus -> {                                                 \
+            MUTEX_LOCK(mutex);                                               \
+            if                                                               \
+                :: !has_waiter[id] -> {                                      \
+                    running[id] = 0;                                         \
+                    exclusive_idle();                                        \
+                    running[id] = 1;                                         \
+                }                                                            \
+                :: else -> skip;                                             \
+            fi;                                                              \
+            MUTEX_UNLOCK(mutex);                                             \
+        }                                                                    \
+        :: else -> skip;                                                     \
+    fi;
+
+#define cpu_exec_end(id)                                                     \
+    running[id] = 0;                                                         \
+    if                                                                       \
+        :: pending_cpus -> {                                                 \
+            MUTEX_LOCK(mutex);                                               \
+            if                                                               \
+                :: has_waiter[id] -> {                                       \
+                    has_waiter[id] = 0;                                      \
+                    pending_cpus--;                                          \
+                    if                                                       \
+                        :: pending_cpus == 1 -> COND_BROADCAST(exclusive_cond); \
+                        :: else -> skip;                                     \
+                    fi;                                                      \
+                }                                                            \
+                :: else -> skip;                                             \
+            fi;                                                              \
+            MUTEX_UNLOCK(mutex);                                             \
+        }                                                                    \
+        :: else -> skip;                                                     \
+    fi
+#endif
+
+// Promela processes
+
+byte done_cpu;
+byte in_cpu;
+active[N_CPUS] proctype cpu()
+{
+    byte id = _pid % N_CPUS;
+    byte cycles = 0;
+    cond_t saved;
+
+    do
+       :: cycles == N_CYCLES -> break;
+       :: else -> {
+           cycles++;
+           cpu_exec_start(id)
+           in_cpu++;
+           done_cpu++;
+           in_cpu--;
+           cpu_exec_end(id)
+       }
+    od;
+}
+
+byte done_exclusive;
+byte in_exclusive;
+active[N_EXCLUSIVE] proctype exclusive()
+{
+    cond_t saved;
+    byte i;
+
+    start_exclusive();
+    in_exclusive = 1;
+    done_exclusive++;
+    in_exclusive = 0;
+    end_exclusive();
+}
+
+#define LIVENESS   (done_cpu == N_CPUS * N_CYCLES && done_exclusive == N_EXCLUSIVE)
+#define SAFETY     !(in_exclusive && in_cpu)
+
+never {    /* ! ([] SAFETY && <> [] LIVENESS) */
+    do
+    // once the liveness property is satisfied, this is not executable
+    // and the never clause is not accepted
+    :: ! LIVENESS -> accept_liveness: skip
+    :: 1          -> assert(SAFETY)
+    od;
+}

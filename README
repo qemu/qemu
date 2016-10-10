@@ -42,8 +42,6 @@ of other UNIX targets. The simple steps to build QEMU are:
   ../configure
   make
 
-Complete details of the process for building and configuring QEMU for
-all supported host platforms can be found in the qemu-tech.html file.
 Additional information can also be found online via the QEMU website:
 
   http://qemu-project.org/Hosts/Linux

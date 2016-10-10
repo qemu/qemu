@@ -102,6 +102,11 @@
 #define CC_DST (env->cc_dst)
 #define CC_OP  (env->cc_op)
 
+/* Even though lazy evaluation of CPU condition codes tends to be less
+ * important on RISC systems where condition codes are only updated
+ * when explicitly requested, SPARC uses it to update 32-bit and 64-bit
+ * condition codes.
+ */
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
     CC_OP_FLAGS,   /* all cc are back in status register */

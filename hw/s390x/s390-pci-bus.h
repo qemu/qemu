@@ -82,6 +82,7 @@
 #define ZPCI_EDMA_ADDR 0x1ffffffffffffffULL
 
 #define PAGE_SHIFT      12
+#define PAGE_SIZE       (1 << PAGE_SHIFT)
 #define PAGE_MASK       (~(PAGE_SIZE-1))
 #define PAGE_DEFAULT_ACC        0
 #define PAGE_DEFAULT_KEY        (PAGE_DEFAULT_ACC << 4)
@@ -283,6 +284,7 @@ typedef struct S390PCIBusDevice {
     AdapterRoutes routes;
     S390PCIIOMMU *iommu;
     MemoryRegion iommu_mr;
+    MemoryRegion msix_notify_mr;
     IndAddr *summary_ind;
     IndAddr *indicator;
     QEMUTimer *release_timer;
@@ -297,8 +299,6 @@ typedef struct S390pciState {
     S390PCIBus *bus;
     S390PCIBusDevice *pbdev[PCI_SLOT_MAX];
     S390PCIIOMMU *iommu[PCI_SLOT_MAX];
-    AddressSpace msix_notify_as;
-    MemoryRegion msix_notify_mr;
     QTAILQ_HEAD(, SeiContainer) pending_sei;
 } S390pciState;
 

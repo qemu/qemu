@@ -192,7 +192,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
         /* We were asked to stop executing TBs (probably a pending
          * interrupt. We've now stopped, so clear the flag.
          */
-        cpu->tcg_exit_req = 0;
+        atomic_set(&cpu->tcg_exit_req, 0);
     }
     return ret;
 }
@@ -204,20 +204,16 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
                              TranslationBlock *orig_tb, bool ignore_icount)
 {
     TranslationBlock *tb;
-    bool old_tb_flushed;
 
     /* Should never happen.
        We only end up here when an existing TB is too long.  */
     if (max_cycles > CF_COUNT_MASK)
         max_cycles = CF_COUNT_MASK;
 
-    old_tb_flushed = cpu->tb_flushed;
-    cpu->tb_flushed = false;
     tb = tb_gen_code(cpu, orig_tb->pc, orig_tb->cs_base, orig_tb->flags,
                      max_cycles | CF_NOCACHE
                          | (ignore_icount ? CF_IGNORE_ICOUNT : 0));
-    tb->orig_tb = cpu->tb_flushed ? NULL : orig_tb;
-    cpu->tb_flushed |= old_tb_flushed;
+    tb->orig_tb = orig_tb;
     /* execute the generated code */
     trace_exec_tb_nocache(tb, tb->pc);
     cpu_tb_exec(cpu, tb);
@@ -338,10 +334,7 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
             tb_lock();
             have_tb_lock = true;
         }
-        /* Check if translation buffer has been flushed */
-        if (cpu->tb_flushed) {
-            cpu->tb_flushed = false;
-        } else if (!tb->invalid) {
+        if (!tb->invalid) {
             tb_add_jump(last_tb, tb_exit, tb);
         }
     }
@@ -497,8 +490,8 @@ static inline void cpu_handle_interrupt(CPUState *cpu,
             *last_tb = NULL;
         }
     }
-    if (unlikely(cpu->exit_request || replay_has_interrupt())) {
-        cpu->exit_request = 0;
+    if (unlikely(atomic_read(&cpu->exit_request) || replay_has_interrupt())) {
+        atomic_set(&cpu->exit_request, 0);
         cpu->exception_index = EXCP_INTERRUPT;
         cpu_loop_exit(cpu);
     }
@@ -510,7 +503,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
 {
     uintptr_t ret;
 
-    if (unlikely(cpu->exit_request)) {
+    if (unlikely(atomic_read(&cpu->exit_request))) {
         return;
     }
 
@@ -606,7 +599,6 @@ int cpu_exec(CPUState *cpu)
                 break;
             }
 
-            atomic_mb_set(&cpu->tb_flushed, false); /* reset before first TB lookup */
             for(;;) {
                 cpu_handle_interrupt(cpu, &last_tb);
                 tb = tb_find(cpu, last_tb, tb_exit);

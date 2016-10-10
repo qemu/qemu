@@ -159,20 +159,6 @@ static void nvram_init(Nvram *nvram, uint8_t *macaddr,
     }
 }
 
-static DeviceState *slavio_intctl;
-
-void sun4m_hmp_info_pic(Monitor *mon, const QDict *qdict)
-{
-    if (slavio_intctl)
-        slavio_pic_info(mon, slavio_intctl);
-}
-
-void sun4m_hmp_info_irq(Monitor *mon, const QDict *qdict)
-{
-    if (slavio_intctl)
-        slavio_irq_info(mon, slavio_intctl);
-}
-
 void cpu_check_irqs(CPUSPARCState *env)
 {
     CPUState *cs;
@@ -873,6 +859,7 @@ static void dummy_fdc_tc(void *opaque, int irq, int level)
 static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
                           MachineState *machine)
 {
+    DeviceState *slavio_intctl;
     const char *cpu_model = machine->cpu_model;
     unsigned int i;
     void *iommu, *espdma, *ledma, *nvram;

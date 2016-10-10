@@ -56,7 +56,7 @@ static void pci_init(void)
     if (pcibus) {
         return;
     }
-    pcibus = qpci_init_pc();
+    pcibus = qpci_init_pc(NULL);
     g_assert(pcibus != NULL);
 
     qusb_pci_init_one(pcibus, &uhci1, QPCI_DEVFN(0x1d, 0), 4);

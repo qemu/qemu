@@ -510,7 +510,16 @@ GEN_VXRFORM(vcmpeqfp, 3, 3)
 GEN_VXRFORM(vcmpgefp, 3, 7)
 GEN_VXRFORM(vcmpgtfp, 3, 11)
 GEN_VXRFORM(vcmpbfp, 3, 15)
+GEN_VXRFORM(vcmpneb, 3, 0)
+GEN_VXRFORM(vcmpneh, 3, 1)
+GEN_VXRFORM(vcmpnew, 3, 2)
 
+GEN_VXRFORM_DUAL(vcmpequb, PPC_ALTIVEC, PPC_NONE, \
+                 vcmpneb, PPC_NONE, PPC2_ISA300)
+GEN_VXRFORM_DUAL(vcmpequh, PPC_ALTIVEC, PPC_NONE, \
+                 vcmpneh, PPC_NONE, PPC2_ISA300)
+GEN_VXRFORM_DUAL(vcmpequw, PPC_ALTIVEC, PPC_NONE, \
+                 vcmpnew, PPC_NONE, PPC2_ISA300)
 GEN_VXRFORM_DUAL(vcmpeqfp, PPC_ALTIVEC, PPC_NONE, \
                  vcmpequd, PPC_NONE, PPC2_ALTIVEC_207)
 GEN_VXRFORM_DUAL(vcmpbfp, PPC_ALTIVEC, PPC_NONE, \
@@ -584,6 +593,18 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
         tcg_temp_free_ptr(rd);                                          \
     }
 
+#define GEN_VXFORM_NOA_3(name, opc2, opc3, opc4)                        \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+    {                                                                   \
+        TCGv_ptr rb;                                                    \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        gen_helper_##name(cpu_gpr[rD(ctx->opcode)], rb);                \
+        tcg_temp_free_ptr(rb);                                          \
+    }
 GEN_VXFORM_NOA(vupkhsb, 7, 8);
 GEN_VXFORM_NOA(vupkhsh, 7, 9);
 GEN_VXFORM_NOA(vupkhsw, 7, 25);
@@ -691,18 +712,18 @@ GEN_VXFORM_UIMM_ENV(vcfux, 5, 12);
 GEN_VXFORM_UIMM_ENV(vcfsx, 5, 13);
 GEN_VXFORM_UIMM_ENV(vctuxs, 5, 14);
 GEN_VXFORM_UIMM_ENV(vctsxs, 5, 15);
-GEN_VXFORM_DUAL(vspltb, PPC_NONE, PPC2_ALTIVEC_207,
-                      vextractub, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vsplth, PPC_NONE, PPC2_ALTIVEC_207,
-                      vextractuh, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltw, PPC_NONE, PPC2_ALTIVEC_207,
-                      vextractuw, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltisb, PPC_NONE, PPC2_ALTIVEC_207,
-                      vinsertb, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltish, PPC_NONE, PPC2_ALTIVEC_207,
-                      vinserth, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltisw, PPC_NONE, PPC2_ALTIVEC_207,
-                      vinsertw, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltb, PPC_ALTIVEC, PPC_NONE,
+                vextractub, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vsplth, PPC_ALTIVEC, PPC_NONE,
+                vextractuh, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltw, PPC_ALTIVEC, PPC_NONE,
+                vextractuw, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltisb, PPC_ALTIVEC, PPC_NONE,
+                vinsertb, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltish, PPC_ALTIVEC, PPC_NONE,
+                vinserth, PPC_NONE, PPC2_ISA300);
+GEN_VXFORM_DUAL(vspltisw, PPC_ALTIVEC, PPC_NONE,
+                vinsertw, PPC_NONE, PPC2_ISA300);
 
 static void gen_vsldoi(DisasContext *ctx)
 {
@@ -798,6 +819,8 @@ GEN_VXFORM_NOA_2(vctzb, 1, 24, 28)
 GEN_VXFORM_NOA_2(vctzh, 1, 24, 29)
 GEN_VXFORM_NOA_2(vctzw, 1, 24, 30)
 GEN_VXFORM_NOA_2(vctzd, 1, 24, 31)
+GEN_VXFORM_NOA_3(vclzlsbb, 1, 24, 0)
+GEN_VXFORM_NOA_3(vctzlsbb, 1, 24, 1)
 GEN_VXFORM_NOA(vpopcntb, 1, 28)
 GEN_VXFORM_NOA(vpopcnth, 1, 29)
 GEN_VXFORM_NOA(vpopcntw, 1, 30)

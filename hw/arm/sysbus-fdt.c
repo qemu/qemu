@@ -436,7 +436,7 @@ static const NodeCreationPair add_fdt_node_functions[] = {
  * are dynamically instantiable and if so call the node creation
  * function.
  */
-static int add_fdt_node(SysBusDevice *sbdev, void *opaque)
+static void add_fdt_node(SysBusDevice *sbdev, void *opaque)
 {
     int i, ret;
 
@@ -445,7 +445,7 @@ static int add_fdt_node(SysBusDevice *sbdev, void *opaque)
                     add_fdt_node_functions[i].typename)) {
             ret = add_fdt_node_functions[i].add_fdt_node_fn(sbdev, opaque);
             assert(!ret);
-            return 0;
+            return;
         }
     }
     error_report("Device %s can not be dynamically instantiated",

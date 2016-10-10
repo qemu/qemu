@@ -82,7 +82,7 @@
  */
 #if defined(__SANITIZE_THREAD__)
 #define smp_read_barrier_depends() ({ barrier(); __atomic_thread_fence(__ATOMIC_CONSUME); })
-#elsif defined(__alpha__)
+#elif defined(__alpha__)
 #define smp_read_barrier_depends()   asm volatile("mb":::"memory")
 #else
 #define smp_read_barrier_depends()   barrier()
@@ -92,6 +92,12 @@
 /* Weak atomic operations prevent the compiler moving other
  * loads/stores past the atomic operation load/store. However there is
  * no explicit memory barrier for the processor.
+ *
+ * The C11 memory model says that variables that are accessed from
+ * different threads should at least be done with __ATOMIC_RELAXED
+ * primitives or the result is undefined. Generally this has little to
+ * no effect on the generated code but not using the atomic primitives
+ * will get flagged by sanitizers as a violation.
  */
 #define atomic_read(ptr)                              \
     ({                                                \

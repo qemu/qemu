@@ -383,7 +383,6 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
     uint64_t pte;
     uint32_t flags;
     S390PCIBusDevice *pbdev = container_of(iommu, S390PCIBusDevice, iommu_mr);
-    S390pciState *s;
     IOMMUTLBEntry ret = {
         .target_as = &address_space_memory,
         .iova = 0,
@@ -404,19 +403,6 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
     }
 
     DPRINTF("iommu trans addr 0x%" PRIx64 "\n", addr);
-
-    s = S390_PCI_HOST_BRIDGE(pci_device_root_bus(pbdev->pdev)->qbus.parent);
-    /* s390 does not have an APIC mapped to main storage so we use
-     * a separate AddressSpace only for msix notifications
-     */
-    if (addr == ZPCI_MSI_ADDR) {
-        ret.target_as = &s->msix_notify_as;
-        ret.iova = addr;
-        ret.translated_addr = addr;
-        ret.addr_mask = 0xfff;
-        ret.perm = IOMMU_RW;
-        return ret;
-    }
 
     if (addr < pbdev->pba || addr > pbdev->pal) {
         return ret;
@@ -476,7 +462,7 @@ static uint8_t set_ind_atomic(uint64_t ind_loc, uint8_t to_be_set)
 static void s390_msi_ctrl_write(void *opaque, hwaddr addr, uint64_t data,
                                 unsigned int size)
 {
-    S390PCIBusDevice *pbdev;
+    S390PCIBusDevice *pbdev = opaque;
     uint32_t io_int_word;
     uint32_t idx = data >> ZPCI_MSI_VEC_BITS;
     uint32_t vec = data & ZPCI_MSI_VEC_MASK;
@@ -486,7 +472,6 @@ static void s390_msi_ctrl_write(void *opaque, hwaddr addr, uint64_t data,
 
     DPRINTF("write_msix data 0x%" PRIx64 " idx %d vec 0x%x\n", data, idx, vec);
 
-    pbdev = s390_pci_find_dev_by_idx(idx);
     if (!pbdev) {
         e |= (vec << ERR_EVENT_MVN_OFFSET);
         s390_pci_generate_error_event(ERR_EVENT_NOMSI, idx, 0, addr, e);
@@ -548,10 +533,6 @@ static void s390_pcihost_init_as(S390pciState *s)
 
         s->iommu[i] = iommu;
     }
-
-    memory_region_init_io(&s->msix_notify_mr, OBJECT(s),
-                          &s390_msi_ctrl_ops, s, "msix-s390", UINT64_MAX);
-    address_space_init(&s->msix_notify_as, &s->msix_notify_mr, "msix-pci");
 }
 
 static int s390_pcihost_init(SysBusDevice *dev)
@@ -581,7 +562,7 @@ static int s390_pcihost_init(SysBusDevice *dev)
     return 0;
 }
 
-static int s390_pcihost_setup_msix(S390PCIBusDevice *pbdev)
+static int s390_pci_setup_msix(S390PCIBusDevice *pbdev)
 {
     uint8_t pos;
     uint16_t ctrl;
@@ -607,6 +588,26 @@ static int s390_pcihost_setup_msix(S390PCIBusDevice *pbdev)
     pbdev->msix.entries = (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
     pbdev->msix.available = true;
     return 0;
+}
+
+static void s390_pci_msix_init(S390PCIBusDevice *pbdev)
+{
+    char *name;
+
+    name = g_strdup_printf("msix-s390-%04x", pbdev->uid);
+
+    memory_region_init_io(&pbdev->msix_notify_mr, OBJECT(pbdev),
+                          &s390_msi_ctrl_ops, pbdev, name, PAGE_SIZE);
+    memory_region_add_subregion(&pbdev->iommu->mr, ZPCI_MSI_ADDR,
+                                &pbdev->msix_notify_mr);
+
+    g_free(name);
+}
+
+static void s390_pci_msix_free(S390PCIBusDevice *pbdev)
+{
+    memory_region_del_subregion(&pbdev->iommu->mr, &pbdev->msix_notify_mr);
+    object_unparent(OBJECT(&pbdev->msix_notify_mr));
 }
 
 static S390PCIBusDevice *s390_pci_device_new(const char *target)
@@ -662,7 +663,9 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         pbdev->pdev = pdev;
         pbdev->iommu = s->iommu[PCI_SLOT(pdev->devfn)];
         pbdev->state = ZPCI_FS_STANDBY;
-        s390_pcihost_setup_msix(pbdev);
+
+        s390_pci_msix_init(pbdev);
+        s390_pci_setup_msix(pbdev);
 
         if (dev->hotplugged) {
             s390_pci_generate_plug_event(HP_EVENT_RESERVED_TO_STANDBY,
@@ -749,6 +752,7 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
     s390_pci_generate_plug_event(HP_EVENT_STANDBY_TO_RESERVED,
                                  pbdev->fh, pbdev->fid);
     object_unparent(OBJECT(pci_dev));
+    s390_pci_msix_free(pbdev);
     pbdev->pdev = NULL;
     pbdev->state = ZPCI_FS_RESERVED;
 out:

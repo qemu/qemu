@@ -226,7 +226,7 @@ static void build_extop_package(GArray *package, uint8_t op)
     build_prepend_byte(package, 0x5B); /* ExtOpPrefix */
 }
 
-static void build_append_int_noprefix(GArray *table, uint64_t value, int size)
+void build_append_int_noprefix(GArray *table, uint64_t value, int size)
 {
     int i;
 

@@ -13,5 +13,7 @@
 
 . common.rc
 
+cd "$BUILD_DIR"
+
 build_qemu
 make check $MAKEFLAGS

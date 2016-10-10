@@ -7,9 +7,34 @@ xen_platform_log(char *s) "xen platform: %s"
 xen_pv_mmio_read(uint64_t addr) "WARNING: read from Xen PV Device MMIO space (address %"PRIx64")"
 xen_pv_mmio_write(uint64_t addr) "WARNING: write to Xen PV Device MMIO space (address %"PRIx64")"
 
-# hw/i386/pc.c
-mhp_pc_dimm_assigned_slot(int slot) "%d"
-mhp_pc_dimm_assigned_address(uint64_t addr) "0x%"PRIx64
-
 # hw/i386/x86-iommu.c
 x86_iommu_iec_notify(bool global, uint32_t index, uint32_t mask) "Notify IEC invalidation: global=%d index=%" PRIu32 " mask=%" PRIu32
+
+# hw/i386/amd_iommu.c
+amdvi_evntlog_fail(uint64_t addr, uint32_t head) "error: fail to write at addr 0x%"PRIx64" +  offset 0x%"PRIx32
+amdvi_cache_update(uint16_t domid, uint8_t bus, uint8_t slot, uint8_t func, uint64_t gpa, uint64_t txaddr) " update iotlb domid 0x%"PRIx16" devid: %02x:%02x.%x gpa 0x%"PRIx64" hpa 0x%"PRIx64
+amdvi_completion_wait_fail(uint64_t addr) "error: fail to write at address 0x%"PRIx64
+amdvi_mmio_write(const char *reg, uint64_t addr, unsigned size, uint64_t val, uint64_t offset) "%s write addr 0x%"PRIx64", size %u, val 0x%"PRIx64", offset 0x%"PRIx64
+amdvi_mmio_read(const char *reg, uint64_t addr, unsigned size, uint64_t offset) "%s read addr 0x%"PRIx64", size %u offset 0x%"PRIx64
+amdvi_command_error(uint64_t status) "error: Executing commands with command buffer disabled 0x%"PRIx64
+amdvi_command_read_fail(uint64_t addr, uint32_t head) "error: fail to access memory at 0x%"PRIx64" + 0x%"PRIx32
+amdvi_command_exec(uint32_t head, uint32_t tail, uint64_t buf) "command buffer head at 0x%"PRIx32" command buffer tail at 0x%"PRIx32" command buffer base at 0x%"PRIx64
+amdvi_unhandled_command(uint8_t type) "unhandled command 0x%"PRIx8
+amdvi_intr_inval(void) "Interrupt table invalidated"
+amdvi_iotlb_inval(void) "IOTLB pages invalidated"
+amdvi_prefetch_pages(void) "Pre-fetch of AMD-Vi pages requested"
+amdvi_pages_inval(uint16_t domid) "AMD-Vi pages for domain 0x%"PRIx16 " invalidated"
+amdvi_all_inval(void) "Invalidation of all AMD-Vi cache requested "
+amdvi_ppr_exec(void) "Execution of PPR queue requested "
+amdvi_devtab_inval(uint8_t bus, uint8_t slot, uint8_t func) "device table entry for devid: %02x:%02x.%x invalidated"
+amdvi_completion_wait(uint64_t addr, uint64_t data) "completion wait requested with store address 0x%"PRIx64" and store data 0x%"PRIx64
+amdvi_control_status(uint64_t val) "MMIO_STATUS state 0x%"PRIx64
+amdvi_iotlb_reset(void) "IOTLB exceed size limit - reset "
+amdvi_completion_wait_exec(uint64_t addr, uint64_t data) "completion wait requested with store address 0x%"PRIx64" and store data 0x%"PRIx64
+amdvi_dte_get_fail(uint64_t addr, uint32_t offset) "error: failed to access Device Entry devtab 0x%"PRIx64" offset 0x%"PRIx32
+amdvi_invalid_dte(uint64_t addr) "PTE entry at 0x%"PRIx64" is invalid "
+amdvi_get_pte_hwerror(uint64_t addr) "hardware error eccessing PTE at addr 0x%"PRIx64
+amdvi_mode_invalid(uint8_t level, uint64_t addr)"error: translation level 0x%"PRIx8" translating addr 0x%"PRIx64
+amdvi_page_fault(uint64_t addr) "error: page fault accessing guest physical address 0x%"PRIx64
+amdvi_iotlb_hit(uint8_t bus, uint8_t slot, uint8_t func, uint64_t addr, uint64_t txaddr) "hit iotlb devid %02x:%02x.%x gpa 0x%"PRIx64" hpa 0x%"PRIx64
+amdvi_translation_result(uint8_t bus, uint8_t slot, uint8_t func, uint64_t addr, uint64_t txaddr) "devid: %02x:%02x.%x gpa 0x%"PRIx64" hpa 0x%"PRIx64

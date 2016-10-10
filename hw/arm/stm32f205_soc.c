@@ -34,9 +34,15 @@ static const uint32_t timer_addr[STM_NUM_TIMERS] = { 0x40000000, 0x40000400,
     0x40000800, 0x40000C00 };
 static const uint32_t usart_addr[STM_NUM_USARTS] = { 0x40011000, 0x40004400,
     0x40004800, 0x40004C00, 0x40005000, 0x40011400 };
+static const uint32_t adc_addr[STM_NUM_ADCS] = { 0x40012000, 0x40012100,
+    0x40012200 };
+static const uint32_t spi_addr[STM_NUM_SPIS] = { 0x40013000, 0x40003800,
+    0x40003C00 };
 
 static const int timer_irq[STM_NUM_TIMERS] = {28, 29, 30, 50};
 static const int usart_irq[STM_NUM_USARTS] = {37, 38, 39, 52, 53, 71};
+#define ADC_IRQ 18
+static const int spi_irq[STM_NUM_SPIS] = {35, 36, 51};
 
 static void stm32f205_soc_initfn(Object *obj)
 {
@@ -57,13 +63,27 @@ static void stm32f205_soc_initfn(Object *obj)
                           TYPE_STM32F2XX_TIMER);
         qdev_set_parent_bus(DEVICE(&s->timer[i]), sysbus_get_default());
     }
+
+    s->adc_irqs = OR_IRQ(object_new(TYPE_OR_IRQ));
+
+    for (i = 0; i < STM_NUM_ADCS; i++) {
+        object_initialize(&s->adc[i], sizeof(s->adc[i]),
+                          TYPE_STM32F2XX_ADC);
+        qdev_set_parent_bus(DEVICE(&s->adc[i]), sysbus_get_default());
+    }
+
+    for (i = 0; i < STM_NUM_SPIS; i++) {
+        object_initialize(&s->spi[i], sizeof(s->spi[i]),
+                          TYPE_STM32F2XX_SPI);
+        qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
+    }
 }
 
 static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
 {
     STM32F205State *s = STM32F205_SOC(dev_soc);
-    DeviceState *syscfgdev, *usartdev, *timerdev, *nvic;
-    SysBusDevice *syscfgbusdev, *usartbusdev, *timerbusdev;
+    DeviceState *dev, *nvic;
+    SysBusDevice *busdev;
     Error *err = NULL;
     int i;
 
@@ -94,44 +114,80 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
                        s->kernel_filename, s->cpu_model);
 
     /* System configuration controller */
-    syscfgdev = DEVICE(&s->syscfg);
+    dev = DEVICE(&s->syscfg);
     object_property_set_bool(OBJECT(&s->syscfg), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
-    syscfgbusdev = SYS_BUS_DEVICE(syscfgdev);
-    sysbus_mmio_map(syscfgbusdev, 0, 0x40013800);
-    sysbus_connect_irq(syscfgbusdev, 0, qdev_get_gpio_in(nvic, 71));
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(busdev, 0, 0x40013800);
+    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(nvic, 71));
 
     /* Attach UART (uses USART registers) and USART controllers */
     for (i = 0; i < STM_NUM_USARTS; i++) {
-        usartdev = DEVICE(&(s->usart[i]));
-        qdev_prop_set_chr(usartdev, "chardev", i < MAX_SERIAL_PORTS ? serial_hds[i] : NULL);
+        dev = DEVICE(&(s->usart[i]));
+        qdev_prop_set_chr(dev, "chardev",
+                          i < MAX_SERIAL_PORTS ? serial_hds[i] : NULL);
         object_property_set_bool(OBJECT(&s->usart[i]), true, "realized", &err);
         if (err != NULL) {
             error_propagate(errp, err);
             return;
         }
-        usartbusdev = SYS_BUS_DEVICE(usartdev);
-        sysbus_mmio_map(usartbusdev, 0, usart_addr[i]);
-        sysbus_connect_irq(usartbusdev, 0,
-                           qdev_get_gpio_in(nvic, usart_irq[i]));
+        busdev = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(busdev, 0, usart_addr[i]);
+        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(nvic, usart_irq[i]));
     }
 
     /* Timer 2 to 5 */
     for (i = 0; i < STM_NUM_TIMERS; i++) {
-        timerdev = DEVICE(&(s->timer[i]));
-        qdev_prop_set_uint64(timerdev, "clock-frequency", 1000000000);
+        dev = DEVICE(&(s->timer[i]));
+        qdev_prop_set_uint64(dev, "clock-frequency", 1000000000);
         object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", &err);
         if (err != NULL) {
             error_propagate(errp, err);
             return;
         }
-        timerbusdev = SYS_BUS_DEVICE(timerdev);
-        sysbus_mmio_map(timerbusdev, 0, timer_addr[i]);
-        sysbus_connect_irq(timerbusdev, 0,
-                           qdev_get_gpio_in(nvic, timer_irq[i]));
+        busdev = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(busdev, 0, timer_addr[i]);
+        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(nvic, timer_irq[i]));
+    }
+
+    /* ADC 1 to 3 */
+    object_property_set_int(OBJECT(s->adc_irqs), STM_NUM_ADCS,
+                            "num-lines", &err);
+    object_property_set_bool(OBJECT(s->adc_irqs), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    qdev_connect_gpio_out(DEVICE(s->adc_irqs), 0,
+                          qdev_get_gpio_in(nvic, ADC_IRQ));
+
+    for (i = 0; i < STM_NUM_ADCS; i++) {
+        dev = DEVICE(&(s->adc[i]));
+        object_property_set_bool(OBJECT(&s->adc[i]), true, "realized", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+        busdev = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(busdev, 0, adc_addr[i]);
+        sysbus_connect_irq(busdev, 0,
+                           qdev_get_gpio_in(DEVICE(s->adc_irqs), i));
+    }
+
+    /* SPI 1 and 2 */
+    for (i = 0; i < STM_NUM_SPIS; i++) {
+        dev = DEVICE(&(s->spi[i]));
+        object_property_set_bool(OBJECT(&s->spi[i]), true, "realized", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+        busdev = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(busdev, 0, spi_addr[i]);
+        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(nvic, spi_irq[i]));
     }
 }
 

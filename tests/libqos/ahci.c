@@ -128,7 +128,7 @@ QPCIDevice *get_ahci_device(uint32_t *fingerprint)
     uint32_t ahci_fingerprint;
     QPCIBus *pcibus;
 
-    pcibus = qpci_init_pc();
+    pcibus = qpci_init_pc(NULL);
 
     /* Find the AHCI PCI device and verify it's the right one. */
     ahci = qpci_device_find(pcibus, QPCI_DEVFN(0x1F, 0x02));

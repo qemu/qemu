@@ -32,6 +32,7 @@
 #include "block/thread-pool.h"
 #include "qemu/iov.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/util.h"
 #include <windows.h>
 #include <winioctl.h>
 
@@ -252,7 +253,8 @@ static void raw_probe_alignment(BlockDriverState *bs, Error **errp)
     }
 }
 
-static void raw_parse_flags(int flags, int *access_flags, DWORD *overlapped)
+static void raw_parse_flags(int flags, bool use_aio, int *access_flags,
+                            DWORD *overlapped)
 {
     assert(access_flags != NULL);
     assert(overlapped != NULL);
@@ -264,7 +266,7 @@ static void raw_parse_flags(int flags, int *access_flags, DWORD *overlapped)
     }
 
     *overlapped = FILE_ATTRIBUTE_NORMAL;
-    if (flags & BDRV_O_NATIVE_AIO) {
+    if (use_aio) {
         *overlapped |= FILE_FLAG_OVERLAPPED;
     }
     if (flags & BDRV_O_NOCACHE) {
@@ -292,9 +294,34 @@ static QemuOptsList raw_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "File name of the image",
         },
+        {
+            .name = "aio",
+            .type = QEMU_OPT_STRING,
+            .help = "host AIO implementation (threads, native)",
+        },
         { /* end of list */ }
     },
 };
+
+static bool get_aio_option(QemuOpts *opts, int flags, Error **errp)
+{
+    BlockdevAioOptions aio, aio_default;
+
+    aio_default = (flags & BDRV_O_NATIVE_AIO) ? BLOCKDEV_AIO_OPTIONS_NATIVE
+                                              : BLOCKDEV_AIO_OPTIONS_THREADS;
+    aio = qapi_enum_parse(BlockdevAioOptions_lookup, qemu_opt_get(opts, "aio"),
+                          BLOCKDEV_AIO_OPTIONS__MAX, aio_default, errp);
+
+    switch (aio) {
+    case BLOCKDEV_AIO_OPTIONS_NATIVE:
+        return true;
+    case BLOCKDEV_AIO_OPTIONS_THREADS:
+        return false;
+    default:
+        error_setg(errp, "Invalid AIO option");
+    }
+    return false;
+}
 
 static int raw_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
@@ -305,6 +332,7 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *opts;
     Error *local_err = NULL;
     const char *filename;
+    bool use_aio;
     int ret;
 
     s->type = FTYPE_FILE;
@@ -319,7 +347,14 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
 
     filename = qemu_opt_get(opts, "filename");
 
-    raw_parse_flags(flags, &access_flags, &overlapped);
+    use_aio = get_aio_option(opts, flags, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    raw_parse_flags(flags, use_aio, &access_flags, &overlapped);
 
     if (filename[0] && filename[1] == ':') {
         snprintf(s->drive_path, sizeof(s->drive_path), "%c:\\", filename[0]);
@@ -346,7 +381,7 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    if (flags & BDRV_O_NATIVE_AIO) {
+    if (use_aio) {
         s->aio = win32_aio_init();
         if (s->aio == NULL) {
             CloseHandle(s->hfile);
@@ -647,6 +682,7 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
 
     Error *local_err = NULL;
     const char *filename;
+    bool use_aio;
 
     QemuOpts *opts = qemu_opts_create(&raw_runtime_opts, NULL, 0,
                                       &error_abort);
@@ -658,6 +694,16 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     filename = qemu_opt_get(opts, "filename");
+
+    use_aio = get_aio_option(opts, flags, &local_err);
+    if (!local_err && use_aio) {
+        error_setg(&local_err, "AIO is not supported on Windows host devices");
+    }
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto done;
+    }
 
     if (strstart(filename, "/dev/cdrom", NULL)) {
         if (find_cdrom(device_name, sizeof(device_name)) < 0) {
@@ -677,7 +723,7 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
     }
     s->type = find_device_type(bs, filename);
 
-    raw_parse_flags(flags, &access_flags, &overlapped);
+    raw_parse_flags(flags, use_aio, &access_flags, &overlapped);
 
     create_flags = OPEN_EXISTING;
 
