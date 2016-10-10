@@ -990,11 +990,8 @@ static const VMStateDescription vmstate_virtio_gpu_scanouts = {
 static void virtio_gpu_save(QEMUFile *f, void *opaque, size_t size)
 {
     VirtIOGPU *g = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(g);
     struct virtio_gpu_simple_resource *res;
     int i;
-
-    virtio_save(vdev, f);
 
     /* in 2d mode we should never find unprocessed commands here */
     assert(QTAILQ_EMPTY(&g->cmdq));
@@ -1020,16 +1017,10 @@ static void virtio_gpu_save(QEMUFile *f, void *opaque, size_t size)
 static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size)
 {
     VirtIOGPU *g = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(g);
     struct virtio_gpu_simple_resource *res;
     struct virtio_gpu_scanout *scanout;
     uint32_t resource_id, pformat;
-    int i, ret;
-
-    ret = virtio_load(vdev, f, VIRTIO_GPU_VM_VERSION);
-    if (ret) {
-        return ret;
-    }
+    int i;
 
     resource_id = qemu_get_be32(f);
     while (resource_id != 0) {
@@ -1219,8 +1210,32 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
 #endif
 }
 
-VMSTATE_VIRTIO_DEVICE(gpu, VIRTIO_GPU_VM_VERSION, virtio_gpu_load,
-                      virtio_gpu_save);
+/*
+ * For historical reasons virtio_gpu does not adhere to virtio migration
+ * scheme as described in doc/virtio-migration.txt, in a sense that no
+ * save/load callback are provided to the core. Instead the device data
+ * is saved/loaded after the core data.
+ *
+ * Because of this we need a special vmsd.
+ */
+static const VMStateDescription vmstate_virtio_gpu = {
+    .name = "virtio-gpu",
+    .minimum_version_id = VIRTIO_GPU_VM_VERSION,
+    .version_id = VIRTIO_GPU_VM_VERSION,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE /* core */,
+        {
+            .name = "virtio-gpu",
+            .info = &(const VMStateInfo) {
+                        .name = "virtio-gpu",
+                        .get = virtio_gpu_load,
+                        .put = virtio_gpu_save,
+            },
+            .flags = VMS_SINGLE,
+        } /* device */,
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 static Property virtio_gpu_properties[] = {
     DEFINE_PROP_UINT32("max_outputs", VirtIOGPU, conf.max_outputs, 1),

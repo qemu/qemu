@@ -4005,7 +4005,6 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
     }
 
     chr = qemu_chr_find(id);
-    chr->opts = opts;
 
 qapi_out:
     qapi_free_ChardevBackend(backend);
@@ -4014,7 +4013,6 @@ qapi_out:
     return chr;
 
 err:
-    qemu_opts_del(opts);
     return NULL;
 }
 
@@ -4042,6 +4040,7 @@ CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename,
         qemu_chr_fe_claim_no_fail(chr);
         monitor_init(chr, MONITOR_USE_READLINE);
     }
+    qemu_opts_del(opts);
     return chr;
 }
 
@@ -4141,7 +4140,6 @@ static void qemu_chr_free_common(CharDriverState *chr)
 {
     g_free(chr->filename);
     g_free(chr->label);
-    qemu_opts_del(chr->opts);
     if (chr->logfd != -1) {
         close(chr->logfd);
     }
@@ -4522,6 +4520,11 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
 
     s->addr = QAPI_CLONE(SocketAddress, sock->addr);
 
+    qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
+    if (s->is_unix) {
+        qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_FD_PASS);
+    }
+
     chr->opaque = s;
     chr->chr_wait_connected = tcp_chr_wait_connected;
     chr->chr_write = tcp_chr_write;
@@ -4603,6 +4606,19 @@ static CharDriverState *qmp_chardev_open_udp(const char *id,
         return NULL;
     }
     return qemu_chr_open_udp(sioc, common, errp);
+}
+
+
+bool qemu_chr_has_feature(CharDriverState *chr,
+                          CharDriverFeature feature)
+{
+    return test_bit(feature, chr->features);
+}
+
+void qemu_chr_set_feature(CharDriverState *chr,
+                           CharDriverFeature feature)
+{
+    return set_bit(feature, chr->features);
 }
 
 ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,

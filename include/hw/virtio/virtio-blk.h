@@ -80,14 +80,6 @@ typedef struct MultiReqBuffer {
     bool is_write;
 } MultiReqBuffer;
 
-void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
-                             VirtIOBlockReq *req);
-void virtio_blk_free_request(VirtIOBlockReq *req);
-
-void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb);
-
-void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb);
-
 void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq);
 
 #endif

@@ -413,10 +413,9 @@ static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
                                   armcpu->mp_affinity);
         }
 
-        for (i = 0; i < nb_numa_nodes; i++) {
-            if (test_bit(cpu, numa_info[i].node_cpu)) {
-                qemu_fdt_setprop_cell(vbi->fdt, nodename, "numa-node-id", i);
-            }
+        i = numa_get_node_for_cpu(cpu);
+        if (i < nb_numa_nodes) {
+            qemu_fdt_setprop_cell(vbi->fdt, nodename, "numa-node-id", i);
         }
 
         g_free(nodename);

@@ -120,15 +120,9 @@ static uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp)
     return f;
 }
 
-static int virtio_rng_load(QEMUFile *f, void *opaque, size_t size)
+static int virtio_rng_post_load(void *opaque, int version_id)
 {
     VirtIORNG *vrng = opaque;
-    int ret;
-
-    ret = virtio_load(VIRTIO_DEVICE(vrng), f, 1);
-    if (ret != 0) {
-        return ret;
-    }
 
     /* We may have an element ready but couldn't process it due to a quota
      * limit.  Make sure to try again after live migration when the quota may
@@ -216,7 +210,16 @@ static void virtio_rng_device_unrealize(DeviceState *dev, Error **errp)
     virtio_cleanup(vdev);
 }
 
-VMSTATE_VIRTIO_DEVICE(rng, 1, virtio_rng_load, virtio_vmstate_save);
+static const VMStateDescription vmstate_virtio_rng = {
+    .name = "virtio-rng",
+    .minimum_version_id = 1,
+    .version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+    .post_load =  virtio_rng_post_load,
+};
 
 static Property virtio_rng_properties[] = {
     /* Set a default rate limit of 2^47 bytes per minute or roughly 2TB/s.  If

@@ -564,29 +564,6 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
     }
 }
 
-static int compare_chardev_opts(void *opaque,
-                                const char *name, const char *value,
-                                Error **errp)
-{
-    CompareChardevProps *props = opaque;
-
-    if (strcmp(name, "backend") == 0 &&
-        strcmp(value, "socket") == 0) {
-        props->is_socket = true;
-        return 0;
-    } else if (strcmp(name, "host") == 0 ||
-              (strcmp(name, "port") == 0) ||
-              (strcmp(name, "server") == 0) ||
-              (strcmp(name, "wait") == 0) ||
-              (strcmp(name, "path") == 0)) {
-        return 0;
-    } else {
-        error_setg(errp,
-                   "COLO-compare does not support a chardev with option %s=%s",
-                   name, value);
-        return -1;
-    }
-}
 
 /*
  * Return 0 is success.
@@ -606,12 +583,9 @@ static int find_and_check_chardev(CharDriverState **chr,
     }
 
     memset(&props, 0, sizeof(props));
-    if (qemu_opt_foreach((*chr)->opts, compare_chardev_opts, &props, errp)) {
-        return 1;
-    }
 
-    if (!props.is_socket) {
-        error_setg(errp, "chardev \"%s\" is not a tcp socket",
+    if (!qemu_chr_has_feature(*chr, QEMU_CHAR_FEATURE_RECONNECTABLE)) {
+        error_setg(errp, "chardev \"%s\" is not reconnectable",
                    chr_name);
         return 1;
     }

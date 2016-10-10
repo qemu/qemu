@@ -880,6 +880,7 @@ static int virtio_net_handle_mq(VirtIONet *n, uint8_t cmd,
 
     return VIRTIO_NET_OK;
 }
+
 static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -897,8 +898,10 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         }
         if (iov_size(elem->in_sg, elem->in_num) < sizeof(status) ||
             iov_size(elem->out_sg, elem->out_num) < sizeof(ctrl)) {
-            error_report("virtio-net ctrl missing headers");
-            exit(1);
+            virtio_error(vdev, "virtio-net ctrl missing headers");
+            virtqueue_detach_element(vq, elem, 0);
+            g_free(elem);
+            break;
         }
 
         iov_cnt = elem->out_num;
@@ -1127,21 +1130,24 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
 
         elem = virtqueue_pop(q->rx_vq, sizeof(VirtQueueElement));
         if (!elem) {
-            if (i == 0)
-                return -1;
-            error_report("virtio-net unexpected empty queue: "
-                         "i %zd mergeable %d offset %zd, size %zd, "
-                         "guest hdr len %zd, host hdr len %zd "
-                         "guest features 0x%" PRIx64,
-                         i, n->mergeable_rx_bufs, offset, size,
-                         n->guest_hdr_len, n->host_hdr_len,
-                         vdev->guest_features);
-            exit(1);
+            if (i) {
+                virtio_error(vdev, "virtio-net unexpected empty queue: "
+                             "i %zd mergeable %d offset %zd, size %zd, "
+                             "guest hdr len %zd, host hdr len %zd "
+                             "guest features 0x%" PRIx64,
+                             i, n->mergeable_rx_bufs, offset, size,
+                             n->guest_hdr_len, n->host_hdr_len,
+                             vdev->guest_features);
+            }
+            return -1;
         }
 
         if (elem->in_num < 1) {
-            error_report("virtio-net receive queue contains no in buffers");
-            exit(1);
+            virtio_error(vdev,
+                         "virtio-net receive queue contains no in buffers");
+            virtqueue_detach_element(q->rx_vq, elem, 0);
+            g_free(elem);
+            return -1;
         }
 
         sg = elem->in_sg;
@@ -1243,15 +1249,19 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
         out_num = elem->out_num;
         out_sg = elem->out_sg;
         if (out_num < 1) {
-            error_report("virtio-net header not in first element");
-            exit(1);
+            virtio_error(vdev, "virtio-net header not in first element");
+            virtqueue_detach_element(q->tx_vq, elem, 0);
+            g_free(elem);
+            return -EINVAL;
         }
 
         if (n->has_vnet_hdr) {
             if (iov_to_buf(out_sg, out_num, 0, &mhdr, n->guest_hdr_len) <
                 n->guest_hdr_len) {
-                error_report("virtio-net header incorrect");
-                exit(1);
+                virtio_error(vdev, "virtio-net header incorrect");
+                virtqueue_detach_element(q->tx_vq, elem, 0);
+                g_free(elem);
+                return -EINVAL;
             }
             if (n->needs_vnet_hdr_swap) {
                 virtio_net_hdr_swap(vdev, (void *) &mhdr);
@@ -1319,7 +1329,9 @@ static void virtio_net_handle_tx_timer(VirtIODevice *vdev, VirtQueue *vq)
         virtio_queue_set_notification(vq, 1);
         timer_del(q->tx_timer);
         q->tx_waiting = 0;
-        virtio_net_flush_tx(q);
+        if (virtio_net_flush_tx(q) == -EINVAL) {
+            return;
+        }
     } else {
         timer_mod(q->tx_timer,
                        qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
@@ -1390,8 +1402,9 @@ static void virtio_net_tx_bh(void *opaque)
     }
 
     ret = virtio_net_flush_tx(q);
-    if (ret == -EBUSY) {
-        return; /* Notification re-enable handled by tx_complete */
+    if (ret == -EBUSY || ret == -EINVAL) {
+        return; /* Notification re-enable handled by tx_complete or device
+                 * broken */
     }
 
     /* If we flush a full burst of packets, assume there are
@@ -1406,7 +1419,10 @@ static void virtio_net_tx_bh(void *opaque)
      * anything that may have come in while we weren't looking.  If
      * we find something, assume the guest is still active and reschedule */
     virtio_queue_set_notification(q->tx_vq, 1);
-    if (virtio_net_flush_tx(q) > 0) {
+    ret = virtio_net_flush_tx(q);
+    if (ret == -EINVAL) {
+        return;
+    } else if (ret > 0) {
         virtio_queue_set_notification(q->tx_vq, 0);
         qemu_bh_schedule(q->tx_bh);
         q->tx_waiting = 1;
@@ -1498,17 +1514,6 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
     virtio_net_set_queues(n);
 }
 
-static void virtio_net_save(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIONet *n = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
-
-    /* At this point, backend must be stopped, otherwise
-     * it might keep writing to memory. */
-    assert(!n->vhost_started);
-    virtio_save(vdev, f);
-}
-
 static void virtio_net_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -1542,14 +1547,6 @@ static void virtio_net_save_device(VirtIODevice *vdev, QEMUFile *f)
     if (virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
         qemu_put_be64(f, n->curr_guest_offloads);
     }
-}
-
-static int virtio_net_load(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIONet *n = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
-
-    return virtio_load(vdev, f, VIRTIO_NET_VM_VERSION);
 }
 
 static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
@@ -1854,8 +1851,25 @@ static void virtio_net_instance_init(Object *obj)
                                   DEVICE(n), NULL);
 }
 
-VMSTATE_VIRTIO_DEVICE(net, VIRTIO_NET_VM_VERSION, virtio_net_load,
-                      virtio_net_save);
+static void virtio_net_pre_save(void *opaque)
+{
+    VirtIONet *n = opaque;
+
+    /* At this point, backend must be stopped, otherwise
+     * it might keep writing to memory. */
+    assert(!n->vhost_started);
+}
+
+static const VMStateDescription vmstate_virtio_net = {
+    .name = "virtio-net",
+    .minimum_version_id = VIRTIO_NET_VM_VERSION,
+    .version_id = VIRTIO_NET_VM_VERSION,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+    .pre_save = virtio_net_pre_save,
+};
 
 static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT("csum", VirtIONet, host_features, VIRTIO_NET_F_CSUM, true),

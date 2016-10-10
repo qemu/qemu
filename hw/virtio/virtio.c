@@ -264,12 +264,35 @@ static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
                                   0, elem->out_sg[i].iov_len);
 }
 
+/* virtqueue_detach_element:
+ * @vq: The #VirtQueue
+ * @elem: The #VirtQueueElement
+ * @len: number of bytes written
+ *
+ * Detach the element from the virtqueue.  This function is suitable for device
+ * reset or other situations where a #VirtQueueElement is simply freed and will
+ * not be pushed or discarded.
+ */
+void virtqueue_detach_element(VirtQueue *vq, const VirtQueueElement *elem,
+                              unsigned int len)
+{
+    vq->inuse--;
+    virtqueue_unmap_sg(vq, elem, len);
+}
+
+/* virtqueue_discard:
+ * @vq: The #VirtQueue
+ * @elem: The #VirtQueueElement
+ * @len: number of bytes written
+ *
+ * Pretend the most recent element wasn't popped from the virtqueue.  The next
+ * call to virtqueue_pop() will refetch the element.
+ */
 void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
                        unsigned int len)
 {
     vq->last_avail_idx--;
-    vq->inuse--;
-    virtqueue_unmap_sg(vq, elem, len);
+    virtqueue_detach_element(vq, elem, len);
 }
 
 /* virtqueue_rewind:
@@ -1617,10 +1640,25 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 }
 
 /* A wrapper for use as a VMState .put function */
-void virtio_vmstate_save(QEMUFile *f, void *opaque, size_t size)
+static void virtio_device_put(QEMUFile *f, void *opaque, size_t size)
 {
     virtio_save(VIRTIO_DEVICE(opaque), f);
 }
+
+/* A wrapper for use as a VMState .get function */
+static int virtio_device_get(QEMUFile *f, void *opaque, size_t size)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
+    DeviceClass *dc = DEVICE_CLASS(VIRTIO_DEVICE_GET_CLASS(vdev));
+
+    return virtio_load(vdev, f, dc->vmsd->version_id);
+}
+
+const VMStateInfo  virtio_vmstate_info = {
+    .name = "virtio",
+    .get = virtio_device_get,
+    .put = virtio_device_put,
+};
 
 static int virtio_set_features_nocheck(VirtIODevice *vdev, uint64_t val)
 {

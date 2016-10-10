@@ -4,6 +4,7 @@
 #include "qapi/error.h"
 #include "qapi-event.h"
 #include "trace.h"
+#include "sysemu/numa.h"
 
 #define ACPI_CPU_HOTPLUG_REG_LEN 12
 #define ACPI_CPU_SELECTOR_OFFSET_WR 0
@@ -503,6 +504,7 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
 
         /* build Processor object for each processor */
         for (i = 0; i < arch_ids->len; i++) {
+            int j;
             Aml *dev;
             Aml *uid = aml_int(i);
             GArray *madt_buf = g_array_new(0, 1, 1);
@@ -546,6 +548,16 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
                           aml_arg(1), aml_arg(2))
             );
             aml_append(dev, method);
+
+            /* Linux guests discard SRAT info for non-present CPUs
+             * as a result _PXM is required for all CPUs which might
+             * be hot-plugged. For simplicity, add it for all CPUs.
+             */
+            j = numa_get_node_for_cpu(i);
+            if (j < nb_numa_nodes) {
+                aml_append(dev, aml_name_decl("_PXM", aml_int(j)));
+            }
+
             aml_append(cpus_dev, dev);
         }
     }

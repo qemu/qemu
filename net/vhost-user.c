@@ -27,11 +27,6 @@ typedef struct VhostUserState {
     bool started;
 } VhostUserState;
 
-typedef struct VhostUserChardevProps {
-    bool is_socket;
-    bool is_unix;
-} VhostUserChardevProps;
-
 VHostNetState *vhost_user_get_vhost_net(NetClientState *nc)
 {
     VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
@@ -278,45 +273,23 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     return 0;
 }
 
-static int net_vhost_chardev_opts(void *opaque,
-                                  const char *name, const char *value,
-                                  Error **errp)
-{
-    VhostUserChardevProps *props = opaque;
-
-    if (strcmp(name, "backend") == 0 && strcmp(value, "socket") == 0) {
-        props->is_socket = true;
-    } else if (strcmp(name, "path") == 0) {
-        props->is_unix = true;
-    } else if (strcmp(name, "server") == 0) {
-    } else {
-        error_setg(errp,
-                   "vhost-user does not support a chardev with option %s=%s",
-                   name, value);
-        return -1;
-    }
-    return 0;
-}
-
-static CharDriverState *net_vhost_parse_chardev(
+static CharDriverState *net_vhost_claim_chardev(
     const NetdevVhostUserOptions *opts, Error **errp)
 {
     CharDriverState *chr = qemu_chr_find(opts->chardev);
-    VhostUserChardevProps props;
 
     if (chr == NULL) {
         error_setg(errp, "chardev \"%s\" not found", opts->chardev);
         return NULL;
     }
 
-    /* inspect chardev opts */
-    memset(&props, 0, sizeof(props));
-    if (qemu_opt_foreach(chr->opts, net_vhost_chardev_opts, &props, errp)) {
+    if (!qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE)) {
+        error_setg(errp, "chardev \"%s\" is not reconnectable",
+                   opts->chardev);
         return NULL;
     }
-
-    if (!props.is_socket || !props.is_unix) {
-        error_setg(errp, "chardev \"%s\" is not a unix socket",
+    if (!qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_FD_PASS)) {
+        error_setg(errp, "chardev \"%s\" does not support FD passing",
                    opts->chardev);
         return NULL;
     }
@@ -357,7 +330,7 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_USER);
     vhost_user_opts = &netdev->u.vhost_user;
 
-    chr = net_vhost_parse_chardev(vhost_user_opts, errp);
+    chr = net_vhost_claim_chardev(vhost_user_opts, errp);
     if (!chr) {
         return -1;
     }

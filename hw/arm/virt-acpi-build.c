@@ -427,11 +427,9 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtGuestInfo *guest_info)
     uint32_t *cpu_node = g_malloc0(guest_info->smp_cpus * sizeof(uint32_t));
 
     for (i = 0; i < guest_info->smp_cpus; i++) {
-        for (j = 0; j < nb_numa_nodes; j++) {
-            if (test_bit(i, numa_info[j].node_cpu)) {
+        j = numa_get_node_for_cpu(i);
+        if (j < nb_numa_nodes) {
                 cpu_node[i] = j;
-                break;
-            }
         }
     }
 
