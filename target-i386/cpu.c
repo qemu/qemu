@@ -2845,9 +2845,8 @@ static void mce_init(X86CPU *cpu)
 }
 
 #ifndef CONFIG_USER_ONLY
-static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
+APICCommonClass *apic_get_class(void)
 {
-    APICCommonState *apic;
     const char *apic_type = "apic";
 
     if (kvm_apic_in_kernel()) {
@@ -2856,7 +2855,15 @@ static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
         apic_type = "xen-apic";
     }
 
-    cpu->apic_state = DEVICE(object_new(apic_type));
+    return APIC_COMMON_CLASS(object_class_by_name(apic_type));
+}
+
+static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
+{
+    APICCommonState *apic;
+    ObjectClass *apic_class = OBJECT_CLASS(apic_get_class());
+
+    cpu->apic_state = DEVICE(object_new(object_class_get_name(apic_class)));
 
     object_property_add_child(OBJECT(cpu), "lapic",
                               OBJECT(cpu->apic_state), &error_abort);
