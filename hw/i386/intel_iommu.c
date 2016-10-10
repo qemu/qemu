@@ -32,6 +32,7 @@
 #include "hw/i386/x86-iommu.h"
 #include "hw/pci-host/q35.h"
 #include "sysemu/kvm.h"
+#include "hw/i386/apic_internal.h"
 
 /*#define DEBUG_INTEL_IOMMU*/
 #ifdef DEBUG_INTEL_IOMMU
@@ -280,18 +281,17 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
 static void vtd_generate_interrupt(IntelIOMMUState *s, hwaddr mesg_addr_reg,
                                    hwaddr mesg_data_reg)
 {
-    hwaddr addr;
-    uint32_t data;
+    MSIMessage msi;
 
     assert(mesg_data_reg < DMAR_REG_SIZE);
     assert(mesg_addr_reg < DMAR_REG_SIZE);
 
-    addr = vtd_get_long_raw(s, mesg_addr_reg);
-    data = vtd_get_long_raw(s, mesg_data_reg);
+    msi.address = vtd_get_long_raw(s, mesg_addr_reg);
+    msi.data = vtd_get_long_raw(s, mesg_data_reg);
 
-    VTD_DPRINTF(FLOG, "msi: addr 0x%"PRIx64 " data 0x%"PRIx32, addr, data);
-    address_space_stl_le(&address_space_memory, addr, data,
-                         MEMTXATTRS_UNSPECIFIED, NULL);
+    VTD_DPRINTF(FLOG, "msi: addr 0x%"PRIx64 " data 0x%"PRIx32,
+                msi.address, msi.data);
+    apic_get_class()->send_msi(&msi);
 }
 
 /* Generate a fault event to software via MSI if conditions are met.
@@ -2134,6 +2134,7 @@ static void vtd_generate_msi_message(VTDIrq *irq, MSIMessage *msg_out)
     msg.dest_mode = irq->dest_mode;
     msg.redir_hint = irq->redir_hint;
     msg.dest = irq->dest;
+    msg.__addr_hi = irq->dest & 0xffffff00;
     msg.__addr_head = cpu_to_le32(0xfee);
     /* Keep this from original MSI address bits */
     msg.__not_used = irq->msi_addr_last_bits;
@@ -2293,11 +2294,7 @@ static MemTxResult vtd_mem_ir_write(void *opaque, hwaddr addr,
                 " for device sid 0x%04x",
                 to.address, to.data, sid);
 
-    if (dma_memory_write(&address_space_memory, to.address,
-                         &to.data, size)) {
-        VTD_DPRINTF(GENERAL, "error: fail to write 0x%"PRIx64
-                    " value 0x%"PRIx32, to.address, to.data);
-    }
+    apic_get_class()->send_msi(&to);
 
     return MEMTX_OK;
 }
