@@ -22,10 +22,13 @@ enum {
 #define OPENPIC_MODEL_FSL_MPIC_42 2
 
 #define OPENPIC_MAX_SRC     256
-#define OPENPIC_MAX_TMR     4
+#define OPENPIC_MAX_TMR     2
 #define OPENPIC_MAX_IPI     4
 #define OPENPIC_MAX_IRQ     (OPENPIC_MAX_SRC + OPENPIC_MAX_IPI + \
-                             OPENPIC_MAX_TMR)
+                             4 * OPENPIC_MAX_TMR)
+
+#define OPENPIC_TIMER_A		0
+#define OPENPIC_TIMER_B		1
 
 #define TYPE_KVM_OPENPIC "kvm-openpic"
 int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs);

@@ -71,12 +71,14 @@ static const int debug_openpic = 0;
 /* OpenPIC address map */
 #define OPENPIC_GLB_REG_START        0x0
 #define OPENPIC_GLB_REG_SIZE         0x10F0
-#define OPENPIC_TMR_REG_START        0x10F0
-#define OPENPIC_TMR_REG_SIZE         0x220
+#define OPENPIC_TMR_A_REG_START      0x10F0
+#define OPENPIC_TMR_A_REG_SIZE       0x220
+#define OPENPIC_TMR_B_REG_START      0x20F0
+#define OPENPIC_TMR_B_REG_SIZE       0x220
 #define OPENPIC_MSI_REG_START        0x1600
 #define OPENPIC_MSI_REG_SIZE         0x200
-#define OPENPIC_SUMMARY_REG_START   0x3800
-#define OPENPIC_SUMMARY_REG_SIZE    0x800
+#define OPENPIC_SUMMARY_REG_START    0x3800
+#define OPENPIC_SUMMARY_REG_SIZE     0x800
 #define OPENPIC_SRC_REG_START        0x10000
 #define OPENPIC_SRC_REG_SIZE         (OPENPIC_MAX_SRC * 0x20)
 #define OPENPIC_CPU_REG_START        0x20000
@@ -247,8 +249,19 @@ typedef struct IRQSource {
 #define IDR_CI      0x40000000  /* critical interrupt */
 
 typedef struct OpenPICTimer {
-    uint32_t tccr;  /* Global timer current count register */
-    uint32_t tbcr;  /* Global timer base count register */
+    uint32_t frr;            /* Global timer frequency register            */
+    struct {
+        uint64_t s_time;    /* Group timer start (Wall time)               */
+        uint64_t e_time;    /* Group timer end (Wall time)                 */
+        int cascaded;       /* Group timer is cascaded                     */
+        uint32_t ccr;       /* Group timer current count register          */
+        uint32_t bcr;       /* Group timer base count register             */
+    } group[4];
+    uint32_t cr;            /* Global timer control register               */
+    uint32_t divisor;       /* Timer divisor                               */
+    uint32_t delta;         /* Timer delta                                 */
+    uint32_t irq;           /* IRQ base                                    */
+    QEMUTimer *q_timer;     /* QEMU timer                                  */
 } OpenPICTimer;
 
 typedef struct OpenPICMSI {
@@ -289,7 +302,7 @@ typedef struct OpenPICState {
     uint32_t mpic_mode_mask;
 
     /* Sub-regions */
-    MemoryRegion sub_io_mem[6];
+    MemoryRegion sub_io_mem[7];
 
     /* Global registers */
     uint32_t frr; /* Feature reporting register */
@@ -795,85 +808,392 @@ static uint64_t openpic_gbl_read(void *opaque, hwaddr addr, unsigned len)
     return retval;
 }
 
-static void openpic_tmr_write(void *opaque, hwaddr addr, uint64_t val,
-                                unsigned len)
-{
-    OpenPICState *opp = opaque;
-    int idx;
 
-    addr += 0x10f0;
+static inline int timer_is_active(OpenPICTimer *timer, int i) {
+    
+    return ((timer->group[i].bcr & TBCR_CI) == 0);
+}
 
-    DPRINTF("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64 "\n",
-            __func__, addr, val);
-    if (addr & 0xF) {
-        return;
-    }
 
-    if (addr == 0x10f0) {
-        /* TFRR */
-        opp->tfrr = val;
-        return;
-    }
-
-    idx = (addr >> 6) & 0x3;
-    addr = addr & 0x30;
-
-    switch (addr & 0x30) {
-    case 0x00: /* TCCR */
-        break;
-    case 0x10: /* TBCR */
-        if ((opp->timers[idx].tccr & TCCR_TOG) != 0 &&
-            (val & TBCR_CI) == 0 &&
-            (opp->timers[idx].tbcr & TBCR_CI) != 0) {
-            opp->timers[idx].tccr &= ~TCCR_TOG;
+static void timer_compute_next_expering(OpenPICTimer *timer) {
+    
+    int i;
+    int next_expire_id = -1;
+    uint64_t next_expire = UINT64_MAX;
+    
+    /* check next expiring timer */
+    for (i = 0; i < 4; ++i) {
+        if (timer_is_active(timer, i) && 
+            timer->group[i].cascaded == -1 && 
+            timer->group[i].e_time < next_expire) {
+            next_expire = timer->group[i].e_time;
+            next_expire_id = i;
         }
-        opp->timers[idx].tbcr = val;
-        break;
-    case 0x20: /* TVPR */
-        write_IRQreg_ivpr(opp, opp->irq_tim0 + idx, val);
-        break;
-    case 0x30: /* TDR */
-        write_IRQreg_idr(opp, opp->irq_tim0 + idx, val);
-        break;
+    }
+    
+    /* set next expiring timer */
+    if (next_expire_id >= 0) {
+        timer_mod(timer->q_timer, next_expire);    
+    } else {
+        timer_del(timer->q_timer);    
     }
 }
 
-static uint64_t openpic_tmr_read(void *opaque, hwaddr addr, unsigned len)
-{
-    OpenPICState *opp = opaque;
-    uint32_t retval = -1;
+static inline uint32_t timer_read_ccr(OpenPICTimer *timer, int i) {
+    
+    uint32_t ret_val = timer->group[i].ccr;
+    
+    /* if timer isn't cascaded compute ccr from wall time */
+    if (timer->group[i].cascaded == -1) {
+        uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        int64_t ccr = (timer->group[i].e_time - now) / timer->delta;
+        ret_val = (uint32_t)(ccr < 0 ? 0 : ccr);
+    }
+    
+    return ret_val;
+}
+
+static inline void timer_write_ccr(OpenPICTimer *timer, int i, uint32_t value) {
+
+    if (timer_is_active(timer, i)) {
+
+        /* get count */
+        uint32_t count = value & ~TCCR_TOG;
+        
+        /* timer isn't cascaded */
+        if (timer->group[i].cascaded == -1) {
+
+            timer->group[i].s_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            timer->group[i].e_time = timer->group[i].s_time + count * timer->delta;
+            
+        /* timer is cascaded */
+        } else {
+
+            timer->group[i].ccr = count;
+        }
+    }
+}
+
+static inline void timer_write_bcr(OpenPICTimer *timer, int i, uint32_t value) {
+    
+    uint32_t old_value = timer->group[i].bcr;
+    
+    /* write new value */
+    timer->group[i].bcr = value;
+    
+    /* enable timer */
+    if ((old_value & TBCR_CI) != 0 && (value & TBCR_CI) == 0) {    
+        timer_write_ccr(timer, i, value);
+        timer_compute_next_expering(timer);
+        
+    /* disable timer */
+    } else if ((old_value & TBCR_CI) == 0 && (value & TBCR_CI) != 0) {
+        timer->group[i].ccr = timer_read_ccr(timer, i);
+        timer_compute_next_expering(timer);
+    }
+}
+
+static inline void timer_cascade_with(OpenPICTimer *timer, int i, int cascade) {
+
+    /* get CCR */
+    uint32_t ccr = timer_read_ccr(timer, i);
+
+    /* set cascaded flag */
+    timer->group[i].cascaded = cascade;
+    
+    /* reset CCR */
+    timer_write_ccr(timer, i, ccr);
+}
+
+static inline void timer_write_cr(OpenPICTimer *timer, uint32_t value) {
+
+    /* save value */
+    timer->cr = value;
+
+    /* compute divisor and delta */
+    switch ((timer->cr & 0x00000300u)) {
+        
+        /* CCB divided by 8 */
+        case 0x000u:
+            timer->divisor = 8;
+            timer->delta = 20;
+            break;
+        /* CCB divided by 16 */    
+        case 0x100u:
+            timer->divisor = 16;
+            timer->delta = 40;
+            break;
+        /* CCB divided by 32 */    
+        case 0x200u:
+            timer->divisor = 32;
+            timer->delta = 80;
+            break;
+        /* CCB divided by 64 */
+        case 0x300u:
+            timer->divisor = 64;
+            timer->delta = 160;
+            break;
+    }
+    
+    /* compute timer cascaded indexes */
+    switch ((timer->cr & 0x7)) {
+
+        /* timers not cascaded */
+        case 0:
+            timer_cascade_with(timer, 0, -1);
+            timer_cascade_with(timer, 1, -1);
+            timer_cascade_with(timer, 2, -1);
+            timer_cascade_with(timer, 3, -1);
+            break;
+        /* Cascade timers 0 and 1 */
+        case 1:
+            timer_cascade_with(timer, 0, -1);
+            timer_cascade_with(timer, 1,  0);
+            timer_cascade_with(timer, 2, -1);
+            timer_cascade_with(timer, 3, -1);
+            break;
+        /* Cascade timers 1 and 2 */
+        case 2:
+            timer_cascade_with(timer, 0, -1);
+            timer_cascade_with(timer, 1, -1);
+            timer_cascade_with(timer, 2,  1);
+            timer_cascade_with(timer, 3, -1);
+            break;
+        /* Cascade timers 0, 1, and 2 */
+        case 3:
+            timer_cascade_with(timer, 0, -1);
+            timer_cascade_with(timer, 1,  0);
+            timer_cascade_with(timer, 2,  1);
+            timer_cascade_with(timer, 3, -1);
+            break;
+        /* Cascade timers 2 and 3 */
+        case 4:
+            timer_cascade_with(timer, 0, -1);
+            timer_cascade_with(timer, 1, -1);
+            timer_cascade_with(timer, 2, -1);
+            timer_cascade_with(timer, 3,  2);
+            break;
+        /* Cascade timers 0 and 1); timers 2 and 3 */
+        case 5:
+            timer_cascade_with(timer, 0, -1);
+            timer_cascade_with(timer, 1,  0);
+            timer_cascade_with(timer, 2, -1);
+            timer_cascade_with(timer, 3,  2);
+            break;
+        /* Cascade timers 1, 2, and 3 */
+        case 6:
+            timer_cascade_with(timer, 0, -1);
+            timer_cascade_with(timer, 1, -1);
+            timer_cascade_with(timer, 2,  1);
+            timer_cascade_with(timer, 3,  2);
+            break;
+        /* Cascade timers 0, 1, 2, and 3 */
+        case 7:
+            timer_cascade_with(timer, 0, -1);
+            timer_cascade_with(timer, 1,  0);
+            timer_cascade_with(timer, 2,  1);
+            timer_cascade_with(timer, 3,  2);
+            break;
+    }
+}
+
+static uint32_t timer_get_rovr(OpenPICTimer *timer, int i) {
+    
+    return (timer->group[i].bcr & ~TBCR_CI);
+}
+
+static void timer_updated_cascaded(OpenPICState *state, OpenPICTimer *timer, int cascade) {
+    
+    int i;
+    for (i = 0; i < 4; ++i) {
+        if (timer_is_active(timer, i) && timer->group[i].cascaded == cascade) {
+            
+            if (timer->group[i].ccr > 1) {
+                --timer->group[i].ccr;
+            } else {
+
+                /* raise IRQ */
+                openpic_set_irq(state, timer->irq + i, 1);
+                
+                /* update cascaded timer */
+                timer_updated_cascaded(state, timer, i);
+                
+                /* set new CCR */
+                uint32_t ccr = timer_get_rovr(timer, i);
+                timer_write_ccr(timer, i, ccr);
+            }
+        }
+    }
+}
+
+static inline void handle_tmr_irq(OpenPICState *state, OpenPICTimer *timer) {
+    
+    int i;
+    
+    /* get current timer */
+    uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    
+    /* check what timers expired */
+    for (i = 0; i < 4; ++i) {        
+        if (timer_is_active(timer, i) &&
+            timer->group[i].cascaded == -1 && timer->group[i].e_time <= now) {
+
+            /* raise IRQ */
+            openpic_set_irq(state, timer->irq + i, 1);
+            
+            /* update cascaded timer */
+            timer_updated_cascaded(state, timer, i);
+            
+            /* set new CCR */
+            uint32_t ccr = timer_get_rovr(timer, i);
+            timer_write_ccr(timer, i, ccr);
+        }
+    }
+
+    timer_compute_next_expering(timer);
+}
+
+static void openpic_tmr_a_cb(void *opaque) {
+
+    OpenPICState *state = (OpenPICState *)opaque;
+    handle_tmr_irq(state, &state->timers[0]);
+}
+
+static void openpic_tmr_b_cb(void *opaque) {
+
+    OpenPICState *state = (OpenPICState *)opaque;
+    handle_tmr_irq(state, &state->timers[1]);
+}
+
+
+static inline uint64_t timer_reg_read(OpenPICState *state, OpenPICTimer *timer, hwaddr addr) {
+    
     int idx;
-
-    DPRINTF("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
-    if (addr & 0xF) {
-        goto out;
+    uint32_t retval = 0;
+    
+    switch (addr) {
+        
+        /* Timer frequency report register */
+        case 0x0:
+            retval = timer->frr;
+            break;
+            
+        /* Current Count Register */
+        case 0x10:
+        case 0x50:
+        case 0x90:
+        case 0xd0:
+            idx = ((addr + 0x10) >> 6) & 0x3;
+            retval = timer_read_ccr(timer, idx);
+            break;
+            
+        /* Base Count Register */
+        case 0x20:
+        case 0x60:
+        case 0xa0:
+        case 0xe0:
+            idx = (addr >> 6) & 0x3;
+            retval = timer->group[idx].bcr;
+            break;
+            
+        /* vector and priority register */
+        case 0x30:
+        case 0x70:
+        case 0xb0:
+        case 0xf0:
+            idx = ((addr - 0x10) >> 6) & 0x3;
+            retval = read_IRQreg_ivpr(state, timer->irq + idx);
+            break;
+    
+        /* destination register */
+        case 0x40:
+        case 0x80:
+        case 0xc0:
+        case 0x100:
+            idx = ((addr - 0x20) >> 6) & 0x3;
+            retval = read_IRQreg_idr(state, timer->irq + idx);
+            break;
+    
+        /* Timer control register */
+        case 0x210: 
+            retval = timer->cr;
+            break;
     }
-    idx = (addr >> 6) & 0x3;
-    if (addr == 0x0) {
-        /* TFRR */
-        retval = opp->tfrr;
-        goto out;
-    }
-    switch (addr & 0x30) {
-    case 0x00: /* TCCR */
-        retval = opp->timers[idx].tccr;
-        break;
-    case 0x10: /* TBCR */
-        retval = opp->timers[idx].tbcr;
-        break;
-    case 0x20: /* TIPV */
-        retval = read_IRQreg_ivpr(opp, opp->irq_tim0 + idx);
-        break;
-    case 0x30: /* TIDE (TIDR) */
-        retval = read_IRQreg_idr(opp, opp->irq_tim0 + idx);
-        break;
-    }
-
-out:
-    DPRINTF("%s: => 0x%08x\n", __func__, retval);
-
+    
     return retval;
 }
+
+static inline void timer_reg_write(OpenPICState *state, OpenPICTimer *timer, hwaddr addr, uint64_t val) {
+    
+    int idx;
+
+    switch (addr) {
+        
+        /* Timer frequency report register */
+        case 0x0:
+            timer->frr = val;
+            break;
+            
+        /* Base Count Register */
+        case 0x20:
+        case 0x60:
+        case 0xa0:
+        case 0xe0:
+            idx = (addr >> 6) & 0x3;
+            timer_write_bcr(timer, idx, val);
+            break;
+            
+        /* vector and priority register */
+        case 0x30:
+        case 0x70:
+        case 0xb0:
+        case 0xf0:
+            idx = ((addr - 0x10) >> 6) & 0x3;
+            write_IRQreg_ivpr(state, timer->irq + idx, val);
+            break;
+
+        /* destination register */
+        case 0x40:
+        case 0x80:
+        case 0xc0:
+        case 0x100:
+            idx = ((addr - 0x20) >> 6) & 0x3;
+            write_IRQreg_idr(state, timer->irq + idx, val);
+            break;
+            
+        /* Timer control register */
+        case 0x210: 
+            timer_write_cr(timer, val);
+            break;
+    }
+}
+
+static uint64_t openpic_tmr_a_read(void *opaque, hwaddr addr, unsigned len) {
+    
+    OpenPICState *state = (OpenPICState *)opaque;
+    return timer_reg_read(state, &state->timers[0], addr);
+}
+
+static uint64_t openpic_tmr_b_read(void *opaque, hwaddr addr, unsigned len) {
+    
+    OpenPICState *state = (OpenPICState *)opaque;
+    return timer_reg_read(state, &state->timers[1], addr);
+}
+
+static void openpic_tmr_a_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned len) {
+    
+    OpenPICState *state = (OpenPICState *)opaque;
+    timer_reg_write(state, &state->timers[0], addr, val);
+}
+
+static void openpic_tmr_b_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned len) {
+            
+    OpenPICState *state = (OpenPICState *)opaque;
+    timer_reg_write(state, &state->timers[1], addr, val);
+}
+
 
 static void openpic_src_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned len)
@@ -1218,8 +1538,8 @@ static const MemoryRegionOps openpic_glb_ops_be = {
 };
 
 static const MemoryRegionOps openpic_tmr_ops_le = {
-    .write = openpic_tmr_write,
-    .read  = openpic_tmr_read,
+    .write = openpic_tmr_a_write,
+    .read  = openpic_tmr_a_read,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1228,8 +1548,28 @@ static const MemoryRegionOps openpic_tmr_ops_le = {
 };
 
 static const MemoryRegionOps openpic_tmr_ops_be = {
-    .write = openpic_tmr_write,
-    .read  = openpic_tmr_read,
+    .write = openpic_tmr_a_write,
+    .read  = openpic_tmr_a_read,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static const MemoryRegionOps openpic_tmr_a_ops_be = {
+    .write = openpic_tmr_a_write,
+    .read  = openpic_tmr_a_read,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static const MemoryRegionOps openpic_tmr_b_ops_be = {
+    .write = openpic_tmr_b_write,
+    .read  = openpic_tmr_b_read,
     .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1341,8 +1681,24 @@ static void openpic_reset(DeviceState *d)
     }
     /* Initialise timers */
     for (i = 0; i < OPENPIC_MAX_TMR; i++) {
-        opp->timers[i].tccr = 0;
-        opp->timers[i].tbcr = TBCR_CI;
+        opp->timers[i].cr = 0;
+        opp->timers[i].frr = 0;
+
+        opp->timers[i].group[0].ccr = 0;
+        opp->timers[i].group[0].bcr = TBCR_CI;
+        opp->timers[i].group[0].cascaded = -1;
+        
+        opp->timers[i].group[1].ccr = 0;
+        opp->timers[i].group[1].bcr = TBCR_CI;
+        opp->timers[i].group[1].cascaded = -1;
+        
+        opp->timers[i].group[2].ccr = 0;
+        opp->timers[i].group[2].bcr = TBCR_CI;
+        opp->timers[i].group[2].cascaded = -1;
+        
+        opp->timers[i].group[3].ccr = 0;
+        opp->timers[i].group[3].bcr = TBCR_CI;
+        opp->timers[i].group[3].cascaded = -1;
     }
     /* Go out of RESET state */
     opp->gcr = 0;
@@ -1370,9 +1726,12 @@ static void fsl_common_init(OpenPICState *opp)
 
     opp->irq_ipi0 = virq;
     virq += OPENPIC_MAX_IPI;
-    opp->irq_tim0 = virq;
-    virq += OPENPIC_MAX_TMR;
-
+    
+    for (i = 0; i < OPENPIC_MAX_TMR; ++i) {
+        opp->timers[i].irq = virq;
+        virq += 4;
+    }
+    
     assert(virq <= OPENPIC_MAX_IRQ);
 
     opp->irq_msi = 224;
@@ -1398,6 +1757,7 @@ static void fsl_common_init(OpenPICState *opp)
 static void map_list(OpenPICState *opp, const MemReg *list, int *count)
 {
     while (list->name) {
+
         assert(*count < ARRAY_SIZE(opp->sub_io_mem));
 
         memory_region_init_io(&opp->sub_io_mem[*count], OBJECT(opp), list->ops,
@@ -1457,8 +1817,14 @@ static const VMStateDescription vmstate_openpic_timer = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(tccr, OpenPICTimer),
-        VMSTATE_UINT32(tbcr, OpenPICTimer),
+        VMSTATE_UINT32(group[0].ccr, OpenPICTimer),
+        VMSTATE_UINT32(group[0].bcr, OpenPICTimer),
+        VMSTATE_UINT32(group[1].ccr, OpenPICTimer),
+        VMSTATE_UINT32(group[1].bcr, OpenPICTimer),
+        VMSTATE_UINT32(group[2].ccr, OpenPICTimer),
+        VMSTATE_UINT32(group[2].bcr, OpenPICTimer),
+        VMSTATE_UINT32(group[3].ccr, OpenPICTimer),
+        VMSTATE_UINT32(group[3].bcr, OpenPICTimer),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1518,8 +1884,11 @@ static const VMStateDescription vmstate_openpic = {
 static void openpic_init(Object *obj)
 {
     OpenPICState *opp = OPENPIC(obj);
-
     memory_region_init(&opp->mem, obj, "openpic", 0x40000);
+    
+    /* create qemu timers */
+    opp->timers[0].q_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &openpic_tmr_a_cb, opp);
+    opp->timers[1].q_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &openpic_tmr_b_cb, opp);
 }
 
 static void openpic_realize(DeviceState *dev, Error **errp)
@@ -1532,7 +1901,7 @@ static void openpic_realize(DeviceState *dev, Error **errp)
         {"glb", &openpic_glb_ops_le,
                 OPENPIC_GLB_REG_START, OPENPIC_GLB_REG_SIZE},
         {"tmr", &openpic_tmr_ops_le,
-                OPENPIC_TMR_REG_START, OPENPIC_TMR_REG_SIZE},
+                OPENPIC_TMR_A_REG_START, OPENPIC_TMR_A_REG_SIZE},
         {"src", &openpic_src_ops_le,
                 OPENPIC_SRC_REG_START, OPENPIC_SRC_REG_SIZE},
         {"cpu", &openpic_cpu_ops_le,
@@ -1542,8 +1911,10 @@ static void openpic_realize(DeviceState *dev, Error **errp)
     static const MemReg list_be[] = {
         {"glb", &openpic_glb_ops_be,
                 OPENPIC_GLB_REG_START, OPENPIC_GLB_REG_SIZE},
-        {"tmr", &openpic_tmr_ops_be,
-                OPENPIC_TMR_REG_START, OPENPIC_TMR_REG_SIZE},
+        {"tmr_A", &openpic_tmr_a_ops_be,
+                OPENPIC_TMR_A_REG_START, OPENPIC_TMR_A_REG_SIZE},
+        {"tmr_B", &openpic_tmr_b_ops_be,
+                OPENPIC_TMR_B_REG_START, OPENPIC_TMR_B_REG_SIZE},
         {"src", &openpic_src_ops_be,
                 OPENPIC_SRC_REG_START, OPENPIC_SRC_REG_SIZE},
         {"cpu", &openpic_cpu_ops_be,
