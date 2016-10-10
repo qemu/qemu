@@ -56,7 +56,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 encryption=on
 Testing: -S
 QMP_VERSION
 {"return": {}}
-{"error": {"class": "GenericError", "desc": "Invalid parameter type for 'driver', expected: string"}}
+{"error": {"class": "GenericError", "desc": "Parameter 'driver' is missing"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 
