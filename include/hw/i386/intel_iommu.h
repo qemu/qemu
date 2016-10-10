@@ -290,6 +290,7 @@ struct IntelIOMMUState {
     uint32_t intr_size;             /* Number of IR table entries */
     bool intr_eime;                 /* Extended interrupt mode enabled */
     OnOffAuto intr_eim;             /* Toggle for EIM cabability */
+    bool buggy_eim;                 /* Force buggy EIM unless eim=off */
 };
 
 /* Find the VTD Address space associated with the given bus pointer,
