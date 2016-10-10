@@ -8090,6 +8090,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         sync();
         ret = 0;
         break;
+#if defined(TARGET_NR_syncfs) && defined(CONFIG_SYNCFS)
+    case TARGET_NR_syncfs:
+        ret = get_errno(syncfs(arg1));
+        break;
+#endif
     case TARGET_NR_kill:
         ret = get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
         break;

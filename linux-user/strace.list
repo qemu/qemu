@@ -1459,7 +1459,7 @@
 { TARGET_NR_sync, "sync" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_syncfs
-{ TARGET_NR_syncfs, "syncfs" , NULL, NULL, NULL },
+{ TARGET_NR_syncfs, "syncfs" , "%s(%d)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_syscall
 { TARGET_NR_syscall, "syscall" , NULL, NULL, NULL },
