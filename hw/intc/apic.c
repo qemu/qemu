@@ -740,8 +740,10 @@ static uint32_t apic_mem_readl(void *opaque, hwaddr addr)
     return val;
 }
 
-static void apic_send_msi(hwaddr addr, uint32_t data)
+static void apic_send_msi(MSIMessage *msi)
 {
+    uint64_t addr = msi->address;
+    uint32_t data = msi->data;
     uint8_t dest = (addr & MSI_ADDR_DEST_ID_MASK) >> MSI_ADDR_DEST_ID_SHIFT;
     uint8_t vector = (data & MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT;
     uint8_t dest_mode = (addr >> MSI_ADDR_DEST_MODE_SHIFT) & 0x1;
@@ -762,7 +764,8 @@ static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
          * APIC is connected directly to the CPU.
          * Mapping them on the global bus happens to work because
          * MSI registers are reserved in APIC MMIO and vice versa. */
-        apic_send_msi(addr, val);
+        MSIMessage msi = { .address = addr, .data = val };
+        apic_send_msi(&msi);
         return;
     }
 
@@ -913,6 +916,7 @@ static void apic_class_init(ObjectClass *klass, void *data)
     k->external_nmi = apic_external_nmi;
     k->pre_save = apic_pre_save;
     k->post_load = apic_post_load;
+    k->send_msi = apic_send_msi;
 }
 
 static const TypeInfo apic_info = {
