@@ -2013,6 +2013,8 @@ static const MemoryRegionOps vtd_mem_ops = {
 
 static Property vtd_properties[] = {
     DEFINE_PROP_UINT32("version", IntelIOMMUState, version, 0),
+    DEFINE_PROP_ON_OFF_AUTO("eim", IntelIOMMUState, intr_eim,
+                            ON_OFF_AUTO_AUTO),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2380,7 +2382,11 @@ static void vtd_init(IntelIOMMUState *s)
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
 
     if (x86_iommu->intr_supported) {
-        s->ecap |= VTD_ECAP_IR | VTD_ECAP_EIM | VTD_ECAP_MHMV;
+        s->ecap |= VTD_ECAP_IR | VTD_ECAP_MHMV;
+        if (s->intr_eim == ON_OFF_AUTO_ON) {
+            s->ecap |= VTD_ECAP_EIM;
+        }
+        assert(s->intr_eim != ON_OFF_AUTO_AUTO);
     }
 
     vtd_reset_context_cache(s);
@@ -2461,8 +2467,10 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &vtd_as->as;
 }
 
-static bool vtd_check_config(X86IOMMUState *x86_iommu, Error **errp)
+static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
 {
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
+
     /* Currently Intel IOMMU IR only support "kernel-irqchip={off|split}" */
     if (x86_iommu->intr_supported && kvm_irqchip_in_kernel() &&
         !kvm_irqchip_is_split()) {
@@ -2470,6 +2478,16 @@ static bool vtd_check_config(X86IOMMUState *x86_iommu, Error **errp)
                          "kernel-irqchip=on, please use 'split|off'.");
         return false;
     }
+    if (s->intr_eim == ON_OFF_AUTO_ON && !x86_iommu->intr_supported) {
+        error_setg(errp, "eim=on cannot be selected without intremap=on");
+        return false;
+    }
+
+    if (s->intr_eim == ON_OFF_AUTO_AUTO) {
+        s->intr_eim = x86_iommu->intr_supported ?
+                                              ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+    }
+
     return true;
 }
 
@@ -2483,7 +2501,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     VTD_DPRINTF(GENERAL, "");
     x86_iommu->type = TYPE_INTEL;
 
-    if (!vtd_check_config(x86_iommu, errp)) {
+    if (!vtd_decide_config(s, errp)) {
         return;
     }
 
