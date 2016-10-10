@@ -171,10 +171,8 @@ SectionEnd
 Section "Documentation" SectionDoc
     SetOutPath "$INSTDIR"
     File "${BINDIR}\qemu-doc.html"
-    File "${BINDIR}\qemu-tech.html"
     CreateDirectory "$SMPROGRAMS\${PRODUCT}"
     CreateShortCut "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk" "$INSTDIR\qemu-doc.html" "" "$INSTDIR\qemu-doc.html" 0
-    CreateShortCut "$SMPROGRAMS\${PRODUCT}\Technical Documentation.lnk" "$INSTDIR\qemu-tech.html" "" "$INSTDIR\qemu-tech.html" 0
 SectionEnd
 !endif
 
@@ -219,7 +217,6 @@ Section "Uninstall"
     Delete "$INSTDIR\qemu.exe"
     Delete "$INSTDIR\qemu-system-*.exe"
     Delete "$INSTDIR\qemu-doc.html"
-    Delete "$INSTDIR\qemu-tech.html"
     RMDir /r "$INSTDIR\keymaps"
     RMDir /r "$INSTDIR\share"
     ; Remove generated files

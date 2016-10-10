@@ -181,8 +181,6 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq);
 qemu_irq *kvm_i8259_init(ISABus *bus);
 int pic_read_irq(DeviceState *d);
 int pic_get_output(DeviceState *d);
-void hmp_info_pic(Monitor *mon, const QDict *qdict);
-void hmp_info_irq(Monitor *mon, const QDict *qdict);
 
 /* ioapic.c */
 

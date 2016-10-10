@@ -614,7 +614,7 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
     Object *inst;
 
     for (i = 0; obj && i < OBJECT_CLASS_CAST_CACHE; i++) {
-        if (obj->class->object_cast_cache[i] == typename) {
+        if (atomic_read(&obj->class->object_cast_cache[i]) == typename) {
             goto out;
         }
     }
@@ -631,10 +631,10 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
 
     if (obj && obj == inst) {
         for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
-            obj->class->object_cast_cache[i - 1] =
-                    obj->class->object_cast_cache[i];
+            atomic_set(&obj->class->object_cast_cache[i - 1],
+                       atomic_read(&obj->class->object_cast_cache[i]));
         }
-        obj->class->object_cast_cache[i - 1] = typename;
+        atomic_set(&obj->class->object_cast_cache[i - 1], typename);
     }
 
 out:
@@ -704,7 +704,7 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
     int i;
 
     for (i = 0; class && i < OBJECT_CLASS_CAST_CACHE; i++) {
-        if (class->class_cast_cache[i] == typename) {
+        if (atomic_read(&class->class_cast_cache[i]) == typename) {
             ret = class;
             goto out;
         }
@@ -725,9 +725,10 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
 #ifdef CONFIG_QOM_CAST_DEBUG
     if (class && ret == class) {
         for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
-            class->class_cast_cache[i - 1] = class->class_cast_cache[i];
+            atomic_set(&class->class_cast_cache[i - 1],
+                       atomic_read(&class->class_cast_cache[i]));
         }
-        class->class_cast_cache[i - 1] = typename;
+        atomic_set(&class->class_cast_cache[i - 1], typename);
     }
 out:
 #endif

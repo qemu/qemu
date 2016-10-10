@@ -468,9 +468,8 @@ static TCGArg do_constant_folding_cond(TCGOpcode op, TCGArg x,
         default:
             return 2;
         }
-    } else {
-        return 2;
     }
+    return 2;
 }
 
 /* Return 2 if the condition can't be simplified, and the result

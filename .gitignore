@@ -39,9 +39,7 @@
 /qmp-introspect.[ch]
 /qmp-marshal.c
 /qemu-doc.html
-/qemu-tech.html
 /qemu-doc.info
-/qemu-tech.info
 /qemu-img
 /qemu-nbd
 /qemu-options.def

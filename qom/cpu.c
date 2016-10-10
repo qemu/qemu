@@ -120,10 +120,10 @@ void cpu_reset_interrupt(CPUState *cpu, int mask)
 
 void cpu_exit(CPUState *cpu)
 {
-    cpu->exit_request = 1;
+    atomic_set(&cpu->exit_request, 1);
     /* Ensure cpu_exec will see the exit request after TCG has exited.  */
     smp_wmb();
-    cpu->tcg_exit_req = 1;
+    atomic_set(&cpu->tcg_exit_req, 1);
 }
 
 int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
@@ -253,6 +253,7 @@ void cpu_reset(CPUState *cpu)
 static void cpu_common_reset(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
+    int i;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
         qemu_log("CPU Reset (CPU %d)\n", cpu->cpu_index);
@@ -268,7 +269,10 @@ static void cpu_common_reset(CPUState *cpu)
     cpu->can_do_io = 1;
     cpu->exception_index = -1;
     cpu->crash_occurred = false;
-    memset(cpu->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
+
+    for (i = 0; i < TB_JMP_CACHE_SIZE; ++i) {
+        atomic_set(&cpu->tb_jmp_cache[i], NULL);
+    }
 }
 
 static bool cpu_common_has_work(CPUState *cs)

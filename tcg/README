@@ -8,6 +8,11 @@ in the QOP code generator written by Paul Brook.
 
 2) Definitions
 
+TCG receives RISC-like "TCG ops" and performs some optimizations on them,
+including liveness analysis and trivial constant expression
+evaluation.  TCG ops are then implemented in the host CPU back end,
+also known as the TCG "target".
+
 The TCG "target" is the architecture for which we generate the
 code. It is of course not the same as the "target" of QEMU which is
 the emulated architecture. As TCG started as a generic C backend used

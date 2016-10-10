@@ -1,0 +1,76 @@
+This directory contains various interesting programs for
+regression testing.
+
+The target "make test" runs the programs and, if applicable,
+runs "diff" to detect mismatches between output on the host and
+output on QEMU.
+
+i386
+====
+
+test-i386
+---------
+
+This program executes most of the 16 bit and 32 bit x86 instructions and
+generates a text output, for comparison with the output obtained with
+a real CPU or another emulator.
+
+The Linux system call modify_ldt() is used to create x86 selectors
+to test some 16 bit addressing and 32 bit with segmentation cases.
+
+The Linux system call vm86() is used to test vm86 emulation.
+
+Various exceptions are raised to test most of the x86 user space
+exception reporting.
+
+linux-test
+----------
+
+This program tests various Linux system calls. It is used to verify
+that the system call parameters are correctly converted between target
+and host CPUs.
+
+test-i386-fprem
+---------------
+
+runcom
+------
+
+test-mmap
+---------
+
+sha1
+----
+
+hello-i386
+----------
+
+
+ARM
+===
+
+hello-arm
+---------
+
+test-arm-iwmmxt
+---------------
+
+MIPS
+====
+
+hello-mips
+----------
+
+hello-mipsel
+------------
+
+CRIS
+====
+The testsuite for CRIS is in tests/tcg/cris.  You can run it
+with "make test-cris".
+
+LM32
+====
+The testsuite for LM32 is in tests/tcg/cris.  You can run it
+with "make test-lm32".
+

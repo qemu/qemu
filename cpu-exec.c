@@ -192,7 +192,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
         /* We were asked to stop executing TBs (probably a pending
          * interrupt. We've now stopped, so clear the flag.
          */
-        cpu->tcg_exit_req = 0;
+        atomic_set(&cpu->tcg_exit_req, 0);
     }
     return ret;
 }
@@ -490,8 +490,8 @@ static inline void cpu_handle_interrupt(CPUState *cpu,
             *last_tb = NULL;
         }
     }
-    if (unlikely(cpu->exit_request || replay_has_interrupt())) {
-        cpu->exit_request = 0;
+    if (unlikely(atomic_read(&cpu->exit_request) || replay_has_interrupt())) {
+        atomic_set(&cpu->exit_request, 0);
         cpu->exception_index = EXCP_INTERRUPT;
         cpu_loop_exit(cpu);
     }
@@ -503,7 +503,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
 {
     uintptr_t ret;
 
-    if (unlikely(cpu->exit_request)) {
+    if (unlikely(atomic_read(&cpu->exit_request))) {
         return;
     }
 

@@ -223,6 +223,13 @@ int cpu_cris_signal_handler(int host_signum, void *pinfo,
 void cris_initialize_tcg(void);
 void cris_initialize_crisv10_tcg(void);
 
+/* Instead of computing the condition codes after each CRIS instruction,
+ * QEMU just stores one operand (called CC_SRC), the result
+ * (called CC_DEST) and the type of operation (called CC_OP). When the
+ * condition codes are needed, the condition codes can be calculated
+ * using this information. Condition codes are not generated if they
+ * are only needed for conditional branches.
+ */
 enum {
     CC_OP_DYNAMIC, /* Use env->cc_op  */
     CC_OP_FLAGS,

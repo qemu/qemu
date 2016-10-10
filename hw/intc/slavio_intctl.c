@@ -26,6 +26,7 @@
 #include "hw/sparc/sun4m.h"
 #include "monitor/monitor.h"
 #include "hw/sysbus.h"
+#include "hw/intc/intc.h"
 #include "trace.h"
 
 //#define DEBUG_IRQ_COUNT
@@ -210,38 +211,6 @@ static const MemoryRegionOps slavio_intctlm_mem_ops = {
     },
 };
 
-void slavio_pic_info(Monitor *mon, DeviceState *dev)
-{
-    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(dev);
-    int i;
-
-    for (i = 0; i < MAX_CPUS; i++) {
-        monitor_printf(mon, "per-cpu %d: pending 0x%08x\n", i,
-                       s->slaves[i].intreg_pending);
-    }
-    monitor_printf(mon, "master: pending 0x%08x, disabled 0x%08x\n",
-                   s->intregm_pending, s->intregm_disabled);
-}
-
-void slavio_irq_info(Monitor *mon, DeviceState *dev)
-{
-#ifndef DEBUG_IRQ_COUNT
-    monitor_printf(mon, "irq statistic code not compiled.\n");
-#else
-    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(dev);
-    int i;
-    int64_t count;
-
-    s = SLAVIO_INTCTL(dev);
-    monitor_printf(mon, "IRQ statistics:\n");
-    for (i = 0; i < 32; i++) {
-        count = s->irq_count[i];
-        if (count > 0)
-            monitor_printf(mon, "%2d: %" PRId64 "\n", i, count);
-    }
-#endif
-}
-
 static const uint32_t intbit_to_level[] = {
     2, 3, 5, 7, 9, 11, 13, 2,   3, 5, 7, 9, 11, 13, 12, 12,
     6, 13, 4, 10, 8, 9, 11, 0,  0, 0, 0, 15, 15, 15, 15, 0,
@@ -418,6 +387,31 @@ static void slavio_intctl_reset(DeviceState *d)
     slavio_check_interrupts(s, 0);
 }
 
+#ifdef DEBUG_IRQ_COUNT
+static bool slavio_intctl_get_statistics(InterruptStatsProvider *obj,
+                                         uint64_t **irq_counts,
+                                         unsigned int *nb_irqs)
+{
+    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(obj);
+    *irq_counts = s->irq_count;
+    *nb_irqs = ARRAY_SIZE(s->irq_count);
+    return true;
+}
+#endif
+
+static void slavio_intctl_print_info(InterruptStatsProvider *obj, Monitor *mon)
+{
+    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(obj);
+    int i;
+
+    for (i = 0; i < MAX_CPUS; i++) {
+        monitor_printf(mon, "per-cpu %d: pending 0x%08x\n", i,
+                       s->slaves[i].intreg_pending);
+    }
+    monitor_printf(mon, "master: pending 0x%08x, disabled 0x%08x\n",
+                   s->intregm_pending, s->intregm_disabled);
+}
+
 static void slavio_intctl_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -449,9 +443,14 @@ static void slavio_intctl_init(Object *obj)
 static void slavio_intctl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     dc->reset = slavio_intctl_reset;
     dc->vmsd = &vmstate_intctl;
+#ifdef DEBUG_IRQ_COUNT
+    ic->get_statistics = slavio_intctl_get_statistics;
+#endif
+    ic->print_info = slavio_intctl_print_info;
 }
 
 static const TypeInfo slavio_intctl_info = {
@@ -460,6 +459,10 @@ static const TypeInfo slavio_intctl_info = {
     .instance_size = sizeof(SLAVIO_INTCTLState),
     .instance_init = slavio_intctl_init,
     .class_init    = slavio_intctl_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_INTERRUPT_STATS_PROVIDER },
+        { }
+    },
 };
 
 static void slavio_intctl_register_types(void)

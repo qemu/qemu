@@ -36,6 +36,7 @@
 #include "qemu-io.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+#include "hw/intc/intc.h"
 
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
@@ -785,6 +786,70 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
             }
         }
     }
+}
+
+static int hmp_info_irq_foreach(Object *obj, void *opaque)
+{
+    InterruptStatsProvider *intc;
+    InterruptStatsProviderClass *k;
+    Monitor *mon = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_INTERRUPT_STATS_PROVIDER)) {
+        intc = INTERRUPT_STATS_PROVIDER(obj);
+        k = INTERRUPT_STATS_PROVIDER_GET_CLASS(obj);
+        uint64_t *irq_counts;
+        unsigned int nb_irqs, i;
+        if (k->get_statistics &&
+            k->get_statistics(intc, &irq_counts, &nb_irqs)) {
+            if (nb_irqs > 0) {
+                monitor_printf(mon, "IRQ statistics for %s:\n",
+                               object_get_typename(obj));
+                for (i = 0; i < nb_irqs; i++) {
+                    if (irq_counts[i] > 0) {
+                        monitor_printf(mon, "%2d: %" PRId64 "\n", i,
+                                       irq_counts[i]);
+                    }
+                }
+            }
+        } else {
+            monitor_printf(mon, "IRQ statistics not available for %s.\n",
+                           object_get_typename(obj));
+        }
+    }
+
+    return 0;
+}
+
+void hmp_info_irq(Monitor *mon, const QDict *qdict)
+{
+    object_child_foreach_recursive(object_get_root(),
+                                   hmp_info_irq_foreach, mon);
+}
+
+static int hmp_info_pic_foreach(Object *obj, void *opaque)
+{
+    InterruptStatsProvider *intc;
+    InterruptStatsProviderClass *k;
+    Monitor *mon = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_INTERRUPT_STATS_PROVIDER)) {
+        intc = INTERRUPT_STATS_PROVIDER(obj);
+        k = INTERRUPT_STATS_PROVIDER_GET_CLASS(obj);
+        if (k->print_info) {
+            k->print_info(intc, mon);
+        } else {
+            monitor_printf(mon, "Interrupt controller information not available for %s.\n",
+                           object_get_typename(obj));
+        }
+    }
+
+    return 0;
+}
+
+void hmp_info_pic(Monitor *mon, const QDict *qdict)
+{
+    object_child_foreach_recursive(object_get_root(),
+                                   hmp_info_pic_foreach, mon);
 }
 
 void hmp_info_pci(Monitor *mon, const QDict *qdict)

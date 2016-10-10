@@ -52,7 +52,7 @@ size == 8 for the rest.
 
 0x20 (RW) : status register, bitwise OR
 	    0x01 -- computing factorial (RO)
-	    0x80 -- raise interrupt 0x01 after finishing factorial computation
+	    0x80 -- raise interrupt after finishing factorial computation
 
 0x24 (RO) : interrupt status register
 	    It contains values which raised the interrupt (see interrupt raise
@@ -86,6 +86,11 @@ IRQ controller
 An IRQ is generated when written to the interrupt raise register. The value
 appears in interrupt status register when the interrupt is raised and has to
 be written to the interrupt acknowledge register to lower it.
+
+The device supports both INTx and MSI interrupt. By default, INTx is
+used. Even if the driver disabled INTx and only uses MSI, it still
+needs to update the acknowledge register at the end of the IRQ handler
+routine.
 
 DMA controller
 --------------
