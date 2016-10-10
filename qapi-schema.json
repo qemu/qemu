@@ -752,6 +752,7 @@
             'cpu-throttle-increment': 'int',
             'tls-creds': 'str',
             'tls-hostname': 'str'} }
+
 ##
 # @query-migrate-parameters
 #
@@ -4118,7 +4119,6 @@
 #
 # Since 1.6
 ##
-
 { 'struct': 'RxFilterInfo',
   'data': {
     'name':               'str',
@@ -4338,7 +4338,6 @@
 #
 # Since: 2.1
 ##
-
 { 'struct': 'Memdev',
   'data': {
     'size':       'size',

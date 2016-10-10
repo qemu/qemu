@@ -9,7 +9,7 @@ patches before submitting.
 Of course, the most important aspect in any coding style is whitespace.
 Crusty old coders who have trouble spotting the glasses on their noses
 can tell the difference between a tab and eight spaces from a distance
-of approximately fifteen parsecs.  Many a flamewar have been fought and
+of approximately fifteen parsecs.  Many a flamewar has been fought and
 lost on this issue.
 
 QEMU indents are four spaces.  Tabs are never used, except in Makefiles

@@ -458,7 +458,7 @@ qemu_irq *csrhci_pins_get(CharDriverState *chr)
     return s->pins;
 }
 
-CharDriverState *uart_hci_init(qemu_irq wakeup)
+CharDriverState *uart_hci_init(void)
 {
     struct csrhci_s *s = (struct csrhci_s *)
             g_malloc0(sizeof(struct csrhci_s));

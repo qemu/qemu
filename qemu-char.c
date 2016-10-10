@@ -3140,6 +3140,7 @@ static void tcp_chr_tls_init(CharDriverState *chr)
     if (tioc == NULL) {
         error_free(err);
         tcp_chr_disconnect(chr);
+        return;
     }
     object_unref(OBJECT(s->ioc));
     s->ioc = QIO_CHANNEL(tioc);

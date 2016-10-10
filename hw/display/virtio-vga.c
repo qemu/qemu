@@ -120,8 +120,8 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
      * virtio regions are moved to the end of bar #2, to make room for
      * the stdvga mmio registers at the start of bar #2.
      */
-    vpci_dev->modern_mem_bar = 2;
-    vpci_dev->msix_bar = 4;
+    vpci_dev->modern_mem_bar_idx = 2;
+    vpci_dev->msix_bar_idx = 4;
 
     if (!(vpci_dev->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ)) {
         /*

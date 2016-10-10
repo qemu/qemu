@@ -1426,6 +1426,7 @@ static int ehci_process_itd(EHCIState *ehci,
             if (off + len > 4096) {
                 /* transfer crosses page border */
                 if (pg == 6) {
+                    qemu_sglist_destroy(&ehci->isgl);
                     return -1;  /* avoid page pg + 1 */
                 }
                 ptr2 = (itd->bufptr[pg + 1] & ITD_BUFPTR_MASK);

@@ -42,7 +42,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/uio.h>
-#include <sys/poll.h>
+#include <poll.h>
 #include <sys/times.h>
 #include <sys/shm.h>
 #include <sys/sem.h>

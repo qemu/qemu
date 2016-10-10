@@ -138,7 +138,7 @@ endef
 # Looks in the PATH if the argument contains no slash, else only considers one
 # specific directory.  Returns an # empty string if the program doesn't exist
 # there.
-find-in-path = $(if $(find-string /, $1), \
+find-in-path = $(if $(findstring /, $1), \
         $(wildcard $1), \
         $(wildcard $(patsubst %, %/$1, $(subst :, ,$(PATH)))))
 
