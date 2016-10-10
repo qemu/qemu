@@ -129,10 +129,23 @@ static bool kvm_x2apic_api_set_flags(uint64_t flags)
     return !kvm_vm_enable_cap(s, KVM_CAP_X2APIC_API, 0, flags);
 }
 
+#define MEMORIZE(fn) \
+    ({ \
+        static typeof(fn) _result; \
+        static bool _memorized; \
+        \
+        if (_memorized) { \
+            return _result; \
+        } \
+        _memorized = true; \
+        _result = fn; \
+    })
+
 bool kvm_enable_x2apic(void)
 {
-    return kvm_x2apic_api_set_flags(KVM_X2APIC_API_USE_32BIT_IDS |
-                                    KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK);
+    return MEMORIZE(
+             kvm_x2apic_api_set_flags(KVM_X2APIC_API_USE_32BIT_IDS |
+                                      KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK));
 }
 
 static int kvm_get_tsc(CPUState *cs)
