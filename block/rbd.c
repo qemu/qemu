@@ -737,7 +737,7 @@ static BlockAIOCB *qemu_rbd_aio_readv(BlockDriverState *bs,
                                       void *opaque)
 {
     return rbd_start_aio(bs, sector_num << BDRV_SECTOR_BITS, qiov,
-                         nb_sectors << BDRV_SECTOR_BITS, cb, opaque,
+                         (int64_t) nb_sectors << BDRV_SECTOR_BITS, cb, opaque,
                          RBD_AIO_READ);
 }
 
@@ -749,7 +749,7 @@ static BlockAIOCB *qemu_rbd_aio_writev(BlockDriverState *bs,
                                        void *opaque)
 {
     return rbd_start_aio(bs, sector_num << BDRV_SECTOR_BITS, qiov,
-                         nb_sectors << BDRV_SECTOR_BITS, cb, opaque,
+                         (int64_t) nb_sectors << BDRV_SECTOR_BITS, cb, opaque,
                          RBD_AIO_WRITE);
 }
 
