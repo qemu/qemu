@@ -38,7 +38,6 @@
 typedef struct GlusterAIOCB {
     int64_t size;
     int ret;
-    QEMUBH *bh;
     Coroutine *coroutine;
     AioContext *aio_context;
 } GlusterAIOCB;
@@ -622,8 +621,6 @@ static void qemu_gluster_complete_aio(void *opaque)
 {
     GlusterAIOCB *acb = (GlusterAIOCB *)opaque;
 
-    qemu_bh_delete(acb->bh);
-    acb->bh = NULL;
     qemu_coroutine_enter(acb->coroutine);
 }
 
@@ -642,8 +639,7 @@ static void gluster_finish_aiocb(struct glfs_fd *fd, ssize_t ret, void *arg)
         acb->ret = -EIO; /* Partial read/write - fail it */
     }
 
-    acb->bh = aio_bh_new(acb->aio_context, qemu_gluster_complete_aio, acb);
-    qemu_bh_schedule(acb->bh);
+    aio_bh_schedule_oneshot(acb->aio_context, qemu_gluster_complete_aio, acb);
 }
 
 static void qemu_gluster_parse_flags(int bdrv_flags, int *open_flags)

@@ -181,6 +181,12 @@ void aio_context_acquire(AioContext *ctx);
 void aio_context_release(AioContext *ctx);
 
 /**
+ * aio_bh_schedule_oneshot: Allocate a new bottom half structure that will run
+ * only once and as soon as possible.
+ */
+void aio_bh_schedule_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque);
+
+/**
  * aio_bh_new: Allocate a new bottom half structure.
  *
  * Bottom halves are lightweight callbacks whose invocation is guaranteed

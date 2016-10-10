@@ -130,7 +130,6 @@ enum {
 
 typedef struct QEDAIOCB {
     BlockAIOCB common;
-    QEMUBH *bh;
     int bh_ret;                     /* final return status for completion bh */
     QSIMPLEQ_ENTRY(QEDAIOCB) next;  /* next request */
     int flags;                      /* QED_AIOCB_* bits ORed together */

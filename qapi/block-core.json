@@ -2540,7 +2540,13 @@
 #
 # Emitted when a disk I/O error occurs
 #
-# @device: device name
+# @device: device name. This is always present for compatibility
+#          reasons, but it can be empty ("") if the image does not
+#          have a device name associated.
+#
+# @node-name: node name. Note that errors may be reported for the root node
+#             that is directly attached to a guest device rather than for the
+#             node where the error occurred. (Since: 2.8)
 #
 # @operation: I/O operation
 #
@@ -2561,7 +2567,7 @@
 # Since: 0.13.0
 ##
 { 'event': 'BLOCK_IO_ERROR',
-  'data': { 'device': 'str', 'operation': 'IoOperationType',
+  'data': { 'device': 'str', 'node-name': 'str', 'operation': 'IoOperationType',
             'action': 'BlockErrorAction', '*nospace': 'bool',
             'reason': 'str' } }
 

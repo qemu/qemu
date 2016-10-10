@@ -38,6 +38,7 @@ struct BlockBackend {
     BlockBackendPublic public;
 
     void *dev;                  /* attached device model, if any */
+    bool legacy_dev;            /* true if dev is not a DeviceState */
     /* TODO change to DeviceState when all users are qdevified */
     const BlockDevOps *dev_ops;
     void *dev_opaque;
@@ -65,7 +66,6 @@ struct BlockBackend {
 
 typedef struct BlockBackendAIOCB {
     BlockAIOCB common;
-    QEMUBH *bh;
     BlockBackend *blk;
     int ret;
 } BlockBackendAIOCB;
@@ -507,20 +507,25 @@ void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
     }
 }
 
-/*
- * Attach device model @dev to @blk.
- * Return 0 on success, -EBUSY when a device model is attached already.
- */
-int blk_attach_dev(BlockBackend *blk, void *dev)
-/* TODO change to DeviceState *dev when all users are qdevified */
+static int blk_do_attach_dev(BlockBackend *blk, void *dev)
 {
     if (blk->dev) {
         return -EBUSY;
     }
     blk_ref(blk);
     blk->dev = dev;
+    blk->legacy_dev = false;
     blk_iostatus_reset(blk);
     return 0;
+}
+
+/*
+ * Attach device model @dev to @blk.
+ * Return 0 on success, -EBUSY when a device model is attached already.
+ */
+int blk_attach_dev(BlockBackend *blk, DeviceState *dev)
+{
+    return blk_do_attach_dev(blk, dev);
 }
 
 /*
@@ -528,11 +533,12 @@ int blk_attach_dev(BlockBackend *blk, void *dev)
  * @blk must not have a device model attached already.
  * TODO qdevified devices don't use this, remove when devices are qdevified
  */
-void blk_attach_dev_nofail(BlockBackend *blk, void *dev)
+void blk_attach_dev_legacy(BlockBackend *blk, void *dev)
 {
-    if (blk_attach_dev(blk, dev) < 0) {
+    if (blk_do_attach_dev(blk, dev) < 0) {
         abort();
     }
+    blk->legacy_dev = true;
 }
 
 /*
@@ -557,6 +563,23 @@ void *blk_get_attached_dev(BlockBackend *blk)
 /* TODO change to return DeviceState * when all users are qdevified */
 {
     return blk->dev;
+}
+
+/* Return the qdev ID, or if no ID is assigned the QOM path, of the block
+ * device attached to the BlockBackend. */
+static char *blk_get_attached_dev_id(BlockBackend *blk)
+{
+    DeviceState *dev;
+
+    assert(!blk->legacy_dev);
+    dev = blk->dev;
+
+    if (!dev) {
+        return g_strdup("");
+    } else if (dev->id) {
+        return g_strdup(dev->id);
+    }
+    return object_get_canonical_path(OBJECT(dev));
 }
 
 /*
@@ -586,6 +609,11 @@ BlockBackend *blk_by_dev(void *dev)
 void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
                      void *opaque)
 {
+    /* All drivers that use blk_set_dev_ops() are qdevified and we want to keep
+     * it that way, so we can assume blk->dev is a DeviceState if blk->dev_ops
+     * is set. */
+    assert(!blk->legacy_dev);
+
     blk->dev_ops = ops;
     blk->dev_opaque = opaque;
 }
@@ -601,13 +629,17 @@ void blk_dev_change_media_cb(BlockBackend *blk, bool load)
     if (blk->dev_ops && blk->dev_ops->change_media_cb) {
         bool tray_was_open, tray_is_open;
 
+        assert(!blk->legacy_dev);
+
         tray_was_open = blk_dev_is_tray_open(blk);
         blk->dev_ops->change_media_cb(blk->dev_opaque, load);
         tray_is_open = blk_dev_is_tray_open(blk);
 
         if (tray_was_open != tray_is_open) {
-            qapi_event_send_device_tray_moved(blk_name(blk), tray_is_open,
+            char *id = blk_get_attached_dev_id(blk);
+            qapi_event_send_device_tray_moved(blk_name(blk), id, tray_is_open,
                                               &error_abort);
+            g_free(id);
         }
     }
 }
@@ -898,7 +930,6 @@ int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags)
 static void error_callback_bh(void *opaque)
 {
     struct BlockBackendAIOCB *acb = opaque;
-    qemu_bh_delete(acb->bh);
     acb->common.cb(acb->common.opaque, acb->ret);
     qemu_aio_unref(acb);
 }
@@ -908,16 +939,12 @@ BlockAIOCB *blk_abort_aio_request(BlockBackend *blk,
                                   void *opaque, int ret)
 {
     struct BlockBackendAIOCB *acb;
-    QEMUBH *bh;
 
     acb = blk_aio_get(&block_backend_aiocb_info, blk, cb, opaque);
     acb->blk = blk;
     acb->ret = ret;
 
-    bh = aio_bh_new(blk_get_aio_context(blk), error_callback_bh, acb);
-    acb->bh = bh;
-    qemu_bh_schedule(bh);
-
+    aio_bh_schedule_oneshot(blk_get_aio_context(blk), error_callback_bh, acb);
     return &acb->common;
 }
 
@@ -926,7 +953,6 @@ typedef struct BlkAioEmAIOCB {
     BlkRwCo rwco;
     int bytes;
     bool has_returned;
-    QEMUBH* bh;
 } BlkAioEmAIOCB;
 
 static const AIOCBInfo blk_aio_em_aiocb_info = {
@@ -935,10 +961,6 @@ static const AIOCBInfo blk_aio_em_aiocb_info = {
 
 static void blk_aio_complete(BlkAioEmAIOCB *acb)
 {
-    if (acb->bh) {
-        assert(acb->has_returned);
-        qemu_bh_delete(acb->bh);
-    }
     if (acb->has_returned) {
         acb->common.cb(acb->common.opaque, acb->rwco.ret);
         qemu_aio_unref(acb);
@@ -947,7 +969,10 @@ static void blk_aio_complete(BlkAioEmAIOCB *acb)
 
 static void blk_aio_complete_bh(void *opaque)
 {
-    blk_aio_complete(opaque);
+    BlkAioEmAIOCB *acb = opaque;
+
+    assert(acb->has_returned);
+    blk_aio_complete(acb);
 }
 
 static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
@@ -967,7 +992,6 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
         .ret    = NOT_DONE,
     };
     acb->bytes = bytes;
-    acb->bh = NULL;
     acb->has_returned = false;
 
     co = qemu_coroutine_create(co_entry, acb);
@@ -975,8 +999,8 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
 
     acb->has_returned = true;
     if (acb->rwco.ret != NOT_DONE) {
-        acb->bh = aio_bh_new(blk_get_aio_context(blk), blk_aio_complete_bh, acb);
-        qemu_bh_schedule(acb->bh);
+        aio_bh_schedule_oneshot(blk_get_aio_context(blk),
+                                blk_aio_complete_bh, acb);
     }
 
     return &acb->common;
@@ -1206,8 +1230,9 @@ static void send_qmp_error_event(BlockBackend *blk,
     IoOperationType optype;
 
     optype = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
-    qapi_event_send_block_io_error(blk_name(blk), optype, action,
-                                   blk_iostatus_is_enabled(blk),
+    qapi_event_send_block_io_error(blk_name(blk),
+                                   bdrv_get_node_name(blk_bs(blk)), optype,
+                                   action, blk_iostatus_is_enabled(blk),
                                    error == ENOSPC, strerror(error),
                                    &error_abort);
 }
@@ -1312,9 +1337,19 @@ void blk_lock_medium(BlockBackend *blk, bool locked)
 void blk_eject(BlockBackend *blk, bool eject_flag)
 {
     BlockDriverState *bs = blk_bs(blk);
+    char *id;
+
+    /* blk_eject is only called by qdevified devices */
+    assert(!blk->legacy_dev);
 
     if (bs) {
         bdrv_eject(bs, eject_flag);
+
+        id = blk_get_attached_dev_id(blk);
+        qapi_event_send_device_tray_moved(blk_name(blk), id,
+                                          eject_flag, &error_abort);
+        g_free(id);
+
     }
 }
 

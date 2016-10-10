@@ -22,7 +22,6 @@ typedef struct {
 typedef struct BlkverifyAIOCB BlkverifyAIOCB;
 struct BlkverifyAIOCB {
     BlockAIOCB common;
-    QEMUBH *bh;
 
     /* Request metadata */
     bool is_write;
@@ -175,7 +174,6 @@ static BlkverifyAIOCB *blkverify_aio_get(BlockDriverState *bs, bool is_write,
 {
     BlkverifyAIOCB *acb = qemu_aio_get(&blkverify_aiocb_info, bs, cb, opaque);
 
-    acb->bh = NULL;
     acb->is_write = is_write;
     acb->sector_num = sector_num;
     acb->nb_sectors = nb_sectors;
@@ -191,7 +189,6 @@ static void blkverify_aio_bh(void *opaque)
 {
     BlkverifyAIOCB *acb = opaque;
 
-    qemu_bh_delete(acb->bh);
     if (acb->buf) {
         qemu_iovec_destroy(&acb->raw_qiov);
         qemu_vfree(acb->buf);
@@ -218,9 +215,8 @@ static void blkverify_aio_cb(void *opaque, int ret)
             acb->verify(acb);
         }
 
-        acb->bh = aio_bh_new(bdrv_get_aio_context(acb->common.bs),
-                             blkverify_aio_bh, acb);
-        qemu_bh_schedule(acb->bh);
+        aio_bh_schedule_oneshot(bdrv_get_aio_context(acb->common.bs),
+                                blkverify_aio_bh, acb);
         break;
     }
 }

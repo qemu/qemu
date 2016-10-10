@@ -171,7 +171,6 @@ static void bdrv_drain_recurse(BlockDriverState *bs)
 typedef struct {
     Coroutine *co;
     BlockDriverState *bs;
-    QEMUBH *bh;
     bool done;
 } BdrvCoDrainData;
 
@@ -191,7 +190,6 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     BdrvCoDrainData *data = opaque;
     Coroutine *co = data->co;
 
-    qemu_bh_delete(data->bh);
     bdrv_drain_poll(data->bs);
     data->done = true;
     qemu_coroutine_enter(co);
@@ -210,9 +208,9 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
         .co = qemu_coroutine_self(),
         .bs = bs,
         .done = false,
-        .bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_co_drain_bh_cb, &data),
     };
-    qemu_bh_schedule(data.bh);
+    aio_bh_schedule_oneshot(bdrv_get_aio_context(bs),
+                            bdrv_co_drain_bh_cb, &data);
 
     qemu_coroutine_yield();
     /* If we are resumed from some other event (such as an aio completion or a
@@ -2095,7 +2093,6 @@ typedef struct BlockAIOCBCoroutine {
     bool is_write;
     bool need_bh;
     bool *done;
-    QEMUBH* bh;
 } BlockAIOCBCoroutine;
 
 static const AIOCBInfo bdrv_em_co_aiocb_info = {
@@ -2115,7 +2112,6 @@ static void bdrv_co_em_bh(void *opaque)
     BlockAIOCBCoroutine *acb = opaque;
 
     assert(!acb->need_bh);
-    qemu_bh_delete(acb->bh);
     bdrv_co_complete(acb);
 }
 
@@ -2125,8 +2121,7 @@ static void bdrv_co_maybe_schedule_bh(BlockAIOCBCoroutine *acb)
     if (acb->req.error != -EINPROGRESS) {
         BlockDriverState *bs = acb->common.bs;
 
-        acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_co_em_bh, acb);
-        qemu_bh_schedule(acb->bh);
+        aio_bh_schedule_oneshot(bdrv_get_aio_context(bs), bdrv_co_em_bh, acb);
     }
 }
 

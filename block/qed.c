@@ -909,7 +909,6 @@ static void qed_aio_complete_bh(void *opaque)
     void *user_opaque = acb->common.opaque;
     int ret = acb->bh_ret;
 
-    qemu_bh_delete(acb->bh);
     qemu_aio_unref(acb);
 
     /* Invoke callback */
@@ -934,9 +933,8 @@ static void qed_aio_complete(QEDAIOCB *acb, int ret)
 
     /* Arrange for a bh to invoke the completion function */
     acb->bh_ret = ret;
-    acb->bh = aio_bh_new(bdrv_get_aio_context(acb->common.bs),
-                         qed_aio_complete_bh, acb);
-    qemu_bh_schedule(acb->bh);
+    aio_bh_schedule_oneshot(bdrv_get_aio_context(acb->common.bs),
+                            qed_aio_complete_bh, acb);
 
     /* Start next allocating write request waiting behind this one.  Note that
      * requests enqueue themselves when they first hit an unallocated cluster
