@@ -218,6 +218,13 @@ uint64_t xbzrle_mig_pages_overflow(void)
     return acct_info.xbzrle_overflows;
 }
 
+
+uint64_t get_ram_iters(void)
+{
+  return acct_info.iterations ;
+}
+
+
 /* This is the last block that we have visited serching for dirty pages
  */
 static RAMBlock *last_seen_block;

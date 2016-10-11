@@ -607,6 +607,9 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
 {
     info->has_ram = true;
     info->ram = g_malloc0(sizeof(*info->ram));
+    
+    info->ram->iters = get_ram_iters() ; //XXX get number of iterations somehow
+    
     info->ram->transferred = ram_bytes_transferred();
     info->ram->total = ram_bytes_total();
     info->ram->duplicate = dup_mig_pages_transferred();
@@ -616,8 +619,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->mbps = s->mbps;
     info->ram->dirty_sync_count = s->dirty_sync_count;
     info->ram->postcopy_requests = s->postcopy_requests;
-    
-    //info->ram->iterations = s->iterations ;
+   
     
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
@@ -1764,6 +1766,10 @@ static void *migration_thread(void *opaque)
              * 3 levels of functions . */
             /* Can either make the iterations a global variable
              Or.... */
+            //XXX
+            /* if (get_ram_iters() > 30) { */
+            /*   break ; */
+            /* } */
             if (pending_size && pending_size >= max_size) {
                 /* Still a significant amount to transfer */
 
@@ -1772,6 +1778,7 @@ static void *migration_thread(void *opaque)
                     pend_nonpost <= max_size &&
                     atomic_read(&s->start_postcopy)) {
 
+                  //Postcopy start is stop-and-copy 
                     if (!postcopy_start(s, &old_vm_running)) {
                         current_active_state = MIGRATION_STATUS_POSTCOPY_ACTIVE;
                         entered_postcopy = true;
@@ -1788,7 +1795,7 @@ static void *migration_thread(void *opaque)
                                      &old_vm_running, &start_time);
                 break;
             }
-        }
+        } //endif file rate limit
 
         if (qemu_file_get_error(s->to_dst_file)) {
             migrate_set_state(&s->state, current_active_state,
@@ -1823,7 +1830,7 @@ static void *migration_thread(void *opaque)
             /* usleep expects microseconds */
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
         }
-    }
+    } //end while loop
 
     trace_migration_thread_after_loop();
     /* If we enabled cpu throttling for auto-converge, turn it off. */
