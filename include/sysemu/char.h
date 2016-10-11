@@ -380,7 +380,7 @@ int qemu_chr_fe_claim(CharDriverState *s);
 void qemu_chr_fe_claim_no_fail(CharDriverState *s);
 
 /**
- * @qemu_chr_fe_claim:
+ * @qemu_chr_fe_release:
  *
  * Release a backend for use by another frontend.
  *
