@@ -69,12 +69,13 @@ static uint8_t boot_sector[0x7e000] = {
 };
 
 /* Create boot disk file.  */
-int boot_sector_init(const char *fname)
+int boot_sector_init(char *fname)
 {
-    FILE *f = fopen(fname, "w");
+    int fd, ret;
     size_t len = sizeof boot_sector;
 
-    if (!f) {
+    fd = mkstemp(fname);
+    if (fd < 0) {
         fprintf(stderr, "Couldn't open \"%s\": %s", fname, strerror(errno));
         return 1;
     }
@@ -86,8 +87,14 @@ int boot_sector_init(const char *fname)
                 HIGH(SIGNATURE), BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET + 1);
     }
 
-    fwrite(boot_sector, 1, len, f);
-    fclose(f);
+    ret = write(fd, boot_sector, len);
+    close(fd);
+
+    if (ret != len) {
+        fprintf(stderr, "Could not write \"%s\"", fname);
+        return 1;
+    }
+
     return 0;
 }
 

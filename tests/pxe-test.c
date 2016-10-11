@@ -19,7 +19,7 @@
 
 #define NETNAME "net0"
 
-static const char *disk = "tests/pxe-test-disk.raw";
+static char disk[] = "tests/pxe-test-disk-XXXXXX";
 
 static void test_pxe_one(const char *params, bool ipv6)
 {

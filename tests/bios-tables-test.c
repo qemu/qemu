@@ -112,7 +112,7 @@ typedef struct {
     g_assert_cmpstr(ACPI_ASSERT_CMP_str, ==, expected); \
 } while (0)
 
-static const char *disk = "tests/acpi-test-disk.raw";
+static char disk[] = "tests/acpi-test-disk-XXXXXX";
 static const char *data_dir = "tests/acpi-test-data";
 #ifdef CONFIG_IASL
 static const char *iasl = stringify(CONFIG_IASL);
