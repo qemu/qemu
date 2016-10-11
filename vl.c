@@ -2408,8 +2408,9 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     if (qemu_opt_get_bool(opts, "pretty", 0))
         flags |= MONITOR_USE_PRETTY;
 
-    if (qemu_opt_get_bool(opts, "default", 0))
-        flags |= MONITOR_IS_DEFAULT;
+    if (qemu_opt_get_bool(opts, "default", 0)) {
+        error_report("option 'default' does nothing and is deprecated");
+    }
 
     chardev = qemu_opt_get(opts, "chardev");
     chr = qemu_chr_find(chardev);
@@ -2428,16 +2429,12 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
     QemuOpts *opts;
     const char *p;
     char label[32];
-    int def = 0;
 
     if (strstart(optarg, "chardev:", &p)) {
         snprintf(label, sizeof(label), "%s", p);
     } else {
         snprintf(label, sizeof(label), "compat_monitor%d",
                  monitor_device_index);
-        if (monitor_device_index == 0) {
-            def = 1;
-        }
         opts = qemu_chr_parse_compat(label, optarg);
         if (!opts) {
             error_report("parse error: %s", optarg);
@@ -2449,8 +2446,6 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
     qemu_opt_set(opts, "mode", mode, &error_abort);
     qemu_opt_set(opts, "chardev", label, &error_abort);
     qemu_opt_set_bool(opts, "pretty", pretty, &error_abort);
-    if (def)
-        qemu_opt_set(opts, "default", "on", &error_abort);
     monitor_device_index++;
 }
 
