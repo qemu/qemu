@@ -72,6 +72,7 @@ static uint8_t boot_sector[0x7e000] = {
 int boot_sector_init(const char *fname)
 {
     FILE *f = fopen(fname, "w");
+    size_t len = sizeof boot_sector;
 
     if (!f) {
         fprintf(stderr, "Couldn't open \"%s\": %s", fname, strerror(errno));
@@ -80,13 +81,12 @@ int boot_sector_init(const char *fname)
 
     /* For Open Firmware based system, we can use a Forth script instead */
     if (strcmp(qtest_get_arch(), "ppc64") == 0) {
-        memset(boot_sector, ' ', sizeof boot_sector);
-        sprintf((char *)boot_sector, "\\ Bootscript\n%x %x c! %x %x c!\n",
+        len = sprintf((char *)boot_sector, "\\ Bootscript\n%x %x c! %x %x c!\n",
                 LOW(SIGNATURE), BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET,
                 HIGH(SIGNATURE), BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET + 1);
     }
 
-    fwrite(boot_sector, 1, sizeof boot_sector, f);
+    fwrite(boot_sector, 1, len, f);
     fclose(f);
     return 0;
 }
