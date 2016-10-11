@@ -141,6 +141,14 @@ extern int daemon(int, int);
 # error Unknown pointer size
 #endif
 
+/* Mac OSX has a <stdint.h> bug that incorrectly defines SIZE_MAX with
+ * the wrong type. Our replacement isn't usable in preprocessor
+ * expressions, but it is sufficient for our needs. */
+#if defined(HAVE_BROKEN_SIZE_MAX) && HAVE_BROKEN_SIZE_MAX
+#undef SIZE_MAX
+#define SIZE_MAX ((size_t)-1)
+#endif
+
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif

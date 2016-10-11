@@ -1725,6 +1725,19 @@ if test "$cocoa" = "yes"; then
     sdl=no
 fi
 
+# Some versions of Mac OS X incorrectly define SIZE_MAX
+cat > $TMPC << EOF
+#include <stdint.h>
+#include <stdio.h>
+int main(int argc, char *argv[]) {
+    return printf("%zu", SIZE_MAX);
+}
+EOF
+have_broken_size_max=no
+if ! compile_object -Werror ; then
+    have_broken_size_max=yes
+fi
+
 ##########################################
 # L2TPV3 probe
 
@@ -5244,6 +5257,9 @@ if test "$tasn1" = "yes" ; then
 fi
 if test "$have_ifaddrs_h" = "yes" ; then
     echo "HAVE_IFADDRS_H=y" >> $config_host_mak
+fi
+if test "$have_broken_size_max" = "yes" ; then
+    echo "HAVE_BROKEN_SIZE_MAX=y" >> $config_host_mak
 fi
 
 # Work around a system header bug with some kernel/XFS header
