@@ -1,6 +1,6 @@
 # See docs/tracing.txt for syntax documentation.
 
-# target-arm/helper.c
+# target/arm/helper.c
 arm_gt_recalc(int timer, int irqstate, uint64_t nexttick) "gt recalc: timer %d irqstate %d next tick %" PRIx64
 arm_gt_recalc_disabled(int timer) "gt recalc: timer %d irqstate 0 timer disabled"
 arm_gt_cval_write(int timer, uint64_t value) "gt_cval_write: timer %d value %" PRIx64

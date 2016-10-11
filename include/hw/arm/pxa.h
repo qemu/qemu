@@ -11,7 +11,7 @@
 #define PXA_H
 
 #include "exec/memory.h"
-#include "target-arm/cpu-qom.h"
+#include "target/arm/cpu-qom.h"
 
 /* Interrupt numbers */
 # define PXA2XX_PIC_SSP3	0

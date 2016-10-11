@@ -19,7 +19,7 @@ AS      = $(CROSS)gcc -x assembler-with-cpp
 LD      = $(CROSS)ld
 
 XTENSA_SRC_PATH = $(SRC_PATH)/tests/tcg/xtensa
-INCLUDE_DIRS = $(XTENSA_SRC_PATH) $(SRC_PATH)/target-xtensa/core-$(CORE)
+INCLUDE_DIRS = $(XTENSA_SRC_PATH) $(SRC_PATH)/target/xtensa/core-$(CORE)
 XTENSA_INC = $(addprefix -I,$(INCLUDE_DIRS))
 
 LDFLAGS = -Tlinker.ld

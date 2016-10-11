@@ -11,7 +11,7 @@
 
 #include "hw/qdev.h"
 #include "hw/cpu/core.h"
-#include "target-ppc/cpu-qom.h"
+#include "target/ppc/cpu-qom.h"
 
 #define TYPE_SPAPR_CPU_CORE "spapr-cpu-core"
 #define SPAPR_CPU_CORE(obj) \

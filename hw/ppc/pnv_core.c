@@ -20,7 +20,7 @@
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
-#include "target-ppc/cpu.h"
+#include "target/ppc/cpu.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_core.h"

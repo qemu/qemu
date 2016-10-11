@@ -3,7 +3,7 @@
  *
  *  Copyright (c) 2014 Michael Walle <michael@walle.cc>
  *
- * Based on target-m68k/m68k-semi.c, which is
+ * Based on target/m68k/m68k-semi.c, which is
  *  Copyright (c) 2005-2007 CodeSourcery.
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.

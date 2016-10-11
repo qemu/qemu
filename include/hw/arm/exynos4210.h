@@ -27,7 +27,7 @@
 
 #include "qemu-common.h"
 #include "exec/memory.h"
-#include "target-arm/cpu-qom.h"
+#include "target/arm/cpu-qom.h"
 
 #define EXYNOS4210_NCPUS                    2
 

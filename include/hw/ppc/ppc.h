@@ -1,7 +1,7 @@
 #ifndef HW_PPC_H
 #define HW_PPC_H
 
-#include "target-ppc/cpu-qom.h"
+#include "target/ppc/cpu-qom.h"
 
 void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level);
 

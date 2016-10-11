@@ -2,7 +2,7 @@
 #define HW_MCF_H
 /* Motorola ColdFire device prototypes.  */
 
-#include "target-m68k/cpu-qom.h"
+#include "target/m68k/cpu-qom.h"
 
 struct MemoryRegion;
 

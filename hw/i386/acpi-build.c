@@ -29,7 +29,7 @@
 #include "hw/pci/pci.h"
 #include "qom/cpu.h"
 #include "hw/i386/pc.h"
-#include "target-i386/cpu.h"
+#include "target/i386/cpu.h"
 #include "hw/timer/hpet.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"

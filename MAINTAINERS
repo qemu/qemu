@@ -106,7 +106,7 @@ F: include/fpu/
 Alpha
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
-F: target-alpha/
+F: target/alpha/
 F: hw/alpha/
 F: tests/tcg/alpha/
 F: disas/alpha.c
@@ -115,7 +115,7 @@ ARM
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
-F: target-arm/
+F: target/arm/
 F: hw/arm/
 F: hw/cpu/a*mpcore.c
 F: include/hw/cpu/a*mpcore.h
@@ -126,7 +126,7 @@ F: disas/libvixl/
 CRIS
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
-F: target-cris/
+F: target/cris/
 F: hw/cris/
 F: include/hw/cris/
 F: tests/tcg/cris/
@@ -135,7 +135,7 @@ F: disas/cris.c
 LM32
 M: Michael Walle <michael@walle.cc>
 S: Maintained
-F: target-lm32/
+F: target/lm32/
 F: disas/lm32.c
 F: hw/lm32/
 F: hw/*/lm32_*
@@ -147,13 +147,13 @@ F: tests/tcg/lm32/
 M68K
 M: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
-F: target-m68k/
+F: target/m68k/
 F: disas/m68k.c
 
 MicroBlaze
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
-F: target-microblaze/
+F: target/microblaze/
 F: hw/microblaze/
 F: disas/microblaze.c
 
@@ -161,7 +161,7 @@ MIPS
 M: Aurelien Jarno <aurelien@aurel32.net>
 M: Yongbok Kim <yongbok.kim@imgtec.com>
 S: Maintained
-F: target-mips/
+F: target/mips/
 F: hw/mips/
 F: hw/misc/mips_*
 F: hw/intc/mips_gic.c
@@ -176,7 +176,7 @@ F: disas/mips.c
 Moxie
 M: Anthony Green <green@moxielogic.com>
 S: Maintained
-F: target-moxie/
+F: target/moxie/
 F: disas/moxie.c
 F: hw/moxie/
 F: default-configs/moxie-softmmu.mak
@@ -184,7 +184,7 @@ F: default-configs/moxie-softmmu.mak
 OpenRISC
 M: Jia Liu <proljc@gmail.com>
 S: Maintained
-F: target-openrisc/
+F: target/openrisc/
 F: hw/openrisc/
 F: tests/tcg/openrisc/
 
@@ -193,7 +193,7 @@ M: David Gibson <david@gibson.dropbear.id.au>
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
-F: target-ppc/
+F: target/ppc/
 F: hw/ppc/
 F: include/hw/ppc/
 F: disas/ppc.c
@@ -202,14 +202,14 @@ S390
 M: Richard Henderson <rth@twiddle.net>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
-F: target-s390x/
+F: target/s390x/
 F: hw/s390x/
 F: disas/s390.c
 
 SH4
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Odd Fixes
-F: target-sh4/
+F: target/sh4/
 F: hw/sh4/
 F: disas/sh4.c
 F: include/hw/sh4/
@@ -218,7 +218,7 @@ SPARC
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 M: Artyom Tarasenko <atar4qemu@gmail.com>
 S: Maintained
-F: target-sparc/
+F: target/sparc/
 F: hw/sparc/
 F: hw/sparc64/
 F: disas/sparc.c
@@ -226,7 +226,7 @@ F: disas/sparc.c
 UniCore32
 M: Guan Xuetao <gxt@mprc.pku.edu.cn>
 S: Maintained
-F: target-unicore32/
+F: target/unicore32/
 F: hw/unicore32/
 F: include/hw/unicore32/
 
@@ -235,7 +235,7 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 M: Richard Henderson <rth@twiddle.net>
 M: Eduardo Habkost <ehabkost@redhat.com>
 S: Maintained
-F: target-i386/
+F: target/i386/
 F: hw/i386/
 F: disas/i386.c
 
@@ -243,14 +243,14 @@ Xtensa
 M: Max Filippov <jcmvbkbc@gmail.com>
 W: http://wiki.osll.spb.ru/doku.php?id=etc:users:jcmvbkbc:qemu-target-xtensa
 S: Maintained
-F: target-xtensa/
+F: target/xtensa/
 F: hw/xtensa/
 F: tests/tcg/xtensa/
 
 TriCore
 M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
 S: Maintained
-F: target-tricore/
+F: target/tricore/
 F: hw/tricore/
 F: include/hw/tricore/
 
@@ -269,26 +269,26 @@ ARM
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
-F: target-arm/kvm.c
+F: target/arm/kvm.c
 
 MIPS
 M: James Hogan <james.hogan@imgtec.com>
 S: Maintained
-F: target-mips/kvm.c
+F: target/mips/kvm.c
 
 PPC
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
-F: target-ppc/kvm.c
+F: target/ppc/kvm.c
 
 S390
 M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
-F: target-s390x/kvm.c
-F: target-s390x/ioinst.[ch]
-F: target-s390x/machine.c
+F: target/s390x/kvm.c
+F: target/s390x/ioinst.[ch]
+F: target/s390x/machine.c
 F: hw/intc/s390_flic.c
 F: hw/intc/s390_flic_kvm.c
 F: include/hw/s390x/s390_flic.h
@@ -301,7 +301,7 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
-F: target-i386/kvm.c
+F: target/i386/kvm.c
 
 Guest CPU Cores (Xen):
 ----------------------
