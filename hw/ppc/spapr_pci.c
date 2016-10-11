@@ -1317,14 +1317,16 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         if ((sphb->buid != (uint64_t)-1) || (sphb->dma_liobn[0] != (uint32_t)-1)
             || (sphb->dma_liobn[1] != (uint32_t)-1 && windows_supported == 2)
             || (sphb->mem_win_addr != (hwaddr)-1)
+            || (sphb->mem64_win_addr != (hwaddr)-1)
             || (sphb->io_win_addr != (hwaddr)-1)) {
             error_setg(errp, "Either \"index\" or other parameters must"
                        " be specified for PAPR PHB, not both");
             return;
         }
 
-        smc->phb_placement(spapr, sphb->index, &sphb->buid,
-                           &sphb->io_win_addr, &sphb->mem_win_addr,
+        smc->phb_placement(spapr, sphb->index,
+                           &sphb->buid, &sphb->io_win_addr,
+                           &sphb->mem_win_addr, &sphb->mem64_win_addr,
                            windows_supported, sphb->dma_liobn, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
@@ -1353,6 +1355,38 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (sphb->mem64_win_size != 0) {
+        if (sphb->mem64_win_addr == (hwaddr)-1) {
+            error_setg(errp,
+                       "64-bit memory window address not specified for PHB");
+            return;
+        }
+
+        if (sphb->mem_win_size > SPAPR_PCI_MEM32_WIN_SIZE) {
+            error_setg(errp, "32-bit memory window of size 0x%"HWADDR_PRIx
+                       " (max 2 GiB)", sphb->mem_win_size);
+            return;
+        }
+
+        if (sphb->mem64_win_pciaddr == (hwaddr)-1) {
+            /* 64-bit window defaults to identity mapping */
+            sphb->mem64_win_pciaddr = sphb->mem64_win_addr;
+        }
+    } else if (sphb->mem_win_size > SPAPR_PCI_MEM32_WIN_SIZE) {
+        /*
+         * For compatibility with old configuration, if no 64-bit MMIO
+         * window is specified, but the ordinary (32-bit) memory
+         * window is specified as > 2GiB, we treat it as a 2GiB 32-bit
+         * window, with a 64-bit MMIO window following on immediately
+         * afterwards
+         */
+        sphb->mem64_win_size = sphb->mem_win_size - SPAPR_PCI_MEM32_WIN_SIZE;
+        sphb->mem64_win_addr = sphb->mem_win_addr + SPAPR_PCI_MEM32_WIN_SIZE;
+        sphb->mem64_win_pciaddr =
+            SPAPR_PCI_MEM_WIN_BUS_OFFSET + SPAPR_PCI_MEM32_WIN_SIZE;
+        sphb->mem_win_size = SPAPR_PCI_MEM32_WIN_SIZE;
+    }
+
     if (spapr_pci_find_phb(spapr, sphb->buid)) {
         error_setg(errp, "PCI host bridges must have unique BUIDs");
         return;
@@ -1366,12 +1400,19 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     sprintf(namebuf, "%s.mmio", sphb->dtbusname);
     memory_region_init(&sphb->memspace, OBJECT(sphb), namebuf, UINT64_MAX);
 
-    sprintf(namebuf, "%s.mmio-alias", sphb->dtbusname);
-    memory_region_init_alias(&sphb->memwindow, OBJECT(sphb),
+    sprintf(namebuf, "%s.mmio32-alias", sphb->dtbusname);
+    memory_region_init_alias(&sphb->mem32window, OBJECT(sphb),
                              namebuf, &sphb->memspace,
                              SPAPR_PCI_MEM_WIN_BUS_OFFSET, sphb->mem_win_size);
     memory_region_add_subregion(get_system_memory(), sphb->mem_win_addr,
-                                &sphb->memwindow);
+                                &sphb->mem32window);
+
+    sprintf(namebuf, "%s.mmio64-alias", sphb->dtbusname);
+    memory_region_init_alias(&sphb->mem64window, OBJECT(sphb),
+                             namebuf, &sphb->memspace,
+                             sphb->mem64_win_pciaddr, sphb->mem64_win_size);
+    memory_region_add_subregion(get_system_memory(), sphb->mem64_win_addr,
+                                &sphb->mem64window);
 
     /* Initialize IO regions */
     sprintf(namebuf, "%s.io", sphb->dtbusname);
@@ -1524,6 +1565,10 @@ static Property spapr_phb_properties[] = {
     DEFINE_PROP_UINT64("mem_win_addr", sPAPRPHBState, mem_win_addr, -1),
     DEFINE_PROP_UINT64("mem_win_size", sPAPRPHBState, mem_win_size,
                        SPAPR_PCI_MMIO_WIN_SIZE),
+    DEFINE_PROP_UINT64("mem64_win_addr", sPAPRPHBState, mem64_win_addr, -1),
+    DEFINE_PROP_UINT64("mem64_win_size", sPAPRPHBState, mem64_win_size, 0),
+    DEFINE_PROP_UINT64("mem64_win_pciaddr", sPAPRPHBState, mem64_win_pciaddr,
+                       -1),
     DEFINE_PROP_UINT64("io_win_addr", sPAPRPHBState, io_win_addr, -1),
     DEFINE_PROP_UINT64("io_win_size", sPAPRPHBState, io_win_size,
                        SPAPR_PCI_IO_WIN_SIZE),
@@ -1759,10 +1804,6 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     int bus_off, i, j, ret;
     char nodename[FDT_NAME_MAX];
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
-    const uint64_t mmiosize = memory_region_size(&phb->memwindow);
-    const uint64_t w32max = (1ULL << 32) - SPAPR_PCI_MEM_WIN_BUS_OFFSET;
-    const uint64_t w32size = MIN(w32max, mmiosize);
-    const uint64_t w64size = (mmiosize > w32size) ? (mmiosize - w32size) : 0;
     struct {
         uint32_t hi;
         uint64_t child;
@@ -1777,15 +1818,16 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
         {
             cpu_to_be32(b_ss(2)), cpu_to_be64(SPAPR_PCI_MEM_WIN_BUS_OFFSET),
             cpu_to_be64(phb->mem_win_addr),
-            cpu_to_be64(w32size),
+            cpu_to_be64(phb->mem_win_size),
         },
         {
-            cpu_to_be32(b_ss(3)), cpu_to_be64(1ULL << 32),
-            cpu_to_be64(phb->mem_win_addr + w32size),
-            cpu_to_be64(w64size)
+            cpu_to_be32(b_ss(3)), cpu_to_be64(phb->mem64_win_pciaddr),
+            cpu_to_be64(phb->mem64_win_addr),
+            cpu_to_be64(phb->mem64_win_size),
         },
     };
-    const unsigned sizeof_ranges = (w64size ? 3 : 2) * sizeof(ranges[0]);
+    const unsigned sizeof_ranges =
+        (phb->mem64_win_size ? 3 : 2) * sizeof(ranges[0]);
     uint64_t bus_reg[] = { cpu_to_be64(phb->buid), 0 };
     uint32_t interrupt_map_mask[] = {
         cpu_to_be32(b_ddddd(-1)|b_fff(0)), 0x0, 0x0, cpu_to_be32(-1)};

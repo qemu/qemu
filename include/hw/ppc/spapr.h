@@ -41,7 +41,8 @@ struct sPAPRMachineClass {
     bool use_ohci_by_default;  /* use USB-OHCI instead of XHCI */
     const char *tcg_default_cpu; /* which (TCG) CPU to simulate by default */
     void (*phb_placement)(sPAPRMachineState *spapr, uint32_t index,
-                          uint64_t *buid, hwaddr *pio, hwaddr *mmio,
+                          uint64_t *buid, hwaddr *pio, 
+                          hwaddr *mmio32, hwaddr *mmio64,
                           unsigned n_dma, uint32_t *liobns, Error **errp);
 };
 

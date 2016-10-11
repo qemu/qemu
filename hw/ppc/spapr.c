@@ -2371,7 +2371,8 @@ static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
 }
 
 static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
-                                uint64_t *buid, hwaddr *pio, hwaddr *mmio,
+                                uint64_t *buid, hwaddr *pio,
+                                hwaddr *mmio32, hwaddr *mmio64,
                                 unsigned n_dma, uint32_t *liobns, Error **errp)
 {
     const uint64_t base_buid = 0x800000020000000ULL;
@@ -2409,7 +2410,12 @@ static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
 
     phb_base = phb0_base + index * phb_spacing;
     *pio = phb_base + pio_offset;
-    *mmio = phb_base + mmio_offset;
+    *mmio32 = phb_base + mmio_offset;
+    /*
+     * We don't set the 64-bit MMIO window, relying on the PHB's
+     * fallback behaviour of automatically splitting a large "32-bit"
+     * window into contiguous 32-bit and 64-bit windows
+     */
 }
 
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
