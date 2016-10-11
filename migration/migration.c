@@ -1770,7 +1770,7 @@ static void *migration_thread(void *opaque)
             /* if (get_ram_iters() > 30) { */
             /*   break ; */
             /* } */
-            if (pending_size && pending_size >= max_size) {
+            if ((pending_size && pending_size >= max_size) && get_ram_iters()<30) {
                 /* Still a significant amount to transfer */
 
                 if (migrate_postcopy_ram() &&
@@ -1778,7 +1778,9 @@ static void *migration_thread(void *opaque)
                     pend_nonpost <= max_size &&
                     atomic_read(&s->start_postcopy)) {
 
-                  //Postcopy start is stop-and-copy 
+                  //Postcopy start is stop-and-copy
+                  //Who sets the start_postcopy flag? Only through user-action
+                  
                     if (!postcopy_start(s, &old_vm_running)) {
                         current_active_state = MIGRATION_STATUS_POSTCOPY_ACTIVE;
                         entered_postcopy = true;
