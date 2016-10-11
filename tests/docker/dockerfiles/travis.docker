@@ -1,0 +1,6 @@
+FROM quay.io/travisci/travis-ruby
+RUN apt-get update
+RUN apt-get -y build-dep qemu
+RUN apt-get -y build-dep device-tree-compiler
+RUN apt-get -y install python2.7 dh-autoreconf
+ENV FEATURES pyyaml
