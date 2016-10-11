@@ -918,6 +918,8 @@ safe_syscall2(int, tkill, int, tid, int, sig)
 safe_syscall3(int, tgkill, int, tgid, int, pid, int, sig)
 safe_syscall3(ssize_t, readv, int, fd, const struct iovec *, iov, int, iovcnt)
 safe_syscall3(ssize_t, writev, int, fd, const struct iovec *, iov, int, iovcnt)
+safe_syscall5(ssize_t, preadv, int, fd, const struct iovec *, iov, int, iovcnt,
+              unsigned long, pos_l, unsigned long, pos_h)
 safe_syscall3(int, connect, int, fd, const struct sockaddr *, addr,
               socklen_t, addrlen)
 safe_syscall6(ssize_t, sendto, int, fd, const void *, buf, size_t, len,
@@ -10059,6 +10061,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
         }
         break;
+#if defined(TARGET_NR_preadv)
+    case TARGET_NR_preadv:
+        {
+            struct iovec *vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 0);
+            if (vec != NULL) {
+                ret = get_errno(safe_preadv(arg1, vec, arg3, arg4, arg5));
+                unlock_iovec(vec, arg2, arg3, 1);
+            } else {
+                ret = -host_to_target_errno(errno);
+           }
+        }
+        break;
+#endif
     case TARGET_NR_getsid:
         ret = get_errno(getsid(arg1));
         break;
