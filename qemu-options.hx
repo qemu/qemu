@@ -3902,7 +3902,7 @@ colo secondary:
 -object filter-redirector,id=f2,netdev=hn0,queue=rx,outdev=red1
 -object filter-rewriter,id=rew0,netdev=hn0,queue=all
 
-@item -object filter-dump,id=@var{id},netdev=@var{dev},file=@var{filename}][,maxlen=@var{len}]
+@item -object filter-dump,id=@var{id},netdev=@var{dev}[,file=@var{filename}][,maxlen=@var{len}]
 
 Dump the network traffic on netdev @var{dev} to the file specified by
 @var{filename}. At most @var{len} bytes (64k by default) per packet are stored.
