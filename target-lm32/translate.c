@@ -865,7 +865,7 @@ static void dec_wcsr(DisasContext *dc)
 {
     int no;
 
-    LOG_DIS("wcsr r%d, %d\n", dc->r1, dc->csr);
+    LOG_DIS("wcsr %d, r%d\n", dc->csr, dc->r1);
 
     switch (dc->csr) {
     case CSR_IE:
