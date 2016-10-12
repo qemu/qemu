@@ -213,7 +213,7 @@ static void tmu2_start(MilkymistTMU2State *s)
     /* Read the QEMU source framebuffer into an OpenGL texture */
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
-    fb_len = 2*s->regs[R_TEXHRES]*s->regs[R_TEXVRES];
+    fb_len = 2ULL * s->regs[R_TEXHRES] * s->regs[R_TEXVRES];
     fb = cpu_physical_memory_map(s->regs[R_TEXFBUF], &fb_len, 0);
     if (fb == NULL) {
         glDeleteTextures(1, &texture);
