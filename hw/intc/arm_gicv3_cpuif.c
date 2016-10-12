@@ -454,7 +454,8 @@ static void icc_eoir_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int irq = value & 0xffffff;
     int grp;
 
-    trace_gicv3_icc_eoir_write(gicv3_redist_affid(cs), value);
+    trace_gicv3_icc_eoir_write(ri->crm == 8 ? 0 : 1,
+                               gicv3_redist_affid(cs), value);
 
     if (ri->crm == 8) {
         /* EOIR0 */
@@ -542,7 +543,7 @@ static uint64_t icc_bpr_read(CPUARMState *env, const ARMCPRegInfo *ri)
         bpr = MIN(bpr, 7);
     }
 
-    trace_gicv3_icc_bpr_read(gicv3_redist_affid(cs), bpr);
+    trace_gicv3_icc_bpr_read(ri->crm == 8 ? 0 : 1, gicv3_redist_affid(cs), bpr);
 
     return bpr;
 }
@@ -553,7 +554,8 @@ static void icc_bpr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     GICv3CPUState *cs = icc_cs_from_env(env);
     int grp = (ri->crm == 8) ? GICV3_G0 : GICV3_G1;
 
-    trace_gicv3_icc_pmr_write(gicv3_redist_affid(cs), value);
+    trace_gicv3_icc_bpr_write(ri->crm == 8 ? 0 : 1,
+                              gicv3_redist_affid(cs), value);
 
     if (grp == GICV3_G1 && gicv3_use_ns_bank(env)) {
         grp = GICV3_G1NS;
@@ -591,7 +593,7 @@ static uint64_t icc_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 
     value = cs->icc_apr[grp][regno];
 
-    trace_gicv3_icc_ap_read(regno, gicv3_redist_affid(cs), value);
+    trace_gicv3_icc_ap_read(ri->crm & 1, regno, gicv3_redist_affid(cs), value);
     return value;
 }
 
@@ -603,7 +605,7 @@ static void icc_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int regno = ri->opc2 & 3;
     int grp = ri->crm & 1 ? GICV3_G0 : GICV3_G1;
 
-    trace_gicv3_icc_ap_write(regno, gicv3_redist_affid(cs), value);
+    trace_gicv3_icc_ap_write(ri->crm & 1, regno, gicv3_redist_affid(cs), value);
 
     if (grp == GICV3_G1 && gicv3_use_ns_bank(env)) {
         grp = GICV3_G1NS;
@@ -820,7 +822,8 @@ static uint64_t icc_igrpen_read(CPUARMState *env, const ARMCPRegInfo *ri)
     }
 
     value = cs->icc_igrpen[grp];
-    trace_gicv3_icc_igrpen_read(gicv3_redist_affid(cs), value);
+    trace_gicv3_icc_igrpen_read(ri->opc2 & 1 ? 1 : 0,
+                                gicv3_redist_affid(cs), value);
     return value;
 }
 
@@ -830,7 +833,8 @@ static void icc_igrpen_write(CPUARMState *env, const ARMCPRegInfo *ri,
     GICv3CPUState *cs = icc_cs_from_env(env);
     int grp = ri->opc2 & 1 ? GICV3_G1 : GICV3_G0;
 
-    trace_gicv3_icc_igrpen_write(gicv3_redist_affid(cs), value);
+    trace_gicv3_icc_igrpen_write(ri->opc2 & 1 ? 1 : 0,
+                                 gicv3_redist_affid(cs), value);
 
     if (grp == GICV3_G1 && gicv3_use_ns_bank(env)) {
         grp = GICV3_G1NS;
@@ -843,9 +847,12 @@ static void icc_igrpen_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static uint64_t icc_igrpen1_el3_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
+    uint64_t value;
 
     /* IGRPEN1_EL3 bits 0 and 1 are r/w aliases into IGRPEN1_EL1 NS and S */
-    return cs->icc_igrpen[GICV3_G1NS] | (cs->icc_igrpen[GICV3_G1] << 1);
+    value = cs->icc_igrpen[GICV3_G1NS] | (cs->icc_igrpen[GICV3_G1] << 1);
+    trace_gicv3_icc_igrpen1_el3_read(gicv3_redist_affid(cs), value);
+    return value;
 }
 
 static void icc_igrpen1_el3_write(CPUARMState *env, const ARMCPRegInfo *ri,
