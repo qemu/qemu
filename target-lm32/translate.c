@@ -211,7 +211,7 @@ static void dec_and(DisasContext *dc)
 
 static void dec_andhi(DisasContext *dc)
 {
-    LOG_DIS("andhi r%d, r%d, %d\n", dc->r2, dc->r0, dc->imm16);
+    LOG_DIS("andhi r%d, r%d, %d\n", dc->r1, dc->r0, dc->imm16);
 
     tcg_gen_andi_tl(cpu_R[dc->r1], cpu_R[dc->r0], (dc->imm16 << 16));
 }
@@ -274,7 +274,7 @@ static inline void gen_cond_branch(DisasContext *dc, int cond)
 
 static void dec_be(DisasContext *dc)
 {
-    LOG_DIS("be r%d, r%d, %d\n", dc->r0, dc->r1,
+    LOG_DIS("be r%d, r%d, %d\n", dc->r1, dc->r0,
             sign_extend(dc->imm16, 16) * 4);
 
     gen_cond_branch(dc, TCG_COND_EQ);
@@ -282,7 +282,7 @@ static void dec_be(DisasContext *dc)
 
 static void dec_bg(DisasContext *dc)
 {
-    LOG_DIS("bg r%d, r%d, %d\n", dc->r0, dc->r1,
+    LOG_DIS("bg r%d, r%d, %d\n", dc->r1, dc->r0,
             sign_extend(dc->imm16, 16 * 4));
 
     gen_cond_branch(dc, TCG_COND_GT);
@@ -290,7 +290,7 @@ static void dec_bg(DisasContext *dc)
 
 static void dec_bge(DisasContext *dc)
 {
-    LOG_DIS("bge r%d, r%d, %d\n", dc->r0, dc->r1,
+    LOG_DIS("bge r%d, r%d, %d\n", dc->r1, dc->r0,
             sign_extend(dc->imm16, 16) * 4);
 
     gen_cond_branch(dc, TCG_COND_GE);
@@ -298,7 +298,7 @@ static void dec_bge(DisasContext *dc)
 
 static void dec_bgeu(DisasContext *dc)
 {
-    LOG_DIS("bgeu r%d, r%d, %d\n", dc->r0, dc->r1,
+    LOG_DIS("bgeu r%d, r%d, %d\n", dc->r1, dc->r0,
             sign_extend(dc->imm16, 16) * 4);
 
     gen_cond_branch(dc, TCG_COND_GEU);
@@ -306,7 +306,7 @@ static void dec_bgeu(DisasContext *dc)
 
 static void dec_bgu(DisasContext *dc)
 {
-    LOG_DIS("bgu r%d, r%d, %d\n", dc->r0, dc->r1,
+    LOG_DIS("bgu r%d, r%d, %d\n", dc->r1, dc->r0,
             sign_extend(dc->imm16, 16) * 4);
 
     gen_cond_branch(dc, TCG_COND_GTU);
@@ -314,7 +314,7 @@ static void dec_bgu(DisasContext *dc)
 
 static void dec_bne(DisasContext *dc)
 {
-    LOG_DIS("bne r%d, r%d, %d\n", dc->r0, dc->r1,
+    LOG_DIS("bne r%d, r%d, %d\n", dc->r1, dc->r0,
             sign_extend(dc->imm16, 16) * 4);
 
     gen_cond_branch(dc, TCG_COND_NE);
@@ -367,7 +367,7 @@ static inline void gen_compare(DisasContext *dc, int cond)
 static void dec_cmpe(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
-        LOG_DIS("cmpei r%d, r%d, %d\n", dc->r0, dc->r1,
+        LOG_DIS("cmpei r%d, r%d, %d\n", dc->r1, dc->r0,
                 sign_extend(dc->imm16, 16));
     } else {
         LOG_DIS("cmpe r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
@@ -379,7 +379,7 @@ static void dec_cmpe(DisasContext *dc)
 static void dec_cmpg(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
-        LOG_DIS("cmpgi r%d, r%d, %d\n", dc->r0, dc->r1,
+        LOG_DIS("cmpgi r%d, r%d, %d\n", dc->r1, dc->r0,
                 sign_extend(dc->imm16, 16));
     } else {
         LOG_DIS("cmpg r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
@@ -391,7 +391,7 @@ static void dec_cmpg(DisasContext *dc)
 static void dec_cmpge(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
-        LOG_DIS("cmpgei r%d, r%d, %d\n", dc->r0, dc->r1,
+        LOG_DIS("cmpgei r%d, r%d, %d\n", dc->r1, dc->r0,
                 sign_extend(dc->imm16, 16));
     } else {
         LOG_DIS("cmpge r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
@@ -403,7 +403,7 @@ static void dec_cmpge(DisasContext *dc)
 static void dec_cmpgeu(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
-        LOG_DIS("cmpgeui r%d, r%d, %d\n", dc->r0, dc->r1,
+        LOG_DIS("cmpgeui r%d, r%d, %d\n", dc->r1, dc->r0,
                 zero_extend(dc->imm16, 16));
     } else {
         LOG_DIS("cmpgeu r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
@@ -415,7 +415,7 @@ static void dec_cmpgeu(DisasContext *dc)
 static void dec_cmpgu(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
-        LOG_DIS("cmpgui r%d, r%d, %d\n", dc->r0, dc->r1,
+        LOG_DIS("cmpgui r%d, r%d, %d\n", dc->r1, dc->r0,
                 zero_extend(dc->imm16, 16));
     } else {
         LOG_DIS("cmpgu r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
@@ -427,7 +427,7 @@ static void dec_cmpgu(DisasContext *dc)
 static void dec_cmpne(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
-        LOG_DIS("cmpnei r%d, r%d, %d\n", dc->r0, dc->r1,
+        LOG_DIS("cmpnei r%d, r%d, %d\n", dc->r1, dc->r0,
                 sign_extend(dc->imm16, 16));
     } else {
         LOG_DIS("cmpne r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
@@ -539,7 +539,7 @@ static void dec_modu(DisasContext *dc)
 static void dec_mul(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
-        LOG_DIS("muli r%d, r%d, %d\n", dc->r0, dc->r1,
+        LOG_DIS("muli r%d, r%d, %d\n", dc->r1, dc->r0,
                 sign_extend(dc->imm16, 16));
     } else {
         LOG_DIS("mul r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
@@ -563,7 +563,7 @@ static void dec_mul(DisasContext *dc)
 static void dec_nor(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
-        LOG_DIS("nori r%d, r%d, %d\n", dc->r0, dc->r1,
+        LOG_DIS("nori r%d, r%d, %d\n", dc->r1, dc->r0,
                 zero_extend(dc->imm16, 16));
     } else {
         LOG_DIS("nor r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
@@ -959,7 +959,7 @@ static void dec_wcsr(DisasContext *dc)
 static void dec_xnor(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
-        LOG_DIS("xnori r%d, r%d, %d\n", dc->r0, dc->r1,
+        LOG_DIS("xnori r%d, r%d, %d\n", dc->r1, dc->r0,
                 zero_extend(dc->imm16, 16));
     } else {
         if (dc->r1 == R_R0) {
@@ -981,7 +981,7 @@ static void dec_xnor(DisasContext *dc)
 static void dec_xor(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
-        LOG_DIS("xori r%d, r%d, %d\n", dc->r0, dc->r1,
+        LOG_DIS("xori r%d, r%d, %d\n", dc->r1, dc->r0,
                 zero_extend(dc->imm16, 16));
     } else {
         LOG_DIS("xor r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
