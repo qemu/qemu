@@ -4158,6 +4158,7 @@ int main(int argc, char **argv, char **envp)
     int ret;
     int execfd;
 
+    module_call_init(MODULE_INIT_TRACE);
     qemu_init_cpu_list();
     module_call_init(MODULE_INIT_QOM);
 

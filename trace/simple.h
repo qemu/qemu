@@ -11,10 +11,6 @@
 #ifndef TRACE_SIMPLE_H
 #define TRACE_SIMPLE_H
 
-
-#include "trace/generated-events.h"
-
-
 void st_print_trace_file_status(FILE *stream, fprintf_function stream_printf);
 void st_set_trace_file_enabled(bool enable);
 void st_set_trace_file(const char *file);
@@ -33,7 +29,7 @@ typedef struct {
  *
  * @arglen  number of bytes required for arguments
  */
-int trace_record_start(TraceBufferRecord *rec, TraceEventID id, size_t arglen);
+int trace_record_start(TraceBufferRecord *rec, uint32_t id, size_t arglen);
 
 /**
  * Append a 64-bit argument to a trace record

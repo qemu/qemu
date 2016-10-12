@@ -12,12 +12,15 @@
 import struct
 import re
 import inspect
-from tracetool import _read_events, Event
+from tracetool import read_events, Event
 from tracetool.backend.simple import is_string
 
 header_event_id = 0xffffffffffffffff
 header_magic    = 0xf2b177cb0aa429b4
 dropped_event_id = 0xfffffffffffffffe
+
+record_type_mapping = 0
+record_type_event = 1
 
 log_header_fmt = '=QQQ'
 rec_header_fmt = '=QQII'
@@ -30,14 +33,16 @@ def read_header(fobj, hfmt):
         return None
     return struct.unpack(hfmt, hdr)
 
-def get_record(edict, rechdr, fobj):
-    """Deserialize a trace record from a file into a tuple (event_num, timestamp, pid, arg1, ..., arg6)."""
+def get_record(edict, idtoname, rechdr, fobj):
+    """Deserialize a trace record from a file into a tuple
+       (name, timestamp, pid, arg1, ..., arg6)."""
     if rechdr is None:
         return None
-    rec = (rechdr[0], rechdr[1], rechdr[3])
     if rechdr[0] != dropped_event_id:
         event_id = rechdr[0]
-        event = edict[event_id]
+        name = idtoname[event_id]
+        rec = (name, rechdr[1], rechdr[3])
+        event = edict[name]
         for type, name in event.args:
             if is_string(type):
                 l = fobj.read(4)
@@ -48,15 +53,22 @@ def get_record(edict, rechdr, fobj):
                 (value,) = struct.unpack('=Q', fobj.read(8))
                 rec = rec + (value,)
     else:
+        rec = ("dropped", rechdr[1], rechdr[3])
         (value,) = struct.unpack('=Q', fobj.read(8))
         rec = rec + (value,)
     return rec
 
+def get_mapping(fobj):
+    (event_id, ) = struct.unpack('=Q', fobj.read(8))
+    (len, ) = struct.unpack('=L', fobj.read(4))
+    name = fobj.read(len)
 
-def read_record(edict, fobj):
+    return (event_id, name)
+
+def read_record(edict, idtoname, fobj):
     """Deserialize a trace record from a file into a tuple (event_num, timestamp, pid, arg1, ..., arg6)."""
     rechdr = read_header(fobj, rec_header_fmt)
-    return get_record(edict, rechdr, fobj) # return tuple of record elements
+    return get_record(edict, idtoname, rechdr, fobj)
 
 def read_trace_header(fobj):
     """Read and verify trace file header"""
@@ -67,20 +79,30 @@ def read_trace_header(fobj):
         raise ValueError('Not a valid trace file!')
 
     log_version = header[2]
-    if log_version not in [0, 2, 3]:
+    if log_version not in [0, 2, 3, 4]:
         raise ValueError('Unknown version of tracelog format!')
-    if log_version != 3:
+    if log_version != 4:
         raise ValueError('Log format %d not supported with this QEMU release!'
                          % log_version)
 
 def read_trace_records(edict, fobj):
     """Deserialize trace records from a file, yielding record tuples (event_num, timestamp, pid, arg1, ..., arg6)."""
+    idtoname = {
+        dropped_event_id: "dropped"
+    }
     while True:
-        rec = read_record(edict, fobj)
-        if rec is None:
+        t = fobj.read(8)
+        if len(t) == 0:
             break
 
-        yield rec
+        (rectype, ) = struct.unpack('=Q', t)
+        if rectype == record_type_mapping:
+            event_id, name = get_mapping(fobj)
+            idtoname[event_id] = name
+        else:
+            rec = read_record(edict, idtoname, fobj)
+
+            yield rec
 
 class Analyzer(object):
     """A trace file analyzer which processes trace records.
@@ -107,7 +129,7 @@ class Analyzer(object):
 def process(events, log, analyzer, read_header=True):
     """Invoke an analyzer on each event in a log."""
     if isinstance(events, str):
-        events = _read_events(open(events, 'r'))
+        events = read_events(open(events, 'r'))
     if isinstance(log, str):
         log = open(log, 'rb')
 
@@ -115,10 +137,10 @@ def process(events, log, analyzer, read_header=True):
         read_trace_header(log)
 
     dropped_event = Event.build("Dropped_Event(uint64_t num_events_dropped)")
-    edict = {dropped_event_id: dropped_event}
+    edict = {"dropped": dropped_event}
 
-    for num, event in enumerate(events):
-        edict[num] = event
+    for event in events:
+        edict[event.name] = event
 
     def build_fn(analyzer, event):
         if isinstance(event, str):
@@ -166,7 +188,7 @@ def run(analyzer):
                          '<trace-file>\n' % sys.argv[0])
         sys.exit(1)
 
-    events = _read_events(open(sys.argv[1], 'r'))
+    events = read_events(open(sys.argv[1], 'r'))
     process(events, sys.argv[2], analyzer, read_header=read_header)
 
 if __name__ == '__main__':

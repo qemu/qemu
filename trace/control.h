@@ -11,35 +11,37 @@
 #define TRACE__CONTROL_H
 
 #include "qemu-common.h"
-#include "trace/generated-events.h"
+#include "event-internal.h"
+
+typedef struct TraceEventIter {
+    size_t event;
+    size_t group;
+    const char *pattern;
+} TraceEventIter;
 
 
 /**
- * TraceEventID:
+ * trace_event_iter_init:
+ * @iter: the event iterator struct
+ * @pattern: optional pattern to filter events on name
  *
- * Unique tracing event identifier.
- *
- * These are named as 'TRACE_${EVENT_NAME}'.
- *
- * See also: "trace/generated-events.h"
+ * Initialize the event iterator struct @iter,
+ * optionally using @pattern to filter out events
+ * with non-matching names.
  */
-enum TraceEventID;
+void trace_event_iter_init(TraceEventIter *iter, const char *pattern);
 
 /**
- * trace_event_id:
- * @id: Event identifier.
+ * trace_event_iter_next:
+ * @iter: the event iterator struct
  *
- * Get an event by its identifier.
+ * Get the next event, if any. When this returns NULL,
+ * the iterator should no longer be used.
  *
- * This routine has a constant cost, as opposed to trace_event_name and
- * trace_event_pattern.
- *
- * Pre-conditions: The identifier is valid.
- *
- * Returns: pointer to #TraceEvent.
- *
+ * Returns: the next event, or NULL if no more events exist
  */
-static TraceEvent *trace_event_id(TraceEventID id);
+TraceEvent *trace_event_iter_next(TraceEventIter *iter);
+
 
 /**
  * trace_event_name:
@@ -52,30 +54,11 @@ static TraceEvent *trace_event_id(TraceEventID id);
 TraceEvent *trace_event_name(const char *name);
 
 /**
- * trace_event_pattern:
- * @pat: Event name pattern.
- * @ev: Event to start searching from (not included).
- *
- * Get all events with a given name pattern.
- *
- * Returns: pointer to #TraceEvent or NULL if not found.
- */
-TraceEvent *trace_event_pattern(const char *pat, TraceEvent *ev);
-
-/**
  * trace_event_is_pattern:
  *
  * Whether the given string is an event name pattern.
  */
 static bool trace_event_is_pattern(const char *str);
-
-/**
- * trace_event_count:
- *
- * Return the number of events.
- */
-static TraceEventID trace_event_count(void);
-
 
 
 /**
@@ -83,17 +66,17 @@ static TraceEventID trace_event_count(void);
  *
  * Get the identifier of an event.
  */
-static TraceEventID trace_event_get_id(TraceEvent *ev);
+static uint32_t trace_event_get_id(TraceEvent *ev);
 
 /**
  * trace_event_get_vcpu_id:
  *
  * Get the per-vCPU identifier of an event.
  *
- * Special value #TRACE_VCPU_EVENT_COUNT means the event is not vCPU-specific
+ * Special value #TRACE_VCPU_EVENT_NONE means the event is not vCPU-specific
  * (does not have the "vcpu" property).
  */
-static TraceEventVCPUID trace_event_get_vcpu_id(TraceEvent *ev);
+static uint32_t trace_event_get_vcpu_id(TraceEvent *ev);
 
 /**
  * trace_event_is_vcpu:
@@ -111,14 +94,12 @@ static const char * trace_event_get_name(TraceEvent *ev);
 
 /**
  * trace_event_get_state:
- * @id: Event identifier.
+ * @id: Event identifier name.
  *
  * Get the tracing state of an event (both static and dynamic).
  *
  * If the event has the disabled property, the check will have no performance
  * impact.
- *
- * As a down side, you must always use an immediate #TraceEventID value.
  */
 #define trace_event_get_state(id)                       \
     ((id ##_ENABLED) && trace_event_get_state_dynamic_by_id(id))
@@ -126,19 +107,18 @@ static const char * trace_event_get_name(TraceEvent *ev);
 /**
  * trace_event_get_vcpu_state:
  * @vcpu: Target vCPU.
- * @id: Event identifier (TraceEventID).
- * @vcpu_id: Per-vCPU event identifier (TraceEventVCPUID).
+ * @id: Event identifier name.
  *
  * Get the tracing state of an event (both static and dynamic) for the given
  * vCPU.
  *
  * If the event has the disabled property, the check will have no performance
  * impact.
- *
- * As a down side, you must always use an immediate #TraceEventID value.
  */
-#define trace_event_get_vcpu_state(vcpu, id, vcpu_id)                   \
-    ((id ##_ENABLED) && trace_event_get_vcpu_state_dynamic_by_vcpu_id(vcpu, vcpu_id))
+#define trace_event_get_vcpu_state(vcpu, id)                            \
+    ((id ##_ENABLED) &&                                                 \
+     trace_event_get_vcpu_state_dynamic_by_vcpu_id(                     \
+         vcpu, _ ## id ## _EVENT.vcpu_id))
 
 /**
  * trace_event_get_state_static:
@@ -167,31 +147,6 @@ static bool trace_event_get_state_dynamic(TraceEvent *ev);
  */
 static bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu, TraceEvent *ev);
 
-/**
- * trace_event_set_state:
- *
- * Set the tracing state of an event (only if possible).
- */
-#define trace_event_set_state(id, state)                \
-    do {                                                \
-        if ((id ##_ENABLED)) {                          \
-            TraceEvent *_e = trace_event_id(id);        \
-            trace_event_set_state_dynamic(_e, state);   \
-        }                                               \
-    } while (0)
-
-/**
- * trace_event_set_vcpu_state:
- *
- * Set the tracing state of an event for the given vCPU (only if not disabled).
- */
-#define trace_event_set_vcpu_state(vcpu, id, state)                     \
-    do {                                                                \
-        if ((id ##_ENABLED)) {                                          \
-            TraceEvent *_e = trace_event_id(id);                        \
-            trace_event_set_vcpu_state_dynamic(vcpu, _e, state);        \
-        }                                                               \
-    } while (0)
 
 /**
  * trace_event_set_state_dynamic:
@@ -276,6 +231,13 @@ extern QemuOptsList qemu_trace_opts;
  * Returns the filename to save trace to.  It must be freed with g_free().
  */
 char *trace_opt_parse(const char *optarg);
+
+/**
+ * trace_get_vcpu_event_count:
+ *
+ * Return the number of known vcpu-specific events
+ */
+uint32_t trace_get_vcpu_event_count(void);
 
 
 #include "trace/control-internal.h"

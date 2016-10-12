@@ -467,6 +467,7 @@ int main(int argc, char **argv)
     signal(SIGPIPE, SIG_IGN);
 #endif
 
+    module_call_init(MODULE_INIT_TRACE);
     progname = basename(argv[0]);
     qemu_init_exec_dir(argv[0]);
 

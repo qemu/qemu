@@ -19,13 +19,12 @@ from tracetool import out
 PUBLIC = True
 
 
-def generate_h_begin(events):
+def generate_h_begin(events, group):
     out('#include "trace/ftrace.h"',
-        '#include "trace/control.h"',
         '')
 
 
-def generate_h(event):
+def generate_h(event, group):
     argnames = ", ".join(event.args.names())
     if len(event.args) > 0:
         argnames = ", " + argnames

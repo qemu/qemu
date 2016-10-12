@@ -52,8 +52,10 @@ static bool check_events(bool has_vcpu, bool ignore_unavailable, bool is_pattern
         return true;
     } else {
         /* error for unavailable events */
-        TraceEvent *ev = NULL;
-        while ((ev = trace_event_pattern(name, ev)) != NULL) {
+        TraceEventIter iter;
+        TraceEvent *ev;
+        trace_event_iter_init(&iter, name);
+        while ((ev = trace_event_iter_next(&iter)) != NULL) {
             if (!ignore_unavailable && !trace_event_get_state_static(ev)) {
                 error_setg(errp, "event \"%s\" is disabled", trace_event_get_name(ev));
                 return false;
@@ -69,6 +71,7 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
 {
     Error *err = NULL;
     TraceEventInfoList *events = NULL;
+    TraceEventIter iter;
     TraceEvent *ev;
     bool is_pattern = trace_event_is_pattern(name);
     CPUState *cpu;
@@ -86,8 +89,8 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
     }
 
     /* Get states (all errors checked above) */
-    ev = NULL;
-    while ((ev = trace_event_pattern(name, ev)) != NULL) {
+    trace_event_iter_init(&iter, name);
+    while ((ev = trace_event_iter_next(&iter)) != NULL) {
         TraceEventInfoList *elem;
         bool is_vcpu = trace_event_is_vcpu(ev);
         if (has_vcpu && !is_vcpu) {
@@ -132,6 +135,7 @@ void qmp_trace_event_set_state(const char *name, bool enable,
                                Error **errp)
 {
     Error *err = NULL;
+    TraceEventIter iter;
     TraceEvent *ev;
     bool is_pattern = trace_event_is_pattern(name);
     CPUState *cpu;
@@ -150,8 +154,8 @@ void qmp_trace_event_set_state(const char *name, bool enable,
     }
 
     /* Apply changes (all errors checked above) */
-    ev = NULL;
-    while ((ev = trace_event_pattern(name, ev)) != NULL) {
+    trace_event_iter_init(&iter, name);
+    while ((ev = trace_event_iter_next(&iter)) != NULL) {
         if (!trace_event_get_state_static(ev) ||
             (has_vcpu && !trace_event_is_vcpu(ev))) {
             continue;

@@ -113,11 +113,11 @@ class Wrapper:
             if func is not None:
                 func(*args, **kwargs)
 
-    def generate_begin(self, events):
-        self._run_function("generate_%s_begin", events)
+    def generate_begin(self, events, group):
+        self._run_function("generate_%s_begin", events, group)
 
-    def generate(self, event):
-        self._run_function("generate_%s", event)
+    def generate(self, event, group):
+        self._run_function("generate_%s", event, group)
 
-    def generate_end(self, events):
-        self._run_function("generate_%s_end", events)
+    def generate_end(self, events, group):
+        self._run_function("generate_%s_end", events, group)

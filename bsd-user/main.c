@@ -740,6 +740,7 @@ int main(int argc, char **argv)
     if (argc <= 1)
         usage();
 
+    module_call_init(MODULE_INIT_TRACE);
     qemu_init_cpu_list();
     module_call_init(MODULE_INIT_QOM);
 

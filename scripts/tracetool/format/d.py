@@ -29,7 +29,7 @@ RESERVED_WORDS = (
 )
 
 
-def generate(events, backend):
+def generate(events, backend, group):
     events = [e for e in events
               if "disable" not in e.properties]
 

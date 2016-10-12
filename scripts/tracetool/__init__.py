@@ -265,11 +265,13 @@ class Event(object):
 
     QEMU_TRACE               = "trace_%(name)s"
     QEMU_TRACE_TCG           = QEMU_TRACE + "_tcg"
+    QEMU_DSTATE              = "_TRACE_%(NAME)s_DSTATE"
+    QEMU_EVENT               = "_TRACE_%(NAME)s_EVENT"
 
     def api(self, fmt=None):
         if fmt is None:
             fmt = Event.QEMU_TRACE
-        return fmt % {"name": self.name}
+        return fmt % {"name": self.name, "NAME": self.name.upper()}
 
     def transform(self, *trans):
         """Return a new Event with transformed Arguments."""
@@ -280,7 +282,17 @@ class Event(object):
                      self)
 
 
-def _read_events(fobj):
+def read_events(fobj):
+    """Generate the output for the given (format, backends) pair.
+
+    Parameters
+    ----------
+    fobj : file
+        Event description file.
+
+    Returns a list of Event objects
+    """
+
     events = []
     for line in fobj:
         if not line.strip():
@@ -352,14 +364,16 @@ def try_import(mod_name, attr_name=None, attr_default=None):
         return False, None
 
 
-def generate(fevents, format, backends,
+def generate(events, group, format, backends,
              binary=None, probe_prefix=None):
     """Generate the output for the given (format, backends) pair.
 
     Parameters
     ----------
-    fevents : file
-        Event description file.
+    events : list
+        list of Event objects to generate for
+    group: str
+        Name of the tracing group
     format : str
         Output format name.
     backends : list
@@ -389,6 +403,4 @@ def generate(fevents, format, backends,
     tracetool.backend.dtrace.BINARY = binary
     tracetool.backend.dtrace.PROBEPREFIX = probe_prefix
 
-    events = _read_events(fevents)
-
-    tracetool.format.generate(events, format, backend)
+    tracetool.format.generate(events, format, backend, group)

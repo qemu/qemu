@@ -360,12 +360,15 @@ static void cpu_common_initfn(Object *obj)
     qemu_mutex_init(&cpu->work_mutex);
     QTAILQ_INIT(&cpu->breakpoints);
     QTAILQ_INIT(&cpu->watchpoints);
-    bitmap_zero(cpu->trace_dstate, TRACE_VCPU_EVENT_COUNT);
+
+    cpu->trace_dstate = bitmap_new(trace_get_vcpu_event_count());
 }
 
 static void cpu_common_finalize(Object *obj)
 {
-    cpu_exec_exit(CPU(obj));
+    CPUState *cpu = CPU(obj);
+    cpu_exec_exit(cpu);
+    g_free(cpu->trace_dstate);
 }
 
 static int64_t cpu_common_get_arch_id(CPUState *cpu)

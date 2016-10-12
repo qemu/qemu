@@ -15,21 +15,8 @@
 #include "qom/cpu.h"
 
 
-extern TraceEvent trace_events[];
-extern uint16_t trace_events_dstate[];
 extern int trace_events_enabled_count;
 
-
-static inline TraceEventID trace_event_count(void)
-{
-    return TRACE_EVENT_COUNT;
-}
-
-static inline TraceEvent *trace_event_id(TraceEventID id)
-{
-    assert(id < trace_event_count());
-    return &trace_events[id];
-}
 
 static inline bool trace_event_is_pattern(const char *str)
 {
@@ -37,20 +24,20 @@ static inline bool trace_event_is_pattern(const char *str)
     return strchr(str, '*') != NULL;
 }
 
-static inline TraceEventID trace_event_get_id(TraceEvent *ev)
+static inline uint32_t trace_event_get_id(TraceEvent *ev)
 {
     assert(ev != NULL);
     return ev->id;
 }
 
-static inline TraceEventVCPUID trace_event_get_vcpu_id(TraceEvent *ev)
+static inline uint32_t trace_event_get_vcpu_id(TraceEvent *ev)
 {
     return ev->vcpu_id;
 }
 
 static inline bool trace_event_is_vcpu(TraceEvent *ev)
 {
-    return ev->vcpu_id != TRACE_VCPU_EVENT_COUNT;
+    return ev->vcpu_id != TRACE_VCPU_EVENT_NONE;
 }
 
 static inline const char * trace_event_get_name(TraceEvent *ev)
@@ -65,26 +52,22 @@ static inline bool trace_event_get_state_static(TraceEvent *ev)
     return ev->sstate;
 }
 
-static inline bool trace_event_get_state_dynamic_by_id(TraceEventID id)
-{
-    /* it's on fast path, avoid consistency checks (asserts) */
-    return unlikely(trace_events_enabled_count) && trace_events_dstate[id];
-}
+/* it's on fast path, avoid consistency checks (asserts) */
+#define trace_event_get_state_dynamic_by_id(id) \
+    (unlikely(trace_events_enabled_count) && _ ## id ## _DSTATE)
 
 static inline bool trace_event_get_state_dynamic(TraceEvent *ev)
 {
-    TraceEventID id;
-    assert(trace_event_get_state_static(ev));
-    id = trace_event_get_id(ev);
-    return trace_event_get_state_dynamic_by_id(id);
+    return unlikely(trace_events_enabled_count) && *ev->dstate;
 }
 
-static inline bool trace_event_get_vcpu_state_dynamic_by_vcpu_id(CPUState *vcpu,
-                                                                 TraceEventVCPUID id)
+static inline bool
+trace_event_get_vcpu_state_dynamic_by_vcpu_id(CPUState *vcpu,
+                                              uint32_t vcpu_id)
 {
     /* it's on fast path, avoid consistency checks (asserts) */
     if (unlikely(trace_events_enabled_count)) {
-        return test_bit(id, vcpu->trace_dstate);
+        return test_bit(vcpu_id, vcpu->trace_dstate);
     } else {
         return false;
     }
@@ -93,10 +76,13 @@ static inline bool trace_event_get_vcpu_state_dynamic_by_vcpu_id(CPUState *vcpu,
 static inline bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu,
                                                       TraceEvent *ev)
 {
-    TraceEventVCPUID id;
+    uint32_t vcpu_id;
     assert(trace_event_is_vcpu(ev));
-    id = trace_event_get_vcpu_id(ev);
-    return trace_event_get_vcpu_state_dynamic_by_vcpu_id(vcpu, id);
+    vcpu_id = trace_event_get_vcpu_id(ev);
+    return trace_event_get_vcpu_state_dynamic_by_vcpu_id(vcpu, vcpu_id);
 }
+
+
+void trace_event_register_group(TraceEvent **events);
 
 #endif /* TRACE__CONTROL_INTERNAL_H */
