@@ -32,8 +32,8 @@ typedef struct QPCIBusSPAPR {
     uint64_t pio_cpu_base;
     QPCIWindow pio;
 
-    uint64_t mmio_cpu_base;
-    QPCIWindow mmio;
+    uint64_t mmio32_cpu_base;
+    QPCIWindow mmio32;
 
     uint64_t pci_hole_start;
     uint64_t pci_hole_size;
@@ -58,7 +58,7 @@ static uint8_t qpci_spapr_io_readb(QPCIBus *bus, void *addr)
     if (port < s->pio.size) {
         v = readb(s->pio_cpu_base + port);
     } else {
-        v = readb(s->mmio_cpu_base + port);
+        v = readb(s->mmio32_cpu_base + port);
     }
     return v;
 }
@@ -71,7 +71,7 @@ static uint16_t qpci_spapr_io_readw(QPCIBus *bus, void *addr)
     if (port < s->pio.size) {
         v = readw(s->pio_cpu_base + port);
     } else {
-        v = readw(s->mmio_cpu_base + port);
+        v = readw(s->mmio32_cpu_base + port);
     }
     return bswap16(v);
 }
@@ -84,7 +84,7 @@ static uint32_t qpci_spapr_io_readl(QPCIBus *bus, void *addr)
     if (port < s->pio.size) {
         v = readl(s->pio_cpu_base + port);
     } else {
-        v = readl(s->mmio_cpu_base + port);
+        v = readl(s->mmio32_cpu_base + port);
     }
     return bswap32(v);
 }
@@ -96,7 +96,7 @@ static void qpci_spapr_io_writeb(QPCIBus *bus, void *addr, uint8_t value)
     if (port < s->pio.size) {
         writeb(s->pio_cpu_base + port, value);
     } else {
-        writeb(s->mmio_cpu_base + port, value);
+        writeb(s->mmio32_cpu_base + port, value);
     }
 }
 
@@ -108,7 +108,7 @@ static void qpci_spapr_io_writew(QPCIBus *bus, void *addr, uint16_t value)
     if (port < s->pio.size) {
         writew(s->pio_cpu_base + port, value);
     } else {
-        writew(s->mmio_cpu_base + port, value);
+        writew(s->mmio32_cpu_base + port, value);
     }
 }
 
@@ -120,7 +120,7 @@ static void qpci_spapr_io_writel(QPCIBus *bus, void *addr, uint32_t value)
     if (port < s->pio.size) {
         writel(s->pio_cpu_base + port, value);
     } else {
-        writel(s->mmio_cpu_base + port, value);
+        writel(s->mmio32_cpu_base + port, value);
     }
 }
 
@@ -235,12 +235,9 @@ static void qpci_spapr_iounmap(QPCIBus *bus, void *data)
     /* FIXME */
 }
 
-#define SPAPR_PCI_MEM_WIN_BUS_OFFSET 0x80000000ULL
 #define SPAPR_PCI_WINDOW_BASE        0x10000000000ULL
-#define SPAPR_PCI_WINDOW_SPACING     0x1000000000ULL
-#define SPAPR_PCI_MMIO_WIN_OFF       0xA0000000
-#define SPAPR_PCI_MMIO_WIN_SIZE      (SPAPR_PCI_WINDOW_SPACING - \
-                                     SPAPR_PCI_MEM_WIN_BUS_OFFSET)
+#define SPAPR_PCI_MMIO32_WIN_OFF     0xA0000000
+#define SPAPR_PCI_MMIO32_WIN_SIZE    0x80000000 /* 2 GiB */
 #define SPAPR_PCI_IO_WIN_OFF         0x80000000
 #define SPAPR_PCI_IO_WIN_SIZE        0x10000
 
@@ -280,13 +277,14 @@ QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
     ret->pio.pci_base = 0;
     ret->pio.size = SPAPR_PCI_IO_WIN_SIZE;
 
-    ret->mmio_cpu_base = SPAPR_PCI_WINDOW_BASE + SPAPR_PCI_MMIO_WIN_OFF;
-    ret->mmio.pci_base = SPAPR_PCI_MEM_WIN_BUS_OFFSET;
-    ret->mmio.size = SPAPR_PCI_MMIO_WIN_SIZE;
+    /* 32-bit portion of the MMIO window is at PCI address 2..4 GiB */
+    ret->mmio32_cpu_base = SPAPR_PCI_WINDOW_BASE + SPAPR_PCI_MMIO32_WIN_OFF;
+    ret->mmio32.pci_base = 0x80000000; /* 2 GiB */
+    ret->mmio32.size = SPAPR_PCI_MMIO32_WIN_SIZE;
 
     ret->pci_hole_start = 0xC0000000;
     ret->pci_hole_size =
-        ret->mmio.pci_base + ret->mmio.size - ret->pci_hole_start;
+        ret->mmio32.pci_base + ret->mmio32.size - ret->pci_hole_start;
     ret->pci_hole_alloc = 0;
 
     ret->pci_iohole_start = 0xc000;
