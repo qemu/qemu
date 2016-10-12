@@ -2036,18 +2036,22 @@ static void usbredir_interrupt_packet(void *priv, uint64_t id,
     }
 
     if (ep & USB_DIR_IN) {
+        bool q_was_empty;
+
         if (dev->endpoint[EP2I(ep)].interrupt_started == 0) {
             DPRINTF("received int packet while not started ep %02X\n", ep);
             free(data);
             return;
         }
 
-        if (QTAILQ_EMPTY(&dev->endpoint[EP2I(ep)].bufpq)) {
-            usb_wakeup(usb_ep_get(&dev->dev, USB_TOKEN_IN, ep & 0x0f), 0);
-        }
+        q_was_empty = QTAILQ_EMPTY(&dev->endpoint[EP2I(ep)].bufpq);
 
         /* bufp_alloc also adds the packet to the ep queue */
         bufp_alloc(dev, data, data_len, interrupt_packet->status, ep, data);
+
+        if (q_was_empty) {
+            usb_wakeup(usb_ep_get(&dev->dev, USB_TOKEN_IN, ep & 0x0f), 0);
+        }
     } else {
         /*
          * We report output interrupt packets as completed directly upon
