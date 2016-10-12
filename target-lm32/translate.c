@@ -343,7 +343,7 @@ static void dec_calli(DisasContext *dc)
 static inline void gen_compare(DisasContext *dc, int cond)
 {
     int rX = (dc->format == OP_FMT_RR) ? dc->r2 : dc->r1;
-    int rY = (dc->format == OP_FMT_RR) ? dc->r0 : dc->r0;
+    int rY = dc->r0;
     int rZ = (dc->format == OP_FMT_RR) ? dc->r1 : -1;
     int i;
 
