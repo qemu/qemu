@@ -219,8 +219,20 @@ struct target_termios {
 #define TARGET_TIOCSBRK	0x5427  /* BSD compatibility */
 #define TARGET_TIOCCBRK	0x5428  /* BSD compatibility */
 #define TARGET_TIOCGSID	0x7416  /* Return the session ID of FD */
+#define TARGET_TCGETS2          TARGET_IOR('T', 0x2A, struct termios2)
+#define TARGET_TCSETS2          TARGET_IOW('T', 0x2B, struct termios2)
+#define TARGET_TCSETSW2         TARGET_IOW('T', 0x2C, struct termios2)
+#define TARGET_TCSETSF2         TARGET_IOW('T', 0x2D, struct termios2)
+#define TARGET_TIOCGRS485       TARGET_IOR('T', 0x2E, struct serial_rs485)
+#define TARGET_TIOCSRS485       TARGET_IOWR('T', 0x2F, struct serial_rs485)
 #define TARGET_TIOCGPTN	TARGET_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
 #define TARGET_TIOCSPTLCK	TARGET_IOW('T',0x31, int)  /* Lock/unlock Pty */
+#define TARGET_TIOCGDEV         TARGET_IOR('T', 0x32, unsigned int)
+#define TARGET_TIOCSIG          TARGET_IOW('T', 0x36, int)
+#define TARGET_TIOCVHANGUP      0x5437
+#define TARGET_TIOCGPKT         TARGET_IOR('T', 0x38, int)
+#define TARGET_TIOCGPTLCK       TARGET_IOR('T', 0x39, int)
+#define TARGET_TIOCGEXCL        TARGET_IOR('T', 0x40, int)
 
 /* I hope the range from 0x5480 on is free ... */
 #define TARGET_TIOCSCTTY	0x5480		/* become controlling tty */
