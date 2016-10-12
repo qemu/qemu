@@ -285,11 +285,13 @@ QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
     ret->mmio.size = SPAPR_PCI_MMIO_WIN_SIZE;
 
     ret->pci_hole_start = 0xC0000000;
-    ret->pci_hole_size = SPAPR_PCI_MMIO_WIN_SIZE;
+    ret->pci_hole_size =
+        ret->mmio.pci_base + ret->mmio.size - ret->pci_hole_start;
     ret->pci_hole_alloc = 0;
 
     ret->pci_iohole_start = 0xc000;
-    ret->pci_iohole_size = SPAPR_PCI_IO_WIN_SIZE;
+    ret->pci_iohole_size =
+        ret->pio.pci_base + ret->pio.size - ret->pci_iohole_start;
     ret->pci_iohole_alloc = 0;
 
     return &ret->bus;
