@@ -2796,7 +2796,7 @@ const char *bdrv_get_format_name(BlockDriverState *bs)
 
 static int qsort_strcmp(const void *a, const void *b)
 {
-    return strcmp(a, b);
+    return strcmp(*(char *const *)a, *(char *const *)b);
 }
 
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
