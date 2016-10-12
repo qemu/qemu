@@ -2822,6 +2822,24 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
         }
     }
 
+    for (i = 0; i < (int)ARRAY_SIZE(block_driver_modules); i++) {
+        const char *format_name = block_driver_modules[i].format_name;
+
+        if (format_name) {
+            bool found = false;
+            int j = count;
+
+            while (formats && j && !found) {
+                found = !strcmp(formats[--j], format_name);
+            }
+
+            if (!found) {
+                formats = g_renew(const char *, formats, count + 1);
+                formats[count++] = format_name;
+            }
+        }
+    }
+
     qsort(formats, count, sizeof(formats[0]), qsort_strcmp);
 
     for (i = 0; i < count; i++) {
