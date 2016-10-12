@@ -1311,7 +1311,8 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         sphb->ddw_enabled ? SPAPR_PCI_DMA_MAX_WINDOWS : 1;
 
     if (sphb->index != (uint32_t)-1) {
-        hwaddr windows_base;
+        sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+        Error *local_err = NULL;
 
         if ((sphb->buid != (uint64_t)-1) || (sphb->dma_liobn[0] != (uint32_t)-1)
             || (sphb->dma_liobn[1] != (uint32_t)-1 && windows_supported == 2)
@@ -1322,21 +1323,13 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        if (sphb->index > SPAPR_PCI_MAX_INDEX) {
-            error_setg(errp, "\"index\" for PAPR PHB is too large (max %u)",
-                       SPAPR_PCI_MAX_INDEX);
+        smc->phb_placement(spapr, sphb->index, &sphb->buid,
+                           &sphb->io_win_addr, &sphb->mem_win_addr,
+                           windows_supported, sphb->dma_liobn, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
             return;
         }
-
-        sphb->buid = SPAPR_PCI_BASE_BUID + sphb->index;
-        for (i = 0; i < windows_supported; ++i) {
-            sphb->dma_liobn[i] = SPAPR_PCI_LIOBN(sphb->index, i);
-        }
-
-        windows_base = SPAPR_PCI_WINDOW_BASE
-            + sphb->index * SPAPR_PCI_WINDOW_SPACING;
-        sphb->mem_win_addr = windows_base + SPAPR_PCI_MMIO_WIN_OFF;
-        sphb->io_win_addr = windows_base + SPAPR_PCI_IO_WIN_OFF;
     }
 
     if (sphb->buid == (uint64_t)-1) {

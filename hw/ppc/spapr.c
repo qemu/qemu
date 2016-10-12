@@ -2370,6 +2370,36 @@ static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
     return head;
 }
 
+static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
+                                uint64_t *buid, hwaddr *pio, hwaddr *mmio,
+                                unsigned n_dma, uint32_t *liobns, Error **errp)
+{
+    const uint64_t base_buid = 0x800000020000000ULL;
+    const hwaddr phb0_base = 0x10000000000ULL; /* 1 TiB */
+    const hwaddr phb_spacing = 0x1000000000ULL; /* 64 GiB */
+    const hwaddr mmio_offset = 0xa0000000; /* 2 GiB + 512 MiB */
+    const hwaddr pio_offset = 0x80000000; /* 2 GiB */
+    const uint32_t max_index = 255;
+
+    hwaddr phb_base;
+    int i;
+
+    if (index > max_index) {
+        error_setg(errp, "\"index\" for PAPR PHB is too large (max %u)",
+                   max_index);
+        return;
+    }
+
+    *buid = base_buid + index;
+    for (i = 0; i < n_dma; ++i) {
+        liobns[i] = SPAPR_PCI_LIOBN(index, i);
+    }
+
+    phb_base = phb0_base + index * phb_spacing;
+    *pio = phb_base + pio_offset;
+    *mmio = phb_base + mmio_offset;
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2406,6 +2436,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->query_hotpluggable_cpus = spapr_query_hotpluggable_cpus;
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
+    smc->phb_placement = spapr_phb_placement;
 }
 
 static const TypeInfo spapr_machine_info = {
