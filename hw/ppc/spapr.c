@@ -2475,6 +2475,7 @@ DEFINE_SPAPR_MACHINE(2_8, "2.8", true);
 
 static void spapr_machine_2_7_instance_options(MachineState *machine)
 {
+    spapr_machine_2_8_instance_options(machine);
 }
 
 static void spapr_machine_2_7_class_options(MachineClass *mc)
@@ -2501,6 +2502,7 @@ DEFINE_SPAPR_MACHINE(2_7, "2.7", false);
 
 static void spapr_machine_2_6_instance_options(MachineState *machine)
 {
+    spapr_machine_2_7_instance_options(machine);
 }
 
 static void spapr_machine_2_6_class_options(MachineClass *mc)
@@ -2525,6 +2527,7 @@ DEFINE_SPAPR_MACHINE(2_6, "2.6", false);
 
 static void spapr_machine_2_5_instance_options(MachineState *machine)
 {
+    spapr_machine_2_6_instance_options(machine);
 }
 
 static void spapr_machine_2_5_class_options(MachineClass *mc)
