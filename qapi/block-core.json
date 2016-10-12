@@ -2197,7 +2197,8 @@
 # @mode: the replication mode
 #
 # @top-id: #optional In secondary mode, node name or device ID of the root
-#          node who owns the replication node chain. Ignored in primary mode.
+#          node who owns the replication node chain. Must not be given in
+#          primary mode.
 #
 # Since: 2.8
 ##
