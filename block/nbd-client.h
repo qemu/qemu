@@ -24,7 +24,7 @@ typedef struct NbdClientSession {
     off_t size;
 
     CoMutex send_mutex;
-    CoMutex free_sema;
+    CoQueue free_sema;
     Coroutine *send_coroutine;
     int in_flight;
 

@@ -199,8 +199,8 @@ static void nbd_coroutine_start(NbdClientSession *s,
 {
     /* Poor man semaphore.  The free_sema is locked when no other request
      * can be accepted, and unlocked after receiving one reply.  */
-    if (s->in_flight >= MAX_NBD_REQUESTS - 1) {
-        qemu_co_mutex_lock(&s->free_sema);
+    if (s->in_flight == MAX_NBD_REQUESTS) {
+        qemu_co_queue_wait(&s->free_sema);
         assert(s->in_flight < MAX_NBD_REQUESTS);
     }
     s->in_flight++;
@@ -214,7 +214,7 @@ static void nbd_coroutine_end(NbdClientSession *s,
     int i = HANDLE_TO_INDEX(s, request->handle);
     s->recv_coroutine[i] = NULL;
     if (s->in_flight-- == MAX_NBD_REQUESTS) {
-        qemu_co_mutex_unlock(&s->free_sema);
+        qemu_co_queue_next(&s->free_sema);
     }
 }
 
@@ -386,7 +386,7 @@ int nbd_client_init(BlockDriverState *bs,
     }
 
     qemu_co_mutex_init(&client->send_mutex);
-    qemu_co_mutex_init(&client->free_sema);
+    qemu_co_queue_init(&client->free_sema);
     client->sioc = sioc;
     object_ref(OBJECT(client->sioc));
 
