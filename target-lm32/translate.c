@@ -344,9 +344,6 @@ static void dec_calli(DisasContext *dc)
 
 static inline void gen_compare(DisasContext *dc, int cond)
 {
-    int rX = (dc->format == OP_FMT_RR) ? dc->r2 : dc->r1;
-    int rY = dc->r0;
-    int rZ = (dc->format == OP_FMT_RR) ? dc->r1 : -1;
     int i;
 
     if (dc->format == OP_FMT_RI) {
@@ -360,9 +357,9 @@ static inline void gen_compare(DisasContext *dc, int cond)
             break;
         }
 
-        tcg_gen_setcondi_tl(cond, cpu_R[rX], cpu_R[rY], i);
+        tcg_gen_setcondi_tl(cond, cpu_R[dc->r1], cpu_R[dc->r0], i);
     } else {
-        tcg_gen_setcond_tl(cond, cpu_R[rX], cpu_R[rY], cpu_R[rZ]);
+        tcg_gen_setcond_tl(cond, cpu_R[dc->r2], cpu_R[dc->r0], cpu_R[dc->r1]);
     }
 }
 
