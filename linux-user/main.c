@@ -2295,8 +2295,8 @@ static const uint8_t mips_syscall_args[] = {
         MIPS_SYS(sys_dup3, 3)
         MIPS_SYS(sys_pipe2, 2)
         MIPS_SYS(sys_inotify_init1, 1)
-        MIPS_SYS(sys_preadv, 6)         /* 4330 */
-        MIPS_SYS(sys_pwritev, 6)
+        MIPS_SYS(sys_preadv, 5)         /* 4330 */
+        MIPS_SYS(sys_pwritev, 5)
         MIPS_SYS(sys_rt_tgsigqueueinfo, 4)
         MIPS_SYS(sys_perf_event_open, 5)
         MIPS_SYS(sys_accept4, 4)
@@ -2308,6 +2308,26 @@ static const uint8_t mips_syscall_args[] = {
         MIPS_SYS(sys_open_by_handle_at, 3) /* 4340 */
         MIPS_SYS(sys_clock_adjtime, 2)
         MIPS_SYS(sys_syncfs, 1)
+        MIPS_SYS(sys_sendmmsg, 4)
+        MIPS_SYS(sys_setns, 2)
+        MIPS_SYS(sys_process_vm_readv, 6) /* 345 */
+        MIPS_SYS(sys_process_vm_writev, 6)
+        MIPS_SYS(sys_kcmp, 5)
+        MIPS_SYS(sys_finit_module, 3)
+        MIPS_SYS(sys_sched_setattr, 2)
+        MIPS_SYS(sys_sched_getattr, 3)  /* 350 */
+        MIPS_SYS(sys_renameat2, 5)
+        MIPS_SYS(sys_seccomp, 3)
+        MIPS_SYS(sys_getrandom, 3)
+        MIPS_SYS(sys_memfd_create, 2)
+        MIPS_SYS(sys_bpf, 3)            /* 355 */
+        MIPS_SYS(sys_execveat, 5)
+        MIPS_SYS(sys_userfaultfd, 1)
+        MIPS_SYS(sys_membarrier, 2)
+        MIPS_SYS(sys_mlock2, 3)
+        MIPS_SYS(sys_copy_file_range, 6) /* 360 */
+        MIPS_SYS(sys_preadv2, 6)
+        MIPS_SYS(sys_pwritev2, 6)
 };
 #  undef MIPS_SYS
 # endif /* O32 */
