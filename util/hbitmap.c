@@ -397,6 +397,143 @@ bool hbitmap_get(const HBitmap *hb, uint64_t item)
     return (hb->levels[HBITMAP_LEVELS - 1][pos >> BITS_PER_LEVEL] & bit) != 0;
 }
 
+uint64_t hbitmap_serialization_granularity(const HBitmap *hb)
+{
+    /* Require at least 64 bit granularity to be safe on both 64 bit and 32 bit
+     * hosts. */
+    return 64 << hb->granularity;
+}
+
+/* Start should be aligned to serialization granularity, chunk size should be
+ * aligned to serialization granularity too, except for last chunk.
+ */
+static void serialization_chunk(const HBitmap *hb,
+                                uint64_t start, uint64_t count,
+                                unsigned long **first_el, uint64_t *el_count)
+{
+    uint64_t last = start + count - 1;
+    uint64_t gran = hbitmap_serialization_granularity(hb);
+
+    assert((start & (gran - 1)) == 0);
+    assert((last >> hb->granularity) < hb->size);
+    if ((last >> hb->granularity) != hb->size - 1) {
+        assert((count & (gran - 1)) == 0);
+    }
+
+    start = (start >> hb->granularity) >> BITS_PER_LEVEL;
+    last = (last >> hb->granularity) >> BITS_PER_LEVEL;
+
+    *first_el = &hb->levels[HBITMAP_LEVELS - 1][start];
+    *el_count = last - start + 1;
+}
+
+uint64_t hbitmap_serialization_size(const HBitmap *hb,
+                                    uint64_t start, uint64_t count)
+{
+    uint64_t el_count;
+    unsigned long *cur;
+
+    if (!count) {
+        return 0;
+    }
+    serialization_chunk(hb, start, count, &cur, &el_count);
+
+    return el_count * sizeof(unsigned long);
+}
+
+void hbitmap_serialize_part(const HBitmap *hb, uint8_t *buf,
+                            uint64_t start, uint64_t count)
+{
+    uint64_t el_count;
+    unsigned long *cur, *end;
+
+    if (!count) {
+        return;
+    }
+    serialization_chunk(hb, start, count, &cur, &el_count);
+    end = cur + el_count;
+
+    while (cur != end) {
+        unsigned long el =
+            (BITS_PER_LONG == 32 ? cpu_to_le32(*cur) : cpu_to_le64(*cur));
+
+        memcpy(buf, &el, sizeof(el));
+        buf += sizeof(el);
+        cur++;
+    }
+}
+
+void hbitmap_deserialize_part(HBitmap *hb, uint8_t *buf,
+                              uint64_t start, uint64_t count,
+                              bool finish)
+{
+    uint64_t el_count;
+    unsigned long *cur, *end;
+
+    if (!count) {
+        return;
+    }
+    serialization_chunk(hb, start, count, &cur, &el_count);
+    end = cur + el_count;
+
+    while (cur != end) {
+        memcpy(cur, buf, sizeof(*cur));
+
+        if (BITS_PER_LONG == 32) {
+            le32_to_cpus((uint32_t *)cur);
+        } else {
+            le64_to_cpus((uint64_t *)cur);
+        }
+
+        buf += sizeof(unsigned long);
+        cur++;
+    }
+    if (finish) {
+        hbitmap_deserialize_finish(hb);
+    }
+}
+
+void hbitmap_deserialize_zeroes(HBitmap *hb, uint64_t start, uint64_t count,
+                                bool finish)
+{
+    uint64_t el_count;
+    unsigned long *first;
+
+    if (!count) {
+        return;
+    }
+    serialization_chunk(hb, start, count, &first, &el_count);
+
+    memset(first, 0, el_count * sizeof(unsigned long));
+    if (finish) {
+        hbitmap_deserialize_finish(hb);
+    }
+}
+
+void hbitmap_deserialize_finish(HBitmap *bitmap)
+{
+    int64_t i, size, prev_size;
+    int lev;
+
+    /* restore levels starting from penultimate to zero level, assuming
+     * that the last level is ok */
+    size = MAX((bitmap->size + BITS_PER_LONG - 1) >> BITS_PER_LEVEL, 1);
+    for (lev = HBITMAP_LEVELS - 1; lev-- > 0; ) {
+        prev_size = size;
+        size = MAX((size + BITS_PER_LONG - 1) >> BITS_PER_LEVEL, 1);
+        memset(bitmap->levels[lev], 0, size * sizeof(unsigned long));
+
+        for (i = 0; i < prev_size; ++i) {
+            if (bitmap->levels[lev + 1][i]) {
+                bitmap->levels[lev][i >> BITS_PER_LEVEL] |=
+                    1UL << (i & (BITS_PER_LONG - 1));
+            }
+        }
+    }
+
+    bitmap->levels[0][0] |= 1UL << (BITS_PER_LONG - 1);
+}
+
 void hbitmap_free(HBitmap *hb)
 {
     unsigned i;
