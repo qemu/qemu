@@ -305,6 +305,9 @@ static void bdrv_do_release_matching_dirty_bitmap(BlockDriverState *bs,
             }
         }
     }
+    if (bitmap) {
+        abort();
+    }
 }
 
 void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
