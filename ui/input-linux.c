@@ -347,7 +347,8 @@ static void input_linux_event(void *opaque)
 static void input_linux_complete(UserCreatable *uc, Error **errp)
 {
     InputLinux *il = INPUT_LINUX(uc);
-    uint8_t evtmap, relmap, absmap, keymap[KEY_CNT / 8];
+    uint8_t evtmap, relmap, absmap;
+    uint8_t keymap[KEY_CNT / 8], keystate[KEY_CNT / 8];
     unsigned int i;
     int rc, ver;
 
@@ -394,6 +395,7 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
     if (evtmap & (1 << EV_KEY)) {
         memset(keymap, 0, sizeof(keymap));
         rc = ioctl(il->fd, EVIOCGBIT(EV_KEY, sizeof(keymap)), keymap);
+        rc = ioctl(il->fd, EVIOCGKEY(sizeof(keystate)), keystate);
         for (i = 0; i < KEY_CNT; i++) {
             if (keymap[i / 8] & (1 << (i % 8))) {
                 if (linux_is_button(i)) {
@@ -401,12 +403,21 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
                 } else {
                     il->num_keys++;
                 }
+                if (keystate[i / 8] & (1 << (i % 8))) {
+                    il->keydown[i] = true;
+                    il->keycount++;
+                }
             }
         }
     }
 
     qemu_set_fd_handler(il->fd, input_linux_event, NULL, il);
-    input_linux_toggle_grab(il);
+    if (il->keycount) {
+        /* delay grab until all keys are released */
+        il->grab_request = true;
+    } else {
+        input_linux_toggle_grab(il);
+    }
     QTAILQ_INSERT_TAIL(&inputs, il, next);
     il->initialized = true;
     return;

@@ -150,7 +150,6 @@ struct VncDisplay
     guint lsock_tag;
     QIOChannelSocket *lwebsock;
     guint lwebsock_tag;
-    bool ws_enabled;
     DisplaySurface *ds;
     DisplayChangeListener dcl;
     kbd_layout_t *kbd_layout;
@@ -167,14 +166,13 @@ struct VncDisplay
 
     const char *id;
     QTAILQ_ENTRY(VncDisplay) next;
-    bool enabled;
     bool is_unix;
     char *password;
     time_t expires;
     int auth;
     int subauth; /* Used by VeNCrypt */
     int ws_auth; /* Used by websockets */
-    bool ws_tls; /* Used by websockets */
+    int ws_subauth; /* Used by websockets */
     bool lossy;
     bool non_adaptive;
     QCryptoTLSCreds *tlscreds;
@@ -309,7 +307,6 @@ struct VncState
     QEMUPutLEDEntry *led;
 
     bool abort;
-    bool initialized;
     QemuMutex output_mutex;
     QEMUBH *bh;
     Buffer jobs_buffer;
@@ -518,7 +515,7 @@ void vnc_write_u8(VncState *vs, uint8_t value);
 void vnc_flush(VncState *vs);
 void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting);
 void vnc_disconnect_finish(VncState *vs);
-void vnc_init_state(VncState *vs);
+void vnc_start_protocol(VncState *vs);
 
 
 /* Buffer I/O functions */
