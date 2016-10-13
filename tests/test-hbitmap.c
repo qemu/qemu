@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/hbitmap.h"
+#include "qemu/bitmap.h"
 #include "block/block.h"
 
 #define LOG_BITS_PER_LONG          (BITS_PER_LONG == 32 ? 5 : 6)
@@ -737,11 +738,157 @@ static void test_hbitmap_meta_one(TestHBitmapData *data, const void *unused)
     }
 }
 
+static void test_hbitmap_serialize_granularity(TestHBitmapData *data,
+                                               const void *unused)
+{
+    int r;
+
+    hbitmap_test_init(data, L3 * 2, 3);
+    r = hbitmap_serialization_granularity(data->hb);
+    g_assert_cmpint(r, ==, 64 << 3);
+}
+
 static void test_hbitmap_meta_zero(TestHBitmapData *data, const void *unused)
 {
     hbitmap_test_init_meta(data, 0, 0, 1);
 
     hbitmap_check_meta(data, 0, 0);
+}
+
+static void hbitmap_test_serialize_range(TestHBitmapData *data,
+                                         uint8_t *buf, size_t buf_size,
+                                         uint64_t pos, uint64_t count)
+{
+    size_t i;
+    unsigned long *el = (unsigned long *)buf;
+
+    assert(hbitmap_granularity(data->hb) == 0);
+    hbitmap_reset_all(data->hb);
+    memset(buf, 0, buf_size);
+    if (count) {
+        hbitmap_set(data->hb, pos, count);
+    }
+    hbitmap_serialize_part(data->hb, buf, 0, data->size);
+
+    /* Serialized buffer is inherently LE, convert it back manually to test */
+    for (i = 0; i < buf_size / sizeof(unsigned long); i++) {
+        el[i] = (BITS_PER_LONG == 32 ? le32_to_cpu(el[i]) : le64_to_cpu(el[i]));
+    }
+
+    for (i = 0; i < data->size; i++) {
+        int is_set = test_bit(i, (unsigned long *)buf);
+        if (i >= pos && i < pos + count) {
+            g_assert(is_set);
+        } else {
+            g_assert(!is_set);
+        }
+    }
+
+    /* Re-serialize for deserialization testing */
+    memset(buf, 0, buf_size);
+    hbitmap_serialize_part(data->hb, buf, 0, data->size);
+    hbitmap_reset_all(data->hb);
+    hbitmap_deserialize_part(data->hb, buf, 0, data->size, true);
+
+    for (i = 0; i < data->size; i++) {
+        int is_set = hbitmap_get(data->hb, i);
+        if (i >= pos && i < pos + count) {
+            g_assert(is_set);
+        } else {
+            g_assert(!is_set);
+        }
+    }
+}
+
+static void test_hbitmap_serialize_basic(TestHBitmapData *data,
+                                         const void *unused)
+{
+    int i, j;
+    size_t buf_size;
+    uint8_t *buf;
+    uint64_t positions[] = { 0, 1, L1 - 1, L1, L2 - 1, L2, L2 + 1, L3 - 1 };
+    int num_positions = sizeof(positions) / sizeof(positions[0]);
+
+    hbitmap_test_init(data, L3, 0);
+    buf_size = hbitmap_serialization_size(data->hb, 0, data->size);
+    buf = g_malloc0(buf_size);
+
+    for (i = 0; i < num_positions; i++) {
+        for (j = 0; j < num_positions; j++) {
+            hbitmap_test_serialize_range(data, buf, buf_size,
+                                         positions[i],
+                                         MIN(positions[j], L3 - positions[i]));
+        }
+    }
+
+    g_free(buf);
+}
+
+static void test_hbitmap_serialize_part(TestHBitmapData *data,
+                                        const void *unused)
+{
+    int i, j, k;
+    size_t buf_size;
+    uint8_t *buf;
+    uint64_t positions[] = { 0, 1, L1 - 1, L1, L2 - 1, L2, L2 + 1, L3 - 1 };
+    int num_positions = sizeof(positions) / sizeof(positions[0]);
+
+    hbitmap_test_init(data, L3, 0);
+    buf_size = L2;
+    buf = g_malloc0(buf_size);
+
+    for (i = 0; i < num_positions; i++) {
+        hbitmap_set(data->hb, positions[i], 1);
+    }
+
+    for (i = 0; i < data->size; i += buf_size) {
+        unsigned long *el = (unsigned long *)buf;
+        hbitmap_serialize_part(data->hb, buf, i, buf_size);
+        for (j = 0; j < buf_size / sizeof(unsigned long); j++) {
+            el[j] = (BITS_PER_LONG == 32 ? le32_to_cpu(el[j]) : le64_to_cpu(el[j]));
+        }
+
+        for (j = 0; j < buf_size; j++) {
+            bool should_set = false;
+            for (k = 0; k < num_positions; k++) {
+                if (positions[k] == j + i) {
+                    should_set = true;
+                    break;
+                }
+            }
+            g_assert_cmpint(should_set, ==, test_bit(j, (unsigned long *)buf));
+        }
+    }
+
+    g_free(buf);
+}
+
+static void test_hbitmap_serialize_zeroes(TestHBitmapData *data,
+                                          const void *unused)
+{
+    int i;
+    HBitmapIter iter;
+    int64_t next;
+    uint64_t min_l1 = MAX(L1, 64);
+    uint64_t positions[] = { 0, min_l1, L2, L3 - min_l1};
+    int num_positions = sizeof(positions) / sizeof(positions[0]);
+
+    hbitmap_test_init(data, L3, 0);
+
+    for (i = 0; i < num_positions; i++) {
+        hbitmap_set(data->hb, positions[i], L1);
+    }
+
+    for (i = 0; i < num_positions; i++) {
+        hbitmap_deserialize_zeroes(data->hb, positions[i], min_l1, true);
+        hbitmap_iter_init(&iter, data->hb, 0);
+        next = hbitmap_iter_next(&iter);
+        if (i == num_positions - 1) {
+            g_assert_cmpint(next, ==, -1);
+        } else {
+            g_assert_cmpint(next, ==, positions[i + 1]);
+        }
+    }
 }
 
 static void hbitmap_test_add(const char *testpath,
@@ -799,6 +946,15 @@ int main(int argc, char **argv)
     hbitmap_test_add("/hbitmap/meta/byte", test_hbitmap_meta_byte);
     hbitmap_test_add("/hbitmap/meta/word", test_hbitmap_meta_word);
     hbitmap_test_add("/hbitmap/meta/sector", test_hbitmap_meta_sector);
+
+    hbitmap_test_add("/hbitmap/serialize/granularity",
+                     test_hbitmap_serialize_granularity);
+    hbitmap_test_add("/hbitmap/serialize/basic",
+                     test_hbitmap_serialize_basic);
+    hbitmap_test_add("/hbitmap/serialize/part",
+                     test_hbitmap_serialize_part);
+    hbitmap_test_add("/hbitmap/serialize/zeroes",
+                     test_hbitmap_serialize_zeroes);
     g_test_run();
 
     return 0;
