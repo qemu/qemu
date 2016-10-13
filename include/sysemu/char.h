@@ -107,7 +107,6 @@ struct CharDriverState {
     int explicit_be_open;
     int avail_connections;
     int is_mux;
-    int mux_idx;
     guint fd_in_tag;
     bool replay;
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
