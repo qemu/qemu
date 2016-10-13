@@ -365,11 +365,6 @@ static int passthru_initfn(CCIDCardState *base)
     return 0;
 }
 
-static int passthru_exitfn(CCIDCardState *base)
-{
-    return 0;
-}
-
 static VMStateDescription passthru_vmstate = {
     .name = "ccid-card-passthru",
     .version_id = 1,
@@ -396,7 +391,6 @@ static void passthru_class_initfn(ObjectClass *klass, void *data)
     CCIDCardClass *cc = CCID_CARD_CLASS(klass);
 
     cc->initfn = passthru_initfn;
-    cc->exitfn = passthru_exitfn;
     cc->get_atr = passthru_get_atr;
     cc->apdu_from_guest = passthru_apdu_from_guest;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);

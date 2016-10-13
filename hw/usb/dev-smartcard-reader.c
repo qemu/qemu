@@ -508,14 +508,14 @@ static void ccid_card_apdu_from_guest(CCIDCardState *card,
     }
 }
 
-static int ccid_card_exitfn(CCIDCardState *card)
+static void ccid_card_exitfn(CCIDCardState *card)
 {
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
 
     if (cc->exitfn) {
-        return cc->exitfn(card);
+        cc->exitfn(card);
     }
-    return 0;
+
 }
 
 static int ccid_card_initfn(CCIDCardState *card)
@@ -1279,7 +1279,6 @@ void ccid_card_card_inserted(CCIDCardState *card)
 
 static int ccid_card_exit(DeviceState *qdev)
 {
-    int ret = 0;
     CCIDCardState *card = CCID_CARD(qdev);
     USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
@@ -1287,9 +1286,9 @@ static int ccid_card_exit(DeviceState *qdev)
     if (ccid_card_inserted(s)) {
         ccid_card_card_removed(card);
     }
-    ret = ccid_card_exitfn(card);
+    ccid_card_exitfn(card);
     s->card = NULL;
-    return ret;
+    return 0;
 }
 
 static int ccid_card_init(DeviceState *qdev)
