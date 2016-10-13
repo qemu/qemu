@@ -38,6 +38,7 @@
  */
 struct BdrvDirtyBitmap {
     HBitmap *bitmap;            /* Dirty sector bitmap implementation */
+    HBitmap *meta;              /* Meta dirty bitmap */
     BdrvDirtyBitmap *successor; /* Anonymous child; implies frozen status */
     char *name;                 /* Optional non-empty unique ID */
     int64_t size;               /* Size of the bitmap (Number of sectors) */
@@ -101,6 +102,56 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
     bitmap->disabled = false;
     QLIST_INSERT_HEAD(&bs->dirty_bitmaps, bitmap, list);
     return bitmap;
+}
+
+/* bdrv_create_meta_dirty_bitmap
+ *
+ * Create a meta dirty bitmap that tracks the changes of bits in @bitmap. I.e.
+ * when a dirty status bit in @bitmap is changed (either from reset to set or
+ * the other way around), its respective meta dirty bitmap bit will be marked
+ * dirty as well.
+ *
+ * @bitmap: the block dirty bitmap for which to create a meta dirty bitmap.
+ * @chunk_size: how many bytes of bitmap data does each bit in the meta bitmap
+ * track.
+ */
+void bdrv_create_meta_dirty_bitmap(BdrvDirtyBitmap *bitmap,
+                                   int chunk_size)
+{
+    assert(!bitmap->meta);
+    bitmap->meta = hbitmap_create_meta(bitmap->bitmap,
+                                       chunk_size * BITS_PER_BYTE);
+}
+
+void bdrv_release_meta_dirty_bitmap(BdrvDirtyBitmap *bitmap)
+{
+    assert(bitmap->meta);
+    hbitmap_free_meta(bitmap->bitmap);
+    bitmap->meta = NULL;
+}
+
+int bdrv_dirty_bitmap_get_meta(BlockDriverState *bs,
+                               BdrvDirtyBitmap *bitmap, int64_t sector,
+                               int nb_sectors)
+{
+    uint64_t i;
+    int sectors_per_bit = 1 << hbitmap_granularity(bitmap->meta);
+
+    /* To optimize: we can make hbitmap to internally check the range in a
+     * coarse level, or at least do it word by word. */
+    for (i = sector; i < sector + nb_sectors; i += sectors_per_bit) {
+        if (hbitmap_get(bitmap->meta, i)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void bdrv_dirty_bitmap_reset_meta(BlockDriverState *bs,
+                                  BdrvDirtyBitmap *bitmap, int64_t sector,
+                                  int nb_sectors)
+{
+    hbitmap_reset(bitmap->meta, sector, nb_sectors);
 }
 
 bool bdrv_dirty_bitmap_frozen(BdrvDirtyBitmap *bitmap)
@@ -233,6 +284,7 @@ static void bdrv_do_release_matching_dirty_bitmap(BlockDriverState *bs,
         if ((!bitmap || bm == bitmap) && (!only_named || bm->name)) {
             assert(!bm->active_iterators);
             assert(!bdrv_dirty_bitmap_frozen(bm));
+            assert(!bm->meta);
             QLIST_REMOVE(bm, list);
             hbitmap_free(bm->bitmap);
             g_free(bm->name);
