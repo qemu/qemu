@@ -55,4 +55,18 @@ void bdrv_set_dirty_iter(BdrvDirtyBitmapIter *hbi, int64_t sector_num);
 int64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap);
 void bdrv_dirty_bitmap_truncate(BlockDriverState *bs);
 
+uint64_t bdrv_dirty_bitmap_serialization_size(const BdrvDirtyBitmap *bitmap,
+                                              uint64_t start, uint64_t count);
+uint64_t bdrv_dirty_bitmap_serialization_align(const BdrvDirtyBitmap *bitmap);
+void bdrv_dirty_bitmap_serialize_part(const BdrvDirtyBitmap *bitmap,
+                                      uint8_t *buf, uint64_t start,
+                                      uint64_t count);
+void bdrv_dirty_bitmap_deserialize_part(BdrvDirtyBitmap *bitmap,
+                                        uint8_t *buf, uint64_t start,
+                                        uint64_t count, bool finish);
+void bdrv_dirty_bitmap_deserialize_zeroes(BdrvDirtyBitmap *bitmap,
+                                          uint64_t start, uint64_t count,
+                                          bool finish);
+void bdrv_dirty_bitmap_deserialize_finish(BdrvDirtyBitmap *bitmap);
+
 #endif

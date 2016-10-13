@@ -453,6 +453,43 @@ void bdrv_undo_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *in)
     hbitmap_free(tmp);
 }
 
+uint64_t bdrv_dirty_bitmap_serialization_size(const BdrvDirtyBitmap *bitmap,
+                                              uint64_t start, uint64_t count)
+{
+    return hbitmap_serialization_size(bitmap->bitmap, start, count);
+}
+
+uint64_t bdrv_dirty_bitmap_serialization_align(const BdrvDirtyBitmap *bitmap)
+{
+    return hbitmap_serialization_granularity(bitmap->bitmap);
+}
+
+void bdrv_dirty_bitmap_serialize_part(const BdrvDirtyBitmap *bitmap,
+                                      uint8_t *buf, uint64_t start,
+                                      uint64_t count)
+{
+    hbitmap_serialize_part(bitmap->bitmap, buf, start, count);
+}
+
+void bdrv_dirty_bitmap_deserialize_part(BdrvDirtyBitmap *bitmap,
+                                        uint8_t *buf, uint64_t start,
+                                        uint64_t count, bool finish)
+{
+    hbitmap_deserialize_part(bitmap->bitmap, buf, start, count, finish);
+}
+
+void bdrv_dirty_bitmap_deserialize_zeroes(BdrvDirtyBitmap *bitmap,
+                                          uint64_t start, uint64_t count,
+                                          bool finish)
+{
+    hbitmap_deserialize_zeroes(bitmap->bitmap, start, count, finish);
+}
+
+void bdrv_dirty_bitmap_deserialize_finish(BdrvDirtyBitmap *bitmap)
+{
+    hbitmap_deserialize_finish(bitmap->bitmap);
+}
+
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
                     int64_t nr_sectors)
 {
