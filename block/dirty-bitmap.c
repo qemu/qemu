@@ -154,6 +154,16 @@ void bdrv_dirty_bitmap_reset_meta(BlockDriverState *bs,
     hbitmap_reset(bitmap->meta, sector, nb_sectors);
 }
 
+int64_t bdrv_dirty_bitmap_size(const BdrvDirtyBitmap *bitmap)
+{
+    return bitmap->size;
+}
+
+const char *bdrv_dirty_bitmap_name(const BdrvDirtyBitmap *bitmap)
+{
+    return bitmap->name;
+}
+
 bool bdrv_dirty_bitmap_frozen(BdrvDirtyBitmap *bitmap)
 {
     return bitmap->successor;
