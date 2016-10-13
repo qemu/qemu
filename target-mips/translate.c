@@ -3871,6 +3871,7 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
         break;
     }
 
+    check_cp1_enabled(ctx);
     gen_load_fpr64(ctx, t0, rs);
     gen_load_fpr64(ctx, t1, rt);
 
