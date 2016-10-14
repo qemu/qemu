@@ -236,6 +236,38 @@ static int nbd_negotiate_send_rep(QIOChannel *ioc, uint32_t type, uint32_t opt)
     return nbd_negotiate_send_rep_len(ioc, type, opt, 0);
 }
 
+/* Send an error reply.
+ * Return -errno on error, 0 on success. */
+static int GCC_FMT_ATTR(4, 5)
+nbd_negotiate_send_rep_err(QIOChannel *ioc, uint32_t type,
+                           uint32_t opt, const char *fmt, ...)
+{
+    va_list va;
+    char *msg;
+    int ret;
+    size_t len;
+
+    va_start(va, fmt);
+    msg = g_strdup_vprintf(fmt, va);
+    va_end(va);
+    len = strlen(msg);
+    assert(len < 4096);
+    TRACE("sending error message \"%s\"", msg);
+    ret = nbd_negotiate_send_rep_len(ioc, type, opt, len);
+    if (ret < 0) {
+        goto out;
+    }
+    if (nbd_negotiate_write(ioc, msg, len) != len) {
+        LOG("write failed (error message)");
+        ret = -EIO;
+    } else {
+        ret = 0;
+    }
+out:
+    g_free(msg);
+    return ret;
+}
+
 /* Send a single NBD_REP_SERVER reply to NBD_OPT_LIST, including payload.
  * Return -errno on error, 0 on success. */
 static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp)
@@ -281,8 +313,9 @@ static int nbd_negotiate_handle_list(NBDClient *client, uint32_t length)
         if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
             return -EIO;
         }
-        return nbd_negotiate_send_rep(client->ioc,
-                                      NBD_REP_ERR_INVALID, NBD_OPT_LIST);
+        return nbd_negotiate_send_rep_err(client->ioc,
+                                          NBD_REP_ERR_INVALID, NBD_OPT_LIST,
+                                          "OPT_LIST should not have length");
     }
 
     /* For each export, send a NBD_REP_SERVER reply. */
@@ -329,7 +362,8 @@ fail:
     return rc;
 }
 
-
+/* Handle NBD_OPT_STARTTLS. Return NULL to drop connection, or else the
+ * new channel for all further (now-encrypted) communication. */
 static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
                                                  uint32_t length)
 {
@@ -343,7 +377,8 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
         if (nbd_negotiate_drop_sync(ioc, length) != length) {
             return NULL;
         }
-        nbd_negotiate_send_rep(ioc, NBD_REP_ERR_INVALID, NBD_OPT_STARTTLS);
+        nbd_negotiate_send_rep_err(ioc, NBD_REP_ERR_INVALID, NBD_OPT_STARTTLS,
+                                   "OPT_STARTTLS should not have length");
         return NULL;
     }
 
@@ -474,13 +509,15 @@ static int nbd_negotiate_options(NBDClient *client)
                 return -EINVAL;
 
             default:
-                TRACE("Option 0x%" PRIx32 " not permitted before TLS",
-                      clientflags);
                 if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
                     return -EIO;
                 }
-                ret = nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_TLS_REQD,
-                                             clientflags);
+                ret = nbd_negotiate_send_rep_err(client->ioc,
+                                                 NBD_REP_ERR_TLS_REQD,
+                                                 clientflags,
+                                                 "Option 0x%" PRIx32
+                                                 "not permitted before TLS",
+                                                 clientflags);
                 if (ret < 0) {
                     return ret;
                 }
@@ -506,27 +543,30 @@ static int nbd_negotiate_options(NBDClient *client)
                     return -EIO;
                 }
                 if (client->tlscreds) {
-                    TRACE("TLS already enabled");
-                    ret = nbd_negotiate_send_rep(client->ioc,
-                                                 NBD_REP_ERR_INVALID,
-                                                 clientflags);
+                    ret = nbd_negotiate_send_rep_err(client->ioc,
+                                                     NBD_REP_ERR_INVALID,
+                                                     clientflags,
+                                                     "TLS already enabled");
                 } else {
-                    TRACE("TLS not configured");
-                    ret = nbd_negotiate_send_rep(client->ioc,
-                                                 NBD_REP_ERR_POLICY,
-                                                 clientflags);
+                    ret = nbd_negotiate_send_rep_err(client->ioc,
+                                                     NBD_REP_ERR_POLICY,
+                                                     clientflags,
+                                                     "TLS not configured");
                 }
                 if (ret < 0) {
                     return ret;
                 }
                 break;
             default:
-                TRACE("Unsupported option 0x%" PRIx32, clientflags);
                 if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
                     return -EIO;
                 }
-                ret = nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_UNSUP,
-                                             clientflags);
+                ret = nbd_negotiate_send_rep_err(client->ioc,
+                                                 NBD_REP_ERR_UNSUP,
+                                                 clientflags,
+                                                 "Unsupported option 0x%"
+                                                 PRIx32,
+                                                 clientflags);
                 if (ret < 0) {
                     return ret;
                 }
