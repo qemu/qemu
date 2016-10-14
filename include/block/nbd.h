@@ -115,6 +115,7 @@ BlockBackend *nbd_export_get_blockdev(NBDExport *exp);
 
 NBDExport *nbd_export_find(const char *name);
 void nbd_export_set_name(NBDExport *exp, const char *name);
+void nbd_export_set_description(NBDExport *exp, const char *description);
 void nbd_export_close_all(void);
 
 void nbd_client_new(NBDExport *exp,

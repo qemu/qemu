@@ -83,6 +83,7 @@ static void usage(const char *name)
 "  -t, --persistent          don't exit on the last connection\n"
 "  -v, --verbose             display extra debugging information\n"
 "  -x, --export-name=NAME    expose export by name\n"
+"  -D, --description=TEXT    with -x, also export a human-readable description\n"
 "\n"
 "Exposing part of the image:\n"
 "  -o, --offset=OFFSET       offset into the image\n"
@@ -477,7 +478,7 @@ int main(int argc, char **argv)
     off_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:";
+    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:D:";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -503,6 +504,7 @@ int main(int argc, char **argv)
         { "verbose", no_argument, NULL, 'v' },
         { "object", required_argument, NULL, QEMU_NBD_OPT_OBJECT },
         { "export-name", required_argument, NULL, 'x' },
+        { "description", required_argument, NULL, 'D' },
         { "tls-creds", required_argument, NULL, QEMU_NBD_OPT_TLSCREDS },
         { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { "trace", required_argument, NULL, 'T' },
@@ -524,6 +526,7 @@ int main(int argc, char **argv)
     BlockdevDetectZeroesOptions detect_zeroes = BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
     QDict *options = NULL;
     const char *export_name = NULL;
+    const char *export_description = NULL;
     const char *tlscredsid = NULL;
     bool imageOpts = false;
     bool writethrough = true;
@@ -688,6 +691,9 @@ int main(int argc, char **argv)
             break;
         case 'x':
             export_name = optarg;
+            break;
+        case 'D':
+            export_description = optarg;
             break;
         case 'v':
             verbose = 1;
@@ -937,7 +943,11 @@ int main(int argc, char **argv)
     }
     if (export_name) {
         nbd_export_set_name(exp, export_name);
+        nbd_export_set_description(exp, export_description);
         newproto = true;
+    } else if (export_description) {
+        error_report("Export description requires an export name");
+        exit(EXIT_FAILURE);
     }
 
     server_ioc = qio_channel_socket_new();

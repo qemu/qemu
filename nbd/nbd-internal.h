@@ -104,9 +104,10 @@ static inline ssize_t read_sync(QIOChannel *ioc, void *buffer, size_t size)
     return nbd_wr_syncv(ioc, &iov, 1, size, true);
 }
 
-static inline ssize_t write_sync(QIOChannel *ioc, void *buffer, size_t size)
+static inline ssize_t write_sync(QIOChannel *ioc, const void *buffer,
+                                 size_t size)
 {
-    struct iovec iov = { .iov_base = buffer, .iov_len = size };
+    struct iovec iov = { .iov_base = (void *) buffer, .iov_len = size };
 
     return nbd_wr_syncv(ioc, &iov, 1, size, false);
 }

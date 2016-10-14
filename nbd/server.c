@@ -61,6 +61,7 @@ struct NBDExport {
 
     BlockBackend *blk;
     char *name;
+    char *description;
     off_t dev_offset;
     off_t size;
     uint16_t nbdflags;
@@ -129,7 +130,8 @@ static ssize_t nbd_negotiate_read(QIOChannel *ioc, void *buffer, size_t size)
 
 }
 
-static ssize_t nbd_negotiate_write(QIOChannel *ioc, void *buffer, size_t size)
+static ssize_t nbd_negotiate_write(QIOChannel *ioc, const void *buffer,
+                                   size_t size)
 {
     ssize_t ret;
     guint watch;
@@ -225,11 +227,15 @@ static int nbd_negotiate_send_rep(QIOChannel *ioc, uint32_t type, uint32_t opt)
 
 static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp)
 {
-    uint64_t magic, name_len;
+    uint64_t magic;
+    size_t name_len, desc_len;
     uint32_t opt, type, len;
+    const char *name = exp->name ? exp->name : "";
+    const char *desc = exp->description ? exp->description : "";
 
-    TRACE("Advertising export name '%s'", exp->name ? exp->name : "");
-    name_len = strlen(exp->name);
+    TRACE("Advertising export name '%s' description '%s'", name, desc);
+    name_len = strlen(name);
+    desc_len = strlen(desc);
     magic = cpu_to_be64(NBD_REP_MAGIC);
     if (nbd_negotiate_write(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
         LOG("write failed (magic)");
@@ -245,18 +251,22 @@ static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp)
         LOG("write failed (reply type)");
         return -EINVAL;
     }
-    len = cpu_to_be32(name_len + sizeof(len));
+    len = cpu_to_be32(name_len + desc_len + sizeof(len));
     if (nbd_negotiate_write(ioc, &len, sizeof(len)) != sizeof(len)) {
         LOG("write failed (length)");
         return -EINVAL;
     }
     len = cpu_to_be32(name_len);
     if (nbd_negotiate_write(ioc, &len, sizeof(len)) != sizeof(len)) {
-        LOG("write failed (length)");
+        LOG("write failed (name length)");
         return -EINVAL;
     }
-    if (nbd_negotiate_write(ioc, exp->name, name_len) != name_len) {
-        LOG("write failed (buffer)");
+    if (nbd_negotiate_write(ioc, name, name_len) != name_len) {
+        LOG("write failed (name buffer)");
+        return -EINVAL;
+    }
+    if (nbd_negotiate_write(ioc, desc, desc_len) != desc_len) {
+        LOG("write failed (description buffer)");
         return -EINVAL;
     }
     return 0;
@@ -894,6 +904,12 @@ void nbd_export_set_name(NBDExport *exp, const char *name)
     nbd_export_put(exp);
 }
 
+void nbd_export_set_description(NBDExport *exp, const char *description)
+{
+    g_free(exp->description);
+    exp->description = g_strdup(description);
+}
+
 void nbd_export_close(NBDExport *exp)
 {
     NBDClient *client, *next;
@@ -903,6 +919,7 @@ void nbd_export_close(NBDExport *exp)
         client_close(client);
     }
     nbd_export_set_name(exp, NULL);
+    nbd_export_set_description(exp, NULL);
     nbd_export_put(exp);
 }
 
@@ -921,6 +938,7 @@ void nbd_export_put(NBDExport *exp)
 
     if (--exp->refcount == 0) {
         assert(exp->name == NULL);
+        assert(exp->description == NULL);
 
         if (exp->close) {
             exp->close(exp);
