@@ -26,15 +26,34 @@
 #include "io/channel-socket.h"
 #include "crypto/tlscreds.h"
 
-/* Note: these are _NOT_ the same as the network representation of an NBD
+/* Handshake phase structs - this struct is passed on the wire */
+
+struct nbd_option {
+    uint64_t magic; /* NBD_OPTS_MAGIC */
+    uint32_t option; /* NBD_OPT_* */
+    uint32_t length;
+} QEMU_PACKED;
+typedef struct nbd_option nbd_option;
+
+struct nbd_opt_reply {
+    uint64_t magic; /* NBD_REP_MAGIC */
+    uint32_t option; /* NBD_OPT_* */
+    uint32_t type; /* NBD_REP_* */
+    uint32_t length;
+} QEMU_PACKED;
+typedef struct nbd_opt_reply nbd_opt_reply;
+
+/* Transmission phase structs
+ *
+ * Note: these are _NOT_ the same as the network representation of an NBD
  * request and reply!
  */
 struct NBDRequest {
     uint64_t handle;
     uint64_t from;
     uint32_t len;
-    uint16_t flags;
-    uint16_t type;
+    uint16_t flags; /* NBD_CMD_FLAG_* */
+    uint16_t type; /* NBD_CMD_* */
 };
 typedef struct NBDRequest NBDRequest;
 
