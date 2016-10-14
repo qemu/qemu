@@ -1640,6 +1640,16 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_dep(s, ext, a0, REG0(2), args[3], args[4]);
         break;
 
+    case INDEX_op_extract_i64:
+    case INDEX_op_extract_i32:
+        tcg_out_ubfm(s, ext, a0, a1, a2, a2 + args[3] - 1);
+        break;
+
+    case INDEX_op_sextract_i64:
+    case INDEX_op_sextract_i32:
+        tcg_out_sbfm(s, ext, a0, a1, a2, a2 + args[3] - 1);
+        break;
+
     case INDEX_op_add2_i32:
         tcg_out_addsub2(s, TCG_TYPE_I32, a0, a1, REG0(2), REG0(3),
                         (int32_t)args[4], args[5], const_args[4],
@@ -1785,6 +1795,10 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
 
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
     { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
+    { INDEX_op_extract_i32, { "r", "r" } },
+    { INDEX_op_extract_i64, { "r", "r" } },
+    { INDEX_op_sextract_i32, { "r", "r" } },
+    { INDEX_op_sextract_i64, { "r", "r" } },
 
     { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
     { INDEX_op_add2_i64, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
