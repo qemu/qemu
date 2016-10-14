@@ -533,10 +533,11 @@ void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2,
     TCGv_i32 t1;
 
     tcg_debug_assert(ofs < 32);
+    tcg_debug_assert(len > 0);
     tcg_debug_assert(len <= 32);
     tcg_debug_assert(ofs + len <= 32);
 
-    if (ofs == 0 && len == 32) {
+    if (len == 32) {
         tcg_gen_mov_i32(ret, arg2);
         return;
     }
@@ -1718,10 +1719,11 @@ void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2,
     TCGv_i64 t1;
 
     tcg_debug_assert(ofs < 64);
+    tcg_debug_assert(len > 0);
     tcg_debug_assert(len <= 64);
     tcg_debug_assert(ofs + len <= 64);
 
-    if (ofs == 0 && len == 64) {
+    if (len == 64) {
         tcg_gen_mov_i64(ret, arg2);
         return;
     }
