@@ -1063,12 +1063,14 @@
 #
 # @unix: unix socket
 #
+# @vsock: vsock family (since 2.8)
+#
 # @unknown: otherwise
 #
 # Since: 2.1
 ##
 { 'enum': 'NetworkAddressFamily',
-  'data': [ 'ipv4', 'ipv6', 'unix', 'unknown' ] }
+  'data': [ 'ipv4', 'ipv6', 'unix', 'vsock', 'unknown' ] }
 
 ##
 # @VncBasicInfo
@@ -3095,6 +3097,24 @@
     'path': 'str' } }
 
 ##
+# @VsockSocketAddress
+#
+# Captures a socket address in the vsock namespace.
+#
+# @cid: unique host identifier
+# @port: port
+#
+# Note that string types are used to allow for possible future hostname or
+# service resolution support.
+#
+# Since 2.8
+##
+{ 'struct': 'VsockSocketAddress',
+  'data': {
+    'cid': 'str',
+    'port': 'str' } }
+
+##
 # @SocketAddress
 #
 # Captures the address of a socket, which could also be a named file descriptor
@@ -3105,6 +3125,7 @@
   'data': {
     'inet': 'InetSocketAddress',
     'unix': 'UnixSocketAddress',
+    'vsock': 'VsockSocketAddress',
     'fd': 'String' } }
 
 ##

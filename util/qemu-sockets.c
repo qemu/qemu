@@ -17,6 +17,10 @@
  */
 #include "qemu/osdep.h"
 
+#ifdef CONFIG_AF_VSOCK
+#include <linux/vm_sockets.h>
+#endif /* CONFIG_AF_VSOCK */
+
 #include "monitor/monitor.h"
 #include "qapi/error.h"
 #include "qemu/sockets.h"
@@ -75,6 +79,9 @@ NetworkAddressFamily inet_netfamily(int family)
     case PF_INET6: return NETWORK_ADDRESS_FAMILY_IPV6;
     case PF_INET:  return NETWORK_ADDRESS_FAMILY_IPV4;
     case PF_UNIX:  return NETWORK_ADDRESS_FAMILY_UNIX;
+#ifdef CONFIG_AF_VSOCK
+    case PF_VSOCK: return NETWORK_ADDRESS_FAMILY_VSOCK;
+#endif /* CONFIG_AF_VSOCK */
     }
     return NETWORK_ADDRESS_FAMILY_UNKNOWN;
 }
@@ -650,6 +657,181 @@ int inet_connect(const char *str, Error **errp)
     return sock;
 }
 
+#ifdef CONFIG_AF_VSOCK
+static bool vsock_parse_vaddr_to_sockaddr(const VsockSocketAddress *vaddr,
+                                          struct sockaddr_vm *svm,
+                                          Error **errp)
+{
+    unsigned long long val;
+
+    memset(svm, 0, sizeof(*svm));
+    svm->svm_family = AF_VSOCK;
+
+    if (parse_uint_full(vaddr->cid, &val, 10) < 0 ||
+        val > UINT32_MAX) {
+        error_setg(errp, "Failed to parse cid '%s'", vaddr->cid);
+        return false;
+    }
+    svm->svm_cid = val;
+
+    if (parse_uint_full(vaddr->port, &val, 10) < 0 ||
+        val > UINT32_MAX) {
+        error_setg(errp, "Failed to parse port '%s'", vaddr->port);
+        return false;
+    }
+    svm->svm_port = val;
+
+    return true;
+}
+
+static int vsock_connect_addr(const struct sockaddr_vm *svm, bool *in_progress,
+                              ConnectState *connect_state, Error **errp)
+{
+    int sock, rc;
+
+    *in_progress = false;
+
+    sock = qemu_socket(AF_VSOCK, SOCK_STREAM, 0);
+    if (sock < 0) {
+        error_setg_errno(errp, errno, "Failed to create socket");
+        return -1;
+    }
+    if (connect_state != NULL) {
+        qemu_set_nonblock(sock);
+    }
+    /* connect to peer */
+    do {
+        rc = 0;
+        if (connect(sock, (const struct sockaddr *)svm, sizeof(*svm)) < 0) {
+            rc = -errno;
+        }
+    } while (rc == -EINTR);
+
+    if (connect_state != NULL && QEMU_SOCKET_RC_INPROGRESS(rc)) {
+        connect_state->fd = sock;
+        qemu_set_fd_handler(sock, NULL, wait_for_connect, connect_state);
+        *in_progress = true;
+    } else if (rc < 0) {
+        error_setg_errno(errp, errno, "Failed to connect socket");
+        closesocket(sock);
+        return -1;
+    }
+    return sock;
+}
+
+static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp,
+                               NonBlockingConnectHandler *callback,
+                               void *opaque)
+{
+    struct sockaddr_vm svm;
+    int sock = -1;
+    bool in_progress;
+    ConnectState *connect_state = NULL;
+
+    if (!vsock_parse_vaddr_to_sockaddr(vaddr, &svm, errp)) {
+        return -1;
+    }
+
+    if (callback != NULL) {
+        connect_state = g_malloc0(sizeof(*connect_state));
+        connect_state->callback = callback;
+        connect_state->opaque = opaque;
+    }
+
+    sock = vsock_connect_addr(&svm, &in_progress, connect_state, errp);
+    if (sock < 0) {
+        /* do nothing */
+    } else if (in_progress) {
+        /* wait_for_connect() will do the rest */
+        return sock;
+    } else {
+        if (callback) {
+            callback(sock, NULL, opaque);
+        }
+    }
+    g_free(connect_state);
+    return sock;
+}
+
+static int vsock_listen_saddr(VsockSocketAddress *vaddr,
+                              Error **errp)
+{
+    struct sockaddr_vm svm;
+    int slisten;
+
+    if (!vsock_parse_vaddr_to_sockaddr(vaddr, &svm, errp)) {
+        return -1;
+    }
+
+    slisten = qemu_socket(AF_VSOCK, SOCK_STREAM, 0);
+    if (slisten < 0) {
+        error_setg_errno(errp, errno, "Failed to create socket");
+        return -1;
+    }
+
+    if (bind(slisten, (const struct sockaddr *)&svm, sizeof(svm)) != 0) {
+        error_setg_errno(errp, errno, "Failed to bind socket");
+        closesocket(slisten);
+        return -1;
+    }
+
+    if (listen(slisten, 1) != 0) {
+        error_setg_errno(errp, errno, "Failed to listen on socket");
+        closesocket(slisten);
+        return -1;
+    }
+    return slisten;
+}
+
+static VsockSocketAddress *vsock_parse(const char *str, Error **errp)
+{
+    VsockSocketAddress *addr = NULL;
+    char cid[33];
+    char port[33];
+    int n;
+
+    if (sscanf(str, "%32[^:]:%32[^,]%n", cid, port, &n) != 2) {
+        error_setg(errp, "error parsing address '%s'", str);
+        return NULL;
+    }
+    if (str[n] != '\0') {
+        error_setg(errp, "trailing characters in address '%s'", str);
+        return NULL;
+    }
+
+    addr = g_new0(VsockSocketAddress, 1);
+    addr->cid = g_strdup(cid);
+    addr->port = g_strdup(port);
+    return addr;
+}
+#else
+static void vsock_unsupported(Error **errp)
+{
+    error_setg(errp, "socket family AF_VSOCK unsupported");
+}
+
+static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp,
+                               NonBlockingConnectHandler *callback,
+                               void *opaque)
+{
+    vsock_unsupported(errp);
+    return -1;
+}
+
+static int vsock_listen_saddr(VsockSocketAddress *vaddr,
+                              Error **errp)
+{
+    vsock_unsupported(errp);
+    return -1;
+}
+
+static VsockSocketAddress *vsock_parse(const char *str, Error **errp)
+{
+    vsock_unsupported(errp);
+    return NULL;
+}
+#endif /* CONFIG_AF_VSOCK */
+
 #ifndef _WIN32
 
 static int unix_listen_saddr(UnixSocketAddress *saddr,
@@ -864,6 +1046,12 @@ SocketAddress *socket_parse(const char *str, Error **errp)
             addr->u.fd.data = g_new(String, 1);
             addr->u.fd.data->str = g_strdup(str + 3);
         }
+    } else if (strstart(str, "vsock:", NULL)) {
+        addr->type = SOCKET_ADDRESS_KIND_VSOCK;
+        addr->u.vsock.data = vsock_parse(str + strlen("vsock:"), errp);
+        if (addr->u.vsock.data == NULL) {
+            goto fail;
+        }
     } else {
         addr->type = SOCKET_ADDRESS_KIND_INET;
         addr->u.inet.data = inet_parse(str, errp);
@@ -900,6 +1088,10 @@ int socket_connect(SocketAddress *addr, Error **errp,
         }
         break;
 
+    case SOCKET_ADDRESS_KIND_VSOCK:
+        fd = vsock_connect_saddr(addr->u.vsock.data, errp, callback, opaque);
+        break;
+
     default:
         abort();
     }
@@ -921,6 +1113,10 @@ int socket_listen(SocketAddress *addr, Error **errp)
 
     case SOCKET_ADDRESS_KIND_FD:
         fd = monitor_get_fd(cur_mon, addr->u.fd.data->str, errp);
+        break;
+
+    case SOCKET_ADDRESS_KIND_VSOCK:
+        fd = vsock_listen_saddr(addr->u.vsock.data, errp);
         break;
 
     default:
@@ -1022,6 +1218,26 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
 }
 #endif /* WIN32 */
 
+#ifdef CONFIG_AF_VSOCK
+static SocketAddress *
+socket_sockaddr_to_address_vsock(struct sockaddr_storage *sa,
+                                 socklen_t salen,
+                                 Error **errp)
+{
+    SocketAddress *addr;
+    VsockSocketAddress *vaddr;
+    struct sockaddr_vm *svm = (struct sockaddr_vm *)sa;
+
+    addr = g_new0(SocketAddress, 1);
+    addr->type = SOCKET_ADDRESS_KIND_VSOCK;
+    addr->u.vsock.data = vaddr = g_new0(VsockSocketAddress, 1);
+    vaddr->cid = g_strdup_printf("%u", svm->svm_cid);
+    vaddr->port = g_strdup_printf("%u", svm->svm_port);
+
+    return addr;
+}
+#endif /* CONFIG_AF_VSOCK */
+
 SocketAddress *
 socket_sockaddr_to_address(struct sockaddr_storage *sa,
                            socklen_t salen,
@@ -1036,6 +1252,11 @@ socket_sockaddr_to_address(struct sockaddr_storage *sa,
     case AF_UNIX:
         return socket_sockaddr_to_address_unix(sa, salen, errp);
 #endif /* WIN32 */
+
+#ifdef CONFIG_AF_VSOCK
+    case AF_VSOCK:
+        return socket_sockaddr_to_address_vsock(sa, salen, errp);
+#endif
 
     default:
         error_setg(errp, "socket family %d unsupported",
@@ -1101,6 +1322,12 @@ char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
 
     case SOCKET_ADDRESS_KIND_FD:
         buf = g_strdup(addr->u.fd.data->str);
+        break;
+
+    case SOCKET_ADDRESS_KIND_VSOCK:
+        buf = g_strdup_printf("%s:%s",
+                              addr->u.vsock.data->cid,
+                              addr->u.vsock.data->port);
         break;
 
     default:
