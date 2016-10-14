@@ -196,12 +196,15 @@ static ssize_t nbd_negotiate_drop_sync(QIOChannel *ioc, size_t size)
 
 */
 
-static int nbd_negotiate_send_rep(QIOChannel *ioc, uint32_t type, uint32_t opt)
+/* Send a reply header, including length, but no payload.
+ * Return -errno on error, 0 on success. */
+static int nbd_negotiate_send_rep_len(QIOChannel *ioc, uint32_t type,
+                                      uint32_t opt, uint32_t len)
 {
     uint64_t magic;
-    uint32_t len;
 
-    TRACE("Reply opt=%" PRIx32 " type=%" PRIx32, type, opt);
+    TRACE("Reply opt=%" PRIx32 " type=%" PRIx32 " len=%" PRIu32,
+          type, opt, len);
 
     magic = cpu_to_be64(NBD_REP_MAGIC);
     if (nbd_negotiate_write(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
@@ -218,7 +221,7 @@ static int nbd_negotiate_send_rep(QIOChannel *ioc, uint32_t type, uint32_t opt)
         LOG("write failed (rep type)");
         return -EINVAL;
     }
-    len = cpu_to_be32(0);
+    len = cpu_to_be32(len);
     if (nbd_negotiate_write(ioc, &len, sizeof(len)) != sizeof(len)) {
         LOG("write failed (rep data length)");
         return -EINVAL;
@@ -226,37 +229,32 @@ static int nbd_negotiate_send_rep(QIOChannel *ioc, uint32_t type, uint32_t opt)
     return 0;
 }
 
+/* Send a reply header with default 0 length.
+ * Return -errno on error, 0 on success. */
+static int nbd_negotiate_send_rep(QIOChannel *ioc, uint32_t type, uint32_t opt)
+{
+    return nbd_negotiate_send_rep_len(ioc, type, opt, 0);
+}
+
+/* Send a single NBD_REP_SERVER reply to NBD_OPT_LIST, including payload.
+ * Return -errno on error, 0 on success. */
 static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp)
 {
-    uint64_t magic;
     size_t name_len, desc_len;
-    uint32_t opt, type, len;
+    uint32_t len;
     const char *name = exp->name ? exp->name : "";
     const char *desc = exp->description ? exp->description : "";
+    int rc;
 
     TRACE("Advertising export name '%s' description '%s'", name, desc);
     name_len = strlen(name);
     desc_len = strlen(desc);
-    magic = cpu_to_be64(NBD_REP_MAGIC);
-    if (nbd_negotiate_write(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
-        LOG("write failed (magic)");
-        return -EINVAL;
-     }
-    opt = cpu_to_be32(NBD_OPT_LIST);
-    if (nbd_negotiate_write(ioc, &opt, sizeof(opt)) != sizeof(opt)) {
-        LOG("write failed (opt)");
-        return -EINVAL;
+    len = name_len + desc_len + sizeof(len);
+    rc = nbd_negotiate_send_rep_len(ioc, NBD_REP_SERVER, NBD_OPT_LIST, len);
+    if (rc < 0) {
+        return rc;
     }
-    type = cpu_to_be32(NBD_REP_SERVER);
-    if (nbd_negotiate_write(ioc, &type, sizeof(type)) != sizeof(type)) {
-        LOG("write failed (reply type)");
-        return -EINVAL;
-    }
-    len = cpu_to_be32(name_len + desc_len + sizeof(len));
-    if (nbd_negotiate_write(ioc, &len, sizeof(len)) != sizeof(len)) {
-        LOG("write failed (length)");
-        return -EINVAL;
-    }
+
     len = cpu_to_be32(name_len);
     if (nbd_negotiate_write(ioc, &len, sizeof(len)) != sizeof(len)) {
         LOG("write failed (name length)");
@@ -273,6 +271,8 @@ static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp)
     return 0;
 }
 
+/* Process the NBD_OPT_LIST command, with a potential series of replies.
+ * Return -errno on error, 0 on success. */
 static int nbd_negotiate_handle_list(NBDClient *client, uint32_t length)
 {
     NBDExport *exp;
@@ -382,6 +382,8 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
 }
 
 
+/* Process all NBD_OPT_* client option commands.
+ * Return -errno on error, 0 on success. */
 static int nbd_negotiate_options(NBDClient *client)
 {
     uint32_t flags;
