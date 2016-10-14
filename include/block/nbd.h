@@ -74,11 +74,13 @@ typedef struct NBDReply NBDReply;
 
 /* New-style handshake (global) flags, sent from server to client, and
    control what will happen during handshake phase. */
-#define NBD_FLAG_FIXED_NEWSTYLE     (1 << 0)    /* Fixed newstyle protocol. */
+#define NBD_FLAG_FIXED_NEWSTYLE   (1 << 0) /* Fixed newstyle protocol. */
+#define NBD_FLAG_NO_ZEROES        (1 << 1) /* End handshake without zeroes. */
 
 /* New-style client flags, sent from client to server to control what happens
    during handshake phase. */
-#define NBD_FLAG_C_FIXED_NEWSTYLE   (1 << 0)    /* Fixed newstyle protocol. */
+#define NBD_FLAG_C_FIXED_NEWSTYLE (1 << 0) /* Fixed newstyle protocol. */
+#define NBD_FLAG_C_NO_ZEROES      (1 << 1) /* End handshake without zeroes. */
 
 /* Reply types. */
 #define NBD_REP_ACK             (1)             /* Data sending finished. */

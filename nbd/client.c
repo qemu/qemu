@@ -440,6 +440,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
     char buf[256];
     uint64_t magic, s;
     int rc;
+    bool zeroes = true;
 
     TRACE("Receiving negotiation tlscreds=%p hostname=%s.",
           tlscreds, hostname ? hostname : "<null>");
@@ -503,6 +504,11 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
             fixedNewStyle = true;
             TRACE("Server supports fixed new style");
             clientflags |= NBD_FLAG_C_FIXED_NEWSTYLE;
+        }
+        if (globalflags & NBD_FLAG_NO_ZEROES) {
+            zeroes = false;
+            TRACE("Server supports no zeroes");
+            clientflags |= NBD_FLAG_C_NO_ZEROES;
         }
         /* client requested flags */
         clientflags = cpu_to_be32(clientflags);
@@ -591,7 +597,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
     }
 
     TRACE("Size is %" PRIu64 ", export flags %" PRIx16, *size, *flags);
-    if (drop_sync(ioc, 124) != 124) {
+    if (zeroes && drop_sync(ioc, 124) != 124) {
         error_setg(errp, "Failed to read reserved block");
         goto fail;
     }

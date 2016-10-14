@@ -81,6 +81,7 @@ struct NBDClient {
     int refcount;
     void (*close)(NBDClient *client);
 
+    bool no_zeroes;
     NBDExport *exp;
     QCryptoTLSCreds *tlscreds;
     char *tlsaclname;
@@ -450,6 +451,11 @@ static int nbd_negotiate_options(NBDClient *client)
         fixedNewstyle = true;
         flags &= ~NBD_FLAG_C_FIXED_NEWSTYLE;
     }
+    if (flags & NBD_FLAG_C_NO_ZEROES) {
+        TRACE("Client supports no zeroes at handshake end");
+        client->no_zeroes = true;
+        flags &= ~NBD_FLAG_C_NO_ZEROES;
+    }
     if (flags != 0) {
         TRACE("Unknown client flags 0x%" PRIx32 " received", flags);
         return -EIO;
@@ -602,6 +608,7 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
     const uint16_t myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
                               NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA);
     bool oldStyle;
+    size_t len;
 
     /* Old style negotiation header without options
         [ 0 ..   7]   passwd       ("NBDMAGIC")
@@ -618,7 +625,7 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
         ....options sent....
         [18 ..  25]   size
         [26 ..  27]   export flags
-        [28 .. 151]   reserved     (0)
+        [28 .. 151]   reserved     (0, omit if no_zeroes)
      */
 
     qio_channel_set_blocking(client->ioc, false, NULL);
@@ -637,7 +644,7 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
         stw_be_p(buf + 26, client->exp->nbdflags | myflags);
     } else {
         stq_be_p(buf + 8, NBD_OPTS_MAGIC);
-        stw_be_p(buf + 16, NBD_FLAG_FIXED_NEWSTYLE);
+        stw_be_p(buf + 16, NBD_FLAG_FIXED_NEWSTYLE | NBD_FLAG_NO_ZEROES);
     }
 
     if (oldStyle) {
@@ -664,8 +671,8 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
               client->exp->size, client->exp->nbdflags | myflags);
         stq_be_p(buf + 18, client->exp->size);
         stw_be_p(buf + 26, client->exp->nbdflags | myflags);
-        if (nbd_negotiate_write(client->ioc, buf + 18, sizeof(buf) - 18) !=
-            sizeof(buf) - 18) {
+        len = client->no_zeroes ? 10 : sizeof(buf) - 18;
+        if (nbd_negotiate_write(client->ioc, buf + 18, len) != len) {
             LOG("write failed");
             goto fail;
         }
