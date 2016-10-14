@@ -616,7 +616,8 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
     char buf[8 + 8 + 8 + 128];
     int rc;
     const uint16_t myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
-                              NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA);
+                              NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA |
+                              NBD_FLAG_SEND_WRITE_ZEROES);
     bool oldStyle;
     size_t len;
 
@@ -1146,8 +1147,14 @@ static ssize_t nbd_co_receive_request(NBDRequestData *req,
         rc = request->type == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
         goto out;
     }
-    if (request->flags & ~NBD_CMD_FLAG_FUA) {
+    if (request->flags & ~(NBD_CMD_FLAG_FUA | NBD_CMD_FLAG_NO_HOLE)) {
         LOG("unsupported flags (got 0x%x)", request->flags);
+        rc = -EINVAL;
+        goto out;
+    }
+    if (request->type != NBD_CMD_WRITE_ZEROES &&
+        (request->flags & NBD_CMD_FLAG_NO_HOLE)) {
+        LOG("unexpected flags (got 0x%x)", request->flags);
         rc = -EINVAL;
         goto out;
     }
@@ -1244,6 +1251,37 @@ static void nbd_trip(void *opaque)
         }
         ret = blk_pwrite(exp->blk, request.from + exp->dev_offset,
                          req->data, request.len, flags);
+        if (ret < 0) {
+            LOG("writing to file failed");
+            reply.error = -ret;
+            goto error_reply;
+        }
+
+        if (nbd_co_send_reply(req, &reply, 0) < 0) {
+            goto out;
+        }
+        break;
+
+    case NBD_CMD_WRITE_ZEROES:
+        TRACE("Request type is WRITE_ZEROES");
+
+        if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
+            TRACE("Server is read-only, return error");
+            reply.error = EROFS;
+            goto error_reply;
+        }
+
+        TRACE("Writing to device");
+
+        flags = 0;
+        if (request.flags & NBD_CMD_FLAG_FUA) {
+            flags |= BDRV_REQ_FUA;
+        }
+        if (!(request.flags & NBD_CMD_FLAG_NO_HOLE)) {
+            flags |= BDRV_REQ_MAY_UNMAP;
+        }
+        ret = blk_pwrite_zeroes(exp->blk, request.from + exp->dev_offset,
+                                request.len, flags);
         if (ret < 0) {
             LOG("writing to file failed");
             reply.error = -ret;

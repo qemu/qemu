@@ -71,6 +71,7 @@ typedef struct NBDReply NBDReply;
 #define NBD_FLAG_SEND_FUA       (1 << 3)        /* Send FUA (Force Unit Access) */
 #define NBD_FLAG_ROTATIONAL     (1 << 4)        /* Use elevator algorithm - rotational media */
 #define NBD_FLAG_SEND_TRIM      (1 << 5)        /* Send TRIM (discard) */
+#define NBD_FLAG_SEND_WRITE_ZEROES (1 << 6)     /* Send WRITE_ZEROES */
 
 /* New-style handshake (global) flags, sent from server to client, and
    control what will happen during handshake phase. */
@@ -96,7 +97,8 @@ typedef struct NBDReply NBDReply;
 #define NBD_REP_ERR_SHUTDOWN    NBD_REP_ERR(7)  /* Server shutting down */
 
 /* Request flags, sent from client to server during transmission phase */
-#define NBD_CMD_FLAG_FUA        (1 << 0)
+#define NBD_CMD_FLAG_FUA        (1 << 0) /* 'force unit access' during write */
+#define NBD_CMD_FLAG_NO_HOLE    (1 << 1) /* don't punch hole on zero run */
 
 /* Supported request types */
 enum {
@@ -104,7 +106,9 @@ enum {
     NBD_CMD_WRITE = 1,
     NBD_CMD_DISC = 2,
     NBD_CMD_FLUSH = 3,
-    NBD_CMD_TRIM = 4
+    NBD_CMD_TRIM = 4,
+    /* 5 reserved for failed experiment NBD_CMD_CACHE */
+    NBD_CMD_WRITE_ZEROES = 6,
 };
 
 #define NBD_DEFAULT_PORT	10809
