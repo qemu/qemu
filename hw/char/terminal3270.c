@@ -32,6 +32,7 @@ typedef struct Terminal3270 {
     int in_len;
     int out_len;
     bool handshake_done;
+    guint timer_tag;
 } Terminal3270;
 
 #define TYPE_TERMINAL_3270 "x-terminal3270"
@@ -60,6 +61,19 @@ static void TN3270_handshake_done(Terminal3270 *t)
 }
 
 /*
+ * Called when the interval is timeout to detect
+ * if the client is still alive by Timing Mark.
+ */
+static gboolean send_timing_mark_cb(gpointer opaque)
+{
+    Terminal3270 *t = opaque;
+    const uint8_t timing[] = {0xff, 0xfd, 0x06};
+
+    qemu_chr_fe_write_all(&t->chr, timing, sizeof(timing));
+    return true;
+}
+
+/*
  * Receive inbound data from socket.
  * For data given to guest, drop the data boundary IAC, IAC_EOR.
  * TODO:
@@ -76,6 +90,12 @@ static void terminal_read(void *opaque, const uint8_t *buf, int size)
     int end;
 
     assert(size <= (INPUT_BUFFER_SIZE - t->in_len));
+
+    if (t->timer_tag) {
+        g_source_remove(t->timer_tag);
+        t->timer_tag = 0;
+    }
+    t->timer_tag = g_timeout_add_seconds(600, send_timing_mark_cb, t);
 
     memcpy(&t->inv[t->in_len], buf, size);
     t->in_len += size;
@@ -127,6 +147,10 @@ static void chr_event(void *opaque, int event)
     t->in_len = 0;
     t->out_len = 0;
     t->handshake_done = false;
+    if (t->timer_tag) {
+        g_source_remove(t->timer_tag);
+        t->timer_tag = 0;
+    }
 
     switch (event) {
     case CHR_EVENT_OPENED:
@@ -135,6 +159,7 @@ static void chr_event(void *opaque, int event)
          * char-socket.c. Once qemu receives the terminal-type of the
          * client, mark handshake done and trigger everything rolling again.
          */
+        t->timer_tag = g_timeout_add_seconds(600, send_timing_mark_cb, t);
         break;
     case CHR_EVENT_CLOSED:
         sch->curr_status.scsw.dstat = SCSW_DSTAT_DEVICE_END;
@@ -206,11 +231,13 @@ static int write_payload_3270(EmulatedCcw3270Device *dev, uint8_t cmd,
     assert(count <= (OUTPUT_BUFFER_SIZE - 3) / 2);
 
     if (!t->handshake_done) {
-        /*
-         * Before having finished 3270 negotiation,
-         * sending outbound data is prohibited.
-         */
-        return 0;
+        if (!(t->outv[0] == IAC && t->outv[1] != IAC)) {
+            /*
+             * Before having finished 3270 negotiation,
+             * sending outbound data except protocol options is prohibited.
+             */
+            return 0;
+        }
     }
     if (!qemu_chr_fe_get_driver(&t->chr)) {
         /* We just say we consumed all data if there's no backend. */
