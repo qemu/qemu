@@ -1252,6 +1252,12 @@ static void tgen_deposit(TCGContext *s, TCGReg dest, TCGReg src,
     tcg_out_risbg(s, dest, src, msb, lsb, ofs, 0);
 }
 
+static void tgen_extract(TCGContext *s, TCGReg dest, TCGReg src,
+                         int ofs, int len)
+{
+    tcg_out_risbg(s, dest, src, 64 - len, 63, 64 - ofs, 1);
+}
+
 static void tgen_gotoi(TCGContext *s, int cc, tcg_insn_unit *dest)
 {
     ptrdiff_t off = dest - s->code_ptr;
@@ -2158,6 +2164,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     OP_32_64(deposit):
         tgen_deposit(s, args[0], args[2], args[3], args[4]);
         break;
+    OP_32_64(extract):
+        tgen_extract(s, args[0], args[1], args[2], args[3]);
+        break;
 
     case INDEX_op_mb:
         /* The host memory model is quite strong, we simply need to
@@ -2227,6 +2236,7 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_setcond_i32, { "r", "r", "rC" } },
     { INDEX_op_movcond_i32, { "r", "r", "rC", "r", "0" } },
     { INDEX_op_deposit_i32, { "r", "0", "r" } },
+    { INDEX_op_extract_i32, { "r", "r" } },
 
     { INDEX_op_qemu_ld_i32, { "r", "L" } },
     { INDEX_op_qemu_ld_i64, { "r", "L" } },
@@ -2288,6 +2298,7 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_setcond_i64, { "r", "r", "rC" } },
     { INDEX_op_movcond_i64, { "r", "r", "rC", "r", "0" } },
     { INDEX_op_deposit_i64, { "r", "0", "r" } },
+    { INDEX_op_extract_i64, { "r", "r" } },
 
     { INDEX_op_mb, { } },
     { -1 },
