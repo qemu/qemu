@@ -254,19 +254,28 @@ static int nbd_handle_reply_err(QIOChannel *ioc, nbd_opt_reply *reply,
     return result;
 }
 
-static int nbd_receive_list(QIOChannel *ioc, char **name, Error **errp)
+/* Process another portion of the NBD_OPT_LIST reply.  Set *@match if
+ * the current reply matches @want or if the server does not support
+ * NBD_OPT_LIST, otherwise leave @match alone.  Return 0 if iteration
+ * is complete, positive if more replies are expected, or negative
+ * with @errp set if an unrecoverable error occurred. */
+static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
+                            Error **errp)
 {
     nbd_opt_reply reply;
     uint32_t len;
     uint32_t namelen;
+    char name[NBD_MAX_NAME_SIZE + 1];
     int error;
 
-    *name = NULL;
     if (nbd_receive_option_reply(ioc, NBD_OPT_LIST, &reply, errp) < 0) {
         return -1;
     }
     error = nbd_handle_reply_err(ioc, &reply, errp);
     if (error <= 0) {
+        /* The server did not support NBD_OPT_LIST, so set *match on
+         * the assumption that any name will be accepted.  */
+        *match = true;
         return error;
     }
     len = reply.length;
@@ -277,105 +286,91 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, Error **errp)
             nbd_send_opt_abort(ioc);
             return -1;
         }
-    } else if (reply.type == NBD_REP_SERVER) {
-        if (len < sizeof(namelen) || len > NBD_MAX_BUFFER_SIZE) {
-            error_setg(errp, "incorrect option length %" PRIu32, len);
-            nbd_send_opt_abort(ioc);
-            return -1;
-        }
-        if (read_sync(ioc, &namelen, sizeof(namelen)) != sizeof(namelen)) {
-            error_setg(errp, "failed to read option name length");
-            nbd_send_opt_abort(ioc);
-            return -1;
-        }
-        namelen = be32_to_cpu(namelen);
-        len -= sizeof(namelen);
-        if (len < namelen) {
-            error_setg(errp, "incorrect option name length");
-            nbd_send_opt_abort(ioc);
-            return -1;
-        }
-        if (namelen > NBD_MAX_NAME_SIZE) {
-            error_setg(errp, "export name length too long %" PRIu32, namelen);
-            nbd_send_opt_abort(ioc);
-            return -1;
-        }
-
-        *name = g_new0(char, namelen + 1);
-        if (read_sync(ioc, *name, namelen) != namelen) {
-            error_setg(errp, "failed to read export name");
-            g_free(*name);
-            *name = NULL;
-            nbd_send_opt_abort(ioc);
-            return -1;
-        }
-        (*name)[namelen] = '\0';
-        len -= namelen;
-        if (drop_sync(ioc, len) != len) {
-            error_setg(errp, "failed to read export description");
-            g_free(*name);
-            *name = NULL;
-            nbd_send_opt_abort(ioc);
-            return -1;
-        }
-    } else {
+        return 0;
+    } else if (reply.type != NBD_REP_SERVER) {
         error_setg(errp, "Unexpected reply type %" PRIx32 " expected %x",
                    reply.type, NBD_REP_SERVER);
         nbd_send_opt_abort(ioc);
         return -1;
     }
+
+    if (len < sizeof(namelen) || len > NBD_MAX_BUFFER_SIZE) {
+        error_setg(errp, "incorrect option length %" PRIu32, len);
+        nbd_send_opt_abort(ioc);
+        return -1;
+    }
+    if (read_sync(ioc, &namelen, sizeof(namelen)) != sizeof(namelen)) {
+        error_setg(errp, "failed to read option name length");
+        nbd_send_opt_abort(ioc);
+        return -1;
+    }
+    namelen = be32_to_cpu(namelen);
+    len -= sizeof(namelen);
+    if (len < namelen) {
+        error_setg(errp, "incorrect option name length");
+        nbd_send_opt_abort(ioc);
+        return -1;
+    }
+    if (namelen != strlen(want)) {
+        if (drop_sync(ioc, len) != len) {
+            error_setg(errp, "failed to skip export name with wrong length");
+            nbd_send_opt_abort(ioc);
+            return -1;
+        }
+        return 1;
+    }
+
+    assert(namelen < sizeof(name));
+    if (read_sync(ioc, name, namelen) != namelen) {
+        error_setg(errp, "failed to read export name");
+        nbd_send_opt_abort(ioc);
+        return -1;
+    }
+    name[namelen] = '\0';
+    len -= namelen;
+    if (drop_sync(ioc, len) != len) {
+        error_setg(errp, "failed to read export description");
+        nbd_send_opt_abort(ioc);
+        return -1;
+    }
+    if (!strcmp(name, want)) {
+        *match = true;
+    }
     return 1;
 }
 
 
+/* Return -1 on failure, 0 if wantname is an available export. */
 static int nbd_receive_query_exports(QIOChannel *ioc,
                                      const char *wantname,
                                      Error **errp)
 {
     bool foundExport = false;
 
-    TRACE("Querying export list");
+    TRACE("Querying export list for '%s'", wantname);
     if (nbd_send_option_request(ioc, NBD_OPT_LIST, 0, NULL, errp) < 0) {
         return -1;
     }
 
     TRACE("Reading available export names");
     while (1) {
-        char *name = NULL;
-        int ret = nbd_receive_list(ioc, &name, errp);
+        int ret = nbd_receive_list(ioc, wantname, &foundExport, errp);
 
         if (ret < 0) {
-            g_free(name);
-            name = NULL;
+            /* Server gave unexpected reply */
             return -1;
+        } else if (ret == 0) {
+            /* Done iterating. */
+            if (!foundExport) {
+                error_setg(errp, "No export with name '%s' available",
+                           wantname);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            TRACE("Found desired export name '%s'", wantname);
+            return 0;
         }
-        if (ret == 0) {
-            /* Server doesn't support export listing, so
-             * we will just assume an export with our
-             * wanted name exists */
-            foundExport = true;
-            break;
-        }
-        if (name == NULL) {
-            TRACE("End of export name list");
-            break;
-        }
-        if (g_str_equal(name, wantname)) {
-            foundExport = true;
-            TRACE("Found desired export name '%s'", name);
-        } else {
-            TRACE("Ignored export name '%s'", name);
-        }
-        g_free(name);
     }
-
-    if (!foundExport) {
-        error_setg(errp, "No export with name '%s' available", wantname);
-        nbd_send_opt_abort(ioc);
-        return -1;
-    }
-
-    return 0;
 }
 
 static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
