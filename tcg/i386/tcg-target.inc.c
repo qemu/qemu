@@ -2143,6 +2143,40 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_extract_i64:
+        if (args[2] + args[3] == 32) {
+            /* This is a 32-bit zero-extending right shift.  */
+            tcg_out_mov(s, TCG_TYPE_I32, args[0], args[1]);
+            tcg_out_shifti(s, SHIFT_SHR, args[0], args[2]);
+            break;
+        }
+        /* FALLTHRU */
+    case INDEX_op_extract_i32:
+        /* On the off-chance that we can use the high-byte registers.
+           Otherwise we emit the same ext16 + shift pattern that we
+           would have gotten from the normal tcg-op.c expansion.  */
+        tcg_debug_assert(args[2] == 8 && args[3] == 8);
+        if (args[1] < 4 && args[0] < 8) {
+            tcg_out_modrm(s, OPC_MOVZBL, args[0], args[1] + 4);
+        } else {
+            tcg_out_ext16u(s, args[0], args[1]);
+            tcg_out_shifti(s, SHIFT_SHR, args[0], 8);
+        }
+        break;
+
+    case INDEX_op_sextract_i32:
+        /* We don't implement sextract_i64, as we cannot sign-extend to
+           64-bits without using the REX prefix that explicitly excludes
+           access to the high-byte registers.  */
+        tcg_debug_assert(args[2] == 8 && args[3] == 8);
+        if (args[1] < 4 && args[0] < 8) {
+            tcg_out_modrm(s, OPC_MOVSBL, args[0], args[1] + 4);
+        } else {
+            tcg_out_ext16s(s, args[0], args[1], 0);
+            tcg_out_shifti(s, SHIFT_SAR, args[0], 8);
+        }
+        break;
+
     case INDEX_op_mb:
         tcg_out_mb(s, args[0]);
         break;
@@ -2204,6 +2238,9 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_setcond_i32, { "q", "r", "ri" } },
 
     { INDEX_op_deposit_i32, { "Q", "0", "Q" } },
+    { INDEX_op_extract_i32, { "r", "r" } },
+    { INDEX_op_sextract_i32, { "r", "r" } },
+
     { INDEX_op_movcond_i32, { "r", "r", "ri", "r", "0" } },
 
     { INDEX_op_mulu2_i32, { "a", "d", "a", "r" } },
@@ -2265,6 +2302,7 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_extu_i32_i64, { "r", "r" } },
 
     { INDEX_op_deposit_i64, { "Q", "0", "Q" } },
+    { INDEX_op_extract_i64, { "r", "r" } },
     { INDEX_op_movcond_i64, { "r", "r", "re", "r", "0" } },
 
     { INDEX_op_mulu2_i64, { "a", "d", "a", "r" } },
