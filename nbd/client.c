@@ -40,6 +40,9 @@ static int nbd_errno_to_system_errno(int err)
     case NBD_ENOSPC:
         ret = ENOSPC;
         break;
+    case NBD_ESHUTDOWN:
+        ret = ESHUTDOWN;
+        break;
     default:
         TRACE("Squashing unexpected error %d to EINVAL", err);
         /* fallthrough */
@@ -239,8 +242,18 @@ static int nbd_handle_reply_err(QIOChannel *ioc, nbd_opt_reply *reply,
                    reply->option);
         break;
 
+    case NBD_REP_ERR_PLATFORM:
+        error_setg(errp, "Server lacks support for option %" PRIx32,
+                   reply->option);
+        break;
+
     case NBD_REP_ERR_TLS_REQD:
         error_setg(errp, "TLS negotiation required before option %" PRIx32,
+                   reply->option);
+        break;
+
+    case NBD_REP_ERR_SHUTDOWN:
+        error_setg(errp, "Server shutting down before option %" PRIx32,
                    reply->option);
         break;
 
@@ -785,6 +798,11 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
 
     reply->error = nbd_errno_to_system_errno(reply->error);
 
+    if (reply->error == ESHUTDOWN) {
+        /* This works even on mingw which lacks a native ESHUTDOWN */
+        LOG("server shutting down");
+        return -EINVAL;
+    }
     TRACE("Got reply: { magic = 0x%" PRIx32 ", .error = % " PRId32
           ", handle = %" PRIu64" }",
           magic, reply->error, reply->handle);

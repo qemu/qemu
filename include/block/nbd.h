@@ -83,12 +83,17 @@ typedef struct NBDReply NBDReply;
 #define NBD_FLAG_C_NO_ZEROES      (1 << 1) /* End handshake without zeroes. */
 
 /* Reply types. */
+#define NBD_REP_ERR(value) ((UINT32_C(1) << 31) | (value))
+
 #define NBD_REP_ACK             (1)             /* Data sending finished. */
 #define NBD_REP_SERVER          (2)             /* Export description. */
-#define NBD_REP_ERR_UNSUP       ((UINT32_C(1) << 31) | 1) /* Unknown option. */
-#define NBD_REP_ERR_POLICY      ((UINT32_C(1) << 31) | 2) /* Server denied */
-#define NBD_REP_ERR_INVALID     ((UINT32_C(1) << 31) | 3) /* Invalid length. */
-#define NBD_REP_ERR_TLS_REQD    ((UINT32_C(1) << 31) | 5) /* TLS required */
+
+#define NBD_REP_ERR_UNSUP       NBD_REP_ERR(1)  /* Unknown option */
+#define NBD_REP_ERR_POLICY      NBD_REP_ERR(2)  /* Server denied */
+#define NBD_REP_ERR_INVALID     NBD_REP_ERR(3)  /* Invalid length */
+#define NBD_REP_ERR_PLATFORM    NBD_REP_ERR(4)  /* Not compiled in */
+#define NBD_REP_ERR_TLS_REQD    NBD_REP_ERR(5)  /* TLS required */
+#define NBD_REP_ERR_SHUTDOWN    NBD_REP_ERR(7)  /* Server shutting down */
 
 /* Request flags, sent from client to server during transmission phase */
 #define NBD_CMD_FLAG_FUA        (1 << 0)

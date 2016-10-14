@@ -39,6 +39,8 @@ static int system_errno_to_nbd_errno(int err)
     case EFBIG:
     case ENOSPC:
         return NBD_ENOSPC;
+    case ESHUTDOWN:
+        return NBD_ESHUTDOWN;
     case EINVAL:
     default:
         return NBD_EINVAL;
@@ -527,6 +529,10 @@ static int nbd_negotiate_options(NBDClient *client)
                 if (ret < 0) {
                     return ret;
                 }
+                /* Let the client keep trying, unless they asked to quit */
+                if (clientflags == NBD_OPT_ABORT) {
+                    return -EINVAL;
+                }
                 break;
             }
         } else if (fixedNewstyle) {
@@ -539,6 +545,10 @@ static int nbd_negotiate_options(NBDClient *client)
                 break;
 
             case NBD_OPT_ABORT:
+                /* NBD spec says we must try to reply before
+                 * disconnecting, but that we must also tolerate
+                 * guests that don't wait for our reply. */
+                nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK, clientflags);
                 return -EINVAL;
 
             case NBD_OPT_EXPORT_NAME:

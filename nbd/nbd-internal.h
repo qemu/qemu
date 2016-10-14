@@ -92,6 +92,7 @@
 #define NBD_ENOMEM     12
 #define NBD_EINVAL     22
 #define NBD_ENOSPC     28
+#define NBD_ESHUTDOWN  108
 
 static inline ssize_t read_sync(QIOChannel *ioc, void *buffer, size_t size)
 {

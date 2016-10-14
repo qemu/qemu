@@ -128,6 +128,9 @@ extern int daemon(int, int);
 #if !defined(EMEDIUMTYPE)
 #define EMEDIUMTYPE 4098
 #endif
+#if !defined(ESHUTDOWN)
+#define ESHUTDOWN 4099
+#endif
 #ifndef TIME_MAX
 #define TIME_MAX LONG_MAX
 #endif
