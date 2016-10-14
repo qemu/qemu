@@ -2248,7 +2248,7 @@ static int x86_cpu_filter_features(X86CPU *cpu)
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         uint32_t host_feat =
-            x86_cpu_get_supported_feature_word(w, cpu->migratable);
+            x86_cpu_get_supported_feature_word(w, false);
         uint32_t requested_features = env->features[w];
         env->features[w] &= host_feat;
         cpu->filtered_features[w] = requested_features & ~env->features[w];
