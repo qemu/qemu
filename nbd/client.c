@@ -708,7 +708,7 @@ int nbd_disconnect(int fd)
 }
 #endif
 
-ssize_t nbd_send_request(QIOChannel *ioc, struct nbd_request *request)
+ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
     ssize_t ret;
@@ -738,7 +738,7 @@ ssize_t nbd_send_request(QIOChannel *ioc, struct nbd_request *request)
     return 0;
 }
 
-ssize_t nbd_receive_reply(QIOChannel *ioc, struct nbd_reply *reply)
+ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
 {
     uint8_t buf[NBD_REPLY_SIZE];
     uint32_t magic;

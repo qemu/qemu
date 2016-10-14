@@ -635,7 +635,7 @@ fail:
     return rc;
 }
 
-static ssize_t nbd_receive_request(QIOChannel *ioc, struct nbd_request *request)
+static ssize_t nbd_receive_request(QIOChannel *ioc, NBDRequest *request)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
     uint32_t magic;
@@ -678,7 +678,7 @@ static ssize_t nbd_receive_request(QIOChannel *ioc, struct nbd_request *request)
     return 0;
 }
 
-static ssize_t nbd_send_reply(QIOChannel *ioc, struct nbd_reply *reply)
+static ssize_t nbd_send_reply(QIOChannel *ioc, NBDReply *reply)
 {
     uint8_t buf[NBD_REPLY_SIZE];
     ssize_t ret;
@@ -976,7 +976,7 @@ void nbd_export_close_all(void)
     }
 }
 
-static ssize_t nbd_co_send_reply(NBDRequestData *req, struct nbd_reply *reply,
+static ssize_t nbd_co_send_reply(NBDRequestData *req, NBDReply *reply,
                                  int len)
 {
     NBDClient *client = req->client;
@@ -1013,7 +1013,7 @@ static ssize_t nbd_co_send_reply(NBDRequestData *req, struct nbd_reply *reply,
  * (although the caller may still need to disconnect after reporting
  * the error).  */
 static ssize_t nbd_co_receive_request(NBDRequestData *req,
-                                      struct nbd_request *request)
+                                      NBDRequest *request)
 {
     NBDClient *client = req->client;
     ssize_t rc;
@@ -1107,8 +1107,8 @@ static void nbd_trip(void *opaque)
     NBDClient *client = opaque;
     NBDExport *exp = client->exp;
     NBDRequestData *req;
-    struct nbd_request request;
-    struct nbd_reply reply;
+    NBDRequest request;
+    NBDReply reply;
     ssize_t ret;
     int flags;
 

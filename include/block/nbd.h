@@ -29,18 +29,20 @@
 /* Note: these are _NOT_ the same as the network representation of an NBD
  * request and reply!
  */
-struct nbd_request {
+struct NBDRequest {
     uint64_t handle;
     uint64_t from;
     uint32_t len;
     uint16_t flags;
     uint16_t type;
 };
+typedef struct NBDRequest NBDRequest;
 
-struct nbd_reply {
+struct NBDReply {
     uint64_t handle;
     uint32_t error;
 };
+typedef struct NBDReply NBDReply;
 
 /* Transmission (export) flags: sent from server to client during handshake,
    but describe what will happen during transmission */
@@ -101,8 +103,8 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                           QIOChannel **outioc,
                           off_t *size, Error **errp);
 int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size);
-ssize_t nbd_send_request(QIOChannel *ioc, struct nbd_request *request);
-ssize_t nbd_receive_reply(QIOChannel *ioc, struct nbd_reply *reply);
+ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request);
+ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply);
 int nbd_client(int fd);
 int nbd_disconnect(int fd);
 

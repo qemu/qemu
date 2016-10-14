@@ -29,7 +29,7 @@ typedef struct NBDClientSession {
     int in_flight;
 
     Coroutine *recv_coroutine[MAX_NBD_REQUESTS];
-    struct nbd_reply reply;
+    NBDReply reply;
 
     bool is_unix;
 } NBDClientSession;
