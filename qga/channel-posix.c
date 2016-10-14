@@ -61,7 +61,6 @@ static void ga_channel_listen_add(GAChannel *c, int listen_fd, bool create)
 
 static void ga_channel_listen_close(GAChannel *c)
 {
-    g_assert(c->method == GA_CHANNEL_UNIX_LISTEN);
     g_assert(c->listen_channel);
     g_io_channel_shutdown(c->listen_channel, true, NULL);
     g_io_channel_unref(c->listen_channel);
@@ -77,7 +76,7 @@ static void ga_channel_client_close(GAChannel *c)
     g_io_channel_shutdown(c->client_channel, true, NULL);
     g_io_channel_unref(c->client_channel);
     c->client_channel = NULL;
-    if (c->method == GA_CHANNEL_UNIX_LISTEN && c->listen_channel) {
+    if (c->listen_channel) {
         ga_channel_listen_add(c, 0, false);
     }
 }
@@ -255,8 +254,7 @@ GAChannel *ga_channel_new(GAChannelMethod method, const gchar *path,
 
 void ga_channel_free(GAChannel *c)
 {
-    if (c->method == GA_CHANNEL_UNIX_LISTEN
-        && c->listen_channel) {
+    if (c->listen_channel) {
         ga_channel_listen_close(c);
     }
     if (c->client_channel) {
