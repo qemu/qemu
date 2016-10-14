@@ -47,10 +47,10 @@ static int system_errno_to_nbd_errno(int err)
 
 /* Definitions for opaque data types */
 
-typedef struct NBDRequest NBDRequest;
+typedef struct NBDRequestData NBDRequestData;
 
-struct NBDRequest {
-    QSIMPLEQ_ENTRY(NBDRequest) entry;
+struct NBDRequestData {
+    QSIMPLEQ_ENTRY(NBDRequestData) entry;
     NBDClient *client;
     uint8_t *data;
     bool complete;
@@ -760,21 +760,21 @@ static void client_close(NBDClient *client)
     }
 }
 
-static NBDRequest *nbd_request_get(NBDClient *client)
+static NBDRequestData *nbd_request_get(NBDClient *client)
 {
-    NBDRequest *req;
+    NBDRequestData *req;
 
     assert(client->nb_requests <= MAX_NBD_REQUESTS - 1);
     client->nb_requests++;
     nbd_update_can_read(client);
 
-    req = g_new0(NBDRequest, 1);
+    req = g_new0(NBDRequestData, 1);
     nbd_client_get(client);
     req->client = client;
     return req;
 }
 
-static void nbd_request_put(NBDRequest *req)
+static void nbd_request_put(NBDRequestData *req)
 {
     NBDClient *client = req->client;
 
@@ -976,7 +976,7 @@ void nbd_export_close_all(void)
     }
 }
 
-static ssize_t nbd_co_send_reply(NBDRequest *req, struct nbd_reply *reply,
+static ssize_t nbd_co_send_reply(NBDRequestData *req, struct nbd_reply *reply,
                                  int len)
 {
     NBDClient *client = req->client;
@@ -1012,7 +1012,7 @@ static ssize_t nbd_co_send_reply(NBDRequest *req, struct nbd_reply *reply,
  * and any other negative value to report an error to the client
  * (although the caller may still need to disconnect after reporting
  * the error).  */
-static ssize_t nbd_co_receive_request(NBDRequest *req,
+static ssize_t nbd_co_receive_request(NBDRequestData *req,
                                       struct nbd_request *request)
 {
     NBDClient *client = req->client;
@@ -1106,7 +1106,7 @@ static void nbd_trip(void *opaque)
 {
     NBDClient *client = opaque;
     NBDExport *exp = client->exp;
-    NBDRequest *req;
+    NBDRequestData *req;
     struct nbd_request request;
     struct nbd_reply reply;
     ssize_t ret;
