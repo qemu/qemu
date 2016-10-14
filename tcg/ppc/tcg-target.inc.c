@@ -2396,6 +2396,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
 
+    case INDEX_op_extract_i32:
+        tcg_out_rlw(s, RLWINM, args[0], args[1],
+                    32 - args[2], 32 - args[3], 31);
+        break;
+    case INDEX_op_extract_i64:
+        tcg_out_rld(s, RLDICL, args[0], args[1], 64 - args[2], 64 - args[3]);
+        break;
+
     case INDEX_op_movcond_i32:
         tcg_out_movcond(s, TCG_TYPE_I32, args[5], args[0], args[1], args[2],
                         args[3], args[4], const_args[2]);
@@ -2530,6 +2538,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_movcond_i32, { "r", "r", "ri", "rZ", "rZ" } },
 
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
+    { INDEX_op_extract_i32, { "r", "r" } },
 
     { INDEX_op_muluh_i32, { "r", "r", "r" } },
     { INDEX_op_mulsh_i32, { "r", "r", "r" } },
@@ -2585,6 +2594,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_movcond_i64, { "r", "r", "ri", "rZ", "rZ" } },
 
     { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
+    { INDEX_op_extract_i64, { "r", "r" } },
 
     { INDEX_op_mulsh_i64, { "r", "r", "r" } },
     { INDEX_op_muluh_i64, { "r", "r", "r" } },
