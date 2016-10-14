@@ -75,6 +75,32 @@ static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
 
 */
 
+/* Discard length bytes from channel.  Return -errno on failure, or
+ * the amount of bytes consumed. */
+static ssize_t drop_sync(QIOChannel *ioc, size_t size)
+{
+    ssize_t ret, dropped = size;
+    char small[1024];
+    char *buffer;
+
+    buffer = sizeof(small) < size ? small : g_malloc(MIN(65536, size));
+    while (size > 0) {
+        ret = read_sync(ioc, buffer, MIN(65536, size));
+        if (ret < 0) {
+            goto cleanup;
+        }
+        assert(ret <= size);
+        size -= ret;
+    }
+    ret = dropped;
+
+ cleanup:
+    if (buffer != small) {
+        g_free(buffer);
+    }
+    return ret;
+}
+
 /* Send an option request.
  *
  * The request is for option @opt, with @data containing @len bytes of
@@ -285,19 +311,12 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, Error **errp)
         }
         (*name)[namelen] = '\0';
         len -= namelen;
-        if (len) {
-            char *buf = g_malloc(len + 1);
-            if (read_sync(ioc, buf, len) != len) {
-                error_setg(errp, "failed to read export description");
-                g_free(*name);
-                g_free(buf);
-                *name = NULL;
-                nbd_send_opt_abort(ioc);
-                return -1;
-            }
-            buf[len] = '\0';
-            TRACE("Ignoring export description: %s", buf);
-            g_free(buf);
+        if (drop_sync(ioc, len) != len) {
+            error_setg(errp, "failed to read export description");
+            g_free(*name);
+            *name = NULL;
+            nbd_send_opt_abort(ioc);
+            return -1;
         }
     } else {
         error_setg(errp, "Unexpected reply type %" PRIx32 " expected %x",
@@ -577,7 +596,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
     }
 
     TRACE("Size is %" PRIu64 ", export flags %" PRIx16, *size, *flags);
-    if (read_sync(ioc, &buf, 124) != 124) {
+    if (drop_sync(ioc, 124) != 124) {
         error_setg(errp, "Failed to read reserved block");
         goto fail;
     }
