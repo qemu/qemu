@@ -2498,8 +2498,8 @@ sub process {
 				VMStateDescription|
 				VMStateInfo}x;
 		if ($line !~ /\bconst\b/ &&
-		    $line =~ /\b($struct_ops)\b/) {
-			ERROR("struct $1 should normally be const\n" .
+		    $line =~ /\b($struct_ops)\b.*=/) {
+			ERROR("initializer for struct $1 should normally be const\n" .
 				$herecurr);
 		}
 
