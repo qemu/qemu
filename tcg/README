@@ -314,10 +314,26 @@ The bitfield is described by POS/LEN, which are immediate values:
   LEN - the length of the bitfield
   POS - the position of the first bit, counting from the LSB
 
-For example, pos=8, len=4 indicates a 4-bit field at bit 8.
-This operation would be equivalent to
+For example, "deposit_i32 dest, t1, t2, 8, 4" indicates a 4-bit field
+at bit 8.  This operation would be equivalent to
 
   dest = (t1 & ~0x0f00) | ((t2 << 8) & 0x0f00)
+
+* extract_i32/i64 dest, t1, pos, len
+* sextract_i32/i64 dest, t1, pos, len
+
+Extract a bitfield from T1, placing the result in DEST.
+The bitfield is described by POS/LEN, which are immediate values,
+as above for deposit.  For extract_*, the result will be extended
+to the left with zeros; for sextract_*, the result will be extended
+to the left with copies of the bitfield sign bit at pos + len - 1.
+
+For example, "sextract_i32 dest, t1, 8, 4" indicates a 4-bit field
+at bit 8.  This operation would be equivalent to
+
+  dest = (t1 << 20) >> 28
+
+(using an arithmetic right shift).
 
 * extrl_i64_i32 t0, t1
 
