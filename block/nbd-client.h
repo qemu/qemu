@@ -17,7 +17,7 @@
 
 #define MAX_NBD_REQUESTS    16
 
-typedef struct NbdClientSession {
+typedef struct NBDClientSession {
     QIOChannelSocket *sioc; /* The master data channel */
     QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
     uint16_t nbdflags;
@@ -32,9 +32,9 @@ typedef struct NbdClientSession {
     struct nbd_reply reply;
 
     bool is_unix;
-} NbdClientSession;
+} NBDClientSession;
 
-NbdClientSession *nbd_get_client_session(BlockDriverState *bs);
+NBDClientSession *nbd_get_client_session(BlockDriverState *bs);
 
 int nbd_client_init(BlockDriverState *bs,
                     QIOChannelSocket *sock,

@@ -33,7 +33,7 @@
 #define HANDLE_TO_INDEX(bs, handle) ((handle) ^ ((uint64_t)(intptr_t)bs))
 #define INDEX_TO_HANDLE(bs, index)  ((index)  ^ ((uint64_t)(intptr_t)bs))
 
-static void nbd_recv_coroutines_enter_all(NbdClientSession *s)
+static void nbd_recv_coroutines_enter_all(NBDClientSession *s)
 {
     int i;
 
@@ -46,7 +46,7 @@ static void nbd_recv_coroutines_enter_all(NbdClientSession *s)
 
 static void nbd_teardown_connection(BlockDriverState *bs)
 {
-    NbdClientSession *client = nbd_get_client_session(bs);
+    NBDClientSession *client = nbd_get_client_session(bs);
 
     if (!client->ioc) { /* Already closed */
         return;
@@ -68,7 +68,7 @@ static void nbd_teardown_connection(BlockDriverState *bs)
 static void nbd_reply_ready(void *opaque)
 {
     BlockDriverState *bs = opaque;
-    NbdClientSession *s = nbd_get_client_session(bs);
+    NBDClientSession *s = nbd_get_client_session(bs);
     uint64_t i;
     int ret;
 
@@ -119,7 +119,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
                                struct nbd_request *request,
                                QEMUIOVector *qiov)
 {
-    NbdClientSession *s = nbd_get_client_session(bs);
+    NBDClientSession *s = nbd_get_client_session(bs);
     AioContext *aio_context;
     int rc, ret, i;
 
@@ -167,7 +167,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
     return rc;
 }
 
-static void nbd_co_receive_reply(NbdClientSession *s,
+static void nbd_co_receive_reply(NBDClientSession *s,
                                  struct nbd_request *request,
                                  struct nbd_reply *reply,
                                  QEMUIOVector *qiov)
@@ -195,7 +195,7 @@ static void nbd_co_receive_reply(NbdClientSession *s,
     }
 }
 
-static void nbd_coroutine_start(NbdClientSession *s,
+static void nbd_coroutine_start(NBDClientSession *s,
    struct nbd_request *request)
 {
     /* Poor man semaphore.  The free_sema is locked when no other request
@@ -209,7 +209,7 @@ static void nbd_coroutine_start(NbdClientSession *s,
     /* s->recv_coroutine[i] is set as soon as we get the send_lock.  */
 }
 
-static void nbd_coroutine_end(NbdClientSession *s,
+static void nbd_coroutine_end(NBDClientSession *s,
     struct nbd_request *request)
 {
     int i = HANDLE_TO_INDEX(s, request->handle);
@@ -222,7 +222,7 @@ static void nbd_coroutine_end(NbdClientSession *s,
 int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
                          uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
-    NbdClientSession *client = nbd_get_client_session(bs);
+    NBDClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = {
         .type = NBD_CMD_READ,
         .from = offset,
@@ -248,7 +248,7 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
 int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
                           uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
-    NbdClientSession *client = nbd_get_client_session(bs);
+    NBDClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = {
         .type = NBD_CMD_WRITE,
         .from = offset,
@@ -277,7 +277,7 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
 
 int nbd_client_co_flush(BlockDriverState *bs)
 {
-    NbdClientSession *client = nbd_get_client_session(bs);
+    NBDClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = { .type = NBD_CMD_FLUSH };
     struct nbd_reply reply;
     ssize_t ret;
@@ -302,7 +302,7 @@ int nbd_client_co_flush(BlockDriverState *bs)
 
 int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
 {
-    NbdClientSession *client = nbd_get_client_session(bs);
+    NBDClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = {
         .type = NBD_CMD_TRIM,
         .from = offset,
@@ -343,7 +343,7 @@ void nbd_client_attach_aio_context(BlockDriverState *bs,
 
 void nbd_client_close(BlockDriverState *bs)
 {
-    NbdClientSession *client = nbd_get_client_session(bs);
+    NBDClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = { .type = NBD_CMD_DISC };
 
     if (client->ioc == NULL) {
@@ -362,7 +362,7 @@ int nbd_client_init(BlockDriverState *bs,
                     const char *hostname,
                     Error **errp)
 {
-    NbdClientSession *client = nbd_get_client_session(bs);
+    NBDClientSession *client = nbd_get_client_session(bs);
     int ret;
 
     /* NBD handshake */
