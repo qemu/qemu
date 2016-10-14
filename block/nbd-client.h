@@ -48,6 +48,8 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int count);
 int nbd_client_co_flush(BlockDriverState *bs);
 int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
                           uint64_t bytes, QEMUIOVector *qiov, int flags);
+int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+                                int count, BdrvRequestFlags flags);
 int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
                          uint64_t bytes, QEMUIOVector *qiov, int flags);
 
