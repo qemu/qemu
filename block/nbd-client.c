@@ -1,6 +1,7 @@
 /*
  * QEMU Block driver for  NBD
  *
+ * Copyright (C) 2016 Red Hat, Inc.
  * Copyright (C) 2008 Bull S.A.S.
  *     Author: Laurent Vivier <Laurent.Vivier@bull.net>
  *
@@ -258,7 +259,7 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
 
     if (flags & BDRV_REQ_FUA) {
         assert(client->nbdflags & NBD_FLAG_SEND_FUA);
-        request.type |= NBD_CMD_FLAG_FUA;
+        request.flags |= NBD_CMD_FLAG_FUA;
     }
 
     assert(bytes <= NBD_MAX_BUFFER_SIZE);
@@ -343,11 +344,7 @@ void nbd_client_attach_aio_context(BlockDriverState *bs,
 void nbd_client_close(BlockDriverState *bs)
 {
     NbdClientSession *client = nbd_get_client_session(bs);
-    struct nbd_request request = {
-        .type = NBD_CMD_DISC,
-        .from = 0,
-        .len = 0
-    };
+    struct nbd_request request = { .type = NBD_CMD_DISC };
 
     if (client->ioc == NULL) {
         return;

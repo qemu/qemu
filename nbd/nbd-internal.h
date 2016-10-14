@@ -53,10 +53,10 @@
 /* This is all part of the "official" NBD API.
  *
  * The most up-to-date documentation is available at:
- * https://github.com/yoe/nbd/blob/master/doc/proto.txt
+ * https://github.com/yoe/nbd/blob/master/doc/proto.md
  */
 
-#define NBD_REQUEST_SIZE        (4 + 4 + 8 + 8 + 4)
+#define NBD_REQUEST_SIZE        (4 + 2 + 2 + 8 + 8 + 4)
 #define NBD_REPLY_SIZE          (4 + 4 + 8)
 #define NBD_REQUEST_MAGIC       0x25609513
 #define NBD_REPLY_MAGIC         0x67446698

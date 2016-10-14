@@ -1,4 +1,5 @@
 /*
+ *  Copyright (C) 2016 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Server Side
@@ -652,21 +653,23 @@ static ssize_t nbd_receive_request(QIOChannel *ioc, struct nbd_request *request)
 
     /* Request
        [ 0 ..  3]   magic   (NBD_REQUEST_MAGIC)
-       [ 4 ..  7]   type    (0 == READ, 1 == WRITE)
+       [ 4 ..  5]   flags   (NBD_CMD_FLAG_FUA, ...)
+       [ 6 ..  7]   type    (NBD_CMD_READ, ...)
        [ 8 .. 15]   handle
        [16 .. 23]   from
        [24 .. 27]   len
      */
 
     magic = ldl_be_p(buf);
-    request->type   = ldl_be_p(buf + 4);
+    request->flags  = lduw_be_p(buf + 4);
+    request->type   = lduw_be_p(buf + 6);
     request->handle = ldq_be_p(buf + 8);
     request->from   = ldq_be_p(buf + 16);
     request->len    = ldl_be_p(buf + 24);
 
-    TRACE("Got request: { magic = 0x%" PRIx32 ", .type = %" PRIx32
-          ", from = %" PRIu64 " , len = %" PRIu32 " }",
-          magic, request->type, request->from, request->len);
+    TRACE("Got request: { magic = 0x%" PRIx32 ", .flags = %" PRIx16
+          ", .type = %" PRIx16 ", from = %" PRIu64 ", len = %" PRIu32 " }",
+          magic, request->flags, request->type, request->from, request->len);
 
     if (magic != NBD_REQUEST_MAGIC) {
         LOG("invalid magic (got 0x%" PRIx32 ")", magic);
@@ -1013,7 +1016,6 @@ static ssize_t nbd_co_receive_request(NBDRequest *req,
                                       struct nbd_request *request)
 {
     NBDClient *client = req->client;
-    uint32_t command;
     ssize_t rc;
 
     g_assert(qemu_in_coroutine());
@@ -1030,13 +1032,12 @@ static ssize_t nbd_co_receive_request(NBDRequest *req,
 
     TRACE("Decoding type");
 
-    command = request->type & NBD_CMD_MASK_COMMAND;
-    if (command != NBD_CMD_WRITE) {
+    if (request->type != NBD_CMD_WRITE) {
         /* No payload, we are ready to read the next request.  */
         req->complete = true;
     }
 
-    if (command == NBD_CMD_DISC) {
+    if (request->type == NBD_CMD_DISC) {
         /* Special case: we're going to disconnect without a reply,
          * whether or not flags, from, or len are bogus */
         TRACE("Request type is DISCONNECT");
@@ -1053,7 +1054,7 @@ static ssize_t nbd_co_receive_request(NBDRequest *req,
         goto out;
     }
 
-    if (command == NBD_CMD_READ || command == NBD_CMD_WRITE) {
+    if (request->type == NBD_CMD_READ || request->type == NBD_CMD_WRITE) {
         if (request->len > NBD_MAX_BUFFER_SIZE) {
             LOG("len (%" PRIu32" ) is larger than max len (%u)",
                 request->len, NBD_MAX_BUFFER_SIZE);
@@ -1067,7 +1068,7 @@ static ssize_t nbd_co_receive_request(NBDRequest *req,
             goto out;
         }
     }
-    if (command == NBD_CMD_WRITE) {
+    if (request->type == NBD_CMD_WRITE) {
         TRACE("Reading %" PRIu32 " byte(s)", request->len);
 
         if (read_sync(client->ioc, req->data, request->len) != request->len) {
@@ -1083,12 +1084,11 @@ static ssize_t nbd_co_receive_request(NBDRequest *req,
         LOG("operation past EOF; From: %" PRIu64 ", Len: %" PRIu32
             ", Size: %" PRIu64, request->from, request->len,
             (uint64_t)client->exp->size);
-        rc = command == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
+        rc = request->type == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
         goto out;
     }
-    if (request->type & ~NBD_CMD_MASK_COMMAND & ~NBD_CMD_FLAG_FUA) {
-        LOG("unsupported flags (got 0x%x)",
-            request->type & ~NBD_CMD_MASK_COMMAND);
+    if (request->flags & ~NBD_CMD_FLAG_FUA) {
+        LOG("unsupported flags (got 0x%x)", request->flags);
         rc = -EINVAL;
         goto out;
     }
@@ -1110,7 +1110,6 @@ static void nbd_trip(void *opaque)
     struct nbd_request request;
     struct nbd_reply reply;
     ssize_t ret;
-    uint32_t command;
     int flags;
 
     TRACE("Reading request.");
@@ -1134,7 +1133,6 @@ static void nbd_trip(void *opaque)
         reply.error = -ret;
         goto error_reply;
     }
-    command = request.type & NBD_CMD_MASK_COMMAND;
 
     if (client->closing) {
         /*
@@ -1144,11 +1142,12 @@ static void nbd_trip(void *opaque)
         goto done;
     }
 
-    switch (command) {
+    switch (request.type) {
     case NBD_CMD_READ:
         TRACE("Request type is READ");
 
-        if (request.type & NBD_CMD_FLAG_FUA) {
+        /* XXX: NBD Protocol only documents use of FUA with WRITE */
+        if (request.flags & NBD_CMD_FLAG_FUA) {
             ret = blk_co_flush(exp->blk);
             if (ret < 0) {
                 LOG("flush failed");
@@ -1181,7 +1180,7 @@ static void nbd_trip(void *opaque)
         TRACE("Writing to device");
 
         flags = 0;
-        if (request.type & NBD_CMD_FLAG_FUA) {
+        if (request.flags & NBD_CMD_FLAG_FUA) {
             flags |= BDRV_REQ_FUA;
         }
         ret = blk_pwrite(exp->blk, request.from + exp->dev_offset,

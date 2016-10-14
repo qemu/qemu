@@ -1,4 +1,5 @@
 /*
+ *  Copyright (C) 2016 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -32,7 +33,8 @@ struct nbd_request {
     uint64_t handle;
     uint64_t from;
     uint32_t len;
-    uint32_t type;
+    uint16_t flags;
+    uint16_t type;
 };
 
 struct nbd_reply {
@@ -40,6 +42,8 @@ struct nbd_reply {
     uint32_t error;
 };
 
+/* Transmission (export) flags: sent from server to client during handshake,
+   but describe what will happen during transmission */
 #define NBD_FLAG_HAS_FLAGS      (1 << 0)        /* Flags are there */
 #define NBD_FLAG_READ_ONLY      (1 << 1)        /* Device is read-only */
 #define NBD_FLAG_SEND_FLUSH     (1 << 2)        /* Send FLUSH */
@@ -47,10 +51,12 @@ struct nbd_reply {
 #define NBD_FLAG_ROTATIONAL     (1 << 4)        /* Use elevator algorithm - rotational media */
 #define NBD_FLAG_SEND_TRIM      (1 << 5)        /* Send TRIM (discard) */
 
-/* New-style global flags. */
+/* New-style handshake (global) flags, sent from server to client, and
+   control what will happen during handshake phase. */
 #define NBD_FLAG_FIXED_NEWSTYLE     (1 << 0)    /* Fixed newstyle protocol. */
 
-/* New-style client flags. */
+/* New-style client flags, sent from client to server to control what happens
+   during handshake phase. */
 #define NBD_FLAG_C_FIXED_NEWSTYLE   (1 << 0)    /* Fixed newstyle protocol. */
 
 /* Reply types. */
@@ -61,10 +67,10 @@ struct nbd_reply {
 #define NBD_REP_ERR_INVALID     ((UINT32_C(1) << 31) | 3) /* Invalid length. */
 #define NBD_REP_ERR_TLS_REQD    ((UINT32_C(1) << 31) | 5) /* TLS required */
 
+/* Request flags, sent from client to server during transmission phase */
+#define NBD_CMD_FLAG_FUA        (1 << 0)
 
-#define NBD_CMD_MASK_COMMAND	0x0000ffff
-#define NBD_CMD_FLAG_FUA	(1 << 16)
-
+/* Supported request types */
 enum {
     NBD_CMD_READ = 0,
     NBD_CMD_WRITE = 1,
