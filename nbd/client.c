@@ -23,23 +23,31 @@
 
 static int nbd_errno_to_system_errno(int err)
 {
+    int ret;
     switch (err) {
     case NBD_SUCCESS:
-        return 0;
+        ret = 0;
+        break;
     case NBD_EPERM:
-        return EPERM;
+        ret = EPERM;
+        break;
     case NBD_EIO:
-        return EIO;
+        ret = EIO;
+        break;
     case NBD_ENOMEM:
-        return ENOMEM;
+        ret = ENOMEM;
+        break;
     case NBD_ENOSPC:
-        return ENOSPC;
+        ret = ENOSPC;
+        break;
     default:
         TRACE("Squashing unexpected error %d to EINVAL", err);
         /* fallthrough */
     case NBD_EINVAL:
-        return EINVAL;
+        ret = EINVAL;
+        break;
     }
+    return ret;
 }
 
 /* Definitions for opaque data types */
