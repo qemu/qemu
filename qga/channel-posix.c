@@ -193,6 +193,31 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path, GAChannelMethod
         ga_channel_listen_add(c, fd, true);
         break;
     }
+    case GA_CHANNEL_VSOCK_LISTEN: {
+        Error *local_err = NULL;
+        SocketAddress *addr;
+        char *addr_str;
+        int fd;
+
+        addr_str = g_strdup_printf("vsock:%s", path);
+        addr = socket_parse(addr_str, &local_err);
+        g_free(addr_str);
+        if (local_err != NULL) {
+            g_critical("%s", error_get_pretty(local_err));
+            error_free(local_err);
+            return false;
+        }
+
+        fd = socket_listen(addr, &local_err);
+        qapi_free_SocketAddress(addr);
+        if (local_err != NULL) {
+            g_critical("%s", error_get_pretty(local_err));
+            error_free(local_err);
+            return false;
+        }
+        ga_channel_listen_add(c, fd, true);
+        break;
+    }
     default:
         g_critical("error binding/listening to specified socket");
         return false;
