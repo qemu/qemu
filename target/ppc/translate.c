@@ -1975,16 +1975,16 @@ static void gen_rlwinm(DisasContext *ctx)
 {
     TCGv t_ra = cpu_gpr[rA(ctx->opcode)];
     TCGv t_rs = cpu_gpr[rS(ctx->opcode)];
-    uint32_t sh = SH(ctx->opcode);
-    uint32_t mb = MB(ctx->opcode);
-    uint32_t me = ME(ctx->opcode);
+    int sh = SH(ctx->opcode);
+    int mb = MB(ctx->opcode);
+    int me = ME(ctx->opcode);
+    int len = me - mb + 1;
+    int rsh = (32 - sh) & 31;
 
-    if (mb == 0 && me == (31 - sh)) {
-        tcg_gen_shli_tl(t_ra, t_rs, sh);
-        tcg_gen_ext32u_tl(t_ra, t_ra);
-    } else if (sh != 0 && me == 31 && sh == (32 - mb)) {
-        tcg_gen_ext32u_tl(t_ra, t_rs);
-        tcg_gen_shri_tl(t_ra, t_ra, mb);
+    if (sh != 0 && len > 0 && me == (31 - sh)) {
+        tcg_gen_deposit_z_tl(t_ra, t_rs, sh, len);
+    } else if (me == 31 && rsh + len <= 32) {
+        tcg_gen_extract_tl(t_ra, t_rs, rsh, len);
     } else {
         target_ulong mask;
 #if defined(TARGET_PPC64)
@@ -1992,8 +1992,9 @@ static void gen_rlwinm(DisasContext *ctx)
         me += 32;
 #endif
         mask = MASK(mb, me);
-
-        if (mask <= 0xffffffffu) {
+        if (sh == 0) {
+            tcg_gen_andi_tl(t_ra, t_rs, mask);
+        } else if (mask <= 0xffffffffu) {
             TCGv_i32 t0 = tcg_temp_new_i32();
             tcg_gen_trunc_tl_i32(t0, t_rs);
             tcg_gen_rotli_i32(t0, t0, sh);
@@ -2096,11 +2097,13 @@ static void gen_rldinm(DisasContext *ctx, int mb, int me, int sh)
 {
     TCGv t_ra = cpu_gpr[rA(ctx->opcode)];
     TCGv t_rs = cpu_gpr[rS(ctx->opcode)];
+    int len = me - mb + 1;
+    int rsh = (64 - sh) & 63;
 
-    if (sh != 0 && mb == 0 && me == (63 - sh)) {
-        tcg_gen_shli_tl(t_ra, t_rs, sh);
-    } else if (sh != 0 && me == 63 && sh == (64 - mb)) {
-        tcg_gen_shri_tl(t_ra, t_rs, mb);
+    if (sh != 0 && len > 0 && me == (63 - sh)) {
+        tcg_gen_deposit_z_tl(t_ra, t_rs, sh, len);
+    } else if (me == 63 && rsh + len <= 64) {
+        tcg_gen_extract_tl(t_ra, t_rs, rsh, len);
     } else {
         tcg_gen_rotli_tl(t_ra, t_rs, sh);
         tcg_gen_andi_tl(t_ra, t_ra, MASK(mb, me));
