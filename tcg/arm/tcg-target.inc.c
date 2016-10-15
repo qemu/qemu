@@ -25,36 +25,7 @@
 #include "elf.h"
 #include "tcg-be-ldst.h"
 
-/* The __ARM_ARCH define is provided by gcc 4.8.  Construct it otherwise.  */
-#ifndef __ARM_ARCH
-# if defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) \
-     || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) \
-     || defined(__ARM_ARCH_7EM__)
-#  define __ARM_ARCH 7
-# elif defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) \
-       || defined(__ARM_ARCH_6Z__) || defined(__ARM_ARCH_6ZK__) \
-       || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6T2__)
-#  define __ARM_ARCH 6
-# elif defined(__ARM_ARCH_5__) || defined(__ARM_ARCH_5E__) \
-       || defined(__ARM_ARCH_5T__) || defined(__ARM_ARCH_5TE__) \
-       || defined(__ARM_ARCH_5TEJ__)
-#  define __ARM_ARCH 5
-# else
-#  define __ARM_ARCH 4
-# endif
-#endif
-
-static int arm_arch = __ARM_ARCH;
-
-#if defined(__ARM_ARCH_5T__) \
-    || defined(__ARM_ARCH_5TE__) || defined(__ARM_ARCH_5TEJ__)
-# define use_armv5t_instructions 1
-#else
-# define use_armv5t_instructions use_armv6_instructions
-#endif
-
-#define use_armv6_instructions  (__ARM_ARCH >= 6 || arm_arch >= 6)
-#define use_armv7_instructions  (__ARM_ARCH >= 7 || arm_arch >= 7)
+int arm_arch = __ARM_ARCH;
 
 #ifndef use_idiv_instructions
 bool use_idiv_instructions;
@@ -728,16 +699,6 @@ static inline void tcg_out_bswap32(TCGContext *s, int cond, int rd, int rn)
         tcg_out_dat_reg(s, cond, ARITH_EOR,
                         rd, rd, TCG_REG_TMP, SHIFT_IMM_LSR(8));
     }
-}
-
-bool tcg_target_deposit_valid(int ofs, int len)
-{
-    /* ??? Without bfi, we could improve over generic code by combining
-       the right-shift from a non-zero ofs with the orr.  We do run into
-       problems when rd == rs, and the mask generated from ofs+len doesn't
-       fit into an immediate.  We would have to be careful not to pessimize
-       wrt the optimizations performed on the expanded code.  */
-    return use_armv7_instructions;
 }
 
 static inline void tcg_out_deposit(TCGContext *s, int cond, TCGReg rd,
