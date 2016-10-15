@@ -3216,67 +3216,44 @@ static void disas_bitfield(DisasContext *s, uint32_t insn)
        low 32-bits anyway.  */
     tcg_tmp = read_cpu_reg(s, rn, 1);
 
-    /* Recognize the common aliases.  */
-    if (opc == 0) { /* SBFM */
-        if (ri == 0) {
-            if (si == 7) { /* SXTB */
-                tcg_gen_ext8s_i64(tcg_rd, tcg_tmp);
-                goto done;
-            } else if (si == 15) { /* SXTH */
-                tcg_gen_ext16s_i64(tcg_rd, tcg_tmp);
-                goto done;
-            } else if (si == 31) { /* SXTW */
-                tcg_gen_ext32s_i64(tcg_rd, tcg_tmp);
-                goto done;
-            }
-        }
-        if (si == 63 || (si == 31 && ri <= si)) { /* ASR */
-            if (si == 31) {
-                tcg_gen_ext32s_i64(tcg_tmp, tcg_tmp);
-            }
-            tcg_gen_sari_i64(tcg_rd, tcg_tmp, ri);
-            goto done;
-        }
-    } else if (opc == 2) { /* UBFM */
-        if (ri == 0) { /* UXTB, UXTH, plus non-canonical AND */
-            tcg_gen_andi_i64(tcg_rd, tcg_tmp, bitmask64(si + 1));
-            return;
-        }
-        if (si == 63 || (si == 31 && ri <= si)) { /* LSR */
-            if (si == 31) {
-                tcg_gen_ext32u_i64(tcg_tmp, tcg_tmp);
-            }
-            tcg_gen_shri_i64(tcg_rd, tcg_tmp, ri);
-            return;
-        }
-        if (si + 1 == ri && si != bitsize - 1) { /* LSL */
-            int shift = bitsize - 1 - si;
-            tcg_gen_shli_i64(tcg_rd, tcg_tmp, shift);
-            goto done;
-        }
-    }
-
-    if (opc != 1) { /* SBFM or UBFM */
-        tcg_gen_movi_i64(tcg_rd, 0);
-    }
-
-    /* do the bit move operation */
-    if (si >= ri) {
+    /* Recognize simple(r) extractions.  */
+    if (si <= ri) {
         /* Wd<s-r:0> = Wn<s:r> */
-        tcg_gen_shri_i64(tcg_tmp, tcg_tmp, ri);
-        pos = 0;
         len = (si - ri) + 1;
+        if (opc == 0) { /* SBFM: ASR, SBFX, SXTB, SXTH, SXTW */
+            tcg_gen_sextract_i64(tcg_rd, tcg_tmp, ri, len);
+            goto done;
+        } else if (opc == 2) { /* UBFM: UBFX, LSR, UXTB, UXTH */
+            tcg_gen_extract_i64(tcg_rd, tcg_tmp, ri, len);
+            return;
+        }
+        /* opc == 1, BXFIL fall through to deposit */
+        tcg_gen_extract_i64(tcg_tmp, tcg_tmp, ri, len);
+        pos = 0;
     } else {
-        /* Wd<32+s-r,32-r> = Wn<s:0> */
-        pos = bitsize - ri;
+        /* Handle the ri > si case with a deposit
+         * Wd<32+s-r,32-r> = Wn<s:0>
+         */
         len = si + 1;
+        pos = (bitsize - ri) & (bitsize - 1);
     }
 
-    tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_tmp, pos, len);
+    if (opc == 0 && len < ri) {
+        /* SBFM: sign extend the destination field from len to fill
+           the balance of the word.  Let the deposit below insert all
+           of those sign bits.  */
+        tcg_gen_sextract_i64(tcg_tmp, tcg_tmp, 0, len);
+        len = ri;
+    }
 
-    if (opc == 0) { /* SBFM - sign extend the destination field */
-        tcg_gen_shli_i64(tcg_rd, tcg_rd, 64 - (pos + len));
-        tcg_gen_sari_i64(tcg_rd, tcg_rd, 64 - (pos + len));
+    if (opc == 1) { /* BFM, BXFIL */
+        tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_tmp, pos, len);
+    } else {
+        /* SBFM or UBFM: We start with zero, and we haven't modified
+           any bits outside bitsize, therefore the zero-extension
+           below is unneeded.  */
+        tcg_gen_deposit_z_i64(tcg_rd, tcg_tmp, pos, len);
+        return;
     }
 
  done:
