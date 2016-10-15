@@ -4488,11 +4488,12 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
         if (lsb + msb > 31) {
             goto fail;
         }
-        tcg_gen_shri_tl(t0, t1, lsb);
         if (msb != 31) {
-            tcg_gen_andi_tl(t0, t0, (1U << (msb + 1)) - 1);
+            tcg_gen_extract_tl(t0, t1, lsb, msb + 1);
         } else {
-            tcg_gen_ext32s_tl(t0, t0);
+            /* The two checks together imply that lsb == 0,
+               so this is a simple sign-extension.  */
+            tcg_gen_ext32s_tl(t0, t1);
         }
         break;
 #if defined(TARGET_MIPS64)
@@ -4507,10 +4508,7 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
         if (lsb + msb > 63) {
             goto fail;
         }
-        tcg_gen_shri_tl(t0, t1, lsb);
-        if (msb != 63) {
-            tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1)) - 1);
-        }
+        tcg_gen_extract_tl(t0, t1, lsb, msb + 1);
         break;
 #endif
     case OPC_INS:
