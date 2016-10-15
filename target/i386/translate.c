@@ -383,8 +383,7 @@ static void gen_op_mov_reg_v(TCGMemOp ot, int reg, TCGv t0)
 static inline void gen_op_mov_v_reg(TCGMemOp ot, TCGv t0, int reg)
 {
     if (ot == MO_8 && byte_reg_is_xH(reg)) {
-        tcg_gen_shri_tl(t0, cpu_regs[reg - 4], 8);
-        tcg_gen_ext8u_tl(t0, t0);
+        tcg_gen_extract_tl(t0, cpu_regs[reg - 4], 8, 8);
     } else {
         tcg_gen_mov_tl(t0, cpu_regs[reg]);
     }
@@ -3768,8 +3767,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
 
                     /* Extract the LEN into a mask.  Lengths larger than
                        operand size get all ones.  */
-                    tcg_gen_shri_tl(cpu_A0, cpu_regs[s->vex_v], 8);
-                    tcg_gen_ext8u_tl(cpu_A0, cpu_A0);
+                    tcg_gen_extract_tl(cpu_A0, cpu_regs[s->vex_v], 8, 8);
                     tcg_gen_movcond_tl(TCG_COND_LEU, cpu_A0, cpu_A0, bound,
                                        cpu_A0, bound);
                     tcg_temp_free(bound);
@@ -3920,9 +3918,8 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                             gen_compute_eflags(s);
                         }
                         carry_in = cpu_tmp0;
-                        tcg_gen_shri_tl(carry_in, cpu_cc_src,
-                                        ctz32(b == 0x1f6 ? CC_C : CC_O));
-                        tcg_gen_andi_tl(carry_in, carry_in, 1);
+                        tcg_gen_extract_tl(carry_in, cpu_cc_src,
+                                           ctz32(b == 0x1f6 ? CC_C : CC_O), 1);
                     }
 
                     switch (ot) {
@@ -5447,21 +5444,25 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             rm = (modrm & 7) | REX_B(s);
 
             if (mod == 3) {
-                gen_op_mov_v_reg(ot, cpu_T0, rm);
-                switch (s_ot) {
-                case MO_UB:
-                    tcg_gen_ext8u_tl(cpu_T0, cpu_T0);
-                    break;
-                case MO_SB:
-                    tcg_gen_ext8s_tl(cpu_T0, cpu_T0);
-                    break;
-                case MO_UW:
-                    tcg_gen_ext16u_tl(cpu_T0, cpu_T0);
-                    break;
-                default:
-                case MO_SW:
-                    tcg_gen_ext16s_tl(cpu_T0, cpu_T0);
-                    break;
+                if (s_ot == MO_SB && byte_reg_is_xH(rm)) {
+                    tcg_gen_sextract_tl(cpu_T0, cpu_regs[rm - 4], 8, 8);
+                } else {
+                    gen_op_mov_v_reg(ot, cpu_T0, rm);
+                    switch (s_ot) {
+                    case MO_UB:
+                        tcg_gen_ext8u_tl(cpu_T0, cpu_T0);
+                        break;
+                    case MO_SB:
+                        tcg_gen_ext8s_tl(cpu_T0, cpu_T0);
+                        break;
+                    case MO_UW:
+                        tcg_gen_ext16u_tl(cpu_T0, cpu_T0);
+                        break;
+                    default:
+                    case MO_SW:
+                        tcg_gen_ext16s_tl(cpu_T0, cpu_T0);
+                        break;
+                    }
                 }
                 gen_op_mov_reg_v(d_ot, reg, cpu_T0);
             } else {
