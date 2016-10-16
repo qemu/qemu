@@ -235,10 +235,9 @@ static void qpci_spapr_iounmap(QPCIBus *bus, void *data)
     /* FIXME */
 }
 
-#define SPAPR_PCI_WINDOW_BASE        0x10000000000ULL
-#define SPAPR_PCI_MMIO32_WIN_OFF     0xA0000000
+#define SPAPR_PCI_BASE               (1ULL << 45)
+
 #define SPAPR_PCI_MMIO32_WIN_SIZE    0x80000000 /* 2 GiB */
-#define SPAPR_PCI_IO_WIN_OFF         0x80000000
 #define SPAPR_PCI_IO_WIN_SIZE        0x10000
 
 QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
@@ -273,12 +272,12 @@ QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
      * get the window locations */
     ret->buid = 0x800000020000000ULL;
 
-    ret->pio_cpu_base = SPAPR_PCI_WINDOW_BASE + SPAPR_PCI_IO_WIN_OFF;
+    ret->pio_cpu_base = SPAPR_PCI_BASE;
     ret->pio.pci_base = 0;
     ret->pio.size = SPAPR_PCI_IO_WIN_SIZE;
 
     /* 32-bit portion of the MMIO window is at PCI address 2..4 GiB */
-    ret->mmio32_cpu_base = SPAPR_PCI_WINDOW_BASE + SPAPR_PCI_MMIO32_WIN_OFF;
+    ret->mmio32_cpu_base = SPAPR_PCI_BASE + SPAPR_PCI_MMIO32_WIN_SIZE;
     ret->mmio32.pci_base = 0x80000000; /* 2 GiB */
     ret->mmio32.size = SPAPR_PCI_MMIO32_WIN_SIZE;
 

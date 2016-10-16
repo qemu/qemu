@@ -2375,31 +2375,38 @@ static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
                                 hwaddr *mmio32, hwaddr *mmio64,
                                 unsigned n_dma, uint32_t *liobns, Error **errp)
 {
+    /*
+     * New-style PHB window placement.
+     *
+     * Goals: Gives large (1TiB), naturally aligned 64-bit MMIO window
+     * for each PHB, in addition to 2GiB 32-bit MMIO and 64kiB PIO
+     * windows.
+     *
+     * Some guest kernels can't work with MMIO windows above 1<<46
+     * (64TiB), so we place up to 31 PHBs in the area 32TiB..64TiB
+     *
+     * 32TiB..(33TiB+1984kiB) contains the 64kiB PIO windows for each
+     * PHB stacked together.  (32TiB+2GiB)..(32TiB+64GiB) contains the
+     * 2GiB 32-bit MMIO windows for each PHB.  Then 33..64TiB has the
+     * 1TiB 64-bit MMIO windows for each PHB.
+     */
     const uint64_t base_buid = 0x800000020000000ULL;
-    const hwaddr phb_spacing = 0x1000000000ULL; /* 64 GiB */
-    const hwaddr mmio_offset = 0xa0000000; /* 2 GiB + 512 MiB */
-    const hwaddr pio_offset = 0x80000000; /* 2 GiB */
-    const uint32_t max_index = 255;
-    const hwaddr phb0_alignment = 0x10000000000ULL; /* 1 TiB */
-
-    uint64_t ram_top = MACHINE(spapr)->ram_size;
-    hwaddr phb0_base, phb_base;
+    const int max_phbs =
+        (SPAPR_PCI_LIMIT - SPAPR_PCI_BASE) / SPAPR_PCI_MEM64_WIN_SIZE - 1;
     int i;
 
-    /* Do we have hotpluggable memory? */
-    if (MACHINE(spapr)->maxram_size > ram_top) {
-        /* Can't just use maxram_size, because there may be an
-         * alignment gap between normal and hotpluggable memory
-         * regions */
-        ram_top = spapr->hotplug_memory.base +
-            memory_region_size(&spapr->hotplug_memory.mr);
-    }
+    /* Sanity check natural alignments */
+    QEMU_BUILD_BUG_ON((SPAPR_PCI_BASE % SPAPR_PCI_MEM64_WIN_SIZE) != 0);
+    QEMU_BUILD_BUG_ON((SPAPR_PCI_LIMIT % SPAPR_PCI_MEM64_WIN_SIZE) != 0);
+    QEMU_BUILD_BUG_ON((SPAPR_PCI_MEM64_WIN_SIZE % SPAPR_PCI_MEM32_WIN_SIZE) != 0);
+    QEMU_BUILD_BUG_ON((SPAPR_PCI_MEM32_WIN_SIZE % SPAPR_PCI_IO_WIN_SIZE) != 0);
+    /* Sanity check bounds */
+    QEMU_BUILD_BUG_ON((max_phbs * SPAPR_PCI_IO_WIN_SIZE) > SPAPR_PCI_MEM32_WIN_SIZE);
+    QEMU_BUILD_BUG_ON((max_phbs * SPAPR_PCI_MEM32_WIN_SIZE) > SPAPR_PCI_MEM64_WIN_SIZE);
 
-    phb0_base = QEMU_ALIGN_UP(ram_top, phb0_alignment);
-
-    if (index > max_index) {
+    if (index >= max_phbs) {
         error_setg(errp, "\"index\" for PAPR PHB is too large (max %u)",
-                   max_index);
+                   max_phbs - 1);
         return;
     }
 
@@ -2408,14 +2415,9 @@ static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
         liobns[i] = SPAPR_PCI_LIOBN(index, i);
     }
 
-    phb_base = phb0_base + index * phb_spacing;
-    *pio = phb_base + pio_offset;
-    *mmio32 = phb_base + mmio_offset;
-    /*
-     * We don't set the 64-bit MMIO window, relying on the PHB's
-     * fallback behaviour of automatically splitting a large "32-bit"
-     * window into contiguous 32-bit and 64-bit windows
-     */
+    *pio = SPAPR_PCI_BASE + index * SPAPR_PCI_IO_WIN_SIZE;
+    *mmio32 = SPAPR_PCI_BASE + (index + 1) * SPAPR_PCI_MEM32_WIN_SIZE;
+    *mmio64 = SPAPR_PCI_BASE + (index + 1) * SPAPR_PCI_MEM64_WIN_SIZE;
 }
 
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
@@ -2519,8 +2521,67 @@ DEFINE_SPAPR_MACHINE(2_8, "2.8", true);
 /*
  * pseries-2.7
  */
-#define SPAPR_COMPAT_2_7 \
-    HW_COMPAT_2_7 \
+#define SPAPR_COMPAT_2_7                            \
+    HW_COMPAT_2_7                                   \
+    {                                               \
+        .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,     \
+        .property = "mem_win_size",                 \
+        .value    = stringify(SPAPR_PCI_2_7_MMIO_WIN_SIZE),\
+    },                                              \
+    {                                               \
+        .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,     \
+        .property = "mem64_win_size",               \
+        .value    = "0",                            \
+    },
+
+static void phb_placement_2_7(sPAPRMachineState *spapr, uint32_t index,
+                              uint64_t *buid, hwaddr *pio,
+                              hwaddr *mmio32, hwaddr *mmio64,
+                              unsigned n_dma, uint32_t *liobns, Error **errp)
+{
+    /* Legacy PHB placement for pseries-2.7 and earlier machine types */
+    const uint64_t base_buid = 0x800000020000000ULL;
+    const hwaddr phb_spacing = 0x1000000000ULL; /* 64 GiB */
+    const hwaddr mmio_offset = 0xa0000000; /* 2 GiB + 512 MiB */
+    const hwaddr pio_offset = 0x80000000; /* 2 GiB */
+    const uint32_t max_index = 255;
+    const hwaddr phb0_alignment = 0x10000000000ULL; /* 1 TiB */
+
+    uint64_t ram_top = MACHINE(spapr)->ram_size;
+    hwaddr phb0_base, phb_base;
+    int i;
+
+    /* Do we have hotpluggable memory? */
+    if (MACHINE(spapr)->maxram_size > ram_top) {
+        /* Can't just use maxram_size, because there may be an
+         * alignment gap between normal and hotpluggable memory
+         * regions */
+        ram_top = spapr->hotplug_memory.base +
+            memory_region_size(&spapr->hotplug_memory.mr);
+    }
+
+    phb0_base = QEMU_ALIGN_UP(ram_top, phb0_alignment);
+
+    if (index > max_index) {
+        error_setg(errp, "\"index\" for PAPR PHB is too large (max %u)",
+                   max_index);
+        return;
+    }
+
+    *buid = base_buid + index;
+    for (i = 0; i < n_dma; ++i) {
+        liobns[i] = SPAPR_PCI_LIOBN(index, i);
+    }
+
+    phb_base = phb0_base + index * phb_spacing;
+    *pio = phb_base + pio_offset;
+    *mmio32 = phb_base + mmio_offset;
+    /*
+     * We don't set the 64-bit MMIO window, relying on the PHB's
+     * fallback behaviour of automatically splitting a large "32-bit"
+     * window into contiguous 32-bit and 64-bit windows
+     */
+}
 
 static void spapr_machine_2_7_instance_options(MachineState *machine)
 {
@@ -2534,6 +2595,7 @@ static void spapr_machine_2_7_class_options(MachineClass *mc)
     spapr_machine_2_8_class_options(mc);
     smc->tcg_default_cpu = "POWER7";
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_7);
+    smc->phb_placement = phb_placement_2_7;
 }
 
 DEFINE_SPAPR_MACHINE(2_7, "2.7", false);
