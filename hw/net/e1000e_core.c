@@ -1278,11 +1278,10 @@ e1000e_write_lgcy_rx_descr(E1000ECore *core, uint8_t *desc,
 
     struct e1000_rx_desc *d = (struct e1000_rx_desc *) desc;
 
-    memset(d, 0, sizeof(*d));
-
     assert(!rss_info->enabled);
 
     d->length = cpu_to_le16(length);
+    d->csum = 0;
 
     e1000e_build_rx_metadata(core, pkt, pkt != NULL,
                              rss_info,
@@ -1291,6 +1290,7 @@ e1000e_write_lgcy_rx_descr(E1000ECore *core, uint8_t *desc,
                              &d->special);
     d->errors = (uint8_t) (le32_to_cpu(status_flags) >> 24);
     d->status = (uint8_t) le32_to_cpu(status_flags);
+    d->special = 0;
 }
 
 static inline void
@@ -1301,7 +1301,7 @@ e1000e_write_ext_rx_descr(E1000ECore *core, uint8_t *desc,
 {
     union e1000_rx_desc_extended *d = (union e1000_rx_desc_extended *) desc;
 
-    memset(d, 0, sizeof(*d));
+    memset(&d->wb, 0, sizeof(d->wb));
 
     d->wb.upper.length = cpu_to_le16(length);
 
@@ -1325,7 +1325,7 @@ e1000e_write_ps_rx_descr(E1000ECore *core, uint8_t *desc,
     union e1000_rx_desc_packet_split *d =
         (union e1000_rx_desc_packet_split *) desc;
 
-    memset(d, 0, sizeof(*d));
+    memset(&d->wb, 0, sizeof(d->wb));
 
     d->wb.middle.length0 = cpu_to_le16((*written)[0]);
 
