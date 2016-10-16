@@ -172,7 +172,7 @@ DEF("set", HAS_ARG, QEMU_OPTION_set,
 STEXI
 @item -set @var{group}.@var{id}.@var{arg}=@var{value}
 @findex -set
-Set parameter @var{arg} for item @var{id} of type @var{group}\n"
+Set parameter @var{arg} for item @var{id} of type @var{group}
 ETEXI
 
 DEF("global", HAS_ARG, QEMU_OPTION_global,
