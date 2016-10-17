@@ -17,7 +17,8 @@
 #include "qemu/coroutine.h"
 #include "coth.h"
 
-int v9fs_co_llistxattr(V9fsPDU *pdu, V9fsPath *path, void *value, size_t size)
+int coroutine_fn v9fs_co_llistxattr(V9fsPDU *pdu, V9fsPath *path, void *value,
+                                    size_t size)
 {
     int err;
     V9fsState *s = pdu->s;
@@ -37,9 +38,9 @@ int v9fs_co_llistxattr(V9fsPDU *pdu, V9fsPath *path, void *value, size_t size)
     return err;
 }
 
-int v9fs_co_lgetxattr(V9fsPDU *pdu, V9fsPath *path,
-                      V9fsString *xattr_name,
-                      void *value, size_t size)
+int coroutine_fn v9fs_co_lgetxattr(V9fsPDU *pdu, V9fsPath *path,
+                                   V9fsString *xattr_name, void *value,
+                                   size_t size)
 {
     int err;
     V9fsState *s = pdu->s;
@@ -61,9 +62,9 @@ int v9fs_co_lgetxattr(V9fsPDU *pdu, V9fsPath *path,
     return err;
 }
 
-int v9fs_co_lsetxattr(V9fsPDU *pdu, V9fsPath *path,
-                      V9fsString *xattr_name, void *value,
-                      size_t size, int flags)
+int coroutine_fn v9fs_co_lsetxattr(V9fsPDU *pdu, V9fsPath *path,
+                                   V9fsString *xattr_name, void *value,
+                                   size_t size, int flags)
 {
     int err;
     V9fsState *s = pdu->s;
@@ -85,8 +86,8 @@ int v9fs_co_lsetxattr(V9fsPDU *pdu, V9fsPath *path,
     return err;
 }
 
-int v9fs_co_lremovexattr(V9fsPDU *pdu, V9fsPath *path,
-                         V9fsString *xattr_name)
+int coroutine_fn v9fs_co_lremovexattr(V9fsPDU *pdu, V9fsPath *path,
+                                      V9fsString *xattr_name)
 {
     int err;
     V9fsState *s = pdu->s;
