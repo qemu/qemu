@@ -2134,7 +2134,7 @@ static VFIODeviceOps vfio_pci_ops = {
     .vfio_eoi = vfio_intx_eoi,
 };
 
-int vfio_populate_vga(VFIOPCIDevice *vdev)
+int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info *reg_info;
@@ -2142,15 +2142,18 @@ int vfio_populate_vga(VFIOPCIDevice *vdev)
 
     ret = vfio_get_region_info(vbasedev, VFIO_PCI_VGA_REGION_INDEX, &reg_info);
     if (ret) {
+        error_setg_errno(errp, -ret,
+                         "failed getting region info for VGA region index %d",
+                         VFIO_PCI_VGA_REGION_INDEX);
         return ret;
     }
 
     if (!(reg_info->flags & VFIO_REGION_INFO_FLAG_READ) ||
         !(reg_info->flags & VFIO_REGION_INFO_FLAG_WRITE) ||
         reg_info->size < 0xbffff + 1) {
-        error_report("vfio: Unexpected VGA info, flags 0x%lx, size 0x%lx",
-                     (unsigned long)reg_info->flags,
-                     (unsigned long)reg_info->size);
+        error_setg(errp, "unexpected VGA info, flags 0x%lx, size 0x%lx",
+                   (unsigned long)reg_info->flags,
+                   (unsigned long)reg_info->size);
         g_free(reg_info);
         return -EINVAL;
     }
@@ -2205,6 +2208,7 @@ static int vfio_populate_device(VFIOPCIDevice *vdev)
     struct vfio_region_info *reg_info;
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
     int i, ret = -1;
+    Error *err = NULL;
 
     /* Sanity check device */
     if (!(vbasedev->flags & VFIO_DEVICE_FLAGS_PCI)) {
@@ -2259,10 +2263,11 @@ static int vfio_populate_device(VFIOPCIDevice *vdev)
     g_free(reg_info);
 
     if (vdev->features & VFIO_FEATURE_ENABLE_VGA) {
-        ret = vfio_populate_vga(vdev);
+        ret = vfio_populate_vga(vdev, &err);
         if (ret) {
-            error_report(
-                "vfio: Device does not support requested feature x-vga");
+            error_append_hint(&err, "device does not support "
+                              "requested feature x-vga\n");
+            error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
             goto error;
         }
     }

@@ -1363,6 +1363,7 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     uint64_t *bdsm_size;
     uint32_t gmch;
     uint16_t cmd_orig, cmd;
+    Error *err = NULL;
 
     /*
      * This must be an Intel VGA device at address 00:02.0 for us to even
@@ -1464,7 +1465,8 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
      * try to enable it.  Probably shouldn't be using legacy mode without VGA,
      * but also no point in us enabling VGA if disabled in hardware.
      */
-    if (!(gmch & 0x2) && !vdev->vga && vfio_populate_vga(vdev)) {
+    if (!(gmch & 0x2) && !vdev->vga && vfio_populate_vga(vdev, &err)) {
+        error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
         error_report("IGD device %s failed to enable VGA access, "
                      "legacy mode disabled", vdev->vbasedev.name);
         goto out;
