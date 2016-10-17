@@ -554,15 +554,13 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtGuestInfo *guest_info)
         gicr->base_address = cpu_to_le64(memmap[VIRT_GIC_REDIST].base);
         gicr->range_length = cpu_to_le32(memmap[VIRT_GIC_REDIST].size);
 
-        if (!its_class_name()) {
-            return;
+        if (its_class_name()) {
+            gic_its = acpi_data_push(table_data, sizeof *gic_its);
+            gic_its->type = ACPI_APIC_GENERIC_TRANSLATOR;
+            gic_its->length = sizeof(*gic_its);
+            gic_its->translation_id = 0;
+            gic_its->base_address = cpu_to_le64(memmap[VIRT_GIC_ITS].base);
         }
-
-        gic_its = acpi_data_push(table_data, sizeof *gic_its);
-        gic_its->type = ACPI_APIC_GENERIC_TRANSLATOR;
-        gic_its->length = sizeof(*gic_its);
-        gic_its->translation_id = 0;
-        gic_its->base_address = cpu_to_le64(memmap[VIRT_GIC_ITS].base);
     } else {
         gic_msi = acpi_data_push(table_data, sizeof *gic_msi);
         gic_msi->type = ACPI_APIC_GENERIC_MSI_FRAME;
