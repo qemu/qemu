@@ -13,6 +13,7 @@
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
 #include "libqos/libqos-pc.h"
+#include "libqos/libqos-spapr.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"
 #include "qemu/bswap.h"
@@ -52,10 +53,18 @@ static QVirtioPCIDevice *virtio_net_pci_init(QPCIBus *bus, int slot)
 
 static QOSState *pci_test_start(int socket)
 {
+    const char *arch = qtest_get_arch();
     const char *cmd = "-netdev socket,fd=%d,id=hs0 -device "
                       "virtio-net-pci,netdev=hs0";
 
-    return qtest_pc_boot(cmd, socket);
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        return qtest_pc_boot(cmd, socket);
+    }
+    if (strcmp(arch, "ppc64") == 0) {
+        return qtest_spapr_boot(cmd, socket);
+    }
+    g_printerr("virtio-net tests are only available on x86 or ppc64\n");
+    exit(EXIT_FAILURE);
 }
 
 static void driver_init(QVirtioDevice *dev)
@@ -232,10 +241,15 @@ static void pci_basic(gconstpointer data)
 
 static void hotplug(void)
 {
+    const char *arch = qtest_get_arch();
+
     qtest_start("-device virtio-net-pci");
 
     qpci_plug_device_test("virtio-net-pci", "net1", PCI_SLOT_HP, NULL);
-    qpci_unplug_acpi_device_test("net1", PCI_SLOT_HP);
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        qpci_unplug_acpi_device_test("net1", PCI_SLOT_HP);
+    }
 
     test_end();
 }

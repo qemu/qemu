@@ -12,6 +12,7 @@
 #include "libqtest.h"
 #include "block/scsi.h"
 #include "libqos/libqos-pc.h"
+#include "libqos/libqos-spapr.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"
 #include "standard-headers/linux/virtio_ids.h"
@@ -33,11 +34,20 @@ typedef struct {
 
 static QOSState *qvirtio_scsi_start(const char *extra_opts)
 {
+    const char *arch = qtest_get_arch();
     const char *cmd = "-drive id=drv0,if=none,file=/dev/null,format=raw "
                       "-device virtio-scsi-pci,id=vs0 "
                       "-device scsi-hd,bus=vs0.0,drive=drv0 %s";
 
-    return qtest_pc_boot(cmd, extra_opts ? : "");
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        return qtest_pc_boot(cmd, extra_opts ? : "");
+    }
+    if (strcmp(arch, "ppc64") == 0) {
+        return qtest_spapr_boot(cmd, extra_opts ? : "");
+    }
+
+    g_printerr("virtio-scsi tests are only available on x86 or ppc64\n");
+    exit(EXIT_FAILURE);
 }
 
 static void qvirtio_scsi_stop(QOSState *qs)

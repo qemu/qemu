@@ -11,6 +11,7 @@
 #include "libqtest.h"
 #include "qemu-common.h"
 #include "libqos/libqos-pc.h"
+#include "libqos/libqos-spapr.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"
 #include "standard-headers/linux/virtio_ids.h"
@@ -22,13 +23,22 @@ static char *test_share;
 
 static QOSState *qvirtio_9p_start(void)
 {
+    const char *arch = qtest_get_arch();
     const char *cmd = "-fsdev local,id=fsdev0,security_model=none,path=%s "
                       "-device virtio-9p-pci,fsdev=fsdev0,mount_tag=%s";
 
     test_share = g_strdup("/tmp/qtest.XXXXXX");
     g_assert_nonnull(mkdtemp(test_share));
 
-    return qtest_pc_boot(cmd, test_share, mount_tag);
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        return qtest_pc_boot(cmd, test_share, mount_tag);
+    }
+    if (strcmp(arch, "ppc64") == 0) {
+        return qtest_spapr_boot(cmd, test_share, mount_tag);
+    }
+
+    g_printerr("virtio-9p tests are only available on x86 or ppc64\n");
+    exit(EXIT_FAILURE);
 }
 
 static void qvirtio_9p_stop(QOSState *qs)
