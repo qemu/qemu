@@ -68,15 +68,11 @@ static int handle_primary_tcp_pkt(NetFilterState *nf,
 
     tcp_pkt = (struct tcphdr *)pkt->transport_header;
     if (trace_event_get_state(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
-        char *sdebug, *ddebug;
-        sdebug = strdup(inet_ntoa(pkt->ip->ip_src));
-        ddebug = strdup(inet_ntoa(pkt->ip->ip_dst));
-        trace_colo_filter_rewriter_pkt_info(__func__, sdebug, ddebug,
+        trace_colo_filter_rewriter_pkt_info(__func__,
+                    inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
                     ntohl(tcp_pkt->th_seq), ntohl(tcp_pkt->th_ack),
                     tcp_pkt->th_flags);
         trace_colo_filter_rewriter_conn_offset(conn->offset);
-        g_free(sdebug);
-        g_free(ddebug);
     }
 
     if (((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == TH_SYN)) {
@@ -116,15 +112,11 @@ static int handle_secondary_tcp_pkt(NetFilterState *nf,
     tcp_pkt = (struct tcphdr *)pkt->transport_header;
 
     if (trace_event_get_state(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
-        char *sdebug, *ddebug;
-        sdebug = strdup(inet_ntoa(pkt->ip->ip_src));
-        ddebug = strdup(inet_ntoa(pkt->ip->ip_dst));
-        trace_colo_filter_rewriter_pkt_info(__func__, sdebug, ddebug,
+        trace_colo_filter_rewriter_pkt_info(__func__,
+                    inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
                     ntohl(tcp_pkt->th_seq), ntohl(tcp_pkt->th_ack),
                     tcp_pkt->th_flags);
         trace_colo_filter_rewriter_conn_offset(conn->offset);
-        g_free(sdebug);
-        g_free(ddebug);
     }
 
     if (((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN))) {
@@ -162,6 +154,7 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
 
     iov_to_buf(iov, iovcnt, 0, buf, size);
     pkt = packet_new(buf, size);
+    g_free(buf);
 
     /*
      * if we get tcp packet
