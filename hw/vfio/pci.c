@@ -1951,7 +1951,9 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
 
     trace_vfio_pci_hot_reset(vdev->vbasedev.name, single ? "one" : "multi");
 
-    vfio_pci_pre_reset(vdev);
+    if (!single) {
+        vfio_pci_pre_reset(vdev);
+    }
     vdev->vbasedev.needs_reset = false;
 
     info = g_malloc0(sizeof(*info));
@@ -2109,7 +2111,9 @@ out:
         }
     }
 out_single:
-    vfio_pci_post_reset(vdev);
+    if (!single) {
+        vfio_pci_post_reset(vdev);
+    }
     g_free(info);
 
     return ret;
