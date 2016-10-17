@@ -537,6 +537,13 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
 
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
+    } else if (strcmp(words[0], "endianness") == 0) {
+        qtest_send_prefix(chr);
+#if defined(TARGET_WORDS_BIGENDIAN)
+        qtest_sendf(chr, "OK big\n");
+#else
+        qtest_sendf(chr, "OK little\n");
+#endif
 #ifdef TARGET_PPC64
     } else if (strcmp(words[0], "rtas") == 0) {
         uint64_t res, args, ret;

@@ -69,25 +69,32 @@ static uint8_t boot_sector[0x7e000] = {
 };
 
 /* Create boot disk file.  */
-int boot_sector_init(const char *fname)
+int boot_sector_init(char *fname)
 {
-    FILE *f = fopen(fname, "w");
+    int fd, ret;
+    size_t len = sizeof boot_sector;
 
-    if (!f) {
+    fd = mkstemp(fname);
+    if (fd < 0) {
         fprintf(stderr, "Couldn't open \"%s\": %s", fname, strerror(errno));
         return 1;
     }
 
     /* For Open Firmware based system, we can use a Forth script instead */
     if (strcmp(qtest_get_arch(), "ppc64") == 0) {
-        memset(boot_sector, ' ', sizeof boot_sector);
-        sprintf((char *)boot_sector, "\\ Bootscript\n%x %x c! %x %x c!\n",
+        len = sprintf((char *)boot_sector, "\\ Bootscript\n%x %x c! %x %x c!\n",
                 LOW(SIGNATURE), BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET,
                 HIGH(SIGNATURE), BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET + 1);
     }
 
-    fwrite(boot_sector, 1, sizeof boot_sector, f);
-    fclose(f);
+    ret = write(fd, boot_sector, len);
+    close(fd);
+
+    if (ret != len) {
+        fprintf(stderr, "Could not write \"%s\"", fname);
+        return 1;
+    }
+
     return 0;
 }
 
@@ -99,9 +106,9 @@ void boot_sector_test(void)
     uint16_t signature;
     int i;
 
-   /* Wait at most 1 minute */
+    /* Wait at most 90 seconds */
 #define TEST_DELAY (1 * G_USEC_PER_SEC / 10)
-#define TEST_CYCLES MAX((60 * G_USEC_PER_SEC / TEST_DELAY), 1)
+#define TEST_CYCLES MAX((90 * G_USEC_PER_SEC / TEST_DELAY), 1)
 
     /* Poll until code has run and modified memory.  Once it has we know BIOS
      * initialization is done.  TODO: check that IP reached the halt

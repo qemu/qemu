@@ -594,7 +594,7 @@ out_no_events:
 void spapr_events_init(sPAPRMachineState *spapr)
 {
     QTAILQ_INIT(&spapr->pending_events);
-    spapr->check_exception_irq = xics_spapr_alloc(spapr->xics, 0, 0, false,
+    spapr->check_exception_irq = xics_spapr_alloc(spapr->xics, 0, false,
                                             &error_fatal);
     spapr->epow_notifier.notify = spapr_powerdown_req;
     qemu_register_powerdown_notifier(&spapr->epow_notifier);

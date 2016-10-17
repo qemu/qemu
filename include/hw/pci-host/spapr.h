@@ -53,8 +53,10 @@ struct sPAPRPHBState {
     bool dr_enabled;
 
     MemoryRegion memspace, iospace;
-    hwaddr mem_win_addr, mem_win_size, io_win_addr, io_win_size;
-    MemoryRegion memwindow, iowindow, msiwindow;
+    hwaddr mem_win_addr, mem_win_size, mem64_win_addr, mem64_win_size;
+    uint64_t mem64_win_pciaddr;
+    hwaddr io_win_addr, io_win_size;
+    MemoryRegion mem32window, mem64window, iowindow, msiwindow;
 
     uint32_t dma_liobn[SPAPR_PCI_DMA_MAX_WINDOWS];
     hwaddr dma_win_addr, dma_win_size;
@@ -79,18 +81,17 @@ struct sPAPRPHBState {
     uint32_t numa_node;
 };
 
-#define SPAPR_PCI_MAX_INDEX          255
-
-#define SPAPR_PCI_BASE_BUID          0x800000020000000ULL
-
 #define SPAPR_PCI_MEM_WIN_BUS_OFFSET 0x80000000ULL
+#define SPAPR_PCI_MEM32_WIN_SIZE     \
+    ((1ULL << 32) - SPAPR_PCI_MEM_WIN_BUS_OFFSET)
+#define SPAPR_PCI_MEM64_WIN_SIZE     0x10000000000ULL /* 1 TiB */
 
-#define SPAPR_PCI_WINDOW_BASE        0x10000000000ULL
-#define SPAPR_PCI_WINDOW_SPACING     0x1000000000ULL
-#define SPAPR_PCI_MMIO_WIN_OFF       0xA0000000
-#define SPAPR_PCI_MMIO_WIN_SIZE      (SPAPR_PCI_WINDOW_SPACING - \
-                                     SPAPR_PCI_MEM_WIN_BUS_OFFSET)
-#define SPAPR_PCI_IO_WIN_OFF         0x80000000
+/* Without manual configuration, all PCI outbound windows will be
+ * within this range */
+#define SPAPR_PCI_BASE               (1ULL << 45) /* 32 TiB */
+#define SPAPR_PCI_LIMIT              (1ULL << 46) /* 64 TiB */
+
+#define SPAPR_PCI_2_7_MMIO_WIN_SIZE  0xf80000000
 #define SPAPR_PCI_IO_WIN_SIZE        0x10000
 
 #define SPAPR_PCI_MSI_WINDOW         0x40000000000ULL
