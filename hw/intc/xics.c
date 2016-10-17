@@ -35,6 +35,8 @@
 #include "hw/ppc/xics.h"
 #include "qemu/error-report.h"
 #include "qapi/visitor.h"
+#include "monitor/monitor.h"
+#include "hw/intc/intc.h"
 
 int xics_get_cpu_index_by_dt_id(int cpu_dt_id)
 {
@@ -87,6 +89,47 @@ void xics_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
         error_report("XICS interrupt controller does not support this CPU "
                      "bus model");
         abort();
+    }
+}
+
+static void xics_common_pic_print_info(InterruptStatsProvider *obj,
+                                       Monitor *mon)
+{
+    XICSState *xics = XICS_COMMON(obj);
+    ICSState *ics;
+    uint32_t i;
+
+    for (i = 0; i < xics->nr_servers; i++) {
+        ICPState *icp = &xics->ss[i];
+
+        if (!icp->output) {
+            continue;
+        }
+        monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
+                       i, icp->xirr, icp->xirr_owner,
+                       icp->pending_priority, icp->mfrr);
+    }
+
+    QLIST_FOREACH(ics, &xics->ics, list) {
+        monitor_printf(mon, "ICS %4x..%4x %p\n",
+                       ics->offset, ics->offset + ics->nr_irqs - 1, ics);
+
+        if (!ics->irqs) {
+            continue;
+        }
+
+        for (i = 0; i < ics->nr_irqs; i++) {
+            ICSIRQState *irq = ics->irqs + i;
+
+            if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
+                continue;
+            }
+            monitor_printf(mon, "  %4x %s %02x %02x\n",
+                           ics->offset + i,
+                           (irq->flags & XICS_FLAGS_IRQ_LSI) ?
+                           "LSI" : "MSI",
+                           irq->priority, irq->status);
+        }
     }
 }
 
@@ -190,8 +233,10 @@ static void xics_common_initfn(Object *obj)
 static void xics_common_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
     dc->reset = xics_common_reset;
+    ic->print_info = xics_common_pic_print_info;
 }
 
 static const TypeInfo xics_common_info = {
@@ -201,6 +246,10 @@ static const TypeInfo xics_common_info = {
     .class_size    = sizeof(XICSStateClass),
     .instance_init = xics_common_initfn,
     .class_init    = xics_common_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_INTERRUPT_STATS_PROVIDER },
+        { }
+    },
 };
 
 /*
