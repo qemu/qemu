@@ -12,12 +12,9 @@
 #include "qemu-common.h"
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
-#include "libqos/pci-pc.h"
+#include "libqos/libqos-pc.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"
-#include "libqos/malloc.h"
-#include "libqos/malloc-pc.h"
-#include "libqos/malloc-generic.h"
 #include "qemu/bswap.h"
 #include "hw/virtio/virtio-net.h"
 #include "standard-headers/linux/virtio_ids.h"
@@ -53,16 +50,12 @@ static QVirtioPCIDevice *virtio_net_pci_init(QPCIBus *bus, int slot)
     return dev;
 }
 
-static QPCIBus *pci_test_start(int socket)
+static QOSState *pci_test_start(int socket)
 {
-    char *cmdline;
+    const char *cmd = "-netdev socket,fd=%d,id=hs0 -device "
+                      "virtio-net-pci,netdev=hs0";
 
-    cmdline = g_strdup_printf("-netdev socket,fd=%d,id=hs0 -device "
-                              "virtio-net-pci,netdev=hs0", socket);
-    qtest_start(cmdline);
-    g_free(cmdline);
-
-    return qpci_init_pc(NULL);
+    return qtest_pc_boot(cmd, socket);
 }
 
 static void driver_init(QVirtioDevice *dev)
@@ -205,9 +198,8 @@ static void stop_cont_test(QVirtioDevice *dev,
 static void pci_basic(gconstpointer data)
 {
     QVirtioPCIDevice *dev;
-    QPCIBus *bus;
+    QOSState *qs;
     QVirtQueuePCI *tx, *rx;
-    QGuestAllocator *alloc;
     void (*func) (QVirtioDevice *dev,
                   QGuestAllocator *alloc,
                   QVirtQueue *rvq,
@@ -218,26 +210,23 @@ static void pci_basic(gconstpointer data)
     ret = socketpair(PF_UNIX, SOCK_STREAM, 0, sv);
     g_assert_cmpint(ret, !=, -1);
 
-    bus = pci_test_start(sv[1]);
-    dev = virtio_net_pci_init(bus, PCI_SLOT);
+    qs = pci_test_start(sv[1]);
+    dev = virtio_net_pci_init(qs->pcibus, PCI_SLOT);
 
-    alloc = pc_alloc_init();
-    rx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, alloc, 0);
-    tx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, alloc, 1);
+    rx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 0);
+    tx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 1);
 
     driver_init(&dev->vdev);
-    func(&dev->vdev, alloc, &rx->vq, &tx->vq, sv[0]);
+    func(&dev->vdev, qs->alloc, &rx->vq, &tx->vq, sv[0]);
 
     /* End test */
     close(sv[0]);
-    qvirtqueue_cleanup(dev->vdev.bus, &tx->vq, alloc);
-    qvirtqueue_cleanup(dev->vdev.bus, &rx->vq, alloc);
-    pc_alloc_uninit(alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &tx->vq, qs->alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &rx->vq, qs->alloc);
     qvirtio_pci_device_disable(dev);
     g_free(dev->pdev);
     g_free(dev);
-    qpci_free_pc(bus);
-    test_end();
+    qtest_shutdown(qs);
 }
 #endif
 

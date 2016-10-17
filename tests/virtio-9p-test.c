@@ -10,62 +10,57 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qemu-common.h"
-#include "libqos/pci-pc.h"
+#include "libqos/libqos-pc.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"
-#include "libqos/malloc.h"
-#include "libqos/malloc-pc.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_pci.h"
 
 static const char mount_tag[] = "qtest";
 static char *test_share;
 
-static void qvirtio_9p_start(void)
+
+static QOSState *qvirtio_9p_start(void)
 {
-    char *args;
+    const char *cmd = "-fsdev local,id=fsdev0,security_model=none,path=%s "
+                      "-device virtio-9p-pci,fsdev=fsdev0,mount_tag=%s";
 
     test_share = g_strdup("/tmp/qtest.XXXXXX");
     g_assert_nonnull(mkdtemp(test_share));
 
-    args = g_strdup_printf("-fsdev local,id=fsdev0,security_model=none,path=%s "
-                           "-device virtio-9p-pci,fsdev=fsdev0,mount_tag=%s",
-                           test_share, mount_tag);
-
-    qtest_start(args);
-    g_free(args);
+    return qtest_pc_boot(cmd, test_share, mount_tag);
 }
 
-static void qvirtio_9p_stop(void)
+static void qvirtio_9p_stop(QOSState *qs)
 {
-    qtest_end();
+    qtest_shutdown(qs);
     rmdir(test_share);
     g_free(test_share);
 }
 
 static void pci_nop(void)
 {
-    qvirtio_9p_start();
-    qvirtio_9p_stop();
+    QOSState *qs;
+
+    qs = qvirtio_9p_start();
+    qvirtio_9p_stop(qs);
 }
 
 typedef struct {
     QVirtioDevice *dev;
-    QGuestAllocator *alloc;
-    QPCIBus *bus;
+    QOSState *qs;
     QVirtQueue *vq;
 } QVirtIO9P;
 
-static QVirtIO9P *qvirtio_9p_pci_init(void)
+static QVirtIO9P *qvirtio_9p_pci_init(QOSState *qs)
 {
     QVirtIO9P *v9p;
     QVirtioPCIDevice *dev;
 
     v9p = g_new0(QVirtIO9P, 1);
-    v9p->alloc = pc_alloc_init();
-    v9p->bus = qpci_init_pc(NULL);
 
-    dev = qvirtio_pci_device_find(v9p->bus, VIRTIO_ID_9P);
+    v9p->qs = qs;
+    dev = qvirtio_pci_device_find(v9p->qs->pcibus, VIRTIO_ID_9P);
     g_assert_nonnull(dev);
     g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_9P);
     v9p->dev = (QVirtioDevice *) dev;
@@ -75,17 +70,15 @@ static QVirtIO9P *qvirtio_9p_pci_init(void)
     qvirtio_set_acknowledge(v9p->dev);
     qvirtio_set_driver(v9p->dev);
 
-    v9p->vq = qvirtqueue_setup(v9p->dev, v9p->alloc, 0);
+    v9p->vq = qvirtqueue_setup(v9p->dev, v9p->qs->alloc, 0);
     return v9p;
 }
 
 static void qvirtio_9p_pci_free(QVirtIO9P *v9p)
 {
-    qvirtqueue_cleanup(v9p->dev->bus, v9p->vq, v9p->alloc);
-    pc_alloc_uninit(v9p->alloc);
+    qvirtqueue_cleanup(v9p->dev->bus, v9p->vq, v9p->qs->alloc);
     qvirtio_pci_device_disable(container_of(v9p->dev, QVirtioPCIDevice, vdev));
     g_free(v9p->dev);
-    qpci_free_pc(v9p->bus);
     g_free(v9p);
 }
 
@@ -96,9 +89,10 @@ static void pci_basic_config(void)
     size_t tag_len;
     char *tag;
     int i;
+    QOSState *qs;
 
-    qvirtio_9p_start();
-    v9p = qvirtio_9p_pci_init();
+    qs = qvirtio_9p_start();
+    v9p = qvirtio_9p_pci_init(qs);
 
     addr = ((QVirtioPCIDevice *) v9p->dev)->addr + VIRTIO_PCI_CONFIG_OFF(false);
     tag_len = qvirtio_config_readw(v9p->dev,
@@ -114,7 +108,7 @@ static void pci_basic_config(void)
     g_free(tag);
 
     qvirtio_9p_pci_free(v9p);
-    qvirtio_9p_stop();
+    qvirtio_9p_stop(qs);
 }
 
 int main(int argc, char **argv)
