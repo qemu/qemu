@@ -6720,6 +6720,52 @@ static inline TCR *regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
     return &env->cp15.tcr_el[regime_el(env, mmu_idx)];
 }
 
+/* Returns TBI0 value for current regime el */
+uint32_t arm_regime_tbi0(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    TCR *tcr;
+    uint32_t el;
+
+    /* For EL0 and EL1, TBI is controlled by stage 1's TCR, so convert
+       * a stage 1+2 mmu index into the appropriate stage 1 mmu index.
+       */
+    if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
+        mmu_idx += ARMMMUIdx_S1NSE0;
+    }
+
+    tcr = regime_tcr(env, mmu_idx);
+    el = regime_el(env, mmu_idx);
+
+    if (el > 1) {
+        return extract64(tcr->raw_tcr, 20, 1);
+    } else {
+        return extract64(tcr->raw_tcr, 37, 1);
+    }
+}
+
+/* Returns TBI1 value for current regime el */
+uint32_t arm_regime_tbi1(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    TCR *tcr;
+    uint32_t el;
+
+    /* For EL0 and EL1, TBI is controlled by stage 1's TCR, so convert
+       * a stage 1+2 mmu index into the appropriate stage 1 mmu index.
+       */
+    if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
+        mmu_idx += ARMMMUIdx_S1NSE0;
+    }
+
+    tcr = regime_tcr(env, mmu_idx);
+    el = regime_el(env, mmu_idx);
+
+    if (el > 1) {
+        return 0;
+    } else {
+        return extract64(tcr->raw_tcr, 38, 1);
+    }
+}
+
 /* Return the TTBR associated with this translation regime */
 static inline uint64_t regime_ttbr(CPUARMState *env, ARMMMUIdx mmu_idx,
                                    int ttbrn)

@@ -11175,6 +11175,8 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
     dc->condexec_mask = 0;
     dc->condexec_cond = 0;
     dc->mmu_idx = ARM_TBFLAG_MMUIDX(tb->flags);
+    dc->tbi0 = ARM_TBFLAG_TBI0(tb->flags);
+    dc->tbi1 = ARM_TBFLAG_TBI1(tb->flags);
     dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (dc->current_el == 0);

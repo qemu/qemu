@@ -2191,7 +2191,11 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
 #define ARM_TBFLAG_BE_DATA_SHIFT    20
 #define ARM_TBFLAG_BE_DATA_MASK     (1 << ARM_TBFLAG_BE_DATA_SHIFT)
 
-/* Bit usage when in AArch64 state: currently we have no A64 specific bits */
+/* Bit usage when in AArch64 state */
+#define ARM_TBFLAG_TBI0_SHIFT 0        /* TBI0 for EL0/1 or TBI for EL2/3 */
+#define ARM_TBFLAG_TBI0_MASK (0x1ull << ARM_TBFLAG_TBI0_SHIFT)
+#define ARM_TBFLAG_TBI1_SHIFT 1        /* TBI1 for EL0/1  */
+#define ARM_TBFLAG_TBI1_MASK (0x1ull << ARM_TBFLAG_TBI1_SHIFT)
 
 /* some convenience accessor macros */
 #define ARM_TBFLAG_AARCH64_STATE(F) \
@@ -2222,6 +2226,10 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
     (((F) & ARM_TBFLAG_NS_MASK) >> ARM_TBFLAG_NS_SHIFT)
 #define ARM_TBFLAG_BE_DATA(F) \
     (((F) & ARM_TBFLAG_BE_DATA_MASK) >> ARM_TBFLAG_BE_DATA_SHIFT)
+#define ARM_TBFLAG_TBI0(F) \
+    (((F) & ARM_TBFLAG_TBI0_MASK) >> ARM_TBFLAG_TBI0_SHIFT)
+#define ARM_TBFLAG_TBI1(F) \
+    (((F) & ARM_TBFLAG_TBI1_MASK) >> ARM_TBFLAG_TBI1_SHIFT)
 
 static inline bool bswap_code(bool sctlr_b)
 {
@@ -2319,12 +2327,51 @@ static inline bool arm_cpu_bswap_data(CPUARMState *env)
 }
 #endif
 
+#ifndef CONFIG_USER_ONLY
+/**
+ * arm_regime_tbi0:
+ * @env: CPUARMState
+ * @mmu_idx: MMU index indicating required translation regime
+ *
+ * Extracts the TBI0 value from the appropriate TCR for the current EL
+ *
+ * Returns: the TBI0 value.
+ */
+uint32_t arm_regime_tbi0(CPUARMState *env, ARMMMUIdx mmu_idx);
+
+/**
+ * arm_regime_tbi1:
+ * @env: CPUARMState
+ * @mmu_idx: MMU index indicating required translation regime
+ *
+ * Extracts the TBI1 value from the appropriate TCR for the current EL
+ *
+ * Returns: the TBI1 value.
+ */
+uint32_t arm_regime_tbi1(CPUARMState *env, ARMMMUIdx mmu_idx);
+#else
+/* We can't handle tagged addresses properly in user-only mode */
+static inline uint32_t arm_regime_tbi0(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    return 0;
+}
+
+static inline uint32_t arm_regime_tbi1(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    return 0;
+}
+#endif
+
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
+    ARMMMUIdx mmu_idx = cpu_mmu_index(env, false);
     if (is_a64(env)) {
         *pc = env->pc;
         *flags = ARM_TBFLAG_AARCH64_STATE_MASK;
+        /* Get control bits for tagged addresses */
+        *flags |= (arm_regime_tbi0(env, mmu_idx) << ARM_TBFLAG_TBI0_SHIFT);
+        *flags |= (arm_regime_tbi1(env, mmu_idx) << ARM_TBFLAG_TBI1_SHIFT);
     } else {
         *pc = env->regs[15];
         *flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
@@ -2343,7 +2390,8 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                    << ARM_TBFLAG_XSCALE_CPAR_SHIFT);
     }
 
-    *flags |= (cpu_mmu_index(env, false) << ARM_TBFLAG_MMUIDX_SHIFT);
+    *flags |= (mmu_idx << ARM_TBFLAG_MMUIDX_SHIFT);
+
     /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
      * states defined in the ARM ARM for software singlestep:
      *  SS_ACTIVE   PSTATE.SS   State
