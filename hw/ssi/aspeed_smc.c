@@ -417,12 +417,15 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
 
     aspeed_smc_reset(dev);
 
+    /* The memory region for the controller registers */
     memory_region_init_io(&s->mmio, OBJECT(s), &aspeed_smc_ops, s,
                           s->ctrl->name, ASPEED_SMC_R_MAX * 4);
     sysbus_init_mmio(sbd, &s->mmio);
 
     /*
-     * Memory region where flash modules are remapped
+     * The container memory region representing the address space
+     * window in which the flash modules are mapped. The size and
+     * address depends on the SoC model and controller type.
      */
     snprintf(name, sizeof(name), "%s.flash", s->ctrl->name);
 
@@ -431,9 +434,16 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
                           s->ctrl->flash_window_size);
     sysbus_init_mmio(sbd, &s->mmio_flash);
 
-    s->flashes = g_new0(AspeedSMCFlash, s->num_cs);
+    s->flashes = g_new0(AspeedSMCFlash, s->ctrl->max_slaves);
 
-    for (i = 0; i < s->num_cs; ++i) {
+    /*
+     * Let's create a sub memory region for each possible slave. All
+     * have a configurable memory segment in the overall flash mapping
+     * window of the controller but, there is not necessarily a flash
+     * module behind to handle the memory accesses. This depends on
+     * the board configuration.
+     */
+    for (i = 0; i < s->ctrl->max_slaves; ++i) {
         AspeedSMCFlash *fl = &s->flashes[i];
 
         snprintf(name, sizeof(name), "%s.%d", s->ctrl->name, i);
