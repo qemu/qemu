@@ -2520,6 +2520,13 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     int i, ret;
 
     if (!vdev->vbasedev.sysfsdev) {
+        if (!(~vdev->host.domain || ~vdev->host.bus ||
+              ~vdev->host.slot || ~vdev->host.function)) {
+            error_setg(errp, "No provided host device");
+            error_append_hint(errp, "Use -vfio-pci,host=DDDD:BB:DD.F "
+                              "or -vfio-pci,sysfsdev=PATH_TO_DEVICE\n");
+            return;
+        }
         vdev->vbasedev.sysfsdev =
             g_strdup_printf("/sys/bus/pci/devices/%04x:%02x:%02x.%01x",
                             vdev->host.domain, vdev->host.bus,
@@ -2828,6 +2835,10 @@ static void vfio_instance_init(Object *obj)
     device_add_bootindex_property(obj, &vdev->bootindex,
                                   "bootindex", NULL,
                                   &pci_dev->qdev, NULL);
+    vdev->host.domain = ~0U;
+    vdev->host.bus = ~0U;
+    vdev->host.slot = ~0U;
+    vdev->host.function = ~0U;
 }
 
 static Property vfio_pci_dev_properties[] = {
