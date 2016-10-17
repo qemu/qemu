@@ -1180,7 +1180,7 @@ static void vfio_disable_interrupts(VFIOPCIDevice *vdev)
     }
 }
 
-static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos)
+static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 {
     uint16_t ctrl;
     bool msi_64bit, msi_maskbit;
@@ -1189,6 +1189,7 @@ static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos)
 
     if (pread(vdev->vbasedev.fd, &ctrl, sizeof(ctrl),
               vdev->config_offset + pos + PCI_CAP_FLAGS) != sizeof(ctrl)) {
+        error_setg_errno(errp, errno, "failed reading MSI PCI_CAP_FLAGS");
         return -errno;
     }
     ctrl = le16_to_cpu(ctrl);
@@ -1204,8 +1205,8 @@ static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos)
         if (ret == -ENOTSUP) {
             return 0;
         }
-        error_prepend(&err, "vfio: msi_init failed: ");
-        error_report_err(err);
+        error_prepend(&err, "msi_init failed: ");
+        error_propagate(errp, err);
         return ret;
     }
     vdev->msi_cap_size = 0xa + (msi_maskbit ? 0xa : 0) + (msi_64bit ? 0x4 : 0);
@@ -1363,7 +1364,7 @@ static int vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
     return 0;
 }
 
-static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos)
+static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 {
     int ret;
 
@@ -1378,7 +1379,7 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos)
         if (ret == -ENOTSUP) {
             return 0;
         }
-        error_report("vfio: msix_init failed");
+        error_setg(errp, "msix_init failed");
         return ret;
     }
 
@@ -1563,7 +1564,8 @@ static void vfio_add_emulated_long(VFIOPCIDevice *vdev, int pos,
     vfio_set_long_bits(vdev->emulated_config_bits + pos, mask, mask);
 }
 
-static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size)
+static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
+                               Error **errp)
 {
     uint16_t flags;
     uint8_t type;
@@ -1575,8 +1577,8 @@ static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size)
         type != PCI_EXP_TYPE_LEG_END &&
         type != PCI_EXP_TYPE_RC_END) {
 
-        error_report("vfio: Assignment of PCIe type 0x%x "
-                     "devices is not currently supported", type);
+        error_setg(errp, "assignment of PCIe type 0x%x "
+                   "devices is not currently supported", type);
         return -EINVAL;
     }
 
@@ -1710,7 +1712,7 @@ static void vfio_check_af_flr(VFIOPCIDevice *vdev, uint8_t pos)
     }
 }
 
-static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
+static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
     uint8_t cap_id, next, size;
@@ -1735,9 +1737,9 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
      * will be changed as we unwind the stack.
      */
     if (next) {
-        ret = vfio_add_std_cap(vdev, next);
+        ret = vfio_add_std_cap(vdev, next, errp);
         if (ret) {
-            return ret;
+            goto out;
         }
     } else {
         /* Begin the rebuild, use QEMU emulated list bits */
@@ -1751,40 +1753,40 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
 
     switch (cap_id) {
     case PCI_CAP_ID_MSI:
-        ret = vfio_msi_setup(vdev, pos);
+        ret = vfio_msi_setup(vdev, pos, errp);
         break;
     case PCI_CAP_ID_EXP:
         vfio_check_pcie_flr(vdev, pos);
-        ret = vfio_setup_pcie_cap(vdev, pos, size);
+        ret = vfio_setup_pcie_cap(vdev, pos, size, errp);
         break;
     case PCI_CAP_ID_MSIX:
-        ret = vfio_msix_setup(vdev, pos);
+        ret = vfio_msix_setup(vdev, pos, errp);
         break;
     case PCI_CAP_ID_PM:
         vfio_check_pm_reset(vdev, pos);
         vdev->pm_cap = pos;
-        ret = pci_add_capability(pdev, cap_id, pos, size);
+        ret = pci_add_capability2(pdev, cap_id, pos, size, errp);
         break;
     case PCI_CAP_ID_AF:
         vfio_check_af_flr(vdev, pos);
-        ret = pci_add_capability(pdev, cap_id, pos, size);
+        ret = pci_add_capability2(pdev, cap_id, pos, size, errp);
         break;
     default:
-        ret = pci_add_capability(pdev, cap_id, pos, size);
+        ret = pci_add_capability2(pdev, cap_id, pos, size, errp);
         break;
     }
-
+out:
     if (ret < 0) {
-        error_report("vfio: %s Error adding PCI capability "
-                     "0x%x[0x%x]@0x%x: %d", vdev->vbasedev.name,
-                     cap_id, size, pos, ret);
+        error_prepend(errp,
+                      "failed to add PCI capability 0x%x[0x%x]@0x%x: ",
+                      cap_id, size, pos);
         return ret;
     }
 
     return 0;
 }
 
-static int vfio_add_ext_cap(VFIOPCIDevice *vdev)
+static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = &vdev->pdev;
     uint32_t header;
@@ -1795,7 +1797,7 @@ static int vfio_add_ext_cap(VFIOPCIDevice *vdev)
     /* Only add extended caps if we have them and the guest can see them */
     if (!pci_is_express(pdev) || !pci_bus_is_express(pdev->bus) ||
         !pci_get_long(pdev->config + PCI_CONFIG_SPACE_SIZE)) {
-        return 0;
+        return;
     }
 
     /*
@@ -1860,10 +1862,10 @@ static int vfio_add_ext_cap(VFIOPCIDevice *vdev)
     }
 
     g_free(config);
-    return 0;
+    return;
 }
 
-static int vfio_add_capabilities(VFIOPCIDevice *vdev)
+static int vfio_add_capabilities(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
     int ret;
@@ -1873,12 +1875,13 @@ static int vfio_add_capabilities(VFIOPCIDevice *vdev)
         return 0; /* Nothing to add */
     }
 
-    ret = vfio_add_std_cap(vdev, pdev->config[PCI_CAPABILITY_LIST]);
+    ret = vfio_add_std_cap(vdev, pdev->config[PCI_CAPABILITY_LIST], errp);
     if (ret) {
         return ret;
     }
 
-    return vfio_add_ext_cap(vdev);
+    vfio_add_ext_cap(vdev);
+    return 0;
 }
 
 static void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
@@ -2684,7 +2687,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     vfio_bars_setup(vdev);
 
-    ret = vfio_add_capabilities(vdev);
+    ret = vfio_add_capabilities(vdev, &err);
     if (ret) {
         goto out_teardown;
     }
