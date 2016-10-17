@@ -20,6 +20,8 @@
 #include "hw/i2c/aspeed_i2c.h"
 #include "hw/ssi/aspeed_smc.h"
 
+#define ASPEED_SPIS_NUM  2
+
 typedef struct AspeedSoCState {
     /*< private >*/
     DeviceState parent;
@@ -32,7 +34,7 @@ typedef struct AspeedSoCState {
     AspeedI2CState i2c;
     AspeedSCUState scu;
     AspeedSMCState fmc;
-    AspeedSMCState spi;
+    AspeedSMCState spi[ASPEED_SPIS_NUM];
     AspeedSDMCState sdmc;
 } AspeedSoCState;
 
@@ -44,6 +46,8 @@ typedef struct AspeedSoCInfo {
     const char *cpu_model;
     uint32_t silicon_rev;
     hwaddr sdram_base;
+    int spis_num;
+    const hwaddr *spi_bases;
 } AspeedSoCInfo;
 
 typedef struct AspeedSoCClass {

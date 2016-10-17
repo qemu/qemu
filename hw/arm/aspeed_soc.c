@@ -37,10 +37,17 @@ static const int timer_irqs[] = { 16, 17, 18, 35, 36, 37, 38, 39, };
 #define AST2400_SDRAM_BASE       0x40000000
 #define AST2500_SDRAM_BASE       0x80000000
 
+static const hwaddr aspeed_soc_ast2400_spi_bases[] = { ASPEED_SOC_SPI_BASE };
+
+static const hwaddr aspeed_soc_ast2500_spi_bases[] = { ASPEED_SOC_SPI_BASE };
+
 static const AspeedSoCInfo aspeed_socs[] = {
-    { "ast2400-a0", "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE },
-    { "ast2400",    "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE },
-    { "ast2500-a1", "arm1176", AST2500_A1_SILICON_REV, AST2500_SDRAM_BASE },
+    { "ast2400-a0", "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE,
+      1, aspeed_soc_ast2400_spi_bases },
+    { "ast2400",    "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE,
+      1, aspeed_soc_ast2400_spi_bases },
+    { "ast2500-a1", "arm1176", AST2500_A1_SILICON_REV, AST2500_SDRAM_BASE,
+      1, aspeed_soc_ast2500_spi_bases },
 };
 
 /*
@@ -72,6 +79,7 @@ static void aspeed_soc_init(Object *obj)
 {
     AspeedSoCState *s = ASPEED_SOC(obj);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    int i;
 
     s->cpu = cpu_arm_init(sc->info->cpu_model);
 
@@ -101,9 +109,11 @@ static void aspeed_soc_init(Object *obj)
     object_property_add_child(obj, "fmc", OBJECT(&s->fmc), NULL);
     qdev_set_parent_bus(DEVICE(&s->fmc), sysbus_get_default());
 
-    object_initialize(&s->spi, sizeof(s->spi), "aspeed.smc.spi");
-    object_property_add_child(obj, "spi", OBJECT(&s->spi), NULL);
-    qdev_set_parent_bus(DEVICE(&s->spi), sysbus_get_default());
+    for (i = 0; i < sc->info->spis_num; i++) {
+        object_initialize(&s->spi[i], sizeof(s->spi[i]), "aspeed.smc.spi");
+        object_property_add_child(obj, "spi", OBJECT(&s->spi[i]), NULL);
+        qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
+    }
 
     object_initialize(&s->sdmc, sizeof(s->sdmc), TYPE_ASPEED_SDMC);
     object_property_add_child(obj, "sdmc", OBJECT(&s->sdmc), NULL);
@@ -118,6 +128,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 {
     int i;
     AspeedSoCState *s = ASPEED_SOC(dev);
+    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     Error *err = NULL, *local_err = NULL;
 
     /* IO space */
@@ -190,16 +201,19 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->vic), 19));
 
     /* SPI */
-    object_property_set_int(OBJECT(&s->spi), 1, "num-cs", &err);
-    object_property_set_bool(OBJECT(&s->spi), true, "realized", &local_err);
-    error_propagate(&err, local_err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
+    for (i = 0; i < sc->info->spis_num; i++) {
+        object_property_set_int(OBJECT(&s->spi[i]), 1, "num-cs", &err);
+        object_property_set_bool(OBJECT(&s->spi[i]), true, "realized",
+                                 &local_err);
+        error_propagate(&err, local_err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[i]), 0, sc->info->spi_bases[i]);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[i]), 1,
+                        s->spi[i].ctrl->flash_window_base);
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi), 0, ASPEED_SOC_SPI_BASE);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi), 1,
-                    s->spi.ctrl->flash_window_base);
 
     /* SDMC - SDRAM Memory Controller */
     object_property_set_bool(OBJECT(&s->sdmc), true, "realized", &err);
