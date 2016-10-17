@@ -479,6 +479,13 @@ void HELPER(cpsr_write_eret)(CPUARMState *env, uint32_t val)
 {
     cpsr_write(env, val, CPSR_ERET_MASK, CPSRWriteExceptionReturn);
 
+    /* Generated code has already stored the new PC value, but
+     * without masking out its low bits, because which bits need
+     * masking depends on whether we're returning to Thumb or ARM
+     * state. Do the masking now.
+     */
+    env->regs[15] &= (env->thumb ? ~1 : ~3);
+
     arm_call_el_change_hook(arm_env_get_cpu(env));
 }
 

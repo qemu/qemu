@@ -11,8 +11,15 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "sysemu/replay.h"
+#include "migration/vmstate.h"
 
 #include "ptimer-test.h"
+
+const VMStateInfo vmstate_info_uint8;
+const VMStateInfo vmstate_info_uint32;
+const VMStateInfo vmstate_info_uint64;
+const VMStateInfo vmstate_info_int64;
+const VMStateInfo vmstate_info_timer;
 
 struct QEMUBH {
     QEMUBHFunc *cb;

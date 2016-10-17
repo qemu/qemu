@@ -111,6 +111,7 @@ struct Stream {
     unsigned int complete_cnt;
     uint32_t regs[R_MAX];
     uint8_t app[20];
+    unsigned char txbuf[16 * 1024];
 };
 
 struct XilinxAXIDMAStreamSlave {
@@ -256,7 +257,6 @@ static void stream_process_mem2s(struct Stream *s, StreamSlave *tx_data_dev,
                                  StreamSlave *tx_control_dev)
 {
     uint32_t prev_d;
-    unsigned char txbuf[16 * 1024];
     unsigned int txlen;
 
     if (!stream_running(s) || stream_idle(s)) {
@@ -277,17 +277,17 @@ static void stream_process_mem2s(struct Stream *s, StreamSlave *tx_data_dev,
         }
 
         txlen = s->desc.control & SDESC_CTRL_LEN_MASK;
-        if ((txlen + s->pos) > sizeof txbuf) {
+        if ((txlen + s->pos) > sizeof s->txbuf) {
             hw_error("%s: too small internal txbuf! %d\n", __func__,
                      txlen + s->pos);
         }
 
         cpu_physical_memory_read(s->desc.buffer_address,
-                                 txbuf + s->pos, txlen);
+                                 s->txbuf + s->pos, txlen);
         s->pos += txlen;
 
         if (stream_desc_eof(&s->desc)) {
-            stream_push(tx_data_dev, txbuf, s->pos);
+            stream_push(tx_data_dev, s->txbuf, s->pos);
             s->pos = 0;
             stream_complete(s);
         }

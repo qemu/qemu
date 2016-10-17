@@ -30,20 +30,6 @@
 #include "gic_internal.h"
 #include "vgic_common.h"
 
-//#define DEBUG_GIC_KVM
-
-#ifdef DEBUG_GIC_KVM
-static const int debug_gic_kvm = 1;
-#else
-static const int debug_gic_kvm = 0;
-#endif
-
-#define DPRINTF(fmt, ...) do { \
-        if (debug_gic_kvm) { \
-            printf("arm_gic: " fmt , ## __VA_ARGS__); \
-        } \
-    } while (0)
-
 #define TYPE_KVM_ARM_GIC "kvm-arm-gic"
 #define KVM_ARM_GIC(obj) \
      OBJECT_CHECK(GICState, (obj), TYPE_KVM_ARM_GIC)

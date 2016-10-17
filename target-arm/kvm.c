@@ -23,6 +23,7 @@
 #include "internals.h"
 #include "hw/arm/arm.h"
 #include "exec/memattrs.h"
+#include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "qemu/log.h"
 
@@ -283,7 +284,7 @@ void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid, uint64_t group,
     }
 
     if (QSLIST_EMPTY(&kvm_devices_head)) {
-        memory_listener_register(&devlistener, NULL);
+        memory_listener_register(&devlistener, &address_space_memory);
         qemu_add_machine_init_done_notifier(&notify);
     }
     kd = g_new0(KVMDevice, 1);

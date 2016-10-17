@@ -4363,24 +4363,33 @@ static void gen_mrs_banked(DisasContext *s, int r, int sysm, int rn)
     s->is_jmp = DISAS_UPDATE;
 }
 
-/* Generate an old-style exception return. Marks pc as dead. */
-static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
+/* Store value to PC as for an exception return (ie don't
+ * mask bits). The subsequent call to gen_helper_cpsr_write_eret()
+ * will do the masking based on the new value of the Thumb bit.
+ */
+static void store_pc_exc_ret(DisasContext *s, TCGv_i32 pc)
 {
-    TCGv_i32 tmp;
-    store_reg(s, 15, pc);
-    tmp = load_cpu_field(spsr);
-    gen_helper_cpsr_write_eret(cpu_env, tmp);
-    tcg_temp_free_i32(tmp);
-    s->is_jmp = DISAS_JUMP;
+    tcg_gen_mov_i32(cpu_R[15], pc);
+    tcg_temp_free_i32(pc);
 }
 
 /* Generate a v6 exception return.  Marks both values as dead.  */
 static void gen_rfe(DisasContext *s, TCGv_i32 pc, TCGv_i32 cpsr)
 {
+    store_pc_exc_ret(s, pc);
+    /* The cpsr_write_eret helper will mask the low bits of PC
+     * appropriately depending on the new Thumb bit, so it must
+     * be called after storing the new PC.
+     */
     gen_helper_cpsr_write_eret(cpu_env, cpsr);
     tcg_temp_free_i32(cpsr);
-    store_reg(s, 15, pc);
     s->is_jmp = DISAS_JUMP;
+}
+
+/* Generate an old-style exception return. Marks pc as dead. */
+static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
+{
+    gen_rfe(s, pc, load_cpu_field(spsr));
 }
 
 static void gen_nop_hint(DisasContext *s, int val)
@@ -9366,6 +9375,8 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                             } else if (i == rn) {
                                 loaded_var = tmp;
                                 loaded_base = 1;
+                            } else if (rn == 15 && exc_return) {
+                                store_pc_exc_ret(s, tmp);
                             } else {
                                 store_reg_from_load(s, i, tmp);
                             }

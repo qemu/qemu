@@ -128,8 +128,8 @@ static void aspeed_board_init(MachineState *machine,
     object_property_add_const_link(OBJECT(&bmc->soc), "ram", OBJECT(&bmc->ram),
                                    &error_abort);
 
-    aspeed_board_init_flashes(&bmc->soc.smc, "n25q256a", &error_abort);
-    aspeed_board_init_flashes(&bmc->soc.spi, "mx25l25635e", &error_abort);
+    aspeed_board_init_flashes(&bmc->soc.fmc, "n25q256a", &error_abort);
+    aspeed_board_init_flashes(&bmc->soc.spi[0], "mx25l25635e", &error_abort);
 
     aspeed_board_binfo.kernel_filename = machine->kernel_filename;
     aspeed_board_binfo.initrd_filename = machine->initrd_filename;

@@ -351,7 +351,7 @@ static void pl080_write(void *opaque, hwaddr offset,
         break;
     case 12: /* Configuration */
         s->conf = value;
-        if (s->conf & (PL080_CONF_M1 | PL080_CONF_M1)) {
+        if (s->conf & (PL080_CONF_M1 | PL080_CONF_M2)) {
             qemu_log_mask(LOG_UNIMP,
                           "pl080_write: Big-endian DMA not implemented\n");
         }
