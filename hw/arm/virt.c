@@ -84,6 +84,7 @@ typedef struct {
     MachineClass parent;
     VirtBoardInfo *daughterboard;
     bool disallow_affinity_adjustment;
+    bool no_its;
 } VirtMachineClass;
 
 typedef struct {
@@ -551,7 +552,8 @@ static void create_v2m(VirtBoardInfo *vbi, qemu_irq *pic)
     fdt_add_v2m_gic_node(vbi);
 }
 
-static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, int type, bool secure)
+static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, int type,
+                       bool secure, bool no_its)
 {
     /* We create a standalone GIC */
     DeviceState *gicdev;
@@ -615,9 +617,9 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, int type, bool secure)
 
     fdt_add_gic_node(vbi, type);
 
-    if (type == 3) {
+    if (type == 3 && !no_its) {
         create_its(vbi, gicdev);
-    } else {
+    } else if (type == 2) {
         create_v2m(vbi, pic);
     }
 }
@@ -1375,7 +1377,7 @@ static void machvirt_init(MachineState *machine)
 
     create_flash(vbi, sysmem, secure_sysmem ? secure_sysmem : sysmem);
 
-    create_gic(vbi, pic, gic_version, vms->secure);
+    create_gic(vbi, pic, gic_version, vms->secure, vmc->no_its);
 
     fdt_add_pmu_nodes(vbi, gic_version);
 
@@ -1407,6 +1409,7 @@ static void machvirt_init(MachineState *machine)
     guest_info->irqmap = vbi->irqmap;
     guest_info->use_highmem = vms->highmem;
     guest_info->gic_version = gic_version;
+    guest_info->no_its = vmc->no_its;
     guest_info_state->machine_done.notify = virt_guest_info_machine_done;
     qemu_add_machine_init_done_notifier(&guest_info_state->machine_done);
 
@@ -1561,8 +1564,12 @@ static void virt_2_7_instance_init(Object *obj)
 
 static void virt_machine_2_7_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
     virt_machine_2_8_options(mc);
     SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_7);
+    /* ITS was introduced with 2.8 */
+    vmc->no_its = true;
 }
 DEFINE_VIRT_MACHINE(2, 7)
 

@@ -33,6 +33,7 @@ typedef struct VirtGuestInfo {
     const int *irqmap;
     bool use_highmem;
     int gic_version;
+    bool no_its;
 } VirtGuestInfo;
 
 
