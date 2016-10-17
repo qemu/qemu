@@ -8,7 +8,7 @@ The 'loader' device allows the user to load multiple images or values into
 QEMU at startup.
 
 Loading Data into Memory Values
----------------------
+-------------------------------
 The loader device allows memory values to be set from the command line. This
 can be done by following the syntax below:
 
@@ -36,7 +36,7 @@ An example of loading value 0x8000000e to address 0xfd1a0104 is:
     -device loader,addr=0xfd1a0104,data=0x8000000e,data-len=4
 
 Setting a CPU's Program Counter
----------------------
+-------------------------------
 The loader device allows the CPU's PC to be set from the command line. This
 can be done by following the syntax below:
 
@@ -55,9 +55,10 @@ An example of setting CPU 0's PC to 0x8000 is:
     -device loader,addr=0x8000,cpu-num=0
 
 Loading Files
----------------------
-The loader device also allows files to be loaded into memory. This can be done
-similarly to setting memory values. The syntax is shown below:
+-------------
+The loader device also allows files to be loaded into memory. It can load raw
+files and ELF executable files.  Raw files are loaded verbatim.  ELF executable
+files are loaded by an ELF loader.  The syntax is shown below:
 
     -device loader,file=<file>[,addr=<addr>][,cpu-num=<cpu-num>][,force-raw=<raw>]
 
@@ -72,8 +73,8 @@ similarly to setting memory values. The syntax is shown below:
                   for the boot image.
                   This will also cause the image to be written to the specified
                   CPU's address space. If not specified, the default is CPU 0.
-    <force-raw> - Forces the file to be treated as a raw image. This can be
-                  used to specify the load address of ELF files.
+    <force-raw> - Setting force-raw=on forces the file to be treated as a raw
+                  image.  This can be used to load ELF files as if they were raw.
 
 All values are parsed using the standard QemuOps parsing. This allows the user
 to specify any values in any format supported. By default the values
@@ -82,3 +83,10 @@ with a '0x'.
 
 An example of loading an ELF file which CPU0 will boot is shown below:
     -device loader,file=./images/boot.elf,cpu-num=0
+
+Restrictions and ToDos
+----------------------
+ - At the moment it is just assumed that if you specify a cpu-num then you
+   want to set the PC as well. This might not always be the case. In future
+   the internal state 'set_pc' (which exists in the generic loader now) should
+   be exposed to the user so that they can choose if the PC is set or not.
