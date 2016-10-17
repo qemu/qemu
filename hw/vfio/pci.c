@@ -2493,6 +2493,7 @@ static int vfio_initfn(PCIDevice *pdev)
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
     char *tmp, group_path[PATH_MAX], *group_name;
+    Error *err = NULL;
     ssize_t len;
     struct stat st;
     int groupid;
@@ -2506,9 +2507,9 @@ static int vfio_initfn(PCIDevice *pdev)
     }
 
     if (stat(vdev->vbasedev.sysfsdev, &st) < 0) {
-        error_report("vfio: error: no such host device: %s",
-                     vdev->vbasedev.sysfsdev);
-        return -errno;
+        error_setg_errno(&err, errno, "no such host device");
+        ret = -errno;
+        goto error;
     }
 
     vdev->vbasedev.name = g_strdup(basename(vdev->vbasedev.sysfsdev));
@@ -2520,40 +2521,43 @@ static int vfio_initfn(PCIDevice *pdev)
     g_free(tmp);
 
     if (len <= 0 || len >= sizeof(group_path)) {
-        error_report("vfio: error no iommu_group for device");
-        return len < 0 ? -errno : -ENAMETOOLONG;
+        ret = len < 0 ? -errno : -ENAMETOOLONG;
+        error_setg_errno(&err, -ret, "no iommu_group found");
+        goto error;
     }
 
     group_path[len] = 0;
 
     group_name = basename(group_path);
     if (sscanf(group_name, "%d", &groupid) != 1) {
-        error_report("vfio: error reading %s: %m", group_path);
-        return -errno;
+        error_setg_errno(&err, errno, "failed to read %s", group_path);
+        ret = -errno;
+        goto error;
     }
 
     trace_vfio_initfn(vdev->vbasedev.name, groupid);
 
     group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev));
     if (!group) {
-        error_report("vfio: failed to get group %d", groupid);
-        return -ENOENT;
+        error_setg(&err, "failed to get group %d", groupid);
+        ret = -ENOENT;
+        goto error;
     }
 
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vdev->vbasedev.name) == 0) {
-            error_report("vfio: error: device %s is already attached",
-                         vdev->vbasedev.name);
+            error_setg(&err, "device is already attached");
             vfio_put_group(group);
-            return -EBUSY;
+            ret = -EBUSY;
+            goto error;
         }
     }
 
     ret = vfio_get_device(group, vdev->vbasedev.name, &vdev->vbasedev);
     if (ret) {
-        error_report("vfio: failed to get device %s", vdev->vbasedev.name);
+        error_setg_errno(&err, -ret, "failed to get device");
         vfio_put_group(group);
-        return ret;
+        goto error;
     }
 
     ret = vfio_populate_device(vdev);
@@ -2567,8 +2571,8 @@ static int vfio_initfn(PCIDevice *pdev)
                 vdev->config_offset);
     if (ret < (int)MIN(pci_config_size(&vdev->pdev), vdev->config_size)) {
         ret = ret < 0 ? -errno : -EFAULT;
-        error_report("vfio: Failed to read device config space");
-        return ret;
+        error_setg_errno(&err, -ret, "failed to read device config space");
+        goto error;
     }
 
     /* vfio emulates a lot for us, but some bits need extra love */
@@ -2584,8 +2588,9 @@ static int vfio_initfn(PCIDevice *pdev)
      */
     if (vdev->vendor_id != PCI_ANY_ID) {
         if (vdev->vendor_id >= 0xffff) {
-            error_report("vfio: Invalid PCI vendor ID provided");
-            return -EINVAL;
+            error_setg(&err, "invalid PCI vendor ID provided");
+            ret = -EINVAL;
+            goto error;
         }
         vfio_add_emulated_word(vdev, PCI_VENDOR_ID, vdev->vendor_id, ~0);
         trace_vfio_pci_emulated_vendor_id(vdev->vbasedev.name, vdev->vendor_id);
@@ -2595,8 +2600,9 @@ static int vfio_initfn(PCIDevice *pdev)
 
     if (vdev->device_id != PCI_ANY_ID) {
         if (vdev->device_id > 0xffff) {
-            error_report("vfio: Invalid PCI device ID provided");
-            return -EINVAL;
+            error_setg(&err, "invalid PCI device ID provided");
+            ret = -EINVAL;
+            goto error;
         }
         vfio_add_emulated_word(vdev, PCI_DEVICE_ID, vdev->device_id, ~0);
         trace_vfio_pci_emulated_device_id(vdev->vbasedev.name, vdev->device_id);
@@ -2606,8 +2612,9 @@ static int vfio_initfn(PCIDevice *pdev)
 
     if (vdev->sub_vendor_id != PCI_ANY_ID) {
         if (vdev->sub_vendor_id > 0xffff) {
-            error_report("vfio: Invalid PCI subsystem vendor ID provided");
-            return -EINVAL;
+            error_setg(&err, "invalid PCI subsystem vendor ID provided");
+            ret = -EINVAL;
+            goto error;
         }
         vfio_add_emulated_word(vdev, PCI_SUBSYSTEM_VENDOR_ID,
                                vdev->sub_vendor_id, ~0);
@@ -2617,8 +2624,9 @@ static int vfio_initfn(PCIDevice *pdev)
 
     if (vdev->sub_device_id != PCI_ANY_ID) {
         if (vdev->sub_device_id > 0xffff) {
-            error_report("vfio: Invalid PCI subsystem device ID provided");
-            return -EINVAL;
+            error_setg(&err, "invalid PCI subsystem device ID provided");
+            ret = -EINVAL;
+            goto error;
         }
         vfio_add_emulated_word(vdev, PCI_SUBSYSTEM_ID, vdev->sub_device_id, ~0);
         trace_vfio_pci_emulated_sub_device_id(vdev->vbasedev.name,
@@ -2671,8 +2679,9 @@ static int vfio_initfn(PCIDevice *pdev)
         struct vfio_region_info *opregion;
 
         if (vdev->pdev.qdev.hotplugged) {
-            error_report("Cannot support IGD OpRegion feature on hotplugged "
-                         "device %s", vdev->vbasedev.name);
+            error_setg(&err,
+                       "cannot support IGD OpRegion feature on hotplugged "
+                       "device");
             ret = -EINVAL;
             goto out_teardown;
         }
@@ -2681,16 +2690,15 @@ static int vfio_initfn(PCIDevice *pdev)
                         VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_INTEL,
                         VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, &opregion);
         if (ret) {
-            error_report("Device %s does not support requested IGD OpRegion "
-                         "feature", vdev->vbasedev.name);
+            error_setg_errno(&err, -ret,
+                             "does not support requested IGD OpRegion feature");
             goto out_teardown;
         }
 
         ret = vfio_pci_igd_opregion_init(vdev, opregion);
         g_free(opregion);
         if (ret) {
-            error_report("Device %s IGD OpRegion initialization failed",
-                         vdev->vbasedev.name);
+            error_setg_errno(&err, -ret, "IGD OpRegion initialization failed");
             goto out_teardown;
         }
     }
@@ -2726,6 +2734,10 @@ out_teardown:
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_teardown_msi(vdev);
     vfio_bars_exit(vdev);
+error:
+    if (err) {
+        error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
+    }
     return ret;
 }
 

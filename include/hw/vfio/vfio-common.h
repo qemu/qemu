@@ -30,6 +30,9 @@
 #include <linux/vfio.h>
 #endif
 
+#define ERR_PREFIX "vfio error: %s: "
+#define WARN_PREFIX "vfio warning: %s: "
+
 /*#define DEBUG_VFIO*/
 #ifdef DEBUG_VFIO
 #define DPRINTF(fmt, ...) \
