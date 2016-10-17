@@ -78,6 +78,7 @@ docker:
 	@echo '                         "IMAGE" is one of the listed container name."'
 	@echo '    docker-image:        Build all images.'
 	@echo '    docker-image-IMAGE:  Build image "IMAGE".'
+	@echo '    docker-run:          For manually running a "TEST" with "IMAGE"'
 	@echo
 	@echo 'Available container images:'
 	@echo '    $(DOCKER_IMAGES)'
@@ -101,31 +102,45 @@ docker:
 	@echo '    NOCACHE=1            Ignore cache when build images.'
 	@echo '    EXECUTABLE=<path>    Include executable in image.'
 
+# This rule if for directly running against an arbitrary docker target.
+# It is called by the expanded docker targets (e.g. make
+# docker-test-foo@bar) which will do additional verification.
+#
+# For example: make docker-run TEST="test-quick" IMAGE="debian:arm64" EXECUTABLE=./aarch64-linux-user/qemu-aarch64
+#
+docker-run: docker-qemu-src
+	@mkdir -p "$(DOCKER_CCACHE_DIR)"
+	@if test -z "$(IMAGE)" || test -z "$(TEST)"; \
+		then echo "Invalid target $(IMAGE)/$(TEST)"; exit 1; \
+	fi
+	$(if $(EXECUTABLE),						\
+		$(call quiet-command,					\
+			$(SRC_PATH)/tests/docker/docker.py update 	\
+			$(IMAGE) $(EXECUTABLE),				\
+			"  COPYING $(EXECUTABLE) to $(IMAGE)"))
+	$(call quiet-command,						\
+		$(SRC_PATH)/tests/docker/docker.py run 			\
+			-t 						\
+			$(if $V,,--rm) 					\
+			$(if $(DEBUG),-i,--net=none) 			\
+			-e TARGET_LIST=$(TARGET_LIST) 			\
+			-e EXTRA_CONFIGURE_OPTS="$(EXTRA_CONFIGURE_OPTS)" \
+			-e V=$V -e J=$J -e DEBUG=$(DEBUG)		\
+			-e SHOW_ENV=$(SHOW_ENV) 			\
+			-e CCACHE_DIR=/var/tmp/ccache 			\
+			-v $$(readlink -e $(DOCKER_SRC_COPY)):/var/tmp/qemu:z$(COMMA)ro \
+			-v $(DOCKER_CCACHE_DIR):/var/tmp/ccache:z 	\
+			$(IMAGE) 					\
+			/var/tmp/qemu/run 				\
+			$(TEST), "  RUN $(TEST) in ${IMAGE}")
+
+# Run targets:
+#
+# Of the form docker-TEST-FOO@IMAGE-BAR which will then be expanded into a call to "make docker-run"
 docker-run-%: CMD = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\1/')
 docker-run-%: IMAGE = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\2/')
-docker-run-%: docker-qemu-src
-	@mkdir -p "$(DOCKER_CCACHE_DIR)"
-	@if test -z "$(IMAGE)" || test -z "$(CMD)"; \
-		then echo "Invalid target"; exit 1; \
-	fi
-	$(if $(filter $(TESTS),$(CMD)),$(if $(filter $(IMAGES),$(IMAGE)), \
-		$(call quiet-command,\
-			if $(SRC_PATH)/tests/docker/docker.py images | \
-				awk '$$1=="qemu" && $$2=="$(IMAGE)"{found=1} END{exit(!found)}'; then \
-				$(SRC_PATH)/tests/docker/docker.py run $(if $V,,--rm) \
-				-t \
-				$(if $(DEBUG),-i,--net=none) \
-				-e TARGET_LIST=$(TARGET_LIST) \
-				-e EXTRA_CONFIGURE_OPTS=$(EXTRA_CONFIGURE_OPTS) \
-				-e V=$V -e J=$J -e DEBUG=$(DEBUG) -e SHOW_ENV=$(SHOW_ENV)\
-				-e CCACHE_DIR=/var/tmp/ccache \
-				-v $$(readlink -e $(DOCKER_SRC_COPY)):/var/tmp/qemu:z$(COMMA)ro \
-				-v $(DOCKER_CCACHE_DIR):/var/tmp/ccache:z \
-				qemu:$(IMAGE) \
-				/var/tmp/qemu/run \
-				$(CMD); \
-			fi \
-			,"RUN","$(CMD) in $(IMAGE)")))
+docker-run-%:
+	@$(MAKE) docker-run TEST=$(CMD) IMAGE=qemu:$(IMAGE)
 
 docker-clean:
 	$(call quiet-command, $(SRC_PATH)/tests/docker/docker.py clean)
