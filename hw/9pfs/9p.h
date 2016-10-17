@@ -324,7 +324,7 @@ static inline uint8_t v9fs_request_cancelled(V9fsPDU *pdu)
     return pdu->cancelled;
 }
 
-void v9fs_reclaim_fd(V9fsPDU *pdu);
+void coroutine_fn v9fs_reclaim_fd(V9fsPDU *pdu);
 void v9fs_path_init(V9fsPath *path);
 void v9fs_path_free(V9fsPath *path);
 void v9fs_path_sprintf(V9fsPath *path, const char *fmt, ...);
