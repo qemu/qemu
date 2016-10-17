@@ -561,6 +561,64 @@ void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2,
     tcg_temp_free_i32(t1);
 }
 
+void tcg_gen_deposit_z_i32(TCGv_i32 ret, TCGv_i32 arg,
+                           unsigned int ofs, unsigned int len)
+{
+    tcg_debug_assert(ofs < 32);
+    tcg_debug_assert(len > 0);
+    tcg_debug_assert(len <= 32);
+    tcg_debug_assert(ofs + len <= 32);
+
+    if (ofs + len == 32) {
+        tcg_gen_shli_i32(ret, arg, ofs);
+    } else if (ofs == 0) {
+        tcg_gen_andi_i32(ret, arg, (1u << len) - 1);
+    } else if (TCG_TARGET_HAS_deposit_i32
+               && TCG_TARGET_deposit_i32_valid(ofs, len)) {
+        TCGv_i32 zero = tcg_const_i32(0);
+        tcg_gen_op5ii_i32(INDEX_op_deposit_i32, ret, zero, arg, ofs, len);
+        tcg_temp_free_i32(zero);
+    } else {
+        /* To help two-operand hosts we prefer to zero-extend first,
+           which allows ARG to stay live.  */
+        switch (len) {
+        case 16:
+            if (TCG_TARGET_HAS_ext16u_i32) {
+                tcg_gen_ext16u_i32(ret, arg);
+                tcg_gen_shli_i32(ret, ret, ofs);
+                return;
+            }
+            break;
+        case 8:
+            if (TCG_TARGET_HAS_ext8u_i32) {
+                tcg_gen_ext8u_i32(ret, arg);
+                tcg_gen_shli_i32(ret, ret, ofs);
+                return;
+            }
+            break;
+        }
+        /* Otherwise prefer zero-extension over AND for code size.  */
+        switch (ofs + len) {
+        case 16:
+            if (TCG_TARGET_HAS_ext16u_i32) {
+                tcg_gen_shli_i32(ret, arg, ofs);
+                tcg_gen_ext16u_i32(ret, ret);
+                return;
+            }
+            break;
+        case 8:
+            if (TCG_TARGET_HAS_ext8u_i32) {
+                tcg_gen_shli_i32(ret, arg, ofs);
+                tcg_gen_ext8u_i32(ret, ret);
+                return;
+            }
+            break;
+        }
+        tcg_gen_andi_i32(ret, arg, (1u << len) - 1);
+        tcg_gen_shli_i32(ret, ret, ofs);
+    }
+}
+
 void tcg_gen_extract_i32(TCGv_i32 ret, TCGv_i32 arg,
                          unsigned int ofs, unsigned int len)
 {
@@ -1760,6 +1818,91 @@ void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2,
     tcg_gen_or_i64(ret, ret, t1);
 
     tcg_temp_free_i64(t1);
+}
+
+void tcg_gen_deposit_z_i64(TCGv_i64 ret, TCGv_i64 arg,
+                           unsigned int ofs, unsigned int len)
+{
+    tcg_debug_assert(ofs < 64);
+    tcg_debug_assert(len > 0);
+    tcg_debug_assert(len <= 64);
+    tcg_debug_assert(ofs + len <= 64);
+
+    if (ofs + len == 64) {
+        tcg_gen_shli_i64(ret, arg, ofs);
+    } else if (ofs == 0) {
+        tcg_gen_andi_i64(ret, arg, (1ull << len) - 1);
+    } else if (TCG_TARGET_HAS_deposit_i64
+               && TCG_TARGET_deposit_i64_valid(ofs, len)) {
+        TCGv_i64 zero = tcg_const_i64(0);
+        tcg_gen_op5ii_i64(INDEX_op_deposit_i64, ret, zero, arg, ofs, len);
+        tcg_temp_free_i64(zero);
+    } else {
+        if (TCG_TARGET_REG_BITS == 32) {
+            if (ofs >= 32) {
+                tcg_gen_deposit_z_i32(TCGV_HIGH(ret), TCGV_LOW(arg),
+                                      ofs - 32, len);
+                tcg_gen_movi_i32(TCGV_LOW(ret), 0);
+                return;
+            }
+            if (ofs + len <= 32) {
+                tcg_gen_deposit_z_i32(TCGV_LOW(ret), TCGV_LOW(arg), ofs, len);
+                tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
+                return;
+            }
+        }
+        /* To help two-operand hosts we prefer to zero-extend first,
+           which allows ARG to stay live.  */
+        switch (len) {
+        case 32:
+            if (TCG_TARGET_HAS_ext32u_i64) {
+                tcg_gen_ext32u_i64(ret, arg);
+                tcg_gen_shli_i64(ret, ret, ofs);
+                return;
+            }
+            break;
+        case 16:
+            if (TCG_TARGET_HAS_ext16u_i64) {
+                tcg_gen_ext16u_i64(ret, arg);
+                tcg_gen_shli_i64(ret, ret, ofs);
+                return;
+            }
+            break;
+        case 8:
+            if (TCG_TARGET_HAS_ext8u_i64) {
+                tcg_gen_ext8u_i64(ret, arg);
+                tcg_gen_shli_i64(ret, ret, ofs);
+                return;
+            }
+            break;
+        }
+        /* Otherwise prefer zero-extension over AND for code size.  */
+        switch (ofs + len) {
+        case 32:
+            if (TCG_TARGET_HAS_ext32u_i64) {
+                tcg_gen_shli_i64(ret, arg, ofs);
+                tcg_gen_ext32u_i64(ret, ret);
+                return;
+            }
+            break;
+        case 16:
+            if (TCG_TARGET_HAS_ext16u_i64) {
+                tcg_gen_shli_i64(ret, arg, ofs);
+                tcg_gen_ext16u_i64(ret, ret);
+                return;
+            }
+            break;
+        case 8:
+            if (TCG_TARGET_HAS_ext8u_i64) {
+                tcg_gen_shli_i64(ret, arg, ofs);
+                tcg_gen_ext8u_i64(ret, ret);
+                return;
+            }
+            break;
+        }
+        tcg_gen_andi_i64(ret, arg, (1ull << len) - 1);
+        tcg_gen_shli_i64(ret, ret, ofs);
+    }
 }
 
 void tcg_gen_extract_i64(TCGv_i64 ret, TCGv_i64 arg,
