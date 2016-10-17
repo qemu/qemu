@@ -541,13 +541,14 @@ static VFIODeviceOps vfio_platform_ops = {
 /**
  * vfio_base_device_init - perform preliminary VFIO setup
  * @vbasedev: the VFIO device handle
+ * @errp: error object
  *
  * Implement the VFIO command sequence that allows to discover
  * assigned device resources: group extraction, device
  * fd retrieval, resource query.
  * Precondition: the device name must be initialized
  */
-static int vfio_base_device_init(VFIODevice *vbasedev)
+static int vfio_base_device_init(VFIODevice *vbasedev, Error **errp)
 {
     VFIOGroup *group;
     VFIODevice *vbasedev_iter;
@@ -555,7 +556,6 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
     ssize_t len;
     struct stat st;
     int groupid;
-    Error *err = NULL;
     int ret;
 
     /* @sysfsdev takes precedence over @host */
@@ -564,6 +564,7 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
         vbasedev->name = g_strdup(basename(vbasedev->sysfsdev));
     } else {
         if (!vbasedev->name || strchr(vbasedev->name, '/')) {
+            error_setg(errp, "wrong host device name");
             return -EINVAL;
         }
 
@@ -572,8 +573,8 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
     }
 
     if (stat(vbasedev->sysfsdev, &st) < 0) {
-        error_report("vfio: error: no such host device: %s",
-                     vbasedev->sysfsdev);
+        error_setg_errno(errp, errno,
+                         "failed to get the sysfs host device file status");
         return -errno;
     }
 
@@ -582,49 +583,44 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
     g_free(tmp);
 
     if (len < 0 || len >= sizeof(group_path)) {
-        error_report("vfio: error no iommu_group for device");
-        return len < 0 ? -errno : -ENAMETOOLONG;
+        ret = len < 0 ? -errno : -ENAMETOOLONG;
+        error_setg_errno(errp, -ret, "no iommu_group found");
+        return ret;
     }
 
     group_path[len] = 0;
 
     group_name = basename(group_path);
     if (sscanf(group_name, "%d", &groupid) != 1) {
-        error_report("vfio: error reading %s: %m", group_path);
+        error_setg_errno(errp, errno, "failed to read %s", group_path);
         return -errno;
     }
 
     trace_vfio_platform_base_device_init(vbasedev->name, groupid);
 
-    group = vfio_get_group(groupid, &address_space_memory, &err);
+    group = vfio_get_group(groupid, &address_space_memory, errp);
     if (!group) {
-        ret = -ENOENT;
-        goto error;
+        return -ENOENT;
     }
 
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vbasedev->name) == 0) {
-            error_report("vfio: error: device %s is already attached",
-                         vbasedev->name);
+            error_setg(errp, "device is already attached");
             vfio_put_group(group);
             return -EBUSY;
         }
     }
-    ret = vfio_get_device(group, vbasedev->name, vbasedev, &err);
+    ret = vfio_get_device(group, vbasedev->name, vbasedev, errp);
     if (ret) {
         vfio_put_group(group);
-        goto error;
+        return ret;
     }
 
-    ret = vfio_populate_device(vbasedev, &err);
+    ret = vfio_populate_device(vbasedev, errp);
     if (ret) {
         vfio_put_group(group);
     }
 
-error:
-    if (err) {
-        error_reportf_err(err, ERR_PREFIX, vbasedev->name);
-    }
     return ret;
 }
 
@@ -650,11 +646,9 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
                                 vbasedev->sysfsdev : vbasedev->name,
                                 vdev->compat);
 
-    ret = vfio_base_device_init(vbasedev);
+    ret = vfio_base_device_init(vbasedev, errp);
     if (ret) {
-        error_setg(errp, "vfio: vfio_base_device_init failed for %s",
-                   vbasedev->name);
-        return;
+        goto out;
     }
 
     for (i = 0; i < vbasedev->num_regions; i++) {
@@ -663,6 +657,16 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
                          memory_region_name(vdev->regions[i]->mem));
         }
         sysbus_init_mmio(sbdev, vdev->regions[i]->mem);
+    }
+out:
+    if (!ret) {
+        return;
+    }
+
+    if (vdev->vbasedev.name) {
+        error_prepend(errp, ERR_PREFIX, vdev->vbasedev.name);
+    } else {
+        error_prepend(errp, "vfio error: ");
     }
 }
 
