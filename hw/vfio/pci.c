@@ -2721,10 +2721,9 @@ static int vfio_initfn(PCIDevice *pdev)
             goto out_teardown;
         }
 
-        ret = vfio_pci_igd_opregion_init(vdev, opregion);
+        ret = vfio_pci_igd_opregion_init(vdev, opregion, &err);
         g_free(opregion);
         if (ret) {
-            error_setg_errno(&err, -ret, "IGD OpRegion initialization failed");
             goto out_teardown;
         }
     }

@@ -1056,7 +1056,7 @@ typedef struct VFIOIGDQuirk {
  * of the IGD device.
  */
 int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
-                               struct vfio_region_info *info)
+                               struct vfio_region_info *info, Error **errp)
 {
     int ret;
 
@@ -1064,7 +1064,7 @@ int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
     ret = pread(vdev->vbasedev.fd, vdev->igd_opregion,
                 info->size, info->offset);
     if (ret != info->size) {
-        error_report("vfio: Error reading IGD OpRegion");
+        error_setg(errp, "failed to read IGD OpRegion");
         g_free(vdev->igd_opregion);
         vdev->igd_opregion = NULL;
         return -EINVAL;
@@ -1489,10 +1489,10 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     /* Setup OpRegion access */
-    ret = vfio_pci_igd_opregion_init(vdev, opregion);
+    ret = vfio_pci_igd_opregion_init(vdev, opregion, &err);
     if (ret) {
-        error_report("IGD device %s failed to setup OpRegion, "
-                     "legacy mode disabled", vdev->vbasedev.name);
+        error_append_hint(&err, "IGD legacy mode disabled\n");
+        error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
         goto out;
     }
 
