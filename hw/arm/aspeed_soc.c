@@ -100,9 +100,9 @@ static void aspeed_soc_init(Object *obj)
     object_property_add_alias(obj, "hw-strap2", OBJECT(&s->scu),
                               "hw-strap2", &error_abort);
 
-    object_initialize(&s->smc, sizeof(s->smc), "aspeed.smc.fmc");
-    object_property_add_child(obj, "smc", OBJECT(&s->smc), NULL);
-    qdev_set_parent_bus(DEVICE(&s->smc), sysbus_get_default());
+    object_initialize(&s->fmc, sizeof(s->fmc), "aspeed.smc.fmc");
+    object_property_add_child(obj, "fmc", OBJECT(&s->fmc), NULL);
+    qdev_set_parent_bus(DEVICE(&s->fmc), sysbus_get_default());
 
     object_initialize(&s->spi, sizeof(s->spi), "aspeed.smc.spi");
     object_property_add_child(obj, "spi", OBJECT(&s->spi), NULL);
@@ -178,17 +178,17 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c), 0,
                        qdev_get_gpio_in(DEVICE(&s->vic), 12));
 
-    /* SMC */
-    object_property_set_int(OBJECT(&s->smc), 1, "num-cs", &err);
-    object_property_set_bool(OBJECT(&s->smc), true, "realized", &local_err);
+    /* FMC */
+    object_property_set_int(OBJECT(&s->fmc), 1, "num-cs", &err);
+    object_property_set_bool(OBJECT(&s->fmc), true, "realized", &local_err);
     error_propagate(&err, local_err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->smc), 0, ASPEED_SOC_FMC_BASE);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->smc), 1, ASPEED_SOC_FMC_FLASH_BASE);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->smc), 0,
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->fmc), 0, ASPEED_SOC_FMC_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->fmc), 1, ASPEED_SOC_FMC_FLASH_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->fmc), 0,
                        qdev_get_gpio_in(DEVICE(&s->vic), 19));
 
     /* SPI */

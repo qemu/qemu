@@ -31,7 +31,7 @@ typedef struct AspeedSoCState {
     AspeedTimerCtrlState timerctrl;
     AspeedI2CState i2c;
     AspeedSCUState scu;
-    AspeedSMCState smc;
+    AspeedSMCState fmc;
     AspeedSMCState spi;
     AspeedSDMCState sdmc;
 } AspeedSoCState;
