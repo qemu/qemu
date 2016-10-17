@@ -1505,7 +1505,7 @@ static void pxa2xx_i2c_initfn(Object *obj)
     PXA2xxI2CState *s = PXA2XX_I2C(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    s->bus = i2c_init_bus(dev, "i2c");
+    s->bus = i2c_init_bus(dev, NULL);
 
     memory_region_init_io(&s->iomem, obj, &pxa2xx_i2c_ops, s,
                           "pxa2xx-i2c", s->region_size);
