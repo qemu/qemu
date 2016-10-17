@@ -130,6 +130,7 @@
 #define ASPEED_SOC_SMC_FLASH_BASE   0x10000000
 #define ASPEED_SOC_FMC_FLASH_BASE   0x20000000
 #define ASPEED_SOC_SPI_FLASH_BASE   0x30000000
+#define ASPEED_SOC_SPI2_FLASH_BASE  0x38000000
 
 /*
  * Default segments mapping addresses and size for each slave per
@@ -142,7 +143,7 @@ static const AspeedSegments aspeed_segments_legacy[] = {
 };
 
 static const AspeedSegments aspeed_segments_fmc[] = {
-    { 0x20000000, 64 * 1024 * 1024 },
+    { 0x20000000, 64 * 1024 * 1024 }, /* start address is readonly */
     { 0x24000000, 32 * 1024 * 1024 },
     { 0x26000000, 32 * 1024 * 1024 },
     { 0x28000000, 32 * 1024 * 1024 },
@@ -151,6 +152,22 @@ static const AspeedSegments aspeed_segments_fmc[] = {
 
 static const AspeedSegments aspeed_segments_spi[] = {
     { 0x30000000, 64 * 1024 * 1024 },
+};
+
+static const AspeedSegments aspeed_segments_ast2500_fmc[] = {
+    { 0x20000000, 128 * 1024 * 1024 }, /* start address is readonly */
+    { 0x28000000,  32 * 1024 * 1024 },
+    { 0x2A000000,  32 * 1024 * 1024 },
+};
+
+static const AspeedSegments aspeed_segments_ast2500_spi1[] = {
+    { 0x30000000, 32 * 1024 * 1024 }, /* start address is readonly */
+    { 0x32000000, 96 * 1024 * 1024 }, /* end address is readonly */
+};
+
+static const AspeedSegments aspeed_segments_ast2500_spi2[] = {
+    { 0x38000000, 32 * 1024 * 1024 }, /* start address is readonly */
+    { 0x3A000000, 96 * 1024 * 1024 }, /* end address is readonly */
 };
 
 static const AspeedSMCController controllers[] = {
@@ -163,6 +180,15 @@ static const AspeedSMCController controllers[] = {
     { "aspeed.smc.spi", R_SPI_CONF, 0xff, R_SPI_CTRL0, R_SPI_TIMINGS,
       SPI_CONF_ENABLE_W0, 1, aspeed_segments_spi,
       ASPEED_SOC_SPI_FLASH_BASE, 0x10000000 },
+    { "aspeed.smc.ast2500-fmc", R_CONF, R_CE_CTRL, R_CTRL0, R_TIMINGS,
+      CONF_ENABLE_W0, 3, aspeed_segments_ast2500_fmc,
+      ASPEED_SOC_FMC_FLASH_BASE, 0x10000000 },
+    { "aspeed.smc.ast2500-spi1", R_CONF, R_CE_CTRL, R_CTRL0, R_TIMINGS,
+      CONF_ENABLE_W0, 2, aspeed_segments_ast2500_spi1,
+      ASPEED_SOC_SPI_FLASH_BASE, 0x8000000 },
+    { "aspeed.smc.ast2500-spi2", R_CONF, R_CE_CTRL, R_CTRL0, R_TIMINGS,
+      CONF_ENABLE_W0, 2, aspeed_segments_ast2500_spi2,
+      ASPEED_SOC_SPI2_FLASH_BASE, 0x8000000 },
 };
 
 static uint64_t aspeed_smc_flash_default_read(void *opaque, hwaddr addr,

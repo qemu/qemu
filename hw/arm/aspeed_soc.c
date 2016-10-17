@@ -25,6 +25,7 @@
 #define ASPEED_SOC_IOMEM_BASE       0x1E600000
 #define ASPEED_SOC_FMC_BASE         0x1E620000
 #define ASPEED_SOC_SPI_BASE         0x1E630000
+#define ASPEED_SOC_SPI2_BASE        0x1E631000
 #define ASPEED_SOC_VIC_BASE         0x1E6C0000
 #define ASPEED_SOC_SDMC_BASE        0x1E6E0000
 #define ASPEED_SOC_SCU_BASE         0x1E6E2000
@@ -38,16 +39,23 @@ static const int timer_irqs[] = { 16, 17, 18, 35, 36, 37, 38, 39, };
 #define AST2500_SDRAM_BASE       0x80000000
 
 static const hwaddr aspeed_soc_ast2400_spi_bases[] = { ASPEED_SOC_SPI_BASE };
+static const char *aspeed_soc_ast2400_typenames[] = { "aspeed.smc.spi" };
 
-static const hwaddr aspeed_soc_ast2500_spi_bases[] = { ASPEED_SOC_SPI_BASE };
+static const hwaddr aspeed_soc_ast2500_spi_bases[] = { ASPEED_SOC_SPI_BASE,
+                                                       ASPEED_SOC_SPI2_BASE};
+static const char *aspeed_soc_ast2500_typenames[] = {
+    "aspeed.smc.ast2500-spi1", "aspeed.smc.ast2500-spi2" };
 
 static const AspeedSoCInfo aspeed_socs[] = {
     { "ast2400-a0", "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE,
-      1, aspeed_soc_ast2400_spi_bases },
+      1, aspeed_soc_ast2400_spi_bases,
+      "aspeed.smc.fmc", aspeed_soc_ast2400_typenames },
     { "ast2400",    "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE,
-      1, aspeed_soc_ast2400_spi_bases },
+      1, aspeed_soc_ast2400_spi_bases,
+     "aspeed.smc.fmc", aspeed_soc_ast2400_typenames },
     { "ast2500-a1", "arm1176", AST2500_A1_SILICON_REV, AST2500_SDRAM_BASE,
-      1, aspeed_soc_ast2500_spi_bases },
+      2, aspeed_soc_ast2500_spi_bases,
+      "aspeed.smc.ast2500-fmc", aspeed_soc_ast2500_typenames },
 };
 
 /*
@@ -105,12 +113,13 @@ static void aspeed_soc_init(Object *obj)
     object_property_add_alias(obj, "hw-strap2", OBJECT(&s->scu),
                               "hw-strap2", &error_abort);
 
-    object_initialize(&s->fmc, sizeof(s->fmc), "aspeed.smc.fmc");
+    object_initialize(&s->fmc, sizeof(s->fmc), sc->info->fmc_typename);
     object_property_add_child(obj, "fmc", OBJECT(&s->fmc), NULL);
     qdev_set_parent_bus(DEVICE(&s->fmc), sysbus_get_default());
 
     for (i = 0; i < sc->info->spis_num; i++) {
-        object_initialize(&s->spi[i], sizeof(s->spi[i]), "aspeed.smc.spi");
+        object_initialize(&s->spi[i], sizeof(s->spi[i]),
+                          sc->info->spi_typename[i]);
         object_property_add_child(obj, "spi", OBJECT(&s->spi[i]), NULL);
         qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
     }
