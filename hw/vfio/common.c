@@ -1211,23 +1211,24 @@ void vfio_put_group(VFIOGroup *group)
 }
 
 int vfio_get_device(VFIOGroup *group, const char *name,
-                       VFIODevice *vbasedev)
+                    VFIODevice *vbasedev, Error **errp)
 {
     struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
     int ret, fd;
 
     fd = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
     if (fd < 0) {
-        error_report("vfio: error getting device %s from group %d: %m",
-                     name, group->groupid);
-        error_printf("Verify all devices in group %d are bound to vfio-<bus> "
-                     "or pci-stub and not already in use\n", group->groupid);
+        error_setg_errno(errp, errno, "error getting device from group %d",
+                         group->groupid);
+        error_append_hint(errp,
+                      "Verify all devices in group %d are bound to vfio-<bus> "
+                      "or pci-stub and not already in use\n", group->groupid);
         return fd;
     }
 
     ret = ioctl(fd, VFIO_DEVICE_GET_INFO, &dev_info);
     if (ret) {
-        error_report("vfio: error getting device info: %m");
+        error_setg_errno(errp, errno, "error getting device info");
         close(fd);
         return ret;
     }

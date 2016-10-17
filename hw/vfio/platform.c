@@ -607,11 +607,10 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
             return -EBUSY;
         }
     }
-    ret = vfio_get_device(group, vbasedev->name, vbasedev);
+    ret = vfio_get_device(group, vbasedev->name, vbasedev, &err);
     if (ret) {
-        error_report("vfio: failed to get device %s", vbasedev->name);
         vfio_put_group(group);
-        return ret;
+        goto error;
     }
 
     ret = vfio_populate_device(vbasedev);

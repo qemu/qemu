@@ -2578,9 +2578,8 @@ static int vfio_initfn(PCIDevice *pdev)
         }
     }
 
-    ret = vfio_get_device(group, vdev->vbasedev.name, &vdev->vbasedev);
+    ret = vfio_get_device(group, vdev->vbasedev.name, &vdev->vbasedev, &err);
     if (ret) {
-        error_setg_errno(&err, -ret, "failed to get device");
         vfio_put_group(group);
         goto error;
     }
