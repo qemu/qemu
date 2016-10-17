@@ -284,27 +284,40 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
 
     if (params) {
         monitor_printf(mon, "parameters:");
+        assert(params->has_compress_level);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_COMPRESS_LEVEL],
             params->compress_level);
+        assert(params->has_compress_threads);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_COMPRESS_THREADS],
             params->compress_threads);
+        assert(params->has_decompress_threads);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_DECOMPRESS_THREADS],
             params->decompress_threads);
+        assert(params->has_cpu_throttle_initial);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL],
             params->cpu_throttle_initial);
+        assert(params->has_cpu_throttle_increment);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT],
             params->cpu_throttle_increment);
         monitor_printf(mon, " %s: '%s'",
             MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_CREDS],
-            params->tls_creds ? : "");
+            params->has_tls_creds ? params->tls_creds : "");
         monitor_printf(mon, " %s: '%s'",
             MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_HOSTNAME],
-            params->tls_hostname ? : "");
+            params->has_tls_hostname ? params->tls_hostname : "");
+        assert(params->has_max_bandwidth);
+        monitor_printf(mon, " %s: %" PRId64 " bytes/second",
+            MigrationParameter_lookup[MIGRATION_PARAMETER_MAX_BANDWIDTH],
+            params->max_bandwidth);
+        assert(params->has_downtime_limit);
+        monitor_printf(mon, " %s: %" PRId64 " milliseconds",
+            MigrationParameter_lookup[MIGRATION_PARAMETER_DOWNTIME_LIMIT],
+            params->downtime_limit);
         monitor_printf(mon, "\n");
     }
 
@@ -1260,6 +1273,7 @@ void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
+/* Kept for backwards compatibility */
 void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict)
 {
     double value = qdict_get_double(qdict, "value");
@@ -1278,6 +1292,7 @@ void hmp_migrate_set_cache_size(Monitor *mon, const QDict *qdict)
     }
 }
 
+/* Kept for backwards compatibility */
 void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict)
 {
     int64_t value = qdict_get_int(qdict, "value");
@@ -1318,45 +1333,58 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
 {
     const char *param = qdict_get_str(qdict, "parameter");
     const char *valuestr = qdict_get_str(qdict, "value");
+    int64_t valuebw = 0;
     long valueint = 0;
+    char *endp;
     Error *err = NULL;
-    bool has_compress_level = false;
-    bool has_compress_threads = false;
-    bool has_decompress_threads = false;
-    bool has_cpu_throttle_initial = false;
-    bool has_cpu_throttle_increment = false;
-    bool has_tls_creds = false;
-    bool has_tls_hostname = false;
     bool use_int_value = false;
     int i;
 
     for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
         if (strcmp(param, MigrationParameter_lookup[i]) == 0) {
+            MigrationParameters p = { 0 };
             switch (i) {
             case MIGRATION_PARAMETER_COMPRESS_LEVEL:
-                has_compress_level = true;
+                p.has_compress_level = true;
                 use_int_value = true;
                 break;
             case MIGRATION_PARAMETER_COMPRESS_THREADS:
-                has_compress_threads = true;
+                p.has_compress_threads = true;
                 use_int_value = true;
                 break;
             case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
-                has_decompress_threads = true;
+                p.has_decompress_threads = true;
                 use_int_value = true;
                 break;
             case MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL:
-                has_cpu_throttle_initial = true;
+                p.has_cpu_throttle_initial = true;
                 use_int_value = true;
                 break;
             case MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT:
-                has_cpu_throttle_increment = true;
+                p.has_cpu_throttle_increment = true;
+                use_int_value = true;
                 break;
             case MIGRATION_PARAMETER_TLS_CREDS:
-                has_tls_creds = true;
+                p.has_tls_creds = true;
+                p.tls_creds = (char *) valuestr;
                 break;
             case MIGRATION_PARAMETER_TLS_HOSTNAME:
-                has_tls_hostname = true;
+                p.has_tls_hostname = true;
+                p.tls_hostname = (char *) valuestr;
+                break;
+            case MIGRATION_PARAMETER_MAX_BANDWIDTH:
+                p.has_max_bandwidth = true;
+                valuebw = qemu_strtosz(valuestr, &endp);
+                if (valuebw < 0 || (size_t)valuebw != valuebw
+                    || *endp != '\0') {
+                    error_setg(&err, "Invalid size %s", valuestr);
+                    goto cleanup;
+                }
+                p.max_bandwidth = valuebw;
+                break;
+            case MIGRATION_PARAMETER_DOWNTIME_LIMIT:
+                p.has_downtime_limit = true;
+                use_int_value = true;
                 break;
             }
 
@@ -1366,16 +1394,17 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                                valuestr);
                     goto cleanup;
                 }
+                /* Set all integers; only one has_FOO will be set, and
+                 * the code ignores the remaining values */
+                p.compress_level = valueint;
+                p.compress_threads = valueint;
+                p.decompress_threads = valueint;
+                p.cpu_throttle_initial = valueint;
+                p.cpu_throttle_increment = valueint;
+                p.downtime_limit = valueint;
             }
 
-            qmp_migrate_set_parameters(has_compress_level, valueint,
-                                       has_compress_threads, valueint,
-                                       has_decompress_threads, valueint,
-                                       has_cpu_throttle_initial, valueint,
-                                       has_cpu_throttle_increment, valueint,
-                                       has_tls_creds, valuestr,
-                                       has_tls_hostname, valuestr,
-                                       &err);
+            qmp_migrate_set_parameters(&p, &err);
             break;
         }
     }

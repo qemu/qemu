@@ -350,6 +350,7 @@ typedef struct RDMAContext {
      */
     int error_state;
     int error_reported;
+    int received_error;
 
     /*
      * Description of ram blocks used throughout the code.
@@ -1676,6 +1677,9 @@ static int qemu_rdma_exchange_get_response(RDMAContext *rdma,
                 ", but got: %s (%d), length: %d",
                 control_desc[expecting], expecting,
                 control_desc[head->type], head->type, head->len);
+        if (head->type == RDMA_CONTROL_ERROR) {
+            rdma->received_error = true;
+        }
         return -EIO;
     }
     if (head->len > RDMA_CONTROL_MAX_BUFFER - sizeof(*head)) {
@@ -2202,7 +2206,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
     int ret, idx;
 
     if (rdma->cm_id && rdma->connected) {
-        if (rdma->error_state) {
+        if (rdma->error_state && !rdma->received_error) {
             RDMAControlHeader head = { .len = 0,
                                        .type = RDMA_CONTROL_ERROR,
                                        .repeat = 1,
@@ -2804,6 +2808,9 @@ static int qio_channel_rdma_close(QIOChannel *ioc,
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
     trace_qemu_rdma_close();
     if (rioc->rdma) {
+        if (!rioc->rdma->error_state) {
+            rioc->rdma->error_state = qemu_file_get_error(rioc->file);
+        }
         qemu_rdma_cleanup(rioc->rdma);
         g_free(rioc->rdma);
         rioc->rdma = NULL;

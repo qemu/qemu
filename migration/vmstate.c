@@ -130,6 +130,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 }
                 if (ret < 0) {
                     qemu_file_set_error(f, ret);
+                    error_report("Failed to load %s:%s", vmsd->name,
+                                 field->name);
                     trace_vmstate_load_field_error(field->name, ret);
                     return ret;
                 }
@@ -555,6 +557,7 @@ static int get_int32_equal(QEMUFile *f, void *pv, size_t size)
     if (*v == v2) {
         return 0;
     }
+    error_report("%" PRIx32 " != %" PRIx32, *v, v2);
     return -EINVAL;
 }
 
@@ -578,6 +581,9 @@ static int get_int32_le(QEMUFile *f, void *pv, size_t size)
         *cur = loaded;
         return 0;
     }
+    error_report("Invalid value %" PRId32
+                 " expecting positive value <= %" PRId32,
+                 loaded, *cur);
     return -EINVAL;
 }
 
@@ -683,6 +689,7 @@ static int get_uint32_equal(QEMUFile *f, void *pv, size_t size)
     if (*v == v2) {
         return 0;
     }
+    error_report("%" PRIx32 " != %" PRIx32, *v, v2);
     return -EINVAL;
 }
 
@@ -725,6 +732,7 @@ static int get_uint64_equal(QEMUFile *f, void *pv, size_t size)
     if (*v == v2) {
         return 0;
     }
+    error_report("%" PRIx64 " != %" PRIx64, *v, v2);
     return -EINVAL;
 }
 
@@ -746,6 +754,7 @@ static int get_uint8_equal(QEMUFile *f, void *pv, size_t size)
     if (*v == v2) {
         return 0;
     }
+    error_report("%x != %x", *v, v2);
     return -EINVAL;
 }
 
@@ -767,6 +776,7 @@ static int get_uint16_equal(QEMUFile *f, void *pv, size_t size)
     if (*v == v2) {
         return 0;
     }
+    error_report("%x != %x", *v, v2);
     return -EINVAL;
 }
 
