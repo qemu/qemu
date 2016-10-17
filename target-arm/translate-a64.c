@@ -1667,12 +1667,12 @@ static void disas_exc(DisasContext *s, uint32_t insn)
          * instruction works properly.
          */
         switch (op2_ll) {
-        case 1:
+        case 1:                                                     /* SVC */
             gen_ss_advance(s);
             gen_exception_insn(s, 0, EXCP_SWI, syn_aa64_svc(imm16),
                                default_exception_el(s));
             break;
-        case 2:
+        case 2:                                                     /* HVC */
             if (s->current_el == 0) {
                 unallocated_encoding(s);
                 break;
@@ -1685,7 +1685,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             gen_ss_advance(s);
             gen_exception_insn(s, 0, EXCP_HVC, syn_aa64_hvc(imm16), 2);
             break;
-        case 3:
+        case 3:                                                     /* SMC */
             if (s->current_el == 0) {
                 unallocated_encoding(s);
                 break;
