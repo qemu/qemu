@@ -41,6 +41,7 @@ static TCGv_i64 cpu_pc;
 
 /* Load/store exclusive handling */
 static TCGv_i64 cpu_exclusive_high;
+static TCGv_i64 cpu_reg(DisasContext *s, int reg);
 
 static const char *regnames[] = {
     "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
@@ -174,6 +175,76 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
 void gen_a64_set_pc_im(uint64_t val)
 {
     tcg_gen_movi_i64(cpu_pc, val);
+}
+
+/* Load the PC from a generic TCG variable.
+ *
+ * If address tagging is enabled via the TCR TBI bits, then loading
+ * an address into the PC will clear out any tag in the it:
+ *  + for EL2 and EL3 there is only one TBI bit, and if it is set
+ *    then the address is zero-extended, clearing bits [63:56]
+ *  + for EL0 and EL1, TBI0 controls addresses with bit 55 == 0
+ *    and TBI1 controls addressses with bit 55 == 1.
+ *    If the appropriate TBI bit is set for the address then
+ *    the address is sign-extended from bit 55 into bits [63:56]
+ *
+ * We can avoid doing this for relative-branches, because the
+ * PC + offset can never overflow into the tag bits (assuming
+ * that virtual addresses are less than 56 bits wide, as they
+ * are currently), but we must handle it for branch-to-register.
+ */
+static void gen_a64_set_pc(DisasContext *s, TCGv_i64 src)
+{
+
+    if (s->current_el <= 1) {
+        /* Test if NEITHER or BOTH TBI values are set.  If so, no need to
+         * examine bit 55 of address, can just generate code.
+         * If mixed, then test via generated code
+         */
+        if (s->tbi0 && s->tbi1) {
+            TCGv_i64 tmp_reg = tcg_temp_new_i64();
+            /* Both bits set, sign extension from bit 55 into [63:56] will
+             * cover both cases
+             */
+            tcg_gen_shli_i64(tmp_reg, src, 8);
+            tcg_gen_sari_i64(cpu_pc, tmp_reg, 8);
+            tcg_temp_free_i64(tmp_reg);
+        } else if (!s->tbi0 && !s->tbi1) {
+            /* Neither bit set, just load it as-is */
+            tcg_gen_mov_i64(cpu_pc, src);
+        } else {
+            TCGv_i64 tcg_tmpval = tcg_temp_new_i64();
+            TCGv_i64 tcg_bit55  = tcg_temp_new_i64();
+            TCGv_i64 tcg_zero   = tcg_const_i64(0);
+
+            tcg_gen_andi_i64(tcg_bit55, src, (1ull << 55));
+
+            if (s->tbi0) {
+                /* tbi0==1, tbi1==0, so 0-fill upper byte if bit 55 = 0 */
+                tcg_gen_andi_i64(tcg_tmpval, src,
+                                 0x00FFFFFFFFFFFFFFull);
+                tcg_gen_movcond_i64(TCG_COND_EQ, cpu_pc, tcg_bit55, tcg_zero,
+                                    tcg_tmpval, src);
+            } else {
+                /* tbi0==0, tbi1==1, so 1-fill upper byte if bit 55 = 1 */
+                tcg_gen_ori_i64(tcg_tmpval, src,
+                                0xFF00000000000000ull);
+                tcg_gen_movcond_i64(TCG_COND_NE, cpu_pc, tcg_bit55, tcg_zero,
+                                    tcg_tmpval, src);
+            }
+            tcg_temp_free_i64(tcg_zero);
+            tcg_temp_free_i64(tcg_bit55);
+            tcg_temp_free_i64(tcg_tmpval);
+        }
+    } else {  /* EL > 1 */
+        if (s->tbi0) {
+            /* Force tag byte to all zero */
+            tcg_gen_andi_i64(cpu_pc, src, 0x00FFFFFFFFFFFFFFull);
+        } else {
+            /* Load unmodified address */
+            tcg_gen_mov_i64(cpu_pc, src);
+        }
+    }
 }
 
 typedef struct DisasCompare64 {
@@ -1704,12 +1775,13 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
 
     switch (opc) {
     case 0: /* BR */
-    case 2: /* RET */
-        tcg_gen_mov_i64(cpu_pc, cpu_reg(s, rn));
-        break;
     case 1: /* BLR */
-        tcg_gen_mov_i64(cpu_pc, cpu_reg(s, rn));
-        tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
+    case 2: /* RET */
+        gen_a64_set_pc(s, cpu_reg(s, rn));
+        /* BLR also needs to load return address */
+        if (opc == 1) {
+            tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
+        }
         break;
     case 4: /* ERET */
         if (s->current_el == 0) {
