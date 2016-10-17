@@ -552,6 +552,7 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
     ssize_t len;
     struct stat st;
     int groupid;
+    Error *err = NULL;
     int ret;
 
     /* @sysfsdev takes precedence over @host */
@@ -592,10 +593,10 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
 
     trace_vfio_platform_base_device_init(vbasedev->name, groupid);
 
-    group = vfio_get_group(groupid, &address_space_memory);
+    group = vfio_get_group(groupid, &address_space_memory, &err);
     if (!group) {
-        error_report("vfio: failed to get group %d", groupid);
-        return -ENOENT;
+        ret = -ENOENT;
+        goto error;
     }
 
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
@@ -619,6 +620,10 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
         vfio_put_group(group);
     }
 
+error:
+    if (err) {
+        error_reportf_err(err, ERR_PREFIX, vbasedev->name);
+    }
     return ret;
 }
 

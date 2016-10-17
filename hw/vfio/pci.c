@@ -2563,9 +2563,8 @@ static int vfio_initfn(PCIDevice *pdev)
 
     trace_vfio_initfn(vdev->vbasedev.name, groupid);
 
-    group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev));
+    group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev), &err);
     if (!group) {
-        error_setg(&err, "failed to get group %d", groupid);
         ret = -ENOENT;
         goto error;
     }
