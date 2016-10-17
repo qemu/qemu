@@ -627,14 +627,10 @@ V9fsPDU *pdu_alloc(V9fsState *s)
 void pdu_free(V9fsPDU *pdu)
 {
     V9fsState *s = pdu->s;
-    /*
-     * Cancelled pdu are added back to the freelist
-     * by flush request .
-     */
-    if (!pdu->cancelled) {
-        QLIST_REMOVE(pdu, next);
-        QLIST_INSERT_HEAD(&s->free_list, pdu, next);
-    }
+
+    g_assert(!pdu->cancelled);
+    QLIST_REMOVE(pdu, next);
+    QLIST_INSERT_HEAD(&s->free_list, pdu, next);
 }
 
 /*
@@ -679,9 +675,9 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
     pdu_push_and_notify(pdu);
 
     /* Now wakeup anybody waiting in flush for this request */
-    qemu_co_queue_next(&pdu->complete);
-
-    pdu_free(pdu);
+    if (!qemu_co_queue_next(&pdu->complete)) {
+        pdu_free(pdu);
+    }
 }
 
 static mode_t v9mode_to_mode(uint32_t mode, V9fsString *extension)
