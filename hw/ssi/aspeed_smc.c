@@ -79,10 +79,10 @@
 
 /* CEx Segment Address Register */
 #define R_SEG_ADDR0       (0x30 / 4)
-#define   SEG_SIZE_SHIFT       24   /* 8MB units */
-#define   SEG_SIZE_MASK        0x7f
+#define   SEG_END_SHIFT        24   /* 8MB units */
+#define   SEG_END_MASK         0xff
 #define   SEG_START_SHIFT      16   /* address bit [A29-A23] */
-#define   SEG_START_MASK       0x7f
+#define   SEG_START_MASK       0xff
 #define R_SEG_ADDR1       (0x34 / 4)
 #define R_SEG_ADDR2       (0x38 / 4)
 #define R_SEG_ADDR3       (0x3C / 4)
@@ -135,8 +135,7 @@
 /*
  * Default segments mapping addresses and size for each slave per
  * controller. These can be changed when board is initialized with the
- * Segment Address Registers but they don't seem do be used on the
- * field.
+ * Segment Address Registers.
  */
 static const AspeedSegments aspeed_segments_legacy[] = {
     { 0x10000000, 32 * 1024 * 1024 },
@@ -190,6 +189,118 @@ static const AspeedSMCController controllers[] = {
       CONF_ENABLE_W0, 2, aspeed_segments_ast2500_spi2,
       ASPEED_SOC_SPI2_FLASH_BASE, 0x8000000 },
 };
+
+/*
+ * The Segment Register uses a 8MB unit to encode the start address
+ * and the end address of the mapping window of a flash SPI slave :
+ *
+ *        | byte 1 | byte 2 | byte 3 | byte 4 |
+ *        +--------+--------+--------+--------+
+ *        |  end   |  start |   0    |   0    |
+ *
+ */
+static inline uint32_t aspeed_smc_segment_to_reg(const AspeedSegments *seg)
+{
+    uint32_t reg = 0;
+    reg |= ((seg->addr >> 23) & SEG_START_MASK) << SEG_START_SHIFT;
+    reg |= (((seg->addr + seg->size) >> 23) & SEG_END_MASK) << SEG_END_SHIFT;
+    return reg;
+}
+
+static inline void aspeed_smc_reg_to_segment(uint32_t reg, AspeedSegments *seg)
+{
+    seg->addr = ((reg >> SEG_START_SHIFT) & SEG_START_MASK) << 23;
+    seg->size = (((reg >> SEG_END_SHIFT) & SEG_END_MASK) << 23) - seg->addr;
+}
+
+static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
+                                     const AspeedSegments *new,
+                                     int cs)
+{
+    AspeedSegments seg;
+    int i;
+
+    for (i = 0; i < s->ctrl->max_slaves; i++) {
+        if (i == cs) {
+            continue;
+        }
+
+        aspeed_smc_reg_to_segment(s->regs[R_SEG_ADDR0 + i], &seg);
+
+        if (new->addr + new->size > seg.addr &&
+            new->addr < seg.addr + seg.size) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: new segment CS%d [ 0x%"
+                          HWADDR_PRIx" - 0x%"HWADDR_PRIx" ] overlaps with "
+                          "CS%d [ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
+                          s->ctrl->name, cs, new->addr, new->addr + new->size,
+                          i, seg.addr, seg.addr + seg.size);
+            return true;
+        }
+    }
+    return false;
+}
+
+static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
+                                         uint64_t new)
+{
+    AspeedSMCFlash *fl = &s->flashes[cs];
+    AspeedSegments seg;
+
+    aspeed_smc_reg_to_segment(new, &seg);
+
+    /* The start address of CS0 is read-only */
+    if (cs == 0 && seg.addr != s->ctrl->flash_window_base) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Tried to change CS0 start address to 0x%"
+                      HWADDR_PRIx "\n", s->ctrl->name, seg.addr);
+        return;
+    }
+
+    /*
+     * The end address of the AST2500 spi controllers is also
+     * read-only.
+     */
+    if ((s->ctrl->segments == aspeed_segments_ast2500_spi1 ||
+         s->ctrl->segments == aspeed_segments_ast2500_spi2) &&
+        cs == s->ctrl->max_slaves &&
+        seg.addr + seg.size != s->ctrl->segments[cs].addr +
+        s->ctrl->segments[cs].size) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Tried to change CS%d end address to 0x%"
+                      HWADDR_PRIx "\n", s->ctrl->name, cs, seg.addr);
+        return;
+    }
+
+    /* Keep the segment in the overall flash window */
+    if (seg.addr + seg.size <= s->ctrl->flash_window_base ||
+        seg.addr > s->ctrl->flash_window_base + s->ctrl->flash_window_size) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: new segment for CS%d is invalid : "
+                      "[ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
+                      s->ctrl->name, cs, seg.addr, seg.addr + seg.size);
+        return;
+    }
+
+    /* Check start address vs. alignment */
+    if (seg.addr % seg.size) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: new segment for CS%d is not "
+                      "aligned : [ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
+                      s->ctrl->name, cs, seg.addr, seg.addr + seg.size);
+    }
+
+    /* And segments should not overlap */
+    if (aspeed_smc_flash_overlap(s, &seg, cs)) {
+        return;
+    }
+
+    /* All should be fine now to move the region */
+    memory_region_transaction_begin();
+    memory_region_set_size(&fl->mmio, seg.size);
+    memory_region_set_address(&fl->mmio, seg.addr - s->ctrl->flash_window_base);
+    memory_region_set_enabled(&fl->mmio, true);
+    memory_region_transaction_commit();
+
+    s->regs[R_SEG_ADDR0 + cs] = new;
+}
 
 static uint64_t aspeed_smc_flash_default_read(void *opaque, hwaddr addr,
                                               unsigned size)
@@ -314,6 +425,12 @@ static void aspeed_smc_reset(DeviceState *d)
         s->regs[s->r_ctrl0 + i] |= CTRL_CE_STOP_ACTIVE;
     }
 
+    /* setup default segment register values for all */
+    for (i = 0; i < s->ctrl->max_slaves; ++i) {
+        s->regs[R_SEG_ADDR0 + i] =
+            aspeed_smc_segment_to_reg(&s->ctrl->segments[i]);
+    }
+
     aspeed_smc_update_cs(s);
 }
 
@@ -334,6 +451,7 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         addr == s->r_timings ||
         addr == s->r_ce_ctrl ||
         addr == R_INTR_CTRL ||
+        (addr >= R_SEG_ADDR0 && addr < R_SEG_ADDR0 + s->ctrl->max_slaves) ||
         (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs)) {
         return s->regs[addr];
     } else {
@@ -365,6 +483,13 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
     } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs) {
         s->regs[addr] = value;
         aspeed_smc_update_cs(s);
+    } else if (addr >= R_SEG_ADDR0 &&
+               addr < R_SEG_ADDR0 + s->ctrl->max_slaves) {
+        int cs = addr - R_SEG_ADDR0;
+
+        if (value != s->regs[R_SEG_ADDR0 + cs]) {
+            aspeed_smc_flash_set_segment(s, cs, value);
+        }
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
