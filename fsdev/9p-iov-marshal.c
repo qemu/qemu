@@ -125,7 +125,7 @@ ssize_t v9fs_iov_vunmarshal(struct iovec *out_sg, int out_num, size_t offset,
                 str->data = g_malloc(str->size + 1);
                 copied = v9fs_unpack(str->data, out_sg, out_num, offset,
                                      str->size);
-                if (copied > 0) {
+                if (copied >= 0) {
                     str->data[str->size] = 0;
                 } else {
                     v9fs_string_free(str);

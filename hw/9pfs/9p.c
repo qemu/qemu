@@ -3174,7 +3174,7 @@ static void v9fs_xattrwalk(void *opaque)
         goto out;
     }
     v9fs_path_copy(&xattr_fidp->path, &file_fidp->path);
-    if (name.data == NULL) {
+    if (!v9fs_string_size(&name)) {
         /*
          * listxattr request. Get the size first
          */
