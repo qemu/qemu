@@ -89,6 +89,12 @@ struct QVirtioBus {
     void (*virtqueue_kick)(QVirtioDevice *d, QVirtQueue *vq);
 };
 
+static inline bool qvirtio_is_big_endian(QVirtioDevice *d)
+{
+    /* FIXME: virtio 1.0 is always little-endian */
+    return qtest_big_endian(global_qtest);
+}
+
 static inline uint32_t qvring_size(uint32_t num, uint32_t align)
 {
     return ((sizeof(struct vring_desc) * num + sizeof(uint16_t) * (3 + num)

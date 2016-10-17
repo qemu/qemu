@@ -86,7 +86,7 @@ static uint64_t qvirtio_pci_config_readq(QVirtioDevice *d, uint64_t addr)
     int i;
     uint64_t u64 = 0;
 
-    if (target_big_endian()) {
+    if (qvirtio_is_big_endian(d)) {
         for (i = 0; i < 8; ++i) {
             u64 |= (uint64_t)qpci_io_readb(dev->pdev,
                                 (void *)(uintptr_t)addr + i) << (7 - i) * 8;
