@@ -505,47 +505,47 @@ static void add_ptimer_tests(uint8_t policy)
         g_sprintf(policy_name, "default");
     }
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/set_count policy=%s", policy_name),
         ppolicy, check_set_count);
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/set_limit policy=%s", policy_name),
         ppolicy, check_set_limit);
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/oneshot policy=%s", policy_name),
         ppolicy, check_oneshot);
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/periodic policy=%s", policy_name),
         ppolicy, check_periodic);
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/on_the_fly_mode_change policy=%s", policy_name),
         ppolicy, check_on_the_fly_mode_change);
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/on_the_fly_period_change policy=%s", policy_name),
         ppolicy, check_on_the_fly_period_change);
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/on_the_fly_freq_change policy=%s", policy_name),
         ppolicy, check_on_the_fly_freq_change);
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/run_with_period_0 policy=%s", policy_name),
         ppolicy, check_run_with_period_0);
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/run_with_delta_0 policy=%s", policy_name),
         ppolicy, check_run_with_delta_0);
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/periodic_with_load_0 policy=%s", policy_name),
         ppolicy, check_periodic_with_load_0);
 
-    qtest_add_data_func(
+    g_test_add_data_func(
         g_strdup_printf("/ptimer/oneshot_with_load_0 policy=%s", policy_name),
         ppolicy, check_oneshot_with_load_0);
 }
