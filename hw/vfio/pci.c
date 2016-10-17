@@ -1277,7 +1277,7 @@ static void vfio_pci_fixup_msix_region(VFIOPCIDevice *vdev)
  * need to first look for where the MSI-X table lives.  So we
  * unfortunately split MSI-X setup across two functions.
  */
-static int vfio_msix_early_setup(VFIOPCIDevice *vdev)
+static int vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
 {
     uint8_t pos;
     uint16_t ctrl;
@@ -1292,16 +1292,19 @@ static int vfio_msix_early_setup(VFIOPCIDevice *vdev)
 
     if (pread(fd, &ctrl, sizeof(ctrl),
               vdev->config_offset + pos + PCI_MSIX_FLAGS) != sizeof(ctrl)) {
+        error_setg_errno(errp, errno, "failed to read PCI MSIX FLAGS");
         return -errno;
     }
 
     if (pread(fd, &table, sizeof(table),
               vdev->config_offset + pos + PCI_MSIX_TABLE) != sizeof(table)) {
+        error_setg_errno(errp, errno, "failed to read PCI MSIX TABLE");
         return -errno;
     }
 
     if (pread(fd, &pba, sizeof(pba),
               vdev->config_offset + pos + PCI_MSIX_PBA) != sizeof(pba)) {
+        error_setg_errno(errp, errno, "failed to read PCI MSIX PBA");
         return -errno;
     }
 
@@ -1332,8 +1335,8 @@ static int vfio_msix_early_setup(VFIOPCIDevice *vdev)
             (vdev->device_id & 0xff00) == 0x5800) {
             msix->pba_offset = 0x1000;
         } else {
-            error_report("vfio: Hardware reports invalid configuration, "
-                         "MSIX PBA outside of specified BAR");
+            error_setg(errp, "hardware reports invalid configuration, "
+                       "MSIX PBA outside of specified BAR");
             g_free(msix);
             return -EINVAL;
         }
@@ -2657,9 +2660,9 @@ static int vfio_initfn(PCIDevice *pdev)
 
     vfio_pci_size_rom(vdev);
 
-    ret = vfio_msix_early_setup(vdev);
+    ret = vfio_msix_early_setup(vdev, &err);
     if (ret) {
-        return ret;
+        goto error;
     }
 
     vfio_bars_setup(vdev);
