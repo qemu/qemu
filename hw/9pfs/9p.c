@@ -2413,6 +2413,7 @@ static void coroutine_fn v9fs_link(void *opaque)
     if (!err) {
         err = offset;
     }
+    put_fid(pdu, oldfidp);
 out:
     put_fid(pdu, dfidp);
 out_nofid:
