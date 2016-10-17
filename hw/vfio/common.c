@@ -34,6 +34,7 @@
 #include "qemu/range.h"
 #include "sysemu/kvm.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 struct vfio_group_head vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
@@ -900,7 +901,8 @@ static void vfio_put_address_space(VFIOAddressSpace *space)
     }
 }
 
-static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
+static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
+                                  Error **errp)
 {
     VFIOContainer *container;
     int ret, fd;
@@ -918,15 +920,15 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
 
     fd = qemu_open("/dev/vfio/vfio", O_RDWR);
     if (fd < 0) {
-        error_report("vfio: failed to open /dev/vfio/vfio: %m");
+        error_setg_errno(errp, errno, "failed to open /dev/vfio/vfio");
         ret = -errno;
         goto put_space_exit;
     }
 
     ret = ioctl(fd, VFIO_GET_API_VERSION);
     if (ret != VFIO_API_VERSION) {
-        error_report("vfio: supported vfio version: %d, "
-                     "reported version: %d", VFIO_API_VERSION, ret);
+        error_setg(errp, "supported vfio version: %d, "
+                   "reported version: %d", VFIO_API_VERSION, ret);
         ret = -EINVAL;
         goto close_fd_exit;
     }
@@ -941,7 +943,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
 
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
-            error_report("vfio: failed to set group container: %m");
+            error_setg_errno(errp, errno, "failed to set group container");
             ret = -errno;
             goto free_container_exit;
         }
@@ -949,7 +951,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
         container->iommu_type = v2 ? VFIO_TYPE1v2_IOMMU : VFIO_TYPE1_IOMMU;
         ret = ioctl(fd, VFIO_SET_IOMMU, container->iommu_type);
         if (ret) {
-            error_report("vfio: failed to set iommu for container: %m");
+            error_setg_errno(errp, errno, "failed to set iommu for container");
             ret = -errno;
             goto free_container_exit;
         }
@@ -976,7 +978,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
 
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
-            error_report("vfio: failed to set group container: %m");
+            error_setg_errno(errp, errno, "failed to set group container");
             ret = -errno;
             goto free_container_exit;
         }
@@ -984,7 +986,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             v2 ? VFIO_SPAPR_TCE_v2_IOMMU : VFIO_SPAPR_TCE_IOMMU;
         ret = ioctl(fd, VFIO_SET_IOMMU, container->iommu_type);
         if (ret) {
-            error_report("vfio: failed to set iommu for container: %m");
+            error_setg_errno(errp, errno, "failed to set iommu for container");
             ret = -errno;
             goto free_container_exit;
         }
@@ -997,7 +999,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
         if (!v2) {
             ret = ioctl(fd, VFIO_IOMMU_ENABLE);
             if (ret) {
-                error_report("vfio: failed to enable container: %m");
+                error_setg_errno(errp, errno, "failed to enable container");
                 ret = -errno;
                 goto free_container_exit;
             }
@@ -1008,7 +1010,9 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
                                      &address_space_memory);
             if (container->error) {
                 memory_listener_unregister(&container->prereg_listener);
-                error_report("vfio: RAM memory listener initialization failed for container");
+                ret = container->error;
+                error_setg(errp,
+                    "RAM memory listener initialization failed for container");
                 goto free_container_exit;
             }
         }
@@ -1016,7 +1020,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
         info.argsz = sizeof(info);
         ret = ioctl(fd, VFIO_IOMMU_SPAPR_TCE_GET_INFO, &info);
         if (ret) {
-            error_report("vfio: VFIO_IOMMU_SPAPR_TCE_GET_INFO failed: %m");
+            error_setg_errno(errp, errno,
+                             "VFIO_IOMMU_SPAPR_TCE_GET_INFO failed");
             ret = -errno;
             if (v2) {
                 memory_listener_unregister(&container->prereg_listener);
@@ -1033,6 +1038,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
              */
             ret = vfio_spapr_remove_window(container, info.dma32_window_start);
             if (ret) {
+                error_setg_errno(errp, -ret,
+                                 "failed to remove existing window");
                 goto free_container_exit;
             }
         } else {
@@ -1043,7 +1050,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
                               0x1000);
         }
     } else {
-        error_report("vfio: No available IOMMU models");
+        error_setg(errp, "No available IOMMU models");
         ret = -EINVAL;
         goto free_container_exit;
     }
@@ -1054,7 +1061,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
 
     if (container->error) {
         ret = container->error;
-        error_report("vfio: memory listener initialization failed for container");
+        error_setg_errno(errp, -ret,
+                         "memory listener initialization failed for container");
         goto listener_release_exit;
     }
 
@@ -1120,6 +1128,7 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as)
     VFIOGroup *group;
     char path[32];
     struct vfio_group_status status = { .argsz = sizeof(status) };
+    Error *err = NULL;
 
     QLIST_FOREACH(group, &vfio_group_list, next) {
         if (group->groupid == groupid) {
@@ -1158,8 +1167,9 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as)
     group->groupid = groupid;
     QLIST_INIT(&group->device_list);
 
-    if (vfio_connect_container(group, as)) {
-        error_report("vfio: failed to setup container for group %d", groupid);
+    if (vfio_connect_container(group, as, &err)) {
+        error_reportf_err(err, "vfio: failed to setup container for group %d",
+                          groupid);
         goto close_fd_exit;
     }
 
