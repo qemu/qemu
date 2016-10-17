@@ -3522,6 +3522,36 @@ void v9fs_device_unrealize_common(V9fsState *s, Error **errp)
     g_free(s->tag);
 }
 
+typedef struct VirtfsCoResetData {
+    V9fsPDU pdu;
+    bool done;
+} VirtfsCoResetData;
+
+static void coroutine_fn virtfs_co_reset(void *opaque)
+{
+    VirtfsCoResetData *data = opaque;
+
+    virtfs_reset(&data->pdu);
+    data->done = true;
+}
+
+void v9fs_reset(V9fsState *s)
+{
+    VirtfsCoResetData data = { .pdu = { .s = s }, .done = false };
+    Coroutine *co;
+
+    while (!QLIST_EMPTY(&s->active_list)) {
+        aio_poll(qemu_get_aio_context(), true);
+    }
+
+    co = qemu_coroutine_create(virtfs_co_reset, &data);
+    qemu_coroutine_enter(co);
+
+    while (!data.done) {
+        aio_poll(qemu_get_aio_context(), true);
+    }
+}
+
 static void __attribute__((__constructor__)) v9fs_set_fd_limit(void)
 {
     struct rlimit rlim;
