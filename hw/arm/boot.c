@@ -773,6 +773,8 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
      */
     assert(!(info->secure_board_setup && kvm_enabled()));
 
+    info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
+
     /* Load the kernel.  */
     if (!info->kernel_filename || info->firmware_loaded) {
 
@@ -832,8 +834,6 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
         kernel_load_offset = KERNEL_LOAD_ADDR;
         elf_machine = EM_ARM;
     }
-
-    info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
 
     if (!info->secondary_cpu_reset_hook) {
         info->secondary_cpu_reset_hook = default_reset_secondary;

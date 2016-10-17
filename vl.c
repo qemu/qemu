@@ -4389,11 +4389,6 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (!linux_boot && qemu_opt_get(machine_opts, "dtb")) {
-        error_report("-dtb only allowed with -kernel option");
-        exit(1);
-    }
-
     if (semihosting_enabled() && !semihosting_get_argc() && kernel_filename) {
         /* fall back to the -kernel/-append */
         semihosting_arg_fallback(kernel_filename, kernel_cmdline);
