@@ -100,7 +100,7 @@ static void vfio_intx_eoi(VFIODevice *vbasedev)
     vfio_unmask_single_irqindex(vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 }
 
-static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev)
+static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
 {
 #ifdef CONFIG_KVM
     struct kvm_irqfd irqfd = {
@@ -126,7 +126,7 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev)
 
     /* Get an eventfd for resample/unmask */
     if (event_notifier_init(&vdev->intx.unmask, 0)) {
-        error_report("vfio: Error: event_notifier_init failed eoi");
+        error_setg(errp, "event_notifier_init failed eoi");
         goto fail;
     }
 
@@ -134,7 +134,7 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev)
     irqfd.resamplefd = event_notifier_get_fd(&vdev->intx.unmask);
 
     if (kvm_vm_ioctl(kvm_state, KVM_IRQFD, &irqfd)) {
-        error_report("vfio: Error: Failed to setup resample irqfd: %m");
+        error_setg_errno(errp, errno, "failed to setup resample irqfd");
         goto fail_irqfd;
     }
 
@@ -153,7 +153,7 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev)
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
     g_free(irq_set);
     if (ret) {
-        error_report("vfio: Error: Failed to setup INTx unmask fd: %m");
+        error_setg_errno(errp, -ret, "failed to setup INTx unmask fd");
         goto fail_vfio;
     }
 
@@ -222,6 +222,7 @@ static void vfio_intx_update(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     PCIINTxRoute route;
+    Error *err = NULL;
 
     if (vdev->interrupt != VFIO_INT_INTx) {
         return;
@@ -244,18 +245,22 @@ static void vfio_intx_update(PCIDevice *pdev)
         return;
     }
 
-    vfio_intx_enable_kvm(vdev);
+    vfio_intx_enable_kvm(vdev, &err);
+    if (err) {
+        error_reportf_err(err, WARN_PREFIX, vdev->vbasedev.name);
+    }
 
     /* Re-enable the interrupt in cased we missed an EOI */
     vfio_intx_eoi(&vdev->vbasedev);
 }
 
-static int vfio_intx_enable(VFIOPCIDevice *vdev)
+static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 {
     uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
     int ret, argsz;
     struct vfio_irq_set *irq_set;
     int32_t *pfd;
+    Error *err = NULL;
 
     if (!pin) {
         return 0;
@@ -279,7 +284,7 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev)
 
     ret = event_notifier_init(&vdev->intx.interrupt, 0);
     if (ret) {
-        error_report("vfio: Error: event_notifier_init failed");
+        error_setg_errno(errp, -ret, "event_notifier_init failed");
         return ret;
     }
 
@@ -299,13 +304,16 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev)
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
     g_free(irq_set);
     if (ret) {
-        error_report("vfio: Error: Failed to setup INTx fd: %m");
+        error_setg_errno(errp, -ret, "failed to setup INTx fd");
         qemu_set_fd_handler(*pfd, NULL, NULL, vdev);
         event_notifier_cleanup(&vdev->intx.interrupt);
         return -errno;
     }
 
-    vfio_intx_enable_kvm(vdev);
+    vfio_intx_enable_kvm(vdev, &err);
+    if (err) {
+        error_reportf_err(err, WARN_PREFIX, vdev->vbasedev.name);
+    }
 
     vdev->interrupt = VFIO_INT_INTx;
 
@@ -707,6 +715,7 @@ retry:
 
 static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
 {
+    Error *err = NULL;
     int i;
 
     for (i = 0; i < vdev->nr_vectors; i++) {
@@ -726,7 +735,10 @@ static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
     vdev->nr_vectors = 0;
     vdev->interrupt = VFIO_INT_NONE;
 
-    vfio_intx_enable(vdev);
+    vfio_intx_enable(vdev, &err);
+    if (err) {
+        error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
+    }
 }
 
 static void vfio_msix_disable(VFIOPCIDevice *vdev)
@@ -1908,7 +1920,12 @@ static void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
 
 static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
 {
-    vfio_intx_enable(vdev);
+    Error *err = NULL;
+
+    vfio_intx_enable(vdev, &err);
+    if (err) {
+        error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
+    }
 }
 
 static bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name)
@@ -2724,7 +2741,7 @@ static int vfio_initfn(PCIDevice *pdev)
         vdev->intx.mmap_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                   vfio_intx_mmap_enable, vdev);
         pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_intx_update);
-        ret = vfio_intx_enable(vdev);
+        ret = vfio_intx_enable(vdev, &err);
         if (ret) {
             goto out_teardown;
         }
