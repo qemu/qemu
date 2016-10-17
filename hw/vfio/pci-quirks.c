@@ -898,7 +898,7 @@ static uint64_t vfio_rtl8168_quirk_data_read(void *opaque,
 {
     VFIOrtl8168Quirk *rtl = opaque;
     VFIOPCIDevice *vdev = rtl->vdev;
-    uint64_t data = vfio_region_read(&vdev->bars[2].region, addr + 0x74, size);
+    uint64_t data = vfio_region_read(&vdev->bars[2].region, addr + 0x70, size);
 
     if (rtl->enabled && (vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX)) {
         hwaddr offset = rtl->addr & 0xfff;
