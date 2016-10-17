@@ -2202,28 +2202,27 @@ int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
     return 0;
 }
 
-static int vfio_populate_device(VFIOPCIDevice *vdev)
+static int vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info *reg_info;
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
     int i, ret = -1;
-    Error *err = NULL;
 
     /* Sanity check device */
     if (!(vbasedev->flags & VFIO_DEVICE_FLAGS_PCI)) {
-        error_report("vfio: Um, this isn't a PCI device");
+        error_setg(errp, "this isn't a PCI device");
         goto error;
     }
 
     if (vbasedev->num_regions < VFIO_PCI_CONFIG_REGION_INDEX + 1) {
-        error_report("vfio: unexpected number of io regions %u",
-                     vbasedev->num_regions);
+        error_setg(errp, "unexpected number of io regions %u",
+                   vbasedev->num_regions);
         goto error;
     }
 
     if (vbasedev->num_irqs < VFIO_PCI_MSIX_IRQ_INDEX + 1) {
-        error_report("vfio: unexpected number of irqs %u", vbasedev->num_irqs);
+        error_setg(errp, "unexpected number of irqs %u", vbasedev->num_irqs);
         goto error;
     }
 
@@ -2235,7 +2234,7 @@ static int vfio_populate_device(VFIOPCIDevice *vdev)
         g_free(name);
 
         if (ret) {
-            error_report("vfio: Error getting region %d info: %m", i);
+            error_setg_errno(errp, -ret, "failed to get region %d info", i);
             goto error;
         }
 
@@ -2245,7 +2244,7 @@ static int vfio_populate_device(VFIOPCIDevice *vdev)
     ret = vfio_get_region_info(vbasedev,
                                VFIO_PCI_CONFIG_REGION_INDEX, &reg_info);
     if (ret) {
-        error_report("vfio: Error getting config info: %m");
+        error_setg_errno(errp, -ret, "failed to get config info");
         goto error;
     }
 
@@ -2263,11 +2262,10 @@ static int vfio_populate_device(VFIOPCIDevice *vdev)
     g_free(reg_info);
 
     if (vdev->features & VFIO_FEATURE_ENABLE_VGA) {
-        ret = vfio_populate_vga(vdev, &err);
+        ret = vfio_populate_vga(vdev, errp);
         if (ret) {
-            error_append_hint(&err, "device does not support "
+            error_append_hint(errp, "device does not support "
                               "requested feature x-vga\n");
-            error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
             goto error;
         }
     }
@@ -2282,7 +2280,7 @@ static int vfio_populate_device(VFIOPCIDevice *vdev)
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
     } else {
-        error_report("vfio: %s "
+        error_report(WARN_PREFIX
                      "Could not enable error recovery for the device",
                      vbasedev->name);
     }
@@ -2565,9 +2563,9 @@ static int vfio_initfn(PCIDevice *pdev)
         goto error;
     }
 
-    ret = vfio_populate_device(vdev);
+    ret = vfio_populate_device(vdev, &err);
     if (ret) {
-        return ret;
+        goto error;
     }
 
     /* Get a copy of config space */
