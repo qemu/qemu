@@ -64,6 +64,7 @@ static void qvirtio_scsi_pci_free(QVirtIOSCSI *vs)
     qvirtio_pci_device_disable(container_of(vs->dev, QVirtioPCIDevice, vdev));
     g_free(vs->dev);
     qpci_free_pc(vs->bus);
+    g_free(vs);
 }
 
 static uint64_t qvirtio_scsi_alloc(QVirtIOSCSI *vs, size_t alloc_size,
