@@ -71,17 +71,17 @@ static QVirtIO9P *qvirtio_9p_pci_init(void)
     v9p->dev = (QVirtioDevice *) dev;
 
     qvirtio_pci_device_enable(dev);
-    qvirtio_reset(&qvirtio_pci, v9p->dev);
-    qvirtio_set_acknowledge(&qvirtio_pci, v9p->dev);
-    qvirtio_set_driver(&qvirtio_pci, v9p->dev);
+    qvirtio_reset(v9p->dev);
+    qvirtio_set_acknowledge(v9p->dev);
+    qvirtio_set_driver(v9p->dev);
 
-    v9p->vq = qvirtqueue_setup(&qvirtio_pci, v9p->dev, v9p->alloc, 0);
+    v9p->vq = qvirtqueue_setup(v9p->dev, v9p->alloc, 0);
     return v9p;
 }
 
 static void qvirtio_9p_pci_free(QVirtIO9P *v9p)
 {
-    qvirtqueue_cleanup(&qvirtio_pci, v9p->vq, v9p->alloc);
+    qvirtqueue_cleanup(v9p->dev->bus, v9p->vq, v9p->alloc);
     pc_alloc_uninit(v9p->alloc);
     qvirtio_pci_device_disable(container_of(v9p->dev, QVirtioPCIDevice, vdev));
     g_free(v9p->dev);
@@ -101,15 +101,14 @@ static void pci_basic_config(void)
     v9p = qvirtio_9p_pci_init();
 
     addr = ((QVirtioPCIDevice *) v9p->dev)->addr + VIRTIO_PCI_CONFIG_OFF(false);
-    tag_len = qvirtio_config_readw(&qvirtio_pci, v9p->dev,
+    tag_len = qvirtio_config_readw(v9p->dev,
                                    (uint64_t)(uintptr_t)addr);
     g_assert_cmpint(tag_len, ==, strlen(mount_tag));
     addr += sizeof(uint16_t);
 
     tag = g_malloc(tag_len);
     for (i = 0; i < tag_len; i++) {
-        tag[i] = qvirtio_config_readb(&qvirtio_pci, v9p->dev,
-                                      (uint64_t)(uintptr_t)addr + i);
+        tag[i] = qvirtio_config_readb(v9p->dev, (uint64_t)(uintptr_t)addr + i);
     }
     g_assert_cmpmem(tag, tag_len, mount_tag, tag_len);
     g_free(tag);

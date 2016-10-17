@@ -46,9 +46,9 @@ static QVirtioPCIDevice *virtio_net_pci_init(QPCIBus *bus, int slot)
     g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_NET);
 
     qvirtio_pci_device_enable(dev);
-    qvirtio_reset(&qvirtio_pci, &dev->vdev);
-    qvirtio_set_acknowledge(&qvirtio_pci, &dev->vdev);
-    qvirtio_set_driver(&qvirtio_pci, &dev->vdev);
+    qvirtio_reset(&dev->vdev);
+    qvirtio_set_acknowledge(&dev->vdev);
+    qvirtio_set_driver(&dev->vdev);
 
     return dev;
 }
@@ -65,20 +65,20 @@ static QPCIBus *pci_test_start(int socket)
     return qpci_init_pc(NULL);
 }
 
-static void driver_init(const QVirtioBus *bus, QVirtioDevice *dev)
+static void driver_init(QVirtioDevice *dev)
 {
     uint32_t features;
 
-    features = qvirtio_get_features(bus, dev);
+    features = qvirtio_get_features(dev);
     features = features & ~(QVIRTIO_F_BAD_FEATURE |
                             (1u << VIRTIO_RING_F_INDIRECT_DESC) |
                             (1u << VIRTIO_RING_F_EVENT_IDX));
-    qvirtio_set_features(bus, dev, features);
+    qvirtio_set_features(dev, features);
 
-    qvirtio_set_driver_ok(bus, dev);
+    qvirtio_set_driver_ok(dev);
 }
 
-static void rx_test(const QVirtioBus *bus, QVirtioDevice *dev,
+static void rx_test(QVirtioDevice *dev,
                     QGuestAllocator *alloc, QVirtQueue *vq,
                     int socket)
 {
@@ -101,19 +101,19 @@ static void rx_test(const QVirtioBus *bus, QVirtioDevice *dev,
     req_addr = guest_alloc(alloc, 64);
 
     free_head = qvirtqueue_add(vq, req_addr, 64, true, false);
-    qvirtqueue_kick(bus, dev, vq, free_head);
+    qvirtqueue_kick(dev, vq, free_head);
 
     ret = iov_send(socket, iov, 2, 0, sizeof(len) + sizeof(test));
     g_assert_cmpint(ret, ==, sizeof(test) + sizeof(len));
 
-    qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_NET_TIMEOUT_US);
+    qvirtio_wait_queue_isr(dev, vq, QVIRTIO_NET_TIMEOUT_US);
     memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
     g_assert_cmpstr(buffer, ==, "TEST");
 
     guest_free(alloc, req_addr);
 }
 
-static void tx_test(const QVirtioBus *bus, QVirtioDevice *dev,
+static void tx_test(QVirtioDevice *dev,
                     QGuestAllocator *alloc, QVirtQueue *vq,
                     int socket)
 {
@@ -127,9 +127,9 @@ static void tx_test(const QVirtioBus *bus, QVirtioDevice *dev,
     memwrite(req_addr + VNET_HDR_SIZE, "TEST", 4);
 
     free_head = qvirtqueue_add(vq, req_addr, 64, false, false);
-    qvirtqueue_kick(bus, dev, vq, free_head);
+    qvirtqueue_kick(dev, vq, free_head);
 
-    qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_NET_TIMEOUT_US);
+    qvirtio_wait_queue_isr(dev, vq, QVIRTIO_NET_TIMEOUT_US);
     guest_free(alloc, req_addr);
 
     ret = qemu_recv(socket, &len, sizeof(len), 0);
@@ -140,7 +140,7 @@ static void tx_test(const QVirtioBus *bus, QVirtioDevice *dev,
     g_assert_cmpstr(buffer, ==, "TEST");
 }
 
-static void rx_stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
+static void rx_stop_cont_test(QVirtioDevice *dev,
                               QGuestAllocator *alloc, QVirtQueue *vq,
                               int socket)
 {
@@ -164,7 +164,7 @@ static void rx_stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
     req_addr = guest_alloc(alloc, 64);
 
     free_head = qvirtqueue_add(vq, req_addr, 64, true, false);
-    qvirtqueue_kick(bus, dev, vq, free_head);
+    qvirtqueue_kick(dev, vq, free_head);
 
     rsp = qmp("{ 'execute' : 'stop'}");
     QDECREF(rsp);
@@ -180,26 +180,26 @@ static void rx_stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
     rsp = qmp("{ 'execute' : 'cont'}");
     QDECREF(rsp);
 
-    qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_NET_TIMEOUT_US);
+    qvirtio_wait_queue_isr(dev, vq, QVIRTIO_NET_TIMEOUT_US);
     memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
     g_assert_cmpstr(buffer, ==, "TEST");
 
     guest_free(alloc, req_addr);
 }
 
-static void send_recv_test(const QVirtioBus *bus, QVirtioDevice *dev,
+static void send_recv_test(QVirtioDevice *dev,
                            QGuestAllocator *alloc, QVirtQueue *rvq,
                            QVirtQueue *tvq, int socket)
 {
-    rx_test(bus, dev, alloc, rvq, socket);
-    tx_test(bus, dev, alloc, tvq, socket);
+    rx_test(dev, alloc, rvq, socket);
+    tx_test(dev, alloc, tvq, socket);
 }
 
-static void stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
+static void stop_cont_test(QVirtioDevice *dev,
                            QGuestAllocator *alloc, QVirtQueue *rvq,
                            QVirtQueue *tvq, int socket)
 {
-    rx_stop_cont_test(bus, dev, alloc, rvq, socket);
+    rx_stop_cont_test(dev, alloc, rvq, socket);
 }
 
 static void pci_basic(gconstpointer data)
@@ -208,8 +208,7 @@ static void pci_basic(gconstpointer data)
     QPCIBus *bus;
     QVirtQueuePCI *tx, *rx;
     QGuestAllocator *alloc;
-    void (*func) (const QVirtioBus *bus,
-                  QVirtioDevice *dev,
+    void (*func) (QVirtioDevice *dev,
                   QGuestAllocator *alloc,
                   QVirtQueue *rvq,
                   QVirtQueue *tvq,
@@ -223,18 +222,16 @@ static void pci_basic(gconstpointer data)
     dev = virtio_net_pci_init(bus, PCI_SLOT);
 
     alloc = pc_alloc_init();
-    rx = (QVirtQueuePCI *)qvirtqueue_setup(&qvirtio_pci, &dev->vdev,
-                                           alloc, 0);
-    tx = (QVirtQueuePCI *)qvirtqueue_setup(&qvirtio_pci, &dev->vdev,
-                                           alloc, 1);
+    rx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, alloc, 0);
+    tx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, alloc, 1);
 
-    driver_init(&qvirtio_pci, &dev->vdev);
-    func(&qvirtio_pci, &dev->vdev, alloc, &rx->vq, &tx->vq, sv[0]);
+    driver_init(&dev->vdev);
+    func(&dev->vdev, alloc, &rx->vq, &tx->vq, sv[0]);
 
     /* End test */
     close(sv[0]);
-    qvirtqueue_cleanup(&qvirtio_pci, &tx->vq, alloc);
-    qvirtqueue_cleanup(&qvirtio_pci, &rx->vq, alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &tx->vq, alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &rx->vq, alloc);
     pc_alloc_uninit(alloc);
     qvirtio_pci_device_disable(dev);
     g_free(dev->pdev);

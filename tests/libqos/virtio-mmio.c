@@ -199,6 +199,7 @@ QVirtioMMIODevice *qvirtio_mmio_init_device(uint64_t addr, uint32_t page_size)
     dev->addr = addr;
     dev->page_size = page_size;
     dev->vdev.device_type = readl(addr + QVIRTIO_MMIO_DEVICE_ID);
+    dev->vdev.bus = &qvirtio_mmio;
 
     writel(addr + QVIRTIO_MMIO_GUEST_PAGE_SIZE, page_size);
 

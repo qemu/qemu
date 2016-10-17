@@ -58,7 +58,7 @@ static void qvirtio_scsi_pci_free(QVirtIOSCSI *vs)
     int i;
 
     for (i = 0; i < vs->num_queues + 2; i++) {
-        qvirtqueue_cleanup(&qvirtio_pci, vs->vq[i], vs->alloc);
+        qvirtqueue_cleanup(vs->dev->bus, vs->vq[i], vs->alloc);
     }
     pc_alloc_uninit(vs->alloc);
     qvirtio_pci_device_disable(container_of(vs->dev, QVirtioPCIDevice, vdev));
@@ -119,8 +119,8 @@ static uint8_t virtio_scsi_do_command(QVirtIOSCSI *vs, const uint8_t *cdb,
         qvirtqueue_add(vq, data_in_addr, data_in_len, true, false);
     }
 
-    qvirtqueue_kick(&qvirtio_pci, vs->dev, vq, free_head);
-    qvirtio_wait_queue_isr(&qvirtio_pci, vs->dev, vq, QVIRTIO_SCSI_TIMEOUT_US);
+    qvirtqueue_kick(vs->dev, vq, free_head);
+    qvirtio_wait_queue_isr(vs->dev, vq, QVIRTIO_SCSI_TIMEOUT_US);
 
     response = readb(resp_addr +
                      offsetof(struct virtio_scsi_cmd_resp, response));
@@ -155,18 +155,17 @@ static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
     g_assert_cmphex(vs->dev->device_type, ==, VIRTIO_ID_SCSI);
 
     qvirtio_pci_device_enable(dev);
-    qvirtio_reset(&qvirtio_pci, vs->dev);
-    qvirtio_set_acknowledge(&qvirtio_pci, vs->dev);
-    qvirtio_set_driver(&qvirtio_pci, vs->dev);
+    qvirtio_reset(vs->dev);
+    qvirtio_set_acknowledge(vs->dev);
+    qvirtio_set_driver(vs->dev);
 
     addr = dev->addr + VIRTIO_PCI_CONFIG_OFF(false);
-    vs->num_queues = qvirtio_config_readl(&qvirtio_pci, vs->dev,
-                                          (uint64_t)(uintptr_t)addr);
+    vs->num_queues = qvirtio_config_readl(vs->dev, (uint64_t)(uintptr_t)addr);
 
     g_assert_cmpint(vs->num_queues, <, MAX_NUM_QUEUES);
 
     for (i = 0; i < vs->num_queues + 2; i++) {
-        vs->vq[i] = qvirtqueue_setup(&qvirtio_pci, vs->dev, vs->alloc, i);
+        vs->vq[i] = qvirtqueue_setup(vs->dev, vs->alloc, i);
     }
 
     /* Clear the POWER ON OCCURRED unit attention */
