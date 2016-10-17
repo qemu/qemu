@@ -324,20 +324,21 @@ static inline uint8_t v9fs_request_cancelled(V9fsPDU *pdu)
     return pdu->cancelled;
 }
 
-extern void v9fs_reclaim_fd(V9fsPDU *pdu);
-extern void v9fs_path_init(V9fsPath *path);
-extern void v9fs_path_free(V9fsPath *path);
-extern void v9fs_path_sprintf(V9fsPath *path, const char *fmt, ...);
-extern void v9fs_path_copy(V9fsPath *lhs, V9fsPath *rhs);
-extern int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
-                             const char *name, V9fsPath *path);
-extern int v9fs_device_realize_common(V9fsState *s, Error **errp);
-extern void v9fs_device_unrealize_common(V9fsState *s, Error **errp);
+void coroutine_fn v9fs_reclaim_fd(V9fsPDU *pdu);
+void v9fs_path_init(V9fsPath *path);
+void v9fs_path_free(V9fsPath *path);
+void v9fs_path_sprintf(V9fsPath *path, const char *fmt, ...);
+void v9fs_path_copy(V9fsPath *lhs, V9fsPath *rhs);
+int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
+                      const char *name, V9fsPath *path);
+int v9fs_device_realize_common(V9fsState *s, Error **errp);
+void v9fs_device_unrealize_common(V9fsState *s, Error **errp);
 
 ssize_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
 ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
 V9fsPDU *pdu_alloc(V9fsState *s);
 void pdu_free(V9fsPDU *pdu);
 void pdu_submit(V9fsPDU *pdu);
+void v9fs_reset(V9fsState *s);
 
 #endif

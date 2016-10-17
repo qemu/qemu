@@ -141,6 +141,13 @@ static void virtio_9p_device_unrealize(DeviceState *dev, Error **errp)
     v9fs_device_unrealize_common(s, errp);
 }
 
+static void virtio_9p_reset(VirtIODevice *vdev)
+{
+    V9fsVirtioState *v = (V9fsVirtioState *)vdev;
+
+    v9fs_reset(&v->state);
+}
+
 ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
                             const char *fmt, va_list ap)
 {
@@ -207,6 +214,7 @@ static void virtio_9p_class_init(ObjectClass *klass, void *data)
     vdc->unrealize = virtio_9p_device_unrealize;
     vdc->get_features = virtio_9p_get_features;
     vdc->get_config = virtio_9p_get_config;
+    vdc->reset = virtio_9p_reset;
 }
 
 static const TypeInfo virtio_device_info = {

@@ -47,52 +47,53 @@
         qemu_coroutine_yield();                                         \
     } while (0)
 
-extern void co_run_in_worker_bh(void *);
-extern int v9fs_co_readlink(V9fsPDU *, V9fsPath *, V9fsString *);
-extern int v9fs_co_readdir(V9fsPDU *, V9fsFidState *, struct dirent **);
-extern off_t v9fs_co_telldir(V9fsPDU *, V9fsFidState *);
-extern void v9fs_co_seekdir(V9fsPDU *, V9fsFidState *, off_t);
-extern void v9fs_co_rewinddir(V9fsPDU *, V9fsFidState *);
-extern int v9fs_co_statfs(V9fsPDU *, V9fsPath *, struct statfs *);
-extern int v9fs_co_lstat(V9fsPDU *, V9fsPath *, struct stat *);
-extern int v9fs_co_chmod(V9fsPDU *, V9fsPath *, mode_t);
-extern int v9fs_co_utimensat(V9fsPDU *, V9fsPath *, struct timespec [2]);
-extern int v9fs_co_chown(V9fsPDU *, V9fsPath *, uid_t, gid_t);
-extern int v9fs_co_truncate(V9fsPDU *, V9fsPath *, off_t);
-extern int v9fs_co_llistxattr(V9fsPDU *, V9fsPath *, void *, size_t);
-extern int v9fs_co_lgetxattr(V9fsPDU *, V9fsPath *,
-                             V9fsString *, void *, size_t);
-extern int v9fs_co_mknod(V9fsPDU *, V9fsFidState *, V9fsString *, uid_t,
-                         gid_t, dev_t, mode_t, struct stat *);
-extern int v9fs_co_mkdir(V9fsPDU *, V9fsFidState *, V9fsString *,
-                         mode_t, uid_t, gid_t, struct stat *);
-extern int v9fs_co_remove(V9fsPDU *, V9fsPath *);
-extern int v9fs_co_rename(V9fsPDU *, V9fsPath *, V9fsPath *);
-extern int v9fs_co_unlinkat(V9fsPDU *, V9fsPath *, V9fsString *, int flags);
-extern int v9fs_co_renameat(V9fsPDU *, V9fsPath *, V9fsString *,
-                            V9fsPath *, V9fsString *);
-extern int v9fs_co_fstat(V9fsPDU *, V9fsFidState *, struct stat *);
-extern int v9fs_co_opendir(V9fsPDU *, V9fsFidState *);
-extern int v9fs_co_open(V9fsPDU *, V9fsFidState *, int);
-extern int v9fs_co_open2(V9fsPDU *, V9fsFidState *, V9fsString *,
-                         gid_t, int, int, struct stat *);
-extern int v9fs_co_lsetxattr(V9fsPDU *, V9fsPath *, V9fsString *,
-                             void *, size_t, int);
-extern int v9fs_co_lremovexattr(V9fsPDU *, V9fsPath *, V9fsString *);
-extern int v9fs_co_closedir(V9fsPDU *, V9fsFidOpenState *);
-extern int v9fs_co_close(V9fsPDU *, V9fsFidOpenState *);
-extern int v9fs_co_fsync(V9fsPDU *, V9fsFidState *, int);
-extern int v9fs_co_symlink(V9fsPDU *, V9fsFidState *, V9fsString *,
-                           const char *, gid_t, struct stat *);
-extern int v9fs_co_link(V9fsPDU *, V9fsFidState *,
-                        V9fsFidState *, V9fsString *);
-extern int v9fs_co_pwritev(V9fsPDU *, V9fsFidState *,
-                           struct iovec *, int, int64_t);
-extern int v9fs_co_preadv(V9fsPDU *, V9fsFidState *,
-                          struct iovec *, int, int64_t);
-extern int v9fs_co_name_to_path(V9fsPDU *, V9fsPath *,
-                                const char *, V9fsPath *);
-extern int v9fs_co_st_gen(V9fsPDU *pdu, V9fsPath *path, mode_t,
-                          V9fsStatDotl *v9stat);
+void co_run_in_worker_bh(void *);
+int coroutine_fn v9fs_co_readlink(V9fsPDU *, V9fsPath *, V9fsString *);
+int coroutine_fn v9fs_co_readdir(V9fsPDU *, V9fsFidState *, struct dirent **);
+off_t coroutine_fn v9fs_co_telldir(V9fsPDU *, V9fsFidState *);
+void coroutine_fn v9fs_co_seekdir(V9fsPDU *, V9fsFidState *, off_t);
+void coroutine_fn v9fs_co_rewinddir(V9fsPDU *, V9fsFidState *);
+int coroutine_fn v9fs_co_statfs(V9fsPDU *, V9fsPath *, struct statfs *);
+int coroutine_fn v9fs_co_lstat(V9fsPDU *, V9fsPath *, struct stat *);
+int coroutine_fn v9fs_co_chmod(V9fsPDU *, V9fsPath *, mode_t);
+int coroutine_fn v9fs_co_utimensat(V9fsPDU *, V9fsPath *, struct timespec [2]);
+int coroutine_fn v9fs_co_chown(V9fsPDU *, V9fsPath *, uid_t, gid_t);
+int coroutine_fn v9fs_co_truncate(V9fsPDU *, V9fsPath *, off_t);
+int coroutine_fn v9fs_co_llistxattr(V9fsPDU *, V9fsPath *, void *, size_t);
+int coroutine_fn v9fs_co_lgetxattr(V9fsPDU *, V9fsPath *,
+                                   V9fsString *, void *, size_t);
+int coroutine_fn v9fs_co_mknod(V9fsPDU *, V9fsFidState *, V9fsString *, uid_t,
+                               gid_t, dev_t, mode_t, struct stat *);
+int coroutine_fn v9fs_co_mkdir(V9fsPDU *, V9fsFidState *, V9fsString *,
+                               mode_t, uid_t, gid_t, struct stat *);
+int coroutine_fn v9fs_co_remove(V9fsPDU *, V9fsPath *);
+int coroutine_fn v9fs_co_rename(V9fsPDU *, V9fsPath *, V9fsPath *);
+int coroutine_fn v9fs_co_unlinkat(V9fsPDU *, V9fsPath *, V9fsString *,
+                                  int flags);
+int coroutine_fn v9fs_co_renameat(V9fsPDU *, V9fsPath *, V9fsString *,
+                                  V9fsPath *, V9fsString *);
+int coroutine_fn v9fs_co_fstat(V9fsPDU *, V9fsFidState *, struct stat *);
+int coroutine_fn v9fs_co_opendir(V9fsPDU *, V9fsFidState *);
+int coroutine_fn v9fs_co_open(V9fsPDU *, V9fsFidState *, int);
+int coroutine_fn v9fs_co_open2(V9fsPDU *, V9fsFidState *, V9fsString *,
+                               gid_t, int, int, struct stat *);
+int coroutine_fn v9fs_co_lsetxattr(V9fsPDU *, V9fsPath *, V9fsString *,
+                                   void *, size_t, int);
+int coroutine_fn v9fs_co_lremovexattr(V9fsPDU *, V9fsPath *, V9fsString *);
+int coroutine_fn v9fs_co_closedir(V9fsPDU *, V9fsFidOpenState *);
+int coroutine_fn v9fs_co_close(V9fsPDU *, V9fsFidOpenState *);
+int coroutine_fn v9fs_co_fsync(V9fsPDU *, V9fsFidState *, int);
+int coroutine_fn v9fs_co_symlink(V9fsPDU *, V9fsFidState *, V9fsString *,
+                                 const char *, gid_t, struct stat *);
+int coroutine_fn v9fs_co_link(V9fsPDU *, V9fsFidState *,
+                              V9fsFidState *, V9fsString *);
+int coroutine_fn v9fs_co_pwritev(V9fsPDU *, V9fsFidState *,
+                                 struct iovec *, int, int64_t);
+int coroutine_fn v9fs_co_preadv(V9fsPDU *, V9fsFidState *,
+                                struct iovec *, int, int64_t);
+int coroutine_fn v9fs_co_name_to_path(V9fsPDU *, V9fsPath *,
+                                      const char *, V9fsPath *);
+int coroutine_fn v9fs_co_st_gen(V9fsPDU *pdu, V9fsPath *path, mode_t,
+                                V9fsStatDotl *v9stat);
 
 #endif
