@@ -2090,7 +2090,7 @@ static void coroutine_fn v9fs_write(void *opaque)
     offset = 7;
     err = pdu_marshal(pdu, offset, "d", total);
     if (err < 0) {
-        goto out;
+        goto out_qiov;
     }
     err += offset;
     trace_v9fs_write_return(pdu->tag, pdu->id, total, err);
