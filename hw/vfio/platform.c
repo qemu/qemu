@@ -508,6 +508,7 @@ static int vfio_populate_device(VFIODevice *vbasedev, Error **errp)
                                                     irq.flags);
             intp = vfio_init_intp(vbasedev, irq, errp);
             if (!intp) {
+                ret = -1;
                 goto irq_err;
             }
         }
