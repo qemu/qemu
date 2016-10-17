@@ -42,7 +42,8 @@ typedef struct AspeedSMCController {
     uint8_t conf_enable_w0;
     uint8_t max_slaves;
     const AspeedSegments *segments;
-    uint32_t mapping_window_size;
+    hwaddr flash_window_base;
+    uint32_t flash_window_size;
 } AspeedSMCController;
 
 typedef struct AspeedSMCFlash {

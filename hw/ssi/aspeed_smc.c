@@ -127,6 +127,10 @@
 #define R_SPI_MISC_CTRL   (0x10 / 4)
 #define R_SPI_TIMINGS     (0x14 / 4)
 
+#define ASPEED_SOC_SMC_FLASH_BASE   0x10000000
+#define ASPEED_SOC_FMC_FLASH_BASE   0x20000000
+#define ASPEED_SOC_SPI_FLASH_BASE   0x30000000
+
 /*
  * Default segments mapping addresses and size for each slave per
  * controller. These can be changed when board is initialized with the
@@ -151,11 +155,14 @@ static const AspeedSegments aspeed_segments_spi[] = {
 
 static const AspeedSMCController controllers[] = {
     { "aspeed.smc.smc", R_CONF, R_CE_CTRL, R_CTRL0, R_TIMINGS,
-      CONF_ENABLE_W0, 5, aspeed_segments_legacy, 0x6000000 },
+      CONF_ENABLE_W0, 5, aspeed_segments_legacy,
+      ASPEED_SOC_SMC_FLASH_BASE, 0x6000000 },
     { "aspeed.smc.fmc", R_CONF, R_CE_CTRL, R_CTRL0, R_TIMINGS,
-      CONF_ENABLE_W0, 5, aspeed_segments_fmc, 0x10000000 },
+      CONF_ENABLE_W0, 5, aspeed_segments_fmc,
+      ASPEED_SOC_FMC_FLASH_BASE, 0x10000000 },
     { "aspeed.smc.spi", R_SPI_CONF, 0xff, R_SPI_CTRL0, R_SPI_TIMINGS,
-      SPI_CONF_ENABLE_W0, 1, aspeed_segments_spi, 0x10000000 },
+      SPI_CONF_ENABLE_W0, 1, aspeed_segments_spi,
+      ASPEED_SOC_SPI_FLASH_BASE, 0x10000000 },
 };
 
 static uint64_t aspeed_smc_flash_default_read(void *opaque, hwaddr addr,
@@ -395,7 +402,7 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&s->mmio_flash, OBJECT(s),
                           &aspeed_smc_flash_default_ops, s, name,
-                          s->ctrl->mapping_window_size);
+                          s->ctrl->flash_window_size);
     sysbus_init_mmio(sbd, &s->mmio_flash);
 
     s->flashes = g_new0(AspeedSMCFlash, s->num_cs);
