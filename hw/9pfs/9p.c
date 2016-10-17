@@ -1826,14 +1826,15 @@ static void v9fs_read(void *opaque)
             if (len < 0) {
                 /* IO error return the error */
                 err = len;
-                goto out;
+                goto out_free_iovec;
             }
         } while (count < max_count && len > 0);
         err = pdu_marshal(pdu, offset, "d", count);
         if (err < 0) {
-            goto out;
+            goto out_free_iovec;
         }
         err += offset + count;
+out_free_iovec:
         qemu_iovec_destroy(&qiov);
         qemu_iovec_destroy(&qiov_full);
     } else if (fidp->fid_type == P9_FID_XATTR) {
