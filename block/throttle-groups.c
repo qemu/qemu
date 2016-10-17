@@ -168,6 +168,22 @@ static BlockBackend *throttle_group_next_blk(BlockBackend *blk)
     return blk_by_public(next);
 }
 
+/*
+ * Return whether a BlockBackend has pending requests.
+ *
+ * This assumes that tg->lock is held.
+ *
+ * @blk: the BlockBackend
+ * @is_write:  the type of operation (read/write)
+ * @ret:       whether the BlockBackend has pending requests.
+ */
+static inline bool blk_has_pending_reqs(BlockBackend *blk,
+                                        bool is_write)
+{
+    const BlockBackendPublic *blkp = blk_get_public(blk);
+    return blkp->pending_reqs[is_write];
+}
+
 /* Return the next BlockBackend in the round-robin sequence with pending I/O
  * requests.
  *
@@ -188,7 +204,7 @@ static BlockBackend *next_throttle_token(BlockBackend *blk, bool is_write)
 
     /* get next bs round in round robin style */
     token = throttle_group_next_blk(token);
-    while (token != start && !blkp->pending_reqs[is_write]) {
+    while (token != start && !blk_has_pending_reqs(token, is_write)) {
         token = throttle_group_next_blk(token);
     }
 
@@ -196,9 +212,12 @@ static BlockBackend *next_throttle_token(BlockBackend *blk, bool is_write)
      * then decide the token is the current bs because chances are
      * the current bs get the current request queued.
      */
-    if (token == start && !blkp->pending_reqs[is_write]) {
+    if (token == start && !blk_has_pending_reqs(token, is_write)) {
         token = blk;
     }
+
+    /* Either we return the original BB, or one with pending requests */
+    assert(token == blk || blk_has_pending_reqs(token, is_write));
 
     return token;
 }
@@ -257,7 +276,7 @@ static void schedule_next_request(BlockBackend *blk, bool is_write)
 
     /* Check if there's any pending request to schedule next */
     token = next_throttle_token(blk, is_write);
-    if (!blkp->pending_reqs[is_write]) {
+    if (!blk_has_pending_reqs(token, is_write)) {
         return;
     }
 
@@ -271,7 +290,7 @@ static void schedule_next_request(BlockBackend *blk, bool is_write)
             qemu_co_queue_next(&blkp->throttled_reqs[is_write])) {
             token = blk;
         } else {
-            ThrottleTimers *tt = &blkp->throttle_timers;
+            ThrottleTimers *tt = &blk_get_public(token)->throttle_timers;
             int64_t now = qemu_clock_get_ns(tt->clock_type);
             timer_mod(tt->timers[is_write], now + 1);
             tg->any_timer_armed[is_write] = true;
