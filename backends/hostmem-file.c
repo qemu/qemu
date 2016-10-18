@@ -64,14 +64,6 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 #endif
 }
 
-static void
-file_backend_class_init(ObjectClass *oc, void *data)
-{
-    HostMemoryBackendClass *bc = MEMORY_BACKEND_CLASS(oc);
-
-    bc->alloc = file_backend_memory_alloc;
-}
-
 static char *get_mem_path(Object *o, Error **errp)
 {
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
@@ -112,13 +104,18 @@ static void file_memory_backend_set_share(Object *o, bool value, Error **errp)
 }
 
 static void
-file_backend_instance_init(Object *o)
+file_backend_class_init(ObjectClass *oc, void *data)
 {
-    object_property_add_bool(o, "share",
-                        file_memory_backend_get_share,
-                        file_memory_backend_set_share, NULL);
-    object_property_add_str(o, "mem-path", get_mem_path,
-                            set_mem_path, NULL);
+    HostMemoryBackendClass *bc = MEMORY_BACKEND_CLASS(oc);
+
+    bc->alloc = file_backend_memory_alloc;
+
+    object_class_property_add_bool(oc, "share",
+        file_memory_backend_get_share, file_memory_backend_set_share,
+        &error_abort);
+    object_class_property_add_str(oc, "mem-path",
+        get_mem_path, set_mem_path,
+        &error_abort);
 }
 
 static void file_backend_instance_finalize(Object *o)
@@ -132,7 +129,6 @@ static const TypeInfo file_backend_info = {
     .name = TYPE_MEMORY_BACKEND_FILE,
     .parent = TYPE_MEMORY_BACKEND,
     .class_init = file_backend_class_init,
-    .instance_init = file_backend_instance_init,
     .instance_finalize = file_backend_instance_finalize,
     .instance_size = sizeof(HostMemoryBackendFile),
 };

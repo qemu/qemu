@@ -2804,17 +2804,16 @@ static int machine_set_property(void *opaque,
 {
     Object *obj = OBJECT(opaque);
     Error *local_err = NULL;
-    char *c, *qom_name;
+    char *p, *qom_name;
 
     if (strcmp(name, "type") == 0) {
         return 0;
     }
 
     qom_name = g_strdup(name);
-    c = qom_name;
-    while (*c++) {
-        if (*c == '_') {
-            *c = '-';
+    for (p = qom_name; *p; p++) {
+        if (*p == '_') {
+            *p = '-';
         }
     }
 

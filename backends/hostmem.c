@@ -241,26 +241,6 @@ static void host_memory_backend_init(Object *obj)
     backend->merge = machine_mem_merge(machine);
     backend->dump = machine_dump_guest_core(machine);
     backend->prealloc = mem_prealloc;
-
-    object_property_add_bool(obj, "merge",
-                        host_memory_backend_get_merge,
-                        host_memory_backend_set_merge, NULL);
-    object_property_add_bool(obj, "dump",
-                        host_memory_backend_get_dump,
-                        host_memory_backend_set_dump, NULL);
-    object_property_add_bool(obj, "prealloc",
-                        host_memory_backend_get_prealloc,
-                        host_memory_backend_set_prealloc, NULL);
-    object_property_add(obj, "size", "int",
-                        host_memory_backend_get_size,
-                        host_memory_backend_set_size, NULL, NULL, NULL);
-    object_property_add(obj, "host-nodes", "int",
-                        host_memory_backend_get_host_nodes,
-                        host_memory_backend_set_host_nodes, NULL, NULL, NULL);
-    object_property_add_enum(obj, "policy", "HostMemPolicy",
-                             HostMemPolicy_lookup,
-                             host_memory_backend_get_policy,
-                             host_memory_backend_set_policy, NULL);
 }
 
 MemoryRegion *
@@ -375,6 +355,28 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
 
     ucc->complete = host_memory_backend_memory_complete;
     ucc->can_be_deleted = host_memory_backend_can_be_deleted;
+
+    object_class_property_add_bool(oc, "merge",
+        host_memory_backend_get_merge,
+        host_memory_backend_set_merge, &error_abort);
+    object_class_property_add_bool(oc, "dump",
+        host_memory_backend_get_dump,
+        host_memory_backend_set_dump, &error_abort);
+    object_class_property_add_bool(oc, "prealloc",
+        host_memory_backend_get_prealloc,
+        host_memory_backend_set_prealloc, &error_abort);
+    object_class_property_add(oc, "size", "int",
+        host_memory_backend_get_size,
+        host_memory_backend_set_size,
+        NULL, NULL, &error_abort);
+    object_class_property_add(oc, "host-nodes", "int",
+        host_memory_backend_get_host_nodes,
+        host_memory_backend_set_host_nodes,
+        NULL, NULL, &error_abort);
+    object_class_property_add_enum(oc, "policy", "HostMemPolicy",
+        HostMemPolicy_lookup,
+        host_memory_backend_get_policy,
+        host_memory_backend_set_policy, &error_abort);
 }
 
 static const TypeInfo host_memory_backend_info = {
