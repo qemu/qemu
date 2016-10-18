@@ -326,22 +326,20 @@ static void icp_check_ipi(ICPState *ss)
     qemu_irq_raise(ss->output);
 }
 
-static void icp_resend(XICSState *xics, int server)
+static void icp_resend(ICPState *ss)
 {
-    ICPState *ss = xics->ss + server;
     ICSState *ics;
 
     if (ss->mfrr < CPPR(ss)) {
         icp_check_ipi(ss);
     }
-    QLIST_FOREACH(ics, &xics->ics, list) {
+    QLIST_FOREACH(ics, &ss->xics->ics, list) {
         ics_resend(ics);
     }
 }
 
-void icp_set_cppr(XICSState *xics, int server, uint8_t cppr)
+void icp_set_cppr(ICPState *ss, uint8_t cppr)
 {
-    ICPState *ss = xics->ss + server;
     uint8_t old_cppr;
     uint32_t old_xisr;
 
@@ -361,15 +359,13 @@ void icp_set_cppr(XICSState *xics, int server, uint8_t cppr)
         }
     } else {
         if (!XISR(ss)) {
-            icp_resend(xics, server);
+            icp_resend(ss);
         }
     }
 }
 
-void icp_set_mfrr(XICSState *xics, int server, uint8_t mfrr)
+void icp_set_mfrr(ICPState *ss, uint8_t mfrr)
 {
-    ICPState *ss = xics->ss + server;
-
     ss->mfrr = mfrr;
     if (mfrr < CPPR(ss)) {
         icp_check_ipi(ss);
@@ -398,23 +394,22 @@ uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr)
     return ss->xirr;
 }
 
-void icp_eoi(XICSState *xics, int server, uint32_t xirr)
+void icp_eoi(ICPState *ss, uint32_t xirr)
 {
-    ICPState *ss = xics->ss + server;
     ICSState *ics;
     uint32_t irq;
 
     /* Send EOI -> ICS */
     ss->xirr = (ss->xirr & ~CPPR_MASK) | (xirr & CPPR_MASK);
-    trace_xics_icp_eoi(server, xirr, ss->xirr);
+    trace_xics_icp_eoi(ss->cs->cpu_index, xirr, ss->xirr);
     irq = xirr & XISR_MASK;
-    QLIST_FOREACH(ics, &xics->ics, list) {
+    QLIST_FOREACH(ics, &ss->xics->ics, list) {
         if (ics_valid_irq(ics, irq)) {
             ics_eoi(ics, irq);
         }
     }
     if (!XISR(ss)) {
-        icp_resend(xics, server);
+        icp_resend(ss);
     }
 }
 
@@ -673,7 +668,7 @@ static int ics_simple_post_load(ICSState *ics, int version_id)
     int i;
 
     for (i = 0; i < ics->xics->nr_servers; i++) {
-        icp_resend(ics->xics, i);
+        icp_resend(&ics->xics->ss[i]);
     }
 
     return 0;
