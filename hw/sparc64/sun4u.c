@@ -37,6 +37,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/nvram/openbios_firmware_abi.h"
+#include "hw/nvram/chrp_nvram.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
 #include "hw/ide.h"
@@ -124,39 +125,17 @@ static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,
                                   const uint8_t *macaddr)
 {
     unsigned int i;
-    uint32_t start, end;
+    int sysp_end;
     uint8_t image[0x1ff0];
-    struct OpenBIOS_nvpart_v1 *part_header;
     NvramClass *k = NVRAM_GET_CLASS(nvram);
 
     memset(image, '\0', sizeof(image));
 
-    start = 0;
+    /* OpenBIOS nvram variables partition */
+    sysp_end = chrp_nvram_create_system_partition(image, 0);
 
-    // OpenBIOS nvram variables
-    // Variable partition
-    part_header = (struct OpenBIOS_nvpart_v1 *)&image[start];
-    part_header->signature = OPENBIOS_PART_SYSTEM;
-    pstrcpy(part_header->name, sizeof(part_header->name), "system");
-
-    end = start + sizeof(struct OpenBIOS_nvpart_v1);
-    for (i = 0; i < nb_prom_envs; i++)
-        end = OpenBIOS_set_var(image, end, prom_envs[i]);
-
-    // End marker
-    image[end++] = '\0';
-
-    end = start + ((end - start + 15) & ~15);
-    OpenBIOS_finish_partition(part_header, end - start);
-
-    // free partition
-    start = end;
-    part_header = (struct OpenBIOS_nvpart_v1 *)&image[start];
-    part_header->signature = OPENBIOS_PART_FREE;
-    pstrcpy(part_header->name, sizeof(part_header->name), "free");
-
-    end = 0x1fd0;
-    OpenBIOS_finish_partition(part_header, end - start);
+    /* Free space partition */
+    chrp_nvram_create_free_partition(&image[sysp_end], 0x1fd0 - sysp_end);
 
     Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr, 0x80);
 
