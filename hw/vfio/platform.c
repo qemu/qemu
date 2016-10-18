@@ -44,9 +44,10 @@ static inline bool vfio_irq_is_automasked(VFIOINTp *intp)
  * and add it into the list of IRQs
  * @vbasedev: the VFIO device handle
  * @info: irq info struct retrieved from VFIO driver
+ * @errp: error object
  */
 static VFIOINTp *vfio_init_intp(VFIODevice *vbasedev,
-                                struct vfio_irq_info info)
+                                struct vfio_irq_info info, Error **errp)
 {
     int ret;
     VFIOPlatformDevice *vdev =
@@ -69,7 +70,8 @@ static VFIOINTp *vfio_init_intp(VFIODevice *vbasedev,
     if (ret) {
         g_free(intp->interrupt);
         g_free(intp);
-        error_report("vfio: Error: trigger event_notifier_init failed ");
+        error_setg_errno(errp, -ret,
+                         "failed to initialize trigger eventd notifier");
         return NULL;
     }
     if (vfio_irq_is_automasked(intp)) {
@@ -80,7 +82,8 @@ static VFIOINTp *vfio_init_intp(VFIODevice *vbasedev,
             g_free(intp->interrupt);
             g_free(intp->unmask);
             g_free(intp);
-            error_report("vfio: Error: resamplefd event_notifier_init failed");
+            error_setg_errno(errp, -ret,
+                             "failed to initialize resample eventd notifier");
             return NULL;
         }
     }
@@ -456,9 +459,10 @@ static int vfio_platform_hot_reset_multi(VFIODevice *vbasedev)
  * vfio_populate_device - Allocate and populate MMIO region
  * and IRQ structs according to driver returned information
  * @vbasedev: the VFIO device handle
+ * @errp: error object
  *
  */
-static int vfio_populate_device(VFIODevice *vbasedev)
+static int vfio_populate_device(VFIODevice *vbasedev, Error **errp)
 {
     VFIOINTp *intp, *tmp;
     int i, ret = -1;
@@ -466,7 +470,7 @@ static int vfio_populate_device(VFIODevice *vbasedev)
         container_of(vbasedev, VFIOPlatformDevice, vbasedev);
 
     if (!(vbasedev->flags & VFIO_DEVICE_FLAGS_PLATFORM)) {
-        error_report("vfio: Um, this isn't a platform device");
+        error_setg(errp, "this isn't a platform device");
         return ret;
     }
 
@@ -480,7 +484,7 @@ static int vfio_populate_device(VFIODevice *vbasedev)
                                 vdev->regions[i], i, name);
         g_free(name);
         if (ret) {
-            error_report("vfio: Error getting region %d info: %m", i);
+            error_setg_errno(errp, -ret, "failed to get region %d info", i);
             goto reg_error;
         }
     }
@@ -496,16 +500,15 @@ static int vfio_populate_device(VFIODevice *vbasedev)
         irq.index = i;
         ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_IRQ_INFO, &irq);
         if (ret) {
-            error_report("vfio: error getting device %s irq info",
-                         vbasedev->name);
+            error_setg_errno(errp, -ret, "failed to get device irq info");
             goto irq_err;
         } else {
             trace_vfio_platform_populate_interrupts(irq.index,
                                                     irq.count,
                                                     irq.flags);
-            intp = vfio_init_intp(vbasedev, irq);
+            intp = vfio_init_intp(vbasedev, irq, errp);
             if (!intp) {
-                error_report("vfio: Error installing IRQ %d up", i);
+                ret = -1;
                 goto irq_err;
             }
         }
@@ -538,13 +541,14 @@ static VFIODeviceOps vfio_platform_ops = {
 /**
  * vfio_base_device_init - perform preliminary VFIO setup
  * @vbasedev: the VFIO device handle
+ * @errp: error object
  *
  * Implement the VFIO command sequence that allows to discover
  * assigned device resources: group extraction, device
  * fd retrieval, resource query.
  * Precondition: the device name must be initialized
  */
-static int vfio_base_device_init(VFIODevice *vbasedev)
+static int vfio_base_device_init(VFIODevice *vbasedev, Error **errp)
 {
     VFIOGroup *group;
     VFIODevice *vbasedev_iter;
@@ -560,6 +564,7 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
         vbasedev->name = g_strdup(basename(vbasedev->sysfsdev));
     } else {
         if (!vbasedev->name || strchr(vbasedev->name, '/')) {
+            error_setg(errp, "wrong host device name");
             return -EINVAL;
         }
 
@@ -568,8 +573,8 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
     }
 
     if (stat(vbasedev->sysfsdev, &st) < 0) {
-        error_report("vfio: error: no such host device: %s",
-                     vbasedev->sysfsdev);
+        error_setg_errno(errp, errno,
+                         "failed to get the sysfs host device file status");
         return -errno;
     }
 
@@ -578,44 +583,41 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
     g_free(tmp);
 
     if (len < 0 || len >= sizeof(group_path)) {
-        error_report("vfio: error no iommu_group for device");
-        return len < 0 ? -errno : -ENAMETOOLONG;
+        ret = len < 0 ? -errno : -ENAMETOOLONG;
+        error_setg_errno(errp, -ret, "no iommu_group found");
+        return ret;
     }
 
     group_path[len] = 0;
 
     group_name = basename(group_path);
     if (sscanf(group_name, "%d", &groupid) != 1) {
-        error_report("vfio: error reading %s: %m", group_path);
+        error_setg_errno(errp, errno, "failed to read %s", group_path);
         return -errno;
     }
 
     trace_vfio_platform_base_device_init(vbasedev->name, groupid);
 
-    group = vfio_get_group(groupid, &address_space_memory);
+    group = vfio_get_group(groupid, &address_space_memory, errp);
     if (!group) {
-        error_report("vfio: failed to get group %d", groupid);
         return -ENOENT;
     }
 
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vbasedev->name) == 0) {
-            error_report("vfio: error: device %s is already attached",
-                         vbasedev->name);
+            error_setg(errp, "device is already attached");
             vfio_put_group(group);
             return -EBUSY;
         }
     }
-    ret = vfio_get_device(group, vbasedev->name, vbasedev);
+    ret = vfio_get_device(group, vbasedev->name, vbasedev, errp);
     if (ret) {
-        error_report("vfio: failed to get device %s", vbasedev->name);
         vfio_put_group(group);
         return ret;
     }
 
-    ret = vfio_populate_device(vbasedev);
+    ret = vfio_populate_device(vbasedev, errp);
     if (ret) {
-        error_report("vfio: failed to populate device %s", vbasedev->name);
         vfio_put_group(group);
     }
 
@@ -644,11 +646,9 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
                                 vbasedev->sysfsdev : vbasedev->name,
                                 vdev->compat);
 
-    ret = vfio_base_device_init(vbasedev);
+    ret = vfio_base_device_init(vbasedev, errp);
     if (ret) {
-        error_setg(errp, "vfio: vfio_base_device_init failed for %s",
-                   vbasedev->name);
-        return;
+        goto out;
     }
 
     for (i = 0; i < vbasedev->num_regions; i++) {
@@ -657,6 +657,16 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
                          memory_region_name(vdev->regions[i]->mem));
         }
         sysbus_init_mmio(sbdev, vdev->regions[i]->mem);
+    }
+out:
+    if (!ret) {
+        return;
+    }
+
+    if (vdev->vbasedev.name) {
+        error_prepend(errp, ERR_PREFIX, vdev->vbasedev.name);
+    } else {
+        error_prepend(errp, "vfio error: ");
     }
 }
 

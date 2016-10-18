@@ -30,6 +30,9 @@
 #include <linux/vfio.h>
 #endif
 
+#define ERR_PREFIX "vfio error: %s: "
+#define WARN_PREFIX "vfio warning: %s: "
+
 /*#define DEBUG_VFIO*/
 #ifdef DEBUG_VFIO
 #define DPRINTF(fmt, ...) \
@@ -152,10 +155,10 @@ void vfio_region_mmaps_set_enabled(VFIORegion *region, bool enabled);
 void vfio_region_exit(VFIORegion *region);
 void vfio_region_finalize(VFIORegion *region);
 void vfio_reset_handler(void *opaque);
-VFIOGroup *vfio_get_group(int groupid, AddressSpace *as);
+VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp);
 void vfio_put_group(VFIOGroup *group);
 int vfio_get_device(VFIOGroup *group, const char *name,
-                    VFIODevice *vbasedev);
+                    VFIODevice *vbasedev, Error **errp);
 
 extern const MemoryRegionOps vfio_region_ops;
 extern QLIST_HEAD(vfio_group_head, VFIOGroup) vfio_group_list;
