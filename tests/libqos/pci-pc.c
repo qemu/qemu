@@ -36,79 +36,64 @@ typedef struct QPCIBusPC
     uint16_t pci_iohole_alloc;
 } QPCIBusPC;
 
-static uint8_t qpci_pc_io_readb(QPCIBus *bus, void *addr)
+static uint8_t qpci_pc_pio_readb(QPCIBus *bus, uint32_t addr)
 {
-    uintptr_t port = (uintptr_t)addr;
-    uint8_t value;
-
-    if (port < 0x10000) {
-        value = inb(port);
-    } else {
-        value = readb(port);
-    }
-
-    return value;
+    return inb(addr);
 }
 
-static uint16_t qpci_pc_io_readw(QPCIBus *bus, void *addr)
+static uint8_t qpci_pc_mmio_readb(QPCIBus *bus, uint32_t addr)
 {
-    uintptr_t port = (uintptr_t)addr;
-    uint16_t value;
-
-    if (port < 0x10000) {
-        value = inw(port);
-    } else {
-        value = readw(port);
-    }
-
-    return value;
+    return readb(addr);
 }
 
-static uint32_t qpci_pc_io_readl(QPCIBus *bus, void *addr)
+static void qpci_pc_pio_writeb(QPCIBus *bus, uint32_t addr, uint8_t val)
 {
-    uintptr_t port = (uintptr_t)addr;
-    uint32_t value;
-
-    if (port < 0x10000) {
-        value = inl(port);
-    } else {
-        value = readl(port);
-    }
-
-    return value;
+    outb(addr, val);
 }
 
-static void qpci_pc_io_writeb(QPCIBus *bus, void *addr, uint8_t value)
+static void qpci_pc_mmio_writeb(QPCIBus *bus, uint32_t addr, uint8_t val)
 {
-    uintptr_t port = (uintptr_t)addr;
-
-    if (port < 0x10000) {
-        outb(port, value);
-    } else {
-        writeb(port, value);
-    }
+    writeb(addr, val);
 }
 
-static void qpci_pc_io_writew(QPCIBus *bus, void *addr, uint16_t value)
+static uint16_t qpci_pc_pio_readw(QPCIBus *bus, uint32_t addr)
 {
-    uintptr_t port = (uintptr_t)addr;
-
-    if (port < 0x10000) {
-        outw(port, value);
-    } else {
-        writew(port, value);
-    }
+    return inw(addr);
 }
 
-static void qpci_pc_io_writel(QPCIBus *bus, void *addr, uint32_t value)
+static uint16_t qpci_pc_mmio_readw(QPCIBus *bus, uint32_t addr)
 {
-    uintptr_t port = (uintptr_t)addr;
+    return readw(addr);
+}
 
-    if (port < 0x10000) {
-        outl(port, value);
-    } else {
-        writel(port, value);
-    }
+static void qpci_pc_pio_writew(QPCIBus *bus, uint32_t addr, uint16_t val)
+{
+    outw(addr, val);
+}
+
+static void qpci_pc_mmio_writew(QPCIBus *bus, uint32_t addr, uint16_t val)
+{
+    writew(addr, val);
+}
+
+static uint32_t qpci_pc_pio_readl(QPCIBus *bus, uint32_t addr)
+{
+    return inl(addr);
+}
+
+static uint32_t qpci_pc_mmio_readl(QPCIBus *bus, uint32_t addr)
+{
+    return readl(addr);
+}
+
+static void qpci_pc_pio_writel(QPCIBus *bus, uint32_t addr, uint32_t val)
+{
+    outl(addr, val);
+}
+
+static void qpci_pc_mmio_writel(QPCIBus *bus, uint32_t addr, uint32_t val)
+{
+    writel(addr, val);
 }
 
 static uint8_t qpci_pc_config_readb(QPCIBus *bus, int devfn, uint8_t offset)
@@ -218,13 +203,21 @@ QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
 
     ret = g_malloc(sizeof(*ret));
 
-    ret->bus.io_readb = qpci_pc_io_readb;
-    ret->bus.io_readw = qpci_pc_io_readw;
-    ret->bus.io_readl = qpci_pc_io_readl;
+    ret->bus.pio_readb = qpci_pc_pio_readb;
+    ret->bus.pio_readw = qpci_pc_pio_readw;
+    ret->bus.pio_readl = qpci_pc_pio_readl;
 
-    ret->bus.io_writeb = qpci_pc_io_writeb;
-    ret->bus.io_writew = qpci_pc_io_writew;
-    ret->bus.io_writel = qpci_pc_io_writel;
+    ret->bus.pio_writeb = qpci_pc_pio_writeb;
+    ret->bus.pio_writew = qpci_pc_pio_writew;
+    ret->bus.pio_writel = qpci_pc_pio_writel;
+
+    ret->bus.mmio_readb = qpci_pc_mmio_readb;
+    ret->bus.mmio_readw = qpci_pc_mmio_readw;
+    ret->bus.mmio_readl = qpci_pc_mmio_readl;
+
+    ret->bus.mmio_writeb = qpci_pc_mmio_writeb;
+    ret->bus.mmio_writew = qpci_pc_mmio_writew;
+    ret->bus.mmio_writel = qpci_pc_mmio_writel;
 
     ret->bus.config_readb = qpci_pc_config_readb;
     ret->bus.config_readw = qpci_pc_config_readw;

@@ -15,6 +15,8 @@
 
 #include "libqtest.h"
 
+#define QPCI_PIO_LIMIT    0x10000
+
 #define QPCI_DEVFN(dev, fn) (((dev) << 3) | (fn))
 
 typedef struct QPCIDevice QPCIDevice;
@@ -22,13 +24,21 @@ typedef struct QPCIBus QPCIBus;
 
 struct QPCIBus
 {
-    uint8_t (*io_readb)(QPCIBus *bus, void *addr);
-    uint16_t (*io_readw)(QPCIBus *bus, void *addr);
-    uint32_t (*io_readl)(QPCIBus *bus, void *addr);
+    uint8_t (*pio_readb)(QPCIBus *bus, uint32_t addr);
+    uint16_t (*pio_readw)(QPCIBus *bus, uint32_t addr);
+    uint32_t (*pio_readl)(QPCIBus *bus, uint32_t addr);
 
-    void (*io_writeb)(QPCIBus *bus, void *addr, uint8_t value);
-    void (*io_writew)(QPCIBus *bus, void *addr, uint16_t value);
-    void (*io_writel)(QPCIBus *bus, void *addr, uint32_t value);
+    uint8_t (*mmio_readb)(QPCIBus *bus, uint32_t addr);
+    uint16_t (*mmio_readw)(QPCIBus *bus, uint32_t addr);
+    uint32_t (*mmio_readl)(QPCIBus *bus, uint32_t addr);
+
+    void (*pio_writeb)(QPCIBus *bus, uint32_t addr, uint8_t value);
+    void (*pio_writew)(QPCIBus *bus, uint32_t addr, uint16_t value);
+    void (*pio_writel)(QPCIBus *bus, uint32_t addr, uint32_t value);
+
+    void (*mmio_writeb)(QPCIBus *bus, uint32_t addr, uint8_t value);
+    void (*mmio_writew)(QPCIBus *bus, uint32_t addr, uint16_t value);
+    void (*mmio_writel)(QPCIBus *bus, uint32_t addr, uint32_t value);
 
     uint8_t (*config_readb)(QPCIBus *bus, int devfn, uint8_t offset);
     uint16_t (*config_readw)(QPCIBus *bus, int devfn, uint8_t offset);
