@@ -385,7 +385,6 @@ vubr_message_read(int conn_fd, VhostUserMsg *vmsg)
     rc = recvmsg(conn_fd, &msg, 0);
 
     if (rc == 0) {
-        vubr_die("recvmsg");
         fprintf(stderr, "Peer disconnected.\n");
         exit(1);
     }
