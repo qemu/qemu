@@ -101,8 +101,6 @@ dispatcher_add(Dispatcher *dispr, int sock, void *ctx, CallbackFunc cb)
     return 0;
 }
 
-/* dispatcher_remove() is not currently in use but may be useful
- * in the future. */
 static int
 dispatcher_remove(Dispatcher *dispr, int sock)
 {
