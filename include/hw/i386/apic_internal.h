@@ -146,6 +146,10 @@ typedef struct APICCommonClass
     void (*pre_save)(APICCommonState *s);
     void (*post_load)(APICCommonState *s);
     void (*reset)(APICCommonState *s);
+    /* send_msi emulates an APIC bus and its proper place would be in a new
+     * device, but it's convenient to have it here for now.
+     */
+    void (*send_msi)(MSIMessage *msi);
 } APICCommonClass;
 
 struct APICCommonState {
@@ -221,5 +225,7 @@ static inline int apic_get_bit(uint32_t *tab, int index)
     mask = 1 << (index & 0x1f);
     return !!(tab[i] & mask);
 }
+
+APICCommonClass *apic_get_class(void);
 
 #endif /* QEMU_APIC_INTERNAL_H */

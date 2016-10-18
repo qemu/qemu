@@ -3,6 +3,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qint.h"
+#include "qapi/qmp/qbool.h"
 #include "libqtest.h"
 
 static char *get_cpu0_qom_path(void)
@@ -32,6 +33,15 @@ static QObject *qom_get(const char *path, const char *prop)
     qobject_incref(ret);
     QDECREF(resp);
     return ret;
+}
+
+static bool qom_get_bool(const char *path, const char *prop)
+{
+    QBool *value = qobject_to_qbool(qom_get(path, prop));
+    bool b = qbool_get_bool(value);
+
+    QDECREF(value);
+    return b;
 }
 
 typedef struct CpuidTestArgs {
@@ -66,9 +76,43 @@ static void add_cpuid_test(const char *name, const char *cmdline,
     qtest_add_data_func(name, args, test_cpuid_prop);
 }
 
+static void test_plus_minus(void)
+{
+    char *path;
+
+    /* Rules:
+     * 1)"-foo" overrides "+foo"
+     * 2) "[+-]foo" overrides "foo=..."
+     * 3) Old feature names with underscores (e.g. "sse4_2")
+     *    should keep working
+     *
+     * Note: rules 1 and 2 are planned to be removed soon, but we
+     * need to keep compatibility for a while until we start
+     * warning users about it.
+     */
+    qtest_start("-cpu pentium,-fpu,+fpu,-mce,mce=on,+cx8,cx8=off,+sse4_1,sse4_2=on");
+    path = get_cpu0_qom_path();
+
+    g_assert_false(qom_get_bool(path, "fpu"));
+    g_assert_false(qom_get_bool(path, "mce"));
+    g_assert_true(qom_get_bool(path, "cx8"));
+
+    /* Test both the original and the alias feature names: */
+    g_assert_true(qom_get_bool(path, "sse4-1"));
+    g_assert_true(qom_get_bool(path, "sse4.1"));
+
+    g_assert_true(qom_get_bool(path, "sse4-2"));
+    g_assert_true(qom_get_bool(path, "sse4.2"));
+
+    qtest_end();
+    g_free(path);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
+
+    qtest_add_func("x86/cpuid/parsing-plus-minus", test_plus_minus);
 
     /* Original level values for CPU models: */
     add_cpuid_test("x86/cpuid/phenom/level",

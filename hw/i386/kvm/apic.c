@@ -169,6 +169,17 @@ static void kvm_apic_external_nmi(APICCommonState *s)
     run_on_cpu(CPU(s->cpu), do_inject_external_nmi, s);
 }
 
+static void kvm_send_msi(MSIMessage *msg)
+{
+    int ret;
+
+    ret = kvm_irqchip_send_msi(kvm_state, *msg);
+    if (ret < 0) {
+        fprintf(stderr, "KVM: injection failed, MSI lost (%s)\n",
+                strerror(-ret));
+    }
+}
+
 static uint64_t kvm_apic_mem_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
@@ -179,13 +190,8 @@ static void kvm_apic_mem_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
     MSIMessage msg = { .address = addr, .data = data };
-    int ret;
 
-    ret = kvm_irqchip_send_msi(kvm_state, msg);
-    if (ret < 0) {
-        fprintf(stderr, "KVM: injection failed, MSI lost (%s)\n",
-                strerror(-ret));
-    }
+    kvm_send_msi(&msg);
 }
 
 static const MemoryRegionOps kvm_apic_io_ops = {
@@ -232,6 +238,7 @@ static void kvm_apic_class_init(ObjectClass *klass, void *data)
     k->enable_tpr_reporting = kvm_apic_enable_tpr_reporting;
     k->vapic_base_update = kvm_apic_vapic_base_update;
     k->external_nmi = kvm_apic_external_nmi;
+    k->send_msi = kvm_send_msi;
 }
 
 static const TypeInfo kvm_apic_info = {

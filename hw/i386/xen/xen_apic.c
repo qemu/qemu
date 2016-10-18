@@ -68,6 +68,11 @@ static void xen_apic_external_nmi(APICCommonState *s)
 {
 }
 
+static void xen_send_msi(MSIMessage *msi)
+{
+    xen_hvm_inject_msi(msi->address, msi->data);
+}
+
 static void xen_apic_class_init(ObjectClass *klass, void *data)
 {
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
@@ -78,6 +83,7 @@ static void xen_apic_class_init(ObjectClass *klass, void *data)
     k->get_tpr = xen_apic_get_tpr;
     k->vapic_base_update = xen_apic_vapic_base_update;
     k->external_nmi = xen_apic_external_nmi;
+    k->send_msi = xen_send_msi;
 }
 
 static const TypeInfo xen_apic_info = {
