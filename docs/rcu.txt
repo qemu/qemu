@@ -145,7 +145,7 @@ The core RCU API is small:
         and then read from there.
 
         RCU read-side critical sections must use atomic_rcu_read() to
-        read data, unless concurrent writes are presented by another
+        read data, unless concurrent writes are prevented by another
         synchronization mechanism.
 
         Furthermore, RCU read-side critical sections should traverse the
