@@ -979,7 +979,6 @@ vubr_get_vring_base_exec(VubrDev *dev, VhostUserMsg *vmsg)
 
     if (dev->vq[index].call_fd != -1) {
         close(dev->vq[index].call_fd);
-        dispatcher_remove(&dev->dispatcher, dev->vq[index].call_fd);
         dev->vq[index].call_fd = -1;
     }
     if (dev->vq[index].kick_fd != -1) {
@@ -1043,7 +1042,6 @@ vubr_set_vring_call_exec(VubrDev *dev, VhostUserMsg *vmsg)
 
     if (dev->vq[index].call_fd != -1) {
         close(dev->vq[index].call_fd);
-        dispatcher_remove(&dev->dispatcher, dev->vq[index].call_fd);
     }
     dev->vq[index].call_fd = vmsg->fds[0];
     DPRINT("Got call_fd: %d for vq: %d\n", vmsg->fds[0], index);
