@@ -43,6 +43,7 @@
 #define TCG_CT_CONST_XORI  0x400
 #define TCG_CT_CONST_CMPI  0x800
 #define TCG_CT_CONST_ADLI  0x1000
+#define TCG_CT_CONST_ZERO  0x2000
 
 /* Several places within the instruction set 0 means "no register"
    rather than TCG_REG_R0.  */
@@ -399,6 +400,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     case 'C':
         ct->ct |= TCG_CT_CONST_CMPI;
         break;
+    case 'Z':
+        ct->ct |= TCG_CT_CONST_ZERO;
+        break;
     default:
         return -1;
     }
@@ -538,6 +542,8 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
         return tcg_match_xori(type, val);
     } else if (ct & TCG_CT_CONST_CMPI) {
         return tcg_match_cmpi(type, val);
+    } else if (ct & TCG_CT_CONST_ZERO) {
+        return val == 0;
     }
 
     return 0;
@@ -1245,11 +1251,11 @@ static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c, TCGReg dest,
 }
 
 static void tgen_deposit(TCGContext *s, TCGReg dest, TCGReg src,
-                         int ofs, int len)
+                         int ofs, int len, int z)
 {
     int lsb = (63 - ofs);
     int msb = lsb - (len - 1);
-    tcg_out_risbg(s, dest, src, msb, lsb, ofs, 0);
+    tcg_out_risbg(s, dest, src, msb, lsb, ofs, z);
 }
 
 static void tgen_extract(TCGContext *s, TCGReg dest, TCGReg src,
@@ -2162,8 +2168,24 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     OP_32_64(deposit):
-        tgen_deposit(s, args[0], args[2], args[3], args[4]);
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        if (const_args[1]) {
+            tgen_deposit(s, a0, a2, args[3], args[4], 1);
+        } else {
+            /* Since we can't support "0Z" as a constraint, we allow a1 in
+               any register.  Fix things up as if a matching constraint.  */
+            if (a0 != a1) {
+                TCGType type = (opc == INDEX_op_deposit_i64);
+                if (a0 == a2) {
+                    tcg_out_mov(s, type, TCG_TMP0, a2);
+                    a2 = TCG_TMP0;
+                }
+                tcg_out_mov(s, type, a0, a1);
+            }
+            tgen_deposit(s, a0, a2, args[3], args[4], 0);
+        }
         break;
+
     OP_32_64(extract):
         tgen_extract(s, args[0], args[1], args[2], args[3]);
         break;
@@ -2235,7 +2257,7 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_brcond_i32, { "r", "rC" } },
     { INDEX_op_setcond_i32, { "r", "r", "rC" } },
     { INDEX_op_movcond_i32, { "r", "r", "rC", "r", "0" } },
-    { INDEX_op_deposit_i32, { "r", "0", "r" } },
+    { INDEX_op_deposit_i32, { "r", "rZ", "r" } },
     { INDEX_op_extract_i32, { "r", "r" } },
 
     { INDEX_op_qemu_ld_i32, { "r", "L" } },
