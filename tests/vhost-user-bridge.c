@@ -1200,6 +1200,7 @@ vubr_accept_cb(int sock, void *ctx)
     }
     DPRINT("Got connection from remote peer on sock %d\n", conn_fd);
     dispatcher_add(&dev->dispatcher, conn_fd, ctx, vubr_receive_cb);
+    dispatcher_remove(&dev->dispatcher, sock);
 }
 
 static VubrDev *
