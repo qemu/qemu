@@ -1,5 +1,5 @@
-#ifndef OPENBIOS_FIRMWARE_ABI_H
-#define OPENBIOS_FIRMWARE_ABI_H
+#ifndef SUN_NVRAM_H
+#define SUN_NVRAM_H
 
 /* Sun IDPROM structure at the end of NVRAM */
 /* from http://www.squirrel.com/squirrel/sun-nvram-hostid.faq.html */
@@ -31,4 +31,4 @@ Sun_init_header(struct Sun_nvram *header, const uint8_t *macaddr, int machine_id
 
     header->checksum = tmp;
 }
-#endif /* OPENBIOS_FIRMWARE_ABI_H */
+#endif /* SUN_NVRAM_H */
