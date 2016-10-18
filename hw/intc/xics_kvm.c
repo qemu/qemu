@@ -373,18 +373,7 @@ static void xics_kvm_set_nr_irqs(XICSState *xics, uint32_t nr_irqs,
 static void xics_kvm_set_nr_servers(XICSState *xics, uint32_t nr_servers,
                                     Error **errp)
 {
-    int i;
-
-    xics->nr_servers = nr_servers;
-
-    xics->ss = g_malloc0(xics->nr_servers * sizeof(ICPState));
-    for (i = 0; i < xics->nr_servers; i++) {
-        char buffer[32];
-        object_initialize(&xics->ss[i], sizeof(xics->ss[i]), TYPE_KVM_ICP);
-        snprintf(buffer, sizeof(buffer), "icp[%d]", i);
-        object_property_add_child(OBJECT(xics), buffer, OBJECT(&xics->ss[i]),
-                                  errp);
-    }
+    xics_set_nr_servers(xics, nr_servers, TYPE_KVM_ICP, errp);
 }
 
 static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,

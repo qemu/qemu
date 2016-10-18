@@ -188,6 +188,8 @@ void xics_spapr_free(XICSState *icp, int irq, int num);
 
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu);
 void xics_cpu_destroy(XICSState *icp, PowerPCCPU *cpu);
+void xics_set_nr_servers(XICSState *xics, uint32_t nr_servers,
+                         const char *typename, Error **errp);
 
 /* Internal XICS interfaces */
 int xics_get_cpu_index_by_dt_id(int cpu_dt_id);

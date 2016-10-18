@@ -183,6 +183,24 @@ static void xics_prop_set_nr_irqs(Object *obj, Visitor *v, const char *name,
     info->set_nr_irqs(xics, value, errp);
 }
 
+void xics_set_nr_servers(XICSState *xics, uint32_t nr_servers,
+                         const char *typename, Error **errp)
+{
+    int i;
+
+    xics->nr_servers = nr_servers;
+
+    xics->ss = g_malloc0(xics->nr_servers * sizeof(ICPState));
+    for (i = 0; i < xics->nr_servers; i++) {
+        char name[32];
+        ICPState *icp = &xics->ss[i];
+
+        object_initialize(icp, sizeof(*icp), typename);
+        snprintf(name, sizeof(name), "icp[%d]", i);
+        object_property_add_child(OBJECT(xics), name, OBJECT(icp), errp);
+    }
+}
+
 static void xics_prop_get_nr_servers(Object *obj, Visitor *v,
                                      const char *name, void *opaque,
                                      Error **errp)
@@ -198,7 +216,7 @@ static void xics_prop_set_nr_servers(Object *obj, Visitor *v,
                                      Error **errp)
 {
     XICSState *xics = XICS_COMMON(obj);
-    XICSStateClass *info = XICS_COMMON_GET_CLASS(xics);
+    XICSStateClass *xsc = XICS_COMMON_GET_CLASS(xics);
     Error *error = NULL;
     int64_t value;
 
@@ -213,8 +231,8 @@ static void xics_prop_set_nr_servers(Object *obj, Visitor *v,
         return;
     }
 
-    assert(info->set_nr_servers);
-    info->set_nr_servers(xics, value, errp);
+    assert(xsc->set_nr_servers);
+    xsc->set_nr_servers(xics, value, errp);
 }
 
 static void xics_common_initfn(Object *obj)
