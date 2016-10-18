@@ -198,6 +198,7 @@ void xics_set_nr_servers(XICSState *xics, uint32_t nr_servers,
         object_initialize(icp, sizeof(*icp), typename);
         snprintf(name, sizeof(name), "icp[%d]", i);
         object_property_add_child(OBJECT(xics), name, OBJECT(icp), errp);
+        icp->xics = xics;
     }
 }
 

@@ -117,6 +117,8 @@ struct ICPState {
     uint8_t mfrr;
     qemu_irq output;
     bool cap_irq_xics_enabled;
+
+    XICSState *xics;
 };
 
 #define TYPE_ICS_BASE "ics-base"
