@@ -23,8 +23,17 @@
 #include "qemu/cutils.h"
 #include "hw/hw.h"
 #include "hw/nvram/chrp_nvram.h"
-#include "hw/nvram/openbios_firmware_abi.h"
 #include "sysemu/sysemu.h"
+
+static int chrp_nvram_set_var(uint8_t *nvram, int addr, const char *str)
+{
+    int len;
+
+    len = strlen(str) + 1;
+    memcpy(&nvram[addr], str, len);
+
+    return addr + len;
+}
 
 /**
  * Create a "system partition", used for the Open Firmware
@@ -32,17 +41,17 @@
  */
 int chrp_nvram_create_system_partition(uint8_t *data, int min_len)
 {
-    struct OpenBIOS_nvpart_v1 *part_header;
+    ChrpNvramPartHdr *part_header;
     unsigned int i;
     int end;
 
-    part_header = (struct OpenBIOS_nvpart_v1 *)data;
-    part_header->signature = OPENBIOS_PART_SYSTEM;
+    part_header = (ChrpNvramPartHdr *)data;
+    part_header->signature = CHRP_NVPART_SYSTEM;
     pstrcpy(part_header->name, sizeof(part_header->name), "system");
 
-    end = sizeof(struct OpenBIOS_nvpart_v1);
+    end = sizeof(ChrpNvramPartHdr);
     for (i = 0; i < nb_prom_envs; i++) {
-        end = OpenBIOS_set_var(data, end, prom_envs[i]);
+        end = chrp_nvram_set_var(data, end, prom_envs[i]);
     }
 
     /* End marker */
@@ -54,7 +63,7 @@ int chrp_nvram_create_system_partition(uint8_t *data, int min_len)
     if (end < min_len) {
         end = min_len;
     }
-    OpenBIOS_finish_partition(part_header, end);
+    chrp_nvram_finish_partition(part_header, end);
 
     return end;
 }
@@ -64,13 +73,13 @@ int chrp_nvram_create_system_partition(uint8_t *data, int min_len)
  */
 int chrp_nvram_create_free_partition(uint8_t *data, int len)
 {
-    struct OpenBIOS_nvpart_v1 *part_header;
+    ChrpNvramPartHdr *part_header;
 
-    part_header = (struct OpenBIOS_nvpart_v1 *)data;
-    part_header->signature = OPENBIOS_PART_FREE;
+    part_header = (ChrpNvramPartHdr *)data;
+    part_header->signature = CHRP_NVPART_FREE;
     pstrcpy(part_header->name, sizeof(part_header->name), "free");
 
-    OpenBIOS_finish_partition(part_header, len);
+    chrp_nvram_finish_partition(part_header, len);
 
     return len;
 }

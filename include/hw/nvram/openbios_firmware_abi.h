@@ -1,47 +1,6 @@
 #ifndef OPENBIOS_FIRMWARE_ABI_H
 #define OPENBIOS_FIRMWARE_ABI_H
 
-/* OpenBIOS NVRAM partition */
-struct OpenBIOS_nvpart_v1 {
-    uint8_t signature;
-    uint8_t checksum;
-    uint16_t len; // BE, length divided by 16
-    char name[12];
-};
-
-#define OPENBIOS_PART_SYSTEM 0x70
-#define OPENBIOS_PART_FREE 0x7f
-
-static inline void
-OpenBIOS_finish_partition(struct OpenBIOS_nvpart_v1 *header, uint32_t size)
-{
-    unsigned int i, sum;
-    uint8_t *tmpptr;
-
-    // Length divided by 16
-    header->len = cpu_to_be16(size >> 4);
-
-    // Checksum
-    tmpptr = (uint8_t *)header;
-    sum = *tmpptr;
-    for (i = 0; i < 14; i++) {
-        sum += tmpptr[2 + i];
-        sum = (sum + ((sum & 0xff00) >> 8)) & 0xff;
-    }
-    header->checksum = sum & 0xff;
-}
-
-static inline uint32_t
-OpenBIOS_set_var(uint8_t *nvram, uint32_t addr, const char *str)
-{
-    uint32_t len;
-
-    len = strlen(str) + 1;
-    memcpy(&nvram[addr], str, len);
-
-    return addr + len;
-}
-
 /* Sun IDPROM structure at the end of NVRAM */
 /* from http://www.squirrel.com/squirrel/sun-nvram-hostid.faq.html */
 struct Sun_nvram {

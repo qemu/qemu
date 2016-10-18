@@ -24,7 +24,6 @@
  */
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "hw/nvram/openbios_firmware_abi.h"
 #include "hw/nvram/chrp_nvram.h"
 #include "hw/ppc/mac.h"
 #include "qemu/cutils.h"
@@ -163,15 +162,15 @@ static void pmac_format_nvram_partition_osx(MacIONVRAMState *nvr, int off,
                                             int len)
 {
     uint32_t start = off;
-    struct OpenBIOS_nvpart_v1 *part_header;
+    ChrpNvramPartHdr *part_header;
     unsigned char *data = &nvr->data[start];
 
     /* empty partition */
-    part_header = (struct OpenBIOS_nvpart_v1 *)data;
+    part_header = (ChrpNvramPartHdr *)data;
     part_header->signature = OSX_NVRAM_SIGNATURE;
     pstrcpy(part_header->name, sizeof(part_header->name), "wwwwwwwwwwww");
 
-    OpenBIOS_finish_partition(part_header, len);
+    chrp_nvram_finish_partition(part_header, len);
 
     /* Generation */
     stl_be_p(&data[20], 2);
