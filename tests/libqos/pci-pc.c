@@ -32,19 +32,9 @@ static uint8_t qpci_pc_pio_readb(QPCIBus *bus, uint32_t addr)
     return inb(addr);
 }
 
-static uint8_t qpci_pc_mmio_readb(QPCIBus *bus, uint32_t addr)
-{
-    return readb(addr);
-}
-
 static void qpci_pc_pio_writeb(QPCIBus *bus, uint32_t addr, uint8_t val)
 {
     outb(addr, val);
-}
-
-static void qpci_pc_mmio_writeb(QPCIBus *bus, uint32_t addr, uint8_t val)
-{
-    writeb(addr, val);
 }
 
 static uint16_t qpci_pc_pio_readw(QPCIBus *bus, uint32_t addr)
@@ -52,19 +42,9 @@ static uint16_t qpci_pc_pio_readw(QPCIBus *bus, uint32_t addr)
     return inw(addr);
 }
 
-static uint16_t qpci_pc_mmio_readw(QPCIBus *bus, uint32_t addr)
-{
-    return readw(addr);
-}
-
 static void qpci_pc_pio_writew(QPCIBus *bus, uint32_t addr, uint16_t val)
 {
     outw(addr, val);
-}
-
-static void qpci_pc_mmio_writew(QPCIBus *bus, uint32_t addr, uint16_t val)
-{
-    writew(addr, val);
 }
 
 static uint32_t qpci_pc_pio_readl(QPCIBus *bus, uint32_t addr)
@@ -72,19 +52,9 @@ static uint32_t qpci_pc_pio_readl(QPCIBus *bus, uint32_t addr)
     return inl(addr);
 }
 
-static uint32_t qpci_pc_mmio_readl(QPCIBus *bus, uint32_t addr)
-{
-    return readl(addr);
-}
-
 static void qpci_pc_pio_writel(QPCIBus *bus, uint32_t addr, uint32_t val)
 {
     outl(addr, val);
-}
-
-static void qpci_pc_mmio_writel(QPCIBus *bus, uint32_t addr, uint32_t val)
-{
-    writel(addr, val);
 }
 
 static void qpci_pc_memread(QPCIBus *bus, uint32_t addr, void *buf, size_t len)
@@ -147,14 +117,6 @@ QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
     ret->bus.pio_writeb = qpci_pc_pio_writeb;
     ret->bus.pio_writew = qpci_pc_pio_writew;
     ret->bus.pio_writel = qpci_pc_pio_writel;
-
-    ret->bus.mmio_readb = qpci_pc_mmio_readb;
-    ret->bus.mmio_readw = qpci_pc_mmio_readw;
-    ret->bus.mmio_readl = qpci_pc_mmio_readl;
-
-    ret->bus.mmio_writeb = qpci_pc_mmio_writeb;
-    ret->bus.mmio_writew = qpci_pc_mmio_writew;
-    ret->bus.mmio_writel = qpci_pc_mmio_writel;
 
     ret->bus.memread = qpci_pc_memread;
     ret->bus.memwrite = qpci_pc_memwrite;

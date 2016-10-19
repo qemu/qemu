@@ -230,7 +230,9 @@ uint8_t qpci_io_readb(QPCIDevice *dev, void *data)
     if (addr < QPCI_PIO_LIMIT) {
         return dev->bus->pio_readb(dev->bus, addr);
     } else {
-        return dev->bus->mmio_readb(dev->bus, addr);
+        uint8_t val;
+        dev->bus->memread(dev->bus, addr, &val, sizeof(val));
+        return val;
     }
 }
 
@@ -241,7 +243,9 @@ uint16_t qpci_io_readw(QPCIDevice *dev, void *data)
     if (addr < QPCI_PIO_LIMIT) {
         return dev->bus->pio_readw(dev->bus, addr);
     } else {
-        return dev->bus->mmio_readw(dev->bus, addr);
+        uint16_t val;
+        dev->bus->memread(dev->bus, addr, &val, sizeof(val));
+        return le16_to_cpu(val);
     }
 }
 
@@ -252,7 +256,9 @@ uint32_t qpci_io_readl(QPCIDevice *dev, void *data)
     if (addr < QPCI_PIO_LIMIT) {
         return dev->bus->pio_readl(dev->bus, addr);
     } else {
-        return dev->bus->mmio_readl(dev->bus, addr);
+        uint32_t val;
+        dev->bus->memread(dev->bus, addr, &val, sizeof(val));
+        return le32_to_cpu(val);
     }
 }
 
@@ -263,7 +269,7 @@ void qpci_io_writeb(QPCIDevice *dev, void *data, uint8_t value)
     if (addr < QPCI_PIO_LIMIT) {
         dev->bus->pio_writeb(dev->bus, addr, value);
     } else {
-        dev->bus->mmio_writeb(dev->bus, addr, value);
+        dev->bus->memwrite(dev->bus, addr, &value, sizeof(value));
     }
 }
 
@@ -274,7 +280,8 @@ void qpci_io_writew(QPCIDevice *dev, void *data, uint16_t value)
     if (addr < QPCI_PIO_LIMIT) {
         dev->bus->pio_writew(dev->bus, addr, value);
     } else {
-        dev->bus->mmio_writew(dev->bus, addr, value);
+        value = cpu_to_le16(value);
+        dev->bus->memwrite(dev->bus, addr, &value, sizeof(value));
     }
 }
 
@@ -285,7 +292,8 @@ void qpci_io_writel(QPCIDevice *dev, void *data, uint32_t value)
     if (addr < QPCI_PIO_LIMIT) {
         dev->bus->pio_writel(dev->bus, addr, value);
     } else {
-        dev->bus->mmio_writel(dev->bus, addr, value);
+        value = cpu_to_le32(value);
+        dev->bus->memwrite(dev->bus, addr, &value, sizeof(value));
     }
 }
 

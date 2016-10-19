@@ -27,17 +27,9 @@ struct QPCIBus {
     uint16_t (*pio_readw)(QPCIBus *bus, uint32_t addr);
     uint32_t (*pio_readl)(QPCIBus *bus, uint32_t addr);
 
-    uint8_t (*mmio_readb)(QPCIBus *bus, uint32_t addr);
-    uint16_t (*mmio_readw)(QPCIBus *bus, uint32_t addr);
-    uint32_t (*mmio_readl)(QPCIBus *bus, uint32_t addr);
-
     void (*pio_writeb)(QPCIBus *bus, uint32_t addr, uint8_t value);
     void (*pio_writew)(QPCIBus *bus, uint32_t addr, uint16_t value);
     void (*pio_writel)(QPCIBus *bus, uint32_t addr, uint32_t value);
-
-    void (*mmio_writeb)(QPCIBus *bus, uint32_t addr, uint8_t value);
-    void (*mmio_writew)(QPCIBus *bus, uint32_t addr, uint16_t value);
-    void (*mmio_writel)(QPCIBus *bus, uint32_t addr, uint32_t value);
 
     void (*memread)(QPCIBus *bus, uint32_t addr, void *buf, size_t len);
     void (*memwrite)(QPCIBus *bus, uint32_t addr, const void *buf, size_t len);
