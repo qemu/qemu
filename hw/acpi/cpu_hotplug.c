@@ -63,7 +63,8 @@ static void acpi_set_cpu_present_bit(AcpiCpuHotplug *g, CPUState *cpu,
 
     cpu_id = k->get_arch_id(cpu);
     if ((cpu_id / 8) >= ACPI_GPE_PROC_LEN) {
-        error_setg(errp, "acpi: invalid cpu id: %" PRIi64, cpu_id);
+        object_property_set_bool(g->device, false, "cpu-hotplug-legacy",
+                                 &error_abort);
         return;
     }
 
@@ -85,13 +86,14 @@ void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
 {
     CPUState *cpu;
 
-    CPU_FOREACH(cpu) {
-        acpi_set_cpu_present_bit(gpe_cpu, cpu, &error_abort);
-    }
     memory_region_init_io(&gpe_cpu->io, owner, &AcpiCpuHotplug_ops,
                           gpe_cpu, "acpi-cpu-hotplug", ACPI_GPE_PROC_LEN);
     memory_region_add_subregion(parent, base, &gpe_cpu->io);
     gpe_cpu->device = owner;
+
+    CPU_FOREACH(cpu) {
+        acpi_set_cpu_present_bit(gpe_cpu, cpu, &error_abort);
+    }
 }
 
 void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe_cpu,
