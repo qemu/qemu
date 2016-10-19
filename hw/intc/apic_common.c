@@ -40,6 +40,11 @@ void cpu_set_apic_base(DeviceState *dev, uint64_t val)
     if (dev) {
         APICCommonState *s = APIC_COMMON(dev);
         APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+        /* switching to x2APIC, reset possibly modified xAPIC ID */
+        if (!(s->apicbase & MSR_IA32_APICBASE_EXTD) &&
+            (val & MSR_IA32_APICBASE_EXTD)) {
+            s->id = s->initial_apic_id;
+        }
         info->set_base(s, val);
     }
 }
