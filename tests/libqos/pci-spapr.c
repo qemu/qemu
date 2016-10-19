@@ -34,14 +34,6 @@ typedef struct QPCIBusSPAPR {
 
     uint64_t mmio32_cpu_base;
     QPCIWindow mmio32;
-
-    uint64_t pci_hole_start;
-    uint64_t pci_hole_size;
-    uint64_t pci_hole_alloc;
-
-    uint32_t pci_iohole_start;
-    uint32_t pci_iohole_size;
-    uint32_t pci_iohole_alloc;
 } QPCIBusSPAPR;
 
 /*
@@ -167,72 +159,6 @@ static void qpci_spapr_config_writel(QPCIBus *bus, int devfn, uint8_t offset,
     qrtas_ibm_write_pci_config(s->alloc, s->buid, config_addr, 4, value);
 }
 
-static void *qpci_spapr_iomap(QPCIBus *bus, QPCIDevice *dev, int barno,
-                              uint64_t *sizeptr)
-{
-    QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
-    static const int bar_reg_map[] = {
-        PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_1, PCI_BASE_ADDRESS_2,
-        PCI_BASE_ADDRESS_3, PCI_BASE_ADDRESS_4, PCI_BASE_ADDRESS_5,
-    };
-    int bar_reg;
-    uint32_t addr;
-    uint64_t size;
-    uint32_t io_type;
-
-    g_assert(barno >= 0 && barno <= 5);
-    bar_reg = bar_reg_map[barno];
-
-    qpci_config_writel(dev, bar_reg, 0xFFFFFFFF);
-    addr = qpci_config_readl(dev, bar_reg);
-
-    io_type = addr & PCI_BASE_ADDRESS_SPACE;
-    if (io_type == PCI_BASE_ADDRESS_SPACE_IO) {
-        addr &= PCI_BASE_ADDRESS_IO_MASK;
-    } else {
-        addr &= PCI_BASE_ADDRESS_MEM_MASK;
-    }
-
-    size = (1ULL << ctzl(addr));
-    if (size == 0) {
-        return NULL;
-    }
-    if (sizeptr) {
-        *sizeptr = size;
-    }
-
-    if (io_type == PCI_BASE_ADDRESS_SPACE_IO) {
-        uint16_t loc;
-
-        g_assert(QEMU_ALIGN_UP(s->pci_iohole_alloc, size) + size
-                 <= s->pci_iohole_size);
-        s->pci_iohole_alloc = QEMU_ALIGN_UP(s->pci_iohole_alloc, size);
-        loc = s->pci_iohole_start + s->pci_iohole_alloc;
-        s->pci_iohole_alloc += size;
-
-        qpci_config_writel(dev, bar_reg, loc | PCI_BASE_ADDRESS_SPACE_IO);
-
-        return (void *)(unsigned long)loc;
-    } else {
-        uint64_t loc;
-
-        g_assert(QEMU_ALIGN_UP(s->pci_hole_alloc, size) + size
-                 <= s->pci_hole_size);
-        s->pci_hole_alloc = QEMU_ALIGN_UP(s->pci_hole_alloc, size);
-        loc = s->pci_hole_start + s->pci_hole_alloc;
-        s->pci_hole_alloc += size;
-
-        qpci_config_writel(dev, bar_reg, loc);
-
-        return (void *)(unsigned long)loc;
-    }
-}
-
-static void qpci_spapr_iounmap(QPCIBus *bus, void *data)
-{
-    /* FIXME */
-}
-
 #define SPAPR_PCI_BASE               (1ULL << 45)
 
 #define SPAPR_PCI_MMIO32_WIN_SIZE    0x80000000 /* 2 GiB */
@@ -270,9 +196,6 @@ QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
     ret->bus.config_writew = qpci_spapr_config_writew;
     ret->bus.config_writel = qpci_spapr_config_writel;
 
-    ret->bus.iomap = qpci_spapr_iomap;
-    ret->bus.iounmap = qpci_spapr_iounmap;
-
     /* FIXME: We assume the default location of the PHB for now.
      * Ideally we'd parse the device tree deposited in the guest to
      * get the window locations */
@@ -287,15 +210,9 @@ QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
     ret->mmio32.pci_base = 0x80000000; /* 2 GiB */
     ret->mmio32.size = SPAPR_PCI_MMIO32_WIN_SIZE;
 
-    ret->pci_hole_start = 0xC0000000;
-    ret->pci_hole_size =
-        ret->mmio32.pci_base + ret->mmio32.size - ret->pci_hole_start;
-    ret->pci_hole_alloc = 0;
-
-    ret->pci_iohole_start = 0xc000;
-    ret->pci_iohole_size =
-        ret->pio.pci_base + ret->pio.size - ret->pci_iohole_start;
-    ret->pci_iohole_alloc = 0;
+    ret->bus.pio_alloc_ptr = 0xc000;
+    ret->bus.mmio_alloc_ptr = ret->mmio32.pci_base;
+    ret->bus.mmio_limit = ret->mmio32.pci_base + ret->mmio32.size;
 
     return &ret->bus;
 }

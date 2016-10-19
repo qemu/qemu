@@ -17,7 +17,6 @@
 #include "hw/pci/pci_regs.h"
 
 #include "qemu-common.h"
-#include "qemu/host-utils.h"
 
 
 #define ACPI_PCIHP_ADDR         0xae00
@@ -26,14 +25,6 @@
 typedef struct QPCIBusPC
 {
     QPCIBus bus;
-
-    uint32_t pci_hole_start;
-    uint32_t pci_hole_size;
-    uint32_t pci_hole_alloc;
-
-    uint16_t pci_iohole_start;
-    uint16_t pci_iohole_size;
-    uint16_t pci_iohole_alloc;
 } QPCIBusPC;
 
 static uint8_t qpci_pc_pio_readb(QPCIBus *bus, uint32_t addr)
@@ -132,71 +123,6 @@ static void qpci_pc_config_writel(QPCIBus *bus, int devfn, uint8_t offset, uint3
     outl(0xcfc, value);
 }
 
-static void *qpci_pc_iomap(QPCIBus *bus, QPCIDevice *dev, int barno, uint64_t *sizeptr)
-{
-    QPCIBusPC *s = container_of(bus, QPCIBusPC, bus);
-    static const int bar_reg_map[] = {
-        PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_1, PCI_BASE_ADDRESS_2,
-        PCI_BASE_ADDRESS_3, PCI_BASE_ADDRESS_4, PCI_BASE_ADDRESS_5,
-    };
-    int bar_reg;
-    uint32_t addr;
-    uint64_t size;
-    uint32_t io_type;
-
-    g_assert(barno >= 0 && barno <= 5);
-    bar_reg = bar_reg_map[barno];
-
-    qpci_config_writel(dev, bar_reg, 0xFFFFFFFF);
-    addr = qpci_config_readl(dev, bar_reg);
-
-    io_type = addr & PCI_BASE_ADDRESS_SPACE;
-    if (io_type == PCI_BASE_ADDRESS_SPACE_IO) {
-        addr &= PCI_BASE_ADDRESS_IO_MASK;
-    } else {
-        addr &= PCI_BASE_ADDRESS_MEM_MASK;
-    }
-
-    size = (1ULL << ctzl(addr));
-    if (size == 0) {
-        return NULL;
-    }
-    if (sizeptr) {
-        *sizeptr = size;
-    }
-
-    if (io_type == PCI_BASE_ADDRESS_SPACE_IO) {
-        uint16_t loc;
-
-        g_assert(QEMU_ALIGN_UP(s->pci_iohole_alloc, size) + size
-                 <= s->pci_iohole_size);
-        s->pci_iohole_alloc = QEMU_ALIGN_UP(s->pci_iohole_alloc, size);
-        loc = s->pci_iohole_start + s->pci_iohole_alloc;
-        s->pci_iohole_alloc += size;
-
-        qpci_config_writel(dev, bar_reg, loc | PCI_BASE_ADDRESS_SPACE_IO);
-
-        return (void *)(intptr_t)loc;
-    } else {
-        uint64_t loc;
-
-        g_assert(QEMU_ALIGN_UP(s->pci_hole_alloc, size) + size
-                 <= s->pci_hole_size);
-        s->pci_hole_alloc = QEMU_ALIGN_UP(s->pci_hole_alloc, size);
-        loc = s->pci_hole_start + s->pci_hole_alloc;
-        s->pci_hole_alloc += size;
-
-        qpci_config_writel(dev, bar_reg, loc);
-
-        return (void *)(intptr_t)loc;
-    }
-}
-
-static void qpci_pc_iounmap(QPCIBus *bus, void *data)
-{
-    /* FIXME */
-}
-
 QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
 {
     QPCIBusPC *ret;
@@ -227,16 +153,9 @@ QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
     ret->bus.config_writew = qpci_pc_config_writew;
     ret->bus.config_writel = qpci_pc_config_writel;
 
-    ret->bus.iomap = qpci_pc_iomap;
-    ret->bus.iounmap = qpci_pc_iounmap;
-
-    ret->pci_hole_start = 0xE0000000;
-    ret->pci_hole_size = 0x20000000;
-    ret->pci_hole_alloc = 0;
-
-    ret->pci_iohole_start = 0xc000;
-    ret->pci_iohole_size = 0x4000;
-    ret->pci_iohole_alloc = 0;
+    ret->bus.pio_alloc_ptr = 0xc000;
+    ret->bus.mmio_alloc_ptr = 0xE0000000;
+    ret->bus.mmio_limit = 0x100000000ULL;
 
     return &ret->bus;
 }

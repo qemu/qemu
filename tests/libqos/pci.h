@@ -22,8 +22,7 @@
 typedef struct QPCIDevice QPCIDevice;
 typedef struct QPCIBus QPCIBus;
 
-struct QPCIBus
-{
+struct QPCIBus {
     uint8_t (*pio_readb)(QPCIBus *bus, uint32_t addr);
     uint16_t (*pio_readw)(QPCIBus *bus, uint32_t addr);
     uint32_t (*pio_readl)(QPCIBus *bus, uint32_t addr);
@@ -51,8 +50,8 @@ struct QPCIBus
     void (*config_writel)(QPCIBus *bus, int devfn,
                           uint8_t offset, uint32_t value);
 
-    void *(*iomap)(QPCIBus *bus, QPCIDevice *dev, int barno, uint64_t *sizeptr);
-    void (*iounmap)(QPCIBus *bus, void *data);
+    uint16_t pio_alloc_ptr;
+    uint64_t mmio_alloc_ptr, mmio_limit;
 };
 
 struct QPCIDevice
