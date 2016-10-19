@@ -87,6 +87,17 @@ static void qpci_pc_mmio_writel(QPCIBus *bus, uint32_t addr, uint32_t val)
     writel(addr, val);
 }
 
+static void qpci_pc_memread(QPCIBus *bus, uint32_t addr, void *buf, size_t len)
+{
+    memread(addr, buf, len);
+}
+
+static void qpci_pc_memwrite(QPCIBus *bus, uint32_t addr,
+                             const void *buf, size_t len)
+{
+    memwrite(addr, buf, len);
+}
+
 static uint8_t qpci_pc_config_readb(QPCIBus *bus, int devfn, uint8_t offset)
 {
     outl(0xcf8, (1U << 31) | (devfn << 8) | offset);
@@ -144,6 +155,9 @@ QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
     ret->bus.mmio_writeb = qpci_pc_mmio_writeb;
     ret->bus.mmio_writew = qpci_pc_mmio_writew;
     ret->bus.mmio_writel = qpci_pc_mmio_writel;
+
+    ret->bus.memread = qpci_pc_memread;
+    ret->bus.memwrite = qpci_pc_memwrite;
 
     ret->bus.config_readb = qpci_pc_config_readb;
     ret->bus.config_readw = qpci_pc_config_readw;

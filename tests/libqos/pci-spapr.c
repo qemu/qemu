@@ -114,6 +114,20 @@ static void qpci_spapr_mmio32_writel(QPCIBus *bus, uint32_t addr, uint32_t val)
     writel(s->mmio32_cpu_base + addr, bswap32(val));
 }
 
+static void qpci_spapr_memread(QPCIBus *bus, uint32_t addr,
+                               void *buf, size_t len)
+{
+    QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
+    memread(s->mmio32_cpu_base + addr, buf, len);
+}
+
+static void qpci_spapr_memwrite(QPCIBus *bus, uint32_t addr,
+                                const void *buf, size_t len)
+{
+    QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
+    memwrite(s->mmio32_cpu_base + addr, buf, len);
+}
+
 static uint8_t qpci_spapr_config_readb(QPCIBus *bus, int devfn, uint8_t offset)
 {
     QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
@@ -187,6 +201,9 @@ QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
     ret->bus.mmio_writeb = qpci_spapr_mmio32_writeb;
     ret->bus.mmio_writew = qpci_spapr_mmio32_writew;
     ret->bus.mmio_writel = qpci_spapr_mmio32_writel;
+
+    ret->bus.memread = qpci_spapr_memread;
+    ret->bus.memwrite = qpci_spapr_memwrite;
 
     ret->bus.config_readb = qpci_spapr_config_readb;
     ret->bus.config_readw = qpci_spapr_config_readw;
