@@ -291,6 +291,7 @@ static void pc_q35_machine_options(MachineClass *m)
     m->default_display = "std";
     m->no_floppy = 1;
     m->has_dynamic_sysbus = true;
+    m->max_cpus = 288;
 }
 
 static void pc_q35_2_8_machine_options(MachineClass *m)
@@ -306,6 +307,7 @@ static void pc_q35_2_7_machine_options(MachineClass *m)
 {
     pc_q35_2_8_machine_options(m);
     m->alias = NULL;
+    m->max_cpus = 255;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_7);
 }
 
