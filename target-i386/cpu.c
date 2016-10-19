@@ -2945,7 +2945,7 @@ static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
                               OBJECT(cpu->apic_state), &error_abort);
     object_unref(OBJECT(cpu->apic_state));
 
-    qdev_prop_set_uint8(cpu->apic_state, "id", cpu->apic_id);
+    qdev_prop_set_uint32(cpu->apic_state, "id", cpu->apic_id);
     /* TODO: convert to link<> */
     apic = APIC_COMMON(cpu->apic_state);
     apic->cpu = cpu;
