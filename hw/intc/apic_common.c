@@ -243,6 +243,7 @@ static void apic_reset_common(DeviceState *dev)
 
     bsp = s->apicbase & MSR_IA32_APICBASE_BSP;
     s->apicbase = APIC_DEFAULT_ADDRESS | bsp | MSR_IA32_APICBASE_ENABLE;
+    s->id = s->initial_apic_id;
 
     s->vapic_paddr = 0;
     info->vapic_base_update(s);
