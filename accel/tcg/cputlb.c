@@ -858,6 +858,16 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
     pd = iotlbentry->addr & ~TARGET_PAGE_MASK;
     mr = iotlb_to_region(cpu, pd, iotlbentry->attrs);
     if (memory_region_is_unassigned(mr)) {
+        qemu_mutex_lock_iothread();
+        if (memory_region_request_mmio_ptr(mr, addr)) {
+            qemu_mutex_unlock_iothread();
+            /* A MemoryRegion is potentially added so re-run the
+             * get_page_addr_code.
+             */
+            return get_page_addr_code(env, addr);
+        }
+        qemu_mutex_unlock_iothread();
+
         cpu_unassigned_access(cpu, addr, false, true, 0, 4);
         /* The CPU's unassigned access hook might have longjumped out
          * with an exception. If it didn't (or there was no hook) then
