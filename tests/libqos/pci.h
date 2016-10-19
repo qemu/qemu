@@ -94,6 +94,7 @@ void qpci_io_writel(QPCIDevice *dev, void *data, uint32_t value);
 
 void *qpci_iomap(QPCIDevice *dev, int barno, uint64_t *sizeptr);
 void qpci_iounmap(QPCIDevice *dev, void *data);
+void *qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr);
 
 void qpci_plug_device_test(const char *driver, const char *id,
                            uint8_t slot, const char *opts);

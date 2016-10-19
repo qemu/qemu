@@ -350,6 +350,11 @@ void qpci_iounmap(QPCIDevice *dev, void *data)
     /* FIXME */
 }
 
+void *qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr)
+{
+    return (void *)(uintptr_t)addr;
+}
+
 void qpci_plug_device_test(const char *driver, const char *id,
                            uint8_t slot, const char *opts)
 {
