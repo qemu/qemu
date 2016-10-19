@@ -1494,7 +1494,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
      * it later in machvirt_init, where we have more information about the
      * configuration of the particular instance.
      */
-    mc->max_cpus = MAX_CPUMASK_BITS;
+    mc->max_cpus = 255;
     mc->has_dynamic_sysbus = true;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
