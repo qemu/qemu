@@ -340,24 +340,38 @@ build_fadt(GArray *table_data, BIOSLinker *linker, AcpiPmInfo *pm,
 void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
                        CPUArchIdList *apic_ids, GArray *entry)
 {
-    int apic_id;
-    AcpiMadtProcessorApic *apic = acpi_data_push(entry, sizeof *apic);
+    uint32_t apic_id = apic_ids->cpus[uid].arch_id;
 
-    apic_id = apic_ids->cpus[uid].arch_id;
-    apic->type = ACPI_APIC_PROCESSOR;
-    apic->length = sizeof(*apic);
-    apic->processor_id = uid;
-    apic->local_apic_id = apic_id;
-    if (apic_ids->cpus[uid].cpu != NULL) {
-        apic->flags = cpu_to_le32(1);
+    /* ACPI spec says that LAPIC entry for non present
+     * CPU may be omitted from MADT or it must be marked
+     * as disabled. However omitting non present CPU from
+     * MADT breaks hotplug on linux. So possible CPUs
+     * should be put in MADT but kept disabled.
+     */
+    if (apic_id < 255) {
+        AcpiMadtProcessorApic *apic = acpi_data_push(entry, sizeof *apic);
+
+        apic->type = ACPI_APIC_PROCESSOR;
+        apic->length = sizeof(*apic);
+        apic->processor_id = uid;
+        apic->local_apic_id = apic_id;
+        if (apic_ids->cpus[uid].cpu != NULL) {
+            apic->flags = cpu_to_le32(1);
+        } else {
+            apic->flags = cpu_to_le32(0);
+        }
     } else {
-        /* ACPI spec says that LAPIC entry for non present
-         * CPU may be omitted from MADT or it must be marked
-         * as disabled. However omitting non present CPU from
-         * MADT breaks hotplug on linux. So possible CPUs
-         * should be put in MADT but kept disabled.
-         */
-        apic->flags = cpu_to_le32(0);
+        AcpiMadtProcessorX2Apic *apic = acpi_data_push(entry, sizeof *apic);
+
+        apic->type = ACPI_APIC_LOCAL_X2APIC;
+        apic->length = sizeof(*apic);
+        apic->uid = cpu_to_le32(uid);
+        apic->x2apic_id = cpu_to_le32(apic_id);
+        if (apic_ids->cpus[uid].cpu != NULL) {
+            apic->flags = cpu_to_le32(1);
+        } else {
+            apic->flags = cpu_to_le32(0);
+        }
     }
 }
 
@@ -369,11 +383,11 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
     int madt_start = table_data->len;
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(pcms->acpi_dev);
     AcpiDeviceIf *adev = ACPI_DEVICE_IF(pcms->acpi_dev);
+    bool x2apic_mode = false;
 
     AcpiMultipleApicTable *madt;
     AcpiMadtIoApic *io_apic;
     AcpiMadtIntsrcovr *intsrcovr;
-    AcpiMadtLocalNmi *local_nmi;
     int i;
 
     madt = acpi_data_push(table_data, sizeof *madt);
@@ -382,6 +396,9 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
 
     for (i = 0; i < apic_ids->len; i++) {
         adevc->madt_cpu(adev, i, apic_ids, table_data);
+        if (apic_ids->cpus[i].arch_id > 254) {
+            x2apic_mode = true;
+        }
     }
     g_free(apic_ids);
 
@@ -414,12 +431,25 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
         intsrcovr->flags  = cpu_to_le16(0xd); /* active high, level triggered */
     }
 
-    local_nmi = acpi_data_push(table_data, sizeof *local_nmi);
-    local_nmi->type         = ACPI_APIC_LOCAL_NMI;
-    local_nmi->length       = sizeof(*local_nmi);
-    local_nmi->processor_id = 0xff; /* all processors */
-    local_nmi->flags        = cpu_to_le16(0);
-    local_nmi->lint         = 1; /* ACPI_LINT1 */
+    if (x2apic_mode) {
+        AcpiMadtLocalX2ApicNmi *local_nmi;
+
+        local_nmi = acpi_data_push(table_data, sizeof *local_nmi);
+        local_nmi->type   = ACPI_APIC_LOCAL_X2APIC_NMI;
+        local_nmi->length = sizeof(*local_nmi);
+        local_nmi->uid    = 0xFFFFFFFF; /* all processors */
+        local_nmi->flags  = cpu_to_le16(0);
+        local_nmi->lint   = 1; /* ACPI_LINT1 */
+    } else {
+        AcpiMadtLocalNmi *local_nmi;
+
+        local_nmi = acpi_data_push(table_data, sizeof *local_nmi);
+        local_nmi->type         = ACPI_APIC_LOCAL_NMI;
+        local_nmi->length       = sizeof(*local_nmi);
+        local_nmi->processor_id = 0xff; /* all processors */
+        local_nmi->flags        = cpu_to_le16(0);
+        local_nmi->lint         = 1; /* ACPI_LINT1 */
+    }
 
     build_header(linker, table_data,
                  (void *)(table_data->data + madt_start), "APIC",

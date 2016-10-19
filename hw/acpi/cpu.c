@@ -531,6 +531,11 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
                 apic->flags = cpu_to_le32(1);
                 break;
             }
+            case ACPI_APIC_LOCAL_X2APIC: {
+                AcpiMadtProcessorX2Apic *apic = (void *)madt_buf->data;
+                apic->flags = cpu_to_le32(1);
+                break;
+            }
             default:
                 assert(0);
             }
