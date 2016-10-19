@@ -757,8 +757,8 @@ static void nvdimm_dsm_set_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
         return;
     }
 
-    assert(sizeof(*in) + sizeof(*set_label_data) + set_label_data->length <=
-           4096);
+    assert(offsetof(NvdimmDsmIn, arg3) +
+           sizeof(*set_label_data) + set_label_data->length <= 4096);
 
     nvc->write_label_data(nvdimm, set_label_data->in_buf,
                           set_label_data->length, set_label_data->offset);
