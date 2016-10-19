@@ -70,7 +70,7 @@ static void test_init(TestData *d)
     /* set Root Complex BAR */
     qpci_config_writel(d->dev, ICH9_LPC_RCBA, RCBA_BASE_ADDR | 0x1);
 
-    d->tco_io_base = (void *)((uintptr_t)PM_IO_BASE_ADDR + 0x60);
+    d->tco_io_base = qpci_legacy_iomap(d->dev, PM_IO_BASE_ADDR + 0x60);
 }
 
 static void stop_tco(const TestData *d)
