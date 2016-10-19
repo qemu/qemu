@@ -39,6 +39,10 @@ GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 0, PPC_NONE, fl2)
 GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0, opc3, 0, PPC_NONE, fl2), \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 0, PPC_NONE, fl2)
 
+#define GEN_XX2FORM_EO(name, opc2, opc3, opc4, fl2)                          \
+GEN_HANDLER2_E_2(name, #name, 0x3C, opc2 | 0, opc3, opc4, 0, PPC_NONE, fl2), \
+GEN_HANDLER2_E_2(name, #name, 0x3C, opc2 | 1, opc3, opc4, 0, PPC_NONE, fl2)
+
 #define GEN_XX3FORM(name, opc2, opc3, fl2)                           \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0, opc3, 0, PPC_NONE, fl2), \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 0, PPC_NONE, fl2), \
@@ -222,6 +226,10 @@ GEN_XX2FORM(xvrspic, 0x16, 0x0A, PPC2_VSX),
 GEN_XX2FORM(xvrspim, 0x12, 0x0B, PPC2_VSX),
 GEN_XX2FORM(xvrspip, 0x12, 0x0A, PPC2_VSX),
 GEN_XX2FORM(xvrspiz, 0x12, 0x09, PPC2_VSX),
+GEN_XX2FORM_EO(xxbrh, 0x16, 0x1D, 0x07, PPC2_ISA300),
+GEN_XX2FORM_EO(xxbrw, 0x16, 0x1D, 0x0F, PPC2_ISA300),
+GEN_XX2FORM_EO(xxbrd, 0x16, 0x1D, 0x17, PPC2_ISA300),
+GEN_XX2FORM_EO(xxbrq, 0x16, 0x1D, 0x1F, PPC2_ISA300),
 
 #define VSX_LOGICAL(name, opc2, opc3, fl2) \
 GEN_XX3FORM(name, opc2, opc3, fl2)
