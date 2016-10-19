@@ -106,22 +106,14 @@ static uint32_t qvirtio_pci_config_readl(QVirtioDevice *d, uint64_t off)
 static uint64_t qvirtio_pci_config_readq(QVirtioDevice *d, uint64_t off)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
-    int i;
-    uint64_t u64 = 0;
+    uint64_t val;
 
+    val = qpci_io_readq(dev->pdev, CONFIG_BASE(dev) + off);
     if (qvirtio_is_big_endian(d)) {
-        for (i = 0; i < 8; ++i) {
-            u64 |= (uint64_t)qpci_io_readb(dev->pdev, CONFIG_BASE(dev)
-                                           + off + i) << (7 - i) * 8;
-        }
-    } else {
-        for (i = 0; i < 8; ++i) {
-            u64 |= (uint64_t)qpci_io_readb(dev->pdev, CONFIG_BASE(dev)
-                                           + off + i) << i * 8;
-        }
+        val = bswap64(val);
     }
 
-    return u64;
+    return val;
 }
 
 static uint32_t qvirtio_pci_get_features(QVirtioDevice *d)

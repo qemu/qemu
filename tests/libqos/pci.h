@@ -26,10 +26,12 @@ struct QPCIBus {
     uint8_t (*pio_readb)(QPCIBus *bus, uint32_t addr);
     uint16_t (*pio_readw)(QPCIBus *bus, uint32_t addr);
     uint32_t (*pio_readl)(QPCIBus *bus, uint32_t addr);
+    uint64_t (*pio_readq)(QPCIBus *bus, uint32_t addr);
 
     void (*pio_writeb)(QPCIBus *bus, uint32_t addr, uint8_t value);
     void (*pio_writew)(QPCIBus *bus, uint32_t addr, uint16_t value);
     void (*pio_writel)(QPCIBus *bus, uint32_t addr, uint32_t value);
+    void (*pio_writeq)(QPCIBus *bus, uint32_t addr, uint64_t value);
 
     void (*memread)(QPCIBus *bus, uint32_t addr, void *buf, size_t len);
     void (*memwrite)(QPCIBus *bus, uint32_t addr, const void *buf, size_t len);
@@ -82,10 +84,12 @@ void qpci_config_writel(QPCIDevice *dev, uint8_t offset, uint32_t value);
 uint8_t qpci_io_readb(QPCIDevice *dev, void *data);
 uint16_t qpci_io_readw(QPCIDevice *dev, void *data);
 uint32_t qpci_io_readl(QPCIDevice *dev, void *data);
+uint64_t qpci_io_readq(QPCIDevice *dev, void *data);
 
 void qpci_io_writeb(QPCIDevice *dev, void *data, uint8_t value);
 void qpci_io_writew(QPCIDevice *dev, void *data, uint16_t value);
 void qpci_io_writel(QPCIDevice *dev, void *data, uint32_t value);
+void qpci_io_writeq(QPCIDevice *dev, void *data, uint64_t value);
 
 void qpci_memread(QPCIDevice *bus, void *data, void *buf, size_t len);
 void qpci_memwrite(QPCIDevice *bus, void *data, const void *buf, size_t len);

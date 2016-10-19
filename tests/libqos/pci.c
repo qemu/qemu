@@ -262,6 +262,19 @@ uint32_t qpci_io_readl(QPCIDevice *dev, void *data)
     }
 }
 
+uint64_t qpci_io_readq(QPCIDevice *dev, void *data)
+{
+    uintptr_t addr = (uintptr_t)data;
+
+    if (addr < QPCI_PIO_LIMIT) {
+        return dev->bus->pio_readq(dev->bus, addr);
+    } else {
+        uint64_t val;
+        dev->bus->memread(dev->bus, addr, &val, sizeof(val));
+        return le64_to_cpu(val);
+    }
+}
+
 void qpci_io_writeb(QPCIDevice *dev, void *data, uint8_t value)
 {
     uintptr_t addr = (uintptr_t)data;
@@ -293,6 +306,18 @@ void qpci_io_writel(QPCIDevice *dev, void *data, uint32_t value)
         dev->bus->pio_writel(dev->bus, addr, value);
     } else {
         value = cpu_to_le32(value);
+        dev->bus->memwrite(dev->bus, addr, &value, sizeof(value));
+    }
+}
+
+void qpci_io_writeq(QPCIDevice *dev, void *data, uint64_t value)
+{
+    uintptr_t addr = (uintptr_t)data;
+
+    if (addr < QPCI_PIO_LIMIT) {
+        dev->bus->pio_writeq(dev->bus, addr, value);
+    } else {
+        value = cpu_to_le64(value);
         dev->bus->memwrite(dev->bus, addr, &value, sizeof(value));
     }
 }

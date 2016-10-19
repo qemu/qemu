@@ -78,6 +78,18 @@ static void qpci_spapr_pio_writel(QPCIBus *bus, uint32_t addr, uint32_t val)
     writel(s->pio_cpu_base + addr, bswap32(val));
 }
 
+static uint64_t qpci_spapr_pio_readq(QPCIBus *bus, uint32_t addr)
+{
+    QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
+    return bswap64(readq(s->pio_cpu_base + addr));
+}
+
+static void qpci_spapr_pio_writeq(QPCIBus *bus, uint32_t addr, uint64_t val)
+{
+    QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
+    writeq(s->pio_cpu_base + addr, bswap64(val));
+}
+
 static void qpci_spapr_memread(QPCIBus *bus, uint32_t addr,
                                void *buf, size_t len)
 {
@@ -153,10 +165,12 @@ QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
     ret->bus.pio_readb = qpci_spapr_pio_readb;
     ret->bus.pio_readw = qpci_spapr_pio_readw;
     ret->bus.pio_readl = qpci_spapr_pio_readl;
+    ret->bus.pio_readq = qpci_spapr_pio_readq;
 
     ret->bus.pio_writeb = qpci_spapr_pio_writeb;
     ret->bus.pio_writew = qpci_spapr_pio_writew;
     ret->bus.pio_writel = qpci_spapr_pio_writel;
+    ret->bus.pio_writeq = qpci_spapr_pio_writeq;
 
     ret->bus.memread = qpci_spapr_memread;
     ret->bus.memwrite = qpci_spapr_memwrite;

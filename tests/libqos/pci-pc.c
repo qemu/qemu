@@ -57,6 +57,17 @@ static void qpci_pc_pio_writel(QPCIBus *bus, uint32_t addr, uint32_t val)
     outl(addr, val);
 }
 
+static uint64_t qpci_pc_pio_readq(QPCIBus *bus, uint32_t addr)
+{
+    return (uint64_t)inl(addr) + ((uint64_t)inl(addr + 4) << 32);
+}
+
+static void qpci_pc_pio_writeq(QPCIBus *bus, uint32_t addr, uint64_t val)
+{
+    outl(addr, val & 0xffffffff);
+    outl(addr + 4, val >> 32);
+}
+
 static void qpci_pc_memread(QPCIBus *bus, uint32_t addr, void *buf, size_t len)
 {
     memread(addr, buf, len);
@@ -113,10 +124,12 @@ QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
     ret->bus.pio_readb = qpci_pc_pio_readb;
     ret->bus.pio_readw = qpci_pc_pio_readw;
     ret->bus.pio_readl = qpci_pc_pio_readl;
+    ret->bus.pio_readq = qpci_pc_pio_readq;
 
     ret->bus.pio_writeb = qpci_pc_pio_writeb;
     ret->bus.pio_writew = qpci_pc_pio_writew;
     ret->bus.pio_writel = qpci_pc_pio_writel;
+    ret->bus.pio_writeq = qpci_pc_pio_writeq;
 
     ret->bus.memread = qpci_pc_memread;
     ret->bus.memwrite = qpci_pc_memwrite;
