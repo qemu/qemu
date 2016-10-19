@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "qom/cpu.h"
 #include "hw/i386/pc.h"
+#include "qemu/error-report.h"
 
 #define CPU_EJECT_METHOD "CPEJ"
 #define CPU_MAT_METHOD "CPMA"
@@ -236,7 +237,11 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
     /* The current AML generator can cover the APIC ID range [0..255],
      * inclusive, for VCPU hotplug. */
     QEMU_BUILD_BUG_ON(ACPI_CPU_HOTPLUG_ID_LIMIT > 256);
-    g_assert(pcms->apic_id_limit <= ACPI_CPU_HOTPLUG_ID_LIMIT);
+    if (pcms->apic_id_limit > ACPI_CPU_HOTPLUG_ID_LIMIT) {
+        error_report("max_cpus is too large. APIC ID of last CPU is %u",
+                     pcms->apic_id_limit - 1);
+        exit(1);
+    }
 
     /* create PCI0.PRES device and its _CRS to reserve CPU hotplug MMIO */
     dev = aml_device("PCI0." stringify(CPU_HOTPLUG_RESOURCE_DEVICE));
