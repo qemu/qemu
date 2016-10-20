@@ -634,7 +634,7 @@ void cpu_exec_initfn(CPUState *cpu)
 #endif
 }
 
-void cpu_exec_init(CPUState *cpu, Error **errp)
+void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 {
     CPUClass *cc ATTRIBUTE_UNUSED = CPU_GET_CLASS(cpu);
 

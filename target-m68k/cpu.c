@@ -159,6 +159,13 @@ static void m68k_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUState *cs = CPU(dev);
     M68kCPU *cpu = M68K_CPU(dev);
     M68kCPUClass *mcc = M68K_CPU_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     m68k_cpu_init_gdb(cpu);
 
@@ -176,7 +183,6 @@ static void m68k_cpu_initfn(Object *obj)
     static bool inited;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs, &error_abort);
 
     if (tcg_enabled() && !inited) {
         inited = true;
@@ -222,13 +228,6 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     cc->gdb_core_xml_file = "cf-core.xml";
 
     dc->vmsd = &vmstate_m68k_cpu;
-
-    /*
-     * Reason: m68k_cpu_initfn() calls cpu_exec_init(), which saves
-     * the object in cpus -> dangling pointer after final
-     * object_unref().
-     */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static void register_cpu_type(const M68kCPUInfo *info)

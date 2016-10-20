@@ -3271,7 +3271,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
             cpu->phys_bits = 32;
         }
     }
-    cpu_exec_init(cs, &error_abort);
+    cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     if (tcg_enabled()) {
         tcg_x86_init();
