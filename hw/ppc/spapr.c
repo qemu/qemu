@@ -1165,8 +1165,7 @@ static void ppc_spapr_reset(void)
 
     fdt = spapr_build_fdt(spapr, rtas_addr, spapr->rtas_size);
 
-    /* Copy RTAS over */
-    cpu_physical_memory_write(rtas_addr, spapr->rtas_blob, spapr->rtas_size);
+    spapr_load_rtas(spapr, fdt, rtas_addr);
 
     rc = fdt_pack(fdt);
 

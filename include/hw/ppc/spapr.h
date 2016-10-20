@@ -532,6 +532,7 @@ target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPRMachineState *sm,
                              uint32_t nret, target_ulong rets);
 int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
                                  hwaddr rtas_size);
+void spapr_load_rtas(sPAPRMachineState *spapr, void *fdt, hwaddr addr);
 
 #define SPAPR_TCE_PAGE_SHIFT   12
 #define SPAPR_TCE_PAGE_SIZE    (1ULL << SPAPR_TCE_PAGE_SHIFT)
