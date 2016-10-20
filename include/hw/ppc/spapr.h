@@ -581,7 +581,7 @@ struct sPAPREventLogEntry {
 };
 
 void spapr_events_init(sPAPRMachineState *sm);
-void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
+void spapr_dt_events(void *fdt, uint32_t check_exception_irq);
 int spapr_h_cas_compose_response(sPAPRMachineState *sm,
                                  target_ulong addr, target_ulong size,
                                  bool cpu_update, bool memory_update);

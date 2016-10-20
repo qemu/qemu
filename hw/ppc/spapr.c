@@ -328,9 +328,6 @@ static void *spapr_create_fdt_skel(sPAPRMachineState *spapr)
 
     _FDT((fdt_end_node(fdt)));
 
-    /* event-sources */
-    spapr_events_fdt_skel(fdt, spapr->check_exception_irq);
-
     /* /hypervisor node */
     if (kvm_enabled()) {
         uint8_t hypercall[16];
@@ -982,6 +979,9 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
             exit(1);
         }
     }
+
+    /* /event-sources */
+    spapr_dt_events(fdt, spapr->check_exception_irq);
 
     /* /rtas */
     spapr_dt_rtas(spapr, fdt);

@@ -211,23 +211,22 @@ struct hp_log_full {
 #define EVENT_MASK_HOTPLUG                   0x10000000
 #define EVENT_MASK_IO                        0x08000000
 
-void spapr_events_fdt_skel(void *fdt, uint32_t check_exception_irq)
+void spapr_dt_events(void *fdt, uint32_t check_exception_irq)
 {
+    int event_sources, epow_events;
     uint32_t irq_ranges[] = {cpu_to_be32(check_exception_irq), cpu_to_be32(1)};
     uint32_t interrupts[] = {cpu_to_be32(check_exception_irq), 0};
 
-    _FDT((fdt_begin_node(fdt, "event-sources")));
+    _FDT(event_sources = fdt_add_subnode(fdt, 0, "event-sources"));
 
-    _FDT((fdt_property(fdt, "interrupt-controller", NULL, 0)));
-    _FDT((fdt_property_cell(fdt, "#interrupt-cells", 2)));
-    _FDT((fdt_property(fdt, "interrupt-ranges",
-                       irq_ranges, sizeof(irq_ranges))));
+    _FDT(fdt_setprop(fdt, event_sources, "interrupt-controller", NULL, 0));
+    _FDT(fdt_setprop_cell(fdt, event_sources, "#interrupt-cells", 2));
+    _FDT(fdt_setprop(fdt, event_sources, "interrupt-ranges",
+                     irq_ranges, sizeof(irq_ranges)));
 
-    _FDT((fdt_begin_node(fdt, "epow-events")));
-    _FDT((fdt_property(fdt, "interrupts", interrupts, sizeof(interrupts))));
-    _FDT((fdt_end_node(fdt)));
-
-    _FDT((fdt_end_node(fdt)));
+    _FDT(epow_events = fdt_add_subnode(fdt, event_sources, "epow-events"));
+    _FDT(fdt_setprop(fdt, epow_events, "interrupts",
+                     interrupts, sizeof(interrupts)));
 }
 
 static void rtas_event_log_queue(int log_type, void *data, bool exception)
