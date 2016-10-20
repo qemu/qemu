@@ -155,7 +155,7 @@ static uint64_t virtio_blk_request(QGuestAllocator *alloc, QVirtioDevice *d,
 }
 
 static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
-                       QVirtQueue *vq, uint64_t device_specific)
+                       QVirtQueue *vq)
 {
     QVirtioBlkReq req;
     uint64_t req_addr;
@@ -165,7 +165,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
     uint8_t status;
     char *data;
 
-    capacity = qvirtio_config_readq(dev, device_specific);
+    capacity = qvirtio_config_readq(dev, 0);
 
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
 
@@ -285,17 +285,13 @@ static void pci_basic(void)
     QVirtioPCIDevice *dev;
     QOSState *qs;
     QVirtQueuePCI *vqpci;
-    void *addr;
 
     qs = pci_test_start();
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT);
 
     vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 0);
 
-    /* MSI-X is not enabled */
-    addr = dev->addr + VIRTIO_PCI_CONFIG_OFF(false);
-
-    test_basic(&dev->vdev, qs->alloc, &vqpci->vq, (uint64_t)(uintptr_t)addr);
+    test_basic(&dev->vdev, qs->alloc, &vqpci->vq);
 
     /* End test */
     qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, qs->alloc);
@@ -311,7 +307,6 @@ static void pci_indirect(void)
     QOSState *qs;
     QVirtioBlkReq req;
     QVRingIndirectDesc *indirect;
-    void *addr;
     uint64_t req_addr;
     uint64_t capacity;
     uint32_t features;
@@ -323,10 +318,7 @@ static void pci_indirect(void)
 
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT);
 
-    /* MSI-X is not enabled */
-    addr = dev->addr + VIRTIO_PCI_CONFIG_OFF(false);
-
-    capacity = qvirtio_config_readq(&dev->vdev, (uint64_t)(uintptr_t)addr);
+    capacity = qvirtio_config_readq(&dev->vdev, 0);
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
 
     features = qvirtio_get_features(&dev->vdev);
@@ -406,17 +398,13 @@ static void pci_config(void)
     QVirtioPCIDevice *dev;
     QOSState *qs;
     int n_size = TEST_IMAGE_SIZE / 2;
-    void *addr;
     uint64_t capacity;
 
     qs = pci_test_start();
 
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT);
 
-    /* MSI-X is not enabled */
-    addr = dev->addr + VIRTIO_PCI_CONFIG_OFF(false);
-
-    capacity = qvirtio_config_readq(&dev->vdev, (uint64_t)(uintptr_t)addr);
+    capacity = qvirtio_config_readq(&dev->vdev, 0);
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
 
     qvirtio_set_driver_ok(&dev->vdev);
@@ -425,7 +413,7 @@ static void pci_config(void)
                                                     " 'size': %d } }", n_size);
     qvirtio_wait_config_isr(&dev->vdev, QVIRTIO_BLK_TIMEOUT_US);
 
-    capacity = qvirtio_config_readq(&dev->vdev, (uint64_t)(uintptr_t)addr);
+    capacity = qvirtio_config_readq(&dev->vdev, 0);
     g_assert_cmpint(capacity, ==, n_size / 512);
 
     qvirtio_pci_device_disable(dev);
@@ -441,7 +429,6 @@ static void pci_msix(void)
     QVirtQueuePCI *vqpci;
     QVirtioBlkReq req;
     int n_size = TEST_IMAGE_SIZE / 2;
-    void *addr;
     uint64_t req_addr;
     uint64_t capacity;
     uint32_t features;
@@ -456,10 +443,7 @@ static void pci_msix(void)
 
     qvirtio_pci_set_msix_configuration_vector(dev, qs->alloc, 0);
 
-    /* MSI-X is enabled */
-    addr = dev->addr + VIRTIO_PCI_CONFIG_OFF(true);
-
-    capacity = qvirtio_config_readq(&dev->vdev, (uint64_t)(uintptr_t)addr);
+    capacity = qvirtio_config_readq(&dev->vdev, 0);
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
 
     features = qvirtio_get_features(&dev->vdev);
@@ -479,7 +463,7 @@ static void pci_msix(void)
 
     qvirtio_wait_config_isr(&dev->vdev, QVIRTIO_BLK_TIMEOUT_US);
 
-    capacity = qvirtio_config_readq(&dev->vdev, (uintptr_t)addr);
+    capacity = qvirtio_config_readq(&dev->vdev, 0);
     g_assert_cmpint(capacity, ==, n_size / 512);
 
     /* Write request */
@@ -550,7 +534,6 @@ static void pci_idx(void)
     QOSState *qs;
     QVirtQueuePCI *vqpci;
     QVirtioBlkReq req;
-    void *addr;
     uint64_t req_addr;
     uint64_t capacity;
     uint32_t features;
@@ -565,10 +548,7 @@ static void pci_idx(void)
 
     qvirtio_pci_set_msix_configuration_vector(dev, qs->alloc, 0);
 
-    /* MSI-X is enabled */
-    addr = dev->addr + VIRTIO_PCI_CONFIG_OFF(true);
-
-    capacity = qvirtio_config_readq(&dev->vdev, (uint64_t)(uintptr_t)addr);
+    capacity = qvirtio_config_readq(&dev->vdev, 0);
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
 
     features = qvirtio_get_features(&dev->vdev);
@@ -709,14 +689,14 @@ static void mmio_basic(void)
     alloc = generic_alloc_init(MMIO_RAM_ADDR, MMIO_RAM_SIZE, MMIO_PAGE_SIZE);
     vq = qvirtqueue_setup(&dev->vdev, alloc, 0);
 
-    test_basic(&dev->vdev, alloc, vq, QVIRTIO_MMIO_DEVICE_SPECIFIC);
+    test_basic(&dev->vdev, alloc, vq);
 
     qmp("{ 'execute': 'block_resize', 'arguments': { 'device': 'drive0', "
                                                     " 'size': %d } }", n_size);
 
     qvirtio_wait_queue_isr(&dev->vdev, vq, QVIRTIO_BLK_TIMEOUT_US);
 
-    capacity = qvirtio_config_readq(&dev->vdev, QVIRTIO_MMIO_DEVICE_SPECIFIC);
+    capacity = qvirtio_config_readq(&dev->vdev, 0);
     g_assert_cmpint(capacity, ==, n_size / 512);
 
     /* End test */

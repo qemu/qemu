@@ -143,7 +143,6 @@ static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
     QVirtIOSCSI *vs;
     QVirtioPCIDevice *dev;
     struct virtio_scsi_cmd_resp resp;
-    void *addr;
     int i;
 
     vs = g_new0(QVirtIOSCSI, 1);
@@ -161,8 +160,7 @@ static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
     qvirtio_set_acknowledge(vs->dev);
     qvirtio_set_driver(vs->dev);
 
-    addr = dev->addr + VIRTIO_PCI_CONFIG_OFF(false);
-    vs->num_queues = qvirtio_config_readl(vs->dev, (uint64_t)(uintptr_t)addr);
+    vs->num_queues = qvirtio_config_readl(vs->dev, 0);
 
     g_assert_cmpint(vs->num_queues, <, MAX_NUM_QUEUES);
 

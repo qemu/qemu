@@ -62,10 +62,13 @@ static void qvirtio_pci_assign_device(QVirtioDevice *d, void *data)
     *vpcidev = (QVirtioPCIDevice *)d;
 }
 
-static uint8_t qvirtio_pci_config_readb(QVirtioDevice *d, uint64_t addr)
+#define CONFIG_BASE(dev) \
+    ((dev)->addr + VIRTIO_PCI_CONFIG_OFF((dev)->pdev->msix_enabled))
+
+static uint8_t qvirtio_pci_config_readb(QVirtioDevice *d, uint64_t off)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
-    return qpci_io_readb(dev->pdev, (void *)(uintptr_t)addr);
+    return qpci_io_readb(dev->pdev, CONFIG_BASE(dev) + off);
 }
 
 /* PCI is always read in little-endian order
@@ -76,31 +79,31 @@ static uint8_t qvirtio_pci_config_readb(QVirtioDevice *d, uint64_t addr)
  * case will be managed inside qvirtio_is_big_endian()
  */
 
-static uint16_t qvirtio_pci_config_readw(QVirtioDevice *d, uint64_t addr)
+static uint16_t qvirtio_pci_config_readw(QVirtioDevice *d, uint64_t off)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
     uint16_t value;
 
-    value = qpci_io_readw(dev->pdev, (void *)(uintptr_t)addr);
+    value = qpci_io_readw(dev->pdev, CONFIG_BASE(dev) + off);
     if (qvirtio_is_big_endian(d)) {
         value = bswap16(value);
     }
     return value;
 }
 
-static uint32_t qvirtio_pci_config_readl(QVirtioDevice *d, uint64_t addr)
+static uint32_t qvirtio_pci_config_readl(QVirtioDevice *d, uint64_t off)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
     uint32_t value;
 
-    value = qpci_io_readl(dev->pdev, (void *)(uintptr_t)addr);
+    value = qpci_io_readl(dev->pdev, CONFIG_BASE(dev) + off);
     if (qvirtio_is_big_endian(d)) {
         value = bswap32(value);
     }
     return value;
 }
 
-static uint64_t qvirtio_pci_config_readq(QVirtioDevice *d, uint64_t addr)
+static uint64_t qvirtio_pci_config_readq(QVirtioDevice *d, uint64_t off)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
     int i;
@@ -108,13 +111,13 @@ static uint64_t qvirtio_pci_config_readq(QVirtioDevice *d, uint64_t addr)
 
     if (qvirtio_is_big_endian(d)) {
         for (i = 0; i < 8; ++i) {
-            u64 |= (uint64_t)qpci_io_readb(dev->pdev,
-                                (void *)(uintptr_t)addr + i) << (7 - i) * 8;
+            u64 |= (uint64_t)qpci_io_readb(dev->pdev, CONFIG_BASE(dev)
+                                           + off + i) << (7 - i) * 8;
         }
     } else {
         for (i = 0; i < 8; ++i) {
-            u64 |= (uint64_t)qpci_io_readb(dev->pdev,
-                                (void *)(uintptr_t)addr + i) << i * 8;
+            u64 |= (uint64_t)qpci_io_readb(dev->pdev, CONFIG_BASE(dev)
+                                           + off + i) << i * 8;
         }
     }
 
