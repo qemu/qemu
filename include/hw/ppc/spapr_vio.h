@@ -76,8 +76,6 @@ struct VIOsPAPRDevice {
 struct VIOsPAPRBus {
     BusState bus;
     uint32_t next_reg;
-    int (*init)(VIOsPAPRDevice *dev);
-    int (*devnode)(VIOsPAPRDevice *dev, void *fdt, int node_off);
 };
 
 extern VIOsPAPRBus *spapr_vio_bus_init(void);
