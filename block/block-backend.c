@@ -1099,14 +1099,19 @@ BlockAIOCB *blk_aio_pwritev(BlockBackend *blk, int64_t offset,
                         blk_aio_write_entry, flags, cb, opaque);
 }
 
+static void blk_aio_flush_entry(void *opaque)
+{
+    BlkAioEmAIOCB *acb = opaque;
+    BlkRwCo *rwco = &acb->rwco;
+
+    rwco->ret = blk_co_flush(rwco->blk);
+    blk_aio_complete(acb);
+}
+
 BlockAIOCB *blk_aio_flush(BlockBackend *blk,
                           BlockCompletionFunc *cb, void *opaque)
 {
-    if (!blk_is_available(blk)) {
-        return blk_abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
-    }
-
-    return bdrv_aio_flush(blk_bs(blk), cb, opaque);
+    return blk_aio_prwv(blk, 0, 0, NULL, blk_aio_flush_entry, 0, cb, opaque);
 }
 
 BlockAIOCB *blk_aio_pdiscard(BlockBackend *blk,
@@ -1169,13 +1174,15 @@ int blk_co_flush(BlockBackend *blk)
     return bdrv_co_flush(blk_bs(blk));
 }
 
+static void blk_flush_entry(void *opaque)
+{
+    BlkRwCo *rwco = opaque;
+    rwco->ret = blk_co_flush(rwco->blk);
+}
+
 int blk_flush(BlockBackend *blk)
 {
-    if (!blk_is_available(blk)) {
-        return -ENOMEDIUM;
-    }
-
-    return bdrv_flush(blk_bs(blk));
+    return blk_prw(blk, 0, NULL, 0, blk_flush_entry, 0);
 }
 
 void blk_drain(BlockBackend *blk)
