@@ -2492,7 +2492,7 @@ int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int count)
     return rwco.ret;
 }
 
-static int bdrv_co_do_ioctl(BlockDriverState *bs, int req, void *buf)
+int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf)
 {
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest tracked_req;
@@ -2528,7 +2528,7 @@ typedef struct {
 static void coroutine_fn bdrv_co_ioctl_entry(void *opaque)
 {
     BdrvIoctlCoData *data = opaque;
-    data->ret = bdrv_co_do_ioctl(data->bs, data->req, data->buf);
+    data->ret = bdrv_co_ioctl(data->bs, data->req, data->buf);
 }
 
 /* needed for generic scsi interface */
@@ -2558,8 +2558,8 @@ int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 static void coroutine_fn bdrv_co_aio_ioctl_entry(void *opaque)
 {
     BlockAIOCBCoroutine *acb = opaque;
-    acb->req.error = bdrv_co_do_ioctl(acb->common.bs,
-                                      acb->req.req, acb->req.buf);
+    acb->req.error = bdrv_co_ioctl(acb->common.bs,
+                                   acb->req.req, acb->req.buf);
     bdrv_co_complete(acb);
 }
 
