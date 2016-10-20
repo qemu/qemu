@@ -65,6 +65,10 @@ struct sPAPRMachineState {
     int vrma_adjust;
     ssize_t rtas_size;
     void *rtas_blob;
+    long kernel_size;
+    bool kernel_le;
+    uint32_t initrd_base;
+    long initrd_size;
     void *fdt_skel;
     uint64_t rtc_offset; /* Now used only during incoming migration */
     struct PPCTimebase tb;

@@ -271,16 +271,12 @@ static void add_str(GString *s, const gchar *s1)
     g_string_append_len(s, s1, strlen(s1) + 1);
 }
 
-static void *spapr_create_fdt_skel(hwaddr initrd_base,
-                                   hwaddr initrd_size,
-                                   hwaddr kernel_size,
-                                   bool little_endian,
-                                   const char *kernel_cmdline,
-                                   uint32_t epow_irq)
+static void *spapr_create_fdt_skel(sPAPRMachineState *spapr)
 {
+    MachineState *machine = MACHINE(spapr);
     void *fdt;
-    uint32_t start_prop = cpu_to_be32(initrd_base);
-    uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
+    uint32_t start_prop = cpu_to_be32(spapr->initrd_base);
+    uint32_t end_prop = cpu_to_be32(spapr->initrd_base + spapr->initrd_size);
     GString *hypertas = g_string_sized_new(256);
     GString *qemu_hypertas = g_string_sized_new(256);
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
@@ -305,11 +301,13 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create(fdt, FDT_MAX_SIZE)));
 
-    if (kernel_size) {
-        _FDT((fdt_add_reservemap_entry(fdt, KERNEL_LOAD_ADDR, kernel_size)));
+    if (spapr->kernel_size) {
+        _FDT((fdt_add_reservemap_entry(fdt, KERNEL_LOAD_ADDR,
+                                       spapr->kernel_size)));
     }
-    if (initrd_size) {
-        _FDT((fdt_add_reservemap_entry(fdt, initrd_base, initrd_size)));
+    if (spapr->initrd_size) {
+        _FDT((fdt_add_reservemap_entry(fdt, spapr->initrd_base,
+                                       spapr->initrd_size)));
     }
     _FDT((fdt_finish_reservemap(fdt)));
 
@@ -354,17 +352,17 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     /* Set Form1_affinity */
     _FDT((fdt_property(fdt, "ibm,architecture-vec-5", vec5, sizeof(vec5))));
 
-    _FDT((fdt_property_string(fdt, "bootargs", kernel_cmdline)));
+    _FDT((fdt_property_string(fdt, "bootargs", machine->kernel_cmdline)));
     _FDT((fdt_property(fdt, "linux,initrd-start",
                        &start_prop, sizeof(start_prop))));
     _FDT((fdt_property(fdt, "linux,initrd-end",
                        &end_prop, sizeof(end_prop))));
-    if (kernel_size) {
+    if (spapr->kernel_size) {
         uint64_t kprop[2] = { cpu_to_be64(KERNEL_LOAD_ADDR),
-                              cpu_to_be64(kernel_size) };
+                              cpu_to_be64(spapr->kernel_size) };
 
         _FDT((fdt_property(fdt, "qemu,boot-kernel", &kprop, sizeof(kprop))));
-        if (little_endian) {
+        if (spapr->kernel_le) {
             _FDT((fdt_property(fdt, "qemu,boot-kernel-le", NULL, 0)));
         }
     }
@@ -441,7 +439,7 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     _FDT((fdt_end_node(fdt)));
 
     /* event-sources */
-    spapr_events_fdt_skel(fdt, epow_irq);
+    spapr_events_fdt_skel(fdt, spapr->check_exception_irq);
 
     /* /hypervisor node */
     if (kvm_enabled()) {
@@ -1686,7 +1684,6 @@ static void ppc_spapr_init(MachineState *machine)
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
     PCIHostState *phb;
     int i;
@@ -1696,10 +1693,7 @@ static void ppc_spapr_init(MachineState *machine)
     void *rma = NULL;
     hwaddr rma_alloc_size;
     hwaddr node0_size = spapr_node0_size();
-    uint32_t initrd_base = 0;
-    long kernel_size = 0, initrd_size = 0;
     long load_limit, fw_size;
-    bool kernel_le = false;
     char *filename;
     int smt = kvmppc_smt_threads();
     int spapr_cores = smp_cpus / smp_threads;
@@ -1972,19 +1966,19 @@ static void ppc_spapr_init(MachineState *machine)
     if (kernel_filename) {
         uint64_t lowaddr = 0;
 
-        kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
-                               NULL, &lowaddr, NULL, 1, PPC_ELF_MACHINE,
-                               0, 0);
-        if (kernel_size == ELF_LOAD_WRONG_ENDIAN) {
-            kernel_size = load_elf(kernel_filename,
-                                   translate_kernel_address, NULL,
-                                   NULL, &lowaddr, NULL, 0, PPC_ELF_MACHINE,
-                                   0, 0);
-            kernel_le = kernel_size > 0;
+        spapr->kernel_size = load_elf(kernel_filename, translate_kernel_address,
+                                      NULL, NULL, &lowaddr, NULL, 1,
+                                      PPC_ELF_MACHINE, 0, 0);
+        if (spapr->kernel_size == ELF_LOAD_WRONG_ENDIAN) {
+            spapr->kernel_size = load_elf(kernel_filename,
+                                          translate_kernel_address, NULL, NULL,
+                                          &lowaddr, NULL, 0, PPC_ELF_MACHINE,
+                                          0, 0);
+            spapr->kernel_le = spapr->kernel_size > 0;
         }
-        if (kernel_size < 0) {
-            error_report("error loading %s: %s",
-                         kernel_filename, load_elf_strerror(kernel_size));
+        if (spapr->kernel_size < 0) {
+            error_report("error loading %s: %s", kernel_filename,
+                         load_elf_strerror(spapr->kernel_size));
             exit(1);
         }
 
@@ -1993,17 +1987,17 @@ static void ppc_spapr_init(MachineState *machine)
             /* Try to locate the initrd in the gap between the kernel
              * and the firmware. Add a bit of space just in case
              */
-            initrd_base = (KERNEL_LOAD_ADDR + kernel_size + 0x1ffff) & ~0xffff;
-            initrd_size = load_image_targphys(initrd_filename, initrd_base,
-                                              load_limit - initrd_base);
-            if (initrd_size < 0) {
+            spapr->initrd_base = (KERNEL_LOAD_ADDR + spapr->kernel_size
+                                  + 0x1ffff) & ~0xffff;
+            spapr->initrd_size = load_image_targphys(initrd_filename,
+                                                     spapr->initrd_base,
+                                                     load_limit
+                                                     - spapr->initrd_base);
+            if (spapr->initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              initrd_filename);
                 exit(1);
             }
-        } else {
-            initrd_base = 0;
-            initrd_size = 0;
         }
     }
 
@@ -2030,10 +2024,7 @@ static void ppc_spapr_init(MachineState *machine)
                          &savevm_htab_handlers, spapr);
 
     /* Prepare the device tree */
-    spapr->fdt_skel = spapr_create_fdt_skel(initrd_base, initrd_size,
-                                            kernel_size, kernel_le,
-                                            kernel_cmdline,
-                                            spapr->check_exception_irq);
+    spapr->fdt_skel = spapr_create_fdt_skel(spapr);
     assert(spapr->fdt_skel != NULL);
 
     /* used by RTAS */
