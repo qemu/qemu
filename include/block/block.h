@@ -314,9 +314,6 @@ BlockAIOCB *bdrv_aio_writev(BdrvChild *child, int64_t sector_num,
                             BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
                            BlockCompletionFunc *cb, void *opaque);
-BlockAIOCB *bdrv_aio_pdiscard(BlockDriverState *bs,
-                              int64_t offset, int count,
-                              BlockCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockAIOCB *acb);
 void bdrv_aio_cancel_async(BlockAIOCB *acb);
 

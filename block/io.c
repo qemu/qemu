@@ -2196,35 +2196,6 @@ BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
     return &acb->common;
 }
 
-static void coroutine_fn bdrv_aio_pdiscard_co_entry(void *opaque)
-{
-    BlockAIOCBCoroutine *acb = opaque;
-    BlockDriverState *bs = acb->common.bs;
-
-    acb->req.error = bdrv_co_pdiscard(bs, acb->req.offset, acb->req.bytes);
-    bdrv_co_complete(acb);
-}
-
-BlockAIOCB *bdrv_aio_pdiscard(BlockDriverState *bs, int64_t offset, int count,
-                              BlockCompletionFunc *cb, void *opaque)
-{
-    Coroutine *co;
-    BlockAIOCBCoroutine *acb;
-
-    trace_bdrv_aio_pdiscard(bs, offset, count, opaque);
-
-    acb = qemu_aio_get(&bdrv_em_co_aiocb_info, bs, cb, opaque);
-    acb->need_bh = true;
-    acb->req.error = -EINPROGRESS;
-    acb->req.offset = offset;
-    acb->req.bytes = count;
-    co = qemu_coroutine_create(bdrv_aio_pdiscard_co_entry, acb);
-    qemu_coroutine_enter(co);
-
-    bdrv_co_maybe_schedule_bh(acb);
-    return &acb->common;
-}
-
 void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
                    BlockCompletionFunc *cb, void *opaque)
 {
