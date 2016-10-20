@@ -27,6 +27,7 @@
 #include "io/channel-tls.h"
 #include "io/channel-socket.h"
 #include "io-channel-helpers.h"
+#include "crypto/init.h"
 #include "crypto/tlscredsx509.h"
 #include "qemu/acl.h"
 #include "qom/object_interfaces.h"
@@ -264,6 +265,8 @@ static void test_io_channel_tls(const void *opaque)
 int main(int argc, char **argv)
 {
     int ret;
+
+    g_assert(qcrypto_init(NULL) == 0);
 
     module_call_init(MODULE_INIT_QOM);
     g_test_init(&argc, &argv, NULL);

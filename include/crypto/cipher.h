@@ -85,13 +85,15 @@ struct QCryptoCipher {
 /**
  * qcrypto_cipher_supports:
  * @alg: the cipher algorithm
+ * @mode: the cipher mode
  *
- * Determine if @alg cipher algorithm is supported by the
+ * Determine if @alg cipher algorithm in @mode is supported by the
  * current configured build
  *
  * Returns: true if the algorithm is supported, false otherwise
  */
-bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg);
+bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
+                             QCryptoCipherMode mode);
 
 /**
  * qcrypto_cipher_get_block_len:
@@ -213,16 +215,16 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
 /**
  * qcrypto_cipher_setiv:
  * @cipher: the cipher object
- * @iv: the initialization vector bytes
+ * @iv: the initialization vector or counter (CTR mode) bytes
  * @niv: the length of @iv
  * @errpr: pointer to a NULL-initialized error object
  *
  * If the @cipher object is setup to use a mode that requires
- * initialization vectors, this sets the initialization vector
+ * initialization vectors or counter, this sets the @niv
  * bytes. The @iv data should have the same length as the
  * cipher key used when originally constructing the cipher
  * object. It is an error to set an initialization vector
- * if the cipher mode does not require one.
+ * or counter if the cipher mode does not require one.
  *
  * Returns: 0 on success, -1 on error
  */

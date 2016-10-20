@@ -24,7 +24,8 @@
 #include <gcrypt.h>
 
 
-bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
+bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
+                             QCryptoCipherMode mode)
 {
     switch (alg) {
     case QCRYPTO_CIPHER_ALG_DES_RFB:
@@ -37,6 +38,16 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
     case QCRYPTO_CIPHER_ALG_SERPENT_256:
     case QCRYPTO_CIPHER_ALG_TWOFISH_128:
     case QCRYPTO_CIPHER_ALG_TWOFISH_256:
+        break;
+    default:
+        return false;
+    }
+
+    switch (mode) {
+    case QCRYPTO_CIPHER_MODE_ECB:
+    case QCRYPTO_CIPHER_MODE_CBC:
+    case QCRYPTO_CIPHER_MODE_XTS:
+    case QCRYPTO_CIPHER_MODE_CTR:
         return true;
     default:
         return false;
@@ -48,6 +59,7 @@ struct QCryptoCipherGcrypt {
     gcry_cipher_hd_t handle;
     gcry_cipher_hd_t tweakhandle;
     size_t blocksize;
+    /* Initialization vector or Counter */
     uint8_t *iv;
 };
 
@@ -68,6 +80,9 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         break;
     case QCRYPTO_CIPHER_MODE_CBC:
         gcrymode = GCRY_CIPHER_MODE_CBC;
+        break;
+    case QCRYPTO_CIPHER_MODE_CTR:
+        gcrymode = GCRY_CIPHER_MODE_CTR;
         break;
     default:
         error_setg(errp, "Unsupported cipher mode %s",
@@ -339,12 +354,21 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
     if (ctx->iv) {
         memcpy(ctx->iv, iv, niv);
     } else {
-        gcry_cipher_reset(ctx->handle);
-        err = gcry_cipher_setiv(ctx->handle, iv, niv);
-        if (err != 0) {
-            error_setg(errp, "Cannot set IV: %s",
-                   gcry_strerror(err));
-            return -1;
+        if (cipher->mode == QCRYPTO_CIPHER_MODE_CTR) {
+            err = gcry_cipher_setctr(ctx->handle, iv, niv);
+            if (err != 0) {
+                error_setg(errp, "Cannot set Counter: %s",
+                       gcry_strerror(err));
+                return -1;
+            }
+        } else {
+            gcry_cipher_reset(ctx->handle);
+            err = gcry_cipher_setiv(ctx->handle, iv, niv);
+            if (err != 0) {
+                error_setg(errp, "Cannot set IV: %s",
+                       gcry_strerror(err));
+                return -1;
+            }
         }
     }
 
