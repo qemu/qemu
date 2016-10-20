@@ -385,11 +385,11 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         srr1 = SPR_BOOKE_CSRR1;
         break;
     case POWERPC_EXCP_RESET:     /* System reset exception                   */
+        /* A power-saving exception sets ME, otherwise it is unchanged */
         if (msr_pow) {
             /* indicate that we resumed from power save mode */
             msr |= 0x10000;
-        } else {
-            new_msr &= ~((target_ulong)1 << MSR_ME);
+            new_msr |= ((target_ulong)1 << MSR_ME);
         }
 
         new_msr |= (target_ulong)MSR_HVB;
