@@ -1135,6 +1135,7 @@ static void ppc_spapr_reset(void)
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
     PowerPCCPU *first_ppc_cpu;
     uint32_t rtas_limit;
+    hwaddr rtas_addr, fdt_addr;
     void *fdt;
     int rc;
 
@@ -1160,14 +1161,13 @@ static void ppc_spapr_reset(void)
      * processed with 32-bit real mode code if necessary
      */
     rtas_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR);
-    spapr->rtas_addr = rtas_limit - RTAS_MAX_SIZE;
-    spapr->fdt_addr = spapr->rtas_addr - FDT_MAX_SIZE;
+    rtas_addr = rtas_limit - RTAS_MAX_SIZE;
+    fdt_addr = rtas_addr - FDT_MAX_SIZE;
 
-    fdt = spapr_build_fdt(spapr, spapr->rtas_addr, spapr->rtas_size);
+    fdt = spapr_build_fdt(spapr, rtas_addr, spapr->rtas_size);
 
     /* Copy RTAS over */
-    cpu_physical_memory_write(spapr->rtas_addr, spapr->rtas_blob,
-                              spapr->rtas_size);
+    cpu_physical_memory_write(rtas_addr, spapr->rtas_blob, spapr->rtas_size);
 
     rc = fdt_pack(fdt);
 
@@ -1182,12 +1182,12 @@ static void ppc_spapr_reset(void)
 
     /* Load the fdt */
     qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
-    cpu_physical_memory_write(spapr->fdt_addr, fdt, fdt_totalsize(fdt));
+    cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
     g_free(fdt);
 
     /* Set up the entry state */
     first_ppc_cpu = POWERPC_CPU(first_cpu);
-    first_ppc_cpu->env.gpr[3] = spapr->fdt_addr;
+    first_ppc_cpu->env.gpr[3] = fdt_addr;
     first_ppc_cpu->env.gpr[5] = 0;
     first_cpu->halted = 0;
     first_ppc_cpu->env.nip = SPAPR_ENTRY_POINT;

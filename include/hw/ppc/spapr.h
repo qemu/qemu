@@ -63,7 +63,6 @@ struct sPAPRMachineState {
     uint32_t htab_shift;
     hwaddr rma_size;
     int vrma_adjust;
-    hwaddr fdt_addr, rtas_addr;
     ssize_t rtas_size;
     void *rtas_blob;
     void *fdt_skel;
