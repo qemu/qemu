@@ -46,6 +46,7 @@
 #include "hw/ppc/spapr_drc.h"
 #include "qemu/cutils.h"
 #include "trace.h"
+#include "hw/ppc/fdt.h"
 
 static sPAPRConfigureConnectorState *spapr_ccs_find(sPAPRMachineState *spapr,
                                                     uint32_t drc_index)
@@ -710,16 +711,9 @@ void spapr_rtas_register(int token, const char *name, spapr_rtas_fn fn)
     rtas_table[token].fn = fn;
 }
 
-int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
-                                 hwaddr rtas_size)
+void spapr_dt_rtas_tokens(void *fdt, int rtas)
 {
-    int ret;
     int i;
-    uint32_t lrdr_capacity[5];
-    MachineState *machine = MACHINE(qdev_get_machine());
-    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
-    uint64_t max_hotplug_addr = spapr->hotplug_memory.base +
-                                memory_region_size(&spapr->hotplug_memory.mr);
 
     for (i = 0; i < RTAS_TOKEN_MAX - RTAS_TOKEN_BASE; i++) {
         struct rtas_call *call = &rtas_table[i];
@@ -728,29 +722,8 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
             continue;
         }
 
-        ret = qemu_fdt_setprop_cell(fdt, "/rtas", call->name,
-                                    i + RTAS_TOKEN_BASE);
-        if (ret < 0) {
-            error_report("Couldn't add rtas token for %s: %s",
-                    call->name, fdt_strerror(ret));
-            return ret;
-        }
-
+        _FDT(fdt_setprop_cell(fdt, rtas, call->name, i + RTAS_TOKEN_BASE));
     }
-
-    lrdr_capacity[0] = cpu_to_be32(max_hotplug_addr >> 32);
-    lrdr_capacity[1] = cpu_to_be32(max_hotplug_addr & 0xffffffff);
-    lrdr_capacity[2] = 0;
-    lrdr_capacity[3] = cpu_to_be32(SPAPR_MEMORY_BLOCK_SIZE);
-    lrdr_capacity[4] = cpu_to_be32(max_cpus/smp_threads);
-    ret = qemu_fdt_setprop(fdt, "/rtas", "ibm,lrdr-capacity", lrdr_capacity,
-                     sizeof(lrdr_capacity));
-    if (ret < 0) {
-        error_report("Couldn't add ibm,lrdr-capacity rtas property");
-        return ret;
-    }
-
-    return 0;
 }
 
 void spapr_load_rtas(sPAPRMachineState *spapr, void *fdt, hwaddr addr)
