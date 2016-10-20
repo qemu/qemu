@@ -16,7 +16,8 @@
 #include "cpu.h"
 
 struct IplBlockCcw {
-    uint8_t  reserved0[85];
+    uint64_t netboot_start_addr;
+    uint8_t  reserved0[77];
     uint8_t  ssid;
     uint16_t devno;
     uint8_t  vm_flags;
@@ -100,6 +101,7 @@ struct S390IPLState {
     IplParameterBlock iplb;
     bool iplb_valid;
     bool reipl_requested;
+    bool netboot;
 
     /*< public >*/
     char *kernel;
