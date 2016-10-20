@@ -328,27 +328,6 @@ static void *spapr_create_fdt_skel(sPAPRMachineState *spapr)
 
     _FDT((fdt_end_node(fdt)));
 
-    /* /hypervisor node */
-    if (kvm_enabled()) {
-        uint8_t hypercall[16];
-
-        /* indicate KVM hypercall interface */
-        _FDT((fdt_begin_node(fdt, "hypervisor")));
-        _FDT((fdt_property_string(fdt, "compatible", "linux,kvm")));
-        if (kvmppc_has_cap_fixup_hcalls()) {
-            /*
-             * Older KVM versions with older guest kernels were broken with the
-             * magic page, don't allow the guest to map it.
-             */
-            if (!kvmppc_get_hypercall(first_cpu->env_ptr, hypercall,
-                                      sizeof(hypercall))) {
-                _FDT((fdt_property(fdt, "hcall-instructions", hypercall,
-                                   sizeof(hypercall))));
-            }
-        }
-        _FDT((fdt_end_node(fdt)));
-    }
-
     _FDT((fdt_end_node(fdt))); /* close root node */
     _FDT((fdt_finish(fdt)));
 
@@ -916,6 +895,29 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
     g_free(bootlist);
 }
 
+static void spapr_dt_hypervisor(sPAPRMachineState *spapr, void *fdt)
+{
+    /* The /hypervisor node isn't in PAPR - this is a hack to allow PR
+     * KVM to work under pHyp with some guest co-operation */
+    int hypervisor;
+    uint8_t hypercall[16];
+
+    _FDT(hypervisor = fdt_add_subnode(fdt, 0, "hypervisor"));
+    /* indicate KVM hypercall interface */
+    _FDT(fdt_setprop_string(fdt, hypervisor, "compatible", "linux,kvm"));
+    if (kvmppc_has_cap_fixup_hcalls()) {
+        /*
+         * Older KVM versions with older guest kernels were broken
+         * with the magic page, don't allow the guest to map it.
+         */
+        if (!kvmppc_get_hypercall(first_cpu->env_ptr, hypercall,
+                                  sizeof(hypercall))) {
+            _FDT(fdt_setprop(fdt, hypervisor, "hcall-instructions",
+                             hypercall, sizeof(hypercall)));
+        }
+    }
+}
+
 static void *spapr_build_fdt(sPAPRMachineState *spapr,
                              hwaddr rtas_addr,
                              hwaddr rtas_size)
@@ -988,6 +990,11 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
 
     /* /chosen */
     spapr_dt_chosen(spapr, fdt);
+
+    /* /hypervisor */
+    if (kvm_enabled()) {
+        spapr_dt_hypervisor(spapr, fdt);
+    }
 
     /* Build memory reserve map */
     if (spapr->kernel_size) {
