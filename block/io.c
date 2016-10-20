@@ -2518,43 +2518,6 @@ out:
     return co.ret;
 }
 
-typedef struct {
-    BlockDriverState *bs;
-    int req;
-    void *buf;
-    int ret;
-} BdrvIoctlCoData;
-
-static void coroutine_fn bdrv_co_ioctl_entry(void *opaque)
-{
-    BdrvIoctlCoData *data = opaque;
-    data->ret = bdrv_co_ioctl(data->bs, data->req, data->buf);
-}
-
-/* needed for generic scsi interface */
-int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
-{
-    BdrvIoctlCoData data = {
-        .bs = bs,
-        .req = req,
-        .buf = buf,
-        .ret = -EINPROGRESS,
-    };
-
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_co_ioctl_entry(&data);
-    } else {
-        Coroutine *co = qemu_coroutine_create(bdrv_co_ioctl_entry, &data);
-
-        qemu_coroutine_enter(co);
-        while (data.ret == -EINPROGRESS) {
-            aio_poll(bdrv_get_aio_context(bs), true);
-        }
-    }
-    return data.ret;
-}
-
 static void coroutine_fn bdrv_co_aio_ioctl_entry(void *opaque)
 {
     BlockAIOCBCoroutine *acb = opaque;

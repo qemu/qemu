@@ -319,7 +319,6 @@ void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
 /* sg packet commands */
 int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf);
-int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);
 BlockAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockCompletionFunc *cb, void *opaque);
