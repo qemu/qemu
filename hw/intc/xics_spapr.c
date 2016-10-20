@@ -32,6 +32,7 @@
 #include "qemu/timer.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/fdt.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"
 
@@ -447,6 +448,27 @@ void xics_spapr_free(XICSState *xics, int irq, int num)
         trace_xics_ics_free(0, irq, num);
         ics_free(ics, irq - ics->offset, num);
     }
+}
+
+void spapr_dt_xics(XICSState *xics, void *fdt, uint32_t phandle)
+{
+    uint32_t interrupt_server_ranges_prop[] = {
+        0, cpu_to_be32(xics->nr_servers),
+    };
+    int node;
+
+    _FDT(node = fdt_add_subnode(fdt, 0, "interrupt-controller"));
+
+    _FDT(fdt_setprop_string(fdt, node, "device_type",
+                            "PowerPC-External-Interrupt-Presentation"));
+    _FDT(fdt_setprop_string(fdt, node, "compatible", "IBM,ppc-xicp"));
+    _FDT(fdt_setprop(fdt, node, "interrupt-controller", NULL, 0));
+    _FDT(fdt_setprop(fdt, node, "ibm,interrupt-server-ranges",
+                     interrupt_server_ranges_prop,
+                     sizeof(interrupt_server_ranges_prop)));
+    _FDT(fdt_setprop_cell(fdt, node, "#interrupt-cells", 2));
+    _FDT(fdt_setprop_cell(fdt, node, "linux,phandle", phandle));
+    _FDT(fdt_setprop_cell(fdt, node, "phandle", phandle));
 }
 
 static void xics_spapr_register_types(void)

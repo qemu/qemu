@@ -280,7 +280,6 @@ static void *spapr_create_fdt_skel(sPAPRMachineState *spapr)
     GString *hypertas = g_string_sized_new(256);
     GString *qemu_hypertas = g_string_sized_new(256);
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
-    uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(max_cpus)};
     unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
     char *buf;
 
@@ -399,22 +398,6 @@ static void *spapr_create_fdt_skel(sPAPRMachineState *spapr)
      * rtas call return will always occur. Set this property.
      */
     _FDT((fdt_property(fdt, "ibm,extended-os-term", NULL, 0)));
-
-    _FDT((fdt_end_node(fdt)));
-
-    /* interrupt controller */
-    _FDT((fdt_begin_node(fdt, "interrupt-controller")));
-
-    _FDT((fdt_property_string(fdt, "device_type",
-                              "PowerPC-External-Interrupt-Presentation")));
-    _FDT((fdt_property_string(fdt, "compatible", "IBM,ppc-xicp")));
-    _FDT((fdt_property(fdt, "interrupt-controller", NULL, 0)));
-    _FDT((fdt_property(fdt, "ibm,interrupt-server-ranges",
-                       interrupt_server_ranges_prop,
-                       sizeof(interrupt_server_ranges_prop))));
-    _FDT((fdt_property_cell(fdt, "#interrupt-cells", 2)));
-    _FDT((fdt_property_cell(fdt, "linux,phandle", PHANDLE_XICP)));
-    _FDT((fdt_property_cell(fdt, "phandle", PHANDLE_XICP)));
 
     _FDT((fdt_end_node(fdt)));
 
@@ -908,6 +891,9 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
 
     /* open out the base tree into a temp buffer for the final tweaks */
     _FDT((fdt_open_into(spapr->fdt_skel, fdt, FDT_MAX_SIZE)));
+
+    /* /interrupt controller */
+    spapr_dt_xics(spapr->xics, fdt, PHANDLE_XICP);
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
