@@ -271,57 +271,6 @@ static void add_str(GString *s, const gchar *s1)
     g_string_append_len(s, s1, strlen(s1) + 1);
 }
 
-static void *spapr_create_fdt_skel(sPAPRMachineState *spapr)
-{
-    void *fdt;
-    char *buf;
-
-    fdt = g_malloc0(FDT_MAX_SIZE);
-    _FDT((fdt_create(fdt, FDT_MAX_SIZE)));
-
-    _FDT((fdt_finish_reservemap(fdt)));
-
-    /* Root node */
-    _FDT((fdt_begin_node(fdt, "")));
-    _FDT((fdt_property_string(fdt, "device_type", "chrp")));
-    _FDT((fdt_property_string(fdt, "model", "IBM pSeries (emulated by qemu)")));
-    _FDT((fdt_property_string(fdt, "compatible", "qemu,pseries")));
-
-    /*
-     * Add info to guest to indentify which host is it being run on
-     * and what is the uuid of the guest
-     */
-    if (kvmppc_get_host_model(&buf)) {
-        _FDT((fdt_property_string(fdt, "host-model", buf)));
-        g_free(buf);
-    }
-    if (kvmppc_get_host_serial(&buf)) {
-        _FDT((fdt_property_string(fdt, "host-serial", buf)));
-        g_free(buf);
-    }
-
-    buf = qemu_uuid_unparse_strdup(&qemu_uuid);
-
-    _FDT((fdt_property_string(fdt, "vm,uuid", buf)));
-    if (qemu_uuid_set) {
-        _FDT((fdt_property_string(fdt, "system-id", buf)));
-    }
-    g_free(buf);
-
-    if (qemu_get_vm_name()) {
-        _FDT((fdt_property_string(fdt, "ibm,partition-name",
-                                  qemu_get_vm_name())));
-    }
-
-    _FDT((fdt_property_cell(fdt, "#address-cells", 0x2)));
-    _FDT((fdt_property_cell(fdt, "#size-cells", 0x2)));
-
-    _FDT((fdt_end_node(fdt))); /* close root node */
-    _FDT((fdt_finish(fdt)));
-
-    return fdt;
-}
-
 static int spapr_populate_memory_node(void *fdt, int nodeid, hwaddr start,
                                        hwaddr size)
 {
@@ -916,11 +865,44 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     int ret;
     void *fdt;
     sPAPRPHBState *phb;
+    char *buf;
 
-    fdt = g_malloc(FDT_MAX_SIZE);
+    fdt = g_malloc0(FDT_MAX_SIZE);
+    _FDT((fdt_create_empty_tree(fdt, FDT_MAX_SIZE)));
 
-    /* open out the base tree into a temp buffer for the final tweaks */
-    _FDT((fdt_open_into(spapr->fdt_skel, fdt, FDT_MAX_SIZE)));
+    /* Root node */
+    _FDT(fdt_setprop_string(fdt, 0, "device_type", "chrp"));
+    _FDT(fdt_setprop_string(fdt, 0, "model", "IBM pSeries (emulated by qemu)"));
+    _FDT(fdt_setprop_string(fdt, 0, "compatible", "qemu,pseries"));
+
+    /*
+     * Add info to guest to indentify which host is it being run on
+     * and what is the uuid of the guest
+     */
+    if (kvmppc_get_host_model(&buf)) {
+        _FDT(fdt_setprop_string(fdt, 0, "host-model", buf));
+        g_free(buf);
+    }
+    if (kvmppc_get_host_serial(&buf)) {
+        _FDT(fdt_setprop_string(fdt, 0, "host-serial", buf));
+        g_free(buf);
+    }
+
+    buf = qemu_uuid_unparse_strdup(&qemu_uuid);
+
+    _FDT(fdt_setprop_string(fdt, 0, "vm,uuid", buf));
+    if (qemu_uuid_set) {
+        _FDT(fdt_setprop_string(fdt, 0, "system-id", buf));
+    }
+    g_free(buf);
+
+    if (qemu_get_vm_name()) {
+        _FDT(fdt_setprop_string(fdt, 0, "ibm,partition-name",
+                                qemu_get_vm_name()));
+    }
+
+    _FDT(fdt_setprop_cell(fdt, 0, "#address-cells", 2));
+    _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
     spapr_dt_xics(spapr->xics, fdt, PHANDLE_XICP);
@@ -2013,10 +1995,6 @@ static void ppc_spapr_init(MachineState *machine)
     vmstate_register(NULL, 0, &vmstate_spapr, spapr);
     register_savevm_live(NULL, "spapr/htab", -1, 1,
                          &savevm_htab_handlers, spapr);
-
-    /* Prepare the device tree */
-    spapr->fdt_skel = spapr_create_fdt_skel(spapr);
-    assert(spapr->fdt_skel != NULL);
 
     /* used by RTAS */
     QTAILQ_INIT(&spapr->ccs_list);

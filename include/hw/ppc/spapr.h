@@ -69,7 +69,6 @@ struct sPAPRMachineState {
     bool kernel_le;
     uint32_t initrd_base;
     long initrd_size;
-    void *fdt_skel;
     uint64_t rtc_offset; /* Now used only during incoming migration */
     struct PPCTimebase tb;
     bool has_graphics;
