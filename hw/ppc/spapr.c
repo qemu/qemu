@@ -301,14 +301,6 @@ static void *spapr_create_fdt_skel(sPAPRMachineState *spapr)
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create(fdt, FDT_MAX_SIZE)));
 
-    if (spapr->kernel_size) {
-        _FDT((fdt_add_reservemap_entry(fdt, KERNEL_LOAD_ADDR,
-                                       spapr->kernel_size)));
-    }
-    if (spapr->initrd_size) {
-        _FDT((fdt_add_reservemap_entry(fdt, spapr->initrd_base,
-                                       spapr->initrd_size)));
-    }
     _FDT((fdt_finish_reservemap(fdt)));
 
     /* Root node */
@@ -997,6 +989,15 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     }
 
     g_free(bootlist);
+
+    /* Build memory reserve map */
+    if (spapr->kernel_size) {
+        _FDT((fdt_add_mem_rsv(fdt, KERNEL_LOAD_ADDR, spapr->kernel_size)));
+    }
+    if (spapr->initrd_size) {
+        _FDT((fdt_add_mem_rsv(fdt, spapr->initrd_base, spapr->initrd_size)));
+    }
+
     return fdt;
 }
 
