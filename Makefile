@@ -695,7 +695,7 @@ help:
 	@echo  ''
 ifdef CONFIG_WIN32
 	@echo  'Windows targets:'
-	@echo  '  installer       - Build NSIS-based installer for qemu-ga'
+	@echo  '  installer       - Build NSIS-based installer for QEMU'
 ifdef QEMU_GA_MSI_ENABLED
 	@echo  '  msi             - Build MSI-based installer for qemu-ga'
 endif
