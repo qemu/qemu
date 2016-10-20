@@ -596,7 +596,7 @@ AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)
 }
 #endif
 
-void cpu_exec_exit(CPUState *cpu)
+void cpu_exec_unrealizefn(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 

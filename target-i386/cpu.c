@@ -3356,6 +3356,8 @@ out:
 static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
 {
     X86CPU *cpu = X86_CPU(dev);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
+    Error *local_err = NULL;
 
 #ifndef CONFIG_USER_ONLY
     cpu_remove_sync(CPU(dev));
@@ -3365,6 +3367,12 @@ static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
     if (cpu->apic_state) {
         object_unparent(OBJECT(cpu->apic_state));
         cpu->apic_state = NULL;
+    }
+
+    xcc->parent_unrealize(dev, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
     }
 }
 
@@ -3640,6 +3648,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     xcc->parent_realize = dc->realize;
+    xcc->parent_unrealize = dc->unrealize;
     dc->realize = x86_cpu_realizefn;
     dc->unrealize = x86_cpu_unrealizefn;
     dc->props = x86_cpu_properties;

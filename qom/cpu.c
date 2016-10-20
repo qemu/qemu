@@ -345,6 +345,12 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
     trace_init_vcpu(cpu);
 }
 
+static void cpu_common_unrealizefn(DeviceState *dev, Error **errp)
+{
+    CPUState *cpu = CPU(dev);
+    cpu_exec_unrealizefn(cpu);
+}
+
 static void cpu_common_initfn(Object *obj)
 {
     CPUState *cpu = CPU(obj);
@@ -369,7 +375,6 @@ static void cpu_common_initfn(Object *obj)
 static void cpu_common_finalize(Object *obj)
 {
     CPUState *cpu = CPU(obj);
-    cpu_exec_exit(cpu);
     g_free(cpu->trace_dstate);
 }
 
@@ -403,6 +408,7 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     k->cpu_exec_exit = cpu_common_noop;
     k->cpu_exec_interrupt = cpu_common_exec_interrupt;
     dc->realize = cpu_common_realizefn;
+    dc->unrealize = cpu_common_unrealizefn;
     /*
      * Reason: CPUs still need special care by board code: wiring up
      * IRQs, adding reset handlers, halting non-first CPUs, ...
