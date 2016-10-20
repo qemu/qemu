@@ -36,6 +36,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/fdt.h"
 #include "trace.h"
 
 #include <libfdt.h>
@@ -624,11 +625,21 @@ static int compare_reg(const void *p1, const void *p2)
     return 1;
 }
 
-int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt)
+void spapr_dt_vdevice(VIOsPAPRBus *bus, void *fdt)
 {
     DeviceState *qdev, **qdevs;
     BusChild *kid;
     int i, num, ret = 0;
+    int node;
+
+    _FDT(node = fdt_add_subnode(fdt, 0, "vdevice"));
+
+    _FDT(fdt_setprop_string(fdt, node, "device_type", "vdevice"));
+    _FDT(fdt_setprop_string(fdt, node, "compatible", "IBM,vdevice"));
+    _FDT(fdt_setprop_cell(fdt, node, "#address-cells", 1));
+    _FDT(fdt_setprop_cell(fdt, node, "#size-cells", 0));
+    _FDT(fdt_setprop_cell(fdt, node, "#interrupt-cells", 2));
+    _FDT(fdt_setprop(fdt, node, "interrupt-controller", NULL, 0));
 
     /* Count qdevs on the bus list */
     num = 0;
@@ -650,19 +661,17 @@ int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt)
      * to know that will mean they are in forward order in the tree. */
     for (i = num - 1; i >= 0; i--) {
         VIOsPAPRDevice *dev = (VIOsPAPRDevice *)(qdevs[i]);
+        VIOsPAPRDeviceClass *vdc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
 
         ret = vio_make_devnode(dev, fdt);
-
         if (ret < 0) {
-            goto out;
+            error_report("Couldn't create device node /vdevice/%s@%"PRIx32,
+                         vdc->dt_name, dev->reg);
+            exit(1);
         }
     }
 
-    ret = 0;
-out:
     g_free(qdevs);
-
-    return ret;
 }
 
 gchar *spapr_vio_stdout_path(VIOsPAPRBus *bus)

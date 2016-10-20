@@ -316,18 +316,6 @@ static void *spapr_create_fdt_skel(sPAPRMachineState *spapr)
     _FDT((fdt_property_cell(fdt, "#address-cells", 0x2)));
     _FDT((fdt_property_cell(fdt, "#size-cells", 0x2)));
 
-    /* vdevice */
-    _FDT((fdt_begin_node(fdt, "vdevice")));
-
-    _FDT((fdt_property_string(fdt, "device_type", "vdevice")));
-    _FDT((fdt_property_string(fdt, "compatible", "IBM,vdevice")));
-    _FDT((fdt_property_cell(fdt, "#address-cells", 0x1)));
-    _FDT((fdt_property_cell(fdt, "#size-cells", 0x0)));
-    _FDT((fdt_property_cell(fdt, "#interrupt-cells", 0x2)));
-    _FDT((fdt_property(fdt, "interrupt-controller", NULL, 0)));
-
-    _FDT((fdt_end_node(fdt)));
-
     _FDT((fdt_end_node(fdt))); /* close root node */
     _FDT((fdt_finish(fdt)));
 
@@ -943,11 +931,8 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
         exit(1);
     }
 
-    ret = spapr_populate_vdevice(spapr->vio_bus, fdt);
-    if (ret < 0) {
-        error_report("couldn't setup vio devices in fdt");
-        exit(1);
-    }
+    /* /vdevice */
+    spapr_dt_vdevice(spapr->vio_bus, fdt);
 
     if (object_resolve_path_type("", TYPE_SPAPR_RNG, NULL)) {
         ret = spapr_rng_populate_dt(fdt);
