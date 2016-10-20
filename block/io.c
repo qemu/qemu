@@ -2502,17 +2502,21 @@ int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf)
     BlockAIOCB *acb;
 
     tracked_request_begin(&tracked_req, bs, 0, 0, BDRV_TRACKED_IOCTL);
-    if (!drv || !drv->bdrv_aio_ioctl) {
+    if (!drv || (!drv->bdrv_aio_ioctl && !drv->bdrv_co_ioctl)) {
         co.ret = -ENOTSUP;
         goto out;
     }
 
-    acb = drv->bdrv_aio_ioctl(bs, req, buf, bdrv_co_io_em_complete, &co);
-    if (!acb) {
-        co.ret = -ENOTSUP;
-        goto out;
+    if (drv->bdrv_co_ioctl) {
+        co.ret = drv->bdrv_co_ioctl(bs, req, buf);
+    } else {
+        acb = drv->bdrv_aio_ioctl(bs, req, buf, bdrv_co_io_em_complete, &co);
+        if (!acb) {
+            co.ret = -ENOTSUP;
+            goto out;
+        }
+        qemu_coroutine_yield();
     }
-    qemu_coroutine_yield();
 out:
     tracked_request_end(&tracked_req);
     return co.ret;
