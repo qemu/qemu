@@ -610,11 +610,8 @@ void cpu_exec_exit(CPUState *cpu)
     }
 }
 
-void cpu_exec_init(CPUState *cpu, Error **errp)
+void cpu_exec_initfn(CPUState *cpu)
 {
-    CPUClass *cc ATTRIBUTE_UNUSED = CPU_GET_CLASS(cpu);
-    Error *local_err ATTRIBUTE_UNUSED = NULL;
-
     cpu->as = NULL;
     cpu->num_ases = 0;
 
@@ -635,6 +632,11 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
     cpu->memory = system_memory;
     object_ref(OBJECT(cpu->memory));
 #endif
+}
+
+void cpu_exec_init(CPUState *cpu, Error **errp)
+{
+    CPUClass *cc ATTRIBUTE_UNUSED = CPU_GET_CLASS(cpu);
 
     cpu_list_add(cpu);
 

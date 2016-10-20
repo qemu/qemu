@@ -362,6 +362,8 @@ static void cpu_common_initfn(Object *obj)
     QTAILQ_INIT(&cpu->watchpoints);
 
     cpu->trace_dstate = bitmap_new(trace_get_vcpu_event_count());
+
+    cpu_exec_initfn(cpu);
 }
 
 static void cpu_common_finalize(Object *obj)

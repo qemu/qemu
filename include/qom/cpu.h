@@ -946,6 +946,7 @@ AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx);
 
 void QEMU_NORETURN cpu_abort(CPUState *cpu, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
+void cpu_exec_initfn(CPUState *cpu);
 void cpu_exec_exit(CPUState *cpu);
 
 #ifdef CONFIG_SOFTMMU
