@@ -106,6 +106,7 @@ struct S390IPLState {
     char *initrd;
     char *cmdline;
     char *firmware;
+    char *netboot_fw;
     uint8_t cssid;
     uint8_t ssid;
     uint16_t devno;

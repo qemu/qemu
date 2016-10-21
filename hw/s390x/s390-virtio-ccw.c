@@ -116,7 +116,8 @@ static void ccw_init(MachineState *machine)
     /* get a BUS */
     css_bus = virtual_css_bus_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
-                      machine->initrd_filename, "s390-ccw.img", true);
+                      machine->initrd_filename, "s390-ccw.img",
+                      "s390-netboot.img", true);
     s390_flic_init();
 
     dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
