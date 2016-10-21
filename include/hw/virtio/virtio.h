@@ -152,9 +152,6 @@ typedef void (*VirtIOHandleOutput)(VirtIODevice *, VirtQueue *);
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             VirtIOHandleOutput handle_output);
 
-VirtQueue *virtio_add_queue_aio(VirtIODevice *vdev, int queue_size,
-                                VirtIOHandleOutput handle_output);
-
 void virtio_del_queue(VirtIODevice *vdev, int n);
 
 void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num);

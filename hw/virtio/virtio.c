@@ -97,7 +97,6 @@ struct VirtQueue
     uint16_t vector;
     VirtIOHandleOutput handle_output;
     VirtIOHandleOutput handle_aio_output;
-    bool use_aio;
     VirtIODevice *vdev;
     EventNotifier guest_notifier;
     EventNotifier host_notifier;
@@ -1287,9 +1286,8 @@ void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector)
     }
 }
 
-static VirtQueue *virtio_add_queue_internal(VirtIODevice *vdev, int queue_size,
-                                            VirtIOHandleOutput handle_output,
-                                            bool use_aio)
+VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
+                            VirtIOHandleOutput handle_output)
 {
     int i;
 
@@ -1306,26 +1304,8 @@ static VirtQueue *virtio_add_queue_internal(VirtIODevice *vdev, int queue_size,
     vdev->vq[i].vring.align = VIRTIO_PCI_VRING_ALIGN;
     vdev->vq[i].handle_output = handle_output;
     vdev->vq[i].handle_aio_output = NULL;
-    vdev->vq[i].use_aio = use_aio;
 
     return &vdev->vq[i];
-}
-
-/* Add a virt queue and mark AIO.
- * An AIO queue will use the AioContext based event interface instead of the
- * default IOHandler and EventNotifier interface.
- */
-VirtQueue *virtio_add_queue_aio(VirtIODevice *vdev, int queue_size,
-                                VirtIOHandleOutput handle_output)
-{
-    return virtio_add_queue_internal(vdev, queue_size, handle_output, true);
-}
-
-/* Add a normal virt queue (on the contrary to the AIO version above. */
-VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
-                            VirtIOHandleOutput handle_output)
-{
-    return virtio_add_queue_internal(vdev, queue_size, handle_output, false);
 }
 
 void virtio_del_queue(VirtIODevice *vdev, int n)
@@ -2073,21 +2053,11 @@ static void virtio_queue_host_notifier_read(EventNotifier *n)
 void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign,
                                                bool set_handler)
 {
-    AioContext *ctx = qemu_get_aio_context();
     if (assign && set_handler) {
-        if (vq->use_aio) {
-            aio_set_event_notifier(ctx, &vq->host_notifier, true,
+        event_notifier_set_handler(&vq->host_notifier, true,
                                    virtio_queue_host_notifier_read);
-        } else {
-            event_notifier_set_handler(&vq->host_notifier, true,
-                                       virtio_queue_host_notifier_read);
-        }
     } else {
-        if (vq->use_aio) {
-            aio_set_event_notifier(ctx, &vq->host_notifier, true, NULL);
-        } else {
-            event_notifier_set_handler(&vq->host_notifier, true, NULL);
-        }
+        event_notifier_set_handler(&vq->host_notifier, true, NULL);
     }
     if (!assign) {
         /* Test and clear notifier before after disabling event,
