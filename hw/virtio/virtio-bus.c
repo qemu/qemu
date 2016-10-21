@@ -153,8 +153,8 @@ void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
  * assign: register/deregister ioeventfd with the kernel
  * set_handler: use the generic ioeventfd handler
  */
-static int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
-                                      int n, bool assign, bool set_handler)
+int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
+                               int n, bool assign, bool set_handler)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
@@ -185,61 +185,41 @@ static int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
     return r;
 }
 
-void virtio_bus_start_ioeventfd(VirtioBusState *bus)
+int virtio_bus_start_ioeventfd(VirtioBusState *bus)
 {
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
     DeviceState *proxy = DEVICE(BUS(bus)->parent);
-    VirtIODevice *vdev;
-    int n, r;
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    int r;
 
     if (!k->ioeventfd_assign || k->ioeventfd_disabled(proxy)) {
-        return;
+        return -ENOSYS;
     }
     if (bus->ioeventfd_started || bus->ioeventfd_disabled) {
-        return;
+        return 0;
     }
-    vdev = virtio_bus_get_device(bus);
-    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
-        if (!virtio_queue_get_num(vdev, n)) {
-            continue;
-        }
-        r = set_host_notifier_internal(proxy, bus, n, true, true);
-        if (r < 0) {
-            goto assign_error;
-        }
+    r = vdc->start_ioeventfd(vdev);
+    if (r < 0) {
+        error_report("%s: failed. Fallback to userspace (slower).", __func__);
+        return r;
     }
     bus->ioeventfd_started = true;
-    return;
-
-assign_error:
-    while (--n >= 0) {
-        if (!virtio_queue_get_num(vdev, n)) {
-            continue;
-        }
-
-        r = set_host_notifier_internal(proxy, bus, n, false, false);
-        assert(r >= 0);
-    }
-    error_report("%s: failed. Fallback to userspace (slower).", __func__);
+    return 0;
 }
 
 void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
 {
-    DeviceState *proxy = DEVICE(BUS(bus)->parent);
     VirtIODevice *vdev;
-    int n, r;
+    VirtioDeviceClass *vdc;
 
     if (!bus->ioeventfd_started) {
         return;
     }
+
     vdev = virtio_bus_get_device(bus);
-    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
-        if (!virtio_queue_get_num(vdev, n)) {
-            continue;
-        }
-        r = set_host_notifier_internal(proxy, bus, n, false, false);
-        assert(r >= 0);
-    }
+    vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    vdc->stop_ioeventfd(vdev);
     bus->ioeventfd_started = false;
 }
 

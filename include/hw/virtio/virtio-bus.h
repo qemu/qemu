@@ -132,10 +132,15 @@ static inline VirtIODevice *virtio_bus_get_device(VirtioBusState *bus)
 }
 
 /* Start the ioeventfd. */
-void virtio_bus_start_ioeventfd(VirtioBusState *bus);
+int virtio_bus_start_ioeventfd(VirtioBusState *bus);
 /* Stop the ioeventfd. */
 void virtio_bus_stop_ioeventfd(VirtioBusState *bus);
 /* Switch from/to the generic ioeventfd handler */
 int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign);
+
+/* This is temporary.  It is only needed because virtio_bus_set_host_notifier
+ * sets ioeventfd_disabled but we will shortly get rid of it.  */
+int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
+                               int n, bool assign, bool set_handler);
 
 #endif /* VIRTIO_BUS_H */

@@ -2172,15 +2172,79 @@ static Property virtio_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int virtio_device_start_ioeventfd_impl(VirtIODevice *vdev)
+{
+    VirtioBusState *qbus = VIRTIO_BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    DeviceState *proxy = DEVICE(BUS(qbus)->parent);
+    int n, r, err;
+
+    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+        if (!virtio_queue_get_num(vdev, n)) {
+            continue;
+        }
+        r = set_host_notifier_internal(proxy, qbus, n, true, true);
+        if (r < 0) {
+            err = r;
+            goto assign_error;
+        }
+    }
+    return 0;
+
+assign_error:
+    while (--n >= 0) {
+        if (!virtio_queue_get_num(vdev, n)) {
+            continue;
+        }
+
+        r = set_host_notifier_internal(proxy, qbus, n, false, false);
+        assert(r >= 0);
+    }
+    return err;
+}
+
+int virtio_device_start_ioeventfd(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+
+    return virtio_bus_start_ioeventfd(vbus);
+}
+
+static void virtio_device_stop_ioeventfd_impl(VirtIODevice *vdev)
+{
+    VirtioBusState *qbus = VIRTIO_BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    DeviceState *proxy = DEVICE(BUS(qbus)->parent);
+    int n, r;
+
+    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+        if (!virtio_queue_get_num(vdev, n)) {
+            continue;
+        }
+        r = set_host_notifier_internal(proxy, qbus, n, false, false);
+        assert(r >= 0);
+    }
+}
+
+void virtio_device_stop_ioeventfd(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+
+    virtio_bus_stop_ioeventfd(vbus);
+}
+
 static void virtio_device_class_init(ObjectClass *klass, void *data)
 {
     /* Set the default value here. */
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = virtio_device_realize;
     dc->unrealize = virtio_device_unrealize;
     dc->bus_type = TYPE_VIRTIO_BUS;
     dc->props = virtio_properties;
+    vdc->start_ioeventfd = virtio_device_start_ioeventfd_impl;
+    vdc->stop_ioeventfd = virtio_device_stop_ioeventfd_impl;
 }
 
 static const TypeInfo virtio_device_info = {
