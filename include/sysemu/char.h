@@ -96,7 +96,6 @@ struct CharDriverState {
     char *filename;
     int logfd;
     int be_open;
-    int is_mux;
     guint fd_in_tag;
     bool replay;
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
@@ -455,7 +454,19 @@ void qemu_chr_be_generic_open(CharDriverState *s);
 void qemu_chr_fe_accept_input(CharBackend *be);
 int qemu_chr_add_client(CharDriverState *s, int fd);
 CharDriverState *qemu_chr_find(const char *name);
-bool chr_is_ringbuf(const CharDriverState *chr);
+
+/**
+ * @qemu_chr_get_kind:
+ *
+ * Returns the kind of char backend, or -1 if unspecified.
+ */
+ChardevBackendKind qemu_chr_get_kind(const CharDriverState *chr);
+
+static inline bool qemu_chr_is_ringbuf(const CharDriverState *chr)
+{
+    return qemu_chr_get_kind(chr) == CHARDEV_BACKEND_KIND_RINGBUF ||
+        qemu_chr_get_kind(chr) == CHARDEV_BACKEND_KIND_MEMORY;
+}
 
 bool qemu_chr_has_feature(CharDriverState *chr,
                           CharDriverFeature feature);
