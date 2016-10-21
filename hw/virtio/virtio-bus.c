@@ -163,19 +163,22 @@ static int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
                          __func__, strerror(-r), r);
             return r;
         }
-        virtio_queue_set_host_notifier_fd_handler(vq, true, false);
-        r = k->ioeventfd_assign(proxy, notifier, n, assign);
+        r = k->ioeventfd_assign(proxy, notifier, n, true);
         if (r < 0) {
             error_report("%s: unable to assign ioeventfd: %d", __func__, r);
-            virtio_queue_set_host_notifier_fd_handler(vq, false, false);
-            event_notifier_cleanup(notifier);
-            return r;
+            goto cleanup_event_notifier;
         }
+        return 0;
     } else {
-        k->ioeventfd_assign(proxy, notifier, n, assign);
-        virtio_queue_set_host_notifier_fd_handler(vq, false, false);
-        event_notifier_cleanup(notifier);
+        k->ioeventfd_assign(proxy, notifier, n, false);
     }
+
+cleanup_event_notifier:
+    /* Test and clear notifier after disabling event,
+     * in case poll callback didn't have time to run.
+     */
+    virtio_queue_host_notifier_read(notifier);
+    event_notifier_cleanup(notifier);
     return r;
 }
 

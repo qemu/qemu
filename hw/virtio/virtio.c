@@ -2042,27 +2042,11 @@ void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
     }
 }
 
-static void virtio_queue_host_notifier_read(EventNotifier *n)
+void virtio_queue_host_notifier_read(EventNotifier *n)
 {
     VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
     if (event_notifier_test_and_clear(n)) {
         virtio_queue_notify_vq(vq);
-    }
-}
-
-void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign,
-                                               bool set_handler)
-{
-    if (assign && set_handler) {
-        event_notifier_set_handler(&vq->host_notifier, true,
-                                   virtio_queue_host_notifier_read);
-    } else {
-        event_notifier_set_handler(&vq->host_notifier, true, NULL);
-    }
-    if (!assign) {
-        /* Test and clear notifier before after disabling event,
-         * in case poll callback didn't have time to run. */
-        virtio_queue_host_notifier_read(&vq->host_notifier);
     }
 }
 
@@ -2148,6 +2132,7 @@ static int virtio_device_start_ioeventfd_impl(VirtIODevice *vdev)
     int n, r, err;
 
     for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+        VirtQueue *vq = &vdev->vq[n];
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
@@ -2156,7 +2141,8 @@ static int virtio_device_start_ioeventfd_impl(VirtIODevice *vdev)
             err = r;
             goto assign_error;
         }
-        virtio_queue_set_host_notifier_fd_handler(&vdev->vq[n], true, true);
+        event_notifier_set_handler(&vq->host_notifier, true,
+                                   virtio_queue_host_notifier_read);
     }
 
     for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
@@ -2171,10 +2157,12 @@ static int virtio_device_start_ioeventfd_impl(VirtIODevice *vdev)
 
 assign_error:
     while (--n >= 0) {
+        VirtQueue *vq = &vdev->vq[n];
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
 
+        event_notifier_set_handler(&vq->host_notifier, true, NULL);
         r = virtio_bus_set_host_notifier(qbus, n, false);
         assert(r >= 0);
     }
@@ -2195,9 +2183,12 @@ static void virtio_device_stop_ioeventfd_impl(VirtIODevice *vdev)
     int n, r;
 
     for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+        VirtQueue *vq = &vdev->vq[n];
+
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
+        event_notifier_set_handler(&vq->host_notifier, true, NULL);
         r = virtio_bus_set_host_notifier(qbus, n, false);
         assert(r >= 0);
     }
