@@ -69,6 +69,8 @@ typedef enum {
     /* Whether it is possible to send/recv file descriptors
      * over the data channel */
     QEMU_CHAR_FEATURE_FD_PASS,
+    /* Whether replay or record mode is enabled */
+    QEMU_CHAR_FEATURE_REPLAY,
 
     QEMU_CHAR_FEATURE_LAST,
 } CharDriverFeature;
@@ -97,7 +99,6 @@ struct CharDriverState {
     int logfd;
     int be_open;
     guint fd_in_tag;
-    bool replay;
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
     QTAILQ_ENTRY(CharDriverState) next;
 };

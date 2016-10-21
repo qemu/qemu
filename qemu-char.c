@@ -277,6 +277,11 @@ static int qemu_chr_fe_write_buffer(CharDriverState *s, const uint8_t *buf, int 
     return res;
 }
 
+static bool qemu_chr_replay(CharDriverState *chr)
+{
+    return qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_REPLAY);
+}
+
 int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
 {
     CharDriverState *s = be->chr;
@@ -286,7 +291,7 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
         return 0;
     }
 
-    if (s->replay && replay_mode == REPLAY_MODE_PLAY) {
+    if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_PLAY) {
         int offset;
         replay_char_write_event_load(&ret, &offset);
         assert(offset <= len);
@@ -303,7 +308,7 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
 
     qemu_mutex_unlock(&s->chr_write_lock);
     
-    if (s->replay && replay_mode == REPLAY_MODE_RECORD) {
+    if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
         replay_char_write_event_save(ret, ret < 0 ? 0 : ret);
     }
     
@@ -315,7 +320,7 @@ static int qemu_chr_write_all(CharDriverState *s, const uint8_t *buf, int len)
     int offset;
     int res;
 
-    if (s->replay && replay_mode == REPLAY_MODE_PLAY) {
+    if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_PLAY) {
         replay_char_write_event_load(&res, &offset);
         assert(offset <= len);
         qemu_chr_fe_write_buffer(s, buf, offset, &offset);
@@ -324,7 +329,7 @@ static int qemu_chr_write_all(CharDriverState *s, const uint8_t *buf, int len)
 
     res = qemu_chr_fe_write_buffer(s, buf, len, &offset);
 
-    if (s->replay && replay_mode == REPLAY_MODE_RECORD) {
+    if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
         replay_char_write_event_save(res, offset);
     }
 
@@ -355,7 +360,7 @@ int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
         return 0;
     }
 
-    if (s->replay && replay_mode == REPLAY_MODE_PLAY) {
+    if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_PLAY) {
         return replay_char_read_all_load(buf);
     }
 
@@ -372,7 +377,7 @@ int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
         }
 
         if (res < 0) {
-            if (s->replay && replay_mode == REPLAY_MODE_RECORD) {
+            if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
                 replay_char_read_all_save_error(res);
             }
             return res;
@@ -385,7 +390,7 @@ int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
         }
     }
 
-    if (s->replay && replay_mode == REPLAY_MODE_RECORD) {
+    if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
         replay_char_read_all_save_buf(buf, offset);
     }
     return offset;
@@ -396,7 +401,7 @@ int qemu_chr_fe_ioctl(CharBackend *be, int cmd, void *arg)
     CharDriverState *s = be->chr;
     int res;
 
-    if (!s || !s->driver->chr_ioctl || s->replay) {
+    if (!s || !s->driver->chr_ioctl || qemu_chr_replay(s)) {
         res = -ENOTSUP;
     } else {
         res = s->driver->chr_ioctl(s, cmd, arg);
@@ -427,7 +432,7 @@ void qemu_chr_be_write_impl(CharDriverState *s, uint8_t *buf, int len)
 
 void qemu_chr_be_write(CharDriverState *s, uint8_t *buf, int len)
 {
-    if (s->replay) {
+    if (qemu_chr_replay(s)) {
         if (replay_mode == REPLAY_MODE_PLAY) {
             return;
         }
@@ -442,7 +447,7 @@ int qemu_chr_fe_get_msgfd(CharBackend *be)
     CharDriverState *s = be->chr;
     int fd;
     int res = (qemu_chr_fe_get_msgfds(be, &fd, 1) == 1) ? fd : -1;
-    if (s && s->replay) {
+    if (s && qemu_chr_replay(s)) {
         fprintf(stderr,
                 "Replay: get msgfd is not supported for serial devices yet\n");
         exit(1);
@@ -4249,8 +4254,10 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename)
     CharDriverState *chr;
     chr = qemu_chr_new_noreplay(label, filename);
     if (chr) {
-        chr->replay = replay_mode != REPLAY_MODE_NONE;
-        if (chr->replay && chr->driver->chr_ioctl) {
+        if (replay_mode != REPLAY_MODE_NONE) {
+            qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_REPLAY);
+        }
+        if (qemu_chr_replay(chr) && chr->driver->chr_ioctl) {
             fprintf(stderr,
                     "Replay: ioctl is not supported for serial devices yet\n");
         }
@@ -4997,7 +5004,7 @@ void qmp_chardev_remove(const char *id, Error **errp)
         error_setg(errp, "Chardev '%s' is busy", id);
         return;
     }
-    if (chr->replay) {
+    if (qemu_chr_replay(chr)) {
         error_setg(errp,
             "Chardev '%s' cannot be unplugged in record/replay mode", id);
         return;
