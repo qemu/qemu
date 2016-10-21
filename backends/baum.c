@@ -85,7 +85,7 @@
 #define BUF_SIZE 256
 
 typedef struct {
-    CharDriverState *chr;
+    CharDriverState parent;
 
     brlapi_handle_t *brlapi;
     int brlapi_fd;
@@ -255,7 +255,7 @@ static int baum_deferred_init(BaumDriverState *baum)
 /* The serial port can receive more of our data */
 static void baum_accept_input(struct CharDriverState *chr)
 {
-    BaumDriverState *baum = chr->opaque;
+    BaumDriverState *baum = (BaumDriverState *)chr;
     int room, first;
 
     if (!baum->out_buf_used)
@@ -281,22 +281,23 @@ static void baum_accept_input(struct CharDriverState *chr)
 /* We want to send a packet */
 static void baum_write_packet(BaumDriverState *baum, const uint8_t *buf, int len)
 {
+    CharDriverState *chr = (CharDriverState *)baum;
     uint8_t io_buf[1 + 2 * len], *cur = io_buf;
     int room;
     *cur++ = ESC;
     while (len--)
         if ((*cur++ = *buf++) == ESC)
             *cur++ = ESC;
-    room = qemu_chr_be_can_write(baum->chr);
+    room = qemu_chr_be_can_write(chr);
     len = cur - io_buf;
     if (len <= room) {
         /* Fits */
-        qemu_chr_be_write(baum->chr, io_buf, len);
+        qemu_chr_be_write(chr, io_buf, len);
     } else {
         int first;
         uint8_t out;
         /* Can't fit all, send what can be, and store the rest. */
-        qemu_chr_be_write(baum->chr, io_buf, room);
+        qemu_chr_be_write(chr, io_buf, room);
         len -= room;
         cur = io_buf + room;
         if (len > BUF_SIZE - baum->out_buf_used) {
@@ -471,7 +472,7 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
 /* The other end is writing some data.  Store it and try to interpret */
 static int baum_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
-    BaumDriverState *baum = chr->opaque;
+    BaumDriverState *baum = (BaumDriverState *)chr;
     int tocopy, cur, eaten, orig_len = len;
 
     if (!len)
@@ -612,14 +613,13 @@ static void baum_chr_read(void *opaque)
 
 static void baum_free(struct CharDriverState *chr)
 {
-    BaumDriverState *baum = chr->opaque;
+    BaumDriverState *baum = (BaumDriverState *)chr;
 
     timer_free(baum->cellCount_timer);
     if (baum->brlapi) {
         brlapi__closeConnection(baum->brlapi);
         g_free(baum->brlapi);
     }
-    g_free(baum);
 }
 
 static CharDriverState *chr_baum_init(const CharDriver *driver,
@@ -638,10 +638,7 @@ static CharDriverState *chr_baum_init(const CharDriver *driver,
     if (!chr) {
         return NULL;
     }
-    baum = g_malloc0(sizeof(BaumDriverState));
-    baum->chr = chr;
-
-    chr->opaque = baum;
+    baum = (BaumDriverState *)chr;
 
     handle = g_malloc0(brlapi_getHandleSize());
     baum->brlapi = handle;
@@ -663,13 +660,13 @@ static CharDriverState *chr_baum_init(const CharDriver *driver,
 fail_handle:
     g_free(handle);
     g_free(chr);
-    g_free(baum);
     return NULL;
 }
 
 static void register_types(void)
 {
     static const CharDriver driver = {
+        .instance_size = sizeof(BaumDriverState),
         .kind = CHARDEV_BACKEND_KIND_BRAILLE,
         .create = chr_baum_init,
         .chr_write = baum_write,

@@ -7,7 +7,8 @@
 
 
 typedef struct SpiceCharDriver {
-    CharDriverState*      chr;
+    CharDriverState       parent;
+
     SpiceCharDeviceInstance     sin;
     bool                  active;
     bool                  blocked;
@@ -27,17 +28,18 @@ static QLIST_HEAD(, SpiceCharDriver) spice_chars =
 static int vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
 {
     SpiceCharDriver *scd = container_of(sin, SpiceCharDriver, sin);
+    CharDriverState *chr = (CharDriverState *)scd;
     ssize_t out = 0;
     ssize_t last_out;
     uint8_t* p = (uint8_t*)buf;
 
     while (len > 0) {
-        int can_write = qemu_chr_be_can_write(scd->chr);
+        int can_write = qemu_chr_be_can_write(chr);
         last_out = MIN(len, can_write);
         if (last_out <= 0) {
             break;
         }
-        qemu_chr_be_write(scd->chr, p, last_out);
+        qemu_chr_be_write(chr, p, last_out);
         out += last_out;
         len -= last_out;
         p += last_out;
@@ -70,6 +72,7 @@ static int vmc_read(SpiceCharDeviceInstance *sin, uint8_t *buf, int len)
 static void vmc_event(SpiceCharDeviceInstance *sin, uint8_t event)
 {
     SpiceCharDriver *scd = container_of(sin, SpiceCharDriver, sin);
+    CharDriverState *chr = (CharDriverState *)scd;
     int chr_event;
 
     switch (event) {
@@ -81,20 +84,21 @@ static void vmc_event(SpiceCharDeviceInstance *sin, uint8_t event)
     }
 
     trace_spice_vmc_event(chr_event);
-    qemu_chr_be_event(scd->chr, chr_event);
+    qemu_chr_be_event(chr, chr_event);
 }
 #endif
 
 static void vmc_state(SpiceCharDeviceInstance *sin, int connected)
 {
     SpiceCharDriver *scd = container_of(sin, SpiceCharDriver, sin);
+    CharDriverState *chr = (CharDriverState *)scd;
 
-    if ((scd->chr->be_open && connected) ||
-        (!scd->chr->be_open && !connected)) {
+    if ((chr->be_open && connected) ||
+        (!chr->be_open && !connected)) {
         return;
     }
 
-    qemu_chr_be_event(scd->chr,
+    qemu_chr_be_event(chr,
                       connected ? CHR_EVENT_OPENED : CHR_EVENT_CLOSED);
 }
 
@@ -168,7 +172,7 @@ static GSourceFuncs SpiceCharSourceFuncs = {
 
 static GSource *spice_chr_add_watch(CharDriverState *chr, GIOCondition cond)
 {
-    SpiceCharDriver *scd = chr->opaque;
+    SpiceCharDriver *scd = (SpiceCharDriver *)chr;
     SpiceCharSource *src;
 
     assert(cond & G_IO_OUT);
@@ -182,7 +186,7 @@ static GSource *spice_chr_add_watch(CharDriverState *chr, GIOCondition cond)
 
 static int spice_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
-    SpiceCharDriver *s = chr->opaque;
+    SpiceCharDriver *s = (SpiceCharDriver *)chr;
     int read_bytes;
 
     assert(s->datalen == 0);
@@ -201,7 +205,7 @@ static int spice_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 
 static void spice_chr_free(struct CharDriverState *chr)
 {
-    SpiceCharDriver *s = chr->opaque;
+    SpiceCharDriver *s = (SpiceCharDriver *)chr;
 
     vmc_unregister_interface(s);
     QLIST_REMOVE(s, next);
@@ -210,12 +214,11 @@ static void spice_chr_free(struct CharDriverState *chr)
 #if SPICE_SERVER_VERSION >= 0x000c02
     g_free((char *)s->sin.portname);
 #endif
-    g_free(s);
 }
 
 static void spice_vmc_set_fe_open(struct CharDriverState *chr, int fe_open)
 {
-    SpiceCharDriver *s = chr->opaque;
+    SpiceCharDriver *s = (SpiceCharDriver *)chr;
     if (fe_open) {
         vmc_register_interface(s);
     } else {
@@ -226,7 +229,7 @@ static void spice_vmc_set_fe_open(struct CharDriverState *chr, int fe_open)
 static void spice_port_set_fe_open(struct CharDriverState *chr, int fe_open)
 {
 #if SPICE_SERVER_VERSION >= 0x000c02
-    SpiceCharDriver *s = chr->opaque;
+    SpiceCharDriver *s = (SpiceCharDriver *)chr;
 
     if (fe_open) {
         spice_server_port_event(&s->sin, SPICE_PORT_EVENT_OPENED);
@@ -255,7 +258,7 @@ static void print_allowed_subtypes(void)
 
 static void spice_chr_accept_input(struct CharDriverState *chr)
 {
-    SpiceCharDriver *s = chr->opaque;
+    SpiceCharDriver *s = (SpiceCharDriver *)chr;
 
     spice_server_char_device_wakeup(&s->sin);
 }
@@ -272,11 +275,9 @@ static CharDriverState *chr_open(const CharDriver *driver,
     if (!chr) {
         return NULL;
     }
-    s = g_malloc0(sizeof(SpiceCharDriver));
-    s->chr = chr;
+    s = (SpiceCharDriver *)chr;
     s->active = false;
     s->sin.subtype = g_strdup(subtype);
-    chr->opaque = s;
 
     QLIST_INSERT_HEAD(&spice_chars, s, next);
 
@@ -334,7 +335,7 @@ static CharDriverState *qemu_chr_open_spice_port(const CharDriver *driver,
         return NULL;
     }
     *be_opened = false;
-    s = chr->opaque;
+    s = (SpiceCharDriver *)chr;
     s->sin.portname = g_strdup(name);
 
     return chr;
@@ -386,6 +387,7 @@ static void qemu_chr_parse_spice_port(QemuOpts *opts, ChardevBackend *backend,
 static void register_types(void)
 {
     static const CharDriver vmc_driver = {
+        .instance_size = sizeof(SpiceCharDriver),
         .kind = CHARDEV_BACKEND_KIND_SPICEVMC,
         .parse = qemu_chr_parse_spice_vmc,
         .create = qemu_chr_open_spice_vmc,
@@ -396,6 +398,7 @@ static void register_types(void)
         .chr_free = spice_chr_free,
     };
     static const CharDriver port_driver = {
+        .instance_size = sizeof(SpiceCharDriver),
         .kind = CHARDEV_BACKEND_KIND_SPICEPORT,
         .parse = qemu_chr_parse_spice_port,
         .create = qemu_chr_open_spice_port,

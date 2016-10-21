@@ -93,7 +93,6 @@ struct CharDriverState {
     const CharDriver *driver;
     QemuMutex chr_write_lock;
     CharBackend *be;
-    void *opaque;
     char *label;
     char *filename;
     int logfd;
@@ -484,6 +483,7 @@ struct CharDriver {
                                ChardevBackend *backend,
                                ChardevReturn *ret, bool *be_opened,
                                Error **errp);
+    size_t instance_size;
 
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
     int (*chr_sync_read)(struct CharDriverState *s,

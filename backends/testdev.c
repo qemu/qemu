@@ -30,7 +30,8 @@
 #define BUF_SIZE 32
 
 typedef struct {
-    CharDriverState *chr;
+    CharDriverState parent;
+
     uint8_t in_buf[32];
     int in_buf_used;
 } TestdevCharState;
@@ -79,7 +80,7 @@ static int testdev_eat_packet(TestdevCharState *testdev)
 /* The other end is writing some data.  Store it and try to interpret */
 static int testdev_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
-    TestdevCharState *testdev = chr->opaque;
+    TestdevCharState *testdev = (TestdevCharState *)chr;
     int tocopy, eaten, orig_len = len;
 
     while (len) {
@@ -102,13 +103,6 @@ static int testdev_write(CharDriverState *chr, const uint8_t *buf, int len)
     return orig_len;
 }
 
-static void testdev_free(struct CharDriverState *chr)
-{
-    TestdevCharState *testdev = chr->opaque;
-
-    g_free(testdev);
-}
-
 static CharDriverState *chr_testdev_init(const CharDriver *driver,
                                          const char *id,
                                          ChardevBackend *backend,
@@ -116,14 +110,10 @@ static CharDriverState *chr_testdev_init(const CharDriver *driver,
                                          bool *be_opened,
                                          Error **errp)
 {
-    TestdevCharState *testdev;
-    CharDriverState *chr;
-
-    testdev = g_new0(TestdevCharState, 1);
-    testdev->chr = chr = g_new0(CharDriverState, 1);
+    TestdevCharState *testdev = g_new0(TestdevCharState, 1);;
+    CharDriverState *chr = (CharDriverState *)testdev;
 
     chr->driver = driver;
-    chr->opaque = testdev;
 
     return chr;
 }
@@ -131,10 +121,10 @@ static CharDriverState *chr_testdev_init(const CharDriver *driver,
 static void register_types(void)
 {
     static const CharDriver driver = {
+        .instance_size = sizeof(TestdevCharState),
         .kind = CHARDEV_BACKEND_KIND_TESTDEV,
         .create = chr_testdev_init,
         .chr_write = testdev_write,
-        .chr_free = testdev_free,
     };
     register_char_driver(&driver);
 }

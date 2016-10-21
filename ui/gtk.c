@@ -181,6 +181,12 @@ struct GtkDisplayState {
     bool ignore_keys;
 };
 
+typedef struct VCDriverState {
+    CharDriverState parent;
+    VirtualConsole *console;
+    bool echo;
+} VCDriverState;
+
 static void gd_grab_pointer(VirtualConsole *vc, const char *reason);
 static void gd_ungrab_pointer(GtkDisplayState *s);
 static void gd_grab_keyboard(VirtualConsole *vc, const char *reason);
@@ -1685,7 +1691,8 @@ static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
 
 static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
-    VirtualConsole *vc = chr->opaque;
+    VCDriverState *vcd = (VCDriverState *)chr;
+    VirtualConsole *vc = vcd->console;
 
     vte_terminal_feed(VTE_TERMINAL(vc->vte.terminal), (const char *)buf, len);
     return len;
@@ -1693,9 +1700,14 @@ static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 
 static void gd_vc_chr_set_echo(CharDriverState *chr, bool echo)
 {
-    VirtualConsole *vc = chr->opaque;
+    VCDriverState *vcd = (VCDriverState *)chr;
+    VirtualConsole *vc = vcd->console;
 
-    vc->vte.echo = echo;
+    if (vc) {
+        vc->vte.echo = echo;
+    } else {
+        vcd->echo = echo;
+    }
 }
 
 static int nb_vcs;
@@ -1704,6 +1716,7 @@ static CharDriverState *vcs[MAX_VCS];
 static CharDriverState *gd_vc_handler(ChardevVC *vc, Error **errp)
 {
     static const CharDriver gd_vc_driver = {
+        .instance_size = sizeof(VCDriverState),
         .kind = CHARDEV_BACKEND_KIND_VC,
         .chr_write = gd_vc_chr_write,
         .chr_set_echo = gd_vc_chr_set_echo,
@@ -1721,9 +1734,6 @@ static CharDriverState *gd_vc_handler(ChardevVC *vc, Error **errp)
     if (!chr) {
         return NULL;
     }
-
-    /* Temporary, until gd_vc_vte_init runs.  */
-    chr->opaque = g_new0(VirtualConsole, 1);
 
     vcs[nb_vcs++] = chr;
 
@@ -1765,14 +1775,12 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     GtkWidget *box;
     GtkWidget *scrollbar;
     GtkAdjustment *vadjustment;
-    VirtualConsole *tmp_vc = chr->opaque;
+    VCDriverState *vcd = (VCDriverState *)chr;
 
     vc->s = s;
-    vc->vte.echo = tmp_vc->vte.echo;
-
+    vc->vte.echo = vcd->echo;
     vc->vte.chr = chr;
-    chr->opaque = vc;
-    g_free(tmp_vc);
+    vcd->console = vc;
 
     snprintf(buffer, sizeof(buffer), "vc%d", idx);
     vc->label = g_strdup_printf("%s", vc->vte.chr->label

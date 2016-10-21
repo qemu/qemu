@@ -1733,6 +1733,7 @@ int gdbserver_start(const char *device)
     CharDriverState *mon_chr;
     ChardevCommon common = { 0 };
     static const CharDriver driver = {
+        .instance_size = sizeof(CharDriverState),
         .kind = -1,
         .chr_write = gdb_monitor_write,
     };

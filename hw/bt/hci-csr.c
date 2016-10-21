@@ -28,11 +28,11 @@
 #include "hw/bt.h"
 
 struct csrhci_s {
+    CharDriverState chr;
     int enable;
     qemu_irq *pins;
     int pin_state;
     int modem_state;
-    CharDriverState chr;
 #define FIFO_LEN	4096
     int out_start;
     int out_len;
@@ -314,7 +314,7 @@ static void csrhci_ready_for_next_inpkt(struct csrhci_s *s)
 static int csrhci_write(struct CharDriverState *chr,
                 const uint8_t *buf, int len)
 {
-    struct csrhci_s *s = (struct csrhci_s *) chr->opaque;
+    struct csrhci_s *s = (struct csrhci_s *)chr;
     int total = 0;
 
     if (!s->enable)
@@ -387,7 +387,7 @@ static void csrhci_out_hci_packet_acl(void *opaque,
 static int csrhci_ioctl(struct CharDriverState *chr, int cmd, void *arg)
 {
     QEMUSerialSetParams *ssp;
-    struct csrhci_s *s = (struct csrhci_s *) chr->opaque;
+    struct csrhci_s *s = (struct csrhci_s *) chr;
     int prev_state = s->modem_state;
 
     switch (cmd) {
@@ -455,7 +455,7 @@ static void csrhci_pins(void *opaque, int line, int level)
 
 qemu_irq *csrhci_pins_get(CharDriverState *chr)
 {
-    struct csrhci_s *s = (struct csrhci_s *) chr->opaque;
+    struct csrhci_s *s = (struct csrhci_s *) chr;
 
     return s->pins;
 }
@@ -463,6 +463,7 @@ qemu_irq *csrhci_pins_get(CharDriverState *chr)
 CharDriverState *uart_hci_init(void)
 {
     static const CharDriver hci_driver = {
+        .instance_size = sizeof(struct csrhci_s),
         .kind = -1,
         .chr_write = csrhci_write,
         .chr_ioctl = csrhci_ioctl,
@@ -470,7 +471,6 @@ CharDriverState *uart_hci_init(void)
     struct csrhci_s *s = (struct csrhci_s *)
             g_malloc0(sizeof(struct csrhci_s));
 
-    s->chr.opaque = s;
     s->chr.driver = &hci_driver;
 
     s->hci = qemu_next_hci();
