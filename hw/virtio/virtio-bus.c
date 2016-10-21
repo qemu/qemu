@@ -147,14 +147,8 @@ void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
     }
 }
 
-/*
- * This function handles both assigning the ioeventfd handler and
- * registering it with the kernel.
- * assign: register/deregister ioeventfd with the kernel
- * set_handler: use the generic ioeventfd handler
- */
 int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
-                               int n, bool assign, bool set_handler)
+                               int n, bool assign)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
@@ -169,7 +163,7 @@ int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
                          __func__, strerror(-r), r);
             return r;
         }
-        virtio_queue_set_host_notifier_fd_handler(vq, true, set_handler);
+        virtio_queue_set_host_notifier_fd_handler(vq, true, false);
         r = k->ioeventfd_assign(proxy, notifier, n, assign);
         if (r < 0) {
             error_report("%s: unable to assign ioeventfd: %d", __func__, r);
@@ -257,7 +251,7 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
          */
         virtio_bus_stop_ioeventfd(bus);
     }
-    return set_host_notifier_internal(proxy, bus, n, assign, false);
+    return set_host_notifier_internal(proxy, bus, n, assign);
 }
 
 static char *virtio_bus_get_dev_path(DeviceState *dev)

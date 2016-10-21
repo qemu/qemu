@@ -143,6 +143,6 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign);
 /* This is temporary.  It is only needed because virtio_bus_set_host_notifier
  * sets ioeventfd_disabled but we will shortly get rid of it.  */
 int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
-                               int n, bool assign, bool set_handler);
+                               int n, bool assign);
 
 #endif /* VIRTIO_BUS_H */
