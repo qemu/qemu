@@ -83,6 +83,13 @@ static void save_vmstate(const VMStateDescription *desc, void *obj)
     qemu_fclose(f);
 }
 
+static void save_buffer(const uint8_t *buf, size_t buf_size)
+{
+    QEMUFile *fsave = open_test_file(true);
+    qemu_put_buffer(fsave, buf, buf_size);
+    qemu_fclose(fsave);
+}
+
 static void compare_vmstate(uint8_t *wire, size_t size)
 {
     QEMUFile *f = open_test_file(false);
@@ -309,15 +316,13 @@ static const VMStateDescription vmstate_versioned = {
 
 static void test_load_v1(void)
 {
-    QEMUFile *fsave = open_test_file(true);
     uint8_t buf[] = {
         0, 0, 0, 10,             /* a */
         0, 0, 0, 30,             /* c */
         0, 0, 0, 0, 0, 0, 0, 40, /* d */
         QEMU_VM_EOF, /* just to ensure we won't get EOF reported prematurely */
     };
-    qemu_put_buffer(fsave, buf, sizeof(buf));
-    qemu_fclose(fsave);
+    save_buffer(buf, sizeof(buf));
 
     QEMUFile *loading = open_test_file(false);
     TestStruct obj = { .b = 200, .e = 500, .f = 600 };
@@ -334,7 +339,6 @@ static void test_load_v1(void)
 
 static void test_load_v2(void)
 {
-    QEMUFile *fsave = open_test_file(true);
     uint8_t buf[] = {
         0, 0, 0, 10,             /* a */
         0, 0, 0, 20,             /* b */
@@ -344,8 +348,7 @@ static void test_load_v2(void)
         0, 0, 0, 0, 0, 0, 0, 60, /* f */
         QEMU_VM_EOF, /* just to ensure we won't get EOF reported prematurely */
     };
-    qemu_put_buffer(fsave, buf, sizeof(buf));
-    qemu_fclose(fsave);
+    save_buffer(buf, sizeof(buf));
 
     QEMUFile *loading = open_test_file(false);
     TestStruct obj;
@@ -423,7 +426,6 @@ static void test_save_skip(void)
 
 static void test_load_noskip(void)
 {
-    QEMUFile *fsave = open_test_file(true);
     uint8_t buf[] = {
         0, 0, 0, 10,             /* a */
         0, 0, 0, 20,             /* b */
@@ -433,8 +435,7 @@ static void test_load_noskip(void)
         0, 0, 0, 0, 0, 0, 0, 60, /* f */
         QEMU_VM_EOF, /* just to ensure we won't get EOF reported prematurely */
     };
-    qemu_put_buffer(fsave, buf, sizeof(buf));
-    qemu_fclose(fsave);
+    save_buffer(buf, sizeof(buf));
 
     QEMUFile *loading = open_test_file(false);
     TestStruct obj = { .skip_c_e = false };
@@ -451,7 +452,6 @@ static void test_load_noskip(void)
 
 static void test_load_skip(void)
 {
-    QEMUFile *fsave = open_test_file(true);
     uint8_t buf[] = {
         0, 0, 0, 10,             /* a */
         0, 0, 0, 20,             /* b */
@@ -459,8 +459,7 @@ static void test_load_skip(void)
         0, 0, 0, 0, 0, 0, 0, 60, /* f */
         QEMU_VM_EOF, /* just to ensure we won't get EOF reported prematurely */
     };
-    qemu_put_buffer(fsave, buf, sizeof(buf));
-    qemu_fclose(fsave);
+    save_buffer(buf, sizeof(buf));
 
     QEMUFile *loading = open_test_file(false);
     TestStruct obj = { .skip_c_e = true, .c = 300, .e = 500 };
