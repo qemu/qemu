@@ -4101,21 +4101,20 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     }
 }
 
-static GSList *backends;
+static const CharDriver *backends[CHARDEV_BACKEND_KIND__MAX];
 
 void register_char_driver(const CharDriver *driver)
 {
-    /* casting away const */
-    backends = g_slist_append(backends, (void *)driver);
+    backends[driver->kind] = driver;
 }
 
 CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
                                         Error **errp)
 {
     Error *local_err = NULL;
-    CharDriver *cd;
+    const CharDriver *cd = NULL;
     CharDriverState *chr;
-    GSList *i;
+    int i;
     ChardevReturn *ret = NULL;
     ChardevBackend *backend;
     const char *name = qemu_opt_get(opts, "backend");
@@ -4130,11 +4129,13 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
 
     if (is_help_option(name)) {
         fprintf(stderr, "Available chardev backend types:\n");
-        for (i = backends; i; i = i->next) {
-            cd = i->data;
-            fprintf(stderr, "%s\n", ChardevBackendKind_lookup[cd->kind]);
-            if (cd->alias) {
-                fprintf(stderr, "%s\n", cd->alias);
+        for (i = 0; i < ARRAY_SIZE(backends); i++) {
+            cd = backends[i];
+            if (cd) {
+                fprintf(stderr, "%s\n", ChardevBackendKind_lookup[cd->kind]);
+                if (cd->alias) {
+                    fprintf(stderr, "%s\n", cd->alias);
+                }
             }
         }
         exit(0);
@@ -4145,15 +4146,17 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         goto err;
     }
 
-    for (i = backends; i; i = i->next) {
-        cd = i->data;
-
+    for (i = 0; i < ARRAY_SIZE(backends); i++) {
+        cd = backends[i];
+        if (!cd) {
+            continue;
+        }
         if (g_strcmp0(ChardevBackendKind_lookup[cd->kind], name) == 0 ||
             g_strcmp0(cd->alias, name) == 0) {
             break;
         }
     }
-    if (i == NULL) {
+    if (i == ARRAY_SIZE(backends)) {
         error_setg(errp, "chardev: backend \"%s\" not found", name);
         goto err;
     }
@@ -4370,11 +4373,15 @@ qmp_prepend_backend(ChardevBackendInfoList *list, const char *name)
 ChardevBackendInfoList *qmp_query_chardev_backends(Error **errp)
 {
     ChardevBackendInfoList *backend_list = NULL;
-    CharDriver *c;
-    GSList *i;
+    const CharDriver *c;
+    int i;
 
-    for (i = backends; i; i = i->next) {
-        c = i->data;
+    for (i = 0; i < ARRAY_SIZE(backends); i++) {
+        c = backends[i];
+        if (!c) {
+            continue;
+        }
+
         backend_list = qmp_prepend_backend(backend_list,
                                            ChardevBackendKind_lookup[c->kind]);
         if (c->alias) {
@@ -4835,9 +4842,8 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
 {
     ChardevReturn *ret = g_new0(ChardevReturn, 1);
     CharDriverState *chr = NULL;
+    const CharDriver *cd;
     Error *local_err = NULL;
-    GSList *i;
-    CharDriver *cd;
     bool be_opened = true;
 
     chr = qemu_chr_find(id);
@@ -4846,22 +4852,16 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         goto out_error;
     }
 
-    for (i = backends; i; i = i->next) {
-        cd = i->data;
-
-        if (cd->kind == backend->type) {
-            chr = cd->create(id, backend, ret, &be_opened, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
-                goto out_error;
-            }
-            break;
-        }
+    cd = (int)backend->type >= 0 && backend->type < ARRAY_SIZE(backends) ?
+        backends[backend->type] : NULL;
+    if (cd == NULL) {
+        error_setg(errp, "chardev backend not available");
+        goto out_error;
     }
 
-    if (chr == NULL) {
-        assert(!i);
-        error_setg(errp, "chardev backend not available");
+    chr = cd->create(id, backend, ret, &be_opened, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         goto out_error;
     }
 
