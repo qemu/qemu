@@ -256,7 +256,7 @@
 #define TARGET_NR_remap_file_pages	(TARGET_NR_Linux + 251)
 #define TARGET_NR_set_tid_address	(TARGET_NR_Linux + 252)
 #define TARGET_NR_restart_syscall	(TARGET_NR_Linux + 253)
-#define TARGET_NR_fadvise64		(TARGET_NR_Linux + 254)
+#define TARGET_NR_fadvise64_64          (TARGET_NR_Linux + 254)
 #define TARGET_NR_statfs64		(TARGET_NR_Linux + 255)
 #define TARGET_NR_fstatfs64		(TARGET_NR_Linux + 256)
 #define TARGET_NR_timer_create		(TARGET_NR_Linux + 257)

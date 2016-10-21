@@ -9,26 +9,28 @@
 
 #include "syscall_nr.h"
 
-#define SOCKOP_socket           1
-#define SOCKOP_bind             2
-#define SOCKOP_connect          3
-#define SOCKOP_listen           4
-#define SOCKOP_accept           5
-#define SOCKOP_getsockname      6
-#define SOCKOP_getpeername      7
-#define SOCKOP_socketpair       8
-#define SOCKOP_send             9
-#define SOCKOP_recv             10
-#define SOCKOP_sendto           11
-#define SOCKOP_recvfrom         12
-#define SOCKOP_shutdown         13
-#define SOCKOP_setsockopt       14
-#define SOCKOP_getsockopt       15
-#define SOCKOP_sendmsg          16
-#define SOCKOP_recvmsg          17
-#define SOCKOP_accept4          18
-#define SOCKOP_recvmmsg         19
-#define SOCKOP_sendmmsg         20
+
+/* socket operations for socketcall() */
+#define TARGET_SYS_SOCKET       1         /* socket()              */
+#define TARGET_SYS_BIND         2         /* bind()                */
+#define TARGET_SYS_CONNECT      3         /* connect()             */
+#define TARGET_SYS_LISTEN       4         /* listen()              */
+#define TARGET_SYS_ACCEPT       5         /* accept()              */
+#define TARGET_SYS_GETSOCKNAME  6         /* getsockname()         */
+#define TARGET_SYS_GETPEERNAME  7         /* getpeername()         */
+#define TARGET_SYS_SOCKETPAIR   8         /* socketpair()          */
+#define TARGET_SYS_SEND         9         /* send()                */
+#define TARGET_SYS_RECV         10        /* recv()                */
+#define TARGET_SYS_SENDTO       11        /* sendto()              */
+#define TARGET_SYS_RECVFROM     12        /* recvfrom()            */
+#define TARGET_SYS_SHUTDOWN     13        /* shutdown()            */
+#define TARGET_SYS_SETSOCKOPT   14        /* setsockopt()          */
+#define TARGET_SYS_GETSOCKOPT   15        /* getsockopt()          */
+#define TARGET_SYS_SENDMSG      16        /* sendmsg()             */
+#define TARGET_SYS_RECVMSG      17        /* recvmsg()             */
+#define TARGET_SYS_ACCEPT4      18        /* accept4()             */
+#define TARGET_SYS_RECVMMSG     19        /* recvmmsg()            */
+#define TARGET_SYS_SENDMMSG     20        /* sendmmsg()            */
 
 #define IPCOP_semop		1
 #define IPCOP_semget		2
@@ -205,6 +207,34 @@ struct target_itimerval {
 struct target_itimerspec {
     struct target_timespec it_interval;
     struct target_timespec it_value;
+};
+
+struct target_timex {
+    abi_uint modes;              /* Mode selector */
+    abi_long offset;             /* Time offset */
+    abi_long freq;               /* Frequency offset */
+    abi_long maxerror;           /* Maximum error (microseconds) */
+    abi_long esterror;           /* Estimated error (microseconds) */
+    abi_int status;              /* Clock command/status */
+    abi_long constant;           /* PLL (phase-locked loop) time constant */
+    abi_long precision;          /* Clock precision (microseconds, ro) */
+    abi_long tolerance;          /* Clock freq. tolerance (ppm, ro) */
+    struct target_timeval time;  /* Current time */
+    abi_long tick;               /* Microseconds between clock ticks */
+    abi_long ppsfreq;            /* PPS (pulse per second) frequency */
+    abi_long jitter;             /* PPS jitter (ro); nanoseconds */
+    abi_int shift;               /* PPS interval duration (seconds) */
+    abi_long stabil;             /* PPS stability */
+    abi_long jitcnt;             /* PPS jitter limit exceeded (ro) */
+    abi_long calcnt;             /* PPS calibration intervals */
+    abi_long errcnt;             /* PPS calibration errors */
+    abi_long stbcnt;             /* PPS stability limit exceeded */
+    abi_int tai;                 /* TAI offset */
+
+    /* Further padding bytes to allow for future expansion */
+    abi_int:32; abi_int:32; abi_int:32; abi_int:32;
+    abi_int:32; abi_int:32; abi_int:32; abi_int:32;
+    abi_int:32; abi_int:32; abi_int:32;
 };
 
 typedef abi_long target_clock_t;
@@ -2628,15 +2658,19 @@ typedef int32_t target_timer_t;
 
 struct target_sigevent {
     target_sigval_t sigev_value;
-    int32_t sigev_signo;
-    int32_t sigev_notify;
+    abi_int sigev_signo;
+    abi_int sigev_notify;
     union {
-        int32_t _pad[TARGET_SIGEV_PAD_SIZE];
-        int32_t _tid;
+        abi_int _pad[TARGET_SIGEV_PAD_SIZE];
+        abi_int _tid;
 
+        /* The kernel (and thus QEMU) never looks at these;
+         * they're only used as part of the ABI between a
+         * userspace program and libc.
+         */
         struct {
-            void (*_function)(sigval_t);
-            void *_attribute;
+            abi_ulong _function;
+            abi_ulong _attribute;
         } _sigev_thread;
     } _sigev_un;
 };
@@ -2651,5 +2685,30 @@ struct target_user_cap_data {
     uint32_t permitted;
     uint32_t inheritable;
 };
+
+/* from kernel's include/linux/syslog.h */
+
+/* Close the log.  Currently a NOP. */
+#define TARGET_SYSLOG_ACTION_CLOSE          0
+/* Open the log. Currently a NOP. */
+#define TARGET_SYSLOG_ACTION_OPEN           1
+/* Read from the log. */
+#define TARGET_SYSLOG_ACTION_READ           2
+/* Read all messages remaining in the ring buffer. */
+#define TARGET_SYSLOG_ACTION_READ_ALL       3
+/* Read and clear all messages remaining in the ring buffer */
+#define TARGET_SYSLOG_ACTION_READ_CLEAR     4
+/* Clear ring buffer. */
+#define TARGET_SYSLOG_ACTION_CLEAR          5
+/* Disable printk's to console */
+#define TARGET_SYSLOG_ACTION_CONSOLE_OFF    6
+/* Enable printk's to console */
+#define TARGET_SYSLOG_ACTION_CONSOLE_ON     7
+/* Set level of messages printed to console */
+#define TARGET_SYSLOG_ACTION_CONSOLE_LEVEL  8
+/* Return number of unread characters in the log buffer */
+#define TARGET_SYSLOG_ACTION_SIZE_UNREAD    9
+/* Return size of the log buffer */
+#define TARGET_SYSLOG_ACTION_SIZE_BUFFER   10
 
 #endif

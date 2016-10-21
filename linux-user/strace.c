@@ -435,6 +435,69 @@ print_fdset(int n, abi_ulong target_fds_addr)
 }
 #endif
 
+#ifdef TARGET_NR_clock_adjtime
+/* IDs of the various system clocks */
+#define TARGET_CLOCK_REALTIME              0
+#define TARGET_CLOCK_MONOTONIC             1
+#define TARGET_CLOCK_PROCESS_CPUTIME_ID    2
+#define TARGET_CLOCK_THREAD_CPUTIME_ID     3
+#define TARGET_CLOCK_MONOTONIC_RAW         4
+#define TARGET_CLOCK_REALTIME_COARSE       5
+#define TARGET_CLOCK_MONOTONIC_COARSE      6
+#define TARGET_CLOCK_BOOTTIME              7
+#define TARGET_CLOCK_REALTIME_ALARM        8
+#define TARGET_CLOCK_BOOTTIME_ALARM        9
+#define TARGET_CLOCK_SGI_CYCLE             10
+#define TARGET_CLOCK_TAI                   11
+
+static void
+print_clockid(int clockid, int last)
+{
+    switch (clockid) {
+    case TARGET_CLOCK_REALTIME:
+        gemu_log("CLOCK_REALTIME");
+        break;
+    case TARGET_CLOCK_MONOTONIC:
+        gemu_log("CLOCK_MONOTONIC");
+        break;
+    case TARGET_CLOCK_PROCESS_CPUTIME_ID:
+        gemu_log("CLOCK_PROCESS_CPUTIME_ID");
+        break;
+    case TARGET_CLOCK_THREAD_CPUTIME_ID:
+        gemu_log("CLOCK_THREAD_CPUTIME_ID");
+        break;
+    case TARGET_CLOCK_MONOTONIC_RAW:
+        gemu_log("CLOCK_MONOTONIC_RAW");
+        break;
+    case TARGET_CLOCK_REALTIME_COARSE:
+        gemu_log("CLOCK_REALTIME_COARSE");
+        break;
+    case TARGET_CLOCK_MONOTONIC_COARSE:
+        gemu_log("CLOCK_MONOTONIC_COARSE");
+        break;
+    case TARGET_CLOCK_BOOTTIME:
+        gemu_log("CLOCK_BOOTTIME");
+        break;
+    case TARGET_CLOCK_REALTIME_ALARM:
+        gemu_log("CLOCK_REALTIME_ALARM");
+        break;
+    case TARGET_CLOCK_BOOTTIME_ALARM:
+        gemu_log("CLOCK_BOOTTIME_ALARM");
+        break;
+    case TARGET_CLOCK_SGI_CYCLE:
+        gemu_log("CLOCK_SGI_CYCLE");
+        break;
+    case TARGET_CLOCK_TAI:
+        gemu_log("CLOCK_TAI");
+        break;
+    default:
+        gemu_log("%d", clockid);
+        break;
+    }
+    gemu_log("%s", get_comma(last));
+}
+#endif
+
 /*
  * Sysycall specific output functions
  */
@@ -576,6 +639,52 @@ print_syscall_ret_newselect(const struct syscallname *name, abi_long ret)
     gemu_log(")\n");
 }
 #endif
+
+/* special meanings of adjtimex()' non-negative return values */
+#define TARGET_TIME_OK       0   /* clock synchronized, no leap second */
+#define TARGET_TIME_INS      1   /* insert leap second */
+#define TARGET_TIME_DEL      2   /* delete leap second */
+#define TARGET_TIME_OOP      3   /* leap second in progress */
+#define TARGET_TIME_WAIT     4   /* leap second has occurred */
+#define TARGET_TIME_ERROR    5   /* clock not synchronized */
+static void
+print_syscall_ret_adjtimex(const struct syscallname *name, abi_long ret)
+{
+    const char *errstr = NULL;
+
+    gemu_log(" = ");
+    if (ret < 0) {
+        gemu_log("-1 errno=%d", errno);
+        errstr = target_strerror(-ret);
+        if (errstr) {
+            gemu_log(" (%s)", errstr);
+        }
+    } else {
+        gemu_log(TARGET_ABI_FMT_ld, ret);
+        switch (ret) {
+        case TARGET_TIME_OK:
+            gemu_log(" TIME_OK (clock synchronized, no leap second)");
+            break;
+        case TARGET_TIME_INS:
+            gemu_log(" TIME_INS (insert leap second)");
+            break;
+        case TARGET_TIME_DEL:
+            gemu_log(" TIME_DEL (delete leap second)");
+            break;
+        case TARGET_TIME_OOP:
+            gemu_log(" TIME_OOP (leap second in progress)");
+            break;
+        case TARGET_TIME_WAIT:
+            gemu_log(" TIME_WAIT (leap second has occurred)");
+            break;
+        case TARGET_TIME_ERROR:
+            gemu_log(" TIME_ERROR (clock not synchronized)");
+            break;
+        }
+    }
+
+    gemu_log("\n");
+}
 
 UNUSED static struct flags access_flags[] = {
     FLAG_GENERIC(F_OK),
@@ -1046,6 +1155,19 @@ print_chmod(const struct syscallname *name,
     print_syscall_prologue(name);
     print_string(arg0, 0);
     print_file_mode(arg1, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
+#ifdef TARGET_NR_clock_adjtime
+static void
+print_clock_adjtime(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_clockid(arg0, 0);
+    print_pointer(arg1, 1);
     print_syscall_epilogue(name);
 }
 #endif
@@ -1629,29 +1751,32 @@ print_optint:
 }
 
 #define PRINT_SOCKOP(name, func) \
-    [SOCKOP_##name] = { #name, func }
+    [TARGET_SYS_##name] = { #name, func }
 
 static struct {
     const char *name;
     void (*print)(const char *, abi_long);
 } scall[] = {
-    PRINT_SOCKOP(socket, do_print_socket),
-    PRINT_SOCKOP(bind, do_print_sockaddr),
-    PRINT_SOCKOP(connect, do_print_sockaddr),
-    PRINT_SOCKOP(listen, do_print_listen),
-    PRINT_SOCKOP(accept, do_print_sockaddr),
-    PRINT_SOCKOP(getsockname, do_print_sockaddr),
-    PRINT_SOCKOP(getpeername, do_print_sockaddr),
-    PRINT_SOCKOP(socketpair, do_print_socketpair),
-    PRINT_SOCKOP(send, do_print_sendrecv),
-    PRINT_SOCKOP(recv, do_print_sendrecv),
-    PRINT_SOCKOP(sendto, do_print_msgaddr),
-    PRINT_SOCKOP(recvfrom, do_print_msgaddr),
-    PRINT_SOCKOP(shutdown, do_print_shutdown),
-    PRINT_SOCKOP(sendmsg, do_print_msg),
-    PRINT_SOCKOP(recvmsg, do_print_msg),
-    PRINT_SOCKOP(setsockopt, do_print_sockopt),
-    PRINT_SOCKOP(getsockopt, do_print_sockopt),
+    PRINT_SOCKOP(SOCKET, do_print_socket),
+    PRINT_SOCKOP(BIND, do_print_sockaddr),
+    PRINT_SOCKOP(CONNECT, do_print_sockaddr),
+    PRINT_SOCKOP(LISTEN, do_print_listen),
+    PRINT_SOCKOP(ACCEPT, do_print_sockaddr),
+    PRINT_SOCKOP(GETSOCKNAME, do_print_sockaddr),
+    PRINT_SOCKOP(GETPEERNAME, do_print_sockaddr),
+    PRINT_SOCKOP(SOCKETPAIR, do_print_socketpair),
+    PRINT_SOCKOP(SEND, do_print_sendrecv),
+    PRINT_SOCKOP(RECV, do_print_sendrecv),
+    PRINT_SOCKOP(SENDTO, do_print_msgaddr),
+    PRINT_SOCKOP(RECVFROM, do_print_msgaddr),
+    PRINT_SOCKOP(SHUTDOWN, do_print_shutdown),
+    PRINT_SOCKOP(SETSOCKOPT, do_print_sockopt),
+    PRINT_SOCKOP(GETSOCKOPT, do_print_sockopt),
+    PRINT_SOCKOP(SENDMSG, do_print_msg),
+    PRINT_SOCKOP(RECVMSG, do_print_msg),
+    PRINT_SOCKOP(ACCEPT4, NULL),
+    PRINT_SOCKOP(RECVMMSG, NULL),
+    PRINT_SOCKOP(SENDMMSG, NULL),
 };
 
 static void
@@ -1774,6 +1899,78 @@ print_rt_sigprocmask(const struct syscallname *name,
     gemu_log("%s,",how);
     print_pointer(arg1, 0);
     print_pointer(arg2, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
+#ifdef TARGET_NR_syslog
+static void
+print_syslog_action(abi_ulong arg, int last)
+{
+    const char *type;
+
+    switch (arg) {
+        case TARGET_SYSLOG_ACTION_CLOSE: {
+            type = "SYSLOG_ACTION_CLOSE";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_OPEN: {
+            type = "SYSLOG_ACTION_OPEN";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_READ: {
+            type = "SYSLOG_ACTION_READ";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_READ_ALL: {
+            type = "SYSLOG_ACTION_READ_ALL";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_READ_CLEAR: {
+            type = "SYSLOG_ACTION_READ_CLEAR";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CLEAR: {
+            type = "SYSLOG_ACTION_CLEAR";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CONSOLE_OFF: {
+            type = "SYSLOG_ACTION_CONSOLE_OFF";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CONSOLE_ON: {
+            type = "SYSLOG_ACTION_CONSOLE_ON";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CONSOLE_LEVEL: {
+            type = "SYSLOG_ACTION_CONSOLE_LEVEL";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_SIZE_UNREAD: {
+            type = "SYSLOG_ACTION_SIZE_UNREAD";
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_SIZE_BUFFER: {
+            type = "SYSLOG_ACTION_SIZE_BUFFER";
+            break;
+        }
+        default: {
+            print_raw_param("%ld", arg, last);
+            return;
+        }
+    }
+    gemu_log("%s%s", type, get_comma(last));
+}
+
+static void
+print_syslog(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_syslog_action(arg0, 0);
+    print_pointer(arg1, 0);
+    print_raw_param("%d", arg2, 1);
     print_syscall_epilogue(name);
 }
 #endif

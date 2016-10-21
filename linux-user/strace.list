@@ -19,7 +19,8 @@
 { TARGET_NR_add_key, "add_key" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_adjtimex
-{ TARGET_NR_adjtimex, "adjtimex" , NULL, NULL, NULL },
+{ TARGET_NR_adjtimex, "adjtimex" , "%s(%p)", NULL,
+                      print_syscall_ret_adjtimex },
 #endif
 #ifdef TARGET_NR_afs_syscall
 { TARGET_NR_afs_syscall, "afs_syscall" , NULL, NULL, NULL },
@@ -77,6 +78,9 @@
 #endif
 #ifdef TARGET_NR_chroot
 { TARGET_NR_chroot, "chroot" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_clock_adjtime
+{ TARGET_NR_clock_adjtime, "clock_adjtime" , NULL, print_clock_adjtime, NULL },
 #endif
 #ifdef TARGET_NR_clock_getres
 { TARGET_NR_clock_getres, "clock_getres" , NULL, NULL, NULL },
@@ -1454,11 +1458,8 @@
 #ifdef TARGET_NR_sync
 { TARGET_NR_sync, "sync" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_sync_file_range
-{ TARGET_NR_sync_file_range, "sync_file_range" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_syncfs
-{ TARGET_NR_syncfs, "syncfs" , NULL, NULL, NULL },
+{ TARGET_NR_syncfs, "syncfs" , "%s(%d)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_syscall
 { TARGET_NR_syscall, "syscall" , NULL, NULL, NULL },
@@ -1485,7 +1486,7 @@
 { TARGET_NR_sys_kexec_load, "sys_kexec_load" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_syslog
-{ TARGET_NR_syslog, "syslog" , NULL, NULL, NULL },
+{ TARGET_NR_syslog, "syslog" , NULL, print_syslog, NULL },
 #endif
 #ifdef TARGET_NR_sysmips
 { TARGET_NR_sysmips, "sysmips" , NULL, NULL, NULL },
