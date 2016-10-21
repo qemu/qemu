@@ -1051,6 +1051,10 @@ static int console_puts(CharDriverState *chr, const uint8_t *buf, int len)
     QemuConsole *s = chr->opaque;
     int i;
 
+    if (!s->ds) {
+        return 0;
+    }
+
     s->update_x0 = s->width * FONT_WIDTH;
     s->update_y0 = s->height * FONT_HEIGHT;
     s->update_x1 = 0;
@@ -2000,8 +2004,6 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
 
     s = chr->opaque;
 
-    chr->chr_write = console_puts;
-
     s->out_fifo.buf = s->out_fifo_buf;
     s->out_fifo.buf_size = sizeof(s->out_fifo_buf);
     s->kbd_timer = timer_new_ms(QEMU_CLOCK_REALTIME, kbd_send_chars, s);
@@ -2048,6 +2050,8 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
     qemu_chr_be_generic_open(chr);
 }
 
+static const CharDriver vc_driver;
+
 static CharDriverState *text_console_init(ChardevVC *vc, Error **errp)
 {
     ChardevCommon *common = qapi_ChardevVC_base(vc);
@@ -2056,7 +2060,7 @@ static CharDriverState *text_console_init(ChardevVC *vc, Error **errp)
     unsigned width = 0;
     unsigned height = 0;
 
-    chr = qemu_chr_alloc(common, errp);
+    chr = qemu_chr_alloc(&vc_driver, common, errp);
     if (!chr) {
         return NULL;
     }
@@ -2089,7 +2093,6 @@ static CharDriverState *text_console_init(ChardevVC *vc, Error **errp)
 
     s->chr = chr;
     chr->opaque = s;
-    chr->chr_set_echo = text_console_set_echo;
 
     if (display_state) {
         text_console_do_init(chr, display_state);
@@ -2099,7 +2102,8 @@ static CharDriverState *text_console_init(ChardevVC *vc, Error **errp)
 
 static VcHandler *vc_handler = text_console_init;
 
-static CharDriverState *vc_init(const char *id, ChardevBackend *backend,
+static CharDriverState *vc_init(const CharDriver *driver,
+                                const char *id, ChardevBackend *backend,
                                 ChardevReturn *ret, bool *be_opened,
                                 Error **errp)
 {
@@ -2191,14 +2195,16 @@ static const TypeInfo qemu_console_info = {
     .class_size = sizeof(QemuConsoleClass),
 };
 
+static const CharDriver vc_driver = {
+    .kind = CHARDEV_BACKEND_KIND_VC,
+    .parse = qemu_chr_parse_vc,
+    .create = vc_init,
+    .chr_write = console_puts,
+    .chr_set_echo = text_console_set_echo,
+};
+
 static void register_types(void)
 {
-    static const CharDriver vc_driver = {
-        .kind = CHARDEV_BACKEND_KIND_VC,
-        .parse = qemu_chr_parse_vc,
-        .create = vc_init,
-    };
-
     type_register_static(&qemu_console_info);
     register_char_driver(&vc_driver);
 }

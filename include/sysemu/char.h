@@ -85,24 +85,11 @@ typedef struct CharBackend {
     int fe_open;
 } CharBackend;
 
+typedef struct CharDriver CharDriver;
+
 struct CharDriverState {
+    const CharDriver *driver;
     QemuMutex chr_write_lock;
-    int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
-    int (*chr_sync_read)(struct CharDriverState *s,
-                         const uint8_t *buf, int len);
-    GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
-    void (*chr_update_read_handler)(struct CharDriverState *s,
-                                    GMainContext *context);
-    int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
-    int (*get_msgfds)(struct CharDriverState *s, int* fds, int num);
-    int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
-    int (*chr_add_client)(struct CharDriverState *chr, int fd);
-    int (*chr_wait_connected)(struct CharDriverState *chr, Error **errp);
-    void (*chr_free)(struct CharDriverState *chr);
-    void (*chr_disconnect)(struct CharDriverState *chr);
-    void (*chr_accept_input)(struct CharDriverState *chr);
-    void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
-    void (*chr_set_fe_open)(struct CharDriverState *chr, int fe_open);
     CharBackend *be;
     void *opaque;
     char *label;
@@ -125,7 +112,8 @@ struct CharDriverState {
  *
  * Returns: a newly allocated CharDriverState, or NULL on error.
  */
-CharDriverState *qemu_chr_alloc(ChardevCommon *backend, Error **errp);
+CharDriverState *qemu_chr_alloc(const CharDriver *driver,
+                                ChardevCommon *backend, Error **errp);
 
 /**
  * @qemu_chr_new_from_opts:
@@ -475,15 +463,33 @@ void qemu_chr_set_feature(CharDriverState *chr,
                           CharDriverFeature feature);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
-typedef struct CharDriver {
+struct CharDriver {
     ChardevBackendKind kind;
     const char *alias;
     void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
-    CharDriverState *(*create)(const char *id,
+    CharDriverState *(*create)(const CharDriver *driver,
+                               const char *id,
                                ChardevBackend *backend,
                                ChardevReturn *ret, bool *be_opened,
                                Error **errp);
-} CharDriver;
+
+    int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
+    int (*chr_sync_read)(struct CharDriverState *s,
+                         const uint8_t *buf, int len);
+    GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
+    void (*chr_update_read_handler)(struct CharDriverState *s,
+                                    GMainContext *context);
+    int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
+    int (*get_msgfds)(struct CharDriverState *s, int* fds, int num);
+    int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
+    int (*chr_add_client)(struct CharDriverState *chr, int fd);
+    int (*chr_wait_connected)(struct CharDriverState *chr, Error **errp);
+    void (*chr_free)(struct CharDriverState *chr);
+    void (*chr_disconnect)(struct CharDriverState *chr);
+    void (*chr_accept_input)(struct CharDriverState *chr);
+    void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
+    void (*chr_set_fe_open)(struct CharDriverState *chr, int fe_open);
+};
 
 void register_char_driver(const CharDriver *driver);
 

@@ -109,7 +109,8 @@ static void testdev_free(struct CharDriverState *chr)
     g_free(testdev);
 }
 
-static CharDriverState *chr_testdev_init(const char *id,
+static CharDriverState *chr_testdev_init(const CharDriver *driver,
+                                         const char *id,
                                          ChardevBackend *backend,
                                          ChardevReturn *ret,
                                          bool *be_opened,
@@ -121,9 +122,8 @@ static CharDriverState *chr_testdev_init(const char *id,
     testdev = g_new0(TestdevCharState, 1);
     testdev->chr = chr = g_new0(CharDriverState, 1);
 
+    chr->driver = driver;
     chr->opaque = testdev;
-    chr->chr_write = testdev_write;
-    chr->chr_free = testdev_free;
 
     return chr;
 }
@@ -133,6 +133,8 @@ static void register_types(void)
     static const CharDriver driver = {
         .kind = CHARDEV_BACKEND_KIND_TESTDEV,
         .create = chr_testdev_init,
+        .chr_write = testdev_write,
+        .chr_free = testdev_free,
     };
     register_char_driver(&driver);
 }

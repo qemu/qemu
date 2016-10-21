@@ -148,7 +148,8 @@ static QemuInputHandler msmouse_handler = {
     .sync  = msmouse_input_sync,
 };
 
-static CharDriverState *qemu_chr_open_msmouse(const char *id,
+static CharDriverState *qemu_chr_open_msmouse(const CharDriver *driver,
+                                              const char *id,
                                               ChardevBackend *backend,
                                               ChardevReturn *ret,
                                               bool *be_opened,
@@ -158,13 +159,10 @@ static CharDriverState *qemu_chr_open_msmouse(const char *id,
     MouseState *mouse;
     CharDriverState *chr;
 
-    chr = qemu_chr_alloc(common, errp);
+    chr = qemu_chr_alloc(driver, common, errp);
     if (!chr) {
         return NULL;
     }
-    chr->chr_write = msmouse_chr_write;
-    chr->chr_free = msmouse_chr_free;
-    chr->chr_accept_input = msmouse_chr_accept_input;
     *be_opened = false;
 
     mouse = g_new0(MouseState, 1);
@@ -182,6 +180,9 @@ static void register_types(void)
     static const CharDriver driver = {
         .kind = CHARDEV_BACKEND_KIND_MSMOUSE,
         .create = qemu_chr_open_msmouse,
+        .chr_write = msmouse_chr_write,
+        .chr_accept_input = msmouse_chr_accept_input,
+        .chr_free = msmouse_chr_free,
     };
     register_char_driver(&driver);
 }

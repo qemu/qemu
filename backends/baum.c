@@ -622,7 +622,8 @@ static void baum_free(struct CharDriverState *chr)
     g_free(baum);
 }
 
-static CharDriverState *chr_baum_init(const char *id,
+static CharDriverState *chr_baum_init(const CharDriver *driver,
+                                      const char *id,
                                       ChardevBackend *backend,
                                       ChardevReturn *ret,
                                       bool *be_opened,
@@ -633,7 +634,7 @@ static CharDriverState *chr_baum_init(const char *id,
     CharDriverState *chr;
     brlapi_handle_t *handle;
 
-    chr = qemu_chr_alloc(common, errp);
+    chr = qemu_chr_alloc(driver, common, errp);
     if (!chr) {
         return NULL;
     }
@@ -641,9 +642,6 @@ static CharDriverState *chr_baum_init(const char *id,
     baum->chr = chr;
 
     chr->opaque = baum;
-    chr->chr_write = baum_write;
-    chr->chr_accept_input = baum_accept_input;
-    chr->chr_free = baum_free;
 
     handle = g_malloc0(brlapi_getHandleSize());
     baum->brlapi = handle;
@@ -674,6 +672,9 @@ static void register_types(void)
     static const CharDriver driver = {
         .kind = CHARDEV_BACKEND_KIND_BRAILLE,
         .create = chr_baum_init,
+        .chr_write = baum_write,
+        .chr_accept_input = baum_accept_input,
+        .chr_free = baum_free,
     };
 
     register_char_driver(&driver);

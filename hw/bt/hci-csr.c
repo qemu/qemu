@@ -462,12 +462,16 @@ qemu_irq *csrhci_pins_get(CharDriverState *chr)
 
 CharDriverState *uart_hci_init(void)
 {
+    static const CharDriver hci_driver = {
+        .kind = -1,
+        .chr_write = csrhci_write,
+        .chr_ioctl = csrhci_ioctl,
+    };
     struct csrhci_s *s = (struct csrhci_s *)
             g_malloc0(sizeof(struct csrhci_s));
 
     s->chr.opaque = s;
-    s->chr.chr_write = csrhci_write;
-    s->chr.chr_ioctl = csrhci_ioctl;
+    s->chr.driver = &hci_driver;
 
     s->hci = qemu_next_hci();
     s->hci->opaque = s;
