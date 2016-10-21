@@ -376,14 +376,36 @@ static inline unsigned get_alignment_bits(TCGMemOp memop)
 
 typedef tcg_target_ulong TCGArg;
 
-/* Define a type and accessor macros for variables.  Using pointer types
-   is nice because it gives some level of type safely.  Converting to and
-   from intptr_t rather than int reduces the number of sign-extension
-   instructions that get implied on 64-bit hosts.  Users of tcg_gen_* don't
-   need to know about any of this, and should treat TCGv as an opaque type.
-   In addition we do typechecking for different types of variables.  TCGv_i32
-   and TCGv_i64 are 32/64-bit variables respectively.  TCGv and TCGv_ptr
-   are aliases for target_ulong and host pointer sized values respectively.  */
+/* Define type and accessor macros for TCG variables.
+
+   TCG variables are the inputs and outputs of TCG ops, as described
+   in tcg/README. Target CPU front-end code uses these types to deal
+   with TCG variables as it emits TCG code via the tcg_gen_* functions.
+   They come in several flavours:
+    * TCGv_i32 : 32 bit integer type
+    * TCGv_i64 : 64 bit integer type
+    * TCGv_ptr : a host pointer type
+    * TCGv : an integer type the same size as target_ulong
+             (an alias for either TCGv_i32 or TCGv_i64)
+   The compiler's type checking will complain if you mix them
+   up and pass the wrong sized TCGv to a function.
+
+   Users of tcg_gen_* don't need to know about any of the internal
+   details of these, and should treat them as opaque types.
+   You won't be able to look inside them in a debugger either.
+
+   Internal implementation details follow:
+
+   Note that there is no definition of the structs TCGv_i32_d etc anywhere.
+   This is deliberate, because the values we store in variables of type
+   TCGv_i32 are not really pointers-to-structures. They're just small
+   integers, but keeping them in pointer types like this means that the
+   compiler will complain if you accidentally pass a TCGv_i32 to a
+   function which takes a TCGv_i64, and so on. Only the internals of
+   TCG need to care about the actual contents of the types, and they always
+   box and unbox via the MAKE_TCGV_* and GET_TCGV_* functions.
+   Converting to and from intptr_t rather than int reduces the number
+   of sign-extension instructions that get implied on 64-bit hosts.  */
 
 typedef struct TCGv_i32_d *TCGv_i32;
 typedef struct TCGv_i64_d *TCGv_i64;
