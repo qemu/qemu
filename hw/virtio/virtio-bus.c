@@ -190,7 +190,7 @@ int virtio_bus_start_ioeventfd(VirtioBusState *bus)
     if (!k->ioeventfd_assign || !k->ioeventfd_enabled(proxy)) {
         return -ENOSYS;
     }
-    if (bus->ioeventfd_started || bus->ioeventfd_disabled) {
+    if (bus->ioeventfd_started) {
         return 0;
     }
     r = vdc->start_ioeventfd(vdev);
@@ -226,8 +226,8 @@ bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus)
 }
 
 /*
- * This function switches from/to the generic ioeventfd handler.
- * assign==false means 'use generic ioeventfd handler'.
+ * This function switches ioeventfd on/off in the device.
+ * The caller must set or clear the handlers for the EventNotifier.
  */
 int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
 {
@@ -237,19 +237,12 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
     if (!k->ioeventfd_assign) {
         return -ENOSYS;
     }
-    bus->ioeventfd_disabled = assign;
     if (assign) {
-        /*
-         * Stop using the generic ioeventfd, we are doing eventfd handling
-         * ourselves below
-         *
-         * FIXME: We should just switch the handler and not deassign the
-         * ioeventfd.
-         * Otherwise, there's a window where we don't have an
-         * ioeventfd and we may end up with a notification where
-         * we don't expect one.
-         */
-        virtio_bus_stop_ioeventfd(bus);
+        assert(!bus->ioeventfd_started);
+    } else {
+        if (!bus->ioeventfd_started) {
+            return 0;
+        }
     }
     return set_host_notifier_internal(proxy, bus, n, assign);
 }

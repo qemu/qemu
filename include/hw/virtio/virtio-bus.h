@@ -94,12 +94,6 @@ struct VirtioBusState {
     BusState parent_obj;
 
     /*
-     * Set if the default ioeventfd handlers are disabled by vhost
-     * or dataplane.
-     */
-    bool ioeventfd_disabled;
-
-    /*
      * Set if ioeventfd has been started.
      */
     bool ioeventfd_started;
