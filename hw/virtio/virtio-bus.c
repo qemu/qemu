@@ -195,7 +195,7 @@ void virtio_bus_start_ioeventfd(VirtioBusState *bus)
     if (!k->ioeventfd_started || k->ioeventfd_started(proxy)) {
         return;
     }
-    if (k->ioeventfd_disabled(proxy)) {
+    if (bus->ioeventfd_disabled || k->ioeventfd_disabled(proxy)) {
         return;
     }
     vdev = virtio_bus_get_device(bus);
@@ -257,7 +257,7 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
     if (!k->ioeventfd_started) {
         return -ENOSYS;
     }
-    k->ioeventfd_set_disabled(proxy, assign);
+    bus->ioeventfd_disabled = assign;
     if (assign) {
         /*
          * Stop using the generic ioeventfd, we are doing eventfd handling

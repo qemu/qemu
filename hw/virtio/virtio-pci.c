@@ -281,15 +281,7 @@ static bool virtio_pci_ioeventfd_disabled(DeviceState *d)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
 
-    return proxy->ioeventfd_disabled ||
-        !(proxy->flags & VIRTIO_PCI_FLAG_USE_IOEVENTFD);
-}
-
-static void virtio_pci_ioeventfd_set_disabled(DeviceState *d, bool disabled)
-{
-    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
-
-    proxy->ioeventfd_disabled = disabled;
+    return !(proxy->flags & VIRTIO_PCI_FLAG_USE_IOEVENTFD);
 }
 
 #define QEMU_VIRTIO_PCI_QUEUE_MEM_MULT 0x1000
@@ -2542,7 +2534,6 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->ioeventfd_started = virtio_pci_ioeventfd_started;
     k->ioeventfd_set_started = virtio_pci_ioeventfd_set_started;
     k->ioeventfd_disabled = virtio_pci_ioeventfd_disabled;
-    k->ioeventfd_set_disabled = virtio_pci_ioeventfd_set_disabled;
     k->ioeventfd_assign = virtio_pci_ioeventfd_assign;
 }
 

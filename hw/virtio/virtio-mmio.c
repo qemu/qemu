@@ -89,7 +89,6 @@ typedef struct {
     uint32_t guest_page_shift;
     /* virtio-bus */
     VirtioBusState bus;
-    bool ioeventfd_disabled;
     bool ioeventfd_started;
     bool format_transport_address;
 } VirtIOMMIOProxy;
@@ -111,16 +110,7 @@ static void virtio_mmio_ioeventfd_set_started(DeviceState *d, bool started,
 
 static bool virtio_mmio_ioeventfd_disabled(DeviceState *d)
 {
-    VirtIOMMIOProxy *proxy = VIRTIO_MMIO(d);
-
-    return !kvm_eventfds_enabled() || proxy->ioeventfd_disabled;
-}
-
-static void virtio_mmio_ioeventfd_set_disabled(DeviceState *d, bool disabled)
-{
-    VirtIOMMIOProxy *proxy = VIRTIO_MMIO(d);
-
-    proxy->ioeventfd_disabled = disabled;
+    return !kvm_eventfds_enabled();
 }
 
 static int virtio_mmio_ioeventfd_assign(DeviceState *d,
@@ -560,7 +550,6 @@ static void virtio_mmio_bus_class_init(ObjectClass *klass, void *data)
     k->ioeventfd_started = virtio_mmio_ioeventfd_started;
     k->ioeventfd_set_started = virtio_mmio_ioeventfd_set_started;
     k->ioeventfd_disabled = virtio_mmio_ioeventfd_disabled;
-    k->ioeventfd_set_disabled = virtio_mmio_ioeventfd_set_disabled;
     k->ioeventfd_assign = virtio_mmio_ioeventfd_assign;
     k->has_variable_vring_alignment = true;
     bus_class->max_dev = 1;

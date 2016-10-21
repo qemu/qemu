@@ -83,8 +83,6 @@ typedef struct VirtioBusClass {
     void (*ioeventfd_set_started)(DeviceState *d, bool started, bool err);
     /* Returns true if the ioeventfd has been disabled for the device. */
     bool (*ioeventfd_disabled)(DeviceState *d);
-    /* Sets the 'ioeventfd disabled' state for the device. */
-    void (*ioeventfd_set_disabled)(DeviceState *d, bool disabled);
     /*
      * Assigns/deassigns the ioeventfd backing for the transport on
      * the device for queue number n. Returns an error value on
@@ -102,6 +100,12 @@ typedef struct VirtioBusClass {
 
 struct VirtioBusState {
     BusState parent_obj;
+
+    /*
+     * Set if the default ioeventfd handlers are disabled by vhost
+     * or dataplane.
+     */
+    bool ioeventfd_disabled;
 };
 
 void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp);

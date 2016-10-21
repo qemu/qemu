@@ -82,15 +82,7 @@ static bool virtio_ccw_ioeventfd_disabled(DeviceState *d)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
 
-    return dev->ioeventfd_disabled ||
-        !(dev->flags & VIRTIO_CCW_FLAG_USE_IOEVENTFD);
-}
-
-static void virtio_ccw_ioeventfd_set_disabled(DeviceState *d, bool disabled)
-{
-    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
-
-    dev->ioeventfd_disabled = disabled;
+    return !(dev->flags & VIRTIO_CCW_FLAG_USE_IOEVENTFD);
 }
 
 static int virtio_ccw_ioeventfd_assign(DeviceState *d, EventNotifier *notifier,
@@ -1619,7 +1611,6 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)
     k->ioeventfd_started = virtio_ccw_ioeventfd_started;
     k->ioeventfd_set_started = virtio_ccw_ioeventfd_set_started;
     k->ioeventfd_disabled = virtio_ccw_ioeventfd_disabled;
-    k->ioeventfd_set_disabled = virtio_ccw_ioeventfd_set_disabled;
     k->ioeventfd_assign = virtio_ccw_ioeventfd_assign;
 }
 
