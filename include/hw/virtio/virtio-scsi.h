@@ -134,9 +134,9 @@ void virtio_scsi_free_req(VirtIOSCSIReq *req);
 void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
                             uint32_t event, uint32_t reason);
 
-void virtio_scsi_set_iothread(VirtIOSCSI *s, IOThread *iothread);
-void virtio_scsi_dataplane_start(VirtIOSCSI *s);
-void virtio_scsi_dataplane_stop(VirtIOSCSI *s);
+void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp);
+int virtio_scsi_dataplane_start(VirtIODevice *s);
+void virtio_scsi_dataplane_stop(VirtIODevice *s);
 void virtio_scsi_dataplane_notify(VirtIODevice *vdev, VirtIOSCSIReq *req);
 
 #endif /* QEMU_VIRTIO_SCSI_H */
