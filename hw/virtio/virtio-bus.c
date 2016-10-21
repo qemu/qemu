@@ -147,8 +147,8 @@ void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
     }
 }
 
-int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
-                               int n, bool assign)
+static int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
+                                      int n, bool assign)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
