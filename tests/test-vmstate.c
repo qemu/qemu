@@ -474,6 +474,76 @@ static void test_load_skip(void)
     qemu_fclose(loading);
 }
 
+
+typedef struct {
+    int32_t i;
+} TestStructTriv;
+
+const VMStateDescription vmsd_tst = {
+    .name = "test/tst",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(i, TestStructTriv),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#define AR_SIZE 4
+
+typedef struct {
+    TestStructTriv *ar[AR_SIZE];
+} TestArrayOfPtrToStuct;
+
+const VMStateDescription vmsd_arps = {
+    .name = "test/arps",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(ar, TestArrayOfPtrToStuct,
+                AR_SIZE, 0, vmsd_tst, TestStructTriv),
+        VMSTATE_END_OF_LIST()
+    }
+};
+static void test_arr_ptr_str_no0_save(void)
+{
+    TestStructTriv ar[AR_SIZE] = {{.i = 0}, {.i = 1}, {.i = 2}, {.i = 3} };
+    TestArrayOfPtrToStuct sample = {.ar = {&ar[0], &ar[1], &ar[2], &ar[3]} };
+    uint8_t wire_sample[] = {
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x03,
+        QEMU_VM_EOF
+    };
+
+    save_vmstate(&vmsd_arps, &sample);
+    compare_vmstate(wire_sample, sizeof(wire_sample));
+}
+
+static void test_arr_ptr_str_no0_load(void)
+{
+    TestStructTriv ar_gt[AR_SIZE] = {{.i = 0}, {.i = 1}, {.i = 2}, {.i = 3} };
+    TestStructTriv ar[AR_SIZE] = {};
+    TestArrayOfPtrToStuct obj = {.ar = {&ar[0], &ar[1], &ar[2], &ar[3]} };
+    int idx;
+    uint8_t wire_sample[] = {
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x03,
+        QEMU_VM_EOF
+    };
+
+    save_buffer(wire_sample, sizeof(wire_sample));
+    SUCCESS(load_vmstate_one(&vmsd_arps, &obj, 1,
+                          wire_sample, sizeof(wire_sample)));
+    for (idx = 0; idx < AR_SIZE; ++idx) {
+        /* compare the target array ar with the ground truth array ar_gt */
+        g_assert_cmpint(ar_gt[idx].i, ==, ar[idx].i);
+    }
+}
+
 int main(int argc, char **argv)
 {
     temp_fd = mkstemp(temp_file);
@@ -488,6 +558,10 @@ int main(int argc, char **argv)
     g_test_add_func("/vmstate/field_exists/load/skip", test_load_skip);
     g_test_add_func("/vmstate/field_exists/save/noskip", test_save_noskip);
     g_test_add_func("/vmstate/field_exists/save/skip", test_save_skip);
+    g_test_add_func("/vmstate/array/ptr/str/no0/save",
+                    test_arr_ptr_str_no0_save);
+    g_test_add_func("/vmstate/array/ptr/str/no0/load",
+                    test_arr_ptr_str_no0_load);
     g_test_run();
 
     close(temp_fd);
