@@ -1719,10 +1719,6 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         pci_register_bar(&proxy->pci_dev, proxy->legacy_io_bar_idx,
                          PCI_BASE_ADDRESS_SPACE_IO, &proxy->bar);
     }
-
-    if (!kvm_has_many_ioeventfds()) {
-        proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
-    }
 }
 
 static void virtio_pci_device_unplugged(DeviceState *d)
@@ -1750,6 +1746,10 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
     bool pcie_port = pci_bus_is_express(pci_dev->bus) &&
                      !pci_bus_is_root(pci_dev->bus);
+
+    if (!kvm_has_many_ioeventfds()) {
+        proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
+    }
 
     /*
      * virtio pci bar layout used by default.

@@ -709,6 +709,10 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
         sch->cssid, sch->ssid, sch->schid, sch->devno,
         ccw_dev->bus_id.valid ? "user-configured" : "auto-configured");
 
+    if (!kvm_eventfds_enabled()) {
+        dev->flags &= ~VIRTIO_CCW_FLAG_USE_IOEVENTFD;
+    }
+
     if (k->realize) {
         k->realize(dev, &err);
     }
@@ -1309,10 +1313,6 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
                    "exceeds ccw limit %d", n,
                    VIRTIO_CCW_QUEUE_MAX);
         return;
-    }
-
-    if (!kvm_eventfds_enabled()) {
-        dev->flags &= ~VIRTIO_CCW_FLAG_USE_IOEVENTFD;
     }
 
     sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
