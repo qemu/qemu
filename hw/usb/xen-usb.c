@@ -160,7 +160,7 @@ static int usbback_gnttab_map(struct usbback_req *usbback_req)
 
     for (i = 0; i < nr_segs; i++) {
         if ((unsigned)usbback_req->req.seg[i].offset +
-            (unsigned)usbback_req->req.seg[i].length > PAGE_SIZE) {
+            (unsigned)usbback_req->req.seg[i].length > XC_PAGE_SIZE) {
             xen_be_printf(xendev, 0, "segment crosses page boundary\n");
             return -EINVAL;
         }
@@ -183,7 +183,7 @@ static int usbback_gnttab_map(struct usbback_req *usbback_req)
 
         for (i = 0; i < usbback_req->nr_buffer_segs; i++) {
             seg = usbback_req->req.seg + i;
-            addr = usbback_req->buffer + i * PAGE_SIZE + seg->offset;
+            addr = usbback_req->buffer + i * XC_PAGE_SIZE + seg->offset;
             qemu_iovec_add(&usbback_req->packet.iov, addr, seg->length);
         }
     }
