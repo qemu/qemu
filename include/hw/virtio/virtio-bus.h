@@ -71,10 +71,10 @@ typedef struct VirtioBusClass {
     int (*query_nvectors)(DeviceState *d);
     /*
      * ioeventfd handling: if the transport implements ioeventfd_assign,
-     * it must implement ioeventfd_disabled as well.
+     * it must implement ioeventfd_enabled as well.
      */
-    /* Returns true if the ioeventfd has been disabled for the device. */
-    bool (*ioeventfd_disabled)(DeviceState *d);
+    /* Returns true if the ioeventfd is enabled for the device. */
+    bool (*ioeventfd_enabled)(DeviceState *d);
     /*
      * Assigns/deassigns the ioeventfd backing for the transport on
      * the device for queue number n. Returns an error value on
@@ -131,6 +131,8 @@ static inline VirtIODevice *virtio_bus_get_device(VirtioBusState *bus)
     return (VirtIODevice *)qdev;
 }
 
+/* Return whether the proxy allows ioeventfd.  */
+bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus);
 /* Start the ioeventfd. */
 int virtio_bus_start_ioeventfd(VirtioBusState *bus);
 /* Stop the ioeventfd. */

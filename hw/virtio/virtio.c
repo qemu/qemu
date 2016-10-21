@@ -2247,6 +2247,14 @@ static void virtio_device_class_init(ObjectClass *klass, void *data)
     vdc->stop_ioeventfd = virtio_device_stop_ioeventfd_impl;
 }
 
+bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+
+    return virtio_bus_ioeventfd_enabled(vbus);
+}
+
 static const TypeInfo virtio_device_info = {
     .name = TYPE_VIRTIO_DEVICE,
     .parent = TYPE_DEVICE,

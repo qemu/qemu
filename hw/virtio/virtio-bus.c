@@ -193,7 +193,7 @@ int virtio_bus_start_ioeventfd(VirtioBusState *bus)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     int r;
 
-    if (!k->ioeventfd_assign || k->ioeventfd_disabled(proxy)) {
+    if (!k->ioeventfd_assign || !k->ioeventfd_enabled(proxy)) {
         return -ENOSYS;
     }
     if (bus->ioeventfd_started || bus->ioeventfd_disabled) {
@@ -221,6 +221,14 @@ void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
     vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     vdc->stop_ioeventfd(vdev);
     bus->ioeventfd_started = false;
+}
+
+bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus)
+{
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+    DeviceState *proxy = DEVICE(BUS(bus)->parent);
+
+    return k->ioeventfd_assign && k->ioeventfd_enabled(proxy);
 }
 
 /*
