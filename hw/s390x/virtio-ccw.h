@@ -86,7 +86,6 @@ struct VirtioCcwDevice {
     int revision;
     uint32_t max_rev;
     VirtioBusState bus;
-    bool ioeventfd_started;
     uint32_t flags;
     uint8_t thinint_isc;
     AdapterRoutes routes;

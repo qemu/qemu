@@ -31,7 +31,7 @@ void virtio_scsi_set_iothread(VirtIOSCSI *s, IOThread *iothread)
     s->ctx = iothread_get_aio_context(vs->conf.iothread);
 
     /* Don't try if transport does not support notifiers. */
-    if (!k->set_guest_notifiers || !k->ioeventfd_started) {
+    if (!k->set_guest_notifiers || !k->ioeventfd_assign) {
         fprintf(stderr, "virtio-scsi: Failed to set iothread "
                    "(transport does not support notifiers)");
         exit(1);

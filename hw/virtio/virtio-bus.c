@@ -192,10 +192,10 @@ void virtio_bus_start_ioeventfd(VirtioBusState *bus)
     VirtIODevice *vdev;
     int n, r;
 
-    if (!k->ioeventfd_started || k->ioeventfd_started(proxy)) {
+    if (!k->ioeventfd_assign || k->ioeventfd_disabled(proxy)) {
         return;
     }
-    if (bus->ioeventfd_disabled || k->ioeventfd_disabled(proxy)) {
+    if (bus->ioeventfd_started || bus->ioeventfd_disabled) {
         return;
     }
     vdev = virtio_bus_get_device(bus);
@@ -208,7 +208,7 @@ void virtio_bus_start_ioeventfd(VirtioBusState *bus)
             goto assign_error;
         }
     }
-    k->ioeventfd_set_started(proxy, true, false);
+    bus->ioeventfd_started = true;
     return;
 
 assign_error:
@@ -220,18 +220,16 @@ assign_error:
         r = set_host_notifier_internal(proxy, bus, n, false, false);
         assert(r >= 0);
     }
-    k->ioeventfd_set_started(proxy, false, true);
     error_report("%s: failed. Fallback to userspace (slower).", __func__);
 }
 
 void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
 {
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
     DeviceState *proxy = DEVICE(BUS(bus)->parent);
     VirtIODevice *vdev;
     int n, r;
 
-    if (!k->ioeventfd_started || !k->ioeventfd_started(proxy)) {
+    if (!bus->ioeventfd_started) {
         return;
     }
     vdev = virtio_bus_get_device(bus);
@@ -242,7 +240,7 @@ void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
         r = set_host_notifier_internal(proxy, bus, n, false, false);
         assert(r >= 0);
     }
-    k->ioeventfd_set_started(proxy, false, false);
+    bus->ioeventfd_started = false;
 }
 
 /*
@@ -254,7 +252,7 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
     DeviceState *proxy = DEVICE(BUS(bus)->parent);
 
-    if (!k->ioeventfd_started) {
+    if (!k->ioeventfd_assign) {
         return -ENOSYS;
     }
     bus->ioeventfd_disabled = assign;

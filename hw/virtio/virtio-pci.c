@@ -262,21 +262,6 @@ static int virtio_pci_load_queue(DeviceState *d, int n, QEMUFile *f)
     return 0;
 }
 
-static bool virtio_pci_ioeventfd_started(DeviceState *d)
-{
-    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
-
-    return proxy->ioeventfd_started;
-}
-
-static void virtio_pci_ioeventfd_set_started(DeviceState *d, bool started,
-                                             bool err)
-{
-    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
-
-    proxy->ioeventfd_started = started;
-}
-
 static bool virtio_pci_ioeventfd_disabled(DeviceState *d)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
@@ -2531,8 +2516,6 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->device_plugged = virtio_pci_device_plugged;
     k->device_unplugged = virtio_pci_device_unplugged;
     k->query_nvectors = virtio_pci_query_nvectors;
-    k->ioeventfd_started = virtio_pci_ioeventfd_started;
-    k->ioeventfd_set_started = virtio_pci_ioeventfd_set_started;
     k->ioeventfd_disabled = virtio_pci_ioeventfd_disabled;
     k->ioeventfd_assign = virtio_pci_ioeventfd_assign;
 }

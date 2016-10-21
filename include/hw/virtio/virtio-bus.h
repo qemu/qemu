@@ -70,17 +70,9 @@ typedef struct VirtioBusClass {
     void (*device_unplugged)(DeviceState *d);
     int (*query_nvectors)(DeviceState *d);
     /*
-     * ioeventfd handling: if the transport implements ioeventfd_started,
-     * it must implement the other ioeventfd callbacks as well
+     * ioeventfd handling: if the transport implements ioeventfd_assign,
+     * it must implement ioeventfd_disabled as well.
      */
-    /* Returns true if the ioeventfd has been started for the device. */
-    bool (*ioeventfd_started)(DeviceState *d);
-    /*
-     * Sets the 'ioeventfd started' state after the ioeventfd has been
-     * started/stopped for the device. err signifies whether an error
-     * had occurred.
-     */
-    void (*ioeventfd_set_started)(DeviceState *d, bool started, bool err);
     /* Returns true if the ioeventfd has been disabled for the device. */
     bool (*ioeventfd_disabled)(DeviceState *d);
     /*
@@ -106,6 +98,11 @@ struct VirtioBusState {
      * or dataplane.
      */
     bool ioeventfd_disabled;
+
+    /*
+     * Set if ioeventfd has been started.
+     */
+    bool ioeventfd_started;
 };
 
 void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp);

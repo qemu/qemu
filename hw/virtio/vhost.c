@@ -1190,7 +1190,7 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r, e;
 
-    if (!k->ioeventfd_started) {
+    if (!k->ioeventfd_assign) {
         error_report("binding does not support host notifiers");
         r = -ENOSYS;
         goto fail;

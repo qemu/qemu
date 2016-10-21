@@ -93,7 +93,7 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     }
 
     /* Don't try if transport does not support notifiers. */
-    if (!k->set_guest_notifiers || !k->ioeventfd_started) {
+    if (!k->set_guest_notifiers || !k->ioeventfd_assign) {
         error_setg(errp,
                    "device is incompatible with dataplane "
                    "(transport does not support notifiers)");
