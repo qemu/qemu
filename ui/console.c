@@ -2191,12 +2191,16 @@ static const TypeInfo qemu_console_info = {
     .class_size = sizeof(QemuConsoleClass),
 };
 
-
 static void register_types(void)
 {
+    static const CharDriver vc_driver = {
+        .kind = CHARDEV_BACKEND_KIND_VC,
+        .parse = qemu_chr_parse_vc,
+        .create = vc_init,
+    };
+
     type_register_static(&qemu_console_info);
-    register_char_driver("vc", CHARDEV_BACKEND_KIND_VC, qemu_chr_parse_vc,
-                         vc_init);
+    register_char_driver(&vc_driver);
 }
 
 type_init(register_types);

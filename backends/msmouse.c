@@ -179,8 +179,11 @@ static CharDriverState *qemu_chr_open_msmouse(const char *id,
 
 static void register_types(void)
 {
-    register_char_driver("msmouse", CHARDEV_BACKEND_KIND_MSMOUSE, NULL,
-                         qemu_chr_open_msmouse);
+    static const CharDriver driver = {
+        .kind = CHARDEV_BACKEND_KIND_MSMOUSE,
+        .create = qemu_chr_open_msmouse,
+    };
+    register_char_driver(&driver);
 }
 
 type_init(register_types);

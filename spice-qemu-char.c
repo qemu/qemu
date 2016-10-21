@@ -389,10 +389,18 @@ static void qemu_chr_parse_spice_port(QemuOpts *opts, ChardevBackend *backend,
 
 static void register_types(void)
 {
-    register_char_driver("spicevmc", CHARDEV_BACKEND_KIND_SPICEVMC,
-                         qemu_chr_parse_spice_vmc, qemu_chr_open_spice_vmc);
-    register_char_driver("spiceport", CHARDEV_BACKEND_KIND_SPICEPORT,
-                         qemu_chr_parse_spice_port, qemu_chr_open_spice_port);
+    static const CharDriver vmc_driver = {
+        .kind = CHARDEV_BACKEND_KIND_SPICEVMC,
+        .parse = qemu_chr_parse_spice_vmc,
+        .create = qemu_chr_open_spice_vmc,
+    };
+    static const CharDriver port_driver = {
+        .kind = CHARDEV_BACKEND_KIND_SPICEPORT,
+        .parse = qemu_chr_parse_spice_port,
+        .create = qemu_chr_open_spice_port,
+    };
+    register_char_driver(&vmc_driver);
+    register_char_driver(&port_driver);
 }
 
 type_init(register_types);

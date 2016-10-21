@@ -475,15 +475,17 @@ void qemu_chr_set_feature(CharDriverState *chr,
                           CharDriverFeature feature);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
-typedef void CharDriverParse(QemuOpts *opts, ChardevBackend *backend,
-                             Error **errp);
-typedef CharDriverState *CharDriverCreate(const char *id,
-                                          ChardevBackend *backend,
-                                          ChardevReturn *ret, bool *be_opened,
-                                          Error **errp);
+typedef struct CharDriver {
+    ChardevBackendKind kind;
+    const char *alias;
+    void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
+    CharDriverState *(*create)(const char *id,
+                               ChardevBackend *backend,
+                               ChardevReturn *ret, bool *be_opened,
+                               Error **errp);
+} CharDriver;
 
-void register_char_driver(const char *name, ChardevBackendKind kind,
-                          CharDriverParse *parse, CharDriverCreate *create);
+void register_char_driver(const CharDriver *driver);
 
 extern int term_escape_char;
 

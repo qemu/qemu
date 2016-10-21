@@ -130,8 +130,11 @@ static CharDriverState *chr_testdev_init(const char *id,
 
 static void register_types(void)
 {
-    register_char_driver("testdev", CHARDEV_BACKEND_KIND_TESTDEV, NULL,
-                         chr_testdev_init);
+    static const CharDriver driver = {
+        .kind = CHARDEV_BACKEND_KIND_TESTDEV,
+        .create = chr_testdev_init,
+    };
+    register_char_driver(&driver);
 }
 
 type_init(register_types);
