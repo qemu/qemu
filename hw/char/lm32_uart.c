@@ -177,11 +177,9 @@ static void uart_write(void *opaque, hwaddr addr,
     addr >>= 2;
     switch (addr) {
     case R_RXTX:
-        if (s->chr.chr) {
-            /* XXX this blocks entire thread. Rewrite to use
-             * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(&s->chr, &ch, 1);
-        }
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
+        qemu_chr_fe_write_all(&s->chr, &ch, 1);
         break;
     case R_IER:
     case R_LCR:
@@ -267,10 +265,8 @@ static void lm32_uart_realize(DeviceState *dev, Error **errp)
 {
     LM32UartState *s = LM32_UART(dev);
 
-    if (s->chr.chr) {
-        qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
-                                 uart_event, s, NULL);
-    }
+    qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
+                             uart_event, s, NULL);
 }
 
 static const VMStateDescription vmstate_lm32_uart = {

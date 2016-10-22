@@ -168,6 +168,7 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename);
  * @qemu_chr_fe_disconnect:
  *
  * Close a fd accpeted by character backend.
+ * Without associated CharDriver, do nothing.
  */
 void qemu_chr_fe_disconnect(CharBackend *be);
 
@@ -181,7 +182,8 @@ void qemu_chr_cleanup(void);
 /**
  * @qemu_chr_fe_wait_connected:
  *
- * Wait for characted backend to be connected.
+ * Wait for characted backend to be connected, return < 0 on error or
+ * if no assicated CharDriver.
  */
 int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp);
 
@@ -220,6 +222,7 @@ void qemu_chr_free(CharDriverState *chr);
  * Ask the backend to override its normal echo setting.  This only really
  * applies to the stdio backend and is used by the QMP server such that you
  * can see what you type if you try to type QMP commands.
+ * Without associated CharDriver, do nothing.
  *
  * @echo true to enable echo, false to disable echo
  */
@@ -230,13 +233,15 @@ void qemu_chr_fe_set_echo(CharBackend *be, bool echo);
  *
  * Set character frontend open status.  This is an indication that the
  * front end is ready (or not) to begin doing I/O.
+ * Without associated CharDriver, do nothing.
  */
 void qemu_chr_fe_set_open(CharBackend *be, int fe_open);
 
 /**
  * @qemu_chr_fe_event:
  *
- * Send an event from the front end to the back end.
+ * Send an event from the front end to the back end. It does nothing
+ * without associated CharDriver.
  *
  * @event the event to send
  */
@@ -245,8 +250,9 @@ void qemu_chr_fe_event(CharBackend *be, int event);
 /**
  * @qemu_chr_fe_printf:
  *
- * Write to a character backend using a printf style interface.
- * This function is thread-safe.
+ * Write to a character backend using a printf style interface.  This
+ * function is thread-safe. It does nothing without associated
+ * CharDriver.
  *
  * @fmt see #printf
  */
@@ -259,7 +265,7 @@ void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
  * If the backend is connected, create and add a #GSource that fires
  * when the given condition (typically G_IO_OUT|G_IO_HUP or G_IO_HUP)
  * is active; return the #GSource's tag.  If it is disconnected,
- * return 0.
+ * or without associated CharDriver, return 0.
  *
  * @cond the condition to poll for
  * @func the function to call when the condition happens
@@ -278,7 +284,7 @@ guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
  * @buf the data
  * @len the number of bytes to send
  *
- * Returns: the number of bytes consumed
+ * Returns: the number of bytes consumed (0 if no assicated CharDriver)
  */
 int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
 
@@ -293,7 +299,7 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
  * @buf the data
  * @len the number of bytes to send
  *
- * Returns: the number of bytes consumed
+ * Returns: the number of bytes consumed (0 if no assicated CharDriver)
  */
 int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
 
@@ -305,7 +311,7 @@ int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
  * @buf the data buffer
  * @len the number of bytes to read
  *
- * Returns: the number of bytes read
+ * Returns: the number of bytes read (0 if no assicated CharDriver)
  */
 int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len);
 
@@ -317,8 +323,9 @@ int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len);
  * @cmd see CHR_IOCTL_*
  * @arg the data associated with @cmd
  *
- * Returns: if @cmd is not supported by the backend, -ENOTSUP, otherwise the
- *          return value depends on the semantics of @cmd
+ * Returns: if @cmd is not supported by the backend or there is no
+ *          associated CharDriver, -ENOTSUP, otherwise the return
+ *          value depends on the semantics of @cmd
  */
 int qemu_chr_fe_ioctl(CharBackend *be, int cmd, void *arg);
 
@@ -357,7 +364,7 @@ int qemu_chr_fe_get_msgfds(CharBackend *be, int *fds, int num);
  * result in overwriting the fd array with the new value without being send.
  * Upon writing the message the fd array is freed.
  *
- * Returns: -1 if fd passing isn't supported.
+ * Returns: -1 if fd passing isn't supported or no associated CharDriver.
  */
 int qemu_chr_fe_set_msgfds(CharBackend *be, int *fds, int num);
 
@@ -418,7 +425,8 @@ bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp);
 /**
  * @qemu_chr_fe_get_driver:
  *
- * Returns the driver associated with a CharBackend or NULL.
+ * Returns the driver associated with a CharBackend or NULL if no
+ * associated CharDriver.
  */
 CharDriverState *qemu_chr_fe_get_driver(CharBackend *be);
 
@@ -426,6 +434,8 @@ CharDriverState *qemu_chr_fe_get_driver(CharBackend *be);
  * @qemu_chr_fe_deinit:
  *
  * Dissociate the CharBackend from the CharDriver.
+ *
+ * Safe to call without associated CharDriver.
  */
 void qemu_chr_fe_deinit(CharBackend *b);
 
@@ -441,6 +451,8 @@ void qemu_chr_fe_deinit(CharBackend *b);
  *
  * Set the front end char handlers. The front end takes the focus if
  * any of the handler is non-NULL.
+ *
+ * Without associated CharDriver, nothing is changed.
  */
 void qemu_chr_fe_set_handlers(CharBackend *b,
                               IOCanReadHandler *fd_can_read,
@@ -452,7 +464,9 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
 /**
  * @qemu_chr_fe_take_focus:
  *
- * Take the focus (if the front end is muxed)
+ * Take the focus (if the front end is muxed).
+ *
+ * Without associated CharDriver, nothing is changed.
  */
 void qemu_chr_fe_take_focus(CharBackend *b);
 

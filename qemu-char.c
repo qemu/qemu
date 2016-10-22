@@ -273,6 +273,10 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
     CharDriverState *s = be->chr;
     int ret;
 
+    if (!s) {
+        return 0;
+    }
+
     if (s->replay && replay_mode == REPLAY_MODE_PLAY) {
         int offset;
         replay_char_write_event_load(&ret, &offset);
@@ -325,6 +329,10 @@ int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len)
 {
     CharDriverState *s = be->chr;
 
+    if (!s) {
+        return 0;
+    }
+
     return qemu_chr_write_all(s, buf, len);
 }
 
@@ -334,10 +342,10 @@ int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
     int offset = 0, counter = 10;
     int res;
 
-    if (!s->chr_sync_read) {
+    if (!s || !s->chr_sync_read) {
         return 0;
     }
-    
+
     if (s->replay && replay_mode == REPLAY_MODE_PLAY) {
         return replay_char_read_all_load(buf);
     }
@@ -378,7 +386,8 @@ int qemu_chr_fe_ioctl(CharBackend *be, int cmd, void *arg)
 {
     CharDriverState *s = be->chr;
     int res;
-    if (!s->chr_ioctl || s->replay) {
+
+    if (!s || !s->chr_ioctl || s->replay) {
         res = -ENOTSUP;
     } else {
         res = s->chr_ioctl(s, cmd, arg);
@@ -418,7 +427,7 @@ int qemu_chr_fe_get_msgfd(CharBackend *be)
     CharDriverState *s = be->chr;
     int fd;
     int res = (qemu_chr_fe_get_msgfds(be, &fd, 1) == 1) ? fd : -1;
-    if (s->replay) {
+    if (s && s->replay) {
         fprintf(stderr,
                 "Replay: get msgfd is not supported for serial devices yet\n");
         exit(1);
@@ -430,12 +439,20 @@ int qemu_chr_fe_get_msgfds(CharBackend *be, int *fds, int len)
 {
     CharDriverState *s = be->chr;
 
+    if (!s) {
+        return -1;
+    }
+
     return s->get_msgfds ? s->get_msgfds(s, fds, len) : -1;
 }
 
 int qemu_chr_fe_set_msgfds(CharBackend *be, int *fds, int num)
 {
     CharDriverState *s = be->chr;
+
+    if (!s) {
+        return -1;
+    }
 
     return s->set_msgfds ? s->set_msgfds(s, fds, num) : -1;
 }
@@ -448,6 +465,10 @@ int qemu_chr_add_client(CharDriverState *s, int fd)
 void qemu_chr_fe_accept_input(CharBackend *be)
 {
     CharDriverState *s = be->chr;
+
+    if (!s) {
+        return;
+    }
 
     if (s->chr_accept_input)
         s->chr_accept_input(s);
@@ -945,6 +966,10 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
 
 void qemu_chr_fe_take_focus(CharBackend *b)
 {
+    if (!b->chr) {
+        return;
+    }
+
     if (b->chr->is_mux) {
         mux_set_focus(b->chr->opaque, b->tag);
     }
@@ -3347,6 +3372,11 @@ static int qemu_chr_wait_connected(CharDriverState *chr, Error **errp)
 
 int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp)
 {
+    if (!be->chr) {
+        error_setg(errp, "missing associated backend");
+        return -1;
+    }
+
     return qemu_chr_wait_connected(be->chr, errp);
 }
 
@@ -4151,7 +4181,7 @@ void qemu_chr_fe_set_echo(CharBackend *be, bool echo)
 {
     CharDriverState *chr = be->chr;
 
-    if (chr->chr_set_echo) {
+    if (chr && chr->chr_set_echo) {
         chr->chr_set_echo(chr, echo);
     }
 }
@@ -4159,6 +4189,10 @@ void qemu_chr_fe_set_echo(CharBackend *be, bool echo)
 void qemu_chr_fe_set_open(CharBackend *be, int fe_open)
 {
     CharDriverState *chr = be->chr;
+
+    if (!chr) {
+        return;
+    }
 
     if (chr->fe_open == fe_open) {
         return;
@@ -4173,7 +4207,7 @@ void qemu_chr_fe_event(CharBackend *be, int event)
 {
     CharDriverState *chr = be->chr;
 
-    if (chr->chr_fe_event) {
+    if (chr && chr->chr_fe_event) {
         chr->chr_fe_event(chr, event);
     }
 }
@@ -4185,7 +4219,7 @@ guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
     GSource *src;
     guint tag;
 
-    if (s->chr_add_watch == NULL) {
+    if (!s || s->chr_add_watch == NULL) {
         return 0;
     }
 
@@ -4205,7 +4239,7 @@ void qemu_chr_fe_disconnect(CharBackend *be)
 {
     CharDriverState *chr = be->chr;
 
-    if (chr->chr_disconnect) {
+    if (chr && chr->chr_disconnect) {
         chr->chr_disconnect(chr);
     }
 }

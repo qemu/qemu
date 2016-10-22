@@ -1903,7 +1903,7 @@ static void pxa2xx_fir_write(void *opaque, hwaddr addr,
         } else {
             ch = ~value;
         }
-        if (s->chr.chr && s->enable && (s->control[0] & (1 << 3))) { /* TXE */
+        if (s->enable && (s->control[0] & (1 << 3))) { /* TXE */
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
             qemu_chr_fe_write_all(&s->chr, &ch, 1);
@@ -1975,10 +1975,8 @@ static void pxa2xx_fir_realize(DeviceState *dev, Error **errp)
 {
     PXA2xxFIrState *s = PXA2XX_FIR(dev);
 
-    if (s->chr.chr) {
-        qemu_chr_fe_set_handlers(&s->chr, pxa2xx_fir_is_empty,
-                                 pxa2xx_fir_rx, pxa2xx_fir_event, s, NULL);
-    }
+    qemu_chr_fe_set_handlers(&s->chr, pxa2xx_fir_is_empty,
+                             pxa2xx_fir_rx, pxa2xx_fir_event, s, NULL);
 }
 
 static bool pxa2xx_fir_vmstate_validate(void *opaque, int version_id)

@@ -124,9 +124,7 @@ static void uart_write(void *opaque, hwaddr addr, uint64_t value,
     addr >>= 2;
     switch (addr) {
     case R_RXTX:
-        if (s->chr.chr) {
-            qemu_chr_fe_write_all(&s->chr, &ch, 1);
-        }
+        qemu_chr_fe_write_all(&s->chr, &ch, 1);
         s->regs[R_STAT] |= STAT_TX_EVT;
         break;
     case R_DIV:
@@ -200,10 +198,8 @@ static void milkymist_uart_realize(DeviceState *dev, Error **errp)
 {
     MilkymistUartState *s = MILKYMIST_UART(dev);
 
-    if (s->chr.chr) {
-        qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
-                                 uart_event, s, NULL);
-    }
+    qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
+                             uart_event, s, NULL);
 }
 
 static void milkymist_uart_init(Object *obj)

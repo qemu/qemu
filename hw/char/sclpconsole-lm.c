@@ -312,10 +312,8 @@ static int console_init(SCLPEvent *event)
     }
     console_available = true;
 
-    if (scon->chr.chr) {
-        qemu_chr_fe_set_handlers(&scon->chr, chr_can_read,
-                                 chr_read, NULL, scon, NULL);
-    }
+    qemu_chr_fe_set_handlers(&scon->chr, chr_can_read,
+                             chr_read, NULL, scon, NULL);
 
     return 0;
 }

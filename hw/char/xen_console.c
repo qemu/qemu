@@ -244,10 +244,8 @@ static int con_initialise(struct XenDevice *xendev)
 	return -1;
 
     xen_be_bind_evtchn(&con->xendev);
-    if (con->chr.chr) {
-        qemu_chr_fe_set_handlers(&con->chr, xencons_can_receive,
-                                 xencons_receive, NULL, con, NULL);
-    }
+    qemu_chr_fe_set_handlers(&con->chr, xencons_can_receive,
+                             xencons_receive, NULL, con, NULL);
 
     xen_be_printf(xendev, 1, "ring mfn %d, remote port %d, local port %d, limit %zd\n",
 		  con->ring_ref,

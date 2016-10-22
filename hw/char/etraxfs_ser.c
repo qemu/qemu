@@ -231,11 +231,9 @@ static void etraxfs_ser_realize(DeviceState *dev, Error **errp)
 {
     ETRAXSerial *s = ETRAX_SERIAL(dev);
 
-    if (s->chr.chr) {
-        qemu_chr_fe_set_handlers(&s->chr,
-                                 serial_can_receive, serial_receive,
-                                 serial_event, s, NULL);
-    }
+    qemu_chr_fe_set_handlers(&s->chr,
+                             serial_can_receive, serial_receive,
+                             serial_event, s, NULL);
 }
 
 static void etraxfs_ser_class_init(ObjectClass *klass, void *data)

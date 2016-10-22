@@ -108,7 +108,7 @@ static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
     DeviceState *dev = DEVICE(port);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
-    if (vcon->chr.chr && !k->is_console) {
+    if (!k->is_console) {
         qemu_chr_fe_set_open(&vcon->chr, guest_connected);
     }
 
@@ -122,9 +122,7 @@ static void guest_writable(VirtIOSerialPort *port)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
 
-    if (vcon->chr.chr) {
-        qemu_chr_fe_accept_input(&vcon->chr);
-    }
+    qemu_chr_fe_accept_input(&vcon->chr);
 }
 
 /* Readiness of the guest to accept data on a port */

@@ -143,11 +143,9 @@ uart_write(void *opaque, hwaddr addr,
             break;
 
         case R_TX:
-            if (s->chr.chr) {
-                /* XXX this blocks entire thread. Rewrite to use
-                 * qemu_chr_fe_write and background I/O callbacks */
-                qemu_chr_fe_write_all(&s->chr, &ch, 1);
-            }
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
+            qemu_chr_fe_write_all(&s->chr, &ch, 1);
             s->regs[addr] = value;
 
             /* hax.  */
@@ -213,10 +211,8 @@ static void xilinx_uartlite_realize(DeviceState *dev, Error **errp)
 {
     XilinxUARTLite *s = XILINX_UARTLITE(dev);
 
-    if (s->chr.chr) {
-        qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
-                                 uart_event, s, NULL);
-    }
+    qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
+                             uart_event, s, NULL);
 }
 
 static void xilinx_uartlite_init(Object *obj)

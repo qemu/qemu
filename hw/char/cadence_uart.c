@@ -142,9 +142,7 @@ static void uart_rx_reset(CadenceUARTState *s)
 {
     s->rx_wpos = 0;
     s->rx_count = 0;
-    if (s->chr.chr) {
-        qemu_chr_fe_accept_input(&s->chr);
-    }
+    qemu_chr_fe_accept_input(&s->chr);
 }
 
 static void uart_tx_reset(CadenceUARTState *s)
@@ -156,10 +154,8 @@ static void uart_send_breaks(CadenceUARTState *s)
 {
     int break_enabled = 1;
 
-    if (s->chr.chr) {
-        qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_BREAK,
-                          &break_enabled);
-    }
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_BREAK,
+                      &break_enabled);
 }
 
 static void uart_parameters_setup(CadenceUARTState *s)
@@ -210,9 +206,7 @@ static void uart_parameters_setup(CadenceUARTState *s)
 
     packet_size += ssp.data_bits + ssp.stop_bits;
     s->char_tx_time = (NANOSECONDS_PER_SECOND / ssp.speed) * packet_size;
-    if (s->chr.chr) {
-        qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
-    }
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 }
 
 static int uart_can_receive(void *opaque)
@@ -368,9 +362,7 @@ static void uart_read_rx_fifo(CadenceUARTState *s, uint32_t *c)
         *c = s->rx_fifo[rx_rpos];
         s->rx_count--;
 
-        if (s->chr.chr) {
-            qemu_chr_fe_accept_input(&s->chr);
-        }
+        qemu_chr_fe_accept_input(&s->chr);
     } else {
         *c = 0;
     }
@@ -474,10 +466,8 @@ static void cadence_uart_realize(DeviceState *dev, Error **errp)
     s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                           fifo_trigger_update, s);
 
-    if (s->chr.chr) {
-        qemu_chr_fe_set_handlers(&s->chr, uart_can_receive, uart_receive,
-                                 uart_event, s, NULL);
-    }
+    qemu_chr_fe_set_handlers(&s->chr, uart_can_receive, uart_receive,
+                             uart_event, s, NULL);
 }
 
 static void cadence_uart_init(Object *obj)

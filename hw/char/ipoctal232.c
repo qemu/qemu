@@ -288,9 +288,7 @@ static uint16_t io_read(IPackDevice *ip, uint8_t addr)
             if (ch->rx_pending == 0) {
                 ch->sr &= ~SR_RXRDY;
                 blk->isr &= ~ISR_RXRDY(channel);
-                if (ch->dev.chr) {
-                    qemu_chr_fe_accept_input(&ch->dev);
-                }
+                qemu_chr_fe_accept_input(&ch->dev);
             } else {
                 ch->rhr_idx = (ch->rhr_idx + 1) % RX_FIFO_SIZE;
             }
@@ -357,13 +355,11 @@ static void io_write(IPackDevice *ip, uint8_t addr, uint16_t val)
     case REG_THRa:
     case REG_THRb:
         if (ch->sr & SR_TXRDY) {
+            uint8_t thr = reg;
             DPRINTF("Write THR%c (0x%x)\n", channel + 'a', reg);
-            if (ch->dev.chr) {
-                uint8_t thr = reg;
-                /* XXX this blocks entire thread. Rewrite to use
-                 * qemu_chr_fe_write and background I/O callbacks */
-                qemu_chr_fe_write_all(&ch->dev, &thr, 1);
-            }
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
+            qemu_chr_fe_write_all(&ch->dev, &thr, 1);
         } else {
             DPRINTF("Write THR%c (0x%x), Tx disabled\n", channel + 'a', reg);
         }

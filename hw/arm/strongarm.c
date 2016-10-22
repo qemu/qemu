@@ -1020,9 +1020,7 @@ static void strongarm_uart_update_parameters(StrongARMUARTState *s)
     ssp.data_bits = data_bits;
     ssp.stop_bits = stop_bits;
     s->char_transmit_time =  (NANOSECONDS_PER_SECOND / speed) * frame_size;
-    if (s->chr.chr) {
-        qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
-    }
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 
     DPRINTF(stderr, "%s speed=%d parity=%c data=%d stop=%d\n", s->chr->label,
             speed, parity, data_bits, stop_bits);
@@ -1239,13 +1237,11 @@ static void strongarm_uart_init(Object *obj)
     s->rx_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, strongarm_uart_rx_to, s);
     s->tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, strongarm_uart_tx, s);
 
-    if (s->chr.chr) {
-        qemu_chr_fe_set_handlers(&s->chr,
-                                 strongarm_uart_can_receive,
-                                 strongarm_uart_receive,
-                                 strongarm_uart_event,
-                                 s, NULL);
-    }
+    qemu_chr_fe_set_handlers(&s->chr,
+                             strongarm_uart_can_receive,
+                             strongarm_uart_receive,
+                             strongarm_uart_event,
+                             s, NULL);
 }
 
 static void strongarm_uart_reset(DeviceState *dev)

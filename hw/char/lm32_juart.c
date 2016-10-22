@@ -75,11 +75,9 @@ void lm32_juart_set_jtx(DeviceState *d, uint32_t jtx)
     trace_lm32_juart_set_jtx(s->jtx);
 
     s->jtx = jtx;
-    if (s->chr.chr) {
-        /* XXX this blocks entire thread. Rewrite to use
-         * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(&s->chr, &ch, 1);
-    }
+    /* XXX this blocks entire thread. Rewrite to use
+     * qemu_chr_fe_write and background I/O callbacks */
+    qemu_chr_fe_write_all(&s->chr, &ch, 1);
 }
 
 void lm32_juart_set_jrx(DeviceState *d, uint32_t jtx)
@@ -120,10 +118,8 @@ static void lm32_juart_realize(DeviceState *dev, Error **errp)
 {
     LM32JuartState *s = LM32_JUART(dev);
 
-    if (s->chr.chr) {
-        qemu_chr_fe_set_handlers(&s->chr, juart_can_rx, juart_rx,
-                                 juart_event, s, NULL);
-    }
+    qemu_chr_fe_set_handlers(&s->chr, juart_can_rx, juart_rx,
+                             juart_event, s, NULL);
 }
 
 static const VMStateDescription vmstate_lm32_juart = {
