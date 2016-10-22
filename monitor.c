@@ -582,9 +582,7 @@ static void monitor_data_init(Monitor *mon)
 
 static void monitor_data_destroy(Monitor *mon)
 {
-    if (mon->chr.chr) {
-        qemu_chr_fe_set_handlers(&mon->chr, NULL, NULL, NULL, NULL, NULL);
-    }
+    qemu_chr_fe_deinit(&mon->chr);
     if (monitor_is_qmp(mon)) {
         json_message_parser_destroy(&mon->qmp.parser);
     }

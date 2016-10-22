@@ -206,13 +206,12 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
                    object_get_typename(obj), prop->name, str);
         return;
     }
-    if (qemu_chr_fe_claim(s) != 0) {
-        error_setg(errp, "Property '%s.%s' can't take value '%s', it's in use",
-                  object_get_typename(obj), prop->name, str);
+
+    if (!qemu_chr_fe_init(be, s, errp)) {
+        error_prepend(errp, "Property '%s.%s' can't take value '%s': ",
+                      object_get_typename(obj), prop->name, str);
         return;
     }
-
-    qemu_chr_fe_init(be, s, errp);
 }
 
 static void release_chr(Object *obj, const char *name, void *opaque)
@@ -221,10 +220,7 @@ static void release_chr(Object *obj, const char *name, void *opaque)
     Property *prop = opaque;
     CharBackend *be = qdev_get_prop_ptr(dev, prop);
 
-    if (be->chr) {
-        qemu_chr_fe_set_handlers(be, NULL, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(be->chr);
-    }
+    qemu_chr_fe_deinit(be);
 }
 
 PropertyInfo qdev_prop_chr = {

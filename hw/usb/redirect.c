@@ -1430,9 +1430,9 @@ static void usbredir_handle_destroy(USBDevice *udev)
     USBRedirDevice *dev = USB_REDIRECT(udev);
     CharDriverState *chr = qemu_chr_fe_get_driver(&dev->cs);
 
+    qemu_chr_fe_deinit(&dev->cs);
     qemu_chr_delete(chr);
 
-    dev->cs.chr = NULL;
     /* Note must be done after qemu_chr_close, as that causes a close event */
     qemu_bh_delete(dev->chardev_close_bh);
     qemu_bh_delete(dev->device_reject_bh);

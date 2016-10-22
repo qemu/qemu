@@ -776,6 +776,7 @@ static void mux_chr_close(struct CharDriverState *chr)
 {
     MuxDriver *d = chr->opaque;
 
+    qemu_chr_fe_deinit(&d->chr);
     g_free(d);
 }
 
@@ -882,6 +883,17 @@ bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp)
     b->chr = s;
 
     return true;
+}
+
+void qemu_chr_fe_deinit(CharBackend *b)
+{
+    assert(b);
+
+    if (b->chr) {
+        qemu_chr_fe_set_handlers(b, NULL, NULL, NULL, NULL, NULL);
+        b->chr->avail_connections++;
+        b->chr = NULL;
+    }
 }
 
 void qemu_chr_fe_set_handlers(CharBackend *b,
@@ -4114,7 +4126,6 @@ CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename)
         error_report_err(err);
     }
     if (chr && qemu_opt_get_bool(opts, "mux", 0)) {
-        qemu_chr_fe_claim_no_fail(chr);
         monitor_init(chr, MONITOR_USE_READLINE);
     }
     qemu_opts_del(opts);
@@ -4188,29 +4199,6 @@ guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
     g_source_unref(src);
 
     return tag;
-}
-
-int qemu_chr_fe_claim(CharDriverState *s)
-{
-    if (s->avail_connections < 1) {
-        return -1;
-    }
-    s->avail_connections--;
-    return 0;
-}
-
-void qemu_chr_fe_claim_no_fail(CharDriverState *s)
-{
-    if (qemu_chr_fe_claim(s) != 0) {
-        fprintf(stderr, "%s: error chardev \"%s\" already used\n",
-                __func__, s->label);
-        exit(1);
-    }
-}
-
-void qemu_chr_fe_release(CharDriverState *s)
-{
-    s->avail_connections++;
 }
 
 void qemu_chr_fe_disconnect(CharBackend *be)

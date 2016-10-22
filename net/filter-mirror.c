@@ -175,22 +175,15 @@ static void filter_mirror_cleanup(NetFilterState *nf)
 {
     MirrorState *s = FILTER_MIRROR(nf);
 
-    if (s->chr_out.chr) {
-        qemu_chr_fe_release(s->chr_out.chr);
-    }
+    qemu_chr_fe_deinit(&s->chr_out);
 }
 
 static void filter_redirector_cleanup(NetFilterState *nf)
 {
     MirrorState *s = FILTER_REDIRECTOR(nf);
 
-    if (s->chr_in.chr) {
-        qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(s->chr_in.chr);
-    }
-    if (s->chr_out.chr) {
-        qemu_chr_fe_release(s->chr_out.chr);
-    }
+    qemu_chr_fe_deinit(&s->chr_in);
+    qemu_chr_fe_deinit(&s->chr_out);
 }
 
 static void filter_mirror_setup(NetFilterState *nf, Error **errp)
@@ -208,11 +201,6 @@ static void filter_mirror_setup(NetFilterState *nf, Error **errp)
     if (chr == NULL) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                   "Device '%s' not found", s->outdev);
-        return;
-    }
-
-    if (qemu_chr_fe_claim(chr) != 0) {
-        error_setg(errp, QERR_DEVICE_IN_USE, s->outdev);
         return;
     }
 
@@ -254,7 +242,6 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
             return;
         }
 
-        qemu_chr_fe_claim_no_fail(chr);
         if (!qemu_chr_fe_init(&s->chr_in, chr, errp)) {
             return;
         }
@@ -271,7 +258,6 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
                       "OUT Device '%s' not found", s->outdev);
             return;
         }
-        qemu_chr_fe_claim_no_fail(chr);
         if (!qemu_chr_fe_init(&s->chr_out, chr, errp)) {
             return;
         }

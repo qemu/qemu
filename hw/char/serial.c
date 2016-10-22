@@ -905,7 +905,7 @@ void serial_realize_core(SerialState *s, Error **errp)
 
 void serial_exit_core(SerialState *s)
 {
-    qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, NULL, NULL);
+    qemu_chr_fe_deinit(&s->chr);
     qemu_unregister_reset(serial_reset, s);
 }
 

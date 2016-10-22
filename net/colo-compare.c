@@ -590,12 +590,6 @@ static int find_and_check_chardev(CharDriverState **chr,
         return 1;
     }
 
-    if (qemu_chr_fe_claim(*chr) < 0) {
-        error_setg(errp, "chardev \"%s\" cannot be claimed",
-                   chr_name);
-        return 1;
-    }
-
     return 0;
 }
 
@@ -707,17 +701,9 @@ static void colo_compare_finalize(Object *obj)
 {
     CompareState *s = COLO_COMPARE(obj);
 
-    if (s->chr_pri_in.chr) {
-        qemu_chr_fe_set_handlers(&s->chr_pri_in, NULL, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(s->chr_pri_in.chr);
-    }
-    if (s->chr_sec_in.chr) {
-        qemu_chr_fe_set_handlers(&s->chr_sec_in, NULL, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(s->chr_sec_in.chr);
-    }
-    if (s->chr_out.chr) {
-        qemu_chr_fe_release(s->chr_out.chr);
-    }
+    qemu_chr_fe_deinit(&s->chr_pri_in);
+    qemu_chr_fe_deinit(&s->chr_sec_in);
+    qemu_chr_fe_deinit(&s->chr_out);
 
     g_queue_free(&s->conn_list);
 

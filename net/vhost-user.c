@@ -150,10 +150,8 @@ static void vhost_user_cleanup(NetClientState *nc)
         g_free(s->vhost_net);
         s->vhost_net = NULL;
     }
-    if (nc->queue_index == 0 && s->chr.chr) {
-        qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(s->chr.chr);
-        s->chr.chr = NULL;
+    if (nc->queue_index == 0) {
+        qemu_chr_fe_deinit(&s->chr);
     }
 
     qemu_purge_queued_packets(nc);
@@ -296,8 +294,6 @@ static CharDriverState *net_vhost_claim_chardev(
                    opts->chardev);
         return NULL;
     }
-
-    qemu_chr_fe_claim_no_fail(chr);
 
     return chr;
 }

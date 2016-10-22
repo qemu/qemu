@@ -1494,6 +1494,7 @@ void gdb_exit(CPUArchState *env, int code)
   put_packet(s, buf);
 
 #ifndef CONFIG_USER_ONLY
+  qemu_chr_fe_deinit(&s->chr);
   qemu_chr_delete(chr);
 #endif
 }
@@ -1752,8 +1753,6 @@ int gdbserver_start(const char *device)
         chr = qemu_chr_new_noreplay("gdb", device);
         if (!chr)
             return -1;
-
-        qemu_chr_fe_claim_no_fail(chr);
     }
 
     s = gdbserver_state;

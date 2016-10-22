@@ -2417,7 +2417,6 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
         exit(1);
     }
 
-    qemu_chr_fe_claim_no_fail(chr);
     monitor_init(chr, flags);
     return 0;
 }

@@ -245,15 +245,8 @@ static int con_initialise(struct XenDevice *xendev)
 
     xen_be_bind_evtchn(&con->xendev);
     if (con->chr.chr) {
-        if (qemu_chr_fe_claim(con->chr.chr) == 0) {
-            qemu_chr_fe_set_handlers(&con->chr, xencons_can_receive,
-                                     xencons_receive, NULL, con, NULL);
-        } else {
-            xen_be_printf(xendev, 0,
-                          "xen_console_init error chardev %s already used\n",
-                          con->chr.chr->label);
-            con->chr.chr = NULL;
-        }
+        qemu_chr_fe_set_handlers(&con->chr, xencons_can_receive,
+                                 xencons_receive, NULL, con, NULL);
     }
 
     xen_be_printf(xendev, 1, "ring mfn %d, remote port %d, local port %d, limit %zd\n",
@@ -268,10 +261,7 @@ static void con_disconnect(struct XenDevice *xendev)
 {
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
 
-    if (con->chr.chr) {
-        qemu_chr_fe_set_handlers(&con->chr, NULL, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(con->chr.chr);
-    }
+    qemu_chr_fe_deinit(&con->chr);
     xen_be_unbind_evtchn(&con->xendev);
 
     if (con->sring) {

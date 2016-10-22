@@ -1976,7 +1976,6 @@ static void pxa2xx_fir_realize(DeviceState *dev, Error **errp)
     PXA2xxFIrState *s = PXA2XX_FIR(dev);
 
     if (s->chr.chr) {
-        qemu_chr_fe_claim_no_fail(s->chr.chr);
         qemu_chr_fe_set_handlers(&s->chr, pxa2xx_fir_is_empty,
                                  pxa2xx_fir_rx, pxa2xx_fir_event, s, NULL);
     }

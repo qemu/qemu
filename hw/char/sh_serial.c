@@ -397,7 +397,6 @@ void sh_serial_init(MemoryRegion *sysmem,
     memory_region_add_subregion(sysmem, A7ADDR(base), &s->iomem_a7);
 
     if (chr) {
-        qemu_chr_fe_claim_no_fail(chr);
         qemu_chr_fe_init(&s->chr, chr, &error_abort);
         qemu_chr_fe_set_handlers(&s->chr, sh_serial_can_receive1,
                                  sh_serial_receive1,

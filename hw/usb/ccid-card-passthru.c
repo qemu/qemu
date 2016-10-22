@@ -266,6 +266,7 @@ static void ccid_card_vscard_drop_connection(PassthruState *card)
 {
     CharDriverState *chr = qemu_chr_fe_get_driver(&card->cs);
 
+    qemu_chr_fe_deinit(&card->cs);
     qemu_chr_delete(chr);
     card->vscard_in_pos = card->vscard_in_hdr = 0;
 }

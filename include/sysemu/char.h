@@ -362,35 +362,6 @@ int qemu_chr_fe_get_msgfds(CharBackend *be, int *fds, int num);
 int qemu_chr_fe_set_msgfds(CharBackend *be, int *fds, int num);
 
 /**
- * @qemu_chr_fe_claim:
- *
- * Claim a backend before using it, should be called before calling
- * qemu_chr_fe_set_handlers().
- *
- * Returns: -1 if the backend is already in use by another frontend, 0 on
- *          success.
- */
-int qemu_chr_fe_claim(CharDriverState *s);
-
-/**
- * @qemu_chr_fe_claim_no_fail:
- *
- * Like qemu_chr_fe_claim, but will exit qemu with an error when the
- * backend is already in use.
- */
-void qemu_chr_fe_claim_no_fail(CharDriverState *s);
-
-/**
- * @qemu_chr_fe_release:
- *
- * Release a backend for use by another frontend.
- *
- * Returns: -1 if the backend is already in use by another frontend, 0 on
- *          success.
- */
-void qemu_chr_fe_release(CharDriverState *s);
-
-/**
  * @qemu_chr_be_can_write:
  *
  * Determine how much data the front end can currently accept.  This function
@@ -437,7 +408,8 @@ void qemu_chr_be_event(CharDriverState *s, int event);
  * @qemu_chr_fe_init:
  *
  * Initializes a front end for the given CharBackend and
- * CharDriver.
+ * CharDriver. Call qemu_chr_fe_deinit() to remove the association and
+ * release the driver.
  *
  * Returns: false on error.
  */
@@ -449,6 +421,13 @@ bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp);
  * Returns the driver associated with a CharBackend or NULL.
  */
 CharDriverState *qemu_chr_fe_get_driver(CharBackend *be);
+
+/**
+ * @qemu_chr_fe_deinit:
+ *
+ * Dissociate the CharBackend from the CharDriver.
+ */
+void qemu_chr_fe_deinit(CharBackend *b);
 
 /**
  * @qemu_chr_fe_set_handlers:

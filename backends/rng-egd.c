@@ -100,10 +100,6 @@ static void rng_egd_opened(RngBackend *b, Error **errp)
                   "Device '%s' not found", s->chr_name);
         return;
     }
-    if (qemu_chr_fe_claim(chr) != 0) {
-        error_setg(errp, QERR_DEVICE_IN_USE, s->chr_name);
-        return;
-    }
     if (!qemu_chr_fe_init(&s->chr, chr, errp)) {
         return;
     }
@@ -149,11 +145,7 @@ static void rng_egd_finalize(Object *obj)
 {
     RngEgd *s = RNG_EGD(obj);
 
-    if (s->chr.chr) {
-        qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(s->chr.chr);
-    }
-
+    qemu_chr_fe_deinit(&s->chr);
     g_free(s->chr_name);
 }
 

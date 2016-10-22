@@ -774,7 +774,6 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
         fwd->port = port;
         fwd->slirp = s->slirp;
 
-        qemu_chr_fe_claim_no_fail(fwd->hd.chr);
         qemu_chr_fe_set_handlers(&fwd->hd, guestfwd_can_read, guestfwd_read,
                                  NULL, fwd, NULL);
     }
