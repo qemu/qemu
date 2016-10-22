@@ -97,7 +97,7 @@ struct LM32UartState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    CharDriverState *chr;
+    CharBackend chr;
     qemu_irq irq;
 
     uint32_t regs[R_MAX];
@@ -142,7 +142,7 @@ static uint64_t uart_read(void *opaque, hwaddr addr,
         r = s->regs[R_RXTX];
         s->regs[R_LSR] &= ~LSR_DR;
         uart_update_irq(s);
-        qemu_chr_accept_input(s->chr);
+        qemu_chr_accept_input(s->chr.chr);
         break;
     case R_IIR:
     case R_LSR:
@@ -177,10 +177,10 @@ static void uart_write(void *opaque, hwaddr addr,
     addr >>= 2;
     switch (addr) {
     case R_RXTX:
-        if (s->chr) {
+        if (s->chr.chr) {
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->chr, &ch, 1);
+            qemu_chr_fe_write_all(s->chr.chr, &ch, 1);
         }
         break;
     case R_IER:
@@ -267,8 +267,8 @@ static void lm32_uart_realize(DeviceState *dev, Error **errp)
 {
     LM32UartState *s = LM32_UART(dev);
 
-    if (s->chr) {
-        qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+    if (s->chr.chr) {
+        qemu_chr_add_handlers(s->chr.chr, uart_can_rx, uart_rx, uart_event, s);
     }
 }
 

@@ -103,7 +103,7 @@ typedef struct {
     uint8_t event_trigger;
     QEMUSerialSetParams params;
     int latency;        /* ms */
-    CharDriverState *cs;
+    CharBackend cs;
 } USBSerialState;
 
 #define TYPE_USB_SERIAL "usb-serial-dev"
@@ -209,8 +209,10 @@ static uint8_t usb_get_modem_lines(USBSerialState *s)
     int flags;
     uint8_t ret;
 
-    if (qemu_chr_fe_ioctl(s->cs, CHR_IOCTL_SERIAL_GET_TIOCM, &flags) == -ENOTSUP)
+    if (qemu_chr_fe_ioctl(s->cs.chr,
+                          CHR_IOCTL_SERIAL_GET_TIOCM, &flags) == -ENOTSUP) {
         return FTDI_CTS|FTDI_DSR|FTDI_RLSD;
+    }
 
     ret = 0;
     if (flags & CHR_TIOCM_CTS)
@@ -260,7 +262,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
     case DeviceOutVendor | FTDI_SET_MDM_CTRL:
     {
         static int flags;
-        qemu_chr_fe_ioctl(s->cs,CHR_IOCTL_SERIAL_GET_TIOCM, &flags);
+        qemu_chr_fe_ioctl(s->cs.chr, CHR_IOCTL_SERIAL_GET_TIOCM, &flags);
         if (value & FTDI_SET_RTS) {
             if (value & FTDI_RTS)
                 flags |= CHR_TIOCM_RTS;
@@ -273,7 +275,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
             else
                 flags &= ~CHR_TIOCM_DTR;
         }
-        qemu_chr_fe_ioctl(s->cs,CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
+        qemu_chr_fe_ioctl(s->cs.chr, CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
         break;
     }
     case DeviceOutVendor | FTDI_SET_FLOW_CTRL:
@@ -292,7 +294,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
             divisor = 1;
 
         s->params.speed = (48000000 / 2) / (8 * divisor + subdivisor8);
-        qemu_chr_fe_ioctl(s->cs, CHR_IOCTL_SERIAL_SET_PARAMS, &s->params);
+        qemu_chr_fe_ioctl(s->cs.chr, CHR_IOCTL_SERIAL_SET_PARAMS, &s->params);
         break;
     }
     case DeviceOutVendor | FTDI_SET_DATA:
@@ -321,7 +323,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
                 DPRINTF("unsupported stop bits %d\n", value & FTDI_STOP);
                 goto fail;
         }
-        qemu_chr_fe_ioctl(s->cs, CHR_IOCTL_SERIAL_SET_PARAMS, &s->params);
+        qemu_chr_fe_ioctl(s->cs.chr, CHR_IOCTL_SERIAL_SET_PARAMS, &s->params);
         /* TODO: TX ON/OFF */
         break;
     case DeviceInVendor | FTDI_GET_MDM_ST:
@@ -368,7 +370,7 @@ static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
             iov = p->iov.iov + i;
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->cs, iov->iov_base, iov->iov_len);
+            qemu_chr_fe_write_all(s->cs.chr, iov->iov_base, iov->iov_len);
         }
         p->actual_length = p->iov.size;
         break;
@@ -488,7 +490,7 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
     usb_desc_init(dev);
     dev->auto_attach = 0;
 
-    if (!s->cs) {
+    if (!s->cs.chr) {
         error_setg(errp, "Property chardev is required");
         return;
     }
@@ -499,11 +501,11 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
         return;
     }
 
-    qemu_chr_add_handlers(s->cs, usb_serial_can_read, usb_serial_read,
+    qemu_chr_add_handlers(s->cs.chr, usb_serial_can_read, usb_serial_read,
                           usb_serial_event, s);
     usb_serial_handle_reset(dev);
 
-    if (s->cs->be_open && !dev->attached) {
+    if (s->cs.chr->be_open && !dev->attached) {
         usb_device_attach(dev, &error_abort);
     }
 }

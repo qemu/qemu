@@ -105,7 +105,7 @@ struct PacketIdQueue {
 struct USBRedirDevice {
     USBDevice dev;
     /* Properties */
-    CharDriverState *cs;
+    CharBackend cs;
     uint8_t debug;
     char *filter_str;
     int32_t bootindex;
@@ -285,7 +285,7 @@ static int usbredir_write(void *priv, uint8_t *data, int count)
     USBRedirDevice *dev = priv;
     int r;
 
-    if (!dev->cs->be_open) {
+    if (!dev->cs.chr->be_open) {
         return 0;
     }
 
@@ -294,10 +294,10 @@ static int usbredir_write(void *priv, uint8_t *data, int count)
         return 0;
     }
 
-    r = qemu_chr_fe_write(dev->cs, data, count);
+    r = qemu_chr_fe_write(dev->cs.chr, data, count);
     if (r < count) {
         if (!dev->watch) {
-            dev->watch = qemu_chr_fe_add_watch(dev->cs, G_IO_OUT|G_IO_HUP,
+            dev->watch = qemu_chr_fe_add_watch(dev->cs.chr, G_IO_OUT | G_IO_HUP,
                                                usbredir_write_unblocked, dev);
         }
         if (r < 0) {
@@ -1375,7 +1375,7 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
     USBRedirDevice *dev = USB_REDIRECT(udev);
     int i;
 
-    if (dev->cs == NULL) {
+    if (dev->cs.chr == NULL) {
         error_setg(errp, QERR_MISSING_PARAMETER, "chardev");
         return;
     }
@@ -1406,7 +1406,7 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
     dev->compatible_speedmask = USB_SPEED_MASK_FULL | USB_SPEED_MASK_HIGH;
 
     /* Let the backend know we are ready */
-    qemu_chr_add_handlers(dev->cs, usbredir_chardev_can_read,
+    qemu_chr_add_handlers(dev->cs.chr, usbredir_chardev_can_read,
                           usbredir_chardev_read, usbredir_chardev_event, dev);
 
     qemu_add_vm_change_state_handler(usbredir_vm_state_change, dev);
@@ -1427,8 +1427,8 @@ static void usbredir_handle_destroy(USBDevice *udev)
 {
     USBRedirDevice *dev = USB_REDIRECT(udev);
 
-    qemu_chr_delete(dev->cs);
-    dev->cs = NULL;
+    qemu_chr_delete(dev->cs.chr);
+    dev->cs.chr = NULL;
     /* Note must be done after qemu_chr_close, as that causes a close event */
     qemu_bh_delete(dev->chardev_close_bh);
     qemu_bh_delete(dev->device_reject_bh);

@@ -44,7 +44,7 @@ enum {
 struct LM32JuartState {
     SysBusDevice parent_obj;
 
-    CharDriverState *chr;
+    CharBackend chr;
 
     uint32_t jtx;
     uint32_t jrx;
@@ -75,10 +75,10 @@ void lm32_juart_set_jtx(DeviceState *d, uint32_t jtx)
     trace_lm32_juart_set_jtx(s->jtx);
 
     s->jtx = jtx;
-    if (s->chr) {
+    if (s->chr.chr) {
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(s->chr, &ch, 1);
+        qemu_chr_fe_write_all(s->chr.chr, &ch, 1);
     }
 }
 
@@ -120,8 +120,9 @@ static void lm32_juart_realize(DeviceState *dev, Error **errp)
 {
     LM32JuartState *s = LM32_JUART(dev);
 
-    if (s->chr) {
-        qemu_chr_add_handlers(s->chr, juart_can_rx, juart_rx, juart_event, s);
+    if (s->chr.chr) {
+        qemu_chr_add_handlers(s->chr.chr, juart_can_rx,
+                              juart_rx, juart_event, s);
     }
 }
 

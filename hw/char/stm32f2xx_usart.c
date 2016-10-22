@@ -97,16 +97,16 @@ static uint64_t stm32f2xx_usart_read(void *opaque, hwaddr addr,
     case USART_SR:
         retvalue = s->usart_sr;
         s->usart_sr &= ~USART_SR_TC;
-        if (s->chr) {
-            qemu_chr_accept_input(s->chr);
+        if (s->chr.chr) {
+            qemu_chr_accept_input(s->chr.chr);
         }
         return retvalue;
     case USART_DR:
         DB_PRINT("Value: 0x%" PRIx32 ", %c\n", s->usart_dr, (char) s->usart_dr);
         s->usart_sr |= USART_SR_TXE;
         s->usart_sr &= ~USART_SR_RXNE;
-        if (s->chr) {
-            qemu_chr_accept_input(s->chr);
+        if (s->chr.chr) {
+            qemu_chr_accept_input(s->chr.chr);
         }
         qemu_set_irq(s->irq, 0);
         return s->usart_dr & 0x3FF;
@@ -152,10 +152,10 @@ static void stm32f2xx_usart_write(void *opaque, hwaddr addr,
     case USART_DR:
         if (value < 0xF000) {
             ch = value;
-            if (s->chr) {
+            if (s->chr.chr) {
                 /* XXX this blocks entire thread. Rewrite to use
                  * qemu_chr_fe_write and background I/O callbacks */
-                qemu_chr_fe_write_all(s->chr, &ch, 1);
+                qemu_chr_fe_write_all(s->chr.chr, &ch, 1);
             }
             s->usart_sr |= USART_SR_TC;
             s->usart_sr &= ~USART_SR_TXE;
@@ -212,8 +212,8 @@ static void stm32f2xx_usart_realize(DeviceState *dev, Error **errp)
 {
     STM32F2XXUsartState *s = STM32F2XX_USART(dev);
 
-    if (s->chr) {
-        qemu_chr_add_handlers(s->chr, stm32f2xx_usart_can_receive,
+    if (s->chr.chr) {
+        qemu_chr_add_handlers(s->chr.chr, stm32f2xx_usart_can_receive,
                               stm32f2xx_usart_receive, NULL, s);
     }
 }

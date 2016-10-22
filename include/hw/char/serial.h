@@ -30,6 +30,7 @@
 #include "sysemu/sysemu.h"
 #include "exec/memory.h"
 #include "qemu/fifo8.h"
+#include "sysemu/char.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
 
@@ -52,7 +53,7 @@ struct SerialState {
        it can be reset while reading iir */
     int thr_ipending;
     qemu_irq irq;
-    CharDriverState *chr;
+    CharBackend chr;
     int last_break_enable;
     int it_shift;
     int baudbase;
