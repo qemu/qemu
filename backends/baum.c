@@ -551,7 +551,7 @@ static void baum_chr_read(void *opaque)
     }
 }
 
-static void baum_close(struct CharDriverState *chr)
+static void baum_free(struct CharDriverState *chr)
 {
     BaumDriverState *baum = chr->opaque;
 
@@ -589,7 +589,7 @@ static CharDriverState *chr_baum_init(const char *id,
     chr->opaque = baum;
     chr->chr_write = baum_write;
     chr->chr_accept_input = baum_accept_input;
-    chr->chr_close = baum_close;
+    chr->chr_free = baum_free;
 
     handle = g_malloc0(brlapi_getHandleSize());
     baum->brlapi = handle;

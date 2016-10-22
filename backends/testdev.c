@@ -102,7 +102,7 @@ static int testdev_write(CharDriverState *chr, const uint8_t *buf, int len)
     return orig_len;
 }
 
-static void testdev_close(struct CharDriverState *chr)
+static void testdev_free(struct CharDriverState *chr)
 {
     TestdevCharState *testdev = chr->opaque;
 
@@ -122,7 +122,7 @@ static CharDriverState *chr_testdev_init(const char *id,
 
     chr->opaque = testdev;
     chr->chr_write = testdev_write;
-    chr->chr_close = testdev_close;
+    chr->chr_free = testdev_free;
 
     return chr;
 }

@@ -96,7 +96,7 @@ struct CharDriverState {
     int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
     int (*chr_add_client)(struct CharDriverState *chr, int fd);
     int (*chr_wait_connected)(struct CharDriverState *chr, Error **errp);
-    void (*chr_close)(struct CharDriverState *chr);
+    void (*chr_free)(struct CharDriverState *chr);
     void (*chr_disconnect)(struct CharDriverState *chr);
     void (*chr_accept_input)(struct CharDriverState *chr);
     void (*chr_set_echo)(struct CharDriverState *chr, bool echo);

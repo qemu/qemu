@@ -199,7 +199,7 @@ static int spice_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     return read_bytes;
 }
 
-static void spice_chr_close(struct CharDriverState *chr)
+static void spice_chr_free(struct CharDriverState *chr)
 {
     SpiceCharDriver *s = chr->opaque;
 
@@ -289,7 +289,7 @@ static CharDriverState *chr_open(const char *subtype,
     chr->opaque = s;
     chr->chr_write = spice_chr_write;
     chr->chr_add_watch = spice_chr_add_watch;
-    chr->chr_close = spice_chr_close;
+    chr->chr_free = spice_chr_free;
     chr->chr_set_fe_open = set_fe_open;
     chr->explicit_be_open = true;
     chr->chr_fe_event = spice_chr_fe_event;
