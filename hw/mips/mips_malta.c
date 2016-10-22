@@ -1215,7 +1215,7 @@ void mips_malta_init(MachineState *machine)
     isa_create_simple(isa_bus, "i8042");
 
     rtc_init(isa_bus, 2000, NULL);
-    serial_hds_isa_init(isa_bus, 2);
+    serial_hds_isa_init(isa_bus, 0, 2);
     parallel_hds_isa_init(isa_bus, 1);
 
     for(i = 0; i < MAX_FD; i++) {
