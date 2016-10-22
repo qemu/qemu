@@ -88,6 +88,7 @@ typedef struct {
     CharDriverState *display;
     char display_text[9];
     SerialState *uart;
+    bool display_inited;
 } MaltaFPGAState;
 
 #define TYPE_MIPS_MALTA "mips-malta"
@@ -530,17 +531,22 @@ static void malta_fpga_reset(void *opaque)
     snprintf(s->display_text, 9, "        ");
 }
 
-static void malta_fpga_led_init(CharDriverState *chr)
+static void malta_fgpa_display_event(void *opaque, int event)
 {
-    qemu_chr_fe_printf(chr, "\e[HMalta LEDBAR\r\n");
-    qemu_chr_fe_printf(chr, "+--------+\r\n");
-    qemu_chr_fe_printf(chr, "+        +\r\n");
-    qemu_chr_fe_printf(chr, "+--------+\r\n");
-    qemu_chr_fe_printf(chr, "\n");
-    qemu_chr_fe_printf(chr, "Malta ASCII\r\n");
-    qemu_chr_fe_printf(chr, "+--------+\r\n");
-    qemu_chr_fe_printf(chr, "+        +\r\n");
-    qemu_chr_fe_printf(chr, "+--------+\r\n");
+    MaltaFPGAState *s = opaque;
+
+    if (event == CHR_EVENT_OPENED && !s->display_inited) {
+        qemu_chr_fe_printf(s->display, "\e[HMalta LEDBAR\r\n");
+        qemu_chr_fe_printf(s->display, "+--------+\r\n");
+        qemu_chr_fe_printf(s->display, "+        +\r\n");
+        qemu_chr_fe_printf(s->display, "+--------+\r\n");
+        qemu_chr_fe_printf(s->display, "\n");
+        qemu_chr_fe_printf(s->display, "Malta ASCII\r\n");
+        qemu_chr_fe_printf(s->display, "+--------+\r\n");
+        qemu_chr_fe_printf(s->display, "+        +\r\n");
+        qemu_chr_fe_printf(s->display, "+--------+\r\n");
+        s->display_inited = true;
+    }
 }
 
 static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
@@ -560,7 +566,9 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, base, &s->iomem_lo);
     memory_region_add_subregion(address_space, base + 0xa00, &s->iomem_hi);
 
-    s->display = qemu_chr_new("fpga", "vc:320x200", malta_fpga_led_init);
+    s->display = qemu_chr_new("fpga", "vc:320x200", NULL);
+    qemu_chr_add_handlers(s->display, NULL, NULL,
+                          malta_fgpa_display_event, s);
 
     s->uart = serial_mm_init(address_space, base + 0x900, 3, uart_irq,
                              230400, uart_chr, DEVICE_NATIVE_ENDIAN);
