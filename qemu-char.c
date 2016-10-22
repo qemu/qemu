@@ -3328,7 +3328,7 @@ static int ringbuf_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
         }
     }
 
-    return 0;
+    return len;
 }
 
 static int ringbuf_chr_read(CharDriverState *chr, uint8_t *buf, int len)
