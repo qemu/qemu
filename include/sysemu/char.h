@@ -110,7 +110,6 @@ struct CharDriverState {
     int logfd;
     int be_open;
     int explicit_be_open;
-    int avail_connections;
     int is_mux;
     guint fd_in_tag;
     bool replay;

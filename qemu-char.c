@@ -808,20 +808,6 @@ static void mux_chr_free(struct CharDriverState *chr)
     g_free(d);
 }
 
-static int mux_chr_new_fe(CharDriverState *chr, CharBackend *be, Error **errp)
-{
-    MuxDriver *d = chr->opaque;
-
-    if (d->mux_cnt >= MAX_MUX) {
-        fprintf(stderr, "Cannot add I/O handlers, MUX array is full\n");
-        return -1;
-    }
-
-    d->backends[d->mux_cnt] = be;
-
-    return d->mux_cnt++;
-}
-
 static void mux_chr_set_handlers(CharDriverState *chr, GMainContext *context)
 {
     MuxDriver *d = chr->opaque;
@@ -902,10 +888,16 @@ bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp)
     int tag = 0;
 
     if (s->is_mux) {
-        tag = mux_chr_new_fe(s, b, errp);
-        if (tag < 0) {
-            return false;
+        MuxDriver *d = s->opaque;
+
+        if (d->mux_cnt >= MAX_MUX) {
+            goto unavailable;
         }
+
+        d->backends[d->mux_cnt] = b;
+        tag = d->mux_cnt++;
+    } else if (s->be) {
+        goto unavailable;
     } else {
         s->be = b;
     }
@@ -913,8 +905,11 @@ bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp)
     b->fe_open = false;
     b->tag = tag;
     b->chr = s;
-
     return true;
+
+unavailable:
+    error_setg(errp, QERR_DEVICE_IN_USE, s->label);
+    return false;
 }
 
 static bool qemu_chr_is_busy(CharDriverState *s)
@@ -933,7 +928,6 @@ void qemu_chr_fe_deinit(CharBackend *b)
 
     if (b->chr) {
         qemu_chr_fe_set_handlers(b, NULL, NULL, NULL, NULL, NULL, true);
-        b->chr->avail_connections++;
         b->chr->be = NULL;
         if (b->chr->is_mux) {
             MuxDriver *d = b->chr->opaque;
@@ -4782,8 +4776,6 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     }
 
     chr->label = g_strdup(id);
-    chr->avail_connections =
-        (backend->type == CHARDEV_BACKEND_KIND_MUX) ? MAX_MUX : 1;
     if (!chr->filename) {
         chr->filename = g_strdup(ChardevBackendKind_lookup[backend->type]);
     }
