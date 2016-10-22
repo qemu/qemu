@@ -448,7 +448,7 @@ static void ipmi_bmc_extern_realize(DeviceState *dev, Error **errp)
     }
 
     qemu_chr_fe_set_handlers(&ibe->chr, can_receive, receive,
-                             chr_event, ibe, NULL);
+                             chr_event, ibe, NULL, true);
 }
 
 static int ipmi_bmc_extern_post_migrate(void *opaque, int version_id)

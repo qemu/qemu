@@ -353,7 +353,7 @@ static int passthru_initfn(CCIDCardState *base)
         qemu_chr_fe_set_handlers(&card->cs,
             ccid_card_vscard_can_read,
             ccid_card_vscard_read,
-            ccid_card_vscard_event, card, NULL);
+            ccid_card_vscard_event, card, NULL, true);
         ccid_card_vscard_send_init(card);
     } else {
         error_report("missing chardev");

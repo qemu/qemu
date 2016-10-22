@@ -467,7 +467,7 @@ static void cadence_uart_realize(DeviceState *dev, Error **errp)
                                           fifo_trigger_update, s);
 
     qemu_chr_fe_set_handlers(&s->chr, uart_can_receive, uart_receive,
-                             uart_event, s, NULL);
+                             uart_event, s, NULL, true);
 }
 
 static void cadence_uart_init(Object *obj)

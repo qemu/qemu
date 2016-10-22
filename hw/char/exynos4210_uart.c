@@ -642,7 +642,7 @@ static int exynos4210_uart_init(SysBusDevice *dev)
 
     qemu_chr_fe_set_handlers(&s->chr, exynos4210_uart_can_receive,
                              exynos4210_uart_receive, exynos4210_uart_event,
-                             s, NULL);
+                             s, NULL, true);
 
     return 0;
 }

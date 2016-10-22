@@ -1241,7 +1241,7 @@ static void strongarm_uart_init(Object *obj)
                              strongarm_uart_can_receive,
                              strongarm_uart_receive,
                              strongarm_uart_event,
-                             s, NULL);
+                             s, NULL, true);
 }
 
 static void strongarm_uart_reset(DeviceState *dev)

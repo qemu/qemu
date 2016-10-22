@@ -284,7 +284,8 @@ void *mcf_uart_init(qemu_irq irq, CharDriverState *chr)
     if (chr) {
         qemu_chr_fe_init(&s->chr, chr, &error_abort);
         qemu_chr_fe_set_handlers(&s->chr, mcf_uart_can_receive,
-                                 mcf_uart_receive, mcf_uart_event, s, NULL);
+                                 mcf_uart_receive, mcf_uart_event,
+                                 s, NULL, true);
     }
     mcf_uart_reset(s);
     return s;

@@ -187,14 +187,12 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
          * trigger open/close of the device
          */
         if (k->is_console) {
-            chr->explicit_fe_open = 0;
             qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
-                                     NULL, vcon, NULL);
+                                     NULL, vcon, NULL, true);
             virtio_serial_open(port);
         } else {
-            chr->explicit_fe_open = 1;
             qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
-                                     chr_event, vcon, NULL);
+                                     chr_event, vcon, NULL, false);
         }
     }
 }

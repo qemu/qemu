@@ -109,7 +109,6 @@ struct CharDriverState {
     int logfd;
     int be_open;
     int fe_open;
-    int explicit_fe_open;
     int explicit_be_open;
     int avail_connections;
     int is_mux;
@@ -449,6 +448,8 @@ void qemu_chr_fe_deinit(CharBackend *b);
  * @fd_event: event callback
  * @opaque: an opaque pointer for the callbacks
  * @context: a main loop context or NULL for the default
+ * @set_open: whether to call qemu_chr_fe_set_open() implicitely when
+ * any of the handler is non-NULL
  *
  * Set the front end char handlers. The front end takes the focus if
  * any of the handler is non-NULL.
@@ -460,7 +461,8 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               IOReadHandler *fd_read,
                               IOEventHandler *fd_event,
                               void *opaque,
-                              GMainContext *context);
+                              GMainContext *context,
+                              bool set_open);
 
 /**
  * @qemu_chr_fe_take_focus:

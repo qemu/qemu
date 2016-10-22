@@ -895,7 +895,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
         }
 
         qemu_chr_fe_set_handlers(&s->server_chr, ivshmem_can_receive,
-                                 ivshmem_read, NULL, s, NULL);
+                                 ivshmem_read, NULL, s, NULL, true);
 
         if (ivshmem_setup_interrupts(s) < 0) {
             error_setg(errp, "failed to initialize interrupts");

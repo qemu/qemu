@@ -400,7 +400,7 @@ void sh_serial_init(MemoryRegion *sysmem,
         qemu_chr_fe_init(&s->chr, chr, &error_abort);
         qemu_chr_fe_set_handlers(&s->chr, sh_serial_can_receive1,
                                  sh_serial_receive1,
-                                 sh_serial_event, s, NULL);
+                                 sh_serial_event, s, NULL, true);
     }
 
     s->eri = eri_source;

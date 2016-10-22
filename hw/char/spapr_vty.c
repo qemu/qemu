@@ -75,7 +75,7 @@ static void spapr_vty_realize(VIOsPAPRDevice *sdev, Error **errp)
     }
 
     qemu_chr_fe_set_handlers(&dev->chardev, vty_can_receive,
-                             vty_receive, NULL, dev, NULL);
+                             vty_receive, NULL, dev, NULL, true);
 }
 
 /* Forward declaration */

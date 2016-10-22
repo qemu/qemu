@@ -110,7 +110,8 @@ static void redirector_chr_read(void *opaque, const uint8_t *buf, int size)
     ret = net_fill_rstate(&s->rs, buf, size);
 
     if (ret == -1) {
-        qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL,
+                                 NULL, NULL, true);
     }
 }
 
@@ -121,7 +122,8 @@ static void redirector_chr_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_CLOSED:
-        qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL,
+                                 NULL, NULL, true);
         break;
     default:
         break;
@@ -248,7 +250,7 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
 
         qemu_chr_fe_set_handlers(&s->chr_in, redirector_chr_can_read,
                                  redirector_chr_read, redirector_chr_event,
-                                 nf, NULL);
+                                 nf, NULL, true);
     }
 
     if (s->outdev) {

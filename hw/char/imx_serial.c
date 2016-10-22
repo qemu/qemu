@@ -316,7 +316,7 @@ static void imx_serial_realize(DeviceState *dev, Error **errp)
     DPRINTF("char dev for uart: %p\n", qemu_chr_fe_get_driver(&s->chr));
 
     qemu_chr_fe_set_handlers(&s->chr, imx_can_receive, imx_receive,
-                             imx_event, s, NULL);
+                             imx_event, s, NULL, true);
 }
 
 static void imx_serial_init(Object *obj)

@@ -129,7 +129,7 @@ static void char_mux_test(void)
                              fe_read,
                              fe_event,
                              &h1,
-                             NULL);
+                             NULL, true);
 
     qemu_chr_fe_init(&chr_be2, chr, &error_abort);
     qemu_chr_fe_set_handlers(&chr_be2,
@@ -137,7 +137,7 @@ static void char_mux_test(void)
                              fe_read,
                              fe_event,
                              &h2,
-                             NULL);
+                             NULL, true);
     qemu_chr_fe_take_focus(&chr_be2);
 
     base = qemu_chr_find("mux-label-base");
@@ -159,7 +159,7 @@ static void char_mux_test(void)
     h1.read_count = 0;
 
     /* remove first handler */
-    qemu_chr_fe_set_handlers(&chr_be1, NULL, NULL, NULL, NULL, NULL);
+    qemu_chr_fe_set_handlers(&chr_be1, NULL, NULL, NULL, NULL, NULL, true);
     qemu_chr_be_write(base, (void *)"hello", 6);
     g_assert_cmpint(h1.read_count, ==, 0);
     g_assert_cmpint(h2.read_count, ==, 0);
@@ -216,7 +216,7 @@ static void char_null_test(void)
                              fe_can_read,
                              fe_read,
                              fe_event,
-                             NULL, NULL);
+                             NULL, NULL, true);
 
     ret = qemu_chr_fe_write(&be, (void *)"buf", 4);
     g_assert_cmpint(ret, ==, 4);

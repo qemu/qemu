@@ -92,7 +92,7 @@ static void debugcon_realize_core(DebugconState *s, Error **errp)
         return;
     }
 
-    qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, s, NULL);
+    qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, s, NULL, true);
 }
 
 static void debugcon_isa_realizefn(DeviceState *dev, Error **errp)

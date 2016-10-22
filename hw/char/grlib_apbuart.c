@@ -247,7 +247,7 @@ static int grlib_apbuart_init(SysBusDevice *dev)
                              grlib_apbuart_can_receive,
                              grlib_apbuart_receive,
                              grlib_apbuart_event,
-                             uart, NULL);
+                             uart, NULL, true);
 
     sysbus_init_irq(dev, &uart->irq);
 

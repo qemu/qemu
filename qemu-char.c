@@ -832,7 +832,7 @@ static void mux_chr_set_handlers(CharDriverState *chr, GMainContext *context)
                              mux_chr_read,
                              mux_chr_event,
                              chr,
-                             context);
+                             context, true);
 }
 
 static void mux_set_focus(MuxDriver *d, int focus)
@@ -931,7 +931,7 @@ void qemu_chr_fe_deinit(CharBackend *b)
     assert(b);
 
     if (b->chr) {
-        qemu_chr_fe_set_handlers(b, NULL, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_set_handlers(b, NULL, NULL, NULL, NULL, NULL, true);
         b->chr->avail_connections++;
         b->chr->be = NULL;
         if (b->chr->is_mux) {
@@ -947,7 +947,8 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               IOReadHandler *fd_read,
                               IOEventHandler *fd_event,
                               void *opaque,
-                              GMainContext *context)
+                              GMainContext *context,
+                              bool set_open)
 {
     CharDriverState *s;
     int fe_open;
@@ -971,7 +972,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
         s->chr_update_read_handler(s, context);
     }
 
-    if (!s->explicit_fe_open) {
+    if (set_open) {
         qemu_chr_fe_set_open(b, fe_open);
     }
 
