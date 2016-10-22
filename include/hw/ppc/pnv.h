@@ -112,6 +112,8 @@ typedef struct PnvMachineState {
 
     uint32_t     num_chips;
     PnvChip      **chips;
+
+    ISABus       *isa_bus;
 } PnvMachineState;
 
 #define PNV_FDT_ADDR          0x01000000

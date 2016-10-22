@@ -35,6 +35,10 @@
 
 #include "hw/ppc/pnv_xscom.h"
 
+#include "hw/isa/isa.h"
+#include "hw/char/serial.h"
+#include "hw/timer/mc146818rtc.h"
+
 #include <libfdt.h>
 
 #define FDT_MAX_SIZE            0x00100000
@@ -301,6 +305,58 @@ static void ppc_powernv_reset(void)
     cpu_physical_memory_write(PNV_FDT_ADDR, fdt, fdt_totalsize(fdt));
 }
 
+/* If we don't use the built-in LPC interrupt deserializer, we need
+ * to provide a set of qirqs for the ISA bus or things will go bad.
+ *
+ * Most machines using pre-Naples chips (without said deserializer)
+ * have a CPLD that will collect the SerIRQ and shoot them as a
+ * single level interrupt to the P8 chip. So let's setup a hook
+ * for doing just that.
+ *
+ * Note: The actual interrupt input isn't emulated yet, this will
+ * come with the PSI bridge model.
+ */
+static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
+{
+    /* We don't yet emulate the PSI bridge which provides the external
+     * interrupt, so just drop interrupts on the floor
+     */
+}
+
+static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
+{
+     /* XXX TODO */
+}
+
+static ISABus *pnv_isa_create(PnvChip *chip)
+{
+    PnvLpcController *lpc = &chip->lpc;
+    ISABus *isa_bus;
+    qemu_irq *irqs;
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+
+    /* let isa_bus_new() create its own bridge on SysBus otherwise
+     * devices speficied on the command line won't find the bus and
+     * will fail to create.
+     */
+    isa_bus = isa_bus_new(NULL, &lpc->isa_mem, &lpc->isa_io,
+                          &error_fatal);
+
+    /* Not all variants have a working serial irq decoder. If not,
+     * handling of LPC interrupts becomes a platform issue (some
+     * platforms have a CPLD to do it).
+     */
+    if (pcc->chip_type == PNV_CHIP_POWER8NVL) {
+        irqs = qemu_allocate_irqs(pnv_lpc_isa_irq_handler, chip, ISA_NUM_IRQS);
+    } else {
+        irqs = qemu_allocate_irqs(pnv_lpc_isa_irq_handler_cpld, chip,
+                                  ISA_NUM_IRQS);
+    }
+
+    isa_bus_irqs(isa_bus, irqs);
+    return isa_bus;
+}
+
 static void ppc_powernv_init(MachineState *machine)
 {
     PnvMachineState *pnv = POWERNV_MACHINE(machine);
@@ -395,6 +451,15 @@ static void ppc_powernv_init(MachineState *machine)
         object_property_set_bool(chip, true, "realized", &error_fatal);
     }
     g_free(chip_typename);
+
+    /* Instantiate ISA bus on chip 0 */
+    pnv->isa_bus = pnv_isa_create(pnv->chips[0]);
+
+    /* Create serial port */
+    serial_hds_isa_init(pnv->isa_bus, 0, MAX_SERIAL_PORTS);
+
+    /* Create an RTC ISA device too */
+    rtc_init(pnv->isa_bus, 2000, NULL);
 }
 
 /*
