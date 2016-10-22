@@ -20,7 +20,7 @@
 
 typedef struct VhostUserState {
     NetClientState nc;
-    CharBackend chr;
+    CharBackend chr; /* only queue index 0 */
     VHostNetState *vhost_net;
     guint watch;
     uint64_t acked_features;
@@ -62,7 +62,7 @@ static void vhost_user_stop(int queues, NetClientState *ncs[])
     }
 }
 
-static int vhost_user_start(int queues, NetClientState *ncs[])
+static int vhost_user_start(int queues, NetClientState *ncs[], CharBackend *be)
 {
     VhostNetOptions options;
     struct vhost_net *net = NULL;
@@ -78,7 +78,7 @@ static int vhost_user_start(int queues, NetClientState *ncs[])
         s = DO_UPCAST(VhostUserState, nc, ncs[i]);
 
         options.net_backend = ncs[i];
-        options.opaque      = &s->chr;
+        options.opaque      = be;
         options.busyloop_timeout = 0;
         net = vhost_net_init(&options);
         if (!net) {
@@ -150,7 +150,7 @@ static void vhost_user_cleanup(NetClientState *nc)
         g_free(s->vhost_net);
         s->vhost_net = NULL;
     }
-    if (s->chr.chr) {
+    if (nc->queue_index == 0 && s->chr.chr) {
         qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, NULL, NULL);
         qemu_chr_fe_release(s->chr.chr);
         s->chr.chr = NULL;
@@ -213,7 +213,7 @@ static void net_vhost_user_event(void *opaque, int event)
     case CHR_EVENT_OPENED:
         s->watch = qemu_chr_fe_add_watch(&s->chr, G_IO_HUP,
                                          net_vhost_user_watch, s);
-        if (vhost_user_start(queues, ncs) < 0) {
+        if (vhost_user_start(queues, ncs, &s->chr) < 0) {
             qemu_chr_fe_disconnect(&s->chr);
             return;
         }
@@ -247,21 +247,18 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
 
     for (i = 0; i < queues; i++) {
         nc = qemu_new_net_client(&net_vhost_user_info, peer, device, name);
-        if (!nc0) {
-            nc0 = nc;
-        }
-
         snprintf(nc->info_str, sizeof(nc->info_str), "vhost-user%d to %s",
                  i, chr->label);
-
         nc->queue_index = i;
-
-        s = DO_UPCAST(VhostUserState, nc, nc);
-
-        if (!qemu_chr_fe_init(&s->chr, chr, &err)) {
-            error_report_err(err);
-            return -1;
+        if (!nc0) {
+            nc0 = nc;
+            s = DO_UPCAST(VhostUserState, nc, nc);
+            if (!qemu_chr_fe_init(&s->chr, chr, &err)) {
+                error_report_err(err);
+                return -1;
+            }
         }
+
     }
 
     s = DO_UPCAST(VhostUserState, nc, nc0);
