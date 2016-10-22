@@ -72,6 +72,12 @@ typedef enum {
     QEMU_CHAR_FEATURE_LAST,
 } CharDriverFeature;
 
+/* This is the backend as seen by frontend, the actual backend is
+ * CharDriverState */
+typedef struct CharBackend {
+    CharDriverState *chr;
+    int tag;
+} CharBackend;
 
 struct CharDriverState {
     QemuMutex chr_write_lock;
@@ -156,6 +162,8 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend);
  * Returns: a new character backend
  */
 CharDriverState *qemu_chr_new(const char *label, const char *filename);
+
+
 /**
  * @qemu_chr_disconnect:
  *
@@ -424,6 +432,48 @@ void qemu_chr_be_write_impl(CharDriverState *s, uint8_t *buf, int len);
  * @event the event to send
  */
 void qemu_chr_be_event(CharDriverState *s, int event);
+
+/**
+ * @qemu_chr_fe_init:
+ *
+ * Initializes a front end for the given CharBackend and CharDriver.
+ *
+ * Returns: false on error.
+ */
+bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp);
+
+/**
+ * @qemu_chr_fe_get_driver:
+ *
+ * Returns the driver associated with a CharBackend or NULL.
+ */
+CharDriverState *qemu_chr_fe_get_driver(CharBackend *be);
+
+/**
+ * @qemu_chr_fe_set_handlers:
+ * @b: a CharBackend
+ * @fd_can_read: callback to get the amount of data the frontend may
+ *               receive
+ * @fd_read: callback to receive data from char
+ * @fd_event: event callback
+ * @opaque: an opaque pointer for the callbacks
+ * @context: a main loop context or NULL for the default
+ *
+ * Set the front end char handlers.
+ */
+void qemu_chr_fe_set_handlers(CharBackend *b,
+                              IOCanReadHandler *fd_can_read,
+                              IOReadHandler *fd_read,
+                              IOEventHandler *fd_event,
+                              void *opaque,
+                              GMainContext *context);
+
+/**
+ * @qemu_chr_fe_take_focus:
+ *
+ * Take the focus (if the front end is muxed)
+ */
+void qemu_chr_fe_take_focus(CharBackend *b);
 
 void qemu_chr_add_handlers(CharDriverState *s,
                            IOCanReadHandler *fd_can_read,

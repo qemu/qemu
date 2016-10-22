@@ -910,6 +910,53 @@ static CharDriverState *qemu_chr_open_mux(const char *id,
     return chr;
 }
 
+CharDriverState *qemu_chr_fe_get_driver(CharBackend *be)
+{
+    return be->chr;
+}
+
+bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp)
+{
+    int tag = 0;
+
+    if (s->is_mux) {
+        tag = mux_chr_new_handler_tag(s, errp);
+        if (tag < 0) {
+            return false;
+        }
+    }
+
+    b->tag = tag;
+    b->chr = s;
+
+    return true;
+}
+
+void qemu_chr_fe_set_handlers(CharBackend *b,
+                              IOCanReadHandler *fd_can_read,
+                              IOReadHandler *fd_read,
+                              IOEventHandler *fd_event,
+                              void *opaque,
+                              GMainContext *context)
+{
+    if (!b->chr) {
+        return;
+    }
+
+    qemu_chr_set_handlers(b->chr, fd_can_read, fd_read,
+                          fd_event, opaque, context, b->tag);
+
+    if (b->chr->is_mux) {
+        mux_chr_set_handlers(b->chr, context);
+    }
+}
+
+void qemu_chr_fe_take_focus(CharBackend *b)
+{
+    if (b->chr->is_mux) {
+        mux_set_focus(b->chr->opaque, b->tag);
+    }
+}
 
 typedef struct IOWatchPoll
 {
@@ -4184,6 +4231,9 @@ void qemu_chr_disconnect(CharDriverState *chr)
 
 static void qemu_chr_free_common(CharDriverState *chr)
 {
+    if (chr->be) {
+        chr->be->chr = NULL;
+    }
     g_free(chr->filename);
     g_free(chr->label);
     if (chr->logfd != -1) {
