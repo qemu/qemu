@@ -502,9 +502,7 @@ void qemu_chr_add_handlers_full(CharDriverState *s,
 
     if (s->is_mux) {
         tag = mux_chr_new_handler_tag(s, &error_abort);
-        if (tag == 0) {
-            mux_chr_set_handlers(s, context);
-        }
+        mux_chr_set_handlers(s, context);
     }
 
     qemu_chr_set_handlers(s, fd_can_read, fd_read,
@@ -557,6 +555,7 @@ struct MuxDriver {
     IOEventHandler *chr_event[MAX_MUX];
     void *ext_opaque[MAX_MUX];
     CharDriverState *drv;
+    CharBackend chr;
     int focus;
     int mux_cnt;
     int term_got_escape;
@@ -847,12 +846,12 @@ static void mux_chr_set_handlers(CharDriverState *chr, GMainContext *context)
     MuxDriver *d = chr->opaque;
 
     /* Fix up the real driver with mux routines */
-    qemu_chr_add_handlers_full(d->drv,
-                               mux_chr_can_read,
-                               mux_chr_read,
-                               mux_chr_event,
-                               chr,
-                               context);
+    qemu_chr_fe_set_handlers(&d->chr,
+                             mux_chr_can_read,
+                             mux_chr_read,
+                             mux_chr_event,
+                             chr,
+                             context);
 }
 
 static void mux_set_focus(MuxDriver *d, int focus)
@@ -906,6 +905,10 @@ static CharDriverState *qemu_chr_open_mux(const char *id,
      */
     chr->explicit_be_open = muxes_realized ? 0 : 1;
     chr->is_mux = 1;
+    if (!qemu_chr_fe_init(&d->chr, d->drv, errp)) {
+        qemu_chr_free(chr);
+        return NULL;
+    }
 
     return chr;
 }
@@ -4231,9 +4234,6 @@ void qemu_chr_disconnect(CharDriverState *chr)
 
 static void qemu_chr_free_common(CharDriverState *chr)
 {
-    if (chr->be) {
-        chr->be->chr = NULL;
-    }
     g_free(chr->filename);
     g_free(chr->label);
     if (chr->logfd != -1) {
