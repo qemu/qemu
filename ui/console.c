@@ -1083,6 +1083,7 @@ static void kbd_send_chars(void *opaque)
 void kbd_put_keysym_console(QemuConsole *s, int keysym)
 {
     uint8_t buf[16], *q;
+    CharBackend *be;
     int c;
 
     if (!s || (s->console_type == GRAPHIC_CONSOLE))
@@ -1125,7 +1126,8 @@ void kbd_put_keysym_console(QemuConsole *s, int keysym)
         if (s->echo) {
             console_puts(s->chr, buf, q - buf);
         }
-        if (s->chr->chr_read) {
+        be = s->chr->be;
+        if (be && be->chr_read) {
             qemu_fifo_write(&s->out_fifo, buf, q - buf);
             kbd_send_chars(s);
         }

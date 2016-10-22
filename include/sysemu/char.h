@@ -76,6 +76,10 @@ typedef enum {
  * CharDriverState */
 typedef struct CharBackend {
     CharDriverState *chr;
+    IOEventHandler *chr_event;
+    IOCanReadHandler *chr_can_read;
+    IOReadHandler *chr_read;
+    void *opaque;
     int tag;
 } CharBackend;
 
@@ -86,22 +90,19 @@ struct CharDriverState {
                          const uint8_t *buf, int len);
     GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
     void (*chr_update_read_handler)(struct CharDriverState *s,
-                                    GMainContext *context, int tag);
+                                    GMainContext *context);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
     int (*get_msgfds)(struct CharDriverState *s, int* fds, int num);
     int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
     int (*chr_add_client)(struct CharDriverState *chr, int fd);
     int (*chr_wait_connected)(struct CharDriverState *chr, Error **errp);
-    IOEventHandler *chr_event;
-    IOCanReadHandler *chr_can_read;
-    IOReadHandler *chr_read;
-    void *handler_opaque;
     void (*chr_close)(struct CharDriverState *chr);
     void (*chr_disconnect)(struct CharDriverState *chr);
     void (*chr_accept_input)(struct CharDriverState *chr);
     void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
     void (*chr_set_fe_open)(struct CharDriverState *chr, int fe_open);
     void (*chr_fe_event)(struct CharDriverState *chr, int event);
+    CharBackend *be;
     void *opaque;
     char *label;
     char *filename;

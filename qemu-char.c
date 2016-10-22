@@ -192,6 +192,8 @@ CharDriverState *qemu_chr_alloc(ChardevCommon *backend, Error **errp)
 
 void qemu_chr_be_event(CharDriverState *s, int event)
 {
+    CharBackend *be = s->be;
+
     /* Keep track if the char device is open */
     switch (event) {
         case CHR_EVENT_OPENED:
@@ -202,9 +204,11 @@ void qemu_chr_be_event(CharDriverState *s, int event)
             break;
     }
 
-    if (!s->chr_event)
+    if (!be || !be->chr_event) {
         return;
-    s->chr_event(s->handler_opaque, event);
+    }
+
+    be->chr_event(be->opaque, event);
 }
 
 void qemu_chr_be_generic_open(CharDriverState *s)
@@ -398,15 +402,21 @@ int qemu_chr_fe_ioctl(CharBackend *be, int cmd, void *arg)
 
 int qemu_chr_be_can_write(CharDriverState *s)
 {
-    if (!s->chr_can_read)
+    CharBackend *be = s->be;
+
+    if (!be || !be->chr_can_read) {
         return 0;
-    return s->chr_can_read(s->handler_opaque);
+    }
+
+    return be->chr_can_read(be->opaque);
 }
 
 void qemu_chr_be_write_impl(CharDriverState *s, uint8_t *buf, int len)
 {
-    if (s->chr_read) {
-        s->chr_read(s->handler_opaque, buf, len);
+    CharBackend *be = s->be;
+
+    if (be && be->chr_read) {
+        be->chr_read(be->opaque, buf, len);
     }
 }
 
@@ -488,7 +498,6 @@ void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
 }
 
 static void remove_fd_in_watch(CharDriverState *chr);
-static int mux_chr_new_handler_tag(CharDriverState *chr, Error **errp);
 static void mux_chr_set_handlers(CharDriverState *chr, GMainContext *context);
 static void mux_set_focus(MuxDriver *d, int focus);
 
@@ -519,10 +528,7 @@ static CharDriverState *qemu_chr_open_null(const char *id,
 #define MUX_BUFFER_SIZE 32	/* Must be a power of 2.  */
 #define MUX_BUFFER_MASK (MUX_BUFFER_SIZE - 1)
 struct MuxDriver {
-    IOCanReadHandler *chr_can_read[MAX_MUX];
-    IOReadHandler *chr_read[MAX_MUX];
-    IOEventHandler *chr_event[MAX_MUX];
-    void *ext_opaque[MAX_MUX];
+    CharBackend *backends[MAX_MUX];
     CharBackend chr;
     int focus;
     int mux_cnt;
@@ -625,8 +631,11 @@ static void mux_print_help(CharDriverState *chr)
 
 static void mux_chr_send_event(MuxDriver *d, int mux_nr, int event)
 {
-    if (d->chr_event[mux_nr])
-        d->chr_event[mux_nr](d->ext_opaque[mux_nr], event);
+    CharBackend *be = d->backends[mux_nr];
+
+    if (be && be->chr_event) {
+        be->chr_event(be->opaque, event);
+    }
 }
 
 static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
@@ -677,12 +686,12 @@ static void mux_chr_accept_input(CharDriverState *chr)
 {
     MuxDriver *d = chr->opaque;
     int m = d->focus;
+    CharBackend *be = d->backends[m];
 
-    while (d->prod[m] != d->cons[m] &&
-           d->chr_can_read[m] &&
-           d->chr_can_read[m](d->ext_opaque[m])) {
-        d->chr_read[m](d->ext_opaque[m],
-                       &d->buffer[m][d->cons[m]++ & MUX_BUFFER_MASK], 1);
+    while (be && d->prod[m] != d->cons[m] &&
+           be->chr_can_read && be->chr_can_read(be->opaque)) {
+        be->chr_read(be->opaque,
+                     &d->buffer[m][d->cons[m]++ & MUX_BUFFER_MASK], 1);
     }
 }
 
@@ -691,11 +700,16 @@ static int mux_chr_can_read(void *opaque)
     CharDriverState *chr = opaque;
     MuxDriver *d = chr->opaque;
     int m = d->focus;
+    CharBackend *be = d->backends[m];
 
-    if ((d->prod[m] - d->cons[m]) < MUX_BUFFER_SIZE)
+    if ((d->prod[m] - d->cons[m]) < MUX_BUFFER_SIZE) {
         return 1;
-    if (d->chr_can_read[m])
-        return d->chr_can_read[m](d->ext_opaque[m]);
+    }
+
+    if (be && be->chr_can_read) {
+        return be->chr_can_read(be->opaque);
+    }
+
     return 0;
 }
 
@@ -704,16 +718,17 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
     CharDriverState *chr = opaque;
     MuxDriver *d = chr->opaque;
     int m = d->focus;
+    CharBackend *be = d->backends[m];
     int i;
 
-    mux_chr_accept_input (opaque);
+    mux_chr_accept_input(opaque);
 
-    for(i = 0; i < size; i++)
+    for (i = 0; i < size; i++)
         if (mux_proc_byte(chr, d, buf[i])) {
             if (d->prod[m] == d->cons[m] &&
-                d->chr_can_read[m] &&
-                d->chr_can_read[m](d->ext_opaque[m]))
-                d->chr_read[m](d->ext_opaque[m], &buf[i], 1);
+                be && be->chr_can_read &&
+                be->chr_can_read(be->opaque))
+                be->chr_read(be->opaque, &buf[i], 1);
             else
                 d->buffer[m][d->prod[m]++ & MUX_BUFFER_MASK] = buf[i];
         }
@@ -728,21 +743,6 @@ static void mux_chr_event(void *opaque, int event)
     /* Send the event to all registered listeners */
     for (i = 0; i < d->mux_cnt; i++)
         mux_chr_send_event(d, i, event);
-}
-
-static void mux_chr_update_read_handler(CharDriverState *chr,
-                                        GMainContext *context,
-                                        int tag)
-{
-    MuxDriver *d = chr->opaque;
-
-    assert(tag >= 0);
-    assert(tag < d->mux_cnt);
-
-    d->ext_opaque[tag] = chr->handler_opaque;
-    d->chr_can_read[tag] = chr->chr_can_read;
-    d->chr_read[tag] = chr->chr_read;
-    d->chr_event[tag] = chr->chr_event;
 }
 
 static bool muxes_realized;
@@ -796,12 +796,19 @@ static GSource *mux_chr_add_watch(CharDriverState *s, GIOCondition cond)
 static void mux_chr_close(struct CharDriverState *chr)
 {
     MuxDriver *d = chr->opaque;
+    int i;
 
+    for (i = 0; i < d->mux_cnt; i++) {
+        CharBackend *be = d->backends[i];
+        if (be) {
+            be->chr = NULL;
+        }
+    }
     qemu_chr_fe_deinit(&d->chr);
     g_free(d);
 }
 
-static int mux_chr_new_handler_tag(CharDriverState *chr, Error **errp)
+static int mux_chr_new_fe(CharDriverState *chr, CharBackend *be, Error **errp)
 {
     MuxDriver *d = chr->opaque;
 
@@ -809,6 +816,8 @@ static int mux_chr_new_handler_tag(CharDriverState *chr, Error **errp)
         fprintf(stderr, "Cannot add I/O handlers, MUX array is full\n");
         return -1;
     }
+
+    d->backends[d->mux_cnt] = be;
 
     return d->mux_cnt++;
 }
@@ -864,7 +873,6 @@ static CharDriverState *qemu_chr_open_mux(const char *id,
     d->focus = -1;
     chr->chr_close = mux_chr_close;
     chr->chr_write = mux_chr_write;
-    chr->chr_update_read_handler = mux_chr_update_read_handler;
     chr->chr_accept_input = mux_chr_accept_input;
     /* Frontend guest-open / -close notification is not support with muxes */
     chr->chr_set_fe_open = NULL;
@@ -894,16 +902,28 @@ bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp)
     int tag = 0;
 
     if (s->is_mux) {
-        tag = mux_chr_new_handler_tag(s, errp);
+        tag = mux_chr_new_fe(s, b, errp);
         if (tag < 0) {
             return false;
         }
+    } else {
+        s->be = b;
     }
 
     b->tag = tag;
     b->chr = s;
 
     return true;
+}
+
+static bool qemu_chr_is_busy(CharDriverState *s)
+{
+    if (s->is_mux) {
+        MuxDriver *d = s->opaque;
+        return d->mux_cnt >= 0;
+    } else {
+        return s->be != NULL;
+    }
 }
 
 void qemu_chr_fe_deinit(CharBackend *b)
@@ -913,6 +933,11 @@ void qemu_chr_fe_deinit(CharBackend *b)
     if (b->chr) {
         qemu_chr_fe_set_handlers(b, NULL, NULL, NULL, NULL, NULL);
         b->chr->avail_connections++;
+        b->chr->be = NULL;
+        if (b->chr->is_mux) {
+            MuxDriver *d = b->chr->opaque;
+            d->backends[b->tag] = NULL;
+        }
         b->chr = NULL;
     }
 }
@@ -938,12 +963,12 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
     } else {
         fe_open = 1;
     }
-    s->chr_can_read = fd_can_read;
-    s->chr_read = fd_read;
-    s->chr_event = fd_event;
-    s->handler_opaque = opaque;
+    b->chr_can_read = fd_can_read;
+    b->chr_read = fd_read;
+    b->chr_event = fd_event;
+    b->opaque = opaque;
     if (s->chr_update_read_handler) {
-        s->chr_update_read_handler(s, context, b->tag);
+        s->chr_update_read_handler(s, context);
     }
 
     if (!s->explicit_fe_open) {
@@ -1202,8 +1227,7 @@ static GSource *fd_chr_add_watch(CharDriverState *chr, GIOCondition cond)
 }
 
 static void fd_chr_update_read_handler(CharDriverState *chr,
-                                       GMainContext *context,
-                                       int tag)
+                                       GMainContext *context)
 {
     FDCharDriver *s = chr->opaque;
 
@@ -1460,8 +1484,7 @@ static void pty_chr_update_read_handler_locked(CharDriverState *chr)
 }
 
 static void pty_chr_update_read_handler(CharDriverState *chr,
-                                        GMainContext *context,
-                                        int tag)
+                                        GMainContext *context)
 {
     qemu_mutex_lock(&chr->chr_write_lock);
     pty_chr_update_read_handler_locked(chr);
@@ -2707,8 +2730,7 @@ static gboolean udp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
 }
 
 static void udp_chr_update_read_handler(CharDriverState *chr,
-                                        GMainContext *context,
-                                        int tag)
+                                        GMainContext *context)
 {
     NetCharDriver *s = chr->opaque;
 
@@ -3127,8 +3149,7 @@ static void tcp_chr_connect(void *opaque)
 }
 
 static void tcp_chr_update_read_handler(CharDriverState *chr,
-                                        GMainContext *context,
-                                        int tag)
+                                        GMainContext *context)
 {
     TCPCharDriver *s = chr->opaque;
 
@@ -4246,6 +4267,9 @@ void qemu_chr_fe_disconnect(CharBackend *be)
 
 static void qemu_chr_free_common(CharDriverState *chr)
 {
+    if (chr->be) {
+        chr->be->chr = NULL;
+    }
     g_free(chr->filename);
     g_free(chr->label);
     if (chr->logfd != -1) {
@@ -4790,8 +4814,7 @@ void qmp_chardev_remove(const char *id, Error **errp)
         error_setg(errp, "Chardev '%s' not found", id);
         return;
     }
-    if (chr->chr_can_read || chr->chr_read ||
-        chr->chr_event || chr->handler_opaque) {
+    if (qemu_chr_is_busy(chr)) {
         error_setg(errp, "Chardev '%s' is busy", id);
         return;
     }
