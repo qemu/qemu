@@ -625,6 +625,10 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         object_property_set_bool(OBJECT(pnv_core), true, "realized",
                                  &error_fatal);
         object_unref(OBJECT(pnv_core));
+
+        /* Each core has an XSCOM MMIO region */
+        pnv_xscom_add_subregion(chip, PNV_XSCOM_EX_CORE_BASE(core_hwid),
+                                &PNV_CORE(pnv_core)->xscom_regs);
         i++;
     }
     g_free(typename);

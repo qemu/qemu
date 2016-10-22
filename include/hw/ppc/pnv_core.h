@@ -36,6 +36,8 @@ typedef struct PnvCore {
     /*< public >*/
     void *threads;
     uint32_t pir;
+
+    MemoryRegion xscom_regs;
 } PnvCore;
 
 typedef struct PnvCoreClass {

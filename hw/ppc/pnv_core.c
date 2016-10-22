@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "target-ppc/cpu.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"
@@ -62,6 +63,51 @@ static void powernv_cpu_init(PowerPCCPU *cpu, Error **errp)
 
     qemu_register_reset(powernv_cpu_reset, cpu);
 }
+
+/*
+ * These values are read by the PowerNV HW monitors under Linux
+ */
+#define PNV_XSCOM_EX_DTS_RESULT0     0x50000
+#define PNV_XSCOM_EX_DTS_RESULT1     0x50001
+
+static uint64_t pnv_core_xscom_read(void *opaque, hwaddr addr,
+                                    unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+    uint64_t val = 0;
+
+    /* The result should be 38 C */
+    switch (offset) {
+    case PNV_XSCOM_EX_DTS_RESULT0:
+        val = 0x26f024f023f0000ull;
+        break;
+    case PNV_XSCOM_EX_DTS_RESULT1:
+        val = 0x24f000000000000ull;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx,
+                  addr);
+    }
+
+    return val;
+}
+
+static void pnv_core_xscom_write(void *opaque, hwaddr addr, uint64_t val,
+                                 unsigned int width)
+{
+    qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx,
+                  addr);
+}
+
+static const MemoryRegionOps pnv_core_xscom_ops = {
+    .read = pnv_core_xscom_read,
+    .write = pnv_core_xscom_write,
+    .valid.min_access_size = 8,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
 
 static void pnv_core_realize_child(Object *child, Error **errp)
 {
@@ -118,6 +164,10 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
             goto err;
         }
     }
+
+    snprintf(name, sizeof(name), "xscom-core.%d", cc->core_id);
+    pnv_xscom_region_init(&pc->xscom_regs, OBJECT(dev), &pnv_core_xscom_ops,
+                          pc, name, PNV_XSCOM_EX_CORE_SIZE);
     return;
 
 err:
