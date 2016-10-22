@@ -38,7 +38,7 @@ bool qtest_allowed;
 
 static DeviceState *irq_intercept_dev;
 static FILE *qtest_log_fp;
-static CharDriverState *qtest_chr;
+static CharBackend qtest_chr;
 static GString *inbuf;
 static int irq_levels[MAX_IRQ];
 static qemu_timeval start_time;
@@ -249,7 +249,7 @@ static void qtest_irq_handler(void *opaque, int n, int level)
     qemu_set_irq(old_irq, level);
 
     if (irq_levels[n] != level) {
-        CharDriverState *chr = qtest_chr;
+        CharDriverState *chr = qtest_chr.chr;
         irq_levels[n] = level;
         qtest_send_prefix(chr);
         qtest_sendf(chr, "IRQ %s %d\n",
@@ -690,12 +690,12 @@ void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
     qemu_chr_fe_set_echo(chr, true);
 
     inbuf = g_string_new("");
-    qtest_chr = chr;
+    qemu_chr_fe_init(&qtest_chr, chr, errp);
 }
 
 bool qtest_driver(void)
 {
-    return qtest_chr;
+    return qtest_chr.chr != NULL;
 }
 
 static void qtest_accel_class_init(ObjectClass *oc, void *data)

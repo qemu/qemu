@@ -68,9 +68,9 @@ typedef struct CompareState {
     char *pri_indev;
     char *sec_indev;
     char *outdev;
-    CharDriverState *chr_pri_in;
-    CharDriverState *chr_sec_in;
-    CharDriverState *chr_out;
+    CharBackend chr_pri_in;
+    CharBackend chr_sec_in;
+    CharBackend chr_out;
     SocketReadState pri_rs;
     SocketReadState sec_rs;
 
@@ -385,7 +385,7 @@ static void colo_compare_connection(void *opaque, void *user_data)
         }
 
         if (result) {
-            ret = compare_chr_send(s->chr_out, pkt->data, pkt->size);
+            ret = compare_chr_send(s->chr_out.chr, pkt->data, pkt->size);
             if (ret < 0) {
                 error_report("colo_send_primary_packet failed");
             }
@@ -451,7 +451,7 @@ static void compare_pri_chr_in(void *opaque, const uint8_t *buf, int size)
 
     ret = net_fill_rstate(&s->pri_rs, buf, size);
     if (ret == -1) {
-        qemu_chr_add_handlers(s->chr_pri_in, NULL, NULL, NULL, NULL);
+        qemu_chr_add_handlers(s->chr_pri_in.chr, NULL, NULL, NULL, NULL);
         error_report("colo-compare primary_in error");
     }
 }
@@ -467,7 +467,7 @@ static void compare_sec_chr_in(void *opaque, const uint8_t *buf, int size)
 
     ret = net_fill_rstate(&s->sec_rs, buf, size);
     if (ret == -1) {
-        qemu_chr_add_handlers(s->chr_sec_in, NULL, NULL, NULL, NULL);
+        qemu_chr_add_handlers(s->chr_sec_in.chr, NULL, NULL, NULL, NULL);
         error_report("colo-compare secondary_in error");
     }
 }
@@ -480,9 +480,9 @@ static void *colo_compare_thread(void *opaque)
 
     worker_context = g_main_context_new();
 
-    qemu_chr_add_handlers_full(s->chr_pri_in, compare_chr_can_read,
+    qemu_chr_add_handlers_full(s->chr_pri_in.chr, compare_chr_can_read,
                           compare_pri_chr_in, NULL, s, worker_context);
-    qemu_chr_add_handlers_full(s->chr_sec_in, compare_chr_can_read,
+    qemu_chr_add_handlers_full(s->chr_sec_in.chr, compare_chr_can_read,
                           compare_sec_chr_in, NULL, s, worker_context);
 
     compare_loop = g_main_loop_new(worker_context, FALSE);
@@ -545,7 +545,7 @@ static void compare_pri_rs_finalize(SocketReadState *pri_rs)
 
     if (packet_enqueue(s, PRIMARY_IN)) {
         trace_colo_compare_main("primary: unsupported packet in");
-        compare_chr_send(s->chr_out, pri_rs->buf, pri_rs->packet_len);
+        compare_chr_send(s->chr_out.chr, pri_rs->buf, pri_rs->packet_len);
     } else {
         /* compare connection */
         g_queue_foreach(&s->conn_list, colo_compare_connection, s);
@@ -634,23 +634,23 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
-    if (find_and_check_chardev(&s->chr_pri_in, s->pri_indev, errp)) {
+    if (find_and_check_chardev(&s->chr_pri_in.chr, s->pri_indev, errp)) {
         return;
     }
 
-    if (find_and_check_chardev(&s->chr_sec_in, s->sec_indev, errp)) {
+    if (find_and_check_chardev(&s->chr_sec_in.chr, s->sec_indev, errp)) {
         return;
     }
 
-    if (find_and_check_chardev(&s->chr_out, s->outdev, errp)) {
+    if (find_and_check_chardev(&s->chr_out.chr, s->outdev, errp)) {
         return;
     }
 
-    qemu_chr_fe_claim_no_fail(s->chr_pri_in);
+    qemu_chr_fe_claim_no_fail(s->chr_pri_in.chr);
 
-    qemu_chr_fe_claim_no_fail(s->chr_sec_in);
+    qemu_chr_fe_claim_no_fail(s->chr_sec_in.chr);
 
-    qemu_chr_fe_claim_no_fail(s->chr_out);
+    qemu_chr_fe_claim_no_fail(s->chr_out.chr);
 
     net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize);
     net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize);
@@ -702,16 +702,16 @@ static void colo_compare_finalize(Object *obj)
 {
     CompareState *s = COLO_COMPARE(obj);
 
-    if (s->chr_pri_in) {
-        qemu_chr_add_handlers(s->chr_pri_in, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(s->chr_pri_in);
+    if (s->chr_pri_in.chr) {
+        qemu_chr_add_handlers(s->chr_pri_in.chr, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_release(s->chr_pri_in.chr);
     }
-    if (s->chr_sec_in) {
-        qemu_chr_add_handlers(s->chr_sec_in, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(s->chr_sec_in);
+    if (s->chr_sec_in.chr) {
+        qemu_chr_add_handlers(s->chr_sec_in.chr, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_release(s->chr_sec_in.chr);
     }
-    if (s->chr_out) {
-        qemu_chr_fe_release(s->chr_out);
+    if (s->chr_out.chr) {
+        qemu_chr_fe_release(s->chr_out.chr);
     }
 
     g_queue_free(&s->conn_list);

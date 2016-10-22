@@ -19,6 +19,7 @@
 #include "libqos/libqos.h"
 #include "libqos/pci-pc.h"
 #include "libqos/virtio-pci.h"
+#include "qapi/error.h"
 
 #include "libqos/pci-pc.h"
 #include "libqos/virtio-pci.h"
@@ -141,7 +142,7 @@ typedef struct TestServer {
     gchar *socket_path;
     gchar *mig_path;
     gchar *chr_name;
-    CharDriverState *chr;
+    CharBackend chr;
     int fds_num;
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     VhostUserMemory memory;
@@ -261,13 +262,13 @@ static int chr_can_read(void *opaque)
 static void chr_read(void *opaque, const uint8_t *buf, int size)
 {
     TestServer *s = opaque;
-    CharDriverState *chr = s->chr;
+    CharBackend *chr = &s->chr;
     VhostUserMsg msg;
     uint8_t *p = (uint8_t *) &msg;
     int fd;
 
     if (s->test_fail) {
-        qemu_chr_disconnect(chr);
+        qemu_chr_disconnect(chr->chr);
         /* now switch to non-failure */
         s->test_fail = false;
     }
@@ -282,7 +283,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
 
     if (msg.size) {
         p += VHOST_USER_HDR_SIZE;
-        size = qemu_chr_fe_read_all(chr, p, msg.size);
+        size = qemu_chr_fe_read_all(chr->chr, p, msg.size);
         if (size != msg.size) {
             g_test_message("Wrong message size received %d != %d\n",
                            size, msg.size);
@@ -305,14 +306,14 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
             s->test_flags = TEST_FLAGS_END;
         }
         p = (uint8_t *) &msg;
-        qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE + msg.size);
+        qemu_chr_fe_write_all(chr->chr, p, VHOST_USER_HDR_SIZE + msg.size);
         break;
 
     case VHOST_USER_SET_FEATURES:
 	g_assert_cmpint(msg.payload.u64 & (0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES),
 			!=, 0ULL);
         if (s->test_flags == TEST_FLAGS_DISCONNECT) {
-            qemu_chr_disconnect(chr);
+            qemu_chr_disconnect(chr->chr);
             s->test_flags = TEST_FLAGS_BAD;
         }
         break;
@@ -326,7 +327,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
             msg.payload.u64 |= 1 << VHOST_USER_PROTOCOL_F_MQ;
         }
         p = (uint8_t *) &msg;
-        qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE + msg.size);
+        qemu_chr_fe_write_all(chr->chr, p, VHOST_USER_HDR_SIZE + msg.size);
         break;
 
     case VHOST_USER_GET_VRING_BASE:
@@ -335,7 +336,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         msg.size = sizeof(m.payload.state);
         msg.payload.state.num = 0;
         p = (uint8_t *) &msg;
-        qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE + msg.size);
+        qemu_chr_fe_write_all(chr->chr, p, VHOST_USER_HDR_SIZE + msg.size);
 
         assert(msg.payload.state.index < s->queues * 2);
         s->rings &= ~(0x1ULL << msg.payload.state.index);
@@ -344,7 +345,8 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     case VHOST_USER_SET_MEM_TABLE:
         /* received the mem table */
         memcpy(&s->memory, &msg.payload.memory, sizeof(msg.payload.memory));
-        s->fds_num = qemu_chr_fe_get_msgfds(chr, s->fds, G_N_ELEMENTS(s->fds));
+        s->fds_num = qemu_chr_fe_get_msgfds(chr->chr, s->fds,
+                                            G_N_ELEMENTS(s->fds));
 
         /* signal the test that it can continue */
         g_cond_signal(&s->data_cond);
@@ -353,7 +355,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     case VHOST_USER_SET_VRING_KICK:
     case VHOST_USER_SET_VRING_CALL:
         /* consume the fd */
-        qemu_chr_fe_get_msgfds(chr, &fd, 1);
+        qemu_chr_fe_get_msgfds(chr->chr, &fd, 1);
         /*
          * This is a non-blocking eventfd.
          * The receive function forces it to be blocking,
@@ -367,11 +369,11 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
             close(s->log_fd);
             s->log_fd = -1;
         }
-        qemu_chr_fe_get_msgfds(chr, &s->log_fd, 1);
+        qemu_chr_fe_get_msgfds(chr->chr, &s->log_fd, 1);
         msg.flags |= VHOST_USER_REPLY_MASK;
         msg.size = 0;
         p = (uint8_t *) &msg;
-        qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE);
+        qemu_chr_fe_write_all(chr->chr, p, VHOST_USER_HDR_SIZE);
 
         g_cond_signal(&s->data_cond);
         break;
@@ -386,7 +388,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         msg.size = sizeof(m.payload.u64);
         msg.payload.u64 = s->queues;
         p = (uint8_t *) &msg;
-        qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE + msg.size);
+        qemu_chr_fe_write_all(chr->chr, p, VHOST_USER_HDR_SIZE + msg.size);
         break;
 
     default:
@@ -453,12 +455,13 @@ static void chr_event(void *opaque, int event)
 static void test_server_create_chr(TestServer *server, const gchar *opt)
 {
     gchar *chr_path;
-
+    CharDriverState *chr;
     chr_path = g_strdup_printf("unix:%s%s", server->socket_path, opt);
-    server->chr = qemu_chr_new(server->chr_name, chr_path);
+    chr = qemu_chr_new(server->chr_name, chr_path);
+    qemu_chr_fe_init(&server->chr, chr, &error_abort);
     g_free(chr_path);
 
-    qemu_chr_add_handlers(server->chr, chr_can_read, chr_read,
+    qemu_chr_add_handlers(server->chr.chr, chr_can_read, chr_read,
                           chr_event, server);
 }
 
@@ -484,7 +487,7 @@ static gboolean _test_server_free(TestServer *server)
 {
     int i;
 
-    qemu_chr_delete(server->chr);
+    qemu_chr_delete(server->chr.chr);
 
     for (i = 0; i < server->fds_num; i++) {
         close(server->fds[i]);
@@ -721,7 +724,7 @@ reconnect_cb(gpointer user_data)
 {
     TestServer *s = user_data;
 
-    qemu_chr_disconnect(s->chr);
+    qemu_chr_disconnect(s->chr.chr);
 
     return FALSE;
 }

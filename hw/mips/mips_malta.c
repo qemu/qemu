@@ -85,7 +85,7 @@ typedef struct {
     uint32_t i2coe;
     uint32_t i2cout;
     uint32_t i2csel;
-    CharDriverState *display;
+    CharBackend display;
     char display_text[9];
     SerialState *uart;
     bool display_inited;
@@ -125,8 +125,10 @@ static void malta_fpga_update_display(void *opaque)
     }
     leds_text[8] = '\0';
 
-    qemu_chr_fe_printf(s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n", leds_text);
-    qemu_chr_fe_printf(s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|", s->display_text);
+    qemu_chr_fe_printf(s->display.chr, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n",
+                       leds_text);
+    qemu_chr_fe_printf(s->display.chr, "\n\n\n\n|\e[31m%-8.8s\e[00m|",
+                       s->display_text);
 }
 
 /*
@@ -536,15 +538,15 @@ static void malta_fgpa_display_event(void *opaque, int event)
     MaltaFPGAState *s = opaque;
 
     if (event == CHR_EVENT_OPENED && !s->display_inited) {
-        qemu_chr_fe_printf(s->display, "\e[HMalta LEDBAR\r\n");
-        qemu_chr_fe_printf(s->display, "+--------+\r\n");
-        qemu_chr_fe_printf(s->display, "+        +\r\n");
-        qemu_chr_fe_printf(s->display, "+--------+\r\n");
-        qemu_chr_fe_printf(s->display, "\n");
-        qemu_chr_fe_printf(s->display, "Malta ASCII\r\n");
-        qemu_chr_fe_printf(s->display, "+--------+\r\n");
-        qemu_chr_fe_printf(s->display, "+        +\r\n");
-        qemu_chr_fe_printf(s->display, "+--------+\r\n");
+        qemu_chr_fe_printf(s->display.chr, "\e[HMalta LEDBAR\r\n");
+        qemu_chr_fe_printf(s->display.chr, "+--------+\r\n");
+        qemu_chr_fe_printf(s->display.chr, "+        +\r\n");
+        qemu_chr_fe_printf(s->display.chr, "+--------+\r\n");
+        qemu_chr_fe_printf(s->display.chr, "\n");
+        qemu_chr_fe_printf(s->display.chr, "Malta ASCII\r\n");
+        qemu_chr_fe_printf(s->display.chr, "+--------+\r\n");
+        qemu_chr_fe_printf(s->display.chr, "+        +\r\n");
+        qemu_chr_fe_printf(s->display.chr, "+--------+\r\n");
         s->display_inited = true;
     }
 }
@@ -553,6 +555,7 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
          hwaddr base, qemu_irq uart_irq, CharDriverState *uart_chr)
 {
     MaltaFPGAState *s;
+    CharDriverState *chr;
 
     s = (MaltaFPGAState *)g_malloc0(sizeof(MaltaFPGAState));
 
@@ -566,8 +569,9 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, base, &s->iomem_lo);
     memory_region_add_subregion(address_space, base + 0xa00, &s->iomem_hi);
 
-    s->display = qemu_chr_new("fpga", "vc:320x200");
-    qemu_chr_add_handlers(s->display, NULL, NULL,
+    chr = qemu_chr_new("fpga", "vc:320x200");
+    qemu_chr_fe_init(&s->display, chr, &error_abort);
+    qemu_chr_add_handlers(s->display.chr, NULL, NULL,
                           malta_fgpa_display_event, s);
 
     s->uart = serial_mm_init(address_space, base + 0x900, 3, uart_irq,

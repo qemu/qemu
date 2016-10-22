@@ -303,7 +303,7 @@ typedef struct GDBState {
     int fd;
     int running_state;
 #else
-    CharDriverState *chr;
+    CharBackend chr;
     CharDriverState *mon_chr;
 #endif
     char syscall_buf[256];
@@ -404,7 +404,7 @@ static void put_buffer(GDBState *s, const uint8_t *buf, int len)
 #else
     /* XXX this blocks entire thread. Rewrite to use
      * qemu_chr_fe_write and background I/O callbacks */
-    qemu_chr_fe_write_all(s->chr, buf, len);
+    qemu_chr_fe_write_all(s->chr.chr, buf, len);
 #endif
 }
 
@@ -1481,7 +1481,7 @@ void gdb_exit(CPUArchState *env, int code)
       return;
   }
 #else
-  if (!s->chr) {
+  if (!s->chr.chr) {
       return;
   }
 #endif
@@ -1490,7 +1490,7 @@ void gdb_exit(CPUArchState *env, int code)
   put_packet(s, buf);
 
 #ifndef CONFIG_USER_ONLY
-  qemu_chr_delete(s->chr);
+  qemu_chr_delete(s->chr.chr);
 #endif
 }
 
@@ -1750,8 +1750,6 @@ int gdbserver_start(const char *device)
             return -1;
 
         qemu_chr_fe_claim_no_fail(chr);
-        qemu_chr_add_handlers(chr, gdb_chr_can_receive, gdb_chr_receive,
-                              gdb_chr_event, NULL);
     }
 
     s = gdbserver_state;
@@ -1766,14 +1764,20 @@ int gdbserver_start(const char *device)
         mon_chr->chr_write = gdb_monitor_write;
         monitor_init(mon_chr, 0);
     } else {
-        if (s->chr)
-            qemu_chr_delete(s->chr);
+        if (s->chr.chr) {
+            qemu_chr_delete(s->chr.chr);
+        }
         mon_chr = s->mon_chr;
         memset(s, 0, sizeof(GDBState));
+        s->mon_chr = mon_chr;
     }
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
-    s->chr = chr;
+    if (chr) {
+        qemu_chr_fe_init(&s->chr, chr, &error_abort);
+        qemu_chr_add_handlers(s->chr.chr, gdb_chr_can_receive, gdb_chr_receive,
+                              gdb_chr_event, NULL);
+    }
     s->state = chr ? RS_IDLE : RS_INACTIVE;
     s->mon_chr = mon_chr;
     s->current_syscall_cb = NULL;
