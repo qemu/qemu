@@ -467,46 +467,6 @@ void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
 }
 
 static void remove_fd_in_watch(CharDriverState *chr);
-
-static void
-qemu_chr_set_handlers(CharBackend *be,
-                      IOCanReadHandler *fd_can_read,
-                      IOReadHandler *fd_read,
-                      IOEventHandler *fd_event,
-                      void *opaque,
-                      GMainContext *context)
-{
-    CharDriverState *s = be->chr;
-    int fe_open;
-
-    if (!opaque && !fd_can_read && !fd_read && !fd_event) {
-        fe_open = 0;
-        remove_fd_in_watch(s);
-    } else {
-        fe_open = 1;
-    }
-    s->chr_can_read = fd_can_read;
-    s->chr_read = fd_read;
-    s->chr_event = fd_event;
-    s->handler_opaque = opaque;
-    if (s->chr_update_read_handler) {
-        s->chr_update_read_handler(s, context, be->tag);
-    }
-
-    if (!s->explicit_fe_open) {
-        qemu_chr_fe_set_open(be, fe_open);
-    }
-
-    /* We're connecting to an already opened device, so let's make sure we
-       also get the open event */
-    if (fe_open) {
-        qemu_chr_fe_take_focus(be);
-        if (s->be_open) {
-            qemu_chr_be_generic_open(s);
-        }
-    }
-}
-
 static int mux_chr_new_handler_tag(CharDriverState *chr, Error **errp);
 static void mux_chr_set_handlers(CharDriverState *chr, GMainContext *context);
 static void mux_set_focus(MuxDriver *d, int focus);
@@ -931,15 +891,43 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               void *opaque,
                               GMainContext *context)
 {
-    if (!b->chr) {
+    CharDriverState *s;
+    int fe_open;
+
+    s = b->chr;
+    if (!s) {
         return;
     }
 
-    qemu_chr_set_handlers(b, fd_can_read, fd_read,
-                          fd_event, opaque, context);
+    if (!opaque && !fd_can_read && !fd_read && !fd_event) {
+        fe_open = 0;
+        remove_fd_in_watch(s);
+    } else {
+        fe_open = 1;
+    }
+    s->chr_can_read = fd_can_read;
+    s->chr_read = fd_read;
+    s->chr_event = fd_event;
+    s->handler_opaque = opaque;
+    if (s->chr_update_read_handler) {
+        s->chr_update_read_handler(s, context, b->tag);
+    }
 
-    if (b->chr->is_mux) {
-        mux_chr_set_handlers(b->chr, context);
+    if (!s->explicit_fe_open) {
+        qemu_chr_fe_set_open(b, fe_open);
+    }
+
+    if (fe_open) {
+        qemu_chr_fe_take_focus(b);
+        /* We're connecting to an already opened device, so let's make sure we
+           also get the open event */
+        if (s->be_open) {
+            qemu_chr_be_generic_open(s);
+        }
+    }
+
+    if (s->is_mux) {
+        mux_chr_set_handlers(s, context);
     }
 }
 

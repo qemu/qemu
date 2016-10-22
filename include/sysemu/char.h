@@ -460,7 +460,8 @@ CharDriverState *qemu_chr_fe_get_driver(CharBackend *be);
  * @opaque: an opaque pointer for the callbacks
  * @context: a main loop context or NULL for the default
  *
- * Set the front end char handlers.
+ * Set the front end char handlers. The front end takes the focus if
+ * any of the handler is non-NULL.
  */
 void qemu_chr_fe_set_handlers(CharBackend *b,
                               IOCanReadHandler *fd_can_read,
