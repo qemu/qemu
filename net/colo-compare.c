@@ -589,6 +589,13 @@ static int find_and_check_chardev(CharDriverState **chr,
                    chr_name);
         return 1;
     }
+
+    if (qemu_chr_fe_claim(*chr) < 0) {
+        error_setg(errp, "chardev \"%s\" cannot be claimed",
+                   chr_name);
+        return 1;
+    }
+
     return 0;
 }
 
@@ -645,12 +652,6 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     if (find_and_check_chardev(&s->chr_out.chr, s->outdev, errp)) {
         return;
     }
-
-    qemu_chr_fe_claim_no_fail(s->chr_pri_in.chr);
-
-    qemu_chr_fe_claim_no_fail(s->chr_sec_in.chr);
-
-    qemu_chr_fe_claim_no_fail(s->chr_out.chr);
 
     net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize);
     net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize);
