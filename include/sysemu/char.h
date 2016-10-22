@@ -109,7 +109,6 @@ struct CharDriverState {
     char *filename;
     int logfd;
     int be_open;
-    int explicit_be_open;
     int is_mux;
     guint fd_in_tag;
     bool replay;
@@ -474,10 +473,15 @@ void qemu_chr_set_feature(CharDriverState *chr,
                           CharDriverFeature feature);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
+typedef void CharDriverParse(QemuOpts *opts, ChardevBackend *backend,
+                             Error **errp);
+typedef CharDriverState *CharDriverCreate(const char *id,
+                                          ChardevBackend *backend,
+                                          ChardevReturn *ret, bool *be_opened,
+                                          Error **errp);
+
 void register_char_driver(const char *name, ChardevBackendKind kind,
-        void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp),
-        CharDriverState *(*create)(const char *id, ChardevBackend *backend,
-                                   ChardevReturn *ret, Error **errp));
+                          CharDriverParse *parse, CharDriverCreate *create);
 
 extern int term_escape_char;
 

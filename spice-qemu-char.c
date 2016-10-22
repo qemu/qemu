@@ -282,7 +282,6 @@ static CharDriverState *chr_open(const char *subtype,
     chr->chr_add_watch = spice_chr_add_watch;
     chr->chr_free = spice_chr_free;
     chr->chr_set_fe_open = set_fe_open;
-    chr->explicit_be_open = true;
     chr->chr_accept_input = spice_chr_accept_input;
 
     QLIST_INSERT_HEAD(&spice_chars, s, next);
@@ -293,6 +292,7 @@ static CharDriverState *chr_open(const char *subtype,
 static CharDriverState *qemu_chr_open_spice_vmc(const char *id,
                                                 ChardevBackend *backend,
                                                 ChardevReturn *ret,
+                                                bool *be_opened,
                                                 Error **errp)
 {
     ChardevSpiceChannel *spicevmc = backend->u.spicevmc.data;
@@ -311,6 +311,7 @@ static CharDriverState *qemu_chr_open_spice_vmc(const char *id,
         return NULL;
     }
 
+    *be_opened = false;
     return chr_open(type, spice_vmc_set_fe_open, common, errp);
 }
 
@@ -318,6 +319,7 @@ static CharDriverState *qemu_chr_open_spice_vmc(const char *id,
 static CharDriverState *qemu_chr_open_spice_port(const char *id,
                                                  ChardevBackend *backend,
                                                  ChardevReturn *ret,
+                                                 bool *be_opened,
                                                  Error **errp)
 {
     ChardevSpicePort *spiceport = backend->u.spiceport.data;
@@ -335,6 +337,7 @@ static CharDriverState *qemu_chr_open_spice_port(const char *id,
     if (!chr) {
         return NULL;
     }
+    *be_opened = false;
     s = chr->opaque;
     s->sin.portname = g_strdup(name);
 

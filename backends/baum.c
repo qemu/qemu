@@ -566,6 +566,7 @@ static void baum_free(struct CharDriverState *chr)
 static CharDriverState *chr_baum_init(const char *id,
                                       ChardevBackend *backend,
                                       ChardevReturn *ret,
+                                      bool *be_opened,
                                       Error **errp)
 {
     ChardevCommon *common = backend->u.braille.data;

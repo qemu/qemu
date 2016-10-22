@@ -112,6 +112,7 @@ static void testdev_free(struct CharDriverState *chr)
 static CharDriverState *chr_testdev_init(const char *id,
                                          ChardevBackend *backend,
                                          ChardevReturn *ret,
+                                         bool *be_opened,
                                          Error **errp)
 {
     TestdevCharState *testdev;
