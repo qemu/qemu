@@ -2435,7 +2435,6 @@ static void win_stdio_close(CharDriverState *chr)
     }
 
     g_free(chr->opaque);
-    g_free(chr);
 }
 
 static CharDriverState *qemu_chr_open_stdio(const char *id,
