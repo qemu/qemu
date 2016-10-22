@@ -26,9 +26,10 @@
 #include "hw/irq.h"
 #include "sysemu/bt.h"
 #include "hw/bt.h"
+#include "qapi/error.h"
 
 struct csrhci_s {
-    CharDriverState chr;
+    CharDriverState parent;
     int enable;
     qemu_irq *pins;
     int pin_state;
@@ -78,7 +79,8 @@ enum {
 
 static inline void csrhci_fifo_wake(struct csrhci_s *s)
 {
-    CharBackend *be = s->chr.be;
+    CharDriverState *chr = (CharDriverState *)s;
+    CharBackend *be = chr->be;
 
     if (!s->enable || !s->out_len)
         return;
@@ -468,10 +470,15 @@ CharDriverState *uart_hci_init(void)
         .chr_write = csrhci_write,
         .chr_ioctl = csrhci_ioctl,
     };
-    struct csrhci_s *s = (struct csrhci_s *)
-            g_malloc0(sizeof(struct csrhci_s));
+    Error *err = NULL;
+    ChardevCommon common = { 0, };
+    CharDriverState *chr = qemu_chr_alloc(&hci_driver, &common, &err);
+    struct csrhci_s *s = (struct csrhci_s *)chr;
 
-    s->chr.driver = &hci_driver;
+    if (err) {
+        error_report_err(err);
+        return NULL;
+    }
 
     s->hci = qemu_next_hci();
     s->hci->opaque = s;
@@ -482,5 +489,5 @@ CharDriverState *uart_hci_init(void)
     s->pins = qemu_allocate_irqs(csrhci_pins, s, __csrhci_pins);
     csrhci_reset(s);
 
-    return &s->chr;
+    return chr;
 }
