@@ -244,6 +244,32 @@ static void ppc_powernv_init(MachineState *machine)
     g_free(chip_typename);
 }
 
+/*
+ *    0:21  Reserved - Read as zeros
+ *   22:24  Chip ID
+ *   25:28  Core number
+ *   29:31  Thread ID
+ */
+static uint32_t pnv_chip_core_pir_p8(PnvChip *chip, uint32_t core_id)
+{
+    return (chip->chip_id << 7) | (core_id << 3);
+}
+
+/*
+ *    0:48  Reserved - Read as zeroes
+ *   49:52  Node ID
+ *   53:55  Chip ID
+ *   56     Reserved - Read as zero
+ *   57:61  Core number
+ *   62:63  Thread ID
+ *
+ * We only care about the lower bits. uint32_t is fine for the moment.
+ */
+static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
+{
+    return (chip->chip_id << 8) | (core_id << 2);
+}
+
 /* Allowed core identifiers on a POWER8 Processor Chip :
  *
  * <EX0 reserved>
@@ -279,6 +305,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->chip_type = PNV_CHIP_POWER8E;
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
     k->cores_mask = POWER8E_CORE_MASK;
+    k->core_pir = pnv_chip_core_pir_p8;
     dc->desc = "PowerNV Chip POWER8E";
 }
 
@@ -298,6 +325,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->chip_type = PNV_CHIP_POWER8;
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
     k->cores_mask = POWER8_CORE_MASK;
+    k->core_pir = pnv_chip_core_pir_p8;
     dc->desc = "PowerNV Chip POWER8";
 }
 
@@ -317,6 +345,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->chip_type = PNV_CHIP_POWER8NVL;
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
+    k->core_pir = pnv_chip_core_pir_p8;
     dc->desc = "PowerNV Chip POWER8NVL";
 }
 
@@ -336,6 +365,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->chip_type = PNV_CHIP_POWER9;
     k->chip_cfam_id = 0x100d104980000000ull; /* P9 Nimbus DD1.0 */
     k->cores_mask = POWER9_CORE_MASK;
+    k->core_pir = pnv_chip_core_pir_p9;
     dc->desc = "PowerNV Chip POWER9";
 }
 
