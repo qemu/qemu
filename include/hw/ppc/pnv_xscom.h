@@ -60,6 +60,9 @@ typedef struct PnvXScomInterfaceClass {
 #define PNV_XSCOM_EX_CORE_BASE(i) (PNV_XSCOM_EX_BASE | (((uint64_t)i) << 24))
 #define PNV_XSCOM_EX_CORE_SIZE    0x100000
 
+#define PNV_XSCOM_LPC_BASE        0xb0020
+#define PNV_XSCOM_LPC_SIZE        0x4
+
 extern void pnv_xscom_realize(PnvChip *chip, Error **errp);
 extern int pnv_xscom_populate(PnvChip *chip, void *fdt, int offset);
 

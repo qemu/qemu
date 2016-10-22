@@ -569,6 +569,9 @@ static void pnv_chip_init(Object *obj)
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
 
     chip->xscom_base = pcc->xscom_base;
+
+    object_initialize(&chip->lpc, sizeof(chip->lpc), TYPE_PNV_LPC);
+    object_property_add_child(obj, "lpc", OBJECT(&chip->lpc), NULL);
 }
 
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
@@ -632,6 +635,11 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         i++;
     }
     g_free(typename);
+
+    /* Create LPC controller */
+    object_property_set_bool(OBJECT(&chip->lpc), true, "realized",
+                             &error_fatal);
+    pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip->lpc.xscom_regs);
 }
 
 static Property pnv_chip_properties[] = {
