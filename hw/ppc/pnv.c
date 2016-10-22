@@ -238,10 +238,37 @@ static void ppc_powernv_init(MachineState *machine)
         object_property_add_child(OBJECT(pnv), chip_name, chip, &error_fatal);
         object_property_set_int(chip, PNV_CHIP_HWID(i), "chip-id",
                                 &error_fatal);
+        object_property_set_int(chip, smp_cores, "nr-cores", &error_fatal);
         object_property_set_bool(chip, true, "realized", &error_fatal);
     }
     g_free(chip_typename);
 }
+
+/* Allowed core identifiers on a POWER8 Processor Chip :
+ *
+ * <EX0 reserved>
+ *  EX1  - Venice only
+ *  EX2  - Venice only
+ *  EX3  - Venice only
+ *  EX4
+ *  EX5
+ *  EX6
+ * <EX7,8 reserved> <reserved>
+ *  EX9  - Venice only
+ *  EX10 - Venice only
+ *  EX11 - Venice only
+ *  EX12
+ *  EX13
+ *  EX14
+ * <EX15 reserved>
+ */
+#define POWER8E_CORE_MASK  (0x7070ull)
+#define POWER8_CORE_MASK   (0x7e7eull)
+
+/*
+ * POWER9 has 24 cores, ids starting at 0x20
+ */
+#define POWER9_CORE_MASK   (0xffffff00000000ull)
 
 static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
 {
@@ -251,6 +278,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->cpu_model = "POWER8E";
     k->chip_type = PNV_CHIP_POWER8E;
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
+    k->cores_mask = POWER8E_CORE_MASK;
     dc->desc = "PowerNV Chip POWER8E";
 }
 
@@ -269,6 +297,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->cpu_model = "POWER8";
     k->chip_type = PNV_CHIP_POWER8;
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
+    k->cores_mask = POWER8_CORE_MASK;
     dc->desc = "PowerNV Chip POWER8";
 }
 
@@ -287,6 +316,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->cpu_model = "POWER8NVL";
     k->chip_type = PNV_CHIP_POWER8NVL;
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
+    k->cores_mask = POWER8_CORE_MASK;
     dc->desc = "PowerNV Chip POWER8NVL";
 }
 
@@ -305,6 +335,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->cpu_model = "POWER9";
     k->chip_type = PNV_CHIP_POWER9;
     k->chip_cfam_id = 0x100d104980000000ull; /* P9 Nimbus DD1.0 */
+    k->cores_mask = POWER9_CORE_MASK;
     dc->desc = "PowerNV Chip POWER9";
 }
 
@@ -315,15 +346,55 @@ static const TypeInfo pnv_chip_power9_info = {
     .class_init    = pnv_chip_power9_class_init,
 };
 
+static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
+{
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    int cores_max;
+
+    /*
+     * No custom mask for this chip, let's use the default one from *
+     * the chip class
+     */
+    if (!chip->cores_mask) {
+        chip->cores_mask = pcc->cores_mask;
+    }
+
+    /* filter alien core ids ! some are reserved */
+    if ((chip->cores_mask & pcc->cores_mask) != chip->cores_mask) {
+        error_setg(errp, "warning: invalid core mask for chip Ox%"PRIx64" !",
+                   chip->cores_mask);
+        return;
+    }
+    chip->cores_mask &= pcc->cores_mask;
+
+    /* now that we have a sane layout, let check the number of cores */
+    cores_max = hweight_long(chip->cores_mask);
+    if (chip->nr_cores > cores_max) {
+        error_setg(errp, "warning: too many cores for chip ! Limit is %d",
+                   cores_max);
+        return;
+    }
+}
+
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
 {
-    /* left purposely empty */
+    PnvChip *chip = PNV_CHIP(dev);
+    Error *error = NULL;
+
+    /* Early checks on the core settings */
+    pnv_chip_core_sanitize(chip, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
 }
 
 static Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT32("chip-id", PnvChip, chip_id, 0),
     DEFINE_PROP_UINT64("ram-start", PnvChip, ram_start, 0),
     DEFINE_PROP_UINT64("ram-size", PnvChip, ram_size, 0),
+    DEFINE_PROP_UINT32("nr-cores", PnvChip, nr_cores, 1),
+    DEFINE_PROP_UINT64("cores-mask", PnvChip, cores_mask, 0x0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

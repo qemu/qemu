@@ -44,6 +44,9 @@ typedef struct PnvChip {
     uint32_t     chip_id;
     uint64_t     ram_start;
     uint64_t     ram_size;
+
+    uint32_t     nr_cores;
+    uint64_t     cores_mask;
 } PnvChip;
 
 typedef struct PnvChipClass {
@@ -54,6 +57,7 @@ typedef struct PnvChipClass {
     const char *cpu_model;
     PnvChipType  chip_type;
     uint64_t     chip_cfam_id;
+    uint64_t     cores_mask;
 } PnvChipClass;
 
 #define TYPE_PNV_CHIP_POWER8E TYPE_PNV_CHIP "-POWER8E"
