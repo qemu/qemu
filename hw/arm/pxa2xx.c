@@ -1906,7 +1906,7 @@ static void pxa2xx_fir_write(void *opaque, hwaddr addr,
         if (s->chr.chr && s->enable && (s->control[0] & (1 << 3))) { /* TXE */
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->chr.chr, &ch, 1);
+            qemu_chr_fe_write_all(&s->chr, &ch, 1);
         }
         break;
     case ICSR0:
@@ -1977,8 +1977,8 @@ static void pxa2xx_fir_realize(DeviceState *dev, Error **errp)
 
     if (s->chr.chr) {
         qemu_chr_fe_claim_no_fail(s->chr.chr);
-        qemu_chr_add_handlers(s->chr.chr, pxa2xx_fir_is_empty,
-                        pxa2xx_fir_rx, pxa2xx_fir_event, s);
+        qemu_chr_fe_set_handlers(&s->chr, pxa2xx_fir_is_empty,
+                                 pxa2xx_fir_rx, pxa2xx_fir_event, s, NULL);
     }
 }
 

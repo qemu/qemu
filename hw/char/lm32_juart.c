@@ -78,7 +78,7 @@ void lm32_juart_set_jtx(DeviceState *d, uint32_t jtx)
     if (s->chr.chr) {
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(s->chr.chr, &ch, 1);
+        qemu_chr_fe_write_all(&s->chr, &ch, 1);
     }
 }
 
@@ -121,8 +121,8 @@ static void lm32_juart_realize(DeviceState *dev, Error **errp)
     LM32JuartState *s = LM32_JUART(dev);
 
     if (s->chr.chr) {
-        qemu_chr_add_handlers(s->chr.chr, juart_can_rx,
-                              juart_rx, juart_event, s);
+        qemu_chr_fe_set_handlers(&s->chr, juart_can_rx, juart_rx,
+                                 juart_event, s, NULL);
     }
 }
 

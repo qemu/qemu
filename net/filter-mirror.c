@@ -43,7 +43,7 @@ typedef struct MirrorState {
     SocketReadState rs;
 } MirrorState;
 
-static int filter_mirror_send(CharDriverState *chr_out,
+static int filter_mirror_send(CharBackend *chr_out,
                               const struct iovec *iov,
                               int iovcnt)
 {
@@ -110,7 +110,7 @@ static void redirector_chr_read(void *opaque, const uint8_t *buf, int size)
     ret = net_fill_rstate(&s->rs, buf, size);
 
     if (ret == -1) {
-        qemu_chr_add_handlers(s->chr_in.chr, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL, NULL, NULL);
     }
 }
 
@@ -121,7 +121,7 @@ static void redirector_chr_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_CLOSED:
-        qemu_chr_add_handlers(s->chr_in.chr, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL, NULL, NULL);
         break;
     default:
         break;
@@ -138,7 +138,7 @@ static ssize_t filter_mirror_receive_iov(NetFilterState *nf,
     MirrorState *s = FILTER_MIRROR(nf);
     int ret;
 
-    ret = filter_mirror_send(s->chr_out.chr, iov, iovcnt);
+    ret = filter_mirror_send(&s->chr_out, iov, iovcnt);
     if (ret) {
         error_report("filter_mirror_send failed(%s)", strerror(-ret));
     }
@@ -160,8 +160,8 @@ static ssize_t filter_redirector_receive_iov(NetFilterState *nf,
     MirrorState *s = FILTER_REDIRECTOR(nf);
     int ret;
 
-    if (s->chr_out.chr) {
-        ret = filter_mirror_send(s->chr_out.chr, iov, iovcnt);
+    if (qemu_chr_fe_get_driver(&s->chr_out)) {
+        ret = filter_mirror_send(&s->chr_out, iov, iovcnt);
         if (ret) {
             error_report("filter_mirror_send failed(%s)", strerror(-ret));
         }
@@ -185,7 +185,7 @@ static void filter_redirector_cleanup(NetFilterState *nf)
     MirrorState *s = FILTER_REDIRECTOR(nf);
 
     if (s->chr_in.chr) {
-        qemu_chr_add_handlers(s->chr_in.chr, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL, NULL, NULL);
         qemu_chr_fe_release(s->chr_in.chr);
     }
     if (s->chr_out.chr) {
@@ -258,8 +258,10 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
         if (!qemu_chr_fe_init(&s->chr_in, chr, errp)) {
             return;
         }
-        qemu_chr_add_handlers(s->chr_in.chr, redirector_chr_can_read,
-                              redirector_chr_read, redirector_chr_event, nf);
+
+        qemu_chr_fe_set_handlers(&s->chr_in, redirector_chr_can_read,
+                                 redirector_chr_read, redirector_chr_event,
+                                 nf, NULL);
     }
 
     if (s->outdev) {

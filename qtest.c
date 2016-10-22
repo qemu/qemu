@@ -190,7 +190,7 @@ static void qtest_get_time(qemu_timeval *tv)
     }
 }
 
-static void qtest_send_prefix(CharDriverState *chr)
+static void qtest_send_prefix(CharBackend *chr)
 {
     qemu_timeval tv;
 
@@ -218,7 +218,7 @@ static void GCC_FMT_ATTR(1, 2) qtest_log_send(const char *fmt, ...)
     va_end(ap);
 }
 
-static void do_qtest_send(CharDriverState *chr, const char *str, size_t len)
+static void do_qtest_send(CharBackend *chr, const char *str, size_t len)
 {
     qemu_chr_fe_write_all(chr, (uint8_t *)str, len);
     if (qtest_log_fp && qtest_opened) {
@@ -226,12 +226,12 @@ static void do_qtest_send(CharDriverState *chr, const char *str, size_t len)
     }
 }
 
-static void qtest_send(CharDriverState *chr, const char *str)
+static void qtest_send(CharBackend *chr, const char *str)
 {
     do_qtest_send(chr, str, strlen(str));
 }
 
-static void GCC_FMT_ATTR(2, 3) qtest_sendf(CharDriverState *chr,
+static void GCC_FMT_ATTR(2, 3) qtest_sendf(CharBackend *chr,
                                            const char *fmt, ...)
 {
     va_list ap;
@@ -249,7 +249,7 @@ static void qtest_irq_handler(void *opaque, int n, int level)
     qemu_set_irq(old_irq, level);
 
     if (irq_levels[n] != level) {
-        CharDriverState *chr = qtest_chr.chr;
+        CharBackend *chr = &qtest_chr;
         irq_levels[n] = level;
         qtest_send_prefix(chr);
         qtest_sendf(chr, "IRQ %s %d\n",
@@ -257,7 +257,7 @@ static void qtest_irq_handler(void *opaque, int n, int level)
     }
 }
 
-static void qtest_process_command(CharDriverState *chr, gchar **words)
+static void qtest_process_command(CharBackend *chr, gchar **words)
 {
     const gchar *command;
 
@@ -585,7 +585,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
     }
 }
 
-static void qtest_process_inbuf(CharDriverState *chr, GString *inbuf)
+static void qtest_process_inbuf(CharBackend *chr, GString *inbuf)
 {
     char *end;
 
@@ -609,7 +609,7 @@ static void qtest_process_inbuf(CharDriverState *chr, GString *inbuf)
 
 static void qtest_read(void *opaque, const uint8_t *buf, int size)
 {
-    CharDriverState *chr = opaque;
+    CharBackend *chr = opaque;
 
     g_string_append_len(inbuf, (const gchar *)buf, size);
     qtest_process_inbuf(chr, inbuf);
@@ -686,11 +686,12 @@ void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
         qtest_log_fp = stderr;
     }
 
-    qemu_chr_add_handlers(chr, qtest_can_read, qtest_read, qtest_event, chr);
-    qemu_chr_fe_set_echo(chr, true);
+    qemu_chr_fe_init(&qtest_chr, chr, errp);
+    qemu_chr_fe_set_handlers(&qtest_chr, qtest_can_read, qtest_read,
+                             qtest_event, &qtest_chr, NULL);
+    qemu_chr_fe_set_echo(&qtest_chr, true);
 
     inbuf = g_string_new("");
-    qemu_chr_fe_init(&qtest_chr, chr, errp);
 }
 
 bool qtest_driver(void)

@@ -80,7 +80,7 @@ static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
             }
         }
         if (s->chr.chr) {
-            qemu_chr_fe_accept_input(s->chr.chr);
+            qemu_chr_fe_accept_input(&s->chr);
         }
         bcm2835_aux_update(s);
         return c;
@@ -171,7 +171,7 @@ static void bcm2835_aux_write(void *opaque, hwaddr offset, uint64_t value,
         if (s->chr.chr) {
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->chr.chr, &ch, 1);
+            qemu_chr_fe_write_all(&s->chr, &ch, 1);
         }
         break;
 
@@ -283,8 +283,8 @@ static void bcm2835_aux_realize(DeviceState *dev, Error **errp)
     BCM2835AuxState *s = BCM2835_AUX(dev);
 
     if (s->chr.chr) {
-        qemu_chr_add_handlers(s->chr.chr, bcm2835_aux_can_receive,
-                              bcm2835_aux_receive, NULL, s);
+        qemu_chr_fe_set_handlers(&s->chr, bcm2835_aux_can_receive,
+                                 bcm2835_aux_receive, NULL, s, NULL);
     }
 }
 

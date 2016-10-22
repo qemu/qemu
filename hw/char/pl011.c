@@ -88,7 +88,7 @@ static uint64_t pl011_read(void *opaque, hwaddr offset,
         s->rsr = c >> 8;
         pl011_update(s);
         if (s->chr.chr) {
-            qemu_chr_fe_accept_input(s->chr.chr);
+            qemu_chr_fe_accept_input(&s->chr);
         }
         r = c;
         break;
@@ -171,7 +171,7 @@ static void pl011_write(void *opaque, hwaddr offset,
         if (s->chr.chr) {
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->chr.chr, &ch, 1);
+            qemu_chr_fe_write_all(&s->chr, &ch, 1);
         }
         s->int_level |= PL011_INT_TX;
         pl011_update(s);
@@ -333,8 +333,8 @@ static void pl011_realize(DeviceState *dev, Error **errp)
     PL011State *s = PL011(dev);
 
     if (s->chr.chr) {
-        qemu_chr_add_handlers(s->chr.chr, pl011_can_receive, pl011_receive,
-                              pl011_event, s);
+        qemu_chr_fe_set_handlers(&s->chr, pl011_can_receive, pl011_receive,
+                                 pl011_event, s, NULL);
     }
 }
 

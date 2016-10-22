@@ -125,9 +125,9 @@ static void malta_fpga_update_display(void *opaque)
     }
     leds_text[8] = '\0';
 
-    qemu_chr_fe_printf(s->display.chr, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n",
+    qemu_chr_fe_printf(&s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n",
                        leds_text);
-    qemu_chr_fe_printf(s->display.chr, "\n\n\n\n|\e[31m%-8.8s\e[00m|",
+    qemu_chr_fe_printf(&s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|",
                        s->display_text);
 }
 
@@ -538,15 +538,15 @@ static void malta_fgpa_display_event(void *opaque, int event)
     MaltaFPGAState *s = opaque;
 
     if (event == CHR_EVENT_OPENED && !s->display_inited) {
-        qemu_chr_fe_printf(s->display.chr, "\e[HMalta LEDBAR\r\n");
-        qemu_chr_fe_printf(s->display.chr, "+--------+\r\n");
-        qemu_chr_fe_printf(s->display.chr, "+        +\r\n");
-        qemu_chr_fe_printf(s->display.chr, "+--------+\r\n");
-        qemu_chr_fe_printf(s->display.chr, "\n");
-        qemu_chr_fe_printf(s->display.chr, "Malta ASCII\r\n");
-        qemu_chr_fe_printf(s->display.chr, "+--------+\r\n");
-        qemu_chr_fe_printf(s->display.chr, "+        +\r\n");
-        qemu_chr_fe_printf(s->display.chr, "+--------+\r\n");
+        qemu_chr_fe_printf(&s->display, "\e[HMalta LEDBAR\r\n");
+        qemu_chr_fe_printf(&s->display, "+--------+\r\n");
+        qemu_chr_fe_printf(&s->display, "+        +\r\n");
+        qemu_chr_fe_printf(&s->display, "+--------+\r\n");
+        qemu_chr_fe_printf(&s->display, "\n");
+        qemu_chr_fe_printf(&s->display, "Malta ASCII\r\n");
+        qemu_chr_fe_printf(&s->display, "+--------+\r\n");
+        qemu_chr_fe_printf(&s->display, "+        +\r\n");
+        qemu_chr_fe_printf(&s->display, "+--------+\r\n");
         s->display_inited = true;
     }
 }
@@ -570,9 +570,9 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, base + 0xa00, &s->iomem_hi);
 
     chr = qemu_chr_new("fpga", "vc:320x200");
-    qemu_chr_fe_init(&s->display, chr, &error_abort);
-    qemu_chr_add_handlers(s->display.chr, NULL, NULL,
-                          malta_fgpa_display_event, s);
+    qemu_chr_fe_init(&s->display, chr, NULL);
+    qemu_chr_fe_set_handlers(&s->display, NULL, NULL,
+                             malta_fgpa_display_event, s, NULL);
 
     s->uart = serial_mm_init(address_space, base + 0x900, 3, uart_irq,
                              230400, uart_chr, DEVICE_NATIVE_ENDIAN);

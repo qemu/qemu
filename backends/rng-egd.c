@@ -42,7 +42,7 @@ static void rng_egd_request_entropy(RngBackend *b, RngRequest *req)
 
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(s->chr.chr, header, sizeof(header));
+        qemu_chr_fe_write_all(&s->chr, header, sizeof(header));
 
         size -= len;
     }
@@ -109,8 +109,8 @@ static void rng_egd_opened(RngBackend *b, Error **errp)
     }
 
     /* FIXME we should resubmit pending requests when the CDS reconnects. */
-    qemu_chr_add_handlers(s->chr.chr, rng_egd_chr_can_read,
-                          rng_egd_chr_read, NULL, s);
+    qemu_chr_fe_set_handlers(&s->chr, rng_egd_chr_can_read,
+                             rng_egd_chr_read, NULL, s, NULL);
 }
 
 static void rng_egd_set_chardev(Object *obj, const char *value, Error **errp)
@@ -129,9 +129,10 @@ static void rng_egd_set_chardev(Object *obj, const char *value, Error **errp)
 static char *rng_egd_get_chardev(Object *obj, Error **errp)
 {
     RngEgd *s = RNG_EGD(obj);
+    CharDriverState *chr = qemu_chr_fe_get_driver(&s->chr);
 
-    if (s->chr.chr && s->chr.chr->label) {
-        return g_strdup(s->chr.chr->label);
+    if (chr && chr->label) {
+        return g_strdup(chr->label);
     }
 
     return NULL;
@@ -149,7 +150,7 @@ static void rng_egd_finalize(Object *obj)
     RngEgd *s = RNG_EGD(obj);
 
     if (s->chr.chr) {
-        qemu_chr_add_handlers(s->chr.chr, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, NULL, NULL);
         qemu_chr_fe_release(s->chr.chr);
     }
 

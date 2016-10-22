@@ -110,11 +110,11 @@ static void sh_serial_write(void *opaque, hwaddr offs,
         }
         return;
     case 0x0c: /* FTDR / TDR */
-        if (s->chr.chr) {
+        if (qemu_chr_fe_get_driver(&s->chr)) {
             ch = val;
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->chr.chr, &ch, 1);
+            qemu_chr_fe_write_all(&s->chr, &ch, 1);
 	}
 	s->dr = val;
 	s->flags &= ~SH_SERIAL_FLAG_TDE;
@@ -399,8 +399,9 @@ void sh_serial_init(MemoryRegion *sysmem,
     if (chr) {
         qemu_chr_fe_claim_no_fail(chr);
         qemu_chr_fe_init(&s->chr, chr, &error_abort);
-        qemu_chr_add_handlers(chr, sh_serial_can_receive1, sh_serial_receive1,
-			      sh_serial_event, s);
+        qemu_chr_fe_set_handlers(&s->chr, sh_serial_can_receive1,
+                                 sh_serial_receive1,
+                                 sh_serial_event, s, NULL);
     }
 
     s->eri = eri_source;

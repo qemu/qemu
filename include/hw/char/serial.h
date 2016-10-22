@@ -28,6 +28,7 @@
 
 #include "hw/hw.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/char.h"
 #include "exec/memory.h"
 #include "qemu/fifo8.h"
 #include "sysemu/char.h"

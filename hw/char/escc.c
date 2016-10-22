@@ -416,7 +416,7 @@ static void escc_update_parameters(ChannelState *s)
     int speed, parity, data_bits, stop_bits;
     QEMUSerialSetParams ssp;
 
-    if (!s->chr.chr || s->type != ser)
+    if (!qemu_chr_fe_get_driver(&s->chr) || s->type != ser)
         return;
 
     if (s->wregs[W_TXCTRL1] & TXCTRL1_PAREN) {
@@ -466,7 +466,7 @@ static void escc_update_parameters(ChannelState *s)
     ssp.data_bits = data_bits;
     ssp.stop_bits = stop_bits;
     trace_escc_update_parameters(CHN_C(s), speed, parity, data_bits, stop_bits);
-    qemu_chr_fe_ioctl(s->chr.chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 }
 
 static void escc_mem_write(void *opaque, hwaddr addr,
@@ -556,10 +556,10 @@ static void escc_mem_write(void *opaque, hwaddr addr,
         trace_escc_mem_writeb_data(CHN_C(s), val);
         s->tx = val;
         if (s->wregs[W_TXCTRL2] & TXCTRL2_TXEN) { // tx enabled
-            if (s->chr.chr) {
+            if (qemu_chr_fe_get_driver(&s->chr)) {
                 /* XXX this blocks entire thread. Rewrite to use
                  * qemu_chr_fe_write and background I/O callbacks */
-                qemu_chr_fe_write_all(s->chr.chr, &s->tx, 1);
+                qemu_chr_fe_write_all(&s->chr, &s->tx, 1);
             } else if (s->type == kbd && !s->disabled) {
                 handle_kbd_command(s, val);
             }
@@ -600,7 +600,7 @@ static uint64_t escc_mem_read(void *opaque, hwaddr addr,
             ret = s->rx;
         trace_escc_mem_readb_data(CHN_C(s), ret);
         if (s->chr.chr) {
-            qemu_chr_fe_accept_input(s->chr.chr);
+            qemu_chr_fe_accept_input(&s->chr);
         }
         return ret;
     default:
@@ -1014,10 +1014,11 @@ static void escc_realize(DeviceState *dev, Error **errp)
                           ESCC_SIZE << s->it_shift);
 
     for (i = 0; i < 2; i++) {
-        if (s->chn[i].chr.chr) {
+        if (qemu_chr_fe_get_driver(&s->chn[i].chr)) {
             s->chn[i].clock = s->frequency / 2;
-            qemu_chr_add_handlers(s->chn[i].chr.chr, serial_can_receive,
-                                  serial_receive1, serial_event, &s->chn[i]);
+            qemu_chr_fe_set_handlers(&s->chn[i].chr, serial_can_receive,
+                                     serial_receive1, serial_event,
+                                     &s->chn[i], NULL);
         }
     }
 

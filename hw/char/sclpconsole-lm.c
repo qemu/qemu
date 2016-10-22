@@ -91,7 +91,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     if (scon->echo) {
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(scon->chr.chr, buf, size);
+        qemu_chr_fe_write_all(&scon->chr, buf, size);
     }
 }
 
@@ -195,14 +195,14 @@ static int write_console_data(SCLPEvent *event, const uint8_t *buf, int len)
 {
     SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
 
-    if (!scon->chr.chr) {
+    if (!qemu_chr_fe_get_driver(&scon->chr)) {
         /* If there's no backend, we can just say we consumed all data. */
         return len;
     }
 
     /* XXX this blocks entire thread. Rewrite to use
      * qemu_chr_fe_write and background I/O callbacks */
-    return qemu_chr_fe_write_all(scon->chr.chr, buf, len);
+    return qemu_chr_fe_write_all(&scon->chr, buf, len);
 }
 
 static int process_mdb(SCLPEvent *event, MDBO *mdbo)
@@ -313,8 +313,8 @@ static int console_init(SCLPEvent *event)
     console_available = true;
 
     if (scon->chr.chr) {
-        qemu_chr_add_handlers(scon->chr.chr, chr_can_read,
-                              chr_read, NULL, scon);
+        qemu_chr_fe_set_handlers(&scon->chr, chr_can_read,
+                                 chr_read, NULL, scon, NULL);
     }
 
     return 0;

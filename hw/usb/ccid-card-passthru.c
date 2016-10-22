@@ -77,9 +77,9 @@ static void ccid_card_vscard_send_msg(PassthruState *s,
     scr_msg_header.length = htonl(length);
     /* XXX this blocks entire thread. Rewrite to use
      * qemu_chr_fe_write and background I/O callbacks */
-    qemu_chr_fe_write_all(s->cs.chr, (uint8_t *)&scr_msg_header,
+    qemu_chr_fe_write_all(&s->cs, (uint8_t *)&scr_msg_header,
                           sizeof(VSCMsgHeader));
-    qemu_chr_fe_write_all(s->cs.chr, payload, length);
+    qemu_chr_fe_write_all(&s->cs, payload, length);
 }
 
 static void ccid_card_vscard_send_apdu(PassthruState *s,
@@ -264,7 +264,9 @@ static void ccid_card_vscard_handle_message(PassthruState *card,
 
 static void ccid_card_vscard_drop_connection(PassthruState *card)
 {
-    qemu_chr_delete(card->cs.chr);
+    CharDriverState *chr = qemu_chr_fe_get_driver(&card->cs);
+
+    qemu_chr_delete(chr);
     card->vscard_in_pos = card->vscard_in_hdr = 0;
 }
 
@@ -324,7 +326,7 @@ static void passthru_apdu_from_guest(
 {
     PassthruState *card = PASSTHRU_CCID_CARD(base);
 
-    if (!card->cs.chr) {
+    if (!qemu_chr_fe_get_driver(&card->cs)) {
         printf("ccid-passthru: no chardev, discarding apdu length %d\n", len);
         return;
     }
@@ -345,12 +347,12 @@ static int passthru_initfn(CCIDCardState *base)
 
     card->vscard_in_pos = 0;
     card->vscard_in_hdr = 0;
-    if (card->cs.chr) {
+    if (qemu_chr_fe_get_driver(&card->cs)) {
         DPRINTF(card, D_INFO, "initing chardev\n");
-        qemu_chr_add_handlers(card->cs.chr,
+        qemu_chr_fe_set_handlers(&card->cs,
             ccid_card_vscard_can_read,
             ccid_card_vscard_read,
-            ccid_card_vscard_event, card);
+            ccid_card_vscard_event, card, NULL);
         ccid_card_vscard_send_init(card);
     } else {
         error_report("missing chardev");

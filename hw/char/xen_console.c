@@ -23,6 +23,7 @@
 #include <sys/select.h>
 #include <termios.h>
 
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "sysemu/char.h"
 #include "hw/xen/xen_backend.h"
@@ -149,8 +150,8 @@ static void xencons_send(struct XenConsole *con)
     ssize_t len, size;
 
     size = con->buffer.size - con->buffer.consumed;
-    if (con->chr.chr) {
-        len = qemu_chr_fe_write(con->chr.chr,
+    if (qemu_chr_fe_get_driver(&con->chr)) {
+        len = qemu_chr_fe_write(&con->chr,
                                 con->buffer.data + con->buffer.consumed,
                                 size);
     } else {
@@ -209,7 +210,8 @@ static int con_init(struct XenDevice *xendev)
                          qemu_chr_new(label, output), &error_abort);
     }
 
-    xenstore_store_pv_console_info(con->xendev.dev, con->chr.chr);
+    xenstore_store_pv_console_info(con->xendev.dev,
+                                   qemu_chr_fe_get_driver(&con->chr));
 
 out:
     g_free(type);
@@ -244,8 +246,8 @@ static int con_initialise(struct XenDevice *xendev)
     xen_be_bind_evtchn(&con->xendev);
     if (con->chr.chr) {
         if (qemu_chr_fe_claim(con->chr.chr) == 0) {
-            qemu_chr_add_handlers(con->chr.chr, xencons_can_receive,
-                                  xencons_receive, NULL, con);
+            qemu_chr_fe_set_handlers(&con->chr, xencons_can_receive,
+                                     xencons_receive, NULL, con, NULL);
         } else {
             xen_be_printf(xendev, 0,
                           "xen_console_init error chardev %s already used\n",
@@ -267,7 +269,7 @@ static void con_disconnect(struct XenDevice *xendev)
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
 
     if (con->chr.chr) {
-        qemu_chr_add_handlers(con->chr.chr, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_set_handlers(&con->chr, NULL, NULL, NULL, NULL, NULL);
         qemu_chr_fe_release(con->chr.chr);
     }
     xen_be_unbind_evtchn(&con->xendev);

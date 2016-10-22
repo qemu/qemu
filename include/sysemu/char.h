@@ -169,7 +169,7 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename);
  *
  * Close a fd accpeted by character backend.
  */
-void qemu_chr_fe_disconnect(CharDriverState *chr);
+void qemu_chr_fe_disconnect(CharBackend *be);
 
 /**
  * @qemu_chr_cleanup:
@@ -179,11 +179,11 @@ void qemu_chr_fe_disconnect(CharDriverState *chr);
 void qemu_chr_cleanup(void);
 
 /**
- * @qemu_chr_wait_connected:
+ * @qemu_chr_fe_wait_connected:
  *
  * Wait for characted backend to be connected.
  */
-int qemu_chr_wait_connected(CharDriverState *chr, Error **errp);
+int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp);
 
 /**
  * @qemu_chr_new_noreplay:
@@ -223,7 +223,7 @@ void qemu_chr_free(CharDriverState *chr);
  *
  * @echo true to enable echo, false to disable echo
  */
-void qemu_chr_fe_set_echo(struct CharDriverState *chr, bool echo);
+void qemu_chr_fe_set_echo(CharBackend *be, bool echo);
 
 /**
  * @qemu_chr_fe_set_open:
@@ -231,7 +231,7 @@ void qemu_chr_fe_set_echo(struct CharDriverState *chr, bool echo);
  * Set character frontend open status.  This is an indication that the
  * front end is ready (or not) to begin doing I/O.
  */
-void qemu_chr_fe_set_open(struct CharDriverState *chr, int fe_open);
+void qemu_chr_fe_set_open(CharBackend *be, int fe_open);
 
 /**
  * @qemu_chr_fe_event:
@@ -240,7 +240,7 @@ void qemu_chr_fe_set_open(struct CharDriverState *chr, int fe_open);
  *
  * @event the event to send
  */
-void qemu_chr_fe_event(CharDriverState *s, int event);
+void qemu_chr_fe_event(CharBackend *be, int event);
 
 /**
  * @qemu_chr_fe_printf:
@@ -250,7 +250,7 @@ void qemu_chr_fe_event(CharDriverState *s, int event);
  *
  * @fmt see #printf
  */
-void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
+void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
 /**
@@ -265,7 +265,7 @@ void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
  * @func the function to call when the condition happens
  * @user_data the opaque pointer to pass to @func
  */
-guint qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
+guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
                             GIOFunc func, void *user_data);
 
 /**
@@ -280,7 +280,7 @@ guint qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
  *
  * Returns: the number of bytes consumed
  */
-int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
+int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
 
 /**
  * @qemu_chr_fe_write_all:
@@ -295,7 +295,7 @@ int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
  *
  * Returns: the number of bytes consumed
  */
-int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len);
+int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
 
 /**
  * @qemu_chr_fe_read_all:
@@ -307,7 +307,7 @@ int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len);
  *
  * Returns: the number of bytes read
  */
-int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len);
+int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len);
 
 /**
  * @qemu_chr_fe_ioctl:
@@ -320,7 +320,7 @@ int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len);
  * Returns: if @cmd is not supported by the backend, -ENOTSUP, otherwise the
  *          return value depends on the semantics of @cmd
  */
-int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg);
+int qemu_chr_fe_ioctl(CharBackend *be, int cmd, void *arg);
 
 /**
  * @qemu_chr_fe_get_msgfd:
@@ -333,7 +333,7 @@ int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg);
  *          this function will return -1 until a client sends a new file
  *          descriptor.
  */
-int qemu_chr_fe_get_msgfd(CharDriverState *s);
+int qemu_chr_fe_get_msgfd(CharBackend *be);
 
 /**
  * @qemu_chr_fe_get_msgfds:
@@ -346,7 +346,7 @@ int qemu_chr_fe_get_msgfd(CharDriverState *s);
  *          this function will return -1 until a client sends a new set of file
  *          descriptors.
  */
-int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int num);
+int qemu_chr_fe_get_msgfds(CharBackend *be, int *fds, int num);
 
 /**
  * @qemu_chr_fe_set_msgfds:
@@ -359,13 +359,13 @@ int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int num);
  *
  * Returns: -1 if fd passing isn't supported.
  */
-int qemu_chr_fe_set_msgfds(CharDriverState *s, int *fds, int num);
+int qemu_chr_fe_set_msgfds(CharBackend *be, int *fds, int num);
 
 /**
  * @qemu_chr_fe_claim:
  *
  * Claim a backend before using it, should be called before calling
- * qemu_chr_add_handlers(). 
+ * qemu_chr_fe_set_handlers().
  *
  * Returns: -1 if the backend is already in use by another frontend, 0 on
  *          success.
@@ -436,7 +436,8 @@ void qemu_chr_be_event(CharDriverState *s, int event);
 /**
  * @qemu_chr_fe_init:
  *
- * Initializes a front end for the given CharBackend and CharDriver.
+ * Initializes a front end for the given CharBackend and
+ * CharDriver.
  *
  * Returns: false on error.
  */
@@ -475,22 +476,8 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
  */
 void qemu_chr_fe_take_focus(CharBackend *b);
 
-void qemu_chr_add_handlers(CharDriverState *s,
-                           IOCanReadHandler *fd_can_read,
-                           IOReadHandler *fd_read,
-                           IOEventHandler *fd_event,
-                           void *opaque);
-
-/* This API can make handler run in the context what you pass to. */
-void qemu_chr_add_handlers_full(CharDriverState *s,
-                                IOCanReadHandler *fd_can_read,
-                                IOReadHandler *fd_read,
-                                IOEventHandler *fd_event,
-                                void *opaque,
-                                GMainContext *context);
-
 void qemu_chr_be_generic_open(CharDriverState *s);
-void qemu_chr_fe_accept_input(CharDriverState *s);
+void qemu_chr_fe_accept_input(CharBackend *be);
 int qemu_chr_add_client(CharDriverState *s, int fd);
 CharDriverState *qemu_chr_find(const char *name);
 bool chr_is_ringbuf(const CharDriverState *chr);
