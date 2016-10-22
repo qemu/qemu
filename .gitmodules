@@ -31,3 +31,6 @@
 [submodule "roms/u-boot"]
 	path = roms/u-boot
 	url = git://git.qemu-project.org/u-boot.git
+[submodule "roms/skiboot"]
+	path = roms/skiboot
+	url = git://git.qemu.org/skiboot.git

@@ -63,6 +63,7 @@ default:
 	@echo "  efirom         -- update nic roms (bios+efi, this needs"
 	@echo "                    the EfiRom utility from edk2 / tianocore)"
 	@echo "  slof           -- update slof.bin"
+	@echo "  skiboot        -- update skiboot.lid"
 	@echo "  u-boot.e500    -- update u-boot.e500"
 
 bios: build-seabios-config-seabios-128k build-seabios-config-seabios-256k
@@ -103,7 +104,7 @@ build-lgplvgabios:
 	$(MAKE) -C vgabios $(vgabios_targets)
 
 
-.PHONY: sgabios
+.PHONY: sgabios skiboot
 sgabios:
 	$(MAKE) -C sgabios
 	cp sgabios/sgabios.bin ../pc-bios
@@ -146,6 +147,10 @@ u-boot.e500:
 	$(powerpc_cross_prefix)strip u-boot/build.e500/u-boot -o \
 		../pc-bios/u-boot.e500
 
+skiboot:
+	$(MAKE) -C skiboot CROSS=$(powerpc64_cross_prefix)
+	cp skiboot/skiboot.lid ../pc-bios/skiboot.lid
+
 clean:
 	rm -rf seabios/.config seabios/out seabios/builds
 	$(MAKE) -C vgabios clean
@@ -155,3 +160,4 @@ clean:
 	$(MAKE) -C ipxe/src veryclean
 	$(MAKE) -C SLOF clean
 	rm -rf u-boot/build.e500
+	$(MAKE) -C skiboot clean
