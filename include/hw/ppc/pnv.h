@@ -47,6 +47,7 @@ typedef struct PnvChip {
 
     uint32_t     nr_cores;
     uint64_t     cores_mask;
+    void         *cores;
 } PnvChip;
 
 typedef struct PnvChipClass {
@@ -103,5 +104,6 @@ typedef struct PnvMachineState {
 } PnvMachineState;
 
 #define PNV_FDT_ADDR          0x01000000
+#define PNV_TIMEBASE_FREQ     512000000ULL
 
 #endif /* _PPC_PNV_H */

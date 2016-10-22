@@ -27,6 +27,7 @@
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"
+#include "hw/ppc/pnv_core.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
 #include "qemu/cutils.h"
@@ -75,12 +76,160 @@ static void powernv_populate_memory_node(void *fdt, int chip_id, hwaddr start,
     _FDT((fdt_setprop_cell(fdt, off, "ibm,chip-id", chip_id)));
 }
 
+static int get_cpus_node(void *fdt)
+{
+    int cpus_offset = fdt_path_offset(fdt, "/cpus");
+
+    if (cpus_offset < 0) {
+        cpus_offset = fdt_add_subnode(fdt, fdt_path_offset(fdt, "/"),
+                                      "cpus");
+        if (cpus_offset) {
+            _FDT((fdt_setprop_cell(fdt, cpus_offset, "#address-cells", 0x1)));
+            _FDT((fdt_setprop_cell(fdt, cpus_offset, "#size-cells", 0x0)));
+        }
+    }
+    _FDT(cpus_offset);
+    return cpus_offset;
+}
+
+/*
+ * The PowerNV cores (and threads) need to use real HW ids and not an
+ * incremental index like it has been done on other platforms. This HW
+ * id is stored in the CPU PIR, it is used to create cpu nodes in the
+ * device tree, used in XSCOM to address cores and in interrupt
+ * servers.
+ */
+static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
+{
+    CPUState *cs = CPU(DEVICE(pc->threads));
+    DeviceClass *dc = DEVICE_GET_CLASS(cs);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    int smt_threads = ppc_get_compat_smt_threads(cpu);
+    CPUPPCState *env = &cpu->env;
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
+    uint32_t servers_prop[smt_threads];
+    int i;
+    uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
+                       0xffffffff, 0xffffffff};
+    uint32_t tbfreq = PNV_TIMEBASE_FREQ;
+    uint32_t cpufreq = 1000000000;
+    uint32_t page_sizes_prop[64];
+    size_t page_sizes_prop_size;
+    const uint8_t pa_features[] = { 24, 0,
+                                    0xf6, 0x3f, 0xc7, 0xc0, 0x80, 0xf0,
+                                    0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
+                                    0x80, 0x00, 0x80, 0x00, 0x80, 0x00 };
+    int offset;
+    char *nodename;
+    int cpus_offset = get_cpus_node(fdt);
+
+    nodename = g_strdup_printf("%s@%x", dc->fw_name, pc->pir);
+    offset = fdt_add_subnode(fdt, cpus_offset, nodename);
+    _FDT(offset);
+    g_free(nodename);
+
+    _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id", chip->chip_id)));
+
+    _FDT((fdt_setprop_cell(fdt, offset, "reg", pc->pir)));
+    _FDT((fdt_setprop_cell(fdt, offset, "ibm,pir", pc->pir)));
+    _FDT((fdt_setprop_string(fdt, offset, "device_type", "cpu")));
+
+    _FDT((fdt_setprop_cell(fdt, offset, "cpu-version", env->spr[SPR_PVR])));
+    _FDT((fdt_setprop_cell(fdt, offset, "d-cache-block-size",
+                            env->dcache_line_size)));
+    _FDT((fdt_setprop_cell(fdt, offset, "d-cache-line-size",
+                            env->dcache_line_size)));
+    _FDT((fdt_setprop_cell(fdt, offset, "i-cache-block-size",
+                            env->icache_line_size)));
+    _FDT((fdt_setprop_cell(fdt, offset, "i-cache-line-size",
+                            env->icache_line_size)));
+
+    if (pcc->l1_dcache_size) {
+        _FDT((fdt_setprop_cell(fdt, offset, "d-cache-size",
+                               pcc->l1_dcache_size)));
+    } else {
+        error_report("Warning: Unknown L1 dcache size for cpu");
+    }
+    if (pcc->l1_icache_size) {
+        _FDT((fdt_setprop_cell(fdt, offset, "i-cache-size",
+                               pcc->l1_icache_size)));
+    } else {
+        error_report("Warning: Unknown L1 icache size for cpu");
+    }
+
+    _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));
+    _FDT((fdt_setprop_cell(fdt, offset, "clock-frequency", cpufreq)));
+    _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", env->slb_nr)));
+    _FDT((fdt_setprop_string(fdt, offset, "status", "okay")));
+    _FDT((fdt_setprop(fdt, offset, "64-bit", NULL, 0)));
+
+    if (env->spr_cb[SPR_PURR].oea_read) {
+        _FDT((fdt_setprop(fdt, offset, "ibm,purr", NULL, 0)));
+    }
+
+    if (env->mmu_model & POWERPC_MMU_1TSEG) {
+        _FDT((fdt_setprop(fdt, offset, "ibm,processor-segment-sizes",
+                           segs, sizeof(segs))));
+    }
+
+    /* Advertise VMX/VSX (vector extensions) if available
+     *   0 / no property == no vector extensions
+     *   1               == VMX / Altivec available
+     *   2               == VSX available */
+    if (env->insns_flags & PPC_ALTIVEC) {
+        uint32_t vmx = (env->insns_flags2 & PPC2_VSX) ? 2 : 1;
+
+        _FDT((fdt_setprop_cell(fdt, offset, "ibm,vmx", vmx)));
+    }
+
+    /* Advertise DFP (Decimal Floating Point) if available
+     *   0 / no property == no DFP
+     *   1               == DFP available */
+    if (env->insns_flags2 & PPC2_DFP) {
+        _FDT((fdt_setprop_cell(fdt, offset, "ibm,dfp", 1)));
+    }
+
+    page_sizes_prop_size = ppc_create_page_sizes_prop(env, page_sizes_prop,
+                                                  sizeof(page_sizes_prop));
+    if (page_sizes_prop_size) {
+        _FDT((fdt_setprop(fdt, offset, "ibm,segment-page-sizes",
+                           page_sizes_prop, page_sizes_prop_size)));
+    }
+
+    _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
+                       pa_features, sizeof(pa_features))));
+
+    if (cpu->cpu_version) {
+        _FDT((fdt_setprop_cell(fdt, offset, "cpu-version", cpu->cpu_version)));
+    }
+
+    /* Build interrupt servers properties */
+    for (i = 0; i < smt_threads; i++) {
+        servers_prop[i] = cpu_to_be32(pc->pir + i);
+    }
+    _FDT((fdt_setprop(fdt, offset, "ibm,ppc-interrupt-server#s",
+                       servers_prop, sizeof(servers_prop))));
+}
+
 static void powernv_populate_chip(PnvChip *chip, void *fdt)
 {
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    char *typename = pnv_core_typename(pcc->cpu_model);
+    size_t typesize = object_type_get_instance_size(typename);
+    int i;
+
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
+
+        powernv_create_core_node(chip, pnv_core, fdt);
+    }
+
     if (chip->ram_size) {
         powernv_populate_memory_node(fdt, chip->chip_id, chip->ram_start,
                                      chip->ram_size);
     }
+    g_free(typename);
 }
 
 static void *powernv_create_fdt(MachineState *machine)
@@ -410,13 +559,51 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
 {
     PnvChip *chip = PNV_CHIP(dev);
     Error *error = NULL;
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    char *typename = pnv_core_typename(pcc->cpu_model);
+    size_t typesize = object_type_get_instance_size(typename);
+    int i, core_hwid;
 
-    /* Early checks on the core settings */
+    if (!object_class_by_name(typename)) {
+        error_setg(errp, "Unable to find PowerNV CPU Core '%s'", typename);
+        return;
+    }
+
+    /* Cores */
     pnv_chip_core_sanitize(chip, &error);
     if (error) {
         error_propagate(errp, error);
         return;
     }
+
+    chip->cores = g_malloc0(typesize * chip->nr_cores);
+
+    for (i = 0, core_hwid = 0; (core_hwid < sizeof(chip->cores_mask) * 8)
+             && (i < chip->nr_cores); core_hwid++) {
+        char core_name[32];
+        void *pnv_core = chip->cores + i * typesize;
+
+        if (!(chip->cores_mask & (1ull << core_hwid))) {
+            continue;
+        }
+
+        object_initialize(pnv_core, typesize, typename);
+        snprintf(core_name, sizeof(core_name), "core[%d]", core_hwid);
+        object_property_add_child(OBJECT(chip), core_name, OBJECT(pnv_core),
+                                  &error_fatal);
+        object_property_set_int(OBJECT(pnv_core), smp_threads, "nr-threads",
+                                &error_fatal);
+        object_property_set_int(OBJECT(pnv_core), core_hwid,
+                                CPU_CORE_PROP_CORE_ID, &error_fatal);
+        object_property_set_int(OBJECT(pnv_core),
+                                pcc->core_pir(chip, core_hwid),
+                                "pir", &error_fatal);
+        object_property_set_bool(OBJECT(pnv_core), true, "realized",
+                                 &error_fatal);
+        object_unref(OBJECT(pnv_core));
+        i++;
+    }
+    g_free(typename);
 }
 
 static Property pnv_chip_properties[] = {
