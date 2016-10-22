@@ -21,6 +21,7 @@
 
 #include "hw/boards.h"
 #include "hw/sysbus.h"
+#include "hw/ppc/pnv_xscom.h"
 
 #define TYPE_PNV_CHIP "powernv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -48,6 +49,11 @@ typedef struct PnvChip {
     uint32_t     nr_cores;
     uint64_t     cores_mask;
     void         *cores;
+
+    hwaddr       xscom_base;
+    MemoryRegion xscom_mmio;
+    MemoryRegion xscom;
+    AddressSpace xscom_as;
 } PnvChip;
 
 typedef struct PnvChipClass {
@@ -59,6 +65,8 @@ typedef struct PnvChipClass {
     PnvChipType  chip_type;
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
+
+    hwaddr       xscom_base;
 
     uint32_t (*core_pir)(PnvChip *chip, uint32_t core_id);
 } PnvChipClass;
@@ -105,5 +113,12 @@ typedef struct PnvMachineState {
 
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL
+
+/*
+ * POWER8 MMIO base addresses
+ */
+#define PNV_XSCOM_SIZE        0x800000000ull
+#define PNV_XSCOM_BASE(chip)                                            \
+    (chip->xscom_base + ((uint64_t)(chip)->chip_id) * PNV_XSCOM_SIZE)
 
 #endif /* _PPC_PNV_H */
