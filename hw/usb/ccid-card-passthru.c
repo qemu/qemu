@@ -312,8 +312,6 @@ static void ccid_card_vscard_event(void *opaque, int event)
     case CHR_EVENT_BREAK:
         card->vscard_in_pos = card->vscard_in_hdr = 0;
         break;
-    case CHR_EVENT_FOCUS:
-        break;
     case CHR_EVENT_OPENED:
         DPRINTF(card, D_INFO, "%s: CHR_EVENT_OPENED\n", __func__);
         break;

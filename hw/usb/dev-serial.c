@@ -466,8 +466,6 @@ static void usb_serial_event(void *opaque, int event)
         case CHR_EVENT_BREAK:
             s->event_trigger |= FTDI_BI;
             break;
-        case CHR_EVENT_FOCUS:
-            break;
         case CHR_EVENT_OPENED:
             if (!s->dev.attached) {
                 usb_device_attach(&s->dev, &error_abort);
