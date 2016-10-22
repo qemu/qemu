@@ -910,6 +910,7 @@ bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp)
         s->be = b;
     }
 
+    b->fe_open = false;
     b->tag = tag;
     b->chr = s;
 
@@ -4216,10 +4217,10 @@ void qemu_chr_fe_set_open(CharBackend *be, int fe_open)
         return;
     }
 
-    if (chr->fe_open == fe_open) {
+    if (be->fe_open == fe_open) {
         return;
     }
-    chr->fe_open = fe_open;
+    be->fe_open = fe_open;
     if (chr->chr_set_fe_open) {
         chr->chr_set_fe_open(chr, fe_open);
     }
@@ -4304,7 +4305,7 @@ ChardevInfoList *qmp_query_chardev(Error **errp)
         info->value = g_malloc0(sizeof(*info->value));
         info->value->label = g_strdup(chr->label);
         info->value->filename = g_strdup(chr->filename);
-        info->value->frontend_open = chr->fe_open;
+        info->value->frontend_open = chr->be && chr->be->fe_open;
 
         info->next = chr_list;
         chr_list = info;

@@ -81,6 +81,7 @@ typedef struct CharBackend {
     IOReadHandler *chr_read;
     void *opaque;
     int tag;
+    int fe_open;
 } CharBackend;
 
 struct CharDriverState {
@@ -108,7 +109,6 @@ struct CharDriverState {
     char *filename;
     int logfd;
     int be_open;
-    int fe_open;
     int explicit_be_open;
     int avail_connections;
     int is_mux;
