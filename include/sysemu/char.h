@@ -13,11 +13,13 @@
 
 /* character device */
 
-#define CHR_EVENT_BREAK   0 /* serial break char */
-#define CHR_EVENT_OPENED  2 /* new connection established */
-#define CHR_EVENT_MUX_IN  3 /* mux-focus was set to this terminal */
-#define CHR_EVENT_MUX_OUT 4 /* mux-focus will move on */
-#define CHR_EVENT_CLOSED  5 /* connection closed */
+typedef enum {
+    CHR_EVENT_BREAK, /* serial break char */
+    CHR_EVENT_OPENED, /* new connection established */
+    CHR_EVENT_MUX_IN, /* mux-focus was set to this terminal */
+    CHR_EVENT_MUX_OUT, /* mux-focus will move on */
+    CHR_EVENT_CLOSED /* connection closed */
+} QEMUChrEvent;
 
 
 #define CHR_IOCTL_SERIAL_SET_PARAMS   1
