@@ -15,7 +15,6 @@
 #include "sysemu/char.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
-#include "hw/qdev.h" /* just for DEFINE_PROP_CHR */
 
 #define TYPE_RNG_EGD "rng-egd"
 #define RNG_EGD(obj) OBJECT_CHECK(RngEgd, (obj), TYPE_RNG_EGD)
