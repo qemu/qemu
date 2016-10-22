@@ -4226,15 +4226,6 @@ void qemu_chr_fe_set_open(CharBackend *be, int fe_open)
     }
 }
 
-void qemu_chr_fe_event(CharBackend *be, int event)
-{
-    CharDriverState *chr = be->chr;
-
-    if (chr && chr->chr_fe_event) {
-        chr->chr_fe_event(chr, event);
-    }
-}
-
 guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
                             GIOFunc func, void *user_data)
 {

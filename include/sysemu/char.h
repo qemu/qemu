@@ -103,7 +103,6 @@ struct CharDriverState {
     void (*chr_accept_input)(struct CharDriverState *chr);
     void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
     void (*chr_set_fe_open)(struct CharDriverState *chr, int fe_open);
-    void (*chr_fe_event)(struct CharDriverState *chr, int event);
     CharBackend *be;
     void *opaque;
     char *label;
@@ -237,16 +236,6 @@ void qemu_chr_fe_set_echo(CharBackend *be, bool echo);
  * Without associated CharDriver, do nothing.
  */
 void qemu_chr_fe_set_open(CharBackend *be, int fe_open);
-
-/**
- * @qemu_chr_fe_event:
- *
- * Send an event from the front end to the back end. It does nothing
- * without associated CharDriver.
- *
- * @event the event to send
- */
-void qemu_chr_fe_event(CharBackend *be, int event);
 
 /**
  * @qemu_chr_fe_printf:
