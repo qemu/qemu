@@ -289,7 +289,7 @@ static uint16_t io_read(IPackDevice *ip, uint8_t addr)
                 ch->sr &= ~SR_RXRDY;
                 blk->isr &= ~ISR_RXRDY(channel);
                 if (ch->dev.chr) {
-                    qemu_chr_accept_input(ch->dev.chr);
+                    qemu_chr_fe_accept_input(ch->dev.chr);
                 }
             } else {
                 ch->rhr_idx = (ch->rhr_idx + 1) % RX_FIFO_SIZE;

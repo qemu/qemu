@@ -123,7 +123,7 @@ static void guest_writable(VirtIOSerialPort *port)
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
 
     if (vcon->chr.chr) {
-        qemu_chr_accept_input(vcon->chr.chr);
+        qemu_chr_fe_accept_input(vcon->chr.chr);
     }
 }
 

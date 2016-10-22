@@ -430,7 +430,7 @@ int qemu_chr_add_client(CharDriverState *s, int fd)
     return s->chr_add_client ? s->chr_add_client(s, fd) : -1;
 }
 
-void qemu_chr_accept_input(CharDriverState *s)
+void qemu_chr_fe_accept_input(CharDriverState *s)
 {
     if (s->chr_accept_input)
         s->chr_accept_input(s);
@@ -4225,7 +4225,7 @@ void qemu_chr_fe_release(CharDriverState *s)
     s->avail_connections++;
 }
 
-void qemu_chr_disconnect(CharDriverState *chr)
+void qemu_chr_fe_disconnect(CharDriverState *chr)
 {
     if (chr->chr_disconnect) {
         chr->chr_disconnect(chr);

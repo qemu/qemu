@@ -142,7 +142,7 @@ static uint64_t uart_read(void *opaque, hwaddr addr,
         r = s->regs[R_RXTX];
         s->regs[R_LSR] &= ~LSR_DR;
         uart_update_irq(s);
-        qemu_chr_accept_input(s->chr.chr);
+        qemu_chr_fe_accept_input(s->chr.chr);
         break;
     case R_IIR:
     case R_LSR:

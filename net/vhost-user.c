@@ -187,7 +187,7 @@ static gboolean net_vhost_user_watch(GIOChannel *chan, GIOCondition cond,
 {
     VhostUserState *s = opaque;
 
-    qemu_chr_disconnect(s->chr.chr);
+    qemu_chr_fe_disconnect(s->chr.chr);
 
     return FALSE;
 }
@@ -212,7 +212,7 @@ static void net_vhost_user_event(void *opaque, int event)
         s->watch = qemu_chr_fe_add_watch(s->chr.chr, G_IO_HUP,
                                          net_vhost_user_watch, s);
         if (vhost_user_start(queues, ncs) < 0) {
-            qemu_chr_disconnect(s->chr.chr);
+            qemu_chr_fe_disconnect(s->chr.chr);
             return;
         }
         qmp_set_link(name, true, &err);

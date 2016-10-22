@@ -138,7 +138,7 @@ static void uart_write(void *opaque, hwaddr addr, uint64_t value,
     case R_STAT:
         /* write one to clear bits */
         s->regs[addr] &= ~(value & (STAT_RX_EVT | STAT_TX_EVT));
-        qemu_chr_accept_input(s->chr.chr);
+        qemu_chr_fe_accept_input(s->chr.chr);
         break;
 
     default:

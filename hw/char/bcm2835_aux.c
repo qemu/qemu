@@ -80,7 +80,7 @@ static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
             }
         }
         if (s->chr.chr) {
-            qemu_chr_accept_input(s->chr.chr);
+            qemu_chr_fe_accept_input(s->chr.chr);
         }
         bcm2835_aux_update(s);
         return c;

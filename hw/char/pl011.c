@@ -88,7 +88,7 @@ static uint64_t pl011_read(void *opaque, hwaddr offset,
         s->rsr = c >> 8;
         pl011_update(s);
         if (s->chr.chr) {
-            qemu_chr_accept_input(s->chr.chr);
+            qemu_chr_fe_accept_input(s->chr.chr);
         }
         r = c;
         break;

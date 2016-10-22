@@ -600,7 +600,7 @@ static uint64_t escc_mem_read(void *opaque, hwaddr addr,
             ret = s->rx;
         trace_escc_mem_readb_data(CHN_C(s), ret);
         if (s->chr.chr) {
-            qemu_chr_accept_input(s->chr.chr);
+            qemu_chr_fe_accept_input(s->chr.chr);
         }
         return ret;
     default:

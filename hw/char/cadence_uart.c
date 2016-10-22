@@ -143,7 +143,7 @@ static void uart_rx_reset(CadenceUARTState *s)
     s->rx_wpos = 0;
     s->rx_count = 0;
     if (s->chr.chr) {
-        qemu_chr_accept_input(s->chr.chr);
+        qemu_chr_fe_accept_input(s->chr.chr);
     }
 }
 
@@ -369,7 +369,7 @@ static void uart_read_rx_fifo(CadenceUARTState *s, uint32_t *c)
         s->rx_count--;
 
         if (s->chr.chr) {
-            qemu_chr_accept_input(s->chr.chr);
+            qemu_chr_fe_accept_input(s->chr.chr);
         }
     } else {
         *c = 0;

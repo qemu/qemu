@@ -122,7 +122,7 @@ static uint64_t imx_serial_read(void *opaque, hwaddr offset,
             s->uts1 |= UTS1_RXEMPTY;
             imx_update(s);
             if (s->chr.chr) {
-                qemu_chr_accept_input(s->chr.chr);
+                qemu_chr_fe_accept_input(s->chr.chr);
             }
         }
         return c;
@@ -216,7 +216,7 @@ static void imx_serial_write(void *opaque, hwaddr offset,
         if (value & UCR2_RXEN) {
             if (!(s->ucr2 & UCR2_RXEN)) {
                 if (s->chr.chr) {
-                    qemu_chr_accept_input(s->chr.chr);
+                    qemu_chr_fe_accept_input(s->chr.chr);
                 }
             }
         }

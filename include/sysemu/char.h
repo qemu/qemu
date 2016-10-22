@@ -165,11 +165,11 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename);
 
 
 /**
- * @qemu_chr_disconnect:
+ * @qemu_chr_fe_disconnect:
  *
  * Close a fd accpeted by character backend.
  */
-void qemu_chr_disconnect(CharDriverState *chr);
+void qemu_chr_fe_disconnect(CharDriverState *chr);
 
 /**
  * @qemu_chr_cleanup:
@@ -490,7 +490,7 @@ void qemu_chr_add_handlers_full(CharDriverState *s,
                                 GMainContext *context);
 
 void qemu_chr_be_generic_open(CharDriverState *s);
-void qemu_chr_accept_input(CharDriverState *s);
+void qemu_chr_fe_accept_input(CharDriverState *s);
 int qemu_chr_add_client(CharDriverState *s, int fd);
 CharDriverState *qemu_chr_find(const char *name);
 bool chr_is_ringbuf(const CharDriverState *chr);

@@ -268,7 +268,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     int fd;
 
     if (s->test_fail) {
-        qemu_chr_disconnect(chr->chr);
+        qemu_chr_fe_disconnect(chr->chr);
         /* now switch to non-failure */
         s->test_fail = false;
     }
@@ -313,7 +313,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
 	g_assert_cmpint(msg.payload.u64 & (0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES),
 			!=, 0ULL);
         if (s->test_flags == TEST_FLAGS_DISCONNECT) {
-            qemu_chr_disconnect(chr->chr);
+            qemu_chr_fe_disconnect(chr->chr);
             s->test_flags = TEST_FLAGS_BAD;
         }
         break;
@@ -724,7 +724,7 @@ reconnect_cb(gpointer user_data)
 {
     TestServer *s = user_data;
 
-    qemu_chr_disconnect(s->chr.chr);
+    qemu_chr_fe_disconnect(s->chr.chr);
 
     return FALSE;
 }

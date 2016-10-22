@@ -98,7 +98,7 @@ static uint64_t stm32f2xx_usart_read(void *opaque, hwaddr addr,
         retvalue = s->usart_sr;
         s->usart_sr &= ~USART_SR_TC;
         if (s->chr.chr) {
-            qemu_chr_accept_input(s->chr.chr);
+            qemu_chr_fe_accept_input(s->chr.chr);
         }
         return retvalue;
     case USART_DR:
@@ -106,7 +106,7 @@ static uint64_t stm32f2xx_usart_read(void *opaque, hwaddr addr,
         s->usart_sr |= USART_SR_TXE;
         s->usart_sr &= ~USART_SR_RXNE;
         if (s->chr.chr) {
-            qemu_chr_accept_input(s->chr.chr);
+            qemu_chr_fe_accept_input(s->chr.chr);
         }
         qemu_set_irq(s->irq, 0);
         return s->usart_dr & 0x3FF;
