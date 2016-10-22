@@ -20,6 +20,66 @@
 #define _PPC_PNV_H
 
 #include "hw/boards.h"
+#include "hw/sysbus.h"
+
+#define TYPE_PNV_CHIP "powernv-chip"
+#define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
+#define PNV_CHIP_CLASS(klass) \
+     OBJECT_CLASS_CHECK(PnvChipClass, (klass), TYPE_PNV_CHIP)
+#define PNV_CHIP_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(PnvChipClass, (obj), TYPE_PNV_CHIP)
+
+typedef enum PnvChipType {
+    PNV_CHIP_POWER8E,     /* AKA Murano (default) */
+    PNV_CHIP_POWER8,      /* AKA Venice */
+    PNV_CHIP_POWER8NVL,   /* AKA Naples */
+    PNV_CHIP_POWER9,      /* AKA Nimbus */
+} PnvChipType;
+
+typedef struct PnvChip {
+    /*< private >*/
+    SysBusDevice parent_obj;
+
+    /*< public >*/
+    uint32_t     chip_id;
+    uint64_t     ram_start;
+    uint64_t     ram_size;
+} PnvChip;
+
+typedef struct PnvChipClass {
+    /*< private >*/
+    SysBusDeviceClass parent_class;
+
+    /*< public >*/
+    const char *cpu_model;
+    PnvChipType  chip_type;
+    uint64_t     chip_cfam_id;
+} PnvChipClass;
+
+#define TYPE_PNV_CHIP_POWER8E TYPE_PNV_CHIP "-POWER8E"
+#define PNV_CHIP_POWER8E(obj) \
+    OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER8E)
+
+#define TYPE_PNV_CHIP_POWER8 TYPE_PNV_CHIP "-POWER8"
+#define PNV_CHIP_POWER8(obj) \
+    OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER8)
+
+#define TYPE_PNV_CHIP_POWER8NVL TYPE_PNV_CHIP "-POWER8NVL"
+#define PNV_CHIP_POWER8NVL(obj) \
+    OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER8NVL)
+
+#define TYPE_PNV_CHIP_POWER9 TYPE_PNV_CHIP "-POWER9"
+#define PNV_CHIP_POWER9(obj) \
+    OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER9)
+
+/*
+ * This generates a HW chip id depending on an index:
+ *
+ *    0x0, 0x1, 0x10, 0x11
+ *
+ * 4 chips should be the maximum
+ */
+#define PNV_CHIP_HWID(i) ((((i) & 0x3e) << 3) | ((i) & 0x1))
 
 #define TYPE_POWERNV_MACHINE       MACHINE_TYPE_NAME("powernv")
 #define POWERNV_MACHINE(obj) \
@@ -31,6 +91,9 @@ typedef struct PnvMachineState {
 
     uint32_t     initrd_base;
     long         initrd_size;
+
+    uint32_t     num_chips;
+    PnvChip      **chips;
 } PnvMachineState;
 
 #define PNV_FDT_ADDR          0x01000000
