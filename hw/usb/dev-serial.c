@@ -547,7 +547,7 @@ static USBDevice *usb_serial_init(USBBus *bus, const char *filename)
     filename++;
 
     snprintf(label, sizeof(label), "usbserial%d", index++);
-    cdrv = qemu_chr_new(label, filename, NULL);
+    cdrv = qemu_chr_new(label, filename);
     if (!cdrv)
         return NULL;
 
@@ -565,7 +565,7 @@ static USBDevice *usb_braille_init(USBBus *bus, const char *unused)
     USBDevice *dev;
     CharDriverState *cdrv;
 
-    cdrv = qemu_chr_new("braille", "braille", NULL);
+    cdrv = qemu_chr_new("braille", "braille");
     if (!cdrv)
         return NULL;
 

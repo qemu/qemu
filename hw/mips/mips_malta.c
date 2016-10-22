@@ -566,7 +566,7 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, base, &s->iomem_lo);
     memory_region_add_subregion(address_space, base + 0xa00, &s->iomem_hi);
 
-    s->display = qemu_chr_new("fpga", "vc:320x200", NULL);
+    s->display = qemu_chr_new("fpga", "vc:320x200");
     qemu_chr_add_handlers(s->display, NULL, NULL,
                           malta_fgpa_display_event, s);
 
@@ -1033,7 +1033,7 @@ void mips_malta_init(MachineState *machine)
         if (!serial_hds[i]) {
             char label[32];
             snprintf(label, sizeof(label), "serial%d", i);
-            serial_hds[i] = qemu_chr_new(label, "null", NULL);
+            serial_hds[i] = qemu_chr_new(label, "null");
         }
     }
 

@@ -2033,8 +2033,6 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
     }
 
     qemu_chr_be_generic_open(chr);
-    if (chr->init)
-        chr->init(chr);
 }
 
 static CharDriverState *text_console_init(ChardevVC *vc, Error **errp)

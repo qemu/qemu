@@ -75,7 +75,6 @@ typedef enum {
 
 struct CharDriverState {
     QemuMutex chr_write_lock;
-    void (*init)(struct CharDriverState *s);
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
     int (*chr_sync_read)(struct CharDriverState *s,
                          const uint8_t *buf, int len);
@@ -130,13 +129,11 @@ CharDriverState *qemu_chr_alloc(ChardevCommon *backend, Error **errp);
  * Create a new character backend from a QemuOpts list.
  *
  * @opts see qemu-config.c for a list of valid options
- * @init not sure..
  *
  * Returns: a new character backend
  */
 CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
-                                    void (*init)(struct CharDriverState *s),
-                                    Error **errp);
+                                        Error **errp);
 
 /**
  * @qemu_chr_parse_common:
@@ -155,12 +152,10 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend);
  *
  * @label the name of the backend
  * @filename the URI
- * @init not sure..
  *
  * Returns: a new character backend
  */
-CharDriverState *qemu_chr_new(const char *label, const char *filename,
-                              void (*init)(struct CharDriverState *s));
+CharDriverState *qemu_chr_new(const char *label, const char *filename);
 /**
  * @qemu_chr_disconnect:
  *
@@ -191,12 +186,10 @@ int qemu_chr_wait_connected(CharDriverState *chr, Error **errp);
  *
  * @label the name of the backend
  * @filename the URI
- * @init not sure..
  *
  * Returns: a new character backend
  */
-CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename,
-                                       void (*init)(struct CharDriverState *s));
+CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename);
 
 /**
  * @qemu_chr_delete:

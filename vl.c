@@ -2369,7 +2369,7 @@ static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
 
-    qemu_chr_new_from_opts(opts, NULL, &local_err);
+    qemu_chr_new_from_opts(opts, &local_err);
     if (local_err) {
         error_report_err(local_err);
         return -1;
@@ -2514,7 +2514,7 @@ static int serial_parse(const char *devname)
         exit(1);
     }
     snprintf(label, sizeof(label), "serial%d", index);
-    serial_hds[index] = qemu_chr_new(label, devname, NULL);
+    serial_hds[index] = qemu_chr_new(label, devname);
     if (!serial_hds[index]) {
         error_report("could not connect serial device"
                      " to character backend '%s'", devname);
@@ -2536,7 +2536,7 @@ static int parallel_parse(const char *devname)
         exit(1);
     }
     snprintf(label, sizeof(label), "parallel%d", index);
-    parallel_hds[index] = qemu_chr_new(label, devname, NULL);
+    parallel_hds[index] = qemu_chr_new(label, devname);
     if (!parallel_hds[index]) {
         error_report("could not connect parallel device"
                      " to character backend '%s'", devname);
@@ -2567,7 +2567,7 @@ static int virtcon_parse(const char *devname)
     qemu_opt_set(dev_opts, "driver", "virtconsole", &error_abort);
 
     snprintf(label, sizeof(label), "virtcon%d", index);
-    virtcon_hds[index] = qemu_chr_new(label, devname, NULL);
+    virtcon_hds[index] = qemu_chr_new(label, devname);
     if (!virtcon_hds[index]) {
         error_report("could not connect virtio console"
                      " to character backend '%s'", devname);
@@ -2600,7 +2600,7 @@ static int sclp_parse(const char *devname)
     qemu_opt_set(dev_opts, "driver", "sclpconsole", &error_abort);
 
     snprintf(label, sizeof(label), "sclpcon%d", index);
-    sclp_hds[index] = qemu_chr_new(label, devname, NULL);
+    sclp_hds[index] = qemu_chr_new(label, devname);
     if (!sclp_hds[index]) {
         error_report("could not connect sclp console"
                      " to character backend '%s'", devname);
@@ -2616,7 +2616,7 @@ static int debugcon_parse(const char *devname)
 {
     QemuOpts *opts;
 
-    if (!qemu_chr_new("debugcon", devname, NULL)) {
+    if (!qemu_chr_new("debugcon", devname)) {
         exit(1);
     }
     opts = qemu_opts_create(qemu_find_opts("device"), "debugcon", 1, NULL);

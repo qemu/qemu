@@ -1789,9 +1789,6 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
                              gtk_label_new(vc->label));
 
     qemu_chr_be_generic_open(vc->vte.chr);
-    if (vc->vte.chr->init) {
-        vc->vte.chr->init(vc->vte.chr);
-    }
 
     return group;
 }

@@ -670,7 +670,7 @@ void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
 {
     CharDriverState *chr;
 
-    chr = qemu_chr_new("qtest", qtest_chrdev, NULL);
+    chr = qemu_chr_new("qtest", qtest_chrdev);
 
     if (chr == NULL) {
         error_setg(errp, "Failed to initialize device for qtest: \"%s\"",

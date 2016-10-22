@@ -798,7 +798,7 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
     s->irq = irq;
     omap_sti_reset(s);
 
-    s->chr = chr ?: qemu_chr_new("null", "null", NULL);
+    s->chr = chr ?: qemu_chr_new("null", "null");
 
     memory_region_init_io(&s->iomem, NULL, &omap_sti_ops, s, "omap.sti",
                           omap_l4_region_size(ta, 0));

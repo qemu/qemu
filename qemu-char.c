@@ -3909,8 +3909,7 @@ void register_char_driver(const char *name, ChardevBackendKind kind,
 }
 
 CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
-                                    void (*init)(struct CharDriverState *s),
-                                    Error **errp)
+                                        Error **errp)
 {
     Error *local_err = NULL;
     CharDriver *cd;
@@ -4007,8 +4006,7 @@ err:
     return NULL;
 }
 
-CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename,
-                                       void (*init)(struct CharDriverState *s))
+CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename)
 {
     const char *p;
     CharDriverState *chr;
@@ -4023,7 +4021,7 @@ CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename,
     if (!opts)
         return NULL;
 
-    chr = qemu_chr_new_from_opts(opts, init, &err);
+    chr = qemu_chr_new_from_opts(opts, &err);
     if (err) {
         error_report_err(err);
     }
@@ -4035,10 +4033,10 @@ CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename,
     return chr;
 }
 
-CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*init)(struct CharDriverState *s))
+CharDriverState *qemu_chr_new(const char *label, const char *filename)
 {
     CharDriverState *chr;
-    chr = qemu_chr_new_noreplay(label, filename, init);
+    chr = qemu_chr_new_noreplay(label, filename);
     if (chr) {
         chr->replay = replay_mode != REPLAY_MODE_NONE;
         if (chr->replay && chr->chr_ioctl) {

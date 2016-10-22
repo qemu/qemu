@@ -455,7 +455,7 @@ static void test_server_create_chr(TestServer *server, const gchar *opt)
     gchar *chr_path;
 
     chr_path = g_strdup_printf("unix:%s%s", server->socket_path, opt);
-    server->chr = qemu_chr_new(server->chr_name, chr_path, NULL);
+    server->chr = qemu_chr_new(server->chr_name, chr_path);
     g_free(chr_path);
 
     qemu_chr_add_handlers(server->chr, chr_can_read, chr_read,
