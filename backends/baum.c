@@ -1,7 +1,7 @@
 /*
  * QEMU Baum Braille Device
  *
- * Copyright (c) 2008 Samuel Thibault
+ * Copyright (c) 2008, 2010-2011, 2016 Samuel Thibault
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -102,8 +102,11 @@ typedef struct {
 } BaumDriverState;
 
 /* Let's assume NABCC by default */
-static const uint8_t nabcc_translation[256] = {
-    [0] = ' ',
+enum way {
+    DOTS2ASCII,
+    ASCII2DOTS
+};
+static const uint8_t nabcc_translation[2][256] = {
 #ifndef BRLAPI_DOTS
 #define BRLAPI_DOTS(d1,d2,d3,d4,d5,d6,d7,d8) \
     ((d1?BRLAPI_DOT1:0)|\
@@ -115,105 +118,109 @@ static const uint8_t nabcc_translation[256] = {
      (d7?BRLAPI_DOT7:0)|\
      (d8?BRLAPI_DOT8:0))
 #endif
-    [BRLAPI_DOTS(1,0,0,0,0,0,0,0)] = 'a',
-    [BRLAPI_DOTS(1,1,0,0,0,0,0,0)] = 'b',
-    [BRLAPI_DOTS(1,0,0,1,0,0,0,0)] = 'c',
-    [BRLAPI_DOTS(1,0,0,1,1,0,0,0)] = 'd',
-    [BRLAPI_DOTS(1,0,0,0,1,0,0,0)] = 'e',
-    [BRLAPI_DOTS(1,1,0,1,0,0,0,0)] = 'f',
-    [BRLAPI_DOTS(1,1,0,1,1,0,0,0)] = 'g',
-    [BRLAPI_DOTS(1,1,0,0,1,0,0,0)] = 'h',
-    [BRLAPI_DOTS(0,1,0,1,0,0,0,0)] = 'i',
-    [BRLAPI_DOTS(0,1,0,1,1,0,0,0)] = 'j',
-    [BRLAPI_DOTS(1,0,1,0,0,0,0,0)] = 'k',
-    [BRLAPI_DOTS(1,1,1,0,0,0,0,0)] = 'l',
-    [BRLAPI_DOTS(1,0,1,1,0,0,0,0)] = 'm',
-    [BRLAPI_DOTS(1,0,1,1,1,0,0,0)] = 'n',
-    [BRLAPI_DOTS(1,0,1,0,1,0,0,0)] = 'o',
-    [BRLAPI_DOTS(1,1,1,1,0,0,0,0)] = 'p',
-    [BRLAPI_DOTS(1,1,1,1,1,0,0,0)] = 'q',
-    [BRLAPI_DOTS(1,1,1,0,1,0,0,0)] = 'r',
-    [BRLAPI_DOTS(0,1,1,1,0,0,0,0)] = 's',
-    [BRLAPI_DOTS(0,1,1,1,1,0,0,0)] = 't',
-    [BRLAPI_DOTS(1,0,1,0,0,1,0,0)] = 'u',
-    [BRLAPI_DOTS(1,1,1,0,0,1,0,0)] = 'v',
-    [BRLAPI_DOTS(0,1,0,1,1,1,0,0)] = 'w',
-    [BRLAPI_DOTS(1,0,1,1,0,1,0,0)] = 'x',
-    [BRLAPI_DOTS(1,0,1,1,1,1,0,0)] = 'y',
-    [BRLAPI_DOTS(1,0,1,0,1,1,0,0)] = 'z',
+#define DO(dots, ascii) \
+    [DOTS2ASCII][dots] = ascii, \
+    [ASCII2DOTS][ascii] = dots
+    DO(0, ' '),
+    DO(BRLAPI_DOTS(1, 0, 0, 0, 0, 0, 0, 0), 'a'),
+    DO(BRLAPI_DOTS(1, 1, 0, 0, 0, 0, 0, 0), 'b'),
+    DO(BRLAPI_DOTS(1, 0, 0, 1, 0, 0, 0, 0), 'c'),
+    DO(BRLAPI_DOTS(1, 0, 0, 1, 1, 0, 0, 0), 'd'),
+    DO(BRLAPI_DOTS(1, 0, 0, 0, 1, 0, 0, 0), 'e'),
+    DO(BRLAPI_DOTS(1, 1, 0, 1, 0, 0, 0, 0), 'f'),
+    DO(BRLAPI_DOTS(1, 1, 0, 1, 1, 0, 0, 0), 'g'),
+    DO(BRLAPI_DOTS(1, 1, 0, 0, 1, 0, 0, 0), 'h'),
+    DO(BRLAPI_DOTS(0, 1, 0, 1, 0, 0, 0, 0), 'i'),
+    DO(BRLAPI_DOTS(0, 1, 0, 1, 1, 0, 0, 0), 'j'),
+    DO(BRLAPI_DOTS(1, 0, 1, 0, 0, 0, 0, 0), 'k'),
+    DO(BRLAPI_DOTS(1, 1, 1, 0, 0, 0, 0, 0), 'l'),
+    DO(BRLAPI_DOTS(1, 0, 1, 1, 0, 0, 0, 0), 'm'),
+    DO(BRLAPI_DOTS(1, 0, 1, 1, 1, 0, 0, 0), 'n'),
+    DO(BRLAPI_DOTS(1, 0, 1, 0, 1, 0, 0, 0), 'o'),
+    DO(BRLAPI_DOTS(1, 1, 1, 1, 0, 0, 0, 0), 'p'),
+    DO(BRLAPI_DOTS(1, 1, 1, 1, 1, 0, 0, 0), 'q'),
+    DO(BRLAPI_DOTS(1, 1, 1, 0, 1, 0, 0, 0), 'r'),
+    DO(BRLAPI_DOTS(0, 1, 1, 1, 0, 0, 0, 0), 's'),
+    DO(BRLAPI_DOTS(0, 1, 1, 1, 1, 0, 0, 0), 't'),
+    DO(BRLAPI_DOTS(1, 0, 1, 0, 0, 1, 0, 0), 'u'),
+    DO(BRLAPI_DOTS(1, 1, 1, 0, 0, 1, 0, 0), 'v'),
+    DO(BRLAPI_DOTS(0, 1, 0, 1, 1, 1, 0, 0), 'w'),
+    DO(BRLAPI_DOTS(1, 0, 1, 1, 0, 1, 0, 0), 'x'),
+    DO(BRLAPI_DOTS(1, 0, 1, 1, 1, 1, 0, 0), 'y'),
+    DO(BRLAPI_DOTS(1, 0, 1, 0, 1, 1, 0, 0), 'z'),
 
-    [BRLAPI_DOTS(1,0,0,0,0,0,1,0)] = 'A',
-    [BRLAPI_DOTS(1,1,0,0,0,0,1,0)] = 'B',
-    [BRLAPI_DOTS(1,0,0,1,0,0,1,0)] = 'C',
-    [BRLAPI_DOTS(1,0,0,1,1,0,1,0)] = 'D',
-    [BRLAPI_DOTS(1,0,0,0,1,0,1,0)] = 'E',
-    [BRLAPI_DOTS(1,1,0,1,0,0,1,0)] = 'F',
-    [BRLAPI_DOTS(1,1,0,1,1,0,1,0)] = 'G',
-    [BRLAPI_DOTS(1,1,0,0,1,0,1,0)] = 'H',
-    [BRLAPI_DOTS(0,1,0,1,0,0,1,0)] = 'I',
-    [BRLAPI_DOTS(0,1,0,1,1,0,1,0)] = 'J',
-    [BRLAPI_DOTS(1,0,1,0,0,0,1,0)] = 'K',
-    [BRLAPI_DOTS(1,1,1,0,0,0,1,0)] = 'L',
-    [BRLAPI_DOTS(1,0,1,1,0,0,1,0)] = 'M',
-    [BRLAPI_DOTS(1,0,1,1,1,0,1,0)] = 'N',
-    [BRLAPI_DOTS(1,0,1,0,1,0,1,0)] = 'O',
-    [BRLAPI_DOTS(1,1,1,1,0,0,1,0)] = 'P',
-    [BRLAPI_DOTS(1,1,1,1,1,0,1,0)] = 'Q',
-    [BRLAPI_DOTS(1,1,1,0,1,0,1,0)] = 'R',
-    [BRLAPI_DOTS(0,1,1,1,0,0,1,0)] = 'S',
-    [BRLAPI_DOTS(0,1,1,1,1,0,1,0)] = 'T',
-    [BRLAPI_DOTS(1,0,1,0,0,1,1,0)] = 'U',
-    [BRLAPI_DOTS(1,1,1,0,0,1,1,0)] = 'V',
-    [BRLAPI_DOTS(0,1,0,1,1,1,1,0)] = 'W',
-    [BRLAPI_DOTS(1,0,1,1,0,1,1,0)] = 'X',
-    [BRLAPI_DOTS(1,0,1,1,1,1,1,0)] = 'Y',
-    [BRLAPI_DOTS(1,0,1,0,1,1,1,0)] = 'Z',
+    DO(BRLAPI_DOTS(1, 0, 0, 0, 0, 0, 1, 0), 'A'),
+    DO(BRLAPI_DOTS(1, 1, 0, 0, 0, 0, 1, 0), 'B'),
+    DO(BRLAPI_DOTS(1, 0, 0, 1, 0, 0, 1, 0), 'C'),
+    DO(BRLAPI_DOTS(1, 0, 0, 1, 1, 0, 1, 0), 'D'),
+    DO(BRLAPI_DOTS(1, 0, 0, 0, 1, 0, 1, 0), 'E'),
+    DO(BRLAPI_DOTS(1, 1, 0, 1, 0, 0, 1, 0), 'F'),
+    DO(BRLAPI_DOTS(1, 1, 0, 1, 1, 0, 1, 0), 'G'),
+    DO(BRLAPI_DOTS(1, 1, 0, 0, 1, 0, 1, 0), 'H'),
+    DO(BRLAPI_DOTS(0, 1, 0, 1, 0, 0, 1, 0), 'I'),
+    DO(BRLAPI_DOTS(0, 1, 0, 1, 1, 0, 1, 0), 'J'),
+    DO(BRLAPI_DOTS(1, 0, 1, 0, 0, 0, 1, 0), 'K'),
+    DO(BRLAPI_DOTS(1, 1, 1, 0, 0, 0, 1, 0), 'L'),
+    DO(BRLAPI_DOTS(1, 0, 1, 1, 0, 0, 1, 0), 'M'),
+    DO(BRLAPI_DOTS(1, 0, 1, 1, 1, 0, 1, 0), 'N'),
+    DO(BRLAPI_DOTS(1, 0, 1, 0, 1, 0, 1, 0), 'O'),
+    DO(BRLAPI_DOTS(1, 1, 1, 1, 0, 0, 1, 0), 'P'),
+    DO(BRLAPI_DOTS(1, 1, 1, 1, 1, 0, 1, 0), 'Q'),
+    DO(BRLAPI_DOTS(1, 1, 1, 0, 1, 0, 1, 0), 'R'),
+    DO(BRLAPI_DOTS(0, 1, 1, 1, 0, 0, 1, 0), 'S'),
+    DO(BRLAPI_DOTS(0, 1, 1, 1, 1, 0, 1, 0), 'T'),
+    DO(BRLAPI_DOTS(1, 0, 1, 0, 0, 1, 1, 0), 'U'),
+    DO(BRLAPI_DOTS(1, 1, 1, 0, 0, 1, 1, 0), 'V'),
+    DO(BRLAPI_DOTS(0, 1, 0, 1, 1, 1, 1, 0), 'W'),
+    DO(BRLAPI_DOTS(1, 0, 1, 1, 0, 1, 1, 0), 'X'),
+    DO(BRLAPI_DOTS(1, 0, 1, 1, 1, 1, 1, 0), 'Y'),
+    DO(BRLAPI_DOTS(1, 0, 1, 0, 1, 1, 1, 0), 'Z'),
 
-    [BRLAPI_DOTS(0,0,1,0,1,1,0,0)] = '0',
-    [BRLAPI_DOTS(0,1,0,0,0,0,0,0)] = '1',
-    [BRLAPI_DOTS(0,1,1,0,0,0,0,0)] = '2',
-    [BRLAPI_DOTS(0,1,0,0,1,0,0,0)] = '3',
-    [BRLAPI_DOTS(0,1,0,0,1,1,0,0)] = '4',
-    [BRLAPI_DOTS(0,1,0,0,0,1,0,0)] = '5',
-    [BRLAPI_DOTS(0,1,1,0,1,0,0,0)] = '6',
-    [BRLAPI_DOTS(0,1,1,0,1,1,0,0)] = '7',
-    [BRLAPI_DOTS(0,1,1,0,0,1,0,0)] = '8',
-    [BRLAPI_DOTS(0,0,1,0,1,0,0,0)] = '9',
+    DO(BRLAPI_DOTS(0, 0, 1, 0, 1, 1, 0, 0), '0'),
+    DO(BRLAPI_DOTS(0, 1, 0, 0, 0, 0, 0, 0), '1'),
+    DO(BRLAPI_DOTS(0, 1, 1, 0, 0, 0, 0, 0), '2'),
+    DO(BRLAPI_DOTS(0, 1, 0, 0, 1, 0, 0, 0), '3'),
+    DO(BRLAPI_DOTS(0, 1, 0, 0, 1, 1, 0, 0), '4'),
+    DO(BRLAPI_DOTS(0, 1, 0, 0, 0, 1, 0, 0), '5'),
+    DO(BRLAPI_DOTS(0, 1, 1, 0, 1, 0, 0, 0), '6'),
+    DO(BRLAPI_DOTS(0, 1, 1, 0, 1, 1, 0, 0), '7'),
+    DO(BRLAPI_DOTS(0, 1, 1, 0, 0, 1, 0, 0), '8'),
+    DO(BRLAPI_DOTS(0, 0, 1, 0, 1, 0, 0, 0), '9'),
 
-    [BRLAPI_DOTS(0,0,0,1,0,1,0,0)] = '.',
-    [BRLAPI_DOTS(0,0,1,1,0,1,0,0)] = '+',
-    [BRLAPI_DOTS(0,0,1,0,0,1,0,0)] = '-',
-    [BRLAPI_DOTS(1,0,0,0,0,1,0,0)] = '*',
-    [BRLAPI_DOTS(0,0,1,1,0,0,0,0)] = '/',
-    [BRLAPI_DOTS(1,1,1,0,1,1,0,0)] = '(',
-    [BRLAPI_DOTS(0,1,1,1,1,1,0,0)] = ')',
+    DO(BRLAPI_DOTS(0, 0, 0, 1, 0, 1, 0, 0), '.'),
+    DO(BRLAPI_DOTS(0, 0, 1, 1, 0, 1, 0, 0), '+'),
+    DO(BRLAPI_DOTS(0, 0, 1, 0, 0, 1, 0, 0), '-'),
+    DO(BRLAPI_DOTS(1, 0, 0, 0, 0, 1, 0, 0), '*'),
+    DO(BRLAPI_DOTS(0, 0, 1, 1, 0, 0, 0, 0), '/'),
+    DO(BRLAPI_DOTS(1, 1, 1, 0, 1, 1, 0, 0), '('),
+    DO(BRLAPI_DOTS(0, 1, 1, 1, 1, 1, 0, 0), ')'),
 
-    [BRLAPI_DOTS(1,1,1,1,0,1,0,0)] = '&',
-    [BRLAPI_DOTS(0,0,1,1,1,1,0,0)] = '#',
+    DO(BRLAPI_DOTS(1, 1, 1, 1, 0, 1, 0, 0), '&'),
+    DO(BRLAPI_DOTS(0, 0, 1, 1, 1, 1, 0, 0), '#'),
 
-    [BRLAPI_DOTS(0,0,0,0,0,1,0,0)] = ',',
-    [BRLAPI_DOTS(0,0,0,0,1,1,0,0)] = ';',
-    [BRLAPI_DOTS(1,0,0,0,1,1,0,0)] = ':',
-    [BRLAPI_DOTS(0,1,1,1,0,1,0,0)] = '!',
-    [BRLAPI_DOTS(1,0,0,1,1,1,0,0)] = '?',
-    [BRLAPI_DOTS(0,0,0,0,1,0,0,0)] = '"',
-    [BRLAPI_DOTS(0,0,1,0,0,0,0,0)] ='\'',
-    [BRLAPI_DOTS(0,0,0,1,0,0,0,0)] = '`',
-    [BRLAPI_DOTS(0,0,0,1,1,0,1,0)] = '^',
-    [BRLAPI_DOTS(0,0,0,1,1,0,0,0)] = '~',
-    [BRLAPI_DOTS(0,1,0,1,0,1,1,0)] = '[',
-    [BRLAPI_DOTS(1,1,0,1,1,1,1,0)] = ']',
-    [BRLAPI_DOTS(0,1,0,1,0,1,0,0)] = '{',
-    [BRLAPI_DOTS(1,1,0,1,1,1,0,0)] = '}',
-    [BRLAPI_DOTS(1,1,1,1,1,1,0,0)] = '=',
-    [BRLAPI_DOTS(1,1,0,0,0,1,0,0)] = '<',
-    [BRLAPI_DOTS(0,0,1,1,1,0,0,0)] = '>',
-    [BRLAPI_DOTS(1,1,0,1,0,1,0,0)] = '$',
-    [BRLAPI_DOTS(1,0,0,1,0,1,0,0)] = '%',
-    [BRLAPI_DOTS(0,0,0,1,0,0,1,0)] = '@',
-    [BRLAPI_DOTS(1,1,0,0,1,1,0,0)] = '|',
-    [BRLAPI_DOTS(1,1,0,0,1,1,1,0)] ='\\',
-    [BRLAPI_DOTS(0,0,0,1,1,1,0,0)] = '_',
+    DO(BRLAPI_DOTS(0, 0, 0, 0, 0, 1, 0, 0), ','),
+    DO(BRLAPI_DOTS(0, 0, 0, 0, 1, 1, 0, 0), ';'),
+    DO(BRLAPI_DOTS(1, 0, 0, 0, 1, 1, 0, 0), ':'),
+    DO(BRLAPI_DOTS(0, 1, 1, 1, 0, 1, 0, 0), '!'),
+    DO(BRLAPI_DOTS(1, 0, 0, 1, 1, 1, 0, 0), '?'),
+    DO(BRLAPI_DOTS(0, 0, 0, 0, 1, 0, 0, 0), '"'),
+    DO(BRLAPI_DOTS(0, 0, 1, 0, 0, 0, 0, 0), '\''),
+    DO(BRLAPI_DOTS(0, 0, 0, 1, 0, 0, 0, 0), '`'),
+    DO(BRLAPI_DOTS(0, 0, 0, 1, 1, 0, 1, 0), '^'),
+    DO(BRLAPI_DOTS(0, 0, 0, 1, 1, 0, 0, 0), '~'),
+    DO(BRLAPI_DOTS(0, 1, 0, 1, 0, 1, 1, 0), '['),
+    DO(BRLAPI_DOTS(1, 1, 0, 1, 1, 1, 1, 0), ']'),
+    DO(BRLAPI_DOTS(0, 1, 0, 1, 0, 1, 0, 0), '{'),
+    DO(BRLAPI_DOTS(1, 1, 0, 1, 1, 1, 0, 0), '}'),
+    DO(BRLAPI_DOTS(1, 1, 1, 1, 1, 1, 0, 0), '='),
+    DO(BRLAPI_DOTS(1, 1, 0, 0, 0, 1, 0, 0), '<'),
+    DO(BRLAPI_DOTS(0, 0, 1, 1, 1, 0, 0, 0), '>'),
+    DO(BRLAPI_DOTS(1, 1, 0, 1, 0, 1, 0, 0), '$'),
+    DO(BRLAPI_DOTS(1, 0, 0, 1, 0, 1, 0, 0), '%'),
+    DO(BRLAPI_DOTS(0, 0, 0, 1, 0, 0, 1, 0), '@'),
+    DO(BRLAPI_DOTS(1, 1, 0, 0, 1, 1, 0, 0), '|'),
+    DO(BRLAPI_DOTS(1, 1, 0, 0, 1, 1, 1, 0), '\\'),
+    DO(BRLAPI_DOTS(0, 0, 0, 1, 1, 1, 0, 0), '_'),
 };
 
 /* The serial port can receive more of our data */
@@ -346,8 +353,10 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
                 cursor = i + 1;
                 c &= ~(BRLAPI_DOT7|BRLAPI_DOT8);
             }
-            if (!(c = nabcc_translation[c]))
+            c = nabcc_translation[DOTS2ASCII][c];
+            if (!c) {
                 c = '?';
+            }
             text[i] = c;
         }
         timer_del(baum->cellCount_timer);
@@ -476,6 +485,13 @@ static void baum_send_key(BaumDriverState *baum, uint8_t type, uint8_t value) {
     baum_write_packet(baum, packet, sizeof(packet));
 }
 
+static void baum_send_key2(BaumDriverState *baum, uint8_t type, uint8_t value,
+                           uint8_t value2) {
+    uint8_t packet[] = { type, value, value2 };
+    DPRINTF("writing key %x %x\n", type, value);
+    baum_write_packet(baum, packet, sizeof(packet));
+}
+
 /* We got some data on the BrlAPI socket */
 static void baum_chr_read(void *opaque)
 {
@@ -540,7 +556,17 @@ static void baum_chr_read(void *opaque)
             }
             break;
         case BRLAPI_KEY_TYPE_SYM:
-            break;
+            {
+                brlapi_keyCode_t keysym = code & BRLAPI_KEY_CODE_MASK;
+                if (keysym < 0x100) {
+                    uint8_t dots = nabcc_translation[ASCII2DOTS][keysym];
+                    if (dots) {
+                        baum_send_key2(baum, BAUM_RSP_EntryKeys, 0, dots);
+                        baum_send_key2(baum, BAUM_RSP_EntryKeys, 0, 0);
+                    }
+                }
+                break;
+            }
         }
     }
     if (ret == -1 && (brlapi_errno != BRLAPI_ERROR_LIBCERR || errno != EINTR)) {
