@@ -92,6 +92,7 @@ typedef struct {
     brlapi_handle_t *brlapi;
     int brlapi_fd;
     unsigned int x, y;
+    bool deferred_init;
 
     uint8_t in_buf[BUF_SIZE];
     uint8_t in_buf_used;
@@ -222,6 +223,49 @@ static const uint8_t nabcc_translation[2][256] = {
     DO(BRLAPI_DOTS(1, 1, 0, 0, 1, 1, 1, 0), '\\'),
     DO(BRLAPI_DOTS(0, 0, 0, 1, 1, 1, 0, 0), '_'),
 };
+
+/* The guest OS has started discussing with us, finish initializing BrlAPI */
+static int baum_deferred_init(BaumDriverState *baum)
+{
+#if defined(CONFIG_SDL)
+#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
+    SDL_SysWMinfo info;
+#endif
+#endif
+    int tty;
+
+    if (baum->deferred_init) {
+        return 1;
+    }
+
+    if (brlapi__getDisplaySize(baum->brlapi, &baum->x, &baum->y) == -1) {
+        brlapi_perror("baum: brlapi__getDisplaySize");
+        return 0;
+    }
+
+#if defined(CONFIG_SDL)
+#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
+    memset(&info, 0, sizeof(info));
+    SDL_VERSION(&info.version);
+    if (SDL_GetWMInfo(&info)) {
+        tty = info.info.x11.wmwindow;
+    } else {
+#endif
+#endif
+        tty = BRLAPI_TTY_DEFAULT;
+#if defined(CONFIG_SDL)
+#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
+    }
+#endif
+#endif
+
+    if (brlapi__enterTtyMode(baum->brlapi, tty, NULL) == -1) {
+        brlapi_perror("baum: brlapi__enterTtyMode");
+        return 0;
+    }
+    baum->deferred_init = 1;
+    return 1;
+}
 
 /* The serial port can receive more of our data */
 static void baum_accept_input(struct CharDriverState *chr)
@@ -449,6 +493,8 @@ static int baum_write(CharDriverState *chr, const uint8_t *buf, int len)
         return 0;
     if (!baum->brlapi)
         return len;
+    if (!baum_deferred_init(baum))
+        return len;
 
     while (len) {
         /* Complete our buffer as much as possible */
@@ -499,6 +545,8 @@ static void baum_chr_read(void *opaque)
     brlapi_keyCode_t code;
     int ret;
     if (!baum->brlapi)
+        return;
+    if (!baum_deferred_init(baum))
         return;
     while ((ret = brlapi__readKey(baum->brlapi, 0, &code)) == 1) {
         DPRINTF("got key %"BRLAPI_PRIxKEYCODE"\n", code);
@@ -599,12 +647,6 @@ static CharDriverState *chr_baum_init(const char *id,
     BaumDriverState *baum;
     CharDriverState *chr;
     brlapi_handle_t *handle;
-#if defined(CONFIG_SDL)
-#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
-    SDL_SysWMinfo info;
-#endif
-#endif
-    int tty;
 
     chr = qemu_chr_alloc(common, errp);
     if (!chr) {
@@ -627,39 +669,14 @@ static CharDriverState *chr_baum_init(const char *id,
                    brlapi_strerror(brlapi_error_location()));
         goto fail_handle;
     }
+    baum->deferred_init = 0;
 
     baum->cellCount_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, baum_cellCount_timer_cb, baum);
-
-    if (brlapi__getDisplaySize(handle, &baum->x, &baum->y) == -1) {
-        error_setg(errp, "brlapi__getDisplaySize: %s",
-                   brlapi_strerror(brlapi_error_location()));
-        goto fail;
-    }
-
-#if defined(CONFIG_SDL)
-#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
-    memset(&info, 0, sizeof(info));
-    SDL_VERSION(&info.version);
-    if (SDL_GetWMInfo(&info))
-        tty = info.info.x11.wmwindow;
-    else
-#endif
-#endif
-        tty = BRLAPI_TTY_DEFAULT;
-
-    if (brlapi__enterTtyMode(handle, tty, NULL) == -1) {
-        error_setg(errp, "brlapi__enterTtyMode: %s",
-                   brlapi_strerror(brlapi_error_location()));
-        goto fail;
-    }
 
     qemu_set_fd_handler(baum->brlapi_fd, baum_chr_read, NULL, baum);
 
     return chr;
 
-fail:
-    timer_free(baum->cellCount_timer);
-    brlapi__closeConnection(handle);
 fail_handle:
     g_free(handle);
     g_free(chr);
