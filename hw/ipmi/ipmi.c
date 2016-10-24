@@ -51,7 +51,7 @@ static int ipmi_do_hw_op(IPMIInterface *s, enum ipmi_op op, int checkonly)
         if (checkonly) {
             return 0;
         }
-        qemu_system_powerdown_request();
+        qemu_system_shutdown_request();
         return 0;
 
     case IPMI_SEND_NMI:
