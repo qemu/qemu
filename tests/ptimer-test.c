@@ -503,6 +503,7 @@ static void check_periodic_with_load_0(gconstpointer arg)
     const uint8_t *policy = arg;
     QEMUBH *bh = qemu_bh_new(ptimer_trigger, NULL);
     ptimer_state *ptimer = ptimer_init(bh, *policy);
+    bool continuous_trigger = (*policy & PTIMER_POLICY_CONTINUOUS_TRIGGER);
 
     triggered = false;
 
@@ -517,7 +518,12 @@ static void check_periodic_with_load_0(gconstpointer arg)
     qemu_clock_step(2000000 + 100000);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
-    g_assert_false(triggered);
+
+    if (continuous_trigger) {
+        g_assert_true(triggered);
+    } else {
+        g_assert_false(triggered);
+    }
 
     triggered = false;
 
@@ -534,7 +540,12 @@ static void check_periodic_with_load_0(gconstpointer arg)
     qemu_clock_step(2000000 + 100000);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
-    g_assert_false(triggered);
+
+    if (continuous_trigger) {
+        g_assert_true(triggered);
+    } else {
+        g_assert_false(triggered);
+    }
 
     ptimer_stop(ptimer);
 }
@@ -574,6 +585,10 @@ static void add_ptimer_tests(uint8_t policy)
 
     if (policy & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD) {
         g_strlcat(policy_name, "wrap_after_one_period,", 256);
+    }
+
+    if (policy & PTIMER_POLICY_CONTINUOUS_TRIGGER) {
+        g_strlcat(policy_name, "continuous_trigger,", 256);
     }
 
     g_test_add_data_func(
@@ -623,7 +638,7 @@ static void add_ptimer_tests(uint8_t policy)
 
 static void add_all_ptimer_policies_comb_tests(void)
 {
-    int last_policy = PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD;
+    int last_policy = PTIMER_POLICY_CONTINUOUS_TRIGGER;
     int policy = PTIMER_POLICY_DEFAULT;
 
     for (; policy < (last_policy << 1); policy++) {
