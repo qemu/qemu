@@ -104,15 +104,25 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
         bus->broadcast = true;
     }
 
-    QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
-        DeviceState *qdev = kid->child;
-        I2CSlave *candidate = I2C_SLAVE(qdev);
-        if ((candidate->address == address) || (bus->broadcast)) {
-            node = g_malloc(sizeof(struct I2CNode));
-            node->elt = candidate;
-            QLIST_INSERT_HEAD(&bus->current_devs, node, next);
-            if (!bus->broadcast) {
-                break;
+    /*
+     * If there are already devices in the list, that means we are in
+     * the middle of a transaction and we shouldn't rescan the bus.
+     *
+     * This happens with any SMBus transaction, even on a pure I2C
+     * device.  The interface does a transaction start without
+     * terminating the previous transaction.
+     */
+    if (QLIST_EMPTY(&bus->current_devs)) {
+        QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
+            DeviceState *qdev = kid->child;
+            I2CSlave *candidate = I2C_SLAVE(qdev);
+            if ((candidate->address == address) || (bus->broadcast)) {
+                node = g_malloc(sizeof(struct I2CNode));
+                node->elt = candidate;
+                QLIST_INSERT_HEAD(&bus->current_devs, node, next);
+                if (!bus->broadcast) {
+                    break;
+                }
             }
         }
     }
@@ -136,10 +146,6 @@ void i2c_end_transfer(I2CBus *bus)
 {
     I2CSlaveClass *sc;
     I2CNode *node, *next;
-
-    if (QLIST_EMPTY(&bus->current_devs)) {
-        return;
-    }
 
     QLIST_FOREACH_SAFE(node, &bus->current_devs, next, next) {
         sc = I2C_SLAVE_GET_CLASS(node->elt);
