@@ -5,7 +5,7 @@
 
 struct qhc {
     QPCIDevice *dev;
-    void *base;
+    QPCIBar bar;
 };
 
 void qusb_pci_init_one(QPCIBus *pcibus, struct qhc *hc,

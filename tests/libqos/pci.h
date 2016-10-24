@@ -21,6 +21,7 @@
 
 typedef struct QPCIDevice QPCIDevice;
 typedef struct QPCIBus QPCIBus;
+typedef struct QPCIBar QPCIBar;
 
 struct QPCIBus {
     uint8_t (*pio_readb)(QPCIBus *bus, uint32_t addr);
@@ -51,13 +52,17 @@ struct QPCIBus {
     uint64_t mmio_alloc_ptr, mmio_limit;
 };
 
+struct QPCIBar {
+    uint64_t addr;
+};
+
 struct QPCIDevice
 {
     QPCIBus *bus;
     int devfn;
     bool msix_enabled;
-    void *msix_table;
-    void *msix_pba;
+    QPCIBar msix_table_bar, msix_pba_bar;
+    uint64_t msix_table_off, msix_pba_off;
 };
 
 void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
@@ -81,22 +86,27 @@ void qpci_config_writeb(QPCIDevice *dev, uint8_t offset, uint8_t value);
 void qpci_config_writew(QPCIDevice *dev, uint8_t offset, uint16_t value);
 void qpci_config_writel(QPCIDevice *dev, uint8_t offset, uint32_t value);
 
-uint8_t qpci_io_readb(QPCIDevice *dev, void *data);
-uint16_t qpci_io_readw(QPCIDevice *dev, void *data);
-uint32_t qpci_io_readl(QPCIDevice *dev, void *data);
-uint64_t qpci_io_readq(QPCIDevice *dev, void *data);
+uint8_t qpci_io_readb(QPCIDevice *dev, QPCIBar token, uint64_t off);
+uint16_t qpci_io_readw(QPCIDevice *dev, QPCIBar token, uint64_t off);
+uint32_t qpci_io_readl(QPCIDevice *dev, QPCIBar token, uint64_t off);
+uint64_t qpci_io_readq(QPCIDevice *dev, QPCIBar token, uint64_t off);
 
-void qpci_io_writeb(QPCIDevice *dev, void *data, uint8_t value);
-void qpci_io_writew(QPCIDevice *dev, void *data, uint16_t value);
-void qpci_io_writel(QPCIDevice *dev, void *data, uint32_t value);
-void qpci_io_writeq(QPCIDevice *dev, void *data, uint64_t value);
+void qpci_io_writeb(QPCIDevice *dev, QPCIBar token, uint64_t off,
+                    uint8_t value);
+void qpci_io_writew(QPCIDevice *dev, QPCIBar token, uint64_t off,
+                    uint16_t value);
+void qpci_io_writel(QPCIDevice *dev, QPCIBar token, uint64_t off,
+                    uint32_t value);
+void qpci_io_writeq(QPCIDevice *dev, QPCIBar token, uint64_t off,
+                    uint64_t value);
 
-void qpci_memread(QPCIDevice *bus, void *data, void *buf, size_t len);
-void qpci_memwrite(QPCIDevice *bus, void *data, const void *buf, size_t len);
-
-void *qpci_iomap(QPCIDevice *dev, int barno, uint64_t *sizeptr);
-void qpci_iounmap(QPCIDevice *dev, void *data);
-void *qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr);
+void qpci_memread(QPCIDevice *bus, QPCIBar token, uint64_t off,
+                  void *buf, size_t len);
+void qpci_memwrite(QPCIDevice *bus, QPCIBar token, uint64_t off,
+                   const void *buf, size_t len);
+QPCIBar qpci_iomap(QPCIDevice *dev, int barno, uint64_t *sizeptr);
+void qpci_iounmap(QPCIDevice *dev, QPCIBar addr);
+QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr);
 
 void qpci_plug_device_test(const char *driver, const char *id,
                            uint8_t slot, const char *opts);

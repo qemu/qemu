@@ -41,7 +41,7 @@ static QPCIDevice *get_device(QPCIBus *pcibus)
 
 typedef struct _IVState {
     QTestState *qtest;
-    void *reg_base, *mem_base;
+    QPCIBar reg_bar, mem_bar;
     QPCIBus *pcibus;
     QPCIDevice *dev;
 } IVState;
@@ -75,7 +75,7 @@ static inline unsigned in_reg(IVState *s, enum Reg reg)
     unsigned res;
 
     global_qtest = s->qtest;
-    res = qpci_io_readl(s->dev, s->reg_base + reg);
+    res = qpci_io_readl(s->dev, s->reg_bar, reg);
     g_test_message("*%s -> %x\n", name, res);
     global_qtest = qtest;
 
@@ -89,7 +89,7 @@ static inline void out_reg(IVState *s, enum Reg reg, unsigned v)
 
     global_qtest = s->qtest;
     g_test_message("%x -> *%s\n", v, name);
-    qpci_io_writel(s->dev, s->reg_base + reg, v);
+    qpci_io_writel(s->dev, s->reg_bar, reg, v);
     global_qtest = qtest;
 }
 
@@ -98,7 +98,7 @@ static inline void read_mem(IVState *s, uint64_t off, void *buf, size_t len)
     QTestState *qtest = global_qtest;
 
     global_qtest = s->qtest;
-    qpci_memread(s->dev, s->mem_base + off, buf, len);
+    qpci_memread(s->dev, s->mem_bar, off, buf, len);
     global_qtest = qtest;
 }
 
@@ -108,7 +108,7 @@ static inline void write_mem(IVState *s, uint64_t off,
     QTestState *qtest = global_qtest;
 
     global_qtest = s->qtest;
-    qpci_memwrite(s->dev, s->mem_base + off, buf, len);
+    qpci_memwrite(s->dev, s->mem_bar, off, buf, len);
     global_qtest = qtest;
 }
 
@@ -127,16 +127,14 @@ static void setup_vm_cmd(IVState *s, const char *cmd, bool msix)
     s->pcibus = qpci_init_pc(NULL);
     s->dev = get_device(s->pcibus);
 
-    s->reg_base = qpci_iomap(s->dev, 0, &barsize);
-    g_assert_nonnull(s->reg_base);
+    s->reg_bar = qpci_iomap(s->dev, 0, &barsize);
     g_assert_cmpuint(barsize, ==, 256);
 
     if (msix) {
         qpci_msix_enable(s->dev);
     }
 
-    s->mem_base = qpci_iomap(s->dev, 2, &barsize);
-    g_assert_nonnull(s->mem_base);
+    s->mem_bar = qpci_iomap(s->dev, 2, &barsize);
     g_assert_cmpuint(barsize, ==, TMPSHMSIZE);
 
     qpci_device_enable(s->dev);

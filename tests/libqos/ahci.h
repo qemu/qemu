@@ -321,7 +321,7 @@ typedef struct AHCIPortQState {
 typedef struct AHCIQState {
     QOSState *parent;
     QPCIDevice *dev;
-    void *hba_base;
+    QPCIBar hba_bar;
     uint64_t barsize;
     uint32_t fingerprint;
     uint32_t cap;
@@ -489,12 +489,12 @@ typedef struct AHCIOpts {
 
 static inline uint32_t ahci_mread(AHCIQState *ahci, size_t offset)
 {
-    return qpci_io_readl(ahci->dev, ahci->hba_base + offset);
+    return qpci_io_readl(ahci->dev, ahci->hba_bar, offset);
 }
 
 static inline void ahci_mwrite(AHCIQState *ahci, size_t offset, uint32_t value)
 {
-    qpci_io_writel(ahci->dev, ahci->hba_base + offset, value);
+    qpci_io_writel(ahci->dev, ahci->hba_bar, offset, value);
 }
 
 static inline uint32_t ahci_rreg(AHCIQState *ahci, uint32_t reg_num)
