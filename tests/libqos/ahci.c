@@ -351,6 +351,7 @@ void ahci_hba_enable(AHCIQState *ahci)
     reg = ahci_rreg(ahci, AHCI_GHC);
     ASSERT_BIT_SET(reg, AHCI_GHC_IE);
 
+    ahci->enabled = true;
     /* TODO: The device should now be idling and waiting for commands.
      * In the future, a small test-case to inspect the Register D2H FIS
      * and clear the initial interrupts might be good. */

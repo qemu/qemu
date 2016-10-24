@@ -78,25 +78,23 @@ static void string_bswap16(uint16_t *s, size_t bytes)
 /**
  * Verify that the transfer did not corrupt our state at all.
  */
-static void verify_state(AHCIQState *ahci)
+static void verify_state(AHCIQState *ahci, uint64_t hba_old)
 {
     int i, j;
     uint32_t ahci_fingerprint;
     uint64_t hba_base;
-    uint64_t hba_stored;
     AHCICommandHeader cmd;
 
     ahci_fingerprint = qpci_config_readl(ahci->dev, PCI_VENDOR_ID);
     g_assert_cmphex(ahci_fingerprint, ==, ahci->fingerprint);
 
     /* If we haven't initialized, this is as much as can be validated. */
-    if (!ahci->hba_base) {
+    if (!ahci->enabled) {
         return;
     }
 
     hba_base = (uint64_t)qpci_config_readl(ahci->dev, PCI_BASE_ADDRESS_5);
-    hba_stored = (uint64_t)(uintptr_t)ahci->hba_base;
-    g_assert_cmphex(hba_base, ==, hba_stored);
+    g_assert_cmphex(hba_base, ==, hba_old);
 
     g_assert_cmphex(ahci_rreg(ahci, AHCI_CAP), ==, ahci->cap);
     g_assert_cmphex(ahci_rreg(ahci, AHCI_CAP2), ==, ahci->cap2);
@@ -119,11 +117,14 @@ static void ahci_migrate(AHCIQState *from, AHCIQState *to, const char *uri)
     QOSState *tmp = to->parent;
     QPCIDevice *dev = to->dev;
     char *uri_local = NULL;
+    uint64_t hba_old;
 
     if (uri == NULL) {
         uri_local = g_strdup_printf("%s%s", "unix:", mig_socket);
         uri = uri_local;
     }
+
+    hba_old = (uint64_t)qpci_config_readl(from->dev, PCI_BASE_ADDRESS_5);
 
     /* context will be 'to' after completion. */
     migrate(from->parent, to->parent, uri);
@@ -141,7 +142,7 @@ static void ahci_migrate(AHCIQState *from, AHCIQState *to, const char *uri)
     from->parent = tmp;
     from->dev = dev;
 
-    verify_state(to);
+    verify_state(to, hba_old);
     g_free(uri_local);
 }
 
