@@ -303,6 +303,8 @@ check-qtest-arm-y += tests/m25p80-test$(EXESUF)
 gcov-files-arm-y += hw/misc/tmp105.c
 check-qtest-arm-y += tests/virtio-blk-test$(EXESUF)
 gcov-files-arm-y += arm-softmmu/hw/block/virtio-blk.c
+check-qtest-arm-y += tests/test-arm-mptimer$(EXESUF)
+gcov-files-arm-y += hw/timer/arm_mptimer.c
 
 check-qtest-microblazeel-y = $(check-qtest-microblaze-y)
 
@@ -684,6 +686,7 @@ tests/test-x86-cpuid-compat$(EXESUF): tests/test-x86-cpuid-compat.o $(qtest-obj-
 tests/ivshmem-test$(EXESUF): tests/ivshmem-test.o contrib/ivshmem-server/ivshmem-server.o $(libqos-pc-obj-y)
 tests/vhost-user-bridge$(EXESUF): tests/vhost-user-bridge.o
 tests/test-uuid$(EXESUF): tests/test-uuid.o $(test-util-obj-y)
+tests/test-arm-mptimer$(EXESUF): tests/test-arm-mptimer.o
 
 tests/migration/stress$(EXESUF): tests/migration/stress.o
 	$(call quiet-command, $(LINKPROG) -static -O3 $(PTHREAD_LIB) -o $@ $< ,"LINK","$(TARGET_DIR)$@")
