@@ -665,28 +665,19 @@ out:
     return ret;
 }
 
-int spapr_populate_chosen_stdout(void *fdt, VIOsPAPRBus *bus)
+gchar *spapr_vio_stdout_path(VIOsPAPRBus *bus)
 {
     VIOsPAPRDevice *dev;
     char *name, *path;
-    int ret, offset;
 
     dev = spapr_vty_get_default(bus);
-    if (!dev)
-        return 0;
-
-    offset = fdt_path_offset(fdt, "/chosen");
-    if (offset < 0) {
-        return offset;
+    if (!dev) {
+        return NULL;
     }
 
     name = spapr_vio_get_dev_name(DEVICE(dev));
     path = g_strdup_printf("/vdevice/%s", name);
 
-    ret = fdt_setprop_string(fdt, offset, "linux,stdout-path", path);
-
     g_free(name);
-    g_free(path);
-
-    return ret;
+    return path;
 }

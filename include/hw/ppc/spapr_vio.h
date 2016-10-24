@@ -81,7 +81,7 @@ struct VIOsPAPRBus {
 extern VIOsPAPRBus *spapr_vio_bus_init(void);
 extern VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg);
 extern int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt);
-extern int spapr_populate_chosen_stdout(void *fdt, VIOsPAPRBus *bus);
+extern gchar *spapr_vio_stdout_path(VIOsPAPRBus *bus);
 
 static inline qemu_irq spapr_vio_qirq(VIOsPAPRDevice *dev)
 {

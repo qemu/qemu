@@ -273,14 +273,10 @@ static void add_str(GString *s, const gchar *s1)
 
 static void *spapr_create_fdt_skel(sPAPRMachineState *spapr)
 {
-    MachineState *machine = MACHINE(spapr);
     void *fdt;
-    uint32_t start_prop = cpu_to_be32(spapr->initrd_base);
-    uint32_t end_prop = cpu_to_be32(spapr->initrd_base + spapr->initrd_size);
     GString *hypertas = g_string_sized_new(256);
     GString *qemu_hypertas = g_string_sized_new(256);
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
-    unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
     char *buf;
 
     add_str(hypertas, "hcall-pft");
@@ -336,35 +332,6 @@ static void *spapr_create_fdt_skel(sPAPRMachineState *spapr)
 
     _FDT((fdt_property_cell(fdt, "#address-cells", 0x2)));
     _FDT((fdt_property_cell(fdt, "#size-cells", 0x2)));
-
-    /* /chosen */
-    _FDT((fdt_begin_node(fdt, "chosen")));
-
-    /* Set Form1_affinity */
-    _FDT((fdt_property(fdt, "ibm,architecture-vec-5", vec5, sizeof(vec5))));
-
-    _FDT((fdt_property_string(fdt, "bootargs", machine->kernel_cmdline)));
-    _FDT((fdt_property(fdt, "linux,initrd-start",
-                       &start_prop, sizeof(start_prop))));
-    _FDT((fdt_property(fdt, "linux,initrd-end",
-                       &end_prop, sizeof(end_prop))));
-    if (spapr->kernel_size) {
-        uint64_t kprop[2] = { cpu_to_be64(KERNEL_LOAD_ADDR),
-                              cpu_to_be64(spapr->kernel_size) };
-
-        _FDT((fdt_property(fdt, "qemu,boot-kernel", &kprop, sizeof(kprop))));
-        if (spapr->kernel_le) {
-            _FDT((fdt_property(fdt, "qemu,boot-kernel-le", NULL, 0)));
-        }
-    }
-    if (boot_menu) {
-        _FDT((fdt_property_cell(fdt, "qemu,boot-menu", boot_menu)));
-    }
-    _FDT((fdt_property_cell(fdt, "qemu,graphic-width", graphic_width)));
-    _FDT((fdt_property_cell(fdt, "qemu,graphic-height", graphic_height)));
-    _FDT((fdt_property_cell(fdt, "qemu,graphic-depth", graphic_depth)));
-
-    _FDT((fdt_end_node(fdt)));
 
     /* RTAS */
     _FDT((fdt_begin_node(fdt, "rtas")));
@@ -873,6 +840,68 @@ int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
     return 0;
 }
 
+static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
+{
+    MachineState *machine = MACHINE(spapr);
+    int chosen;
+    const char *boot_device = machine->boot_order;
+    char *stdout_path = spapr_vio_stdout_path(spapr->vio_bus);
+    size_t cb = 0;
+    char *bootlist = get_boot_devices_list(&cb, true);
+    unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
+
+    _FDT(chosen = fdt_add_subnode(fdt, 0, "chosen"));
+
+    /* Set Form1_affinity */
+    _FDT(fdt_setprop(fdt, chosen, "ibm,architecture-vec-5",
+                     vec5, sizeof(vec5)));
+
+    _FDT(fdt_setprop_string(fdt, chosen, "bootargs", machine->kernel_cmdline));
+    _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-start",
+                          spapr->initrd_base));
+    _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-end",
+                          spapr->initrd_base + spapr->initrd_size));
+
+    if (spapr->kernel_size) {
+        uint64_t kprop[2] = { cpu_to_be64(KERNEL_LOAD_ADDR),
+                              cpu_to_be64(spapr->kernel_size) };
+
+        _FDT(fdt_setprop(fdt, chosen, "qemu,boot-kernel",
+                         &kprop, sizeof(kprop)));
+        if (spapr->kernel_le) {
+            _FDT(fdt_setprop(fdt, chosen, "qemu,boot-kernel-le", NULL, 0));
+        }
+    }
+    if (boot_menu) {
+        _FDT((fdt_setprop_cell(fdt, chosen, "qemu,boot-menu", boot_menu)));
+    }
+    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-width", graphic_width));
+    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-height", graphic_height));
+    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-depth", graphic_depth));
+
+    if (cb && bootlist) {
+        int i;
+
+        for (i = 0; i < cb; i++) {
+            if (bootlist[i] == '\n') {
+                bootlist[i] = ' ';
+            }
+        }
+        _FDT(fdt_setprop_string(fdt, chosen, "qemu,boot-list", bootlist));
+    }
+
+    if (boot_device && strlen(boot_device)) {
+        _FDT(fdt_setprop_string(fdt, chosen, "qemu,boot-device", boot_device));
+    }
+
+    if (!spapr->has_graphics && stdout_path) {
+        _FDT(fdt_setprop_string(fdt, chosen, "linux,stdout-path", stdout_path));
+    }
+
+    g_free(stdout_path);
+    g_free(bootlist);
+}
+
 static void *spapr_build_fdt(sPAPRMachineState *spapr,
                              hwaddr rtas_addr,
                              hwaddr rtas_size)
@@ -880,10 +909,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     MachineState *machine = MACHINE(qdev_get_machine());
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
-    const char *boot_device = machine->boot_order;
-    int ret, i;
-    size_t cb = 0;
-    char *bootlist;
+    int ret;
     void *fdt;
     sPAPRPHBState *phb;
 
@@ -932,34 +958,6 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     /* cpus */
     spapr_populate_cpus_dt_node(fdt, spapr);
 
-    bootlist = get_boot_devices_list(&cb, true);
-    if (cb && bootlist) {
-        int offset = fdt_path_offset(fdt, "/chosen");
-        if (offset < 0) {
-            exit(1);
-        }
-        for (i = 0; i < cb; i++) {
-            if (bootlist[i] == '\n') {
-                bootlist[i] = ' ';
-            }
-
-        }
-        ret = fdt_setprop_string(fdt, offset, "qemu,boot-list", bootlist);
-    }
-
-    if (boot_device && strlen(boot_device)) {
-        int offset = fdt_path_offset(fdt, "/chosen");
-
-        if (offset < 0) {
-            exit(1);
-        }
-        fdt_setprop_string(fdt, offset, "qemu,boot-device", boot_device);
-    }
-
-    if (!spapr->has_graphics) {
-        spapr_populate_chosen_stdout(fdt, spapr->vio_bus);
-    }
-
     if (smc->dr_lmb_enabled) {
         _FDT(spapr_drc_populate_dt(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_LMB));
     }
@@ -974,7 +972,8 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
         }
     }
 
-    g_free(bootlist);
+    /* /chosen */
+    spapr_dt_chosen(spapr, fdt);
 
     /* Build memory reserve map */
     if (spapr->kernel_size) {
