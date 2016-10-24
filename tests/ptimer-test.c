@@ -107,7 +107,7 @@ static void check_oneshot(gconstpointer arg)
     ptimer_set_count(ptimer, 10);
     ptimer_run(ptimer, 1);
 
-    qemu_clock_step(2000000 * 2 + 100000);
+    qemu_clock_step(2000000 * 2 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 8 : 7);
     g_assert_false(triggered);
@@ -124,7 +124,7 @@ static void check_oneshot(gconstpointer arg)
 
     ptimer_run(ptimer, 1);
 
-    qemu_clock_step(2000000 * 7 + 100000);
+    qemu_clock_step(2000000 * 7 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 1 : 0);
 
@@ -155,28 +155,28 @@ static void check_oneshot(gconstpointer arg)
 
     ptimer_set_count(ptimer, 10);
 
-    qemu_clock_step(20000000 + 100000);
+    qemu_clock_step(20000000 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 10);
     g_assert_false(triggered);
 
     ptimer_set_limit(ptimer, 9, 1);
 
-    qemu_clock_step(20000000 + 100000);
+    qemu_clock_step(20000000 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 9);
     g_assert_false(triggered);
 
     ptimer_run(ptimer, 1);
 
-    qemu_clock_step(2000000 + 100000);
+    qemu_clock_step(2000000 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 8 : 7);
     g_assert_false(triggered);
 
     ptimer_set_count(ptimer, 20);
 
-    qemu_clock_step(2000000 * 19 + 100000);
+    qemu_clock_step(2000000 * 19 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 1 : 0);
     g_assert_false(triggered);
@@ -190,7 +190,7 @@ static void check_oneshot(gconstpointer arg)
 
     triggered = false;
 
-    qemu_clock_step(2000000 * 12 + 100000);
+    qemu_clock_step(2000000 * 12 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
     g_assert_false(triggered);
@@ -215,17 +215,17 @@ static void check_periodic(gconstpointer arg)
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 10);
     g_assert_false(triggered);
 
-    qemu_clock_step(100000);
+    qemu_clock_step(1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 10 : 9);
     g_assert_false(triggered);
 
-    qemu_clock_step(2000000 * 10 - 100000);
+    qemu_clock_step(2000000 * 10 - 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, wrap_policy ? 0 : 10);
     g_assert_true(triggered);
 
-    qemu_clock_step(100000);
+    qemu_clock_step(1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==,
                      wrap_policy ? 0 : (no_round_down ? 10 : 9));
@@ -244,12 +244,12 @@ static void check_periodic(gconstpointer arg)
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 20);
     g_assert_false(triggered);
 
-    qemu_clock_step(100000);
+    qemu_clock_step(1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 20 : 19);
     g_assert_false(triggered);
 
-    qemu_clock_step(2000000 * 11 + 100000);
+    qemu_clock_step(2000000 * 11 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 9 : 8);
     g_assert_false(triggered);
@@ -267,7 +267,7 @@ static void check_periodic(gconstpointer arg)
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 3);
     g_assert_false(triggered);
 
-    qemu_clock_step(100000);
+    qemu_clock_step(1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 3 : 2);
     g_assert_false(triggered);
@@ -290,7 +290,7 @@ static void check_periodic(gconstpointer arg)
     ptimer_set_count(ptimer, 3);
     ptimer_run(ptimer, 0);
 
-    qemu_clock_step(2000000 * 3 + 100000);
+    qemu_clock_step(2000000 * 3 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==,
                      wrap_policy ? 0 : (no_round_down ? 10 : 9));
@@ -316,7 +316,7 @@ static void check_periodic(gconstpointer arg)
 
     triggered = false;
 
-    qemu_clock_step(100000);
+    qemu_clock_step(1);
 
     if (no_immediate_reload) {
         g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
@@ -355,7 +355,7 @@ static void check_periodic(gconstpointer arg)
     ptimer_run(ptimer, 0);
     ptimer_set_period(ptimer, 0);
 
-    qemu_clock_step(2000000 + 100000);
+    qemu_clock_step(2000000 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==,
                     (no_round_down ? 8 : 7) + (wrap_policy ? 1 : 0));
@@ -376,7 +376,7 @@ static void check_on_the_fly_mode_change(gconstpointer arg)
     ptimer_set_limit(ptimer, 10, 1);
     ptimer_run(ptimer, 1);
 
-    qemu_clock_step(2000000 * 9 + 100000);
+    qemu_clock_step(2000000 * 9 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 1 : 0);
     g_assert_false(triggered);
@@ -421,7 +421,7 @@ static void check_on_the_fly_period_change(gconstpointer arg)
     ptimer_set_limit(ptimer, 8, 1);
     ptimer_run(ptimer, 1);
 
-    qemu_clock_step(2000000 * 4 + 100000);
+    qemu_clock_step(2000000 * 4 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 4 : 3);
     g_assert_false(triggered);
@@ -429,7 +429,7 @@ static void check_on_the_fly_period_change(gconstpointer arg)
     ptimer_set_period(ptimer, 4000000);
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 4 : 3);
 
-    qemu_clock_step(4000000 * 2 + 100000);
+    qemu_clock_step(4000000 * 2 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 2 : 0);
     g_assert_false(triggered);
@@ -453,7 +453,7 @@ static void check_on_the_fly_freq_change(gconstpointer arg)
     ptimer_set_limit(ptimer, 8, 1);
     ptimer_run(ptimer, 1);
 
-    qemu_clock_step(2000000 * 4 + 100000);
+    qemu_clock_step(2000000 * 4 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 4 : 3);
     g_assert_false(triggered);
@@ -461,7 +461,7 @@ static void check_on_the_fly_freq_change(gconstpointer arg)
     ptimer_set_freq(ptimer, 250);
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 4 : 3);
 
-    qemu_clock_step(2000000 * 4 + 100000);
+    qemu_clock_step(2000000 * 4 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 2 : 0);
     g_assert_false(triggered);
@@ -516,7 +516,7 @@ static void check_run_with_delta_0(gconstpointer arg)
     triggered = false;
 
     if (no_immediate_trigger || no_immediate_reload) {
-        qemu_clock_step(2000000 + 100000);
+        qemu_clock_step(2000000 + 1);
 
         g_assert_cmpuint(ptimer_get_count(ptimer), ==,
                          no_immediate_reload ? 0 : (no_round_down ? 98 : 97));
@@ -533,7 +533,7 @@ static void check_run_with_delta_0(gconstpointer arg)
         ptimer_run(ptimer, 1);
     }
 
-    qemu_clock_step(2000000 + 100000);
+    qemu_clock_step(2000000 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 98 : 97);
     g_assert_false(triggered);
@@ -563,7 +563,7 @@ static void check_run_with_delta_0(gconstpointer arg)
 
     triggered = false;
 
-    qemu_clock_step(100000);
+    qemu_clock_step(1);
 
     if (no_immediate_reload) {
         qemu_clock_step(2000000);
@@ -616,7 +616,7 @@ static void check_periodic_with_load_0(gconstpointer arg)
 
     triggered = false;
 
-    qemu_clock_step(2000000 + 100000);
+    qemu_clock_step(2000000 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
 
@@ -631,14 +631,14 @@ static void check_periodic_with_load_0(gconstpointer arg)
     ptimer_set_count(ptimer, 10);
     ptimer_run(ptimer, 0);
 
-    qemu_clock_step(2000000 * 10 + 100000);
+    qemu_clock_step(2000000 * 10 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
     g_assert_true(triggered);
 
     triggered = false;
 
-    qemu_clock_step(2000000 + 100000);
+    qemu_clock_step(2000000 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
 
@@ -673,7 +673,7 @@ static void check_oneshot_with_load_0(gconstpointer arg)
 
     triggered = false;
 
-    qemu_clock_step(2000000 + 100000);
+    qemu_clock_step(2000000 + 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
 
