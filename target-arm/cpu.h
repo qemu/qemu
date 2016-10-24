@@ -52,7 +52,7 @@
 #define EXCP_SMC            13   /* Secure Monitor Call */
 #define EXCP_VIRQ           14
 #define EXCP_VFIQ           15
-#define EXCP_SEMIHOST       16   /* semihosting call (A64 only) */
+#define EXCP_SEMIHOST       16   /* semihosting call */
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2

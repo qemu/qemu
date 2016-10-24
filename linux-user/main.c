@@ -806,6 +806,9 @@ void cpu_loop(CPUARMState *env)
                 }
             }
             break;
+        case EXCP_SEMIHOST:
+            env->regs[0] = do_arm_semihosting(env);
+            break;
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
             break;
