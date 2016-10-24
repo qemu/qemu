@@ -384,6 +384,61 @@ build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned rsdt_tbl_offset)
 }
 
 static void
+build_iort(GArray *table_data, BIOSLinker *linker, VirtGuestInfo *guest_info)
+{
+    int iort_start = table_data->len;
+    AcpiIortIdMapping *idmap;
+    AcpiIortItsGroup *its;
+    AcpiIortTable *iort;
+    size_t node_size, iort_length;
+    AcpiIortRC *rc;
+
+    iort = acpi_data_push(table_data, sizeof(*iort));
+
+    iort_length = sizeof(*iort);
+    iort->node_count = cpu_to_le32(2); /* RC and ITS nodes */
+    iort->node_offset = cpu_to_le32(sizeof(*iort));
+
+    /* ITS group node */
+    node_size =  sizeof(*its) + sizeof(uint32_t);
+    iort_length += node_size;
+    its = acpi_data_push(table_data, node_size);
+
+    its->type = ACPI_IORT_NODE_ITS_GROUP;
+    its->length = cpu_to_le16(node_size);
+    its->its_count = cpu_to_le32(1);
+    its->identifiers[0] = 0; /* MADT translation_id */
+
+    /* Root Complex Node */
+    node_size = sizeof(*rc) + sizeof(*idmap);
+    iort_length += node_size;
+    rc = acpi_data_push(table_data, node_size);
+
+    rc->type = ACPI_IORT_NODE_PCI_ROOT_COMPLEX;
+    rc->length = cpu_to_le16(node_size);
+    rc->mapping_count = cpu_to_le32(1);
+    rc->mapping_offset = cpu_to_le32(sizeof(*rc));
+
+    /* fully coherent device */
+    rc->memory_properties.cache_coherency = cpu_to_le32(1);
+    rc->memory_properties.memory_flags = 0x3; /* CCA = CPM = DCAS = 1 */
+    rc->pci_segment_number = 0; /* MCFG pci_segment */
+
+    /* Identity RID mapping covering the whole input RID range */
+    idmap = &rc->id_mapping_array[0];
+    idmap->input_base = 0;
+    idmap->id_count = cpu_to_le32(0xFFFF);
+    idmap->output_base = 0;
+    /* output IORT node is the ITS group node (the first node) */
+    idmap->output_reference = cpu_to_le32(iort->node_offset);
+
+    iort->length = cpu_to_le32(iort_length);
+
+    build_header(linker, table_data, (void *)(table_data->data + iort_start),
+                 "IORT", table_data->len - iort_start, 0, NULL, NULL);
+}
+
+static void
 build_spcr(GArray *table_data, BIOSLinker *linker, VirtGuestInfo *guest_info)
 {
     AcpiSerialPortConsoleRedirection *spcr;
@@ -667,17 +722,6 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
                              ACPI_BUILD_TABLE_FILE, tables_blob,
                              64, false /* high memory */);
 
-    /*
-     * The ACPI v5.1 tables for Hardware-reduced ACPI platform are:
-     * RSDP
-     * RSDT
-     * FADT
-     * GTDT
-     * MADT
-     * MCFG
-     * DSDT
-     */
-
     /* DSDT is pointed to by FADT */
     dsdt = tables_blob->len;
     build_dsdt(tables_blob, tables->linker, guest_info);
@@ -701,6 +745,11 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
     if (nb_numa_nodes > 0) {
         acpi_add_table(table_offsets, tables_blob);
         build_srat(tables_blob, tables->linker, guest_info);
+    }
+
+    if (its_class_name() && !guest_info->no_its) {
+        acpi_add_table(table_offsets, tables_blob);
+        build_iort(tables_blob, tables->linker, guest_info);
     }
 
     /* RSDT is pointed to by RSDP */

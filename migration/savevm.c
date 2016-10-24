@@ -265,6 +265,7 @@ typedef struct SaveState {
     bool skip_configuration;
     uint32_t len;
     const char *name;
+    uint32_t target_page_bits;
 } SaveState;
 
 static SaveState savevm_state = {
@@ -286,6 +287,19 @@ static void configuration_pre_save(void *opaque)
 
     state->len = strlen(current_name);
     state->name = current_name;
+    state->target_page_bits = TARGET_PAGE_BITS;
+}
+
+static int configuration_pre_load(void *opaque)
+{
+    SaveState *state = opaque;
+
+    /* If there is no target-page-bits subsection it means the source
+     * predates the variable-target-page-bits support and is using the
+     * minimum possible value for this CPU.
+     */
+    state->target_page_bits = TARGET_PAGE_BITS_MIN;
+    return 0;
 }
 
 static int configuration_post_load(void *opaque, int version_id)
@@ -298,12 +312,43 @@ static int configuration_post_load(void *opaque, int version_id)
                      (int) state->len, state->name, current_name);
         return -EINVAL;
     }
+
+    if (state->target_page_bits != TARGET_PAGE_BITS) {
+        error_report("Received TARGET_PAGE_BITS is %d but local is %d",
+                     state->target_page_bits, TARGET_PAGE_BITS);
+        return -EINVAL;
+    }
+
     return 0;
 }
+
+/* The target-page-bits subsection is present only if the
+ * target page size is not the same as the default (ie the
+ * minimum page size for a variable-page-size guest CPU).
+ * If it is present then it contains the actual target page
+ * bits for the machine, and migration will fail if the
+ * two ends don't agree about it.
+ */
+static bool vmstate_target_page_bits_needed(void *opaque)
+{
+    return TARGET_PAGE_BITS > TARGET_PAGE_BITS_MIN;
+}
+
+static const VMStateDescription vmstate_target_page_bits = {
+    .name = "configuration/target-page-bits",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vmstate_target_page_bits_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(target_page_bits, SaveState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const VMStateDescription vmstate_configuration = {
     .name = "configuration",
     .version_id = 1,
+    .pre_load = configuration_pre_load,
     .post_load = configuration_post_load,
     .pre_save = configuration_pre_save,
     .fields = (VMStateField[]) {
@@ -311,6 +356,10 @@ static const VMStateDescription vmstate_configuration = {
         VMSTATE_VBUFFER_ALLOC_UINT32(name, SaveState, 0, NULL, 0, len),
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_target_page_bits,
+        NULL
+    }
 };
 
 static void dump_vmstate_vmsd(FILE *out_file,

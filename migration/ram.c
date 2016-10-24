@@ -69,7 +69,7 @@ static uint64_t bitmap_sync_count;
 /* 0x80 is reserved in migration.h start with 0x100 next */
 #define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
 
-static const uint8_t ZERO_TARGET_PAGE[TARGET_PAGE_SIZE];
+static uint8_t *ZERO_TARGET_PAGE;
 
 static inline bool is_zero_range(uint8_t *p, uint64_t size)
 {
@@ -1431,6 +1431,7 @@ static void ram_migration_cleanup(void *opaque)
         cache_fini(XBZRLE.cache);
         g_free(XBZRLE.encoded_buf);
         g_free(XBZRLE.current_buf);
+        g_free(ZERO_TARGET_PAGE);
         XBZRLE.cache = NULL;
         XBZRLE.encoded_buf = NULL;
         XBZRLE.current_buf = NULL;
@@ -1889,6 +1890,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     if (migrate_use_xbzrle()) {
         XBZRLE_cache_lock();
+        ZERO_TARGET_PAGE = g_malloc0(TARGET_PAGE_SIZE);
         XBZRLE.cache = cache_init(migrate_xbzrle_cache_size() /
                                   TARGET_PAGE_SIZE,
                                   TARGET_PAGE_SIZE);

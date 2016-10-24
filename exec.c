@@ -93,6 +93,11 @@ static MemoryRegion io_mem_unassigned;
 
 #endif
 
+#ifdef TARGET_PAGE_BITS_VARY
+int target_page_bits;
+bool target_page_bits_decided;
+#endif
+
 struct CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
 /* current CPU in the current thread. It is only valid inside
    cpu_exec() */
@@ -102,7 +107,36 @@ __thread CPUState *current_cpu;
    2 = Adaptive rate instruction counting.  */
 int use_icount;
 
+bool set_preferred_target_page_bits(int bits)
+{
+    /* The target page size is the lowest common denominator for all
+     * the CPUs in the system, so we can only make it smaller, never
+     * larger. And we can't make it smaller once we've committed to
+     * a particular size.
+     */
+#ifdef TARGET_PAGE_BITS_VARY
+    assert(bits >= TARGET_PAGE_BITS_MIN);
+    if (target_page_bits == 0 || target_page_bits > bits) {
+        if (target_page_bits_decided) {
+            return false;
+        }
+        target_page_bits = bits;
+    }
+#endif
+    return true;
+}
+
 #if !defined(CONFIG_USER_ONLY)
+
+static void finalize_target_page_bits(void)
+{
+#ifdef TARGET_PAGE_BITS_VARY
+    if (target_page_bits == 0) {
+        target_page_bits = TARGET_PAGE_BITS_MIN;
+    }
+    target_page_bits_decided = true;
+#endif
+}
 
 typedef struct PhysPageEntry PhysPageEntry;
 
@@ -153,7 +187,7 @@ typedef struct subpage_t {
     MemoryRegion iomem;
     AddressSpace *as;
     hwaddr base;
-    uint16_t sub_section[TARGET_PAGE_SIZE];
+    uint16_t sub_section[];
 } subpage_t;
 
 #define PHYS_SECTION_UNASSIGNED 0
@@ -2215,8 +2249,7 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
 {
     subpage_t *mmio;
 
-    mmio = g_malloc0(sizeof(subpage_t));
-
+    mmio = g_malloc0(sizeof(subpage_t) + TARGET_PAGE_SIZE * sizeof(uint16_t));
     mmio->as = as;
     mmio->base = base;
     memory_region_init_io(&mmio->iomem, NULL, &subpage_ops, mmio,
@@ -2808,6 +2841,14 @@ void cpu_register_map_client(QEMUBH *bh)
 void cpu_exec_init_all(void)
 {
     qemu_mutex_init(&ram_list.mutex);
+    /* The data structures we set up here depend on knowing the page size,
+     * so no more changes can be made after this point.
+     * In an ideal world, nothing we did before we had finished the
+     * machine setup would care about the target page size, and we could
+     * do this much later, rather than requiring board models to state
+     * up front what their requirements are.
+     */
+    finalize_target_page_bits();
     io_mem_init();
     memory_map_init();
     qemu_mutex_init(&map_client_list_lock);

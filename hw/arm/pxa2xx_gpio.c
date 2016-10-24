@@ -280,23 +280,28 @@ DeviceState *pxa2xx_gpio_init(hwaddr base,
     return dev;
 }
 
-static int pxa2xx_gpio_initfn(SysBusDevice *sbd)
+static void pxa2xx_gpio_initfn(Object *obj)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     DeviceState *dev = DEVICE(sbd);
+    PXA2xxGPIOInfo *s = PXA2XX_GPIO(dev);
+
+    memory_region_init_io(&s->iomem, obj, &pxa_gpio_ops,
+                          s, "pxa2xx-gpio", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq0);
+    sysbus_init_irq(sbd, &s->irq1);
+    sysbus_init_irq(sbd, &s->irqX);
+}
+
+static void pxa2xx_gpio_realize(DeviceState *dev, Error **errp)
+{
     PXA2xxGPIOInfo *s = PXA2XX_GPIO(dev);
 
     s->cpu = ARM_CPU(qemu_get_cpu(s->ncpu));
 
     qdev_init_gpio_in(dev, pxa2xx_gpio_set, s->lines);
     qdev_init_gpio_out(dev, s->handler, s->lines);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &pxa_gpio_ops, s, "pxa2xx-gpio", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq0);
-    sysbus_init_irq(sbd, &s->irq1);
-    sysbus_init_irq(sbd, &s->irqX);
-
-    return 0;
 }
 
 /*
@@ -336,18 +341,18 @@ static Property pxa2xx_gpio_properties[] = {
 static void pxa2xx_gpio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pxa2xx_gpio_initfn;
     dc->desc = "PXA2xx GPIO controller";
     dc->props = pxa2xx_gpio_properties;
     dc->vmsd = &vmstate_pxa2xx_gpio_regs;
+    dc->realize = pxa2xx_gpio_realize;
 }
 
 static const TypeInfo pxa2xx_gpio_info = {
     .name          = TYPE_PXA2XX_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxGPIOInfo),
+    .instance_init = pxa2xx_gpio_initfn,
     .class_init    = pxa2xx_gpio_class_init,
 };
 
