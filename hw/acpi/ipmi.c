@@ -99,6 +99,7 @@ void build_acpi_ipmi_devices(Aml *scope, BusState *bus)
 
         ii = IPMI_INTERFACE(obj);
         iic = IPMI_INTERFACE_GET_CLASS(obj);
+        memset(&info, 0, sizeof(info));
         iic->get_fwinfo(ii, &info);
         aml_append(scope, aml_ipmi_device(&info));
     }
