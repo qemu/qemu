@@ -19,6 +19,7 @@
 #include "s390-pci-bus.h"
 #include "s390-pci-inst.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_bridge.h"
 #include "hw/pci/msi.h"
 #include "qemu/error-report.h"
 
@@ -677,7 +678,16 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
     S390PCIBusDevice *pbdev = NULL;
     S390pciState *s = s390_get_phb();
 
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
+        BusState *bus;
+        PCIBridge *pb = PCI_BRIDGE(dev);
+
+        pci_bridge_map_irq(pb, dev->id, s390_pci_map_irq);
+        pci_setup_iommu(&pb->sec_bus, s390_pci_dma_iommu, s);
+
+        bus = BUS(&pb->sec_bus);
+        qbus_set_hotplug_handler(bus, DEVICE(s), errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         pdev = PCI_DEVICE(dev);
 
         if (!dev->id) {
@@ -754,7 +764,10 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
     S390PCIBusDevice *pbdev = NULL;
     S390pciState *s = s390_get_phb();
 
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
+        error_setg(errp, "PCI bridge hot unplug currently not supported");
+        return;
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         pci_dev = PCI_DEVICE(dev);
 
         QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
