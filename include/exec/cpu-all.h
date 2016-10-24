@@ -189,6 +189,15 @@ void address_space_stq(AddressSpace *as, hwaddr addr, uint64_t val,
 
 /* page related stuff */
 
+#ifdef TARGET_PAGE_BITS_VARY
+extern bool target_page_bits_decided;
+extern int target_page_bits;
+#define TARGET_PAGE_BITS ({ assert(target_page_bits_decided); \
+                            target_page_bits; })
+#else
+#define TARGET_PAGE_BITS_MIN TARGET_PAGE_BITS
+#endif
+
 #define TARGET_PAGE_SIZE (1 << TARGET_PAGE_BITS)
 #define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
 #define TARGET_PAGE_ALIGN(addr) (((addr) + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK)

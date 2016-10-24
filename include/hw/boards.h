@@ -86,6 +86,12 @@ typedef struct {
  *    Returns a @HotpluggableCPUList, which describes CPUs objects which
  *    could be added with -device/device_add.
  *    Caller is responsible for freeing returned list.
+ * @minimum_page_bits:
+ *    If non-zero, the board promises never to create a CPU with a page size
+ *    smaller than this, so QEMU can use a more efficient larger page
+ *    size than the target architecture's minimum. (Attempting to create
+ *    such a CPU will fail.) Note that changing this is a migration
+ *    compatibility break for the machine.
  */
 struct MachineClass {
     /*< private >*/
@@ -124,6 +130,7 @@ struct MachineClass {
     ram_addr_t default_ram_size;
     bool option_rom_has_mr;
     bool rom_file_has_mr;
+    int minimum_page_bits;
 
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
