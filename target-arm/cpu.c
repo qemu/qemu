@@ -576,6 +576,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     ARMCPU *cpu = ARM_CPU(dev);
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(dev);
     CPUARMState *env = &cpu->env;
+    int pagebits;
 
     /* Some features automatically imply others: */
     if (arm_feature(env, ARM_FEATURE_V8)) {
@@ -629,6 +630,29 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     if (arm_feature(env, ARM_FEATURE_THUMB2) &&
         !arm_feature(env, ARM_FEATURE_M)) {
         set_feature(env, ARM_FEATURE_THUMB_DSP);
+    }
+
+    if (arm_feature(env, ARM_FEATURE_V7) &&
+        !arm_feature(env, ARM_FEATURE_M) &&
+        !arm_feature(env, ARM_FEATURE_MPU)) {
+        /* v7VMSA drops support for the old ARMv5 tiny pages, so we
+         * can use 4K pages.
+         */
+        pagebits = 12;
+    } else {
+        /* For CPUs which might have tiny 1K pages, or which have an
+         * MPU and might have small region sizes, stick with 1K pages.
+         */
+        pagebits = 10;
+    }
+    if (!set_preferred_target_page_bits(pagebits)) {
+        /* This can only ever happen for hotplugging a CPU, or if
+         * the board code incorrectly creates a CPU which it has
+         * promised via minimum_page_size that it will not.
+         */
+        error_setg(errp, "This CPU requires a smaller page size than the "
+                   "system is using");
+        return;
     }
 
     if (cpu->reset_hivecs) {
