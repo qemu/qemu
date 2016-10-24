@@ -88,7 +88,12 @@ int i2c_bus_busy(I2CBus *bus)
     return !QLIST_EMPTY(&bus->current_devs);
 }
 
-/* Returns non-zero if the address is not valid.  */
+/*
+ * Returns non-zero if the address is not valid.  If this is called
+ * again without an intervening i2c_end_transfer(), like in the SMBus
+ * case where the operation is switched from write to read, this
+ * function will not rescan the bus and thus cannot fail.
+ */
 /* TODO: Make this handle multiple masters.  */
 int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
 {
