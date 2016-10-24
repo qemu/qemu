@@ -13,7 +13,8 @@
 #include "sysemu/replay.h"
 #include "sysemu/qtest.h"
 
-#define DELTA_ADJUST    1
+#define DELTA_ADJUST     1
+#define DELTA_NO_ADJUST -1
 
 struct ptimer_state
 {
@@ -43,8 +44,11 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
     uint64_t period = s->period;
     uint64_t delta = s->delta;
 
-    if (delta == 0) {
+    if (delta == 0 && !(s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)) {
         ptimer_trigger(s);
+    }
+
+    if (delta == 0) {
         delta = s->delta = s->limit;
     }
 
@@ -58,11 +62,19 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
     }
 
     if (s->policy_mask & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD) {
-        delta += delta_adjust;
+        if (delta_adjust != DELTA_NO_ADJUST) {
+            delta += delta_adjust;
+        }
     }
 
     if (delta == 0 && (s->policy_mask & PTIMER_POLICY_CONTINUOUS_TRIGGER)) {
         if (s->enabled == 1 && s->limit == 0) {
+            delta = 1;
+        }
+    }
+
+    if (delta == 0 && (s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)) {
+        if (delta_adjust != DELTA_NO_ADJUST) {
             delta = 1;
         }
     }
@@ -111,7 +123,7 @@ static void ptimer_tick(void *opaque)
         if (s->limit == 0) {
             /* If a "continuous trigger" policy is not used and limit == 0,
                we should error out.  */
-            delta_adjust = 0;
+            delta_adjust = DELTA_NO_ADJUST;
         }
 
         ptimer_reload(s, delta_adjust);
