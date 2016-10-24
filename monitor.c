@@ -3955,6 +3955,27 @@ static void monitor_readline_flush(void *opaque)
     monitor_flush(opaque);
 }
 
+/*
+ * Print to current monitor if we have one, else to stderr.
+ * TODO should return int, so callers can calculate width, but that
+ * requires surgery to monitor_vprintf().  Left for another day.
+ */
+void error_vprintf(const char *fmt, va_list ap)
+{
+    if (cur_mon && !monitor_cur_is_qmp()) {
+        monitor_vprintf(cur_mon, fmt, ap);
+    } else {
+        vfprintf(stderr, fmt, ap);
+    }
+}
+
+void error_vprintf_unless_qmp(const char *fmt, va_list ap)
+{
+    if (cur_mon && !monitor_cur_is_qmp()) {
+        monitor_vprintf(cur_mon, fmt, ap);
+    }
+}
+
 static void __attribute__((constructor)) monitor_lock_init(void)
 {
     qemu_mutex_init(&monitor_lock);
