@@ -48,7 +48,7 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
         ptimer_trigger(s);
     }
 
-    if (delta == 0) {
+    if (delta == 0 && !(s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_RELOAD)) {
         delta = s->delta = s->limit;
     }
 
@@ -75,6 +75,12 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
 
     if (delta == 0 && (s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)) {
         if (delta_adjust != DELTA_NO_ADJUST) {
+            delta = 1;
+        }
+    }
+
+    if (delta == 0 && (s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_RELOAD)) {
+        if (s->enabled == 1 && s->limit != 0) {
             delta = 1;
         }
     }
@@ -113,20 +119,35 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
 static void ptimer_tick(void *opaque)
 {
     ptimer_state *s = (ptimer_state *)opaque;
-    ptimer_trigger(s);
-    s->delta = 0;
+    bool trigger = true;
+
     if (s->enabled == 2) {
+        s->delta = 0;
         s->enabled = 0;
     } else {
         int delta_adjust = DELTA_ADJUST;
 
-        if (s->limit == 0) {
+        if (s->delta == 0 || s->limit == 0) {
             /* If a "continuous trigger" policy is not used and limit == 0,
-               we should error out.  */
+               we should error out. delta == 0 means that this tick is
+               caused by a "no immediate reload" policy, so it shouldn't
+               be adjusted.  */
             delta_adjust = DELTA_NO_ADJUST;
         }
 
+        if (!(s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)) {
+            /* Avoid re-trigger on deferred reload if "no immediate trigger"
+               policy isn't used.  */
+            trigger = (delta_adjust == DELTA_ADJUST);
+        }
+
+        s->delta = s->limit;
+
         ptimer_reload(s, delta_adjust);
+    }
+
+    if (trigger) {
+        ptimer_trigger(s);
     }
 }
 

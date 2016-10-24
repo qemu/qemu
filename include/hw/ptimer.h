@@ -47,6 +47,10 @@
  * but after a one period for both oneshot and periodic modes.  */
 #define PTIMER_POLICY_NO_IMMEDIATE_TRIGGER  (1 << 2)
 
+/* Starting to run with/setting counter to "0" won't re-load counter
+ * immediately, but after a one period.  */
+#define PTIMER_POLICY_NO_IMMEDIATE_RELOAD   (1 << 3)
+
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;
 typedef void (*ptimer_cb)(void *opaque);
