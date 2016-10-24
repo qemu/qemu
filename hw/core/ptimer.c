@@ -47,7 +47,8 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
         ptimer_trigger(s);
         delta = s->delta = s->limit;
     }
-    if (delta == 0 || s->period == 0) {
+
+    if (s->period == 0) {
         if (!qtest_enabled()) {
             fprintf(stderr, "Timer with period zero, disabling\n");
         }
@@ -58,6 +59,21 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
 
     if (s->policy_mask & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD) {
         delta += delta_adjust;
+    }
+
+    if (delta == 0 && (s->policy_mask & PTIMER_POLICY_CONTINUOUS_TRIGGER)) {
+        if (s->enabled == 1 && s->limit == 0) {
+            delta = 1;
+        }
+    }
+
+    if (delta == 0) {
+        if (!qtest_enabled()) {
+            fprintf(stderr, "Timer with delta zero, disabling\n");
+        }
+        timer_del(s->timer);
+        s->enabled = 0;
+        return;
     }
 
     /*
@@ -90,7 +106,15 @@ static void ptimer_tick(void *opaque)
     if (s->enabled == 2) {
         s->enabled = 0;
     } else {
-        ptimer_reload(s, DELTA_ADJUST);
+        int delta_adjust = DELTA_ADJUST;
+
+        if (s->limit == 0) {
+            /* If a "continuous trigger" policy is not used and limit == 0,
+               we should error out.  */
+            delta_adjust = 0;
+        }
+
+        ptimer_reload(s, delta_adjust);
     }
 }
 
@@ -98,7 +122,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
 {
     uint64_t counter;
 
-    if (s->enabled) {
+    if (s->enabled && s->delta != 0) {
         int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         int64_t next = s->next_event;
         int64_t last = s->last_event;
