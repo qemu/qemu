@@ -309,7 +309,7 @@ static void test_connect(void)
     uint8_t msg[100];
     unsigned int msglen;
     static uint8_t exp1[] = { 0xff, 0x01, 0xa1 }; /* A protocol version */
-    static uint8_t exp2[] = { 0x08, 0x1f, 0xa1 }; /* A capabilities cmd */
+    static uint8_t exp2[] = { 0x08, 0x3f, 0xa1 }; /* A capabilities cmd */
 
     FD_ZERO(&readfds);
     FD_SET(emu_lfd, &readfds);

@@ -54,7 +54,8 @@
 #define   VM_CAPABILITIES_IRQ      0x04
 #define   VM_CAPABILITIES_NMI      0x08
 #define   VM_CAPABILITIES_ATTN     0x10
-#define VM_CMD_FORCEOFF            0x09
+#define   VM_CAPABILITIES_GRACEFUL_SHUTDOWN 0x20
+#define VM_CMD_GRACEFUL_SHUTDOWN   0x09
 
 #define TYPE_IPMI_BMC_EXTERN "ipmi-bmc-extern"
 #define IPMI_BMC_EXTERN(obj) OBJECT_CHECK(IPMIBmcExtern, (obj), \
@@ -276,8 +277,8 @@ static void handle_hw_op(IPMIBmcExtern *ibe, unsigned char hw_op)
         k->do_hw_op(s, IPMI_SEND_NMI, 0);
         break;
 
-    case VM_CMD_FORCEOFF:
-        qemu_system_shutdown_request();
+    case VM_CMD_GRACEFUL_SHUTDOWN:
+        k->do_hw_op(s, IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP, 0);
         break;
     }
 }
@@ -400,6 +401,10 @@ static void chr_event(void *opaque, int event)
         v = VM_CAPABILITIES_IRQ | VM_CAPABILITIES_ATTN;
         if (k->do_hw_op(ibe->parent.intf, IPMI_POWEROFF_CHASSIS, 1) == 0) {
             v |= VM_CAPABILITIES_POWER;
+        }
+        if (k->do_hw_op(ibe->parent.intf, IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP, 1)
+            == 0) {
+            v |= VM_CAPABILITIES_GRACEFUL_SHUTDOWN;
         }
         if (k->do_hw_op(ibe->parent.intf, IPMI_RESET_CHASSIS, 1) == 0) {
             v |= VM_CAPABILITIES_RESET;
