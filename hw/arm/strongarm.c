@@ -1236,6 +1236,11 @@ static void strongarm_uart_init(Object *obj)
 
     s->rx_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, strongarm_uart_rx_to, s);
     s->tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, strongarm_uart_tx, s);
+}
+
+static void strongarm_uart_realize(DeviceState *dev, Error **errp)
+{
+    StrongARMUARTState *s = STRONGARM_UART(dev);
 
     qemu_chr_fe_set_handlers(&s->chr,
                              strongarm_uart_can_receive,
@@ -1316,6 +1321,7 @@ static void strongarm_uart_class_init(ObjectClass *klass, void *data)
     dc->reset = strongarm_uart_reset;
     dc->vmsd = &vmstate_strongarm_uart_regs;
     dc->props = strongarm_uart_properties;
+    dc->realize = strongarm_uart_realize;
 }
 
 static const TypeInfo strongarm_uart_info = {
@@ -1516,19 +1522,19 @@ static int strongarm_ssp_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static int strongarm_ssp_init(SysBusDevice *sbd)
+static void strongarm_ssp_init(Object *obj)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     DeviceState *dev = DEVICE(sbd);
     StrongARMSSPState *s = STRONGARM_SSP(dev);
 
     sysbus_init_irq(sbd, &s->irq);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_ssp_ops, s,
+    memory_region_init_io(&s->iomem, obj, &strongarm_ssp_ops, s,
                           "ssp", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
 
     s->bus = ssi_create_bus(dev, "ssi");
-    return 0;
 }
 
 static void strongarm_ssp_reset(DeviceState *dev)
@@ -1558,9 +1564,7 @@ static const VMStateDescription vmstate_strongarm_ssp_regs = {
 static void strongarm_ssp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = strongarm_ssp_init;
     dc->desc = "StrongARM SSP controller";
     dc->reset = strongarm_ssp_reset;
     dc->vmsd = &vmstate_strongarm_ssp_regs;
@@ -1570,6 +1574,7 @@ static const TypeInfo strongarm_ssp_info = {
     .name          = TYPE_STRONGARM_SSP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMSSPState),
+    .instance_init = strongarm_ssp_init,
     .class_init    = strongarm_ssp_class_init,
 };
 
