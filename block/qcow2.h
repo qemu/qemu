@@ -547,7 +547,8 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
 int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m);
 int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
     int nb_sectors, enum qcow2_discard_type type, bool full_discard);
-int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors);
+int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors,
+                        int flags);
 
 int qcow2_expand_zero_clusters(BlockDriverState *bs,
                                BlockDriverAmendStatusCB *status_cb,

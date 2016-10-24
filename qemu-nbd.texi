@@ -86,6 +86,8 @@ the new style NBD protocol negotiation
 Enable mandatory TLS encryption for the server by setting the ID
 of the TLS credentials object previously created with the --object
 option.
+@item --fork
+Fork off the server process and exit the parent once the server is running.
 @item -v, --verbose
 Display extra debugging information
 @item -h, --help

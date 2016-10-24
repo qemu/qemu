@@ -107,25 +107,21 @@ run_qemu <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "blockdev-add",
     "arguments": {
-        "options": {
-            "node-name": "drive0",
-            "driver": "file",
-            "filename": "$TEST_IMG"
-        }
+        "node-name": "drive0",
+        "driver": "file",
+        "filename": "$TEST_IMG"
     }
 }
 { "execute": "blockdev-add",
     "arguments": {
-        "options": {
-            "driver": "$IMGFMT",
-            "node-name": "drive0-debug",
-            "file": {
-                "driver": "blkdebug",
-                "image": "drive0",
-                "inject-error": [{
-                    "event": "l2_load"
-                }]
-            }
+        "driver": "$IMGFMT",
+        "node-name": "drive0-debug",
+        "file": {
+            "driver": "blkdebug",
+            "image": "drive0",
+            "inject-error": [{
+                "event": "l2_load"
+            }]
         }
     }
 }
@@ -145,26 +141,22 @@ run_qemu <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "blockdev-add",
     "arguments": {
-        "options": {
-            "node-name": "drive0",
-            "driver": "$IMGFMT",
-            "file": {
-                "driver": "file",
-                "filename": "$TEST_IMG"
-            }
+        "node-name": "drive0",
+        "driver": "$IMGFMT",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
         }
     }
 }
 { "execute": "blockdev-add",
     "arguments": {
-        "options": {
-            "driver": "blkverify",
-            "node-name": "drive0-verify",
-            "test": "drive0",
-            "raw": {
-                "driver": "file",
-                "filename": "$TEST_IMG.base"
-            }
+        "driver": "blkverify",
+        "node-name": "drive0-verify",
+        "test": "drive0",
+        "raw": {
+            "driver": "file",
+            "filename": "$TEST_IMG.base"
         }
     }
 }
@@ -184,27 +176,23 @@ run_qemu <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "blockdev-add",
     "arguments": {
-        "options": {
-            "node-name": "drive0",
-            "driver": "file",
-            "filename": "$TEST_IMG.base"
-        }
+        "node-name": "drive0",
+        "driver": "file",
+        "filename": "$TEST_IMG.base"
     }
 }
 { "execute": "blockdev-add",
     "arguments": {
-        "options": {
-            "driver": "blkverify",
-            "node-name": "drive0-verify",
-            "test": {
-                "driver": "$IMGFMT",
-                "file": {
-                    "driver": "file",
-                    "filename": "$TEST_IMG"
-                }
-            },
-            "raw": "drive0"
-        }
+        "driver": "blkverify",
+        "node-name": "drive0-verify",
+        "test": {
+            "driver": "$IMGFMT",
+            "file": {
+                "driver": "file",
+                "filename": "$TEST_IMG"
+            }
+        },
+        "raw": "drive0"
     }
 }
 { "execute": "human-monitor-command",
@@ -223,30 +211,26 @@ run_qemu <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "blockdev-add",
     "arguments": {
-        "options": {
-            "node-name": "drive0",
-            "driver": "file",
-            "filename": "$TEST_IMG"
-        }
+        "node-name": "drive0",
+        "driver": "file",
+        "filename": "$TEST_IMG"
     }
 }
 { "execute": "blockdev-add",
     "arguments": {
-        "options": {
-            "driver": "$IMGFMT",
-            "node-name": "drive0-debug",
-            "file": {
-                "driver": "blkdebug",
-                "image": "drive0",
-                "inject-error": [{
-                    "event": "read_aio",
-                    "state": 42
-                }],
-                "set-state": [{
-                    "event": "write_aio",
-                    "new_state": 42
-                }]
-            }
+        "driver": "$IMGFMT",
+        "node-name": "drive0-debug",
+        "file": {
+            "driver": "blkdebug",
+            "image": "drive0",
+            "inject-error": [{
+                "event": "read_aio",
+                "state": 42
+            }],
+            "set-state": [{
+                "event": "write_aio",
+                "new_state": 42
+            }]
         }
     }
 }

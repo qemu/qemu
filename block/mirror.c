@@ -55,7 +55,7 @@ typedef struct MirrorBlockJob {
     int64_t bdev_length;
     unsigned long *cow_bitmap;
     BdrvDirtyBitmap *dirty_bitmap;
-    HBitmapIter hbi;
+    BdrvDirtyBitmapIter *dbi;
     uint8_t *buf;
     QSIMPLEQ_HEAD(, MirrorBuffer) buf_free;
     int buf_free_count;
@@ -330,10 +330,10 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     int max_io_sectors = MAX((s->buf_size >> BDRV_SECTOR_BITS) / MAX_IN_FLIGHT,
                              MAX_IO_SECTORS);
 
-    sector_num = hbitmap_iter_next(&s->hbi);
+    sector_num = bdrv_dirty_iter_next(s->dbi);
     if (sector_num < 0) {
-        bdrv_dirty_iter_init(s->dirty_bitmap, &s->hbi);
-        sector_num = hbitmap_iter_next(&s->hbi);
+        bdrv_set_dirty_iter(s->dbi, 0);
+        sector_num = bdrv_dirty_iter_next(s->dbi);
         trace_mirror_restart_iter(s, bdrv_get_dirty_count(s->dirty_bitmap));
         assert(sector_num >= 0);
     }
@@ -349,7 +349,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     /* Find the number of consective dirty chunks following the first dirty
      * one, and wait for in flight requests in them. */
     while (nb_chunks * sectors_per_chunk < (s->buf_size >> BDRV_SECTOR_BITS)) {
-        int64_t hbitmap_next;
+        int64_t next_dirty;
         int64_t next_sector = sector_num + nb_chunks * sectors_per_chunk;
         int64_t next_chunk = next_sector / sectors_per_chunk;
         if (next_sector >= end ||
@@ -360,13 +360,13 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
             break;
         }
 
-        hbitmap_next = hbitmap_iter_next(&s->hbi);
-        if (hbitmap_next > next_sector || hbitmap_next < 0) {
+        next_dirty = bdrv_dirty_iter_next(s->dbi);
+        if (next_dirty > next_sector || next_dirty < 0) {
             /* The bitmap iterator's cache is stale, refresh it */
-            bdrv_set_dirty_iter(&s->hbi, next_sector);
-            hbitmap_next = hbitmap_iter_next(&s->hbi);
+            bdrv_set_dirty_iter(s->dbi, next_sector);
+            next_dirty = bdrv_dirty_iter_next(s->dbi);
         }
-        assert(hbitmap_next == next_sector);
+        assert(next_dirty == next_sector);
         nb_chunks++;
     }
 
@@ -679,7 +679,8 @@ static void coroutine_fn mirror_run(void *opaque)
         }
     }
 
-    bdrv_dirty_iter_init(s->dirty_bitmap, &s->hbi);
+    assert(!s->dbi);
+    s->dbi = bdrv_dirty_iter_new(s->dirty_bitmap, 0);
     for (;;) {
         uint64_t delay_ns = 0;
         int64_t cnt, delta;
@@ -793,6 +794,7 @@ immediate_exit:
     qemu_vfree(s->buf);
     g_free(s->cow_bitmap);
     g_free(s->in_flight_bitmap);
+    bdrv_dirty_iter_free(s->dbi);
     bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
 
     data = g_malloc(sizeof(*data));

@@ -2956,6 +2956,7 @@ static int img_rebase(int argc, char **argv)
             error_reportf_err(local_err,
                               "Could not open old backing file '%s': ",
                               backing_name);
+            ret = -1;
             goto out;
         }
 
@@ -2973,6 +2974,7 @@ static int img_rebase(int argc, char **argv)
                 error_reportf_err(local_err,
                                   "Could not open new backing file '%s': ",
                                   out_baseimg);
+                ret = -1;
                 goto out;
             }
         }

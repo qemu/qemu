@@ -50,13 +50,12 @@ test_blockjob()
     _send_qemu_cmd $QEMU_HANDLE \
         "{'execute': 'blockdev-add',
           'arguments': {
-              'options': {
-                  'node-name': 'drv0',
-                  'driver': '$IMGFMT',
-                  'file': {
-                      'driver': 'file',
-                      'filename': '$TEST_IMG'
-                  }}}}" \
+              'node-name': 'drv0',
+              'driver': '$IMGFMT',
+              'file': {
+                  'driver': 'file',
+                  'filename': '$TEST_IMG'
+              }}}" \
         'return'
 
     _send_qemu_cmd $QEMU_HANDLE \

@@ -373,6 +373,7 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->hfile == INVALID_HANDLE_VALUE) {
         int err = GetLastError();
 
+        error_setg_win32(errp, err, "Could not open '%s'", filename);
         if (err == ERROR_ACCESS_DENIED) {
             ret = -EACCES;
         } else {

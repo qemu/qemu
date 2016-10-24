@@ -119,13 +119,11 @@ run_qemu <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "blockdev-add",
   "arguments": {
-      "options": {
-        "driver": "$IMGFMT",
-        "node-name": "disk",
-        "file": {
-            "driver": "file",
-            "filename": "$TEST_IMG"
-        }
+      "driver": "$IMGFMT",
+      "node-name": "disk",
+      "file": {
+          "driver": "file",
+          "filename": "$TEST_IMG"
       }
     }
   }

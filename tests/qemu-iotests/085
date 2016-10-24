@@ -100,11 +100,10 @@ function add_snapshot_image()
     _make_test_img -b "${base_image}" "$size"
     mv "${TEST_IMG}" "${snapshot_file}"
     cmd="{ 'execute': 'blockdev-add', 'arguments':
-           { 'options':
-             { 'driver': 'qcow2', 'node-name': 'snap_${1}', ${extra_params}
-               'file':
-               { 'driver': 'file', 'filename': '${snapshot_file}',
-                 'node-name': 'file_${1}' } } } }"
+           { 'driver': 'qcow2', 'node-name': 'snap_${1}', ${extra_params}
+             'file':
+             { 'driver': 'file', 'filename': '${snapshot_file}',
+               'node-name': 'file_${1}' } } }"
     _send_qemu_cmd $h "${cmd}" "return"
 }
 

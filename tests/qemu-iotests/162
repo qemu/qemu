@@ -43,16 +43,26 @@ echo '=== NBD ==='
 $QEMU_IMG info 'json:{"driver": "nbd", "host": 42}'
 
 # And this should not treat @port as if it had not been specified
-# (We cannot use localhost with an invalid port here, but we need to use a
-#  non-existing domain, because otherwise the error message will not contain
-#  the port)
-$QEMU_IMG info 'json:{"driver": "nbd", "host": "does.not.exist.example.com", "port": 42}'
+# (We need to set up a server here, because the error message for "Connection
+#  refused" does not contain the destination port)
+
+# Launching qemu-nbd is done in a loop: We try to set up an NBD server on some
+# random port and continue until success, i.e. until we have found a port that
+# is not in use yet.
+while true; do
+    port=$((RANDOM + 32768))
+    if $QEMU_NBD -p $port -f raw --fork null-co:// 2> /dev/null; then
+        break
+    fi
+done
+
+$QEMU_IMG info "json:{'driver': 'nbd', 'host': 'localhost', 'port': $port}" \
+    | grep '^image' | sed -e "s/$port/PORT/"
 
 # This is a test for NBD's bdrv_refresh_filename() implementation: It expects
 # either host or path to be set, but it must not assume that they are set to
 # strings in the options QDict
-$QEMU_NBD -k "$PWD/42" -f raw null-co:// &
-sleep 0.5
+$QEMU_NBD -k "$PWD/42" -f raw --fork null-co://
 $QEMU_IMG info 'json:{"driver": "nbd", "path": 42}' | grep '^image'
 rm -f 42
 

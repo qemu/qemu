@@ -101,6 +101,11 @@ static int replication_open(BlockDriverState *bs, QDict *options,
 
     if (!strcmp(mode, "primary")) {
         s->mode = REPLICATION_MODE_PRIMARY;
+        top_id = qemu_opt_get(opts, REPLICATION_TOP_ID);
+        if (top_id) {
+            error_setg(&local_err, "The primary side does not support option top-id");
+            goto fail;
+        }
     } else if (!strcmp(mode, "secondary")) {
         s->mode = REPLICATION_MODE_SECONDARY;
         top_id = qemu_opt_get(opts, REPLICATION_TOP_ID);

@@ -38,11 +38,18 @@
  */
 struct BdrvDirtyBitmap {
     HBitmap *bitmap;            /* Dirty sector bitmap implementation */
+    HBitmap *meta;              /* Meta dirty bitmap */
     BdrvDirtyBitmap *successor; /* Anonymous child; implies frozen status */
     char *name;                 /* Optional non-empty unique ID */
     int64_t size;               /* Size of the bitmap (Number of sectors) */
     bool disabled;              /* Bitmap is read-only */
+    int active_iterators;       /* How many iterators are active */
     QLIST_ENTRY(BdrvDirtyBitmap) list;
+};
+
+struct BdrvDirtyBitmapIter {
+    HBitmapIter hbi;
+    BdrvDirtyBitmap *bitmap;
 };
 
 BdrvDirtyBitmap *bdrv_find_dirty_bitmap(BlockDriverState *bs, const char *name)
@@ -95,6 +102,66 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
     bitmap->disabled = false;
     QLIST_INSERT_HEAD(&bs->dirty_bitmaps, bitmap, list);
     return bitmap;
+}
+
+/* bdrv_create_meta_dirty_bitmap
+ *
+ * Create a meta dirty bitmap that tracks the changes of bits in @bitmap. I.e.
+ * when a dirty status bit in @bitmap is changed (either from reset to set or
+ * the other way around), its respective meta dirty bitmap bit will be marked
+ * dirty as well.
+ *
+ * @bitmap: the block dirty bitmap for which to create a meta dirty bitmap.
+ * @chunk_size: how many bytes of bitmap data does each bit in the meta bitmap
+ * track.
+ */
+void bdrv_create_meta_dirty_bitmap(BdrvDirtyBitmap *bitmap,
+                                   int chunk_size)
+{
+    assert(!bitmap->meta);
+    bitmap->meta = hbitmap_create_meta(bitmap->bitmap,
+                                       chunk_size * BITS_PER_BYTE);
+}
+
+void bdrv_release_meta_dirty_bitmap(BdrvDirtyBitmap *bitmap)
+{
+    assert(bitmap->meta);
+    hbitmap_free_meta(bitmap->bitmap);
+    bitmap->meta = NULL;
+}
+
+int bdrv_dirty_bitmap_get_meta(BlockDriverState *bs,
+                               BdrvDirtyBitmap *bitmap, int64_t sector,
+                               int nb_sectors)
+{
+    uint64_t i;
+    int sectors_per_bit = 1 << hbitmap_granularity(bitmap->meta);
+
+    /* To optimize: we can make hbitmap to internally check the range in a
+     * coarse level, or at least do it word by word. */
+    for (i = sector; i < sector + nb_sectors; i += sectors_per_bit) {
+        if (hbitmap_get(bitmap->meta, i)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void bdrv_dirty_bitmap_reset_meta(BlockDriverState *bs,
+                                  BdrvDirtyBitmap *bitmap, int64_t sector,
+                                  int nb_sectors)
+{
+    hbitmap_reset(bitmap->meta, sector, nb_sectors);
+}
+
+int64_t bdrv_dirty_bitmap_size(const BdrvDirtyBitmap *bitmap)
+{
+    return bitmap->size;
+}
+
+const char *bdrv_dirty_bitmap_name(const BdrvDirtyBitmap *bitmap)
+{
+    return bitmap->name;
 }
 
 bool bdrv_dirty_bitmap_frozen(BdrvDirtyBitmap *bitmap)
@@ -212,6 +279,7 @@ void bdrv_dirty_bitmap_truncate(BlockDriverState *bs)
 
     QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
         assert(!bdrv_dirty_bitmap_frozen(bitmap));
+        assert(!bitmap->active_iterators);
         hbitmap_truncate(bitmap->bitmap, size);
         bitmap->size = size;
     }
@@ -224,7 +292,9 @@ static void bdrv_do_release_matching_dirty_bitmap(BlockDriverState *bs,
     BdrvDirtyBitmap *bm, *next;
     QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
         if ((!bitmap || bm == bitmap) && (!only_named || bm->name)) {
+            assert(!bm->active_iterators);
             assert(!bdrv_dirty_bitmap_frozen(bm));
+            assert(!bm->meta);
             QLIST_REMOVE(bm, list);
             hbitmap_free(bm->bitmap);
             g_free(bm->name);
@@ -234,6 +304,9 @@ static void bdrv_do_release_matching_dirty_bitmap(BlockDriverState *bs,
                 return;
             }
         }
+    }
+    if (bitmap) {
+        abort();
     }
 }
 
@@ -320,9 +393,43 @@ uint32_t bdrv_dirty_bitmap_granularity(BdrvDirtyBitmap *bitmap)
     return BDRV_SECTOR_SIZE << hbitmap_granularity(bitmap->bitmap);
 }
 
-void bdrv_dirty_iter_init(BdrvDirtyBitmap *bitmap, HBitmapIter *hbi)
+uint32_t bdrv_dirty_bitmap_meta_granularity(BdrvDirtyBitmap *bitmap)
 {
-    hbitmap_iter_init(hbi, bitmap->bitmap, 0);
+    return BDRV_SECTOR_SIZE << hbitmap_granularity(bitmap->meta);
+}
+
+BdrvDirtyBitmapIter *bdrv_dirty_iter_new(BdrvDirtyBitmap *bitmap,
+                                         uint64_t first_sector)
+{
+    BdrvDirtyBitmapIter *iter = g_new(BdrvDirtyBitmapIter, 1);
+    hbitmap_iter_init(&iter->hbi, bitmap->bitmap, first_sector);
+    iter->bitmap = bitmap;
+    bitmap->active_iterators++;
+    return iter;
+}
+
+BdrvDirtyBitmapIter *bdrv_dirty_meta_iter_new(BdrvDirtyBitmap *bitmap)
+{
+    BdrvDirtyBitmapIter *iter = g_new(BdrvDirtyBitmapIter, 1);
+    hbitmap_iter_init(&iter->hbi, bitmap->meta, 0);
+    iter->bitmap = bitmap;
+    bitmap->active_iterators++;
+    return iter;
+}
+
+void bdrv_dirty_iter_free(BdrvDirtyBitmapIter *iter)
+{
+    if (!iter) {
+        return;
+    }
+    assert(iter->bitmap->active_iterators > 0);
+    iter->bitmap->active_iterators--;
+    g_free(iter);
+}
+
+int64_t bdrv_dirty_iter_next(BdrvDirtyBitmapIter *iter)
+{
+    return hbitmap_iter_next(&iter->hbi);
 }
 
 void bdrv_set_dirty_bitmap(BdrvDirtyBitmap *bitmap,
@@ -360,6 +467,43 @@ void bdrv_undo_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *in)
     hbitmap_free(tmp);
 }
 
+uint64_t bdrv_dirty_bitmap_serialization_size(const BdrvDirtyBitmap *bitmap,
+                                              uint64_t start, uint64_t count)
+{
+    return hbitmap_serialization_size(bitmap->bitmap, start, count);
+}
+
+uint64_t bdrv_dirty_bitmap_serialization_align(const BdrvDirtyBitmap *bitmap)
+{
+    return hbitmap_serialization_granularity(bitmap->bitmap);
+}
+
+void bdrv_dirty_bitmap_serialize_part(const BdrvDirtyBitmap *bitmap,
+                                      uint8_t *buf, uint64_t start,
+                                      uint64_t count)
+{
+    hbitmap_serialize_part(bitmap->bitmap, buf, start, count);
+}
+
+void bdrv_dirty_bitmap_deserialize_part(BdrvDirtyBitmap *bitmap,
+                                        uint8_t *buf, uint64_t start,
+                                        uint64_t count, bool finish)
+{
+    hbitmap_deserialize_part(bitmap->bitmap, buf, start, count, finish);
+}
+
+void bdrv_dirty_bitmap_deserialize_zeroes(BdrvDirtyBitmap *bitmap,
+                                          uint64_t start, uint64_t count,
+                                          bool finish)
+{
+    hbitmap_deserialize_zeroes(bitmap->bitmap, start, count, finish);
+}
+
+void bdrv_dirty_bitmap_deserialize_finish(BdrvDirtyBitmap *bitmap)
+{
+    hbitmap_deserialize_finish(bitmap->bitmap);
+}
+
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
                     int64_t nr_sectors)
 {
@@ -373,15 +517,19 @@ void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
 }
 
 /**
- * Advance an HBitmapIter to an arbitrary offset.
+ * Advance a BdrvDirtyBitmapIter to an arbitrary offset.
  */
-void bdrv_set_dirty_iter(HBitmapIter *hbi, int64_t offset)
+void bdrv_set_dirty_iter(BdrvDirtyBitmapIter *iter, int64_t sector_num)
 {
-    assert(hbi->hb);
-    hbitmap_iter_init(hbi, hbi->hb, offset);
+    hbitmap_iter_init(&iter->hbi, iter->hbi.hb, sector_num);
 }
 
 int64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap)
 {
     return hbitmap_count(bitmap->bitmap);
+}
+
+int64_t bdrv_get_meta_dirty_count(BdrvDirtyBitmap *bitmap)
+{
+    return hbitmap_count(bitmap->meta);
 }

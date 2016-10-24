@@ -57,7 +57,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
                 'file': {'driver': 'file',
                          'node-name': file_node,
                          'filename': base_img}}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, options = opts)
+        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
         self.checkBlockDriverState(node)
         self.checkBlockDriverState(file_node)
@@ -72,7 +72,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
                 'backing': '',
                 'file': {'driver': 'file',
                          'filename': new_img}}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, options = opts)
+        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
         self.checkBlockDriverState(node)
 
@@ -185,7 +185,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
         opts = {'driver': 'blkdebug',
                 'node-name': debug,
                 'image': image}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, options = opts)
+        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
         self.checkBlockDriverState(node)
         self.checkBlockDriverState(debug)
@@ -210,7 +210,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
                 'node-name': blkverify,
                 'test': node_0,
                 'raw': node_1}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, options = opts)
+        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
         self.checkBlockDriverState(test)
         self.checkBlockDriverState(raw)
@@ -234,7 +234,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
                 'node-name': quorum,
                 'vote-threshold': 1,
                 'children': [ child_0, child_1 ]}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, options = opts)
+        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
         self.checkBlockDriverState(child0)
         self.checkBlockDriverState(child1)

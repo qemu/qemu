@@ -443,6 +443,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     fd = qemu_open(filename, s->open_flags, 0644);
     if (fd < 0) {
         ret = -errno;
+        error_setg_errno(errp, errno, "Could not open '%s'", filename);
         if (ret == -EROFS) {
             ret = -EACCES;
         }

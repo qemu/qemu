@@ -105,40 +105,36 @@ run_qemu <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "blockdev-add",
     "arguments": {
-        "options": {
-            "node-name": "drive2",
-            "driver": "$IMGFMT",
-            "file": {
-                "driver": "file",
-                "filename": "$TEST_DIR/2.raw"
-            }
+        "node-name": "drive2",
+        "driver": "$IMGFMT",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_DIR/2.raw"
         }
     }
 }
 { "execute": "blockdev-add",
     "arguments": {
-        "options": {
-            "driver": "quorum",
-            "node-name": "drive0-quorum",
-            "vote-threshold": 2,
-            "children": [
-                {
-                    "driver": "$IMGFMT",
-                    "file": {
-                        "driver": "file",
-                        "filename": "$TEST_DIR/1.raw"
-                    }
-                },
-                "drive2",
-                {
-                    "driver": "$IMGFMT",
-                    "file": {
-                        "driver": "file",
-                        "filename": "$TEST_DIR/3.raw"
-                    }
+        "driver": "quorum",
+        "node-name": "drive0-quorum",
+        "vote-threshold": 2,
+        "children": [
+            {
+                "driver": "$IMGFMT",
+                "file": {
+                    "driver": "file",
+                    "filename": "$TEST_DIR/1.raw"
                 }
-            ]
-        }
+            },
+            "drive2",
+            {
+                "driver": "$IMGFMT",
+                "file": {
+                    "driver": "file",
+                    "filename": "$TEST_DIR/3.raw"
+                }
+            }
+        ]
     }
 }
 { "execute": "human-monitor-command",
