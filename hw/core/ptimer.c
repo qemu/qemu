@@ -231,6 +231,15 @@ uint64_t ptimer_get_count(ptimer_state *s)
                 }
             }
         }
+
+        if (s->policy_mask & PTIMER_POLICY_NO_COUNTER_ROUND_DOWN) {
+            /* If now == last then delta == limit, i.e. the counter already
+               represents the correct value. It would be rounded down a 1ns
+               later.  */
+            if (now != last) {
+                counter += 1;
+            }
+        }
     } else {
         counter = s->delta;
     }
