@@ -114,7 +114,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
             if (!chr) {
                 char label[20];
                 snprintf(label, sizeof(label), "imx31.uart%d", i);
-                chr = qemu_chr_new(label, "null", NULL);
+                chr = qemu_chr_new(label, "null");
             }
 
             qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", chr);

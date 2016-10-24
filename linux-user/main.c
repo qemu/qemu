@@ -3956,7 +3956,7 @@ static void handle_arg_strace(const char *arg)
 static void handle_arg_version(const char *arg)
 {
     printf("qemu-" TARGET_NAME " version " QEMU_VERSION QEMU_PKGVERSION
-           ", " QEMU_COPYRIGHT "\n");
+           "\n" QEMU_COPYRIGHT "\n");
     exit(EXIT_SUCCESS);
 }
 

@@ -55,7 +55,7 @@ typedef struct XilinxUARTLite {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
-    CharDriverState *chr;
+    CharBackend chr;
     qemu_irq irq;
 
     uint8_t rx_fifo[8];
@@ -107,7 +107,7 @@ uart_read(void *opaque, hwaddr addr, unsigned int size)
                 s->rx_fifo_len--;
             uart_update_status(s);
             uart_update_irq(s);
-            qemu_chr_accept_input(s->chr);
+            qemu_chr_fe_accept_input(&s->chr);
             break;
 
         default:
@@ -143,11 +143,9 @@ uart_write(void *opaque, hwaddr addr,
             break;
 
         case R_TX:
-            if (s->chr)
-                /* XXX this blocks entire thread. Rewrite to use
-                 * qemu_chr_fe_write and background I/O callbacks */
-                qemu_chr_fe_write_all(s->chr, &ch, 1);
-
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
+            qemu_chr_fe_write_all(&s->chr, &ch, 1);
             s->regs[addr] = value;
 
             /* hax.  */
@@ -213,8 +211,8 @@ static void xilinx_uartlite_realize(DeviceState *dev, Error **errp)
 {
     XilinxUARTLite *s = XILINX_UARTLITE(dev);
 
-    if (s->chr)
-        qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+    qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
+                             uart_event, s, NULL, true);
 }
 
 static void xilinx_uartlite_init(Object *obj)

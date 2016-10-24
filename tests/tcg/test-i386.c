@@ -2250,14 +2250,14 @@ SSE_OP(a ## sd);
 
 #define SSE_COMI(op, field)\
 {\
-    unsigned int eflags;\
+    unsigned long eflags;\
     XMMReg a, b;\
     a.field[0] = a1;\
     b.field[0] = b1;\
     asm volatile (#op " %2, %1\n"\
         "pushf\n"\
         "pop %0\n"\
-        : "=m" (eflags)\
+        : "=rm" (eflags)\
         : "x" (a.dq), "x" (b.dq));\
     printf("%-9s: a=%f b=%f cc=%04x\n",\
            #op, a1, b1,\

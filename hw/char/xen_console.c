@@ -23,9 +23,11 @@
 #include <sys/select.h>
 #include <termios.h>
 
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "sysemu/char.h"
 #include "hw/xen/xen_backend.h"
+#include "qapi/error.h"
 
 #include <xen/io/console.h>
 
@@ -43,7 +45,7 @@ struct XenConsole {
     char              console[XEN_BUFSIZE];
     int               ring_ref;
     void              *sring;
-    CharDriverState   *chr;
+    CharBackend       chr;
     int               backlog;
 };
 
@@ -148,11 +150,13 @@ static void xencons_send(struct XenConsole *con)
     ssize_t len, size;
 
     size = con->buffer.size - con->buffer.consumed;
-    if (con->chr)
-        len = qemu_chr_fe_write(con->chr, con->buffer.data + con->buffer.consumed,
-                             size);
-    else
+    if (qemu_chr_fe_get_driver(&con->chr)) {
+        len = qemu_chr_fe_write(&con->chr,
+                                con->buffer.data + con->buffer.consumed,
+                                size);
+    } else {
         len = size;
+    }
     if (len < 1) {
 	if (!con->backlog) {
 	    con->backlog = 1;
@@ -196,13 +200,18 @@ static int con_init(struct XenDevice *xendev)
 
     /* no Xen override, use qemu output device */
     if (output == NULL) {
-        con->chr = serial_hds[con->xendev.dev];
+        if (con->xendev.dev) {
+            qemu_chr_fe_init(&con->chr, serial_hds[con->xendev.dev],
+                             &error_abort);
+        }
     } else {
         snprintf(label, sizeof(label), "xencons%d", con->xendev.dev);
-        con->chr = qemu_chr_new(label, output, NULL);
+        qemu_chr_fe_init(&con->chr,
+                         qemu_chr_new(label, output), &error_abort);
     }
 
-    xenstore_store_pv_console_info(con->xendev.dev, con->chr);
+    xenstore_store_pv_console_info(con->xendev.dev,
+                                   qemu_chr_fe_get_driver(&con->chr));
 
 out:
     g_free(type);
@@ -235,17 +244,8 @@ static int con_initialise(struct XenDevice *xendev)
 	return -1;
 
     xen_be_bind_evtchn(&con->xendev);
-    if (con->chr) {
-        if (qemu_chr_fe_claim(con->chr) == 0) {
-            qemu_chr_add_handlers(con->chr, xencons_can_receive,
-                                  xencons_receive, NULL, con);
-        } else {
-            xen_be_printf(xendev, 0,
-                          "xen_console_init error chardev %s already used\n",
-                          con->chr->label);
-            con->chr = NULL;
-        }
-    }
+    qemu_chr_fe_set_handlers(&con->chr, xencons_can_receive,
+                             xencons_receive, NULL, con, NULL, true);
 
     xen_be_printf(xendev, 1, "ring mfn %d, remote port %d, local port %d, limit %zd\n",
 		  con->ring_ref,
@@ -259,10 +259,7 @@ static void con_disconnect(struct XenDevice *xendev)
 {
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
 
-    if (con->chr) {
-        qemu_chr_add_handlers(con->chr, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(con->chr);
-    }
+    qemu_chr_fe_deinit(&con->chr);
     xen_be_unbind_evtchn(&con->xendev);
 
     if (con->sring) {

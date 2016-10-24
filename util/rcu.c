@@ -82,14 +82,16 @@ static void wait_for_readers(void)
         /* Instead of using atomic_mb_set for index->waiting, and
          * atomic_mb_read for index->ctr, memory barriers are placed
          * manually since writes to different threads are independent.
-         * atomic_mb_set has a smp_wmb before...
+         * qemu_event_reset has acquire semantics, so no memory barrier
+         * is needed here.
          */
-        smp_wmb();
         QLIST_FOREACH(index, &registry, node) {
             atomic_set(&index->waiting, true);
         }
 
-        /* ... and a smp_mb after.  */
+        /* Here, order the stores to index->waiting before the
+         * loads of index->ctr.
+         */
         smp_mb();
 
         QLIST_FOREACH_SAFE(index, &registry, node, tmp) {
@@ -103,9 +105,6 @@ static void wait_for_readers(void)
                 atomic_set(&index->waiting, false);
             }
         }
-
-        /* atomic_mb_read has smp_rmb after.  */
-        smp_rmb();
 
         if (QLIST_EMPTY(&registry)) {
             break;

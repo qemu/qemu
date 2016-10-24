@@ -2215,15 +2215,14 @@ int kvm_sw_breakpoints_active(CPUState *cpu)
 
 struct kvm_set_guest_debug_data {
     struct kvm_guest_debug dbg;
-    CPUState *cpu;
     int err;
 };
 
-static void kvm_invoke_set_guest_debug(CPUState *unused_cpu, void *data)
+static void kvm_invoke_set_guest_debug(CPUState *cpu, void *data)
 {
     struct kvm_set_guest_debug_data *dbg_data = data;
 
-    dbg_data->err = kvm_vcpu_ioctl(dbg_data->cpu, KVM_SET_GUEST_DEBUG,
+    dbg_data->err = kvm_vcpu_ioctl(cpu, KVM_SET_GUEST_DEBUG,
                                    &dbg_data->dbg);
 }
 

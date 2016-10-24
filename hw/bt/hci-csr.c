@@ -78,15 +78,17 @@ enum {
 
 static inline void csrhci_fifo_wake(struct csrhci_s *s)
 {
+    CharBackend *be = s->chr.be;
+
     if (!s->enable || !s->out_len)
         return;
 
     /* XXX: Should wait for s->modem_state & CHR_TIOCM_RTS? */
-    if (s->chr.chr_can_read && s->chr.chr_can_read(s->chr.handler_opaque) &&
-                    s->chr.chr_read) {
-        s->chr.chr_read(s->chr.handler_opaque,
-                        s->outfifo + s->out_start ++, 1);
-        s->out_len --;
+    if (be && be->chr_can_read && be->chr_can_read(be->opaque) &&
+        be->chr_read) {
+        be->chr_read(be->opaque,
+                     s->outfifo + s->out_start++, 1);
+        s->out_len--;
         if (s->out_start >= s->out_size) {
             s->out_start = 0;
             s->out_size = FIFO_LEN;
@@ -466,7 +468,6 @@ CharDriverState *uart_hci_init(void)
     s->chr.opaque = s;
     s->chr.chr_write = csrhci_write;
     s->chr.chr_ioctl = csrhci_ioctl;
-    s->chr.avail_connections = 1;
 
     s->hci = qemu_next_hci();
     s->hci->opaque = s;

@@ -1685,9 +1685,6 @@ static CharDriverState *gd_vc_handler(ChardevVC *vc, Error **errp)
     /* Temporary, until gd_vc_vte_init runs.  */
     chr->opaque = g_new0(VirtualConsole, 1);
 
-    /* defer OPENED events until our vc is fully initialized */
-    chr->explicit_be_open = true;
-
     vcs[nb_vcs++] = chr;
 
     return chr;
@@ -1789,9 +1786,6 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
                              gtk_label_new(vc->label));
 
     qemu_chr_be_generic_open(vc->vte.chr);
-    if (vc->vte.chr->init) {
-        vc->vte.chr->init(vc->vte.chr);
-    }
 
     return group;
 }

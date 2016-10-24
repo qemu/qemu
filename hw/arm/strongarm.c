@@ -912,7 +912,7 @@ typedef struct StrongARMUARTState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    CharDriverState *chr;
+    CharBackend chr;
     qemu_irq irq;
 
     uint8_t utcr0;
@@ -1020,9 +1020,7 @@ static void strongarm_uart_update_parameters(StrongARMUARTState *s)
     ssp.data_bits = data_bits;
     ssp.stop_bits = stop_bits;
     s->char_transmit_time =  (NANOSECONDS_PER_SECOND / speed) * frame_size;
-    if (s->chr) {
-        qemu_chr_fe_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
-    }
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 
     DPRINTF(stderr, "%s speed=%d parity=%c data=%d stop=%d\n", s->chr->label,
             speed, parity, data_bits, stop_bits);
@@ -1107,10 +1105,10 @@ static void strongarm_uart_tx(void *opaque)
 
     if (s->utcr3 & UTCR3_LBM) /* loopback */ {
         strongarm_uart_receive(s, &s->tx_fifo[s->tx_start], 1);
-    } else if (s->chr) {
+    } else if (qemu_chr_fe_get_driver(&s->chr)) {
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(s->chr, &s->tx_fifo[s->tx_start], 1);
+        qemu_chr_fe_write_all(&s->chr, &s->tx_fifo[s->tx_start], 1);
     }
 
     s->tx_start = (s->tx_start + 1) % 8;
@@ -1239,13 +1237,11 @@ static void strongarm_uart_init(Object *obj)
     s->rx_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, strongarm_uart_rx_to, s);
     s->tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, strongarm_uart_tx, s);
 
-    if (s->chr) {
-        qemu_chr_add_handlers(s->chr,
-                        strongarm_uart_can_receive,
-                        strongarm_uart_receive,
-                        strongarm_uart_event,
-                        s);
-    }
+    qemu_chr_fe_set_handlers(&s->chr,
+                             strongarm_uart_can_receive,
+                             strongarm_uart_receive,
+                             strongarm_uart_event,
+                             s, NULL, true);
 }
 
 static void strongarm_uart_reset(DeviceState *dev)

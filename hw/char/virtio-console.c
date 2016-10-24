@@ -24,7 +24,7 @@
 typedef struct VirtConsole {
     VirtIOSerialPort parent_obj;
 
-    CharDriverState *chr;
+    CharBackend chr;
     guint watch;
 } VirtConsole;
 
@@ -49,12 +49,12 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
     ssize_t ret;
 
-    if (!vcon->chr) {
+    if (!qemu_chr_fe_get_driver(&vcon->chr)) {
         /* If there's no backend, we can just say we consumed all data. */
         return len;
     }
 
-    ret = qemu_chr_fe_write(vcon->chr, buf, len);
+    ret = qemu_chr_fe_write(&vcon->chr, buf, len);
     trace_virtio_console_flush_buf(port->id, len, ret);
 
     if (ret < len) {
@@ -92,7 +92,7 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
         if (!k->is_console) {
             virtio_serial_throttle_port(port, true);
             if (!vcon->watch) {
-                vcon->watch = qemu_chr_fe_add_watch(vcon->chr,
+                vcon->watch = qemu_chr_fe_add_watch(&vcon->chr,
                                                     G_IO_OUT|G_IO_HUP,
                                                     chr_write_unblocked, vcon);
             }
@@ -108,8 +108,8 @@ static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
     DeviceState *dev = DEVICE(port);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
-    if (vcon->chr && !k->is_console) {
-        qemu_chr_fe_set_open(vcon->chr, guest_connected);
+    if (!k->is_console) {
+        qemu_chr_fe_set_open(&vcon->chr, guest_connected);
     }
 
     if (dev->id) {
@@ -122,9 +122,7 @@ static void guest_writable(VirtIOSerialPort *port)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
 
-    if (vcon->chr) {
-        qemu_chr_accept_input(vcon->chr);
-    }
+    qemu_chr_fe_accept_input(&vcon->chr);
 }
 
 /* Readiness of the guest to accept data on a port */
@@ -170,6 +168,7 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
     VirtConsole *vcon = VIRTIO_CONSOLE(dev);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(dev);
+    CharDriverState *chr = qemu_chr_fe_get_driver(&vcon->chr);
 
     if (port->id == 0 && !k->is_console) {
         error_setg(errp, "Port number 0 on virtio-serial devices reserved "
@@ -177,7 +176,7 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (vcon->chr) {
+    if (chr) {
         /*
          * For consoles we don't block guest data transfer just
          * because nothing is connected - we'll just let it go
@@ -188,14 +187,12 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
          * trigger open/close of the device
          */
         if (k->is_console) {
-            vcon->chr->explicit_fe_open = 0;
-            qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read,
-                                  NULL, vcon);
+            qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
+                                     NULL, vcon, NULL, true);
             virtio_serial_open(port);
         } else {
-            vcon->chr->explicit_fe_open = 1;
-            qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read,
-                                  chr_event, vcon);
+            qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
+                                     chr_event, vcon, NULL, false);
         }
     }
 }

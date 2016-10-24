@@ -1764,7 +1764,7 @@ struct PXA2xxFIrState {
     qemu_irq rx_dma;
     qemu_irq tx_dma;
     uint32_t enable;
-    CharDriverState *chr;
+    CharBackend chr;
 
     uint8_t control[3];
     uint8_t status[2];
@@ -1898,14 +1898,16 @@ static void pxa2xx_fir_write(void *opaque, hwaddr addr,
         pxa2xx_fir_update(s);
         break;
     case ICDR:
-        if (s->control[2] & (1 << 2))			/* TXP */
+        if (s->control[2] & (1 << 2)) { /* TXP */
             ch = value;
-        else
+        } else {
             ch = ~value;
-        if (s->chr && s->enable && (s->control[0] & (1 << 3)))	/* TXE */
+        }
+        if (s->enable && (s->control[0] & (1 << 3))) { /* TXE */
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->chr, &ch, 1);
+            qemu_chr_fe_write_all(&s->chr, &ch, 1);
+        }
         break;
     case ICSR0:
         s->status[0] &= ~(value & 0x66);
@@ -1973,11 +1975,8 @@ static void pxa2xx_fir_realize(DeviceState *dev, Error **errp)
 {
     PXA2xxFIrState *s = PXA2XX_FIR(dev);
 
-    if (s->chr) {
-        qemu_chr_fe_claim_no_fail(s->chr);
-        qemu_chr_add_handlers(s->chr, pxa2xx_fir_is_empty,
-                        pxa2xx_fir_rx, pxa2xx_fir_event, s);
-    }
+    qemu_chr_fe_set_handlers(&s->chr, pxa2xx_fir_is_empty,
+                             pxa2xx_fir_rx, pxa2xx_fir_event, s, NULL, true);
 }
 
 static bool pxa2xx_fir_vmstate_validate(void *opaque, int version_id)

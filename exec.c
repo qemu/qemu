@@ -1254,7 +1254,12 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 
     block->page_size = qemu_fd_getpagesize(fd);
-    block->mr->align = MAX(block->page_size, QEMU_VMALLOC_ALIGN);
+    block->mr->align = block->page_size;
+#if defined(__s390x__)
+    if (kvm_enabled()) {
+        block->mr->align = MAX(block->mr->align, QEMU_VMALLOC_ALIGN);
+    }
+#endif
 
     if (memory < block->page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "

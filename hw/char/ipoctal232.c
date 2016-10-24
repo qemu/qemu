@@ -93,7 +93,7 @@ typedef struct SCC2698Block SCC2698Block;
 
 struct SCC2698Channel {
     IPOctalState *ipoctal;
-    CharDriverState *dev;
+    CharBackend dev;
     bool rx_enabled;
     uint8_t mr[2];
     uint8_t mr_idx;
@@ -288,9 +288,7 @@ static uint16_t io_read(IPackDevice *ip, uint8_t addr)
             if (ch->rx_pending == 0) {
                 ch->sr &= ~SR_RXRDY;
                 blk->isr &= ~ISR_RXRDY(channel);
-                if (ch->dev) {
-                    qemu_chr_accept_input(ch->dev);
-                }
+                qemu_chr_fe_accept_input(&ch->dev);
             } else {
                 ch->rhr_idx = (ch->rhr_idx + 1) % RX_FIFO_SIZE;
             }
@@ -357,13 +355,11 @@ static void io_write(IPackDevice *ip, uint8_t addr, uint16_t val)
     case REG_THRa:
     case REG_THRb:
         if (ch->sr & SR_TXRDY) {
+            uint8_t thr = reg;
             DPRINTF("Write THR%c (0x%x)\n", channel + 'a', reg);
-            if (ch->dev) {
-                uint8_t thr = reg;
-                /* XXX this blocks entire thread. Rewrite to use
-                 * qemu_chr_fe_write and background I/O callbacks */
-                qemu_chr_fe_write_all(ch->dev, &thr, 1);
-            }
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
+            qemu_chr_fe_write_all(&ch->dev, &thr, 1);
         } else {
             DPRINTF("Write THR%c (0x%x), Tx disabled\n", channel + 'a', reg);
         }
@@ -546,9 +542,10 @@ static void ipoctal_realize(DeviceState *dev, Error **errp)
         ch->ipoctal = s;
 
         /* Redirect IP-Octal channels to host character devices */
-        if (ch->dev) {
-            qemu_chr_add_handlers(ch->dev, hostdev_can_receive,
-                                  hostdev_receive, hostdev_event, ch);
+        if (qemu_chr_fe_get_driver(&ch->dev)) {
+            qemu_chr_fe_set_handlers(&ch->dev, hostdev_can_receive,
+                                     hostdev_receive, hostdev_event,
+                                     ch, NULL, true);
             DPRINTF("Redirecting channel %u to %s\n", i, ch->dev->label);
         } else {
             DPRINTF("Could not redirect channel %u, no chardev set\n", i);

@@ -76,11 +76,9 @@ static void digic_uart_write(void *opaque, hwaddr addr, uint64_t value,
 
     switch (addr) {
     case R_TX:
-        if (s->chr) {
-            /* XXX this blocks entire thread. Rewrite to use
-             * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->chr, &ch, 1);
-        }
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
+        qemu_chr_fe_write_all(&s->chr, &ch, 1);
         break;
 
     case R_ST:
@@ -147,9 +145,8 @@ static void digic_uart_realize(DeviceState *dev, Error **errp)
 {
     DigicUartState *s = DIGIC_UART(dev);
 
-    if (s->chr) {
-        qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
-    }
+    qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
+                             uart_event, s, NULL, true);
 }
 
 static void digic_uart_init(Object *obj)

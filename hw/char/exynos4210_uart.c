@@ -181,7 +181,7 @@ typedef struct Exynos4210UartState {
     Exynos4210UartFIFO   rx;
     Exynos4210UartFIFO   tx;
 
-    CharDriverState  *chr;
+    CharBackend       chr;
     qemu_irq          irq;
 
     uint32_t channel;
@@ -346,7 +346,7 @@ static void exynos4210_uart_update_parameters(Exynos4210UartState *s)
     ssp.data_bits = data_bits;
     ssp.stop_bits = stop_bits;
 
-    qemu_chr_fe_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 
     PRINT_DEBUG("UART%d: speed: %d, parity: %c, data: %d, stop: %d\n",
                 s->channel, speed, parity, data_bits, stop_bits);
@@ -383,13 +383,13 @@ static void exynos4210_uart_write(void *opaque, hwaddr offset,
         break;
 
     case UTXH:
-        if (s->chr) {
+        if (qemu_chr_fe_get_driver(&s->chr)) {
             s->reg[I_(UTRSTAT)] &= ~(UTRSTAT_TRANSMITTER_EMPTY |
                     UTRSTAT_Tx_BUFFER_EMPTY);
             ch = (uint8_t)val;
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->chr, &ch, 1);
+            qemu_chr_fe_write_all(&s->chr, &ch, 1);
 #if DEBUG_Tx_DATA
             fprintf(stderr, "%c", ch);
 #endif
@@ -606,7 +606,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
         chr = serial_hds[channel];
         if (!chr) {
             snprintf(label, ARRAY_SIZE(label), "%s%d", chr_name, channel);
-            chr = qemu_chr_new(label, "null", NULL);
+            chr = qemu_chr_new(label, "null");
             if (!(chr)) {
                 error_report("Can't assign serial port to UART%d", channel);
                 exit(1);
@@ -640,8 +640,9 @@ static int exynos4210_uart_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    qemu_chr_add_handlers(s->chr, exynos4210_uart_can_receive,
-                          exynos4210_uart_receive, exynos4210_uart_event, s);
+    qemu_chr_fe_set_handlers(&s->chr, exynos4210_uart_can_receive,
+                             exynos4210_uart_receive, exynos4210_uart_event,
+                             s, NULL, true);
 
     return 0;
 }

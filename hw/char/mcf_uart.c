@@ -10,6 +10,7 @@
 #include "hw/m68k/mcf.h"
 #include "sysemu/char.h"
 #include "exec/address-spaces.h"
+#include "qapi/error.h"
 
 typedef struct {
     MemoryRegion iomem;
@@ -26,7 +27,7 @@ typedef struct {
     int tx_enabled;
     int rx_enabled;
     qemu_irq irq;
-    CharDriverState *chr;
+    CharBackend chr;
 } mcf_uart_state;
 
 /* UART Status Register bits.  */
@@ -92,7 +93,7 @@ uint64_t mcf_uart_read(void *opaque, hwaddr addr,
             if (s->fifo_len == 0)
                 s->sr &= ~MCF_UART_RxRDY;
             mcf_uart_update(s);
-            qemu_chr_accept_input(s->chr);
+            qemu_chr_fe_accept_input(&s->chr);
             return val;
         }
     case 0x10:
@@ -113,10 +114,9 @@ uint64_t mcf_uart_read(void *opaque, hwaddr addr,
 static void mcf_uart_do_tx(mcf_uart_state *s)
 {
     if (s->tx_enabled && (s->sr & MCF_UART_TxEMP) == 0) {
-        if (s->chr)
-            /* XXX this blocks entire thread. Rewrite to use
-             * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->chr, (unsigned char *)&s->tb, 1);
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
+        qemu_chr_fe_write_all(&s->chr, (unsigned char *)&s->tb, 1);
         s->sr |= MCF_UART_TxEMP;
     }
     if (s->tx_enabled) {
@@ -280,12 +280,12 @@ void *mcf_uart_init(qemu_irq irq, CharDriverState *chr)
     mcf_uart_state *s;
 
     s = g_malloc0(sizeof(mcf_uart_state));
-    s->chr = chr;
     s->irq = irq;
     if (chr) {
-        qemu_chr_fe_claim_no_fail(chr);
-        qemu_chr_add_handlers(chr, mcf_uart_can_receive, mcf_uart_receive,
-                              mcf_uart_event, s);
+        qemu_chr_fe_init(&s->chr, chr, &error_abort);
+        qemu_chr_fe_set_handlers(&s->chr, mcf_uart_can_receive,
+                                 mcf_uart_receive, mcf_uart_event,
+                                 s, NULL, true);
     }
     mcf_uart_reset(s);
     return s;

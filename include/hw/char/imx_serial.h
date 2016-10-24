@@ -19,6 +19,7 @@
 #define IMX_SERIAL_H
 
 #include "hw/sysbus.h"
+#include "sysemu/char.h"
 
 #define TYPE_IMX_SERIAL "imx.serial"
 #define IMX_SERIAL(obj) OBJECT_CHECK(IMXSerialState, (obj), TYPE_IMX_SERIAL)
@@ -96,7 +97,7 @@ typedef struct IMXSerialState {
     uint32_t ucr3;
 
     qemu_irq irq;
-    CharDriverState *chr;
+    CharBackend chr;
 } IMXSerialState;
 
 #endif

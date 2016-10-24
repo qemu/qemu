@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
+#include "qapi/error.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
 #include "qemu/sockets.h"
@@ -19,6 +20,7 @@
 #include "libqos/libqos.h"
 #include "libqos/pci-pc.h"
 #include "libqos/virtio-pci.h"
+#include "qapi/error.h"
 
 #include "libqos/pci-pc.h"
 #include "libqos/virtio-pci.h"
@@ -141,7 +143,7 @@ typedef struct TestServer {
     gchar *socket_path;
     gchar *mig_path;
     gchar *chr_name;
-    CharDriverState *chr;
+    CharBackend chr;
     int fds_num;
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     VhostUserMemory memory;
@@ -261,13 +263,13 @@ static int chr_can_read(void *opaque)
 static void chr_read(void *opaque, const uint8_t *buf, int size)
 {
     TestServer *s = opaque;
-    CharDriverState *chr = s->chr;
+    CharBackend *chr = &s->chr;
     VhostUserMsg msg;
     uint8_t *p = (uint8_t *) &msg;
     int fd;
 
     if (s->test_fail) {
-        qemu_chr_disconnect(chr);
+        qemu_chr_fe_disconnect(chr);
         /* now switch to non-failure */
         s->test_fail = false;
     }
@@ -312,7 +314,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
 	g_assert_cmpint(msg.payload.u64 & (0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES),
 			!=, 0ULL);
         if (s->test_flags == TEST_FLAGS_DISCONNECT) {
-            qemu_chr_disconnect(chr);
+            qemu_chr_fe_disconnect(chr);
             s->test_flags = TEST_FLAGS_BAD;
         }
         break;
@@ -344,7 +346,8 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     case VHOST_USER_SET_MEM_TABLE:
         /* received the mem table */
         memcpy(&s->memory, &msg.payload.memory, sizeof(msg.payload.memory));
-        s->fds_num = qemu_chr_fe_get_msgfds(chr, s->fds, G_N_ELEMENTS(s->fds));
+        s->fds_num = qemu_chr_fe_get_msgfds(chr, s->fds,
+                                            G_N_ELEMENTS(s->fds));
 
         /* signal the test that it can continue */
         g_cond_signal(&s->data_cond);
@@ -453,13 +456,15 @@ static void chr_event(void *opaque, int event)
 static void test_server_create_chr(TestServer *server, const gchar *opt)
 {
     gchar *chr_path;
+    CharDriverState *chr;
 
     chr_path = g_strdup_printf("unix:%s%s", server->socket_path, opt);
-    server->chr = qemu_chr_new(server->chr_name, chr_path, NULL);
+    chr = qemu_chr_new(server->chr_name, chr_path);
     g_free(chr_path);
 
-    qemu_chr_add_handlers(server->chr, chr_can_read, chr_read,
-                          chr_event, server);
+    qemu_chr_fe_init(&server->chr, chr, &error_abort);
+    qemu_chr_fe_set_handlers(&server->chr, chr_can_read, chr_read,
+                             chr_event, server, NULL, true);
 }
 
 static void test_server_listen(TestServer *server)
@@ -483,8 +488,10 @@ static inline void test_server_connect(TestServer *server)
 static gboolean _test_server_free(TestServer *server)
 {
     int i;
+    CharDriverState *chr = qemu_chr_fe_get_driver(&server->chr);
 
-    qemu_chr_delete(server->chr);
+    qemu_chr_fe_deinit(&server->chr);
+    qemu_chr_delete(chr);
 
     for (i = 0; i < server->fds_num; i++) {
         close(server->fds[i]);
@@ -721,7 +728,7 @@ reconnect_cb(gpointer user_data)
 {
     TestServer *s = user_data;
 
-    qemu_chr_disconnect(s->chr);
+    qemu_chr_fe_disconnect(&s->chr);
 
     return FALSE;
 }

@@ -133,7 +133,7 @@ static int msmouse_chr_write (struct CharDriverState *s, const uint8_t *buf, int
     return len;
 }
 
-static void msmouse_chr_close (struct CharDriverState *chr)
+static void msmouse_chr_free(struct CharDriverState *chr)
 {
     MouseState *mouse = chr->opaque;
 
@@ -151,6 +151,7 @@ static QemuInputHandler msmouse_handler = {
 static CharDriverState *qemu_chr_open_msmouse(const char *id,
                                               ChardevBackend *backend,
                                               ChardevReturn *ret,
+                                              bool *be_opened,
                                               Error **errp)
 {
     ChardevCommon *common = backend->u.msmouse.data;
@@ -162,9 +163,9 @@ static CharDriverState *qemu_chr_open_msmouse(const char *id,
         return NULL;
     }
     chr->chr_write = msmouse_chr_write;
-    chr->chr_close = msmouse_chr_close;
+    chr->chr_free = msmouse_chr_free;
     chr->chr_accept_input = msmouse_chr_accept_input;
-    chr->explicit_be_open = true;
+    *be_opened = false;
 
     mouse = g_new0(MouseState, 1);
     mouse->hs = qemu_input_handler_register((DeviceState *)mouse,

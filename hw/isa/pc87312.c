@@ -283,7 +283,7 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
         /* FIXME use a qdev chardev prop instead of parallel_hds[] */
         chr = parallel_hds[0];
         if (chr == NULL) {
-            chr = qemu_chr_new("par0", "null", NULL);
+            chr = qemu_chr_new("par0", "null");
         }
         isa = isa_create(bus, "isa-parallel");
         d = DEVICE(isa);
@@ -303,7 +303,7 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
             chr = serial_hds[i];
             if (chr == NULL) {
                 snprintf(name, sizeof(name), "ser%d", i);
-                chr = qemu_chr_new(name, "null", NULL);
+                chr = qemu_chr_new(name, "null");
             }
             isa = isa_create(bus, "isa-serial");
             d = DEVICE(isa);

@@ -44,7 +44,7 @@
 #include <getopt.h>
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION QEMU_PKGVERSION \
-                          ", " QEMU_COPYRIGHT "\n"
+                          "\n" QEMU_COPYRIGHT "\n"
 
 typedef struct img_cmd_t {
     const char *name;

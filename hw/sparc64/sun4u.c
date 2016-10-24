@@ -824,7 +824,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
         i++;
     }
 
-    serial_hds_isa_init(isa_bus, MAX_SERIAL_PORTS);
+    serial_hds_isa_init(isa_bus, i, MAX_SERIAL_PORTS);
     parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
     for(i = 0; i < nb_nics; i++)

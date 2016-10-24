@@ -40,6 +40,7 @@
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
+#include "qapi/error.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {
@@ -682,7 +683,7 @@ int net_slirp_smb(const char *exported_dir)
 #endif /* !defined(_WIN32) */
 
 struct GuestFwd {
-    CharDriverState *hd;
+    CharBackend hd;
     struct in_addr server;
     int port;
     Slirp *slirp;
@@ -746,15 +747,24 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
             return -1;
         }
     } else {
-        fwd = g_new(struct GuestFwd, 1);
-        fwd->hd = qemu_chr_new(buf, p, NULL);
-        if (!fwd->hd) {
+        Error *err = NULL;
+        CharDriverState *chr = qemu_chr_new(buf, p);
+
+        if (!chr) {
             error_report("could not open guest forwarding device '%s'", buf);
+            return -1;
+        }
+
+        fwd = g_new(struct GuestFwd, 1);
+        qemu_chr_fe_init(&fwd->hd, chr, &err);
+        if (err) {
+            error_report_err(err);
             g_free(fwd);
             return -1;
         }
 
-        if (slirp_add_exec(s->slirp, 3, fwd->hd, &server, port) < 0) {
+        if (slirp_add_exec(s->slirp, 3, qemu_chr_fe_get_driver(&fwd->hd),
+                           &server, port) < 0) {
             error_report("conflicting/invalid host:port in guest forwarding "
                          "rule '%s'", config_str);
             g_free(fwd);
@@ -764,9 +774,8 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
         fwd->port = port;
         fwd->slirp = s->slirp;
 
-        qemu_chr_fe_claim_no_fail(fwd->hd);
-        qemu_chr_add_handlers(fwd->hd, guestfwd_can_read, guestfwd_read,
-                              NULL, fwd);
+        qemu_chr_fe_set_handlers(&fwd->hd, guestfwd_can_read, guestfwd_read,
+                                 NULL, fwd, NULL, true);
     }
     return 0;
 

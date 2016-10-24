@@ -121,9 +121,7 @@ static uint64_t imx_serial_read(void *opaque, hwaddr offset,
             s->usr2 &= ~USR2_RDR;
             s->uts1 |= UTS1_RXEMPTY;
             imx_update(s);
-            if (s->chr) {
-                qemu_chr_accept_input(s->chr);
-            }
+            qemu_chr_fe_accept_input(&s->chr);
         }
         return c;
 
@@ -172,20 +170,19 @@ static void imx_serial_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
+    CharDriverState *chr = qemu_chr_fe_get_driver(&s->chr);
     unsigned char ch;
 
     DPRINTF("write(offset=0x%" HWADDR_PRIx ", value = 0x%x) to %s\n",
-            offset, (unsigned int)value, s->chr ? s->chr->label : "NODEV");
+            offset, (unsigned int)value, chr ? chr->label : "NODEV");
 
     switch (offset >> 2) {
     case 0x10: /* UTXD */
         ch = value;
         if (s->ucr2 & UCR2_TXEN) {
-            if (s->chr) {
-                /* XXX this blocks entire thread. Rewrite to use
-                 * qemu_chr_fe_write and background I/O callbacks */
-                qemu_chr_fe_write_all(s->chr, &ch, 1);
-            }
+            /* XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks */
+            qemu_chr_fe_write_all(&s->chr, &ch, 1);
             s->usr1 &= ~USR1_TRDY;
             imx_update(s);
             s->usr1 |= USR1_TRDY;
@@ -214,9 +211,7 @@ static void imx_serial_write(void *opaque, hwaddr offset,
         }
         if (value & UCR2_RXEN) {
             if (!(s->ucr2 & UCR2_RXEN)) {
-                if (s->chr) {
-                    qemu_chr_accept_input(s->chr);
-                }
+                qemu_chr_fe_accept_input(&s->chr);
             }
         }
         s->ucr2 = value & 0xffff;
@@ -318,12 +313,10 @@ static void imx_serial_realize(DeviceState *dev, Error **errp)
 {
     IMXSerialState *s = IMX_SERIAL(dev);
 
-    if (s->chr) {
-        qemu_chr_add_handlers(s->chr, imx_can_receive, imx_receive,
-                              imx_event, s);
-    } else {
-        DPRINTF("No char dev for uart\n");
-    }
+    DPRINTF("char dev for uart: %p\n", qemu_chr_fe_get_driver(&s->chr));
+
+    qemu_chr_fe_set_handlers(&s->chr, imx_can_receive, imx_receive,
+                             imx_event, s, NULL, true);
 }
 
 static void imx_serial_init(Object *obj)

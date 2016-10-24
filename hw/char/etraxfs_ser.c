@@ -53,7 +53,7 @@ typedef struct ETRAXSerial {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
-    CharDriverState *chr;
+    CharBackend chr;
     qemu_irq irq;
 
     int pending_tx;
@@ -128,7 +128,7 @@ ser_write(void *opaque, hwaddr addr,
         case RW_DOUT:
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
-            qemu_chr_fe_write_all(s->chr, &ch, 1);
+            qemu_chr_fe_write_all(&s->chr, &ch, 1);
             s->regs[R_INTR] |= 3;
             s->pending_tx = 1;
             s->regs[addr] = value;
@@ -231,11 +231,9 @@ static void etraxfs_ser_realize(DeviceState *dev, Error **errp)
 {
     ETRAXSerial *s = ETRAX_SERIAL(dev);
 
-    if (s->chr) {
-        qemu_chr_add_handlers(s->chr,
-                              serial_can_receive, serial_receive,
-                              serial_event, s);
-    }
+    qemu_chr_fe_set_handlers(&s->chr,
+                             serial_can_receive, serial_receive,
+                             serial_event, s, NULL, true);
 }
 
 static void etraxfs_ser_class_init(ObjectClass *klass, void *data)

@@ -15,7 +15,6 @@
 #include "sysemu/char.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
-#include "hw/qdev.h" /* just for DEFINE_PROP_CHR */
 
 #define TYPE_RNG_EGD "rng-egd"
 #define RNG_EGD(obj) OBJECT_CHECK(RngEgd, (obj), TYPE_RNG_EGD)
@@ -24,7 +23,7 @@ typedef struct RngEgd
 {
     RngBackend parent;
 
-    CharDriverState *chr;
+    CharBackend chr;
     char *chr_name;
 } RngEgd;
 
@@ -43,7 +42,7 @@ static void rng_egd_request_entropy(RngBackend *b, RngRequest *req)
 
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(s->chr, header, sizeof(header));
+        qemu_chr_fe_write_all(&s->chr, header, sizeof(header));
 
         size -= len;
     }
@@ -87,6 +86,7 @@ static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
 static void rng_egd_opened(RngBackend *b, Error **errp)
 {
     RngEgd *s = RNG_EGD(b);
+    CharDriverState *chr;
 
     if (s->chr_name == NULL) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
@@ -94,21 +94,19 @@ static void rng_egd_opened(RngBackend *b, Error **errp)
         return;
     }
 
-    s->chr = qemu_chr_find(s->chr_name);
-    if (s->chr == NULL) {
+    chr = qemu_chr_find(s->chr_name);
+    if (chr == NULL) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                   "Device '%s' not found", s->chr_name);
         return;
     }
-
-    if (qemu_chr_fe_claim(s->chr) != 0) {
-        error_setg(errp, QERR_DEVICE_IN_USE, s->chr_name);
+    if (!qemu_chr_fe_init(&s->chr, chr, errp)) {
         return;
     }
 
     /* FIXME we should resubmit pending requests when the CDS reconnects. */
-    qemu_chr_add_handlers(s->chr, rng_egd_chr_can_read, rng_egd_chr_read,
-                          NULL, s);
+    qemu_chr_fe_set_handlers(&s->chr, rng_egd_chr_can_read,
+                             rng_egd_chr_read, NULL, s, NULL, true);
 }
 
 static void rng_egd_set_chardev(Object *obj, const char *value, Error **errp)
@@ -127,9 +125,10 @@ static void rng_egd_set_chardev(Object *obj, const char *value, Error **errp)
 static char *rng_egd_get_chardev(Object *obj, Error **errp)
 {
     RngEgd *s = RNG_EGD(obj);
+    CharDriverState *chr = qemu_chr_fe_get_driver(&s->chr);
 
-    if (s->chr && s->chr->label) {
-        return g_strdup(s->chr->label);
+    if (chr && chr->label) {
+        return g_strdup(chr->label);
     }
 
     return NULL;
@@ -146,11 +145,7 @@ static void rng_egd_finalize(Object *obj)
 {
     RngEgd *s = RNG_EGD(obj);
 
-    if (s->chr) {
-        qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, NULL);
-        qemu_chr_fe_release(s->chr);
-    }
-
+    qemu_chr_fe_deinit(&s->chr);
     g_free(s->chr_name);
 }
 

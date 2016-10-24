@@ -607,6 +607,7 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
     XilinxSPIPS *s = XILINX_SPIPS(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     XilinxSPIPSClass *xsc = XILINX_SPIPS_GET_CLASS(s);
+    qemu_irq *cs;
     int i;
 
     DB_PRINT_L(0, "realized spips\n");
@@ -619,8 +620,10 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
     }
 
     s->cs_lines = g_new0(qemu_irq, s->num_cs * s->num_busses);
-    ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi[0]);
-    ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi[1]);
+    for (i = 0, cs = s->cs_lines; i < s->num_busses; ++i, cs += s->num_cs) {
+        ssi_auto_connect_slaves(DEVICE(s), cs, s->spi[i]);
+    }
+
     sysbus_init_irq(sbd, &s->irq);
     for (i = 0; i < s->num_cs * s->num_busses; ++i) {
         sysbus_init_irq(sbd, &s->cs_lines[i]);

@@ -186,7 +186,7 @@ typedef struct {
 } MonitorQAPIEventConf;
 
 struct Monitor {
-    CharDriverState *chr;
+    CharBackend chr;
     int reset_seen;
     int flags;
     int suspend_cnt;
@@ -297,7 +297,7 @@ static void monitor_flush_locked(Monitor *mon)
     len = qstring_get_length(mon->outbuf);
 
     if (len && !mon->mux_out) {
-        rc = qemu_chr_fe_write(mon->chr, (const uint8_t *) buf, len);
+        rc = qemu_chr_fe_write(&mon->chr, (const uint8_t *) buf, len);
         if ((rc < 0 && errno != EAGAIN) || (rc == len)) {
             /* all flushed or error */
             QDECREF(mon->outbuf);
@@ -311,8 +311,9 @@ static void monitor_flush_locked(Monitor *mon)
             mon->outbuf = tmp;
         }
         if (mon->out_watch == 0) {
-            mon->out_watch = qemu_chr_fe_add_watch(mon->chr, G_IO_OUT|G_IO_HUP,
-                                                   monitor_unblocked, mon);
+            mon->out_watch =
+                qemu_chr_fe_add_watch(&mon->chr, G_IO_OUT | G_IO_HUP,
+                                      monitor_unblocked, mon);
         }
     }
 }
@@ -581,9 +582,7 @@ static void monitor_data_init(Monitor *mon)
 
 static void monitor_data_destroy(Monitor *mon)
 {
-    if (mon->chr) {
-        qemu_chr_add_handlers(mon->chr, NULL, NULL, NULL, NULL);
-    }
+    qemu_chr_fe_deinit(&mon->chr);
     if (monitor_is_qmp(mon)) {
         json_message_parser_destroy(&mon->qmp.parser);
     }
@@ -1745,7 +1744,7 @@ void qmp_getfd(const char *fdname, Error **errp)
     mon_fd_t *monfd;
     int fd;
 
-    fd = qemu_chr_fe_get_msgfd(cur_mon->chr);
+    fd = qemu_chr_fe_get_msgfd(&cur_mon->chr);
     if (fd == -1) {
         error_setg(errp, QERR_FD_NOT_SUPPLIED);
         return;
@@ -1870,7 +1869,7 @@ AddfdInfo *qmp_add_fd(bool has_fdset_id, int64_t fdset_id, bool has_opaque,
     Monitor *mon = cur_mon;
     AddfdInfo *fdinfo;
 
-    fd = qemu_chr_fe_get_msgfd(mon->chr);
+    fd = qemu_chr_fe_get_msgfd(&mon->chr);
     if (fd == -1) {
         error_setg(errp, QERR_FD_NOT_SUPPLIED);
         goto error;
@@ -3977,7 +3976,7 @@ void monitor_init(CharDriverState *chr, int flags)
     mon = g_malloc(sizeof(*mon));
     monitor_data_init(mon);
 
-    mon->chr = chr;
+    qemu_chr_fe_init(&mon->chr, chr, &error_abort);
     mon->flags = flags;
     if (flags & MONITOR_USE_READLINE) {
         mon->rs = readline_init(monitor_readline_printf,
@@ -3988,13 +3987,13 @@ void monitor_init(CharDriverState *chr, int flags)
     }
 
     if (monitor_is_qmp(mon)) {
-        qemu_chr_add_handlers(chr, monitor_can_read, monitor_qmp_read,
-                              monitor_qmp_event, mon);
-        qemu_chr_fe_set_echo(chr, true);
+        qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_qmp_read,
+                                 monitor_qmp_event, mon, NULL, true);
+        qemu_chr_fe_set_echo(&mon->chr, true);
         json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
     } else {
-        qemu_chr_add_handlers(chr, monitor_can_read, monitor_read,
-                              monitor_event, mon);
+        qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_read,
+                                 monitor_event, mon, NULL, true);
     }
 
     qemu_mutex_lock(&monitor_lock);

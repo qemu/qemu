@@ -15,7 +15,8 @@ Macros defined by qemu/atomic.h fall in three camps:
 - compiler barriers: barrier();
 
 - weak atomic access and manual memory barriers: atomic_read(),
-  atomic_set(), smp_rmb(), smp_wmb(), smp_mb(), smp_read_barrier_depends();
+  atomic_set(), smp_rmb(), smp_wmb(), smp_mb(), smp_mb_acquire(),
+  smp_mb_release(), smp_read_barrier_depends();
 
 - sequentially consistent atomic access: everything else.
 
@@ -111,8 +112,8 @@ consistent primitives.
 
 When using this model, variables are accessed with atomic_read() and
 atomic_set(), and restrictions to the ordering of accesses is enforced
-using the smp_rmb(), smp_wmb(), smp_mb() and smp_read_barrier_depends()
-memory barriers.
+using the memory barrier macros: smp_rmb(), smp_wmb(), smp_mb(),
+smp_mb_acquire(), smp_mb_release(), smp_read_barrier_depends().
 
 atomic_read() and atomic_set() prevents the compiler from using
 optimizations that might otherwise optimize accesses out of existence
@@ -124,7 +125,7 @@ other threads, and which are local to the current thread or protected
 by other, more mundane means.
 
 Memory barriers control the order of references to shared memory.
-They come in four kinds:
+They come in six kinds:
 
 - smp_rmb() guarantees that all the LOAD operations specified before
   the barrier will appear to happen before all the LOAD operations
@@ -142,6 +143,16 @@ They come in four kinds:
   In other words, smp_wmb() puts a partial ordering on stores, but is not
   required to have any effect on loads.
 
+- smp_mb_acquire() guarantees that all the LOAD operations specified before
+  the barrier will appear to happen before all the LOAD or STORE operations
+  specified after the barrier with respect to the other components of
+  the system.
+
+- smp_mb_release() guarantees that all the STORE operations specified *after*
+  the barrier will appear to happen after all the LOAD or STORE operations
+  specified *before* the barrier with respect to the other components of
+  the system.
+
 - smp_mb() guarantees that all the LOAD and STORE operations specified
   before the barrier will appear to happen before all the LOAD and
   STORE operations specified after the barrier with respect to the other
@@ -149,8 +160,9 @@ They come in four kinds:
 
   smp_mb() puts a partial ordering on both loads and stores.  It is
   stronger than both a read and a write memory barrier; it implies both
-  smp_rmb() and smp_wmb(), but it also prevents STOREs coming before the
-  barrier from overtaking LOADs coming after the barrier and vice versa.
+  smp_mb_acquire() and smp_mb_release(), but it also prevents STOREs
+  coming before the barrier from overtaking LOADs coming after the
+  barrier and vice versa.
 
 - smp_read_barrier_depends() is a weaker kind of read barrier.  On
   most processors, whenever two loads are performed such that the
@@ -173,24 +185,21 @@ They come in four kinds:
 This is the set of barriers that is required *between* two atomic_read()
 and atomic_set() operations to achieve sequential consistency:
 
-                    |               2nd operation             |
-                    |-----------------------------------------|
-     1st operation  | (after last) | atomic_read | atomic_set |
-     ---------------+--------------+-------------+------------|
-     (before first) |              | none        | smp_wmb()  |
-     ---------------+--------------+-------------+------------|
-     atomic_read    | smp_rmb()    | smp_rmb()*  | **         |
-     ---------------+--------------+-------------+------------|
-     atomic_set     | none         | smp_mb()*** | smp_wmb()  |
-     ---------------+--------------+-------------+------------|
+                    |               2nd operation                   |
+                    |-----------------------------------------------|
+     1st operation  | (after last)   | atomic_read | atomic_set     |
+     ---------------+----------------+-------------+----------------|
+     (before first) |                | none        | smp_mb_release |
+     ---------------+----------------+-------------+----------------|
+     atomic_read    | smp_mb_acquire | smp_rmb     | **             |
+     ---------------+----------------+-------------+----------------|
+     atomic_set     | none           | smp_mb()*** | smp_wmb()      |
+     ---------------+----------------+-------------+----------------|
 
        * Or smp_read_barrier_depends().
 
-      ** This requires a load-store barrier.  How to achieve this varies
-         depending on the machine, but in practice smp_rmb()+smp_wmb()
-         should have the desired effect.  For example, on PowerPC the
-         lwsync instruction is a combined load-load, load-store and
-         store-store barrier.
+      ** This requires a load-store barrier.  This is achieved by
+         either smp_mb_acquire() or smp_mb_release().
 
      *** This requires a store-load barrier.  On most machines, the only
          way to achieve this is a full barrier.
@@ -199,11 +208,11 @@ and atomic_set() operations to achieve sequential consistency:
 You can see that the two possible definitions of atomic_mb_read()
 and atomic_mb_set() are the following:
 
-    1) atomic_mb_read(p)   = atomic_read(p); smp_rmb()
-       atomic_mb_set(p, v) = smp_wmb(); atomic_set(p, v); smp_mb()
+    1) atomic_mb_read(p)   = atomic_read(p); smp_mb_acquire()
+       atomic_mb_set(p, v) = smp_mb_release(); atomic_set(p, v); smp_mb()
 
-    2) atomic_mb_read(p)   = smp_mb() atomic_read(p); smp_rmb()
-       atomic_mb_set(p, v) = smp_wmb(); atomic_set(p, v);
+    2) atomic_mb_read(p)   = smp_mb() atomic_read(p); smp_mb_acquire()
+       atomic_mb_set(p, v) = smp_mb_release(); atomic_set(p, v);
 
 Usually the former is used, because smp_mb() is expensive and a program
 normally has more reads than writes.  Therefore it makes more sense to
@@ -222,7 +231,7 @@ place barriers instead:
      thread 1                                thread 1
      -------------------------               ------------------------
      (other writes)
-                                             smp_wmb()
+                                             smp_mb_release()
      atomic_mb_set(&a, x)                    atomic_set(&a, x)
                                              smp_wmb()
      atomic_mb_set(&b, y)                    atomic_set(&b, y)
@@ -233,7 +242,13 @@ place barriers instead:
      y = atomic_mb_read(&b)                  y = atomic_read(&b)
                                              smp_rmb()
      x = atomic_mb_read(&a)                  x = atomic_read(&a)
-                                             smp_rmb()
+                                             smp_mb_acquire()
+
+  Note that the barrier between the stores in thread 1, and between
+  the loads in thread 2, has been optimized here to a write or a
+  read memory barrier respectively.  On some architectures, notably
+  ARMv7, smp_mb_acquire and smp_mb_release are just as expensive as
+  smp_mb, but smp_rmb and/or smp_wmb are more efficient.
 
 - sometimes, a thread is accessing many variables that are otherwise
   unrelated to each other (for example because, apart from the current
@@ -246,12 +261,12 @@ place barriers instead:
      n = 0;                                  n = 0;
      for (i = 0; i < 10; i++)          =>    for (i = 0; i < 10; i++)
        n += atomic_mb_read(&a[i]);             n += atomic_read(&a[i]);
-                                             smp_rmb();
+                                             smp_mb_acquire();
 
   Similarly, atomic_mb_set() can be transformed as follows:
   smp_mb():
 
-                                             smp_wmb();
+                                             smp_mb_release();
      for (i = 0; i < 10; i++)          =>    for (i = 0; i < 10; i++)
        atomic_mb_set(&a[i], false);            atomic_set(&a[i], false);
                                              smp_mb();
@@ -261,7 +276,7 @@ The two tricks can be combined.  In this case, splitting a loop in
 two lets you hoist the barriers out of the loops _and_ eliminate the
 expensive smp_mb():
 
-                                             smp_wmb();
+                                             smp_mb_release();
      for (i = 0; i < 10; i++) {        =>    for (i = 0; i < 10; i++)
        atomic_mb_set(&a[i], false);            atomic_set(&a[i], false);
        atomic_mb_set(&b[i], false);          smb_wmb();
@@ -312,8 +327,8 @@ access and for data dependency barriers:
                              smp_read_barrier_depends();
                              z = b[y];
 
-smp_wmb() also pairs with atomic_mb_read(), and smp_rmb() also pairs
-with atomic_mb_set().
+smp_wmb() also pairs with atomic_mb_read() and smp_mb_acquire().
+and smp_rmb() also pairs with atomic_mb_set() and smp_mb_release().
 
 
 COMPARISON WITH LINUX KERNEL MEMORY BARRIERS
@@ -359,8 +374,9 @@ and memory barriers, and the equivalents in QEMU:
   note that smp_store_mb() is a little weaker than atomic_mb_set().
   atomic_mb_read() compiles to the same instructions as Linux's
   smp_load_acquire(), but this should be treated as an implementation
-  detail.  If required, QEMU might later add atomic_load_acquire() and
-  atomic_store_release() macros.
+  detail.  QEMU does have atomic_load_acquire() and atomic_store_release()
+  macros, but for now they are only used within atomic.h.  This may
+  change in the future.
 
 
 SOURCES

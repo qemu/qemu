@@ -116,7 +116,7 @@ static bool ioeventfd_enabled(void)
 
 static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 {
-    CharDriverState *chr = dev->opaque;
+    CharBackend *chr = dev->opaque;
     uint8_t *p = (uint8_t *) msg;
     int r, size = VHOST_USER_HDR_SIZE;
 
@@ -196,7 +196,7 @@ static bool vhost_user_one_time_request(VhostUserRequest request)
 static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
                             int *fds, int fd_num)
 {
-    CharDriverState *chr = dev->opaque;
+    CharBackend *chr = dev->opaque;
     int ret, size = VHOST_USER_HDR_SIZE + msg->size;
 
     /*

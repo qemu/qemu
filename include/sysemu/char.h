@@ -13,12 +13,13 @@
 
 /* character device */
 
-#define CHR_EVENT_BREAK   0 /* serial break char */
-#define CHR_EVENT_FOCUS   1 /* focus to this terminal (modal input needed) */
-#define CHR_EVENT_OPENED  2 /* new connection established */
-#define CHR_EVENT_MUX_IN  3 /* mux-focus was set to this terminal */
-#define CHR_EVENT_MUX_OUT 4 /* mux-focus will move on */
-#define CHR_EVENT_CLOSED  5 /* connection closed */
+typedef enum {
+    CHR_EVENT_BREAK, /* serial break char */
+    CHR_EVENT_OPENED, /* new connection established */
+    CHR_EVENT_MUX_IN, /* mux-focus was set to this terminal */
+    CHR_EVENT_MUX_OUT, /* mux-focus will move on */
+    CHR_EVENT_CLOSED /* connection closed */
+} QEMUChrEvent;
 
 
 #define CHR_IOCTL_SERIAL_SET_PARAMS   1
@@ -72,10 +73,20 @@ typedef enum {
     QEMU_CHAR_FEATURE_LAST,
 } CharDriverFeature;
 
+/* This is the backend as seen by frontend, the actual backend is
+ * CharDriverState */
+typedef struct CharBackend {
+    CharDriverState *chr;
+    IOEventHandler *chr_event;
+    IOCanReadHandler *chr_can_read;
+    IOReadHandler *chr_read;
+    void *opaque;
+    int tag;
+    int fe_open;
+} CharBackend;
 
 struct CharDriverState {
     QemuMutex chr_write_lock;
-    void (*init)(struct CharDriverState *s);
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
     int (*chr_sync_read)(struct CharDriverState *s,
                          const uint8_t *buf, int len);
@@ -87,25 +98,17 @@ struct CharDriverState {
     int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
     int (*chr_add_client)(struct CharDriverState *chr, int fd);
     int (*chr_wait_connected)(struct CharDriverState *chr, Error **errp);
-    IOEventHandler *chr_event;
-    IOCanReadHandler *chr_can_read;
-    IOReadHandler *chr_read;
-    void *handler_opaque;
-    void (*chr_close)(struct CharDriverState *chr);
+    void (*chr_free)(struct CharDriverState *chr);
     void (*chr_disconnect)(struct CharDriverState *chr);
     void (*chr_accept_input)(struct CharDriverState *chr);
     void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
     void (*chr_set_fe_open)(struct CharDriverState *chr, int fe_open);
-    void (*chr_fe_event)(struct CharDriverState *chr, int event);
+    CharBackend *be;
     void *opaque;
     char *label;
     char *filename;
     int logfd;
     int be_open;
-    int fe_open;
-    int explicit_fe_open;
-    int explicit_be_open;
-    int avail_connections;
     int is_mux;
     guint fd_in_tag;
     bool replay;
@@ -130,13 +133,11 @@ CharDriverState *qemu_chr_alloc(ChardevCommon *backend, Error **errp);
  * Create a new character backend from a QemuOpts list.
  *
  * @opts see qemu-config.c for a list of valid options
- * @init not sure..
  *
  * Returns: a new character backend
  */
 CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
-                                    void (*init)(struct CharDriverState *s),
-                                    Error **errp);
+                                        Error **errp);
 
 /**
  * @qemu_chr_parse_common:
@@ -155,18 +156,19 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend);
  *
  * @label the name of the backend
  * @filename the URI
- * @init not sure..
  *
  * Returns: a new character backend
  */
-CharDriverState *qemu_chr_new(const char *label, const char *filename,
-                              void (*init)(struct CharDriverState *s));
+CharDriverState *qemu_chr_new(const char *label, const char *filename);
+
+
 /**
- * @qemu_chr_disconnect:
+ * @qemu_chr_fe_disconnect:
  *
  * Close a fd accpeted by character backend.
+ * Without associated CharDriver, do nothing.
  */
-void qemu_chr_disconnect(CharDriverState *chr);
+void qemu_chr_fe_disconnect(CharBackend *be);
 
 /**
  * @qemu_chr_cleanup:
@@ -176,11 +178,12 @@ void qemu_chr_disconnect(CharDriverState *chr);
 void qemu_chr_cleanup(void);
 
 /**
- * @qemu_chr_wait_connected:
+ * @qemu_chr_fe_wait_connected:
  *
- * Wait for characted backend to be connected.
+ * Wait for characted backend to be connected, return < 0 on error or
+ * if no assicated CharDriver.
  */
-int qemu_chr_wait_connected(CharDriverState *chr, Error **errp);
+int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp);
 
 /**
  * @qemu_chr_new_noreplay:
@@ -191,12 +194,10 @@ int qemu_chr_wait_connected(CharDriverState *chr, Error **errp);
  *
  * @label the name of the backend
  * @filename the URI
- * @init not sure..
  *
  * Returns: a new character backend
  */
-CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename,
-                                       void (*init)(struct CharDriverState *s));
+CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename);
 
 /**
  * @qemu_chr_delete:
@@ -219,37 +220,31 @@ void qemu_chr_free(CharDriverState *chr);
  * Ask the backend to override its normal echo setting.  This only really
  * applies to the stdio backend and is used by the QMP server such that you
  * can see what you type if you try to type QMP commands.
+ * Without associated CharDriver, do nothing.
  *
  * @echo true to enable echo, false to disable echo
  */
-void qemu_chr_fe_set_echo(struct CharDriverState *chr, bool echo);
+void qemu_chr_fe_set_echo(CharBackend *be, bool echo);
 
 /**
  * @qemu_chr_fe_set_open:
  *
  * Set character frontend open status.  This is an indication that the
  * front end is ready (or not) to begin doing I/O.
+ * Without associated CharDriver, do nothing.
  */
-void qemu_chr_fe_set_open(struct CharDriverState *chr, int fe_open);
-
-/**
- * @qemu_chr_fe_event:
- *
- * Send an event from the front end to the back end.
- *
- * @event the event to send
- */
-void qemu_chr_fe_event(CharDriverState *s, int event);
+void qemu_chr_fe_set_open(CharBackend *be, int fe_open);
 
 /**
  * @qemu_chr_fe_printf:
  *
- * Write to a character backend using a printf style interface.
- * This function is thread-safe.
+ * Write to a character backend using a printf style interface.  This
+ * function is thread-safe. It does nothing without associated
+ * CharDriver.
  *
  * @fmt see #printf
  */
-void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
+void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
 /**
@@ -258,13 +253,13 @@ void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
  * If the backend is connected, create and add a #GSource that fires
  * when the given condition (typically G_IO_OUT|G_IO_HUP or G_IO_HUP)
  * is active; return the #GSource's tag.  If it is disconnected,
- * return 0.
+ * or without associated CharDriver, return 0.
  *
  * @cond the condition to poll for
  * @func the function to call when the condition happens
  * @user_data the opaque pointer to pass to @func
  */
-guint qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
+guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
                             GIOFunc func, void *user_data);
 
 /**
@@ -277,9 +272,9 @@ guint qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
  * @buf the data
  * @len the number of bytes to send
  *
- * Returns: the number of bytes consumed
+ * Returns: the number of bytes consumed (0 if no assicated CharDriver)
  */
-int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
+int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
 
 /**
  * @qemu_chr_fe_write_all:
@@ -292,9 +287,9 @@ int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
  * @buf the data
  * @len the number of bytes to send
  *
- * Returns: the number of bytes consumed
+ * Returns: the number of bytes consumed (0 if no assicated CharDriver)
  */
-int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len);
+int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
 
 /**
  * @qemu_chr_fe_read_all:
@@ -304,9 +299,9 @@ int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len);
  * @buf the data buffer
  * @len the number of bytes to read
  *
- * Returns: the number of bytes read
+ * Returns: the number of bytes read (0 if no assicated CharDriver)
  */
-int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len);
+int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len);
 
 /**
  * @qemu_chr_fe_ioctl:
@@ -316,10 +311,11 @@ int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len);
  * @cmd see CHR_IOCTL_*
  * @arg the data associated with @cmd
  *
- * Returns: if @cmd is not supported by the backend, -ENOTSUP, otherwise the
- *          return value depends on the semantics of @cmd
+ * Returns: if @cmd is not supported by the backend or there is no
+ *          associated CharDriver, -ENOTSUP, otherwise the return
+ *          value depends on the semantics of @cmd
  */
-int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg);
+int qemu_chr_fe_ioctl(CharBackend *be, int cmd, void *arg);
 
 /**
  * @qemu_chr_fe_get_msgfd:
@@ -332,7 +328,7 @@ int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg);
  *          this function will return -1 until a client sends a new file
  *          descriptor.
  */
-int qemu_chr_fe_get_msgfd(CharDriverState *s);
+int qemu_chr_fe_get_msgfd(CharBackend *be);
 
 /**
  * @qemu_chr_fe_get_msgfds:
@@ -345,7 +341,7 @@ int qemu_chr_fe_get_msgfd(CharDriverState *s);
  *          this function will return -1 until a client sends a new set of file
  *          descriptors.
  */
-int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int num);
+int qemu_chr_fe_get_msgfds(CharBackend *be, int *fds, int num);
 
 /**
  * @qemu_chr_fe_set_msgfds:
@@ -356,38 +352,9 @@ int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int num);
  * result in overwriting the fd array with the new value without being send.
  * Upon writing the message the fd array is freed.
  *
- * Returns: -1 if fd passing isn't supported.
+ * Returns: -1 if fd passing isn't supported or no associated CharDriver.
  */
-int qemu_chr_fe_set_msgfds(CharDriverState *s, int *fds, int num);
-
-/**
- * @qemu_chr_fe_claim:
- *
- * Claim a backend before using it, should be called before calling
- * qemu_chr_add_handlers(). 
- *
- * Returns: -1 if the backend is already in use by another frontend, 0 on
- *          success.
- */
-int qemu_chr_fe_claim(CharDriverState *s);
-
-/**
- * @qemu_chr_fe_claim_no_fail:
- *
- * Like qemu_chr_fe_claim, but will exit qemu with an error when the
- * backend is already in use.
- */
-void qemu_chr_fe_claim_no_fail(CharDriverState *s);
-
-/**
- * @qemu_chr_fe_claim:
- *
- * Release a backend for use by another frontend.
- *
- * Returns: -1 if the backend is already in use by another frontend, 0 on
- *          success.
- */
-void qemu_chr_fe_release(CharDriverState *s);
+int qemu_chr_fe_set_msgfds(CharBackend *be, int *fds, int num);
 
 /**
  * @qemu_chr_be_can_write:
@@ -432,22 +399,70 @@ void qemu_chr_be_write_impl(CharDriverState *s, uint8_t *buf, int len);
  */
 void qemu_chr_be_event(CharDriverState *s, int event);
 
-void qemu_chr_add_handlers(CharDriverState *s,
-                           IOCanReadHandler *fd_can_read,
-                           IOReadHandler *fd_read,
-                           IOEventHandler *fd_event,
-                           void *opaque);
+/**
+ * @qemu_chr_fe_init:
+ *
+ * Initializes a front end for the given CharBackend and
+ * CharDriver. Call qemu_chr_fe_deinit() to remove the association and
+ * release the driver.
+ *
+ * Returns: false on error.
+ */
+bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp);
 
-/* This API can make handler run in the context what you pass to. */
-void qemu_chr_add_handlers_full(CharDriverState *s,
-                                IOCanReadHandler *fd_can_read,
-                                IOReadHandler *fd_read,
-                                IOEventHandler *fd_event,
-                                void *opaque,
-                                GMainContext *context);
+/**
+ * @qemu_chr_fe_get_driver:
+ *
+ * Returns the driver associated with a CharBackend or NULL if no
+ * associated CharDriver.
+ */
+CharDriverState *qemu_chr_fe_get_driver(CharBackend *be);
+
+/**
+ * @qemu_chr_fe_deinit:
+ *
+ * Dissociate the CharBackend from the CharDriver.
+ *
+ * Safe to call without associated CharDriver.
+ */
+void qemu_chr_fe_deinit(CharBackend *b);
+
+/**
+ * @qemu_chr_fe_set_handlers:
+ * @b: a CharBackend
+ * @fd_can_read: callback to get the amount of data the frontend may
+ *               receive
+ * @fd_read: callback to receive data from char
+ * @fd_event: event callback
+ * @opaque: an opaque pointer for the callbacks
+ * @context: a main loop context or NULL for the default
+ * @set_open: whether to call qemu_chr_fe_set_open() implicitely when
+ * any of the handler is non-NULL
+ *
+ * Set the front end char handlers. The front end takes the focus if
+ * any of the handler is non-NULL.
+ *
+ * Without associated CharDriver, nothing is changed.
+ */
+void qemu_chr_fe_set_handlers(CharBackend *b,
+                              IOCanReadHandler *fd_can_read,
+                              IOReadHandler *fd_read,
+                              IOEventHandler *fd_event,
+                              void *opaque,
+                              GMainContext *context,
+                              bool set_open);
+
+/**
+ * @qemu_chr_fe_take_focus:
+ *
+ * Take the focus (if the front end is muxed).
+ *
+ * Without associated CharDriver, nothing is changed.
+ */
+void qemu_chr_fe_take_focus(CharBackend *b);
 
 void qemu_chr_be_generic_open(CharDriverState *s);
-void qemu_chr_accept_input(CharDriverState *s);
+void qemu_chr_fe_accept_input(CharBackend *be);
 int qemu_chr_add_client(CharDriverState *s, int fd);
 CharDriverState *qemu_chr_find(const char *name);
 bool chr_is_ringbuf(const CharDriverState *chr);
@@ -458,10 +473,15 @@ void qemu_chr_set_feature(CharDriverState *chr,
                           CharDriverFeature feature);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
+typedef void CharDriverParse(QemuOpts *opts, ChardevBackend *backend,
+                             Error **errp);
+typedef CharDriverState *CharDriverCreate(const char *id,
+                                          ChardevBackend *backend,
+                                          ChardevReturn *ret, bool *be_opened,
+                                          Error **errp);
+
 void register_char_driver(const char *name, ChardevBackendKind kind,
-        void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp),
-        CharDriverState *(*create)(const char *id, ChardevBackend *backend,
-                                   ChardevReturn *ret, Error **errp));
+                          CharDriverParse *parse, CharDriverCreate *create);
 
 extern int term_escape_char;
 

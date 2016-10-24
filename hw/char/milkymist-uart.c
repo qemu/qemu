@@ -61,7 +61,7 @@ struct MilkymistUartState {
     SysBusDevice parent_obj;
 
     MemoryRegion regs_region;
-    CharDriverState *chr;
+    CharBackend chr;
     qemu_irq irq;
 
     uint32_t regs[R_MAX];
@@ -124,9 +124,7 @@ static void uart_write(void *opaque, hwaddr addr, uint64_t value,
     addr >>= 2;
     switch (addr) {
     case R_RXTX:
-        if (s->chr) {
-            qemu_chr_fe_write_all(s->chr, &ch, 1);
-        }
+        qemu_chr_fe_write_all(&s->chr, &ch, 1);
         s->regs[R_STAT] |= STAT_TX_EVT;
         break;
     case R_DIV:
@@ -138,7 +136,7 @@ static void uart_write(void *opaque, hwaddr addr, uint64_t value,
     case R_STAT:
         /* write one to clear bits */
         s->regs[addr] &= ~(value & (STAT_RX_EVT | STAT_TX_EVT));
-        qemu_chr_accept_input(s->chr);
+        qemu_chr_fe_accept_input(&s->chr);
         break;
 
     default:
@@ -200,9 +198,8 @@ static void milkymist_uart_realize(DeviceState *dev, Error **errp)
 {
     MilkymistUartState *s = MILKYMIST_UART(dev);
 
-    if (s->chr) {
-        qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
-    }
+    qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
+                             uart_event, s, NULL, true);
 }
 
 static void milkymist_uart_init(Object *obj)

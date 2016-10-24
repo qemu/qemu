@@ -22,7 +22,7 @@ typedef struct {
     /*< public >*/
 
     MemoryRegion iomem;
-    CharDriverState *chr;
+    CharBackend chr;
     qemu_irq irq;
 
     uint8_t read_fifo[BCM2835_AUX_RX_FIFO_LEN];

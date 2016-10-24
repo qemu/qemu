@@ -62,7 +62,7 @@
 typedef struct IPMIBmcExtern {
     IPMIBmc parent;
 
-    CharDriverState *chr;
+    CharBackend chr;
 
     bool connected;
 
@@ -105,7 +105,7 @@ static void continue_send(IPMIBmcExtern *ibe)
         goto check_reset;
     }
  send:
-    ret = qemu_chr_fe_write(ibe->chr, ibe->outbuf + ibe->outpos,
+    ret = qemu_chr_fe_write(&ibe->chr, ibe->outbuf + ibe->outpos,
                             ibe->outlen - ibe->outpos);
     if (ret > 0) {
         ibe->outpos += ret;
@@ -442,12 +442,13 @@ static void ipmi_bmc_extern_realize(DeviceState *dev, Error **errp)
 {
     IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(dev);
 
-    if (!ibe->chr) {
+    if (!qemu_chr_fe_get_driver(&ibe->chr)) {
         error_setg(errp, "IPMI external bmc requires chardev attribute");
         return;
     }
 
-    qemu_chr_add_handlers(ibe->chr, can_receive, receive, chr_event, ibe);
+    qemu_chr_fe_set_handlers(&ibe->chr, can_receive, receive,
+                             chr_event, ibe, NULL, true);
 }
 
 static int ipmi_bmc_extern_post_migrate(void *opaque, int version_id)

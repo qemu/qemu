@@ -11,7 +11,7 @@
 
 typedef struct VIOsPAPRVTYDevice {
     VIOsPAPRDevice sdev;
-    CharDriverState *chardev;
+    CharBackend chardev;
     uint32_t in, out;
     uint8_t buf[VTERM_BUFSIZE];
 } VIOsPAPRVTYDevice;
@@ -51,7 +51,7 @@ static int vty_getchars(VIOsPAPRDevice *sdev, uint8_t *buf, int max)
         buf[n++] = dev->buf[dev->out++ % VTERM_BUFSIZE];
     }
 
-    qemu_chr_accept_input(dev->chardev);
+    qemu_chr_fe_accept_input(&dev->chardev);
 
     return n;
 }
@@ -62,20 +62,20 @@ void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len)
 
     /* XXX this blocks entire thread. Rewrite to use
      * qemu_chr_fe_write and background I/O callbacks */
-    qemu_chr_fe_write_all(dev->chardev, buf, len);
+    qemu_chr_fe_write_all(&dev->chardev, buf, len);
 }
 
 static void spapr_vty_realize(VIOsPAPRDevice *sdev, Error **errp)
 {
     VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(sdev);
 
-    if (!dev->chardev) {
+    if (!qemu_chr_fe_get_driver(&dev->chardev)) {
         error_setg(errp, "chardev property not set");
         return;
     }
 
-    qemu_chr_add_handlers(dev->chardev, vty_can_receive,
-                          vty_receive, NULL, dev);
+    qemu_chr_fe_set_handlers(&dev->chardev, vty_can_receive,
+                             vty_receive, NULL, dev, NULL, true);
 }
 
 /* Forward declaration */

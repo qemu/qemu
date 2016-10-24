@@ -31,7 +31,7 @@ typedef struct ASCIIConsoleData {
 
 typedef struct SCLPConsole {
     SCLPEvent event;
-    CharDriverState *chr;
+    CharBackend chr;
     uint8_t iov[SIZE_BUFFER_VT220];
     uint32_t iov_sclp;      /* offset in buf for SCLP read operation       */
     uint32_t iov_bs;        /* offset in buf for char layer read operation */
@@ -163,14 +163,14 @@ static ssize_t write_console_data(SCLPEvent *event, const uint8_t *buf,
 {
     SCLPConsole *scon = SCLP_CONSOLE(event);
 
-    if (!scon->chr) {
+    if (!qemu_chr_fe_get_driver(&scon->chr)) {
         /* If there's no backend, we can just say we consumed all data. */
         return len;
     }
 
     /* XXX this blocks entire thread. Rewrite to use
      * qemu_chr_fe_write and background I/O callbacks */
-    return qemu_chr_fe_write_all(scon->chr, buf, len);
+    return qemu_chr_fe_write_all(&scon->chr, buf, len);
 }
 
 static int write_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr)
@@ -227,10 +227,8 @@ static int console_init(SCLPEvent *event)
         return -1;
     }
     console_available = true;
-    if (scon->chr) {
-        qemu_chr_add_handlers(scon->chr, chr_can_read,
-                              chr_read, NULL, scon);
-    }
+    qemu_chr_fe_set_handlers(&scon->chr, chr_can_read,
+                             chr_read, NULL, scon, NULL, true);
 
     return 0;
 }

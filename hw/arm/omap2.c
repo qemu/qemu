@@ -621,7 +621,7 @@ struct omap_sti_s {
     qemu_irq irq;
     MemoryRegion iomem;
     MemoryRegion iomem_fifo;
-    CharDriverState *chr;
+    CharBackend chr;
 
     uint32_t sysconfig;
     uint32_t systest;
@@ -771,14 +771,15 @@ static void omap_sti_fifo_write(void *opaque, hwaddr addr,
         /* Flush channel <i>value</i>.  */
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(s->chr, (const uint8_t *) "\r", 1);
+        qemu_chr_fe_write_all(&s->chr, (const uint8_t *) "\r", 1);
     } else if (ch == STI_TRACE_CONSOLE_CHANNEL || 1) {
         if (value == 0xc0 || value == 0xc3) {
             /* Open channel <i>ch</i>.  */
-        } else if (value == 0x00)
-            qemu_chr_fe_write_all(s->chr, (const uint8_t *) "\n", 1);
-        else
-            qemu_chr_fe_write_all(s->chr, &byte, 1);
+        } else if (value == 0x00) {
+            qemu_chr_fe_write_all(&s->chr, (const uint8_t *) "\n", 1);
+        } else {
+            qemu_chr_fe_write_all(&s->chr, &byte, 1);
+        }
     }
 }
 
@@ -798,7 +799,8 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
     s->irq = irq;
     omap_sti_reset(s);
 
-    s->chr = chr ?: qemu_chr_new("null", "null", NULL);
+    qemu_chr_fe_init(&s->chr, chr ?: qemu_chr_new("null", "null"),
+                     &error_abort);
 
     memory_region_init_io(&s->iomem, NULL, &omap_sti_ops, s, "omap.sti",
                           omap_l4_region_size(ta, 0));
