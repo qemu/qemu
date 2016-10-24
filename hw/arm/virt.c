@@ -1499,6 +1499,8 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
     mc->pci_allow_0_address = true;
+    /* We know we will never create a pre-ARMv7 CPU which needs 1K pages */
+    mc->minimum_page_bits = 12;
 }
 
 static const TypeInfo virt_machine_info = {
@@ -1570,6 +1572,8 @@ static void virt_machine_2_7_options(MachineClass *mc)
     SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_7);
     /* ITS was introduced with 2.8 */
     vmc->no_its = true;
+    /* Stick with 1K pages for migration compatibility */
+    mc->minimum_page_bits = 0;
 }
 DEFINE_VIRT_MACHINE(2, 7)
 
