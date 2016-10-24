@@ -35,6 +35,10 @@
  */
 #define PTIMER_POLICY_DEFAULT               0
 
+/* Periodic timer counter stays with "0" for a one period before wrapping
+ * around.  */
+#define PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD (1 << 0)
+
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;
 typedef void (*ptimer_cb)(void *opaque);
