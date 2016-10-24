@@ -1105,6 +1105,21 @@ void tcg_optimize(TCGContext *s)
                 tcg_opt_gen_mov(s, op, args, args[0], args[4-tmp]);
                 break;
             }
+            if (temp_is_const(args[3]) && temp_is_const(args[4])) {
+                tcg_target_ulong tv = temps[args[3]].val;
+                tcg_target_ulong fv = temps[args[4]].val;
+                TCGCond cond = args[5];
+                if (fv == 1 && tv == 0) {
+                    cond = tcg_invert_cond(cond);
+                } else if (!(tv == 1 && fv == 0)) {
+                    goto do_default;
+                }
+                args[3] = cond;
+                op->opc = opc = (opc == INDEX_op_movcond_i32
+                                 ? INDEX_op_setcond_i32
+                                 : INDEX_op_setcond_i64);
+                nb_iargs = 2;
+            }
             goto do_default;
 
         case INDEX_op_add2_i32:
