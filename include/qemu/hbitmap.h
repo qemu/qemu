@@ -146,6 +146,85 @@ void hbitmap_reset_all(HBitmap *hb);
 bool hbitmap_get(const HBitmap *hb, uint64_t item);
 
 /**
+ * hbitmap_serialization_granularity:
+ * @hb: HBitmap to operate on.
+ *
+ * Granularity of serialization chunks, used by other serialization functions.
+ * For every chunk:
+ * 1. Chunk start should be aligned to this granularity.
+ * 2. Chunk size should be aligned too, except for last chunk (for which
+ *      start + count == hb->size)
+ */
+uint64_t hbitmap_serialization_granularity(const HBitmap *hb);
+
+/**
+ * hbitmap_serialization_size:
+ * @hb: HBitmap to operate on.
+ * @start: Starting bit
+ * @count: Number of bits
+ *
+ * Return number of bytes hbitmap_(de)serialize_part needs
+ */
+uint64_t hbitmap_serialization_size(const HBitmap *hb,
+                                    uint64_t start, uint64_t count);
+
+/**
+ * hbitmap_serialize_part
+ * @hb: HBitmap to operate on.
+ * @buf: Buffer to store serialized bitmap.
+ * @start: First bit to store.
+ * @count: Number of bits to store.
+ *
+ * Stores HBitmap data corresponding to given region. The format of saved data
+ * is linear sequence of bits, so it can be used by hbitmap_deserialize_part
+ * independently of endianness and size of HBitmap level array elements
+ */
+void hbitmap_serialize_part(const HBitmap *hb, uint8_t *buf,
+                            uint64_t start, uint64_t count);
+
+/**
+ * hbitmap_deserialize_part
+ * @hb: HBitmap to operate on.
+ * @buf: Buffer to restore bitmap data from.
+ * @start: First bit to restore.
+ * @count: Number of bits to restore.
+ * @finish: Whether to call hbitmap_deserialize_finish automatically.
+ *
+ * Restores HBitmap data corresponding to given region. The format is the same
+ * as for hbitmap_serialize_part.
+ *
+ * If @finish is false, caller must call hbitmap_serialize_finish before using
+ * the bitmap.
+ */
+void hbitmap_deserialize_part(HBitmap *hb, uint8_t *buf,
+                              uint64_t start, uint64_t count,
+                              bool finish);
+
+/**
+ * hbitmap_deserialize_zeroes
+ * @hb: HBitmap to operate on.
+ * @start: First bit to restore.
+ * @count: Number of bits to restore.
+ * @finish: Whether to call hbitmap_deserialize_finish automatically.
+ *
+ * Fills the bitmap with zeroes.
+ *
+ * If @finish is false, caller must call hbitmap_serialize_finish before using
+ * the bitmap.
+ */
+void hbitmap_deserialize_zeroes(HBitmap *hb, uint64_t start, uint64_t count,
+                                bool finish);
+
+/**
+ * hbitmap_deserialize_finish
+ * @hb: HBitmap to operate on.
+ *
+ * Repair HBitmap after calling hbitmap_deserialize_data. Actually, all HBitmap
+ * layers are restored here.
+ */
+void hbitmap_deserialize_finish(HBitmap *hb);
+
+/**
  * hbitmap_free:
  * @hb: HBitmap to operate on.
  *
@@ -177,6 +256,27 @@ void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first);
  * Internal function used by hbitmap_iter_next and hbitmap_iter_next_word.
  */
 unsigned long hbitmap_iter_skip_words(HBitmapIter *hbi);
+
+/* hbitmap_create_meta:
+ * Create a "meta" hbitmap to track dirtiness of the bits in this HBitmap.
+ * The caller owns the created bitmap and must call hbitmap_free_meta(hb) to
+ * free it.
+ *
+ * Currently, we only guarantee that if a bit in the hbitmap is changed it
+ * will be reflected in the meta bitmap, but we do not yet guarantee the
+ * opposite.
+ *
+ * @hb: The HBitmap to operate on.
+ * @chunk_size: How many bits in @hb does one bit in the meta track.
+ */
+HBitmap *hbitmap_create_meta(HBitmap *hb, int chunk_size);
+
+/* hbitmap_free_meta:
+ * Free the meta bitmap of @hb.
+ *
+ * @hb: The HBitmap whose meta bitmap should be freed.
+ */
+void hbitmap_free_meta(HBitmap *hb);
 
 /**
  * hbitmap_iter_next:
