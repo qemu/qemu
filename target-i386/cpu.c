@@ -1973,6 +1973,11 @@ static const char *x86_cpu_feature_name(FeatureWord w, int bitnr)
  */
 static GList *plus_features, *minus_features;
 
+static gint compare_string(gconstpointer a, gconstpointer b)
+{
+    return g_strcmp0(a, b);
+}
+
 /* Parse "+feature,-feature,feature=foo" CPU feature string
  */
 static void x86_cpu_parse_featurestr(const char *typename, char *features,
@@ -1981,6 +1986,7 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
     char *featurestr; /* Single 'key=value" string being parsed */
     Error *local_err = NULL;
     static bool cpu_globals_initialized;
+    bool ambiguous = false;
 
     if (cpu_globals_initialized) {
         return;
@@ -2022,6 +2028,19 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
         feat2prop(featurestr);
         name = featurestr;
 
+        if (g_list_find_custom(plus_features, name, compare_string)) {
+            error_report("warning: Ambiguous CPU model string. "
+                         "Don't mix both \"+%s\" and \"%s=%s\"",
+                         name, name, val);
+            ambiguous = true;
+        }
+        if (g_list_find_custom(minus_features, name, compare_string)) {
+            error_report("warning: Ambiguous CPU model string. "
+                         "Don't mix both \"-%s\" and \"%s=%s\"",
+                         name, name, val);
+            ambiguous = true;
+        }
+
         /* Special case: */
         if (!strcmp(name, "tsc-freq")) {
             int64_t tsc_freq;
@@ -2044,6 +2063,11 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
         prop->value = g_strdup(val);
         prop->errp = &error_fatal;
         qdev_prop_register_global(prop);
+    }
+
+    if (ambiguous) {
+        error_report("warning: Compatibility of ambiguous CPU model "
+                     "strings won't be kept on future QEMU versions");
     }
 
     if (local_err) {
