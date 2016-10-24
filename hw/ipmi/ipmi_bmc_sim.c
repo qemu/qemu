@@ -1791,6 +1791,7 @@ static void ipmi_sim_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIBmcClass *bk = IPMI_BMC_CLASS(oc);
 
+    dc->hotpluggable = false;
     dc->realize = ipmi_sim_realize;
     bk->handle_command = ipmi_sim_handle_command;
 }

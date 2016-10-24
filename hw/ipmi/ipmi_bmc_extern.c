@@ -512,6 +512,7 @@ static void ipmi_bmc_extern_class_init(ObjectClass *oc, void *data)
 
     bk->handle_command = ipmi_bmc_extern_handle_command;
     bk->handle_reset = ipmi_bmc_extern_handle_reset;
+    dc->hotpluggable = false;
     dc->realize = ipmi_bmc_extern_realize;
     dc->props = ipmi_bmc_extern_properties;
 }
