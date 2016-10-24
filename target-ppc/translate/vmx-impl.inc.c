@@ -182,6 +182,52 @@ static void gen_mtvscr(DisasContext *ctx)
     tcg_temp_free_ptr(p);
 }
 
+#define GEN_VX_VMUL10(name, add_cin, ret_carry)                         \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+{                                                                       \
+    TCGv_i64 t0 = tcg_temp_new_i64();                                   \
+    TCGv_i64 t1 = tcg_temp_new_i64();                                   \
+    TCGv_i64 t2 = tcg_temp_new_i64();                                   \
+    TCGv_i64 ten, z;                                                    \
+                                                                        \
+    if (unlikely(!ctx->altivec_enabled)) {                              \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
+        return;                                                         \
+    }                                                                   \
+                                                                        \
+    ten = tcg_const_i64(10);                                            \
+    z = tcg_const_i64(0);                                               \
+                                                                        \
+    if (add_cin) {                                                      \
+        tcg_gen_mulu2_i64(t0, t1, cpu_avrl[rA(ctx->opcode)], ten);      \
+        tcg_gen_andi_i64(t2, cpu_avrl[rB(ctx->opcode)], 0xF);           \
+        tcg_gen_add2_i64(cpu_avrl[rD(ctx->opcode)], t2, t0, t1, t2, z); \
+    } else {                                                            \
+        tcg_gen_mulu2_i64(cpu_avrl[rD(ctx->opcode)], t2,                \
+                          cpu_avrl[rA(ctx->opcode)], ten);              \
+    }                                                                   \
+                                                                        \
+    if (ret_carry) {                                                    \
+        tcg_gen_mulu2_i64(t0, t1, cpu_avrh[rA(ctx->opcode)], ten);      \
+        tcg_gen_add2_i64(t0, cpu_avrl[rD(ctx->opcode)], t0, t1, t2, z); \
+        tcg_gen_movi_i64(cpu_avrh[rD(ctx->opcode)], 0);                 \
+    } else {                                                            \
+        tcg_gen_mul_i64(t0, cpu_avrh[rA(ctx->opcode)], ten);            \
+        tcg_gen_add_i64(cpu_avrh[rD(ctx->opcode)], t0, t2);             \
+    }                                                                   \
+                                                                        \
+    tcg_temp_free_i64(t0);                                              \
+    tcg_temp_free_i64(t1);                                              \
+    tcg_temp_free_i64(t2);                                              \
+    tcg_temp_free_i64(ten);                                             \
+    tcg_temp_free_i64(z);                                               \
+}                                                                       \
+
+GEN_VX_VMUL10(vmul10uq, 0, 0);
+GEN_VX_VMUL10(vmul10euq, 1, 0);
+GEN_VX_VMUL10(vmul10cuq, 0, 1);
+GEN_VX_VMUL10(vmul10ecuq, 1, 1);
+
 /* Logical operations */
 #define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
 static void glue(gen_, name)(DisasContext *ctx)                                 \
@@ -276,8 +322,30 @@ static void glue(gen_, name0##_##name1)(DisasContext *ctx)             \
     }                                                                  \
 }
 
+/* Adds support to provide invalid mask */
+#define GEN_VXFORM_DUAL_EXT(name0, flg0, flg2_0, inval0,                \
+                            name1, flg1, flg2_1, inval1)                \
+static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
+{                                                                       \
+    if ((Rc(ctx->opcode) == 0) &&                                       \
+        ((ctx->insns_flags & flg0) || (ctx->insns_flags2 & flg2_0)) &&  \
+        !(ctx->opcode & inval0)) {                                      \
+        gen_##name0(ctx);                                               \
+    } else if ((Rc(ctx->opcode) == 1) &&                                \
+               ((ctx->insns_flags & flg1) || (ctx->insns_flags2 & flg2_1)) && \
+               !(ctx->opcode & inval1)) {                               \
+        gen_##name1(ctx);                                               \
+    } else {                                                            \
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);             \
+    }                                                                   \
+}
+
 GEN_VXFORM(vaddubm, 0, 0);
+GEN_VXFORM_DUAL_EXT(vaddubm, PPC_ALTIVEC, PPC_NONE, 0,       \
+                    vmul10cuq, PPC_NONE, PPC2_ISA300, 0x0000F800)
 GEN_VXFORM(vadduhm, 0, 1);
+GEN_VXFORM_DUAL(vadduhm, PPC_ALTIVEC, PPC_NONE,  \
+                vmul10ecuq, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vadduwm, 0, 2);
 GEN_VXFORM(vaddudm, 0, 3);
 GEN_VXFORM(vsububm, 0, 16);
@@ -390,7 +458,11 @@ GEN_VXFORM(vsro, 6, 17);
 GEN_VXFORM(vaddcuw, 0, 6);
 GEN_VXFORM(vsubcuw, 0, 22);
 GEN_VXFORM_ENV(vaddubs, 0, 8);
+GEN_VXFORM_DUAL_EXT(vaddubs, PPC_ALTIVEC, PPC_NONE, 0,       \
+                    vmul10uq, PPC_NONE, PPC2_ISA300, 0x0000F800)
 GEN_VXFORM_ENV(vadduhs, 0, 9);
+GEN_VXFORM_DUAL(vadduhs, PPC_ALTIVEC, PPC_NONE, \
+                vmul10euq, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM_ENV(vadduws, 0, 10);
 GEN_VXFORM_ENV(vaddsbs, 0, 12);
 GEN_VXFORM_ENV(vaddshs, 0, 13);
