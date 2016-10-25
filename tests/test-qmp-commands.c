@@ -4,7 +4,7 @@
 #include "test-qmp-commands.h"
 #include "qapi/qmp/dispatch.h"
 #include "qemu/module.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "tests/test-qapi-types.h"
 #include "tests/test-qapi-visit.h"
 
@@ -244,7 +244,7 @@ static void test_dealloc_partial(void)
         ud2_dict = qdict_new();
         qdict_put_obj(ud2_dict, "string0", QOBJECT(qstring_from_str(text)));
 
-        v = qmp_input_visitor_new(QOBJECT(ud2_dict), true);
+        v = qobject_input_visitor_new(QOBJECT(ud2_dict), true);
         visit_type_UserDefTwo(v, NULL, &ud2, &err);
         visit_free(v);
         QDECREF(ud2_dict);

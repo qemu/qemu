@@ -1005,7 +1005,7 @@ Example:
         Error *err = NULL;
         Visitor *v;
 
-        v = qmp_output_visitor_new(ret_out);
+        v = qobject_output_visitor_new(ret_out);
         visit_type_UserDefOne(v, "unused", &ret_in, &err);
         if (!err) {
             visit_complete(v, ret_out);
@@ -1024,7 +1024,7 @@ Example:
         Visitor *v;
         UserDefOneList *arg1 = NULL;
 
-        v = qmp_input_visitor_new(QOBJECT(args), true);
+        v = qobject_input_visitor_new(QOBJECT(args), true);
         visit_start_struct(v, NULL, NULL, 0, &err);
         if (err) {
             goto out;

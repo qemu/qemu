@@ -14,6 +14,7 @@
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 
 /*
@@ -412,7 +413,6 @@ static void qdict_array_split_test(void)
 
     QDECREF(test_dict);
 
-
     /*
      * Test the split of
      *
@@ -518,7 +518,6 @@ static void qdict_join_test(void)
     dict1 = qdict_new();
     dict2 = qdict_new();
 
-
     /* Test everything once without overwrite and once with */
     do
     {
@@ -527,7 +526,6 @@ static void qdict_join_test(void)
 
         g_assert(qdict_size(dict1) == 0);
         g_assert(qdict_size(dict2) == 0);
-
 
         /* First iteration: Test movement */
         /* Second iteration: Test empty source and non-empty destination */
@@ -542,7 +540,6 @@ static void qdict_join_test(void)
             g_assert(qdict_get_int(dict1, "foo") == 42);
         }
 
-
         /* Test non-empty source and destination without conflict */
         qdict_put(dict2, "bar", qint_from_int(23));
 
@@ -553,7 +550,6 @@ static void qdict_join_test(void)
 
         g_assert(qdict_get_int(dict1, "foo") == 42);
         g_assert(qdict_get_int(dict1, "bar") == 23);
-
 
         /* Test conflict */
         qdict_put(dict2, "foo", qint_from_int(84));
@@ -570,7 +566,6 @@ static void qdict_join_test(void)
             g_assert(qdict_get_int(dict2, "foo") == 84);
         }
 
-
         /* Check the references */
         g_assert(qdict_get(dict1, "foo")->refcnt == 1);
         g_assert(qdict_get(dict1, "bar")->refcnt == 1);
@@ -578,7 +573,6 @@ static void qdict_join_test(void)
         if (!overwrite) {
             g_assert(qdict_get(dict2, "foo")->refcnt == 1);
         }
-
 
         /* Clean up */
         qdict_del(dict1, "foo");
@@ -590,9 +584,150 @@ static void qdict_join_test(void)
     }
     while (overwrite ^= true);
 
-
     QDECREF(dict1);
     QDECREF(dict2);
+}
+
+static void qdict_crumple_test_recursive(void)
+{
+    QDict *src, *dst, *rule, *vnc, *acl, *listen;
+    QObject *child, *res;
+    QList *rules;
+
+    src = qdict_new();
+    qdict_put(src, "vnc.listen.addr", qstring_from_str("127.0.0.1"));
+    qdict_put(src, "vnc.listen.port", qstring_from_str("5901"));
+    qdict_put(src, "vnc.acl.rules.0.match", qstring_from_str("fred"));
+    qdict_put(src, "vnc.acl.rules.0.policy", qstring_from_str("allow"));
+    qdict_put(src, "vnc.acl.rules.1.match", qstring_from_str("bob"));
+    qdict_put(src, "vnc.acl.rules.1.policy", qstring_from_str("deny"));
+    qdict_put(src, "vnc.acl.default", qstring_from_str("deny"));
+    qdict_put(src, "vnc.acl..name", qstring_from_str("acl0"));
+    qdict_put(src, "vnc.acl.rule..name", qstring_from_str("acl0"));
+
+    res = qdict_crumple(src, &error_abort);
+
+    g_assert_cmpint(qobject_type(res), ==, QTYPE_QDICT);
+
+    dst = qobject_to_qdict(res);
+
+    g_assert_cmpint(qdict_size(dst), ==, 1);
+
+    child = qdict_get(dst, "vnc");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
+    vnc = qobject_to_qdict(child);
+
+    child = qdict_get(vnc, "listen");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
+    listen = qobject_to_qdict(child);
+    g_assert_cmpstr("127.0.0.1", ==, qdict_get_str(listen, "addr"));
+    g_assert_cmpstr("5901", ==, qdict_get_str(listen, "port"));
+
+    child = qdict_get(vnc, "acl");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
+    acl = qobject_to_qdict(child);
+
+    child = qdict_get(acl, "rules");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QLIST);
+    rules = qobject_to_qlist(child);
+    g_assert_cmpint(qlist_size(rules), ==, 2);
+
+    rule = qobject_to_qdict(qlist_pop(rules));
+    g_assert_cmpint(qdict_size(rule), ==, 2);
+    g_assert_cmpstr("fred", ==, qdict_get_str(rule, "match"));
+    g_assert_cmpstr("allow", ==, qdict_get_str(rule, "policy"));
+    QDECREF(rule);
+
+    rule = qobject_to_qdict(qlist_pop(rules));
+    g_assert_cmpint(qdict_size(rule), ==, 2);
+    g_assert_cmpstr("bob", ==, qdict_get_str(rule, "match"));
+    g_assert_cmpstr("deny", ==, qdict_get_str(rule, "policy"));
+    QDECREF(rule);
+
+    /* With recursive crumpling, we should see all names unescaped */
+    g_assert_cmpstr("acl0", ==, qdict_get_str(vnc, "acl.name"));
+    child = qdict_get(vnc, "acl");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
+    acl = qdict_get_qdict(vnc, "acl");
+    g_assert_cmpstr("acl0", ==, qdict_get_str(acl, "rule.name"));
+
+    QDECREF(src);
+    QDECREF(dst);
+}
+
+static void qdict_crumple_test_empty(void)
+{
+    QDict *src, *dst;
+
+    src = qdict_new();
+
+    dst = (QDict *)qdict_crumple(src, &error_abort);
+
+    g_assert_cmpint(qdict_size(dst), ==, 0);
+
+    QDECREF(src);
+    QDECREF(dst);
+}
+
+static void qdict_crumple_test_bad_inputs(void)
+{
+    QDict *src;
+    Error *error = NULL;
+
+    src = qdict_new();
+    /* rule.0 can't be both a string and a dict */
+    qdict_put(src, "rule.0", qstring_from_str("fred"));
+    qdict_put(src, "rule.0.policy", qstring_from_str("allow"));
+
+    g_assert(qdict_crumple(src, &error) == NULL);
+    g_assert(error != NULL);
+    error_free(error);
+    error = NULL;
+    QDECREF(src);
+
+    src = qdict_new();
+    /* rule can't be both a list and a dict */
+    qdict_put(src, "rule.0", qstring_from_str("fred"));
+    qdict_put(src, "rule.a", qstring_from_str("allow"));
+
+    g_assert(qdict_crumple(src, &error) == NULL);
+    g_assert(error != NULL);
+    error_free(error);
+    error = NULL;
+    QDECREF(src);
+
+    src = qdict_new();
+    /* The input should be flat, ie no dicts or lists */
+    qdict_put(src, "rule.a", qdict_new());
+    qdict_put(src, "rule.b", qstring_from_str("allow"));
+
+    g_assert(qdict_crumple(src, &error) == NULL);
+    g_assert(error != NULL);
+    error_free(error);
+    error = NULL;
+    QDECREF(src);
+
+    src = qdict_new();
+    /* List indexes must not have gaps */
+    qdict_put(src, "rule.0", qstring_from_str("deny"));
+    qdict_put(src, "rule.3", qstring_from_str("allow"));
+
+    g_assert(qdict_crumple(src, &error) == NULL);
+    g_assert(error != NULL);
+    error_free(error);
+    error = NULL;
+    QDECREF(src);
+
+    src = qdict_new();
+    /* List indexes must be in %zu format */
+    qdict_put(src, "rule.0", qstring_from_str("deny"));
+    qdict_put(src, "rule.+1", qstring_from_str("allow"));
+
+    g_assert(qdict_crumple(src, &error) == NULL);
+    g_assert(error != NULL);
+    error_free(error);
+    error = NULL;
+    QDECREF(src);
 }
 
 /*
@@ -741,6 +876,13 @@ int main(int argc, char **argv)
 
     g_test_add_func("/errors/put_exists", qdict_put_exists_test);
     g_test_add_func("/errors/get_not_exists", qdict_get_not_exists_test);
+
+    g_test_add_func("/public/crumple/recursive",
+                    qdict_crumple_test_recursive);
+    g_test_add_func("/public/crumple/empty",
+                    qdict_crumple_test_empty);
+    g_test_add_func("/public/crumple/bad_inputs",
+                    qdict_crumple_test_bad_inputs);
 
     /* The Big one */
     if (g_test_slow()) {

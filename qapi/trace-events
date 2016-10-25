@@ -1,0 +1,33 @@
+# qapi-visit-core.c
+visit_free(void *v) "v=%p"
+visit_complete(void *v, void *opaque) "v=%p opaque=%p"
+
+visit_start_struct(void *v, const char *name, void *obj, size_t size) "v=%p name=%s obj=%p size=%zu"
+visit_check_struct(void *v) "v=%p"
+visit_end_struct(void *v, void *obj) "v=%p obj=%p"
+
+visit_start_list(void *v, const char *name, void *obj, size_t size) "v=%p name=%s obj=%p size=%zu"
+visit_next_list(void *v, void *tail, size_t size) "v=%p tail=%p size=%zu"
+visit_end_list(void *v, void *obj) "v=%p obj=%p"
+
+visit_start_alternate(void *v, const char *name, void *obj, size_t size, bool promote_int) "v=%p name=%s obj=%p size=%zu promote_int=%d"
+visit_end_alternate(void *v, void *obj) "v=%p obj=%p"
+
+visit_optional(void *v, const char *name, bool *present) "v=%p name=%s present=%p"
+
+visit_type_enum(void *v, const char *name, int *obj) "v=%p name=%s obj=%p"
+visit_type_int(void *v, const char *name, int64_t *obj) "v=%p name=%s obj=%p"
+visit_type_uint8(void *v, const char *name, uint8_t *obj) "v=%p name=%s obj=%p"
+visit_type_uint16(void *v, const char *name, uint16_t *obj) "v=%p name=%s obj=%p"
+visit_type_uint32(void *v, const char *name, uint32_t *obj) "v=%p name=%s obj=%p"
+visit_type_uint64(void *v, const char *name, uint64_t *obj) "v=%p name=%s obj=%p"
+visit_type_int8(void *v, const char *name, int8_t *obj) "v=%p name=%s obj=%p"
+visit_type_int16(void *v, const char *name, int16_t *obj) "v=%p name=%s obj=%p"
+visit_type_int32(void *v, const char *name, int32_t *obj) "v=%p name=%s obj=%p"
+visit_type_int64(void *v, const char *name, int64_t *obj) "v=%p name=%s obj=%p"
+visit_type_size(void *v, const char *name, uint64_t *obj) "v=%p name=%s obj=%p"
+visit_type_bool(void *v, const char *name, bool *obj) "v=%p name=%s obj=%p"
+visit_type_str(void *v, const char *name, char **obj) "v=%p name=%s obj=%p"
+visit_type_number(void *v, const char *name, double *obj) "v=%p name=%s obj=%p"
+visit_type_any(void *v, const char *name, void *obj) "v=%p name=%s obj=%p"
+visit_type_null(void *v, const char *name) "v=%p name=%s"

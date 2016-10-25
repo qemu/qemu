@@ -1,5 +1,5 @@
 /*
- * QMP Input Visitor unit-tests (strict mode).
+ * QObject Input Visitor unit-tests (strict mode).
  *
  * Copyright (C) 2011-2012, 2015 Red Hat Inc.
  *
@@ -15,7 +15,7 @@
 
 #include "qemu-common.h"
 #include "qapi/error.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"
 #include "qapi/qmp/types.h"
@@ -53,7 +53,7 @@ static Visitor *validate_test_init_internal(TestInputVisitorData *data,
     data->obj = qobject_from_jsonv(json_string, ap);
     g_assert(data->obj);
 
-    data->qiv = qmp_input_visitor_new(data->obj, true);
+    data->qiv = qobject_input_visitor_new(data->obj, true);
     g_assert(data->qiv);
     return data->qiv;
 }

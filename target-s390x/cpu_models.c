@@ -17,7 +17,7 @@
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/qbool.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
@@ -345,7 +345,7 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
     }
 
     if (qdict) {
-        visitor = qmp_input_visitor_new(info->props, true);
+        visitor = qobject_input_visitor_new(info->props, true);
         visit_start_struct(visitor, NULL, NULL, 0, errp);
         if (*errp) {
             object_unref(obj);

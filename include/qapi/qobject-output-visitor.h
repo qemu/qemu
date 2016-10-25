@@ -11,20 +11,20 @@
  *
  */
 
-#ifndef QMP_OUTPUT_VISITOR_H
-#define QMP_OUTPUT_VISITOR_H
+#ifndef QOBJECT_OUTPUT_VISITOR_H
+#define QOBJECT_OUTPUT_VISITOR_H
 
 #include "qapi/visitor.h"
 #include "qapi/qmp/qobject.h"
 
-typedef struct QmpOutputVisitor QmpOutputVisitor;
+typedef struct QObjectOutputVisitor QObjectOutputVisitor;
 
 /*
- * Create a new QMP output visitor.
+ * Create a new QObject output visitor.
  *
  * If everything else succeeds, pass @result to visit_complete() to
  * collect the result of the visit.
  */
-Visitor *qmp_output_visitor_new(QObject **result);
+Visitor *qobject_output_visitor_new(QObject **result);
 
 #endif

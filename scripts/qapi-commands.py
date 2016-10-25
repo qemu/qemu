@@ -68,7 +68,7 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
     Error *err = NULL;
     Visitor *v;
 
-    v = qmp_output_visitor_new(ret_out);
+    v = qobject_output_visitor_new(ret_out);
     visit_type_%(c_name)s(v, "unused", &ret_in, &err);
     if (!err) {
         visit_complete(v, ret_out);
@@ -130,7 +130,7 @@ def gen_marshal(name, arg_type, boxed, ret_type):
         push_indent()
 
     ret += mcgen('''
-    v = qmp_input_visitor_new(QOBJECT(args), true);
+    v = qobject_input_visitor_new(QOBJECT(args), true);
     visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
         goto out;
@@ -293,8 +293,8 @@ fdef.write(mcgen('''
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/dispatch.h"
 #include "qapi/visitor.h"
-#include "qapi/qmp-output-visitor.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/dealloc-visitor.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
