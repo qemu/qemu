@@ -950,7 +950,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
     unsigned compat_lvl = 0, cpu_version = 0;
     unsigned max_lvl = get_compat_level(cpu_->max_compat);
     int counter;
-    sPAPROptionVector *ov5_guest;
+    sPAPROptionVector *ov5_guest, *ov5_cas_old, *ov5_updates;
 
     /* Parse PVR list */
     for (counter = 0; counter < 512; ++counter) {
@@ -1013,13 +1013,27 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
      * of guest input. To model these properly we'd want some sort of mask,
      * but since they only currently apply to memory migration as defined
      * by LoPAPR 1.1, 14.5.4.8, which QEMU doesn't implement, we don't need
-     * to worry about this.
+     * to worry about this for now.
      */
+    ov5_cas_old = spapr_ovec_clone(spapr->ov5_cas);
+    /* full range of negotiated ov5 capabilities */
     spapr_ovec_intersect(spapr->ov5_cas, spapr->ov5, ov5_guest);
     spapr_ovec_cleanup(ov5_guest);
+    /* capabilities that have been added since CAS-generated guest reset.
+     * if capabilities have since been removed, generate another reset
+     */
+    ov5_updates = spapr_ovec_new();
+    spapr->cas_reboot = spapr_ovec_diff(ov5_updates,
+                                        ov5_cas_old, spapr->ov5_cas);
 
-    if (spapr_h_cas_compose_response(spapr, args[1], args[2],
-                                     cpu_update)) {
+    if (!spapr->cas_reboot) {
+        spapr->cas_reboot =
+            (spapr_h_cas_compose_response(spapr, args[1], args[2], cpu_update,
+                                          ov5_updates) != 0);
+    }
+    spapr_ovec_cleanup(ov5_updates);
+
+    if (spapr->cas_reboot) {
         qemu_system_reset_request();
     }
 
