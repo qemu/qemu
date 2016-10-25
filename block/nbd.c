@@ -446,7 +446,7 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
     QDict *opts = qdict_new();
     const char *port = s->port ?: stringify(NBD_DEFAULT_PORT);
 
-    qdict_put_obj(opts, "driver", QOBJECT(qstring_from_str("nbd")));
+    qdict_put(opts, "driver", qstring_from_str("nbd"));
 
     if (s->path && s->export) {
         snprintf(bs->exact_filename, sizeof(bs->exact_filename),
@@ -463,17 +463,16 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
     }
 
     if (s->path) {
-        qdict_put_obj(opts, "path", QOBJECT(qstring_from_str(s->path)));
+        qdict_put(opts, "path", qstring_from_str(s->path));
     } else {
-        qdict_put_obj(opts, "host", QOBJECT(qstring_from_str(s->host)));
-        qdict_put_obj(opts, "port", QOBJECT(qstring_from_str(port)));
+        qdict_put(opts, "host", qstring_from_str(s->host));
+        qdict_put(opts, "port", qstring_from_str(port));
     }
     if (s->export) {
-        qdict_put_obj(opts, "export", QOBJECT(qstring_from_str(s->export)));
+        qdict_put(opts, "export", qstring_from_str(s->export));
     }
     if (s->tlscredsid) {
-        qdict_put_obj(opts, "tls-creds",
-                      QOBJECT(qstring_from_str(s->tlscredsid)));
+        qdict_put(opts, "tls-creds", qstring_from_str(s->tlscredsid));
     }
 
     bs->full_open_options = opts;
