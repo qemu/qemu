@@ -252,8 +252,17 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
             continue;
 
         if ((s->buf_off >= acb->end)) {
+            size_t request_length = acb->nb_sectors * BDRV_SECTOR_SIZE;
+
             qemu_iovec_from_buf(acb->qiov, 0, s->orig_buf + acb->start,
                                 acb->end - acb->start);
+
+            if (acb->end - acb->start < request_length) {
+                size_t offset = acb->end - acb->start;
+                qemu_iovec_memset(acb->qiov, offset, 0,
+                                  request_length - offset);
+            }
+
             acb->common.cb(acb->common.opaque, 0);
             qemu_aio_unref(acb);
             s->acb[i] = NULL;
@@ -270,6 +279,8 @@ static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
 {
     int i;
     size_t end = start + len;
+    size_t clamped_end = MIN(end, s->len);
+    size_t clamped_len = clamped_end - start;
 
     for (i=0; i<CURL_NUM_STATES; i++) {
         CURLState *state = &s->states[i];
@@ -284,12 +295,15 @@ static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
         // Does the existing buffer cover our section?
         if ((start >= state->buf_start) &&
             (start <= buf_end) &&
-            (end >= state->buf_start) &&
-            (end <= buf_end))
+            (clamped_end >= state->buf_start) &&
+            (clamped_end <= buf_end))
         {
             char *buf = state->orig_buf + (start - state->buf_start);
 
-            qemu_iovec_from_buf(acb->qiov, 0, buf, len);
+            qemu_iovec_from_buf(acb->qiov, 0, buf, clamped_len);
+            if (clamped_len < len) {
+                qemu_iovec_memset(acb->qiov, clamped_len, 0, len - clamped_len);
+            }
             acb->common.cb(acb->common.opaque, 0);
 
             return FIND_RET_OK;
@@ -299,13 +313,13 @@ static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
         if (state->in_use &&
             (start >= state->buf_start) &&
             (start <= buf_fend) &&
-            (end >= state->buf_start) &&
-            (end <= buf_fend))
+            (clamped_end >= state->buf_start) &&
+            (clamped_end <= buf_fend))
         {
             int j;
 
             acb->start = start - state->buf_start;
-            acb->end = acb->start + len;
+            acb->end = acb->start + clamped_len;
 
             for (j=0; j<CURL_NUM_ACB; j++) {
                 if (!state->acb[j]) {
@@ -798,13 +812,13 @@ static void curl_readv_bh_cb(void *p)
     }
 
     acb->start = 0;
-    acb->end = (acb->nb_sectors * BDRV_SECTOR_SIZE);
+    acb->end = MIN(acb->nb_sectors * BDRV_SECTOR_SIZE, s->len - start);
 
     state->buf_off = 0;
     g_free(state->orig_buf);
     state->buf_start = start;
-    state->buf_len = acb->end + s->readahead_size;
-    end = MIN(start + state->buf_len, s->len) - 1;
+    state->buf_len = MIN(acb->end + s->readahead_size, s->len - start);
+    end = start + state->buf_len - 1;
     state->orig_buf = g_try_malloc(state->buf_len);
     if (state->buf_len && state->orig_buf == NULL) {
         curl_clean_state(state);
