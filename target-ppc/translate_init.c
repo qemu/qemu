@@ -9678,7 +9678,7 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 #endif
 
-    cpu_exec_init(cs, &local_err);
+    cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
@@ -9906,11 +9906,17 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
 static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(dev);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
+    Error *local_err = NULL;
     opc_handler_t **table, **table_2;
     int i, j, k;
 
-    cpu_exec_exit(CPU(dev));
+    pcc->parent_unrealize(dev, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
         if (env->opcodes[i] == &invalid_handler) {
@@ -10521,6 +10527,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     pcc->parent_realize = dc->realize;
+    pcc->parent_unrealize = dc->unrealize;
     pcc->pvr_match = ppc_pvr_match_default;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_always;
     dc->realize = ppc_cpu_realizefn;

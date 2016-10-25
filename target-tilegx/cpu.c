@@ -92,6 +92,13 @@ static void tilegx_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     TileGXCPUClass *tcc = TILEGX_CPU_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     cpu_reset(cs);
     qemu_init_vcpu(cs);
@@ -107,7 +114,6 @@ static void tilegx_cpu_initfn(Object *obj)
     static bool tcg_initialized;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs, &error_abort);
 
     if (tcg_enabled() && !tcg_initialized) {
         tcg_initialized = true;
@@ -162,13 +168,6 @@ static void tilegx_cpu_class_init(ObjectClass *oc, void *data)
     cc->set_pc = tilegx_cpu_set_pc;
     cc->handle_mmu_fault = tilegx_cpu_handle_mmu_fault;
     cc->gdb_num_core_regs = 0;
-
-    /*
-     * Reason: tilegx_cpu_initfn() calls cpu_exec_init(), which saves
-     * the object in cpus -> dangling pointer after final
-     * object_unref().
-     */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo tilegx_cpu_type_info = {

@@ -244,6 +244,13 @@ static void superh_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     cpu_reset(cs);
     qemu_init_vcpu(cs);
@@ -258,7 +265,6 @@ static void superh_cpu_initfn(Object *obj)
     CPUSH4State *env = &cpu->env;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs, &error_abort);
 
     env->movcal_backup_tail = &(env->movcal_backup);
 
@@ -303,13 +309,6 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = 59;
 
     dc->vmsd = &vmstate_sh_cpu;
-
-    /*
-     * Reason: superh_cpu_initfn() calls cpu_exec_init(), which saves
-     * the object in cpus -> dangling pointer after final
-     * object_unref().
-     */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo superh_cpu_type_info = {

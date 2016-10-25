@@ -138,6 +138,13 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUMBState *env = &cpu->env;
     uint8_t version_code = 0;
     int i = 0;
+    Error *local_err = NULL;
+
+    cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     qemu_init_vcpu(cs);
 
@@ -199,7 +206,6 @@ static void mb_cpu_initfn(Object *obj)
     static bool tcg_initialized;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs, &error_abort);
 
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
 
@@ -267,12 +273,6 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = 32 + 5;
 
     cc->disas_set_info = mb_disas_set_info;
-
-    /*
-     * Reason: mb_cpu_initfn() calls cpu_exec_init(), which saves the
-     * object in cpus -> dangling pointer after final object_unref().
-     */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo mb_cpu_type_info = {

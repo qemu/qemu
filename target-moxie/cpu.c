@@ -61,6 +61,13 @@ static void moxie_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     MoxieCPUClass *mcc = MOXIE_CPU_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
@@ -75,7 +82,6 @@ static void moxie_cpu_initfn(Object *obj)
     static int inited;
 
     cs->env_ptr = &cpu->env;
-    cpu_exec_init(cs, &error_abort);
 
     if (tcg_enabled() && !inited) {
         inited = 1;
@@ -124,13 +130,6 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_moxie_cpu;
 #endif
     cc->disas_set_info = moxie_cpu_disas_set_info;
-
-    /*
-     * Reason: moxie_cpu_initfn() calls cpu_exec_init(), which saves
-     * the object in cpus -> dangling pointer after final
-     * object_unref().
-     */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static void moxielite_initfn(Object *obj)

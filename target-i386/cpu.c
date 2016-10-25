@@ -2945,7 +2945,7 @@ static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
                               OBJECT(cpu->apic_state), &error_abort);
     object_unref(OBJECT(cpu->apic_state));
 
-    qdev_prop_set_uint8(cpu->apic_state, "id", cpu->apic_id);
+    qdev_prop_set_uint32(cpu->apic_state, "id", cpu->apic_id);
     /* TODO: convert to link<> */
     apic = APIC_COMMON(cpu->apic_state);
     apic->cpu = cpu;
@@ -3271,7 +3271,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
             cpu->phys_bits = 32;
         }
     }
-    cpu_exec_init(cs, &error_abort);
+    cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     if (tcg_enabled()) {
         tcg_x86_init();
@@ -3352,6 +3356,8 @@ out:
 static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
 {
     X86CPU *cpu = X86_CPU(dev);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
+    Error *local_err = NULL;
 
 #ifndef CONFIG_USER_ONLY
     cpu_remove_sync(CPU(dev));
@@ -3361,6 +3367,12 @@ static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
     if (cpu->apic_state) {
         object_unparent(OBJECT(cpu->apic_state));
         cpu->apic_state = NULL;
+    }
+
+    xcc->parent_unrealize(dev, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
     }
 }
 
@@ -3636,6 +3648,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     xcc->parent_realize = dc->realize;
+    xcc->parent_unrealize = dc->unrealize;
     dc->realize = x86_cpu_realizefn;
     dc->unrealize = x86_cpu_unrealizefn;
     dc->props = x86_cpu_properties;

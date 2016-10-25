@@ -59,6 +59,13 @@ static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     AlphaCPUClass *acc = ALPHA_CPU_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     qemu_init_vcpu(cs);
 
@@ -266,7 +273,6 @@ static void alpha_cpu_initfn(Object *obj)
     CPUAlphaState *env = &cpu->env;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs, &error_abort);
     tlb_flush(cs, 1);
 
     alpha_translate_init();
@@ -309,13 +315,6 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     cc->disas_set_info = alpha_cpu_disas_set_info;
 
     cc->gdb_num_core_regs = 67;
-
-    /*
-     * Reason: alpha_cpu_initfn() calls cpu_exec_init(), which saves
-     * the object in cpus -> dangling pointer after final
-     * object_unref().
-     */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo alpha_cpu_type_info = {

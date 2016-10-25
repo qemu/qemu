@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "qom/cpu.h"
 #include "hw/i386/pc.h"
+#include "qemu/error-report.h"
 
 #define CPU_EJECT_METHOD "CPEJ"
 #define CPU_MAT_METHOD "CPMA"
@@ -63,7 +64,8 @@ static void acpi_set_cpu_present_bit(AcpiCpuHotplug *g, CPUState *cpu,
 
     cpu_id = k->get_arch_id(cpu);
     if ((cpu_id / 8) >= ACPI_GPE_PROC_LEN) {
-        error_setg(errp, "acpi: invalid cpu id: %" PRIi64, cpu_id);
+        object_property_set_bool(g->device, false, "cpu-hotplug-legacy",
+                                 &error_abort);
         return;
     }
 
@@ -85,13 +87,14 @@ void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
 {
     CPUState *cpu;
 
-    CPU_FOREACH(cpu) {
-        acpi_set_cpu_present_bit(gpe_cpu, cpu, &error_abort);
-    }
     memory_region_init_io(&gpe_cpu->io, owner, &AcpiCpuHotplug_ops,
                           gpe_cpu, "acpi-cpu-hotplug", ACPI_GPE_PROC_LEN);
     memory_region_add_subregion(parent, base, &gpe_cpu->io);
     gpe_cpu->device = owner;
+
+    CPU_FOREACH(cpu) {
+        acpi_set_cpu_present_bit(gpe_cpu, cpu, &error_abort);
+    }
 }
 
 void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe_cpu,
@@ -234,7 +237,11 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
     /* The current AML generator can cover the APIC ID range [0..255],
      * inclusive, for VCPU hotplug. */
     QEMU_BUILD_BUG_ON(ACPI_CPU_HOTPLUG_ID_LIMIT > 256);
-    g_assert(pcms->apic_id_limit <= ACPI_CPU_HOTPLUG_ID_LIMIT);
+    if (pcms->apic_id_limit > ACPI_CPU_HOTPLUG_ID_LIMIT) {
+        error_report("max_cpus is too large. APIC ID of last CPU is %u",
+                     pcms->apic_id_limit - 1);
+        exit(1);
+    }
 
     /* create PCI0.PRES device and its _CRS to reserve CPU hotplug MMIO */
     dev = aml_device("PCI0." stringify(CPU_HOTPLUG_RESOURCE_DEVICE));

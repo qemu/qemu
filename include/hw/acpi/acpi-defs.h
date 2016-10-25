@@ -343,6 +343,24 @@ struct AcpiMadtLocalNmi {
 } QEMU_PACKED;
 typedef struct AcpiMadtLocalNmi AcpiMadtLocalNmi;
 
+struct AcpiMadtProcessorX2Apic {
+    ACPI_SUB_HEADER_DEF
+    uint16_t reserved;
+    uint32_t x2apic_id;              /* Processor's local x2APIC ID */
+    uint32_t flags;
+    uint32_t uid;                    /* Processor object _UID */
+} QEMU_PACKED;
+typedef struct AcpiMadtProcessorX2Apic AcpiMadtProcessorX2Apic;
+
+struct AcpiMadtLocalX2ApicNmi {
+    ACPI_SUB_HEADER_DEF
+    uint16_t flags;                  /* MPS INTI flags */
+    uint32_t uid;                    /* Processor object _UID */
+    uint8_t  lint;                   /* Local APIC LINT# */
+    uint8_t  reserved[3];            /* Local APIC LINT# */
+} QEMU_PACKED;
+typedef struct AcpiMadtLocalX2ApicNmi AcpiMadtLocalX2ApicNmi;
+
 struct AcpiMadtGenericInterrupt {
     ACPI_SUB_HEADER_DEF
     uint16_t reserved;
@@ -484,6 +502,17 @@ struct AcpiSratProcessorAffinity
     uint32_t    reserved;
 } QEMU_PACKED;
 typedef struct AcpiSratProcessorAffinity AcpiSratProcessorAffinity;
+
+struct AcpiSratProcessorX2ApicAffinity {
+    ACPI_SUB_HEADER_DEF
+    uint16_t    reserved;
+    uint32_t    proximity_domain;
+    uint32_t    x2apic_id;
+    uint32_t    flags;
+    uint32_t    clk_domain;
+    uint32_t    reserved2;
+} QEMU_PACKED;
+typedef struct AcpiSratProcessorX2ApicAffinity AcpiSratProcessorX2ApicAffinity;
 
 struct AcpiSratMemoryAffinity
 {
