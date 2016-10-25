@@ -140,8 +140,10 @@ def log(msg, filters=[]):
 class VM(qtest.QEMUQtestMachine):
     '''A QEMU VM'''
 
-    def __init__(self):
-        super(VM, self).__init__(qemu_prog, qemu_opts, test_dir=test_dir,
+    def __init__(self, path_suffix=''):
+        name = "qemu%s-%d" % (path_suffix, os.getpid())
+        super(VM, self).__init__(qemu_prog, qemu_opts, name=name,
+                                 test_dir=test_dir,
                                  socket_scm_helper=socket_scm_helper)
         if debug:
             self._debug = True
