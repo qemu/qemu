@@ -24,10 +24,61 @@
 
 /* private */
 static int debug;
+
+struct xs_dirs {
+    char *xs_dir;
+    QTAILQ_ENTRY(xs_dirs) list;
+};
+
+static QTAILQ_HEAD(xs_dirs_head, xs_dirs) xs_cleanup =
+    QTAILQ_HEAD_INITIALIZER(xs_cleanup);
+
 static QTAILQ_HEAD(XenDeviceHead, XenDevice) xendevs =
     QTAILQ_HEAD_INITIALIZER(xendevs);
 
 /* ------------------------------------------------------------- */
+
+static void xenstore_cleanup_dir(char *dir)
+{
+    struct xs_dirs *d;
+
+    d = g_malloc(sizeof(*d));
+    d->xs_dir = dir;
+    QTAILQ_INSERT_TAIL(&xs_cleanup, d, list);
+}
+
+void xen_config_cleanup(void)
+{
+    struct xs_dirs *d;
+
+    QTAILQ_FOREACH(d, &xs_cleanup, list) {
+        xs_rm(xenstore, 0, d->xs_dir);
+    }
+}
+
+int xenstore_mkdir(char *path, int p)
+{
+    struct xs_permissions perms[2] = {
+        {
+            .id    = 0, /* set owner: dom0 */
+        }, {
+            .id    = xen_domid,
+            .perms = p,
+        }
+    };
+
+    if (!xs_mkdir(xenstore, 0, path)) {
+        xen_be_printf(NULL, 0, "xs_mkdir %s: failed\n", path);
+        return -1;
+    }
+    xenstore_cleanup_dir(g_strdup(path));
+
+    if (!xs_set_permissions(xenstore, 0, path, perms, 2)) {
+        xen_be_printf(NULL, 0, "xs_set_permissions %s: failed\n", path);
+        return -1;
+    }
+    return 0;
+}
 
 int xenstore_write_str(const char *base, const char *node, const char *val)
 {
