@@ -30,6 +30,7 @@
 #include "sysemu/char.h"
 #include "qemu/log.h"
 #include "hw/xen/xen_backend.h"
+#include "hw/xen/xen_pvdev.h"
 
 #include <xen/grant_table.h>
 
@@ -57,8 +58,6 @@ static QTAILQ_HEAD(XenDeviceHead, XenDevice) xendevs =
     QTAILQ_HEAD_INITIALIZER(xendevs);
 static int debug;
 
-/* ------------------------------------------------------------- */
-
 static void xenstore_cleanup_dir(char *dir)
 {
     struct xs_dirs *d;
@@ -75,34 +74,6 @@ void xen_config_cleanup(void)
     QTAILQ_FOREACH(d, &xs_cleanup, list) {
         xs_rm(xenstore, 0, d->xs_dir);
     }
-}
-
-int xenstore_write_str(const char *base, const char *node, const char *val)
-{
-    char abspath[XEN_BUFSIZE];
-
-    snprintf(abspath, sizeof(abspath), "%s/%s", base, node);
-    if (!xs_write(xenstore, 0, abspath, val, strlen(val))) {
-        return -1;
-    }
-    return 0;
-}
-
-char *xenstore_read_str(const char *base, const char *node)
-{
-    char abspath[XEN_BUFSIZE];
-    unsigned int len;
-    char *str, *ret = NULL;
-
-    snprintf(abspath, sizeof(abspath), "%s/%s", base, node);
-    str = xs_read(xenstore, 0, abspath, &len);
-    if (str != NULL) {
-        /* move to qemu-allocated memory to make sure
-         * callers can savely g_free() stuff. */
-        ret = g_strdup(str);
-        free(str);
-    }
-    return ret;
 }
 
 int xenstore_mkdir(char *path, int p)
@@ -127,48 +98,6 @@ int xenstore_mkdir(char *path, int p)
         return -1;
     }
     return 0;
-}
-
-int xenstore_write_int(const char *base, const char *node, int ival)
-{
-    char val[12];
-
-    snprintf(val, sizeof(val), "%d", ival);
-    return xenstore_write_str(base, node, val);
-}
-
-int xenstore_write_int64(const char *base, const char *node, int64_t ival)
-{
-    char val[21];
-
-    snprintf(val, sizeof(val), "%"PRId64, ival);
-    return xenstore_write_str(base, node, val);
-}
-
-int xenstore_read_int(const char *base, const char *node, int *ival)
-{
-    char *val;
-    int rc = -1;
-
-    val = xenstore_read_str(base, node);
-    if (val && 1 == sscanf(val, "%d", ival)) {
-        rc = 0;
-    }
-    g_free(val);
-    return rc;
-}
-
-int xenstore_read_uint64(const char *base, const char *node, uint64_t *uval)
-{
-    char *val;
-    int rc = -1;
-
-    val = xenstore_read_str(base, node);
-    if (val && 1 == sscanf(val, "%"SCNu64, uval)) {
-        rc = 0;
-    }
-    g_free(val);
-    return rc;
 }
 
 int xenstore_write_be_str(struct XenDevice *xendev, const char *node, const char *val)
@@ -213,20 +142,6 @@ int xenstore_read_fe_uint64(struct XenDevice *xendev, const char *node,
 }
 
 /* ------------------------------------------------------------- */
-
-const char *xenbus_strstate(enum xenbus_state state)
-{
-    static const char *const name[] = {
-        [XenbusStateUnknown]       = "Unknown",
-        [XenbusStateInitialising]  = "Initialising",
-        [XenbusStateInitWait]      = "InitWait",
-        [XenbusStateInitialised]   = "Initialised",
-        [XenbusStateConnected]     = "Connected",
-        [XenbusStateClosing]       = "Closing",
-        [XenbusStateClosed]        = "Closed",
-    };
-    return (state < ARRAY_SIZE(name)) ? name[state] : "INVALID";
-}
 
 int xen_be_set_state(struct XenDevice *xendev, enum xenbus_state state)
 {
@@ -827,45 +742,6 @@ int xen_be_send_notify(struct XenDevice *xendev)
     return xenevtchn_notify(xendev->evtchndev, xendev->local_port);
 }
 
-/*
- * msg_level:
- *  0 == errors (stderr + logfile).
- *  1 == informative debug messages (logfile only).
- *  2 == noisy debug messages (logfile only).
- *  3 == will flood your log (logfile only).
- */
-void xen_be_printf(struct XenDevice *xendev, int msg_level,
-                   const char *fmt, ...)
-{
-    va_list args;
-
-    if (xendev) {
-        if (msg_level > xendev->debug) {
-            return;
-        }
-        qemu_log("xen be: %s: ", xendev->name);
-        if (msg_level == 0) {
-            fprintf(stderr, "xen be: %s: ", xendev->name);
-        }
-    } else {
-        if (msg_level > debug) {
-            return;
-        }
-        qemu_log("xen be core: ");
-        if (msg_level == 0) {
-            fprintf(stderr, "xen be core: ");
-        }
-    }
-    va_start(args, fmt);
-    qemu_log_vprintf(fmt, args);
-    va_end(args);
-    if (msg_level == 0) {
-        va_start(args, fmt);
-        vfprintf(stderr, fmt, args);
-        va_end(args);
-    }
-    qemu_log_flush();
-}
 
 static int xen_sysdev_init(SysBusDevice *dev)
 {
