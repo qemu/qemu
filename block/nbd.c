@@ -197,6 +197,7 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QemuOpts *opts, Error **errp)
 
     s->path = g_strdup(qemu_opt_get(opts, "path"));
     s->host = g_strdup(qemu_opt_get(opts, "host"));
+    s->port = g_strdup(qemu_opt_get(opts, "port"));
 
     if (!s->path == !s->host) {
         if (s->path) {
@@ -204,6 +205,10 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QemuOpts *opts, Error **errp)
         } else {
             error_setg(errp, "one of path and host must be specified");
         }
+        return NULL;
+    }
+    if (s->port && !s->host) {
+        error_setg(errp, "port may not be used without host");
         return NULL;
     }
 
@@ -216,8 +221,6 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QemuOpts *opts, Error **errp)
         q_unix->path = g_strdup(s->path);
     } else {
         InetSocketAddress *inet;
-
-        s->port = g_strdup(qemu_opt_get(opts, "port"));
 
         saddr->type = SOCKET_ADDRESS_KIND_INET;
         inet = saddr->u.inet.data = g_new0(InetSocketAddress, 1);
