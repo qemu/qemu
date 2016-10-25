@@ -1194,7 +1194,7 @@ static void blk_disconnect(struct XenDevice *xendev)
         blk_unref(blkdev->blk);
         blkdev->blk = NULL;
     }
-    xen_be_unbind_evtchn(&blkdev->xendev);
+    xen_pv_unbind_evtchn(&blkdev->xendev);
 
     if (blkdev->sring) {
         xengnttab_unmap(blkdev->xendev.gnttabdev, blkdev->sring, 1);

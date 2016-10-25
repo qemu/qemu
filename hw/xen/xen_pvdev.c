@@ -246,7 +246,7 @@ void xen_be_evtchn_event(void *opaque)
     }
 }
 
-void xen_be_unbind_evtchn(struct XenDevice *xendev)
+void xen_pv_unbind_evtchn(struct XenDevice *xendev)
 {
     if (xendev->local_port == -1) {
         return;

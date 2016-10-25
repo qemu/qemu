@@ -262,7 +262,7 @@ static void con_disconnect(struct XenDevice *xendev)
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
 
     qemu_chr_fe_deinit(&con->chr);
-    xen_be_unbind_evtchn(&con->xendev);
+    xen_pv_unbind_evtchn(&con->xendev);
 
     if (con->sring) {
         if (!xendev->dev) {

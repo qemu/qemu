@@ -372,7 +372,7 @@ static void net_disconnect(struct XenDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
 
-    xen_be_unbind_evtchn(&netdev->xendev);
+    xen_pv_unbind_evtchn(&netdev->xendev);
 
     if (netdev->txs) {
         xengnttab_unmap(netdev->xendev.gnttabdev, netdev->txs, 1);

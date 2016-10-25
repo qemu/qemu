@@ -834,7 +834,7 @@ static void usbback_disconnect(struct XenDevice *xendev)
 
     usbif = container_of(xendev, struct usbback_info, xendev);
 
-    xen_be_unbind_evtchn(xendev);
+    xen_pv_unbind_evtchn(xendev);
 
     if (usbif->urb_sring) {
         xengnttab_unmap(xendev->gnttabdev, usbif->urb_sring, 1);

@@ -112,7 +112,7 @@ static int common_bind(struct common *c)
 
 static void common_unbind(struct common *c)
 {
-    xen_be_unbind_evtchn(&c->xendev);
+    xen_pv_unbind_evtchn(&c->xendev);
     if (c->page) {
         xenforeignmemory_unmap(xen_fmem, c->page, 1);
 	c->page = NULL;
