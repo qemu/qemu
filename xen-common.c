@@ -116,12 +116,12 @@ static int xen_init(MachineState *ms)
 {
     xen_xc = xc_interface_open(0, 0, 0);
     if (xen_xc == NULL) {
-        xen_be_printf(NULL, 0, "can't open xen interface\n");
+        xen_pv_printf(NULL, 0, "can't open xen interface\n");
         return -1;
     }
     xen_fmem = xenforeignmemory_open(0, 0);
     if (xen_fmem == NULL) {
-        xen_be_printf(NULL, 0, "can't open xen fmem interface\n");
+        xen_pv_printf(NULL, 0, "can't open xen fmem interface\n");
         xc_interface_close(xen_xc);
         return -1;
     }

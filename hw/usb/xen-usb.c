@@ -47,7 +47,7 @@
         struct timeval tv;                                          \
                                                                     \
         gettimeofday(&tv, NULL);                                    \
-        xen_be_printf(xendev, lvl, "%8ld.%06ld xen-usb(%s):" fmt,   \
+        xen_pv_printf(xendev, lvl, "%8ld.%06ld xen-usb(%s):" fmt,   \
                       tv.tv_sec, tv.tv_usec, __func__, ##args);     \
     }
 #define TR_BUS(xendev, fmt, args...) TR(xendev, 2, fmt, ##args)
@@ -153,7 +153,7 @@ static int usbback_gnttab_map(struct usbback_req *usbback_req)
     }
 
     if (nr_segs > USBIF_MAX_SEGMENTS_PER_REQUEST) {
-        xen_be_printf(xendev, 0, "bad number of segments in request (%d)\n",
+        xen_pv_printf(xendev, 0, "bad number of segments in request (%d)\n",
                       nr_segs);
         return -EINVAL;
     }
@@ -161,7 +161,7 @@ static int usbback_gnttab_map(struct usbback_req *usbback_req)
     for (i = 0; i < nr_segs; i++) {
         if ((unsigned)usbback_req->req.seg[i].offset +
             (unsigned)usbback_req->req.seg[i].length > XC_PAGE_SIZE) {
-            xen_be_printf(xendev, 0, "segment crosses page boundary\n");
+            xen_pv_printf(xendev, 0, "segment crosses page boundary\n");
             return -EINVAL;
         }
     }
@@ -199,7 +199,7 @@ static int usbback_gnttab_map(struct usbback_req *usbback_req)
      */
 
     if (!usbback_req->nr_extra_segs) {
-        xen_be_printf(xendev, 0, "iso request without descriptor segments\n");
+        xen_pv_printf(xendev, 0, "iso request without descriptor segments\n");
         return -EINVAL;
     }
 
@@ -551,14 +551,14 @@ static void usbback_dispatch(struct usbback_req *usbback_req)
 
     ret = usbback_init_packet(usbback_req);
     if (ret) {
-        xen_be_printf(&usbif->xendev, 0, "invalid request\n");
+        xen_pv_printf(&usbif->xendev, 0, "invalid request\n");
         ret = -ESHUTDOWN;
         goto fail_free_urb;
     }
 
     ret = usbback_gnttab_map(usbback_req);
     if (ret) {
-        xen_be_printf(&usbif->xendev, 0, "invalid buffer, ret=%d\n", ret);
+        xen_pv_printf(&usbif->xendev, 0, "invalid buffer, ret=%d\n", ret);
         ret = -ESHUTDOWN;
         goto fail_free_urb;
     }
@@ -646,7 +646,7 @@ static void usbback_bh(void *opaque)
 
     if (RING_REQUEST_PROD_OVERFLOW(urb_ring, rp)) {
         rc = urb_ring->rsp_prod_pvt;
-        xen_be_printf(&usbif->xendev, 0, "domU provided bogus ring requests "
+        xen_pv_printf(&usbif->xendev, 0, "domU provided bogus ring requests "
                       "(%#x - %#x = %u). Halting ring processing.\n",
                       rp, rc, rp - rc);
         usbif->ring_error = true;
@@ -744,7 +744,7 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
 
     portname = strchr(busid, '-');
     if (!portname) {
-        xen_be_printf(&usbif->xendev, 0, "device %s illegal specification\n",
+        xen_pv_printf(&usbif->xendev, 0, "device %s illegal specification\n",
                       busid);
         return;
     }
@@ -783,7 +783,7 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
         break;
     }
     if (speed == USBIF_SPEED_NONE) {
-        xen_be_printf(&usbif->xendev, 0, "device %s wrong speed\n", busid);
+        xen_pv_printf(&usbif->xendev, 0, "device %s wrong speed\n", busid);
         object_unparent(OBJECT(usbif->ports[port - 1].dev));
         usbif->ports[port - 1].dev = NULL;
         return;
@@ -800,7 +800,7 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
 err:
     QDECREF(qdict);
     snprintf(p->path, sizeof(p->path), "%d", 99);
-    xen_be_printf(&usbif->xendev, 0, "device %s could not be opened\n", busid);
+    xen_pv_printf(&usbif->xendev, 0, "device %s could not be opened\n", busid);
 }
 
 static void usbback_process_port(struct usbback_info *usbif, unsigned port)
@@ -811,7 +811,7 @@ static void usbback_process_port(struct usbback_info *usbif, unsigned port)
     snprintf(node, sizeof(node), "port/%d", port);
     busid = xenstore_read_be_str(&usbif->xendev, node);
     if (busid == NULL) {
-        xen_be_printf(&usbif->xendev, 0, "xenstore_read %s failed\n", node);
+        xen_pv_printf(&usbif->xendev, 0, "xenstore_read %s failed\n", node);
         return;
     }
 
@@ -868,15 +868,15 @@ static int usbback_connect(struct XenDevice *xendev)
     usbif = container_of(xendev, struct usbback_info, xendev);
 
     if (xenstore_read_fe_int(xendev, "urb-ring-ref", &urb_ring_ref)) {
-        xen_be_printf(xendev, 0, "error reading urb-ring-ref\n");
+        xen_pv_printf(xendev, 0, "error reading urb-ring-ref\n");
         return -1;
     }
     if (xenstore_read_fe_int(xendev, "conn-ring-ref", &conn_ring_ref)) {
-        xen_be_printf(xendev, 0, "error reading conn-ring-ref\n");
+        xen_pv_printf(xendev, 0, "error reading conn-ring-ref\n");
         return -1;
     }
     if (xenstore_read_fe_int(xendev, "event-channel", &xendev->remote_port)) {
-        xen_be_printf(xendev, 0, "error reading event-channel\n");
+        xen_pv_printf(xendev, 0, "error reading event-channel\n");
         return -1;
     }
 
@@ -887,7 +887,7 @@ static int usbback_connect(struct XenDevice *xendev)
                                                 conn_ring_ref,
                                                 PROT_READ | PROT_WRITE);
     if (!usbif->urb_sring || !usbif->conn_sring) {
-        xen_be_printf(xendev, 0, "error mapping rings\n");
+        xen_pv_printf(xendev, 0, "error mapping rings\n");
         usbback_disconnect(xendev);
         return -1;
     }
@@ -899,7 +899,7 @@ static int usbback_connect(struct XenDevice *xendev)
 
     xen_be_bind_evtchn(xendev);
 
-    xen_be_printf(xendev, 1, "urb-ring-ref %d, conn-ring-ref %d, "
+    xen_pv_printf(xendev, 1, "urb-ring-ref %d, conn-ring-ref %d, "
                   "remote port %d, local port %d\n", urb_ring_ref,
                   conn_ring_ref, xendev->remote_port, xendev->local_port);
 
@@ -935,12 +935,12 @@ static int usbback_init(struct XenDevice *xendev)
 
     if (xenstore_read_be_int(xendev, "num-ports", &usbif->num_ports) ||
         usbif->num_ports < 1 || usbif->num_ports > USBBACK_MAXPORTS) {
-        xen_be_printf(xendev, 0, "num-ports not readable or out of bounds\n");
+        xen_pv_printf(xendev, 0, "num-ports not readable or out of bounds\n");
         return -1;
     }
     if (xenstore_read_be_int(xendev, "usb-ver", &usbif->usb_ver) ||
         (usbif->usb_ver != USB_VER_USB11 && usbif->usb_ver != USB_VER_USB20)) {
-        xen_be_printf(xendev, 0, "usb-ver not readable or out of bounds\n");
+        xen_pv_printf(xendev, 0, "usb-ver not readable or out of bounds\n");
         return -1;
     }
 
@@ -1028,7 +1028,7 @@ static void usbback_alloc(struct XenDevice *xendev)
     /* max_grants: for each request and for the rings (request and connect). */
     max_grants = USBIF_MAX_SEGMENTS_PER_REQUEST * USB_URB_RING_SIZE + 2;
     if (xengnttab_set_max_grants(xendev->gnttabdev, max_grants) < 0) {
-        xen_be_printf(xendev, 0, "xengnttab_set_max_grants failed: %s\n",
+        xen_pv_printf(xendev, 0, "xengnttab_set_max_grants failed: %s\n",
                       strerror(errno));
     }
 }

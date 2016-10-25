@@ -55,7 +55,7 @@ int xen_config_dev_blk(DriveInfo *disk)
     const char *filename = qemu_opt_get(disk->opts, "file");
 
     snprintf(device_name, sizeof(device_name), "xvd%c", 'a' + disk->unit);
-    xen_be_printf(NULL, 1, "config disk %d [%s]: %s\n",
+    xen_pv_printf(NULL, 1, "config disk %d [%s]: %s\n",
                   disk->unit, device_name, filename);
     xen_config_dev_dirs("vbd", "qdisk", vdev, fe, be, sizeof(fe));
 
@@ -83,7 +83,7 @@ int xen_config_dev_nic(NICInfo *nic)
     snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x",
              nic->macaddr.a[0], nic->macaddr.a[1], nic->macaddr.a[2],
              nic->macaddr.a[3], nic->macaddr.a[4], nic->macaddr.a[5]);
-    xen_be_printf(NULL, 1, "config nic %d: mac=\"%s\"\n", vlan_id, mac);
+    xen_pv_printf(NULL, 1, "config nic %d: mac=\"%s\"\n", vlan_id, mac);
     xen_config_dev_dirs("vif", "qnic", vlan_id, fe, be, sizeof(fe));
 
     /* frontend */
