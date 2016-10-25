@@ -69,7 +69,7 @@ static void net_tx_response(struct XenNetDev *netdev, netif_tx_request_t *txp, i
     netdev->tx_ring.rsp_prod_pvt = ++i;
     RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&netdev->tx_ring, notify);
     if (notify) {
-        xen_be_send_notify(&netdev->xendev);
+        xen_pv_send_notify(&netdev->xendev);
     }
 
     if (i == netdev->tx_ring.req_cons) {
@@ -221,7 +221,7 @@ static void net_rx_response(struct XenNetDev *netdev,
     netdev->rx_ring.rsp_prod_pvt = ++i;
     RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&netdev->rx_ring, notify);
     if (notify) {
-        xen_be_send_notify(&netdev->xendev);
+        xen_pv_send_notify(&netdev->xendev);
     }
 }
 

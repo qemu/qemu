@@ -74,7 +74,7 @@ static void buffer_append(struct XenConsole *con)
 
     xen_mb();
     intf->out_cons = cons;
-    xen_be_send_notify(&con->xendev);
+    xen_pv_send_notify(&con->xendev);
 
     if (buffer->max_capacity &&
 	buffer->size > buffer->max_capacity) {
@@ -142,7 +142,7 @@ static void xencons_receive(void *opaque, const uint8_t *buf, int len)
     }
     xen_wmb();
     intf->in_prod = prod;
-    xen_be_send_notify(&con->xendev);
+    xen_pv_send_notify(&con->xendev);
 }
 
 static void xencons_send(struct XenConsole *con)

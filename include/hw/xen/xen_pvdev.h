@@ -70,7 +70,7 @@ void xen_be_del_xendev(struct XenDevice *xendev);
 struct XenDevice *xen_be_find_xendev(const char *type, int dom, int dev);
 
 void xen_pv_unbind_evtchn(struct XenDevice *xendev);
-int xen_be_send_notify(struct XenDevice *xendev);
+int xen_pv_send_notify(struct XenDevice *xendev);
 
 void xen_pv_printf(struct XenDevice *xendev, int msg_level,
                    const char *fmt, ...)  GCC_FMT_ATTR(3, 4);

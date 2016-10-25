@@ -215,7 +215,7 @@ static int xenfb_kbd_event(struct XenInput *xenfb,
     XENKBD_IN_RING_REF(page, prod) = *event;
     xen_wmb();		/* ensure ring contents visible */
     page->in_prod = prod + 1;
-    return xen_be_send_notify(&xenfb->c.xendev);
+    return xen_pv_send_notify(&xenfb->c.xendev);
 }
 
 /* Send a keyboard (or mouse button) event */
@@ -397,7 +397,7 @@ static void input_event(struct XenDevice *xendev)
     if (page->out_prod == page->out_cons)
 	return;
     page->out_cons = page->out_prod;
-    xen_be_send_notify(&xenfb->c.xendev);
+    xen_pv_send_notify(&xenfb->c.xendev);
 }
 
 /* -------------------------------------------------------------------- */
@@ -672,7 +672,7 @@ static void xenfb_send_event(struct XenFB *xenfb, union xenfb_in_event *event)
     xen_wmb();                  /* ensure ring contents visible */
     page->in_prod = prod + 1;
 
-    xen_be_send_notify(&xenfb->c.xendev);
+    xen_pv_send_notify(&xenfb->c.xendev);
 }
 
 static void xenfb_send_refresh_period(struct XenFB *xenfb, int period)
@@ -945,7 +945,7 @@ static void fb_event(struct XenDevice *xendev)
     struct XenFB *xenfb = container_of(xendev, struct XenFB, c.xendev);
 
     xenfb_handle_events(xenfb);
-    xen_be_send_notify(&xenfb->c.xendev);
+    xen_pv_send_notify(&xenfb->c.xendev);
 }
 
 /* -------------------------------------------------------------------- */

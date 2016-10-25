@@ -796,7 +796,7 @@ static void blk_send_response_all(struct XenBlkDev *blkdev)
         ioreq_release(ioreq, true);
     }
     if (send_notify) {
-        xen_be_send_notify(&blkdev->xendev);
+        xen_pv_send_notify(&blkdev->xendev);
     }
 }
 
@@ -866,7 +866,7 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
             };
 
             if (blk_send_response_one(ioreq)) {
-                xen_be_send_notify(&blkdev->xendev);
+                xen_pv_send_notify(&blkdev->xendev);
             }
             ioreq_release(ioreq, false);
             continue;

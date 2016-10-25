@@ -257,7 +257,7 @@ void xen_pv_unbind_evtchn(struct XenDevice *xendev)
     xendev->local_port = -1;
 }
 
-int xen_be_send_notify(struct XenDevice *xendev)
+int xen_pv_send_notify(struct XenDevice *xendev)
 {
     return xenevtchn_notify(xendev->evtchndev, xendev->local_port);
 }
