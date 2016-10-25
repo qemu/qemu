@@ -483,7 +483,7 @@ void xenstore_update_be(char *watch, char *type, int dom,
     if (xendev != NULL) {
         bepath = xs_read(xenstore, 0, xendev->be, &len);
         if (bepath == NULL) {
-            xen_be_del_xendev(xendev);
+            xen_pv_del_xendev(xendev);
         } else {
             free(bepath);
             xen_be_backend_changed(xendev, path);

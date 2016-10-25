@@ -286,7 +286,7 @@ struct XenDevice *xen_pv_find_xendev(const char *type, int dom, int dev)
 /*
  * release xen backend device.
  */
-void xen_be_del_xendev(struct XenDevice *xendev)
+void xen_pv_del_xendev(struct XenDevice *xendev)
 {
     if (xendev->ops->free) {
         xendev->ops->free(xendev);

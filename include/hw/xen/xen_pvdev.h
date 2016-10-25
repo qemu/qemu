@@ -66,7 +66,7 @@ const char *xenbus_strstate(enum xenbus_state state);
 
 void xen_pv_evtchn_event(void *opaque);
 void xen_pv_insert_xendev(struct XenDevice *xendev);
-void xen_be_del_xendev(struct XenDevice *xendev);
+void xen_pv_del_xendev(struct XenDevice *xendev);
 struct XenDevice *xen_pv_find_xendev(const char *type, int dom, int dev);
 
 void xen_pv_unbind_evtchn(struct XenDevice *xendev);
