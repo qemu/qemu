@@ -64,6 +64,10 @@ void xenstore_update(void *unused);
 
 const char *xenbus_strstate(enum xenbus_state state);
 
+void xen_be_evtchn_event(void *opaque);
+void xen_be_unbind_evtchn(struct XenDevice *xendev);
+int xen_be_send_notify(struct XenDevice *xendev);
+
 void xen_be_printf(struct XenDevice *xendev, int msg_level,
                    const char *fmt, ...)  GCC_FMT_ATTR(3, 4);
 

@@ -607,25 +607,6 @@ void xenstore_update_fe(char *watch, struct XenDevice *xendev)
     xen_be_frontend_changed(xendev, node);
     xen_be_check_state(xendev);
 }
-static void xen_be_evtchn_event(void *opaque)
-{
-    struct XenDevice *xendev = opaque;
-    evtchn_port_t port;
-
-    port = xenevtchn_pending(xendev->evtchndev);
-    if (port != xendev->local_port) {
-        xen_be_printf(xendev, 0,
-                      "xenevtchn_pending returned %d (expected %d)\n",
-                      port, xendev->local_port);
-        return;
-    }
-    xenevtchn_unmask(xendev->evtchndev, port);
-
-    if (xendev->ops->event) {
-        xendev->ops->event(xendev);
-    }
-}
-
 /* -------------------------------------------------------------------- */
 
 int xen_be_init(void)
@@ -700,22 +681,6 @@ int xen_be_bind_evtchn(struct XenDevice *xendev)
     qemu_set_fd_handler(xenevtchn_fd(xendev->evtchndev),
                         xen_be_evtchn_event, NULL, xendev);
     return 0;
-}
-
-void xen_be_unbind_evtchn(struct XenDevice *xendev)
-{
-    if (xendev->local_port == -1) {
-        return;
-    }
-    qemu_set_fd_handler(xenevtchn_fd(xendev->evtchndev), NULL, NULL, NULL);
-    xenevtchn_unbind(xendev->evtchndev, xendev->local_port);
-    xen_be_printf(xendev, 2, "unbind evtchn port %d\n", xendev->local_port);
-    xendev->local_port = -1;
-}
-
-int xen_be_send_notify(struct XenDevice *xendev)
-{
-    return xenevtchn_notify(xendev->evtchndev, xendev->local_port);
 }
 
 

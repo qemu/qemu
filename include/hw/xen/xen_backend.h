@@ -36,8 +36,6 @@ void xen_be_register_common(void);
 int xen_be_register(const char *type, struct XenDevOps *ops);
 int xen_be_set_state(struct XenDevice *xendev, enum xenbus_state state);
 int xen_be_bind_evtchn(struct XenDevice *xendev);
-void xen_be_unbind_evtchn(struct XenDevice *xendev);
-int xen_be_send_notify(struct XenDevice *xendev);
 
 /* actual backend drivers */
 extern struct XenDevOps xen_console_ops;      /* xen_console.c     */
