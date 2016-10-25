@@ -211,12 +211,13 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
 
     DPRINTF("CURL: Just reading %zd bytes\n", realsize);
 
-    if (!s || !s->orig_buf)
-        return 0;
+    if (!s || !s->orig_buf) {
+        goto read_end;
+    }
 
     if (s->buf_off >= s->buf_len) {
         /* buffer full, read nothing */
-        return 0;
+        goto read_end;
     }
     realsize = MIN(realsize, s->buf_len - s->buf_off);
     memcpy(s->orig_buf + s->buf_off, ptr, realsize);
@@ -237,7 +238,9 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
         }
     }
 
-    return realsize;
+read_end:
+    /* curl will error out if we do not return this value */
+    return size * nmemb;
 }
 
 static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
