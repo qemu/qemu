@@ -1,0 +1,195 @@
+#!/usr/bin/env python
+#
+# Test case for NBD's blockdev-add interface
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import socket
+import stat
+import time
+import iotests
+from iotests import cachemode, imgfmt, qemu_img, qemu_nbd
+
+NBD_PORT = 10811
+
+test_img = os.path.join(iotests.test_dir, 'test.img')
+unix_socket = os.path.join(iotests.test_dir, 'nbd.socket')
+
+class NBDBlockdevAddBase(iotests.QMPTestCase):
+    def blockdev_add_options(self, address, export=None):
+        options = { 'node-name': 'nbd-blockdev',
+                    'driver': 'raw',
+                    'file': {
+                        'driver': 'nbd',
+                        'server': address
+                    } }
+        if export is not None:
+            options['file']['export'] = export
+        return options
+
+    def client_test(self, filename, address, export=None):
+        bao = self.blockdev_add_options(address, export)
+        result = self.vm.qmp('blockdev-add', **bao)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('query-named-block-nodes')
+        for node in result['return']:
+            if node['node-name'] == 'nbd-blockdev':
+                if isinstance(filename, str):
+                    self.assert_qmp(node, 'image/filename', filename)
+                else:
+                    self.assert_json_filename_equal(node['image']['filename'],
+                                                    filename)
+                break
+
+        result = self.vm.qmp('x-blockdev-del', node_name='nbd-blockdev')
+        self.assert_qmp(result, 'return', {})
+
+
+class QemuNBD(NBDBlockdevAddBase):
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, test_img, '64k')
+        self.vm = iotests.VM()
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        try:
+            os.remove(unix_socket)
+        except OSError:
+            pass
+
+    def _server_up(self, *args):
+        self.assertEqual(qemu_nbd('-f', imgfmt, test_img, *args), 0)
+
+    def test_inet(self):
+        self._server_up('-p', str(NBD_PORT))
+        address = { 'type': 'inet',
+                    'data': {
+                        'host': 'localhost',
+                        'port': str(NBD_PORT)
+                    } }
+        self.client_test('nbd://localhost:%i' % NBD_PORT, address)
+
+    def test_unix(self):
+        self._server_up('-k', unix_socket)
+        address = { 'type': 'unix',
+                    'data': { 'path': unix_socket } }
+        self.client_test('nbd+unix://?socket=' + unix_socket, address)
+
+
+class BuiltinNBD(NBDBlockdevAddBase):
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, test_img, '64k')
+        self.vm = iotests.VM()
+        self.vm.launch()
+        self.server = iotests.VM('.server')
+        self.server.add_drive_raw('if=none,id=nbd-export,' +
+                                  'file=%s,' % test_img +
+                                  'format=%s,' % imgfmt +
+                                  'cache=%s' % cachemode)
+        self.server.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        self.server.shutdown()
+        os.remove(test_img)
+        try:
+            os.remove(unix_socket)
+        except OSError:
+            pass
+
+    def _server_up(self, address):
+        result = self.server.qmp('nbd-server-start', addr=address)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.server.qmp('nbd-server-add', device='nbd-export')
+        self.assert_qmp(result, 'return', {})
+
+    def _server_down(self):
+        result = self.server.qmp('nbd-server-stop')
+        self.assert_qmp(result, 'return', {})
+
+    def test_inet(self):
+        address = { 'type': 'inet',
+                    'data': {
+                        'host': 'localhost',
+                        'port': str(NBD_PORT)
+                    } }
+        self._server_up(address)
+        self.client_test('nbd://localhost:%i/nbd-export' % NBD_PORT,
+                         address, 'nbd-export')
+        self._server_down()
+
+    def test_inet6(self):
+        address = { 'type': 'inet',
+                    'data': {
+                        'host': '::1',
+                        'port': str(NBD_PORT),
+                        'ipv4': False,
+                        'ipv6': True
+                    } }
+        filename = { 'driver': 'raw',
+                     'file': {
+                         'driver': 'nbd',
+                         'export': 'nbd-export',
+                         'server': address
+                     } }
+        self._server_up(address)
+        self.client_test(filename, address, 'nbd-export')
+        self._server_down()
+
+    def test_unix(self):
+        address = { 'type': 'unix',
+                    'data': { 'path': unix_socket } }
+        self._server_up(address)
+        self.client_test('nbd+unix:///nbd-export?socket=' + unix_socket,
+                         address, 'nbd-export')
+        self._server_down()
+
+    def test_fd(self):
+        self._server_up({ 'type': 'unix',
+                          'data': { 'path': unix_socket } })
+
+        sockfd = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sockfd.connect(unix_socket)
+
+        result = self.vm.send_fd_scm(str(sockfd.fileno()))
+        self.assertEqual(result, 0, 'Failed to send socket FD')
+
+        result = self.vm.qmp('getfd', fdname='nbd-fifo')
+        self.assert_qmp(result, 'return', {})
+
+        address = { 'type': 'fd',
+                    'data': { 'str': 'nbd-fifo' } }
+        filename = { 'driver': 'raw',
+                     'file': {
+                         'driver': 'nbd',
+                         'export': 'nbd-export',
+                         'server': address
+                     } }
+        self.client_test(filename, address, 'nbd-export')
+
+        self._server_down()
+
+
+if __name__ == '__main__':
+    # Need to support image creation
+    iotests.main(supported_fmts=['vpc', 'parallels', 'qcow', 'vdi', 'qcow2',
+                                 'vmdk', 'raw', 'vhdx', 'qed'])
