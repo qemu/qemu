@@ -30,10 +30,14 @@
 #include "block/block_int.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/cutils.h"
 #include "qemu/sockets.h"
 #include "qemu/uri.h"
+#include "qapi-visit.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 
 /* DEBUG_SSH=1 enables the DPRINTF (debugging printf) statements in
  * this block driver code.
@@ -74,8 +78,9 @@ typedef struct BDRVSSHState {
      */
     LIBSSH2_SFTP_ATTRIBUTES attrs;
 
+    InetSocketAddress *inet;
+
     /* Used to warn if 'flush' is not supported. */
-    char *hostport;
     bool unsafe_flush_warning;
 } BDRVSSHState;
 
@@ -89,7 +94,6 @@ static void ssh_state_init(BDRVSSHState *s)
 
 static void ssh_state_free(BDRVSSHState *s)
 {
-    g_free(s->hostport);
     if (s->sftp_handle) {
         libssh2_sftp_close(s->sftp_handle);
     }
@@ -263,7 +267,8 @@ static bool ssh_has_filename_options_conflict(QDict *options, Error **errp)
             !strcmp(qe->key, "port") ||
             !strcmp(qe->key, "path") ||
             !strcmp(qe->key, "user") ||
-            !strcmp(qe->key, "host_key_check"))
+            !strcmp(qe->key, "host_key_check") ||
+            strstart(qe->key, "server.", NULL))
         {
             error_setg(errp, "Option '%s' cannot be used with a file name",
                        qe->key);
@@ -555,14 +560,69 @@ static QemuOptsList ssh_runtime_opts = {
     },
 };
 
+static bool ssh_process_legacy_socket_options(QDict *output_opts,
+                                              QemuOpts *legacy_opts,
+                                              Error **errp)
+{
+    const char *host = qemu_opt_get(legacy_opts, "host");
+    const char *port = qemu_opt_get(legacy_opts, "port");
+
+    if (!host && port) {
+        error_setg(errp, "port may not be used without host");
+        return false;
+    }
+
+    if (host) {
+        qdict_put(output_opts, "server.host", qstring_from_str(host));
+        qdict_put(output_opts, "server.port",
+                  qstring_from_str(port ?: stringify(22)));
+    }
+
+    return true;
+}
+
+static InetSocketAddress *ssh_config(BDRVSSHState *s, QDict *options,
+                                     Error **errp)
+{
+    InetSocketAddress *inet = NULL;
+    QDict *addr = NULL;
+    QObject *crumpled_addr = NULL;
+    Visitor *iv = NULL;
+    Error *local_error = NULL;
+
+    qdict_extract_subqdict(options, &addr, "server.");
+    if (!qdict_size(addr)) {
+        error_setg(errp, "SSH server address missing");
+        goto out;
+    }
+
+    crumpled_addr = qdict_crumple(addr, errp);
+    if (!crumpled_addr) {
+        goto out;
+    }
+
+    iv = qobject_input_visitor_new(crumpled_addr, true);
+    visit_type_InetSocketAddress(iv, NULL, &inet, &local_error);
+    if (local_error) {
+        error_propagate(errp, local_error);
+        goto out;
+    }
+
+out:
+    QDECREF(addr);
+    qobject_decref(crumpled_addr);
+    visit_free(iv);
+    return inet;
+}
+
 static int connect_to_ssh(BDRVSSHState *s, QDict *options,
                           int ssh_flags, int creat_mode, Error **errp)
 {
     int r, ret;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
-    const char *host, *user, *path, *host_key_check;
-    int port;
+    const char *user, *path, *host_key_check;
+    long port = 0;
 
     opts = qemu_opts_create(&ssh_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -572,14 +632,10 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         goto err;
     }
 
-    host = qemu_opt_get(opts, "host");
-    if (!host) {
+    if (!ssh_process_legacy_socket_options(options, opts, errp)) {
         ret = -EINVAL;
-        error_setg(errp, "No hostname was specified");
         goto err;
     }
-
-    port = qemu_opt_get_number(opts, "port", 22);
 
     path = qemu_opt_get(opts, "path");
     if (!path) {
@@ -603,12 +659,21 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         host_key_check = "yes";
     }
 
-    /* Construct the host:port name for inet_connect. */
-    g_free(s->hostport);
-    s->hostport = g_strdup_printf("%s:%d", host, port);
+    /* Pop the config into our state object, Exit if invalid */
+    s->inet = ssh_config(s, options, errp);
+    if (!s->inet) {
+        ret = -EINVAL;
+        goto err;
+    }
+
+    if (qemu_strtol(s->inet->port, NULL, 10, &port) < 0) {
+        error_setg(errp, "Use only numeric port value");
+        ret = -EINVAL;
+        goto err;
+    }
 
     /* Open the socket and connect. */
-    s->sock = inet_connect(s->hostport, errp);
+    s->sock = inet_connect_saddr(s->inet, errp, NULL, NULL);
     if (s->sock < 0) {
         ret = -EIO;
         goto err;
@@ -634,7 +699,8 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     }
 
     /* Check the remote host's key against known_hosts. */
-    ret = check_host_key(s, host, port, host_key_check, errp);
+    ret = check_host_key(s, s->inet->host, port, host_key_check,
+                         errp);
     if (ret < 0) {
         goto err;
     }
@@ -1055,7 +1121,7 @@ static void unsafe_flush_warning(BDRVSSHState *s, const char *what)
 {
     if (!s->unsafe_flush_warning) {
         error_report("warning: ssh server %s does not support fsync",
-                     s->hostport);
+                     s->inet->host);
         if (what) {
             error_report("to support fsync, you need %s", what);
         }
