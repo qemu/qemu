@@ -34,6 +34,8 @@ typedef void NonBlockingConnectHandler(int fd, Error *err, void *opaque);
 
 InetSocketAddress *inet_parse(const char *str, Error **errp);
 int inet_connect(const char *str, Error **errp);
+int inet_connect_saddr(InetSocketAddress *saddr, Error **errp,
+                       NonBlockingConnectHandler *callback, void *opaque);
 
 NetworkAddressFamily inet_netfamily(int family);
 
