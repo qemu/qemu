@@ -988,8 +988,8 @@ void xen_init_display(int domid)
 wait_more:
     i++;
     main_loop_wait(true);
-    xfb = xen_be_find_xendev("vfb", domid, 0);
-    xin = xen_be_find_xendev("vkbd", domid, 0);
+    xfb = xen_pv_find_xendev("vfb", domid, 0);
+    xin = xen_pv_find_xendev("vkbd", domid, 0);
     if (!xfb || !xin) {
         if (i < 256) {
             usleep(10000);

@@ -264,7 +264,7 @@ int xen_pv_send_notify(struct XenDevice *xendev)
 
 /* ------------------------------------------------------------- */
 
-struct XenDevice *xen_be_find_xendev(const char *type, int dom, int dev)
+struct XenDevice *xen_pv_find_xendev(const char *type, int dom, int dev)
 {
     struct XenDevice *xendev;
 

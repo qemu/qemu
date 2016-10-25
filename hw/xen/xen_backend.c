@@ -114,7 +114,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
 {
     struct XenDevice *xendev;
 
-    xendev = xen_be_find_xendev(type, dom, dev);
+    xendev = xen_pv_find_xendev(type, dom, dev);
     if (xendev) {
         return xendev;
     }
