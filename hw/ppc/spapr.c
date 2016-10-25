@@ -659,14 +659,28 @@ static int spapr_dt_cas_updates(sPAPRMachineState *spapr, void *fdt,
                                 sPAPROptionVector *ov5_updates)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-    int ret = 0;
+    int ret = 0, offset;
 
     /* Generate ibm,dynamic-reconfiguration-memory node if required */
     if (spapr_ovec_test(ov5_updates, OV5_DRCONF_MEMORY)) {
         g_assert(smc->dr_lmb_enabled);
         ret = spapr_populate_drconf_memory(spapr, fdt);
+        if (ret) {
+            goto out;
+        }
     }
 
+    offset = fdt_path_offset(fdt, "/chosen");
+    if (offset < 0) {
+        offset = fdt_add_subnode(fdt, 0, "chosen");
+        if (offset < 0) {
+            return offset;
+        }
+    }
+    ret = spapr_ovec_populate_dt(fdt, offset, spapr->ov5_cas,
+                                 "ibm,architecture-vec-5");
+
+out:
     return ret;
 }
 
@@ -792,13 +806,8 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
     char *stdout_path = spapr_vio_stdout_path(spapr->vio_bus);
     size_t cb = 0;
     char *bootlist = get_boot_devices_list(&cb, true);
-    unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
 
     _FDT(chosen = fdt_add_subnode(fdt, 0, "chosen"));
-
-    /* Set Form1_affinity */
-    _FDT(fdt_setprop(fdt, chosen, "ibm,architecture-vec-5",
-                     vec5, sizeof(vec5)));
 
     _FDT(fdt_setprop_string(fdt, chosen, "bootargs", machine->kernel_cmdline));
     _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-start",
@@ -1777,6 +1786,8 @@ static void ppc_spapr_init(MachineState *machine)
         spapr_ovec_set(spapr->ov5, OV5_DRCONF_MEMORY);
         spapr_validate_node_memory(machine, &error_fatal);
     }
+
+    spapr_ovec_set(spapr->ov5, OV5_FORM1_AFFINITY);
 
     /* init CPUs */
     if (machine->cpu_model == NULL) {
