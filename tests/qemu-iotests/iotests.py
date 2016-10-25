@@ -222,6 +222,19 @@ class QMPTestCase(unittest.TestCase):
                     self.fail('invalid index "%s" in path "%s" in "%s"' % (idx, path, str(d)))
         return d
 
+    def flatten_qmp_object(self, obj, output=None, basestr=''):
+        if output is None:
+            output = dict()
+        if isinstance(obj, list):
+            for i in range(len(obj)):
+                self.flatten_qmp_object(obj[i], output, basestr + str(i) + '.')
+        elif isinstance(obj, dict):
+            for key in obj:
+                self.flatten_qmp_object(obj[key], output, basestr + key + '.')
+        else:
+            output[basestr[:-1]] = obj # Strip trailing '.'
+        return output
+
     def assert_qmp_absent(self, d, path):
         try:
             result = self.dictpath(d, path)
@@ -251,6 +264,13 @@ class QMPTestCase(unittest.TestCase):
                 return
         self.assertTrue(False, "Cannot find %s %s in result:\n%s" % \
                 (node_name, file_name, result))
+
+    def assert_json_filename_equal(self, json_filename, reference):
+        '''Asserts that the given filename is a json: filename and that its
+           content is equal to the given reference object'''
+        self.assertEqual(json_filename[:5], 'json:')
+        self.assertEqual(self.flatten_qmp_object(json.loads(json_filename[5:])),
+                         self.flatten_qmp_object(reference))
 
     def cancel_and_wait(self, drive='drive0', force=False, resume=False):
         '''Cancel a block job and wait for it to finish, returning the event'''
