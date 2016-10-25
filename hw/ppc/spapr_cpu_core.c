@@ -184,7 +184,7 @@ void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     /*
      * Setup CPU DT entries only for hotplugged CPUs. For boot time or
-     * coldplugged CPUs DT entries are setup in spapr_finalize_fdt().
+     * coldplugged CPUs DT entries are setup in spapr_build_fdt().
      */
     if (dev->hotplugged) {
         fdt = spapr_populate_hotplug_cpu_dt(cs, &fdt_offset, spapr);

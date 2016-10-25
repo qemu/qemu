@@ -900,10 +900,9 @@ int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
     return 0;
 }
 
-static void spapr_finalize_fdt(sPAPRMachineState *spapr,
-                               hwaddr fdt_addr,
-                               hwaddr rtas_addr,
-                               hwaddr rtas_size)
+static void *spapr_build_fdt(sPAPRMachineState *spapr,
+                             hwaddr rtas_addr,
+                             hwaddr rtas_size)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -999,19 +998,8 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
         }
     }
 
-    _FDT((fdt_pack(fdt)));
-
-    if (fdt_totalsize(fdt) > FDT_MAX_SIZE) {
-        error_report("FDT too big ! 0x%x bytes (max is 0x%x)",
-                     fdt_totalsize(fdt), FDT_MAX_SIZE);
-        exit(1);
-    }
-
-    qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
-    cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
-
     g_free(bootlist);
-    g_free(fdt);
+    return fdt;
 }
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
@@ -1147,6 +1135,8 @@ static void ppc_spapr_reset(void)
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
     PowerPCCPU *first_ppc_cpu;
     uint32_t rtas_limit;
+    void *fdt;
+    int rc;
 
     /* Check for unknown sysbus devices */
     foreach_dynamic_sysbus_device(find_unknown_sysbus_device, NULL);
@@ -1173,13 +1163,27 @@ static void ppc_spapr_reset(void)
     spapr->rtas_addr = rtas_limit - RTAS_MAX_SIZE;
     spapr->fdt_addr = spapr->rtas_addr - FDT_MAX_SIZE;
 
-    /* Load the fdt */
-    spapr_finalize_fdt(spapr, spapr->fdt_addr, spapr->rtas_addr,
-                       spapr->rtas_size);
+    fdt = spapr_build_fdt(spapr, spapr->rtas_addr, spapr->rtas_size);
 
     /* Copy RTAS over */
     cpu_physical_memory_write(spapr->rtas_addr, spapr->rtas_blob,
                               spapr->rtas_size);
+
+    rc = fdt_pack(fdt);
+
+    /* Should only fail if we've built a corrupted tree */
+    assert(rc == 0);
+
+    if (fdt_totalsize(fdt) > FDT_MAX_SIZE) {
+        error_report("FDT too big ! 0x%x bytes (max is 0x%x)",
+                     fdt_totalsize(fdt), FDT_MAX_SIZE);
+        exit(1);
+    }
+
+    /* Load the fdt */
+    qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
+    cpu_physical_memory_write(spapr->fdt_addr, fdt, fdt_totalsize(fdt));
+    g_free(fdt);
 
     /* Set up the entry state */
     first_ppc_cpu = POWERPC_CPU(first_cpu);
