@@ -39,6 +39,10 @@ qemu_io_args = [os.environ.get('QEMU_IO_PROG', 'qemu-io')]
 if os.environ.get('QEMU_IO_OPTIONS'):
     qemu_io_args += os.environ['QEMU_IO_OPTIONS'].strip().split(' ')
 
+qemu_nbd_args = [os.environ.get('QEMU_NBD_PROG', 'qemu-nbd')]
+if os.environ.get('QEMU_NBD_OPTIONS'):
+    qemu_nbd_args += os.environ['QEMU_NBD_OPTIONS'].strip().split(' ')
+
 qemu_prog = os.environ.get('QEMU_PROG', 'qemu')
 qemu_opts = os.environ.get('QEMU_OPTIONS', '').strip().split(' ')
 
@@ -86,6 +90,10 @@ def qemu_io(*args):
     if exitcode < 0:
         sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
     return subp.communicate()[0]
+
+def qemu_nbd(*args):
+    '''Run qemu-nbd in daemon mode and return the parent's exit code'''
+    return subprocess.call(qemu_nbd_args + ['--fork'] + list(args))
 
 def compare_images(img1, img2, fmt1=imgfmt, fmt2=imgfmt):
     '''Return True if two image files are identical'''
