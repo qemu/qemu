@@ -8,7 +8,7 @@ SYSEMU_TARGET_LIST := $(subst -softmmu.mak,,$(notdir \
 
 check-unit-y = tests/check-qdict$(EXESUF)
 gcov-files-check-qdict-y = qobject/qdict.c
-check-unit-y = tests/test-char$(EXESUF)
+check-unit-y += tests/test-char$(EXESUF)
 gcov-files-check-qdict-y = qemu-char.c
 check-unit-y += tests/check-qfloat$(EXESUF)
 gcov-files-check-qfloat-y = qobject/qfloat.c
