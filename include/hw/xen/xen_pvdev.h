@@ -64,7 +64,7 @@ void xenstore_update(void *unused);
 
 const char *xenbus_strstate(enum xenbus_state state);
 
-void xen_be_evtchn_event(void *opaque);
+void xen_pv_evtchn_event(void *opaque);
 void xen_pv_insert_xendev(struct XenDevice *xendev);
 void xen_be_del_xendev(struct XenDevice *xendev);
 struct XenDevice *xen_be_find_xendev(const char *type, int dom, int dev);

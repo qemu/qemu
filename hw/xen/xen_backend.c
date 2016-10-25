@@ -581,7 +581,7 @@ int xen_be_bind_evtchn(struct XenDevice *xendev)
     }
     xen_pv_printf(xendev, 2, "bind evtchn port %d\n", xendev->local_port);
     qemu_set_fd_handler(xenevtchn_fd(xendev->evtchndev),
-                        xen_be_evtchn_event, NULL, xendev);
+                        xen_pv_evtchn_event, NULL, xendev);
     return 0;
 }
 

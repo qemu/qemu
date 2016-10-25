@@ -227,7 +227,7 @@ void xen_pv_printf(struct XenDevice *xendev, int msg_level,
     qemu_log_flush();
 }
 
-void xen_be_evtchn_event(void *opaque)
+void xen_pv_evtchn_event(void *opaque)
 {
     struct XenDevice *xendev = opaque;
     evtchn_port_t port;
