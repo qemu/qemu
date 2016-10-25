@@ -1068,7 +1068,8 @@ static int blk_connect(struct XenDevice *xendev)
         blk_set_enable_write_cache(blkdev->blk, !writethrough);
     } else {
         /* setup via qemu cmdline -> already setup for us */
-        xen_be_printf(&blkdev->xendev, 2, "get configured bdrv (cmdline setup)\n");
+        xen_be_printf(&blkdev->xendev, 2,
+                      "get configured bdrv (cmdline setup)\n");
         blkdev->blk = blk_by_legacy_dinfo(blkdev->dinfo);
         if (blk_is_read_only(blkdev->blk) && !readonly) {
             xen_be_printf(&blkdev->xendev, 0, "Unexpected read-only drive");

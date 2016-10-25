@@ -53,7 +53,8 @@ struct xs_dirs {
 static QTAILQ_HEAD(xs_dirs_head, xs_dirs) xs_cleanup =
     QTAILQ_HEAD_INITIALIZER(xs_cleanup);
 
-static QTAILQ_HEAD(XenDeviceHead, XenDevice) xendevs = QTAILQ_HEAD_INITIALIZER(xendevs);
+static QTAILQ_HEAD(XenDeviceHead, XenDevice) xendevs =
+    QTAILQ_HEAD_INITIALIZER(xendevs);
 static int debug;
 
 /* ------------------------------------------------------------- */
@@ -205,7 +206,8 @@ int xenstore_read_fe_int(struct XenDevice *xendev, const char *node, int *ival)
     return xenstore_read_int(xendev->fe, node, ival);
 }
 
-int xenstore_read_fe_uint64(struct XenDevice *xendev, const char *node, uint64_t *uval)
+int xenstore_read_fe_uint64(struct XenDevice *xendev, const char *node,
+                            uint64_t *uval)
 {
     return xenstore_read_uint64(xendev->fe, node, uval);
 }
@@ -385,7 +387,8 @@ static void xen_be_frontend_changed(struct XenDevice *xendev, const char *node)
         g_free(xendev->protocol);
         xendev->protocol = xenstore_read_fe_str(xendev, "protocol");
         if (xendev->protocol) {
-            xen_be_printf(xendev, 1, "frontend protocol: %s\n", xendev->protocol);
+            xen_be_printf(xendev, 1, "frontend protocol: %s\n",
+                          xendev->protocol);
         }
     }
 
@@ -617,7 +620,8 @@ static int xenstore_scan(const char *type, int dom, struct XenDevOps *ops)
     snprintf(token, sizeof(token), "be:%p:%d:%p", type, dom, ops);
     snprintf(path, sizeof(path), "backend/%s/%d", type, dom);
     if (!xs_watch(xenstore, path, token)) {
-        xen_be_printf(NULL, 0, "xen be: watching backend path (%s) failed\n", path);
+        xen_be_printf(NULL, 0, "xen be: watching backend path (%s) failed\n",
+                      path);
         return -1;
     }
 
@@ -830,7 +834,8 @@ int xen_be_send_notify(struct XenDevice *xendev)
  *  2 == noisy debug messages (logfile only).
  *  3 == will flood your log (logfile only).
  */
-void xen_be_printf(struct XenDevice *xendev, int msg_level, const char *fmt, ...)
+void xen_be_printf(struct XenDevice *xendev, int msg_level,
+                   const char *fmt, ...)
 {
     va_list args;
 

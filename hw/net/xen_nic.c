@@ -140,7 +140,8 @@ static void net_tx_packets(struct XenNetDev *netdev)
 #endif
 
             if (txreq.size < 14) {
-                xen_be_printf(&netdev->xendev, 0, "bad packet size: %d\n", txreq.size);
+                xen_be_printf(&netdev->xendev, 0, "bad packet size: %d\n",
+                              txreq.size);
                 net_tx_error(netdev, &txreq, rc);
                 continue;
             }
@@ -213,7 +214,8 @@ static void net_rx_response(struct XenNetDev *netdev,
         resp->status = (int16_t)st;
     }
 
-    xen_be_printf(&netdev->xendev, 3, "rx response: idx %d, status %d, flags 0x%x\n",
+    xen_be_printf(&netdev->xendev, 3,
+                  "rx response: idx %d, status %d, flags 0x%x\n",
                   i, resp->status, resp->flags);
 
     netdev->rx_ring.rsp_prod_pvt = ++i;
@@ -256,7 +258,8 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
                                    netdev->xendev.dom,
                                    rxreq.gref, PROT_WRITE);
     if (page == NULL) {
-        xen_be_printf(&netdev->xendev, 0, "error: rx gref dereference failed (%d)\n",
+        xen_be_printf(&netdev->xendev, 0,
+                      "error: rx gref dereference failed (%d)\n",
                       rxreq.gref);
         net_rx_response(netdev, &rxreq, NETIF_RSP_ERROR, 0, 0, 0);
         return -1;
@@ -330,7 +333,8 @@ static int net_connect(struct XenDevice *xendev)
         rx_copy = 0;
     }
     if (rx_copy == 0) {
-        xen_be_printf(&netdev->xendev, 0, "frontend doesn't support rx-copy.\n");
+        xen_be_printf(&netdev->xendev, 0,
+                      "frontend doesn't support rx-copy.\n");
         return -1;
     }
 

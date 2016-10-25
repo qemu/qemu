@@ -561,7 +561,8 @@ static int xenfb_configure_fb(struct XenFB *xenfb, size_t fb_len_lim,
     xenfb->offset = offset;
     xenfb->up_fullscreen = 1;
     xenfb->do_resize = 1;
-    xen_be_printf(&xenfb->c.xendev, 1, "framebuffer %dx%dx%d offset %d stride %d\n",
+    xen_be_printf(&xenfb->c.xendev, 1,
+                  "framebuffer %dx%dx%d offset %d stride %d\n",
                   width, height, depth, offset, row_stride);
     return 0;
 }
@@ -729,7 +730,8 @@ static void xenfb_update(void *opaque)
             break;
         }
         dpy_gfx_replace_surface(xenfb->c.con, surface);
-        xen_be_printf(&xenfb->c.xendev, 1, "update: resizing: %dx%d @ %d bpp%s\n",
+        xen_be_printf(&xenfb->c.xendev, 1,
+                      "update: resizing: %dx%d @ %d bpp%s\n",
                       xenfb->width, xenfb->height, xenfb->depth,
                       is_buffer_shared(surface) ? " (shared)" : "");
         xenfb->up_fullscreen = 1;
