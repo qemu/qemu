@@ -158,16 +158,17 @@ static void xencons_send(struct XenConsole *con)
         len = size;
     }
     if (len < 1) {
-	if (!con->backlog) {
-	    con->backlog = 1;
-	    xen_be_printf(&con->xendev, 1, "backlog piling up, nobody listening?\n");
-	}
+        if (!con->backlog) {
+            con->backlog = 1;
+            xen_be_printf(&con->xendev, 1,
+                          "backlog piling up, nobody listening?\n");
+        }
     } else {
-	buffer_advance(&con->buffer, len);
-	if (con->backlog && len == size) {
-	    con->backlog = 0;
-	    xen_be_printf(&con->xendev, 1, "backlog is gone\n");
-	}
+        buffer_advance(&con->buffer, len);
+        if (con->backlog && len == size) {
+            con->backlog = 0;
+            xen_be_printf(&con->xendev, 1, "backlog is gone\n");
+        }
     }
 }
 
@@ -191,7 +192,7 @@ static int con_init(struct XenDevice *xendev)
 
     type = xenstore_read_str(con->console, "type");
     if (!type || strcmp(type, "ioemu") != 0) {
-	xen_be_printf(xendev, 1, "not for me (type=%s)\n", type);
+        xen_be_printf(xendev, 1, "not for me (type=%s)\n", type);
         ret = -1;
         goto out;
     }

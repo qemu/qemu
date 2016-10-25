@@ -54,7 +54,7 @@ static QTAILQ_HEAD(xs_dirs_head, xs_dirs) xs_cleanup =
     QTAILQ_HEAD_INITIALIZER(xs_cleanup);
 
 static QTAILQ_HEAD(XenDeviceHead, XenDevice) xendevs = QTAILQ_HEAD_INITIALIZER(xendevs);
-static int debug = 0;
+static int debug;
 
 /* ------------------------------------------------------------- */
 
@@ -215,13 +215,13 @@ int xenstore_read_fe_uint64(struct XenDevice *xendev, const char *node, uint64_t
 const char *xenbus_strstate(enum xenbus_state state)
 {
     static const char *const name[] = {
-        [ XenbusStateUnknown      ] = "Unknown",
-        [ XenbusStateInitialising ] = "Initialising",
-        [ XenbusStateInitWait     ] = "InitWait",
-        [ XenbusStateInitialised  ] = "Initialised",
-        [ XenbusStateConnected    ] = "Connected",
-        [ XenbusStateClosing      ] = "Closing",
-        [ XenbusStateClosed       ] = "Closed",
+        [XenbusStateUnknown]       = "Unknown",
+        [XenbusStateInitialising]  = "Initialising",
+        [XenbusStateInitWait]      = "InitWait",
+        [XenbusStateInitialised]   = "Initialised",
+        [XenbusStateConnected]     = "Connected",
+        [XenbusStateClosing]       = "Closing",
+        [XenbusStateClosed]        = "Closed",
     };
     return (state < ARRAY_SIZE(name)) ? name[state] : "INVALID";
 }
@@ -702,10 +702,10 @@ static void xenstore_update(void *unused)
 
     if (sscanf(vec[XS_WATCH_TOKEN], "be:%" PRIxPTR ":%d:%" PRIxPTR,
                &type, &dom, &ops) == 3) {
-        xenstore_update_be(vec[XS_WATCH_PATH], (void*)type, dom, (void*)ops);
+        xenstore_update_be(vec[XS_WATCH_PATH], (void *)type, dom, (void*)ops);
     }
     if (sscanf(vec[XS_WATCH_TOKEN], "fe:%" PRIxPTR, &ptr) == 1) {
-        xenstore_update_fe(vec[XS_WATCH_PATH], (void*)ptr);
+        xenstore_update_fe(vec[XS_WATCH_PATH], (void *)ptr);
     }
 
 cleanup:

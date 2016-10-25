@@ -151,7 +151,8 @@ static void net_tx_packets(struct XenNetDev *netdev)
                 continue;
             }
 
-            xen_be_printf(&netdev->xendev, 3, "tx packet ref %d, off %d, len %d, flags 0x%x%s%s%s%s\n",
+            xen_be_printf(&netdev->xendev, 3,
+                          "tx packet ref %d, off %d, len %d, flags 0x%x%s%s%s%s\n",
                           txreq.gref, txreq.offset, txreq.size, txreq.flags,
                           (txreq.flags & NETTXF_csum_blank)     ? " csum_blank"     : "",
                           (txreq.flags & NETTXF_data_validated) ? " data_validated" : "",
@@ -162,8 +163,9 @@ static void net_tx_packets(struct XenNetDev *netdev)
                                            netdev->xendev.dom,
                                            txreq.gref, PROT_READ);
             if (page == NULL) {
-                xen_be_printf(&netdev->xendev, 0, "error: tx gref dereference failed (%d)\n",
-                              txreq.gref);
+                xen_be_printf(&netdev->xendev, 0,
+                              "error: tx gref dereference failed (%d)\n",
+                             txreq.gref);
                 net_tx_error(netdev, &txreq, rc);
                 continue;
             }
