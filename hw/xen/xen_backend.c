@@ -556,8 +556,8 @@ static int xenstore_scan(const char *type, int dom, struct XenDevOps *ops)
     return 0;
 }
 
-static void xenstore_update_be(char *watch, char *type, int dom,
-                               struct XenDevOps *ops)
+void xenstore_update_be(char *watch, char *type, int dom,
+                        struct XenDevOps *ops)
 {
     struct XenDevice *xendev;
     char path[XEN_BUFSIZE], *bepath;
@@ -590,7 +590,7 @@ static void xenstore_update_be(char *watch, char *type, int dom,
     }
 }
 
-static void xenstore_update_fe(char *watch, struct XenDevice *xendev)
+void xenstore_update_fe(char *watch, struct XenDevice *xendev)
 {
     char *node;
     unsigned int len;
@@ -607,30 +607,6 @@ static void xenstore_update_fe(char *watch, struct XenDevice *xendev)
     xen_be_frontend_changed(xendev, node);
     xen_be_check_state(xendev);
 }
-
-static void xenstore_update(void *unused)
-{
-    char **vec = NULL;
-    intptr_t type, ops, ptr;
-    unsigned int dom, count;
-
-    vec = xs_read_watch(xenstore, &count);
-    if (vec == NULL) {
-        goto cleanup;
-    }
-
-    if (sscanf(vec[XS_WATCH_TOKEN], "be:%" PRIxPTR ":%d:%" PRIxPTR,
-               &type, &dom, &ops) == 3) {
-        xenstore_update_be(vec[XS_WATCH_PATH], (void *)type, dom, (void*)ops);
-    }
-    if (sscanf(vec[XS_WATCH_TOKEN], "fe:%" PRIxPTR, &ptr) == 1) {
-        xenstore_update_fe(vec[XS_WATCH_PATH], (void *)ptr);
-    }
-
-cleanup:
-    free(vec);
-}
-
 static void xen_be_evtchn_event(void *opaque)
 {
     struct XenDevice *xendev = opaque;

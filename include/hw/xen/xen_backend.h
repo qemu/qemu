@@ -19,6 +19,9 @@ int xenstore_write_be_int(struct XenDevice *xendev, const char *node, int ival);
 int xenstore_write_be_int64(struct XenDevice *xendev, const char *node, int64_t ival);
 char *xenstore_read_be_str(struct XenDevice *xendev, const char *node);
 int xenstore_read_be_int(struct XenDevice *xendev, const char *node, int *ival);
+void xenstore_update_fe(char *watch, struct XenDevice *xendev);
+void xenstore_update_be(char *watch, char *type, int dom,
+                        struct XenDevOps *ops);
 char *xenstore_read_fe_str(struct XenDevice *xendev, const char *node);
 int xenstore_read_fe_int(struct XenDevice *xendev, const char *node, int *ival);
 int xenstore_read_fe_uint64(struct XenDevice *xendev, const char *node,

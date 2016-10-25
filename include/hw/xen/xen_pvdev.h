@@ -60,6 +60,7 @@ int xenstore_write_int64(const char *base, const char *node, int64_t ival);
 char *xenstore_read_str(const char *base, const char *node);
 int xenstore_read_int(const char *base, const char *node, int *ival);
 int xenstore_read_uint64(const char *base, const char *node, uint64_t *uval);
+void xenstore_update(void *unused);
 
 const char *xenbus_strstate(enum xenbus_state state);
 
