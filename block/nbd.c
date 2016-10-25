@@ -200,9 +200,9 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QemuOpts *opts, Error **errp)
 
     if (!s->path == !s->host) {
         if (s->path) {
-            error_setg(errp, "path and host may not be used at the same time.");
+            error_setg(errp, "path and host may not be used at the same time");
         } else {
-            error_setg(errp, "one of path and host must be specified.");
+            error_setg(errp, "one of path and host must be specified");
         }
         return NULL;
     }
