@@ -94,9 +94,13 @@ static int nbd_parse_uri(const char *filename, QDict *options)
             ret = -EINVAL;
             goto out;
         }
-        qdict_put(options, "path", qstring_from_str(qp->p[0].value));
+        qdict_put(options, "server.type", qstring_from_str("unix"));
+        qdict_put(options, "server.data.path",
+                  qstring_from_str(qp->p[0].value));
     } else {
         QString *host;
+        char *port_str;
+
         /* nbd[+tcp]://host[:port]/export */
         if (!uri->server) {
             ret = -EINVAL;
@@ -111,12 +115,12 @@ static int nbd_parse_uri(const char *filename, QDict *options)
             host = qstring_from_str(uri->server);
         }
 
-        qdict_put(options, "host", host);
-        if (uri->port) {
-            char* port_str = g_strdup_printf("%d", uri->port);
-            qdict_put(options, "port", qstring_from_str(port_str));
-            g_free(port_str);
-        }
+        qdict_put(options, "server.type", qstring_from_str("inet"));
+        qdict_put(options, "server.data.host", host);
+
+        port_str = g_strdup_printf("%d", uri->port ?: NBD_DEFAULT_PORT);
+        qdict_put(options, "server.data.port", qstring_from_str(port_str));
+        g_free(port_str);
     }
 
 out:
@@ -192,7 +196,8 @@ static void nbd_parse_filename(const char *filename, QDict *options,
 
     /* are we a UNIX or TCP socket? */
     if (strstart(host_spec, "unix:", &unixpath)) {
-        qdict_put(options, "path", qstring_from_str(unixpath));
+        qdict_put(options, "server.type", qstring_from_str("unix"));
+        qdict_put(options, "server.data.path", qstring_from_str(unixpath));
     } else {
         InetSocketAddress *addr = NULL;
 
@@ -201,8 +206,9 @@ static void nbd_parse_filename(const char *filename, QDict *options,
             goto out;
         }
 
-        qdict_put(options, "host", qstring_from_str(addr->host));
-        qdict_put(options, "port", qstring_from_str(addr->port));
+        qdict_put(options, "server.type", qstring_from_str("inet"));
+        qdict_put(options, "server.data.host", qstring_from_str(addr->host));
+        qdict_put(options, "server.data.port", qstring_from_str(addr->port));
         qapi_free_InetSocketAddress(addr);
     }
 
