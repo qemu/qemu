@@ -22,7 +22,11 @@
 #include "hw/xen/xen_backend.h"
 #include "hw/xen/xen_pvdev.h"
 
+/* private */
 static int debug;
+static QTAILQ_HEAD(XenDeviceHead, XenDevice) xendevs =
+    QTAILQ_HEAD_INITIALIZER(xendevs);
+
 /* ------------------------------------------------------------- */
 
 int xenstore_write_str(const char *base, const char *node, const char *val)
@@ -205,4 +209,57 @@ void xen_be_unbind_evtchn(struct XenDevice *xendev)
 int xen_be_send_notify(struct XenDevice *xendev)
 {
     return xenevtchn_notify(xendev->evtchndev, xendev->local_port);
+}
+
+/* ------------------------------------------------------------- */
+
+struct XenDevice *xen_be_find_xendev(const char *type, int dom, int dev)
+{
+    struct XenDevice *xendev;
+
+    QTAILQ_FOREACH(xendev, &xendevs, next) {
+        if (xendev->dom != dom) {
+            continue;
+        }
+        if (xendev->dev != dev) {
+            continue;
+        }
+        if (strcmp(xendev->type, type) != 0) {
+            continue;
+        }
+        return xendev;
+    }
+    return NULL;
+}
+
+/*
+ * release xen backend device.
+ */
+void xen_be_del_xendev(struct XenDevice *xendev)
+{
+    if (xendev->ops->free) {
+        xendev->ops->free(xendev);
+    }
+
+    if (xendev->fe) {
+        char token[XEN_BUFSIZE];
+        snprintf(token, sizeof(token), "fe:%p", xendev);
+        xs_unwatch(xenstore, xendev->fe, token);
+        g_free(xendev->fe);
+    }
+
+    if (xendev->evtchndev != NULL) {
+        xenevtchn_close(xendev->evtchndev);
+    }
+    if (xendev->gnttabdev != NULL) {
+        xengnttab_close(xendev->gnttabdev);
+    }
+
+    QTAILQ_REMOVE(&xendevs, xendev, next);
+    g_free(xendev);
+}
+
+void xen_pv_insert_xendev(struct XenDevice *xendev)
+{
+    QTAILQ_INSERT_TAIL(&xendevs, xendev, next);
 }

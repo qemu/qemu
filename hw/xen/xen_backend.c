@@ -54,8 +54,6 @@ struct xs_dirs {
 static QTAILQ_HEAD(xs_dirs_head, xs_dirs) xs_cleanup =
     QTAILQ_HEAD_INITIALIZER(xs_cleanup);
 
-static QTAILQ_HEAD(XenDeviceHead, XenDevice) xendevs =
-    QTAILQ_HEAD_INITIALIZER(xendevs);
 static int debug;
 
 static void xenstore_cleanup_dir(char *dir)
@@ -157,27 +155,6 @@ int xen_be_set_state(struct XenDevice *xendev, enum xenbus_state state)
     return 0;
 }
 
-/* ------------------------------------------------------------- */
-
-struct XenDevice *xen_be_find_xendev(const char *type, int dom, int dev)
-{
-    struct XenDevice *xendev;
-
-    QTAILQ_FOREACH(xendev, &xendevs, next) {
-        if (xendev->dom != dom) {
-            continue;
-        }
-        if (xendev->dev != dev) {
-            continue;
-        }
-        if (strcmp(xendev->type, type) != 0) {
-            continue;
-        }
-        return xendev;
-    }
-    return NULL;
-}
-
 /*
  * get xen backend device, allocate a new one if it doesn't exist.
  */
@@ -226,7 +203,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
         xendev->gnttabdev = NULL;
     }
 
-    QTAILQ_INSERT_TAIL(&xendevs, xendev, next);
+    xen_pv_insert_xendev(xendev);
 
     if (xendev->ops->alloc) {
         xendev->ops->alloc(xendev);
@@ -235,32 +212,6 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     return xendev;
 }
 
-/*
- * release xen backend device.
- */
-static void xen_be_del_xendev(struct XenDevice *xendev)
-{
-    if (xendev->ops->free) {
-        xendev->ops->free(xendev);
-    }
-
-    if (xendev->fe) {
-        char token[XEN_BUFSIZE];
-        snprintf(token, sizeof(token), "fe:%p", xendev);
-        xs_unwatch(xenstore, xendev->fe, token);
-        g_free(xendev->fe);
-    }
-
-    if (xendev->evtchndev != NULL) {
-        xenevtchn_close(xendev->evtchndev);
-    }
-    if (xendev->gnttabdev != NULL) {
-        xengnttab_close(xendev->gnttabdev);
-    }
-
-    QTAILQ_REMOVE(&xendevs, xendev, next);
-    g_free(xendev);
-}
 
 /*
  * Sync internal data structures on xenstore updates.
