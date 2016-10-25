@@ -396,9 +396,15 @@ static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
                 d->devaddr = buf[1] & 0xf;
                 break;
             default:
-                /* XXX: check this */
                 d->devaddr = buf[1] & 0xf;
-                d->handler = buf[2];
+                /* we support handlers:
+                 * 1: Apple Standard Keyboard
+                 * 2: Apple Extended Keyboard (LShift = RShift)
+                 * 3: Apple Extended Keyboard (LShift != RShift)
+                 */
+                if (buf[2] == 1 || buf[2] == 2 || buf[2] == 3) {
+                    d->handler = buf[2];
+                }
                 break;
             }
         }
@@ -437,6 +443,7 @@ static void adb_keyboard_event(DeviceState *dev, QemuConsole *src,
     if (qcode >= ARRAY_SIZE(qcode_to_adb_keycode)) {
         return;
     }
+    /* FIXME: take handler into account when translating qcode */
     keycode = qcode_to_adb_keycode[qcode];
     if (keycode == NO_KEY) {  /* We don't want to send this to the guest */
         ADB_DPRINTF("Ignoring NO_KEY\n");
@@ -631,8 +638,21 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
                 d->devaddr = buf[1] & 0xf;
                 break;
             default:
-                /* XXX: check this */
                 d->devaddr = buf[1] & 0xf;
+                /* we support handlers:
+                 * 0x01: Classic Apple Mouse Protocol / 100 cpi operations
+                 * 0x02: Classic Apple Mouse Protocol / 200 cpi operations
+                 * we don't support handlers (at least):
+                 * 0x03: Mouse systems A3 trackball
+                 * 0x04: Extended Apple Mouse Protocol
+                 * 0x2f: Microspeed mouse
+                 * 0x42: Macally
+                 * 0x5f: Microspeed mouse
+                 * 0x66: Microspeed mouse
+                 */
+                if (buf[2] == 1 || buf[2] == 2) {
+                    d->handler = buf[2];
+                }
                 break;
             }
         }
