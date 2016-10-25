@@ -1703,7 +1703,7 @@
 #
 # @host_device, @host_cdrom: Since 2.1
 # @gluster: Since 2.7
-# @nbd: Since 2.8
+# @nbd, @ssh: Since 2.8
 #
 # Since: 2.0
 ##
@@ -1712,7 +1712,8 @@
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
             'host_device', 'http', 'https', 'luks', 'nbd', 'null-aio',
             'null-co', 'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
-            'replication', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
+            'replication', 'ssh', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc',
+            'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile
@@ -1948,6 +1949,25 @@
             '*mport': 'int',
             '*vport': 'int',
             '*segment': 'str' } }
+
+##
+# @BlockdevOptionsSsh
+#
+# @server:              host address
+#
+# @path:                path to the image on the host
+#
+# @user:                #optional user as which to connect, defaults to current
+#                       local user name
+#
+# TODO: Expose the host_key_check option in QMP
+#
+# Since 2.8
+##
+{ 'struct': 'BlockdevOptionsSsh',
+  'data': { 'server': 'InetSocketAddress',
+            'path': 'str',
+            '*user': 'str' } }
 
 
 ##
@@ -2296,7 +2316,7 @@
 # TODO rbd: Wait for structured options
       'replication':'BlockdevOptionsReplication',
 # TODO sheepdog: Wait for structured options
-# TODO ssh: Should take InetSocketAddress for 'host'?
+      'ssh':        'BlockdevOptionsSsh',
       'tftp':       'BlockdevOptionsCurl',
       'vdi':        'BlockdevOptionsGenericFormat',
       'vhdx':       'BlockdevOptionsGenericFormat',
