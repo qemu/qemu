@@ -123,6 +123,25 @@ out:
     return ret;
 }
 
+static bool nbd_has_filename_options_conflict(QDict *options, Error **errp)
+{
+    const QDictEntry *e;
+
+    for (e = qdict_first(options); e; e = qdict_next(options, e)) {
+        if (!strcmp(e->key, "host") ||
+            !strcmp(e->key, "port") ||
+            !strcmp(e->key, "path") ||
+            !strcmp(e->key, "export"))
+        {
+            error_setg(errp, "Option '%s' cannot be used with a file name",
+                       e->key);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void nbd_parse_filename(const char *filename, QDict *options,
                                Error **errp)
 {
@@ -131,12 +150,7 @@ static void nbd_parse_filename(const char *filename, QDict *options,
     const char *host_spec;
     const char *unixpath;
 
-    if (qdict_haskey(options, "host")
-        || qdict_haskey(options, "port")
-        || qdict_haskey(options, "path"))
-    {
-        error_setg(errp, "host/port/path and a file name may not be specified "
-                         "at the same time");
+    if (nbd_has_filename_options_conflict(options, errp)) {
         return;
     }
 
