@@ -657,7 +657,7 @@ out:
 
 int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
                                  target_ulong addr, target_ulong size,
-                                 bool cpu_update, bool memory_update)
+                                 bool cpu_update)
 {
     void *fdt, *fdt_skel;
     sPAPRDeviceTreeUpdateHeader hdr = { .version_id = 1 };
@@ -681,7 +681,8 @@ int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
     }
 
     /* Generate ibm,dynamic-reconfiguration-memory node if required */
-    if (memory_update && smc->dr_lmb_enabled) {
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_DRCONF_MEMORY)) {
+        g_assert(smc->dr_lmb_enabled);
         _FDT((spapr_populate_drconf_memory(spapr, fdt)));
     }
 
@@ -1740,7 +1741,12 @@ static void ppc_spapr_init(MachineState *machine)
                                    DIV_ROUND_UP(max_cpus * smt, smp_threads),
                                    XICS_IRQS_SPAPR, &error_fatal);
 
+    /* Set up containers for ibm,client-set-architecture negotiated options */
+    spapr->ov5 = spapr_ovec_new();
+    spapr->ov5_cas = spapr_ovec_new();
+
     if (smc->dr_lmb_enabled) {
+        spapr_ovec_set(spapr->ov5, OV5_DRCONF_MEMORY);
         spapr_validate_node_memory(machine, &error_fatal);
     }
 

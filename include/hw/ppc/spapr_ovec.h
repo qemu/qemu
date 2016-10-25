@@ -42,6 +42,9 @@ typedef struct sPAPROptionVector sPAPROptionVector;
 
 #define OV_BIT(byte, bit) ((byte - 1) * BITS_PER_BYTE + bit)
 
+/* option vector 5 */
+#define OV5_DRCONF_MEMORY       OV_BIT(2, 2)
+
 /* interfaces */
 sPAPROptionVector *spapr_ovec_new(void);
 sPAPROptionVector *spapr_ovec_clone(sPAPROptionVector *ov_orig);
