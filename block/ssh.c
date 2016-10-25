@@ -197,6 +197,7 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
 {
     URI *uri = NULL;
     QueryParams *qp;
+    char *port_str;
     int i;
 
     uri = uri_parse(filename);
@@ -229,11 +230,11 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
         qdict_put(options, "user", qstring_from_str(uri->user));
     }
 
-    qdict_put(options, "host", qstring_from_str(uri->server));
+    qdict_put(options, "server.host", qstring_from_str(uri->server));
 
-    if (uri->port) {
-        qdict_put(options, "port", qint_from_int(uri->port));
-    }
+    port_str = g_strdup_printf("%d", uri->port ?: 22);
+    qdict_put(options, "server.port", qstring_from_str(port_str));
+    g_free(port_str);
 
     qdict_put(options, "path", qstring_from_str(uri->path));
 
