@@ -2497,8 +2497,9 @@ VSX_MAX_MIN(xvminsp, minnum, 4, float32, VsrW(i))
  *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   cmp   - comparison operation
  *   svxvc - set VXVC bit
+ *   exp   - expected result of comparison
  */
-#define VSX_CMP(op, nels, tp, fld, cmp, svxvc)                            \
+#define VSX_CMP(op, nels, tp, fld, cmp, svxvc, exp)                       \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
 {                                                                         \
     ppc_vsr_t xt, xa, xb;                                                 \
@@ -2523,7 +2524,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
             xt.fld = 0;                                                   \
             all_true = 0;                                                 \
         } else {                                                          \
-            if (tp##_##cmp(xb.fld, xa.fld, &env->fp_status) == 1) {       \
+            if (tp##_##cmp(xb.fld, xa.fld, &env->fp_status) == exp) {     \
                 xt.fld = -1;                                              \
                 all_false = 0;                                            \
             } else {                                                      \
@@ -2540,12 +2541,14 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
     float_check_status(env);                                              \
  }
 
-VSX_CMP(xvcmpeqdp, 2, float64, VsrD(i), eq, 0)
-VSX_CMP(xvcmpgedp, 2, float64, VsrD(i), le, 1)
-VSX_CMP(xvcmpgtdp, 2, float64, VsrD(i), lt, 1)
-VSX_CMP(xvcmpeqsp, 4, float32, VsrW(i), eq, 0)
-VSX_CMP(xvcmpgesp, 4, float32, VsrW(i), le, 1)
-VSX_CMP(xvcmpgtsp, 4, float32, VsrW(i), lt, 1)
+VSX_CMP(xvcmpeqdp, 2, float64, VsrD(i), eq, 0, 1)
+VSX_CMP(xvcmpgedp, 2, float64, VsrD(i), le, 1, 1)
+VSX_CMP(xvcmpgtdp, 2, float64, VsrD(i), lt, 1, 1)
+VSX_CMP(xvcmpnedp, 2, float64, VsrD(i), eq, 0, 0)
+VSX_CMP(xvcmpeqsp, 4, float32, VsrW(i), eq, 0, 1)
+VSX_CMP(xvcmpgesp, 4, float32, VsrW(i), le, 1, 1)
+VSX_CMP(xvcmpgtsp, 4, float32, VsrW(i), lt, 1, 1)
+VSX_CMP(xvcmpnesp, 4, float32, VsrW(i), eq, 0, 0)
 
 /* VSX_CVT_FP_TO_FP - VSX floating point/floating point conversion
  *   op    - instruction mnemonic
