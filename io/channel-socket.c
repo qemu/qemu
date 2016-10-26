@@ -72,9 +72,6 @@ qio_channel_socket_set_fd(QIOChannelSocket *sioc,
                           int fd,
                           Error **errp)
 {
-    int val;
-    socklen_t len = sizeof(val);
-
     if (sioc->fd != -1) {
         error_setg(errp, "Socket is already open");
         return -1;
@@ -110,10 +107,6 @@ qio_channel_socket_set_fd(QIOChannelSocket *sioc,
         qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS);
     }
 #endif /* WIN32 */
-    if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &val, &len) == 0 && val) {
-        QIOChannel *ioc = QIO_CHANNEL(sioc);
-        qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_LISTEN);
-    }
 
     return 0;
 
@@ -220,6 +213,7 @@ int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
         close(fd);
         return -1;
     }
+    qio_channel_set_feature(QIO_CHANNEL(ioc), QIO_CHANNEL_FEATURE_LISTEN);
 
     return 0;
 }
