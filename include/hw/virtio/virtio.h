@@ -125,8 +125,12 @@ typedef struct VirtioDeviceClass {
      * must mask in frontend instead.
      */
     void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask);
+    /* Saving and loading of a device; trying to deprecate save/load
+     * use vmsd for new devices.
+     */
     void (*save)(VirtIODevice *vdev, QEMUFile *f);
     int (*load)(VirtIODevice *vdev, QEMUFile *f, int version_id);
+    const VMStateDescription *vmsd;
 } VirtioDeviceClass;
 
 void virtio_instance_init_common(Object *proxy_obj, void *data,
