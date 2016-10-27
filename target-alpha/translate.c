@@ -99,7 +99,6 @@ static TCGv cpu_std_ir[31];
 static TCGv cpu_fir[31];
 static TCGv cpu_pc;
 static TCGv cpu_lock_addr;
-static TCGv cpu_lock_st_addr;
 static TCGv cpu_lock_value;
 
 #ifndef CONFIG_USER_ONLY
@@ -116,7 +115,6 @@ void alpha_translate_init(void)
     static const GlobalVar vars[] = {
         DEF_VAR(pc),
         DEF_VAR(lock_addr),
-        DEF_VAR(lock_st_addr),
         DEF_VAR(lock_value),
     };
 
@@ -196,6 +194,23 @@ static TCGv dest_sink(DisasContext *ctx)
         ctx->sink = tcg_temp_new();
     }
     return ctx->sink;
+}
+
+static void free_context_temps(DisasContext *ctx)
+{
+    if (!TCGV_IS_UNUSED_I64(ctx->sink)) {
+        tcg_gen_discard_i64(ctx->sink);
+        tcg_temp_free(ctx->sink);
+        TCGV_UNUSED_I64(ctx->sink);
+    }
+    if (!TCGV_IS_UNUSED_I64(ctx->zero)) {
+        tcg_temp_free(ctx->zero);
+        TCGV_UNUSED_I64(ctx->zero);
+    }
+    if (!TCGV_IS_UNUSED_I64(ctx->lit)) {
+        tcg_temp_free(ctx->lit);
+        TCGV_UNUSED_I64(ctx->lit);
+    }
 }
 
 static TCGv load_gpr(DisasContext *ctx, unsigned reg)
@@ -392,59 +407,40 @@ static inline void gen_store_mem(DisasContext *ctx,
 }
 
 static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
-                                        int32_t disp16, int quad)
+                                        int32_t disp16, int mem_idx,
+                                        TCGMemOp op)
 {
-    TCGv addr;
+    TCGLabel *lab_fail, *lab_done;
+    TCGv addr, val;
 
-    if (ra == 31) {
-        /* ??? Don't bother storing anything.  The user can't tell
-           the difference, since the zero register always reads zero.  */
-        return NO_EXIT;
-    }
-
-#if defined(CONFIG_USER_ONLY)
-    addr = cpu_lock_st_addr;
-#else
-    addr = tcg_temp_local_new();
-#endif
-
+    addr = tcg_temp_new_i64();
     tcg_gen_addi_i64(addr, load_gpr(ctx, rb), disp16);
+    free_context_temps(ctx);
 
-#if defined(CONFIG_USER_ONLY)
-    /* ??? This is handled via a complicated version of compare-and-swap
-       in the cpu_loop.  Hopefully one day we'll have a real CAS opcode
-       in TCG so that this isn't necessary.  */
-    return gen_excp(ctx, quad ? EXCP_STQ_C : EXCP_STL_C, ra);
-#else
-    /* ??? In system mode we are never multi-threaded, so CAS can be
-       implemented via a non-atomic load-compare-store sequence.  */
-    {
-        TCGLabel *lab_fail, *lab_done;
-        TCGv val;
+    lab_fail = gen_new_label();
+    lab_done = gen_new_label();
+    tcg_gen_brcond_i64(TCG_COND_NE, addr, cpu_lock_addr, lab_fail);
+    tcg_temp_free_i64(addr);
 
-        lab_fail = gen_new_label();
-        lab_done = gen_new_label();
-        tcg_gen_brcond_i64(TCG_COND_NE, addr, cpu_lock_addr, lab_fail);
+    val = tcg_temp_new_i64();
+    tcg_gen_atomic_cmpxchg_i64(val, cpu_lock_addr, cpu_lock_value,
+                               load_gpr(ctx, ra), mem_idx, op);
+    free_context_temps(ctx);
 
-        val = tcg_temp_new();
-        tcg_gen_qemu_ld_i64(val, addr, ctx->mem_idx, quad ? MO_LEQ : MO_LESL);
-        tcg_gen_brcond_i64(TCG_COND_NE, val, cpu_lock_value, lab_fail);
-
-        tcg_gen_qemu_st_i64(ctx->ir[ra], addr, ctx->mem_idx,
-                            quad ? MO_LEQ : MO_LEUL);
-        tcg_gen_movi_i64(ctx->ir[ra], 1);
-        tcg_gen_br(lab_done);
-
-        gen_set_label(lab_fail);
-        tcg_gen_movi_i64(ctx->ir[ra], 0);
-
-        gen_set_label(lab_done);
-        tcg_gen_movi_i64(cpu_lock_addr, -1);
-
-        tcg_temp_free(addr);
-        return NO_EXIT;
+    if (ra != 31) {
+        tcg_gen_setcond_i64(TCG_COND_EQ, ctx->ir[ra], val, cpu_lock_value);
     }
-#endif
+    tcg_temp_free_i64(val);
+    tcg_gen_br(lab_done);
+
+    gen_set_label(lab_fail);
+    if (ra != 31) {
+        tcg_gen_movi_i64(ctx->ir[ra], 0);
+    }
+
+    gen_set_label(lab_done);
+    tcg_gen_movi_i64(cpu_lock_addr, -1);
+    return NO_EXIT;
 }
 
 static bool in_superpage(DisasContext *ctx, int64_t addr)
@@ -2423,19 +2419,19 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             switch ((insn >> 12) & 0xF) {
             case 0x0:
                 /* Longword physical access (hw_ldl/p) */
-                gen_helper_ldl_phys(va, cpu_env, addr);
+                tcg_gen_qemu_ld_i64(va, addr, MMU_PHYS_IDX, MO_LESL);
                 break;
             case 0x1:
                 /* Quadword physical access (hw_ldq/p) */
-                gen_helper_ldq_phys(va, cpu_env, addr);
+                tcg_gen_qemu_ld_i64(va, addr, MMU_PHYS_IDX, MO_LEQ);
                 break;
             case 0x2:
                 /* Longword physical access with lock (hw_ldl_l/p) */
-                gen_helper_ldl_l_phys(va, cpu_env, addr);
+                gen_qemu_ldl_l(va, addr, MMU_PHYS_IDX);
                 break;
             case 0x3:
                 /* Quadword physical access with lock (hw_ldq_l/p) */
-                gen_helper_ldq_l_phys(va, cpu_env, addr);
+                gen_qemu_ldq_l(va, addr, MMU_PHYS_IDX);
                 break;
             case 0x4:
                 /* Longword virtual PTE fetch (hw_ldl/v) */
@@ -2674,27 +2670,34 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #ifndef CONFIG_USER_ONLY
         REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
         {
-            TCGv addr = tcg_temp_new();
-            va = load_gpr(ctx, ra);
-            vb = load_gpr(ctx, rb);
-
-            tcg_gen_addi_i64(addr, vb, disp12);
             switch ((insn >> 12) & 0xF) {
             case 0x0:
                 /* Longword physical access */
-                gen_helper_stl_phys(cpu_env, addr, va);
+                va = load_gpr(ctx, ra);
+                vb = load_gpr(ctx, rb);
+                tmp = tcg_temp_new();
+                tcg_gen_addi_i64(tmp, vb, disp12);
+                tcg_gen_qemu_st_i64(va, tmp, MMU_PHYS_IDX, MO_LESL);
+                tcg_temp_free(tmp);
                 break;
             case 0x1:
                 /* Quadword physical access */
-                gen_helper_stq_phys(cpu_env, addr, va);
+                va = load_gpr(ctx, ra);
+                vb = load_gpr(ctx, rb);
+                tmp = tcg_temp_new();
+                tcg_gen_addi_i64(tmp, vb, disp12);
+                tcg_gen_qemu_st_i64(va, tmp, MMU_PHYS_IDX, MO_LEQ);
+                tcg_temp_free(tmp);
                 break;
             case 0x2:
                 /* Longword physical access with lock */
-                gen_helper_stl_c_phys(dest_gpr(ctx, ra), cpu_env, addr, va);
+                ret = gen_store_conditional(ctx, ra, rb, disp12,
+                                            MMU_PHYS_IDX, MO_LESL);
                 break;
             case 0x3:
                 /* Quadword physical access with lock */
-                gen_helper_stq_c_phys(dest_gpr(ctx, ra), cpu_env, addr, va);
+                ret = gen_store_conditional(ctx, ra, rb, disp12,
+                                            MMU_PHYS_IDX, MO_LEQ);
                 break;
             case 0x4:
                 /* Longword virtual access */
@@ -2733,7 +2736,6 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 /* Invalid */
                 goto invalid_opc;
             }
-            tcg_temp_free(addr);
             break;
         }
 #else
@@ -2797,11 +2799,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x2E:
         /* STL_C */
-        ret = gen_store_conditional(ctx, ra, rb, disp16, 0);
+        ret = gen_store_conditional(ctx, ra, rb, disp16,
+                                    ctx->mem_idx, MO_LESL);
         break;
     case 0x2F:
         /* STQ_C */
-        ret = gen_store_conditional(ctx, ra, rb, disp16, 1);
+        ret = gen_store_conditional(ctx, ra, rb, disp16,
+                                    ctx->mem_idx, MO_LEQ);
         break;
     case 0x30:
         /* BR */
@@ -2906,6 +2910,10 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     /* Similarly for flush-to-zero.  */
     ctx.tb_ftz = -1;
 
+    TCGV_UNUSED_I64(ctx.zero);
+    TCGV_UNUSED_I64(ctx.sink);
+    TCGV_UNUSED_I64(ctx.lit);
+
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
@@ -2940,23 +2948,9 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         }
         insn = cpu_ldl_code(env, ctx.pc);
 
-        TCGV_UNUSED_I64(ctx.zero);
-        TCGV_UNUSED_I64(ctx.sink);
-        TCGV_UNUSED_I64(ctx.lit);
-
         ctx.pc += 4;
         ret = translate_one(ctxp, insn);
-
-        if (!TCGV_IS_UNUSED_I64(ctx.sink)) {
-            tcg_gen_discard_i64(ctx.sink);
-            tcg_temp_free(ctx.sink);
-        }
-        if (!TCGV_IS_UNUSED_I64(ctx.zero)) {
-            tcg_temp_free(ctx.zero);
-        }
-        if (!TCGV_IS_UNUSED_I64(ctx.lit)) {
-            tcg_temp_free(ctx.lit);
-        }
+        free_context_temps(ctxp);
 
         /* If we reach a page boundary, are single stepping,
            or exhaust instruction count, stop generation.  */

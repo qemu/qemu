@@ -1216,7 +1216,10 @@ case "$cpu" in
            cc_i386='$(CC) -m32'
            ;;
     x86_64)
-           CPU_CFLAGS="-m64"
+           # ??? Only extremely old AMD cpus do not have cmpxchg16b.
+           # If we truly care, we should simply detect this case at
+           # runtime and generate the fallback to serial emulation.
+           CPU_CFLAGS="-m64 -mcx16"
            LDFLAGS="-m64 $LDFLAGS"
            cc_i386='$(CC) -m32'
            ;;
@@ -4521,6 +4524,55 @@ if compile_prog "" "" ; then
     int128=yes
 fi
 
+#########################################
+# See if 128-bit atomic operations are supported.
+
+atomic128=no
+if test "$int128" = "yes"; then
+  cat > $TMPC << EOF
+int main(void)
+{
+  unsigned __int128 x = 0, y = 0;
+  y = __atomic_load_16(&x, 0);
+  __atomic_store_16(&x, y, 0);
+  __atomic_compare_exchange_16(&x, &y, x, 0, 0, 0);
+  return 0;
+}
+EOF
+  if compile_prog "" "" ; then
+    atomic128=yes
+  fi
+fi
+
+#########################################
+# See if 64-bit atomic operations are supported.
+# Note that without __atomic builtins, we can only
+# assume atomic loads/stores max at pointer size.
+
+cat > $TMPC << EOF
+#include <stdint.h>
+int main(void)
+{
+  uint64_t x = 0, y = 0;
+#ifdef __ATOMIC_RELAXED
+  y = __atomic_load_8(&x, 0);
+  __atomic_store_8(&x, y, 0);
+  __atomic_compare_exchange_8(&x, &y, x, 0, 0, 0);
+  __atomic_exchange_8(&x, y, 0);
+  __atomic_fetch_add_8(&x, y, 0);
+#else
+  typedef char is_host64[sizeof(void *) >= sizeof(uint64_t) ? 1 : -1];
+  __sync_lock_test_and_set(&x, y);
+  __sync_val_compare_and_swap(&x, y, 0);
+  __sync_fetch_and_add(&x, y);
+#endif
+  return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  atomic64=yes
+fi
+
 ########################################
 # check if getauxval is available.
 
@@ -5481,6 +5533,14 @@ fi
 
 if test "$int128" = "yes" ; then
   echo "CONFIG_INT128=y" >> $config_host_mak
+fi
+
+if test "$atomic128" = "yes" ; then
+  echo "CONFIG_ATOMIC128=y" >> $config_host_mak
+fi
+
+if test "$atomic64" = "yes" ; then
+  echo "CONFIG_ATOMIC64=y" >> $config_host_mak
 fi
 
 if test "$getauxval" = "yes" ; then

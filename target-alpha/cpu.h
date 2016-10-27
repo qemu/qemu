@@ -201,7 +201,7 @@ enum {
 
 /* MMU modes definitions */
 
-/* Alpha has 5 MMU modes: PALcode, kernel, executive, supervisor, and user.
+/* Alpha has 5 MMU modes: PALcode, Kernel, Executive, Supervisor, and User.
    The Unix PALcode only exposes the kernel and user modes; presumably
    executive and supervisor are used by VMS.
 
@@ -209,22 +209,18 @@ enum {
    there are PALmode instructions that can access data via physical mode
    or via an os-installed "alternate mode", which is one of the 4 above.
 
-   QEMU does not currently properly distinguish between code/data when
-   looking up addresses.  To avoid having to address this issue, our
-   emulated PALcode will cheat and use the KSEG mapping for its code+data
-   rather than physical addresses.
+   That said, we're only emulating Unix PALcode, and not attempting VMS,
+   so we don't need to implement Executive and Supervisor.  QEMU's own
+   PALcode cheats and usees the KSEG mapping for its code+data rather than
+   physical addresses.  */
 
-   Moreover, we're only emulating Unix PALcode, and not attempting VMS.
-
-   All of which allows us to drop all but kernel and user modes.
-   Elide the unused MMU modes to save space.  */
-
-#define NB_MMU_MODES 2
+#define NB_MMU_MODES 3
 
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user
 #define MMU_KERNEL_IDX   0
 #define MMU_USER_IDX     1
+#define MMU_PHYS_IDX     2
 
 typedef struct CPUAlphaState CPUAlphaState;
 
@@ -234,7 +230,6 @@ struct CPUAlphaState {
     uint64_t pc;
     uint64_t unique;
     uint64_t lock_addr;
-    uint64_t lock_st_addr;
     uint64_t lock_value;
 
     /* The FPCR, and disassembled portions thereof.  */
@@ -350,9 +345,6 @@ enum {
     EXCP_ARITH,
     EXCP_FEN,
     EXCP_CALL_PAL,
-    /* For Usermode emulation.  */
-    EXCP_STL_C,
-    EXCP_STQ_C,
 };
 
 /* Alpha-specific interrupt pending bits.  */

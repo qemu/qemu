@@ -45,8 +45,6 @@ static VMStateField vmstate_env_fields[] = {
     VMSTATE_UINTTL(unique, CPUAlphaState),
     VMSTATE_UINTTL(lock_addr, CPUAlphaState),
     VMSTATE_UINTTL(lock_value, CPUAlphaState),
-    /* Note that lock_st_addr is not saved; it is a temporary
-       used during the execution of the st[lq]_c insns.  */
 
     VMSTATE_UINT8(ps, CPUAlphaState),
     VMSTATE_UINT8(intr_flag, CPUAlphaState),
