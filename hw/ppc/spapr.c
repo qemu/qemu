@@ -2202,14 +2202,16 @@ static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
-static void spapr_add_lmbs(DeviceState *dev, uint64_t addr, uint64_t size,
-                           uint32_t node, Error **errp)
+static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
+                           uint32_t node, bool dedicated_hp_event_source,
+                           Error **errp)
 {
     sPAPRDRConnector *drc;
     sPAPRDRConnectorClass *drck;
     uint32_t nr_lmbs = size/SPAPR_MEMORY_BLOCK_SIZE;
     int i, fdt_offset, fdt_size;
     void *fdt;
+    uint64_t addr = addr_start;
 
     for (i = 0; i < nr_lmbs; i++) {
         drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
@@ -2228,7 +2230,17 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr, uint64_t size,
      * guest only in case of hotplugged memory
      */
     if (dev->hotplugged) {
-       spapr_hotplug_req_add_by_count(SPAPR_DR_CONNECTOR_TYPE_LMB, nr_lmbs);
+        if (dedicated_hp_event_source) {
+            drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                    addr_start / SPAPR_MEMORY_BLOCK_SIZE);
+            drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+            spapr_hotplug_req_add_by_count_indexed(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                                   nr_lmbs,
+                                                   drck->get_index(drc));
+        } else {
+            spapr_hotplug_req_add_by_count(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                           nr_lmbs);
+        }
     }
 }
 
@@ -2261,7 +2273,9 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         goto out;
     }
 
-    spapr_add_lmbs(dev, addr, size, node, &error_abort);
+    spapr_add_lmbs(dev, addr, size, node,
+                   spapr_ovec_test(ms->ov5_cas, OV5_HP_EVT),
+                   &error_abort);
 
 out:
     error_propagate(errp, local_err);
