@@ -2326,6 +2326,8 @@ static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
     case QEMU_IFLA_GROUP:
     case QEMU_IFLA_MASTER:
     case QEMU_IFLA_NUM_VF:
+    case QEMU_IFLA_GSO_MAX_SEGS:
+    case QEMU_IFLA_GSO_MAX_SIZE:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
         break;
