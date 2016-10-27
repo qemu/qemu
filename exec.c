@@ -687,7 +687,11 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 #if defined(CONFIG_USER_ONLY)
 static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
+    mmap_lock();
+    tb_lock();
     tb_invalidate_phys_page_range(pc, pc + 1, 0);
+    tb_unlock();
+    mmap_unlock();
 }
 #else
 static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
@@ -696,6 +700,7 @@ static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
     hwaddr phys = cpu_get_phys_page_attrs_debug(cpu, pc, &attrs);
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
     if (phys != -1) {
+        /* Locks grabbed by tb_invalidate_phys_addr */
         tb_invalidate_phys_addr(cpu->cpu_ases[asidx].as,
                                 phys | (pc & ~TARGET_PAGE_MASK));
     }
@@ -1988,7 +1993,11 @@ ram_addr_t qemu_ram_addr_from_host(void *ptr)
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
                                uint64_t val, unsigned size)
 {
+    bool locked = false;
+
     if (!cpu_physical_memory_get_dirty_flag(ram_addr, DIRTY_MEMORY_CODE)) {
+        locked = true;
+        tb_lock();
         tb_invalidate_phys_page_fast(ram_addr, size);
     }
     switch (size) {
@@ -2004,6 +2013,11 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     default:
         abort();
     }
+
+    if (locked) {
+        tb_unlock();
+    }
+
     /* Set both VGA and migration bits for simplicity and to remove
      * the notdirty callback faster.
      */
@@ -2477,7 +2491,9 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
             cpu_physical_memory_range_includes_clean(addr, length, dirty_log_mask);
     }
     if (dirty_log_mask & (1 << DIRTY_MEMORY_CODE)) {
+        tb_lock();
         tb_invalidate_phys_range(addr, addr + length);
+        tb_unlock();
         dirty_log_mask &= ~(1 << DIRTY_MEMORY_CODE);
     }
     cpu_physical_memory_set_dirty_range(addr, length, dirty_log_mask);
