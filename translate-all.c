@@ -56,10 +56,10 @@
 #include "qemu/timer.h"
 #include "exec/log.h"
 
-//#define DEBUG_TB_INVALIDATE
-//#define DEBUG_FLUSH
+/* #define DEBUG_TB_INVALIDATE */
+/* #define DEBUG_TB_FLUSH */
 /* make various TB consistency checks */
-//#define DEBUG_TB_CHECK
+/* #define DEBUG_TB_CHECK */
 
 #if !defined(CONFIG_USER_ONLY)
 /* TB consistency checks only implemented for usermode emulation.  */
@@ -869,7 +869,7 @@ static void do_tb_flush(CPUState *cpu, void *data)
         goto done;
     }
 
-#if defined(DEBUG_FLUSH)
+#if defined(DEBUG_TB_FLUSH)
     printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%ld\n",
            (unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer),
            tcg_ctx.tb_ctx.nb_tbs, tcg_ctx.tb_ctx.nb_tbs > 0 ?
