@@ -1207,17 +1207,17 @@ void qemu_mutex_unlock_iothread(void)
     qemu_mutex_unlock(&qemu_global_mutex);
 }
 
-static int all_vcpus_paused(void)
+static bool all_vcpus_paused(void)
 {
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
         if (!cpu->stopped) {
-            return 0;
+            return false;
         }
     }
 
-    return 1;
+    return true;
 }
 
 void pause_all_vcpus(void)
