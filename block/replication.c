@@ -138,6 +138,9 @@ static void replication_close(BlockDriverState *bs)
     if (s->replication_state == BLOCK_REPLICATION_RUNNING) {
         replication_stop(s->rs, false, NULL);
     }
+    if (s->replication_state == BLOCK_REPLICATION_FAILOVER) {
+        block_job_cancel_sync(s->active_disk->bs->job);
+    }
 
     if (s->mode == REPLICATION_MODE_SECONDARY) {
         g_free(s->top_id);
