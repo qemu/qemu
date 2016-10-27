@@ -68,6 +68,23 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
         }
     }
 
+    /*
+     * Fail any requests to ISOLATE the LMB DRC if this LMB doesn't
+     * belong to a DIMM device that is marked for removal.
+     *
+     * Currently the guest userspace tool drmgr that drives the memory
+     * hotplug/unplug will just try to remove a set of 'removable' LMBs
+     * in response to a hot unplug request that is based on drc-count.
+     * If the LMB being removed doesn't belong to a DIMM device that is
+     * actually being unplugged, fail the isolation request here.
+     */
+    if (drc->type == SPAPR_DR_CONNECTOR_TYPE_LMB) {
+        if ((state == SPAPR_DR_ISOLATION_STATE_ISOLATED) &&
+             !drc->awaiting_release) {
+            return RTAS_OUT_HW_ERROR;
+        }
+    }
+
     drc->isolation_state = state;
 
     if (drc->isolation_state == SPAPR_DR_ISOLATION_STATE_ISOLATED) {

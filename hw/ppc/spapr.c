@@ -2281,6 +2281,90 @@ out:
     error_propagate(errp, local_err);
 }
 
+typedef struct sPAPRDIMMState {
+    uint32_t nr_lmbs;
+} sPAPRDIMMState;
+
+static void spapr_lmb_release(DeviceState *dev, void *opaque)
+{
+    sPAPRDIMMState *ds = (sPAPRDIMMState *)opaque;
+    HotplugHandler *hotplug_ctrl;
+
+    if (--ds->nr_lmbs) {
+        return;
+    }
+
+    g_free(ds);
+
+    /*
+     * Now that all the LMBs have been removed by the guest, call the
+     * pc-dimm unplug handler to cleanup up the pc-dimm device.
+     */
+    hotplug_ctrl = qdev_get_hotplug_handler(dev);
+    hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
+}
+
+static void spapr_del_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
+                           Error **errp)
+{
+    sPAPRDRConnector *drc;
+    sPAPRDRConnectorClass *drck;
+    uint32_t nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
+    int i;
+    sPAPRDIMMState *ds = g_malloc0(sizeof(sPAPRDIMMState));
+    uint64_t addr = addr_start;
+
+    ds->nr_lmbs = nr_lmbs;
+    for (i = 0; i < nr_lmbs; i++) {
+        drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                addr / SPAPR_MEMORY_BLOCK_SIZE);
+        g_assert(drc);
+
+        drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+        drck->detach(drc, dev, spapr_lmb_release, ds, errp);
+        addr += SPAPR_MEMORY_BLOCK_SIZE;
+    }
+
+    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                   addr_start / SPAPR_MEMORY_BLOCK_SIZE);
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    spapr_hotplug_req_remove_by_count_indexed(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                              nr_lmbs,
+                                              drck->get_index(drc));
+}
+
+static void spapr_memory_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                Error **errp)
+{
+    sPAPRMachineState *ms = SPAPR_MACHINE(hotplug_dev);
+    PCDIMMDevice *dimm = PC_DIMM(dev);
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *mr = ddc->get_memory_region(dimm);
+
+    pc_dimm_memory_unplug(dev, &ms->hotplug_memory, mr);
+    object_unparent(OBJECT(dev));
+}
+
+static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
+                                        DeviceState *dev, Error **errp)
+{
+    Error *local_err = NULL;
+    PCDIMMDevice *dimm = PC_DIMM(dev);
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *mr = ddc->get_memory_region(dimm);
+    uint64_t size = memory_region_size(mr);
+    uint64_t addr;
+
+    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    spapr_del_lmbs(dev, addr, size, &error_abort);
+out:
+    error_propagate(errp, local_err);
+}
+
 void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
                                     sPAPRMachineState *spapr)
 {
@@ -2354,10 +2438,42 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
 static void spapr_machine_device_unplug(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
+    sPAPRMachineState *sms = SPAPR_MACHINE(qdev_get_machine());
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        error_setg(errp, "Memory hot unplug not supported by sPAPR");
+        if (spapr_ovec_test(sms->ov5_cas, OV5_HP_EVT)) {
+            spapr_memory_unplug(hotplug_dev, dev, errp);
+        } else {
+            error_setg(errp, "Memory hot unplug not supported for this guest");
+        }
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
+        if (!mc->query_hotpluggable_cpus) {
+            error_setg(errp, "CPU hot unplug not supported on this machine");
+            return;
+        }
+        spapr_core_unplug(hotplug_dev, dev, errp);
+    }
+}
+
+static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
+                                                DeviceState *dev, Error **errp)
+{
+    sPAPRMachineState *sms = SPAPR_MACHINE(qdev_get_machine());
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        if (spapr_ovec_test(sms->ov5_cas, OV5_HP_EVT)) {
+            spapr_memory_unplug_request(hotplug_dev, dev, errp);
+        } else {
+            /* NOTE: this means there is a window after guest reset, prior to
+             * CAS negotiation, where unplug requests will fail due to the
+             * capability not being detected yet. This is a bit different than
+             * the case with PCI unplug, where the events will be queued and
+             * eventually handled by the guest after boot
+             */
+            error_setg(errp, "Memory hot unplug not supported for this guest");
+        }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
         if (!mc->query_hotpluggable_cpus) {
             error_setg(errp, "CPU hot unplug not supported on this machine");
@@ -2503,6 +2619,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->plug = spapr_machine_device_plug;
     hc->unplug = spapr_machine_device_unplug;
     mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
+    hc->unplug_request = spapr_machine_device_unplug_request;
 
     smc->dr_lmb_enabled = true;
     smc->tcg_default_cpu = "POWER8";
