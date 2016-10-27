@@ -416,7 +416,8 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
     }
 
     left = len;
-    while (left > 0) {
+    s = st->bentries;
+    while (left > 0 && s-- > 0) {
         copy = left;
         if (copy > st->bsize - st->lpib)
             copy = st->bsize - st->lpib;
