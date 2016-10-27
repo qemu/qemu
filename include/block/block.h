@@ -334,6 +334,15 @@ void bdrv_drain(BlockDriverState *bs);
 void coroutine_fn bdrv_co_drain(BlockDriverState *bs);
 void bdrv_drain_all(void);
 
+#define BDRV_POLL_WHILE(bs, cond) ({                       \
+    bool waited_ = false;                                  \
+    BlockDriverState *bs_ = (bs);                          \
+    while ((cond)) {                                       \
+        aio_poll(bdrv_get_aio_context(bs_), true);         \
+        waited_ = true;                                    \
+    }                                                      \
+    waited_; })
+
 int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int count);
 int bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset, int count);
 int bdrv_has_zero_init_1(BlockDriverState *bs);

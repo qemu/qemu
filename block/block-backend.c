@@ -878,7 +878,6 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
                    int64_t bytes, CoroutineEntry co_entry,
                    BdrvRequestFlags flags)
 {
-    AioContext *aio_context;
     QEMUIOVector qiov;
     struct iovec iov;
     Coroutine *co;
@@ -900,11 +899,7 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
 
     co = qemu_coroutine_create(co_entry, &rwco);
     qemu_coroutine_enter(co);
-
-    aio_context = blk_get_aio_context(blk);
-    while (rwco.ret == NOT_DONE) {
-        aio_poll(aio_context, true);
-    }
+    BDRV_POLL_WHILE(blk_bs(blk), rwco.ret == NOT_DONE);
 
     return rwco.ret;
 }
