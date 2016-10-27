@@ -258,8 +258,10 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     req->has_sg = true;
     dma_acct_start(n->conf.blk, &req->acct, &req->qsg, acct);
     req->aiocb = is_write ?
-        dma_blk_write(n->conf.blk, &req->qsg, data_offset, nvme_rw_cb, req) :
-        dma_blk_read(n->conf.blk, &req->qsg, data_offset, nvme_rw_cb, req);
+        dma_blk_write(n->conf.blk, &req->qsg, data_offset, BDRV_SECTOR_SIZE,
+                      nvme_rw_cb, req) :
+        dma_blk_read(n->conf.blk, &req->qsg, data_offset, BDRV_SECTOR_SIZE,
+                     nvme_rw_cb, req);
 
     return NVME_NO_COMPLETE;
 }

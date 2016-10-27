@@ -341,6 +341,7 @@ static void scsi_do_read(SCSIDiskReq *r, int ret)
         r->req.resid -= r->req.sg->size;
         r->req.aiocb = dma_blk_io(blk_get_aio_context(s->qdev.conf.blk),
                                   r->req.sg, r->sector << BDRV_SECTOR_BITS,
+                                  BDRV_SECTOR_SIZE,
                                   sdc->dma_readv, r, scsi_dma_complete, r,
                                   DMA_DIRECTION_FROM_DEVICE);
     } else {
@@ -539,6 +540,7 @@ static void scsi_write_data(SCSIRequest *req)
         r->req.resid -= r->req.sg->size;
         r->req.aiocb = dma_blk_io(blk_get_aio_context(s->qdev.conf.blk),
                                   r->req.sg, r->sector << BDRV_SECTOR_BITS,
+                                  BDRV_SECTOR_SIZE,
                                   sdc->dma_writev, r, scsi_dma_complete, r,
                                   DMA_DIRECTION_TO_DEVICE);
     } else {
