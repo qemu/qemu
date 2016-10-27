@@ -46,6 +46,33 @@ static bool colo_runstate_is_stopped(void)
     return runstate_check(RUN_STATE_COLO) || !runstate_is_running();
 }
 
+static void secondary_vm_do_failover(void)
+{
+    int old_state;
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    migrate_set_state(&mis->state, MIGRATION_STATUS_COLO,
+                      MIGRATION_STATUS_COMPLETED);
+
+    if (!autostart) {
+        error_report("\"-S\" qemu option will be ignored in secondary side");
+        /* recover runstate to normal migration finish state */
+        autostart = true;
+    }
+
+    old_state = failover_set_state(FAILOVER_STATUS_ACTIVE,
+                                   FAILOVER_STATUS_COMPLETED);
+    if (old_state != FAILOVER_STATUS_ACTIVE) {
+        error_report("Incorrect state (%s) while doing failover for "
+                     "secondary VM", FailoverStatus_lookup[old_state]);
+        return;
+    }
+    /* For Secondary VM, jump to incoming co */
+    if (mis->migration_incoming_co) {
+        qemu_coroutine_enter(mis->migration_incoming_co);
+    }
+}
+
 static void primary_vm_do_failover(void)
 {
     MigrationState *s = migrate_get_current();
@@ -72,6 +99,8 @@ void colo_do_failover(MigrationState *s)
 
     if (get_colo_mode() == COLO_MODE_PRIMARY) {
         primary_vm_do_failover();
+    } else {
+        secondary_vm_do_failover();
     }
 }
 
@@ -417,6 +446,11 @@ void *colo_process_incoming_thread(void *opaque)
             goto out;
         }
         assert(request);
+        if (failover_get_state() != FAILOVER_STATUS_NONE) {
+            error_report("failover request");
+            goto out;
+        }
+
         /* FIXME: This is unnecessary for periodic checkpoint mode */
         colo_send_message(mis->to_src_file, COLO_MESSAGE_CHECKPOINT_REPLY,
                      &local_err);
