@@ -475,6 +475,8 @@ struct BlockDriverState {
     unsigned int in_flight;
     unsigned int serialising_in_flight;
 
+    bool wakeup;
+
     /* Offset after the highest byte written to */
     uint64_t wr_highest_offset;
 
@@ -632,6 +634,21 @@ void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
                                                                    void *),
                                       void (*aio_context_detached)(void *),
                                       void *opaque);
+
+/**
+ * bdrv_wakeup:
+ * @bs: The BlockDriverState for which an I/O operation has been completed.
+ *
+ * Wake up the main thread if it is waiting on BDRV_POLL_WHILE.  During
+ * synchronous I/O on a BlockDriverState that is attached to another
+ * I/O thread, the main thread lets the I/O thread's event loop run,
+ * waiting for the I/O operation to complete.  A bdrv_wakeup will wake
+ * up the main thread if necessary.
+ *
+ * Manual calls to bdrv_wakeup are rarely necessary, because
+ * bdrv_dec_in_flight already calls it.
+ */
+void bdrv_wakeup(BlockDriverState *bs);
 
 #ifdef _WIN32
 int is_windows_drive(const char *filename);

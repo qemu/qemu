@@ -2090,7 +2090,9 @@ int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **er
 
     assert(bs_queue != NULL);
 
+    aio_context_release(ctx);
     bdrv_drain_all();
+    aio_context_acquire(ctx);
 
     QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
         if (bdrv_reopen_prepare(&bs_entry->state, bs_queue, &local_err)) {

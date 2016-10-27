@@ -189,12 +189,10 @@ void virtio_scsi_dataplane_stop(VirtIOSCSI *s)
     assert(s->ctx == iothread_get_aio_context(vs->conf.iothread));
 
     aio_context_acquire(s->ctx);
-
     virtio_scsi_clear_aio(s);
+    aio_context_release(s->ctx);
 
     blk_drain_all(); /* ensure there are no in-flight requests */
-
-    aio_context_release(s->ctx);
 
     for (i = 0; i < vs->conf.num_queues + 2; i++) {
         virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);

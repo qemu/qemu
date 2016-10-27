@@ -505,6 +505,7 @@ nfs_get_allocated_file_size_cb(int ret, struct nfs_context *nfs, void *data,
         error_report("NFS Error: %s", nfs_get_error(nfs));
     }
     task->complete = 1;
+    bdrv_wakeup(task->bs);
 }
 
 static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)

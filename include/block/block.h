@@ -337,9 +337,29 @@ void bdrv_drain_all(void);
 #define BDRV_POLL_WHILE(bs, cond) ({                       \
     bool waited_ = false;                                  \
     BlockDriverState *bs_ = (bs);                          \
-    while ((cond)) {                                       \
-        aio_poll(bdrv_get_aio_context(bs_), true);         \
-        waited_ = true;                                    \
+    AioContext *ctx_ = bdrv_get_aio_context(bs_);          \
+    if (aio_context_in_iothread(ctx_)) {                   \
+        while ((cond)) {                                   \
+            aio_poll(ctx_, true);                          \
+            waited_ = true;                                \
+        }                                                  \
+    } else {                                               \
+        assert(qemu_get_current_aio_context() ==           \
+               qemu_get_aio_context());                    \
+        /* Ask bdrv_dec_in_flight to wake up the main      \
+         * QEMU AioContext.  Extra I/O threads never take  \
+         * other I/O threads' AioContexts (see for example \
+         * block_job_defer_to_main_loop for how to do it). \
+         */                                                \
+        assert(!bs_->wakeup);                              \
+        bs_->wakeup = true;                                \
+        while ((cond)) {                                   \
+            aio_context_release(ctx_);                     \
+            aio_poll(qemu_get_aio_context(), true);        \
+            aio_context_acquire(ctx_);                     \
+            waited_ = true;                                \
+        }                                                  \
+        bs_->wakeup = false;                               \
     }                                                      \
     waited_; })
 

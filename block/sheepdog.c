@@ -702,6 +702,9 @@ out:
 
     srco->ret = ret;
     srco->finished = true;
+    if (srco->bs) {
+        bdrv_wakeup(srco->bs);
+    }
 }
 
 /*

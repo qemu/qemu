@@ -61,6 +61,7 @@ void aio_bh_schedule_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
     smp_wmb();
     ctx->first_bh = bh;
     qemu_mutex_unlock(&ctx->bh_lock);
+    aio_notify(ctx);
 }
 
 QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
