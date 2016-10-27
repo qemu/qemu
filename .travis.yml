@@ -4,7 +4,6 @@ python:
   - "2.4"
 compiler:
   - gcc
-  - clang
 cache: ccache
 addons:
   apt:
@@ -68,6 +67,9 @@ script:
   - make -j3 && ${TEST_CMD}
 matrix:
   include:
+    # Test with CLang for compile portability
+    - env: CONFIG=""
+      compiler: clang
     # gprof/gcov are GCC features
     - env: CONFIG="--enable-gprof --enable-gcov --disable-pie"
       compiler: gcc
