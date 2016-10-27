@@ -543,6 +543,7 @@ void backup_start(const char *job_id, BlockDriverState *bs,
                   bool compress,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
+                  int creation_flags,
                   BlockCompletionFunc *cb, void *opaque,
                   BlockJobTxn *txn, Error **errp)
 {
@@ -612,7 +613,7 @@ void backup_start(const char *job_id, BlockDriverState *bs,
     }
 
     job = block_job_create(job_id, &backup_job_driver, bs, speed,
-                           BLOCK_JOB_DEFAULT, cb, opaque, errp);
+                           creation_flags, cb, opaque, errp);
     if (!job) {
         goto error;
     }

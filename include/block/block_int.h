@@ -706,6 +706,8 @@ void commit_start(const char *job_id, BlockDriverState *bs,
  * device name of @bs.
  * @bs: Active block device to be committed.
  * @base: Block device that will be written into, and become the new top.
+ * @creation_flags: Flags that control the behavior of the Job lifetime.
+ *                  See @BlockJobCreateFlags
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @on_error: The action to take upon error.
  * @cb: Completion function for the job.
@@ -715,8 +717,8 @@ void commit_start(const char *job_id, BlockDriverState *bs,
  *
  */
 void commit_active_start(const char *job_id, BlockDriverState *bs,
-                         BlockDriverState *base, int64_t speed,
-                         BlockdevOnError on_error,
+                         BlockDriverState *base, int creation_flags,
+                         int64_t speed, BlockdevOnError on_error,
                          BlockCompletionFunc *cb,
                          void *opaque, Error **errp, bool auto_complete);
 /*
@@ -765,6 +767,8 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
  * @sync_bitmap: The dirty bitmap if sync_mode is MIRROR_SYNC_MODE_INCREMENTAL.
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
+ * @creation_flags: Flags that control the behavior of the Job lifetime.
+ *                  See @BlockJobCreateFlags
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
  * @txn: Transaction that this job is part of (may be NULL).
@@ -778,6 +782,7 @@ void backup_start(const char *job_id, BlockDriverState *bs,
                   bool compress,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
+                  int creation_flags,
                   BlockCompletionFunc *cb, void *opaque,
                   BlockJobTxn *txn, Error **errp);
 

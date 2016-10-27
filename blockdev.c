@@ -3110,8 +3110,9 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                              " but 'top' is the active layer");
             goto out;
         }
-        commit_active_start(has_job_id ? job_id : NULL, bs, base_bs, speed,
-                            on_error, block_job_cb, bs, &local_err, false);
+        commit_active_start(has_job_id ? job_id : NULL, bs, base_bs,
+                            BLOCK_JOB_DEFAULT, speed, on_error, block_job_cb,
+                            bs, &local_err, false);
     } else {
         BlockDriverState *overlay_bs = bdrv_find_overlay(bs, top_bs);
         if (bdrv_op_is_blocked(overlay_bs, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
@@ -3239,7 +3240,8 @@ static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn, Error **errp)
 
     backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
                  bmap, backup->compress, backup->on_source_error,
-                 backup->on_target_error, block_job_cb, bs, txn, &local_err);
+                 backup->on_target_error, BLOCK_JOB_DEFAULT,
+                 block_job_cb, bs, txn, &local_err);
     bdrv_unref(target_bs);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -3309,7 +3311,8 @@ void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
     }
     backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
                  NULL, backup->compress, backup->on_source_error,
-                 backup->on_target_error, block_job_cb, bs, txn, &local_err);
+                 backup->on_target_error, BLOCK_JOB_DEFAULT,
+                 block_job_cb, bs, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
     }

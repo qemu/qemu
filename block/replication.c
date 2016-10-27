@@ -508,10 +508,11 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         bdrv_op_block_all(top_bs, s->blocker);
         bdrv_op_unblock(top_bs, BLOCK_OP_TYPE_DATAPLANE, s->blocker);
 
-        backup_start("replication-backup", s->secondary_disk->bs,
-                     s->hidden_disk->bs, 0, MIRROR_SYNC_MODE_NONE, NULL, false,
+        backup_start(NULL, s->secondary_disk->bs, s->hidden_disk->bs, 0,
+                     MIRROR_SYNC_MODE_NONE, NULL, false,
                      BLOCKDEV_ON_ERROR_REPORT, BLOCKDEV_ON_ERROR_REPORT,
-                     backup_job_completed, bs, NULL, &local_err);
+                     BLOCK_JOB_INTERNAL, backup_job_completed, bs,
+                     NULL, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             backup_job_cleanup(bs);
@@ -633,10 +634,9 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
         }
 
         s->replication_state = BLOCK_REPLICATION_FAILOVER;
-        commit_active_start("replication-commit", s->active_disk->bs,
-                            s->secondary_disk->bs, 0, BLOCKDEV_ON_ERROR_REPORT,
-                            replication_done,
-                            bs, errp, true);
+        commit_active_start(NULL, s->active_disk->bs, s->secondary_disk->bs,
+                            BLOCK_JOB_INTERNAL, 0, BLOCKDEV_ON_ERROR_REPORT,
+                            replication_done, bs, errp, true);
         break;
     default:
         aio_context_release(aio_context);

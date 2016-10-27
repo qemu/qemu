@@ -933,8 +933,9 @@ static int img_commit(int argc, char **argv)
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-    commit_active_start("commit", bs, base_bs, 0, BLOCKDEV_ON_ERROR_REPORT,
-                        common_block_job_cb, &cbi, &local_err, false);
+    commit_active_start("commit", bs, base_bs, BLOCK_JOB_DEFAULT, 0,
+                        BLOCKDEV_ON_ERROR_REPORT, common_block_job_cb, &cbi,
+                        &local_err, false);
     aio_context_release(aio_context);
     if (local_err) {
         goto done;
