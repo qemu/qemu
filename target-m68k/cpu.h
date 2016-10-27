@@ -30,6 +30,14 @@
 #include "cpu-qom.h"
 #include "fpu/softfloat.h"
 
+#define OS_BYTE     0
+#define OS_WORD     1
+#define OS_LONG     2
+#define OS_SINGLE   3
+#define OS_DOUBLE   4
+#define OS_EXTENDED 5
+#define OS_PACKED   6
+
 #define MAX_QREGS 32
 
 #define EXCP_ACCESS         2   /* Access (MMU) error.  */
@@ -53,6 +61,7 @@
 #define EXCP_HALT_INSN      0x101
 
 #define NB_MMU_MODES 2
+#define TARGET_INSN_START_EXTRA_WORDS 1
 
 typedef struct CPUM68KState {
     uint32_t dregs[8];
@@ -66,9 +75,11 @@ typedef struct CPUM68KState {
 
     /* Condition flags.  */
     uint32_t cc_op;
-    uint32_t cc_dest;
-    uint32_t cc_src;
-    uint32_t cc_x;
+    uint32_t cc_x; /* always 0/1 */
+    uint32_t cc_n; /* in bit 31 (i.e. negative) */
+    uint32_t cc_v; /* in bit 31, unused, or computed from cc_n and cc_v */
+    uint32_t cc_c; /* either 0/1, unused, or computed from cc_n and cc_v */
+    uint32_t cc_z; /* == 0 or unused */
 
     float64 fregs[8];
     float64 fp_result;
@@ -141,9 +152,6 @@ hwaddr m68k_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int m68k_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int m68k_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
-void m68k_cpu_exec_enter(CPUState *cs);
-void m68k_cpu_exec_exit(CPUState *cs);
-
 void m68k_tcg_init(void);
 void m68k_cpu_init_gdb(M68kCPU *cpu);
 M68kCPU *cpu_m68k_init(const char *cpu_model);
@@ -152,7 +160,8 @@ M68kCPU *cpu_m68k_init(const char *cpu_model);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_m68k_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-void cpu_m68k_flush_flags(CPUM68KState *, int);
+uint32_t cpu_m68k_get_ccr(CPUM68KState *env);
+void cpu_m68k_set_ccr(CPUM68KState *env, uint32_t);
 
 
 /* Instead of computing the condition codes after each m68k instruction,
@@ -162,18 +171,25 @@ void cpu_m68k_flush_flags(CPUM68KState *, int);
  * using this information. Condition codes are not generated if they
  * are only needed for conditional branches.
  */
-enum {
-    CC_OP_DYNAMIC, /* Use env->cc_op  */
-    CC_OP_FLAGS, /* CC_DEST = CVZN, CC_SRC = unused */
-    CC_OP_LOGIC, /* CC_DEST = result, CC_SRC = unused */
-    CC_OP_ADD,   /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SUB,   /* CC_DEST = result, CC_SRC = source */
-    CC_OP_CMPB,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_CMPW,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_ADDX,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SUBX,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SHIFT, /* CC_DEST = result, CC_SRC = carry */
-};
+typedef enum {
+    /* Translator only -- use env->cc_op.  */
+    CC_OP_DYNAMIC = -1,
+
+    /* Each flag bit computed into cc_[xcnvz].  */
+    CC_OP_FLAGS,
+
+    /* X in cc_x, C = X, N in cc_n, Z in cc_n, V via cc_n/cc_v.  */
+    CC_OP_ADD,
+    CC_OP_SUB,
+
+    /* X in cc_x, {N,Z,C,V} via cc_n/cc_v.  */
+    CC_OP_CMP,
+
+    /* X in cc_x, C = 0, V = 0, N in cc_n, Z in cc_n.  */
+    CC_OP_LOGIC,
+
+    CC_OP_NB
+} CCOp;
 
 #define CCF_C 0x01
 #define CCF_V 0x02
@@ -215,6 +231,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr);
    ISA revisions mentioned.  */
 
 enum m68k_features {
+    M68K_FEATURE_M68000,
     M68K_FEATURE_CF_ISA_A,
     M68K_FEATURE_CF_ISA_B, /* (ISA B or C).  */
     M68K_FEATURE_CF_ISA_APLUSC, /* BIT/BITREV, FF1, STRLDSR (ISA A+ or C).  */
@@ -225,7 +242,15 @@ enum m68k_features {
     M68K_FEATURE_CF_EMAC_B, /* Revision B EMAC (dual accumulate).  */
     M68K_FEATURE_USP, /* User Stack Pointer.  (ISA A+, B or C).  */
     M68K_FEATURE_EXT_FULL, /* 68020+ full extension word.  */
-    M68K_FEATURE_WORD_INDEX /* word sized address index registers.  */
+    M68K_FEATURE_WORD_INDEX, /* word sized address index registers.  */
+    M68K_FEATURE_SCALED_INDEX, /* scaled address index registers.  */
+    M68K_FEATURE_LONG_MULDIV, /* 32 bit multiply/divide. */
+    M68K_FEATURE_QUAD_MULDIV, /* 64 bit multiply/divide. */
+    M68K_FEATURE_BCCL, /* Long conditional branches.  */
+    M68K_FEATURE_BITFIELD, /* Bit field insns.  */
+    M68K_FEATURE_FPU,
+    M68K_FEATURE_CAS,
+    M68K_FEATURE_BKPT,
 };
 
 static inline int m68k_feature(CPUM68KState *env, int feature)
@@ -238,8 +263,11 @@ void m68k_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void register_m68k_insns (CPUM68KState *env);
 
 #ifdef CONFIG_USER_ONLY
-/* Linux uses 8k pages.  */
-#define TARGET_PAGE_BITS 13
+/* Coldfire Linux uses 8k pages
+ * and m68k linux uses 4k pages
+ * use the smaller one
+ */
+#define TARGET_PAGE_BITS 12
 #else
 /* Smallest TLB entry size is 1k.  */
 #define TARGET_PAGE_BITS 10

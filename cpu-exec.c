@@ -151,12 +151,6 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
         && qemu_log_in_addr_range(itb->pc)) {
 #if defined(TARGET_I386)
         log_cpu_state(cpu, CPU_DUMP_CCOP);
-#elif defined(TARGET_M68K)
-        /* ??? Should not modify env state for dumping.  */
-        cpu_m68k_flush_flags(env, env->cc_op);
-        env->cc_op = CC_OP_FLAGS;
-        env->sr = (env->sr & 0xffe0) | env->cc_dest | (env->cc_x << 4);
-        log_cpu_state(cpu, 0);
 #else
         log_cpu_state(cpu, 0);
 #endif

@@ -132,87 +132,6 @@ void m68k_cpu_init_gdb(M68kCPU *cpu)
     /* TODO: Add [E]MAC registers.  */
 }
 
-void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
-{
-    M68kCPU *cpu = m68k_env_get_cpu(env);
-    int flags;
-    uint32_t src;
-    uint32_t dest;
-    uint32_t tmp;
-
-#define HIGHBIT 0x80000000u
-
-#define SET_NZ(x) do { \
-    if ((x) == 0) \
-        flags |= CCF_Z; \
-    else if ((int32_t)(x) < 0) \
-        flags |= CCF_N; \
-    } while (0)
-
-#define SET_FLAGS_SUB(type, utype) do { \
-    SET_NZ((type)dest); \
-    tmp = dest + src; \
-    if ((utype) tmp < (utype) src) \
-        flags |= CCF_C; \
-    if ((1u << (sizeof(type) * 8 - 1)) & (tmp ^ dest) & (tmp ^ src)) \
-        flags |= CCF_V; \
-    } while (0)
-
-    flags = 0;
-    src = env->cc_src;
-    dest = env->cc_dest;
-    switch (cc_op) {
-    case CC_OP_FLAGS:
-        flags = dest;
-        break;
-    case CC_OP_LOGIC:
-        SET_NZ(dest);
-        break;
-    case CC_OP_ADD:
-        SET_NZ(dest);
-        if (dest < src)
-            flags |= CCF_C;
-        tmp = dest - src;
-        if (HIGHBIT & (src ^ dest) & ~(tmp ^ src))
-            flags |= CCF_V;
-        break;
-    case CC_OP_SUB:
-        SET_FLAGS_SUB(int32_t, uint32_t);
-        break;
-    case CC_OP_CMPB:
-        SET_FLAGS_SUB(int8_t, uint8_t);
-        break;
-    case CC_OP_CMPW:
-        SET_FLAGS_SUB(int16_t, uint16_t);
-        break;
-    case CC_OP_ADDX:
-        SET_NZ(dest);
-        if (dest <= src)
-            flags |= CCF_C;
-        tmp = dest - src - 1;
-        if (HIGHBIT & (src ^ dest) & ~(tmp ^ src))
-            flags |= CCF_V;
-        break;
-    case CC_OP_SUBX:
-        SET_NZ(dest);
-        tmp = dest + src + 1;
-        if (tmp <= src)
-            flags |= CCF_C;
-        if (HIGHBIT & (tmp ^ dest) & (tmp ^ src))
-            flags |= CCF_V;
-        break;
-    case CC_OP_SHIFT:
-        SET_NZ(dest);
-        if (src)
-            flags |= CCF_C;
-        break;
-    default:
-        cpu_abort(CPU(cpu), "Bad CC_OP %d", cc_op);
-    }
-    env->cc_op = CC_OP_FLAGS;
-    env->cc_dest = flags;
-}
-
 void HELPER(movec)(CPUM68KState *env, uint32_t reg, uint32_t val)
 {
     M68kCPU *cpu = m68k_env_get_cpu(env);
@@ -349,140 +268,111 @@ uint32_t HELPER(ff1)(uint32_t x)
     return n;
 }
 
-uint32_t HELPER(sats)(uint32_t val, uint32_t ccr)
+uint32_t HELPER(sats)(uint32_t val, uint32_t v)
 {
     /* The result has the opposite sign to the original value.  */
-    if (ccr & CCF_V)
+    if ((int32_t)v < 0) {
         val = (((int32_t)val) >> 31) ^ SIGNBIT;
+    }
     return val;
 }
 
 uint32_t HELPER(subx_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
 {
-    uint32_t res;
-    uint32_t old_flags;
+    uint32_t res, new_x;
 
-    old_flags = env->cc_dest;
     if (env->cc_x) {
-        env->cc_x = (op1 <= op2);
-        env->cc_op = CC_OP_SUBX;
+        new_x = (op1 <= op2);
         res = op1 - (op2 + 1);
     } else {
-        env->cc_x = (op1 < op2);
-        env->cc_op = CC_OP_SUB;
+        new_x = (op1 < op2);
         res = op1 - op2;
     }
-    env->cc_dest = res;
-    env->cc_src = op2;
-    cpu_m68k_flush_flags(env, env->cc_op);
-    /* !Z is sticky.  */
-    env->cc_dest &= (old_flags | ~CCF_Z);
+    env->cc_x = new_x;
+    env->cc_c = new_x;
+    env->cc_n = res;
+    env->cc_z |= res; /* !Z is sticky */
+    env->cc_v = (res ^ op1) & (op1 ^ op2);
+
     return res;
 }
 
 uint32_t HELPER(addx_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
 {
-    uint32_t res;
-    uint32_t old_flags;
+    uint32_t res, new_x;
 
-    old_flags = env->cc_dest;
     if (env->cc_x) {
         res = op1 + op2 + 1;
-        env->cc_x = (res <= op2);
-        env->cc_op = CC_OP_ADDX;
+        new_x = (res <= op2);
     } else {
         res = op1 + op2;
-        env->cc_x = (res < op2);
-        env->cc_op = CC_OP_ADD;
+        new_x = (res < op2);
     }
-    env->cc_dest = res;
-    env->cc_src = op2;
-    cpu_m68k_flush_flags(env, env->cc_op);
-    /* !Z is sticky.  */
-    env->cc_dest &= (old_flags | ~CCF_Z);
-    return res;
-}
+    env->cc_x = new_x;
+    env->cc_c = new_x;
+    env->cc_n = res;
+    env->cc_z |= res; /* !Z is sticky.  */
+    env->cc_v = (res ^ op1) & ~(op1 ^ op2);
 
-uint32_t HELPER(xflag_lt)(uint32_t a, uint32_t b)
-{
-    return a < b;
+    return res;
 }
 
 void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
 {
-    env->sr = val & 0xffff;
+    env->sr = val & 0xffe0;
+    cpu_m68k_set_ccr(env, val);
     m68k_switch_sp(env);
 }
 
 uint32_t HELPER(shl_cc)(CPUM68KState *env, uint32_t val, uint32_t shift)
 {
-    uint32_t result;
-    uint32_t cf;
+    uint64_t result;
 
     shift &= 63;
-    if (shift == 0) {
-        result = val;
-        cf = env->cc_src & CCF_C;
-    } else if (shift < 32) {
-        result = val << shift;
-        cf = (val >> (32 - shift)) & 1;
-    } else if (shift == 32) {
-        result = 0;
-        cf = val & 1;
-    } else /* shift > 32 */ {
-        result = 0;
-        cf = 0;
-    }
-    env->cc_src = cf;
-    env->cc_x = (cf != 0);
-    env->cc_dest = result;
+    result = (uint64_t)val << shift;
+
+    env->cc_c = (result >> 32) & 1;
+    env->cc_n = result;
+    env->cc_z = result;
+    env->cc_v = 0;
+    env->cc_x = shift ? env->cc_c : env->cc_x;
+
     return result;
 }
 
 uint32_t HELPER(shr_cc)(CPUM68KState *env, uint32_t val, uint32_t shift)
 {
+    uint64_t temp;
     uint32_t result;
-    uint32_t cf;
 
     shift &= 63;
-    if (shift == 0) {
-        result = val;
-        cf = env->cc_src & CCF_C;
-    } else if (shift < 32) {
-        result = val >> shift;
-        cf = (val >> (shift - 1)) & 1;
-    } else if (shift == 32) {
-        result = 0;
-        cf = val >> 31;
-    } else /* shift > 32 */ {
-        result = 0;
-        cf = 0;
-    }
-    env->cc_src = cf;
-    env->cc_x = (cf != 0);
-    env->cc_dest = result;
+    temp = (uint64_t)val << 32 >> shift;
+    result = temp >> 32;
+
+    env->cc_c = (temp >> 31) & 1;
+    env->cc_n = result;
+    env->cc_z = result;
+    env->cc_v = 0;
+    env->cc_x = shift ? env->cc_c : env->cc_x;
+
     return result;
 }
 
 uint32_t HELPER(sar_cc)(CPUM68KState *env, uint32_t val, uint32_t shift)
 {
+    uint64_t temp;
     uint32_t result;
-    uint32_t cf;
 
     shift &= 63;
-    if (shift == 0) {
-        result = val;
-        cf = (env->cc_src & CCF_C) != 0;
-    } else if (shift < 32) {
-        result = (int32_t)val >> shift;
-        cf = (val >> (shift - 1)) & 1;
-    } else /* shift >= 32 */ {
-        result = (int32_t)val >> 31;
-        cf = val >> 31;
-    }
-    env->cc_src = cf;
-    env->cc_x = cf;
-    env->cc_dest = result;
+    temp = (int64_t)val << 32 >> shift;
+    result = temp >> 32;
+
+    env->cc_c = (temp >> 31) & 1;
+    env->cc_n = result;
+    env->cc_z = result;
+    env->cc_v = result ^ val;
+    env->cc_x = shift ? env->cc_c : env->cc_x;
+
     return result;
 }
 
@@ -734,9 +624,92 @@ void HELPER(mac_set_flags)(CPUM68KState *env, uint32_t acc)
     }
 }
 
+
+#define COMPUTE_CCR(op, x, n, z, v, c) {                                   \
+    switch (op) {                                                          \
+    case CC_OP_FLAGS:                                                      \
+        /* Everything in place.  */                                        \
+        break;                                                             \
+    case CC_OP_ADD:                                                        \
+        res = n;                                                           \
+        src2 = v;                                                          \
+        src1 = res - src2;                                                 \
+        c = x;                                                             \
+        z = n;                                                             \
+        v = (res ^ src1) & ~(src1 ^ src2);                                 \
+        break;                                                             \
+    case CC_OP_SUB:                                                        \
+        res = n;                                                           \
+        src2 = v;                                                          \
+        src1 = res + src2;                                                 \
+        c = x;                                                             \
+        z = n;                                                             \
+        v = (res ^ src1) & (src1 ^ src2);                                  \
+        break;                                                             \
+    case CC_OP_CMP:                                                        \
+        src1 = n;                                                          \
+        src2 = v;                                                          \
+        res = src1 - src2;                                                 \
+        n = res;                                                           \
+        z = res;                                                           \
+        c = src1 < src2;                                                   \
+        v = (res ^ src1) & (src1 ^ src2);                                  \
+        break;                                                             \
+    case CC_OP_LOGIC:                                                      \
+        c = v = 0;                                                         \
+        z = n;                                                             \
+        break;                                                             \
+    default:                                                               \
+        cpu_abort(CPU(m68k_env_get_cpu(env)), "Bad CC_OP %d", op);         \
+    }                                                                      \
+} while (0)
+
+uint32_t cpu_m68k_get_ccr(CPUM68KState *env)
+{
+    uint32_t x, c, n, z, v;
+    uint32_t res, src1, src2;
+
+    x = env->cc_x;
+    c = env->cc_c;
+    n = env->cc_n;
+    z = env->cc_z;
+    v = env->cc_v;
+
+    COMPUTE_CCR(env->cc_op, x, n, z, v, c);
+
+    n = n >> 31;
+    v = v >> 31;
+    z = (z == 0);
+
+    return x * CCF_X + n * CCF_N + z * CCF_Z + v * CCF_V + c * CCF_C;
+}
+
+uint32_t HELPER(get_ccr)(CPUM68KState *env)
+{
+    return cpu_m68k_get_ccr(env);
+}
+
+void cpu_m68k_set_ccr(CPUM68KState *env, uint32_t ccr)
+{
+    env->cc_x = (ccr & CCF_X ? 1 : 0);
+    env->cc_n = (ccr & CCF_N ? -1 : 0);
+    env->cc_z = (ccr & CCF_Z ? 0 : 1);
+    env->cc_v = (ccr & CCF_V ? -1 : 0);
+    env->cc_c = (ccr & CCF_C ? 1 : 0);
+    env->cc_op = CC_OP_FLAGS;
+}
+
+void HELPER(set_ccr)(CPUM68KState *env, uint32_t ccr)
+{
+    cpu_m68k_set_ccr(env, ccr);
+}
+
 void HELPER(flush_flags)(CPUM68KState *env, uint32_t cc_op)
 {
-    cpu_m68k_flush_flags(env, cc_op);
+    uint32_t res, src1, src2;
+
+    COMPUTE_CCR(cc_op, env->cc_x, env->cc_n, env->cc_z, env->cc_v, env->cc_c);
+    env->cc_op = CC_OP_FLAGS;
 }
 
 uint32_t HELPER(get_macf)(CPUM68KState *env, uint64_t val)
@@ -865,24 +838,4 @@ void HELPER(set_mac_extu)(CPUM68KState *env, uint32_t val, uint32_t acc)
     res = (uint32_t)env->macc[acc + 1];
     res |= (uint64_t)(val & 0xffff0000) << 16;
     env->macc[acc + 1] = res;
-}
-
-void m68k_cpu_exec_enter(CPUState *cs)
-{
-    M68kCPU *cpu = M68K_CPU(cs);
-    CPUM68KState *env = &cpu->env;
-
-    env->cc_op = CC_OP_FLAGS;
-    env->cc_dest = env->sr & 0xf;
-    env->cc_x = (env->sr >> 4) & 1;
-}
-
-void m68k_cpu_exec_exit(CPUState *cs)
-{
-    M68kCPU *cpu = M68K_CPU(cs);
-    CPUM68KState *env = &cpu->env;
-
-    cpu_m68k_flush_flags(env, env->cc_op);
-    env->cc_op = CC_OP_FLAGS;
-    env->sr = (env->sr & 0xffe0) | env->cc_dest | (env->cc_x << 4);
 }

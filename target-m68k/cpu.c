@@ -58,15 +58,20 @@ static void m68k_cpu_reset(CPUState *s)
 #endif
     m68k_switch_sp(env);
     /* ??? FP regs should be initialized to NaN.  */
-    env->cc_op = CC_OP_FLAGS;
+    cpu_m68k_set_ccr(env, 0);
     /* TODO: We should set PC from the interrupt vector.  */
     env->pc = 0;
     tlb_flush(s, 1);
 }
 
-static void m68k_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+static void m68k_cpu_disas_set_info(CPUState *s, disassemble_info *info)
 {
+    M68kCPU *cpu = M68K_CPU(s);
+    CPUM68KState *env = &cpu->env;
     info->print_insn = print_insn_m68k;
+    if (m68k_feature(env, M68K_FEATURE_M68000)) {
+        info->mach = bfd_mach_m68040;
+    }
 }
 
 /* CPU models */
@@ -96,6 +101,57 @@ static void m5206_cpu_initfn(Object *obj)
     CPUM68KState *env = &cpu->env;
 
     m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
+}
+
+static void m68000_cpu_initfn(Object *obj)
+{
+    M68kCPU *cpu = M68K_CPU(obj);
+    CPUM68KState *env = &cpu->env;
+
+    m68k_set_feature(env, M68K_FEATURE_M68000);
+    m68k_set_feature(env, M68K_FEATURE_USP);
+    m68k_set_feature(env, M68K_FEATURE_WORD_INDEX);
+}
+
+static void m68020_cpu_initfn(Object *obj)
+{
+    M68kCPU *cpu = M68K_CPU(obj);
+    CPUM68KState *env = &cpu->env;
+
+    m68k_set_feature(env, M68K_FEATURE_M68000);
+    m68k_set_feature(env, M68K_FEATURE_USP);
+    m68k_set_feature(env, M68K_FEATURE_WORD_INDEX);
+    m68k_set_feature(env, M68K_FEATURE_QUAD_MULDIV);
+    m68k_set_feature(env, M68K_FEATURE_BRAL);
+    m68k_set_feature(env, M68K_FEATURE_BCCL);
+    m68k_set_feature(env, M68K_FEATURE_BITFIELD);
+    m68k_set_feature(env, M68K_FEATURE_EXT_FULL);
+    m68k_set_feature(env, M68K_FEATURE_SCALED_INDEX);
+    m68k_set_feature(env, M68K_FEATURE_LONG_MULDIV);
+    m68k_set_feature(env, M68K_FEATURE_FPU);
+    m68k_set_feature(env, M68K_FEATURE_CAS);
+    m68k_set_feature(env, M68K_FEATURE_BKPT);
+}
+#define m68030_cpu_initfn m68020_cpu_initfn
+#define m68040_cpu_initfn m68020_cpu_initfn
+
+static void m68060_cpu_initfn(Object *obj)
+{
+    M68kCPU *cpu = M68K_CPU(obj);
+    CPUM68KState *env = &cpu->env;
+
+    m68k_set_feature(env, M68K_FEATURE_M68000);
+    m68k_set_feature(env, M68K_FEATURE_USP);
+    m68k_set_feature(env, M68K_FEATURE_WORD_INDEX);
+    m68k_set_feature(env, M68K_FEATURE_BRAL);
+    m68k_set_feature(env, M68K_FEATURE_BCCL);
+    m68k_set_feature(env, M68K_FEATURE_BITFIELD);
+    m68k_set_feature(env, M68K_FEATURE_EXT_FULL);
+    m68k_set_feature(env, M68K_FEATURE_SCALED_INDEX);
+    m68k_set_feature(env, M68K_FEATURE_LONG_MULDIV);
+    m68k_set_feature(env, M68K_FEATURE_FPU);
+    m68k_set_feature(env, M68K_FEATURE_CAS);
+    m68k_set_feature(env, M68K_FEATURE_BKPT);
 }
 
 static void m5208_cpu_initfn(Object *obj)
@@ -148,6 +204,11 @@ typedef struct M68kCPUInfo {
 } M68kCPUInfo;
 
 static const M68kCPUInfo m68k_cpus[] = {
+    { .name = "m68000", .instance_init = m68000_cpu_initfn },
+    { .name = "m68020", .instance_init = m68020_cpu_initfn },
+    { .name = "m68030", .instance_init = m68030_cpu_initfn },
+    { .name = "m68040", .instance_init = m68040_cpu_initfn },
+    { .name = "m68060", .instance_init = m68060_cpu_initfn },
     { .name = "m5206", .instance_init = m5206_cpu_initfn },
     { .name = "m5208", .instance_init = m5208_cpu_initfn },
     { .name = "cfv4e", .instance_init = cfv4e_cpu_initfn },
@@ -220,8 +281,6 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
 #else
     cc->get_phys_page_debug = m68k_cpu_get_phys_page_debug;
 #endif
-    cc->cpu_exec_enter = m68k_cpu_exec_enter;
-    cc->cpu_exec_exit = m68k_cpu_exec_exit;
     cc->disas_set_info = m68k_cpu_disas_set_info;
 
     cc->gdb_num_core_regs = 18;
