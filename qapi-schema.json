@@ -840,6 +840,24 @@
   'data': [ 'unknown', 'primary', 'secondary'] }
 
 ##
+# @FailoverStatus
+#
+# An enumeration of COLO failover status
+#
+# @none: no failover has ever happened
+#
+# @require: got failover requirement but not handled
+#
+# @active: in the process of doing failover
+#
+# @completed: finish the process of failover
+#
+# Since: 2.8
+##
+{ 'enum': 'FailoverStatus',
+  'data': [ 'none', 'require', 'active', 'completed'] }
+
+##
 # @x-colo-lost-heartbeat
 #
 # Tell qemu that heartbeat is lost, request it to do takeover procedures.
