@@ -622,6 +622,7 @@ static void coroutine_fn mirror_run(void *opaque)
     MirrorExitData *data;
     BlockDriverState *bs = blk_bs(s->common.blk);
     BlockDriverState *target_bs = blk_bs(s->target);
+    bool need_drain = true;
     int64_t length;
     BlockDriverInfo bdi;
     char backing_filename[2]; /* we only need 2 characters because we are only
@@ -757,11 +758,26 @@ static void coroutine_fn mirror_run(void *opaque)
              * source has dirty data to copy!
              *
              * Note that I/O can be submitted by the guest while
-             * mirror_populate runs.
+             * mirror_populate runs, so pause it now.  Before deciding
+             * whether to switch to target check one last time if I/O has
+             * come in the meanwhile, and if not flush the data to disk.
              */
             trace_mirror_before_drain(s, cnt);
-            bdrv_co_drain(bs);
+
+            bdrv_drained_begin(bs);
             cnt = bdrv_get_dirty_count(s->dirty_bitmap);
+            if (cnt > 0) {
+                bdrv_drained_end(bs);
+                continue;
+            }
+
+            /* The two disks are in sync.  Exit and report successful
+             * completion.
+             */
+            assert(QLIST_EMPTY(&bs->tracked_requests));
+            s->common.cancelled = false;
+            need_drain = false;
+            break;
         }
 
         ret = 0;
@@ -774,13 +790,6 @@ static void coroutine_fn mirror_run(void *opaque)
         } else if (!should_complete) {
             delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
             block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
-        } else if (cnt == 0) {
-            /* The two disks are in sync.  Exit and report successful
-             * completion.
-             */
-            assert(QLIST_EMPTY(&bs->tracked_requests));
-            s->common.cancelled = false;
-            break;
         }
         s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     }
@@ -792,6 +801,7 @@ immediate_exit:
          * the target is a copy of the source.
          */
         assert(ret < 0 || (!s->synced && block_job_is_cancelled(&s->common)));
+        assert(need_drain);
         mirror_wait_for_all_io(s);
     }
 
@@ -804,9 +814,10 @@ immediate_exit:
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
-    /* Before we switch to target in mirror_exit, make sure data doesn't
-     * change. */
-    bdrv_drained_begin(bs);
+
+    if (need_drain) {
+        bdrv_drained_begin(bs);
+    }
     block_job_defer_to_main_loop(&s->common, mirror_exit, data);
 }
 
