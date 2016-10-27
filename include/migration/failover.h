@@ -21,5 +21,6 @@ FailoverStatus failover_set_state(FailoverStatus old_state,
                                      FailoverStatus new_state);
 FailoverStatus failover_get_state(void);
 void failover_request_active(Error **errp);
+bool failover_request_is_active(void);
 
 #endif

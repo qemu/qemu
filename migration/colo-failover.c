@@ -36,7 +36,7 @@ static void colo_failover_bh(void *opaque)
         return;
     }
 
-    /* TODO: Do failover work */
+    colo_do_failover(NULL);
 }
 
 void failover_request_active(Error **errp)
