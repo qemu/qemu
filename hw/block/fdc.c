@@ -60,6 +60,8 @@
 #define FLOPPY_BUS(obj) OBJECT_CHECK(FloppyBus, (obj), TYPE_FLOPPY_BUS)
 
 typedef struct FDCtrl FDCtrl;
+typedef struct FDrive FDrive;
+static FDrive *get_drv(FDCtrl *fdctrl, int unit);
 
 typedef struct FloppyBus {
     BusState bus;
@@ -180,7 +182,7 @@ typedef enum FDiskFlags {
     FDISK_DBL_SIDES  = 0x01,
 } FDiskFlags;
 
-typedef struct FDrive {
+struct FDrive {
     FDCtrl *fdctrl;
     BlockBackend *blk;
     /* Drive status */
@@ -201,7 +203,7 @@ typedef struct FDrive {
     uint8_t media_rate;       /* Data rate of medium    */
 
     bool media_validated;     /* Have we validated the media? */
-} FDrive;
+};
 
 
 static FloppyDriveType get_fallback_drive_type(FDrive *drv);
@@ -465,6 +467,100 @@ static void fd_revalidate(FDrive *drv)
         drv->disk = FLOPPY_DRIVE_TYPE_NONE;
     }
 }
+
+static void fd_change_cb(void *opaque, bool load)
+{
+    FDrive *drive = opaque;
+
+    drive->media_changed = 1;
+    drive->media_validated = false;
+    fd_revalidate(drive);
+}
+
+static const BlockDevOps fd_block_ops = {
+    .change_media_cb = fd_change_cb,
+};
+
+
+#define TYPE_FLOPPY_DRIVE "floppy"
+#define FLOPPY_DRIVE(obj) \
+     OBJECT_CHECK(FloppyDrive, (obj), TYPE_FLOPPY_DRIVE)
+
+typedef struct FloppyDrive {
+    DeviceState qdev;
+    uint32_t    unit;
+} FloppyDrive;
+
+static Property floppy_drive_properties[] = {
+    DEFINE_PROP_UINT32("unit", FloppyDrive, unit, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static int floppy_drive_init(DeviceState *qdev)
+{
+    FloppyDrive *dev = FLOPPY_DRIVE(qdev);
+    FloppyBus *bus = FLOPPY_BUS(qdev->parent_bus);
+    FDrive *drive;
+
+    if (dev->unit == -1) {
+        for (dev->unit = 0; dev->unit < MAX_FD; dev->unit++) {
+            drive = get_drv(bus->fdc, dev->unit);
+            if (!drive->blk) {
+                break;
+            }
+        }
+    }
+
+    if (dev->unit >= MAX_FD) {
+        error_report("Can't create floppy unit %d, bus supports only %d units",
+                     dev->unit, MAX_FD);
+        return -1;
+    }
+
+    /* TODO Check whether unit is in use */
+
+    drive = get_drv(bus->fdc, dev->unit);
+
+    if (drive->blk) {
+        if (blk_get_on_error(drive->blk, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
+            error_report("fdc doesn't support drive option werror");
+            return -1;
+        }
+        if (blk_get_on_error(drive->blk, 1) != BLOCKDEV_ON_ERROR_REPORT) {
+            error_report("fdc doesn't support drive option rerror");
+            return -1;
+        }
+    } else {
+        /* Anonymous BlockBackend for an empty drive */
+        drive->blk = blk_new();
+    }
+
+    fd_init(drive);
+    if (drive->blk) {
+        blk_set_dev_ops(drive->blk, &fd_block_ops, drive);
+        pick_drive_type(drive);
+    }
+    fd_revalidate(drive);
+
+    return 0;
+}
+
+static void floppy_drive_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->init = floppy_drive_init;
+    set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
+    k->bus_type = TYPE_FLOPPY_BUS;
+    k->props = floppy_drive_properties;
+    k->desc = "virtual floppy drive";
+}
+
+static const TypeInfo floppy_drive_info = {
+    .name = TYPE_FLOPPY_DRIVE,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(FloppyDrive),
+    .class_init = floppy_drive_class_init,
+};
 
 /********************************************************/
 /* Intel 82078 floppy disk controller emulation          */
@@ -1185,9 +1281,9 @@ static inline FDrive *drv3(FDCtrl *fdctrl)
 }
 #endif
 
-static FDrive *get_cur_drv(FDCtrl *fdctrl)
+static FDrive *get_drv(FDCtrl *fdctrl, int unit)
 {
-    switch (fdctrl->cur_drv) {
+    switch (unit) {
         case 0: return drv0(fdctrl);
         case 1: return drv1(fdctrl);
 #if MAX_FD == 4
@@ -1196,6 +1292,11 @@ static FDrive *get_cur_drv(FDCtrl *fdctrl)
 #endif
         default: return NULL;
     }
+}
+
+static FDrive *get_cur_drv(FDCtrl *fdctrl)
+{
+    return get_drv(fdctrl, fdctrl->cur_drv);
 }
 
 /* Status A register : 0x00 (read-only) */
@@ -2357,46 +2458,33 @@ static void fdctrl_result_timer(void *opaque)
     }
 }
 
-static void fdctrl_change_cb(void *opaque, bool load)
-{
-    FDrive *drive = opaque;
-
-    drive->media_changed = 1;
-    drive->media_validated = false;
-    fd_revalidate(drive);
-}
-
-static const BlockDevOps fdctrl_block_ops = {
-    .change_media_cb = fdctrl_change_cb,
-};
-
 /* Init functions */
 static void fdctrl_connect_drives(FDCtrl *fdctrl, Error **errp)
 {
     unsigned int i;
     FDrive *drive;
+    DeviceState *dev;
+    Error *local_err = NULL;
 
     for (i = 0; i < MAX_FD; i++) {
         drive = &fdctrl->drives[i];
         drive->fdctrl = fdctrl;
 
-        if (drive->blk) {
-            if (blk_get_on_error(drive->blk, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
-                error_setg(errp, "fdc doesn't support drive option werror");
-                return;
-            }
-            if (blk_get_on_error(drive->blk, 1) != BLOCKDEV_ON_ERROR_REPORT) {
-                error_setg(errp, "fdc doesn't support drive option rerror");
-                return;
-            }
+        /* If the drive is not present, we skip creating the qdev device, but
+         * still have to initialise the controller. */
+        if (!fdctrl->drives[i].blk) {
+            fd_init(drive);
+            fd_revalidate(drive);
+            continue;
         }
 
-        fd_init(drive);
-        if (drive->blk) {
-            blk_set_dev_ops(drive->blk, &fdctrl_block_ops, drive);
-            pick_drive_type(drive);
+        dev = qdev_create(&fdctrl->bus.bus, "floppy");
+        qdev_prop_set_uint32(dev, "unit", i);
+        object_property_set_bool(OBJECT(dev), true, "realized", &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
         }
-        fd_revalidate(drive);
     }
 }
 
@@ -2774,6 +2862,7 @@ static void fdc_register_types(void)
     type_register_static(&sysbus_fdc_info);
     type_register_static(&sun4m_fdc_info);
     type_register_static(&floppy_bus_info);
+    type_register_static(&floppy_drive_info);
 }
 
 type_init(fdc_register_types)
