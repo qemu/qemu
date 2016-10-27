@@ -787,6 +787,31 @@
 { 'command': 'migrate-start-postcopy' }
 
 ##
+# @COLOMessage
+#
+# The message transmission between Primary side and Secondary side.
+#
+# @checkpoint-ready: Secondary VM (SVM) is ready for checkpointing
+#
+# @checkpoint-request: Primary VM (PVM) tells SVM to prepare for checkpointing
+#
+# @checkpoint-reply: SVM gets PVM's checkpoint request
+#
+# @vmstate-send: VM's state will be sent by PVM.
+#
+# @vmstate-size: The total size of VMstate.
+#
+# @vmstate-received: VM's state has been received by SVM.
+#
+# @vmstate-loaded: VM's state has been loaded by SVM.
+#
+# Since: 2.8
+##
+{ 'enum': 'COLOMessage',
+  'data': [ 'checkpoint-ready', 'checkpoint-request', 'checkpoint-reply',
+            'vmstate-send', 'vmstate-size', 'vmstate-received',
+            'vmstate-loaded' ] }
+
 # @MouseInfo:
 #
 # Information about a mouse device.
