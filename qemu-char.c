@@ -735,18 +735,22 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
         }
 }
 
+static bool muxes_realized;
+
 static void mux_chr_event(void *opaque, int event)
 {
     CharDriverState *chr = opaque;
     MuxDriver *d = chr->opaque;
     int i;
 
+    if (!muxes_realized) {
+        return;
+    }
+
     /* Send the event to all registered listeners */
     for (i = 0; i < d->mux_cnt; i++)
         mux_chr_send_event(d, i, event);
 }
-
-static bool muxes_realized;
 
 /**
  * Called after processing of default and command-line-specified
