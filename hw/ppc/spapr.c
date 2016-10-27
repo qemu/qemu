@@ -2143,15 +2143,40 @@ static void spapr_set_kvm_type(Object *obj, const char *value, Error **errp)
     spapr->kvm_type = g_strdup(value);
 }
 
+static bool spapr_get_modern_hotplug_events(Object *obj, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return spapr->use_hotplug_event_source;
+}
+
+static void spapr_set_modern_hotplug_events(Object *obj, bool value,
+                                            Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->use_hotplug_event_source = value;
+}
+
 static void spapr_machine_initfn(Object *obj)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
 
     spapr->htab_fd = -1;
+    spapr->use_hotplug_event_source = true;
     object_property_add_str(obj, "kvm-type",
                             spapr_get_kvm_type, spapr_set_kvm_type, NULL);
     object_property_set_description(obj, "kvm-type",
                                     "Specifies the KVM virtualization mode (HV, PR)",
+                                    NULL);
+    object_property_add_bool(obj, "modern-hotplug-events",
+                            spapr_get_modern_hotplug_events,
+                            spapr_set_modern_hotplug_events,
+                            NULL);
+    object_property_set_description(obj, "modern-hotplug-events",
+                                    "Use dedicated hotplug event mechanism in"
+                                    " place of standard EPOW events when possible"
+                                    " (required for memory hot-unplug support)",
                                     NULL);
 }
 
@@ -2599,7 +2624,10 @@ static void phb_placement_2_7(sPAPRMachineState *spapr, uint32_t index,
 
 static void spapr_machine_2_7_instance_options(MachineState *machine)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
+
     spapr_machine_2_8_instance_options(machine);
+    spapr->use_hotplug_event_source = false;
 }
 
 static void spapr_machine_2_7_class_options(MachineClass *mc)
