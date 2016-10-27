@@ -42,6 +42,11 @@ void mmap_unlock(void)
     }
 }
 
+bool have_mmap_lock(void)
+{
+    return mmap_lock_count > 0 ? true : false;
+}
+
 /* Grab lock to make sure things are in a consistent state after fork().  */
 void mmap_fork_start(void)
 {
