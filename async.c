@@ -284,7 +284,7 @@ aio_ctx_finalize(GSource     *source)
 
     aio_set_event_notifier(ctx, &ctx->notifier, false, NULL);
     event_notifier_cleanup(&ctx->notifier);
-    rfifolock_destroy(&ctx->lock);
+    qemu_rec_mutex_destroy(&ctx->lock);
     qemu_mutex_destroy(&ctx->bh_lock);
     timerlistgroup_deinit(&ctx->tlg);
 }
@@ -372,7 +372,7 @@ AioContext *aio_context_new(Error **errp)
 #endif
     ctx->thread_pool = NULL;
     qemu_mutex_init(&ctx->bh_lock);
-    rfifolock_init(&ctx->lock, NULL, NULL);
+    qemu_rec_mutex_init(&ctx->lock);
     timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
 
     return ctx;
@@ -393,10 +393,10 @@ void aio_context_unref(AioContext *ctx)
 
 void aio_context_acquire(AioContext *ctx)
 {
-    rfifolock_lock(&ctx->lock);
+    qemu_rec_mutex_lock(&ctx->lock);
 }
 
 void aio_context_release(AioContext *ctx)
 {
-    rfifolock_unlock(&ctx->lock);
+    qemu_rec_mutex_unlock(&ctx->lock);
 }
