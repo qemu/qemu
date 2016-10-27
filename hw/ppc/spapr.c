@@ -973,7 +973,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     }
 
     /* /event-sources */
-    spapr_dt_events(fdt, spapr->check_exception_irq);
+    spapr_dt_events(spapr, fdt);
 
     /* /rtas */
     spapr_dt_rtas(spapr, fdt);
@@ -1789,6 +1789,11 @@ static void ppc_spapr_init(MachineState *machine)
 
     spapr_ovec_set(spapr->ov5, OV5_FORM1_AFFINITY);
 
+    /* advertise support for dedicated HP event source to guests */
+    if (spapr->use_hotplug_event_source) {
+        spapr_ovec_set(spapr->ov5, OV5_HP_EVT);
+    }
+
     /* init CPUs */
     if (machine->cpu_model == NULL) {
         machine->cpu_model = kvm_enabled() ? "host" : smc->tcg_default_cpu;
@@ -1912,7 +1917,7 @@ static void ppc_spapr_init(MachineState *machine)
     }
     g_free(filename);
 
-    /* Set up EPOW events infrastructure */
+    /* Set up RTAS event infrastructure */
     spapr_events_init(spapr);
 
     /* Set up the RTC RTAS interfaces */

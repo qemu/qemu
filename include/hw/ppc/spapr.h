@@ -13,6 +13,7 @@ struct sPAPRPHBState;
 struct sPAPRNVRAM;
 typedef struct sPAPRConfigureConnectorState sPAPRConfigureConnectorState;
 typedef struct sPAPREventLogEntry sPAPREventLogEntry;
+typedef struct sPAPREventSource sPAPREventSource;
 
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 #define SPAPR_ENTRY_POINT       0x100
@@ -77,9 +78,10 @@ struct sPAPRMachineState {
     sPAPROptionVector *ov5_cas;     /* negotiated (via CAS) option vectors */
     bool cas_reboot;
 
-    uint32_t check_exception_irq;
     Notifier epow_notifier;
     QTAILQ_HEAD(, sPAPREventLogEntry) pending_events;
+    bool use_hotplug_event_source;
+    sPAPREventSource *event_sources;
 
     /* Migration state */
     int htab_save_index;
@@ -584,7 +586,7 @@ struct sPAPREventLogEntry {
 };
 
 void spapr_events_init(sPAPRMachineState *sm);
-void spapr_dt_events(void *fdt, uint32_t check_exception_irq);
+void spapr_dt_events(sPAPRMachineState *sm, void *fdt);
 int spapr_h_cas_compose_response(sPAPRMachineState *sm,
                                  target_ulong addr, target_ulong size,
                                  bool cpu_update,

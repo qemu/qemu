@@ -45,6 +45,7 @@ typedef struct sPAPROptionVector sPAPROptionVector;
 /* option vector 5 */
 #define OV5_DRCONF_MEMORY       OV_BIT(2, 2)
 #define OV5_FORM1_AFFINITY      OV_BIT(5, 0)
+#define OV5_HP_EVT              OV_BIT(6, 5)
 
 /* interfaces */
 sPAPROptionVector *spapr_ovec_new(void);

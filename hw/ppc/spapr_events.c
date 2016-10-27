@@ -40,6 +40,7 @@
 #include "hw/ppc/spapr_drc.h"
 #include "qemu/help_option.h"
 #include "qemu/bcd.h"
+#include "hw/ppc/spapr_ovec.h"
 #include <libfdt.h>
 
 struct rtas_error_log {
@@ -206,27 +207,132 @@ struct hp_log_full {
     struct rtas_event_log_v6_hp hp;
 } QEMU_PACKED;
 
-#define EVENT_MASK_INTERNAL_ERRORS           0x80000000
-#define EVENT_MASK_EPOW                      0x40000000
-#define EVENT_MASK_HOTPLUG                   0x10000000
-#define EVENT_MASK_IO                        0x08000000
+typedef enum EventClass {
+    EVENT_CLASS_INTERNAL_ERRORS     = 0,
+    EVENT_CLASS_EPOW                = 1,
+    EVENT_CLASS_RESERVED            = 2,
+    EVENT_CLASS_HOT_PLUG            = 3,
+    EVENT_CLASS_IO                  = 4,
+    EVENT_CLASS_MAX
+} EventClassIndex;
+#define EVENT_CLASS_MASK(index) (1 << (31 - index))
 
-void spapr_dt_events(void *fdt, uint32_t check_exception_irq)
+static const char * const event_names[EVENT_CLASS_MAX] = {
+    [EVENT_CLASS_INTERNAL_ERRORS]       = "internal-errors",
+    [EVENT_CLASS_EPOW]                  = "epow-events",
+    [EVENT_CLASS_HOT_PLUG]              = "hot-plug-events",
+    [EVENT_CLASS_IO]                    = "ibm,io-events",
+};
+
+struct sPAPREventSource {
+    int irq;
+    uint32_t mask;
+    bool enabled;
+};
+
+static sPAPREventSource *spapr_event_sources_new(void)
 {
-    int event_sources, epow_events;
-    uint32_t irq_ranges[] = {cpu_to_be32(check_exception_irq), cpu_to_be32(1)};
-    uint32_t interrupts[] = {cpu_to_be32(check_exception_irq), 0};
+    return g_new0(sPAPREventSource, EVENT_CLASS_MAX);
+}
+
+static void spapr_event_sources_register(sPAPREventSource *event_sources,
+                                        EventClassIndex index, int irq)
+{
+    /* we only support 1 irq per event class at the moment */
+    g_assert(event_sources);
+    g_assert(!event_sources[index].enabled);
+    event_sources[index].irq = irq;
+    event_sources[index].mask = EVENT_CLASS_MASK(index);
+    event_sources[index].enabled = true;
+}
+
+static const sPAPREventSource *
+spapr_event_sources_get_source(sPAPREventSource *event_sources,
+                               EventClassIndex index)
+{
+    g_assert(index < EVENT_CLASS_MAX);
+    g_assert(event_sources);
+
+    return &event_sources[index];
+}
+
+void spapr_dt_events(sPAPRMachineState *spapr, void *fdt)
+{
+    uint32_t irq_ranges[EVENT_CLASS_MAX * 2];
+    int i, count = 0, event_sources;
+    sPAPREventSource *events = spapr->event_sources;
+
+    g_assert(events);
 
     _FDT(event_sources = fdt_add_subnode(fdt, 0, "event-sources"));
 
-    _FDT(fdt_setprop(fdt, event_sources, "interrupt-controller", NULL, 0));
-    _FDT(fdt_setprop_cell(fdt, event_sources, "#interrupt-cells", 2));
-    _FDT(fdt_setprop(fdt, event_sources, "interrupt-ranges",
-                     irq_ranges, sizeof(irq_ranges)));
+    for (i = 0, count = 0; i < EVENT_CLASS_MAX; i++) {
+        int node_offset;
+        uint32_t interrupts[2];
+        const sPAPREventSource *source =
+            spapr_event_sources_get_source(events, i);
+        const char *source_name = event_names[i];
 
-    _FDT(epow_events = fdt_add_subnode(fdt, event_sources, "epow-events"));
-    _FDT(fdt_setprop(fdt, epow_events, "interrupts",
-                     interrupts, sizeof(interrupts)));
+        if (!source->enabled) {
+            continue;
+        }
+
+        interrupts[0] = cpu_to_be32(source->irq);
+        interrupts[1] = 0;
+
+        _FDT(node_offset = fdt_add_subnode(fdt, event_sources, source_name));
+        _FDT(fdt_setprop(fdt, node_offset, "interrupts", interrupts,
+                         sizeof(interrupts)));
+
+        irq_ranges[count++] = interrupts[0];
+        irq_ranges[count++] = cpu_to_be32(1);
+    }
+
+    irq_ranges[count] = cpu_to_be32(count);
+    count++;
+
+    _FDT((fdt_setprop(fdt, event_sources, "interrupt-controller", NULL, 0)));
+    _FDT((fdt_setprop_cell(fdt, event_sources, "#interrupt-cells", 2)));
+    _FDT((fdt_setprop(fdt, event_sources, "interrupt-ranges",
+                      irq_ranges, count * sizeof(uint32_t))));
+}
+
+static const sPAPREventSource *
+rtas_event_log_to_source(sPAPRMachineState *spapr, int log_type)
+{
+    const sPAPREventSource *source;
+
+    g_assert(spapr->event_sources);
+
+    switch (log_type) {
+    case RTAS_LOG_TYPE_HOTPLUG:
+        source = spapr_event_sources_get_source(spapr->event_sources,
+                                                EVENT_CLASS_HOT_PLUG);
+        if (spapr_ovec_test(spapr->ov5_cas, OV5_HP_EVT)) {
+            g_assert(source->enabled);
+            break;
+        }
+        /* fall back to epow for legacy hotplug interrupt source */
+    case RTAS_LOG_TYPE_EPOW:
+        source = spapr_event_sources_get_source(spapr->event_sources,
+                                                EVENT_CLASS_EPOW);
+        break;
+    default:
+        source = NULL;
+    }
+
+    return source;
+}
+
+static int rtas_event_log_to_irq(sPAPRMachineState *spapr, int log_type)
+{
+    const sPAPREventSource *source;
+
+    source = rtas_event_log_to_source(spapr, log_type);
+    g_assert(source);
+    g_assert(source->enabled);
+
+    return source->irq;
 }
 
 static void rtas_event_log_queue(int log_type, void *data, bool exception)
@@ -247,19 +353,15 @@ static sPAPREventLogEntry *rtas_event_log_dequeue(uint32_t event_mask,
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPREventLogEntry *entry = NULL;
 
-    /* we only queue EPOW events atm. */
-    if ((event_mask & EVENT_MASK_EPOW) == 0) {
-        return NULL;
-    }
-
     QTAILQ_FOREACH(entry, &spapr->pending_events, next) {
+        const sPAPREventSource *source =
+            rtas_event_log_to_source(spapr, entry->log_type);
+
         if (entry->exception != exception) {
             continue;
         }
 
-        /* EPOW and hotplug events are surfaced in the same manner */
-        if (entry->log_type == RTAS_LOG_TYPE_EPOW ||
-            entry->log_type == RTAS_LOG_TYPE_HOTPLUG) {
+        if (source->mask & event_mask) {
             break;
         }
     }
@@ -276,19 +378,15 @@ static bool rtas_event_log_contains(uint32_t event_mask, bool exception)
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPREventLogEntry *entry = NULL;
 
-    /* we only queue EPOW events atm. */
-    if ((event_mask & EVENT_MASK_EPOW) == 0) {
-        return false;
-    }
-
     QTAILQ_FOREACH(entry, &spapr->pending_events, next) {
+        const sPAPREventSource *source =
+            rtas_event_log_to_source(spapr, entry->log_type);
+
         if (entry->exception != exception) {
             continue;
         }
 
-        /* EPOW and hotplug events are surfaced in the same manner */
-        if (entry->log_type == RTAS_LOG_TYPE_EPOW ||
-            entry->log_type == RTAS_LOG_TYPE_HOTPLUG) {
+        if (source->mask & event_mask) {
             return true;
         }
     }
@@ -376,7 +474,9 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
 
     rtas_event_log_queue(RTAS_LOG_TYPE_EPOW, new_epow, true);
 
-    qemu_irq_pulse(xics_get_qirq(spapr->xics, spapr->check_exception_irq));
+    qemu_irq_pulse(xics_get_qirq(spapr->xics,
+                                 rtas_event_log_to_irq(spapr,
+                                                       RTAS_LOG_TYPE_EPOW)));
 }
 
 static void spapr_hotplug_set_signalled(uint32_t drc_index)
@@ -458,7 +558,9 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
 
     rtas_event_log_queue(RTAS_LOG_TYPE_HOTPLUG, new_hp, true);
 
-    qemu_irq_pulse(xics_get_qirq(spapr->xics, spapr->check_exception_irq));
+    qemu_irq_pulse(xics_get_qirq(spapr->xics,
+                                 rtas_event_log_to_irq(spapr,
+                                                       RTAS_LOG_TYPE_HOTPLUG)));
 }
 
 void spapr_hotplug_req_add_by_index(sPAPRDRConnector *drc)
@@ -504,6 +606,7 @@ static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     uint64_t xinfo;
     sPAPREventLogEntry *event;
     struct rtas_error_log *hdr;
+    int i;
 
     if ((nargs < 6) || (nargs > 7) || nret != 1) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -540,8 +643,14 @@ static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
      * do the latter here, since our code relies on edge-triggered
      * interrupts.
      */
-    if (rtas_event_log_contains(mask, true)) {
-        qemu_irq_pulse(xics_get_qirq(spapr->xics, spapr->check_exception_irq));
+    for (i = 0; i < EVENT_CLASS_MAX; i++) {
+        if (rtas_event_log_contains(EVENT_CLASS_MASK(i), true)) {
+            const sPAPREventSource *source =
+                spapr_event_sources_get_source(spapr->event_sources, i);
+
+            g_assert(source->enabled);
+            qemu_irq_pulse(xics_get_qirq(spapr->xics, source->irq));
+        }
     }
 
     return;
@@ -593,8 +702,27 @@ out_no_events:
 void spapr_events_init(sPAPRMachineState *spapr)
 {
     QTAILQ_INIT(&spapr->pending_events);
-    spapr->check_exception_irq = xics_spapr_alloc(spapr->xics, 0, false,
-                                            &error_fatal);
+
+    spapr->event_sources = spapr_event_sources_new();
+
+    spapr_event_sources_register(spapr->event_sources, EVENT_CLASS_EPOW,
+                                 xics_spapr_alloc(spapr->xics, 0, false,
+                                                  &error_fatal));
+
+    /* NOTE: if machine supports modern/dedicated hotplug event source,
+     * we add it to the device-tree unconditionally. This means we may
+     * have cases where the source is enabled in QEMU, but unused by the
+     * guest because it does not support modern hotplug events, so we
+     * take care to rely on checking for negotiation of OV5_HP_EVT option
+     * before attempting to use it to signal events, rather than simply
+     * checking that it's enabled.
+     */
+    if (spapr->use_hotplug_event_source) {
+        spapr_event_sources_register(spapr->event_sources, EVENT_CLASS_HOT_PLUG,
+                                     xics_spapr_alloc(spapr->xics, 0, false,
+                                                      &error_fatal));
+    }
+
     spapr->epow_notifier.notify = spapr_powerdown_req;
     qemu_register_powerdown_notifier(&spapr->epow_notifier);
     spapr_rtas_register(RTAS_CHECK_EXCEPTION, "check-exception",
