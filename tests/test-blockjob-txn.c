@@ -98,7 +98,8 @@ static BlockJob *test_block_job_start(unsigned int iterations,
     bs = bdrv_new();
     snprintf(job_id, sizeof(job_id), "job%u", counter++);
     s = block_job_create(job_id, &test_block_job_driver, bs, 0,
-                         test_block_job_cb, data, &error_abort);
+                         BLOCK_JOB_DEFAULT, test_block_job_cb,
+                         data, &error_abort);
     s->iterations = iterations;
     s->use_timer = use_timer;
     s->rc = rc;

@@ -210,6 +210,11 @@ struct BlockJob {
     QLIST_ENTRY(BlockJob) txn_list;
 };
 
+typedef enum BlockJobCreateFlags {
+    BLOCK_JOB_DEFAULT = 0x00,
+    BLOCK_JOB_INTERNAL = 0x01,
+} BlockJobCreateFlags;
+
 /**
  * block_job_next:
  * @job: A block job, or %NULL.
@@ -252,7 +257,7 @@ BlockJob *block_job_get(const char *id);
  * called from a wrapper that is specific to the job type.
  */
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockDriverState *bs, int64_t speed,
+                       BlockDriverState *bs, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp);
 
 /**

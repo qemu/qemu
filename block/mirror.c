@@ -967,7 +967,8 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         buf_size = DEFAULT_MIRROR_BUF_SIZE;
     }
 
-    s = block_job_create(job_id, driver, bs, speed, cb, opaque, errp);
+    s = block_job_create(job_id, driver, bs, speed,
+                         BLOCK_JOB_DEFAULT, cb, opaque, errp);
     if (!s) {
         return;
     }

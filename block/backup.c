@@ -612,7 +612,7 @@ void backup_start(const char *job_id, BlockDriverState *bs,
     }
 
     job = block_job_create(job_id, &backup_job_driver, bs, speed,
-                           cb, opaque, errp);
+                           BLOCK_JOB_DEFAULT, cb, opaque, errp);
     if (!job) {
         goto error;
     }

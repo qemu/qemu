@@ -234,7 +234,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     }
 
     s = block_job_create(job_id, &commit_job_driver, bs, speed,
-                         cb, opaque, errp);
+                         BLOCK_JOB_DEFAULT, cb, opaque, errp);
     if (!s) {
         return;
     }
