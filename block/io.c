@@ -143,7 +143,7 @@ bool bdrv_requests_pending(BlockDriverState *bs)
 {
     BdrvChild *child;
 
-    if (!QLIST_EMPTY(&bs->tracked_requests)) {
+    if (atomic_read(&bs->in_flight)) {
         return true;
     }
 
@@ -176,12 +176,9 @@ typedef struct {
 
 static void bdrv_drain_poll(BlockDriverState *bs)
 {
-    bool busy = true;
-
-    while (busy) {
+    while (bdrv_requests_pending(bs)) {
         /* Keep iterating */
-        busy = bdrv_requests_pending(bs);
-        busy |= aio_poll(bdrv_get_aio_context(bs), busy);
+        aio_poll(bdrv_get_aio_context(bs), true);
     }
 }
 
@@ -189,8 +186,10 @@ static void bdrv_co_drain_bh_cb(void *opaque)
 {
     BdrvCoDrainData *data = opaque;
     Coroutine *co = data->co;
+    BlockDriverState *bs = data->bs;
 
-    bdrv_drain_poll(data->bs);
+    bdrv_dec_in_flight(bs);
+    bdrv_drain_poll(bs);
     data->done = true;
     qemu_coroutine_enter(co);
 }
@@ -209,6 +208,7 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
         .bs = bs,
         .done = false,
     };
+    bdrv_inc_in_flight(bs);
     aio_bh_schedule_oneshot(bdrv_get_aio_context(bs),
                             bdrv_co_drain_bh_cb, &data);
 
@@ -279,7 +279,7 @@ void bdrv_drain(BlockDriverState *bs)
 void bdrv_drain_all(void)
 {
     /* Always run first iteration so any pending completion BHs run */
-    bool busy = true;
+    bool waited = true;
     BlockDriverState *bs;
     BdrvNextIterator it;
     BlockJob *job = NULL;
@@ -313,8 +313,8 @@ void bdrv_drain_all(void)
      * request completion.  Therefore we must keep looping until there was no
      * more activity rather than simply draining each device independently.
      */
-    while (busy) {
-        busy = false;
+    while (waited) {
+        waited = false;
 
         for (ctx = aio_ctxs; ctx != NULL; ctx = ctx->next) {
             AioContext *aio_context = ctx->data;
@@ -323,12 +323,11 @@ void bdrv_drain_all(void)
             for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
                 if (aio_context == bdrv_get_aio_context(bs)) {
                     if (bdrv_requests_pending(bs)) {
-                        busy = true;
-                        aio_poll(aio_context, busy);
+                        aio_poll(aio_context, true);
+                        waited = true;
                     }
                 }
             }
-            busy |= aio_poll(aio_context, false);
             aio_context_release(aio_context);
         }
     }
@@ -474,6 +473,16 @@ static bool tracked_request_overlaps(BdrvTrackedRequest *req,
         return false;
     }
     return true;
+}
+
+void bdrv_inc_in_flight(BlockDriverState *bs)
+{
+    atomic_inc(&bs->in_flight);
+}
+
+void bdrv_dec_in_flight(BlockDriverState *bs)
+{
+    atomic_dec(&bs->in_flight);
 }
 
 static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
@@ -1097,6 +1106,8 @@ int coroutine_fn bdrv_co_preadv(BdrvChild *child,
         return ret;
     }
 
+    bdrv_inc_in_flight(bs);
+
     /* Don't do copy-on-read if we read data before write operation */
     if (bs->copy_on_read && !(flags & BDRV_REQ_NO_SERIALISING)) {
         flags |= BDRV_REQ_COPY_ON_READ;
@@ -1132,6 +1143,7 @@ int coroutine_fn bdrv_co_preadv(BdrvChild *child,
                               use_local_qiov ? &local_qiov : qiov,
                               flags);
     tracked_request_end(&req);
+    bdrv_dec_in_flight(bs);
 
     if (use_local_qiov) {
         qemu_iovec_destroy(&local_qiov);
@@ -1480,6 +1492,7 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
         return ret;
     }
 
+    bdrv_inc_in_flight(bs);
     /*
      * Align write if necessary by performing a read-modify-write cycle.
      * Pad qiov with the read parts and be sure to have a tracked request not
@@ -1581,6 +1594,7 @@ fail:
     qemu_vfree(tail_buf);
 out:
     tracked_request_end(&req);
+    bdrv_dec_in_flight(bs);
     return ret;
 }
 
@@ -1705,17 +1719,19 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
     }
 
     *file = NULL;
+    bdrv_inc_in_flight(bs);
     ret = bs->drv->bdrv_co_get_block_status(bs, sector_num, nb_sectors, pnum,
                                             file);
     if (ret < 0) {
         *pnum = 0;
-        return ret;
+        goto out;
     }
 
     if (ret & BDRV_BLOCK_RAW) {
         assert(ret & BDRV_BLOCK_OFFSET_VALID);
-        return bdrv_get_block_status(bs->file->bs, ret >> BDRV_SECTOR_BITS,
-                                     *pnum, pnum, file);
+        ret = bdrv_get_block_status(bs->file->bs, ret >> BDRV_SECTOR_BITS,
+                                    *pnum, pnum, file);
+        goto out;
     }
 
     if (ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ZERO)) {
@@ -1757,6 +1773,8 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
         }
     }
 
+out:
+    bdrv_dec_in_flight(bs);
     return ret;
 }
 
@@ -2102,6 +2120,7 @@ static const AIOCBInfo bdrv_em_co_aiocb_info = {
 static void bdrv_co_complete(BlockAIOCBCoroutine *acb)
 {
     if (!acb->need_bh) {
+        bdrv_dec_in_flight(acb->common.bs);
         acb->common.cb(acb->common.opaque, acb->req.error);
         qemu_aio_unref(acb);
     }
@@ -2152,6 +2171,9 @@ static BlockAIOCB *bdrv_co_aio_prw_vector(BdrvChild *child,
     Coroutine *co;
     BlockAIOCBCoroutine *acb;
 
+    /* Matched by bdrv_co_complete's bdrv_dec_in_flight.  */
+    bdrv_inc_in_flight(child->bs);
+
     acb = qemu_aio_get(&bdrv_em_co_aiocb_info, child->bs, cb, opaque);
     acb->child = child;
     acb->need_bh = true;
@@ -2184,6 +2206,9 @@ BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
 
     Coroutine *co;
     BlockAIOCBCoroutine *acb;
+
+    /* Matched by bdrv_co_complete's bdrv_dec_in_flight.  */
+    bdrv_inc_in_flight(bs);
 
     acb = qemu_aio_get(&bdrv_em_co_aiocb_info, bs, cb, opaque);
     acb->need_bh = true;
@@ -2244,23 +2269,22 @@ static void coroutine_fn bdrv_flush_co_entry(void *opaque)
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 {
     int ret;
-    BdrvTrackedRequest req;
 
     if (!bs || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs) ||
         bdrv_is_sg(bs)) {
         return 0;
     }
 
-    tracked_request_begin(&req, bs, 0, 0, BDRV_TRACKED_FLUSH);
+    bdrv_inc_in_flight(bs);
 
     int current_gen = bs->write_gen;
 
     /* Wait until any previous flushes are completed */
-    while (bs->active_flush_req != NULL) {
+    while (bs->active_flush_req) {
         qemu_co_queue_wait(&bs->flush_queue);
     }
 
-    bs->active_flush_req = &req;
+    bs->active_flush_req = true;
 
     /* Write back all layers by calling one driver function */
     if (bs->drv->bdrv_co_flush) {
@@ -2330,11 +2354,11 @@ flush_parent:
 out:
     /* Notify any pending flushes that we have completed */
     bs->flushed_gen = current_gen;
-    bs->active_flush_req = NULL;
+    bs->active_flush_req = false;
     /* Return value is ignored - it's ok if wait queue is empty */
     qemu_co_queue_next(&bs->flush_queue);
 
-    tracked_request_end(&req);
+    bdrv_dec_in_flight(bs);
     return ret;
 }
 
@@ -2417,6 +2441,7 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
         return 0;
     }
 
+    bdrv_inc_in_flight(bs);
     tracked_request_begin(&req, bs, offset, count, BDRV_TRACKED_DISCARD);
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, &req);
@@ -2463,6 +2488,7 @@ out:
     bdrv_set_dirty(bs, req.offset >> BDRV_SECTOR_BITS,
                    req.bytes >> BDRV_SECTOR_BITS);
     tracked_request_end(&req);
+    bdrv_dec_in_flight(bs);
     return ret;
 }
 
@@ -2495,13 +2521,12 @@ int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int count)
 int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf)
 {
     BlockDriver *drv = bs->drv;
-    BdrvTrackedRequest tracked_req;
     CoroutineIOCompletion co = {
         .coroutine = qemu_coroutine_self(),
     };
     BlockAIOCB *acb;
 
-    tracked_request_begin(&tracked_req, bs, 0, 0, BDRV_TRACKED_IOCTL);
+    bdrv_inc_in_flight(bs);
     if (!drv || (!drv->bdrv_aio_ioctl && !drv->bdrv_co_ioctl)) {
         co.ret = -ENOTSUP;
         goto out;
@@ -2518,7 +2543,7 @@ int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf)
         qemu_coroutine_yield();
     }
 out:
-    tracked_request_end(&tracked_req);
+    bdrv_dec_in_flight(bs);
     return co.ret;
 }
 
