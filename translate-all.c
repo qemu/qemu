@@ -473,6 +473,10 @@ static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
     void **lp;
     int i;
 
+    if (alloc) {
+        assert_memory_lock();
+    }
+
     /* Level 1.  Always allocated.  */
     lp = l1_map + ((index >> v_l1_shift) & (v_l1_size - 1));
 
@@ -839,6 +843,8 @@ static TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
 
+    assert_tb_lock();
+
     if (tcg_ctx.tb_ctx.nb_tbs >= tcg_ctx.code_gen_max_blocks) {
         return NULL;
     }
@@ -852,6 +858,8 @@ static TranslationBlock *tb_alloc(target_ulong pc)
 /* Called with tb_lock held.  */
 void tb_free(TranslationBlock *tb)
 {
+    assert_tb_lock();
+
     /* In practice this is mostly used for single use temporary TB
        Ignore the hard cases and just back up if this TB happens to
        be the last one generated.  */
@@ -1093,6 +1101,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     uint32_t h;
     tb_page_addr_t phys_pc;
 
+    assert_tb_lock();
+
     atomic_set(&tb->invalid, true);
 
     /* remove the TB from the hash list */
@@ -1150,7 +1160,7 @@ static void build_page_bitmap(PageDesc *p)
             tb_end = tb_start + tb->size;
             if (tb_end > TARGET_PAGE_SIZE) {
                 tb_end = TARGET_PAGE_SIZE;
-            }
+             }
         } else {
             tb_start = 0;
             tb_end = ((tb->pc + tb->size) & ~TARGET_PAGE_MASK);
@@ -1172,6 +1182,8 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 #ifndef CONFIG_USER_ONLY
     bool page_already_protected;
 #endif
+
+    assert_memory_lock();
 
     tb->page_addr[n] = page_addr;
     p = page_find_alloc(page_addr >> TARGET_PAGE_BITS, 1);
@@ -1229,6 +1241,8 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
 {
     uint32_t h;
 
+    assert_memory_lock();
+
     /* add in the page list */
     tb_alloc_page(tb, 0, phys_pc & TARGET_PAGE_MASK);
     if (phys_page2 != -1) {
@@ -1260,6 +1274,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
+    assert_memory_lock();
 
     phys_pc = get_page_addr_code(env, pc);
     if (use_icount && !(cflags & CF_IGNORE_ICOUNT)) {
@@ -1388,6 +1403,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
  */
 void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
 {
+    assert_memory_lock();
+
     while (start < end) {
         tb_invalidate_phys_page_range(start, end, 0);
         start &= TARGET_PAGE_MASK;
@@ -1423,6 +1440,8 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
     target_ulong current_cs_base = 0;
     uint32_t current_flags = 0;
 #endif /* TARGET_HAS_PRECISE_SMC */
+
+    assert_memory_lock();
 
     p = page_find(start >> TARGET_PAGE_BITS);
     if (!p) {
@@ -2031,6 +2050,7 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
     assert(end < ((target_ulong)1 << L1_MAP_ADDR_SPACE_BITS));
 #endif
     assert(start < end);
+    assert_memory_lock();
 
     start = start & TARGET_PAGE_MASK;
     end = TARGET_PAGE_ALIGN(end);
