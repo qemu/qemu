@@ -17,3 +17,12 @@ bool colo_supported(void)
 {
     return false;
 }
+
+bool migration_in_colo_state(void)
+{
+    return false;
+}
+
+void migrate_start_colo_process(MigrationState *s)
+{
+}

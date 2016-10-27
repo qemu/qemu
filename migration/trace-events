@@ -207,3 +207,6 @@ migration_tls_outgoing_handshake_complete(void) ""
 migration_tls_incoming_handshake_start(void) ""
 migration_tls_incoming_handshake_error(const char *err) "err=%s"
 migration_tls_incoming_handshake_complete(void) ""
+
+# migration/colo.c
+colo_vm_state_change(const char *old, const char *new) "Change '%s' => '%s'"
