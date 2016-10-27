@@ -69,7 +69,7 @@ if [ "$IMGOPTSSYNTAX" = "true" ]; then
         TEST_IMG="$DRIVER,file.driver=ssh,file.host=127.0.0.1,file.path=$TEST_IMG_FILE"
     elif [ "$IMGPROTO" = "nfs" ]; then
         TEST_DIR="$DRIVER,file.driver=nfs,file.filename=nfs://127.0.0.1/$TEST_DIR"
-        TEST_IMG=$TEST_DIR_OPTS/t.$IMGFMT
+        TEST_IMG=$TEST_DIR/t.$IMGFMT
     elif [ "$IMGPROTO" = "archipelago" ]; then
         TEST_IMG="$DRIVER,file.driver=archipelago,file.volume=:at.$IMGFMT"
     else
