@@ -17,6 +17,7 @@
 #include "sysemu/kvm.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/sysbus.h"
+#include "tcg/tcg.h"
 
 #define VAPIC_IO_PORT           0x7e
 
@@ -449,6 +450,9 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
     resume_all_vcpus();
 
     if (!kvm_enabled()) {
+        /* tb_lock will be reset when cpu_loop_exit_noexc longjmps
+         * back into the cpu_exec loop. */
+        tb_lock();
         tb_gen_code(cs, current_pc, current_cs_base, current_flags, 1);
         cpu_loop_exit_noexc(cs);
     }

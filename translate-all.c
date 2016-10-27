@@ -363,7 +363,9 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
 bool cpu_restore_state(CPUState *cpu, uintptr_t retaddr)
 {
     TranslationBlock *tb;
+    bool r = false;
 
+    tb_lock();
     tb = tb_find_pc(retaddr);
     if (tb) {
         cpu_restore_state_from_tb(cpu, tb, retaddr);
@@ -372,9 +374,11 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t retaddr)
             tb_phys_invalidate(tb, -1);
             tb_free(tb);
         }
-        return true;
+        r = true;
     }
-    return false;
+    tb_unlock();
+
+    return r;
 }
 
 void page_size_init(void)
@@ -1456,6 +1460,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
     /* we remove all the TBs in the range [start, end[ */
     /* XXX: see if in some cases it could be faster to invalidate all
        the code */
+    tb_lock();
     tb = p->first_tb;
     while (tb != NULL) {
         n = (uintptr_t)tb & 3;
@@ -1515,6 +1520,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
         cpu_loop_exit_noexc(cpu);
     }
 #endif
+    tb_unlock();
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -1584,6 +1590,8 @@ static bool tb_invalidate_phys_page(tb_page_addr_t addr, uintptr_t pc)
     if (!p) {
         return false;
     }
+
+    tb_lock();
     tb = p->first_tb;
 #ifdef TARGET_HAS_PRECISE_SMC
     if (tb && pc != 0) {
@@ -1621,9 +1629,13 @@ static bool tb_invalidate_phys_page(tb_page_addr_t addr, uintptr_t pc)
            modifying the memory. It will ensure that it cannot modify
            itself */
         tb_gen_code(cpu, current_pc, current_cs_base, current_flags, 1);
+        /* tb_lock will be reset after cpu_loop_exit_noexc longjmps
+         * back into the cpu_exec loop. */
         return true;
     }
 #endif
+    tb_unlock();
+
     return false;
 }
 #endif
@@ -1718,6 +1730,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     target_ulong pc, cs_base;
     uint32_t flags;
 
+    tb_lock();
     tb = tb_find_pc(retaddr);
     if (!tb) {
         cpu_abort(cpu, "cpu_io_recompile: could not find TB for pc=%p",
@@ -1769,11 +1782,16 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     /* FIXME: In theory this could raise an exception.  In practice
        we have already translated the block once so it's probably ok.  */
     tb_gen_code(cpu, pc, cs_base, flags, cflags);
+
     /* TODO: If env->pc != tb->pc (i.e. the faulting instruction was not
-       the first in the TB) then we end up generating a whole new TB and
-       repeating the fault, which is horribly inefficient.
-       Better would be to execute just this insn uncached, or generate a
-       second new TB.  */
+     * the first in the TB) then we end up generating a whole new TB and
+     *  repeating the fault, which is horribly inefficient.
+     *  Better would be to execute just this insn uncached, or generate a
+     *  second new TB.
+     *
+     * cpu_loop_exit_noexc will longjmp back to cpu_exec where the
+     * tb_lock gets reset.
+     */
     cpu_loop_exit_noexc(cpu);
 }
 
@@ -1837,6 +1855,8 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     TranslationBlock *tb;
     struct qht_stats hst;
 
+    tb_lock();
+
     target_code_size = 0;
     max_target_code_size = 0;
     cross_page = 0;
@@ -1898,6 +1918,8 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
             tcg_ctx.tb_ctx.tb_phys_invalidate_count);
     cpu_fprintf(f, "TLB flush count     %d\n", tlb_flush_count);
     tcg_dump_info(f, cpu_fprintf);
+
+    tb_unlock();
 }
 
 void dump_opcount_info(FILE *f, fprintf_function cpu_fprintf)
