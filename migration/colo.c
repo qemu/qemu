@@ -24,7 +24,7 @@
 
 bool colo_supported(void)
 {
-    return false;
+    return true;
 }
 
 bool migration_in_colo_state(void)
