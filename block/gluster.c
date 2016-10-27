@@ -56,6 +56,19 @@ typedef struct BDRVGlusterReopenState {
 } BDRVGlusterReopenState;
 
 
+typedef struct GlfsPreopened {
+    char *volume;
+    glfs_t *fs;
+    int ref;
+} GlfsPreopened;
+
+typedef struct ListElement {
+    QLIST_ENTRY(ListElement) list;
+    GlfsPreopened saved;
+} ListElement;
+
+static QLIST_HEAD(glfs_list, ListElement) glfs_list;
+
 static QemuOptsList qemu_gluster_create_opts = {
     .name = "qemu-gluster-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_gluster_create_opts.head),
@@ -194,6 +207,57 @@ static QemuOptsList runtime_tcp_opts = {
     },
 };
 
+static void glfs_set_preopened(const char *volume, glfs_t *fs)
+{
+    ListElement *entry = NULL;
+
+    entry = g_new(ListElement, 1);
+
+    entry->saved.volume = g_strdup(volume);
+
+    entry->saved.fs = fs;
+    entry->saved.ref = 1;
+
+    QLIST_INSERT_HEAD(&glfs_list, entry, list);
+}
+
+static glfs_t *glfs_find_preopened(const char *volume)
+{
+    ListElement *entry = NULL;
+
+     QLIST_FOREACH(entry, &glfs_list, list) {
+        if (strcmp(entry->saved.volume, volume) == 0) {
+            entry->saved.ref++;
+            return entry->saved.fs;
+        }
+     }
+
+    return NULL;
+}
+
+static void glfs_clear_preopened(glfs_t *fs)
+{
+    ListElement *entry = NULL;
+
+    if (fs == NULL) {
+        return;
+    }
+
+    QLIST_FOREACH(entry, &glfs_list, list) {
+        if (entry->saved.fs == fs) {
+            if (--entry->saved.ref) {
+                return;
+            }
+
+            QLIST_REMOVE(entry, list);
+
+            glfs_fini(entry->saved.fs);
+            g_free(entry->saved.volume);
+            g_free(entry);
+        }
+    }
+}
+
 static int parse_volume_options(BlockdevOptionsGluster *gconf, char *path)
 {
     char *p, *q;
@@ -331,10 +395,17 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
     int old_errno;
     GlusterServerList *server;
 
+    glfs = glfs_find_preopened(gconf->volume);
+    if (glfs) {
+        return glfs;
+    }
+
     glfs = glfs_new(gconf->volume);
     if (!glfs) {
         goto out;
     }
+
+    glfs_set_preopened(gconf->volume, glfs);
 
     for (server = gconf->server; server; server = server->next) {
         if (server->value->type  == GLUSTER_TRANSPORT_UNIX) {
@@ -387,7 +458,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
 out:
     if (glfs) {
         old_errno = errno;
-        glfs_fini(glfs);
+        glfs_clear_preopened(glfs);
         errno = old_errno;
     }
     return NULL;
@@ -767,9 +838,9 @@ out:
     if (s->fd) {
         glfs_close(s->fd);
     }
-    if (s->glfs) {
-        glfs_fini(s->glfs);
-    }
+
+    glfs_clear_preopened(s->glfs);
+
     return ret;
 }
 
@@ -836,9 +907,8 @@ static void qemu_gluster_reopen_commit(BDRVReopenState *state)
     if (s->fd) {
         glfs_close(s->fd);
     }
-    if (s->glfs) {
-        glfs_fini(s->glfs);
-    }
+
+    glfs_clear_preopened(s->glfs);
 
     /* use the newly opened image / connection */
     s->fd         = reop_s->fd;
@@ -863,9 +933,7 @@ static void qemu_gluster_reopen_abort(BDRVReopenState *state)
         glfs_close(reop_s->fd);
     }
 
-    if (reop_s->glfs) {
-        glfs_fini(reop_s->glfs);
-    }
+    glfs_clear_preopened(reop_s->glfs);
 
     g_free(state->opaque);
     state->opaque = NULL;
@@ -989,9 +1057,7 @@ static int qemu_gluster_create(const char *filename,
 out:
     g_free(tmp);
     qapi_free_BlockdevOptionsGluster(gconf);
-    if (glfs) {
-        glfs_fini(glfs);
-    }
+    glfs_clear_preopened(glfs);
     return ret;
 }
 
@@ -1064,7 +1130,7 @@ static void qemu_gluster_close(BlockDriverState *bs)
         glfs_close(s->fd);
         s->fd = NULL;
     }
-    glfs_fini(s->glfs);
+    glfs_clear_preopened(s->glfs);
 }
 
 static coroutine_fn int qemu_gluster_co_flush_to_disk(BlockDriverState *bs)
