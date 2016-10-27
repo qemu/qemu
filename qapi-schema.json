@@ -175,12 +175,15 @@
 # @watchdog: the watchdog action is configured to pause and has been triggered
 #
 # @guest-panicked: guest has been panicked as a result of guest OS panic
+#
+# @colo: guest is paused to save/restore VM state under colo checkpoint (since
+# 2.8)
 ##
 { 'enum': 'RunState',
   'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
             'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
             'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
-            'guest-panicked' ] }
+            'guest-panicked', 'colo' ] }
 
 ##
 # @StatusInfo:
