@@ -302,7 +302,7 @@ static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
             uint32_t tbadr;
             int16_t length;
             int16_t status;
-	} xda;
+        } xda;
         s->phys_mem_read(s->dma_opaque, addr, (void *)&xda, sizeof(xda), 0);
         tmd->tbadr = le32_to_cpu(xda.tbadr) & 0xffffff;
         tmd->length = le16_to_cpu(xda.length);
@@ -664,7 +664,9 @@ static inline int ladr_match(PCNetState *s, const uint8_t *buf, int size)
 
 static inline hwaddr pcnet_rdra_addr(PCNetState *s, int idx)
 {
-    while (idx < 1) idx += CSR_RCVRL(s);
+    while (idx < 1) {
+        idx += CSR_RCVRL(s);
+    }
     return s->rdra + ((CSR_RCVRL(s) - idx) * (BCR_SWSTYLE(s) ? 16 : 8));
 }
 
@@ -672,8 +674,10 @@ static inline int64_t pcnet_get_next_poll_time(PCNetState *s, int64_t current_ti
 {
     int64_t next_time = current_time +
                         (65536 - (CSR_SPND(s) ? 0 : CSR_POLL(s))) * 30;
-    if (next_time <= current_time)
+
+    if (next_time <= current_time) {
         next_time = current_time + 1;
+    }
     return next_time;
 }
 
@@ -795,13 +799,13 @@ static void pcnet_init(PCNetState *s)
         mode = le16_to_cpu(initblk.mode);
         rlen = initblk.rlen >> 4;
         tlen = initblk.tlen >> 4;
-	ladrf[0] = le16_to_cpu(initblk.ladrf[0]);
-	ladrf[1] = le16_to_cpu(initblk.ladrf[1]);
-	ladrf[2] = le16_to_cpu(initblk.ladrf[2]);
-	ladrf[3] = le16_to_cpu(initblk.ladrf[3]);
-	padr[0] = le16_to_cpu(initblk.padr[0]);
-	padr[1] = le16_to_cpu(initblk.padr[1]);
-	padr[2] = le16_to_cpu(initblk.padr[2]);
+        ladrf[0] = le16_to_cpu(initblk.ladrf[0]);
+        ladrf[1] = le16_to_cpu(initblk.ladrf[1]);
+        ladrf[2] = le16_to_cpu(initblk.ladrf[2]);
+        ladrf[3] = le16_to_cpu(initblk.ladrf[3]);
+        padr[0] = le16_to_cpu(initblk.padr[0]);
+        padr[1] = le16_to_cpu(initblk.padr[1]);
+        padr[2] = le16_to_cpu(initblk.padr[2]);
         rdra = le32_to_cpu(initblk.rdra);
         tdra = le32_to_cpu(initblk.tdra);
     } else {
@@ -809,13 +813,13 @@ static void pcnet_init(PCNetState *s)
         s->phys_mem_read(s->dma_opaque, PHYSADDR(s,CSR_IADR(s)),
                 (uint8_t *)&initblk, sizeof(initblk), 0);
         mode = le16_to_cpu(initblk.mode);
-	ladrf[0] = le16_to_cpu(initblk.ladrf[0]);
-	ladrf[1] = le16_to_cpu(initblk.ladrf[1]);
-	ladrf[2] = le16_to_cpu(initblk.ladrf[2]);
-	ladrf[3] = le16_to_cpu(initblk.ladrf[3]);
-	padr[0] = le16_to_cpu(initblk.padr[0]);
-	padr[1] = le16_to_cpu(initblk.padr[1]);
-	padr[2] = le16_to_cpu(initblk.padr[2]);
+        ladrf[0] = le16_to_cpu(initblk.ladrf[0]);
+        ladrf[1] = le16_to_cpu(initblk.ladrf[1]);
+        ladrf[2] = le16_to_cpu(initblk.ladrf[2]);
+        ladrf[3] = le16_to_cpu(initblk.ladrf[3]);
+        padr[0] = le16_to_cpu(initblk.padr[0]);
+        padr[1] = le16_to_cpu(initblk.padr[1]);
+        padr[2] = le16_to_cpu(initblk.padr[2]);
         rdra = le32_to_cpu(initblk.rdra);
         tdra = le32_to_cpu(initblk.tdra);
         rlen = rdra >> 29;
@@ -858,12 +862,12 @@ static void pcnet_start(PCNetState *s)
     printf("pcnet_start\n");
 #endif
 
-    if (!CSR_DTX(s))
+    if (!CSR_DTX(s)) {
         s->csr[0] |= 0x0010;    /* set TXON */
-
-    if (!CSR_DRX(s))
+    }
+    if (!CSR_DRX(s)) {
         s->csr[0] |= 0x0020;    /* set RXON */
-
+    }
     s->csr[0] &= ~0x0004;       /* clear STOP bit */
     s->csr[0] |= 0x0002;
     pcnet_poll_timer(s);
@@ -925,8 +929,7 @@ static void pcnet_rdte_poll(PCNetState *s)
                        crda);
             }
         } else {
-            printf("pcnet: BAD RMD RDA=0x" TARGET_FMT_plx "\n",
-                   crda);
+            printf("pcnet: BAD RMD RDA=0x" TARGET_FMT_plx "\n", crda);
 #endif
         }
     }
@@ -1168,10 +1171,11 @@ ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 #endif
 
             while (pktcount--) {
-                if (CSR_RCVRC(s) <= 1)
+                if (CSR_RCVRC(s) <= 1) {
                     CSR_RCVRC(s) = CSR_RCVRL(s);
-                else
+                } else {
                     CSR_RCVRC(s)--;
+                }
             }
 
             pcnet_rdte_poll(s);
@@ -1207,7 +1211,7 @@ static void pcnet_transmit(PCNetState *s)
 
     s->tx_busy = 1;
 
-    txagain:
+txagain:
     if (pcnet_tdte_poll(s)) {
         struct pcnet_TMD tmd;
 
@@ -1251,7 +1255,7 @@ static void pcnet_transmit(PCNetState *s)
         s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tbadr),
                          s->buffer + s->xmit_pos, bcnt, CSR_BSWP(s));
         s->xmit_pos += bcnt;
-        
+
         if (!GET_FIELD(tmd.status, TMDS, ENP)) {
             goto txdone;
         }
@@ -1276,21 +1280,22 @@ static void pcnet_transmit(PCNetState *s)
         s->csr[4] |= 0x0004;    /* set TXSTRT */
         s->xmit_pos = -1;
 
-    txdone:
+txdone:
         SET_FIELD(&tmd.status, TMDS, OWN, 0);
         TMDSTORE(&tmd, PHYSADDR(s,CSR_CXDA(s)));
-        if (!CSR_TOKINTD(s) || (CSR_LTINTEN(s) && GET_FIELD(tmd.status, TMDS, LTINT)))
+        if (!CSR_TOKINTD(s)
+            || (CSR_LTINTEN(s) && GET_FIELD(tmd.status, TMDS, LTINT))) {
             s->csr[0] |= 0x0200;    /* set TINT */
-
-        if (CSR_XMTRC(s)<=1)
+        }
+        if (CSR_XMTRC(s) <= 1) {
             CSR_XMTRC(s) = CSR_XMTRL(s);
-        else
+        } else {
             CSR_XMTRC(s)--;
-        if (count--)
+        }
+        if (count--) {
             goto txagain;
-
-    } else
-    if (s->xmit_pos >= 0) {
+        }
+    } else if (s->xmit_pos >= 0) {
         struct pcnet_TMD tmd;
         TMDLOAD(&tmd, xmit_cxda);
         SET_FIELD(&tmd.misc, TMDM, BUFF, 1);
@@ -1301,9 +1306,9 @@ static void pcnet_transmit(PCNetState *s)
         s->csr[0] |= 0x0200;    /* set TINT */
         if (!CSR_DXSUFLO(s)) {
             s->csr[0] &= ~0x0010;
-        } else
-        if (count--)
-          goto txagain;
+        } else if (count--) {
+            goto txagain;
+        }
     }
 
     s->tx_busy = 0;
@@ -1315,13 +1320,11 @@ static void pcnet_poll(PCNetState *s)
         pcnet_rdte_poll(s);
     }
 
-    if (CSR_TDMD(s) ||
-        (CSR_TXON(s) && !CSR_DPOLL(s) && pcnet_tdte_poll(s)))
-    {
+    if (CSR_TDMD(s) || (CSR_TXON(s) && !CSR_DPOLL(s) && pcnet_tdte_poll(s))) {
         /* prevent recursion */
-        if (s->tx_busy)
+        if (s->tx_busy) {
             return;
-
+        }
         pcnet_transmit(s);
     }
 }
@@ -1340,15 +1343,16 @@ static void pcnet_poll_timer(void *opaque)
 
     if (!CSR_STOP(s) && !CSR_SPND(s) && !CSR_DPOLL(s)) {
         uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) * 33;
-        if (!s->timer || !now)
+        if (!s->timer || !now) {
             s->timer = now;
-        else {
+        } else {
             uint64_t t = now - s->timer + CSR_POLL(s);
             if (t > 0xffffLL) {
                 pcnet_poll(s);
                 CSR_POLL(s) = CSR_PINT(s);
-            } else
+            } else {
                 CSR_POLL(s) = t;
+            }
         }
         timer_mod(s->poll_timer,
             pcnet_get_next_poll_time(s,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)));
@@ -1371,21 +1375,21 @@ static void pcnet_csr_writew(PCNetState *s, uint32_t rap, uint32_t new_value)
         val = (val & 0x007f) | (s->csr[0] & 0x7f00);
 
         /* IFF STOP, STRT and INIT are set, clear STRT and INIT */
-        if ((val&7) == 7)
-          val &= ~3;
-
-        if (!CSR_STOP(s) && (val & 4))
+        if ((val & 7) == 7) {
+            val &= ~3;
+        }
+        if (!CSR_STOP(s) && (val & 4)) {
             pcnet_stop(s);
-
-        if (!CSR_INIT(s) && (val & 1))
+        }
+        if (!CSR_INIT(s) && (val & 1)) {
             pcnet_init(s);
-
-        if (!CSR_STRT(s) && (val & 2))
+        }
+        if (!CSR_STRT(s) && (val & 2)) {
             pcnet_start(s);
-
-        if (CSR_TDMD(s))
+        }
+        if (CSR_TDMD(s)) {
             pcnet_transmit(s);
-
+        }
         return;
     case 1:
     case 2:
@@ -1429,12 +1433,16 @@ static void pcnet_csr_writew(PCNetState *s, uint32_t rap, uint32_t new_value)
     case 47: /* POLLINT */
     case 72:
     case 74:
+        break;
     case 76: /* RCVRL */
     case 78: /* XMTRL */
+        val = (val > 0) ? val : 512;
+        break;
     case 112:
-       if (CSR_STOP(s) || CSR_SPND(s))
-           break;
-       return;
+        if (CSR_STOP(s) || CSR_SPND(s)) {
+            break;
+        }
+        return;
     case 3:
         break;
     case 4:
@@ -1651,8 +1659,7 @@ void pcnet_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
             pcnet_bcr_writew(s, s->rap, val & 0xffff);
             break;
         }
-    } else
-    if ((addr & 0x0f) == 0) {
+    } else if ((addr & 0x0f) == 0) {
         /* switch device to dword i/o mode */
         pcnet_bcr_writew(s, BCR_BSBC, pcnet_bcr_readw(s, BCR_BSBC) | 0x0080);
 #ifdef PCNET_DEBUG_IO

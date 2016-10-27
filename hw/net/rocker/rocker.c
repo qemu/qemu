@@ -860,7 +860,7 @@ static void rocker_io_writel(void *opaque, hwaddr addr, uint32_t val)
         rocker_msix_irq(r, val);
         break;
     case ROCKER_TEST_DMA_SIZE:
-        r->test_dma_size = val;
+        r->test_dma_size = val & 0xFFFF;
         break;
     case ROCKER_TEST_DMA_ADDR + 4:
         r->test_dma_addr = ((uint64_t)val) << 32 | r->lower32;
