@@ -1076,6 +1076,18 @@ static int64_t tcg_get_icount_limit(void)
     }
 }
 
+static void handle_icount_deadline(void)
+{
+    if (use_icount) {
+        int64_t deadline =
+            qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
+
+        if (deadline == 0) {
+            qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+        }
+    }
+}
+
 static int tcg_cpu_exec(CPUState *cpu)
 {
     int ret;
@@ -1198,13 +1210,8 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
         /* Pairs with smp_wmb in qemu_cpu_kick.  */
         atomic_mb_set(&exit_request, 0);
 
-        if (use_icount) {
-            int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
+        handle_icount_deadline();
 
-            if (deadline == 0) {
-                qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
-            }
-        }
         qemu_tcg_wait_io_event(QTAILQ_FIRST(&cpus));
         deal_with_unplugged_cpus();
     }
