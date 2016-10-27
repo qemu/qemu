@@ -300,6 +300,21 @@ void backup_cow_request_end(CowRequest *req)
     cow_request_end(req);
 }
 
+static void backup_drain(BlockJob *job)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+
+    /* Need to keep a reference in case blk_drain triggers execution
+     * of backup_complete...
+     */
+    if (s->target) {
+        BlockBackend *target = s->target;
+        blk_ref(target);
+        blk_drain(target);
+        blk_unref(target);
+    }
+}
+
 static const BlockJobDriver backup_job_driver = {
     .instance_size          = sizeof(BackupBlockJob),
     .job_type               = BLOCK_JOB_TYPE_BACKUP,
@@ -307,6 +322,7 @@ static const BlockJobDriver backup_job_driver = {
     .commit                 = backup_commit,
     .abort                  = backup_abort,
     .attached_aio_context   = backup_attached_aio_context,
+    .drain                  = backup_drain,
 };
 
 static BlockErrorAction backup_error_action(BackupBlockJob *job,
@@ -331,6 +347,7 @@ static void backup_complete(BlockJob *job, void *opaque)
     BackupCompleteData *data = opaque;
 
     blk_unref(s->target);
+    s->target = NULL;
 
     block_job_completed(job, data->ret);
     g_free(data);
