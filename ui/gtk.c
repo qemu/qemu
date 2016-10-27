@@ -1070,7 +1070,9 @@ static gboolean gd_text_key_down(GtkWidget *widget,
     VirtualConsole *vc = opaque;
     QemuConsole *con = vc->gfx.dcl.con;
 
-    if (key->length) {
+    if (key->keyval == GDK_KEY_Delete) {
+        kbd_put_qcode_console(con, Q_KEY_CODE_DELETE);
+    } else if (key->length) {
         kbd_put_string_console(con, key->string, key->length);
     } else {
         int num = gd_map_keycode(vc->s, gtk_widget_get_display(widget),
