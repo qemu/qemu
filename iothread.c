@@ -40,7 +40,6 @@ AioContext *qemu_get_current_aio_context(void)
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
-    bool blocking;
 
     rcu_register_thread();
 
@@ -50,14 +49,8 @@ static void *iothread_run(void *opaque)
     qemu_cond_signal(&iothread->init_done_cond);
     qemu_mutex_unlock(&iothread->init_done_lock);
 
-    while (!iothread->stopping) {
-        aio_context_acquire(iothread->ctx);
-        blocking = true;
-        while (!iothread->stopping && aio_poll(iothread->ctx, blocking)) {
-            /* Progress was made, keep going */
-            blocking = false;
-        }
-        aio_context_release(iothread->ctx);
+    while (!atomic_read(&iothread->stopping)) {
+        aio_poll(iothread->ctx, true);
     }
 
     rcu_unregister_thread();
