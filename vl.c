@@ -90,6 +90,7 @@ int main(int argc, char **argv)
 #include "audio/audio.h"
 #include "migration/migration.h"
 #include "sysemu/cpus.h"
+#include "migration/colo.h"
 #include "sysemu/kvm.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/option.h"
@@ -4425,6 +4426,8 @@ int main(int argc, char **argv, char **envp)
         qemu_opts_set(net, NULL, "type", "user", &error_abort);
 #endif
     }
+
+    colo_info_init();
 
     if (net_init_clients() < 0) {
         exit(1);
