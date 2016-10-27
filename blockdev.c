@@ -3610,7 +3610,7 @@ void qmp_block_job_cancel(const char *device,
         force = false;
     }
 
-    if (job->user_paused && !force) {
+    if (block_job_user_paused(job) && !force) {
         error_setg(errp, "The block job for device '%s' is currently paused",
                    device);
         goto out;
@@ -3627,13 +3627,12 @@ void qmp_block_job_pause(const char *device, Error **errp)
     AioContext *aio_context;
     BlockJob *job = find_block_job(device, &aio_context, errp);
 
-    if (!job || job->user_paused) {
+    if (!job || block_job_user_paused(job)) {
         return;
     }
 
-    job->user_paused = true;
     trace_qmp_block_job_pause(job);
-    block_job_pause(job);
+    block_job_user_pause(job);
     aio_context_release(aio_context);
 }
 
@@ -3642,14 +3641,13 @@ void qmp_block_job_resume(const char *device, Error **errp)
     AioContext *aio_context;
     BlockJob *job = find_block_job(device, &aio_context, errp);
 
-    if (!job || !job->user_paused) {
+    if (!job || !block_job_user_paused(job)) {
         return;
     }
 
-    job->user_paused = false;
     trace_qmp_block_job_resume(job);
     block_job_iostatus_reset(job);
-    block_job_resume(job);
+    block_job_user_resume(job);
     aio_context_release(aio_context);
 }
 

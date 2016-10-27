@@ -373,9 +373,20 @@ void block_job_pause(BlockJob *job)
     job->pause_count++;
 }
 
+void block_job_user_pause(BlockJob *job)
+{
+    job->user_paused = true;
+    block_job_pause(job);
+}
+
 static bool block_job_should_pause(BlockJob *job)
 {
     return job->pause_count > 0;
+}
+
+bool block_job_user_paused(BlockJob *job)
+{
+    return job ? job->user_paused : 0;
 }
 
 void coroutine_fn block_job_pause_point(BlockJob *job)
@@ -412,6 +423,14 @@ void block_job_resume(BlockJob *job)
         return;
     }
     block_job_enter(job);
+}
+
+void block_job_user_resume(BlockJob *job)
+{
+    if (job && job->user_paused && job->pause_count > 0) {
+        job->user_paused = false;
+        block_job_resume(job);
+    }
 }
 
 void block_job_enter(BlockJob *job)
@@ -644,8 +663,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
     }
     if (action == BLOCK_ERROR_ACTION_STOP) {
         /* make the pause user visible, which will be resumed from QMP. */
-        job->user_paused = true;
-        block_job_pause(job);
+        block_job_user_pause(job);
         block_job_iostatus_set_err(job, error);
     }
     return action;

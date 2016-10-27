@@ -379,12 +379,38 @@ void coroutine_fn block_job_pause_point(BlockJob *job);
 void block_job_pause(BlockJob *job);
 
 /**
+ * block_job_user_pause:
+ * @job: The job to be paused.
+ *
+ * Asynchronously pause the specified job.
+ * Do not allow a resume until a matching call to block_job_user_resume.
+ */
+void block_job_user_pause(BlockJob *job);
+
+/**
+ * block_job_paused:
+ * @job: The job to query.
+ *
+ * Returns true if the job is user-paused.
+ */
+bool block_job_user_paused(BlockJob *job);
+
+/**
  * block_job_resume:
  * @job: The job to be resumed.
  *
  * Resume the specified job.  Must be paired with a preceding block_job_pause.
  */
 void block_job_resume(BlockJob *job);
+
+/**
+ * block_job_user_resume:
+ * @job: The job to be resumed.
+ *
+ * Resume the specified job.
+ * Must be paired with a preceding block_job_user_pause.
+ */
+void block_job_user_resume(BlockJob *job);
 
 /**
  * block_job_enter:
