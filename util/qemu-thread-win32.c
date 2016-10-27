@@ -79,6 +79,31 @@ void qemu_mutex_unlock(QemuMutex *mutex)
     LeaveCriticalSection(&mutex->lock);
 }
 
+void qemu_rec_mutex_init(QemuRecMutex *mutex)
+{
+    InitializeCriticalSection(&mutex->lock);
+}
+
+void qemu_rec_mutex_destroy(QemuRecMutex *mutex)
+{
+    DeleteCriticalSection(&mutex->lock);
+}
+
+void qemu_rec_mutex_lock(QemuRecMutex *mutex)
+{
+    EnterCriticalSection(&mutex->lock);
+}
+
+int qemu_rec_mutex_trylock(QemuRecMutex *mutex)
+{
+    return !TryEnterCriticalSection(&mutex->lock);
+}
+
+void qemu_rec_mutex_unlock(QemuRecMutex *mutex)
+{
+    LeaveCriticalSection(&mutex->lock);
+}
+
 void qemu_cond_init(QemuCond *cond)
 {
     memset(cond, 0, sizeof(*cond));
