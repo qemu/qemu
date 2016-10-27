@@ -674,18 +674,23 @@
 # @downtime-limit: set maximum tolerated downtime for migration. maximum
 #                  downtime in milliseconds (Since 2.8)
 #
+# @x-checkpoint-delay: The delay time (in ms) between two COLO checkpoints in
+#          periodic mode. (Since 2.8)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
-           'downtime-limit'] }
+           'downtime-limit', 'x-checkpoint-delay' ] }
 
 #
 # @migrate-set-parameters
 #
 # Set various migration parameters.  See MigrationParameters for details.
+#
+# @x-checkpoint-delay: the delay time between two checkpoints. (Since 2.8)
 #
 # Since: 2.4
 ##
@@ -735,6 +740,8 @@
 # @downtime-limit: set maximum tolerated downtime for migration. maximum
 #                  downtime in milliseconds (Since 2.8)
 #
+# @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -746,7 +753,8 @@
             '*tls-creds': 'str',
             '*tls-hostname': 'str',
             '*max-bandwidth': 'int',
-            '*downtime-limit': 'int'} }
+            '*downtime-limit': 'int',
+            '*x-checkpoint-delay': 'int'} }
 
 ##
 # @query-migrate-parameters

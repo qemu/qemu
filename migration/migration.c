@@ -63,6 +63,11 @@
 /* Migration XBZRLE default cache size */
 #define DEFAULT_MIGRATE_CACHE_SIZE (64 * 1024 * 1024)
 
+/* The delay time (in ms) between two COLO checkpoints
+ * Note: Please change this default value to 10000 when we support hybrid mode.
+ */
+#define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY 200
+
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
@@ -95,6 +100,7 @@ MigrationState *migrate_get_current(void)
             .cpu_throttle_increment = DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT,
             .max_bandwidth = MAX_THROTTLE,
             .downtime_limit = DEFAULT_MIGRATE_SET_DOWNTIME,
+            .x_checkpoint_delay = DEFAULT_MIGRATE_X_CHECKPOINT_DELAY,
         },
     };
 
@@ -587,6 +593,7 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->max_bandwidth = s->parameters.max_bandwidth;
     params->has_downtime_limit = true;
     params->downtime_limit = s->parameters.downtime_limit;
+    params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
 
     return params;
 }
@@ -845,6 +852,11 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
                    "an integer in the range of 0 to 2000000 milliseconds");
         return;
     }
+    if (params->has_x_checkpoint_delay && (params->x_checkpoint_delay < 0)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                    "x_checkpoint_delay",
+                    "is invalid, it should be positive");
+    }
 
     if (params->has_compress_level) {
         s->parameters.compress_level = params->compress_level;
@@ -878,6 +890,10 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
     }
     if (params->has_downtime_limit) {
         s->parameters.downtime_limit = params->downtime_limit;
+    }
+
+    if (params->has_x_checkpoint_delay) {
+        s->parameters.x_checkpoint_delay = params->x_checkpoint_delay;
     }
 }
 

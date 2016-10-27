@@ -2916,6 +2916,8 @@ Set migration parameters
 - "max-bandwidth": set maximum speed for migrations (in bytes/sec) (json-int)
 - "downtime-limit": set maximum tolerated downtime (in milliseconds) for
                     migrations (json-int)
+- "x-checkpoint-delay": set the delay time for periodic checkpoint (json-int)
+
 Arguments:
 
 Example:

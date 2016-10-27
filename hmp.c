@@ -318,6 +318,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, " %s: %" PRId64 " milliseconds",
             MigrationParameter_lookup[MIGRATION_PARAMETER_DOWNTIME_LIMIT],
             params->downtime_limit);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY],
+            params->x_checkpoint_delay);
         monitor_printf(mon, "\n");
     }
 
@@ -1386,6 +1389,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                 p.has_downtime_limit = true;
                 use_int_value = true;
                 break;
+            case MIGRATION_PARAMETER_X_CHECKPOINT_DELAY:
+                p.has_x_checkpoint_delay = true;
+                use_int_value = true;
+                break;
             }
 
             if (use_int_value) {
@@ -1402,6 +1409,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                 p.cpu_throttle_initial = valueint;
                 p.cpu_throttle_increment = valueint;
                 p.downtime_limit = valueint;
+                p.x_checkpoint_delay = valueint;
             }
 
             qmp_migrate_set_parameters(&p, &err);
