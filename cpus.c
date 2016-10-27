@@ -69,7 +69,6 @@
 
 #endif /* CONFIG_LINUX */
 
-static CPUState *next_cpu;
 int64_t max_delay;
 int64_t max_advance;
 
@@ -1119,46 +1118,26 @@ static int tcg_cpu_exec(CPUState *cpu)
     return ret;
 }
 
-static void tcg_exec_all(void)
+/* Destroy any remaining vCPUs which have been unplugged and have
+ * finished running
+ */
+static void deal_with_unplugged_cpus(void)
 {
-    int r;
+    CPUState *cpu;
 
-    /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
-    qemu_account_warp_timer();
-
-    if (next_cpu == NULL) {
-        next_cpu = first_cpu;
-    }
-    for (; next_cpu != NULL && !exit_request; next_cpu = CPU_NEXT(next_cpu)) {
-        CPUState *cpu = next_cpu;
-
-        qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
-                          (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
-
-        if (cpu_can_run(cpu)) {
-            r = tcg_cpu_exec(cpu);
-            if (r == EXCP_DEBUG) {
-                cpu_handle_guest_debug(cpu);
-                break;
-            } else if (r == EXCP_ATOMIC) {
-                cpu_exec_step_atomic(cpu);
-            }
-        } else if (cpu->stop || cpu->stopped) {
-            if (cpu->unplug) {
-                next_cpu = CPU_NEXT(cpu);
-            }
+    CPU_FOREACH(cpu) {
+        if (cpu->unplug && !cpu_can_run(cpu)) {
+            qemu_tcg_destroy_vcpu(cpu);
+            cpu->created = false;
+            qemu_cond_signal(&qemu_cpu_cond);
             break;
         }
     }
-
-    /* Pairs with smp_wmb in qemu_cpu_kick.  */
-    atomic_mb_set(&exit_request, 0);
 }
 
 static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
-    CPUState *remove_cpu = NULL;
 
     rcu_register_thread();
 
@@ -1185,8 +1164,39 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     /* process any pending work */
     atomic_mb_set(&exit_request, 1);
 
+    cpu = first_cpu;
+
     while (1) {
-        tcg_exec_all();
+        /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
+        qemu_account_warp_timer();
+
+        if (!cpu) {
+            cpu = first_cpu;
+        }
+
+        for (; cpu != NULL && !exit_request; cpu = CPU_NEXT(cpu)) {
+
+            qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
+                              (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
+
+            if (cpu_can_run(cpu)) {
+                int r;
+                r = tcg_cpu_exec(cpu);
+                if (r == EXCP_DEBUG) {
+                    cpu_handle_guest_debug(cpu);
+                    break;
+                }
+            } else if (cpu->stop || cpu->stopped) {
+                if (cpu->unplug) {
+                    cpu = CPU_NEXT(cpu);
+                }
+                break;
+            }
+
+        } /* for cpu.. */
+
+        /* Pairs with smp_wmb in qemu_cpu_kick.  */
+        atomic_mb_set(&exit_request, 0);
 
         if (use_icount) {
             int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
@@ -1196,18 +1206,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
             }
         }
         qemu_tcg_wait_io_event(QTAILQ_FIRST(&cpus));
-        CPU_FOREACH(cpu) {
-            if (cpu->unplug && !cpu_can_run(cpu)) {
-                remove_cpu = cpu;
-                break;
-            }
-        }
-        if (remove_cpu) {
-            qemu_tcg_destroy_vcpu(remove_cpu);
-            cpu->created = false;
-            qemu_cond_signal(&qemu_cpu_cond);
-            remove_cpu = NULL;
-        }
+        deal_with_unplugged_cpus();
     }
 
     return NULL;
