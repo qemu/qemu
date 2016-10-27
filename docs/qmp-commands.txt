@@ -2861,6 +2861,7 @@ Enable/Disable migration capabilities
 - "compress": use multiple compression threads to accelerate live migration
 - "events": generate events for each migration state change
 - "postcopy-ram": postcopy mode for live migration
+- "x-colo": COarse-Grain LOck Stepping (COLO) for Non-stop Service
 
 Arguments:
 
@@ -2882,6 +2883,7 @@ Query current migration capabilities
          - "compress": Multiple compression threads state (json-bool)
          - "events": Migration state change event state (json-bool)
          - "postcopy-ram": postcopy ram state (json-bool)
+         - "x-colo": COarse-Grain LOck Stepping for Non-stop Service (json-bool)
 
 Arguments:
 
@@ -2895,7 +2897,8 @@ Example:
      {"state": false, "capability": "zero-blocks"},
      {"state": false, "capability": "compress"},
      {"state": true, "capability": "events"},
-     {"state": false, "capability": "postcopy-ram"}
+     {"state": false, "capability": "postcopy-ram"},
+     {"state": false, "capability": "x-colo"}
    ]}
 
 migrate-set-parameters

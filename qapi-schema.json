@@ -574,11 +574,16 @@
 #          been migrated, pulling the remaining pages along as needed. NOTE: If
 #          the migration fails during postcopy the VM will fail.  (since 2.6)
 #
+# @x-colo: If enabled, migration will never end, and the state of the VM on the
+#        primary side will be migrated continuously to the VM on secondary
+#        side, this process is called COarse-Grain LOck Stepping (COLO) for
+#        Non-stop Service. (since 2.8)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
-           'compress', 'events', 'postcopy-ram'] }
+           'compress', 'events', 'postcopy-ram', 'x-colo'] }
 
 ##
 # @MigrationCapabilityStatus
