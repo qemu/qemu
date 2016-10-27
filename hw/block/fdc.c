@@ -52,6 +52,33 @@
         }                                                       \
     } while (0)
 
+
+/********************************************************/
+/* qdev floppy bus                                      */
+
+#define TYPE_FLOPPY_BUS "floppy-bus"
+#define FLOPPY_BUS(obj) OBJECT_CHECK(FloppyBus, (obj), TYPE_FLOPPY_BUS)
+
+typedef struct FDCtrl FDCtrl;
+
+typedef struct FloppyBus {
+    BusState bus;
+    FDCtrl *fdc;
+} FloppyBus;
+
+static const TypeInfo floppy_bus_info = {
+    .name = TYPE_FLOPPY_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(FloppyBus),
+};
+
+static void floppy_bus_create(FDCtrl *fdc, FloppyBus *bus, DeviceState *dev)
+{
+    qbus_create_inplace(bus, sizeof(FloppyBus), TYPE_FLOPPY_BUS, dev, NULL);
+    bus->fdc = fdc;
+}
+
+
 /********************************************************/
 /* Floppy drive emulation                               */
 
@@ -147,8 +174,6 @@ static FDriveSize drive_size(FloppyDriveType drive)
 #define FD_SECTOR_LEN          512
 #define FD_SECTOR_SC           2   /* Sector size code */
 #define FD_RESET_SENSEI_COUNT  4   /* Number of sense interrupts on RESET */
-
-typedef struct FDCtrl FDCtrl;
 
 /* Floppy disk drive emulation */
 typedef enum FDiskFlags {
@@ -684,6 +709,7 @@ struct FDCtrl {
     /* Power down config (also with status regB access mode */
     uint8_t pwrd;
     /* Floppy drives */
+    FloppyBus bus;
     uint8_t num_floppies;
     FDrive drives[MAX_FD];
     int reset_sensei;
@@ -2442,7 +2468,8 @@ void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
     *fdc_tc = qdev_get_gpio_in(dev, 0);
 }
 
-static void fdctrl_realize_common(FDCtrl *fdctrl, Error **errp)
+static void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl,
+                                  Error **errp)
 {
     int i, j;
     static int command_tables_inited = 0;
@@ -2480,6 +2507,8 @@ static void fdctrl_realize_common(FDCtrl *fdctrl, Error **errp)
         k->register_channel(fdctrl->dma, fdctrl->dma_chann,
                             &fdctrl_transfer_handler, fdctrl);
     }
+
+    floppy_bus_create(fdctrl, &fdctrl->bus, dev);
     fdctrl_connect_drives(fdctrl, errp);
 }
 
@@ -2508,7 +2537,7 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
     }
 
     qdev_set_legacy_instance_id(dev, isa->iobase, 2);
-    fdctrl_realize_common(fdctrl, &err);
+    fdctrl_realize_common(dev, fdctrl, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -2559,7 +2588,7 @@ static void sysbus_fdc_common_realize(DeviceState *dev, Error **errp)
     FDCtrlSysBus *sys = SYSBUS_FDC(dev);
     FDCtrl *fdctrl = &sys->state;
 
-    fdctrl_realize_common(fdctrl, errp);
+    fdctrl_realize_common(dev, fdctrl, errp);
 }
 
 FloppyDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
@@ -2744,6 +2773,7 @@ static void fdc_register_types(void)
     type_register_static(&sysbus_fdc_type_info);
     type_register_static(&sysbus_fdc_info);
     type_register_static(&sun4m_fdc_info);
+    type_register_static(&floppy_bus_info);
 }
 
 type_init(fdc_register_types)
