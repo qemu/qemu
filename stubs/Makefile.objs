@@ -17,6 +17,7 @@ stub-obj-y += gdbstub.o
 stub-obj-y += get-fd.o
 stub-obj-y += get-next-serial.o
 stub-obj-y += get-vm-name.o
+stub-obj-y += iothread.o
 stub-obj-y += iothread-lock.o
 stub-obj-y += is-daemonized.o
 stub-obj-y += machine-init-done.o

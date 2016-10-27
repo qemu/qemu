@@ -453,6 +453,24 @@ static inline bool aio_node_check(AioContext *ctx, bool is_external)
 }
 
 /**
+ * Return the AioContext whose event loop runs in the current thread.
+ *
+ * If called from an IOThread this will be the IOThread's AioContext.  If
+ * called from another thread it will be the main loop AioContext.
+ */
+AioContext *qemu_get_current_aio_context(void);
+
+/**
+ * @ctx: the aio context
+ *
+ * Return whether we are running in the I/O thread that manages @ctx.
+ */
+static inline bool aio_context_in_iothread(AioContext *ctx)
+{
+    return ctx == qemu_get_current_aio_context();
+}
+
+/**
  * aio_context_setup:
  * @ctx: the aio context
  *
