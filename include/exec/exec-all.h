@@ -316,6 +316,7 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 
 #endif
 
+/* Called with tb_lock held.  */
 static inline void tb_add_jump(TranslationBlock *tb, int n,
                                TranslationBlock *tb_next)
 {
