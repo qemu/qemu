@@ -23,6 +23,16 @@ bool migration_in_colo_state(void)
     return false;
 }
 
+bool migration_incoming_in_colo_state(void)
+{
+    return false;
+}
+
 void migrate_start_colo_process(MigrationState *s)
 {
+}
+
+void *colo_process_incoming_thread(void *opaque)
+{
+    return NULL;
 }

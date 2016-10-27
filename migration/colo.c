@@ -27,6 +27,13 @@ bool migration_in_colo_state(void)
     return (s->state == MIGRATION_STATUS_COLO);
 }
 
+bool migration_incoming_in_colo_state(void)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    return mis && (mis->state == MIGRATION_STATUS_COLO);
+}
+
 static void colo_process_checkpoint(MigrationState *s)
 {
     qemu_mutex_lock_iothread();
@@ -45,4 +52,18 @@ void migrate_start_colo_process(MigrationState *s)
                       MIGRATION_STATUS_COLO);
     colo_process_checkpoint(s);
     qemu_mutex_lock_iothread();
+}
+
+void *colo_process_incoming_thread(void *opaque)
+{
+    MigrationIncomingState *mis = opaque;
+
+    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                      MIGRATION_STATUS_COLO);
+
+    /* TODO: COLO checkpoint restore loop */
+
+    migration_incoming_exit_colo();
+
+    return NULL;
 }

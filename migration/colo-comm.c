@@ -49,3 +49,13 @@ void colo_info_init(void)
 {
     vmstate_register(NULL, 0, &colo_state, &colo_info);
 }
+
+bool migration_incoming_enable_colo(void)
+{
+    return colo_info.colo_requested;
+}
+
+void migration_incoming_exit_colo(void)
+{
+    colo_info.colo_requested = false;
+}
