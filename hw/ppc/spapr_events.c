@@ -175,6 +175,16 @@ struct epow_log_full {
     struct rtas_event_log_v6_epow epow;
 } QEMU_PACKED;
 
+union drc_identifier {
+    uint32_t index;
+    uint32_t count;
+    struct {
+        uint32_t count;
+        uint32_t index;
+    } count_indexed;
+    char name[1];
+} QEMU_PACKED;
+
 struct rtas_event_log_v6_hp {
 #define RTAS_LOG_V6_SECTION_ID_HOTPLUG              0x4850 /* HP */
     struct rtas_event_log_v6_section_header hdr;
@@ -191,12 +201,9 @@ struct rtas_event_log_v6_hp {
 #define RTAS_LOG_V6_HP_ID_DRC_NAME                       1
 #define RTAS_LOG_V6_HP_ID_DRC_INDEX                      2
 #define RTAS_LOG_V6_HP_ID_DRC_COUNT                      3
+#define RTAS_LOG_V6_HP_ID_DRC_COUNT_INDEXED              4
     uint8_t reserved;
-    union {
-        uint32_t index;
-        uint32_t count;
-        char name[1];
-    } drc;
+    union drc_identifier drc_id;
 } QEMU_PACKED;
 
 struct hp_log_full {
@@ -488,7 +495,7 @@ static void spapr_hotplug_set_signalled(uint32_t drc_index)
 
 static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
                                     sPAPRDRConnectorType drc_type,
-                                    uint32_t drc)
+                                    union drc_identifier *drc_id)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     struct hp_log_full *new_hp;
@@ -533,7 +540,7 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     case SPAPR_DR_CONNECTOR_TYPE_PCI:
         hp->hotplug_type = RTAS_LOG_V6_HP_TYPE_PCI;
         if (hp->hotplug_action == RTAS_LOG_V6_HP_ACTION_ADD) {
-            spapr_hotplug_set_signalled(drc);
+            spapr_hotplug_set_signalled(drc_id->index);
         }
         break;
     case SPAPR_DR_CONNECTOR_TYPE_LMB:
@@ -551,9 +558,18 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     }
 
     if (hp_id == RTAS_LOG_V6_HP_ID_DRC_COUNT) {
-        hp->drc.count = cpu_to_be32(drc);
+        hp->drc_id.count = cpu_to_be32(drc_id->count);
     } else if (hp_id == RTAS_LOG_V6_HP_ID_DRC_INDEX) {
-        hp->drc.index = cpu_to_be32(drc);
+        hp->drc_id.index = cpu_to_be32(drc_id->index);
+    } else if (hp_id == RTAS_LOG_V6_HP_ID_DRC_COUNT_INDEXED) {
+        /* we should not be using count_indexed value unless the guest
+         * supports dedicated hotplug event source
+         */
+        g_assert(spapr_ovec_test(spapr->ov5_cas, OV5_HP_EVT));
+        hp->drc_id.count_indexed.count =
+            cpu_to_be32(drc_id->count_indexed.count);
+        hp->drc_id.count_indexed.index =
+            cpu_to_be32(drc_id->count_indexed.index);
     }
 
     rtas_event_log_queue(RTAS_LOG_TYPE_HOTPLUG, new_hp, true);
@@ -567,34 +583,64 @@ void spapr_hotplug_req_add_by_index(sPAPRDRConnector *drc)
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     sPAPRDRConnectorType drc_type = drck->get_type(drc);
-    uint32_t index = drck->get_index(drc);
+    union drc_identifier drc_id;
 
+    drc_id.index = drck->get_index(drc);
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_INDEX,
-                            RTAS_LOG_V6_HP_ACTION_ADD, drc_type, index);
+                            RTAS_LOG_V6_HP_ACTION_ADD, drc_type, &drc_id);
 }
 
 void spapr_hotplug_req_remove_by_index(sPAPRDRConnector *drc)
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     sPAPRDRConnectorType drc_type = drck->get_type(drc);
-    uint32_t index = drck->get_index(drc);
+    union drc_identifier drc_id;
 
+    drc_id.index = drck->get_index(drc);
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_INDEX,
-                            RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, index);
+                            RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, &drc_id);
 }
 
 void spapr_hotplug_req_add_by_count(sPAPRDRConnectorType drc_type,
                                        uint32_t count)
 {
+    union drc_identifier drc_id;
+
+    drc_id.count = count;
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_COUNT,
-                            RTAS_LOG_V6_HP_ACTION_ADD, drc_type, count);
+                            RTAS_LOG_V6_HP_ACTION_ADD, drc_type, &drc_id);
 }
 
 void spapr_hotplug_req_remove_by_count(sPAPRDRConnectorType drc_type,
                                           uint32_t count)
 {
+    union drc_identifier drc_id;
+
+    drc_id.count = count;
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_COUNT,
-                            RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, count);
+                            RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, &drc_id);
+}
+
+void spapr_hotplug_req_add_by_count_indexed(sPAPRDRConnectorType drc_type,
+                                            uint32_t count, uint32_t index)
+{
+    union drc_identifier drc_id;
+
+    drc_id.count_indexed.count = count;
+    drc_id.count_indexed.index = index;
+    spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_COUNT_INDEXED,
+                            RTAS_LOG_V6_HP_ACTION_ADD, drc_type, &drc_id);
+}
+
+void spapr_hotplug_req_remove_by_count_indexed(sPAPRDRConnectorType drc_type,
+                                               uint32_t count, uint32_t index)
+{
+    union drc_identifier drc_id;
+
+    drc_id.count_indexed.count = count;
+    drc_id.count_indexed.index = index;
+    spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_COUNT_INDEXED,
+                            RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, &drc_id);
 }
 
 static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
