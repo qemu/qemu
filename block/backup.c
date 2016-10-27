@@ -16,7 +16,7 @@
 #include "trace.h"
 #include "block/block.h"
 #include "block/block_int.h"
-#include "block/blockjob.h"
+#include "block/blockjob_int.h"
 #include "block/block_backup.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"

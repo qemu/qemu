@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
-#include "block/blockjob.h"
+#include "block/blockjob_int.h"
 #include "sysemu/block-backend.h"
 
 typedef struct {
