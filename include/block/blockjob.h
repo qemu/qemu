@@ -395,23 +395,6 @@ void block_job_resume(BlockJob *job);
 void block_job_enter(BlockJob *job);
 
 /**
- * block_job_event_cancelled:
- * @job: The job whose information is requested.
- *
- * Send a BLOCK_JOB_CANCELLED event for the specified job.
- */
-void block_job_event_cancelled(BlockJob *job);
-
-/**
- * block_job_ready:
- * @job: The job which is now ready to complete.
- * @msg: Error message. Only present on failure.
- *
- * Send a BLOCK_JOB_COMPLETED event for the specified job.
- */
-void block_job_event_completed(BlockJob *job, const char *msg);
-
-/**
  * block_job_ready:
  * @job: The job which is now ready to complete.
  *

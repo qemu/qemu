@@ -1018,9 +1018,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
-                  bool unmap,
-                  BlockCompletionFunc *cb,
-                  void *opaque, Error **errp)
+                  bool unmap, Error **errp)
 {
     bool is_none_mode;
     BlockDriverState *base;
@@ -1033,7 +1031,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
     base = mode == MIRROR_SYNC_MODE_TOP ? backing_bs(bs) : NULL;
     mirror_start_job(job_id, bs, BLOCK_JOB_DEFAULT, target, replaces,
                      speed, granularity, buf_size, backing_mode,
-                     on_source_error, on_target_error, unmap, cb, opaque, errp,
+                     on_source_error, on_target_error, unmap, NULL, NULL, errp,
                      &mirror_job_driver, is_none_mode, base, false);
 }
 

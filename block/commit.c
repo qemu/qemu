@@ -209,8 +209,8 @@ static const BlockJobDriver commit_job_driver = {
 
 void commit_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, BlockDriverState *top, int64_t speed,
-                  BlockdevOnError on_error, BlockCompletionFunc *cb,
-                  void *opaque, const char *backing_file_str, Error **errp)
+                  BlockdevOnError on_error, const char *backing_file_str,
+                  Error **errp)
 {
     CommitBlockJob *s;
     BlockReopenQueue *reopen_queue = NULL;
@@ -234,7 +234,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     }
 
     s = block_job_create(job_id, &commit_job_driver, bs, speed,
-                         BLOCK_JOB_DEFAULT, cb, opaque, errp);
+                         BLOCK_JOB_DEFAULT, NULL, NULL, errp);
     if (!s) {
         return;
     }
@@ -290,7 +290,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     s->on_error = on_error;
     s->common.co = qemu_coroutine_create(commit_run, s);
 
-    trace_commit_start(bs, base, top, s, s->common.co, opaque);
+    trace_commit_start(bs, base, top, s, s->common.co);
     qemu_coroutine_enter(s->common.co);
 }
 

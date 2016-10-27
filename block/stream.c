@@ -222,15 +222,14 @@ static const BlockJobDriver stream_job_driver = {
 
 void stream_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, const char *backing_file_str,
-                  int64_t speed, BlockdevOnError on_error,
-                  BlockCompletionFunc *cb, void *opaque, Error **errp)
+                  int64_t speed, BlockdevOnError on_error, Error **errp)
 {
     StreamBlockJob *s;
     BlockDriverState *iter;
     int orig_bs_flags;
 
     s = block_job_create(job_id, &stream_job_driver, bs, speed,
-                         BLOCK_JOB_DEFAULT, cb, opaque, errp);
+                         BLOCK_JOB_DEFAULT, NULL, NULL, errp);
     if (!s) {
         return;
     }
@@ -256,6 +255,6 @@ void stream_start(const char *job_id, BlockDriverState *bs,
 
     s->on_error = on_error;
     s->common.co = qemu_coroutine_create(stream_run, s);
-    trace_stream_start(bs, base, s, s->common.co, opaque);
+    trace_stream_start(bs, base, s, s->common.co);
     qemu_coroutine_enter(s->common.co);
 }
