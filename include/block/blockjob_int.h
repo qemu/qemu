@@ -198,8 +198,8 @@ void coroutine_fn block_job_pause_point(BlockJob *job);
 void block_job_enter(BlockJob *job);
 
 /**
- * block_job_ready:
- * @job: The job which is now ready to complete.
+ * block_job_event_ready:
+ * @job: The job which is now ready to be completed.
  *
  * Send a BLOCK_JOB_READY event for the specified job.
  */
