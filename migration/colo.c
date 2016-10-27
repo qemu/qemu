@@ -13,9 +13,12 @@
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "migration/colo.h"
+#include "io/channel-buffer.h"
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+
+#define COLO_BUFFER_BASE_SIZE (4 * 1024 * 1024)
 
 bool colo_supported(void)
 {
@@ -55,6 +58,27 @@ static void colo_send_message(QEMUFile *f, COLOMessage msg,
     trace_colo_send_message(COLOMessage_lookup[msg]);
 }
 
+static void colo_send_message_value(QEMUFile *f, COLOMessage msg,
+                                    uint64_t value, Error **errp)
+{
+    Error *local_err = NULL;
+    int ret;
+
+    colo_send_message(f, msg, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    qemu_put_be64(f, value);
+    qemu_fflush(f);
+
+    ret = qemu_file_get_error(f);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to send value for message:%s",
+                         COLOMessage_lookup[msg]);
+    }
+}
+
 static COLOMessage colo_receive_message(QEMUFile *f, Error **errp)
 {
     COLOMessage msg;
@@ -91,9 +115,12 @@ static void colo_receive_check_message(QEMUFile *f, COLOMessage expect_msg,
     }
 }
 
-static int colo_do_checkpoint_transaction(MigrationState *s)
+static int colo_do_checkpoint_transaction(MigrationState *s,
+                                          QIOChannelBuffer *bioc,
+                                          QEMUFile *fb)
 {
     Error *local_err = NULL;
+    int ret = -1;
 
     colo_send_message(s->to_dst_file, COLO_MESSAGE_CHECKPOINT_REQUEST,
                       &local_err);
@@ -106,15 +133,46 @@ static int colo_do_checkpoint_transaction(MigrationState *s)
     if (local_err) {
         goto out;
     }
+    /* Reset channel-buffer directly */
+    qio_channel_io_seek(QIO_CHANNEL(bioc), 0, 0, NULL);
+    bioc->usage = 0;
 
-    /* TODO: suspend and save vm state to colo buffer */
+    qemu_mutex_lock_iothread();
+    vm_stop_force_state(RUN_STATE_COLO);
+    qemu_mutex_unlock_iothread();
+    trace_colo_vm_state_change("run", "stop");
+
+    /* Disable block migration */
+    s->params.blk = 0;
+    s->params.shared = 0;
+    qemu_savevm_state_header(fb);
+    qemu_savevm_state_begin(fb, &s->params);
+    qemu_mutex_lock_iothread();
+    qemu_savevm_state_complete_precopy(fb, false);
+    qemu_mutex_unlock_iothread();
+
+    qemu_fflush(fb);
 
     colo_send_message(s->to_dst_file, COLO_MESSAGE_VMSTATE_SEND, &local_err);
     if (local_err) {
         goto out;
     }
+    /*
+     * We need the size of the VMstate data in Secondary side,
+     * With which we can decide how much data should be read.
+     */
+    colo_send_message_value(s->to_dst_file, COLO_MESSAGE_VMSTATE_SIZE,
+                            bioc->usage, &local_err);
+    if (local_err) {
+        goto out;
+    }
 
-    /* TODO: send vmstate to Secondary */
+    qemu_put_buffer(s->to_dst_file, bioc->data, bioc->usage);
+    qemu_fflush(s->to_dst_file);
+    ret = qemu_file_get_error(s->to_dst_file);
+    if (ret < 0) {
+        goto out;
+    }
 
     colo_receive_check_message(s->rp_state.from_dst_file,
                        COLO_MESSAGE_VMSTATE_RECEIVED, &local_err);
@@ -128,18 +186,24 @@ static int colo_do_checkpoint_transaction(MigrationState *s)
         goto out;
     }
 
-    /* TODO: resume Primary */
+    ret = 0;
 
-    return 0;
+    qemu_mutex_lock_iothread();
+    vm_start();
+    qemu_mutex_unlock_iothread();
+    trace_colo_vm_state_change("stop", "run");
+
 out:
     if (local_err) {
         error_report_err(local_err);
     }
-    return -EINVAL;
+    return ret;
 }
 
 static void colo_process_checkpoint(MigrationState *s)
 {
+    QIOChannelBuffer *bioc;
+    QEMUFile *fb = NULL;
     Error *local_err = NULL;
     int ret;
 
@@ -158,6 +222,9 @@ static void colo_process_checkpoint(MigrationState *s)
     if (local_err) {
         goto out;
     }
+    bioc = qio_channel_buffer_new(COLO_BUFFER_BASE_SIZE);
+    fb = qemu_fopen_channel_output(QIO_CHANNEL(bioc));
+    object_unref(OBJECT(bioc));
 
     qemu_mutex_lock_iothread();
     vm_start();
@@ -165,7 +232,7 @@ static void colo_process_checkpoint(MigrationState *s)
     trace_colo_vm_state_change("stop", "run");
 
     while (s->state == MIGRATION_STATUS_COLO) {
-        ret = colo_do_checkpoint_transaction(s);
+        ret = colo_do_checkpoint_transaction(s, bioc, fb);
         if (ret < 0) {
             goto out;
         }
@@ -175,6 +242,10 @@ out:
     /* Throw the unreported error message after exited from loop */
     if (local_err) {
         error_report_err(local_err);
+    }
+
+    if (fb) {
+        qemu_fclose(fb);
     }
 
     if (s->rp_state.from_dst_file) {
