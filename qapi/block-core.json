@@ -1714,7 +1714,7 @@
 #
 # @host_device, @host_cdrom: Since 2.1
 # @gluster: Since 2.7
-# @nbd, @ssh: Since 2.8
+# @nbd, @replication, @ssh: Since 2.8
 #
 # Since: 2.0
 ##
