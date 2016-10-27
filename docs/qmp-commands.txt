@@ -554,6 +554,16 @@ Example:
 -> { "execute": "migrate_set_downtime", "arguments": { "value": 0.1 } }
 <- { "return": {} }
 
+x-colo-lost-heartbeat
+--------------------
+
+Tell COLO that heartbeat is lost, a failover or takeover is needed.
+
+Example:
+
+-> { "execute": "x-colo-lost-heartbeat" }
+<- { "return": {} }
+
 client_migrate_info
 -------------------
 

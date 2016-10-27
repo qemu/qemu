@@ -1451,6 +1451,14 @@ void hmp_migrate_start_postcopy(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
+void hmp_x_colo_lost_heartbeat(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+
+    qmp_x_colo_lost_heartbeat(&err);
+    hmp_handle_error(mon, &err);
+}
+
 void hmp_set_password(Monitor *mon, const QDict *qdict)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");

@@ -1040,6 +1040,21 @@ migration (or once already in postcopy).
 ETEXI
 
     {
+        .name       = "x_colo_lost_heartbeat",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Tell COLO that heartbeat is lost,\n\t\t\t"
+                      "a failover or takeover is needed.",
+        .cmd = hmp_x_colo_lost_heartbeat,
+    },
+
+STEXI
+@item x_colo_lost_heartbeat
+@findex x_colo_lost_heartbeat
+Tell COLO that heartbeat is lost, a failover or takeover is needed.
+ETEXI
+
+    {
         .name       = "client_migrate_info",
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",

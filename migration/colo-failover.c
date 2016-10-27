@@ -12,35 +12,31 @@
 
 #include "qemu/osdep.h"
 #include "migration/colo.h"
+#include "migration/failover.h"
 #include "qmp-commands.h"
+#include "qapi/qmp/qerror.h"
 
-bool colo_supported(void)
+static QEMUBH *failover_bh;
+
+static void colo_failover_bh(void *opaque)
 {
-    return false;
+    qemu_bh_delete(failover_bh);
+    failover_bh = NULL;
+    /* TODO: Do failover work */
 }
 
-bool migration_in_colo_state(void)
+void failover_request_active(Error **errp)
 {
-    return false;
-}
-
-bool migration_incoming_in_colo_state(void)
-{
-    return false;
-}
-
-void migrate_start_colo_process(MigrationState *s)
-{
-}
-
-void *colo_process_incoming_thread(void *opaque)
-{
-    return NULL;
+    failover_bh = qemu_bh_new(colo_failover_bh, NULL);
+    qemu_bh_schedule(failover_bh);
 }
 
 void qmp_x_colo_lost_heartbeat(Error **errp)
 {
-    error_setg(errp, "COLO is not supported, please rerun configure"
-                     " with --enable-colo option in order to support"
-                     " COLO feature");
+    if (get_colo_mode() == COLO_MODE_UNKNOWN) {
+        error_setg(errp, QERR_FEATURE_DISABLED, "colo");
+        return;
+    }
+
+    failover_request_active(errp);
 }

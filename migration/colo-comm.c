@@ -21,6 +21,17 @@ typedef struct {
 
 static COLOInfo colo_info;
 
+COLOMode get_colo_mode(void)
+{
+    if (migration_in_colo_state()) {
+        return COLO_MODE_PRIMARY;
+    } else if (migration_incoming_in_colo_state()) {
+        return COLO_MODE_SECONDARY;
+    } else {
+        return COLO_MODE_UNKNOWN;
+    }
+}
+
 static void colo_info_pre_save(void *opaque)
 {
     COLOInfo *s = opaque;
