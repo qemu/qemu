@@ -446,7 +446,6 @@ static void coroutine_fn backup_run(void *opaque)
     BackupBlockJob *job = opaque;
     BackupCompleteData *data;
     BlockDriverState *bs = blk_bs(job->common.blk);
-    BlockBackend *target = job->target;
     int64_t start, end;
     int64_t sectors_per_cluster = cluster_size_sectors(job);
     int ret = 0;
@@ -532,8 +531,6 @@ static void coroutine_fn backup_run(void *opaque)
     qemu_co_rwlock_wrlock(&job->flush_rwlock);
     qemu_co_rwlock_unlock(&job->flush_rwlock);
     g_free(job->done_bitmap);
-
-    bdrv_op_unblock_all(blk_bs(target), job->common.blocker);
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
@@ -648,7 +645,7 @@ void backup_start(const char *job_id, BlockDriverState *bs,
         job->cluster_size = MAX(BACKUP_CLUSTER_SIZE_DEFAULT, bdi.cluster_size);
     }
 
-    bdrv_op_block_all(target, job->common.blocker);
+    block_job_add_bdrv(&job->common, target);
     job->common.len = len;
     job->common.co = qemu_coroutine_create(backup_run, job);
     block_job_txn_add_job(txn, &job->common);
