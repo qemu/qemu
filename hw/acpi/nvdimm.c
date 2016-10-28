@@ -780,7 +780,7 @@ static void nvdimm_build_common_dsm(Aml *dev)
 {
     Aml *method, *ifctx, *function, *handle, *uuid, *dsm_mem, *result_size;
     Aml *elsectx, *unsupport, *unpatched, *expected_uuid, *uuid_invalid;
-    Aml *pckg, *pckg_index, *pckg_buf, *field;
+    Aml *pckg, *pckg_index, *pckg_buf, *field, *dsm_out_buf;
     uint8_t byte_list[1];
 
     method = aml_method(NVDIMM_COMMON_DSM, 5, AML_SERIALIZED);
@@ -788,6 +788,7 @@ static void nvdimm_build_common_dsm(Aml *dev)
     function = aml_arg(2);
     handle = aml_arg(4);
     dsm_mem = aml_local(6);
+    dsm_out_buf = aml_local(7);
 
     aml_append(method, aml_store(aml_name(NVDIMM_ACPI_MEM_ADDR), dsm_mem));
 
@@ -928,8 +929,8 @@ static void nvdimm_build_common_dsm(Aml *dev)
     aml_append(method, aml_create_field(aml_name("ODAT"), aml_int(0),
                                         result_size, "OBUF"));
     aml_append(method, aml_concatenate(aml_buffer(0, NULL), aml_name("OBUF"),
-                                       aml_arg(6)));
-    aml_append(method, aml_return(aml_arg(6)));
+                                       dsm_out_buf));
+    aml_append(method, aml_return(dsm_out_buf));
     aml_append(dev, method);
 }
 
