@@ -1428,8 +1428,10 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
             backing_hd->drv ? backing_hd->drv->format_name : "");
 
     bdrv_op_block_all(backing_hd, bs->backing_blocker);
-    /* Otherwise we won't be able to commit due to check in bdrv_commit */
+    /* Otherwise we won't be able to commit or stream */
     bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET,
+                    bs->backing_blocker);
+    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_STREAM,
                     bs->backing_blocker);
     /*
      * We do backup in 3 ways:
