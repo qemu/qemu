@@ -166,12 +166,17 @@ bool m68k_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
-static void raise_exception(CPUM68KState *env, int tt)
+static void raise_exception_ra(CPUM68KState *env, int tt, uintptr_t raddr)
 {
     CPUState *cs = CPU(m68k_env_get_cpu(env));
 
     cs->exception_index = tt;
-    cpu_loop_exit(cs);
+    cpu_loop_exit_restore(cs, raddr);
+}
+
+static void raise_exception(CPUM68KState *env, int tt)
+{
+    raise_exception_ra(env, tt, 0);
 }
 
 void HELPER(raise_exception)(CPUM68KState *env, uint32_t tt)
@@ -179,51 +184,179 @@ void HELPER(raise_exception)(CPUM68KState *env, uint32_t tt)
     raise_exception(env, tt);
 }
 
-void HELPER(divu)(CPUM68KState *env, uint32_t word)
+void HELPER(divuw)(CPUM68KState *env, int destr, uint32_t den)
 {
-    uint32_t num;
-    uint32_t den;
-    uint32_t quot;
-    uint32_t rem;
+    uint32_t num = env->dregs[destr];
+    uint32_t quot, rem;
 
-    num = env->div1;
-    den = env->div2;
-    /* ??? This needs to make sure the throwing location is accurate.  */
     if (den == 0) {
-        raise_exception(env, EXCP_DIV0);
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
     }
     quot = num / den;
     rem = num % den;
 
-    env->cc_v = (word && quot > 0xffff ? -1 : 0);
-    env->cc_z = quot;
-    env->cc_n = quot;
-    env->cc_c = 0;
-
-    env->div1 = quot;
-    env->div2 = rem;
+    env->cc_c = 0; /* always cleared, even if overflow */
+    if (quot > 0xffff) {
+        env->cc_v = -1;
+        /* real 68040 keeps N and unset Z on overflow,
+         * whereas documentation says "undefined"
+         */
+        env->cc_z = 1;
+        return;
+    }
+    env->dregs[destr] = deposit32(quot, 16, 16, rem);
+    env->cc_z = (int16_t)quot;
+    env->cc_n = (int16_t)quot;
+    env->cc_v = 0;
 }
 
-void HELPER(divs)(CPUM68KState *env, uint32_t word)
+void HELPER(divsw)(CPUM68KState *env, int destr, int32_t den)
 {
-    int32_t num;
-    int32_t den;
-    int32_t quot;
-    int32_t rem;
+    int32_t num = env->dregs[destr];
+    uint32_t quot, rem;
 
-    num = env->div1;
-    den = env->div2;
     if (den == 0) {
-        raise_exception(env, EXCP_DIV0);
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
     }
     quot = num / den;
     rem = num % den;
 
-    env->cc_v = (word && quot != (int16_t)quot ? -1 : 0);
+    env->cc_c = 0; /* always cleared, even if overflow */
+    if (quot != (int16_t)quot) {
+        env->cc_v = -1;
+        /* nothing else is modified */
+        /* real 68040 keeps N and unset Z on overflow,
+         * whereas documentation says "undefined"
+         */
+        env->cc_z = 1;
+        return;
+    }
+    env->dregs[destr] = deposit32(quot, 16, 16, rem);
+    env->cc_z = (int16_t)quot;
+    env->cc_n = (int16_t)quot;
+    env->cc_v = 0;
+}
+
+void HELPER(divul)(CPUM68KState *env, int numr, int regr, uint32_t den)
+{
+    uint32_t num = env->dregs[numr];
+    uint32_t quot, rem;
+
+    if (den == 0) {
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
+    }
+    quot = num / den;
+    rem = num % den;
+
+    env->cc_c = 0;
     env->cc_z = quot;
     env->cc_n = quot;
-    env->cc_c = 0;
+    env->cc_v = 0;
 
-    env->div1 = quot;
-    env->div2 = rem;
+    if (m68k_feature(env, M68K_FEATURE_CF_ISA_A)) {
+        if (numr == regr) {
+            env->dregs[numr] = quot;
+        } else {
+            env->dregs[regr] = rem;
+        }
+    } else {
+        env->dregs[regr] = rem;
+        env->dregs[numr] = quot;
+    }
+}
+
+void HELPER(divsl)(CPUM68KState *env, int numr, int regr, int32_t den)
+{
+    int32_t num = env->dregs[numr];
+    int32_t quot, rem;
+
+    if (den == 0) {
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
+    }
+    quot = num / den;
+    rem = num % den;
+
+    env->cc_c = 0;
+    env->cc_z = quot;
+    env->cc_n = quot;
+    env->cc_v = 0;
+
+    if (m68k_feature(env, M68K_FEATURE_CF_ISA_A)) {
+        if (numr == regr) {
+            env->dregs[numr] = quot;
+        } else {
+            env->dregs[regr] = rem;
+        }
+    } else {
+        env->dregs[regr] = rem;
+        env->dregs[numr] = quot;
+    }
+}
+
+void HELPER(divull)(CPUM68KState *env, int numr, int regr, uint32_t den)
+{
+    uint64_t num = deposit64(env->dregs[numr], 32, 32, env->dregs[regr]);
+    uint64_t quot;
+    uint32_t rem;
+
+    if (den == 0) {
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
+    }
+    quot = num / den;
+    rem = num % den;
+
+    env->cc_c = 0; /* always cleared, even if overflow */
+    if (quot > 0xffffffffULL) {
+        env->cc_v = -1;
+        /* real 68040 keeps N and unset Z on overflow,
+         * whereas documentation says "undefined"
+         */
+        env->cc_z = 1;
+        return;
+    }
+    env->cc_z = quot;
+    env->cc_n = quot;
+    env->cc_v = 0;
+
+    /*
+     * If Dq and Dr are the same, the quotient is returned.
+     * therefore we set Dq last.
+     */
+
+    env->dregs[regr] = rem;
+    env->dregs[numr] = quot;
+}
+
+void HELPER(divsll)(CPUM68KState *env, int numr, int regr, int32_t den)
+{
+    int64_t num = deposit64(env->dregs[numr], 32, 32, env->dregs[regr]);
+    int64_t quot;
+    int32_t rem;
+
+    if (den == 0) {
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
+    }
+    quot = num / den;
+    rem = num % den;
+
+    env->cc_c = 0; /* always cleared, even if overflow */
+    if (quot != (int32_t)quot) {
+        env->cc_v = -1;
+        /* real 68040 keeps N and unset Z on overflow,
+         * whereas documentation says "undefined"
+         */
+        env->cc_z = 1;
+        return;
+    }
+    env->cc_z = quot;
+    env->cc_n = quot;
+    env->cc_v = 0;
+
+    /*
+     * If Dq and Dr are the same, the quotient is returned.
+     * therefore we set Dq last.
+     */
+
+    env->dregs[regr] = rem;
+    env->dregs[numr] = quot;
 }
