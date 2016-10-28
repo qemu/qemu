@@ -2267,7 +2267,9 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_LCD));
 
     s->cm_base = 0x41300000;
-    s->cm_regs[CCCR >> 2] = 0x02000210;	/* 416.0 MHz */
+    s->cm_regs[CCCR >> 2] = 0x00000121;         /* from datasheet */
+    s->cm_regs[CKEN >> 2] = 0x00017def;         /* from datasheet */
+
     s->clkcfg = 0x00000009;		/* Turbo mode active */
     memory_region_init_io(&s->cm_iomem, NULL, &pxa2xx_cm_ops, s, "pxa2xx-cm", 0x1000);
     memory_region_add_subregion(address_space, s->cm_base, &s->cm_iomem);
