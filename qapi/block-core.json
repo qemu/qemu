@@ -1703,15 +1703,16 @@
 #
 # @host_device, @host_cdrom: Since 2.1
 # @gluster: Since 2.7
+# @nbd: Since 2.8
 #
 # Since: 2.0
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
-            'host_device', 'http', 'https', 'luks', 'null-aio', 'null-co',
-            'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
-	    'replication', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
+            'host_device', 'http', 'https', 'luks', 'nbd', 'null-aio',
+            'null-co', 'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
+            'replication', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile
@@ -2220,6 +2221,24 @@
   'data': { 'filename': 'str' } }
 
 ##
+# @BlockdevOptionsNbd
+#
+# Driver specific block device options for NBD.
+#
+# @server:      NBD server address
+#
+# @export:      #optional export name
+#
+# @tls-creds:   #optional TLS credentials ID
+#
+# Since: 2.8
+##
+{ 'struct': 'BlockdevOptionsNbd',
+  'data': { 'server': 'SocketAddress',
+            '*export': 'str',
+            '*tls-creds': 'str' } }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.  Many options are available for all
@@ -2264,7 +2283,7 @@
       'https':      'BlockdevOptionsCurl',
 # TODO iscsi: Wait for structured options
       'luks':       'BlockdevOptionsLUKS',
-# TODO nbd: Should take InetSocketAddress for 'host'?
+      'nbd':        'BlockdevOptionsNbd',
 # TODO nfs: Wait for structured options
       'null-aio':   'BlockdevOptionsNull',
       'null-co':    'BlockdevOptionsNull',

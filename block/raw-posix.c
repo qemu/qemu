@@ -2069,13 +2069,23 @@ static bool hdev_is_sg(BlockDriverState *bs)
 
 #if defined(__linux__)
 
+    BDRVRawState *s = bs->opaque;
     struct stat st;
     struct sg_scsi_id scsiid;
     int sg_version;
+    int ret;
 
-    if (stat(bs->filename, &st) >= 0 && S_ISCHR(st.st_mode) &&
-        !bdrv_ioctl(bs, SG_GET_VERSION_NUM, &sg_version) &&
-        !bdrv_ioctl(bs, SG_GET_SCSI_ID, &scsiid)) {
+    if (stat(bs->filename, &st) < 0 || !S_ISCHR(st.st_mode)) {
+        return false;
+    }
+
+    ret = ioctl(s->fd, SG_GET_VERSION_NUM, &sg_version);
+    if (ret < 0) {
+        return false;
+    }
+
+    ret = ioctl(s->fd, SG_GET_SCSI_ID, &scsiid);
+    if (ret >= 0) {
         DPRINTF("SG device found: type=%d, version=%d\n",
             scsiid.scsi_type, sg_version);
         return true;

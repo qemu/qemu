@@ -176,12 +176,9 @@ static void raw_lock_medium(BlockDriverState *bs, bool locked)
     bdrv_lock_medium(bs->file->bs, locked);
 }
 
-static BlockAIOCB *raw_aio_ioctl(BlockDriverState *bs,
-                                 unsigned long int req, void *buf,
-                                 BlockCompletionFunc *cb,
-                                 void *opaque)
+static int raw_co_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 {
-    return bdrv_aio_ioctl(bs->file->bs, req, buf, cb, opaque);
+    return bdrv_co_ioctl(bs->file->bs, req, buf);
 }
 
 static int raw_has_zero_init(BlockDriverState *bs)
@@ -261,7 +258,7 @@ BlockDriver bdrv_raw = {
     .bdrv_media_changed   = &raw_media_changed,
     .bdrv_eject           = &raw_eject,
     .bdrv_lock_medium     = &raw_lock_medium,
-    .bdrv_aio_ioctl       = &raw_aio_ioctl,
+    .bdrv_co_ioctl        = &raw_co_ioctl,
     .create_opts          = &raw_create_opts,
     .bdrv_has_zero_init   = &raw_has_zero_init
 };

@@ -222,7 +222,7 @@ Testing: -drive driver=file
 QEMU_PROG: -drive driver=file: The 'file' block driver requires a file name
 
 Testing: -drive driver=nbd
-QEMU_PROG: -drive driver=nbd: one of path and host must be specified.
+QEMU_PROG: -drive driver=nbd: NBD server address missing
 
 Testing: -drive driver=raw
 QEMU_PROG: -drive driver=raw: Can't use 'raw' as a block driver for the protocol level
@@ -231,7 +231,7 @@ Testing: -drive file.driver=file
 QEMU_PROG: -drive file.driver=file: The 'file' block driver requires a file name
 
 Testing: -drive file.driver=nbd
-QEMU_PROG: -drive file.driver=nbd: one of path and host must be specified.
+QEMU_PROG: -drive file.driver=nbd: NBD server address missing
 
 Testing: -drive file.driver=raw
 QEMU_PROG: -drive file.driver=raw: Can't use 'raw' as a block driver for the protocol level

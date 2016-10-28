@@ -60,7 +60,7 @@ static int send_fd(int fd, int fd_to_send)
 }
 
 /* Convert string to fd number. */
-static int get_fd_num(const char *fd_str)
+static int get_fd_num(const char *fd_str, bool silent)
 {
     int sock;
     char *err;
@@ -68,12 +68,16 @@ static int get_fd_num(const char *fd_str)
     errno = 0;
     sock = strtol(fd_str, &err, 10);
     if (errno) {
-        fprintf(stderr, "Failed in strtol for socket fd, reason: %s\n",
-                strerror(errno));
+        if (!silent) {
+            fprintf(stderr, "Failed in strtol for socket fd, reason: %s\n",
+                    strerror(errno));
+        }
         return -1;
     }
     if (!*fd_str || *err || sock < 0) {
-        fprintf(stderr, "bad numerical value for socket fd '%s'\n", fd_str);
+        if (!silent) {
+            fprintf(stderr, "bad numerical value for socket fd '%s'\n", fd_str);
+        }
         return -1;
     }
 
@@ -104,18 +108,21 @@ int main(int argc, char **argv, char **envp)
     }
 
 
-    sock = get_fd_num(argv[1]);
+    sock = get_fd_num(argv[1], false);
     if (sock < 0) {
         return EXIT_FAILURE;
     }
 
-    /* Now only open a file in readonly mode for test purpose. If more precise
-       control is needed, use python script in file operation, which is
-       supposed to fork and exec this program. */
-    fd = open(argv[2], O_RDONLY);
+    fd = get_fd_num(argv[2], true);
     if (fd < 0) {
-        fprintf(stderr, "Failed to open file '%s'\n", argv[2]);
-        return EXIT_FAILURE;
+        /* Now only open a file in readonly mode for test purpose. If more
+           precise control is needed, use python script in file operation, which
+           is supposed to fork and exec this program. */
+        fd = open(argv[2], O_RDONLY);
+        if (fd < 0) {
+            fprintf(stderr, "Failed to open file '%s'\n", argv[2]);
+            return EXIT_FAILURE;
+        }
     }
 
     ret = send_fd(sock, fd);

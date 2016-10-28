@@ -314,17 +314,11 @@ BlockAIOCB *bdrv_aio_writev(BdrvChild *child, int64_t sector_num,
                             BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
                            BlockCompletionFunc *cb, void *opaque);
-BlockAIOCB *bdrv_aio_pdiscard(BlockDriverState *bs,
-                              int64_t offset, int count,
-                              BlockCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockAIOCB *acb);
 void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
 /* sg packet commands */
-int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);
-BlockAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
-        unsigned long int req, void *buf,
-        BlockCompletionFunc *cb, void *opaque);
+int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf);
 
 /* Invalidate any cached metadata used by image formats */
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp);

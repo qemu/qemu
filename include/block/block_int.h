@@ -244,6 +244,8 @@ struct BlockDriver {
     BlockAIOCB *(*bdrv_aio_ioctl)(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockCompletionFunc *cb, void *opaque);
+    int coroutine_fn (*bdrv_co_ioctl)(BlockDriverState *bs,
+                                      unsigned long int req, void *buf);
 
     /* List of options for creating images, terminated by name == NULL */
     QemuOptsList *create_opts;

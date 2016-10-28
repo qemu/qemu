@@ -1099,26 +1099,36 @@ BlockAIOCB *blk_aio_pwritev(BlockBackend *blk, int64_t offset,
                         blk_aio_write_entry, flags, cb, opaque);
 }
 
+static void blk_aio_flush_entry(void *opaque)
+{
+    BlkAioEmAIOCB *acb = opaque;
+    BlkRwCo *rwco = &acb->rwco;
+
+    rwco->ret = blk_co_flush(rwco->blk);
+    blk_aio_complete(acb);
+}
+
 BlockAIOCB *blk_aio_flush(BlockBackend *blk,
                           BlockCompletionFunc *cb, void *opaque)
 {
-    if (!blk_is_available(blk)) {
-        return blk_abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
-    }
+    return blk_aio_prwv(blk, 0, 0, NULL, blk_aio_flush_entry, 0, cb, opaque);
+}
 
-    return bdrv_aio_flush(blk_bs(blk), cb, opaque);
+static void blk_aio_pdiscard_entry(void *opaque)
+{
+    BlkAioEmAIOCB *acb = opaque;
+    BlkRwCo *rwco = &acb->rwco;
+
+    rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, acb->bytes);
+    blk_aio_complete(acb);
 }
 
 BlockAIOCB *blk_aio_pdiscard(BlockBackend *blk,
                              int64_t offset, int count,
                              BlockCompletionFunc *cb, void *opaque)
 {
-    int ret = blk_check_byte_request(blk, offset, count);
-    if (ret < 0) {
-        return blk_abort_aio_request(blk, cb, opaque, ret);
-    }
-
-    return bdrv_aio_pdiscard(blk_bs(blk), offset, count, cb, opaque);
+    return blk_aio_prwv(blk, offset, count, NULL, blk_aio_pdiscard_entry, 0,
+                        cb, opaque);
 }
 
 void blk_aio_cancel(BlockAIOCB *acb)
@@ -1131,23 +1141,50 @@ void blk_aio_cancel_async(BlockAIOCB *acb)
     bdrv_aio_cancel_async(acb);
 }
 
-int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
+int blk_co_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
 {
     if (!blk_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
-    return bdrv_ioctl(blk_bs(blk), req, buf);
+    return bdrv_co_ioctl(blk_bs(blk), req, buf);
+}
+
+static void blk_ioctl_entry(void *opaque)
+{
+    BlkRwCo *rwco = opaque;
+    rwco->ret = blk_co_ioctl(rwco->blk, rwco->offset,
+                             rwco->qiov->iov[0].iov_base);
+}
+
+int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
+{
+    return blk_prw(blk, req, buf, 0, blk_ioctl_entry, 0);
+}
+
+static void blk_aio_ioctl_entry(void *opaque)
+{
+    BlkAioEmAIOCB *acb = opaque;
+    BlkRwCo *rwco = &acb->rwco;
+
+    rwco->ret = blk_co_ioctl(rwco->blk, rwco->offset,
+                             rwco->qiov->iov[0].iov_base);
+    blk_aio_complete(acb);
 }
 
 BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
                           BlockCompletionFunc *cb, void *opaque)
 {
-    if (!blk_is_available(blk)) {
-        return blk_abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
-    }
+    QEMUIOVector qiov;
+    struct iovec iov;
 
-    return bdrv_aio_ioctl(blk_bs(blk), req, buf, cb, opaque);
+    iov = (struct iovec) {
+        .iov_base = buf,
+        .iov_len = 0,
+    };
+    qemu_iovec_init_external(&qiov, &iov, 1);
+
+    return blk_aio_prwv(blk, req, 0, &qiov, blk_aio_ioctl_entry, 0, cb, opaque);
 }
 
 int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int count)
@@ -1169,13 +1206,15 @@ int blk_co_flush(BlockBackend *blk)
     return bdrv_co_flush(blk_bs(blk));
 }
 
+static void blk_flush_entry(void *opaque)
+{
+    BlkRwCo *rwco = opaque;
+    rwco->ret = blk_co_flush(rwco->blk);
+}
+
 int blk_flush(BlockBackend *blk)
 {
-    if (!blk_is_available(blk)) {
-        return -ENOMEDIUM;
-    }
-
-    return bdrv_flush(blk_bs(blk));
+    return blk_prw(blk, 0, NULL, 0, blk_flush_entry, 0);
 }
 
 void blk_drain(BlockBackend *blk)
@@ -1555,14 +1594,15 @@ int blk_truncate(BlockBackend *blk, int64_t offset)
     return bdrv_truncate(blk_bs(blk), offset);
 }
 
+static void blk_pdiscard_entry(void *opaque)
+{
+    BlkRwCo *rwco = opaque;
+    rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, rwco->qiov->size);
+}
+
 int blk_pdiscard(BlockBackend *blk, int64_t offset, int count)
 {
-    int ret = blk_check_byte_request(blk, offset, count);
-    if (ret < 0) {
-        return ret;
-    }
-
-    return bdrv_pdiscard(blk_bs(blk), offset, count);
+    return blk_prw(blk, offset, NULL, count, blk_pdiscard_entry, 0);
 }
 
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,

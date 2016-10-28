@@ -2196,35 +2196,6 @@ BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
     return &acb->common;
 }
 
-static void coroutine_fn bdrv_aio_pdiscard_co_entry(void *opaque)
-{
-    BlockAIOCBCoroutine *acb = opaque;
-    BlockDriverState *bs = acb->common.bs;
-
-    acb->req.error = bdrv_co_pdiscard(bs, acb->req.offset, acb->req.bytes);
-    bdrv_co_complete(acb);
-}
-
-BlockAIOCB *bdrv_aio_pdiscard(BlockDriverState *bs, int64_t offset, int count,
-                              BlockCompletionFunc *cb, void *opaque)
-{
-    Coroutine *co;
-    BlockAIOCBCoroutine *acb;
-
-    trace_bdrv_aio_pdiscard(bs, offset, count, opaque);
-
-    acb = qemu_aio_get(&bdrv_em_co_aiocb_info, bs, cb, opaque);
-    acb->need_bh = true;
-    acb->req.error = -EINPROGRESS;
-    acb->req.offset = offset;
-    acb->req.bytes = count;
-    co = qemu_coroutine_create(bdrv_aio_pdiscard_co_entry, acb);
-    qemu_coroutine_enter(co);
-
-    bdrv_co_maybe_schedule_bh(acb);
-    return &acb->common;
-}
-
 void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
                    BlockCompletionFunc *cb, void *opaque)
 {
@@ -2521,7 +2492,7 @@ int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int count)
     return rwco.ret;
 }
 
-static int bdrv_co_do_ioctl(BlockDriverState *bs, int req, void *buf)
+int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf)
 {
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest tracked_req;
@@ -2531,84 +2502,24 @@ static int bdrv_co_do_ioctl(BlockDriverState *bs, int req, void *buf)
     BlockAIOCB *acb;
 
     tracked_request_begin(&tracked_req, bs, 0, 0, BDRV_TRACKED_IOCTL);
-    if (!drv || !drv->bdrv_aio_ioctl) {
+    if (!drv || (!drv->bdrv_aio_ioctl && !drv->bdrv_co_ioctl)) {
         co.ret = -ENOTSUP;
         goto out;
     }
 
-    acb = drv->bdrv_aio_ioctl(bs, req, buf, bdrv_co_io_em_complete, &co);
-    if (!acb) {
-        co.ret = -ENOTSUP;
-        goto out;
+    if (drv->bdrv_co_ioctl) {
+        co.ret = drv->bdrv_co_ioctl(bs, req, buf);
+    } else {
+        acb = drv->bdrv_aio_ioctl(bs, req, buf, bdrv_co_io_em_complete, &co);
+        if (!acb) {
+            co.ret = -ENOTSUP;
+            goto out;
+        }
+        qemu_coroutine_yield();
     }
-    qemu_coroutine_yield();
 out:
     tracked_request_end(&tracked_req);
     return co.ret;
-}
-
-typedef struct {
-    BlockDriverState *bs;
-    int req;
-    void *buf;
-    int ret;
-} BdrvIoctlCoData;
-
-static void coroutine_fn bdrv_co_ioctl_entry(void *opaque)
-{
-    BdrvIoctlCoData *data = opaque;
-    data->ret = bdrv_co_do_ioctl(data->bs, data->req, data->buf);
-}
-
-/* needed for generic scsi interface */
-int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
-{
-    BdrvIoctlCoData data = {
-        .bs = bs,
-        .req = req,
-        .buf = buf,
-        .ret = -EINPROGRESS,
-    };
-
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_co_ioctl_entry(&data);
-    } else {
-        Coroutine *co = qemu_coroutine_create(bdrv_co_ioctl_entry, &data);
-
-        qemu_coroutine_enter(co);
-        while (data.ret == -EINPROGRESS) {
-            aio_poll(bdrv_get_aio_context(bs), true);
-        }
-    }
-    return data.ret;
-}
-
-static void coroutine_fn bdrv_co_aio_ioctl_entry(void *opaque)
-{
-    BlockAIOCBCoroutine *acb = opaque;
-    acb->req.error = bdrv_co_do_ioctl(acb->common.bs,
-                                      acb->req.req, acb->req.buf);
-    bdrv_co_complete(acb);
-}
-
-BlockAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
-        unsigned long int req, void *buf,
-        BlockCompletionFunc *cb, void *opaque)
-{
-    BlockAIOCBCoroutine *acb = qemu_aio_get(&bdrv_em_co_aiocb_info,
-                                            bs, cb, opaque);
-    Coroutine *co;
-
-    acb->need_bh = true;
-    acb->req.error = -EINPROGRESS;
-    acb->req.req = req;
-    acb->req.buf = buf;
-    co = qemu_coroutine_create(bdrv_co_aio_ioctl_entry, acb);
-    qemu_coroutine_enter(co);
-
-    bdrv_co_maybe_schedule_bh(acb);
-    return &acb->common;
 }
 
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
