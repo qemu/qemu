@@ -1464,6 +1464,13 @@
 # with query-block-jobs.  The operation can be stopped before it has completed
 # using the block-job-cancel command.
 #
+# The node that receives the data is called the top image, can be located in
+# any part of the chain (but always above the base image; see below) and can be
+# specified using its device or node name. Earlier qemu versions only allowed
+# 'device' to name the top level node; presence of the 'base-node' parameter
+# during introspection can be used as a witness of the enhanced semantics
+# of 'device'.
+#
 # If a base file is specified then sectors are not copied from that base file and
 # its backing chain.  When streaming completes the image file will have the base
 # file as its backing file.  This can be used to stream a subset of the backing
@@ -1475,12 +1482,12 @@
 # @job-id: #optional identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
-# @device: the device name or node-name of a root node
+# @device: the device or node name of the top image
 #
 # @base:   #optional the common backing file name
 #
-# @backing-file: #optional The backing file string to write into the active
-#                          layer. This filename is not validated.
+# @backing-file: #optional The backing file string to write into the top
+#                          image. This filename is not validated.
 #
 #                          If a pathname string is such that it cannot be
 #                          resolved by QEMU, that means that subsequent QMP or

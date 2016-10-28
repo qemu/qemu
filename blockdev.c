@@ -2937,7 +2937,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_on_error, BlockdevOnError on_error,
                       Error **errp)
 {
-    BlockDriverState *bs;
+    BlockDriverState *bs, *iter;
     BlockDriverState *base_bs = NULL;
     AioContext *aio_context;
     Error *local_err = NULL;
@@ -2947,17 +2947,13 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         on_error = BLOCKDEV_ON_ERROR_REPORT;
     }
 
-    bs = qmp_get_root_bs(device, errp);
+    bs = bdrv_lookup_bs(device, device, errp);
     if (!bs) {
         return;
     }
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_STREAM, errp)) {
-        goto out;
-    }
 
     if (has_base) {
         base_bs = bdrv_find_backing_image(bs, base);
@@ -2967,6 +2963,13 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
         base_name = base;
+    }
+
+    /* Check for op blockers in the whole chain between bs and base */
+    for (iter = bs; iter && iter != base_bs; iter = backing_bs(iter)) {
+        if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_STREAM, errp)) {
+            goto out;
+        }
     }
 
     /* if we are streaming the entire chain, the result will have no backing
