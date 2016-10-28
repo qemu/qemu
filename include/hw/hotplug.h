@@ -47,6 +47,7 @@ typedef void (*hotplug_fn)(HotplugHandler *plug_handler,
  * @parent: Opaque parent interface.
  * @pre_plug: pre plug callback called at start of device.realize(true)
  * @plug: plug callback called at end of device.realize(true).
+ * @post_pug: post plug callback called after device is successfully plugged.
  * @unplug_request: unplug request callback.
  *                  Used as a means to initiate device unplug for devices that
  *                  require asynchronous unplug handling.
@@ -61,6 +62,7 @@ typedef struct HotplugHandlerClass {
     /* <public> */
     hotplug_fn pre_plug;
     hotplug_fn plug;
+    hotplug_fn post_plug;
     hotplug_fn unplug_request;
     hotplug_fn unplug;
 } HotplugHandlerClass;
@@ -83,6 +85,14 @@ void hotplug_handler_pre_plug(HotplugHandler *plug_handler,
                               DeviceState *plugged_dev,
                               Error **errp);
 
+/**
+ * hotplug_handler_post_plug:
+ *
+ * Call #HotplugHandlerClass.post_plug callback of @plug_handler.
+ */
+void hotplug_handler_post_plug(HotplugHandler *plug_handler,
+                               DeviceState *plugged_dev,
+                               Error **errp);
 
 /**
  * hotplug_handler_unplug_request:

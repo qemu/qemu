@@ -348,8 +348,9 @@ static void nvdimm_build_structure_dcr(GArray *structures, DeviceState *dev)
                                          (DSM) in DSM Spec Rev1.*/);
 }
 
-static GArray *nvdimm_build_device_structure(GSList *device_list)
+static GArray *nvdimm_build_device_structure(void)
 {
+    GSList *device_list = nvdimm_get_plugged_device_list();
     GArray *structures = g_array_new(false, true /* clear */, 1);
 
     for (; device_list; device_list = device_list->next) {
@@ -367,15 +368,43 @@ static GArray *nvdimm_build_device_structure(GSList *device_list)
         /* build NVDIMM Control Region Structure. */
         nvdimm_build_structure_dcr(structures, dev);
     }
+    g_slist_free(device_list);
 
     return structures;
 }
 
-static void nvdimm_build_nfit(GSList *device_list, GArray *table_offsets,
+static void nvdimm_init_fit_buffer(NvdimmFitBuffer *fit_buf)
+{
+    qemu_mutex_init(&fit_buf->lock);
+    fit_buf->fit = g_array_new(false, true /* clear */, 1);
+}
+
+static void nvdimm_build_fit_buffer(NvdimmFitBuffer *fit_buf)
+{
+    qemu_mutex_lock(&fit_buf->lock);
+    g_array_free(fit_buf->fit, true);
+    fit_buf->fit = nvdimm_build_device_structure();
+    fit_buf->dirty = true;
+    qemu_mutex_unlock(&fit_buf->lock);
+}
+
+void nvdimm_acpi_hotplug(AcpiNVDIMMState *state)
+{
+    nvdimm_build_fit_buffer(&state->fit_buf);
+}
+
+static void nvdimm_build_nfit(AcpiNVDIMMState *state, GArray *table_offsets,
                               GArray *table_data, BIOSLinker *linker)
 {
-    GArray *structures = nvdimm_build_device_structure(device_list);
+    NvdimmFitBuffer *fit_buf = &state->fit_buf;
     unsigned int header;
+
+    qemu_mutex_lock(&fit_buf->lock);
+
+    /* NVDIMM device is not plugged? */
+    if (!fit_buf->fit->len) {
+        goto exit;
+    }
 
     acpi_add_table(table_offsets, table_data);
 
@@ -383,12 +412,14 @@ static void nvdimm_build_nfit(GSList *device_list, GArray *table_offsets,
     header = table_data->len;
     acpi_data_push(table_data, sizeof(NvdimmNfitHeader));
     /* NVDIMM device structures. */
-    g_array_append_vals(table_data, structures->data, structures->len);
+    g_array_append_vals(table_data, fit_buf->fit->data, fit_buf->fit->len);
 
     build_header(linker, table_data,
                  (void *)(table_data->data + header), "NFIT",
-                 sizeof(NvdimmNfitHeader) + structures->len, 1, NULL, NULL);
-    g_array_free(structures, true);
+                 sizeof(NvdimmNfitHeader) + fit_buf->fit->len, 1, NULL, NULL);
+
+exit:
+    qemu_mutex_unlock(&fit_buf->lock);
 }
 
 struct NvdimmDsmIn {
@@ -771,6 +802,8 @@ void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
     acpi_data_push(state->dsm_mem, sizeof(NvdimmDsmIn));
     fw_cfg_add_file(fw_cfg, NVDIMM_DSM_MEM_FILE, state->dsm_mem->data,
                     state->dsm_mem->len);
+
+    nvdimm_init_fit_buffer(&state->fit_buf);
 }
 
 #define NVDIMM_COMMON_DSM       "NCAL"
@@ -1045,25 +1078,17 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
 }
 
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
-                       BIOSLinker *linker, GArray *dsm_dma_arrea,
+                       BIOSLinker *linker, AcpiNVDIMMState *state,
                        uint32_t ram_slots)
 {
-    GSList *device_list;
-
-    device_list = nvdimm_get_plugged_device_list();
-
-    /* NVDIMM device is plugged. */
-    if (device_list) {
-        nvdimm_build_nfit(device_list, table_offsets, table_data, linker);
-        g_slist_free(device_list);
-    }
+    nvdimm_build_nfit(state, table_offsets, table_data, linker);
 
     /*
      * NVDIMM device is allowed to be plugged only if there is available
      * slot.
      */
     if (ram_slots) {
-        nvdimm_build_ssdt(table_offsets, table_data, linker, dsm_dma_arrea,
+        nvdimm_build_ssdt(table_offsets, table_data, linker, state->dsm_mem,
                           ram_slots);
     }
 }
