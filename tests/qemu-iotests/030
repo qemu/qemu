@@ -36,7 +36,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 512', backing_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 524288 512', mid_img)
-        self.vm = iotests.VM().add_drive("blkdebug::" + test_img)
+        self.vm = iotests.VM().add_drive("blkdebug::" + test_img, "backing.node-name=mid")
         self.vm.launch()
 
     def tearDown(self):
@@ -58,6 +58,25 @@ class TestSingleDrive(iotests.QMPTestCase):
 
         self.assertEqual(qemu_io('-f', 'raw', '-c', 'map', backing_img),
                          qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
+                         'image file map does not match backing file after streaming')
+
+    def test_stream_intermediate(self):
+        self.assert_no_active_block_jobs()
+
+        self.assertNotEqual(qemu_io('-f', 'raw', '-c', 'map', backing_img),
+                            qemu_io('-f', iotests.imgfmt, '-c', 'map', mid_img),
+                            'image file map matches backing file before streaming')
+
+        result = self.vm.qmp('block-stream', device='mid', job_id='stream-mid')
+        self.assert_qmp(result, 'return', {})
+
+        self.wait_until_completed(drive='stream-mid')
+
+        self.assert_no_active_block_jobs()
+        self.vm.shutdown()
+
+        self.assertEqual(qemu_io('-f', 'raw', '-c', 'map', backing_img),
+                         qemu_io('-f', iotests.imgfmt, '-c', 'map', mid_img),
                          'image file map does not match backing file after streaming')
 
     def test_stream_pause(self):
