@@ -273,8 +273,14 @@ void bdrv_drain(BlockDriverState *bs)
  *
  * This function does not flush data to disk, use bdrv_flush_all() for that
  * after calling this function.
+ *
+ * This pauses all block jobs and disables external clients. It must
+ * be paired with bdrv_drain_all_end().
+ *
+ * NOTE: no new block jobs or BlockDriverStates can be created between
+ * the bdrv_drain_all_begin() and bdrv_drain_all_end() calls.
  */
-void bdrv_drain_all(void)
+void bdrv_drain_all_begin(void)
 {
     /* Always run first iteration so any pending completion BHs run */
     bool waited = true;
@@ -297,6 +303,7 @@ void bdrv_drain_all(void)
         aio_context_acquire(aio_context);
         bdrv_parent_drained_begin(bs);
         bdrv_io_unplugged_begin(bs);
+        aio_disable_external(aio_context);
         aio_context_release(aio_context);
 
         if (!g_slist_find(aio_ctxs, aio_context)) {
@@ -326,17 +333,25 @@ void bdrv_drain_all(void)
         }
     }
 
+    g_slist_free(aio_ctxs);
+}
+
+void bdrv_drain_all_end(void)
+{
+    BlockDriverState *bs;
+    BdrvNextIterator it;
+    BlockJob *job = NULL;
+
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
+        aio_enable_external(aio_context);
         bdrv_io_unplugged_end(bs);
         bdrv_parent_drained_end(bs);
         aio_context_release(aio_context);
     }
-    g_slist_free(aio_ctxs);
 
-    job = NULL;
     while ((job = block_job_next(job))) {
         AioContext *aio_context = blk_get_aio_context(job->blk);
 
@@ -344,6 +359,12 @@ void bdrv_drain_all(void)
         block_job_resume(job);
         aio_context_release(aio_context);
     }
+}
+
+void bdrv_drain_all(void)
+{
+    bdrv_drain_all_begin();
+    bdrv_drain_all_end();
 }
 
 /**
