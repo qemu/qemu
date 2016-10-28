@@ -25,6 +25,7 @@
 #include "sysemu/block-backend.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 
 #define TOSA_RAM    0x04000000
 #define TOSA_ROM	0x00800000
@@ -86,6 +87,12 @@ static void tosa_out_switch(void *opaque, int line, int level)
     }
 }
 
+static void tosa_reset(void *opaque, int line, int level)
+{
+    if (level) {
+        qemu_system_reset_request();
+    }
+}
 
 static void tosa_gpio_setup(PXA2xxState *cpu,
                 DeviceState *scp0,
@@ -93,13 +100,16 @@ static void tosa_gpio_setup(PXA2xxState *cpu,
                 TC6393xbState *tmio)
 {
     qemu_irq *outsignals = qemu_allocate_irqs(tosa_out_switch, cpu, 4);
+    qemu_irq reset;
+
     /* MMC/SD host */
     pxa2xx_mmci_handlers(cpu->mmc,
                     qdev_get_gpio_in(scp0, TOSA_GPIO_SD_WP),
                     qemu_irq_invert(qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_nSD_DETECT)));
 
     /* Handle reset */
-    qdev_connect_gpio_out(cpu->gpio, TOSA_GPIO_ON_RESET, cpu->reset);
+    reset = qemu_allocate_irq(tosa_reset, cpu, 0);
+    qdev_connect_gpio_out(cpu->gpio, TOSA_GPIO_ON_RESET, reset);
 
     /* PCMCIA signals: card's IRQ and Card-Detect */
     pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[0],
