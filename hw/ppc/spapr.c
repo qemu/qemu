@@ -206,6 +206,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
         int index = ppc_get_vcpu_dt_id(cpu);
+        int compat_smt = MIN(smp_threads, ppc_compat_max_threads(cpu));
 
         if ((index % smt) != 0) {
             continue;
@@ -240,8 +241,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
             return ret;
         }
 
-        ret = spapr_fixup_cpu_smt_dt(fdt, offset, cpu,
-                                     ppc_get_compat_smt_threads(cpu));
+        ret = spapr_fixup_cpu_smt_dt(fdt, offset, cpu, compat_smt);
         if (ret < 0) {
             return ret;
         }
@@ -407,6 +407,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     size_t page_sizes_prop_size;
     uint32_t vcpus_per_socket = smp_threads * smp_cores;
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
+    int compat_smt = MIN(smp_threads, ppc_compat_max_threads(cpu));
     sPAPRDRConnector *drc;
     sPAPRDRConnectorClass *drck;
     int drc_index;
@@ -494,8 +495,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
 
     _FDT(spapr_fixup_cpu_numa_dt(fdt, offset, cs));
 
-    _FDT(spapr_fixup_cpu_smt_dt(fdt, offset, cpu,
-                                ppc_get_compat_smt_threads(cpu)));
+    _FDT(spapr_fixup_cpu_smt_dt(fdt, offset, cpu, compat_smt));
 }
 
 static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)

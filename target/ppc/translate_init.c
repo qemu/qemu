@@ -9952,26 +9952,6 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
     }
 }
 
-int ppc_get_compat_smt_threads(PowerPCCPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-    int ret = MIN(cs->nr_threads, kvmppc_smt_threads());
-
-    switch (cpu->compat_pvr) {
-    case CPU_POWERPC_LOGICAL_2_05:
-        ret = MIN(ret, 2);
-        break;
-    case CPU_POWERPC_LOGICAL_2_06:
-        ret = MIN(ret, 4);
-        break;
-    case CPU_POWERPC_LOGICAL_2_07:
-        ret = MIN(ret, 8);
-        break;
-    }
-
-    return ret;
-}
-
 static gint ppc_cpu_compare_class_pvr(gconstpointer a, gconstpointer b)
 {
     ObjectClass *oc = (ObjectClass *)a;

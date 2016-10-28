@@ -28,6 +28,7 @@
 typedef struct {
     uint32_t pvr;
     uint64_t pcr;
+    int max_threads;
 } CompatInfo;
 
 static const CompatInfo compat_table[] = {
@@ -35,18 +36,22 @@ static const CompatInfo compat_table[] = {
         .pvr = CPU_POWERPC_LOGICAL_2_05,
         .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_COMPAT_2_05
                | PCR_TM_DIS | PCR_VSX_DIS,
+        .max_threads = 2,
     },
     { /* POWER7, ISA2.06 */
         .pvr = CPU_POWERPC_LOGICAL_2_06,
         .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
+        .max_threads = 4,
     },
     {
         .pvr = CPU_POWERPC_LOGICAL_2_06_PLUS,
         .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
+        .max_threads = 4,
     },
     { /* POWER8, ISA2.07 */
         .pvr = CPU_POWERPC_LOGICAL_2_07,
         .pcr = PCR_COMPAT_2_07,
+        .max_threads = 8,
     },
 };
 
@@ -88,4 +93,17 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
                              "Unable to set CPU compatibility mode in KVM");
         }
     }
+}
+
+int ppc_compat_max_threads(PowerPCCPU *cpu)
+{
+    const CompatInfo *compat = compat_by_pvr(cpu->compat_pvr);
+    int n_threads = CPU(cpu)->nr_threads;
+
+    if (cpu->compat_pvr) {
+        g_assert(compat);
+        n_threads = MIN(n_threads, compat->max_threads);
+    }
+
+    return n_threads;
 }
