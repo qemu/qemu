@@ -76,11 +76,17 @@ typedef struct VirtIOCryptoReq {
     } u;
 } VirtIOCryptoReq;
 
+typedef struct VirtIOCryptoQueue {
+    VirtQueue *dataq;
+    QEMUBH *dataq_bh;
+    struct VirtIOCrypto *vcrypto;
+} VirtIOCryptoQueue;
+
 typedef struct VirtIOCrypto {
     VirtIODevice parent_obj;
 
     VirtQueue *ctrl_vq;
-
+    VirtIOCryptoQueue *vqs;
     VirtIOCryptoConf conf;
     CryptoDevBackend *cryptodev;
 

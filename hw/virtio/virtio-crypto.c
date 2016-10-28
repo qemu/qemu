@@ -676,6 +676,41 @@ static void virtio_crypto_handle_dataq(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
+static void virtio_crypto_dataq_bh(void *opaque)
+{
+    VirtIOCryptoQueue *q = opaque;
+    VirtIOCrypto *vcrypto = q->vcrypto;
+    VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
+
+    /* This happens when device was stopped but BH wasn't. */
+    if (!vdev->vm_running) {
+        return;
+    }
+
+    /* Just in case the driver is not ready on more */
+    if (unlikely(!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK))) {
+        return;
+    }
+
+    virtio_crypto_handle_dataq(vdev, q->dataq);
+    virtio_queue_set_notification(q->dataq, 1);
+}
+
+static void
+virtio_crypto_handle_dataq_bh(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
+    VirtIOCryptoQueue *q =
+         &vcrypto->vqs[virtio_crypto_vq2q(virtio_get_queue_index(vq))];
+
+    /* This happens when device was stopped but VCPU wasn't. */
+    if (!vdev->vm_running) {
+        return;
+    }
+    virtio_queue_set_notification(vq, 0);
+    qemu_bh_schedule(q->dataq_bh);
+}
+
 static uint64_t virtio_crypto_get_features(VirtIODevice *vdev,
                                            uint64_t features,
                                            Error **errp)
@@ -738,9 +773,13 @@ static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
 
     virtio_init(vdev, "virtio-crypto", VIRTIO_ID_CRYPTO, vcrypto->config_size);
     vcrypto->curr_queues = 1;
-
+    vcrypto->vqs = g_malloc0(sizeof(VirtIOCryptoQueue) * vcrypto->max_queues);
     for (i = 0; i < vcrypto->max_queues; i++) {
-        virtio_add_queue(vdev, 1024, virtio_crypto_handle_dataq);
+        vcrypto->vqs[i].dataq =
+                 virtio_add_queue(vdev, 1024, virtio_crypto_handle_dataq_bh);
+        vcrypto->vqs[i].dataq_bh =
+                 qemu_bh_new(virtio_crypto_dataq_bh, &vcrypto->vqs[i]);
+        vcrypto->vqs[i].vcrypto = vcrypto;
     }
 
     vcrypto->ctrl_vq = virtio_add_queue(vdev, 64, virtio_crypto_handle_ctrl);
@@ -756,6 +795,18 @@ static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
 static void virtio_crypto_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(dev);
+    VirtIOCryptoQueue *q;
+    int i, max_queues;
+
+    max_queues = vcrypto->multiqueue ? vcrypto->max_queues : 1;
+    for (i = 0; i < max_queues; i++) {
+        virtio_del_queue(vdev, i);
+        q = &vcrypto->vqs[i];
+        qemu_bh_delete(q->dataq_bh);
+    }
+
+    g_free(vcrypto->vqs);
 
     virtio_cleanup(vdev);
 }
