@@ -65,6 +65,10 @@ typedef struct VirtIOCryptoReq {
     VirtQueueElement elem;
     /* flags of operation, such as type of algorithm */
     uint32_t flags;
+    struct virtio_crypto_inhdr *in;
+    struct iovec *in_iov; /* Head address of dest iovec */
+    unsigned int in_num; /* Number of dest iovec */
+    size_t in_len;
     VirtQueue *vq;
     struct VirtIOCrypto *vcrypto;
     union {
