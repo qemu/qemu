@@ -2932,6 +2932,7 @@ static void block_job_cb(void *opaque, int ret)
 
 void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
+                      bool has_base_node, const char *base_node,
                       bool has_backing_file, const char *backing_file,
                       bool has_speed, int64_t speed,
                       bool has_on_error, BlockdevOnError on_error,
@@ -2955,6 +2956,12 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
+    if (has_base && has_base_node) {
+        error_setg(errp, "'base' and 'base-node' cannot be specified "
+                   "at the same time");
+        goto out;
+    }
+
     if (has_base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
@@ -2963,6 +2970,20 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
         base_name = base;
+    }
+
+    if (has_base_node) {
+        base_bs = bdrv_lookup_bs(NULL, base_node, errp);
+        if (!base_bs) {
+            goto out;
+        }
+        if (bs == base_bs || !bdrv_chain_contains(bs, base_bs)) {
+            error_setg(errp, "Node '%s' is not a backing image of '%s'",
+                       base_node, device);
+            goto out;
+        }
+        assert(bdrv_get_aio_context(base_bs) == aio_context);
+        base_name = base_bs->filename;
     }
 
     /* Check for op blockers in the whole chain between bs and base */

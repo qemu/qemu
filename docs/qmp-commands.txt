@@ -750,8 +750,11 @@ Arguments:
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
 - "device": The device name or node-name of a root node (json-string)
-- "base": The file name of the backing image above which copying starts
-          (json-string, optional)
+- "base": The file name of the backing image above which copying starts.
+          It cannot be set if 'base-node' is also set (json-string, optional)
+- "base-node": the node name of the backing image above which copying starts.
+               It cannot be set if 'base' is also set.
+               (json-string, optional) (Since 2.8)
 - "backing-file": The backing file string to write into the active layer. This
                   filename is not validated.
 

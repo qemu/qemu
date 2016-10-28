@@ -1484,7 +1484,11 @@
 #
 # @device: the device or node name of the top image
 #
-# @base:   #optional the common backing file name
+# @base:   #optional the common backing file name.
+#                    It cannot be set if @base-node is also set.
+#
+# @base-node: #optional the node name of the backing file.
+#                       It cannot be set if @base is also set. (Since 2.8)
 #
 # @backing-file: #optional The backing file string to write into the top
 #                          image. This filename is not validated.
@@ -1511,7 +1515,7 @@
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
-            '*backing-file': 'str', '*speed': 'int',
+            '*base-node': 'str', '*backing-file': 'str', '*speed': 'int',
             '*on-error': 'BlockdevOnError' } }
 
 ##
