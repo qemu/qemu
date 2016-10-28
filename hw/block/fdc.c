@@ -35,6 +35,7 @@
 #include "qemu/timer.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
+#include "hw/block/block.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
@@ -51,6 +52,35 @@
             fprintf(stderr, "FLOPPY: " fmt , ## __VA_ARGS__);   \
         }                                                       \
     } while (0)
+
+
+/********************************************************/
+/* qdev floppy bus                                      */
+
+#define TYPE_FLOPPY_BUS "floppy-bus"
+#define FLOPPY_BUS(obj) OBJECT_CHECK(FloppyBus, (obj), TYPE_FLOPPY_BUS)
+
+typedef struct FDCtrl FDCtrl;
+typedef struct FDrive FDrive;
+static FDrive *get_drv(FDCtrl *fdctrl, int unit);
+
+typedef struct FloppyBus {
+    BusState bus;
+    FDCtrl *fdc;
+} FloppyBus;
+
+static const TypeInfo floppy_bus_info = {
+    .name = TYPE_FLOPPY_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(FloppyBus),
+};
+
+static void floppy_bus_create(FDCtrl *fdc, FloppyBus *bus, DeviceState *dev)
+{
+    qbus_create_inplace(bus, sizeof(FloppyBus), TYPE_FLOPPY_BUS, dev, NULL);
+    bus->fdc = fdc;
+}
+
 
 /********************************************************/
 /* Floppy drive emulation                               */
@@ -148,14 +178,12 @@ static FDriveSize drive_size(FloppyDriveType drive)
 #define FD_SECTOR_SC           2   /* Sector size code */
 #define FD_RESET_SENSEI_COUNT  4   /* Number of sense interrupts on RESET */
 
-typedef struct FDCtrl FDCtrl;
-
 /* Floppy disk drive emulation */
 typedef enum FDiskFlags {
     FDISK_DBL_SIDES  = 0x01,
 } FDiskFlags;
 
-typedef struct FDrive {
+struct FDrive {
     FDCtrl *fdctrl;
     BlockBackend *blk;
     /* Drive status */
@@ -176,7 +204,7 @@ typedef struct FDrive {
     uint8_t media_rate;       /* Data rate of medium    */
 
     bool media_validated;     /* Have we validated the media? */
-} FDrive;
+};
 
 
 static FloppyDriveType get_fallback_drive_type(FDrive *drv);
@@ -441,6 +469,135 @@ static void fd_revalidate(FDrive *drv)
     }
 }
 
+static void fd_change_cb(void *opaque, bool load)
+{
+    FDrive *drive = opaque;
+
+    drive->media_changed = 1;
+    drive->media_validated = false;
+    fd_revalidate(drive);
+}
+
+static const BlockDevOps fd_block_ops = {
+    .change_media_cb = fd_change_cb,
+};
+
+
+#define TYPE_FLOPPY_DRIVE "floppy"
+#define FLOPPY_DRIVE(obj) \
+     OBJECT_CHECK(FloppyDrive, (obj), TYPE_FLOPPY_DRIVE)
+
+typedef struct FloppyDrive {
+    DeviceState     qdev;
+    uint32_t        unit;
+    BlockConf       conf;
+    FloppyDriveType type;
+} FloppyDrive;
+
+static Property floppy_drive_properties[] = {
+    DEFINE_PROP_UINT32("unit", FloppyDrive, unit, -1),
+    DEFINE_BLOCK_PROPERTIES(FloppyDrive, conf),
+    DEFINE_PROP_DEFAULT("drive-type", FloppyDrive, type,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static int floppy_drive_init(DeviceState *qdev)
+{
+    FloppyDrive *dev = FLOPPY_DRIVE(qdev);
+    FloppyBus *bus = FLOPPY_BUS(qdev->parent_bus);
+    FDrive *drive;
+    int ret;
+
+    if (dev->unit == -1) {
+        for (dev->unit = 0; dev->unit < MAX_FD; dev->unit++) {
+            drive = get_drv(bus->fdc, dev->unit);
+            if (!drive->blk) {
+                break;
+            }
+        }
+    }
+
+    if (dev->unit >= MAX_FD) {
+        error_report("Can't create floppy unit %d, bus supports only %d units",
+                     dev->unit, MAX_FD);
+        return -1;
+    }
+
+    drive = get_drv(bus->fdc, dev->unit);
+    if (drive->blk) {
+        error_report("Floppy unit %d is in use", dev->unit);
+        return -1;
+    }
+
+    if (!dev->conf.blk) {
+        /* Anonymous BlockBackend for an empty drive */
+        dev->conf.blk = blk_new();
+        ret = blk_attach_dev(dev->conf.blk, qdev);
+        assert(ret == 0);
+    }
+
+    blkconf_blocksizes(&dev->conf);
+    if (dev->conf.logical_block_size != 512 ||
+        dev->conf.physical_block_size != 512)
+    {
+        error_report("Physical and logical block size must be 512 for floppy");
+        return -1;
+    }
+
+    /* rerror/werror aren't supported by fdc and therefore not even registered
+     * with qdev. So set the defaults manually before they are used in
+     * blkconf_apply_backend_options(). */
+    dev->conf.rerror = BLOCKDEV_ON_ERROR_AUTO;
+    dev->conf.werror = BLOCKDEV_ON_ERROR_AUTO;
+    blkconf_apply_backend_options(&dev->conf);
+
+    /* 'enospc' is the default for -drive, 'report' is what blk_new() gives us
+     * for empty drives. */
+    if (blk_get_on_error(dev->conf.blk, 0) != BLOCKDEV_ON_ERROR_ENOSPC &&
+        blk_get_on_error(dev->conf.blk, 0) != BLOCKDEV_ON_ERROR_REPORT) {
+        error_report("fdc doesn't support drive option werror");
+        return -1;
+    }
+    if (blk_get_on_error(dev->conf.blk, 1) != BLOCKDEV_ON_ERROR_REPORT) {
+        error_report("fdc doesn't support drive option rerror");
+        return -1;
+    }
+
+    drive->blk = dev->conf.blk;
+    drive->fdctrl = bus->fdc;
+
+    fd_init(drive);
+    blk_set_dev_ops(drive->blk, &fd_block_ops, drive);
+
+    /* Keep 'type' qdev property and FDrive->drive in sync */
+    drive->drive = dev->type;
+    pick_drive_type(drive);
+    dev->type = drive->drive;
+
+    fd_revalidate(drive);
+
+    return 0;
+}
+
+static void floppy_drive_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->init = floppy_drive_init;
+    set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
+    k->bus_type = TYPE_FLOPPY_BUS;
+    k->props = floppy_drive_properties;
+    k->desc = "virtual floppy drive";
+}
+
+static const TypeInfo floppy_drive_info = {
+    .name = TYPE_FLOPPY_DRIVE,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(FloppyDrive),
+    .class_init = floppy_drive_class_init,
+};
+
 /********************************************************/
 /* Intel 82078 floppy disk controller emulation          */
 
@@ -684,8 +841,13 @@ struct FDCtrl {
     /* Power down config (also with status regB access mode */
     uint8_t pwrd;
     /* Floppy drives */
+    FloppyBus bus;
     uint8_t num_floppies;
     FDrive drives[MAX_FD];
+    struct {
+        BlockBackend *blk;
+        FloppyDriveType type;
+    } qdev_for_drives[MAX_FD];
     int reset_sensei;
     uint32_t check_media_rate;
     FloppyDriveType fallback; /* type=auto failure fallback */
@@ -1159,9 +1321,9 @@ static inline FDrive *drv3(FDCtrl *fdctrl)
 }
 #endif
 
-static FDrive *get_cur_drv(FDCtrl *fdctrl)
+static FDrive *get_drv(FDCtrl *fdctrl, int unit)
 {
-    switch (fdctrl->cur_drv) {
+    switch (unit) {
         case 0: return drv0(fdctrl);
         case 1: return drv1(fdctrl);
 #if MAX_FD == 4
@@ -1170,6 +1332,11 @@ static FDrive *get_cur_drv(FDCtrl *fdctrl)
 #endif
         default: return NULL;
     }
+}
+
+static FDrive *get_cur_drv(FDCtrl *fdctrl)
+{
+    return get_drv(fdctrl, fdctrl->cur_drv);
 }
 
 /* Status A register : 0x00 (read-only) */
@@ -2331,46 +2498,49 @@ static void fdctrl_result_timer(void *opaque)
     }
 }
 
-static void fdctrl_change_cb(void *opaque, bool load)
-{
-    FDrive *drive = opaque;
-
-    drive->media_changed = 1;
-    drive->media_validated = false;
-    fd_revalidate(drive);
-}
-
-static const BlockDevOps fdctrl_block_ops = {
-    .change_media_cb = fdctrl_change_cb,
-};
-
 /* Init functions */
-static void fdctrl_connect_drives(FDCtrl *fdctrl, Error **errp)
+static void fdctrl_connect_drives(FDCtrl *fdctrl, Error **errp,
+                                  DeviceState *fdc_dev)
 {
     unsigned int i;
     FDrive *drive;
+    DeviceState *dev;
+    BlockBackend *blk;
+    Error *local_err = NULL;
 
     for (i = 0; i < MAX_FD; i++) {
         drive = &fdctrl->drives[i];
         drive->fdctrl = fdctrl;
 
-        if (drive->blk) {
-            if (blk_get_on_error(drive->blk, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
-                error_setg(errp, "fdc doesn't support drive option werror");
-                return;
-            }
-            if (blk_get_on_error(drive->blk, 1) != BLOCKDEV_ON_ERROR_REPORT) {
-                error_setg(errp, "fdc doesn't support drive option rerror");
-                return;
-            }
+        /* If the drive is not present, we skip creating the qdev device, but
+         * still have to initialise the controller. */
+        blk = fdctrl->qdev_for_drives[i].blk;
+        if (!blk) {
+            fd_init(drive);
+            fd_revalidate(drive);
+            continue;
         }
 
-        fd_init(drive);
-        if (drive->blk) {
-            blk_set_dev_ops(drive->blk, &fdctrl_block_ops, drive);
-            pick_drive_type(drive);
+        dev = qdev_create(&fdctrl->bus.bus, "floppy");
+        qdev_prop_set_uint32(dev, "unit", i);
+        qdev_prop_set_enum(dev, "drive-type", fdctrl->qdev_for_drives[i].type);
+
+        blk_ref(blk);
+        blk_detach_dev(blk, fdc_dev);
+        fdctrl->qdev_for_drives[i].blk = NULL;
+        qdev_prop_set_drive(dev, "drive", blk, &local_err);
+        blk_unref(blk);
+
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
         }
-        fd_revalidate(drive);
+
+        object_property_set_bool(OBJECT(dev), true, "realized", &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 }
 
@@ -2442,7 +2612,8 @@ void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
     *fdc_tc = qdev_get_gpio_in(dev, 0);
 }
 
-static void fdctrl_realize_common(FDCtrl *fdctrl, Error **errp)
+static void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl,
+                                  Error **errp)
 {
     int i, j;
     static int command_tables_inited = 0;
@@ -2480,7 +2651,9 @@ static void fdctrl_realize_common(FDCtrl *fdctrl, Error **errp)
         k->register_channel(fdctrl->dma, fdctrl->dma_chann,
                             &fdctrl_transfer_handler, fdctrl);
     }
-    fdctrl_connect_drives(fdctrl, errp);
+
+    floppy_bus_create(fdctrl, &fdctrl->bus, dev);
+    fdctrl_connect_drives(fdctrl, errp, dev);
 }
 
 static const MemoryRegionPortio fdc_portio_list[] = {
@@ -2508,7 +2681,7 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
     }
 
     qdev_set_legacy_instance_id(dev, isa->iobase, 2);
-    fdctrl_realize_common(fdctrl, &err);
+    fdctrl_realize_common(dev, fdctrl, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -2559,7 +2732,7 @@ static void sysbus_fdc_common_realize(DeviceState *dev, Error **errp)
     FDCtrlSysBus *sys = SYSBUS_FDC(dev);
     FDCtrl *fdctrl = &sys->state;
 
-    fdctrl_realize_common(fdctrl, errp);
+    fdctrl_realize_common(dev, fdctrl, errp);
 }
 
 FloppyDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
@@ -2606,14 +2779,14 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_UINT32("iobase", FDCtrlISABus, iobase, 0x3f0),
     DEFINE_PROP_UINT32("irq", FDCtrlISABus, irq, 6),
     DEFINE_PROP_UINT32("dma", FDCtrlISABus, dma, 2),
-    DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].blk),
-    DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].blk),
+    DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.qdev_for_drives[0].blk),
+    DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.qdev_for_drives[1].blk),
     DEFINE_PROP_BIT("check_media_rate", FDCtrlISABus, state.check_media_rate,
                     0, true),
-    DEFINE_PROP_DEFAULT("fdtypeA", FDCtrlISABus, state.drives[0].drive,
+    DEFINE_PROP_DEFAULT("fdtypeA", FDCtrlISABus, state.qdev_for_drives[0].type,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
-    DEFINE_PROP_DEFAULT("fdtypeB", FDCtrlISABus, state.drives[1].drive,
+    DEFINE_PROP_DEFAULT("fdtypeB", FDCtrlISABus, state.qdev_for_drives[1].type,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
     DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
@@ -2665,12 +2838,12 @@ static const VMStateDescription vmstate_sysbus_fdc ={
 };
 
 static Property sysbus_fdc_properties[] = {
-    DEFINE_PROP_DRIVE("driveA", FDCtrlSysBus, state.drives[0].blk),
-    DEFINE_PROP_DRIVE("driveB", FDCtrlSysBus, state.drives[1].blk),
-    DEFINE_PROP_DEFAULT("fdtypeA", FDCtrlSysBus, state.drives[0].drive,
+    DEFINE_PROP_DRIVE("driveA", FDCtrlSysBus, state.qdev_for_drives[0].blk),
+    DEFINE_PROP_DRIVE("driveB", FDCtrlSysBus, state.qdev_for_drives[1].blk),
+    DEFINE_PROP_DEFAULT("fdtypeA", FDCtrlSysBus, state.qdev_for_drives[0].type,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
-    DEFINE_PROP_DEFAULT("fdtypeB", FDCtrlSysBus, state.drives[1].drive,
+    DEFINE_PROP_DEFAULT("fdtypeB", FDCtrlSysBus, state.qdev_for_drives[1].type,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
     DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
@@ -2695,8 +2868,8 @@ static const TypeInfo sysbus_fdc_info = {
 };
 
 static Property sun4m_fdc_properties[] = {
-    DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.drives[0].blk),
-    DEFINE_PROP_DEFAULT("fdtype", FDCtrlSysBus, state.drives[0].drive,
+    DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.qdev_for_drives[0].blk),
+    DEFINE_PROP_DEFAULT("fdtype", FDCtrlSysBus, state.qdev_for_drives[0].type,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
     DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
@@ -2744,6 +2917,8 @@ static void fdc_register_types(void)
     type_register_static(&sysbus_fdc_type_info);
     type_register_static(&sysbus_fdc_info);
     type_register_static(&sun4m_fdc_info);
+    type_register_static(&floppy_bus_info);
+    type_register_static(&floppy_drive_info);
 }
 
 type_init(fdc_register_types)

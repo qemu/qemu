@@ -1,0 +1,246 @@
+#!/bin/bash
+#
+# Test floppy configuration
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+if [ "$QEMU_DEFAULT_MACHINE" != "pc" ]; then
+    _notrun "Requires a PC machine"
+fi
+
+function do_run_qemu()
+{
+    (
+        if ! test -t 0; then
+            while read cmd; do
+                echo $cmd
+            done
+        fi
+        echo quit
+    ) | $QEMU -nographic -monitor stdio -serial none "$@"
+    echo
+}
+
+function check_floppy_qtree()
+{
+    echo
+    echo Testing: "$@" | _filter_testdir
+
+    # QEMU_OPTIONS contains -nodefaults, we don't want that here because the
+    # defaults are part of what should be checked here.
+    #
+    # Apply the sed filter to stdout only, but keep the stderr output and
+    # filter the qemu program name in it.
+    echo "info qtree" |
+    (QEMU_OPTIONS="" do_run_qemu "$@" |
+        sed -ne '/^          dev: isa-fdc/,/^          dev:/{x;p}' ) 2>&1 |
+    _filter_win32 | _filter_qemu
+}
+
+function check_cache_mode()
+{
+    echo "info block none0" |
+    QEMU_OPTIONS="" do_run_qemu -drive if=none,file="$TEST_IMG" "$@" |
+    _filter_win32 | _filter_qemu | grep "Cache mode"
+}
+
+
+size=720k
+
+_make_test_img $size
+
+# Default drive semantics:
+#
+# By default you get a single empty floppy drive. You can override it with
+# -drive and using the same index, but if you use -drive to add a floppy to a
+# different index, you get both of them. However, as soon as you use any
+# '-device floppy', even to a different slot, the default drive is disabled.
+
+echo
+echo
+echo === Default ===
+
+check_floppy_qtree
+
+echo
+echo
+echo === Using -fda/-fdb options ===
+
+check_floppy_qtree -fda "$TEST_IMG"
+check_floppy_qtree -fdb "$TEST_IMG"
+check_floppy_qtree -fda "$TEST_IMG" -fdb "$TEST_IMG"
+
+
+echo
+echo
+echo === Using -drive options ===
+
+check_floppy_qtree -drive if=floppy,file="$TEST_IMG"
+check_floppy_qtree -drive if=floppy,file="$TEST_IMG",index=1
+check_floppy_qtree -drive if=floppy,file="$TEST_IMG" -drive if=floppy,file="$TEST_IMG",index=1
+
+echo
+echo
+echo === Using -drive if=none and -global ===
+
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -global isa-fdc.driveA=none0
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -global isa-fdc.driveB=none0
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" \
+                   -global isa-fdc.driveA=none0 -global isa-fdc.driveB=none1
+
+echo
+echo
+echo === Using -drive if=none and -device ===
+
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -device floppy,drive=none0
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,unit=1
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" \
+                   -device floppy,drive=none0 -device floppy,drive=none1,unit=1
+
+echo
+echo
+echo === Mixing -fdX and -global ===
+
+# Working
+check_floppy_qtree -fda "$TEST_IMG" -drive if=none,file="$TEST_IMG" -global isa-fdc.driveB=none0
+check_floppy_qtree -fdb "$TEST_IMG" -drive if=none,file="$TEST_IMG" -global isa-fdc.driveA=none0
+
+# Conflicting (-fdX wins)
+check_floppy_qtree -fda "$TEST_IMG" -drive if=none,file="$TEST_IMG" -global isa-fdc.driveA=none0
+check_floppy_qtree -fdb "$TEST_IMG" -drive if=none,file="$TEST_IMG" -global isa-fdc.driveB=none0
+
+echo
+echo
+echo === Mixing -fdX and -device ===
+
+# Working
+check_floppy_qtree -fda "$TEST_IMG" -drive if=none,file="$TEST_IMG" -device floppy,drive=none0
+check_floppy_qtree -fda "$TEST_IMG" -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,unit=1
+
+check_floppy_qtree -fdb "$TEST_IMG" -drive if=none,file="$TEST_IMG" -device floppy,drive=none0
+check_floppy_qtree -fdb "$TEST_IMG" -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,unit=0
+
+# Conflicting
+check_floppy_qtree -fda "$TEST_IMG" -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,unit=0
+check_floppy_qtree -fdb "$TEST_IMG" -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,unit=1
+
+echo
+echo
+echo === Mixing -drive and -device ===
+
+# Working
+check_floppy_qtree -drive if=floppy,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" -device floppy,drive=none0
+check_floppy_qtree -drive if=floppy,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,unit=1
+
+# Conflicting
+check_floppy_qtree -drive if=floppy,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,unit=0
+
+echo
+echo
+echo === Mixing -global and -device ===
+
+# Working
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" \
+                   -global isa-fdc.driveA=none0 -device floppy,drive=none1
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" \
+                   -global isa-fdc.driveA=none0 -device floppy,drive=none1,unit=1
+
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" \
+                   -global isa-fdc.driveB=none0 -device floppy,drive=none1
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" \
+                   -global isa-fdc.driveB=none0 -device floppy,drive=none1,unit=0
+
+# Conflicting
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" \
+                   -global isa-fdc.driveA=none0 -device floppy,drive=none1,unit=0
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG" \
+                   -global isa-fdc.driveB=none0 -device floppy,drive=none1,unit=1
+
+echo
+echo
+echo === Too many floppy drives ===
+
+# Working
+check_floppy_qtree -drive if=floppy,file="$TEST_IMG" \
+                   -drive if=none,file="$TEST_IMG" \
+                   -drive if=none,file="$TEST_IMG" \
+                   -global isa-fdc.driveB=none0 \
+                   -device floppy,drive=none1
+
+echo
+echo
+echo === Creating an empty drive with anonymous BB ===
+
+check_floppy_qtree -device floppy
+check_floppy_qtree -device floppy,drive-type=120
+check_floppy_qtree -device floppy,drive-type=144
+check_floppy_qtree -device floppy,drive-type=288
+
+echo
+echo
+echo === Try passing different drive size with image ===
+
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,drive-type=120
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,drive-type=288
+
+echo
+echo
+echo === Try passing different block sizes ===
+
+# Explicitly setting the default is okay
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,logical_block_size=512
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,physical_block_size=512
+
+# Changing it is not
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,logical_block_size=4096
+check_floppy_qtree -drive if=none,file="$TEST_IMG" -device floppy,drive=none0,physical_block_size=1024
+
+echo
+echo
+echo === Writethrough caching ===
+
+check_cache_mode -device floppy,drive=none0
+check_cache_mode -device floppy,drive=none0,write-cache=on
+check_cache_mode -device floppy,drive=none0,write-cache=off
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
