@@ -945,7 +945,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
     target_ulong ov_table;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu_);
     CPUState *cs;
-    bool cpu_match = false, cpu_update = true;
+    bool cpu_match = false;
     unsigned old_cpu_version = cpu_->cpu_version;
     unsigned compat_lvl = 0, cpu_version = 0;
     unsigned max_lvl = get_compat_level(cpu_->max_compat);
@@ -999,10 +999,6 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
         }
     }
 
-    if (!cpu_version) {
-        cpu_update = false;
-    }
-
     /* For the future use: here @ov_table points to the first option vector */
     ov_table = list;
 
@@ -1028,7 +1024,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
 
     if (!spapr->cas_reboot) {
         spapr->cas_reboot =
-            (spapr_h_cas_compose_response(spapr, args[1], args[2], cpu_update,
+            (spapr_h_cas_compose_response(spapr, args[1], args[2],
                                           ov5_updates) != 0);
     }
     spapr_ovec_cleanup(ov5_updates);
