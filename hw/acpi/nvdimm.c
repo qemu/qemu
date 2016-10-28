@@ -816,7 +816,8 @@ static void nvdimm_build_common_dsm(Aml *dev)
      *       on NVDIMM Root Device.
      * REVS: store the Arg1 of _DSM call.
      * FUNC: store the Arg2 of _DSM call.
-     * ARG3: store the Arg3 of _DSM call.
+     * FARG: store the Arg3 of _DSM call which is a Package containing
+     *       function-specific arguments.
      *
      * They are RAM mapping on host so that these accesses never cause
      * VM-EXIT.
@@ -828,7 +829,7 @@ static void nvdimm_build_common_dsm(Aml *dev)
                sizeof(typeof_field(NvdimmDsmIn, revision)) * BITS_PER_BYTE));
     aml_append(field, aml_named_field("FUNC",
                sizeof(typeof_field(NvdimmDsmIn, function)) * BITS_PER_BYTE));
-    aml_append(field, aml_named_field("ARG3",
+    aml_append(field, aml_named_field("FARG",
          (sizeof(NvdimmDsmIn) - offsetof(NvdimmDsmIn, arg3)) * BITS_PER_BYTE));
     aml_append(method, field);
 
@@ -910,7 +911,7 @@ static void nvdimm_build_common_dsm(Aml *dev)
     pckg_buf = aml_local(3);
     aml_append(ifctx, aml_store(aml_index(pckg, aml_int(0)), pckg_index));
     aml_append(ifctx, aml_store(aml_derefof(pckg_index), pckg_buf));
-    aml_append(ifctx, aml_store(pckg_buf, aml_name("ARG3")));
+    aml_append(ifctx, aml_store(pckg_buf, aml_name("FARG")));
     aml_append(method, ifctx);
 
     /*
