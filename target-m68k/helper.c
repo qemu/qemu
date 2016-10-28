@@ -277,46 +277,6 @@ uint32_t HELPER(sats)(uint32_t val, uint32_t v)
     return val;
 }
 
-uint32_t HELPER(subx_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
-{
-    uint32_t res, new_x;
-
-    if (env->cc_x) {
-        new_x = (op1 <= op2);
-        res = op1 - (op2 + 1);
-    } else {
-        new_x = (op1 < op2);
-        res = op1 - op2;
-    }
-    env->cc_x = new_x;
-    env->cc_c = new_x;
-    env->cc_n = res;
-    env->cc_z |= res; /* !Z is sticky */
-    env->cc_v = (res ^ op1) & (op1 ^ op2);
-
-    return res;
-}
-
-uint32_t HELPER(addx_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
-{
-    uint32_t res, new_x;
-
-    if (env->cc_x) {
-        res = op1 + op2 + 1;
-        new_x = (res <= op2);
-    } else {
-        res = op1 + op2;
-        new_x = (res < op2);
-    }
-    env->cc_x = new_x;
-    env->cc_c = new_x;
-    env->cc_n = res;
-    env->cc_z |= res; /* !Z is sticky.  */
-    env->cc_v = (res ^ op1) & ~(op1 ^ op2);
-
-    return res;
-}
-
 void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
 {
     env->sr = val & 0xffe0;
@@ -624,32 +584,41 @@ void HELPER(mac_set_flags)(CPUM68KState *env, uint32_t acc)
     }
 }
 
+#define EXTSIGN(val, index) (     \
+    (index == 0) ? (int8_t)(val) : ((index == 1) ? (int16_t)(val) : (val)) \
+)
 
 #define COMPUTE_CCR(op, x, n, z, v, c) {                                   \
     switch (op) {                                                          \
     case CC_OP_FLAGS:                                                      \
         /* Everything in place.  */                                        \
         break;                                                             \
-    case CC_OP_ADD:                                                        \
+    case CC_OP_ADDB:                                                       \
+    case CC_OP_ADDW:                                                       \
+    case CC_OP_ADDL:                                                       \
         res = n;                                                           \
         src2 = v;                                                          \
-        src1 = res - src2;                                                 \
+        src1 = EXTSIGN(res - src2, op - CC_OP_ADDB);                       \
         c = x;                                                             \
         z = n;                                                             \
         v = (res ^ src1) & ~(src1 ^ src2);                                 \
         break;                                                             \
-    case CC_OP_SUB:                                                        \
+    case CC_OP_SUBB:                                                       \
+    case CC_OP_SUBW:                                                       \
+    case CC_OP_SUBL:                                                       \
         res = n;                                                           \
         src2 = v;                                                          \
-        src1 = res + src2;                                                 \
+        src1 = EXTSIGN(res + src2, op - CC_OP_SUBB);                       \
         c = x;                                                             \
         z = n;                                                             \
         v = (res ^ src1) & (src1 ^ src2);                                  \
         break;                                                             \
-    case CC_OP_CMP:                                                        \
+    case CC_OP_CMPB:                                                       \
+    case CC_OP_CMPW:                                                       \
+    case CC_OP_CMPL:                                                       \
         src1 = n;                                                          \
         src2 = v;                                                          \
-        res = src1 - src2;                                                 \
+        res = EXTSIGN(src1 - src2, op - CC_OP_CMPB);                       \
         n = res;                                                           \
         z = res;                                                           \
         c = src1 < src2;                                                   \
@@ -670,16 +639,16 @@ uint32_t cpu_m68k_get_ccr(CPUM68KState *env)
     uint32_t res, src1, src2;
 
     x = env->cc_x;
-    c = env->cc_c;
     n = env->cc_n;
     z = env->cc_z;
     v = env->cc_v;
+    c = env->cc_c;
 
     COMPUTE_CCR(env->cc_op, x, n, z, v, c);
 
     n = n >> 31;
-    v = v >> 31;
     z = (z == 0);
+    v = v >> 31;
 
     return x * CCF_X + n * CCF_N + z * CCF_Z + v * CCF_V + c * CCF_C;
 }
