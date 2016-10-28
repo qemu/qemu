@@ -2091,7 +2091,7 @@ int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **er
     assert(bs_queue != NULL);
 
     aio_context_release(ctx);
-    bdrv_drain_all();
+    bdrv_drain_all_begin();
     aio_context_acquire(ctx);
 
     QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
@@ -2122,6 +2122,9 @@ cleanup:
         g_free(bs_entry);
     }
     g_free(bs_queue);
+
+    bdrv_drain_all_end();
+
     return ret;
 }
 
