@@ -778,9 +778,9 @@ void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
 
 static void nvdimm_build_common_dsm(Aml *dev)
 {
-    Aml *method, *ifctx, *function, *handle, *uuid, *dsm_mem, *result_size;
+    Aml *method, *ifctx, *function, *handle, *uuid, *dsm_mem;
     Aml *elsectx, *unsupport, *unpatched, *expected_uuid, *uuid_invalid;
-    Aml *pckg, *pckg_index, *pckg_buf, *field, *dsm_out_buf;
+    Aml *pckg, *pckg_index, *pckg_buf, *field, *dsm_out_buf, *dsm_out_buf_size;
     uint8_t byte_list[1];
 
     method = aml_method(NVDIMM_COMMON_DSM, 5, AML_SERIALIZED);
@@ -921,13 +921,14 @@ static void nvdimm_build_common_dsm(Aml *dev)
      */
     aml_append(method, aml_store(dsm_mem, aml_name("NTFI")));
 
-    result_size = aml_local(1);
+    dsm_out_buf_size = aml_local(1);
     /* RLEN is not included in the payload returned to guest. */
-    aml_append(method, aml_subtract(aml_name("RLEN"), aml_int(4), result_size));
-    aml_append(method, aml_store(aml_shiftleft(result_size, aml_int(3)),
-                                 result_size));
+    aml_append(method, aml_subtract(aml_name("RLEN"), aml_int(4),
+                                    dsm_out_buf_size));
+    aml_append(method, aml_store(aml_shiftleft(dsm_out_buf_size, aml_int(3)),
+                                 dsm_out_buf_size));
     aml_append(method, aml_create_field(aml_name("ODAT"), aml_int(0),
-                                        result_size, "OBUF"));
+                                        dsm_out_buf_size, "OBUF"));
     aml_append(method, aml_concatenate(aml_buffer(0, NULL), aml_name("OBUF"),
                                        dsm_out_buf));
     aml_append(method, aml_return(dsm_out_buf));
