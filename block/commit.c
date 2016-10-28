@@ -216,6 +216,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     BlockReopenQueue *reopen_queue = NULL;
     int orig_overlay_flags;
     int orig_base_flags;
+    BlockDriverState *iter;
     BlockDriverState *overlay_bs;
     Error *local_err = NULL;
 
@@ -259,6 +260,19 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         }
     }
 
+
+    /* Block all nodes between top and base, because they will
+     * disappear from the chain after this operation. */
+    assert(bdrv_chain_contains(top, base));
+    for (iter = top; iter != backing_bs(base); iter = backing_bs(iter)) {
+        block_job_add_bdrv(&s->common, iter);
+    }
+    /* overlay_bs must be blocked because it needs to be modified to
+     * update the backing image string, but if it's the root node then
+     * don't block it again */
+    if (bs != overlay_bs) {
+        block_job_add_bdrv(&s->common, overlay_bs);
+    }
 
     s->base = blk_new();
     blk_insert_bs(s->base, base);
