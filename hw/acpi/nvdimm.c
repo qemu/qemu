@@ -961,12 +961,11 @@ static void nvdimm_build_device_dsm(Aml *dev, uint32_t handle)
     aml_append(dev, method);
 }
 
-static void nvdimm_build_nvdimm_devices(GSList *device_list, Aml *root_dev)
+static void nvdimm_build_nvdimm_devices(Aml *root_dev, uint32_t ram_slots)
 {
-    for (; device_list; device_list = device_list->next) {
-        DeviceState *dev = device_list->data;
-        int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
-                                           NULL);
+    uint32_t slot;
+
+    for (slot = 0; slot < ram_slots; slot++) {
         uint32_t handle = nvdimm_slot_to_handle(slot);
         Aml *nvdimm_dev;
 
@@ -987,9 +986,9 @@ static void nvdimm_build_nvdimm_devices(GSList *device_list, Aml *root_dev)
     }
 }
 
-static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
-                              GArray *table_data, BIOSLinker *linker,
-                              GArray *dsm_dma_arrea)
+static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
+                              BIOSLinker *linker, GArray *dsm_dma_arrea,
+                              uint32_t ram_slots)
 {
     Aml *ssdt, *sb_scope, *dev;
     int mem_addr_offset, nvdimm_ssdt;
@@ -1021,7 +1020,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     /* 0 is reserved for root device. */
     nvdimm_build_device_dsm(dev, 0);
 
-    nvdimm_build_nvdimm_devices(device_list, dev);
+    nvdimm_build_nvdimm_devices(dev, ram_slots);
 
     aml_append(sb_scope, dev);
     aml_append(ssdt, sb_scope);
@@ -1046,17 +1045,25 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
 }
 
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
-                       BIOSLinker *linker, GArray *dsm_dma_arrea)
+                       BIOSLinker *linker, GArray *dsm_dma_arrea,
+                       uint32_t ram_slots)
 {
     GSList *device_list;
 
-    /* no NVDIMM device is plugged. */
     device_list = nvdimm_get_plugged_device_list();
-    if (!device_list) {
-        return;
+
+    /* NVDIMM device is plugged. */
+    if (device_list) {
+        nvdimm_build_nfit(device_list, table_offsets, table_data, linker);
+        g_slist_free(device_list);
     }
-    nvdimm_build_nfit(device_list, table_offsets, table_data, linker);
-    nvdimm_build_ssdt(device_list, table_offsets, table_data, linker,
-                      dsm_dma_arrea);
-    g_slist_free(device_list);
+
+    /*
+     * NVDIMM device is allowed to be plugged only if there is available
+     * slot.
+     */
+    if (ram_slots) {
+        nvdimm_build_ssdt(table_offsets, table_data, linker, dsm_dma_arrea,
+                          ram_slots);
+    }
 }
