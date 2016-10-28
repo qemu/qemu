@@ -28,29 +28,37 @@
 typedef struct {
     uint32_t pvr;
     uint64_t pcr;
+    uint64_t pcr_level;
     int max_threads;
 } CompatInfo;
 
 static const CompatInfo compat_table[] = {
+    /*
+     * Ordered from oldest to newest - the code relies on this
+     */
     { /* POWER6, ISA2.05 */
         .pvr = CPU_POWERPC_LOGICAL_2_05,
         .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_COMPAT_2_05
                | PCR_TM_DIS | PCR_VSX_DIS,
+        .pcr_level = PCR_COMPAT_2_05,
         .max_threads = 2,
     },
     { /* POWER7, ISA2.06 */
         .pvr = CPU_POWERPC_LOGICAL_2_06,
         .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
+        .pcr_level = PCR_COMPAT_2_06,
         .max_threads = 4,
     },
     {
         .pvr = CPU_POWERPC_LOGICAL_2_06_PLUS,
         .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
+        .pcr_level = PCR_COMPAT_2_06,
         .max_threads = 4,
     },
     { /* POWER8, ISA2.07 */
         .pvr = CPU_POWERPC_LOGICAL_2_07,
         .pcr = PCR_COMPAT_2_07,
+        .pcr_level = PCR_COMPAT_2_07,
         .max_threads = 8,
     },
 };
@@ -67,6 +75,35 @@ static const CompatInfo *compat_by_pvr(uint32_t pvr)
     return NULL;
 }
 
+bool ppc_check_compat(PowerPCCPU *cpu, uint32_t compat_pvr,
+                      uint32_t min_compat_pvr, uint32_t max_compat_pvr)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    const CompatInfo *compat = compat_by_pvr(compat_pvr);
+    const CompatInfo *min = compat_by_pvr(min_compat_pvr);
+    const CompatInfo *max = compat_by_pvr(max_compat_pvr);
+
+#if !defined(CONFIG_USER_ONLY)
+    g_assert(cpu->vhyp);
+#endif
+    g_assert(!min_compat_pvr || min);
+    g_assert(!max_compat_pvr || max);
+
+    if (!compat) {
+        /* Not a recognized logical PVR */
+        return false;
+    }
+    if ((min && (compat < min)) || (max && (compat > max))) {
+        /* Outside specified range */
+        return false;
+    }
+    if (!(pcc->pcr_supported & compat->pcr_level)) {
+        /* Not supported by this CPU */
+        return false;
+    }
+    return true;
+}
+
 void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
 {
     const CompatInfo *compat = compat_by_pvr(compat_pvr);
@@ -78,6 +115,10 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
         pcr = 0;
     } else if (!compat) {
         error_setg(errp, "Unknown compatibility PVR 0x%08"PRIx32, compat_pvr);
+        return;
+    } else if (!ppc_check_compat(cpu, compat_pvr, 0, 0)) {
+        error_setg(errp, "Compatibility PVR 0x%08"PRIx32" not valid for CPU",
+                   compat_pvr);
         return;
     } else {
         pcr = compat->pcr;
