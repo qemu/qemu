@@ -9957,7 +9957,7 @@ int ppc_get_compat_smt_threads(PowerPCCPU *cpu)
     CPUState *cs = CPU(cpu);
     int ret = MIN(cs->nr_threads, kvmppc_smt_threads());
 
-    switch (cpu->cpu_version) {
+    switch (cpu->compat_pvr) {
     case CPU_POWERPC_LOGICAL_2_05:
         ret = MIN(ret, 2);
         break;
@@ -9973,15 +9973,15 @@ int ppc_get_compat_smt_threads(PowerPCCPU *cpu)
 }
 
 #ifdef TARGET_PPC64
-void ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version, Error **errp)
+void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
 {
     int ret = 0;
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *host_pcc;
 
-    cpu->cpu_version = cpu_version;
+    cpu->compat_pvr = compat_pvr;
 
-    switch (cpu_version) {
+    switch (compat_pvr) {
     case CPU_POWERPC_LOGICAL_2_05:
         env->spr[SPR_PCR] = PCR_TM_DIS | PCR_VSX_DIS | PCR_COMPAT_2_07 |
                             PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
@@ -10004,7 +10004,7 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version, Error **errp)
     }
 
     if (kvm_enabled()) {
-        ret = kvmppc_set_compat(cpu, cpu->cpu_version);
+        ret = kvmppc_set_compat(cpu, cpu->compat_pvr);
         if (ret < 0) {
             error_setg_errno(errp, -ret,
                              "Unable to set CPU compatibility mode in KVM");

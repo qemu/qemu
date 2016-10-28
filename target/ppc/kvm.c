@@ -2108,9 +2108,9 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
     cap_papr = 1;
 }
 
-int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version)
+int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr)
 {
-    return kvm_set_one_reg(CPU(cpu), KVM_REG_PPC_ARCH_COMPAT, &cpu_version);
+    return kvm_set_one_reg(CPU(cpu), KVM_REG_PPC_ARCH_COMPAT, &compat_pvr);
 }
 
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
