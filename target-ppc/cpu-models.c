@@ -1130,10 +1130,6 @@
 #if defined(TODO)
     POWERPC_DEF("POWER6",        CPU_POWERPC_POWER6,                 POWER6,
                 "POWER6")
-    POWERPC_DEF("POWER6_5",      CPU_POWERPC_POWER6_5,               POWER5,
-                "POWER6 running in POWER5 mode")
-    POWERPC_DEF("POWER6A",       CPU_POWERPC_POWER6A,                POWER6,
-                "POWER6A")
 #endif
     POWERPC_DEF("POWER7_v2.3",   CPU_POWERPC_POWER7_v23,             POWER7,
                 "POWER7 v2.3")
