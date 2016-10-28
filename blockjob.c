@@ -113,6 +113,13 @@ static void block_job_detach_aio_context(void *opaque)
     block_job_unref(job);
 }
 
+void block_job_add_bdrv(BlockJob *job, BlockDriverState *bs)
+{
+    job->nodes = g_slist_prepend(job->nodes, bs);
+    bdrv_ref(bs);
+    bdrv_op_block_all(bs, job->blocker);
+}
+
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
                        BlockDriverState *bs, int64_t speed,
                        BlockCompletionFunc *cb, void *opaque, Error **errp)
@@ -150,7 +157,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job = g_malloc0(driver->instance_size);
     error_setg(&job->blocker, "block device is in use by block job: %s",
                BlockJobType_lookup[driver->job_type]);
-    bdrv_op_block_all(bs, job->blocker);
+    block_job_add_bdrv(job, bs);
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     job->driver        = driver;
@@ -189,9 +196,15 @@ void block_job_ref(BlockJob *job)
 void block_job_unref(BlockJob *job)
 {
     if (--job->refcnt == 0) {
+        GSList *l;
         BlockDriverState *bs = blk_bs(job->blk);
         bs->job = NULL;
-        bdrv_op_unblock_all(bs, job->blocker);
+        for (l = job->nodes; l; l = l->next) {
+            bs = l->data;
+            bdrv_op_unblock_all(bs, job->blocker);
+            bdrv_unref(bs);
+        }
+        g_slist_free(job->nodes);
         blk_remove_aio_context_notifier(job->blk,
                                         block_job_attached_aio_context,
                                         block_job_detach_aio_context, job);

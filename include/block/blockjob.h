@@ -188,6 +188,9 @@ struct BlockJob {
     /** Block other operations when block job is running */
     Error *blocker;
 
+    /** BlockDriverStates that are involved in this block job */
+    GSList *nodes;
+
     /** The opaque value that is passed to the completion function.  */
     void *opaque;
 
@@ -251,6 +254,17 @@ BlockJob *block_job_get(const char *id);
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
                        BlockDriverState *bs, int64_t speed,
                        BlockCompletionFunc *cb, void *opaque, Error **errp);
+
+/**
+ * block_job_add_bdrv:
+ * @job: A block job
+ * @bs: A BlockDriverState that is involved in @job
+ *
+ * Add @bs to the list of BlockDriverState that are involved in
+ * @job. This means that all operations will be blocked on @bs while
+ * @job exists.
+ */
+void block_job_add_bdrv(BlockJob *job, BlockDriverState *bs);
 
 /**
  * block_job_sleep_ns:
