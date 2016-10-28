@@ -148,6 +148,86 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
 
 
+class TestParallelOps(iotests.QMPTestCase):
+    num_ops = 4 # Number of parallel block-stream operations
+    num_imgs = num_ops * 2 + 1
+    image_len = num_ops * 1024 * 1024
+    imgs = []
+
+    def setUp(self):
+        opts = []
+        self.imgs = []
+
+        # Initialize file names and command-line options
+        for i in range(self.num_imgs):
+            img_depth = self.num_imgs - i - 1
+            opts.append("backing." * img_depth + "node-name=node%d" % i)
+            self.imgs.append(os.path.join(iotests.test_dir, 'img-%d.img' % i))
+
+        # Create all images
+        iotests.create_image(self.imgs[0], self.image_len)
+        for i in range(1, self.num_imgs):
+            qemu_img('create', '-f', iotests.imgfmt,
+                     '-o', 'backing_file=%s' % self.imgs[i-1], self.imgs[i])
+
+        # Put data into the images we are copying data from
+        for i in range(self.num_imgs / 2):
+            img_index = i * 2 + 1
+            # Alternate between 512k and 1M.
+            # This way jobs will not finish in the same order they were created
+            num_kb = 512 + 512 * (i % 2)
+            qemu_io('-f', iotests.imgfmt,
+                    '-c', 'write -P %d %d %d' % (i, i*1024*1024, num_kb * 1024),
+                    self.imgs[img_index])
+
+        # Attach the drive to the VM
+        self.vm = iotests.VM()
+        self.vm.add_drive(self.imgs[-1], ','.join(opts))
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for img in self.imgs:
+            os.remove(img)
+
+    # Test that it's possible to run several block-stream operations
+    # in parallel in the same snapshot chain
+    def test_stream_parallel(self):
+        self.assert_no_active_block_jobs()
+
+        # Check that the maps don't match before the streaming operations
+        for i in range(2, self.num_imgs, 2):
+            self.assertNotEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', self.imgs[i]),
+                                qemu_io('-f', iotests.imgfmt, '-c', 'map', self.imgs[i-1]),
+                                'image file map matches backing file before streaming')
+
+        # Create all streaming jobs
+        pending_jobs = []
+        for i in range(2, self.num_imgs, 2):
+            node_name = 'node%d' % i
+            job_id = 'stream-%s' % node_name
+            pending_jobs.append(job_id)
+            result = self.vm.qmp('block-stream', device=node_name, job_id=job_id, base=self.imgs[i-2], speed=512*1024)
+            self.assert_qmp(result, 'return', {})
+
+        # Wait for all jobs to be finished.
+        while len(pending_jobs) > 0:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    job_id = self.dictpath(event, 'data/device')
+                    self.assertTrue(job_id in pending_jobs)
+                    self.assert_qmp_absent(event, 'data/error')
+                    pending_jobs.remove(job_id)
+
+        self.assert_no_active_block_jobs()
+        self.vm.shutdown()
+
+        # Check that all maps match now
+        for i in range(2, self.num_imgs, 2):
+            self.assertEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', self.imgs[i]),
+                             qemu_io('-f', iotests.imgfmt, '-c', 'map', self.imgs[i-1]),
+                             'image file map does not match backing file after streaming')
+
 class TestSmallerBackingFile(iotests.QMPTestCase):
     backing_len = 1 * 1024 * 1024 # MB
     image_len = 2 * backing_len
