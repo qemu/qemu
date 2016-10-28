@@ -3001,6 +3001,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                       Error **errp)
 {
     BlockDriverState *bs;
+    BlockDriverState *iter;
     BlockDriverState *base_bs, *top_bs;
     AioContext *aio_context;
     Error *local_err = NULL;
@@ -3067,8 +3068,10 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
 
     assert(bdrv_get_aio_context(base_bs) == aio_context);
 
-    if (bdrv_op_is_blocked(base_bs, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
-        goto out;
+    for (iter = top_bs; iter != backing_bs(base_bs); iter = backing_bs(iter)) {
+        if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
+            goto out;
+        }
     }
 
     /* Do not allow attempts to commit an image into itself */
@@ -3086,6 +3089,10 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
         commit_active_start(has_job_id ? job_id : NULL, bs, base_bs, speed,
                             on_error, block_job_cb, bs, &local_err, false);
     } else {
+        BlockDriverState *overlay_bs = bdrv_find_overlay(bs, top_bs);
+        if (bdrv_op_is_blocked(overlay_bs, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
+            goto out;
+        }
         commit_start(has_job_id ? job_id : NULL, bs, base_bs, top_bs, speed,
                      on_error, block_job_cb, bs,
                      has_backing_file ? backing_file : NULL, &local_err);
