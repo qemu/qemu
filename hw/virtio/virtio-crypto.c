@@ -634,15 +634,15 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
             /* Set request's parameter */
             request->flags = CRYPTODEV_BACKEND_ALG_SYM;
             request->u.sym_op_info = sym_op_info;
-            ret = cryptodev_backend_sym_operation(vcrypto->cryptodev,
-                                    sym_op_info, queue_index, &local_err);
+            ret = cryptodev_backend_crypto_operation(vcrypto->cryptodev,
+                                    request, queue_index, &local_err);
             if (ret < 0) {
-                status = VIRTIO_CRYPTO_ERR;
+                status = -ret;
                 if (local_err) {
                     error_report_err(local_err);
                 }
-            } else { /* ret >= 0 */
-                status = VIRTIO_CRYPTO_OK;
+            } else { /* ret == VIRTIO_CRYPTO_OK */
+                status = ret;
             }
             virtio_crypto_req_complete(request, status);
             virtio_crypto_free_request(request);
