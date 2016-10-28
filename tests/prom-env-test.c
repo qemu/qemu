@@ -9,11 +9,12 @@
  * This work is licensed under the terms of the GNU GPL, version 2
  * or later. See the COPYING file in the top-level directory.
  *
- * This test is used to check that some OpenBIOS machines can be started
- * successfully in TCG mode. To do this, we first put some Forth code into
- * the "boot-command" Open Firmware environment variable. This Forth code
- * writes a well-known magic value to a known location in memory. Then we
- * start the guest so that OpenBIOS can boot and finally run the Forth code.
+ * This test is used to check that some Open Firmware based machines (i.e.
+ * OpenBIOS or SLOF) can be started successfully in TCG mode. To do this, we
+ * first put some Forth code into the "boot-command" Open Firmware environment
+ * variable. This Forth code writes a well-known magic value to a known location
+ * in memory. Then we start the guest so that the firmware can boot and finally
+ * run the Forth code.
  * The testing code here then can finally check whether the value has been
  * successfully written into the guest memory.
  */
@@ -71,13 +72,16 @@ int main(int argc, char *argv[])
 {
     const char *sparc_machines[] = { "SPARCbook", "Voyager", "SS-20", NULL };
     const char *sparc64_machines[] = { "sun4u", "sun4v", NULL };
-    const char *mac_machines[] = { "mac99", "g3beige", NULL };
+    const char *ppc_machines[] = { "mac99", "g3beige", NULL };
+    const char *ppc64_machines[] = { "mac99", "g3beige", "pseries", NULL };
     const char *arch = qtest_get_arch();
 
     g_test_init(&argc, &argv, NULL);
 
-    if (!strcmp(arch, "ppc") || !strcmp(arch, "ppc64")) {
-        add_tests(mac_machines);
+    if (!strcmp(arch, "ppc")) {
+        add_tests(ppc_machines);
+    } else if (!strcmp(arch, "ppc64")) {
+        add_tests(ppc64_machines);
     } else if (!strcmp(arch, "sparc")) {
         add_tests(sparc_machines);
     } else if (!strcmp(arch, "sparc64")) {
