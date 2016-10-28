@@ -1150,6 +1150,9 @@ do {                                            \
     env->wdt_period[3] = (d_);                  \
  } while (0)
 
+typedef struct PPCVirtualHypervisor PPCVirtualHypervisor;
+typedef struct PPCVirtualHypervisorClass PPCVirtualHypervisorClass;
+
 /**
  * PowerPCCPU:
  * @env: #CPUPPCState
@@ -1168,6 +1171,7 @@ struct PowerPCCPU {
     int cpu_dt_id;
     uint32_t max_compat;
     uint32_t cpu_version;
+    PPCVirtualHypervisor *vhyp;
 
     /* Fields related to migration compatibility hacks */
     bool pre_2_8_migration;
@@ -1188,6 +1192,25 @@ static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
 
 PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr);
 PowerPCCPUClass *ppc_cpu_class_by_pvr_mask(uint32_t pvr);
+
+struct PPCVirtualHypervisor {
+    Object parent;
+};
+
+struct PPCVirtualHypervisorClass {
+    InterfaceClass parent;
+    void (*hypercall)(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu);
+};
+
+#define TYPE_PPC_VIRTUAL_HYPERVISOR "ppc-virtual-hypervisor"
+#define PPC_VIRTUAL_HYPERVISOR(obj)                 \
+    OBJECT_CHECK(PPCVirtualHypervisor, (obj), TYPE_PPC_VIRTUAL_HYPERVISOR)
+#define PPC_VIRTUAL_HYPERVISOR_CLASS(klass)         \
+    OBJECT_CLASS_CHECK(PPCVirtualHypervisorClass, (klass), \
+                       TYPE_PPC_VIRTUAL_HYPERVISOR)
+#define PPC_VIRTUAL_HYPERVISOR_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(PPCVirtualHypervisorClass, (obj), \
+                     TYPE_PPC_VIRTUAL_HYPERVISOR)
 
 void ppc_cpu_do_interrupt(CPUState *cpu);
 bool ppc_cpu_exec_interrupt(CPUState *cpu, int int_req);
@@ -1261,6 +1284,7 @@ void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
 void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
+void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp);
 void cpu_ppc_set_papr(PowerPCCPU *cpu);
 #endif
 #endif
@@ -2434,8 +2458,6 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
     return (start + nregs <= 32 && rx >= start && rx < start + nregs) ||
            (start + nregs > 32 && (rx >= start || rx < start + nregs - 32));
 }
-
-extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
 

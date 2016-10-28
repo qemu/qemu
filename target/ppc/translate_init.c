@@ -8857,6 +8857,11 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
 
 #if !defined(CONFIG_USER_ONLY)
 
+void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
+{
+    cpu->vhyp = vhyp;
+}
+
 void cpu_ppc_set_papr(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
@@ -10591,9 +10596,16 @@ static const TypeInfo ppc_cpu_type_info = {
     .class_init = ppc_cpu_class_init,
 };
 
+static const TypeInfo ppc_vhyp_type_info = {
+    .name = TYPE_PPC_VIRTUAL_HYPERVISOR,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(PPCVirtualHypervisorClass),
+};
+
 static void ppc_cpu_register_types(void)
 {
     type_register_static(&ppc_cpu_type_info);
+    type_register_static(&ppc_vhyp_type_info);
 }
 
 type_init(ppc_cpu_register_types)

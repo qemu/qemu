@@ -1005,7 +1005,8 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return (addr & 0x0fffffff) + KERNEL_LOAD_ADDR;
 }
 
-static void emulate_spapr_hypercall(PowerPCCPU *cpu)
+static void emulate_spapr_hypercall(PPCVirtualHypervisor *vhyp,
+                                    PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
 
@@ -1843,8 +1844,6 @@ static void ppc_spapr_init(MachineState *machine)
 
     QLIST_INIT(&spapr->phbs);
 
-    cpu_ppc_hypercall = emulate_spapr_hypercall;
-
     /* Allocate RMA if necessary */
     rma_alloc_size = kvmppc_alloc_rma(&rma);
 
@@ -2680,6 +2679,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+    PPCVirtualHypervisorClass *vhc = PPC_VIRTUAL_HYPERVISOR_CLASS(oc);
 
     mc->desc = "pSeries Logical Partition (PAPR compliant)";
 
@@ -2711,6 +2711,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
     smc->phb_placement = spapr_phb_placement;
+    vhc->hypercall = emulate_spapr_hypercall;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -2726,6 +2727,7 @@ static const TypeInfo spapr_machine_info = {
         { TYPE_FW_PATH_PROVIDER },
         { TYPE_NMI },
         { TYPE_HOTPLUG_HANDLER },
+        { TYPE_PPC_VIRTUAL_HYPERVISOR },
         { }
     },
 };
