@@ -99,6 +99,7 @@ void migration_tls_channel_process_incoming(MigrationState *s,
     }
 
     trace_migration_tls_incoming_handshake_start();
+    qio_channel_set_name(QIO_CHANNEL(tioc), "migration-tls-incoming");
     qio_channel_tls_handshake(tioc,
                               migration_tls_incoming_handshake,
                               NULL,
@@ -154,6 +155,7 @@ void migration_tls_channel_connect(MigrationState *s,
     }
 
     trace_migration_tls_outgoing_handshake_start(hostname);
+    qio_channel_set_name(QIO_CHANNEL(tioc), "migration-tls-outgoing");
     qio_channel_tls_handshake(tioc,
                               migration_tls_outgoing_handshake,
                               s,

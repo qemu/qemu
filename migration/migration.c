@@ -1567,6 +1567,7 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
      * to do this we use a qemu_buf to hold the whole of the device state.
      */
     bioc = qio_channel_buffer_new(4096);
+    qio_channel_set_name(QIO_CHANNEL(bioc), "migration-postcopy-buffer");
     fb = qemu_fopen_channel_output(QIO_CHANNEL(bioc));
     object_unref(OBJECT(bioc));
 

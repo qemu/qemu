@@ -3100,6 +3100,9 @@ static gboolean vnc_listen_io(QIOChannel *ioc,
 
     sioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc), &err);
     if (sioc != NULL) {
+        qio_channel_set_name(QIO_CHANNEL(sioc),
+                             ioc != QIO_CHANNEL(vd->lsock) ?
+                             "vnc-ws-server" : "vnc-server");
         qio_channel_set_delay(QIO_CHANNEL(sioc), false);
         vnc_connect(vd, sioc, false,
                     ioc != QIO_CHANNEL(vd->lsock));
@@ -3788,6 +3791,7 @@ void vnc_display_open(const char *id, Error **errp)
         }
         vd->is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
         sioc = qio_channel_socket_new();
+        qio_channel_set_name(QIO_CHANNEL(sioc), "vnc-reverse");
         if (qio_channel_socket_connect_sync(sioc, saddr, errp) < 0) {
             goto fail;
         }
@@ -3795,6 +3799,7 @@ void vnc_display_open(const char *id, Error **errp)
         object_unref(OBJECT(sioc));
     } else {
         vd->lsock = qio_channel_socket_new();
+        qio_channel_set_name(QIO_CHANNEL(vd->lsock), "vnc-listen");
         if (qio_channel_socket_listen_sync(vd->lsock, saddr, errp) < 0) {
             goto fail;
         }
@@ -3802,6 +3807,7 @@ void vnc_display_open(const char *id, Error **errp)
 
         if (ws_enabled) {
             vd->lwebsock = qio_channel_socket_new();
+            qio_channel_set_name(QIO_CHANNEL(vd->lwebsock), "vnc-ws-listen");
             if (qio_channel_socket_listen_sync(vd->lwebsock,
                                                wsaddr, errp) < 0) {
                 object_unref(OBJECT(vd->lsock));
@@ -3845,6 +3851,7 @@ void vnc_display_add_client(const char *id, int csock, bool skipauth)
 
     sioc = qio_channel_socket_new_fd(csock, NULL);
     if (sioc) {
+        qio_channel_set_name(QIO_CHANNEL(sioc), "vnc-server");
         vnc_connect(vd, sioc, skipauth, false);
         object_unref(OBJECT(sioc));
     }

@@ -1631,6 +1631,7 @@ static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis)
     }
 
     bioc = qio_channel_buffer_new(length);
+    qio_channel_set_name(QIO_CHANNEL(bioc), "migration-loadvm-buffer");
     ret = qemu_get_buffer(mis->from_src_file,
                           bioc->data,
                           length);
@@ -2122,6 +2123,7 @@ void qmp_xen_save_devices_state(const char *filename, Error **errp)
     if (!ioc) {
         goto the_end;
     }
+    qio_channel_set_name(QIO_CHANNEL(ioc), "migration-xen-save-state");
     f = qemu_fopen_channel_output(QIO_CHANNEL(ioc));
     ret = qemu_save_device_state(f);
     qemu_fclose(f);
@@ -2154,6 +2156,7 @@ void qmp_xen_load_devices_state(const char *filename, Error **errp)
     if (!ioc) {
         return;
     }
+    qio_channel_set_name(QIO_CHANNEL(ioc), "migration-xen-load-state");
     f = qemu_fopen_channel_input(QIO_CHANNEL(ioc));
 
     migration_incoming_state_new(f);

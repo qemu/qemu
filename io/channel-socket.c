@@ -55,7 +55,7 @@ qio_channel_socket_new(void)
     sioc->fd = -1;
 
     ioc = QIO_CHANNEL(sioc);
-    ioc->features |= (1 << QIO_CHANNEL_FEATURE_SHUTDOWN);
+    qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_SHUTDOWN);
 
 #ifdef WIN32
     ioc->event = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -72,9 +72,6 @@ qio_channel_socket_set_fd(QIOChannelSocket *sioc,
                           int fd,
                           Error **errp)
 {
-    int val;
-    socklen_t len = sizeof(val);
-
     if (sioc->fd != -1) {
         error_setg(errp, "Socket is already open");
         return -1;
@@ -107,13 +104,9 @@ qio_channel_socket_set_fd(QIOChannelSocket *sioc,
 #ifndef WIN32
     if (sioc->localAddr.ss_family == AF_UNIX) {
         QIOChannel *ioc = QIO_CHANNEL(sioc);
-        ioc->features |= (1 << QIO_CHANNEL_FEATURE_FD_PASS);
+        qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS);
     }
 #endif /* WIN32 */
-    if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &val, &len) == 0 && val) {
-        QIOChannel *ioc = QIO_CHANNEL(sioc);
-        ioc->features |= (1 << QIO_CHANNEL_FEATURE_LISTEN);
-    }
 
     return 0;
 
@@ -220,6 +213,7 @@ int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
         close(fd);
         return -1;
     }
+    qio_channel_set_feature(QIO_CHANNEL(ioc), QIO_CHANNEL_FEATURE_LISTEN);
 
     return 0;
 }
@@ -380,7 +374,8 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
 
 #ifndef WIN32
     if (cioc->localAddr.ss_family == AF_UNIX) {
-        QIO_CHANNEL(cioc)->features |= (1 << QIO_CHANNEL_FEATURE_FD_PASS);
+        QIOChannel *ioc_local = QIO_CHANNEL(cioc);
+        qio_channel_set_feature(ioc_local, QIO_CHANNEL_FEATURE_FD_PASS);
     }
 #endif /* WIN32 */
 
@@ -403,7 +398,8 @@ static void qio_channel_socket_finalize(Object *obj)
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(obj);
 
     if (ioc->fd != -1) {
-        if (QIO_CHANNEL(ioc)->features & QIO_CHANNEL_FEATURE_LISTEN) {
+        QIOChannel *ioc_local = QIO_CHANNEL(ioc);
+        if (qio_channel_has_feature(ioc_local, QIO_CHANNEL_FEATURE_LISTEN)) {
             Error *err = NULL;
 
             socket_listen_cleanup(ioc->fd, &err);
