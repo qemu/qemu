@@ -369,10 +369,10 @@ static void curses_setup(void)
     /* ACS_* is not constant. So, we can't initialize statically. */
     vga_to_curses['\0'] = ' ';
     vga_to_curses[0x04] = ACS_DIAMOND;
-    vga_to_curses[0x0a] = ACS_RARROW;
-    vga_to_curses[0x0b] = ACS_LARROW;
     vga_to_curses[0x18] = ACS_UARROW;
     vga_to_curses[0x19] = ACS_DARROW;
+    vga_to_curses[0x1a] = ACS_RARROW;
+    vga_to_curses[0x1b] = ACS_LARROW;
     vga_to_curses[0x9c] = ACS_STERLING;
     vga_to_curses[0xb0] = ACS_BOARD;
     vga_to_curses[0xb1] = ACS_CKBOARD;

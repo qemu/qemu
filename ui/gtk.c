@@ -912,8 +912,27 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
 
     if (!qemu_input_is_absolute() && s->ptr_owner == vc) {
         GdkScreen *screen = gtk_widget_get_screen(vc->gfx.drawing_area);
+        int screen_width, screen_height;
+
         int x = (int)motion->x_root;
         int y = (int)motion->y_root;
+
+#if GTK_CHECK_VERSION(3, 22, 0)
+        {
+            GdkDisplay *dpy = gtk_widget_get_display(widget);
+            GdkWindow *win = gtk_widget_get_window(widget);
+            GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
+            GdkRectangle geometry;
+            gdk_monitor_get_geometry(monitor, &geometry);
+            screen_width = geometry.width;
+            screen_height = geometry.height;
+        }
+#else
+        {
+            screen_width = gdk_screen_get_width(screen);
+            screen_height = gdk_screen_get_height(screen);
+        }
+#endif
 
         /* In relative mode check to see if client pointer hit
          * one of the screen edges, and if so move it back by
@@ -928,10 +947,10 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
         if (y == 0) {
             y += 200;
         }
-        if (x == (gdk_screen_get_width(screen) - 1)) {
+        if (x == (screen_width - 1)) {
             x -= 200;
         }
-        if (y == (gdk_screen_get_height(screen) - 1)) {
+        if (y == (screen_height - 1)) {
             y -= 200;
         }
 
@@ -1051,7 +1070,9 @@ static gboolean gd_text_key_down(GtkWidget *widget,
     VirtualConsole *vc = opaque;
     QemuConsole *con = vc->gfx.dcl.con;
 
-    if (key->length) {
+    if (key->keyval == GDK_KEY_Delete) {
+        kbd_put_qcode_console(con, Q_KEY_CODE_DELETE);
+    } else if (key->length) {
         kbd_put_string_console(con, key->string, key->length);
     } else {
         int num = gd_map_keycode(vc->s, gtk_widget_get_display(widget),
