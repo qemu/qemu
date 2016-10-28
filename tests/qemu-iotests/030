@@ -315,6 +315,36 @@ class TestParallelOps(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         self.wait_until_completed(drive='commit-drive0')
+
+    # Test a block-stream and a block-commit job in parallel
+    def test_stream_commit(self):
+        self.assertLessEqual(8, self.num_imgs)
+        self.assert_no_active_block_jobs()
+
+        # Stream from node0 into node2
+        result = self.vm.qmp('block-stream', device='node2', job_id='node2')
+        self.assert_qmp(result, 'return', {})
+
+        # Commit from the active layer into node3
+        result = self.vm.qmp('block-commit', device='drive0', base=self.imgs[3])
+        self.assert_qmp(result, 'return', {})
+
+        # Wait for all jobs to be finished.
+        pending_jobs = ['node2', 'drive0']
+        while len(pending_jobs) > 0:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    node_name = self.dictpath(event, 'data/device')
+                    self.assertTrue(node_name in pending_jobs)
+                    self.assert_qmp_absent(event, 'data/error')
+                    pending_jobs.remove(node_name)
+                if event['event'] == 'BLOCK_JOB_READY':
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/type', 'commit')
+                    self.assert_qmp_absent(event, 'data/error')
+                    self.assertTrue('drive0' in pending_jobs)
+                    self.vm.qmp('block-job-complete', device='drive0')
+
         self.assert_no_active_block_jobs()
 
 class TestSmallerBackingFile(iotests.QMPTestCase):
