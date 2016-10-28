@@ -347,6 +347,62 @@ class TestParallelOps(iotests.QMPTestCase):
 
         self.assert_no_active_block_jobs()
 
+class TestQuorum(iotests.QMPTestCase):
+    num_children = 3
+    children = []
+    backing = []
+
+    def setUp(self):
+        opts = ['driver=quorum', 'vote-threshold=2']
+
+        # Initialize file names and command-line options
+        for i in range(self.num_children):
+            child_img = os.path.join(iotests.test_dir, 'img-%d.img' % i)
+            backing_img = os.path.join(iotests.test_dir, 'backing-%d.img' % i)
+            self.children.append(child_img)
+            self.backing.append(backing_img)
+            qemu_img('create', '-f', iotests.imgfmt, backing_img, '1M')
+            qemu_io('-f', iotests.imgfmt,
+                    '-c', 'write -P 0x55 0 1024', backing_img)
+            qemu_img('create', '-f', iotests.imgfmt,
+                     '-o', 'backing_file=%s' % backing_img, child_img)
+            opts.append("children.%d.file.filename=%s" % (i, child_img))
+            opts.append("children.%d.node-name=node%d" % (i, i))
+
+        # Attach the drive to the VM
+        self.vm = iotests.VM()
+        self.vm.add_drive(path = None, opts = ','.join(opts))
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for img in self.children:
+            os.remove(img)
+        for img in self.backing:
+            os.remove(img)
+
+    def test_stream_quorum(self):
+        if not iotests.supports_quorum():
+            return
+
+        self.assertNotEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', self.children[0]),
+                            qemu_io('-f', iotests.imgfmt, '-c', 'map', self.backing[0]),
+                            'image file map matches backing file before streaming')
+
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('block-stream', device='node0', job_id='stream-node0')
+        self.assert_qmp(result, 'return', {})
+
+        self.wait_until_completed(drive='stream-node0')
+
+        self.assert_no_active_block_jobs()
+        self.vm.shutdown()
+
+        self.assertEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', self.children[0]),
+                         qemu_io('-f', iotests.imgfmt, '-c', 'map', self.backing[0]),
+                         'image file map does not match backing file after streaming')
+
 class TestSmallerBackingFile(iotests.QMPTestCase):
     backing_len = 1 * 1024 * 1024 # MB
     image_len = 2 * backing_len
