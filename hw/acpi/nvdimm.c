@@ -862,7 +862,8 @@ static void nvdimm_build_common_dsm(Aml *dev)
     aml_append(method, aml_store(dsm_mem, aml_name("NTFI")));
 
     result_size = aml_local(1);
-    aml_append(method, aml_store(aml_name("RLEN"), result_size));
+    /* RLEN is not included in the payload returned to guest. */
+    aml_append(method, aml_subtract(aml_name("RLEN"), aml_int(4), result_size));
     aml_append(method, aml_store(aml_shiftleft(result_size, aml_int(3)),
                                  result_size));
     aml_append(method, aml_create_field(aml_name("ODAT"), aml_int(0),
