@@ -1392,6 +1392,12 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (sphb->numa_node != -1 &&
+        (sphb->numa_node >= MAX_NODES || !numa_info[sphb->numa_node].present)) {
+        error_setg(errp, "Invalid NUMA node ID for PCI host bridge");
+        return;
+    }
+
     sphb->dtbusname = g_strdup_printf("pci@%" PRIx64, sphb->buid);
 
     namebuf = alloca(strlen(sphb->dtbusname) + 32);
@@ -1880,7 +1886,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     }
 
     /* Advertise NUMA via ibm,associativity */
-    if (nb_numa_nodes > 1) {
+    if (phb->numa_node != -1) {
         _FDT(fdt_setprop(fdt, bus_off, "ibm,associativity", associativity,
                          sizeof(associativity)));
     }

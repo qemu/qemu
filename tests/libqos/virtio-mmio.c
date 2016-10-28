@@ -15,28 +15,28 @@
 #include "libqos/malloc-generic.h"
 #include "standard-headers/linux/virtio_ring.h"
 
-static uint8_t qvirtio_mmio_config_readb(QVirtioDevice *d, uint64_t addr)
+static uint8_t qvirtio_mmio_config_readb(QVirtioDevice *d, uint64_t off)
 {
     QVirtioMMIODevice *dev = (QVirtioMMIODevice *)d;
-    return readb(dev->addr + addr);
+    return readb(dev->addr + QVIRTIO_MMIO_DEVICE_SPECIFIC + off);
 }
 
-static uint16_t qvirtio_mmio_config_readw(QVirtioDevice *d, uint64_t addr)
+static uint16_t qvirtio_mmio_config_readw(QVirtioDevice *d, uint64_t off)
 {
     QVirtioMMIODevice *dev = (QVirtioMMIODevice *)d;
-    return readw(dev->addr + addr);
+    return readw(dev->addr + QVIRTIO_MMIO_DEVICE_SPECIFIC + off);
 }
 
-static uint32_t qvirtio_mmio_config_readl(QVirtioDevice *d, uint64_t addr)
+static uint32_t qvirtio_mmio_config_readl(QVirtioDevice *d, uint64_t off)
 {
     QVirtioMMIODevice *dev = (QVirtioMMIODevice *)d;
-    return readl(dev->addr + addr);
+    return readl(dev->addr + QVIRTIO_MMIO_DEVICE_SPECIFIC + off);
 }
 
-static uint64_t qvirtio_mmio_config_readq(QVirtioDevice *d, uint64_t addr)
+static uint64_t qvirtio_mmio_config_readq(QVirtioDevice *d, uint64_t off)
 {
     QVirtioMMIODevice *dev = (QVirtioMMIODevice *)d;
-    return readq(dev->addr + addr);
+    return readq(dev->addr + QVIRTIO_MMIO_DEVICE_SPECIFIC + off);
 }
 
 static uint32_t qvirtio_mmio_get_features(QVirtioDevice *d)
@@ -199,6 +199,7 @@ QVirtioMMIODevice *qvirtio_mmio_init_device(uint64_t addr, uint32_t page_size)
     dev->addr = addr;
     dev->page_size = page_size;
     dev->vdev.device_type = readl(addr + QVIRTIO_MMIO_DEVICE_ID);
+    dev->vdev.bus = &qvirtio_mmio;
 
     writel(addr + QVIRTIO_MMIO_GUEST_PAGE_SIZE, page_size);
 

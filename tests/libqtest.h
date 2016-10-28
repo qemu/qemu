@@ -881,16 +881,6 @@ static inline int64_t clock_set(int64_t val)
     return qtest_clock_set(global_qtest, val);
 }
 
-/**
- * target_big_endian:
- *
- * Returns: True if the architecture under test has a big endian configuration.
- */
-static inline bool target_big_endian(void)
-{
-    return qtest_big_endian(global_qtest);
-}
-
 QDict *qmp_fd_receive(int fd);
 void qmp_fd_sendv(int fd, const char *fmt, va_list ap);
 void qmp_fd_send(int fd, const char *fmt, ...);

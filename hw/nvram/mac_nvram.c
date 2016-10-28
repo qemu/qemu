@@ -24,8 +24,7 @@
  */
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "hw/nvram/openbios_firmware_abi.h"
-#include "sysemu/sysemu.h"
+#include "hw/nvram/chrp_nvram.h"
 #include "hw/ppc/mac.h"
 #include "qemu/cutils.h"
 #include <zlib.h>
@@ -146,38 +145,14 @@ static void macio_nvram_register_types(void)
 static void pmac_format_nvram_partition_of(MacIONVRAMState *nvr, int off,
                                            int len)
 {
-    unsigned int i;
-    uint32_t start = off, end;
-    struct OpenBIOS_nvpart_v1 *part_header;
+    int sysp_end;
 
-    // OpenBIOS nvram variables
-    // Variable partition
-    part_header = (struct OpenBIOS_nvpart_v1 *)&nvr->data[start];
-    part_header->signature = OPENBIOS_PART_SYSTEM;
-    pstrcpy(part_header->name, sizeof(part_header->name), "system");
+    /* OpenBIOS nvram variables partition */
+    sysp_end = chrp_nvram_create_system_partition(&nvr->data[off],
+                                                  DEF_SYSTEM_SIZE) + off;
 
-    end = start + sizeof(struct OpenBIOS_nvpart_v1);
-    for (i = 0; i < nb_prom_envs; i++)
-        end = OpenBIOS_set_var(nvr->data, end, prom_envs[i]);
-
-    // End marker
-    nvr->data[end++] = '\0';
-
-    end = start + ((end - start + 15) & ~15);
-    /* XXX: OpenBIOS is not able to grow up a partition. Leave some space for
-       new variables. */
-    if (end < DEF_SYSTEM_SIZE)
-        end = DEF_SYSTEM_SIZE;
-    OpenBIOS_finish_partition(part_header, end - start);
-
-    // free partition
-    start = end;
-    part_header = (struct OpenBIOS_nvpart_v1 *)&nvr->data[start];
-    part_header->signature = OPENBIOS_PART_FREE;
-    pstrcpy(part_header->name, sizeof(part_header->name), "free");
-
-    end = len;
-    OpenBIOS_finish_partition(part_header, end - start);
+    /* Free space partition */
+    chrp_nvram_create_free_partition(&nvr->data[sysp_end], len - sysp_end);
 }
 
 #define OSX_NVRAM_SIGNATURE     (0x5A)
@@ -187,15 +162,15 @@ static void pmac_format_nvram_partition_osx(MacIONVRAMState *nvr, int off,
                                             int len)
 {
     uint32_t start = off;
-    struct OpenBIOS_nvpart_v1 *part_header;
+    ChrpNvramPartHdr *part_header;
     unsigned char *data = &nvr->data[start];
 
     /* empty partition */
-    part_header = (struct OpenBIOS_nvpart_v1 *)data;
+    part_header = (ChrpNvramPartHdr *)data;
     part_header->signature = OSX_NVRAM_SIGNATURE;
     pstrcpy(part_header->name, sizeof(part_header->name), "wwwwwwwwwwww");
 
-    OpenBIOS_finish_partition(part_header, len);
+    chrp_nvram_finish_partition(part_header, len);
 
     /* Generation */
     stl_be_p(&data[20], 2);

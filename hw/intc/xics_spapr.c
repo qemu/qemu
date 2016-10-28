@@ -32,6 +32,7 @@
 #include "qemu/timer.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/fdt.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"
 
@@ -43,9 +44,10 @@ static target_ulong h_cppr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     CPUState *cs = CPU(cpu);
+    ICPState *icp = &spapr->xics->ss[cs->cpu_index];
     target_ulong cppr = args[0];
 
-    icp_set_cppr(spapr->xics, cs->cpu_index, cppr);
+    icp_set_cppr(icp, cppr);
     return H_SUCCESS;
 }
 
@@ -59,7 +61,7 @@ static target_ulong h_ipi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return H_PARAMETER;
     }
 
-    icp_set_mfrr(spapr->xics, server, mfrr);
+    icp_set_mfrr(spapr->xics->ss + server, mfrr);
     return H_SUCCESS;
 }
 
@@ -67,7 +69,8 @@ static target_ulong h_xirr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     CPUState *cs = CPU(cpu);
-    uint32_t xirr = icp_accept(spapr->xics->ss + cs->cpu_index);
+    ICPState *icp = &spapr->xics->ss[cs->cpu_index];
+    uint32_t xirr = icp_accept(icp);
 
     args[0] = xirr;
     return H_SUCCESS;
@@ -77,8 +80,8 @@ static target_ulong h_xirr_x(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                              target_ulong opcode, target_ulong *args)
 {
     CPUState *cs = CPU(cpu);
-    ICPState *ss = &spapr->xics->ss[cs->cpu_index];
-    uint32_t xirr = icp_accept(ss);
+    ICPState *icp = &spapr->xics->ss[cs->cpu_index];
+    uint32_t xirr = icp_accept(icp);
 
     args[0] = xirr;
     args[1] = cpu_get_host_ticks();
@@ -89,9 +92,10 @@ static target_ulong h_eoi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                           target_ulong opcode, target_ulong *args)
 {
     CPUState *cs = CPU(cpu);
+    ICPState *icp = &spapr->xics->ss[cs->cpu_index];
     target_ulong xirr = args[0];
 
-    icp_eoi(spapr->xics, cs->cpu_index, xirr);
+    icp_eoi(icp, xirr);
     return H_SUCCESS;
 }
 
@@ -99,8 +103,9 @@ static target_ulong h_ipoll(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                             target_ulong opcode, target_ulong *args)
 {
     CPUState *cs = CPU(cpu);
+    ICPState *icp = &spapr->xics->ss[cs->cpu_index];
     uint32_t mfrr;
-    uint32_t xirr = icp_ipoll(spapr->xics->ss + cs->cpu_index, &mfrr);
+    uint32_t xirr = icp_ipoll(icp, &mfrr);
 
     args[0] = xirr;
     args[1] = mfrr;
@@ -249,18 +254,7 @@ static void xics_spapr_set_nr_irqs(XICSState *xics, uint32_t nr_irqs,
 static void xics_spapr_set_nr_servers(XICSState *xics, uint32_t nr_servers,
                                       Error **errp)
 {
-    int i;
-
-    xics->nr_servers = nr_servers;
-
-    xics->ss = g_malloc0(xics->nr_servers * sizeof(ICPState));
-    for (i = 0; i < xics->nr_servers; i++) {
-        char buffer[32];
-        object_initialize(&xics->ss[i], sizeof(xics->ss[i]), TYPE_ICP);
-        snprintf(buffer, sizeof(buffer), "icp[%d]", i);
-        object_property_add_child(OBJECT(xics), buffer, OBJECT(&xics->ss[i]),
-                                  errp);
-    }
+    xics_set_nr_servers(xics, nr_servers, TYPE_ICP, errp);
 }
 
 static void xics_spapr_realize(DeviceState *dev, Error **errp)
@@ -454,6 +448,27 @@ void xics_spapr_free(XICSState *xics, int irq, int num)
         trace_xics_ics_free(0, irq, num);
         ics_free(ics, irq - ics->offset, num);
     }
+}
+
+void spapr_dt_xics(XICSState *xics, void *fdt, uint32_t phandle)
+{
+    uint32_t interrupt_server_ranges_prop[] = {
+        0, cpu_to_be32(xics->nr_servers),
+    };
+    int node;
+
+    _FDT(node = fdt_add_subnode(fdt, 0, "interrupt-controller"));
+
+    _FDT(fdt_setprop_string(fdt, node, "device_type",
+                            "PowerPC-External-Interrupt-Presentation"));
+    _FDT(fdt_setprop_string(fdt, node, "compatible", "IBM,ppc-xicp"));
+    _FDT(fdt_setprop(fdt, node, "interrupt-controller", NULL, 0));
+    _FDT(fdt_setprop(fdt, node, "ibm,interrupt-server-ranges",
+                     interrupt_server_ranges_prop,
+                     sizeof(interrupt_server_ranges_prop)));
+    _FDT(fdt_setprop_cell(fdt, node, "#interrupt-cells", 2));
+    _FDT(fdt_setprop_cell(fdt, node, "linux,phandle", phandle));
+    _FDT(fdt_setprop_cell(fdt, node, "phandle", phandle));
 }
 
 static void xics_spapr_register_types(void)

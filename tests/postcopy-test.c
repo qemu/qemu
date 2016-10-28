@@ -18,7 +18,7 @@
 #include "qemu/sockets.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
-#include "hw/nvram/openbios_firmware_abi.h"
+#include "hw/nvram/chrp_nvram.h"
 
 #define MIN_NVRAM_SIZE 8192 /* from spapr_nvram.c */
 
@@ -137,15 +137,15 @@ static void init_bootfile_ppc(const char *bootpath)
 {
     FILE *bootfile;
     char buf[MIN_NVRAM_SIZE];
-    struct OpenBIOS_nvpart_v1 *header = (struct OpenBIOS_nvpart_v1 *)buf;
+    ChrpNvramPartHdr *header = (ChrpNvramPartHdr *)buf;
 
     memset(buf, 0, MIN_NVRAM_SIZE);
 
     /* Create a "common" partition in nvram to store boot-command property */
 
-    header->signature = OPENBIOS_PART_SYSTEM;
+    header->signature = CHRP_NVPART_SYSTEM;
     memcpy(header->name, "common", 6);
-    OpenBIOS_finish_partition(header, MIN_NVRAM_SIZE);
+    chrp_nvram_finish_partition(header, MIN_NVRAM_SIZE);
 
     /* FW_MAX_SIZE is 4MB, but slof.bin is only 900KB,
      * so let's modify memory between 1MB and 100MB

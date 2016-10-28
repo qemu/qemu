@@ -2362,6 +2362,58 @@ VSX_MADD(xvnmaddmsp, 4, float32, VsrW(i), NMADD_FLGS, 0, 0, 0)
 VSX_MADD(xvnmsubasp, 4, float32, VsrW(i), NMSUB_FLGS, 1, 0, 0)
 VSX_MADD(xvnmsubmsp, 4, float32, VsrW(i), NMSUB_FLGS, 0, 0, 0)
 
+/* VSX_SCALAR_CMP_DP - VSX scalar floating point compare double precision
+ *   op    - instruction mnemonic
+ *   cmp   - comparison operation
+ *   exp   - expected result of comparison
+ *   svxvc - set VXVC bit
+ */
+#define VSX_SCALAR_CMP_DP(op, cmp, exp, svxvc)                                \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
+{                                                                             \
+    ppc_vsr_t xt, xa, xb;                                                     \
+    bool vxsnan_flag = false, vxvc_flag = false, vex_flag = false;            \
+                                                                              \
+    getVSR(xA(opcode), &xa, env);                                             \
+    getVSR(xB(opcode), &xb, env);                                             \
+    getVSR(xT(opcode), &xt, env);                                             \
+                                                                              \
+    if (float64_is_signaling_nan(xa.VsrD(0), &env->fp_status) ||              \
+        float64_is_signaling_nan(xb.VsrD(0), &env->fp_status)) {              \
+        vxsnan_flag = true;                                                   \
+        if (fpscr_ve == 0 && svxvc) {                                         \
+            vxvc_flag = true;                                                 \
+        }                                                                     \
+    } else if (svxvc) {                                                       \
+        vxvc_flag = float64_is_quiet_nan(xa.VsrD(0), &env->fp_status) ||      \
+            float64_is_quiet_nan(xb.VsrD(0), &env->fp_status);                \
+    }                                                                         \
+    if (vxsnan_flag) {                                                        \
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);                \
+    }                                                                         \
+    if (vxvc_flag) {                                                          \
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);                  \
+    }                                                                         \
+    vex_flag = fpscr_ve && (vxvc_flag || vxsnan_flag);                        \
+                                                                              \
+    if (!vex_flag) {                                                          \
+        if (float64_##cmp(xb.VsrD(0), xa.VsrD(0), &env->fp_status) == exp) {  \
+            xt.VsrD(0) = -1;                                                  \
+            xt.VsrD(1) = 0;                                                   \
+        } else {                                                              \
+            xt.VsrD(0) = 0;                                                   \
+            xt.VsrD(1) = 0;                                                   \
+        }                                                                     \
+    }                                                                         \
+    putVSR(xT(opcode), &xt, env);                                             \
+    helper_float_check_status(env);                                           \
+}
+
+VSX_SCALAR_CMP_DP(xscmpeqdp, eq, 1, 0)
+VSX_SCALAR_CMP_DP(xscmpgedp, le, 1, 1)
+VSX_SCALAR_CMP_DP(xscmpgtdp, lt, 1, 1)
+VSX_SCALAR_CMP_DP(xscmpnedp, eq, 0, 0)
+
 #define VSX_SCALAR_CMP(op, ordered)                                      \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
 {                                                                        \
@@ -2445,8 +2497,9 @@ VSX_MAX_MIN(xvminsp, minnum, 4, float32, VsrW(i))
  *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   cmp   - comparison operation
  *   svxvc - set VXVC bit
+ *   exp   - expected result of comparison
  */
-#define VSX_CMP(op, nels, tp, fld, cmp, svxvc)                            \
+#define VSX_CMP(op, nels, tp, fld, cmp, svxvc, exp)                       \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
 {                                                                         \
     ppc_vsr_t xt, xa, xb;                                                 \
@@ -2471,7 +2524,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
             xt.fld = 0;                                                   \
             all_true = 0;                                                 \
         } else {                                                          \
-            if (tp##_##cmp(xb.fld, xa.fld, &env->fp_status) == 1) {       \
+            if (tp##_##cmp(xb.fld, xa.fld, &env->fp_status) == exp) {     \
                 xt.fld = -1;                                              \
                 all_false = 0;                                            \
             } else {                                                      \
@@ -2488,12 +2541,14 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
     float_check_status(env);                                              \
  }
 
-VSX_CMP(xvcmpeqdp, 2, float64, VsrD(i), eq, 0)
-VSX_CMP(xvcmpgedp, 2, float64, VsrD(i), le, 1)
-VSX_CMP(xvcmpgtdp, 2, float64, VsrD(i), lt, 1)
-VSX_CMP(xvcmpeqsp, 4, float32, VsrW(i), eq, 0)
-VSX_CMP(xvcmpgesp, 4, float32, VsrW(i), le, 1)
-VSX_CMP(xvcmpgtsp, 4, float32, VsrW(i), lt, 1)
+VSX_CMP(xvcmpeqdp, 2, float64, VsrD(i), eq, 0, 1)
+VSX_CMP(xvcmpgedp, 2, float64, VsrD(i), le, 1, 1)
+VSX_CMP(xvcmpgtdp, 2, float64, VsrD(i), lt, 1, 1)
+VSX_CMP(xvcmpnedp, 2, float64, VsrD(i), eq, 0, 0)
+VSX_CMP(xvcmpeqsp, 4, float32, VsrW(i), eq, 0, 1)
+VSX_CMP(xvcmpgesp, 4, float32, VsrW(i), le, 1, 1)
+VSX_CMP(xvcmpgtsp, 4, float32, VsrW(i), lt, 1, 1)
+VSX_CMP(xvcmpnesp, 4, float32, VsrW(i), eq, 0, 0)
 
 /* VSX_CVT_FP_TO_FP - VSX floating point/floating point conversion
  *   op    - instruction mnemonic

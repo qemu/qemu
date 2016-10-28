@@ -1949,6 +1949,18 @@ VEXT_SIGNED(vextsh2d, s64, UINT16_MAX, int16_t, int64_t)
 VEXT_SIGNED(vextsw2d, s64, UINT32_MAX, int32_t, int64_t)
 #undef VEXT_SIGNED
 
+#define VNEG(name, element)                                         \
+void helper_##name(ppc_avr_t *r, ppc_avr_t *b)                      \
+{                                                                   \
+    int i;                                                          \
+    VECTOR_FOR_INORDER_I(i, element) {                              \
+        r->element[i] = -b->element[i];                             \
+    }                                                               \
+}
+VNEG(vnegw, s32)
+VNEG(vnegd, s64)
+#undef VNEG
+
 #define VSPLTI(suffix, element, splat_type)                     \
     void helper_vspltis##suffix(ppc_avr_t *r, uint32_t splat)   \
     {                                                           \

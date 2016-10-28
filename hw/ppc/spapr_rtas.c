@@ -46,6 +46,7 @@
 #include "hw/ppc/spapr_drc.h"
 #include "qemu/cutils.h"
 #include "trace.h"
+#include "hw/ppc/fdt.h"
 
 static sPAPRConfigureConnectorState *spapr_ccs_find(sPAPRMachineState *spapr,
                                                     uint32_t drc_index)
@@ -710,47 +711,9 @@ void spapr_rtas_register(int token, const char *name, spapr_rtas_fn fn)
     rtas_table[token].fn = fn;
 }
 
-int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
-                                 hwaddr rtas_size)
+void spapr_dt_rtas_tokens(void *fdt, int rtas)
 {
-    int ret;
     int i;
-    uint32_t lrdr_capacity[5];
-    MachineState *machine = MACHINE(qdev_get_machine());
-    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
-    uint64_t max_hotplug_addr = spapr->hotplug_memory.base +
-                                memory_region_size(&spapr->hotplug_memory.mr);
-
-    ret = fdt_add_mem_rsv(fdt, rtas_addr, rtas_size);
-    if (ret < 0) {
-        error_report("Couldn't add RTAS reserve entry: %s",
-                fdt_strerror(ret));
-        return ret;
-    }
-
-    ret = qemu_fdt_setprop_cell(fdt, "/rtas", "linux,rtas-base",
-                                rtas_addr);
-    if (ret < 0) {
-        error_report("Couldn't add linux,rtas-base property: %s",
-                fdt_strerror(ret));
-        return ret;
-    }
-
-    ret = qemu_fdt_setprop_cell(fdt, "/rtas", "linux,rtas-entry",
-                                rtas_addr);
-    if (ret < 0) {
-        error_report("Couldn't add linux,rtas-entry property: %s",
-                fdt_strerror(ret));
-        return ret;
-    }
-
-    ret = qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-size",
-                                rtas_size);
-    if (ret < 0) {
-        error_report("Couldn't add rtas-size property: %s",
-                fdt_strerror(ret));
-        return ret;
-    }
 
     for (i = 0; i < RTAS_TOKEN_MAX - RTAS_TOKEN_BASE; i++) {
         struct rtas_call *call = &rtas_table[i];
@@ -759,29 +722,49 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
             continue;
         }
 
-        ret = qemu_fdt_setprop_cell(fdt, "/rtas", call->name,
-                                    i + RTAS_TOKEN_BASE);
-        if (ret < 0) {
-            error_report("Couldn't add rtas token for %s: %s",
-                    call->name, fdt_strerror(ret));
-            return ret;
-        }
-
+        _FDT(fdt_setprop_cell(fdt, rtas, call->name, i + RTAS_TOKEN_BASE));
     }
+}
 
-    lrdr_capacity[0] = cpu_to_be32(max_hotplug_addr >> 32);
-    lrdr_capacity[1] = cpu_to_be32(max_hotplug_addr & 0xffffffff);
-    lrdr_capacity[2] = 0;
-    lrdr_capacity[3] = cpu_to_be32(SPAPR_MEMORY_BLOCK_SIZE);
-    lrdr_capacity[4] = cpu_to_be32(max_cpus/smp_threads);
-    ret = qemu_fdt_setprop(fdt, "/rtas", "ibm,lrdr-capacity", lrdr_capacity,
-                     sizeof(lrdr_capacity));
+void spapr_load_rtas(sPAPRMachineState *spapr, void *fdt, hwaddr addr)
+{
+    int rtas_node;
+    int ret;
+
+    /* Copy RTAS blob into guest RAM */
+    cpu_physical_memory_write(addr, spapr->rtas_blob, spapr->rtas_size);
+
+    ret = fdt_add_mem_rsv(fdt, addr, spapr->rtas_size);
     if (ret < 0) {
-        error_report("Couldn't add ibm,lrdr-capacity rtas property");
-        return ret;
+        error_report("Couldn't add RTAS reserve entry: %s",
+                     fdt_strerror(ret));
+        exit(1);
     }
 
-    return 0;
+    /* Update the device tree with the blob's location */
+    rtas_node = fdt_path_offset(fdt, "/rtas");
+    assert(rtas_node >= 0);
+
+    ret = fdt_setprop_cell(fdt, rtas_node, "linux,rtas-base", addr);
+    if (ret < 0) {
+        error_report("Couldn't add linux,rtas-base property: %s",
+                     fdt_strerror(ret));
+        exit(1);
+    }
+
+    ret = fdt_setprop_cell(fdt, rtas_node, "linux,rtas-entry", addr);
+    if (ret < 0) {
+        error_report("Couldn't add linux,rtas-entry property: %s",
+                     fdt_strerror(ret));
+        exit(1);
+    }
+
+    ret = fdt_setprop_cell(fdt, rtas_node, "rtas-size", spapr->rtas_size);
+    if (ret < 0) {
+        error_report("Couldn't add rtas-size property: %s",
+                     fdt_strerror(ret));
+        exit(1);
+    }
 }
 
 static void core_rtas_register_types(void)

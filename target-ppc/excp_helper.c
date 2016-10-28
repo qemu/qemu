@@ -213,7 +213,12 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             cs->halted = 1;
             cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
         }
-        new_msr |= (target_ulong)MSR_HVB;
+        if (env->msr_mask & MSR_HVB) {
+            /* ISA specifies HV, but can be delivered to guest with HV clear
+             * (e.g., see FWNMI in PAPR).
+             */
+            new_msr |= (target_ulong)MSR_HVB;
+        }
         ail = 0;
 
         /* machine check exceptions don't have ME set */
@@ -385,14 +390,23 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         srr1 = SPR_BOOKE_CSRR1;
         break;
     case POWERPC_EXCP_RESET:     /* System reset exception                   */
+        /* A power-saving exception sets ME, otherwise it is unchanged */
         if (msr_pow) {
             /* indicate that we resumed from power save mode */
             msr |= 0x10000;
-        } else {
-            new_msr &= ~((target_ulong)1 << MSR_ME);
+            new_msr |= ((target_ulong)1 << MSR_ME);
         }
-
-        new_msr |= (target_ulong)MSR_HVB;
+        if (env->msr_mask & MSR_HVB) {
+            /* ISA specifies HV, but can be delivered to guest with HV clear
+             * (e.g., see FWNMI in PAPR, NMI injection in QEMU).
+             */
+            new_msr |= (target_ulong)MSR_HVB;
+        } else {
+            if (msr_pow) {
+                cpu_abort(cs, "Trying to deliver power-saving system reset "
+                          "exception %d with no HV support\n", excp);
+            }
+        }
         ail = 0;
         break;
     case POWERPC_EXCP_DSEG:      /* Data segment exception                   */
@@ -609,9 +623,15 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     env->spr[srr1] = msr;
 
     /* Sanity check */
-    if (!(env->msr_mask & MSR_HVB) && (srr0 == SPR_HSRR0)) {
-        cpu_abort(cs, "Trying to deliver HV exception %d with "
-                  "no HV support\n", excp);
+    if (!(env->msr_mask & MSR_HVB)) {
+        if (new_msr & MSR_HVB) {
+            cpu_abort(cs, "Trying to deliver HV exception (MSR) %d with "
+                      "no HV support\n", excp);
+        }
+        if (srr0 == SPR_HSRR0) {
+            cpu_abort(cs, "Trying to deliver HV exception (HSRR) %d with "
+                      "no HV support\n", excp);
+        }
     }
 
     /* If any alternate SRR register are defined, duplicate saved values */

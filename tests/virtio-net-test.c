@@ -12,12 +12,10 @@
 #include "qemu-common.h"
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
-#include "libqos/pci-pc.h"
+#include "libqos/libqos-pc.h"
+#include "libqos/libqos-spapr.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"
-#include "libqos/malloc.h"
-#include "libqos/malloc-pc.h"
-#include "libqos/malloc-generic.h"
 #include "qemu/bswap.h"
 #include "hw/virtio/virtio-net.h"
 #include "standard-headers/linux/virtio_ids.h"
@@ -46,39 +44,43 @@ static QVirtioPCIDevice *virtio_net_pci_init(QPCIBus *bus, int slot)
     g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_NET);
 
     qvirtio_pci_device_enable(dev);
-    qvirtio_reset(&qvirtio_pci, &dev->vdev);
-    qvirtio_set_acknowledge(&qvirtio_pci, &dev->vdev);
-    qvirtio_set_driver(&qvirtio_pci, &dev->vdev);
+    qvirtio_reset(&dev->vdev);
+    qvirtio_set_acknowledge(&dev->vdev);
+    qvirtio_set_driver(&dev->vdev);
 
     return dev;
 }
 
-static QPCIBus *pci_test_start(int socket)
+static QOSState *pci_test_start(int socket)
 {
-    char *cmdline;
+    const char *arch = qtest_get_arch();
+    const char *cmd = "-netdev socket,fd=%d,id=hs0 -device "
+                      "virtio-net-pci,netdev=hs0";
 
-    cmdline = g_strdup_printf("-netdev socket,fd=%d,id=hs0 -device "
-                              "virtio-net-pci,netdev=hs0", socket);
-    qtest_start(cmdline);
-    g_free(cmdline);
-
-    return qpci_init_pc(NULL);
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        return qtest_pc_boot(cmd, socket);
+    }
+    if (strcmp(arch, "ppc64") == 0) {
+        return qtest_spapr_boot(cmd, socket);
+    }
+    g_printerr("virtio-net tests are only available on x86 or ppc64\n");
+    exit(EXIT_FAILURE);
 }
 
-static void driver_init(const QVirtioBus *bus, QVirtioDevice *dev)
+static void driver_init(QVirtioDevice *dev)
 {
     uint32_t features;
 
-    features = qvirtio_get_features(bus, dev);
+    features = qvirtio_get_features(dev);
     features = features & ~(QVIRTIO_F_BAD_FEATURE |
                             (1u << VIRTIO_RING_F_INDIRECT_DESC) |
                             (1u << VIRTIO_RING_F_EVENT_IDX));
-    qvirtio_set_features(bus, dev, features);
+    qvirtio_set_features(dev, features);
 
-    qvirtio_set_driver_ok(bus, dev);
+    qvirtio_set_driver_ok(dev);
 }
 
-static void rx_test(const QVirtioBus *bus, QVirtioDevice *dev,
+static void rx_test(QVirtioDevice *dev,
                     QGuestAllocator *alloc, QVirtQueue *vq,
                     int socket)
 {
@@ -101,19 +103,19 @@ static void rx_test(const QVirtioBus *bus, QVirtioDevice *dev,
     req_addr = guest_alloc(alloc, 64);
 
     free_head = qvirtqueue_add(vq, req_addr, 64, true, false);
-    qvirtqueue_kick(bus, dev, vq, free_head);
+    qvirtqueue_kick(dev, vq, free_head);
 
     ret = iov_send(socket, iov, 2, 0, sizeof(len) + sizeof(test));
     g_assert_cmpint(ret, ==, sizeof(test) + sizeof(len));
 
-    qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_NET_TIMEOUT_US);
+    qvirtio_wait_queue_isr(dev, vq, QVIRTIO_NET_TIMEOUT_US);
     memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
     g_assert_cmpstr(buffer, ==, "TEST");
 
     guest_free(alloc, req_addr);
 }
 
-static void tx_test(const QVirtioBus *bus, QVirtioDevice *dev,
+static void tx_test(QVirtioDevice *dev,
                     QGuestAllocator *alloc, QVirtQueue *vq,
                     int socket)
 {
@@ -127,9 +129,9 @@ static void tx_test(const QVirtioBus *bus, QVirtioDevice *dev,
     memwrite(req_addr + VNET_HDR_SIZE, "TEST", 4);
 
     free_head = qvirtqueue_add(vq, req_addr, 64, false, false);
-    qvirtqueue_kick(bus, dev, vq, free_head);
+    qvirtqueue_kick(dev, vq, free_head);
 
-    qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_NET_TIMEOUT_US);
+    qvirtio_wait_queue_isr(dev, vq, QVIRTIO_NET_TIMEOUT_US);
     guest_free(alloc, req_addr);
 
     ret = qemu_recv(socket, &len, sizeof(len), 0);
@@ -140,7 +142,7 @@ static void tx_test(const QVirtioBus *bus, QVirtioDevice *dev,
     g_assert_cmpstr(buffer, ==, "TEST");
 }
 
-static void rx_stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
+static void rx_stop_cont_test(QVirtioDevice *dev,
                               QGuestAllocator *alloc, QVirtQueue *vq,
                               int socket)
 {
@@ -164,7 +166,7 @@ static void rx_stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
     req_addr = guest_alloc(alloc, 64);
 
     free_head = qvirtqueue_add(vq, req_addr, 64, true, false);
-    qvirtqueue_kick(bus, dev, vq, free_head);
+    qvirtqueue_kick(dev, vq, free_head);
 
     rsp = qmp("{ 'execute' : 'stop'}");
     QDECREF(rsp);
@@ -180,36 +182,34 @@ static void rx_stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
     rsp = qmp("{ 'execute' : 'cont'}");
     QDECREF(rsp);
 
-    qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_NET_TIMEOUT_US);
+    qvirtio_wait_queue_isr(dev, vq, QVIRTIO_NET_TIMEOUT_US);
     memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
     g_assert_cmpstr(buffer, ==, "TEST");
 
     guest_free(alloc, req_addr);
 }
 
-static void send_recv_test(const QVirtioBus *bus, QVirtioDevice *dev,
+static void send_recv_test(QVirtioDevice *dev,
                            QGuestAllocator *alloc, QVirtQueue *rvq,
                            QVirtQueue *tvq, int socket)
 {
-    rx_test(bus, dev, alloc, rvq, socket);
-    tx_test(bus, dev, alloc, tvq, socket);
+    rx_test(dev, alloc, rvq, socket);
+    tx_test(dev, alloc, tvq, socket);
 }
 
-static void stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
+static void stop_cont_test(QVirtioDevice *dev,
                            QGuestAllocator *alloc, QVirtQueue *rvq,
                            QVirtQueue *tvq, int socket)
 {
-    rx_stop_cont_test(bus, dev, alloc, rvq, socket);
+    rx_stop_cont_test(dev, alloc, rvq, socket);
 }
 
 static void pci_basic(gconstpointer data)
 {
     QVirtioPCIDevice *dev;
-    QPCIBus *bus;
+    QOSState *qs;
     QVirtQueuePCI *tx, *rx;
-    QGuestAllocator *alloc;
-    void (*func) (const QVirtioBus *bus,
-                  QVirtioDevice *dev,
+    void (*func) (QVirtioDevice *dev,
                   QGuestAllocator *alloc,
                   QVirtQueue *rvq,
                   QVirtQueue *tvq,
@@ -219,37 +219,37 @@ static void pci_basic(gconstpointer data)
     ret = socketpair(PF_UNIX, SOCK_STREAM, 0, sv);
     g_assert_cmpint(ret, !=, -1);
 
-    bus = pci_test_start(sv[1]);
-    dev = virtio_net_pci_init(bus, PCI_SLOT);
+    qs = pci_test_start(sv[1]);
+    dev = virtio_net_pci_init(qs->pcibus, PCI_SLOT);
 
-    alloc = pc_alloc_init();
-    rx = (QVirtQueuePCI *)qvirtqueue_setup(&qvirtio_pci, &dev->vdev,
-                                           alloc, 0);
-    tx = (QVirtQueuePCI *)qvirtqueue_setup(&qvirtio_pci, &dev->vdev,
-                                           alloc, 1);
+    rx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 0);
+    tx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 1);
 
-    driver_init(&qvirtio_pci, &dev->vdev);
-    func(&qvirtio_pci, &dev->vdev, alloc, &rx->vq, &tx->vq, sv[0]);
+    driver_init(&dev->vdev);
+    func(&dev->vdev, qs->alloc, &rx->vq, &tx->vq, sv[0]);
 
     /* End test */
     close(sv[0]);
-    qvirtqueue_cleanup(&qvirtio_pci, &tx->vq, alloc);
-    qvirtqueue_cleanup(&qvirtio_pci, &rx->vq, alloc);
-    pc_alloc_uninit(alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &tx->vq, qs->alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &rx->vq, qs->alloc);
     qvirtio_pci_device_disable(dev);
     g_free(dev->pdev);
     g_free(dev);
-    qpci_free_pc(bus);
-    test_end();
+    qtest_shutdown(qs);
 }
 #endif
 
 static void hotplug(void)
 {
+    const char *arch = qtest_get_arch();
+
     qtest_start("-device virtio-net-pci");
 
     qpci_plug_device_test("virtio-net-pci", "net1", PCI_SLOT_HP, NULL);
-    qpci_unplug_acpi_device_test("net1", PCI_SLOT_HP);
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        qpci_unplug_acpi_device_test("net1", PCI_SLOT_HP);
+    }
 
     test_end();
 }

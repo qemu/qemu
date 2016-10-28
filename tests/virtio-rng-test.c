@@ -20,8 +20,13 @@ static void pci_nop(void)
 
 static void hotplug(void)
 {
+    const char *arch = qtest_get_arch();
+
     qpci_plug_device_test("virtio-rng-pci", "rng1", PCI_SLOT_HP, NULL);
-    qpci_unplug_acpi_device_test("rng1", PCI_SLOT_HP);
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        qpci_unplug_acpi_device_test("rng1", PCI_SLOT_HP);
+    }
 }
 
 int main(int argc, char **argv)

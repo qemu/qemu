@@ -41,7 +41,7 @@ typedef struct {
     const char *args;
     bool noreboot;
     QPCIDevice *dev;
-    void *tco_io_base;
+    QPCIBar tco_io_bar;
 } TestData;
 
 static void test_init(TestData *d)
@@ -70,42 +70,42 @@ static void test_init(TestData *d)
     /* set Root Complex BAR */
     qpci_config_writel(d->dev, ICH9_LPC_RCBA, RCBA_BASE_ADDR | 0x1);
 
-    d->tco_io_base = (void *)((uintptr_t)PM_IO_BASE_ADDR + 0x60);
+    d->tco_io_bar = qpci_legacy_iomap(d->dev, PM_IO_BASE_ADDR + 0x60);
 }
 
 static void stop_tco(const TestData *d)
 {
     uint32_t val;
 
-    val = qpci_io_readw(d->dev, d->tco_io_base + TCO1_CNT);
+    val = qpci_io_readw(d->dev, d->tco_io_bar, TCO1_CNT);
     val |= TCO_TMR_HLT;
-    qpci_io_writew(d->dev, d->tco_io_base + TCO1_CNT, val);
+    qpci_io_writew(d->dev, d->tco_io_bar, TCO1_CNT, val);
 }
 
 static void start_tco(const TestData *d)
 {
     uint32_t val;
 
-    val = qpci_io_readw(d->dev, d->tco_io_base + TCO1_CNT);
+    val = qpci_io_readw(d->dev, d->tco_io_bar, TCO1_CNT);
     val &= ~TCO_TMR_HLT;
-    qpci_io_writew(d->dev, d->tco_io_base + TCO1_CNT, val);
+    qpci_io_writew(d->dev, d->tco_io_bar, TCO1_CNT, val);
 }
 
 static void load_tco(const TestData *d)
 {
-    qpci_io_writew(d->dev, d->tco_io_base + TCO_RLD, 4);
+    qpci_io_writew(d->dev, d->tco_io_bar, TCO_RLD, 4);
 }
 
 static void set_tco_timeout(const TestData *d, uint16_t ticks)
 {
-    qpci_io_writew(d->dev, d->tco_io_base + TCO_TMR, ticks);
+    qpci_io_writew(d->dev, d->tco_io_bar, TCO_TMR, ticks);
 }
 
 static void clear_tco_status(const TestData *d)
 {
-    qpci_io_writew(d->dev, d->tco_io_base + TCO1_STS, 0x0008);
-    qpci_io_writew(d->dev, d->tco_io_base + TCO2_STS, 0x0002);
-    qpci_io_writew(d->dev, d->tco_io_base + TCO2_STS, 0x0004);
+    qpci_io_writew(d->dev, d->tco_io_bar, TCO1_STS, 0x0008);
+    qpci_io_writew(d->dev, d->tco_io_bar, TCO2_STS, 0x0002);
+    qpci_io_writew(d->dev, d->tco_io_bar, TCO2_STS, 0x0004);
 }
 
 static void reset_on_second_timeout(bool enable)
@@ -128,25 +128,25 @@ static void test_tco_defaults(void)
     d.args = NULL;
     d.noreboot = true;
     test_init(&d);
-    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_base + TCO_RLD), ==,
+    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_bar, TCO_RLD), ==,
                     TCO_RLD_DEFAULT);
     /* TCO_DAT_IN & TCO_DAT_OUT */
-    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_base + TCO_DAT_IN), ==,
+    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_bar, TCO_DAT_IN), ==,
                     (TCO_DAT_OUT_DEFAULT << 8) | TCO_DAT_IN_DEFAULT);
     /* TCO1_STS & TCO2_STS */
-    g_assert_cmpint(qpci_io_readl(d.dev, d.tco_io_base + TCO1_STS), ==,
+    g_assert_cmpint(qpci_io_readl(d.dev, d.tco_io_bar, TCO1_STS), ==,
                     (TCO2_STS_DEFAULT << 16) | TCO1_STS_DEFAULT);
     /* TCO1_CNT & TCO2_CNT */
-    g_assert_cmpint(qpci_io_readl(d.dev, d.tco_io_base + TCO1_CNT), ==,
+    g_assert_cmpint(qpci_io_readl(d.dev, d.tco_io_bar, TCO1_CNT), ==,
                     (TCO2_CNT_DEFAULT << 16) | TCO1_CNT_DEFAULT);
     /* TCO_MESSAGE1 & TCO_MESSAGE2 */
-    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_base + TCO_MESSAGE1), ==,
+    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_bar, TCO_MESSAGE1), ==,
                     (TCO_MESSAGE2_DEFAULT << 8) | TCO_MESSAGE1_DEFAULT);
-    g_assert_cmpint(qpci_io_readb(d.dev, d.tco_io_base + TCO_WDCNT), ==,
+    g_assert_cmpint(qpci_io_readb(d.dev, d.tco_io_bar, TCO_WDCNT), ==,
                     TCO_WDCNT_DEFAULT);
-    g_assert_cmpint(qpci_io_readb(d.dev, d.tco_io_base + SW_IRQ_GEN), ==,
+    g_assert_cmpint(qpci_io_readb(d.dev, d.tco_io_bar, SW_IRQ_GEN), ==,
                     SW_IRQ_GEN_DEFAULT);
-    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_base + TCO_TMR), ==,
+    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_bar, TCO_TMR), ==,
                     TCO_TMR_DEFAULT);
     qtest_end();
 }
@@ -171,23 +171,23 @@ static void test_tco_timeout(void)
     clock_step(ticks * TCO_TICK_NSEC);
 
     /* test first timeout */
-    val = qpci_io_readw(d.dev, d.tco_io_base + TCO1_STS);
+    val = qpci_io_readw(d.dev, d.tco_io_bar, TCO1_STS);
     ret = val & TCO_TIMEOUT ? 1 : 0;
     g_assert(ret == 1);
 
     /* test clearing timeout bit */
     val |= TCO_TIMEOUT;
-    qpci_io_writew(d.dev, d.tco_io_base + TCO1_STS, val);
-    val = qpci_io_readw(d.dev, d.tco_io_base + TCO1_STS);
+    qpci_io_writew(d.dev, d.tco_io_bar, TCO1_STS, val);
+    val = qpci_io_readw(d.dev, d.tco_io_bar, TCO1_STS);
     ret = val & TCO_TIMEOUT ? 1 : 0;
     g_assert(ret == 0);
 
     /* test second timeout */
     clock_step(ticks * TCO_TICK_NSEC);
-    val = qpci_io_readw(d.dev, d.tco_io_base + TCO1_STS);
+    val = qpci_io_readw(d.dev, d.tco_io_bar, TCO1_STS);
     ret = val & TCO_TIMEOUT ? 1 : 0;
     g_assert(ret == 1);
-    val = qpci_io_readw(d.dev, d.tco_io_base + TCO2_STS);
+    val = qpci_io_readw(d.dev, d.tco_io_bar, TCO2_STS);
     ret = val & TCO_SECOND_TO_STS ? 1 : 0;
     g_assert(ret == 1);
 
@@ -214,13 +214,13 @@ static void test_tco_max_timeout(void)
     start_tco(&d);
     clock_step(((ticks & TCO_TMR_MASK) - 1) * TCO_TICK_NSEC);
 
-    val = qpci_io_readw(d.dev, d.tco_io_base + TCO_RLD);
+    val = qpci_io_readw(d.dev, d.tco_io_bar, TCO_RLD);
     g_assert_cmpint(val & TCO_RLD_MASK, ==, 1);
-    val = qpci_io_readw(d.dev, d.tco_io_base + TCO1_STS);
+    val = qpci_io_readw(d.dev, d.tco_io_bar, TCO1_STS);
     ret = val & TCO_TIMEOUT ? 1 : 0;
     g_assert(ret == 0);
     clock_step(TCO_TICK_NSEC);
-    val = qpci_io_readw(d.dev, d.tco_io_base + TCO1_STS);
+    val = qpci_io_readw(d.dev, d.tco_io_bar, TCO1_STS);
     ret = val & TCO_TIMEOUT ? 1 : 0;
     g_assert(ret == 1);
 
@@ -358,11 +358,11 @@ static void test_tco_ticks_counter(void)
     start_tco(&d);
 
     do {
-        rld = qpci_io_readw(d.dev, d.tco_io_base + TCO_RLD) & TCO_RLD_MASK;
+        rld = qpci_io_readw(d.dev, d.tco_io_bar, TCO_RLD) & TCO_RLD_MASK;
         g_assert_cmpint(rld, ==, ticks);
         clock_step(TCO_TICK_NSEC);
         ticks--;
-    } while (!(qpci_io_readw(d.dev, d.tco_io_base + TCO1_STS) & TCO_TIMEOUT));
+    } while (!(qpci_io_readw(d.dev, d.tco_io_bar, TCO1_STS) & TCO_TIMEOUT));
 
     stop_tco(&d);
     qtest_end();
@@ -378,10 +378,10 @@ static void test_tco1_control_bits(void)
     test_init(&d);
 
     val = TCO_LOCK;
-    qpci_io_writew(d.dev, d.tco_io_base + TCO1_CNT, val);
+    qpci_io_writew(d.dev, d.tco_io_bar, TCO1_CNT, val);
     val &= ~TCO_LOCK;
-    qpci_io_writew(d.dev, d.tco_io_base + TCO1_CNT, val);
-    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_base + TCO1_CNT), ==,
+    qpci_io_writew(d.dev, d.tco_io_bar, TCO1_CNT, val);
+    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_bar, TCO1_CNT), ==,
                     TCO_LOCK);
     qtest_end();
 }
@@ -405,13 +405,13 @@ static void test_tco1_status_bits(void)
     start_tco(&d);
     clock_step(ticks * TCO_TICK_NSEC);
 
-    qpci_io_writeb(d.dev, d.tco_io_base + TCO_DAT_IN, 0);
-    qpci_io_writeb(d.dev, d.tco_io_base + TCO_DAT_OUT, 0);
-    val = qpci_io_readw(d.dev, d.tco_io_base + TCO1_STS);
+    qpci_io_writeb(d.dev, d.tco_io_bar, TCO_DAT_IN, 0);
+    qpci_io_writeb(d.dev, d.tco_io_bar, TCO_DAT_OUT, 0);
+    val = qpci_io_readw(d.dev, d.tco_io_bar, TCO1_STS);
     ret = val & (TCO_TIMEOUT | SW_TCO_SMI | TCO_INT_STS) ? 1 : 0;
     g_assert(ret == 1);
-    qpci_io_writew(d.dev, d.tco_io_base + TCO1_STS, val);
-    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_base + TCO1_STS), ==, 0);
+    qpci_io_writew(d.dev, d.tco_io_bar, TCO1_STS, val);
+    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_bar, TCO1_STS), ==, 0);
     qtest_end();
 }
 
@@ -434,11 +434,11 @@ static void test_tco2_status_bits(void)
     start_tco(&d);
     clock_step(ticks * TCO_TICK_NSEC * 2);
 
-    val = qpci_io_readw(d.dev, d.tco_io_base + TCO2_STS);
+    val = qpci_io_readw(d.dev, d.tco_io_bar, TCO2_STS);
     ret = val & (TCO_SECOND_TO_STS | TCO_BOOT_STS) ? 1 : 0;
     g_assert(ret == 1);
-    qpci_io_writew(d.dev, d.tco_io_base + TCO2_STS, val);
-    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_base + TCO2_STS), ==, 0);
+    qpci_io_writew(d.dev, d.tco_io_bar, TCO2_STS, val);
+    g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_bar, TCO2_STS), ==, 0);
     qtest_end();
 }
 

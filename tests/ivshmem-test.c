@@ -41,7 +41,7 @@ static QPCIDevice *get_device(QPCIBus *pcibus)
 
 typedef struct _IVState {
     QTestState *qtest;
-    void *reg_base, *mem_base;
+    QPCIBar reg_bar, mem_bar;
     QPCIBus *pcibus;
     QPCIDevice *dev;
 } IVState;
@@ -75,7 +75,7 @@ static inline unsigned in_reg(IVState *s, enum Reg reg)
     unsigned res;
 
     global_qtest = s->qtest;
-    res = qpci_io_readl(s->dev, s->reg_base + reg);
+    res = qpci_io_readl(s->dev, s->reg_bar, reg);
     g_test_message("*%s -> %x\n", name, res);
     global_qtest = qtest;
 
@@ -89,7 +89,26 @@ static inline void out_reg(IVState *s, enum Reg reg, unsigned v)
 
     global_qtest = s->qtest;
     g_test_message("%x -> *%s\n", v, name);
-    qpci_io_writel(s->dev, s->reg_base + reg, v);
+    qpci_io_writel(s->dev, s->reg_bar, reg, v);
+    global_qtest = qtest;
+}
+
+static inline void read_mem(IVState *s, uint64_t off, void *buf, size_t len)
+{
+    QTestState *qtest = global_qtest;
+
+    global_qtest = s->qtest;
+    qpci_memread(s->dev, s->mem_bar, off, buf, len);
+    global_qtest = qtest;
+}
+
+static inline void write_mem(IVState *s, uint64_t off,
+                             const void *buf, size_t len)
+{
+    QTestState *qtest = global_qtest;
+
+    global_qtest = s->qtest;
+    qpci_memwrite(s->dev, s->mem_bar, off, buf, len);
     global_qtest = qtest;
 }
 
@@ -108,16 +127,14 @@ static void setup_vm_cmd(IVState *s, const char *cmd, bool msix)
     s->pcibus = qpci_init_pc(NULL);
     s->dev = get_device(s->pcibus);
 
-    s->reg_base = qpci_iomap(s->dev, 0, &barsize);
-    g_assert_nonnull(s->reg_base);
+    s->reg_bar = qpci_iomap(s->dev, 0, &barsize);
     g_assert_cmpuint(barsize, ==, 256);
 
     if (msix) {
         qpci_msix_enable(s->dev);
     }
 
-    s->mem_base = qpci_iomap(s->dev, 2, &barsize);
-    g_assert_nonnull(s->mem_base);
+    s->mem_bar = qpci_iomap(s->dev, 2, &barsize);
     g_assert_cmpuint(barsize, ==, TMPSHMSIZE);
 
     qpci_device_enable(s->dev);
@@ -169,7 +186,7 @@ static void test_ivshmem_single(void)
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
         data[i] = i;
     }
-    qtest_memwrite(s->qtest, (uintptr_t)s->mem_base, data, sizeof(data));
+    write_mem(s, 0, data, sizeof(data));
 
     /* verify write */
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
@@ -178,7 +195,7 @@ static void test_ivshmem_single(void)
 
     /* read it back and verify read */
     memset(data, 0, sizeof(data));
-    qtest_memread(s->qtest, (uintptr_t)s->mem_base, data, sizeof(data));
+    read_mem(s, 0, data, sizeof(data));
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
         g_assert_cmpuint(data[i], ==, i);
     }
@@ -201,29 +218,29 @@ static void test_ivshmem_pair(void)
 
     /* host write, guest 1 & 2 read */
     memset(tmpshmem, 0x42, TMPSHMSIZE);
-    qtest_memread(s1->qtest, (uintptr_t)s1->mem_base, data, TMPSHMSIZE);
+    read_mem(s1, 0, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
         g_assert_cmpuint(data[i], ==, 0x42);
     }
-    qtest_memread(s2->qtest, (uintptr_t)s2->mem_base, data, TMPSHMSIZE);
+    read_mem(s2, 0, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
         g_assert_cmpuint(data[i], ==, 0x42);
     }
 
     /* guest 1 write, guest 2 read */
     memset(data, 0x43, TMPSHMSIZE);
-    qtest_memwrite(s1->qtest, (uintptr_t)s1->mem_base, data, TMPSHMSIZE);
+    write_mem(s1, 0, data, TMPSHMSIZE);
     memset(data, 0, TMPSHMSIZE);
-    qtest_memread(s2->qtest, (uintptr_t)s2->mem_base, data, TMPSHMSIZE);
+    read_mem(s2, 0, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
         g_assert_cmpuint(data[i], ==, 0x43);
     }
 
     /* guest 2 write, guest 1 read */
     memset(data, 0x44, TMPSHMSIZE);
-    qtest_memwrite(s2->qtest, (uintptr_t)s2->mem_base, data, TMPSHMSIZE);
+    write_mem(s2, 0, data, TMPSHMSIZE);
     memset(data, 0, TMPSHMSIZE);
-    qtest_memread(s1->qtest, (uintptr_t)s2->mem_base, data, TMPSHMSIZE);
+    read_mem(s1, 0, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
         g_assert_cmpuint(data[i], ==, 0x44);
     }

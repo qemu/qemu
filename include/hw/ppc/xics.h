@@ -117,6 +117,8 @@ struct ICPState {
     uint8_t mfrr;
     qemu_irq output;
     bool cap_irq_xics_enabled;
+
+    XICSState *xics;
 };
 
 #define TYPE_ICS_BASE "ics-base"
@@ -185,18 +187,21 @@ int xics_spapr_alloc(XICSState *icp, int irq_hint, bool lsi, Error **errp);
 int xics_spapr_alloc_block(XICSState *icp, int num, bool lsi, bool align,
                            Error **errp);
 void xics_spapr_free(XICSState *icp, int irq, int num);
+void spapr_dt_xics(XICSState *xics, void *fdt, uint32_t phandle);
 
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu);
 void xics_cpu_destroy(XICSState *icp, PowerPCCPU *cpu);
+void xics_set_nr_servers(XICSState *xics, uint32_t nr_servers,
+                         const char *typename, Error **errp);
 
 /* Internal XICS interfaces */
 int xics_get_cpu_index_by_dt_id(int cpu_dt_id);
 
-void icp_set_cppr(XICSState *icp, int server, uint8_t cppr);
-void icp_set_mfrr(XICSState *icp, int server, uint8_t mfrr);
+void icp_set_cppr(ICPState *icp, uint8_t cppr);
+void icp_set_mfrr(ICPState *icp, uint8_t mfrr);
 uint32_t icp_accept(ICPState *ss);
 uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr);
-void icp_eoi(XICSState *icp, int server, uint32_t xirr);
+void icp_eoi(ICPState *icp, uint32_t xirr);
 
 void ics_simple_write_xive(ICSState *ics, int nr, int server,
                            uint8_t priority, uint8_t saved_priority);

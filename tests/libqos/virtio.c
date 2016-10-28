@@ -13,45 +13,40 @@
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
 
-uint8_t qvirtio_config_readb(const QVirtioBus *bus, QVirtioDevice *d,
-                                                                uint64_t addr)
+uint8_t qvirtio_config_readb(QVirtioDevice *d, uint64_t addr)
 {
-    return bus->config_readb(d, addr);
+    return d->bus->config_readb(d, addr);
 }
 
-uint16_t qvirtio_config_readw(const QVirtioBus *bus, QVirtioDevice *d,
-                                                                uint64_t addr)
+uint16_t qvirtio_config_readw(QVirtioDevice *d, uint64_t addr)
 {
-    return bus->config_readw(d, addr);
+    return d->bus->config_readw(d, addr);
 }
 
-uint32_t qvirtio_config_readl(const QVirtioBus *bus, QVirtioDevice *d,
-                                                                uint64_t addr)
+uint32_t qvirtio_config_readl(QVirtioDevice *d, uint64_t addr)
 {
-    return bus->config_readl(d, addr);
+    return d->bus->config_readl(d, addr);
 }
 
-uint64_t qvirtio_config_readq(const QVirtioBus *bus, QVirtioDevice *d,
-                                                                uint64_t addr)
+uint64_t qvirtio_config_readq(QVirtioDevice *d, uint64_t addr)
 {
-    return bus->config_readq(d, addr);
+    return d->bus->config_readq(d, addr);
 }
 
-uint32_t qvirtio_get_features(const QVirtioBus *bus, QVirtioDevice *d)
+uint32_t qvirtio_get_features(QVirtioDevice *d)
 {
-    return bus->get_features(d);
+    return d->bus->get_features(d);
 }
 
-void qvirtio_set_features(const QVirtioBus *bus, QVirtioDevice *d,
-                                                            uint32_t features)
+void qvirtio_set_features(QVirtioDevice *d, uint32_t features)
 {
-    bus->set_features(d, features);
+    d->bus->set_features(d, features);
 }
 
-QVirtQueue *qvirtqueue_setup(const QVirtioBus *bus, QVirtioDevice *d,
-                                        QGuestAllocator *alloc, uint16_t index)
+QVirtQueue *qvirtqueue_setup(QVirtioDevice *d,
+                             QGuestAllocator *alloc, uint16_t index)
 {
-    return bus->virtqueue_setup(d, alloc, index);
+    return d->bus->virtqueue_setup(d, alloc, index);
 }
 
 void qvirtqueue_cleanup(const QVirtioBus *bus, QVirtQueue *vq,
@@ -60,40 +55,40 @@ void qvirtqueue_cleanup(const QVirtioBus *bus, QVirtQueue *vq,
     return bus->virtqueue_cleanup(vq, alloc);
 }
 
-void qvirtio_reset(const QVirtioBus *bus, QVirtioDevice *d)
+void qvirtio_reset(QVirtioDevice *d)
 {
-    bus->set_status(d, 0);
-    g_assert_cmphex(bus->get_status(d), ==, 0);
+    d->bus->set_status(d, 0);
+    g_assert_cmphex(d->bus->get_status(d), ==, 0);
 }
 
-void qvirtio_set_acknowledge(const QVirtioBus *bus, QVirtioDevice *d)
+void qvirtio_set_acknowledge(QVirtioDevice *d)
 {
-    bus->set_status(d, bus->get_status(d) | VIRTIO_CONFIG_S_ACKNOWLEDGE);
-    g_assert_cmphex(bus->get_status(d), ==, VIRTIO_CONFIG_S_ACKNOWLEDGE);
+    d->bus->set_status(d, d->bus->get_status(d) | VIRTIO_CONFIG_S_ACKNOWLEDGE);
+    g_assert_cmphex(d->bus->get_status(d), ==, VIRTIO_CONFIG_S_ACKNOWLEDGE);
 }
 
-void qvirtio_set_driver(const QVirtioBus *bus, QVirtioDevice *d)
+void qvirtio_set_driver(QVirtioDevice *d)
 {
-    bus->set_status(d, bus->get_status(d) | VIRTIO_CONFIG_S_DRIVER);
-    g_assert_cmphex(bus->get_status(d), ==,
+    d->bus->set_status(d, d->bus->get_status(d) | VIRTIO_CONFIG_S_DRIVER);
+    g_assert_cmphex(d->bus->get_status(d), ==,
                     VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_ACKNOWLEDGE);
 }
 
-void qvirtio_set_driver_ok(const QVirtioBus *bus, QVirtioDevice *d)
+void qvirtio_set_driver_ok(QVirtioDevice *d)
 {
-    bus->set_status(d, bus->get_status(d) | VIRTIO_CONFIG_S_DRIVER_OK);
-    g_assert_cmphex(bus->get_status(d), ==, VIRTIO_CONFIG_S_DRIVER_OK |
+    d->bus->set_status(d, d->bus->get_status(d) | VIRTIO_CONFIG_S_DRIVER_OK);
+    g_assert_cmphex(d->bus->get_status(d), ==, VIRTIO_CONFIG_S_DRIVER_OK |
                     VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_ACKNOWLEDGE);
 }
 
-void qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,
+void qvirtio_wait_queue_isr(QVirtioDevice *d,
                             QVirtQueue *vq, gint64 timeout_us)
 {
     gint64 start_time = g_get_monotonic_time();
 
     for (;;) {
         clock_step(100);
-        if (bus->get_queue_isr_status(d, vq)) {
+        if (d->bus->get_queue_isr_status(d, vq)) {
             return;
         }
         g_assert(g_get_monotonic_time() - start_time <= timeout_us);
@@ -105,8 +100,7 @@ void qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,
  * The virtqueue interrupt must not be raised, making this useful for testing
  * event_index functionality.
  */
-uint8_t qvirtio_wait_status_byte_no_isr(const QVirtioBus *bus,
-                                        QVirtioDevice *d,
+uint8_t qvirtio_wait_status_byte_no_isr(QVirtioDevice *d,
                                         QVirtQueue *vq,
                                         uint64_t addr,
                                         gint64 timeout_us)
@@ -116,20 +110,19 @@ uint8_t qvirtio_wait_status_byte_no_isr(const QVirtioBus *bus,
 
     while ((val = readb(addr)) == 0xff) {
         clock_step(100);
-        g_assert(!bus->get_queue_isr_status(d, vq));
+        g_assert(!d->bus->get_queue_isr_status(d, vq));
         g_assert(g_get_monotonic_time() - start_time <= timeout_us);
     }
     return val;
 }
 
-void qvirtio_wait_config_isr(const QVirtioBus *bus, QVirtioDevice *d,
-                             gint64 timeout_us)
+void qvirtio_wait_config_isr(QVirtioDevice *d, gint64 timeout_us)
 {
     gint64 start_time = g_get_monotonic_time();
 
     for (;;) {
         clock_step(100);
-        if (bus->get_config_isr_status(d)) {
+        if (d->bus->get_config_isr_status(d)) {
             return;
         }
         g_assert(g_get_monotonic_time() - start_time <= timeout_us);
@@ -253,8 +246,7 @@ uint32_t qvirtqueue_add_indirect(QVirtQueue *vq, QVRingIndirectDesc *indirect)
     return vq->free_head++; /* Return and increase, in this order */
 }
 
-void qvirtqueue_kick(const QVirtioBus *bus, QVirtioDevice *d, QVirtQueue *vq,
-                                                            uint32_t free_head)
+void qvirtqueue_kick(QVirtioDevice *d, QVirtQueue *vq, uint32_t free_head)
 {
     /* vq->avail->idx */
     uint16_t idx = readw(vq->avail + 2);
@@ -276,7 +268,7 @@ void qvirtqueue_kick(const QVirtioBus *bus, QVirtioDevice *d, QVirtQueue *vq,
     /* < 1 because we add elements to avail queue one by one */
     if ((flags & VRING_USED_F_NO_NOTIFY) == 0 &&
                             (!vq->event || (uint16_t)(idx-avail_event) < 1)) {
-        bus->virtqueue_kick(d, vq);
+        d->bus->virtqueue_kick(d, vq);
     }
 }
 

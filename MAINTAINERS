@@ -656,6 +656,7 @@ F: include/hw/*/xics*
 F: pc-bios/spapr-rtas/*
 F: pc-bios/spapr-rtas.bin
 F: pc-bios/slof.bin
+F: pc-bios/skiboot.lid
 F: docs/specs/ppc-spapr-hcalls.txt
 F: docs/specs/ppc-spapr-hotplug.txt
 F: tests/spapr*

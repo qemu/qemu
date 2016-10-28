@@ -87,7 +87,7 @@
 
 typedef struct e1000e_device {
     QPCIDevice *pci_dev;
-    void *mac_regs;
+    QPCIBar mac_regs;
 
     uint64_t tx_ring;
     uint64_t rx_ring;
@@ -119,12 +119,12 @@ static QPCIDevice *e1000e_device_find(QPCIBus *bus)
 
 static void e1000e_macreg_write(e1000e_device *d, uint32_t reg, uint32_t val)
 {
-    qpci_io_writel(d->pci_dev, d->mac_regs + reg, val);
+    qpci_io_writel(d->pci_dev, d->mac_regs, reg, val);
 }
 
 static uint32_t e1000e_macreg_read(e1000e_device *d, uint32_t reg)
 {
-    return qpci_io_readl(d->pci_dev, d->mac_regs + reg);
+    return qpci_io_readl(d->pci_dev, d->mac_regs, reg);
 }
 
 static void e1000e_device_init(QPCIBus *bus, e1000e_device *d)
@@ -138,7 +138,6 @@ static void e1000e_device_init(QPCIBus *bus, e1000e_device *d)
 
     /* Map BAR0 (mac registers) */
     d->mac_regs = qpci_iomap(d->pci_dev, 0, NULL);
-    g_assert_nonnull(d->mac_regs);
 
     /* Reset the device */
     val = e1000e_macreg_read(d, E1000E_CTRL);

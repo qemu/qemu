@@ -22,7 +22,7 @@ static void nop(void)
 
 static QPCIBus *pcibus;
 static QPCIDevice *dev;
-static void *dev_base;
+static QPCIBar dev_bar;
 
 static void save_fn(QPCIDevice *dev, int devfn, void *data)
 {
@@ -45,14 +45,14 @@ static QPCIDevice *get_device(void)
 #define PORT(name, len, val) \
 static unsigned __attribute__((unused)) in_##name(void) \
 { \
-    unsigned res = qpci_io_read##len(dev, dev_base+(val)); \
+    unsigned res = qpci_io_read##len(dev, dev_bar, (val));     \
     g_test_message("*%s -> %x\n", #name, res); \
     return res; \
 } \
 static void out_##name(unsigned v) \
 { \
     g_test_message("%x -> *%s\n", v, #name); \
-    qpci_io_write##len(dev, dev_base+(val), v); \
+    qpci_io_write##len(dev, dev_bar, (val), v);        \
 }
 
 PORT(Timer, l, 0x48)
@@ -186,9 +186,7 @@ static void test_init(void)
 
     dev = get_device();
 
-    dev_base = qpci_iomap(dev, 0, &barsize);
-
-    g_assert(dev_base != NULL);
+    dev_bar = qpci_iomap(dev, 0, &barsize);
 
     qpci_device_enable(dev);
 

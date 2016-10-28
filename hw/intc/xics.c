@@ -35,6 +35,8 @@
 #include "hw/ppc/xics.h"
 #include "qemu/error-report.h"
 #include "qapi/visitor.h"
+#include "monitor/monitor.h"
+#include "hw/intc/intc.h"
 
 int xics_get_cpu_index_by_dt_id(int cpu_dt_id)
 {
@@ -90,6 +92,47 @@ void xics_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
     }
 }
 
+static void xics_common_pic_print_info(InterruptStatsProvider *obj,
+                                       Monitor *mon)
+{
+    XICSState *xics = XICS_COMMON(obj);
+    ICSState *ics;
+    uint32_t i;
+
+    for (i = 0; i < xics->nr_servers; i++) {
+        ICPState *icp = &xics->ss[i];
+
+        if (!icp->output) {
+            continue;
+        }
+        monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
+                       i, icp->xirr, icp->xirr_owner,
+                       icp->pending_priority, icp->mfrr);
+    }
+
+    QLIST_FOREACH(ics, &xics->ics, list) {
+        monitor_printf(mon, "ICS %4x..%4x %p\n",
+                       ics->offset, ics->offset + ics->nr_irqs - 1, ics);
+
+        if (!ics->irqs) {
+            continue;
+        }
+
+        for (i = 0; i < ics->nr_irqs; i++) {
+            ICSIRQState *irq = ics->irqs + i;
+
+            if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
+                continue;
+            }
+            monitor_printf(mon, "  %4x %s %02x %02x\n",
+                           ics->offset + i,
+                           (irq->flags & XICS_FLAGS_IRQ_LSI) ?
+                           "LSI" : "MSI",
+                           irq->priority, irq->status);
+        }
+    }
+}
+
 /*
  * XICS Common class - parent for emulated XICS and KVM-XICS
  */
@@ -140,6 +183,25 @@ static void xics_prop_set_nr_irqs(Object *obj, Visitor *v, const char *name,
     info->set_nr_irqs(xics, value, errp);
 }
 
+void xics_set_nr_servers(XICSState *xics, uint32_t nr_servers,
+                         const char *typename, Error **errp)
+{
+    int i;
+
+    xics->nr_servers = nr_servers;
+
+    xics->ss = g_malloc0(xics->nr_servers * sizeof(ICPState));
+    for (i = 0; i < xics->nr_servers; i++) {
+        char name[32];
+        ICPState *icp = &xics->ss[i];
+
+        object_initialize(icp, sizeof(*icp), typename);
+        snprintf(name, sizeof(name), "icp[%d]", i);
+        object_property_add_child(OBJECT(xics), name, OBJECT(icp), errp);
+        icp->xics = xics;
+    }
+}
+
 static void xics_prop_get_nr_servers(Object *obj, Visitor *v,
                                      const char *name, void *opaque,
                                      Error **errp)
@@ -155,7 +217,7 @@ static void xics_prop_set_nr_servers(Object *obj, Visitor *v,
                                      Error **errp)
 {
     XICSState *xics = XICS_COMMON(obj);
-    XICSStateClass *info = XICS_COMMON_GET_CLASS(xics);
+    XICSStateClass *xsc = XICS_COMMON_GET_CLASS(xics);
     Error *error = NULL;
     int64_t value;
 
@@ -170,8 +232,8 @@ static void xics_prop_set_nr_servers(Object *obj, Visitor *v,
         return;
     }
 
-    assert(info->set_nr_servers);
-    info->set_nr_servers(xics, value, errp);
+    assert(xsc->set_nr_servers);
+    xsc->set_nr_servers(xics, value, errp);
 }
 
 static void xics_common_initfn(Object *obj)
@@ -190,8 +252,10 @@ static void xics_common_initfn(Object *obj)
 static void xics_common_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
     dc->reset = xics_common_reset;
+    ic->print_info = xics_common_pic_print_info;
 }
 
 static const TypeInfo xics_common_info = {
@@ -201,6 +265,10 @@ static const TypeInfo xics_common_info = {
     .class_size    = sizeof(XICSStateClass),
     .instance_init = xics_common_initfn,
     .class_init    = xics_common_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_INTERRUPT_STATS_PROVIDER },
+        { }
+    },
 };
 
 /*
@@ -258,22 +326,20 @@ static void icp_check_ipi(ICPState *ss)
     qemu_irq_raise(ss->output);
 }
 
-static void icp_resend(XICSState *xics, int server)
+static void icp_resend(ICPState *ss)
 {
-    ICPState *ss = xics->ss + server;
     ICSState *ics;
 
     if (ss->mfrr < CPPR(ss)) {
         icp_check_ipi(ss);
     }
-    QLIST_FOREACH(ics, &xics->ics, list) {
+    QLIST_FOREACH(ics, &ss->xics->ics, list) {
         ics_resend(ics);
     }
 }
 
-void icp_set_cppr(XICSState *xics, int server, uint8_t cppr)
+void icp_set_cppr(ICPState *ss, uint8_t cppr)
 {
-    ICPState *ss = xics->ss + server;
     uint8_t old_cppr;
     uint32_t old_xisr;
 
@@ -293,15 +359,13 @@ void icp_set_cppr(XICSState *xics, int server, uint8_t cppr)
         }
     } else {
         if (!XISR(ss)) {
-            icp_resend(xics, server);
+            icp_resend(ss);
         }
     }
 }
 
-void icp_set_mfrr(XICSState *xics, int server, uint8_t mfrr)
+void icp_set_mfrr(ICPState *ss, uint8_t mfrr)
 {
-    ICPState *ss = xics->ss + server;
-
     ss->mfrr = mfrr;
     if (mfrr < CPPR(ss)) {
         icp_check_ipi(ss);
@@ -330,23 +394,22 @@ uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr)
     return ss->xirr;
 }
 
-void icp_eoi(XICSState *xics, int server, uint32_t xirr)
+void icp_eoi(ICPState *ss, uint32_t xirr)
 {
-    ICPState *ss = xics->ss + server;
     ICSState *ics;
     uint32_t irq;
 
     /* Send EOI -> ICS */
     ss->xirr = (ss->xirr & ~CPPR_MASK) | (xirr & CPPR_MASK);
-    trace_xics_icp_eoi(server, xirr, ss->xirr);
+    trace_xics_icp_eoi(ss->cs->cpu_index, xirr, ss->xirr);
     irq = xirr & XISR_MASK;
-    QLIST_FOREACH(ics, &xics->ics, list) {
+    QLIST_FOREACH(ics, &ss->xics->ics, list) {
         if (ics_valid_irq(ics, irq)) {
             ics_eoi(ics, irq);
         }
     }
     if (!XISR(ss)) {
-        icp_resend(xics, server);
+        icp_resend(ss);
     }
 }
 
@@ -605,7 +668,7 @@ static int ics_simple_post_load(ICSState *ics, int version_id)
     int i;
 
     for (i = 0; i < ics->xics->nr_servers; i++) {
-        icp_resend(ics->xics, i);
+        icp_resend(&ics->xics->ss[i]);
     }
 
     return 0;

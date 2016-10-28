@@ -76,14 +76,12 @@ struct VIOsPAPRDevice {
 struct VIOsPAPRBus {
     BusState bus;
     uint32_t next_reg;
-    int (*init)(VIOsPAPRDevice *dev);
-    int (*devnode)(VIOsPAPRDevice *dev, void *fdt, int node_off);
 };
 
 extern VIOsPAPRBus *spapr_vio_bus_init(void);
 extern VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg);
-extern int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt);
-extern int spapr_populate_chosen_stdout(void *fdt, VIOsPAPRBus *bus);
+void spapr_dt_vdevice(VIOsPAPRBus *bus, void *fdt);
+extern gchar *spapr_vio_stdout_path(VIOsPAPRBus *bus);
 
 static inline qemu_irq spapr_vio_qirq(VIOsPAPRDevice *dev)
 {

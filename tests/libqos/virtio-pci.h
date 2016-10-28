@@ -16,7 +16,7 @@
 typedef struct QVirtioPCIDevice {
     QVirtioDevice vdev;
     QPCIDevice *pdev;
-    void *addr;
+    QPCIBar bar;
     uint16_t config_msix_entry;
     uint64_t config_msix_addr;
     uint32_t config_msix_data;

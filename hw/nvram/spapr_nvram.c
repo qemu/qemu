@@ -31,6 +31,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/device_tree.h"
 #include "hw/sysbus.h"
+#include "hw/nvram/chrp_nvram.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 
@@ -162,6 +163,11 @@ static void spapr_nvram_realize(VIOsPAPRDevice *dev, Error **errp)
             error_setg(errp, "can't read spapr-nvram contents");
             return;
         }
+    } else if (nb_prom_envs > 0) {
+        /* Create a system partition to pass the -prom-env variables */
+        chrp_nvram_create_system_partition(nvram->buf, MIN_NVRAM_SIZE / 4);
+        chrp_nvram_create_free_partition(&nvram->buf[MIN_NVRAM_SIZE / 4],
+                                         nvram->size - MIN_NVRAM_SIZE / 4);
     }
 
     spapr_rtas_register(RTAS_NVRAM_FETCH, "nvram-fetch", rtas_nvram_fetch);

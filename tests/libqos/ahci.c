@@ -210,8 +210,7 @@ void ahci_pci_enable(AHCIQState *ahci)
 void start_ahci_device(AHCIQState *ahci)
 {
     /* Map AHCI's ABAR (BAR5) */
-    ahci->hba_base = qpci_iomap(ahci->dev, 5, &ahci->barsize);
-    g_assert(ahci->hba_base);
+    ahci->hba_bar = qpci_iomap(ahci->dev, 5, &ahci->barsize);
 
     /* turns on pci.cmd.iose, pci.cmd.mse and pci.cmd.bme */
     qpci_device_enable(ahci->dev);
@@ -351,6 +350,7 @@ void ahci_hba_enable(AHCIQState *ahci)
     reg = ahci_rreg(ahci, AHCI_GHC);
     ASSERT_BIT_SET(reg, AHCI_GHC_IE);
 
+    ahci->enabled = true;
     /* TODO: The device should now be idling and waiting for commands.
      * In the future, a small test-case to inspect the Register D2H FIS
      * and clear the initial interrupts might be good. */
