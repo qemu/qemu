@@ -347,6 +347,43 @@ class TestParallelOps(iotests.QMPTestCase):
 
         self.assert_no_active_block_jobs()
 
+    # Test the base_node parameter
+    def test_stream_base_node_name(self):
+        self.assert_no_active_block_jobs()
+
+        self.assertNotEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', self.imgs[4]),
+                            qemu_io('-f', iotests.imgfmt, '-c', 'map', self.imgs[3]),
+                            'image file map matches backing file before streaming')
+
+        # Error: the base node does not exist
+        result = self.vm.qmp('block-stream', device='node4', base_node='none', job_id='stream')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+        # Error: the base node is not a backing file of the top node
+        result = self.vm.qmp('block-stream', device='node4', base_node='node6', job_id='stream')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+        # Error: the base node is the same as the top node
+        result = self.vm.qmp('block-stream', device='node4', base_node='node4', job_id='stream')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+        # Error: cannot specify 'base' and 'base-node' at the same time
+        result = self.vm.qmp('block-stream', device='node4', base=self.imgs[2], base_node='node2', job_id='stream')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+        # Success: the base node is a backing file of the top node
+        result = self.vm.qmp('block-stream', device='node4', base_node='node2', job_id='stream')
+        self.assert_qmp(result, 'return', {})
+
+        self.wait_until_completed(drive='stream')
+
+        self.assert_no_active_block_jobs()
+        self.vm.shutdown()
+
+        self.assertEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', self.imgs[4]),
+                         qemu_io('-f', iotests.imgfmt, '-c', 'map', self.imgs[3]),
+                         'image file map matches backing file after streaming')
+
 class TestQuorum(iotests.QMPTestCase):
     num_children = 3
     children = []
