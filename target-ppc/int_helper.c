@@ -528,6 +528,40 @@ void helper_vaddcuw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
+/* vprtybw */
+void helper_vprtybw(ppc_avr_t *r, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
+        uint64_t res = b->u32[i] ^ (b->u32[i] >> 16);
+        res ^= res >> 8;
+        r->u32[i] = res & 1;
+    }
+}
+
+/* vprtybd */
+void helper_vprtybd(ppc_avr_t *r, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->u64); i++) {
+        uint64_t res = b->u64[i] ^ (b->u64[i] >> 32);
+        res ^= res >> 16;
+        res ^= res >> 8;
+        r->u64[i] = res & 1;
+    }
+}
+
+/* vprtybq */
+void helper_vprtybq(ppc_avr_t *r, ppc_avr_t *b)
+{
+    uint64_t res = b->u64[0] ^ b->u64[1];
+    res ^= res >> 32;
+    res ^= res >> 16;
+    res ^= res >> 8;
+    r->u64[LO_IDX] = res & 1;
+    r->u64[HI_IDX] = 0;
+}
+
 #define VARITH_DO(name, op, element)                                    \
     void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
     {                                                                   \

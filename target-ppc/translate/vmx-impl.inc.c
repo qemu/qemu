@@ -705,6 +705,9 @@ GEN_VXFORM_NOA_ENV(vrfim, 5, 11);
 GEN_VXFORM_NOA_ENV(vrfin, 5, 8);
 GEN_VXFORM_NOA_ENV(vrfip, 5, 10);
 GEN_VXFORM_NOA_ENV(vrfiz, 5, 9);
+GEN_VXFORM_NOA(vprtybw, 1, 24);
+GEN_VXFORM_NOA(vprtybd, 1, 24);
+GEN_VXFORM_NOA(vprtybq, 1, 24);
 
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
 static void glue(gen_, name)(DisasContext *ctx)                                 \
