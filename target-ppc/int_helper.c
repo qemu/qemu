@@ -1718,7 +1718,7 @@ void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     }
 }
 
-#define VRLMI(name, size, element)                                    \
+#define VRLMI(name, size, element, insert)                            \
 void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)          \
 {                                                                     \
     int i;                                                            \
@@ -1733,12 +1733,18 @@ void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)          \
         begin = extract##size(src2, 16, 6);                           \
         rot_val = rol##size(src1, shift);                             \
         mask = mask_u##size(begin, end);                              \
-        r->element[i] = (rot_val & mask) | (src3 & ~mask);            \
+        if (insert) {                                                 \
+            r->element[i] = (rot_val & mask) | (src3 & ~mask);        \
+        } else {                                                      \
+            r->element[i] = (rot_val & mask);                         \
+        }                                                             \
     }                                                                 \
 }
 
-VRLMI(vrldmi, 64, u64);
-VRLMI(vrlwmi, 32, u32);
+VRLMI(vrldmi, 64, u64, 1);
+VRLMI(vrlwmi, 32, u32, 1);
+VRLMI(vrldnm, 64, u64, 0);
+VRLMI(vrlwnm, 32, u32, 0);
 
 void helper_vsel(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
                  ppc_avr_t *c)

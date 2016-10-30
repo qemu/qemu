@@ -442,6 +442,9 @@ GEN_VXFORM(vmulesw, 4, 14);
 GEN_VXFORM(vslb, 2, 4);
 GEN_VXFORM(vslh, 2, 5);
 GEN_VXFORM(vslw, 2, 6);
+GEN_VXFORM(vrlwnm, 2, 6);
+GEN_VXFORM_DUAL(vslw, PPC_ALTIVEC, PPC_NONE, \
+                vrlwnm, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vsld, 2, 23);
 GEN_VXFORM(vsrb, 2, 8);
 GEN_VXFORM(vsrh, 2, 9);
@@ -496,6 +499,9 @@ GEN_VXFORM(vrldmi, 2, 3);
 GEN_VXFORM_DUAL(vrld, PPC_NONE, PPC2_ALTIVEC_207, \
                 vrldmi, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vsl, 2, 7);
+GEN_VXFORM(vrldnm, 2, 7);
+GEN_VXFORM_DUAL(vsl, PPC_ALTIVEC, PPC_NONE, \
+                vrldnm, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vsr, 2, 11);
 GEN_VXFORM_ENV(vpkuhum, 7, 0);
 GEN_VXFORM_ENV(vpkuwum, 7, 1);
