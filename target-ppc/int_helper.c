@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internal.h"
 #include "exec/exec-all.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
@@ -1716,6 +1717,28 @@ void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
         r->f[i] = float32_div(float32_one, t, &env->vec_status);
     }
 }
+
+#define VRLMI(name, size, element)                                    \
+void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)          \
+{                                                                     \
+    int i;                                                            \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                    \
+        uint##size##_t src1 = a->element[i];                          \
+        uint##size##_t src2 = b->element[i];                          \
+        uint##size##_t src3 = r->element[i];                          \
+        uint##size##_t begin, end, shift, mask, rot_val;              \
+                                                                      \
+        shift = extract##size(src2, 0, 6);                            \
+        end   = extract##size(src2, 8, 6);                            \
+        begin = extract##size(src2, 16, 6);                           \
+        rot_val = rol##size(src1, shift);                             \
+        mask = mask_u##size(begin, end);                              \
+        r->element[i] = (rot_val & mask) | (src3 & ~mask);            \
+    }                                                                 \
+}
+
+VRLMI(vrldmi, 64, u64);
+VRLMI(vrlwmi, 32, u32);
 
 void helper_vsel(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
                  ppc_avr_t *c)
