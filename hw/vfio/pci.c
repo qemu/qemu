@@ -1071,6 +1071,55 @@ static const MemoryRegionOps vfio_vga_ops = {
 };
 
 /*
+ * Expand memory region of sub-page(size < PAGE_SIZE) MMIO BAR to page
+ * size if the BAR is in an exclusive page in host so that we could map
+ * this BAR to guest. But this sub-page BAR may not occupy an exclusive
+ * page in guest. So we should set the priority of the expanded memory
+ * region to zero in case of overlap with BARs which share the same page
+ * with the sub-page BAR in guest. Besides, we should also recover the
+ * size of this sub-page BAR when its base address is changed in guest
+ * and not page aligned any more.
+ */
+static void vfio_sub_page_bar_update_mapping(PCIDevice *pdev, int bar)
+{
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIORegion *region = &vdev->bars[bar].region;
+    MemoryRegion *mmap_mr, *mr;
+    PCIIORegion *r;
+    pcibus_t bar_addr;
+    uint64_t size = region->size;
+
+    /* Make sure that the whole region is allowed to be mmapped */
+    if (region->nr_mmaps != 1 || !region->mmaps[0].mmap ||
+        region->mmaps[0].size != region->size) {
+        return;
+    }
+
+    r = &pdev->io_regions[bar];
+    bar_addr = r->addr;
+    mr = region->mem;
+    mmap_mr = &region->mmaps[0].mem;
+
+    /* If BAR is mapped and page aligned, update to fill PAGE_SIZE */
+    if (bar_addr != PCI_BAR_UNMAPPED &&
+        !(bar_addr & ~qemu_real_host_page_mask)) {
+        size = qemu_real_host_page_size;
+    }
+
+    memory_region_transaction_begin();
+
+    memory_region_set_size(mr, size);
+    memory_region_set_size(mmap_mr, size);
+    if (size != region->size && memory_region_is_mapped(mr)) {
+        memory_region_del_subregion(r->address_space, mr);
+        memory_region_add_subregion_overlap(r->address_space,
+                                            bar_addr, mr, 0);
+    }
+
+    memory_region_transaction_commit();
+}
+
+/*
  * PCI config space
  */
 uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
@@ -1152,6 +1201,24 @@ void vfio_pci_write_config(PCIDevice *pdev,
             vfio_msix_enable(vdev);
         } else if (was_enabled && !is_enabled) {
             vfio_msix_disable(vdev);
+        }
+    } else if (ranges_overlap(addr, len, PCI_BASE_ADDRESS_0, 24) ||
+        range_covers_byte(addr, len, PCI_COMMAND)) {
+        pcibus_t old_addr[PCI_NUM_REGIONS - 1];
+        int bar;
+
+        for (bar = 0; bar < PCI_ROM_SLOT; bar++) {
+            old_addr[bar] = pdev->io_regions[bar].addr;
+        }
+
+        pci_default_write_config(pdev, addr, val, len);
+
+        for (bar = 0; bar < PCI_ROM_SLOT; bar++) {
+            if (old_addr[bar] != pdev->io_regions[bar].addr &&
+                pdev->io_regions[bar].size > 0 &&
+                pdev->io_regions[bar].size < qemu_real_host_page_size) {
+                vfio_sub_page_bar_update_mapping(pdev, bar);
+            }
         }
     } else {
         /* Write everything to QEMU to keep emulated bits correct */
@@ -1922,10 +1989,22 @@ static void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
 static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
 {
     Error *err = NULL;
+    int nr;
 
     vfio_intx_enable(vdev, &err);
     if (err) {
         error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
+    }
+
+    for (nr = 0; nr < PCI_NUM_REGIONS - 1; ++nr) {
+        off_t addr = vdev->config_offset + PCI_BASE_ADDRESS_0 + (4 * nr);
+        uint32_t val = 0;
+        uint32_t len = sizeof(val);
+
+        if (pwrite(vdev->vbasedev.fd, &val, len, addr) != len) {
+            error_report("%s(%s) reset bar %d failed: %m", __func__,
+                         vdev->vbasedev.name, nr);
+        }
     }
 }
 

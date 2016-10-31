@@ -610,16 +610,16 @@ vfio_get_region_info_cap(struct vfio_region_info *info, uint16_t id)
     return NULL;
 }
 
-static void vfio_setup_region_sparse_mmaps(VFIORegion *region,
-                                           struct vfio_region_info *info)
+static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
+                                          struct vfio_region_info *info)
 {
     struct vfio_info_cap_header *hdr;
     struct vfio_region_info_cap_sparse_mmap *sparse;
-    int i;
+    int i, j;
 
     hdr = vfio_get_region_info_cap(info, VFIO_REGION_INFO_CAP_SPARSE_MMAP);
     if (!hdr) {
-        return;
+        return -ENODEV;
     }
 
     sparse = container_of(hdr, struct vfio_region_info_cap_sparse_mmap, header);
@@ -627,16 +627,24 @@ static void vfio_setup_region_sparse_mmaps(VFIORegion *region,
     trace_vfio_region_sparse_mmap_header(region->vbasedev->name,
                                          region->nr, sparse->nr_areas);
 
-    region->nr_mmaps = sparse->nr_areas;
-    region->mmaps = g_new0(VFIOMmap, region->nr_mmaps);
+    region->mmaps = g_new0(VFIOMmap, sparse->nr_areas);
 
-    for (i = 0; i < region->nr_mmaps; i++) {
-        region->mmaps[i].offset = sparse->areas[i].offset;
-        region->mmaps[i].size = sparse->areas[i].size;
-        trace_vfio_region_sparse_mmap_entry(i, region->mmaps[i].offset,
-                                            region->mmaps[i].offset +
-                                            region->mmaps[i].size);
+    for (i = 0, j = 0; i < sparse->nr_areas; i++) {
+        trace_vfio_region_sparse_mmap_entry(i, sparse->areas[i].offset,
+                                            sparse->areas[i].offset +
+                                            sparse->areas[i].size);
+
+        if (sparse->areas[i].size) {
+            region->mmaps[j].offset = sparse->areas[i].offset;
+            region->mmaps[j].size = sparse->areas[i].size;
+            j++;
+        }
     }
+
+    region->nr_mmaps = j;
+    region->mmaps = g_realloc(region->mmaps, j * sizeof(VFIOMmap));
+
+    return 0;
 }
 
 int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
@@ -662,12 +670,11 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
                               region, name, region->size);
 
         if (!vbasedev->no_mmap &&
-            region->flags & VFIO_REGION_INFO_FLAG_MMAP &&
-            !(region->size & ~qemu_real_host_page_mask)) {
+            region->flags & VFIO_REGION_INFO_FLAG_MMAP) {
 
-            vfio_setup_region_sparse_mmaps(region, info);
+            ret = vfio_setup_region_sparse_mmaps(region, info);
 
-            if (!region->nr_mmaps) {
+            if (ret) {
                 region->nr_mmaps = 1;
                 region->mmaps = g_new0(VFIOMmap, region->nr_mmaps);
                 region->mmaps[0].offset = 0;
@@ -724,12 +731,11 @@ int vfio_region_mmap(VFIORegion *region)
 
         name = g_strdup_printf("%s mmaps[%d]",
                                memory_region_name(region->mem), i);
-        memory_region_init_ram_ptr(&region->mmaps[i].mem,
-                                   memory_region_owner(region->mem),
-                                   name, region->mmaps[i].size,
-                                   region->mmaps[i].mmap);
+        memory_region_init_ram_device_ptr(&region->mmaps[i].mem,
+                                          memory_region_owner(region->mem),
+                                          name, region->mmaps[i].size,
+                                          region->mmaps[i].mmap);
         g_free(name);
-        memory_region_set_skip_dump(&region->mmaps[i].mem);
         memory_region_add_subregion(region->mem, region->mmaps[i].offset,
                                     &region->mmaps[i].mem);
 

@@ -25,7 +25,7 @@ static bool vfio_prereg_listener_skipped_section(MemoryRegionSection *section)
     }
 
     return !memory_region_is_ram(section->mr) ||
-            memory_region_is_skip_dump(section->mr);
+            memory_region_is_ram_device(section->mr);
 }
 
 static void *vfio_prereg_gpa_to_vaddr(MemoryRegionSection *section, hwaddr gpa)
