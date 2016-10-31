@@ -439,7 +439,7 @@ void *colo_process_incoming_thread(void *opaque)
     }
 
     while (mis->state == MIGRATION_STATUS_COLO) {
-        int request;
+        int request = 0;
 
         colo_wait_handle_message(mis->from_src_file, &request, &local_err);
         if (local_err) {
