@@ -2463,7 +2463,7 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     IntelIOMMUState *s = opaque;
     VTDAddressSpace *vtd_as;
 
-    assert(0 <= devfn && devfn <= X86_IOMMU_PCI_DEVFN_MAX);
+    assert(0 <= devfn && devfn < X86_IOMMU_PCI_DEVFN_MAX);
 
     vtd_as = vtd_find_add_as(s, bus, devfn);
     return &vtd_as->as;
