@@ -1132,6 +1132,71 @@ const MemoryRegionOps unassigned_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static uint64_t memory_region_ram_device_read(void *opaque,
+                                              hwaddr addr, unsigned size)
+{
+    MemoryRegion *mr = opaque;
+    uint64_t data = (uint64_t)~0;
+
+    switch (size) {
+    case 1:
+        data = *(uint8_t *)(mr->ram_block->host + addr);
+        break;
+    case 2:
+        data = *(uint16_t *)(mr->ram_block->host + addr);
+        break;
+    case 4:
+        data = *(uint32_t *)(mr->ram_block->host + addr);
+        break;
+    case 8:
+        data = *(uint64_t *)(mr->ram_block->host + addr);
+        break;
+    }
+
+    trace_memory_region_ram_device_read(get_cpu_index(), mr, addr, data, size);
+
+    return data;
+}
+
+static void memory_region_ram_device_write(void *opaque, hwaddr addr,
+                                           uint64_t data, unsigned size)
+{
+    MemoryRegion *mr = opaque;
+
+    trace_memory_region_ram_device_write(get_cpu_index(), mr, addr, data, size);
+
+    switch (size) {
+    case 1:
+        *(uint8_t *)(mr->ram_block->host + addr) = (uint8_t)data;
+        break;
+    case 2:
+        *(uint16_t *)(mr->ram_block->host + addr) = (uint16_t)data;
+        break;
+    case 4:
+        *(uint32_t *)(mr->ram_block->host + addr) = (uint32_t)data;
+        break;
+    case 8:
+        *(uint64_t *)(mr->ram_block->host + addr) = data;
+        break;
+    }
+}
+
+static const MemoryRegionOps ram_device_mem_ops = {
+    .read = memory_region_ram_device_read,
+    .write = memory_region_ram_device_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .unaligned = true,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .unaligned = true,
+    },
+};
+
 bool memory_region_access_valid(MemoryRegion *mr,
                                 hwaddr addr,
                                 unsigned size,
@@ -1367,6 +1432,8 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr,
 {
     memory_region_init_ram_ptr(mr, owner, name, size, ptr);
     mr->ram_device = true;
+    mr->ops = &ram_device_mem_ops;
+    mr->opaque = mr;
 }
 
 void memory_region_init_alias(MemoryRegion *mr,
