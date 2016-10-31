@@ -1856,7 +1856,7 @@ void kvm_flush_coalesced_mmio_buffer(void)
     s->coalesced_flush_in_progress = false;
 }
 
-static void do_kvm_cpu_synchronize_state(CPUState *cpu, void *arg)
+static void do_kvm_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
 {
     if (!cpu->kvm_vcpu_dirty) {
         kvm_arch_get_registers(cpu);
@@ -1867,11 +1867,11 @@ static void do_kvm_cpu_synchronize_state(CPUState *cpu, void *arg)
 void kvm_cpu_synchronize_state(CPUState *cpu)
 {
     if (!cpu->kvm_vcpu_dirty) {
-        run_on_cpu(cpu, do_kvm_cpu_synchronize_state, NULL);
+        run_on_cpu(cpu, do_kvm_cpu_synchronize_state, RUN_ON_CPU_NULL);
     }
 }
 
-static void do_kvm_cpu_synchronize_post_reset(CPUState *cpu, void *arg)
+static void do_kvm_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg)
 {
     kvm_arch_put_registers(cpu, KVM_PUT_RESET_STATE);
     cpu->kvm_vcpu_dirty = false;
@@ -1879,10 +1879,10 @@ static void do_kvm_cpu_synchronize_post_reset(CPUState *cpu, void *arg)
 
 void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 {
-    run_on_cpu(cpu, do_kvm_cpu_synchronize_post_reset, NULL);
+    run_on_cpu(cpu, do_kvm_cpu_synchronize_post_reset, RUN_ON_CPU_NULL);
 }
 
-static void do_kvm_cpu_synchronize_post_init(CPUState *cpu, void *arg)
+static void do_kvm_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
 {
     kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
     cpu->kvm_vcpu_dirty = false;
@@ -1890,7 +1890,7 @@ static void do_kvm_cpu_synchronize_post_init(CPUState *cpu, void *arg)
 
 void kvm_cpu_synchronize_post_init(CPUState *cpu)
 {
-    run_on_cpu(cpu, do_kvm_cpu_synchronize_post_init, NULL);
+    run_on_cpu(cpu, do_kvm_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }
 
 int kvm_cpu_exec(CPUState *cpu)
@@ -2218,9 +2218,10 @@ struct kvm_set_guest_debug_data {
     int err;
 };
 
-static void kvm_invoke_set_guest_debug(CPUState *cpu, void *data)
+static void kvm_invoke_set_guest_debug(CPUState *cpu, run_on_cpu_data data)
 {
-    struct kvm_set_guest_debug_data *dbg_data = data;
+    struct kvm_set_guest_debug_data *dbg_data =
+        (struct kvm_set_guest_debug_data *) data.host_ptr;
 
     dbg_data->err = kvm_vcpu_ioctl(cpu, KVM_SET_GUEST_DEBUG,
                                    &dbg_data->dbg);
@@ -2237,7 +2238,8 @@ int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap)
     }
     kvm_arch_update_guest_debug(cpu, &data.dbg);
 
-    run_on_cpu(cpu, kvm_invoke_set_guest_debug, &data);
+    run_on_cpu(cpu, kvm_invoke_set_guest_debug,
+               RUN_ON_CPU_HOST_PTR(&data));
     return data.err;
 }
 

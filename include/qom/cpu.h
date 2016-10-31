@@ -231,7 +231,25 @@ struct kvm_run;
 #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
 
 /* work queue */
-typedef void (*run_on_cpu_func)(CPUState *cpu, void *data);
+
+/* The union type allows passing of 64 bit target pointers on 32 bit
+ * hosts in a single parameter
+ */
+typedef union {
+    int           host_int;
+    unsigned long host_ulong;
+    void         *host_ptr;
+    vaddr         target_ptr;
+} run_on_cpu_data;
+
+#define RUN_ON_CPU_HOST_PTR(p)    ((run_on_cpu_data){.host_ptr = (p)})
+#define RUN_ON_CPU_HOST_INT(i)    ((run_on_cpu_data){.host_int = (i)})
+#define RUN_ON_CPU_HOST_ULONG(ul) ((run_on_cpu_data){.host_ulong = (ul)})
+#define RUN_ON_CPU_TARGET_PTR(v)  ((run_on_cpu_data){.target_ptr = (v)})
+#define RUN_ON_CPU_NULL           RUN_ON_CPU_HOST_PTR(NULL)
+
+typedef void (*run_on_cpu_func)(CPUState *cpu, run_on_cpu_data data);
+
 struct qemu_work_item;
 
 /**
@@ -637,7 +655,7 @@ bool cpu_is_stopped(CPUState *cpu);
  *
  * Used internally in the implementation of run_on_cpu.
  */
-void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data,
+void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
                    QemuMutex *mutex);
 
 /**
@@ -648,7 +666,7 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data,
  *
  * Schedules the function @func for execution on the vCPU @cpu.
  */
-void run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
+void run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data);
 
 /**
  * async_run_on_cpu:
@@ -658,7 +676,7 @@ void run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
  *
  * Schedules the function @func for execution on the vCPU @cpu asynchronously.
  */
-void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
+void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data);
 
 /**
  * async_safe_run_on_cpu:
@@ -672,7 +690,7 @@ void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
  * Unlike run_on_cpu and async_run_on_cpu, the function is run outside the
  * BQL.
  */
-void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data);
+void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data);
 
 /**
  * qemu_get_cpu:

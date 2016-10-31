@@ -164,7 +164,7 @@ static void s390_cpu_machine_reset_cb(void *opaque)
 {
     S390CPU *cpu = opaque;
 
-    run_on_cpu(CPU(cpu), s390_do_cpu_full_reset, NULL);
+    run_on_cpu(CPU(cpu), s390_do_cpu_full_reset, RUN_ON_CPU_NULL);
 }
 #endif
 
@@ -220,7 +220,7 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     s390_cpu_gdb_init(cs);
     qemu_init_vcpu(cs);
 #if !defined(CONFIG_USER_ONLY)
-    run_on_cpu(cs, s390_do_cpu_full_reset, NULL);
+    run_on_cpu(cs, s390_do_cpu_full_reset, RUN_ON_CPU_NULL);
 #else
     cpu_reset(cs);
 #endif

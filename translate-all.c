@@ -917,16 +917,14 @@ static void page_flush_tb(void)
 }
 
 /* flush all the translation blocks */
-static void do_tb_flush(CPUState *cpu, void *data)
+static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 {
-    unsigned tb_flush_req = (unsigned) (uintptr_t) data;
-
     tb_lock();
 
-    /* If it's already been done on request of another CPU,
+    /* If it is already been done on request of another CPU,
      * just retry.
      */
-    if (tcg_ctx.tb_ctx.tb_flush_count != tb_flush_req) {
+    if (tcg_ctx.tb_ctx.tb_flush_count != tb_flush_count.host_int) {
         goto done;
     }
 
@@ -967,8 +965,9 @@ done:
 void tb_flush(CPUState *cpu)
 {
     if (tcg_enabled()) {
-        uintptr_t tb_flush_req = atomic_mb_read(&tcg_ctx.tb_ctx.tb_flush_count);
-        async_safe_run_on_cpu(cpu, do_tb_flush, (void *) tb_flush_req);
+        unsigned tb_flush_count = atomic_mb_read(&tcg_ctx.tb_ctx.tb_flush_count);
+        async_safe_run_on_cpu(cpu, do_tb_flush,
+                              RUN_ON_CPU_HOST_INT(tb_flush_count));
     }
 }
 

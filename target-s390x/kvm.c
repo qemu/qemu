@@ -1607,7 +1607,7 @@ int kvm_s390_cpu_restart(S390CPU *cpu)
 {
     SigpInfo si = {};
 
-    run_on_cpu(CPU(cpu), sigp_restart, &si);
+    run_on_cpu(CPU(cpu), sigp_restart, RUN_ON_CPU_HOST_PTR(&si));
     DPRINTF("DONE: KVM cpu restart: %p\n", &cpu->env);
     return 0;
 }
@@ -1683,31 +1683,31 @@ static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
 
     switch (order) {
     case SIGP_START:
-        run_on_cpu(CPU(dst_cpu), sigp_start, &si);
+        run_on_cpu(CPU(dst_cpu), sigp_start, RUN_ON_CPU_HOST_PTR(&si));
         break;
     case SIGP_STOP:
-        run_on_cpu(CPU(dst_cpu), sigp_stop, &si);
+        run_on_cpu(CPU(dst_cpu), sigp_stop, RUN_ON_CPU_HOST_PTR(&si));
         break;
     case SIGP_RESTART:
-        run_on_cpu(CPU(dst_cpu), sigp_restart, &si);
+        run_on_cpu(CPU(dst_cpu), sigp_restart, RUN_ON_CPU_HOST_PTR(&si));
         break;
     case SIGP_STOP_STORE_STATUS:
-        run_on_cpu(CPU(dst_cpu), sigp_stop_and_store_status, &si);
+        run_on_cpu(CPU(dst_cpu), sigp_stop_and_store_status, RUN_ON_CPU_HOST_PTR(&si));
         break;
     case SIGP_STORE_STATUS_ADDR:
-        run_on_cpu(CPU(dst_cpu), sigp_store_status_at_address, &si);
+        run_on_cpu(CPU(dst_cpu), sigp_store_status_at_address, RUN_ON_CPU_HOST_PTR(&si));
         break;
     case SIGP_STORE_ADTL_STATUS:
-        run_on_cpu(CPU(dst_cpu), sigp_store_adtl_status, &si);
+        run_on_cpu(CPU(dst_cpu), sigp_store_adtl_status, RUN_ON_CPU_HOST_PTR(&si));
         break;
     case SIGP_SET_PREFIX:
-        run_on_cpu(CPU(dst_cpu), sigp_set_prefix, &si);
+        run_on_cpu(CPU(dst_cpu), sigp_set_prefix, RUN_ON_CPU_HOST_PTR(&si));
         break;
     case SIGP_INITIAL_CPU_RESET:
-        run_on_cpu(CPU(dst_cpu), sigp_initial_cpu_reset, &si);
+        run_on_cpu(CPU(dst_cpu), sigp_initial_cpu_reset, RUN_ON_CPU_HOST_PTR(&si));
         break;
     case SIGP_CPU_RESET:
-        run_on_cpu(CPU(dst_cpu), sigp_cpu_reset, &si);
+        run_on_cpu(CPU(dst_cpu), sigp_cpu_reset, RUN_ON_CPU_HOST_PTR(&si));
         break;
     default:
         DPRINTF("KVM: unknown SIGP: 0x%x\n", order);

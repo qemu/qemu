@@ -133,9 +133,9 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
     }
 }
 
-static void kvm_apic_put(CPUState *cs, void *data)
+static void kvm_apic_put(CPUState *cs, run_on_cpu_data data)
 {
-    APICCommonState *s = data;
+    APICCommonState *s = data.host_ptr;
     struct kvm_lapic_state kapic;
     int ret;
 
@@ -151,12 +151,12 @@ static void kvm_apic_put(CPUState *cs, void *data)
 
 static void kvm_apic_post_load(APICCommonState *s)
 {
-    run_on_cpu(CPU(s->cpu), kvm_apic_put, s);
+    run_on_cpu(CPU(s->cpu), kvm_apic_put, RUN_ON_CPU_HOST_PTR(s));
 }
 
-static void do_inject_external_nmi(CPUState *cpu, void *data)
+static void do_inject_external_nmi(CPUState *cpu, run_on_cpu_data data)
 {
-    APICCommonState *s = data;
+    APICCommonState *s = data.host_ptr;
     uint32_t lvt;
     int ret;
 
@@ -174,7 +174,7 @@ static void do_inject_external_nmi(CPUState *cpu, void *data)
 
 static void kvm_apic_external_nmi(APICCommonState *s)
 {
-    run_on_cpu(CPU(s->cpu), do_inject_external_nmi, s);
+    run_on_cpu(CPU(s->cpu), do_inject_external_nmi, RUN_ON_CPU_HOST_PTR(s));
 }
 
 static void kvm_send_msi(MSIMessage *msg)
@@ -213,7 +213,7 @@ static void kvm_apic_reset(APICCommonState *s)
     /* Not used by KVM, which uses the CPU mp_state instead.  */
     s->wait_for_sipi = 0;
 
-    run_on_cpu(CPU(s->cpu), kvm_apic_put, s);
+    run_on_cpu(CPU(s->cpu), kvm_apic_put, RUN_ON_CPU_HOST_PTR(s));
 }
 
 static void kvm_apic_realize(DeviceState *dev, Error **errp)

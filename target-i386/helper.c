@@ -1121,9 +1121,9 @@ typedef struct MCEInjectionParams {
     int flags;
 } MCEInjectionParams;
 
-static void do_inject_x86_mce(CPUState *cs, void *data)
+static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
 {
-    MCEInjectionParams *params = data;
+    MCEInjectionParams *params = data.host_ptr;
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *cenv = &cpu->env;
     uint64_t *banks = cenv->mce_banks + 4 * params->bank;
@@ -1230,7 +1230,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
         return;
     }
 
-    run_on_cpu(cs, do_inject_x86_mce, &params);
+    run_on_cpu(cs, do_inject_x86_mce, RUN_ON_CPU_HOST_PTR(&params));
     if (flags & MCE_INJECT_BROADCAST) {
         CPUState *other_cs;
 
@@ -1243,7 +1243,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
             if (other_cs == cs) {
                 continue;
             }
-            run_on_cpu(other_cs, do_inject_x86_mce, &params);
+            run_on_cpu(other_cs, do_inject_x86_mce, RUN_ON_CPU_HOST_PTR(&params));
         }
     }
 }

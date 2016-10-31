@@ -109,7 +109,7 @@ void cpu_list_remove(CPUState *cpu)
 struct qemu_work_item {
     struct qemu_work_item *next;
     run_on_cpu_func func;
-    void *data;
+    run_on_cpu_data data;
     bool free, exclusive, done;
 };
 
@@ -129,7 +129,7 @@ static void queue_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi)
     qemu_cpu_kick(cpu);
 }
 
-void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data,
+void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
                    QemuMutex *mutex)
 {
     struct qemu_work_item wi;
@@ -154,7 +154,7 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data,
     }
 }
 
-void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
+void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
 {
     struct qemu_work_item *wi;
 
@@ -296,7 +296,8 @@ void cpu_exec_end(CPUState *cpu)
     }
 }
 
-void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
+void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func,
+                           run_on_cpu_data data)
 {
     struct qemu_work_item *wi;
 

@@ -556,7 +556,7 @@ static const VMStateDescription vmstate_timers = {
     }
 };
 
-static void cpu_throttle_thread(CPUState *cpu, void *opaque)
+static void cpu_throttle_thread(CPUState *cpu, run_on_cpu_data opaque)
 {
     double pct;
     double throttle_ratio;
@@ -587,7 +587,8 @@ static void cpu_throttle_timer_tick(void *opaque)
     }
     CPU_FOREACH(cpu) {
         if (!atomic_xchg(&cpu->throttle_thread_scheduled, 1)) {
-            async_run_on_cpu(cpu, cpu_throttle_thread, NULL);
+            async_run_on_cpu(cpu, cpu_throttle_thread,
+                             RUN_ON_CPU_NULL);
         }
     }
 
@@ -914,7 +915,7 @@ void qemu_init_cpu_loop(void)
     qemu_thread_get_self(&io_thread);
 }
 
-void run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
+void run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
 {
     do_run_on_cpu(cpu, func, data, &qemu_global_mutex);
 }
