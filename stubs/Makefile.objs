@@ -49,3 +49,4 @@ stub-obj-y += iohandler.o
 stub-obj-y += smbios_type_38.o
 stub-obj-y += ipmi.o
 stub-obj-y += pc_madt_cpu_entry.o
+stub-obj-y += migration-colo.o

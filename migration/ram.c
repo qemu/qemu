@@ -43,6 +43,7 @@
 #include "trace.h"
 #include "exec/ram_addr.h"
 #include "qemu/rcu_queue.h"
+#include "migration/colo.h"
 
 #ifdef DEBUG_MIGRATION_RAM
 #define DPRINTF(fmt, ...) \
@@ -1871,16 +1872,8 @@ err:
     return ret;
 }
 
-
-/* Each of ram_save_setup, ram_save_iterate and ram_save_complete has
- * long-running RCU critical section.  When rcu-reclaims in the code
- * start to become numerous it will be necessary to reduce the
- * granularity of these critical sections.
- */
-
-static int ram_save_setup(QEMUFile *f, void *opaque)
+static int ram_save_init_globals(void)
 {
-    RAMBlock *block;
     int64_t ram_bitmap_pages; /* Size of bitmap in pages, including gaps */
 
     dirty_rate_high_cnt = 0;
@@ -1947,6 +1940,29 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     migration_bitmap_sync();
     qemu_mutex_unlock_ramlist();
     qemu_mutex_unlock_iothread();
+    rcu_read_unlock();
+
+    return 0;
+}
+
+/* Each of ram_save_setup, ram_save_iterate and ram_save_complete has
+ * long-running RCU critical section.  When rcu-reclaims in the code
+ * start to become numerous it will be necessary to reduce the
+ * granularity of these critical sections.
+ */
+
+static int ram_save_setup(QEMUFile *f, void *opaque)
+{
+    RAMBlock *block;
+
+    /* migration has already setup the bitmap, reuse it. */
+    if (!migration_in_colo_state()) {
+        if (ram_save_init_globals() < 0) {
+            return -1;
+         }
+    }
+
+    rcu_read_lock();
 
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
@@ -2048,7 +2064,8 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     while (true) {
         int pages;
 
-        pages = ram_find_and_save_block(f, true, &bytes_transferred);
+        pages = ram_find_and_save_block(f, !migration_in_colo_state(),
+                                        &bytes_transferred);
         /* no more blocks to sent */
         if (pages == 0) {
             break;

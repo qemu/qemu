@@ -90,6 +90,7 @@ int main(int argc, char **argv)
 #include "audio/audio.h"
 #include "migration/migration.h"
 #include "sysemu/cpus.h"
+#include "migration/colo.h"
 #include "sysemu/kvm.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/option.h"
@@ -612,6 +613,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_INMIGRATE, RUN_STATE_FINISH_MIGRATE },
     { RUN_STATE_INMIGRATE, RUN_STATE_PRELAUNCH },
     { RUN_STATE_INMIGRATE, RUN_STATE_POSTMIGRATE },
+    { RUN_STATE_INMIGRATE, RUN_STATE_COLO },
 
     { RUN_STATE_INTERNAL_ERROR, RUN_STATE_PAUSED },
     { RUN_STATE_INTERNAL_ERROR, RUN_STATE_FINISH_MIGRATE },
@@ -624,6 +626,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_PAUSED, RUN_STATE_RUNNING },
     { RUN_STATE_PAUSED, RUN_STATE_FINISH_MIGRATE },
     { RUN_STATE_PAUSED, RUN_STATE_PRELAUNCH },
+    { RUN_STATE_PAUSED, RUN_STATE_COLO},
 
     { RUN_STATE_POSTMIGRATE, RUN_STATE_RUNNING },
     { RUN_STATE_POSTMIGRATE, RUN_STATE_FINISH_MIGRATE },
@@ -636,9 +639,12 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_RUNNING },
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_POSTMIGRATE },
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_PRELAUNCH },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_COLO},
 
     { RUN_STATE_RESTORE_VM, RUN_STATE_RUNNING },
     { RUN_STATE_RESTORE_VM, RUN_STATE_PRELAUNCH },
+
+    { RUN_STATE_COLO, RUN_STATE_RUNNING },
 
     { RUN_STATE_RUNNING, RUN_STATE_DEBUG },
     { RUN_STATE_RUNNING, RUN_STATE_INTERNAL_ERROR },
@@ -650,6 +656,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_RUNNING, RUN_STATE_SHUTDOWN },
     { RUN_STATE_RUNNING, RUN_STATE_WATCHDOG },
     { RUN_STATE_RUNNING, RUN_STATE_GUEST_PANICKED },
+    { RUN_STATE_RUNNING, RUN_STATE_COLO},
 
     { RUN_STATE_SAVE_VM, RUN_STATE_RUNNING },
 
@@ -662,10 +669,12 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_SUSPENDED, RUN_STATE_RUNNING },
     { RUN_STATE_SUSPENDED, RUN_STATE_FINISH_MIGRATE },
     { RUN_STATE_SUSPENDED, RUN_STATE_PRELAUNCH },
+    { RUN_STATE_SUSPENDED, RUN_STATE_COLO},
 
     { RUN_STATE_WATCHDOG, RUN_STATE_RUNNING },
     { RUN_STATE_WATCHDOG, RUN_STATE_FINISH_MIGRATE },
     { RUN_STATE_WATCHDOG, RUN_STATE_PRELAUNCH },
+    { RUN_STATE_WATCHDOG, RUN_STATE_COLO},
 
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_RUNNING },
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_FINISH_MIGRATE },
@@ -4419,6 +4428,8 @@ int main(int argc, char **argv, char **envp)
         qemu_opts_set(net, NULL, "type", "user", &error_abort);
 #endif
     }
+
+    colo_info_init();
 
     if (net_init_clients() < 0) {
         exit(1);

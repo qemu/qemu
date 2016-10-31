@@ -21,6 +21,7 @@
 #include "migration/vmstate.h"
 #include "qapi-types.h"
 #include "exec/cpu-common.h"
+#include "qemu/coroutine_int.h"
 
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
@@ -107,6 +108,12 @@ struct MigrationIncomingState {
     QEMUBH *bh;
 
     int state;
+
+    bool have_colo_incoming_thread;
+    QemuThread colo_incoming_thread;
+    /* The coroutine we should enter (back) after failover */
+    Coroutine *migration_incoming_co;
+
     /* See savevm.c */
     LoadStateEntry_Head loadvm_handlers;
 };
@@ -298,6 +305,7 @@ int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen);
 
 int migrate_use_xbzrle(void);
 int64_t migrate_xbzrle_cache_size(void);
+bool migrate_colo_enabled(void);
 
 int64_t xbzrle_cache_resize(int64_t new_size);
 

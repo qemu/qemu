@@ -1426,6 +1426,14 @@ F: util/uuid.c
 F: include/qemu/uuid.h
 F: tests/test-uuid.c
 
+COLO Framework
+M: zhanghailiang <zhang.zhanghailiang@huawei.com>
+S: Maintained
+F: migration/colo*
+F: include/migration/colo.h
+F: include/migration/failover.h
+F: docs/COLO-FT.txt
+
 COLO Proxy
 M: Zhang Chen <zhangchen.fnst@cn.fujitsu.com>
 M: Li Zhijian <lizhijian@cn.fujitsu.com>
