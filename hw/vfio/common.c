@@ -670,8 +670,7 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
                               region, name, region->size);
 
         if (!vbasedev->no_mmap &&
-            region->flags & VFIO_REGION_INFO_FLAG_MMAP &&
-            !(region->size & ~qemu_real_host_page_mask)) {
+            region->flags & VFIO_REGION_INFO_FLAG_MMAP) {
 
             ret = vfio_setup_region_sparse_mmaps(region, info);
 
