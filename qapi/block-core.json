@@ -2270,6 +2270,20 @@
             '*tls-creds': 'str' } }
 
 ##
+# @BlockdevOptionsRaw
+#
+# Driver specific block device options for the raw driver.
+#
+# @offset:      #optional position where the block device starts
+# @size:        #optional the assumed size of the device
+#
+# Since: 2.8
+##
+{ 'struct': 'BlockdevOptionsRaw',
+  'base': 'BlockdevOptionsGenericFormat',
+  'data': { '*offset': 'int', '*size': 'int' } }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.  Many options are available for all
@@ -2323,7 +2337,7 @@
       'qcow':       'BlockdevOptionsGenericCOWFormat',
       'qed':        'BlockdevOptionsGenericCOWFormat',
       'quorum':     'BlockdevOptionsQuorum',
-      'raw':        'BlockdevOptionsGenericFormat',
+      'raw':        'BlockdevOptionsRaw',
 # TODO rbd: Wait for structured options
       'replication':'BlockdevOptionsReplication',
 # TODO sheepdog: Wait for structured options
