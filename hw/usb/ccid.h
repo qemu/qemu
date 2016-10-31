@@ -33,7 +33,7 @@ typedef struct CCIDCardClass {
     void (*apdu_from_guest)(CCIDCardState *card,
                             const uint8_t *apdu,
                             uint32_t len);
-    int (*exitfn)(CCIDCardState *card);
+    void (*exitfn)(CCIDCardState *card);
     int (*initfn)(CCIDCardState *card);
 } CCIDCardClass;
 

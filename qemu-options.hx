@@ -172,7 +172,7 @@ DEF("set", HAS_ARG, QEMU_OPTION_set,
 STEXI
 @item -set @var{group}.@var{id}.@var{arg}=@var{value}
 @findex -set
-Set parameter @var{arg} for item @var{id} of type @var{group}\n"
+Set parameter @var{arg} for item @var{id} of type @var{group}
 ETEXI
 
 DEF("global", HAS_ARG, QEMU_OPTION_global,
@@ -2239,7 +2239,7 @@ two serial ports and the QEMU monitor:
 
 @example
 -chardev stdio,mux=on,id=char0 \
--mon chardev=char0,mode=readline,default \
+-mon chardev=char0,mode=readline \
 -serial chardev:char0 \
 -serial chardev:char0
 @end example
@@ -2250,7 +2250,7 @@ multiplexed between the QEMU monitor and a parallel port:
 
 @example
 -chardev stdio,mux=on,id=char0 \
--mon chardev=char0,mode=readline,default \
+-mon chardev=char0,mode=readline \
 -parallel chardev:char0 \
 -chardev tcp,...,mux=on,id=char1 \
 -serial chardev:char1 \
@@ -3112,9 +3112,9 @@ Like -qmp but uses pretty JSON formatting.
 ETEXI
 
 DEF("mon", HAS_ARG, QEMU_OPTION_mon, \
-    "-mon [chardev=]name[,mode=readline|control][,default]\n", QEMU_ARCH_ALL)
+    "-mon [chardev=]name[,mode=readline|control]\n", QEMU_ARCH_ALL)
 STEXI
-@item -mon [chardev=]name[,mode=readline|control][,default]
+@item -mon [chardev=]name[,mode=readline|control]
 @findex -mon
 Setup monitor on chardev @var{name}.
 ETEXI
@@ -3902,7 +3902,7 @@ colo secondary:
 -object filter-redirector,id=f2,netdev=hn0,queue=rx,outdev=red1
 -object filter-rewriter,id=rew0,netdev=hn0,queue=all
 
-@item -object filter-dump,id=@var{id},netdev=@var{dev},file=@var{filename}][,maxlen=@var{len}]
+@item -object filter-dump,id=@var{id},netdev=@var{dev}[,file=@var{filename}][,maxlen=@var{len}]
 
 Dump the network traffic on netdev @var{dev} to the file specified by
 @var{filename}. At most @var{len} bytes (64k by default) per packet are stored.

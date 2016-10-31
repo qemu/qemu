@@ -165,8 +165,7 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
 
     ret = tpm_passthrough_unix_write(tpm_pt->tpm_fd, in, in_len);
     if (ret != in_len) {
-        if (!tpm_pt->tpm_op_canceled ||
-            (tpm_pt->tpm_op_canceled && errno != ECANCELED)) {
+        if (!tpm_pt->tpm_op_canceled || errno != ECANCELED) {
             error_report("tpm_passthrough: error while transmitting data "
                          "to TPM: %s (%i)",
                          strerror(errno), errno);
@@ -178,8 +177,7 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
 
     ret = tpm_passthrough_unix_read(tpm_pt->tpm_fd, out, out_len);
     if (ret < 0) {
-        if (!tpm_pt->tpm_op_canceled ||
-            (tpm_pt->tpm_op_canceled && errno != ECANCELED)) {
+        if (!tpm_pt->tpm_op_canceled || errno != ECANCELED) {
             error_report("tpm_passthrough: error while reading data from "
                          "TPM: %s (%i)",
                          strerror(errno), errno);

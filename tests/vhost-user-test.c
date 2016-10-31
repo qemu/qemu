@@ -22,8 +22,6 @@
 #include "libqos/virtio-pci.h"
 #include "qapi/error.h"
 
-#include "libqos/pci-pc.h"
-#include "libqos/virtio-pci.h"
 #include "libqos/malloc-pc.h"
 #include "hw/virtio/virtio-net.h"
 

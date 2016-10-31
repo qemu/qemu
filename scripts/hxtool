@@ -26,32 +26,32 @@ hxtotexi()
             ;;
             STEXI*)
             if test $flag -eq 1 ; then
-                echo "line $line: syntax error: expected ETEXI, found $str" >&2
+                printf "line %d: syntax error: expected ETEXI, found '%s'\n" "$line" "$str" >&2
                 exit 1
             fi
             flag=1
             ;;
             ETEXI*)
             if test $flag -ne 1 ; then
-                echo "line $line: syntax error: expected STEXI, found $str" >&2
+                printf "line %d: syntax error: expected STEXI, found '%s'\n" "$line" "$str" >&2
                 exit 1
             fi
             flag=0
             ;;
             SQMP*|EQMP*)
             if test $flag -eq 1 ; then
-                echo "line $line: syntax error: expected ETEXI, found $str" >&2
+                printf "line %d: syntax error: expected ETEXI, found '%s'\n" "$line" "$str" >&2
                 exit 1
             fi
             ;;
             DEFHEADING*)
-            echo "$(expr "$str" : "DEFHEADING(\(.*\))")"
+            printf '%s\n' "$(expr "$str" : "DEFHEADING(\(.*\))")"
             ;;
             ARCHHEADING*)
-            echo "$(expr "$str" : "ARCHHEADING(\(.*\),.*)")"
+            printf '%s\n' "$(expr "$str" : "ARCHHEADING(\(.*\),.*)")"
             ;;
             *)
-            test $flag -eq 1 && echo "$str"
+            test $flag -eq 1 && printf '%s\n' "$str"
             ;;
         esac
         line=$((line+1))
@@ -69,26 +69,26 @@ hxtoqmp()
             ;;
             SQMP*)
             if test $flag -eq 1 ; then
-                echo "line $line: syntax error: expected EQMP, found $str" >&2
+                printf "line %d: syntax error: expected EQMP, found '%s'\n" "$line" "$str" >&2
                 exit 1
             fi
             flag=1
             ;;
             EQMP*)
             if test $flag -ne 1 ; then
-                echo "line $line: syntax error: expected SQMP, found $str" >&2
+                printf "line %d: syntax error: expected SQMP, found '%s'\n" "$line" "$str" >&2
                 exit 1
             fi
             flag=0
             ;;
             STEXI*|ETEXI*)
             if test $flag -eq 1 ; then
-                echo "line $line: syntax error: expected EQMP, found $str" >&2
+                printf "line %d: syntax error: expected EQMP, found '%s'\n" "$line" "$str" >&2
                 exit 1
             fi
             ;;
             *)
-            test $flag -eq 1 && echo "$str"
+            test $flag -eq 1 && printf '%s\n' "$str"
             ;;
         esac
         line=$((line+1))
