@@ -74,6 +74,7 @@ static void cubieboard_init(MachineState *machine)
     cubieboard_binfo.ram_size = machine->ram_size;
     cubieboard_binfo.kernel_filename = machine->kernel_filename;
     cubieboard_binfo.kernel_cmdline = machine->kernel_cmdline;
+    cubieboard_binfo.initrd_filename = machine->initrd_filename;
     arm_load_kernel(&s->a10->cpu, &cubieboard_binfo);
 }
 

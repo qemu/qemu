@@ -29,6 +29,7 @@
 #include "sysemu/block-backend.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
@@ -844,9 +845,18 @@ static void spitz_lcd_hsync_handler(void *opaque, int line, int level)
     spitz_hsync ^= 1;
 }
 
+static void spitz_reset(void *opaque, int line, int level)
+{
+    if (level) {
+        qemu_system_reset_request();
+    }
+}
+
 static void spitz_gpio_setup(PXA2xxState *cpu, int slots)
 {
     qemu_irq lcd_hsync;
+    qemu_irq reset;
+
     /*
      * Bad hack: We toggle the LCD hsync GPIO on every GPIO status
      * read to satisfy broken guests that poll-wait for hsync.
@@ -867,7 +877,8 @@ static void spitz_gpio_setup(PXA2xxState *cpu, int slots)
     qemu_irq_raise(qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_BAT_COVER));
 
     /* Handle reset */
-    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_ON_RESET, cpu->reset);
+    reset = qemu_allocate_irq(spitz_reset, cpu, 0);
+    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_ON_RESET, reset);
 
     /* PCMCIA signals: card's IRQ and Card-Detect */
     if (slots >= 1)

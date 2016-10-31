@@ -428,6 +428,11 @@ static inline void set_feature(uint64_t *features, int feature)
     *features |= 1ULL << feature;
 }
 
+static inline void unset_feature(uint64_t *features, int feature)
+{
+    *features &= ~(1ULL << feature);
+}
+
 bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc)
 {
     /* Identify the feature bits corresponding to the host CPU, and
@@ -469,6 +474,7 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc)
     set_feature(&features, ARM_FEATURE_VFP4);
     set_feature(&features, ARM_FEATURE_NEON);
     set_feature(&features, ARM_FEATURE_AARCH64);
+    set_feature(&features, ARM_FEATURE_PMU);
 
     ahcc->features = features;
 
@@ -482,6 +488,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     int ret;
     uint64_t mpidr;
     ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
 
     if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE ||
         !object_dynamic_cast(OBJECT(cpu), TYPE_AARCH64_CPU)) {
@@ -501,10 +508,14 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (!arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_EL1_32BIT;
     }
-    if (kvm_irqchip_in_kernel() &&
-        kvm_check_extension(cs->kvm_state, KVM_CAP_ARM_PMU_V3)) {
-        cpu->has_pmu = true;
+    if (!kvm_irqchip_in_kernel() ||
+        !kvm_check_extension(cs->kvm_state, KVM_CAP_ARM_PMU_V3)) {
+            cpu->has_pmu = false;
+    }
+    if (cpu->has_pmu) {
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_PMU_V3;
+    } else {
+        unset_feature(&env->features, ARM_FEATURE_PMU);
     }
 
     /* Do KVM_ARM_VCPU_INIT ioctl */
