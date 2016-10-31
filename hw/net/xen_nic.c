@@ -69,7 +69,7 @@ static void net_tx_response(struct XenNetDev *netdev, netif_tx_request_t *txp, i
     netdev->tx_ring.rsp_prod_pvt = ++i;
     RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&netdev->tx_ring, notify);
     if (notify) {
-        xen_be_send_notify(&netdev->xendev);
+        xen_pv_send_notify(&netdev->xendev);
     }
 
     if (i == netdev->tx_ring.req_cons) {
@@ -128,30 +128,32 @@ static void net_tx_packets(struct XenNetDev *netdev)
             /* should not happen in theory, we don't announce the *
              * feature-{sg,gso,whatelse} flags in xenstore (yet?) */
             if (txreq.flags & NETTXF_extra_info) {
-                xen_be_printf(&netdev->xendev, 0, "FIXME: extra info flag\n");
+                xen_pv_printf(&netdev->xendev, 0, "FIXME: extra info flag\n");
                 net_tx_error(netdev, &txreq, rc);
                 continue;
             }
             if (txreq.flags & NETTXF_more_data) {
-                xen_be_printf(&netdev->xendev, 0, "FIXME: more data flag\n");
+                xen_pv_printf(&netdev->xendev, 0, "FIXME: more data flag\n");
                 net_tx_error(netdev, &txreq, rc);
                 continue;
             }
 #endif
 
             if (txreq.size < 14) {
-                xen_be_printf(&netdev->xendev, 0, "bad packet size: %d\n", txreq.size);
+                xen_pv_printf(&netdev->xendev, 0, "bad packet size: %d\n",
+                              txreq.size);
                 net_tx_error(netdev, &txreq, rc);
                 continue;
             }
 
             if ((txreq.offset + txreq.size) > XC_PAGE_SIZE) {
-                xen_be_printf(&netdev->xendev, 0, "error: page crossing\n");
+                xen_pv_printf(&netdev->xendev, 0, "error: page crossing\n");
                 net_tx_error(netdev, &txreq, rc);
                 continue;
             }
 
-            xen_be_printf(&netdev->xendev, 3, "tx packet ref %d, off %d, len %d, flags 0x%x%s%s%s%s\n",
+            xen_pv_printf(&netdev->xendev, 3,
+                          "tx packet ref %d, off %d, len %d, flags 0x%x%s%s%s%s\n",
                           txreq.gref, txreq.offset, txreq.size, txreq.flags,
                           (txreq.flags & NETTXF_csum_blank)     ? " csum_blank"     : "",
                           (txreq.flags & NETTXF_data_validated) ? " data_validated" : "",
@@ -162,8 +164,9 @@ static void net_tx_packets(struct XenNetDev *netdev)
                                            netdev->xendev.dom,
                                            txreq.gref, PROT_READ);
             if (page == NULL) {
-                xen_be_printf(&netdev->xendev, 0, "error: tx gref dereference failed (%d)\n",
-                              txreq.gref);
+                xen_pv_printf(&netdev->xendev, 0,
+                              "error: tx gref dereference failed (%d)\n",
+                             txreq.gref);
                 net_tx_error(netdev, &txreq, rc);
                 continue;
             }
@@ -211,13 +214,14 @@ static void net_rx_response(struct XenNetDev *netdev,
         resp->status = (int16_t)st;
     }
 
-    xen_be_printf(&netdev->xendev, 3, "rx response: idx %d, status %d, flags 0x%x\n",
+    xen_pv_printf(&netdev->xendev, 3,
+                  "rx response: idx %d, status %d, flags 0x%x\n",
                   i, resp->status, resp->flags);
 
     netdev->rx_ring.rsp_prod_pvt = ++i;
     RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&netdev->rx_ring, notify);
     if (notify) {
-        xen_be_send_notify(&netdev->xendev);
+        xen_pv_send_notify(&netdev->xendev);
     }
 }
 
@@ -242,7 +246,7 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
         return 0;
     }
     if (size > XC_PAGE_SIZE - NET_IP_ALIGN) {
-        xen_be_printf(&netdev->xendev, 0, "packet too big (%lu > %ld)",
+        xen_pv_printf(&netdev->xendev, 0, "packet too big (%lu > %ld)",
                       (unsigned long)size, XC_PAGE_SIZE - NET_IP_ALIGN);
         return -1;
     }
@@ -254,7 +258,8 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
                                    netdev->xendev.dom,
                                    rxreq.gref, PROT_WRITE);
     if (page == NULL) {
-        xen_be_printf(&netdev->xendev, 0, "error: rx gref dereference failed (%d)\n",
+        xen_pv_printf(&netdev->xendev, 0,
+                      "error: rx gref dereference failed (%d)\n",
                       rxreq.gref);
         net_rx_response(netdev, &rxreq, NETIF_RSP_ERROR, 0, 0, 0);
         return -1;
@@ -328,7 +333,8 @@ static int net_connect(struct XenDevice *xendev)
         rx_copy = 0;
     }
     if (rx_copy == 0) {
-        xen_be_printf(&netdev->xendev, 0, "frontend doesn't support rx-copy.\n");
+        xen_pv_printf(&netdev->xendev, 0,
+                      "frontend doesn't support rx-copy.\n");
         return -1;
     }
 
@@ -353,7 +359,7 @@ static int net_connect(struct XenDevice *xendev)
 
     xen_be_bind_evtchn(&netdev->xendev);
 
-    xen_be_printf(&netdev->xendev, 1, "ok: tx-ring-ref %d, rx-ring-ref %d, "
+    xen_pv_printf(&netdev->xendev, 1, "ok: tx-ring-ref %d, rx-ring-ref %d, "
                   "remote port %d, local port %d\n",
                   netdev->tx_ring_ref, netdev->rx_ring_ref,
                   netdev->xendev.remote_port, netdev->xendev.local_port);
@@ -366,7 +372,7 @@ static void net_disconnect(struct XenDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
 
-    xen_be_unbind_evtchn(&netdev->xendev);
+    xen_pv_unbind_evtchn(&netdev->xendev);
 
     if (netdev->txs) {
         xengnttab_unmap(netdev->xendev.gnttabdev, netdev->txs, 1);
