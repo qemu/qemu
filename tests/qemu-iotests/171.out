@@ -1,0 +1,313 @@
+QA output created by 171
+
+== test 'offset' option ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4096
+
+write to image
+wrote 3584/3584 bytes at offset 0
+3.500 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+read the image
+read 3584/3584 bytes at offset 0
+3.500 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+check that offset is respected
+000001fe:  00 00 0a 0a  ....
+read 4/4 bytes at offset 510
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write before image boundary
+wrote 1/1 bytes at offset 3583
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write across image boundary
+write failed: Input/output error
+
+write at image boundary
+write failed: Input/output error
+
+write after image boundary
+write failed: Input/output error
+
+writev before/after image boundary
+writev failed: Input/output error
+
+read before image boundary
+read 1/1 bytes at offset 3583
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+read across image boundary
+read failed: Input/output error
+
+read at image boundary
+read failed: Input/output error
+
+read after image boundary
+read failed: Input/output error
+
+readv before/after image boundary
+readv failed: Input/output error
+
+fill image with pattern
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write zeroes and check
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+000001fe:  0a 0a 00 00  ....
+read 4/4 bytes at offset 510
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write zeroes across image boundary
+write failed: Input/output error
+
+write zeroes at image boundary and check
+wrote 2/2 bytes at offset 3582
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+00000ffe:  00 00  ..
+read 2/2 bytes at offset 4094
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read failed: Input/output error
+
+fill image with pattern
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+discard and check
+discard 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+000001fe:  0a 0a 00 00  ....
+read 4/4 bytes at offset 510
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+discard across image boundary
+discard failed: Input/output error
+
+discard at image boundary and check
+discard 2/2 bytes at offset 3582
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+00000ffe:  00 00  ..
+read 2/2 bytes at offset 4094
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read failed: Input/output error
+
+== test 'offset' and 'size' options ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4096
+
+write to image
+wrote 2048/2048 bytes at offset 0
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+read the image
+read 2048/2048 bytes at offset 0
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+check that offset is respected
+000001fe:  00 00 0a 0a  ....
+read 4/4 bytes at offset 510
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write before image boundary
+wrote 1/1 bytes at offset 2047
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write across image boundary
+write failed: Input/output error
+
+write at image boundary
+write failed: Input/output error
+
+write after image boundary
+write failed: Input/output error
+
+writev before/after image boundary
+writev failed: Input/output error
+
+read before image boundary
+read 1/1 bytes at offset 2047
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+read across image boundary
+read failed: Input/output error
+
+read at image boundary
+read failed: Input/output error
+
+read after image boundary
+read failed: Input/output error
+
+readv before/after image boundary
+readv failed: Input/output error
+
+fill image with pattern
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write zeroes and check
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+000001fe:  0a 0a 00 00  ....
+read 4/4 bytes at offset 510
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write zeroes across image boundary
+write failed: Input/output error
+
+write zeroes at image boundary and check
+wrote 2/2 bytes at offset 2046
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+000009fe:  00 00  ..
+read 2/2 bytes at offset 2558
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+00000a00:  0a 0a  ..
+read 2/2 bytes at offset 2560
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+fill image with pattern
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+discard and check
+discard 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+000001fe:  0a 0a 00 00  ....
+read 4/4 bytes at offset 510
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+discard across image boundary
+discard failed: Input/output error
+
+discard at image boundary and check
+discard 2/2 bytes at offset 2046
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+000009fe:  00 00  ..
+read 2/2 bytes at offset 2558
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+00000a00:  0a 0a  ..
+read 2/2 bytes at offset 2560
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== test misaligned 'offset' ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4096
+
+write to image
+wrote 2048/2048 bytes at offset 0
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+read the image
+read 2048/2048 bytes at offset 0
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+check that offset is respected
+00000008:  00 00 0a 0a  ....
+read 4/4 bytes at offset 8
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write before image boundary
+wrote 1/1 bytes at offset 2047
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write across image boundary
+write failed: Input/output error
+
+write at image boundary
+write failed: Input/output error
+
+write after image boundary
+write failed: Input/output error
+
+writev before/after image boundary
+writev failed: Input/output error
+
+read before image boundary
+read 1/1 bytes at offset 2047
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+read across image boundary
+read failed: Input/output error
+
+read at image boundary
+read failed: Input/output error
+
+read after image boundary
+read failed: Input/output error
+
+readv before/after image boundary
+readv failed: Input/output error
+
+fill image with pattern
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write zeroes and check
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+00000008:  0a 0a 00 00  ....
+read 4/4 bytes at offset 8
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write zeroes across image boundary
+write failed: Input/output error
+
+write zeroes at image boundary and check
+wrote 2/2 bytes at offset 2046
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+00000808:  00 00  ..
+read 2/2 bytes at offset 2056
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+0000080a:  0a 0a  ..
+read 2/2 bytes at offset 2058
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+fill image with pattern
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+discard and check
+discard 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+00000008:  0a 0a 00 00  ....
+read 4/4 bytes at offset 8
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+discard across image boundary
+discard failed: Input/output error
+
+discard at image boundary and check
+discard 2/2 bytes at offset 2046
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+00000808:  00 00  ..
+read 2/2 bytes at offset 2056
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+0000080a:  0a 0a  ..
+read 2/2 bytes at offset 2058
+2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== test reopen ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4096
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1/1 bytes at offset 511
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+write failed: Input/output error
+wrote 1024/1024 bytes at offset 0
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1/1 bytes at offset 1023
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+write failed: Input/output error
+checking boundaries
+000001fe:  00 00 0a 0a  ....
+read 4/4 bytes at offset 510
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+000003fe:  0a 0a 00 00  ....
+read 4/4 bytes at offset 1022
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+000005fe:  00 00 0a 0a  ....
+read 4/4 bytes at offset 1534
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+000009fe:  0a 0a 00 00  ....
+read 4/4 bytes at offset 2558
+4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+*** done
