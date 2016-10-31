@@ -620,7 +620,6 @@ static void test_retry_flush(const char *machine)
     prepare_blkdebug_script(debug_path, "flush_to_disk");
 
     ide_test_start(
-        "-vnc none "
         "-drive file=blkdebug:%s:%s,if=ide,cache=writeback,format=raw,"
         "rerror=stop,werror=stop",
         debug_path, tmp_path);

@@ -35,6 +35,7 @@ static QObject *qom_get(const char *path, const char *prop)
     return ret;
 }
 
+#ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
 static bool qom_get_bool(const char *path, const char *prop)
 {
     QBool *value = qobject_to_qbool(qom_get(path, prop));
@@ -43,6 +44,7 @@ static bool qom_get_bool(const char *path, const char *prop)
     QDECREF(value);
     return b;
 }
+#endif
 
 typedef struct CpuidTestArgs {
     const char *cmdline;
@@ -76,7 +78,8 @@ static void add_cpuid_test(const char *name, const char *cmdline,
     qtest_add_data_func(name, args, test_cpuid_prop);
 }
 
-static void test_plus_minus(void)
+#ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
+static void test_plus_minus_subprocess(void)
 {
     char *path;
 
@@ -86,9 +89,8 @@ static void test_plus_minus(void)
      * 3) Old feature names with underscores (e.g. "sse4_2")
      *    should keep working
      *
-     * Note: rules 1 and 2 are planned to be removed soon, but we
-     * need to keep compatibility for a while until we start
-     * warning users about it.
+     * Note: rules 1 and 2 are planned to be removed soon, and
+     * should generate a warning.
      */
     qtest_start("-cpu pentium,-fpu,+fpu,-mce,mce=on,+cx8,cx8=off,+sse4_1,sse4_2=on");
     path = get_cpu0_qom_path();
@@ -108,11 +110,27 @@ static void test_plus_minus(void)
     g_free(path);
 }
 
+static void test_plus_minus(void)
+{
+    g_test_trap_subprocess("/x86/cpuid/parsing-plus-minus/subprocess", 0, 0);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stderr("*Ambiguous CPU model string. "
+                              "Don't mix both \"-mce\" and \"mce=on\"*");
+    g_test_trap_assert_stderr("*Ambiguous CPU model string. "
+                              "Don't mix both \"+cx8\" and \"cx8=off\"*");
+    g_test_trap_assert_stdout("");
+}
+#endif
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_func("x86/cpuid/parsing-plus-minus", test_plus_minus);
+#ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
+    g_test_add_func("/x86/cpuid/parsing-plus-minus/subprocess",
+                    test_plus_minus_subprocess);
+    g_test_add_func("/x86/cpuid/parsing-plus-minus", test_plus_minus);
+#endif
 
     /* Original level values for CPU models: */
     add_cpuid_test("x86/cpuid/phenom/level",
