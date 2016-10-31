@@ -2605,7 +2605,8 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     scope->length = ioapic_scope_size;
     scope->enumeration_id = ACPI_BUILD_IOAPIC_ID;
     scope->bus = Q35_PSEUDO_BUS_PLATFORM;
-    scope->path[0] = cpu_to_le16(Q35_PSEUDO_DEVFN_IOAPIC);
+    scope->path[0].device = PCI_SLOT(Q35_PSEUDO_DEVFN_IOAPIC);
+    scope->path[0].function = PCI_FUNC(Q35_PSEUDO_DEVFN_IOAPIC);
 
     build_header(linker, table_data, (void *)(table_data->data + dmar_start),
                  "DMAR", table_data->len - dmar_start, 1, NULL, NULL);
