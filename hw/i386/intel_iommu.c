@@ -2180,7 +2180,7 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
     }
 
     addr.data = origin->address & VTD_MSI_ADDR_LO_MASK;
-    if (le16_to_cpu(addr.addr.__head) != 0xfee) {
+    if (addr.addr.__head != 0xfee) {
         VTD_DPRINTF(GENERAL, "error: MSI addr low 32 bits invalid: "
                     "0x%"PRIx32, addr.data);
         return -VTD_FR_IR_REQ_RSVD;
