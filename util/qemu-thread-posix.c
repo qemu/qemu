@@ -80,6 +80,20 @@ void qemu_mutex_unlock(QemuMutex *mutex)
         error_exit(err, __func__);
 }
 
+void qemu_rec_mutex_init(QemuRecMutex *mutex)
+{
+    int err;
+    pthread_mutexattr_t attr;
+
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    err = pthread_mutex_init(&mutex->lock, &attr);
+    pthread_mutexattr_destroy(&attr);
+    if (err) {
+        error_exit(err, __func__);
+    }
+}
+
 void qemu_cond_init(QemuCond *cond)
 {
     int err;

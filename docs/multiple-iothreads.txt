@@ -105,13 +105,10 @@ a BH in the target AioContext beforehand and then call qemu_bh_schedule().  No
 acquire/release or locking is needed for the qemu_bh_schedule() call.  But be
 sure to acquire the AioContext for aio_bh_new() if necessary.
 
-The relationship between AioContext and the block layer
--------------------------------------------------------
-The AioContext originates from the QEMU block layer because it provides a
-scoped way of running event loop iterations until all work is done.  This
-feature is used to complete all in-flight block I/O requests (see
-bdrv_drain_all()).  Nowadays AioContext is a generic event loop that can be
-used by any QEMU subsystem.
+AioContext and the block layer
+------------------------------
+The AioContext originates from the QEMU block layer, even though nowadays
+AioContext is a generic event loop that can be used by any QEMU subsystem.
 
 The block layer has support for AioContext integrated.  Each BlockDriverState
 is associated with an AioContext using bdrv_set_aio_context() and
@@ -122,13 +119,22 @@ Block layer code must therefore expect to run in an IOThread and avoid using
 old APIs that implicitly use the main loop.  See the "How to program for
 IOThreads" above for information on how to do that.
 
-If main loop code such as a QMP function wishes to access a BlockDriverState it
-must first call aio_context_acquire(bdrv_get_aio_context(bs)) to ensure the
-IOThread does not run in parallel.
+If main loop code such as a QMP function wishes to access a BlockDriverState
+it must first call aio_context_acquire(bdrv_get_aio_context(bs)) to ensure
+that callbacks in the IOThread do not run in parallel.
 
-Long-running jobs (usually in the form of coroutines) are best scheduled in the
-BlockDriverState's AioContext to avoid the need to acquire/release around each
-bdrv_*() call.  Be aware that there is currently no mechanism to get notified
-when bdrv_set_aio_context() moves this BlockDriverState to a different
-AioContext (see bdrv_detach_aio_context()/bdrv_attach_aio_context()), so you
-may need to add this if you want to support long-running jobs.
+Code running in the monitor typically needs to ensure that past
+requests from the guest are completed.  When a block device is running
+in an IOThread, the IOThread can also process requests from the guest
+(via ioeventfd).  To achieve both objects, wrap the code between
+bdrv_drained_begin() and bdrv_drained_end(), thus creating a "drained
+section".  The functions must be called between aio_context_acquire()
+and aio_context_release().  You can freely release and re-acquire the
+AioContext within a drained section.
+
+Long-running jobs (usually in the form of coroutines) are best scheduled in
+the BlockDriverState's AioContext to avoid the need to acquire/release around
+each bdrv_*() call.  The functions bdrv_add/remove_aio_context_notifier,
+or alternatively blk_add/remove_aio_context_notifier if you use BlockBackends,
+can be used to get a notification whenever bdrv_set_aio_context() moves a
+BlockDriverState to a different AioContext.

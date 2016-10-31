@@ -92,6 +92,13 @@ typedef struct BlockJobDriver {
      * besides job->blk to the new AioContext.
      */
     void (*attached_aio_context)(BlockJob *job, AioContext *new_context);
+
+    /*
+     * If the callback is not NULL, it will be invoked when the job has to be
+     * synchronously cancelled or completed; it should drain BlockDriverStates
+     * as required to ensure progress.
+     */
+    void (*drain)(BlockJob *job);
 } BlockJobDriver;
 
 /**

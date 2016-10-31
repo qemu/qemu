@@ -469,7 +469,11 @@ static void mirror_free_init(MirrorBlockJob *s)
     }
 }
 
-static void mirror_drain(MirrorBlockJob *s)
+/* This is also used for the .pause callback. There is no matching
+ * mirror_resume() because mirror_run() will begin iterating again
+ * when the job is resumed.
+ */
+static void mirror_wait_for_all_io(MirrorBlockJob *s)
 {
     while (s->in_flight > 0) {
         mirror_wait_for_io(s);
@@ -528,6 +532,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
     g_free(s->replaces);
     bdrv_op_unblock_all(target_bs, s->common.blocker);
     blk_unref(s->target);
+    s->target = NULL;
     block_job_completed(&s->common, data->ret);
     g_free(data);
     bdrv_drained_end(src);
@@ -582,7 +587,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             sector_num += nb_sectors;
         }
 
-        mirror_drain(s);
+        mirror_wait_for_all_io(s);
     }
 
     /* First part, loop on the sectors and initialize the dirty bitmap.  */
@@ -617,6 +622,7 @@ static void coroutine_fn mirror_run(void *opaque)
     MirrorExitData *data;
     BlockDriverState *bs = blk_bs(s->common.blk);
     BlockDriverState *target_bs = blk_bs(s->target);
+    bool need_drain = true;
     int64_t length;
     BlockDriverInfo bdi;
     char backing_filename[2]; /* we only need 2 characters because we are only
@@ -752,11 +758,26 @@ static void coroutine_fn mirror_run(void *opaque)
              * source has dirty data to copy!
              *
              * Note that I/O can be submitted by the guest while
-             * mirror_populate runs.
+             * mirror_populate runs, so pause it now.  Before deciding
+             * whether to switch to target check one last time if I/O has
+             * come in the meanwhile, and if not flush the data to disk.
              */
             trace_mirror_before_drain(s, cnt);
-            bdrv_co_drain(bs);
+
+            bdrv_drained_begin(bs);
             cnt = bdrv_get_dirty_count(s->dirty_bitmap);
+            if (cnt > 0) {
+                bdrv_drained_end(bs);
+                continue;
+            }
+
+            /* The two disks are in sync.  Exit and report successful
+             * completion.
+             */
+            assert(QLIST_EMPTY(&bs->tracked_requests));
+            s->common.cancelled = false;
+            need_drain = false;
+            break;
         }
 
         ret = 0;
@@ -769,13 +790,6 @@ static void coroutine_fn mirror_run(void *opaque)
         } else if (!should_complete) {
             delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
             block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
-        } else if (cnt == 0) {
-            /* The two disks are in sync.  Exit and report successful
-             * completion.
-             */
-            assert(QLIST_EMPTY(&bs->tracked_requests));
-            s->common.cancelled = false;
-            break;
         }
         s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     }
@@ -787,7 +801,8 @@ immediate_exit:
          * the target is a copy of the source.
          */
         assert(ret < 0 || (!s->synced && block_job_is_cancelled(&s->common)));
-        mirror_drain(s);
+        assert(need_drain);
+        mirror_wait_for_all_io(s);
     }
 
     assert(s->in_flight == 0);
@@ -799,9 +814,10 @@ immediate_exit:
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
-    /* Before we switch to target in mirror_exit, make sure data doesn't
-     * change. */
-    bdrv_drained_begin(bs);
+
+    if (need_drain) {
+        bdrv_drained_begin(bs);
+    }
     block_job_defer_to_main_loop(&s->common, mirror_exit, data);
 }
 
@@ -872,14 +888,11 @@ static void mirror_complete(BlockJob *job, Error **errp)
     block_job_enter(&s->common);
 }
 
-/* There is no matching mirror_resume() because mirror_run() will begin
- * iterating again when the job is resumed.
- */
-static void coroutine_fn mirror_pause(BlockJob *job)
+static void mirror_pause(BlockJob *job)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
 
-    mirror_drain(s);
+    mirror_wait_for_all_io(s);
 }
 
 static void mirror_attached_aio_context(BlockJob *job, AioContext *new_context)
@@ -889,6 +902,21 @@ static void mirror_attached_aio_context(BlockJob *job, AioContext *new_context)
     blk_set_aio_context(s->target, new_context);
 }
 
+static void mirror_drain(BlockJob *job)
+{
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+
+    /* Need to keep a reference in case blk_drain triggers execution
+     * of mirror_complete...
+     */
+    if (s->target) {
+        BlockBackend *target = s->target;
+        blk_ref(target);
+        blk_drain(target);
+        blk_unref(target);
+    }
+}
+
 static const BlockJobDriver mirror_job_driver = {
     .instance_size          = sizeof(MirrorBlockJob),
     .job_type               = BLOCK_JOB_TYPE_MIRROR,
@@ -896,6 +924,7 @@ static const BlockJobDriver mirror_job_driver = {
     .complete               = mirror_complete,
     .pause                  = mirror_pause,
     .attached_aio_context   = mirror_attached_aio_context,
+    .drain                  = mirror_drain,
 };
 
 static const BlockJobDriver commit_active_job_driver = {
@@ -905,6 +934,7 @@ static const BlockJobDriver commit_active_job_driver = {
     .complete               = mirror_complete,
     .pause                  = mirror_pause,
     .attached_aio_context   = mirror_attached_aio_context,
+    .drain                  = mirror_drain,
 };
 
 static void mirror_start_job(const char *job_id, BlockDriverState *bs,

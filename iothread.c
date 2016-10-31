@@ -16,10 +16,12 @@
 #include "qom/object_interfaces.h"
 #include "qemu/module.h"
 #include "block/aio.h"
+#include "block/block.h"
 #include "sysemu/iothread.h"
 #include "qmp-commands.h"
 #include "qemu/error-report.h"
 #include "qemu/rcu.h"
+#include "qemu/main-loop.h"
 
 typedef ObjectClass IOThreadClass;
 
@@ -28,26 +30,27 @@ typedef ObjectClass IOThreadClass;
 #define IOTHREAD_CLASS(klass) \
    OBJECT_CLASS_CHECK(IOThreadClass, klass, TYPE_IOTHREAD)
 
+static __thread IOThread *my_iothread;
+
+AioContext *qemu_get_current_aio_context(void)
+{
+    return my_iothread ? my_iothread->ctx : qemu_get_aio_context();
+}
+
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
-    bool blocking;
 
     rcu_register_thread();
 
+    my_iothread = iothread;
     qemu_mutex_lock(&iothread->init_done_lock);
     iothread->thread_id = qemu_get_thread_id();
     qemu_cond_signal(&iothread->init_done_cond);
     qemu_mutex_unlock(&iothread->init_done_lock);
 
-    while (!iothread->stopping) {
-        aio_context_acquire(iothread->ctx);
-        blocking = true;
-        while (!iothread->stopping && aio_poll(iothread->ctx, blocking)) {
-            /* Progress was made, keep going */
-            blocking = false;
-        }
-        aio_context_release(iothread->ctx);
+    while (!atomic_read(&iothread->stopping)) {
+        aio_poll(iothread->ctx, true);
     }
 
     rcu_unregister_thread();
@@ -190,6 +193,18 @@ IOThreadInfoList *qmp_query_iothreads(Error **errp)
 void iothread_stop_all(void)
 {
     Object *container = object_get_objects_root();
+    BlockDriverState *bs;
+    BdrvNextIterator it;
+
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
+        AioContext *ctx = bdrv_get_aio_context(bs);
+        if (ctx == qemu_get_aio_context()) {
+            continue;
+        }
+        aio_context_acquire(ctx);
+        bdrv_set_aio_context(bs, qemu_get_aio_context());
+        aio_context_release(ctx);
+    }
 
     object_child_foreach(container, iothread_stop, NULL);
 }

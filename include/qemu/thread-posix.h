@@ -4,6 +4,12 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+typedef QemuMutex QemuRecMutex;
+#define qemu_rec_mutex_destroy qemu_mutex_destroy
+#define qemu_rec_mutex_lock qemu_mutex_lock
+#define qemu_rec_mutex_try_lock qemu_mutex_try_lock
+#define qemu_rec_mutex_unlock qemu_mutex_unlock
+
 struct QemuMutex {
     pthread_mutex_t lock;
 };

@@ -67,7 +67,6 @@ test-qmp-marshal.c
 test-qobject-output-visitor
 test-rcu-list
 test-replication
-test-rfifolock
 test-string-input-visitor
 test-string-output-visitor
 test-thread-pool

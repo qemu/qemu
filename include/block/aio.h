@@ -18,7 +18,6 @@
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
 #include "qemu/thread.h"
-#include "qemu/rfifolock.h"
 #include "qemu/timer.h"
 
 typedef struct BlockAIOCB BlockAIOCB;
@@ -54,7 +53,7 @@ struct AioContext {
     GSource source;
 
     /* Protects all fields from multi-threaded access */
-    RFifoLock lock;
+    QemuRecMutex lock;
 
     /* The list of registered AIO handlers */
     QLIST_HEAD(, AioHandler) aio_handlers;
@@ -115,9 +114,6 @@ struct AioContext {
      */
     bool notified;
     EventNotifier notifier;
-
-    /* Scheduling this BH forces the event loop it iterate */
-    QEMUBH *notify_dummy_bh;
 
     /* Thread pool for performing work and receiving completion callbacks */
     struct ThreadPool *thread_pool;
@@ -450,6 +446,24 @@ static inline bool aio_external_disabled(AioContext *ctx)
 static inline bool aio_node_check(AioContext *ctx, bool is_external)
 {
     return !is_external || !atomic_read(&ctx->external_disable_cnt);
+}
+
+/**
+ * Return the AioContext whose event loop runs in the current thread.
+ *
+ * If called from an IOThread this will be the IOThread's AioContext.  If
+ * called from another thread it will be the main loop AioContext.
+ */
+AioContext *qemu_get_current_aio_context(void);
+
+/**
+ * @ctx: the aio context
+ *
+ * Return whether we are running in the I/O thread that manages @ctx.
+ */
+static inline bool aio_context_in_iothread(AioContext *ctx)
+{
+    return ctx == qemu_get_current_aio_context();
 }
 
 /**

@@ -1956,7 +1956,7 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
     qemu_opts_reset(&reopen_opts);
 
     brq = bdrv_reopen_queue(NULL, bs, opts, flags);
-    bdrv_reopen_multiple(brq, &local_err);
+    bdrv_reopen_multiple(bdrv_get_aio_context(bs), brq, &local_err);
     if (local_err) {
         error_report_err(local_err);
     } else {
@@ -2216,6 +2216,7 @@ static const cmdinfo_t help_cmd = {
 
 bool qemuio_command(BlockBackend *blk, const char *cmd)
 {
+    AioContext *ctx;
     char *input;
     const cmdinfo_t *ct;
     char **v;
@@ -2227,7 +2228,10 @@ bool qemuio_command(BlockBackend *blk, const char *cmd)
     if (c) {
         ct = find_command(v[0]);
         if (ct) {
+            ctx = blk ? blk_get_aio_context(blk) : qemu_get_aio_context();
+            aio_context_acquire(ctx);
             done = command(blk, ct, c, v);
+            aio_context_release(ctx);
         } else {
             fprintf(stderr, "command \"%s\" not found\n", v[0]);
         }

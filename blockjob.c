@@ -74,17 +74,6 @@ BlockJob *block_job_get(const char *id)
     return NULL;
 }
 
-/* Normally the job runs in its BlockBackend's AioContext.  The exception is
- * block_job_defer_to_main_loop() where it runs in the QEMU main loop.  Code
- * that supports both cases uses this helper function.
- */
-static AioContext *block_job_get_aio_context(BlockJob *job)
-{
-    return job->deferred_to_main_loop ?
-           qemu_get_aio_context() :
-           blk_get_aio_context(job->blk);
-}
-
 static void block_job_attached_aio_context(AioContext *new_context,
                                            void *opaque)
 {
@@ -97,6 +86,17 @@ static void block_job_attached_aio_context(AioContext *new_context,
     block_job_resume(job);
 }
 
+static void block_job_drain(BlockJob *job)
+{
+    /* If job is !job->busy this kicks it into the next pause point. */
+    block_job_enter(job);
+
+    blk_drain(job->blk);
+    if (job->driver->drain) {
+        job->driver->drain(job);
+    }
+}
+
 static void block_job_detach_aio_context(void *opaque)
 {
     BlockJob *job = opaque;
@@ -106,12 +106,8 @@ static void block_job_detach_aio_context(void *opaque)
 
     block_job_pause(job);
 
-    if (!job->paused) {
-        /* If job is !job->busy this kicks it into the next pause point. */
-        block_job_enter(job);
-    }
     while (!job->paused && !job->completed) {
-        aio_poll(block_job_get_aio_context(job), true);
+        block_job_drain(job);
     }
 
     block_job_unref(job);
@@ -413,14 +409,21 @@ static int block_job_finish_sync(BlockJob *job,
     assert(blk_bs(job->blk)->job == job);
 
     block_job_ref(job);
+
     finish(job, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         block_job_unref(job);
         return -EBUSY;
     }
+    /* block_job_drain calls block_job_enter, and it should be enough to
+     * induce progress until the job completes or moves to the main thread.
+    */
+    while (!job->deferred_to_main_loop && !job->completed) {
+        block_job_drain(job);
+    }
     while (!job->completed) {
-        aio_poll(block_job_get_aio_context(job), true);
+        aio_poll(qemu_get_aio_context(), true);
     }
     ret = (job->cancelled && job->ret == 0) ? -ECANCELED : job->ret;
     block_job_unref(job);

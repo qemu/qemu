@@ -25,7 +25,6 @@ util-obj-y += uuid.o
 util-obj-y += throttle.o
 util-obj-y += getauxval.o
 util-obj-y += readline.o
-util-obj-y += rfifolock.o
 util-obj-y += rcu.o
 util-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
 util-obj-y += qemu-coroutine-sleep.o
