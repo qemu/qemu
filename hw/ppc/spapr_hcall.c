@@ -19,9 +19,9 @@ struct SPRSyncState {
     target_ulong mask;
 };
 
-static void do_spr_sync(CPUState *cs, void *arg)
+static void do_spr_sync(CPUState *cs, run_on_cpu_data arg)
 {
-    struct SPRSyncState *s = arg;
+    struct SPRSyncState *s = arg.host_ptr;
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
 
@@ -38,7 +38,7 @@ static void set_spr(CPUState *cs, int spr, target_ulong value,
         .value = value,
         .mask = mask
     };
-    run_on_cpu(cs, do_spr_sync, &s);
+    run_on_cpu(cs, do_spr_sync, RUN_ON_CPU_HOST_PTR(&s));
 }
 
 static bool has_spr(PowerPCCPU *cpu, int spr)
@@ -886,10 +886,10 @@ typedef struct {
     Error *err;
 } SetCompatState;
 
-static void do_set_compat(CPUState *cs, void *arg)
+static void do_set_compat(CPUState *cs, run_on_cpu_data arg)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    SetCompatState *s = arg;
+    SetCompatState *s = arg.host_ptr;
 
     cpu_synchronize_state(cs);
     ppc_set_compat(cpu, s->cpu_version, &s->err);
@@ -990,7 +990,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
                 .err = NULL,
             };
 
-            run_on_cpu(cs, do_set_compat, &s);
+            run_on_cpu(cs, do_set_compat, RUN_ON_CPU_HOST_PTR(&s));
 
             if (s.err) {
                 error_report_err(s.err);

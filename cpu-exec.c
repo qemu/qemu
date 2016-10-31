@@ -143,8 +143,9 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
     uint8_t *tb_ptr = itb->tc_ptr;
 
     qemu_log_mask_and_addr(CPU_LOG_EXEC, itb->pc,
-                           "Trace %p [" TARGET_FMT_lx "] %s\n",
-                           itb->tc_ptr, itb->pc, lookup_symbol(itb->pc));
+                           "Trace %p [%d: " TARGET_FMT_lx "] %s\n",
+                           itb->tc_ptr, cpu->cpu_index, itb->pc,
+                           lookup_symbol(itb->pc));
 
 #if defined(DEBUG_DISAS)
     if (qemu_loglevel_mask(CPU_LOG_TB_CPU)
@@ -204,15 +205,21 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
     if (max_cycles > CF_COUNT_MASK)
         max_cycles = CF_COUNT_MASK;
 
+    tb_lock();
     tb = tb_gen_code(cpu, orig_tb->pc, orig_tb->cs_base, orig_tb->flags,
                      max_cycles | CF_NOCACHE
                          | (ignore_icount ? CF_IGNORE_ICOUNT : 0));
     tb->orig_tb = orig_tb;
+    tb_unlock();
+
     /* execute the generated code */
     trace_exec_tb_nocache(tb, tb->pc);
     cpu_tb_exec(cpu, tb);
+
+    tb_lock();
     tb_phys_invalidate(tb, -1);
     tb_free(tb);
+    tb_unlock();
 }
 #endif
 

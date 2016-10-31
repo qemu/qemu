@@ -1842,6 +1842,8 @@ static void load_elf_image(const char *image_name, int image_fd,
     info->pt_dynamic_addr = 0;
 #endif
 
+    mmap_lock();
+
     /* Find the maximum size of the image and allocate an appropriate
        amount of memory to handle that.  */
     loaddr = -1, hiaddr = 0;
@@ -2001,6 +2003,8 @@ static void load_elf_image(const char *image_name, int image_fd,
     if (qemu_log_enabled()) {
         load_symbols(ehdr, image_fd, load_bias);
     }
+
+    mmap_unlock();
 
     close(image_fd);
     return;

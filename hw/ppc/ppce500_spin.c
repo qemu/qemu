@@ -84,11 +84,11 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env,
     env->tlb_dirty = true;
 }
 
-static void spin_kick(CPUState *cs, void *data)
+static void spin_kick(CPUState *cs, run_on_cpu_data data)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
-    SpinInfo *curspin = data;
+    SpinInfo *curspin = data.host_ptr;
     hwaddr map_size = 64 * 1024 * 1024;
     hwaddr map_start;
 
@@ -147,7 +147,7 @@ static void spin_write(void *opaque, hwaddr addr, uint64_t value,
 
     if (!(ldq_p(&curspin->addr) & 1)) {
         /* run CPU */
-        run_on_cpu(cpu, spin_kick, curspin);
+        run_on_cpu(cpu, spin_kick, RUN_ON_CPU_HOST_PTR(curspin));
     }
 }
 

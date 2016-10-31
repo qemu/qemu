@@ -166,6 +166,8 @@ int arm_set_cpu_on(uint64_t cpuid, uint64_t entry, uint64_t context_id,
     /* Start the new CPU at the requested address */
     cpu_set_pc(target_cpu_state, entry);
 
+    qemu_cpu_kick(target_cpu_state);
+
     /* We are good to go */
     return QEMU_ARM_POWERCTL_RET_SUCCESS;
 }
