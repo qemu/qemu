@@ -1922,10 +1922,22 @@ static void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
 static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
 {
     Error *err = NULL;
+    int nr;
 
     vfio_intx_enable(vdev, &err);
     if (err) {
         error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
+    }
+
+    for (nr = 0; nr < PCI_NUM_REGIONS - 1; ++nr) {
+        off_t addr = vdev->config_offset + PCI_BASE_ADDRESS_0 + (4 * nr);
+        uint32_t val = 0;
+        uint32_t len = sizeof(val);
+
+        if (pwrite(vdev->vbasedev.fd, &val, len, addr) != len) {
+            error_report("%s(%s) reset bar %d failed: %m", __func__,
+                         vdev->vbasedev.name, nr);
+        }
     }
 }
 
