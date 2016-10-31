@@ -1714,14 +1714,14 @@
 #
 # @host_device, @host_cdrom: Since 2.1
 # @gluster: Since 2.7
-# @nbd, @replication, @ssh: Since 2.8
+# @nbd, @nfs, @replication, @ssh: Since 2.8
 #
 # Since: 2.0
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
-            'host_device', 'http', 'https', 'luks', 'nbd', 'null-aio',
+            'host_device', 'http', 'https', 'luks', 'nbd', 'nfs', 'null-aio',
             'null-co', 'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
             'replication', 'ssh', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc',
             'vvfat' ] }
@@ -2240,6 +2240,74 @@
             '*top-id': 'str' } }
 
 ##
+# @NFSTransport
+#
+# An enumeration of NFS transport types
+#
+# @inet:        TCP transport
+#
+# Since 2.8
+##
+{ 'enum': 'NFSTransport',
+  'data': [ 'inet' ] }
+
+##
+# @NFSServer
+#
+# Captures the address of the socket
+#
+# @type:        transport type used for NFS (only TCP supported)
+#
+# @host:        host address for NFS server
+#
+# Since 2.8
+##
+{ 'struct': 'NFSServer',
+  'data': { 'type': 'NFSTransport',
+            'host': 'str' } }
+
+##
+# @BlockdevOptionsNfs
+#
+# Driver specific block device option for NFS
+#
+# @server:                  host address
+#
+# @path:                    path of the image on the host
+#
+# @user:                    #optional UID value to use when talking to the
+#                           server (defaults to 65534 on Windows and getuid()
+#                           on unix)
+#
+# @group:                   #optional GID value to use when talking to the
+#                           server (defaults to 65534 on Windows and getgid()
+#                           in unix)
+#
+# @tcp-syn-count:           #optional number of SYNs during the session
+#                           establishment (defaults to libnfs default)
+#
+# @readahead-size:          #optional set the readahead size in bytes (defaults
+#                           to libnfs default)
+#
+# @page-cache-size:         #optional set the pagecache size in bytes (defaults
+#                           to libnfs default)
+#
+# @debug-level:             #optional set the NFS debug level (max 2) (defaults
+#                           to libnfs default)
+#
+# Since 2.8
+##
+{ 'struct': 'BlockdevOptionsNfs',
+  'data': { 'server': 'NFSServer',
+            'path': 'str',
+            '*user': 'int',
+            '*group': 'int',
+            '*tcp-syn-count': 'int',
+            '*readahead-size': 'int',
+            '*page-cache-size': 'int',
+            '*debug-level': 'int' } }
+
+##
 # @BlockdevOptionsCurl
 #
 # Driver specific block device options for the curl backend.
@@ -2329,7 +2397,7 @@
 # TODO iscsi: Wait for structured options
       'luks':       'BlockdevOptionsLUKS',
       'nbd':        'BlockdevOptionsNbd',
-# TODO nfs: Wait for structured options
+      'nfs':        'BlockdevOptionsNfs',
       'null-aio':   'BlockdevOptionsNull',
       'null-co':    'BlockdevOptionsNull',
       'parallels':  'BlockdevOptionsGenericFormat',
