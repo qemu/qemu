@@ -723,12 +723,11 @@ int vfio_region_mmap(VFIORegion *region)
 
         name = g_strdup_printf("%s mmaps[%d]",
                                memory_region_name(region->mem), i);
-        memory_region_init_ram_ptr(&region->mmaps[i].mem,
-                                   memory_region_owner(region->mem),
-                                   name, region->mmaps[i].size,
-                                   region->mmaps[i].mmap);
+        memory_region_init_ram_device_ptr(&region->mmaps[i].mem,
+                                          memory_region_owner(region->mem),
+                                          name, region->mmaps[i].size,
+                                          region->mmaps[i].mmap);
         g_free(name);
-        memory_region_set_skip_dump(&region->mmaps[i].mem);
         memory_region_add_subregion(region->mem, region->mmaps[i].offset,
                                     &region->mmaps[i].mem);
 
