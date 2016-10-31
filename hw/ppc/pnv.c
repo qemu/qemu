@@ -110,7 +110,7 @@ static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
     CPUState *cs = CPU(DEVICE(pc->threads));
     DeviceClass *dc = DEVICE_GET_CLASS(cs);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    int smt_threads = ppc_get_compat_smt_threads(cpu);
+    int smt_threads = CPU_CORE(pc)->nr_threads;
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
     uint32_t servers_prop[smt_threads];
@@ -205,10 +205,6 @@ static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
 
     _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
                        pa_features, sizeof(pa_features))));
-
-    if (cpu->cpu_version) {
-        _FDT((fdt_setprop_cell(fdt, offset, "cpu-version", cpu->cpu_version)));
-    }
 
     /* Build interrupt servers properties */
     for (i = 0; i < smt_threads; i++) {
