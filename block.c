@@ -1428,8 +1428,10 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
             backing_hd->drv ? backing_hd->drv->format_name : "");
 
     bdrv_op_block_all(backing_hd, bs->backing_blocker);
-    /* Otherwise we won't be able to commit due to check in bdrv_commit */
+    /* Otherwise we won't be able to commit or stream */
     bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET,
+                    bs->backing_blocker);
+    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_STREAM,
                     bs->backing_blocker);
     /*
      * We do backup in 3 ways:
@@ -2091,7 +2093,7 @@ int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **er
     assert(bs_queue != NULL);
 
     aio_context_release(ctx);
-    bdrv_drain_all();
+    bdrv_drain_all_begin();
     aio_context_acquire(ctx);
 
     QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
@@ -2122,6 +2124,9 @@ cleanup:
         g_free(bs_entry);
     }
     g_free(bs_queue);
+
+    bdrv_drain_all_end();
+
     return ret;
 }
 

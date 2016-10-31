@@ -412,8 +412,8 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
  * function succeeds, callback will be called when the connection
  * completes, with the file descriptor on success, or -1 on error.
  */
-static int inet_connect_saddr(InetSocketAddress *saddr, Error **errp,
-                              NonBlockingConnectHandler *callback, void *opaque)
+int inet_connect_saddr(InetSocketAddress *saddr, Error **errp,
+                       NonBlockingConnectHandler *callback, void *opaque)
 {
     Error *local_err = NULL;
     struct addrinfo *res, *e;

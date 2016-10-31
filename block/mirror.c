@@ -530,7 +530,6 @@ static void mirror_exit(BlockJob *job, void *opaque)
         aio_context_release(replace_aio_context);
     }
     g_free(s->replaces);
-    bdrv_op_unblock_all(target_bs, s->common.blocker);
     blk_unref(s->target);
     s->target = NULL;
     block_job_completed(&s->common, data->ret);
@@ -997,7 +996,15 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         return;
     }
 
-    bdrv_op_block_all(target, s->common.blocker);
+    block_job_add_bdrv(&s->common, target);
+    /* In commit_active_start() all intermediate nodes disappear, so
+     * any jobs in them must be blocked */
+    if (bdrv_chain_contains(bs, target)) {
+        BlockDriverState *iter;
+        for (iter = backing_bs(bs); iter != target; iter = backing_bs(iter)) {
+            block_job_add_bdrv(&s->common, iter);
+        }
+    }
 
     s->common.co = qemu_coroutine_create(mirror_run, s);
     trace_mirror_start(bs, s, s->common.co, opaque);

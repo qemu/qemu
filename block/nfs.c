@@ -35,7 +35,14 @@
 #include "qemu/uri.h"
 #include "qemu/cutils.h"
 #include "sysemu/sysemu.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi-visit.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 #include <nfsc/libnfs.h>
+
 
 #define QEMU_NFS_MAX_READAHEAD_SIZE 1048576
 #define QEMU_NFS_MAX_PAGECACHE_SIZE (8388608 / NFS_BLKSIZE)
@@ -49,6 +56,9 @@ typedef struct NFSClient {
     AioContext *aio_context;
     blkcnt_t st_blocks;
     bool cache_used;
+    NFSServer *server;
+    char *path;
+    int64_t uid, gid, tcp_syncnt, readahead, pagecache, debug;
 } NFSClient;
 
 typedef struct NFSRPC {
@@ -60,6 +70,122 @@ typedef struct NFSRPC {
     Coroutine *co;
     NFSClient *client;
 } NFSRPC;
+
+static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
+{
+    URI *uri = NULL;
+    QueryParams *qp = NULL;
+    int ret = -EINVAL, i;
+
+    uri = uri_parse(filename);
+    if (!uri) {
+        error_setg(errp, "Invalid URI specified");
+        goto out;
+    }
+    if (strcmp(uri->scheme, "nfs") != 0) {
+        error_setg(errp, "URI scheme must be 'nfs'");
+        goto out;
+    }
+
+    if (!uri->server) {
+        error_setg(errp, "missing hostname in URI");
+        goto out;
+    }
+
+    if (!uri->path) {
+        error_setg(errp, "missing file path in URI");
+        goto out;
+    }
+
+    qp = query_params_parse(uri->query);
+    if (!qp) {
+        error_setg(errp, "could not parse query parameters");
+        goto out;
+    }
+
+    qdict_put(options, "server.host", qstring_from_str(uri->server));
+    qdict_put(options, "server.type", qstring_from_str("inet"));
+    qdict_put(options, "path", qstring_from_str(uri->path));
+
+    for (i = 0; i < qp->n; i++) {
+        if (!qp->p[i].value) {
+            error_setg(errp, "Value for NFS parameter expected: %s",
+                       qp->p[i].name);
+            goto out;
+        }
+        if (parse_uint_full(qp->p[i].value, NULL, 0)) {
+            error_setg(errp, "Illegal value for NFS parameter: %s",
+                       qp->p[i].name);
+            goto out;
+        }
+        if (!strcmp(qp->p[i].name, "uid")) {
+            qdict_put(options, "user",
+                      qstring_from_str(qp->p[i].value));
+        } else if (!strcmp(qp->p[i].name, "gid")) {
+            qdict_put(options, "group",
+                      qstring_from_str(qp->p[i].value));
+        } else if (!strcmp(qp->p[i].name, "tcp-syncnt")) {
+            qdict_put(options, "tcp-syn-count",
+                      qstring_from_str(qp->p[i].value));
+        } else if (!strcmp(qp->p[i].name, "readahead")) {
+            qdict_put(options, "readahead-size",
+                      qstring_from_str(qp->p[i].value));
+        } else if (!strcmp(qp->p[i].name, "pagecache")) {
+            qdict_put(options, "page-cache-size",
+                      qstring_from_str(qp->p[i].value));
+        } else if (!strcmp(qp->p[i].name, "debug")) {
+            qdict_put(options, "debug-level",
+                      qstring_from_str(qp->p[i].value));
+        } else {
+            error_setg(errp, "Unknown NFS parameter name: %s",
+                       qp->p[i].name);
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    if (qp) {
+        query_params_free(qp);
+    }
+    if (uri) {
+        uri_free(uri);
+    }
+    return ret;
+}
+
+static bool nfs_has_filename_options_conflict(QDict *options, Error **errp)
+{
+    const QDictEntry *qe;
+
+    for (qe = qdict_first(options); qe; qe = qdict_next(options, qe)) {
+        if (!strcmp(qe->key, "host") ||
+            !strcmp(qe->key, "path") ||
+            !strcmp(qe->key, "user") ||
+            !strcmp(qe->key, "group") ||
+            !strcmp(qe->key, "tcp-syn-count") ||
+            !strcmp(qe->key, "readahead-size") ||
+            !strcmp(qe->key, "page-cache-size") ||
+            !strcmp(qe->key, "debug-level") ||
+            strstart(qe->key, "server.", NULL))
+        {
+            error_setg(errp, "Option %s cannot be used with a filename",
+                       qe->key);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void nfs_parse_filename(const char *filename, QDict *options,
+                               Error **errp)
+{
+    if (nfs_has_filename_options_conflict(options, errp)) {
+        return;
+    }
+
+    nfs_parse_uri(filename, options, errp);
+}
 
 static void nfs_process_read(void *arg);
 static void nfs_process_write(void *arg);
@@ -221,15 +347,44 @@ static int coroutine_fn nfs_co_flush(BlockDriverState *bs)
     return task.ret;
 }
 
-/* TODO Convert to fine grained options */
 static QemuOptsList runtime_opts = {
     .name = "nfs",
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
     .desc = {
         {
-            .name = "filename",
+            .name = "path",
             .type = QEMU_OPT_STRING,
-            .help = "URL to the NFS file",
+            .help = "Path of the image on the host",
+        },
+        {
+            .name = "uid",
+            .type = QEMU_OPT_NUMBER,
+            .help = "UID value to use when talking to the server",
+        },
+        {
+            .name = "gid",
+            .type = QEMU_OPT_NUMBER,
+            .help = "GID value to use when talking to the server",
+        },
+        {
+            .name = "tcp-syncnt",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Number of SYNs to send during the session establish",
+        },
+        {
+            .name = "readahead",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Set the readahead size in bytes",
+        },
+        {
+            .name = "pagecache",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Set the pagecache size in bytes",
+        },
+        {
+            .name = "debug",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Set the NFS debug level (max 2)",
         },
         { /* end of list */ }
     },
@@ -272,25 +427,65 @@ static void nfs_file_close(BlockDriverState *bs)
     nfs_client_close(client);
 }
 
-static int64_t nfs_client_open(NFSClient *client, const char *filename,
+static NFSServer *nfs_config(QDict *options, Error **errp)
+{
+    NFSServer *server = NULL;
+    QDict *addr = NULL;
+    QObject *crumpled_addr = NULL;
+    Visitor *iv = NULL;
+    Error *local_error = NULL;
+
+    qdict_extract_subqdict(options, &addr, "server.");
+    if (!qdict_size(addr)) {
+        error_setg(errp, "NFS server address missing");
+        goto out;
+    }
+
+    crumpled_addr = qdict_crumple(addr, errp);
+    if (!crumpled_addr) {
+        goto out;
+    }
+
+    iv = qobject_input_visitor_new(crumpled_addr, true);
+    visit_type_NFSServer(iv, NULL, &server, &local_error);
+    if (local_error) {
+        error_propagate(errp, local_error);
+        goto out;
+    }
+
+out:
+    QDECREF(addr);
+    qobject_decref(crumpled_addr);
+    visit_free(iv);
+    return server;
+}
+
+
+static int64_t nfs_client_open(NFSClient *client, QDict *options,
                                int flags, Error **errp, int open_flags)
 {
-    int ret = -EINVAL, i;
+    int ret = -EINVAL;
+    QemuOpts *opts = NULL;
+    Error *local_err = NULL;
     struct stat st;
-    URI *uri;
-    QueryParams *qp = NULL;
     char *file = NULL, *strp = NULL;
 
-    uri = uri_parse(filename);
-    if (!uri) {
-        error_setg(errp, "Invalid URL specified");
+    opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
         goto fail;
     }
-    if (!uri->server) {
-        error_setg(errp, "Invalid URL specified");
+
+    client->path = g_strdup(qemu_opt_get(opts, "path"));
+    if (!client->path) {
+        ret = -EINVAL;
+        error_setg(errp, "No path was specified");
         goto fail;
     }
-    strp = strrchr(uri->path, '/');
+
+    strp = strrchr(client->path, '/');
     if (strp == NULL) {
         error_setg(errp, "Invalid URL specified");
         goto fail;
@@ -298,85 +493,89 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
     file = g_strdup(strp);
     *strp = 0;
 
+    /* Pop the config into our state object, Exit if invalid */
+    client->server = nfs_config(options, errp);
+    if (!client->server) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
     client->context = nfs_init_context();
     if (client->context == NULL) {
         error_setg(errp, "Failed to init NFS context");
         goto fail;
     }
 
-    qp = query_params_parse(uri->query);
-    for (i = 0; i < qp->n; i++) {
-        unsigned long long val;
-        if (!qp->p[i].value) {
-            error_setg(errp, "Value for NFS parameter expected: %s",
-                       qp->p[i].name);
-            goto fail;
-        }
-        if (parse_uint_full(qp->p[i].value, &val, 0)) {
-            error_setg(errp, "Illegal value for NFS parameter: %s",
-                       qp->p[i].name);
-            goto fail;
-        }
-        if (!strcmp(qp->p[i].name, "uid")) {
-            nfs_set_uid(client->context, val);
-        } else if (!strcmp(qp->p[i].name, "gid")) {
-            nfs_set_gid(client->context, val);
-        } else if (!strcmp(qp->p[i].name, "tcp-syncnt")) {
-            nfs_set_tcp_syncnt(client->context, val);
-#ifdef LIBNFS_FEATURE_READAHEAD
-        } else if (!strcmp(qp->p[i].name, "readahead")) {
-            if (open_flags & BDRV_O_NOCACHE) {
-                error_setg(errp, "Cannot enable NFS readahead "
-                                 "if cache.direct = on");
-                goto fail;
-            }
-            if (val > QEMU_NFS_MAX_READAHEAD_SIZE) {
-                error_report("NFS Warning: Truncating NFS readahead"
-                             " size to %d", QEMU_NFS_MAX_READAHEAD_SIZE);
-                val = QEMU_NFS_MAX_READAHEAD_SIZE;
-            }
-            nfs_set_readahead(client->context, val);
-#ifdef LIBNFS_FEATURE_PAGECACHE
-            nfs_set_pagecache_ttl(client->context, 0);
-#endif
-            client->cache_used = true;
-#endif
-#ifdef LIBNFS_FEATURE_PAGECACHE
-            nfs_set_pagecache_ttl(client->context, 0);
-        } else if (!strcmp(qp->p[i].name, "pagecache")) {
-            if (open_flags & BDRV_O_NOCACHE) {
-                error_setg(errp, "Cannot enable NFS pagecache "
-                                 "if cache.direct = on");
-                goto fail;
-            }
-            if (val > QEMU_NFS_MAX_PAGECACHE_SIZE) {
-                error_report("NFS Warning: Truncating NFS pagecache"
-                             " size to %d pages", QEMU_NFS_MAX_PAGECACHE_SIZE);
-                val = QEMU_NFS_MAX_PAGECACHE_SIZE;
-            }
-            nfs_set_pagecache(client->context, val);
-            nfs_set_pagecache_ttl(client->context, 0);
-            client->cache_used = true;
-#endif
-#ifdef LIBNFS_FEATURE_DEBUG
-        } else if (!strcmp(qp->p[i].name, "debug")) {
-            /* limit the maximum debug level to avoid potential flooding
-             * of our log files. */
-            if (val > QEMU_NFS_MAX_DEBUG_LEVEL) {
-                error_report("NFS Warning: Limiting NFS debug level"
-                             " to %d", QEMU_NFS_MAX_DEBUG_LEVEL);
-                val = QEMU_NFS_MAX_DEBUG_LEVEL;
-            }
-            nfs_set_debug(client->context, val);
-#endif
-        } else {
-            error_setg(errp, "Unknown NFS parameter name: %s",
-                       qp->p[i].name);
-            goto fail;
-        }
+    if (qemu_opt_get(opts, "uid")) {
+        client->uid = qemu_opt_get_number(opts, "uid", 0);
+        nfs_set_uid(client->context, client->uid);
     }
 
-    ret = nfs_mount(client->context, uri->server, uri->path);
+    if (qemu_opt_get(opts, "gid")) {
+        client->gid = qemu_opt_get_number(opts, "gid", 0);
+        nfs_set_gid(client->context, client->gid);
+    }
+
+    if (qemu_opt_get(opts, "tcp-syncnt")) {
+        client->tcp_syncnt = qemu_opt_get_number(opts, "tcp-syncnt", 0);
+        nfs_set_tcp_syncnt(client->context, client->tcp_syncnt);
+    }
+
+#ifdef LIBNFS_FEATURE_READAHEAD
+    if (qemu_opt_get(opts, "readahead")) {
+        if (open_flags & BDRV_O_NOCACHE) {
+            error_setg(errp, "Cannot enable NFS readahead "
+                             "if cache.direct = on");
+            goto fail;
+        }
+        client->readahead = qemu_opt_get_number(opts, "readahead", 0);
+        if (client->readahead > QEMU_NFS_MAX_READAHEAD_SIZE) {
+            error_report("NFS Warning: Truncating NFS readahead "
+                         "size to %d", QEMU_NFS_MAX_READAHEAD_SIZE);
+            client->readahead = QEMU_NFS_MAX_READAHEAD_SIZE;
+        }
+        nfs_set_readahead(client->context, client->readahead);
+#ifdef LIBNFS_FEATURE_PAGECACHE
+        nfs_set_pagecache_ttl(client->context, 0);
+#endif
+        client->cache_used = true;
+    }
+#endif
+
+#ifdef LIBNFS_FEATURE_PAGECACHE
+    if (qemu_opt_get(opts, "pagecache")) {
+        if (open_flags & BDRV_O_NOCACHE) {
+            error_setg(errp, "Cannot enable NFS pagecache "
+                             "if cache.direct = on");
+            goto fail;
+        }
+        client->pagecache = qemu_opt_get_number(opts, "pagecache", 0);
+        if (client->pagecache > QEMU_NFS_MAX_PAGECACHE_SIZE) {
+            error_report("NFS Warning: Truncating NFS pagecache "
+                         "size to %d pages", QEMU_NFS_MAX_PAGECACHE_SIZE);
+            client->pagecache = QEMU_NFS_MAX_PAGECACHE_SIZE;
+        }
+        nfs_set_pagecache(client->context, client->pagecache);
+        nfs_set_pagecache_ttl(client->context, 0);
+        client->cache_used = true;
+    }
+#endif
+
+#ifdef LIBNFS_FEATURE_DEBUG
+    if (qemu_opt_get(opts, "debug")) {
+        client->debug = qemu_opt_get_number(opts, "debug", 0);
+        /* limit the maximum debug level to avoid potential flooding
+         * of our log files. */
+        if (client->debug > QEMU_NFS_MAX_DEBUG_LEVEL) {
+            error_report("NFS Warning: Limiting NFS debug level "
+                         "to %d", QEMU_NFS_MAX_DEBUG_LEVEL);
+            client->debug = QEMU_NFS_MAX_DEBUG_LEVEL;
+        }
+        nfs_set_debug(client->context, client->debug);
+    }
+#endif
+
+    ret = nfs_mount(client->context, client->server->host, client->path);
     if (ret < 0) {
         error_setg(errp, "Failed to mount nfs share: %s",
                    nfs_get_error(client->context));
@@ -409,14 +608,13 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
     ret = DIV_ROUND_UP(st.st_size, BDRV_SECTOR_SIZE);
     client->st_blocks = st.st_blocks;
     client->has_zero_init = S_ISREG(st.st_mode);
+    *strp = '/';
     goto out;
+
 fail:
     nfs_client_close(client);
 out:
-    if (qp) {
-        query_params_free(qp);
-    }
-    uri_free(uri);
+    qemu_opts_del(opts);
     g_free(file);
     return ret;
 }
@@ -425,28 +623,17 @@ static int nfs_file_open(BlockDriverState *bs, QDict *options, int flags,
                          Error **errp) {
     NFSClient *client = bs->opaque;
     int64_t ret;
-    QemuOpts *opts;
-    Error *local_err = NULL;
 
     client->aio_context = bdrv_get_aio_context(bs);
 
-    opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto out;
-    }
-    ret = nfs_client_open(client, qemu_opt_get(opts, "filename"),
+    ret = nfs_client_open(client, options,
                           (flags & BDRV_O_RDWR) ? O_RDWR : O_RDONLY,
                           errp, bs->open_flags);
     if (ret < 0) {
-        goto out;
+        return ret;
     }
     bs->total_sectors = ret;
     ret = 0;
-out:
-    qemu_opts_del(opts);
     return ret;
 }
 
@@ -468,6 +655,7 @@ static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
     int ret = 0;
     int64_t total_size = 0;
     NFSClient *client = g_new0(NFSClient, 1);
+    QDict *options = NULL;
 
     client->aio_context = qemu_get_aio_context();
 
@@ -475,7 +663,13 @@ static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
     total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
                           BDRV_SECTOR_SIZE);
 
-    ret = nfs_client_open(client, url, O_CREAT, errp, 0);
+    options = qdict_new();
+    ret = nfs_parse_uri(url, options, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = nfs_client_open(client, options, O_CREAT, errp, 0);
     if (ret < 0) {
         goto out;
     }
@@ -572,6 +766,67 @@ static int nfs_reopen_prepare(BDRVReopenState *state,
     return 0;
 }
 
+static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
+{
+    NFSClient *client = bs->opaque;
+    QDict *opts = qdict_new();
+    QObject *server_qdict;
+    Visitor *ov;
+
+    qdict_put(opts, "driver", qstring_from_str("nfs"));
+
+    if (client->uid && !client->gid) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "nfs://%s%s?uid=%" PRId64, client->server->host, client->path,
+                 client->uid);
+    } else if (!client->uid && client->gid) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "nfs://%s%s?gid=%" PRId64, client->server->host, client->path,
+                 client->gid);
+    } else if (client->uid && client->gid) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "nfs://%s%s?uid=%" PRId64 "&gid=%" PRId64,
+                 client->server->host, client->path, client->uid, client->gid);
+    } else {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "nfs://%s%s", client->server->host, client->path);
+    }
+
+    ov = qobject_output_visitor_new(&server_qdict);
+    visit_type_NFSServer(ov, NULL, &client->server, &error_abort);
+    visit_complete(ov, &server_qdict);
+    assert(qobject_type(server_qdict) == QTYPE_QDICT);
+
+    qdict_put_obj(opts, "server", server_qdict);
+    qdict_put(opts, "path", qstring_from_str(client->path));
+
+    if (client->uid) {
+        qdict_put(opts, "uid", qint_from_int(client->uid));
+    }
+    if (client->gid) {
+        qdict_put(opts, "gid", qint_from_int(client->gid));
+    }
+    if (client->tcp_syncnt) {
+        qdict_put(opts, "tcp-syncnt",
+                      qint_from_int(client->tcp_syncnt));
+    }
+    if (client->readahead) {
+        qdict_put(opts, "readahead",
+                      qint_from_int(client->readahead));
+    }
+    if (client->pagecache) {
+        qdict_put(opts, "pagecache",
+                      qint_from_int(client->pagecache));
+    }
+    if (client->debug) {
+        qdict_put(opts, "debug", qint_from_int(client->debug));
+    }
+
+    visit_free(ov);
+    qdict_flatten(opts);
+    bs->full_open_options = opts;
+}
+
 #ifdef LIBNFS_FEATURE_PAGECACHE
 static void nfs_invalidate_cache(BlockDriverState *bs,
                                  Error **errp)
@@ -586,7 +841,7 @@ static BlockDriver bdrv_nfs = {
     .protocol_name                  = "nfs",
 
     .instance_size                  = sizeof(NFSClient),
-    .bdrv_needs_filename            = true,
+    .bdrv_parse_filename            = nfs_parse_filename,
     .create_opts                    = &nfs_create_opts,
 
     .bdrv_has_zero_init             = nfs_has_zero_init,
@@ -604,6 +859,7 @@ static BlockDriver bdrv_nfs = {
 
     .bdrv_detach_aio_context        = nfs_detach_aio_context,
     .bdrv_attach_aio_context        = nfs_attach_aio_context,
+    .bdrv_refresh_filename          = nfs_refresh_filename,
 
 #ifdef LIBNFS_FEATURE_PAGECACHE
     .bdrv_invalidate_cache          = nfs_invalidate_cache,
