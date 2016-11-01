@@ -3247,7 +3247,7 @@ static void coroutine_fn v9fs_xattrcreate(void *opaque)
 {
     int flags;
     int32_t fid;
-    int64_t size;
+    uint64_t size;
     ssize_t err = 0;
     V9fsString name;
     size_t offset = 7;
@@ -3261,6 +3261,11 @@ static void coroutine_fn v9fs_xattrcreate(void *opaque)
         goto out_nofid;
     }
     trace_v9fs_xattrcreate(pdu->tag, pdu->id, fid, name.data, size, flags);
+
+    if (size > XATTR_SIZE_MAX) {
+        err = -E2BIG;
+        goto out_nofid;
+    }
 
     file_fidp = get_fid(pdu, fid);
     if (file_fidp == NULL) {
