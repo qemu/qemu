@@ -325,7 +325,7 @@ static int coroutine_fn v9fs_xattr_fid_clunk(V9fsPDU *pdu, V9fsFidState *fidp)
 {
     int retval = 0;
 
-    if (fidp->fs.xattr.copied_len == -1) {
+    if (fidp->fs.xattr.xattrwalk_fid) {
         /* getxattr/listxattr fid */
         goto free_value;
     }
@@ -3190,7 +3190,7 @@ static void coroutine_fn v9fs_xattrwalk(void *opaque)
          */
         xattr_fidp->fs.xattr.len = size;
         xattr_fidp->fid_type = P9_FID_XATTR;
-        xattr_fidp->fs.xattr.copied_len = -1;
+        xattr_fidp->fs.xattr.xattrwalk_fid = true;
         if (size) {
             xattr_fidp->fs.xattr.value = g_malloc(size);
             err = v9fs_co_llistxattr(pdu, &xattr_fidp->path,
@@ -3223,7 +3223,7 @@ static void coroutine_fn v9fs_xattrwalk(void *opaque)
          */
         xattr_fidp->fs.xattr.len = size;
         xattr_fidp->fid_type = P9_FID_XATTR;
-        xattr_fidp->fs.xattr.copied_len = -1;
+        xattr_fidp->fs.xattr.xattrwalk_fid = true;
         if (size) {
             xattr_fidp->fs.xattr.value = g_malloc(size);
             err = v9fs_co_lgetxattr(pdu, &xattr_fidp->path,
@@ -3279,6 +3279,7 @@ static void coroutine_fn v9fs_xattrcreate(void *opaque)
     xattr_fidp = file_fidp;
     xattr_fidp->fid_type = P9_FID_XATTR;
     xattr_fidp->fs.xattr.copied_len = 0;
+    xattr_fidp->fs.xattr.xattrwalk_fid = false;
     xattr_fidp->fs.xattr.len = size;
     xattr_fidp->fs.xattr.flags = flags;
     v9fs_string_init(&xattr_fidp->fs.xattr.name);
