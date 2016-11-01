@@ -379,7 +379,7 @@ static void virgl_cmd_get_capset(VirtIOGPU *g,
         return;
     }
 
-    resp = g_malloc(sizeof(*resp) + max_size);
+    resp = g_malloc0(sizeof(*resp) + max_size);
     resp->hdr.type = VIRTIO_GPU_RESP_OK_CAPSET;
     virgl_renderer_fill_caps(gc.capset_id,
                              gc.capset_version,
