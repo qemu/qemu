@@ -325,7 +325,7 @@ static int coroutine_fn v9fs_xattr_fid_clunk(V9fsPDU *pdu, V9fsFidState *fidp)
 {
     int retval = 0;
 
-    if (fidp->fs.xattr.copied_len == -1) {
+    if (fidp->fs.xattr.xattrwalk_fid) {
         /* getxattr/listxattr fid */
         goto free_value;
     }
@@ -535,7 +535,7 @@ static int coroutine_fn v9fs_mark_fids_unreclaim(V9fsPDU *pdu, V9fsPath *path)
 static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
 {
     V9fsState *s = pdu->s;
-    V9fsFidState *fidp = NULL;
+    V9fsFidState *fidp;
 
     /* Free all fids */
     while (s->fid_list) {
@@ -547,11 +547,6 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
         } else {
             free_fid(pdu, fidp);
         }
-    }
-    if (fidp) {
-        /* One or more unclunked fids found... */
-        error_report("9pfs:%s: One or more uncluncked fids "
-                     "found during reset", __func__);
     }
 }
 
@@ -1361,7 +1356,10 @@ static void coroutine_fn v9fs_walk(void *opaque)
         memcpy(&qids[name_idx], &qid, sizeof(qid));
     }
     if (fid == newfid) {
-        BUG_ON(fidp->fid_type != P9_FID_NONE);
+        if (fidp->fid_type != P9_FID_NONE) {
+            err = -EINVAL;
+            goto out;
+        }
         v9fs_path_copy(&fidp->path, &path);
     } else {
         newfidp = alloc_fid(s, newfid);
@@ -1443,7 +1441,10 @@ static void coroutine_fn v9fs_open(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
-    BUG_ON(fidp->fid_type != P9_FID_NONE);
+    if (fidp->fid_type != P9_FID_NONE) {
+        err = -EINVAL;
+        goto out;
+    }
 
     err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
     if (err < 0) {
@@ -1637,20 +1638,17 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
 {
     ssize_t err;
     size_t offset = 7;
-    int read_count;
-    int64_t xattr_len;
+    uint64_t read_count;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     VirtQueueElement *elem = v->elems[pdu->idx];
 
-    xattr_len = fidp->fs.xattr.len;
-    read_count = xattr_len - off;
+    if (fidp->fs.xattr.len < off) {
+        read_count = 0;
+    } else {
+        read_count = fidp->fs.xattr.len - off;
+    }
     if (read_count > max_count) {
         read_count = max_count;
-    } else if (read_count < 0) {
-        /*
-         * read beyond XATTR value
-         */
-        read_count = 0;
     }
     err = pdu_marshal(pdu, offset, "d", read_count);
     if (err < 0) {
@@ -1979,22 +1977,17 @@ static int v9fs_xattr_write(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
 {
     int i, to_copy;
     ssize_t err = 0;
-    int write_count;
-    int64_t xattr_len;
+    uint64_t write_count;
     size_t offset = 7;
 
 
-    xattr_len = fidp->fs.xattr.len;
-    write_count = xattr_len - off;
-    if (write_count > count) {
-        write_count = count;
-    } else if (write_count < 0) {
-        /*
-         * write beyond XATTR value len specified in
-         * xattrcreate
-         */
+    if (fidp->fs.xattr.len < off) {
         err = -ENOSPC;
         goto out;
+    }
+    write_count = fidp->fs.xattr.len - off;
+    if (write_count > count) {
+        write_count = count;
     }
     err = pdu_marshal(pdu, offset, "d", write_count);
     if (err < 0) {
@@ -2548,7 +2541,10 @@ static int coroutine_fn v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
             err = -ENOENT;
             goto out_nofid;
         }
-        BUG_ON(dirfidp->fid_type != P9_FID_NONE);
+        if (fidp->fid_type != P9_FID_NONE) {
+            err = -EINVAL;
+            goto out;
+        }
         v9fs_co_name_to_path(pdu, &dirfidp->path, name->data, &new_path);
     } else {
         old_name = fidp->path.data;
@@ -2620,7 +2616,10 @@ static void coroutine_fn v9fs_rename(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
-    BUG_ON(fidp->fid_type != P9_FID_NONE);
+    if (fidp->fid_type != P9_FID_NONE) {
+        err = -EINVAL;
+        goto out;
+    }
     /* if fs driver is not path based, return EOPNOTSUPP */
     if (!(pdu->s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT)) {
         err = -EOPNOTSUPP;
@@ -3190,7 +3189,7 @@ static void coroutine_fn v9fs_xattrwalk(void *opaque)
          */
         xattr_fidp->fs.xattr.len = size;
         xattr_fidp->fid_type = P9_FID_XATTR;
-        xattr_fidp->fs.xattr.copied_len = -1;
+        xattr_fidp->fs.xattr.xattrwalk_fid = true;
         if (size) {
             xattr_fidp->fs.xattr.value = g_malloc(size);
             err = v9fs_co_llistxattr(pdu, &xattr_fidp->path,
@@ -3223,7 +3222,7 @@ static void coroutine_fn v9fs_xattrwalk(void *opaque)
          */
         xattr_fidp->fs.xattr.len = size;
         xattr_fidp->fid_type = P9_FID_XATTR;
-        xattr_fidp->fs.xattr.copied_len = -1;
+        xattr_fidp->fs.xattr.xattrwalk_fid = true;
         if (size) {
             xattr_fidp->fs.xattr.value = g_malloc(size);
             err = v9fs_co_lgetxattr(pdu, &xattr_fidp->path,
@@ -3255,7 +3254,7 @@ static void coroutine_fn v9fs_xattrcreate(void *opaque)
 {
     int flags;
     int32_t fid;
-    int64_t size;
+    uint64_t size;
     ssize_t err = 0;
     V9fsString name;
     size_t offset = 7;
@@ -3270,22 +3269,33 @@ static void coroutine_fn v9fs_xattrcreate(void *opaque)
     }
     trace_v9fs_xattrcreate(pdu->tag, pdu->id, fid, name.data, size, flags);
 
+    if (size > XATTR_SIZE_MAX) {
+        err = -E2BIG;
+        goto out_nofid;
+    }
+
     file_fidp = get_fid(pdu, fid);
     if (file_fidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
     }
+    if (file_fidp->fid_type != P9_FID_NONE) {
+        err = -EINVAL;
+        goto out_put_fid;
+    }
+
     /* Make the file fid point to xattr */
     xattr_fidp = file_fidp;
     xattr_fidp->fid_type = P9_FID_XATTR;
     xattr_fidp->fs.xattr.copied_len = 0;
+    xattr_fidp->fs.xattr.xattrwalk_fid = false;
     xattr_fidp->fs.xattr.len = size;
     xattr_fidp->fs.xattr.flags = flags;
     v9fs_string_init(&xattr_fidp->fs.xattr.name);
     v9fs_string_copy(&xattr_fidp->fs.xattr.name, &name);
-    g_free(xattr_fidp->fs.xattr.value);
     xattr_fidp->fs.xattr.value = g_malloc0(size);
     err = offset;
+out_put_fid:
     put_fid(pdu, file_fidp);
 out_nofid:
     pdu_complete(pdu, err);

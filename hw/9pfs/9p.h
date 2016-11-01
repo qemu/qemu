@@ -159,11 +159,12 @@ typedef struct V9fsConf
 
 typedef struct V9fsXattr
 {
-    int64_t copied_len;
-    int64_t len;
+    uint64_t copied_len;
+    uint64_t len;
     void *value;
     V9fsString name;
     int flags;
+    bool xattrwalk_fid;
 } V9fsXattr;
 
 typedef struct V9fsDir {
