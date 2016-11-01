@@ -87,4 +87,16 @@ void *qemu_alloc_stack(size_t *sz);
  */
 void qemu_free_stack(void *stack, size_t sz);
 
+/* POSIX and Mingw32 differ in the name of the stdio lock functions.  */
+
+static inline void qemu_flockfile(FILE *f)
+{
+    flockfile(f);
+}
+
+static inline void qemu_funlockfile(FILE *f)
+{
+    funlockfile(f);
+}
+
 #endif

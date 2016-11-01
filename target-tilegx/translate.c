@@ -2391,6 +2391,7 @@ void gen_intermediate_code(CPUTLGState *env, struct TranslationBlock *tb)
     TCGV_UNUSED_I64(dc->zero);
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
+        qemu_log_lock();
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
     }
     if (!max_insns) {
@@ -2429,7 +2430,10 @@ void gen_intermediate_code(CPUTLGState *env, struct TranslationBlock *tb)
     tb->size = dc->pc - pc_start;
     tb->icount = num_insns;
 
-    qemu_log_mask(CPU_LOG_TB_IN_ASM, "\n");
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
+        qemu_log("\n");
+        qemu_log_unlock();
+    }
 }
 
 void restore_state_to_opc(CPUTLGState *env, TranslationBlock *tb,

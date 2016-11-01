@@ -51,6 +51,22 @@ static inline bool qemu_loglevel_mask(int mask)
     return (qemu_loglevel & mask) != 0;
 }
 
+/* Lock output for a series of related logs.  Since this is not needed
+ * for a single qemu_log / qemu_log_mask / qemu_log_mask_and_addr, we
+ * assume that qemu_loglevel_mask has already been tested, and that
+ * qemu_loglevel is never set when qemu_logfile is unset.
+ */
+
+static inline void qemu_log_lock(void)
+{
+    qemu_flockfile(qemu_logfile);
+}
+
+static inline void qemu_log_unlock(void)
+{
+    qemu_funlockfile(qemu_logfile);
+}
+
 /* Logging functions: */
 
 /* main logging function

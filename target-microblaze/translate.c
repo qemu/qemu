@@ -581,50 +581,10 @@ static void dec_msr(DisasContext *dc)
     }
 }
 
-/* 64-bit signed mul, lower result in d and upper in d2.  */
-static void t_gen_muls(TCGv d, TCGv d2, TCGv a, TCGv b)
-{
-    TCGv_i64 t0, t1;
-
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-
-    tcg_gen_ext_i32_i64(t0, a);
-    tcg_gen_ext_i32_i64(t1, b);
-    tcg_gen_mul_i64(t0, t0, t1);
-
-    tcg_gen_extrl_i64_i32(d, t0);
-    tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_extrl_i64_i32(d2, t0);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-}
-
-/* 64-bit unsigned muls, lower result in d and upper in d2.  */
-static void t_gen_mulu(TCGv d, TCGv d2, TCGv a, TCGv b)
-{
-    TCGv_i64 t0, t1;
-
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-
-    tcg_gen_extu_i32_i64(t0, a);
-    tcg_gen_extu_i32_i64(t1, b);
-    tcg_gen_mul_i64(t0, t0, t1);
-
-    tcg_gen_extrl_i64_i32(d, t0);
-    tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_extrl_i64_i32(d2, t0);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-}
-
 /* Multiplier unit.  */
 static void dec_mul(DisasContext *dc)
 {
-    TCGv d[2];
+    TCGv tmp;
     unsigned int subcode;
 
     if ((dc->tb_flags & MSR_EE_FLAG)
@@ -636,13 +596,11 @@ static void dec_mul(DisasContext *dc)
     }
 
     subcode = dc->imm & 3;
-    d[0] = tcg_temp_new();
-    d[1] = tcg_temp_new();
 
     if (dc->type_b) {
         LOG_DIS("muli r%d r%d %x\n", dc->rd, dc->ra, dc->imm);
-        t_gen_mulu(cpu_R[dc->rd], d[1], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
-        goto done;
+        tcg_gen_mul_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
+        return;
     }
 
     /* mulh, mulhsu and mulhu are not available if C_USE_HW_MUL is < 2.  */
@@ -651,30 +609,29 @@ static void dec_mul(DisasContext *dc)
         /* nop??? */
     }
 
+    tmp = tcg_temp_new();
     switch (subcode) {
         case 0:
             LOG_DIS("mul r%d r%d r%d\n", dc->rd, dc->ra, dc->rb);
-            t_gen_mulu(cpu_R[dc->rd], d[1], cpu_R[dc->ra], cpu_R[dc->rb]);
+            tcg_gen_mul_tl(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
             break;
         case 1:
             LOG_DIS("mulh r%d r%d r%d\n", dc->rd, dc->ra, dc->rb);
-            t_gen_muls(d[0], cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            tcg_gen_muls2_tl(tmp, cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
             break;
         case 2:
             LOG_DIS("mulhsu r%d r%d r%d\n", dc->rd, dc->ra, dc->rb);
-            t_gen_muls(d[0], cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            tcg_gen_mulsu2_tl(tmp, cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
             break;
         case 3:
             LOG_DIS("mulhu r%d r%d r%d\n", dc->rd, dc->ra, dc->rb);
-            t_gen_mulu(d[0], cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            tcg_gen_mulu2_tl(tmp, cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
             break;
         default:
             cpu_abort(CPU(dc->cpu), "unknown MUL insn %x\n", subcode);
             break;
     }
-done:
-    tcg_temp_free(d[0]);
-    tcg_temp_free(d[1]);
+    tcg_temp_free(tmp);
 }
 
 /* Div unit.  */
@@ -1670,13 +1627,6 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
         cpu_abort(cs, "Microblaze: unaligned PC=%x\n", pc_start);
     }
 
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-#if !SIM_COMPAT
-        qemu_log("--------------\n");
-        log_cpu_state(CPU(cpu), 0);
-#endif
-    }
-
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
@@ -1820,12 +1770,14 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
 #if !SIM_COMPAT
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
-        qemu_log("\n");
+        qemu_log_lock();
+        qemu_log("--------------\n");
 #if DISAS_GNU
         log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
 #endif
         qemu_log("\nisize=%d osize=%d\n",
                  dc->pc - pc_start, tcg_op_buf_count());
+        qemu_log_unlock();
     }
 #endif
 #endif

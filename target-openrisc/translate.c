@@ -1651,10 +1651,6 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
     dc->synced_flags = dc->tb_flags = tb->flags;
     dc->delayed_branch = !!(dc->tb_flags & D_FLAG);
     dc->singlestep_enabled = cs->singlestep_enabled;
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-        qemu_log("-----------------------------------------\n");
-        log_cpu_state(CPU(cpu), 0);
-    }
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     num_insns = 0;
@@ -1754,10 +1750,13 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
-        qemu_log("\n");
+        qemu_log_lock();
+        qemu_log("----------------\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
         log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
         qemu_log("\nisize=%d osize=%d\n",
                  dc->pc - pc_start, tcg_op_buf_count());
+        qemu_log_unlock();
     }
 #endif
 }
