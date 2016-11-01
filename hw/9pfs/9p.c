@@ -1361,7 +1361,10 @@ static void coroutine_fn v9fs_walk(void *opaque)
         memcpy(&qids[name_idx], &qid, sizeof(qid));
     }
     if (fid == newfid) {
-        BUG_ON(fidp->fid_type != P9_FID_NONE);
+        if (fidp->fid_type != P9_FID_NONE) {
+            err = -EINVAL;
+            goto out;
+        }
         v9fs_path_copy(&fidp->path, &path);
     } else {
         newfidp = alloc_fid(s, newfid);
@@ -1443,7 +1446,10 @@ static void coroutine_fn v9fs_open(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
-    BUG_ON(fidp->fid_type != P9_FID_NONE);
+    if (fidp->fid_type != P9_FID_NONE) {
+        err = -EINVAL;
+        goto out;
+    }
 
     err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
     if (err < 0) {
@@ -2540,7 +2546,10 @@ static int coroutine_fn v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
             err = -ENOENT;
             goto out_nofid;
         }
-        BUG_ON(dirfidp->fid_type != P9_FID_NONE);
+        if (fidp->fid_type != P9_FID_NONE) {
+            err = -EINVAL;
+            goto out;
+        }
         v9fs_co_name_to_path(pdu, &dirfidp->path, name->data, &new_path);
     } else {
         old_name = fidp->path.data;
@@ -2612,7 +2621,10 @@ static void coroutine_fn v9fs_rename(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
-    BUG_ON(fidp->fid_type != P9_FID_NONE);
+    if (fidp->fid_type != P9_FID_NONE) {
+        err = -EINVAL;
+        goto out;
+    }
     /* if fs driver is not path based, return EOPNOTSUPP */
     if (!(pdu->s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT)) {
         err = -EOPNOTSUPP;
