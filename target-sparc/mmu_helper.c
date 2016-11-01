@@ -92,7 +92,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
 
     is_user = mmu_idx == MMU_USER_IDX;
 
-    if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
+    if (mmu_idx == MMU_PHYS_IDX) {
         *page_size = TARGET_PAGE_SIZE;
         /* Boot mode: instruction fetches are taken from PROM */
         if (rw == 2 && (env->mmuregs[0] & env->def->mmu_bm)) {
@@ -494,23 +494,21 @@ static int get_physical_address_data(CPUSPARCState *env,
     unsigned int i;
     uint64_t context;
     uint64_t sfsr = 0;
-
-    int is_user = (mmu_idx == MMU_USER_IDX ||
-                   mmu_idx == MMU_USER_SECONDARY_IDX);
-
-    if ((env->lsu & DMMU_E) == 0) { /* DMMU disabled */
-        *physical = ultrasparc_truncate_physical(address);
-        *prot = PAGE_READ | PAGE_WRITE;
-        return 0;
-    }
+    bool is_user = false;
 
     switch (mmu_idx) {
+    case MMU_PHYS_IDX:
+        g_assert_not_reached();
     case MMU_USER_IDX:
+        is_user = true;
+        /* fallthru */
     case MMU_KERNEL_IDX:
         context = env->dmmu.mmu_primary_context & 0x1fff;
         sfsr |= SFSR_CT_PRIMARY;
         break;
     case MMU_USER_SECONDARY_IDX:
+        is_user = true;
+        /* fallthru */
     case MMU_KERNEL_SECONDARY_IDX:
         context = env->dmmu.mmu_secondary_context & 0x1fff;
         sfsr |= SFSR_CT_SECONDARY;
@@ -613,15 +611,22 @@ static int get_physical_address_code(CPUSPARCState *env,
     CPUState *cs = CPU(sparc_env_get_cpu(env));
     unsigned int i;
     uint64_t context;
+    bool is_user = false;
 
-    int is_user = (mmu_idx == MMU_USER_IDX ||
-                   mmu_idx == MMU_USER_SECONDARY_IDX);
-
-    if ((env->lsu & IMMU_E) == 0 || (env->pstate & PS_RED) != 0) {
-        /* IMMU disabled */
-        *physical = ultrasparc_truncate_physical(address);
-        *prot = PAGE_EXEC;
-        return 0;
+    switch (mmu_idx) {
+    case MMU_PHYS_IDX:
+    case MMU_USER_SECONDARY_IDX:
+    case MMU_KERNEL_SECONDARY_IDX:
+        g_assert_not_reached();
+    case MMU_USER_IDX:
+        is_user = true;
+        /* fallthru */
+    case MMU_KERNEL_IDX:
+        context = env->dmmu.mmu_primary_context & 0x1fff;
+        break;
+    default:
+        context = 0;
+        break;
     }
 
     if (env->tl == 0) {
@@ -698,6 +703,12 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
                                                 env->dmmu.mmu_secondary_context,
                                                 address);
         }
+    }
+
+    if (mmu_idx == MMU_PHYS_IDX) {
+        *physical = ultrasparc_truncate_physical(address);
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        return 0;
     }
 
     if (rw == 2) {

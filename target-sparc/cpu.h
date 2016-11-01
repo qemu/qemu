@@ -225,9 +225,9 @@ enum {
 #define MAX_NWINDOWS 32
 
 #if !defined(TARGET_SPARC64)
-#define NB_MMU_MODES 2
+#define NB_MMU_MODES 3
 #else
-#define NB_MMU_MODES 6
+#define NB_MMU_MODES 7
 typedef struct trap_state {
     uint64_t tpc;
     uint64_t tnpc;
@@ -549,6 +549,7 @@ void QEMU_NORETURN sparc_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
                                                  MMUAccessType access_type,
                                                  int mmu_idx,
                                                  uintptr_t retaddr);
+void cpu_raise_exception_ra(CPUSPARCState *, int, uintptr_t) QEMU_NORETURN;
 
 #ifndef NO_CPU_IO_DEFS
 /* cpu_init.c */
@@ -637,22 +638,16 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 /* MMU modes definitions */
 #if defined (TARGET_SPARC64)
 #define MMU_USER_IDX   0
-#define MMU_MODE0_SUFFIX _user
 #define MMU_USER_SECONDARY_IDX   1
-#define MMU_MODE1_SUFFIX _user_secondary
 #define MMU_KERNEL_IDX 2
-#define MMU_MODE2_SUFFIX _kernel
 #define MMU_KERNEL_SECONDARY_IDX 3
-#define MMU_MODE3_SUFFIX _kernel_secondary
 #define MMU_NUCLEUS_IDX 4
-#define MMU_MODE4_SUFFIX _nucleus
 #define MMU_HYPV_IDX   5
-#define MMU_MODE5_SUFFIX _hypv
+#define MMU_PHYS_IDX   6
 #else
 #define MMU_USER_IDX   0
-#define MMU_MODE0_SUFFIX _user
 #define MMU_KERNEL_IDX 1
-#define MMU_MODE1_SUFFIX _kernel
+#define MMU_PHYS_IDX   2
 #endif
 
 #if defined (TARGET_SPARC64)
@@ -672,18 +667,27 @@ static inline int cpu_supervisor_mode(CPUSPARCState *env1)
 }
 #endif
 
-static inline int cpu_mmu_index(CPUSPARCState *env1, bool ifetch)
+static inline int cpu_mmu_index(CPUSPARCState *env, bool ifetch)
 {
 #if defined(CONFIG_USER_ONLY)
     return MMU_USER_IDX;
 #elif !defined(TARGET_SPARC64)
-    return env1->psrs;
+    if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
+        return MMU_PHYS_IDX;
+    } else {
+        return env->psrs;
+    }
 #else
-    if (env1->tl > 0) {
+    /* IMMU or DMMU disabled.  */
+    if (ifetch
+        ? (env->lsu & IMMU_E) == 0 || (env->pstate & PS_RED) != 0
+        : (env->lsu & DMMU_E) == 0) {
+        return MMU_PHYS_IDX;
+    } else if (env->tl > 0) {
         return MMU_NUCLEUS_IDX;
-    } else if (cpu_hypervisor_mode(env1)) {
+    } else if (cpu_hypervisor_mode(env)) {
         return MMU_HYPV_IDX;
-    } else if (cpu_supervisor_mode(env1)) {
+    } else if (cpu_supervisor_mode(env)) {
         return MMU_KERNEL_IDX;
     } else {
         return MMU_USER_IDX;

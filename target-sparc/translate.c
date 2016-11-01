@@ -242,7 +242,29 @@ static void gen_op_store_QT0_fpr(unsigned int dst)
                    offsetof(CPU_QuadU, ll.lower));
 }
 
+static void gen_store_fpr_Q(DisasContext *dc, unsigned int dst,
+                            TCGv_i64 v1, TCGv_i64 v2)
+{
+    dst = QFPREG(dst);
+
+    tcg_gen_mov_i64(cpu_fpr[dst / 2], v1);
+    tcg_gen_mov_i64(cpu_fpr[dst / 2 + 1], v2);
+    gen_update_fprs_dirty(dc, dst);
+}
+
 #ifdef TARGET_SPARC64
+static TCGv_i64 gen_load_fpr_Q0(DisasContext *dc, unsigned int src)
+{
+    src = QFPREG(src);
+    return cpu_fpr[src / 2];
+}
+
+static TCGv_i64 gen_load_fpr_Q1(DisasContext *dc, unsigned int src)
+{
+    src = QFPREG(src);
+    return cpu_fpr[src / 2 + 1];
+}
+
 static void gen_move_Q(DisasContext *dc, unsigned int rd, unsigned int rs)
 {
     rd = QFPREG(rd);
@@ -2001,6 +2023,21 @@ static inline void gen_ne_fop_QD(DisasContext *dc, int rd, int rs,
     gen_update_fprs_dirty(dc, QFPREG(rd));
 }
 
+static void gen_swap(DisasContext *dc, TCGv dst, TCGv src,
+                     TCGv addr, int mmu_idx, TCGMemOp memop)
+{
+    gen_address_mask(dc, addr);
+    tcg_gen_atomic_xchg_tl(dst, addr, src, mmu_idx, memop);
+}
+
+static void gen_ldstub(DisasContext *dc, TCGv dst, TCGv addr, int mmu_idx)
+{
+    TCGv m1 = tcg_const_tl(0xff);
+    gen_address_mask(dc, addr);
+    tcg_gen_atomic_xchg_tl(dst, addr, m1, mmu_idx, MO_UB);
+    tcg_temp_free(m1);
+}
+
 /* asi moves */
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 typedef enum {
@@ -2010,6 +2047,8 @@ typedef enum {
     GET_ASI_DTWINX,
     GET_ASI_BLOCK,
     GET_ASI_SHORT,
+    GET_ASI_BCOPY,
+    GET_ASI_BFILL,
 } ASIType;
 
 typedef struct {
@@ -2046,6 +2085,19 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
             mem_idx = MMU_KERNEL_IDX;
             type = GET_ASI_DIRECT;
             break;
+        case ASI_M_BYPASS:    /* MMU passthrough */
+        case ASI_LEON_BYPASS: /* LEON MMU passthrough */
+            mem_idx = MMU_PHYS_IDX;
+            type = GET_ASI_DIRECT;
+            break;
+        case ASI_M_BCOPY: /* Block copy, sta access */
+            mem_idx = MMU_KERNEL_IDX;
+            type = GET_ASI_BCOPY;
+            break;
+        case ASI_M_BFILL: /* Block fill, stda access */
+            mem_idx = MMU_KERNEL_IDX;
+            type = GET_ASI_BFILL;
+            break;
         }
     } else {
         gen_exception(dc, TT_PRIV_INSN);
@@ -2066,10 +2118,22 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         type = GET_ASI_EXCP;
     } else {
         switch (asi) {
+        case ASI_REAL:      /* Bypass */
+        case ASI_REAL_IO:   /* Bypass, non-cacheable */
+        case ASI_REAL_L:    /* Bypass LE */
+        case ASI_REAL_IO_L: /* Bypass, non-cacheable LE */
+        case ASI_TWINX_REAL:   /* Real address, twinx */
+        case ASI_TWINX_REAL_L: /* Real address, twinx, LE */
+        case ASI_QUAD_LDD_PHYS:
+        case ASI_QUAD_LDD_PHYS_L:
+            mem_idx = MMU_PHYS_IDX;
+            break;
         case ASI_N:  /* Nucleus */
         case ASI_NL: /* Nucleus LE */
         case ASI_TWINX_N:
         case ASI_TWINX_NL:
+        case ASI_NUCLEUS_QUAD_LDD:
+        case ASI_NUCLEUS_QUAD_LDD_L:
             mem_idx = MMU_NUCLEUS_IDX;
             break;
         case ASI_AIUP:  /* As if user primary */
@@ -2123,6 +2187,10 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
             break;
         }
         switch (asi) {
+        case ASI_REAL:
+        case ASI_REAL_IO:
+        case ASI_REAL_L:
+        case ASI_REAL_IO_L:
         case ASI_N:
         case ASI_NL:
         case ASI_AIUP:
@@ -2135,6 +2203,8 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         case ASI_PL:
             type = GET_ASI_DIRECT;
             break;
+        case ASI_TWINX_REAL:
+        case ASI_TWINX_REAL_L:
         case ASI_TWINX_N:
         case ASI_TWINX_NL:
         case ASI_TWINX_AIUP:
@@ -2145,6 +2215,10 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         case ASI_TWINX_PL:
         case ASI_TWINX_S:
         case ASI_TWINX_SL:
+        case ASI_QUAD_LDD_PHYS:
+        case ASI_QUAD_LDD_PHYS_L:
+        case ASI_NUCLEUS_QUAD_LDD:
+        case ASI_NUCLEUS_QUAD_LDD_L:
             type = GET_ASI_DTWINX;
             break;
         case ASI_BLK_COMMIT_P:
@@ -2241,6 +2315,38 @@ static void gen_st_asi(DisasContext *dc, TCGv src, TCGv addr,
         gen_address_mask(dc, addr);
         tcg_gen_qemu_st_tl(src, addr, da.mem_idx, da.memop);
         break;
+#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
+    case GET_ASI_BCOPY:
+        /* Copy 32 bytes from the address in SRC to ADDR.  */
+        /* ??? The original qemu code suggests 4-byte alignment, dropping
+           the low bits, but the only place I can see this used is in the
+           Linux kernel with 32 byte alignment, which would make more sense
+           as a cacheline-style operation.  */
+        {
+            TCGv saddr = tcg_temp_new();
+            TCGv daddr = tcg_temp_new();
+            TCGv four = tcg_const_tl(4);
+            TCGv_i32 tmp = tcg_temp_new_i32();
+            int i;
+
+            tcg_gen_andi_tl(saddr, src, -4);
+            tcg_gen_andi_tl(daddr, addr, -4);
+            for (i = 0; i < 32; i += 4) {
+                /* Since the loads and stores are paired, allow the
+                   copy to happen in the host endianness.  */
+                tcg_gen_qemu_ld_i32(tmp, saddr, da.mem_idx, MO_UL);
+                tcg_gen_qemu_st_i32(tmp, daddr, da.mem_idx, MO_UL);
+                tcg_gen_add_tl(saddr, saddr, four);
+                tcg_gen_add_tl(daddr, daddr, four);
+            }
+
+            tcg_temp_free(saddr);
+            tcg_temp_free(daddr);
+            tcg_temp_free(four);
+            tcg_temp_free_i32(tmp);
+        }
+        break;
+#endif
     default:
         {
             TCGv_i32 r_asi = tcg_const_i32(da.asi);
@@ -2275,48 +2381,37 @@ static void gen_swap_asi(DisasContext *dc, TCGv dst, TCGv src,
     switch (da.type) {
     case GET_ASI_EXCP:
         break;
+    case GET_ASI_DIRECT:
+        gen_swap(dc, dst, src, addr, da.mem_idx, da.memop);
+        break;
     default:
-        {
-            TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_mop = tcg_const_i32(MO_UL);
-            TCGv_i64 s64, t64;
-
-            save_state(dc);
-            t64 = tcg_temp_new_i64();
-            gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_mop);
-
-            s64 = tcg_temp_new_i64();
-            tcg_gen_extu_tl_i64(s64, src);
-            gen_helper_st_asi(cpu_env, addr, s64, r_asi, r_mop);
-            tcg_temp_free_i64(s64);
-            tcg_temp_free_i32(r_mop);
-            tcg_temp_free_i32(r_asi);
-
-            tcg_gen_trunc_i64_tl(dst, t64);
-            tcg_temp_free_i64(t64);
-        }
+        /* ??? Should be DAE_invalid_asi.  */
+        gen_exception(dc, TT_DATA_ACCESS);
         break;
     }
 }
 
-static void gen_cas_asi(DisasContext *dc, TCGv addr, TCGv val2,
+static void gen_cas_asi(DisasContext *dc, TCGv addr, TCGv cmpv,
                         int insn, int rd)
 {
     DisasASI da = get_asi(dc, insn, MO_TEUL);
-    TCGv val1, dst;
-    TCGv_i32 r_asi;
+    TCGv oldv;
 
-    if (da.type == GET_ASI_EXCP) {
+    switch (da.type) {
+    case GET_ASI_EXCP:
         return;
+    case GET_ASI_DIRECT:
+        oldv = tcg_temp_new();
+        tcg_gen_atomic_cmpxchg_tl(oldv, addr, cmpv, gen_load_gpr(dc, rd),
+                                  da.mem_idx, da.memop);
+        gen_store_gpr(dc, rd, oldv);
+        tcg_temp_free(oldv);
+        break;
+    default:
+        /* ??? Should be DAE_invalid_asi.  */
+        gen_exception(dc, TT_DATA_ACCESS);
+        break;
     }
-
-    save_state(dc);
-    val1 = gen_load_gpr(dc, rd);
-    dst = gen_dest_gpr(dc, rd);
-    r_asi = tcg_const_i32(da.asi);
-    gen_helper_cas_asi(dst, cpu_env, addr, val1, val2, r_asi);
-    tcg_temp_free_i32(r_asi);
-    gen_store_gpr(dc, rd, dst);
 }
 
 static void gen_ldstub_asi(DisasContext *dc, TCGv dst, TCGv addr, int insn)
@@ -2326,25 +2421,12 @@ static void gen_ldstub_asi(DisasContext *dc, TCGv dst, TCGv addr, int insn)
     switch (da.type) {
     case GET_ASI_EXCP:
         break;
+    case GET_ASI_DIRECT:
+        gen_ldstub(dc, dst, addr, da.mem_idx);
+        break;
     default:
-        {
-            TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_mop = tcg_const_i32(MO_UB);
-            TCGv_i64 s64, t64;
-
-            save_state(dc);
-            t64 = tcg_temp_new_i64();
-            gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_mop);
-
-            s64 = tcg_const_i64(0xff);
-            gen_helper_st_asi(cpu_env, addr, s64, r_asi, r_mop);
-            tcg_temp_free_i64(s64);
-            tcg_temp_free_i32(r_mop);
-            tcg_temp_free_i32(r_asi);
-
-            tcg_gen_trunc_i64_tl(dst, t64);
-            tcg_temp_free_i64(t64);
-        }
+        /* ??? Should be DAE_invalid_asi.  */
+        gen_exception(dc, TT_DATA_ACCESS);
         break;
     }
 }
@@ -2356,6 +2438,7 @@ static void gen_ldf_asi(DisasContext *dc, TCGv addr,
 {
     DisasASI da = get_asi(dc, insn, (size == 4 ? MO_TEUL : MO_TEQ));
     TCGv_i32 d32;
+    TCGv_i64 d64;
 
     switch (da.type) {
     case GET_ASI_EXCP:
@@ -2370,12 +2453,17 @@ static void gen_ldf_asi(DisasContext *dc, TCGv addr,
             gen_store_fpr_F(dc, rd, d32);
             break;
         case 8:
-            tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2], addr, da.mem_idx, da.memop);
+            tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2], addr, da.mem_idx,
+                                da.memop | MO_ALIGN_4);
             break;
         case 16:
-            tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2], addr, da.mem_idx, da.memop);
+            d64 = tcg_temp_new_i64();
+            tcg_gen_qemu_ld_i64(d64, addr, da.mem_idx, da.memop | MO_ALIGN_4);
             tcg_gen_addi_tl(addr, addr, 8);
-            tcg_gen_qemu_ld_i64(cpu_fpr[rd/2+1], addr, da.mem_idx, da.memop);
+            tcg_gen_qemu_ld_i64(cpu_fpr[rd/2+1], addr, da.mem_idx,
+                                da.memop | MO_ALIGN_4);
+            tcg_gen_mov_i64(cpu_fpr[rd / 2], d64);
+            tcg_temp_free_i64(d64);
             break;
         default:
             g_assert_not_reached();
@@ -2385,20 +2473,23 @@ static void gen_ldf_asi(DisasContext *dc, TCGv addr,
     case GET_ASI_BLOCK:
         /* Valid for lddfa on aligned registers only.  */
         if (size == 8 && (rd & 7) == 0) {
+            TCGMemOp memop;
             TCGv eight;
             int i;
 
-            gen_check_align(addr, 0x3f);
             gen_address_mask(dc, addr);
 
+            /* The first operation checks required alignment.  */
+            memop = da.memop | MO_ALIGN_64;
             eight = tcg_const_tl(8);
             for (i = 0; ; ++i) {
                 tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2 + i], addr,
-                                    da.mem_idx, da.memop);
+                                    da.mem_idx, memop);
                 if (i == 7) {
                     break;
                 }
                 tcg_gen_add_tl(addr, addr, eight);
+                memop = da.memop;
             }
             tcg_temp_free(eight);
         } else {
@@ -2428,22 +2519,23 @@ static void gen_ldf_asi(DisasContext *dc, TCGv addr,
                but we can just use the integer asi helper for them.  */
             switch (size) {
             case 4:
-                {
-                    TCGv d64 = tcg_temp_new_i64();
-                    gen_helper_ld_asi(d64, cpu_env, addr, r_asi, r_mop);
-                    d32 = gen_dest_fpr_F(dc);
-                    tcg_gen_extrl_i64_i32(d32, d64);
-                    tcg_temp_free_i64(d64);
-                    gen_store_fpr_F(dc, rd, d32);
-                }
+                d64 = tcg_temp_new_i64();
+                gen_helper_ld_asi(d64, cpu_env, addr, r_asi, r_mop);
+                d32 = gen_dest_fpr_F(dc);
+                tcg_gen_extrl_i64_i32(d32, d64);
+                tcg_temp_free_i64(d64);
+                gen_store_fpr_F(dc, rd, d32);
                 break;
             case 8:
                 gen_helper_ld_asi(cpu_fpr[rd / 2], cpu_env, addr, r_asi, r_mop);
                 break;
             case 16:
-                gen_helper_ld_asi(cpu_fpr[rd / 2], cpu_env, addr, r_asi, r_mop);
+                d64 = tcg_temp_new_i64();
+                gen_helper_ld_asi(d64, cpu_env, addr, r_asi, r_mop);
                 tcg_gen_addi_tl(addr, addr, 8);
                 gen_helper_ld_asi(cpu_fpr[rd/2+1], cpu_env, addr, r_asi, r_mop);
+                tcg_gen_mov_i64(cpu_fpr[rd / 2], d64);
+                tcg_temp_free_i64(d64);
                 break;
             default:
                 g_assert_not_reached();
@@ -2473,10 +2565,17 @@ static void gen_stf_asi(DisasContext *dc, TCGv addr,
             tcg_gen_qemu_st_i32(d32, addr, da.mem_idx, da.memop);
             break;
         case 8:
-            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da.mem_idx, da.memop);
+            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da.mem_idx,
+                                da.memop | MO_ALIGN_4);
             break;
         case 16:
-            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da.mem_idx, da.memop);
+            /* Only 4-byte alignment required.  However, it is legal for the
+               cpu to signal the alignment fault, and the OS trap handler is
+               required to fix it up.  Requiring 16-byte alignment here avoids
+               having to probe the second page before performing the first
+               write.  */
+            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da.mem_idx,
+                                da.memop | MO_ALIGN_16);
             tcg_gen_addi_tl(addr, addr, 8);
             tcg_gen_qemu_st_i64(cpu_fpr[rd/2+1], addr, da.mem_idx, da.memop);
             break;
@@ -2488,20 +2587,23 @@ static void gen_stf_asi(DisasContext *dc, TCGv addr,
     case GET_ASI_BLOCK:
         /* Valid for stdfa on aligned registers only.  */
         if (size == 8 && (rd & 7) == 0) {
+            TCGMemOp memop;
             TCGv eight;
             int i;
 
-            gen_check_align(addr, 0x3f);
             gen_address_mask(dc, addr);
 
+            /* The first operation checks required alignment.  */
+            memop = da.memop | MO_ALIGN_64;
             eight = tcg_const_tl(8);
             for (i = 0; ; ++i) {
                 tcg_gen_qemu_st_i64(cpu_fpr[rd / 2 + i], addr,
-                                    da.mem_idx, da.memop);
+                                    da.mem_idx, memop);
                 if (i == 7) {
                     break;
                 }
                 tcg_gen_add_tl(addr, addr, eight);
+                memop = da.memop;
             }
             tcg_temp_free(eight);
         } else {
@@ -2539,9 +2641,8 @@ static void gen_ldda_asi(DisasContext *dc, TCGv addr, int insn, int rd)
         return;
 
     case GET_ASI_DTWINX:
-        gen_check_align(addr, 15);
         gen_address_mask(dc, addr);
-        tcg_gen_qemu_ld_i64(hi, addr, da.mem_idx, da.memop);
+        tcg_gen_qemu_ld_i64(hi, addr, da.mem_idx, da.memop | MO_ALIGN_16);
         tcg_gen_addi_tl(addr, addr, 8);
         tcg_gen_qemu_ld_i64(lo, addr, da.mem_idx, da.memop);
         break;
@@ -2566,15 +2667,27 @@ static void gen_ldda_asi(DisasContext *dc, TCGv addr, int insn, int rd)
         break;
 
     default:
+        /* ??? In theory we've handled all of the ASIs that are valid
+           for ldda, and this should raise DAE_invalid_asi.  However,
+           real hardware allows others.  This can be seen with e.g.
+           FreeBSD 10.3 wrt ASI_IC_TAG.  */
         {
             TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_mop = tcg_const_i32(da.memop);
+            TCGv_i64 tmp = tcg_temp_new_i64();
 
             save_state(dc);
-            gen_helper_ldda_asi(cpu_env, addr, r_asi);
+            gen_helper_ld_asi(tmp, cpu_env, addr, r_asi, r_mop);
             tcg_temp_free_i32(r_asi);
+            tcg_temp_free_i32(r_mop);
 
-            tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUSPARCState, qt0.high));
-            tcg_gen_ld_i64(lo, cpu_env, offsetof(CPUSPARCState, qt0.low));
+            /* See above.  */
+            if ((da.memop & MO_BSWAP) == MO_TE) {
+                tcg_gen_extr32_i64(lo, hi, tmp);
+            } else {
+                tcg_gen_extr32_i64(hi, lo, tmp);
+            }
+            tcg_temp_free_i64(tmp);
         }
         break;
     }
@@ -2594,9 +2707,8 @@ static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
         break;
 
     case GET_ASI_DTWINX:
-        gen_check_align(addr, 15);
         gen_address_mask(dc, addr);
-        tcg_gen_qemu_st_i64(hi, addr, da.mem_idx, da.memop);
+        tcg_gen_qemu_st_i64(hi, addr, da.mem_idx, da.memop | MO_ALIGN_16);
         tcg_gen_addi_tl(addr, addr, 8);
         tcg_gen_qemu_st_i64(lo, addr, da.mem_idx, da.memop);
         break;
@@ -2620,15 +2732,21 @@ static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
         break;
 
     default:
+        /* ??? In theory we've handled all of the ASIs that are valid
+           for stda, and this should raise DAE_invalid_asi.  */
         {
             TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_mop = tcg_const_i32(MO_Q);
-            TCGv_i64 t64;
+            TCGv_i32 r_mop = tcg_const_i32(da.memop);
+            TCGv_i64 t64 = tcg_temp_new_i64();
+
+            /* See above.  */
+            if ((da.memop & MO_BSWAP) == MO_TE) {
+                tcg_gen_concat32_i64(t64, lo, hi);
+            } else {
+                tcg_gen_concat32_i64(t64, hi, lo);
+            }
 
             save_state(dc);
-
-            t64 = tcg_temp_new_i64();
-            tcg_gen_concat_tl_i64(t64, lo, hi);
             gen_helper_st_asi(cpu_env, addr, t64, r_asi, r_mop);
             tcg_temp_free_i32(r_mop);
             tcg_temp_free_i32(r_asi);
@@ -2638,23 +2756,27 @@ static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
     }
 }
 
-static void gen_casx_asi(DisasContext *dc, TCGv addr, TCGv val2,
+static void gen_casx_asi(DisasContext *dc, TCGv addr, TCGv cmpv,
                          int insn, int rd)
 {
     DisasASI da = get_asi(dc, insn, MO_TEQ);
-    TCGv val1 = gen_load_gpr(dc, rd);
-    TCGv dst = gen_dest_gpr(dc, rd);
-    TCGv_i32 r_asi;
+    TCGv oldv;
 
-    if (da.type == GET_ASI_EXCP) {
+    switch (da.type) {
+    case GET_ASI_EXCP:
         return;
+    case GET_ASI_DIRECT:
+        oldv = tcg_temp_new();
+        tcg_gen_atomic_cmpxchg_tl(oldv, addr, cmpv, gen_load_gpr(dc, rd),
+                                  da.mem_idx, da.memop);
+        gen_store_gpr(dc, rd, oldv);
+        tcg_temp_free(oldv);
+        break;
+    default:
+        /* ??? Should be DAE_invalid_asi.  */
+        gen_exception(dc, TT_DATA_ACCESS);
+        break;
     }
-
-    save_state(dc);
-    r_asi = tcg_const_i32(da.asi);
-    gen_helper_casx_asi(dst, cpu_env, addr, val1, val2, r_asi);
-    tcg_temp_free_i32(r_asi);
-    gen_store_gpr(dc, rd, dst);
 }
 
 #elif !defined(CONFIG_USER_ONLY)
@@ -2711,6 +2833,27 @@ static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
     case GET_ASI_DIRECT:
         gen_address_mask(dc, addr);
         tcg_gen_qemu_st_i64(t64, addr, da.mem_idx, da.memop);
+        break;
+    case GET_ASI_BFILL:
+        /* Store 32 bytes of T64 to ADDR.  */
+        /* ??? The original qemu code suggests 8-byte alignment, dropping
+           the low bits, but the only place I can see this used is in the
+           Linux kernel with 32 byte alignment, which would make more sense
+           as a cacheline-style operation.  */
+        {
+            TCGv d_addr = tcg_temp_new();
+            TCGv eight = tcg_const_tl(8);
+            int i;
+
+            tcg_gen_andi_tl(d_addr, addr, -8);
+            for (i = 0; i < 32; i += 8) {
+                tcg_gen_qemu_st_i64(t64, d_addr, da.mem_idx, da.memop);
+                tcg_gen_add_tl(d_addr, d_addr, eight);
+            }
+
+            tcg_temp_free(d_addr);
+            tcg_temp_free(eight);
+        }
         break;
     default:
         {
@@ -3454,7 +3597,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 break;
             } else if (xop == 0x2b) { /* rdtbr / V9 flushw */
 #ifdef TARGET_SPARC64
-                save_state(dc);
                 gen_helper_flushw(cpu_env);
 #else
                 if (!supervisor(dc))
@@ -5058,12 +5200,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     /* nop */
                     break;
                 case 0x3c:      /* save */
-                    save_state(dc);
                     gen_helper_save(cpu_env);
                     gen_store_gpr(dc, rd, cpu_tmp0);
                     break;
                 case 0x3d:      /* restore */
-                    save_state(dc);
                     gen_helper_restore(cpu_env);
                     gen_store_gpr(dc, rd, cpu_tmp0);
                     break;
@@ -5163,31 +5303,15 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_address_mask(dc, cpu_addr);
                     tcg_gen_qemu_ld16s(cpu_val, cpu_addr, dc->mem_idx);
                     break;
-                case 0xd:       /* ldstub -- XXX: should be atomically */
-                    {
-                        TCGv r_const;
-                        TCGv tmp = tcg_temp_new();
-
-                        gen_address_mask(dc, cpu_addr);
-                        tcg_gen_qemu_ld8u(tmp, cpu_addr, dc->mem_idx);
-                        r_const = tcg_const_tl(0xff);
-                        tcg_gen_qemu_st8(r_const, cpu_addr, dc->mem_idx);
-                        tcg_gen_mov_tl(cpu_val, tmp);
-                        tcg_temp_free(r_const);
-                        tcg_temp_free(tmp);
-                    }
+                case 0xd:       /* ldstub */
+                    gen_ldstub(dc, cpu_val, cpu_addr, dc->mem_idx);
                     break;
                 case 0x0f:
                     /* swap, swap register with memory. Also atomically */
-                    {
-                        TCGv t0 = get_temp_tl(dc);
-                        CHECK_IU_FEATURE(dc, SWAP);
-                        cpu_src1 = gen_load_gpr(dc, rd);
-                        gen_address_mask(dc, cpu_addr);
-                        tcg_gen_qemu_ld32u(t0, cpu_addr, dc->mem_idx);
-                        tcg_gen_qemu_st32(cpu_src1, cpu_addr, dc->mem_idx);
-                        tcg_gen_mov_tl(cpu_val, t0);
-                    }
+                    CHECK_IU_FEATURE(dc, SWAP);
+                    cpu_src1 = gen_load_gpr(dc, rd);
+                    gen_swap(dc, cpu_val, cpu_src1, cpu_addr,
+                             dc->mem_idx, MO_TEUL);
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
                 case 0x10:      /* lda, V9 lduwa, load word alternate */
@@ -5278,18 +5402,15 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
             skip_move: ;
 #endif
             } else if (xop >= 0x20 && xop < 0x24) {
-                TCGv t0;
-
                 if (gen_trap_ifnofpu(dc)) {
                     goto jmp_insn;
                 }
                 switch (xop) {
                 case 0x20:      /* ldf, load fpreg */
                     gen_address_mask(dc, cpu_addr);
-                    t0 = get_temp_tl(dc);
-                    tcg_gen_qemu_ld32u(t0, cpu_addr, dc->mem_idx);
                     cpu_dst_32 = gen_dest_fpr_F(dc);
-                    tcg_gen_trunc_tl_i32(cpu_dst_32, t0);
+                    tcg_gen_qemu_ld_i32(cpu_dst_32, cpu_addr,
+                                        dc->mem_idx, MO_TEUL);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
                     break;
                 case 0x21:      /* ldfsr, V9 ldxfsr */
@@ -5297,35 +5418,37 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_address_mask(dc, cpu_addr);
                     if (rd == 1) {
                         TCGv_i64 t64 = tcg_temp_new_i64();
-                        tcg_gen_qemu_ld64(t64, cpu_addr, dc->mem_idx);
+                        tcg_gen_qemu_ld_i64(t64, cpu_addr,
+                                            dc->mem_idx, MO_TEQ);
                         gen_helper_ldxfsr(cpu_fsr, cpu_env, cpu_fsr, t64);
                         tcg_temp_free_i64(t64);
                         break;
                     }
 #endif
                     cpu_dst_32 = get_temp_i32(dc);
-                    t0 = get_temp_tl(dc);
-                    tcg_gen_qemu_ld32u(t0, cpu_addr, dc->mem_idx);
-                    tcg_gen_trunc_tl_i32(cpu_dst_32, t0);
+                    tcg_gen_qemu_ld_i32(cpu_dst_32, cpu_addr,
+                                        dc->mem_idx, MO_TEUL);
                     gen_helper_ldfsr(cpu_fsr, cpu_env, cpu_fsr, cpu_dst_32);
                     break;
                 case 0x22:      /* ldqf, load quad fpreg */
-                    {
-                        TCGv_i32 r_const;
-
-                        CHECK_FPU_FEATURE(dc, FLOAT128);
-                        r_const = tcg_const_i32(dc->mem_idx);
-                        gen_address_mask(dc, cpu_addr);
-                        gen_helper_ldqf(cpu_env, cpu_addr, r_const);
-                        tcg_temp_free_i32(r_const);
-                        gen_op_store_QT0_fpr(QFPREG(rd));
-                        gen_update_fprs_dirty(dc, QFPREG(rd));
-                    }
+                    CHECK_FPU_FEATURE(dc, FLOAT128);
+                    gen_address_mask(dc, cpu_addr);
+                    cpu_src1_64 = tcg_temp_new_i64();
+                    tcg_gen_qemu_ld_i64(cpu_src1_64, cpu_addr, dc->mem_idx,
+                                        MO_TEQ | MO_ALIGN_4);
+                    tcg_gen_addi_tl(cpu_addr, cpu_addr, 8);
+                    cpu_src2_64 = tcg_temp_new_i64();
+                    tcg_gen_qemu_ld_i64(cpu_src2_64, cpu_addr, dc->mem_idx,
+                                        MO_TEQ | MO_ALIGN_4);
+                    gen_store_fpr_Q(dc, rd, cpu_src1_64, cpu_src2_64);
+                    tcg_temp_free_i64(cpu_src1_64);
+                    tcg_temp_free_i64(cpu_src2_64);
                     break;
                 case 0x23:      /* lddf, load double fpreg */
                     gen_address_mask(dc, cpu_addr);
                     cpu_dst_64 = gen_dest_fpr_D(dc, rd);
-                    tcg_gen_qemu_ld64(cpu_dst_64, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_ld_i64(cpu_dst_64, cpu_addr, dc->mem_idx,
+                                        MO_TEQ | MO_ALIGN_4);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 default:
@@ -5398,13 +5521,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 }
                 switch (xop) {
                 case 0x24: /* stf, store fpreg */
-                    {
-                        TCGv t = get_temp_tl(dc);
-                        gen_address_mask(dc, cpu_addr);
-                        cpu_src1_32 = gen_load_fpr_F(dc, rd);
-                        tcg_gen_ext_i32_tl(t, cpu_src1_32);
-                        tcg_gen_qemu_st32(t, cpu_addr, dc->mem_idx);
-                    }
+                    gen_address_mask(dc, cpu_addr);
+                    cpu_src1_32 = gen_load_fpr_F(dc, rd);
+                    tcg_gen_qemu_st_i32(cpu_src1_32, cpu_addr,
+                                        dc->mem_idx, MO_TEUL);
                     break;
                 case 0x25: /* stfsr, V9 stxfsr */
                     {
@@ -5421,16 +5541,20 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 0x26:
 #ifdef TARGET_SPARC64
                     /* V9 stqf, store quad fpreg */
-                    {
-                        TCGv_i32 r_const;
-
-                        CHECK_FPU_FEATURE(dc, FLOAT128);
-                        gen_op_load_fpr_QT0(QFPREG(rd));
-                        r_const = tcg_const_i32(dc->mem_idx);
-                        gen_address_mask(dc, cpu_addr);
-                        gen_helper_stqf(cpu_env, cpu_addr, r_const);
-                        tcg_temp_free_i32(r_const);
-                    }
+                    CHECK_FPU_FEATURE(dc, FLOAT128);
+                    gen_address_mask(dc, cpu_addr);
+                    /* ??? While stqf only requires 4-byte alignment, it is
+                       legal for the cpu to signal the unaligned exception.
+                       The OS trap handler is then required to fix it up.
+                       For qemu, this avoids having to probe the second page
+                       before performing the first write.  */
+                    cpu_src1_64 = gen_load_fpr_Q0(dc, rd);
+                    tcg_gen_qemu_st_i64(cpu_src1_64, cpu_addr,
+                                        dc->mem_idx, MO_TEQ | MO_ALIGN_16);
+                    tcg_gen_addi_tl(cpu_addr, cpu_addr, 8);
+                    cpu_src2_64 = gen_load_fpr_Q1(dc, rd);
+                    tcg_gen_qemu_st_i64(cpu_src1_64, cpu_addr,
+                                        dc->mem_idx, MO_TEQ);
                     break;
 #else /* !TARGET_SPARC64 */
                     /* stdfq, store floating point queue */
@@ -5448,7 +5572,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 0x27: /* stdf, store double fpreg */
                     gen_address_mask(dc, cpu_addr);
                     cpu_src1_64 = gen_load_fpr_D(dc, rd);
-                    tcg_gen_qemu_st64(cpu_src1_64, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_st_i64(cpu_src1_64, cpu_addr, dc->mem_idx,
+                                        MO_TEQ | MO_ALIGN_4);
                     break;
                 default:
                     goto illegal_insn;
@@ -5468,7 +5593,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         if (gen_trap_ifnofpu(dc)) {
                             goto jmp_insn;
                         }
-                        gen_check_align(cpu_addr, 7);
                         gen_stf_asi(dc, cpu_addr, insn, 16, QFPREG(rd));
                     }
                     break;
