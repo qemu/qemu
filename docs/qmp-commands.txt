@@ -94,16 +94,6 @@ Example:
 
 Note: CPUs' indexes are obtained with the 'query-cpus' command.
 
-x-colo-lost-heartbeat
---------------------
-
-Tell COLO that heartbeat is lost, a failover or takeover is needed.
-
-Example:
-
--> { "execute": "x-colo-lost-heartbeat" }
-<- { "return": {} }
-
 qmp_capabilities
 ----------------
 

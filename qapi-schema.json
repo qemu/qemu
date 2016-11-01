@@ -1157,6 +1157,12 @@
 # then takes over server operation to become the service VM.
 #
 # Since: 2.8
+#
+# Example:
+#
+# -> { "execute": "x-colo-lost-heartbeat" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'x-colo-lost-heartbeat' }
 
