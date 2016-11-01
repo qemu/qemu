@@ -1637,20 +1637,17 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
 {
     ssize_t err;
     size_t offset = 7;
-    int read_count;
-    int64_t xattr_len;
+    uint64_t read_count;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     VirtQueueElement *elem = v->elems[pdu->idx];
 
-    xattr_len = fidp->fs.xattr.len;
-    read_count = xattr_len - off;
+    if (fidp->fs.xattr.len < off) {
+        read_count = 0;
+    } else {
+        read_count = fidp->fs.xattr.len - off;
+    }
     if (read_count > max_count) {
         read_count = max_count;
-    } else if (read_count < 0) {
-        /*
-         * read beyond XATTR value
-         */
-        read_count = 0;
     }
     err = pdu_marshal(pdu, offset, "d", read_count);
     if (err < 0) {
@@ -1979,22 +1976,17 @@ static int v9fs_xattr_write(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
 {
     int i, to_copy;
     ssize_t err = 0;
-    int write_count;
-    int64_t xattr_len;
+    uint64_t write_count;
     size_t offset = 7;
 
 
-    xattr_len = fidp->fs.xattr.len;
-    write_count = xattr_len - off;
-    if (write_count > count) {
-        write_count = count;
-    } else if (write_count < 0) {
-        /*
-         * write beyond XATTR value len specified in
-         * xattrcreate
-         */
+    if (fidp->fs.xattr.len < off) {
         err = -ENOSPC;
         goto out;
+    }
+    write_count = fidp->fs.xattr.len - off;
+    if (write_count > count) {
+        write_count = count;
     }
     err = pdu_marshal(pdu, offset, "d", write_count);
     if (err < 0) {
