@@ -670,6 +670,11 @@ static inline int cpu_supervisor_mode(CPUSPARCState *env1)
 {
     return env1->pstate & PS_PRIV;
 }
+#else
+static inline int cpu_supervisor_mode(CPUSPARCState *env1)
+{
+    return env1->psrs;
+}
 #endif
 
 static inline int cpu_mmu_index(CPUSPARCState *env, bool ifetch)
@@ -736,6 +741,8 @@ trap_state* cpu_tsptr(CPUSPARCState* env);
 #define TB_FLAG_MMU_MASK     7
 #define TB_FLAG_FPU_ENABLED  (1 << 4)
 #define TB_FLAG_AM_ENABLED   (1 << 5)
+#define TB_FLAG_SUPER        (1 << 6)
+#define TB_FLAG_HYPER        (1 << 7)
 #define TB_FLAG_ASI_SHIFT    24
 
 static inline void cpu_get_tb_cpu_state(CPUSPARCState *env, target_ulong *pc,
@@ -745,7 +752,17 @@ static inline void cpu_get_tb_cpu_state(CPUSPARCState *env, target_ulong *pc,
     *pc = env->pc;
     *cs_base = env->npc;
     flags = cpu_mmu_index(env, false);
+#ifndef CONFIG_USER_ONLY
+    if (cpu_supervisor_mode(env)) {
+        flags |= TB_FLAG_SUPER;
+    }
+#endif
 #ifdef TARGET_SPARC64
+#ifndef CONFIG_USER_ONLY
+    if (cpu_hypervisor_mode(env)) {
+        flags |= TB_FLAG_HYPER;
+    }
+#endif
     if (env->pstate & PS_AM) {
         flags |= TB_FLAG_AM_ENABLED;
     }

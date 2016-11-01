@@ -72,9 +72,16 @@ typedef struct DisasContext {
     target_ulong jump_pc[2]; /* used when JUMP_PC pc value is used */
     int is_br;
     int mem_idx;
-    int fpu_enabled;
-    int address_mask_32bit;
-    int singlestep;
+    bool fpu_enabled;
+    bool address_mask_32bit;
+    bool singlestep;
+#ifndef CONFIG_USER_ONLY
+    bool supervisor;
+#ifdef TARGET_SPARC64
+    bool hypervisor;
+#endif
+#endif
+
     uint32_t cc_op;  /* current CC operation */
     struct TranslationBlock *tb;
     sparc_def_t *def;
@@ -283,10 +290,11 @@ static void gen_move_Q(DisasContext *dc, unsigned int rd, unsigned int rs)
 #define hypervisor(dc) 0
 #endif
 #else
-#define supervisor(dc) (dc->mem_idx >= MMU_KERNEL_IDX)
 #ifdef TARGET_SPARC64
-#define hypervisor(dc) (dc->mem_idx == MMU_HYPV_IDX)
+#define hypervisor(dc) (dc->hypervisor)
+#define supervisor(dc) (dc->supervisor | dc->hypervisor)
 #else
+#define supervisor(dc) (dc->supervisor)
 #endif
 #endif
 
@@ -5710,9 +5718,15 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
     dc->fpu_enabled = tb_fpu_enabled(tb->flags);
     dc->address_mask_32bit = tb_am_enabled(tb->flags);
     dc->singlestep = (cs->singlestep_enabled || singlestep);
+#ifndef CONFIG_USER_ONLY
+    dc->supervisor = (tb->flags & TB_FLAG_SUPER) != 0;
+#endif
 #ifdef TARGET_SPARC64
     dc->fprs_dirty = 0;
     dc->asi = (tb->flags >> TB_FLAG_ASI_SHIFT) & 0xff;
+#ifndef CONFIG_USER_ONLY
+    dc->hypervisor = (tb->flags & TB_FLAG_HYPER) != 0;
+#endif
 #endif
 
     num_insns = 0;
