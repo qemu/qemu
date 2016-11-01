@@ -19,6 +19,7 @@ typedef enum {
     GA_CHANNEL_VIRTIO_SERIAL,
     GA_CHANNEL_ISA_SERIAL,
     GA_CHANNEL_UNIX_LISTEN,
+    GA_CHANNEL_VSOCK_LISTEN,
 } GAChannelMethod;
 
 typedef gboolean (*GAChannelCallback)(GIOCondition condition, gpointer opaque);

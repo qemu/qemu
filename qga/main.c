@@ -190,8 +190,8 @@ static void usage(const char *cmd)
 "Usage: %s [-m <method> -p <path>] [<options>]\n"
 "QEMU Guest Agent %s\n"
 "\n"
-"  -m, --method      transport method: one of unix-listen, virtio-serial, or\n"
-"                    isa-serial (virtio-serial is the default)\n"
+"  -m, --method      transport method: one of unix-listen, virtio-serial,\n"
+"                    isa-serial, or vsock-listen (virtio-serial is the default)\n"
 "  -p, --path        device/socket path (the default for virtio-serial is:\n"
 "                    %s,\n"
 "                    the default for isa-serial is:\n"
@@ -659,6 +659,8 @@ static gboolean channel_init(GAState *s, const gchar *method, const gchar *path)
         channel_method = GA_CHANNEL_ISA_SERIAL;
     } else if (strcmp(method, "unix-listen") == 0) {
         channel_method = GA_CHANNEL_UNIX_LISTEN;
+    } else if (strcmp(method, "vsock-listen") == 0) {
+        channel_method = GA_CHANNEL_VSOCK_LISTEN;
     } else {
         g_critical("unsupported channel method/type: %s", method);
         return false;

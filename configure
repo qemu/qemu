@@ -4674,6 +4674,33 @@ if compile_prog "" "" ; then
     have_rtnetlink=yes
 fi
 
+##########################################
+# check for usable AF_VSOCK environment
+have_af_vsock=no
+cat > $TMPC << EOF
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#if !defined(AF_VSOCK)
+# error missing AF_VSOCK flag
+#endif
+#include <linux/vm_sockets.h>
+int main(void) {
+    int sock, ret;
+    struct sockaddr_vm svm;
+    socklen_t len = sizeof(svm);
+    sock = socket(AF_VSOCK, SOCK_STREAM, 0);
+    ret = getpeername(sock, (struct sockaddr *)&svm, &len);
+    if ((ret == -1) && (errno == ENOTCONN)) {
+        return 0;
+    }
+    return -1;
+}
+EOF
+if compile_prog "" "" ; then
+    have_af_vsock=yes
+fi
+
 #################################################
 # Sparc implicitly links with --relax, which is
 # incompatible with -r, so --no-relax should be
@@ -5660,6 +5687,10 @@ fi
 
 if test "$replication" = "yes" ; then
   echo "CONFIG_REPLICATION=y" >> $config_host_mak
+fi
+
+if test "$have_af_vsock" = "yes" ; then
+  echo "CONFIG_AF_VSOCK=y" >> $config_host_mak
 fi
 
 # Hold two types of flag:
