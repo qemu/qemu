@@ -1754,7 +1754,7 @@ sub process {
 			# Ignore those directives where spaces _are_ permitted.
 			if ($name =~ /^(?:
 				if|for|while|switch|return|case|
-				volatile|__volatile__|
+				volatile|__volatile__|coroutine_fn|
 				__attribute__|format|__extension__|
 				asm|__asm__)$/x)
 			{
