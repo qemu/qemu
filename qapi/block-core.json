@@ -2197,7 +2197,7 @@
 #
 # @debug-level: #optional libgfapi log level (default '4' which is Error)
 #
-# @logfile:     #optional libgfapi log file (default /dev/stderr)
+# @logfile:     #optional libgfapi log file (default /dev/stderr) (Since 2.8)
 #
 # Since: 2.7
 ##

@@ -27,7 +27,7 @@
 #include "qemu-common.h"
 #include "trace.h"
 #include "block/block.h"
-#include "block/blockjob.h"
+#include "block/blockjob_int.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qapi/qmp/qerror.h"
@@ -37,6 +37,9 @@
 #include "qmp-commands.h"
 #include "qemu/timer.h"
 #include "qapi-event.h"
+
+static void block_job_event_cancelled(BlockJob *job);
+static void block_job_event_completed(BlockJob *job, const char *msg);
 
 /* Transactional group of block jobs */
 struct BlockJobTxn {
@@ -66,7 +69,7 @@ BlockJob *block_job_get(const char *id)
     BlockJob *job;
 
     QLIST_FOREACH(job, &block_jobs, job_list) {
-        if (!strcmp(id, job->id)) {
+        if (job->id && !strcmp(id, job->id)) {
             return job;
         }
     }
@@ -121,19 +124,18 @@ void block_job_add_bdrv(BlockJob *job, BlockDriverState *bs)
 }
 
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockDriverState *bs, int64_t speed,
+                       BlockDriverState *bs, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
     BlockBackend *blk;
     BlockJob *job;
 
-    assert(cb);
     if (bs->job) {
         error_setg(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
         return NULL;
     }
 
-    if (job_id == NULL) {
+    if (job_id == NULL && !(flags & BLOCK_JOB_INTERNAL)) {
         job_id = bdrv_get_device_name(bs);
         if (!*job_id) {
             error_setg(errp, "An explicit job ID is required for this node");
@@ -141,14 +143,21 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         }
     }
 
-    if (!id_wellformed(job_id)) {
-        error_setg(errp, "Invalid job ID '%s'", job_id);
-        return NULL;
-    }
+    if (job_id) {
+        if (flags & BLOCK_JOB_INTERNAL) {
+            error_setg(errp, "Cannot specify job ID for internal block job");
+            return NULL;
+        }
 
-    if (block_job_get(job_id)) {
-        error_setg(errp, "Job ID '%s' already in use", job_id);
-        return NULL;
+        if (!id_wellformed(job_id)) {
+            error_setg(errp, "Invalid job ID '%s'", job_id);
+            return NULL;
+        }
+
+        if (block_job_get(job_id)) {
+            error_setg(errp, "Job ID '%s' already in use", job_id);
+            return NULL;
+        }
     }
 
     blk = blk_new();
@@ -186,6 +195,11 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         }
     }
     return job;
+}
+
+bool block_job_is_internal(BlockJob *job)
+{
+    return (job->id == NULL);
 }
 
 void block_job_ref(BlockJob *job)
@@ -227,7 +241,20 @@ static void block_job_completed_single(BlockJob *job)
             job->driver->abort(job);
         }
     }
-    job->cb(job->opaque, job->ret);
+
+    if (job->cb) {
+        job->cb(job->opaque, job->ret);
+    }
+    if (block_job_is_cancelled(job)) {
+        block_job_event_cancelled(job);
+    } else {
+        const char *msg = NULL;
+        if (job->ret < 0) {
+            msg = strerror(-job->ret);
+        }
+        block_job_event_completed(job, msg);
+    }
+
     if (job->txn) {
         block_job_txn_unref(job->txn);
     }
@@ -330,6 +357,8 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 
 void block_job_complete(BlockJob *job, Error **errp)
 {
+    /* Should not be reachable via external interface for internal jobs */
+    assert(job->id);
     if (job->pause_count || job->cancelled || !job->driver->complete) {
         error_setg(errp, "The active block job '%s' cannot be completed",
                    job->id);
@@ -344,9 +373,20 @@ void block_job_pause(BlockJob *job)
     job->pause_count++;
 }
 
+void block_job_user_pause(BlockJob *job)
+{
+    job->user_paused = true;
+    block_job_pause(job);
+}
+
 static bool block_job_should_pause(BlockJob *job)
 {
     return job->pause_count > 0;
+}
+
+bool block_job_user_paused(BlockJob *job)
+{
+    return job ? job->user_paused : 0;
 }
 
 void coroutine_fn block_job_pause_point(BlockJob *job)
@@ -383,6 +423,14 @@ void block_job_resume(BlockJob *job)
         return;
     }
     block_job_enter(job);
+}
+
+void block_job_user_resume(BlockJob *job)
+{
+    if (job && job->user_paused && job->pause_count > 0) {
+        job->user_paused = false;
+        block_job_resume(job);
+    }
 }
 
 void block_job_enter(BlockJob *job)
@@ -510,9 +558,15 @@ void block_job_yield(BlockJob *job)
     block_job_pause_point(job);
 }
 
-BlockJobInfo *block_job_query(BlockJob *job)
+BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
 {
-    BlockJobInfo *info = g_new0(BlockJobInfo, 1);
+    BlockJobInfo *info;
+
+    if (block_job_is_internal(job)) {
+        error_setg(errp, "Cannot query QEMU internal jobs");
+        return NULL;
+    }
+    info = g_new0(BlockJobInfo, 1);
     info->type      = g_strdup(BlockJobType_lookup[job->driver->job_type]);
     info->device    = g_strdup(job->id);
     info->len       = job->len;
@@ -533,8 +587,12 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
     }
 }
 
-void block_job_event_cancelled(BlockJob *job)
+static void block_job_event_cancelled(BlockJob *job)
 {
+    if (block_job_is_internal(job)) {
+        return;
+    }
+
     qapi_event_send_block_job_cancelled(job->driver->job_type,
                                         job->id,
                                         job->len,
@@ -543,8 +601,12 @@ void block_job_event_cancelled(BlockJob *job)
                                         &error_abort);
 }
 
-void block_job_event_completed(BlockJob *job, const char *msg)
+static void block_job_event_completed(BlockJob *job, const char *msg)
 {
+    if (block_job_is_internal(job)) {
+        return;
+    }
+
     qapi_event_send_block_job_completed(job->driver->job_type,
                                         job->id,
                                         job->len,
@@ -558,6 +620,10 @@ void block_job_event_completed(BlockJob *job, const char *msg)
 void block_job_event_ready(BlockJob *job)
 {
     job->ready = true;
+
+    if (block_job_is_internal(job)) {
+        return;
+    }
 
     qapi_event_send_block_job_ready(job->driver->job_type,
                                     job->id,
@@ -589,14 +655,15 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
     default:
         abort();
     }
-    qapi_event_send_block_job_error(job->id,
-                                    is_read ? IO_OPERATION_TYPE_READ :
-                                    IO_OPERATION_TYPE_WRITE,
-                                    action, &error_abort);
+    if (!block_job_is_internal(job)) {
+        qapi_event_send_block_job_error(job->id,
+                                        is_read ? IO_OPERATION_TYPE_READ :
+                                        IO_OPERATION_TYPE_WRITE,
+                                        action, &error_abort);
+    }
     if (action == BLOCK_ERROR_ACTION_STOP) {
         /* make the pause user visible, which will be resumed from QMP. */
-        job->user_paused = true;
-        block_job_pause(job);
+        block_job_user_pause(job);
         block_job_iostatus_set_err(job, error);
     }
     return action;

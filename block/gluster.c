@@ -14,6 +14,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/uri.h"
 #include "qemu/error-report.h"
+#include "qemu/cutils.h"
 
 #define GLUSTER_OPT_FILENAME        "filename"
 #define GLUSTER_OPT_VOLUME          "volume"
@@ -55,6 +56,19 @@ typedef struct BDRVGlusterReopenState {
     struct glfs_fd *fd;
 } BDRVGlusterReopenState;
 
+
+typedef struct GlfsPreopened {
+    char *volume;
+    glfs_t *fs;
+    int ref;
+} GlfsPreopened;
+
+typedef struct ListElement {
+    QLIST_ENTRY(ListElement) list;
+    GlfsPreopened saved;
+} ListElement;
+
+static QLIST_HEAD(glfs_list, ListElement) glfs_list;
 
 static QemuOptsList qemu_gluster_create_opts = {
     .name = "qemu-gluster-create-opts",
@@ -172,7 +186,7 @@ static QemuOptsList runtime_tcp_opts = {
         },
         {
             .name = GLUSTER_OPT_PORT,
-            .type = QEMU_OPT_NUMBER,
+            .type = QEMU_OPT_STRING,
             .help = "port number on which glusterd is listening (default 24007)",
         },
         {
@@ -193,6 +207,57 @@ static QemuOptsList runtime_tcp_opts = {
         { /* end of list */ }
     },
 };
+
+static void glfs_set_preopened(const char *volume, glfs_t *fs)
+{
+    ListElement *entry = NULL;
+
+    entry = g_new(ListElement, 1);
+
+    entry->saved.volume = g_strdup(volume);
+
+    entry->saved.fs = fs;
+    entry->saved.ref = 1;
+
+    QLIST_INSERT_HEAD(&glfs_list, entry, list);
+}
+
+static glfs_t *glfs_find_preopened(const char *volume)
+{
+    ListElement *entry = NULL;
+
+     QLIST_FOREACH(entry, &glfs_list, list) {
+        if (strcmp(entry->saved.volume, volume) == 0) {
+            entry->saved.ref++;
+            return entry->saved.fs;
+        }
+     }
+
+    return NULL;
+}
+
+static void glfs_clear_preopened(glfs_t *fs)
+{
+    ListElement *entry = NULL;
+
+    if (fs == NULL) {
+        return;
+    }
+
+    QLIST_FOREACH(entry, &glfs_list, list) {
+        if (entry->saved.fs == fs) {
+            if (--entry->saved.ref) {
+                return;
+            }
+
+            QLIST_REMOVE(entry, list);
+
+            glfs_fini(entry->saved.fs);
+            g_free(entry->saved.volume);
+            g_free(entry);
+        }
+    }
+}
 
 static int parse_volume_options(BlockdevOptionsGluster *gconf, char *path)
 {
@@ -330,11 +395,19 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
     int ret;
     int old_errno;
     GlusterServerList *server;
+    unsigned long long port;
+
+    glfs = glfs_find_preopened(gconf->volume);
+    if (glfs) {
+        return glfs;
+    }
 
     glfs = glfs_new(gconf->volume);
     if (!glfs) {
         goto out;
     }
+
+    glfs_set_preopened(gconf->volume, glfs);
 
     for (server = gconf->server; server; server = server->next) {
         if (server->value->type  == GLUSTER_TRANSPORT_UNIX) {
@@ -342,10 +415,17 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
                                    GlusterTransport_lookup[server->value->type],
                                    server->value->u.q_unix.path, 0);
         } else {
+            if (parse_uint_full(server->value->u.tcp.port, &port, 10) < 0 ||
+                port > 65535) {
+                error_setg(errp, "'%s' is not a valid port number",
+                           server->value->u.tcp.port);
+                errno = EINVAL;
+                goto out;
+            }
             ret = glfs_set_volfile_server(glfs,
                                    GlusterTransport_lookup[server->value->type],
                                    server->value->u.tcp.host,
-                                   atoi(server->value->u.tcp.port));
+                                   (int)port);
         }
 
         if (ret < 0) {
@@ -387,7 +467,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
 out:
     if (glfs) {
         old_errno = errno;
-        glfs_fini(glfs);
+        glfs_clear_preopened(glfs);
         errno = old_errno;
     }
     return NULL;
@@ -668,7 +748,10 @@ static void qemu_gluster_parse_flags(int bdrv_flags, int *open_flags)
  */
 static bool qemu_gluster_test_seek(struct glfs_fd *fd)
 {
-    off_t ret, eof;
+    off_t ret = 0;
+
+#if defined SEEK_HOLE && defined SEEK_DATA
+    off_t eof;
 
     eof = glfs_lseek(fd, 0, SEEK_END);
     if (eof < 0) {
@@ -678,6 +761,8 @@ static bool qemu_gluster_test_seek(struct glfs_fd *fd)
 
     /* this should always fail with ENXIO if SEEK_DATA is supported */
     ret = glfs_lseek(fd, eof, SEEK_DATA);
+#endif
+
     return (ret < 0) && (errno == ENXIO);
 }
 
@@ -762,9 +847,9 @@ out:
     if (s->fd) {
         glfs_close(s->fd);
     }
-    if (s->glfs) {
-        glfs_fini(s->glfs);
-    }
+
+    glfs_clear_preopened(s->glfs);
+
     return ret;
 }
 
@@ -831,9 +916,8 @@ static void qemu_gluster_reopen_commit(BDRVReopenState *state)
     if (s->fd) {
         glfs_close(s->fd);
     }
-    if (s->glfs) {
-        glfs_fini(s->glfs);
-    }
+
+    glfs_clear_preopened(s->glfs);
 
     /* use the newly opened image / connection */
     s->fd         = reop_s->fd;
@@ -858,9 +942,7 @@ static void qemu_gluster_reopen_abort(BDRVReopenState *state)
         glfs_close(reop_s->fd);
     }
 
-    if (reop_s->glfs) {
-        glfs_fini(reop_s->glfs);
-    }
+    glfs_clear_preopened(reop_s->glfs);
 
     g_free(state->opaque);
     state->opaque = NULL;
@@ -984,9 +1066,7 @@ static int qemu_gluster_create(const char *filename,
 out:
     g_free(tmp);
     qapi_free_BlockdevOptionsGluster(gconf);
-    if (glfs) {
-        glfs_fini(glfs);
-    }
+    glfs_clear_preopened(glfs);
     return ret;
 }
 
@@ -1059,7 +1139,7 @@ static void qemu_gluster_close(BlockDriverState *bs)
         glfs_close(s->fd);
         s->fd = NULL;
     }
-    glfs_fini(s->glfs);
+    glfs_clear_preopened(s->glfs);
 }
 
 static coroutine_fn int qemu_gluster_co_flush_to_disk(BlockDriverState *bs)
@@ -1178,11 +1258,13 @@ static int find_allocation(BlockDriverState *bs, off_t start,
                            off_t *data, off_t *hole)
 {
     BDRVGlusterState *s = bs->opaque;
-    off_t offs;
 
     if (!s->supports_seek_data) {
-        return -ENOTSUP;
+        goto exit;
     }
+
+#if defined SEEK_HOLE && defined SEEK_DATA
+    off_t offs;
 
     /*
      * SEEK_DATA cases:
@@ -1247,6 +1329,10 @@ static int find_allocation(BlockDriverState *bs, off_t start,
 
     /* D1 and H1 */
     return -EBUSY;
+#endif
+
+exit:
+    return -ENOTSUP;
 }
 
 /*

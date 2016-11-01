@@ -365,45 +365,44 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
         rados_conf_read_file(cluster, NULL);
     } else if (conf[0] != '\0' &&
                qemu_rbd_set_conf(cluster, conf, true, &local_err) < 0) {
-        rados_shutdown(cluster);
         error_propagate(errp, local_err);
-        return -EIO;
+        ret = -EIO;
+        goto shutdown;
     }
 
     if (conf[0] != '\0' &&
         qemu_rbd_set_conf(cluster, conf, false, &local_err) < 0) {
-        rados_shutdown(cluster);
         error_propagate(errp, local_err);
-        return -EIO;
+        ret = -EIO;
+        goto shutdown;
     }
 
     if (qemu_rbd_set_auth(cluster, secretid, errp) < 0) {
-        rados_shutdown(cluster);
-        return -EIO;
+        ret = -EIO;
+        goto shutdown;
     }
 
     ret = rados_connect(cluster);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "error connecting");
-        rados_shutdown(cluster);
-        return ret;
+        goto shutdown;
     }
 
     ret = rados_ioctx_create(cluster, pool, &io_ctx);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "error opening pool %s", pool);
-        rados_shutdown(cluster);
-        return ret;
+        goto shutdown;
     }
 
     ret = rbd_create(io_ctx, name, bytes, &obj_order);
-    rados_ioctx_destroy(io_ctx);
-    rados_shutdown(cluster);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "error rbd create");
-        return ret;
     }
 
+    rados_ioctx_destroy(io_ctx);
+
+shutdown:
+    rados_shutdown(cluster);
     return ret;
 }
 
