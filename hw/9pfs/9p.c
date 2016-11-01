@@ -535,7 +535,7 @@ static int coroutine_fn v9fs_mark_fids_unreclaim(V9fsPDU *pdu, V9fsPath *path)
 static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
 {
     V9fsState *s = pdu->s;
-    V9fsFidState *fidp = NULL;
+    V9fsFidState *fidp;
 
     /* Free all fids */
     while (s->fid_list) {
@@ -547,11 +547,6 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
         } else {
             free_fid(pdu, fidp);
         }
-    }
-    if (fidp) {
-        /* One or more unclunked fids found... */
-        error_report("9pfs:%s: One or more uncluncked fids "
-                     "found during reset", __func__);
     }
 }
 
