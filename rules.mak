@@ -7,6 +7,10 @@ MAKEFLAGS += -rR
 
 # Files with this suffixes are final, don't try to generate them
 # using implicit rules
+%/trace-events:
+%.hx:
+%.py:
+%.objs:
 %.d:
 %.h:
 %.c:
