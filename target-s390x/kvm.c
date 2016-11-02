@@ -1401,10 +1401,10 @@ static void set_sigp_status(SigpInfo *si, uint64_t status)
     si->cc = SIGP_CC_STATUS_STORED;
 }
 
-static void sigp_start(CPUState *cs, void *arg)
+static void sigp_start(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
-    SigpInfo *si = arg;
+    SigpInfo *si = arg.host_ptr;
 
     if (s390_cpu_get_state(cpu) != CPU_STATE_STOPPED) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
@@ -1415,10 +1415,10 @@ static void sigp_start(CPUState *cs, void *arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_stop(CPUState *cs, void *arg)
+static void sigp_stop(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
-    SigpInfo *si = arg;
+    SigpInfo *si = arg.host_ptr;
     struct kvm_s390_irq irq = {
         .type = KVM_S390_SIGP_STOP,
     };
@@ -1501,10 +1501,10 @@ static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
     return 0;
 }
 
-static void sigp_stop_and_store_status(CPUState *cs, void *arg)
+static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
-    SigpInfo *si = arg;
+    SigpInfo *si = arg.host_ptr;
     struct kvm_s390_irq irq = {
         .type = KVM_S390_SIGP_STOP,
     };
@@ -1529,10 +1529,10 @@ static void sigp_stop_and_store_status(CPUState *cs, void *arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_store_status_at_address(CPUState *cs, void *arg)
+static void sigp_store_status_at_address(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
-    SigpInfo *si = arg;
+    SigpInfo *si = arg.host_ptr;
     uint32_t address = si->param & 0x7ffffe00u;
 
     /* cpu has to be stopped */
@@ -1550,10 +1550,10 @@ static void sigp_store_status_at_address(CPUState *cs, void *arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_store_adtl_status(CPUState *cs, void *arg)
+static void sigp_store_adtl_status(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
-    SigpInfo *si = arg;
+    SigpInfo *si = arg.host_ptr;
 
     if (!s390_has_feat(S390_FEAT_VECTOR)) {
         set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
@@ -1581,10 +1581,10 @@ static void sigp_store_adtl_status(CPUState *cs, void *arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_restart(CPUState *cs, void *arg)
+static void sigp_restart(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
-    SigpInfo *si = arg;
+    SigpInfo *si = arg.host_ptr;
     struct kvm_s390_irq irq = {
         .type = KVM_S390_RESTART,
     };
@@ -1612,11 +1612,11 @@ int kvm_s390_cpu_restart(S390CPU *cpu)
     return 0;
 }
 
-static void sigp_initial_cpu_reset(CPUState *cs, void *arg)
+static void sigp_initial_cpu_reset(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
-    SigpInfo *si = arg;
+    SigpInfo *si = arg.host_ptr;
 
     cpu_synchronize_state(cs);
     scc->initial_cpu_reset(cs);
@@ -1624,11 +1624,11 @@ static void sigp_initial_cpu_reset(CPUState *cs, void *arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_cpu_reset(CPUState *cs, void *arg)
+static void sigp_cpu_reset(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
-    SigpInfo *si = arg;
+    SigpInfo *si = arg.host_ptr;
 
     cpu_synchronize_state(cs);
     scc->cpu_reset(cs);
@@ -1636,10 +1636,10 @@ static void sigp_cpu_reset(CPUState *cs, void *arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static void sigp_set_prefix(CPUState *cs, void *arg)
+static void sigp_set_prefix(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
-    SigpInfo *si = arg;
+    SigpInfo *si = arg.host_ptr;
     uint32_t addr = si->param & 0x7fffe000u;
 
     cpu_synchronize_state(cs);
