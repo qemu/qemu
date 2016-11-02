@@ -536,6 +536,7 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
     ov = qobject_output_visitor_new(&saddr_qdict);
     visit_type_SocketAddress(ov, NULL, &s->saddr, &error_abort);
     visit_complete(ov, &saddr_qdict);
+    visit_free(ov);
     assert(qobject_type(saddr_qdict) == QTYPE_QDICT);
 
     qdict_put_obj(opts, "server", saddr_qdict);
