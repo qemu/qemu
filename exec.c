@@ -1321,6 +1321,13 @@ static void *file_ram_alloc(RAMBlock *block,
         goto error;
     }
 
+    if (file_size > 0 && file_size < memory) {
+        error_setg(errp, "backing store %s size 0x%" PRIx64
+                   " does not match 'size' option 0x" RAM_ADDR_FMT,
+                   path, file_size, memory);
+        goto error;
+    }
+
     memory = ROUND_UP(memory, block->page_size);
 
     /*
