@@ -1159,23 +1159,16 @@ void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
 
 static void tcg_reg_alloc_start(TCGContext *s)
 {
-    int i;
+    int i, n;
     TCGTemp *ts;
-    for(i = 0; i < s->nb_globals; i++) {
+
+    for (i = 0, n = s->nb_globals; i < n; i++) {
         ts = &s->temps[i];
-        if (ts->fixed_reg) {
-            ts->val_type = TEMP_VAL_REG;
-        } else {
-            ts->val_type = TEMP_VAL_MEM;
-        }
+        ts->val_type = (ts->fixed_reg ? TEMP_VAL_REG : TEMP_VAL_MEM);
     }
-    for(i = s->nb_globals; i < s->nb_temps; i++) {
+    for (n = s->nb_temps; i < n; i++) {
         ts = &s->temps[i];
-        if (ts->temp_local) {
-            ts->val_type = TEMP_VAL_MEM;
-        } else {
-            ts->val_type = TEMP_VAL_DEAD;
-        }
+        ts->val_type = (ts->temp_local ? TEMP_VAL_MEM : TEMP_VAL_DEAD);
         ts->mem_allocated = 0;
         ts->fixed_reg = 0;
     }
@@ -2277,9 +2270,9 @@ static void temp_save(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs)
    temporary registers needs to be allocated to store a constant. */
 static void save_globals(TCGContext *s, TCGRegSet allocated_regs)
 {
-    int i;
+    int i, n;
 
-    for (i = 0; i < s->nb_globals; i++) {
+    for (i = 0, n = s->nb_globals; i < n; i++) {
         temp_save(s, &s->temps[i], allocated_regs);
     }
 }
@@ -2289,9 +2282,9 @@ static void save_globals(TCGContext *s, TCGRegSet allocated_regs)
    temporary registers needs to be allocated to store a constant. */
 static void sync_globals(TCGContext *s, TCGRegSet allocated_regs)
 {
-    int i;
+    int i, n;
 
-    for (i = 0; i < s->nb_globals; i++) {
+    for (i = 0, n = s->nb_globals; i < n; i++) {
         TCGTemp *ts = &s->temps[i];
         tcg_debug_assert(ts->val_type != TEMP_VAL_REG
                          || ts->fixed_reg
