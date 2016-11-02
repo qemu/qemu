@@ -2855,7 +2855,7 @@ MemTxAttrs kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
     if (run->flags & KVM_RUN_X86_SMM) {
         env->hflags |= HF_SMM_MASK;
     } else {
-        env->hflags &= HF_SMM_MASK;
+        env->hflags &= ~HF_SMM_MASK;
     }
     if (run->if_flag) {
         env->eflags |= IF_MASK;
