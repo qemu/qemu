@@ -116,25 +116,26 @@ static TCGOpcode op_to_movi(TCGOpcode op)
     }
 }
 
-static TCGArg find_better_copy(TCGContext *s, TCGArg temp)
+static TCGArg find_better_copy(TCGContext *s, TCGArg arg)
 {
+    TCGTemp *ts = arg_temp(arg);
     TCGArg i;
 
     /* If this is already a global, we can't do better. */
-    if (temp < s->nb_globals) {
-        return temp;
+    if (ts->temp_global) {
+        return arg;
     }
 
     /* Search for a global first. */
-    for (i = temps[temp].next_copy ; i != temp ; i = temps[i].next_copy) {
+    for (i = temps[arg].next_copy ; i != arg; i = temps[i].next_copy) {
         if (i < s->nb_globals) {
             return i;
         }
     }
 
     /* If it is a temp, search for a temp local. */
-    if (!arg_temp(temp)->temp_local) {
-        for (i = temps[temp].next_copy ; i != temp ; i = temps[i].next_copy) {
+    if (!ts->temp_local) {
+        for (i = temps[arg].next_copy ; i != arg; i = temps[i].next_copy) {
             if (s->temps[i].temp_local) {
                 return i;
             }
@@ -142,7 +143,7 @@ static TCGArg find_better_copy(TCGContext *s, TCGArg temp)
     }
 
     /* Failure to find a better representation, return the same temp. */
-    return temp;
+    return arg;
 }
 
 static bool temps_are_copies(TCGArg arg1, TCGArg arg2)

@@ -489,9 +489,14 @@ static inline TCGTemp *tcg_temp_alloc(TCGContext *s)
 
 static inline TCGTemp *tcg_global_alloc(TCGContext *s)
 {
+    TCGTemp *ts;
+
     tcg_debug_assert(s->nb_globals == s->nb_temps);
     s->nb_globals++;
-    return tcg_temp_alloc(s);
+    ts = tcg_temp_alloc(s);
+    ts->temp_global = 1;
+
+    return ts;
 }
 
 static int tcg_global_reg_new_internal(TCGContext *s, TCGType type,
@@ -1190,7 +1195,7 @@ static char *tcg_get_arg_str_ptr(TCGContext *s, char *buf, int buf_size,
 {
     int idx = temp_idx(s, ts);
 
-    if (idx < s->nb_globals) {
+    if (ts->temp_global) {
         pstrcpy(buf, buf_size, ts->name);
     } else if (ts->temp_local) {
         snprintf(buf, buf_size, "loc%d", idx - s->nb_globals);
@@ -2128,7 +2133,7 @@ static void temp_free_or_dead(TCGContext *s, TCGTemp *ts, int free_or_dead)
     }
     ts->val_type = (free_or_dead < 0
                     || ts->temp_local
-                    || temp_idx(s, ts) < s->nb_globals
+                    || ts->temp_global
                     ? TEMP_VAL_MEM : TEMP_VAL_DEAD);
 }
 
