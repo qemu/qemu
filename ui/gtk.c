@@ -94,7 +94,7 @@
 #define GDK_IS_WIN32_DISPLAY(dpy) (dpy == dpy)
 #endif
 
-#ifndef GDK_KEY_0
+#if !GTK_CHECK_VERSION(2, 22, 0)
 #define GDK_KEY_0 GDK_0
 #define GDK_KEY_1 GDK_1
 #define GDK_KEY_2 GDK_2
@@ -104,6 +104,7 @@
 #define GDK_KEY_plus GDK_plus
 #define GDK_KEY_minus GDK_minus
 #define GDK_KEY_Pause GDK_Pause
+#define GDK_KEY_Delete GDK_Delete
 #endif
 
 /* Some older mingw versions lack this constant or have
