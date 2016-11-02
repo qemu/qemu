@@ -2321,8 +2321,19 @@ static void gen_st_asi(DisasContext *dc, TCGv src, TCGv addr,
     case GET_ASI_EXCP:
         break;
     case GET_ASI_DTWINX: /* Reserved for stda.  */
+#ifndef TARGET_SPARC64
         gen_exception(dc, TT_ILL_INSN);
         break;
+#else
+        if (!(dc->def->features & CPU_FEATURE_HYPV)) {
+            /* Pre OpenSPARC CPUs don't have these */
+            gen_exception(dc, TT_ILL_INSN);
+            return;
+        }
+        /* in OpenSPARC T1+ CPUs TWINX ASIs in store instructions
+         * are ST_BLKINIT_ ASIs */
+        /* fall through */
+#endif
     case GET_ASI_DIRECT:
         gen_address_mask(dc, addr);
         tcg_gen_qemu_st_tl(src, addr, da.mem_idx, da.memop);
