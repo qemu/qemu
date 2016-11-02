@@ -176,8 +176,9 @@
 #
 # @guest-panicked: guest has been panicked as a result of guest OS panic
 #
-# @colo: guest is paused to save/restore VM state under colo checkpoint (since
-# 2.8)
+# @colo: guest is paused to save/restore VM state under colo checkpoint,
+#        VM can not get into this state unless colo capability is enabled
+#        for migration. (since 2.8)
 ##
 { 'enum': 'RunState',
   'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
@@ -462,7 +463,8 @@
 #
 # @failed: some error occurred during migration process.
 #
-# @colo: VM is in the process of fault tolerance. (since 2.8)
+# @colo: VM is in the process of fault tolerance, VM can not get into this
+#        state unless colo capability is enabled for migration. (since 2.8)
 #
 # Since: 2.3
 #
