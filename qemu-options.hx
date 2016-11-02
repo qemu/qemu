@@ -2606,8 +2606,8 @@ qemu-system-x86_64 --drive file=gluster://192.0.2.1/testvol/a.img
 
 See also @url{http://www.gluster.org}.
 
-@item HTTP/HTTPS/FTP/FTPS/TFTP
-QEMU supports read-only access to files accessed over http(s), ftp(s) and tftp.
+@item HTTP/HTTPS/FTP/FTPS
+QEMU supports read-only access to files accessed over http(s) and ftp(s).
 
 Syntax using a single filename:
 @example
@@ -2617,7 +2617,7 @@ Syntax using a single filename:
 where:
 @table @option
 @item protocol
-'http', 'https', 'ftp', 'ftps', or 'tftp'.
+'http', 'https', 'ftp', or 'ftps'.
 
 @item username
 Optional username for authentication to the remote server.

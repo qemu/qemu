@@ -68,8 +68,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #endif
 
 #define PROTOCOLS (CURLPROTO_HTTP | CURLPROTO_HTTPS | \
-                   CURLPROTO_FTP | CURLPROTO_FTPS | \
-                   CURLPROTO_TFTP)
+                   CURLPROTO_FTP | CURLPROTO_FTPS)
 
 #define CURL_NUM_STATES 8
 #define CURL_NUM_ACB    8
@@ -886,29 +885,12 @@ static BlockDriver bdrv_ftps = {
     .bdrv_attach_aio_context    = curl_attach_aio_context,
 };
 
-static BlockDriver bdrv_tftp = {
-    .format_name                = "tftp",
-    .protocol_name              = "tftp",
-
-    .instance_size              = sizeof(BDRVCURLState),
-    .bdrv_parse_filename        = curl_parse_filename,
-    .bdrv_file_open             = curl_open,
-    .bdrv_close                 = curl_close,
-    .bdrv_getlength             = curl_getlength,
-
-    .bdrv_aio_readv             = curl_aio_readv,
-
-    .bdrv_detach_aio_context    = curl_detach_aio_context,
-    .bdrv_attach_aio_context    = curl_attach_aio_context,
-};
-
 static void curl_block_init(void)
 {
     bdrv_register(&bdrv_http);
     bdrv_register(&bdrv_https);
     bdrv_register(&bdrv_ftp);
     bdrv_register(&bdrv_ftps);
-    bdrv_register(&bdrv_tftp);
 }
 
 block_init(curl_block_init);

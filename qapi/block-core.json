@@ -243,12 +243,12 @@
 #       0.14.0 this can be: 'blkdebug', 'bochs', 'cloop', 'cow', 'dmg',
 #       'file', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
 #       'http', 'https', 'luks', 'nbd', 'parallels', 'qcow',
-#       'qcow2', 'raw', 'tftp', 'vdi', 'vmdk', 'vpc', 'vvfat'
+#       'qcow2', 'raw', 'vdi', 'vmdk', 'vpc', 'vvfat'
 #       2.2: 'archipelago' added, 'cow' dropped
 #       2.3: 'host_floppy' deprecated
 #       2.5: 'host_floppy' dropped
 #       2.6: 'luks' added
-#       2.8: 'replication' added
+#       2.8: 'replication' added, 'tftp' dropped
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
@@ -1723,7 +1723,7 @@
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
             'host_device', 'http', 'https', 'luks', 'nbd', 'nfs', 'null-aio',
             'null-co', 'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
-            'replication', 'ssh', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc',
+            'replication', 'ssh', 'vdi', 'vhdx', 'vmdk', 'vpc',
             'vvfat' ] }
 
 ##
@@ -2410,7 +2410,6 @@
       'replication':'BlockdevOptionsReplication',
 # TODO sheepdog: Wait for structured options
       'ssh':        'BlockdevOptionsSsh',
-      'tftp':       'BlockdevOptionsCurl',
       'vdi':        'BlockdevOptionsGenericFormat',
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
