@@ -148,7 +148,7 @@ M68K
 M: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
 F: target-m68k/
-F: hw/m68k/
+F: disas/m68k.c
 
 MicroBlaze
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -550,6 +550,7 @@ M68K Machines
 an5206
 S: Orphan
 F: hw/m68k/an5206.c
+F: hw/m68k/mcf5206.c
 
 dummy_m68k
 S: Orphan
@@ -558,6 +559,9 @@ F: hw/m68k/dummy_m68k.c
 mcf5208
 S: Orphan
 F: hw/m68k/mcf5208.c
+F: hw/m68k/mcf_intc.c
+F: hw/char/mcf_uart.c
+F: hw/net/mcf_fec.c
 
 MicroBlaze Machines
 -------------------
