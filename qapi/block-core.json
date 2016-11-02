@@ -2292,7 +2292,7 @@
 # @page-cache-size:         #optional set the pagecache size in bytes (defaults
 #                           to libnfs default)
 #
-# @debug-level:             #optional set the NFS debug level (max 2) (defaults
+# @debug:                   #optional set the NFS debug level (max 2) (defaults
 #                           to libnfs default)
 #
 # Since 2.8
@@ -2305,7 +2305,7 @@
             '*tcp-syn-count': 'int',
             '*readahead-size': 'int',
             '*page-cache-size': 'int',
-            '*debug-level': 'int' } }
+            '*debug': 'int' } }
 
 ##
 # @BlockdevOptionsCurl

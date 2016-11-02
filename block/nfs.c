@@ -134,7 +134,7 @@ static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
             qdict_put(options, "page-cache-size",
                       qstring_from_str(qp->p[i].value));
         } else if (!strcmp(qp->p[i].name, "debug")) {
-            qdict_put(options, "debug-level",
+            qdict_put(options, "debug",
                       qstring_from_str(qp->p[i].value));
         } else {
             error_setg(errp, "Unknown NFS parameter name: %s",
@@ -165,7 +165,7 @@ static bool nfs_has_filename_options_conflict(QDict *options, Error **errp)
             !strcmp(qe->key, "tcp-syn-count") ||
             !strcmp(qe->key, "readahead-size") ||
             !strcmp(qe->key, "page-cache-size") ||
-            !strcmp(qe->key, "debug-level") ||
+            !strcmp(qe->key, "debug") ||
             strstart(qe->key, "server.", NULL))
         {
             error_setg(errp, "Option %s cannot be used with a filename",
