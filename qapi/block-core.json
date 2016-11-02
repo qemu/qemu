@@ -2195,7 +2195,7 @@
 #
 # @server:      gluster servers description
 #
-# @debug-level: #optional libgfapi log level (default '4' which is Error)
+# @debug:       #optional libgfapi log level (default '4' which is Error)
 #
 # @logfile:     #optional libgfapi log file (default /dev/stderr) (Since 2.8)
 #
@@ -2205,7 +2205,7 @@
   'data': { 'volume': 'str',
             'path': 'str',
             'server': ['GlusterServer'],
-            '*debug-level': 'int',
+            '*debug': 'int',
             '*logfile': 'str' } }
 
 ##
