@@ -697,37 +697,37 @@ static void gen_partset_reg(int opsize, TCGv reg, TCGv val)
 
 /* Generate code for an "effective address".  Does not adjust the base
    register for autoincrement addressing modes.  */
-static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
-                    int opsize)
+static TCGv gen_lea_mode(CPUM68KState *env, DisasContext *s,
+                         int mode, int reg0, int opsize)
 {
     TCGv reg;
     TCGv tmp;
     uint16_t ext;
     uint32_t offset;
 
-    switch ((insn >> 3) & 7) {
+    switch (mode) {
     case 0: /* Data register direct.  */
     case 1: /* Address register direct.  */
         return NULL_QREG;
     case 2: /* Indirect register */
     case 3: /* Indirect postincrement.  */
-        return AREG(insn, 0);
+        return get_areg(s, reg0);
     case 4: /* Indirect predecrememnt.  */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         tmp = tcg_temp_new();
         tcg_gen_subi_i32(tmp, reg, opsize_bytes(opsize));
         return tmp;
     case 5: /* Indirect displacement.  */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         tmp = tcg_temp_new();
         ext = read_im16(env, s);
         tcg_gen_addi_i32(tmp, reg, (int16_t)ext);
         return tmp;
     case 6: /* Indirect index + displacement.  */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         return gen_lea_indexed(env, s, reg);
     case 7: /* Other */
-        switch (insn & 7) {
+        switch (reg0) {
         case 0: /* Absolute short.  */
             offset = (int16_t)read_im16(env, s);
             return tcg_const_i32(offset);
@@ -749,39 +749,26 @@ static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
     return NULL_QREG;
 }
 
-/* Helper function for gen_ea. Reuse the computed address between the
-   for read/write operands.  */
-static inline TCGv gen_ea_once(CPUM68KState *env, DisasContext *s,
-                               uint16_t insn, int opsize, TCGv val,
-                               TCGv *addrp, ea_what what)
+static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
+                    int opsize)
 {
-    TCGv tmp;
-
-    if (addrp && what == EA_STORE) {
-        tmp = *addrp;
-    } else {
-        tmp = gen_lea(env, s, insn, opsize);
-        if (IS_NULL_QREG(tmp))
-            return tmp;
-        if (addrp)
-            *addrp = tmp;
-    }
-    return gen_ldst(s, opsize, tmp, val, what);
+    int mode = extract32(insn, 3, 3);
+    int reg0 = REG(insn, 0);
+    return gen_lea_mode(env, s, mode, reg0, opsize);
 }
 
-/* Generate code to load/store a value from/into an EA.  If VAL > 0 this is
+/* Generate code to load/store a value from/into an EA.  If WHAT > 0 this is
    a write otherwise it is a read (0 == sign extend, -1 == zero extend).
    ADDRP is non-null for readwrite operands.  */
-static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
-                   int opsize, TCGv val, TCGv *addrp, ea_what what)
+static TCGv gen_ea_mode(CPUM68KState *env, DisasContext *s, int mode, int reg0,
+                        int opsize, TCGv val, TCGv *addrp, ea_what what)
 {
-    TCGv reg;
-    TCGv result;
-    uint32_t offset;
+    TCGv reg, tmp, result;
+    int32_t offset;
 
-    switch ((insn >> 3) & 7) {
+    switch (mode) {
     case 0: /* Data register direct.  */
-        reg = DREG(insn, 0);
+        reg = cpu_dregs[reg0];
         if (what == EA_STORE) {
             gen_partset_reg(opsize, reg, val);
             return store_dummy;
@@ -789,7 +776,7 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
             return gen_extend(reg, opsize, what == EA_LOADS);
         }
     case 1: /* Address register direct.  */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         if (what == EA_STORE) {
             tcg_gen_mov_i32(reg, val);
             return store_dummy;
@@ -797,45 +784,56 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
             return gen_extend(reg, opsize, what == EA_LOADS);
         }
     case 2: /* Indirect register */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         return gen_ldst(s, opsize, reg, val, what);
     case 3: /* Indirect postincrement.  */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         result = gen_ldst(s, opsize, reg, val, what);
         if (what == EA_STORE || !addrp) {
             TCGv tmp = tcg_temp_new();
             tcg_gen_addi_i32(tmp, reg, opsize_bytes(opsize));
-            delay_set_areg(s, REG(insn, 0), tmp, true);
+            delay_set_areg(s, reg0, tmp, true);
         }
         return result;
     case 4: /* Indirect predecrememnt.  */
-        {
-            TCGv tmp;
-            if (addrp && what == EA_STORE) {
-                tmp = *addrp;
-            } else {
-                tmp = gen_lea(env, s, insn, opsize);
-                if (IS_NULL_QREG(tmp))
-                    return tmp;
-                if (addrp)
-                    *addrp = tmp;
+        if (addrp && what == EA_STORE) {
+            tmp = *addrp;
+        } else {
+            tmp = gen_lea_mode(env, s, mode, reg0, opsize);
+            if (IS_NULL_QREG(tmp)) {
+                return tmp;
             }
-            result = gen_ldst(s, opsize, tmp, val, what);
-            if (what == EA_STORE || !addrp) {
-                delay_set_areg(s, REG(insn, 0), tmp, false);
+            if (addrp) {
+                *addrp = tmp;
             }
+        }
+        result = gen_ldst(s, opsize, tmp, val, what);
+        if (what == EA_STORE || !addrp) {
+            delay_set_areg(s, reg0, tmp, false);
         }
         return result;
     case 5: /* Indirect displacement.  */
     case 6: /* Indirect index + displacement.  */
-        return gen_ea_once(env, s, insn, opsize, val, addrp, what);
+    do_indirect:
+        if (addrp && what == EA_STORE) {
+            tmp = *addrp;
+        } else {
+            tmp = gen_lea_mode(env, s, mode, reg0, opsize);
+            if (IS_NULL_QREG(tmp)) {
+                return tmp;
+            }
+            if (addrp) {
+                *addrp = tmp;
+            }
+        }
+        return gen_ldst(s, opsize, tmp, val, what);
     case 7: /* Other */
-        switch (insn & 7) {
+        switch (reg0) {
         case 0: /* Absolute short.  */
         case 1: /* Absolute long.  */
         case 2: /* pc displacement  */
         case 3: /* pc index+displacement.  */
-            return gen_ea_once(env, s, insn, opsize, val, addrp, what);
+            goto do_indirect;
         case 4: /* Immediate.  */
             /* Sign extend values for consistency.  */
             switch (opsize) {
@@ -866,6 +864,14 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
     }
     /* Should never happen.  */
     return NULL_QREG;
+}
+
+static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
+                   int opsize, TCGv val, TCGv *addrp, ea_what what)
+{
+    int mode = extract32(insn, 3, 3);
+    int reg0 = REG(insn, 0);
+    return gen_ea_mode(env, s, mode, reg0, opsize, val, addrp, what);
 }
 
 typedef struct {
