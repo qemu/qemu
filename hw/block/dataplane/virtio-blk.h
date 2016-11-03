@@ -23,9 +23,9 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
                                   VirtIOBlockDataPlane **dataplane,
                                   Error **errp);
 void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s);
-void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s);
-void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s);
-void virtio_blk_data_plane_drain(VirtIOBlockDataPlane *s);
 void virtio_blk_data_plane_notify(VirtIOBlockDataPlane *s, VirtQueue *vq);
+
+int virtio_blk_data_plane_start(VirtIODevice *vdev);
+void virtio_blk_data_plane_stop(VirtIODevice *vdev);
 
 #endif /* HW_DATAPLANE_VIRTIO_BLK_H */

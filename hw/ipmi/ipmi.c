@@ -51,7 +51,7 @@ static int ipmi_do_hw_op(IPMIInterface *s, enum ipmi_op op, int checkonly)
         if (checkonly) {
             return 0;
         }
-        qemu_system_powerdown_request();
+        qemu_system_shutdown_request();
         return 0;
 
     case IPMI_SEND_NMI:
@@ -61,9 +61,15 @@ static int ipmi_do_hw_op(IPMIInterface *s, enum ipmi_op op, int checkonly)
         qmp_inject_nmi(NULL);
         return 0;
 
+    case IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP:
+        if (checkonly) {
+            return 0;
+        }
+        qemu_system_powerdown_request();
+        return 0;
+
     case IPMI_POWERCYCLE_CHASSIS:
     case IPMI_PULSE_DIAG_IRQ:
-    case IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP:
     case IPMI_POWERON_CHASSIS:
     default:
         return IPMI_CC_COMMAND_NOT_SUPPORTED;

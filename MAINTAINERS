@@ -1016,6 +1016,13 @@ F: include/sysemu/rng*.h
 F: backends/rng*.c
 F: tests/virtio-rng-test.c
 
+virtio-crypto
+M: Gonglei <arei.gonglei@huawei.com>
+S: Supported
+F: hw/virtio/virtio-crypto.c
+F: hw/virtio/virtio-crypto-pci.c
+F: include/hw/virtio/virtio-crypto.h
+
 nvme
 M: Keith Busch <keith.busch@intel.com>
 L: qemu-block@nongnu.org
@@ -1260,6 +1267,12 @@ M: Igor Mammedov <imammedo@redhat.com>
 S: Maintained
 F: backends/hostmem*.c
 F: include/sysemu/hostmem.h
+
+Cryptodev Backends
+M: Gonglei <arei.gonglei@huawei.com>
+S: Maintained
+F: include/sysemu/cryptodev*.h
+F: backends/cryptodev*.c
 
 QAPI
 M: Markus Armbruster <armbru@redhat.com>

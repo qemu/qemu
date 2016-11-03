@@ -3948,6 +3948,24 @@ secondary:
 If you want to know the detail of above command line, you can read
 the colo-compare git log.
 
+@item -object cryptodev-backend-builtin,id=@var{id}[,queues=@var{queues}]
+
+Creates a cryptodev backend which executes crypto opreation from
+the QEMU cipher APIS. The @var{id} parameter is
+a unique ID that will be used to reference this cryptodev backend from
+the @option{virtio-crypto} device. The @var{queues} parameter is optional,
+which specify the queue number of cryptodev backend, the default of
+@var{queues} is 1.
+
+@example
+
+ # qemu-system-x86_64 \
+   [...] \
+       -object cryptodev-backend-builtin,id=cryptodev0 \
+       -device virtio-crypto-pci,id=crypto0,cryptodev=cryptodev0 \
+   [...]
+@end example
+
 @item -object secret,id=@var{id},data=@var{string},format=@var{raw|base64}[,keyid=@var{secretid},iv=@var{string}]
 @item -object secret,id=@var{id},file=@var{filename},format=@var{raw|base64}[,keyid=@var{secretid},iv=@var{string}]
 

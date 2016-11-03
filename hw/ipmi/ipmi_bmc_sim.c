@@ -217,7 +217,6 @@ struct IPMIBmcSim {
     /* Odd netfns are for responses, so we only need the even ones. */
     const IPMINetfn *netfns[MAX_NETFNS / 2];
 
-    QemuMutex lock;
     /* We allow one event in the buffer */
     uint8_t evtbuf[16];
 
@@ -940,7 +939,6 @@ static void get_msg(IPMIBmcSim *ibs,
 {
     IPMIRcvBufEntry *msg;
 
-    qemu_mutex_lock(&ibs->lock);
     if (QTAILQ_EMPTY(&ibs->rcvbufs)) {
         rsp_buffer_set_error(rsp, 0x80); /* Queue empty */
         goto out;
@@ -960,7 +958,6 @@ static void get_msg(IPMIBmcSim *ibs,
     }
 
 out:
-    qemu_mutex_unlock(&ibs->lock);
     return;
 }
 
@@ -1055,11 +1052,9 @@ static void send_msg(IPMIBmcSim *ibs,
  end_msg:
     msg->buf[msg->len] = ipmb_checksum(msg->buf, msg->len, 0);
     msg->len++;
-    qemu_mutex_lock(&ibs->lock);
     QTAILQ_INSERT_TAIL(&ibs->rcvbufs, msg, entry);
     ibs->msg_flags |= IPMI_BMC_MSG_FLAG_RCV_MSG_QUEUE;
     k->set_atn(s, 1, attn_irq_enabled(ibs));
-    qemu_mutex_unlock(&ibs->lock);
 }
 
 static void do_watchdog_reset(IPMIBmcSim *ibs)
@@ -1753,7 +1748,6 @@ static void ipmi_sim_realize(DeviceState *dev, Error **errp)
     unsigned int i;
     IPMIBmcSim *ibs = IPMI_BMC_SIMULATOR(b);
 
-    qemu_mutex_init(&ibs->lock);
     QTAILQ_INIT(&ibs->rcvbufs);
 
     ibs->bmc_global_enables = (1 << IPMI_BMC_EVENT_LOG_BIT);
@@ -1791,6 +1785,7 @@ static void ipmi_sim_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIBmcClass *bk = IPMI_BMC_CLASS(oc);
 
+    dc->hotpluggable = false;
     dc->realize = ipmi_sim_realize;
     bk->handle_command = ipmi_sim_handle_command;
 }

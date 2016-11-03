@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "qemu/error-report.h"
 #include "sysemu/block-backend.h"
@@ -21,20 +22,30 @@
 #include "hw/virtio/virtio-access.h"
 
 /* Context: QEMU global mutex held */
-void virtio_scsi_set_iothread(VirtIOSCSI *s, IOThread *iothread)
+void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
 {
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
-    assert(!s->ctx);
-    s->ctx = iothread_get_aio_context(vs->conf.iothread);
-
-    /* Don't try if transport does not support notifiers. */
-    if (!k->set_guest_notifiers || !k->ioeventfd_started) {
-        fprintf(stderr, "virtio-scsi: Failed to set iothread "
-                   "(transport does not support notifiers)");
-        exit(1);
+    if (vs->conf.iothread) {
+        if (!k->set_guest_notifiers || !k->ioeventfd_assign) {
+            error_setg(errp,
+                       "device is incompatible with iothread "
+                       "(transport does not support notifiers)");
+            return;
+        }
+        if (!virtio_device_ioeventfd_enabled(vdev)) {
+            error_setg(errp, "ioeventfd is required for iothread");
+            return;
+        }
+        s->ctx = iothread_get_aio_context(vs->conf.iothread);
+    } else {
+        if (!virtio_device_ioeventfd_enabled(vdev)) {
+            return;
+        }
+        s->ctx = qemu_get_aio_context();
     }
 }
 
@@ -105,19 +116,19 @@ static void virtio_scsi_clear_aio(VirtIOSCSI *s)
 }
 
 /* Context: QEMU global mutex held */
-void virtio_scsi_dataplane_start(VirtIOSCSI *s)
+int virtio_scsi_dataplane_start(VirtIODevice *vdev)
 {
     int i;
     int rc;
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
     if (s->dataplane_started ||
         s->dataplane_starting ||
-        s->dataplane_fenced ||
-        s->ctx != iothread_get_aio_context(vs->conf.iothread)) {
-        return;
+        s->dataplane_fenced) {
+        return 0;
     }
 
     s->dataplane_starting = true;
@@ -152,7 +163,7 @@ void virtio_scsi_dataplane_start(VirtIOSCSI *s)
     s->dataplane_starting = false;
     s->dataplane_started = true;
     aio_context_release(s->ctx);
-    return;
+    return 0;
 
 fail_vrings:
     virtio_scsi_clear_aio(s);
@@ -165,14 +176,16 @@ fail_guest_notifiers:
     s->dataplane_fenced = true;
     s->dataplane_starting = false;
     s->dataplane_started = true;
+    return -ENOSYS;
 }
 
 /* Context: QEMU global mutex held */
-void virtio_scsi_dataplane_stop(VirtIOSCSI *s)
+void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
 {
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     int i;
 
     if (!s->dataplane_started || s->dataplane_stopping) {
@@ -186,7 +199,6 @@ void virtio_scsi_dataplane_stop(VirtIOSCSI *s)
         return;
     }
     s->dataplane_stopping = true;
-    assert(s->ctx == iothread_get_aio_context(vs->conf.iothread));
 
     aio_context_acquire(s->ctx);
     virtio_scsi_clear_aio(s);

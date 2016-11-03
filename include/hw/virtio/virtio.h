@@ -125,8 +125,14 @@ typedef struct VirtioDeviceClass {
      * must mask in frontend instead.
      */
     void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask);
+    int (*start_ioeventfd)(VirtIODevice *vdev);
+    void (*stop_ioeventfd)(VirtIODevice *vdev);
+    /* Saving and loading of a device; trying to deprecate save/load
+     * use vmsd for new devices.
+     */
     void (*save)(VirtIODevice *vdev, QEMUFile *f);
     int (*load)(VirtIODevice *vdev, QEMUFile *f, int version_id);
+    const VMStateDescription *vmsd;
 } VirtioDeviceClass;
 
 void virtio_instance_init_common(Object *proxy_obj, void *data,
@@ -145,9 +151,6 @@ typedef void (*VirtIOHandleOutput)(VirtIODevice *, VirtQueue *);
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             VirtIOHandleOutput handle_output);
-
-VirtQueue *virtio_add_queue_aio(VirtIODevice *vdev, int queue_size,
-                                VirtIOHandleOutput handle_output);
 
 void virtio_del_queue(VirtIODevice *vdev, int n);
 
@@ -265,9 +268,11 @@ uint16_t virtio_get_queue_index(VirtQueue *vq);
 EventNotifier *virtio_queue_get_guest_notifier(VirtQueue *vq);
 void virtio_queue_set_guest_notifier_fd_handler(VirtQueue *vq, bool assign,
                                                 bool with_irqfd);
+int virtio_device_start_ioeventfd(VirtIODevice *vdev);
+void virtio_device_stop_ioeventfd(VirtIODevice *vdev);
+bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev);
 EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq);
-void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign,
-                                               bool set_handler);
+void virtio_queue_host_notifier_read(EventNotifier *n);
 void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
                                                 void (*fn)(VirtIODevice *,
                                                            VirtQueue *));

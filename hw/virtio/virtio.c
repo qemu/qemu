@@ -97,7 +97,6 @@ struct VirtQueue
     uint16_t vector;
     VirtIOHandleOutput handle_output;
     VirtIOHandleOutput handle_aio_output;
-    bool use_aio;
     VirtIODevice *vdev;
     EventNotifier guest_notifier;
     EventNotifier host_notifier;
@@ -1287,9 +1286,8 @@ void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector)
     }
 }
 
-static VirtQueue *virtio_add_queue_internal(VirtIODevice *vdev, int queue_size,
-                                            VirtIOHandleOutput handle_output,
-                                            bool use_aio)
+VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
+                            VirtIOHandleOutput handle_output)
 {
     int i;
 
@@ -1306,26 +1304,8 @@ static VirtQueue *virtio_add_queue_internal(VirtIODevice *vdev, int queue_size,
     vdev->vq[i].vring.align = VIRTIO_PCI_VRING_ALIGN;
     vdev->vq[i].handle_output = handle_output;
     vdev->vq[i].handle_aio_output = NULL;
-    vdev->vq[i].use_aio = use_aio;
 
     return &vdev->vq[i];
-}
-
-/* Add a virt queue and mark AIO.
- * An AIO queue will use the AioContext based event interface instead of the
- * default IOHandler and EventNotifier interface.
- */
-VirtQueue *virtio_add_queue_aio(VirtIODevice *vdev, int queue_size,
-                                VirtIOHandleOutput handle_output)
-{
-    return virtio_add_queue_internal(vdev, queue_size, handle_output, true);
-}
-
-/* Add a normal virt queue (on the contrary to the AIO version above. */
-VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
-                            VirtIOHandleOutput handle_output)
-{
-    return virtio_add_queue_internal(vdev, queue_size, handle_output, false);
 }
 
 void virtio_del_queue(VirtIODevice *vdev, int n)
@@ -1635,6 +1615,10 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
         vdc->save(vdev, f);
     }
 
+    if (vdc->vmsd) {
+        vmstate_save_state(f, vdc->vmsd, vdev, NULL);
+    }
+
     /* Subsections */
     vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
 }
@@ -1776,6 +1760,13 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 
     if (vdc->load != NULL) {
         ret = vdc->load(vdev, f, version_id);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    if (vdc->vmsd) {
+        ret = vmstate_load_state(f, vdc->vmsd, vdev, version_id);
         if (ret) {
             return ret;
         }
@@ -2051,37 +2042,11 @@ void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
     }
 }
 
-static void virtio_queue_host_notifier_read(EventNotifier *n)
+void virtio_queue_host_notifier_read(EventNotifier *n)
 {
     VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
     if (event_notifier_test_and_clear(n)) {
         virtio_queue_notify_vq(vq);
-    }
-}
-
-void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign,
-                                               bool set_handler)
-{
-    AioContext *ctx = qemu_get_aio_context();
-    if (assign && set_handler) {
-        if (vq->use_aio) {
-            aio_set_event_notifier(ctx, &vq->host_notifier, true,
-                                   virtio_queue_host_notifier_read);
-        } else {
-            event_notifier_set_handler(&vq->host_notifier, true,
-                                       virtio_queue_host_notifier_read);
-        }
-    } else {
-        if (vq->use_aio) {
-            aio_set_event_notifier(ctx, &vq->host_notifier, true, NULL);
-        } else {
-            event_notifier_set_handler(&vq->host_notifier, true, NULL);
-        }
-    }
-    if (!assign) {
-        /* Test and clear notifier before after disabling event,
-         * in case poll callback didn't have time to run. */
-        virtio_queue_host_notifier_read(&vq->host_notifier);
     }
 }
 
@@ -2117,6 +2082,9 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
     Error *err = NULL;
+
+    /* Devices should either use vmsd or the load/save methods */
+    assert(!vdc->vmsd || !vdc->load);
 
     if (vdc->realize != NULL) {
         vdc->realize(dev, &err);
@@ -2158,15 +2126,102 @@ static Property virtio_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int virtio_device_start_ioeventfd_impl(VirtIODevice *vdev)
+{
+    VirtioBusState *qbus = VIRTIO_BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    int n, r, err;
+
+    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+        VirtQueue *vq = &vdev->vq[n];
+        if (!virtio_queue_get_num(vdev, n)) {
+            continue;
+        }
+        r = virtio_bus_set_host_notifier(qbus, n, true);
+        if (r < 0) {
+            err = r;
+            goto assign_error;
+        }
+        event_notifier_set_handler(&vq->host_notifier, true,
+                                   virtio_queue_host_notifier_read);
+    }
+
+    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+        /* Kick right away to begin processing requests already in vring */
+        VirtQueue *vq = &vdev->vq[n];
+        if (!vq->vring.num) {
+            continue;
+        }
+        event_notifier_set(&vq->host_notifier);
+    }
+    return 0;
+
+assign_error:
+    while (--n >= 0) {
+        VirtQueue *vq = &vdev->vq[n];
+        if (!virtio_queue_get_num(vdev, n)) {
+            continue;
+        }
+
+        event_notifier_set_handler(&vq->host_notifier, true, NULL);
+        r = virtio_bus_set_host_notifier(qbus, n, false);
+        assert(r >= 0);
+    }
+    return err;
+}
+
+int virtio_device_start_ioeventfd(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+
+    return virtio_bus_start_ioeventfd(vbus);
+}
+
+static void virtio_device_stop_ioeventfd_impl(VirtIODevice *vdev)
+{
+    VirtioBusState *qbus = VIRTIO_BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    int n, r;
+
+    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+        VirtQueue *vq = &vdev->vq[n];
+
+        if (!virtio_queue_get_num(vdev, n)) {
+            continue;
+        }
+        event_notifier_set_handler(&vq->host_notifier, true, NULL);
+        r = virtio_bus_set_host_notifier(qbus, n, false);
+        assert(r >= 0);
+    }
+}
+
+void virtio_device_stop_ioeventfd(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+
+    virtio_bus_stop_ioeventfd(vbus);
+}
+
 static void virtio_device_class_init(ObjectClass *klass, void *data)
 {
     /* Set the default value here. */
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = virtio_device_realize;
     dc->unrealize = virtio_device_unrealize;
     dc->bus_type = TYPE_VIRTIO_BUS;
     dc->props = virtio_properties;
+    vdc->start_ioeventfd = virtio_device_start_ioeventfd_impl;
+    vdc->stop_ioeventfd = virtio_device_stop_ioeventfd_impl;
+}
+
+bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+
+    return virtio_bus_ioeventfd_enabled(vbus);
 }
 
 static const TypeInfo virtio_device_info = {

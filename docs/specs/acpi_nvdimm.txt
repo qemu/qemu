@@ -127,6 +127,58 @@ _DSM process diagram:
  | result from the page     |      |              |
  +--------------------------+      +--------------+
 
- _FIT implementation
- -------------------
- TODO (will fill it when nvdimm hotplug is introduced)
+Device Handle Reservation
+-------------------------
+As we mentioned above, byte 0 ~ byte 3 in the DSM memory save NVDIMM device
+handle. The handle is completely QEMU internal thing, the values in range
+[0, 0xFFFF] indicate nvdimm device (O means nvdimm root device named NVDR),
+other values are reserved by other purpose.
+
+Current reserved handle:
+0x10000 is reserved for QEMU internal DSM function called on the root
+device.
+
+QEMU internal use only _DSM function
+------------------------------------
+UUID, 648B9CF2-CDA1-4312-8AD9-49C4AF32BD62, is reserved for QEMU internal
+DSM function.
+
+There is the function introduced by QEMU and only used by QEMU internal.
+
+1) Read FIT
+   As we only reserved one page for NVDIMM ACPI it is impossible to map the
+   whole FIT data to guest's address space. This function is used by _FIT
+   method to read a piece of FIT data from QEMU.
+
+   Input parameters:
+   Arg0 – UUID {set to 648B9CF2-CDA1-4312-8AD9-49C4AF32BD62}
+   Arg1 – Revision ID (set to 1)
+   Arg2 - Function Index, 0x1
+   Arg3 - A package containing a buffer whose layout is as follows:
+
+   +----------+-------------+-------------+-----------------------------------+
+   |  Filed   | Byte Length | Byte Offset | Description                       |
+   +----------+-------------+-------------+-----------------------------------+
+   | offset   |     4       |    0        | the offset of FIT buffer          |
+   +----------+-------------+-------------+-----------------------------------+
+
+   Output:
+   +----------+-------------+-------------+-----------------------------------+
+   |  Filed   | Byte Length | Byte Offset | Description                       |
+   +----------+-------------+-------------+-----------------------------------+
+   |          |             |             | return status codes               |
+   |          |             |             |   0x100 indicates fit has been    |
+   | status   |     4       |    0        |   updated                         |
+   |          |             |             | other follows Chapter 3 in DSM    |
+   |          |             |             | Spec Rev1                         |
+   +----------+-------------+-------------+-----------------------------------+
+   | fit data |  Varies     |    4        | FIT data                          |
+   |          |             |             |                                   |
+   +----------+-------------+-------------+-----------------------------------+
+
+   The FIT offset is maintained by the caller itself, current offset plugs
+   the length returned by the function is the next offset we should read.
+   When all the FIT data has been read out, zero length is returned.
+
+   If it returns 0x100, OSPM should restart to read FIT (read from offset 0
+   again).

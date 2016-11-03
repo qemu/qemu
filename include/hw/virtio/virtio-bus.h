@@ -70,21 +70,11 @@ typedef struct VirtioBusClass {
     void (*device_unplugged)(DeviceState *d);
     int (*query_nvectors)(DeviceState *d);
     /*
-     * ioeventfd handling: if the transport implements ioeventfd_started,
-     * it must implement the other ioeventfd callbacks as well
+     * ioeventfd handling: if the transport implements ioeventfd_assign,
+     * it must implement ioeventfd_enabled as well.
      */
-    /* Returns true if the ioeventfd has been started for the device. */
-    bool (*ioeventfd_started)(DeviceState *d);
-    /*
-     * Sets the 'ioeventfd started' state after the ioeventfd has been
-     * started/stopped for the device. err signifies whether an error
-     * had occurred.
-     */
-    void (*ioeventfd_set_started)(DeviceState *d, bool started, bool err);
-    /* Returns true if the ioeventfd has been disabled for the device. */
-    bool (*ioeventfd_disabled)(DeviceState *d);
-    /* Sets the 'ioeventfd disabled' state for the device. */
-    void (*ioeventfd_set_disabled)(DeviceState *d, bool disabled);
+    /* Returns true if the ioeventfd is enabled for the device. */
+    bool (*ioeventfd_enabled)(DeviceState *d);
     /*
      * Assigns/deassigns the ioeventfd backing for the transport on
      * the device for queue number n. Returns an error value on
@@ -102,6 +92,11 @@ typedef struct VirtioBusClass {
 
 struct VirtioBusState {
     BusState parent_obj;
+
+    /*
+     * Set if ioeventfd has been started.
+     */
+    bool ioeventfd_started;
 };
 
 void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp);
@@ -130,8 +125,10 @@ static inline VirtIODevice *virtio_bus_get_device(VirtioBusState *bus)
     return (VirtIODevice *)qdev;
 }
 
+/* Return whether the proxy allows ioeventfd.  */
+bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus);
 /* Start the ioeventfd. */
-void virtio_bus_start_ioeventfd(VirtioBusState *bus);
+int virtio_bus_start_ioeventfd(VirtioBusState *bus);
 /* Stop the ioeventfd. */
 void virtio_bus_stop_ioeventfd(VirtioBusState *bus);
 /* Switch from/to the generic ioeventfd handler */

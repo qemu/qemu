@@ -59,38 +59,11 @@ static void virtio_ccw_stop_ioeventfd(VirtioCcwDevice *dev)
     virtio_bus_stop_ioeventfd(&dev->bus);
 }
 
-static bool virtio_ccw_ioeventfd_started(DeviceState *d)
+static bool virtio_ccw_ioeventfd_enabled(DeviceState *d)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
 
-    return dev->ioeventfd_started;
-}
-
-static void virtio_ccw_ioeventfd_set_started(DeviceState *d, bool started,
-                                             bool err)
-{
-    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
-
-    dev->ioeventfd_started = started;
-    if (err) {
-        /* Disable ioeventfd for this device. */
-        dev->flags &= ~VIRTIO_CCW_FLAG_USE_IOEVENTFD;
-    }
-}
-
-static bool virtio_ccw_ioeventfd_disabled(DeviceState *d)
-{
-    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
-
-    return dev->ioeventfd_disabled ||
-        !(dev->flags & VIRTIO_CCW_FLAG_USE_IOEVENTFD);
-}
-
-static void virtio_ccw_ioeventfd_set_disabled(DeviceState *d, bool disabled)
-{
-    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
-
-    dev->ioeventfd_disabled = disabled;
+    return (dev->flags & VIRTIO_CCW_FLAG_USE_IOEVENTFD) != 0;
 }
 
 static int virtio_ccw_ioeventfd_assign(DeviceState *d, EventNotifier *notifier,
@@ -709,6 +682,10 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
         sch->cssid, sch->ssid, sch->schid, sch->devno,
         ccw_dev->bus_id.valid ? "user-configured" : "auto-configured");
 
+    if (!kvm_eventfds_enabled()) {
+        dev->flags &= ~VIRTIO_CCW_FLAG_USE_IOEVENTFD;
+    }
+
     if (k->realize) {
         k->realize(dev, &err);
     }
@@ -1311,10 +1288,6 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
         return;
     }
 
-    if (!kvm_eventfds_enabled()) {
-        dev->flags &= ~VIRTIO_CCW_FLAG_USE_IOEVENTFD;
-    }
-
     sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
 
 
@@ -1616,10 +1589,7 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)
     k->pre_plugged = virtio_ccw_pre_plugged;
     k->device_plugged = virtio_ccw_device_plugged;
     k->device_unplugged = virtio_ccw_device_unplugged;
-    k->ioeventfd_started = virtio_ccw_ioeventfd_started;
-    k->ioeventfd_set_started = virtio_ccw_ioeventfd_set_started;
-    k->ioeventfd_disabled = virtio_ccw_ioeventfd_disabled;
-    k->ioeventfd_set_disabled = virtio_ccw_ioeventfd_set_disabled;
+    k->ioeventfd_enabled = virtio_ccw_ioeventfd_enabled;
     k->ioeventfd_assign = virtio_ccw_ioeventfd_assign;
 }
 

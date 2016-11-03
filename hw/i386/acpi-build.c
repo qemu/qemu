@@ -2068,6 +2068,13 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         method = aml_method("_E03", 0, AML_NOTSERIALIZED);
         aml_append(method, aml_call0(MEMORY_HOTPLUG_HANDLER_PATH));
         aml_append(scope, method);
+
+        if (pcms->acpi_nvdimm_state.is_enabled) {
+            method = aml_method("_E04", 0, AML_NOTSERIALIZED);
+            aml_append(method, aml_notify(aml_name("\\_SB.NVDR"),
+                                          aml_int(0x80)));
+            aml_append(scope, method);
+        }
     }
     aml_append(dsdt, scope);
 
@@ -2810,7 +2817,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     }
     if (pcms->acpi_nvdimm_state.is_enabled) {
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
-                          pcms->acpi_nvdimm_state.dsm_mem);
+                          &pcms->acpi_nvdimm_state, machine->ram_slots);
     }
 
     /* Add tables supplied by user (if any) */

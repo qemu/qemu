@@ -147,131 +147,97 @@ void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
     }
 }
 
+int virtio_bus_start_ioeventfd(VirtioBusState *bus)
+{
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+    DeviceState *proxy = DEVICE(BUS(bus)->parent);
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    int r;
+
+    if (!k->ioeventfd_assign || !k->ioeventfd_enabled(proxy)) {
+        return -ENOSYS;
+    }
+    if (bus->ioeventfd_started) {
+        return 0;
+    }
+    r = vdc->start_ioeventfd(vdev);
+    if (r < 0) {
+        error_report("%s: failed. Fallback to userspace (slower).", __func__);
+        return r;
+    }
+    bus->ioeventfd_started = true;
+    return 0;
+}
+
+void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
+{
+    VirtIODevice *vdev;
+    VirtioDeviceClass *vdc;
+
+    if (!bus->ioeventfd_started) {
+        return;
+    }
+
+    vdev = virtio_bus_get_device(bus);
+    vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    vdc->stop_ioeventfd(vdev);
+    bus->ioeventfd_started = false;
+}
+
+bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus)
+{
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+    DeviceState *proxy = DEVICE(BUS(bus)->parent);
+
+    return k->ioeventfd_assign && k->ioeventfd_enabled(proxy);
+}
+
 /*
- * This function handles both assigning the ioeventfd handler and
- * registering it with the kernel.
- * assign: register/deregister ioeventfd with the kernel
- * set_handler: use the generic ioeventfd handler
+ * This function switches ioeventfd on/off in the device.
+ * The caller must set or clear the handlers for the EventNotifier.
  */
-static int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
-                                      int n, bool assign, bool set_handler)
+int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+    DeviceState *proxy = DEVICE(BUS(bus)->parent);
     VirtQueue *vq = virtio_get_queue(vdev, n);
     EventNotifier *notifier = virtio_queue_get_host_notifier(vq);
     int r = 0;
 
+    if (!k->ioeventfd_assign) {
+        return -ENOSYS;
+    }
+
     if (assign) {
+        assert(!bus->ioeventfd_started);
         r = event_notifier_init(notifier, 1);
         if (r < 0) {
             error_report("%s: unable to init event notifier: %s (%d)",
                          __func__, strerror(-r), r);
             return r;
         }
-        virtio_queue_set_host_notifier_fd_handler(vq, true, set_handler);
-        r = k->ioeventfd_assign(proxy, notifier, n, assign);
+        r = k->ioeventfd_assign(proxy, notifier, n, true);
         if (r < 0) {
             error_report("%s: unable to assign ioeventfd: %d", __func__, r);
-            virtio_queue_set_host_notifier_fd_handler(vq, false, false);
-            event_notifier_cleanup(notifier);
-            return r;
+            goto cleanup_event_notifier;
         }
+        return 0;
     } else {
-        k->ioeventfd_assign(proxy, notifier, n, assign);
-        virtio_queue_set_host_notifier_fd_handler(vq, false, false);
-        event_notifier_cleanup(notifier);
+        if (!bus->ioeventfd_started) {
+            return 0;
+        }
+        k->ioeventfd_assign(proxy, notifier, n, false);
     }
+
+cleanup_event_notifier:
+    /* Test and clear notifier after disabling event,
+     * in case poll callback didn't have time to run.
+     */
+    virtio_queue_host_notifier_read(notifier);
+    event_notifier_cleanup(notifier);
     return r;
-}
-
-void virtio_bus_start_ioeventfd(VirtioBusState *bus)
-{
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
-    DeviceState *proxy = DEVICE(BUS(bus)->parent);
-    VirtIODevice *vdev;
-    int n, r;
-
-    if (!k->ioeventfd_started || k->ioeventfd_started(proxy)) {
-        return;
-    }
-    if (k->ioeventfd_disabled(proxy)) {
-        return;
-    }
-    vdev = virtio_bus_get_device(bus);
-    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
-        if (!virtio_queue_get_num(vdev, n)) {
-            continue;
-        }
-        r = set_host_notifier_internal(proxy, bus, n, true, true);
-        if (r < 0) {
-            goto assign_error;
-        }
-    }
-    k->ioeventfd_set_started(proxy, true, false);
-    return;
-
-assign_error:
-    while (--n >= 0) {
-        if (!virtio_queue_get_num(vdev, n)) {
-            continue;
-        }
-
-        r = set_host_notifier_internal(proxy, bus, n, false, false);
-        assert(r >= 0);
-    }
-    k->ioeventfd_set_started(proxy, false, true);
-    error_report("%s: failed. Fallback to userspace (slower).", __func__);
-}
-
-void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
-{
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
-    DeviceState *proxy = DEVICE(BUS(bus)->parent);
-    VirtIODevice *vdev;
-    int n, r;
-
-    if (!k->ioeventfd_started || !k->ioeventfd_started(proxy)) {
-        return;
-    }
-    vdev = virtio_bus_get_device(bus);
-    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
-        if (!virtio_queue_get_num(vdev, n)) {
-            continue;
-        }
-        r = set_host_notifier_internal(proxy, bus, n, false, false);
-        assert(r >= 0);
-    }
-    k->ioeventfd_set_started(proxy, false, false);
-}
-
-/*
- * This function switches from/to the generic ioeventfd handler.
- * assign==false means 'use generic ioeventfd handler'.
- */
-int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
-{
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
-    DeviceState *proxy = DEVICE(BUS(bus)->parent);
-
-    if (!k->ioeventfd_started) {
-        return -ENOSYS;
-    }
-    k->ioeventfd_set_disabled(proxy, assign);
-    if (assign) {
-        /*
-         * Stop using the generic ioeventfd, we are doing eventfd handling
-         * ourselves below
-         *
-         * FIXME: We should just switch the handler and not deassign the
-         * ioeventfd.
-         * Otherwise, there's a window where we don't have an
-         * ioeventfd and we may end up with a notification where
-         * we don't expect one.
-         */
-        virtio_bus_stop_ioeventfd(bus);
-    }
-    return set_host_notifier_internal(proxy, bus, n, assign, false);
 }
 
 static char *virtio_bus_get_dev_path(DeviceState *dev)

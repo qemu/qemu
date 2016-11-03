@@ -434,7 +434,7 @@ static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
 
     if (s->ctx) {
-        virtio_scsi_dataplane_start(s);
+        virtio_device_start_ioeventfd(vdev);
         if (!s->dataplane_fenced) {
             return;
         }
@@ -610,7 +610,7 @@ static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
 
     if (s->ctx) {
-        virtio_scsi_dataplane_start(s);
+        virtio_device_start_ioeventfd(vdev);
         if (!s->dataplane_fenced) {
             return;
         }
@@ -669,9 +669,7 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
-    if (s->ctx) {
-        virtio_scsi_dataplane_stop(s);
-    }
+    assert(!s->dataplane_started);
     s->resetting++;
     qbus_reset_all(&s->bus.qbus);
     s->resetting--;
@@ -749,7 +747,7 @@ static void virtio_scsi_handle_event(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
     if (s->ctx) {
-        virtio_scsi_dataplane_start(s);
+        virtio_device_start_ioeventfd(vdev);
         if (!s->dataplane_fenced) {
             return;
         }
@@ -848,14 +846,10 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
     s->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_DEFAULT_SIZE;
 
-    s->ctrl_vq = virtio_add_queue_aio(vdev, VIRTIO_SCSI_VQ_SIZE, ctrl);
-    s->event_vq = virtio_add_queue_aio(vdev, VIRTIO_SCSI_VQ_SIZE, evt);
+    s->ctrl_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE, ctrl);
+    s->event_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE, evt);
     for (i = 0; i < s->conf.num_queues; i++) {
-        s->cmd_vqs[i] = virtio_add_queue_aio(vdev, VIRTIO_SCSI_VQ_SIZE, cmd);
-    }
-
-    if (s->conf.iothread) {
-        virtio_scsi_set_iothread(VIRTIO_SCSI(s), s->conf.iothread);
+        s->cmd_vqs[i] = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE, cmd);
     }
 }
 
@@ -885,6 +879,8 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
+
+    virtio_scsi_dataplane_setup(s, errp);
 }
 
 static void virtio_scsi_instance_init(Object *obj)
@@ -957,6 +953,8 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
     vdc->set_config = virtio_scsi_set_config;
     vdc->get_features = virtio_scsi_get_features;
     vdc->reset = virtio_scsi_reset;
+    vdc->start_ioeventfd = virtio_scsi_dataplane_start;
+    vdc->stop_ioeventfd = virtio_scsi_dataplane_stop;
     hc->plug = virtio_scsi_hotplug;
     hc->unplug = virtio_scsi_hotunplug;
 }
