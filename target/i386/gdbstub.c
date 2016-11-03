@@ -44,10 +44,22 @@ int x86_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
+    /* N.B. GDB can't deal with changes in registers or sizes in the middle
+       of a session. So if we're in 32-bit mode on a 64-bit cpu, still act
+       as if we're on a 64-bit cpu. */
+
     if (n < CPU_NB_REGS) {
-        if (TARGET_LONG_BITS == 64 && env->hflags & HF_CS64_MASK) {
-            return gdb_get_reg64(mem_buf, env->regs[gpr_map[n]]);
-        } else if (n < CPU_NB_REGS32) {
+        if (TARGET_LONG_BITS == 64) {
+            if (env->hflags & HF_CS64_MASK) {
+                return gdb_get_reg64(mem_buf, env->regs[gpr_map[n]]);
+            } else if (n < CPU_NB_REGS32) {
+                return gdb_get_reg64(mem_buf,
+                                     env->regs[gpr_map[n]] & 0xffffffffUL);
+            } else {
+                memset(mem_buf, 0, sizeof(target_ulong));
+                return sizeof(target_ulong);
+            }
+        } else {
             return gdb_get_reg32(mem_buf, env->regs[gpr_map32[n]]);
         }
     } else if (n >= IDX_FP_REGS && n < IDX_FP_REGS + 8) {
@@ -60,8 +72,7 @@ int x86_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
         return 10;
     } else if (n >= IDX_XMM_REGS && n < IDX_XMM_REGS + CPU_NB_REGS) {
         n -= IDX_XMM_REGS;
-        if (n < CPU_NB_REGS32 ||
-            (TARGET_LONG_BITS == 64 && env->hflags & HF_CS64_MASK)) {
+        if (n < CPU_NB_REGS32 || TARGET_LONG_BITS == 64) {
             stq_p(mem_buf, env->xmm_regs[n].ZMM_Q(0));
             stq_p(mem_buf + 8, env->xmm_regs[n].ZMM_Q(1));
             return 16;
@@ -69,8 +80,12 @@ int x86_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     } else {
         switch (n) {
         case IDX_IP_REG:
-            if (TARGET_LONG_BITS == 64 && env->hflags & HF_CS64_MASK) {
-                return gdb_get_reg64(mem_buf, env->eip);
+            if (TARGET_LONG_BITS == 64) {
+                if (env->hflags & HF_CS64_MASK) {
+                    return gdb_get_reg64(mem_buf, env->eip);
+                } else {
+                    return gdb_get_reg64(mem_buf, env->eip & 0xffffffffUL);
+                }
             } else {
                 return gdb_get_reg32(mem_buf, env->eip);
             }
@@ -151,9 +166,17 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     CPUX86State *env = &cpu->env;
     uint32_t tmp;
 
+    /* N.B. GDB can't deal with changes in registers or sizes in the middle
+       of a session. So if we're in 32-bit mode on a 64-bit cpu, still act
+       as if we're on a 64-bit cpu. */
+
     if (n < CPU_NB_REGS) {
-        if (TARGET_LONG_BITS == 64 && env->hflags & HF_CS64_MASK) {
-            env->regs[gpr_map[n]] = ldtul_p(mem_buf);
+        if (TARGET_LONG_BITS == 64) {
+            if (env->hflags & HF_CS64_MASK) {
+                env->regs[gpr_map[n]] = ldtul_p(mem_buf);
+            } else if (n < CPU_NB_REGS32) {
+                env->regs[gpr_map[n]] = ldtul_p(mem_buf) & 0xffffffffUL;
+            }
             return sizeof(target_ulong);
         } else if (n < CPU_NB_REGS32) {
             n = gpr_map32[n];
@@ -169,8 +192,7 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         return 10;
     } else if (n >= IDX_XMM_REGS && n < IDX_XMM_REGS + CPU_NB_REGS) {
         n -= IDX_XMM_REGS;
-        if (n < CPU_NB_REGS32 ||
-            (TARGET_LONG_BITS == 64 && env->hflags & HF_CS64_MASK)) {
+        if (n < CPU_NB_REGS32 || TARGET_LONG_BITS == 64) {
             env->xmm_regs[n].ZMM_Q(0) = ldq_p(mem_buf);
             env->xmm_regs[n].ZMM_Q(1) = ldq_p(mem_buf + 8);
             return 16;
@@ -178,8 +200,12 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     } else {
         switch (n) {
         case IDX_IP_REG:
-            if (TARGET_LONG_BITS == 64 && env->hflags & HF_CS64_MASK) {
-                env->eip = ldq_p(mem_buf);
+            if (TARGET_LONG_BITS == 64) {
+                if (env->hflags & HF_CS64_MASK) {
+                    env->eip = ldq_p(mem_buf);
+                } else {
+                    env->eip = ldq_p(mem_buf) & 0xffffffffUL;
+                }
                 return 8;
             } else {
                 env->eip &= ~0xffffffffUL;
