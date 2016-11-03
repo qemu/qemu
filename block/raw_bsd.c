@@ -119,7 +119,7 @@ static int raw_read_options(QDict *options, BlockDriverState *bs,
 
     /* Make sure size is multiple of BDRV_SECTOR_SIZE to prevent rounding
      * up and leaking out of the specified area. */
-    if (!QEMU_IS_ALIGNED(s->size, BDRV_SECTOR_SIZE)) {
+    if (s->has_size && !QEMU_IS_ALIGNED(s->size, BDRV_SECTOR_SIZE)) {
         error_setg(errp, "Specified size is not multiple of %llu",
             BDRV_SECTOR_SIZE);
         ret = -EINVAL;
