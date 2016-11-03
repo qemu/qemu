@@ -632,7 +632,7 @@ void virtqueue_map(VirtQueueElement *elem)
                         VIRTQUEUE_MAX_SIZE, 0);
 }
 
-void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num)
+static void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num)
 {
     VirtQueueElement *elem;
     size_t in_addr_ofs = QEMU_ALIGN_UP(sz, __alignof__(elem->in_addr[0]));
