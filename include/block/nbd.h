@@ -1,4 +1,5 @@
 /*
+ *  Copyright (C) 2016 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -25,52 +26,89 @@
 #include "io/channel-socket.h"
 #include "crypto/tlscreds.h"
 
-/* Note: these are _NOT_ the same as the network representation of an NBD
+/* Handshake phase structs - this struct is passed on the wire */
+
+struct nbd_option {
+    uint64_t magic; /* NBD_OPTS_MAGIC */
+    uint32_t option; /* NBD_OPT_* */
+    uint32_t length;
+} QEMU_PACKED;
+typedef struct nbd_option nbd_option;
+
+struct nbd_opt_reply {
+    uint64_t magic; /* NBD_REP_MAGIC */
+    uint32_t option; /* NBD_OPT_* */
+    uint32_t type; /* NBD_REP_* */
+    uint32_t length;
+} QEMU_PACKED;
+typedef struct nbd_opt_reply nbd_opt_reply;
+
+/* Transmission phase structs
+ *
+ * Note: these are _NOT_ the same as the network representation of an NBD
  * request and reply!
  */
-struct nbd_request {
+struct NBDRequest {
     uint64_t handle;
     uint64_t from;
     uint32_t len;
-    uint32_t type;
+    uint16_t flags; /* NBD_CMD_FLAG_* */
+    uint16_t type; /* NBD_CMD_* */
 };
+typedef struct NBDRequest NBDRequest;
 
-struct nbd_reply {
+struct NBDReply {
     uint64_t handle;
     uint32_t error;
 };
+typedef struct NBDReply NBDReply;
 
+/* Transmission (export) flags: sent from server to client during handshake,
+   but describe what will happen during transmission */
 #define NBD_FLAG_HAS_FLAGS      (1 << 0)        /* Flags are there */
 #define NBD_FLAG_READ_ONLY      (1 << 1)        /* Device is read-only */
 #define NBD_FLAG_SEND_FLUSH     (1 << 2)        /* Send FLUSH */
 #define NBD_FLAG_SEND_FUA       (1 << 3)        /* Send FUA (Force Unit Access) */
 #define NBD_FLAG_ROTATIONAL     (1 << 4)        /* Use elevator algorithm - rotational media */
 #define NBD_FLAG_SEND_TRIM      (1 << 5)        /* Send TRIM (discard) */
+#define NBD_FLAG_SEND_WRITE_ZEROES (1 << 6)     /* Send WRITE_ZEROES */
 
-/* New-style global flags. */
-#define NBD_FLAG_FIXED_NEWSTYLE     (1 << 0)    /* Fixed newstyle protocol. */
+/* New-style handshake (global) flags, sent from server to client, and
+   control what will happen during handshake phase. */
+#define NBD_FLAG_FIXED_NEWSTYLE   (1 << 0) /* Fixed newstyle protocol. */
+#define NBD_FLAG_NO_ZEROES        (1 << 1) /* End handshake without zeroes. */
 
-/* New-style client flags. */
-#define NBD_FLAG_C_FIXED_NEWSTYLE   (1 << 0)    /* Fixed newstyle protocol. */
+/* New-style client flags, sent from client to server to control what happens
+   during handshake phase. */
+#define NBD_FLAG_C_FIXED_NEWSTYLE (1 << 0) /* Fixed newstyle protocol. */
+#define NBD_FLAG_C_NO_ZEROES      (1 << 1) /* End handshake without zeroes. */
 
 /* Reply types. */
+#define NBD_REP_ERR(value) ((UINT32_C(1) << 31) | (value))
+
 #define NBD_REP_ACK             (1)             /* Data sending finished. */
 #define NBD_REP_SERVER          (2)             /* Export description. */
-#define NBD_REP_ERR_UNSUP       ((UINT32_C(1) << 31) | 1) /* Unknown option. */
-#define NBD_REP_ERR_POLICY      ((UINT32_C(1) << 31) | 2) /* Server denied */
-#define NBD_REP_ERR_INVALID     ((UINT32_C(1) << 31) | 3) /* Invalid length. */
-#define NBD_REP_ERR_TLS_REQD    ((UINT32_C(1) << 31) | 5) /* TLS required */
 
+#define NBD_REP_ERR_UNSUP       NBD_REP_ERR(1)  /* Unknown option */
+#define NBD_REP_ERR_POLICY      NBD_REP_ERR(2)  /* Server denied */
+#define NBD_REP_ERR_INVALID     NBD_REP_ERR(3)  /* Invalid length */
+#define NBD_REP_ERR_PLATFORM    NBD_REP_ERR(4)  /* Not compiled in */
+#define NBD_REP_ERR_TLS_REQD    NBD_REP_ERR(5)  /* TLS required */
+#define NBD_REP_ERR_SHUTDOWN    NBD_REP_ERR(7)  /* Server shutting down */
 
-#define NBD_CMD_MASK_COMMAND	0x0000ffff
-#define NBD_CMD_FLAG_FUA	(1 << 16)
+/* Request flags, sent from client to server during transmission phase */
+#define NBD_CMD_FLAG_FUA        (1 << 0) /* 'force unit access' during write */
+#define NBD_CMD_FLAG_NO_HOLE    (1 << 1) /* don't punch hole on zero run */
 
+/* Supported request types */
 enum {
     NBD_CMD_READ = 0,
     NBD_CMD_WRITE = 1,
     NBD_CMD_DISC = 2,
     NBD_CMD_FLUSH = 3,
-    NBD_CMD_TRIM = 4
+    NBD_CMD_TRIM = 4,
+    /* 5 reserved for failed experiment NBD_CMD_CACHE */
+    NBD_CMD_WRITE_ZEROES = 6,
 };
 
 #define NBD_DEFAULT_PORT	10809
@@ -95,8 +133,8 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                           QIOChannel **outioc,
                           off_t *size, Error **errp);
 int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size);
-ssize_t nbd_send_request(QIOChannel *ioc, struct nbd_request *request);
-ssize_t nbd_receive_reply(QIOChannel *ioc, struct nbd_reply *reply);
+ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request);
+ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply);
 int nbd_client(int fd);
 int nbd_disconnect(int fd);
 
@@ -115,6 +153,7 @@ BlockBackend *nbd_export_get_blockdev(NBDExport *exp);
 
 NBDExport *nbd_export_find(const char *name);
 void nbd_export_set_name(NBDExport *exp, const char *name);
+void nbd_export_set_description(NBDExport *exp, const char *description);
 void nbd_export_close_all(void);
 
 void nbd_client_new(NBDExport *exp,

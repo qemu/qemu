@@ -763,8 +763,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
             return -1;
         }
 
-        if (slirp_add_exec(s->slirp, 3, qemu_chr_fe_get_driver(&fwd->hd),
-                           &server, port) < 0) {
+        if (slirp_add_exec(s->slirp, 3, &fwd->hd, &server, port) < 0) {
             error_report("conflicting/invalid host:port in guest forwarding "
                          "rule '%s'", config_str);
             g_free(fwd);

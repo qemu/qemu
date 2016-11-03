@@ -1754,7 +1754,7 @@ sub process {
 			# Ignore those directives where spaces _are_ permitted.
 			if ($name =~ /^(?:
 				if|for|while|switch|return|case|
-				volatile|__volatile__|
+				volatile|__volatile__|coroutine_fn|
 				__attribute__|format|__extension__|
 				asm|__asm__)$/x)
 			{
@@ -2498,8 +2498,8 @@ sub process {
 				VMStateDescription|
 				VMStateInfo}x;
 		if ($line !~ /\bconst\b/ &&
-		    $line =~ /\b($struct_ops)\b/) {
-			ERROR("struct $1 should normally be const\n" .
+		    $line =~ /\b($struct_ops)\b.*=/) {
+			ERROR("initializer for struct $1 should normally be const\n" .
 				$herecurr);
 		}
 

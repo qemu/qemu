@@ -17,24 +17,24 @@
 
 #define MAX_NBD_REQUESTS    16
 
-typedef struct NbdClientSession {
+typedef struct NBDClientSession {
     QIOChannelSocket *sioc; /* The master data channel */
     QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
     uint16_t nbdflags;
     off_t size;
 
     CoMutex send_mutex;
-    CoMutex free_sema;
+    CoQueue free_sema;
     Coroutine *send_coroutine;
     int in_flight;
 
     Coroutine *recv_coroutine[MAX_NBD_REQUESTS];
-    struct nbd_reply reply;
+    NBDReply reply;
 
     bool is_unix;
-} NbdClientSession;
+} NBDClientSession;
 
-NbdClientSession *nbd_get_client_session(BlockDriverState *bs);
+NBDClientSession *nbd_get_client_session(BlockDriverState *bs);
 
 int nbd_client_init(BlockDriverState *bs,
                     QIOChannelSocket *sock,
@@ -48,6 +48,8 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int count);
 int nbd_client_co_flush(BlockDriverState *bs);
 int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
                           uint64_t bytes, QEMUIOVector *qiov, int flags);
+int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+                                int count, BdrvRequestFlags flags);
 int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
                          uint64_t bytes, QEMUIOVector *qiov, int flags);
 

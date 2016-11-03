@@ -493,7 +493,7 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
                                   hwaddr *xlat, hwaddr *plen)
 {
     MemoryRegionSection *section;
-    AddressSpaceDispatch *d = cpu->cpu_ases[asidx].memory_dispatch;
+    AddressSpaceDispatch *d = atomic_rcu_read(&cpu->cpu_ases[asidx].memory_dispatch);
 
     section = address_space_translate_internal(d, addr, xlat, plen, false);
 
@@ -1231,6 +1231,15 @@ void qemu_mutex_unlock_ramlist(void)
 }
 
 #ifdef __linux__
+static int64_t get_file_size(int fd)
+{
+    int64_t size = lseek(fd, 0, SEEK_END);
+    if (size < 0) {
+        return -errno;
+    }
+    return size;
+}
+
 static void *file_ram_alloc(RAMBlock *block,
                             ram_addr_t memory,
                             const char *path,
@@ -1242,6 +1251,7 @@ static void *file_ram_alloc(RAMBlock *block,
     char *c;
     void *area = MAP_FAILED;
     int fd = -1;
+    int64_t file_size;
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
         error_setg(errp,
@@ -1304,10 +1314,19 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 #endif
 
+    file_size = get_file_size(fd);
+
     if (memory < block->page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
                    "or larger than page size 0x%zx",
                    memory, block->page_size);
+        goto error;
+    }
+
+    if (file_size > 0 && file_size < memory) {
+        error_setg(errp, "backing store %s size 0x%" PRIx64
+                   " does not match 'size' option 0x" RAM_ADDR_FMT,
+                   path, file_size, memory);
         goto error;
     }
 
@@ -1318,8 +1337,16 @@ static void *file_ram_alloc(RAMBlock *block,
      * hosts, so don't bother bailing out on errors.
      * If anything goes wrong with it under other filesystems,
      * mmap will fail.
+     *
+     * Do not truncate the non-empty backend file to avoid corrupting
+     * the existing data in the file. Disabling shrinking is not
+     * enough. For example, the current vNVDIMM implementation stores
+     * the guest NVDIMM labels at the end of the backend file. If the
+     * backend file is later extended, QEMU will not be able to find
+     * those labels. Therefore, extending the non-empty backend file
+     * is disabled as well.
      */
-    if (ftruncate(fd, memory)) {
+    if (!file_size && ftruncate(fd, memory)) {
         perror("ftruncate");
     }
 
@@ -2378,7 +2405,7 @@ static void tcg_commit(MemoryListener *listener)
      * may have split the RCU critical section.
      */
     d = atomic_rcu_read(&cpuas->as->dispatch);
-    cpuas->memory_dispatch = d;
+    atomic_rcu_set(&cpuas->memory_dispatch, d);
     tlb_flush(cpuas->cpu, 1);
 }
 

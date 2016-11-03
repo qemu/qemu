@@ -44,7 +44,7 @@
 #define EN_OPTSTR ":exportname="
 
 typedef struct BDRVNBDState {
-    NbdClientSession client;
+    NBDClientSession client;
 
     /* For nbd_refresh_filename() */
     SocketAddress *saddr;
@@ -294,7 +294,7 @@ done:
     return saddr;
 }
 
-NbdClientSession *nbd_get_client_session(BlockDriverState *bs)
+NBDClientSession *nbd_get_client_session(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
     return &s->client;
@@ -466,6 +466,7 @@ static int nbd_co_flush(BlockDriverState *bs)
 static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     bs->bl.max_pdiscard = NBD_MAX_BUFFER_SIZE;
+    bs->bl.max_pwrite_zeroes = NBD_MAX_BUFFER_SIZE;
     bs->bl.max_transfer = NBD_MAX_BUFFER_SIZE;
 }
 
@@ -558,6 +559,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_file_open             = nbd_open,
     .bdrv_co_preadv             = nbd_client_co_preadv,
     .bdrv_co_pwritev            = nbd_client_co_pwritev,
+    .bdrv_co_pwrite_zeroes      = nbd_client_co_pwrite_zeroes,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
@@ -576,6 +578,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_file_open             = nbd_open,
     .bdrv_co_preadv             = nbd_client_co_preadv,
     .bdrv_co_pwritev            = nbd_client_co_pwritev,
+    .bdrv_co_pwrite_zeroes      = nbd_client_co_pwrite_zeroes,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
@@ -594,6 +597,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_file_open             = nbd_open,
     .bdrv_co_preadv             = nbd_client_co_preadv,
     .bdrv_co_pwritev            = nbd_client_co_pwritev,
+    .bdrv_co_pwrite_zeroes      = nbd_client_co_pwrite_zeroes,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,

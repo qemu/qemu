@@ -4621,10 +4621,10 @@
 #
 # @pause: system pauses
 #
-# Since: 2.1
+# Since: 2.1 (poweroff since 2.8)
 ##
 { 'enum': 'GuestPanicAction',
-  'data': [ 'pause' ] }
+  'data': [ 'pause', 'poweroff' ] }
 
 ##
 # @rtc-reset-reinjection

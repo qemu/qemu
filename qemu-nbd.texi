@@ -79,9 +79,12 @@ Disconnect the device @var{dev}
 Allow up to @var{num} clients to share the device (default @samp{1})
 @item -t, --persistent
 Don't exit on the last connection
-@item -x NAME, --export-name=NAME
+@item -x, --export-name=@var{name}
 Set the NBD volume export name. This switches the server to use
 the new style NBD protocol negotiation
+@item -D, --description=@var{description}
+Set the NBD volume export description, as a human-readable
+string. Requires the use of @option{-x}
 @item --tls-creds=ID
 Enable mandatory TLS encryption for the server by setting the ID
 of the TLS credentials object previously created with the --object
