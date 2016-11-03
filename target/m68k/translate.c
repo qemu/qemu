@@ -59,12 +59,12 @@ static TCGv cpu_aregs[8];
 static TCGv_i64 cpu_fregs[8];
 static TCGv_i64 cpu_macc[4];
 
-#define REG(insn, pos) (((insn) >> (pos)) & 7)
+#define REG(insn, pos)  (((insn) >> (pos)) & 7)
 #define DREG(insn, pos) cpu_dregs[REG(insn, pos)]
-#define AREG(insn, pos) cpu_aregs[REG(insn, pos)]
+#define AREG(insn, pos) get_areg(s, REG(insn, pos))
 #define FREG(insn, pos) cpu_fregs[REG(insn, pos)]
-#define MACREG(acc) cpu_macc[acc]
-#define QREG_SP cpu_aregs[7]
+#define MACREG(acc)     cpu_macc[acc]
+#define QREG_SP         get_areg(s, 7)
 
 static TCGv NULL_QREG;
 #define IS_NULL_QREG(t) (TCGV_EQUAL(t, NULL_QREG))
@@ -141,7 +141,54 @@ typedef struct DisasContext {
     int singlestep_enabled;
     TCGv_i64 mactmp;
     int done_mac;
+    int writeback_mask;
+    TCGv writeback[8];
 } DisasContext;
+
+static TCGv get_areg(DisasContext *s, unsigned regno)
+{
+    if (s->writeback_mask & (1 << regno)) {
+        return s->writeback[regno];
+    } else {
+        return cpu_aregs[regno];
+    }
+}
+
+static void delay_set_areg(DisasContext *s, unsigned regno,
+                           TCGv val, bool give_temp)
+{
+    if (s->writeback_mask & (1 << regno)) {
+        if (give_temp) {
+            tcg_temp_free(s->writeback[regno]);
+            s->writeback[regno] = val;
+        } else {
+            tcg_gen_mov_i32(s->writeback[regno], val);
+        }
+    } else {
+        s->writeback_mask |= 1 << regno;
+        if (give_temp) {
+            s->writeback[regno] = val;
+        } else {
+            TCGv tmp = tcg_temp_new();
+            s->writeback[regno] = tmp;
+            tcg_gen_mov_i32(tmp, val);
+        }
+    }
+}
+
+static void do_writebacks(DisasContext *s)
+{
+    unsigned mask = s->writeback_mask;
+    if (mask) {
+        s->writeback_mask = 0;
+        do {
+            unsigned regno = ctz32(mask);
+            tcg_gen_mov_i32(cpu_aregs[regno], s->writeback[regno]);
+            tcg_temp_free(s->writeback[regno]);
+            mask &= mask - 1;
+        } while (mask);
+    }
+}
 
 #define DISAS_JUMP_NEXT 4
 
@@ -331,7 +378,7 @@ static inline uint32_t read_im32(CPUM68KState *env, DisasContext *s)
 }
 
 /* Calculate and address index.  */
-static TCGv gen_addr_index(uint16_t ext, TCGv tmp)
+static TCGv gen_addr_index(DisasContext *s, uint16_t ext, TCGv tmp)
 {
     TCGv add;
     int scale;
@@ -388,7 +435,7 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
         tmp = tcg_temp_new();
         if ((ext & 0x44) == 0) {
             /* pre-index */
-            add = gen_addr_index(ext, tmp);
+            add = gen_addr_index(s, ext, tmp);
         } else {
             add = NULL_QREG;
         }
@@ -417,7 +464,7 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
             /* memory indirect */
             base = gen_load(s, OS_LONG, add, 0);
             if ((ext & 0x44) == 4) {
-                add = gen_addr_index(ext, tmp);
+                add = gen_addr_index(s, ext, tmp);
                 tcg_gen_add_i32(tmp, add, base);
                 add = tmp;
             } else {
@@ -441,7 +488,7 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
     } else {
         /* brief extension word format */
         tmp = tcg_temp_new();
-        add = gen_addr_index(ext, tmp);
+        add = gen_addr_index(s, ext, tmp);
         if (!IS_NULL_QREG(base)) {
             tcg_gen_add_i32(tmp, add, base);
             if ((int8_t)ext)
@@ -755,10 +802,11 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
     case 3: /* Indirect postincrement.  */
         reg = AREG(insn, 0);
         result = gen_ldst(s, opsize, reg, val, what);
-        /* ??? This is not exception safe.  The instruction may still
-           fault after this point.  */
-        if (what == EA_STORE || !addrp)
-            tcg_gen_addi_i32(reg, reg, opsize_bytes(opsize));
+        if (what == EA_STORE || !addrp) {
+            TCGv tmp = tcg_temp_new();
+            tcg_gen_addi_i32(tmp, reg, opsize_bytes(opsize));
+            delay_set_areg(s, REG(insn, 0), tmp, true);
+        }
         return result;
     case 4: /* Indirect predecrememnt.  */
         {
@@ -773,11 +821,8 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
                     *addrp = tmp;
             }
             result = gen_ldst(s, opsize, tmp, val, what);
-            /* ??? This is not exception safe.  The instruction may still
-               fault after this point.  */
             if (what == EA_STORE || !addrp) {
-                reg = AREG(insn, 0);
-                tcg_gen_mov_i32(reg, tmp);
+                delay_set_areg(s, REG(insn, 0), tmp, false);
             }
         }
         return result;
@@ -3446,11 +3491,9 @@ void register_m68k_insns (CPUM68KState *env)
    write back the result to memory before setting the condition codes.  */
 static void disas_m68k_insn(CPUM68KState * env, DisasContext *s)
 {
-    uint16_t insn;
-
-    insn = read_im16(env, s);
-
+    uint16_t insn = read_im16(env, s);
     opcode_table[insn](env, s, insn);
+    do_writebacks(s);
 }
 
 /* generate intermediate code for basic block 'tb'.  */
@@ -3478,6 +3521,7 @@ void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
     dc->fpcr = env->fpcr;
     dc->user = (env->sr & SR_S) == 0;
     dc->done_mac = 0;
+    dc->writeback_mask = 0;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
