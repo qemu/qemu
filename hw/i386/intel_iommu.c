@@ -218,7 +218,7 @@ static void vtd_reset_iotlb(IntelIOMMUState *s)
     g_hash_table_remove_all(s->iotlb);
 }
 
-static uint64_t vtd_get_iotlb_key(uint64_t gfn, uint8_t source_id,
+static uint64_t vtd_get_iotlb_key(uint64_t gfn, uint16_t source_id,
                                   uint32_t level)
 {
     return gfn | ((uint64_t)(source_id) << VTD_IOTLB_SID_SHIFT) |
