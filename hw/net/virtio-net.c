@@ -1177,7 +1177,7 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
          * must have consumed the complete packet.
          * Otherwise, drop it. */
         if (!n->mergeable_rx_bufs && offset < size) {
-            virtqueue_discard(q->rx_vq, elem, total);
+            virtqueue_unpop(q->rx_vq, elem, total);
             g_free(elem);
             return size;
         }

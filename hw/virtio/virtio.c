@@ -279,7 +279,7 @@ void virtqueue_detach_element(VirtQueue *vq, const VirtQueueElement *elem,
     virtqueue_unmap_sg(vq, elem, len);
 }
 
-/* virtqueue_discard:
+/* virtqueue_unpop:
  * @vq: The #VirtQueue
  * @elem: The #VirtQueueElement
  * @len: number of bytes written
@@ -287,8 +287,8 @@ void virtqueue_detach_element(VirtQueue *vq, const VirtQueueElement *elem,
  * Pretend the most recent element wasn't popped from the virtqueue.  The next
  * call to virtqueue_pop() will refetch the element.
  */
-void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
-                       unsigned int len)
+void virtqueue_unpop(VirtQueue *vq, const VirtQueueElement *elem,
+                     unsigned int len)
 {
     vq->last_avail_idx--;
     virtqueue_detach_element(vq, elem, len);
@@ -301,7 +301,7 @@ void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
  * Pretend that elements weren't popped from the virtqueue.  The next
  * virtqueue_pop() will refetch the oldest element.
  *
- * Use virtqueue_discard() instead if you have a VirtQueueElement.
+ * Use virtqueue_unpop() instead if you have a VirtQueueElement.
  *
  * Returns: true on success, false if @num is greater than the number of in use
  * elements.
