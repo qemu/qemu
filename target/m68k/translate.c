@@ -2224,6 +2224,21 @@ DISAS_INSN(cmpa)
     gen_update_cc_cmp(s, reg, src, OS_LONG);
 }
 
+DISAS_INSN(cmpm)
+{
+    int opsize = insn_opsize(insn);
+    TCGv src, dst;
+
+    /* Post-increment load (mode 3) from Ay.  */
+    src = gen_ea_mode(env, s, 3, REG(insn, 0), opsize,
+                      NULL_QREG, NULL, EA_LOADS);
+    /* Post-increment load (mode 3) from Ax.  */
+    dst = gen_ea_mode(env, s, 3, REG(insn, 9), opsize,
+                      NULL_QREG, NULL, EA_LOADS);
+
+    gen_update_cc_cmp(s, dst, src, opsize);
+}
+
 DISAS_INSN(eor)
 {
     TCGv src;
@@ -3465,6 +3480,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(cmpa,      b1c0, f1c0, CF_ISA_A);
     INSN(cmp,       b000, f100, M68000);
     INSN(eor,       b100, f100, M68000);
+    INSN(cmpm,      b108, f138, M68000);
     INSN(cmpa,      b0c0, f0c0, M68000);
     INSN(eor,       b180, f1c0, CF_ISA_A);
     BASE(and,       c000, f000);
