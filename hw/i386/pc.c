@@ -2189,6 +2189,8 @@ static void pc_machine_initfn(Object *obj)
     pcms->vmport = ON_OFF_AUTO_AUTO;
     /* nvdimm is disabled on default. */
     pcms->acpi_nvdimm_state.is_enabled = false;
+    /* acpi build is enabled by default if machine supports it */
+    pcms->acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)->has_acpi_build;
 }
 
 static void pc_machine_reset(void)

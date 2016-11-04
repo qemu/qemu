@@ -2960,7 +2960,7 @@ void acpi_setup(void)
         return;
     }
 
-    if (!pcmc->has_acpi_build) {
+    if (!pcms->acpi_build_enabled) {
         ACPI_BUILD_DPRINTF("ACPI build disabled. Bailing out.\n");
         return;
     }

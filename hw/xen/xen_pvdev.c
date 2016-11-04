@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-
+#include "qemu/log.h"
 #include "hw/xen/xen_backend.h"
 #include "hw/xen/xen_pvdev.h"
 
