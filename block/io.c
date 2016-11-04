@@ -2381,7 +2381,9 @@ flush_parent:
     ret = bs->file ? bdrv_co_flush(bs->file->bs) : 0;
 out:
     /* Notify any pending flushes that we have completed */
-    bs->flushed_gen = current_gen;
+    if (ret == 0) {
+        bs->flushed_gen = current_gen;
+    }
     bs->active_flush_req = NULL;
     /* Return value is ignored - it's ok if wait queue is empty */
     qemu_co_queue_next(&bs->flush_queue);
