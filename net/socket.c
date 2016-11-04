@@ -511,6 +511,7 @@ static int net_socket_listen_init(NetClientState *peer,
     s->fd = -1;
     s->listen_fd = ret;
     s->nc.link_down = true;
+    net_socket_rs_init(&s->rs, net_socket_rs_finalize);
 
     qemu_set_fd_handler(s->listen_fd, net_socket_accept, NULL, s);
     qapi_free_SocketAddress(saddr);

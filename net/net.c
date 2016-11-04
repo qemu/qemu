@@ -1653,9 +1653,8 @@ int net_fill_rstate(SocketReadState *rs, const uint8_t *buf, int size)
             if (rs->index >= rs->packet_len) {
                 rs->index = 0;
                 rs->state = 0;
-                if (rs->finalize) {
-                    rs->finalize(rs);
-                }
+                assert(rs->finalize);
+                rs->finalize(rs);
             }
             break;
         }
