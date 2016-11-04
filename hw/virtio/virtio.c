@@ -2214,6 +2214,8 @@ static void virtio_device_class_init(ObjectClass *klass, void *data)
     dc->props = virtio_properties;
     vdc->start_ioeventfd = virtio_device_start_ioeventfd_impl;
     vdc->stop_ioeventfd = virtio_device_stop_ioeventfd_impl;
+
+    vdc->legacy_features |= VIRTIO_LEGACY_FEATURES;
 }
 
 bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev)
