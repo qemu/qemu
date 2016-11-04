@@ -14,6 +14,10 @@ struct vhost_virtqueue {
     void *avail;
     void *used;
     int num;
+    unsigned long long desc_phys;
+    unsigned desc_size;
+    unsigned long long avail_phys;
+    unsigned avail_size;
     unsigned long long used_phys;
     unsigned used_size;
     void *ring;
