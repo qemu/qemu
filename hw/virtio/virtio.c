@@ -1935,11 +1935,6 @@ hwaddr virtio_queue_get_used_addr(VirtIODevice *vdev, int n)
     return vdev->vq[n].vring.used;
 }
 
-hwaddr virtio_queue_get_ring_addr(VirtIODevice *vdev, int n)
-{
-    return vdev->vq[n].vring.desc;
-}
-
 hwaddr virtio_queue_get_desc_size(VirtIODevice *vdev, int n)
 {
     return sizeof(VRingDesc) * vdev->vq[n].vring.num;
@@ -1955,12 +1950,6 @@ hwaddr virtio_queue_get_used_size(VirtIODevice *vdev, int n)
 {
     return offsetof(VRingUsed, ring) +
         sizeof(VRingUsedElem) * vdev->vq[n].vring.num;
-}
-
-hwaddr virtio_queue_get_ring_size(VirtIODevice *vdev, int n)
-{
-    return vdev->vq[n].vring.used - vdev->vq[n].vring.desc +
-	    virtio_queue_get_used_size(vdev, n);
 }
 
 uint16_t virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n)
