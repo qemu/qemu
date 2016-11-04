@@ -150,13 +150,16 @@ The trace backends are chosen at configure time:
 For a list of supported trace backends, try ./configure --help or see below.
 If multiple backends are enabled, the trace is sent to them all.
 
+If no backends are explicitly selected, configure will default to the
+"log" backend.
+
 The following subsections describe the supported trace backends.
 
 === Nop ===
 
 The "nop" backend generates empty trace event functions so that the compiler
-can optimize out trace events completely.  This is the default and imposes no
-performance penalty.
+can optimize out trace events completely.  This imposes no performance
+penalty.
 
 Note that regardless of the selected trace backend, events with the "disable"
 property will be generated with the "nop" backend.
