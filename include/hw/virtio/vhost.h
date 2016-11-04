@@ -20,9 +20,6 @@ struct vhost_virtqueue {
     unsigned avail_size;
     unsigned long long used_phys;
     unsigned used_size;
-    void *ring;
-    unsigned long long ring_phys;
-    unsigned ring_size;
     EventNotifier masked_notifier;
 };
 

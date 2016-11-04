@@ -923,14 +923,6 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         goto fail_alloc_used;
     }
 
-    vq->ring_size = s = l = virtio_queue_get_ring_size(vdev, idx);
-    vq->ring_phys = a = virtio_queue_get_ring_addr(vdev, idx);
-    vq->ring = cpu_physical_memory_map(a, &l, 1);
-    if (!vq->ring || l != s) {
-        r = -ENOMEM;
-        goto fail_alloc_ring;
-    }
-
     r = vhost_virtqueue_set_addr(dev, vq, vhost_vq_index, dev->log_enabled);
     if (r < 0) {
         r = -errno;
@@ -971,9 +963,6 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
 fail_vector:
 fail_kick:
 fail_alloc:
-    cpu_physical_memory_unmap(vq->ring, virtio_queue_get_ring_size(vdev, idx),
-                              0, 0);
-fail_alloc_ring:
     cpu_physical_memory_unmap(vq->used, virtio_queue_get_used_size(vdev, idx),
                               0, 0);
 fail_alloc_used:
@@ -1014,8 +1003,6 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
                                                 vhost_vq_index);
     }
 
-    cpu_physical_memory_unmap(vq->ring, virtio_queue_get_ring_size(vdev, idx),
-                              0, virtio_queue_get_ring_size(vdev, idx));
     cpu_physical_memory_unmap(vq->used, virtio_queue_get_used_size(vdev, idx),
                               1, virtio_queue_get_used_size(vdev, idx));
     cpu_physical_memory_unmap(vq->avail, virtio_queue_get_avail_size(vdev, idx),
