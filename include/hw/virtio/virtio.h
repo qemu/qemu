@@ -112,6 +112,11 @@ typedef struct VirtioDeviceClass {
     void (*set_config)(VirtIODevice *vdev, const uint8_t *config);
     void (*reset)(VirtIODevice *vdev);
     void (*set_status)(VirtIODevice *vdev, uint8_t val);
+    /* For transitional devices, this is a bitmap of features
+     * that are only exposed on the legacy interface but not
+     * the modern one.
+     */
+    uint64_t legacy_features;
     /* Test and clear event pending status.
      * Should be called after unmask to avoid losing events.
      * If backend does not support masking,
