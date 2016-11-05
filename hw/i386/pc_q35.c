@@ -248,11 +248,13 @@ static void pc_q35_init(MachineState *machine)
         ehci_create_ich9_with_companions(host_bus, 0x1d);
     }
 
-    /* TODO: Populate SPD eeprom data.  */
-    smbus_eeprom_init(ich9_smb_init(host_bus,
-                                    PCI_DEVFN(ICH9_SMB_DEV, ICH9_SMB_FUNC),
-                                    0xb100),
-                      8, NULL, 0);
+    if (pcms->smbus) {
+        /* TODO: Populate SPD eeprom data.  */
+        smbus_eeprom_init(ich9_smb_init(host_bus,
+                                        PCI_DEVFN(ICH9_SMB_DEV, ICH9_SMB_FUNC),
+                                        0xb100),
+                          8, NULL, 0);
+    }
 
     pc_cmos_init(pcms, idebus[0], idebus[1], rtc_state);
 
