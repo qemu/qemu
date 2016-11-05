@@ -400,13 +400,13 @@ static void pc_cmos_init_late(void *opaque)
     int i, trans;
 
     val = 0;
-    if (ide_get_geometry(arg->idebus[0], 0,
-                         &cylinders, &heads, &sectors) >= 0) {
+    if (arg->idebus[0] && ide_get_geometry(arg->idebus[0], 0,
+                                           &cylinders, &heads, &sectors) >= 0) {
         cmos_init_hd(s, 0x19, 0x1b, cylinders, heads, sectors);
         val |= 0xf0;
     }
-    if (ide_get_geometry(arg->idebus[0], 1,
-                         &cylinders, &heads, &sectors) >= 0) {
+    if (arg->idebus[0] && ide_get_geometry(arg->idebus[0], 1,
+                                           &cylinders, &heads, &sectors) >= 0) {
         cmos_init_hd(s, 0x1a, 0x24, cylinders, heads, sectors);
         val |= 0x0f;
     }
@@ -418,7 +418,8 @@ static void pc_cmos_init_late(void *opaque)
            geometry.  It is always such that: 1 <= sects <= 63, 1
            <= heads <= 16, 1 <= cylinders <= 16383. The BIOS
            geometry can be different if a translation is done. */
-        if (ide_get_geometry(arg->idebus[i / 2], i % 2,
+        if (arg->idebus[i / 2] &&
+            ide_get_geometry(arg->idebus[i / 2], i % 2,
                              &cylinders, &heads, &sectors) >= 0) {
             trans = ide_get_bios_chs_trans(arg->idebus[i / 2], i % 2) - 1;
             assert((trans & ~3) == 0);
@@ -2172,6 +2173,20 @@ static void pc_machine_set_smbus(Object *obj, bool value, Error **errp)
     pcms->smbus = value;
 }
 
+static bool pc_machine_get_sata(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->sata;
+}
+
+static void pc_machine_set_sata(Object *obj, bool value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    pcms->sata = value;
+}
+
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -2184,6 +2199,7 @@ static void pc_machine_initfn(Object *obj)
     /* acpi build is enabled by default if machine supports it */
     pcms->acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)->has_acpi_build;
     pcms->smbus = true;
+    pcms->sata = true;
 }
 
 static void pc_machine_reset(void)
@@ -2347,6 +2363,9 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, PC_MACHINE_SMBUS,
         pc_machine_get_smbus, pc_machine_set_smbus, &error_abort);
+
+    object_class_property_add_bool(oc, PC_MACHINE_SATA,
+        pc_machine_get_sata, pc_machine_set_sata, &error_abort);
 }
 
 static const TypeInfo pc_machine_info = {

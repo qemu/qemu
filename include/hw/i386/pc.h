@@ -64,6 +64,7 @@ struct PCMachineState {
 
     bool acpi_build_enabled;
     bool smbus;
+    bool sata;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
@@ -90,6 +91,7 @@ struct PCMachineState {
 #define PC_MACHINE_SMM              "smm"
 #define PC_MACHINE_NVDIMM           "nvdimm"
 #define PC_MACHINE_SMBUS            "smbus"
+#define PC_MACHINE_SATA             "sata"
 
 /**
  * PCMachineClass:

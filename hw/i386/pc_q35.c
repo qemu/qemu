@@ -232,16 +232,20 @@ static void pc_q35_init(MachineState *machine)
     /* connect pm stuff to lpc */
     ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pcms));
 
-    /* ahci and SATA device, for q35 1 ahci controller is built-in */
-    ahci = pci_create_simple_multifunction(host_bus,
-                                           PCI_DEVFN(ICH9_SATA1_DEV,
-                                                     ICH9_SATA1_FUNC),
-                                           true, "ich9-ahci");
-    idebus[0] = qdev_get_child_bus(&ahci->qdev, "ide.0");
-    idebus[1] = qdev_get_child_bus(&ahci->qdev, "ide.1");
-    g_assert(MAX_SATA_PORTS == ICH_AHCI(ahci)->ahci.ports);
-    ide_drive_get(hd, ICH_AHCI(ahci)->ahci.ports);
-    ahci_ide_create_devs(ahci, hd);
+    if (pcms->sata) {
+        /* ahci and SATA device, for q35 1 ahci controller is built-in */
+        ahci = pci_create_simple_multifunction(host_bus,
+                                               PCI_DEVFN(ICH9_SATA1_DEV,
+                                                         ICH9_SATA1_FUNC),
+                                               true, "ich9-ahci");
+        idebus[0] = qdev_get_child_bus(&ahci->qdev, "ide.0");
+        idebus[1] = qdev_get_child_bus(&ahci->qdev, "ide.1");
+        g_assert(MAX_SATA_PORTS == ICH_AHCI(ahci)->ahci.ports);
+        ide_drive_get(hd, ICH_AHCI(ahci)->ahci.ports);
+        ahci_ide_create_devs(ahci, hd);
+    } else {
+        idebus[0] = idebus[1] = NULL;
+    }
 
     if (machine_usb(machine)) {
         /* Should we create 6 UHCI according to ich9 spec? */
