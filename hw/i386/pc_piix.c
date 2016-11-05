@@ -235,7 +235,7 @@ static void pc_init1(MachineState *machine,
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, pcms->gsi, &rtc_state, true,
-                         (pcms->vmport != ON_OFF_AUTO_ON), 0x4);
+                         (pcms->vmport != ON_OFF_AUTO_ON), pcms->pit, 0x4);
 
     pc_nic_init(isa_bus, pci_bus);
 

@@ -65,6 +65,7 @@ struct PCMachineState {
     bool acpi_build_enabled;
     bool smbus;
     bool sata;
+    bool pit;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
@@ -92,6 +93,7 @@ struct PCMachineState {
 #define PC_MACHINE_NVDIMM           "nvdimm"
 #define PC_MACHINE_SMBUS            "smbus"
 #define PC_MACHINE_SATA             "sata"
+#define PC_MACHINE_PIT              "pit"
 
 /**
  * PCMachineClass:
@@ -264,6 +266,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
                           bool create_fdctrl,
                           bool no_vmport,
+                          bool has_pit,
                           uint32_t hpet_irqs);
 void pc_init_ne2k_isa(ISABus *bus, NICInfo *nd);
 void pc_cmos_init(PCMachineState *pcms,

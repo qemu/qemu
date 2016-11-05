@@ -1536,6 +1536,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
                           bool create_fdctrl,
                           bool no_vmport,
+                          bool has_pit,
                           uint32_t hpet_irqs)
 {
     int i;
@@ -1589,7 +1590,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
 
     qemu_register_boot_set(pc_boot_set, *rtc_state);
 
-    if (!xen_enabled()) {
+    if (!xen_enabled() && has_pit) {
         if (kvm_pit_in_kernel()) {
             pit = kvm_pit_init(isa_bus, 0x40);
         } else {
@@ -2187,6 +2188,20 @@ static void pc_machine_set_sata(Object *obj, bool value, Error **errp)
     pcms->sata = value;
 }
 
+static bool pc_machine_get_pit(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->pit;
+}
+
+static void pc_machine_set_pit(Object *obj, bool value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    pcms->pit = value;
+}
+
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -2200,6 +2215,7 @@ static void pc_machine_initfn(Object *obj)
     pcms->acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)->has_acpi_build;
     pcms->smbus = true;
     pcms->sata = true;
+    pcms->pit = true;
 }
 
 static void pc_machine_reset(void)
@@ -2366,6 +2382,9 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, PC_MACHINE_SATA,
         pc_machine_get_sata, pc_machine_set_sata, &error_abort);
+
+    object_class_property_add_bool(oc, PC_MACHINE_PIT,
+        pc_machine_get_pit, pc_machine_set_pit, &error_abort);
 }
 
 static const TypeInfo pc_machine_info = {
