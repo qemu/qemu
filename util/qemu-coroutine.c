@@ -131,6 +131,13 @@ void qemu_coroutine_enter(Coroutine *co)
     }
 }
 
+void qemu_coroutine_enter_if_inactive(Coroutine *co)
+{
+    if (!qemu_coroutine_entered(co)) {
+        qemu_coroutine_enter(co);
+    }
+}
+
 void coroutine_fn qemu_coroutine_yield(void)
 {
     Coroutine *self = qemu_coroutine_self();
