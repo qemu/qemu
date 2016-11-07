@@ -392,12 +392,6 @@ static void nvdimm_build_nfit(AcpiNVDIMMState *state, GArray *table_offsets,
     NvdimmFitBuffer *fit_buf = &state->fit_buf;
     unsigned int header;
 
-
-    /* NVDIMM device is not plugged? */
-    if (!fit_buf->fit->len) {
-        return;
-    }
-
     acpi_add_table(table_offsets, table_data);
 
     /* NFIT header. */
@@ -1275,14 +1269,22 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        BIOSLinker *linker, AcpiNVDIMMState *state,
                        uint32_t ram_slots)
 {
-    nvdimm_build_nfit(state, table_offsets, table_data, linker);
+    GSList *device_list;
 
-    /*
-     * NVDIMM device is allowed to be plugged only if there is available
-     * slot.
-     */
-    if (ram_slots) {
-        nvdimm_build_ssdt(table_offsets, table_data, linker, state->dsm_mem,
-                          ram_slots);
+    /* no nvdimm device can be plugged. */
+    if (!ram_slots) {
+        return;
     }
+
+    nvdimm_build_ssdt(table_offsets, table_data, linker, state->dsm_mem,
+                      ram_slots);
+
+    device_list = nvdimm_get_plugged_device_list();
+    /* no NVDIMM device is plugged. */
+    if (!device_list) {
+        return;
+    }
+
+    nvdimm_build_nfit(state, table_offsets, table_data, linker);
+    g_slist_free(device_list);
 }
