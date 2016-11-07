@@ -1716,7 +1716,7 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
     }
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
-        nvdimm_acpi_hotplug(&pcms->acpi_nvdimm_state);
+        nvdimm_plug(&pcms->acpi_nvdimm_state);
     }
 
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);

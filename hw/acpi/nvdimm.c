@@ -380,7 +380,7 @@ static void nvdimm_build_fit_buffer(NvdimmFitBuffer *fit_buf)
     fit_buf->dirty = true;
 }
 
-void nvdimm_acpi_hotplug(AcpiNVDIMMState *state)
+void nvdimm_plug(AcpiNVDIMMState *state)
 {
     nvdimm_build_fit_buffer(&state->fit_buf);
 }
