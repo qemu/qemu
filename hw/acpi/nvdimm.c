@@ -1098,13 +1098,11 @@ static void nvdimm_build_fit(Aml *dev)
     buf_size = aml_local(1);
     fit = aml_local(2);
 
-    aml_append(dev, aml_create_dword_field(aml_buffer(4, NULL),
-               aml_int(0), NVDIMM_DSM_RFIT_STATUS));
+    aml_append(dev, aml_name_decl(NVDIMM_DSM_RFIT_STATUS, aml_int(0)));
 
     /* build helper function, RFIT. */
     method = aml_method("RFIT", 1, AML_SERIALIZED);
-    aml_append(method, aml_create_dword_field(aml_buffer(4, NULL),
-                                              aml_int(0), "OFST"));
+    aml_append(method, aml_name_decl("OFST", aml_int(0)));
 
     /* prepare input package. */
     pkg = aml_package(1);
