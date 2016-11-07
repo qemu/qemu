@@ -171,18 +171,17 @@ static bool quorum_64bits_compare(QuorumVoteValue *a, QuorumVoteValue *b)
     return a->l == b->l;
 }
 
-static QuorumAIOCB *quorum_aio_get(BDRVQuorumState *s,
-                                   BlockDriverState *bs,
+static QuorumAIOCB *quorum_aio_get(BlockDriverState *bs,
                                    QEMUIOVector *qiov,
                                    uint64_t sector_num,
                                    int nb_sectors,
                                    BlockCompletionFunc *cb,
                                    void *opaque)
 {
+    BDRVQuorumState *s = bs->opaque;
     QuorumAIOCB *acb = qemu_aio_get(&quorum_aiocb_info, bs, cb, opaque);
     int i;
 
-    acb->common.bs->opaque = s;
     acb->sector_num = sector_num;
     acb->nb_sectors = nb_sectors;
     acb->qiov = qiov;
@@ -691,7 +690,7 @@ static BlockAIOCB *quorum_aio_readv(BlockDriverState *bs,
                                     void *opaque)
 {
     BDRVQuorumState *s = bs->opaque;
-    QuorumAIOCB *acb = quorum_aio_get(s, bs, qiov, sector_num,
+    QuorumAIOCB *acb = quorum_aio_get(bs, qiov, sector_num,
                                       nb_sectors, cb, opaque);
     acb->is_read = true;
     acb->children_read = 0;
@@ -711,7 +710,7 @@ static BlockAIOCB *quorum_aio_writev(BlockDriverState *bs,
                                      void *opaque)
 {
     BDRVQuorumState *s = bs->opaque;
-    QuorumAIOCB *acb = quorum_aio_get(s, bs, qiov, sector_num, nb_sectors,
+    QuorumAIOCB *acb = quorum_aio_get(bs, qiov, sector_num, nb_sectors,
                                       cb, opaque);
     int i;
 
