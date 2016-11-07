@@ -479,7 +479,7 @@ QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncSetLabelDataIn) +
                   offsetof(NvdimmDsmIn, arg3) > 4096);
 
 struct NvdimmFuncReadFITIn {
-    uint32_t offset; /* the offset of FIT buffer. */
+    uint32_t offset; /* the offset into FIT buffer. */
 } QEMU_PACKED;
 typedef struct NvdimmFuncReadFITIn NvdimmFuncReadFITIn;
 QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncReadFITIn) +
@@ -578,7 +578,7 @@ static void nvdimm_dsm_reserved_root(AcpiNVDIMMState *state, NvdimmDsmIn *in,
     case 0x0:
         nvdimm_dsm_function0(0x1 | 1 << 1 /* Read FIT */, dsm_mem_addr);
         return;
-    case 0x1 /*Read FIT */:
+    case 0x1 /* Read FIT */:
         nvdimm_dsm_func_read_fit(state, in, dsm_mem_addr);
         return;
     }
