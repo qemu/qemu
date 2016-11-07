@@ -371,17 +371,14 @@ static GArray *nvdimm_build_device_structure(void)
 
 static void nvdimm_init_fit_buffer(NvdimmFitBuffer *fit_buf)
 {
-    qemu_mutex_init(&fit_buf->lock);
     fit_buf->fit = g_array_new(false, true /* clear */, 1);
 }
 
 static void nvdimm_build_fit_buffer(NvdimmFitBuffer *fit_buf)
 {
-    qemu_mutex_lock(&fit_buf->lock);
     g_array_free(fit_buf->fit, true);
     fit_buf->fit = nvdimm_build_device_structure();
     fit_buf->dirty = true;
-    qemu_mutex_unlock(&fit_buf->lock);
 }
 
 void nvdimm_acpi_hotplug(AcpiNVDIMMState *state)
@@ -395,11 +392,10 @@ static void nvdimm_build_nfit(AcpiNVDIMMState *state, GArray *table_offsets,
     NvdimmFitBuffer *fit_buf = &state->fit_buf;
     unsigned int header;
 
-    qemu_mutex_lock(&fit_buf->lock);
 
     /* NVDIMM device is not plugged? */
     if (!fit_buf->fit->len) {
-        goto exit;
+        return;
     }
 
     acpi_add_table(table_offsets, table_data);
@@ -413,9 +409,6 @@ static void nvdimm_build_nfit(AcpiNVDIMMState *state, GArray *table_offsets,
     build_header(linker, table_data,
                  (void *)(table_data->data + header), "NFIT",
                  sizeof(NvdimmNfitHeader) + fit_buf->fit->len, 1, NULL, NULL);
-
-exit:
-    qemu_mutex_unlock(&fit_buf->lock);
 }
 
 struct NvdimmDsmIn {
@@ -544,7 +537,6 @@ static void nvdimm_dsm_func_read_fit(AcpiNVDIMMState *state, NvdimmDsmIn *in,
     read_fit = (NvdimmFuncReadFITIn *)in->arg3;
     le32_to_cpus(&read_fit->offset);
 
-    qemu_mutex_lock(&fit_buf->lock);
     fit = fit_buf->fit;
 
     nvdimm_debug("Read FIT: offset %#x FIT size %#x Dirty %s.\n",
@@ -578,7 +570,6 @@ exit:
     cpu_physical_memory_write(dsm_mem_addr, read_fit_out, size);
 
     g_free(read_fit_out);
-    qemu_mutex_unlock(&fit_buf->lock);
 }
 
 static void nvdimm_dsm_reserved_root(AcpiNVDIMMState *state, NvdimmDsmIn *in,
