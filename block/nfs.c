@@ -676,6 +676,7 @@ static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
     ret = nfs_ftruncate(client->context, client->fh, total_size);
     nfs_client_close(client);
 out:
+    QDECREF(options);
     g_free(client);
     return ret;
 }
