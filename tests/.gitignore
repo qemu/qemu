@@ -16,6 +16,7 @@ test-bitops
 test-blockjob
 test-blockjob-txn
 test-bufferiszero
+test-char
 test-clone-visitor
 test-coroutine
 test-crypto-afsplit
