@@ -514,7 +514,13 @@ nvdimm_dsm_no_payload(uint32_t func_ret_status, hwaddr dsm_mem_addr)
     cpu_physical_memory_write(dsm_mem_addr, &out, sizeof(out));
 }
 
-#define NVDIMM_QEMU_RSVD_HANDLE_ROOT 0x10000
+#define NVDIMM_DSM_RET_STATUS_SUCCESS        0 /* Success */
+#define NVDIMM_DSM_RET_STATUS_UNSUPPORT      1 /* Not Supported */
+#define NVDIMM_DSM_RET_STATUS_NOMEMDEV       2 /* Non-Existing Memory Device */
+#define NVDIMM_DSM_RET_STATUS_INVALID        3 /* Invalid Input Parameters */
+#define NVDIMM_DSM_RET_STATUS_FIT_CHANGED    0x100 /* FIT Changed */
+
+#define NVDIMM_QEMU_RSVD_HANDLE_ROOT         0x10000
 
 /* Read FIT data, defined in docs/specs/acpi_nvdimm.txt. */
 static void nvdimm_dsm_func_read_fit(AcpiNVDIMMState *state, NvdimmDsmIn *in,
@@ -536,7 +542,7 @@ static void nvdimm_dsm_func_read_fit(AcpiNVDIMMState *state, NvdimmDsmIn *in,
                  read_fit->offset, fit->len, fit_buf->dirty ? "Yes" : "No");
 
     if (read_fit->offset > fit->len) {
-        func_ret_status = 3 /* Invalid Input Parameters */;
+        func_ret_status = NVDIMM_DSM_RET_STATUS_INVALID;
         goto exit;
     }
 
@@ -544,11 +550,11 @@ static void nvdimm_dsm_func_read_fit(AcpiNVDIMMState *state, NvdimmDsmIn *in,
     if (!read_fit->offset) {
         fit_buf->dirty = false;
     } else if (fit_buf->dirty) { /* FIT has been changed during RFIT. */
-        func_ret_status = 0x100 /* fit changed */;
+        func_ret_status = NVDIMM_DSM_RET_STATUS_FIT_CHANGED;
         goto exit;
     }
 
-    func_ret_status = 0 /* Success */;
+    func_ret_status = NVDIMM_DSM_RET_STATUS_SUCCESS;
     read_len = MIN(fit->len - read_fit->offset,
                    4096 - sizeof(NvdimmFuncReadFITOut));
 
@@ -577,7 +583,7 @@ static void nvdimm_dsm_reserved_root(AcpiNVDIMMState *state, NvdimmDsmIn *in,
         return;
     }
 
-    nvdimm_dsm_no_payload(1 /* Not Supported */, dsm_mem_addr);
+    nvdimm_dsm_no_payload(NVDIMM_DSM_RET_STATUS_UNSUPPORT, dsm_mem_addr);
 }
 
 static void nvdimm_dsm_root(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
@@ -593,7 +599,7 @@ static void nvdimm_dsm_root(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
     }
 
     /* No function except function 0 is supported yet. */
-    nvdimm_dsm_no_payload(1 /* Not Supported */, dsm_mem_addr);
+    nvdimm_dsm_no_payload(NVDIMM_DSM_RET_STATUS_UNSUPPORT, dsm_mem_addr);
 }
 
 /*
@@ -639,7 +645,7 @@ static void nvdimm_dsm_label_size(NVDIMMDevice *nvdimm, hwaddr dsm_mem_addr)
 
     nvdimm_debug("label_size %#x, max_xfer %#x.\n", label_size, mxfer);
 
-    label_size_out.func_ret_status = cpu_to_le32(0 /* Success */);
+    label_size_out.func_ret_status = cpu_to_le32(NVDIMM_DSM_RET_STATUS_SUCCESS);
     label_size_out.label_size = cpu_to_le32(label_size);
     label_size_out.max_xfer = cpu_to_le32(mxfer);
 
@@ -650,7 +656,7 @@ static void nvdimm_dsm_label_size(NVDIMMDevice *nvdimm, hwaddr dsm_mem_addr)
 static uint32_t nvdimm_rw_label_data_check(NVDIMMDevice *nvdimm,
                                            uint32_t offset, uint32_t length)
 {
-    uint32_t ret = 3 /* Invalid Input Parameters */;
+    uint32_t ret = NVDIMM_DSM_RET_STATUS_INVALID;
 
     if (offset + length < offset) {
         nvdimm_debug("offset %#x + length %#x is overflow.\n", offset,
@@ -670,7 +676,7 @@ static uint32_t nvdimm_rw_label_data_check(NVDIMMDevice *nvdimm,
         return ret;
     }
 
-    return 0 /* Success */;
+    return NVDIMM_DSM_RET_STATUS_SUCCESS;
 }
 
 /*
@@ -694,7 +700,7 @@ static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
 
     status = nvdimm_rw_label_data_check(nvdimm, get_label_data->offset,
                                         get_label_data->length);
-    if (status != 0 /* Success */) {
+    if (status != NVDIMM_DSM_RET_STATUS_SUCCESS) {
         nvdimm_dsm_no_payload(status, dsm_mem_addr);
         return;
     }
@@ -704,7 +710,8 @@ static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
     get_label_data_out = g_malloc(size);
 
     get_label_data_out->len = cpu_to_le32(size);
-    get_label_data_out->func_ret_status = cpu_to_le32(0 /* Success */);
+    get_label_data_out->func_ret_status =
+                            cpu_to_le32(NVDIMM_DSM_RET_STATUS_SUCCESS);
     nvc->read_label_data(nvdimm, get_label_data_out->out_buf,
                          get_label_data->length, get_label_data->offset);
 
@@ -732,7 +739,7 @@ static void nvdimm_dsm_set_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
 
     status = nvdimm_rw_label_data_check(nvdimm, set_label_data->offset,
                                         set_label_data->length);
-    if (status != 0 /* Success */) {
+    if (status != NVDIMM_DSM_RET_STATUS_SUCCESS) {
         nvdimm_dsm_no_payload(status, dsm_mem_addr);
         return;
     }
@@ -742,7 +749,7 @@ static void nvdimm_dsm_set_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
 
     nvc->write_label_data(nvdimm, set_label_data->in_buf,
                           set_label_data->length, set_label_data->offset);
-    nvdimm_dsm_no_payload(0 /* Success */, dsm_mem_addr);
+    nvdimm_dsm_no_payload(NVDIMM_DSM_RET_STATUS_SUCCESS, dsm_mem_addr);
 }
 
 static void nvdimm_dsm_device(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
@@ -766,7 +773,7 @@ static void nvdimm_dsm_device(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
     }
 
     if (!nvdimm) {
-        nvdimm_dsm_no_payload(2 /* Non-Existing Memory Device */,
+        nvdimm_dsm_no_payload(NVDIMM_DSM_RET_STATUS_NOMEMDEV,
                               dsm_mem_addr);
         return;
     }
@@ -793,7 +800,7 @@ static void nvdimm_dsm_device(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
         break;
     }
 
-    nvdimm_dsm_no_payload(1 /* Not Supported */, dsm_mem_addr);
+    nvdimm_dsm_no_payload(NVDIMM_DSM_RET_STATUS_UNSUPPORT, dsm_mem_addr);
 }
 
 static uint64_t
@@ -830,7 +837,7 @@ nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     if (in->revision != 0x1 /* Currently we only support DSM Spec Rev1. */) {
         nvdimm_debug("Revision %#x is not supported, expect %#x.\n",
                      in->revision, 0x1);
-        nvdimm_dsm_no_payload(1 /* Not Supported */, dsm_mem_addr);
+        nvdimm_dsm_no_payload(NVDIMM_DSM_RET_STATUS_UNSUPPORT, dsm_mem_addr);
         goto exit;
     }
 
@@ -1018,7 +1025,7 @@ static void nvdimm_build_common_dsm(Aml *dev)
     aml_append(unsupport, ifctx);
 
     /* No function is supported yet. */
-    byte_list[0] = 1 /* Not Supported */;
+    byte_list[0] = NVDIMM_DSM_RET_STATUS_UNSUPPORT;
     aml_append(unsupport, aml_return(aml_buffer(1, byte_list)));
     aml_append(method, unsupport);
 
@@ -1119,7 +1126,8 @@ static void nvdimm_build_fit(Aml *dev)
                                  aml_name(NVDIMM_DSM_RFIT_STATUS)));
 
      /* if something is wrong during _DSM. */
-    ifcond = aml_equal(aml_int(0 /* Success */), aml_name("STAU"));
+    ifcond = aml_equal(aml_int(NVDIMM_DSM_RET_STATUS_SUCCESS),
+                       aml_name("STAU"));
     ifctx = aml_if(aml_lnot(ifcond));
     aml_append(ifctx, aml_return(aml_buffer(0, NULL)));
     aml_append(method, ifctx);
@@ -1156,7 +1164,7 @@ static void nvdimm_build_fit(Aml *dev)
      * again.
      */
     ifctx = aml_if(aml_equal(aml_name(NVDIMM_DSM_RFIT_STATUS),
-                             aml_int(0x100 /* fit changed */)));
+                             aml_int(NVDIMM_DSM_RET_STATUS_FIT_CHANGED)));
     aml_append(ifctx, aml_store(aml_buffer(0, NULL), fit));
     aml_append(ifctx, aml_store(aml_int(0), offset));
     aml_append(whilectx, ifctx);
