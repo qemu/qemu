@@ -6438,7 +6438,7 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
     /* Set new mode endianness */
     env->uncached_cpsr &= ~CPSR_E;
     if (env->cp15.sctlr_el[arm_current_el(env)] & SCTLR_EE) {
-        env->uncached_cpsr |= ~CPSR_E;
+        env->uncached_cpsr |= CPSR_E;
     }
     env->daif |= mask;
     /* this is a lie, as the was no c1_sys on V4T/V5, but who cares
