@@ -33,7 +33,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/mem/nvdimm.h"
 
-static int nvdimm_plugged_device_list(Object *obj, void *opaque)
+static int nvdimm_device_list(Object *obj, void *opaque)
 {
     GSList **list = opaque;
 
@@ -41,23 +41,22 @@ static int nvdimm_plugged_device_list(Object *obj, void *opaque)
         *list = g_slist_append(*list, DEVICE(obj));
     }
 
-    object_child_foreach(obj, nvdimm_plugged_device_list, opaque);
+    object_child_foreach(obj, nvdimm_device_list, opaque);
     return 0;
 }
 
 /*
- * inquire plugged NVDIMM devices and link them into the list which is
+ * inquire NVDIMM devices and link them into the list which is
  * returned to the caller.
  *
  * Note: it is the caller's responsibility to free the list to avoid
  * memory leak.
  */
-static GSList *nvdimm_get_plugged_device_list(void)
+static GSList *nvdimm_get_device_list(void)
 {
     GSList *list = NULL;
 
-    object_child_foreach(qdev_get_machine(), nvdimm_plugged_device_list,
-                         &list);
+    object_child_foreach(qdev_get_machine(), nvdimm_device_list, &list);
     return list;
 }
 
@@ -215,7 +214,7 @@ static uint32_t nvdimm_slot_to_dcr_index(int slot)
 static NVDIMMDevice *nvdimm_get_device_by_handle(uint32_t handle)
 {
     NVDIMMDevice *nvdimm = NULL;
-    GSList *list, *device_list = nvdimm_get_plugged_device_list();
+    GSList *list, *device_list = nvdimm_get_device_list();
 
     for (list = device_list; list; list = list->next) {
         NVDIMMDevice *nvd = list->data;
@@ -346,7 +345,7 @@ static void nvdimm_build_structure_dcr(GArray *structures, DeviceState *dev)
 
 static GArray *nvdimm_build_device_structure(void)
 {
-    GSList *device_list = nvdimm_get_plugged_device_list();
+    GSList *device_list = nvdimm_get_device_list();
     GArray *structures = g_array_new(false, true /* clear */, 1);
 
     for (; device_list; device_list = device_list->next) {
@@ -1279,7 +1278,7 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
     nvdimm_build_ssdt(table_offsets, table_data, linker, state->dsm_mem,
                       ram_slots);
 
-    device_list = nvdimm_get_plugged_device_list();
+    device_list = nvdimm_get_device_list();
     /* no NVDIMM device is plugged. */
     if (!device_list) {
         return;
