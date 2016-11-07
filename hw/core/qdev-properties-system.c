@@ -200,18 +200,14 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
     }
 
     s = qemu_chr_find(str);
-    g_free(str);
     if (s == NULL) {
         error_setg(errp, "Property '%s.%s' can't find value '%s'",
                    object_get_typename(obj), prop->name, str);
-        return;
-    }
-
-    if (!qemu_chr_fe_init(be, s, errp)) {
+    } else if (!qemu_chr_fe_init(be, s, errp)) {
         error_prepend(errp, "Property '%s.%s' can't take value '%s': ",
                       object_get_typename(obj), prop->name, str);
-        return;
     }
+    g_free(str);
 }
 
 static void release_chr(Object *obj, const char *name, void *opaque)
