@@ -1134,11 +1134,9 @@ static void nvdimm_build_fit(Aml *dev)
     aml_append(ifctx, aml_return(aml_buffer(0, NULL)));
     aml_append(method, ifctx);
 
-    aml_append(method, aml_store(aml_shiftleft(buf_size, aml_int(3)),
-                                 buf_size));
     aml_append(method, aml_create_field(buf,
                             aml_int(4 * BITS_PER_BYTE), /* offset at byte 4.*/
-                            buf_size, "BUFF"));
+                            aml_shiftleft(buf_size, aml_int(3)), "BUFF"));
     aml_append(method, aml_return(aml_name("BUFF")));
     aml_append(dev, method);
 
