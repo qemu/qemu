@@ -571,8 +571,9 @@ exit:
     g_free(read_fit_out);
 }
 
-static void nvdimm_dsm_reserved_root(AcpiNVDIMMState *state, NvdimmDsmIn *in,
-                                     hwaddr dsm_mem_addr)
+static void
+nvdimm_dsm_handle_reserved_root_method(AcpiNVDIMMState *state,
+                                       NvdimmDsmIn *in, hwaddr dsm_mem_addr)
 {
     switch (in->function) {
     case 0x0:
@@ -842,7 +843,7 @@ nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     }
 
     if (in->handle == NVDIMM_QEMU_RSVD_HANDLE_ROOT) {
-        nvdimm_dsm_reserved_root(state, in, dsm_mem_addr);
+        nvdimm_dsm_handle_reserved_root_method(state, in, dsm_mem_addr);
         goto exit;
     }
 
