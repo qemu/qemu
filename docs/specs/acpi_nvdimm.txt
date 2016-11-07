@@ -127,6 +127,11 @@ _DSM process diagram:
  | result from the page     |      |              |
  +--------------------------+      +--------------+
 
+NVDIMM hotplug
+--------------
+ACPI BIOS GPE.4 handler is dedicated for notifying OS about nvdimm device
+hot-add event.
+
 Device Handle Reservation
 -------------------------
 As we mentioned above, byte 0 ~ byte 3 in the DSM memory save NVDIMM device

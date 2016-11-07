@@ -4,9 +4,6 @@ QEMU<->ACPI BIOS memory hotplug interface
 ACPI BIOS GPE.3 handler is dedicated for notifying OS about memory hot-add
 and hot-remove events.
 
-ACPI BIOS GPE.4 handler is dedicated for notifying OS about nvdimm device
-hot-add and hot-remove events.
-
 Memory hot-plug interface (IO port 0xa00-0xa17, 1-4 byte access):
 ---------------------------------------------------------------
 0xa00:

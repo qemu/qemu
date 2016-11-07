@@ -2,7 +2,6 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/pc-hotplug.h"
 #include "hw/mem/pc-dimm.h"
-#include "hw/mem/nvdimm.h"
 #include "hw/boards.h"
 #include "hw/qdev-core.h"
 #include "trace.h"
@@ -233,8 +232,11 @@ void acpi_memory_plug_cb(HotplugHandler *hotplug_dev, MemHotplugState *mem_st,
                          DeviceState *dev, Error **errp)
 {
     MemStatus *mdev;
-    AcpiEventStatusBits event;
-    bool is_nvdimm = object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    if (!dc->hotpluggable) {
+        return;
+    }
 
     mdev = acpi_memory_slot_status(mem_st, dev, errp);
     if (!mdev) {
@@ -242,23 +244,10 @@ void acpi_memory_plug_cb(HotplugHandler *hotplug_dev, MemHotplugState *mem_st,
     }
 
     mdev->dimm = dev;
-
-    /*
-     * do not set is_enabled and is_inserting if the slot is plugged with
-     * a nvdimm device to stop OSPM inquires memory region from the slot.
-     */
-    if (is_nvdimm) {
-        event = ACPI_NVDIMM_HOTPLUG_STATUS;
-    } else {
-        mdev->is_enabled = true;
-        event = ACPI_MEMORY_HOTPLUG_STATUS;
-    }
-
+    mdev->is_enabled = true;
     if (dev->hotplugged) {
-        if (!is_nvdimm) {
-            mdev->is_inserting = true;
-        }
-        acpi_send_event(DEVICE(hotplug_dev), event);
+        mdev->is_inserting = true;
+        acpi_send_event(DEVICE(hotplug_dev), ACPI_MEMORY_HOTPLUG_STATUS);
     }
 }
 
@@ -273,8 +262,6 @@ void acpi_memory_unplug_request_cb(HotplugHandler *hotplug_dev,
         return;
     }
 
-    /* nvdimm device hot unplug is not supported yet. */
-    assert(!object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM));
     mdev->is_removing = true;
     acpi_send_event(DEVICE(hotplug_dev), ACPI_MEMORY_HOTPLUG_STATUS);
 }
@@ -289,8 +276,6 @@ void acpi_memory_unplug_cb(MemHotplugState *mem_st,
         return;
     }
 
-    /* nvdimm device hot unplug is not supported yet. */
-    assert(!object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM));
     mdev->is_enabled = false;
     mdev->dimm = NULL;
 }
