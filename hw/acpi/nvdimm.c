@@ -404,6 +404,8 @@ static void nvdimm_build_nfit(AcpiNVDIMMState *state, GArray *table_offsets,
                  sizeof(NvdimmNfitHeader) + fit_buf->fit->len, 1, NULL, NULL);
 }
 
+#define NVDIMM_DSM_MEMORY_SIZE      4096
+
 struct NvdimmDsmIn {
     uint32_t handle;
     uint32_t revision;
@@ -414,7 +416,7 @@ struct NvdimmDsmIn {
     };
 } QEMU_PACKED;
 typedef struct NvdimmDsmIn NvdimmDsmIn;
-QEMU_BUILD_BUG_ON(sizeof(NvdimmDsmIn) != 4096);
+QEMU_BUILD_BUG_ON(sizeof(NvdimmDsmIn) != NVDIMM_DSM_MEMORY_SIZE);
 
 struct NvdimmDsmOut {
     /* the size of buffer filled by QEMU. */
@@ -422,7 +424,7 @@ struct NvdimmDsmOut {
     uint8_t data[4092];
 } QEMU_PACKED;
 typedef struct NvdimmDsmOut NvdimmDsmOut;
-QEMU_BUILD_BUG_ON(sizeof(NvdimmDsmOut) != 4096);
+QEMU_BUILD_BUG_ON(sizeof(NvdimmDsmOut) != NVDIMM_DSM_MEMORY_SIZE);
 
 struct NvdimmDsmFunc0Out {
     /* the size of buffer filled by QEMU. */
@@ -450,7 +452,7 @@ struct NvdimmFuncGetLabelSizeOut {
     uint32_t max_xfer;
 } QEMU_PACKED;
 typedef struct NvdimmFuncGetLabelSizeOut NvdimmFuncGetLabelSizeOut;
-QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncGetLabelSizeOut) > 4096);
+QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncGetLabelSizeOut) > NVDIMM_DSM_MEMORY_SIZE);
 
 struct NvdimmFuncGetLabelDataIn {
     uint32_t offset; /* the offset in the namespace label data area. */
@@ -458,7 +460,7 @@ struct NvdimmFuncGetLabelDataIn {
 } QEMU_PACKED;
 typedef struct NvdimmFuncGetLabelDataIn NvdimmFuncGetLabelDataIn;
 QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncGetLabelDataIn) +
-                  offsetof(NvdimmDsmIn, arg3) > 4096);
+                  offsetof(NvdimmDsmIn, arg3) > NVDIMM_DSM_MEMORY_SIZE);
 
 struct NvdimmFuncGetLabelDataOut {
     /* the size of buffer filled by QEMU. */
@@ -467,7 +469,7 @@ struct NvdimmFuncGetLabelDataOut {
     uint8_t out_buf[0]; /* the data got via Get Namesapce Label function. */
 } QEMU_PACKED;
 typedef struct NvdimmFuncGetLabelDataOut NvdimmFuncGetLabelDataOut;
-QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncGetLabelDataOut) > 4096);
+QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncGetLabelDataOut) > NVDIMM_DSM_MEMORY_SIZE);
 
 struct NvdimmFuncSetLabelDataIn {
     uint32_t offset; /* the offset in the namespace label data area. */
@@ -476,14 +478,14 @@ struct NvdimmFuncSetLabelDataIn {
 } QEMU_PACKED;
 typedef struct NvdimmFuncSetLabelDataIn NvdimmFuncSetLabelDataIn;
 QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncSetLabelDataIn) +
-                  offsetof(NvdimmDsmIn, arg3) > 4096);
+                  offsetof(NvdimmDsmIn, arg3) > NVDIMM_DSM_MEMORY_SIZE);
 
 struct NvdimmFuncReadFITIn {
     uint32_t offset; /* the offset into FIT buffer. */
 } QEMU_PACKED;
 typedef struct NvdimmFuncReadFITIn NvdimmFuncReadFITIn;
 QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncReadFITIn) +
-                  offsetof(NvdimmDsmIn, arg3) > 4096);
+                  offsetof(NvdimmDsmIn, arg3) > NVDIMM_DSM_MEMORY_SIZE);
 
 struct NvdimmFuncReadFITOut {
     /* the size of buffer filled by QEMU. */
@@ -492,7 +494,7 @@ struct NvdimmFuncReadFITOut {
     uint8_t fit[0]; /* the FIT data. */
 } QEMU_PACKED;
 typedef struct NvdimmFuncReadFITOut NvdimmFuncReadFITOut;
-QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncReadFITOut) > 4096);
+QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncReadFITOut) > NVDIMM_DSM_MEMORY_SIZE);
 
 static void
 nvdimm_dsm_function0(uint32_t supported_func, hwaddr dsm_mem_addr)
@@ -556,7 +558,7 @@ static void nvdimm_dsm_func_read_fit(AcpiNVDIMMState *state, NvdimmDsmIn *in,
 
     func_ret_status = NVDIMM_DSM_RET_STATUS_SUCCESS;
     read_len = MIN(fit->len - read_fit->offset,
-                   4096 - sizeof(NvdimmFuncReadFITOut));
+                   NVDIMM_DSM_MEMORY_SIZE - sizeof(NvdimmFuncReadFITOut));
 
 exit:
     size = sizeof(NvdimmFuncReadFITOut) + read_len;
@@ -610,7 +612,9 @@ static void nvdimm_dsm_root(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
  */
 static uint32_t nvdimm_get_max_xfer_label_size(void)
 {
-    uint32_t max_get_size, max_set_size, dsm_memory_size = 4096;
+    uint32_t max_get_size, max_set_size, dsm_memory_size;
+
+    dsm_memory_size = NVDIMM_DSM_MEMORY_SIZE;
 
     /*
      * the max data ACPI can read one time which is transferred by
@@ -707,7 +711,7 @@ static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
     }
 
     size = sizeof(*get_label_data_out) + get_label_data->length;
-    assert(size <= 4096);
+    assert(size <= NVDIMM_DSM_MEMORY_SIZE);
     get_label_data_out = g_malloc(size);
 
     get_label_data_out->len = cpu_to_le32(size);
@@ -745,8 +749,8 @@ static void nvdimm_dsm_set_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
         return;
     }
 
-    assert(offsetof(NvdimmDsmIn, arg3) +
-           sizeof(*set_label_data) + set_label_data->length <= 4096);
+    assert(offsetof(NvdimmDsmIn, arg3) + sizeof(*set_label_data) +
+                    set_label_data->length <= NVDIMM_DSM_MEMORY_SIZE);
 
     nvc->write_label_data(nvdimm, set_label_data->in_buf,
                           set_label_data->length, set_label_data->offset);
