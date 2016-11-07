@@ -24,6 +24,7 @@
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_core.h"
+#include "hw/ppc/pnv_xscom.h"
 
 static void powernv_cpu_reset(void *opaque)
 {

@@ -21,7 +21,6 @@
 
 #include "hw/boards.h"
 #include "hw/sysbus.h"
-#include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_lpc.h"
 
 #define TYPE_PNV_CHIP "powernv-chip"
