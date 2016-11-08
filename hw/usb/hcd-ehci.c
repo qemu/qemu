@@ -1190,6 +1190,7 @@ static int ehci_init_transfer(EHCIPacket *p)
     while (bytes > 0) {
         if (cpage > 4) {
             fprintf(stderr, "cpage out of range (%d)\n", cpage);
+            qemu_sglist_destroy(&p->sgl);
             return -1;
         }
 
