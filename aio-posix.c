@@ -217,21 +217,23 @@ void aio_set_fd_handler(AioContext *ctx,
 
     /* Are we deleting the fd handler? */
     if (!io_read && !io_write) {
-        if (node) {
-            g_source_remove_poll(&ctx->source, &node->pfd);
+        if (node == NULL) {
+            return;
+        }
 
-            /* If the lock is held, just mark the node as deleted */
-            if (ctx->walking_handlers) {
-                node->deleted = 1;
-                node->pfd.revents = 0;
-            } else {
-                /* Otherwise, delete it for real.  We can't just mark it as
-                 * deleted because deleted nodes are only cleaned up after
-                 * releasing the walking_handlers lock.
-                 */
-                QLIST_REMOVE(node, node);
-                deleted = true;
-            }
+        g_source_remove_poll(&ctx->source, &node->pfd);
+
+        /* If the lock is held, just mark the node as deleted */
+        if (ctx->walking_handlers) {
+            node->deleted = 1;
+            node->pfd.revents = 0;
+        } else {
+            /* Otherwise, delete it for real.  We can't just mark it as
+             * deleted because deleted nodes are only cleaned up after
+             * releasing the walking_handlers lock.
+             */
+            QLIST_REMOVE(node, node);
+            deleted = true;
         }
     } else {
         if (node == NULL) {
