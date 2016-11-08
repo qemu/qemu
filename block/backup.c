@@ -543,7 +543,7 @@ static const BlockJobDriver backup_job_driver = {
     .drain                  = backup_drain,
 };
 
-void backup_start(const char *job_id, BlockDriverState *bs,
+BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, int64_t speed,
                   MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
                   bool compress,
@@ -563,52 +563,52 @@ void backup_start(const char *job_id, BlockDriverState *bs,
 
     if (bs == target) {
         error_setg(errp, "Source and target cannot be the same");
-        return;
+        return NULL;
     }
 
     if (!bdrv_is_inserted(bs)) {
         error_setg(errp, "Device is not inserted: %s",
                    bdrv_get_device_name(bs));
-        return;
+        return NULL;
     }
 
     if (!bdrv_is_inserted(target)) {
         error_setg(errp, "Device is not inserted: %s",
                    bdrv_get_device_name(target));
-        return;
+        return NULL;
     }
 
     if (compress && target->drv->bdrv_co_pwritev_compressed == NULL) {
         error_setg(errp, "Compression is not supported for this drive %s",
                    bdrv_get_device_name(target));
-        return;
+        return NULL;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
-        return;
+        return NULL;
     }
 
     if (bdrv_op_is_blocked(target, BLOCK_OP_TYPE_BACKUP_TARGET, errp)) {
-        return;
+        return NULL;
     }
 
     if (sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         if (!sync_bitmap) {
             error_setg(errp, "must provide a valid bitmap name for "
                              "\"incremental\" sync mode");
-            return;
+            return NULL;
         }
 
         /* Create a new bitmap, and freeze/disable this one. */
         if (bdrv_dirty_bitmap_create_successor(bs, sync_bitmap, errp) < 0) {
-            return;
+            return NULL;
         }
     } else if (sync_bitmap) {
         error_setg(errp,
                    "a sync_bitmap was provided to backup_run, "
                    "but received an incompatible sync_mode (%s)",
                    MirrorSyncMode_lookup[sync_mode]);
-        return;
+        return NULL;
     }
 
     len = bdrv_getlength(bs);
@@ -655,8 +655,8 @@ void backup_start(const char *job_id, BlockDriverState *bs,
     block_job_add_bdrv(&job->common, target);
     job->common.len = len;
     block_job_txn_add_job(txn, &job->common);
-    block_job_start(&job->common);
-    return;
+
+    return &job->common;
 
  error:
     if (sync_bitmap) {
@@ -666,4 +666,6 @@ void backup_start(const char *job_id, BlockDriverState *bs,
         backup_clean(&job->common);
         block_job_unref(&job->common);
     }
+
+    return NULL;
 }

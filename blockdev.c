@@ -1811,7 +1811,7 @@ typedef struct DriveBackupState {
     BlockJob *job;
 } DriveBackupState;
 
-static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
+static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
                             Error **errp);
 
 static void drive_backup_prepare(BlkActionState *common, Error **errp)
@@ -1835,23 +1835,26 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     bdrv_drained_begin(bs);
     state->bs = bs;
 
-    do_drive_backup(backup, common->block_job_txn, &local_err);
+    state->job = do_drive_backup(backup, common->block_job_txn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
+}
 
-    state->job = state->bs->job;
+static void drive_backup_commit(BlkActionState *common)
+{
+    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    assert(state->job);
+    block_job_start(state->job);
 }
 
 static void drive_backup_abort(BlkActionState *common)
 {
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
-    BlockDriverState *bs = state->bs;
 
-    /* Only cancel if it's the job we started */
-    if (bs && bs->job && bs->job == state->job) {
-        block_job_cancel_sync(bs->job);
+    if (state->job) {
+        block_job_cancel_sync(state->job);
     }
 }
 
@@ -1872,8 +1875,8 @@ typedef struct BlockdevBackupState {
     AioContext *aio_context;
 } BlockdevBackupState;
 
-static void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
-                               Error **errp);
+static BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
+                                    Error **errp);
 
 static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
 {
@@ -1906,23 +1909,26 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
     state->bs = bs;
     bdrv_drained_begin(state->bs);
 
-    do_blockdev_backup(backup, common->block_job_txn, &local_err);
+    state->job = do_blockdev_backup(backup, common->block_job_txn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
+}
 
-    state->job = state->bs->job;
+static void blockdev_backup_commit(BlkActionState *common)
+{
+    BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
+    assert(state->job);
+    block_job_start(state->job);
 }
 
 static void blockdev_backup_abort(BlkActionState *common)
 {
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
-    BlockDriverState *bs = state->bs;
 
-    /* Only cancel if it's the job we started */
-    if (bs && bs->job && bs->job == state->job) {
-        block_job_cancel_sync(bs->job);
+    if (state->job) {
+        block_job_cancel_sync(state->job);
     }
 }
 
@@ -2072,12 +2078,14 @@ static const BlkActionOps actions[] = {
     [TRANSACTION_ACTION_KIND_DRIVE_BACKUP] = {
         .instance_size = sizeof(DriveBackupState),
         .prepare = drive_backup_prepare,
+        .commit = drive_backup_commit,
         .abort = drive_backup_abort,
         .clean = drive_backup_clean,
     },
     [TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP] = {
         .instance_size = sizeof(BlockdevBackupState),
         .prepare = blockdev_backup_prepare,
+        .commit = blockdev_backup_commit,
         .abort = blockdev_backup_abort,
         .clean = blockdev_backup_clean,
     },
@@ -3106,11 +3114,13 @@ out:
     aio_context_release(aio_context);
 }
 
-static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn, Error **errp)
+static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
+                                 Error **errp)
 {
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     BlockDriverState *source = NULL;
+    BlockJob *job = NULL;
     BdrvDirtyBitmap *bmap = NULL;
     AioContext *aio_context;
     QDict *options = NULL;
@@ -3139,7 +3149,7 @@ static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn, Error **errp)
 
     bs = qmp_get_root_bs(backup->device, errp);
     if (!bs) {
-        return;
+        return NULL;
     }
 
     aio_context = bdrv_get_aio_context(bs);
@@ -3213,10 +3223,10 @@ static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn, Error **errp)
         }
     }
 
-    backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
-                 bmap, backup->compress, backup->on_source_error,
-                 backup->on_target_error, BLOCK_JOB_DEFAULT,
-                 NULL, NULL, txn, &local_err);
+    job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
+                            backup->sync, bmap, backup->compress,
+                            backup->on_source_error, backup->on_target_error,
+                            BLOCK_JOB_DEFAULT, NULL, NULL, txn, &local_err);
     bdrv_unref(target_bs);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -3225,11 +3235,17 @@ static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn, Error **errp)
 
 out:
     aio_context_release(aio_context);
+    return job;
 }
 
 void qmp_drive_backup(DriveBackup *arg, Error **errp)
 {
-    return do_drive_backup(arg, NULL, errp);
+
+    BlockJob *job;
+    job = do_drive_backup(arg, NULL, errp);
+    if (job) {
+        block_job_start(job);
+    }
 }
 
 BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
@@ -3237,12 +3253,14 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
     return bdrv_named_nodes_list(errp);
 }
 
-void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
+BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
+                             Error **errp)
 {
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     Error *local_err = NULL;
     AioContext *aio_context;
+    BlockJob *job = NULL;
 
     if (!backup->has_speed) {
         backup->speed = 0;
@@ -3262,7 +3280,7 @@ void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
 
     bs = qmp_get_root_bs(backup->device, errp);
     if (!bs) {
-        return;
+        return NULL;
     }
 
     aio_context = bdrv_get_aio_context(bs);
@@ -3284,20 +3302,25 @@ void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
             goto out;
         }
     }
-    backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
-                 NULL, backup->compress, backup->on_source_error,
-                 backup->on_target_error, BLOCK_JOB_DEFAULT,
-                 NULL, NULL, txn, &local_err);
+    job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
+                            backup->sync, NULL, backup->compress,
+                            backup->on_source_error, backup->on_target_error,
+                            BLOCK_JOB_DEFAULT, NULL, NULL, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
     }
 out:
     aio_context_release(aio_context);
+    return job;
 }
 
 void qmp_blockdev_backup(BlockdevBackup *arg, Error **errp)
 {
-    do_blockdev_backup(arg, NULL, errp);
+    BlockJob *job;
+    job = do_blockdev_backup(arg, NULL, errp);
+    if (job) {
+        block_job_start(job);
+    }
 }
 
 /* Parameter check and block job starting for drive mirroring.
