@@ -323,17 +323,6 @@ static void backup_drain(BlockJob *job)
     }
 }
 
-static const BlockJobDriver backup_job_driver = {
-    .instance_size          = sizeof(BackupBlockJob),
-    .job_type               = BLOCK_JOB_TYPE_BACKUP,
-    .set_speed              = backup_set_speed,
-    .commit                 = backup_commit,
-    .abort                  = backup_abort,
-    .clean                  = backup_clean,
-    .attached_aio_context   = backup_attached_aio_context,
-    .drain                  = backup_drain,
-};
-
 static BlockErrorAction backup_error_action(BackupBlockJob *job,
                                             bool read, int error)
 {
@@ -542,6 +531,18 @@ static void coroutine_fn backup_run(void *opaque)
     block_job_defer_to_main_loop(&job->common, backup_complete, data);
 }
 
+static const BlockJobDriver backup_job_driver = {
+    .instance_size          = sizeof(BackupBlockJob),
+    .job_type               = BLOCK_JOB_TYPE_BACKUP,
+    .start                  = backup_run,
+    .set_speed              = backup_set_speed,
+    .commit                 = backup_commit,
+    .abort                  = backup_abort,
+    .clean                  = backup_clean,
+    .attached_aio_context   = backup_attached_aio_context,
+    .drain                  = backup_drain,
+};
+
 void backup_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, int64_t speed,
                   MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
@@ -653,7 +654,7 @@ void backup_start(const char *job_id, BlockDriverState *bs,
 
     block_job_add_bdrv(&job->common, target);
     job->common.len = len;
-    job->common.co = qemu_coroutine_create(backup_run, job);
+    job->common.co = qemu_coroutine_create(job->common.driver->start, job);
     block_job_txn_add_job(txn, &job->common);
     qemu_coroutine_enter(job->common.co);
     return;

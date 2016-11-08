@@ -205,6 +205,7 @@ static const BlockJobDriver commit_job_driver = {
     .instance_size = sizeof(CommitBlockJob),
     .job_type      = BLOCK_JOB_TYPE_COMMIT,
     .set_speed     = commit_set_speed,
+    .start         = commit_run,
 };
 
 void commit_start(const char *job_id, BlockDriverState *bs,
@@ -288,7 +289,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     s->backing_file_str = g_strdup(backing_file_str);
 
     s->on_error = on_error;
-    s->common.co = qemu_coroutine_create(commit_run, s);
+    s->common.co = qemu_coroutine_create(s->common.driver->start, s);
 
     trace_commit_start(bs, base, top, s, s->common.co);
     qemu_coroutine_enter(s->common.co);

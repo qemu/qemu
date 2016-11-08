@@ -920,6 +920,7 @@ static const BlockJobDriver mirror_job_driver = {
     .instance_size          = sizeof(MirrorBlockJob),
     .job_type               = BLOCK_JOB_TYPE_MIRROR,
     .set_speed              = mirror_set_speed,
+    .start                  = mirror_run,
     .complete               = mirror_complete,
     .pause                  = mirror_pause,
     .attached_aio_context   = mirror_attached_aio_context,
@@ -930,6 +931,7 @@ static const BlockJobDriver commit_active_job_driver = {
     .instance_size          = sizeof(MirrorBlockJob),
     .job_type               = BLOCK_JOB_TYPE_COMMIT,
     .set_speed              = mirror_set_speed,
+    .start                  = mirror_run,
     .complete               = mirror_complete,
     .pause                  = mirror_pause,
     .attached_aio_context   = mirror_attached_aio_context,
@@ -1007,7 +1009,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         }
     }
 
-    s->common.co = qemu_coroutine_create(mirror_run, s);
+    s->common.co = qemu_coroutine_create(s->common.driver->start, s);
     trace_mirror_start(bs, s, s->common.co, opaque);
     qemu_coroutine_enter(s->common.co);
 }

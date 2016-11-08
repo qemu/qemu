@@ -47,6 +47,9 @@ struct BlockJobDriver {
     /** Optional callback for job types that need to forward I/O status reset */
     void (*iostatus_reset)(BlockJob *job);
 
+    /** Mandatory: Entrypoint for the Coroutine. */
+    CoroutineEntry *start;
+
     /**
      * Optional callback for job types whose completion must be triggered
      * manually.
