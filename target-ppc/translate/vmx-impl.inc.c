@@ -960,8 +960,61 @@ static void gen_##op(DisasContext *ctx)             \
     tcg_temp_free_i32(ps);                          \
 }
 
+#define GEN_BCD2(op)                                \
+static void gen_##op(DisasContext *ctx)             \
+{                                                   \
+    TCGv_ptr rd, rb;                                \
+    TCGv_i32 ps;                                    \
+                                                    \
+    if (unlikely(!ctx->altivec_enabled)) {          \
+        gen_exception(ctx, POWERPC_EXCP_VPU);       \
+        return;                                     \
+    }                                               \
+                                                    \
+    rb = gen_avr_ptr(rB(ctx->opcode));              \
+    rd = gen_avr_ptr(rD(ctx->opcode));              \
+                                                    \
+    ps = tcg_const_i32((ctx->opcode & 0x200) != 0); \
+                                                    \
+    gen_helper_##op(cpu_crf[6], rd, rb, ps);        \
+                                                    \
+    tcg_temp_free_ptr(rb);                          \
+    tcg_temp_free_ptr(rd);                          \
+    tcg_temp_free_i32(ps);                          \
+}
+
 GEN_BCD(bcdadd)
 GEN_BCD(bcdsub)
+GEN_BCD2(bcdcfn)
+
+static void gen_xpnd04_1(DisasContext *ctx)
+{
+    switch (opc4(ctx->opcode)) {
+    case 7:
+        gen_bcdcfn(ctx);
+        break;
+    default:
+        gen_invalid(ctx);
+        break;
+    }
+}
+
+static void gen_xpnd04_2(DisasContext *ctx)
+{
+    switch (opc4(ctx->opcode)) {
+    case 7:
+        gen_bcdcfn(ctx);
+        break;
+    default:
+        gen_invalid(ctx);
+        break;
+    }
+}
+
+GEN_VXFORM_DUAL(vsubcuw, PPC_ALTIVEC, PPC_NONE, \
+                xpnd04_1, PPC_NONE, PPC2_ISA300)
+GEN_VXFORM_DUAL(vsubsws, PPC_ALTIVEC, PPC_NONE, \
+                xpnd04_2, PPC_NONE, PPC2_ISA300)
 
 GEN_VXFORM_DUAL(vsububm, PPC_ALTIVEC, PPC_NONE, \
                 bcdadd, PPC_NONE, PPC2_ALTIVEC_207)
@@ -1038,3 +1091,5 @@ GEN_VXFORM_DUAL(vsldoi, PPC_ALTIVEC, PPC_NONE,
 #undef GEN_VXFORM_NOA
 #undef GEN_VXFORM_UIMM
 #undef GEN_VAFORM_PAIRED
+
+#undef GEN_BCD2

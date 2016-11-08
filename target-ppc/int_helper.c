@@ -2492,6 +2492,8 @@ void helper_vsubecuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 #define BCD_NEG_PREF    0xD
 #define BCD_NEG_ALT     0xB
 #define BCD_PLUS_ALT_2  0xE
+#define NATIONAL_PLUS   0x2B
+#define NATIONAL_NEG    0x2D
 
 #if defined(HOST_WORDS_BIGENDIAN)
 #define BCD_DIG_BYTE(n) (15 - (n/2))
@@ -2556,6 +2558,24 @@ static void bcd_put_digit(ppc_avr_t *bcd, uint8_t digit, int n)
         bcd->u8[BCD_DIG_BYTE(n)] &= 0xF0;
         bcd->u8[BCD_DIG_BYTE(n)] |= digit;
     }
+}
+
+static int bcd_cmp_zero(ppc_avr_t *bcd)
+{
+    if (bcd->u64[HI_IDX] == 0 && (bcd->u64[LO_IDX] >> 4) == 0) {
+        return 1 << CRF_EQ;
+    } else {
+        return (bcd_get_sgn(bcd) == 1) ? 1 << CRF_GT : 1 << CRF_LT;
+    }
+}
+
+static uint16_t get_national_digit(ppc_avr_t *reg, int n)
+{
+#if defined(HOST_WORDS_BIGENDIAN)
+    return reg->u16[8 - n];
+#else
+    return reg->u16[n];
+#endif
 }
 
 static int bcd_cmp_mag(ppc_avr_t *a, ppc_avr_t *b)
@@ -2686,6 +2706,42 @@ uint32_t helper_bcdsub(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     /* else invalid ... defer to bcdadd code for proper handling */
 
     return helper_bcdadd(r, a, &bcopy, ps);
+}
+
+uint32_t helper_bcdcfn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int cr = 0;
+    uint16_t national = 0;
+    uint16_t sgnb = get_national_digit(b, 0);
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+    int invalid = (sgnb != NATIONAL_PLUS && sgnb != NATIONAL_NEG);
+
+    for (i = 1; i < 8; i++) {
+        national = get_national_digit(b, i);
+        if (unlikely(national < 0x30 || national > 0x39)) {
+            invalid = 1;
+            break;
+        }
+
+        bcd_put_digit(&ret, national & 0xf, i);
+    }
+
+    if (sgnb == NATIONAL_PLUS) {
+        bcd_put_digit(&ret, (ps == 0) ? BCD_PLUS_PREF_1 : BCD_PLUS_PREF_2, 0);
+    } else {
+        bcd_put_digit(&ret, BCD_NEG_PREF, 0);
+    }
+
+    cr = bcd_cmp_zero(&ret);
+
+    if (unlikely(invalid)) {
+        cr = 1 << CRF_SO;
+    }
+
+    *r = ret;
+
+    return cr;
 }
 
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
