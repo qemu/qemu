@@ -241,6 +241,9 @@ static void block_job_completed_single(BlockJob *job)
             job->driver->abort(job);
         }
     }
+    if (job->driver->clean) {
+        job->driver->clean(job);
+    }
 
     if (job->cb) {
         job->cb(job->opaque, job->ret);

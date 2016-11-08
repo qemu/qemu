@@ -242,6 +242,14 @@ static void backup_abort(BlockJob *job)
     }
 }
 
+static void backup_clean(BlockJob *job)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    assert(s->target);
+    blk_unref(s->target);
+    s->target = NULL;
+}
+
 static void backup_attached_aio_context(BlockJob *job, AioContext *aio_context)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common);
@@ -321,6 +329,7 @@ static const BlockJobDriver backup_job_driver = {
     .set_speed              = backup_set_speed,
     .commit                 = backup_commit,
     .abort                  = backup_abort,
+    .clean                  = backup_clean,
     .attached_aio_context   = backup_attached_aio_context,
     .drain                  = backup_drain,
 };
@@ -343,11 +352,7 @@ typedef struct {
 
 static void backup_complete(BlockJob *job, void *opaque)
 {
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
     BackupCompleteData *data = opaque;
-
-    blk_unref(s->target);
-    s->target = NULL;
 
     block_job_completed(job, data->ret);
     g_free(data);
@@ -658,7 +663,7 @@ void backup_start(const char *job_id, BlockDriverState *bs,
         bdrv_reclaim_dirty_bitmap(bs, sync_bitmap, NULL);
     }
     if (job) {
-        blk_unref(job->target);
+        backup_clean(&job->common);
         block_job_unref(&job->common);
     }
 }

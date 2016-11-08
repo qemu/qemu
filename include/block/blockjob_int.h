@@ -74,6 +74,14 @@ struct BlockJobDriver {
     void (*abort)(BlockJob *job);
 
     /**
+     * If the callback is not NULL, it will be invoked after a call to either
+     * .commit() or .abort(). Regardless of which callback is invoked after
+     * completion, .clean() will always be called, even if the job does not
+     * belong to a transaction group.
+     */
+    void (*clean)(BlockJob *job);
+
+    /**
      * If the callback is not NULL, it will be invoked when the job transitions
      * into the paused state.  Paused jobs must not perform any asynchronous
      * I/O or event loop activity.  This callback is used to quiesce jobs.
