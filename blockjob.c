@@ -256,6 +256,7 @@ static void block_job_completed_single(BlockJob *job)
     }
 
     if (job->txn) {
+        QLIST_REMOVE(job, txn_list);
         block_job_txn_unref(job->txn);
     }
     block_job_unref(job);
