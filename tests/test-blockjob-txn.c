@@ -24,10 +24,6 @@ typedef struct {
     int *result;
 } TestBlockJob;
 
-static const BlockJobDriver test_block_job_driver = {
-    .instance_size = sizeof(TestBlockJob),
-};
-
 static void test_block_job_complete(BlockJob *job, void *opaque)
 {
     BlockDriverState *bs = blk_bs(job->blk);
@@ -77,6 +73,11 @@ static void test_block_job_cb(void *opaque, int ret)
     g_free(data);
 }
 
+static const BlockJobDriver test_block_job_driver = {
+    .instance_size = sizeof(TestBlockJob),
+    .start = test_block_job_run,
+};
+
 /* Create a block job that completes with a given return code after a given
  * number of event loop iterations.  The return code is stored in the given
  * result pointer.
@@ -104,10 +105,9 @@ static BlockJob *test_block_job_start(unsigned int iterations,
     s->use_timer = use_timer;
     s->rc = rc;
     s->result = result;
-    s->common.co = qemu_coroutine_create(test_block_job_run, s);
     data->job = s;
     data->result = result;
-    qemu_coroutine_enter(s->common.co);
+    block_job_start(&s->common);
     return &s->common;
 }
 

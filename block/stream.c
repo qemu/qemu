@@ -255,7 +255,6 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     s->bs_flags = orig_bs_flags;
 
     s->on_error = on_error;
-    s->common.co = qemu_coroutine_create(s->common.driver->start, s);
-    trace_stream_start(bs, base, s, s->common.co);
-    qemu_coroutine_enter(s->common.co);
+    trace_stream_start(bs, base, s);
+    block_job_start(&s->common);
 }
