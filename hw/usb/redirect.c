@@ -132,6 +132,7 @@ struct USBRedirDevice {
     struct usbredirfilter_rule *filter_rules;
     int filter_rules_count;
     int compatible_speedmask;
+    VMChangeStateEntry *vmstate;
 };
 
 #define TYPE_USB_REDIR "usb-redir"
@@ -1411,7 +1412,8 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
                              usbredir_chardev_read, usbredir_chardev_event,
                              dev, NULL, true);
 
-    qemu_add_vm_change_state_handler(usbredir_vm_state_change, dev);
+    dev->vmstate =
+        qemu_add_vm_change_state_handler(usbredir_vm_state_change, dev);
 }
 
 static void usbredir_cleanup_device_queues(USBRedirDevice *dev)
@@ -1450,6 +1452,7 @@ static void usbredir_handle_destroy(USBDevice *udev)
     }
 
     free(dev->filter_rules);
+    qemu_del_vm_change_state_handler(dev->vmstate);
 }
 
 static int usbredir_check_filter(USBRedirDevice *dev)
