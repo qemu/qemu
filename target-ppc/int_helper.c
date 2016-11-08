@@ -2831,6 +2831,49 @@ uint32_t helper_bcdcfz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdctz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int cr = 0;
+    uint8_t digit = 0;
+    int sgnb = bcd_get_sgn(b);
+    int zone_lead = (ps) ? 0xF0 : 0x30;
+    int invalid = (sgnb == 0);
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+
+    int ox_flag = ((b->u64[HI_IDX] >> 4) != 0);
+
+    for (i = 0; i < 16; i++) {
+        digit = bcd_get_digit(b, i + 1, &invalid);
+
+        if (unlikely(invalid)) {
+            break;
+        }
+
+        ret.u8[BCD_DIG_BYTE(i * 2)] = zone_lead + digit;
+    }
+
+    if (ps) {
+        bcd_put_digit(&ret, (sgnb == 1) ? 0xC : 0xD, 1);
+    } else {
+        bcd_put_digit(&ret, (sgnb == 1) ? 0x3 : 0x7, 1);
+    }
+
+    cr = bcd_cmp_zero(b);
+
+    if (ox_flag) {
+        cr |= 1 << CRF_SO;
+    }
+
+    if (unlikely(invalid)) {
+        cr = 1 << CRF_SO;
+    }
+
+    *r = ret;
+
+    return cr;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
