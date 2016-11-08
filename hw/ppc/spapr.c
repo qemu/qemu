@@ -1753,11 +1753,80 @@ static void spapr_validate_node_memory(MachineState *machine, Error **errp)
     }
 }
 
+static void spapr_init_cpus(sPAPRMachineState *spapr)
+{
+    MachineState *machine = MACHINE(spapr);
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    char *type = spapr_get_cpu_core_type(machine->cpu_model);
+    int smt = kvmppc_smt_threads();
+    int spapr_max_cores, spapr_cores;
+    int i;
+
+    if (!type) {
+        error_report("Unable to find sPAPR CPU Core definition");
+        exit(1);
+    }
+
+    if (mc->query_hotpluggable_cpus) {
+        if (smp_cpus % smp_threads) {
+            error_report("smp_cpus (%u) must be multiple of threads (%u)",
+                         smp_cpus, smp_threads);
+            exit(1);
+        }
+        if (max_cpus % smp_threads) {
+            error_report("max_cpus (%u) must be multiple of threads (%u)",
+                         max_cpus, smp_threads);
+            exit(1);
+        }
+
+        spapr_max_cores = max_cpus / smp_threads;
+        spapr_cores = smp_cpus / smp_threads;
+    } else {
+        if (max_cpus != smp_cpus) {
+            error_report("This machine version does not support CPU hotplug");
+            exit(1);
+        }
+
+        spapr_max_cores = QEMU_ALIGN_UP(smp_cpus, smp_threads) / smp_threads;
+        spapr_cores = spapr_max_cores;
+    }
+
+    spapr->cores = g_new0(Object *, spapr_max_cores);
+    for (i = 0; i < spapr_max_cores; i++) {
+        int core_id = i * smp_threads;
+
+        if (mc->query_hotpluggable_cpus) {
+            sPAPRDRConnector *drc =
+                spapr_dr_connector_new(OBJECT(spapr),
+                                       SPAPR_DR_CONNECTOR_TYPE_CPU,
+                                       (core_id / smp_threads) * smt);
+
+            qemu_register_reset(spapr_drc_reset, drc);
+        }
+
+        if (i < spapr_cores) {
+            Object *core  = object_new(type);
+            int nr_threads = smp_threads;
+
+            /* Handle the partially filled core for older machine types */
+            if ((i + 1) * smp_threads >= smp_cpus) {
+                nr_threads = smp_cpus - i * smp_threads;
+            }
+
+            object_property_set_int(core, nr_threads, "nr-threads",
+                                    &error_fatal);
+            object_property_set_int(core, core_id, CPU_CORE_PROP_CORE_ID,
+                                    &error_fatal);
+            object_property_set_bool(core, true, "realized", &error_fatal);
+        }
+    }
+    g_free(type);
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(MachineState *machine)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
@@ -1772,21 +1841,6 @@ static void ppc_spapr_init(MachineState *machine)
     long load_limit, fw_size;
     char *filename;
     int smt = kvmppc_smt_threads();
-    int spapr_cores = smp_cpus / smp_threads;
-    int spapr_max_cores = max_cpus / smp_threads;
-
-    if (mc->query_hotpluggable_cpus) {
-        if (smp_cpus % smp_threads) {
-            error_report("smp_cpus (%u) must be multiple of threads (%u)",
-                         smp_cpus, smp_threads);
-            exit(1);
-        }
-        if (max_cpus % smp_threads) {
-            error_report("max_cpus (%u) must be multiple of threads (%u)",
-                         max_cpus, smp_threads);
-            exit(1);
-        }
-    }
 
     msi_nonbroken = true;
 
@@ -1866,44 +1920,7 @@ static void ppc_spapr_init(MachineState *machine)
 
     ppc_cpu_parse_features(machine->cpu_model);
 
-    if (mc->query_hotpluggable_cpus) {
-        char *type = spapr_get_cpu_core_type(machine->cpu_model);
-
-        if (type == NULL) {
-            error_report("Unable to find sPAPR CPU Core definition");
-            exit(1);
-        }
-
-        spapr->cores = g_new0(Object *, spapr_max_cores);
-        for (i = 0; i < spapr_max_cores; i++) {
-            int core_id = i * smp_threads;
-            sPAPRDRConnector *drc =
-                spapr_dr_connector_new(OBJECT(spapr),
-                                       SPAPR_DR_CONNECTOR_TYPE_CPU,
-                                       (core_id / smp_threads) * smt);
-
-            qemu_register_reset(spapr_drc_reset, drc);
-
-            if (i < spapr_cores) {
-                Object *core  = object_new(type);
-                object_property_set_int(core, smp_threads, "nr-threads",
-                                        &error_fatal);
-                object_property_set_int(core, core_id, CPU_CORE_PROP_CORE_ID,
-                                        &error_fatal);
-                object_property_set_bool(core, true, "realized", &error_fatal);
-            }
-        }
-        g_free(type);
-    } else {
-        for (i = 0; i < smp_cpus; i++) {
-            PowerPCCPU *cpu = cpu_ppc_init(machine->cpu_model);
-            if (cpu == NULL) {
-                error_report("Unable to find PowerPC CPU definition");
-                exit(1);
-            }
-            spapr_cpu_init(spapr, cpu, &error_fatal);
-       }
-    }
+    spapr_init_cpus(spapr);
 
     if (kvm_enabled()) {
         /* Enable H_LOGICAL_CI_* so SLOF can talk to in-kernel devices */
