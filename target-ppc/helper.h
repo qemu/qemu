@@ -379,6 +379,7 @@ DEF_HELPER_4(vpermxor, void, avr, avr, avr, avr)
 DEF_HELPER_4(bcdadd, i32, avr, avr, avr, i32)
 DEF_HELPER_4(bcdsub, i32, avr, avr, avr, i32)
 DEF_HELPER_3(bcdcfn, i32, avr, avr, i32)
+DEF_HELPER_3(bcdctn, i32, avr, avr, i32)
 
 DEF_HELPER_2(xsadddp, void, env, i32)
 DEF_HELPER_2(xssubdp, void, env, i32)

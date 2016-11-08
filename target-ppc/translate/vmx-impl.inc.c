@@ -986,10 +986,14 @@ static void gen_##op(DisasContext *ctx)             \
 GEN_BCD(bcdadd)
 GEN_BCD(bcdsub)
 GEN_BCD2(bcdcfn)
+GEN_BCD2(bcdctn)
 
 static void gen_xpnd04_1(DisasContext *ctx)
 {
     switch (opc4(ctx->opcode)) {
+    case 5:
+        gen_bcdctn(ctx);
+        break;
     case 7:
         gen_bcdcfn(ctx);
         break;
