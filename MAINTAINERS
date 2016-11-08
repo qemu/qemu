@@ -1093,6 +1093,13 @@ S: Maintained
 F: hw/core/generic-loader.c
 F: include/hw/core/generic-loader.h
 
+CHRP NVRAM
+M: Thomas Huth <thuth@redhat.com>
+S: Maintained
+F: hw/nvram/chrp_nvram.c
+F: include/hw/nvram/chrp_nvram.h
+F: tests/prom-env-test.c
+
 Subsystems
 ----------
 Audio
