@@ -254,6 +254,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     cipher->mode = mode;
 
     ctx = g_new0(QCryptoCipherNettle, 1);
+    cipher->opaque = ctx;
 
     switch (alg) {
     case QCRYPTO_CIPHER_ALG_DES_RFB:
@@ -384,13 +385,11 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     }
 
     ctx->iv = g_new0(uint8_t, ctx->blocksize);
-    cipher->opaque = ctx;
 
     return cipher;
 
  error:
-    g_free(cipher);
-    g_free(ctx);
+    qcrypto_cipher_free(cipher);
     return NULL;
 }
 
