@@ -1,4 +1,6 @@
 CONFIG_PCI=y
+# For now, CONFIG_IDE_CORE requires ISA, so we enable it here
+CONFIG_ISA_BUS=y
 CONFIG_VIRTIO_PCI=y
 CONFIG_VIRTIO=y
 CONFIG_USB_UHCI=y
