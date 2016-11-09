@@ -1645,40 +1645,122 @@ static void gen_push(DisasContext *s, TCGv val)
     tcg_gen_mov_i32(QREG_SP, tmp);
 }
 
+static TCGv mreg(int reg)
+{
+    if (reg < 8) {
+        /* Dx */
+        return cpu_dregs[reg];
+    }
+    /* Ax */
+    return cpu_aregs[reg & 7];
+}
+
 DISAS_INSN(movem)
 {
-    TCGv addr;
+    TCGv addr, incr, tmp, r[16];
+    int is_load = (insn & 0x0400) != 0;
+    int opsize = (insn & 0x40) != 0 ? OS_LONG : OS_WORD;
+    uint16_t mask = read_im16(env, s);
+    int mode = extract32(insn, 3, 3);
+    int reg0 = REG(insn, 0);
     int i;
-    uint16_t mask;
-    TCGv reg;
-    TCGv tmp;
-    int is_load;
 
-    mask = read_im16(env, s);
-    tmp = gen_lea(env, s, insn, OS_LONG);
-    if (IS_NULL_QREG(tmp)) {
+    tmp = cpu_aregs[reg0];
+
+    switch (mode) {
+    case 0: /* data register direct */
+    case 1: /* addr register direct */
+    do_addr_fault:
         gen_addr_fault(s);
         return;
+
+    case 2: /* indirect */
+        break;
+
+    case 3: /* indirect post-increment */
+        if (!is_load) {
+            /* post-increment is not allowed */
+            goto do_addr_fault;
+        }
+        break;
+
+    case 4: /* indirect pre-decrement */
+        if (is_load) {
+            /* pre-decrement is not allowed */
+            goto do_addr_fault;
+        }
+        /* We want a bare copy of the address reg, without any pre-decrement
+           adjustment, as gen_lea would provide.  */
+        break;
+
+    default:
+        tmp = gen_lea_mode(env, s, mode, reg0, opsize);
+        if (IS_NULL_QREG(tmp)) {
+            goto do_addr_fault;
+        }
+        break;
     }
+
     addr = tcg_temp_new();
     tcg_gen_mov_i32(addr, tmp);
-    is_load = ((insn & 0x0400) != 0);
-    for (i = 0; i < 16; i++, mask >>= 1) {
-        if (mask & 1) {
-            if (i < 8)
-                reg = DREG(i, 0);
-            else
-                reg = AREG(i, 0);
-            if (is_load) {
-                tmp = gen_load(s, OS_LONG, addr, 0);
-                tcg_gen_mov_i32(reg, tmp);
-            } else {
-                gen_store(s, OS_LONG, addr, reg);
+    incr = tcg_const_i32(opsize_bytes(opsize));
+
+    if (is_load) {
+        /* memory to register */
+        for (i = 0; i < 16; i++) {
+            if (mask & (1 << i)) {
+                r[i] = gen_load(s, opsize, addr, 1);
+                tcg_gen_add_i32(addr, addr, incr);
             }
-            if (mask != 1)
-                tcg_gen_addi_i32(addr, addr, 4);
+        }
+        for (i = 0; i < 16; i++) {
+            if (mask & (1 << i)) {
+                tcg_gen_mov_i32(mreg(i), r[i]);
+                tcg_temp_free(r[i]);
+            }
+        }
+        if (mode == 3) {
+            /* post-increment: movem (An)+,X */
+            tcg_gen_mov_i32(cpu_aregs[reg0], addr);
+        }
+    } else {
+        /* register to memory */
+        if (mode == 4) {
+            /* pre-decrement: movem X,-(An) */
+            for (i = 15; i >= 0; i--) {
+                if ((mask << i) & 0x8000) {
+                    tcg_gen_sub_i32(addr, addr, incr);
+                    if (reg0 + 8 == i &&
+                        m68k_feature(s->env, M68K_FEATURE_EXT_FULL)) {
+                        /* M68020+: if the addressing register is the
+                         * register moved to memory, the value written
+                         * is the initial value decremented by the size of
+                         * the operation, regardless of how many actual
+                         * stores have been performed until this point.
+                         * M68000/M68010: the value is the initial value.
+                         */
+                        tmp = tcg_temp_new();
+                        tcg_gen_sub_i32(tmp, cpu_aregs[reg0], incr);
+                        gen_store(s, opsize, addr, tmp);
+                        tcg_temp_free(tmp);
+                    } else {
+                        gen_store(s, opsize, addr, mreg(i));
+                    }
+                }
+            }
+            tcg_gen_mov_i32(cpu_aregs[reg0], addr);
+        } else {
+            for (i = 0; i < 16; i++) {
+                if (mask & (1 << i)) {
+                    gen_store(s, opsize, addr, mreg(i));
+                    tcg_gen_add_i32(addr, addr, incr);
+                }
+            }
         }
     }
+
+    tcg_temp_free(incr);
+    tcg_temp_free(addr);
 }
 
 DISAS_INSN(bitop_im)
@@ -3822,7 +3904,9 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(pea,       4840, ffc0);
     BASE(swap,      4840, fff8);
     INSN(bkpt,      4848, fff8, BKPT);
-    BASE(movem,     48c0, fbc0);
+    INSN(movem,     48d0, fbf8, CF_ISA_A);
+    INSN(movem,     48e8, fbf8, CF_ISA_A);
+    INSN(movem,     4880, fb80, M68000);
     BASE(ext,       4880, fff8);
     BASE(ext,       48c0, fff8);
     BASE(ext,       49c0, fff8);
