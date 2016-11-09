@@ -2926,7 +2926,7 @@ if test "$curses" != "no" ; then
     curses_inc_list="$($pkg_config --cflags ncurses 2>/dev/null):"
     curses_lib_list="$($pkg_config --libs ncurses 2>/dev/null):-lpdcurses"
   else
-    curses_inc_list="$($pkg_config --cflags ncursesw 2>/dev/null):"
+    curses_inc_list="$($pkg_config --cflags ncursesw 2>/dev/null):-I/usr/include/ncursesw:"
     curses_lib_list="$($pkg_config --libs ncursesw 2>/dev/null):-lncursesw:-lcursesw"
   fi
   curses_found=no
@@ -2941,11 +2941,13 @@ int main(void) {
   resize_term(0, 0);
   addwstr(L"wide chars\n");
   addnwstr(&wch, 1);
+  add_wch(WACS_DEGREE);
   return s != 0;
 }
 EOF
   IFS=:
   for curses_inc in $curses_inc_list; do
+    IFS=:
     for curses_lib in $curses_lib_list; do
       unset IFS
       if compile_prog "$curses_inc" "$curses_lib" ; then
@@ -2955,6 +2957,9 @@ EOF
         break
       fi
     done
+    if test "$curses_found" = yes ; then
+      break
+    fi
   done
   unset IFS
   if test "$curses_found" = "yes" ; then
