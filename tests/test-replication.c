@@ -85,6 +85,8 @@ static void test_blk_read(BlockBackend *blk, long pattern,
     }
 
     g_free(pattern_buf);
+    g_free(cmp_buf);
+    qemu_iovec_destroy(&qiov);
 }
 
 static void test_blk_write(BlockBackend *blk, long pattern, int64_t offset,
@@ -116,6 +118,7 @@ static void test_blk_write(BlockBackend *blk, long pattern, int64_t offset,
     }
 
     g_free(pattern_buf);
+    qemu_iovec_destroy(&qiov);
 }
 
 /*
