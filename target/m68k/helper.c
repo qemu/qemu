@@ -284,58 +284,6 @@ void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
     m68k_switch_sp(env);
 }
 
-uint32_t HELPER(shl_cc)(CPUM68KState *env, uint32_t val, uint32_t shift)
-{
-    uint64_t result;
-
-    shift &= 63;
-    result = (uint64_t)val << shift;
-
-    env->cc_c = (result >> 32) & 1;
-    env->cc_n = result;
-    env->cc_z = result;
-    env->cc_v = 0;
-    env->cc_x = shift ? env->cc_c : env->cc_x;
-
-    return result;
-}
-
-uint32_t HELPER(shr_cc)(CPUM68KState *env, uint32_t val, uint32_t shift)
-{
-    uint64_t temp;
-    uint32_t result;
-
-    shift &= 63;
-    temp = (uint64_t)val << 32 >> shift;
-    result = temp >> 32;
-
-    env->cc_c = (temp >> 31) & 1;
-    env->cc_n = result;
-    env->cc_z = result;
-    env->cc_v = 0;
-    env->cc_x = shift ? env->cc_c : env->cc_x;
-
-    return result;
-}
-
-uint32_t HELPER(sar_cc)(CPUM68KState *env, uint32_t val, uint32_t shift)
-{
-    uint64_t temp;
-    uint32_t result;
-
-    shift &= 63;
-    temp = (int64_t)val << 32 >> shift;
-    result = temp >> 32;
-
-    env->cc_c = (temp >> 31) & 1;
-    env->cc_n = result;
-    env->cc_z = result;
-    env->cc_v = result ^ val;
-    env->cc_x = shift ? env->cc_c : env->cc_x;
-
-    return result;
-}
-
 /* FPU helpers.  */
 uint32_t HELPER(f64_to_i32)(CPUM68KState *env, float64 val)
 {
