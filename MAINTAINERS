@@ -1574,28 +1574,6 @@ F: tcg/tci/
 F: tci.c
 F: disas/tci.c
 
-Stable branches
----------------
-Stable 1.0
-L: qemu-stable@nongnu.org
-T: git git://git.qemu-project.org/qemu-stable-1.0.git
-S: Orphan
-
-Stable 0.15
-L: qemu-stable@nongnu.org
-T: git git://git.qemu-project.org/qemu-stable-0.15.git
-S: Orphan
-
-Stable 0.14
-L: qemu-stable@nongnu.org
-T: git git://git.qemu-project.org/qemu-stable-0.14.git
-S: Orphan
-
-Stable 0.10
-L: qemu-stable@nongnu.org
-T: git git://git.qemu-project.org/qemu-stable-0.10.git
-S: Orphan
-
 Block drivers
 -------------
 VMDK
