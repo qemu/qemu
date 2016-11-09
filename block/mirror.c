@@ -615,6 +615,20 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
     return 0;
 }
 
+/* Called when going out of the streaming phase to flush the bulk of the
+ * data to the medium, or just before completing.
+ */
+static int mirror_flush(MirrorBlockJob *s)
+{
+    int ret = blk_flush(s->target);
+    if (ret < 0) {
+        if (mirror_error_action(s, false, -ret) == BLOCK_ERROR_ACTION_REPORT) {
+            s->ret = ret;
+        }
+    }
+    return ret;
+}
+
 static void coroutine_fn mirror_run(void *opaque)
 {
     MirrorBlockJob *s = opaque;
@@ -727,27 +741,23 @@ static void coroutine_fn mirror_run(void *opaque)
         should_complete = false;
         if (s->in_flight == 0 && cnt == 0) {
             trace_mirror_before_flush(s);
-            ret = blk_flush(s->target);
-            if (ret < 0) {
-                if (mirror_error_action(s, false, -ret) ==
-                    BLOCK_ERROR_ACTION_REPORT) {
-                    goto immediate_exit;
+            if (!s->synced) {
+                if (mirror_flush(s) < 0) {
+                    /* Go check s->ret.  */
+                    continue;
                 }
-            } else {
                 /* We're out of the streaming phase.  From now on, if the job
                  * is cancelled we will actually complete all pending I/O and
                  * report completion.  This way, block-job-cancel will leave
                  * the target in a consistent state.
                  */
-                if (!s->synced) {
-                    block_job_event_ready(&s->common);
-                    s->synced = true;
-                }
-
-                should_complete = s->should_complete ||
-                    block_job_is_cancelled(&s->common);
-                cnt = bdrv_get_dirty_count(s->dirty_bitmap);
+                block_job_event_ready(&s->common);
+                s->synced = true;
             }
+
+            should_complete = s->should_complete ||
+                block_job_is_cancelled(&s->common);
+            cnt = bdrv_get_dirty_count(s->dirty_bitmap);
         }
 
         if (cnt == 0 && should_complete) {
@@ -765,7 +775,7 @@ static void coroutine_fn mirror_run(void *opaque)
 
             bdrv_drained_begin(bs);
             cnt = bdrv_get_dirty_count(s->dirty_bitmap);
-            if (cnt > 0) {
+            if (cnt > 0 || mirror_flush(s) < 0) {
                 bdrv_drained_end(bs);
                 continue;
             }
