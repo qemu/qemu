@@ -227,25 +227,16 @@ static S390PCIBusDevice *s390_pci_find_dev_by_target(S390pciState *s,
 
 S390PCIBusDevice *s390_pci_find_dev_by_idx(S390pciState *s, uint32_t idx)
 {
-    S390PCIBusDevice *pbdev;
-
-    QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
-        if (pbdev->idx == idx) {
-            return pbdev;
-        }
-    }
-
-    return NULL;
+    return g_hash_table_lookup(s->zpci_table, &idx);
 }
 
 S390PCIBusDevice *s390_pci_find_dev_by_fh(S390pciState *s, uint32_t fh)
 {
-    S390PCIBusDevice *pbdev;
+    uint32_t idx = FH_MASK_INDEX & fh;
+    S390PCIBusDevice *pbdev = s390_pci_find_dev_by_idx(s, idx);
 
-    QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
-        if (pbdev->fh == fh) {
-            return pbdev;
-        }
+    if (pbdev && pbdev->fh == fh) {
+        return pbdev;
     }
 
     return NULL;
@@ -584,6 +575,7 @@ static int s390_pcihost_init(SysBusDevice *dev)
 
     s->iommu_table = g_hash_table_new_full(g_int64_hash, g_int64_equal,
                                            NULL, g_free);
+    s->zpci_table = g_hash_table_new_full(g_int_hash, g_int_equal, NULL, NULL);
     QTAILQ_INIT(&s->pending_sei);
     QTAILQ_INIT(&s->zpci_devs);
     return 0;
@@ -735,6 +727,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         }
         pbdev->fh = pbdev->idx;
         QTAILQ_INSERT_TAIL(&s->zpci_devs, pbdev, link);
+        g_hash_table_insert(s->zpci_table, &pbdev->idx, pbdev);
     }
 }
 
@@ -815,6 +808,7 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
 out:
     pbdev->fid = 0;
     QTAILQ_REMOVE(&s->zpci_devs, pbdev, link);
+    g_hash_table_remove(s->zpci_table, &pbdev->idx);
     object_unparent(OBJECT(pbdev));
 }
 

@@ -312,6 +312,7 @@ typedef struct S390pciState {
     uint32_t next_idx;
     S390PCIBus *bus;
     GHashTable *iommu_table;
+    GHashTable *zpci_table;
     QTAILQ_HEAD(, SeiContainer) pending_sei;
     QTAILQ_HEAD(, S390PCIBusDevice) zpci_devs;
 } S390pciState;
