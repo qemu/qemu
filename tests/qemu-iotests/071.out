@@ -86,5 +86,7 @@ read failed: Input/output error
 {"return": ""}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
+QEMU_PROG: Failed to flush the L2 table cache: Input/output error
+QEMU_PROG: Failed to flush the refcount block cache: Input/output error
 
 *** done
