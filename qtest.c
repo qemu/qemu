@@ -240,6 +240,7 @@ static void GCC_FMT_ATTR(2, 3) qtest_sendf(CharBackend *chr,
     va_start(ap, fmt);
     buffer = g_strdup_vprintf(fmt, ap);
     qtest_send(chr, buffer);
+    g_free(buffer);
     va_end(ap);
 }
 
