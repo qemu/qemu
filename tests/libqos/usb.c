@@ -64,4 +64,5 @@ void usb_test_hotplug(const char *hcd_id, const int port,
     g_assert(response);
     g_assert(qdict_haskey(response, "event"));
     g_assert(!strcmp(qdict_get_str(response, "event"), "DEVICE_DELETED"));
+    QDECREF(response);
 }
