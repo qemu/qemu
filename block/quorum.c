@@ -250,30 +250,6 @@ static void quorum_report_bad_acb(QuorumChildRequest *sacb, int ret)
     quorum_report_bad(type, acb->offset, acb->bytes, sacb->bs->node_name, ret);
 }
 
-static int quorum_fifo_aio_cb(void *opaque, int ret)
-{
-    QuorumChildRequest *sacb = opaque;
-    QuorumAIOCB *acb = sacb->parent;
-    BDRVQuorumState *s = acb->bs->opaque;
-
-    assert(acb->is_read && s->read_pattern == QUORUM_READ_PATTERN_FIFO);
-
-    if (ret < 0) {
-        quorum_report_bad_acb(sacb, ret);
-
-        /* We try to read next child in FIFO order if we fail to read */
-        if (acb->children_read < s->num_children) {
-            return read_fifo_child(acb);
-        }
-    }
-
-    acb->vote_ret = ret;
-
-    /* FIXME: rewrite failed children if acb->children_read > 1? */
-
-    return ret;
-}
-
 static void quorum_report_bad_versions(BDRVQuorumState *s,
                                        QuorumAIOCB *acb,
                                        QuorumVoteValue *value)
@@ -679,12 +655,20 @@ static int read_quorum_children(QuorumAIOCB *acb)
 static int read_fifo_child(QuorumAIOCB *acb)
 {
     BDRVQuorumState *s = acb->bs->opaque;
-    int n = acb->children_read++;
-    int ret;
+    int n, ret;
 
-    acb->qcrs[n].bs = s->children[n]->bs;
-    ret = bdrv_co_preadv(s->children[n], acb->offset, acb->bytes, acb->qiov, 0);
-    ret = quorum_fifo_aio_cb(&acb->qcrs[n], ret);
+    /* We try to read the next child in FIFO order if we failed to read */
+    do {
+        n = acb->children_read++;
+        acb->qcrs[n].bs = s->children[n]->bs;
+        ret = bdrv_co_preadv(s->children[n], acb->offset, acb->bytes,
+                             acb->qiov, 0);
+        if (ret < 0) {
+            quorum_report_bad_acb(&acb->qcrs[n], ret);
+        }
+    } while (ret < 0 && acb->children_read < s->num_children);
+
+    /* FIXME: rewrite failed children if acb->children_read > 1? */
 
     return ret;
 }
