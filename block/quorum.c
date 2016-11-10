@@ -144,9 +144,8 @@ static bool quorum_vote(QuorumAIOCB *acb);
 
 static void quorum_aio_finalize(QuorumAIOCB *acb)
 {
-    acb->has_completed = true;
     g_free(acb->qcrs);
-    qemu_coroutine_enter_if_inactive(acb->co);
+    g_free(acb);
 }
 
 static bool quorum_sha256_compare(QuorumVoteValue *a, QuorumVoteValue *b)
@@ -238,7 +237,8 @@ static void quorum_rewrite_aio_cb(void *opaque, int ret)
         return;
     }
 
-    quorum_aio_finalize(acb);
+    acb->has_completed = true;
+    qemu_coroutine_enter_if_inactive(acb->co);
 }
 
 static int read_fifo_child(QuorumAIOCB *acb);
@@ -284,7 +284,7 @@ static int quorum_fifo_aio_cb(void *opaque, int ret)
     acb->vote_ret = ret;
 
     /* FIXME: rewrite failed children if acb->children_read > 1? */
-    quorum_aio_finalize(acb);
+
     return ret;
 }
 
@@ -322,7 +322,8 @@ static void quorum_aio_cb(void *opaque, int ret)
 
     /* if no rewrite is done the code will finish right away */
     if (!rewrite) {
-        quorum_aio_finalize(acb);
+        acb->has_completed = true;
+        qemu_coroutine_enter_if_inactive(acb->co);
     }
 }
 
@@ -715,7 +716,8 @@ static int quorum_co_readv(BlockDriverState *bs,
     } else {
         ret = read_fifo_child(acb);
     }
-    g_free(acb);
+    quorum_aio_finalize(acb);
+
     return ret;
 }
 
@@ -757,6 +759,7 @@ static int quorum_co_writev(BlockDriverState *bs,
     }
 
     ret = acb->vote_ret;
+    quorum_aio_finalize(acb);
 
     return ret;
 }
