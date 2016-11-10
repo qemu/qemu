@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "sysemu/hw_accel.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "sysemu/cpus.h"
@@ -124,6 +125,8 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
         pcr = compat->pcr;
     }
 
+    cpu_synchronize_state(CPU(cpu));
+
     cpu->compat_pvr = compat_pvr;
     env->spr[SPR_PCR] = pcr & pcc->pcr_mask;
 
@@ -132,6 +135,38 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
         if (ret < 0) {
             error_setg_errno(errp, -ret,
                              "Unable to set CPU compatibility mode in KVM");
+        }
+    }
+}
+
+typedef struct {
+    uint32_t compat_pvr;
+    Error *err;
+} SetCompatState;
+
+static void do_set_compat(CPUState *cs, run_on_cpu_data arg)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    SetCompatState *s = arg.host_ptr;
+
+    ppc_set_compat(cpu, s->compat_pvr, &s->err);
+}
+
+void ppc_set_compat_all(uint32_t compat_pvr, Error **errp)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        SetCompatState s = {
+            .compat_pvr = compat_pvr,
+            .err = NULL,
+        };
+
+        run_on_cpu(cs, do_set_compat, RUN_ON_CPU_HOST_PTR(&s));
+
+        if (s.err) {
+            error_propagate(errp, s.err);
+            return;
         }
     }
 }

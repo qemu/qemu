@@ -921,20 +921,6 @@ static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
     }
 }
 
-typedef struct {
-    uint32_t compat_pvr;
-    Error *err;
-} SetCompatState;
-
-static void do_set_compat(CPUState *cs, run_on_cpu_data arg)
-{
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    SetCompatState *s = arg.host_ptr;
-
-    cpu_synchronize_state(cs);
-    ppc_set_compat(cpu, s->compat_pvr, &s->err);
-}
-
 static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
                                                   sPAPRMachineState *spapr,
                                                   target_ulong opcode,
@@ -942,7 +928,6 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
 {
     target_ulong list = ppc64_phys_to_real(args[0]);
     target_ulong ov_table;
-    CPUState *cs;
     bool explicit_match = false; /* Matched the CPU's real PVR */
     uint32_t max_compat = cpu->max_compat;
     uint32_t best_compat = 0;
@@ -986,18 +971,12 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
 
     /* Update CPUs */
     if (cpu->compat_pvr != best_compat) {
-        CPU_FOREACH(cs) {
-            SetCompatState s = {
-                .compat_pvr = best_compat,
-                .err = NULL,
-            };
+        Error *local_err = NULL;
 
-            run_on_cpu(cs, do_set_compat, RUN_ON_CPU_HOST_PTR(&s));
-
-            if (s.err) {
-                error_report_err(s.err);
-                return H_HARDWARE;
-            }
+        ppc_set_compat_all(best_compat, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
         }
     }
 
