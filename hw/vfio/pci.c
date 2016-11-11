@@ -1881,8 +1881,8 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
      * 0 is reserved for this since absence of capabilities is indicated by
      * 0 for the ID, version, AND next pointer.  However, pcie_add_capability()
      * uses ID 0 as reserved for list management and will incorrectly match and
-     * assert if we attempt to pre-load the head of the chain with with this
-     * ID.  Use ID 0xFFFF temporarily since it is also seems to be reserved in
+     * assert if we attempt to pre-load the head of the chain with this ID.
+     * Use ID 0xFFFF temporarily since it is also seems to be reserved in
      * part for identifying absence of capabilities in a root complex register
      * block.  If the ID still exists after adding capabilities, switch back to
      * zero.  We'll mark this entire first dword as emulated for this purpose.
