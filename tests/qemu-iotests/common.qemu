@@ -155,15 +155,13 @@ function _launch_qemu()
 
     if [ -z "$keep_stderr" ]; then
         QEMU_NEED_PID='y'\
-        ${QEMU} -nographic -serial none ${comm} -machine accel=qtest "${@}" \
-                                                                >"${fifo_out}" \
-                                                                2>&1 \
-                                                                <"${fifo_in}" &
+        ${QEMU} -nographic -serial none ${comm} "${@}" >"${fifo_out}" \
+                                                       2>&1 \
+                                                       <"${fifo_in}" &
     elif [ "$keep_stderr" = "y" ]; then
         QEMU_NEED_PID='y'\
-        ${QEMU} -nographic -serial none ${comm} -machine accel=qtest "${@}" \
-                                                                >"${fifo_out}" \
-                                                                <"${fifo_in}" &
+        ${QEMU} -nographic -serial none ${comm} "${@}" >"${fifo_out}" \
+                                                       <"${fifo_in}" &
     else
         exit 1
     fi
