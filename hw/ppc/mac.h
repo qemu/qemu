@@ -85,6 +85,18 @@ typedef struct Core99MachineState {
     uint8_t via_config;
 } Core99MachineState;
 
+/* Screamer */
+#define TYPE_SCREAMER "screamer"
+#define SCREAMER(obj) OBJECT_CHECK(ScreamerState, (obj), TYPE_SCREAMER)
+
+typedef struct ScreamerState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+    MemoryRegion mem;
+    qemu_irq irq;
+} ScreamerState;
+
 /* Grackle PCI */
 #define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
 

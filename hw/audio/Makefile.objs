@@ -15,4 +15,6 @@ common-obj-$(CONFIG_CS4231) += cs4231.o
 common-obj-$(CONFIG_MARVELL_88W8618) += marvell_88w8618.o
 common-obj-$(CONFIG_MILKYMIST) += milkymist-ac97.o
 
+common-obj-$(CONFIG_SCREAMER) += screamer.o
+
 common-obj-y += soundhw.o

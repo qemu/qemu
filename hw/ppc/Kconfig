@@ -92,6 +92,7 @@ config MAC_OLDWORLD
     select HEATHROW_PIC
     select MACIO
     select FW_CFG_PPC
+    select SCREAMER
 
 config MAC_NEWWORLD
     bool
@@ -104,6 +105,7 @@ config MAC_NEWWORLD
     select MAC_PMU
     select UNIN_PCI
     select FW_CFG_PPC
+    select SCREAMER
 
 config E500
     bool
