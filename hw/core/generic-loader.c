@@ -93,7 +93,12 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
                        "image");
             return;
         }
-        s->set_pc = true;
+        /* The user specified a file, only set the PC if they also specified
+         * a CPU to use.
+         */
+        if (s->cpu_num != CPU_NONE) {
+            s->set_pc = true;
+        }
     } else if (s->addr) {
         /* User is setting the PC */
         if (s->data || s->data_len || s->data_be) {
