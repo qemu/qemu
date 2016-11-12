@@ -130,7 +130,15 @@ typedef struct ScreamerState {
     /*< public >*/
     MemoryRegion mem;
     qemu_irq irq;
+    void *dbdma;
+    qemu_irq dma_tx_irq;
+    qemu_irq dma_rx_irq;
+
+    uint32_t regs[6];
+    uint32_t codec_ctrl_regs[7];
 } ScreamerState;
+
+void macio_screamer_register_dma(ScreamerState *s, void *dbdma, int txchannel, int rxchannel);
 
 /* MacIO */
 #define TYPE_OLDWORLD_MACIO "macio-oldworld"

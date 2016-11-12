@@ -149,6 +149,8 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     sysbus_dev = SYS_BUS_DEVICE(&s->screamer);
     memory_region_add_subregion(&s->bar, 0x14000,
                                 sysbus_mmio_get_region(sysbus_dev, 0));
+    macio_screamer_register_dma(SCREAMER(sysbus_dev), s->dbdma, 0x1, 0x2);
+    
     macio_bar_setup(s);
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
 }
