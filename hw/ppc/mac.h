@@ -32,8 +32,10 @@
 #include "hw/sysbus.h"
 #include "hw/input/adb.h"
 #include "hw/misc/mos6522.h"
+#include "hw/ppc/mac_dbdma.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci-host/uninorth.h"
+#include "audio/audio.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -56,6 +58,8 @@
 #define OLDWORLD_IDE0_DMA_IRQ  0x2
 #define OLDWORLD_IDE1_IRQ      0xe
 #define OLDWORLD_IDE1_DMA_IRQ  0x3
+#define OLDWORLD_SCREAMER_TX_IRQ  0x11
+#define OLDWORLD_SCREAMER_TX_DMA_IRQ 0x08
 
 /* New World IRQs */
 #define NEWWORLD_CUDA_IRQ      0x19
@@ -89,13 +93,29 @@ typedef struct Core99MachineState {
 #define TYPE_SCREAMER "screamer"
 #define SCREAMER(obj) OBJECT_CHECK(ScreamerState, (obj), TYPE_SCREAMER)
 
+#define SCREAMER_BUFFER_SIZE 0x4000
+
 typedef struct ScreamerState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
     MemoryRegion mem;
     qemu_irq irq;
+    void *dbdma;
+    qemu_irq dma_tx_irq;
+
+    QEMUSoundCard card;
+    SWVoiceOut *voice;
+    uint8_t  buf[SCREAMER_BUFFER_SIZE];
+    uint32_t bpos;
+    uint32_t ppos;
+    DBDMA_io io;
+
+    uint32_t regs[6];
+    uint32_t codec_ctrl_regs[7];
 } ScreamerState;
+
+void macio_screamer_register_dma(ScreamerState *s, void *dbdma, int txchannel);
 
 /* Grackle PCI */
 #define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"

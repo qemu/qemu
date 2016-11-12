@@ -38,6 +38,9 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
+/* Note: this code is strongly inspirated from the corresponding code
+ * in PearPC */
+
 /*
  * The mac-io has two interfaces to the ESCC. One is called "escc-legacy",
  * while the other one is the normal, current ESCC interface.
@@ -222,6 +225,12 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
         error_propagate(errp, err);
         return;
     }
+    
+    /* Screamer */
+    sysbus_dev = SYS_BUS_DEVICE(&s->screamer);
+    sysbus_connect_irq(sysbus_dev, 0, qdev_get_gpio_in(pic_dev, OLDWORLD_SCREAMER_TX_IRQ));
+    sysbus_connect_irq(sysbus_dev, 1, qdev_get_gpio_in(pic_dev, OLDWORLD_SCREAMER_TX_DMA_IRQ));
+    macio_screamer_register_dma(SCREAMER(sysbus_dev), &s->dbdma, 0x10);
 }
 
 static void macio_init_ide(MacIOState *s, MACIOIDEState *ide, size_t ide_size,
