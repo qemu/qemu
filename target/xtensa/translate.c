@@ -133,6 +133,7 @@ static const XtensaReg sregnames[256] = {
     [ITLBCFG] = XTENSA_REG("ITLBCFG", XTENSA_OPTION_MMU),
     [DTLBCFG] = XTENSA_REG("DTLBCFG", XTENSA_OPTION_MMU),
     [IBREAKENABLE] = XTENSA_REG("IBREAKENABLE", XTENSA_OPTION_DEBUG),
+    [MEMCTL] = XTENSA_REG_BITS("MEMCTL", XTENSA_OPTION_ALL),
     [CACHEATTR] = XTENSA_REG("CACHEATTR", XTENSA_OPTION_CACHEATTR),
     [ATOMCTL] = XTENSA_REG("ATOMCTL", XTENSA_OPTION_ATOMCTL),
     [IBREAKA] = XTENSA_REG("IBREAKA0", XTENSA_OPTION_DEBUG),
@@ -637,6 +638,12 @@ static bool gen_wsr_ibreakenable(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     return true;
 }
 
+static bool gen_wsr_memctl(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    gen_helper_wsr_memctl(cpu_env, v);
+    return false;
+}
+
 static bool gen_wsr_atomctl(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     tcg_gen_andi_i32(cpu_SR[sr], v, 0x3f);
@@ -821,6 +828,7 @@ static bool gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [ITLBCFG] = gen_wsr_tlbcfg,
         [DTLBCFG] = gen_wsr_tlbcfg,
         [IBREAKENABLE] = gen_wsr_ibreakenable,
+        [MEMCTL] = gen_wsr_memctl,
         [ATOMCTL] = gen_wsr_atomctl,
         [IBREAKA] = gen_wsr_ibreaka,
         [IBREAKA + 1] = gen_wsr_ibreaka,

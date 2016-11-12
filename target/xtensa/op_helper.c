@@ -506,6 +506,30 @@ void HELPER(check_atomctl)(CPUXtensaState *env, uint32_t pc, uint32_t vaddr)
     }
 }
 
+void HELPER(wsr_memctl)(CPUXtensaState *env, uint32_t v)
+{
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_ICACHE)) {
+        if (extract32(v, MEMCTL_IUSEWAYS_SHIFT, MEMCTL_IUSEWAYS_LEN) >
+            env->config->icache_ways) {
+            deposit32(v, MEMCTL_IUSEWAYS_SHIFT, MEMCTL_IUSEWAYS_LEN,
+                      env->config->icache_ways);
+        }
+    }
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_DCACHE)) {
+        if (extract32(v, MEMCTL_DUSEWAYS_SHIFT, MEMCTL_DUSEWAYS_LEN) >
+            env->config->dcache_ways) {
+            deposit32(v, MEMCTL_DUSEWAYS_SHIFT, MEMCTL_DUSEWAYS_LEN,
+                      env->config->dcache_ways);
+        }
+        if (extract32(v, MEMCTL_DALLOCWAYS_SHIFT, MEMCTL_DALLOCWAYS_LEN) >
+            env->config->dcache_ways) {
+            deposit32(v, MEMCTL_DALLOCWAYS_SHIFT, MEMCTL_DALLOCWAYS_LEN,
+                      env->config->dcache_ways);
+        }
+    }
+    env->sregs[MEMCTL] = v & env->config->memctl_mask;
+}
+
 void HELPER(wsr_rasid)(CPUXtensaState *env, uint32_t v)
 {
     XtensaCPU *cpu = xtensa_env_get_cpu(env);

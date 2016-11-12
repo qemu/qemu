@@ -129,6 +129,7 @@ enum {
     ITLBCFG = 91,
     DTLBCFG = 92,
     IBREAKENABLE = 96,
+    MEMCTL = 97,
     CACHEATTR = 98,
     ATOMCTL = 99,
     IBREAKA = 128,
@@ -188,6 +189,20 @@ enum {
 #define DBREAKC_LB 0x40000000
 #define DBREAKC_SB_LB (DBREAKC_SB | DBREAKC_LB)
 #define DBREAKC_MASK 0x3f
+
+#define MEMCTL_INIT 0x00800000
+#define MEMCTL_IUSEWAYS_SHIFT 18
+#define MEMCTL_IUSEWAYS_LEN 5
+#define MEMCTL_IUSEWAYS_MASK 0x007c0000
+#define MEMCTL_DALLOCWAYS_SHIFT 13
+#define MEMCTL_DALLOCWAYS_LEN 5
+#define MEMCTL_DALLOCWAYS_MASK 0x0003e000
+#define MEMCTL_DUSEWAYS_SHIFT 8
+#define MEMCTL_DUSEWAYS_LEN 5
+#define MEMCTL_DUSEWAYS_MASK 0x00001f00
+#define MEMCTL_ISNP 0x4
+#define MEMCTL_DSNP 0x2
+#define MEMCTL_IL0EN 0x1
 
 #define MAX_NAREG 64
 #define MAX_NINTERRUPT 32
@@ -331,6 +346,10 @@ struct XtensaConfig {
     unsigned debug_level;
     unsigned nibreak;
     unsigned ndbreak;
+
+    unsigned icache_ways;
+    unsigned dcache_ways;
+    uint32_t memctl_mask;
 
     uint32_t configid[2];
 

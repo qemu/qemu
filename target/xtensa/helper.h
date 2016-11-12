@@ -23,6 +23,7 @@ DEF_HELPER_2(wsr_ccount, void, env, i32)
 DEF_HELPER_2(update_ccompare, void, env, i32)
 DEF_HELPER_1(check_interrupts, void, env)
 DEF_HELPER_3(check_atomctl, void, env, i32, i32)
+DEF_HELPER_2(wsr_memctl, void, env, i32)
 
 DEF_HELPER_2(itlb_hit_test, void, env, i32)
 DEF_HELPER_2(wsr_rasid, void, env, i32)
