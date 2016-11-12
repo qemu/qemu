@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "audio/audio.h"
 #include "hw/ppc/mac.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "sysemu/sysemu.h"
@@ -31,7 +32,7 @@
 #include "qemu/log.h"
 
 /* debug screamer */
-#define DEBUG_SCREAMER
+//#define DEBUG_SCREAMER
 
 #ifdef DEBUG_SCREAMER
 #define SCREAMER_DPRINTF(fmt, ...)                                  \
@@ -50,14 +51,46 @@
 #define CODEC_CTRL_MASKECMD     (0x1 << 24)
 #define CODEC_STAT_MASK_VALID   (0x1 << 22) 
 
-static void pmac_screamer_tx(DBDMA_io *io)
+/* Audio */
+#define SCREAMER_SAMPLE_RATE 44100
+static const char *s_spk = "screamer";
+
+static void pmac_transfer(DBDMA_io *io)
 {
-    SCREAMER_DPRINTF("DMA tx!\n");
+    ScreamerState *s = io->opaque;     
+    
+    printf("DMA transfer: addr %" HWADDR_PRIx " len: %x\n", io->addr, io->len);
+       
+    dma_memory_read(&address_space_memory, io->addr, &s->buf[s->bpos], io->len);
+    
+    /* Indicate success */
+    s->bpos += io->len;
+    io->len = 0;
+    
+    /* Finish */
+    qemu_irq_raise(s->irq);    
+    io->dma_end(io);
 }
 
-static void pmac_screamer_rx(DBDMA_io *io)
+static void pmac_screamer_tx(DBDMA_io *io)
 {
-    SCREAMER_DPRINTF("DMA rx!\n");
+    ScreamerState *s = io->opaque;
+    
+    printf("TX yeah!\n");
+    
+    if (s->bpos + io->len > SCREAMER_BUFFER_SIZE) {
+        /* Not enough space in the buffer, so defer IRQ */
+        memcpy(&s->io, io, sizeof(DBDMA_io));
+
+	printf("====== DEFER!\n");
+	
+        return;
+    }
+    
+    s->io.addr = 0;
+    s->io.len = 0;
+    
+    pmac_transfer(io);
 }
 
 static void pmac_screamer_flush(DBDMA_io *io)
@@ -65,34 +98,63 @@ static void pmac_screamer_flush(DBDMA_io *io)
     SCREAMER_DPRINTF("DMA flush!\n");
 }
 
-void macio_screamer_register_dma(ScreamerState *s, void *dbdma, int txchannel, int rxchannel)
+void macio_screamer_register_dma(ScreamerState *s, void *dbdma, int txchannel)
 {
     s->dbdma = dbdma;
     DBDMA_register_channel(dbdma, txchannel, s->dma_tx_irq,
                            pmac_screamer_tx, pmac_screamer_flush, s);
-    DBDMA_register_channel(dbdma, rxchannel, s->dma_rx_irq,
-                           pmac_screamer_rx, pmac_screamer_flush, s);
+}
+
+static void screamerspk_callback(void *opaque, int avail)
+{
+    ScreamerState *s = opaque;
+    int n, len;
+    
+    SCREAMER_DPRINTF("speaker callback! %d\n", avail);
+
+    if (s->bpos) {
+        if (s->ppos < s->bpos) {
+	    n = audio_MIN(s->bpos - s->ppos, (unsigned int)avail);
+	    printf("########### SPEAKER WRITE! %d / %d - %d\n", s->ppos, s->bpos, n);
+            len = AUD_write(s->voice, &s->buf[s->ppos], n);
+            s->ppos += len;
+	    return;
+        }
+    }
+    
+    if (s->io.len) {
+        /* Deferred IRQ */
+        s->bpos = 0;
+        s->ppos = 0;
+        pmac_transfer(&s->io);
+    }
 }
 
 static void screamer_reset(DeviceState *dev)
 {
     ScreamerState *s = SCREAMER(dev);
-    int i = 0;
-
-    for (i = 0; i < 6; i++) {
-        s->regs[i] = 0;
-    }
     
-    for (i = 0; i < 7; i++) {
-        s->codec_ctrl_regs[i] = 0;
-    }
+    memset(s->regs, 0, sizeof(s->regs));
+    memset(s->codec_ctrl_regs, 0, sizeof(s->codec_ctrl_regs));
+
+    s->bpos = 0;
+    s->ppos = 0;
 
     return;
 }
 
 static void screamer_realizefn(DeviceState *dev, Error **errp)
 {
-    return;
+    struct audsettings as = {SCREAMER_SAMPLE_RATE, 2, AUD_FMT_U16, 0};
+    ScreamerState *s = SCREAMER(dev);
+    
+    s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, screamerspk_callback, &as);
+    if (!s->voice) {
+        AUD_log(s_spk, "Could not open voice\n");
+        return;
+    }
+    
+    AUD_set_active_out(s->voice, true);
 }
 
 static void screamer_codec_write(ScreamerState *s, hwaddr addr,
@@ -114,7 +176,7 @@ static uint64_t screamer_read(void *opaque, hwaddr addr, unsigned size)
         val = s->regs[addr];
         break;
     case CODEC_CTRL_REG:
-        val = ~CODEC_CTRL_MASKECMD;
+        val = s->regs[addr] & ~CODEC_CTRL_MASKECMD;
         break;
     case CODEC_STAT_REG:
         val = CODEC_STAT_MASK_VALID;
@@ -143,14 +205,16 @@ static void screamer_write(void *opaque, hwaddr addr,
     ScreamerState *s = opaque;
     uint32_t codec_addr;
 
+    addr = addr >> 4;
+
     SCREAMER_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
 
-    addr = addr >> 4;
     switch (addr) {
     case SND_CTRL_REG:
         s->regs[addr] = val & 0xffffffff;
         break;
     case CODEC_CTRL_REG:
+        s->regs[addr] = val & 0xffffffff;
         codec_addr = (val & 0x7fff) >> 12;
         screamer_codec_write(s, codec_addr, val & 0xfff);
         break;
@@ -188,6 +252,9 @@ static void screamer_initfn(Object *obj)
     memory_region_init_io(&s->mem, obj, &screamer_ops, s, "screamer", 0x1000);
     sysbus_init_mmio(d, &s->mem);
     sysbus_init_irq(d, &s->irq);
+    sysbus_init_irq(d, &s->dma_tx_irq);
+    
+    AUD_register_card(s_spk, &s->card);
 }
 
 static Property screamer_properties[] = {

@@ -56,7 +56,7 @@ typedef struct OldWorldMacIOState {
     MacIOState parent_obj;
     /*< public >*/
 
-    qemu_irq irqs[5];
+    qemu_irq irqs[7];
 
     MacIONVRAMState nvram;
     MACIOIDEState ide[2];
@@ -145,12 +145,7 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     }
     sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
     memory_region_add_subregion(&s->bar, 0x16000,
-                                sysbus_mmio_get_region(sysbus_dev, 0));
-    sysbus_dev = SYS_BUS_DEVICE(&s->screamer);
-    memory_region_add_subregion(&s->bar, 0x14000,
-                                sysbus_mmio_get_region(sysbus_dev, 0));
-    macio_screamer_register_dma(SCREAMER(sysbus_dev), s->dbdma, 0x1, 0x2);
-    
+                                sysbus_mmio_get_region(sysbus_dev, 0));    
     macio_bar_setup(s);
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
 }
@@ -215,6 +210,15 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
             return;
         }
     }
+    
+    /* Screamer */
+    sysbus_dev = SYS_BUS_DEVICE(&s->screamer);
+    sysbus_connect_irq(sysbus_dev, 0, os->irqs[cur_irq++]);
+    sysbus_connect_irq(sysbus_dev, 1, os->irqs[cur_irq++]);
+    memory_region_add_subregion(&s->bar, 0x14000,
+                                sysbus_mmio_get_region(sysbus_dev, 0));
+    macio_screamer_register_dma(SCREAMER(sysbus_dev), s->dbdma, 0x10);
+    object_property_set_bool(OBJECT(sysbus_dev), true, "realized", errp);
 }
 
 static void macio_init_ide(MacIOState *s, MACIOIDEState *ide, size_t ide_size,
