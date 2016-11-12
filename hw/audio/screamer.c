@@ -32,7 +32,7 @@
 #include "qemu/log.h"
 
 /* debug screamer */
-//#define DEBUG_SCREAMER
+#define DEBUG_SCREAMER
 
 #ifdef DEBUG_SCREAMER
 #define SCREAMER_DPRINTF(fmt, ...)                                  \
@@ -54,12 +54,19 @@ static void screamer_realizefn(DeviceState *dev, Error **errp)
 
 static uint64_t screamer_read(void *opaque, hwaddr addr, unsigned size)
 {
-    return 0;
+    uint32_t val;
+
+    val = 0;
+    SCREAMER_DPRINTF("%s: addr " TARGET_FMT_plx " -> %x\n", __func__, addr, val);
+
+    return val;
 }
 
 static void screamer_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
+    SCREAMER_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
+
     return;
 }
 
@@ -74,12 +81,13 @@ static void screamer_initfn(Object *obj)
     SysBusDevice *d = SYS_BUS_DEVICE(obj);
     ScreamerState *s = SCREAMER(obj);
 
-    memory_region_init_io(&s->mem, obj, &screamer_ops, s, "screamer", 0x2000);
+    memory_region_init_io(&s->mem, obj, &screamer_ops, s, "screamer", 0x1000);
     sysbus_init_mmio(d, &s->mem);
     sysbus_init_irq(d, &s->irq);
 }
 
 static Property screamer_properties[] = {
+    DEFINE_AUDIO_PROPERTIES(ScreamerState, card),
     DEFINE_PROP_END_OF_LIST()
 };
 

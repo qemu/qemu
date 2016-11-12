@@ -38,9 +38,6 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
-/* Note: this code is strongly inspirated from the corresponding code
- * in PearPC */
-
 /*
  * The mac-io has two interfaces to the ESCC. One is called "escc-legacy",
  * while the other one is the normal, current ESCC interface.
@@ -118,6 +115,15 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     memory_region_add_subregion(&s->bar, 0x08000,
                                 sysbus_mmio_get_region(sysbus_dev, 0));
 
+    object_property_set_bool(OBJECT(&s->screamer), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_dev = SYS_BUS_DEVICE(&s->screamer);
+    memory_region_add_subregion(&s->bar, 0x14000,
+                                sysbus_mmio_get_region(sysbus_dev, 0));
+
     qdev_prop_set_uint32(DEVICE(&s->escc), "disabled", 0);
     qdev_prop_set_uint32(DEVICE(&s->escc), "frequency", ESCC_CLOCK);
     qdev_prop_set_uint32(DEVICE(&s->escc), "it_shift", 4);
@@ -130,7 +136,6 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
         error_propagate(errp, err);
         return;
     }
-
     macio_bar_setup(s);
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
 }
@@ -420,6 +425,9 @@ static void macio_instance_init(Object *obj)
                          TYPE_MAC_DBDMA);
 
     macio_init_child_obj(s, "escc", &s->escc, sizeof(s->escc), TYPE_ESCC);
+    
+    macio_init_child_obj(s, "screamer", &s->screamer, sizeof(s->screamer),
+                         TYPE_SCREAMER);
 }
 
 static const VMStateDescription vmstate_macio_oldworld = {
