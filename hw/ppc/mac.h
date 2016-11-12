@@ -109,6 +109,7 @@ typedef struct ScreamerState {
     uint8_t  buf[SCREAMER_BUFFER_SIZE];
     uint32_t bpos;
     uint32_t ppos;
+    uint32_t rate;
     DBDMA_io io;
 
     uint32_t regs[6];
