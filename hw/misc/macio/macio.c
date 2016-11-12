@@ -42,6 +42,7 @@ typedef struct MacIOState
     MemoryRegion bar;
     CUDAState cuda;
     DBDMAState *dbdma;
+    ScreamerState screamer;
     MemoryRegion *pic_mem;
     MemoryRegion *escc_mem;
     uint64_t frequency;
@@ -145,7 +146,9 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
     memory_region_add_subregion(&s->bar, 0x16000,
                                 sysbus_mmio_get_region(sysbus_dev, 0));
-
+    sysbus_dev = SYS_BUS_DEVICE(&s->screamer);
+    memory_region_add_subregion(&s->bar, 0x14000,
+                                sysbus_mmio_get_region(sysbus_dev, 0));
     macio_bar_setup(s);
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
 }
@@ -345,6 +348,10 @@ static void macio_instance_init(Object *obj)
 
     s->dbdma = MAC_DBDMA(object_new(TYPE_MAC_DBDMA));
     object_property_add_child(obj, "dbdma", OBJECT(s->dbdma), NULL);
+
+    object_initialize(&s->screamer, sizeof(s->screamer), TYPE_SCREAMER);
+    qdev_set_parent_bus(DEVICE(&s->screamer), sysbus_get_default());
+    object_property_add_child(obj, "screamer", OBJECT(&s->screamer), NULL);
 }
 
 static const VMStateDescription vmstate_macio_oldworld = {
