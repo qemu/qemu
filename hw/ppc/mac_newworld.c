@@ -381,6 +381,8 @@ static void ppc_core99_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE DMA */
     qdev_connect_gpio_out(dev, 3, pic[0x0e]); /* IDE */
     qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 5, pic[0x18]); /* Screamer */
+    qdev_connect_gpio_out(dev, 6, pic[0x09]); /* Screamer TX DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     macio_init(macio, pic_mem, escc_bar);
 

@@ -69,7 +69,7 @@ typedef struct NewWorldMacIOState {
     /*< private >*/
     MacIOState parent_obj;
     /*< public >*/
-    qemu_irq irqs[5];
+    qemu_irq irqs[7];
     MACIOIDEState ide[2];
 } NewWorldMacIOState;
 
@@ -327,6 +327,15 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
     memory_region_init_io(timer_memory, OBJECT(s), &timer_ops, NULL, "timer",
                           0x1000);
     memory_region_add_subregion(&s->bar, 0x15000, timer_memory);
+    
+    /* Screamer */
+    sysbus_dev = SYS_BUS_DEVICE(&s->screamer);
+    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[cur_irq++]);
+    sysbus_connect_irq(sysbus_dev, 1, ns->irqs[cur_irq++]);
+    memory_region_add_subregion(&s->bar, 0x14000,
+                                sysbus_mmio_get_region(sysbus_dev, 0));
+    macio_screamer_register_dma(SCREAMER(sysbus_dev), s->dbdma, 0x10);
+    object_property_set_bool(OBJECT(sysbus_dev), true, "realized", errp);
 }
 
 static void macio_newworld_init(Object *obj)
