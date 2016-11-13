@@ -400,6 +400,12 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
         memory_region_add_subregion(&s->bar, 0x16000,
                                     sysbus_mmio_get_region(sysbus_dev, 0));
     }
+
+    /* Screamer */
+    sysbus_dev = SYS_BUS_DEVICE(&s->screamer);
+    sysbus_connect_irq(sysbus_dev, 0, qdev_get_gpio_in(pic_dev, NEWWORLD_SCREAMER_IRQ));
+    sysbus_connect_irq(sysbus_dev, 1, qdev_get_gpio_in(pic_dev, NEWWORLD_SCREAMER_DMA_IRQ));
+    macio_screamer_register_dma(SCREAMER(sysbus_dev), &s->dbdma, 0x10);
 }
 
 static void macio_newworld_init(Object *obj)
