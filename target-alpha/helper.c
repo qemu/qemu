@@ -307,8 +307,10 @@ void alpha_cpu_do_interrupt(CPUState *cs)
             name = "call_pal";
             break;
         }
-        qemu_log("INT %6d: %s(%#x) pc=%016" PRIx64 " sp=%016" PRIx64 "\n",
-                 ++count, name, env->error_code, env->pc, env->ir[IR_SP]);
+        qemu_log("INT %6d: %s(%#x) cpu=%d pc=%016"
+                 PRIx64 " sp=%016" PRIx64 "\n",
+                 ++count, name, env->error_code, cs->cpu_index,
+                 env->pc, env->ir[IR_SP]);
     }
 
     cs->exception_index = -1;
