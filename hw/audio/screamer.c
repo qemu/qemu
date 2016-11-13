@@ -60,7 +60,7 @@ static void pmac_transfer(DBDMA_io *io)
 {
     ScreamerState *s = io->opaque;     
     
-    printf("DMA transfer: addr %" HWADDR_PRIx " len: %x\n", io->addr, io->len);
+    SCREAMER_DPRINTF("DMA transfer: addr %" HWADDR_PRIx " len: %x  bpos: %d\n", io->addr, io->len, s->bpos);
        
     dma_memory_read(&address_space_memory, io->addr, &s->buf[s->bpos], io->len);
     
@@ -76,13 +76,11 @@ static void pmac_screamer_tx(DBDMA_io *io)
 {
     ScreamerState *s = io->opaque;
     
-    printf("DMA TX!\n");
-    
     if (s->bpos + io->len > SCREAMER_BUFFER_SIZE) {
         /* Not enough space in the buffer, so defer IRQ */
         memcpy(&s->io, io, sizeof(DBDMA_io));
 
-	printf("====== DEFER!\n");
+	SCREAMER_DPRINTF("DMA buffer full, defer interrupt!\n");
 	
         return;
     }
@@ -110,12 +108,12 @@ static void screamerspk_callback(void *opaque, int avail)
     ScreamerState *s = opaque;
     int n, len;
     
-    SCREAMER_DPRINTF("speaker callback! %d\n", avail);
+    //SCREAMER_DPRINTF("speaker callback! %d\n", avail);
 
     if (s->bpos) {
         if (s->ppos < s->bpos) {
 	    n = MIN(s->bpos - s->ppos, (unsigned int)avail);
-	    printf("########### AUDIO WRITE! %d / %d - %d\n", s->ppos, s->bpos, n);
+	    //printf("########### AUDIO WRITE! %d / %d - %d\n", s->ppos, s->bpos, n);
             len = AUD_write(s->voice, &s->buf[s->ppos], n);
             s->ppos += len;
 	    return;
@@ -130,10 +128,11 @@ static void screamerspk_callback(void *opaque, int avail)
     }
 }
 
-static void screamer_update_rate(ScreamerState *s)
+static void screamer_update_settings(ScreamerState *s)
 {
-    struct audsettings as = { s->rate, 2, AUDIO_FORMAT_U16, 0 };
-    
+    struct audsettings as = { s->rate, 2, AUDIO_FORMAT_S16,
+        s->regs[BYTE_SWAP_REG] ? 0 : 1 };
+
     s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, screamerspk_callback, &as);
     if (!s->voice) {
         AUD_log(s_spk, "Could not open voice\n");
@@ -154,7 +153,7 @@ static void screamer_reset(DeviceState *dev)
     s->bpos = 0;
     s->ppos = 0;
 
-    screamer_update_rate(s);
+    screamer_update_settings(s);
     
     return;
 }
@@ -169,7 +168,7 @@ static void screamer_realizefn(DeviceState *dev, Error **errp)
 
 static void screamer_control_write(ScreamerState *s, uint32_t val)
 {
-    printf("%s: val %" PRId32 "\n", __func__, val);
+    SCREAMER_DPRINTF("%s: val %" PRId32 "\n", __func__, val);
     
     s->regs[0] = val;
     
@@ -200,9 +199,9 @@ static void screamer_control_write(ScreamerState *s, uint32_t val)
         s->rate = 7350;
         break;
     }
-    
-    printf("basic rate: %d\n", s->rate);
-    screamer_update_rate(s);
+
+    SCREAMER_DPRINTF("basic rate: %d\n", s->rate);
+    screamer_update_settings(s);
 }
 
 static void screamer_codec_write(ScreamerState *s, hwaddr addr,
@@ -240,8 +239,8 @@ static void screamer_codec_write(ScreamerState *s, hwaddr addr,
         break;
     }
     
-    printf("extra rate: %d\n", s->rate);
-    screamer_update_rate(s);
+    SCREAMER_DPRINTF("extra rate: %d\n", s->rate);
+    screamer_update_settings(s);
 }
 
 static uint64_t screamer_read(void *opaque, hwaddr addr, unsigned size)
