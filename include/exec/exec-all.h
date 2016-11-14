@@ -95,15 +95,13 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr);
 /**
  * tlb_flush:
  * @cpu: CPU whose TLB should be flushed
- * @flush_global: ignored
  *
- * Flush the entire TLB for the specified CPU.
- * The flush_global flag is in theory an indicator of whether the whole
- * TLB should be flushed, or only those entries not marked global.
- * In practice QEMU does not implement any global/not global flag for
- * TLB entries, and the argument is ignored.
+ * Flush the entire TLB for the specified CPU. Most CPU architectures
+ * allow the implementation to drop entries from the TLB at any time
+ * so this is generally safe. If more selective flushing is required
+ * use one of the other functions for efficiency.
  */
-void tlb_flush(CPUState *cpu, int flush_global);
+void tlb_flush(CPUState *cpu);
 /**
  * tlb_flush_page_by_mmuidx:
  * @cpu: CPU whose TLB should be flushed
@@ -165,7 +163,7 @@ static inline void tlb_flush_page(CPUState *cpu, target_ulong addr)
 {
 }
 
-static inline void tlb_flush(CPUState *cpu, int flush_global)
+static inline void tlb_flush(CPUState *cpu)
 {
 }
 

@@ -586,7 +586,7 @@ void x86_cpu_set_a20(X86CPU *cpu, int a20_state)
 
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
-        tlb_flush(cs, 1);
+        tlb_flush(cs);
         env->a20_mask = ~(1 << 20) | (a20_state << 20);
     }
 }
@@ -599,7 +599,7 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
     qemu_log_mask(CPU_LOG_MMU, "CR0 update: CR0=0x%08x\n", new_cr0);
     if ((new_cr0 & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK)) !=
         (env->cr[0] & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK))) {
-        tlb_flush(CPU(cpu), 1);
+        tlb_flush(CPU(cpu));
     }
 
 #ifdef TARGET_X86_64
@@ -641,7 +641,7 @@ void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3)
     if (env->cr[0] & CR0_PG_MASK) {
         qemu_log_mask(CPU_LOG_MMU,
                         "CR3 update: CR3=" TARGET_FMT_lx "\n", new_cr3);
-        tlb_flush(CPU(cpu), 0);
+        tlb_flush(CPU(cpu));
     }
 }
 
@@ -656,7 +656,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
     if ((new_cr4 ^ env->cr[4]) &
         (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK |
          CR4_SMEP_MASK | CR4_SMAP_MASK | CR4_LA57_MASK)) {
-        tlb_flush(CPU(cpu), 1);
+        tlb_flush(CPU(cpu));
     }
 
     /* Clear bits we're going to recompute.  */

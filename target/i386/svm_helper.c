@@ -289,7 +289,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
         break;
     case TLB_CONTROL_FLUSH_ALL_ASID:
         /* FIXME: this is not 100% correct but should work for now */
-        tlb_flush(cs, 1);
+        tlb_flush(cs);
         break;
     }
 

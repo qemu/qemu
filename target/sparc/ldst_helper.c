@@ -816,7 +816,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
             case 2: /* flush region (16M) */
             case 3: /* flush context (4G) */
             case 4: /* flush entire */
-                tlb_flush(CPU(cpu), 1);
+                tlb_flush(CPU(cpu));
                 break;
             default:
                 break;
@@ -841,7 +841,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
                    are invalid in normal mode.  */
                 if ((oldreg ^ env->mmuregs[reg])
                     & (MMU_NF | env->def->mmu_bm)) {
-                    tlb_flush(CPU(cpu), 1);
+                    tlb_flush(CPU(cpu));
                 }
                 break;
             case 1: /* Context Table Pointer Register */
@@ -852,7 +852,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
                 if (oldreg != env->mmuregs[reg]) {
                     /* we flush when the MMU context changes because
                        QEMU has no MMU context support */
-                    tlb_flush(CPU(cpu), 1);
+                    tlb_flush(CPU(cpu));
                 }
                 break;
             case 3: /* Synchronous Fault Status Register with Clear */
@@ -1509,13 +1509,13 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 env->dmmu.mmu_primary_context = val;
                 /* can be optimized to only flush MMU_USER_IDX
                    and MMU_KERNEL_IDX entries */
-                tlb_flush(CPU(cpu), 1);
+                tlb_flush(CPU(cpu));
                 break;
             case 2: /* Secondary context */
                 env->dmmu.mmu_secondary_context = val;
                 /* can be optimized to only flush MMU_USER_SECONDARY_IDX
                    and MMU_KERNEL_SECONDARY_IDX entries */
-                tlb_flush(CPU(cpu), 1);
+                tlb_flush(CPU(cpu));
                 break;
             case 5: /* TSB access */
                 DPRINTF_MMU("dmmu TSB write: 0x%016" PRIx64 " -> 0x%016"
@@ -1654,7 +1654,7 @@ void sparc_cpu_unassigned_access(CPUState *cs, hwaddr addr,
     /* flush neverland mappings created during no-fault mode,
        so the sequential MMU faults report proper fault types */
     if (env->mmuregs[0] & MMU_NF) {
-        tlb_flush(cs, 1);
+        tlb_flush(cs);
     }
 }
 #else

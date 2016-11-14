@@ -223,12 +223,12 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
     return ret;
 }
 
-void cpu_mips_tlb_flush(CPUMIPSState *env, int flush_global)
+void cpu_mips_tlb_flush(CPUMIPSState *env)
 {
     MIPSCPU *cpu = mips_env_get_cpu(env);
 
     /* Flush qemu's TLB and discard all shadowed entries.  */
-    tlb_flush(CPU(cpu), flush_global);
+    tlb_flush(CPU(cpu));
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
 }
 
@@ -290,7 +290,7 @@ void cpu_mips_store_status(CPUMIPSState *env, target_ulong val)
 #if defined(TARGET_MIPS64)
     if ((env->CP0_Status ^ old) & (old & (7 << CP0St_UX))) {
         /* Access to at least one of the 64-bit segments has been disabled */
-        cpu_mips_tlb_flush(env, 1);
+        cpu_mips_tlb_flush(env);
     }
 #endif
     if (env->CP0_Config3 & (1 << CP0C3_MT)) {

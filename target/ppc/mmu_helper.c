@@ -248,7 +248,7 @@ static inline void ppc6xx_tlb_invalidate_all(CPUPPCState *env)
         tlb = &env->tlb.tlb6[nr];
         pte_invalidate(&tlb->pte0);
     }
-    tlb_flush(CPU(cpu), 1);
+    tlb_flush(CPU(cpu));
 }
 
 static inline void ppc6xx_tlb_invalidate_virt2(CPUPPCState *env,
@@ -661,7 +661,7 @@ static inline void ppc4xx_tlb_invalidate_all(CPUPPCState *env)
         tlb = &env->tlb.tlbe[i];
         tlb->prot &= ~PAGE_VALID;
     }
-    tlb_flush(CPU(cpu), 1);
+    tlb_flush(CPU(cpu));
 }
 
 static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
@@ -863,7 +863,7 @@ static void booke206_flush_tlb(CPUPPCState *env, int flags,
         tlb += booke206_tlb_size(env, i);
     }
 
-    tlb_flush(CPU(cpu), 1);
+    tlb_flush(CPU(cpu));
 }
 
 static hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
@@ -1769,7 +1769,7 @@ void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 #if !defined(FLUSH_ALL_TLBS)
         do_invalidate_BAT(env, env->IBAT[0][nr], mask);
 #else
-        tlb_flush(CPU(cpu), 1);
+        tlb_flush(CPU(cpu));
 #endif
     }
 }
@@ -1804,7 +1804,7 @@ void helper_store_dbatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 #if !defined(FLUSH_ALL_TLBS)
         do_invalidate_BAT(env, env->DBAT[0][nr], mask);
 #else
-        tlb_flush(CPU(cpu), 1);
+        tlb_flush(CPU(cpu));
 #endif
     }
 }
@@ -1852,7 +1852,7 @@ void helper_store_601_batu(CPUPPCState *env, uint32_t nr, target_ulong value)
         }
 #if defined(FLUSH_ALL_TLBS)
         if (do_inval) {
-            tlb_flush(CPU(cpu), 1);
+            tlb_flush(CPU(cpu));
         }
 #endif
     }
@@ -1892,7 +1892,7 @@ void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
         env->DBAT[1][nr] = value;
 #if defined(FLUSH_ALL_TLBS)
         if (do_inval) {
-            tlb_flush(CPU(cpu), 1);
+            tlb_flush(CPU(cpu));
         }
 #endif
     }
@@ -1921,7 +1921,7 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
         cpu_abort(CPU(cpu), "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE:
-        tlb_flush(CPU(cpu), 1);
+        tlb_flush(CPU(cpu));
         break;
     case POWERPC_MMU_BOOKE206:
         booke206_flush_tlb(env, -1, 0);
@@ -1937,7 +1937,7 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
     case POWERPC_MMU_2_07a:
 #endif /* defined(TARGET_PPC64) */
         env->tlb_need_flush = 0;
-        tlb_flush(CPU(cpu), 1);
+        tlb_flush(CPU(cpu));
         break;
     default:
         /* XXX: TODO */
@@ -2433,13 +2433,13 @@ void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
         }
         tlb->PID = env->spr[SPR_440_MMUCR] & 0x000000FF;
         if (do_flush_tlbs) {
-            tlb_flush(CPU(cpu), 1);
+            tlb_flush(CPU(cpu));
         }
         break;
     case 1:
         RPN = value & 0xFFFFFC0F;
         if ((tlb->prot & PAGE_VALID) && tlb->RPN != RPN) {
-            tlb_flush(CPU(cpu), 1);
+            tlb_flush(CPU(cpu));
         }
         tlb->RPN = RPN;
         break;
@@ -2555,7 +2555,7 @@ void helper_booke_setpid(CPUPPCState *env, uint32_t pidn, target_ulong pid)
 
     env->spr[pidn] = pid;
     /* changing PIDs mean we're in a different address space now */
-    tlb_flush(CPU(cpu), 1);
+    tlb_flush(CPU(cpu));
 }
 
 void helper_booke206_tlbwe(CPUPPCState *env)
@@ -2650,7 +2650,7 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     if (booke206_tlb_to_page_size(env, tlb) == TARGET_PAGE_SIZE) {
         tlb_flush_page(CPU(cpu), tlb->mas2 & MAS2_EPN_MASK);
     } else {
-        tlb_flush(CPU(cpu), 1);
+        tlb_flush(CPU(cpu));
     }
 }
 
@@ -2775,7 +2775,7 @@ void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
         /* flush TLB1 entries */
         booke206_invalidate_ea_tlb(env, 1, address);
         CPU_FOREACH(cs) {
-            tlb_flush(cs, 1);
+            tlb_flush(cs);
         }
     } else {
         /* flush TLB0 entries */
@@ -2811,7 +2811,7 @@ void helper_booke206_tlbilx1(CPUPPCState *env, target_ulong address)
         }
         tlb += booke206_tlb_size(env, i);
     }
-    tlb_flush(CPU(cpu), 1);
+    tlb_flush(CPU(cpu));
 }
 
 void helper_booke206_tlbilx3(CPUPPCState *env, target_ulong address)
@@ -2852,7 +2852,7 @@ void helper_booke206_tlbilx3(CPUPPCState *env, target_ulong address)
             tlb->mas1 &= ~MAS1_VALID;
         }
     }
-    tlb_flush(CPU(cpu), 1);
+    tlb_flush(CPU(cpu));
 }
 
 void helper_booke206_tlbflush(CPUPPCState *env, target_ulong type)

@@ -53,7 +53,7 @@ void HELPER(rfe)(CPUOpenRISCState *env)
     }
 
     if (need_flush_tlb) {
-        tlb_flush(cs, 1);
+        tlb_flush(cs);
     }
 #endif
     cs->interrupt_request |= CPU_INTERRUPT_EXITTB;

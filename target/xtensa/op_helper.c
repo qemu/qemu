@@ -479,7 +479,7 @@ void HELPER(wsr_rasid)(CPUXtensaState *env, uint32_t v)
     v = (v & 0xffffff00) | 0x1;
     if (v != env->sregs[RASID]) {
         env->sregs[RASID] = v;
-        tlb_flush(CPU(cpu), 1);
+        tlb_flush(CPU(cpu));
     }
 }
 

@@ -60,23 +60,14 @@
 /* statistics */
 int tlb_flush_count;
 
-/* NOTE:
- * If flush_global is true (the usual case), flush all tlb entries.
- * If flush_global is false, flush (at least) all tlb entries not
- * marked global.
- *
- * Since QEMU doesn't currently implement a global/not-global flag
- * for tlb entries, at the moment tlb_flush() will also flush all
- * tlb entries in the flush_global == false case. This is OK because
- * CPU architectures generally permit an implementation to drop
- * entries from the TLB at any time, so flushing more entries than
- * required is only an efficiency issue, not a correctness issue.
+/* This is OK because CPU architectures generally permit an
+ * implementation to drop entries from the TLB at any time, so
+ * flushing more entries than required is only an efficiency issue,
+ * not a correctness issue.
  */
-void tlb_flush(CPUState *cpu, int flush_global)
+void tlb_flush(CPUState *cpu)
 {
     CPUArchState *env = cpu->env_ptr;
-
-    tlb_debug("(%d)\n", flush_global);
 
     memset(env->tlb_table, -1, sizeof(env->tlb_table));
     memset(env->tlb_v_table, -1, sizeof(env->tlb_v_table));
@@ -144,7 +135,7 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
                   TARGET_FMT_lx "/" TARGET_FMT_lx ")\n",
                   env->tlb_flush_addr, env->tlb_flush_mask);
 
-        tlb_flush(cpu, 1);
+        tlb_flush(cpu);
         return;
     }
 

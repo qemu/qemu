@@ -47,7 +47,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
     case TO_SPR(0, 17): /* SR */
         if ((env->sr & (SR_IME | SR_DME | SR_SM)) ^
             (rb & (SR_IME | SR_DME | SR_SM))) {
-            tlb_flush(cs, 1);
+            tlb_flush(cs);
         }
         env->sr = rb;
         env->sr |= SR_FO;      /* FO is const equal to 1 */
