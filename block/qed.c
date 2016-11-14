@@ -92,41 +92,6 @@ int qed_write_header_sync(BDRVQEDState *s)
     return 0;
 }
 
-typedef struct {
-    GenericCB gencb;
-    BDRVQEDState *s;
-    struct iovec iov;
-    QEMUIOVector qiov;
-    int nsectors;
-    uint8_t *buf;
-} QEDWriteHeaderCB;
-
-static void qed_write_header_cb(void *opaque, int ret)
-{
-    QEDWriteHeaderCB *write_header_cb = opaque;
-
-    qemu_vfree(write_header_cb->buf);
-    gencb_complete(write_header_cb, ret);
-}
-
-static void qed_write_header_read_cb(void *opaque, int ret)
-{
-    QEDWriteHeaderCB *write_header_cb = opaque;
-    BDRVQEDState *s = write_header_cb->s;
-
-    if (ret) {
-        qed_write_header_cb(write_header_cb, ret);
-        return;
-    }
-
-    /* Update header */
-    qed_header_cpu_to_le(&s->header, (QEDHeader *)write_header_cb->buf);
-
-    bdrv_aio_writev(s->bs->file, 0, &write_header_cb->qiov,
-                    write_header_cb->nsectors, qed_write_header_cb,
-                    write_header_cb);
-}
-
 /**
  * Update header in-place (does not rewrite backing filename or other strings)
  *
@@ -144,18 +109,35 @@ static void qed_write_header(BDRVQEDState *s, BlockCompletionFunc cb,
 
     int nsectors = DIV_ROUND_UP(sizeof(QEDHeader), BDRV_SECTOR_SIZE);
     size_t len = nsectors * BDRV_SECTOR_SIZE;
-    QEDWriteHeaderCB *write_header_cb = gencb_alloc(sizeof(*write_header_cb),
-                                                    cb, opaque);
+    uint8_t *buf;
+    struct iovec iov;
+    QEMUIOVector qiov;
+    int ret;
 
-    write_header_cb->s = s;
-    write_header_cb->nsectors = nsectors;
-    write_header_cb->buf = qemu_blockalign(s->bs, len);
-    write_header_cb->iov.iov_base = write_header_cb->buf;
-    write_header_cb->iov.iov_len = len;
-    qemu_iovec_init_external(&write_header_cb->qiov, &write_header_cb->iov, 1);
+    buf = qemu_blockalign(s->bs, len);
+    iov = (struct iovec) {
+        .iov_base = buf,
+        .iov_len = len,
+    };
+    qemu_iovec_init_external(&qiov, &iov, 1);
 
-    bdrv_aio_readv(s->bs->file, 0, &write_header_cb->qiov, nsectors,
-                   qed_write_header_read_cb, write_header_cb);
+    ret = bdrv_preadv(s->bs->file, 0, &qiov);
+    if (ret < 0) {
+        goto out;
+    }
+
+    /* Update header */
+    qed_header_cpu_to_le(&s->header, (QEDHeader *) buf);
+
+    ret = bdrv_pwritev(s->bs->file, 0, &qiov);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = 0;
+out:
+    qemu_vfree(buf);
+    cb(opaque, ret);
 }
 
 static uint64_t qed_max_image_size(uint32_t cluster_size, uint32_t table_size)
