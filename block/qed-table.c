@@ -18,59 +18,39 @@
 #include "qed.h"
 #include "qemu/bswap.h"
 
-typedef struct {
-    GenericCB gencb;
-    BDRVQEDState *s;
-    QEDTable *table;
-
-    struct iovec iov;
-    QEMUIOVector qiov;
-} QEDReadTableCB;
-
-static void qed_read_table_cb(void *opaque, int ret)
+static void qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
+                           BlockCompletionFunc *cb, void *opaque)
 {
-    QEDReadTableCB *read_table_cb = opaque;
-    QEDTable *table = read_table_cb->table;
-    BDRVQEDState *s = read_table_cb->s;
-    int noffsets = read_table_cb->qiov.size / sizeof(uint64_t);
-    int i;
+    QEMUIOVector qiov;
+    int noffsets;
+    int i, ret;
 
-    /* Handle I/O error */
-    if (ret) {
+    struct iovec iov = {
+        .iov_base = table->offsets,
+        .iov_len = s->header.cluster_size * s->header.table_size,
+    };
+    qemu_iovec_init_external(&qiov, &iov, 1);
+
+    trace_qed_read_table(s, offset, table);
+
+    ret = bdrv_preadv(s->bs->file, offset, &qiov);
+    if (ret < 0) {
         goto out;
     }
 
     /* Byteswap offsets */
     qed_acquire(s);
+    noffsets = qiov.size / sizeof(uint64_t);
     for (i = 0; i < noffsets; i++) {
         table->offsets[i] = le64_to_cpu(table->offsets[i]);
     }
     qed_release(s);
 
+    ret = 0;
 out:
     /* Completion */
-    trace_qed_read_table_cb(s, read_table_cb->table, ret);
-    gencb_complete(&read_table_cb->gencb, ret);
-}
-
-static void qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
-                           BlockCompletionFunc *cb, void *opaque)
-{
-    QEDReadTableCB *read_table_cb = gencb_alloc(sizeof(*read_table_cb),
-                                                cb, opaque);
-    QEMUIOVector *qiov = &read_table_cb->qiov;
-
-    trace_qed_read_table(s, offset, table);
-
-    read_table_cb->s = s;
-    read_table_cb->table = table;
-    read_table_cb->iov.iov_base = table->offsets,
-    read_table_cb->iov.iov_len = s->header.cluster_size * s->header.table_size,
-
-    qemu_iovec_init_external(qiov, &read_table_cb->iov, 1);
-    bdrv_aio_readv(s->bs->file, offset / BDRV_SECTOR_SIZE, qiov,
-                   qiov->size / BDRV_SECTOR_SIZE,
-                   qed_read_table_cb, read_table_cb);
+    trace_qed_read_table_cb(s, table, ret);
+    cb(opaque, ret);
 }
 
 typedef struct {
