@@ -854,44 +854,6 @@ static int qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
     return 0;
 }
 
-typedef struct {
-    GenericCB gencb;
-    BDRVQEDState *s;
-    QEMUIOVector qiov;
-    QEMUIOVector *backing_qiov;
-    struct iovec iov;
-    uint64_t offset;
-} CopyFromBackingFileCB;
-
-static void qed_copy_from_backing_file_cb(void *opaque, int ret)
-{
-    CopyFromBackingFileCB *copy_cb = opaque;
-    qemu_vfree(copy_cb->iov.iov_base);
-    gencb_complete(&copy_cb->gencb, ret);
-}
-
-static void qed_copy_from_backing_file_write(void *opaque, int ret)
-{
-    CopyFromBackingFileCB *copy_cb = opaque;
-    BDRVQEDState *s = copy_cb->s;
-
-    if (copy_cb->backing_qiov) {
-        qemu_iovec_destroy(copy_cb->backing_qiov);
-        g_free(copy_cb->backing_qiov);
-        copy_cb->backing_qiov = NULL;
-    }
-
-    if (ret) {
-        qed_copy_from_backing_file_cb(copy_cb, ret);
-        return;
-    }
-
-    BLKDBG_EVENT(s->bs->file, BLKDBG_COW_WRITE);
-    bdrv_aio_writev(s->bs->file, copy_cb->offset / BDRV_SECTOR_SIZE,
-                    &copy_cb->qiov, copy_cb->qiov.size / BDRV_SECTOR_SIZE,
-                    qed_copy_from_backing_file_cb, copy_cb);
-}
-
 /**
  * Copy data from backing file into the image
  *
@@ -907,7 +869,9 @@ static void qed_copy_from_backing_file(BDRVQEDState *s, uint64_t pos,
                                        BlockCompletionFunc *cb,
                                        void *opaque)
 {
-    CopyFromBackingFileCB *copy_cb;
+    QEMUIOVector qiov;
+    QEMUIOVector *backing_qiov = NULL;
+    struct iovec iov;
     int ret;
 
     /* Skip copy entirely if there is no work to do */
@@ -916,17 +880,33 @@ static void qed_copy_from_backing_file(BDRVQEDState *s, uint64_t pos,
         return;
     }
 
-    copy_cb = gencb_alloc(sizeof(*copy_cb), cb, opaque);
-    copy_cb->s = s;
-    copy_cb->offset = offset;
-    copy_cb->backing_qiov = NULL;
-    copy_cb->iov.iov_base = qemu_blockalign(s->bs, len);
-    copy_cb->iov.iov_len = len;
-    qemu_iovec_init_external(&copy_cb->qiov, &copy_cb->iov, 1);
+    iov = (struct iovec) {
+        .iov_base = qemu_blockalign(s->bs, len),
+        .iov_len = len,
+    };
+    qemu_iovec_init_external(&qiov, &iov, 1);
 
-    ret = qed_read_backing_file(s, pos, &copy_cb->qiov,
-                                &copy_cb->backing_qiov);
-    qed_copy_from_backing_file_write(copy_cb, ret);
+    ret = qed_read_backing_file(s, pos, &qiov, &backing_qiov);
+
+    if (backing_qiov) {
+        qemu_iovec_destroy(backing_qiov);
+        g_free(backing_qiov);
+        backing_qiov = NULL;
+    }
+
+    if (ret) {
+        goto out;
+    }
+
+    BLKDBG_EVENT(s->bs->file, BLKDBG_COW_WRITE);
+    ret = bdrv_pwritev(s->bs->file, offset, &qiov);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = 0;
+out:
+    qemu_vfree(iov.iov_base);
+    cb(opaque, ret);
 }
 
 /**
