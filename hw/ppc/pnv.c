@@ -620,7 +620,7 @@ static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
     chip->cores_mask &= pcc->cores_mask;
 
     /* now that we have a sane layout, let check the number of cores */
-    cores_max = hweight_long(chip->cores_mask);
+    cores_max = ctpop64(chip->cores_mask);
     if (chip->nr_cores > cores_max) {
         error_setg(errp, "warning: too many cores for chip ! Limit is %d",
                    cores_max);
