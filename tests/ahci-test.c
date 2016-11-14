@@ -1494,9 +1494,10 @@ static void ahci_test_cdrom(int nsectors, bool dma)
         .atapi_dma = dma,
         .post_cb = ahci_cb_cmp_buff,
     };
+    uint64_t iso_size = ATAPI_SECTOR_SIZE * (nsectors + 1);
 
     /* Prepare ISO and fill 'tx' buffer */
-    fd = prepare_iso(1024 * 1024, &tx, &iso);
+    fd = prepare_iso(iso_size, &tx, &iso);
     opts.opaque = tx;
 
     /* Standard startup wonkery, but use ide-cd and our special iso file */
