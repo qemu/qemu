@@ -2819,8 +2819,6 @@ static void x86_cpu_reset(CPUState *s)
 
     memset(env, 0, offsetof(CPUX86State, end_reset_fields));
 
-    tlb_flush(s, 1);
-
     env->old_exception = -1;
 
     /* init to reset state */

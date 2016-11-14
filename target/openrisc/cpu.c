@@ -44,14 +44,7 @@ static void openrisc_cpu_reset(CPUState *s)
 
     occ->parent_reset(s);
 
-#ifndef CONFIG_USER_ONLY
-    memset(&cpu->env, 0, offsetof(CPUOpenRISCState, tlb));
-#else
-    memset(&cpu->env, 0, offsetof(CPUOpenRISCState, irq));
-#endif
-
-    tlb_flush(s, 1);
-    /*tb_flush(&cpu->env);    FIXME: Do we need it?  */
+    memset(&cpu->env, 0, offsetof(CPUOpenRISCState, end_reset_fields));
 
     cpu->env.pc = 0x100;
     cpu->env.sr = SR_FO | SR_SM;

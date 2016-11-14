@@ -82,7 +82,6 @@ static void s390_cpu_reset(CPUState *s)
     scc->parent_reset(s);
     cpu->env.sigp_order = 0;
     s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
-    tlb_flush(s, 1);
 }
 
 /* S390CPUClass::initial_reset() */
@@ -94,7 +93,7 @@ static void s390_cpu_initial_reset(CPUState *s)
 
     s390_cpu_reset(s);
     /* initial reset does not touch regs,fregs and aregs */
-    memset(&env->fpc, 0, offsetof(CPUS390XState, cpu_num) -
+    memset(&env->fpc, 0, offsetof(CPUS390XState, end_reset_fields) -
                          offsetof(CPUS390XState, fpc));
 
     /* architectured initial values for CR 0 and 14 */
@@ -118,7 +117,6 @@ static void s390_cpu_initial_reset(CPUState *s)
     if (kvm_enabled()) {
         kvm_s390_reset_vcpu(cpu);
     }
-    tlb_flush(s, 1);
 }
 
 /* CPUClass:reset() */
@@ -133,7 +131,7 @@ static void s390_cpu_full_reset(CPUState *s)
     cpu->env.sigp_order = 0;
     s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
 
-    memset(env, 0, offsetof(CPUS390XState, cpu_num));
+    memset(env, 0, offsetof(CPUS390XState, end_reset_fields));
 
     /* architectured initial values for CR 0 and 14 */
     env->cregs[0] = CR0_RESET;
@@ -156,7 +154,6 @@ static void s390_cpu_full_reset(CPUState *s)
     if (kvm_enabled()) {
         kvm_s390_reset_vcpu(cpu);
     }
-    tlb_flush(s, 1);
 }
 
 #if !defined(CONFIG_USER_ONLY)

@@ -139,9 +139,10 @@ typedef struct CPUS390XState {
 
     uint8_t riccb[64];
 
-    CPU_COMMON
+    /* Fields up to this point are cleared by a CPU reset */
+    struct {} end_reset_fields;
 
-    /* reset does memset(0) up to here */
+    CPU_COMMON
 
     uint32_t cpu_num;
     uint32_t machine_type;

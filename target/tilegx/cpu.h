@@ -97,6 +97,9 @@ typedef struct CPUTLGState {
     uint32_t sigcode;                  /* Signal code */
 #endif
 
+    /* Fields up to this point are cleared by a CPU reset */
+    struct {} end_reset_fields;
+
     CPU_COMMON
 } CPUTLGState;
 

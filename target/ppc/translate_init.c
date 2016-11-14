@@ -10415,9 +10415,6 @@ static void ppc_cpu_reset(CPUState *s)
         }
         env->spr[i] = spr->default_value;
     }
-
-    /* Flush all TLBs */
-    tlb_flush(s, 1);
 }
 
 #ifndef CONFIG_USER_ONLY

@@ -53,8 +53,6 @@ static void tricore_cpu_reset(CPUState *s)
 
     tcc->parent_reset(s);
 
-    tlb_flush(s, 1);
-
     cpu_state_reset(env);
 }
 

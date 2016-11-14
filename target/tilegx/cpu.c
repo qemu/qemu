@@ -84,8 +84,7 @@ static void tilegx_cpu_reset(CPUState *s)
 
     tcc->parent_reset(s);
 
-    memset(env, 0, sizeof(CPUTLGState));
-    tlb_flush(s, 1);
+    memset(env, 0, offsetof(CPUTLGState, end_reset_fields));
 }
 
 static void tilegx_cpu_realizefn(DeviceState *dev, Error **errp)

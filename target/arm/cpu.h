@@ -491,9 +491,12 @@ typedef struct CPUARMState {
     struct CPUBreakpoint *cpu_breakpoint[16];
     struct CPUWatchpoint *cpu_watchpoint[16];
 
+    /* Fields up to this point are cleared by a CPU reset */
+    struct {} end_reset_fields;
+
     CPU_COMMON
 
-    /* These fields after the common ones so they are preserved on reset.  */
+    /* Fields after CPU_COMMON are preserved across CPU reset. */
 
     /* Internal CPU feature flags.  */
     uint64_t features;

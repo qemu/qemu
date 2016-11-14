@@ -165,6 +165,9 @@ struct CPULM32State {
     struct CPUBreakpoint *cpu_breakpoint[4];
     struct CPUWatchpoint *cpu_watchpoint[4];
 
+    /* Fields up to this point are cleared by a CPU reset */
+    struct {} end_reset_fields;
+
     CPU_COMMON
 
     /* Fields from here on are preserved across CPU reset. */

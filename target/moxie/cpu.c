@@ -45,10 +45,8 @@ static void moxie_cpu_reset(CPUState *s)
 
     mcc->parent_reset(s);
 
-    memset(env, 0, sizeof(CPUMoxieState));
+    memset(env, 0, offsetof(CPUMoxieState, end_reset_fields));
     env->pc = 0x1000;
-
-    tlb_flush(s, 1);
 }
 
 static void moxie_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
