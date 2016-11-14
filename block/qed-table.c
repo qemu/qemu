@@ -18,8 +18,7 @@
 #include "qed.h"
 #include "qemu/bswap.h"
 
-static void qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
-                           BlockCompletionFunc *cb, void *opaque)
+static int qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table)
 {
     QEMUIOVector qiov;
     int noffsets;
@@ -50,7 +49,7 @@ static void qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
 out:
     /* Completion */
     trace_qed_read_table_cb(s, table, ret);
-    cb(opaque, ret);
+    return ret;
 }
 
 typedef struct {
@@ -156,13 +155,7 @@ static void qed_sync_cb(void *opaque, int ret)
 
 int qed_read_l1_table_sync(BDRVQEDState *s)
 {
-    int ret = -EINPROGRESS;
-
-    qed_read_table(s, s->header.l1_table_offset,
-                   s->l1_table, qed_sync_cb, &ret);
-    BDRV_POLL_WHILE(s->bs, ret == -EINPROGRESS);
-
-    return ret;
+    return qed_read_table(s, s->header.l1_table_offset, s->l1_table);
 }
 
 void qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n,
@@ -184,46 +177,10 @@ int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
     return ret;
 }
 
-typedef struct {
-    GenericCB gencb;
-    BDRVQEDState *s;
-    uint64_t l2_offset;
-    QEDRequest *request;
-} QEDReadL2TableCB;
-
-static void qed_read_l2_table_cb(void *opaque, int ret)
-{
-    QEDReadL2TableCB *read_l2_table_cb = opaque;
-    QEDRequest *request = read_l2_table_cb->request;
-    BDRVQEDState *s = read_l2_table_cb->s;
-    CachedL2Table *l2_table = request->l2_table;
-    uint64_t l2_offset = read_l2_table_cb->l2_offset;
-
-    qed_acquire(s);
-    if (ret) {
-        /* can't trust loaded L2 table anymore */
-        qed_unref_l2_cache_entry(l2_table);
-        request->l2_table = NULL;
-    } else {
-        l2_table->offset = l2_offset;
-
-        qed_commit_l2_cache_entry(&s->l2_cache, l2_table);
-
-        /* This is guaranteed to succeed because we just committed the entry
-         * to the cache.
-         */
-        request->l2_table = qed_find_l2_cache_entry(&s->l2_cache, l2_offset);
-        assert(request->l2_table != NULL);
-    }
-    qed_release(s);
-
-    gencb_complete(&read_l2_table_cb->gencb, ret);
-}
-
 void qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset,
                        BlockCompletionFunc *cb, void *opaque)
 {
-    QEDReadL2TableCB *read_l2_table_cb;
+    int ret;
 
     qed_unref_l2_cache_entry(request->l2_table);
 
@@ -237,14 +194,28 @@ void qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset,
     request->l2_table = qed_alloc_l2_cache_entry(&s->l2_cache);
     request->l2_table->table = qed_alloc_table(s);
 
-    read_l2_table_cb = gencb_alloc(sizeof(*read_l2_table_cb), cb, opaque);
-    read_l2_table_cb->s = s;
-    read_l2_table_cb->l2_offset = offset;
-    read_l2_table_cb->request = request;
-
     BLKDBG_EVENT(s->bs->file, BLKDBG_L2_LOAD);
-    qed_read_table(s, offset, request->l2_table->table,
-                   qed_read_l2_table_cb, read_l2_table_cb);
+    ret = qed_read_table(s, offset, request->l2_table->table);
+
+    qed_acquire(s);
+    if (ret) {
+        /* can't trust loaded L2 table anymore */
+        qed_unref_l2_cache_entry(request->l2_table);
+        request->l2_table = NULL;
+    } else {
+        request->l2_table->offset = offset;
+
+        qed_commit_l2_cache_entry(&s->l2_cache, request->l2_table);
+
+        /* This is guaranteed to succeed because we just committed the entry
+         * to the cache.
+         */
+        request->l2_table = qed_find_l2_cache_entry(&s->l2_cache, offset);
+        assert(request->l2_table != NULL);
+    }
+    qed_release(s);
+
+    cb(opaque, ret);
 }
 
 int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request, uint64_t offset)
