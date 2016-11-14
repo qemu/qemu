@@ -637,6 +637,23 @@ static unsigned int event_status_media(IDEState *s,
     return 8; /* We wrote to 4 extra bytes from the header */
 }
 
+/*
+ * Before transferring data or otherwise signalling acceptance of a command
+ * marked CONDDATA, we must check the validity of the byte_count_limit.
+ */
+static bool validate_bcl(IDEState *s)
+{
+    /* TODO: Check IDENTIFY data word 125 for defacult BCL (currently 0) */
+    if (s->atapi_dma || atapi_byte_count_limit(s)) {
+        return true;
+    }
+
+    /* TODO: Move abort back into core.c and introduce proper error flow between
+     *       ATAPI layer and IDE core layer */
+    ide_abort_command(s);
+    return false;
+}
+
 static void cmd_get_event_status_notification(IDEState *s,
                                               uint8_t *buf)
 {
@@ -1028,12 +1045,19 @@ static void cmd_read_cd(IDEState *s, uint8_t* buf)
         return;
     }
 
-    transfer_request = buf[9];
-    switch(transfer_request & 0xf8) {
-    case 0x00:
+    transfer_request = buf[9] & 0xf8;
+    if (transfer_request == 0x00) {
         /* nothing */
         ide_atapi_cmd_ok(s);
-        break;
+        return;
+    }
+
+    /* Check validity of BCL before transferring data */
+    if (!validate_bcl(s)) {
+        return;
+    }
+
+    switch (transfer_request) {
     case 0x10:
         /* normal read */
         ide_atapi_cmd_read(s, lba, nb_sectors, 2048);
@@ -1266,6 +1290,14 @@ enum {
      * See ATA8-ACS3 "7.21.5 Byte Count Limit"
      */
     NONDATA = 0x04,
+
+    /*
+     * CONDDATA implies a command that transfers data only conditionally based
+     * on the presence of suboptions. It should be exempt from the BCL check at
+     * command validation time, but it needs to be checked at the command
+     * handler level instead.
+     */
+    CONDDATA = 0x08,
 };
 
 static const struct AtapiCmd {
@@ -1289,7 +1321,7 @@ static const struct AtapiCmd {
     [ 0xad ] = { cmd_read_dvd_structure,            CHECK_READY },
     [ 0xbb ] = { cmd_set_speed,                     NONDATA },
     [ 0xbd ] = { cmd_mechanism_status,              0 },
-    [ 0xbe ] = { cmd_read_cd,                       CHECK_READY },
+    [ 0xbe ] = { cmd_read_cd,                       CHECK_READY | CONDDATA },
     /* [1] handler detects and reports not ready condition itself */
 };
 
@@ -1348,15 +1380,12 @@ void ide_atapi_cmd(IDEState *s)
         return;
     }
 
-    /* Nondata commands permit the byte_count_limit to be 0.
+    /* Commands that don't transfer DATA permit the byte_count_limit to be 0.
      * If this is a data-transferring PIO command and BCL is 0,
      * we abort at the /ATA/ level, not the ATAPI level.
      * See ATA8 ACS3 section 7.17.6.49 and 7.21.5 */
-    if (cmd->handler && !(cmd->flags & NONDATA)) {
-        /* TODO: Check IDENTIFY data word 125 for default BCL (currently 0) */
-        if (!(atapi_byte_count_limit(s) || s->atapi_dma)) {
-            /* TODO: Move abort back into core.c and make static inline again */
-            ide_abort_command(s);
+    if (cmd->handler && !(cmd->flags & (NONDATA | CONDDATA))) {
+        if (!validate_bcl(s)) {
             return;
         }
     }
