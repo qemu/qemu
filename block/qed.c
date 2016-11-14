@@ -1322,16 +1322,32 @@ static void qed_aio_next_io(QEDAIOCB *acb)
     }
 }
 
-static BlockAIOCB *qed_aio_setup(BlockDriverState *bs,
-                                 int64_t sector_num,
-                                 QEMUIOVector *qiov, int nb_sectors,
-                                 BlockCompletionFunc *cb,
-                                 void *opaque, int flags)
-{
-    QEDAIOCB *acb = qemu_aio_get(&qed_aiocb_info, bs, cb, opaque);
+typedef struct QEDRequestCo {
+    Coroutine *co;
+    bool done;
+    int ret;
+} QEDRequestCo;
 
-    trace_qed_aio_setup(bs->opaque, acb, sector_num, nb_sectors,
-                        opaque, flags);
+static void qed_co_request_cb(void *opaque, int ret)
+{
+    QEDRequestCo *co = opaque;
+
+    co->done = true;
+    co->ret = ret;
+    qemu_coroutine_enter_if_inactive(co->co);
+}
+
+static int coroutine_fn qed_co_request(BlockDriverState *bs, int64_t sector_num,
+                                       QEMUIOVector *qiov, int nb_sectors,
+                                       int flags)
+{
+    QEDRequestCo co = {
+        .co     = qemu_coroutine_self(),
+        .done   = false,
+    };
+    QEDAIOCB *acb = qemu_aio_get(&qed_aiocb_info, bs, qed_co_request_cb, &co);
+
+    trace_qed_aio_setup(bs->opaque, acb, sector_num, nb_sectors, &co, flags);
 
     acb->flags = flags;
     acb->qiov = qiov;
@@ -1344,43 +1360,26 @@ static BlockAIOCB *qed_aio_setup(BlockDriverState *bs,
 
     /* Start request */
     qed_aio_start_io(acb);
-    return &acb->common;
-}
 
-static BlockAIOCB *bdrv_qed_aio_readv(BlockDriverState *bs,
-                                      int64_t sector_num,
-                                      QEMUIOVector *qiov, int nb_sectors,
-                                      BlockCompletionFunc *cb,
-                                      void *opaque)
-{
-    return qed_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
-}
-
-static BlockAIOCB *bdrv_qed_aio_writev(BlockDriverState *bs,
-                                       int64_t sector_num,
-                                       QEMUIOVector *qiov, int nb_sectors,
-                                       BlockCompletionFunc *cb,
-                                       void *opaque)
-{
-    return qed_aio_setup(bs, sector_num, qiov, nb_sectors, cb,
-                         opaque, QED_AIOCB_WRITE);
-}
-
-typedef struct {
-    Coroutine *co;
-    int ret;
-    bool done;
-} QEDWriteZeroesCB;
-
-static void coroutine_fn qed_co_pwrite_zeroes_cb(void *opaque, int ret)
-{
-    QEDWriteZeroesCB *cb = opaque;
-
-    cb->done = true;
-    cb->ret = ret;
-    if (cb->co) {
-        aio_co_wake(cb->co);
+    if (!co.done) {
+        qemu_coroutine_yield();
     }
+
+    return co.ret;
+}
+
+static int coroutine_fn bdrv_qed_co_readv(BlockDriverState *bs,
+                                          int64_t sector_num, int nb_sectors,
+                                          QEMUIOVector *qiov)
+{
+    return qed_co_request(bs, sector_num, qiov, nb_sectors, 0);
+}
+
+static int coroutine_fn bdrv_qed_co_writev(BlockDriverState *bs,
+                                           int64_t sector_num, int nb_sectors,
+                                           QEMUIOVector *qiov)
+{
+    return qed_co_request(bs, sector_num, qiov, nb_sectors, QED_AIOCB_WRITE);
 }
 
 static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
@@ -1388,9 +1387,7 @@ static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
                                                   int count,
                                                   BdrvRequestFlags flags)
 {
-    BlockAIOCB *blockacb;
     BDRVQEDState *s = bs->opaque;
-    QEDWriteZeroesCB cb = { .done = false };
     QEMUIOVector qiov;
     struct iovec iov;
 
@@ -1407,19 +1404,9 @@ static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
     iov.iov_len = count;
 
     qemu_iovec_init_external(&qiov, &iov, 1);
-    blockacb = qed_aio_setup(bs, offset >> BDRV_SECTOR_BITS, &qiov,
-                             count >> BDRV_SECTOR_BITS,
-                             qed_co_pwrite_zeroes_cb, &cb,
-                             QED_AIOCB_WRITE | QED_AIOCB_ZERO);
-    if (!blockacb) {
-        return -EIO;
-    }
-    if (!cb.done) {
-        cb.co = qemu_coroutine_self();
-        qemu_coroutine_yield();
-    }
-    assert(cb.done);
-    return cb.ret;
+    return qed_co_request(bs, offset >> BDRV_SECTOR_BITS, &qiov,
+                          count >> BDRV_SECTOR_BITS,
+                          QED_AIOCB_WRITE | QED_AIOCB_ZERO);
 }
 
 static int bdrv_qed_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
@@ -1615,8 +1602,8 @@ static BlockDriver bdrv_qed = {
     .bdrv_create              = bdrv_qed_create,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = bdrv_qed_co_get_block_status,
-    .bdrv_aio_readv           = bdrv_qed_aio_readv,
-    .bdrv_aio_writev          = bdrv_qed_aio_writev,
+    .bdrv_co_readv            = bdrv_qed_co_readv,
+    .bdrv_co_writev           = bdrv_qed_co_writev,
     .bdrv_co_pwrite_zeroes    = bdrv_qed_co_pwrite_zeroes,
     .bdrv_truncate            = bdrv_qed_truncate,
     .bdrv_getlength           = bdrv_qed_getlength,
