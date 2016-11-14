@@ -260,13 +260,6 @@ static void qed_aio_start_io(QEDAIOCB *acb)
     qed_aio_next_io(acb, 0);
 }
 
-static void qed_aio_next_io_cb(void *opaque, int ret)
-{
-    QEDAIOCB *acb = opaque;
-
-    qed_aio_next_io(acb, ret);
-}
-
 static void qed_plug_allocating_write_reqs(BDRVQEDState *s)
 {
     assert(!s->allocating_write_reqs_plugged);
@@ -1042,31 +1035,6 @@ err:
     qed_aio_complete(acb, ret);
 }
 
-static void qed_aio_write_l2_update_cb(void *opaque, int ret)
-{
-    QEDAIOCB *acb = opaque;
-    qed_aio_write_l2_update(acb, ret, acb->cur_cluster);
-}
-
-/**
- * Flush new data clusters before updating the L2 table
- *
- * This flush is necessary when a backing file is in use.  A crash during an
- * allocating write could result in empty clusters in the image.  If the write
- * only touched a subregion of the cluster, then backing image sectors have
- * been lost in the untouched region.  The solution is to flush after writing a
- * new data cluster and before updating the L2 table.
- */
-static void qed_aio_write_flush_before_l2_update(void *opaque, int ret)
-{
-    QEDAIOCB *acb = opaque;
-    BDRVQEDState *s = acb_to_s(acb);
-
-    if (!bdrv_aio_flush(s->bs->file->bs, qed_aio_write_l2_update_cb, opaque)) {
-        qed_aio_complete(acb, -EIO);
-    }
-}
-
 /**
  * Write data to the image file
  */
@@ -1076,7 +1044,6 @@ static void qed_aio_write_main(void *opaque, int ret)
     BDRVQEDState *s = acb_to_s(acb);
     uint64_t offset = acb->cur_cluster +
                       qed_offset_into_cluster(s, acb->cur_pos);
-    BlockCompletionFunc *next_fn;
 
     trace_qed_aio_write_main(s, acb, ret, offset, acb->cur_qiov.size);
 
@@ -1085,20 +1052,30 @@ static void qed_aio_write_main(void *opaque, int ret)
         return;
     }
 
-    if (acb->find_cluster_ret == QED_CLUSTER_FOUND) {
-        next_fn = qed_aio_next_io_cb;
-    } else {
-        if (s->bs->backing) {
-            next_fn = qed_aio_write_flush_before_l2_update;
-        } else {
-            next_fn = qed_aio_write_l2_update_cb;
-        }
+    BLKDBG_EVENT(s->bs->file, BLKDBG_WRITE_AIO);
+    ret = bdrv_pwritev(s->bs->file, offset, &acb->cur_qiov);
+    if (ret >= 0) {
+        ret = 0;
     }
 
-    BLKDBG_EVENT(s->bs->file, BLKDBG_WRITE_AIO);
-    bdrv_aio_writev(s->bs->file, offset / BDRV_SECTOR_SIZE,
-                    &acb->cur_qiov, acb->cur_qiov.size / BDRV_SECTOR_SIZE,
-                    next_fn, acb);
+    if (acb->find_cluster_ret == QED_CLUSTER_FOUND) {
+        qed_aio_next_io(acb, ret);
+    } else {
+        if (s->bs->backing) {
+            /*
+             * Flush new data clusters before updating the L2 table
+             *
+             * This flush is necessary when a backing file is in use.  A crash
+             * during an allocating write could result in empty clusters in the
+             * image.  If the write only touched a subregion of the cluster,
+             * then backing image sectors have been lost in the untouched
+             * region.  The solution is to flush after writing a new data
+             * cluster and before updating the L2 table.
+             */
+            ret = bdrv_flush(s->bs->file->bs);
+        }
+        qed_aio_write_l2_update(acb, ret, acb->cur_cluster);
+    }
 }
 
 /**
