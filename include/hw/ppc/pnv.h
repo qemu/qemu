@@ -69,6 +69,7 @@ typedef struct PnvChipClass {
     uint64_t     cores_mask;
 
     hwaddr       xscom_base;
+    hwaddr       xscom_core_base;
 
     uint32_t (*core_pir)(PnvChip *chip, uint32_t core_id);
 } PnvChipClass;
