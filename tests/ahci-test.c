@@ -1554,6 +1554,103 @@ static void test_atapi_bcl(void)
     ahci_test_cdrom(0, false, CMD_ATAPI_READ_CD, true, 0);
 }
 
+
+static void atapi_wait_tray(bool open)
+{
+    QDict *rsp = qmp_eventwait_ref("DEVICE_TRAY_MOVED");
+    QDict *data = qdict_get_qdict(rsp, "data");
+    if (open) {
+        g_assert(qdict_get_bool(data, "tray-open"));
+    } else {
+        g_assert(!qdict_get_bool(data, "tray-open"));
+    }
+    QDECREF(rsp);
+}
+
+static void test_atapi_tray(void)
+{
+    AHCIQState *ahci;
+    unsigned char *tx;
+    char *iso;
+    int fd;
+    uint8_t port, sense, asc;
+    uint64_t iso_size = ATAPI_SECTOR_SIZE;
+    QDict *rsp;
+
+    fd = prepare_iso(iso_size, &tx, &iso);
+    ahci = ahci_boot_and_enable("-drive if=none,id=drive0,file=%s,format=raw "
+                                "-M q35 "
+                                "-device ide-cd,drive=drive0 ", iso);
+    port = ahci_port_select(ahci);
+
+    ahci_atapi_eject(ahci, port);
+    atapi_wait_tray(true);
+
+    ahci_atapi_load(ahci, port);
+    atapi_wait_tray(false);
+
+    /* Remove media */
+    qmp_async("{'execute': 'blockdev-open-tray', "
+               "'arguments': {'device': 'drive0'}}");
+    atapi_wait_tray(true);
+    rsp = qmp_receive();
+    QDECREF(rsp);
+
+    qmp_discard_response("{'execute': 'x-blockdev-remove-medium', "
+                         "'arguments': {'device': 'drive0'}}");
+
+    /* Test the tray without a medium */
+    ahci_atapi_load(ahci, port);
+    atapi_wait_tray(false);
+
+    ahci_atapi_eject(ahci, port);
+    atapi_wait_tray(true);
+
+    /* Re-insert media */
+    qmp_discard_response("{'execute': 'blockdev-add', "
+                          "'arguments': {'node-name': 'node0', "
+                                        "'driver': 'raw', "
+                                        "'file': { 'driver': 'file', "
+                                                  "'filename': %s }}}", iso);
+    qmp_discard_response("{'execute': 'x-blockdev-insert-medium',"
+                          "'arguments': { 'device': 'drive0', "
+                                         "'node-name': 'node0' }}");
+
+    /* Again, the event shows up first */
+    qmp_async("{'execute': 'blockdev-close-tray', "
+               "'arguments': {'device': 'drive0'}}");
+    atapi_wait_tray(false);
+    rsp = qmp_receive();
+    QDECREF(rsp);
+
+    /* Now, to convince ATAPI we understand the media has changed... */
+    ahci_atapi_test_ready(ahci, port, false, SENSE_NOT_READY);
+    ahci_atapi_get_sense(ahci, port, &sense, &asc);
+    g_assert_cmpuint(sense, ==, SENSE_NOT_READY);
+    g_assert_cmpuint(asc, ==, ASC_MEDIUM_NOT_PRESENT);
+
+    ahci_atapi_test_ready(ahci, port, false, SENSE_UNIT_ATTENTION);
+    ahci_atapi_get_sense(ahci, port, &sense, &asc);
+    g_assert_cmpuint(sense, ==, SENSE_UNIT_ATTENTION);
+    g_assert_cmpuint(asc, ==, ASC_MEDIUM_MAY_HAVE_CHANGED);
+
+    ahci_atapi_test_ready(ahci, port, true, SENSE_NO_SENSE);
+    ahci_atapi_get_sense(ahci, port, &sense, &asc);
+    g_assert_cmpuint(sense, ==, SENSE_NO_SENSE);
+
+    /* Final tray test. */
+    ahci_atapi_eject(ahci, port);
+    atapi_wait_tray(true);
+
+    ahci_atapi_load(ahci, port);
+    atapi_wait_tray(false);
+
+    /* Cleanup */
+    g_free(tx);
+    ahci_shutdown(ahci);
+    remove_iso(fd, iso);
+}
+
 /******************************************************************************/
 /* AHCI I/O Test Matrix Definitions                                           */
 
@@ -1844,6 +1941,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/cdrom/pio/multi", test_cdrom_pio_multi);
 
     qtest_add_func("/ahci/cdrom/pio/bcl", test_atapi_bcl);
+    qtest_add_func("/ahci/cdrom/eject", test_atapi_tray);
 
     ret = g_test_run();
 
