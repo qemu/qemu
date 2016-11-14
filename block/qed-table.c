@@ -52,46 +52,6 @@ out:
     return ret;
 }
 
-typedef struct {
-    GenericCB gencb;
-    BDRVQEDState *s;
-    QEDTable *orig_table;
-    QEDTable *table;
-    bool flush;             /* flush after write? */
-
-    struct iovec iov;
-    QEMUIOVector qiov;
-} QEDWriteTableCB;
-
-static void qed_write_table_cb(void *opaque, int ret)
-{
-    QEDWriteTableCB *write_table_cb = opaque;
-    BDRVQEDState *s = write_table_cb->s;
-
-    trace_qed_write_table_cb(s,
-                             write_table_cb->orig_table,
-                             write_table_cb->flush,
-                             ret);
-
-    if (ret) {
-        goto out;
-    }
-
-    if (write_table_cb->flush) {
-        /* We still need to flush first */
-        write_table_cb->flush = false;
-        qed_acquire(s);
-        bdrv_aio_flush(write_table_cb->s->bs, qed_write_table_cb,
-                       write_table_cb);
-        qed_release(s);
-        return;
-    }
-
-out:
-    qemu_vfree(write_table_cb->table);
-    gencb_complete(&write_table_cb->gencb, ret);
-}
-
 /**
  * Write out an updated part or all of a table
  *
@@ -108,10 +68,13 @@ static void qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
                             unsigned int index, unsigned int n, bool flush,
                             BlockCompletionFunc *cb, void *opaque)
 {
-    QEDWriteTableCB *write_table_cb;
     unsigned int sector_mask = BDRV_SECTOR_SIZE / sizeof(uint64_t) - 1;
     unsigned int start, end, i;
+    QEDTable *new_table;
+    struct iovec iov;
+    QEMUIOVector qiov;
     size_t len_bytes;
+    int ret;
 
     trace_qed_write_table(s, offset, table, index, n);
 
@@ -121,28 +84,41 @@ static void qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
 
     len_bytes = (end - start) * sizeof(uint64_t);
 
-    write_table_cb = gencb_alloc(sizeof(*write_table_cb), cb, opaque);
-    write_table_cb->s = s;
-    write_table_cb->orig_table = table;
-    write_table_cb->flush = flush;
-    write_table_cb->table = qemu_blockalign(s->bs, len_bytes);
-    write_table_cb->iov.iov_base = write_table_cb->table->offsets;
-    write_table_cb->iov.iov_len = len_bytes;
-    qemu_iovec_init_external(&write_table_cb->qiov, &write_table_cb->iov, 1);
+    new_table = qemu_blockalign(s->bs, len_bytes);
+    iov = (struct iovec) {
+        .iov_base = new_table->offsets,
+        .iov_len = len_bytes,
+    };
+    qemu_iovec_init_external(&qiov, &iov, 1);
 
     /* Byteswap table */
     for (i = start; i < end; i++) {
         uint64_t le_offset = cpu_to_le64(table->offsets[i]);
-        write_table_cb->table->offsets[i - start] = le_offset;
+        new_table->offsets[i - start] = le_offset;
     }
 
     /* Adjust for offset into table */
     offset += start * sizeof(uint64_t);
 
-    bdrv_aio_writev(s->bs->file, offset / BDRV_SECTOR_SIZE,
-                    &write_table_cb->qiov,
-                    write_table_cb->qiov.size / BDRV_SECTOR_SIZE,
-                    qed_write_table_cb, write_table_cb);
+    ret = bdrv_pwritev(s->bs->file, offset, &qiov);
+    trace_qed_write_table_cb(s, table, flush, ret);
+    if (ret < 0) {
+        goto out;
+    }
+
+    if (flush) {
+        qed_acquire(s);
+        ret = bdrv_flush(s->bs);
+        qed_release(s);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+
+    ret = 0;
+out:
+    qemu_vfree(new_table);
+    cb(opaque, ret);
 }
 
 /**
