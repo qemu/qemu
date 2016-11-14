@@ -237,8 +237,7 @@ int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
                             unsigned int n);
 int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
                            uint64_t offset);
-void qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset,
-                       BlockCompletionFunc *cb, void *opaque);
+int qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset);
 void qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
                         unsigned int index, unsigned int n, bool flush,
                         BlockCompletionFunc *cb, void *opaque);

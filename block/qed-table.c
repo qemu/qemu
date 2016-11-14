@@ -177,8 +177,7 @@ int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
     return ret;
 }
 
-void qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset,
-                       BlockCompletionFunc *cb, void *opaque)
+int qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset)
 {
     int ret;
 
@@ -187,8 +186,7 @@ void qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset,
     /* Check for cached L2 entry */
     request->l2_table = qed_find_l2_cache_entry(&s->l2_cache, offset);
     if (request->l2_table) {
-        cb(opaque, 0);
-        return;
+        return 0;
     }
 
     request->l2_table = qed_alloc_l2_cache_entry(&s->l2_cache);
@@ -215,17 +213,12 @@ void qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset,
     }
     qed_release(s);
 
-    cb(opaque, ret);
+    return ret;
 }
 
 int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request, uint64_t offset)
 {
-    int ret = -EINPROGRESS;
-
-    qed_read_l2_table(s, request, offset, qed_sync_cb, &ret);
-    BDRV_POLL_WHILE(s->bs, ret == -EINPROGRESS);
-
-    return ret;
+    return qed_read_l2_table(s, request, offset);
 }
 
 void qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,

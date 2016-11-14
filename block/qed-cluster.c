@@ -61,59 +61,6 @@ static unsigned int qed_count_contiguous_clusters(BDRVQEDState *s,
     return i - index;
 }
 
-typedef struct {
-    BDRVQEDState *s;
-    uint64_t pos;
-    size_t len;
-
-    QEDRequest *request;
-
-    /* User callback */
-    QEDFindClusterFunc *cb;
-    void *opaque;
-} QEDFindClusterCB;
-
-static void qed_find_cluster_cb(void *opaque, int ret)
-{
-    QEDFindClusterCB *find_cluster_cb = opaque;
-    BDRVQEDState *s = find_cluster_cb->s;
-    QEDRequest *request = find_cluster_cb->request;
-    uint64_t offset = 0;
-    size_t len = 0;
-    unsigned int index;
-    unsigned int n;
-
-    qed_acquire(s);
-    if (ret) {
-        goto out;
-    }
-
-    index = qed_l2_index(s, find_cluster_cb->pos);
-    n = qed_bytes_to_clusters(s,
-                              qed_offset_into_cluster(s, find_cluster_cb->pos) +
-                              find_cluster_cb->len);
-    n = qed_count_contiguous_clusters(s, request->l2_table->table,
-                                      index, n, &offset);
-
-    if (qed_offset_is_unalloc_cluster(offset)) {
-        ret = QED_CLUSTER_L2;
-    } else if (qed_offset_is_zero_cluster(offset)) {
-        ret = QED_CLUSTER_ZERO;
-    } else if (qed_check_cluster_offset(s, offset)) {
-        ret = QED_CLUSTER_FOUND;
-    } else {
-        ret = -EINVAL;
-    }
-
-    len = MIN(find_cluster_cb->len, n * s->header.cluster_size -
-              qed_offset_into_cluster(s, find_cluster_cb->pos));
-
-out:
-    find_cluster_cb->cb(find_cluster_cb->opaque, ret, offset, len);
-    qed_release(s);
-    g_free(find_cluster_cb);
-}
-
 /**
  * Find the offset of a data cluster
  *
@@ -137,8 +84,11 @@ out:
 void qed_find_cluster(BDRVQEDState *s, QEDRequest *request, uint64_t pos,
                       size_t len, QEDFindClusterFunc *cb, void *opaque)
 {
-    QEDFindClusterCB *find_cluster_cb;
     uint64_t l2_offset;
+    uint64_t offset = 0;
+    unsigned int index;
+    unsigned int n;
+    int ret;
 
     /* Limit length to L2 boundary.  Requests are broken up at the L2 boundary
      * so that a request acts on one L2 table at a time.
@@ -155,14 +105,32 @@ void qed_find_cluster(BDRVQEDState *s, QEDRequest *request, uint64_t pos,
         return;
     }
 
-    find_cluster_cb = g_malloc(sizeof(*find_cluster_cb));
-    find_cluster_cb->s = s;
-    find_cluster_cb->pos = pos;
-    find_cluster_cb->len = len;
-    find_cluster_cb->cb = cb;
-    find_cluster_cb->opaque = opaque;
-    find_cluster_cb->request = request;
+    ret = qed_read_l2_table(s, request, l2_offset);
+    qed_acquire(s);
+    if (ret) {
+        goto out;
+    }
 
-    qed_read_l2_table(s, request, l2_offset,
-                      qed_find_cluster_cb, find_cluster_cb);
+    index = qed_l2_index(s, pos);
+    n = qed_bytes_to_clusters(s,
+                              qed_offset_into_cluster(s, pos) + len);
+    n = qed_count_contiguous_clusters(s, request->l2_table->table,
+                                      index, n, &offset);
+
+    if (qed_offset_is_unalloc_cluster(offset)) {
+        ret = QED_CLUSTER_L2;
+    } else if (qed_offset_is_zero_cluster(offset)) {
+        ret = QED_CLUSTER_ZERO;
+    } else if (qed_check_cluster_offset(s, offset)) {
+        ret = QED_CLUSTER_FOUND;
+    } else {
+        ret = -EINVAL;
+    }
+
+    len = MIN(len,
+              n * s->header.cluster_size - qed_offset_into_cluster(s, pos));
+
+out:
+    cb(opaque, ret, offset, len);
+    qed_release(s);
 }
