@@ -882,6 +882,30 @@ AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd, uint16_t bcl)
     return cmd;
 }
 
+void ahci_atapi_eject(AHCIQState *ahci, uint8_t port)
+{
+    AHCICommand *cmd = ahci_atapi_command_create(CMD_ATAPI_START_STOP_UNIT, 0);
+    ahci_command_set_size(cmd, 0);
+
+    cmd->atapi_cmd[4] = 0x02; /* loej = true */
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+    ahci_command_free(cmd);
+}
+
+void ahci_atapi_load(AHCIQState *ahci, uint8_t port)
+{
+    AHCICommand *cmd = ahci_atapi_command_create(CMD_ATAPI_START_STOP_UNIT, 0);
+    ahci_command_set_size(cmd, 0);
+
+    cmd->atapi_cmd[4] = 0x03; /* loej,start = true */
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+    ahci_command_free(cmd);
+}
+
 void ahci_command_free(AHCICommand *cmd)
 {
     g_free(cmd->atapi_cmd);
@@ -909,6 +933,9 @@ static void ahci_atapi_command_set_offset(AHCICommand *cmd, uint64_t lba)
     case CMD_ATAPI_READ_CD:
         g_assert_cmpuint(lba, <=, UINT32_MAX);
         stl_be_p(&cbd[2], lba);
+        break;
+    case CMD_ATAPI_START_STOP_UNIT:
+        g_assert_cmpuint(lba, ==, 0x00);
         break;
     default:
         /* SCSI doesn't have uniform packet formats,
@@ -976,6 +1003,9 @@ static void ahci_atapi_set_size(AHCICommand *cmd, uint64_t xbytes)
         cbd[6] = (tmp & 0xFF0000) >> 16;
         cbd[7] = (tmp & 0xFF00) >> 8;
         cbd[8] = (tmp & 0xFF);
+        break;
+    case CMD_ATAPI_START_STOP_UNIT:
+        g_assert_cmpuint(xbytes, ==, 0);
         break;
     default:
         /* SCSI doesn't have uniform packet formats,

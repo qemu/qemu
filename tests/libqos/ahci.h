@@ -287,8 +287,9 @@ enum {
 
 /* ATAPI Commands */
 enum {
-    CMD_ATAPI_READ_10 = 0x28,
-    CMD_ATAPI_READ_CD = 0xbe,
+    CMD_ATAPI_START_STOP_UNIT = 0x1b,
+    CMD_ATAPI_READ_10         = 0x28,
+    CMD_ATAPI_READ_CD         = 0xbe,
 };
 
 /* AHCI Command Header Flags & Masks*/
@@ -600,6 +601,8 @@ void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
              void *buffer, size_t bufsize, uint64_t sector);
 void ahci_exec(AHCIQState *ahci, uint8_t port,
                uint8_t op, const AHCIOpts *opts);
+void ahci_atapi_eject(AHCIQState *ahci, uint8_t port);
+void ahci_atapi_load(AHCIQState *ahci, uint8_t port);
 
 /* Command: Fine-grained lifecycle */
 AHCICommand *ahci_command_create(uint8_t command_name);
