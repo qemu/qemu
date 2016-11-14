@@ -1321,9 +1321,11 @@ static void qed_aio_read_data(void *opaque, int ret,
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-    bdrv_aio_readv(bs->file, offset / BDRV_SECTOR_SIZE,
-                   &acb->cur_qiov, acb->cur_qiov.size / BDRV_SECTOR_SIZE,
-                   qed_aio_next_io_cb, acb);
+    ret = bdrv_preadv(bs->file, offset, &acb->cur_qiov);
+    if (ret < 0) {
+        goto err;
+    }
+    qed_aio_next_io(acb, 0);
     return;
 
 err:
