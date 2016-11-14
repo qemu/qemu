@@ -882,6 +882,49 @@ AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd, uint16_t bcl)
     return cmd;
 }
 
+void ahci_atapi_test_ready(AHCIQState *ahci, uint8_t port,
+                           bool ready, uint8_t expected_sense)
+{
+    AHCICommand *cmd = ahci_atapi_command_create(CMD_ATAPI_TEST_UNIT_READY, 0);
+    ahci_command_set_size(cmd, 0);
+    if (!ready) {
+        cmd->interrupts |= AHCI_PX_IS_TFES;
+        cmd->errors |= expected_sense << 4;
+    }
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+    ahci_command_free(cmd);
+}
+
+static int copy_buffer(AHCIQState *ahci, AHCICommand *cmd,
+                        const AHCIOpts *opts)
+{
+    unsigned char *rx = opts->opaque;
+    bufread(opts->buffer, rx, opts->size);
+    return 0;
+}
+
+void ahci_atapi_get_sense(AHCIQState *ahci, uint8_t port,
+                          uint8_t *sense, uint8_t *asc)
+{
+    unsigned char *rx;
+    AHCIOpts opts = {
+        .size = 18,
+        .atapi = true,
+        .post_cb = copy_buffer,
+    };
+    rx = g_malloc(18);
+    opts.opaque = rx;
+
+    ahci_exec(ahci, port, CMD_ATAPI_REQUEST_SENSE, &opts);
+
+    *sense = rx[2];
+    *asc = rx[12];
+
+    g_free(rx);
+}
+
 void ahci_atapi_eject(AHCIQState *ahci, uint8_t port)
 {
     AHCICommand *cmd = ahci_atapi_command_create(CMD_ATAPI_START_STOP_UNIT, 0);
@@ -934,6 +977,8 @@ static void ahci_atapi_command_set_offset(AHCICommand *cmd, uint64_t lba)
         g_assert_cmpuint(lba, <=, UINT32_MAX);
         stl_be_p(&cbd[2], lba);
         break;
+    case CMD_ATAPI_REQUEST_SENSE:
+    case CMD_ATAPI_TEST_UNIT_READY:
     case CMD_ATAPI_START_STOP_UNIT:
         g_assert_cmpuint(lba, ==, 0x00);
         break;
@@ -1004,6 +1049,11 @@ static void ahci_atapi_set_size(AHCICommand *cmd, uint64_t xbytes)
         cbd[7] = (tmp & 0xFF00) >> 8;
         cbd[8] = (tmp & 0xFF);
         break;
+    case CMD_ATAPI_REQUEST_SENSE:
+        g_assert_cmpuint(xbytes, <=, UINT8_MAX);
+        cbd[4] = (uint8_t)xbytes;
+        break;
+    case CMD_ATAPI_TEST_UNIT_READY:
     case CMD_ATAPI_START_STOP_UNIT:
         g_assert_cmpuint(xbytes, ==, 0);
         break;
