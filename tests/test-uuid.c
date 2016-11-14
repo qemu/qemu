@@ -161,6 +161,7 @@ static void test_uuid_unparse_strdup(void)
         }
         out = qemu_uuid_unparse_strdup(&uuid_test_data[i].uuid);
         g_assert_cmpstr(uuid_test_data[i].uuidstr, ==, out);
+        g_free(out);
     }
 }
 
