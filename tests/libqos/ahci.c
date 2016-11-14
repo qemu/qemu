@@ -633,7 +633,8 @@ void ahci_exec(AHCIQState *ahci, uint8_t port,
 
     /* Command creation */
     if (opts->atapi) {
-        cmd = ahci_atapi_command_create(op);
+        uint16_t bcl = opts->set_bcl ? opts->bcl : ATAPI_SECTOR_SIZE;
+        cmd = ahci_atapi_command_create(op, bcl);
         if (opts->atapi_dma) {
             ahci_command_enable_atapi_dma(cmd);
         }
@@ -864,16 +865,12 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     return cmd;
 }
 
-AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd)
+AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd, uint16_t bcl)
 {
     AHCICommand *cmd = ahci_command_create(CMD_PACKET);
     cmd->atapi_cmd = g_malloc0(16);
     cmd->atapi_cmd[0] = scsi_cmd;
-    /* ATAPI needs a PIO transfer chunk size set inside of the LBA registers.
-     * The block/sector size is a natural default. */
-    cmd->fis.lba_lo[1] = ATAPI_SECTOR_SIZE >> 8 & 0xFF;
-    cmd->fis.lba_lo[2] = ATAPI_SECTOR_SIZE & 0xFF;
-
+    stw_le_p(&cmd->fis.lba_lo[1], bcl);
     return cmd;
 }
 
@@ -901,12 +898,17 @@ static void ahci_atapi_command_set_offset(AHCICommand *cmd, uint64_t lba)
 
     switch (cbd[0]) {
     case CMD_ATAPI_READ_10:
+    case CMD_ATAPI_READ_CD:
         g_assert_cmpuint(lba, <=, UINT32_MAX);
         stl_be_p(&cbd[2], lba);
         break;
     default:
         /* SCSI doesn't have uniform packet formats,
          * so you have to add support for it manually. Sorry! */
+        fprintf(stderr, "The Libqos AHCI driver does not support the "
+                "set_offset operation for ATAPI command 0x%02x, "
+                "please add support.\n",
+                cbd[0]);
         g_assert_not_reached();
     }
 }
@@ -951,6 +953,7 @@ static void ahci_atapi_set_size(AHCICommand *cmd, uint64_t xbytes)
 {
     unsigned char *cbd = cmd->atapi_cmd;
     uint64_t nsectors = xbytes / 2048;
+    uint32_t tmp;
     g_assert(cbd);
 
     switch (cbd[0]) {
@@ -958,9 +961,20 @@ static void ahci_atapi_set_size(AHCICommand *cmd, uint64_t xbytes)
         g_assert_cmpuint(nsectors, <=, UINT16_MAX);
         stw_be_p(&cbd[7], nsectors);
         break;
+    case CMD_ATAPI_READ_CD:
+        /* 24bit BE store */
+        g_assert_cmpuint(nsectors, <, 1ULL << 24);
+        tmp = nsectors;
+        cbd[6] = (tmp & 0xFF0000) >> 16;
+        cbd[7] = (tmp & 0xFF00) >> 8;
+        cbd[8] = (tmp & 0xFF);
+        break;
     default:
         /* SCSI doesn't have uniform packet formats,
          * so you have to add support for it manually. Sorry! */
+        fprintf(stderr, "The Libqos AHCI driver does not support the set_size "
+                "operation for ATAPI command 0x%02x, please add support.\n",
+                cbd[0]);
         g_assert_not_reached();
     }
 }

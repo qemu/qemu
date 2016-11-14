@@ -1473,8 +1473,13 @@ static int ahci_cb_cmp_buff(AHCIQState *ahci, AHCICommand *cmd,
                             const AHCIOpts *opts)
 {
     unsigned char *tx = opts->opaque;
-    unsigned char *rx = g_malloc0(opts->size);
+    unsigned char *rx;
 
+    if (!opts->size) {
+        return 0;
+    }
+
+    rx = g_malloc0(opts->size);
     bufread(opts->buffer, rx, opts->size);
     g_assert_cmphex(memcmp(tx, rx, opts->size), ==, 0);
     g_free(rx);
@@ -1482,7 +1487,8 @@ static int ahci_cb_cmp_buff(AHCIQState *ahci, AHCICommand *cmd,
     return 0;
 }
 
-static void ahci_test_cdrom(int nsectors, bool dma)
+static void ahci_test_cdrom(int nsectors, bool dma, uint8_t cmd,
+                            bool override_bcl, uint16_t bcl)
 {
     AHCIQState *ahci;
     unsigned char *tx;
@@ -1493,6 +1499,8 @@ static void ahci_test_cdrom(int nsectors, bool dma)
         .atapi = true,
         .atapi_dma = dma,
         .post_cb = ahci_cb_cmp_buff,
+        .set_bcl = override_bcl,
+        .bcl = bcl,
     };
     uint64_t iso_size = ATAPI_SECTOR_SIZE * (nsectors + 1);
 
@@ -1506,7 +1514,7 @@ static void ahci_test_cdrom(int nsectors, bool dma)
                                 "-device ide-cd,drive=drive0 ", iso);
 
     /* Build & Send AHCI command */
-    ahci_exec(ahci, ahci_port_select(ahci), CMD_ATAPI_READ_10, &opts);
+    ahci_exec(ahci, ahci_port_select(ahci), cmd, &opts);
 
     /* Cleanup */
     g_free(tx);
@@ -1514,24 +1522,36 @@ static void ahci_test_cdrom(int nsectors, bool dma)
     remove_iso(fd, iso);
 }
 
+static void ahci_test_cdrom_read10(int nsectors, bool dma)
+{
+    ahci_test_cdrom(nsectors, dma, CMD_ATAPI_READ_10, false, 0);
+}
+
 static void test_cdrom_dma(void)
 {
-    ahci_test_cdrom(1, true);
+    ahci_test_cdrom_read10(1, true);
 }
 
 static void test_cdrom_dma_multi(void)
 {
-    ahci_test_cdrom(3, true);
+    ahci_test_cdrom_read10(3, true);
 }
 
 static void test_cdrom_pio(void)
 {
-    ahci_test_cdrom(1, false);
+    ahci_test_cdrom_read10(1, false);
 }
 
 static void test_cdrom_pio_multi(void)
 {
-    ahci_test_cdrom(3, false);
+    ahci_test_cdrom_read10(3, false);
+}
+
+/* Regression test: Test that a READ_CD command with a BCL of 0 but a size of 0
+ * completes as a NOP instead of erroring out. */
+static void test_atapi_bcl(void)
+{
+    ahci_test_cdrom(0, false, CMD_ATAPI_READ_CD, true, 0);
 }
 
 /******************************************************************************/
@@ -1822,6 +1842,8 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/cdrom/dma/multi", test_cdrom_dma_multi);
     qtest_add_func("/ahci/cdrom/pio/single", test_cdrom_pio);
     qtest_add_func("/ahci/cdrom/pio/multi", test_cdrom_pio_multi);
+
+    qtest_add_func("/ahci/cdrom/pio/bcl", test_atapi_bcl);
 
     ret = g_test_run();
 
