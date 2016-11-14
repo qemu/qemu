@@ -1473,8 +1473,13 @@ static int ahci_cb_cmp_buff(AHCIQState *ahci, AHCICommand *cmd,
                             const AHCIOpts *opts)
 {
     unsigned char *tx = opts->opaque;
-    unsigned char *rx = g_malloc0(opts->size);
+    unsigned char *rx;
 
+    if (!opts->size) {
+        return 0;
+    }
+
+    rx = g_malloc0(opts->size);
     bufread(opts->buffer, rx, opts->size);
     g_assert_cmphex(memcmp(tx, rx, opts->size), ==, 0);
     g_free(rx);
@@ -1482,7 +1487,8 @@ static int ahci_cb_cmp_buff(AHCIQState *ahci, AHCICommand *cmd,
     return 0;
 }
 
-static void ahci_test_cdrom(int nsectors, bool dma)
+static void ahci_test_cdrom(int nsectors, bool dma, uint8_t cmd,
+                            bool override_bcl, uint16_t bcl)
 {
     AHCIQState *ahci;
     unsigned char *tx;
@@ -1493,10 +1499,13 @@ static void ahci_test_cdrom(int nsectors, bool dma)
         .atapi = true,
         .atapi_dma = dma,
         .post_cb = ahci_cb_cmp_buff,
+        .set_bcl = override_bcl,
+        .bcl = bcl,
     };
+    uint64_t iso_size = ATAPI_SECTOR_SIZE * (nsectors + 1);
 
     /* Prepare ISO and fill 'tx' buffer */
-    fd = prepare_iso(1024 * 1024, &tx, &iso);
+    fd = prepare_iso(iso_size, &tx, &iso);
     opts.opaque = tx;
 
     /* Standard startup wonkery, but use ide-cd and our special iso file */
@@ -1505,7 +1514,7 @@ static void ahci_test_cdrom(int nsectors, bool dma)
                                 "-device ide-cd,drive=drive0 ", iso);
 
     /* Build & Send AHCI command */
-    ahci_exec(ahci, ahci_port_select(ahci), CMD_ATAPI_READ_10, &opts);
+    ahci_exec(ahci, ahci_port_select(ahci), cmd, &opts);
 
     /* Cleanup */
     g_free(tx);
@@ -1513,24 +1522,133 @@ static void ahci_test_cdrom(int nsectors, bool dma)
     remove_iso(fd, iso);
 }
 
+static void ahci_test_cdrom_read10(int nsectors, bool dma)
+{
+    ahci_test_cdrom(nsectors, dma, CMD_ATAPI_READ_10, false, 0);
+}
+
 static void test_cdrom_dma(void)
 {
-    ahci_test_cdrom(1, true);
+    ahci_test_cdrom_read10(1, true);
 }
 
 static void test_cdrom_dma_multi(void)
 {
-    ahci_test_cdrom(3, true);
+    ahci_test_cdrom_read10(3, true);
 }
 
 static void test_cdrom_pio(void)
 {
-    ahci_test_cdrom(1, false);
+    ahci_test_cdrom_read10(1, false);
 }
 
 static void test_cdrom_pio_multi(void)
 {
-    ahci_test_cdrom(3, false);
+    ahci_test_cdrom_read10(3, false);
+}
+
+/* Regression test: Test that a READ_CD command with a BCL of 0 but a size of 0
+ * completes as a NOP instead of erroring out. */
+static void test_atapi_bcl(void)
+{
+    ahci_test_cdrom(0, false, CMD_ATAPI_READ_CD, true, 0);
+}
+
+
+static void atapi_wait_tray(bool open)
+{
+    QDict *rsp = qmp_eventwait_ref("DEVICE_TRAY_MOVED");
+    QDict *data = qdict_get_qdict(rsp, "data");
+    if (open) {
+        g_assert(qdict_get_bool(data, "tray-open"));
+    } else {
+        g_assert(!qdict_get_bool(data, "tray-open"));
+    }
+    QDECREF(rsp);
+}
+
+static void test_atapi_tray(void)
+{
+    AHCIQState *ahci;
+    unsigned char *tx;
+    char *iso;
+    int fd;
+    uint8_t port, sense, asc;
+    uint64_t iso_size = ATAPI_SECTOR_SIZE;
+    QDict *rsp;
+
+    fd = prepare_iso(iso_size, &tx, &iso);
+    ahci = ahci_boot_and_enable("-drive if=none,id=drive0,file=%s,format=raw "
+                                "-M q35 "
+                                "-device ide-cd,drive=drive0 ", iso);
+    port = ahci_port_select(ahci);
+
+    ahci_atapi_eject(ahci, port);
+    atapi_wait_tray(true);
+
+    ahci_atapi_load(ahci, port);
+    atapi_wait_tray(false);
+
+    /* Remove media */
+    qmp_async("{'execute': 'blockdev-open-tray', "
+               "'arguments': {'device': 'drive0'}}");
+    atapi_wait_tray(true);
+    rsp = qmp_receive();
+    QDECREF(rsp);
+
+    qmp_discard_response("{'execute': 'x-blockdev-remove-medium', "
+                         "'arguments': {'device': 'drive0'}}");
+
+    /* Test the tray without a medium */
+    ahci_atapi_load(ahci, port);
+    atapi_wait_tray(false);
+
+    ahci_atapi_eject(ahci, port);
+    atapi_wait_tray(true);
+
+    /* Re-insert media */
+    qmp_discard_response("{'execute': 'blockdev-add', "
+                          "'arguments': {'node-name': 'node0', "
+                                        "'driver': 'raw', "
+                                        "'file': { 'driver': 'file', "
+                                                  "'filename': %s }}}", iso);
+    qmp_discard_response("{'execute': 'x-blockdev-insert-medium',"
+                          "'arguments': { 'device': 'drive0', "
+                                         "'node-name': 'node0' }}");
+
+    /* Again, the event shows up first */
+    qmp_async("{'execute': 'blockdev-close-tray', "
+               "'arguments': {'device': 'drive0'}}");
+    atapi_wait_tray(false);
+    rsp = qmp_receive();
+    QDECREF(rsp);
+
+    /* Now, to convince ATAPI we understand the media has changed... */
+    ahci_atapi_test_ready(ahci, port, false, SENSE_NOT_READY);
+    ahci_atapi_get_sense(ahci, port, &sense, &asc);
+    g_assert_cmpuint(sense, ==, SENSE_NOT_READY);
+    g_assert_cmpuint(asc, ==, ASC_MEDIUM_NOT_PRESENT);
+
+    ahci_atapi_test_ready(ahci, port, false, SENSE_UNIT_ATTENTION);
+    ahci_atapi_get_sense(ahci, port, &sense, &asc);
+    g_assert_cmpuint(sense, ==, SENSE_UNIT_ATTENTION);
+    g_assert_cmpuint(asc, ==, ASC_MEDIUM_MAY_HAVE_CHANGED);
+
+    ahci_atapi_test_ready(ahci, port, true, SENSE_NO_SENSE);
+    ahci_atapi_get_sense(ahci, port, &sense, &asc);
+    g_assert_cmpuint(sense, ==, SENSE_NO_SENSE);
+
+    /* Final tray test. */
+    ahci_atapi_eject(ahci, port);
+    atapi_wait_tray(true);
+
+    ahci_atapi_load(ahci, port);
+    atapi_wait_tray(false);
+
+    /* Cleanup */
+    g_free(tx);
+    ahci_shutdown(ahci);
+    remove_iso(fd, iso);
 }
 
 /******************************************************************************/
@@ -1821,6 +1939,9 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/cdrom/dma/multi", test_cdrom_dma_multi);
     qtest_add_func("/ahci/cdrom/pio/single", test_cdrom_pio);
     qtest_add_func("/ahci/cdrom/pio/multi", test_cdrom_pio_multi);
+
+    qtest_add_func("/ahci/cdrom/pio/bcl", test_atapi_bcl);
+    qtest_add_func("/ahci/cdrom/eject", test_atapi_tray);
 
     ret = g_test_run();
 

@@ -287,7 +287,22 @@ enum {
 
 /* ATAPI Commands */
 enum {
-    CMD_ATAPI_READ_10 = 0x28,
+    CMD_ATAPI_TEST_UNIT_READY = 0x00,
+    CMD_ATAPI_REQUEST_SENSE   = 0x03,
+    CMD_ATAPI_START_STOP_UNIT = 0x1b,
+    CMD_ATAPI_READ_10         = 0x28,
+    CMD_ATAPI_READ_CD         = 0xbe,
+};
+
+enum {
+    SENSE_NO_SENSE       = 0x00,
+    SENSE_NOT_READY      = 0x02,
+    SENSE_UNIT_ATTENTION = 0x06,
+};
+
+enum {
+    ASC_MEDIUM_MAY_HAVE_CHANGED = 0x28,
+    ASC_MEDIUM_NOT_PRESENT      = 0x3a,
 };
 
 /* AHCI Command Header Flags & Masks*/
@@ -462,12 +477,14 @@ typedef struct AHCICommand AHCICommand;
 
 /* Options to ahci_exec */
 typedef struct AHCIOpts {
-    size_t size;
-    unsigned prd_size;
-    uint64_t lba;
-    uint64_t buffer;
-    bool atapi;
-    bool atapi_dma;
+    size_t size;        /* Size of transfer */
+    unsigned prd_size;  /* Size per-each PRD */
+    bool set_bcl;       /* Override the default BCL of ATAPI_SECTOR_SIZE */
+    unsigned bcl;       /* Byte Count Limit, for ATAPI PIO */
+    uint64_t lba;       /* Starting LBA offset */
+    uint64_t buffer;    /* Pointer to source or destination guest buffer */
+    bool atapi;         /* ATAPI command? */
+    bool atapi_dma;     /* Use DMA for ATAPI? */
     bool error;
     int (*pre_cb)(AHCIQState*, AHCICommand*, const struct AHCIOpts *);
     int (*mid_cb)(AHCIQState*, AHCICommand*, const struct AHCIOpts *);
@@ -573,7 +590,8 @@ void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
 void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot);
 
 /* AHCI sanity check routines */
-void ahci_port_check_error(AHCIQState *ahci, uint8_t port);
+void ahci_port_check_error(AHCIQState *ahci, uint8_t port,
+                           uint32_t imask, uint8_t emask);
 void ahci_port_check_interrupts(AHCIQState *ahci, uint8_t port,
                                 uint32_t intr_mask);
 void ahci_port_check_nonbusy(AHCIQState *ahci, uint8_t port, uint8_t slot);
@@ -596,10 +614,16 @@ void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
              void *buffer, size_t bufsize, uint64_t sector);
 void ahci_exec(AHCIQState *ahci, uint8_t port,
                uint8_t op, const AHCIOpts *opts);
+void ahci_atapi_test_ready(AHCIQState *ahci, uint8_t port, bool ready,
+                           uint8_t expected_sense);
+void ahci_atapi_get_sense(AHCIQState *ahci, uint8_t port,
+                          uint8_t *sense, uint8_t *asc);
+void ahci_atapi_eject(AHCIQState *ahci, uint8_t port);
+void ahci_atapi_load(AHCIQState *ahci, uint8_t port);
 
 /* Command: Fine-grained lifecycle */
 AHCICommand *ahci_command_create(uint8_t command_name);
-AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd);
+AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd, uint16_t bcl);
 void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port);
 void ahci_command_issue(AHCIQState *ahci, AHCICommand *cmd);
 void ahci_command_issue_async(AHCIQState *ahci, AHCICommand *cmd);

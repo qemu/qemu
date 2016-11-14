@@ -533,7 +533,7 @@ void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
     QDECREF(response);
 }
 
-void qtest_qmp_eventwait(QTestState *s, const char *event)
+QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
 {
     QDict *response;
 
@@ -541,11 +541,18 @@ void qtest_qmp_eventwait(QTestState *s, const char *event)
         response = qtest_qmp_receive(s);
         if ((qdict_haskey(response, "event")) &&
             (strcmp(qdict_get_str(response, "event"), event) == 0)) {
-            QDECREF(response);
-            break;
+            return response;
         }
         QDECREF(response);
     }
+}
+
+void qtest_qmp_eventwait(QTestState *s, const char *event)
+{
+    QDict *response;
+
+    response = qtest_qmp_eventwait_ref(s, event);
+    QDECREF(response);
 }
 
 char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap)

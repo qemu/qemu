@@ -1393,13 +1393,14 @@ void blk_eject(BlockBackend *blk, bool eject_flag)
 
     if (bs) {
         bdrv_eject(bs, eject_flag);
-
-        id = blk_get_attached_dev_id(blk);
-        qapi_event_send_device_tray_moved(blk_name(blk), id,
-                                          eject_flag, &error_abort);
-        g_free(id);
-
     }
+
+    /* Whether or not we ejected on the backend,
+     * the frontend experienced a tray event. */
+    id = blk_get_attached_dev_id(blk);
+    qapi_event_send_device_tray_moved(blk_name(blk), id,
+                                      eject_flag, &error_abort);
+    g_free(id);
 }
 
 int blk_get_flags(BlockBackend *blk)
