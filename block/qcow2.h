@@ -473,8 +473,6 @@ static inline uint64_t refcount_diff(uint64_t r1, uint64_t r2)
     return r1 > r2 ? r1 - r2 : r2 - r1;
 }
 
-// FIXME Need qcow2_ prefix to global functions
-
 /* qcow2.c functions */
 int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
                   int64_t sector_num, int nb_sectors);

@@ -542,7 +542,7 @@ static int raw_reopen_prepare(BDRVReopenState *state,
                               BlockReopenQueue *queue, Error **errp)
 {
     BDRVRawState *s;
-    BDRVRawReopenState *raw_s;
+    BDRVRawReopenState *rs;
     int ret = 0;
     Error *local_err = NULL;
 
@@ -552,15 +552,15 @@ static int raw_reopen_prepare(BDRVReopenState *state,
     s = state->bs->opaque;
 
     state->opaque = g_new0(BDRVRawReopenState, 1);
-    raw_s = state->opaque;
+    rs = state->opaque;
 
     if (s->type == FTYPE_CD) {
-        raw_s->open_flags |= O_NONBLOCK;
+        rs->open_flags |= O_NONBLOCK;
     }
 
-    raw_parse_flags(state->flags, &raw_s->open_flags);
+    raw_parse_flags(state->flags, &rs->open_flags);
 
-    raw_s->fd = -1;
+    rs->fd = -1;
 
     int fcntl_flags = O_APPEND | O_NONBLOCK;
 #ifdef O_NOATIME
@@ -569,35 +569,35 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
 #ifdef O_ASYNC
     /* Not all operating systems have O_ASYNC, and those that don't
-     * will not let us track the state into raw_s->open_flags (typically
+     * will not let us track the state into rs->open_flags (typically
      * you achieve the same effect with an ioctl, for example I_SETSIG
      * on Solaris). But we do not use O_ASYNC, so that's fine.
      */
     assert((s->open_flags & O_ASYNC) == 0);
 #endif
 
-    if ((raw_s->open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
+    if ((rs->open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
         /* dup the original fd */
-        raw_s->fd = qemu_dup(s->fd);
-        if (raw_s->fd >= 0) {
-            ret = fcntl_setfl(raw_s->fd, raw_s->open_flags);
+        rs->fd = qemu_dup(s->fd);
+        if (rs->fd >= 0) {
+            ret = fcntl_setfl(rs->fd, rs->open_flags);
             if (ret) {
-                qemu_close(raw_s->fd);
-                raw_s->fd = -1;
+                qemu_close(rs->fd);
+                rs->fd = -1;
             }
         }
     }
 
     /* If we cannot use fcntl, or fcntl failed, fall back to qemu_open() */
-    if (raw_s->fd == -1) {
+    if (rs->fd == -1) {
         const char *normalized_filename = state->bs->filename;
         ret = raw_normalize_devicepath(&normalized_filename);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not normalize device path");
         } else {
-            assert(!(raw_s->open_flags & O_CREAT));
-            raw_s->fd = qemu_open(normalized_filename, raw_s->open_flags);
-            if (raw_s->fd == -1) {
+            assert(!(rs->open_flags & O_CREAT));
+            rs->fd = qemu_open(normalized_filename, rs->open_flags);
+            if (rs->fd == -1) {
                 error_setg_errno(errp, errno, "Could not reopen file");
                 ret = -1;
             }
@@ -606,11 +606,11 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
     /* Fail already reopen_prepare() if we can't get a working O_DIRECT
      * alignment with the new fd. */
-    if (raw_s->fd != -1) {
-        raw_probe_alignment(state->bs, raw_s->fd, &local_err);
+    if (rs->fd != -1) {
+        raw_probe_alignment(state->bs, rs->fd, &local_err);
         if (local_err) {
-            qemu_close(raw_s->fd);
-            raw_s->fd = -1;
+            qemu_close(rs->fd);
+            rs->fd = -1;
             error_propagate(errp, local_err);
             ret = -EINVAL;
         }
@@ -621,13 +621,13 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
 static void raw_reopen_commit(BDRVReopenState *state)
 {
-    BDRVRawReopenState *raw_s = state->opaque;
+    BDRVRawReopenState *rs = state->opaque;
     BDRVRawState *s = state->bs->opaque;
 
-    s->open_flags = raw_s->open_flags;
+    s->open_flags = rs->open_flags;
 
     qemu_close(s->fd);
-    s->fd = raw_s->fd;
+    s->fd = rs->fd;
 
     g_free(state->opaque);
     state->opaque = NULL;
@@ -636,16 +636,16 @@ static void raw_reopen_commit(BDRVReopenState *state)
 
 static void raw_reopen_abort(BDRVReopenState *state)
 {
-    BDRVRawReopenState *raw_s = state->opaque;
+    BDRVRawReopenState *rs = state->opaque;
 
      /* nothing to do if NULL, we didn't get far enough */
-    if (raw_s == NULL) {
+    if (rs == NULL) {
         return;
     }
 
-    if (raw_s->fd >= 0) {
-        qemu_close(raw_s->fd);
-        raw_s->fd = -1;
+    if (rs->fd >= 0) {
+        qemu_close(rs->fd);
+        rs->fd = -1;
     }
     g_free(state->opaque);
     state->opaque = NULL;

@@ -35,6 +35,9 @@ status=1	# failure is the default!
 _supported_fmt generic
 _supported_os Linux
 
+test_ssh=$($QEMU_IMG --help | grep '^Supported formats:.* ssh\( \|$\)')
+[ "$test_ssh" = "" ] && _notrun "ssh support required"
+
 echo
 echo '=== NBD ==='
 # NBD expects all of its arguments to be strings

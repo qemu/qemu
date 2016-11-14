@@ -2796,7 +2796,7 @@ const char *bdrv_get_format_name(BlockDriverState *bs)
 
 static int qsort_strcmp(const void *a, const void *b)
 {
-    return strcmp(a, b);
+    return strcmp(*(char *const *)a, *(char *const *)b);
 }
 
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
@@ -2818,6 +2818,24 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
             if (!found) {
                 formats = g_renew(const char *, formats, count + 1);
                 formats[count++] = drv->format_name;
+            }
+        }
+    }
+
+    for (i = 0; i < (int)ARRAY_SIZE(block_driver_modules); i++) {
+        const char *format_name = block_driver_modules[i].format_name;
+
+        if (format_name) {
+            bool found = false;
+            int j = count;
+
+            while (formats && j && !found) {
+                found = !strcmp(formats[--j], format_name);
+            }
+
+            if (!found) {
+                formats = g_renew(const char *, formats, count + 1);
+                formats[count++] = format_name;
             }
         }
     }

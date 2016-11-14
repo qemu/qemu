@@ -91,6 +91,14 @@ static int raw_read_options(QDict *options, BlockDriverState *bs,
     }
 
     s->offset = qemu_opt_get_size(opts, "offset", 0);
+    if (s->offset > real_size) {
+        error_setg(errp, "Offset (%" PRIu64 ") cannot be greater than "
+            "size of the containing file (%" PRId64 ")",
+            s->offset, real_size);
+        ret = -EINVAL;
+        goto end;
+    }
+
     if (qemu_opt_find(opts, "size") != NULL) {
         s->size = qemu_opt_get_size(opts, "size", 0);
         s->has_size = true;
@@ -100,7 +108,7 @@ static int raw_read_options(QDict *options, BlockDriverState *bs,
     }
 
     /* Check size and offset */
-    if (real_size < s->offset || (real_size - s->offset) < s->size) {
+    if ((real_size - s->offset) < s->size) {
         error_setg(errp, "The sum of offset (%" PRIu64 ") and size "
             "(%" PRIu64 ") has to be smaller or equal to the "
             " actual size of the containing file (%" PRId64 ")",
@@ -111,7 +119,7 @@ static int raw_read_options(QDict *options, BlockDriverState *bs,
 
     /* Make sure size is multiple of BDRV_SECTOR_SIZE to prevent rounding
      * up and leaking out of the specified area. */
-    if (!QEMU_IS_ALIGNED(s->size, BDRV_SECTOR_SIZE)) {
+    if (s->has_size && !QEMU_IS_ALIGNED(s->size, BDRV_SECTOR_SIZE)) {
         error_setg(errp, "Specified size is not multiple of %llu",
             BDRV_SECTOR_SIZE);
         ret = -EINVAL;

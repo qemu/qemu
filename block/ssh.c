@@ -582,8 +582,7 @@ static bool ssh_process_legacy_socket_options(QDict *output_opts,
     return true;
 }
 
-static InetSocketAddress *ssh_config(BDRVSSHState *s, QDict *options,
-                                     Error **errp)
+static InetSocketAddress *ssh_config(QDict *options, Error **errp)
 {
     InetSocketAddress *inet = NULL;
     QDict *addr = NULL;
@@ -661,7 +660,7 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     }
 
     /* Pop the config into our state object, Exit if invalid */
-    s->inet = ssh_config(s, options, errp);
+    s->inet = ssh_config(options, errp);
     if (!s->inet) {
         ret = -EINVAL;
         goto err;
