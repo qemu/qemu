@@ -1658,19 +1658,25 @@ static int spapr_pci_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool version_before_3(void *opaque, int version_id)
+{
+    return version_id < 3;
+}
+
 static const VMStateDescription vmstate_spapr_pci = {
     .name = "spapr_pci",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 2,
     .pre_save = spapr_pci_pre_save,
     .post_load = spapr_pci_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64_EQUAL(buid, sPAPRPHBState),
-        VMSTATE_UINT32_EQUAL(dma_liobn[0], sPAPRPHBState),
-        VMSTATE_UINT64_EQUAL(mem_win_addr, sPAPRPHBState),
-        VMSTATE_UINT64_EQUAL(mem_win_size, sPAPRPHBState),
-        VMSTATE_UINT64_EQUAL(io_win_addr, sPAPRPHBState),
-        VMSTATE_UINT64_EQUAL(io_win_size, sPAPRPHBState),
+        VMSTATE_UNUSED_TEST(version_before_3,
+                            sizeof(uint32_t) /* dma_liobn[0] */
+                            + sizeof(uint64_t) /* mem_win_addr */
+                            + sizeof(uint64_t) /* mem_win_size */
+                            + sizeof(uint64_t) /* io_win_addr */
+                            + sizeof(uint64_t) /* io_win_size */),
         VMSTATE_STRUCT_ARRAY(lsi_table, sPAPRPHBState, PCI_NUM_PINS, 0,
                              vmstate_spapr_pci_lsi, struct spapr_pci_lsi),
         VMSTATE_INT32(msi_devs_num, sPAPRPHBState),
