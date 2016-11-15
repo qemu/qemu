@@ -929,9 +929,11 @@ static void create_fw_cfg(const VirtBoardInfo *vbi, AddressSpace *as)
 {
     hwaddr base = vbi->memmap[VIRT_FW_CFG].base;
     hwaddr size = vbi->memmap[VIRT_FW_CFG].size;
+    FWCfgState *fw_cfg;
     char *nodename;
 
-    fw_cfg_init_mem_wide(base + 8, base, 8, base + 16, as);
+    fw_cfg = fw_cfg_init_mem_wide(base + 8, base, 8, base + 16, as);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
 
     nodename = g_strdup_printf("/fw-cfg@%" PRIx64, base);
     qemu_fdt_add_subnode(vbi->fdt, nodename);
