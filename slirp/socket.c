@@ -66,6 +66,23 @@ void
 sofree(struct socket *so)
 {
   Slirp *slirp = so->slirp;
+  struct mbuf *ifm;
+
+  for (ifm = (struct mbuf *) slirp->if_fastq.qh_link;
+       (struct quehead *) ifm != &slirp->if_fastq;
+       ifm = ifm->ifq_next) {
+    if (ifm->ifq_so == so) {
+      ifm->ifq_so = NULL;
+    }
+  }
+
+  for (ifm = (struct mbuf *) slirp->if_batchq.qh_link;
+       (struct quehead *) ifm != &slirp->if_batchq;
+       ifm = ifm->ifq_next) {
+    if (ifm->ifq_so == so) {
+      ifm->ifq_so = NULL;
+    }
+  }
 
   if (so->so_emu==EMU_RSH && so->extra) {
 	sofree(so->extra);
