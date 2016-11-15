@@ -61,12 +61,9 @@ out:
  * @index:      Index of first element
  * @n:          Number of elements
  * @flush:      Whether or not to sync to disk
- * @cb:         Completion function
- * @opaque:     Argument for completion function
  */
-static void qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
-                            unsigned int index, unsigned int n, bool flush,
-                            BlockCompletionFunc *cb, void *opaque)
+static int qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
+                           unsigned int index, unsigned int n, bool flush)
 {
     unsigned int sector_mask = BDRV_SECTOR_SIZE / sizeof(uint64_t) - 1;
     unsigned int start, end, i;
@@ -118,15 +115,7 @@ static void qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
     ret = 0;
 out:
     qemu_vfree(new_table);
-    cb(opaque, ret);
-}
-
-/**
- * Propagate return value from async callback
- */
-static void qed_sync_cb(void *opaque, int ret)
-{
-    *(int *)opaque = ret;
+    return ret;
 }
 
 int qed_read_l1_table_sync(BDRVQEDState *s)
@@ -134,23 +123,17 @@ int qed_read_l1_table_sync(BDRVQEDState *s)
     return qed_read_table(s, s->header.l1_table_offset, s->l1_table);
 }
 
-void qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n,
-                        BlockCompletionFunc *cb, void *opaque)
+int qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n)
 {
     BLKDBG_EVENT(s->bs->file, BLKDBG_L1_UPDATE);
-    qed_write_table(s, s->header.l1_table_offset,
-                    s->l1_table, index, n, false, cb, opaque);
+    return qed_write_table(s, s->header.l1_table_offset,
+                           s->l1_table, index, n, false);
 }
 
 int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
                             unsigned int n)
 {
-    int ret = -EINPROGRESS;
-
-    qed_write_l1_table(s, index, n, qed_sync_cb, &ret);
-    BDRV_POLL_WHILE(s->bs, ret == -EINPROGRESS);
-
-    return ret;
+    return qed_write_l1_table(s, index, n);
 }
 
 int qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset)
@@ -197,22 +180,16 @@ int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request, uint64_t offset
     return qed_read_l2_table(s, request, offset);
 }
 
-void qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
-                        unsigned int index, unsigned int n, bool flush,
-                        BlockCompletionFunc *cb, void *opaque)
+int qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
+                       unsigned int index, unsigned int n, bool flush)
 {
     BLKDBG_EVENT(s->bs->file, BLKDBG_L2_UPDATE);
-    qed_write_table(s, request->l2_table->offset,
-                    request->l2_table->table, index, n, flush, cb, opaque);
+    return qed_write_table(s, request->l2_table->offset,
+                           request->l2_table->table, index, n, flush);
 }
 
 int qed_write_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
                             unsigned int index, unsigned int n, bool flush)
 {
-    int ret = -EINPROGRESS;
-
-    qed_write_l2_table(s, request, index, n, flush, qed_sync_cb, &ret);
-    BDRV_POLL_WHILE(s->bs, ret == -EINPROGRESS);
-
-    return ret;
+    return qed_write_l2_table(s, request, index, n, flush);
 }

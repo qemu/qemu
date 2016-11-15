@@ -220,16 +220,14 @@ void qed_commit_l2_cache_entry(L2TableCache *l2_cache, CachedL2Table *l2_table);
  * Table I/O functions
  */
 int qed_read_l1_table_sync(BDRVQEDState *s);
-void qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n,
-                        BlockCompletionFunc *cb, void *opaque);
+int qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n);
 int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
                             unsigned int n);
 int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
                            uint64_t offset);
 int qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset);
-void qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
-                        unsigned int index, unsigned int n, bool flush,
-                        BlockCompletionFunc *cb, void *opaque);
+int qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
+                       unsigned int index, unsigned int n, bool flush);
 int qed_write_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
                             unsigned int index, unsigned int n, bool flush);
 
