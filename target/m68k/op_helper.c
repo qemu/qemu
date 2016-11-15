@@ -654,3 +654,24 @@ uint32_t HELPER(bfset_mem)(CPUM68KState *env, uint32_t addr,
 
     return ((data & mask) << d.bofs) >> 32;
 }
+
+uint32_t HELPER(bfffo_reg)(uint32_t n, uint32_t ofs, uint32_t len)
+{
+    return (n ? clz32(n) : len) + ofs;
+}
+
+uint64_t HELPER(bfffo_mem)(CPUM68KState *env, uint32_t addr,
+                           int32_t ofs, uint32_t len)
+{
+    uintptr_t ra = GETPC();
+    struct bf_data d = bf_prep(addr, ofs, len);
+    uint64_t data = bf_load(env, d.addr, d.blen, ra);
+    uint64_t mask = -1ull << (64 - d.len) >> d.bofs;
+    uint64_t n = (data & mask) << d.bofs;
+    uint32_t ffo = helper_bfffo_reg(n >> 32, ofs, d.len);
+
+    /* Return FFO in the low word and N in the high word.
+       Note that because of MASK and the shift, the low word
+       is already zero.  */
+    return n | ffo;
+}

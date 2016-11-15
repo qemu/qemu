@@ -3625,7 +3625,14 @@ DISAS_INSN(bfop_reg)
     TCGv src = DREG(insn, 0);
     int len = ((extract32(ext, 0, 5) - 1) & 31) + 1;
     int ofs = extract32(ext, 6, 5);  /* big bit-endian */
-    TCGv mask;
+    TCGv mask, tofs, tlen;
+
+    TCGV_UNUSED(tofs);
+    TCGV_UNUSED(tlen);
+    if ((insn & 0x0f00) == 0x0d00) { /* bfffo */
+        tofs = tcg_temp_new();
+        tlen = tcg_temp_new();
+    }
 
     if ((ext & 0x820) == 0) {
         /* Immediate width and offset.  */
@@ -3637,6 +3644,10 @@ DISAS_INSN(bfop_reg)
         }
         tcg_gen_andi_i32(QREG_CC_N, QREG_CC_N, ~maski);
         mask = tcg_const_i32(ror32(maski, ofs));
+        if (!TCGV_IS_UNUSED(tofs)) {
+            tcg_gen_movi_i32(tofs, ofs);
+            tcg_gen_movi_i32(tlen, len);
+        }
     } else {
         TCGv tmp = tcg_temp_new();
         if (ext & 0x20) {
@@ -3645,9 +3656,15 @@ DISAS_INSN(bfop_reg)
             tcg_gen_andi_i32(tmp, tmp, 31);
             mask = tcg_const_i32(0x7fffffffu);
             tcg_gen_shr_i32(mask, mask, tmp);
+            if (!TCGV_IS_UNUSED(tlen)) {
+                tcg_gen_addi_i32(tlen, tmp, 1);
+            }
         } else {
             /* Immediate width */
             mask = tcg_const_i32(0x7fffffffu >> (len - 1));
+            if (!TCGV_IS_UNUSED(tlen)) {
+                tcg_gen_movi_i32(tlen, len);
+            }
         }
         if (ext & 0x800) {
             /* Variable offset */
@@ -3655,11 +3672,17 @@ DISAS_INSN(bfop_reg)
             tcg_gen_rotl_i32(QREG_CC_N, src, tmp);
             tcg_gen_andc_i32(QREG_CC_N, QREG_CC_N, mask);
             tcg_gen_rotr_i32(mask, mask, tmp);
+            if (!TCGV_IS_UNUSED(tofs)) {
+                tcg_gen_mov_i32(tofs, tmp);
+            }
         } else {
             /* Immediate offset (and variable width) */
             tcg_gen_rotli_i32(QREG_CC_N, src, ofs);
             tcg_gen_andc_i32(QREG_CC_N, QREG_CC_N, mask);
             tcg_gen_rotri_i32(mask, mask, ofs);
+            if (!TCGV_IS_UNUSED(tofs)) {
+                tcg_gen_movi_i32(tofs, ofs);
+            }
         }
         tcg_temp_free(tmp);
     }
@@ -3671,6 +3694,11 @@ DISAS_INSN(bfop_reg)
         break;
     case 0x0c00: /* bfclr */
         tcg_gen_and_i32(src, src, mask);
+        break;
+    case 0x0d00: /* bfffo */
+        gen_helper_bfffo_reg(DREG(ext, 12), QREG_CC_N, tofs, tlen);
+        tcg_temp_free(tlen);
+        tcg_temp_free(tofs);
         break;
     case 0x0e00: /* bfset */
         tcg_gen_orc_i32(src, src, mask);
@@ -3688,6 +3716,7 @@ DISAS_INSN(bfop_mem)
 {
     int ext = read_im16(env, s);
     TCGv addr, len, ofs;
+    TCGv_i64 t64;
 
     addr = gen_lea(env, s, insn, OS_UNSIZED);
     if (IS_NULL_QREG(addr)) {
@@ -3712,6 +3741,12 @@ DISAS_INSN(bfop_mem)
         break;
     case 0x0c00: /* bfclr */
         gen_helper_bfclr_mem(QREG_CC_N, cpu_env, addr, ofs, len);
+        break;
+    case 0x0d00: /* bfffo */
+        t64 = tcg_temp_new_i64();
+        gen_helper_bfffo_mem(t64, cpu_env, addr, ofs, len);
+        tcg_gen_extr_i64_i32(DREG(ext, 12), QREG_CC_N, t64);
+        tcg_temp_free_i64(t64);
         break;
     case 0x0e00: /* bfset */
         gen_helper_bfset_mem(QREG_CC_N, cpu_env, addr, ofs, len);
@@ -4939,6 +4974,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(bfop_reg, eac0, fff8, BITFIELD);   /* bfchg */
     INSN(bfop_mem, ecc0, ffc0, BITFIELD);   /* bfclr */
     INSN(bfop_reg, ecc0, fff8, BITFIELD);   /* bfclr */
+    INSN(bfop_mem, edc0, ffc0, BITFIELD);   /* bfffo */
+    INSN(bfop_reg, edc0, fff8, BITFIELD);   /* bfffo */
     INSN(bfop_mem, eec0, ffc0, BITFIELD);   /* bfset */
     INSN(bfop_reg, eec0, fff8, BITFIELD);   /* bfset */
     INSN(bfop_mem, e8c0, ffc0, BITFIELD);   /* bftst */
