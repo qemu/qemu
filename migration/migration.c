@@ -593,6 +593,7 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->max_bandwidth = s->parameters.max_bandwidth;
     params->has_downtime_limit = true;
     params->downtime_limit = s->parameters.downtime_limit;
+    params->has_x_checkpoint_delay = true;
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
 
     return params;

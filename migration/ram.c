@@ -1987,7 +1987,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int ret;
     int i;
     int64_t t0;
-    int pages_sent = 0;
+    int done = 0;
 
     rcu_read_lock();
     if (ram_list.version != last_version) {
@@ -2007,9 +2007,9 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         pages = ram_find_and_save_block(f, false, &bytes_transferred);
         /* no more pages to sent */
         if (pages == 0) {
+            done = 1;
             break;
         }
-        pages_sent += pages;
         acct_info.iterations++;
 
         /* we want to check in the 1st loop, just in case it was the 1st time
@@ -2044,7 +2044,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         return ret;
     }
 
-    return pages_sent;
+    return done;
 }
 
 /* Called with iothread lock */
