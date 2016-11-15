@@ -93,33 +93,24 @@ int chsc_sei_nt2_have_event(void)
 
 S390PCIBusDevice *s390_pci_find_next_avail_dev(S390PCIBusDevice *pbdev)
 {
-    int idx = 0;
-    S390PCIBusDevice *dev = NULL;
     S390pciState *s = s390_get_phb();
+    S390PCIBusDevice *ret = pbdev ? QTAILQ_NEXT(pbdev, link) :
+        QTAILQ_FIRST(&s->zpci_devs);
 
-    if (pbdev) {
-        idx = (pbdev->fh & FH_MASK_INDEX) + 1;
+    while (ret && ret->state == ZPCI_FS_RESERVED) {
+        ret = QTAILQ_NEXT(ret, link);
     }
 
-    for (; idx < PCI_SLOT_MAX; idx++) {
-        dev = s->pbdev[idx];
-        if (dev && dev->state != ZPCI_FS_RESERVED) {
-            return dev;
-        }
-    }
-
-    return NULL;
+    return ret;
 }
 
 S390PCIBusDevice *s390_pci_find_dev_by_fid(uint32_t fid)
 {
     S390PCIBusDevice *pbdev;
-    int i;
     S390pciState *s = s390_get_phb();
 
-    for (i = 0; i < PCI_SLOT_MAX; i++) {
-        pbdev = s->pbdev[i];
-        if (pbdev && pbdev->fid == fid) {
+    QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
+        if (pbdev->fid == fid) {
             return pbdev;
         }
     }
@@ -203,16 +194,10 @@ out:
 
 static S390PCIBusDevice *s390_pci_find_dev_by_uid(uint16_t uid)
 {
-    int i;
     S390PCIBusDevice *pbdev;
     S390pciState *s = s390_get_phb();
 
-    for (i = 0; i < PCI_SLOT_MAX; i++) {
-        pbdev = s->pbdev[i];
-        if (!pbdev) {
-            continue;
-        }
-
+    QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
         if (pbdev->uid == uid) {
             return pbdev;
         }
@@ -223,7 +208,6 @@ static S390PCIBusDevice *s390_pci_find_dev_by_uid(uint16_t uid)
 
 static S390PCIBusDevice *s390_pci_find_dev_by_target(const char *target)
 {
-    int i;
     S390PCIBusDevice *pbdev;
     S390pciState *s = s390_get_phb();
 
@@ -231,12 +215,7 @@ static S390PCIBusDevice *s390_pci_find_dev_by_target(const char *target)
         return NULL;
     }
 
-    for (i = 0; i < PCI_SLOT_MAX; i++) {
-        pbdev = s->pbdev[i];
-        if (!pbdev) {
-            continue;
-        }
-
+    QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
         if (!strcmp(pbdev->target, target)) {
             return pbdev;
         }
@@ -247,9 +226,16 @@ static S390PCIBusDevice *s390_pci_find_dev_by_target(const char *target)
 
 S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx)
 {
+    S390PCIBusDevice *pbdev;
     S390pciState *s = s390_get_phb();
 
-    return s->pbdev[idx & FH_MASK_INDEX];
+    QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
+        if (pbdev->idx == idx) {
+            return pbdev;
+        }
+    }
+
+    return NULL;
 }
 
 S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh)
@@ -257,9 +243,10 @@ S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh)
     S390pciState *s = s390_get_phb();
     S390PCIBusDevice *pbdev;
 
-    pbdev = s->pbdev[fh & FH_MASK_INDEX];
-    if (pbdev && pbdev->fh == fh) {
-        return pbdev;
+    QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
+        if (pbdev->fh == fh) {
+            return pbdev;
+        }
     }
 
     return NULL;
@@ -599,6 +586,7 @@ static int s390_pcihost_init(SysBusDevice *dev)
     s->iommu_table = g_hash_table_new_full(g_int64_hash, g_int64_equal,
                                            NULL, g_free);
     QTAILQ_INIT(&s->pending_sei);
+    QTAILQ_INIT(&s->zpci_devs);
     return 0;
 }
 
@@ -666,6 +654,25 @@ static S390PCIBusDevice *s390_pci_device_new(const char *target)
     return S390_PCI_DEVICE(dev);
 }
 
+static bool s390_pci_alloc_idx(S390PCIBusDevice *pbdev)
+{
+    uint32_t idx;
+    S390pciState *s = s390_get_phb();
+
+    idx = s->next_idx;
+    while (s390_pci_find_dev_by_idx(idx)) {
+        idx = (idx + 1) & FH_MASK_INDEX;
+        if (idx == s->next_idx) {
+            return false;
+        }
+    }
+
+    pbdev->idx = idx;
+    s->next_idx = (idx + 1) & FH_MASK_INDEX;
+
+    return true;
+}
+
 static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp)
 {
@@ -713,18 +720,14 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
                                          pbdev->fh, pbdev->fid);
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
-        int idx;
-
         pbdev = S390_PCI_DEVICE(dev);
-        for (idx = 0; idx < PCI_SLOT_MAX; idx++) {
-            if (!s->pbdev[idx]) {
-                s->pbdev[idx] = pbdev;
-                pbdev->fh = idx;
-                return;
-            }
-        }
 
-        error_setg(errp, "no slot for plugging zpci device");
+        if (!s390_pci_alloc_idx(pbdev)) {
+            error_setg(errp, "no slot for plugging zpci device");
+            return;
+        }
+        pbdev->fh = pbdev->idx;
+        QTAILQ_INSERT_TAIL(&s->zpci_devs, pbdev, link);
     }
 }
 
@@ -750,16 +753,15 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
 {
     PCIDevice *pci_dev = NULL;
     PCIBus *bus;
-    int32_t devfn, i;
+    int32_t devfn;
     S390PCIBusDevice *pbdev = NULL;
     S390pciState *s = s390_get_phb();
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         pci_dev = PCI_DEVICE(dev);
 
-        for (i = 0 ; i < PCI_SLOT_MAX; i++) {
-            if (s->pbdev[i] && s->pbdev[i]->pdev == pci_dev) {
-                pbdev = s->pbdev[i];
+        QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
+            if (pbdev->pdev == pci_dev) {
                 break;
             }
         }
@@ -802,7 +804,7 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
     pbdev->state = ZPCI_FS_RESERVED;
 out:
     pbdev->fid = 0;
-    s->pbdev[pbdev->fh & FH_MASK_INDEX] = NULL;
+    QTAILQ_REMOVE(&s->zpci_devs, pbdev, link);
     object_unparent(OBJECT(pbdev));
 }
 

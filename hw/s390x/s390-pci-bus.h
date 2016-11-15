@@ -27,7 +27,7 @@
 #define FH_MASK_ENABLE   0x80000000
 #define FH_MASK_INSTANCE 0x7f000000
 #define FH_MASK_SHM      0x00ff0000
-#define FH_MASK_INDEX    0x0000001f
+#define FH_MASK_INDEX    0x0000ffff
 #define FH_SHM_VFIO      0x00010000
 #define FH_SHM_EMUL      0x00020000
 #define S390_PCIPT_ADAPTER 2
@@ -285,6 +285,7 @@ typedef struct S390PCIBusDevice {
     ZpciState state;
     char *target;
     uint16_t uid;
+    uint32_t idx;
     uint32_t fh;
     uint32_t fid;
     bool fid_defined;
@@ -299,6 +300,7 @@ typedef struct S390PCIBusDevice {
     IndAddr *summary_ind;
     IndAddr *indicator;
     QEMUTimer *release_timer;
+    QTAILQ_ENTRY(S390PCIBusDevice) link;
 } S390PCIBusDevice;
 
 typedef struct S390PCIBus {
@@ -307,10 +309,11 @@ typedef struct S390PCIBus {
 
 typedef struct S390pciState {
     PCIHostState parent_obj;
+    uint32_t next_idx;
     S390PCIBus *bus;
-    S390PCIBusDevice *pbdev[PCI_SLOT_MAX];
     GHashTable *iommu_table;
     QTAILQ_HEAD(, SeiContainer) pending_sei;
+    QTAILQ_HEAD(, S390PCIBusDevice) zpci_devs;
 } S390pciState;
 
 int chsc_sei_nt2_get_event(void *res);
