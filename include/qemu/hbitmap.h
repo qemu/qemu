@@ -146,6 +146,19 @@ void hbitmap_reset_all(HBitmap *hb);
 bool hbitmap_get(const HBitmap *hb, uint64_t item);
 
 /**
+ * hbitmap_is_serializable:
+ * @hb: HBitmap which should be (de-)serialized.
+ *
+ * Returns whether the bitmap can actually be (de-)serialized. Other
+ * (de-)serialization functions may only be invoked if this function returns
+ * true.
+ *
+ * Calling (de-)serialization functions does not affect a bitmap's
+ * (de-)serializability.
+ */
+bool hbitmap_is_serializable(const HBitmap *hb);
+
+/**
  * hbitmap_serialization_granularity:
  * @hb: HBitmap to operate on.
  *
