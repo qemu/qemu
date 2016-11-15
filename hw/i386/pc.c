@@ -1086,6 +1086,17 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
+static int pc_present_cpus_count(PCMachineState *pcms)
+{
+    int i, boot_cpus = 0;
+    for (i = 0; i < pcms->possible_cpus->len; i++) {
+        if (pcms->possible_cpus->cpus[i].cpu) {
+            boot_cpus++;
+        }
+    }
+    return boot_cpus;
+}
+
 static X86CPU *pc_new_cpu(const char *typename, int64_t apic_id,
                           Error **errp)
 {
@@ -1222,19 +1233,6 @@ static void pc_build_feature_control_file(PCMachineState *pcms)
     fw_cfg_add_file(pcms->fw_cfg, "etc/msr_feature_control", val, sizeof(*val));
 }
 
-static void rtc_set_cpus_count(ISADevice *rtc, uint16_t cpus_count)
-{
-    if (cpus_count > 0xff) {
-        /* If the number of CPUs can't be represented in 8 bits, the
-         * BIOS must use "etc/boot-cpus". Set RTC field to 0 just
-         * to make old BIOSes fail more predictably.
-         */
-        rtc_set_memory(rtc, 0x5f, 0);
-    } else {
-        rtc_set_memory(rtc, 0x5f, cpus_count - 1);
-    }
-}
-
 static
 void pc_machine_done(Notifier *notifier, void *data)
 {
@@ -1243,7 +1241,7 @@ void pc_machine_done(Notifier *notifier, void *data)
     PCIBus *bus = pcms->bus;
 
     /* set the number of CPUs */
-    rtc_set_cpus_count(pcms->rtc, le16_to_cpu(pcms->boot_cpus_le));
+    rtc_set_memory(pcms->rtc, 0x5f, pc_present_cpus_count(pcms) - 1);
 
     if (bus) {
         int extra_hosts = 0;
@@ -1264,15 +1262,8 @@ void pc_machine_done(Notifier *notifier, void *data)
 
     acpi_setup();
     if (pcms->fw_cfg) {
-        MachineClass *mc = MACHINE_GET_CLASS(pcms);
-
         pc_build_smbios(pcms->fw_cfg);
         pc_build_feature_control_file(pcms);
-
-        if (mc->max_cpus > 255) {
-            fw_cfg_add_file(pcms->fw_cfg, "etc/boot-cpus", &pcms->boot_cpus_le,
-                            sizeof(pcms->boot_cpus_le));
-        }
     }
 
     if (pcms->apic_id_limit > 255) {
@@ -1819,11 +1810,9 @@ static void pc_cpu_plug(HotplugHandler *hotplug_dev,
         }
     }
 
-    /* increment the number of CPUs */
-    pcms->boot_cpus_le = cpu_to_le16(le16_to_cpu(pcms->boot_cpus_le) + 1);
     if (dev->hotplugged) {
-        /* Update the number of CPUs in CMOS */
-        rtc_set_cpus_count(pcms->rtc, le16_to_cpu(pcms->boot_cpus_le));
+        /* increment the number of CPUs */
+        rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) + 1);
     }
 
     found_cpu = pc_find_cpu_slot(pcms, CPU(dev), NULL);
@@ -1877,10 +1866,7 @@ static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
     found_cpu->cpu = NULL;
     object_unparent(OBJECT(dev));
 
-    /* decrement the number of CPUs */
-    pcms->boot_cpus_le = cpu_to_le16(le16_to_cpu(pcms->boot_cpus_le) - 1);
-    /* Update the number of CPUs in CMOS */
-    rtc_set_cpus_count(pcms->rtc, le16_to_cpu(pcms->boot_cpus_le));
+    rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) - 1);
  out:
     error_propagate(errp, local_err);
 }
