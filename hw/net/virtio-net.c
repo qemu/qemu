@@ -1181,7 +1181,7 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
          * must have consumed the complete packet.
          * Otherwise, drop it. */
         if (!n->mergeable_rx_bufs && offset < size) {
-            virtqueue_discard(q->rx_vq, elem, total);
+            virtqueue_unpop(q->rx_vq, elem, total);
             g_free(elem);
             return size;
         }
@@ -1946,6 +1946,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->guest_notifier_pending = virtio_net_guest_notifier_pending;
     vdc->load = virtio_net_load_device;
     vdc->save = virtio_net_save_device;
+    vdc->legacy_features |= (0x1 << VIRTIO_NET_F_GSO);
 }
 
 static const TypeInfo virtio_net_info = {

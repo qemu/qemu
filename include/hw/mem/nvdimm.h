@@ -99,20 +99,13 @@ typedef struct NVDIMMClass NVDIMMClass;
 #define NVDIMM_ACPI_IO_LEN      4
 
 /*
- * The buffer, @fit, saves the FIT info for all the presented NVDIMM
- * devices which is updated after the NVDIMM device is plugged or
- * unplugged.
- *
- * Rules to use the buffer:
- *    1) the user should hold the @lock to access the buffer.
- *    2) mark @dirty whenever the buffer is updated.
- *
- * These rules preserve NVDIMM ACPI _FIT method to read incomplete
- * or obsolete fit info if fit update happens during multiple RFIT
- * calls.
+ * NvdimmFitBuffer:
+ * @fit: FIT structures for present NVDIMMs. It is updated when
+ *   the NVDIMM device is plugged or unplugged.
+ * @dirty: It allows OSPM to detect change and restart read in
+ *   progress if there is any.
  */
 struct NvdimmFitBuffer {
-    QemuMutex lock;
     GArray *fit;
     bool dirty;
 };
@@ -137,5 +130,6 @@ void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        BIOSLinker *linker, AcpiNVDIMMState *state,
                        uint32_t ram_slots);
-void nvdimm_acpi_hotplug(AcpiNVDIMMState *state);
+void nvdimm_plug(AcpiNVDIMMState *state);
+void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev);
 #endif

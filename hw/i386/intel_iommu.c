@@ -218,7 +218,7 @@ static void vtd_reset_iotlb(IntelIOMMUState *s)
     g_hash_table_remove_all(s->iotlb);
 }
 
-static uint64_t vtd_get_iotlb_key(uint64_t gfn, uint8_t source_id,
+static uint64_t vtd_get_iotlb_key(uint64_t gfn, uint16_t source_id,
                                   uint32_t level)
 {
     return gfn | ((uint64_t)(source_id) << VTD_IOTLB_SID_SHIFT) |
@@ -2180,7 +2180,7 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
     }
 
     addr.data = origin->address & VTD_MSI_ADDR_LO_MASK;
-    if (le16_to_cpu(addr.addr.__head) != 0xfee) {
+    if (addr.addr.__head != 0xfee) {
         VTD_DPRINTF(GENERAL, "error: MSI addr low 32 bits invalid: "
                     "0x%"PRIx32, addr.data);
         return -VTD_FR_IR_REQ_RSVD;
@@ -2463,7 +2463,7 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     IntelIOMMUState *s = opaque;
     VTDAddressSpace *vtd_as;
 
-    assert(0 <= devfn && devfn <= X86_IOMMU_PCI_DEVFN_MAX);
+    assert(0 <= devfn && devfn < X86_IOMMU_PCI_DEVFN_MAX);
 
     vtd_as = vtd_find_add_as(s, bus, devfn);
     return &vtd_as->as;

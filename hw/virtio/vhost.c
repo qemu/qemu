@@ -421,32 +421,73 @@ static inline void vhost_dev_log_resize(struct vhost_dev *dev, uint64_t size)
     dev->log_size = size;
 }
 
+
+static int vhost_verify_ring_part_mapping(void *part,
+                                          uint64_t part_addr,
+                                          uint64_t part_size,
+                                          uint64_t start_addr,
+                                          uint64_t size)
+{
+    hwaddr l;
+    void *p;
+    int r = 0;
+
+    if (!ranges_overlap(start_addr, size, part_addr, part_size)) {
+        return 0;
+    }
+    l = part_size;
+    p = cpu_physical_memory_map(part_addr, &l, 1);
+    if (!p || l != part_size) {
+        r = -ENOMEM;
+    }
+    if (p != part) {
+        r = -EBUSY;
+    }
+    cpu_physical_memory_unmap(p, l, 0, 0);
+    return r;
+}
+
 static int vhost_verify_ring_mappings(struct vhost_dev *dev,
                                       uint64_t start_addr,
                                       uint64_t size)
 {
-    int i;
+    int i, j;
     int r = 0;
+    const char *part_name[] = {
+        "descriptor table",
+        "available ring",
+        "used ring"
+    };
 
-    for (i = 0; !r && i < dev->nvqs; ++i) {
+    for (i = 0; i < dev->nvqs; ++i) {
         struct vhost_virtqueue *vq = dev->vqs + i;
-        hwaddr l;
-        void *p;
 
-        if (!ranges_overlap(start_addr, size, vq->ring_phys, vq->ring_size)) {
-            continue;
+        j = 0;
+        r = vhost_verify_ring_part_mapping(vq->desc, vq->desc_phys,
+                                           vq->desc_size, start_addr, size);
+        if (!r) {
+            break;
         }
-        l = vq->ring_size;
-        p = cpu_physical_memory_map(vq->ring_phys, &l, 1);
-        if (!p || l != vq->ring_size) {
-            error_report("Unable to map ring buffer for ring %d", i);
-            r = -ENOMEM;
+
+        j++;
+        r = vhost_verify_ring_part_mapping(vq->avail, vq->avail_phys,
+                                           vq->avail_size, start_addr, size);
+        if (!r) {
+            break;
         }
-        if (p != vq->ring) {
-            error_report("Ring buffer relocated for ring %d", i);
-            r = -EBUSY;
+
+        j++;
+        r = vhost_verify_ring_part_mapping(vq->used, vq->used_phys,
+                                           vq->used_size, start_addr, size);
+        if (!r) {
+            break;
         }
-        cpu_physical_memory_unmap(p, l, 0, 0);
+    }
+
+    if (r == -ENOMEM) {
+        error_report("Unable to map %s for ring %d", part_name[j], i);
+    } else if (r == -EBUSY) {
+        error_report("%s relocated for ring %d", part_name[j], i);
     }
     return r;
 }
@@ -860,15 +901,15 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         }
     }
 
-    s = l = virtio_queue_get_desc_size(vdev, idx);
-    a = virtio_queue_get_desc_addr(vdev, idx);
+    vq->desc_size = s = l = virtio_queue_get_desc_size(vdev, idx);
+    vq->desc_phys = a = virtio_queue_get_desc_addr(vdev, idx);
     vq->desc = cpu_physical_memory_map(a, &l, 0);
     if (!vq->desc || l != s) {
         r = -ENOMEM;
         goto fail_alloc_desc;
     }
-    s = l = virtio_queue_get_avail_size(vdev, idx);
-    a = virtio_queue_get_avail_addr(vdev, idx);
+    vq->avail_size = s = l = virtio_queue_get_avail_size(vdev, idx);
+    vq->avail_phys = a = virtio_queue_get_avail_addr(vdev, idx);
     vq->avail = cpu_physical_memory_map(a, &l, 0);
     if (!vq->avail || l != s) {
         r = -ENOMEM;
@@ -880,14 +921,6 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     if (!vq->used || l != s) {
         r = -ENOMEM;
         goto fail_alloc_used;
-    }
-
-    vq->ring_size = s = l = virtio_queue_get_ring_size(vdev, idx);
-    vq->ring_phys = a = virtio_queue_get_ring_addr(vdev, idx);
-    vq->ring = cpu_physical_memory_map(a, &l, 1);
-    if (!vq->ring || l != s) {
-        r = -ENOMEM;
-        goto fail_alloc_ring;
     }
 
     r = vhost_virtqueue_set_addr(dev, vq, vhost_vq_index, dev->log_enabled);
@@ -930,9 +963,6 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
 fail_vector:
 fail_kick:
 fail_alloc:
-    cpu_physical_memory_unmap(vq->ring, virtio_queue_get_ring_size(vdev, idx),
-                              0, 0);
-fail_alloc_ring:
     cpu_physical_memory_unmap(vq->used, virtio_queue_get_used_size(vdev, idx),
                               0, 0);
 fail_alloc_used:
@@ -973,8 +1003,6 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
                                                 vhost_vq_index);
     }
 
-    cpu_physical_memory_unmap(vq->ring, virtio_queue_get_ring_size(vdev, idx),
-                              0, virtio_queue_get_ring_size(vdev, idx));
     cpu_physical_memory_unmap(vq->used, virtio_queue_get_used_size(vdev, idx),
                               1, virtio_queue_get_used_size(vdev, idx));
     cpu_physical_memory_unmap(vq->avail, virtio_queue_get_avail_size(vdev, idx),
@@ -1122,7 +1150,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         if (!(hdev->features & (0x1ULL << VHOST_F_LOG_ALL))) {
             error_setg(&hdev->migration_blocker,
                        "Migration disabled: vhost lacks VHOST_F_LOG_ALL feature.");
-        } else if (!qemu_memfd_check()) {
+        } else if (vhost_dev_log_is_shared(hdev) && !qemu_memfd_check()) {
             error_setg(&hdev->migration_blocker,
                        "Migration disabled: failed to allocate shared memory");
         }

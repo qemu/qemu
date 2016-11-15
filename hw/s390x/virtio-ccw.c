@@ -303,6 +303,8 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         if (!ccw.cda) {
             ret = -EFAULT;
         } else {
+            VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+
             features.index = address_space_ldub(&address_space_memory,
                                                 ccw.cda
                                                 + sizeof(features.features),
@@ -312,7 +314,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 if (dev->revision >= 1) {
                     /* Don't offer legacy features for modern devices. */
                     features.features = (uint32_t)
-                        (vdev->host_features & ~VIRTIO_LEGACY_FEATURES);
+                        (vdev->host_features & ~vdc->legacy_features);
                 } else {
                     features.features = (uint32_t)vdev->host_features;
                 }

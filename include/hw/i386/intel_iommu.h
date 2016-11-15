@@ -123,7 +123,6 @@ enum {
 union VTD_IR_TableEntry {
     struct {
 #ifdef HOST_WORDS_BIGENDIAN
-        uint32_t dest_id:32;         /* Destination ID */
         uint32_t __reserved_1:8;     /* Reserved 1 */
         uint32_t vector:8;           /* Interrupt Vector */
         uint32_t irte_mode:1;        /* IRTE Mode */
@@ -147,9 +146,9 @@ union VTD_IR_TableEntry {
         uint32_t irte_mode:1;        /* IRTE Mode */
         uint32_t vector:8;           /* Interrupt Vector */
         uint32_t __reserved_1:8;     /* Reserved 1 */
-        uint32_t dest_id:32;         /* Destination ID */
 #endif
-        uint16_t source_id:16;       /* Source-ID */
+        uint32_t dest_id;            /* Destination ID */
+        uint16_t source_id;          /* Source-ID */
 #ifdef HOST_WORDS_BIGENDIAN
         uint64_t __reserved_2:44;    /* Reserved 2 */
         uint64_t sid_vtype:2;        /* Source-ID Validation Type */
@@ -220,7 +219,7 @@ struct VTD_MSIMessage {
             uint32_t dest:8;
             uint32_t __addr_head:12; /* 0xfee */
 #endif
-            uint32_t __addr_hi:32;
+            uint32_t __addr_hi;
         } QEMU_PACKED;
         uint64_t msi_addr;
     };
@@ -239,7 +238,7 @@ struct VTD_MSIMessage {
             uint16_t level:1;
             uint16_t trigger_mode:1;
 #endif
-            uint16_t __resved1:16;
+            uint16_t __resved1;
         } QEMU_PACKED;
         uint32_t msi_data;
     };

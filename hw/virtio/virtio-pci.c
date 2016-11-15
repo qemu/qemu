@@ -1175,7 +1175,9 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
         break;
     case VIRTIO_PCI_COMMON_DF:
         if (proxy->dfselect <= 1) {
-            val = (vdev->host_features & ~VIRTIO_LEGACY_FEATURES) >>
+            VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+
+            val = (vdev->host_features & ~vdc->legacy_features) >>
                 (32 * proxy->dfselect);
         }
         break;

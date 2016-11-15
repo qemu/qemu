@@ -813,6 +813,7 @@ static void virtio_crypto_device_unrealize(DeviceState *dev, Error **errp)
 
 static const VMStateDescription vmstate_virtio_crypto = {
     .name = "virtio-crypto",
+    .unmigratable = 1,
     .minimum_version_id = VIRTIO_CRYPTO_VM_VERSION,
     .version_id = VIRTIO_CRYPTO_VM_VERSION,
     .fields = (VMStateField[]) {

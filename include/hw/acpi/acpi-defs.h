@@ -619,7 +619,10 @@ struct AcpiDmarDeviceScope {
     uint16_t reserved;
     uint8_t enumeration_id;
     uint8_t bus;
-    uint16_t path[0];           /* list of dev:func pairs */
+    struct {
+        uint8_t device;
+        uint8_t function;
+    } path[0];
 } QEMU_PACKED;
 typedef struct AcpiDmarDeviceScope AcpiDmarDeviceScope;
 

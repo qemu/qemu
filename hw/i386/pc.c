@@ -1715,20 +1715,14 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
+    if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
+        nvdimm_plug(&pcms->acpi_nvdimm_state);
+    }
+
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
     hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &error_abort);
 out:
     error_propagate(errp, local_err);
-}
-
-static void pc_dimm_post_plug(HotplugHandler *hotplug_dev,
-                              DeviceState *dev, Error **errp)
-{
-    PCMachineState *pcms = PC_MACHINE(hotplug_dev);
-
-    if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
-        nvdimm_acpi_hotplug(&pcms->acpi_nvdimm_state);
-    }
 }
 
 static void pc_dimm_unplug_request(HotplugHandler *hotplug_dev,
@@ -1766,12 +1760,6 @@ static void pc_dimm_unplug(HotplugHandler *hotplug_dev,
     MemoryRegion *mr = ddc->get_memory_region(dimm);
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
-
-    if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
-        error_setg(&local_err,
-                   "nvdimm device hot unplug is not supported yet.");
-        goto out;
-    }
 
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
     hhc->unplug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
@@ -2005,14 +1993,6 @@ static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
         pc_dimm_plug(hotplug_dev, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         pc_cpu_plug(hotplug_dev, dev, errp);
-    }
-}
-
-static void pc_machine_device_post_plug_cb(HotplugHandler *hotplug_dev,
-                                           DeviceState *dev, Error **errp)
-{
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        pc_dimm_post_plug(hotplug_dev, dev, errp);
     }
 }
 
@@ -2322,7 +2302,6 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->reset = pc_machine_reset;
     hc->pre_plug = pc_machine_device_pre_plug_cb;
     hc->plug = pc_machine_device_plug_cb;
-    hc->post_plug = pc_machine_device_post_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;
     hc->unplug = pc_machine_device_unplug_cb;
     nc->nmi_monitor_handler = x86_nmi;

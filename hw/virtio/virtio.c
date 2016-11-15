@@ -279,7 +279,7 @@ void virtqueue_detach_element(VirtQueue *vq, const VirtQueueElement *elem,
     virtqueue_unmap_sg(vq, elem, len);
 }
 
-/* virtqueue_discard:
+/* virtqueue_unpop:
  * @vq: The #VirtQueue
  * @elem: The #VirtQueueElement
  * @len: number of bytes written
@@ -287,8 +287,8 @@ void virtqueue_detach_element(VirtQueue *vq, const VirtQueueElement *elem,
  * Pretend the most recent element wasn't popped from the virtqueue.  The next
  * call to virtqueue_pop() will refetch the element.
  */
-void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
-                       unsigned int len)
+void virtqueue_unpop(VirtQueue *vq, const VirtQueueElement *elem,
+                     unsigned int len)
 {
     vq->last_avail_idx--;
     virtqueue_detach_element(vq, elem, len);
@@ -301,7 +301,7 @@ void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
  * Pretend that elements weren't popped from the virtqueue.  The next
  * virtqueue_pop() will refetch the oldest element.
  *
- * Use virtqueue_discard() instead if you have a VirtQueueElement.
+ * Use virtqueue_unpop() instead if you have a VirtQueueElement.
  *
  * Returns: true on success, false if @num is greater than the number of in use
  * elements.
@@ -632,7 +632,7 @@ void virtqueue_map(VirtQueueElement *elem)
                         VIRTQUEUE_MAX_SIZE, 0);
 }
 
-void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num)
+static void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num)
 {
     VirtQueueElement *elem;
     size_t in_addr_ofs = QEMU_ALIGN_UP(sz, __alignof__(elem->in_addr[0]));
@@ -1935,11 +1935,6 @@ hwaddr virtio_queue_get_used_addr(VirtIODevice *vdev, int n)
     return vdev->vq[n].vring.used;
 }
 
-hwaddr virtio_queue_get_ring_addr(VirtIODevice *vdev, int n)
-{
-    return vdev->vq[n].vring.desc;
-}
-
 hwaddr virtio_queue_get_desc_size(VirtIODevice *vdev, int n)
 {
     return sizeof(VRingDesc) * vdev->vq[n].vring.num;
@@ -1955,12 +1950,6 @@ hwaddr virtio_queue_get_used_size(VirtIODevice *vdev, int n)
 {
     return offsetof(VRingUsed, ring) +
         sizeof(VRingUsedElem) * vdev->vq[n].vring.num;
-}
-
-hwaddr virtio_queue_get_ring_size(VirtIODevice *vdev, int n)
-{
-    return vdev->vq[n].vring.used - vdev->vq[n].vring.desc +
-	    virtio_queue_get_used_size(vdev, n);
 }
 
 uint16_t virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n)
@@ -2214,6 +2203,8 @@ static void virtio_device_class_init(ObjectClass *klass, void *data)
     dc->props = virtio_properties;
     vdc->start_ioeventfd = virtio_device_start_ioeventfd_impl;
     vdc->stop_ioeventfd = virtio_device_stop_ioeventfd_impl;
+
+    vdc->legacy_features |= VIRTIO_LEGACY_FEATURES;
 }
 
 bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev)

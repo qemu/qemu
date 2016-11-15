@@ -113,6 +113,11 @@ typedef struct VirtioDeviceClass {
     void (*set_config)(VirtIODevice *vdev, const uint8_t *config);
     void (*reset)(VirtIODevice *vdev);
     void (*set_status)(VirtIODevice *vdev, uint8_t val);
+    /* For transitional devices, this is a bitmap of features
+     * that are only exposed on the legacy interface but not
+     * the modern one.
+     */
+    uint64_t legacy_features;
     /* Test and clear event pending status.
      * Should be called after unmask to avoid losing events.
      * If backend does not support masking,
@@ -154,14 +159,13 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
 
 void virtio_del_queue(VirtIODevice *vdev, int n);
 
-void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num);
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len);
 void virtqueue_flush(VirtQueue *vq, unsigned int count);
 void virtqueue_detach_element(VirtQueue *vq, const VirtQueueElement *elem,
                               unsigned int len);
-void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
-                       unsigned int len);
+void virtqueue_unpop(VirtQueue *vq, const VirtQueueElement *elem,
+                     unsigned int len);
 bool virtqueue_rewind(VirtQueue *vq, unsigned int num);
 void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx);
@@ -255,11 +259,9 @@ typedef struct VirtIORNGConf VirtIORNGConf;
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_avail_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_used_addr(VirtIODevice *vdev, int n);
-hwaddr virtio_queue_get_ring_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_desc_size(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_avail_size(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_used_size(VirtIODevice *vdev, int n);
-hwaddr virtio_queue_get_ring_size(VirtIODevice *vdev, int n);
 uint16_t virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n);
 void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx);
 void virtio_queue_invalidate_signalled_used(VirtIODevice *vdev, int n);

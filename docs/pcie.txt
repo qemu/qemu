@@ -1,0 +1,310 @@
+PCI EXPRESS GUIDELINES
+======================
+
+1. Introduction
+================
+The doc proposes best practices on how to use PCI Express/PCI device
+in PCI Express based machines and explains the reasoning behind them.
+
+The following presentations accompany this document:
+ (1) Q35 overview.
+     http://wiki.qemu.org/images/4/4e/Q35.pdf
+ (2) A comparison between PCI and PCI Express technologies.
+     http://wiki.qemu.org/images/f/f6/PCIvsPCIe.pdf
+
+Note: The usage examples are not intended to replace the full
+documentation, please use QEMU help to retrieve all options.
+
+2. Device placement strategy
+============================
+QEMU does not have a clear socket-device matching mechanism
+and allows any PCI/PCI Express device to be plugged into any
+PCI/PCI Express slot.
+Plugging a PCI device into a PCI Express slot might not always work and
+is weird anyway since it cannot be done for "bare metal".
+Plugging a PCI Express device into a PCI slot will hide the Extended
+Configuration Space thus is also not recommended.
+
+The recommendation is to separate the PCI Express and PCI hierarchies.
+PCI Express devices should be plugged only into PCI Express Root Ports and
+PCI Express Downstream ports.
+
+2.1 Root Bus (pcie.0)
+=====================
+Place only the following kinds of devices directly on the Root Complex:
+    (1) PCI Devices (e.g. network card, graphics card, IDE controller),
+        not controllers. Place only legacy PCI devices on
+        the Root Complex. These will be considered Integrated Endpoints.
+        Note: Integrated Endpoints are not hot-pluggable.
+
+        Although the PCI Express spec does not forbid PCI Express devices as
+        Integrated Endpoints, existing hardware mostly integrates legacy PCI
+        devices with the Root Complex. Guest OSes are suspected to behave
+        strangely when PCI Express devices are integrated
+        with the Root Complex.
+
+    (2) PCI Express Root Ports (ioh3420), for starting exclusively PCI Express
+        hierarchies.
+
+    (3) DMI-PCI Bridges (i82801b11-bridge), for starting legacy PCI
+        hierarchies.
+
+    (4) Extra Root Complexes (pxb-pcie), if multiple PCI Express Root Buses
+        are needed.
+
+   pcie.0 bus
+   ----------------------------------------------------------------------------
+        |                |                    |                  |
+   -----------   ------------------   ------------------   --------------
+   | PCI Dev |   | PCIe Root Port |   | DMI-PCI Bridge |   |  pxb-pcie  |
+   -----------   ------------------   ------------------   --------------
+
+2.1.1 To plug a device into pcie.0 as a Root Complex Integrated Endpoint use:
+          -device <dev>[,bus=pcie.0]
+2.1.2 To expose a new PCI Express Root Bus use:
+          -device pxb-pcie,id=pcie.1,bus_nr=x[,numa_node=y][,addr=z]
+      Only PCI Express Root Ports and DMI-PCI bridges can be connected
+      to the pcie.1 bus:
+          -device ioh3420,id=root_port1[,bus=pcie.1][,chassis=x][,slot=y][,addr=z]                                     \
+          -device i82801b11-bridge,id=dmi_pci_bridge1,bus=pcie.1
+
+
+2.2 PCI Express only hierarchy
+==============================
+Always use PCI Express Root Ports to start PCI Express hierarchies.
+
+A PCI Express Root bus supports up to 32 devices. Since each
+PCI Express Root Port is a function and a multi-function
+device may support up to 8 functions, the maximum possible
+number of PCI Express Root Ports per PCI Express Root Bus is 256.
+
+Prefer grouping PCI Express Root Ports into multi-function devices
+to keep a simple flat hierarchy that is enough for most scenarios.
+Only use PCI Express Switches (x3130-upstream, xio3130-downstream)
+if there is no more room for PCI Express Root Ports.
+Please see section 4. for further justifications.
+
+Plug only PCI Express devices into PCI Express Ports.
+
+
+   pcie.0 bus
+   ----------------------------------------------------------------------------------
+        |                 |                                    |
+   -------------    -------------                        -------------
+   | Root Port |    | Root Port |                        | Root Port |
+   ------------     -------------                        -------------
+         |                            -------------------------|------------------------
+    ------------                      |                 -----------------              |
+    | PCIe Dev |                      |    PCI Express  | Upstream Port |              |
+    ------------                      |      Switch     -----------------              |
+                                      |                  |            |                |
+                                      |    -------------------    -------------------  |
+                                      |    | Downstream Port |    | Downstream Port |  |
+                                      |    -------------------    -------------------  |
+                                      -------------|-----------------------|------------
+                                             ------------
+                                             | PCIe Dev |
+                                             ------------
+
+2.2.1 Plugging a PCI Express device into a PCI Express Root Port:
+          -device ioh3420,id=root_port1,chassis=x,slot=y[,bus=pcie.0][,addr=z]  \
+          -device <dev>,bus=root_port1
+2.2.2 Using multi-function PCI Express Root Ports:
+      -device ioh3420,id=root_port1,multifunction=on,chassis=x,slot=y[,bus=pcie.0][,addr=z.0] \
+      -device ioh3420,id=root_port2,chassis=x1,slot=y1[,bus=pcie.0][,addr=z.1] \
+      -device ioh3420,id=root_port3,chassis=x2,slot=y2[,bus=pcie.0][,addr=z.2] \
+2.2.2 Plugging a PCI Express device into a Switch:
+      -device ioh3420,id=root_port1,chassis=x,slot=y[,bus=pcie.0][,addr=z]  \
+      -device x3130-upstream,id=upstream_port1,bus=root_port1[,addr=x]          \
+      -device xio3130-downstream,id=downstream_port1,bus=upstream_port1,chassis=x1,slot=y1[,addr=z1]] \
+      -device <dev>,bus=downstream_port1
+
+Notes:
+  - (slot, chassis) pair is mandatory and must be
+     unique for each PCI Express Root Port.
+  - 'addr' parameter can be 0 for all the examples above.
+
+
+2.3 PCI only hierarchy
+======================
+Legacy PCI devices can be plugged into pcie.0 as Integrated Endpoints,
+but, as mentioned in section 5, doing so means the legacy PCI
+device in question will be incapable of hot-unplugging.
+Besides that use DMI-PCI Bridges (i82801b11-bridge) in combination
+with PCI-PCI Bridges (pci-bridge) to start PCI hierarchies.
+
+Prefer flat hierarchies. For most scenarios a single DMI-PCI Bridge
+(having 32 slots) and several PCI-PCI Bridges attached to it
+(each supporting also 32 slots) will support hundreds of legacy devices.
+The recommendation is to populate one PCI-PCI Bridge under the DMI-PCI Bridge
+until is full and then plug a new PCI-PCI Bridge...
+
+   pcie.0 bus
+   ----------------------------------------------
+        |                            |
+   -----------               ------------------
+   | PCI Dev |               | DMI-PCI BRIDGE |
+   ----------                ------------------
+                               |            |
+                  ------------------    ------------------
+                  | PCI-PCI Bridge |    | PCI-PCI Bridge |   ...
+                  ------------------    ------------------
+                                         |           |
+                                  -----------     -----------
+                                  | PCI Dev |     | PCI Dev |
+                                  -----------     -----------
+
+2.3.1 To plug a PCI device into pcie.0 as an Integrated Endpoint use:
+      -device <dev>[,bus=pcie.0]
+2.3.2 Plugging a PCI device into a PCI-PCI Bridge:
+      -device i82801b11-bridge,id=dmi_pci_bridge1[,bus=pcie.0]                        \
+      -device pci-bridge,id=pci_bridge1,bus=dmi_pci_bridge1[,chassis_nr=x][,addr=y]   \
+      -device <dev>,bus=pci_bridge1[,addr=x]
+      Note that 'addr' cannot be 0 unless shpc=off parameter is passed to
+      the PCI Bridge.
+
+3. IO space issues
+===================
+The PCI Express Root Ports and PCI Express Downstream ports are seen by
+Firmware/Guest OS as PCI-PCI Bridges. As required by the PCI spec, each
+such Port should be reserved a 4K IO range for, even though only one
+(multifunction) device can be plugged into each Port. This results in
+poor IO space utilization.
+
+The firmware used by QEMU (SeaBIOS/OVMF) may try further optimizations
+by not allocating IO space for each PCI Express Root / PCI Express
+Downstream port if:
+    (1) the port is empty, or
+    (2) the device behind the port has no IO BARs.
+
+The IO space is very limited, to 65536 byte-wide IO ports, and may even be
+fragmented by fixed IO ports owned by platform devices resulting in at most
+10 PCI Express Root Ports or PCI Express Downstream Ports per system
+if devices with IO BARs are used in the PCI Express hierarchy. Using the
+proposed device placing strategy solves this issue by using only
+PCI Express devices within PCI Express hierarchy.
+
+The PCI Express spec requires that PCI Express devices work properly
+without using IO ports. The PCI hierarchy has no such limitations.
+
+
+4. Bus numbers issues
+======================
+Each PCI domain can have up to only 256 buses and the QEMU PCI Express
+machines do not support multiple PCI domains even if extra Root
+Complexes (pxb-pcie) are used.
+
+Each element of the PCI Express hierarchy (Root Complexes,
+PCI Express Root Ports, PCI Express Downstream/Upstream ports)
+uses one bus number. Since only one (multifunction) device
+can be attached to a PCI Express Root Port or PCI Express Downstream
+Port it is advised to plan in advance for the expected number of
+devices to prevent bus number starvation.
+
+Avoiding PCI Express Switches (and thereby striving for a 'flatter' PCI
+Express hierarchy) enables the hierarchy to not spend bus numbers on
+Upstream Ports.
+
+The bus_nr properties of the pxb-pcie devices partition the 0..255 bus
+number space. All bus numbers assigned to the buses recursively behind a
+given pxb-pcie device's root bus must fit between the bus_nr property of
+that pxb-pcie device, and the lowest of the higher bus_nr properties
+that the command line sets for other pxb-pcie devices.
+
+
+5. Hot-plug
+============
+The PCI Express root buses (pcie.0 and the buses exposed by pxb-pcie devices)
+do not support hot-plug, so any devices plugged into Root Complexes
+cannot be hot-plugged/hot-unplugged:
+    (1) PCI Express Integrated Endpoints
+    (2) PCI Express Root Ports
+    (3) DMI-PCI Bridges
+    (4) pxb-pcie
+
+Be aware that PCI Express Downstream Ports can't be hot-plugged into
+an existing PCI Express Upstream Port.
+
+PCI devices can be hot-plugged into PCI-PCI Bridges. The PCI hot-plug is ACPI
+based and can work side by side with the PCI Express native hot-plug.
+
+PCI Express devices can be natively hot-plugged/hot-unplugged into/from
+PCI Express Root Ports (and PCI Express Downstream Ports).
+
+5.1 Planning for hot-plug:
+    (1) PCI hierarchy
+        Leave enough PCI-PCI Bridge slots empty or add one
+        or more empty PCI-PCI Bridges to the DMI-PCI Bridge.
+
+        For each such PCI-PCI Bridge the Guest Firmware is expected to reserve
+        4K IO space and 2M MMIO range to be used for all devices behind it.
+
+        Because of the hard IO limit of around 10 PCI Bridges (~ 40K space)
+        per system don't use more than 9 PCI-PCI Bridges, leaving 4K for the
+        Integrated Endpoints. (The PCI Express Hierarchy needs no IO space).
+
+    (2) PCI Express hierarchy:
+        Leave enough PCI Express Root Ports empty. Use multifunction
+        PCI Express Root Ports (up to 8 ports per pcie.0 slot)
+        on the Root Complex(es), for keeping the
+        hierarchy as flat as possible, thereby saving PCI bus numbers.
+        Don't use PCI Express Switches if you don't have
+        to, each one of those uses an extra PCI bus (for its Upstream Port)
+        that could be put to better use with another Root Port or Downstream
+        Port, which may come handy for hot-plugging another device.
+
+
+5.3 Hot-plug example:
+Using HMP: (add -monitor stdio to QEMU command line)
+  device_add <dev>,id=<id>,bus=<PCI Express Root Port Id/PCI Express Downstream Port Id/PCI-PCI Bridge Id/>
+
+
+6. Device assignment
+====================
+Host devices are mostly PCI Express and should be plugged only into
+PCI Express Root Ports or PCI Express Downstream Ports.
+PCI-PCI Bridge slots can be used for legacy PCI host devices.
+
+6.1 How to detect if a device is PCI Express:
+  > lspci -s 03:00.0 -v (as root)
+
+    03:00.0 Network controller: Intel Corporation Wireless 7260 (rev 83)
+    Subsystem: Intel Corporation Dual Band Wireless-AC 7260
+    Flags: bus master, fast devsel, latency 0, IRQ 50
+    Memory at f0400000 (64-bit, non-prefetchable) [size=8K]
+    Capabilities: [c8] Power Management version 3
+    Capabilities: [d0] MSI: Enable+ Count=1/1 Maskable- 64bit+
+    Capabilities: [40] Express Endpoint, MSI 00
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Capabilities: [100] Advanced Error Reporting
+    Capabilities: [140] Device Serial Number 7c-7a-91-ff-ff-90-db-20
+    Capabilities: [14c] Latency Tolerance Reporting
+    Capabilities: [154] Vendor Specific Information: ID=cafe Rev=1 Len=014 
+
+If you can see the "Express Endpoint" capability in the
+output, then the device is indeed PCI Express.
+
+
+7. Virtio devices
+=================
+Virtio devices plugged into the PCI hierarchy or as Integrated Endpoints
+will remain PCI and have transitional behaviour as default.
+Transitional virtio devices work in both IO and MMIO modes depending on
+the guest support. The Guest firmware will assign both IO and MMIO resources
+to transitional virtio devices.
+
+Virtio devices plugged into PCI Express ports are PCI Express devices and
+have "1.0" behavior by default without IO support.
+In both cases disable-legacy and disable-modern properties can be used
+to override the behaviour.
+
+Note that setting disable-legacy=off will enable legacy mode (enabling
+legacy behavior) for PCI Express virtio devices causing them to
+require IO space, which, given the limited available IO space, may quickly
+lead to resource exhaustion, and is therefore strongly discouraged.
+
+
+8. Conclusion
+==============
+The proposal offers a usage model that is easy to understand and follow
+and at the same time overcomes the PCI Express architecture limitations.
