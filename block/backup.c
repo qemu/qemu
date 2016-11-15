@@ -242,6 +242,14 @@ static void backup_abort(BlockJob *job)
     }
 }
 
+static void backup_clean(BlockJob *job)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    assert(s->target);
+    blk_unref(s->target);
+    s->target = NULL;
+}
+
 static void backup_attached_aio_context(BlockJob *job, AioContext *aio_context)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common);
@@ -315,16 +323,6 @@ static void backup_drain(BlockJob *job)
     }
 }
 
-static const BlockJobDriver backup_job_driver = {
-    .instance_size          = sizeof(BackupBlockJob),
-    .job_type               = BLOCK_JOB_TYPE_BACKUP,
-    .set_speed              = backup_set_speed,
-    .commit                 = backup_commit,
-    .abort                  = backup_abort,
-    .attached_aio_context   = backup_attached_aio_context,
-    .drain                  = backup_drain,
-};
-
 static BlockErrorAction backup_error_action(BackupBlockJob *job,
                                             bool read, int error)
 {
@@ -343,11 +341,7 @@ typedef struct {
 
 static void backup_complete(BlockJob *job, void *opaque)
 {
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
     BackupCompleteData *data = opaque;
-
-    blk_unref(s->target);
-    s->target = NULL;
 
     block_job_completed(job, data->ret);
     g_free(data);
@@ -537,7 +531,19 @@ static void coroutine_fn backup_run(void *opaque)
     block_job_defer_to_main_loop(&job->common, backup_complete, data);
 }
 
-void backup_start(const char *job_id, BlockDriverState *bs,
+static const BlockJobDriver backup_job_driver = {
+    .instance_size          = sizeof(BackupBlockJob),
+    .job_type               = BLOCK_JOB_TYPE_BACKUP,
+    .start                  = backup_run,
+    .set_speed              = backup_set_speed,
+    .commit                 = backup_commit,
+    .abort                  = backup_abort,
+    .clean                  = backup_clean,
+    .attached_aio_context   = backup_attached_aio_context,
+    .drain                  = backup_drain,
+};
+
+BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, int64_t speed,
                   MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
                   bool compress,
@@ -557,52 +563,52 @@ void backup_start(const char *job_id, BlockDriverState *bs,
 
     if (bs == target) {
         error_setg(errp, "Source and target cannot be the same");
-        return;
+        return NULL;
     }
 
     if (!bdrv_is_inserted(bs)) {
         error_setg(errp, "Device is not inserted: %s",
                    bdrv_get_device_name(bs));
-        return;
+        return NULL;
     }
 
     if (!bdrv_is_inserted(target)) {
         error_setg(errp, "Device is not inserted: %s",
                    bdrv_get_device_name(target));
-        return;
+        return NULL;
     }
 
     if (compress && target->drv->bdrv_co_pwritev_compressed == NULL) {
         error_setg(errp, "Compression is not supported for this drive %s",
                    bdrv_get_device_name(target));
-        return;
+        return NULL;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
-        return;
+        return NULL;
     }
 
     if (bdrv_op_is_blocked(target, BLOCK_OP_TYPE_BACKUP_TARGET, errp)) {
-        return;
+        return NULL;
     }
 
     if (sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         if (!sync_bitmap) {
             error_setg(errp, "must provide a valid bitmap name for "
                              "\"incremental\" sync mode");
-            return;
+            return NULL;
         }
 
         /* Create a new bitmap, and freeze/disable this one. */
         if (bdrv_dirty_bitmap_create_successor(bs, sync_bitmap, errp) < 0) {
-            return;
+            return NULL;
         }
     } else if (sync_bitmap) {
         error_setg(errp,
                    "a sync_bitmap was provided to backup_run, "
                    "but received an incompatible sync_mode (%s)",
                    MirrorSyncMode_lookup[sync_mode]);
-        return;
+        return NULL;
     }
 
     len = bdrv_getlength(bs);
@@ -648,17 +654,18 @@ void backup_start(const char *job_id, BlockDriverState *bs,
 
     block_job_add_bdrv(&job->common, target);
     job->common.len = len;
-    job->common.co = qemu_coroutine_create(backup_run, job);
     block_job_txn_add_job(txn, &job->common);
-    qemu_coroutine_enter(job->common.co);
-    return;
+
+    return &job->common;
 
  error:
     if (sync_bitmap) {
         bdrv_reclaim_dirty_bitmap(bs, sync_bitmap, NULL);
     }
     if (job) {
-        blk_unref(job->target);
+        backup_clean(&job->common);
         block_job_unref(&job->common);
     }
+
+    return NULL;
 }

@@ -62,6 +62,9 @@ function run_qemu()
         "return"
 
     _send_qemu_cmd $QEMU_HANDLE '' "$qmp_event"
+    if test "$qmp_event" = BLOCK_JOB_ERROR; then
+        _send_qemu_cmd $QEMU_HANDLE '' "BLOCK_JOB_COMPLETED"
+    fi
     _send_qemu_cmd $QEMU_HANDLE '{"execute":"query-block-jobs"}' "return"
     _cleanup_qemu
 }

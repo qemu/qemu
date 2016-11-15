@@ -19,14 +19,14 @@ bdrv_co_do_copy_on_readv(void *bs, int64_t offset, unsigned int bytes, int64_t c
 
 # block/stream.c
 stream_one_iteration(void *s, int64_t sector_num, int nb_sectors, int is_allocated) "s %p sector_num %"PRId64" nb_sectors %d is_allocated %d"
-stream_start(void *bs, void *base, void *s, void *co) "bs %p base %p s %p co %p"
+stream_start(void *bs, void *base, void *s) "bs %p base %p s %p"
 
 # block/commit.c
 commit_one_iteration(void *s, int64_t sector_num, int nb_sectors, int is_allocated) "s %p sector_num %"PRId64" nb_sectors %d is_allocated %d"
-commit_start(void *bs, void *base, void *top, void *s, void *co) "bs %p base %p top %p s %p co %p"
+commit_start(void *bs, void *base, void *top, void *s) "bs %p base %p top %p s %p"
 
 # block/mirror.c
-mirror_start(void *bs, void *s, void *co, void *opaque) "bs %p s %p co %p opaque %p"
+mirror_start(void *bs, void *s, void *opaque) "bs %p s %p opaque %p"
 mirror_restart_iter(void *s, int64_t cnt) "s %p dirty count %"PRId64
 mirror_before_flush(void *s) "s %p"
 mirror_before_drain(void *s, int64_t cnt) "s %p dirty count %"PRId64

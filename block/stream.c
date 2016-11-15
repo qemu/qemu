@@ -218,6 +218,7 @@ static const BlockJobDriver stream_job_driver = {
     .instance_size = sizeof(StreamBlockJob),
     .job_type      = BLOCK_JOB_TYPE_STREAM,
     .set_speed     = stream_set_speed,
+    .start         = stream_run,
 };
 
 void stream_start(const char *job_id, BlockDriverState *bs,
@@ -254,7 +255,6 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     s->bs_flags = orig_bs_flags;
 
     s->on_error = on_error;
-    s->common.co = qemu_coroutine_create(stream_run, s);
-    trace_stream_start(bs, base, s, s->common.co);
-    qemu_coroutine_enter(s->common.co);
+    trace_stream_start(bs, base, s);
+    block_job_start(&s->common);
 }

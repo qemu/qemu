@@ -395,19 +395,7 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         self.check_backups()
 
 
-    def test_transaction_failure(self):
-        '''Test: Verify backups made from a transaction that partially fails.
-
-        Add a second drive with its own unique pattern, and add a bitmap to each
-        drive. Use blkdebug to interfere with the backup on just one drive and
-        attempt to create a coherent incremental backup across both drives.
-
-        verify a failure in one but not both, then delete the failed stubs and
-        re-run the same transaction.
-
-        verify that both incrementals are created successfully.
-        '''
-
+    def do_transaction_failure_test(self, race=False):
         # Create a second drive, with pattern:
         drive1 = self.add_node('drive1')
         self.img_create(drive1['file'], drive1['fmt'])
@@ -451,9 +439,10 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         self.assertFalse(self.vm.get_qmp_events(wait=False))
 
         # Emulate some writes
-        self.hmp_io_writes(drive0['id'], (('0xab', 0, 512),
-                                          ('0xfe', '16M', '256k'),
-                                          ('0x64', '32736k', '64k')))
+        if not race:
+            self.hmp_io_writes(drive0['id'], (('0xab', 0, 512),
+                                              ('0xfe', '16M', '256k'),
+                                              ('0x64', '32736k', '64k')))
         self.hmp_io_writes(drive1['id'], (('0xba', 0, 512),
                                           ('0xef', '16M', '256k'),
                                           ('0x46', '32736k', '64k')))
@@ -463,7 +452,8 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         target1 = self.prepare_backup(dr1bm0)
 
         # Ask for a new incremental backup per-each drive,
-        # expecting drive1's backup to fail:
+        # expecting drive1's backup to fail. In the 'race' test,
+        # we expect drive1 to attempt to cancel the empty drive0 job.
         transaction = [
             transaction_drive_backup(drive0['id'], target0, sync='incremental',
                                      format=drive0['fmt'], mode='existing',
@@ -488,9 +478,15 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         self.assert_no_active_block_jobs()
 
         # Delete drive0's successful target and eliminate our record of the
-        # unsuccessful drive1 target. Then re-run the same transaction.
+        # unsuccessful drive1 target.
         dr0bm0.del_target()
         dr1bm0.del_target()
+        if race:
+            # Don't re-run the transaction, we only wanted to test the race.
+            self.vm.shutdown()
+            return
+
+        # Re-run the same transaction:
         target0 = self.prepare_backup(dr0bm0)
         target1 = self.prepare_backup(dr1bm0)
 
@@ -510,6 +506,27 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         # And the images should of course validate.
         self.vm.shutdown()
         self.check_backups()
+
+    def test_transaction_failure(self):
+        '''Test: Verify backups made from a transaction that partially fails.
+
+        Add a second drive with its own unique pattern, and add a bitmap to each
+        drive. Use blkdebug to interfere with the backup on just one drive and
+        attempt to create a coherent incremental backup across both drives.
+
+        verify a failure in one but not both, then delete the failed stubs and
+        re-run the same transaction.
+
+        verify that both incrementals are created successfully.
+        '''
+        self.do_transaction_failure_test()
+
+    def test_transaction_failure_race(self):
+        '''Test: Verify that transactions with jobs that have no data to
+        transfer do not cause race conditions in the cancellation of the entire
+        transaction job group.
+        '''
+        self.do_transaction_failure_test(race=True)
 
 
     def test_sync_dirty_bitmap_missing(self):

@@ -1803,7 +1803,7 @@ Each json-object contain the following:
                                 "file", "file", "ftp", "ftps", "host_cdrom",
                                 "host_device", "http", "https",
                                 "nbd", "parallels", "qcow", "qcow2", "raw",
-                                "tftp", "vdi", "vmdk", "vpc", "vvfat"
+                                "vdi", "vmdk", "vpc", "vvfat"
          - "backing_file": backing file name (json-string, optional)
          - "backing_file_depth": number of files in the backing file chain (json-int)
          - "encrypted": true if encrypted, false otherwise (json-bool)

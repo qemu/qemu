@@ -47,6 +47,9 @@ struct BlockJobDriver {
     /** Optional callback for job types that need to forward I/O status reset */
     void (*iostatus_reset)(BlockJob *job);
 
+    /** Mandatory: Entrypoint for the Coroutine. */
+    CoroutineEntry *start;
+
     /**
      * Optional callback for job types whose completion must be triggered
      * manually.
@@ -72,6 +75,14 @@ struct BlockJobDriver {
      * never both.
      */
     void (*abort)(BlockJob *job);
+
+    /**
+     * If the callback is not NULL, it will be invoked after a call to either
+     * .commit() or .abort(). Regardless of which callback is invoked after
+     * completion, .clean() will always be called, even if the job does not
+     * belong to a transaction group.
+     */
+    void (*clean)(BlockJob *job);
 
     /**
      * If the callback is not NULL, it will be invoked when the job transitions
