@@ -744,6 +744,8 @@ static void test_hbitmap_serialize_granularity(TestHBitmapData *data,
     int r;
 
     hbitmap_test_init(data, L3 * 2, 3);
+    g_assert(hbitmap_is_serializable(data->hb));
+
     r = hbitmap_serialization_granularity(data->hb);
     g_assert_cmpint(r, ==, 64 << 3);
 }
@@ -768,6 +770,8 @@ static void hbitmap_test_serialize_range(TestHBitmapData *data,
     if (count) {
         hbitmap_set(data->hb, pos, count);
     }
+
+    g_assert(hbitmap_is_serializable(data->hb));
     hbitmap_serialize_part(data->hb, buf, 0, data->size);
 
     /* Serialized buffer is inherently LE, convert it back manually to test */
@@ -788,6 +792,8 @@ static void hbitmap_test_serialize_range(TestHBitmapData *data,
     memset(buf, 0, buf_size);
     hbitmap_serialize_part(data->hb, buf, 0, data->size);
     hbitmap_reset_all(data->hb);
+
+    g_assert(hbitmap_is_serializable(data->hb));
     hbitmap_deserialize_part(data->hb, buf, 0, data->size, true);
 
     for (i = 0; i < data->size; i++) {
@@ -810,6 +816,7 @@ static void test_hbitmap_serialize_basic(TestHBitmapData *data,
     int num_positions = sizeof(positions) / sizeof(positions[0]);
 
     hbitmap_test_init(data, L3, 0);
+    g_assert(hbitmap_is_serializable(data->hb));
     buf_size = hbitmap_serialization_size(data->hb, 0, data->size);
     buf = g_malloc0(buf_size);
 
@@ -840,6 +847,8 @@ static void test_hbitmap_serialize_part(TestHBitmapData *data,
     for (i = 0; i < num_positions; i++) {
         hbitmap_set(data->hb, positions[i], 1);
     }
+
+    g_assert(hbitmap_is_serializable(data->hb));
 
     for (i = 0; i < data->size; i += buf_size) {
         unsigned long *el = (unsigned long *)buf;
@@ -878,6 +887,8 @@ static void test_hbitmap_serialize_zeroes(TestHBitmapData *data,
     for (i = 0; i < num_positions; i++) {
         hbitmap_set(data->hb, positions[i], L1);
     }
+
+    g_assert(hbitmap_is_serializable(data->hb));
 
     for (i = 0; i < num_positions; i++) {
         hbitmap_deserialize_zeroes(data->hb, positions[i], min_l1, true);
