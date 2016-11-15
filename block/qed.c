@@ -861,13 +861,9 @@ static int qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
  * @pos:        Byte position in device
  * @len:        Number of bytes
  * @offset:     Byte offset in image file
- * @cb:         Completion function
- * @opaque:     User data for completion function
  */
-static void qed_copy_from_backing_file(BDRVQEDState *s, uint64_t pos,
-                                       uint64_t len, uint64_t offset,
-                                       BlockCompletionFunc *cb,
-                                       void *opaque)
+static int qed_copy_from_backing_file(BDRVQEDState *s, uint64_t pos,
+                                      uint64_t len, uint64_t offset)
 {
     QEMUIOVector qiov;
     QEMUIOVector *backing_qiov = NULL;
@@ -876,8 +872,7 @@ static void qed_copy_from_backing_file(BDRVQEDState *s, uint64_t pos,
 
     /* Skip copy entirely if there is no work to do */
     if (len == 0) {
-        cb(opaque, 0);
-        return;
+        return 0;
     }
 
     iov = (struct iovec) {
@@ -906,7 +901,7 @@ static void qed_copy_from_backing_file(BDRVQEDState *s, uint64_t pos,
     ret = 0;
 out:
     qemu_vfree(iov.iov_base);
-    cb(opaque, ret);
+    return ret;
 }
 
 /**
@@ -1133,42 +1128,36 @@ static void qed_aio_write_main(void *opaque, int ret)
 }
 
 /**
- * Populate back untouched region of new data cluster
+ * Populate untouched regions of new data cluster
  */
-static void qed_aio_write_postfill(void *opaque, int ret)
+static void qed_aio_write_cow(void *opaque, int ret)
 {
     QEDAIOCB *acb = opaque;
     BDRVQEDState *s = acb_to_s(acb);
-    uint64_t start = acb->cur_pos + acb->cur_qiov.size;
-    uint64_t len =
-        qed_start_of_cluster(s, start + s->header.cluster_size - 1) - start;
-    uint64_t offset = acb->cur_cluster +
-                      qed_offset_into_cluster(s, acb->cur_pos) +
-                      acb->cur_qiov.size;
+    uint64_t start, len, offset;
 
+    /* Populate front untouched region of new data cluster */
+    start = qed_start_of_cluster(s, acb->cur_pos);
+    len = qed_offset_into_cluster(s, acb->cur_pos);
+
+    trace_qed_aio_write_prefill(s, acb, start, len, acb->cur_cluster);
+    ret = qed_copy_from_backing_file(s, start, len, acb->cur_cluster);
     if (ret) {
         qed_aio_complete(acb, ret);
         return;
     }
 
+    /* Populate back untouched region of new data cluster */
+    start = acb->cur_pos + acb->cur_qiov.size;
+    len = qed_start_of_cluster(s, start + s->header.cluster_size - 1) - start;
+    offset = acb->cur_cluster +
+             qed_offset_into_cluster(s, acb->cur_pos) +
+             acb->cur_qiov.size;
+
     trace_qed_aio_write_postfill(s, acb, start, len, offset);
-    qed_copy_from_backing_file(s, start, len, offset,
-                                qed_aio_write_main, acb);
-}
+    ret = qed_copy_from_backing_file(s, start, len, offset);
 
-/**
- * Populate front untouched region of new data cluster
- */
-static void qed_aio_write_prefill(void *opaque, int ret)
-{
-    QEDAIOCB *acb = opaque;
-    BDRVQEDState *s = acb_to_s(acb);
-    uint64_t start = qed_start_of_cluster(s, acb->cur_pos);
-    uint64_t len = qed_offset_into_cluster(s, acb->cur_pos);
-
-    trace_qed_aio_write_prefill(s, acb, start, len, acb->cur_cluster);
-    qed_copy_from_backing_file(s, start, len, acb->cur_cluster,
-                                qed_aio_write_postfill, acb);
+    qed_aio_write_main(acb, ret);
 }
 
 /**
@@ -1236,7 +1225,7 @@ static void qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
 
         cb = qed_aio_write_zero_cluster;
     } else {
-        cb = qed_aio_write_prefill;
+        cb = qed_aio_write_cow;
         acb->cur_cluster = qed_alloc_clusters(s, acb->cur_nclusters);
     }
 
