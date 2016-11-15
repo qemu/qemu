@@ -427,6 +427,9 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     case POWERPC_EXCP_VPU:       /* Vector unavailable exception             */
     case POWERPC_EXCP_VSXU:       /* VSX unavailable exception               */
     case POWERPC_EXCP_FU:         /* Facility unavailable exception          */
+#ifdef TARGET_PPC64
+        env->spr[SPR_FSCR] |= ((target_ulong)env->error_code << 56);
+#endif
         break;
     case POWERPC_EXCP_PIT:       /* Programmable interval timer interrupt    */
         LOG_EXCP("PIT exception\n");

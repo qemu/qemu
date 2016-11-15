@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internal.h"
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg-op.h"
@@ -560,34 +561,6 @@ EXTRACT_HELPER(DCM, 10, 6)
 
 /* DFP Z23-form */
 EXTRACT_HELPER(RMC, 9, 2)
-
-/* Create a mask between <start> and <end> bits */
-static inline target_ulong MASK(uint32_t start, uint32_t end)
-{
-    target_ulong ret;
-
-#if defined(TARGET_PPC64)
-    if (likely(start == 0)) {
-        ret = UINT64_MAX << (63 - end);
-    } else if (likely(end == 63)) {
-        ret = UINT64_MAX >> start;
-    }
-#else
-    if (likely(start == 0)) {
-        ret = UINT32_MAX << (31  - end);
-    } else if (likely(end == 31)) {
-        ret = UINT32_MAX >> start;
-    }
-#endif
-    else {
-        ret = (((target_ulong)(-1ULL)) >> (start)) ^
-            (((target_ulong)(-1ULL) >> (end)) >> 1);
-        if (unlikely(start > end))
-            return ~ret;
-    }
-
-    return ret;
-}
 
 EXTRACT_HELPER_SPLIT(xT, 0, 1, 21, 5);
 EXTRACT_HELPER_SPLIT(xS, 0, 1, 21, 5);

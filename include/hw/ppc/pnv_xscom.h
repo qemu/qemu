@@ -21,8 +21,6 @@
 
 #include "qom/object.h"
 
-typedef struct PnvChip PnvChip;
-
 typedef struct PnvXScomInterface {
     Object parent;
 } PnvXScomInterface;
@@ -42,7 +40,7 @@ typedef struct PnvXScomInterfaceClass {
 } PnvXScomInterfaceClass;
 
 /*
- * Layout of the XSCOM PCB addresses of EX core 1
+ * Layout of the XSCOM PCB addresses of EX core 1 (POWER 8)
  *
  *   GPIO        0x1100xxxx
  *   SCOM        0x1101xxxx
@@ -56,8 +54,7 @@ typedef struct PnvXScomInterfaceClass {
  *   PCB SLAVE   0x110Fxxxx
  */
 
-#define PNV_XSCOM_EX_BASE         0x10000000
-#define PNV_XSCOM_EX_CORE_BASE(i) (PNV_XSCOM_EX_BASE | (((uint64_t)i) << 24))
+#define PNV_XSCOM_EX_CORE_BASE(base, i) (base | (((uint64_t)i) << 24))
 #define PNV_XSCOM_EX_CORE_SIZE    0x100000
 
 #define PNV_XSCOM_LPC_BASE        0xb0020

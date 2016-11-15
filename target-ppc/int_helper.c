@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internal.h"
 #include "exec/exec-all.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
@@ -525,6 +526,40 @@ void helper_vaddcuw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
         r->u32[i] = ~a->u32[i] < b->u32[i];
     }
+}
+
+/* vprtybw */
+void helper_vprtybw(ppc_avr_t *r, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
+        uint64_t res = b->u32[i] ^ (b->u32[i] >> 16);
+        res ^= res >> 8;
+        r->u32[i] = res & 1;
+    }
+}
+
+/* vprtybd */
+void helper_vprtybd(ppc_avr_t *r, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->u64); i++) {
+        uint64_t res = b->u64[i] ^ (b->u64[i] >> 32);
+        res ^= res >> 16;
+        res ^= res >> 8;
+        r->u64[i] = res & 1;
+    }
+}
+
+/* vprtybq */
+void helper_vprtybq(ppc_avr_t *r, ppc_avr_t *b)
+{
+    uint64_t res = b->u64[0] ^ b->u64[1];
+    res ^= res >> 32;
+    res ^= res >> 16;
+    res ^= res >> 8;
+    r->u64[LO_IDX] = res & 1;
+    r->u64[HI_IDX] = 0;
 }
 
 #define VARITH_DO(name, op, element)                                    \
@@ -1717,6 +1752,34 @@ void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     }
 }
 
+#define VRLMI(name, size, element, insert)                            \
+void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)          \
+{                                                                     \
+    int i;                                                            \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                    \
+        uint##size##_t src1 = a->element[i];                          \
+        uint##size##_t src2 = b->element[i];                          \
+        uint##size##_t src3 = r->element[i];                          \
+        uint##size##_t begin, end, shift, mask, rot_val;              \
+                                                                      \
+        shift = extract##size(src2, 0, 6);                            \
+        end   = extract##size(src2, 8, 6);                            \
+        begin = extract##size(src2, 16, 6);                           \
+        rot_val = rol##size(src1, shift);                             \
+        mask = mask_u##size(begin, end);                              \
+        if (insert) {                                                 \
+            r->element[i] = (rot_val & mask) | (src3 & ~mask);        \
+        } else {                                                      \
+            r->element[i] = (rot_val & mask);                         \
+        }                                                             \
+    }                                                                 \
+}
+
+VRLMI(vrldmi, 64, u64, 1);
+VRLMI(vrlwmi, 32, u32, 1);
+VRLMI(vrldnm, 64, u64, 0);
+VRLMI(vrlwnm, 32, u32, 0);
+
 void helper_vsel(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
                  ppc_avr_t *c)
 {
@@ -2429,6 +2492,8 @@ void helper_vsubecuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 #define BCD_NEG_PREF    0xD
 #define BCD_NEG_ALT     0xB
 #define BCD_PLUS_ALT_2  0xE
+#define NATIONAL_PLUS   0x2B
+#define NATIONAL_NEG    0x2D
 
 #if defined(HOST_WORDS_BIGENDIAN)
 #define BCD_DIG_BYTE(n) (15 - (n/2))
@@ -2493,6 +2558,33 @@ static void bcd_put_digit(ppc_avr_t *bcd, uint8_t digit, int n)
         bcd->u8[BCD_DIG_BYTE(n)] &= 0xF0;
         bcd->u8[BCD_DIG_BYTE(n)] |= digit;
     }
+}
+
+static int bcd_cmp_zero(ppc_avr_t *bcd)
+{
+    if (bcd->u64[HI_IDX] == 0 && (bcd->u64[LO_IDX] >> 4) == 0) {
+        return 1 << CRF_EQ;
+    } else {
+        return (bcd_get_sgn(bcd) == 1) ? 1 << CRF_GT : 1 << CRF_LT;
+    }
+}
+
+static uint16_t get_national_digit(ppc_avr_t *reg, int n)
+{
+#if defined(HOST_WORDS_BIGENDIAN)
+    return reg->u16[8 - n];
+#else
+    return reg->u16[n];
+#endif
+}
+
+static void set_national_digit(ppc_avr_t *reg, uint8_t val, int n)
+{
+#if defined(HOST_WORDS_BIGENDIAN)
+    reg->u16[8 - n] = val;
+#else
+    reg->u16[n] = val;
+#endif
 }
 
 static int bcd_cmp_mag(ppc_avr_t *a, ppc_avr_t *b)
@@ -2623,6 +2715,163 @@ uint32_t helper_bcdsub(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     /* else invalid ... defer to bcdadd code for proper handling */
 
     return helper_bcdadd(r, a, &bcopy, ps);
+}
+
+uint32_t helper_bcdcfn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int cr = 0;
+    uint16_t national = 0;
+    uint16_t sgnb = get_national_digit(b, 0);
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+    int invalid = (sgnb != NATIONAL_PLUS && sgnb != NATIONAL_NEG);
+
+    for (i = 1; i < 8; i++) {
+        national = get_national_digit(b, i);
+        if (unlikely(national < 0x30 || national > 0x39)) {
+            invalid = 1;
+            break;
+        }
+
+        bcd_put_digit(&ret, national & 0xf, i);
+    }
+
+    if (sgnb == NATIONAL_PLUS) {
+        bcd_put_digit(&ret, (ps == 0) ? BCD_PLUS_PREF_1 : BCD_PLUS_PREF_2, 0);
+    } else {
+        bcd_put_digit(&ret, BCD_NEG_PREF, 0);
+    }
+
+    cr = bcd_cmp_zero(&ret);
+
+    if (unlikely(invalid)) {
+        cr = 1 << CRF_SO;
+    }
+
+    *r = ret;
+
+    return cr;
+}
+
+uint32_t helper_bcdctn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int cr = 0;
+    int sgnb = bcd_get_sgn(b);
+    int invalid = (sgnb == 0);
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+
+    int ox_flag = (b->u64[HI_IDX] != 0) || ((b->u64[LO_IDX] >> 32) != 0);
+
+    for (i = 1; i < 8; i++) {
+        set_national_digit(&ret, 0x30 + bcd_get_digit(b, i, &invalid), i);
+
+        if (unlikely(invalid)) {
+            break;
+        }
+    }
+    set_national_digit(&ret, (sgnb == -1) ? NATIONAL_NEG : NATIONAL_PLUS, 0);
+
+    cr = bcd_cmp_zero(b);
+
+    if (ox_flag) {
+        cr |= 1 << CRF_SO;
+    }
+
+    if (unlikely(invalid)) {
+        cr = 1 << CRF_SO;
+    }
+
+    *r = ret;
+
+    return cr;
+}
+
+uint32_t helper_bcdcfz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int cr = 0;
+    int invalid = 0;
+    int zone_digit = 0;
+    int zone_lead = ps ? 0xF : 0x3;
+    int digit = 0;
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+    int sgnb = b->u8[BCD_DIG_BYTE(0)] >> 4;
+
+    if (unlikely((sgnb < 0xA) && ps)) {
+        invalid = 1;
+    }
+
+    for (i = 0; i < 16; i++) {
+        zone_digit = (i * 2) ? b->u8[BCD_DIG_BYTE(i * 2)] >> 4 : zone_lead;
+        digit = b->u8[BCD_DIG_BYTE(i * 2)] & 0xF;
+        if (unlikely(zone_digit != zone_lead || digit > 0x9)) {
+            invalid = 1;
+            break;
+        }
+
+        bcd_put_digit(&ret, digit, i + 1);
+    }
+
+    if ((ps && (sgnb == 0xB || sgnb == 0xD)) ||
+            (!ps && (sgnb & 0x4))) {
+        bcd_put_digit(&ret, BCD_NEG_PREF, 0);
+    } else {
+        bcd_put_digit(&ret, BCD_PLUS_PREF_1, 0);
+    }
+
+    cr = bcd_cmp_zero(&ret);
+
+    if (unlikely(invalid)) {
+        cr = 1 << CRF_SO;
+    }
+
+    *r = ret;
+
+    return cr;
+}
+
+uint32_t helper_bcdctz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int cr = 0;
+    uint8_t digit = 0;
+    int sgnb = bcd_get_sgn(b);
+    int zone_lead = (ps) ? 0xF0 : 0x30;
+    int invalid = (sgnb == 0);
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+
+    int ox_flag = ((b->u64[HI_IDX] >> 4) != 0);
+
+    for (i = 0; i < 16; i++) {
+        digit = bcd_get_digit(b, i + 1, &invalid);
+
+        if (unlikely(invalid)) {
+            break;
+        }
+
+        ret.u8[BCD_DIG_BYTE(i * 2)] = zone_lead + digit;
+    }
+
+    if (ps) {
+        bcd_put_digit(&ret, (sgnb == 1) ? 0xC : 0xD, 1);
+    } else {
+        bcd_put_digit(&ret, (sgnb == 1) ? 0x3 : 0x7, 1);
+    }
+
+    cr = bcd_cmp_zero(b);
+
+    if (ox_flag) {
+        cr |= 1 << CRF_SO;
+    }
+
+    if (unlikely(invalid)) {
+        cr = 1 << CRF_SO;
+    }
+
+    *r = ret;
+
+    return cr;
 }
 
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)

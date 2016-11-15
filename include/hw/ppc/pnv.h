@@ -21,7 +21,6 @@
 
 #include "hw/boards.h"
 #include "hw/sysbus.h"
-#include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_lpc.h"
 
 #define TYPE_PNV_CHIP "powernv-chip"
@@ -70,6 +69,7 @@ typedef struct PnvChipClass {
     uint64_t     cores_mask;
 
     hwaddr       xscom_base;
+    hwaddr       xscom_core_base;
 
     uint32_t (*core_pir)(PnvChip *chip, uint32_t core_id);
 } PnvChipClass;

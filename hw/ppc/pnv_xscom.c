@@ -25,8 +25,8 @@
 #include "hw/sysbus.h"
 
 #include "hw/ppc/fdt.h"
-#include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv.h"
+#include "hw/ppc/pnv_xscom.h"
 
 #include <libfdt.h>
 
@@ -124,8 +124,8 @@ static uint64_t xscom_read(void *opaque, hwaddr addr, unsigned width)
         goto complete;
     }
 
-    val = address_space_ldq(&chip->xscom_as, pcba << 3, MEMTXATTRS_UNSPECIFIED,
-                            &result);
+    val = address_space_ldq(&chip->xscom_as, (uint64_t) pcba << 3,
+                            MEMTXATTRS_UNSPECIFIED, &result);
     if (result != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "XSCOM read failed at @0x%"
                       HWADDR_PRIx " pcba=0x%08x\n", addr, pcba);
@@ -150,8 +150,8 @@ static void xscom_write(void *opaque, hwaddr addr, uint64_t val,
         goto complete;
     }
 
-    address_space_stq(&chip->xscom_as, pcba << 3, val, MEMTXATTRS_UNSPECIFIED,
-                      &result);
+    address_space_stq(&chip->xscom_as, (uint64_t) pcba << 3, val,
+                      MEMTXATTRS_UNSPECIFIED, &result);
     if (result != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "XSCOM write failed at @0x%"
                       HWADDR_PRIx " pcba=0x%08x data=0x%" PRIx64 "\n",

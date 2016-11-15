@@ -270,6 +270,7 @@ gcov-files-ppc64-y = ppc64-softmmu/hw/ppc/spapr_pci.c
 check-qtest-ppc64-y += tests/endianness-test$(EXESUF)
 check-qtest-ppc64-y += tests/boot-order-test$(EXESUF)
 check-qtest-ppc64-y += tests/prom-env-test$(EXESUF)
+check-qtest-ppc64-y += tests/pnv-xscom-test$(EXESUF)
 check-qtest-ppc64-y += tests/drive_del-test$(EXESUF)
 check-qtest-ppc64-y += tests/postcopy-test$(EXESUF)
 check-qtest-ppc64-y += tests/boot-serial-test$(EXESUF)
@@ -644,6 +645,7 @@ tests/e1000-test$(EXESUF): tests/e1000-test.o
 tests/e1000e-test$(EXESUF): tests/e1000e-test.o $(libqos-pc-obj-y)
 tests/rtl8139-test$(EXESUF): tests/rtl8139-test.o $(libqos-pc-obj-y)
 tests/pcnet-test$(EXESUF): tests/pcnet-test.o
+tests/pnv-xscom-test$(EXESUF): tests/pnv-xscom-test.o
 tests/eepro100-test$(EXESUF): tests/eepro100-test.o
 tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
 tests/ne2000-test$(EXESUF): tests/ne2000-test.o

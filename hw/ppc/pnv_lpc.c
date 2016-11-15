@@ -23,8 +23,9 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 
-#include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv.h"
+#include "hw/ppc/pnv_lpc.h"
+#include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/fdt.h"
 
 #include <libfdt.h>

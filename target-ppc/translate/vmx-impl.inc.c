@@ -442,6 +442,9 @@ GEN_VXFORM(vmulesw, 4, 14);
 GEN_VXFORM(vslb, 2, 4);
 GEN_VXFORM(vslh, 2, 5);
 GEN_VXFORM(vslw, 2, 6);
+GEN_VXFORM(vrlwnm, 2, 6);
+GEN_VXFORM_DUAL(vslw, PPC_ALTIVEC, PPC_NONE, \
+                vrlwnm, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vsld, 2, 23);
 GEN_VXFORM(vsrb, 2, 8);
 GEN_VXFORM(vsrh, 2, 9);
@@ -488,8 +491,17 @@ GEN_VXFORM_DUAL(vsubeuqm, PPC_NONE, PPC2_ALTIVEC_207, \
 GEN_VXFORM(vrlb, 2, 0);
 GEN_VXFORM(vrlh, 2, 1);
 GEN_VXFORM(vrlw, 2, 2);
+GEN_VXFORM(vrlwmi, 2, 2);
+GEN_VXFORM_DUAL(vrlw, PPC_ALTIVEC, PPC_NONE, \
+                vrlwmi, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vrld, 2, 3);
+GEN_VXFORM(vrldmi, 2, 3);
+GEN_VXFORM_DUAL(vrld, PPC_NONE, PPC2_ALTIVEC_207, \
+                vrldmi, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vsl, 2, 7);
+GEN_VXFORM(vrldnm, 2, 7);
+GEN_VXFORM_DUAL(vsl, PPC_ALTIVEC, PPC_NONE, \
+                vrldnm, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vsr, 2, 11);
 GEN_VXFORM_ENV(vpkuhum, 7, 0);
 GEN_VXFORM_ENV(vpkuwum, 7, 1);
@@ -693,6 +705,9 @@ GEN_VXFORM_NOA_ENV(vrfim, 5, 11);
 GEN_VXFORM_NOA_ENV(vrfin, 5, 8);
 GEN_VXFORM_NOA_ENV(vrfip, 5, 10);
 GEN_VXFORM_NOA_ENV(vrfiz, 5, 9);
+GEN_VXFORM_NOA(vprtybw, 1, 24);
+GEN_VXFORM_NOA(vprtybd, 1, 24);
+GEN_VXFORM_NOA(vprtybq, 1, 24);
 
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
 static void glue(gen_, name)(DisasContext *ctx)                                 \
@@ -945,8 +960,79 @@ static void gen_##op(DisasContext *ctx)             \
     tcg_temp_free_i32(ps);                          \
 }
 
+#define GEN_BCD2(op)                                \
+static void gen_##op(DisasContext *ctx)             \
+{                                                   \
+    TCGv_ptr rd, rb;                                \
+    TCGv_i32 ps;                                    \
+                                                    \
+    if (unlikely(!ctx->altivec_enabled)) {          \
+        gen_exception(ctx, POWERPC_EXCP_VPU);       \
+        return;                                     \
+    }                                               \
+                                                    \
+    rb = gen_avr_ptr(rB(ctx->opcode));              \
+    rd = gen_avr_ptr(rD(ctx->opcode));              \
+                                                    \
+    ps = tcg_const_i32((ctx->opcode & 0x200) != 0); \
+                                                    \
+    gen_helper_##op(cpu_crf[6], rd, rb, ps);        \
+                                                    \
+    tcg_temp_free_ptr(rb);                          \
+    tcg_temp_free_ptr(rd);                          \
+    tcg_temp_free_i32(ps);                          \
+}
+
 GEN_BCD(bcdadd)
 GEN_BCD(bcdsub)
+GEN_BCD2(bcdcfn)
+GEN_BCD2(bcdctn)
+GEN_BCD2(bcdcfz)
+GEN_BCD2(bcdctz)
+
+static void gen_xpnd04_1(DisasContext *ctx)
+{
+    switch (opc4(ctx->opcode)) {
+    case 4:
+        gen_bcdctz(ctx);
+        break;
+    case 5:
+        gen_bcdctn(ctx);
+        break;
+    case 6:
+        gen_bcdcfz(ctx);
+        break;
+    case 7:
+        gen_bcdcfn(ctx);
+        break;
+    default:
+        gen_invalid(ctx);
+        break;
+    }
+}
+
+static void gen_xpnd04_2(DisasContext *ctx)
+{
+    switch (opc4(ctx->opcode)) {
+    case 4:
+        gen_bcdctz(ctx);
+        break;
+    case 6:
+        gen_bcdcfz(ctx);
+        break;
+    case 7:
+        gen_bcdcfn(ctx);
+        break;
+    default:
+        gen_invalid(ctx);
+        break;
+    }
+}
+
+GEN_VXFORM_DUAL(vsubcuw, PPC_ALTIVEC, PPC_NONE, \
+                xpnd04_1, PPC_NONE, PPC2_ISA300)
+GEN_VXFORM_DUAL(vsubsws, PPC_ALTIVEC, PPC_NONE, \
+                xpnd04_2, PPC_NONE, PPC2_ISA300)
 
 GEN_VXFORM_DUAL(vsububm, PPC_ALTIVEC, PPC_NONE, \
                 bcdadd, PPC_NONE, PPC2_ALTIVEC_207)
@@ -1023,3 +1109,5 @@ GEN_VXFORM_DUAL(vsldoi, PPC_ALTIVEC, PPC_NONE,
 #undef GEN_VXFORM_NOA
 #undef GEN_VXFORM_UIMM
 #undef GEN_VAFORM_PAIRED
+
+#undef GEN_BCD2

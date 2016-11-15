@@ -110,7 +110,7 @@ static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
     CPUState *cs = CPU(DEVICE(pc->threads));
     DeviceClass *dc = DEVICE_GET_CLASS(cs);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    int smt_threads = ppc_get_compat_smt_threads(cpu);
+    int smt_threads = CPU_CORE(pc)->nr_threads;
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
     uint32_t servers_prop[smt_threads];
@@ -205,10 +205,6 @@ static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
 
     _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
                        pa_features, sizeof(pa_features))));
-
-    if (cpu->cpu_version) {
-        _FDT((fdt_setprop_cell(fdt, offset, "cpu-version", cpu->cpu_version)));
-    }
 
     /* Build interrupt servers properties */
     for (i = 0; i < smt_threads; i++) {
@@ -525,6 +521,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8E_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
+    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8E";
 }
 
@@ -546,6 +543,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
+    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8";
 }
 
@@ -567,6 +565,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
+    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8NVL";
 }
 
@@ -588,6 +587,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER9_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p9;
     k->xscom_base = 0x00603fc00000000ull;
+    k->xscom_core_base = 0x0ull;
     dc->desc = "PowerNV Chip POWER9";
 }
 
@@ -620,7 +620,7 @@ static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
     chip->cores_mask &= pcc->cores_mask;
 
     /* now that we have a sane layout, let check the number of cores */
-    cores_max = hweight_long(chip->cores_mask);
+    cores_max = ctpop64(chip->cores_mask);
     if (chip->nr_cores > cores_max) {
         error_setg(errp, "warning: too many cores for chip ! Limit is %d",
                    cores_max);
@@ -695,7 +695,9 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         object_unref(OBJECT(pnv_core));
 
         /* Each core has an XSCOM MMIO region */
-        pnv_xscom_add_subregion(chip, PNV_XSCOM_EX_CORE_BASE(core_hwid),
+        pnv_xscom_add_subregion(chip,
+                                PNV_XSCOM_EX_CORE_BASE(pcc->xscom_core_base,
+                                                       core_hwid),
                                 &PNV_CORE(pnv_core)->xscom_regs);
         i++;
     }

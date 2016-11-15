@@ -29,6 +29,7 @@ static testdef_t tests[] = {
     { "ppc64", "ppce500", "", "U-Boot" },
     { "ppc64", "prep", "", "Open Hack'Ware BIOS" },
     { "ppc64", "pseries", "", "Open Firmware" },
+    { "ppc64", "powernv", "-cpu POWER9", "SkiBoot" },
     { "i386", "isapc", "-cpu qemu32 -device sga", "SGABIOS" },
     { "i386", "pc", "-device sga", "SGABIOS" },
     { "i386", "q35", "-device sga", "SGABIOS" },
