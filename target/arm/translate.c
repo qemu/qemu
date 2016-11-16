@@ -7037,7 +7037,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             switch (size) {
                             case 0: gen_helper_neon_clz_u8(tmp, tmp); break;
                             case 1: gen_helper_neon_clz_u16(tmp, tmp); break;
-                            case 2: gen_helper_clz(tmp, tmp); break;
+                            case 2: tcg_gen_clzi_i32(tmp, tmp, 32); break;
                             default: abort();
                             }
                             break;
@@ -8219,7 +8219,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 ARCH(5);
                 rd = (insn >> 12) & 0xf;
                 tmp = load_reg(s, rm);
-                gen_helper_clz(tmp, tmp);
+                tcg_gen_clzi_i32(tmp, tmp, 32);
                 store_reg(s, rd, tmp);
             } else {
                 goto illegal_op;
@@ -9992,7 +9992,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     tcg_temp_free_i32(tmp2);
                     break;
                 case 0x18: /* clz */
-                    gen_helper_clz(tmp, tmp);
+                    tcg_gen_clzi_i32(tmp, tmp, 32);
                     break;
                 case 0x20:
                 case 0x21:
