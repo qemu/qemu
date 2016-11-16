@@ -161,19 +161,6 @@ void HELPER(debug_exception)(CPUXtensaState *env, uint32_t pc, uint32_t cause)
     HELPER(exception)(env, EXC_DEBUG);
 }
 
-uint32_t HELPER(nsa)(uint32_t v)
-{
-    if (v & 0x80000000) {
-        v = ~v;
-    }
-    return v ? clz32(v) - 1 : 31;
-}
-
-uint32_t HELPER(nsau)(uint32_t v)
-{
-    return v ? clz32(v) : 32;
-}
-
 static void copy_window_from_phys(CPUXtensaState *env,
         uint32_t window, uint32_t phys, uint32_t n)
 {
