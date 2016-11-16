@@ -682,6 +682,7 @@ fetch_data(struct disassemble_info *info, bfd_byte *addr)
 #define PREGRP104 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 104 } }
 #define PREGRP105 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 105 } }
 #define PREGRP106 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 106 } }
+#define PREGRP107 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 107 } }
 
 #define X86_64_0  NULL, { { NULL, X86_64_SPECIAL }, { NULL, 0 } }
 #define X86_64_1  NULL, { { NULL, X86_64_SPECIAL }, { NULL, 1 } }
@@ -1247,7 +1248,7 @@ static const struct dis386 dis386_twobyte[] = {
   { "ud2b",		{ XX } },
   { GRP8 },
   { "btcS",		{ Ev, Gv } },
-  { "bsfS",		{ Gv, Ev } },
+  { PREGRP107 },
   { PREGRP36 },
   { "movs{bR|x|bR|x}",	{ Gv, Eb } },
   { "movs{wR|x|wR|x}",	{ Gv, Ew } }, /* yes, there really is movsww ! */
@@ -1431,7 +1432,7 @@ static const unsigned char twobyte_uses_REPZ_prefix[256] = {
   /* 80 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 8f */
   /* 90 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 9f */
   /* a0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* af */
-  /* b0 */ 0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0, /* bf */
+  /* b0 */ 0,0,0,0,0,0,0,0,1,0,0,0,1,1,0,0, /* bf */
   /* c0 */ 0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0, /* cf */
   /* d0 */ 0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0, /* df */
   /* e0 */ 0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0, /* ef */
@@ -2800,6 +2801,13 @@ static const struct dis386 prefix_user_table[][4] = {
     { "shrxS",	{ Gv, Ev, Bv } },
   },
 
+  /* PREGRP107 */
+  {
+    { "bsfS",	{ Gv, Ev } },
+    { "tzcntS",	{ Gv, Ev } },
+    { "bsfS",	{ Gv, Ev } },
+    { "(bad)",	{ XX } },
+  },
 };
 
 static const struct dis386 x86_64_table[][2] = {
