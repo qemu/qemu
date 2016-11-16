@@ -141,16 +141,6 @@ uint64_t helper_divde(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
 #endif
 
 
-target_ulong helper_cntlzw(target_ulong t)
-{
-    return clz32(t);
-}
-
-target_ulong helper_cnttzw(target_ulong t)
-{
-    return ctz32(t);
-}
-
 #if defined(TARGET_PPC64)
 /* if x = 0xab, returns 0xababababababababa */
 #define pattern(x) (((x) & 0xff) * (~(target_ulong)0 / 0xff))
@@ -173,16 +163,6 @@ uint32_t helper_cmpeqb(target_ulong ra, target_ulong rb)
 #undef pattern
 #undef haszero
 #undef hasvalue
-
-target_ulong helper_cntlzd(target_ulong t)
-{
-    return clz64(t);
-}
-
-target_ulong helper_cnttzd(target_ulong t)
-{
-    return ctz64(t);
-}
 
 /* Return invalid random number.
  *

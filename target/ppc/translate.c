@@ -1641,7 +1641,13 @@ static void gen_andis_(DisasContext *ctx)
 /* cntlzw */
 static void gen_cntlzw(DisasContext *ctx)
 {
-    gen_helper_cntlzw(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+    TCGv_i32 t = tcg_temp_new_i32();
+
+    tcg_gen_trunc_tl_i32(t, cpu_gpr[rS(ctx->opcode)]);
+    tcg_gen_clzi_i32(t, t, 32);
+    tcg_gen_extu_i32_tl(cpu_gpr[rA(ctx->opcode)], t);
+    tcg_temp_free_i32(t);
+
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
 }
@@ -1649,7 +1655,13 @@ static void gen_cntlzw(DisasContext *ctx)
 /* cnttzw */
 static void gen_cnttzw(DisasContext *ctx)
 {
-    gen_helper_cnttzw(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+    TCGv_i32 t = tcg_temp_new_i32();
+
+    tcg_gen_trunc_tl_i32(t, cpu_gpr[rS(ctx->opcode)]);
+    tcg_gen_ctzi_i32(t, t, 32);
+    tcg_gen_extu_i32_tl(cpu_gpr[rA(ctx->opcode)], t);
+    tcg_temp_free_i32(t);
+
     if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
     }
@@ -1891,7 +1903,7 @@ GEN_LOGICAL1(extsw, tcg_gen_ext32s_tl, 0x1E, PPC_64B);
 /* cntlzd */
 static void gen_cntlzd(DisasContext *ctx)
 {
-    gen_helper_cntlzd(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+    tcg_gen_clzi_i64(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], 64);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
 }
@@ -1899,7 +1911,7 @@ static void gen_cntlzd(DisasContext *ctx)
 /* cnttzd */
 static void gen_cnttzd(DisasContext *ctx)
 {
-    gen_helper_cnttzd(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+    tcg_gen_ctzi_i64(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], 64);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
     }
