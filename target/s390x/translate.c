@@ -2249,7 +2249,7 @@ static ExitStatus op_flogr(DisasContext *s, DisasOps *o)
     gen_op_update1_cc_i64(s, CC_OP_FLOGR, o->in2);
 
     /* R1 = IN ? CLZ(IN) : 64.  */
-    gen_helper_clz(o->out, o->in2);
+    tcg_gen_clzi_i64(o->out, o->in2, 64);
 
     /* R1+1 = IN & ~(found bit).  Note that we may attempt to shift this
        value by 64, which is undefined.  But since the shift is 64 iff the

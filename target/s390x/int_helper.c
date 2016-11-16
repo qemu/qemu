@@ -117,12 +117,6 @@ uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
     return ret;
 }
 
-/* count leading zeros, for find leftmost one */
-uint64_t HELPER(clz)(uint64_t v)
-{
-    return clz64(v);
-}
-
 uint64_t HELPER(cvd)(int32_t reg)
 {
     /* positive 0 */
