@@ -121,6 +121,16 @@ uint64_t HELPER(ctz_i64)(uint64_t arg, uint64_t zero_val)
     return arg ? ctz64(arg) : zero_val;
 }
 
+uint32_t HELPER(clrsb_i32)(uint32_t arg)
+{
+    return clrsb32(arg);
+}
+
+uint64_t HELPER(clrsb_i64)(uint64_t arg)
+{
+    return clrsb64(arg);
+}
+
 void HELPER(exit_atomic)(CPUArchState *env)
 {
     cpu_loop_exit_atomic(ENV_GET_CPU(env), GETPC());
