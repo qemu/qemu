@@ -2555,14 +2555,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
-            gen_helper_ctlz(vc, vb);
+            tcg_gen_clzi_i64(vc, vb, 64);
             break;
         case 0x33:
             /* CTTZ */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
-            gen_helper_cttz(vc, vb);
+            tcg_gen_ctzi_i64(vc, vb, 64);
             break;
         case 0x34:
             /* UNPKBW */
