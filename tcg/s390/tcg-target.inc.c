@@ -50,7 +50,7 @@
 #define TCG_REG_NONE    0
 
 /* A scratch register that may be be used throughout the backend.  */
-#define TCG_TMP0        TCG_REG_R14
+#define TCG_TMP0        TCG_REG_R1
 
 #ifndef CONFIG_SOFTMMU
 #define TCG_GUEST_BASE_REG TCG_REG_R13
@@ -133,6 +133,7 @@ typedef enum S390Opcode {
     RRE_DLR     = 0xb997,
     RRE_DSGFR   = 0xb91d,
     RRE_DSGR    = 0xb90d,
+    RRE_FLOGR   = 0xb983,
     RRE_LGBR    = 0xb906,
     RRE_LCGR    = 0xb903,
     RRE_LGFR    = 0xb914,
@@ -1246,6 +1247,33 @@ static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c, TCGReg dest,
     }
 }
 
+static void tgen_clz(TCGContext *s, TCGReg dest, TCGReg a1,
+                     TCGArg a2, int a2const)
+{
+    /* Since this sets both R and R+1, we have no choice but to store the
+       result into R0, allowing R1 == TCG_TMP0 to be clobbered as well.  */
+    QEMU_BUILD_BUG_ON(TCG_TMP0 != TCG_REG_R1);
+    tcg_out_insn(s, RRE, FLOGR, TCG_REG_R0, a1);
+
+    if (a2const && a2 == 64) {
+        tcg_out_mov(s, TCG_TYPE_I64, dest, TCG_REG_R0);
+    } else {
+        if (a2const) {
+            tcg_out_movi(s, TCG_TYPE_I64, dest, a2);
+        } else {
+            tcg_out_mov(s, TCG_TYPE_I64, dest, a2);
+        }
+        if (s390_facilities & FACILITY_LOAD_ON_COND) {
+            /* Emit: if (one bit found) dest = r0.  */
+            tcg_out_insn(s, RRF, LOCGR, dest, TCG_REG_R0, 2);
+        } else {
+            /* Emit: if (no one bit found) goto over; dest = r0; over:  */
+            tcg_out_insn(s, RI, BRC, 8, (4 + 4) >> 1);
+            tcg_out_insn(s, RRE, LGR, dest, TCG_REG_R0);
+        }
+    }
+}
+
 static void tgen_deposit(TCGContext *s, TCGReg dest, TCGReg src,
                          int ofs, int len, int z)
 {
@@ -2186,6 +2214,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tgen_extract(s, args[0], args[1], args[2], args[3]);
         break;
 
+    case INDEX_op_clz_i64:
+        tgen_clz(s, args[0], args[1], args[2], const_args[2]);
+        break;
+
     case INDEX_op_mb:
         /* The host memory model is quite strong, we simply need to
            serialize the instruction stream.  */
@@ -2308,6 +2340,8 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_bswap16_i64, { "r", "r" } },
     { INDEX_op_bswap32_i64, { "r", "r" } },
     { INDEX_op_bswap64_i64, { "r", "r" } },
+
+    { INDEX_op_clz_i64, { "r", "r", "ri" } },
 
     { INDEX_op_add2_i64, { "r", "r", "0", "1", "rA", "r" } },
     { INDEX_op_sub2_i64, { "r", "r", "0", "1", "rA", "r" } },
