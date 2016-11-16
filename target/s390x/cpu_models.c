@@ -290,6 +290,7 @@ static void create_cpu_model_list(ObjectClass *klass, void *opaque)
     info->has_migration_safe = true;
     info->migration_safe = scc->is_migration_safe;
     info->q_static = scc->is_static;
+    info->q_typename = g_strdup(object_class_get_name(klass));
 
 
     entry = g_malloc0(sizeof(*entry));

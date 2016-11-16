@@ -10305,6 +10305,7 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 
         info = g_malloc0(sizeof(*info));
         info->name = g_strdup(alias->alias);
+        info->q_typename = g_strdup(object_class_get_name(oc));
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;

@@ -5214,6 +5214,7 @@ static void arm_cpu_add_definition(gpointer data, gpointer user_data)
     info = g_malloc0(sizeof(*info));
     info->name = g_strndup(typename,
                            strlen(typename) - strlen("-" TYPE_ARM_CPU));
+    info->q_typename = g_strdup(typename);
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
