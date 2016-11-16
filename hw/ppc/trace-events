@@ -15,7 +15,7 @@ spapr_cas_continue(unsigned long n) "Copy changes to the guest: %ld bytes"
 
 # hw/ppc/spapr_hcall.c
 spapr_cas_pvr_try(uint32_t pvr) "%x"
-spapr_cas_pvr(uint32_t cur_pvr, bool cpu_match, uint32_t new_pvr, uint64_t pcr) "current=%x, cpu_match=%u, new=%x, compat flags=%"PRIx64
+spapr_cas_pvr(uint32_t cur_pvr, bool explicit_match, uint32_t new_pvr) "current=%x, explicit_match=%u, new=%x"
 
 # hw/ppc/spapr_iommu.c
 spapr_iommu_put(uint64_t liobn, uint64_t ioba, uint64_t tce, uint64_t ret) "liobn=%"PRIx64" ioba=0x%"PRIx64" tce=0x%"PRIx64" ret=%"PRId64
