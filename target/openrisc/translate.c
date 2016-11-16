@@ -602,11 +602,13 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
         switch (op1) {
         case 0x00:    /* l.ff1 */
             LOG_DIS("l.ff1 r%d, r%d, r%d\n", rd, ra, rb);
-            gen_helper_ff1(cpu_R[rd], cpu_R[ra]);
+            tcg_gen_ctzi_tl(cpu_R[rd], cpu_R[ra], -1);
+            tcg_gen_addi_tl(cpu_R[rd], cpu_R[rd], 1);
             break;
         case 0x01:    /* l.fl1 */
             LOG_DIS("l.fl1 r%d, r%d, r%d\n", rd, ra, rb);
-            gen_helper_fl1(cpu_R[rd], cpu_R[ra]);
+            tcg_gen_clzi_tl(cpu_R[rd], cpu_R[ra], TARGET_LONG_BITS);
+            tcg_gen_subfi_tl(cpu_R[rd], TARGET_LONG_BITS, cpu_R[rd]);
             break;
 
         default:

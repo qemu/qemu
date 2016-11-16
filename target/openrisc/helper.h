@@ -54,8 +54,6 @@ FOP_CMP(ge)
 #undef FOP_CMP
 
 /* int */
-DEF_HELPER_FLAGS_1(ff1, 0, tl, tl)
-DEF_HELPER_FLAGS_1(fl1, 0, tl, tl)
 DEF_HELPER_FLAGS_3(mul32, 0, i32, env, i32, i32)
 
 /* interrupt */
