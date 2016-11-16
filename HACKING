@@ -1,9 +1,27 @@
 1. Preprocessor
 
+1.1. Variadic macros
+
 For variadic macros, stick with this C99-like syntax:
 
 #define DPRINTF(fmt, ...)                                       \
     do { printf("IRQ: " fmt, ## __VA_ARGS__); } while (0)
+
+1.2. Include directives
+
+Order include directives as follows:
+
+#include "qemu/osdep.h"  /* Always first... */
+#include <...>           /* then system headers... */
+#include "..."           /* and finally QEMU headers. */
+
+The "qemu/osdep.h" header contains preprocessor macros that affect the behavior
+of core system headers like <stdint.h>.  It must be the first include so that
+core system headers included by external libraries get the preprocessor macros
+that QEMU depends on.
+
+Do not include "qemu/osdep.h" from header files since the .c file will have
+already included it.
 
 2. C types
 
