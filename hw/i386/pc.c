@@ -744,7 +744,7 @@ static FWCfgState *bochs_bios_init(AddressSpace *as, PCMachineState *pcms)
     int i, j;
 
     fw_cfg = fw_cfg_init_io_dma(FW_CFG_IO_BASE, FW_CFG_IO_BASE + 4, as);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
 
     /* FW_CFG_MAX_CPUS is a bit confusing/problematic on x86:
      *
@@ -1087,17 +1087,6 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
-static int pc_present_cpus_count(PCMachineState *pcms)
-{
-    int i, boot_cpus = 0;
-    for (i = 0; i < pcms->possible_cpus->len; i++) {
-        if (pcms->possible_cpus->cpus[i].cpu) {
-            boot_cpus++;
-        }
-    }
-    return boot_cpus;
-}
-
 static X86CPU *pc_new_cpu(const char *typename, int64_t apic_id,
                           Error **errp)
 {
@@ -1234,6 +1223,19 @@ static void pc_build_feature_control_file(PCMachineState *pcms)
     fw_cfg_add_file(pcms->fw_cfg, "etc/msr_feature_control", val, sizeof(*val));
 }
 
+static void rtc_set_cpus_count(ISADevice *rtc, uint16_t cpus_count)
+{
+    if (cpus_count > 0xff) {
+        /* If the number of CPUs can't be represented in 8 bits, the
+         * BIOS must use "FW_CFG_NB_CPUS". Set RTC field to 0 just
+         * to make old BIOSes fail more predictably.
+         */
+        rtc_set_memory(rtc, 0x5f, 0);
+    } else {
+        rtc_set_memory(rtc, 0x5f, cpus_count - 1);
+    }
+}
+
 static
 void pc_machine_done(Notifier *notifier, void *data)
 {
@@ -1242,7 +1244,7 @@ void pc_machine_done(Notifier *notifier, void *data)
     PCIBus *bus = pcms->bus;
 
     /* set the number of CPUs */
-    rtc_set_memory(pcms->rtc, 0x5f, pc_present_cpus_count(pcms) - 1);
+    rtc_set_cpus_count(pcms->rtc, pcms->boot_cpus);
 
     if (bus) {
         int extra_hosts = 0;
@@ -1265,6 +1267,8 @@ void pc_machine_done(Notifier *notifier, void *data)
     if (pcms->fw_cfg) {
         pc_build_smbios(pcms->fw_cfg);
         pc_build_feature_control_file(pcms);
+        /* update FW_CFG_NB_CPUS to account for -device added CPUs */
+        fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
     }
 
     if (pcms->apic_id_limit > 255) {
@@ -1342,7 +1346,7 @@ void xen_load_linux(PCMachineState *pcms)
     assert(MACHINE(pcms)->kernel_filename != NULL);
 
     fw_cfg = fw_cfg_init_io(FW_CFG_IO_BASE);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
     rom_set_fw(fw_cfg);
 
     load_linux(pcms, fw_cfg);
@@ -1812,9 +1816,11 @@ static void pc_cpu_plug(HotplugHandler *hotplug_dev,
         }
     }
 
+    /* increment the number of CPUs */
+    pcms->boot_cpus++;
     if (dev->hotplugged) {
-        /* increment the number of CPUs */
-        rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) + 1);
+        rtc_set_cpus_count(pcms->rtc, pcms->boot_cpus);
+        fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
     }
 
     found_cpu = pc_find_cpu_slot(pcms, CPU(dev), NULL);
@@ -1868,7 +1874,11 @@ static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
     found_cpu->cpu = NULL;
     object_unparent(OBJECT(dev));
 
-    rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) - 1);
+    /* decrement the number of CPUs */
+    pcms->boot_cpus--;
+    /* Update the number of CPUs in CMOS */
+    rtc_set_cpus_count(pcms->rtc, pcms->boot_cpus);
+    fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
  out:
     error_propagate(errp, local_err);
 }

@@ -36,6 +36,7 @@
 /**
  * PCMachineState:
  * @acpi_dev: link to ACPI PM device that performs ACPI hotplug handling
+ * @boot_cpus: number of present VCPUs
  */
 struct PCMachineState {
     /*< private >*/
@@ -70,6 +71,7 @@ struct PCMachineState {
     bool apic_xrupt_override;
     unsigned apic_id_limit;
     CPUArchIdList *possible_cpus;
+    uint16_t boot_cpus;
 
     /* NUMA information: */
     uint64_t numa_nodes;
