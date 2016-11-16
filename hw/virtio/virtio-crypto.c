@@ -692,8 +692,17 @@ static void virtio_crypto_dataq_bh(void *opaque)
         return;
     }
 
-    virtio_crypto_handle_dataq(vdev, q->dataq);
-    virtio_queue_set_notification(q->dataq, 1);
+    for (;;) {
+        virtio_crypto_handle_dataq(vdev, q->dataq);
+        virtio_queue_set_notification(q->dataq, 1);
+
+        /* Are we done or did the guest add more buffers? */
+        if (virtio_queue_empty(q->dataq)) {
+            break;
+        }
+
+        virtio_queue_set_notification(q->dataq, 0);
+    }
 }
 
 static void
