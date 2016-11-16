@@ -1479,10 +1479,10 @@ static void do_misc(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         /* clz */
         tmp = load_reg(s, UCOP_REG_M);
         if (UCOP_SET(26)) {
-            gen_helper_clo(tmp, tmp);
-        } else {
-            gen_helper_clz(tmp, tmp);
+            /* clo */
+            tcg_gen_not_i32(tmp, tmp);
         }
+        tcg_gen_clzi_i32(tmp, tmp, 32);
         store_reg(s, UCOP_REG_D, tmp);
         return;
     }
