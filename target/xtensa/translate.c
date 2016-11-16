@@ -1372,16 +1372,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 case 14: /*NSAu*/
                     HAS_OPTION(XTENSA_OPTION_MISC_OP_NSA);
                     if (gen_window_check2(dc, RRR_S, RRR_T)) {
-                        TCGv_i32 t0 = tcg_temp_new_i32();
-
-                        /* if (v & 0x80000000) v = ~v; */
-                        tcg_gen_sari_i32(t0, cpu_R[RRR_S], 31);
-                        tcg_gen_xor_i32(t0, t0, cpu_R[RRR_S]);
-
-                        /* r = (v ? clz(v) : 32) - 1; */
-                        tcg_gen_clzi_i32(t0, t0, 32);
-                        tcg_gen_subi_i32(cpu_R[RRR_T], t0, 1);
-                        tcg_temp_free_i32(t0);
+                        tcg_gen_clrsb_i32(cpu_R[RRR_T], cpu_R[RRR_S]);
                     }
                     break;
 
