@@ -246,6 +246,14 @@ t0=~(t1|t2)
 
 t0=t1|~t2
 
+* clz_i32/i64 t0, t1, t2
+
+t0 = t1 ? clz(t1) : t2
+
+* ctz_i32/i64 t0, t1, t2
+
+t0 = t1 ? ctz(t1) : t2
+
 ********* Shifts/Rotates
 
 * shl_i32/i64 t0, t1, t2

@@ -296,6 +296,18 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
     CASE_OP_32_64(nor):
         return ~(x | y);
 
+    case INDEX_op_clz_i32:
+        return (uint32_t)x ? clz32(x) : y;
+
+    case INDEX_op_clz_i64:
+        return x ? clz64(x) : y;
+
+    case INDEX_op_ctz_i32:
+        return (uint32_t)x ? ctz32(x) : y;
+
+    case INDEX_op_ctz_i64:
+        return x ? ctz64(x) : y;
+
     CASE_OP_32_64(ext8s):
         return (int8_t)x;
 
@@ -896,6 +908,16 @@ void tcg_optimize(TCGContext *s)
             mask = temps[args[1]].mask | temps[args[2]].mask;
             break;
 
+        case INDEX_op_clz_i32:
+        case INDEX_op_ctz_i32:
+            mask = temps[args[2]].mask | 31;
+            break;
+
+        case INDEX_op_clz_i64:
+        case INDEX_op_ctz_i64:
+            mask = temps[args[2]].mask | 63;
+            break;
+
         CASE_OP_32_64(setcond):
         case INDEX_op_setcond2_i32:
             mask = 1;
@@ -1048,6 +1070,20 @@ void tcg_optimize(TCGContext *s)
                 tmp = do_constant_folding(opc, temps[args[1]].val,
                                           temps[args[2]].val);
                 tcg_opt_gen_movi(s, op, args, args[0], tmp);
+                break;
+            }
+            goto do_default;
+
+        CASE_OP_32_64(clz):
+        CASE_OP_32_64(ctz):
+            if (temp_is_const(args[1])) {
+                TCGArg v = temps[args[1]].val;
+                if (v != 0) {
+                    tmp = do_constant_folding(opc, v, 0);
+                    tcg_opt_gen_movi(s, op, args, args[0], tmp);
+                } else {
+                    tcg_opt_gen_mov(s, op, args, args[0], args[2]);
+                }
                 break;
             }
             goto do_default;

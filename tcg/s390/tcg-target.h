@@ -77,6 +77,8 @@ extern uint64_t s390_facilities;
 #define TCG_TARGET_HAS_eqv_i32        0
 #define TCG_TARGET_HAS_nand_i32       0
 #define TCG_TARGET_HAS_nor_i32        0
+#define TCG_TARGET_HAS_clz_i32        0
+#define TCG_TARGET_HAS_ctz_i32        0
 #define TCG_TARGET_HAS_deposit_i32    (s390_facilities & FACILITY_GEN_INST_EXT)
 #define TCG_TARGET_HAS_extract_i32    (s390_facilities & FACILITY_GEN_INST_EXT)
 #define TCG_TARGET_HAS_sextract_i32   0
@@ -108,6 +110,8 @@ extern uint64_t s390_facilities;
 #define TCG_TARGET_HAS_eqv_i64        0
 #define TCG_TARGET_HAS_nand_i64       0
 #define TCG_TARGET_HAS_nor_i64        0
+#define TCG_TARGET_HAS_clz_i64        0
+#define TCG_TARGET_HAS_ctz_i64        0
 #define TCG_TARGET_HAS_deposit_i64    (s390_facilities & FACILITY_GEN_INST_EXT)
 #define TCG_TARGET_HAS_extract_i64    (s390_facilities & FACILITY_GEN_INST_EXT)
 #define TCG_TARGET_HAS_sextract_i64   0
