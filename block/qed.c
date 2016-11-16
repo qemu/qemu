@@ -967,6 +967,11 @@ static void qed_aio_complete_bh(void *opaque)
     qed_release(s);
 }
 
+static void qed_resume_alloc_bh(void *opaque)
+{
+    qed_aio_start_io(opaque);
+}
+
 static void qed_aio_complete(QEDAIOCB *acb, int ret)
 {
     BDRVQEDState *s = acb_to_s(acb);
@@ -995,10 +1000,12 @@ static void qed_aio_complete(QEDAIOCB *acb, int ret)
      * requests multiple times but rather finish one at a time completely.
      */
     if (acb == QSIMPLEQ_FIRST(&s->allocating_write_reqs)) {
+        QEDAIOCB *next_acb;
         QSIMPLEQ_REMOVE_HEAD(&s->allocating_write_reqs, next);
-        acb = QSIMPLEQ_FIRST(&s->allocating_write_reqs);
-        if (acb) {
-            qed_aio_start_io(acb);
+        next_acb = QSIMPLEQ_FIRST(&s->allocating_write_reqs);
+        if (next_acb) {
+            aio_bh_schedule_oneshot(bdrv_get_aio_context(acb->common.bs),
+                                    qed_resume_alloc_bh, next_acb);
         } else if (s->header.features & QED_F_NEED_CHECK) {
             qed_start_need_check_timer(s);
         }
