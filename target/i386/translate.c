@@ -6807,21 +6807,18 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 ? s->cpuid_ext3_features & CPUID_EXT3_ABM
                 : s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1)) {
             int size = 8 << ot;
+            /* For lzcnt/tzcnt, C bit is defined related to the input. */
             tcg_gen_mov_tl(cpu_cc_src, cpu_T0);
             if (b & 1) {
                 /* For lzcnt, reduce the target_ulong result by the
                    number of zeros that we expect to find at the top.  */
-                gen_helper_clz(cpu_T0, cpu_T0);
+                tcg_gen_clzi_tl(cpu_T0, cpu_T0, TARGET_LONG_BITS);
                 tcg_gen_subi_tl(cpu_T0, cpu_T0, TARGET_LONG_BITS - size);
             } else {
-                /* For tzcnt, a zero input must return the operand size:
-                   force all bits outside the operand size to 1.  */
-                target_ulong mask = (target_ulong)-2 << (size - 1);
-                tcg_gen_ori_tl(cpu_T0, cpu_T0, mask);
-                gen_helper_ctz(cpu_T0, cpu_T0);
+                /* For tzcnt, a zero input must return the operand size.  */
+                tcg_gen_ctzi_tl(cpu_T0, cpu_T0, size);
             }
-            /* For lzcnt/tzcnt, C and Z bits are defined and are
-               related to the result.  */
+            /* For lzcnt/tzcnt, Z bit is defined related to the result.  */
             gen_op_update1_cc();
             set_cc_op(s, CC_OP_BMILGB + ot);
         } else {
@@ -6829,20 +6826,20 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                to the input and not the result.  */
             tcg_gen_mov_tl(cpu_cc_dst, cpu_T0);
             set_cc_op(s, CC_OP_LOGICB + ot);
+
+            /* ??? The manual says that the output is undefined when the
+               input is zero, but real hardware leaves it unchanged, and
+               real programs appear to depend on that.  Accomplish this
+               by passing the output as the value to return upon zero.  */
             if (b & 1) {
                 /* For bsr, return the bit index of the first 1 bit,
                    not the count of leading zeros.  */
-                gen_helper_clz(cpu_T0, cpu_T0);
+                tcg_gen_xori_tl(cpu_T1, cpu_regs[reg], TARGET_LONG_BITS - 1);
+                tcg_gen_clz_tl(cpu_T0, cpu_T0, cpu_T1);
                 tcg_gen_xori_tl(cpu_T0, cpu_T0, TARGET_LONG_BITS - 1);
             } else {
-                gen_helper_ctz(cpu_T0, cpu_T0);
+                tcg_gen_ctz_tl(cpu_T0, cpu_T0, cpu_regs[reg]);
             }
-            /* ??? The manual says that the output is undefined when the
-               input is zero, but real hardware leaves it unchanged, and
-               real programs appear to depend on that.  */
-            tcg_gen_movi_tl(cpu_tmp0, 0);
-            tcg_gen_movcond_tl(TCG_COND_EQ, cpu_T0, cpu_cc_dst, cpu_tmp0,
-                               cpu_regs[reg], cpu_T0);
         }
         gen_op_mov_reg_v(ot, reg, cpu_T0);
         break;
