@@ -131,11 +131,14 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
     }
     /* If PR=1 then EE, IR and DR must be 1
      *
-     * Note: We only enforce this on 64-bit processors. It appears that
-     * 32-bit implementations supports PR=1 and EE/DR/IR=0 and MacOS
-     * exploits it.
+     * Note: We only enforce this on 64-bit server processors.
+     * It appears that:
+     * - 32-bit implementations supports PR=1 and EE/DR/IR=0 and MacOS
+     *   exploits it.
+     * - 64-bit embedded implementations do not need any operation to be
+     *   performed when PR is set.
      */
-    if ((env->insns_flags & PPC_64B) && ((value >> MSR_PR) & 1)) {
+    if ((env->insns_flags & PPC_SEGMENT_64B) && ((value >> MSR_PR) & 1)) {
         value |= (1 << MSR_EE) | (1 << MSR_DR) | (1 << MSR_IR);
     }
 #endif
