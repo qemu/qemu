@@ -1144,7 +1144,7 @@
   'data': 'DriveMirror' }
 
 ##
-# DriveMirror
+# @DriveMirror
 #
 # A set of parameters describing drive mirror setup.
 #
@@ -1368,7 +1368,7 @@
   'data': 'BlockIOThrottle' }
 
 ##
-# BlockIOThrottle
+# @BlockIOThrottle
 #
 # A set of parameters describing block throttling.
 #

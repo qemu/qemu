@@ -4652,7 +4652,7 @@
 { 'include': 'qapi/rocker.json' }
 
 ##
-# ReplayMode:
+# @ReplayMode:
 #
 # Mode of the replay subsystem.
 #
@@ -4720,7 +4720,7 @@
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'] }
 
 ##
-# CpuInstanceProperties
+# @CpuInstanceProperties
 #
 # List of properties to be used for hotplugging a CPU instance,
 # it should be passed by management with device_add command when
