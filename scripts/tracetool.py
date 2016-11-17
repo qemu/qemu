@@ -70,7 +70,7 @@ def make_group_name(filename):
 
     if dirname == "":
         return "common"
-    return re.sub(r"[^A-Za-z0-9]", "_", dirname)
+    return "_" + re.sub(r"[^A-Za-z0-9]", "_", dirname)
 
 def main(args):
     global _SCRIPT
