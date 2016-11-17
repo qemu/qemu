@@ -65,6 +65,7 @@
 { 'enum': 'LostTickPolicy',
   'data': ['discard', 'delay', 'merge', 'slew' ] }
 
+##
 # @add_client
 #
 # Allow client connections for VNC, Spice and socket based
@@ -443,6 +444,7 @@
            'cache-miss': 'int', 'cache-miss-rate': 'number',
            'overflow': 'int' } }
 
+##
 # @MigrationStatus:
 #
 # An enumeration of migration status.
@@ -629,6 +631,7 @@
 ##
 { 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
 
+##
 # @MigrationParameter
 #
 # Migration parameters enumeration
@@ -687,7 +690,7 @@
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay' ] }
 
-#
+##
 # @migrate-set-parameters
 #
 # Set various migration parameters.  See MigrationParameters for details.
@@ -699,7 +702,7 @@
 { 'command': 'migrate-set-parameters', 'boxed': true,
   'data': 'MigrationParameters' }
 
-#
+##
 # @MigrationParameters
 #
 # Optional members can be omitted on input ('migrate-set-parameters')
@@ -797,6 +800,7 @@
 # command.
 #
 # Since: 2.5
+##
 { 'command': 'migrate-start-postcopy' }
 
 ##
@@ -2254,6 +2258,7 @@
 ##
 { 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
 
+##
 # @xen-save-devices-state:
 #
 # Save the state of all devices to file. The RAM and the block devices
@@ -3484,6 +3489,7 @@
             'modelb': 'CpuModelInfo' },
   'returns': 'CpuModelBaselineInfo' }
 
+##
 # @AddfdInfo:
 #
 # Information about a file descriptor that was added to an fd set.
@@ -4532,14 +4538,16 @@
 ##
 { 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
 
-## @ACPISlotType
+##
+# @ACPISlotType
 #
 # @DIMM: memory slot
 # @CPU: logical CPU slot (since 2.7)
-#
+##
 { 'enum': 'ACPISlotType', 'data': [ 'DIMM', 'CPU' ] }
 
-## @ACPIOSTInfo
+##
+# @ACPIOSTInfo
 #
 # OSPM Status Indication for a device
 # For description of possible values of @source and @status fields

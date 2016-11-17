@@ -2809,6 +2809,7 @@
             'offset': 'int',
             'speed' : 'int' } }
 
+##
 # @PreallocMode
 #
 # Preallocation mode of QEMU image file
