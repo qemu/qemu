@@ -986,15 +986,11 @@ static int qed_aio_write_l1_update(QEDAIOCB *acb)
 /**
  * Update L2 table with new cluster offsets and write them out
  */
-static void qed_aio_write_l2_update(QEDAIOCB *acb, int ret, uint64_t offset)
+static int qed_aio_write_l2_update(QEDAIOCB *acb, uint64_t offset)
 {
     BDRVQEDState *s = acb_to_s(acb);
     bool need_alloc = acb->find_cluster_ret == QED_CLUSTER_L1;
-    int index;
-
-    if (ret) {
-        goto err;
-    }
+    int index, ret;
 
     if (need_alloc) {
         qed_unref_l2_cache_entry(acb->request.l2_table);
@@ -1009,21 +1005,18 @@ static void qed_aio_write_l2_update(QEDAIOCB *acb, int ret, uint64_t offset)
         /* Write out the whole new L2 table */
         ret = qed_write_l2_table(s, &acb->request, 0, s->table_nelems, true);
         if (ret) {
-            goto err;
+            return ret;
         }
-        ret = qed_aio_write_l1_update(acb);
-        qed_aio_next_io(acb, ret);
-
+        return qed_aio_write_l1_update(acb);
     } else {
         /* Write out only the updated part of the L2 table */
         ret = qed_write_l2_table(s, &acb->request, index, acb->cur_nclusters,
                                  false);
-        qed_aio_next_io(acb, ret);
+        if (ret) {
+            return ret;
+        }
     }
-    return;
-
-err:
-    qed_aio_complete(acb, ret);
+    return 0;
 }
 
 /**
@@ -1065,8 +1058,19 @@ static void qed_aio_write_main(void *opaque, int ret)
              */
             ret = bdrv_flush(s->bs->file->bs);
         }
-        qed_aio_write_l2_update(acb, ret, acb->cur_cluster);
+        if (ret) {
+            goto err;
+        }
+        ret = qed_aio_write_l2_update(acb, acb->cur_cluster);
+        if (ret) {
+            goto err;
+        }
+        qed_aio_next_io(acb, 0);
     }
+    return;
+
+err:
+    qed_aio_complete(acb, ret);
 }
 
 /**
@@ -1124,7 +1128,12 @@ static void qed_aio_write_zero_cluster(void *opaque, int ret)
         return;
     }
 
-    qed_aio_write_l2_update(acb, 0, 1);
+    ret = qed_aio_write_l2_update(acb, 1);
+    if (ret < 0) {
+        qed_aio_complete(acb, ret);
+        return;
+    }
+    qed_aio_next_io(acb, 0);
 }
 
 /**
