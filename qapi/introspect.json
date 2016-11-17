@@ -11,7 +11,7 @@
 # See the COPYING file in the top-level directory.
 
 ##
-# @query-qmp-schema
+# @query-qmp-schema:
 #
 # Command query-qmp-schema exposes the QMP wire ABI as an array of
 # SchemaInfo.  This lets QMP clients figure out what commands and
@@ -49,7 +49,7 @@
   'gen': false }                # just to simplify qmp_query_json()
 
 ##
-# @SchemaMetaType
+# @SchemaMetaType:
 #
 # This is a @SchemaInfo's meta type, i.e. the kind of entity it
 # describes.
@@ -75,7 +75,7 @@
             'command', 'event' ] }
 
 ##
-# @SchemaInfo
+# @SchemaInfo:
 #
 # @name: the entity's name, inherited from @base.
 #        Commands and events have the name defined in the QAPI schema.
@@ -105,7 +105,7 @@
       'event': 'SchemaInfoEvent' } }
 
 ##
-# @SchemaInfoBuiltin
+# @SchemaInfoBuiltin:
 #
 # Additional SchemaInfo members for meta-type 'builtin'.
 #
@@ -117,7 +117,7 @@
   'data': { 'json-type': 'JSONType' } }
 
 ##
-# @JSONType
+# @JSONType:
 #
 # The four primitive and two structured types according to RFC 7159
 # section 1, plus 'int' (split off 'number'), plus the obvious top
@@ -130,7 +130,7 @@
             'object', 'array', 'value' ] }
 
 ##
-# @SchemaInfoEnum
+# @SchemaInfoEnum:
 #
 # Additional SchemaInfo members for meta-type 'enum'.
 #
@@ -144,7 +144,7 @@
   'data': { 'values': ['str'] } }
 
 ##
-# @SchemaInfoArray
+# @SchemaInfoArray:
 #
 # Additional SchemaInfo members for meta-type 'array'.
 #
@@ -158,7 +158,7 @@
   'data': { 'element-type': 'str' } }
 
 ##
-# @SchemaInfoObject
+# @SchemaInfoObject:
 #
 # Additional SchemaInfo members for meta-type 'object'.
 #
@@ -183,7 +183,7 @@
             '*variants': [ 'SchemaInfoObjectVariant' ] } }
 
 ##
-# @SchemaInfoObjectMember
+# @SchemaInfoObjectMember:
 #
 # An object member.
 #
@@ -206,7 +206,7 @@
 # @default's type must be null or match @type
 
 ##
-# @SchemaInfoObjectVariant
+# @SchemaInfoObjectVariant:
 #
 # The variant members for a value of the type tag.
 #
@@ -221,7 +221,7 @@
   'data': { 'case': 'str', 'type': 'str' } }
 
 ##
-# @SchemaInfoAlternate
+# @SchemaInfoAlternate:
 #
 # Additional SchemaInfo members for meta-type 'alternate'.
 #
@@ -237,7 +237,7 @@
   'data': { 'members': [ 'SchemaInfoAlternateMember' ] } }
 
 ##
-# @SchemaInfoAlternateMember
+# @SchemaInfoAlternateMember:
 #
 # An alternate member.
 #
@@ -249,7 +249,7 @@
   'data': { 'type': 'str' } }
 
 ##
-# @SchemaInfoCommand
+# @SchemaInfoCommand:
 #
 # Additional SchemaInfo members for meta-type 'command'.
 #
@@ -266,7 +266,7 @@
   'data': { 'arg-type': 'str', 'ret-type': 'str' } }
 
 ##
-# @SchemaInfoEvent
+# @SchemaInfoEvent:
 #
 # Additional SchemaInfo members for meta-type 'event'.
 #
