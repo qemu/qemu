@@ -952,7 +952,6 @@
 #
 # Get information relating to guest memory blocks.
 #
-# Returns: memory block size in bytes.
 # Returns: @GuestMemoryBlockInfo
 #
 # Since 2.3
