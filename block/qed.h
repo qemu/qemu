@@ -177,27 +177,6 @@ enum {
     QED_CLUSTER_L1,            /* cluster missing in L1 */
 };
 
-/**
- * qed_find_cluster() completion callback
- *
- * @opaque:     User data for completion callback
- * @ret:        QED_CLUSTER_FOUND   Success
- *              QED_CLUSTER_L2      Data cluster unallocated in L2
- *              QED_CLUSTER_L1      L2 unallocated in L1
- *              -errno              POSIX error occurred
- * @offset:     Data cluster offset
- * @len:        Contiguous bytes starting from cluster offset
- *
- * This function is invoked when qed_find_cluster() completes.
- *
- * On success ret is QED_CLUSTER_FOUND and offset/len are a contiguous range
- * in the image file.
- *
- * On failure ret is QED_CLUSTER_L2 or QED_CLUSTER_L1 for missing L2 or L1
- * table offset, respectively.  len is number of contiguous unallocated bytes.
- */
-typedef void QEDFindClusterFunc(void *opaque, int ret, uint64_t offset, size_t len);
-
 void qed_acquire(BDRVQEDState *s);
 void qed_release(BDRVQEDState *s);
 

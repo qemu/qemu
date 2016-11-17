@@ -1205,13 +1205,12 @@ static int qed_aio_write_inplace(QEDAIOCB *acb, uint64_t offset, size_t len)
  * Write data cluster
  *
  * @opaque:     Write request
- * @ret:        QED_CLUSTER_FOUND, QED_CLUSTER_L2, QED_CLUSTER_L1,
- *              or -errno
+ * @ret:        QED_CLUSTER_FOUND, QED_CLUSTER_L2 or QED_CLUSTER_L1
  * @offset:     Cluster offset in bytes
  * @len:        Length in bytes
  */
-static void qed_aio_write_data(void *opaque, int ret,
-                               uint64_t offset, size_t len)
+static int qed_aio_write_data(void *opaque, int ret,
+                              uint64_t offset, size_t len)
 {
     QEDAIOCB *acb = opaque;
 
@@ -1221,40 +1220,27 @@ static void qed_aio_write_data(void *opaque, int ret,
 
     switch (ret) {
     case QED_CLUSTER_FOUND:
-        ret = qed_aio_write_inplace(acb, offset, len);
-        break;
+        return qed_aio_write_inplace(acb, offset, len);
 
     case QED_CLUSTER_L2:
     case QED_CLUSTER_L1:
     case QED_CLUSTER_ZERO:
-        ret = qed_aio_write_alloc(acb, len);
-        break;
+        return qed_aio_write_alloc(acb, len);
 
     default:
-        assert(ret < 0);
-        break;
+        g_assert_not_reached();
     }
-
-    if (ret < 0) {
-        if (ret != -EINPROGRESS) {
-            qed_aio_complete(acb, ret);
-        }
-        return;
-    }
-    qed_aio_next_io(acb, 0);
 }
 
 /**
  * Read data cluster
  *
  * @opaque:     Read request
- * @ret:        QED_CLUSTER_FOUND, QED_CLUSTER_L2, QED_CLUSTER_L1,
- *              or -errno
+ * @ret:        QED_CLUSTER_FOUND, QED_CLUSTER_L2 or QED_CLUSTER_L1
  * @offset:     Cluster offset in bytes
  * @len:        Length in bytes
  */
-static void qed_aio_read_data(void *opaque, int ret,
-                              uint64_t offset, size_t len)
+static int qed_aio_read_data(void *opaque, int ret, uint64_t offset, size_t len)
 {
     QEDAIOCB *acb = opaque;
     BDRVQEDState *s = acb_to_s(acb);
@@ -1265,34 +1251,23 @@ static void qed_aio_read_data(void *opaque, int ret,
 
     trace_qed_aio_read_data(s, acb, ret, offset, len);
 
-    if (ret < 0) {
-        goto err;
-    }
-
     qemu_iovec_concat(&acb->cur_qiov, acb->qiov, acb->qiov_offset, len);
 
     /* Handle zero cluster and backing file reads */
     if (ret == QED_CLUSTER_ZERO) {
         qemu_iovec_memset(&acb->cur_qiov, 0, 0, acb->cur_qiov.size);
-        qed_aio_start_io(acb);
-        return;
+        return 0;
     } else if (ret != QED_CLUSTER_FOUND) {
-        ret = qed_read_backing_file(s, acb->cur_pos, &acb->cur_qiov,
-                                    &acb->backing_qiov);
-        qed_aio_next_io(acb, ret);
-        return;
+        return qed_read_backing_file(s, acb->cur_pos, &acb->cur_qiov,
+                                     &acb->backing_qiov);
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
     ret = bdrv_preadv(bs->file, offset, &acb->cur_qiov);
     if (ret < 0) {
-        goto err;
+        return ret;
     }
-    qed_aio_next_io(acb, 0);
-    return;
-
-err:
-    qed_aio_complete(acb, ret);
+    return 0;
 }
 
 /**
@@ -1301,8 +1276,6 @@ err:
 static void qed_aio_next_io(QEDAIOCB *acb, int ret)
 {
     BDRVQEDState *s = acb_to_s(acb);
-    QEDFindClusterFunc *io_fn = (acb->flags & QED_AIOCB_WRITE) ?
-                                qed_aio_write_data : qed_aio_read_data;
     uint64_t offset;
     size_t len;
 
@@ -1333,7 +1306,24 @@ static void qed_aio_next_io(QEDAIOCB *acb, int ret)
     /* Find next cluster and start I/O */
     len = acb->end_pos - acb->cur_pos;
     ret = qed_find_cluster(s, &acb->request, acb->cur_pos, &len, &offset);
-    io_fn(acb, ret, offset, len);
+    if (ret < 0) {
+        qed_aio_complete(acb, ret);
+        return;
+    }
+
+    if (acb->flags & QED_AIOCB_WRITE) {
+        ret = qed_aio_write_data(acb, ret, offset, len);
+    } else {
+        ret = qed_aio_read_data(acb, ret, offset, len);
+    }
+
+    if (ret < 0) {
+        if (ret != -EINPROGRESS) {
+            qed_aio_complete(acb, ret);
+        }
+        return;
+    }
+    qed_aio_next_io(acb, 0);
 }
 
 static BlockAIOCB *qed_aio_setup(BlockDriverState *bs,
