@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include <libfdt.h>
 #include "hw/hw.h"
 #include "hw/arm/arm.h"
 #include "hw/arm/linux-boot-if.h"
@@ -486,6 +487,17 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
             g_free(nodename);
         }
     } else {
+        Error *err = NULL;
+
+        rc = fdt_path_offset(fdt, "/memory");
+        if (rc < 0) {
+            qemu_fdt_add_subnode(fdt, "/memory");
+        }
+
+        if (!qemu_fdt_getprop(fdt, "/memory", "device_type", NULL, &err)) {
+            qemu_fdt_setprop_string(fdt, "/memory", "device_type", "memory");
+        }
+
         rc = qemu_fdt_setprop_sized_cells(fdt, "/memory", "reg",
                                           acells, binfo->loader_start,
                                           scells, binfo->ram_size);
@@ -493,6 +505,11 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
             fprintf(stderr, "couldn't set /memory/reg\n");
             goto fail;
         }
+    }
+
+    rc = fdt_path_offset(fdt, "/chosen");
+    if (rc < 0) {
+        qemu_fdt_add_subnode(fdt, "/chosen");
     }
 
     if (binfo->kernel_cmdline && *binfo->kernel_cmdline) {
