@@ -1214,6 +1214,8 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_pwrite_zeroes, INT_MAX);
     int alignment = MAX(bs->bl.pwrite_zeroes_alignment,
                         bs->bl.request_alignment);
+    int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer,
+                                    MAX_WRITE_ZEROES_BOUNCE_BUFFER);
 
     assert(alignment % bs->bl.request_alignment == 0);
     head = offset % alignment;
@@ -1229,9 +1231,12 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
          * boundaries.
          */
         if (head) {
-            /* Make a small request up to the first aligned sector.  */
-            num = MIN(count, alignment - head);
-            head = 0;
+            /* Make a small request up to the first aligned sector. For
+             * convenience, limit this request to max_transfer even if
+             * we don't need to fall back to writes.  */
+            num = MIN(MIN(count, max_transfer), alignment - head);
+            head = (head + num) % alignment;
+            assert(num < max_write_zeroes);
         } else if (tail && num > alignment) {
             /* Shorten the request to the last aligned sector.  */
             num -= tail;
@@ -1257,8 +1262,6 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
 
         if (ret == -ENOTSUP) {
             /* Fall back to bounce buffer if write zeroes is unsupported */
-            int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer,
-                                            MAX_WRITE_ZEROES_BOUNCE_BUFFER);
             BdrvRequestFlags write_flags = flags & ~BDRV_REQ_ZERO_WRITE;
 
             if ((flags & BDRV_REQ_FUA) &&
