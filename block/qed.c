@@ -956,15 +956,27 @@ static void qed_aio_complete(QEDAIOCB *acb, int ret)
 }
 
 /**
- * Commit the current L2 table to the cache
+ * Update L1 table with new L2 table offset and write it out
  */
-static void qed_commit_l2_update(void *opaque, int ret)
+static void qed_aio_write_l1_update(void *opaque, int ret)
 {
     QEDAIOCB *acb = opaque;
     BDRVQEDState *s = acb_to_s(acb);
     CachedL2Table *l2_table = acb->request.l2_table;
     uint64_t l2_offset = l2_table->offset;
+    int index;
 
+    if (ret) {
+        qed_aio_complete(acb, ret);
+        return;
+    }
+
+    index = qed_l1_index(s, acb->cur_pos);
+    s->l1_table->offsets[index] = l2_table->offset;
+
+    ret = qed_write_l1_table(s, index, 1);
+
+    /* Commit the current L2 table to the cache */
     qed_commit_l2_cache_entry(&s->l2_cache, l2_table);
 
     /* This is guaranteed to succeed because we just committed the entry to the
@@ -976,26 +988,6 @@ static void qed_commit_l2_update(void *opaque, int ret)
     qed_aio_next_io(acb, ret);
 }
 
-/**
- * Update L1 table with new L2 table offset and write it out
- */
-static void qed_aio_write_l1_update(void *opaque, int ret)
-{
-    QEDAIOCB *acb = opaque;
-    BDRVQEDState *s = acb_to_s(acb);
-    int index;
-
-    if (ret) {
-        qed_aio_complete(acb, ret);
-        return;
-    }
-
-    index = qed_l1_index(s, acb->cur_pos);
-    s->l1_table->offsets[index] = acb->request.l2_table->offset;
-
-    ret = qed_write_l1_table(s, index, 1);
-    qed_commit_l2_update(acb, ret);
-}
 
 /**
  * Update L2 table with new cluster offsets and write them out
