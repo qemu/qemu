@@ -34,11 +34,11 @@
 #
 # A three-part version number.
 #
-# @qemu.major:  The major version number.
+# @major:  The major version number.
 #
-# @qemu.minor:  The minor version number.
+# @minor:  The minor version number.
 #
-# @qemu.micro:  The micro version number.
+# @micro:  The micro version number.
 #
 # Since: 2.4
 ##

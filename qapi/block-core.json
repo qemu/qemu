@@ -2160,10 +2160,6 @@
 #
 # @type:       Transport type used for gluster connection
 #
-# @unix:       socket file
-#
-# @tcp:        host address and port number
-#
 # This is similar to SocketAddress, only distinction:
 #
 # 1. GlusterServer is a flat union, SocketAddress is a simple union.
