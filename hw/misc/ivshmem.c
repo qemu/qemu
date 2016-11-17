@@ -858,7 +858,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      &s->ivshmem_mmio);
 
-    if (!s->not_legacy_32bit) {
+    if (s->not_legacy_32bit) {
         attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
     }
 
@@ -1045,6 +1045,7 @@ static void ivshmem_plain_init(Object *obj)
                              ivshmem_check_memdev_is_busy,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,
                              &error_abort);
+    s->not_legacy_32bit = 1;
 }
 
 static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
@@ -1116,6 +1117,7 @@ static void ivshmem_doorbell_init(Object *obj)
 
     s->features |= (1 << IVSHMEM_MSI);
     s->legacy_size = SIZE_MAX;  /* whatever the server sends */
+    s->not_legacy_32bit = 1;
 }
 
 static void ivshmem_doorbell_realize(PCIDevice *dev, Error **errp)
