@@ -1065,11 +1065,11 @@ static int qed_aio_write_main(QEDAIOCB *acb)
 /**
  * Populate untouched regions of new data cluster
  */
-static void qed_aio_write_cow(void *opaque, int ret)
+static int qed_aio_write_cow(QEDAIOCB *acb)
 {
-    QEDAIOCB *acb = opaque;
     BDRVQEDState *s = acb_to_s(acb);
     uint64_t start, len, offset;
+    int ret;
 
     /* Populate front untouched region of new data cluster */
     start = qed_start_of_cluster(s, acb->cur_pos);
@@ -1077,9 +1077,8 @@ static void qed_aio_write_cow(void *opaque, int ret)
 
     trace_qed_aio_write_prefill(s, acb, start, len, acb->cur_cluster);
     ret = qed_copy_from_backing_file(s, start, len, acb->cur_cluster);
-    if (ret) {
-        qed_aio_complete(acb, ret);
-        return;
+    if (ret < 0) {
+        return ret;
     }
 
     /* Populate back untouched region of new data cluster */
@@ -1091,17 +1090,11 @@ static void qed_aio_write_cow(void *opaque, int ret)
 
     trace_qed_aio_write_postfill(s, acb, start, len, offset);
     ret = qed_copy_from_backing_file(s, start, len, offset);
-    if (ret) {
-        qed_aio_complete(acb, ret);
-        return;
+    if (ret < 0) {
+        return ret;
     }
 
-    ret = qed_aio_write_main(acb);
-    if (ret < 0) {
-        qed_aio_complete(acb, ret);
-        return;
-    }
-    qed_aio_next_io(acb, 0);
+    return qed_aio_write_main(acb);
 }
 
 /**
@@ -1117,23 +1110,6 @@ static bool qed_should_set_need_check(BDRVQEDState *s)
     return !(s->header.features & QED_F_NEED_CHECK);
 }
 
-static void qed_aio_write_zero_cluster(void *opaque, int ret)
-{
-    QEDAIOCB *acb = opaque;
-
-    if (ret) {
-        qed_aio_complete(acb, ret);
-        return;
-    }
-
-    ret = qed_aio_write_l2_update(acb, 1);
-    if (ret < 0) {
-        qed_aio_complete(acb, ret);
-        return;
-    }
-    qed_aio_next_io(acb, 0);
-}
-
 /**
  * Write new data cluster
  *
@@ -1145,7 +1121,6 @@ static void qed_aio_write_zero_cluster(void *opaque, int ret)
 static void qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
 {
     BDRVQEDState *s = acb_to_s(acb);
-    BlockCompletionFunc *cb;
     int ret;
 
     /* Cancel timer when the first allocating request comes in */
@@ -1172,20 +1147,29 @@ static void qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
             qed_aio_start_io(acb);
             return;
         }
-
-        cb = qed_aio_write_zero_cluster;
     } else {
-        cb = qed_aio_write_cow;
         acb->cur_cluster = qed_alloc_clusters(s, acb->cur_nclusters);
     }
 
     if (qed_should_set_need_check(s)) {
         s->header.features |= QED_F_NEED_CHECK;
         ret = qed_write_header(s);
-        cb(acb, ret);
-    } else {
-        cb(acb, 0);
+        if (ret < 0) {
+            qed_aio_complete(acb, ret);
+            return;
+        }
     }
+
+    if (acb->flags & QED_AIOCB_ZERO) {
+        ret = qed_aio_write_l2_update(acb, 1);
+    } else {
+        ret = qed_aio_write_cow(acb);
+    }
+    if (ret < 0) {
+        qed_aio_complete(acb, ret);
+        return;
+    }
+    qed_aio_next_io(acb, 0);
 }
 
 /**
