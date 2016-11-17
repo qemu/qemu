@@ -1712,9 +1712,13 @@
 #
 # Drivers that are supported in block device operations.
 #
-# @host_device, @host_cdrom: Since 2.1
+# @host_device: Since 2.1
+# @host_cdrom: Since 2.1
 # @gluster: Since 2.7
-# @nbd, @nfs, @replication, @ssh: Since 2.8
+# @nbd: Since 2.8
+# @nfs: Since 2.8
+# @replication: Since 2.8
+# @ssh: Since 2.8
 #
 # Since: 2.0
 ##
