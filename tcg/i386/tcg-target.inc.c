@@ -1146,9 +1146,12 @@ static void tcg_out_ctz(TCGContext *s, int rexw, TCGReg dest, TCGReg arg1,
         tcg_debug_assert(arg2 == (rexw ? 64 : 32));
         tcg_out_modrm(s, OPC_TZCNT + rexw, dest, arg1);
     } else {
-        tcg_debug_assert(dest != arg2);
+        /* ??? The manual says that the output is undefined when the
+           input is zero, but real hardware leaves it unchanged.  As
+           noted in target-i386/translate.c, real programs depend on
+           this -- now we are one more of those.  */
+        tcg_debug_assert(dest == arg2);
         tcg_out_modrm(s, OPC_BSF + rexw, dest, arg1);
-        tcg_out_cmov(s, TCG_COND_EQ, rexw, dest, arg2);
     }
 }
 
@@ -1161,20 +1164,26 @@ static void tcg_out_clz(TCGContext *s, int rexw, TCGReg dest, TCGReg arg1,
             tcg_debug_assert(arg2 == (rexw ? 64 : 32));
         } else {
             tcg_debug_assert(dest != arg2);
+            /* LZCNT sets C if the input was zero.  */
             tcg_out_cmov(s, TCG_COND_LTU, rexw, dest, arg2);
         }
     } else {
-        tcg_debug_assert(!const_a2);
-        tcg_debug_assert(dest != arg1);
-        tcg_debug_assert(dest != arg2);
+        TCGType type = rexw ? TCG_TYPE_I64: TCG_TYPE_I32;
+        TCGArg rev = rexw ? 63 : 31;
 
-        /* Recall that the output of BSR is the index not the count.  */
+        /* Recall that the output of BSR is the index not the count.
+           Therefore we must adjust the result by ^ (SIZE-1).  In some
+           cases below, we prefer an extra XOR to a JMP.  */
+        /* ??? See the comment in tcg_out_ctz re BSF.  */
+        if (const_a2) {
+            tcg_debug_assert(dest != arg1);
+            tcg_out_movi(s, type, dest, arg2 ^ rev);
+        } else {
+            tcg_debug_assert(dest == arg2);
+            tgen_arithi(s, ARITH_XOR + rexw, dest, rev, 0);
+        }
         tcg_out_modrm(s, OPC_BSR + rexw, dest, arg1);
-        tgen_arithi(s, ARITH_XOR + rexw, dest, rexw ? 63 : 31, 0);
-
-        /* Since we have destroyed the flags from BSR, we have to re-test.  */
-        tcg_out_cmp(s, arg1, 0, 1, rexw);
-        tcg_out_cmov(s, TCG_COND_EQ, rexw, dest, arg2);
+        tgen_arithi(s, ARITH_XOR + rexw, dest, rev, 0);
     }
 }
 
@@ -2443,7 +2452,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_ctz_i64:
         {
             static const TCGTargetOpDef ctz[2] = {
-                { .args_ct_str = { "&r", "r", "r" } },
+                { .args_ct_str = { "r", "r", "0" } },
                 { .args_ct_str = { "&r", "r", "rW" } },
             };
             return &ctz[have_bmi1];
@@ -2452,7 +2461,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_clz_i64:
         {
             static const TCGTargetOpDef clz[2] = {
-                { .args_ct_str = { "&r", "r", "r" } },
+                { .args_ct_str = { "&r", "r", "0i" } },
                 { .args_ct_str = { "&r", "r", "rW" } },
             };
             return &clz[have_lzcnt];
