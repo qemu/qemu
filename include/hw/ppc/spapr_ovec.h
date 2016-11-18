@@ -37,6 +37,7 @@
 #define _SPAPR_OVEC_H
 
 #include "cpu.h"
+#include "migration/vmstate.h"
 
 typedef struct sPAPROptionVector sPAPROptionVector;
 
@@ -63,5 +64,8 @@ bool spapr_ovec_test(sPAPROptionVector *ov, long bitnr);
 sPAPROptionVector *spapr_ovec_parse_vector(target_ulong table_addr, int vector);
 int spapr_ovec_populate_dt(void *fdt, int fdt_offset,
                            sPAPROptionVector *ov, const char *name);
+
+/* migration */
+extern const VMStateDescription vmstate_spapr_ovec;
 
 #endif /* !defined (_SPAPR_OVEC_H) */

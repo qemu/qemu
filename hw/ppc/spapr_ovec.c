@@ -37,6 +37,17 @@
  */
 struct sPAPROptionVector {
     unsigned long *bitmap;
+    int32_t bitmap_size; /* only used for migration */
+};
+
+const VMStateDescription vmstate_spapr_ovec = {
+    .name = "spapr_option_vector",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_BITMAP(bitmap, sPAPROptionVector, 1, bitmap_size),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 sPAPROptionVector *spapr_ovec_new(void)
@@ -45,6 +56,7 @@ sPAPROptionVector *spapr_ovec_new(void)
 
     ov = g_new0(sPAPROptionVector, 1);
     ov->bitmap = bitmap_new(OV_MAXBITS);
+    ov->bitmap_size = OV_MAXBITS;
 
     return ov;
 }
