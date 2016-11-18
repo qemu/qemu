@@ -17,7 +17,7 @@ struct numa_addr_range {
 
 typedef struct node_info {
     uint64_t node_mem;
-    DECLARE_BITMAP(node_cpu, MAX_CPUMASK_BITS);
+    unsigned long *node_cpu;
     struct HostMemoryBackend *node_memdev;
     bool present;
     QLIST_HEAD(, numa_addr_range) addr; /* List to store address ranges */
