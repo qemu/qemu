@@ -1256,37 +1256,37 @@ static void process_op_defs(TCGContext *s)
 
             tcg_regset_clear(def->args_ct[i].u.regs);
             def->args_ct[i].ct = 0;
-            if (ct_str[0] >= '0' && ct_str[0] <= '9') {
-                int oarg;
-                oarg = ct_str[0] - '0';
-                tcg_debug_assert(oarg < def->nb_oargs);
-                tcg_debug_assert(def->args_ct[oarg].ct & TCG_CT_REG);
-                /* TCG_CT_ALIAS is for the output arguments. The input
-                   argument is tagged with TCG_CT_IALIAS. */
-                def->args_ct[i] = def->args_ct[oarg];
-                def->args_ct[oarg].ct = TCG_CT_ALIAS;
-                def->args_ct[oarg].alias_index = i;
-                def->args_ct[i].ct |= TCG_CT_IALIAS;
-                def->args_ct[i].alias_index = oarg;
-            } else {
-                for(;;) {
-                    if (*ct_str == '\0')
-                        break;
-                    switch(*ct_str) {
-                    case '&':
-                        def->args_ct[i].ct |= TCG_CT_NEWREG;
-                        ct_str++;
-                        break;
-                    case 'i':
-                        def->args_ct[i].ct |= TCG_CT_CONST;
-                        ct_str++;
-                        break;
-                    default:
-                        ct_str = target_parse_constraint(&def->args_ct[i],
-                                                         ct_str, type);
-                        /* Typo in TCGTargetOpDef constraint. */
-                        tcg_debug_assert(ct_str != NULL);
+            while (*ct_str != '\0') {
+                switch(*ct_str) {
+                case '0' ... '9':
+                    {
+                        int oarg = *ct_str - '0';
+                        tcg_debug_assert(ct_str == tdefs->args_ct_str[i]);
+                        tcg_debug_assert(oarg < def->nb_oargs);
+                        tcg_debug_assert(def->args_ct[oarg].ct & TCG_CT_REG);
+                        /* TCG_CT_ALIAS is for the output arguments.
+                           The input is tagged with TCG_CT_IALIAS. */
+                        def->args_ct[i] = def->args_ct[oarg];
+                        def->args_ct[oarg].ct |= TCG_CT_ALIAS;
+                        def->args_ct[oarg].alias_index = i;
+                        def->args_ct[i].ct |= TCG_CT_IALIAS;
+                        def->args_ct[i].alias_index = oarg;
                     }
+                    ct_str++;
+                    break;
+                case '&':
+                    def->args_ct[i].ct |= TCG_CT_NEWREG;
+                    ct_str++;
+                    break;
+                case 'i':
+                    def->args_ct[i].ct |= TCG_CT_CONST;
+                    ct_str++;
+                    break;
+                default:
+                    ct_str = target_parse_constraint(&def->args_ct[i],
+                                                     ct_str, type);
+                    /* Typo in TCGTargetOpDef constraint. */
+                    tcg_debug_assert(ct_str != NULL);
                 }
             }
         }
@@ -2296,7 +2296,8 @@ static void tcg_reg_alloc_op(TCGContext *s,
             arg = args[i];
             arg_ct = &def->args_ct[i];
             ts = &s->temps[arg];
-            if (arg_ct->ct & TCG_CT_ALIAS) {
+            if ((arg_ct->ct & TCG_CT_ALIAS)
+                && !const_args[arg_ct->alias_index]) {
                 reg = new_args[arg_ct->alias_index];
             } else if (arg_ct->ct & TCG_CT_NEWREG) {
                 reg = tcg_reg_alloc(s, arg_ct->u.regs,
