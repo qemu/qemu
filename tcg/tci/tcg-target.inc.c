@@ -259,6 +259,18 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { -1 },
 };
 
+static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
+{
+    int i, n = ARRAY_SIZE(tcg_target_op_defs);
+
+    for (i = 0; i < n; ++i) {
+        if (tcg_target_op_defs[i].op == op) {
+            return &tcg_target_op_defs[i];
+        }
+    }
+    return NULL;
+}
+
 static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R0,
     TCG_REG_R1,
@@ -875,7 +887,6 @@ static void tcg_target_init(TCGContext *s)
 
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
-    tcg_add_target_add_op_defs(tcg_target_op_defs);
 
     /* We use negative offsets from "sp" so that we can distinguish
        stores that might pretend to be call arguments.  */

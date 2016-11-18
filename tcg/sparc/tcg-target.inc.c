@@ -1583,6 +1583,18 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { -1 },
 };
 
+static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
+{
+    int i, n = ARRAY_SIZE(sparc_op_defs);
+
+    for (i = 0; i < n; ++i) {
+        if (sparc_op_defs[i].op == op) {
+            return &sparc_op_defs[i];
+        }
+    }
+    return NULL;
+}
+
 static void tcg_target_init(TCGContext *s)
 {
     /* Only probe for the platform and capabilities if we havn't already
@@ -1622,8 +1634,6 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_O6); /* stack pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_T1); /* for internal use */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_T2); /* for internal use */
-
-    tcg_add_target_add_op_defs(sparc_op_defs);
 }
 
 #if SPARC64

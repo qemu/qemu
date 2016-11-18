@@ -2262,6 +2262,18 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { -1 },
 };
 
+static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
+{
+    int i, n = ARRAY_SIZE(mips_op_defs);
+
+    for (i = 0; i < n; ++i) {
+        if (mips_op_defs[i].op == op) {
+            return &mips_op_defs[i];
+        }
+    }
+    return NULL;
+}
+
 static int tcg_target_callee_save_regs[] = {
     TCG_REG_S0,       /* used for the global env (TCG_AREG0) */
     TCG_REG_S1,
@@ -2563,8 +2575,6 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_RA);   /* return address */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);   /* stack pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_GP);   /* global pointer */
-
-    tcg_add_target_add_op_defs(mips_op_defs);
 }
 
 void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)

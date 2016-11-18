@@ -2008,6 +2008,18 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { -1 },
 };
 
+static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
+{
+    int i, n = ARRAY_SIZE(arm_op_defs);
+
+    for (i = 0; i < n; ++i) {
+        if (arm_op_defs[i].op == op) {
+            return &arm_op_defs[i];
+        }
+    }
+    return NULL;
+}
+
 static void tcg_target_init(TCGContext *s)
 {
     /* Only probe for the platform and capabilities if we havn't already
@@ -2038,8 +2050,6 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_PC);
-
-    tcg_add_target_add_op_defs(arm_op_defs);
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,

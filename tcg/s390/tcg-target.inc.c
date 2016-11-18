@@ -2326,6 +2326,18 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { -1 },
 };
 
+static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
+{
+    int i, n = ARRAY_SIZE(s390_op_defs);
+
+    for (i = 0; i < n; ++i) {
+        if (s390_op_defs[i].op == op) {
+            return &s390_op_defs[i];
+        }
+    }
+    return NULL;
+}
+
 static void query_s390_facilities(void)
 {
     unsigned long hwcap = qemu_getauxval(AT_HWCAP);
@@ -2368,8 +2380,6 @@ static void tcg_target_init(TCGContext *s)
     /* XXX many insns can't be used with R0, so we better avoid it for now */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
-
-    tcg_add_target_add_op_defs(s390_op_defs);
 }
 
 #define FRAME_SIZE  ((int)(TCG_TARGET_CALL_STACK_OFFSET          \

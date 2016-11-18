@@ -2352,6 +2352,18 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { -1 },
 };
 
+static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
+{
+    int i, n = ARRAY_SIZE(ia64_op_defs);
+
+    for (i = 0; i < n; ++i) {
+        if (ia64_op_defs[i].op == op) {
+            return &ia64_op_defs[i];
+        }
+    }
+    return NULL;
+}
+
 /* Generate global QEMU prologue and epilogue code */
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
@@ -2471,6 +2483,4 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R5);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R6);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R7);
-
-    tcg_add_target_add_op_defs(ia64_op_defs);
 }
