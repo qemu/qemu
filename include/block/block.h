@@ -353,14 +353,6 @@ BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
                                         const char *node_name, Error **errp);
 
 /* async block I/O */
-BlockAIOCB *bdrv_aio_readv(BdrvChild *child, int64_t sector_num,
-                           QEMUIOVector *iov, int nb_sectors,
-                           BlockCompletionFunc *cb, void *opaque);
-BlockAIOCB *bdrv_aio_writev(BdrvChild *child, int64_t sector_num,
-                            QEMUIOVector *iov, int nb_sectors,
-                            BlockCompletionFunc *cb, void *opaque);
-BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
-                           BlockCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockAIOCB *acb);
 void bdrv_aio_cancel_async(BlockAIOCB *acb);
 

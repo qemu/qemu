@@ -34,14 +34,6 @@
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
-static BlockAIOCB *bdrv_co_aio_prw_vector(BdrvChild *child,
-                                          int64_t offset,
-                                          QEMUIOVector *qiov,
-                                          BdrvRequestFlags flags,
-                                          BlockCompletionFunc *cb,
-                                          void *opaque,
-                                          bool is_write);
-static void coroutine_fn bdrv_co_do_rw(void *opaque);
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int count, BdrvRequestFlags flags);
 
@@ -2080,28 +2072,6 @@ int bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
 /**************************************************************/
 /* async I/Os */
 
-BlockAIOCB *bdrv_aio_readv(BdrvChild *child, int64_t sector_num,
-                           QEMUIOVector *qiov, int nb_sectors,
-                           BlockCompletionFunc *cb, void *opaque)
-{
-    trace_bdrv_aio_readv(child->bs, sector_num, nb_sectors, opaque);
-
-    assert(nb_sectors << BDRV_SECTOR_BITS == qiov->size);
-    return bdrv_co_aio_prw_vector(child, sector_num << BDRV_SECTOR_BITS, qiov,
-                                  0, cb, opaque, false);
-}
-
-BlockAIOCB *bdrv_aio_writev(BdrvChild *child, int64_t sector_num,
-                            QEMUIOVector *qiov, int nb_sectors,
-                            BlockCompletionFunc *cb, void *opaque)
-{
-    trace_bdrv_aio_writev(child->bs, sector_num, nb_sectors, opaque);
-
-    assert(nb_sectors << BDRV_SECTOR_BITS == qiov->size);
-    return bdrv_co_aio_prw_vector(child, sector_num << BDRV_SECTOR_BITS, qiov,
-                                  0, cb, opaque, true);
-}
-
 void bdrv_aio_cancel(BlockAIOCB *acb)
 {
     qemu_aio_ref(acb);
@@ -2131,147 +2101,6 @@ void bdrv_aio_cancel_async(BlockAIOCB *acb)
     if (acb->aiocb_info->cancel_async) {
         acb->aiocb_info->cancel_async(acb);
     }
-}
-
-/**************************************************************/
-/* async block device emulation */
-
-typedef struct BlockRequest {
-    union {
-        /* Used during read, write, trim */
-        struct {
-            int64_t offset;
-            int bytes;
-            int flags;
-            QEMUIOVector *qiov;
-        };
-        /* Used during ioctl */
-        struct {
-            int req;
-            void *buf;
-        };
-    };
-    BlockCompletionFunc *cb;
-    void *opaque;
-
-    int error;
-} BlockRequest;
-
-typedef struct BlockAIOCBCoroutine {
-    BlockAIOCB common;
-    BdrvChild *child;
-    BlockRequest req;
-    bool is_write;
-    bool need_bh;
-    bool *done;
-} BlockAIOCBCoroutine;
-
-static const AIOCBInfo bdrv_em_co_aiocb_info = {
-    .aiocb_size         = sizeof(BlockAIOCBCoroutine),
-};
-
-static void bdrv_co_complete(BlockAIOCBCoroutine *acb)
-{
-    if (!acb->need_bh) {
-        bdrv_dec_in_flight(acb->common.bs);
-        acb->common.cb(acb->common.opaque, acb->req.error);
-        qemu_aio_unref(acb);
-    }
-}
-
-static void bdrv_co_em_bh(void *opaque)
-{
-    BlockAIOCBCoroutine *acb = opaque;
-
-    assert(!acb->need_bh);
-    bdrv_co_complete(acb);
-}
-
-static void bdrv_co_maybe_schedule_bh(BlockAIOCBCoroutine *acb)
-{
-    acb->need_bh = false;
-    if (acb->req.error != -EINPROGRESS) {
-        BlockDriverState *bs = acb->common.bs;
-
-        aio_bh_schedule_oneshot(bdrv_get_aio_context(bs), bdrv_co_em_bh, acb);
-    }
-}
-
-/* Invoke bdrv_co_do_readv/bdrv_co_do_writev */
-static void coroutine_fn bdrv_co_do_rw(void *opaque)
-{
-    BlockAIOCBCoroutine *acb = opaque;
-
-    if (!acb->is_write) {
-        acb->req.error = bdrv_co_preadv(acb->child, acb->req.offset,
-            acb->req.qiov->size, acb->req.qiov, acb->req.flags);
-    } else {
-        acb->req.error = bdrv_co_pwritev(acb->child, acb->req.offset,
-            acb->req.qiov->size, acb->req.qiov, acb->req.flags);
-    }
-
-    bdrv_co_complete(acb);
-}
-
-static BlockAIOCB *bdrv_co_aio_prw_vector(BdrvChild *child,
-                                          int64_t offset,
-                                          QEMUIOVector *qiov,
-                                          BdrvRequestFlags flags,
-                                          BlockCompletionFunc *cb,
-                                          void *opaque,
-                                          bool is_write)
-{
-    Coroutine *co;
-    BlockAIOCBCoroutine *acb;
-
-    /* Matched by bdrv_co_complete's bdrv_dec_in_flight.  */
-    bdrv_inc_in_flight(child->bs);
-
-    acb = qemu_aio_get(&bdrv_em_co_aiocb_info, child->bs, cb, opaque);
-    acb->child = child;
-    acb->need_bh = true;
-    acb->req.error = -EINPROGRESS;
-    acb->req.offset = offset;
-    acb->req.qiov = qiov;
-    acb->req.flags = flags;
-    acb->is_write = is_write;
-
-    co = qemu_coroutine_create(bdrv_co_do_rw, acb);
-    bdrv_coroutine_enter(child->bs, co);
-
-    bdrv_co_maybe_schedule_bh(acb);
-    return &acb->common;
-}
-
-static void coroutine_fn bdrv_aio_flush_co_entry(void *opaque)
-{
-    BlockAIOCBCoroutine *acb = opaque;
-    BlockDriverState *bs = acb->common.bs;
-
-    acb->req.error = bdrv_co_flush(bs);
-    bdrv_co_complete(acb);
-}
-
-BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
-        BlockCompletionFunc *cb, void *opaque)
-{
-    trace_bdrv_aio_flush(bs, opaque);
-
-    Coroutine *co;
-    BlockAIOCBCoroutine *acb;
-
-    /* Matched by bdrv_co_complete's bdrv_dec_in_flight.  */
-    bdrv_inc_in_flight(bs);
-
-    acb = qemu_aio_get(&bdrv_em_co_aiocb_info, bs, cb, opaque);
-    acb->need_bh = true;
-    acb->req.error = -EINPROGRESS;
-
-    co = qemu_coroutine_create(bdrv_aio_flush_co_entry, acb);
-    bdrv_coroutine_enter(bs, co);
-
-    bdrv_co_maybe_schedule_bh(acb);
-    return &acb->common;
 }
 
 /**************************************************************/
