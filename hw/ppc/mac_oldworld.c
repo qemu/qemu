@@ -284,6 +284,7 @@ static void ppc_heathrow_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE-1 DMA */
     qdev_connect_gpio_out(dev, 5, pic[0x11]); /* Screamer */
     qdev_connect_gpio_out(dev, 6, pic[0x08]); /* Screamer TX DMA */
+    qdev_connect_gpio_out(dev, 7, pic[0x09]); /* Screamer RX DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     macio_init(macio, pic_mem, escc_bar);
 

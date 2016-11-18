@@ -136,6 +136,7 @@ typedef struct ScreamerState {
     qemu_irq irq;
     void *dbdma;
     qemu_irq dma_tx_irq;
+    qemu_irq dma_rx_irq;
 
     QEMUSoundCard card;
     SWVoiceOut *voice;
@@ -146,10 +147,10 @@ typedef struct ScreamerState {
     DBDMA_io io;
 
     uint32_t regs[6];
-    uint32_t codec_ctrl_regs[7];
+    uint32_t codec_ctrl_regs[8];
 } ScreamerState;
 
-void macio_screamer_register_dma(ScreamerState *s, void *dbdma, int txchannel);
+void macio_screamer_register_dma(ScreamerState *s, void *dbdma, int txchannel, int rxchannel);
 
 /* MacIO */
 #define TYPE_OLDWORLD_MACIO "macio-oldworld"
