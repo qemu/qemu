@@ -253,11 +253,11 @@ static CachedL2Table *qed_new_l2_table(BDRVQEDState *s)
     return l2_table;
 }
 
-static void qed_aio_next_io(QEDAIOCB *acb, int ret);
+static void qed_aio_next_io(QEDAIOCB *acb);
 
 static void qed_aio_start_io(QEDAIOCB *acb)
 {
-    qed_aio_next_io(acb, 0);
+    qed_aio_next_io(acb);
 }
 
 static void qed_plug_allocating_write_reqs(BDRVQEDState *s)
@@ -1273,24 +1273,19 @@ static int qed_aio_read_data(void *opaque, int ret, uint64_t offset, size_t len)
 /**
  * Begin next I/O or complete the request
  */
-static void qed_aio_next_io(QEDAIOCB *acb, int ret)
+static void qed_aio_next_io(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
     uint64_t offset;
     size_t len;
+    int ret;
 
-    trace_qed_aio_next_io(s, acb, ret, acb->cur_pos + acb->cur_qiov.size);
+    trace_qed_aio_next_io(s, acb, 0, acb->cur_pos + acb->cur_qiov.size);
 
     if (acb->backing_qiov) {
         qemu_iovec_destroy(acb->backing_qiov);
         g_free(acb->backing_qiov);
         acb->backing_qiov = NULL;
-    }
-
-    /* Handle I/O error */
-    if (ret) {
-        qed_aio_complete(acb, ret);
-        return;
     }
 
     acb->qiov_offset += acb->cur_qiov.size;
@@ -1323,7 +1318,7 @@ static void qed_aio_next_io(QEDAIOCB *acb, int ret)
         }
         return;
     }
-    qed_aio_next_io(acb, 0);
+    qed_aio_next_io(acb);
 }
 
 static BlockAIOCB *qed_aio_setup(BlockDriverState *bs,
