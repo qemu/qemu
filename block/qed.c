@@ -21,10 +21,6 @@
 #include "qapi/qmp/qerror.h"
 #include "sysemu/block-backend.h"
 
-static const AIOCBInfo qed_aiocb_info = {
-    .aiocb_size         = sizeof(QEDAIOCB),
-};
-
 static int bdrv_qed_probe(const uint8_t *buf, int buf_size,
                           const char *filename)
 {
@@ -251,13 +247,6 @@ static CachedL2Table *qed_new_l2_table(BDRVQEDState *s)
     memset(l2_table->table->offsets, 0,
            s->header.cluster_size * s->header.table_size);
     return l2_table;
-}
-
-static void qed_aio_next_io(QEDAIOCB *acb);
-
-static void qed_aio_start_io(QEDAIOCB *acb)
-{
-    qed_aio_next_io(acb);
 }
 
 static void qed_plug_allocating_write_reqs(BDRVQEDState *s)
@@ -751,7 +740,7 @@ static int64_t coroutine_fn bdrv_qed_co_get_block_status(BlockDriverState *bs,
 
 static BDRVQEDState *acb_to_s(QEDAIOCB *acb)
 {
-    return acb->common.bs->opaque;
+    return acb->bs->opaque;
 }
 
 /**
@@ -888,27 +877,9 @@ static void qed_update_l2_table(BDRVQEDState *s, QEDTable *table, int index,
     }
 }
 
-static void qed_aio_complete_bh(void *opaque)
-{
-    QEDAIOCB *acb = opaque;
-    BDRVQEDState *s = acb_to_s(acb);
-    BlockCompletionFunc *cb = acb->common.cb;
-    void *user_opaque = acb->common.opaque;
-    int ret = acb->bh_ret;
-
-    qemu_aio_unref(acb);
-
-    /* Invoke callback */
-    qed_acquire(s);
-    cb(user_opaque, ret);
-    qed_release(s);
-}
-
-static void qed_aio_complete(QEDAIOCB *acb, int ret)
+static void qed_aio_complete(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
-
-    trace_qed_aio_complete(s, acb, ret);
 
     /* Free resources */
     qemu_iovec_destroy(&acb->cur_qiov);
@@ -919,11 +890,6 @@ static void qed_aio_complete(QEDAIOCB *acb, int ret)
         qemu_vfree(acb->qiov->iov[0].iov_base);
         acb->qiov->iov[0].iov_base = NULL;
     }
-
-    /* Arrange for a bh to invoke the completion function */
-    acb->bh_ret = ret;
-    aio_bh_schedule_oneshot(bdrv_get_aio_context(acb->common.bs),
-                            qed_aio_complete_bh, acb);
 
     /* Start next allocating write request waiting behind this one.  Note that
      * requests enqueue themselves when they first hit an unallocated cluster
@@ -1172,7 +1138,7 @@ static int qed_aio_write_inplace(QEDAIOCB *acb, uint64_t offset, size_t len)
         struct iovec *iov = acb->qiov->iov;
 
         if (!iov->iov_base) {
-            iov->iov_base = qemu_try_blockalign(acb->common.bs, iov->iov_len);
+            iov->iov_base = qemu_try_blockalign(acb->bs, iov->iov_len);
             if (iov->iov_base == NULL) {
                 return -ENOMEM;
             }
@@ -1231,7 +1197,7 @@ static int qed_aio_read_data(void *opaque, int ret, uint64_t offset, size_t len)
 {
     QEDAIOCB *acb = opaque;
     BDRVQEDState *s = acb_to_s(acb);
-    BlockDriverState *bs = acb->common.bs;
+    BlockDriverState *bs = acb->bs;
 
     /* Adjust offset into cluster */
     offset += qed_offset_into_cluster(s, acb->cur_pos);
@@ -1260,7 +1226,7 @@ static int qed_aio_read_data(void *opaque, int ret, uint64_t offset, size_t len)
 /**
  * Begin next I/O or complete the request
  */
-static void qed_aio_next_io(QEDAIOCB *acb)
+static int qed_aio_next_io(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
     uint64_t offset;
@@ -1282,16 +1248,15 @@ static void qed_aio_next_io(QEDAIOCB *acb)
 
         /* Complete request */
         if (acb->cur_pos >= acb->end_pos) {
-            qed_aio_complete(acb, 0);
-            return;
+            ret = 0;
+            break;
         }
 
         /* Find next cluster and start I/O */
         len = acb->end_pos - acb->cur_pos;
         ret = qed_find_cluster(s, &acb->request, acb->cur_pos, &len, &offset);
         if (ret < 0) {
-            qed_aio_complete(acb, ret);
-            return;
+            break;
         }
 
         if (acb->flags & QED_AIOCB_WRITE) {
@@ -1301,56 +1266,32 @@ static void qed_aio_next_io(QEDAIOCB *acb)
         }
 
         if (ret < 0 && ret != -EAGAIN) {
-            qed_aio_complete(acb, ret);
-            return;
+            break;
         }
     }
-}
 
-typedef struct QEDRequestCo {
-    Coroutine *co;
-    bool done;
-    int ret;
-} QEDRequestCo;
-
-static void qed_co_request_cb(void *opaque, int ret)
-{
-    QEDRequestCo *co = opaque;
-
-    co->done = true;
-    co->ret = ret;
-    qemu_coroutine_enter_if_inactive(co->co);
+    trace_qed_aio_complete(s, acb, ret);
+    qed_aio_complete(acb);
+    return ret;
 }
 
 static int coroutine_fn qed_co_request(BlockDriverState *bs, int64_t sector_num,
                                        QEMUIOVector *qiov, int nb_sectors,
                                        int flags)
 {
-    QEDRequestCo co = {
-        .co     = qemu_coroutine_self(),
-        .done   = false,
+    QEDAIOCB acb = {
+        .bs         = bs,
+        .cur_pos    = (uint64_t) sector_num * BDRV_SECTOR_SIZE,
+        .end_pos    = (sector_num + nb_sectors) * BDRV_SECTOR_SIZE,
+        .qiov       = qiov,
+        .flags      = flags,
     };
-    QEDAIOCB *acb = qemu_aio_get(&qed_aiocb_info, bs, qed_co_request_cb, &co);
+    qemu_iovec_init(&acb.cur_qiov, qiov->niov);
 
-    trace_qed_aio_setup(bs->opaque, acb, sector_num, nb_sectors, &co, flags);
-
-    acb->flags = flags;
-    acb->qiov = qiov;
-    acb->qiov_offset = 0;
-    acb->cur_pos = (uint64_t)sector_num * BDRV_SECTOR_SIZE;
-    acb->end_pos = acb->cur_pos + nb_sectors * BDRV_SECTOR_SIZE;
-    acb->backing_qiov = NULL;
-    acb->request.l2_table = NULL;
-    qemu_iovec_init(&acb->cur_qiov, qiov->niov);
+    trace_qed_aio_setup(bs->opaque, &acb, sector_num, nb_sectors, NULL, flags);
 
     /* Start request */
-    qed_aio_start_io(acb);
-
-    if (!co.done) {
-        qemu_coroutine_yield();
-    }
-
-    return co.ret;
+    return qed_aio_next_io(&acb);
 }
 
 static int coroutine_fn bdrv_qed_co_readv(BlockDriverState *bs,

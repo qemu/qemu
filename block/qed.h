@@ -129,8 +129,7 @@ enum {
 };
 
 typedef struct QEDAIOCB {
-    BlockAIOCB common;
-    int bh_ret;                     /* final return status for completion bh */
+    BlockDriverState *bs;
     QSIMPLEQ_ENTRY(QEDAIOCB) next;  /* next request */
     int flags;                      /* QED_AIOCB_* bits ORed together */
     uint64_t end_pos;               /* request end on block device, in bytes */
