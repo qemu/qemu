@@ -202,17 +202,6 @@ void qed_acquire(BDRVQEDState *s);
 void qed_release(BDRVQEDState *s);
 
 /**
- * Generic callback for chaining async callbacks
- */
-typedef struct {
-    BlockCompletionFunc *cb;
-    void *opaque;
-} GenericCB;
-
-void *gencb_alloc(size_t len, BlockCompletionFunc *cb, void *opaque);
-void gencb_complete(void *opaque, int ret);
-
-/**
  * Header functions
  */
 int qed_write_header_sync(BDRVQEDState *s);
