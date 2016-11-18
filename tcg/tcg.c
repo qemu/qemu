@@ -96,7 +96,8 @@ static void tcg_register_jit_int(void *buf, size_t size,
     __attribute__((unused));
 
 /* Forward declarations for functions declared and used in tcg-target.inc.c. */
-static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str);
+static const char *target_parse_constraint(TCGArgConstraint *ct,
+                                           const char *ct_str, TCGType type);
 static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
                        intptr_t arg2);
 static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
@@ -1231,7 +1232,8 @@ static void process_op_defs(TCGContext *s)
     for (op = 0; op < NB_OPS; op++) {
         TCGOpDef *def = &tcg_op_defs[op];
         const TCGTargetOpDef *tdefs;
-        int i, nb_args, ok;
+        TCGType type;
+        int i, nb_args;
 
         if (def->flags & TCG_OPF_NOT_PRESENT) {
             continue;
@@ -1246,6 +1248,7 @@ static void process_op_defs(TCGContext *s)
         /* Missing TCGTargetOpDef entry. */
         tcg_debug_assert(tdefs != NULL);
 
+        type = (def->flags & TCG_OPF_64BIT ? TCG_TYPE_I64 : TCG_TYPE_I32);
         for (i = 0; i < nb_args; i++) {
             const char *ct_str = tdefs->args_ct_str[i];
             /* Incomplete TCGTargetOpDef entry. */
@@ -1279,9 +1282,10 @@ static void process_op_defs(TCGContext *s)
                         ct_str++;
                         break;
                     default:
-                        ok = target_parse_constraint(&def->args_ct[i], &ct_str);
+                        ct_str = target_parse_constraint(&def->args_ct[i],
+                                                         ct_str, type);
                         /* Typo in TCGTargetOpDef constraint. */
-                        tcg_debug_assert(ok == 0);
+                        tcg_debug_assert(ct_str != NULL);
                     }
                 }
             }

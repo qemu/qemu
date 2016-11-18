@@ -114,12 +114,10 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
 #define TCG_CT_CONST_ZERO 0x800
 
 /* parse target specific constraints */
-static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
+static const char *target_parse_constraint(TCGArgConstraint *ct,
+                                           const char *ct_str, TCGType type)
 {
-    const char *ct_str;
-
-    ct_str = *pct_str;
-    switch (ct_str[0]) {
+    switch (*ct_str++) {
     case 'I':
         ct->ct |= TCG_CT_CONST_ARM;
         break;
@@ -172,12 +170,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         break;
 
     default:
-        return -1;
+        return NULL;
     }
-    ct_str++;
-    *pct_str = ct_str;
-
-    return 0;
+    return ct_str;
 }
 
 static inline uint32_t rotl(uint32_t val, int n)
