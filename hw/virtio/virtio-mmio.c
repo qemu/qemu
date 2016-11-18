@@ -191,7 +191,7 @@ static uint64_t virtio_mmio_read(void *opaque, hwaddr offset, unsigned size)
         return virtio_queue_get_addr(vdev, vdev->queue_sel)
             >> proxy->guest_page_shift;
     case VIRTIO_MMIO_INTERRUPTSTATUS:
-        return vdev->isr;
+        return atomic_read(&vdev->isr);
     case VIRTIO_MMIO_STATUS:
         return vdev->status;
     case VIRTIO_MMIO_HOSTFEATURESSEL:
@@ -299,7 +299,7 @@ static void virtio_mmio_write(void *opaque, hwaddr offset, uint64_t value,
         }
         break;
     case VIRTIO_MMIO_INTERRUPTACK:
-        vdev->isr &= ~value;
+        atomic_and(&vdev->isr, ~value);
         virtio_update_irq(vdev);
         break;
     case VIRTIO_MMIO_STATUS:
@@ -347,7 +347,7 @@ static void virtio_mmio_update_irq(DeviceState *opaque, uint16_t vector)
     if (!vdev) {
         return;
     }
-    level = (vdev->isr != 0);
+    level = (atomic_read(&vdev->isr) != 0);
     DPRINTF("virtio_mmio setting IRQ %d\n", level);
     qemu_set_irq(proxy->irq, level);
 }

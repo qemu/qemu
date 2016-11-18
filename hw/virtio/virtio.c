@@ -945,7 +945,7 @@ void virtio_reset(void *opaque)
     vdev->guest_features = 0;
     vdev->queue_sel = 0;
     vdev->status = 0;
-    vdev->isr = 0;
+    atomic_set(&vdev->isr, 0);
     vdev->config_vector = VIRTIO_NO_VECTOR;
     virtio_notify_vector(vdev, vdev->config_vector);
 
@@ -1318,10 +1318,22 @@ void virtio_del_queue(VirtIODevice *vdev, int n)
     vdev->vq[n].vring.num_default = 0;
 }
 
+static void virtio_set_isr(VirtIODevice *vdev, int value)
+{
+    uint8_t old = atomic_read(&vdev->isr);
+
+    /* Do not write ISR if it does not change, so that its cacheline remains
+     * shared in the common case where the guest does not read it.
+     */
+    if ((old & value) != value) {
+        atomic_or(&vdev->isr, value);
+    }
+}
+
 void virtio_irq(VirtQueue *vq)
 {
     trace_virtio_irq(vq);
-    vq->vdev->isr |= 0x01;
+    virtio_set_isr(vq->vdev, 0x1);
     virtio_notify_vector(vq->vdev, vq->vector);
 }
 
@@ -1355,7 +1367,7 @@ void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
     }
 
     trace_virtio_notify(vdev, vq);
-    vdev->isr |= 0x01;
+    virtio_set_isr(vq->vdev, 0x1);
     virtio_notify_vector(vdev, vq->vector);
 }
 
@@ -1364,7 +1376,7 @@ void virtio_notify_config(VirtIODevice *vdev)
     if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK))
         return;
 
-    vdev->isr |= 0x03;
+    virtio_set_isr(vdev, 0x3);
     vdev->generation++;
     virtio_notify_vector(vdev, vdev->config_vector);
 }
@@ -1895,7 +1907,7 @@ void virtio_init(VirtIODevice *vdev, const char *name,
 
     vdev->device_id = device_id;
     vdev->status = 0;
-    vdev->isr = 0;
+    atomic_set(&vdev->isr, 0);
     vdev->queue_sel = 0;
     vdev->config_vector = VIRTIO_NO_VECTOR;
     vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_QUEUE_MAX);
