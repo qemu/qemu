@@ -1214,17 +1214,17 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
 int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusState *vbus = VIRTIO_BUS(qbus);
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r, e;
 
-    if (!k->ioeventfd_assign) {
+    /* We will pass the notifiers to the kernel, make sure that QEMU
+     * doesn't interfere.
+     */
+    r = virtio_device_grab_ioeventfd(vdev);
+    if (r < 0) {
         error_report("binding does not support host notifiers");
-        r = -ENOSYS;
         goto fail;
     }
 
-    virtio_device_stop_ioeventfd(vdev);
     for (i = 0; i < hdev->nvqs; ++i) {
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          true);
@@ -1244,7 +1244,7 @@ fail_vq:
         }
         assert (e >= 0);
     }
-    virtio_device_start_ioeventfd(vdev);
+    virtio_device_release_ioeventfd(vdev);
 fail:
     return r;
 }
@@ -1267,7 +1267,7 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
         }
         assert (r >= 0);
     }
-    virtio_device_start_ioeventfd(vdev);
+    virtio_device_release_ioeventfd(vdev);
 }
 
 /* Test and clear event pending status.

@@ -2191,6 +2191,22 @@ void virtio_device_stop_ioeventfd(VirtIODevice *vdev)
     virtio_bus_stop_ioeventfd(vbus);
 }
 
+int virtio_device_grab_ioeventfd(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+
+    return virtio_bus_grab_ioeventfd(vbus);
+}
+
+void virtio_device_release_ioeventfd(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+
+    virtio_bus_release_ioeventfd(vbus);
+}
+
 static void virtio_device_class_init(ObjectClass *klass, void *data)
 {
     /* Set the default value here. */

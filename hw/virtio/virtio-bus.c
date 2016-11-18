@@ -147,6 +147,39 @@ void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
     }
 }
 
+/* On success, ioeventfd ownership belongs to the caller.  */
+int virtio_bus_grab_ioeventfd(VirtioBusState *bus)
+{
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+
+    /* vhost can be used even if ioeventfd=off in the proxy device,
+     * so do not check k->ioeventfd_enabled.
+     */
+    if (!k->ioeventfd_assign) {
+        return -ENOSYS;
+    }
+
+    if (bus->ioeventfd_grabbed == 0 && bus->ioeventfd_started) {
+        virtio_bus_stop_ioeventfd(bus);
+        /* Remember that we need to restart ioeventfd
+         * when ioeventfd_grabbed becomes zero.
+         */
+        bus->ioeventfd_started = true;
+    }
+    bus->ioeventfd_grabbed++;
+    return 0;
+}
+
+void virtio_bus_release_ioeventfd(VirtioBusState *bus)
+{
+    assert(bus->ioeventfd_grabbed != 0);
+    if (--bus->ioeventfd_grabbed == 0 && bus->ioeventfd_started) {
+        /* Force virtio_bus_start_ioeventfd to act.  */
+        bus->ioeventfd_started = false;
+        virtio_bus_start_ioeventfd(bus);
+    }
+}
+
 int virtio_bus_start_ioeventfd(VirtioBusState *bus)
 {
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
@@ -161,10 +194,14 @@ int virtio_bus_start_ioeventfd(VirtioBusState *bus)
     if (bus->ioeventfd_started) {
         return 0;
     }
-    r = vdc->start_ioeventfd(vdev);
-    if (r < 0) {
-        error_report("%s: failed. Fallback to userspace (slower).", __func__);
-        return r;
+
+    /* Only set our notifier if we have ownership.  */
+    if (!bus->ioeventfd_grabbed) {
+        r = vdc->start_ioeventfd(vdev);
+        if (r < 0) {
+            error_report("%s: failed. Fallback to userspace (slower).", __func__);
+            return r;
+        }
     }
     bus->ioeventfd_started = true;
     return 0;
@@ -179,9 +216,12 @@ void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
         return;
     }
 
-    vdev = virtio_bus_get_device(bus);
-    vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
-    vdc->stop_ioeventfd(vdev);
+    /* Only remove our notifier if we have ownership.  */
+    if (!bus->ioeventfd_grabbed) {
+        vdev = virtio_bus_get_device(bus);
+        vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+        vdc->stop_ioeventfd(vdev);
+    }
     bus->ioeventfd_started = false;
 }
 
@@ -211,7 +251,6 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
     }
 
     if (assign) {
-        assert(!bus->ioeventfd_started);
         r = event_notifier_init(notifier, 1);
         if (r < 0) {
             error_report("%s: unable to init event notifier: %s (%d)",
@@ -225,9 +264,6 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
         }
         return 0;
     } else {
-        if (!bus->ioeventfd_started) {
-            return 0;
-        }
         k->ioeventfd_assign(proxy, notifier, n, false);
     }
 
