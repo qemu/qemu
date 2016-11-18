@@ -181,6 +181,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
                                unsigned max_in_bytes, unsigned max_out_bytes);
 
 bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq);
+void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq);
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 
 void virtio_save(VirtIODevice *vdev, QEMUFile *f);
@@ -280,7 +281,6 @@ void virtio_queue_host_notifier_read(EventNotifier *n);
 void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
                                                 void (*fn)(VirtIODevice *,
                                                            VirtQueue *));
-void virtio_irq(VirtQueue *vq);
 VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector);
 VirtQueue *virtio_vector_next_queue(VirtQueue *vq);
 

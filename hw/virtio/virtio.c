@@ -1330,13 +1330,6 @@ static void virtio_set_isr(VirtIODevice *vdev, int value)
     }
 }
 
-void virtio_irq(VirtQueue *vq)
-{
-    trace_virtio_irq(vq);
-    virtio_set_isr(vq->vdev, 0x1);
-    virtio_notify_vector(vq->vdev, vq->vector);
-}
-
 bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
     uint16_t old, new;
@@ -1358,6 +1351,33 @@ bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq)
     old = vq->signalled_used;
     new = vq->signalled_used = vq->used_idx;
     return !v || vring_need_event(vring_get_used_event(vq), new, old);
+}
+
+void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq)
+{
+    if (!virtio_should_notify(vdev, vq)) {
+        return;
+    }
+
+    trace_virtio_notify_irqfd(vdev, vq);
+
+    /*
+     * virtio spec 1.0 says ISR bit 0 should be ignored with MSI, but
+     * windows drivers included in virtio-win 1.8.0 (circa 2015) are
+     * incorrectly polling this bit during crashdump and hibernation
+     * in MSI mode, causing a hang if this bit is never updated.
+     * Recent releases of Windows do not really shut down, but rather
+     * log out and hibernate to make the next startup faster.  Hence,
+     * this manifested as a more serious hang during shutdown with
+     *
+     * Next driver release from 2016 fixed this problem, so working around it
+     * is not a must, but it's easy to do so let's do it here.
+     *
+     * Note: it's safe to update ISR from any thread as it was switched
+     * to an atomic operation.
+     */
+    virtio_set_isr(vq->vdev, 0x1);
+    event_notifier_set(&vq->guest_notifier);
 }
 
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
@@ -1994,7 +2014,7 @@ static void virtio_queue_guest_notifier_read(EventNotifier *n)
 {
     VirtQueue *vq = container_of(n, VirtQueue, guest_notifier);
     if (event_notifier_test_and_clear(n)) {
-        virtio_irq(vq);
+        virtio_notify_vector(vq->vdev, vq->vector);
     }
 }
 
