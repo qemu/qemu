@@ -163,7 +163,8 @@ typedef struct {
     uint32_t l2_mask;
 
     /* Allocating write request queue */
-    QSIMPLEQ_HEAD(, QEDAIOCB) allocating_write_reqs;
+    QEDAIOCB *allocating_acb;
+    CoQueue allocating_write_reqs;
     bool allocating_write_reqs_plugged;
 
     /* Periodic flush and clear need check flag */

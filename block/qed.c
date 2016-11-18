@@ -269,16 +269,10 @@ static void qed_plug_allocating_write_reqs(BDRVQEDState *s)
 
 static void qed_unplug_allocating_write_reqs(BDRVQEDState *s)
 {
-    QEDAIOCB *acb;
-
     assert(s->allocating_write_reqs_plugged);
 
     s->allocating_write_reqs_plugged = false;
-
-    acb = QSIMPLEQ_FIRST(&s->allocating_write_reqs);
-    if (acb) {
-        qed_aio_start_io(acb);
-    }
+    qemu_co_enter_next(&s->allocating_write_reqs);
 }
 
 static void qed_clear_need_check(void *opaque, int ret)
@@ -305,7 +299,7 @@ static void qed_need_check_timer_cb(void *opaque)
     BDRVQEDState *s = opaque;
 
     /* The timer should only fire when allocating writes have drained */
-    assert(!QSIMPLEQ_FIRST(&s->allocating_write_reqs));
+    assert(!s->allocating_acb);
 
     trace_qed_need_check_timer_cb(s);
 
@@ -388,7 +382,7 @@ static int bdrv_qed_do_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
 
     s->bs = bs;
-    QSIMPLEQ_INIT(&s->allocating_write_reqs);
+    qemu_co_queue_init(&s->allocating_write_reqs);
 
     ret = bdrv_pread(bs->file, 0, &le_header, sizeof(le_header));
     if (ret < 0) {
@@ -910,11 +904,6 @@ static void qed_aio_complete_bh(void *opaque)
     qed_release(s);
 }
 
-static void qed_resume_alloc_bh(void *opaque)
-{
-    qed_aio_start_io(opaque);
-}
-
 static void qed_aio_complete(QEDAIOCB *acb, int ret)
 {
     BDRVQEDState *s = acb_to_s(acb);
@@ -942,13 +931,10 @@ static void qed_aio_complete(QEDAIOCB *acb, int ret)
      * next request in the queue.  This ensures that we don't cycle through
      * requests multiple times but rather finish one at a time completely.
      */
-    if (acb == QSIMPLEQ_FIRST(&s->allocating_write_reqs)) {
-        QEDAIOCB *next_acb;
-        QSIMPLEQ_REMOVE_HEAD(&s->allocating_write_reqs, next);
-        next_acb = QSIMPLEQ_FIRST(&s->allocating_write_reqs);
-        if (next_acb) {
-            aio_bh_schedule_oneshot(bdrv_get_aio_context(acb->common.bs),
-                                    qed_resume_alloc_bh, next_acb);
+    if (acb == s->allocating_acb) {
+        s->allocating_acb = NULL;
+        if (!qemu_co_queue_empty(&s->allocating_write_reqs)) {
+            qemu_co_enter_next(&s->allocating_write_reqs);
         } else if (s->header.features & QED_F_NEED_CHECK) {
             qed_start_need_check_timer(s);
         }
@@ -1124,17 +1110,18 @@ static int qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
     int ret;
 
     /* Cancel timer when the first allocating request comes in */
-    if (QSIMPLEQ_EMPTY(&s->allocating_write_reqs)) {
+    if (s->allocating_acb == NULL) {
         qed_cancel_need_check_timer(s);
     }
 
     /* Freeze this request if another allocating write is in progress */
-    if (acb != QSIMPLEQ_FIRST(&s->allocating_write_reqs)) {
-        QSIMPLEQ_INSERT_TAIL(&s->allocating_write_reqs, acb, next);
-    }
-    if (acb != QSIMPLEQ_FIRST(&s->allocating_write_reqs) ||
-        s->allocating_write_reqs_plugged) {
-        return -EINPROGRESS; /* wait for existing request to finish */
+    if (s->allocating_acb != acb || s->allocating_write_reqs_plugged) {
+        if (s->allocating_acb != NULL) {
+            qemu_co_queue_wait(&s->allocating_write_reqs, NULL);
+            assert(s->allocating_acb == NULL);
+        }
+        s->allocating_acb = acb;
+        return -EAGAIN; /* start over with looking up table entries */
     }
 
     acb->cur_nclusters = qed_bytes_to_clusters(s,
@@ -1313,10 +1300,8 @@ static void qed_aio_next_io(QEDAIOCB *acb)
             ret = qed_aio_read_data(acb, ret, offset, len);
         }
 
-        if (ret < 0) {
-            if (ret != -EINPROGRESS) {
-                qed_aio_complete(acb, ret);
-            }
+        if (ret < 0 && ret != -EAGAIN) {
+            qed_aio_complete(acb, ret);
             return;
         }
     }
