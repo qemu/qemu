@@ -264,28 +264,10 @@ static void qed_unplug_allocating_write_reqs(BDRVQEDState *s)
     qemu_co_enter_next(&s->allocating_write_reqs);
 }
 
-static void qed_clear_need_check(void *opaque, int ret)
+static void qed_need_check_timer_entry(void *opaque)
 {
     BDRVQEDState *s = opaque;
-
-    if (ret) {
-        qed_unplug_allocating_write_reqs(s);
-        return;
-    }
-
-    s->header.features &= ~QED_F_NEED_CHECK;
-    ret = qed_write_header(s);
-    (void) ret;
-
-    qed_unplug_allocating_write_reqs(s);
-
-    ret = bdrv_flush(s->bs);
-    (void) ret;
-}
-
-static void qed_need_check_timer_cb(void *opaque)
-{
-    BDRVQEDState *s = opaque;
+    int ret;
 
     /* The timer should only fire when allocating writes have drained */
     assert(!s->allocating_acb);
@@ -296,8 +278,27 @@ static void qed_need_check_timer_cb(void *opaque)
     qed_plug_allocating_write_reqs(s);
 
     /* Ensure writes are on disk before clearing flag */
-    bdrv_aio_flush(s->bs->file->bs, qed_clear_need_check, s);
+    ret = bdrv_co_flush(s->bs->file->bs);
     qed_release(s);
+    if (ret < 0) {
+        qed_unplug_allocating_write_reqs(s);
+        return;
+    }
+
+    s->header.features &= ~QED_F_NEED_CHECK;
+    ret = qed_write_header(s);
+    (void) ret;
+
+    qed_unplug_allocating_write_reqs(s);
+
+    ret = bdrv_co_flush(s->bs);
+    (void) ret;
+}
+
+static void qed_need_check_timer_cb(void *opaque)
+{
+    Coroutine *co = qemu_coroutine_create(qed_need_check_timer_entry, opaque);
+    qemu_coroutine_enter(co);
 }
 
 void qed_acquire(BDRVQEDState *s)
