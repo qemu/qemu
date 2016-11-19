@@ -1653,11 +1653,11 @@ extract_tbr (unsigned long insn,
 #define BBOYBI_MASK (BBOYCB_MASK | BI_MASK)
 #define BBOATBI_MASK (BBOAT2CB_MASK | BI_MASK)
 
-/* An Context form instruction.  */
+/* A Context form instruction.  */
 #define CTX(op, xop)   (OP (op) | (((unsigned long)(xop)) & 0x7))
 #define CTX_MASK CTX(0x3f, 0x7)
 
-/* An User Context form instruction.  */
+/* A User Context form instruction.  */
 #define UCTX(op, xop)  (OP (op) | (((unsigned long)(xop)) & 0x1f))
 #define UCTX_MASK UCTX(0x3f, 0x1f)
 
@@ -1710,19 +1710,19 @@ extract_tbr (unsigned long insn,
 #define SC(op, sa, lk) (OP (op) | ((((unsigned long)(sa)) & 1) << 1) | ((lk) & 1))
 #define SC_MASK (OP_MASK | (((unsigned long)0x3ff) << 16) | (((unsigned long)1) << 1) | 1)
 
-/* An VX form instruction.  */
+/* A VX form instruction.  */
 #define VX(op, xop) (OP (op) | (((unsigned long)(xop)) & 0x7ff))
 
 /* The mask for an VX form instruction.  */
 #define VX_MASK	VX(0x3f, 0x7ff)
 
-/* An VA form instruction.  */
+/* A VA form instruction.  */
 #define VXA(op, xop) (OP (op) | (((unsigned long)(xop)) & 0x03f))
 
-/* The mask for an VA form instruction.  */
+/* The mask for a VA form instruction.  */
 #define VXA_MASK VXA(0x3f, 0x3f)
 
-/* An VXR form instruction.  */
+/* A VXR form instruction.  */
 #define VXR(op, xop, rc) (OP (op) | (((rc) & 1) << 10) | (((unsigned long)(xop)) & 0x3ff))
 
 /* The mask for a VXR form instruction.  */
