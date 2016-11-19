@@ -711,7 +711,7 @@ static void get_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
 
     /*
      * Catch "invalid" device reference from vfio-pci and allow the
-     * default buffer representing the non-existant device to be used.
+     * default buffer representing the non-existent device to be used.
      */
     if (~addr->domain || ~addr->bus || ~addr->slot || ~addr->function) {
         rc = snprintf(buffer, sizeof(buffer), "%04x:%02x:%02x.%0d",

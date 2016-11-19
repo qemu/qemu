@@ -555,7 +555,7 @@ static void xlnx_dp_recreate_surface(XlnxDPState *s)
     if ((width != 0) && (height != 0)) {
         /*
          * As dpy_gfx_replace_surface calls qemu_free_displaysurface on the
-         * surface we need to be carefull and don't free the surface associated
+         * surface we need to be careful and don't free the surface associated
          * to the console or double free will happen.
          */
         if (s->bout_plane.surface != current_console_surface) {
@@ -1160,7 +1160,7 @@ static void xlnx_dp_update_display(void *opaque)
      */
     if (!xlnx_dpdma_start_operation(s->dpdma, 3, false)) {
         /*
-         * An error occured don't do anything with the data..
+         * An error occurred don't do anything with the data..
          * Trigger an underflow interrupt.
          */
         s->core_registers[DP_INT_STATUS] |= (1 << 21);

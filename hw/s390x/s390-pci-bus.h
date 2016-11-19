@@ -183,8 +183,8 @@ enum ZpciIoatDtype {
  *          may enter an error state
  * blocked: ignore all DMA and interrupts; transition back to enabled or from
  *          error state via mpcifc
- * error: an error occured; transition back to enabled via mpcifc
- * permanent error: an unrecoverable error occured; transition to standby via
+ * error: an error occurred; transition back to enabled via mpcifc
+ * permanent error: an unrecoverable error occurred; transition to standby via
  *                  sclp deconfigure
  */
 typedef enum {

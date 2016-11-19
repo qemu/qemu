@@ -1171,7 +1171,7 @@ static int vfio_pci_igd_host_init(VFIOPCIDevice *vdev,
  * IGD LPC/ISA bridge support code.  The vBIOS needs this, but we can't write
  * arbitrary values into just any bridge, so we must create our own.  We try
  * to handle if the user has created it for us, which they might want to do
- * to enable multifuction so we don't occupy the whole PCI slot.
+ * to enable multifunction so we don't occupy the whole PCI slot.
  */
 static void vfio_pci_igd_lpc_bridge_realize(PCIDevice *pdev, Error **errp)
 {
