@@ -53,7 +53,8 @@ typedef struct XlnxDPDMAState XlnxDPDMAState;
  *                             data to the buffer specified by
  *                             dpdma_set_host_data_location().
  *
- * Returns The number of bytes transfered by the DPDMA or 0 if an error occured.
+ * Returns The number of bytes transferred by the DPDMA
+ *         or 0 if an error occurred.
  *
  * @s The DPDMA state.
  * @channel The channel to start.
