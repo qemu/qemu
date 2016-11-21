@@ -1844,14 +1844,18 @@ static void gen_popcntb(DisasContext *ctx)
 
 static void gen_popcntw(DisasContext *ctx)
 {
+#if defined(TARGET_PPC64)
     gen_helper_popcntw(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+#else
+    tcg_gen_ctpop_i32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+#endif
 }
 
 #if defined(TARGET_PPC64)
 /* popcntd: PowerPC 2.06 specification */
 static void gen_popcntd(DisasContext *ctx)
 {
-    gen_helper_popcntd(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+    tcg_gen_ctpop_i64(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
 }
 #endif
 

@@ -272,6 +272,7 @@ target_ulong helper_srad(CPUPPCState *env, target_ulong value,
 #if defined(TARGET_PPC64)
 target_ulong helper_popcntb(target_ulong val)
 {
+    /* Note that we don't fold past bytes */
     val = (val & 0x5555555555555555ULL) + ((val >>  1) &
                                            0x5555555555555555ULL);
     val = (val & 0x3333333333333333ULL) + ((val >>  2) &
@@ -283,6 +284,7 @@ target_ulong helper_popcntb(target_ulong val)
 
 target_ulong helper_popcntw(target_ulong val)
 {
+    /* Note that we don't fold past words.  */
     val = (val & 0x5555555555555555ULL) + ((val >>  1) &
                                            0x5555555555555555ULL);
     val = (val & 0x3333333333333333ULL) + ((val >>  2) &
@@ -295,27 +297,13 @@ target_ulong helper_popcntw(target_ulong val)
                                            0x0000ffff0000ffffULL);
     return val;
 }
-
-target_ulong helper_popcntd(target_ulong val)
-{
-    return ctpop64(val);
-}
 #else
 target_ulong helper_popcntb(target_ulong val)
 {
+    /* Note that we don't fold past bytes */
     val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
     val = (val & 0x33333333) + ((val >>  2) & 0x33333333);
     val = (val & 0x0f0f0f0f) + ((val >>  4) & 0x0f0f0f0f);
-    return val;
-}
-
-target_ulong helper_popcntw(target_ulong val)
-{
-    val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
-    val = (val & 0x33333333) + ((val >>  2) & 0x33333333);
-    val = (val & 0x0f0f0f0f) + ((val >>  4) & 0x0f0f0f0f);
-    val = (val & 0x00ff00ff) + ((val >>  8) & 0x00ff00ff);
-    val = (val & 0x0000ffff) + ((val >> 16) & 0x0000ffff);
     return val;
 }
 #endif
