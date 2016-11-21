@@ -49,11 +49,6 @@ void helper_debug(CPUSPARCState *env)
 }
 
 #ifdef TARGET_SPARC64
-target_ulong helper_popc(target_ulong val)
-{
-    return ctpop64(val);
-}
-
 void helper_tick_set_count(void *opaque, uint64_t count)
 {
 #if !defined(CONFIG_USER_ONLY)
