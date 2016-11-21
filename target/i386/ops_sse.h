@@ -2157,32 +2157,6 @@ target_ulong helper_crc32(uint32_t crc1, target_ulong msg, uint32_t len)
     return crc;
 }
 
-#define POPMASK(i)     ((target_ulong) -1 / ((1LL << (1 << i)) + 1))
-#define POPCOUNT(n, i) ((n & POPMASK(i)) + ((n >> (1 << i)) & POPMASK(i)))
-target_ulong helper_popcnt(CPUX86State *env, target_ulong n, uint32_t type)
-{
-    CC_SRC = n ? 0 : CC_Z;
-
-    n = POPCOUNT(n, 0);
-    n = POPCOUNT(n, 1);
-    n = POPCOUNT(n, 2);
-    n = POPCOUNT(n, 3);
-    if (type == 1) {
-        return n & 0xff;
-    }
-
-    n = POPCOUNT(n, 4);
-#ifndef TARGET_X86_64
-    return n;
-#else
-    if (type == 2) {
-        return n & 0xff;
-    }
-
-    return POPCOUNT(n, 5);
-#endif
-}
-
 void glue(helper_pclmulqdq, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                     uint32_t ctrl)
 {

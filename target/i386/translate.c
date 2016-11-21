@@ -222,6 +222,7 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_ADOX] = USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_ADCOX] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_CLR] = 0,
+    [CC_OP_POPCNT] = USES_CC_SRC,
 };
 
 static void set_cc_op(DisasContext *s, CCOp op)
@@ -757,6 +758,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
 
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
     case CC_OP_CLR:
+    case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER, .mask = -1 };
 
     case CC_OP_INCB ... CC_OP_INCQ:
@@ -824,6 +826,7 @@ static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
                              .mask = CC_S };
     case CC_OP_CLR:
+    case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER, .mask = -1 };
     default:
         {
@@ -843,6 +846,7 @@ static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src2,
                              .mask = -1, .no_setcond = true };
     case CC_OP_CLR:
+    case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER, .mask = -1 };
     default:
         gen_compute_eflags(s);
@@ -866,6 +870,9 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
                              .mask = CC_Z };
     case CC_OP_CLR:
         return (CCPrepare) { .cond = TCG_COND_ALWAYS, .mask = -1 };
+    case CC_OP_POPCNT:
+        return (CCPrepare) { .cond = TCG_COND_EQ, .reg = cpu_cc_src,
+                             .mask = -1 };
     default:
         {
             TCGMemOp size = (s->cc_op - CC_OP_ADDB) & 3;
@@ -8205,10 +8212,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         }
 
         gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
-        gen_helper_popcnt(cpu_T0, cpu_env, cpu_T0, tcg_const_i32(ot));
+        gen_extu(ot, cpu_T0);
+        tcg_gen_mov_tl(cpu_cc_src, cpu_T0);
+        tcg_gen_ctpop_tl(cpu_T0, cpu_T0);
         gen_op_mov_reg_v(ot, reg, cpu_T0);
 
-        set_cc_op(s, CC_OP_EFLAGS);
+        set_cc_op(s, CC_OP_POPCNT);
         break;
     case 0x10e ... 0x10f:
         /* 3DNow! instructions, ignore prefixes */
