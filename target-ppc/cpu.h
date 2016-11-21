@@ -1167,7 +1167,8 @@ struct PowerPCCPU {
     uint32_t max_compat;
     uint32_t cpu_version;
 
-    /* fields used only during migration for compatibility hacks */
+    /* Fields related to migration compatibility hacks */
+    bool pre_2_8_migration;
     target_ulong mig_msr_mask;
     uint64_t mig_insns_flags;
     uint64_t mig_insns_flags2;
