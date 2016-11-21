@@ -308,6 +308,12 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
     case INDEX_op_ctz_i64:
         return x ? ctz64(x) : y;
 
+    case INDEX_op_ctpop_i32:
+        return ctpop32(x);
+
+    case INDEX_op_ctpop_i64:
+        return ctpop64(x);
+
     CASE_OP_32_64(ext8s):
         return (int8_t)x;
 
@@ -918,6 +924,13 @@ void tcg_optimize(TCGContext *s)
             mask = temps[args[2]].mask | 63;
             break;
 
+        case INDEX_op_ctpop_i32:
+            mask = 32 | 31;
+            break;
+        case INDEX_op_ctpop_i64:
+            mask = 64 | 63;
+            break;
+
         CASE_OP_32_64(setcond):
         case INDEX_op_setcond2_i32:
             mask = 1;
@@ -1031,6 +1044,7 @@ void tcg_optimize(TCGContext *s)
         CASE_OP_32_64(ext8u):
         CASE_OP_32_64(ext16s):
         CASE_OP_32_64(ext16u):
+        CASE_OP_32_64(ctpop):
         case INDEX_op_ext32s_i64:
         case INDEX_op_ext32u_i64:
         case INDEX_op_ext_i32_i64:

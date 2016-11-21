@@ -131,6 +131,16 @@ uint64_t HELPER(clrsb_i64)(uint64_t arg)
     return clrsb64(arg);
 }
 
+uint32_t HELPER(ctpop_i32)(uint32_t arg)
+{
+    return ctpop32(arg);
+}
+
+uint64_t HELPER(ctpop_i64)(uint64_t arg)
+{
+    return ctpop64(arg);
+}
+
 void HELPER(exit_atomic)(CPUArchState *env)
 {
     cpu_loop_exit_atomic(ENV_GET_CPU(env), GETPC());
