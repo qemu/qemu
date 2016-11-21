@@ -15,6 +15,7 @@
 #define TFTP_OACK   6
 
 #define TFTP_FILENAME_MAX 512
+#define TFTP_BLOCKSIZE_MAX 1428
 
 struct tftp_t {
   struct udphdr udp;
@@ -22,13 +23,13 @@ struct tftp_t {
   union {
     struct {
       uint16_t tp_block_nr;
-      uint8_t tp_buf[512];
+      uint8_t tp_buf[TFTP_BLOCKSIZE_MAX];
     } tp_data;
     struct {
       uint16_t tp_error_code;
-      uint8_t tp_msg[512];
+      uint8_t tp_msg[TFTP_BLOCKSIZE_MAX];
     } tp_error;
-    char tp_buf[512 + 2];
+    char tp_buf[TFTP_BLOCKSIZE_MAX + 2];
   } x;
 } __attribute__((packed));
 
@@ -36,6 +37,7 @@ struct tftp_session {
     Slirp *slirp;
     char *filename;
     int fd;
+    uint16_t block_size;
 
     struct sockaddr_storage client_addr;
     uint16_t client_port;

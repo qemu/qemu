@@ -72,6 +72,7 @@ static int tftp_session_allocate(Slirp *slirp, struct sockaddr_storage *srcsas,
   memset(spt, 0, sizeof(*spt));
   spt->client_addr = *srcsas;
   spt->fd = -1;
+  spt->block_size = 512;
   spt->client_port = tp->udp.uh_sport;
   spt->slirp = slirp;
 
@@ -115,7 +116,7 @@ static int tftp_read_data(struct tftp_session *spt, uint32_t block_nr,
     }
 
     if (len) {
-        lseek(spt->fd, block_nr * 512, SEEK_SET);
+        lseek(spt->fd, block_nr * spt->block_size, SEEK_SET);
 
         bytes_read = read(spt->fd, buf, len);
     }
@@ -189,7 +190,8 @@ static int tftp_send_oack(struct tftp_session *spt,
                       values[i]) + 1;
     }
 
-    m->m_len = sizeof(struct tftp_t) - 514 + n - sizeof(struct udphdr);
+    m->m_len = sizeof(struct tftp_t) - (TFTP_BLOCKSIZE_MAX + 2) + n
+               - sizeof(struct udphdr);
     tftp_udp_output(spt, m, recv_tp);
 
     return 0;
@@ -214,7 +216,7 @@ static void tftp_send_error(struct tftp_session *spt,
   tp->x.tp_error.tp_error_code = htons(errorcode);
   pstrcpy((char *)tp->x.tp_error.tp_msg, sizeof(tp->x.tp_error.tp_msg), msg);
 
-  m->m_len = sizeof(struct tftp_t) - 514 + 3 + strlen(msg)
+  m->m_len = sizeof(struct tftp_t) - (TFTP_BLOCKSIZE_MAX + 2) + 3 + strlen(msg)
              - sizeof(struct udphdr);
   tftp_udp_output(spt, m, recv_tp);
 
@@ -240,7 +242,8 @@ static void tftp_send_next_block(struct tftp_session *spt,
   tp->tp_op = htons(TFTP_DATA);
   tp->x.tp_data.tp_block_nr = htons((spt->block_nr + 1) & 0xffff);
 
-  nobytes = tftp_read_data(spt, spt->block_nr, tp->x.tp_data.tp_buf, 512);
+  nobytes = tftp_read_data(spt, spt->block_nr, tp->x.tp_data.tp_buf,
+                           spt->block_size);
 
   if (nobytes < 0) {
     m_free(m);
@@ -252,10 +255,11 @@ static void tftp_send_next_block(struct tftp_session *spt,
     return;
   }
 
-  m->m_len = sizeof(struct tftp_t) - (512 - nobytes) - sizeof(struct udphdr);
+  m->m_len = sizeof(struct tftp_t) - (TFTP_BLOCKSIZE_MAX - nobytes)
+             - sizeof(struct udphdr);
   tftp_udp_output(spt, m, recv_tp);
 
-  if (nobytes == 512) {
+  if (nobytes == spt->block_size) {
     tftp_session_update(spt);
   }
   else {
@@ -385,13 +389,11 @@ static void tftp_handle_rrq(Slirp *slirp, struct sockaddr_storage *srcsas,
       } else if (strcasecmp(key, "blksize") == 0) {
           int blksize = atoi(value);
 
-          /* If blksize option is bigger than what we will
-           * emit, accept the option with our packet size.
-           * Otherwise, simply do as we didn't see the option.
-           */
-          if (blksize >= 512) {
+          /* Accept blksize up to our maximum size */
+          if (blksize > 0) {
+              spt->block_size = MIN(blksize, TFTP_BLOCKSIZE_MAX);
               option_name[nb_options] = "blksize";
-              option_value[nb_options] = 512;
+              option_value[nb_options] = spt->block_size;
               nb_options++;
           }
       }
