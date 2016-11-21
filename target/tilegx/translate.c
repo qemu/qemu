@@ -697,7 +697,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RR_X0(PCNT):
     case OE_RR_Y0(PCNT):
-        gen_helper_pcnt(tdest, tsrca);
+        tcg_gen_ctpop_tl(tdest, tsrca);
         mnemonic = "pcnt";
         break;
     case OE_RR_X0(REVBITS):
