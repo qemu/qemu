@@ -137,14 +137,11 @@ uint64_t HELPER(cvd)(int32_t reg)
     return dec;
 }
 
-uint64_t HELPER(popcnt)(uint64_t r2)
+uint64_t HELPER(popcnt)(uint64_t val)
 {
-    uint64_t ret = 0;
-    int i;
-
-    for (i = 0; i < 64; i += 8) {
-        uint64_t t = ctpop32((r2 >> i) & 0xff);
-        ret |= t << i;
-    }
-    return ret;
+    /* Note that we don't fold past bytes. */
+    val = (val & 0x5555555555555555ULL) + ((val >> 1) & 0x5555555555555555ULL);
+    val = (val & 0x3333333333333333ULL) + ((val >> 2) & 0x3333333333333333ULL);
+    val = (val + (val >> 4)) & 0x0f0f0f0f0f0f0f0fULL;
+    return val;
 }
