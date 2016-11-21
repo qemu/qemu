@@ -2541,7 +2541,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
-            gen_helper_ctpop(vc, vb);
+            tcg_gen_ctpop_i64(vc, vb);
             break;
         case 0x31:
             /* PERR */

@@ -24,11 +24,6 @@
 #include "qemu/host-utils.h"
 
 
-uint64_t helper_ctpop(uint64_t arg)
-{
-    return ctpop64(arg);
-}
-
 uint64_t helper_zapnot(uint64_t val, uint64_t mskb)
 {
     uint64_t mask;
