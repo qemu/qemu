@@ -1166,6 +1166,12 @@ struct PowerPCCPU {
     int cpu_dt_id;
     uint32_t max_compat;
     uint32_t cpu_version;
+
+    /* fields used only during migration for compatibility hacks */
+    target_ulong mig_msr_mask;
+    uint64_t mig_insns_flags;
+    uint64_t mig_insns_flags2;
+    uint32_t mig_nb_BATs;
 };
 
 static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
