@@ -68,9 +68,7 @@ static void notify_guest_bh(void *opaque)
             unsigned i = j + ctzl(bits);
             VirtQueue *vq = virtio_get_queue(s->vdev, i);
 
-            if (virtio_should_notify(s->vdev, vq)) {
-                event_notifier_set(virtio_queue_get_guest_notifier(vq));
-            }
+            virtio_notify_irqfd(s->vdev, vq);
 
             bits &= bits - 1; /* clear right-most bit */
         }

@@ -69,7 +69,7 @@ static void virtio_scsi_complete_req(VirtIOSCSIReq *req)
     qemu_iovec_from_buf(&req->resp_iov, 0, &req->resp, req->resp_size);
     virtqueue_push(vq, &req->elem, req->qsgl.size + req->resp_iov.size);
     if (s->dataplane_started && !s->dataplane_fenced) {
-        virtio_scsi_dataplane_notify(vdev, req);
+        virtio_notify_irqfd(vdev, vq);
     } else {
         virtio_notify(vdev, vq);
     }

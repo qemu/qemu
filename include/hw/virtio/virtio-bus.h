@@ -97,6 +97,16 @@ struct VirtioBusState {
      * Set if ioeventfd has been started.
      */
     bool ioeventfd_started;
+
+    /*
+     * Set if ioeventfd has been grabbed by vhost.  When ioeventfd
+     * is grabbed by vhost, we track its started/stopped state (which
+     * depends in turn on the virtio status register), but do not
+     * register a handler for the ioeventfd.  When ioeventfd is
+     * released, if ioeventfd_started is true we finally register
+     * the handler so that QEMU's device model can use ioeventfd.
+     */
+    int ioeventfd_grabbed;
 };
 
 void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp);
@@ -131,6 +141,10 @@ bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus);
 int virtio_bus_start_ioeventfd(VirtioBusState *bus);
 /* Stop the ioeventfd. */
 void virtio_bus_stop_ioeventfd(VirtioBusState *bus);
+/* Tell the bus that vhost is grabbing the ioeventfd. */
+int virtio_bus_grab_ioeventfd(VirtioBusState *bus);
+/* bus that vhost is not using the ioeventfd anymore. */
+void virtio_bus_release_ioeventfd(VirtioBusState *bus);
 /* Switch from/to the generic ioeventfd handler */
 int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign);
 

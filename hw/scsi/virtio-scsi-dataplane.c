@@ -95,13 +95,6 @@ static int virtio_scsi_vring_init(VirtIOSCSI *s, VirtQueue *vq, int n,
     return 0;
 }
 
-void virtio_scsi_dataplane_notify(VirtIODevice *vdev, VirtIOSCSIReq *req)
-{
-    if (virtio_should_notify(vdev, req->vq)) {
-        event_notifier_set(virtio_queue_get_guest_notifier(req->vq));
-    }
-}
-
 /* assumes s->ctx held */
 static void virtio_scsi_clear_aio(VirtIOSCSI *s)
 {

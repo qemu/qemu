@@ -945,7 +945,7 @@ void virtio_reset(void *opaque)
     vdev->guest_features = 0;
     vdev->queue_sel = 0;
     vdev->status = 0;
-    vdev->isr = 0;
+    atomic_set(&vdev->isr, 0);
     vdev->config_vector = VIRTIO_NO_VECTOR;
     virtio_notify_vector(vdev, vdev->config_vector);
 
@@ -1318,11 +1318,16 @@ void virtio_del_queue(VirtIODevice *vdev, int n)
     vdev->vq[n].vring.num_default = 0;
 }
 
-void virtio_irq(VirtQueue *vq)
+static void virtio_set_isr(VirtIODevice *vdev, int value)
 {
-    trace_virtio_irq(vq);
-    vq->vdev->isr |= 0x01;
-    virtio_notify_vector(vq->vdev, vq->vector);
+    uint8_t old = atomic_read(&vdev->isr);
+
+    /* Do not write ISR if it does not change, so that its cacheline remains
+     * shared in the common case where the guest does not read it.
+     */
+    if ((old & value) != value) {
+        atomic_or(&vdev->isr, value);
+    }
 }
 
 bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq)
@@ -1348,6 +1353,33 @@ bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq)
     return !v || vring_need_event(vring_get_used_event(vq), new, old);
 }
 
+void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq)
+{
+    if (!virtio_should_notify(vdev, vq)) {
+        return;
+    }
+
+    trace_virtio_notify_irqfd(vdev, vq);
+
+    /*
+     * virtio spec 1.0 says ISR bit 0 should be ignored with MSI, but
+     * windows drivers included in virtio-win 1.8.0 (circa 2015) are
+     * incorrectly polling this bit during crashdump and hibernation
+     * in MSI mode, causing a hang if this bit is never updated.
+     * Recent releases of Windows do not really shut down, but rather
+     * log out and hibernate to make the next startup faster.  Hence,
+     * this manifested as a more serious hang during shutdown with
+     *
+     * Next driver release from 2016 fixed this problem, so working around it
+     * is not a must, but it's easy to do so let's do it here.
+     *
+     * Note: it's safe to update ISR from any thread as it was switched
+     * to an atomic operation.
+     */
+    virtio_set_isr(vq->vdev, 0x1);
+    event_notifier_set(&vq->guest_notifier);
+}
+
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
     if (!virtio_should_notify(vdev, vq)) {
@@ -1355,7 +1387,7 @@ void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
     }
 
     trace_virtio_notify(vdev, vq);
-    vdev->isr |= 0x01;
+    virtio_set_isr(vq->vdev, 0x1);
     virtio_notify_vector(vdev, vq->vector);
 }
 
@@ -1364,7 +1396,7 @@ void virtio_notify_config(VirtIODevice *vdev)
     if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK))
         return;
 
-    vdev->isr |= 0x03;
+    virtio_set_isr(vdev, 0x3);
     vdev->generation++;
     virtio_notify_vector(vdev, vdev->config_vector);
 }
@@ -1895,7 +1927,7 @@ void virtio_init(VirtIODevice *vdev, const char *name,
 
     vdev->device_id = device_id;
     vdev->status = 0;
-    vdev->isr = 0;
+    atomic_set(&vdev->isr, 0);
     vdev->queue_sel = 0;
     vdev->config_vector = VIRTIO_NO_VECTOR;
     vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_QUEUE_MAX);
@@ -1982,7 +2014,7 @@ static void virtio_queue_guest_notifier_read(EventNotifier *n)
 {
     VirtQueue *vq = container_of(n, VirtQueue, guest_notifier);
     if (event_notifier_test_and_clear(n)) {
-        virtio_irq(vq);
+        virtio_notify_vector(vq->vdev, vq->vector);
     }
 }
 
@@ -2189,6 +2221,22 @@ void virtio_device_stop_ioeventfd(VirtIODevice *vdev)
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
 
     virtio_bus_stop_ioeventfd(vbus);
+}
+
+int virtio_device_grab_ioeventfd(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+
+    return virtio_bus_grab_ioeventfd(vbus);
+}
+
+void virtio_device_release_ioeventfd(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+
+    virtio_bus_release_ioeventfd(vbus);
 }
 
 static void virtio_device_class_init(ObjectClass *klass, void *data)
