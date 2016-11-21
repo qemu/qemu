@@ -2572,7 +2572,7 @@ static int bcd_cmp_zero(ppc_avr_t *bcd)
 static uint16_t get_national_digit(ppc_avr_t *reg, int n)
 {
 #if defined(HOST_WORDS_BIGENDIAN)
-    return reg->u16[8 - n];
+    return reg->u16[7 - n];
 #else
     return reg->u16[n];
 #endif
@@ -2581,7 +2581,7 @@ static uint16_t get_national_digit(ppc_avr_t *reg, int n)
 static void set_national_digit(ppc_avr_t *reg, uint8_t val, int n)
 {
 #if defined(HOST_WORDS_BIGENDIAN)
-    reg->u16[8 - n] = val;
+    reg->u16[7 - n] = val;
 #else
     reg->u16[n] = val;
 #endif
