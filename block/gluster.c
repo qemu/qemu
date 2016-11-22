@@ -239,12 +239,13 @@ static glfs_t *glfs_find_preopened(const char *volume)
 static void glfs_clear_preopened(glfs_t *fs)
 {
     ListElement *entry = NULL;
+    ListElement *next;
 
     if (fs == NULL) {
         return;
     }
 
-    QLIST_FOREACH(entry, &glfs_list, list) {
+    QLIST_FOREACH_SAFE(entry, &glfs_list, list, next) {
         if (entry->saved.fs == fs) {
             if (--entry->saved.ref) {
                 return;
