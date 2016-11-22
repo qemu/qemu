@@ -164,20 +164,17 @@ static QuorumAIOCB *quorum_aio_get(BlockDriverState *bs,
     QuorumAIOCB *acb = g_new(QuorumAIOCB, 1);
     int i;
 
-    acb->co = qemu_coroutine_self();
-    acb->bs = bs;
-    acb->offset = offset;
-    acb->bytes = bytes;
-    acb->qiov = qiov;
-    acb->qcrs = g_new0(QuorumChildRequest, s->num_children);
-    acb->count = 0;
-    acb->success_count = 0;
-    acb->rewrite_count = 0;
-    acb->votes.compare = quorum_sha256_compare;
-    QLIST_INIT(&acb->votes.vote_list);
-    acb->is_read = false;
-    acb->vote_ret = 0;
+    *acb = (QuorumAIOCB) {
+        .co                 = qemu_coroutine_self(),
+        .bs                 = bs,
+        .offset             = offset,
+        .bytes              = bytes,
+        .qiov               = qiov,
+        .votes.compare      = quorum_sha256_compare,
+        .votes.vote_list    = QLIST_HEAD_INITIALIZER(acb.votes.vote_list),
+    };
 
+    acb->qcrs = g_new0(QuorumChildRequest, s->num_children);
     for (i = 0; i < s->num_children; i++) {
         acb->qcrs[i].buf = NULL;
         acb->qcrs[i].ret = 0;
