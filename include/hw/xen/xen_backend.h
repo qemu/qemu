@@ -6,12 +6,20 @@
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 
+#define TYPE_XENSYSDEV "xen-sysdev"
+#define TYPE_XENSYSBUS "xen-sysbus"
+#define TYPE_XENBACKEND "xen-backend"
+
+#define XENBACKEND_DEVICE(obj) \
+    OBJECT_CHECK(XenDevice, (obj), TYPE_XENBACKEND)
+
 /* variables */
 extern xc_interface *xen_xc;
 extern xenforeignmemory_handle *xen_fmem;
 extern struct xs_handle *xenstore;
 extern const char *xen_protocol;
 extern DeviceState *xen_sysdev;
+extern BusState *xen_sysbus;
 
 int xenstore_mkdir(char *path, int p);
 int xenstore_write_be_str(struct XenDevice *xendev, const char *node, const char *val);

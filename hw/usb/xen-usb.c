@@ -712,14 +712,9 @@ static void usbback_portid_detach(struct usbback_info *usbif, unsigned port)
 
 static void usbback_portid_remove(struct usbback_info *usbif, unsigned port)
 {
-    USBPort *p;
-
     if (!usbif->ports[port - 1].dev) {
         return;
     }
-
-    p = &(usbif->ports[port - 1].port);
-    snprintf(p->path, sizeof(p->path), "%d", 99);
 
     object_unparent(OBJECT(usbif->ports[port - 1].dev));
     usbif->ports[port - 1].dev = NULL;
@@ -733,10 +728,10 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
 {
     unsigned speed;
     char *portname;
-    USBPort *p;
     Error *local_err = NULL;
     QDict *qdict;
     QemuOpts *opts;
+    char *tmp;
 
     if (usbif->ports[port - 1].dev) {
         return;
@@ -749,11 +744,16 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
         return;
     }
     portname++;
-    p = &(usbif->ports[port - 1].port);
-    snprintf(p->path, sizeof(p->path), "%s", portname);
 
     qdict = qdict_new();
     qdict_put(qdict, "driver", qstring_from_str("usb-host"));
+    tmp = g_strdup_printf("%s.0", usbif->xendev.qdev.id);
+    qdict_put(qdict, "bus", qstring_from_str(tmp));
+    g_free(tmp);
+    tmp = g_strdup_printf("%s-%u", usbif->xendev.qdev.id, port);
+    qdict_put(qdict, "id", qstring_from_str(tmp));
+    g_free(tmp);
+    qdict_put(qdict, "port", qint_from_int(port));
     qdict_put(qdict, "hostbus", qint_from_int(atoi(busid)));
     qdict_put(qdict, "hostport", qstring_from_str(portname));
     opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
@@ -765,7 +765,6 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
         goto err;
     }
     QDECREF(qdict);
-    snprintf(p->path, sizeof(p->path), "%d", port);
     speed = usbif->ports[port - 1].dev->speed;
     switch (speed) {
     case USB_SPEED_LOW:
@@ -799,7 +798,6 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
 
 err:
     QDECREF(qdict);
-    snprintf(p->path, sizeof(p->path), "%d", 99);
     xen_pv_printf(&usbif->xendev, 0, "device %s could not be opened\n", busid);
 }
 
@@ -1012,13 +1010,13 @@ static void usbback_alloc(struct XenDevice *xendev)
 
     usbif = container_of(xendev, struct usbback_info, xendev);
 
-    usb_bus_new(&usbif->bus, sizeof(usbif->bus), &xen_usb_bus_ops, xen_sysdev);
+    usb_bus_new(&usbif->bus, sizeof(usbif->bus), &xen_usb_bus_ops,
+                DEVICE(&xendev->qdev));
     for (i = 0; i < USBBACK_MAXPORTS; i++) {
         p = &(usbif->ports[i].port);
         usb_register_port(&usbif->bus, p, usbif, i, &xen_usb_port_ops,
                           USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL |
                           USB_SPEED_MASK_HIGH);
-        snprintf(p->path, sizeof(p->path), "%d", 99);
     }
 
     QTAILQ_INIT(&usbif->req_free_q);
@@ -1066,7 +1064,6 @@ static int usbback_free(struct XenDevice *xendev)
     }
 
     usb_bus_release(&usbif->bus);
-    object_unparent(OBJECT(&usbif->bus));
 
     TR_BUS(xendev, "finished\n");
 

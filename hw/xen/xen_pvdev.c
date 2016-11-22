@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "hw/qdev-core.h"
 #include "hw/xen/xen_backend.h"
 #include "hw/xen/xen_pvdev.h"
 
@@ -307,7 +308,8 @@ void xen_pv_del_xendev(struct XenDevice *xendev)
     }
 
     QTAILQ_REMOVE(&xendevs, xendev, next);
-    g_free(xendev);
+
+    qdev_unplug(&xendev->qdev, NULL);
 }
 
 void xen_pv_insert_xendev(struct XenDevice *xendev)

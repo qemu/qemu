@@ -27,16 +27,18 @@
 
 #include "hw/hw.h"
 #include "hw/sysbus.h"
+#include "hw/boards.h"
 #include "sysemu/char.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 #include "hw/xen/xen_backend.h"
 #include "hw/xen/xen_pvdev.h"
+#include "monitor/qdev.h"
 
 #include <xen/grant_table.h>
 
-#define TYPE_XENSYSDEV "xensysdev"
-
 DeviceState *xen_sysdev;
+BusState *xen_sysbus;
 
 /* ------------------------------------------------------------- */
 
@@ -121,6 +123,12 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
 
     /* init new xendev */
     xendev = g_malloc0(ops->size);
+    object_initialize(&xendev->qdev, ops->size, TYPE_XENBACKEND);
+    qdev_set_parent_bus(&xendev->qdev, xen_sysbus);
+    qdev_set_id(&xendev->qdev, g_strdup_printf("xen-%s-%d", type, dev));
+    qdev_init_nofail(&xendev->qdev);
+    object_unref(OBJECT(&xendev->qdev));
+
     xendev->type  = type;
     xendev->dom   = dom;
     xendev->dev   = dev;
@@ -528,6 +536,8 @@ int xen_be_init(void)
 
     xen_sysdev = qdev_create(NULL, TYPE_XENSYSDEV);
     qdev_init_nofail(xen_sysdev);
+    xen_sysbus = qbus_create(TYPE_XENSYSBUS, DEVICE(xen_sysdev), "xen-sysbus");
+    qbus_set_bus_hotplug_handler(xen_sysbus, &error_abort);
 
     return 0;
 
@@ -537,6 +547,15 @@ err:
     xenstore = NULL;
 
     return -1;
+}
+
+static void xen_set_dynamic_sysbus(void)
+{
+    Object *machine = qdev_get_machine();
+    ObjectClass *oc = object_get_class(machine);
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->has_dynamic_sysbus = true;
 }
 
 int xen_be_register(const char *type, struct XenDevOps *ops)
@@ -560,6 +579,8 @@ int xen_be_register(const char *type, struct XenDevOps *ops)
 
 void xen_be_register_common(void)
 {
+    xen_set_dynamic_sysbus();
+
     xen_be_register("console", &xen_console_ops);
     xen_be_register("vkbd", &xen_kbdmouse_ops);
     xen_be_register("qdisk", &xen_blkdev_ops);
@@ -586,6 +607,42 @@ int xen_be_bind_evtchn(struct XenDevice *xendev)
 }
 
 
+static Property xendev_properties[] = {
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void xendev_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->props = xendev_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+}
+
+static const TypeInfo xendev_type_info = {
+    .name          = TYPE_XENBACKEND,
+    .parent        = TYPE_XENSYSDEV,
+    .class_init    = xendev_class_init,
+    .instance_size = sizeof(struct XenDevice),
+};
+
+static void xen_sysbus_class_init(ObjectClass *klass, void *data)
+{
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+
+    hc->unplug = qdev_simple_device_unplug_cb;
+}
+
+static const TypeInfo xensysbus_info = {
+    .name       = TYPE_XENSYSBUS,
+    .parent     = TYPE_BUS,
+    .class_init = xen_sysbus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
+};
+
 static int xen_sysdev_init(SysBusDevice *dev)
 {
     return 0;
@@ -602,6 +659,7 @@ static void xen_sysdev_class_init(ObjectClass *klass, void *data)
 
     k->init = xen_sysdev_init;
     dc->props = xen_sysdev_properties;
+    dc->bus_type = TYPE_XENSYSBUS;
 }
 
 static const TypeInfo xensysdev_info = {
@@ -613,7 +671,9 @@ static const TypeInfo xensysdev_info = {
 
 static void xenbe_register_types(void)
 {
+    type_register_static(&xensysbus_info);
     type_register_static(&xensysdev_info);
+    type_register_static(&xendev_type_info);
 }
 
-type_init(xenbe_register_types);
+type_init(xenbe_register_types)
