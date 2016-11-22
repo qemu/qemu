@@ -376,7 +376,7 @@ static void cchip_write(void *opaque, hwaddr addr,
         break;
     case 0x0240: /* DIM1 */
         /* DIM: Device Interrupt Mask Register, CPU1.  */
-        s->cchip.dim[0] = val;
+        s->cchip.dim[1] = val;
         cpu_irq_change(s->cchip.cpu[1], val & s->cchip.drir);
         break;
 
