@@ -2829,8 +2829,9 @@ static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
     iov.iov_len = sizeof(zero);
     discard_iov.iov = &iov;
     discard_iov.niov = 1;
-    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
-    assert((count & (BDRV_SECTOR_SIZE - 1)) == 0);
+    if (!QEMU_IS_ALIGNED(offset | count, BDRV_SECTOR_SIZE)) {
+        return -ENOTSUP;
+    }
     acb = sd_aio_setup(bs, &discard_iov, offset >> BDRV_SECTOR_BITS,
                        count >> BDRV_SECTOR_BITS);
     acb->aiocb_type = AIOCB_DISCARD_OBJ;

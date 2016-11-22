@@ -1206,6 +1206,7 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.request_alignment = BDRV_SECTOR_SIZE;
     }
     bs->bl.pwrite_zeroes_alignment = s->cluster_size;
+    bs->bl.pdiscard_alignment = s->cluster_size;
 }
 
 static int qcow2_set_key(BlockDriverState *bs, const char *key)
@@ -2489,6 +2490,11 @@ static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
+
+    if (!QEMU_IS_ALIGNED(offset | count, s->cluster_size)) {
+        assert(count < s->cluster_size);
+        return -ENOTSUP;
+    }
 
     qemu_co_mutex_lock(&s->lock);
     ret = qcow2_discard_clusters(bs, offset, count >> BDRV_SECTOR_BITS,

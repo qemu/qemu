@@ -1083,7 +1083,9 @@ coroutine_fn iscsi_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
     struct IscsiTask iTask;
     struct unmap_list list;
 
-    assert(is_byte_request_lun_aligned(offset, count, iscsilun));
+    if (!is_byte_request_lun_aligned(offset, count, iscsilun)) {
+        return -ENOTSUP;
+    }
 
     if (!iscsilun->lbp.lbpu) {
         /* UNMAP is not supported by the target */
