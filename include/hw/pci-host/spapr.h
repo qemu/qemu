@@ -79,6 +79,12 @@ struct sPAPRPHBState {
     uint64_t dma64_win_addr;
 
     uint32_t numa_node;
+
+    /* Fields for migration compatibility hacks */
+    bool pre_2_8_migration;
+    uint32_t mig_liobn;
+    hwaddr mig_mem_win_addr, mig_mem_win_size;
+    hwaddr mig_io_win_addr, mig_io_win_size;
 };
 
 #define SPAPR_PCI_MEM_WIN_BUS_OFFSET 0x80000000ULL

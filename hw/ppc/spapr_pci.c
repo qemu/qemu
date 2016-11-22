@@ -1590,6 +1590,8 @@ static Property spapr_phb_properties[] = {
     DEFINE_PROP_UINT64("pgsz", sPAPRPHBState, page_size_mask,
                        (1ULL << 12) | (1ULL << 16)),
     DEFINE_PROP_UINT32("numa_node", sPAPRPHBState, numa_node, -1),
+    DEFINE_PROP_BOOL("pre-2.8-migration", sPAPRPHBState,
+                     pre_2_8_migration, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1636,6 +1638,20 @@ static void spapr_pci_pre_save(void *opaque)
         sphb->msi_devs[i].key = *(uint32_t *) key;
         sphb->msi_devs[i].value = *(spapr_pci_msi *) value;
     }
+
+    if (sphb->pre_2_8_migration) {
+        sphb->mig_liobn = sphb->dma_liobn[0];
+        sphb->mig_mem_win_addr = sphb->mem_win_addr;
+        sphb->mig_mem_win_size = sphb->mem_win_size;
+        sphb->mig_io_win_addr = sphb->io_win_addr;
+        sphb->mig_io_win_size = sphb->io_win_size;
+
+        if ((sphb->mem64_win_size != 0)
+            && (sphb->mem64_win_addr
+                == (sphb->mem_win_addr + sphb->mem_win_size))) {
+            sphb->mig_mem_win_size += sphb->mem64_win_size;
+        }
+    }
 }
 
 static int spapr_pci_post_load(void *opaque, int version_id)
@@ -1658,6 +1674,13 @@ static int spapr_pci_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool pre_2_8_migration(void *opaque, int version_id)
+{
+    sPAPRPHBState *sphb = opaque;
+
+    return sphb->pre_2_8_migration;
+}
+
 static const VMStateDescription vmstate_spapr_pci = {
     .name = "spapr_pci",
     .version_id = 2,
@@ -1666,11 +1689,11 @@ static const VMStateDescription vmstate_spapr_pci = {
     .post_load = spapr_pci_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64_EQUAL(buid, sPAPRPHBState),
-        VMSTATE_UINT32_EQUAL(dma_liobn[0], sPAPRPHBState),
-        VMSTATE_UINT64_EQUAL(mem_win_addr, sPAPRPHBState),
-        VMSTATE_UINT64_EQUAL(mem_win_size, sPAPRPHBState),
-        VMSTATE_UINT64_EQUAL(io_win_addr, sPAPRPHBState),
-        VMSTATE_UINT64_EQUAL(io_win_size, sPAPRPHBState),
+        VMSTATE_UINT32_TEST(mig_liobn, sPAPRPHBState, pre_2_8_migration),
+        VMSTATE_UINT64_TEST(mig_mem_win_addr, sPAPRPHBState, pre_2_8_migration),
+        VMSTATE_UINT64_TEST(mig_mem_win_size, sPAPRPHBState, pre_2_8_migration),
+        VMSTATE_UINT64_TEST(mig_io_win_addr, sPAPRPHBState, pre_2_8_migration),
+        VMSTATE_UINT64_TEST(mig_io_win_size, sPAPRPHBState, pre_2_8_migration),
         VMSTATE_STRUCT_ARRAY(lsi_table, sPAPRPHBState, PCI_NUM_PINS, 0,
                              vmstate_spapr_pci_lsi, struct spapr_pci_lsi),
         VMSTATE_INT32(msi_devs_num, sPAPRPHBState),

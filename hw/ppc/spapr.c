@@ -2772,6 +2772,11 @@ DEFINE_SPAPR_MACHINE(2_8, "2.8", true);
         .driver = TYPE_POWERPC_CPU,                 \
         .property = "pre-2.8-migration",            \
         .value    = "on",                           \
+    },                                              \
+    {                                               \
+        .driver = TYPE_SPAPR_PCI_HOST_BRIDGE,       \
+        .property = "pre-2.8-migration",            \
+        .value    = "on",                           \
     },
 
 static void phb_placement_2_7(sPAPRMachineState *spapr, uint32_t index,
