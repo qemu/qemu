@@ -83,7 +83,7 @@ static tcg_insn_unit *tb_ret_addr;
 
 #include "elf.h"
 
-static bool have_isa_2_06;
+bool have_isa_2_06;
 bool have_isa_3_00;
 
 #define HAVE_ISA_2_06  have_isa_2_06
@@ -457,6 +457,8 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define CNTLZD XO31( 58)
 #define CNTTZW XO31(538)
 #define CNTTZD XO31(570)
+#define CNTPOPW XO31(378)
+#define CNTPOPD XO31(506)
 #define ANDC   XO31( 60)
 #define ORC    XO31(412)
 #define EQV    XO31(284)
@@ -2149,6 +2151,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_cntxz(s, TCG_TYPE_I32, CNTTZW, args[0], args[1],
                       args[2], const_args[2]);
         break;
+    case INDEX_op_ctpop_i32:
+        tcg_out32(s, CNTPOPW | SAB(args[1], args[0], 0));
+        break;
 
     case INDEX_op_clz_i64:
         tcg_out_cntxz(s, TCG_TYPE_I64, CNTLZD, args[0], args[1],
@@ -2157,6 +2162,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_ctz_i64:
         tcg_out_cntxz(s, TCG_TYPE_I64, CNTTZD, args[0], args[1],
                       args[2], const_args[2]);
+        break;
+    case INDEX_op_ctpop_i64:
+        tcg_out32(s, CNTPOPD | SAB(args[1], args[0], 0));
         break;
 
     case INDEX_op_mul_i32:
@@ -2573,6 +2581,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_nor_i32, { "r", "r", "r" } },
     { INDEX_op_clz_i32, { "r", "r", "rZW" } },
     { INDEX_op_ctz_i32, { "r", "r", "rZW" } },
+    { INDEX_op_ctpop_i32, { "r", "r" } },
 
     { INDEX_op_shl_i32, { "r", "r", "ri" } },
     { INDEX_op_shr_i32, { "r", "r", "ri" } },
@@ -2623,6 +2632,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_nor_i64, { "r", "r", "r" } },
     { INDEX_op_clz_i64, { "r", "r", "rZW" } },
     { INDEX_op_ctz_i64, { "r", "r", "rZW" } },
+    { INDEX_op_ctpop_i64, { "r", "r" } },
 
     { INDEX_op_shl_i64, { "r", "r", "ri" } },
     { INDEX_op_shr_i64, { "r", "r", "ri" } },
