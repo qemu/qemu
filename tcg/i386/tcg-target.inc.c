@@ -130,9 +130,10 @@ static bool have_movbe;
 # define have_movbe 0
 #endif
 
-/* We need this symbol in tcg-target.h, and we can't properly conditionalize
+/* We need these symbols in tcg-target.h, and we can't properly conditionalize
    it there.  Therefore we always define the variable.  */
 bool have_bmi1;
+bool have_popcnt;
 
 #if defined(CONFIG_CPUID_H) && defined(bit_BMI2)
 static bool have_bmi2;
@@ -337,6 +338,7 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define OPC_MOVZBL	(0xb6 | P_EXT)
 #define OPC_MOVZWL	(0xb7 | P_EXT)
 #define OPC_POP_r32	(0x58)
+#define OPC_POPCNT      (0xb8 | P_EXT | P_SIMDF3)
 #define OPC_PUSH_r32	(0x50)
 #define OPC_PUSH_Iv	(0x68)
 #define OPC_PUSH_Ib	(0x6a)
@@ -2083,6 +2085,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     OP_32_64(clz):
         tcg_out_clz(s, rexw, args[0], args[1], args[2], const_args[2]);
         break;
+    OP_32_64(ctpop):
+        tcg_out_modrm(s, OPC_POPCNT + rexw, a0, a1);
+        break;
 
     case INDEX_op_brcond_i32:
         tcg_out_brcond32(s, a2, a0, a1, const_args[1], arg_label(args[3]), 0);
@@ -2398,6 +2403,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_extract_i32:
     case INDEX_op_extract_i64:
     case INDEX_op_sextract_i32:
+    case INDEX_op_ctpop_i32:
+    case INDEX_op_ctpop_i64:
         return &r_r;
 
     case INDEX_op_deposit_i32:
@@ -2601,6 +2608,9 @@ static void tcg_target_init(TCGContext *s)
         /* MOVBE is only available on Intel Atom and Haswell CPUs, so we
            need to probe for it.  */
         have_movbe = (c & bit_MOVBE) != 0;
+#endif
+#ifdef bit_POPCNT
+        have_popcnt = (c & bit_POPCNT) != 0;
 #endif
     }
 
