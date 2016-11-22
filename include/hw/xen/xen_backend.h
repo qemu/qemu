@@ -8,6 +8,10 @@
 
 #define TYPE_XENSYSDEV "xen-sysdev"
 #define TYPE_XENSYSBUS "xen-sysbus"
+#define TYPE_XENBACKEND "xen-backend"
+
+#define XENBACKEND_DEVICE(obj) \
+    OBJECT_CHECK(XenDevice, (obj), TYPE_XENBACKEND)
 
 /* variables */
 extern xc_interface *xen_xc;

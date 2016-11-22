@@ -29,6 +29,7 @@ struct XenDevOps {
 };
 
 struct XenDevice {
+    DeviceState        qdev;
     const char         *type;
     int                dom;
     int                dev;
