@@ -6095,6 +6095,38 @@ static void gen_dform39(DisasContext *ctx)
     return gen_invalid(ctx);
 }
 
+/* handles stfdp, stxsd, stxssp */
+static void gen_dform3D(DisasContext *ctx)
+{
+    if ((ctx->opcode & 3) == 1) { /* DQ-FORM */
+        switch (ctx->opcode & 0x7) {
+        case 1: /* lxv */
+            break;
+        case 5: /* stxv */
+            break;
+        }
+    } else { /* DS-FORM */
+        switch (ctx->opcode & 0x3) {
+        case 0: /* stfdp */
+            if (ctx->insns_flags2 & PPC2_ISA205) {
+                return gen_stfdp(ctx);
+            }
+            break;
+        case 2: /* stxsd */
+            if (ctx->insns_flags2 & PPC2_ISA300) {
+                return gen_stxsd(ctx);
+            }
+            break;
+        case 3: /* stxssp */
+            if (ctx->insns_flags2 & PPC2_ISA300) {
+                return gen_stxssp(ctx);
+            }
+            break;
+        }
+    }
+    return gen_invalid(ctx);
+}
+
 static opcode_t opcodes[] = {
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
@@ -6169,6 +6201,8 @@ GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B),
 #endif
 /* handles lfdp, lxsd, lxssp */
 GEN_HANDLER_E(dform39, 0x39, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
+/* handles stfdp, stxsd, stxssp */
+GEN_HANDLER_E(dform3D, 0x3D, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER(lmw, 0x2E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING),

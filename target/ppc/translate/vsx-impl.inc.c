@@ -332,6 +332,27 @@ static void gen_stxvb16x(DisasContext *ctx)
     tcg_temp_free(EA);
 }
 
+#define VSX_STORE_SCALAR_DS(name, operation)                      \
+static void gen_##name(DisasContext *ctx)                         \
+{                                                                 \
+    TCGv EA;                                                      \
+    TCGv_i64 xth = cpu_vsrh(rD(ctx->opcode) + 32);                \
+                                                                  \
+    if (unlikely(!ctx->altivec_enabled)) {                        \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                     \
+        return;                                                   \
+    }                                                             \
+    gen_set_access_type(ctx, ACCESS_INT);                         \
+    EA = tcg_temp_new();                                          \
+    gen_addr_imm_index(ctx, EA, 0x03);                            \
+    gen_qemu_##operation(ctx, xth, EA);                           \
+    /* NOTE: cpu_vsrl is undefined */                             \
+    tcg_temp_free(EA);                                            \
+}
+
+VSX_LOAD_SCALAR_DS(stxsd, st64_i64)
+VSX_LOAD_SCALAR_DS(stxssp, st32fs)
+
 #define MV_VSRW(name, tcgop1, tcgop2, target, source)           \
 static void gen_##name(DisasContext *ctx)                       \
 {                                                               \
