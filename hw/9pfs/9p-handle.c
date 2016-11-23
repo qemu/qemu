@@ -649,6 +649,14 @@ out:
     return ret;
 }
 
+static void handle_cleanup(FsContext *ctx)
+{
+    struct handle_data *data = ctx->private;
+
+    close(data->mountfd);
+    g_free(data);
+}
+
 static int handle_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
 {
     const char *sec_model = qemu_opt_get(opts, "security_model");
@@ -671,6 +679,7 @@ static int handle_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
 FileOperations handle_ops = {
     .parse_opts   = handle_parse_opts,
     .init         = handle_init,
+    .cleanup      = handle_cleanup,
     .lstat        = handle_lstat,
     .readlink     = handle_readlink,
     .close        = handle_close,
