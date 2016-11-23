@@ -1301,14 +1301,19 @@ static inline int cpu_mmu_index (CPUPPCState *env, bool ifetch)
 
 /*****************************************************************************/
 /* CRF definitions */
-#define CRF_LT        3
-#define CRF_GT        2
-#define CRF_EQ        1
-#define CRF_SO        0
-#define CRF_CH        (1 << CRF_LT)
-#define CRF_CL        (1 << CRF_GT)
-#define CRF_CH_OR_CL  (1 << CRF_EQ)
-#define CRF_CH_AND_CL (1 << CRF_SO)
+#define CRF_LT_BIT    3
+#define CRF_GT_BIT    2
+#define CRF_EQ_BIT    1
+#define CRF_SO_BIT    0
+#define CRF_LT        (1 << CRF_LT_BIT)
+#define CRF_GT        (1 << CRF_GT_BIT)
+#define CRF_EQ        (1 << CRF_EQ_BIT)
+#define CRF_SO        (1 << CRF_SO_BIT)
+/* For SPE extensions */
+#define CRF_CH        (1 << CRF_LT_BIT)
+#define CRF_CL        (1 << CRF_GT_BIT)
+#define CRF_CH_OR_CL  (1 << CRF_EQ_BIT)
+#define CRF_CH_AND_CL (1 << CRF_SO_BIT)
 
 /* XER definitions */
 #define XER_SO  31

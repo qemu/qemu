@@ -157,7 +157,7 @@ uint64_t helper_divde(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
 
 uint32_t helper_cmpeqb(target_ulong ra, target_ulong rb)
 {
-    return hasvalue(rb, ra) ? 1 << CRF_GT : 0;
+    return hasvalue(rb, ra) ? CRF_GT : 0;
 }
 
 #undef pattern
@@ -2531,9 +2531,9 @@ static void bcd_put_digit(ppc_avr_t *bcd, uint8_t digit, int n)
 static int bcd_cmp_zero(ppc_avr_t *bcd)
 {
     if (bcd->u64[HI_IDX] == 0 && (bcd->u64[LO_IDX] >> 4) == 0) {
-        return 1 << CRF_EQ;
+        return CRF_EQ;
     } else {
-        return (bcd_get_sgn(bcd) == 1) ? 1 << CRF_GT : 1 << CRF_LT;
+        return (bcd_get_sgn(bcd) == 1) ? CRF_GT : CRF_LT;
     }
 }
 
@@ -2645,25 +2645,25 @@ uint32_t helper_bcdadd(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
         if (sgna == sgnb) {
             result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgna, ps);
             zero = bcd_add_mag(&result, a, b, &invalid, &overflow);
-            cr = (sgna > 0) ? 1 << CRF_GT : 1 << CRF_LT;
+            cr = (sgna > 0) ? CRF_GT : CRF_LT;
         } else if (bcd_cmp_mag(a, b) > 0) {
             result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgna, ps);
             zero = bcd_sub_mag(&result, a, b, &invalid, &overflow);
-            cr = (sgna > 0) ? 1 << CRF_GT : 1 << CRF_LT;
+            cr = (sgna > 0) ? CRF_GT : CRF_LT;
         } else {
             result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgnb, ps);
             zero = bcd_sub_mag(&result, b, a, &invalid, &overflow);
-            cr = (sgnb > 0) ? 1 << CRF_GT : 1 << CRF_LT;
+            cr = (sgnb > 0) ? CRF_GT : CRF_LT;
         }
     }
 
     if (unlikely(invalid)) {
         result.u64[HI_IDX] = result.u64[LO_IDX] = -1;
-        cr = 1 << CRF_SO;
+        cr = CRF_SO;
     } else if (overflow) {
-        cr |= 1 << CRF_SO;
+        cr |= CRF_SO;
     } else if (zero) {
-        cr = 1 << CRF_EQ;
+        cr = CRF_EQ;
     }
 
     *r = result;
@@ -2713,7 +2713,7 @@ uint32_t helper_bcdcfn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     cr = bcd_cmp_zero(&ret);
 
     if (unlikely(invalid)) {
-        cr = 1 << CRF_SO;
+        cr = CRF_SO;
     }
 
     *r = ret;
@@ -2743,11 +2743,11 @@ uint32_t helper_bcdctn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     cr = bcd_cmp_zero(b);
 
     if (ox_flag) {
-        cr |= 1 << CRF_SO;
+        cr |= CRF_SO;
     }
 
     if (unlikely(invalid)) {
-        cr = 1 << CRF_SO;
+        cr = CRF_SO;
     }
 
     *r = ret;
@@ -2791,7 +2791,7 @@ uint32_t helper_bcdcfz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     cr = bcd_cmp_zero(&ret);
 
     if (unlikely(invalid)) {
-        cr = 1 << CRF_SO;
+        cr = CRF_SO;
     }
 
     *r = ret;
@@ -2830,11 +2830,11 @@ uint32_t helper_bcdctz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     cr = bcd_cmp_zero(b);
 
     if (ox_flag) {
-        cr |= 1 << CRF_SO;
+        cr |= CRF_SO;
     }
 
     if (unlikely(invalid)) {
-        cr = 1 << CRF_SO;
+        cr = CRF_SO;
     }
 
     *r = ret;
