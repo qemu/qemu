@@ -660,6 +660,38 @@ static void qemu_aio_complete(void *opaque, int ret)
     qemu_bh_schedule(ioreq->blkdev->bh);
 }
 
+static bool blk_split_discard(struct ioreq *ioreq, blkif_sector_t sector_number,
+                              uint64_t nr_sectors)
+{
+    struct XenBlkDev *blkdev = ioreq->blkdev;
+    int64_t byte_offset;
+    int byte_chunk;
+    uint64_t byte_remaining, limit;
+    uint64_t sec_start = sector_number;
+    uint64_t sec_count = nr_sectors;
+
+    /* Wrap around, or overflowing byte limit? */
+    if (sec_start + sec_count < sec_count ||
+        sec_start + sec_count > INT64_MAX >> BDRV_SECTOR_BITS) {
+        return false;
+    }
+
+    limit = BDRV_REQUEST_MAX_SECTORS << BDRV_SECTOR_BITS;
+    byte_offset = sec_start << BDRV_SECTOR_BITS;
+    byte_remaining = sec_count << BDRV_SECTOR_BITS;
+
+    do {
+        byte_chunk = byte_remaining > limit ? limit : byte_remaining;
+        ioreq->aio_inflight++;
+        blk_aio_pdiscard(blkdev->blk, byte_offset, byte_chunk,
+                         qemu_aio_complete, ioreq);
+        byte_remaining -= byte_chunk;
+        byte_offset += byte_chunk;
+    } while (byte_remaining > 0);
+
+    return true;
+}
+
 static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
@@ -708,12 +740,10 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
         break;
     case BLKIF_OP_DISCARD:
     {
-        struct blkif_request_discard *discard_req = (void *)&ioreq->req;
-        ioreq->aio_inflight++;
-        blk_aio_pdiscard(blkdev->blk,
-                         discard_req->sector_number << BDRV_SECTOR_BITS,
-                         discard_req->nr_sectors << BDRV_SECTOR_BITS,
-                         qemu_aio_complete, ioreq);
+        struct blkif_request_discard *req = (void *)&ioreq->req;
+        if (!blk_split_discard(ioreq, req->sector_number, req->nr_sectors)) {
+            goto err;
+        }
         break;
     }
     default:
