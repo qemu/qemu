@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
+#include "internal.h"
 
 #define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ULL)
 #define float32_snan_to_qnan(x) ((x) | 0x00400000)
@@ -1775,16 +1776,6 @@ uint32_t helper_efdcmpeq(CPUPPCState *env, uint64_t op1, uint64_t op2)
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return helper_efdtsteq(env, op1, op2);
 }
-
-#define DECODE_SPLIT(opcode, shift1, nb1, shift2, nb2) \
-    (((((opcode) >> (shift1)) & ((1 << (nb1)) - 1)) << nb2) |    \
-     (((opcode) >> (shift2)) & ((1 << (nb2)) - 1)))
-
-#define xT(opcode) DECODE_SPLIT(opcode, 0, 1, 21, 5)
-#define xA(opcode) DECODE_SPLIT(opcode, 2, 1, 16, 5)
-#define xB(opcode) DECODE_SPLIT(opcode, 1, 1, 11, 5)
-#define xC(opcode) DECODE_SPLIT(opcode, 3, 1,  6, 5)
-#define BF(opcode) (((opcode) >> (31-8)) & 7)
 
 typedef union _ppc_vsr_t {
     uint64_t u64[2];
