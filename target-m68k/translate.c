@@ -2198,13 +2198,13 @@ static void do_exg(TCGv reg1, TCGv reg2)
     tcg_temp_free(temp);
 }
 
-DISAS_INSN(exg_aa)
+DISAS_INSN(exg_dd)
 {
     /* exchange Dx and Dy */
     do_exg(DREG(insn, 9), DREG(insn, 0));
 }
 
-DISAS_INSN(exg_dd)
+DISAS_INSN(exg_aa)
 {
     /* exchange Ax and Ay */
     do_exg(AREG(insn, 9), AREG(insn, 0));
