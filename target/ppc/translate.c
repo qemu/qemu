@@ -6072,6 +6072,29 @@ GEN_TM_PRIV_NOOP(trechkpt);
 
 #include "translate/spe-impl.inc.c"
 
+/* Handles lfdp, lxsd, lxssp */
+static void gen_dform39(DisasContext *ctx)
+{
+    switch (ctx->opcode & 0x3) {
+    case 0: /* lfdp */
+        if (ctx->insns_flags2 & PPC2_ISA205) {
+            return gen_lfdp(ctx);
+        }
+        break;
+    case 2: /* lxsd */
+        if (ctx->insns_flags2 & PPC2_ISA300) {
+            return gen_lxsd(ctx);
+        }
+        break;
+    case 3: /* lxssp */
+        if (ctx->insns_flags2 & PPC2_ISA300) {
+            return gen_lxssp(ctx);
+        }
+        break;
+    }
+    return gen_invalid(ctx);
+}
+
 static opcode_t opcodes[] = {
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
@@ -6144,6 +6167,8 @@ GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B),
 GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX),
 GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B),
 #endif
+/* handles lfdp, lxsd, lxssp */
+GEN_HANDLER_E(dform39, 0x39, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER(lmw, 0x2E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING),
