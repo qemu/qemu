@@ -2519,6 +2519,60 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
 VSX_SCALAR_CMP(xscmpodp, 1)
 VSX_SCALAR_CMP(xscmpudp, 0)
 
+#define VSX_SCALAR_CMPQ(op, ordered)                                    \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
+{                                                                       \
+    ppc_vsr_t xa, xb;                                                   \
+    uint32_t cc = 0;                                                    \
+    bool vxsnan_flag = false, vxvc_flag = false;                        \
+    float128 a, b;                                                      \
+                                                                        \
+    helper_reset_fpstatus(env);                                         \
+    getVSR(rA(opcode) + 32, &xa, env);                                  \
+    getVSR(rB(opcode) + 32, &xb, env);                                  \
+                                                                        \
+    a = make_float128(xa.VsrD(0), xa.VsrD(1));                          \
+    b = make_float128(xb.VsrD(0), xb.VsrD(1));                          \
+                                                                        \
+    if (float128_is_signaling_nan(a, &env->fp_status) ||                \
+        float128_is_signaling_nan(b, &env->fp_status)) {                \
+        vxsnan_flag = true;                                             \
+        cc = CRF_SO;                                                    \
+        if (fpscr_ve == 0 && ordered) {                                 \
+            vxvc_flag = true;                                           \
+        }                                                               \
+    } else if (float128_is_quiet_nan(a, &env->fp_status) ||             \
+               float128_is_quiet_nan(b, &env->fp_status)) {             \
+        cc = CRF_SO;                                                    \
+        if (ordered) {                                                  \
+            vxvc_flag = true;                                           \
+        }                                                               \
+    }                                                                   \
+    if (vxsnan_flag) {                                                  \
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);          \
+    }                                                                   \
+    if (vxvc_flag) {                                                    \
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);            \
+    }                                                                   \
+                                                                        \
+    if (float128_lt(a, b, &env->fp_status)) {                           \
+        cc |= CRF_LT;                                                   \
+    } else if (!float128_le(a, b, &env->fp_status)) {                   \
+        cc |= CRF_GT;                                                   \
+    } else {                                                            \
+        cc |= CRF_EQ;                                                   \
+    }                                                                   \
+                                                                        \
+    env->fpscr &= ~(0x0F << FPSCR_FPRF);                                \
+    env->fpscr |= cc << FPSCR_FPRF;                                     \
+    env->crf[BF(opcode)] = cc;                                          \
+                                                                        \
+    float_check_status(env);                                            \
+}
+
+VSX_SCALAR_CMPQ(xscmpoqp, 1)
+VSX_SCALAR_CMPQ(xscmpuqp, 0)
+
 /* VSX_MAX_MIN - VSX floating point maximum/minimum
  *   name  - instruction mnemonic
  *   op    - operation (max or min)
