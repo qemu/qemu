@@ -35,21 +35,12 @@ static void timestamp_put(QDict *qdict)
     int err;
     QObject *obj;
     qemu_timeval tv;
-    int64_t sec, usec;
 
     err = qemu_gettimeofday(&tv);
-    if (err < 0) {
-        /* Put -1 to indicate failure of getting host time */
-        sec = -1;
-        usec = -1;
-    } else {
-        sec = tv.tv_sec;
-        usec = tv.tv_usec;
-    }
-
-    obj = qobject_from_jsonf("{ 'seconds': %" PRId64 ", "
-                             "'microseconds': %" PRId64 " }",
-                             sec, usec);
+    /* Put -1 to indicate failure of getting host time */
+    obj = qobject_from_jsonf("{ 'seconds': %lld, 'microseconds': %lld }",
+                             err < 0 ? -1LL : (long long)tv.tv_sec,
+                             err < 0 ? -1LL : (long long)tv.tv_usec);
     qdict_put_obj(qdict, "timestamp", obj);
 }
 
