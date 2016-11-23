@@ -310,6 +310,7 @@ typedef struct S390PCIBus {
 typedef struct S390pciState {
     PCIHostState parent_obj;
     uint32_t next_idx;
+    int bus_no;
     S390PCIBus *bus;
     GHashTable *iommu_table;
     GHashTable *zpci_table;

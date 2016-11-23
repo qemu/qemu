@@ -576,6 +576,7 @@ static int s390_pcihost_init(SysBusDevice *dev)
     s->iommu_table = g_hash_table_new_full(g_int64_hash, g_int64_equal,
                                            NULL, g_free);
     s->zpci_table = g_hash_table_new_full(g_int_hash, g_int_equal, NULL, NULL);
+    s->bus_no = 0;
     QTAILQ_INIT(&s->pending_sei);
     QTAILQ_INIT(&s->zpci_devs);
     return 0;
@@ -673,12 +674,24 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
         BusState *bus;
         PCIBridge *pb = PCI_BRIDGE(dev);
+        PCIDevice *pdev = PCI_DEVICE(dev);
 
         pci_bridge_map_irq(pb, dev->id, s390_pci_map_irq);
         pci_setup_iommu(&pb->sec_bus, s390_pci_dma_iommu, s);
 
         bus = BUS(&pb->sec_bus);
         qbus_set_hotplug_handler(bus, DEVICE(s), errp);
+
+        if (dev->hotplugged) {
+            pci_default_write_config(pdev, PCI_PRIMARY_BUS, s->bus_no, 1);
+            s->bus_no += 1;
+            pci_default_write_config(pdev, PCI_SECONDARY_BUS, s->bus_no, 1);
+            do {
+                pdev = pdev->bus->parent_dev;
+                pci_default_write_config(pdev, PCI_SUBORDINATE_BUS,
+                                         s->bus_no, 1);
+            } while (pdev->bus && pci_bus_num(pdev->bus));
+        }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         pdev = PCI_DEVICE(dev);
 
@@ -812,6 +825,44 @@ out:
     object_unparent(OBJECT(pbdev));
 }
 
+static void s390_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
+                                      void *opaque)
+{
+    S390pciState *s = opaque;
+    unsigned int primary = s->bus_no;
+    unsigned int subordinate = 0xff;
+    PCIBus *sec_bus = NULL;
+
+    if ((pci_default_read_config(pdev, PCI_HEADER_TYPE, 1) !=
+         PCI_HEADER_TYPE_BRIDGE)) {
+        return;
+    }
+
+    (s->bus_no)++;
+    pci_default_write_config(pdev, PCI_PRIMARY_BUS, primary, 1);
+    pci_default_write_config(pdev, PCI_SECONDARY_BUS, s->bus_no, 1);
+    pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, s->bus_no, 1);
+
+    sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
+    if (!sec_bus) {
+        return;
+    }
+
+    pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, subordinate, 1);
+    pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
+                        s390_pci_enumerate_bridge, s);
+    pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, s->bus_no, 1);
+}
+
+static void s390_pcihost_reset(DeviceState *dev)
+{
+    S390pciState *s = S390_PCI_HOST_BRIDGE(dev);
+    PCIBus *bus = s->parent_obj.bus;
+
+    s->bus_no = 0;
+    pci_for_each_device(bus, pci_bus_num(bus), s390_pci_enumerate_bridge, s);
+}
+
 static void s390_pcihost_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
@@ -819,6 +870,7 @@ static void s390_pcihost_class_init(ObjectClass *klass, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     dc->cannot_instantiate_with_device_add_yet = true;
+    dc->reset = s390_pcihost_reset;
     k->init = s390_pcihost_init;
     hc->plug = s390_pcihost_hot_plug;
     hc->unplug = s390_pcihost_hot_unplug;
