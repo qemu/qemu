@@ -406,11 +406,9 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
             /* Data out.  */
             qemu_log_mask(LOG_UNIMP, "esp: PIO data read not implemented\n");
             s->rregs[ESP_FIFO] = 0;
-            esp_raise_irq(s);
         } else if (s->ti_rptr < s->ti_wptr) {
             s->ti_size--;
             s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
-            esp_raise_irq(s);
         }
         if (s->ti_rptr == s->ti_wptr) {
             s->ti_rptr = 0;

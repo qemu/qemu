@@ -415,6 +415,10 @@ int nbd_client_init(BlockDriverState *bs,
     }
     if (client->nbdflags & NBD_FLAG_SEND_FUA) {
         bs->supported_write_flags = BDRV_REQ_FUA;
+        bs->supported_zero_flags |= BDRV_REQ_FUA;
+    }
+    if (client->nbdflags & NBD_FLAG_SEND_WRITE_ZEROES) {
+        bs->supported_zero_flags |= BDRV_REQ_MAY_UNMAP;
     }
 
     qemu_co_mutex_init(&client->send_mutex);
