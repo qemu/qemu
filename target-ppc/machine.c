@@ -135,11 +135,33 @@ static const VMStateInfo vmstate_info_avr = {
 #define VMSTATE_AVR_ARRAY(_f, _s, _n)                             \
     VMSTATE_AVR_ARRAY_V(_f, _s, _n, 0)
 
+static bool cpu_pre_2_8_migration(void *opaque, int version_id)
+{
+    PowerPCCPU *cpu = opaque;
+
+    return cpu->pre_2_8_migration;
+}
+
 static void cpu_pre_save(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
     int i;
+    uint64_t insns_compat_mask =
+        PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB
+        | PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES
+        | PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE | PPC_FLOAT_FRSQRTES
+        | PPC_FLOAT_STFIWX | PPC_FLOAT_EXT
+        | PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ
+        | PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE | PPC_MEM_TLBSYNC
+        | PPC_64B | PPC_64BX | PPC_ALTIVEC
+        | PPC_SEGMENT_64B | PPC_SLBI | PPC_POPCNTB | PPC_POPCNTWD;
+    uint64_t insns_compat_mask2 = PPC2_VSX | PPC2_VSX207 | PPC2_DFP | PPC2_DBRX
+        | PPC2_PERM_ISA206 | PPC2_DIVE_ISA206
+        | PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206
+        | PPC2_FP_TST_ISA206 | PPC2_BCTAR_ISA207
+        | PPC2_LSQ_ISA207 | PPC2_ALTIVEC_207
+        | PPC2_ISA205 | PPC2_ISA207S | PPC2_FP_CVT_S64 | PPC2_TM;
 
     env->spr[SPR_LR] = env->lr;
     env->spr[SPR_CTR] = env->ctr;
@@ -160,6 +182,14 @@ static void cpu_pre_save(void *opaque)
         env->spr[SPR_DBAT4U + 2*i + 1] = env->DBAT[1][i+4];
         env->spr[SPR_IBAT4U + 2*i] = env->IBAT[0][i+4];
         env->spr[SPR_IBAT4U + 2*i + 1] = env->IBAT[1][i+4];
+    }
+
+    /* Hacks for migration compatibility between 2.6, 2.7 & 2.8 */
+    if (cpu->pre_2_8_migration) {
+        cpu->mig_msr_mask = env->msr_mask;
+        cpu->mig_insns_flags = env->insns_flags & insns_compat_mask;
+        cpu->mig_insns_flags2 = env->insns_flags2 & insns_compat_mask2;
+        cpu->mig_nb_BATs = env->nb_BATs;
     }
 }
 
@@ -561,10 +591,11 @@ const VMStateDescription vmstate_ppc_cpu = {
         /* FIXME: access_type? */
 
         /* Sanity checking */
-        VMSTATE_UINTTL_EQUAL(env.msr_mask, PowerPCCPU),
-        VMSTATE_UINT64_EQUAL(env.insns_flags, PowerPCCPU),
-        VMSTATE_UINT64_EQUAL(env.insns_flags2, PowerPCCPU),
-        VMSTATE_UINT32_EQUAL(env.nb_BATs, PowerPCCPU),
+        VMSTATE_UINTTL_TEST(mig_msr_mask, PowerPCCPU, cpu_pre_2_8_migration),
+        VMSTATE_UINT64_TEST(mig_insns_flags, PowerPCCPU, cpu_pre_2_8_migration),
+        VMSTATE_UINT64_TEST(mig_insns_flags2, PowerPCCPU,
+                            cpu_pre_2_8_migration),
+        VMSTATE_UINT32_TEST(mig_nb_BATs, PowerPCCPU, cpu_pre_2_8_migration),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {

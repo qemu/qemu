@@ -1267,6 +1267,68 @@ static bool version_before_3(void *opaque, int version_id)
     return version_id < 3;
 }
 
+static bool spapr_ov5_cas_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+    sPAPROptionVector *ov5_mask = spapr_ovec_new();
+    sPAPROptionVector *ov5_legacy = spapr_ovec_new();
+    sPAPROptionVector *ov5_removed = spapr_ovec_new();
+    bool cas_needed;
+
+    /* Prior to the introduction of sPAPROptionVector, we had two option
+     * vectors we dealt with: OV5_FORM1_AFFINITY, and OV5_DRCONF_MEMORY.
+     * Both of these options encode machine topology into the device-tree
+     * in such a way that the now-booted OS should still be able to interact
+     * appropriately with QEMU regardless of what options were actually
+     * negotiatied on the source side.
+     *
+     * As such, we can avoid migrating the CAS-negotiated options if these
+     * are the only options available on the current machine/platform.
+     * Since these are the only options available for pseries-2.7 and
+     * earlier, this allows us to maintain old->new/new->old migration
+     * compatibility.
+     *
+     * For QEMU 2.8+, there are additional CAS-negotiatable options available
+     * via default pseries-2.8 machines and explicit command-line parameters.
+     * Some of these options, like OV5_HP_EVT, *do* require QEMU to be aware
+     * of the actual CAS-negotiated values to continue working properly. For
+     * example, availability of memory unplug depends on knowing whether
+     * OV5_HP_EVT was negotiated via CAS.
+     *
+     * Thus, for any cases where the set of available CAS-negotiatable
+     * options extends beyond OV5_FORM1_AFFINITY and OV5_DRCONF_MEMORY, we
+     * include the CAS-negotiated options in the migration stream.
+     */
+    spapr_ovec_set(ov5_mask, OV5_FORM1_AFFINITY);
+    spapr_ovec_set(ov5_mask, OV5_DRCONF_MEMORY);
+
+    /* spapr_ovec_diff returns true if bits were removed. we avoid using
+     * the mask itself since in the future it's possible "legacy" bits may be
+     * removed via machine options, which could generate a false positive
+     * that breaks migration.
+     */
+    spapr_ovec_intersect(ov5_legacy, spapr->ov5, ov5_mask);
+    cas_needed = spapr_ovec_diff(ov5_removed, spapr->ov5, ov5_legacy);
+
+    spapr_ovec_cleanup(ov5_mask);
+    spapr_ovec_cleanup(ov5_legacy);
+    spapr_ovec_cleanup(ov5_removed);
+
+    return cas_needed;
+}
+
+static const VMStateDescription vmstate_spapr_ov5_cas = {
+    .name = "spapr_option_vector_ov5_cas",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_ov5_cas_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_POINTER_V(ov5_cas, sPAPRMachineState, 1,
+                                 vmstate_spapr_ovec, sPAPROptionVector),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1282,6 +1344,10 @@ static const VMStateDescription vmstate_spapr = {
         VMSTATE_PPC_TIMEBASE_V(tb, sPAPRMachineState, 2),
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_spapr_ov5_cas,
+        NULL
+    }
 };
 
 static int htab_save_setup(QEMUFile *f, void *opaque)
@@ -2701,6 +2767,16 @@ DEFINE_SPAPR_MACHINE(2_8, "2.8", true);
         .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,     \
         .property = "mem64_win_size",               \
         .value    = "0",                            \
+    },                                              \
+    {                                               \
+        .driver = TYPE_POWERPC_CPU,                 \
+        .property = "pre-2.8-migration",            \
+        .value    = "on",                           \
+    },                                              \
+    {                                               \
+        .driver = TYPE_SPAPR_PCI_HOST_BRIDGE,       \
+        .property = "pre-2.8-migration",            \
+        .value    = "on",                           \
     },
 
 static void phb_placement_2_7(sPAPRMachineState *spapr, uint32_t index,

@@ -10520,6 +10520,11 @@ static gchar *ppc_gdb_arch_name(CPUState *cs)
 #endif
 }
 
+static Property ppc_cpu_properties[] = {
+    DEFINE_PROP_BOOL("pre-2.8-migration", PowerPCCPU, pre_2_8_migration, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
@@ -10532,6 +10537,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_always;
     dc->realize = ppc_cpu_realizefn;
     dc->unrealize = ppc_cpu_unrealizefn;
+    dc->props = ppc_cpu_properties;
 
     pcc->parent_reset = cc->reset;
     cc->reset = ppc_cpu_reset;
