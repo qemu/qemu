@@ -2405,6 +2405,70 @@ VSX_SCALAR_CMP_DP(xscmpgedp, le, 1, 1)
 VSX_SCALAR_CMP_DP(xscmpgtdp, lt, 1, 1)
 VSX_SCALAR_CMP_DP(xscmpnedp, eq, 0, 0)
 
+void helper_xscmpexpdp(CPUPPCState *env, uint32_t opcode)
+{
+    ppc_vsr_t xa, xb;
+    int64_t exp_a, exp_b;
+    uint32_t cc;
+
+    getVSR(xA(opcode), &xa, env);
+    getVSR(xB(opcode), &xb, env);
+
+    exp_a = extract64(xa.VsrD(0), 52, 11);
+    exp_b = extract64(xb.VsrD(0), 52, 11);
+
+    if (unlikely(float64_is_any_nan(xa.VsrD(0)) ||
+                 float64_is_any_nan(xb.VsrD(0)))) {
+        cc = CRF_SO;
+    } else {
+        if (exp_a < exp_b) {
+            cc = CRF_LT;
+        } else if (exp_a > exp_b) {
+            cc = CRF_GT;
+        } else {
+            cc = CRF_EQ;
+        }
+    }
+
+    env->fpscr &= ~(0x0F << FPSCR_FPRF);
+    env->fpscr |= cc << FPSCR_FPRF;
+    env->crf[BF(opcode)] = cc;
+
+    helper_float_check_status(env);
+}
+
+void helper_xscmpexpqp(CPUPPCState *env, uint32_t opcode)
+{
+    ppc_vsr_t xa, xb;
+    int64_t exp_a, exp_b;
+    uint32_t cc;
+
+    getVSR(rA(opcode) + 32, &xa, env);
+    getVSR(rB(opcode) + 32, &xb, env);
+
+    exp_a = extract64(xa.VsrD(0), 48, 15);
+    exp_b = extract64(xb.VsrD(0), 48, 15);
+
+    if (unlikely(float128_is_any_nan(make_float128(xa.VsrD(0), xa.VsrD(1))) ||
+                 float128_is_any_nan(make_float128(xb.VsrD(0), xb.VsrD(1))))) {
+        cc = CRF_SO;
+    } else {
+        if (exp_a < exp_b) {
+            cc = CRF_LT;
+        } else if (exp_a > exp_b) {
+            cc = CRF_GT;
+        } else {
+            cc = CRF_EQ;
+        }
+    }
+
+    env->fpscr &= ~(0x0F << FPSCR_FPRF);
+    env->fpscr |= cc << FPSCR_FPRF;
+    env->crf[BF(opcode)] = cc;
+
+    helper_float_check_status(env);
+}
+
 #define VSX_SCALAR_CMP(op, ordered)                                      \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
 {                                                                        \
