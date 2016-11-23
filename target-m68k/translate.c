@@ -2170,7 +2170,7 @@ DISAS_INSN(cmpa)
     }
     SRC_EA(env, src, opsize, 1, NULL);
     reg = AREG(insn, 9);
-    gen_update_cc_cmp(s, reg, src, opsize);
+    gen_update_cc_cmp(s, reg, src, OS_LONG);
 }
 
 DISAS_INSN(eor)
