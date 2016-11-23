@@ -38,6 +38,7 @@ static void s390_set_status_code(CPUS390XState *env,
 static int list_pci(ClpReqRspListPci *rrb, uint8_t *cc)
 {
     S390PCIBusDevice *pbdev = NULL;
+    S390pciState *s = s390_get_phb();
     uint32_t res_code, initial_l2, g_l2;
     int rc, i;
     uint64_t resume_token;
@@ -65,14 +66,14 @@ static int list_pci(ClpReqRspListPci *rrb, uint8_t *cc)
     resume_token = ldq_p(&rrb->request.resume_token);
 
     if (resume_token) {
-        pbdev = s390_pci_find_dev_by_idx(resume_token);
+        pbdev = s390_pci_find_dev_by_idx(s, resume_token);
         if (!pbdev) {
             res_code = CLP_RC_LISTPCI_BADRT;
             rc = -EINVAL;
             goto out;
         }
     } else {
-        pbdev = s390_pci_find_next_avail_dev(NULL);
+        pbdev = s390_pci_find_next_avail_dev(s, NULL);
     }
 
     if (lduw_p(&rrb->response.hdr.len) < 48) {
@@ -118,7 +119,7 @@ static int list_pci(ClpReqRspListPci *rrb, uint8_t *cc)
                 lduw_p(&rrb->response.fh_list[i].device_id),
                 ldl_p(&rrb->response.fh_list[i].fid),
                 ldl_p(&rrb->response.fh_list[i].fh));
-        pbdev = s390_pci_find_next_avail_dev(pbdev);
+        pbdev = s390_pci_find_next_avail_dev(s, pbdev);
         i++;
     }
 
@@ -148,6 +149,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
     uint8_t buffer[4096 * 2];
     uint8_t cc = 0;
     CPUS390XState *env = &cpu->env;
+    S390pciState *s = s390_get_phb();
     int i;
 
     cpu_synchronize_state(CPU(cpu));
@@ -202,7 +204,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
         ClpReqSetPci *reqsetpci = (ClpReqSetPci *)reqh;
         ClpRspSetPci *ressetpci = (ClpRspSetPci *)resh;
 
-        pbdev = s390_pci_find_dev_by_fh(ldl_p(&reqsetpci->fh));
+        pbdev = s390_pci_find_dev_by_fh(s, ldl_p(&reqsetpci->fh));
         if (!pbdev) {
                 stw_p(&ressetpci->hdr.rsp, CLP_RC_SETPCIFN_FH);
                 goto out;
@@ -253,7 +255,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
         ClpReqQueryPci *reqquery = (ClpReqQueryPci *)reqh;
         ClpRspQueryPci *resquery = (ClpRspQueryPci *)resh;
 
-        pbdev = s390_pci_find_dev_by_fh(ldl_p(&reqquery->fh));
+        pbdev = s390_pci_find_dev_by_fh(s, ldl_p(&reqquery->fh));
         if (!pbdev) {
             DPRINTF("query pci no pci dev\n");
             stw_p(&resquery->hdr.rsp, CLP_RC_SETPCIFN_FH);
@@ -338,7 +340,7 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     len = env->regs[r2] & 0xf;
     offset = env->regs[r2 + 1];
 
-    pbdev = s390_pci_find_dev_by_fh(fh);
+    pbdev = s390_pci_find_dev_by_fh(s390_get_phb(), fh);
     if (!pbdev) {
         DPRINTF("pcilg no pci dev\n");
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
@@ -471,7 +473,7 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     len = env->regs[r2] & 0xf;
     offset = env->regs[r2 + 1];
 
-    pbdev = s390_pci_find_dev_by_fh(fh);
+    pbdev = s390_pci_find_dev_by_fh(s390_get_phb(), fh);
     if (!pbdev) {
         DPRINTF("pcistg no pci dev\n");
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
@@ -576,7 +578,7 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     start = env->regs[r2];
     end = start + env->regs[r2 + 1];
 
-    pbdev = s390_pci_find_dev_by_fh(fh);
+    pbdev = s390_pci_find_dev_by_fh(s390_get_phb(), fh);
     if (!pbdev) {
         DPRINTF("rpcit no pci dev\n");
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
@@ -679,7 +681,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
         return 0;
     }
 
-    pbdev = s390_pci_find_dev_by_fh(fh);
+    pbdev = s390_pci_find_dev_by_fh(s390_get_phb(), fh);
     if (!pbdev) {
         DPRINTF("pcistb no pci dev fh 0x%x\n", fh);
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
@@ -845,7 +847,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
         return 0;
     }
 
-    pbdev = s390_pci_find_dev_by_fh(fh);
+    pbdev = s390_pci_find_dev_by_fh(s390_get_phb(), fh);
     if (!pbdev) {
         DPRINTF("mpcifc no pci dev fh 0x%x\n", fh);
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
@@ -990,7 +992,7 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
         return 0;
     }
 
-    pbdev = s390_pci_find_dev_by_idx(fh & FH_MASK_INDEX);
+    pbdev = s390_pci_find_dev_by_idx(s390_get_phb(), fh & FH_MASK_INDEX);
     if (!pbdev) {
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
         return 0;

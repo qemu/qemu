@@ -316,6 +316,7 @@ typedef struct S390pciState {
     QTAILQ_HEAD(, S390PCIBusDevice) zpci_devs;
 } S390pciState;
 
+S390pciState *s390_get_phb(void);
 int chsc_sei_nt2_get_event(void *res);
 int chsc_sei_nt2_have_event(void);
 void s390_pci_sclp_configure(SCCB *sccb);
@@ -324,9 +325,10 @@ void s390_pci_iommu_enable(S390PCIIOMMU *iommu);
 void s390_pci_iommu_disable(S390PCIIOMMU *iommu);
 void s390_pci_generate_error_event(uint16_t pec, uint32_t fh, uint32_t fid,
                                    uint64_t faddr, uint32_t e);
-S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx);
-S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh);
-S390PCIBusDevice *s390_pci_find_dev_by_fid(uint32_t fid);
-S390PCIBusDevice *s390_pci_find_next_avail_dev(S390PCIBusDevice *pbdev);
+S390PCIBusDevice *s390_pci_find_dev_by_idx(S390pciState *s, uint32_t idx);
+S390PCIBusDevice *s390_pci_find_dev_by_fh(S390pciState *s, uint32_t fh);
+S390PCIBusDevice *s390_pci_find_dev_by_fid(S390pciState *s, uint32_t fid);
+S390PCIBusDevice *s390_pci_find_next_avail_dev(S390pciState *s,
+                                               S390PCIBusDevice *pbdev);
 
 #endif
