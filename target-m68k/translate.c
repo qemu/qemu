@@ -1186,7 +1186,7 @@ DISAS_INSN(mulw)
     SRC_EA(env, src, OS_WORD, sign, NULL);
     tcg_gen_mul_i32(tmp, tmp, src);
     tcg_gen_mov_i32(reg, tmp);
-    gen_logic_cc(s, tmp, OS_WORD);
+    gen_logic_cc(s, tmp, OS_LONG);
 }
 
 DISAS_INSN(divw)
