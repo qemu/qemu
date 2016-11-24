@@ -1168,9 +1168,22 @@ static int proxy_init(FsContext *ctx)
     return 0;
 }
 
+static void proxy_cleanup(FsContext *ctx)
+{
+    V9fsProxy *proxy = ctx->private;
+
+    g_free(proxy->out_iovec.iov_base);
+    g_free(proxy->in_iovec.iov_base);
+    if (ctx->export_flags & V9FS_PROXY_SOCK_NAME) {
+        close(proxy->sockfd);
+    }
+    g_free(proxy);
+}
+
 FileOperations proxy_ops = {
     .parse_opts   = proxy_parse_opts,
     .init         = proxy_init,
+    .cleanup      = proxy_cleanup,
     .lstat        = proxy_lstat,
     .readlink     = proxy_readlink,
     .close        = proxy_close,

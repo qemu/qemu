@@ -100,6 +100,7 @@ struct FileOperations
 {
     int (*parse_opts)(QemuOpts *, struct FsDriverEntry *);
     int (*init)(struct FsContext *);
+    void (*cleanup)(struct FsContext *);
     int (*lstat)(FsContext *, V9fsPath *, struct stat *);
     ssize_t (*readlink)(FsContext *, V9fsPath *, char *, size_t);
     int (*chmod)(FsContext *, V9fsPath *, FsCred *);
