@@ -616,10 +616,9 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 dev->routes.adapter.ind_offset = ind_bit;
                 dev->routes.adapter.summary_offset = 7;
                 cpu_physical_memory_unmap(thinint, hw_len, 0, hw_len);
-                ret = css_register_io_adapter(CSS_IO_ADAPTER_VIRTIO,
-                                              dev->thinint_isc, true, false,
-                                              &dev->routes.adapter.adapter_id);
-                assert(ret == 0);
+                dev->routes.adapter.adapter_id = css_get_adapter_id(
+                                                 CSS_IO_ADAPTER_VIRTIO,
+                                                 dev->thinint_isc);
                 sch->thinint_active = ((dev->indicators != NULL) &&
                                        (dev->summary_indicator != NULL));
                 sch->curr_status.scsw.count = ccw.count - len;
@@ -1308,9 +1307,9 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
     dev->thinint_isc = qemu_get_byte(f);
     dev->revision = qemu_get_be32(f);
     if (s->thinint_active) {
-        return css_register_io_adapter(CSS_IO_ADAPTER_VIRTIO,
-                                       dev->thinint_isc, true, false,
-                                       &dev->routes.adapter.adapter_id);
+        dev->routes.adapter.adapter_id = css_get_adapter_id(
+                                         CSS_IO_ADAPTER_VIRTIO,
+                                         dev->thinint_isc);
     }
 
     return 0;

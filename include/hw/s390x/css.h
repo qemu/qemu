@@ -23,6 +23,8 @@
 #define MAX_CSSID 255
 #define MAX_CHPID 255
 
+#define MAX_ISC 7
+
 #define MAX_CIWS 62
 
 #define VIRTUAL_CSSID 0xfe
@@ -130,8 +132,9 @@ typedef enum {
     CSS_IO_ADAPTER_TYPE_NUMS,
 } CssIoAdapterType;
 
-int css_register_io_adapter(CssIoAdapterType type, uint8_t isc, bool swap,
-                            bool maskable, uint32_t *id);
+uint32_t css_get_adapter_id(CssIoAdapterType type, uint8_t isc);
+void css_register_io_adapters(CssIoAdapterType type, bool swap, bool maskable,
+                              Error **errp);
 
 #ifndef CONFIG_USER_ONLY
 SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid,

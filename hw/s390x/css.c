@@ -47,7 +47,6 @@ typedef struct IoAdapter {
     uint32_t id;
     uint8_t type;
     uint8_t isc;
-    QTAILQ_ENTRY(IoAdapter) sibling;
 } IoAdapter;
 
 typedef struct ChannelSubSys {
@@ -61,7 +60,7 @@ typedef struct ChannelSubSys {
     uint64_t chnmon_area;
     CssImage *css[MAX_CSSID + 1];
     uint8_t default_cssid;
-    QTAILQ_HEAD(, IoAdapter) io_adapters;
+    IoAdapter *io_adapters[CSS_IO_ADAPTER_TYPE_NUMS][MAX_ISC + 1];
     QTAILQ_HEAD(, IndAddr) indicator_addresses;
 } ChannelSubSys;
 
@@ -72,7 +71,6 @@ static ChannelSubSys channel_subsys = {
     .do_crw_mchk = true,
     .crws_lost = false,
     .chnmon_active = false,
-    .io_adapters = QTAILQ_HEAD_INITIALIZER(channel_subsys.io_adapters),
     .indicator_addresses =
         QTAILQ_HEAD_INITIALIZER(channel_subsys.indicator_addresses),
 };
@@ -155,44 +153,67 @@ int css_create_css_image(uint8_t cssid, bool default_image)
     return 0;
 }
 
-int css_register_io_adapter(CssIoAdapterType type, uint8_t isc, bool swap,
-                            bool maskable, uint32_t *id)
+uint32_t css_get_adapter_id(CssIoAdapterType type, uint8_t isc)
 {
+    if (type >= CSS_IO_ADAPTER_TYPE_NUMS || isc > MAX_ISC ||
+        !channel_subsys.io_adapters[type][isc]) {
+        return -1;
+    }
+
+    return channel_subsys.io_adapters[type][isc]->id;
+}
+
+/**
+ * css_register_io_adapters: Register I/O adapters per ISC during init
+ *
+ * @swap: an indication if byte swap is needed.
+ * @maskable: an indication if the adapter is subject to the mask operation.
+ * @errp: location to store error information.
+ */
+void css_register_io_adapters(CssIoAdapterType type, bool swap, bool maskable,
+                              Error **errp)
+{
+    uint32_t id;
+    int ret, isc;
     IoAdapter *adapter;
-    bool found = false;
-    int ret;
     S390FLICState *fs = s390_get_flic();
     S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
 
-    *id = 0;
-    QTAILQ_FOREACH(adapter, &channel_subsys.io_adapters, sibling) {
-        if ((adapter->type == type) && (adapter->isc == isc)) {
-            *id = adapter->id;
-            found = true;
-            ret = 0;
+    /*
+     * Disallow multiple registrations for the same device type.
+     * Report an error if registering for an already registered type.
+     */
+    if (channel_subsys.io_adapters[type][0]) {
+        error_setg(errp, "Adapters for type %d already registered", type);
+    }
+
+    for (isc = 0; isc <= MAX_ISC; isc++) {
+        id = (type << 3) | isc;
+        ret = fsc->register_io_adapter(fs, id, isc, swap, maskable);
+        if (ret == 0) {
+            adapter = g_new0(IoAdapter, 1);
+            adapter->id = id;
+            adapter->isc = isc;
+            adapter->type = type;
+            channel_subsys.io_adapters[type][isc] = adapter;
+        } else {
+            error_setg_errno(errp, -ret, "Unexpected error %d when "
+                             "registering adapter %d", ret, id);
             break;
         }
-        if (adapter->id >= *id) {
-            *id = adapter->id + 1;
+    }
+
+    /*
+     * No need to free registered adapters in kvm: kvm will clean up
+     * when the machine goes away.
+     */
+    if (ret) {
+        for (isc--; isc >= 0; isc--) {
+            g_free(channel_subsys.io_adapters[type][isc]);
+            channel_subsys.io_adapters[type][isc] = NULL;
         }
     }
-    if (found) {
-        goto out;
-    }
-    adapter = g_new0(IoAdapter, 1);
-    ret = fsc->register_io_adapter(fs, *id, isc, swap, maskable);
-    if (ret == 0) {
-        adapter->id = *id;
-        adapter->isc = isc;
-        adapter->type = type;
-        QTAILQ_INSERT_TAIL(&channel_subsys.io_adapters, adapter, sibling);
-    } else {
-        g_free(adapter);
-        fprintf(stderr, "Unexpected error %d when registering adapter %d\n",
-                ret, *id);
-    }
-out:
-    return ret;
+
 }
 
 static void css_clear_io_interrupt(uint16_t subchannel_id,

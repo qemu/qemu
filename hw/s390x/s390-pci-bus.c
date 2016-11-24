@@ -581,6 +581,9 @@ static int s390_pcihost_init(SysBusDevice *dev)
     s->bus_no = 0;
     QTAILQ_INIT(&s->pending_sei);
     QTAILQ_INIT(&s->zpci_devs);
+
+    css_register_io_adapters(CSS_IO_ADAPTER_PCI, true, false, &error_abort);
+
     return 0;
 }
 
