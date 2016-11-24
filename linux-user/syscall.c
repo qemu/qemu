@@ -11228,7 +11228,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             arg3 = arg4;
             arg4 = arg5;
         }
-        ret = get_errno(readahead(arg1, ((off64_t)arg3 << 32) | arg2, arg4));
+        ret = get_errno(readahead(arg1, target_offset64(arg2, arg3) , arg4));
 #else
         ret = get_errno(readahead(arg1, arg2, arg3));
 #endif
