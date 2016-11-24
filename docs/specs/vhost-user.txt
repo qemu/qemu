@@ -123,22 +123,22 @@ The communication consists of master sending message requests and slave sending
 message replies. Most of the requests don't require replies. Here is a list of
 the ones that do:
 
- * VHOST_GET_FEATURES
- * VHOST_GET_PROTOCOL_FEATURES
- * VHOST_GET_VRING_BASE
- * VHOST_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+ * VHOST_USER_GET_FEATURES
+ * VHOST_USER_GET_PROTOCOL_FEATURES
+ * VHOST_USER_GET_VRING_BASE
+ * VHOST_USER_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
 
 [ Also see the section on REPLY_ACK protocol extension. ]
 
 There are several messages that the master sends with file descriptors passed
 in the ancillary data:
 
- * VHOST_SET_MEM_TABLE
- * VHOST_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
- * VHOST_SET_LOG_FD
- * VHOST_SET_VRING_KICK
- * VHOST_SET_VRING_CALL
- * VHOST_SET_VRING_ERR
+ * VHOST_USER_SET_MEM_TABLE
+ * VHOST_USER_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+ * VHOST_USER_SET_LOG_FD
+ * VHOST_USER_SET_VRING_KICK
+ * VHOST_USER_SET_VRING_CALL
+ * VHOST_USER_SET_VRING_ERR
 
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
