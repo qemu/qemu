@@ -2001,7 +2001,6 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
                                      Error **errp)
 {
     char *featurestr; /* Single 'key=value" string being parsed */
-    Error *local_err = NULL;
     static bool cpu_globals_initialized;
     bool ambiguous = false;
 
@@ -2015,7 +2014,7 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
     }
 
     for (featurestr = strtok(features, ",");
-         featurestr  && !local_err;
+         featurestr;
          featurestr = strtok(NULL, ",")) {
         const char *name;
         const char *val = NULL;
@@ -2085,10 +2084,6 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
     if (ambiguous) {
         error_report("warning: Compatibility of ambiguous CPU model "
                      "strings won't be kept on future QEMU versions");
-    }
-
-    if (local_err) {
-        error_propagate(errp, local_err);
     }
 }
 
