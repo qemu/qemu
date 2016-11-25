@@ -734,7 +734,7 @@ static int reg_irqs(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib)
 {
     int ret, len;
 
-    ret = css_register_io_adapter(S390_PCIPT_ADAPTER,
+    ret = css_register_io_adapter(CSS_IO_ADAPTER_PCI,
                                   FIB_DATA_ISC(ldl_p(&fib.data)), true, false,
                                   &pbdev->routes.adapter.adapter_id);
     assert(ret == 0);

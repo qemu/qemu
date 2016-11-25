@@ -124,8 +124,13 @@ void css_generate_css_crws(uint8_t cssid);
 void css_clear_sei_pending(void);
 void css_adapter_interrupt(uint8_t isc);
 
-#define CSS_IO_ADAPTER_VIRTIO 1
-int css_register_io_adapter(uint8_t type, uint8_t isc, bool swap,
+typedef enum {
+    CSS_IO_ADAPTER_VIRTIO = 0,
+    CSS_IO_ADAPTER_PCI = 1,
+    CSS_IO_ADAPTER_TYPE_NUMS,
+} CssIoAdapterType;
+
+int css_register_io_adapter(CssIoAdapterType type, uint8_t isc, bool swap,
                             bool maskable, uint32_t *id);
 
 #ifndef CONFIG_USER_ONLY

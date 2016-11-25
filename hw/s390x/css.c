@@ -155,7 +155,7 @@ int css_create_css_image(uint8_t cssid, bool default_image)
     return 0;
 }
 
-int css_register_io_adapter(uint8_t type, uint8_t isc, bool swap,
+int css_register_io_adapter(CssIoAdapterType type, uint8_t isc, bool swap,
                             bool maskable, uint32_t *id)
 {
     IoAdapter *adapter;
