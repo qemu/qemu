@@ -1021,6 +1021,9 @@ static int handle_buffered_iopage(XenIOState *state)
         xen_rmb();
         qw = (req.size == 8);
         if (qw) {
+            if (rdptr + 1 == wrptr) {
+                hw_error("Incomplete quad word buffered ioreq");
+            }
             buf_req = &buf_page->buf_ioreq[(rdptr + 1) %
                                            IOREQ_BUFFER_SLOT_NUM];
             req.data |= ((uint64_t)buf_req->data) << 32;
