@@ -2842,6 +2842,44 @@ uint32_t helper_bcdctz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdcfsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int cr = 0;
+    uint64_t lo_value;
+    uint64_t hi_value;
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+
+    if (b->s64[HI_IDX] < 0) {
+        lo_value = -b->s64[LO_IDX];
+        hi_value = ~b->u64[HI_IDX] + !lo_value;
+        bcd_put_digit(&ret, 0xD, 0);
+    } else {
+        lo_value = b->u64[LO_IDX];
+        hi_value = b->u64[HI_IDX];
+        bcd_put_digit(&ret, bcd_preferred_sgn(0, ps), 0);
+    }
+
+    if (divu128(&lo_value, &hi_value, 1000000000000000ULL) ||
+            lo_value > 9999999999999999ULL) {
+        cr = CRF_SO;
+    }
+
+    for (i = 1; i < 16; hi_value /= 10, i++) {
+        bcd_put_digit(&ret, hi_value % 10, i);
+    }
+
+    for (; i < 32; lo_value /= 10, i++) {
+        bcd_put_digit(&ret, lo_value % 10, i);
+    }
+
+    cr |= bcd_cmp_zero(&ret);
+
+    *r = ret;
+
+    return cr;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
