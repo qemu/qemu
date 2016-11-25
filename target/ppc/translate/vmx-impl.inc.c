@@ -991,6 +991,7 @@ GEN_BCD2(bcdcfz)
 GEN_BCD2(bcdctz)
 GEN_BCD2(bcdcfsq)
 GEN_BCD2(bcdctsq)
+GEN_BCD2(bcdsetsgn)
 GEN_BCD(bcdcpsgn);
 
 static void gen_xpnd04_1(DisasContext *ctx)
@@ -1013,6 +1014,9 @@ static void gen_xpnd04_1(DisasContext *ctx)
         break;
     case 7:
         gen_bcdcfn(ctx);
+        break;
+    case 31:
+        gen_bcdsetsgn(ctx);
         break;
     default:
         gen_invalid(ctx);
@@ -1038,11 +1042,15 @@ static void gen_xpnd04_2(DisasContext *ctx)
     case 7:
         gen_bcdcfn(ctx);
         break;
+    case 31:
+        gen_bcdsetsgn(ctx);
+        break;
     default:
         gen_invalid(ctx);
         break;
     }
 }
+
 
 GEN_VXFORM_DUAL(vsubcuw, PPC_ALTIVEC, PPC_NONE, \
                 xpnd04_1, PPC_NONE, PPC2_ISA300)
