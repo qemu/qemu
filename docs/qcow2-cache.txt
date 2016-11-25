@@ -160,5 +160,6 @@ If unset, the default value for this parameter is 0 and it disables
 this feature.
 
 Note that this functionality currently relies on the MADV_DONTNEED
-argument for madvise() to actually free the memory, so it is not
-useful in systems that don't follow that behavior.
+argument for madvise() to actually free the memory. This is a
+Linux-specific feature, so cache-clean-interval is not supported in
+other systems.
