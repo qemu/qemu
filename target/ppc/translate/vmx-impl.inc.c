@@ -990,10 +990,14 @@ GEN_BCD2(bcdctn)
 GEN_BCD2(bcdcfz)
 GEN_BCD2(bcdctz)
 GEN_BCD2(bcdcfsq)
+GEN_BCD2(bcdctsq)
 
 static void gen_xpnd04_1(DisasContext *ctx)
 {
     switch (opc4(ctx->opcode)) {
+    case 0:
+        gen_bcdctsq(ctx);
+        break;
     case 2:
         gen_bcdcfsq(ctx);
         break;
@@ -1018,6 +1022,9 @@ static void gen_xpnd04_1(DisasContext *ctx)
 static void gen_xpnd04_2(DisasContext *ctx)
 {
     switch (opc4(ctx->opcode)) {
+    case 0:
+        gen_bcdctsq(ctx);
+        break;
     case 2:
         gen_bcdcfsq(ctx);
         break;
