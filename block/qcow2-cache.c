@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-/* Needed for CONFIG_MADVISE */
 #include "qemu/osdep.h"
 #include "block/block_int.h"
 #include "qemu-common.h"
