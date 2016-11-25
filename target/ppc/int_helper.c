@@ -2920,6 +2920,29 @@ uint32_t helper_bcdctsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdcpsgn(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int invalid = 0;
+
+    if (bcd_get_sgn(a) == 0 || bcd_get_sgn(b) == 0) {
+        return CRF_SO;
+    }
+
+    *r = *a;
+    bcd_put_digit(r, b->u8[BCD_DIG_BYTE(0)] & 0xF, 0);
+
+    for (i = 1; i < 32; i++) {
+        bcd_get_digit(a, i, &invalid);
+        bcd_get_digit(b, i, &invalid);
+        if (unlikely(invalid)) {
+            return CRF_SO;
+        }
+    }
+
+    return bcd_cmp_zero(r);
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
