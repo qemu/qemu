@@ -668,6 +668,14 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     r->cache_clean_interval =
         qemu_opt_get_number(opts, QCOW2_OPT_CACHE_CLEAN_INTERVAL,
                             s->cache_clean_interval);
+#ifndef CONFIG_LINUX
+    if (r->cache_clean_interval != 0) {
+        error_setg(errp, QCOW2_OPT_CACHE_CLEAN_INTERVAL
+                   " not supported on this host");
+        ret = -EINVAL;
+        goto fail;
+    }
+#endif
     if (r->cache_clean_interval > UINT_MAX) {
         error_setg(errp, "Cache clean interval too big");
         ret = -EINVAL;
