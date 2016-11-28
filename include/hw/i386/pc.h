@@ -395,6 +395,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = "Opteron_G3" "-" TYPE_X86_CPU,\
         .property = "stepping",\
         .value    = "1",\
+    },\
+    {\
+        .driver   = "isa-pcspk",\
+        .property = "migrate",\
+        .value    = "off",\
     },
 
 #define PC_COMPAT_2_6 \
