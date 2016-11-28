@@ -21,6 +21,7 @@
 #define PPC_CPU_H
 
 #include "qemu-common.h"
+#include "qemu/int128.h"
 
 //#define PPC_EMULATE_32BITS_HYPV
 
@@ -262,6 +263,7 @@ union ppc_avr_t {
 #ifdef CONFIG_INT128
     __uint128_t u128;
 #endif
+    Int128 s128;
 };
 
 #if !defined(CONFIG_USER_ONLY)

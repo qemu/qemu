@@ -340,6 +340,19 @@ static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     }                                                                   \
 }
 
+#define GEN_VXFORM_HETRO(name, opc2, opc3)                              \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+{                                                                       \
+    TCGv_ptr rb;                                                        \
+    if (unlikely(!ctx->altivec_enabled)) {                              \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
+        return;                                                         \
+    }                                                                   \
+    rb = gen_avr_ptr(rB(ctx->opcode));                                  \
+    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], rb); \
+    tcg_temp_free_ptr(rb);                                              \
+}
+
 GEN_VXFORM(vaddubm, 0, 0);
 GEN_VXFORM_DUAL_EXT(vaddubm, PPC_ALTIVEC, PPC_NONE, 0,       \
                     vmul10cuq, PPC_NONE, PPC2_ISA300, 0x0000F800)
@@ -525,6 +538,16 @@ GEN_VXFORM_ENV(vaddfp, 5, 0);
 GEN_VXFORM_ENV(vsubfp, 5, 1);
 GEN_VXFORM_ENV(vmaxfp, 5, 16);
 GEN_VXFORM_ENV(vminfp, 5, 17);
+GEN_VXFORM_HETRO(vextublx, 6, 24)
+GEN_VXFORM_HETRO(vextuhlx, 6, 25)
+GEN_VXFORM_HETRO(vextuwlx, 6, 26)
+GEN_VXFORM_DUAL(vmrgow, PPC_NONE, PPC2_ALTIVEC_207,
+                vextuwlx, PPC_NONE, PPC2_ISA300)
+GEN_VXFORM_HETRO(vextubrx, 6, 28)
+GEN_VXFORM_HETRO(vextuhrx, 6, 29)
+GEN_VXFORM_HETRO(vextuwrx, 6, 30)
+GEN_VXFORM_DUAL(vmrgew, PPC_NONE, PPC2_ALTIVEC_207, \
+                vextuwrx, PPC_NONE, PPC2_ISA300)
 
 #define GEN_VXRFORM1(opname, name, str, opc2, opc3)                     \
 static void glue(gen_, name)(DisasContext *ctx)                         \

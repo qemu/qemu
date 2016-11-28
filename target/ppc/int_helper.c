@@ -1773,6 +1773,42 @@ void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     }
 }
 
+#if defined(HOST_WORDS_BIGENDIAN)
+#define VEXTU_X_DO(name, size, left)                                \
+    target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)  \
+    {                                                               \
+        int index;                                                  \
+        if (left) {                                                 \
+            index = (a & 0xf) * 8;                                  \
+        } else {                                                    \
+            index = ((15 - (a & 0xf) + 1) * 8) - size;              \
+        }                                                           \
+        return int128_getlo(int128_rshift(b->s128, index)) &        \
+            MAKE_64BIT_MASK(0, size);                               \
+    }
+#else
+#define VEXTU_X_DO(name, size, left)                                \
+    target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)  \
+    {                                                               \
+        int index;                                                  \
+        if (left) {                                                 \
+            index = ((15 - (a & 0xf) + 1) * 8) - size;              \
+        } else {                                                    \
+            index = (a & 0xf) * 8;                                  \
+        }                                                           \
+        return int128_getlo(int128_rshift(b->s128, index)) &        \
+            MAKE_64BIT_MASK(0, size);                               \
+    }
+#endif
+
+VEXTU_X_DO(vextublx,  8, 1)
+VEXTU_X_DO(vextuhlx, 16, 1)
+VEXTU_X_DO(vextuwlx, 32, 1)
+VEXTU_X_DO(vextubrx,  8, 0)
+VEXTU_X_DO(vextuhrx, 16, 0)
+VEXTU_X_DO(vextuwrx, 32, 0)
+#undef VEXTU_X_DO
+
 /* The specification says that the results are undefined if all of the
  * shift counts are not identical.  We check to make sure that they are
  * to conform to what real hardware appears to do.  */
