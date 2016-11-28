@@ -393,7 +393,7 @@ static void mcf_fec_write(void *opaque, hwaddr addr,
         s->tx_descriptor = s->etdsr;
         break;
     case 0x188:
-        s->emrbr = value & 0x7f0;
+        s->emrbr = value > 0 ? value & 0x7F0 : 0x7F0;
         break;
     default:
         hw_error("mcf_fec_write Bad address 0x%x\n", (int)addr);
