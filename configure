@@ -4305,11 +4305,11 @@ if have_backend "ust"; then
 #include <lttng/tracepoint.h>
 int main(void) { return 0; }
 EOF
-  if compile_prog "" "" ; then
+  if compile_prog "" "-Wl,--no-as-needed -ldl" ; then
     if $pkg_config lttng-ust --exists; then
       lttng_ust_libs=$($pkg_config --libs lttng-ust)
     else
-      lttng_ust_libs="-llttng-ust"
+      lttng_ust_libs="-llttng-ust -ldl"
     fi
     if $pkg_config liburcu-bp --exists; then
       urcu_bp_libs=$($pkg_config --libs liburcu-bp)
