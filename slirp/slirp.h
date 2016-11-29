@@ -292,9 +292,4 @@ int tcp_emu(struct socket *, struct mbuf *);
 int tcp_ctl(struct socket *);
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 
-#ifndef _WIN32
-#define min(x,y) ((x) < (y) ? (x) : (y))
-#define max(x,y) ((x) > (y) ? (x) : (y))
-#endif
-
 #endif

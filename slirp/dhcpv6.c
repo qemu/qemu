@@ -168,7 +168,7 @@ static void dhcpv6_info_request(Slirp *slirp, struct sockaddr_in6 *srcsas,
                         sa[0], sa[1], sa[2], sa[3], sa[4], sa[5], sa[6], sa[7],
                         sa[8], sa[9], sa[10], sa[11], sa[12], sa[13], sa[14],
                         sa[15], slirp->bootp_filename);
-        slen = min(slen, smaxlen);
+        slen = MIN(slen, smaxlen);
         *resp++ = slen >> 8;                    /* option-len high byte */
         *resp++ = slen;                         /* option-len low byte */
         resp += slen;
