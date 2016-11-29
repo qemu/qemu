@@ -988,6 +988,7 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
         mask = 7;   /* Mask bit 2:0 in the SID field */
         break;
     }
+    mask = ~mask;
     VTD_DPRINTF(INV, "device-selective invalidation source 0x%"PRIx16
                     " mask %"PRIu16, source_id, mask);
     vtd_bus = vtd_find_as_from_bus_num(s, VTD_SID_TO_BUS(source_id));
