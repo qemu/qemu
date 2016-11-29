@@ -978,7 +978,8 @@ err:
 
 MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
                    size_t max_len, hwaddr addr, const char *fw_file_name,
-                   FWCfgReadCallback fw_callback, void *callback_opaque)
+                   FWCfgReadCallback fw_callback, void *callback_opaque,
+                   AddressSpace *as)
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
@@ -986,6 +987,7 @@ MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
 
     rom           = g_malloc0(sizeof(*rom));
     rom->name     = g_strdup(name);
+    rom->as       = as;
     rom->addr     = addr;
     rom->romsize  = max_len ? max_len : len;
     rom->datasize = len;
