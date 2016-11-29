@@ -4723,8 +4723,14 @@ EOF
 if ! compile_object ""; then
   error_exit "Failed to compile object file for LD_REL_FLAGS test"
 fi
-if do_cc -nostdlib -Wl,-r -Wl,--no-relax -o $TMPMO $TMPO; then
-  LD_REL_FLAGS="-Wl,--no-relax"
+for i in '-Wl,-r -Wl,--no-relax' -Wl,-r -r; do
+  if do_cc -nostdlib $i -o $TMPMO $TMPO; then
+    LD_REL_FLAGS=$i
+    break
+  fi
+done
+if test "$modules" = "yes" && test "$LD_REL_FLAGS" = ""; then
+  feature_not_found "modules" "Cannot find how to build relocatable objects"
 fi
 
 ##########################################
