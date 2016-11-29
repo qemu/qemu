@@ -995,6 +995,9 @@ static int handle_buffered_iopage(XenIOState *state)
     }
 
     memset(&req, 0x00, sizeof(req));
+    req.state = STATE_IOREQ_READY;
+    req.count = 1;
+    req.dir = IOREQ_WRITE;
 
     for (;;) {
         uint32_t rdptr = buf_page->read_pointer, wrptr;
@@ -1009,18 +1012,16 @@ static int handle_buffered_iopage(XenIOState *state)
             break;
         }
         buf_req = &buf_page->buf_ioreq[rdptr % IOREQ_BUFFER_SLOT_NUM];
-        req.size = 1UL << buf_req->size;
-        req.count = 1;
+        req.size = 1U << buf_req->size;
         req.addr = buf_req->addr;
         req.data = buf_req->data;
-        req.state = STATE_IOREQ_READY;
-        req.dir = buf_req->dir;
-        req.df = 1;
         req.type = buf_req->type;
-        req.data_is_ptr = 0;
         xen_rmb();
         qw = (req.size == 8);
         if (qw) {
+            if (rdptr + 1 == wrptr) {
+                hw_error("Incomplete quad word buffered ioreq");
+            }
             buf_req = &buf_page->buf_ioreq[(rdptr + 1) %
                                            IOREQ_BUFFER_SLOT_NUM];
             req.data |= ((uint64_t)buf_req->data) << 32;
@@ -1028,6 +1029,15 @@ static int handle_buffered_iopage(XenIOState *state)
         }
 
         handle_ioreq(state, &req);
+
+        /* Only req.data may get updated by handle_ioreq(), albeit even that
+         * should not happen as such data would never make it to the guest (we
+         * can only usefully see writes here after all).
+         */
+        assert(req.state == STATE_IOREQ_READY);
+        assert(req.count == 1);
+        assert(req.dir == IOREQ_WRITE);
+        assert(!req.data_is_ptr);
 
         atomic_add(&buf_page->read_pointer, qw + 1);
     }
