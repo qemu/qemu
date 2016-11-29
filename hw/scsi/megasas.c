@@ -300,12 +300,6 @@ unmap:
     return iov_count - i;
 }
 
-static void megasas_unmap_sgl(MegasasCmd *cmd)
-{
-    qemu_sglist_destroy(&cmd->qsg);
-    cmd->iov_offset = 0;
-}
-
 /*
  * passthrough sense and io sense are at the same offset
  */
@@ -461,9 +455,12 @@ static void megasas_unmap_frame(MegasasState *s, MegasasCmd *cmd)
 {
     PCIDevice *p = PCI_DEVICE(s);
 
-    pci_dma_unmap(p, cmd->frame, cmd->pa_size, 0, 0);
+    if (cmd->pa_size) {
+        pci_dma_unmap(p, cmd->frame, cmd->pa_size, 0, 0);
+    }
     cmd->frame = NULL;
     cmd->pa = 0;
+    cmd->pa_size = 0;
     clear_bit(cmd->index, s->frame_map);
 }
 
@@ -577,6 +574,20 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
     }
 }
 
+static void megasas_complete_command(MegasasCmd *cmd)
+{
+    qemu_sglist_destroy(&cmd->qsg);
+    cmd->iov_size = 0;
+    cmd->iov_offset = 0;
+
+    cmd->req->hba_private = NULL;
+    scsi_req_unref(cmd->req);
+    cmd->req = NULL;
+
+    megasas_unmap_frame(cmd->state, cmd);
+    megasas_complete_frame(cmd->state, cmd->context);
+}
+
 static void megasas_reset_frames(MegasasState *s)
 {
     int i;
@@ -593,9 +604,9 @@ static void megasas_reset_frames(MegasasState *s)
 
 static void megasas_abort_command(MegasasCmd *cmd)
 {
-    if (cmd->req) {
+    /* Never abort internal commands.  */
+    if (cmd->req != NULL) {
         scsi_req_cancel(cmd->req);
-        cmd->req = NULL;
     }
 }
 
@@ -686,9 +697,6 @@ static void megasas_finish_dcmd(MegasasCmd *cmd, uint32_t iov_size)
 {
     trace_megasas_finish_dcmd(cmd->index, iov_size);
 
-    if (cmd->frame->header.sge_count) {
-        qemu_sglist_destroy(&cmd->qsg);
-    }
     if (iov_size > cmd->iov_size) {
         if (megasas_frame_is_ieee_sgl(cmd)) {
             cmd->frame->dcmd.sgl.sg_skinny->len = cpu_to_le32(iov_size);
@@ -698,7 +706,6 @@ static void megasas_finish_dcmd(MegasasCmd *cmd, uint32_t iov_size)
             cmd->frame->dcmd.sgl.sg32->len = cpu_to_le32(iov_size);
         }
     }
-    cmd->iov_size = 0;
 }
 
 static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
@@ -1586,7 +1593,6 @@ static int megasas_finish_internal_dcmd(MegasasCmd *cmd,
     int lun = req->lun;
 
     opcode = le32_to_cpu(cmd->frame->dcmd.opcode);
-    scsi_req_unref(req);
     trace_megasas_dcmd_internal_finish(cmd->index, opcode, lun);
     switch (opcode) {
     case MFI_DCMD_PD_GET_INFO:
@@ -1857,7 +1863,11 @@ static void megasas_command_complete(SCSIRequest *req, uint32_t status,
 
     trace_megasas_command_complete(cmd->index, status, resid);
 
-    if (cmd->req != req) {
+    if (req->io_canceled) {
+        return;
+    }
+
+    if (cmd->req == NULL) {
         /*
          * Internal command complete
          */
@@ -1876,25 +1886,21 @@ static void megasas_command_complete(SCSIRequest *req, uint32_t status,
             megasas_copy_sense(cmd);
         }
 
-        megasas_unmap_sgl(cmd);
         cmd->frame->header.scsi_status = req->status;
-        scsi_req_unref(cmd->req);
-        cmd->req = NULL;
     }
     cmd->frame->header.cmd_status = cmd_status;
-    megasas_unmap_frame(cmd->state, cmd);
-    megasas_complete_frame(cmd->state, cmd->context);
+    megasas_complete_command(cmd);
 }
 
-static void megasas_command_cancel(SCSIRequest *req)
+static void megasas_command_cancelled(SCSIRequest *req)
 {
     MegasasCmd *cmd = req->hba_private;
 
-    if (cmd) {
-        megasas_abort_command(cmd);
-    } else {
-        scsi_req_unref(req);
+    if (!cmd) {
+        return;
     }
+    cmd->frame->header.cmd_status = MFI_STAT_SCSI_IO_FAILED;
+    megasas_complete_command(cmd);
 }
 
 static int megasas_handle_abort(MegasasState *s, MegasasCmd *cmd)
@@ -2313,7 +2319,7 @@ static const struct SCSIBusInfo megasas_scsi_info = {
     .transfer_data = megasas_xfer_complete,
     .get_sg_list = megasas_get_sg_list,
     .complete = megasas_command_complete,
-    .cancel = megasas_command_cancel,
+    .cancel = megasas_command_cancelled,
 };
 
 static void megasas_scsi_realize(PCIDevice *dev, Error **errp)

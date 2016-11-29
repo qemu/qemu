@@ -54,6 +54,7 @@ typedef struct {
     unsigned int play_pos;
     uint8_t data_on;
     uint8_t dummy_refresh_clock;
+    bool migrate;
 } PCSpkState;
 
 static const char *s_spk = "pcspk";
@@ -187,11 +188,19 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
     pcspk_state = s;
 }
 
+static bool migrate_needed(void *opaque)
+{
+    PCSpkState *s = opaque;
+
+    return s->migrate;
+}
+
 static const VMStateDescription vmstate_spk = {
     .name = "pcspk",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
+    .needed = migrate_needed,
     .fields      = (VMStateField[]) {
         VMSTATE_UINT8(data_on, PCSpkState),
         VMSTATE_UINT8(dummy_refresh_clock, PCSpkState),
@@ -201,6 +210,7 @@ static const VMStateDescription vmstate_spk = {
 
 static Property pcspk_properties[] = {
     DEFINE_PROP_UINT32("iobase", PCSpkState, iobase,  -1),
+    DEFINE_PROP_BOOL("migrate", PCSpkState, migrate,  true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
