@@ -63,9 +63,10 @@ void panic(const char *string);
 void write_subsystem_identification(void);
 extern char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 
-/* sclp-ascii.c */
+/* sclp.c */
 void sclp_print(const char *string);
 void sclp_setup(void);
+void sclp_get_loadparm_ascii(char *loadparm);
 
 /* virtio.c */
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
