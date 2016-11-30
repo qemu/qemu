@@ -451,8 +451,8 @@ int qemu_chr_fe_get_msgfd(CharBackend *be)
     int fd;
     int res = (qemu_chr_fe_get_msgfds(be, &fd, 1) == 1) ? fd : -1;
     if (s && qemu_chr_replay(s)) {
-        fprintf(stderr,
-                "Replay: get msgfd is not supported for serial devices yet\n");
+        error_report("Replay: get msgfd is not supported "
+                     "for serial devices yet");
         exit(1);
     }
     return res;
@@ -1680,8 +1680,8 @@ static Chardev *qemu_chr_open_pty(const CharDriver *driver,
     ret->pty = g_strdup(pty_name);
     ret->has_pty = true;
 
-    fprintf(stderr, "char device redirected to %s (label %s)\n",
-            pty_name, id);
+    error_report("char device redirected to %s (label %s)",
+                 pty_name, id);
 
     s = (PtyChardev *)chr;
     s->ioc = QIO_CHANNEL(qio_channel_file_new_fd(master_fd));
@@ -3383,8 +3383,8 @@ static int tcp_chr_wait_connected(Chardev *chr, Error **errp)
      * in TLS and telnet cases, only wait for an accepted socket */
     while (!s->ioc) {
         if (s->is_listen) {
-            fprintf(stderr, "QEMU waiting for connection on: %s\n",
-                    chr->filename);
+            error_report("QEMU waiting for connection on: %s",
+                         chr->filename);
             qio_channel_set_blocking(QIO_CHANNEL(s->listen_ioc), true, NULL);
             tcp_chr_accept(QIO_CHANNEL(s->listen_ioc), G_IO_IN, chr);
             qio_channel_set_blocking(QIO_CHANNEL(s->listen_ioc), false, NULL);
@@ -4146,16 +4146,19 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
     }
 
     if (is_help_option(name)) {
-        fprintf(stderr, "Available chardev backend types:\n");
+        GString *str = g_string_new("");
         for (i = 0; i < ARRAY_SIZE(backends); i++) {
             cd = backends[i];
             if (cd) {
-                fprintf(stderr, "%s\n", ChardevBackendKind_lookup[cd->kind]);
+                g_string_append_printf(str, "\n%s", ChardevBackendKind_lookup[cd->kind]);
                 if (cd->alias) {
-                    fprintf(stderr, "%s\n", cd->alias);
+                    g_string_append_printf(str, "\n%s", cd->alias);
                 }
             }
         }
+
+        error_report("Available chardev backend types: %s", str->str);
+        g_string_free(str, true);
         exit(0);
     }
 
@@ -4267,8 +4270,8 @@ Chardev *qemu_chr_new(const char *label, const char *filename)
             qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_REPLAY);
         }
         if (qemu_chr_replay(chr) && chr->driver->chr_ioctl) {
-            fprintf(stderr,
-                    "Replay: ioctl is not supported for serial devices yet\n");
+            error_report("Replay: ioctl is not supported "
+                         "for serial devices yet");
         }
         replay_register_char_driver(chr);
     }
