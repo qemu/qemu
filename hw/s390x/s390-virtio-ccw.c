@@ -335,6 +335,9 @@ static const TypeInfo ccw_machine_info = {
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
+#define CCW_COMPAT_2_8 \
+        HW_COMPAT_2_8
+
 #define CCW_COMPAT_2_7 \
         HW_COMPAT_2_7
 
@@ -393,14 +396,26 @@ static const TypeInfo ccw_machine_info = {
             .value    = "0",\
         },
 
+static void ccw_machine_2_9_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_2_9_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE(2_9, "2.9", true);
+
 static void ccw_machine_2_8_instance_options(MachineState *machine)
 {
+    ccw_machine_2_9_instance_options(machine);
 }
 
 static void ccw_machine_2_8_class_options(MachineClass *mc)
 {
+    ccw_machine_2_9_class_options(mc);
+    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_8);
 }
-DEFINE_CCW_MACHINE(2_8, "2.8", true);
+DEFINE_CCW_MACHINE(2_8, "2.8", false);
 
 static void ccw_machine_2_7_instance_options(MachineState *machine)
 {
