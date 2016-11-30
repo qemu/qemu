@@ -2,6 +2,7 @@
 #include "trace.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/char.h"
+#include "qemu/error-report.h"
 #include <spice.h>
 #include <spice/protocol.h>
 
@@ -239,23 +240,6 @@ static void spice_port_set_fe_open(struct Chardev *chr, int fe_open)
 #endif
 }
 
-static void print_allowed_subtypes(void)
-{
-    const char** psubtype;
-    int i;
-
-    fprintf(stderr, "allowed names: ");
-    for(i=0, psubtype = spice_server_char_device_recognized_subtypes();
-        *psubtype != NULL; ++psubtype, ++i) {
-        if (i == 0) {
-            fprintf(stderr, "%s", *psubtype);
-        } else {
-            fprintf(stderr, ", %s", *psubtype);
-        }
-    }
-    fprintf(stderr, "\n");
-}
-
 static void spice_chr_accept_input(struct Chardev *chr)
 {
     SpiceChardev *s = (SpiceChardev *)chr;
@@ -302,8 +286,14 @@ static Chardev *qemu_chr_open_spice_vmc(const CharDriver *driver,
         }
     }
     if (*psubtype == NULL) {
-        fprintf(stderr, "spice-qemu-char: unsupported type: %s\n", type);
-        print_allowed_subtypes();
+        char *subtypes = g_strjoinv(", ",
+            (gchar **)spice_server_char_device_recognized_subtypes());
+
+        error_setg(errp, "unsupported type name: %s", type);
+        error_append_hint(errp, "allowed spice char type names: %s\n",
+                          subtypes);
+
+        g_free(subtypes);
         return NULL;
     }
 
@@ -326,7 +316,7 @@ static Chardev *qemu_chr_open_spice_port(const CharDriver *driver,
     SpiceChardev *s;
 
     if (name == NULL) {
-        fprintf(stderr, "spice-qemu-char: missing name parameter\n");
+        error_setg(errp, "missing name parameter");
         return NULL;
     }
 
