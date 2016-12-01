@@ -251,7 +251,7 @@ aio_ctx_dispatch(GSource     *source,
     AioContext *ctx = (AioContext *) source;
 
     assert(callback == NULL);
-    aio_dispatch(ctx);
+    aio_dispatch(ctx, true);
     return true;
 }
 

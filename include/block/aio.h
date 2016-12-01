@@ -295,8 +295,12 @@ bool aio_pending(AioContext *ctx);
 /* Dispatch any pending callbacks from the GSource attached to the AioContext.
  *
  * This is used internally in the implementation of the GSource.
+ *
+ * @dispatch_fds: true to process fds, false to skip them
+ *                (can be used as an optimization by callers that know there
+ *                are no fds ready)
  */
-bool aio_dispatch(AioContext *ctx);
+bool aio_dispatch(AioContext *ctx, bool dispatch_fds);
 
 /* Progress in completing AIO work to occur.  This can issue new pending
  * aio as a result of executing I/O completion or bh callbacks.

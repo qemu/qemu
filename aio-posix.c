@@ -290,9 +290,13 @@ bool aio_pending(AioContext *ctx)
     return false;
 }
 
-bool aio_dispatch(AioContext *ctx)
+/*
+ * Note that dispatch_fds == false has the side-effect of post-poning the
+ * freeing of deleted handlers.
+ */
+bool aio_dispatch(AioContext *ctx, bool dispatch_fds)
 {
-    AioHandler *node;
+    AioHandler *node = NULL;
     bool progress = false;
 
     /*
@@ -308,7 +312,9 @@ bool aio_dispatch(AioContext *ctx)
      * We have to walk very carefully in case aio_set_fd_handler is
      * called while we're walking.
      */
-    node = QLIST_FIRST(&ctx->aio_handlers);
+    if (dispatch_fds) {
+        node = QLIST_FIRST(&ctx->aio_handlers);
+    }
     while (node) {
         AioHandler *tmp;
         int revents;
@@ -473,7 +479,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     ctx->walking_handlers--;
 
     /* Run dispatch even if there were no readable fds to run timers */
-    if (aio_dispatch(ctx)) {
+    if (aio_dispatch(ctx, ret > 0)) {
         progress = true;
     }
 
