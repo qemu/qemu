@@ -2290,6 +2290,11 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
         drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
         drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, errp);
         addr += SPAPR_MEMORY_BLOCK_SIZE;
+        if (!dev->hotplugged) {
+            /* guests expect coldplugged LMBs to be pre-allocated */
+            drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_USABLE);
+            drck->set_isolation_state(drc, SPAPR_DR_ISOLATION_STATE_UNISOLATED);
+        }
     }
     /* send hotplug notification to the
      * guest only in case of hotplugged memory
