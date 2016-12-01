@@ -2047,13 +2047,27 @@ static void virtio_queue_host_notifier_aio_read(EventNotifier *n)
     }
 }
 
+static bool virtio_queue_host_notifier_aio_poll(void *opaque)
+{
+    EventNotifier *n = opaque;
+    VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
+
+    if (virtio_queue_empty(vq)) {
+        return false;
+    }
+
+    virtio_queue_notify_aio_vq(vq);
+    return true;
+}
+
 void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
                                                 VirtIOHandleOutput handle_output)
 {
     if (handle_output) {
         vq->handle_aio_output = handle_output;
         aio_set_event_notifier(ctx, &vq->host_notifier, true,
-                               virtio_queue_host_notifier_aio_read, NULL);
+                               virtio_queue_host_notifier_aio_read,
+                               virtio_queue_host_notifier_aio_poll);
     } else {
         aio_set_event_notifier(ctx, &vq->host_notifier, true, NULL, NULL);
         /* Test and clear notifier before after disabling event,
