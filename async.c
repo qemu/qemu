@@ -282,7 +282,7 @@ aio_ctx_finalize(GSource     *source)
     }
     qemu_mutex_unlock(&ctx->bh_lock);
 
-    aio_set_event_notifier(ctx, &ctx->notifier, false, NULL);
+    aio_set_event_notifier(ctx, &ctx->notifier, false, NULL, NULL);
     event_notifier_cleanup(&ctx->notifier);
     qemu_rec_mutex_destroy(&ctx->lock);
     qemu_mutex_destroy(&ctx->bh_lock);
@@ -366,7 +366,8 @@ AioContext *aio_context_new(Error **errp)
     aio_set_event_notifier(ctx, &ctx->notifier,
                            false,
                            (EventNotifierHandler *)
-                           event_notifier_dummy_cb);
+                           event_notifier_dummy_cb,
+                           NULL);
 #ifdef CONFIG_LINUX_AIO
     ctx->linux_aio = NULL;
 #endif

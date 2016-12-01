@@ -1366,19 +1366,18 @@ static void nbd_restart_write(void *opaque)
 static void nbd_set_handlers(NBDClient *client)
 {
     if (client->exp && client->exp->ctx) {
-        aio_set_fd_handler(client->exp->ctx, client->sioc->fd,
-                           true,
+        aio_set_fd_handler(client->exp->ctx, client->sioc->fd, true,
                            client->can_read ? nbd_read : NULL,
                            client->send_coroutine ? nbd_restart_write : NULL,
-                           client);
+                           NULL, client);
     }
 }
 
 static void nbd_unset_handlers(NBDClient *client)
 {
     if (client->exp && client->exp->ctx) {
-        aio_set_fd_handler(client->exp->ctx, client->sioc->fd,
-                           true, NULL, NULL, NULL);
+        aio_set_fd_handler(client->exp->ctx, client->sioc->fd, true, NULL,
+                           NULL, NULL, NULL);
     }
 }
 

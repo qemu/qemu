@@ -95,7 +95,7 @@ int event_notifier_set_handler(EventNotifier *e,
                                EventNotifierHandler *handler)
 {
     aio_set_fd_handler(iohandler_get_aio_context(), e->rfd, is_external,
-                       (IOHandler *)handler, NULL, e);
+                       (IOHandler *)handler, NULL, NULL, e);
     return 0;
 }
 

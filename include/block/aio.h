@@ -44,6 +44,7 @@ void qemu_aio_ref(void *p);
 
 typedef struct AioHandler AioHandler;
 typedef void QEMUBHFunc(void *opaque);
+typedef bool AioPollFn(void *opaque);
 typedef void IOHandler(void *opaque);
 
 struct ThreadPool;
@@ -329,6 +330,7 @@ void aio_set_fd_handler(AioContext *ctx,
                         bool is_external,
                         IOHandler *io_read,
                         IOHandler *io_write,
+                        AioPollFn *io_poll,
                         void *opaque);
 
 /* Register an event notifier and associated callbacks.  Behaves very similarly
@@ -341,7 +343,8 @@ void aio_set_fd_handler(AioContext *ctx,
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
                             bool is_external,
-                            EventNotifierHandler *io_read);
+                            EventNotifierHandler *io_read,
+                            AioPollFn *io_poll);
 
 /* Return a GSource that lets the main loop poll the file descriptors attached
  * to this AioContext.

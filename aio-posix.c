@@ -200,6 +200,7 @@ void aio_set_fd_handler(AioContext *ctx,
                         bool is_external,
                         IOHandler *io_read,
                         IOHandler *io_write,
+                        AioPollFn *io_poll,
                         void *opaque)
 {
     AioHandler *node;
@@ -258,10 +259,11 @@ void aio_set_fd_handler(AioContext *ctx,
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
                             bool is_external,
-                            EventNotifierHandler *io_read)
+                            EventNotifierHandler *io_read,
+                            AioPollFn *io_poll)
 {
-    aio_set_fd_handler(ctx, event_notifier_get_fd(notifier),
-                       is_external, (IOHandler *)io_read, NULL, notifier);
+    aio_set_fd_handler(ctx, event_notifier_get_fd(notifier), is_external,
+                       (IOHandler *)io_read, NULL, io_poll, notifier);
 }
 
 bool aio_prepare(AioContext *ctx)

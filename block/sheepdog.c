@@ -664,7 +664,7 @@ static coroutine_fn void do_co_req(void *opaque)
 
     co = qemu_coroutine_self();
     aio_set_fd_handler(srco->aio_context, sockfd, false,
-                       NULL, restart_co_req, co);
+                       NULL, restart_co_req, NULL, co);
 
     ret = send_co_req(sockfd, hdr, data, wlen);
     if (ret < 0) {
@@ -672,7 +672,7 @@ static coroutine_fn void do_co_req(void *opaque)
     }
 
     aio_set_fd_handler(srco->aio_context, sockfd, false,
-                       restart_co_req, NULL, co);
+                       restart_co_req, NULL, NULL, co);
 
     ret = qemu_co_recv(sockfd, hdr, sizeof(*hdr));
     if (ret != sizeof(*hdr)) {
@@ -698,7 +698,7 @@ out:
     /* there is at most one request for this sockfd, so it is safe to
      * set each handler to NULL. */
     aio_set_fd_handler(srco->aio_context, sockfd, false,
-                       NULL, NULL, NULL);
+                       NULL, NULL, NULL, NULL);
 
     srco->ret = ret;
     srco->finished = true;
@@ -760,7 +760,7 @@ static coroutine_fn void reconnect_to_sdog(void *opaque)
     AIOReq *aio_req, *next;
 
     aio_set_fd_handler(s->aio_context, s->fd, false, NULL,
-                       NULL, NULL);
+                       NULL, NULL, NULL);
     close(s->fd);
     s->fd = -1;
 
@@ -964,7 +964,7 @@ static int get_sheep_fd(BDRVSheepdogState *s, Error **errp)
     }
 
     aio_set_fd_handler(s->aio_context, fd, false,
-                       co_read_response, NULL, s);
+                       co_read_response, NULL, NULL, s);
     return fd;
 }
 
@@ -1226,7 +1226,7 @@ static void coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
     qemu_co_mutex_lock(&s->lock);
     s->co_send = qemu_coroutine_self();
     aio_set_fd_handler(s->aio_context, s->fd, false,
-                       co_read_response, co_write_request, s);
+                       co_read_response, co_write_request, NULL, s);
     socket_set_cork(s->fd, 1);
 
     /* send a header */
@@ -1245,7 +1245,7 @@ static void coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
 out:
     socket_set_cork(s->fd, 0);
     aio_set_fd_handler(s->aio_context, s->fd, false,
-                       co_read_response, NULL, s);
+                       co_read_response, NULL, NULL, s);
     s->co_send = NULL;
     qemu_co_mutex_unlock(&s->lock);
 }
@@ -1396,7 +1396,7 @@ static void sd_detach_aio_context(BlockDriverState *bs)
     BDRVSheepdogState *s = bs->opaque;
 
     aio_set_fd_handler(s->aio_context, s->fd, false, NULL,
-                       NULL, NULL);
+                       NULL, NULL, NULL);
 }
 
 static void sd_attach_aio_context(BlockDriverState *bs,
@@ -1406,7 +1406,7 @@ static void sd_attach_aio_context(BlockDriverState *bs,
 
     s->aio_context = new_context;
     aio_set_fd_handler(new_context, s->fd, false,
-                       co_read_response, NULL, s);
+                       co_read_response, NULL, NULL, s);
 }
 
 /* TODO Convert to fine grained options */
@@ -1520,7 +1520,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     return 0;
 out:
     aio_set_fd_handler(bdrv_get_aio_context(bs), s->fd,
-                       false, NULL, NULL, NULL);
+                       false, NULL, NULL, NULL, NULL);
     if (s->fd >= 0) {
         closesocket(s->fd);
     }
@@ -1559,7 +1559,7 @@ static void sd_reopen_commit(BDRVReopenState *state)
 
     if (s->fd) {
         aio_set_fd_handler(s->aio_context, s->fd, false,
-                           NULL, NULL, NULL);
+                           NULL, NULL, NULL, NULL);
         closesocket(s->fd);
     }
 
@@ -1583,7 +1583,7 @@ static void sd_reopen_abort(BDRVReopenState *state)
 
     if (re_s->fd) {
         aio_set_fd_handler(s->aio_context, re_s->fd, false,
-                           NULL, NULL, NULL);
+                           NULL, NULL, NULL, NULL);
         closesocket(re_s->fd);
     }
 
@@ -1972,7 +1972,7 @@ static void sd_close(BlockDriverState *bs)
     }
 
     aio_set_fd_handler(bdrv_get_aio_context(bs), s->fd,
-                       false, NULL, NULL, NULL);
+                       false, NULL, NULL, NULL, NULL);
     closesocket(s->fd);
     g_free(s->host_spec);
 }
