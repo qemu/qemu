@@ -98,7 +98,10 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
         return;
     }
 
-    aio_context_set_poll_params(iothread->ctx, iothread->poll_max_ns, 0, 0,
+    aio_context_set_poll_params(iothread->ctx,
+                                iothread->poll_max_ns,
+                                iothread->poll_grow,
+                                iothread->poll_shrink,
                                 &local_error);
     if (local_error) {
         error_propagate(errp, local_error);
@@ -129,18 +132,37 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
     qemu_mutex_unlock(&iothread->init_done_lock);
 }
 
-static void iothread_get_poll_max_ns(Object *obj, Visitor *v,
+typedef struct {
+    const char *name;
+    ptrdiff_t offset; /* field's byte offset in IOThread struct */
+} PollParamInfo;
+
+static PollParamInfo poll_max_ns_info = {
+    "poll-max-ns", offsetof(IOThread, poll_max_ns),
+};
+static PollParamInfo poll_grow_info = {
+    "poll-grow", offsetof(IOThread, poll_grow),
+};
+static PollParamInfo poll_shrink_info = {
+    "poll-shrink", offsetof(IOThread, poll_shrink),
+};
+
+static void iothread_get_poll_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
+    PollParamInfo *info = opaque;
+    int64_t *field = (void *)iothread + info->offset;
 
-    visit_type_int64(v, name, &iothread->poll_max_ns, errp);
+    visit_type_int64(v, name, field, errp);
 }
 
-static void iothread_set_poll_max_ns(Object *obj, Visitor *v,
+static void iothread_set_poll_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
+    PollParamInfo *info = opaque;
+    int64_t *field = (void *)iothread + info->offset;
     Error *local_err = NULL;
     int64_t value;
 
@@ -150,15 +172,19 @@ static void iothread_set_poll_max_ns(Object *obj, Visitor *v,
     }
 
     if (value < 0) {
-        error_setg(&local_err, "poll_max_ns value must be in range "
-                   "[0, %"PRId64"]", INT64_MAX);
+        error_setg(&local_err, "%s value must be in range [0, %"PRId64"]",
+                   info->name, INT64_MAX);
         goto out;
     }
 
-    iothread->poll_max_ns = value;
+    *field = value;
 
     if (iothread->ctx) {
-        aio_context_set_poll_params(iothread->ctx, value, 0, 0, &local_err);
+        aio_context_set_poll_params(iothread->ctx,
+                                    iothread->poll_max_ns,
+                                    iothread->poll_grow,
+                                    iothread->poll_shrink,
+                                    &local_err);
     }
 
 out:
@@ -171,9 +197,17 @@ static void iothread_class_init(ObjectClass *klass, void *class_data)
     ucc->complete = iothread_complete;
 
     object_class_property_add(klass, "poll-max-ns", "int",
-                              iothread_get_poll_max_ns,
-                              iothread_set_poll_max_ns,
-                              NULL, NULL, &error_abort);
+                              iothread_get_poll_param,
+                              iothread_set_poll_param,
+                              NULL, &poll_max_ns_info, &error_abort);
+    object_class_property_add(klass, "poll-grow", "int",
+                              iothread_get_poll_param,
+                              iothread_set_poll_param,
+                              NULL, &poll_grow_info, &error_abort);
+    object_class_property_add(klass, "poll-shrink", "int",
+                              iothread_get_poll_param,
+                              iothread_set_poll_param,
+                              NULL, &poll_shrink_info, &error_abort);
 }
 
 static const TypeInfo iothread_info = {

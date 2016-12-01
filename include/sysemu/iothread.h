@@ -31,6 +31,8 @@ typedef struct {
 
     /* AioContext poll parameters */
     int64_t poll_max_ns;
+    int64_t poll_grow;
+    int64_t poll_shrink;
 } IOThread;
 
 #define IOTHREAD(obj) \
