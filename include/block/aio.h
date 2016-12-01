@@ -195,8 +195,8 @@ QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque);
  * aio_notify: Force processing of pending events.
  *
  * Similar to signaling a condition variable, aio_notify forces
- * aio_wait to exit, so that the next call will re-examine pending events.
- * The caller of aio_notify will usually call aio_wait again very soon,
+ * aio_poll to exit, so that the next call will re-examine pending events.
+ * The caller of aio_notify will usually call aio_poll again very soon,
  * or go through another iteration of the GLib main loop.  Hence, aio_notify
  * also has the side effect of recalculating the sets of file descriptors
  * that the main loop waits for.
