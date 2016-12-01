@@ -134,8 +134,11 @@ struct AioContext {
     /* Number of AioHandlers without .io_poll() */
     int poll_disable_cnt;
 
-    /* Maximum polling time in nanoseconds */
-    int64_t poll_max_ns;
+    /* Polling mode parameters */
+    int64_t poll_ns;        /* current polling time in nanoseconds */
+    int64_t poll_max_ns;    /* maximum polling time in nanoseconds */
+    int64_t poll_grow;      /* polling time growth factor */
+    int64_t poll_shrink;    /* polling time shrink factor */
 
     /* Are we in polling mode or monitoring file descriptors? */
     bool poll_started;
@@ -511,10 +514,13 @@ void aio_context_setup(AioContext *ctx);
  * aio_context_set_poll_params:
  * @ctx: the aio context
  * @max_ns: how long to busy poll for, in nanoseconds
+ * @grow: polling time growth factor
+ * @shrink: polling time shrink factor
  *
  * Poll mode can be disabled by setting poll_max_ns to 0.
  */
 void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
+                                 int64_t grow, int64_t shrink,
                                  Error **errp);
 
 #endif

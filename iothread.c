@@ -98,7 +98,7 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
         return;
     }
 
-    aio_context_set_poll_params(iothread->ctx, iothread->poll_max_ns,
+    aio_context_set_poll_params(iothread->ctx, iothread->poll_max_ns, 0, 0,
                                 &local_error);
     if (local_error) {
         error_propagate(errp, local_error);
@@ -158,7 +158,7 @@ static void iothread_set_poll_max_ns(Object *obj, Visitor *v,
     iothread->poll_max_ns = value;
 
     if (iothread->ctx) {
-        aio_context_set_poll_params(iothread->ctx, value, &local_err);
+        aio_context_set_poll_params(iothread->ctx, value, 0, 0, &local_err);
     }
 
 out:
