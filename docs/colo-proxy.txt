@@ -158,7 +158,9 @@ secondary.
 
 == Usage ==
 
-Here, we use demo ip and port discribe more clearly.
+Here is an example using demonstration IP and port addresses to more
+clearly describe the usage.
+
 Primary(ip:3.3.3.3):
 -netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown
 -device e1000,id=e0,netdev=hn0,mac=52:a4:00:12:78:66
