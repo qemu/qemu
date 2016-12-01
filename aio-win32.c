@@ -102,6 +102,13 @@ void aio_set_fd_handler(AioContext *ctx,
     aio_notify(ctx);
 }
 
+void aio_set_fd_poll(AioContext *ctx, int fd,
+                     IOHandler *io_poll_begin,
+                     IOHandler *io_poll_end)
+{
+    /* Not implemented */
+}
+
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *e,
                             bool is_external,
@@ -151,6 +158,14 @@ void aio_set_event_notifier(AioContext *ctx,
     }
 
     aio_notify(ctx);
+}
+
+void aio_set_event_notifier_poll(AioContext *ctx,
+                                 EventNotifier *notifier,
+                                 EventNotifierHandler *io_poll_begin,
+                                 EventNotifierHandler *io_poll_end)
+{
+    /* Not implemented */
 }
 
 bool aio_prepare(AioContext *ctx)

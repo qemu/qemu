@@ -30,6 +30,8 @@ struct AioHandler
     IOHandler *io_read;
     IOHandler *io_write;
     AioPollFn *io_poll;
+    IOHandler *io_poll_begin;
+    IOHandler *io_poll_end;
     int deleted;
     void *opaque;
     bool is_external;
@@ -270,6 +272,20 @@ void aio_set_fd_handler(AioContext *ctx,
     }
 }
 
+void aio_set_fd_poll(AioContext *ctx, int fd,
+                     IOHandler *io_poll_begin,
+                     IOHandler *io_poll_end)
+{
+    AioHandler *node = find_aio_handler(ctx, fd);
+
+    if (!node) {
+        return;
+    }
+
+    node->io_poll_begin = io_poll_begin;
+    node->io_poll_end = io_poll_end;
+}
+
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
                             bool is_external,
@@ -280,8 +296,53 @@ void aio_set_event_notifier(AioContext *ctx,
                        (IOHandler *)io_read, NULL, io_poll, notifier);
 }
 
+void aio_set_event_notifier_poll(AioContext *ctx,
+                                 EventNotifier *notifier,
+                                 EventNotifierHandler *io_poll_begin,
+                                 EventNotifierHandler *io_poll_end)
+{
+    aio_set_fd_poll(ctx, event_notifier_get_fd(notifier),
+                    (IOHandler *)io_poll_begin,
+                    (IOHandler *)io_poll_end);
+}
+
+static void poll_set_started(AioContext *ctx, bool started)
+{
+    AioHandler *node;
+
+    if (started == ctx->poll_started) {
+        return;
+    }
+
+    ctx->poll_started = started;
+
+    ctx->walking_handlers++;
+    QLIST_FOREACH(node, &ctx->aio_handlers, node) {
+        IOHandler *fn;
+
+        if (node->deleted) {
+            continue;
+        }
+
+        if (started) {
+            fn = node->io_poll_begin;
+        } else {
+            fn = node->io_poll_end;
+        }
+
+        if (fn) {
+            fn(node->opaque);
+        }
+    }
+    ctx->walking_handlers--;
+}
+
+
 bool aio_prepare(AioContext *ctx)
 {
+    /* Poll mode cannot be used with glib's event loop, disable it. */
+    poll_set_started(ctx, false);
+
     return false;
 }
 
@@ -422,6 +483,23 @@ static void add_pollfd(AioHandler *node)
     npfd++;
 }
 
+static bool run_poll_handlers_once(AioContext *ctx)
+{
+    bool progress = false;
+    AioHandler *node;
+
+    QLIST_FOREACH(node, &ctx->aio_handlers, node) {
+        if (!node->deleted && node->io_poll &&
+                node->io_poll(node->opaque)) {
+            progress = true;
+        }
+
+        /* Caller handles freeing deleted nodes.  Don't do it here. */
+    }
+
+    return progress;
+}
+
 /* run_poll_handlers:
  * @ctx: the AioContext
  * @max_ns: maximum time to poll for, in nanoseconds
@@ -437,7 +515,7 @@ static void add_pollfd(AioHandler *node)
  */
 static bool run_poll_handlers(AioContext *ctx, int64_t max_ns)
 {
-    bool progress = false;
+    bool progress;
     int64_t end_time;
 
     assert(ctx->notify_me);
@@ -449,16 +527,7 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns)
     end_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + max_ns;
 
     do {
-        AioHandler *node;
-
-        QLIST_FOREACH(node, &ctx->aio_handlers, node) {
-            if (!node->deleted && node->io_poll &&
-                node->io_poll(node->opaque)) {
-                progress = true;
-            }
-
-            /* Caller handles freeing deleted nodes.  Don't do it here. */
-        }
+        progress = run_poll_handlers_once(ctx);
     } while (!progress && qemu_clock_get_ns(QEMU_CLOCK_REALTIME) < end_time);
 
     trace_run_poll_handlers_end(ctx, progress);
@@ -468,10 +537,9 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns)
 
 /* try_poll_mode:
  * @ctx: the AioContext
- * @blocking: polling is only attempted when blocking is true
+ * @blocking: busy polling is only attempted when blocking is true
  *
- * If blocking is true then ctx->notify_me must be non-zero so this function
- * can detect aio_notify().
+ * ctx->notify_me must be non-zero so this function can detect aio_notify().
  *
  * Note that the caller must have incremented ctx->walking_handlers.
  *
@@ -485,13 +553,20 @@ static bool try_poll_mode(AioContext *ctx, bool blocking)
                              (uint64_t)ctx->poll_max_ns);
 
         if (max_ns) {
+            poll_set_started(ctx, true);
+
             if (run_poll_handlers(ctx, max_ns)) {
                 return true;
             }
         }
     }
 
-    return false;
+    poll_set_started(ctx, false);
+
+    /* Even if we don't run busy polling, try polling once in case it can make
+     * progress and the caller will be able to avoid ppoll(2)/epoll_wait(2).
+     */
+    return run_poll_handlers_once(ctx);
 }
 
 bool aio_poll(AioContext *ctx, bool blocking)
