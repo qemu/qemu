@@ -28,6 +28,9 @@ typedef struct {
     QemuCond init_done_cond;    /* is thread initialization done? */
     bool stopping;
     int thread_id;
+
+    /* AioContext poll parameters */
+    int64_t poll_max_ns;
 } IOThread;
 
 #define IOTHREAD(obj) \

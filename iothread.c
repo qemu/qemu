@@ -98,6 +98,15 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
         return;
     }
 
+    aio_context_set_poll_params(iothread->ctx, iothread->poll_max_ns,
+                                &local_error);
+    if (local_error) {
+        error_propagate(errp, local_error);
+        aio_context_unref(iothread->ctx);
+        iothread->ctx = NULL;
+        return;
+    }
+
     qemu_mutex_init(&iothread->init_done_lock);
     qemu_cond_init(&iothread->init_done_cond);
 
@@ -120,10 +129,51 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
     qemu_mutex_unlock(&iothread->init_done_lock);
 }
 
+static void iothread_get_poll_max_ns(Object *obj, Visitor *v,
+        const char *name, void *opaque, Error **errp)
+{
+    IOThread *iothread = IOTHREAD(obj);
+
+    visit_type_int64(v, name, &iothread->poll_max_ns, errp);
+}
+
+static void iothread_set_poll_max_ns(Object *obj, Visitor *v,
+        const char *name, void *opaque, Error **errp)
+{
+    IOThread *iothread = IOTHREAD(obj);
+    Error *local_err = NULL;
+    int64_t value;
+
+    visit_type_int64(v, name, &value, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    if (value < 0) {
+        error_setg(&local_err, "poll_max_ns value must be in range "
+                   "[0, %"PRId64"]", INT64_MAX);
+        goto out;
+    }
+
+    iothread->poll_max_ns = value;
+
+    if (iothread->ctx) {
+        aio_context_set_poll_params(iothread->ctx, value, &local_err);
+    }
+
+out:
+    error_propagate(errp, local_err);
+}
+
 static void iothread_class_init(ObjectClass *klass, void *class_data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(klass);
     ucc->complete = iothread_complete;
+
+    object_class_property_add(klass, "poll-max-ns", "int",
+                              iothread_get_poll_max_ns,
+                              iothread_set_poll_max_ns,
+                              NULL, NULL, &error_abort);
 }
 
 static const TypeInfo iothread_info = {
