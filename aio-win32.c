@@ -20,6 +20,7 @@
 #include "block/block.h"
 #include "qemu/queue.h"
 #include "qemu/sockets.h"
+#include "qapi/error.h"
 
 struct AioHandler {
     EventNotifier *e;
@@ -38,6 +39,7 @@ void aio_set_fd_handler(AioContext *ctx,
                         bool is_external,
                         IOHandler *io_read,
                         IOHandler *io_write,
+                        AioPollFn *io_poll,
                         void *opaque)
 {
     /* fd is a SOCKET in our case */
@@ -103,7 +105,8 @@ void aio_set_fd_handler(AioContext *ctx,
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *e,
                             bool is_external,
-                            EventNotifierHandler *io_notify)
+                            EventNotifierHandler *io_notify,
+                            AioPollFn *io_poll)
 {
     AioHandler *node;
 
@@ -375,4 +378,9 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
 void aio_context_setup(AioContext *ctx)
 {
+}
+
+void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns, Error **errp)
+{
+    error_setg(errp, "AioContext polling is not implemented on Windows");
 }

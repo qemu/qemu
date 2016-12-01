@@ -349,6 +349,15 @@ static void event_notifier_dummy_cb(EventNotifier *e)
 {
 }
 
+/* Returns true if aio_notify() was called (e.g. a BH was scheduled) */
+static bool event_notifier_poll(void *opaque)
+{
+    EventNotifier *e = opaque;
+    AioContext *ctx = container_of(e, AioContext, notifier);
+
+    return atomic_read(&ctx->notified);
+}
+
 AioContext *aio_context_new(Error **errp)
 {
     int ret;
@@ -367,7 +376,7 @@ AioContext *aio_context_new(Error **errp)
                            false,
                            (EventNotifierHandler *)
                            event_notifier_dummy_cb,
-                           NULL);
+                           event_notifier_poll);
 #ifdef CONFIG_LINUX_AIO
     ctx->linux_aio = NULL;
 #endif
@@ -375,6 +384,8 @@ AioContext *aio_context_new(Error **errp)
     qemu_mutex_init(&ctx->bh_lock);
     qemu_rec_mutex_init(&ctx->lock);
     timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
+
+    ctx->poll_max_ns = 0;
 
     return ctx;
 fail:

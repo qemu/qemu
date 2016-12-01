@@ -131,6 +131,12 @@ struct AioContext {
 
     int external_disable_cnt;
 
+    /* Number of AioHandlers without .io_poll() */
+    int poll_disable_cnt;
+
+    /* Maximum polling time in nanoseconds */
+    int64_t poll_max_ns;
+
     /* epoll(7) state used when built with CONFIG_EPOLL */
     int epollfd;
     bool epoll_enabled;
@@ -480,5 +486,15 @@ static inline bool aio_context_in_iothread(AioContext *ctx)
  * Initialize the aio context.
  */
 void aio_context_setup(AioContext *ctx);
+
+/**
+ * aio_context_set_poll_params:
+ * @ctx: the aio context
+ * @max_ns: how long to busy poll for, in nanoseconds
+ *
+ * Poll mode can be disabled by setting poll_max_ns to 0.
+ */
+void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
+                                 Error **errp);
 
 #endif
