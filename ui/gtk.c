@@ -90,6 +90,9 @@
 #ifndef GDK_IS_X11_DISPLAY
 #define GDK_IS_X11_DISPLAY(dpy) (dpy == dpy)
 #endif
+#ifndef GDK_IS_WAYLAND_DISPLAY
+#define GDK_IS_WAYLAND_DISPLAY(dpy) (dpy == dpy)
+#endif
 #ifndef GDK_IS_WIN32_DISPLAY
 #define GDK_IS_WIN32_DISPLAY(dpy) (dpy == dpy)
 #endif
@@ -1053,6 +1056,10 @@ static int gd_map_keycode(GtkDisplayState *s, GdkDisplay *dpy, int gdk_keycode)
         } else {
             qemu_keycode = translate_xfree86_keycode(gdk_keycode - 97);
         }
+#endif
+#ifdef GDK_WINDOWING_WAYLAND
+    } else if (GDK_IS_WAYLAND_DISPLAY(dpy) && gdk_keycode < 158) {
+        qemu_keycode = translate_evdev_keycode(gdk_keycode - 97);
 #endif
     } else if (gdk_keycode == 208) { /* Hiragana_Katakana */
         qemu_keycode = 0x70;
