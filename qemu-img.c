@@ -912,7 +912,9 @@ static int img_commit(int argc, char **argv)
     if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (!base_bs) {
-            error_setg(&local_err, QERR_BASE_NOT_FOUND, base);
+            error_setg(&local_err,
+                       "Did not find '%s' in the backing chain of '%s'",
+                       base, filename);
             goto done;
         }
     } else {
