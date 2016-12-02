@@ -1722,7 +1722,7 @@ F: block/linux-aio.c
 F: include/block/raw-aio.h
 F: block/raw-posix.c
 F: block/raw-win32.c
-F: block/raw_bsd.c
+F: block/raw-format.c
 F: block/win32-aio.c
 
 qcow2
