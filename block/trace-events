@@ -53,8 +53,8 @@ qmp_block_job_resume(void *job) "job %p"
 qmp_block_job_complete(void *job) "job %p"
 qmp_block_stream(void *bs, void *job) "bs %p job %p"
 
-# block/raw-win32.c
-# block/raw-posix.c
+# block/file-win32.c
+# block/file-posix.c
 paio_submit_co(int64_t offset, int count, int type) "offset %"PRId64" count %d type %d"
 paio_submit(void *acb, void *opaque, int64_t offset, int count, int type) "acb %p opaque %p offset %"PRId64" count %d type %d"
 

@@ -1720,9 +1720,9 @@ L: qemu-block@nongnu.org
 S: Supported
 F: block/linux-aio.c
 F: include/block/raw-aio.h
-F: block/raw-posix.c
-F: block/raw-win32.c
 F: block/raw-format.c
+F: block/file-posix.c
+F: block/file-win32.c
 F: block/win32-aio.c
 
 qcow2

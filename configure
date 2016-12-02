@@ -2750,7 +2750,7 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
-# xfsctl() probe, used for raw-posix
+# xfsctl() probe, used for file-posix.c
 if test "$xfs" != "no" ; then
   cat > $TMPC << EOF
 #include <stddef.h>  /* NULL */
