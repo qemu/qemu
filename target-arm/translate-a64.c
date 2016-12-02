@@ -1839,41 +1839,37 @@ static void disas_b_exc_sys(DisasContext *s, uint32_t insn)
     }
 }
 
+/*
+ * Load/Store exclusive instructions are implemented by remembering
+ * the value/address loaded, and seeing if these are the same
+ * when the store is performed. This is not actually the architecturally
+ * mandated semantics, but it works for typical guest code sequences
+ * and avoids having to monitor regular stores.
+ *
+ * The store exclusive uses the atomic cmpxchg primitives to avoid
+ * races in multi-threaded linux-user and when MTTCG softmmu is
+ * enabled.
+ */
 static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
                                TCGv_i64 addr, int size, bool is_pair)
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
-    TCGMemOp be = s->be_data;
+    TCGMemOp memop = s->be_data + size;
 
     g_assert(size <= 3);
+    tcg_gen_qemu_ld_i64(tmp, addr, get_mem_index(s), memop);
+
     if (is_pair) {
+        TCGv_i64 addr2 = tcg_temp_new_i64();
         TCGv_i64 hitmp = tcg_temp_new_i64();
 
-        if (size == 3) {
-            TCGv_i64 addr2 = tcg_temp_new_i64();
-
-            tcg_gen_qemu_ld_i64(tmp, addr, get_mem_index(s),
-                                MO_64 | MO_ALIGN_16 | be);
-            tcg_gen_addi_i64(addr2, addr, 8);
-            tcg_gen_qemu_ld_i64(hitmp, addr2, get_mem_index(s),
-                                MO_64 | MO_ALIGN | be);
-            tcg_temp_free_i64(addr2);
-        } else {
-            g_assert(size == 2);
-            tcg_gen_qemu_ld_i64(tmp, addr, get_mem_index(s),
-                                MO_64 | MO_ALIGN | be);
-            if (be == MO_LE) {
-                tcg_gen_extr32_i64(tmp, hitmp, tmp);
-            } else {
-                tcg_gen_extr32_i64(hitmp, tmp, tmp);
-            }
-        }
-
+        g_assert(size >= 2);
+        tcg_gen_addi_i64(addr2, addr, 1 << size);
+        tcg_gen_qemu_ld_i64(hitmp, addr2, get_mem_index(s), memop);
+        tcg_temp_free_i64(addr2);
         tcg_gen_mov_i64(cpu_exclusive_high, hitmp);
         tcg_gen_mov_i64(cpu_reg(s, rt2), hitmp);
         tcg_temp_free_i64(hitmp);
-    } else {
-        tcg_gen_qemu_ld_i64(tmp, addr, get_mem_index(s), size | MO_ALIGN | be);
     }
 
     tcg_gen_mov_i64(cpu_exclusive_val, tmp);
