@@ -97,7 +97,18 @@ static void pmac_screamer_tx(DBDMA_io *io)
 
 static void pmac_screamer_tx_flush(DBDMA_io *io)
 {
+    ScreamerState *s = io->opaque;
+    int n = s->bpos - s->ppos;
+    
     SCREAMER_DPRINTF("DMA TX flush!\n");
+    
+    while (n > 0) {
+        n = AUD_write(s->voice, &s->buf[s->ppos], n);
+        s->ppos += n;
+    }
+    
+    s->bpos = 0;
+    s->ppos = 0;
 }
 
 static void pmac_screamer_rx(DBDMA_io *io)
