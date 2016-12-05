@@ -1,7 +1,7 @@
 common-obj-$(CONFIG_ACPI_X86) += core.o piix4.o pcihp.o
 common-obj-$(CONFIG_ACPI_X86_ICH) += ich9.o tco.o
 common-obj-$(CONFIG_ACPI_CPU_HOTPLUG) += cpu_hotplug.o
-common-obj-$(CONFIG_ACPI_MEMORY_HOTPLUG) += memory_hotplug.o memory_hotplug_acpi_table.o
+common-obj-$(CONFIG_ACPI_MEMORY_HOTPLUG) += memory_hotplug.o
 common-obj-$(CONFIG_ACPI_CPU_HOTPLUG) += cpu.o
 common-obj-$(CONFIG_ACPI_NVDIMM) += nvdimm.o
 common-obj-$(CONFIG_ACPI) += acpi_interface.o
