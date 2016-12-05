@@ -1777,43 +1777,6 @@ uint32_t helper_efdcmpeq(CPUPPCState *env, uint64_t op1, uint64_t op2)
     return helper_efdtsteq(env, op1, op2);
 }
 
-typedef union _ppc_vsr_t {
-    uint64_t u64[2];
-    uint32_t u32[4];
-    float32 f32[4];
-    float64 f64[2];
-} ppc_vsr_t;
-
-#if defined(HOST_WORDS_BIGENDIAN)
-#define VsrW(i) u32[i]
-#define VsrD(i) u64[i]
-#else
-#define VsrW(i) u32[3-(i)]
-#define VsrD(i) u64[1-(i)]
-#endif
-
-static void getVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
-{
-    if (n < 32) {
-        vsr->VsrD(0) = env->fpr[n];
-        vsr->VsrD(1) = env->vsr[n];
-    } else {
-        vsr->u64[0] = env->avr[n-32].u64[0];
-        vsr->u64[1] = env->avr[n-32].u64[1];
-    }
-}
-
-static void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
-{
-    if (n < 32) {
-        env->fpr[n] = vsr->VsrD(0);
-        env->vsr[n] = vsr->VsrD(1);
-    } else {
-        env->avr[n-32].u64[0] = vsr->u64[0];
-        env->avr[n-32].u64[1] = vsr->u64[1];
-    }
-}
-
 #define float64_to_float64(x, env) x
 
 
