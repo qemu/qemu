@@ -30,6 +30,9 @@
 #define MEMORY_SLOT_NOTIFY_METHOD    "MTFY"
 #define MEMORY_SLOT_SCAN_METHOD      "MSCN"
 #define MEMORY_HOTPLUG_DEVICE        "MHPD"
+#define MEMORY_HOTPLUG_IO_LEN         24
+
+static uint16_t memhp_io_base;
 
 static ACPIOSTInfo *acpi_memory_device_status(int slot, MemStatus *mdev)
 {
@@ -202,7 +205,7 @@ static const MemoryRegionOps acpi_memory_hotplug_ops = {
 };
 
 void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
-                              MemHotplugState *state)
+                              MemHotplugState *state, uint16_t io_base)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
 
@@ -211,10 +214,12 @@ void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
         return;
     }
 
+    assert(!memhp_io_base);
+    memhp_io_base = io_base;
     state->devs = g_malloc0(sizeof(*state->devs) * state->dev_count);
     memory_region_init_io(&state->io, owner, &acpi_memory_hotplug_ops, state,
-                          "acpi-mem-hotplug", ACPI_MEMORY_HOTPLUG_IO_LEN);
-    memory_region_add_subregion(as, ACPI_MEMORY_HOTPLUG_BASE, &state->io);
+                          "acpi-mem-hotplug", MEMORY_HOTPLUG_IO_LEN);
+    memory_region_add_subregion(as, memhp_io_base, &state->io);
 }
 
 /**
@@ -332,7 +337,6 @@ const VMStateDescription vmstate_memory_hotplug = {
 };
 
 void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
-                              uint16_t io_base, uint16_t io_len,
                               const char *res_root,
                               const char *event_handler_method)
 {
@@ -342,8 +346,13 @@ void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
     Aml *sb_scope;
     Aml *mem_ctrl_dev;
     char *scan_path;
-    char *mhp_res_path = g_strdup_printf("%s." MEMORY_HOTPLUG_DEVICE, res_root);
+    char *mhp_res_path;
 
+    if (!memhp_io_base) {
+        return;
+    }
+
+    mhp_res_path = g_strdup_printf("%s." MEMORY_HOTPLUG_DEVICE, res_root);
     mem_ctrl_dev = aml_device("%s", mhp_res_path);
     {
         Aml *crs;
@@ -367,13 +376,14 @@ void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
 
         crs = aml_resource_template();
         aml_append(crs,
-            aml_io(AML_DECODE16, io_base, io_base, 0, io_len)
+            aml_io(AML_DECODE16, memhp_io_base, memhp_io_base, 0,
+                   MEMORY_HOTPLUG_IO_LEN)
         );
         aml_append(mem_ctrl_dev, aml_name_decl("_CRS", crs));
 
         aml_append(mem_ctrl_dev, aml_operation_region(
             MEMORY_HOTPLUG_IO_REGION, AML_SYSTEM_IO,
-            aml_int(io_base), io_len)
+            aml_int(memhp_io_base), MEMORY_HOTPLUG_IO_LEN)
         );
 
         field = aml_field(MEMORY_HOTPLUG_IO_REGION, AML_DWORD_ACC,

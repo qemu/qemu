@@ -101,8 +101,6 @@ typedef struct AcpiPmInfo {
     uint32_t gpe0_blk_len;
     uint32_t io_base;
     uint16_t cpu_hp_io_base;
-    uint16_t mem_hp_io_base;
-    uint16_t mem_hp_io_len;
     uint16_t pcihp_io_base;
     uint16_t pcihp_io_len;
 } AcpiPmInfo;
@@ -147,9 +145,6 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
         pm->cpu_hp_io_base = ICH9_CPU_HOTPLUG_IO_BASE;
     }
     assert(obj);
-
-    pm->mem_hp_io_base = ACPI_MEMORY_HOTPLUG_BASE;
-    pm->mem_hp_io_len = ACPI_MEMORY_HOTPLUG_IO_LEN;
 
     /* Fill in optional s3/s4 related properties */
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S3_DISABLED, NULL);
@@ -1925,9 +1920,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_cpus_aml(dsdt, machine, opts, pm->cpu_hp_io_base,
                        "\\_SB.PCI0", "\\_GPE._E02");
     }
-    build_memory_hotplug_aml(dsdt, nr_mem, pm->mem_hp_io_base,
-                             pm->mem_hp_io_len,
-                             "\\_SB.PCI0", "\\_GPE._E03");
+    build_memory_hotplug_aml(dsdt, nr_mem, "\\_SB.PCI0", "\\_GPE._E03");
 
     scope =  aml_scope("_GPE");
     {
