@@ -47,9 +47,6 @@ extern const VMStateDescription vmstate_memory_hotplug;
 
 void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list);
 
-#define MEMORY_HOTPLUG_DEVICE        "MHPD"
-#define MEMORY_SLOT_SCAN_METHOD      "MSCN"
-
 void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
                               uint16_t io_base, uint16_t io_len,
                               const char *res_root,
