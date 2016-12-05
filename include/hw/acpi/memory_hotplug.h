@@ -52,7 +52,7 @@ void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list);
 #define MEMORY_HOTPLUG_HANDLER_PATH "\\_SB.PCI0." \
      MEMORY_HOTPLUG_DEVICE "." MEMORY_SLOT_SCAN_METHOD
 
-void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
+void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
                               uint16_t io_base, uint16_t io_len);
 void build_memory_devices(Aml *sb_scope, int nr_mem,
                           uint16_t io_base, uint16_t io_len);
