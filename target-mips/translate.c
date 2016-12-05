@@ -3871,6 +3871,7 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
         break;
     }
 
+    check_cp1_enabled(ctx);
     gen_load_fpr64(ctx, t0, rs);
     gen_load_fpr64(ctx, t1, rt);
 
@@ -3945,8 +3946,11 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
     LMI_DIRECT(XOR_CP2, xor, xor);
     LMI_DIRECT(NOR_CP2, nor, nor);
     LMI_DIRECT(AND_CP2, and, and);
-    LMI_DIRECT(PANDN, pandn, andc);
-    LMI_DIRECT(OR, or, or);
+    LMI_DIRECT(OR_CP2, or, or);
+
+    case OPC_PANDN:
+        tcg_gen_andc_i64(t0, t1, t0);
+        break;
 
     case OPC_PINSRH_0:
         tcg_gen_deposit_i64(t0, t0, t1, 0, 16);
