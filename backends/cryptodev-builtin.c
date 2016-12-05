@@ -111,23 +111,42 @@ cryptodev_builtin_get_unused_session_index(
     return -1;
 }
 
+#define AES_KEYSIZE_128 16
+#define AES_KEYSIZE_192 24
+#define AES_KEYSIZE_256 32
+#define AES_KEYSIZE_128_XTS AES_KEYSIZE_256
+#define AES_KEYSIZE_256_XTS 64
+
 static int
-cryptodev_builtin_get_aes_algo(uint32_t key_len, Error **errp)
+cryptodev_builtin_get_aes_algo(uint32_t key_len, int mode, Error **errp)
 {
     int algo;
 
-    if (key_len == 128 / 8) {
+    if (key_len == AES_KEYSIZE_128) {
         algo = QCRYPTO_CIPHER_ALG_AES_128;
-    } else if (key_len == 192 / 8) {
+    } else if (key_len == AES_KEYSIZE_192) {
         algo = QCRYPTO_CIPHER_ALG_AES_192;
-    } else if (key_len == 256 / 8) {
-        algo = QCRYPTO_CIPHER_ALG_AES_256;
+    } else if (key_len == AES_KEYSIZE_256) { /* equals AES_KEYSIZE_128_XTS */
+        if (mode == QCRYPTO_CIPHER_MODE_XTS) {
+            algo = QCRYPTO_CIPHER_ALG_AES_128;
+        } else {
+            algo = QCRYPTO_CIPHER_ALG_AES_256;
+        }
+    } else if (key_len == AES_KEYSIZE_256_XTS) {
+        if (mode == QCRYPTO_CIPHER_MODE_XTS) {
+            algo = QCRYPTO_CIPHER_ALG_AES_256;
+        } else {
+            goto err;
+        }
     } else {
-        error_setg(errp, "Unsupported key length :%u", key_len);
-        return -1;
+        goto err;
     }
 
     return algo;
+
+err:
+   error_setg(errp, "Unsupported key length :%u", key_len);
+   return -1;
 }
 
 static int cryptodev_builtin_create_cipher_session(
@@ -155,32 +174,32 @@ static int cryptodev_builtin_create_cipher_session(
 
     switch (sess_info->cipher_alg) {
     case VIRTIO_CRYPTO_CIPHER_AES_ECB:
+        mode = QCRYPTO_CIPHER_MODE_ECB;
         algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
-                                                          errp);
+                                                    mode, errp);
         if (algo < 0)  {
             return -1;
         }
-        mode = QCRYPTO_CIPHER_MODE_ECB;
         break;
     case VIRTIO_CRYPTO_CIPHER_AES_CBC:
+        mode = QCRYPTO_CIPHER_MODE_CBC;
         algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
-                                                          errp);
+                                                    mode, errp);
         if (algo < 0)  {
             return -1;
         }
-        mode = QCRYPTO_CIPHER_MODE_CBC;
         break;
     case VIRTIO_CRYPTO_CIPHER_AES_CTR:
+        mode = QCRYPTO_CIPHER_MODE_CTR;
         algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
-                                                          errp);
+                                                    mode, errp);
         if (algo < 0)  {
             return -1;
         }
-        mode = QCRYPTO_CIPHER_MODE_CTR;
         break;
     case VIRTIO_CRYPTO_CIPHER_DES_ECB:
-        algo = QCRYPTO_CIPHER_ALG_DES_RFB;
         mode = QCRYPTO_CIPHER_MODE_ECB;
+        algo = QCRYPTO_CIPHER_ALG_DES_RFB;
         break;
     default:
         error_setg(errp, "Unsupported cipher alg :%u",
