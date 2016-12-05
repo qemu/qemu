@@ -46,7 +46,7 @@ _supported_proto file
 _supported_os Linux
 
 
-# Four passes:
+# Four main passes:
 #  0: Two-layer backing chain, commit to upper backing file (implicitly)
 #     (in this case, the top image will be emptied)
 #  1: Two-layer backing chain, commit to upper backing file (explicitly)
@@ -56,22 +56,30 @@ _supported_os Linux
 #  3: Two-layer backing chain, commit to lower backing file
 #     (in this case, the top image will implicitly stay unchanged)
 #
+# Each pass is run twice, since qcow2 has different code paths for cleaning
+# an image depending on whether it has a snapshot.
+#
 # 020 already tests committing, so this only tests whether image chains are
 # working properly and that all images above the base are emptied; therefore,
-# no complicated patterns are necessary
+# no complicated patterns are necessary.  Check near the 2G mark, as qcow2
+# has been buggy at that boundary in the past.
 for i in 0 1 2 3; do
+for j in 0 1; do
 
 echo
-echo "=== Test pass $i ==="
+echo "=== Test pass $i.$j ==="
 echo
 
-TEST_IMG="$TEST_IMG.base" _make_test_img 64M
-TEST_IMG="$TEST_IMG.itmd" _make_test_img -b "$TEST_IMG.base" 64M
-_make_test_img -b "$TEST_IMG.itmd" 64M
+TEST_IMG="$TEST_IMG.base" _make_test_img 2100M
+TEST_IMG="$TEST_IMG.itmd" _make_test_img -b "$TEST_IMG.base" 2100M
+_make_test_img -b "$TEST_IMG.itmd" 2100M
+if [ $j -eq 0 ]; then
+    $QEMU_IMG snapshot -c snap "$TEST_IMG"
+fi
 
-$QEMU_IO -c 'write -P 1 0 192k' "$TEST_IMG.base" | _filter_qemu_io
-$QEMU_IO -c 'write -P 2 64k 128k' "$TEST_IMG.itmd" | _filter_qemu_io
-$QEMU_IO -c 'write -P 3 128k 64k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'write -P 1 0x7ffd0000 192k' "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c 'write -P 2 0x7ffe0000 128k' "$TEST_IMG.itmd" | _filter_qemu_io
+$QEMU_IO -c 'write -P 3 0x7fff0000 64k' "$TEST_IMG" | _filter_qemu_io
 
 if [ $i -lt 3 ]; then
     if [ $i == 0 ]; then
@@ -88,12 +96,12 @@ if [ $i -lt 3 ]; then
     fi
 
     # Bottom should be unchanged
-    $QEMU_IO -c 'read -P 1 0 192k' "$TEST_IMG.base" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 1 0x7ffd0000 192k' "$TEST_IMG.base" | _filter_qemu_io
 
     # Intermediate should contain changes from top
-    $QEMU_IO -c 'read -P 1 0 64k' "$TEST_IMG.itmd" | _filter_qemu_io
-    $QEMU_IO -c 'read -P 2 64k 64k' "$TEST_IMG.itmd" | _filter_qemu_io
-    $QEMU_IO -c 'read -P 3 128k 64k' "$TEST_IMG.itmd" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 1 0x7ffd0000 64k' "$TEST_IMG.itmd" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 2 0x7ffe0000 64k' "$TEST_IMG.itmd" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 3 0x7fff0000 64k' "$TEST_IMG.itmd" | _filter_qemu_io
 
     # And in pass 0, the top image should be empty, whereas in both other passes
     # it should be unchanged (which is both checked by qemu-img map)
@@ -101,9 +109,9 @@ else
     $QEMU_IMG commit -b "$TEST_IMG.base" "$TEST_IMG"
 
     # Bottom should contain all changes
-    $QEMU_IO -c 'read -P 1 0 64k' "$TEST_IMG.base" | _filter_qemu_io
-    $QEMU_IO -c 'read -P 2 64k 64k' "$TEST_IMG.base" | _filter_qemu_io
-    $QEMU_IO -c 'read -P 3 128k 64k' "$TEST_IMG.base" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 1 0x7ffd0000 64k' "$TEST_IMG.base" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 2 0x7ffe0000 64k' "$TEST_IMG.base" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 3 0x7fff0000 64k' "$TEST_IMG.base" | _filter_qemu_io
 
     # Both top and intermediate should be unchanged
 fi
@@ -112,6 +120,7 @@ $QEMU_IMG map "$TEST_IMG.base" | _filter_qemu_img_map
 $QEMU_IMG map "$TEST_IMG.itmd" | _filter_qemu_img_map
 $QEMU_IMG map "$TEST_IMG" | _filter_qemu_img_map
 
+done
 done
 
 
