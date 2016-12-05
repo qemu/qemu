@@ -310,9 +310,11 @@ const VMStateDescription vmstate_memory_hotplug = {
 void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
                               uint16_t io_base, uint16_t io_len)
 {
+    int i;
     Aml *ifctx;
     Aml *method;
     Aml *pci_scope;
+    Aml *sb_scope;
     Aml *mem_ctrl_dev;
 
     /* scope for memory hotplug controller device node */
@@ -610,19 +612,12 @@ void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
     }
     aml_append(pci_scope, mem_ctrl_dev);
     aml_append(table, pci_scope);
-}
 
-void build_memory_devices(Aml *sb_scope, int nr_mem,
-                          uint16_t io_base, uint16_t io_len)
-{
-    int i;
-    Aml *dev;
-    Aml *method;
-    Aml *ifctx;
-
+    sb_scope = aml_scope("_SB");
     /* build memory devices */
     for (i = 0; i < nr_mem; i++) {
         #define BASEPATH "\\_SB.PCI0." MEMORY_HOTPLUG_DEVICE "."
+        Aml *dev;
         const char *s;
 
         dev = aml_device("MP%02X", i);
@@ -673,4 +668,5 @@ void build_memory_devices(Aml *sb_scope, int nr_mem,
         aml_append(method, ifctx);
     }
     aml_append(sb_scope, method);
+    aml_append(table, sb_scope);
 }

@@ -2197,45 +2197,40 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 
     sb_scope = aml_scope("\\_SB");
     {
-        build_memory_devices(sb_scope, nr_mem, pm->mem_hp_io_base,
-                             pm->mem_hp_io_len);
+        Object *pci_host;
+        PCIBus *bus = NULL;
 
-        {
-            Object *pci_host;
-            PCIBus *bus = NULL;
-
-            pci_host = acpi_get_i386_pci_host();
-            if (pci_host) {
-                bus = PCI_HOST_BRIDGE(pci_host)->bus;
-            }
-
-            if (bus) {
-                Aml *scope = aml_scope("PCI0");
-                /* Scan all PCI buses. Generate tables to support hotplug. */
-                build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
-
-                if (misc->tpm_version != TPM_VERSION_UNSPEC) {
-                    dev = aml_device("ISA.TPM");
-                    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C31")));
-                    aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
-                    crs = aml_resource_template();
-                    aml_append(crs, aml_memory32_fixed(TPM_TIS_ADDR_BASE,
-                               TPM_TIS_ADDR_SIZE, AML_READ_WRITE));
-                    /*
-                        FIXME: TPM_TIS_IRQ=5 conflicts with PNP0C0F irqs,
-                        Rewrite to take IRQ from TPM device model and
-                        fix default IRQ value there to use some unused IRQ
-                     */
-                    /* aml_append(crs, aml_irq_no_flags(TPM_TIS_IRQ)); */
-                    aml_append(dev, aml_name_decl("_CRS", crs));
-                    aml_append(scope, dev);
-                }
-
-                aml_append(sb_scope, scope);
-            }
+        pci_host = acpi_get_i386_pci_host();
+        if (pci_host) {
+            bus = PCI_HOST_BRIDGE(pci_host)->bus;
         }
-        aml_append(dsdt, sb_scope);
+
+        if (bus) {
+            Aml *scope = aml_scope("PCI0");
+            /* Scan all PCI buses. Generate tables to support hotplug. */
+            build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
+
+            if (misc->tpm_version != TPM_VERSION_UNSPEC) {
+                dev = aml_device("ISA.TPM");
+                aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C31")));
+                aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
+                crs = aml_resource_template();
+                aml_append(crs, aml_memory32_fixed(TPM_TIS_ADDR_BASE,
+                           TPM_TIS_ADDR_SIZE, AML_READ_WRITE));
+                /*
+                    FIXME: TPM_TIS_IRQ=5 conflicts with PNP0C0F irqs,
+                    Rewrite to take IRQ from TPM device model and
+                    fix default IRQ value there to use some unused IRQ
+                 */
+                /* aml_append(crs, aml_irq_no_flags(TPM_TIS_IRQ)); */
+                aml_append(dev, aml_name_decl("_CRS", crs));
+                aml_append(scope, dev);
+            }
+
+            aml_append(sb_scope, scope);
+        }
     }
+    aml_append(dsdt, sb_scope);
 
     /* copy AML table into ACPI tables blob and patch header there */
     g_array_append_vals(table_data, dsdt->buf->data, dsdt->buf->len);
