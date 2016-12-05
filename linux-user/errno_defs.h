@@ -140,6 +140,9 @@
 #define TARGET_EOWNERDEAD      130     /* Owner died */
 #define TARGET_ENOTRECOVERABLE 131     /* State not recoverable */
 
+#define TARGET_ERFKILL         132     /* Operation not possible due to RF-kill */
+#define TARGET_EHWPOISON       133     /* Memory page has hardware error */
+
 /* QEMU internal, not visible to the guest. This is returned when a
  * system call should be restarted, to tell the main loop that it
  * should wind the guest PC backwards so it will re-execute the syscall

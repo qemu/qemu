@@ -218,6 +218,11 @@ struct target_pt_regs {
 #undef TARGET_ENOTRECOVERABLE
 #define TARGET_ENOTRECOVERABLE 166     /* State not recoverable */
 
+#undef TARGET_ERFKILL
+#define TARGET_ERFKILL         167
+#undef TARGET_EHWPOISON
+#define TARGET_EHWPOISON       168
+
 #undef TARGET_EDQUOT
 #define TARGET_EDQUOT          1133    /* Quota exceeded */
 

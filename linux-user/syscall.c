@@ -798,6 +798,12 @@ static uint16_t host_to_target_errno_table[ERRNO_TABLE_SIZE] = {
 #ifdef ENOMSG
     [ENOMSG]            = TARGET_ENOMSG,
 #endif
+#ifdef ERKFILL
+    [ERFKILL]           = TARGET_ERFKILL,
+#endif
+#ifdef EHWPOISON
+    [EHWPOISON]         = TARGET_EHWPOISON,
+#endif
 };
 
 static inline int host_to_target_errno(int err)
