@@ -347,7 +347,8 @@ struct sPAPRMachineState {
 #define H_XIRR_X                0x2FC
 #define H_RANDOM                0x300
 #define H_SET_MODE              0x31C
-#define MAX_HCALL_OPCODE        H_SET_MODE
+#define H_SIGNAL_SYS_RESET      0x380
+#define MAX_HCALL_OPCODE        H_SIGNAL_SYS_RESET
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.
@@ -659,5 +660,7 @@ int spapr_rng_populate_dt(void *fdt);
 #define SPAPR_LMB_FLAGS_ASSIGNED 0x00000008
 #define SPAPR_LMB_FLAGS_DRC_INVALID 0x00000020
 #define SPAPR_LMB_FLAGS_RESERVED 0x00000080
+
+void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg);
 
 #endif /* HW_SPAPR_H */
