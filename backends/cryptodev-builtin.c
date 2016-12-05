@@ -197,6 +197,14 @@ static int cryptodev_builtin_create_cipher_session(
             return -1;
         }
         break;
+    case VIRTIO_CRYPTO_CIPHER_AES_XTS:
+        mode = QCRYPTO_CIPHER_MODE_XTS;
+        algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
+                                                    mode, errp);
+        if (algo < 0)  {
+            return -1;
+        }
+        break;
     case VIRTIO_CRYPTO_CIPHER_DES_ECB:
         mode = QCRYPTO_CIPHER_MODE_ECB;
         algo = QCRYPTO_CIPHER_ALG_DES_RFB;
