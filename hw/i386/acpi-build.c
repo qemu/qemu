@@ -1926,7 +1926,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                        "\\_SB.PCI0", "\\_GPE._E02");
     }
     build_memory_hotplug_aml(dsdt, nr_mem, pm->mem_hp_io_base,
-                             pm->mem_hp_io_len);
+                             pm->mem_hp_io_len,
+                             "\\_SB.PCI0", "\\_GPE._E03");
 
     scope =  aml_scope("_GPE");
     {
@@ -1940,10 +1941,6 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             aml_append(method, aml_release(aml_name("\\_SB.PCI0.BLCK")));
             aml_append(scope, method);
         }
-
-        method = aml_method("_E03", 0, AML_NOTSERIALIZED);
-        aml_append(method, aml_call0(MEMORY_HOTPLUG_HANDLER_PATH));
-        aml_append(scope, method);
 
         if (pcms->acpi_nvdimm_state.is_enabled) {
             method = aml_method("_E04", 0, AML_NOTSERIALIZED);

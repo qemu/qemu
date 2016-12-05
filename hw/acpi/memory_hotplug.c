@@ -308,18 +308,19 @@ const VMStateDescription vmstate_memory_hotplug = {
 };
 
 void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
-                              uint16_t io_base, uint16_t io_len)
+                              uint16_t io_base, uint16_t io_len,
+                              const char *res_root,
+                              const char *event_handler_method)
 {
     int i;
     Aml *ifctx;
     Aml *method;
-    Aml *pci_scope;
     Aml *sb_scope;
     Aml *mem_ctrl_dev;
+    char *scan_path;
+    char *mhp_res_path = g_strdup_printf("%s." MEMORY_HOTPLUG_DEVICE, res_root);
 
-    /* scope for memory hotplug controller device node */
-    pci_scope = aml_scope("_SB.PCI0");
-    mem_ctrl_dev = aml_device(MEMORY_HOTPLUG_DEVICE);
+    mem_ctrl_dev = aml_device("%s", mhp_res_path);
     {
         Aml *crs;
         Aml *field;
@@ -610,47 +611,50 @@ void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
         }
         aml_append(mem_ctrl_dev, method);
     }
-    aml_append(pci_scope, mem_ctrl_dev);
-    aml_append(table, pci_scope);
+    aml_append(table, mem_ctrl_dev);
 
     sb_scope = aml_scope("_SB");
     /* build memory devices */
     for (i = 0; i < nr_mem; i++) {
-        #define BASEPATH "\\_SB.PCI0." MEMORY_HOTPLUG_DEVICE "."
         Aml *dev;
-        const char *s;
+        char *s;
 
         dev = aml_device("MP%02X", i);
         aml_append(dev, aml_name_decl("_UID", aml_string("0x%02X", i)));
         aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C80")));
 
         method = aml_method("_CRS", 0, AML_NOTSERIALIZED);
-        s = BASEPATH MEMORY_SLOT_CRS_METHOD;
+        s = g_strdup_printf("%s.%s", mhp_res_path, MEMORY_SLOT_CRS_METHOD);
         aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
+        g_free(s);
         aml_append(dev, method);
 
         method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-        s = BASEPATH MEMORY_SLOT_STATUS_METHOD;
+        s = g_strdup_printf("%s.%s", mhp_res_path, MEMORY_SLOT_STATUS_METHOD);
         aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
+        g_free(s);
         aml_append(dev, method);
 
         method = aml_method("_PXM", 0, AML_NOTSERIALIZED);
-        s = BASEPATH MEMORY_SLOT_PROXIMITY_METHOD;
+        s = g_strdup_printf("%s.%s", mhp_res_path,
+                            MEMORY_SLOT_PROXIMITY_METHOD);
         aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
+        g_free(s);
         aml_append(dev, method);
 
         method = aml_method("_OST", 3, AML_NOTSERIALIZED);
-        s = BASEPATH MEMORY_SLOT_OST_METHOD;
-
+        s = g_strdup_printf("%s.%s", mhp_res_path, MEMORY_SLOT_OST_METHOD);
         aml_append(method, aml_return(aml_call4(
             s, aml_name("_UID"), aml_arg(0), aml_arg(1), aml_arg(2)
         )));
+        g_free(s);
         aml_append(dev, method);
 
         method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
-        s = BASEPATH MEMORY_SLOT_EJECT_METHOD;
+        s = g_strdup_printf("%s.%s", mhp_res_path, MEMORY_SLOT_EJECT_METHOD);
         aml_append(method, aml_return(aml_call2(
                    s, aml_name("_UID"), aml_arg(0))));
+        g_free(s);
         aml_append(dev, method);
 
         aml_append(sb_scope, dev);
@@ -669,4 +673,12 @@ void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
     }
     aml_append(sb_scope, method);
     aml_append(table, sb_scope);
+
+    method = aml_method(event_handler_method, 0, AML_NOTSERIALIZED);
+    scan_path = g_strdup_printf("%s.%s", mhp_res_path, MEMORY_SLOT_SCAN_METHOD);
+    aml_append(method, aml_call0(scan_path));
+    g_free(scan_path);
+    aml_append(table, method);
+
+    g_free(mhp_res_path);
 }

@@ -49,9 +49,9 @@ void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list);
 
 #define MEMORY_HOTPLUG_DEVICE        "MHPD"
 #define MEMORY_SLOT_SCAN_METHOD      "MSCN"
-#define MEMORY_HOTPLUG_HANDLER_PATH "\\_SB.PCI0." \
-     MEMORY_HOTPLUG_DEVICE "." MEMORY_SLOT_SCAN_METHOD
 
 void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
-                              uint16_t io_base, uint16_t io_len);
+                              uint16_t io_base, uint16_t io_len,
+                              const char *res_root,
+                              const char *event_handler_method);
 #endif
