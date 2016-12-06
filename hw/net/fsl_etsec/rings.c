@@ -474,6 +474,14 @@ static void rx_init_frame(eTSEC *etsec, const uint8_t *buf, size_t size)
     /* CRC padding (We don't have to compute the CRC) */
     etsec->rx_padding = 4;
 
+    /*
+     * Ensure that payload length + CRC length is at least 802.3
+     * minimum MTU size bytes long (64)
+     */
+    if (etsec->rx_buffer_len < 60) {
+        etsec->rx_padding += 60 - etsec->rx_buffer_len;
+    }
+
     etsec->rx_first_in_frame = 1;
     etsec->rx_remaining_data = etsec->rx_buffer_len;
     RING_DEBUG("%s: rx_buffer_len:%u rx_padding+crc:%u\n", __func__,
