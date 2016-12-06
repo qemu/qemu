@@ -2808,7 +2808,8 @@ static int qcow2_make_empty(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t start_sector;
-    int sector_step = INT_MAX / BDRV_SECTOR_SIZE;
+    int sector_step = (QEMU_ALIGN_DOWN(INT_MAX, s->cluster_size) /
+                       BDRV_SECTOR_SIZE);
     int l1_clusters, ret = 0;
 
     l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / sizeof(uint64_t));
