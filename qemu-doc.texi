@@ -1041,35 +1041,55 @@ GlusterFS is an user space distributed file system.
 
 You can boot from the GlusterFS disk image with the command:
 @example
-qemu-system-x86_64 -drive file=gluster[+@var{transport}]://[@var{server}[:@var{port}]]/@var{volname}/@var{image}[?socket=...]
+URI:
+qemu-system-x86_64 -drive file=gluster[+@var{type}]://[@var{host}[:@var{port}]]/@var{volume}/@var{path}
+                               [?socket=...][,file.debug=9][,file.logfile=...]
+
+JSON:
+qemu-system-x86_64 'json:@{"driver":"qcow2",
+                           "file":@{"driver":"gluster",
+                                    "volume":"testvol","path":"a.img","debug":9,"logfile":"...",
+                                    "server":[@{"type":"tcp","host":"...","port":"..."@},
+                                              @{"type":"unix","socket":"..."@}]@}@}'
 @end example
 
 @var{gluster} is the protocol.
 
-@var{transport} specifies the transport type used to connect to gluster
+@var{type} specifies the transport type used to connect to gluster
 management daemon (glusterd). Valid transport types are
-tcp, unix and rdma. If a transport type isn't specified, then tcp
-type is assumed.
+tcp and unix. In the URI form, if a transport type isn't specified,
+then tcp type is assumed.
 
-@var{server} specifies the server where the volume file specification for
-the given volume resides. This can be either hostname, ipv4 address
-or ipv6 address. ipv6 address needs to be within square brackets [ ].
-If transport type is unix, then @var{server} field should not be specified.
+@var{host} specifies the server where the volume file specification for
+the given volume resides. This can be either a hostname or an ipv4 address.
+If transport type is unix, then @var{host} field should not be specified.
 Instead @var{socket} field needs to be populated with the path to unix domain
 socket.
 
 @var{port} is the port number on which glusterd is listening. This is optional
-and if not specified, QEMU will send 0 which will make gluster to use the
-default port. If the transport type is unix, then @var{port} should not be
-specified.
+and if not specified, it defaults to port 24007. If the transport type is unix,
+then @var{port} should not be specified.
 
-@var{volname} is the name of the gluster volume which contains the disk image.
+@var{volume} is the name of the gluster volume which contains the disk image.
 
-@var{image} is the path to the actual disk image that resides on gluster volume.
+@var{path} is the path to the actual disk image that resides on gluster volume.
+
+@var{debug} is the logging level of the gluster protocol driver. Debug levels
+are 0-9, with 9 being the most verbose, and 0 representing no debugging output.
+The default level is 4. The current logging levels defined in the gluster source
+are 0 - None, 1 - Emergency, 2 - Alert, 3 - Critical, 4 - Error, 5 - Warning,
+6 - Notice, 7 - Info, 8 - Debug, 9 - Trace
+
+@var{logfile} is a commandline option to mention log file path which helps in
+logging to the specified file and also help in persisting the gfapi logs. The
+default is stderr.
+
+
+
 
 You can create a GlusterFS disk image with the command:
 @example
-qemu-img create gluster://@var{server}/@var{volname}/@var{image} @var{size}
+qemu-img create gluster://@var{host}/@var{volume}/@var{path} @var{size}
 @end example
 
 Examples
@@ -1082,6 +1102,17 @@ qemu-system-x86_64 -drive file=gluster+tcp://[1:2:3:4:5:6:7:8]:24007/testvol/dir
 qemu-system-x86_64 -drive file=gluster+tcp://server.domain.com:24007/testvol/dir/a.img
 qemu-system-x86_64 -drive file=gluster+unix:///testvol/dir/a.img?socket=/tmp/glusterd.socket
 qemu-system-x86_64 -drive file=gluster+rdma://1.2.3.4:24007/testvol/a.img
+qemu-system-x86_64 -drive file=gluster://1.2.3.4/testvol/a.img,file.debug=9,file.logfile=/var/log/qemu-gluster.log
+qemu-system-x86_64 'json:@{"driver":"qcow2",
+                           "file":@{"driver":"gluster",
+                                    "volume":"testvol","path":"a.img",
+                                    "debug":9,"logfile":"/var/log/qemu-gluster.log",
+                                    "server":[@{"type":"tcp","host":"1.2.3.4","port":24007@},
+                                              @{"type":"unix","socket":"/var/run/glusterd.socket"@}]@}@}'
+qemu-system-x86_64 -drive driver=qcow2,file.driver=gluster,file.volume=testvol,file.path=/path/a.img,
+                                       file.debug=9,file.logfile=/var/log/qemu-gluster.log,
+                                       file.server.0.type=tcp,file.server.0.host=1.2.3.4,file.server.0.port=24007,
+                                       file.server.1.type=unix,file.server.1.socket=/var/run/glusterd.socket
 @end example
 
 @node disk_images_ssh
