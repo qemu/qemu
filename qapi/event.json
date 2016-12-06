@@ -1,5 +1,5 @@
 ##
-# @SHUTDOWN
+# @SHUTDOWN:
 #
 # Emitted when the virtual machine has shut down, indicating that qemu is
 # about to exit.
@@ -12,7 +12,7 @@
 { 'event': 'SHUTDOWN' }
 
 ##
-# @POWERDOWN
+# @POWERDOWN:
 #
 # Emitted when the virtual machine is powered down through the power control
 # system, such as via ACPI.
@@ -22,7 +22,7 @@
 { 'event': 'POWERDOWN' }
 
 ##
-# @RESET
+# @RESET:
 #
 # Emitted when the virtual machine is reset
 #
@@ -31,7 +31,7 @@
 { 'event': 'RESET' }
 
 ##
-# @STOP
+# @STOP:
 #
 # Emitted when the virtual machine is stopped
 #
@@ -40,7 +40,7 @@
 { 'event': 'STOP' }
 
 ##
-# @RESUME
+# @RESUME:
 #
 # Emitted when the virtual machine resumes execution
 #
@@ -49,7 +49,7 @@
 { 'event': 'RESUME' }
 
 ##
-# @SUSPEND
+# @SUSPEND:
 #
 # Emitted when guest enters a hardware suspension state, for example, S3 state,
 # which is sometimes called standby state
@@ -59,7 +59,7 @@
 { 'event': 'SUSPEND' }
 
 ##
-# @SUSPEND_DISK
+# @SUSPEND_DISK:
 #
 # Emitted when guest enters a hardware suspension state with data saved on
 # disk, for example, S4 state, which is sometimes called hibernate state
@@ -71,7 +71,7 @@
 { 'event': 'SUSPEND_DISK' }
 
 ##
-# @WAKEUP
+# @WAKEUP:
 #
 # Emitted when the guest has woken up from suspend state and is running
 #
@@ -80,7 +80,7 @@
 { 'event': 'WAKEUP' }
 
 ##
-# @RTC_CHANGE
+# @RTC_CHANGE:
 #
 # Emitted when the guest changes the RTC time.
 #
@@ -93,7 +93,7 @@
   'data': { 'offset': 'int' } }
 
 ##
-# @WATCHDOG
+# @WATCHDOG:
 #
 # Emitted when the watchdog device's timer is expired
 #
@@ -108,7 +108,7 @@
   'data': { 'action': 'WatchdogExpirationAction' } }
 
 ##
-# @DEVICE_DELETED
+# @DEVICE_DELETED:
 #
 # Emitted whenever the device removal completion is acknowledged by the guest.
 # At this point, it's safe to reuse the specified device ID. Device removal can
@@ -124,7 +124,7 @@
   'data': { '*device': 'str', 'path': 'str' } }
 
 ##
-# @NIC_RX_FILTER_CHANGED
+# @NIC_RX_FILTER_CHANGED:
 #
 # Emitted once until the 'query-rx-filter' command is executed, the first event
 # will always be emitted
@@ -139,7 +139,7 @@
   'data': { '*name': 'str', 'path': 'str' } }
 
 ##
-# @VNC_CONNECTED
+# @VNC_CONNECTED:
 #
 # Emitted when a VNC client establishes a connection
 #
@@ -157,7 +157,7 @@
             'client': 'VncBasicInfo' } }
 
 ##
-# @VNC_INITIALIZED
+# @VNC_INITIALIZED:
 #
 # Emitted after authentication takes place (if any) and the VNC session is
 # made active
@@ -173,7 +173,7 @@
             'client': 'VncClientInfo' } }
 
 ##
-# @VNC_DISCONNECTED
+# @VNC_DISCONNECTED:
 #
 # Emitted when the connection is closed
 #
@@ -188,7 +188,7 @@
             'client': 'VncClientInfo' } }
 
 ##
-# @SPICE_CONNECTED
+# @SPICE_CONNECTED:
 #
 # Emitted when a SPICE client establishes a connection
 #
@@ -203,7 +203,7 @@
             'client': 'SpiceBasicInfo' } }
 
 ##
-# @SPICE_INITIALIZED
+# @SPICE_INITIALIZED:
 #
 # Emitted after initial handshake and authentication takes place (if any)
 # and the SPICE channel is up and running
@@ -219,7 +219,7 @@
             'client': 'SpiceChannel' } }
 
 ##
-# @SPICE_DISCONNECTED
+# @SPICE_DISCONNECTED:
 #
 # Emitted when the SPICE connection is closed
 #
@@ -234,7 +234,7 @@
             'client': 'SpiceBasicInfo' } }
 
 ##
-# @SPICE_MIGRATE_COMPLETED
+# @SPICE_MIGRATE_COMPLETED:
 #
 # Emitted when SPICE migration has completed
 #
@@ -243,7 +243,7 @@
 { 'event': 'SPICE_MIGRATE_COMPLETED' }
 
 ##
-# @MIGRATION
+# @MIGRATION:
 #
 # Emitted when a migration event happens
 #
@@ -255,7 +255,7 @@
   'data': {'status': 'MigrationStatus'}}
 
 ##
-# @MIGRATION_PASS
+# @MIGRATION_PASS:
 #
 # Emitted from the source side of a migration at the start of each pass
 # (when it syncs the dirty bitmap)
@@ -268,7 +268,7 @@
   'data': { 'pass': 'int' } }
 
 ##
-# @ACPI_DEVICE_OST
+# @ACPI_DEVICE_OST:
 #
 # Emitted when guest executes ACPI _OST method.
 #
@@ -280,7 +280,7 @@
      'data': { 'info': 'ACPIOSTInfo' } }
 
 ##
-# @BALLOON_CHANGE
+# @BALLOON_CHANGE:
 #
 # Emitted when the guest changes the actual BALLOON level. This value is
 # equivalent to the @actual field return by the 'query-balloon' command
@@ -293,7 +293,7 @@
   'data': { 'actual': 'int' } }
 
 ##
-# @GUEST_PANICKED
+# @GUEST_PANICKED:
 #
 # Emitted when guest OS panic is detected
 #
@@ -305,7 +305,7 @@
   'data': { 'action': 'GuestPanicAction' } }
 
 ##
-# @QUORUM_FAILURE
+# @QUORUM_FAILURE:
 #
 # Emitted by the Quorum block driver if it fails to establish a quorum
 #
@@ -321,7 +321,7 @@
   'data': { 'reference': 'str', 'sector-num': 'int', 'sectors-count': 'int' } }
 
 ##
-# @QUORUM_REPORT_BAD
+# @QUORUM_REPORT_BAD:
 #
 # Emitted to report a corruption of a Quorum file
 #
@@ -345,7 +345,7 @@
             'sector-num': 'int', 'sectors-count': 'int' } }
 
 ##
-# @VSERPORT_CHANGE
+# @VSERPORT_CHANGE:
 #
 # Emitted when the guest opens or closes a virtio-serial port.
 #
@@ -359,7 +359,7 @@
   'data': { 'id': 'str', 'open': 'bool' } }
 
 ##
-# @MEM_UNPLUG_ERROR
+# @MEM_UNPLUG_ERROR:
 #
 # Emitted when memory hot unplug error occurs.
 #
@@ -373,7 +373,7 @@
   'data': { 'device': 'str', 'msg': 'str' } }
 
 ##
-# @DUMP_COMPLETED
+# @DUMP_COMPLETED:
 #
 # Emitted when background dump has completed
 #

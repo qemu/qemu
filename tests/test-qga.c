@@ -837,6 +837,7 @@ static void test_qga_guest_exec(gconstpointer fix)
     int64_t pid, now, exitcode;
     gsize len;
     bool exited;
+    char *cmd;
 
     /* exec 'echo foo bar' */
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-exec', 'arguments': {"
@@ -851,9 +852,10 @@ static void test_qga_guest_exec(gconstpointer fix)
 
     /* wait for completion */
     now = g_get_monotonic_time();
+    cmd = g_strdup_printf("{'execute': 'guest-exec-status',"
+                          " 'arguments': { 'pid': %" PRId64 " } }", pid);
     do {
-        ret = qmp_fd(fixture->fd, "{'execute': 'guest-exec-status',"
-                     " 'arguments': { 'pid': %" PRId64 "  } }", pid);
+        ret = qmp_fd(fixture->fd, cmd);
         g_assert_nonnull(ret);
         val = qdict_get_qdict(ret, "return");
         exited = qdict_get_bool(val, "exited");
@@ -863,6 +865,7 @@ static void test_qga_guest_exec(gconstpointer fix)
     } while (!exited &&
              g_get_monotonic_time() < now + 5 * G_TIME_SPAN_SECOND);
     g_assert(exited);
+    g_free(cmd);
 
     /* check stdout */
     exitcode = qdict_get_int(val, "exitcode");

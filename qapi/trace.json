@@ -17,7 +17,7 @@
 #
 # @enabled: The event is dynamically enabled.
 #
-# Since 2.2
+# Since: 2.2
 ##
 { 'enum': 'TraceEventState',
   'data': ['unavailable', 'disabled', 'enabled'] }
@@ -34,7 +34,7 @@
 # An event is per-vCPU if it has the "vcpu" property in the "trace-events"
 # files.
 #
-# Since 2.2
+# Since: 2.2
 ##
 { 'struct': 'TraceEventInfo',
   'data': {'name': 'str', 'state': 'TraceEventState', 'vcpu': 'bool'} }
@@ -58,7 +58,7 @@
 # exact match, @vcpu is given and the event does not have the "vcpu" property,
 # an error is returned.
 #
-# Since 2.2
+# Since: 2.2
 ##
 { 'command': 'trace-event-get-state',
   'data': {'name': 'str', '*vcpu': 'int'},
@@ -83,7 +83,7 @@
 # match, @vcpu is given and the event does not have the "vcpu" property, an
 # error is returned.
 #
-# Since 2.2
+# Since: 2.2
 ##
 { 'command': 'trace-event-set-state',
   'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool',

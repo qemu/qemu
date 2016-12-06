@@ -40,7 +40,7 @@
   'data': ['auto', 'none', 'lba', 'large', 'rechs']}
 
 ##
-# @FloppyDriveType
+# @FloppyDriveType:
 #
 # Type of Floppy drive to be emulated by the Floppy Disk Controller.
 #
@@ -56,7 +56,7 @@
   'data': ['144', '288', '120', 'none', 'auto']}
 
 ##
-# @BlockdevSnapshotInternal
+# @BlockdevSnapshotInternal:
 #
 # @device: the device name or node-name of a root node to generate the snapshot
 #          from
@@ -73,7 +73,7 @@
   'data': { 'device': 'str', 'name': 'str' } }
 
 ##
-# @blockdev-snapshot-internal-sync
+# @blockdev-snapshot-internal-sync:
 #
 # Synchronously take an internal snapshot of a block device, when the format
 # of the image used supports it.
@@ -87,13 +87,13 @@
 #          If the format of the image used does not support it,
 #          BlockFormatFeatureNotSupported
 #
-# Since 1.7
+# Since: 1.7
 ##
 { 'command': 'blockdev-snapshot-internal-sync',
   'data': 'BlockdevSnapshotInternal' }
 
 ##
-# @blockdev-snapshot-delete-internal-sync
+# @blockdev-snapshot-delete-internal-sync:
 #
 # Synchronously delete an internal snapshot of a block device, when the format
 # of the image used support it. The snapshot is identified by name or id or
@@ -114,7 +114,7 @@
 #          BlockFormatFeatureNotSupported
 #          If @id and @name are both not specified, GenericError
 #
-# Since 1.7
+# Since: 1.7
 ##
 { 'command': 'blockdev-snapshot-delete-internal-sync',
   'data': { 'device': 'str', '*id': 'str', '*name': 'str'},
@@ -190,7 +190,7 @@
 { 'command': 'nbd-server-stop' }
 
 ##
-# @DEVICE_TRAY_MOVED
+# @DEVICE_TRAY_MOVED:
 #
 # Emitted whenever the tray of a removable device is moved by the guest or by
 # HMP/QMP commands
@@ -209,7 +209,7 @@
   'data': { 'device': 'str', 'id': 'str', 'tray-open': 'bool' } }
 
 ##
-# @QuorumOpType
+# @QuorumOpType:
 #
 # An enumeration of the quorum operation types
 #

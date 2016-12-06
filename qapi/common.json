@@ -3,7 +3,7 @@
 # QAPI common definitions
 
 ##
-# @QapiErrorClass
+# @QapiErrorClass:
 #
 # QEMU error classes
 #
@@ -30,15 +30,15 @@
             'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap' ] }
 
 ##
-# @VersionTriple
+# @VersionTriple:
 #
 # A three-part version number.
 #
-# @qemu.major:  The major version number.
+# @major:  The major version number.
 #
-# @qemu.minor:  The minor version number.
+# @minor:  The minor version number.
 #
-# @qemu.micro:  The micro version number.
+# @micro:  The micro version number.
 #
 # Since: 2.4
 ##
@@ -101,7 +101,7 @@
 { 'command': 'query-commands', 'returns': ['CommandInfo'] }
 
 ##
-# @OnOffAuto
+# @OnOffAuto:
 #
 # An enumeration of three options: on, off, and auto
 #
@@ -117,7 +117,7 @@
   'data': [ 'auto', 'on', 'off' ] }
 
 ##
-# @OnOffSplit
+# @OnOffSplit:
 #
 # An enumeration of three values: on, off, and split
 #

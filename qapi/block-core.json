@@ -6,7 +6,7 @@
 { 'include': 'common.json' }
 
 ##
-# @SnapshotInfo
+# @SnapshotInfo:
 #
 # @id: unique snapshot id
 #
@@ -213,7 +213,7 @@
            '*filename': 'str' } }
 
 ##
-# @BlockdevCacheInfo
+# @BlockdevCacheInfo:
 #
 # Cache mode information for a block device
 #
@@ -378,7 +378,7 @@
 # @offset: if present, the image file stores the data for this range in
 #          raw format at the given offset.
 #
-# Since 1.7
+# Since: 1.7
 ##
 { 'struct': 'BlockDeviceMapEntry',
   'data': { 'start': 'int', 'length': 'int', 'depth': 'int', 'zero': 'bool',
@@ -790,7 +790,7 @@
                                       '*node-name': 'str', 'password': 'str'} }
 
 ##
-# @block_resize
+# @block_resize:
 #
 # Resize a block image while a guest is running.
 #
@@ -812,7 +812,7 @@
                                        'size': 'int' }}
 
 ##
-# @NewImageMode
+# @NewImageMode:
 #
 # An enumeration that tells QEMU how to set the backing file path in
 # a new image file.
@@ -829,7 +829,7 @@
   'data': [ 'existing', 'absolute-paths' ] }
 
 ##
-# @BlockdevSnapshotSync
+# @BlockdevSnapshotSync:
 #
 # Either @device or @node-name must be set but not both.
 #
@@ -852,7 +852,7 @@
             '*format': 'str', '*mode': 'NewImageMode' } }
 
 ##
-# @BlockdevSnapshot
+# @BlockdevSnapshot:
 #
 # @node: device or node name that will have a snapshot created.
 #
@@ -861,13 +861,13 @@
 #           It must not have a current backing file (this can be
 #           achieved by passing "backing": "" to blockdev-add).
 #
-# Since 2.5
+# Since: 2.5
 ##
 { 'struct': 'BlockdevSnapshot',
   'data': { 'node': 'str', 'overlay': 'str' } }
 
 ##
-# @DriveBackup
+# @DriveBackup:
 #
 # @job-id: #optional identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
@@ -905,9 +905,9 @@
 #                   default 'report' (no limitations, since this applies to
 #                   a different block device than @device).
 #
-# Note that @on-source-error and @on-target-error only affect background I/O.
-# If an error occurs during a guest write request, the device's rerror/werror
-# actions will be used.
+# Note: @on-source-error and @on-target-error only affect background
+# I/O.  If an error occurs during a guest write request, the device's
+# rerror/werror actions will be used.
 #
 # Since: 1.6
 ##
@@ -919,7 +919,7 @@
             '*on-target-error': 'BlockdevOnError' } }
 
 ##
-# @BlockdevBackup
+# @BlockdevBackup:
 #
 # @job-id: #optional identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
@@ -946,9 +946,9 @@
 #                   default 'report' (no limitations, since this applies to
 #                   a different block device than @device).
 #
-# Note that @on-source-error and @on-target-error only affect background I/O.
-# If an error occurs during a guest write request, the device's rerror/werror
-# actions will be used.
+# Note: @on-source-error and @on-target-error only affect background
+# I/O.  If an error occurs during a guest write request, the device's
+# rerror/werror actions will be used.
 #
 # Since: 2.3
 ##
@@ -961,7 +961,7 @@
             '*on-target-error': 'BlockdevOnError' } }
 
 ##
-# @blockdev-snapshot-sync
+# @blockdev-snapshot-sync:
 #
 # Generates a synchronous snapshot of a block device.
 #
@@ -970,26 +970,26 @@
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #
-# Since 0.14.0
+# Since: 0.14.0
 ##
 { 'command': 'blockdev-snapshot-sync',
   'data': 'BlockdevSnapshotSync' }
 
 
 ##
-# @blockdev-snapshot
+# @blockdev-snapshot:
 #
 # Generates a snapshot of a block device.
 #
 # For the arguments, see the documentation of BlockdevSnapshot.
 #
-# Since 2.5
+# Since: 2.5
 ##
 { 'command': 'blockdev-snapshot',
   'data': 'BlockdevSnapshot' }
 
 ##
-# @change-backing-file
+# @change-backing-file:
 #
 # Change the backing file in the image file metadata.  This does not
 # cause QEMU to reopen the image file to reparse the backing filename
@@ -1016,7 +1016,7 @@
             'backing-file': 'str' } }
 
 ##
-# @block-commit
+# @block-commit:
 #
 # Live commit of data from overlay image nodes into backing nodes - i.e.,
 # writes data between 'top' and 'base' into 'base'.
@@ -1079,7 +1079,7 @@
             '*backing-file': 'str', '*speed': 'int' } }
 
 ##
-# @drive-backup
+# @drive-backup:
 #
 # Start a point-in-time copy of a block device to a new destination.  The
 # status of ongoing drive-backup operations can be checked with
@@ -1092,13 +1092,13 @@
 # Returns: nothing on success
 #          If @device is not a valid block device, GenericError
 #
-# Since 1.6
+# Since: 1.6
 ##
 { 'command': 'drive-backup', 'boxed': true,
   'data': 'DriveBackup' }
 
 ##
-# @blockdev-backup
+# @blockdev-backup:
 #
 # Start a point-in-time copy of a block device to a new destination.  The
 # status of ongoing blockdev-backup operations can be checked with
@@ -1111,25 +1111,25 @@
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #
-# Since 2.3
+# Since: 2.3
 ##
 { 'command': 'blockdev-backup', 'boxed': true,
   'data': 'BlockdevBackup' }
 
 
 ##
-# @query-named-block-nodes
+# @query-named-block-nodes:
 #
 # Get the named block driver list
 #
 # Returns: the list of BlockDeviceInfo
 #
-# Since 2.0
+# Since: 2.0
 ##
 { 'command': 'query-named-block-nodes', 'returns': [ 'BlockDeviceInfo' ] }
 
 ##
-# @drive-mirror
+# @drive-mirror:
 #
 # Start mirroring a block device's writes to a new destination.
 #
@@ -1138,13 +1138,13 @@
 # Returns: nothing on success
 #          If @device is not a valid block device, GenericError
 #
-# Since 1.3
+# Since: 1.3
 ##
 { 'command': 'drive-mirror', 'boxed': true,
   'data': 'DriveMirror' }
 
 ##
-# DriveMirror
+# @DriveMirror:
 #
 # A set of parameters describing drive mirror setup.
 #
@@ -1198,7 +1198,7 @@
 #         written. Both will result in identical contents.
 #         Default is true. (Since 2.4)
 #
-# Since 1.3
+# Since: 1.3
 ##
 { 'struct': 'DriveMirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
@@ -1210,19 +1210,19 @@
             '*unmap': 'bool' } }
 
 ##
-# @BlockDirtyBitmap
+# @BlockDirtyBitmap:
 #
 # @node: name of device/node which the bitmap is tracking
 #
 # @name: name of the dirty bitmap
 #
-# Since 2.4
+# Since: 2.4
 ##
 { 'struct': 'BlockDirtyBitmap',
   'data': { 'node': 'str', 'name': 'str' } }
 
 ##
-# @BlockDirtyBitmapAdd
+# @BlockDirtyBitmapAdd:
 #
 # @node: name of device/node which the bitmap is tracking
 #
@@ -1231,13 +1231,13 @@
 # @granularity: #optional the bitmap granularity, default is 64k for
 #               block-dirty-bitmap-add
 #
-# Since 2.4
+# Since: 2.4
 ##
 { 'struct': 'BlockDirtyBitmapAdd',
   'data': { 'node': 'str', 'name': 'str', '*granularity': 'uint32' } }
 
 ##
-# @block-dirty-bitmap-add
+# @block-dirty-bitmap-add:
 #
 # Create a dirty bitmap with a name on the node
 #
@@ -1245,13 +1245,13 @@
 #          If @node is not a valid block device or node, DeviceNotFound
 #          If @name is already taken, GenericError with an explanation
 #
-# Since 2.4
+# Since: 2.4
 ##
 { 'command': 'block-dirty-bitmap-add',
   'data': 'BlockDirtyBitmapAdd' }
 
 ##
-# @block-dirty-bitmap-remove
+# @block-dirty-bitmap-remove:
 #
 # Remove a dirty bitmap on the node
 #
@@ -1260,13 +1260,13 @@
 #          If @name is not found, GenericError with an explanation
 #          if @name is frozen by an operation, GenericError
 #
-# Since 2.4
+# Since: 2.4
 ##
 { 'command': 'block-dirty-bitmap-remove',
   'data': 'BlockDirtyBitmap' }
 
 ##
-# @block-dirty-bitmap-clear
+# @block-dirty-bitmap-clear:
 #
 # Clear (reset) a dirty bitmap on the device
 #
@@ -1274,13 +1274,13 @@
 #          If @node is not a valid block device, DeviceNotFound
 #          If @name is not found, GenericError with an explanation
 #
-# Since 2.4
+# Since: 2.4
 ##
 { 'command': 'block-dirty-bitmap-clear',
   'data': 'BlockDirtyBitmap' }
 
 ##
-# @blockdev-mirror
+# @blockdev-mirror:
 #
 # Start mirroring a block device's writes to a new destination.
 #
@@ -1321,7 +1321,7 @@
 #
 # Returns: nothing on success.
 #
-# Since 2.6
+# Since: 2.6
 ##
 { 'command': 'blockdev-mirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
@@ -1368,7 +1368,7 @@
   'data': 'BlockIOThrottle' }
 
 ##
-# BlockIOThrottle
+# @BlockIOThrottle:
 #
 # A set of parameters describing block throttling.
 #
@@ -1650,7 +1650,7 @@
 { 'command': 'block-job-complete', 'data': { 'device': 'str' } }
 
 ##
-# @BlockdevDiscardOptions
+# @BlockdevDiscardOptions:
 #
 # Determines how to handle discard requests.
 #
@@ -1663,7 +1663,7 @@
   'data': [ 'ignore', 'unmap' ] }
 
 ##
-# @BlockdevDetectZeroesOptions
+# @BlockdevDetectZeroesOptions:
 #
 # Describes the operation mode for the automatic conversion of plain
 # zero writes by the OS to driver specific optimized zero write commands.
@@ -1679,7 +1679,7 @@
   'data': [ 'off', 'on', 'unmap' ] }
 
 ##
-# @BlockdevAioOptions
+# @BlockdevAioOptions:
 #
 # Selects the AIO backend to handle I/O requests
 #
@@ -1692,7 +1692,7 @@
   'data': [ 'threads', 'native' ] }
 
 ##
-# @BlockdevCacheOptions
+# @BlockdevCacheOptions:
 #
 # Includes cache-related options for block devices
 #
@@ -1708,13 +1708,17 @@
             '*no-flush': 'bool' } }
 
 ##
-# @BlockdevDriver
+# @BlockdevDriver:
 #
 # Drivers that are supported in block device operations.
 #
-# @host_device, @host_cdrom: Since 2.1
+# @host_device: Since 2.1
+# @host_cdrom: Since 2.1
 # @gluster: Since 2.7
-# @nbd, @nfs, @replication, @ssh: Since 2.8
+# @nbd: Since 2.8
+# @nfs: Since 2.8
+# @replication: Since 2.8
+# @ssh: Since 2.8
 #
 # Since: 2.0
 ##
@@ -1727,7 +1731,7 @@
             'vvfat' ] }
 
 ##
-# @BlockdevOptionsFile
+# @BlockdevOptionsFile:
 #
 # Driver specific block device options for the file backend.
 #
@@ -1741,7 +1745,7 @@
             '*aio': 'BlockdevAioOptions' } }
 
 ##
-# @BlockdevOptionsNull
+# @BlockdevOptionsNull:
 #
 # Driver specific block device options for the null backend.
 #
@@ -1756,7 +1760,7 @@
   'data': { '*size': 'int', '*latency-ns': 'uint64' } }
 
 ##
-# @BlockdevOptionsVVFAT
+# @BlockdevOptionsVVFAT:
 #
 # Driver specific block device options for the vvfat protocol.
 #
@@ -1777,7 +1781,7 @@
             '*label': 'str', '*rw': 'bool' } }
 
 ##
-# @BlockdevOptionsGenericFormat
+# @BlockdevOptionsGenericFormat:
 #
 # Driver specific block device options for image format that have no option
 # besides their data source.
@@ -1790,7 +1794,7 @@
   'data': { 'file': 'BlockdevRef' } }
 
 ##
-# @BlockdevOptionsLUKS
+# @BlockdevOptionsLUKS:
 #
 # Driver specific block device options for LUKS.
 #
@@ -1806,7 +1810,7 @@
 
 
 ##
-# @BlockdevOptionsGenericCOWFormat
+# @BlockdevOptionsGenericCOWFormat:
 #
 # Driver specific block device options for image format that have no option
 # besides their data source and an optional backing file.
@@ -1823,7 +1827,7 @@
   'data': { '*backing': 'BlockdevRef' } }
 
 ##
-# @Qcow2OverlapCheckMode
+# @Qcow2OverlapCheckMode:
 #
 # General overlap check modes.
 #
@@ -1843,7 +1847,7 @@
   'data': [ 'none', 'constant', 'cached', 'all' ] }
 
 ##
-# @Qcow2OverlapCheckFlags
+# @Qcow2OverlapCheckFlags:
 #
 # Structure of flags for each metadata structure. Setting a field to 'true'
 # makes qemu guard that structure against unintended overwriting. The default
@@ -1866,7 +1870,7 @@
             '*inactive-l2':    'bool' } }
 
 ##
-# @Qcow2OverlapChecks
+# @Qcow2OverlapChecks:
 #
 # Specifies which metadata structures should be guarded against unintended
 # overwriting.
@@ -1883,7 +1887,7 @@
             'mode':  'Qcow2OverlapCheckMode' } }
 
 ##
-# @BlockdevOptionsQcow2
+# @BlockdevOptionsQcow2:
 #
 # Driver specific block device options for qcow2.
 #
@@ -1933,7 +1937,7 @@
 
 
 ##
-# @BlockdevOptionsArchipelago
+# @BlockdevOptionsArchipelago:
 #
 # Driver specific block device options for Archipelago.
 #
@@ -1962,7 +1966,7 @@
             '*segment': 'str' } }
 
 ##
-# @BlockdevOptionsSsh
+# @BlockdevOptionsSsh:
 #
 # @server:              host address
 #
@@ -1973,7 +1977,7 @@
 #
 # TODO: Expose the host_key_check option in QMP
 #
-# Since 2.8
+# Since: 2.8
 ##
 { 'struct': 'BlockdevOptionsSsh',
   'data': { 'server': 'InetSocketAddress',
@@ -1982,7 +1986,7 @@
 
 
 ##
-# @BlkdebugEvent
+# @BlkdebugEvent:
 #
 # Trigger events supported by blkdebug.
 #
@@ -2005,7 +2009,7 @@
             'pwritev_zero', 'pwritev_done', 'empty_image_prepare' ] }
 
 ##
-# @BlkdebugInjectErrorOptions
+# @BlkdebugInjectErrorOptions:
 #
 # Describes a single error injection for blkdebug.
 #
@@ -2037,7 +2041,7 @@
             '*immediately': 'bool' } }
 
 ##
-# @BlkdebugSetStateOptions
+# @BlkdebugSetStateOptions:
 #
 # Describes a single state-change event for blkdebug.
 #
@@ -2057,7 +2061,7 @@
             'new_state': 'int' } }
 
 ##
-# @BlockdevOptionsBlkdebug
+# @BlockdevOptionsBlkdebug:
 #
 # Driver specific block device options for blkdebug.
 #
@@ -2082,7 +2086,7 @@
             '*set-state': ['BlkdebugSetStateOptions'] } }
 
 ##
-# @BlockdevOptionsBlkverify
+# @BlockdevOptionsBlkverify:
 #
 # Driver specific block device options for blkverify.
 #
@@ -2097,7 +2101,7 @@
             'raw': 'BlockdevRef' } }
 
 ##
-# @QuorumReadPattern
+# @QuorumReadPattern:
 #
 # An enumeration of quorum read patterns.
 #
@@ -2110,7 +2114,7 @@
 { 'enum': 'QuorumReadPattern', 'data': [ 'quorum', 'fifo' ] }
 
 ##
-# @BlockdevOptionsQuorum
+# @BlockdevOptionsQuorum:
 #
 # Driver specific block device options for Quorum
 #
@@ -2137,7 +2141,7 @@
             '*read-pattern': 'QuorumReadPattern' } }
 
 ##
-# @GlusterTransport
+# @GlusterTransport:
 #
 # An enumeration of Gluster transport types
 #
@@ -2152,17 +2156,13 @@
 
 
 ##
-# @GlusterServer
+# @GlusterServer:
 #
 # Captures the address of a socket
 #
 # Details for connecting to a gluster server
 #
 # @type:       Transport type used for gluster connection
-#
-# @unix:       socket file
-#
-# @tcp:        host address and port number
 #
 # This is similar to SocketAddress, only distinction:
 #
@@ -2185,7 +2185,7 @@
             'tcp': 'InetSocketAddress' } }
 
 ##
-# @BlockdevOptionsGluster
+# @BlockdevOptionsGluster:
 #
 # Driver specific block device options for Gluster
 #
@@ -2209,7 +2209,7 @@
             '*logfile': 'str' } }
 
 ##
-# @ReplicationMode
+# @ReplicationMode:
 #
 # An enumeration of replication modes.
 #
@@ -2222,7 +2222,7 @@
 { 'enum' : 'ReplicationMode', 'data' : [ 'primary', 'secondary' ] }
 
 ##
-# @BlockdevOptionsReplication
+# @BlockdevOptionsReplication:
 #
 # Driver specific block device options for replication
 #
@@ -2240,19 +2240,19 @@
             '*top-id': 'str' } }
 
 ##
-# @NFSTransport
+# @NFSTransport:
 #
 # An enumeration of NFS transport types
 #
 # @inet:        TCP transport
 #
-# Since 2.8
+# Since: 2.8
 ##
 { 'enum': 'NFSTransport',
   'data': [ 'inet' ] }
 
 ##
-# @NFSServer
+# @NFSServer:
 #
 # Captures the address of the socket
 #
@@ -2260,14 +2260,14 @@
 #
 # @host:        host address for NFS server
 #
-# Since 2.8
+# Since: 2.8
 ##
 { 'struct': 'NFSServer',
   'data': { 'type': 'NFSTransport',
             'host': 'str' } }
 
 ##
-# @BlockdevOptionsNfs
+# @BlockdevOptionsNfs:
 #
 # Driver specific block device option for NFS
 #
@@ -2295,7 +2295,7 @@
 # @debug-level:             #optional set the NFS debug level (max 2) (defaults
 #                           to libnfs default)
 #
-# Since 2.8
+# Since: 2.8
 ##
 { 'struct': 'BlockdevOptionsNfs',
   'data': { 'server': 'NFSServer',
@@ -2308,7 +2308,7 @@
             '*debug-level': 'int' } }
 
 ##
-# @BlockdevOptionsCurl
+# @BlockdevOptionsCurl:
 #
 # Driver specific block device options for the curl backend.
 #
@@ -2320,7 +2320,7 @@
   'data': { 'filename': 'str' } }
 
 ##
-# @BlockdevOptionsNbd
+# @BlockdevOptionsNbd:
 #
 # Driver specific block device options for NBD.
 #
@@ -2338,7 +2338,7 @@
             '*tls-creds': 'str' } }
 
 ##
-# @BlockdevOptionsRaw
+# @BlockdevOptionsRaw:
 #
 # Driver specific block device options for the raw driver.
 #
@@ -2352,7 +2352,7 @@
   'data': { '*offset': 'int', '*size': 'int' } }
 
 ##
-# @BlockdevOptions
+# @BlockdevOptions:
 #
 # Options for creating a block device.  Many options are available for all
 # block devices, independent of the block driver:
@@ -2418,7 +2418,7 @@
   } }
 
 ##
-# @BlockdevRef
+# @BlockdevRef:
 #
 # Reference to a block device.
 #
@@ -2616,7 +2616,7 @@
 
 
 ##
-# @BlockErrorAction
+# @BlockErrorAction:
 #
 # An enumeration of action that has been taken when a DISK I/O occurs
 #
@@ -2633,7 +2633,7 @@
 
 
 ##
-# @BLOCK_IMAGE_CORRUPTED
+# @BLOCK_IMAGE_CORRUPTED:
 #
 # Emitted when a corruption has been detected in a disk image
 #
@@ -2668,7 +2668,7 @@
             'fatal'      : 'bool' } }
 
 ##
-# @BLOCK_IO_ERROR
+# @BLOCK_IO_ERROR:
 #
 # Emitted when a disk I/O error occurs
 #
@@ -2704,7 +2704,7 @@
             'reason': 'str' } }
 
 ##
-# @BLOCK_JOB_COMPLETED
+# @BLOCK_JOB_COMPLETED:
 #
 # Emitted when a block job has completed
 #
@@ -2736,7 +2736,7 @@
             '*error': 'str' } }
 
 ##
-# @BLOCK_JOB_CANCELLED
+# @BLOCK_JOB_CANCELLED:
 #
 # Emitted when a block job has been cancelled
 #
@@ -2762,7 +2762,7 @@
             'speed' : 'int' } }
 
 ##
-# @BLOCK_JOB_ERROR
+# @BLOCK_JOB_ERROR:
 #
 # Emitted when a block job encounters an error
 #
@@ -2781,7 +2781,7 @@
             'action'   : 'BlockErrorAction' } }
 
 ##
-# @BLOCK_JOB_READY
+# @BLOCK_JOB_READY:
 #
 # Emitted when a block job is ready to complete
 #
@@ -2809,7 +2809,8 @@
             'offset': 'int',
             'speed' : 'int' } }
 
-# @PreallocMode
+##
+# @PreallocMode:
 #
 # Preallocation mode of QEMU image file
 #
@@ -2821,13 +2822,13 @@
 #        space is really available. @full preallocation also sets up
 #        metadata correctly.
 #
-# Since 2.2
+# Since: 2.2
 ##
 { 'enum': 'PreallocMode',
   'data': [ 'off', 'metadata', 'falloc', 'full' ] }
 
 ##
-# @BLOCK_WRITE_THRESHOLD
+# @BLOCK_WRITE_THRESHOLD:
 #
 # Emitted when writes on block device reaches or exceeds the
 # configured write threshold. For thin-provisioned devices, this
@@ -2850,7 +2851,7 @@
             'write-threshold': 'uint64' } }
 
 ##
-# @block-set-write-threshold
+# @block-set-write-threshold:
 #
 # Change the write threshold for a block drive. An event will be delivered
 # if a write to this block drive crosses the configured threshold.
@@ -2868,7 +2869,7 @@
   'data': { 'node-name': 'str', 'write-threshold': 'uint64' } }
 
 ##
-# @x-blockdev-change
+# @x-blockdev-change:
 #
 # Dynamically reconfigure the block driver state graph. It can be used
 # to add, remove, insert or replace a graph node. Currently only the

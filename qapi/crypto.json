@@ -3,7 +3,7 @@
 # QAPI crypto definitions
 
 ##
-# QCryptoTLSCredsEndpoint:
+# @QCryptoTLSCredsEndpoint:
 #
 # The type of network endpoint that will be using the credentials.
 # Most types of credential require different setup / structures
@@ -22,7 +22,7 @@
 
 
 ##
-# QCryptoSecretFormat:
+# @QCryptoSecretFormat:
 #
 # The data format that the secret is provided in
 #
@@ -36,7 +36,7 @@
 
 
 ##
-# QCryptoHashAlgorithm:
+# @QCryptoHashAlgorithm:
 #
 # The supported algorithms for computing content digests
 #
@@ -55,7 +55,7 @@
 
 
 ##
-# QCryptoCipherAlgorithm:
+# @QCryptoCipherAlgorithm:
 #
 # The supported algorithms for content encryption ciphers
 #
@@ -82,7 +82,7 @@
 
 
 ##
-# QCryptoCipherMode:
+# @QCryptoCipherMode:
 #
 # The supported modes for content encryption ciphers
 #
@@ -98,7 +98,7 @@
 
 
 ##
-# QCryptoIVGenAlgorithm:
+# @QCryptoIVGenAlgorithm:
 #
 # The supported algorithms for generating initialization
 # vectors for full disk encryption. The 'plain' generator
@@ -116,7 +116,7 @@
   'data': ['plain', 'plain64', 'essiv']}
 
 ##
-# QCryptoBlockFormat:
+# @QCryptoBlockFormat:
 #
 # The supported full disk encryption formats
 #
@@ -131,7 +131,7 @@
   'data': ['qcow', 'luks']}
 
 ##
-# QCryptoBlockOptionsBase:
+# @QCryptoBlockOptionsBase:
 #
 # The common options that apply to all full disk
 # encryption formats
@@ -144,7 +144,7 @@
   'data': { 'format': 'QCryptoBlockFormat' }}
 
 ##
-# QCryptoBlockOptionsQCow:
+# @QCryptoBlockOptionsQCow:
 #
 # The options that apply to QCow/QCow2 AES-CBC encryption format
 #
@@ -158,7 +158,7 @@
   'data': { '*key-secret': 'str' }}
 
 ##
-# QCryptoBlockOptionsLUKS:
+# @QCryptoBlockOptionsLUKS:
 #
 # The options that apply to LUKS encryption format
 #
@@ -172,7 +172,7 @@
 
 
 ##
-# QCryptoBlockCreateOptionsLUKS:
+# @QCryptoBlockCreateOptionsLUKS:
 #
 # The options that apply to LUKS encryption format initialization
 #
@@ -202,7 +202,7 @@
 
 
 ##
-# QCryptoBlockOpenOptions:
+# @QCryptoBlockOpenOptions:
 #
 # The options that are available for all encryption formats
 # when opening an existing volume
@@ -217,7 +217,7 @@
 
 
 ##
-# QCryptoBlockCreateOptions:
+# @QCryptoBlockCreateOptions:
 #
 # The options that are available for all encryption formats
 # when initializing a new volume
@@ -232,7 +232,7 @@
 
 
 ##
-# QCryptoBlockInfoBase:
+# @QCryptoBlockInfoBase:
 #
 # The common information that applies to all full disk
 # encryption formats
@@ -246,7 +246,7 @@
 
 
 ##
-# QCryptoBlockInfoLUKSSlot:
+# @QCryptoBlockInfoLUKSSlot:
 #
 # Information about the LUKS block encryption key
 # slot options
@@ -266,7 +266,7 @@
 
 
 ##
-# QCryptoBlockInfoLUKS:
+# @QCryptoBlockInfoLUKS:
 #
 # Information about the LUKS block encryption options
 #
@@ -294,7 +294,7 @@
            'slots': [ 'QCryptoBlockInfoLUKSSlot' ] }}
 
 ##
-# QCryptoBlockInfoQCow:
+# @QCryptoBlockInfoQCow:
 #
 # Information about the QCow block encryption options
 #
@@ -305,7 +305,7 @@
 
 
 ##
-# QCryptoBlockInfo:
+# @QCryptoBlockInfo:
 #
 # Information about the block encryption options
 #
