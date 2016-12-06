@@ -2500,8 +2500,10 @@ static void gen_bnd_jmp(DisasContext *s)
 }
 
 /* Generate an end of block. Trace exception is also generated if needed.
-   If IIM, set HF_INHIBIT_IRQ_MASK if it isn't already set.  */
-static void gen_eob_inhibit_irq(DisasContext *s, bool inhibit)
+   If INHIBIT, set HF_INHIBIT_IRQ_MASK if it isn't already set.
+   If RECHECK_TF, emit a rechecking helper for #DB, ignoring the state of
+   S->TF.  This is used by the syscall/sysret insns.  */
+static void gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf)
 {
     gen_update_cc_op(s);
 
@@ -2517,6 +2519,9 @@ static void gen_eob_inhibit_irq(DisasContext *s, bool inhibit)
     }
     if (s->singlestep_enabled) {
         gen_helper_debug(cpu_env);
+    } else if (recheck_tf) {
+        gen_helper_rechecking_single_step(cpu_env);
+        tcg_gen_exit_tb(0);
     } else if (s->tf) {
         gen_helper_single_step(cpu_env);
     } else {
@@ -2525,10 +2530,17 @@ static void gen_eob_inhibit_irq(DisasContext *s, bool inhibit)
     s->is_jmp = DISAS_TB_JUMP;
 }
 
+/* End of block.
+   If INHIBIT, set HF_INHIBIT_IRQ_MASK if it isn't already set.  */
+static void gen_eob_inhibit_irq(DisasContext *s, bool inhibit)
+{
+    gen_eob_worker(s, inhibit, false);
+}
+
 /* End of block, resetting the inhibit irq flag.  */
 static void gen_eob(DisasContext *s)
 {
-    gen_eob_inhibit_irq(s, false);
+    gen_eob_worker(s, false, false);
 }
 
 /* generate a jump to eip. No segment change must happen before as a
@@ -6423,7 +6435,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                                       tcg_const_i32(s->pc - s->cs_base));
             set_cc_op(s, CC_OP_EFLAGS);
         }
-        gen_eob(s);
+        /* TF handling for the syscall insn is different. The TF bit is checked
+           after the syscall insn completes. This allows #DB to not be
+           generated after one has entered CPL0 if TF is set in FMASK.  */
+        gen_eob_worker(s, false, true);
         break;
     case 0xe8: /* call im */
         {
@@ -7115,7 +7130,11 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             if (s->lma) {
                 set_cc_op(s, CC_OP_EFLAGS);
             }
-            gen_eob(s);
+            /* TF handling for the sysret insn is different. The TF bit is
+               checked after the sysret insn completes. This allows #DB to be
+               generated "as if" the syscall insn in userspace has just
+               completed.  */
+            gen_eob_worker(s, false, true);
         }
         break;
 #endif
