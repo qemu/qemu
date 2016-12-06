@@ -609,6 +609,41 @@ VSX_SCALAR_MOVE(xsnabsdp, OP_NABS, SGN_MASK_DP)
 VSX_SCALAR_MOVE(xsnegdp, OP_NEG, SGN_MASK_DP)
 VSX_SCALAR_MOVE(xscpsgndp, OP_CPSGN, SGN_MASK_DP)
 
+#define VSX_SCALAR_MOVE_QP(name, op, sgn_mask)                    \
+static void glue(gen_, name)(DisasContext *ctx)                   \
+{                                                                 \
+    int xt = rD(ctx->opcode) + 32;                                \
+    int xb = rB(ctx->opcode) + 32;                                \
+    TCGv_i64 xbh, xbl, sgm;                                       \
+                                                                  \
+    if (unlikely(!ctx->vsx_enabled)) {                            \
+        gen_exception(ctx, POWERPC_EXCP_VSXU);                    \
+        return;                                                   \
+    }                                                             \
+    xbh = tcg_temp_new_i64();                                     \
+    xbl = tcg_temp_new_i64();                                     \
+    sgm = tcg_temp_new_i64();                                     \
+    tcg_gen_mov_i64(xbh, cpu_vsrh(xb));                           \
+    tcg_gen_mov_i64(xbl, cpu_vsrl(xb));                           \
+    tcg_gen_movi_i64(sgm, sgn_mask);                              \
+    switch (op) {                                                 \
+    case OP_ABS:                                                  \
+        tcg_gen_andc_i64(xbh, xbh, sgm);                          \
+        break;                                                    \
+    case OP_NABS:                                                 \
+        tcg_gen_or_i64(xbh, xbh, sgm);                            \
+        break;                                                    \
+    }                                                             \
+    tcg_gen_mov_i64(cpu_vsrh(xt), xbh);                           \
+    tcg_gen_mov_i64(cpu_vsrl(xt), xbl);                           \
+    tcg_temp_free_i64(xbl);                                       \
+    tcg_temp_free_i64(xbh);                                       \
+    tcg_temp_free_i64(sgm);                                       \
+}
+
+VSX_SCALAR_MOVE_QP(xsabsqp, OP_ABS, SGN_MASK_DP)
+VSX_SCALAR_MOVE_QP(xsnabsqp, OP_NABS, SGN_MASK_DP)
+
 #define VSX_VECTOR_MOVE(name, op, sgn_mask)                      \
 static void glue(gen_, name)(DisasContext * ctx)                 \
     {                                                            \
