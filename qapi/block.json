@@ -199,7 +199,7 @@
 #          reasons, but it can be empty ("") if the image does not
 #          have a device name associated.
 #
-# @id: The name or QOM path of the guest device
+# @id: The name or QOM path of the guest device (since 2.8)
 #
 # @tray-open: true if the tray has been opened or false if it has been closed
 #
