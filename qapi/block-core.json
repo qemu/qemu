@@ -2196,6 +2196,7 @@
 # @server:      gluster servers description
 #
 # @debug:       #optional libgfapi log level (default '4' which is Error)
+#               (Since 2.8)
 #
 # @logfile:     #optional libgfapi log file (default /dev/stderr) (Since 2.8)
 #
