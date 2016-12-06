@@ -2564,6 +2564,24 @@ static void bcd_put_digit(ppc_avr_t *bcd, uint8_t digit, int n)
     }
 }
 
+static bool bcd_is_valid(ppc_avr_t *bcd)
+{
+    int i;
+    int invalid = 0;
+
+    if (bcd_get_sgn(bcd) == 0) {
+        return false;
+    }
+
+    for (i = 1; i < 32; i++) {
+        bcd_get_digit(bcd, i, &invalid);
+        if (unlikely(invalid)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static int bcd_cmp_zero(ppc_avr_t *bcd)
 {
     if (bcd->u64[HI_IDX] == 0 && (bcd->u64[LO_IDX] >> 4) == 0) {
@@ -2981,18 +2999,13 @@ uint32_t helper_bcdcpsgn(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 
 uint32_t helper_bcdsetsgn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
 {
-    int i;
-    int invalid = 0;
     int sgnb = bcd_get_sgn(b);
 
     *r = *b;
     bcd_put_digit(r, bcd_preferred_sgn(sgnb, ps), 0);
 
-    for (i = 1; i < 32; i++) {
-        bcd_get_digit(b, i, &invalid);
-        if (unlikely(invalid)) {
-            return CRF_SO;
-        }
+    if (bcd_is_valid(b) == false) {
+        return CRF_SO;
     }
 
     return bcd_cmp_zero(r);
