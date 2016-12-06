@@ -84,6 +84,7 @@ static void update_cursor_data_virgl(VirtIOGPU *g,
 
     if (width != s->current_cursor->width ||
         height != s->current_cursor->height) {
+        free(data);
         return;
     }
 
