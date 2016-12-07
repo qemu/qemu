@@ -930,9 +930,13 @@ struct target_pollfd {
 
 #if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SH4)
 #define TARGET_SIOCATMARK      TARGET_IOR('s', 7, int)
+#define TARGET_SIOCGPGRP       TARGET_IOR('s', 9, pid_t)
 #else
 #define TARGET_SIOCATMARK      0x8905
+#define TARGET_SIOCGPGRP       0x8904
 #endif
+#define TARGET_SIOCGSTAMP      0x8906          /* Get stamp (timeval) */
+#define TARGET_SIOCGSTAMPNS    0x8907          /* Get stamp (timespec) */
 
 /* Networking ioctls */
 #define TARGET_SIOCADDRT       0x890B          /* add routing table entry */
