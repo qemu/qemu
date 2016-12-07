@@ -612,9 +612,10 @@ VSX_SCALAR_MOVE(xscpsgndp, OP_CPSGN, SGN_MASK_DP)
 #define VSX_SCALAR_MOVE_QP(name, op, sgn_mask)                    \
 static void glue(gen_, name)(DisasContext *ctx)                   \
 {                                                                 \
+    int xa;                                                       \
     int xt = rD(ctx->opcode) + 32;                                \
     int xb = rB(ctx->opcode) + 32;                                \
-    TCGv_i64 xbh, xbl, sgm;                                       \
+    TCGv_i64 xah, xbh, xbl, sgm;                                  \
                                                                   \
     if (unlikely(!ctx->vsx_enabled)) {                            \
         gen_exception(ctx, POWERPC_EXCP_VSXU);                    \
@@ -636,6 +637,14 @@ static void glue(gen_, name)(DisasContext *ctx)                   \
     case OP_NEG:                                                  \
         tcg_gen_xor_i64(xbh, xbh, sgm);                           \
         break;                                                    \
+    case OP_CPSGN:                                                \
+        xah = tcg_temp_new_i64();                                 \
+        xa = rA(ctx->opcode) + 32;                                \
+        tcg_gen_and_i64(xah, cpu_vsrh(xa), sgm);                  \
+        tcg_gen_andc_i64(xbh, xbh, sgm);                          \
+        tcg_gen_or_i64(xbh, xbh, xah);                            \
+        tcg_temp_free_i64(xah);                                   \
+        break;                                                    \
     }                                                             \
     tcg_gen_mov_i64(cpu_vsrh(xt), xbh);                           \
     tcg_gen_mov_i64(cpu_vsrl(xt), xbl);                           \
@@ -647,6 +656,7 @@ static void glue(gen_, name)(DisasContext *ctx)                   \
 VSX_SCALAR_MOVE_QP(xsabsqp, OP_ABS, SGN_MASK_DP)
 VSX_SCALAR_MOVE_QP(xsnabsqp, OP_NABS, SGN_MASK_DP)
 VSX_SCALAR_MOVE_QP(xsnegqp, OP_NEG, SGN_MASK_DP)
+VSX_SCALAR_MOVE_QP(xscpsgnqp, OP_CPSGN, SGN_MASK_DP)
 
 #define VSX_VECTOR_MOVE(name, op, sgn_mask)                      \
 static void glue(gen_, name)(DisasContext * ctx)                 \
