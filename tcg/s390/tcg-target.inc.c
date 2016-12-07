@@ -378,11 +378,6 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, 0xffff);
         break;
-    case 'R':                  /* not R0 */
-        ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, 0xffff);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
-        break;
     case 'L':                  /* qemu_ld/st constraint */
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, 0xffff);
@@ -2226,12 +2221,12 @@ static const TCGTargetOpDef s390_op_defs[] = {
 
     { INDEX_op_neg_i32, { "r", "r" } },
 
-    { INDEX_op_shl_i32, { "r", "0", "Ri" } },
-    { INDEX_op_shr_i32, { "r", "0", "Ri" } },
-    { INDEX_op_sar_i32, { "r", "0", "Ri" } },
+    { INDEX_op_shl_i32, { "r", "0", "ri" } },
+    { INDEX_op_shr_i32, { "r", "0", "ri" } },
+    { INDEX_op_sar_i32, { "r", "0", "ri" } },
 
-    { INDEX_op_rotl_i32, { "r", "r", "Ri" } },
-    { INDEX_op_rotr_i32, { "r", "r", "Ri" } },
+    { INDEX_op_rotl_i32, { "r", "r", "ri" } },
+    { INDEX_op_rotr_i32, { "r", "r", "ri" } },
 
     { INDEX_op_ext8s_i32, { "r", "r" } },
     { INDEX_op_ext8u_i32, { "r", "r" } },
@@ -2281,12 +2276,12 @@ static const TCGTargetOpDef s390_op_defs[] = {
 
     { INDEX_op_neg_i64, { "r", "r" } },
 
-    { INDEX_op_shl_i64, { "r", "r", "Ri" } },
-    { INDEX_op_shr_i64, { "r", "r", "Ri" } },
-    { INDEX_op_sar_i64, { "r", "r", "Ri" } },
+    { INDEX_op_shl_i64, { "r", "r", "ri" } },
+    { INDEX_op_shr_i64, { "r", "r", "ri" } },
+    { INDEX_op_sar_i64, { "r", "r", "ri" } },
 
-    { INDEX_op_rotl_i64, { "r", "r", "Ri" } },
-    { INDEX_op_rotr_i64, { "r", "r", "Ri" } },
+    { INDEX_op_rotl_i64, { "r", "r", "ri" } },
+    { INDEX_op_rotr_i64, { "r", "r", "ri" } },
 
     { INDEX_op_ext8s_i64, { "r", "r" } },
     { INDEX_op_ext8u_i64, { "r", "r" } },
