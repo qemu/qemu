@@ -1706,6 +1706,11 @@ static CharDriverState *gd_vc_handler(ChardevVC *vc, Error **errp)
     ChardevCommon *common = qapi_ChardevVC_base(vc);
     CharDriverState *chr;
 
+    if (nb_vcs == MAX_VCS) {
+        error_setg(errp, "Maximum number of consoles reached");
+        return NULL;
+    }
+
     chr = qemu_chr_alloc(common, errp);
     if (!chr) {
         return NULL;
