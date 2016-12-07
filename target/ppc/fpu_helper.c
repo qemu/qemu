@@ -2869,3 +2869,26 @@ uint64_t helper_xsrsp(CPUPPCState *env, uint64_t xb)
     float_check_status(env);
     return xt;
 }
+
+#define VSX_XXPERM(op, indexed)                                       \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                   \
+{                                                                     \
+    ppc_vsr_t xt, xa, pcv, xto;                                       \
+    int i, idx;                                                       \
+                                                                      \
+    getVSR(xA(opcode), &xa, env);                                     \
+    getVSR(xT(opcode), &xt, env);                                     \
+    getVSR(xB(opcode), &pcv, env);                                    \
+                                                                      \
+    for (i = 0; i < 16; i++) {                                        \
+        idx = pcv.VsrB(i) & 0x1F;                                     \
+        if (indexed) {                                                \
+            idx = 31 - idx;                                           \
+        }                                                             \
+        xto.VsrB(i) = (idx <= 15) ? xa.VsrB(idx) : xt.VsrB(idx - 16); \
+    }                                                                 \
+    putVSR(xT(opcode), &xto, env);                                    \
+}
+
+VSX_XXPERM(xxperm, 0)
+VSX_XXPERM(xxpermr, 1)
