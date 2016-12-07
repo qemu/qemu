@@ -633,6 +633,9 @@ static void glue(gen_, name)(DisasContext *ctx)                   \
     case OP_NABS:                                                 \
         tcg_gen_or_i64(xbh, xbh, sgm);                            \
         break;                                                    \
+    case OP_NEG:                                                  \
+        tcg_gen_xor_i64(xbh, xbh, sgm);                           \
+        break;                                                    \
     }                                                             \
     tcg_gen_mov_i64(cpu_vsrh(xt), xbh);                           \
     tcg_gen_mov_i64(cpu_vsrl(xt), xbl);                           \
@@ -643,6 +646,7 @@ static void glue(gen_, name)(DisasContext *ctx)                   \
 
 VSX_SCALAR_MOVE_QP(xsabsqp, OP_ABS, SGN_MASK_DP)
 VSX_SCALAR_MOVE_QP(xsnabsqp, OP_NABS, SGN_MASK_DP)
+VSX_SCALAR_MOVE_QP(xsnegqp, OP_NEG, SGN_MASK_DP)
 
 #define VSX_VECTOR_MOVE(name, op, sgn_mask)                      \
 static void glue(gen_, name)(DisasContext * ctx)                 \
