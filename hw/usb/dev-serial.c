@@ -483,7 +483,7 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
 {
     USBSerialState *s = USB_SERIAL_DEV(dev);
     Error *local_err = NULL;
-    CharDriverState *chr = qemu_chr_fe_get_driver(&s->cs);
+    Chardev *chr = qemu_chr_fe_get_driver(&s->cs);
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
@@ -512,7 +512,7 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
 static USBDevice *usb_serial_init(USBBus *bus, const char *filename)
 {
     USBDevice *dev;
-    CharDriverState *cdrv;
+    Chardev *cdrv;
     uint32_t vendorid = 0, productid = 0;
     char label[32];
     static int index;
@@ -564,7 +564,7 @@ static USBDevice *usb_serial_init(USBBus *bus, const char *filename)
 static USBDevice *usb_braille_init(USBBus *bus, const char *unused)
 {
     USBDevice *dev;
-    CharDriverState *cdrv;
+    Chardev *cdrv;
 
     cdrv = qemu_chr_new("braille", "braille");
     if (!cdrv)

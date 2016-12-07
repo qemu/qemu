@@ -179,7 +179,7 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
     Error *local_err = NULL;
     Property *prop = opaque;
     CharBackend *be = qdev_get_prop_ptr(dev, prop);
-    CharDriverState *s;
+    Chardev *s;
     char *str;
 
     if (dev->realized) {
@@ -411,7 +411,7 @@ void qdev_prop_set_drive(DeviceState *dev, const char *name,
 }
 
 void qdev_prop_set_chr(DeviceState *dev, const char *name,
-                       CharDriverState *value)
+                       Chardev *value)
 {
     assert(!value || value->label);
     object_property_set_str(OBJECT(dev),

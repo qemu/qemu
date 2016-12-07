@@ -792,7 +792,7 @@ static const MemoryRegionOps omap_sti_fifo_ops = {
 static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
                 MemoryRegion *sysmem,
                 hwaddr channel_base, qemu_irq irq, omap_clk clk,
-                CharDriverState *chr)
+                Chardev *chr)
 {
     struct omap_sti_s *s = g_new0(struct omap_sti_s, 1);
 

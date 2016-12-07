@@ -16,7 +16,7 @@ static inline DeviceState *lm32_pic_init(qemu_irq cpu_irq)
     return dev;
 }
 
-static inline DeviceState *lm32_juart_init(CharDriverState *chr)
+static inline DeviceState *lm32_juart_init(Chardev *chr)
 {
     DeviceState *dev;
 
@@ -29,7 +29,7 @@ static inline DeviceState *lm32_juart_init(CharDriverState *chr)
 
 static inline DeviceState *lm32_uart_create(hwaddr addr,
                                             qemu_irq irq,
-                                            CharDriverState *chr)
+                                            Chardev *chr)
 {
     DeviceState *dev;
     SysBusDevice *s;

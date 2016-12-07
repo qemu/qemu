@@ -65,6 +65,6 @@ qemu_irq tc6393xb_l3v_get(TC6393xbState *s);
 /* sm501.c */
 void sm501_init(struct MemoryRegion *address_space_mem, uint32_t base,
                 uint32_t local_mem_bytes, qemu_irq irq,
-                CharDriverState *chr);
+                Chardev *chr);
 
 #endif

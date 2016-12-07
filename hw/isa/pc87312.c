@@ -268,7 +268,7 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
     DeviceState *d;
     ISADevice *isa;
     ISABus *bus;
-    CharDriverState *chr;
+    Chardev *chr;
     DriveInfo *drive;
     char name[5];
     int i;

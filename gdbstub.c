@@ -305,7 +305,7 @@ typedef struct GDBState {
     int running_state;
 #else
     CharBackend chr;
-    CharDriverState *mon_chr;
+    Chardev *mon_chr;
 #endif
     char syscall_buf[256];
     gdb_syscall_complete_cb current_syscall_cb;
@@ -1473,7 +1473,7 @@ void gdb_exit(CPUArchState *env, int code)
   GDBState *s;
   char buf[4];
 #ifndef CONFIG_USER_ONLY
-  CharDriverState *chr;
+  Chardev *chr;
 #endif
 
   s = gdbserver_state;
@@ -1698,7 +1698,7 @@ static void gdb_monitor_output(GDBState *s, const char *msg, int len)
     put_packet(s, buf);
 }
 
-static int gdb_monitor_write(CharDriverState *chr, const uint8_t *buf, int len)
+static int gdb_monitor_write(Chardev *chr, const uint8_t *buf, int len)
 {
     const char *p = (const char *)buf;
     int max_sz;
@@ -1729,11 +1729,11 @@ int gdbserver_start(const char *device)
 {
     GDBState *s;
     char gdbstub_device_name[128];
-    CharDriverState *chr = NULL;
-    CharDriverState *mon_chr;
+    Chardev *chr = NULL;
+    Chardev *mon_chr;
     ChardevCommon common = { 0 };
     static const CharDriver driver = {
-        .instance_size = sizeof(CharDriverState),
+        .instance_size = sizeof(Chardev),
         .kind = -1,
         .chr_write = gdb_monitor_write,
     };

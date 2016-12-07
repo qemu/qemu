@@ -25,7 +25,7 @@
     do { } while (0)
 #endif
 
-static int store_dev_info(int domid, CharDriverState *cs, const char *string)
+static int store_dev_info(int domid, Chardev *cs, const char *string)
 {
     struct xs_handle *xs = NULL;
     char *path = NULL;
@@ -74,7 +74,7 @@ out:
     return ret;
 }
 
-void xenstore_store_pv_console_info(int i, CharDriverState *chr)
+void xenstore_store_pv_console_info(int i, Chardev *chr)
 {
     if (i == 0) {
         store_dev_info(xen_domid, chr, "/console");

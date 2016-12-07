@@ -616,7 +616,7 @@ void qmp_add_client(const char *protocol, const char *fdname,
                     bool has_skipauth, bool skipauth, bool has_tls, bool tls,
                     Error **errp)
 {
-    CharDriverState *s;
+    Chardev *s;
     int fd;
 
     fd = monitor_get_fd(cur_mon, fdname, errp);

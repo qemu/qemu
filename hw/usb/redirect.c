@@ -284,7 +284,7 @@ static gboolean usbredir_write_unblocked(GIOChannel *chan, GIOCondition cond,
 static int usbredir_write(void *priv, uint8_t *data, int count)
 {
     USBRedirDevice *dev = priv;
-    CharDriverState *chr = qemu_chr_fe_get_driver(&dev->cs);
+    Chardev *chr = qemu_chr_fe_get_driver(&dev->cs);
     int r;
 
     if (!chr->be_open) {
@@ -1430,7 +1430,7 @@ static void usbredir_cleanup_device_queues(USBRedirDevice *dev)
 static void usbredir_handle_destroy(USBDevice *udev)
 {
     USBRedirDevice *dev = USB_REDIRECT(udev);
-    CharDriverState *chr = qemu_chr_fe_get_driver(&dev->cs);
+    Chardev *chr = qemu_chr_fe_get_driver(&dev->cs);
 
     qemu_chr_fe_deinit(&dev->cs);
     qemu_chr_delete(chr);

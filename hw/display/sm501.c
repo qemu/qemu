@@ -1392,7 +1392,7 @@ static const GraphicHwOps sm501_ops = {
 };
 
 void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
-                uint32_t local_mem_bytes, qemu_irq irq, CharDriverState *chr)
+                uint32_t local_mem_bytes, qemu_irq irq, Chardev *chr)
 {
     SM501State * s;
     DeviceState *dev;

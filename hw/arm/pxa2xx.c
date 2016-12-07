@@ -2024,7 +2024,7 @@ static PXA2xxFIrState *pxa2xx_fir_init(MemoryRegion *sysmem,
                                        hwaddr base,
                                        qemu_irq irq, qemu_irq rx_dma,
                                        qemu_irq tx_dma,
-                                       CharDriverState *chr)
+                                       Chardev *chr)
 {
     DeviceState *dev;
     SysBusDevice *sbd;

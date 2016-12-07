@@ -356,7 +356,7 @@ static const MemoryRegionOps sh_serial_ops = {
 
 void sh_serial_init(MemoryRegion *sysmem,
                     hwaddr base, int feat,
-                    uint32_t freq, CharDriverState *chr,
+                    uint32_t freq, Chardev *chr,
                     qemu_irq eri_source,
                     qemu_irq rxi_source,
                     qemu_irq txi_source,

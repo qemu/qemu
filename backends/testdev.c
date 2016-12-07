@@ -30,14 +30,14 @@
 #define BUF_SIZE 32
 
 typedef struct {
-    CharDriverState parent;
+    Chardev parent;
 
     uint8_t in_buf[32];
     int in_buf_used;
-} TestdevCharState;
+} TestdevChardev;
 
 /* Try to interpret a whole incoming packet */
-static int testdev_eat_packet(TestdevCharState *testdev)
+static int testdev_eat_packet(TestdevChardev *testdev)
 {
     const uint8_t *cur = testdev->in_buf;
     int len = testdev->in_buf_used;
@@ -78,9 +78,9 @@ static int testdev_eat_packet(TestdevCharState *testdev)
 }
 
 /* The other end is writing some data.  Store it and try to interpret */
-static int testdev_write(CharDriverState *chr, const uint8_t *buf, int len)
+static int testdev_write(Chardev *chr, const uint8_t *buf, int len)
 {
-    TestdevCharState *testdev = (TestdevCharState *)chr;
+    TestdevChardev *testdev = (TestdevChardev *)chr;
     int tocopy, eaten, orig_len = len;
 
     while (len) {
@@ -103,15 +103,15 @@ static int testdev_write(CharDriverState *chr, const uint8_t *buf, int len)
     return orig_len;
 }
 
-static CharDriverState *chr_testdev_init(const CharDriver *driver,
-                                         const char *id,
-                                         ChardevBackend *backend,
-                                         ChardevReturn *ret,
-                                         bool *be_opened,
-                                         Error **errp)
+static Chardev *chr_testdev_init(const CharDriver *driver,
+                                 const char *id,
+                                 ChardevBackend *backend,
+                                 ChardevReturn *ret,
+                                 bool *be_opened,
+                                 Error **errp)
 {
-    TestdevCharState *testdev = g_new0(TestdevCharState, 1);;
-    CharDriverState *chr = (CharDriverState *)testdev;
+    TestdevChardev *testdev = g_new0(TestdevChardev, 1);;
+    Chardev *chr = (Chardev *)testdev;
 
     chr->driver = driver;
 
@@ -121,7 +121,7 @@ static CharDriverState *chr_testdev_init(const CharDriver *driver,
 static void register_types(void)
 {
     static const CharDriver driver = {
-        .instance_size = sizeof(TestdevCharState),
+        .instance_size = sizeof(TestdevChardev),
         .kind = CHARDEV_BACKEND_KIND_TESTDEV,
         .create = chr_testdev_init,
         .chr_write = testdev_write,

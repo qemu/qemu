@@ -6,7 +6,7 @@
 
 static inline DeviceState *milkymist_uart_create(hwaddr base,
                                                  qemu_irq irq,
-                                                 CharDriverState *chr)
+                                                 Chardev *chr)
 {
     DeviceState *dev;
 

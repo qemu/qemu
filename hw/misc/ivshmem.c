@@ -869,7 +869,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
         s->ivshmem_bar2 = host_memory_backend_get_memory(s->hostmem,
                                                          &error_abort);
     } else {
-        CharDriverState *chr = qemu_chr_fe_get_driver(&s->server_chr);
+        Chardev *chr = qemu_chr_fe_get_driver(&s->server_chr);
         assert(chr);
 
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",

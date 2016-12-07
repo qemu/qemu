@@ -613,7 +613,7 @@ static void create_gic(VirtMachineState *vms, qemu_irq *pic)
 }
 
 static void create_uart(const VirtMachineState *vms, qemu_irq *pic, int uart,
-                        MemoryRegion *mem, CharDriverState *chr)
+                        MemoryRegion *mem, Chardev *chr)
 {
     char *nodename;
     hwaddr base = vms->memmap[uart].base;

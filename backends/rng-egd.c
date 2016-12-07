@@ -86,7 +86,7 @@ static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
 static void rng_egd_opened(RngBackend *b, Error **errp)
 {
     RngEgd *s = RNG_EGD(b);
-    CharDriverState *chr;
+    Chardev *chr;
 
     if (s->chr_name == NULL) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
@@ -125,7 +125,7 @@ static void rng_egd_set_chardev(Object *obj, const char *value, Error **errp)
 static char *rng_egd_get_chardev(Object *obj, Error **errp)
 {
     RngEgd *s = RNG_EGD(obj);
-    CharDriverState *chr = qemu_chr_fe_get_driver(&s->chr);
+    Chardev *chr = qemu_chr_fe_get_driver(&s->chr);
 
     if (chr && chr->label) {
         return g_strdup(chr->label);

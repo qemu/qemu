@@ -181,11 +181,11 @@ struct GtkDisplayState {
     bool ignore_keys;
 };
 
-typedef struct VCDriverState {
-    CharDriverState parent;
+typedef struct VCChardev {
+    Chardev parent;
     VirtualConsole *console;
     bool echo;
-} VCDriverState;
+} VCChardev;
 
 static void gd_grab_pointer(VirtualConsole *vc, const char *reason);
 static void gd_ungrab_pointer(GtkDisplayState *s);
@@ -1689,18 +1689,18 @@ static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
     }
 }
 
-static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+static int gd_vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
-    VCDriverState *vcd = (VCDriverState *)chr;
+    VCChardev *vcd = (VCChardev *)chr;
     VirtualConsole *vc = vcd->console;
 
     vte_terminal_feed(VTE_TERMINAL(vc->vte.terminal), (const char *)buf, len);
     return len;
 }
 
-static void gd_vc_chr_set_echo(CharDriverState *chr, bool echo)
+static void gd_vc_chr_set_echo(Chardev *chr, bool echo)
 {
-    VCDriverState *vcd = (VCDriverState *)chr;
+    VCChardev *vcd = (VCChardev *)chr;
     VirtualConsole *vc = vcd->console;
 
     if (vc) {
@@ -1711,19 +1711,19 @@ static void gd_vc_chr_set_echo(CharDriverState *chr, bool echo)
 }
 
 static int nb_vcs;
-static CharDriverState *vcs[MAX_VCS];
+static Chardev *vcs[MAX_VCS];
 
-static CharDriverState *gd_vc_handler(ChardevVC *vc, Error **errp)
+static Chardev *gd_vc_handler(ChardevVC *vc, Error **errp)
 {
     static const CharDriver gd_vc_driver = {
-        .instance_size = sizeof(VCDriverState),
+        .instance_size = sizeof(VCChardev),
         .kind = CHARDEV_BACKEND_KIND_VC,
         .chr_write = gd_vc_chr_write,
         .chr_set_echo = gd_vc_chr_set_echo,
     };
 
     ChardevCommon *common = qapi_ChardevVC_base(vc);
-    CharDriverState *chr;
+    Chardev *chr;
 
     if (nb_vcs == MAX_VCS) {
         error_setg(errp, "Maximum number of consoles reached");
@@ -1768,14 +1768,14 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
 }
 
 static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
-                              CharDriverState *chr, int idx,
+                              Chardev *chr, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
     char buffer[32];
     GtkWidget *box;
     GtkWidget *scrollbar;
     GtkAdjustment *vadjustment;
-    VCDriverState *vcd = (VCDriverState *)chr;
+    VCChardev *vcd = (VCChardev *)chr;
 
     vc->s = s;
     vc->vte.echo = vcd->echo;

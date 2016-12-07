@@ -85,7 +85,7 @@ struct MilkymistTMU2State {
     SysBusDevice parent_obj;
 
     MemoryRegion regs_region;
-    CharDriverState *chr;
+    Chardev *chr;
     qemu_irq irq;
 
     uint32_t regs[R_MAX];

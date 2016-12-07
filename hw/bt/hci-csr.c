@@ -29,7 +29,7 @@
 #include "qapi/error.h"
 
 struct csrhci_s {
-    CharDriverState parent;
+    Chardev parent;
     int enable;
     qemu_irq *pins;
     int pin_state;
@@ -79,7 +79,7 @@ enum {
 
 static inline void csrhci_fifo_wake(struct csrhci_s *s)
 {
-    CharDriverState *chr = (CharDriverState *)s;
+    Chardev *chr = (Chardev *)s;
     CharBackend *be = chr->be;
 
     if (!s->enable || !s->out_len)
@@ -313,7 +313,7 @@ static void csrhci_ready_for_next_inpkt(struct csrhci_s *s)
     s->in_hdr = INT_MAX;
 }
 
-static int csrhci_write(struct CharDriverState *chr,
+static int csrhci_write(struct Chardev *chr,
                 const uint8_t *buf, int len)
 {
     struct csrhci_s *s = (struct csrhci_s *)chr;
@@ -386,7 +386,7 @@ static void csrhci_out_hci_packet_acl(void *opaque,
     csrhci_fifo_wake(s);
 }
 
-static int csrhci_ioctl(struct CharDriverState *chr, int cmd, void *arg)
+static int csrhci_ioctl(struct Chardev *chr, int cmd, void *arg)
 {
     QEMUSerialSetParams *ssp;
     struct csrhci_s *s = (struct csrhci_s *) chr;
@@ -455,14 +455,14 @@ static void csrhci_pins(void *opaque, int line, int level)
     }
 }
 
-qemu_irq *csrhci_pins_get(CharDriverState *chr)
+qemu_irq *csrhci_pins_get(Chardev *chr)
 {
     struct csrhci_s *s = (struct csrhci_s *) chr;
 
     return s->pins;
 }
 
-CharDriverState *uart_hci_init(void)
+Chardev *uart_hci_init(void)
 {
     static const CharDriver hci_driver = {
         .instance_size = sizeof(struct csrhci_s),
@@ -472,7 +472,7 @@ CharDriverState *uart_hci_init(void)
     };
     Error *err = NULL;
     ChardevCommon common = { 0, };
-    CharDriverState *chr = qemu_chr_alloc(&hci_driver, &common, &err);
+    Chardev *chr = qemu_chr_alloc(&hci_driver, &common, &err);
     struct csrhci_s *s = (struct csrhci_s *)chr;
 
     if (err) {

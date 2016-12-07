@@ -16,7 +16,7 @@ extern Monitor *cur_mon;
 
 bool monitor_cur_is_qmp(void);
 
-void monitor_init(CharDriverState *chr, int flags);
+void monitor_init(Chardev *chr, int flags);
 void monitor_cleanup(void);
 
 int monitor_suspend(Monitor *mon);

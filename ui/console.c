@@ -158,7 +158,7 @@ struct QemuConsole {
     int esc_params[MAX_ESC_PARAMS];
     int nb_esc_params;
 
-    CharDriverState *chr;
+    Chardev *chr;
     /* fifo for key pressed */
     QEMUFIFO out_fifo;
     uint8_t out_fifo_buf[16];
@@ -183,7 +183,7 @@ static int nb_consoles = 0;
 static bool cursor_visible_phase;
 static QEMUTimer *cursor_timer;
 
-static void text_console_do_init(CharDriverState *chr, DisplayState *ds);
+static void text_console_do_init(Chardev *chr, DisplayState *ds);
 static void dpy_refresh(DisplayState *s);
 static DisplayState *get_alloc_displaystate(void);
 static void text_console_update_cursor_timer(void);
@@ -1046,14 +1046,14 @@ void console_select(unsigned int index)
     }
 }
 
-typedef struct VCDriverState {
-    CharDriverState parent;
+typedef struct VCChardev {
+    Chardev parent;
     QemuConsole *console;
-} VCDriverState;
+} VCChardev;
 
-static int console_puts(CharDriverState *chr, const uint8_t *buf, int len)
+static int console_puts(Chardev *chr, const uint8_t *buf, int len)
 {
-    VCDriverState *drv = (VCDriverState *)chr;
+    VCChardev *drv = (VCChardev *)chr;
     QemuConsole *s = drv->console;
     int i;
 
@@ -1962,9 +1962,9 @@ int qemu_console_get_height(QemuConsole *con, int fallback)
     return con ? surface_height(con->surface) : fallback;
 }
 
-static void text_console_set_echo(CharDriverState *chr, bool echo)
+static void text_console_set_echo(Chardev *chr, bool echo)
 {
-    VCDriverState *drv = (VCDriverState *)chr;
+    VCChardev *drv = (VCChardev *)chr;
     QemuConsole *s = drv->console;
 
     s->echo = echo;
@@ -2003,9 +2003,9 @@ static const GraphicHwOps text_console_ops = {
     .text_update = text_console_update,
 };
 
-static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
+static void text_console_do_init(Chardev *chr, DisplayState *ds)
 {
-    VCDriverState *drv = (VCDriverState *)chr;
+    VCChardev *drv = (VCChardev *)chr;
     QemuConsole *s = drv->console;
     int g_width = 80 * FONT_WIDTH;
     int g_height = 24 * FONT_HEIGHT;
@@ -2058,11 +2058,11 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
 
 static const CharDriver vc_driver;
 
-static CharDriverState *text_console_init(ChardevVC *vc, Error **errp)
+static Chardev *text_console_init(ChardevVC *vc, Error **errp)
 {
     ChardevCommon *common = qapi_ChardevVC_base(vc);
-    CharDriverState *chr;
-    VCDriverState *drv;
+    Chardev *chr;
+    VCChardev *drv;
     QemuConsole *s;
     unsigned width = 0;
     unsigned height = 0;
@@ -2099,7 +2099,7 @@ static CharDriverState *text_console_init(ChardevVC *vc, Error **errp)
     }
 
     s->chr = chr;
-    drv = (VCDriverState *)chr;
+    drv = (VCChardev *)chr;
     drv->console = s;
 
     if (display_state) {
@@ -2110,10 +2110,10 @@ static CharDriverState *text_console_init(ChardevVC *vc, Error **errp)
 
 static VcHandler *vc_handler = text_console_init;
 
-static CharDriverState *vc_init(const CharDriver *driver,
-                                const char *id, ChardevBackend *backend,
-                                ChardevReturn *ret, bool *be_opened,
-                                Error **errp)
+static Chardev *vc_init(const CharDriver *driver,
+                        const char *id, ChardevBackend *backend,
+                        ChardevReturn *ret, bool *be_opened,
+                        Error **errp)
 {
     /* console/chardev init sometimes completes elsewhere in a 2nd
      * stage, so defer OPENED events until they are fully initialized
@@ -2204,7 +2204,7 @@ static const TypeInfo qemu_console_info = {
 };
 
 static const CharDriver vc_driver = {
-    .instance_size = sizeof(VCDriverState),
+    .instance_size = sizeof(VCChardev),
     .kind = CHARDEV_BACKEND_KIND_VC,
     .parse = qemu_chr_parse_vc,
     .create = vc_init,

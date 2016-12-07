@@ -64,7 +64,7 @@ typedef struct VirtualVteConsole {
     GtkWidget *box;
     GtkWidget *scrollbar;
     GtkWidget *terminal;
-    CharDriverState *chr;
+    Chardev *chr;
     bool echo;
 } VirtualVteConsole;
 #endif

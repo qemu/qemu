@@ -40,7 +40,7 @@ static void fe_event(void *opaque, int event)
 #ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
 static void char_stdio_test_subprocess(void)
 {
-    CharDriverState *chr;
+    Chardev *chr;
     CharBackend be;
     int ret;
 
@@ -68,7 +68,7 @@ static void char_stdio_test(void)
 static void char_ringbuf_test(void)
 {
     QemuOpts *opts;
-    CharDriverState *chr;
+    Chardev *chr;
     CharBackend be;
     char *data;
     int ret;
@@ -109,7 +109,7 @@ static void char_ringbuf_test(void)
 static void char_mux_test(void)
 {
     QemuOpts *opts;
-    CharDriverState *chr, *base;
+    Chardev *chr, *base;
     char *data;
     FeHandler h1 = { 0, }, h2 = { 0, };
     CharBackend chr_be1, chr_be2;
@@ -185,7 +185,7 @@ static void char_mux_test(void)
 static void char_null_test(void)
 {
     Error *err = NULL;
-    CharDriverState *chr;
+    Chardev *chr;
     CharBackend be;
     int ret;
 
@@ -227,7 +227,7 @@ static void char_null_test(void)
 
 static void char_invalid_test(void)
 {
-    CharDriverState *chr;
+    Chardev *chr;
 
     chr = qemu_chr_new("label-invalid", "invalid");
     g_assert_null(chr);

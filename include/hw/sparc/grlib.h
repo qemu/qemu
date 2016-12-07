@@ -100,7 +100,7 @@ DeviceState *grlib_gptimer_create(hwaddr  base,
 
 static inline
 DeviceState *grlib_apbuart_create(hwaddr  base,
-                                  CharDriverState    *serial,
+                                  Chardev    *serial,
                                   qemu_irq            irq)
 {
     DeviceState *dev;

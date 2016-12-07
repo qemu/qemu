@@ -195,7 +195,7 @@ static void net_vhost_user_event(void *opaque, int event)
     const char *name = opaque;
     NetClientState *ncs[MAX_QUEUE_NUM];
     VhostUserState *s;
-    CharDriverState *chr;
+    Chardev *chr;
     Error *err = NULL;
     int queues;
 
@@ -232,7 +232,7 @@ static void net_vhost_user_event(void *opaque, int event)
 }
 
 static int net_vhost_user_init(NetClientState *peer, const char *device,
-                               const char *name, CharDriverState *chr,
+                               const char *name, Chardev *chr,
                                int queues)
 {
     Error *err = NULL;
@@ -274,10 +274,10 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     return 0;
 }
 
-static CharDriverState *net_vhost_claim_chardev(
+static Chardev *net_vhost_claim_chardev(
     const NetdevVhostUserOptions *opts, Error **errp)
 {
-    CharDriverState *chr = qemu_chr_find(opts->chardev);
+    Chardev *chr = qemu_chr_find(opts->chardev);
 
     if (chr == NULL) {
         error_setg(errp, "chardev \"%s\" not found", opts->chardev);
@@ -324,7 +324,7 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
 {
     int queues;
     const NetdevVhostUserOptions *vhost_user_opts;
-    CharDriverState *chr;
+    Chardev *chr;
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_USER);
     vhost_user_opts = &netdev->u.vhost_user;
