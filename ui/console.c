@@ -2058,8 +2058,12 @@ static void text_console_do_init(Chardev *chr, DisplayState *ds)
 
 static const CharDriver vc_driver;
 
-static Chardev *text_console_init(ChardevVC *vc, Error **errp)
+static Chardev *vc_init(const CharDriver *driver,
+                        const char *id, ChardevBackend *backend,
+                        ChardevReturn *ret, bool *be_opened,
+                        Error **errp)
 {
+    ChardevVC *vc = backend->u.vc.data;
     ChardevCommon *common = qapi_ChardevVC_base(vc);
     Chardev *chr;
     VCChardev *drv;
@@ -2105,26 +2109,13 @@ static Chardev *text_console_init(ChardevVC *vc, Error **errp)
     if (display_state) {
         text_console_do_init(chr, display_state);
     }
-    return chr;
-}
 
-static VcHandler *vc_handler = text_console_init;
-
-static Chardev *vc_init(const CharDriver *driver,
-                        const char *id, ChardevBackend *backend,
-                        ChardevReturn *ret, bool *be_opened,
-                        Error **errp)
-{
     /* console/chardev init sometimes completes elsewhere in a 2nd
      * stage, so defer OPENED events until they are fully initialized
      */
     *be_opened = false;
-    return vc_handler(backend->u.vc.data, errp);
-}
 
-void register_vc_handler(VcHandler *handler)
-{
-    vc_handler = handler;
+    return chr;
 }
 
 void qemu_console_resize(QemuConsole *s, int width, int height)
@@ -2162,8 +2153,7 @@ PixelFormat qemu_default_pixelformat(int bpp)
     return pf;
 }
 
-static void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend,
-                              Error **errp)
+void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp)
 {
     int val;
     ChardevVC *vc;

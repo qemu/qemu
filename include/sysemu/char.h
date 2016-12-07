@@ -507,9 +507,7 @@ void register_char_driver(const CharDriver *driver);
 
 extern int term_escape_char;
 
-
 /* console.c */
-typedef Chardev *(VcHandler)(ChardevVC *vc, Error **errp);
-void register_vc_handler(VcHandler *handler);
+void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 
 #endif

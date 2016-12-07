@@ -1712,16 +1712,14 @@ static void gd_vc_chr_set_echo(Chardev *chr, bool echo)
 
 static int nb_vcs;
 static Chardev *vcs[MAX_VCS];
+static const CharDriver gd_vc_driver;
 
-static Chardev *gd_vc_handler(ChardevVC *vc, Error **errp)
+static Chardev *vc_init(const CharDriver *driver,
+                        const char *id, ChardevBackend *backend,
+                        ChardevReturn *ret, bool *be_opened,
+                        Error **errp)
 {
-    static const CharDriver gd_vc_driver = {
-        .instance_size = sizeof(VCChardev),
-        .kind = CHARDEV_BACKEND_KIND_VC,
-        .chr_write = gd_vc_chr_write,
-        .chr_set_echo = gd_vc_chr_set_echo,
-    };
-
+    ChardevVC *vc = backend->u.vc.data;
     ChardevCommon *common = qapi_ChardevVC_base(vc);
     Chardev *chr;
 
@@ -1737,8 +1735,21 @@ static Chardev *gd_vc_handler(ChardevVC *vc, Error **errp)
 
     vcs[nb_vcs++] = chr;
 
+    /* console/chardev init sometimes completes elsewhere in a 2nd
+     * stage, so defer OPENED events until they are fully initialized
+     */
+    *be_opened = false;
+
     return chr;
 }
+
+static const CharDriver gd_vc_driver = {
+    .instance_size = sizeof(VCChardev),
+    .kind = CHARDEV_BACKEND_KIND_VC,
+    .parse = qemu_chr_parse_vc, .create = vc_init,
+    .chr_write = gd_vc_chr_write,
+    .chr_set_echo = gd_vc_chr_set_echo,
+};
 
 static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
                          gpointer user_data)
@@ -2336,6 +2347,7 @@ void early_gtk_display_init(int opengl)
     }
 
 #if defined(CONFIG_VTE)
-    register_vc_handler(gd_vc_handler);
+    /* overwrite the console.c vc driver */
+    register_char_driver(&gd_vc_driver);
 #endif
 }
