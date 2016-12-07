@@ -1093,33 +1093,43 @@ static void tgen64_xori(TCGContext *s, TCGReg dest, tcg_target_ulong val)
 }
 
 static int tgen_cmp(TCGContext *s, TCGType type, TCGCond c, TCGReg r1,
-                    TCGArg c2, int c2const)
+                    TCGArg c2, bool c2const, bool need_carry)
 {
     bool is_unsigned = is_unsigned_cond(c);
     if (c2const) {
         if (c2 == 0) {
-            if (type == TCG_TYPE_I32) {
-                tcg_out_insn(s, RR, LTR, r1, r1);
-            } else {
-                tcg_out_insn(s, RRE, LTGR, r1, r1);
+            if (!(is_unsigned && need_carry)) {
+                if (type == TCG_TYPE_I32) {
+                    tcg_out_insn(s, RR, LTR, r1, r1);
+                } else {
+                    tcg_out_insn(s, RRE, LTGR, r1, r1);
+                }
+                return tcg_cond_to_ltr_cond[c];
             }
-            return tcg_cond_to_ltr_cond[c];
-        } else {
-            if (is_unsigned) {
-                if (type == TCG_TYPE_I32) {
-                    tcg_out_insn(s, RIL, CLFI, r1, c2);
-                } else {
-                    tcg_out_insn(s, RIL, CLGFI, r1, c2);
-                }
+            /* If we only got here because of load-and-test,
+               and we couldn't use that, then we need to load
+               the constant into a register.  */
+            if (!(facilities & FACILITY_EXT_IMM)) {
+                c2 = TCG_TMP0;
+                tcg_out_movi(s, type, c2, 0);
+                goto do_reg;
+            }
+        }
+        if (is_unsigned) {
+            if (type == TCG_TYPE_I32) {
+                tcg_out_insn(s, RIL, CLFI, r1, c2);
             } else {
-                if (type == TCG_TYPE_I32) {
-                    tcg_out_insn(s, RIL, CFI, r1, c2);
-                } else {
-                    tcg_out_insn(s, RIL, CGFI, r1, c2);
-                }
+                tcg_out_insn(s, RIL, CLGFI, r1, c2);
+            }
+        } else {
+            if (type == TCG_TYPE_I32) {
+                tcg_out_insn(s, RIL, CFI, r1, c2);
+            } else {
+                tcg_out_insn(s, RIL, CGFI, r1, c2);
             }
         }
     } else {
+    do_reg:
         if (is_unsigned) {
             if (type == TCG_TYPE_I32) {
                 tcg_out_insn(s, RR, CLR, r1, c2);
@@ -1148,7 +1158,7 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
     do_greater:
         /* The result of a compare has CC=2 for GT and CC=3 unused.
            ADD LOGICAL WITH CARRY considers (CC & 2) the carry bit.  */
-        tgen_cmp(s, type, cond, c1, c2, c2const);
+        tgen_cmp(s, type, cond, c1, c2, c2const, true);
         tcg_out_movi(s, type, dest, 0);
         tcg_out_insn(s, RRE, ALCGR, dest, dest);
         return;
@@ -1219,7 +1229,7 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
         break;
     }
 
-    cc = tgen_cmp(s, type, cond, c1, c2, c2const);
+    cc = tgen_cmp(s, type, cond, c1, c2, c2const, false);
     if (facilities & FACILITY_LOAD_ON_COND) {
         /* Emit: d = 0, t = 1, d = (cc ? t : d).  */
         tcg_out_movi(s, TCG_TYPE_I64, dest, 0);
@@ -1238,11 +1248,11 @@ static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c, TCGReg dest,
 {
     int cc;
     if (facilities & FACILITY_LOAD_ON_COND) {
-        cc = tgen_cmp(s, type, c, c1, c2, c2const);
+        cc = tgen_cmp(s, type, c, c1, c2, c2const, false);
         tcg_out_insn(s, RRF, LOCGR, dest, r3, cc);
     } else {
         c = tcg_invert_cond(c);
-        cc = tgen_cmp(s, type, c, c1, c2, c2const);
+        cc = tgen_cmp(s, type, c, c1, c2, c2const, false);
 
         /* Emit: if (cc) goto over; dest = r3; over:  */
         tcg_out_insn(s, RI, BRC, cc, (4 + 4) >> 1);
@@ -1374,7 +1384,7 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
         }
     }
 
-    cc = tgen_cmp(s, type, c, r1, c2, c2const);
+    cc = tgen_cmp(s, type, c, r1, c2, c2const, false);
     tgen_branch(s, cc, l);
 }
 
