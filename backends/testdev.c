@@ -36,6 +36,10 @@ typedef struct {
     int in_buf_used;
 } TestdevChardev;
 
+#define TYPE_CHARDEV_TESTDEV "chardev-testdev"
+#define TESTDEV_CHARDEV(obj)                                    \
+    OBJECT_CHECK(TestdevChardev, (obj), TYPE_CHARDEV_TESTDEV)
+
 /* Try to interpret a whole incoming packet */
 static int testdev_eat_packet(TestdevChardev *testdev)
 {
@@ -78,9 +82,9 @@ static int testdev_eat_packet(TestdevChardev *testdev)
 }
 
 /* The other end is writing some data.  Store it and try to interpret */
-static int testdev_write(Chardev *chr, const uint8_t *buf, int len)
+static int testdev_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
-    TestdevChardev *testdev = (TestdevChardev *)chr;
+    TestdevChardev *testdev = TESTDEV_CHARDEV(chr);
     int tocopy, eaten, orig_len = len;
 
     while (len) {
@@ -103,30 +107,28 @@ static int testdev_write(Chardev *chr, const uint8_t *buf, int len)
     return orig_len;
 }
 
-static Chardev *chr_testdev_init(const CharDriver *driver,
-                                 const char *id,
-                                 ChardevBackend *backend,
-                                 ChardevReturn *ret,
-                                 bool *be_opened,
-                                 Error **errp)
+static void char_testdev_class_init(ObjectClass *oc, void *data)
 {
-    TestdevChardev *testdev = g_new0(TestdevChardev, 1);;
-    Chardev *chr = (Chardev *)testdev;
+    ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    chr->driver = driver;
-
-    return chr;
+    cc->chr_write = testdev_chr_write;
 }
+
+static const TypeInfo char_testdev_type_info = {
+    .name = TYPE_CHARDEV_TESTDEV,
+    .parent = TYPE_CHARDEV,
+    .instance_size = sizeof(TestdevChardev),
+    .class_init = char_testdev_class_init,
+};
 
 static void register_types(void)
 {
     static const CharDriver driver = {
-        .instance_size = sizeof(TestdevChardev),
         .kind = CHARDEV_BACKEND_KIND_TESTDEV,
-        .create = chr_testdev_init,
-        .chr_write = testdev_write,
     };
+
     register_char_driver(&driver);
+    type_register_static(&char_testdev_type_info);
 }
 
 type_init(register_types);

@@ -4252,6 +4252,8 @@ int main(int argc, char **argv, char **envp)
         sdl_display_early_init(request_opengl);
     }
 
+    qemu_console_early_init();
+
     if (request_opengl == 1 && display_opengl == 0) {
 #if defined(CONFIG_OPENGL)
         error_report("OpenGL is not supported by the display");

@@ -55,6 +55,9 @@ struct csrhci_s {
     struct HCIInfo *hci;
 };
 
+#define TYPE_CHARDEV_HCI "chardev-hci"
+#define HCI_CHARDEV(obj) OBJECT_CHECK(struct csrhci_s, (obj), TYPE_CHARDEV_HCI)
+
 /* H4+ packet types */
 enum {
     H4_CMD_PKT   = 1,
@@ -462,23 +465,12 @@ qemu_irq *csrhci_pins_get(Chardev *chr)
     return s->pins;
 }
 
-Chardev *uart_hci_init(void)
+static void csrhci_open(Chardev *chr,
+                        ChardevBackend *backend,
+                        bool *be_opened,
+                        Error **errp)
 {
-    static const CharDriver hci_driver = {
-        .instance_size = sizeof(struct csrhci_s),
-        .kind = -1,
-        .chr_write = csrhci_write,
-        .chr_ioctl = csrhci_ioctl,
-    };
-    Error *err = NULL;
-    ChardevCommon common = { 0, };
-    Chardev *chr = qemu_chr_alloc(&hci_driver, &common, &err);
-    struct csrhci_s *s = (struct csrhci_s *)chr;
-
-    if (err) {
-        error_report_err(err);
-        return NULL;
-    }
+    struct csrhci_s *s = HCI_CHARDEV(chr);
 
     s->hci = qemu_next_hci();
     s->hci->opaque = s;
@@ -488,6 +480,35 @@ Chardev *uart_hci_init(void)
     s->out_tm = timer_new_ns(QEMU_CLOCK_VIRTUAL, csrhci_out_tick, s);
     s->pins = qemu_allocate_irqs(csrhci_pins, s, __csrhci_pins);
     csrhci_reset(s);
-
-    return chr;
+    *be_opened = false;
 }
+
+static void char_hci_class_init(ObjectClass *oc, void *data)
+{
+    ChardevClass *cc = CHARDEV_CLASS(oc);
+
+    cc->internal = true;
+    cc->open = csrhci_open;
+    cc->chr_write = csrhci_write;
+    cc->chr_ioctl = csrhci_ioctl;
+}
+
+static const TypeInfo char_hci_type_info = {
+    .name = TYPE_CHARDEV_HCI,
+    .parent = TYPE_CHARDEV,
+    .instance_size = sizeof(struct csrhci_s),
+    .class_init = char_hci_class_init,
+};
+
+Chardev *uart_hci_init(void)
+{
+    return qemu_chardev_new(NULL, TYPE_CHARDEV_HCI,
+                            NULL, &error_abort);
+}
+
+static void register_types(void)
+{
+    type_register_static(&char_hci_type_info);
+}
+
+type_init(register_types);

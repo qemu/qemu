@@ -10,6 +10,7 @@
 #include "qapi/qmp/qstring.h"
 #include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
+#include "qom/object.h"
 
 /* character device */
 
@@ -90,7 +91,8 @@ typedef struct CharBackend {
 typedef struct CharDriver CharDriver;
 
 struct Chardev {
-    const CharDriver *driver;
+    Object parent_obj;
+
     QemuMutex chr_write_lock;
     CharBackend *be;
     char *label;
@@ -101,18 +103,6 @@ struct Chardev {
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
     QTAILQ_ENTRY(Chardev) next;
 };
-
-/**
- * qemu_chr_alloc:
- * @backend: the common backend config
- * @errp: pointer to a NULL-initialized error object
- *
- * Allocate and initialize a new Chardev.
- *
- * Returns: a newly allocated Chardev, or NULL on error.
- */
-Chardev *qemu_chr_alloc(const CharDriver *driver,
-                        ChardevCommon *backend, Error **errp);
 
 /**
  * @qemu_chr_new_from_opts:
@@ -455,53 +445,72 @@ void qemu_chr_fe_accept_input(CharBackend *be);
 int qemu_chr_add_client(Chardev *s, int fd);
 Chardev *qemu_chr_find(const char *name);
 
-/**
- * @qemu_chr_get_kind:
- *
- * Returns the kind of char backend, or -1 if unspecified.
- */
-ChardevBackendKind qemu_chr_get_kind(const Chardev *chr);
-
-static inline bool qemu_chr_is_ringbuf(const Chardev *chr)
-{
-    return qemu_chr_get_kind(chr) == CHARDEV_BACKEND_KIND_RINGBUF ||
-        qemu_chr_get_kind(chr) == CHARDEV_BACKEND_KIND_MEMORY;
-}
-
 bool qemu_chr_has_feature(Chardev *chr,
                           CharDriverFeature feature);
 void qemu_chr_set_feature(Chardev *chr,
                           CharDriverFeature feature);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
+#define TYPE_CHARDEV "chardev"
+#define CHARDEV(obj) OBJECT_CHECK(Chardev, (obj), TYPE_CHARDEV)
+#define CHARDEV_CLASS(klass) \
+    OBJECT_CLASS_CHECK(ChardevClass, (klass), TYPE_CHARDEV)
+#define CHARDEV_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(ChardevClass, (obj), TYPE_CHARDEV)
+
+#define TYPE_CHARDEV_NULL "chardev-null"
+#define TYPE_CHARDEV_MUX "chardev-mux"
+#define TYPE_CHARDEV_RINGBUF "chardev-ringbuf"
+#define TYPE_CHARDEV_PTY "chardev-pty"
+#define TYPE_CHARDEV_CONSOLE "chardev-console"
+#define TYPE_CHARDEV_STDIO "chardev-stdio"
+#define TYPE_CHARDEV_PIPE "chardev-pipe"
+#define TYPE_CHARDEV_MEMORY "chardev-memory"
+#define TYPE_CHARDEV_PARALLEL "chardev-parallel"
+#define TYPE_CHARDEV_FILE "chardev-file"
+#define TYPE_CHARDEV_SERIAL "chardev-serial"
+#define TYPE_CHARDEV_SOCKET "chardev-socket"
+#define TYPE_CHARDEV_UDP "chardev-udp"
+
+#define CHARDEV_IS_MUX(chr) \
+    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_MUX)
+#define CHARDEV_IS_RINGBUF(chr) \
+    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_RINGBUF)
+#define CHARDEV_IS_PTY(chr) \
+    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_PTY)
+
+typedef struct ChardevClass {
+    ObjectClass parent_class;
+
+    bool internal; /* TODO: eventually use TYPE_USER_CREATABLE */
+
+    void (*open)(Chardev *chr, ChardevBackend *backend,
+                 bool *be_opened, Error **errp);
+
+    int (*chr_write)(Chardev *s, const uint8_t *buf, int len);
+    int (*chr_sync_read)(Chardev *s, const uint8_t *buf, int len);
+    GSource *(*chr_add_watch)(Chardev *s, GIOCondition cond);
+    void (*chr_update_read_handler)(Chardev *s, GMainContext *context);
+    int (*chr_ioctl)(Chardev *s, int cmd, void *arg);
+    int (*get_msgfds)(Chardev *s, int* fds, int num);
+    int (*set_msgfds)(Chardev *s, int *fds, int num);
+    int (*chr_add_client)(Chardev *chr, int fd);
+    int (*chr_wait_connected)(Chardev *chr, Error **errp);
+    void (*chr_free)(Chardev *chr);
+    void (*chr_disconnect)(Chardev *chr);
+    void (*chr_accept_input)(Chardev *chr);
+    void (*chr_set_echo)(Chardev *chr, bool echo);
+    void (*chr_set_fe_open)(Chardev *chr, int fe_open);
+} ChardevClass;
+
 struct CharDriver {
     ChardevBackendKind kind;
     const char *alias;
     void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
-    Chardev *(*create)(const CharDriver *driver,
-                       const char *id,
-                       ChardevBackend *backend,
-                       ChardevReturn *ret, bool *be_opened,
-                       Error **errp);
-    size_t instance_size;
-
-    int (*chr_write)(struct Chardev *s, const uint8_t *buf, int len);
-    int (*chr_sync_read)(struct Chardev *s,
-                         const uint8_t *buf, int len);
-    GSource *(*chr_add_watch)(struct Chardev *s, GIOCondition cond);
-    void (*chr_update_read_handler)(struct Chardev *s,
-                                    GMainContext *context);
-    int (*chr_ioctl)(struct Chardev *s, int cmd, void *arg);
-    int (*get_msgfds)(struct Chardev *s, int* fds, int num);
-    int (*set_msgfds)(struct Chardev *s, int *fds, int num);
-    int (*chr_add_client)(struct Chardev *chr, int fd);
-    int (*chr_wait_connected)(struct Chardev *chr, Error **errp);
-    void (*chr_free)(struct Chardev *chr);
-    void (*chr_disconnect)(struct Chardev *chr);
-    void (*chr_accept_input)(struct Chardev *chr);
-    void (*chr_set_echo)(struct Chardev *chr, bool echo);
-    void (*chr_set_fe_open)(struct Chardev *chr, int fe_open);
 };
+
+Chardev *qemu_chardev_new(const char *id, const char *typename,
+                          ChardevBackend *backend, Error **errp);
 
 void register_char_driver(const CharDriver *driver);
 

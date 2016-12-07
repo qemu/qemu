@@ -3196,7 +3196,7 @@ static void ringbuf_completion(ReadLineState *rs, const char *str)
 
         if (!strncmp(chr_info->label, str, len)) {
             Chardev *chr = qemu_chr_find(chr_info->label);
-            if (chr && qemu_chr_is_ringbuf(chr)) {
+            if (chr && CHARDEV_IS_RINGBUF(chr)) {
                 readline_add_completion(rs, chr_info->label);
             }
         }

@@ -187,6 +187,9 @@ typedef struct VCChardev {
     bool echo;
 } VCChardev;
 
+#define TYPE_CHARDEV_VC "chardev-vc"
+#define VC_CHARDEV(obj) OBJECT_CHECK(VCChardev, (obj), TYPE_CHARDEV_VC)
+
 static void gd_grab_pointer(VirtualConsole *vc, const char *reason);
 static void gd_ungrab_pointer(GtkDisplayState *s);
 static void gd_grab_keyboard(VirtualConsole *vc, const char *reason);
@@ -1691,7 +1694,7 @@ static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
 
 static int gd_vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
-    VCChardev *vcd = (VCChardev *)chr;
+    VCChardev *vcd = VC_CHARDEV(chr);
     VirtualConsole *vc = vcd->console;
 
     vte_terminal_feed(VTE_TERMINAL(vc->vte.terminal), (const char *)buf, len);
@@ -1700,7 +1703,7 @@ static int gd_vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 
 static void gd_vc_chr_set_echo(Chardev *chr, bool echo)
 {
-    VCChardev *vcd = (VCChardev *)chr;
+    VCChardev *vcd = VC_CHARDEV(chr);
     VirtualConsole *vc = vcd->console;
 
     if (vc) {
@@ -1714,23 +1717,14 @@ static int nb_vcs;
 static Chardev *vcs[MAX_VCS];
 static const CharDriver gd_vc_driver;
 
-static Chardev *vc_init(const CharDriver *driver,
-                        const char *id, ChardevBackend *backend,
-                        ChardevReturn *ret, bool *be_opened,
-                        Error **errp)
+static void gd_vc_open(Chardev *chr,
+                       ChardevBackend *backend,
+                       bool *be_opened,
+                       Error **errp)
 {
-    ChardevVC *vc = backend->u.vc.data;
-    ChardevCommon *common = qapi_ChardevVC_base(vc);
-    Chardev *chr;
-
     if (nb_vcs == MAX_VCS) {
         error_setg(errp, "Maximum number of consoles reached");
-        return NULL;
-    }
-
-    chr = qemu_chr_alloc(&gd_vc_driver, common, errp);
-    if (!chr) {
-        return NULL;
+        return;
     }
 
     vcs[nb_vcs++] = chr;
@@ -1739,16 +1733,27 @@ static Chardev *vc_init(const CharDriver *driver,
      * stage, so defer OPENED events until they are fully initialized
      */
     *be_opened = false;
-
-    return chr;
 }
 
-static const CharDriver gd_vc_driver = {
+static void char_gd_vc_class_init(ObjectClass *oc, void *data)
+{
+    ChardevClass *cc = CHARDEV_CLASS(oc);
+
+    cc->open = gd_vc_open;
+    cc->chr_write = gd_vc_chr_write;
+    cc->chr_set_echo = gd_vc_chr_set_echo;
+}
+
+static const TypeInfo char_gd_vc_type_info = {
+    .name = TYPE_CHARDEV_VC,
+    .parent = TYPE_CHARDEV,
     .instance_size = sizeof(VCChardev),
+    .class_init = char_gd_vc_class_init,
+};
+
+static const CharDriver gd_vc_driver = {
     .kind = CHARDEV_BACKEND_KIND_VC,
-    .parse = qemu_chr_parse_vc, .create = vc_init,
-    .chr_write = gd_vc_chr_write,
-    .chr_set_echo = gd_vc_chr_set_echo,
+    .parse = qemu_chr_parse_vc,
 };
 
 static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
@@ -1786,7 +1791,7 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     GtkWidget *box;
     GtkWidget *scrollbar;
     GtkAdjustment *vadjustment;
-    VCChardev *vcd = (VCChardev *)chr;
+    VCChardev *vcd = VC_CHARDEV(chr);
 
     vc->s = s;
     vc->vte.echo = vcd->echo;
@@ -2347,7 +2352,7 @@ void early_gtk_display_init(int opengl)
     }
 
 #if defined(CONFIG_VTE)
-    /* overwrite the console.c vc driver */
+    type_register(&char_gd_vc_type_info);
     register_char_driver(&gd_vc_driver);
 #endif
 }
