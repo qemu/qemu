@@ -1659,9 +1659,10 @@ static void pty_chr_state(Chardev *chr, int connected)
     }
 }
 
-static void pty_chr_free(struct Chardev *chr)
+static void char_pty_finalize(Object *obj)
 {
-    PtyChardev *s = PTY_CHARDEV(chr);
+    Chardev *chr = CHARDEV(obj);
+    PtyChardev *s = PTY_CHARDEV(obj);
 
     qemu_mutex_lock(&chr->chr_write_lock);
     pty_chr_state(chr, 0);
@@ -1718,13 +1719,13 @@ static void char_pty_class_init(ObjectClass *oc, void *data)
     cc->chr_write = char_pty_chr_write;
     cc->chr_update_read_handler = pty_chr_update_read_handler;
     cc->chr_add_watch = pty_chr_add_watch;
-    cc->chr_free = pty_chr_free;
 }
 
 static const TypeInfo char_pty_type_info = {
     .name = TYPE_CHARDEV_PTY,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(PtyChardev),
+    .instance_finalize = char_pty_finalize,
     .class_init = char_pty_class_init,
 };
 
