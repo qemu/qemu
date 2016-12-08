@@ -2110,16 +2110,17 @@
 # @nfs: Since 2.8
 # @replication: Since 2.8
 # @ssh: Since 2.8
+# @iscsi: Since 2.9
 #
 # Since: 2.0
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
-            'host_device', 'http', 'https', 'luks', 'nbd', 'nfs', 'null-aio',
-            'null-co', 'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
-            'replication', 'ssh', 'vdi', 'vhdx', 'vmdk', 'vpc',
-            'vvfat' ] }
+            'host_device', 'http', 'https', 'iscsi', 'luks', 'nbd', 'nfs',
+            'null-aio', 'null-co', 'parallels', 'qcow', 'qcow2', 'qed',
+            'quorum', 'raw', 'replication', 'ssh', 'vdi', 'vhdx', 'vmdk',
+            'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile:
@@ -2601,6 +2602,70 @@
             '*logfile': 'str' } }
 
 ##
+# @IscsiTransport:
+#
+# An enumeration of libiscsi transport types
+#
+# Since: 2.9
+##
+{ 'enum': 'IscsiTransport',
+  'data': [ 'tcp', 'iser' ] }
+
+##
+# @IscsiHeaderDigest:
+#
+# An enumeration of header digests supported by libiscsi
+#
+# Since: 2.9
+##
+{ 'enum': 'IscsiHeaderDigest',
+  'prefix': 'QAPI_ISCSI_HEADER_DIGEST',
+  'data': [ 'crc32c', 'none', 'crc32c-none', 'none-crc32c' ] }
+
+##
+# @BlockdevOptionsIscsi:
+#
+# @transport        The iscsi transport type
+#
+# @portal           The address of the iscsi portal
+#
+# @target           The target iqn name
+#
+# @lun              #optional LUN to connect to. Defaults to 0.
+#
+# @user             #optional User name to log in with. If omitted, no CHAP
+#                   authentication is performed.
+#
+# @password-secret  #optional The ID of a QCryptoSecret object providing
+#                   the password for the login. This option is required if
+#                   @user is specified.
+#
+# @initiator-name   #optional The iqn name we want to identify to the target
+#                   as. If this option is not specified, an initiator name is
+#                   generated automatically.
+#
+# @header-digest    #optional The desired header digest. Defaults to
+#                   none-crc32c.
+#
+# @timeout          #optional Timeout in seconds after which a request will
+#                   timeout. 0 means no timeout and is the default.
+#
+# Driver specific block device options for iscsi
+#
+# Since: 2.9
+##
+{ 'struct': 'BlockdevOptionsIscsi',
+  'data': { 'transport': 'IscsiTransport',
+            'portal': 'str',
+            'target': 'str',
+            '*lun': 'int',
+            '*user': 'str',
+            '*password-secret': 'str',
+            '*initiator-name': 'str',
+            '*header-digest': 'IscsiHeaderDigest',
+            '*timeout': 'int' } }
+
+##
 # @ReplicationMode:
 #
 # An enumeration of replication modes.
@@ -2786,7 +2851,7 @@
       'host_device':'BlockdevOptionsFile',
       'http':       'BlockdevOptionsCurl',
       'https':      'BlockdevOptionsCurl',
-# TODO iscsi: Wait for structured options
+      'iscsi':      'BlockdevOptionsIscsi',
       'luks':       'BlockdevOptionsLUKS',
       'nbd':        'BlockdevOptionsNbd',
       'nfs':        'BlockdevOptionsNfs',
