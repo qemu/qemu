@@ -2779,9 +2779,10 @@ static void udp_chr_update_read_handler(Chardev *chr,
     }
 }
 
-static void udp_chr_free(Chardev *chr)
+static void char_udp_finalize(Object *obj)
 {
-    UdpChardev *s = UDP_CHARDEV(chr);
+    Chardev *chr = CHARDEV(obj);
+    UdpChardev *s = UDP_CHARDEV(obj);
 
     remove_fd_in_watch(chr);
     if (s->ioc) {
@@ -4975,13 +4976,13 @@ static void char_udp_class_init(ObjectClass *oc, void *data)
     cc->open = qmp_chardev_open_udp;
     cc->chr_write = udp_chr_write;
     cc->chr_update_read_handler = udp_chr_update_read_handler;
-    cc->chr_free = udp_chr_free;
 }
 
 static const TypeInfo char_udp_type_info = {
     .name = TYPE_CHARDEV_UDP,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(UdpChardev),
+    .instance_finalize = char_udp_finalize,
     .class_init = char_udp_class_init,
 };
 
