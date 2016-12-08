@@ -51,8 +51,6 @@
 #define OPC_BUF_SIZE 640
 #define OPC_MAX_SIZE (OPC_BUF_SIZE - MAX_OP_PER_INSTR)
 
-#define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
-
 #define CPU_TEMP_BUF_NLONGS 128
 
 /* Default target word size to pointer size.  */
@@ -606,33 +604,33 @@ typedef struct TCGTempSet {
 #define SYNC_ARG  1
 typedef uint16_t TCGLifeData;
 
-/* The layout here is designed to avoid crossing of a 32-bit boundary.
-   If we do so, gcc adds padding, expanding the size to 12.  */
+/* The layout here is designed to avoid a bitfield crossing of
+   a 32-bit boundary, which would cause GCC to add extra padding.  */
 typedef struct TCGOp {
     TCGOpcode opc   : 8;        /*  8 */
 
-    /* Index of the prev/next op, or 0 for the end of the list.  */
-    unsigned prev   : 10;       /* 18 */
-    unsigned next   : 10;       /* 28 */
-
     /* The number of out and in parameter for a call.  */
-    unsigned calli  : 4;        /* 32 */
-    unsigned callo  : 2;        /* 34 */
+    unsigned calli  : 4;        /* 12 */
+    unsigned callo  : 2;        /* 14 */
+    unsigned        : 2;        /* 16 */
 
-    /* Index of the arguments for this op, or 0 for zero-operand ops.  */
-    unsigned args   : 14;       /* 48 */
+    /* Index of the prev/next op, or 0 for the end of the list.  */
+    unsigned prev   : 16;       /* 32 */
+    unsigned next   : 16;       /* 48 */
 
     /* Lifetime data of the operands.  */
     unsigned life   : 16;       /* 64 */
+
+    /* Arguments for the opcode.  */
+    TCGArg args[MAX_OPC_PARAM];
 } TCGOp;
+
+/* Make sure that we don't expand the structure without noticing.  */
+QEMU_BUILD_BUG_ON(sizeof(TCGOp) != 8 + sizeof(TCGArg) * MAX_OPC_PARAM);
 
 /* Make sure operands fit in the bitfields above.  */
 QEMU_BUILD_BUG_ON(NB_OPS > (1 << 8));
-QEMU_BUILD_BUG_ON(OPC_BUF_SIZE > (1 << 10));
-QEMU_BUILD_BUG_ON(OPPARAM_BUF_SIZE > (1 << 14));
-
-/* Make sure that we don't overflow 64 bits without noticing.  */
-QEMU_BUILD_BUG_ON(sizeof(TCGOp) > 8);
+QEMU_BUILD_BUG_ON(OPC_BUF_SIZE > (1 << 16));
 
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
@@ -682,7 +680,6 @@ struct TCGContext {
 #endif
 
     int gen_next_op_idx;
-    int gen_next_parm_idx;
 
     /* Code generation.  Note that we specifically do not use tcg_insn_unit
        here, because there's too much arithmetic throughout that relies
@@ -720,7 +717,6 @@ struct TCGContext {
     TCGTemp *reg_to_temp[TCG_TARGET_NB_REGS];
 
     TCGOp gen_op_buf[OPC_BUF_SIZE];
-    TCGArg gen_opparam_buf[OPPARAM_BUF_SIZE];
 
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
@@ -731,8 +727,7 @@ extern bool parallel_cpus;
 
 static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
 {
-    int op_argi = tcg_ctx.gen_op_buf[op_idx].args;
-    tcg_ctx.gen_opparam_buf[op_argi + arg] = v;
+    tcg_ctx.gen_op_buf[op_idx].args[arg] = v;
 }
 
 /* The number of opcodes emitted so far.  */

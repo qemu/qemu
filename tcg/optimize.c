@@ -576,7 +576,7 @@ void tcg_optimize(TCGContext *s)
         TCGArg tmp;
 
         TCGOp * const op = &s->gen_op_buf[oi];
-        TCGArg * const args = &s->gen_opparam_buf[op->args];
+        TCGArg * const args = op->args;
         TCGOpcode opc = op->opc;
         const TCGOpDef *def = &tcg_op_defs[opc];
 
@@ -1184,7 +1184,7 @@ void tcg_optimize(TCGContext *s)
                 uint64_t b = ((uint64_t)bh << 32) | bl;
                 TCGArg rl, rh;
                 TCGOp *op2 = tcg_op_insert_before(s, op, INDEX_op_movi_i32, 2);
-                TCGArg *args2 = &s->gen_opparam_buf[op2->args];
+                TCGArg *args2 = op2->args;
 
                 if (opc == INDEX_op_add2_i32) {
                     a += b;
@@ -1210,7 +1210,7 @@ void tcg_optimize(TCGContext *s)
                 uint64_t r = (uint64_t)a * b;
                 TCGArg rl, rh;
                 TCGOp *op2 = tcg_op_insert_before(s, op, INDEX_op_movi_i32, 2);
-                TCGArg *args2 = &s->gen_opparam_buf[op2->args];
+                TCGArg *args2 = op2->args;
 
                 rl = args[0];
                 rh = args[1];

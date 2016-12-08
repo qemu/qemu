@@ -46,107 +46,78 @@ extern TCGv_i32 TCGV_HIGH_link_error(TCGv_i64);
    Up to and including filling in the forward link immediately.  We'll do
    proper termination of the end of the list after we finish translation.  */
 
-static void tcg_emit_op(TCGContext *ctx, TCGOpcode opc, int args)
+static inline TCGOp *tcg_emit_op(TCGContext *ctx, TCGOpcode opc)
 {
     int oi = ctx->gen_next_op_idx;
     int ni = oi + 1;
     int pi = oi - 1;
+    TCGOp *op = &ctx->gen_op_buf[oi];
 
     tcg_debug_assert(oi < OPC_BUF_SIZE);
     ctx->gen_op_buf[0].prev = oi;
     ctx->gen_next_op_idx = ni;
 
-    ctx->gen_op_buf[oi] = (TCGOp){
-        .opc = opc,
-        .args = args,
-        .prev = pi,
-        .next = ni
-    };
+    memset(op, 0, offsetof(TCGOp, args));
+    op->opc = opc;
+    op->prev = pi;
+    op->next = ni;
+
+    return op;
 }
 
 void tcg_gen_op1(TCGContext *ctx, TCGOpcode opc, TCGArg a1)
 {
-    int pi = ctx->gen_next_parm_idx;
-
-    tcg_debug_assert(pi + 1 <= OPPARAM_BUF_SIZE);
-    ctx->gen_next_parm_idx = pi + 1;
-    ctx->gen_opparam_buf[pi] = a1;
-
-    tcg_emit_op(ctx, opc, pi);
+    TCGOp *op = tcg_emit_op(ctx, opc);
+    op->args[0] = a1;
 }
 
 void tcg_gen_op2(TCGContext *ctx, TCGOpcode opc, TCGArg a1, TCGArg a2)
 {
-    int pi = ctx->gen_next_parm_idx;
-
-    tcg_debug_assert(pi + 2 <= OPPARAM_BUF_SIZE);
-    ctx->gen_next_parm_idx = pi + 2;
-    ctx->gen_opparam_buf[pi + 0] = a1;
-    ctx->gen_opparam_buf[pi + 1] = a2;
-
-    tcg_emit_op(ctx, opc, pi);
+    TCGOp *op = tcg_emit_op(ctx, opc);
+    op->args[0] = a1;
+    op->args[1] = a2;
 }
 
 void tcg_gen_op3(TCGContext *ctx, TCGOpcode opc, TCGArg a1,
                  TCGArg a2, TCGArg a3)
 {
-    int pi = ctx->gen_next_parm_idx;
-
-    tcg_debug_assert(pi + 3 <= OPPARAM_BUF_SIZE);
-    ctx->gen_next_parm_idx = pi + 3;
-    ctx->gen_opparam_buf[pi + 0] = a1;
-    ctx->gen_opparam_buf[pi + 1] = a2;
-    ctx->gen_opparam_buf[pi + 2] = a3;
-
-    tcg_emit_op(ctx, opc, pi);
+    TCGOp *op = tcg_emit_op(ctx, opc);
+    op->args[0] = a1;
+    op->args[1] = a2;
+    op->args[2] = a3;
 }
 
 void tcg_gen_op4(TCGContext *ctx, TCGOpcode opc, TCGArg a1,
                  TCGArg a2, TCGArg a3, TCGArg a4)
 {
-    int pi = ctx->gen_next_parm_idx;
-
-    tcg_debug_assert(pi + 4 <= OPPARAM_BUF_SIZE);
-    ctx->gen_next_parm_idx = pi + 4;
-    ctx->gen_opparam_buf[pi + 0] = a1;
-    ctx->gen_opparam_buf[pi + 1] = a2;
-    ctx->gen_opparam_buf[pi + 2] = a3;
-    ctx->gen_opparam_buf[pi + 3] = a4;
-
-    tcg_emit_op(ctx, opc, pi);
+    TCGOp *op = tcg_emit_op(ctx, opc);
+    op->args[0] = a1;
+    op->args[1] = a2;
+    op->args[2] = a3;
+    op->args[3] = a4;
 }
 
 void tcg_gen_op5(TCGContext *ctx, TCGOpcode opc, TCGArg a1,
                  TCGArg a2, TCGArg a3, TCGArg a4, TCGArg a5)
 {
-    int pi = ctx->gen_next_parm_idx;
-
-    tcg_debug_assert(pi + 5 <= OPPARAM_BUF_SIZE);
-    ctx->gen_next_parm_idx = pi + 5;
-    ctx->gen_opparam_buf[pi + 0] = a1;
-    ctx->gen_opparam_buf[pi + 1] = a2;
-    ctx->gen_opparam_buf[pi + 2] = a3;
-    ctx->gen_opparam_buf[pi + 3] = a4;
-    ctx->gen_opparam_buf[pi + 4] = a5;
-
-    tcg_emit_op(ctx, opc, pi);
+    TCGOp *op = tcg_emit_op(ctx, opc);
+    op->args[0] = a1;
+    op->args[1] = a2;
+    op->args[2] = a3;
+    op->args[3] = a4;
+    op->args[4] = a5;
 }
 
 void tcg_gen_op6(TCGContext *ctx, TCGOpcode opc, TCGArg a1, TCGArg a2,
                  TCGArg a3, TCGArg a4, TCGArg a5, TCGArg a6)
 {
-    int pi = ctx->gen_next_parm_idx;
-
-    tcg_debug_assert(pi + 6 <= OPPARAM_BUF_SIZE);
-    ctx->gen_next_parm_idx = pi + 6;
-    ctx->gen_opparam_buf[pi + 0] = a1;
-    ctx->gen_opparam_buf[pi + 1] = a2;
-    ctx->gen_opparam_buf[pi + 2] = a3;
-    ctx->gen_opparam_buf[pi + 3] = a4;
-    ctx->gen_opparam_buf[pi + 4] = a5;
-    ctx->gen_opparam_buf[pi + 5] = a6;
-
-    tcg_emit_op(ctx, opc, pi);
+    TCGOp *op = tcg_emit_op(ctx, opc);
+    op->args[0] = a1;
+    op->args[1] = a2;
+    op->args[2] = a3;
+    op->args[3] = a4;
+    op->args[4] = a5;
+    op->args[5] = a6;
 }
 
 void tcg_gen_mb(TCGBar mb_type)
