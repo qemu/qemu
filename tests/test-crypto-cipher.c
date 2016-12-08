@@ -165,6 +165,125 @@ static QCryptoCipherTestData test_data[] = {
             "ffd29f1bb5596ad94ea2d8e6196b7f09"
             "30d8ed0bf2773af36dd82a6280c20926",
     },
+#if defined(CONFIG_NETTLE) || defined(CONFIG_GCRYPT)
+    {
+        /* Borrowed from linux-kernel crypto/testmgr.h */
+        .path = "/crypto/cipher/3des-cbc",
+        .alg = QCRYPTO_CIPHER_ALG_3DES,
+        .mode = QCRYPTO_CIPHER_MODE_CBC,
+        .key =
+            "e9c0ff2e760b6424444d995a12d640c0"
+            "eac284e81495dbe8",
+        .iv =
+            "7d3388930f93b242",
+        .plaintext =
+            "6f54206f614d796e5320636565727374"
+            "54206f6f4d206e612079655372637465"
+            "20736f54206f614d796e532063656572"
+            "737454206f6f4d206e61207965537263"
+            "746520736f54206f614d796e53206365"
+            "6572737454206f6f4d206e6120796553"
+            "7263746520736f54206f614d796e5320"
+            "63656572737454206f6f4d206e610a79",
+        .ciphertext =
+            "0e2db6973c5633f4671721c76e8ad549"
+            "74b34905c51cd0ed12565c5396b6007d"
+            "9048fcf58d2939cc8ad5351836234ed7"
+            "76d1da0c9467bb048bf2036ca8cfb6ea"
+            "226447aa8f7513bf9fc2c3f0c956c57a"
+            "71632e897b1e12cae25fafd8a4f8c97a"
+            "d6f92131624445a6d6bc5ad32d5443cc"
+            "9ddea570e942458a6bfab19113b0d919",
+    },
+    {
+        /* Borrowed from linux-kernel crypto/testmgr.h */
+        .path = "/crypto/cipher/3des-ecb",
+        .alg = QCRYPTO_CIPHER_ALG_3DES,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key =
+            "0123456789abcdef5555555555555555"
+            "fedcba9876543210",
+        .plaintext =
+            "736f6d6564617461",
+        .ciphertext =
+            "18d748e563620572",
+    },
+    {
+        /* Borrowed from linux-kernel crypto/testmgr.h */
+        .path = "/crypto/cipher/3des-ctr",
+        .alg = QCRYPTO_CIPHER_ALG_3DES,
+        .mode = QCRYPTO_CIPHER_MODE_CTR,
+        .key =
+            "9cd6f39cb95a67005a67002dceeb2dce"
+            "ebb45172b451721f",
+        .iv =
+            "ffffffffffffffff",
+        .plaintext =
+            "05ec77fb42d559208b128669f05bcf56"
+            "39ad349f66ea7dc448d3ba0db118e34a"
+            "fe41285c278e11856cf75ec2553ca00b"
+            "9265e970db4fd6b900b41fe649fd442f"
+            "533a8d149863ca5dc1a833a70e9178ec"
+            "77de42d5bc078b12e54cf05b22563980"
+            "6b9f66c950c4af36ba0d947fe34add41"
+            "28b31a8e11f843f75e21553c876e9265"
+            "cc57dba235b900eb72e649d0442fb619"
+            "8d14ff46ca5d24a8339a6d9178c377de"
+            "a108bc07ee71e54cd75b22b51c806bf2"
+            "45c9503baf369960947fc64adda40fb3"
+            "1aed74f8432a5e218813876ef158cc57"
+            "3ea2359c67eb72c549d0bb02b619e04b"
+            "ff46295d248f169a6df45fc3aa3da108"
+            "937aee71d84cd7be01b51ce74ef2452c"
+            "503b82159960cb52c6a930a40f9679ed"
+            "74df432abd048813fa4df15823573e81"
+            "689c67ce51c5ac37bb02957ce04bd246"
+            "29b01b8f16f940f45f26aa3d846f937a"
+            "cd54d8a30abe01e873e74ed1452cb71e"
+            "8215fc47cb5225a9309b629679c074df"
+            "a609bd04ef76fa4dd458238a1d8168f3"
+            "5ace5138ac379e61957cc74bd2a50cb0"
+            "1be275f9402b5f268910846ff659cd54"
+            "3fa30a9d64e873da4ed1b803b71ee148"
+            "fc472e52258c179b62f55cc0ab32a609"
+            "907bef76d94dd4bf068a1de44ff35a2d"
+            "5138836a9e61c853c7ae31a50c977ee2"
+            "75dc402bb2058910fb42f65920543f86"
+            "699d64cf56daad34b803ea7de148d347",
+        .ciphertext =
+            "07c20820721f49ef19cd6f3253052215"
+            "a2852bdb85d2d8b9dd0d1b45cb6911d4"
+            "eabeb2455d0caebea0c127ac659f537e"
+            "afc21bb5b86d360c25c0f86d0b2901da"
+            "1378dc89121243faf612ef8d87627883"
+            "e2be41204c6d351bd10c30cfe2de2b03"
+            "bf4573d4e55995d1b39b276297bdde7f"
+            "a4d23980aa5023f074883da86a18793b"
+            "c4966c8d2240926ed6ad2a1fde63c0e7"
+            "07f72df7b5f3f0cc017c2a9bc210caaa"
+            "fd2b3fc5f3f6fc9b45db53e45bf3c97b"
+            "8e52ffc802b8ac9da10039da3d2d0e01"
+            "097d8d5ebe53b9b08ee7e2966ab278ea"
+            "de238ba5fa5ce3dabf8e316a55d16ab2"
+            "b5466fa5f0eeba1f9f98b0664fd03fa9"
+            "df5f58c4f4ff755c403a097e6e1c97d4"
+            "cce7e771cf0b150871fa0797cde6ca1d"
+            "14280ccf99137af1ebfafa9207de1da1"
+            "d33669fe514d9f2e83374f1f4830ed04"
+            "4da4ef3aca76f41c418f6337782f86a6"
+            "ef417ed2af88ab675271c38ef8269372"
+            "aad60ee70b46b13ab408a9a8a0cf200c"
+            "52bc8b0556b2bc319b74b92929969a50"
+            "dc45dc1aeb0c64d4d3057e5955c3f490"
+            "c2abf89b8adacea1c3f4ad77dd44c8ac"
+            "a3f1c9d2195cb0caa234c1f76cfdac65"
+            "32dc48c4f2006b77f17d76acc031632a"
+            "a53a62c891b10365cb43d106dfc367bc"
+            "dce0cd35ce4965a0527ba70d07a91bb0"
+            "407772c2ea0e3a7846b991b6e73d5142"
+            "fd51b0c62c6313785ceefccfc4700034",
+    },
+#endif
     {
         /* RFC 2144, Appendix B.1 */
         .path = "/crypto/cipher/cast5-128",

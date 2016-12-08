@@ -28,6 +28,7 @@ static size_t alg_key_len[QCRYPTO_CIPHER_ALG__MAX] = {
     [QCRYPTO_CIPHER_ALG_AES_192] = 24,
     [QCRYPTO_CIPHER_ALG_AES_256] = 32,
     [QCRYPTO_CIPHER_ALG_DES_RFB] = 8,
+    [QCRYPTO_CIPHER_ALG_3DES] = 24,
     [QCRYPTO_CIPHER_ALG_CAST5_128] = 16,
     [QCRYPTO_CIPHER_ALG_SERPENT_128] = 16,
     [QCRYPTO_CIPHER_ALG_SERPENT_192] = 24,
@@ -42,6 +43,7 @@ static size_t alg_block_len[QCRYPTO_CIPHER_ALG__MAX] = {
     [QCRYPTO_CIPHER_ALG_AES_192] = 16,
     [QCRYPTO_CIPHER_ALG_AES_256] = 16,
     [QCRYPTO_CIPHER_ALG_DES_RFB] = 8,
+    [QCRYPTO_CIPHER_ALG_3DES] = 8,
     [QCRYPTO_CIPHER_ALG_CAST5_128] = 8,
     [QCRYPTO_CIPHER_ALG_SERPENT_128] = 16,
     [QCRYPTO_CIPHER_ALG_SERPENT_192] = 16,
@@ -107,8 +109,9 @@ qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
     }
 
     if (mode == QCRYPTO_CIPHER_MODE_XTS) {
-        if (alg == QCRYPTO_CIPHER_ALG_DES_RFB) {
-            error_setg(errp, "XTS mode not compatible with DES-RFB");
+        if (alg == QCRYPTO_CIPHER_ALG_DES_RFB
+                || alg == QCRYPTO_CIPHER_ALG_3DES) {
+            error_setg(errp, "XTS mode not compatible with DES-RFB/3DES");
             return false;
         }
         if (nkey % 2) {
