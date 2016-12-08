@@ -1422,10 +1422,10 @@ static void qemu_chr_set_echo_stdio(Chardev *chr, bool echo)
     tcsetattr (0, TCSANOW, &tty);
 }
 
-static void qemu_chr_free_stdio(struct Chardev *chr)
+static void char_stdio_finalize(Object *obj)
 {
     term_exit();
-    fd_chr_free(chr);
+    fd_chr_free(CHARDEV(chr));
 }
 
 static void qemu_chr_open_stdio(Chardev *chr,
@@ -3859,7 +3859,6 @@ static void char_stdio_class_init(ObjectClass *oc, void *data)
     cc->chr_free = win_stdio_free;
 #else
     cc->chr_set_echo = qemu_chr_set_echo_stdio;
-    cc->chr_free = qemu_chr_free_stdio;
 #endif
 }
 
@@ -3869,6 +3868,7 @@ static const TypeInfo char_stdio_type_info = {
     .parent = TYPE_CHARDEV_WIN_STDIO,
 #else
     .parent = TYPE_CHARDEV_FD,
+    .instance_finalize = char_stdio_finalize,
 #endif
     .class_init = char_stdio_class_init,
 };
