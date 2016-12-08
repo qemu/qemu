@@ -111,6 +111,7 @@ static void char_testdev_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_TESTDEV;
     cc->chr_write = testdev_chr_write;
 }
 
@@ -123,11 +124,6 @@ static const TypeInfo char_testdev_type_info = {
 
 static void register_types(void)
 {
-    static const CharDriver driver = {
-        .kind = CHARDEV_BACKEND_KIND_TESTDEV,
-    };
-
-    register_char_driver(&driver);
     type_register_static(&char_testdev_type_info);
 }
 

@@ -88,8 +88,6 @@ typedef struct CharBackend {
     int fe_open;
 } CharBackend;
 
-typedef struct CharDriver CharDriver;
-
 struct Chardev {
     Object parent_obj;
 
@@ -476,6 +474,8 @@ typedef struct ChardevClass {
     ObjectClass parent_class;
 
     bool internal; /* TODO: eventually use TYPE_USER_CREATABLE */
+    ChardevBackendKind kind;
+    void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 
     void (*open)(Chardev *chr, ChardevBackend *backend,
                  bool *be_opened, Error **errp);
@@ -495,16 +495,8 @@ typedef struct ChardevClass {
     void (*chr_set_fe_open)(Chardev *chr, int fe_open);
 } ChardevClass;
 
-struct CharDriver {
-    ChardevBackendKind kind;
-    const char *alias;
-    void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
-};
-
 Chardev *qemu_chardev_new(const char *id, const char *typename,
                           ChardevBackend *backend, Error **errp);
-
-void register_char_driver(const CharDriver *driver);
 
 extern int term_escape_char;
 

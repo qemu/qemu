@@ -560,16 +560,13 @@ static void null_chr_open(Chardev *chr,
     *be_opened = false;
 }
 
-static const CharDriver null_driver = {
-    .kind = CHARDEV_BACKEND_KIND_NULL,
-};
-
 static void char_null_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->open = null_chr_open;
     cc->chr_write = null_chr_write;
+    cc->kind = CHARDEV_BACKEND_KIND_NULL;
 }
 
 static const TypeInfo char_null_type_info = {
@@ -1707,14 +1704,11 @@ static void char_pty_open(Chardev *chr,
     *be_opened = false;
 }
 
-static const CharDriver pty_driver = {
-    .kind = CHARDEV_BACKEND_KIND_PTY,
-};
-
 static void char_pty_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_PTY;
     cc->open = char_pty_open;
     cc->chr_write = char_pty_chr_write;
     cc->chr_update_read_handler = pty_chr_update_read_handler;
@@ -2457,14 +2451,11 @@ static void qemu_chr_open_win_con(Chardev *chr,
     qemu_chr_open_win_file(chr, GetStdHandle(STD_OUTPUT_HANDLE));
 }
 
-static const CharDriver console_driver = {
-    .kind = CHARDEV_BACKEND_KIND_CONSOLE,
-};
-
 static void char_console_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_CONSOLE;
     cc->open = qemu_chr_open_win_con;
 }
 
@@ -3841,15 +3832,12 @@ static void qemu_chr_parse_stdio(QemuOpts *opts, ChardevBackend *backend,
     stdio->signal = qemu_opt_get_bool(opts, "signal", true);
 }
 
-static const CharDriver stdio_driver = {
-    .kind = CHARDEV_BACKEND_KIND_STDIO,
-    .parse = qemu_chr_parse_stdio,
-};
-
 static void char_stdio_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_STDIO;
+    cc->parse = qemu_chr_parse_stdio;
     cc->open = qemu_chr_open_stdio;
 #ifdef _WIN32
     cc->chr_write = win_stdio_write;
@@ -3919,15 +3907,12 @@ static void qemu_chr_parse_pipe(QemuOpts *opts, ChardevBackend *backend,
     dev->device = g_strdup(device);
 }
 
-static const CharDriver pipe_driver = {
-    .kind = CHARDEV_BACKEND_KIND_PIPE,
-    .parse = qemu_chr_parse_pipe,
-};
-
 static void char_pipe_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_PIPE;
+    cc->parse = qemu_chr_parse_pipe;
     cc->open = qemu_chr_open_pipe;
 }
 
@@ -3957,15 +3942,12 @@ static void qemu_chr_parse_ringbuf(QemuOpts *opts, ChardevBackend *backend,
     }
 }
 
-static const CharDriver ringbuf_driver = {
-    .kind = CHARDEV_BACKEND_KIND_RINGBUF,
-    .parse = qemu_chr_parse_ringbuf,
-};
-
 static void char_ringbuf_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_RINGBUF;
+    cc->parse = qemu_chr_parse_ringbuf;
     cc->open = qemu_chr_open_ringbuf;
     cc->chr_write = ringbuf_chr_write;
 }
@@ -3979,14 +3961,17 @@ static const TypeInfo char_ringbuf_type_info = {
 };
 
 /* Bug-compatibility: */
-static const CharDriver memory_driver = {
-    .kind = CHARDEV_BACKEND_KIND_MEMORY,
-    .parse = qemu_chr_parse_ringbuf,
-};
+static void char_memory_class_init(ObjectClass *oc, void *data)
+{
+    ChardevClass *cc = CHARDEV_CLASS(oc);
+
+    cc->kind = CHARDEV_BACKEND_KIND_MEMORY;
+}
 
 static const TypeInfo char_memory_type_info = {
     .name = TYPE_CHARDEV_MEMORY,
     .parent = TYPE_CHARDEV_RINGBUF,
+    .class_init = char_memory_class_init,
 };
 
 static void qemu_chr_parse_mux(QemuOpts *opts, ChardevBackend *backend,
@@ -4004,15 +3989,12 @@ static void qemu_chr_parse_mux(QemuOpts *opts, ChardevBackend *backend,
     mux->chardev = g_strdup(chardev);
 }
 
-static const CharDriver mux_driver = {
-    .kind = CHARDEV_BACKEND_KIND_MUX,
-    .parse = qemu_chr_parse_mux,
-};
-
 static void char_mux_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_MUX;
+    cc->parse = qemu_chr_parse_mux;
     cc->open = qemu_chr_open_mux;
     cc->chr_write = mux_chr_write;
     cc->chr_accept_input = mux_chr_accept_input;
@@ -4154,18 +4136,91 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     }
 }
 
-static const CharDriver *backends[CHARDEV_BACKEND_KIND__MAX];
-
-void register_char_driver(const CharDriver *driver)
+static const ChardevClass *char_get_class(const char *driver, Error **errp)
 {
-    backends[driver->kind] = driver;
+    ObjectClass *oc;
+    const ChardevClass *cc;
+    char *typename = g_strdup_printf("chardev-%s", driver);
+
+    oc = object_class_by_name(typename);
+    g_free(typename);
+
+    if (!object_class_dynamic_cast(oc, TYPE_CHARDEV)) {
+        error_setg(errp, "'%s' is not a valid char driver name", driver);
+        return NULL;
+    }
+
+    if (object_class_is_abstract(oc)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
+                   "abstract device type");
+        return NULL;
+    }
+
+    cc = CHARDEV_CLASS(oc);
+    if (cc->internal) {
+        error_setg(errp, "'%s' is not a valid char driver name", driver);
+        return NULL;
+    }
+
+    return cc;
+}
+
+static const struct ChardevAlias {
+    const char *typename;
+    const char *alias;
+} chardev_alias_table[] = {
+#ifdef HAVE_CHARDEV_PARPORT
+    { "parallel", "parport" },
+#endif
+#ifdef HAVE_CHARDEV_SERIAL
+    { "serial", "tty" },
+#endif
+};
+
+typedef struct ChadevClassFE {
+    void (*fn)(const char *name, void *opaque);
+    void *opaque;
+} ChadevClassFE;
+
+static void
+chardev_class_foreach(ObjectClass *klass, void *opaque)
+{
+    ChadevClassFE *fe = opaque;
+
+    assert(g_str_has_prefix(object_class_get_name(klass), "chardev-"));
+    if (CHARDEV_CLASS(klass)->internal) {
+        return;
+    }
+
+    fe->fn(object_class_get_name(klass) + 8, fe->opaque);
+}
+
+static void
+chardev_name_foreach(void (*fn)(const char *name, void *opaque), void *opaque)
+{
+    ChadevClassFE fe = { .fn = fn, .opaque = opaque };
+    int i;
+
+    object_class_foreach(chardev_class_foreach, TYPE_CHARDEV, false, &fe);
+
+    for (i = 0; i < ARRAY_SIZE(chardev_alias_table); i++) {
+        fn(chardev_alias_table[i].alias, opaque);
+    }
+}
+
+static void
+help_string_append(const char *name, void *opaque)
+{
+    GString *str = opaque;
+
+    g_string_append_printf(str, "\n%s", name);
 }
 
 Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
                                 Error **errp)
 {
     Error *local_err = NULL;
-    const CharDriver *cd = NULL;
+    const ChardevClass *cc;
     Chardev *chr;
     int i;
     ChardevReturn *ret = NULL;
@@ -4182,15 +4237,8 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
 
     if (is_help_option(name)) {
         GString *str = g_string_new("");
-        for (i = 0; i < ARRAY_SIZE(backends); i++) {
-            cd = backends[i];
-            if (cd) {
-                g_string_append_printf(str, "\n%s", ChardevBackendKind_lookup[cd->kind]);
-                if (cd->alias) {
-                    g_string_append_printf(str, "\n%s", cd->alias);
-                }
-            }
-        }
+
+        chardev_name_foreach(help_string_append, str);
 
         error_report("Available chardev backend types: %s", str->str);
         g_string_free(str, true);
@@ -4202,18 +4250,15 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
         goto err;
     }
 
-    for (i = 0; i < ARRAY_SIZE(backends); i++) {
-        cd = backends[i];
-        if (!cd) {
-            continue;
-        }
-        if (g_strcmp0(ChardevBackendKind_lookup[cd->kind], name) == 0 ||
-            g_strcmp0(cd->alias, name) == 0) {
+    for (i = 0; i < ARRAY_SIZE(chardev_alias_table); i++) {
+        if (g_strcmp0(chardev_alias_table[i].alias, name) == 0) {
+            name = chardev_alias_table[i].typename;
             break;
         }
     }
-    if (i == ARRAY_SIZE(backends)) {
-        error_setg(errp, "chardev: backend \"%s\" not found", name);
+
+    cc = char_get_class(name, errp);
+    if (cc == NULL) {
         goto err;
     }
 
@@ -4224,17 +4269,17 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
     }
 
     chr = NULL;
-    backend->type = cd->kind;
-    if (cd->parse) {
-        cd->parse(opts, backend, &local_err);
+    backend->type = cc->kind;
+    if (cc->parse) {
+        cc->parse(opts, backend, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             goto qapi_out;
         }
     } else {
-        ChardevCommon *cc = g_new0(ChardevCommon, 1);
-        qemu_chr_parse_common(opts, cc);
-        backend->u.null.data = cc; /* Any ChardevCommon member would work */
+        ChardevCommon *ccom = g_new0(ChardevCommon, 1);
+        qemu_chr_parse_common(opts, ccom);
+        backend->u.null.data = ccom; /* Any ChardevCommon member would work */
     }
 
     ret = qmp_chardev_add(bid ? bid : id, backend, errp);
@@ -4396,34 +4441,23 @@ ChardevInfoList *qmp_query_chardev(Error **errp)
     return chr_list;
 }
 
-static ChardevBackendInfoList *
-qmp_prepend_backend(ChardevBackendInfoList *list, const char *name)
+static void
+qmp_prepend_backend(const char *name, void *opaque)
 {
+    ChardevBackendInfoList **list = opaque;
     ChardevBackendInfoList *info = g_malloc0(sizeof(*info));
+
     info->value = g_malloc0(sizeof(*info->value));
     info->value->name = g_strdup(name);
-    info->next = list;
-    return info;
+    info->next = *list;
+    *list = info;
 }
 
 ChardevBackendInfoList *qmp_query_chardev_backends(Error **errp)
 {
     ChardevBackendInfoList *backend_list = NULL;
-    const CharDriver *c;
-    int i;
 
-    for (i = 0; i < ARRAY_SIZE(backends); i++) {
-        c = backends[i];
-        if (!c) {
-            continue;
-        }
-
-        backend_list = qmp_prepend_backend(backend_list,
-                                           ChardevBackendKind_lookup[c->kind]);
-        if (c->alias) {
-            backend_list = qmp_prepend_backend(backend_list, c->alias);
-        }
-    }
+    chardev_name_foreach(qmp_prepend_backend, &backend_list);
 
     return backend_list;
 }
@@ -4663,16 +4697,12 @@ static void qmp_chardev_open_parallel(Chardev *chr,
     qemu_chr_open_pp_fd(chr, fd, be_opened, errp);
 }
 
-static const CharDriver parallel_driver = {
-    .kind = CHARDEV_BACKEND_KIND_PARALLEL,
-    .alias = "parport",
-    .parse = qemu_chr_parse_parallel,
-};
-
 static void char_parallel_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_PARALLEL;
+    cc->parse = qemu_chr_parse_parallel;
     cc->open = qmp_chardev_open_parallel;
 #if defined(__linux__)
     cc->chr_write = null_chr_write;
@@ -4710,15 +4740,12 @@ static const TypeInfo char_parallel_type_info = {
 
 #endif /* WIN32 */
 
-static const CharDriver file_driver = {
-    .kind = CHARDEV_BACKEND_KIND_FILE,
-    .parse = qemu_chr_parse_file_out,
-};
-
 static void char_file_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_FILE;
+    cc->parse = qemu_chr_parse_file_out;
     cc->open = qmp_chardev_open_file;
 }
 
@@ -4734,16 +4761,12 @@ static const TypeInfo char_file_type_info = {
 
 #ifdef HAVE_CHARDEV_SERIAL
 
-static const CharDriver serial_driver = {
-    .kind = CHARDEV_BACKEND_KIND_SERIAL,
-    .alias = "tty",
-    .parse = qemu_chr_parse_serial,
-};
-
 static void char_serial_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_SERIAL;
+    cc->parse = qemu_chr_parse_serial;
     cc->open = qmp_chardev_open_serial;
 #ifndef _WIN32
     cc->chr_ioctl = tty_serial_ioctl;
@@ -4896,15 +4919,12 @@ error:
     }
 }
 
-static const CharDriver socket_driver = {
-    .kind = CHARDEV_BACKEND_KIND_SOCKET,
-    .parse = qemu_chr_parse_socket,
-};
-
 static void char_socket_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_SOCKET;
+    cc->parse = qemu_chr_parse_socket;
     cc->open = qmp_chardev_open_socket;
     cc->chr_wait_connected = tcp_chr_wait_connected;
     cc->chr_write = tcp_chr_write;
@@ -4951,15 +4971,12 @@ static void qmp_chardev_open_udp(Chardev *chr,
     *be_opened = false;
 }
 
-static const CharDriver udp_driver = {
-    .kind = CHARDEV_BACKEND_KIND_UDP,
-    .parse = qemu_chr_parse_udp,
-};
-
 static void char_udp_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_UDP;
+    cc->parse = qemu_chr_parse_udp;
     cc->open = qmp_chardev_open_udp;
     cc->chr_write = udp_chr_write;
     cc->chr_update_read_handler = udp_chr_update_read_handler;
@@ -4983,35 +5000,6 @@ void qemu_chr_set_feature(Chardev *chr,
                            CharDriverFeature feature)
 {
     return set_bit(feature, chr->features);
-}
-
-static const ChardevClass *char_get_class(const char *driver, Error **errp)
-{
-    ObjectClass *oc;
-    const ChardevClass *cc;
-    char *typename = g_strdup_printf("chardev-%s", driver);
-
-    oc = object_class_by_name(typename);
-    g_free(typename);
-
-    if (!object_class_dynamic_cast(oc, TYPE_CHARDEV)) {
-        error_setg(errp, "'%s' is not a valid char driver name", driver);
-        return NULL;
-    }
-
-    if (object_class_is_abstract(oc)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
-                   "abstract device type");
-        return NULL;
-    }
-
-    cc = CHARDEV_CLASS(oc);
-    if (cc->internal) {
-        error_setg(errp, "'%s' is not a valid char driver name", driver);
-        return NULL;
-    }
-
-    return cc;
 }
 
 Chardev *qemu_chardev_new(const char *id, const char *typename,
@@ -5109,34 +5097,6 @@ void qemu_chr_cleanup(void)
 
 static void register_types(void)
 {
-    static const struct {
-        const CharDriver *driver;
-        const TypeInfo *type;
-    } chardevs[] = {
-        { &null_driver, &char_null_type_info },
-        { &socket_driver, &char_socket_type_info },
-        { &udp_driver, &char_udp_type_info },
-        { &ringbuf_driver, &char_ringbuf_type_info },
-        { &file_driver, &char_file_type_info },
-        { &stdio_driver, &char_stdio_type_info },
-#ifdef HAVE_CHARDEV_SERIAL
-        { &serial_driver, &char_serial_type_info },
-#endif
-#ifdef HAVE_CHARDEV_PARPORT
-        { &parallel_driver, &char_parallel_type_info },
-#endif
-#ifdef HAVE_CHARDEV_PTY
-        { &pty_driver, &char_pty_type_info },
-#endif
-#ifdef _WIN32
-        { &console_driver, &char_console_type_info },
-#endif
-        { &pipe_driver, &char_pipe_type_info },
-        { &mux_driver, &char_mux_type_info },
-        { &memory_driver, &char_memory_type_info }
-    };
-    int i;
-
     type_register_static(&char_type_info);
 #ifndef _WIN32
     type_register_static(&char_fd_type_info);
@@ -5144,10 +5104,27 @@ static void register_types(void)
     type_register_static(&char_win_type_info);
     type_register_static(&char_win_stdio_type_info);
 #endif
-    for (i = 0; i < ARRAY_SIZE(chardevs); i++) {
-        type_register_static(chardevs[i].type);
-        register_char_driver(chardevs[i].driver);
-    }
+    type_register_static(&char_null_type_info);
+    type_register_static(&char_socket_type_info);
+    type_register_static(&char_udp_type_info);
+    type_register_static(&char_ringbuf_type_info);
+    type_register_static(&char_file_type_info);
+    type_register_static(&char_stdio_type_info);
+#ifdef HAVE_CHARDEV_SERIAL
+    type_register_static(&char_serial_type_info);
+#endif
+#ifdef HAVE_CHARDEV_PARPORT
+    type_register_static(&char_parallel_type_info);
+#endif
+#ifdef HAVE_CHARDEV_PTY
+    type_register_static(&char_pty_type_info);
+#endif
+#ifdef _WIN32
+    type_register_static(&char_console_type_info);
+#endif
+    type_register_static(&char_pipe_type_info);
+    type_register_static(&char_mux_type_info);
+    type_register_static(&char_memory_type_info);
 
     /* this must be done after machine init, since we register FEs with muxes
      * as part of realize functions like serial_isa_realizefn when -nographic

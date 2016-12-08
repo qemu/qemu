@@ -656,6 +656,7 @@ static void char_braille_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_BRAILLE;
     cc->open = baum_chr_open;
     cc->chr_write = baum_chr_write;
     cc->chr_accept_input = baum_chr_accept_input;
@@ -671,11 +672,6 @@ static const TypeInfo char_braille_type_info = {
 
 static void register_types(void)
 {
-    static const CharDriver driver = {
-        .kind = CHARDEV_BACKEND_KIND_BRAILLE,
-    };
-
-    register_char_driver(&driver);
     type_register_static(&char_braille_type_info);
 }
 

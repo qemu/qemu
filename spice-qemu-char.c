@@ -380,6 +380,8 @@ static void char_spicevmc_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_SPICEVMC;
+    cc->parse = qemu_chr_parse_spice_vmc;
     cc->open = qemu_chr_open_spice_vmc;
     cc->chr_set_fe_open = spice_vmc_set_fe_open;
 }
@@ -394,6 +396,8 @@ static void char_spiceport_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_SPICEPORT;
+    cc->parse = qemu_chr_parse_spice_port;
     cc->open = qemu_chr_open_spice_port;
     cc->chr_set_fe_open = spice_port_set_fe_open;
 }
@@ -406,17 +410,6 @@ static const TypeInfo char_spiceport_type_info = {
 
 static void register_types(void)
 {
-    static const CharDriver vmc_driver = {
-        .kind = CHARDEV_BACKEND_KIND_SPICEVMC,
-        .parse = qemu_chr_parse_spice_vmc,
-    };
-    static const CharDriver port_driver = {
-        .kind = CHARDEV_BACKEND_KIND_SPICEPORT,
-        .parse = qemu_chr_parse_spice_port,
-    };
-    register_char_driver(&vmc_driver);
-    register_char_driver(&port_driver);
-
     type_register_static(&char_spice_type_info);
     type_register_static(&char_spicevmc_type_info);
     type_register_static(&char_spiceport_type_info);

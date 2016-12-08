@@ -169,6 +169,7 @@ static void char_msmouse_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_MSMOUSE;
     cc->open = msmouse_chr_open;
     cc->chr_write = msmouse_chr_write;
     cc->chr_accept_input = msmouse_chr_accept_input;
@@ -184,11 +185,6 @@ static const TypeInfo char_msmouse_type_info = {
 
 static void register_types(void)
 {
-    static const CharDriver driver = {
-        .kind = CHARDEV_BACKEND_KIND_MSMOUSE,
-    };
-
-    register_char_driver(&driver);
     type_register_static(&char_msmouse_type_info);
 }
 
