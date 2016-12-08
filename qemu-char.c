@@ -2122,6 +2122,8 @@ typedef struct {
 
     /* Protected by the Chardev chr_write_lock.  */
     OVERLAPPED osend;
+    /* FIXME: file/console do not finalize */
+    bool skip_free;
 } WinChardev;
 
 #define TYPE_CHARDEV_WIN "chardev-win"
@@ -2151,6 +2153,10 @@ static int win_chr_pipe_poll(void *opaque);
 static void win_chr_free(Chardev *chr)
 {
     WinChardev *s = WIN_CHARDEV(chr);
+
+    if (s->skip_free) {
+        return;
+    }
 
     if (s->hsend) {
         CloseHandle(s->hsend);
@@ -2432,6 +2438,7 @@ static void qemu_chr_open_win_file(Chardev *chr, HANDLE fd_out)
 {
     WinChardev *s = WIN_CHARDEV(chr);
 
+    s->skip_free = true;
     s->hcom = fd_out;
 }
 
@@ -2468,7 +2475,6 @@ static void char_console_class_init(ObjectClass *oc, void *data)
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->open = qemu_chr_open_win_con;
-    cc->chr_free = NULL;
 }
 
 static const TypeInfo char_console_type_info = {
@@ -4731,10 +4737,6 @@ static void char_file_class_init(ObjectClass *oc, void *data)
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->open = qmp_chardev_open_file;
-#ifdef _WIN32
-    /* FIXME: no chr_free */
-    cc->chr_free = NULL;
-#endif
 }
 
 static const TypeInfo char_file_type_info = {
