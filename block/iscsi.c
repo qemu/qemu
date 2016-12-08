@@ -1283,32 +1283,15 @@ static void apply_chap(struct iscsi_context *iscsi, QemuOpts *opts,
     g_free(secret);
 }
 
-static void parse_header_digest(struct iscsi_context *iscsi, const char *target,
+static void apply_header_digest(struct iscsi_context *iscsi, QemuOpts *opts,
                                 Error **errp)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
     const char *digest = NULL;
-
-    list = qemu_find_opts("iscsi");
-    if (!list) {
-        return;
-    }
-
-    opts = qemu_opts_find(list, target);
-    if (opts == NULL) {
-        opts = QTAILQ_FIRST(&list->head);
-        if (!opts) {
-            return;
-        }
-    }
 
     digest = qemu_opt_get(opts, "header-digest");
     if (!digest) {
-        return;
-    }
-
-    if (!strcmp(digest, "CRC32C")) {
+        iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
+    } else if (!strcmp(digest, "CRC32C")) {
         iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_CRC32C);
     } else if (!strcmp(digest, "NONE")) {
         iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE);
@@ -1578,7 +1561,8 @@ static void iscsi_parse_iscsi_option(const char *target, QDict *options)
 {
     QemuOptsList *list;
     QemuOpts *opts;
-    const char *user, *password, *password_secret, *initiator_name;
+    const char *user, *password, *password_secret, *initiator_name,
+               *header_digest;
 
     list = qemu_find_opts("iscsi");
     if (!list) {
@@ -1611,6 +1595,11 @@ static void iscsi_parse_iscsi_option(const char *target, QDict *options)
     initiator_name = qemu_opt_get(opts, "initiator-name");
     if (initiator_name) {
         qdict_set_default_str(options, "initiator-name", initiator_name);
+    }
+
+    header_digest = qemu_opt_get(opts, "header-digest");
+    if (header_digest) {
+        qdict_set_default_str(options, "header-digest", header_digest);
     }
 }
 
@@ -1704,6 +1693,10 @@ static QemuOptsList runtime_opts = {
             .name = "initiator-name",
             .type = QEMU_OPT_STRING,
         },
+        {
+            .name = "header-digest",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -1795,10 +1788,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
-    iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
-
     /* check if we got HEADER_DIGEST via the options */
-    parse_header_digest(iscsi, target, &local_err);
+    apply_header_digest(iscsi, opts, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
