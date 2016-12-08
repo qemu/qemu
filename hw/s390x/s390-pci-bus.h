@@ -274,6 +274,11 @@ typedef struct S390PCIIOMMU {
     uint64_t pal;
 } S390PCIIOMMU;
 
+typedef struct S390PCIIOMMUTable {
+    uint64_t key;
+    S390PCIIOMMU *iommu[PCI_SLOT_MAX];
+} S390PCIIOMMUTable;
+
 typedef struct S390PCIBusDevice {
     DeviceState qdev;
     PCIDevice *pdev;
@@ -304,7 +309,7 @@ typedef struct S390pciState {
     PCIHostState parent_obj;
     S390PCIBus *bus;
     S390PCIBusDevice *pbdev[PCI_SLOT_MAX];
-    S390PCIIOMMU *iommu[PCI_SLOT_MAX];
+    GHashTable *iommu_table;
     QTAILQ_HEAD(, SeiContainer) pending_sei;
 } S390pciState;
 

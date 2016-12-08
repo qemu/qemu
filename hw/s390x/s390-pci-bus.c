@@ -432,11 +432,48 @@ static const MemoryRegionIOMMUOps s390_iommu_ops = {
     .translate = s390_translate_iommu,
 };
 
+static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
+                                        int devfn)
+{
+    uint64_t key = (uintptr_t)bus;
+    S390PCIIOMMUTable *table = g_hash_table_lookup(s->iommu_table, &key);
+    S390PCIIOMMU *iommu;
+
+    if (!table) {
+        table = g_malloc0(sizeof(S390PCIIOMMUTable));
+        table->key = key;
+        g_hash_table_insert(s->iommu_table, &table->key, table);
+    }
+
+    iommu = table->iommu[PCI_SLOT(devfn)];
+    if (!iommu) {
+        iommu = S390_PCI_IOMMU(object_new(TYPE_S390_PCI_IOMMU));
+
+        char *mr_name = g_strdup_printf("iommu-root-%02x:%02x.%01x",
+                                        pci_bus_num(bus),
+                                        PCI_SLOT(devfn),
+                                        PCI_FUNC(devfn));
+        char *as_name = g_strdup_printf("iommu-pci-%02x:%02x.%01x",
+                                        pci_bus_num(bus),
+                                        PCI_SLOT(devfn),
+                                        PCI_FUNC(devfn));
+        memory_region_init(&iommu->mr, OBJECT(iommu), mr_name, UINT64_MAX);
+        address_space_init(&iommu->as, &iommu->mr, as_name);
+        table->iommu[PCI_SLOT(devfn)] = iommu;
+
+        g_free(mr_name);
+        g_free(as_name);
+    }
+
+    return iommu;
+}
+
 static AddressSpace *s390_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
     S390pciState *s = opaque;
+    S390PCIIOMMU *iommu = s390_pci_get_iommu(s, bus, devfn);
 
-    return &s->iommu[PCI_SLOT(devfn)]->as;
+    return &iommu->as;
 }
 
 static uint8_t set_ind_atomic(uint64_t ind_loc, uint8_t to_be_set)
@@ -520,19 +557,21 @@ void s390_pci_iommu_disable(S390PCIIOMMU *iommu)
     object_unparent(OBJECT(&iommu->iommu_mr));
 }
 
-static void s390_pcihost_init_as(S390pciState *s)
+static void s390_pci_iommu_free(PCIBus *bus, int32_t devfn)
 {
-    int i;
-    S390PCIIOMMU *iommu;
+    uint64_t key = (uintptr_t)bus;
+    S390PCIIOMMUTable *table = g_hash_table_lookup(s->iommu_table, &key);
+    S390PCIIOMMU *iommu = table ? table->iommu[PCI_SLOT(devfn)] : NULL;
 
-    for (i = 0; i < PCI_SLOT_MAX; i++) {
-        iommu = g_malloc0(sizeof(S390PCIIOMMU));
-        memory_region_init(&iommu->mr, OBJECT(s),
-                           "iommu-root-s390", UINT64_MAX);
-        address_space_init(&iommu->as, &iommu->mr, "iommu-pci");
-
-        s->iommu[i] = iommu;
+    if (!table || !iommu) {
+        return;
     }
+
+    table->iommu[PCI_SLOT(devfn)] = NULL;
+    address_space_destroy(&iommu->as);
+    object_unparent(OBJECT(&iommu->mr));
+    object_unparent(OBJECT(iommu));
+    object_unref(OBJECT(iommu));
 }
 
 static int s390_pcihost_init(SysBusDevice *dev)
@@ -548,7 +587,6 @@ static int s390_pcihost_init(SysBusDevice *dev)
                          s390_pci_set_irq, s390_pci_map_irq, NULL,
                          get_system_memory(), get_system_io(), 0, 64,
                          TYPE_PCI_BUS);
-    s390_pcihost_init_as(s);
     pci_setup_iommu(b, s390_pci_dma_iommu, s);
 
     bus = BUS(b);
@@ -558,6 +596,8 @@ static int s390_pcihost_init(SysBusDevice *dev)
     s->bus = S390_PCI_BUS(qbus_create(TYPE_S390_PCI_BUS, DEVICE(s), NULL));
     qbus_set_hotplug_handler(BUS(s->bus), DEVICE(s), NULL);
 
+    s->iommu_table = g_hash_table_new_full(g_int64_hash, g_int64_equal,
+                                           NULL, g_free);
     QTAILQ_INIT(&s->pending_sei);
     return 0;
 }
@@ -661,7 +701,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         }
 
         pbdev->pdev = pdev;
-        pbdev->iommu = s->iommu[PCI_SLOT(pdev->devfn)];
+        pbdev->iommu = s390_pci_get_iommu(s, pdev->bus, pdev->devfn);
         pbdev->iommu->pbdev = pbdev;
         pbdev->state = ZPCI_FS_STANDBY;
 
@@ -708,8 +748,9 @@ static void s390_pcihost_timer_cb(void *opaque)
 static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
-    int i;
     PCIDevice *pci_dev = NULL;
+    PCIBus *bus;
+    int32_t devfn, i;
     S390PCIBusDevice *pbdev = NULL;
     S390pciState *s = s390_get_phb();
 
@@ -752,8 +793,11 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
 
     s390_pci_generate_plug_event(HP_EVENT_STANDBY_TO_RESERVED,
                                  pbdev->fh, pbdev->fid);
+    bus = pci_dev->bus;
+    devfn = pci_dev->devfn;
     object_unparent(OBJECT(pci_dev));
     s390_pci_msix_free(pbdev);
+    s390_pci_iommu_free(bus, devfn);
     pbdev->pdev = NULL;
     pbdev->state = ZPCI_FS_RESERVED;
 out:
