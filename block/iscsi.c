@@ -1321,26 +1321,15 @@ static void parse_header_digest(struct iscsi_context *iscsi, const char *target,
     }
 }
 
-static char *parse_initiator_name(const char *target)
+static char *get_initiator_name(QemuOpts *opts)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
     const char *name;
     char *iscsi_name;
     UuidInfo *uuid_info;
 
-    list = qemu_find_opts("iscsi");
-    if (list) {
-        opts = qemu_opts_find(list, target);
-        if (!opts) {
-            opts = QTAILQ_FIRST(&list->head);
-        }
-        if (opts) {
-            name = qemu_opt_get(opts, "initiator-name");
-            if (name) {
-                return g_strdup(name);
-            }
-        }
+    name = qemu_opt_get(opts, "initiator-name");
+    if (name) {
+        return g_strdup(name);
     }
 
     uuid_info = qmp_query_uuid(NULL);
@@ -1589,7 +1578,7 @@ static void iscsi_parse_iscsi_option(const char *target, QDict *options)
 {
     QemuOptsList *list;
     QemuOpts *opts;
-    const char *user, *password, *password_secret;
+    const char *user, *password, *password_secret, *initiator_name;
 
     list = qemu_find_opts("iscsi");
     if (!list) {
@@ -1617,6 +1606,11 @@ static void iscsi_parse_iscsi_option(const char *target, QDict *options)
     password_secret = qemu_opt_get(opts, "password-secret");
     if (password_secret) {
         qdict_set_default_str(options, "password-secret", password_secret);
+    }
+
+    initiator_name = qemu_opt_get(opts, "initiator-name");
+    if (initiator_name) {
+        qdict_set_default_str(options, "initiator-name", initiator_name);
     }
 }
 
@@ -1706,6 +1700,10 @@ static QemuOptsList runtime_opts = {
             .name = "lun",
             .type = QEMU_OPT_NUMBER,
         },
+        {
+            .name = "initiator-name",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -1762,7 +1760,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
 
     memset(iscsilun, 0, sizeof(IscsiLun));
 
-    initiator_name = parse_initiator_name(target);
+    initiator_name = get_initiator_name(opts);
 
     iscsi = iscsi_create_context(initiator_name);
     if (iscsi == NULL) {
