@@ -2594,9 +2594,9 @@ static void qemu_chr_set_echo_win_stdio(Chardev *chr, bool echo)
     }
 }
 
-static void win_stdio_free(Chardev *chr)
+static void char_win_stdio_finalize(Object *obj)
 {
-    WinStdioChardev *stdio = WIN_STDIO_CHARDEV(chr);
+    WinStdioChardev *stdio = WIN_STDIO_CHARDEV(obj);
 
     if (stdio->hInputReadyEvent != INVALID_HANDLE_VALUE) {
         CloseHandle(stdio->hInputReadyEvent);
@@ -2613,6 +2613,7 @@ static const TypeInfo char_win_stdio_type_info = {
     .name = TYPE_CHARDEV_WIN_STDIO,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(WinStdioChardev),
+    .instance_finalize = char_win_stdio_finalize,
     .abstract = true,
 };
 
@@ -3856,7 +3857,6 @@ static void char_stdio_class_init(ObjectClass *oc, void *data)
 #ifdef _WIN32
     cc->chr_write = win_stdio_write;
     cc->chr_set_echo = qemu_chr_set_echo_win_stdio;
-    cc->chr_free = win_stdio_free;
 #else
     cc->chr_set_echo = qemu_chr_set_echo_stdio;
 #endif
