@@ -1296,9 +1296,10 @@ static void fd_chr_update_read_handler(Chardev *chr,
     }
 }
 
-static void fd_chr_free(struct Chardev *chr)
+static void char_fd_finalize(Object *obj)
 {
-    FDChardev *s = FD_CHARDEV(chr);
+    Chardev *chr = CHARDEV(obj);
+    FDChardev *s = FD_CHARDEV(obj);
 
     remove_fd_in_watch(chr);
     if (s->ioc_in) {
@@ -1337,13 +1338,13 @@ static void char_fd_class_init(ObjectClass *oc, void *data)
     cc->chr_add_watch = fd_chr_add_watch;
     cc->chr_write = fd_chr_write;
     cc->chr_update_read_handler = fd_chr_update_read_handler;
-    cc->chr_free = fd_chr_free;
 }
 
 static const TypeInfo char_fd_type_info = {
     .name = TYPE_CHARDEV_FD,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(FDChardev),
+    .instance_finalize = char_fd_finalize,
     .class_init = char_fd_class_init,
     .abstract = true,
 };
@@ -1425,7 +1426,6 @@ static void qemu_chr_set_echo_stdio(Chardev *chr, bool echo)
 static void char_stdio_finalize(Object *obj)
 {
     term_exit();
-    fd_chr_free(CHARDEV(chr));
 }
 
 static void qemu_chr_open_stdio(Chardev *chr,
@@ -1912,11 +1912,6 @@ static int tty_serial_ioctl(Chardev *chr, int cmd, void *arg)
         return -ENOTSUP;
     }
     return 0;
-}
-
-static void qemu_chr_free_tty(Chardev *chr)
-{
-    fd_chr_free(chr);
 }
 #endif /* __linux__ || __sun__ */
 
@@ -4760,7 +4755,6 @@ static void char_serial_class_init(ObjectClass *oc, void *data)
     cc->open = qmp_chardev_open_serial;
 #ifndef _WIN32
     cc->chr_ioctl = tty_serial_ioctl;
-    cc->chr_free = qemu_chr_free_tty;
 #endif
 }
 
