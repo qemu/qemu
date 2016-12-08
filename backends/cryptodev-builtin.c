@@ -205,6 +205,18 @@ static int cryptodev_builtin_create_cipher_session(
             return -1;
         }
         break;
+    case VIRTIO_CRYPTO_CIPHER_3DES_ECB:
+        mode = QCRYPTO_CIPHER_MODE_ECB;
+        algo = QCRYPTO_CIPHER_ALG_3DES;
+        break;
+    case VIRTIO_CRYPTO_CIPHER_3DES_CBC:
+        mode = QCRYPTO_CIPHER_MODE_CBC;
+        algo = QCRYPTO_CIPHER_ALG_3DES;
+        break;
+    case VIRTIO_CRYPTO_CIPHER_3DES_CTR:
+        mode = QCRYPTO_CIPHER_MODE_CTR;
+        algo = QCRYPTO_CIPHER_ALG_3DES;
+        break;
     default:
         error_setg(errp, "Unsupported cipher alg :%u",
                    sess_info->cipher_alg);
