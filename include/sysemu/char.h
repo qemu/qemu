@@ -185,13 +185,6 @@ Chardev *qemu_chr_new_noreplay(const char *label, const char *filename);
 void qemu_chr_delete(Chardev *chr);
 
 /**
- * @qemu_chr_free:
- *
- * Destroy a character backend.
- */
-void qemu_chr_free(Chardev *chr);
-
-/**
  * @qemu_chr_fe_set_echo:
  *
  * Ask the backend to override its normal echo setting.  This only really
@@ -496,7 +489,6 @@ typedef struct ChardevClass {
     int (*set_msgfds)(Chardev *s, int *fds, int num);
     int (*chr_add_client)(Chardev *chr, int fd);
     int (*chr_wait_connected)(Chardev *chr, Error **errp);
-    void (*chr_free)(Chardev *chr);
     void (*chr_disconnect)(Chardev *chr);
     void (*chr_accept_input)(Chardev *chr);
     void (*chr_set_echo)(Chardev *chr, bool echo);

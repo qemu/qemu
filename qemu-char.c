@@ -4371,18 +4371,10 @@ void qemu_chr_fe_disconnect(CharBackend *be)
     }
 }
 
-void qemu_chr_free(Chardev *chr)
-{
-    if (CHARDEV_GET_CLASS(chr)->chr_free) {
-        CHARDEV_GET_CLASS(chr)->chr_free(chr);
-    }
-    object_unref(OBJECT(chr));
-}
-
 void qemu_chr_delete(Chardev *chr)
 {
     QTAILQ_REMOVE(&chardevs, chr, next);
-    qemu_chr_free(chr);
+    object_unref(OBJECT(chr));
 }
 
 ChardevInfoList *qmp_query_chardev(Error **errp)
