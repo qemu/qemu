@@ -187,8 +187,8 @@ void s390_pci_sclp_deconfigure(SCCB *sccb)
         if (pbdev->summary_ind) {
             pci_dereg_irqs(pbdev);
         }
-        if (pbdev->iommu_enabled) {
-            pci_dereg_ioat(pbdev);
+        if (pbdev->iommu->enabled) {
+            pci_dereg_ioat(pbdev->iommu);
         }
         pbdev->state = ZPCI_FS_STANDBY;
         rc = SCLP_RC_NORMAL_COMPLETION;
@@ -377,12 +377,12 @@ out:
     return pte;
 }
 
-static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
+static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *mr, hwaddr addr,
                                           bool is_write)
 {
     uint64_t pte;
     uint32_t flags;
-    S390PCIBusDevice *pbdev = container_of(iommu, S390PCIBusDevice, iommu_mr);
+    S390PCIIOMMU *iommu = container_of(mr, S390PCIIOMMU, iommu_mr);
     IOMMUTLBEntry ret = {
         .target_as = &address_space_memory,
         .iova = 0,
@@ -391,10 +391,10 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
         .perm = IOMMU_NONE,
     };
 
-    switch (pbdev->state) {
+    switch (iommu->pbdev->state) {
     case ZPCI_FS_ENABLED:
     case ZPCI_FS_BLOCKED:
-        if (!pbdev->iommu_enabled) {
+        if (!iommu->enabled) {
             return ret;
         }
         break;
@@ -404,11 +404,11 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
 
     DPRINTF("iommu trans addr 0x%" PRIx64 "\n", addr);
 
-    if (addr < pbdev->pba || addr > pbdev->pal) {
+    if (addr < iommu->pba || addr > iommu->pal) {
         return ret;
     }
 
-    pte = s390_guest_io_table_walk(s390_pci_get_table_origin(pbdev->g_iota),
+    pte = s390_guest_io_table_walk(s390_pci_get_table_origin(iommu->g_iota),
                                    addr);
     if (!pte) {
         return ret;
@@ -503,19 +503,21 @@ static const MemoryRegionOps s390_msi_ctrl_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-void s390_pci_iommu_enable(S390PCIBusDevice *pbdev)
+void s390_pci_iommu_enable(S390PCIIOMMU *iommu)
 {
-    memory_region_init_iommu(&pbdev->iommu_mr, OBJECT(&pbdev->iommu->mr),
-                             &s390_iommu_ops, "iommu-s390", pbdev->pal + 1);
-    memory_region_add_subregion(&pbdev->iommu->mr, 0, &pbdev->iommu_mr);
-    pbdev->iommu_enabled = true;
+    char *name = g_strdup_printf("iommu-s390-%04x", iommu->pbdev->uid);
+    memory_region_init_iommu(&iommu->iommu_mr, OBJECT(&iommu->mr),
+                             &s390_iommu_ops, name, iommu->pal + 1);
+    iommu->enabled = true;
+    memory_region_add_subregion(&iommu->mr, 0, &iommu->iommu_mr);
+    g_free(name);
 }
 
-void s390_pci_iommu_disable(S390PCIBusDevice *pbdev)
+void s390_pci_iommu_disable(S390PCIIOMMU *iommu)
 {
-    memory_region_del_subregion(&pbdev->iommu->mr, &pbdev->iommu_mr);
-    object_unparent(OBJECT(&pbdev->iommu_mr));
-    pbdev->iommu_enabled = false;
+    iommu->enabled = false;
+    memory_region_del_subregion(&iommu->mr, &iommu->iommu_mr);
+    object_unparent(OBJECT(&iommu->iommu_mr));
 }
 
 static void s390_pcihost_init_as(S390pciState *s)
@@ -660,6 +662,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
 
         pbdev->pdev = pdev;
         pbdev->iommu = s->iommu[PCI_SLOT(pdev->devfn)];
+        pbdev->iommu->pbdev = pbdev;
         pbdev->state = ZPCI_FS_STANDBY;
 
         s390_pci_msix_init(pbdev);
@@ -692,8 +695,8 @@ static void s390_pcihost_timer_cb(void *opaque)
     if (pbdev->summary_ind) {
         pci_dereg_irqs(pbdev);
     }
-    if (pbdev->iommu_enabled) {
-        pci_dereg_ioat(pbdev);
+    if (pbdev->iommu->enabled) {
+        pci_dereg_ioat(pbdev->iommu);
     }
 
     pbdev->state = ZPCI_FS_STANDBY;
@@ -877,8 +880,8 @@ static void s390_pci_device_reset(DeviceState *dev)
     if (pbdev->summary_ind) {
         pci_dereg_irqs(pbdev);
     }
-    if (pbdev->iommu_enabled) {
-        pci_dereg_ioat(pbdev);
+    if (pbdev->iommu->enabled) {
+        pci_dereg_ioat(pbdev->iommu);
     }
 
     pbdev->fmb_addr = 0;
@@ -944,11 +947,18 @@ static const TypeInfo s390_pci_device_info = {
     .class_init = s390_pci_device_class_init,
 };
 
+static TypeInfo s390_pci_iommu_info = {
+    .name = TYPE_S390_PCI_IOMMU,
+    .parent = TYPE_OBJECT,
+    .instance_size = sizeof(S390PCIIOMMU),
+};
+
 static void s390_pci_register_types(void)
 {
     type_register_static(&s390_pcihost_info);
     type_register_static(&s390_pcibus_info);
     type_register_static(&s390_pci_device_info);
+    type_register_static(&s390_pci_iommu_info);
 }
 
 type_init(s390_pci_register_types)

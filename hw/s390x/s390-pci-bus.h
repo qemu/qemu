@@ -23,6 +23,7 @@
 #define TYPE_S390_PCI_HOST_BRIDGE "s390-pcihost"
 #define TYPE_S390_PCI_BUS "s390-pcibus"
 #define TYPE_S390_PCI_DEVICE "zpci"
+#define TYPE_S390_PCI_IOMMU "s390-pci-iommu"
 #define FH_MASK_ENABLE   0x80000000
 #define FH_MASK_INSTANCE 0x7f000000
 #define FH_MASK_SHM      0x00ff0000
@@ -42,6 +43,8 @@
     OBJECT_CHECK(S390PCIBus, (obj), TYPE_S390_PCI_BUS)
 #define S390_PCI_DEVICE(obj) \
     OBJECT_CHECK(S390PCIBusDevice, (obj), TYPE_S390_PCI_DEVICE)
+#define S390_PCI_IOMMU(obj) \
+    OBJECT_CHECK(S390PCIIOMMU, (obj), TYPE_S390_PCI_IOMMU)
 
 #define HP_EVENT_TO_CONFIGURED        0x0301
 #define HP_EVENT_RESERVED_TO_STANDBY  0x0302
@@ -258,24 +261,28 @@ typedef struct S390MsixInfo {
     uint32_t pba_offset;
 } S390MsixInfo;
 
+typedef struct S390PCIBusDevice S390PCIBusDevice;
 typedef struct S390PCIIOMMU {
+    Object parent_obj;
+    S390PCIBusDevice *pbdev;
     AddressSpace as;
     MemoryRegion mr;
+    MemoryRegion iommu_mr;
+    bool enabled;
+    uint64_t g_iota;
+    uint64_t pba;
+    uint64_t pal;
 } S390PCIIOMMU;
 
 typedef struct S390PCIBusDevice {
     DeviceState qdev;
     PCIDevice *pdev;
     ZpciState state;
-    bool iommu_enabled;
     char *target;
     uint16_t uid;
     uint32_t fh;
     uint32_t fid;
     bool fid_defined;
-    uint64_t g_iota;
-    uint64_t pba;
-    uint64_t pal;
     uint64_t fmb_addr;
     uint8_t isc;
     uint16_t noi;
@@ -283,7 +290,6 @@ typedef struct S390PCIBusDevice {
     S390MsixInfo msix;
     AdapterRoutes routes;
     S390PCIIOMMU *iommu;
-    MemoryRegion iommu_mr;
     MemoryRegion msix_notify_mr;
     IndAddr *summary_ind;
     IndAddr *indicator;
@@ -306,8 +312,8 @@ int chsc_sei_nt2_get_event(void *res);
 int chsc_sei_nt2_have_event(void);
 void s390_pci_sclp_configure(SCCB *sccb);
 void s390_pci_sclp_deconfigure(SCCB *sccb);
-void s390_pci_iommu_enable(S390PCIBusDevice *pbdev);
-void s390_pci_iommu_disable(S390PCIBusDevice *pbdev);
+void s390_pci_iommu_enable(S390PCIIOMMU *iommu);
+void s390_pci_iommu_disable(S390PCIIOMMU *iommu);
 void s390_pci_generate_error_event(uint16_t pec, uint32_t fh, uint32_t fid,
                                    uint64_t faddr, uint32_t e);
 S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx);
