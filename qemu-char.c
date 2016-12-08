@@ -859,9 +859,9 @@ static GSource *mux_chr_add_watch(Chardev *s, GIOCondition cond)
     return cc->chr_add_watch(chr, cond);
 }
 
-static void mux_chr_free(struct Chardev *chr)
+static void char_mux_finalize(Object *obj)
 {
-    MuxChardev *d = MUX_CHARDEV(chr);
+    MuxChardev *d = MUX_CHARDEV(obj);
     int i;
 
     for (i = 0; i < d->mux_cnt; i++) {
@@ -4025,7 +4025,6 @@ static void char_mux_class_init(ObjectClass *oc, void *data)
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->open = qemu_chr_open_mux;
-    cc->chr_free = mux_chr_free;
     cc->chr_write = mux_chr_write;
     cc->chr_accept_input = mux_chr_accept_input;
     cc->chr_add_watch = mux_chr_add_watch;
@@ -4036,6 +4035,7 @@ static const TypeInfo char_mux_type_info = {
     .parent = TYPE_CHARDEV,
     .class_init = char_mux_class_init,
     .instance_size = sizeof(MuxChardev),
+    .instance_finalize = char_mux_finalize,
 };
 
 static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
