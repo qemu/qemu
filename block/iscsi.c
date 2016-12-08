@@ -1245,28 +1245,13 @@ retry:
     return 0;
 }
 
-static void parse_chap(struct iscsi_context *iscsi, const char *target,
+static void apply_chap(struct iscsi_context *iscsi, QemuOpts *opts,
                        Error **errp)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
     const char *user = NULL;
     const char *password = NULL;
     const char *secretid;
     char *secret = NULL;
-
-    list = qemu_find_opts("iscsi");
-    if (!list) {
-        return;
-    }
-
-    opts = qemu_opts_find(list, target);
-    if (opts == NULL) {
-        opts = QTAILQ_FIRST(&list->head);
-        if (!opts) {
-            return;
-        }
-    }
 
     user = qemu_opt_get(opts, "user");
     if (!user) {
@@ -1600,6 +1585,41 @@ out:
     }
 }
 
+static void iscsi_parse_iscsi_option(const char *target, QDict *options)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    const char *user, *password, *password_secret;
+
+    list = qemu_find_opts("iscsi");
+    if (!list) {
+        return;
+    }
+
+    opts = qemu_opts_find(list, target);
+    if (opts == NULL) {
+        opts = QTAILQ_FIRST(&list->head);
+        if (!opts) {
+            return;
+        }
+    }
+
+    user = qemu_opt_get(opts, "user");
+    if (user) {
+        qdict_set_default_str(options, "user", user);
+    }
+
+    password = qemu_opt_get(opts, "password");
+    if (password) {
+        qdict_set_default_str(options, "password", password);
+    }
+
+    password_secret = qemu_opt_get(opts, "password-secret");
+    if (password_secret) {
+        qdict_set_default_str(options, "password-secret", password_secret);
+    }
+}
+
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
@@ -1642,6 +1662,9 @@ static void iscsi_parse_filename(const char *filename, QDict *options,
     qdict_set_default_str(options, "lun", lun_str);
     g_free(lun_str);
 
+    /* User/password from -iscsi take precedence over those from the URL */
+    iscsi_parse_iscsi_option(iscsi_url->target, options);
+
     if (iscsi_url->user[0] != '\0') {
         qdict_set_default_str(options, "user", iscsi_url->user);
         qdict_set_default_str(options, "password", iscsi_url->passwd);
@@ -1676,6 +1699,10 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
         },
         {
+            .name = "password-secret",
+            .type = QEMU_OPT_STRING,
+        },
+        {
             .name = "lun",
             .type = QEMU_OPT_NUMBER,
         },
@@ -1695,7 +1722,6 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *opts;
     Error *local_err = NULL;
     const char *transport_name, *portal, *target;
-    const char *user, *password;
 #if LIBISCSI_API_VERSION >= (20160603)
     enum iscsi_transport_type transport;
 #endif
@@ -1712,17 +1738,10 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     transport_name = qemu_opt_get(opts, "transport");
     portal = qemu_opt_get(opts, "portal");
     target = qemu_opt_get(opts, "target");
-    user = qemu_opt_get(opts, "user");
-    password = qemu_opt_get(opts, "password");
     lun = qemu_opt_get_number(opts, "lun", 0);
 
     if (!transport_name || !portal || !target) {
         error_setg(errp, "Need all of transport, portal and target options");
-        ret = -EINVAL;
-        goto out;
-    }
-    if (user && !password) {
-        error_setg(errp, "If a user name is given, a password is required");
         ret = -EINVAL;
         goto out;
     }
@@ -1764,17 +1783,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
-    if (user) {
-        ret = iscsi_set_initiator_username_pwd(iscsi, user, password);
-        if (ret != 0) {
-            error_setg(errp, "Failed to set initiator username and password");
-            ret = -EINVAL;
-            goto out;
-        }
-    }
-
     /* check if we got CHAP username/password via the options */
-    parse_chap(iscsi, target, &local_err);
+    apply_chap(iscsi, opts, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
