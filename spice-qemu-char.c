@@ -210,9 +210,9 @@ static int spice_chr_write(Chardev *chr, const uint8_t *buf, int len)
     return read_bytes;
 }
 
-static void spice_chr_free(struct Chardev *chr)
+static void char_spice_finalize(Object *obj)
 {
-    SpiceChardev *s = SPICE_CHARDEV(chr);
+    SpiceChardev *s = SPICE_CHARDEV(obj);
 
     vmc_unregister_interface(s);
     QLIST_REMOVE(s, next);
@@ -365,13 +365,13 @@ static void char_spice_class_init(ObjectClass *oc, void *data)
     cc->chr_write = spice_chr_write;
     cc->chr_add_watch = spice_chr_add_watch;
     cc->chr_accept_input = spice_chr_accept_input;
-    cc->chr_free = spice_chr_free;
 }
 
 static const TypeInfo char_spice_type_info = {
     .name = TYPE_CHARDEV_SPICE,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(SpiceChardev),
+    .instance_finalize = char_spice_finalize,
     .class_init = char_spice_class_init,
     .abstract = true,
 };
