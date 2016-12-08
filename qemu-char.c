@@ -3446,9 +3446,10 @@ int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp)
     return qemu_chr_wait_connected(be->chr, errp);
 }
 
-static void tcp_chr_free(Chardev *chr)
+static void char_socket_finalize(Object *obj)
 {
-    SocketChardev *s = SOCKET_CHARDEV(chr);
+    Chardev *chr = CHARDEV(obj);
+    SocketChardev *s = SOCKET_CHARDEV(obj);
 
     tcp_chr_free_connection(chr);
 
@@ -4886,7 +4887,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
             s->listen_ioc = sioc;
             if (is_waitconnect &&
                 qemu_chr_wait_connected(chr, errp) < 0) {
-                goto error;
+                return;
             }
             if (!s->ioc) {
                 s->listen_tag = qio_channel_add_watch(
@@ -4903,9 +4904,6 @@ static void qmp_chardev_open_socket(Chardev *chr,
 error:
     if (sioc) {
         object_unref(OBJECT(sioc));
-    }
-    if (s->tls_creds) {
-        object_unref(OBJECT(s->tls_creds));
     }
 }
 
@@ -4928,13 +4926,13 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
     cc->chr_add_client = tcp_chr_add_client;
     cc->chr_add_watch = tcp_chr_add_watch;
     cc->chr_update_read_handler = tcp_chr_update_read_handler;
-    cc->chr_free = tcp_chr_free;
 }
 
 static const TypeInfo char_socket_type_info = {
     .name = TYPE_CHARDEV_SOCKET,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(SocketChardev),
+    .instance_finalize = char_socket_finalize,
     .class_init = char_socket_class_init,
 };
 
