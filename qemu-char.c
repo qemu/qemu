@@ -2025,17 +2025,6 @@ static int pp_ioctl(Chardev *chr, int cmd, void *arg)
     return 0;
 }
 
-static void pp_free(Chardev *chr)
-{
-    ParallelChardev *drv = PARALLEL_CHARDEV(chr);
-    int fd = drv->fd;
-
-    pp_hw_mode(drv, IEEE1284_MODE_COMPAT);
-    ioctl(fd, PPRELEASE);
-    close(fd);
-    qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
-}
-
 static void qemu_chr_open_pp_fd(Chardev *chr,
                                 int fd,
                                 bool *be_opened,
@@ -4699,11 +4688,25 @@ static void char_parallel_class_init(ObjectClass *oc, void *data)
 #if defined(__linux__)
     cc->chr_write = null_chr_write;
     cc->chr_ioctl = pp_ioctl;
-    cc->chr_free = pp_free;
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-    /* FIXME: no chr_free */
     cc->chr_write = null_chr_write;
     cc->chr_ioctl = pp_ioctl;
+#endif
+}
+
+static void char_parallel_finalize(Object *obj)
+{
+#if defined(__linux__)
+    Chardev *chr = CHARDEV(obj);
+    ParallelChardev *drv = PARALLEL_CHARDEV(chr);
+    int fd = drv->fd;
+
+    pp_hw_mode(drv, IEEE1284_MODE_COMPAT);
+    ioctl(fd, PPRELEASE);
+    close(fd);
+    qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+    /* FIXME: close fd? */
 #endif
 }
 
@@ -4711,6 +4714,7 @@ static const TypeInfo char_parallel_type_info = {
     .name = TYPE_CHARDEV_PARALLEL,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(ParallelChardev),
+    .instance_finalize = char_parallel_finalize,
     .class_init = char_parallel_class_init,
 };
 #endif
