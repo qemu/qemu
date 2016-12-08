@@ -3550,9 +3550,9 @@ static int ringbuf_chr_read(Chardev *chr, uint8_t *buf, int len)
     return i;
 }
 
-static void ringbuf_chr_free(struct Chardev *chr)
+static void char_ringbuf_finalize(Object *obj)
 {
-    RingBufChardev *d = RINGBUF_CHARDEV(chr);
+    RingBufChardev *d = RINGBUF_CHARDEV(obj);
 
     g_free(d->cbuf);
 }
@@ -3982,7 +3982,6 @@ static void char_ringbuf_class_init(ObjectClass *oc, void *data)
 
     cc->open = qemu_chr_open_ringbuf;
     cc->chr_write = ringbuf_chr_write;
-    cc->chr_free = ringbuf_chr_free;
 }
 
 static const TypeInfo char_ringbuf_type_info = {
@@ -3990,6 +3989,7 @@ static const TypeInfo char_ringbuf_type_info = {
     .parent = TYPE_CHARDEV,
     .class_init = char_ringbuf_class_init,
     .instance_size = sizeof(RingBufChardev),
+    .instance_finalize = char_ringbuf_finalize,
 };
 
 /* Bug-compatibility: */
