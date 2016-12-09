@@ -24,6 +24,7 @@
 
 #include "helper_regs.h"
 #include "exec/cpu_ldst.h"
+#include "internal.h"
 
 //#define DEBUG_OP
 
@@ -283,6 +284,40 @@ STVE(stvehx, cpu_stw_data_ra, bswap16, u16)
 STVE(stvewx, cpu_stl_data_ra, bswap32, u32)
 #undef I
 #undef LVE
+
+#ifdef TARGET_PPC64
+#define GET_NB(rb) ((rb >> 56) & 0xFF)
+
+#define VSX_LXVL(name, lj)                                              \
+void helper_##name(CPUPPCState *env, target_ulong addr,                 \
+                   target_ulong xt_num, target_ulong rb)                \
+{                                                                       \
+    int i;                                                              \
+    ppc_vsr_t xt;                                                       \
+    uint64_t nb = GET_NB(rb);                                           \
+                                                                        \
+    xt.s128 = int128_zero();                                            \
+    if (nb) {                                                           \
+        nb = (nb >= 16) ? 16 : nb;                                      \
+        if (msr_le && !lj) {                                            \
+            for (i = 16; i > 16 - nb; i--) {                            \
+                xt.VsrB(i - 1) = cpu_ldub_data_ra(env, addr, GETPC());  \
+                addr = addr_add(env, addr, 1);                          \
+            }                                                           \
+        } else {                                                        \
+            for (i = 0; i < nb; i++) {                                  \
+                xt.VsrB(i) = cpu_ldub_data_ra(env, addr, GETPC());      \
+                addr = addr_add(env, addr, 1);                          \
+            }                                                           \
+        }                                                               \
+    }                                                                   \
+    putVSR(xt_num, &xt, env);                                           \
+}
+
+VSX_LXVL(lxvl, 0)
+#undef VSX_LXVL
+#undef GET_NB
+#endif /* TARGET_PPC64 */
 
 #undef HI_IDX
 #undef LO_IDX
