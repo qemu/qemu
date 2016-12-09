@@ -13,6 +13,7 @@ rcutorture
 test-aio
 test-base64
 test-bitops
+test-bitcnt
 test-blockjob
 test-blockjob-txn
 test-bufferiszero
