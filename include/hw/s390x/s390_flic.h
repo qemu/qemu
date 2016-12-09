@@ -32,6 +32,8 @@ typedef struct AdapterRoutes {
 
 typedef struct S390FLICState {
     SysBusDevice parent_obj;
+    /* to limit AdapterRoutes.num_routes for compat */
+    uint32_t adapter_routes_max_batch;
 
 } S390FLICState;
 
