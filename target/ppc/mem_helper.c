@@ -315,6 +315,7 @@ void helper_##name(CPUPPCState *env, target_ulong addr,                 \
 }
 
 VSX_LXVL(lxvl, 0)
+VSX_LXVL(lxvll, 1)
 #undef VSX_LXVL
 #undef GET_NB
 #endif /* TARGET_PPC64 */
