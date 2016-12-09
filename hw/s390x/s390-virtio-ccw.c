@@ -336,7 +336,12 @@ static const TypeInfo ccw_machine_info = {
     type_init(ccw_machine_register_##suffix)
 
 #define CCW_COMPAT_2_8 \
-        HW_COMPAT_2_8
+        HW_COMPAT_2_8 \
+        {\
+            .driver   = TYPE_S390_FLIC_COMMON,\
+            .property = "adapter_routes_max_batch",\
+            .value    = "64",\
+        },
 
 #define CCW_COMPAT_2_7 \
         HW_COMPAT_2_7

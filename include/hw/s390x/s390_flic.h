@@ -17,8 +17,14 @@
 #include "hw/s390x/adapter.h"
 #include "hw/virtio/virtio.h"
 
-#define ADAPTER_ROUTES_MAX_GSI 64
-#define VIRTIO_CCW_QUEUE_MAX ADAPTER_ROUTES_MAX_GSI
+/*
+ * Reserve enough gsis to accommodate all virtio devices.
+ * If any other user of adapter routes needs more of these,
+ * we need to bump the value; but virtio looks like the
+ * maximum right now.
+ */
+#define ADAPTER_ROUTES_MAX_GSI VIRTIO_QUEUE_MAX
+#define VIRTIO_CCW_QUEUE_MAX 64
 
 typedef struct AdapterRoutes {
     AdapterInfo adapter;
