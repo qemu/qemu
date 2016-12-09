@@ -566,7 +566,6 @@ static void char_null_class_init(ObjectClass *oc, void *data)
 
     cc->open = null_chr_open;
     cc->chr_write = null_chr_write;
-    cc->kind = CHARDEV_BACKEND_KIND_NULL;
 }
 
 static const TypeInfo char_null_type_info = {
@@ -1708,7 +1707,6 @@ static void char_pty_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_PTY;
     cc->open = char_pty_open;
     cc->chr_write = char_pty_chr_write;
     cc->chr_update_read_handler = pty_chr_update_read_handler;
@@ -2455,7 +2453,6 @@ static void char_console_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_CONSOLE;
     cc->open = qemu_chr_open_win_con;
 }
 
@@ -3808,6 +3805,7 @@ static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
     const char *path = qemu_opt_get(opts, "path");
     ChardevFile *file;
 
+    backend->type = CHARDEV_BACKEND_KIND_FILE;
     if (path == NULL) {
         error_setg(errp, "chardev: file: no filename given");
         return;
@@ -3825,6 +3823,7 @@ static void qemu_chr_parse_stdio(QemuOpts *opts, ChardevBackend *backend,
 {
     ChardevStdio *stdio;
 
+    backend->type = CHARDEV_BACKEND_KIND_STDIO;
     stdio = backend->u.stdio.data = g_new0(ChardevStdio, 1);
     qemu_chr_parse_common(opts, qapi_ChardevStdio_base(stdio));
     stdio->has_signal = true;
@@ -3835,7 +3834,6 @@ static void char_stdio_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_STDIO;
     cc->parse = qemu_chr_parse_stdio;
     cc->open = qemu_chr_open_stdio;
 #ifdef _WIN32
@@ -3864,6 +3862,7 @@ static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
     const char *device = qemu_opt_get(opts, "path");
     ChardevHostdev *serial;
 
+    backend->type = CHARDEV_BACKEND_KIND_SERIAL;
     if (device == NULL) {
         error_setg(errp, "chardev: serial/tty: no device path given");
         return;
@@ -3881,6 +3880,7 @@ static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
     const char *device = qemu_opt_get(opts, "path");
     ChardevHostdev *parallel;
 
+    backend->type = CHARDEV_BACKEND_KIND_PARALLEL;
     if (device == NULL) {
         error_setg(errp, "chardev: parallel: no device path given");
         return;
@@ -3897,6 +3897,7 @@ static void qemu_chr_parse_pipe(QemuOpts *opts, ChardevBackend *backend,
     const char *device = qemu_opt_get(opts, "path");
     ChardevHostdev *dev;
 
+    backend->type = CHARDEV_BACKEND_KIND_PIPE;
     if (device == NULL) {
         error_setg(errp, "chardev: pipe: no device path given");
         return;
@@ -3910,7 +3911,6 @@ static void char_pipe_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_PIPE;
     cc->parse = qemu_chr_parse_pipe;
     cc->open = qemu_chr_open_pipe;
 }
@@ -3931,6 +3931,7 @@ static void qemu_chr_parse_ringbuf(QemuOpts *opts, ChardevBackend *backend,
     int val;
     ChardevRingbuf *ringbuf;
 
+    backend->type = CHARDEV_BACKEND_KIND_RINGBUF;
     ringbuf = backend->u.ringbuf.data = g_new0(ChardevRingbuf, 1);
     qemu_chr_parse_common(opts, qapi_ChardevRingbuf_base(ringbuf));
 
@@ -3945,7 +3946,6 @@ static void char_ringbuf_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_RINGBUF;
     cc->parse = qemu_chr_parse_ringbuf;
     cc->open = qemu_chr_open_ringbuf;
     cc->chr_write = ringbuf_chr_write;
@@ -3960,17 +3960,9 @@ static const TypeInfo char_ringbuf_type_info = {
 };
 
 /* Bug-compatibility: */
-static void char_memory_class_init(ObjectClass *oc, void *data)
-{
-    ChardevClass *cc = CHARDEV_CLASS(oc);
-
-    cc->kind = CHARDEV_BACKEND_KIND_MEMORY;
-}
-
 static const TypeInfo char_memory_type_info = {
     .name = TYPE_CHARDEV_MEMORY,
     .parent = TYPE_CHARDEV_RINGBUF,
-    .class_init = char_memory_class_init,
 };
 
 static void qemu_chr_parse_mux(QemuOpts *opts, ChardevBackend *backend,
@@ -3979,6 +3971,7 @@ static void qemu_chr_parse_mux(QemuOpts *opts, ChardevBackend *backend,
     const char *chardev = qemu_opt_get(opts, "chardev");
     ChardevMux *mux;
 
+    backend->type = CHARDEV_BACKEND_KIND_MUX;
     if (chardev == NULL) {
         error_setg(errp, "chardev: mux: no chardev given");
         return;
@@ -3992,7 +3985,6 @@ static void char_mux_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_MUX;
     cc->parse = qemu_chr_parse_mux;
     cc->open = qemu_chr_open_mux;
     cc->chr_write = mux_chr_write;
@@ -4023,6 +4015,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     SocketAddress *addr;
     ChardevSocket *sock;
 
+    backend->type = CHARDEV_BACKEND_KIND_SOCKET;
     if (!path) {
         if (!host) {
             error_setg(errp, "chardev: socket: no host given");
@@ -4088,6 +4081,7 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     SocketAddress *addr;
     ChardevUdp *udp;
 
+    backend->type = CHARDEV_BACKEND_KIND_UDP;
     if (host == NULL || strlen(host) == 0) {
         host = "localhost";
     }
@@ -4164,6 +4158,26 @@ static const ChardevClass *char_get_class(const char *driver, Error **errp)
     return cc;
 }
 
+static Chardev *qemu_chardev_add(const char *id, const char *typename,
+                                 ChardevBackend *backend, Error **errp)
+{
+    Chardev *chr;
+
+    chr = qemu_chr_find(id);
+    if (chr) {
+        error_setg(errp, "Chardev '%s' already exists", id);
+        return NULL;
+    }
+
+    chr = qemu_chardev_new(id, typename, backend, errp);
+    if (!chr) {
+        return NULL;
+    }
+
+    QTAILQ_INSERT_TAIL(&chardevs, chr, next);
+    return chr;
+}
+
 static const struct ChardevAlias {
     const char *typename;
     const char *alias;
@@ -4222,8 +4236,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
     const ChardevClass *cc;
     Chardev *chr;
     int i;
-    ChardevReturn *ret = NULL;
-    ChardevBackend *backend;
+    ChardevBackend *backend = NULL;
     const char *name = qemu_opt_get(opts, "backend");
     const char *id = qemu_opts_id(opts);
     char *bid = NULL;
@@ -4231,7 +4244,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
     if (name == NULL) {
         error_setg(errp, "chardev: \"%s\" missing backend",
                    qemu_opts_id(opts));
-        goto err;
+        return NULL;
     }
 
     if (is_help_option(name)) {
@@ -4246,7 +4259,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
 
     if (id == NULL) {
         error_setg(errp, "chardev: no id specified");
-        goto err;
+        return NULL;
     }
 
     for (i = 0; i < ARRAY_SIZE(chardev_alias_table); i++) {
@@ -4258,22 +4271,22 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
 
     cc = char_get_class(name, errp);
     if (cc == NULL) {
-        goto err;
+        return NULL;
     }
 
     backend = g_new0(ChardevBackend, 1);
+    backend->type = CHARDEV_BACKEND_KIND_NULL;
 
     if (qemu_opt_get_bool(opts, "mux", 0)) {
         bid = g_strdup_printf("%s-base", id);
     }
 
     chr = NULL;
-    backend->type = cc->kind;
     if (cc->parse) {
         cc->parse(opts, backend, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
-            goto qapi_out;
+            goto out;
         }
     } else {
         ChardevCommon *ccom = g_new0(ChardevCommon, 1);
@@ -4281,37 +4294,33 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
         backend->u.null.data = ccom; /* Any ChardevCommon member would work */
     }
 
-    ret = qmp_chardev_add(bid ? bid : id, backend, errp);
-    if (!ret) {
-        goto qapi_out;
+    chr = qemu_chardev_add(bid ? bid : id,
+                           object_class_get_name(OBJECT_CLASS(cc)),
+                           backend, errp);
+    if (chr == NULL) {
+        goto out;
     }
 
     if (bid) {
+        Chardev *mux;
         qapi_free_ChardevBackend(backend);
-        qapi_free_ChardevReturn(ret);
         backend = g_new0(ChardevBackend, 1);
-        backend->u.mux.data = g_new0(ChardevMux, 1);
         backend->type = CHARDEV_BACKEND_KIND_MUX;
+        backend->u.mux.data = g_new0(ChardevMux, 1);
         backend->u.mux.data->chardev = g_strdup(bid);
-        ret = qmp_chardev_add(id, backend, errp);
-        if (!ret) {
-            chr = qemu_chr_find(bid);
+        mux = qemu_chardev_add(id, TYPE_CHARDEV_MUX, backend, errp);
+        if (mux == NULL) {
             qemu_chr_delete(chr);
             chr = NULL;
-            goto qapi_out;
+            goto out;
         }
+        chr = mux;
     }
 
-    chr = qemu_chr_find(id);
-
-qapi_out:
+out:
     qapi_free_ChardevBackend(backend);
-    qapi_free_ChardevReturn(ret);
     g_free(bid);
     return chr;
-
-err:
-    return NULL;
 }
 
 Chardev *qemu_chr_new_noreplay(const char *label, const char *filename)
@@ -4700,7 +4709,6 @@ static void char_parallel_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_PARALLEL;
     cc->parse = qemu_chr_parse_parallel;
     cc->open = qmp_chardev_open_parallel;
 #if defined(__linux__)
@@ -4743,7 +4751,6 @@ static void char_file_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_FILE;
     cc->parse = qemu_chr_parse_file_out;
     cc->open = qmp_chardev_open_file;
 }
@@ -4764,7 +4771,6 @@ static void char_serial_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_SERIAL;
     cc->parse = qemu_chr_parse_serial;
     cc->open = qmp_chardev_open_serial;
 #ifndef _WIN32
@@ -4922,7 +4928,6 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_SOCKET;
     cc->parse = qemu_chr_parse_socket;
     cc->open = qmp_chardev_open_socket;
     cc->chr_wait_connected = tcp_chr_wait_connected;
@@ -4974,7 +4979,6 @@ static void char_udp_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_UDP;
     cc->parse = qemu_chr_parse_udp;
     cc->open = qmp_chardev_open_udp;
     cc->chr_write = udp_chr_write;
@@ -5037,18 +5041,12 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     ChardevReturn *ret;
     Chardev *chr;
 
-    chr = qemu_chr_find(id);
-    if (chr) {
-        error_setg(errp, "Chardev '%s' already exists", id);
-        return NULL;
-    }
-
     cc = char_get_class(ChardevBackendKind_lookup[backend->type], errp);
     if (!cc) {
         return NULL;
     }
 
-    chr = qemu_chardev_new(id, object_class_get_name(OBJECT_CLASS(cc)),
+    chr = qemu_chardev_add(id, object_class_get_name(OBJECT_CLASS(cc)),
                            backend, errp);
     if (!chr) {
         return NULL;
@@ -5060,7 +5058,6 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         ret->has_pty = true;
     }
 
-    QTAILQ_INSERT_TAIL(&chardevs, chr, next);
     return ret;
 }
 

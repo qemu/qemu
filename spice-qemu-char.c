@@ -338,6 +338,7 @@ static void qemu_chr_parse_spice_vmc(QemuOpts *opts, ChardevBackend *backend,
         error_setg(errp, "chardev: spice channel: no name given");
         return;
     }
+    backend->type = CHARDEV_BACKEND_KIND_SPICEVMC;
     spicevmc = backend->u.spicevmc.data = g_new0(ChardevSpiceChannel, 1);
     qemu_chr_parse_common(opts, qapi_ChardevSpiceChannel_base(spicevmc));
     spicevmc->type = g_strdup(name);
@@ -353,6 +354,7 @@ static void qemu_chr_parse_spice_port(QemuOpts *opts, ChardevBackend *backend,
         error_setg(errp, "chardev: spice port: no name given");
         return;
     }
+    backend->type = CHARDEV_BACKEND_KIND_SPICEPORT;
     spiceport = backend->u.spiceport.data = g_new0(ChardevSpicePort, 1);
     qemu_chr_parse_common(opts, qapi_ChardevSpicePort_base(spiceport));
     spiceport->fqdn = g_strdup(name);
@@ -380,7 +382,6 @@ static void char_spicevmc_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_SPICEVMC;
     cc->parse = qemu_chr_parse_spice_vmc;
     cc->open = qemu_chr_open_spice_vmc;
     cc->chr_set_fe_open = spice_vmc_set_fe_open;
@@ -396,7 +397,6 @@ static void char_spiceport_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_SPICEPORT;
     cc->parse = qemu_chr_parse_spice_port;
     cc->open = qemu_chr_open_spice_port;
     cc->chr_set_fe_open = spice_port_set_fe_open;

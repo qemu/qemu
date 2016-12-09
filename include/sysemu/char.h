@@ -474,7 +474,6 @@ typedef struct ChardevClass {
     ObjectClass parent_class;
 
     bool internal; /* TODO: eventually use TYPE_USER_CREATABLE */
-    ChardevBackendKind kind;
     void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 
     void (*open)(Chardev *chr, ChardevBackend *backend,

@@ -111,7 +111,6 @@ static void char_testdev_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_TESTDEV;
     cc->chr_write = testdev_chr_write;
 }
 
