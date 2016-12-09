@@ -269,6 +269,7 @@ static void gen_##name(DisasContext *ctx)                       \
 VSX_VECTOR_LOAD_STORE_LENGTH(lxvl)
 VSX_VECTOR_LOAD_STORE_LENGTH(lxvll)
 VSX_VECTOR_LOAD_STORE_LENGTH(stxvl)
+VSX_VECTOR_LOAD_STORE_LENGTH(stxvll)
 #endif
 
 #define VSX_LOAD_SCALAR_DS(name, operation)                       \
