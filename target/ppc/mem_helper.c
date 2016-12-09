@@ -317,6 +317,35 @@ void helper_##name(CPUPPCState *env, target_ulong addr,                 \
 VSX_LXVL(lxvl, 0)
 VSX_LXVL(lxvll, 1)
 #undef VSX_LXVL
+
+#define VSX_STXVL(name, lj)                                       \
+void helper_##name(CPUPPCState *env, target_ulong addr,           \
+                   target_ulong xt_num, target_ulong rb)          \
+{                                                                 \
+    int i;                                                        \
+    ppc_vsr_t xt;                                                 \
+    target_ulong nb = GET_NB(rb);                                 \
+                                                                  \
+    if (!nb) {                                                    \
+        return;                                                   \
+    }                                                             \
+    getVSR(xt_num, &xt, env);                                     \
+    nb = (nb >= 16) ? 16 : nb;                                    \
+    if (msr_le && !lj) {                                          \
+        for (i = 16; i > 16 - nb; i--) {                          \
+            cpu_stb_data_ra(env, addr, xt.VsrB(i - 1), GETPC());  \
+            addr = addr_add(env, addr, 1);                        \
+        }                                                         \
+    } else {                                                      \
+        for (i = 0; i < nb; i++) {                                \
+            cpu_stb_data_ra(env, addr, xt.VsrB(i), GETPC());      \
+            addr = addr_add(env, addr, 1);                        \
+        }                                                         \
+    }                                                             \
+}
+
+VSX_STXVL(stxvl, 0)
+#undef VSX_STXVL
 #undef GET_NB
 #endif /* TARGET_PPC64 */
 
