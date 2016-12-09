@@ -51,7 +51,7 @@ common-obj-$(CONFIG_POSIX) += os-posix.o
 common-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += migration/
-common-obj-y += qemu-char.o #aio.o
+common-obj-y += chardev/ #aio.o
 common-obj-y += page_cache.o
 
 common-obj-$(CONFIG_SPICE) += spice-qemu-char.o

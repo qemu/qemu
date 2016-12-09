@@ -1196,7 +1196,7 @@ Character device backends
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Maintained
-F: qemu-char.c
+F: chardev/
 F: backends/msmouse.c
 F: backends/testdev.c
 
