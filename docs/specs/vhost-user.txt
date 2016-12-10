@@ -259,6 +259,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_LOG_SHMFD      1
 #define VHOST_USER_PROTOCOL_F_RARP           2
 #define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
+#define VHOST_USER_PROTOCOL_F_MTU            4
 
 Message types
 -------------
@@ -469,6 +470,21 @@ Message types
       is present in VHOST_USER_GET_PROTOCOL_FEATURES.
       The first 6 bytes of the payload contain the mac address of the guest to
       allow the vhost user backend to construct and broadcast the fake RARP.
+
+ * VHOST_USER_NET_SET_MTU
+
+      Id: 20
+      Equivalent ioctl: N/A
+      Master payload: u64
+
+      Set host MTU value exposed to the guest.
+      This request should be sent only when VIRTIO_NET_F_MTU feature has been
+      successfully negotiated, VHOST_USER_F_PROTOCOL_FEATURES is present in
+      VHOST_USER_GET_FEATURES and protocol feature bit
+      VHOST_USER_PROTOCOL_F_NET_MTU is present in
+      VHOST_USER_GET_PROTOCOL_FEATURES.
+      If VHOST_USER_PROTOCOL_F_REPLY_ACK is negotiated, slave must respond
+      with zero in case the specified MTU is valid, or non-zero otherwise.
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------
