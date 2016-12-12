@@ -1,1 +1,1 @@
-common-obj-y += char.o
+chardev-obj-y += char.o
