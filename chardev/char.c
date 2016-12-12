@@ -560,28 +560,6 @@ static const TypeInfo char_type_info = {
     .class_init = char_class_init,
 };
 
-static void null_chr_open(Chardev *chr,
-                          ChardevBackend *backend,
-                          bool *be_opened,
-                          Error **errp)
-{
-    *be_opened = false;
-}
-
-static void char_null_class_init(ObjectClass *oc, void *data)
-{
-    ChardevClass *cc = CHARDEV_CLASS(oc);
-
-    cc->open = null_chr_open;
-}
-
-static const TypeInfo char_null_type_info = {
-    .name = TYPE_CHARDEV_NULL,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(Chardev),
-    .class_init = char_null_class_init,
-};
-
 /* MUX driver for serial I/O splitting */
 #define MAX_MUX 4
 #define MUX_BUFFER_SIZE 32	/* Must be a power of 2.  */
@@ -5105,7 +5083,6 @@ static void register_types(void)
     type_register_static(&char_win_type_info);
     type_register_static(&char_win_stdio_type_info);
 #endif
-    type_register_static(&char_null_type_info);
     type_register_static(&char_socket_type_info);
     type_register_static(&char_udp_type_info);
     type_register_static(&char_ringbuf_type_info);
