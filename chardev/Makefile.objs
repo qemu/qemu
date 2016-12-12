@@ -4,3 +4,4 @@ chardev-obj-y += char-io.o
 chardev-obj-y += char-mux.o
 chardev-obj-y += char-null.o
 chardev-obj-y += char-ringbuf.o
+chardev-obj-$(CONFIG_WIN32) += char-win.o
