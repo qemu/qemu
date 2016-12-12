@@ -2343,9 +2343,6 @@ static void register_types(void)
 #ifdef HAVE_CHARDEV_PTY
     type_register_static(&char_pty_type_info);
 #endif
-#ifdef _WIN32
-    type_register_static(&char_console_type_info);
-#endif
     type_register_static(&char_pipe_type_info);
 
     /* this must be done after machine init, since we register FEs with muxes
