@@ -87,7 +87,6 @@
 
 #include "char-mux.h"
 
-#define READ_RETRIES 10
 #define TCP_MAX_FDS 16
 
 /***********************************************************/
