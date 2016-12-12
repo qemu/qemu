@@ -86,6 +86,7 @@
 #include "ui/qemu-spice.h"
 
 #include "char-mux.h"
+#include "char-fd.h"
 #include "char-io.h"
 
 #define TCP_MAX_FDS 16
@@ -716,136 +717,6 @@ void qemu_chr_fe_take_focus(CharBackend *b)
 }
 
 #ifndef _WIN32
-typedef struct FDChardev {
-    Chardev parent;
-    Chardev *chr;
-    QIOChannel *ioc_in, *ioc_out;
-    int max_size;
-} FDChardev;
-
-#define TYPE_CHARDEV_FD "chardev-fd"
-#define FD_CHARDEV(obj) OBJECT_CHECK(FDChardev, (obj), TYPE_CHARDEV_FD)
-
-/* Called with chr_write_lock held.  */
-static int fd_chr_write(Chardev *chr, const uint8_t *buf, int len)
-{
-    FDChardev *s = FD_CHARDEV(chr);
-
-    return io_channel_send(s->ioc_out, buf, len);
-}
-
-static gboolean fd_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
-{
-    Chardev *chr = CHARDEV(opaque);
-    FDChardev *s = FD_CHARDEV(opaque);
-    int len;
-    uint8_t buf[CHR_READ_BUF_LEN];
-    ssize_t ret;
-
-    len = sizeof(buf);
-    if (len > s->max_size) {
-        len = s->max_size;
-    }
-    if (len == 0) {
-        return TRUE;
-    }
-
-    ret = qio_channel_read(
-        chan, (gchar *)buf, len, NULL);
-    if (ret == 0) {
-        remove_fd_in_watch(chr);
-        qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
-        return FALSE;
-    }
-    if (ret > 0) {
-        qemu_chr_be_write(chr, buf, ret);
-    }
-
-    return TRUE;
-}
-
-static int fd_chr_read_poll(void *opaque)
-{
-    Chardev *chr = CHARDEV(opaque);
-    FDChardev *s = FD_CHARDEV(opaque);
-
-    s->max_size = qemu_chr_be_can_write(chr);
-    return s->max_size;
-}
-
-static GSource *fd_chr_add_watch(Chardev *chr, GIOCondition cond)
-{
-    FDChardev *s = FD_CHARDEV(chr);
-    return qio_channel_create_watch(s->ioc_out, cond);
-}
-
-static void fd_chr_update_read_handler(Chardev *chr,
-                                       GMainContext *context)
-{
-    FDChardev *s = FD_CHARDEV(chr);
-
-    remove_fd_in_watch(chr);
-    if (s->ioc_in) {
-        chr->fd_in_tag = io_add_watch_poll(chr, s->ioc_in,
-                                           fd_chr_read_poll,
-                                           fd_chr_read, chr,
-                                           context);
-    }
-}
-
-static void char_fd_finalize(Object *obj)
-{
-    Chardev *chr = CHARDEV(obj);
-    FDChardev *s = FD_CHARDEV(obj);
-
-    remove_fd_in_watch(chr);
-    if (s->ioc_in) {
-        object_unref(OBJECT(s->ioc_in));
-    }
-    if (s->ioc_out) {
-        object_unref(OBJECT(s->ioc_out));
-    }
-
-    qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
-}
-
-/* open a character device to a unix fd */
-static void qemu_chr_open_fd(Chardev *chr,
-                             int fd_in, int fd_out)
-{
-    FDChardev *s = FD_CHARDEV(chr);
-    char *name;
-
-    s->ioc_in = QIO_CHANNEL(qio_channel_file_new_fd(fd_in));
-    name = g_strdup_printf("chardev-file-in-%s", chr->label);
-    qio_channel_set_name(QIO_CHANNEL(s->ioc_in), name);
-    g_free(name);
-    s->ioc_out = QIO_CHANNEL(qio_channel_file_new_fd(fd_out));
-    name = g_strdup_printf("chardev-file-out-%s", chr->label);
-    qio_channel_set_name(QIO_CHANNEL(s->ioc_out), name);
-    g_free(name);
-    qemu_set_nonblock(fd_out);
-    s->chr = chr;
-}
-
-static void char_fd_class_init(ObjectClass *oc, void *data)
-{
-    ChardevClass *cc = CHARDEV_CLASS(oc);
-
-    cc->chr_add_watch = fd_chr_add_watch;
-    cc->chr_write = fd_chr_write;
-    cc->chr_update_read_handler = fd_chr_update_read_handler;
-}
-
-static const TypeInfo char_fd_type_info = {
-    .name = TYPE_CHARDEV_FD,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(FDChardev),
-    .instance_finalize = char_fd_finalize,
-    .class_init = char_fd_class_init,
-    .abstract = true,
-};
-
 static void qemu_chr_open_pipe(Chardev *chr,
                                ChardevBackend *backend,
                                bool *be_opened,
@@ -3875,18 +3746,6 @@ static void qmp_chardev_open_serial(Chardev *chr,
 
 #else /* WIN32 */
 
-static int qmp_chardev_open_file_source(char *src, int flags,
-                                        Error **errp)
-{
-    int fd = -1;
-
-    TFR(fd = qemu_open(src, flags, 0666));
-    if (fd == -1) {
-        error_setg_file_open(errp, errno, src);
-    }
-    return fd;
-}
-
 static void qmp_chardev_open_file(Chardev *chr,
                                   ChardevBackend *backend,
                                   bool *be_opened,
@@ -4342,9 +4201,7 @@ void qemu_chr_cleanup(void)
 static void register_types(void)
 {
     type_register_static(&char_type_info);
-#ifndef _WIN32
-    type_register_static(&char_fd_type_info);
-#else
+#ifdef _WIN32
     type_register_static(&char_win_type_info);
     type_register_static(&char_win_stdio_type_info);
 #endif
