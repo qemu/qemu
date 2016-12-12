@@ -26,54 +26,16 @@
 #include "qemu/cutils.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/block-backend.h"
+#include "qemu/config-file.h"
 #include "qemu/error-report.h"
-#include "qemu/timer.h"
 #include "sysemu/char.h"
-#include "hw/usb.h"
 #include "qmp-commands.h"
-#include "qapi/clone-visitor.h"
 #include "qapi-visit.h"
-#include "qemu/base64.h"
-#include "io/channel-socket.h"
-#include "io/channel-tls.h"
 #include "sysemu/replay.h"
 #include "qemu/help_option.h"
 
-#include <zlib.h>
-
-#ifndef _WIN32
-#include <sys/times.h>
-#include <sys/wait.h>
-#include <sys/ioctl.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <net/if.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <sys/select.h>
-#ifdef __sun__
-#include <sys/ethernet.h>
-#include <sys/sockio.h>
-#include <netinet/arp.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h> // must come after ip.h
-#include <netinet/udp.h>
-#include <netinet/tcp.h>
-#endif
-#endif
-
-#include "qemu/sockets.h"
-#include "ui/qemu-spice.h"
-
 #include "char-mux.h"
 #include "char-io.h"
-#ifdef _WIN32
-#include "char-win.h"
-#endif
 #include "char-parallel.h"
 #include "char-serial.h"
 
