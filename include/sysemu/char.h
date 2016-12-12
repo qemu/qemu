@@ -441,6 +441,7 @@ bool qemu_chr_has_feature(Chardev *chr,
 void qemu_chr_set_feature(Chardev *chr,
                           ChardevFeature feature);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
+int qemu_chr_write_all(Chardev *s, const uint8_t *buf, int len);
 
 #define TYPE_CHARDEV "chardev"
 #define CHARDEV(obj) OBJECT_CHECK(Chardev, (obj), TYPE_CHARDEV)
@@ -463,8 +464,6 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 #define TYPE_CHARDEV_SOCKET "chardev-socket"
 #define TYPE_CHARDEV_UDP "chardev-udp"
 
-#define CHARDEV_IS_MUX(chr) \
-    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_MUX)
 #define CHARDEV_IS_RINGBUF(chr) \
     object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_RINGBUF)
 #define CHARDEV_IS_PTY(chr) \
