@@ -522,6 +522,18 @@ static void char_init(Object *obj)
     qemu_mutex_init(&chr->chr_write_lock);
 }
 
+static int null_chr_write(Chardev *chr, const uint8_t *buf, int len)
+{
+    return len;
+}
+
+static void char_class_init(ObjectClass *oc, void *data)
+{
+    ChardevClass *cc = CHARDEV_CLASS(oc);
+
+    cc->chr_write = null_chr_write;
+}
+
 static void char_finalize(Object *obj)
 {
     Chardev *chr = CHARDEV(obj);
@@ -545,12 +557,8 @@ static const TypeInfo char_type_info = {
     .instance_finalize = char_finalize,
     .abstract = true,
     .class_size = sizeof(ChardevClass),
+    .class_init = char_class_init,
 };
-
-static int null_chr_write(Chardev *chr, const uint8_t *buf, int len)
-{
-    return len;
-}
 
 static void null_chr_open(Chardev *chr,
                           ChardevBackend *backend,
@@ -565,7 +573,6 @@ static void char_null_class_init(ObjectClass *oc, void *data)
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->open = null_chr_open;
-    cc->chr_write = null_chr_write;
 }
 
 static const TypeInfo char_null_type_info = {
@@ -4712,10 +4719,8 @@ static void char_parallel_class_init(ObjectClass *oc, void *data)
     cc->parse = qemu_chr_parse_parallel;
     cc->open = qmp_chardev_open_parallel;
 #if defined(__linux__)
-    cc->chr_write = null_chr_write;
     cc->chr_ioctl = pp_ioctl;
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-    cc->chr_write = null_chr_write;
     cc->chr_ioctl = pp_ioctl;
 #endif
 }
