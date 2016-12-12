@@ -5,6 +5,7 @@ chardev-obj-y += char-file.o
 chardev-obj-y += char-io.o
 chardev-obj-y += char-mux.o
 chardev-obj-y += char-null.o
+chardev-obj-$(CONFIG_POSIX) += char-parallel.o
 chardev-obj-y += char-pipe.o
 chardev-obj-$(CONFIG_POSIX) += char-pty.o
 chardev-obj-y += char-ringbuf.o

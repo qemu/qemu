@@ -53,19 +53,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/select.h>
-#ifdef CONFIG_BSD
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-#include <dev/ppbus/ppi.h>
-#include <dev/ppbus/ppbconf.h>
-#elif defined(__DragonFly__)
-#include <dev/misc/ppi/ppi.h>
-#include <bus/ppbus/ppbconf.h>
-#endif
-#else
-#ifdef __linux__
-#include <linux/ppdev.h>
-#include <linux/parport.h>
-#endif
 #ifdef __sun__
 #include <sys/ethernet.h>
 #include <sys/sockio.h>
@@ -78,17 +65,16 @@
 #include <netinet/tcp.h>
 #endif
 #endif
-#endif
 
 #include "qemu/sockets.h"
 #include "ui/qemu-spice.h"
 
 #include "char-mux.h"
-#include "char-fd.h"
 #include "char-io.h"
 #ifdef _WIN32
 #include "char-win.h"
 #endif
+#include "char-parallel.h"
 #include "char-serial.h"
 
 /***********************************************************/
@@ -653,198 +639,6 @@ void qemu_chr_fe_take_focus(CharBackend *b)
     }
 }
 
-#ifndef _WIN32
-
-#if defined(__linux__)
-
-#define HAVE_CHARDEV_PARPORT 1
-
-typedef struct {
-    Chardev parent;
-    int fd;
-    int mode;
-} ParallelChardev;
-
-#define PARALLEL_CHARDEV(obj) \
-    OBJECT_CHECK(ParallelChardev, (obj), TYPE_CHARDEV_PARALLEL)
-
-static int pp_hw_mode(ParallelChardev *s, uint16_t mode)
-{
-    if (s->mode != mode) {
-	int m = mode;
-        if (ioctl(s->fd, PPSETMODE, &m) < 0)
-            return 0;
-	s->mode = mode;
-    }
-    return 1;
-}
-
-static int pp_ioctl(Chardev *chr, int cmd, void *arg)
-{
-    ParallelChardev *drv = PARALLEL_CHARDEV(chr);
-    int fd = drv->fd;
-    uint8_t b;
-
-    switch(cmd) {
-    case CHR_IOCTL_PP_READ_DATA:
-        if (ioctl(fd, PPRDATA, &b) < 0)
-            return -ENOTSUP;
-        *(uint8_t *)arg = b;
-        break;
-    case CHR_IOCTL_PP_WRITE_DATA:
-        b = *(uint8_t *)arg;
-        if (ioctl(fd, PPWDATA, &b) < 0)
-            return -ENOTSUP;
-        break;
-    case CHR_IOCTL_PP_READ_CONTROL:
-        if (ioctl(fd, PPRCONTROL, &b) < 0)
-            return -ENOTSUP;
-	/* Linux gives only the lowest bits, and no way to know data
-	   direction! For better compatibility set the fixed upper
-	   bits. */
-        *(uint8_t *)arg = b | 0xc0;
-        break;
-    case CHR_IOCTL_PP_WRITE_CONTROL:
-        b = *(uint8_t *)arg;
-        if (ioctl(fd, PPWCONTROL, &b) < 0)
-            return -ENOTSUP;
-        break;
-    case CHR_IOCTL_PP_READ_STATUS:
-        if (ioctl(fd, PPRSTATUS, &b) < 0)
-            return -ENOTSUP;
-        *(uint8_t *)arg = b;
-        break;
-    case CHR_IOCTL_PP_DATA_DIR:
-        if (ioctl(fd, PPDATADIR, (int *)arg) < 0)
-            return -ENOTSUP;
-        break;
-    case CHR_IOCTL_PP_EPP_READ_ADDR:
-	if (pp_hw_mode(drv, IEEE1284_MODE_EPP|IEEE1284_ADDR)) {
-	    struct ParallelIOArg *parg = arg;
-	    int n = read(fd, parg->buffer, parg->count);
-	    if (n != parg->count) {
-		return -EIO;
-	    }
-	}
-        break;
-    case CHR_IOCTL_PP_EPP_READ:
-	if (pp_hw_mode(drv, IEEE1284_MODE_EPP)) {
-	    struct ParallelIOArg *parg = arg;
-	    int n = read(fd, parg->buffer, parg->count);
-	    if (n != parg->count) {
-		return -EIO;
-	    }
-	}
-        break;
-    case CHR_IOCTL_PP_EPP_WRITE_ADDR:
-	if (pp_hw_mode(drv, IEEE1284_MODE_EPP|IEEE1284_ADDR)) {
-	    struct ParallelIOArg *parg = arg;
-	    int n = write(fd, parg->buffer, parg->count);
-	    if (n != parg->count) {
-		return -EIO;
-	    }
-	}
-        break;
-    case CHR_IOCTL_PP_EPP_WRITE:
-	if (pp_hw_mode(drv, IEEE1284_MODE_EPP)) {
-	    struct ParallelIOArg *parg = arg;
-	    int n = write(fd, parg->buffer, parg->count);
-	    if (n != parg->count) {
-		return -EIO;
-	    }
-	}
-        break;
-    default:
-        return -ENOTSUP;
-    }
-    return 0;
-}
-
-static void qemu_chr_open_pp_fd(Chardev *chr,
-                                int fd,
-                                bool *be_opened,
-                                Error **errp)
-{
-    ParallelChardev *drv = PARALLEL_CHARDEV(chr);
-
-    if (ioctl(fd, PPCLAIM) < 0) {
-        error_setg_errno(errp, errno, "not a parallel port");
-        close(fd);
-        return;
-    }
-
-    drv->fd = fd;
-    drv->mode = IEEE1284_MODE_COMPAT;
-}
-#endif /* __linux__ */
-
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-
-#define HAVE_CHARDEV_PARPORT 1
-
-typedef struct {
-    Chardev parent;
-    int fd;
-} ParallelChardev;
-
-#define PARALLEL_CHARDEV(obj)                                   \
-    OBJECT_CHECK(ParallelChardev, (obj), TYPE_CHARDEV_PARALLEL)
-
-static int pp_ioctl(Chardev *chr, int cmd, void *arg)
-{
-    ParallelChardev *drv = PARALLEL_CHARDEV(chr);
-    uint8_t b;
-
-    switch (cmd) {
-    case CHR_IOCTL_PP_READ_DATA:
-        if (ioctl(drv->fd, PPIGDATA, &b) < 0) {
-            return -ENOTSUP;
-        }
-        *(uint8_t *)arg = b;
-        break;
-    case CHR_IOCTL_PP_WRITE_DATA:
-        b = *(uint8_t *)arg;
-        if (ioctl(drv->fd, PPISDATA, &b) < 0) {
-            return -ENOTSUP;
-        }
-        break;
-    case CHR_IOCTL_PP_READ_CONTROL:
-        if (ioctl(drv->fd, PPIGCTRL, &b) < 0) {
-            return -ENOTSUP;
-        }
-        *(uint8_t *)arg = b;
-        break;
-    case CHR_IOCTL_PP_WRITE_CONTROL:
-        b = *(uint8_t *)arg;
-        if (ioctl(drv->fd, PPISCTRL, &b) < 0) {
-            return -ENOTSUP;
-        }
-        break;
-    case CHR_IOCTL_PP_READ_STATUS:
-        if (ioctl(drv->fd, PPIGSTATUS, &b) < 0) {
-            return -ENOTSUP;
-        }
-        *(uint8_t *)arg = b;
-        break;
-    default:
-        return -ENOTSUP;
-    }
-    return 0;
-}
-
-static void qemu_chr_open_pp_fd(Chardev *chr,
-                                int fd,
-                                bool *be_opened,
-                                Error **errp)
-{
-    ParallelChardev *drv = PARALLEL_CHARDEV(chr);
-    drv->fd = fd;
-    *be_opened = false;
-}
-#endif
-
-#endif /* !_WIN32 */
-
 int qemu_chr_wait_connected(Chardev *chr, Error **errp)
 {
     ChardevClass *cc = CHARDEV_GET_CLASS(chr);
@@ -1018,24 +812,6 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
     backend->has_logappend = true;
     backend->logappend = qemu_opt_get_bool(opts, "logappend", false);
 }
-
-#ifdef HAVE_CHARDEV_PARPORT
-static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
-                                    Error **errp)
-{
-    const char *device = qemu_opt_get(opts, "path");
-    ChardevHostdev *parallel;
-
-    backend->type = CHARDEV_BACKEND_KIND_PARALLEL;
-    if (device == NULL) {
-        error_setg(errp, "chardev: parallel: no device path given");
-        return;
-    }
-    parallel = backend->u.parallel.data = g_new0(ChardevHostdev, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevHostdev_base(parallel));
-    parallel->device = g_strdup(device);
-}
-#endif
 
 static const ChardevClass *char_get_class(const char *driver, Error **errp)
 {
@@ -1484,64 +1260,6 @@ QemuOptsList qemu_chardev_opts = {
     },
 };
 
-#ifndef _WIN32
-
-#ifdef HAVE_CHARDEV_PARPORT
-static void qmp_chardev_open_parallel(Chardev *chr,
-                                      ChardevBackend *backend,
-                                      bool *be_opened,
-                                      Error **errp)
-{
-    ChardevHostdev *parallel = backend->u.parallel.data;
-    int fd;
-
-    fd = qmp_chardev_open_file_source(parallel->device, O_RDWR, errp);
-    if (fd < 0) {
-        return;
-    }
-    qemu_chr_open_pp_fd(chr, fd, be_opened, errp);
-}
-
-static void char_parallel_class_init(ObjectClass *oc, void *data)
-{
-    ChardevClass *cc = CHARDEV_CLASS(oc);
-
-    cc->parse = qemu_chr_parse_parallel;
-    cc->open = qmp_chardev_open_parallel;
-#if defined(__linux__)
-    cc->chr_ioctl = pp_ioctl;
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-    cc->chr_ioctl = pp_ioctl;
-#endif
-}
-
-static void char_parallel_finalize(Object *obj)
-{
-#if defined(__linux__)
-    Chardev *chr = CHARDEV(obj);
-    ParallelChardev *drv = PARALLEL_CHARDEV(chr);
-    int fd = drv->fd;
-
-    pp_hw_mode(drv, IEEE1284_MODE_COMPAT);
-    ioctl(fd, PPRELEASE);
-    close(fd);
-    qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-    /* FIXME: close fd? */
-#endif
-}
-
-static const TypeInfo char_parallel_type_info = {
-    .name = TYPE_CHARDEV_PARALLEL,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(ParallelChardev),
-    .instance_finalize = char_parallel_finalize,
-    .class_init = char_parallel_class_init,
-};
-#endif
-
-#endif /* WIN32 */
-
 bool qemu_chr_has_feature(Chardev *chr,
                           ChardevFeature feature)
 {
@@ -1643,9 +1361,6 @@ void qemu_chr_cleanup(void)
 static void register_types(void)
 {
     type_register_static(&char_type_info);
-#ifdef HAVE_CHARDEV_PARPORT
-    type_register_static(&char_parallel_type_info);
-#endif
 
     /* this must be done after machine init, since we register FEs with muxes
      * as part of realize functions like serial_isa_realizefn when -nographic
