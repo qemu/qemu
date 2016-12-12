@@ -306,6 +306,8 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
 {
     VMStateField *field = vmsd->fields;
 
+    trace_vmstate_save_state_top(vmsd->name);
+
     if (vmsd->pre_save) {
         vmsd->pre_save(opaque);
     }
@@ -325,6 +327,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
             int64_t old_offset, written_bytes;
             QJSON *vmdesc_loop = vmdesc;
 
+            trace_vmstate_save_state_loop(vmsd->name, field->name, n_elems);
             for (i = 0; i < n_elems; i++) {
                 void *addr = base_addr + size * i;
 
@@ -434,11 +437,13 @@ static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
     const VMStateDescription **sub = vmsd->subsections;
     bool subsection_found = false;
 
+    trace_vmstate_subsection_save_top(vmsd->name);
     while (sub && *sub && (*sub)->needed) {
         if ((*sub)->needed(opaque)) {
-            const VMStateDescription *vmsd = *sub;
+            const VMStateDescription *vmsdsub = *sub;
             uint8_t len;
 
+            trace_vmstate_subsection_save_loop(vmsd->name, vmsdsub->name);
             if (vmdesc) {
                 /* Only create subsection array when we have any */
                 if (!subsection_found) {
@@ -450,11 +455,11 @@ static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
             }
 
             qemu_put_byte(f, QEMU_VM_SUBSECTION);
-            len = strlen(vmsd->name);
+            len = strlen(vmsdsub->name);
             qemu_put_byte(f, len);
-            qemu_put_buffer(f, (uint8_t *)vmsd->name, len);
-            qemu_put_be32(f, vmsd->version_id);
-            vmstate_save_state(f, vmsd, opaque, vmdesc);
+            qemu_put_buffer(f, (uint8_t *)vmsdsub->name, len);
+            qemu_put_be32(f, vmsdsub->version_id);
+            vmstate_save_state(f, vmsdsub, opaque, vmdesc);
 
             if (vmdesc) {
                 json_end_object(vmdesc);
