@@ -90,7 +90,6 @@
 #include "char-io.h"
 #ifdef _WIN32
 #include "char-win.h"
-#include "char-win-stdio.h"
 #endif
 
 /***********************************************************/
@@ -685,90 +684,6 @@ static void qemu_chr_open_pipe(Chardev *chr,
         }
     }
     qemu_chr_open_fd(chr, fd_in, fd_out);
-}
-
-/* init terminal so that we can grab keys */
-static struct termios oldtty;
-static int old_fd0_flags;
-static bool stdio_in_use;
-static bool stdio_allow_signal;
-static bool stdio_echo_state;
-
-static void qemu_chr_set_echo_stdio(Chardev *chr, bool echo);
-
-static void term_exit(void)
-{
-    tcsetattr (0, TCSANOW, &oldtty);
-    fcntl(0, F_SETFL, old_fd0_flags);
-}
-
-static void term_stdio_handler(int sig)
-{
-    /* restore echo after resume from suspend. */
-    qemu_chr_set_echo_stdio(NULL, stdio_echo_state);
-}
-
-static void qemu_chr_set_echo_stdio(Chardev *chr, bool echo)
-{
-    struct termios tty;
-
-    stdio_echo_state = echo;
-    tty = oldtty;
-    if (!echo) {
-        tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
-                          |INLCR|IGNCR|ICRNL|IXON);
-        tty.c_oflag |= OPOST;
-        tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
-        tty.c_cflag &= ~(CSIZE|PARENB);
-        tty.c_cflag |= CS8;
-        tty.c_cc[VMIN] = 1;
-        tty.c_cc[VTIME] = 0;
-    }
-    if (!stdio_allow_signal)
-        tty.c_lflag &= ~ISIG;
-
-    tcsetattr (0, TCSANOW, &tty);
-}
-
-static void char_stdio_finalize(Object *obj)
-{
-    term_exit();
-}
-
-static void qemu_chr_open_stdio(Chardev *chr,
-                                ChardevBackend *backend,
-                                bool *be_opened,
-                                Error **errp)
-{
-    ChardevStdio *opts = backend->u.stdio.data;
-    struct sigaction act;
-
-    if (is_daemonized()) {
-        error_setg(errp, "cannot use stdio with -daemonize");
-        return;
-    }
-
-    if (stdio_in_use) {
-        error_setg(errp, "cannot use stdio by multiple character devices");
-        return;
-    }
-
-    stdio_in_use = true;
-    old_fd0_flags = fcntl(0, F_GETFL);
-    tcgetattr(0, &oldtty);
-    qemu_set_nonblock(0);
-    atexit(term_exit);
-
-    memset(&act, 0, sizeof(act));
-    act.sa_handler = term_stdio_handler;
-    sigaction(SIGCONT, &act, NULL);
-
-    qemu_chr_open_fd(chr, 0, 1);
-
-    if (opts->has_signal) {
-        stdio_allow_signal = opts->signal;
-    }
-    qemu_chr_set_echo_stdio(chr, false);
 }
 
 #if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
@@ -1687,40 +1602,6 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
     backend->logappend = qemu_opt_get_bool(opts, "logappend", false);
 }
 
-static void qemu_chr_parse_stdio(QemuOpts *opts, ChardevBackend *backend,
-                                 Error **errp)
-{
-    ChardevStdio *stdio;
-
-    backend->type = CHARDEV_BACKEND_KIND_STDIO;
-    stdio = backend->u.stdio.data = g_new0(ChardevStdio, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevStdio_base(stdio));
-    stdio->has_signal = true;
-    stdio->signal = qemu_opt_get_bool(opts, "signal", true);
-}
-
-static void char_stdio_class_init(ObjectClass *oc, void *data)
-{
-    ChardevClass *cc = CHARDEV_CLASS(oc);
-
-    cc->parse = qemu_chr_parse_stdio;
-#ifndef _WIN32
-    cc->open = qemu_chr_open_stdio;
-    cc->chr_set_echo = qemu_chr_set_echo_stdio;
-#endif
-}
-
-static const TypeInfo char_stdio_type_info = {
-    .name = TYPE_CHARDEV_STDIO,
-#ifdef _WIN32
-    .parent = TYPE_CHARDEV_WIN_STDIO,
-#else
-    .parent = TYPE_CHARDEV_FD,
-    .instance_finalize = char_stdio_finalize,
-#endif
-    .class_init = char_stdio_class_init,
-};
-
 #ifdef HAVE_CHARDEV_SERIAL
 static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
                                   Error **errp)
@@ -2453,7 +2334,6 @@ void qemu_chr_cleanup(void)
 static void register_types(void)
 {
     type_register_static(&char_type_info);
-    type_register_static(&char_stdio_type_info);
 #ifdef HAVE_CHARDEV_SERIAL
     type_register_static(&char_serial_type_info);
 #endif
