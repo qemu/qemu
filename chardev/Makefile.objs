@@ -1,3 +1,4 @@
 chardev-obj-y += char.o
 chardev-obj-y += char-mux.o
 chardev-obj-y += char-null.o
+chardev-obj-y += char-ringbuf.o
