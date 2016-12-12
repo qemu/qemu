@@ -22,6 +22,7 @@ typedef enum {
     CHR_EVENT_CLOSED /* connection closed */
 } QEMUChrEvent;
 
+#define CHR_READ_BUF_LEN 4096
 
 #define CHR_IOCTL_SERIAL_SET_PARAMS   1
 typedef struct {

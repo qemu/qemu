@@ -87,7 +87,6 @@
 
 #include "char-mux.h"
 
-#define READ_BUF_LEN 4096
 #define READ_RETRIES 10
 #define TCP_MAX_FDS 16
 
@@ -471,7 +470,7 @@ void qemu_chr_fe_accept_input(CharBackend *be)
 
 void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
 {
-    char buf[READ_BUF_LEN];
+    char buf[CHR_READ_BUF_LEN];
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
@@ -913,7 +912,7 @@ static gboolean fd_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     Chardev *chr = CHARDEV(opaque);
     FDChardev *s = FD_CHARDEV(opaque);
     int len;
-    uint8_t buf[READ_BUF_LEN];
+    uint8_t buf[CHR_READ_BUF_LEN];
     ssize_t ret;
 
     len = sizeof(buf);
@@ -1265,7 +1264,7 @@ static gboolean pty_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     Chardev *chr = CHARDEV(opaque);
     PtyChardev *s = PTY_CHARDEV(opaque);
     gsize len;
-    uint8_t buf[READ_BUF_LEN];
+    uint8_t buf[CHR_READ_BUF_LEN];
     ssize_t ret;
 
     len = sizeof(buf);
@@ -1952,7 +1951,7 @@ static void win_chr_readfile(Chardev *chr)
     WinChardev *s = WIN_CHARDEV(chr);
 
     int ret, err;
-    uint8_t buf[READ_BUF_LEN];
+    uint8_t buf[CHR_READ_BUF_LEN];
     DWORD size;
 
     ZeroMemory(&s->orecv, sizeof(s->orecv));
@@ -2354,7 +2353,7 @@ err1:
 typedef struct {
     Chardev parent;
     QIOChannel *ioc;
-    uint8_t buf[READ_BUF_LEN];
+    uint8_t buf[CHR_READ_BUF_LEN];
     int bufcnt;
     int bufptr;
     int max_size;
@@ -2759,7 +2758,7 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     SocketChardev *s = SOCKET_CHARDEV(opaque);
-    uint8_t buf[READ_BUF_LEN];
+    uint8_t buf[CHR_READ_BUF_LEN];
     int len, size;
 
     if (!s->connected || s->max_size <= 0) {
