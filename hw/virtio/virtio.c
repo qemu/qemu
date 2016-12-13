@@ -2020,6 +2020,11 @@ void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx)
     vdev->vq[n].shadow_avail_idx = idx;
 }
 
+void virtio_queue_update_used_idx(VirtIODevice *vdev, int n)
+{
+    vdev->vq[n].used_idx = vring_used_idx(&vdev->vq[n]);
+}
+
 void virtio_queue_invalidate_signalled_used(VirtIODevice *vdev, int n)
 {
     vdev->vq[n].signalled_used_valid = false;
