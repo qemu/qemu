@@ -993,6 +993,7 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
         virtio_queue_set_last_avail_idx(vdev, idx, state.num);
     }
     virtio_queue_invalidate_signalled_used(vdev, idx);
+    virtio_queue_update_used_idx(vdev, idx);
 
     /* In the cross-endian case, we need to reset the vring endianness to
      * native as legacy devices expect so by default.
