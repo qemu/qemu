@@ -6,8 +6,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 2.6.50\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-06-26 10:16+0300\n"
+"Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
+"POT-Creation-Date: 2016-12-13 21:46+0000\n"
 "PO-Revision-Date: 2016-06-09 15:54+0300\n"
 "Last-Translator: Alexander Shopov <ash@kambanaria.org>\n"
 "Language-Team: Bulgarian <dict@ludost.net>\n"
@@ -17,74 +17,74 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: ui/gtk.c:274
+#: ui/gtk.c:275
 msgid " - Press Ctrl+Alt+G to release grab"
 msgstr " — натиснете Ctrl+Alt+G, за да освободите фокуса"
 
-#: ui/gtk.c:278
+#: ui/gtk.c:279
 msgid " [Paused]"
 msgstr " [пауза]"
 
-#: ui/gtk.c:1906
+#: ui/gtk.c:1922
 msgid "_Pause"
 msgstr "_Пауза"
 
-#: ui/gtk.c:1912
+#: ui/gtk.c:1928
 msgid "_Reset"
 msgstr "_Рестартиране"
 
-#: ui/gtk.c:1915
+#: ui/gtk.c:1931
 msgid "Power _Down"
 msgstr "_Изключване"
 
-#: ui/gtk.c:1921
+#: ui/gtk.c:1937
 msgid "_Quit"
 msgstr "_Спиране на програмата"
 
-#: ui/gtk.c:2013
+#: ui/gtk.c:2029
 msgid "_Fullscreen"
 msgstr "На _цял екран"
 
-#: ui/gtk.c:2016
+#: ui/gtk.c:2032
 msgid "_Copy"
 msgstr "_Копиране"
 
-#: ui/gtk.c:2032
+#: ui/gtk.c:2048
 msgid "Zoom _In"
 msgstr "_Увеличаване"
 
-#: ui/gtk.c:2039
+#: ui/gtk.c:2055
 msgid "Zoom _Out"
 msgstr "_Намаляване"
 
-#: ui/gtk.c:2046
+#: ui/gtk.c:2062
 msgid "Best _Fit"
 msgstr "По_местване"
 
-#: ui/gtk.c:2053
+#: ui/gtk.c:2069
 msgid "Zoom To _Fit"
 msgstr "Напас_ване"
 
-#: ui/gtk.c:2059
+#: ui/gtk.c:2075
 msgid "Grab On _Hover"
 msgstr "Прихващане при посо_чване"
 
-#: ui/gtk.c:2062
+#: ui/gtk.c:2078
 msgid "_Grab Input"
 msgstr "Прихващане на _фокуса"
 
-#: ui/gtk.c:2091
+#: ui/gtk.c:2107
 msgid "Show _Tabs"
 msgstr "Подпро_зорци"
 
-#: ui/gtk.c:2094
+#: ui/gtk.c:2110
 msgid "Detach Tab"
 msgstr "Към самостоятелен подпрозорец"
 
-#: ui/gtk.c:2106
+#: ui/gtk.c:2122
 msgid "_Machine"
 msgstr "_Машина"
 
-#: ui/gtk.c:2111
+#: ui/gtk.c:2127
 msgid "_View"
 msgstr "_Изглед"

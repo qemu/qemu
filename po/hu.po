@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 1.4.50\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
-"POT-Creation-Date: 2016-04-18 14:50+0100\n"
+"POT-Creation-Date: 2016-12-13 21:46+0000\n"
 "PO-Revision-Date: 2013-05-06 20:42+0200\n"
 "Last-Translator: Ákos Kovács <akoskovacs@gmx.com>\n"
 "Language-Team: Hungarian <hu@li.org>\n"
@@ -15,73 +15,77 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ui/gtk.c:273
+#: ui/gtk.c:275
 msgid " - Press Ctrl+Alt+G to release grab"
 msgstr " - Nyomj Ctrl+Alt+G-t a bemeneti eszközök elengedéséhez"
 
-#: ui/gtk.c:277
+#: ui/gtk.c:279
 msgid " [Paused]"
 msgstr " [Megállítva]"
 
-#: ui/gtk.c:1833
+#: ui/gtk.c:1922
 msgid "_Pause"
 msgstr "_Megállítás"
 
-#: ui/gtk.c:1839
+#: ui/gtk.c:1928
 msgid "_Reset"
 msgstr "Új_raindítás"
 
-#: ui/gtk.c:1842
+#: ui/gtk.c:1931
 msgid "Power _Down"
 msgstr "_Leállítás"
 
-#: ui/gtk.c:1848
+#: ui/gtk.c:1937
 msgid "_Quit"
 msgstr ""
 
-#: ui/gtk.c:1940
+#: ui/gtk.c:2029
 msgid "_Fullscreen"
 msgstr ""
 
-#: ui/gtk.c:1954
+#: ui/gtk.c:2032
+msgid "_Copy"
+msgstr ""
+
+#: ui/gtk.c:2048
 #, fuzzy
 msgid "Zoom _In"
 msgstr "Ablakmérethez _igazítás"
 
-#: ui/gtk.c:1961
+#: ui/gtk.c:2055
 #, fuzzy
 msgid "Zoom _Out"
 msgstr "Ablakmérethez _igazítás"
 
-#: ui/gtk.c:1968
+#: ui/gtk.c:2062
 msgid "Best _Fit"
 msgstr ""
 
-#: ui/gtk.c:1975
+#: ui/gtk.c:2069
 msgid "Zoom To _Fit"
 msgstr "Ablakmérethez _igazítás"
 
-#: ui/gtk.c:1981
+#: ui/gtk.c:2075
 msgid "Grab On _Hover"
 msgstr "Automatikus _elfogás"
 
-#: ui/gtk.c:1984
+#: ui/gtk.c:2078
 msgid "_Grab Input"
 msgstr "_Bemeneti eszközök megragadása"
 
-#: ui/gtk.c:2013
+#: ui/gtk.c:2107
 msgid "Show _Tabs"
 msgstr "_Fülek megjelenítése"
 
-#: ui/gtk.c:2016
+#: ui/gtk.c:2110
 msgid "Detach Tab"
 msgstr ""
 
-#: ui/gtk.c:2028
+#: ui/gtk.c:2122
 msgid "_Machine"
 msgstr "_Gép"
 
-#: ui/gtk.c:2033
+#: ui/gtk.c:2127
 msgid "_View"
 msgstr "_Nézet"
 
