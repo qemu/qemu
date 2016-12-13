@@ -783,6 +783,44 @@ err_undo_map:
     return NULL;
 }
 
+/* virtqueue_drop_all:
+ * @vq: The #VirtQueue
+ * Drops all queued buffers and indicates them to the guest
+ * as if they are done. Useful when buffers can not be
+ * processed but must be returned to the guest.
+ */
+unsigned int virtqueue_drop_all(VirtQueue *vq)
+{
+    unsigned int dropped = 0;
+    VirtQueueElement elem = {};
+    VirtIODevice *vdev = vq->vdev;
+    bool fEventIdx = virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX);
+
+    if (unlikely(vdev->broken)) {
+        return 0;
+    }
+
+    while (!virtio_queue_empty(vq) && vq->inuse < vq->vring.num) {
+        /* works similar to virtqueue_pop but does not map buffers
+        * and does not allocate any memory */
+        smp_rmb();
+        if (!virtqueue_get_head(vq, vq->last_avail_idx, &elem.index)) {
+            break;
+        }
+        vq->inuse++;
+        vq->last_avail_idx++;
+        if (fEventIdx) {
+            vring_set_avail_event(vq, vq->last_avail_idx);
+        }
+        /* immediately push the element, nothing to unmap
+         * as both in_num and out_num are set to 0 */
+        virtqueue_push(vq, &elem, 0);
+        dropped++;
+    }
+
+    return dropped;
+}
+
 /* Reading and writing a structure directly to QEMUFile is *awful*, but
  * it is what QEMU has always done by mistake.  We can change it sooner
  * or later by bumping the version number of the affected vm states.
