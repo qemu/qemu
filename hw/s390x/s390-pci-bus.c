@@ -582,8 +582,9 @@ static int s390_pcihost_init(SysBusDevice *dev)
     return 0;
 }
 
-static int s390_pci_setup_msix(S390PCIBusDevice *pbdev)
+static int s390_pci_msix_init(S390PCIBusDevice *pbdev)
 {
+    char *name;
     uint8_t pos;
     uint16_t ctrl;
     uint32_t table, pba;
@@ -591,7 +592,7 @@ static int s390_pci_setup_msix(S390PCIBusDevice *pbdev)
     pos = pci_find_capability(pbdev->pdev, PCI_CAP_ID_MSIX);
     if (!pos) {
         pbdev->msix.available = false;
-        return 0;
+        return -1;
     }
 
     ctrl = pci_host_config_read_common(pbdev->pdev, pos + PCI_MSIX_FLAGS,
@@ -607,21 +608,15 @@ static int s390_pci_setup_msix(S390PCIBusDevice *pbdev)
     pbdev->msix.pba_offset = pba & ~PCI_MSIX_FLAGS_BIRMASK;
     pbdev->msix.entries = (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
     pbdev->msix.available = true;
-    return 0;
-}
-
-static void s390_pci_msix_init(S390PCIBusDevice *pbdev)
-{
-    char *name;
 
     name = g_strdup_printf("msix-s390-%04x", pbdev->uid);
-
     memory_region_init_io(&pbdev->msix_notify_mr, OBJECT(pbdev),
                           &s390_msi_ctrl_ops, pbdev, name, PAGE_SIZE);
     memory_region_add_subregion(&pbdev->iommu->mr, ZPCI_MSI_ADDR,
                                 &pbdev->msix_notify_mr);
-
     g_free(name);
+
+    return 0;
 }
 
 static void s390_pci_msix_free(S390PCIBusDevice *pbdev)
@@ -724,8 +719,11 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         pbdev->iommu->pbdev = pbdev;
         pbdev->state = ZPCI_FS_STANDBY;
 
-        s390_pci_msix_init(pbdev);
-        s390_pci_setup_msix(pbdev);
+        if (s390_pci_msix_init(pbdev)) {
+            error_setg(errp, "MSI-X support is mandatory "
+                       "in the S390 architecture");
+            return;
+        }
 
         if (dev->hotplugged) {
             s390_pci_generate_plug_event(HP_EVENT_RESERVED_TO_STANDBY,
