@@ -47,7 +47,7 @@ msgstr "Mode _plein écran"
 
 #: ui/gtk.c:2032
 msgid "_Copy"
-msgstr ""
+msgstr "_Copier"
 
 #: ui/gtk.c:2048
 msgid "Zoom _In"

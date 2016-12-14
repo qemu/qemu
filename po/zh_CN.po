@@ -47,7 +47,7 @@ msgstr "全屏(_F)"
 
 #: ui/gtk.c:2032
 msgid "_Copy"
-msgstr ""
+msgstr "复制(_C)"
 
 #: ui/gtk.c:2048
 msgid "Zoom _In"

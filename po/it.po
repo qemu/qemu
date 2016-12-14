@@ -42,11 +42,11 @@ msgstr "_Esci"
 
 #: ui/gtk.c:2029
 msgid "_Fullscreen"
-msgstr ""
+msgstr "A t_utto schermo"
 
 #: ui/gtk.c:2032
 msgid "_Copy"
-msgstr ""
+msgstr "_Copia"
 
 #: ui/gtk.c:2048
 msgid "Zoom _In"
