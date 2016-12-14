@@ -185,7 +185,7 @@ static gboolean qemu_chr_be_generic_open_func(gpointer opaque)
     PtyChardev *s = PTY_CHARDEV(opaque);
 
     s->open_tag = 0;
-    qemu_chr_be_generic_open(chr);
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
     return FALSE;
 }
 

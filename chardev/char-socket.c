@@ -489,7 +489,7 @@ static void tcp_chr_connect(void *opaque)
                                            tcp_chr_read,
                                            chr, NULL);
     }
-    qemu_chr_be_generic_open(chr);
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
 static void tcp_chr_update_read_handler(Chardev *chr,

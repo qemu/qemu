@@ -66,12 +66,6 @@ void qemu_chr_be_event(Chardev *s, int event)
     be->chr_event(be->opaque, event);
 }
 
-void qemu_chr_be_generic_open(Chardev *s)
-{
-    qemu_chr_be_event(s, CHR_EVENT_OPENED);
-}
-
-
 /* Not reporting errors from writing to logfile, as logs are
  * defined to be "best effort" only */
 static void qemu_chr_fe_write_log(Chardev *s,
@@ -469,7 +463,7 @@ static void muxes_realize_done(Notifier *notifier, void *unused)
             /* mark mux as OPENED so any new FEs will immediately receive
              * OPENED event
              */
-            qemu_chr_be_generic_open(chr);
+            qemu_chr_be_event(chr, CHR_EVENT_OPENED);
         }
     }
     muxes_realized = true;
@@ -581,7 +575,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
         /* We're connecting to an already opened device, so let's make sure we
            also get the open event */
         if (s->be_open) {
-            qemu_chr_be_generic_open(s);
+            qemu_chr_be_event(s, CHR_EVENT_OPENED);
         }
     }
 
