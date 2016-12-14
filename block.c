@@ -1326,6 +1326,38 @@ static int bdrv_fill_options(QDict **options, const char *filename,
     return 0;
 }
 
+static int bdrv_check_update_perm(BlockDriverState *bs, uint64_t new_used_perm,
+                                  uint64_t new_shared_perm,
+                                  BdrvChild *ignore_child, Error **errp)
+{
+    BdrvChild *c;
+
+    /* There is no reason why anyone couldn't tolerate write_unchanged */
+    assert(new_shared_perm & BLK_PERM_WRITE_UNCHANGED);
+
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c == ignore_child) {
+            continue;
+        }
+
+        if ((new_used_perm & c->shared_perm) != new_used_perm ||
+            (c->perm & new_shared_perm) != c->perm)
+        {
+            const char *user = NULL;
+            if (c->role->get_name) {
+                user = c->role->get_name(c);
+                if (user && !*user) {
+                    user = NULL;
+                }
+            }
+            error_setg(errp, "Conflicts with %s", user ?: "another operation");
+            return -EPERM;
+        }
+    }
+
+    return 0;
+}
+
 static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
 {
     BlockDriverState *old_bs = child->bs;
@@ -1350,14 +1382,25 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildRole *child_role,
-                                  void *opaque)
+                                  uint64_t perm, uint64_t shared_perm,
+                                  void *opaque, Error **errp)
 {
-    BdrvChild *child = g_new(BdrvChild, 1);
+    BdrvChild *child;
+    int ret;
+
+    ret = bdrv_check_update_perm(child_bs, perm, shared_perm, NULL, errp);
+    if (ret < 0) {
+        return NULL;
+    }
+
+    child = g_new(BdrvChild, 1);
     *child = (BdrvChild) {
-        .bs     = NULL,
-        .name   = g_strdup(child_name),
-        .role   = child_role,
-        .opaque = opaque,
+        .bs             = NULL,
+        .name           = g_strdup(child_name),
+        .role           = child_role,
+        .perm           = perm,
+        .shared_perm    = shared_perm,
+        .opaque         = opaque,
     };
 
     bdrv_replace_child(child, child_bs);
@@ -1371,8 +1414,15 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              const BdrvChildRole *child_role,
                              Error **errp)
 {
-    BdrvChild *child = bdrv_root_attach_child(child_bs, child_name, child_role,
-                                              parent_bs);
+    BdrvChild *child;
+
+    /* FIXME Use real permissions */
+    child = bdrv_root_attach_child(child_bs, child_name, child_role,
+                                   0, BLK_PERM_ALL, parent_bs, errp);
+    if (child == NULL) {
+        return NULL;
+    }
+
     QLIST_INSERT_HEAD(&parent_bs->children, child, next);
     return child;
 }

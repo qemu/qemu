@@ -419,6 +419,18 @@ struct BdrvChild {
     char *name;
     const BdrvChildRole *role;
     void *opaque;
+
+    /**
+     * Granted permissions for operating on this BdrvChild (BLK_PERM_* bitmask)
+     */
+    uint64_t perm;
+
+    /**
+     * Permissions that can still be granted to other users of @bs while this
+     * BdrvChild is still attached to it. (BLK_PERM_* bitmask)
+     */
+    uint64_t shared_perm;
+
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
 };
@@ -796,7 +808,8 @@ void hmp_drive_add_node(Monitor *mon, const char *optstr);
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildRole *child_role,
-                                  void *opaque);
+                                  uint64_t perm, uint64_t shared_perm,
+                                  void *opaque, Error **errp);
 void bdrv_root_unref_child(BdrvChild *child);
 
 const char *bdrv_get_parent_name(const BlockDriverState *bs);

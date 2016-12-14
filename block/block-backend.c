@@ -163,7 +163,9 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         return NULL;
     }
 
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk);
+    /* FIXME Use real permissions */
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root,
+                                       0, BLK_PERM_ALL, blk, &error_abort);
 
     return blk;
 }
@@ -498,7 +500,9 @@ void blk_remove_bs(BlockBackend *blk)
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
 {
     bdrv_ref(bs);
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk);
+    /* FIXME Use real permissions */
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root,
+                                       0, BLK_PERM_ALL, blk, &error_abort);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
     if (blk->public.throttle_state) {
