@@ -2198,6 +2198,19 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
         }
     }
 
+    /*
+     * SLOF probes the USB devices, and if it recognizes that the device is a
+     * storage device, it changes its name to "storage" instead of "usb-host",
+     * and additionally adds a child node for the SCSI LUN, so the correct
+     * boot path in SLOF is something like .../storage@1/disk@xxx" instead.
+     */
+    if (strcmp("usb-host", qdev_fw_name(dev)) == 0) {
+        USBDevice *usbdev = CAST(USBDevice, dev, TYPE_USB_DEVICE);
+        if (usb_host_dev_is_scsi_storage(usbdev)) {
+            return g_strdup_printf("storage@%s/disk", usbdev->port->path);
+        }
+    }
+
     if (phb) {
         /* Replace "pci" with "pci@800000020000000" */
         return g_strdup_printf("pci@%"PRIX64, phb->buid);

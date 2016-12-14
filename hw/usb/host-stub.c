@@ -46,3 +46,8 @@ USBDevice *usb_host_device_open(USBBus *bus, const char *devname)
 {
     return NULL;
 }
+
+bool usb_host_dev_is_scsi_storage(USBDevice *ud)
+{
+    return false;
+}
