@@ -18,6 +18,10 @@
         .driver   = "intel-iommu",\
         .property = "x-buggy-eim",\
         .value    = "true",\
+    },{\
+        .driver   = "virtio-pci",\
+        .property = "x-ignore-backend-features",\
+        .value    = "on",\
     },
 
 #define HW_COMPAT_2_6 \

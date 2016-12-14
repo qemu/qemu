@@ -1580,7 +1580,8 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
      * Virtio capabilities present without
      * VIRTIO_F_VERSION_1 confuses guests
      */
-    if (!virtio_has_feature(vdev->host_features, VIRTIO_F_VERSION_1)) {
+    if (!proxy->ignore_backend_features &&
+            !virtio_has_feature(vdev->host_features, VIRTIO_F_VERSION_1)) {
         virtio_pci_disable_modern(proxy);
 
         if (!legacy) {
@@ -1852,6 +1853,8 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_DISABLE_PCIE_BIT, false),
     DEFINE_PROP_BIT("page-per-vq", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_PAGE_PER_VQ_BIT, false),
+    DEFINE_PROP_BOOL("x-ignore-backend-features", VirtIOPCIProxy,
+                     ignore_backend_features, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
