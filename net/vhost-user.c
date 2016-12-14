@@ -154,7 +154,7 @@ static void vhost_user_cleanup(NetClientState *nc)
         Chardev *chr = qemu_chr_fe_get_driver(&s->chr);
 
         qemu_chr_fe_deinit(&s->chr);
-        qemu_chr_delete(chr);
+        object_unparent(OBJECT(chr));
     }
 
     qemu_purge_queued_packets(nc);

@@ -53,7 +53,7 @@ static void char_stdio_test_subprocess(void)
     g_assert_cmpint(ret, ==, 4);
 
     qemu_chr_fe_deinit(&be);
-    qemu_chr_delete(chr);
+    object_unparent(OBJECT(chr));
 }
 
 static void char_stdio_test(void)
@@ -103,7 +103,7 @@ static void char_ringbuf_test(void)
     g_free(data);
 
     qemu_chr_fe_deinit(&be);
-    qemu_chr_delete(chr);
+    object_unparent(OBJECT(chr));
 }
 
 static void char_mux_test(void)
@@ -179,7 +179,7 @@ static void char_mux_test(void)
 
     qemu_chr_fe_deinit(&chr_be1);
     qemu_chr_fe_deinit(&chr_be2);
-    qemu_chr_delete(chr);
+    object_unparent(OBJECT(chr));
 }
 
 static void char_null_test(void)
@@ -222,7 +222,7 @@ static void char_null_test(void)
     g_assert_cmpint(ret, ==, 4);
 
     qemu_chr_fe_deinit(&be);
-    qemu_chr_delete(chr);
+    object_unparent(OBJECT(chr));
 }
 
 static void char_invalid_test(void)

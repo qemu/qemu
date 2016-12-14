@@ -1611,7 +1611,7 @@ void gdb_exit(CPUArchState *env, int code)
 
 #ifndef CONFIG_USER_ONLY
   qemu_chr_fe_deinit(&s->chr);
-  qemu_chr_delete(chr);
+  object_unparent(OBJECT(chr));
 #endif
 }
 
@@ -1912,7 +1912,7 @@ int gdbserver_start(const char *device)
         monitor_init(mon_chr, 0);
     } else {
         if (qemu_chr_fe_get_driver(&s->chr)) {
-            qemu_chr_delete(qemu_chr_fe_get_driver(&s->chr));
+            object_unparent(OBJECT(qemu_chr_fe_get_driver(&s->chr)));
         }
         mon_chr = s->mon_chr;
         memset(s, 0, sizeof(GDBState));

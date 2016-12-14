@@ -171,14 +171,6 @@ int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp);
 Chardev *qemu_chr_new_noreplay(const char *label, const char *filename);
 
 /**
- * @qemu_chr_delete:
- *
- * Destroy a character backend and remove it from the list of
- * identified character backends.
- */
-void qemu_chr_delete(Chardev *chr);
-
-/**
  * @qemu_chr_fe_set_echo:
  *
  * Ask the backend to override its normal echo setting.  This only really
