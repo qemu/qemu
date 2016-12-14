@@ -42,9 +42,6 @@
 /***********************************************************/
 /* character device */
 
-static QTAILQ_HEAD(ChardevHead, Chardev) chardevs =
-    QTAILQ_HEAD_INITIALIZER(chardevs);
-
 static Object *get_chardevs_root(void)
 {
     return container_get(object_get_root(), "/chardevs");
@@ -418,9 +415,6 @@ static void char_finalize(Object *obj)
 {
     Chardev *chr = CHARDEV(obj);
 
-    if (QTAILQ_IN_USE(chr, next)) {
-        QTAILQ_REMOVE(&chardevs, chr, next);
-    }
     if (chr->be) {
         chr->be->chr = NULL;
     }
