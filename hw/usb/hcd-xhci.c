@@ -3894,7 +3894,7 @@ static const VMStateDescription vmstate_xhci = {
     .version_id = 1,
     .post_load = usb_xhci_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_PCIE_DEVICE(parent_obj, XHCIState),
+        VMSTATE_PCI_DEVICE(parent_obj, XHCIState),
         VMSTATE_MSIX(parent_obj, XHCIState),
 
         VMSTATE_STRUCT_VARRAY_UINT32(ports, XHCIState, numports, 1,

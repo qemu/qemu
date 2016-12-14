@@ -125,16 +125,6 @@ void pcie_ari_init(PCIDevice *dev, uint16_t offset, uint16_t nextfn);
 void pcie_dev_ser_num_init(PCIDevice *dev, uint16_t offset, uint64_t ser_num);
 void pcie_ats_init(PCIDevice *dev, uint16_t offset);
 
-extern const VMStateDescription vmstate_pcie_device;
-
-#define VMSTATE_PCIE_DEVICE(_field, _state) {                        \
-    .name       = (stringify(_field)),                               \
-    .size       = sizeof(PCIDevice),                                 \
-    .vmsd       = &vmstate_pcie_device,                              \
-    .flags      = VMS_STRUCT,                                        \
-    .offset     = vmstate_offset_value(_state, _field, PCIDevice),   \
-}
-
 void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp);
 void pcie_cap_slot_hot_unplug_request_cb(HotplugHandler *hotplug_dev,

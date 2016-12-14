@@ -138,7 +138,7 @@ static const VMStateDescription vmstate_xio3130_upstream = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_PCIE_DEVICE(parent_obj.parent_obj, PCIEPort),
+        VMSTATE_PCI_DEVICE(parent_obj.parent_obj, PCIEPort),
         VMSTATE_STRUCT(parent_obj.parent_obj.exp.aer_log, PCIEPort, 0,
                        vmstate_pcie_aer_log, PCIEAERLog),
         VMSTATE_END_OF_LIST()

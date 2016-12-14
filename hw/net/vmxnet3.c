@@ -2631,7 +2631,7 @@ static const VMStateDescription vmstate_vmxnet3_pcie_device = {
     .minimum_version_id = 1,
     .needed = vmxnet3_vmstate_need_pcie_device,
     .fields = (VMStateField[]) {
-        VMSTATE_PCIE_DEVICE(parent_obj, VMXNET3State),
+        VMSTATE_PCI_DEVICE(parent_obj, VMXNET3State),
         VMSTATE_END_OF_LIST()
     }
 };
