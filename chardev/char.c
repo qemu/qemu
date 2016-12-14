@@ -451,22 +451,17 @@ static void muxes_realize_done(Notifier *notifier, void *unused)
 {
     Chardev *chr;
 
+    muxes_realized = true;
     QTAILQ_FOREACH(chr, &chardevs, next) {
         if (CHARDEV_IS_MUX(chr)) {
-            MuxChardev *d = MUX_CHARDEV(chr);
-            int i;
-
             /* send OPENED to all already-attached FEs */
-            for (i = 0; i < d->mux_cnt; i++) {
-                mux_chr_send_event(d, i, CHR_EVENT_OPENED);
-            }
+            mux_chr_send_all_event(CHARDEV(chr), CHR_EVENT_OPENED);
             /* mark mux as OPENED so any new FEs will immediately receive
              * OPENED event
              */
             qemu_chr_be_event(chr, CHR_EVENT_OPENED);
         }
     }
-    muxes_realized = true;
 }
 
 static Notifier muxes_realize_notify = {

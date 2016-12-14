@@ -58,6 +58,6 @@ typedef struct MuxChardev {
 
 void mux_chr_set_handlers(Chardev *chr, GMainContext *context);
 void mux_set_focus(Chardev *chr, int focus);
-void mux_chr_send_event(MuxChardev *d, int mux_nr, int event);
+void mux_chr_send_all_event(Chardev *chr, int event);
 
 #endif /* CHAR_MUX_H */
