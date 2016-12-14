@@ -1581,6 +1581,9 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
                                        TRUE);
     }
     gtk_widget_set_sensitive(s->grab_item, on_vga);
+#ifdef CONFIG_VTE
+    gtk_widget_set_sensitive(s->copy_item, vc->type == GD_VC_VTE);
+#endif
 
     gd_update_windowsize(vc);
     gd_update_cursor(vc);
@@ -2244,6 +2247,11 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
             gd_update_windowsize(cur);
         }
     }
+#endif
+
+#ifdef CONFIG_VTE
+    gtk_widget_set_sensitive(s->copy_item,
+                             gd_vc_find_current(s)->type == GD_VC_VTE);
 #endif
 
     if (full_screen) {
