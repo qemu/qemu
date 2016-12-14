@@ -455,21 +455,24 @@ static const TypeInfo char_type_info = {
  * mux will receive CHR_EVENT_OPENED notifications for the BE
  * immediately.
  */
+static int open_muxes(Object *child, void *opaque)
+{
+    if (CHARDEV_IS_MUX(child)) {
+        /* send OPENED to all already-attached FEs */
+        mux_chr_send_all_event(CHARDEV(child), CHR_EVENT_OPENED);
+        /* mark mux as OPENED so any new FEs will immediately receive
+         * OPENED event
+         */
+        qemu_chr_be_event(CHARDEV(child), CHR_EVENT_OPENED);
+    }
+
+    return 0;
+}
+
 static void muxes_realize_done(Notifier *notifier, void *unused)
 {
-    Chardev *chr;
-
     muxes_realized = true;
-    QTAILQ_FOREACH(chr, &chardevs, next) {
-        if (CHARDEV_IS_MUX(chr)) {
-            /* send OPENED to all already-attached FEs */
-            mux_chr_send_all_event(CHARDEV(chr), CHR_EVENT_OPENED);
-            /* mark mux as OPENED so any new FEs will immediately receive
-             * OPENED event
-             */
-            qemu_chr_be_event(chr, CHR_EVENT_OPENED);
-        }
-    }
+    object_child_foreach(get_chardevs_root(), open_muxes, NULL);
 }
 
 static Notifier muxes_realize_notify = {
@@ -1068,21 +1071,29 @@ void qemu_chr_fe_disconnect(CharBackend *be)
     }
 }
 
+static int qmp_query_chardev_foreach(Object *obj, void *data)
+{
+    Chardev *chr = CHARDEV(obj);
+    ChardevInfoList **list = data;
+    ChardevInfoList *info = g_malloc0(sizeof(*info));
+
+    info->value = g_malloc0(sizeof(*info->value));
+    info->value->label = g_strdup(chr->label);
+    info->value->filename = g_strdup(chr->filename);
+    info->value->frontend_open = chr->be && chr->be->fe_open;
+
+    info->next = *list;
+    *list = info;
+
+    return 0;
+}
+
 ChardevInfoList *qmp_query_chardev(Error **errp)
 {
     ChardevInfoList *chr_list = NULL;
-    Chardev *chr;
 
-    QTAILQ_FOREACH(chr, &chardevs, next) {
-        ChardevInfoList *info = g_malloc0(sizeof(*info));
-        info->value = g_malloc0(sizeof(*info->value));
-        info->value->label = g_strdup(chr->label);
-        info->value->filename = g_strdup(chr->filename);
-        info->value->frontend_open = chr->be && chr->be->fe_open;
-
-        info->next = chr_list;
-        chr_list = info;
-    }
+    object_child_foreach(get_chardevs_root(),
+                         qmp_query_chardev_foreach, &chr_list);
 
     return chr_list;
 }
@@ -1110,14 +1121,9 @@ ChardevBackendInfoList *qmp_query_chardev_backends(Error **errp)
 
 Chardev *qemu_chr_find(const char *name)
 {
-    Chardev *chr;
+    Object *obj = object_resolve_path_component(get_chardevs_root(), name);
 
-    QTAILQ_FOREACH(chr, &chardevs, next) {
-        if (strcmp(chr->label, name) != 0)
-            continue;
-        return chr;
-    }
-    return NULL;
+    return obj ? CHARDEV(obj) : NULL;
 }
 
 QemuOptsList qemu_chardev_opts = {
