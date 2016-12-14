@@ -366,7 +366,7 @@ typedef struct CPUXtensaState {
     xtensa_tlb_entry itlb[7][MAX_TLB_WAY_SIZE];
     xtensa_tlb_entry dtlb[10][MAX_TLB_WAY_SIZE];
     unsigned autorefill_idx;
-
+    bool runstall;
     int pending_irq_level; /* level of last raised IRQ */
     void **irq_inputs;
     QEMUTimer *ccompare_timer;
@@ -469,6 +469,7 @@ static inline void xtensa_select_static_vectors(CPUXtensaState *env,
     assert(n < 2);
     env->static_vectors = n;
 }
+void xtensa_runstall(CPUXtensaState *env, bool runstall);
 
 #define XTENSA_OPTION_BIT(opt) (((uint64_t)1) << (opt))
 #define XTENSA_OPTION_ALL (~(uint64_t)0)

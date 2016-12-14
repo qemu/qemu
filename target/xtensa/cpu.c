@@ -47,7 +47,7 @@ static bool xtensa_cpu_has_work(CPUState *cs)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
 
-    return cpu->env.pending_irq_level;
+    return !cpu->env.runstall && cpu->env.pending_irq_level;
 }
 
 /* CPUClass::reset() */
@@ -74,6 +74,7 @@ static void xtensa_cpu_reset(CPUState *s)
 
     env->pending_irq_level = 0;
     reset_mmu(env);
+    s->halted = env->runstall;
 }
 
 static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
