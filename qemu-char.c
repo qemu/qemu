@@ -3171,13 +3171,13 @@ typedef struct {
     Chardev *chr;
     char buf[12];
     size_t buflen;
-} TCPCharDriverTelnetInit;
+} TCPChardevTelnetInit;
 
 static gboolean tcp_chr_telnet_init_io(QIOChannel *ioc,
                                        GIOCondition cond G_GNUC_UNUSED,
                                        gpointer user_data)
 {
-    TCPCharDriverTelnetInit *init = user_data;
+    TCPChardevTelnetInit *init = user_data;
     ssize_t ret;
 
     ret = qio_channel_write(ioc, init->buf, init->buflen, NULL);
@@ -3204,8 +3204,7 @@ static gboolean tcp_chr_telnet_init_io(QIOChannel *ioc,
 static void tcp_chr_telnet_init(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
-    TCPCharDriverTelnetInit *init =
-        g_new0(TCPCharDriverTelnetInit, 1);
+    TCPChardevTelnetInit *init = g_new0(TCPChardevTelnetInit, 1);
     size_t n = 0;
 
     init->chr = chr;
@@ -4991,13 +4990,13 @@ static const TypeInfo char_udp_type_info = {
 };
 
 bool qemu_chr_has_feature(Chardev *chr,
-                          CharDriverFeature feature)
+                          ChardevFeature feature)
 {
     return test_bit(feature, chr->features);
 }
 
 void qemu_chr_set_feature(Chardev *chr,
-                           CharDriverFeature feature)
+                           ChardevFeature feature)
 {
     return set_bit(feature, chr->features);
 }
