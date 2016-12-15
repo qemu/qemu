@@ -227,6 +227,12 @@ static QemuOptsList machine_opts = {
             .name = "dea-key-wrap",
             .type = QEMU_OPT_BOOL,
             .help = "enable/disable DEA key wrapping using the CPACF wrapping key",
+        },{
+            .name = "loadparm",
+            .type = QEMU_OPT_STRING,
+            .help = "Up to 8 chars in set of [A-Za-z0-9. ](lower case chars"
+                    " converted to upper case) to pass to machine"
+                    " loader, boot manager, and guest kernel",
         },
         { /* End of list */ }
     }
