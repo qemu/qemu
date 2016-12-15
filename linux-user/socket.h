@@ -205,6 +205,8 @@
 
     #define TARGET_SOCK_MAX (TARGET_SOCK_PACKET + 1)
     #define TARGET_SOCK_TYPE_MASK    0xf  /* Covers up to TARGET_SOCK_MAX-1. */
+#elif defined(TARGET_HPPA)
+#include <hppa/sockbits.h>
 #else
 
 #if defined(TARGET_SPARC)
