@@ -1041,6 +1041,19 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
     es1370_reset (s);
 }
 
+static void es1370_exit(PCIDevice *dev)
+{
+    ES1370State *s = ES1370(dev);
+    int i;
+
+    for (i = 0; i < 2; ++i) {
+        AUD_close_out(&s->card, s->dac_voice[i]);
+    }
+
+    AUD_close_in(&s->card, s->adc_voice);
+    AUD_remove_card(&s->card);
+}
+
 static int es1370_init (PCIBus *bus)
 {
     pci_create_simple (bus, -1, TYPE_ES1370);
@@ -1053,6 +1066,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS (klass);
 
     k->realize = es1370_realize;
+    k->exit = es1370_exit;
     k->vendor_id = PCI_VENDOR_ID_ENSONIQ;
     k->device_id = PCI_DEVICE_ID_ENSONIQ_ES1370;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
