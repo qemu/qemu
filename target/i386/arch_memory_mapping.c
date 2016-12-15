@@ -220,7 +220,8 @@ static void walk_pdpe(MemoryMappingList *list, AddressSpace *as,
 
 /* IA-32e Paging */
 static void walk_pml4e(MemoryMappingList *list, AddressSpace *as,
-                       hwaddr pml4e_start_addr, int32_t a20_mask)
+                       hwaddr pml4e_start_addr, int32_t a20_mask,
+                       target_ulong start_line_addr)
 {
     hwaddr pml4e_addr, pdpe_start_addr;
     uint64_t pml4e;
@@ -236,9 +237,32 @@ static void walk_pml4e(MemoryMappingList *list, AddressSpace *as,
             continue;
         }
 
-        line_addr = ((i & 0x1ffULL) << 39) | (0xffffULL << 48);
+        line_addr = start_line_addr | ((i & 0x1ffULL) << 39);
         pdpe_start_addr = (pml4e & PLM4_ADDR_MASK) & a20_mask;
         walk_pdpe(list, as, pdpe_start_addr, a20_mask, line_addr);
+    }
+}
+
+static void walk_pml5e(MemoryMappingList *list, AddressSpace *as,
+                       hwaddr pml5e_start_addr, int32_t a20_mask)
+{
+    hwaddr pml5e_addr, pml4e_start_addr;
+    uint64_t pml5e;
+    target_ulong line_addr;
+    int i;
+
+    for (i = 0; i < 512; i++) {
+        pml5e_addr = (pml5e_start_addr + i * 8) & a20_mask;
+        pml5e = address_space_ldq(as, pml5e_addr, MEMTXATTRS_UNSPECIFIED,
+                                  NULL);
+        if (!(pml5e & PG_PRESENT_MASK)) {
+            /* not present */
+            continue;
+        }
+
+        line_addr = (0x7fULL << 57) | ((i & 0x1ffULL) << 48);
+        pml4e_start_addr = (pml5e & PLM4_ADDR_MASK) & a20_mask;
+        walk_pml4e(list, as, pml4e_start_addr, a20_mask, line_addr);
     }
 }
 #endif
@@ -257,10 +281,18 @@ void x86_cpu_get_memory_mapping(CPUState *cs, MemoryMappingList *list,
     if (env->cr[4] & CR4_PAE_MASK) {
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
-            hwaddr pml4e_addr;
+            if (env->cr[4] & CR4_LA57_MASK) {
+                hwaddr pml5e_addr;
 
-            pml4e_addr = (env->cr[3] & PLM4_ADDR_MASK) & env->a20_mask;
-            walk_pml4e(list, cs->as, pml4e_addr, env->a20_mask);
+                pml5e_addr = (env->cr[3] & PLM4_ADDR_MASK) & env->a20_mask;
+                walk_pml5e(list, cs->as, pml5e_addr, env->a20_mask);
+            } else {
+                hwaddr pml4e_addr;
+
+                pml4e_addr = (env->cr[3] & PLM4_ADDR_MASK) & env->a20_mask;
+                walk_pml4e(list, cs->as, pml4e_addr, env->a20_mask,
+                        0xffffULL << 48);
+            }
         } else
 #endif
         {

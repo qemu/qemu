@@ -238,7 +238,8 @@ static void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
           CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
           CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
           CPUID_7_0_EBX_RDSEED */
-#define TCG_7_0_ECX_FEATURES (CPUID_7_0_ECX_PKU | CPUID_7_0_ECX_OSPKE)
+#define TCG_7_0_ECX_FEATURES (CPUID_7_0_ECX_PKU | CPUID_7_0_ECX_OSPKE | \
+          CPUID_7_0_ECX_LA57)
 #define TCG_7_0_EDX_FEATURES 0
 #define TCG_APM_FEATURES 0
 #define TCG_6_EAX_FEATURES CPUID_6_EAX_ARAT
@@ -435,7 +436,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "ospke", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL,
+            "la57", NULL, NULL, NULL,
             NULL, NULL, "rdpid", NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
@@ -2742,10 +2743,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 0x80000008:
         /* virtual & phys address size in low 2 bytes. */
         if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
-            /* 64 bit processor, 48 bits virtual, configurable
-             * physical bits.
-             */
-            *eax = 0x00003000 + cpu->phys_bits;
+            /* 64 bit processor */
+            *eax = cpu->phys_bits; /* configurable physical bits */
+            if  (env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_LA57) {
+                *eax |= 0x00003900; /* 57 bits virtual */
+            } else {
+                *eax |= 0x00003000; /* 48 bits virtual */
+            }
         } else {
             *eax = cpu->phys_bits;
         }
