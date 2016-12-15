@@ -132,6 +132,12 @@ F: include/hw/cris/
 F: tests/tcg/cris/
 F: disas/cris.c
 
+HPPA (PA-RISC)
+M: Richard Henderson <rth@twiddle.net>
+S: Maintained
+F: target/hppa/
+F: disas/hppa.c
+
 LM32
 M: Michael Walle <michael@walle.cc>
 S: Maintained
