@@ -660,6 +660,7 @@ BlockDriver bdrv_replication = {
 
     .bdrv_open                  = replication_open,
     .bdrv_close                 = replication_close,
+    .bdrv_child_perm            = bdrv_filter_default_perms,
 
     .bdrv_getlength             = replication_getlength,
     .bdrv_co_readv              = replication_co_readv,

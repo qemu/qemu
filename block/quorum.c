@@ -1133,6 +1133,8 @@ static BlockDriver bdrv_quorum = {
     .bdrv_add_child                     = quorum_add_child,
     .bdrv_del_child                     = quorum_del_child,
 
+    .bdrv_child_perm                    = bdrv_filter_default_perms,
+
     .is_filter                          = true,
     .bdrv_recurse_is_first_non_filter   = quorum_recurse_is_first_non_filter,
 };

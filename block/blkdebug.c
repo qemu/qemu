@@ -734,6 +734,8 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_file_open         = blkdebug_open,
     .bdrv_close             = blkdebug_close,
     .bdrv_reopen_prepare    = blkdebug_reopen_prepare,
+    .bdrv_child_perm        = bdrv_filter_default_perms,
+
     .bdrv_getlength         = blkdebug_getlength,
     .bdrv_truncate          = blkdebug_truncate,
     .bdrv_refresh_filename  = blkdebug_refresh_filename,
