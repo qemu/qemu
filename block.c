@@ -1326,11 +1326,146 @@ static int bdrv_fill_options(QDict **options, const char *filename,
     return 0;
 }
 
+/*
+ * Check whether permissions on this node can be changed in a way that
+ * @cumulative_perms and @cumulative_shared_perms are the new cumulative
+ * permissions of all its parents. This involves checking whether all necessary
+ * permission changes to child nodes can be performed.
+ *
+ * A call to this function must always be followed by a call to bdrv_set_perm()
+ * or bdrv_abort_perm_update().
+ */
+static int bdrv_check_perm(BlockDriverState *bs, uint64_t cumulative_perms,
+                           uint64_t cumulative_shared_perms, Error **errp)
+{
+    BlockDriver *drv = bs->drv;
+    BdrvChild *c;
+    int ret;
+
+    /* Write permissions never work with read-only images */
+    if ((cumulative_perms & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) &&
+        bdrv_is_read_only(bs))
+    {
+        error_setg(errp, "Block node is read-only");
+        return -EPERM;
+    }
+
+    /* Check this node */
+    if (!drv) {
+        return 0;
+    }
+
+    if (drv->bdrv_check_perm) {
+        return drv->bdrv_check_perm(bs, cumulative_perms,
+                                    cumulative_shared_perms, errp);
+    }
+
+    /* Drivers may not have .bdrv_child_perm() */
+    if (!drv->bdrv_child_perm) {
+        return 0;
+    }
+
+    /* Check all children */
+    QLIST_FOREACH(c, &bs->children, next) {
+        uint64_t cur_perm, cur_shared;
+        drv->bdrv_child_perm(bs, c, c->role,
+                             cumulative_perms, cumulative_shared_perms,
+                             &cur_perm, &cur_shared);
+        ret = bdrv_child_check_perm(c, cur_perm, cur_shared, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * Notifies drivers that after a previous bdrv_check_perm() call, the
+ * permission update is not performed and any preparations made for it (e.g.
+ * taken file locks) need to be undone.
+ *
+ * This function recursively notifies all child nodes.
+ */
+static void bdrv_abort_perm_update(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    BdrvChild *c;
+
+    if (!drv) {
+        return;
+    }
+
+    if (drv->bdrv_abort_perm_update) {
+        drv->bdrv_abort_perm_update(bs);
+    }
+
+    QLIST_FOREACH(c, &bs->children, next) {
+        bdrv_child_abort_perm_update(c);
+    }
+}
+
+static void bdrv_set_perm(BlockDriverState *bs, uint64_t cumulative_perms,
+                          uint64_t cumulative_shared_perms)
+{
+    BlockDriver *drv = bs->drv;
+    BdrvChild *c;
+
+    if (!drv) {
+        return;
+    }
+
+    /* Update this node */
+    if (drv->bdrv_set_perm) {
+        drv->bdrv_set_perm(bs, cumulative_perms, cumulative_shared_perms);
+    }
+
+    /* Drivers may not have .bdrv_child_perm() */
+    if (!drv->bdrv_child_perm) {
+        return;
+    }
+
+    /* Update all children */
+    QLIST_FOREACH(c, &bs->children, next) {
+        uint64_t cur_perm, cur_shared;
+        drv->bdrv_child_perm(bs, c, c->role,
+                             cumulative_perms, cumulative_shared_perms,
+                             &cur_perm, &cur_shared);
+        bdrv_child_set_perm(c, cur_perm, cur_shared);
+    }
+}
+
+static void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
+                                     uint64_t *shared_perm)
+{
+    BdrvChild *c;
+    uint64_t cumulative_perms = 0;
+    uint64_t cumulative_shared_perms = BLK_PERM_ALL;
+
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        cumulative_perms |= c->perm;
+        cumulative_shared_perms &= c->shared_perm;
+    }
+
+    *perm = cumulative_perms;
+    *shared_perm = cumulative_shared_perms;
+}
+
+/*
+ * Checks whether a new reference to @bs can be added if the new user requires
+ * @new_used_perm/@new_shared_perm as its permissions. If @ignore_child is set,
+ * this old reference is ignored in the calculations; this allows checking
+ * permission updates for an existing reference.
+ *
+ * Needs to be followed by a call to either bdrv_set_perm() or
+ * bdrv_abort_perm_update(). */
 static int bdrv_check_update_perm(BlockDriverState *bs, uint64_t new_used_perm,
                                   uint64_t new_shared_perm,
                                   BdrvChild *ignore_child, Error **errp)
 {
     BdrvChild *c;
+    uint64_t cumulative_perms = new_used_perm;
+    uint64_t cumulative_shared_perms = new_shared_perm;
 
     /* There is no reason why anyone couldn't tolerate write_unchanged */
     assert(new_shared_perm & BLK_PERM_WRITE_UNCHANGED);
@@ -1353,20 +1488,73 @@ static int bdrv_check_update_perm(BlockDriverState *bs, uint64_t new_used_perm,
             error_setg(errp, "Conflicts with %s", user ?: "another operation");
             return -EPERM;
         }
+
+        cumulative_perms |= c->perm;
+        cumulative_shared_perms &= c->shared_perm;
     }
+
+    return bdrv_check_perm(bs, cumulative_perms, cumulative_shared_perms, errp);
+}
+
+/* Needs to be followed by a call to either bdrv_child_set_perm() or
+ * bdrv_child_abort_perm_update(). */
+int bdrv_child_check_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
+                          Error **errp)
+{
+    return bdrv_check_update_perm(c->bs, perm, shared, c, errp);
+}
+
+void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared)
+{
+    uint64_t cumulative_perms, cumulative_shared_perms;
+
+    c->perm = perm;
+    c->shared_perm = shared;
+
+    bdrv_get_cumulative_perm(c->bs, &cumulative_perms,
+                             &cumulative_shared_perms);
+    bdrv_set_perm(c->bs, cumulative_perms, cumulative_shared_perms);
+}
+
+void bdrv_child_abort_perm_update(BdrvChild *c)
+{
+    bdrv_abort_perm_update(c->bs);
+}
+
+int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
+                            Error **errp)
+{
+    int ret;
+
+    ret = bdrv_child_check_perm(c, perm, shared, errp);
+    if (ret < 0) {
+        bdrv_child_abort_perm_update(c);
+        return ret;
+    }
+
+    bdrv_child_set_perm(c, perm, shared);
 
     return 0;
 }
 
-static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
+static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
+                               bool check_new_perm)
 {
     BlockDriverState *old_bs = child->bs;
+    uint64_t perm, shared_perm;
 
     if (old_bs) {
         if (old_bs->quiesce_counter && child->role->drained_end) {
             child->role->drained_end(child);
         }
         QLIST_REMOVE(child, next_parent);
+
+        /* Update permissions for old node. This is guaranteed to succeed
+         * because we're just taking a parent away, so we're loosening
+         * restrictions. */
+        bdrv_get_cumulative_perm(old_bs, &perm, &shared_perm);
+        bdrv_check_perm(old_bs, perm, shared_perm, &error_abort);
+        bdrv_set_perm(old_bs, perm, shared_perm);
     }
 
     child->bs = new_bs;
@@ -1376,6 +1564,12 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
         if (new_bs->quiesce_counter && child->role->drained_begin) {
             child->role->drained_begin(child);
         }
+
+        bdrv_get_cumulative_perm(new_bs, &perm, &shared_perm);
+        if (check_new_perm) {
+            bdrv_check_perm(new_bs, perm, shared_perm, &error_abort);
+        }
+        bdrv_set_perm(new_bs, perm, shared_perm);
     }
 }
 
@@ -1390,6 +1584,7 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
 
     ret = bdrv_check_update_perm(child_bs, perm, shared_perm, NULL, errp);
     if (ret < 0) {
+        bdrv_abort_perm_update(child_bs);
         return NULL;
     }
 
@@ -1403,7 +1598,8 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
         .opaque         = opaque,
     };
 
-    bdrv_replace_child(child, child_bs);
+    /* This performs the matching bdrv_set_perm() for the above check. */
+    bdrv_replace_child(child, child_bs, false);
 
     return child;
 }
@@ -1434,7 +1630,7 @@ static void bdrv_detach_child(BdrvChild *child)
         child->next.le_prev = NULL;
     }
 
-    bdrv_replace_child(child, NULL);
+    bdrv_replace_child(child, NULL, false);
 
     g_free(child->name);
     g_free(child);
@@ -2541,7 +2737,9 @@ static void change_parent_backing_link(BlockDriverState *from,
 
         assert(c->role != &child_backing);
         bdrv_ref(to);
-        bdrv_replace_child(c, to);
+        /* FIXME Are we sure that bdrv_replace_child() can't run into
+         * &error_abort because of permissions? */
+        bdrv_replace_child(c, to, true);
         bdrv_unref(from);
     }
 }
