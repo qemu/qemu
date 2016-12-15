@@ -872,6 +872,14 @@ void bdrv_child_abort_perm_update(BdrvChild *c);
 int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
                             Error **errp);
 
+/* Default implementation for BlockDriver.bdrv_child_perm() that can be used by
+ * block filters: Forward CONSISTENT_READ, WRITE, WRITE_UNCHANGED and RESIZE to
+ * all children */
+void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
+                               const BdrvChildRole *role,
+                               uint64_t perm, uint64_t shared,
+                               uint64_t *nperm, uint64_t *nshared);
+
 
 const char *bdrv_get_parent_name(const BlockDriverState *bs);
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
