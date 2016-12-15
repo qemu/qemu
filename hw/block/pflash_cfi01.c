@@ -707,6 +707,19 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     int num_devices;
     Error *local_err = NULL;
 
+    if (pfl->sector_len == 0) {
+        error_setg(errp, "attribute \"sector-length\" not specified or zero.");
+        return;
+    }
+    if (pfl->nb_blocs == 0) {
+        error_setg(errp, "attribute \"num-blocks\" not specified or zero.");
+        return;
+    }
+    if (pfl->name == NULL) {
+        error_setg(errp, "attribute \"name\" not specified.");
+        return;
+    }
+
     total_len = pfl->sector_len * pfl->nb_blocs;
 
     /* These are only used to expose the parameters of each device
