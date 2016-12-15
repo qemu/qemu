@@ -31,6 +31,29 @@ void QEMU_NORETURN HELPER(excp)(CPUHPPAState *env, int excp)
     cpu_loop_exit(cs);
 }
 
+static void QEMU_NORETURN dynexcp(CPUHPPAState *env, int excp, uintptr_t ra)
+{
+    HPPACPU *cpu = hppa_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    cs->exception_index = excp;
+    cpu_loop_exit_restore(cs, ra);
+}
+
+void HELPER(tsv)(CPUHPPAState *env, target_ulong cond)
+{
+    if (unlikely((target_long)cond < 0)) {
+        dynexcp(env, EXCP_SIGFPE, GETPC());
+    }
+}
+
+void HELPER(tcond)(CPUHPPAState *env, target_ulong cond)
+{
+    if (unlikely(cond)) {
+        dynexcp(env, EXCP_SIGFPE, GETPC());
+    }
+}
+
 void HELPER(loaded_fr0)(CPUHPPAState *env)
 {
     uint32_t shadow = env->fr[0] >> 32;
