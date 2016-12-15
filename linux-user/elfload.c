@@ -1215,6 +1215,30 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #endif /* TARGET_TILEGX */
 
+#ifdef TARGET_HPPA
+
+#define ELF_START_MMAP  0x80000000
+#define ELF_CLASS       ELFCLASS32
+#define ELF_ARCH        EM_PARISC
+#define ELF_PLATFORM    "PARISC"
+#define STACK_GROWS_DOWN 0
+#define STACK_ALIGNMENT  64
+
+static inline void init_thread(struct target_pt_regs *regs,
+                               struct image_info *infop)
+{
+    regs->iaoq[0] = infop->entry;
+    regs->iaoq[1] = infop->entry + 4;
+    regs->gr[23] = 0;
+    regs->gr[24] = infop->arg_start;
+    regs->gr[25] = (infop->arg_end - infop->arg_start) / sizeof(abi_ulong);
+    /* The top-of-stack contains a linkage buffer.  */
+    regs->gr[30] = infop->start_stack + 64;
+    regs->gr[31] = infop->entry;
+}
+
+#endif /* TARGET_HPPA */
+
 #ifndef ELF_PLATFORM
 #define ELF_PLATFORM (NULL)
 #endif
