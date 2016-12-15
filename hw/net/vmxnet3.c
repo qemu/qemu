@@ -141,17 +141,17 @@ typedef struct VMXNET3Class {
 /* Cyclic ring abstraction */
 typedef struct {
     hwaddr pa;
-    size_t size;
-    size_t cell_size;
-    size_t next;
+    uint32_t size;
+    uint32_t cell_size;
+    uint32_t next;
     uint8_t gen;
 } Vmxnet3Ring;
 
 static inline void vmxnet3_ring_init(PCIDevice *d,
 				     Vmxnet3Ring *ring,
                                      hwaddr pa,
-                                     size_t size,
-                                     size_t cell_size,
+                                     uint32_t size,
+                                     uint32_t cell_size,
                                      bool zero_region)
 {
     ring->pa = pa;
@@ -166,7 +166,7 @@ static inline void vmxnet3_ring_init(PCIDevice *d,
 }
 
 #define VMXNET3_RING_DUMP(macro, ring_name, ridx, r)                         \
-    macro("%s#%d: base %" PRIx64 " size %zu cell_size %zu gen %d next %zu",  \
+    macro("%s#%d: base %" PRIx64 " size %u cell_size %u gen %d next %u",  \
           (ring_name), (ridx),                                               \
           (r)->pa, (r)->size, (r)->cell_size, (r)->gen, (r)->next)
 
