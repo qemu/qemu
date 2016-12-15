@@ -85,6 +85,12 @@ typedef struct DisasInsn {
                         const struct DisasInsn *f);
     union {
         void (*f_ttt)(TCGv, TCGv, TCGv);
+        void (*f_weww)(TCGv_i32, TCGv_env, TCGv_i32, TCGv_i32);
+        void (*f_dedd)(TCGv_i64, TCGv_env, TCGv_i64, TCGv_i64);
+        void (*f_wew)(TCGv_i32, TCGv_env, TCGv_i32);
+        void (*f_ded)(TCGv_i64, TCGv_env, TCGv_i64);
+        void (*f_wed)(TCGv_i32, TCGv_env, TCGv_i64);
+        void (*f_dew)(TCGv_i64, TCGv_env, TCGv_i32);
     };
 } DisasInsn;
 
@@ -295,6 +301,28 @@ static TCGv_i32 load_frw_i32(unsigned rt)
     return ret;
 }
 
+static TCGv_i32 load_frw0_i32(unsigned rt)
+{
+    if (rt == 0) {
+        return tcg_const_i32(0);
+    } else {
+        return load_frw_i32(rt);
+    }
+}
+
+static TCGv_i64 load_frw0_i64(unsigned rt)
+{
+    if (rt == 0) {
+        return tcg_const_i64(0);
+    } else {
+        TCGv_i64 ret = tcg_temp_new_i64();
+        tcg_gen_ld32u_i64(ret, cpu_env,
+                          offsetof(CPUHPPAState, fr[rt & 31])
+                          + (rt & 32 ? LO_OFS : HI_OFS));
+        return ret;
+    }
+}
+
 static void save_frw_i32(unsigned rt, TCGv_i32 val)
 {
     tcg_gen_st_i32(val, cpu_env,
@@ -310,6 +338,15 @@ static TCGv_i64 load_frd(unsigned rt)
     TCGv_i64 ret = tcg_temp_new_i64();
     tcg_gen_ld_i64(ret, cpu_env, offsetof(CPUHPPAState, fr[rt]));
     return ret;
+}
+
+static TCGv_i64 load_frd0(unsigned rt)
+{
+    if (rt == 0) {
+        return tcg_const_i64(0);
+    } else {
+        return load_frd(rt);
+    }
 }
 
 static void save_frd(unsigned rt, TCGv_i64 val)
@@ -492,6 +529,35 @@ static target_long low_sextract(uint32_t val, int pos, int len)
     target_ulong x = -(target_ulong)extract32(val, pos, 1);
     x = (x << (len - 1)) | extract32(val, pos + 1, len - 1);
     return x;
+}
+
+static unsigned assemble_rt64(uint32_t insn)
+{
+    unsigned r1 = extract32(insn, 6, 1);
+    unsigned r0 = extract32(insn, 0, 5);
+    return r1 * 32 + r0;
+}
+
+static unsigned assemble_ra64(uint32_t insn)
+{
+    unsigned r1 = extract32(insn, 7, 1);
+    unsigned r0 = extract32(insn, 21, 5);
+    return r1 * 32 + r0;
+}
+
+static unsigned assemble_rb64(uint32_t insn)
+{
+    unsigned r1 = extract32(insn, 12, 1);
+    unsigned r0 = extract32(insn, 16, 5);
+    return r1 * 32 + r0;
+}
+
+static unsigned assemble_rc64(uint32_t insn)
+{
+    unsigned r2 = extract32(insn, 8, 1);
+    unsigned r1 = extract32(insn, 13, 3);
+    unsigned r0 = extract32(insn, 9, 2);
+    return r2 * 32 + r1 * 4 + r0;
 }
 
 static target_long assemble_12(uint32_t insn)
@@ -1215,6 +1281,110 @@ static ExitStatus do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
     do_store_64(ctx, tmp, rb, rx, scale, disp, modify, MO_TEQ);
     tcg_temp_free_i64(tmp);
 
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus do_fop_wew(DisasContext *ctx, unsigned rt, unsigned ra,
+                             void (*func)(TCGv_i32, TCGv_env, TCGv_i32))
+{
+    TCGv_i32 tmp;
+
+    nullify_over(ctx);
+    tmp = load_frw0_i32(ra);
+
+    func(tmp, cpu_env, tmp);
+
+    save_frw_i32(rt, tmp);
+    tcg_temp_free_i32(tmp);
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus do_fop_wed(DisasContext *ctx, unsigned rt, unsigned ra,
+                             void (*func)(TCGv_i32, TCGv_env, TCGv_i64))
+{
+    TCGv_i32 dst;
+    TCGv_i64 src;
+
+    nullify_over(ctx);
+    src = load_frd(ra);
+    dst = tcg_temp_new_i32();
+
+    func(dst, cpu_env, src);
+
+    tcg_temp_free_i64(src);
+    save_frw_i32(rt, dst);
+    tcg_temp_free_i32(dst);
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus do_fop_ded(DisasContext *ctx, unsigned rt, unsigned ra,
+                             void (*func)(TCGv_i64, TCGv_env, TCGv_i64))
+{
+    TCGv_i64 tmp;
+
+    nullify_over(ctx);
+    tmp = load_frd0(ra);
+
+    func(tmp, cpu_env, tmp);
+
+    save_frd(rt, tmp);
+    tcg_temp_free_i64(tmp);
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus do_fop_dew(DisasContext *ctx, unsigned rt, unsigned ra,
+                             void (*func)(TCGv_i64, TCGv_env, TCGv_i32))
+{
+    TCGv_i32 src;
+    TCGv_i64 dst;
+
+    nullify_over(ctx);
+    src = load_frw0_i32(ra);
+    dst = tcg_temp_new_i64();
+
+    func(dst, cpu_env, src);
+
+    tcg_temp_free_i32(src);
+    save_frd(rt, dst);
+    tcg_temp_free_i64(dst);
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus do_fop_weww(DisasContext *ctx, unsigned rt,
+                              unsigned ra, unsigned rb,
+                              void (*func)(TCGv_i32, TCGv_env,
+                                           TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 a, b;
+
+    nullify_over(ctx);
+    a = load_frw0_i32(ra);
+    b = load_frw0_i32(rb);
+
+    func(a, cpu_env, a, b);
+
+    tcg_temp_free_i32(b);
+    save_frw_i32(rt, a);
+    tcg_temp_free_i32(a);
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus do_fop_dedd(DisasContext *ctx, unsigned rt,
+                              unsigned ra, unsigned rb,
+                              void (*func)(TCGv_i64, TCGv_env,
+                                           TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 a, b;
+
+    nullify_over(ctx);
+    a = load_frd0(ra);
+    b = load_frd0(rb);
+
+    func(a, cpu_env, a, b);
+
+    tcg_temp_free_i64(b);
+    save_frd(rt, a);
+    tcg_temp_free_i64(a);
     return nullify_end(ctx, NO_EXIT);
 }
 
@@ -2893,6 +3063,554 @@ static const DisasInsn table_branch[] = {
     { 0xe800d000u, 0xfc00dffcu, trans_bve },
 };
 
+static ExitStatus trans_fop_wew_0c(DisasContext *ctx, uint32_t insn,
+                                   const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned ra = extract32(insn, 21, 5);
+    return do_fop_wew(ctx, rt, ra, di->f_wew);
+}
+
+static ExitStatus trans_fop_wew_0e(DisasContext *ctx, uint32_t insn,
+                                   const DisasInsn *di)
+{
+    unsigned rt = assemble_rt64(insn);
+    unsigned ra = assemble_ra64(insn);
+    return do_fop_wew(ctx, rt, ra, di->f_wew);
+}
+
+static ExitStatus trans_fop_ded(DisasContext *ctx, uint32_t insn,
+                                const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned ra = extract32(insn, 21, 5);
+    return do_fop_ded(ctx, rt, ra, di->f_ded);
+}
+
+static ExitStatus trans_fop_wed_0c(DisasContext *ctx, uint32_t insn,
+                                   const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned ra = extract32(insn, 21, 5);
+    return do_fop_wed(ctx, rt, ra, di->f_wed);
+}
+
+static ExitStatus trans_fop_wed_0e(DisasContext *ctx, uint32_t insn,
+                                   const DisasInsn *di)
+{
+    unsigned rt = assemble_rt64(insn);
+    unsigned ra = extract32(insn, 21, 5);
+    return do_fop_wed(ctx, rt, ra, di->f_wed);
+}
+
+static ExitStatus trans_fop_dew_0c(DisasContext *ctx, uint32_t insn,
+                                   const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned ra = extract32(insn, 21, 5);
+    return do_fop_dew(ctx, rt, ra, di->f_dew);
+}
+
+static ExitStatus trans_fop_dew_0e(DisasContext *ctx, uint32_t insn,
+                                   const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned ra = assemble_ra64(insn);
+    return do_fop_dew(ctx, rt, ra, di->f_dew);
+}
+
+static ExitStatus trans_fop_weww_0c(DisasContext *ctx, uint32_t insn,
+                                    const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned rb = extract32(insn, 16, 5);
+    unsigned ra = extract32(insn, 21, 5);
+    return do_fop_weww(ctx, rt, ra, rb, di->f_weww);
+}
+
+static ExitStatus trans_fop_weww_0e(DisasContext *ctx, uint32_t insn,
+                                    const DisasInsn *di)
+{
+    unsigned rt = assemble_rt64(insn);
+    unsigned rb = assemble_rb64(insn);
+    unsigned ra = assemble_ra64(insn);
+    return do_fop_weww(ctx, rt, ra, rb, di->f_weww);
+}
+
+static ExitStatus trans_fop_dedd(DisasContext *ctx, uint32_t insn,
+                                 const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned rb = extract32(insn, 16, 5);
+    unsigned ra = extract32(insn, 21, 5);
+    return do_fop_dedd(ctx, rt, ra, rb, di->f_dedd);
+}
+
+static void gen_fcpy_s(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
+{
+    tcg_gen_mov_i32(dst, src);
+}
+
+static void gen_fcpy_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
+{
+    tcg_gen_mov_i64(dst, src);
+}
+
+static void gen_fabs_s(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
+{
+    tcg_gen_andi_i32(dst, src, INT32_MAX);
+}
+
+static void gen_fabs_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
+{
+    tcg_gen_andi_i64(dst, src, INT64_MAX);
+}
+
+static void gen_fneg_s(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
+{
+    tcg_gen_xori_i32(dst, src, INT32_MIN);
+}
+
+static void gen_fneg_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
+{
+    tcg_gen_xori_i64(dst, src, INT64_MIN);
+}
+
+static void gen_fnegabs_s(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
+{
+    tcg_gen_ori_i32(dst, src, INT32_MIN);
+}
+
+static void gen_fnegabs_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
+{
+    tcg_gen_ori_i64(dst, src, INT64_MIN);
+}
+
+static ExitStatus do_fcmp_s(DisasContext *ctx, unsigned ra, unsigned rb,
+                            unsigned y, unsigned c)
+{
+    TCGv_i32 ta, tb, tc, ty;
+
+    nullify_over(ctx);
+
+    ta = load_frw0_i32(ra);
+    tb = load_frw0_i32(rb);
+    ty = tcg_const_i32(y);
+    tc = tcg_const_i32(c);
+
+    gen_helper_fcmp_s(cpu_env, ta, tb, ty, tc);
+
+    tcg_temp_free_i32(ta);
+    tcg_temp_free_i32(tb);
+    tcg_temp_free_i32(ty);
+    tcg_temp_free_i32(tc);
+
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus trans_fcmp_s_0c(DisasContext *ctx, uint32_t insn,
+                                  const DisasInsn *di)
+{
+    unsigned c = extract32(insn, 0, 5);
+    unsigned y = extract32(insn, 13, 3);
+    unsigned rb = extract32(insn, 16, 5);
+    unsigned ra = extract32(insn, 21, 5);
+    return do_fcmp_s(ctx, ra, rb, y, c);
+}
+
+static ExitStatus trans_fcmp_s_0e(DisasContext *ctx, uint32_t insn,
+                                  const DisasInsn *di)
+{
+    unsigned c = extract32(insn, 0, 5);
+    unsigned y = extract32(insn, 13, 3);
+    unsigned rb = assemble_rb64(insn);
+    unsigned ra = assemble_ra64(insn);
+    return do_fcmp_s(ctx, ra, rb, y, c);
+}
+
+static ExitStatus trans_fcmp_d(DisasContext *ctx, uint32_t insn,
+                               const DisasInsn *di)
+{
+    unsigned c = extract32(insn, 0, 5);
+    unsigned y = extract32(insn, 13, 3);
+    unsigned rb = extract32(insn, 16, 5);
+    unsigned ra = extract32(insn, 21, 5);
+    TCGv_i64 ta, tb;
+    TCGv_i32 tc, ty;
+
+    nullify_over(ctx);
+
+    ta = load_frd0(ra);
+    tb = load_frd0(rb);
+    ty = tcg_const_i32(y);
+    tc = tcg_const_i32(c);
+
+    gen_helper_fcmp_d(cpu_env, ta, tb, ty, tc);
+
+    tcg_temp_free_i64(ta);
+    tcg_temp_free_i64(tb);
+    tcg_temp_free_i32(ty);
+    tcg_temp_free_i32(tc);
+
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus trans_ftest_t(DisasContext *ctx, uint32_t insn,
+                                const DisasInsn *di)
+{
+    unsigned y = extract32(insn, 13, 3);
+    unsigned cbit = (y ^ 1) - 1;
+    TCGv t;
+
+    nullify_over(ctx);
+
+    t = tcg_temp_new();
+    tcg_gen_ld32u_tl(t, cpu_env, offsetof(CPUHPPAState, fr0_shadow));
+    tcg_gen_extract_tl(t, t, 21 - cbit, 1);
+    ctx->null_cond = cond_make_0(TCG_COND_NE, t);
+    tcg_temp_free(t);
+
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus trans_ftest_q(DisasContext *ctx, uint32_t insn,
+                                const DisasInsn *di)
+{
+    unsigned c = extract32(insn, 0, 5);
+    int mask;
+    bool inv = false;
+    TCGv t;
+
+    nullify_over(ctx);
+
+    t = tcg_temp_new();
+    tcg_gen_ld32u_tl(t, cpu_env, offsetof(CPUHPPAState, fr0_shadow));
+
+    switch (c) {
+    case 0: /* simple */
+        tcg_gen_andi_tl(t, t, 0x4000000);
+        ctx->null_cond = cond_make_0(TCG_COND_NE, t);
+        goto done;
+    case 2: /* rej */
+        inv = true;
+        /* fallthru */
+    case 1: /* acc */
+        mask = 0x43ff800;
+        break;
+    case 6: /* rej8 */
+        inv = true;
+        /* fallthru */
+    case 5: /* acc8 */
+        mask = 0x43f8000;
+        break;
+    case 9: /* acc6 */
+        mask = 0x43e0000;
+        break;
+    case 13: /* acc4 */
+        mask = 0x4380000;
+        break;
+    case 17: /* acc2 */
+        mask = 0x4200000;
+        break;
+    default:
+        return gen_illegal(ctx);
+    }
+    if (inv) {
+        TCGv c = load_const(ctx, mask);
+        tcg_gen_or_tl(t, t, c);
+        ctx->null_cond = cond_make(TCG_COND_EQ, t, c);
+    } else {
+        tcg_gen_andi_tl(t, t, mask);
+        ctx->null_cond = cond_make_0(TCG_COND_EQ, t);
+    }
+ done:
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus trans_xmpyu(DisasContext *ctx, uint32_t insn,
+                              const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned rb = assemble_rb64(insn);
+    unsigned ra = assemble_ra64(insn);
+    TCGv_i64 a, b;
+
+    nullify_over(ctx);
+
+    a = load_frw0_i64(ra);
+    b = load_frw0_i64(rb);
+    tcg_gen_mul_i64(a, a, b);
+    save_frd(rt, a);
+    tcg_temp_free_i64(a);
+    tcg_temp_free_i64(b);
+
+    return nullify_end(ctx, NO_EXIT);
+}
+
+#define FOP_DED  trans_fop_ded, .f_ded
+#define FOP_DEDD trans_fop_dedd, .f_dedd
+
+#define FOP_WEW  trans_fop_wew_0c, .f_wew
+#define FOP_DEW  trans_fop_dew_0c, .f_dew
+#define FOP_WED  trans_fop_wed_0c, .f_wed
+#define FOP_WEWW trans_fop_weww_0c, .f_weww
+
+static const DisasInsn table_float_0c[] = {
+    /* floating point class zero */
+    { 0x30004000, 0xfc1fffe0, FOP_WEW = gen_fcpy_s },
+    { 0x30006000, 0xfc1fffe0, FOP_WEW = gen_fabs_s },
+    { 0x30008000, 0xfc1fffe0, FOP_WEW = gen_helper_fsqrt_s },
+    { 0x3000a000, 0xfc1fffe0, FOP_WEW = gen_helper_frnd_s },
+    { 0x3000c000, 0xfc1fffe0, FOP_WEW = gen_fneg_s },
+    { 0x3000e000, 0xfc1fffe0, FOP_WEW = gen_fnegabs_s },
+
+    { 0x30004800, 0xfc1fffe0, FOP_DED = gen_fcpy_d },
+    { 0x30006800, 0xfc1fffe0, FOP_DED = gen_fabs_d },
+    { 0x30008800, 0xfc1fffe0, FOP_DED = gen_helper_fsqrt_d },
+    { 0x3000a800, 0xfc1fffe0, FOP_DED = gen_helper_frnd_d },
+    { 0x3000c800, 0xfc1fffe0, FOP_DED = gen_fneg_d },
+    { 0x3000e800, 0xfc1fffe0, FOP_DED = gen_fnegabs_d },
+
+    /* floating point class three */
+    { 0x30000600, 0xfc00ffe0, FOP_WEWW = gen_helper_fadd_s },
+    { 0x30002600, 0xfc00ffe0, FOP_WEWW = gen_helper_fsub_s },
+    { 0x30004600, 0xfc00ffe0, FOP_WEWW = gen_helper_fmpy_s },
+    { 0x30006600, 0xfc00ffe0, FOP_WEWW = gen_helper_fdiv_s },
+
+    { 0x30000e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fadd_d },
+    { 0x30002e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fsub_d },
+    { 0x30004e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fmpy_d },
+    { 0x30006e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fdiv_d },
+
+    /* floating point class one */
+    /* float/float */
+    { 0x30000a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_d_s },
+    { 0x30002200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_s_d },
+    /* int/float */
+    { 0x30008200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_w_s },
+    { 0x30008a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_dw_s },
+    { 0x3000a200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_w_d },
+    { 0x3000aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_dw_d },
+    /* float/int */
+    { 0x30010200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_s_w },
+    { 0x30010a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_d_w },
+    { 0x30012200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_s_dw },
+    { 0x30012a00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_d_dw },
+    /* float/int truncate */
+    { 0x30018200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_t_s_w },
+    { 0x30018a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_t_d_w },
+    { 0x3001a200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_t_s_dw },
+    { 0x3001aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_t_d_dw },
+    /* uint/float */
+    { 0x30028200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_uw_s },
+    { 0x30028a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_udw_s },
+    { 0x3002a200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_uw_d },
+    { 0x3002aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_udw_d },
+    /* float/uint */
+    { 0x30030200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_s_uw },
+    { 0x30030a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_d_uw },
+    { 0x30032200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_s_udw },
+    { 0x30032a00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_d_udw },
+    /* float/uint truncate */
+    { 0x30038200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_t_s_uw },
+    { 0x30038a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_t_d_uw },
+    { 0x3003a200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_t_s_udw },
+    { 0x3003aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_t_d_udw },
+
+    /* floating point class two */
+    { 0x30000400, 0xfc001fe0, trans_fcmp_s_0c },
+    { 0x30000c00, 0xfc001fe0, trans_fcmp_d },
+    { 0x30002420, 0xffffffe0, trans_ftest_q },
+    { 0x30000420, 0xffff1fff, trans_ftest_t },
+
+    /* FID.  Note that ra == rt == 0, which via fcpy puts 0 into fr0.
+       This is machine/revision == 0, which is reserved for simulator.  */
+    { 0x30000000, 0xffffffff, FOP_WEW = gen_fcpy_s },
+};
+
+#undef FOP_WEW
+#undef FOP_DEW
+#undef FOP_WED
+#undef FOP_WEWW
+#define FOP_WEW  trans_fop_wew_0e, .f_wew
+#define FOP_DEW  trans_fop_dew_0e, .f_dew
+#define FOP_WED  trans_fop_wed_0e, .f_wed
+#define FOP_WEWW trans_fop_weww_0e, .f_weww
+
+static const DisasInsn table_float_0e[] = {
+    /* floating point class zero */
+    { 0x38004000, 0xfc1fff20, FOP_WEW = gen_fcpy_s },
+    { 0x38006000, 0xfc1fff20, FOP_WEW = gen_fabs_s },
+    { 0x38008000, 0xfc1fff20, FOP_WEW = gen_helper_fsqrt_s },
+    { 0x3800a000, 0xfc1fff20, FOP_WEW = gen_helper_frnd_s },
+    { 0x3800c000, 0xfc1fff20, FOP_WEW = gen_fneg_s },
+    { 0x3800e000, 0xfc1fff20, FOP_WEW = gen_fnegabs_s },
+
+    { 0x38004800, 0xfc1fffe0, FOP_DED = gen_fcpy_d },
+    { 0x38006800, 0xfc1fffe0, FOP_DED = gen_fabs_d },
+    { 0x38008800, 0xfc1fffe0, FOP_DED = gen_helper_fsqrt_d },
+    { 0x3800a800, 0xfc1fffe0, FOP_DED = gen_helper_frnd_d },
+    { 0x3800c800, 0xfc1fffe0, FOP_DED = gen_fneg_d },
+    { 0x3800e800, 0xfc1fffe0, FOP_DED = gen_fnegabs_d },
+
+    /* floating point class three */
+    { 0x38000600, 0xfc00ef20, FOP_WEWW = gen_helper_fadd_s },
+    { 0x38002600, 0xfc00ef20, FOP_WEWW = gen_helper_fsub_s },
+    { 0x38004600, 0xfc00ef20, FOP_WEWW = gen_helper_fmpy_s },
+    { 0x38006600, 0xfc00ef20, FOP_WEWW = gen_helper_fdiv_s },
+
+    { 0x38000e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fadd_d },
+    { 0x38002e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fsub_d },
+    { 0x38004e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fmpy_d },
+    { 0x38006e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fdiv_d },
+
+    { 0x38004700, 0xfc00ef60, trans_xmpyu },
+
+    /* floating point class one */
+    /* float/float */
+    { 0x38000a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_d_s },
+    { 0x38002200, 0xfc1fffc0, FOP_DEW = gen_helper_fcnv_s_d },
+    /* int/float */
+    { 0x38008200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_w_s },
+    { 0x38008a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_dw_s },
+    { 0x3800a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_w_d },
+    { 0x3800aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_dw_d },
+    /* float/int */
+    { 0x38010200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_s_w },
+    { 0x38010a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_d_w },
+    { 0x38012200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_s_dw },
+    { 0x38012a00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_d_dw },
+    /* float/int truncate */
+    { 0x38018200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_t_s_w },
+    { 0x38018a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_t_d_w },
+    { 0x3801a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_t_s_dw },
+    { 0x3801aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_t_d_dw },
+    /* uint/float */
+    { 0x38028200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_uw_s },
+    { 0x38028a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_udw_s },
+    { 0x3802a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_uw_d },
+    { 0x3802aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_udw_d },
+    /* float/uint */
+    { 0x38030200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_s_uw },
+    { 0x38030a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_d_uw },
+    { 0x38032200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_s_udw },
+    { 0x38032a00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_d_udw },
+    /* float/uint truncate */
+    { 0x38038200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_t_s_uw },
+    { 0x38038a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_t_d_uw },
+    { 0x3803a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_t_s_udw },
+    { 0x3803aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_t_d_udw },
+
+    /* floating point class two */
+    { 0x38000400, 0xfc000f60, trans_fcmp_s_0e },
+    { 0x38000c00, 0xfc001fe0, trans_fcmp_d },
+};
+
+#undef FOP_WEW
+#undef FOP_DEW
+#undef FOP_WED
+#undef FOP_WEWW
+#undef FOP_DED
+#undef FOP_DEDD
+
+/* Convert the fmpyadd single-precision register encodings to standard.  */
+static inline int fmpyadd_s_reg(unsigned r)
+{
+    return (r & 16) * 2 + 16 + (r & 15);
+}
+
+static ExitStatus trans_fmpyadd(DisasContext *ctx, uint32_t insn, bool is_sub)
+{
+    unsigned tm = extract32(insn, 0, 5);
+    unsigned f = extract32(insn, 5, 1);
+    unsigned ra = extract32(insn, 6, 5);
+    unsigned ta = extract32(insn, 11, 5);
+    unsigned rm2 = extract32(insn, 16, 5);
+    unsigned rm1 = extract32(insn, 21, 5);
+
+    nullify_over(ctx);
+
+    /* Independent multiply & add/sub, with undefined behaviour
+       if outputs overlap inputs.  */
+    if (f == 0) {
+        tm = fmpyadd_s_reg(tm);
+        ra = fmpyadd_s_reg(ra);
+        ta = fmpyadd_s_reg(ta);
+        rm2 = fmpyadd_s_reg(rm2);
+        rm1 = fmpyadd_s_reg(rm1);
+        do_fop_weww(ctx, tm, rm1, rm2, gen_helper_fmpy_s);
+        do_fop_weww(ctx, ta, ta, ra,
+                    is_sub ? gen_helper_fsub_s : gen_helper_fadd_s);
+    } else {
+        do_fop_dedd(ctx, tm, rm1, rm2, gen_helper_fmpy_d);
+        do_fop_dedd(ctx, ta, ta, ra,
+                    is_sub ? gen_helper_fsub_d : gen_helper_fadd_d);
+    }
+
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus trans_fmpyfadd_s(DisasContext *ctx, uint32_t insn,
+                                   const DisasInsn *di)
+{
+    unsigned rt = assemble_rt64(insn);
+    unsigned neg = extract32(insn, 5, 1);
+    unsigned rm1 = assemble_ra64(insn);
+    unsigned rm2 = assemble_rb64(insn);
+    unsigned ra3 = assemble_rc64(insn);
+    TCGv_i32 a, b, c;
+
+    nullify_over(ctx);
+    a = load_frw0_i32(rm1);
+    b = load_frw0_i32(rm2);
+    c = load_frw0_i32(ra3);
+
+    if (neg) {
+        gen_helper_fmpynfadd_s(a, cpu_env, a, b, c);
+    } else {
+        gen_helper_fmpyfadd_s(a, cpu_env, a, b, c);
+    }
+
+    tcg_temp_free_i32(b);
+    tcg_temp_free_i32(c);
+    save_frw_i32(rt, a);
+    tcg_temp_free_i32(a);
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static ExitStatus trans_fmpyfadd_d(DisasContext *ctx, uint32_t insn,
+                                   const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned neg = extract32(insn, 5, 1);
+    unsigned rm1 = extract32(insn, 21, 5);
+    unsigned rm2 = extract32(insn, 16, 5);
+    unsigned ra3 = assemble_rc64(insn);
+    TCGv_i64 a, b, c;
+
+    nullify_over(ctx);
+    a = load_frd0(rm1);
+    b = load_frd0(rm2);
+    c = load_frd0(ra3);
+
+    if (neg) {
+        gen_helper_fmpynfadd_d(a, cpu_env, a, b, c);
+    } else {
+        gen_helper_fmpyfadd_d(a, cpu_env, a, b, c);
+    }
+
+    tcg_temp_free_i64(b);
+    tcg_temp_free_i64(c);
+    save_frd(rt, a);
+    tcg_temp_free_i64(a);
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static const DisasInsn table_fp_fused[] = {
+    { 0xb8000000u, 0xfc000800u, trans_fmpyfadd_s },
+    { 0xb8000800u, 0xfc0019c0u, trans_fmpyfadd_d }
+};
+
 static ExitStatus translate_table_int(DisasContext *ctx, uint32_t insn,
                                       const DisasInsn table[], size_t n)
 {
@@ -2921,6 +3639,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         return translate_table(ctx, insn, table_arith_log);
     case 0x03:
         return translate_table(ctx, insn, table_index_mem);
+    case 0x06:
+        return trans_fmpyadd(ctx, insn, false);
     case 0x08:
         return trans_ldil(ctx, insn);
     case 0x09:
@@ -2929,8 +3649,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         return trans_addil(ctx, insn);
     case 0x0B:
         return trans_copr_dw(ctx, insn);
+    case 0x0C:
+        return translate_table(ctx, insn, table_float_0c);
     case 0x0D:
         return trans_ldo(ctx, insn);
+    case 0x0E:
+        return translate_table(ctx, insn, table_float_0e);
 
     case 0x10:
         return trans_load(ctx, insn, false, MO_UB);
@@ -2969,6 +3693,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         return trans_cmpiclr(ctx, insn);
     case 0x25:
         return trans_subi(ctx, insn);
+    case 0x26:
+        return trans_fmpyadd(ctx, insn, true);
     case 0x27:
         return trans_cmpb(ctx, insn, true, false, true);
     case 0x28:
@@ -2982,6 +3708,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     case 0x2C:
     case 0x2D:
         return trans_addi(ctx, insn);
+    case 0x2E:
+        return translate_table(ctx, insn, table_fp_fused);
     case 0x2F:
         return trans_cmpb(ctx, insn, false, false, true);
 
