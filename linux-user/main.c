@@ -4179,15 +4179,16 @@ int main(int argc, char **argv, char **envp)
 
         qemu_log("start_brk   0x" TARGET_ABI_FMT_lx "\n", info->start_brk);
         qemu_log("end_code    0x" TARGET_ABI_FMT_lx "\n", info->end_code);
-        qemu_log("start_code  0x" TARGET_ABI_FMT_lx "\n",
-                 info->start_code);
-        qemu_log("start_data  0x" TARGET_ABI_FMT_lx "\n",
-                 info->start_data);
+        qemu_log("start_code  0x" TARGET_ABI_FMT_lx "\n", info->start_code);
+        qemu_log("start_data  0x" TARGET_ABI_FMT_lx "\n", info->start_data);
         qemu_log("end_data    0x" TARGET_ABI_FMT_lx "\n", info->end_data);
-        qemu_log("start_stack 0x" TARGET_ABI_FMT_lx "\n",
-                 info->start_stack);
+        qemu_log("start_stack 0x" TARGET_ABI_FMT_lx "\n", info->start_stack);
         qemu_log("brk         0x" TARGET_ABI_FMT_lx "\n", info->brk);
         qemu_log("entry       0x" TARGET_ABI_FMT_lx "\n", info->entry);
+        qemu_log("argv_start  0x" TARGET_ABI_FMT_lx "\n", info->arg_start);
+        qemu_log("env_start   0x" TARGET_ABI_FMT_lx "\n",
+                 info->arg_end + (abi_ulong)sizeof(abi_ulong));
+        qemu_log("auxv_start  0x" TARGET_ABI_FMT_lx "\n", info->saved_auxv);
     }
 
     target_set_brk(info->brk);

@@ -48,6 +48,9 @@ struct image_info {
         abi_ulong       auxv_len;
         abi_ulong       arg_start;
         abi_ulong       arg_end;
+        abi_ulong       arg_strings;
+        abi_ulong       env_strings;
+        abi_ulong       file_string;
         uint32_t        elf_flags;
 	int		personality;
 #ifdef CONFIG_USE_FDPIC
