@@ -1465,6 +1465,208 @@ static ExitStatus trans_nop(DisasContext *ctx, uint32_t insn,
     return NO_EXIT;
 }
 
+static ExitStatus trans_break(DisasContext *ctx, uint32_t insn,
+                              const DisasInsn *di)
+{
+    nullify_over(ctx);
+    return nullify_end(ctx, gen_excp(ctx, EXCP_DEBUG));
+}
+
+static ExitStatus trans_sync(DisasContext *ctx, uint32_t insn,
+                             const DisasInsn *di)
+{
+    /* No point in nullifying the memory barrier.  */
+    tcg_gen_mb(TCG_BAR_SC | TCG_MO_ALL);
+
+    cond_free(&ctx->null_cond);
+    return NO_EXIT;
+}
+
+static ExitStatus trans_mfia(DisasContext *ctx, uint32_t insn,
+                             const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    TCGv tmp = dest_gpr(ctx, rt);
+    tcg_gen_movi_tl(tmp, ctx->iaoq_f);
+    save_gpr(ctx, rt, tmp);
+
+    cond_free(&ctx->null_cond);
+    return NO_EXIT;
+}
+
+static ExitStatus trans_mfsp(DisasContext *ctx, uint32_t insn,
+                             const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    TCGv tmp = dest_gpr(ctx, rt);
+
+    /* ??? We don't implement space registers.  */
+    tcg_gen_movi_tl(tmp, 0);
+    save_gpr(ctx, rt, tmp);
+
+    cond_free(&ctx->null_cond);
+    return NO_EXIT;
+}
+
+static ExitStatus trans_mfctl(DisasContext *ctx, uint32_t insn,
+                              const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned ctl = extract32(insn, 21, 5);
+    TCGv tmp;
+
+    switch (ctl) {
+    case 11: /* SAR */
+#ifdef TARGET_HPPA64
+        if (extract32(insn, 14, 1) == 0) {
+            /* MFSAR without ,W masks low 5 bits.  */
+            tmp = dest_gpr(ctx, rt);
+            tcg_gen_andi_tl(tmp, cpu_sar, 31);
+            save_gpr(ctx, rt, tmp);
+            break;
+        }
+#endif
+        save_gpr(ctx, rt, cpu_sar);
+        break;
+    case 16: /* Interval Timer */
+        tmp = dest_gpr(ctx, rt);
+        tcg_gen_movi_tl(tmp, 0); /* FIXME */
+        save_gpr(ctx, rt, tmp);
+        break;
+    case 26:
+        save_gpr(ctx, rt, cpu_cr26);
+        break;
+    case 27:
+        save_gpr(ctx, rt, cpu_cr27);
+        break;
+    default:
+        /* All other control registers are privileged.  */
+        return gen_illegal(ctx);
+    }
+
+    cond_free(&ctx->null_cond);
+    return NO_EXIT;
+}
+
+static ExitStatus trans_mtctl(DisasContext *ctx, uint32_t insn,
+                              const DisasInsn *di)
+{
+    unsigned rin = extract32(insn, 16, 5);
+    unsigned ctl = extract32(insn, 21, 5);
+    TCGv tmp;
+
+    if (ctl == 11) { /* SAR */
+        tmp = tcg_temp_new();
+        tcg_gen_andi_tl(tmp, load_gpr(ctx, rin), TARGET_LONG_BITS - 1);
+        save_or_nullify(ctx, cpu_sar, tmp);
+        tcg_temp_free(tmp);
+    } else {
+        /* All other control registers are privileged or read-only.  */
+        return gen_illegal(ctx);
+    }
+
+    cond_free(&ctx->null_cond);
+    return NO_EXIT;
+}
+
+static ExitStatus trans_mtsarcm(DisasContext *ctx, uint32_t insn,
+                                const DisasInsn *di)
+{
+    unsigned rin = extract32(insn, 16, 5);
+    TCGv tmp = tcg_temp_new();
+
+    tcg_gen_not_tl(tmp, load_gpr(ctx, rin));
+    tcg_gen_andi_tl(tmp, tmp, TARGET_LONG_BITS - 1);
+    save_or_nullify(ctx, cpu_sar, tmp);
+    tcg_temp_free(tmp);
+
+    cond_free(&ctx->null_cond);
+    return NO_EXIT;
+}
+
+static ExitStatus trans_ldsid(DisasContext *ctx, uint32_t insn,
+                              const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    TCGv dest = dest_gpr(ctx, rt);
+
+    /* Since we don't implement space registers, this returns zero.  */
+    tcg_gen_movi_tl(dest, 0);
+    save_gpr(ctx, rt, dest);
+
+    cond_free(&ctx->null_cond);
+    return NO_EXIT;
+}
+
+static const DisasInsn table_system[] = {
+    { 0x00000000u, 0xfc001fe0u, trans_break },
+    /* We don't implement space register, so MTSP is a nop.  */
+    { 0x00001820u, 0xffe01fffu, trans_nop },
+    { 0x00001840u, 0xfc00ffffu, trans_mtctl },
+    { 0x016018c0u, 0xffe0ffffu, trans_mtsarcm },
+    { 0x000014a0u, 0xffffffe0u, trans_mfia },
+    { 0x000004a0u, 0xffff1fe0u, trans_mfsp },
+    { 0x000008a0u, 0xfc1fffe0u, trans_mfctl },
+    { 0x00000400u, 0xffffffffu, trans_sync },
+    { 0x000010a0u, 0xfc1f3fe0u, trans_ldsid },
+};
+
+static ExitStatus trans_base_idx_mod(DisasContext *ctx, uint32_t insn,
+                                     const DisasInsn *di)
+{
+    unsigned rb = extract32(insn, 21, 5);
+    unsigned rx = extract32(insn, 16, 5);
+    TCGv dest = dest_gpr(ctx, rb);
+    TCGv src1 = load_gpr(ctx, rb);
+    TCGv src2 = load_gpr(ctx, rx);
+
+    /* The only thing we need to do is the base register modification.  */
+    tcg_gen_add_tl(dest, src1, src2);
+    save_gpr(ctx, rb, dest);
+
+    cond_free(&ctx->null_cond);
+    return NO_EXIT;
+}
+
+static ExitStatus trans_probe(DisasContext *ctx, uint32_t insn,
+                              const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned rb = extract32(insn, 21, 5);
+    unsigned is_write = extract32(insn, 6, 1);
+    TCGv dest;
+
+    nullify_over(ctx);
+
+    /* ??? Do something with priv level operand.  */
+    dest = dest_gpr(ctx, rt);
+    if (is_write) {
+        gen_helper_probe_w(dest, load_gpr(ctx, rb));
+    } else {
+        gen_helper_probe_r(dest, load_gpr(ctx, rb));
+    }
+    save_gpr(ctx, rt, dest);
+    return nullify_end(ctx, NO_EXIT);
+}
+
+static const DisasInsn table_mem_mgmt[] = {
+    { 0x04003280u, 0xfc003fffu, trans_nop },          /* fdc, disp */
+    { 0x04001280u, 0xfc003fffu, trans_nop },          /* fdc, index */
+    { 0x040012a0u, 0xfc003fffu, trans_base_idx_mod }, /* fdc, index, base mod */
+    { 0x040012c0u, 0xfc003fffu, trans_nop },          /* fdce */
+    { 0x040012e0u, 0xfc003fffu, trans_base_idx_mod }, /* fdce, base mod */
+    { 0x04000280u, 0xfc001fffu, trans_nop },          /* fic 0a */
+    { 0x040002a0u, 0xfc001fffu, trans_base_idx_mod }, /* fic 0a, base mod */
+    { 0x040013c0u, 0xfc003fffu, trans_nop },          /* fic 4f */
+    { 0x040013e0u, 0xfc003fffu, trans_base_idx_mod }, /* fic 4f, base mod */
+    { 0x040002c0u, 0xfc001fffu, trans_nop },          /* fice */
+    { 0x040002e0u, 0xfc001fffu, trans_base_idx_mod }, /* fice, base mod */
+    { 0x04002700u, 0xfc003fffu, trans_nop },          /* pdc */
+    { 0x04002720u, 0xfc003fffu, trans_base_idx_mod }, /* pdc, base mod */
+    { 0x04001180u, 0xfc003fa0u, trans_probe },        /* probe */
+    { 0x04003180u, 0xfc003fa0u, trans_probe },        /* probei */
+};
+
 static ExitStatus trans_add(DisasContext *ctx, uint32_t insn,
                             const DisasInsn *di)
 {
@@ -2711,6 +2913,10 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     uint32_t opc = extract32(insn, 26, 6);
 
     switch (opc) {
+    case 0x00: /* system op */
+        return translate_table(ctx, insn, table_system);
+    case 0x01:
+        return translate_table(ctx, insn, table_mem_mgmt);
     case 0x02:
         return translate_table(ctx, insn, table_arith_log);
     case 0x03:

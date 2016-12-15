@@ -132,6 +132,16 @@ void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ulong val)
     }
 }
 
+target_ulong HELPER(probe_r)(target_ulong addr)
+{
+    return page_check_range(addr, 1, PAGE_READ);
+}
+
+target_ulong HELPER(probe_w)(target_ulong addr)
+{
+    return page_check_range(addr, 1, PAGE_WRITE);
+}
+
 void HELPER(loaded_fr0)(CPUHPPAState *env)
 {
     uint32_t shadow = env->fr[0] >> 32;
