@@ -326,6 +326,16 @@ static void parse_type_number(Visitor *v, const char *name, double *obj,
     *obj = val;
 }
 
+static void parse_type_null(Visitor *v, const char *name, Error **errp)
+{
+    StringInputVisitor *siv = to_siv(v);
+
+    if (!siv->string || siv->string[0]) {
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "null");
+    }
+}
+
 static void string_input_free(Visitor *v)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -349,6 +359,7 @@ Visitor *string_input_visitor_new(const char *str)
     v->visitor.type_bool = parse_type_bool;
     v->visitor.type_str = parse_type_str;
     v->visitor.type_number = parse_type_number;
+    v->visitor.type_null = parse_type_null;
     v->visitor.start_list = start_list;
     v->visitor.next_list = next_list;
     v->visitor.check_list = check_list;
