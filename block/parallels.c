@@ -581,6 +581,12 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     char *buf;
 
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+                               false, errp);
+    if (!bs->file) {
+        return -EINVAL;
+    }
+
     ret = bdrv_pread(bs->file, 0, &ph, sizeof(ph));
     if (ret < 0) {
         goto fail;

@@ -363,6 +363,12 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
     Error *local_err = NULL;
 
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+                               false, errp);
+    if (!bs->file) {
+        return -EINVAL;
+    }
+
     logout("\n");
 
     ret = bdrv_read(bs->file, 0, (uint8_t *)&header, 1);

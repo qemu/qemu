@@ -1103,13 +1103,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         assert(!drv->bdrv_needs_filename || filename != NULL);
         ret = drv->bdrv_file_open(bs, options, open_flags, &local_err);
     } else {
-        if (file == NULL) {
-            error_setg(errp, "Can't use '%s' as a block driver for the "
-                       "protocol level", drv->format_name);
-            ret = -EINVAL;
-            goto free_and_fail;
-        }
-        bs->file = file;
         ret = drv->bdrv_open(bs, options, open_flags, &local_err);
     }
 
@@ -1145,7 +1138,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     return 0;
 
 free_and_fail:
-    bs->file = NULL;
     g_free(bs->opaque);
     bs->opaque = NULL;
     bs->drv = NULL;
@@ -1368,7 +1360,18 @@ void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
     }
 
     if (child->bs->inherits_from == parent) {
-        child->bs->inherits_from = NULL;
+        BdrvChild *c;
+
+        /* Remove inherits_from only when the last reference between parent and
+         * child->bs goes away. */
+        QLIST_FOREACH(c, &parent->children, next) {
+            if (c != child && c->bs == child->bs) {
+                break;
+            }
+        }
+        if (c == NULL) {
+            child->bs->inherits_from = NULL;
+        }
     }
 
     bdrv_root_unref_child(child);
@@ -1789,12 +1792,19 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         qdict_del(options, "backing");
     }
 
-    /* Open image file without format layer */
+    /* Open image file without format layer. This BdrvChild is only used for
+     * probing, the block drivers will do their own bdrv_open_child() for the
+     * same BDS, which is why we put the node name back into options. */
     if ((flags & BDRV_O_PROTOCOL) == 0) {
+        /* FIXME Shouldn't attach a child to a node that isn't opened yet. */
         file = bdrv_open_child(filename, options, "file", bs,
                                &child_file, true, &local_err);
         if (local_err) {
             goto fail;
+        }
+        if (file != NULL) {
+            qdict_put(options, "file",
+                      qstring_from_str(bdrv_get_node_name(file->bs)));
         }
     }
 
@@ -1835,7 +1845,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         goto fail;
     }
 
-    if (file && (bs->file != file)) {
+    if (file) {
         bdrv_unref_child(bs, file);
         file = NULL;
     }
@@ -1900,6 +1910,9 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 fail:
     if (file != NULL) {
         bdrv_unref_child(bs, file);
+    }
+    if (bs->file != NULL) {
+        bdrv_unref_child(bs, bs->file);
     }
     QDECREF(snapshot_options);
     QDECREF(bs->explicit_options);

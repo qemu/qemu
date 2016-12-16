@@ -415,8 +415,8 @@ static void bdrv_qed_drain(BlockDriverState *bs)
     }
 }
 
-static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
-                         Error **errp)
+static int bdrv_qed_do_open(BlockDriverState *bs, QDict *options, int flags,
+                            Error **errp)
 {
     BDRVQEDState *s = bs->opaque;
     QEDHeader le_header;
@@ -548,6 +548,18 @@ out:
         qemu_vfree(s->l1_table);
     }
     return ret;
+}
+
+static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
+{
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+                               false, errp);
+    if (!bs->file) {
+        return -EINVAL;
+    }
+
+    return bdrv_qed_do_open(bs, options, flags, errp);
 }
 
 static void bdrv_qed_refresh_limits(BlockDriverState *bs, Error **errp)
@@ -1629,7 +1641,7 @@ static void bdrv_qed_invalidate_cache(BlockDriverState *bs, Error **errp)
     bdrv_qed_close(bs);
 
     memset(s, 0, sizeof(BDRVQEDState));
-    ret = bdrv_qed_open(bs, NULL, bs->open_flags, &local_err);
+    ret = bdrv_qed_do_open(bs, NULL, bs->open_flags, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         error_prepend(errp, "Could not reopen qed layer: ");
