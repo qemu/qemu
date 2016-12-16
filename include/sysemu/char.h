@@ -258,6 +258,8 @@ void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
  * @cond the condition to poll for
  * @func the function to call when the condition happens
  * @user_data the opaque pointer to pass to @func
+ *
+ * Returns: the source tag
  */
 guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
                             GIOFunc func, void *user_data);
