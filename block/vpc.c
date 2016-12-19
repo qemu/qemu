@@ -1067,6 +1067,7 @@ static BlockDriver bdrv_vpc = {
     .bdrv_open              = vpc_open,
     .bdrv_close             = vpc_close,
     .bdrv_reopen_prepare    = vpc_reopen_prepare,
+    .bdrv_child_perm        = bdrv_format_default_perms,
     .bdrv_create            = vpc_create,
 
     .bdrv_co_preadv             = vpc_co_preadv,

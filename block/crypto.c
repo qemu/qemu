@@ -628,6 +628,7 @@ BlockDriver bdrv_crypto_luks = {
     .bdrv_probe         = block_crypto_probe_luks,
     .bdrv_open          = block_crypto_open_luks,
     .bdrv_close         = block_crypto_close,
+    .bdrv_child_perm    = bdrv_format_default_perms,
     .bdrv_create        = block_crypto_create_luks,
     .bdrv_truncate      = block_crypto_truncate,
     .create_opts        = &block_crypto_create_opts_luks,

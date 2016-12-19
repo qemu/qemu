@@ -762,6 +762,7 @@ static BlockDriver bdrv_parallels = {
     .bdrv_probe		= parallels_probe,
     .bdrv_open		= parallels_open,
     .bdrv_close		= parallels_close,
+    .bdrv_child_perm          = bdrv_format_default_perms,
     .bdrv_co_get_block_status = parallels_co_get_block_status,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
     .bdrv_co_flush_to_os      = parallels_co_flush_to_os,

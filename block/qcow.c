@@ -1052,6 +1052,7 @@ static BlockDriver bdrv_qcow = {
     .bdrv_probe		= qcow_probe,
     .bdrv_open		= qcow_open,
     .bdrv_close		= qcow_close,
+    .bdrv_child_perm        = bdrv_format_default_perms,
     .bdrv_reopen_prepare    = qcow_reopen_prepare,
     .bdrv_create            = qcow_create,
     .bdrv_has_zero_init     = bdrv_has_zero_init_1,
