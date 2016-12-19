@@ -880,6 +880,14 @@ void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
                                uint64_t perm, uint64_t shared,
                                uint64_t *nperm, uint64_t *nshared);
 
+/* Default implementation for BlockDriver.bdrv_child_perm() that can be used by
+ * (non-raw) image formats: Like above for bs->backing, but for bs->file it
+ * requires WRITE | RESIZE for read-write images, always requires
+ * CONSISTENT_READ and doesn't share WRITE. */
+void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
+                               const BdrvChildRole *role,
+                               uint64_t perm, uint64_t shared,
+                               uint64_t *nperm, uint64_t *nshared);
 
 const char *bdrv_get_parent_name(const BlockDriverState *bs);
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
