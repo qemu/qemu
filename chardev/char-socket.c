@@ -366,6 +366,15 @@ static char *SocketAddress_to_str(const char *prefix, SocketAddress *addr,
     }
 }
 
+static void update_disconnected_filename(SocketChardev *s)
+{
+    Chardev *chr = CHARDEV(s);
+
+    g_free(chr->filename);
+    chr->filename = SocketAddress_to_str("disconnected:", s->addr,
+                                         s->is_listen, s->is_telnet);
+}
+
 static void tcp_chr_disconnect(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
@@ -380,8 +389,7 @@ static void tcp_chr_disconnect(Chardev *chr)
         s->listen_tag = qio_channel_add_watch(
             QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
     }
-    chr->filename = SocketAddress_to_str("disconnected:", s->addr,
-                                         s->is_listen, s->is_telnet);
+    update_disconnected_filename(s);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
     if (s->reconnect_time) {
         qemu_chr_socket_restart_timer(chr);
@@ -875,8 +883,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     /* be isn't opened until we get a connection */
     *be_opened = false;
 
-    chr->filename = SocketAddress_to_str("disconnected:",
-                                         addr, is_listen, is_telnet);
+    update_disconnected_filename(s);
 
     if (is_listen) {
         if (is_telnet) {
