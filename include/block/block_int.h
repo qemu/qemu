@@ -466,6 +466,7 @@ struct BdrvChildRole {
 
 extern const BdrvChildRole child_file;
 extern const BdrvChildRole child_format;
+extern const BdrvChildRole child_backing;
 
 struct BdrvChild {
     BlockDriverState *bs;

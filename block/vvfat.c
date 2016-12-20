@@ -3052,6 +3052,27 @@ err:
     return ret;
 }
 
+static void vvfat_child_perm(BlockDriverState *bs, BdrvChild *c,
+                             const BdrvChildRole *role,
+                             uint64_t perm, uint64_t shared,
+                             uint64_t *nperm, uint64_t *nshared)
+{
+    BDRVVVFATState *s = bs->opaque;
+
+    assert(c == s->qcow || role == &child_backing);
+
+    if (c == s->qcow) {
+        /* This is a private node, nobody should try to attach to it */
+        *nperm = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
+        *nshared = BLK_PERM_WRITE_UNCHANGED;
+    } else {
+        /* The backing file is there so 'commit' can use it. vvfat doesn't
+         * access it in any way. */
+        *nperm = 0;
+        *nshared = BLK_PERM_ALL;
+    }
+}
+
 static void vvfat_close(BlockDriverState *bs)
 {
     BDRVVVFATState *s = bs->opaque;
@@ -3077,6 +3098,7 @@ static BlockDriver bdrv_vvfat = {
     .bdrv_file_open         = vvfat_open,
     .bdrv_refresh_limits    = vvfat_refresh_limits,
     .bdrv_close             = vvfat_close,
+    .bdrv_child_perm        = vvfat_child_perm,
 
     .bdrv_co_preadv         = vvfat_co_preadv,
     .bdrv_co_pwritev        = vvfat_co_pwritev,
