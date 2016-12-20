@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/numa.h"
 #include "exec/cpu-common.h"
+#include "exec/ramlist.h"
 #include "qemu/bitmap.h"
 #include "qom/cpu.h"
 #include "qemu/error-report.h"
@@ -571,4 +572,32 @@ int numa_get_node_for_cpu(int idx)
         }
     }
     return i;
+}
+
+void ram_block_notifier_add(RAMBlockNotifier *n)
+{
+    QLIST_INSERT_HEAD(&ram_list.ramblock_notifiers, n, next);
+}
+
+void ram_block_notifier_remove(RAMBlockNotifier *n)
+{
+    QLIST_REMOVE(n, next);
+}
+
+void ram_block_notify_add(void *host, size_t size)
+{
+    RAMBlockNotifier *notifier;
+
+    QLIST_FOREACH(notifier, &ram_list.ramblock_notifiers, next) {
+        notifier->ram_block_added(notifier, host, size);
+    }
+}
+
+void ram_block_notify_remove(void *host, size_t size)
+{
+    RAMBlockNotifier *notifier;
+
+    QLIST_FOREACH(notifier, &ram_list.ramblock_notifiers, next) {
+        notifier->ram_block_removed(notifier, host, size);
+    }
 }

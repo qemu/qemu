@@ -21,6 +21,7 @@
 
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen/xen.h"
+#include "exec/ramlist.h"
 
 struct RAMBlock {
     struct rcu_head rcu;
@@ -35,6 +36,7 @@ struct RAMBlock {
     char idstr[256];
     /* RCU-enabled, writes protected by the ramlist lock */
     QLIST_ENTRY(RAMBlock) next;
+    QLIST_HEAD(, RAMBlockNotifier) ramblock_notifiers;
     int fd;
     size_t page_size;
 };
@@ -50,51 +52,7 @@ static inline void *ramblock_ptr(RAMBlock *block, ram_addr_t offset)
     return (char *)block->host + offset;
 }
 
-/* The dirty memory bitmap is split into fixed-size blocks to allow growth
- * under RCU.  The bitmap for a block can be accessed as follows:
- *
- *   rcu_read_lock();
- *
- *   DirtyMemoryBlocks *blocks =
- *       atomic_rcu_read(&ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION]);
- *
- *   ram_addr_t idx = (addr >> TARGET_PAGE_BITS) / DIRTY_MEMORY_BLOCK_SIZE;
- *   unsigned long *block = blocks.blocks[idx];
- *   ...access block bitmap...
- *
- *   rcu_read_unlock();
- *
- * Remember to check for the end of the block when accessing a range of
- * addresses.  Move on to the next block if you reach the end.
- *
- * Organization into blocks allows dirty memory to grow (but not shrink) under
- * RCU.  When adding new RAMBlocks requires the dirty memory to grow, a new
- * DirtyMemoryBlocks array is allocated with pointers to existing blocks kept
- * the same.  Other threads can safely access existing blocks while dirty
- * memory is being grown.  When no threads are using the old DirtyMemoryBlocks
- * anymore it is freed by RCU (but the underlying blocks stay because they are
- * pointed to from the new DirtyMemoryBlocks).
- */
-#define DIRTY_MEMORY_BLOCK_SIZE ((ram_addr_t)256 * 1024 * 8)
-typedef struct {
-    struct rcu_head rcu;
-    unsigned long *blocks[];
-} DirtyMemoryBlocks;
-
-typedef struct RAMList {
-    QemuMutex mutex;
-    RAMBlock *mru_block;
-    /* RCU-enabled, writes protected by the ramlist lock. */
-    QLIST_HEAD(, RAMBlock) blocks;
-    DirtyMemoryBlocks *dirty_memory[DIRTY_MEMORY_NUM];
-    uint32_t version;
-} RAMList;
-extern RAMList ram_list;
-
 ram_addr_t last_ram_offset(void);
-void qemu_mutex_lock_ramlist(void);
-void qemu_mutex_unlock_ramlist(void);
-
 RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
                                    bool share, const char *mem_path,
                                    Error **errp);
