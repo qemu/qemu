@@ -911,6 +911,11 @@ static void qmp_chardev_open_socket(Chardev *chr,
             if (qio_channel_socket_listen_sync(sioc, s->addr, errp) < 0) {
                 goto error;
             }
+
+            qapi_free_SocketAddress(s->addr);
+            s->addr = socket_local_address(sioc->fd, errp);
+            update_disconnected_filename(s);
+
             s->listen_ioc = sioc;
             if (is_waitconnect &&
                 qemu_chr_wait_connected(chr, errp) < 0) {
