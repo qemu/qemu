@@ -21,9 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "disas/bfd.h"
-//#include "sysdep.h"
-#include "target-cris/opcode-cris.h"
-//#include "libiberty.h"
+#include "target/cris/opcode-cris.h"
 
 #define CONST_STRNEQ(STR1,STR2) (strncmp ((STR1), (STR2), sizeof (STR2) - 1) == 0)
 

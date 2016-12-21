@@ -30,7 +30,7 @@
 #include "hw/i386/ioapic_internal.h"
 #include "include/hw/pci/msi.h"
 #include "sysemu/kvm.h"
-#include "target-i386/cpu.h"
+#include "target/i386/cpu.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/i386/x86-iommu.h"
 

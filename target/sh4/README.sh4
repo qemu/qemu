@@ -8,7 +8,7 @@ file describes the current state of implementation.
 Most places requiring attention and/or modification can be detected by
 looking for "XXXXX" or "abort()".
 
-The sh4 core is located in target-sh4/*, while the 7750 peripheral
+The sh4 core is located in target/sh4/*, while the 7750 peripheral
 features (IO ports for example) are located in hw/sh7750.[ch]. The
 main board description is in hw/shix.c, and the NAND flash in
 hw/tc58128.[ch].

@@ -5,7 +5,7 @@ obj-$(CONFIG_SOFTMMU) += machine.o ioinst.o arch_dump.o mmu_helper.o
 obj-$(CONFIG_KVM) += kvm.o
 
 # build and run feature list generator
-feat-src = $(SRC_PATH)/target-$(TARGET_BASE_ARCH)/
+feat-src = $(SRC_PATH)/target/$(TARGET_BASE_ARCH)/
 feat-dst = $(BUILD_DIR)/$(TARGET_DIR)
 ifneq ($(MAKECMDGOALS),clean)
 GENERATED_HEADERS += $(feat-dst)gen-features.h

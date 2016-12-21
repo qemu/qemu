@@ -11,7 +11,7 @@
 #define PPC_FDT_H
 
 #include "qemu/error-report.h"
-#include "target-ppc/cpu-qom.h"
+#include "target/ppc/cpu-qom.h"
 
 #define _FDT(exp)                                                  \
     do {                                                           \

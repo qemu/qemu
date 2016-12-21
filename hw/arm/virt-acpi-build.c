@@ -33,7 +33,7 @@
 #include "qemu/bitmap.h"
 #include "trace.h"
 #include "qom/cpu.h"
-#include "target-arm/cpu.h"
+#include "target/arm/cpu.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
 #include "hw/nvram/fw_cfg.h"

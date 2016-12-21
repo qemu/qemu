@@ -18,7 +18,7 @@
  * <http://www.gnu.org/licenses/gpl-2.0.html>
  *
  * This header defines functions, types, etc which need to be shared
- * between different source files within target-arm/ but which are
+ * between different source files within target/arm/ but which are
  * private to it and not required by the rest of QEMU.
  */
 

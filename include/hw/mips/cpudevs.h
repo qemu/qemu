@@ -1,7 +1,7 @@
 #ifndef HW_MIPS_CPUDEVS_H
 #define HW_MIPS_CPUDEVS_H
 
-#include "target-mips/cpu-qom.h"
+#include "target/mips/cpu-qom.h"
 
 /* Definitions for MIPS CPU internal devices.  */
 
