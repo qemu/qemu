@@ -1018,6 +1018,14 @@ char_socket_get_addr(Object *obj, Visitor *v, const char *name,
     visit_type_SocketAddress(v, name, &s->addr, errp);
 }
 
+static bool
+char_socket_get_connected(Object *obj, Error **errp)
+{
+    SocketChardev *s = SOCKET_CHARDEV(obj);
+
+    return s->connected;
+}
+
 static void char_socket_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -1037,6 +1045,9 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
     object_class_property_add(oc, "addr", "SocketAddress",
                               char_socket_get_addr, NULL,
                               NULL, NULL, &error_abort);
+
+    object_class_property_add_bool(oc, "connected", char_socket_get_connected,
+                                   NULL, &error_abort);
 }
 
 static const TypeInfo char_socket_type_info = {
