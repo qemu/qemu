@@ -133,7 +133,7 @@ bool qemu_clock_has_timers(QEMUClockType type);
  * @type: the clock type
  *
  * Determines whether a clock's default timer list
- * has an expired clock.
+ * has an expired timer.
  *
  * Returns: true if the clock's default timer list has
  * an expired timer

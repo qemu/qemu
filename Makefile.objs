@@ -97,7 +97,6 @@ common-obj-y += disas/
 ######################################################################
 # Resource file for Windows executables
 version-obj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.o
-version-lobj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.lo
 
 ######################################################################
 # tracing

@@ -420,6 +420,20 @@ static void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
     }
 }
 
+static inline void virtio_scsi_acquire(VirtIOSCSI *s)
+{
+    if (s->ctx) {
+        aio_context_acquire(s->ctx);
+    }
+}
+
+static inline void virtio_scsi_release(VirtIOSCSI *s)
+{
+    if (s->ctx) {
+        aio_context_release(s->ctx);
+    }
+}
+
 void virtio_scsi_handle_ctrl_vq(VirtIOSCSI *s, VirtQueue *vq)
 {
     VirtIOSCSIReq *req;
@@ -691,10 +705,7 @@ void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
         return;
     }
 
-    if (s->dataplane_started) {
-        assert(s->ctx);
-        aio_context_acquire(s->ctx);
-    }
+    virtio_scsi_acquire(s);
 
     req = virtio_scsi_pop_req(s, vs->event_vq);
     if (!req) {
@@ -730,9 +741,7 @@ void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
     }
     virtio_scsi_complete_req(req);
 out:
-    if (s->dataplane_started) {
-        aio_context_release(s->ctx);
-    }
+    virtio_scsi_release(s);
 }
 
 void virtio_scsi_handle_event_vq(VirtIOSCSI *s, VirtQueue *vq)
@@ -778,9 +787,9 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         if (blk_op_is_blocked(sd->conf.blk, BLOCK_OP_TYPE_DATAPLANE, errp)) {
             return;
         }
-        aio_context_acquire(s->ctx);
+        virtio_scsi_acquire(s);
         blk_set_aio_context(sd->conf.blk, s->ctx);
-        aio_context_release(s->ctx);
+        virtio_scsi_release(s);
 
     }
 

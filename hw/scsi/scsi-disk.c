@@ -2157,6 +2157,13 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         DPRINTF("Write %s(sector %" PRId64 ", count %u)\n",
                 (command & 0xe) == 0xe ? "And Verify " : "",
                 r->req.cmd.lba, len);
+    case VERIFY_10:
+    case VERIFY_12:
+    case VERIFY_16:
+        /* We get here only for BYTCHK == 0x01 and only for scsi-block.
+         * As far as DMA is concerned, we can treat it the same as a write;
+         * scsi_block_do_sgio will send VERIFY commands.
+         */
         if (r->req.cmd.buf[1] & 0xe0) {
             goto illegal_request;
         }
@@ -2712,7 +2719,7 @@ static bool scsi_block_is_passthrough(SCSIDiskState *s, uint8_t *buf)
     case WRITE_VERIFY_16:
         /* MMC writing cannot be done via DMA helpers, because it sometimes
          * involves writing beyond the maximum LBA or to negative LBA (lead-in).
-         * We might use scsi_disk_dma_reqops as long as no writing commands are
+         * We might use scsi_block_dma_reqops as long as no writing commands are
          * seen, but performance usually isn't paramount on optical media.  So,
          * just make scsi-block operate the same as scsi-generic for them.
          */

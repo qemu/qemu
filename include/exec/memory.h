@@ -1404,6 +1404,140 @@ void address_space_stq_le(AddressSpace *as, hwaddr addr, uint64_t val,
 void address_space_stq_be(AddressSpace *as, hwaddr addr, uint64_t val,
                             MemTxAttrs attrs, MemTxResult *result);
 
+uint32_t ldub_phys(AddressSpace *as, hwaddr addr);
+uint32_t lduw_le_phys(AddressSpace *as, hwaddr addr);
+uint32_t lduw_be_phys(AddressSpace *as, hwaddr addr);
+uint32_t ldl_le_phys(AddressSpace *as, hwaddr addr);
+uint32_t ldl_be_phys(AddressSpace *as, hwaddr addr);
+uint64_t ldq_le_phys(AddressSpace *as, hwaddr addr);
+uint64_t ldq_be_phys(AddressSpace *as, hwaddr addr);
+void stb_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stw_le_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stw_be_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stl_le_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stl_be_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stq_le_phys(AddressSpace *as, hwaddr addr, uint64_t val);
+void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val);
+
+struct MemoryRegionCache {
+    hwaddr xlat;
+    void *ptr;
+    hwaddr len;
+    MemoryRegion *mr;
+    bool is_write;
+};
+
+/* address_space_cache_init: prepare for repeated access to a physical
+ * memory region
+ *
+ * @cache: #MemoryRegionCache to be filled
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @len: length of buffer
+ * @is_write: indicates the transfer direction
+ *
+ * Will only work with RAM, and may map a subset of the requested range by
+ * returning a value that is less than @len.  On failure, return a negative
+ * errno value.
+ *
+ * Because it only works with RAM, this function can be used for
+ * read-modify-write operations.  In this case, is_write should be %true.
+ *
+ * Note that addresses passed to the address_space_*_cached functions
+ * are relative to @addr.
+ */
+int64_t address_space_cache_init(MemoryRegionCache *cache,
+                                 AddressSpace *as,
+                                 hwaddr addr,
+                                 hwaddr len,
+                                 bool is_write);
+
+/**
+ * address_space_cache_invalidate: complete a write to a #MemoryRegionCache
+ *
+ * @cache: The #MemoryRegionCache to operate on.
+ * @addr: The first physical address that was written, relative to the
+ * address that was passed to @address_space_cache_init.
+ * @access_len: The number of bytes that were written starting at @addr.
+ */
+void address_space_cache_invalidate(MemoryRegionCache *cache,
+                                    hwaddr addr,
+                                    hwaddr access_len);
+
+/**
+ * address_space_cache_destroy: free a #MemoryRegionCache
+ *
+ * @cache: The #MemoryRegionCache whose memory should be released.
+ */
+void address_space_cache_destroy(MemoryRegionCache *cache);
+
+/* address_space_ld*_cached: load from a cached #MemoryRegion
+ * address_space_st*_cached: store into a cached #MemoryRegion
+ *
+ * These functions perform a load or store of the byte, word,
+ * longword or quad to the specified address.  The address is
+ * a physical address in the AddressSpace, but it must lie within
+ * a #MemoryRegion that was mapped with address_space_cache_init.
+ *
+ * The _le suffixed functions treat the data as little endian;
+ * _be indicates big endian; no suffix indicates "same endianness
+ * as guest CPU".
+ *
+ * The "guest CPU endianness" accessors are deprecated for use outside
+ * target-* code; devices should be CPU-agnostic and use either the LE
+ * or the BE accessors.
+ *
+ * @cache: previously initialized #MemoryRegionCache to be accessed
+ * @addr: address within the address space
+ * @val: data value, for stores
+ * @attrs: memory transaction attributes
+ * @result: location to write the success/failure of the transaction;
+ *   if NULL, this information is discarded
+ */
+uint32_t address_space_ldub_cached(MemoryRegionCache *cache, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+uint32_t address_space_lduw_le_cached(MemoryRegionCache *cache, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+uint32_t address_space_lduw_be_cached(MemoryRegionCache *cache, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+uint32_t address_space_ldl_le_cached(MemoryRegionCache *cache, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+uint32_t address_space_ldl_be_cached(MemoryRegionCache *cache, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+uint64_t address_space_ldq_le_cached(MemoryRegionCache *cache, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+uint64_t address_space_ldq_be_cached(MemoryRegionCache *cache, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stb_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stw_le_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stw_be_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stl_le_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stl_be_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stq_le_cached(MemoryRegionCache *cache, hwaddr addr, uint64_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stq_be_cached(MemoryRegionCache *cache, hwaddr addr, uint64_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+
+uint32_t ldub_phys_cached(MemoryRegionCache *cache, hwaddr addr);
+uint32_t lduw_le_phys_cached(MemoryRegionCache *cache, hwaddr addr);
+uint32_t lduw_be_phys_cached(MemoryRegionCache *cache, hwaddr addr);
+uint32_t ldl_le_phys_cached(MemoryRegionCache *cache, hwaddr addr);
+uint32_t ldl_be_phys_cached(MemoryRegionCache *cache, hwaddr addr);
+uint64_t ldq_le_phys_cached(MemoryRegionCache *cache, hwaddr addr);
+uint64_t ldq_be_phys_cached(MemoryRegionCache *cache, hwaddr addr);
+void stb_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val);
+void stw_le_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val);
+void stw_be_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val);
+void stl_le_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val);
+void stl_be_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val);
+void stq_le_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint64_t val);
+void stq_be_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint64_t val);
+
 /* address_space_translate: translate an address range into an address space
  * into a MemoryRegion and an address range into that section.  Should be
  * called from an RCU critical section, to avoid that the last reference
@@ -1527,6 +1661,38 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         result = address_space_read_full(as, addr, attrs, buf, len);
     }
     return result;
+}
+
+/**
+ * address_space_read_cached: read from a cached RAM region
+ *
+ * @cache: Cached region to be addressed
+ * @addr: address relative to the base of the RAM region
+ * @buf: buffer with the data transferred
+ * @len: length of the data transferred
+ */
+static inline void
+address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
+                          void *buf, int len)
+{
+    assert(addr < cache->len && len <= cache->len - addr);
+    memcpy(buf, cache->ptr + addr, len);
+}
+
+/**
+ * address_space_write_cached: write to a cached RAM region
+ *
+ * @cache: Cached region to be addressed
+ * @addr: address relative to the base of the RAM region
+ * @buf: buffer with the data transferred
+ * @len: length of the data transferred
+ */
+static inline void
+address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
+                           void *buf, int len)
+{
+    assert(addr < cache->len && len <= cache->len - addr);
+    memcpy(cache->ptr + addr, buf, len);
 }
 
 #endif

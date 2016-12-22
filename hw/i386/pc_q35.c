@@ -227,32 +227,39 @@ static void pc_q35_init(MachineState *machine)
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, pcms->gsi, &rtc_state, !mc->no_floppy,
-                         (pcms->vmport != ON_OFF_AUTO_ON), 0xff0104);
+                         (pcms->vmport != ON_OFF_AUTO_ON), pcms->pit,
+                         0xff0104);
 
     /* connect pm stuff to lpc */
     ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pcms));
 
-    /* ahci and SATA device, for q35 1 ahci controller is built-in */
-    ahci = pci_create_simple_multifunction(host_bus,
-                                           PCI_DEVFN(ICH9_SATA1_DEV,
-                                                     ICH9_SATA1_FUNC),
-                                           true, "ich9-ahci");
-    idebus[0] = qdev_get_child_bus(&ahci->qdev, "ide.0");
-    idebus[1] = qdev_get_child_bus(&ahci->qdev, "ide.1");
-    g_assert(MAX_SATA_PORTS == ICH_AHCI(ahci)->ahci.ports);
-    ide_drive_get(hd, ICH_AHCI(ahci)->ahci.ports);
-    ahci_ide_create_devs(ahci, hd);
+    if (pcms->sata) {
+        /* ahci and SATA device, for q35 1 ahci controller is built-in */
+        ahci = pci_create_simple_multifunction(host_bus,
+                                               PCI_DEVFN(ICH9_SATA1_DEV,
+                                                         ICH9_SATA1_FUNC),
+                                               true, "ich9-ahci");
+        idebus[0] = qdev_get_child_bus(&ahci->qdev, "ide.0");
+        idebus[1] = qdev_get_child_bus(&ahci->qdev, "ide.1");
+        g_assert(MAX_SATA_PORTS == ICH_AHCI(ahci)->ahci.ports);
+        ide_drive_get(hd, ICH_AHCI(ahci)->ahci.ports);
+        ahci_ide_create_devs(ahci, hd);
+    } else {
+        idebus[0] = idebus[1] = NULL;
+    }
 
     if (machine_usb(machine)) {
         /* Should we create 6 UHCI according to ich9 spec? */
         ehci_create_ich9_with_companions(host_bus, 0x1d);
     }
 
-    /* TODO: Populate SPD eeprom data.  */
-    smbus_eeprom_init(ich9_smb_init(host_bus,
-                                    PCI_DEVFN(ICH9_SMB_DEV, ICH9_SMB_FUNC),
-                                    0xb100),
-                      8, NULL, 0);
+    if (pcms->smbus) {
+        /* TODO: Populate SPD eeprom data.  */
+        smbus_eeprom_init(ich9_smb_init(host_bus,
+                                        PCI_DEVFN(ICH9_SMB_DEV, ICH9_SMB_FUNC),
+                                        0xb100),
+                          8, NULL, 0);
+    }
 
     pc_cmos_init(pcms, idebus[0], idebus[1], rtc_state);
 

@@ -76,6 +76,7 @@ $(QEMU_PROG)-simpletrace.stp: $(BUILD_DIR)/trace-events-all
 else
 stap:
 endif
+.PHONY: stap
 
 all: $(PROGS) stap
 

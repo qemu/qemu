@@ -651,11 +651,11 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
     uint32_t hflags;
 
 #if defined(DEBUG_MMU)
-    printf("CR4 update: CR4=%08x\n", (uint32_t)env->cr[4]);
+    printf("CR4 update: %08x -> %08x\n", (uint32_t)env->cr[4], new_cr4);
 #endif
     if ((new_cr4 ^ env->cr[4]) &
         (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK |
-         CR4_SMEP_MASK | CR4_SMAP_MASK)) {
+         CR4_SMEP_MASK | CR4_SMAP_MASK | CR4_LA57_MASK)) {
         tlb_flush(CPU(cpu), 1);
     }
 
@@ -757,19 +757,41 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
 
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
+            bool la57 = env->cr[4] & CR4_LA57_MASK;
+            uint64_t pml5e_addr, pml5e;
             uint64_t pml4e_addr, pml4e;
             int32_t sext;
 
             /* test virtual address sign extension */
-            sext = (int64_t)addr >> 47;
+            sext = la57 ? (int64_t)addr >> 56 : (int64_t)addr >> 47;
             if (sext != 0 && sext != -1) {
                 env->error_code = 0;
                 cs->exception_index = EXCP0D_GPF;
                 return 1;
             }
 
-            pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) &
-                env->a20_mask;
+            if (la57) {
+                pml5e_addr = ((env->cr[3] & ~0xfff) +
+                        (((addr >> 48) & 0x1ff) << 3)) & env->a20_mask;
+                pml5e = x86_ldq_phys(cs, pml5e_addr);
+                if (!(pml5e & PG_PRESENT_MASK)) {
+                    goto do_fault;
+                }
+                if (pml5e & (rsvd_mask | PG_PSE_MASK)) {
+                    goto do_fault_rsvd;
+                }
+                if (!(pml5e & PG_ACCESSED_MASK)) {
+                    pml5e |= PG_ACCESSED_MASK;
+                    x86_stl_phys_notdirty(cs, pml5e_addr, pml5e);
+                }
+                ptep = pml5e ^ PG_NX_MASK;
+            } else {
+                pml5e = env->cr[3];
+                ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;
+            }
+
+            pml4e_addr = ((pml5e & PG_ADDRESS_MASK) +
+                    (((addr >> 39) & 0x1ff) << 3)) & env->a20_mask;
             pml4e = x86_ldq_phys(cs, pml4e_addr);
             if (!(pml4e & PG_PRESENT_MASK)) {
                 goto do_fault;
@@ -781,7 +803,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                 pml4e |= PG_ACCESSED_MASK;
                 x86_stl_phys_notdirty(cs, pml4e_addr, pml4e);
             }
-            ptep = pml4e ^ PG_NX_MASK;
+            ptep &= pml4e ^ PG_NX_MASK;
             pdpe_addr = ((pml4e & PG_ADDRESS_MASK) + (((addr >> 30) & 0x1ff) << 3)) &
                 env->a20_mask;
             pdpe = x86_ldq_phys(cs, pdpe_addr);
@@ -1024,16 +1046,30 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
+            bool la57 = env->cr[4] & CR4_LA57_MASK;
+            uint64_t pml5e_addr, pml5e;
             uint64_t pml4e_addr, pml4e;
             int32_t sext;
 
             /* test virtual address sign extension */
-            sext = (int64_t)addr >> 47;
+            sext = la57 ? (int64_t)addr >> 56 : (int64_t)addr >> 47;
             if (sext != 0 && sext != -1) {
                 return -1;
             }
-            pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) &
-                env->a20_mask;
+
+            if (la57) {
+                pml5e_addr = ((env->cr[3] & ~0xfff) +
+                        (((addr >> 48) & 0x1ff) << 3)) & env->a20_mask;
+                pml5e = x86_ldq_phys(cs, pml5e_addr);
+                if (!(pml5e & PG_PRESENT_MASK)) {
+                    return -1;
+                }
+            } else {
+                pml5e = env->cr[3];
+            }
+
+            pml4e_addr = ((pml5e & PG_ADDRESS_MASK) +
+                    (((addr >> 39) & 0x1ff) << 3)) & env->a20_mask;
             pml4e = x86_ldq_phys(cs, pml4e_addr);
             if (!(pml4e & PG_PRESENT_MASK)) {
                 return -1;

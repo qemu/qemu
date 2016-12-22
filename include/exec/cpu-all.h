@@ -186,6 +186,29 @@ void address_space_stl(AddressSpace *as, hwaddr addr, uint32_t val,
                             MemTxAttrs attrs, MemTxResult *result);
 void address_space_stq(AddressSpace *as, hwaddr addr, uint64_t val,
                             MemTxAttrs attrs, MemTxResult *result);
+
+uint32_t lduw_phys_cached(MemoryRegionCache *cache, hwaddr addr);
+uint32_t ldl_phys_cached(MemoryRegionCache *cache, hwaddr addr);
+uint64_t ldq_phys_cached(MemoryRegionCache *cache, hwaddr addr);
+void stl_phys_notdirty_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val);
+void stw_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val);
+void stl_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val);
+void stq_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint64_t val);
+
+uint32_t address_space_lduw_cached(MemoryRegionCache *cache, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+uint32_t address_space_ldl_cached(MemoryRegionCache *cache, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+uint64_t address_space_ldq_cached(MemoryRegionCache *cache, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stl_notdirty_cached(MemoryRegionCache *cache, hwaddr addr,
+                            uint32_t val, MemTxAttrs attrs, MemTxResult *result);
+void address_space_stw_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stl_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stq_cached(MemoryRegionCache *cache, hwaddr addr, uint64_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
 #endif
 
 /* page related stuff */

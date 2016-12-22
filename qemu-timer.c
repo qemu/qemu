@@ -174,7 +174,7 @@ void qemu_clock_enable(QEMUClockType type, bool enabled)
 
 bool timerlist_has_timers(QEMUTimerList *timer_list)
 {
-    return !!timer_list->active_timers;
+    return !!atomic_read(&timer_list->active_timers);
 }
 
 bool qemu_clock_has_timers(QEMUClockType type)
@@ -186,6 +186,10 @@ bool qemu_clock_has_timers(QEMUClockType type)
 bool timerlist_expired(QEMUTimerList *timer_list)
 {
     int64_t expire_time;
+
+    if (!atomic_read(&timer_list->active_timers)) {
+        return false;
+    }
 
     qemu_mutex_lock(&timer_list->active_timers_lock);
     if (!timer_list->active_timers) {
@@ -213,6 +217,10 @@ int64_t timerlist_deadline_ns(QEMUTimerList *timer_list)
 {
     int64_t delta;
     int64_t expire_time;
+
+    if (!atomic_read(&timer_list->active_timers)) {
+        return -1;
+    }
 
     if (!timer_list->clock->enabled) {
         return -1;
@@ -363,7 +371,7 @@ static void timer_del_locked(QEMUTimerList *timer_list, QEMUTimer *ts)
         if (!t)
             break;
         if (t == ts) {
-            *pt = t->next;
+            atomic_set(pt, t->next);
             break;
         }
         pt = &t->next;
@@ -386,7 +394,7 @@ static bool timer_mod_ns_locked(QEMUTimerList *timer_list,
     }
     ts->expire_time = MAX(expire_time, 0);
     ts->next = *pt;
-    *pt = ts;
+    atomic_set(pt, ts);
 
     return pt == &timer_list->active_timers;
 }
@@ -481,8 +489,12 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
     QEMUTimerCB *cb;
     void *opaque;
 
+    if (!atomic_read(&timer_list->active_timers)) {
+        return false;
+    }
+
     qemu_event_reset(&timer_list->timers_done_ev);
-    if (!timer_list->clock->enabled || !timer_list->active_timers) {
+    if (!timer_list->clock->enabled) {
         goto out;
     }
 

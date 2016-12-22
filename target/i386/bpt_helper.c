@@ -244,6 +244,13 @@ void helper_single_step(CPUX86State *env)
     raise_exception(env, EXCP01_DB);
 }
 
+void helper_rechecking_single_step(CPUX86State *env)
+{
+    if ((env->eflags & TF_MASK) != 0) {
+        helper_single_step(env);
+    }
+}
+
 void helper_set_dr(CPUX86State *env, int reg, target_ulong t0)
 {
 #ifndef CONFIG_USER_ONLY

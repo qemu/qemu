@@ -377,5 +377,8 @@
 #define __NR_copy_file_range 377
 #define __NR_preadv2 378
 #define __NR_pwritev2 379
+#define __NR_pkey_mprotect 380
+#define __NR_pkey_alloc 381
+#define __NR_pkey_free 382
 
 #endif /* _ASM_X86_UNISTD_32_H */
