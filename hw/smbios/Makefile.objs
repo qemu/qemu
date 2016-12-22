@@ -1,2 +1,5 @@
 common-obj-$(CONFIG_SMBIOS) += smbios.o
 common-obj-$(call land,$(CONFIG_SMBIOS),$(CONFIG_IPMI)) += smbios_type_38.o
+
+common-obj-$(call lnot,$(CONFIG_SMBIOS)) += smbios-stub.o
+common-obj-$(CONFIG_ALL) += smbios-stub.o

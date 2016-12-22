@@ -28,7 +28,6 @@
 #include "sysemu/arch_init.h"
 #include "hw/pci/pci.h"
 #include "hw/audio/audio.h"
-#include "hw/smbios/smbios.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qmp-commands.h"
@@ -245,13 +244,6 @@ void do_acpitable_option(const QemuOpts *opts)
         error_reportf_err(err, "Wrong acpi table provided: ");
         exit(1);
     }
-#endif
-}
-
-void do_smbios_option(QemuOpts *opts)
-{
-#ifdef TARGET_I386
-    smbios_entry_add(opts);
 #endif
 }
 
