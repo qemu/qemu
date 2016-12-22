@@ -78,6 +78,18 @@ static void des_decrypt_native(cipher_ctx_t ctx, cipher_length_t length,
     des_decrypt(ctx, length, dst, src);
 }
 
+static void des3_encrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                                uint8_t *dst, const uint8_t *src)
+{
+    des3_encrypt(ctx, length, dst, src);
+}
+
+static void des3_decrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                                uint8_t *dst, const uint8_t *src)
+{
+    des3_decrypt(ctx, length, dst, src);
+}
+
 static void cast128_encrypt_native(cipher_ctx_t ctx, cipher_length_t length,
                                    uint8_t *dst, const uint8_t *src)
 {
@@ -140,6 +152,18 @@ static void des_decrypt_wrapper(const void *ctx, size_t length,
     des_decrypt(ctx, length, dst, src);
 }
 
+static void des3_encrypt_wrapper(const void *ctx, size_t length,
+                                uint8_t *dst, const uint8_t *src)
+{
+    des3_encrypt(ctx, length, dst, src);
+}
+
+static void des3_decrypt_wrapper(const void *ctx, size_t length,
+                                uint8_t *dst, const uint8_t *src)
+{
+    des3_decrypt(ctx, length, dst, src);
+}
+
 static void cast128_encrypt_wrapper(const void *ctx, size_t length,
                                     uint8_t *dst, const uint8_t *src)
 {
@@ -197,6 +221,7 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
 {
     switch (alg) {
     case QCRYPTO_CIPHER_ALG_DES_RFB:
+    case QCRYPTO_CIPHER_ALG_3DES:
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
@@ -254,6 +279,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     cipher->mode = mode;
 
     ctx = g_new0(QCryptoCipherNettle, 1);
+    cipher->opaque = ctx;
 
     switch (alg) {
     case QCRYPTO_CIPHER_ALG_DES_RFB:
@@ -268,6 +294,18 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         ctx->alg_decrypt_wrapper = des_decrypt_wrapper;
 
         ctx->blocksize = DES_BLOCK_SIZE;
+        break;
+
+    case QCRYPTO_CIPHER_ALG_3DES:
+        ctx->ctx = g_new0(struct des3_ctx, 1);
+        des3_set_key(ctx->ctx, key);
+
+        ctx->alg_encrypt_native = des3_encrypt_native;
+        ctx->alg_decrypt_native = des3_decrypt_native;
+        ctx->alg_encrypt_wrapper = des3_encrypt_wrapper;
+        ctx->alg_decrypt_wrapper = des3_decrypt_wrapper;
+
+        ctx->blocksize = DES3_BLOCK_SIZE;
         break;
 
     case QCRYPTO_CIPHER_ALG_AES_128:
@@ -384,13 +422,11 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     }
 
     ctx->iv = g_new0(uint8_t, ctx->blocksize);
-    cipher->opaque = ctx;
 
     return cipher;
 
  error:
-    g_free(cipher);
-    g_free(ctx);
+    qcrypto_cipher_free(cipher);
     return NULL;
 }
 
