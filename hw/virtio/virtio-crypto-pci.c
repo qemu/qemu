@@ -31,6 +31,11 @@ static void virtio_crypto_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIOCryptoPCI *vcrypto = VIRTIO_CRYPTO_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&vcrypto->vdev);
 
+    if (vcrypto->vdev.conf.cryptodev == NULL) {
+        error_setg(errp, "'cryptodev' parameter expects a valid object");
+        return;
+    }
+
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
     virtio_pci_force_virtio_1(vpci_dev);
     object_property_set_bool(OBJECT(vdev), true, "realized", errp);
