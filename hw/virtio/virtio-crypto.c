@@ -799,6 +799,7 @@ static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
     }
 
     virtio_crypto_init_config(vdev);
+    cryptodev_backend_set_used(vcrypto->cryptodev, true);
 }
 
 static void virtio_crypto_device_unrealize(DeviceState *dev, Error **errp)
@@ -818,6 +819,7 @@ static void virtio_crypto_device_unrealize(DeviceState *dev, Error **errp)
     g_free(vcrypto->vqs);
 
     virtio_cleanup(vdev);
+    cryptodev_backend_set_used(vcrypto->cryptodev, false);
 }
 
 static const VMStateDescription vmstate_virtio_crypto = {

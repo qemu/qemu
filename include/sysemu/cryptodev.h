@@ -202,6 +202,8 @@ struct CryptoDevBackend {
     Object parent_obj;
 
     bool ready;
+    /* Tag the cryptodev backend is used by virtio-crypto or not */
+    bool is_used;
     CryptoDevBackendConf conf;
 };
 
@@ -294,5 +296,26 @@ int cryptodev_backend_crypto_operation(
                  CryptoDevBackend *backend,
                  void *opaque,
                  uint32_t queue_index, Error **errp);
+
+/**
+ * cryptodev_backend_set_used:
+ * @backend: the cryptodev backend object
+ * @used: ture or false
+ *
+ * Set the cryptodev backend is used by virtio-crypto or not
+ */
+void cryptodev_backend_set_used(CryptoDevBackend *backend, bool used);
+
+/**
+ * cryptodev_backend_is_used:
+ * @backend: the cryptodev backend object
+ *
+ * Return the status that the cryptodev backend is used
+ * by virtio-crypto or not
+ *
+ * Returns: true on used, or false on not used
+ */
+bool cryptodev_backend_is_used(CryptoDevBackend *backend);
+
 
 #endif /* CRYPTODEV_H */
