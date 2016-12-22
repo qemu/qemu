@@ -596,7 +596,7 @@ findso:
           win = sbspace(&so->so_rcv);
 	  if (win < 0)
 	    win = 0;
-	  tp->rcv_wnd = max(win, (int)(tp->rcv_adv - tp->rcv_nxt));
+          tp->rcv_wnd = MAX(win, (int)(tp->rcv_adv - tp->rcv_nxt));
 	}
 
 	switch (tp->t_state) {
@@ -1065,8 +1065,8 @@ trimthenstep6:
 				else if (++tp->t_dupacks == TCPREXMTTHRESH) {
 					tcp_seq onxt = tp->snd_nxt;
 					u_int win =
-					    min(tp->snd_wnd, tp->snd_cwnd) / 2 /
-						tp->t_maxseg;
+                                                MIN(tp->snd_wnd, tp->snd_cwnd) /
+                                                2 / tp->t_maxseg;
 
 					if (win < 2)
 						win = 2;
@@ -1138,7 +1138,7 @@ trimthenstep6:
 
 		  if (cw > tp->snd_ssthresh)
 		    incr = incr * incr / cw;
-		  tp->snd_cwnd = min(cw + incr, TCP_MAXWIN<<tp->snd_scale);
+                  tp->snd_cwnd = MIN(cw + incr, TCP_MAXWIN << tp->snd_scale);
 		}
 		if (acked > so->so_snd.sb_cc) {
 			tp->snd_wnd -= so->so_snd.sb_cc;
@@ -1586,11 +1586,11 @@ tcp_mss(struct tcpcb *tp, u_int offer)
 
 	switch (so->so_ffamily) {
 	case AF_INET:
-	    mss = min(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
+            mss = MIN(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
 	                              + sizeof(struct ip);
 	    break;
 	case AF_INET6:
-	    mss = min(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
+            mss = MIN(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
 	                              + sizeof(struct ip6);
 	    break;
 	default:
@@ -1598,8 +1598,8 @@ tcp_mss(struct tcpcb *tp, u_int offer)
 	}
 
 	if (offer)
-		mss = min(mss, offer);
-	mss = max(mss, 32);
+            mss = MIN(mss, offer);
+        mss = MAX(mss, 32);
 	if (mss < tp->t_maxseg || offer != 0)
 	   tp->t_maxseg = mss;
 

@@ -4698,10 +4698,6 @@ get_field (const unsigned char *data, enum floatformat_byteorders order,
   return result;
 }
 
-#ifndef min
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
 /* Convert from FMT to a double.
    FROM is the address of the extended float.
    Store the double in *TO.  */
@@ -4733,7 +4729,7 @@ floatformat_to_double (const struct floatformat *fmt,
       nan = 0;
       while (mant_bits_left > 0)
 	{
-	  mant_bits = min (mant_bits_left, 32);
+          mant_bits = MIN(mant_bits_left, 32);
 
 	  if (get_field (ufrom, fmt->byteorder, fmt->totalsize,
 			 mant_off, mant_bits) != 0)
@@ -4793,7 +4789,7 @@ floatformat_to_double (const struct floatformat *fmt,
 
   while (mant_bits_left > 0)
     {
-      mant_bits = min (mant_bits_left, 32);
+      mant_bits = MIN(mant_bits_left, 32);
 
       mant = get_field (ufrom, fmt->byteorder, fmt->totalsize,
 			 mant_off, mant_bits);

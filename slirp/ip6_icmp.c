@@ -95,7 +95,7 @@ void icmp6_send_error(struct mbuf *m, uint8_t type, uint8_t code)
 #endif
 
     rip->ip_nh = IPPROTO_ICMPV6;
-    const int error_data_len = min(m->m_len,
+    const int error_data_len = MIN(m->m_len,
             IF_MTU - (sizeof(struct ip6) + ICMP6_ERROR_MINLEN));
     rip->ip_pl = htons(ICMP6_ERROR_MINLEN + error_data_len);
     t->m_len = sizeof(struct ip6) + ntohs(rip->ip_pl);
