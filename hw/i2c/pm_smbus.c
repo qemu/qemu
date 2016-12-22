@@ -19,6 +19,7 @@
  */
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "hw/boards.h"
 #include "hw/i2c/pm_smbus.h"
 #include "hw/i2c/smbus_master.h"
 
@@ -451,6 +452,36 @@ static const MemoryRegionOps pm_smbus_ops = {
     .valid.min_access_size = 1,
     .valid.max_access_size = 1,
     .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+bool pm_smbus_vmstate_needed(void)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+
+    return !mc->smbus_no_migration_support;
+}
+
+const VMStateDescription pmsmb_vmstate = {
+    .name = "pmsmb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(smb_stat, PMSMBus),
+        VMSTATE_UINT8(smb_ctl, PMSMBus),
+        VMSTATE_UINT8(smb_cmd, PMSMBus),
+        VMSTATE_UINT8(smb_addr, PMSMBus),
+        VMSTATE_UINT8(smb_data0, PMSMBus),
+        VMSTATE_UINT8(smb_data1, PMSMBus),
+        VMSTATE_UINT32(smb_index, PMSMBus),
+        VMSTATE_UINT8_ARRAY(smb_data, PMSMBus, PM_SMBUS_MAX_MSG_SIZE),
+        VMSTATE_UINT8(smb_auxctl, PMSMBus),
+        VMSTATE_UINT8(smb_blkdata, PMSMBus),
+        VMSTATE_BOOL(i2c_enable, PMSMBus),
+        VMSTATE_BOOL(op_done, PMSMBus),
+        VMSTATE_BOOL(in_i2c_block_read, PMSMBus),
+        VMSTATE_BOOL(start_transaction_on_status_read, PMSMBus),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb, bool force_aux_blk)

@@ -43,4 +43,13 @@ typedef struct PMSMBus {
 
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb, bool force_aux_blk);
 
+/*
+ * For backwards compatibility on migration, older versions don't have
+ * working migration for pm_smbus, this lets us ignore the migrations
+ * for older machine versions.
+ */
+bool pm_smbus_vmstate_needed(void);
+
+extern const VMStateDescription pmsmb_vmstate;
+
 #endif /* PM_SMBUS_H */
