@@ -337,7 +337,18 @@ static void virtio_crypto_free_request(VirtIOCryptoReq *req)
 {
     if (req) {
         if (req->flags == CRYPTODEV_BACKEND_ALG_SYM) {
-            g_free(req->u.sym_op_info);
+            size_t max_len;
+            CryptoDevBackendSymOpInfo *op_info = req->u.sym_op_info;
+
+            max_len = op_info->iv_len +
+                      op_info->aad_len +
+                      op_info->src_len +
+                      op_info->dst_len +
+                      op_info->digest_result_len;
+
+            /* Zeroize and free request data structure */
+            memset(op_info, 0, sizeof(*op_info) + max_len);
+            g_free(op_info);
         }
         g_free(req);
     }
