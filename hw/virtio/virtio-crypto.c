@@ -355,7 +355,7 @@ virtio_crypto_sym_input_data_helper(VirtIODevice *vdev,
         return;
     }
 
-    len = sym_op_info->dst_len;
+    len = sym_op_info->src_len;
     /* Save the cipher result */
     s = iov_from_buf(req->in_iov, req->in_num, 0, sym_op_info->dst, len);
     if (s != len) {
