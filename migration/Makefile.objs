@@ -1,7 +1,6 @@
 common-obj-y += migration.o socket.o fd.o exec.o
 common-obj-y += tls.o
-common-obj-y += colo-comm.o
-common-obj-$(CONFIG_COLO) += colo.o colo-failover.o
+common-obj-y += colo-comm.o colo.o colo-failover.o
 common-obj-y += vmstate.o
 common-obj-y += qemu-file.o
 common-obj-y += qemu-file-channel.o
