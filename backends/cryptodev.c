@@ -73,8 +73,6 @@ void cryptodev_backend_cleanup(
     if (bc->cleanup) {
         bc->cleanup(backend, errp);
     }
-
-    backend->ready = false;
 }
 
 int64_t cryptodev_backend_sym_create_session(
@@ -189,11 +187,10 @@ cryptodev_backend_complete(UserCreatable *uc, Error **errp)
             goto out;
         }
     }
-    backend->ready = true;
+
     return;
 
 out:
-    backend->ready = false;
     error_propagate(errp, local_err);
 }
 
@@ -205,6 +202,16 @@ void cryptodev_backend_set_used(CryptoDevBackend *backend, bool used)
 bool cryptodev_backend_is_used(CryptoDevBackend *backend)
 {
     return backend->is_used;
+}
+
+void cryptodev_backend_set_ready(CryptoDevBackend *backend, bool ready)
+{
+    backend->ready = ready;
+}
+
+bool cryptodev_backend_is_ready(CryptoDevBackend *backend)
+{
+    return backend->ready;
 }
 
 static bool

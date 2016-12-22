@@ -317,5 +317,24 @@ void cryptodev_backend_set_used(CryptoDevBackend *backend, bool used);
  */
 bool cryptodev_backend_is_used(CryptoDevBackend *backend);
 
+/**
+ * cryptodev_backend_set_ready:
+ * @backend: the cryptodev backend object
+ * @ready: ture or false
+ *
+ * Set the cryptodev backend is ready or not, which is called
+ * by the children of the cryptodev banckend interface.
+ */
+void cryptodev_backend_set_ready(CryptoDevBackend *backend, bool ready);
+
+/**
+ * cryptodev_backend_is_ready:
+ * @backend: the cryptodev backend object
+ *
+ * Return the status that the cryptodev backend is ready or not
+ *
+ * Returns: true on ready, or false on not ready
+ */
+bool cryptodev_backend_is_ready(CryptoDevBackend *backend);
 
 #endif /* CRYPTODEV_H */

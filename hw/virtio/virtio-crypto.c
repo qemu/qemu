@@ -732,7 +732,7 @@ static void virtio_crypto_reset(VirtIODevice *vdev)
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
     /* multiqueue is disabled by default */
     vcrypto->curr_queues = 1;
-    if (!vcrypto->cryptodev->ready) {
+    if (!cryptodev_backend_is_ready(vcrypto->cryptodev)) {
         vcrypto->status &= ~VIRTIO_CRYPTO_S_HW_READY;
     } else {
         vcrypto->status |= VIRTIO_CRYPTO_S_HW_READY;
@@ -792,7 +792,7 @@ static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
     }
 
     vcrypto->ctrl_vq = virtio_add_queue(vdev, 64, virtio_crypto_handle_ctrl);
-    if (!vcrypto->cryptodev->ready) {
+    if (!cryptodev_backend_is_ready(vcrypto->cryptodev)) {
         vcrypto->status &= ~VIRTIO_CRYPTO_S_HW_READY;
     } else {
         vcrypto->status |= VIRTIO_CRYPTO_S_HW_READY;
