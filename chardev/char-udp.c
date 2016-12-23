@@ -51,6 +51,18 @@ static int udp_chr_write(Chardev *chr, const uint8_t *buf, int len)
         s->ioc, (const char *)buf, len, NULL);
 }
 
+static void udp_chr_flush_buffer(UdpChardev *s)
+{
+    Chardev *chr = CHARDEV(s);
+
+    while (s->max_size > 0 && s->bufptr < s->bufcnt) {
+        int n = MIN(s->max_size, s->bufcnt - s->bufptr);
+        qemu_chr_be_write(chr, &s->buf[s->bufptr], n);
+        s->bufptr += n;
+        s->max_size = qemu_chr_be_can_write(chr);
+    }
+}
+
 static int udp_chr_read_poll(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
@@ -61,11 +73,8 @@ static int udp_chr_read_poll(void *opaque)
     /* If there were any stray characters in the queue process them
      * first
      */
-    while (s->max_size > 0 && s->bufptr < s->bufcnt) {
-        qemu_chr_be_write(chr, &s->buf[s->bufptr], 1);
-        s->bufptr++;
-        s->max_size = qemu_chr_be_can_write(chr);
-    }
+    udp_chr_flush_buffer(s);
+
     return s->max_size;
 }
 
@@ -85,13 +94,8 @@ static gboolean udp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
         return FALSE;
     }
     s->bufcnt = ret;
-
     s->bufptr = 0;
-    while (s->max_size > 0 && s->bufptr < s->bufcnt) {
-        qemu_chr_be_write(chr, &s->buf[s->bufptr], 1);
-        s->bufptr++;
-        s->max_size = qemu_chr_be_can_write(chr);
-    }
+    udp_chr_flush_buffer(s);
 
     return TRUE;
 }
