@@ -26,6 +26,7 @@
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
 #include "monitor/monitor.h"
+#include "trace.h"
 
 int trace_events_enabled_count;
 
@@ -263,6 +264,8 @@ void trace_fini_vcpu(CPUState *vcpu)
 {
     TraceEventIter iter;
     TraceEvent *ev;
+
+    trace_guest_cpu_exit(vcpu);
 
     trace_event_iter_init(&iter, NULL);
     while ((ev = trace_event_iter_next(&iter)) != NULL) {

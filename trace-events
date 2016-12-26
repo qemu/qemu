@@ -141,6 +141,12 @@ memory_region_ram_device_write(int cpu_index, void *mr, uint64_t addr, uint64_t 
 # Targets: all
 vcpu guest_cpu_enter(void)
 
+# Hot-unplug a virtual (guest) CPU
+#
+# Mode: user, softmmu
+# Targets: all
+vcpu guest_cpu_exit(void)
+
 # Reset the state of a virtual (guest) CPU
 #
 # Mode: user, softmmu
