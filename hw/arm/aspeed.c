@@ -34,6 +34,8 @@ typedef struct AspeedBoardState {
 typedef struct AspeedBoardConfig {
     const char *soc_name;
     uint32_t hw_strap1;
+    const char *fmc_model;
+    const char *spi_model;
 } AspeedBoardConfig;
 
 enum {
@@ -65,8 +67,18 @@ enum {
         ~SCU_HW_STRAP_2ND_BOOT_WDT)
 
 static const AspeedBoardConfig aspeed_boards[] = {
-    [PALMETTO_BMC] = { "ast2400-a0", PALMETTO_BMC_HW_STRAP1 },
-    [AST2500_EVB]  = { "ast2500-a1", AST2500_EVB_HW_STRAP1 },
+    [PALMETTO_BMC] = {
+        .soc_name  = "ast2400-a0",
+        .hw_strap1 = PALMETTO_BMC_HW_STRAP1,
+        .fmc_model = "n25q256a",
+        .spi_model = "mx25l25635e",
+    },
+    [AST2500_EVB]  = {
+        .soc_name  = "ast2500-a1",
+        .hw_strap1 = AST2500_EVB_HW_STRAP1,
+        .fmc_model = "n25q256a",
+        .spi_model = "mx25l25635e",
+    },
 };
 
 static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
@@ -128,8 +140,8 @@ static void aspeed_board_init(MachineState *machine,
     object_property_add_const_link(OBJECT(&bmc->soc), "ram", OBJECT(&bmc->ram),
                                    &error_abort);
 
-    aspeed_board_init_flashes(&bmc->soc.fmc, "n25q256a", &error_abort);
-    aspeed_board_init_flashes(&bmc->soc.spi[0], "mx25l25635e", &error_abort);
+    aspeed_board_init_flashes(&bmc->soc.fmc, cfg->fmc_model, &error_abort);
+    aspeed_board_init_flashes(&bmc->soc.spi[0], cfg->spi_model, &error_abort);
 
     aspeed_board_binfo.kernel_filename = machine->kernel_filename;
     aspeed_board_binfo.initrd_filename = machine->initrd_filename;
