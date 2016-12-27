@@ -29,6 +29,7 @@
 #define ASPEED_SOC_VIC_BASE         0x1E6C0000
 #define ASPEED_SOC_SDMC_BASE        0x1E6E0000
 #define ASPEED_SOC_SCU_BASE         0x1E6E2000
+#define ASPEED_SOC_SRAM_BASE        0x1E720000
 #define ASPEED_SOC_TIMER_BASE       0x1E782000
 #define ASPEED_SOC_I2C_BASE         0x1E78A000
 
@@ -47,15 +48,37 @@ static const char *aspeed_soc_ast2500_typenames[] = {
     "aspeed.smc.ast2500-spi1", "aspeed.smc.ast2500-spi2" };
 
 static const AspeedSoCInfo aspeed_socs[] = {
-    { "ast2400-a0", "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE,
-      1, aspeed_soc_ast2400_spi_bases,
-      "aspeed.smc.fmc", aspeed_soc_ast2400_typenames },
-    { "ast2400",    "arm926", AST2400_A0_SILICON_REV, AST2400_SDRAM_BASE,
-      1, aspeed_soc_ast2400_spi_bases,
-     "aspeed.smc.fmc", aspeed_soc_ast2400_typenames },
-    { "ast2500-a1", "arm1176", AST2500_A1_SILICON_REV, AST2500_SDRAM_BASE,
-      2, aspeed_soc_ast2500_spi_bases,
-      "aspeed.smc.ast2500-fmc", aspeed_soc_ast2500_typenames },
+    {
+        .name         = "ast2400-a0",
+        .cpu_model    = "arm926",
+        .silicon_rev  = AST2400_A0_SILICON_REV,
+        .sdram_base   = AST2400_SDRAM_BASE,
+        .sram_size    = 0x8000,
+        .spis_num     = 1,
+        .spi_bases    = aspeed_soc_ast2400_spi_bases,
+        .fmc_typename = "aspeed.smc.fmc",
+        .spi_typename = aspeed_soc_ast2400_typenames,
+    }, {
+        .name         = "ast2400",
+        .cpu_model    = "arm926",
+        .silicon_rev  = AST2400_A0_SILICON_REV,
+        .sdram_base   = AST2400_SDRAM_BASE,
+        .sram_size    = 0x8000,
+        .spis_num     = 1,
+        .spi_bases    = aspeed_soc_ast2400_spi_bases,
+        .fmc_typename = "aspeed.smc.fmc",
+        .spi_typename = aspeed_soc_ast2400_typenames,
+    }, {
+        .name         = "ast2500-a1",
+        .cpu_model    = "arm1176",
+        .silicon_rev  = AST2500_A1_SILICON_REV,
+        .sdram_base   = AST2500_SDRAM_BASE,
+        .sram_size    = 0x9000,
+        .spis_num     = 2,
+        .spi_bases    = aspeed_soc_ast2500_spi_bases,
+        .fmc_typename = "aspeed.smc.ast2500-fmc",
+        .spi_typename = aspeed_soc_ast2500_typenames,
+    },
 };
 
 /*
@@ -156,6 +179,17 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
+
+    /* SRAM */
+    memory_region_init_ram(&s->sram, OBJECT(dev), "aspeed.sram",
+                           sc->info->sram_size, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    vmstate_register_ram_global(&s->sram);
+    memory_region_add_subregion(get_system_memory(), ASPEED_SOC_SRAM_BASE,
+                                &s->sram);
 
     /* VIC */
     object_property_set_bool(OBJECT(&s->vic), true, "realized", &err);

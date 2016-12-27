@@ -29,6 +29,7 @@ typedef struct AspeedSoCState {
     /*< public >*/
     ARMCPU cpu;
     MemoryRegion iomem;
+    MemoryRegion sram;
     AspeedVICState vic;
     AspeedTimerCtrlState timerctrl;
     AspeedI2CState i2c;
@@ -46,6 +47,7 @@ typedef struct AspeedSoCInfo {
     const char *cpu_model;
     uint32_t silicon_rev;
     hwaddr sdram_base;
+    uint64_t sram_size;
     int spis_num;
     const hwaddr *spi_bases;
     const char *fmc_typename;
