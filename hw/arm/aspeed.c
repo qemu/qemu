@@ -81,7 +81,7 @@ enum {
 
 static const AspeedBoardConfig aspeed_boards[] = {
     [PALMETTO_BMC] = {
-        .soc_name  = "ast2400-a0",
+        .soc_name  = "ast2400-a1",
         .hw_strap1 = PALMETTO_BMC_HW_STRAP1,
         .fmc_model = "n25q256a",
         .spi_model = "mx25l25635e",
