@@ -87,9 +87,13 @@ static void aspeed_soc_init(Object *obj)
 {
     AspeedSoCState *s = ASPEED_SOC(obj);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    char *cpu_typename;
     int i;
 
-    s->cpu = cpu_arm_init(sc->info->cpu_model);
+    cpu_typename = g_strdup_printf("%s-" TYPE_ARM_CPU, sc->info->cpu_model);
+    object_initialize(&s->cpu, sizeof(s->cpu), cpu_typename);
+    object_property_add_child(obj, "cpu", OBJECT(&s->cpu), NULL);
+    g_free(cpu_typename);
 
     object_initialize(&s->vic, sizeof(s->vic), TYPE_ASPEED_VIC);
     object_property_add_child(obj, "vic", OBJECT(&s->vic), NULL);
@@ -146,6 +150,13 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion_overlap(get_system_memory(),
                                         ASPEED_SOC_IOMEM_BASE, &s->iomem, -1);
 
+    /* CPU */
+    object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
     /* VIC */
     object_property_set_bool(OBJECT(&s->vic), true, "realized", &err);
     if (err) {
@@ -154,9 +165,9 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->vic), 0, ASPEED_SOC_VIC_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->vic), 0,
-                       qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ));
+                       qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_IRQ));
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->vic), 1,
-                       qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_FIQ));
+                       qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
 
     /* Timer */
     object_property_set_bool(OBJECT(&s->timerctrl), true, "realized", &err);

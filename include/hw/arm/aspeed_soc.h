@@ -27,7 +27,7 @@ typedef struct AspeedSoCState {
     DeviceState parent;
 
     /*< public >*/
-    ARMCPU *cpu;
+    ARMCPU cpu;
     MemoryRegion iomem;
     AspeedVICState vic;
     AspeedTimerCtrlState timerctrl;
