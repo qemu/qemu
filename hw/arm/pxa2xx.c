@@ -1449,17 +1449,10 @@ static const VMStateDescription vmstate_pxa2xx_i2c = {
     }
 };
 
-static int pxa2xx_i2c_slave_init(I2CSlave *i2c)
-{
-    /* Nothing to do.  */
-    return 0;
-}
-
 static void pxa2xx_i2c_slave_class_init(ObjectClass *klass, void *data)
 {
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    k->init = pxa2xx_i2c_slave_init;
     k->event = pxa2xx_i2c_event;
     k->recv = pxa2xx_i2c_rx;
     k->send = pxa2xx_i2c_tx;
@@ -2070,7 +2063,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     }
     if (!revision)
         revision = "pxa270";
-    
+
     s->cpu = cpu_arm_init(revision);
     if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");

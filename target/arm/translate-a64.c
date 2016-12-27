@@ -527,7 +527,7 @@ static inline void assert_fp_access_checked(DisasContext *s)
 static inline int vec_reg_offset(DisasContext *s, int regno,
                                  int element, TCGMemOp size)
 {
-    int offs = offsetof(CPUARMState, vfp.regs[regno * 2]);
+    int offs = 0;
 #ifdef HOST_WORDS_BIGENDIAN
     /* This is complicated slightly because vfp.regs[2n] is
      * still the low half and  vfp.regs[2n+1] the high half
@@ -540,6 +540,7 @@ static inline int vec_reg_offset(DisasContext *s, int regno,
 #else
     offs += element * (1 << size);
 #endif
+    offs += offsetof(CPUARMState, vfp.regs[regno * 2]);
     assert_fp_access_checked(s);
     return offs;
 }
@@ -2829,9 +2830,9 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
         } else {
             /* Load/store one element per register */
             if (is_load) {
-                do_vec_ld(s, rt, index, tcg_addr, s->be_data + scale);
+                do_vec_ld(s, rt, index, tcg_addr, scale);
             } else {
-                do_vec_st(s, rt, index, tcg_addr, s->be_data + scale);
+                do_vec_st(s, rt, index, tcg_addr, scale);
             }
         }
         tcg_gen_addi_i64(tcg_addr, tcg_addr, ebytes);

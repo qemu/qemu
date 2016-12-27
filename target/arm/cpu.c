@@ -597,6 +597,11 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         } else {
             set_feature(env, ARM_FEATURE_V6);
         }
+
+        /* Always define VBAR for V7 CPUs even if it doesn't exist in
+         * non-EL3 configs. This is needed by some legacy boards.
+         */
+        set_feature(env, ARM_FEATURE_VBAR);
     }
     if (arm_feature(env, ARM_FEATURE_V6K)) {
         set_feature(env, ARM_FEATURE_V6);
@@ -719,6 +724,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
             env->pmsav7.drsr = g_new0(uint32_t, nr);
             env->pmsav7.dracr = g_new0(uint32_t, nr);
         }
+    }
+
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        set_feature(env, ARM_FEATURE_VBAR);
     }
 
     register_cp_regs_for_features(cpu);
@@ -1055,7 +1064,7 @@ static void cortex_a8_initfn(Object *obj)
     cpu->midr = 0x410fc080;
     cpu->reset_fpsid = 0x410330c0;
     cpu->mvfr0 = 0x11110222;
-    cpu->mvfr1 = 0x00011100;
+    cpu->mvfr1 = 0x00011111;
     cpu->ctr = 0x82048004;
     cpu->reset_sctlr = 0x00c50078;
     cpu->id_pfr0 = 0x1031;

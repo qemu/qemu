@@ -86,7 +86,7 @@
 #define BMC_DEV_ID           TO_REG(0x1A4)
 
 #define PROT_KEY_UNLOCK 0x1688A8A8
-#define SCU_IO_REGION_SIZE 0x20000
+#define SCU_IO_REGION_SIZE 0x1000
 
 static const uint32_t ast2400_a0_resets[ASPEED_SCU_NR_REGS] = {
      [SYS_RST_CTRL]    = 0xFFCFFEDCU,
@@ -231,6 +231,7 @@ static void aspeed_scu_reset(DeviceState *dev)
 
     switch (s->silicon_rev) {
     case AST2400_A0_SILICON_REV:
+    case AST2400_A1_SILICON_REV:
         reset = ast2400_a0_resets;
         break;
     case AST2500_A0_SILICON_REV:
@@ -249,6 +250,7 @@ static void aspeed_scu_reset(DeviceState *dev)
 
 static uint32_t aspeed_silicon_revs[] = {
     AST2400_A0_SILICON_REV,
+    AST2400_A1_SILICON_REV,
     AST2500_A0_SILICON_REV,
     AST2500_A1_SILICON_REV,
 };
