@@ -1055,7 +1055,7 @@ static void cortex_a8_initfn(Object *obj)
     cpu->midr = 0x410fc080;
     cpu->reset_fpsid = 0x410330c0;
     cpu->mvfr0 = 0x11110222;
-    cpu->mvfr1 = 0x00011100;
+    cpu->mvfr1 = 0x00011111;
     cpu->ctr = 0x82048004;
     cpu->reset_sctlr = 0x00c50078;
     cpu->id_pfr0 = 0x1031;
