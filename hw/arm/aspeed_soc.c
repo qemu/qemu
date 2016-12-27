@@ -59,6 +59,16 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .fmc_typename = "aspeed.smc.fmc",
         .spi_typename = aspeed_soc_ast2400_typenames,
     }, {
+        .name         = "ast2400-a1",
+        .cpu_model    = "arm926",
+        .silicon_rev  = AST2400_A1_SILICON_REV,
+        .sdram_base   = AST2400_SDRAM_BASE,
+        .sram_size    = 0x8000,
+        .spis_num     = 1,
+        .spi_bases    = aspeed_soc_ast2400_spi_bases,
+        .fmc_typename = "aspeed.smc.fmc",
+        .spi_typename = aspeed_soc_ast2400_typenames,
+    }, {
         .name         = "ast2400",
         .cpu_model    = "arm926",
         .silicon_rev  = AST2400_A0_SILICON_REV,

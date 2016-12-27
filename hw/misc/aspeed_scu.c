@@ -231,6 +231,7 @@ static void aspeed_scu_reset(DeviceState *dev)
 
     switch (s->silicon_rev) {
     case AST2400_A0_SILICON_REV:
+    case AST2400_A1_SILICON_REV:
         reset = ast2400_a0_resets;
         break;
     case AST2500_A0_SILICON_REV:
@@ -249,6 +250,7 @@ static void aspeed_scu_reset(DeviceState *dev)
 
 static uint32_t aspeed_silicon_revs[] = {
     AST2400_A0_SILICON_REV,
+    AST2400_A1_SILICON_REV,
     AST2500_A0_SILICON_REV,
     AST2500_A1_SILICON_REV,
 };
