@@ -131,6 +131,9 @@ static const int qcode_to_number[] = {
     [Q_KEY_CODE_DELETE] = 0xd3,
 
     [Q_KEY_CODE_RO] = 0x73,
+    [Q_KEY_CODE_HIRAGANA] = 0x70,
+    [Q_KEY_CODE_HENKAN] = 0x79,
+    [Q_KEY_CODE_YEN] = 0x7d,
     [Q_KEY_CODE_KP_COMMA] = 0x7e,
 
     [Q_KEY_CODE__MAX] = 0,
