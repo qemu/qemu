@@ -138,9 +138,10 @@ static void fifo_trigger_update(void *opaque)
 {
     CadenceUARTState *s = opaque;
 
-    s->r[R_CISR] |= UART_INTR_TIMEOUT;
-
-    uart_update_status(s);
+    if (s->r[R_RTOR]) {
+        s->r[R_CISR] |= UART_INTR_TIMEOUT;
+        uart_update_status(s);
+    }
 }
 
 static void uart_rx_reset(CadenceUARTState *s)
