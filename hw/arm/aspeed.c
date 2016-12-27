@@ -36,6 +36,7 @@ typedef struct AspeedBoardConfig {
     uint32_t hw_strap1;
     const char *fmc_model;
     const char *spi_model;
+    uint32_t num_cs;
 } AspeedBoardConfig;
 
 enum {
@@ -85,18 +86,21 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .hw_strap1 = PALMETTO_BMC_HW_STRAP1,
         .fmc_model = "n25q256a",
         .spi_model = "mx25l25635e",
+        .num_cs    = 1,
     },
     [AST2500_EVB]  = {
         .soc_name  = "ast2500-a1",
         .hw_strap1 = AST2500_EVB_HW_STRAP1,
         .fmc_model = "n25q256a",
         .spi_model = "mx25l25635e",
+        .num_cs    = 1,
     },
     [ROMULUS_BMC]  = {
         .soc_name  = "ast2500-a1",
         .hw_strap1 = ROMULUS_BMC_HW_STRAP1,
         .fmc_model = "n25q256a",
         .spi_model = "mx66l1g45g",
+        .num_cs    = 2,
     },
 };
 
@@ -142,6 +146,8 @@ static void aspeed_board_init(MachineState *machine,
     object_property_set_int(OBJECT(&bmc->soc), ram_size, "ram-size",
                            &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), cfg->hw_strap1, "hw-strap1",
+                            &error_abort);
+    object_property_set_int(OBJECT(&bmc->soc), cfg->num_cs, "num-cs",
                             &error_abort);
     object_property_set_bool(OBJECT(&bmc->soc), true, "realized",
                              &error_abort);

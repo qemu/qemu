@@ -153,6 +153,8 @@ static void aspeed_soc_init(Object *obj)
     object_initialize(&s->fmc, sizeof(s->fmc), sc->info->fmc_typename);
     object_property_add_child(obj, "fmc", OBJECT(&s->fmc), NULL);
     qdev_set_parent_bus(DEVICE(&s->fmc), sysbus_get_default());
+    object_property_add_alias(obj, "num-cs", OBJECT(&s->fmc), "num-cs",
+                              &error_abort);
 
     for (i = 0; i < sc->info->spis_num; i++) {
         object_initialize(&s->spi[i], sizeof(s->spi[i]),
@@ -250,10 +252,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c), 0,
                        qdev_get_gpio_in(DEVICE(&s->vic), 12));
 
-    /* FMC */
-    object_property_set_int(OBJECT(&s->fmc), 1, "num-cs", &err);
-    object_property_set_bool(OBJECT(&s->fmc), true, "realized", &local_err);
-    error_propagate(&err, local_err);
+    /* FMC, The number of CS is set at the board level */
+    object_property_set_bool(OBJECT(&s->fmc), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
         return;
