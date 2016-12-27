@@ -41,8 +41,10 @@ typedef struct AspeedBoardConfig {
 enum {
     PALMETTO_BMC,
     AST2500_EVB,
+    ROMULUS_BMC,
 };
 
+/* Palmetto hardware value: 0x120CE416 */
 #define PALMETTO_BMC_HW_STRAP1 (                                        \
         SCU_AST2400_HW_STRAP_DRAM_SIZE(DRAM_SIZE_256MB) |               \
         SCU_AST2400_HW_STRAP_DRAM_CONFIG(2 /* DDR3 with CL=6, CWL=5 */) | \
@@ -56,6 +58,7 @@ enum {
         SCU_HW_STRAP_VGA_SIZE_SET(VGA_16M_DRAM) |                       \
         SCU_AST2400_HW_STRAP_BOOT_MODE(AST2400_SPI_BOOT))
 
+/* AST2500 evb hardware value: 0xF100C2E6 */
 #define AST2500_EVB_HW_STRAP1 ((                                        \
         AST2500_HW_STRAP1_DEFAULTS |                                    \
         SCU_AST2500_HW_STRAP_SPI_AUTOFETCH_ENABLE |                     \
@@ -65,6 +68,16 @@ enum {
         SCU_HW_STRAP_MAC1_RGMII |                                       \
         SCU_HW_STRAP_MAC0_RGMII) &                                      \
         ~SCU_HW_STRAP_2ND_BOOT_WDT)
+
+/* Romulus hardware value: 0xF10AD206 */
+#define ROMULUS_BMC_HW_STRAP1 (                                         \
+        AST2500_HW_STRAP1_DEFAULTS |                                    \
+        SCU_AST2500_HW_STRAP_SPI_AUTOFETCH_ENABLE |                     \
+        SCU_AST2500_HW_STRAP_GPIO_STRAP_ENABLE |                        \
+        SCU_AST2500_HW_STRAP_UART_DEBUG |                               \
+        SCU_AST2500_HW_STRAP_DDR4_ENABLE |                              \
+        SCU_AST2500_HW_STRAP_ACPI_ENABLE |                              \
+        SCU_HW_STRAP_SPI_MODE(SCU_HW_STRAP_SPI_MASTER))
 
 static const AspeedBoardConfig aspeed_boards[] = {
     [PALMETTO_BMC] = {
@@ -78,6 +91,12 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .hw_strap1 = AST2500_EVB_HW_STRAP1,
         .fmc_model = "n25q256a",
         .spi_model = "mx25l25635e",
+    },
+    [ROMULUS_BMC]  = {
+        .soc_name  = "ast2500-a1",
+        .hw_strap1 = ROMULUS_BMC_HW_STRAP1,
+        .fmc_model = "n25q256a",
+        .spi_model = "mx66l1g45g",
     },
 };
 
@@ -200,10 +219,35 @@ static const TypeInfo ast2500_evb_type = {
     .class_init = ast2500_evb_class_init,
 };
 
+static void romulus_bmc_init(MachineState *machine)
+{
+    aspeed_board_init(machine, &aspeed_boards[ROMULUS_BMC]);
+}
+
+static void romulus_bmc_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "OpenPOWER Romulus BMC (ARM1176)";
+    mc->init = romulus_bmc_init;
+    mc->max_cpus = 1;
+    mc->no_sdcard = 1;
+    mc->no_floppy = 1;
+    mc->no_cdrom = 1;
+    mc->no_parallel = 1;
+}
+
+static const TypeInfo romulus_bmc_type = {
+    .name = MACHINE_TYPE_NAME("romulus-bmc"),
+    .parent = TYPE_MACHINE,
+    .class_init = romulus_bmc_class_init,
+};
+
 static void aspeed_machine_init(void)
 {
     type_register_static(&palmetto_bmc_type);
     type_register_static(&ast2500_evb_type);
+    type_register_static(&romulus_bmc_type);
 }
 
 type_init(aspeed_machine_init)
