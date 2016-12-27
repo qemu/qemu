@@ -253,7 +253,8 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Tried to change CS0 start address to 0x%"
                       HWADDR_PRIx "\n", s->ctrl->name, seg.addr);
-        return;
+        seg.addr = s->ctrl->flash_window_base;
+        new = aspeed_smc_segment_to_reg(&seg);
     }
 
     /*
@@ -267,8 +268,10 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
         s->ctrl->segments[cs].size) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Tried to change CS%d end address to 0x%"
-                      HWADDR_PRIx "\n", s->ctrl->name, cs, seg.addr);
-        return;
+                      HWADDR_PRIx "\n", s->ctrl->name, cs, seg.addr + seg.size);
+        seg.size = s->ctrl->segments[cs].addr + s->ctrl->segments[cs].size -
+            seg.addr;
+        new = aspeed_smc_segment_to_reg(&seg);
     }
 
     /* Keep the segment in the overall flash window */
@@ -281,16 +284,14 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
     }
 
     /* Check start address vs. alignment */
-    if (seg.addr % seg.size) {
+    if (seg.size && !QEMU_IS_ALIGNED(seg.addr, seg.size)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: new segment for CS%d is not "
                       "aligned : [ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
                       s->ctrl->name, cs, seg.addr, seg.addr + seg.size);
     }
 
-    /* And segments should not overlap */
-    if (aspeed_smc_flash_overlap(s, &seg, cs)) {
-        return;
-    }
+    /* And segments should not overlap (in the specs) */
+    aspeed_smc_flash_overlap(s, &seg, cs);
 
     /* All should be fine now to move the region */
     memory_region_transaction_begin();
