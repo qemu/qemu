@@ -2830,9 +2830,9 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
         } else {
             /* Load/store one element per register */
             if (is_load) {
-                do_vec_ld(s, rt, index, tcg_addr, s->be_data + scale);
+                do_vec_ld(s, rt, index, tcg_addr, scale);
             } else {
-                do_vec_st(s, rt, index, tcg_addr, s->be_data + scale);
+                do_vec_st(s, rt, index, tcg_addr, scale);
             }
         }
         tcg_gen_addi_i64(tcg_addr, tcg_addr, ebytes);
