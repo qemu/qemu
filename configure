@@ -4711,6 +4711,20 @@ if test "$modules" = "yes" && test "$LD_REL_FLAGS" = ""; then
 fi
 
 ##########################################
+# check for sysmacros.h
+
+have_sysmacros=no
+cat > $TMPC << EOF
+#include <sys/sysmacros.h>
+int main(void) {
+    return makedev(0, 0);
+}
+EOF
+if compile_prog "" "" ; then
+    have_sysmacros=yes
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -5674,6 +5688,10 @@ fi
 
 if test "$have_af_vsock" = "yes" ; then
   echo "CONFIG_AF_VSOCK=y" >> $config_host_mak
+fi
+
+if test "$have_sysmacros" = "yes" ; then
+  echo "CONFIG_SYSMACROS=y" >> $config_host_mak
 fi
 
 # Hold two types of flag:
