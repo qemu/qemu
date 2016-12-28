@@ -2577,6 +2577,15 @@ out:
     return ret;
 }
 
+static gchar *x86_gdb_arch_name(CPUState *cs)
+{
+#ifdef TARGET_X86_64
+    return g_strdup("i386:x86-64");
+#else
+    return g_strdup("i386");
+#endif
+}
+
 X86CPU *cpu_x86_init(const char *cpu_model)
 {
     return X86_CPU(cpu_generic_init(TYPE_X86_CPU, cpu_model));
@@ -4056,10 +4065,14 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->write_elf32_qemunote = x86_cpu_write_elf32_qemunote;
     cc->vmsd = &vmstate_x86_cpu;
 #endif
-    /* CPU_NB_REGS * 2 = general regs + xmm regs
-     * 25 = eip, eflags, 6 seg regs, st[0-7], fctrl,...,fop, mxcsr.
-     */
-    cc->gdb_num_core_regs = CPU_NB_REGS * 2 + 25;
+    cc->gdb_arch_name = x86_gdb_arch_name;
+#ifdef TARGET_X86_64
+    cc->gdb_core_xml_file = "i386-64bit-core.xml";
+    cc->gdb_num_core_regs = 40;
+#else
+    cc->gdb_core_xml_file = "i386-32bit-core.xml";
+    cc->gdb_num_core_regs = 32;
+#endif
 #ifndef CONFIG_USER_ONLY
     cc->debug_excp_handler = breakpoint_handler;
 #endif
