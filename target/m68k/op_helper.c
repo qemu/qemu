@@ -166,12 +166,17 @@ bool m68k_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
-static void raise_exception(CPUM68KState *env, int tt)
+static void raise_exception_ra(CPUM68KState *env, int tt, uintptr_t raddr)
 {
     CPUState *cs = CPU(m68k_env_get_cpu(env));
 
     cs->exception_index = tt;
-    cpu_loop_exit(cs);
+    cpu_loop_exit_restore(cs, raddr);
+}
+
+static void raise_exception(CPUM68KState *env, int tt)
+{
+    raise_exception_ra(env, tt, 0);
 }
 
 void HELPER(raise_exception)(CPUM68KState *env, uint32_t tt)
@@ -179,51 +184,288 @@ void HELPER(raise_exception)(CPUM68KState *env, uint32_t tt)
     raise_exception(env, tt);
 }
 
-void HELPER(divu)(CPUM68KState *env, uint32_t word)
+void HELPER(divuw)(CPUM68KState *env, int destr, uint32_t den)
 {
-    uint32_t num;
-    uint32_t den;
-    uint32_t quot;
-    uint32_t rem;
+    uint32_t num = env->dregs[destr];
+    uint32_t quot, rem;
 
-    num = env->div1;
-    den = env->div2;
-    /* ??? This needs to make sure the throwing location is accurate.  */
     if (den == 0) {
-        raise_exception(env, EXCP_DIV0);
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
     }
     quot = num / den;
     rem = num % den;
 
-    env->cc_v = (word && quot > 0xffff ? -1 : 0);
-    env->cc_z = quot;
-    env->cc_n = quot;
-    env->cc_c = 0;
-
-    env->div1 = quot;
-    env->div2 = rem;
+    env->cc_c = 0; /* always cleared, even if overflow */
+    if (quot > 0xffff) {
+        env->cc_v = -1;
+        /* real 68040 keeps N and unset Z on overflow,
+         * whereas documentation says "undefined"
+         */
+        env->cc_z = 1;
+        return;
+    }
+    env->dregs[destr] = deposit32(quot, 16, 16, rem);
+    env->cc_z = (int16_t)quot;
+    env->cc_n = (int16_t)quot;
+    env->cc_v = 0;
 }
 
-void HELPER(divs)(CPUM68KState *env, uint32_t word)
+void HELPER(divsw)(CPUM68KState *env, int destr, int32_t den)
 {
-    int32_t num;
-    int32_t den;
-    int32_t quot;
-    int32_t rem;
+    int32_t num = env->dregs[destr];
+    uint32_t quot, rem;
 
-    num = env->div1;
-    den = env->div2;
     if (den == 0) {
-        raise_exception(env, EXCP_DIV0);
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
     }
     quot = num / den;
     rem = num % den;
 
-    env->cc_v = (word && quot != (int16_t)quot ? -1 : 0);
+    env->cc_c = 0; /* always cleared, even if overflow */
+    if (quot != (int16_t)quot) {
+        env->cc_v = -1;
+        /* nothing else is modified */
+        /* real 68040 keeps N and unset Z on overflow,
+         * whereas documentation says "undefined"
+         */
+        env->cc_z = 1;
+        return;
+    }
+    env->dregs[destr] = deposit32(quot, 16, 16, rem);
+    env->cc_z = (int16_t)quot;
+    env->cc_n = (int16_t)quot;
+    env->cc_v = 0;
+}
+
+void HELPER(divul)(CPUM68KState *env, int numr, int regr, uint32_t den)
+{
+    uint32_t num = env->dregs[numr];
+    uint32_t quot, rem;
+
+    if (den == 0) {
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
+    }
+    quot = num / den;
+    rem = num % den;
+
+    env->cc_c = 0;
     env->cc_z = quot;
     env->cc_n = quot;
-    env->cc_c = 0;
+    env->cc_v = 0;
 
-    env->div1 = quot;
-    env->div2 = rem;
+    if (m68k_feature(env, M68K_FEATURE_CF_ISA_A)) {
+        if (numr == regr) {
+            env->dregs[numr] = quot;
+        } else {
+            env->dregs[regr] = rem;
+        }
+    } else {
+        env->dregs[regr] = rem;
+        env->dregs[numr] = quot;
+    }
+}
+
+void HELPER(divsl)(CPUM68KState *env, int numr, int regr, int32_t den)
+{
+    int32_t num = env->dregs[numr];
+    int32_t quot, rem;
+
+    if (den == 0) {
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
+    }
+    quot = num / den;
+    rem = num % den;
+
+    env->cc_c = 0;
+    env->cc_z = quot;
+    env->cc_n = quot;
+    env->cc_v = 0;
+
+    if (m68k_feature(env, M68K_FEATURE_CF_ISA_A)) {
+        if (numr == regr) {
+            env->dregs[numr] = quot;
+        } else {
+            env->dregs[regr] = rem;
+        }
+    } else {
+        env->dregs[regr] = rem;
+        env->dregs[numr] = quot;
+    }
+}
+
+void HELPER(divull)(CPUM68KState *env, int numr, int regr, uint32_t den)
+{
+    uint64_t num = deposit64(env->dregs[numr], 32, 32, env->dregs[regr]);
+    uint64_t quot;
+    uint32_t rem;
+
+    if (den == 0) {
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
+    }
+    quot = num / den;
+    rem = num % den;
+
+    env->cc_c = 0; /* always cleared, even if overflow */
+    if (quot > 0xffffffffULL) {
+        env->cc_v = -1;
+        /* real 68040 keeps N and unset Z on overflow,
+         * whereas documentation says "undefined"
+         */
+        env->cc_z = 1;
+        return;
+    }
+    env->cc_z = quot;
+    env->cc_n = quot;
+    env->cc_v = 0;
+
+    /*
+     * If Dq and Dr are the same, the quotient is returned.
+     * therefore we set Dq last.
+     */
+
+    env->dregs[regr] = rem;
+    env->dregs[numr] = quot;
+}
+
+void HELPER(divsll)(CPUM68KState *env, int numr, int regr, int32_t den)
+{
+    int64_t num = deposit64(env->dregs[numr], 32, 32, env->dregs[regr]);
+    int64_t quot;
+    int32_t rem;
+
+    if (den == 0) {
+        raise_exception_ra(env, EXCP_DIV0, GETPC());
+    }
+    quot = num / den;
+    rem = num % den;
+
+    env->cc_c = 0; /* always cleared, even if overflow */
+    if (quot != (int32_t)quot) {
+        env->cc_v = -1;
+        /* real 68040 keeps N and unset Z on overflow,
+         * whereas documentation says "undefined"
+         */
+        env->cc_z = 1;
+        return;
+    }
+    env->cc_z = quot;
+    env->cc_n = quot;
+    env->cc_v = 0;
+
+    /*
+     * If Dq and Dr are the same, the quotient is returned.
+     * therefore we set Dq last.
+     */
+
+    env->dregs[regr] = rem;
+    env->dregs[numr] = quot;
+}
+
+void HELPER(cas2w)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
+{
+    uint32_t Dc1 = extract32(regs, 9, 3);
+    uint32_t Dc2 = extract32(regs, 6, 3);
+    uint32_t Du1 = extract32(regs, 3, 3);
+    uint32_t Du2 = extract32(regs, 0, 3);
+    int16_t c1 = env->dregs[Dc1];
+    int16_t c2 = env->dregs[Dc2];
+    int16_t u1 = env->dregs[Du1];
+    int16_t u2 = env->dregs[Du2];
+    int16_t l1, l2;
+    uintptr_t ra = GETPC();
+
+    if (parallel_cpus) {
+        /* Tell the main loop we need to serialize this insn.  */
+        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
+    } else {
+        /* We're executing in a serial context -- no need to be atomic.  */
+        l1 = cpu_lduw_data_ra(env, a1, ra);
+        l2 = cpu_lduw_data_ra(env, a2, ra);
+        if (l1 == c1 && l2 == c2) {
+            cpu_stw_data_ra(env, a1, u1, ra);
+            cpu_stw_data_ra(env, a2, u2, ra);
+        }
+    }
+
+    if (c1 != l1) {
+        env->cc_n = l1;
+        env->cc_v = c1;
+    } else {
+        env->cc_n = l2;
+        env->cc_v = c2;
+    }
+    env->cc_op = CC_OP_CMPW;
+    env->dregs[Dc1] = deposit32(env->dregs[Dc1], 0, 16, l1);
+    env->dregs[Dc2] = deposit32(env->dregs[Dc2], 0, 16, l2);
+}
+
+void HELPER(cas2l)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
+{
+    uint32_t Dc1 = extract32(regs, 9, 3);
+    uint32_t Dc2 = extract32(regs, 6, 3);
+    uint32_t Du1 = extract32(regs, 3, 3);
+    uint32_t Du2 = extract32(regs, 0, 3);
+    uint32_t c1 = env->dregs[Dc1];
+    uint32_t c2 = env->dregs[Dc2];
+    uint32_t u1 = env->dregs[Du1];
+    uint32_t u2 = env->dregs[Du2];
+    uint32_t l1, l2;
+    uintptr_t ra = GETPC();
+#if defined(CONFIG_ATOMIC64) && !defined(CONFIG_USER_ONLY)
+    int mmu_idx = cpu_mmu_index(env, 0);
+    TCGMemOpIdx oi;
+#endif
+
+    if (parallel_cpus) {
+        /* We're executing in a parallel context -- must be atomic.  */
+#ifdef CONFIG_ATOMIC64
+        uint64_t c, u, l;
+        if ((a1 & 7) == 0 && a2 == a1 + 4) {
+            c = deposit64(c2, 32, 32, c1);
+            u = deposit64(u2, 32, 32, u1);
+#ifdef CONFIG_USER_ONLY
+            l = helper_atomic_cmpxchgq_be(env, a1, c, u);
+#else
+            oi = make_memop_idx(MO_BEQ, mmu_idx);
+            l = helper_atomic_cmpxchgq_be_mmu(env, a1, c, u, oi, ra);
+#endif
+            l1 = l >> 32;
+            l2 = l;
+        } else if ((a2 & 7) == 0 && a1 == a2 + 4) {
+            c = deposit64(c1, 32, 32, c2);
+            u = deposit64(u1, 32, 32, u2);
+#ifdef CONFIG_USER_ONLY
+            l = helper_atomic_cmpxchgq_be(env, a2, c, u);
+#else
+            oi = make_memop_idx(MO_BEQ, mmu_idx);
+            l = helper_atomic_cmpxchgq_be_mmu(env, a2, c, u, oi, ra);
+#endif
+            l2 = l >> 32;
+            l1 = l;
+        } else
+#endif
+        {
+            /* Tell the main loop we need to serialize this insn.  */
+            cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
+        }
+    } else {
+        /* We're executing in a serial context -- no need to be atomic.  */
+        l1 = cpu_ldl_data_ra(env, a1, ra);
+        l2 = cpu_ldl_data_ra(env, a2, ra);
+        if (l1 == c1 && l2 == c2) {
+            cpu_stl_data_ra(env, a1, u1, ra);
+            cpu_stl_data_ra(env, a2, u2, ra);
+        }
+    }
+
+    if (c1 != l1) {
+        env->cc_n = l1;
+        env->cc_v = c1;
+    } else {
+        env->cc_n = l2;
+        env->cc_v = c2;
+    }
+    env->cc_op = CC_OP_CMPL;
+    env->dregs[Dc1] = l1;
+    env->dregs[Dc2] = l2;
 }

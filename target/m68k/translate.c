@@ -59,12 +59,12 @@ static TCGv cpu_aregs[8];
 static TCGv_i64 cpu_fregs[8];
 static TCGv_i64 cpu_macc[4];
 
-#define REG(insn, pos) (((insn) >> (pos)) & 7)
+#define REG(insn, pos)  (((insn) >> (pos)) & 7)
 #define DREG(insn, pos) cpu_dregs[REG(insn, pos)]
-#define AREG(insn, pos) cpu_aregs[REG(insn, pos)]
+#define AREG(insn, pos) get_areg(s, REG(insn, pos))
 #define FREG(insn, pos) cpu_fregs[REG(insn, pos)]
-#define MACREG(acc) cpu_macc[acc]
-#define QREG_SP cpu_aregs[7]
+#define MACREG(acc)     cpu_macc[acc]
+#define QREG_SP         get_areg(s, 7)
 
 static TCGv NULL_QREG;
 #define IS_NULL_QREG(t) (TCGV_EQUAL(t, NULL_QREG))
@@ -141,7 +141,54 @@ typedef struct DisasContext {
     int singlestep_enabled;
     TCGv_i64 mactmp;
     int done_mac;
+    int writeback_mask;
+    TCGv writeback[8];
 } DisasContext;
+
+static TCGv get_areg(DisasContext *s, unsigned regno)
+{
+    if (s->writeback_mask & (1 << regno)) {
+        return s->writeback[regno];
+    } else {
+        return cpu_aregs[regno];
+    }
+}
+
+static void delay_set_areg(DisasContext *s, unsigned regno,
+                           TCGv val, bool give_temp)
+{
+    if (s->writeback_mask & (1 << regno)) {
+        if (give_temp) {
+            tcg_temp_free(s->writeback[regno]);
+            s->writeback[regno] = val;
+        } else {
+            tcg_gen_mov_i32(s->writeback[regno], val);
+        }
+    } else {
+        s->writeback_mask |= 1 << regno;
+        if (give_temp) {
+            s->writeback[regno] = val;
+        } else {
+            TCGv tmp = tcg_temp_new();
+            s->writeback[regno] = tmp;
+            tcg_gen_mov_i32(tmp, val);
+        }
+    }
+}
+
+static void do_writebacks(DisasContext *s)
+{
+    unsigned mask = s->writeback_mask;
+    if (mask) {
+        s->writeback_mask = 0;
+        do {
+            unsigned regno = ctz32(mask);
+            tcg_gen_mov_i32(cpu_aregs[regno], s->writeback[regno]);
+            tcg_temp_free(s->writeback[regno]);
+            mask &= mask - 1;
+        } while (mask);
+    }
+}
 
 #define DISAS_JUMP_NEXT 4
 
@@ -331,7 +378,7 @@ static inline uint32_t read_im32(CPUM68KState *env, DisasContext *s)
 }
 
 /* Calculate and address index.  */
-static TCGv gen_addr_index(uint16_t ext, TCGv tmp)
+static TCGv gen_addr_index(DisasContext *s, uint16_t ext, TCGv tmp)
 {
     TCGv add;
     int scale;
@@ -388,7 +435,7 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
         tmp = tcg_temp_new();
         if ((ext & 0x44) == 0) {
             /* pre-index */
-            add = gen_addr_index(ext, tmp);
+            add = gen_addr_index(s, ext, tmp);
         } else {
             add = NULL_QREG;
         }
@@ -417,7 +464,7 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
             /* memory indirect */
             base = gen_load(s, OS_LONG, add, 0);
             if ((ext & 0x44) == 4) {
-                add = gen_addr_index(ext, tmp);
+                add = gen_addr_index(s, ext, tmp);
                 tcg_gen_add_i32(tmp, add, base);
                 add = tmp;
             } else {
@@ -441,7 +488,7 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
     } else {
         /* brief extension word format */
         tmp = tcg_temp_new();
-        add = gen_addr_index(ext, tmp);
+        add = gen_addr_index(s, ext, tmp);
         if (!IS_NULL_QREG(base)) {
             tcg_gen_add_i32(tmp, add, base);
             if ((int8_t)ext)
@@ -632,12 +679,14 @@ static void gen_partset_reg(int opsize, TCGv reg, TCGv val)
         tmp = tcg_temp_new();
         tcg_gen_ext8u_i32(tmp, val);
         tcg_gen_or_i32(reg, reg, tmp);
+        tcg_temp_free(tmp);
         break;
     case OS_WORD:
         tcg_gen_andi_i32(reg, reg, 0xffff0000);
         tmp = tcg_temp_new();
         tcg_gen_ext16u_i32(tmp, val);
         tcg_gen_or_i32(reg, reg, tmp);
+        tcg_temp_free(tmp);
         break;
     case OS_LONG:
     case OS_SINGLE:
@@ -650,37 +699,37 @@ static void gen_partset_reg(int opsize, TCGv reg, TCGv val)
 
 /* Generate code for an "effective address".  Does not adjust the base
    register for autoincrement addressing modes.  */
-static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
-                    int opsize)
+static TCGv gen_lea_mode(CPUM68KState *env, DisasContext *s,
+                         int mode, int reg0, int opsize)
 {
     TCGv reg;
     TCGv tmp;
     uint16_t ext;
     uint32_t offset;
 
-    switch ((insn >> 3) & 7) {
+    switch (mode) {
     case 0: /* Data register direct.  */
     case 1: /* Address register direct.  */
         return NULL_QREG;
     case 2: /* Indirect register */
     case 3: /* Indirect postincrement.  */
-        return AREG(insn, 0);
+        return get_areg(s, reg0);
     case 4: /* Indirect predecrememnt.  */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         tmp = tcg_temp_new();
         tcg_gen_subi_i32(tmp, reg, opsize_bytes(opsize));
         return tmp;
     case 5: /* Indirect displacement.  */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         tmp = tcg_temp_new();
         ext = read_im16(env, s);
         tcg_gen_addi_i32(tmp, reg, (int16_t)ext);
         return tmp;
     case 6: /* Indirect index + displacement.  */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         return gen_lea_indexed(env, s, reg);
     case 7: /* Other */
-        switch (insn & 7) {
+        switch (reg0) {
         case 0: /* Absolute short.  */
             offset = (int16_t)read_im16(env, s);
             return tcg_const_i32(offset);
@@ -702,39 +751,26 @@ static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
     return NULL_QREG;
 }
 
-/* Helper function for gen_ea. Reuse the computed address between the
-   for read/write operands.  */
-static inline TCGv gen_ea_once(CPUM68KState *env, DisasContext *s,
-                               uint16_t insn, int opsize, TCGv val,
-                               TCGv *addrp, ea_what what)
+static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
+                    int opsize)
 {
-    TCGv tmp;
-
-    if (addrp && what == EA_STORE) {
-        tmp = *addrp;
-    } else {
-        tmp = gen_lea(env, s, insn, opsize);
-        if (IS_NULL_QREG(tmp))
-            return tmp;
-        if (addrp)
-            *addrp = tmp;
-    }
-    return gen_ldst(s, opsize, tmp, val, what);
+    int mode = extract32(insn, 3, 3);
+    int reg0 = REG(insn, 0);
+    return gen_lea_mode(env, s, mode, reg0, opsize);
 }
 
-/* Generate code to load/store a value from/into an EA.  If VAL > 0 this is
+/* Generate code to load/store a value from/into an EA.  If WHAT > 0 this is
    a write otherwise it is a read (0 == sign extend, -1 == zero extend).
    ADDRP is non-null for readwrite operands.  */
-static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
-                   int opsize, TCGv val, TCGv *addrp, ea_what what)
+static TCGv gen_ea_mode(CPUM68KState *env, DisasContext *s, int mode, int reg0,
+                        int opsize, TCGv val, TCGv *addrp, ea_what what)
 {
-    TCGv reg;
-    TCGv result;
-    uint32_t offset;
+    TCGv reg, tmp, result;
+    int32_t offset;
 
-    switch ((insn >> 3) & 7) {
+    switch (mode) {
     case 0: /* Data register direct.  */
-        reg = DREG(insn, 0);
+        reg = cpu_dregs[reg0];
         if (what == EA_STORE) {
             gen_partset_reg(opsize, reg, val);
             return store_dummy;
@@ -742,7 +778,7 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
             return gen_extend(reg, opsize, what == EA_LOADS);
         }
     case 1: /* Address register direct.  */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         if (what == EA_STORE) {
             tcg_gen_mov_i32(reg, val);
             return store_dummy;
@@ -750,47 +786,56 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
             return gen_extend(reg, opsize, what == EA_LOADS);
         }
     case 2: /* Indirect register */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         return gen_ldst(s, opsize, reg, val, what);
     case 3: /* Indirect postincrement.  */
-        reg = AREG(insn, 0);
+        reg = get_areg(s, reg0);
         result = gen_ldst(s, opsize, reg, val, what);
-        /* ??? This is not exception safe.  The instruction may still
-           fault after this point.  */
-        if (what == EA_STORE || !addrp)
-            tcg_gen_addi_i32(reg, reg, opsize_bytes(opsize));
+        if (what == EA_STORE || !addrp) {
+            TCGv tmp = tcg_temp_new();
+            tcg_gen_addi_i32(tmp, reg, opsize_bytes(opsize));
+            delay_set_areg(s, reg0, tmp, true);
+        }
         return result;
     case 4: /* Indirect predecrememnt.  */
-        {
-            TCGv tmp;
-            if (addrp && what == EA_STORE) {
-                tmp = *addrp;
-            } else {
-                tmp = gen_lea(env, s, insn, opsize);
-                if (IS_NULL_QREG(tmp))
-                    return tmp;
-                if (addrp)
-                    *addrp = tmp;
+        if (addrp && what == EA_STORE) {
+            tmp = *addrp;
+        } else {
+            tmp = gen_lea_mode(env, s, mode, reg0, opsize);
+            if (IS_NULL_QREG(tmp)) {
+                return tmp;
             }
-            result = gen_ldst(s, opsize, tmp, val, what);
-            /* ??? This is not exception safe.  The instruction may still
-               fault after this point.  */
-            if (what == EA_STORE || !addrp) {
-                reg = AREG(insn, 0);
-                tcg_gen_mov_i32(reg, tmp);
+            if (addrp) {
+                *addrp = tmp;
             }
+        }
+        result = gen_ldst(s, opsize, tmp, val, what);
+        if (what == EA_STORE || !addrp) {
+            delay_set_areg(s, reg0, tmp, false);
         }
         return result;
     case 5: /* Indirect displacement.  */
     case 6: /* Indirect index + displacement.  */
-        return gen_ea_once(env, s, insn, opsize, val, addrp, what);
+    do_indirect:
+        if (addrp && what == EA_STORE) {
+            tmp = *addrp;
+        } else {
+            tmp = gen_lea_mode(env, s, mode, reg0, opsize);
+            if (IS_NULL_QREG(tmp)) {
+                return tmp;
+            }
+            if (addrp) {
+                *addrp = tmp;
+            }
+        }
+        return gen_ldst(s, opsize, tmp, val, what);
     case 7: /* Other */
-        switch (insn & 7) {
+        switch (reg0) {
         case 0: /* Absolute short.  */
         case 1: /* Absolute long.  */
         case 2: /* pc displacement  */
         case 3: /* pc index+displacement.  */
-            return gen_ea_once(env, s, insn, opsize, val, addrp, what);
+            goto do_indirect;
         case 4: /* Immediate.  */
             /* Sign extend values for consistency.  */
             switch (opsize) {
@@ -821,6 +866,14 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
     }
     /* Should never happen.  */
     return NULL_QREG;
+}
+
+static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
+                   int opsize, TCGv val, TCGv *addrp, ea_what what)
+{
+    int mode = extract32(insn, 3, 3);
+    int reg0 = REG(insn, 0);
+    return gen_ea_mode(env, s, mode, reg0, opsize, val, addrp, what);
 }
 
 typedef struct {
@@ -1054,11 +1107,19 @@ static void gen_jmp(DisasContext *s, TCGv dest)
     s->is_jmp = DISAS_JUMP;
 }
 
+static void gen_raise_exception(int nr)
+{
+    TCGv_i32 tmp = tcg_const_i32(nr);
+
+    gen_helper_raise_exception(cpu_env, tmp);
+    tcg_temp_free_i32(tmp);
+}
+
 static void gen_exception(DisasContext *s, uint32_t where, int nr)
 {
     update_cc_op(s);
     gen_jmp_im(s, where);
-    gen_helper_raise_exception(cpu_env, tcg_const_i32(nr));
+    gen_raise_exception(nr);
 }
 
 static inline void gen_addr_fault(DisasContext *s)
@@ -1163,10 +1224,12 @@ DISAS_INSN(undef_fpu)
 
 DISAS_INSN(undef)
 {
-    M68kCPU *cpu = m68k_env_get_cpu(env);
-
+    /* ??? This is both instructions that are as yet unimplemented
+       for the 680x0 series, as well as those that are implemented
+       but actually illegal for CPU32 or pre-68020.  */
+    qemu_log_mask(LOG_UNIMP, "Illegal instruction: %04x @ %08x",
+                  insn, s->pc - 2);
     gen_exception(s, s->pc - 2, EXCP_UNSUPPORTED);
-    cpu_abort(CPU(cpu), "Illegal instruction: %04x @ %08x", insn, s->pc - 2);
 }
 
 DISAS_INSN(mulw)
@@ -1187,69 +1250,295 @@ DISAS_INSN(mulw)
     tcg_gen_mul_i32(tmp, tmp, src);
     tcg_gen_mov_i32(reg, tmp);
     gen_logic_cc(s, tmp, OS_LONG);
+    tcg_temp_free(tmp);
 }
 
 DISAS_INSN(divw)
 {
-    TCGv reg;
-    TCGv tmp;
-    TCGv src;
     int sign;
+    TCGv src;
+    TCGv destr;
+
+    /* divX.w <EA>,Dn    32/16 -> 16r:16q */
 
     sign = (insn & 0x100) != 0;
-    reg = DREG(insn, 9);
-    if (sign) {
-        tcg_gen_ext16s_i32(QREG_DIV1, reg);
-    } else {
-        tcg_gen_ext16u_i32(QREG_DIV1, reg);
-    }
-    SRC_EA(env, src, OS_WORD, sign, NULL);
-    tcg_gen_mov_i32(QREG_DIV2, src);
-    if (sign) {
-        gen_helper_divs(cpu_env, tcg_const_i32(1));
-    } else {
-        gen_helper_divu(cpu_env, tcg_const_i32(1));
-    }
 
-    tmp = tcg_temp_new();
-    src = tcg_temp_new();
-    tcg_gen_ext16u_i32(tmp, QREG_DIV1);
-    tcg_gen_shli_i32(src, QREG_DIV2, 16);
-    tcg_gen_or_i32(reg, tmp, src);
+    /* dest.l / src.w */
+
+    SRC_EA(env, src, OS_WORD, sign, NULL);
+    destr = tcg_const_i32(REG(insn, 9));
+    if (sign) {
+        gen_helper_divsw(cpu_env, destr, src);
+    } else {
+        gen_helper_divuw(cpu_env, destr, src);
+    }
+    tcg_temp_free(destr);
 
     set_cc_op(s, CC_OP_FLAGS);
 }
 
 DISAS_INSN(divl)
 {
-    TCGv num;
-    TCGv den;
-    TCGv reg;
+    TCGv num, reg, den;
+    int sign;
     uint16_t ext;
 
     ext = read_im16(env, s);
-    if (ext & 0x87f8) {
-        gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
+
+    sign = (ext & 0x0800) != 0;
+
+    if (ext & 0x400) {
+        if (!m68k_feature(s->env, M68K_FEATURE_QUAD_MULDIV)) {
+            gen_exception(s, s->insn_pc, EXCP_ILLEGAL);
+            return;
+        }
+
+        /* divX.l <EA>, Dr:Dq    64/32 -> 32r:32q */
+
+        SRC_EA(env, den, OS_LONG, 0, NULL);
+        num = tcg_const_i32(REG(ext, 12));
+        reg = tcg_const_i32(REG(ext, 0));
+        if (sign) {
+            gen_helper_divsll(cpu_env, num, reg, den);
+        } else {
+            gen_helper_divull(cpu_env, num, reg, den);
+        }
+        tcg_temp_free(reg);
+        tcg_temp_free(num);
+        set_cc_op(s, CC_OP_FLAGS);
         return;
     }
-    num = DREG(ext, 12);
-    reg = DREG(ext, 0);
-    tcg_gen_mov_i32(QREG_DIV1, num);
+
+    /* divX.l <EA>, Dq        32/32 -> 32q     */
+    /* divXl.l <EA>, Dr:Dq    32/32 -> 32r:32q */
+
     SRC_EA(env, den, OS_LONG, 0, NULL);
-    tcg_gen_mov_i32(QREG_DIV2, den);
-    if (ext & 0x0800) {
-        gen_helper_divs(cpu_env, tcg_const_i32(0));
+    num = tcg_const_i32(REG(ext, 12));
+    reg = tcg_const_i32(REG(ext, 0));
+    if (sign) {
+        gen_helper_divsl(cpu_env, num, reg, den);
     } else {
-        gen_helper_divu(cpu_env, tcg_const_i32(0));
+        gen_helper_divul(cpu_env, num, reg, den);
     }
-    if ((ext & 7) == ((ext >> 12) & 7)) {
-        /* div */
-        tcg_gen_mov_i32 (reg, QREG_DIV1);
-    } else {
-        /* rem */
-        tcg_gen_mov_i32 (reg, QREG_DIV2);
-    }
+    tcg_temp_free(reg);
+    tcg_temp_free(num);
+
     set_cc_op(s, CC_OP_FLAGS);
+}
+
+static void bcd_add(TCGv dest, TCGv src)
+{
+    TCGv t0, t1;
+
+    /*  dest10 = dest10 + src10 + X
+     *
+     *        t1 = src
+     *        t2 = t1 + 0x066
+     *        t3 = t2 + dest + X
+     *        t4 = t2 ^ dest
+     *        t5 = t3 ^ t4
+     *        t6 = ~t5 & 0x110
+     *        t7 = (t6 >> 2) | (t6 >> 3)
+     *        return t3 - t7
+     */
+
+    /* t1 = (src + 0x066) + dest + X
+     *    = result with some possible exceding 0x6
+     */
+
+    t0 = tcg_const_i32(0x066);
+    tcg_gen_add_i32(t0, t0, src);
+
+    t1 = tcg_temp_new();
+    tcg_gen_add_i32(t1, t0, dest);
+    tcg_gen_add_i32(t1, t1, QREG_CC_X);
+
+    /* we will remove exceding 0x6 where there is no carry */
+
+    /* t0 = (src + 0x0066) ^ dest
+     *    = t1 without carries
+     */
+
+    tcg_gen_xor_i32(t0, t0, dest);
+
+    /* extract the carries
+     * t0 = t0 ^ t1
+     *    = only the carries
+     */
+
+    tcg_gen_xor_i32(t0, t0, t1);
+
+    /* generate 0x1 where there is no carry
+     * and for each 0x10, generate a 0x6
+     */
+
+    tcg_gen_shri_i32(t0, t0, 3);
+    tcg_gen_not_i32(t0, t0);
+    tcg_gen_andi_i32(t0, t0, 0x22);
+    tcg_gen_add_i32(dest, t0, t0);
+    tcg_gen_add_i32(dest, dest, t0);
+    tcg_temp_free(t0);
+
+    /* remove the exceding 0x6
+     * for digits that have not generated a carry
+     */
+
+    tcg_gen_sub_i32(dest, t1, dest);
+    tcg_temp_free(t1);
+}
+
+static void bcd_sub(TCGv dest, TCGv src)
+{
+    TCGv t0, t1, t2;
+
+    /*  dest10 = dest10 - src10 - X
+     *         = bcd_add(dest + 1 - X, 0x199 - src)
+     */
+
+    /* t0 = 0x066 + (0x199 - src) */
+
+    t0 = tcg_temp_new();
+    tcg_gen_subfi_i32(t0, 0x1ff, src);
+
+    /* t1 = t0 + dest + 1 - X*/
+
+    t1 = tcg_temp_new();
+    tcg_gen_add_i32(t1, t0, dest);
+    tcg_gen_addi_i32(t1, t1, 1);
+    tcg_gen_sub_i32(t1, t1, QREG_CC_X);
+
+    /* t2 = t0 ^ dest */
+
+    t2 = tcg_temp_new();
+    tcg_gen_xor_i32(t2, t0, dest);
+
+    /* t0 = t1 ^ t2 */
+
+    tcg_gen_xor_i32(t0, t1, t2);
+
+    /* t2 = ~t0 & 0x110
+     * t0 = (t2 >> 2) | (t2 >> 3)
+     *
+     * to fit on 8bit operands, changed in:
+     *
+     * t2 = ~(t0 >> 3) & 0x22
+     * t0 = t2 + t2
+     * t0 = t0 + t2
+     */
+
+    tcg_gen_shri_i32(t2, t0, 3);
+    tcg_gen_not_i32(t2, t2);
+    tcg_gen_andi_i32(t2, t2, 0x22);
+    tcg_gen_add_i32(t0, t2, t2);
+    tcg_gen_add_i32(t0, t0, t2);
+    tcg_temp_free(t2);
+
+    /* return t1 - t0 */
+
+    tcg_gen_sub_i32(dest, t1, t0);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+static void bcd_flags(TCGv val)
+{
+    tcg_gen_andi_i32(QREG_CC_C, val, 0x0ff);
+    tcg_gen_or_i32(QREG_CC_Z, QREG_CC_Z, QREG_CC_C);
+
+    tcg_gen_shri_i32(QREG_CC_C, val, 8);
+    tcg_gen_andi_i32(QREG_CC_C, QREG_CC_C, 1);
+
+    tcg_gen_mov_i32(QREG_CC_X, QREG_CC_C);
+}
+
+DISAS_INSN(abcd_reg)
+{
+    TCGv src;
+    TCGv dest;
+
+    gen_flush_flags(s); /* !Z is sticky */
+
+    src = gen_extend(DREG(insn, 0), OS_BYTE, 0);
+    dest = gen_extend(DREG(insn, 9), OS_BYTE, 0);
+    bcd_add(dest, src);
+    gen_partset_reg(OS_BYTE, DREG(insn, 9), dest);
+
+    bcd_flags(dest);
+}
+
+DISAS_INSN(abcd_mem)
+{
+    TCGv src, dest, addr;
+
+    gen_flush_flags(s); /* !Z is sticky */
+
+    /* Indirect pre-decrement load (mode 4) */
+
+    src = gen_ea_mode(env, s, 4, REG(insn, 0), OS_BYTE,
+                      NULL_QREG, NULL, EA_LOADU);
+    dest = gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE,
+                       NULL_QREG, &addr, EA_LOADU);
+
+    bcd_add(dest, src);
+
+    gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, &addr, EA_STORE);
+
+    bcd_flags(dest);
+}
+
+DISAS_INSN(sbcd_reg)
+{
+    TCGv src, dest;
+
+    gen_flush_flags(s); /* !Z is sticky */
+
+    src = gen_extend(DREG(insn, 0), OS_BYTE, 0);
+    dest = gen_extend(DREG(insn, 9), OS_BYTE, 0);
+
+    bcd_sub(dest, src);
+
+    gen_partset_reg(OS_BYTE, DREG(insn, 9), dest);
+
+    bcd_flags(dest);
+}
+
+DISAS_INSN(sbcd_mem)
+{
+    TCGv src, dest, addr;
+
+    gen_flush_flags(s); /* !Z is sticky */
+
+    /* Indirect pre-decrement load (mode 4) */
+
+    src = gen_ea_mode(env, s, 4, REG(insn, 0), OS_BYTE,
+                      NULL_QREG, NULL, EA_LOADU);
+    dest = gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE,
+                       NULL_QREG, &addr, EA_LOADU);
+
+    bcd_sub(dest, src);
+
+    gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, &addr, EA_STORE);
+
+    bcd_flags(dest);
+}
+
+DISAS_INSN(nbcd)
+{
+    TCGv src, dest;
+    TCGv addr;
+
+    gen_flush_flags(s); /* !Z is sticky */
+
+    SRC_EA(env, src, OS_BYTE, 0, &addr);
+
+    dest = tcg_const_i32(0);
+    bcd_sub(dest, src);
+
+    DEST_EA(env, insn, OS_BYTE, dest, &addr);
+
+    bcd_flags(dest);
+
+    tcg_temp_free(dest);
 }
 
 DISAS_INSN(addsub)
@@ -1367,42 +1656,125 @@ static void gen_push(DisasContext *s, TCGv val)
     tcg_gen_subi_i32(tmp, QREG_SP, 4);
     gen_store(s, OS_LONG, tmp, val);
     tcg_gen_mov_i32(QREG_SP, tmp);
+    tcg_temp_free(tmp);
+}
+
+static TCGv mreg(int reg)
+{
+    if (reg < 8) {
+        /* Dx */
+        return cpu_dregs[reg];
+    }
+    /* Ax */
+    return cpu_aregs[reg & 7];
 }
 
 DISAS_INSN(movem)
 {
-    TCGv addr;
+    TCGv addr, incr, tmp, r[16];
+    int is_load = (insn & 0x0400) != 0;
+    int opsize = (insn & 0x40) != 0 ? OS_LONG : OS_WORD;
+    uint16_t mask = read_im16(env, s);
+    int mode = extract32(insn, 3, 3);
+    int reg0 = REG(insn, 0);
     int i;
-    uint16_t mask;
-    TCGv reg;
-    TCGv tmp;
-    int is_load;
 
-    mask = read_im16(env, s);
-    tmp = gen_lea(env, s, insn, OS_LONG);
-    if (IS_NULL_QREG(tmp)) {
+    tmp = cpu_aregs[reg0];
+
+    switch (mode) {
+    case 0: /* data register direct */
+    case 1: /* addr register direct */
+    do_addr_fault:
         gen_addr_fault(s);
         return;
+
+    case 2: /* indirect */
+        break;
+
+    case 3: /* indirect post-increment */
+        if (!is_load) {
+            /* post-increment is not allowed */
+            goto do_addr_fault;
+        }
+        break;
+
+    case 4: /* indirect pre-decrement */
+        if (is_load) {
+            /* pre-decrement is not allowed */
+            goto do_addr_fault;
+        }
+        /* We want a bare copy of the address reg, without any pre-decrement
+           adjustment, as gen_lea would provide.  */
+        break;
+
+    default:
+        tmp = gen_lea_mode(env, s, mode, reg0, opsize);
+        if (IS_NULL_QREG(tmp)) {
+            goto do_addr_fault;
+        }
+        break;
     }
+
     addr = tcg_temp_new();
     tcg_gen_mov_i32(addr, tmp);
-    is_load = ((insn & 0x0400) != 0);
-    for (i = 0; i < 16; i++, mask >>= 1) {
-        if (mask & 1) {
-            if (i < 8)
-                reg = DREG(i, 0);
-            else
-                reg = AREG(i, 0);
-            if (is_load) {
-                tmp = gen_load(s, OS_LONG, addr, 0);
-                tcg_gen_mov_i32(reg, tmp);
-            } else {
-                gen_store(s, OS_LONG, addr, reg);
+    incr = tcg_const_i32(opsize_bytes(opsize));
+
+    if (is_load) {
+        /* memory to register */
+        for (i = 0; i < 16; i++) {
+            if (mask & (1 << i)) {
+                r[i] = gen_load(s, opsize, addr, 1);
+                tcg_gen_add_i32(addr, addr, incr);
             }
-            if (mask != 1)
-                tcg_gen_addi_i32(addr, addr, 4);
+        }
+        for (i = 0; i < 16; i++) {
+            if (mask & (1 << i)) {
+                tcg_gen_mov_i32(mreg(i), r[i]);
+                tcg_temp_free(r[i]);
+            }
+        }
+        if (mode == 3) {
+            /* post-increment: movem (An)+,X */
+            tcg_gen_mov_i32(cpu_aregs[reg0], addr);
+        }
+    } else {
+        /* register to memory */
+        if (mode == 4) {
+            /* pre-decrement: movem X,-(An) */
+            for (i = 15; i >= 0; i--) {
+                if ((mask << i) & 0x8000) {
+                    tcg_gen_sub_i32(addr, addr, incr);
+                    if (reg0 + 8 == i &&
+                        m68k_feature(s->env, M68K_FEATURE_EXT_FULL)) {
+                        /* M68020+: if the addressing register is the
+                         * register moved to memory, the value written
+                         * is the initial value decremented by the size of
+                         * the operation, regardless of how many actual
+                         * stores have been performed until this point.
+                         * M68000/M68010: the value is the initial value.
+                         */
+                        tmp = tcg_temp_new();
+                        tcg_gen_sub_i32(tmp, cpu_aregs[reg0], incr);
+                        gen_store(s, opsize, addr, tmp);
+                        tcg_temp_free(tmp);
+                    } else {
+                        gen_store(s, opsize, addr, mreg(i));
+                    }
+                }
+            }
+            tcg_gen_mov_i32(cpu_aregs[reg0], addr);
+        } else {
+            for (i = 0; i < 16; i++) {
+                if (mask & (1 << i)) {
+                    gen_store(s, opsize, addr, mreg(i));
+                    tcg_gen_add_i32(addr, addr, incr);
+                }
+            }
         }
     }
+
+    tcg_temp_free(incr);
+    tcg_temp_free(addr);
 }
 
 DISAS_INSN(bitop_im)
@@ -1522,6 +1894,155 @@ DISAS_INSN(arith_im)
     tcg_temp_free(dest);
 }
 
+DISAS_INSN(cas)
+{
+    int opsize;
+    TCGv addr;
+    uint16_t ext;
+    TCGv load;
+    TCGv cmp;
+    TCGMemOp opc;
+
+    switch ((insn >> 9) & 3) {
+    case 1:
+        opsize = OS_BYTE;
+        opc = MO_SB;
+        break;
+    case 2:
+        opsize = OS_WORD;
+        opc = MO_TESW;
+        break;
+    case 3:
+        opsize = OS_LONG;
+        opc = MO_TESL;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    opc |= MO_ALIGN;
+
+    ext = read_im16(env, s);
+
+    /* cas Dc,Du,<EA> */
+
+    addr = gen_lea(env, s, insn, opsize);
+    if (IS_NULL_QREG(addr)) {
+        gen_addr_fault(s);
+        return;
+    }
+
+    cmp = gen_extend(DREG(ext, 0), opsize, 1);
+
+    /* if  <EA> == Dc then
+     *     <EA> = Du
+     *     Dc = <EA> (because <EA> == Dc)
+     * else
+     *     Dc = <EA>
+     */
+
+    load = tcg_temp_new();
+    tcg_gen_atomic_cmpxchg_i32(load, addr, cmp, DREG(ext, 6),
+                               IS_USER(s), opc);
+    /* update flags before setting cmp to load */
+    gen_update_cc_cmp(s, load, cmp, opsize);
+    gen_partset_reg(opsize, DREG(ext, 0), load);
+
+    tcg_temp_free(load);
+}
+
+DISAS_INSN(cas2w)
+{
+    uint16_t ext1, ext2;
+    TCGv addr1, addr2;
+    TCGv regs;
+
+    /* cas2 Dc1:Dc2,Du1:Du2,(Rn1):(Rn2) */
+
+    ext1 = read_im16(env, s);
+
+    if (ext1 & 0x8000) {
+        /* Address Register */
+        addr1 = AREG(ext1, 12);
+    } else {
+        /* Data Register */
+        addr1 = DREG(ext1, 12);
+    }
+
+    ext2 = read_im16(env, s);
+    if (ext2 & 0x8000) {
+        /* Address Register */
+        addr2 = AREG(ext2, 12);
+    } else {
+        /* Data Register */
+        addr2 = DREG(ext2, 12);
+    }
+
+    /* if (R1) == Dc1 && (R2) == Dc2 then
+     *     (R1) = Du1
+     *     (R2) = Du2
+     * else
+     *     Dc1 = (R1)
+     *     Dc2 = (R2)
+     */
+
+    regs = tcg_const_i32(REG(ext2, 6) |
+                         (REG(ext1, 6) << 3) |
+                         (REG(ext2, 0) << 6) |
+                         (REG(ext1, 0) << 9));
+    gen_helper_cas2w(cpu_env, regs, addr1, addr2);
+    tcg_temp_free(regs);
+
+    /* Note that cas2w also assigned to env->cc_op.  */
+    s->cc_op = CC_OP_CMPW;
+    s->cc_op_synced = 1;
+}
+
+DISAS_INSN(cas2l)
+{
+    uint16_t ext1, ext2;
+    TCGv addr1, addr2, regs;
+
+    /* cas2 Dc1:Dc2,Du1:Du2,(Rn1):(Rn2) */
+
+    ext1 = read_im16(env, s);
+
+    if (ext1 & 0x8000) {
+        /* Address Register */
+        addr1 = AREG(ext1, 12);
+    } else {
+        /* Data Register */
+        addr1 = DREG(ext1, 12);
+    }
+
+    ext2 = read_im16(env, s);
+    if (ext2 & 0x8000) {
+        /* Address Register */
+        addr2 = AREG(ext2, 12);
+    } else {
+        /* Data Register */
+        addr2 = DREG(ext2, 12);
+    }
+
+    /* if (R1) == Dc1 && (R2) == Dc2 then
+     *     (R1) = Du1
+     *     (R2) = Du2
+     * else
+     *     Dc1 = (R1)
+     *     Dc2 = (R2)
+     */
+
+    regs = tcg_const_i32(REG(ext2, 6) |
+                         (REG(ext1, 6) << 3) |
+                         (REG(ext2, 0) << 6) |
+                         (REG(ext1, 0) << 9));
+    gen_helper_cas2l(cpu_env, regs, addr1, addr2);
+    tcg_temp_free(regs);
+
+    /* Note that cas2l also assigned to env->cc_op.  */
+    s->cc_op = CC_OP_CMPL;
+    s->cc_op_synced = 1;
+}
+
 DISAS_INSN(byterev)
 {
     TCGv reg;
@@ -1626,10 +2147,14 @@ DISAS_INSN(lea)
 DISAS_INSN(clr)
 {
     int opsize;
+    TCGv zero;
+
+    zero = tcg_const_i32(0);
 
     opsize = insn_opsize(insn);
-    DEST_EA(env, insn, opsize, tcg_const_i32(0), NULL);
-    gen_logic_cc(s, tcg_const_i32(0), opsize);
+    DEST_EA(env, insn, opsize, zero, NULL);
+    gen_logic_cc(s, zero, opsize);
+    tcg_temp_free(zero);
 }
 
 static TCGv gen_get_ccr(DisasContext *s)
@@ -1735,6 +2260,8 @@ DISAS_INSN(swap)
     tcg_gen_shli_i32(src1, reg, 16);
     tcg_gen_shri_i32(src2, reg, 16);
     tcg_gen_or_i32(reg, src1, src2);
+    tcg_temp_free(src2);
+    tcg_temp_free(src1);
     gen_logic_cc(s, reg, OS_LONG);
 }
 
@@ -1773,6 +2300,7 @@ DISAS_INSN(ext)
     else
         tcg_gen_mov_i32(reg, tmp);
     gen_logic_cc(s, tmp, OS_LONG);
+    tcg_temp_free(tmp);
 }
 
 DISAS_INSN(tst)
@@ -1807,29 +2335,68 @@ DISAS_INSN(tas)
     gen_logic_cc(s, src1, OS_BYTE);
     tcg_gen_ori_i32(dest, src1, 0x80);
     DEST_EA(env, insn, OS_BYTE, dest, &addr);
+    tcg_temp_free(dest);
 }
 
 DISAS_INSN(mull)
 {
     uint16_t ext;
-    TCGv reg;
     TCGv src1;
-    TCGv dest;
+    int sign;
 
-    /* The upper 32 bits of the product are discarded, so
-       muls.l and mulu.l are functionally equivalent.  */
     ext = read_im16(env, s);
-    if (ext & 0x87ff) {
-        gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
+
+    sign = ext & 0x800;
+
+    if (ext & 0x400) {
+        if (!m68k_feature(s->env, M68K_FEATURE_QUAD_MULDIV)) {
+            gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
+            return;
+        }
+
+        SRC_EA(env, src1, OS_LONG, 0, NULL);
+
+        if (sign) {
+            tcg_gen_muls2_i32(QREG_CC_Z, QREG_CC_N, src1, DREG(ext, 12));
+        } else {
+            tcg_gen_mulu2_i32(QREG_CC_Z, QREG_CC_N, src1, DREG(ext, 12));
+        }
+        /* if Dl == Dh, 68040 returns low word */
+        tcg_gen_mov_i32(DREG(ext, 0), QREG_CC_N);
+        tcg_gen_mov_i32(DREG(ext, 12), QREG_CC_Z);
+        tcg_gen_or_i32(QREG_CC_Z, QREG_CC_Z, QREG_CC_N);
+
+        tcg_gen_movi_i32(QREG_CC_V, 0);
+        tcg_gen_movi_i32(QREG_CC_C, 0);
+
+        set_cc_op(s, CC_OP_FLAGS);
         return;
     }
-    reg = DREG(ext, 12);
     SRC_EA(env, src1, OS_LONG, 0, NULL);
-    dest = tcg_temp_new();
-    tcg_gen_mul_i32(dest, src1, reg);
-    tcg_gen_mov_i32(reg, dest);
-    /* Unlike m68k, coldfire always clears the overflow bit.  */
-    gen_logic_cc(s, dest, OS_LONG);
+    if (m68k_feature(s->env, M68K_FEATURE_M68000)) {
+        tcg_gen_movi_i32(QREG_CC_C, 0);
+        if (sign) {
+            tcg_gen_muls2_i32(QREG_CC_N, QREG_CC_V, src1, DREG(ext, 12));
+            /* QREG_CC_V is -(QREG_CC_V != (QREG_CC_N >> 31)) */
+            tcg_gen_sari_i32(QREG_CC_Z, QREG_CC_N, 31);
+            tcg_gen_setcond_i32(TCG_COND_NE, QREG_CC_V, QREG_CC_V, QREG_CC_Z);
+        } else {
+            tcg_gen_mulu2_i32(QREG_CC_N, QREG_CC_V, src1, DREG(ext, 12));
+            /* QREG_CC_V is -(QREG_CC_V != 0), use QREG_CC_C as 0 */
+            tcg_gen_setcond_i32(TCG_COND_NE, QREG_CC_V, QREG_CC_V, QREG_CC_C);
+        }
+        tcg_gen_neg_i32(QREG_CC_V, QREG_CC_V);
+        tcg_gen_mov_i32(DREG(ext, 12), QREG_CC_N);
+
+        tcg_gen_mov_i32(QREG_CC_Z, QREG_CC_N);
+
+        set_cc_op(s, CC_OP_FLAGS);
+    } else {
+        /* The upper 32 bits of the product are discarded, so
+           muls.l and mulu.l are functionally equivalent.  */
+        tcg_gen_mul_i32(DREG(ext, 12), src1, DREG(ext, 12));
+        gen_logic_cc(s, DREG(ext, 12), OS_LONG);
+    }
 }
 
 static void gen_link(DisasContext *s, uint16_t insn, int32_t offset)
@@ -1876,6 +2443,7 @@ DISAS_INSN(unlk)
     tmp = gen_load(s, OS_LONG, src, 0);
     tcg_gen_mov_i32(reg, tmp);
     tcg_gen_addi_i32(QREG_SP, src, 4);
+    tcg_temp_free(src);
 }
 
 DISAS_INSN(nop)
@@ -1952,7 +2520,9 @@ DISAS_INSN(addsubq)
         }
         gen_update_cc_add(dest, val, opsize);
     }
+    tcg_temp_free(val);
     DEST_EA(env, insn, opsize, dest, &addr);
+    tcg_temp_free(dest);
 }
 
 DISAS_INSN(tpf)
@@ -2005,11 +2575,8 @@ DISAS_INSN(branch)
 
 DISAS_INSN(moveq)
 {
-    uint32_t val;
-
-    val = (int8_t)insn;
-    tcg_gen_movi_i32(DREG(insn, 9), val);
-    gen_logic_cc(s, tcg_const_i32(val), OS_LONG);
+    tcg_gen_movi_i32(DREG(insn, 9), (int8_t)insn);
+    gen_logic_cc(s, DREG(insn, 9), OS_LONG);
 }
 
 DISAS_INSN(mvzs)
@@ -2049,6 +2616,7 @@ DISAS_INSN(or)
         gen_partset_reg(opsize, DREG(insn, 9), dest);
     }
     gen_logic_cc(s, dest, opsize);
+    tcg_temp_free(dest);
 }
 
 DISAS_INSN(suba)
@@ -2143,6 +2711,7 @@ DISAS_INSN(mov3q)
     src = tcg_const_i32(val);
     gen_logic_cc(s, src, OS_LONG);
     DEST_EA(env, insn, OS_LONG, src, NULL);
+    tcg_temp_free(src);
 }
 
 DISAS_INSN(cmp)
@@ -2173,6 +2742,21 @@ DISAS_INSN(cmpa)
     gen_update_cc_cmp(s, reg, src, OS_LONG);
 }
 
+DISAS_INSN(cmpm)
+{
+    int opsize = insn_opsize(insn);
+    TCGv src, dst;
+
+    /* Post-increment load (mode 3) from Ay.  */
+    src = gen_ea_mode(env, s, 3, REG(insn, 0), opsize,
+                      NULL_QREG, NULL, EA_LOADS);
+    /* Post-increment load (mode 3) from Ax.  */
+    dst = gen_ea_mode(env, s, 3, REG(insn, 9), opsize,
+                      NULL_QREG, NULL, EA_LOADS);
+
+    gen_update_cc_cmp(s, dst, src, opsize);
+}
+
 DISAS_INSN(eor)
 {
     TCGv src;
@@ -2187,6 +2771,7 @@ DISAS_INSN(eor)
     tcg_gen_xor_i32(dest, src, DREG(insn, 9));
     gen_logic_cc(s, dest, opsize);
     DEST_EA(env, insn, opsize, dest, &addr);
+    tcg_temp_free(dest);
 }
 
 static void do_exg(TCGv reg1, TCGv reg2)
@@ -2237,8 +2822,8 @@ DISAS_INSN(and)
         tcg_gen_and_i32(dest, src, reg);
         gen_partset_reg(opsize, reg, dest);
     }
-    tcg_temp_free(dest);
     gen_logic_cc(s, dest, opsize);
+    tcg_temp_free(dest);
 }
 
 DISAS_INSN(adda)
@@ -2321,48 +2906,601 @@ DISAS_INSN(addx_mem)
     gen_store(s, opsize, addr_dest, QREG_CC_N);
 }
 
-/* TODO: This could be implemented without helper functions.  */
-DISAS_INSN(shift_im)
+static inline void shift_im(DisasContext *s, uint16_t insn, int opsize)
 {
-    TCGv reg;
-    int tmp;
-    TCGv shift;
+    int count = (insn >> 9) & 7;
+    int logical = insn & 8;
+    int left = insn & 0x100;
+    int bits = opsize_bytes(opsize) * 8;
+    TCGv reg = gen_extend(DREG(insn, 0), opsize, !logical);
 
-    set_cc_op(s, CC_OP_FLAGS);
+    if (count == 0) {
+        count = 8;
+    }
 
-    reg = DREG(insn, 0);
-    tmp = (insn >> 9) & 7;
-    if (tmp == 0)
-        tmp = 8;
-    shift = tcg_const_i32(tmp);
-    /* No need to flush flags becuse we know we will set C flag.  */
-    if (insn & 0x100) {
-        gen_helper_shl_cc(reg, cpu_env, reg, shift);
+    tcg_gen_movi_i32(QREG_CC_V, 0);
+    if (left) {
+        tcg_gen_shri_i32(QREG_CC_C, reg, bits - count);
+        tcg_gen_shli_i32(QREG_CC_N, reg, count);
+
+        /* Note that ColdFire always clears V (done above),
+           while M68000 sets if the most significant bit is changed at
+           any time during the shift operation */
+        if (!logical && m68k_feature(s->env, M68K_FEATURE_M68000)) {
+            /* if shift count >= bits, V is (reg != 0) */
+            if (count >= bits) {
+                tcg_gen_setcond_i32(TCG_COND_NE, QREG_CC_V, reg, QREG_CC_V);
+            } else {
+                TCGv t0 = tcg_temp_new();
+                tcg_gen_sari_i32(QREG_CC_V, reg, bits - 1);
+                tcg_gen_sari_i32(t0, reg, bits - count - 1);
+                tcg_gen_setcond_i32(TCG_COND_NE, QREG_CC_V, QREG_CC_V, t0);
+                tcg_temp_free(t0);
+            }
+            tcg_gen_neg_i32(QREG_CC_V, QREG_CC_V);
+        }
     } else {
-        if (insn & 8) {
-            gen_helper_shr_cc(reg, cpu_env, reg, shift);
+        tcg_gen_shri_i32(QREG_CC_C, reg, count - 1);
+        if (logical) {
+            tcg_gen_shri_i32(QREG_CC_N, reg, count);
         } else {
-            gen_helper_sar_cc(reg, cpu_env, reg, shift);
+            tcg_gen_sari_i32(QREG_CC_N, reg, count);
         }
     }
+
+    gen_ext(QREG_CC_N, QREG_CC_N, opsize, 1);
+    tcg_gen_andi_i32(QREG_CC_C, QREG_CC_C, 1);
+    tcg_gen_mov_i32(QREG_CC_Z, QREG_CC_N);
+    tcg_gen_mov_i32(QREG_CC_X, QREG_CC_C);
+
+    gen_partset_reg(opsize, DREG(insn, 0), QREG_CC_N);
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+static inline void shift_reg(DisasContext *s, uint16_t insn, int opsize)
+{
+    int logical = insn & 8;
+    int left = insn & 0x100;
+    int bits = opsize_bytes(opsize) * 8;
+    TCGv reg = gen_extend(DREG(insn, 0), opsize, !logical);
+    TCGv s32;
+    TCGv_i64 t64, s64;
+
+    t64 = tcg_temp_new_i64();
+    s64 = tcg_temp_new_i64();
+    s32 = tcg_temp_new();
+
+    /* Note that m68k truncates the shift count modulo 64, not 32.
+       In addition, a 64-bit shift makes it easy to find "the last
+       bit shifted out", for the carry flag.  */
+    tcg_gen_andi_i32(s32, DREG(insn, 9), 63);
+    tcg_gen_extu_i32_i64(s64, s32);
+    tcg_gen_extu_i32_i64(t64, reg);
+
+    /* Optimistically set V=0.  Also used as a zero source below.  */
+    tcg_gen_movi_i32(QREG_CC_V, 0);
+    if (left) {
+        tcg_gen_shl_i64(t64, t64, s64);
+
+        if (opsize == OS_LONG) {
+            tcg_gen_extr_i64_i32(QREG_CC_N, QREG_CC_C, t64);
+            /* Note that C=0 if shift count is 0, and we get that for free.  */
+        } else {
+            TCGv zero = tcg_const_i32(0);
+            tcg_gen_extrl_i64_i32(QREG_CC_N, t64);
+            tcg_gen_shri_i32(QREG_CC_C, QREG_CC_N, bits);
+            tcg_gen_movcond_i32(TCG_COND_EQ, QREG_CC_C,
+                                s32, zero, zero, QREG_CC_C);
+            tcg_temp_free(zero);
+        }
+        tcg_gen_andi_i32(QREG_CC_C, QREG_CC_C, 1);
+
+        /* X = C, but only if the shift count was non-zero.  */
+        tcg_gen_movcond_i32(TCG_COND_NE, QREG_CC_X, s32, QREG_CC_V,
+                            QREG_CC_C, QREG_CC_X);
+
+        /* M68000 sets V if the most significant bit is changed at
+         * any time during the shift operation.  Do this via creating
+         * an extension of the sign bit, comparing, and discarding
+         * the bits below the sign bit.  I.e.
+         *     int64_t s = (intN_t)reg;
+         *     int64_t t = (int64_t)(intN_t)reg << count;
+         *     V = ((s ^ t) & (-1 << (bits - 1))) != 0
+         */
+        if (!logical && m68k_feature(s->env, M68K_FEATURE_M68000)) {
+            TCGv_i64 tt = tcg_const_i64(32);
+            /* if shift is greater than 32, use 32 */
+            tcg_gen_movcond_i64(TCG_COND_GT, s64, s64, tt, tt, s64);
+            tcg_temp_free_i64(tt);
+            /* Sign extend the input to 64 bits; re-do the shift.  */
+            tcg_gen_ext_i32_i64(t64, reg);
+            tcg_gen_shl_i64(s64, t64, s64);
+            /* Clear all bits that are unchanged.  */
+            tcg_gen_xor_i64(t64, t64, s64);
+            /* Ignore the bits below the sign bit.  */
+            tcg_gen_andi_i64(t64, t64, -1ULL << (bits - 1));
+            /* If any bits remain set, we have overflow.  */
+            tcg_gen_setcondi_i64(TCG_COND_NE, t64, t64, 0);
+            tcg_gen_extrl_i64_i32(QREG_CC_V, t64);
+            tcg_gen_neg_i32(QREG_CC_V, QREG_CC_V);
+        }
+    } else {
+        tcg_gen_shli_i64(t64, t64, 32);
+        if (logical) {
+            tcg_gen_shr_i64(t64, t64, s64);
+        } else {
+            tcg_gen_sar_i64(t64, t64, s64);
+        }
+        tcg_gen_extr_i64_i32(QREG_CC_C, QREG_CC_N, t64);
+
+        /* Note that C=0 if shift count is 0, and we get that for free.  */
+        tcg_gen_shri_i32(QREG_CC_C, QREG_CC_C, 31);
+
+        /* X = C, but only if the shift count was non-zero.  */
+        tcg_gen_movcond_i32(TCG_COND_NE, QREG_CC_X, s32, QREG_CC_V,
+                            QREG_CC_C, QREG_CC_X);
+    }
+    gen_ext(QREG_CC_N, QREG_CC_N, opsize, 1);
+    tcg_gen_mov_i32(QREG_CC_Z, QREG_CC_N);
+
+    tcg_temp_free(s32);
+    tcg_temp_free_i64(s64);
+    tcg_temp_free_i64(t64);
+
+    /* Write back the result.  */
+    gen_partset_reg(opsize, DREG(insn, 0), QREG_CC_N);
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+DISAS_INSN(shift8_im)
+{
+    shift_im(s, insn, OS_BYTE);
+}
+
+DISAS_INSN(shift16_im)
+{
+    shift_im(s, insn, OS_WORD);
+}
+
+DISAS_INSN(shift_im)
+{
+    shift_im(s, insn, OS_LONG);
+}
+
+DISAS_INSN(shift8_reg)
+{
+    shift_reg(s, insn, OS_BYTE);
+}
+
+DISAS_INSN(shift16_reg)
+{
+    shift_reg(s, insn, OS_WORD);
 }
 
 DISAS_INSN(shift_reg)
 {
-    TCGv reg;
-    TCGv shift;
+    shift_reg(s, insn, OS_LONG);
+}
 
-    reg = DREG(insn, 0);
-    shift = DREG(insn, 9);
-    if (insn & 0x100) {
-        gen_helper_shl_cc(reg, cpu_env, reg, shift);
+DISAS_INSN(shift_mem)
+{
+    int logical = insn & 8;
+    int left = insn & 0x100;
+    TCGv src;
+    TCGv addr;
+
+    SRC_EA(env, src, OS_WORD, !logical, &addr);
+    tcg_gen_movi_i32(QREG_CC_V, 0);
+    if (left) {
+        tcg_gen_shri_i32(QREG_CC_C, src, 15);
+        tcg_gen_shli_i32(QREG_CC_N, src, 1);
+
+        /* Note that ColdFire always clears V,
+           while M68000 sets if the most significant bit is changed at
+           any time during the shift operation */
+        if (!logical && m68k_feature(s->env, M68K_FEATURE_M68000)) {
+            src = gen_extend(src, OS_WORD, 1);
+            tcg_gen_xor_i32(QREG_CC_V, QREG_CC_N, src);
+        }
     } else {
-        if (insn & 8) {
-            gen_helper_shr_cc(reg, cpu_env, reg, shift);
+        tcg_gen_mov_i32(QREG_CC_C, src);
+        if (logical) {
+            tcg_gen_shri_i32(QREG_CC_N, src, 1);
         } else {
-            gen_helper_sar_cc(reg, cpu_env, reg, shift);
+            tcg_gen_sari_i32(QREG_CC_N, src, 1);
         }
     }
+
+    gen_ext(QREG_CC_N, QREG_CC_N, OS_WORD, 1);
+    tcg_gen_andi_i32(QREG_CC_C, QREG_CC_C, 1);
+    tcg_gen_mov_i32(QREG_CC_Z, QREG_CC_N);
+    tcg_gen_mov_i32(QREG_CC_X, QREG_CC_C);
+
+    DEST_EA(env, insn, OS_WORD, QREG_CC_N, &addr);
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+static void rotate(TCGv reg, TCGv shift, int left, int size)
+{
+    switch (size) {
+    case 8:
+        /* Replicate the 8-bit input so that a 32-bit rotate works.  */
+        tcg_gen_ext8u_i32(reg, reg);
+        tcg_gen_muli_i32(reg, reg, 0x01010101);
+        goto do_long;
+    case 16:
+        /* Replicate the 16-bit input so that a 32-bit rotate works.  */
+        tcg_gen_deposit_i32(reg, reg, reg, 16, 16);
+        goto do_long;
+    do_long:
+    default:
+        if (left) {
+            tcg_gen_rotl_i32(reg, reg, shift);
+        } else {
+            tcg_gen_rotr_i32(reg, reg, shift);
+        }
+    }
+
+    /* compute flags */
+
+    switch (size) {
+    case 8:
+        tcg_gen_ext8s_i32(reg, reg);
+        break;
+    case 16:
+        tcg_gen_ext16s_i32(reg, reg);
+        break;
+    default:
+        break;
+    }
+
+    /* QREG_CC_X is not affected */
+
+    tcg_gen_mov_i32(QREG_CC_N, reg);
+    tcg_gen_mov_i32(QREG_CC_Z, reg);
+
+    if (left) {
+        tcg_gen_andi_i32(QREG_CC_C, reg, 1);
+    } else {
+        tcg_gen_shri_i32(QREG_CC_C, reg, 31);
+    }
+
+    tcg_gen_movi_i32(QREG_CC_V, 0); /* always cleared */
+}
+
+static void rotate_x_flags(TCGv reg, TCGv X, int size)
+{
+    switch (size) {
+    case 8:
+        tcg_gen_ext8s_i32(reg, reg);
+        break;
+    case 16:
+        tcg_gen_ext16s_i32(reg, reg);
+        break;
+    default:
+        break;
+    }
+    tcg_gen_mov_i32(QREG_CC_N, reg);
+    tcg_gen_mov_i32(QREG_CC_Z, reg);
+    tcg_gen_mov_i32(QREG_CC_X, X);
+    tcg_gen_mov_i32(QREG_CC_C, X);
+    tcg_gen_movi_i32(QREG_CC_V, 0);
+}
+
+/* Result of rotate_x() is valid if 0 <= shift <= size */
+static TCGv rotate_x(TCGv reg, TCGv shift, int left, int size)
+{
+    TCGv X, shl, shr, shx, sz, zero;
+
+    sz = tcg_const_i32(size);
+
+    shr = tcg_temp_new();
+    shl = tcg_temp_new();
+    shx = tcg_temp_new();
+    if (left) {
+        tcg_gen_mov_i32(shl, shift);      /* shl = shift */
+        tcg_gen_movi_i32(shr, size + 1);
+        tcg_gen_sub_i32(shr, shr, shift); /* shr = size + 1 - shift */
+        tcg_gen_subi_i32(shx, shift, 1);  /* shx = shift - 1 */
+        /* shx = shx < 0 ? size : shx; */
+        zero = tcg_const_i32(0);
+        tcg_gen_movcond_i32(TCG_COND_LT, shx, shx, zero, sz, shx);
+        tcg_temp_free(zero);
+    } else {
+        tcg_gen_mov_i32(shr, shift);      /* shr = shift */
+        tcg_gen_movi_i32(shl, size + 1);
+        tcg_gen_sub_i32(shl, shl, shift); /* shl = size + 1 - shift */
+        tcg_gen_sub_i32(shx, sz, shift); /* shx = size - shift */
+    }
+
+    /* reg = (reg << shl) | (reg >> shr) | (x << shx); */
+
+    tcg_gen_shl_i32(shl, reg, shl);
+    tcg_gen_shr_i32(shr, reg, shr);
+    tcg_gen_or_i32(reg, shl, shr);
+    tcg_temp_free(shl);
+    tcg_temp_free(shr);
+    tcg_gen_shl_i32(shx, QREG_CC_X, shx);
+    tcg_gen_or_i32(reg, reg, shx);
+    tcg_temp_free(shx);
+
+    /* X = (reg >> size) & 1 */
+
+    X = tcg_temp_new();
+    tcg_gen_shr_i32(X, reg, sz);
+    tcg_gen_andi_i32(X, X, 1);
+    tcg_temp_free(sz);
+
+    return X;
+}
+
+/* Result of rotate32_x() is valid if 0 <= shift < 33 */
+static TCGv rotate32_x(TCGv reg, TCGv shift, int left)
+{
+    TCGv_i64 t0, shift64;
+    TCGv X, lo, hi, zero;
+
+    shift64 = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(shift64, shift);
+
+    t0 = tcg_temp_new_i64();
+
+    X = tcg_temp_new();
+    lo = tcg_temp_new();
+    hi = tcg_temp_new();
+
+    if (left) {
+        /* create [reg:X:..] */
+
+        tcg_gen_shli_i32(lo, QREG_CC_X, 31);
+        tcg_gen_concat_i32_i64(t0, lo, reg);
+
+        /* rotate */
+
+        tcg_gen_rotl_i64(t0, t0, shift64);
+        tcg_temp_free_i64(shift64);
+
+        /* result is [reg:..:reg:X] */
+
+        tcg_gen_extr_i64_i32(lo, hi, t0);
+        tcg_gen_andi_i32(X, lo, 1);
+
+        tcg_gen_shri_i32(lo, lo, 1);
+    } else {
+        /* create [..:X:reg] */
+
+        tcg_gen_concat_i32_i64(t0, reg, QREG_CC_X);
+
+        tcg_gen_rotr_i64(t0, t0, shift64);
+        tcg_temp_free_i64(shift64);
+
+        /* result is value: [X:reg:..:reg] */
+
+        tcg_gen_extr_i64_i32(lo, hi, t0);
+
+        /* extract X */
+
+        tcg_gen_shri_i32(X, hi, 31);
+
+        /* extract result */
+
+        tcg_gen_shli_i32(hi, hi, 1);
+    }
+    tcg_temp_free_i64(t0);
+    tcg_gen_or_i32(lo, lo, hi);
+    tcg_temp_free(hi);
+
+    /* if shift == 0, register and X are not affected */
+
+    zero = tcg_const_i32(0);
+    tcg_gen_movcond_i32(TCG_COND_EQ, X, shift, zero, QREG_CC_X, X);
+    tcg_gen_movcond_i32(TCG_COND_EQ, reg, shift, zero, reg, lo);
+    tcg_temp_free(zero);
+    tcg_temp_free(lo);
+
+    return X;
+}
+
+DISAS_INSN(rotate_im)
+{
+    TCGv shift;
+    int tmp;
+    int left = (insn & 0x100);
+
+    tmp = (insn >> 9) & 7;
+    if (tmp == 0) {
+        tmp = 8;
+    }
+
+    shift = tcg_const_i32(tmp);
+    if (insn & 8) {
+        rotate(DREG(insn, 0), shift, left, 32);
+    } else {
+        TCGv X = rotate32_x(DREG(insn, 0), shift, left);
+        rotate_x_flags(DREG(insn, 0), X, 32);
+        tcg_temp_free(X);
+    }
+    tcg_temp_free(shift);
+
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+DISAS_INSN(rotate8_im)
+{
+    int left = (insn & 0x100);
+    TCGv reg;
+    TCGv shift;
+    int tmp;
+
+    reg = gen_extend(DREG(insn, 0), OS_BYTE, 0);
+
+    tmp = (insn >> 9) & 7;
+    if (tmp == 0) {
+        tmp = 8;
+    }
+
+    shift = tcg_const_i32(tmp);
+    if (insn & 8) {
+        rotate(reg, shift, left, 8);
+    } else {
+        TCGv X = rotate_x(reg, shift, left, 8);
+        rotate_x_flags(reg, X, 8);
+        tcg_temp_free(X);
+    }
+    tcg_temp_free(shift);
+    gen_partset_reg(OS_BYTE, DREG(insn, 0), reg);
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+DISAS_INSN(rotate16_im)
+{
+    int left = (insn & 0x100);
+    TCGv reg;
+    TCGv shift;
+    int tmp;
+
+    reg = gen_extend(DREG(insn, 0), OS_WORD, 0);
+    tmp = (insn >> 9) & 7;
+    if (tmp == 0) {
+        tmp = 8;
+    }
+
+    shift = tcg_const_i32(tmp);
+    if (insn & 8) {
+        rotate(reg, shift, left, 16);
+    } else {
+        TCGv X = rotate_x(reg, shift, left, 16);
+        rotate_x_flags(reg, X, 16);
+        tcg_temp_free(X);
+    }
+    tcg_temp_free(shift);
+    gen_partset_reg(OS_WORD, DREG(insn, 0), reg);
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+DISAS_INSN(rotate_reg)
+{
+    TCGv reg;
+    TCGv src;
+    TCGv t0, t1;
+    int left = (insn & 0x100);
+
+    reg = DREG(insn, 0);
+    src = DREG(insn, 9);
+    /* shift in [0..63] */
+    t0 = tcg_temp_new();
+    tcg_gen_andi_i32(t0, src, 63);
+    t1 = tcg_temp_new_i32();
+    if (insn & 8) {
+        tcg_gen_andi_i32(t1, src, 31);
+        rotate(reg, t1, left, 32);
+        /* if shift == 0, clear C */
+        tcg_gen_movcond_i32(TCG_COND_EQ, QREG_CC_C,
+                            t0, QREG_CC_V /* 0 */,
+                            QREG_CC_V /* 0 */, QREG_CC_C);
+    } else {
+        TCGv X;
+        /* modulo 33 */
+        tcg_gen_movi_i32(t1, 33);
+        tcg_gen_remu_i32(t1, t0, t1);
+        X = rotate32_x(DREG(insn, 0), t1, left);
+        rotate_x_flags(DREG(insn, 0), X, 32);
+        tcg_temp_free(X);
+    }
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+DISAS_INSN(rotate8_reg)
+{
+    TCGv reg;
+    TCGv src;
+    TCGv t0, t1;
+    int left = (insn & 0x100);
+
+    reg = gen_extend(DREG(insn, 0), OS_BYTE, 0);
+    src = DREG(insn, 9);
+    /* shift in [0..63] */
+    t0 = tcg_temp_new_i32();
+    tcg_gen_andi_i32(t0, src, 63);
+    t1 = tcg_temp_new_i32();
+    if (insn & 8) {
+        tcg_gen_andi_i32(t1, src, 7);
+        rotate(reg, t1, left, 8);
+        /* if shift == 0, clear C */
+        tcg_gen_movcond_i32(TCG_COND_EQ, QREG_CC_C,
+                            t0, QREG_CC_V /* 0 */,
+                            QREG_CC_V /* 0 */, QREG_CC_C);
+    } else {
+        TCGv X;
+        /* modulo 9 */
+        tcg_gen_movi_i32(t1, 9);
+        tcg_gen_remu_i32(t1, t0, t1);
+        X = rotate_x(reg, t1, left, 8);
+        rotate_x_flags(reg, X, 8);
+        tcg_temp_free(X);
+    }
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+    gen_partset_reg(OS_BYTE, DREG(insn, 0), reg);
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+DISAS_INSN(rotate16_reg)
+{
+    TCGv reg;
+    TCGv src;
+    TCGv t0, t1;
+    int left = (insn & 0x100);
+
+    reg = gen_extend(DREG(insn, 0), OS_WORD, 0);
+    src = DREG(insn, 9);
+    /* shift in [0..63] */
+    t0 = tcg_temp_new_i32();
+    tcg_gen_andi_i32(t0, src, 63);
+    t1 = tcg_temp_new_i32();
+    if (insn & 8) {
+        tcg_gen_andi_i32(t1, src, 15);
+        rotate(reg, t1, left, 16);
+        /* if shift == 0, clear C */
+        tcg_gen_movcond_i32(TCG_COND_EQ, QREG_CC_C,
+                            t0, QREG_CC_V /* 0 */,
+                            QREG_CC_V /* 0 */, QREG_CC_C);
+    } else {
+        TCGv X;
+        /* modulo 17 */
+        tcg_gen_movi_i32(t1, 17);
+        tcg_gen_remu_i32(t1, t0, t1);
+        X = rotate_x(reg, t1, left, 16);
+        rotate_x_flags(reg, X, 16);
+        tcg_temp_free(X);
+    }
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+    gen_partset_reg(OS_WORD, DREG(insn, 0), reg);
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+DISAS_INSN(rotate_mem)
+{
+    TCGv src;
+    TCGv addr;
+    TCGv shift;
+    int left = (insn & 0x100);
+
+    SRC_EA(env, src, OS_WORD, 0, &addr);
+
+    shift = tcg_const_i32(1);
+    if (insn & 0x0200) {
+        rotate(src, shift, left, 16);
+    } else {
+        TCGv X = rotate_x(src, shift, left, 16);
+        rotate_x_flags(src, X, 16);
+        tcg_temp_free(X);
+    }
+    tcg_temp_free(shift);
+    DEST_EA(env, insn, OS_WORD, src, &addr);
     set_cc_op(s, CC_OP_FLAGS);
 }
 
@@ -3312,6 +4450,11 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(bitop_im,  08c0, ffc0);
     INSN(arith_im,  0a80, fff8, CF_ISA_A);
     INSN(arith_im,  0a00, ff00, M68000);
+    INSN(cas,       0ac0, ffc0, CAS);
+    INSN(cas,       0cc0, ffc0, CAS);
+    INSN(cas,       0ec0, ffc0, CAS);
+    INSN(cas2w,     0cfc, ffff, CAS);
+    INSN(cas2l,     0efc, ffff, CAS);
     BASE(move,      1000, f000);
     BASE(move,      2000, f000);
     BASE(move,      3000, f000);
@@ -3334,11 +4477,14 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(not,       4600, ff00, M68000);
     INSN(undef,     46c0, ffc0, M68000);
     INSN(move_to_sr, 46c0, ffc0, CF_ISA_A);
+    INSN(nbcd,      4800, ffc0, M68000);
     INSN(linkl,     4808, fff8, M68000);
     BASE(pea,       4840, ffc0);
     BASE(swap,      4840, fff8);
     INSN(bkpt,      4848, fff8, BKPT);
-    BASE(movem,     48c0, fbc0);
+    INSN(movem,     48d0, fbf8, CF_ISA_A);
+    INSN(movem,     48e8, fbf8, CF_ISA_A);
+    INSN(movem,     4880, fb80, M68000);
     BASE(ext,       4880, fff8);
     BASE(ext,       48c0, fff8);
     BASE(ext,       49c0, fff8);
@@ -3385,6 +4531,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(mvzs,      7100, f100, CF_ISA_B);
     BASE(or,        8000, f000);
     BASE(divw,      80c0, f0c0);
+    INSN(sbcd_reg,  8100, f1f8, M68000);
+    INSN(sbcd_mem,  8108, f1f8, M68000);
     BASE(addsub,    9000, f000);
     INSN(undef,     90c0, f0c0, CF_ISA_A);
     INSN(subx_reg,  9180, f1f8, CF_ISA_A);
@@ -3414,6 +4562,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(cmpa,      b1c0, f1c0, CF_ISA_A);
     INSN(cmp,       b000, f100, M68000);
     INSN(eor,       b100, f100, M68000);
+    INSN(cmpm,      b108, f138, M68000);
     INSN(cmpa,      b0c0, f0c0, M68000);
     INSN(eor,       b180, f1c0, CF_ISA_A);
     BASE(and,       c000, f000);
@@ -3421,6 +4570,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(exg_aa,    c148, f1f8, M68000);
     INSN(exg_da,    c188, f1f8, M68000);
     BASE(mulw,      c0c0, f0c0);
+    INSN(abcd_reg,  c100, f1f8, M68000);
+    INSN(abcd_mem,  c108, f1f8, M68000);
     BASE(addsub,    d000, f000);
     INSN(undef,     d0c0, f0c0, CF_ISA_A);
     INSN(addx_reg,      d180, f1f8, CF_ISA_A);
@@ -3430,6 +4581,20 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(adda,      d0c0, f0c0, M68000);
     INSN(shift_im,  e080, f0f0, CF_ISA_A);
     INSN(shift_reg, e0a0, f0f0, CF_ISA_A);
+    INSN(shift8_im, e000, f0f0, M68000);
+    INSN(shift16_im, e040, f0f0, M68000);
+    INSN(shift_im,  e080, f0f0, M68000);
+    INSN(shift8_reg, e020, f0f0, M68000);
+    INSN(shift16_reg, e060, f0f0, M68000);
+    INSN(shift_reg, e0a0, f0f0, M68000);
+    INSN(shift_mem, e0c0, fcc0, M68000);
+    INSN(rotate_im, e090, f0f0, M68000);
+    INSN(rotate8_im, e010, f0f0, M68000);
+    INSN(rotate16_im, e050, f0f0, M68000);
+    INSN(rotate_reg, e0b0, f0f0, M68000);
+    INSN(rotate8_reg, e030, f0f0, M68000);
+    INSN(rotate16_reg, e070, f0f0, M68000);
+    INSN(rotate_mem, e4c0, fcc0, M68000);
     INSN(undef_fpu, f000, f000, CF_ISA_A);
     INSN(fpu,       f200, ffc0, CF_FPU);
     INSN(fbcc,      f280, ffc0, CF_FPU);
@@ -3446,11 +4611,9 @@ void register_m68k_insns (CPUM68KState *env)
    write back the result to memory before setting the condition codes.  */
 static void disas_m68k_insn(CPUM68KState * env, DisasContext *s)
 {
-    uint16_t insn;
-
-    insn = read_im16(env, s);
-
+    uint16_t insn = read_im16(env, s);
     opcode_table[insn](env, s, insn);
+    do_writebacks(s);
 }
 
 /* generate intermediate code for basic block 'tb'.  */
@@ -3478,6 +4641,7 @@ void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
     dc->fpcr = env->fpcr;
     dc->user = (env->sr & SR_S) == 0;
     dc->done_mac = 0;
+    dc->writeback_mask = 0;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
