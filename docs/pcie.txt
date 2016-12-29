@@ -110,18 +110,18 @@ Plug only PCI Express devices into PCI Express Ports.
           -device ioh3420,id=root_port1,chassis=x,slot=y[,bus=pcie.0][,addr=z]  \
           -device <dev>,bus=root_port1
 2.2.2 Using multi-function PCI Express Root Ports:
-      -device ioh3420,id=root_port1,multifunction=on,chassis=x,slot=y[,bus=pcie.0][,addr=z.0] \
-      -device ioh3420,id=root_port2,chassis=x1,slot=y1[,bus=pcie.0][,addr=z.1] \
-      -device ioh3420,id=root_port3,chassis=x2,slot=y2[,bus=pcie.0][,addr=z.2] \
-2.2.2 Plugging a PCI Express device into a Switch:
+      -device ioh3420,id=root_port1,multifunction=on,chassis=x,addr=z.0[,slot=y][,bus=pcie.0] \
+      -device ioh3420,id=root_port2,chassis=x1,addr=z.1[,slot=y1][,bus=pcie.0] \
+      -device ioh3420,id=root_port3,chassis=x2,addr=z.2[,slot=y2][,bus=pcie.0] \
+2.2.3 Plugging a PCI Express device into a Switch:
       -device ioh3420,id=root_port1,chassis=x,slot=y[,bus=pcie.0][,addr=z]  \
       -device x3130-upstream,id=upstream_port1,bus=root_port1[,addr=x]          \
       -device xio3130-downstream,id=downstream_port1,bus=upstream_port1,chassis=x1,slot=y1[,addr=z1]] \
       -device <dev>,bus=downstream_port1
 
 Notes:
-  - (slot, chassis) pair is mandatory and must be
-     unique for each PCI Express Root Port.
+  - (slot, chassis) pair is mandatory and must be unique for each
+    PCI Express Root Port. slot defaults to 0 when not specified.
   - 'addr' parameter can be 0 for all the examples above.
 
 
