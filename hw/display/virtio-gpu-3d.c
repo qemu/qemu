@@ -291,8 +291,11 @@ static void virgl_resource_attach_backing(VirtIOGPU *g,
         return;
     }
 
-    virgl_renderer_resource_attach_iov(att_rb.resource_id,
-                                       res_iovs, att_rb.nr_entries);
+    ret = virgl_renderer_resource_attach_iov(att_rb.resource_id,
+                                             res_iovs, att_rb.nr_entries);
+
+    if (ret != 0)
+        virtio_gpu_cleanup_mapping_iov(res_iovs, att_rb.nr_entries);
 }
 
 static void virgl_resource_detach_backing(VirtIOGPU *g,
