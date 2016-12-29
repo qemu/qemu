@@ -339,13 +339,13 @@ static PortioList prep_port_list;
 /* NVRAM helpers */
 static inline uint32_t nvram_read(Nvram *nvram, uint32_t addr)
 {
-    NvramClass *k = NVRAM_GET_CLASS(sysctrl->nvram);
+    NvramClass *k = NVRAM_GET_CLASS(nvram);
     return (k->read)(nvram, addr);
 }
 
 static inline void nvram_write(Nvram *nvram, uint32_t addr, uint32_t val)
 {
-    NvramClass *k = NVRAM_GET_CLASS(sysctrl->nvram);
+    NvramClass *k = NVRAM_GET_CLASS(nvram);
     (k->write)(nvram, addr, val);
 }
 
