@@ -717,3 +717,18 @@ void pcie_dev_ser_num_init(PCIDevice *dev, uint16_t offset, uint64_t ser_num)
                         PCI_EXT_CAP_DSN_SIZEOF);
     pci_set_quad(dev->config + offset + pci_dsn_cap, ser_num);
 }
+
+void pcie_ats_init(PCIDevice *dev, uint16_t offset)
+{
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_ATS, 0x1,
+                        offset, PCI_EXT_CAP_ATS_SIZEOF);
+
+    dev->exp.ats_cap = offset;
+
+    /* Invalidate Queue Depth 0, Page Aligned Request 0 */
+    pci_set_word(dev->config + offset + PCI_ATS_CAP, 0);
+    /* STU 0, Disabled by default */
+    pci_set_word(dev->config + offset + PCI_ATS_CTRL, 0);
+
+    pci_set_word(dev->wmask + dev->exp.ats_cap + PCI_ATS_CTRL, 0x800f);
+}
