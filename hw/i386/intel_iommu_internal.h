@@ -183,6 +183,7 @@
 /* (offset >> 4) << 8 */
 #define VTD_ECAP_IRO                (DMAR_IOTLB_REG_OFFSET << 4)
 #define VTD_ECAP_QI                 (1ULL << 1)
+#define VTD_ECAP_DT                 (1ULL << 2)
 /* Interrupt Remapping support */
 #define VTD_ECAP_IR                 (1ULL << 3)
 #define VTD_ECAP_EIM                (1ULL << 4)
@@ -326,6 +327,7 @@ typedef union VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_TYPE               0xf
 #define VTD_INV_DESC_CC                 0x1 /* Context-cache Invalidate Desc */
 #define VTD_INV_DESC_IOTLB              0x2
+#define VTD_INV_DESC_DEVICE             0x3
 #define VTD_INV_DESC_IEC                0x4 /* Interrupt Entry Cache
                                                Invalidate Descriptor */
 #define VTD_INV_DESC_WAIT               0x5 /* Invalidation Wait Descriptor */
@@ -360,6 +362,13 @@ typedef union VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_IOTLB_AM(val)      ((val) & 0x3fULL)
 #define VTD_INV_DESC_IOTLB_RSVD_LO      0xffffffff0000ff00ULL
 #define VTD_INV_DESC_IOTLB_RSVD_HI      0xf80ULL
+
+/* Mask for Device IOTLB Invalidate Descriptor */
+#define VTD_INV_DESC_DEVICE_IOTLB_ADDR(val) ((val) & 0xfffffffffffff000ULL)
+#define VTD_INV_DESC_DEVICE_IOTLB_SIZE(val) ((val) & 0x1)
+#define VTD_INV_DESC_DEVICE_IOTLB_SID(val) (((val) >> 32) & 0xFFFFULL)
+#define VTD_INV_DESC_DEVICE_IOTLB_RSVD_HI 0xffeULL
+#define VTD_INV_DESC_DEVICE_IOTLB_RSVD_LO 0xffff0000ffe0fff8
 
 /* Information about page-selective IOTLB invalidate */
 struct VTDIOTLBPageInvInfo {
@@ -399,8 +408,8 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_CONTEXT_ENTRY_FPD       (1ULL << 1) /* Fault Processing Disable */
 #define VTD_CONTEXT_ENTRY_TT        (3ULL << 2) /* Translation Type */
 #define VTD_CONTEXT_TT_MULTI_LEVEL  0
-#define VTD_CONTEXT_TT_DEV_IOTLB    1
-#define VTD_CONTEXT_TT_PASS_THROUGH 2
+#define VTD_CONTEXT_TT_DEV_IOTLB    (1ULL << 2)
+#define VTD_CONTEXT_TT_PASS_THROUGH (2ULL << 2)
 /* Second Level Page Translation Pointer*/
 #define VTD_CONTEXT_ENTRY_SLPTPTR   (~0xfffULL)
 #define VTD_CONTEXT_ENTRY_RSVD_LO   (0xff0ULL | ~VTD_HAW_MASK)

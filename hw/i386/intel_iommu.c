@@ -738,11 +738,18 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
                     "context-entry hi 0x%"PRIx64 " lo 0x%"PRIx64,
                     ce->hi, ce->lo);
         return -VTD_FR_CONTEXT_ENTRY_INV;
-    } else if (ce->lo & VTD_CONTEXT_ENTRY_TT) {
-        VTD_DPRINTF(GENERAL, "error: unsupported Translation Type in "
-                    "context-entry hi 0x%"PRIx64 " lo 0x%"PRIx64,
-                    ce->hi, ce->lo);
-        return -VTD_FR_CONTEXT_ENTRY_INV;
+    } else {
+        switch (ce->lo & VTD_CONTEXT_ENTRY_TT) {
+        case VTD_CONTEXT_TT_MULTI_LEVEL:
+            /* fall through */
+        case VTD_CONTEXT_TT_DEV_IOTLB:
+            break;
+        default:
+            VTD_DPRINTF(GENERAL, "error: unsupported Translation Type in "
+                        "context-entry hi 0x%"PRIx64 " lo 0x%"PRIx64,
+                        ce->hi, ce->lo);
+            return -VTD_FR_CONTEXT_ENTRY_INV;
+        }
     }
     return 0;
 }
@@ -1438,7 +1445,61 @@ static bool vtd_process_inv_iec_desc(IntelIOMMUState *s,
     vtd_iec_notify_all(s, !inv_desc->iec.granularity,
                        inv_desc->iec.index,
                        inv_desc->iec.index_mask);
+    return true;
+}
 
+static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
+                                          VTDInvDesc *inv_desc)
+{
+    VTDAddressSpace *vtd_dev_as;
+    IOMMUTLBEntry entry;
+    struct VTDBus *vtd_bus;
+    hwaddr addr;
+    uint64_t sz;
+    uint16_t sid;
+    uint8_t devfn;
+    bool size;
+    uint8_t bus_num;
+
+    addr = VTD_INV_DESC_DEVICE_IOTLB_ADDR(inv_desc->hi);
+    sid = VTD_INV_DESC_DEVICE_IOTLB_SID(inv_desc->lo);
+    devfn = sid & 0xff;
+    bus_num = sid >> 8;
+    size = VTD_INV_DESC_DEVICE_IOTLB_SIZE(inv_desc->hi);
+
+    if ((inv_desc->lo & VTD_INV_DESC_DEVICE_IOTLB_RSVD_LO) ||
+        (inv_desc->hi & VTD_INV_DESC_DEVICE_IOTLB_RSVD_HI)) {
+        VTD_DPRINTF(GENERAL, "error: non-zero reserved field in Device "
+                    "IOTLB Invalidate Descriptor hi 0x%"PRIx64 " lo 0x%"PRIx64,
+                    inv_desc->hi, inv_desc->lo);
+        return false;
+    }
+
+    vtd_bus = vtd_find_as_from_bus_num(s, bus_num);
+    if (!vtd_bus) {
+        goto done;
+    }
+
+    vtd_dev_as = vtd_bus->dev_as[devfn];
+    if (!vtd_dev_as) {
+        goto done;
+    }
+
+    if (size) {
+        sz = 1 << (ctz64(~(addr | (VTD_PAGE_MASK_4K - 1))) + 1);
+        addr &= ~(sz - 1);
+    } else {
+        sz = VTD_PAGE_SIZE;
+    }
+
+    entry.target_as = &vtd_dev_as->as;
+    entry.addr_mask = sz - 1;
+    entry.iova = addr;
+    entry.perm = IOMMU_NONE;
+    entry.translated_addr = 0;
+    memory_region_notify_iommu(entry.target_as->root, entry);
+
+done:
     return true;
 }
 
@@ -1486,6 +1547,14 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
                     "Descriptor hi 0x%"PRIx64 " lo 0x%"PRIx64,
                     inv_desc.hi, inv_desc.lo);
         if (!vtd_process_inv_iec_desc(s, &inv_desc)) {
+            return false;
+        }
+        break;
+
+    case VTD_INV_DESC_DEVICE:
+        VTD_DPRINTF(INV, "Device IOTLB Invalidation Descriptor hi 0x%"PRIx64
+                    " lo 0x%"PRIx64, inv_desc.hi, inv_desc.lo);
+        if (!vtd_process_device_iotlb_desc(s, &inv_desc)) {
             return false;
         }
         break;
@@ -2413,6 +2482,10 @@ static void vtd_init(IntelIOMMUState *s)
             s->ecap |= VTD_ECAP_EIM;
         }
         assert(s->intr_eim != ON_OFF_AUTO_AUTO);
+    }
+
+    if (x86_iommu->dt_supported) {
+        s->ecap |= VTD_ECAP_DT;
     }
 
     vtd_reset_context_cache(s);
