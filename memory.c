@@ -1603,6 +1603,11 @@ static void memory_region_update_iommu_notify_flags(MemoryRegion *mr)
 void memory_region_register_iommu_notifier(MemoryRegion *mr,
                                            IOMMUNotifier *n)
 {
+    if (mr->alias) {
+        memory_region_register_iommu_notifier(mr->alias, n);
+        return;
+    }
+
     /* We need to register for at least one bitfield */
     assert(n->notifier_flags != IOMMU_NOTIFIER_NONE);
     QLIST_INSERT_HEAD(&mr->iommu_notify, n, node);
@@ -1643,6 +1648,10 @@ void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
 void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
                                              IOMMUNotifier *n)
 {
+    if (mr->alias) {
+        memory_region_unregister_iommu_notifier(mr->alias, n);
+        return;
+    }
     QLIST_REMOVE(n, node);
     memory_region_update_iommu_notify_flags(mr);
 }
