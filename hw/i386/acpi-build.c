@@ -2575,6 +2575,7 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
 
     AcpiTableDmar *dmar;
     AcpiDmarHardwareUnit *drhd;
+    AcpiDmarRootPortATS *atsr;
     uint8_t dmar_flags = 0;
     X86IOMMUState *iommu = x86_iommu_get_default();
     AcpiDmarDeviceScope *scope = NULL;
@@ -2607,6 +2608,14 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     scope->bus = Q35_PSEUDO_BUS_PLATFORM;
     scope->path[0].device = PCI_SLOT(Q35_PSEUDO_DEVFN_IOAPIC);
     scope->path[0].function = PCI_FUNC(Q35_PSEUDO_DEVFN_IOAPIC);
+
+    if (iommu->dt_supported) {
+        atsr = acpi_data_push(table_data, sizeof(*atsr));
+        atsr->type = cpu_to_le16(ACPI_DMAR_TYPE_ATSR);
+        atsr->length = cpu_to_le16(sizeof(*atsr));
+        atsr->flags = ACPI_DMAR_ATSR_ALL_PORTS;
+        atsr->pci_segment = cpu_to_le16(0);
+    }
 
     build_header(linker, table_data, (void *)(table_data->data + dmar_start),
                  "DMAR", table_data->len - dmar_start, 1, NULL, NULL);

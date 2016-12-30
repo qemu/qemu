@@ -627,8 +627,20 @@ struct AcpiDmarHardwareUnit {
 } QEMU_PACKED;
 typedef struct AcpiDmarHardwareUnit AcpiDmarHardwareUnit;
 
+/* Type 2: Root Port ATS Capability Reporting Structure */
+struct AcpiDmarRootPortATS {
+    uint16_t type;
+    uint16_t length;
+    uint8_t flags;
+    uint8_t reserved;
+    uint16_t pci_segment;
+    AcpiDmarDeviceScope scope[0];
+} QEMU_PACKED;
+typedef struct AcpiDmarRootPortATS AcpiDmarRootPortATS;
+
 /* Masks for Flags field above */
 #define ACPI_DMAR_INCLUDE_PCI_ALL   1
+#define ACPI_DMAR_ATSR_ALL_PORTS    1
 
 /*
  * Input Output Remapping Table (IORT)
