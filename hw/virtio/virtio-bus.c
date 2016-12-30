@@ -28,6 +28,7 @@
 #include "hw/qdev.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio.h"
+#include "exec/address-spaces.h"
 
 /* #define DEBUG_VIRTIO_BUS */
 
@@ -60,6 +61,13 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
 
     if (klass->device_plugged != NULL) {
         klass->device_plugged(qbus->parent, errp);
+    }
+
+    if (klass->get_dma_as != NULL &&
+        virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
+        vdev->dma_as = klass->get_dma_as(qbus->parent);
+    } else {
+        vdev->dma_as = &address_space_memory;
     }
 }
 

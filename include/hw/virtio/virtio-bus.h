@@ -88,6 +88,7 @@ typedef struct VirtioBusClass {
      * Note that changing this will break migration for this transport.
      */
     bool has_variable_vring_alignment;
+    AddressSpace *(*get_dma_as)(DeviceState *d);
 } VirtioBusClass;
 
 struct VirtioBusState {

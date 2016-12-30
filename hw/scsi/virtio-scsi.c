@@ -198,12 +198,14 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     SCSIBus *bus = sreq->bus;
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
     VirtIOSCSIReq *req;
     uint32_t n;
 
     qemu_get_be32s(f, &n);
     assert(n < vs->conf.num_queues);
-    req = qemu_get_virtqueue_element(f, sizeof(VirtIOSCSIReq) + vs->cdb_size);
+    req = qemu_get_virtqueue_element(vdev, f,
+                                     sizeof(VirtIOSCSIReq) + vs->cdb_size);
     virtio_scsi_init_req(s, vs->cmd_vqs[n], req);
 
     if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICmdReq) + vs->cdb_size,
