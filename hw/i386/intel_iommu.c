@@ -2344,6 +2344,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
     uintptr_t key = (uintptr_t)bus;
     VTDBus *vtd_bus = g_hash_table_lookup(s->vtd_as_by_busptr, &key);
     VTDAddressSpace *vtd_dev_as;
+    char name[128];
 
     if (!vtd_bus) {
         /* No corresponding free() */
@@ -2357,6 +2358,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
     vtd_dev_as = vtd_bus->dev_as[devfn];
 
     if (!vtd_dev_as) {
+        snprintf(name, sizeof(name), "intel_iommu_devfn_%d", devfn);
         vtd_bus->dev_as[devfn] = vtd_dev_as = g_malloc0(sizeof(VTDAddressSpace));
 
         vtd_dev_as->bus = bus;
@@ -2371,7 +2373,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         memory_region_add_subregion(&vtd_dev_as->iommu, VTD_INTERRUPT_ADDR_FIRST,
                                     &vtd_dev_as->iommu_ir);
         address_space_init(&vtd_dev_as->as,
-                           &vtd_dev_as->iommu, "intel_iommu");
+                           &vtd_dev_as->iommu, name);
     }
     return vtd_dev_as;
 }
