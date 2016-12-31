@@ -521,11 +521,22 @@ static const MemoryRegionOps pl041_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int pl041_init(SysBusDevice *dev)
+static void pl041_init(Object *obj)
 {
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     PL041State *s = PL041(dev);
 
     DBG_L1("pl041_init 0x%08x\n", (uint32_t)s);
+
+    /* Connect the device to the sysbus */
+    memory_region_init_io(&s->iomem, obj, &pl041_ops, s, "pl041", 0x1000);
+    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_irq(dev, &s->irq);
+}
+
+static void pl041_realize(DeviceState *dev, Error **errp)
+{
+    PL041State *s = PL041(dev);
 
     /* Check the device properties */
     switch (s->fifo_depth) {
@@ -545,18 +556,10 @@ static int pl041_init(SysBusDevice *dev)
         qemu_log_mask(LOG_UNIMP,
                       "pl041: unsupported non-compact fifo depth [%i]\n",
                       s->fifo_depth);
-        return -1;
     }
-
-    /* Connect the device to the sysbus */
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl041_ops, s, "pl041", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
 
     /* Init the codec */
     lm4549_init(&s->codec, &pl041_request_data, (void *)s);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_pl041_regfile = {
@@ -627,9 +630,8 @@ static Property pl041_device_properties[] = {
 static void pl041_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pl041_init;
+    dc->realize = pl041_realize;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->reset = pl041_device_reset;
     dc->vmsd = &vmstate_pl041;
@@ -640,6 +642,7 @@ static const TypeInfo pl041_device_info = {
     .name          = TYPE_PL041,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL041State),
+    .instance_init = pl041_init,
     .class_init    = pl041_device_class_init,
 };
 
