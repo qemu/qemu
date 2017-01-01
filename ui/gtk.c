@@ -2171,6 +2171,8 @@ static gboolean gtkinit;
 
 void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 {
+    VirtualConsole *vc;
+
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     char *filename;
     GdkDisplay *window_display;
@@ -2249,9 +2251,11 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     }
 #endif
 
+    vc = gd_vc_find_current(s);
+    gtk_widget_set_sensitive(s->view_menu, vc != NULL);
 #ifdef CONFIG_VTE
     gtk_widget_set_sensitive(s->copy_item,
-                             gd_vc_find_current(s)->type == GD_VC_VTE);
+                             vc && vc->type == GD_VC_VTE);
 #endif
 
     if (full_screen) {
