@@ -416,7 +416,7 @@ virtio_crypto_sym_op_helper(VirtIODevice *vdev,
     uint32_t hash_start_src_offset = 0, len_to_hash = 0;
     uint32_t cipher_start_src_offset = 0, len_to_cipher = 0;
 
-    size_t max_len, curr_size = 0;
+    uint64_t max_len, curr_size = 0;
     size_t s;
 
     /* Plain cipher */
@@ -441,7 +441,7 @@ virtio_crypto_sym_op_helper(VirtIODevice *vdev,
         return NULL;
     }
 
-    max_len = iv_len + aad_len + src_len + dst_len + hash_result_len;
+    max_len = (uint64_t)iv_len + aad_len + src_len + dst_len + hash_result_len;
     if (unlikely(max_len > vcrypto->conf.max_size)) {
         virtio_error(vdev, "virtio-crypto too big length");
         return NULL;
