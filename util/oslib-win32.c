@@ -327,6 +327,7 @@ char *qemu_get_exec_dir(void)
     return g_strdup(exec_dir);
 }
 
+#if !GLIB_CHECK_VERSION(2, 50, 0)
 /*
  * The original implementation of g_poll from glib has a problem on Windows
  * when using timeouts < 10 ms.
@@ -530,6 +531,7 @@ gint g_poll(GPollFD *fds, guint nfds, gint timeout)
 
     return retval;
 }
+#endif
 
 int getpagesize(void)
 {
