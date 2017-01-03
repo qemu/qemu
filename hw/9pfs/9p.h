@@ -230,6 +230,7 @@ typedef struct V9fsState
     enum p9_proto_version proto_version;
     int32_t msize;
     V9fsPDU pdus[MAX_REQ];
+    const struct V9fsTransport *transport;
     /*
      * lock ensuring atomic path update
      * on rename.
@@ -342,5 +343,23 @@ V9fsPDU *pdu_alloc(V9fsState *s);
 void pdu_free(V9fsPDU *pdu);
 void pdu_submit(V9fsPDU *pdu);
 void v9fs_reset(V9fsState *s);
+
+struct V9fsTransport {
+    ssize_t     (*pdu_vmarshal)(V9fsPDU *pdu, size_t offset, const char *fmt,
+                                va_list ap);
+    ssize_t     (*pdu_vunmarshal)(V9fsPDU *pdu, size_t offset, const char *fmt,
+                                  va_list ap);
+    void        (*init_iov_from_pdu)(V9fsPDU *pdu, struct iovec **piov,
+                                     unsigned int *pniov, bool is_write);
+    void        (*push_and_notify)(V9fsPDU *pdu);
+};
+
+static inline int v9fs_register_transport(V9fsState *s,
+        const struct V9fsTransport *t)
+{
+    assert(!s->transport);
+    s->transport = t;
+    return 0;
+}
 
 #endif

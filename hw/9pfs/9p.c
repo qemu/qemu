@@ -47,7 +47,7 @@ ssize_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    ret = virtio_pdu_vmarshal(pdu, offset, fmt, ap);
+    ret = pdu->s->transport->pdu_vmarshal(pdu, offset, fmt, ap);
     va_end(ap);
 
     return ret;
@@ -59,7 +59,7 @@ ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    ret = virtio_pdu_vunmarshal(pdu, offset, fmt, ap);
+    ret = pdu->s->transport->pdu_vunmarshal(pdu, offset, fmt, ap);
     va_end(ap);
 
     return ret;
@@ -67,7 +67,7 @@ ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
 
 static void pdu_push_and_notify(V9fsPDU *pdu)
 {
-    virtio_9p_push_and_notify(pdu);
+    pdu->s->transport->push_and_notify(pdu);
 }
 
 static int omode_to_uflags(int8_t mode)
@@ -1751,7 +1751,7 @@ static void v9fs_init_qiov_from_pdu(QEMUIOVector *qiov, V9fsPDU *pdu,
     struct iovec *iov;
     unsigned int niov;
 
-    virtio_init_iov_from_pdu(pdu, &iov, &niov, is_write);
+    pdu->s->transport->init_iov_from_pdu(pdu, &iov, &niov, is_write);
 
     qemu_iovec_init_external(&elem, iov, niov);
     qemu_iovec_init(qiov, niov);

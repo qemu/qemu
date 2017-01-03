@@ -14,15 +14,6 @@ typedef struct V9fsVirtioState
     V9fsState state;
 } V9fsVirtioState;
 
-void virtio_9p_push_and_notify(V9fsPDU *pdu);
-
-ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
-                            const char *fmt, va_list ap);
-ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
-                              const char *fmt, va_list ap);
-void virtio_init_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
-                              unsigned int *pniov, bool is_write);
-
 #define TYPE_VIRTIO_9P "virtio-9p-device"
 #define VIRTIO_9P(obj) \
         OBJECT_CHECK(V9fsVirtioState, (obj), TYPE_VIRTIO_9P)
