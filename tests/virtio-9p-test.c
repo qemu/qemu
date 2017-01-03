@@ -334,6 +334,45 @@ static void v9fs_rattach(P9Req *req, v9fs_qid *qid)
     v9fs_req_free(req);
 }
 
+/* size[4] Twalk tag[2] fid[4] newfid[4] nwname[2] nwname*(wname[s]) */
+static P9Req *v9fs_twalk(QVirtIO9P *v9p, uint32_t fid, uint32_t newfid,
+                         uint16_t nwname, char *const wnames[])
+{
+    P9Req *req;
+    int i;
+    uint32_t size = 4 + 4 + 2;
+
+    for (i = 0; i < nwname; i++) {
+        size += v9fs_string_size(wnames[i]);
+    }
+    req = v9fs_req_init(v9p,  size, P9_TWALK, ++(v9p->p9_req_tag));
+    v9fs_uint32_write(req, fid);
+    v9fs_uint32_write(req, newfid);
+    v9fs_uint16_write(req, nwname);
+    for (i = 0; i < nwname; i++) {
+        v9fs_string_write(req, wnames[i]);
+    }
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rwalk tag[2] nwqid[2] nwqid*(wqid[13]) */
+static void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid)
+{
+    uint16_t local_nwqid;
+
+    v9fs_req_recv(req, P9_RWALK);
+    v9fs_uint16_read(req, &local_nwqid);
+    if (nwqid) {
+        *nwqid = local_nwqid;
+    }
+    if (wqid) {
+        *wqid = g_malloc(local_nwqid * 13);
+        v9fs_memread(req, *wqid, local_nwqid * 13);
+    }
+    v9fs_req_free(req);
+}
+
 static void fs_version(QVirtIO9P *v9p)
 {
     const char *version = "9P2000.L";
@@ -356,6 +395,36 @@ static void fs_attach(QVirtIO9P *v9p)
     fs_version(v9p);
     req = v9fs_tattach(v9p, 0, getuid());
     v9fs_rattach(req, NULL);
+}
+
+static void fs_walk(QVirtIO9P *v9p)
+{
+    char *wnames[P9_MAXWELEM], *paths[P9_MAXWELEM];
+    char *last_path = v9p->test_share;
+    uint16_t nwqid;
+    v9fs_qid *wqid;
+    int i;
+    P9Req *req;
+
+    for (i = 0; i < P9_MAXWELEM; i++) {
+        wnames[i] = g_strdup_printf("%s%d", __func__, i);
+        last_path = paths[i] = g_strdup_printf("%s/%s", last_path, wnames[i]);
+        g_assert(!mkdir(paths[i], 0700));
+    }
+
+    fs_attach(v9p);
+    req = v9fs_twalk(v9p, 0, 1, P9_MAXWELEM, wnames);
+    v9fs_rwalk(req, &nwqid, &wqid);
+
+    g_assert_cmpint(nwqid, ==, P9_MAXWELEM);
+
+    for (i = 0; i < P9_MAXWELEM; i++) {
+        rmdir(paths[P9_MAXWELEM - i - 1]);
+        g_free(paths[P9_MAXWELEM - i - 1]);
+        g_free(wnames[i]);
+    }
+
+    g_free(wqid);
 }
 
 typedef void (*v9fs_test_fn)(QVirtIO9P *v9p);
@@ -383,6 +452,7 @@ int main(int argc, char **argv)
     v9fs_qtest_pci_add("/virtio/9p/pci/config", pci_config);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/version/basic", fs_version);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/attach/basic", fs_attach);
+    v9fs_qtest_pci_add("/virtio/9p/pci/fs/walk/basic", fs_walk);
 
     return g_test_run();
 }
