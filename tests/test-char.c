@@ -385,6 +385,51 @@ static void char_pipe_test(void)
 }
 #endif
 
+static void char_udp_test(void)
+{
+    struct sockaddr_in addr = { 0, }, other;
+    SocketIdleData d = { 0, };
+    Chardev *chr;
+    CharBackend be;
+    socklen_t alen = sizeof(addr);
+    int ret, sock = qemu_socket(PF_INET, SOCK_DGRAM, 0);
+    char buf[10];
+    char *tmp;
+
+    g_assert_cmpint(sock, >, 0);
+    addr.sin_family = AF_INET ;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = 0;
+    ret = bind(sock, (struct sockaddr *)&addr, sizeof(addr));
+    g_assert_cmpint(ret, ==, 0);
+    ret = getsockname(sock, (struct sockaddr *)&addr, &alen);
+    g_assert_cmpint(ret, ==, 0);
+
+    tmp = g_strdup_printf("udp:127.0.0.1:%d",
+                          ntohs(addr.sin_port));
+    chr = qemu_chr_new("client", tmp);
+    g_assert_nonnull(chr);
+
+    d.chr = chr;
+    qemu_chr_fe_init(&be, chr, &error_abort);
+    qemu_chr_fe_set_handlers(&be, socket_can_read_hello, socket_read_hello,
+                             NULL, &d, NULL, true);
+    ret = qemu_chr_write_all(chr, (uint8_t *)"hello", 5);
+    g_assert_cmpint(ret, ==, 5);
+
+    alen = sizeof(addr);
+    ret = recvfrom(sock, buf, sizeof(buf), 0,
+                   (struct sockaddr *)&other, &alen);
+    g_assert_cmpint(ret, ==, 5);
+    ret = sendto(sock, buf, 5, 0, (struct sockaddr *)&other, alen);
+    g_assert_cmpint(ret, ==, 5);
+
+    main_loop();
+
+    close(sock);
+    g_free(tmp);
+}
+
 static void char_file_test(void)
 {
     char *tmp_path = g_dir_make_tmp("qemu-test-char.XXXXXX", NULL);
@@ -529,6 +574,7 @@ int main(int argc, char **argv)
 #endif
     g_test_add_func("/char/file", char_file_test);
     g_test_add_func("/char/socket", char_socket_test);
+    g_test_add_func("/char/udp", char_udp_test);
 
     return g_test_run();
 }
