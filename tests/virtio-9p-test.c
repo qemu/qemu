@@ -25,6 +25,7 @@ typedef struct {
     QOSState *qs;
     QVirtQueue *vq;
     char *test_share;
+    uint16_t p9_req_tag;
 } QVirtIO9P;
 
 static QVirtIO9P *qvirtio_9p_start(const char *driver)
@@ -304,6 +305,35 @@ static void v9fs_rversion(P9Req *req, uint16_t *len, char **version)
     v9fs_req_free(req);
 }
 
+/* size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s] n_uname[4] */
+static P9Req *v9fs_tattach(QVirtIO9P *v9p, uint32_t fid, uint32_t n_uname)
+{
+    const char *uname = ""; /* ignored by QEMU */
+    const char *aname = ""; /* ignored by QEMU */
+    P9Req *req = v9fs_req_init(v9p, 4 + 4 + 2 + 2 + 4, P9_TATTACH,
+                               ++(v9p->p9_req_tag));
+
+    v9fs_uint32_write(req, fid);
+    v9fs_uint32_write(req, P9_NOFID);
+    v9fs_string_write(req, uname);
+    v9fs_string_write(req, aname);
+    v9fs_uint32_write(req, n_uname);
+    v9fs_req_send(req);
+    return req;
+}
+
+typedef char v9fs_qid[13];
+
+/* size[4] Rattach tag[2] qid[13] */
+static void v9fs_rattach(P9Req *req, v9fs_qid *qid)
+{
+    v9fs_req_recv(req, P9_RATTACH);
+    if (qid) {
+        v9fs_memread(req, qid, 13);
+    }
+    v9fs_req_free(req);
+}
+
 static void fs_version(QVirtIO9P *v9p)
 {
     const char *version = "9P2000.L";
@@ -317,6 +347,15 @@ static void fs_version(QVirtIO9P *v9p)
     g_assert_cmpmem(server_version, server_len, version, strlen(version));
 
     g_free(server_version);
+}
+
+static void fs_attach(QVirtIO9P *v9p)
+{
+    P9Req *req;
+
+    fs_version(v9p);
+    req = v9fs_tattach(v9p, 0, getuid());
+    v9fs_rattach(req, NULL);
 }
 
 typedef void (*v9fs_test_fn)(QVirtIO9P *v9p);
@@ -343,6 +382,7 @@ int main(int argc, char **argv)
     v9fs_qtest_pci_add("/virtio/9p/pci/nop", NULL);
     v9fs_qtest_pci_add("/virtio/9p/pci/config", pci_config);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/version/basic", fs_version);
+    v9fs_qtest_pci_add("/virtio/9p/pci/fs/attach/basic", fs_attach);
 
     return g_test_run();
 }
