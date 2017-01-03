@@ -349,8 +349,10 @@ struct V9fsTransport {
                                 va_list ap);
     ssize_t     (*pdu_vunmarshal)(V9fsPDU *pdu, size_t offset, const char *fmt,
                                   va_list ap);
-    void        (*init_iov_from_pdu)(V9fsPDU *pdu, struct iovec **piov,
-                                     unsigned int *pniov, bool is_write);
+    void        (*init_in_iov_from_pdu)(V9fsPDU *pdu, struct iovec **piov,
+                                        unsigned int *pniov, size_t size);
+    void        (*init_out_iov_from_pdu)(V9fsPDU *pdu, struct iovec **piov,
+                                         unsigned int *pniov);
     void        (*push_and_notify)(V9fsPDU *pdu);
 };
 

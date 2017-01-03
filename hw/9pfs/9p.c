@@ -1652,7 +1652,11 @@ static void v9fs_init_qiov_from_pdu(QEMUIOVector *qiov, V9fsPDU *pdu,
     struct iovec *iov;
     unsigned int niov;
 
-    pdu->s->transport->init_iov_from_pdu(pdu, &iov, &niov, is_write);
+    if (is_write) {
+        pdu->s->transport->init_out_iov_from_pdu(pdu, &iov, &niov);
+    } else {
+        pdu->s->transport->init_in_iov_from_pdu(pdu, &iov, &niov, size);
+    }
 
     qemu_iovec_init_external(&elem, iov, niov);
     qemu_iovec_init(qiov, niov);
