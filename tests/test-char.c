@@ -3,9 +3,11 @@
 
 #include "qemu-common.h"
 #include "qemu/config-file.h"
+#include "qemu/sockets.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
+#include "qom/qom-qobject.h"
 #include "qmp-commands.h"
 
 static bool quit;
@@ -16,7 +18,6 @@ typedef struct FeHandler {
     char read_buf[128];
 } FeHandler;
 
-#ifndef _WIN32
 static void main_loop(void)
 {
     bool nonblocking;
@@ -28,7 +29,6 @@ static void main_loop(void)
         last_io = main_loop_wait(nonblocking);
     } while (!quit);
 }
-#endif
 
 static int fe_can_read(void *opaque)
 {
@@ -208,6 +208,114 @@ static void char_mux_test(void)
 
     qemu_chr_fe_deinit(&chr_be1);
     qemu_chr_fe_deinit(&chr_be2);
+    object_unparent(OBJECT(chr));
+}
+
+typedef struct SocketIdleData {
+    GMainLoop *loop;
+    Chardev *chr;
+    bool conn_expected;
+    CharBackend *be;
+    CharBackend *client_be;
+} SocketIdleData;
+
+static gboolean char_socket_test_idle(gpointer user_data)
+{
+    SocketIdleData *data = user_data;
+
+    if (object_property_get_bool(OBJECT(data->chr), "connected", NULL)
+        == data->conn_expected) {
+        quit = true;
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static void socket_read(void *opaque, const uint8_t *buf, int size)
+{
+    SocketIdleData *data = opaque;
+
+    g_assert_cmpint(size, ==, 1);
+    g_assert_cmpint(*buf, ==, 'Z');
+
+    size = qemu_chr_fe_write(data->be, (const uint8_t *)"hello", 5);
+    g_assert_cmpint(size, ==, 5);
+}
+
+static int socket_can_read(void *opaque)
+{
+    return 10;
+}
+
+static void socket_read_hello(void *opaque, const uint8_t *buf, int size)
+{
+    g_assert_cmpint(size, ==, 5);
+    g_assert(strncmp((char *)buf, "hello", 5) == 0);
+
+    quit = true;
+}
+
+static int socket_can_read_hello(void *opaque)
+{
+    return 10;
+}
+
+static void char_socket_test(void)
+{
+    Chardev *chr = qemu_chr_new("server", "tcp:127.0.0.1:0,server,nowait");
+    Chardev *chr_client;
+    QObject *addr;
+    QDict *qdict, *data;
+    const char *port;
+    SocketIdleData d = { .chr = chr };
+    CharBackend be;
+    CharBackend client_be;
+    char *tmp;
+
+    d.be = &be;
+    d.client_be = &be;
+
+    g_assert_nonnull(chr);
+    g_assert(!object_property_get_bool(OBJECT(chr), "connected", &error_abort));
+
+    addr = object_property_get_qobject(OBJECT(chr), "addr", &error_abort);
+    qdict = qobject_to_qdict(addr);
+    data = qdict_get_qdict(qdict, "data");
+    port = qdict_get_str(data, "port");
+    tmp = g_strdup_printf("tcp:127.0.0.1:%s", port);
+    QDECREF(qdict);
+
+    qemu_chr_fe_init(&be, chr, &error_abort);
+    qemu_chr_fe_set_handlers(&be, socket_can_read, socket_read,
+                             NULL, &d, NULL, true);
+
+    chr_client = qemu_chr_new("client", tmp);
+    qemu_chr_fe_init(&client_be, chr_client, &error_abort);
+    qemu_chr_fe_set_handlers(&client_be, socket_can_read_hello,
+                             socket_read_hello,
+                             NULL, &d, NULL, true);
+    g_free(tmp);
+
+    d.conn_expected = true;
+    guint id = g_idle_add(char_socket_test_idle, &d);
+    g_source_set_name_by_id(id, "test-idle");
+    g_assert_cmpint(id, >, 0);
+    main_loop();
+
+    g_assert(object_property_get_bool(OBJECT(chr), "connected", &error_abort));
+    g_assert(object_property_get_bool(OBJECT(chr_client),
+                                      "connected", &error_abort));
+
+    qemu_chr_write_all(chr_client, (const uint8_t *)"Z", 1);
+    main_loop();
+
+    object_unparent(OBJECT(chr_client));
+
+    d.conn_expected = false;
+    g_idle_add(char_socket_test_idle, &d);
+    main_loop();
+
     object_unparent(OBJECT(chr));
 }
 
@@ -401,6 +509,7 @@ static void char_invalid_test(void)
 int main(int argc, char **argv)
 {
     qemu_init_main_loop(&error_abort);
+    socket_init();
 
     g_test_init(&argc, &argv, NULL);
 
@@ -419,6 +528,7 @@ int main(int argc, char **argv)
     g_test_add_func("/char/pipe", char_pipe_test);
 #endif
     g_test_add_func("/char/file", char_file_test);
+    g_test_add_func("/char/socket", char_socket_test);
 
     return g_test_run();
 }
