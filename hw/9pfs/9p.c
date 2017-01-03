@@ -1633,14 +1633,39 @@ out_nofid:
     pdu_complete(pdu, err);
 }
 
+/*
+ * Create a QEMUIOVector for a sub-region of PDU iovecs
+ *
+ * @qiov:       uninitialized QEMUIOVector
+ * @skip:       number of bytes to skip from beginning of PDU
+ * @size:       number of bytes to include
+ * @is_write:   true - write, false - read
+ *
+ * The resulting QEMUIOVector has heap-allocated iovecs and must be cleaned up
+ * with qemu_iovec_destroy().
+ */
+static void v9fs_init_qiov_from_pdu(QEMUIOVector *qiov, V9fsPDU *pdu,
+                                    size_t skip, size_t size,
+                                    bool is_write)
+{
+    QEMUIOVector elem;
+    struct iovec *iov;
+    unsigned int niov;
+
+    pdu->s->transport->init_iov_from_pdu(pdu, &iov, &niov, is_write);
+
+    qemu_iovec_init_external(&elem, iov, niov);
+    qemu_iovec_init(qiov, niov);
+    qemu_iovec_concat(qiov, &elem, skip, size);
+}
+
 static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
                            uint64_t off, uint32_t max_count)
 {
     ssize_t err;
     size_t offset = 7;
     uint64_t read_count;
-    V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
-    VirtQueueElement *elem = v->elems[pdu->idx];
+    QEMUIOVector qiov_full;
 
     if (fidp->fs.xattr.len < off) {
         read_count = 0;
@@ -1656,9 +1681,11 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
     }
     offset += err;
 
-    err = v9fs_pack(elem->in_sg, elem->in_num, offset,
+    v9fs_init_qiov_from_pdu(&qiov_full, pdu, 0, read_count, false);
+    err = v9fs_pack(qiov_full.iov, qiov_full.niov, offset,
                     ((char *)fidp->fs.xattr.value) + off,
                     read_count);
+    qemu_iovec_destroy(&qiov_full);
     if (err < 0) {
         return err;
     }
@@ -1730,32 +1757,6 @@ static int coroutine_fn v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         return err;
     }
     return count;
-}
-
-/*
- * Create a QEMUIOVector for a sub-region of PDU iovecs
- *
- * @qiov:       uninitialized QEMUIOVector
- * @skip:       number of bytes to skip from beginning of PDU
- * @size:       number of bytes to include
- * @is_write:   true - write, false - read
- *
- * The resulting QEMUIOVector has heap-allocated iovecs and must be cleaned up
- * with qemu_iovec_destroy().
- */
-static void v9fs_init_qiov_from_pdu(QEMUIOVector *qiov, V9fsPDU *pdu,
-                                    size_t skip, size_t size,
-                                    bool is_write)
-{
-    QEMUIOVector elem;
-    struct iovec *iov;
-    unsigned int niov;
-
-    pdu->s->transport->init_iov_from_pdu(pdu, &iov, &niov, is_write);
-
-    qemu_iovec_init_external(&elem, iov, niov);
-    qemu_iovec_init(qiov, niov);
-    qemu_iovec_concat(qiov, &elem, skip, size);
 }
 
 static void coroutine_fn v9fs_read(void *opaque)
