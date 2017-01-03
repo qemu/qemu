@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include <glib/gstdio.h>
 
 #include "qemu-common.h"
 #include "qemu/config-file.h"
@@ -7,11 +8,27 @@
 #include "qapi/error.h"
 #include "qmp-commands.h"
 
+static bool quit;
+
 typedef struct FeHandler {
     int read_count;
     int last_event;
     char read_buf[128];
 } FeHandler;
+
+#ifndef _WIN32
+static void main_loop(void)
+{
+    bool nonblocking;
+    int last_io = 0;
+
+    quit = false;
+    do {
+        nonblocking = last_io > 0;
+        last_io = main_loop_wait(nonblocking);
+    } while (!quit);
+}
+#endif
 
 static int fe_can_read(void *opaque)
 {
@@ -28,6 +45,7 @@ static void fe_read(void *opaque, const uint8_t *buf, int size)
 
     memcpy(h->read_buf + h->read_count, buf, size);
     h->read_count += size;
+    quit = true;
 }
 
 static void fe_event(void *opaque, int event)
@@ -35,6 +53,7 @@ static void fe_event(void *opaque, int event)
     FeHandler *h = opaque;
 
     h->last_event = event;
+    quit = true;
 }
 
 #ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
@@ -192,6 +211,72 @@ static void char_mux_test(void)
     object_unparent(OBJECT(chr));
 }
 
+#ifndef _WIN32
+static void char_pipe_test(void)
+{
+    gchar *tmp_path = g_dir_make_tmp("qemu-test-char.XXXXXX", NULL);
+    gchar *tmp, *in, *out, *pipe = g_build_filename(tmp_path, "pipe", NULL);
+    Chardev *chr;
+    CharBackend be;
+    int ret, fd;
+    char buf[10];
+    FeHandler fe = { 0, };
+
+    in = g_strdup_printf("%s.in", pipe);
+    if (mkfifo(in, 0600) < 0) {
+        abort();
+    }
+    out = g_strdup_printf("%s.out", pipe);
+    if (mkfifo(out, 0600) < 0) {
+        abort();
+    }
+
+    tmp = g_strdup_printf("pipe:%s", pipe);
+    chr = qemu_chr_new("pipe", tmp);
+    g_assert_nonnull(chr);
+    g_free(tmp);
+
+    qemu_chr_fe_init(&be, chr, &error_abort);
+
+    ret = qemu_chr_fe_write(&be, (void *)"pipe-out", 9);
+    g_assert_cmpint(ret, ==, 9);
+
+    fd = open(out, O_RDWR);
+    ret = read(fd, buf, sizeof(buf));
+    g_assert_cmpint(ret, ==, 9);
+    g_assert_cmpstr(buf, ==, "pipe-out");
+    close(fd);
+
+    fd = open(in, O_WRONLY);
+    ret = write(fd, "pipe-in", 8);
+    g_assert_cmpint(ret, ==, 8);
+    close(fd);
+
+    qemu_chr_fe_set_handlers(&be,
+                             fe_can_read,
+                             fe_read,
+                             fe_event,
+                             &fe,
+                             NULL, true);
+
+    main_loop();
+
+    g_assert_cmpint(fe.read_count, ==, 8);
+    g_assert_cmpstr(fe.read_buf, ==, "pipe-in");
+
+    qemu_chr_fe_deinit(&be);
+    object_unparent(OBJECT(chr));
+
+    g_assert(g_unlink(in) == 0);
+    g_assert(g_unlink(out) == 0);
+    g_assert(g_rmdir(tmp_path) == 0);
+    g_free(in);
+    g_free(out);
+    g_free(tmp_path);
+    g_free(pipe);
+}
+#endif
+
 static void char_null_test(void)
 {
     Error *err = NULL;
@@ -245,6 +330,8 @@ static void char_invalid_test(void)
 
 int main(int argc, char **argv)
 {
+    qemu_init_main_loop(&error_abort);
+
     g_test_init(&argc, &argv, NULL);
 
     module_call_init(MODULE_INIT_QOM);
@@ -257,6 +344,9 @@ int main(int argc, char **argv)
 #ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
     g_test_add_func("/char/stdio/subprocess", char_stdio_test_subprocess);
     g_test_add_func("/char/stdio", char_stdio_test);
+#endif
+#ifndef _WIN32
+    g_test_add_func("/char/pipe", char_pipe_test);
 #endif
 
     return g_test_run();
