@@ -57,6 +57,32 @@ static void fe_event(void *opaque, int event)
 }
 
 #ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
+#ifdef _WIN32
+static void char_console_test_subprocess(void)
+{
+    QemuOpts *opts;
+    Chardev *chr;
+
+    opts = qemu_opts_create(qemu_find_opts("chardev"), "console-label",
+                            1, &error_abort);
+    qemu_opt_set(opts, "backend", "console", &error_abort);
+
+    chr = qemu_chr_new_from_opts(opts, NULL);
+    g_assert_nonnull(chr);
+
+    qemu_chr_write_all(chr, (const uint8_t *)"CONSOLE", 7);
+
+    qemu_opts_del(opts);
+    object_unparent(OBJECT(chr));
+}
+
+static void char_console_test(void)
+{
+    g_test_trap_subprocess("/char/console/subprocess", 0, 0);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stdout("CONSOLE");
+}
+#endif
 static void char_stdio_test_subprocess(void)
 {
     Chardev *chr;
@@ -82,7 +108,6 @@ static void char_stdio_test(void)
     g_test_trap_assert_stdout("buf");
 }
 #endif
-
 
 static void char_ringbuf_test(void)
 {
@@ -566,6 +591,10 @@ int main(int argc, char **argv)
     g_test_add_func("/char/ringbuf", char_ringbuf_test);
     g_test_add_func("/char/mux", char_mux_test);
 #ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
+#ifdef _WIN32
+    g_test_add_func("/char/console/subprocess", char_console_test_subprocess);
+    g_test_add_func("/char/console", char_console_test);
+#endif
     g_test_add_func("/char/stdio/subprocess", char_stdio_test_subprocess);
     g_test_add_func("/char/stdio", char_stdio_test);
 #endif
