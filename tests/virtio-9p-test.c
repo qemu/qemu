@@ -92,7 +92,7 @@ static void qvirtio_9p_pci_free(QVirtIO9P *v9p)
     g_free(v9p);
 }
 
-static void pci_basic_config(void)
+static void pci_config(void)
 {
     QVirtIO9P *v9p;
     size_t tag_len;
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/virtio/9p/pci/nop", pci_nop);
-    qtest_add_func("/virtio/9p/pci/basic/configuration", pci_basic_config);
+    qtest_add_func("/virtio/9p/pci/config", pci_config);
 
     return g_test_run();
 }
