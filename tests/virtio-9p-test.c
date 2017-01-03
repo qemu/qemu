@@ -276,6 +276,14 @@ static void v9fs_req_free(P9Req *req)
     g_free(req);
 }
 
+/* size[4] Rlerror tag[2] ecode[4] */
+static void v9fs_rlerror(P9Req *req, uint32_t *err)
+{
+    v9fs_req_recv(req, P9_RLERROR);
+    v9fs_uint32_read(req, err);
+    v9fs_req_free(req);
+}
+
 /* size[4] Tversion tag[2] msize[4] version[s] */
 static P9Req *v9fs_tversion(QVirtIO9P *v9p, uint32_t msize, const char *version)
 {
@@ -427,6 +435,21 @@ static void fs_walk(QVirtIO9P *v9p)
     g_free(wqid);
 }
 
+static void fs_walk_no_slash(QVirtIO9P *v9p)
+{
+    char *const wnames[] = { g_strdup(" /") };
+    P9Req *req;
+    uint32_t err;
+
+    fs_attach(v9p);
+    req = v9fs_twalk(v9p, 0, 1, 1, wnames);
+    v9fs_rlerror(req, &err);
+
+    g_assert_cmpint(err, ==, ENOENT);
+
+    g_free(wnames[0]);
+}
+
 typedef void (*v9fs_test_fn)(QVirtIO9P *v9p);
 
 static void v9fs_run_pci_test(gconstpointer data)
@@ -453,6 +476,7 @@ int main(int argc, char **argv)
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/version/basic", fs_version);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/attach/basic", fs_attach);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/walk/basic", fs_walk);
+    v9fs_qtest_pci_add("/virtio/9p/pci/fs/walk/no_slash", fs_walk_no_slash);
 
     return g_test_run();
 }
