@@ -10,7 +10,6 @@ typedef struct V9fsVirtioState
     VirtIODevice parent_obj;
     VirtQueue *vq;
     size_t config_size;
-    V9fsPDU pdus[MAX_REQ];
     VirtQueueElement *elems[MAX_REQ];
     V9fsState state;
 } V9fsVirtioState;

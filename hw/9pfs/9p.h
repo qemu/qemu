@@ -229,6 +229,7 @@ typedef struct V9fsState
     char *tag;
     enum p9_proto_version proto_version;
     int32_t msize;
+    V9fsPDU pdus[MAX_REQ];
     /*
      * lock ensuring atomic path update
      * on rename.

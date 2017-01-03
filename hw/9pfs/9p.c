@@ -3440,7 +3440,6 @@ void pdu_submit(V9fsPDU *pdu)
 /* Returns 0 on success, 1 on failure. */
 int v9fs_device_realize_common(V9fsState *s, Error **errp)
 {
-    V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     int i, len;
     struct stat stat;
     FsDriverEntry *fse;
@@ -3451,9 +3450,9 @@ int v9fs_device_realize_common(V9fsState *s, Error **errp)
     QLIST_INIT(&s->free_list);
     QLIST_INIT(&s->active_list);
     for (i = 0; i < (MAX_REQ - 1); i++) {
-        QLIST_INSERT_HEAD(&s->free_list, &v->pdus[i], next);
-        v->pdus[i].s = s;
-        v->pdus[i].idx = i;
+        QLIST_INSERT_HEAD(&s->free_list, &s->pdus[i], next);
+        s->pdus[i].s = s;
+        s->pdus[i].idx = i;
     }
 
     v9fs_path_init(&path);
