@@ -18,59 +18,49 @@
 #include "standard-headers/linux/virtio_pci.h"
 
 static const char mount_tag[] = "qtest";
-static char *test_share;
-
-
-static QOSState *qvirtio_9p_start(void)
-{
-    const char *arch = qtest_get_arch();
-    const char *cmd = "-fsdev local,id=fsdev0,security_model=none,path=%s "
-                      "-device virtio-9p-pci,fsdev=fsdev0,mount_tag=%s";
-
-    test_share = g_strdup("/tmp/qtest.XXXXXX");
-    g_assert_nonnull(mkdtemp(test_share));
-
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        return qtest_pc_boot(cmd, test_share, mount_tag);
-    }
-    if (strcmp(arch, "ppc64") == 0) {
-        return qtest_spapr_boot(cmd, test_share, mount_tag);
-    }
-
-    g_printerr("virtio-9p tests are only available on x86 or ppc64\n");
-    exit(EXIT_FAILURE);
-}
-
-static void qvirtio_9p_stop(QOSState *qs)
-{
-    qtest_shutdown(qs);
-    rmdir(test_share);
-    g_free(test_share);
-}
-
-static void pci_nop(void)
-{
-    QOSState *qs;
-
-    qs = qvirtio_9p_start();
-    qvirtio_9p_stop(qs);
-}
 
 typedef struct {
     QVirtioDevice *dev;
     QOSState *qs;
     QVirtQueue *vq;
+    char *test_share;
 } QVirtIO9P;
 
-static QVirtIO9P *qvirtio_9p_pci_init(QOSState *qs)
+static QVirtIO9P *qvirtio_9p_start(const char *driver)
 {
-    QVirtIO9P *v9p;
-    QVirtioPCIDevice *dev;
+    const char *arch = qtest_get_arch();
+    const char *cmd = "-fsdev local,id=fsdev0,security_model=none,path=%s "
+                      "-device %s,fsdev=fsdev0,mount_tag=%s";
+    QVirtIO9P *v9p = g_new0(QVirtIO9P, 1);
 
-    v9p = g_new0(QVirtIO9P, 1);
+    v9p->test_share = g_strdup("/tmp/qtest.XXXXXX");
+    g_assert_nonnull(mkdtemp(v9p->test_share));
 
-    v9p->qs = qs;
-    dev = qvirtio_pci_device_find(v9p->qs->pcibus, VIRTIO_ID_9P);
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        v9p->qs = qtest_pc_boot(cmd, v9p->test_share, driver, mount_tag);
+    } else if (strcmp(arch, "ppc64") == 0) {
+        v9p->qs = qtest_spapr_boot(cmd, v9p->test_share, driver, mount_tag);
+    } else {
+        g_printerr("virtio-9p tests are only available on x86 or ppc64\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return v9p;
+}
+
+static void qvirtio_9p_stop(QVirtIO9P *v9p)
+{
+    qtest_shutdown(v9p->qs);
+    rmdir(v9p->test_share);
+    g_free(v9p->test_share);
+    g_free(v9p);
+}
+
+static QVirtIO9P *qvirtio_9p_pci_start(void)
+{
+    QVirtIO9P *v9p = qvirtio_9p_start("virtio-9p-pci");
+    QVirtioPCIDevice *dev = qvirtio_pci_device_find(v9p->qs->pcibus,
+                                                    VIRTIO_ID_9P);
     g_assert_nonnull(dev);
     g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_9P);
     v9p->dev = (QVirtioDevice *) dev;
@@ -84,26 +74,20 @@ static QVirtIO9P *qvirtio_9p_pci_init(QOSState *qs)
     return v9p;
 }
 
-static void qvirtio_9p_pci_free(QVirtIO9P *v9p)
+static void qvirtio_9p_pci_stop(QVirtIO9P *v9p)
 {
     qvirtqueue_cleanup(v9p->dev->bus, v9p->vq, v9p->qs->alloc);
     qvirtio_pci_device_disable(container_of(v9p->dev, QVirtioPCIDevice, vdev));
     g_free(v9p->dev);
-    g_free(v9p);
+    qvirtio_9p_stop(v9p);
 }
 
-static void pci_config(void)
+static void pci_config(QVirtIO9P *v9p)
 {
-    QVirtIO9P *v9p;
-    size_t tag_len;
+    size_t tag_len = qvirtio_config_readw(v9p->dev, 0);
     char *tag;
     int i;
-    QOSState *qs;
 
-    qs = qvirtio_9p_start();
-    v9p = qvirtio_9p_pci_init(qs);
-
-    tag_len = qvirtio_config_readw(v9p->dev, 0);
     g_assert_cmpint(tag_len, ==, strlen(mount_tag));
 
     tag = g_malloc(tag_len);
@@ -112,16 +96,31 @@ static void pci_config(void)
     }
     g_assert_cmpmem(tag, tag_len, mount_tag, tag_len);
     g_free(tag);
+}
 
-    qvirtio_9p_pci_free(v9p);
-    qvirtio_9p_stop(qs);
+typedef void (*v9fs_test_fn)(QVirtIO9P *v9p);
+
+static void v9fs_run_pci_test(gconstpointer data)
+{
+    v9fs_test_fn fn = data;
+    QVirtIO9P *v9p = qvirtio_9p_pci_start();
+
+    if (fn) {
+        fn(v9p);
+    }
+    qvirtio_9p_pci_stop(v9p);
+}
+
+static void v9fs_qtest_pci_add(const char *path, v9fs_test_fn fn)
+{
+    qtest_add_data_func(path, fn, v9fs_run_pci_test);
 }
 
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/virtio/9p/pci/nop", pci_nop);
-    qtest_add_func("/virtio/9p/pci/config", pci_config);
+    v9fs_qtest_pci_add("/virtio/9p/pci/nop", NULL);
+    v9fs_qtest_pci_add("/virtio/9p/pci/config", pci_config);
 
     return g_test_run();
 }
