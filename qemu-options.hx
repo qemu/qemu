@@ -2430,8 +2430,6 @@ Connect to standard input and standard output of the QEMU process.
 exiting QEMU with the key sequence @key{Control-c}. This option is enabled by
 default, use @option{signal=off} to disable it.
 
-@option{stdio} is not available on Windows hosts.
-
 @item -chardev braille ,id=@var{id}
 
 Connect to a local BrlAPI server. @option{braille} does not take any options.
