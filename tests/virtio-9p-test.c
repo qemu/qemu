@@ -450,6 +450,25 @@ static void fs_walk_no_slash(QVirtIO9P *v9p)
     g_free(wnames[0]);
 }
 
+static void fs_walk_dotdot(QVirtIO9P *v9p)
+{
+    char *const wnames[] = { g_strdup("..") };
+    v9fs_qid root_qid, *wqid;
+    P9Req *req;
+
+    fs_version(v9p);
+    req = v9fs_tattach(v9p, 0, getuid());
+    v9fs_rattach(req, &root_qid);
+
+    req = v9fs_twalk(v9p, 0, 1, 1, wnames);
+    v9fs_rwalk(req, NULL, &wqid); /* We now we'll get one qid */
+
+    g_assert_cmpmem(&root_qid, 13, wqid[0], 13);
+
+    g_free(wqid);
+    g_free(wnames[0]);
+}
+
 typedef void (*v9fs_test_fn)(QVirtIO9P *v9p);
 
 static void v9fs_run_pci_test(gconstpointer data)
@@ -477,6 +496,8 @@ int main(int argc, char **argv)
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/attach/basic", fs_attach);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/walk/basic", fs_walk);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/walk/no_slash", fs_walk_no_slash);
+    v9fs_qtest_pci_add("/virtio/9p/pci/fs/walk/dotdot_from_root",
+                       fs_walk_dotdot);
 
     return g_test_run();
 }
