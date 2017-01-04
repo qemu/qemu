@@ -39,19 +39,19 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev, struct Object *owner,
              "/sys/bus/pci/devices/%04x:%02x:%02x.%01x/rom",
              domain, bus, slot, function);
 
-    if (stat(rom_file, &st)) {
-        if (errno != ENOENT) {
-            error_report("pci-assign: Invalid ROM.");
-        }
-        return NULL;
-    }
-
     /* Write "1" to the ROM file to enable it */
     fp = fopen(rom_file, "r+");
     if (fp == NULL) {
-        error_report("pci-assign: Cannot open %s: %s", rom_file, strerror(errno));
+        if (errno != ENOENT) {
+            error_report("pci-assign: Cannot open %s: %s", rom_file, strerror(errno));
+        }
         return NULL;
     }
+    if (fstat(fileno(fp), &st) == -1) {
+        error_report("pci-assign: Cannot stat %s: %s", rom_file, strerror(errno));
+        goto close_rom;
+    }
+
     val = 1;
     if (fwrite(&val, 1, 1, fp) != 1) {
         goto close_rom;
