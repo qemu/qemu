@@ -48,6 +48,7 @@ static int qcrypto_ivgen_essiv_init(QCryptoIVGen *ivgen,
                            &salt, &nhash,
                            errp) < 0) {
         g_free(essiv);
+        g_free(salt);
         return -1;
     }
 
