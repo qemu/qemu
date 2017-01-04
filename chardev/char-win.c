@@ -26,13 +26,20 @@
 #include "qapi/error.h"
 #include "char-win.h"
 
-static void win_chr_readfile(Chardev *chr)
+static void win_chr_read(Chardev *chr)
 {
     WinChardev *s = WIN_CHARDEV(chr);
-
+    int max_size = qemu_chr_be_can_write(chr);
     int ret, err;
     uint8_t buf[CHR_READ_BUF_LEN];
     DWORD size;
+
+    if (s->len > max_size) {
+        s->len = max_size;
+    }
+    if (s->len == 0) {
+        return;
+    }
 
     ZeroMemory(&s->orecv, sizeof(s->orecv));
     s->orecv.hEvent = s->hrecv;
@@ -49,28 +56,6 @@ static void win_chr_readfile(Chardev *chr)
     }
 }
 
-static void win_chr_read(Chardev *chr)
-{
-    WinChardev *s = WIN_CHARDEV(chr);
-
-    if (s->len > s->max_size) {
-        s->len = s->max_size;
-    }
-    if (s->len == 0) {
-        return;
-    }
-
-    win_chr_readfile(chr);
-}
-
-static int win_chr_read_poll(Chardev *chr)
-{
-    WinChardev *s = WIN_CHARDEV(chr);
-
-    s->max_size = qemu_chr_be_can_write(chr);
-    return s->max_size;
-}
-
 static int win_chr_poll(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
@@ -81,7 +66,6 @@ static int win_chr_poll(void *opaque)
     ClearCommError(s->hcom, &comerr, &status);
     if (status.cbInQue > 0) {
         s->len = status.cbInQue;
-        win_chr_read_poll(chr);
         win_chr_read(chr);
         return 1;
     }
@@ -163,7 +147,6 @@ int win_chr_pipe_poll(void *opaque)
     PeekNamedPipe(s->hcom, NULL, 0, NULL, &size, NULL);
     if (size > 0) {
         s->len = size;
-        win_chr_read_poll(chr);
         win_chr_read(chr);
         return 1;
     }

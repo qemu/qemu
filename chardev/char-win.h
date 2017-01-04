@@ -28,7 +28,7 @@
 
 typedef struct {
     Chardev parent;
-    int max_size;
+
     HANDLE hcom, hrecv, hsend;
     OVERLAPPED orecv;
     BOOL fpipe;
