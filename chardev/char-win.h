@@ -32,7 +32,6 @@ typedef struct {
     HANDLE hcom, hrecv, hsend;
     OVERLAPPED orecv;
     BOOL fpipe;
-    DWORD len;
 
     /* Protected by the Chardev chr_write_lock.  */
     OVERLAPPED osend;
