@@ -16,6 +16,13 @@ hxtoh()
     done
 }
 
+print_texi_heading()
+{
+    if test "$*" != ""; then
+        printf "@subsection %s\n" "$*"
+    fi
+}
+
 hxtotexi()
 {
     flag=0
@@ -45,10 +52,10 @@ hxtotexi()
             fi
             ;;
             DEFHEADING*)
-            printf '%s\n' "$(expr "$str" : "DEFHEADING(\(.*\))")"
+            print_texi_heading "$(expr "$str" : "DEFHEADING(\(.*\))")"
             ;;
             ARCHHEADING*)
-            printf '%s\n' "$(expr "$str" : "ARCHHEADING(\(.*\),.*)")"
+            print_texi_heading "$(expr "$str" : "ARCHHEADING(\(.*\),.*)")"
             ;;
             *)
             test $flag -eq 1 && printf '%s\n' "$str"
