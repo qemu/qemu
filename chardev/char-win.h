@@ -46,7 +46,7 @@ typedef struct {
 #define WIN_CHARDEV(obj) OBJECT_CHECK(WinChardev, (obj), TYPE_CHARDEV_WIN)
 
 void qemu_chr_open_win_file(Chardev *chr, HANDLE fd_out);
-int win_chr_init(Chardev *chr, const char *filename, Error **errp);
+int win_chr_serial_init(Chardev *chr, const char *filename, Error **errp);
 int win_chr_pipe_poll(void *opaque);
 
 #endif /* CHAR_WIN_H */

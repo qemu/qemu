@@ -45,7 +45,7 @@ static void qmp_chardev_open_serial(Chardev *chr,
 {
     ChardevHostdev *serial = backend->u.serial.data;
 
-    win_chr_init(chr, serial->device, errp);
+    win_chr_serial_init(chr, serial->device, errp);
 }
 
 #elif defined(__linux__) || defined(__sun__) || defined(__FreeBSD__)      \

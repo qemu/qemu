@@ -56,7 +56,7 @@ static void win_chr_read(Chardev *chr, DWORD len)
     }
 }
 
-static int win_chr_poll(void *opaque)
+static int win_chr_serial_poll(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     WinChardev *s = WIN_CHARDEV(opaque);
@@ -71,7 +71,7 @@ static int win_chr_poll(void *opaque)
     return 0;
 }
 
-int win_chr_init(Chardev *chr, const char *filename, Error **errp)
+int win_chr_serial_init(Chardev *chr, const char *filename, Error **errp)
 {
     WinChardev *s = WIN_CHARDEV(chr);
     COMMCONFIG comcfg;
@@ -130,7 +130,7 @@ int win_chr_init(Chardev *chr, const char *filename, Error **errp)
         error_setg(errp, "Failed ClearCommError");
         goto fail;
     }
-    qemu_add_polling_cb(win_chr_poll, chr);
+    qemu_add_polling_cb(win_chr_serial_poll, chr);
     return 0;
 
  fail:
@@ -208,7 +208,7 @@ static void char_win_finalize(Object *obj)
     if (s->fpipe) {
         qemu_del_polling_cb(win_chr_pipe_poll, chr);
     } else {
-        qemu_del_polling_cb(win_chr_poll, chr);
+        qemu_del_polling_cb(win_chr_serial_poll, chr);
     }
 
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
