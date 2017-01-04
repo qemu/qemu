@@ -1252,7 +1252,6 @@ void ppc_store_msr (CPUPPCState *env, target_ulong value);
 void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf);
 int ppc_get_compat_smt_threads(PowerPCCPU *cpu);
 #if defined(TARGET_PPC64)
-void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp);
 #endif
 
 /* Time-base and decrementer management */
@@ -1322,6 +1321,11 @@ static inline int cpu_mmu_index (CPUPPCState *env, bool ifetch)
 {
     return ifetch ? env->immu_idx : env->dmmu_idx;
 }
+
+/* Compatibility modes */
+#if defined(TARGET_PPC64)
+void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp);
+#endif /* defined(TARGET_PPC64) */
 
 #include "exec/cpu-all.h"
 
