@@ -65,7 +65,7 @@ static void qmp_chardev_open_file(Chardev *chr,
         return;
     }
 
-    qemu_chr_open_win_file(chr, out);
+    win_chr_set_file(chr, out, false);
 #else
     int flags, in = -1, out;
 

@@ -192,17 +192,13 @@ static void char_win_finalize(Object *obj)
     Chardev *chr = CHARDEV(obj);
     WinChardev *s = WIN_CHARDEV(chr);
 
-    if (s->skip_free) {
-        return;
-    }
-
     if (s->hsend) {
         CloseHandle(s->hsend);
     }
     if (s->hrecv) {
         CloseHandle(s->hrecv);
     }
-    if (s->file) {
+    if (!s->keep_open && s->file) {
         CloseHandle(s->file);
     }
     if (s->fpipe) {
@@ -214,12 +210,12 @@ static void char_win_finalize(Object *obj)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-void qemu_chr_open_win_file(Chardev *chr, HANDLE fd_out)
+void win_chr_set_file(Chardev *chr, HANDLE file, bool keep_open)
 {
     WinChardev *s = WIN_CHARDEV(chr);
 
-    s->skip_free = true;
-    s->file = fd_out;
+    s->keep_open = keep_open;
+    s->file = file;
 }
 
 static void char_win_class_init(ObjectClass *oc, void *data)
