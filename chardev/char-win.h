@@ -29,7 +29,7 @@
 typedef struct {
     Chardev parent;
 
-    HANDLE hcom, hrecv, hsend;
+    HANDLE file, hrecv, hsend;
     OVERLAPPED orecv;
     BOOL fpipe;
 

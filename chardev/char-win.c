@@ -43,11 +43,11 @@ static void win_chr_read(Chardev *chr, DWORD len)
 
     ZeroMemory(&s->orecv, sizeof(s->orecv));
     s->orecv.hEvent = s->hrecv;
-    ret = ReadFile(s->hcom, buf, len, &size, &s->orecv);
+    ret = ReadFile(s->file, buf, len, &size, &s->orecv);
     if (!ret) {
         err = GetLastError();
         if (err == ERROR_IO_PENDING) {
-            ret = GetOverlappedResult(s->hcom, &s->orecv, &size, TRUE);
+            ret = GetOverlappedResult(s->file, &s->orecv, &size, TRUE);
         }
     }
 
@@ -63,7 +63,7 @@ static int win_chr_serial_poll(void *opaque)
     COMSTAT status;
     DWORD comerr;
 
-    ClearCommError(s->hcom, &comerr, &status);
+    ClearCommError(s->file, &comerr, &status);
     if (status.cbInQue > 0) {
         win_chr_read(chr, status.cbInQue);
         return 1;
@@ -91,15 +91,15 @@ int win_chr_serial_init(Chardev *chr, const char *filename, Error **errp)
         goto fail;
     }
 
-    s->hcom = CreateFile(filename, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+    s->file = CreateFile(filename, GENERIC_READ | GENERIC_WRITE, 0, NULL,
                       OPEN_EXISTING, FILE_FLAG_OVERLAPPED, 0);
-    if (s->hcom == INVALID_HANDLE_VALUE) {
+    if (s->file == INVALID_HANDLE_VALUE) {
         error_setg(errp, "Failed CreateFile (%lu)", GetLastError());
-        s->hcom = NULL;
+        s->file = NULL;
         goto fail;
     }
 
-    if (!SetupComm(s->hcom, NRECVBUF, NSENDBUF)) {
+    if (!SetupComm(s->file, NRECVBUF, NSENDBUF)) {
         error_setg(errp, "Failed SetupComm");
         goto fail;
     }
@@ -110,23 +110,23 @@ int win_chr_serial_init(Chardev *chr, const char *filename, Error **errp)
     comcfg.dcb.DCBlength = sizeof(DCB);
     CommConfigDialog(filename, NULL, &comcfg);
 
-    if (!SetCommState(s->hcom, &comcfg.dcb)) {
+    if (!SetCommState(s->file, &comcfg.dcb)) {
         error_setg(errp, "Failed SetCommState");
         goto fail;
     }
 
-    if (!SetCommMask(s->hcom, EV_ERR)) {
+    if (!SetCommMask(s->file, EV_ERR)) {
         error_setg(errp, "Failed SetCommMask");
         goto fail;
     }
 
     cto.ReadIntervalTimeout = MAXDWORD;
-    if (!SetCommTimeouts(s->hcom, &cto)) {
+    if (!SetCommTimeouts(s->file, &cto)) {
         error_setg(errp, "Failed SetCommTimeouts");
         goto fail;
     }
 
-    if (!ClearCommError(s->hcom, &err, &comstat)) {
+    if (!ClearCommError(s->file, &err, &comstat)) {
         error_setg(errp, "Failed ClearCommError");
         goto fail;
     }
@@ -143,7 +143,7 @@ int win_chr_pipe_poll(void *opaque)
     WinChardev *s = WIN_CHARDEV(opaque);
     DWORD size;
 
-    PeekNamedPipe(s->hcom, NULL, 0, NULL, &size, NULL);
+    PeekNamedPipe(s->file, NULL, 0, NULL, &size, NULL);
     if (size > 0) {
         win_chr_read(chr, size);
         return 1;
@@ -162,14 +162,14 @@ static int win_chr_write(Chardev *chr, const uint8_t *buf, int len1)
     s->osend.hEvent = s->hsend;
     while (len > 0) {
         if (s->hsend) {
-            ret = WriteFile(s->hcom, buf, len, &size, &s->osend);
+            ret = WriteFile(s->file, buf, len, &size, &s->osend);
         } else {
-            ret = WriteFile(s->hcom, buf, len, &size, NULL);
+            ret = WriteFile(s->file, buf, len, &size, NULL);
         }
         if (!ret) {
             err = GetLastError();
             if (err == ERROR_IO_PENDING) {
-                ret = GetOverlappedResult(s->hcom, &s->osend, &size, TRUE);
+                ret = GetOverlappedResult(s->file, &s->osend, &size, TRUE);
                 if (ret) {
                     buf += size;
                     len -= size;
@@ -202,8 +202,8 @@ static void char_win_finalize(Object *obj)
     if (s->hrecv) {
         CloseHandle(s->hrecv);
     }
-    if (s->hcom) {
-        CloseHandle(s->hcom);
+    if (s->file) {
+        CloseHandle(s->file);
     }
     if (s->fpipe) {
         qemu_del_polling_cb(win_chr_pipe_poll, chr);
@@ -219,7 +219,7 @@ void qemu_chr_open_win_file(Chardev *chr, HANDLE fd_out)
     WinChardev *s = WIN_CHARDEV(chr);
 
     s->skip_free = true;
-    s->hcom = fd_out;
+    s->file = fd_out;
 }
 
 static void char_win_class_init(ObjectClass *oc, void *data)
