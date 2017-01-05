@@ -20,6 +20,7 @@
 #include "block/block.h"
 #include "qemu/queue.h"
 #include "qemu/sockets.h"
+#include "qapi/error.h"
 
 struct AioHandler {
     EventNotifier *e;
@@ -38,6 +39,7 @@ void aio_set_fd_handler(AioContext *ctx,
                         bool is_external,
                         IOHandler *io_read,
                         IOHandler *io_write,
+                        AioPollFn *io_poll,
                         void *opaque)
 {
     /* fd is a SOCKET in our case */
@@ -100,10 +102,18 @@ void aio_set_fd_handler(AioContext *ctx,
     aio_notify(ctx);
 }
 
+void aio_set_fd_poll(AioContext *ctx, int fd,
+                     IOHandler *io_poll_begin,
+                     IOHandler *io_poll_end)
+{
+    /* Not implemented */
+}
+
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *e,
                             bool is_external,
-                            EventNotifierHandler *io_notify)
+                            EventNotifierHandler *io_notify,
+                            AioPollFn *io_poll)
 {
     AioHandler *node;
 
@@ -148,6 +158,14 @@ void aio_set_event_notifier(AioContext *ctx,
     }
 
     aio_notify(ctx);
+}
+
+void aio_set_event_notifier_poll(AioContext *ctx,
+                                 EventNotifier *notifier,
+                                 EventNotifierHandler *io_poll_begin,
+                                 EventNotifierHandler *io_poll_end)
+{
+    /* Not implemented */
 }
 
 bool aio_prepare(AioContext *ctx)
@@ -271,12 +289,14 @@ static bool aio_dispatch_handlers(AioContext *ctx, HANDLE event)
     return progress;
 }
 
-bool aio_dispatch(AioContext *ctx)
+bool aio_dispatch(AioContext *ctx, bool dispatch_fds)
 {
     bool progress;
 
     progress = aio_bh_poll(ctx);
-    progress |= aio_dispatch_handlers(ctx, INVALID_HANDLE_VALUE);
+    if (dispatch_fds) {
+        progress |= aio_dispatch_handlers(ctx, INVALID_HANDLE_VALUE);
+    }
     progress |= timerlistgroup_run_timers(&ctx->tlg);
     return progress;
 }
@@ -373,4 +393,10 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
 void aio_context_setup(AioContext *ctx)
 {
+}
+
+void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
+                                 int64_t grow, int64_t shrink, Error **errp)
+{
+    error_setg(errp, "AioContext polling is not implemented on Windows");
 }

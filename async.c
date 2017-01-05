@@ -251,7 +251,7 @@ aio_ctx_dispatch(GSource     *source,
     AioContext *ctx = (AioContext *) source;
 
     assert(callback == NULL);
-    aio_dispatch(ctx);
+    aio_dispatch(ctx, true);
     return true;
 }
 
@@ -282,7 +282,7 @@ aio_ctx_finalize(GSource     *source)
     }
     qemu_mutex_unlock(&ctx->bh_lock);
 
-    aio_set_event_notifier(ctx, &ctx->notifier, false, NULL);
+    aio_set_event_notifier(ctx, &ctx->notifier, false, NULL, NULL);
     event_notifier_cleanup(&ctx->notifier);
     qemu_rec_mutex_destroy(&ctx->lock);
     qemu_mutex_destroy(&ctx->bh_lock);
@@ -349,6 +349,15 @@ static void event_notifier_dummy_cb(EventNotifier *e)
 {
 }
 
+/* Returns true if aio_notify() was called (e.g. a BH was scheduled) */
+static bool event_notifier_poll(void *opaque)
+{
+    EventNotifier *e = opaque;
+    AioContext *ctx = container_of(e, AioContext, notifier);
+
+    return atomic_read(&ctx->notified);
+}
+
 AioContext *aio_context_new(Error **errp)
 {
     int ret;
@@ -366,7 +375,8 @@ AioContext *aio_context_new(Error **errp)
     aio_set_event_notifier(ctx, &ctx->notifier,
                            false,
                            (EventNotifierHandler *)
-                           event_notifier_dummy_cb);
+                           event_notifier_dummy_cb,
+                           event_notifier_poll);
 #ifdef CONFIG_LINUX_AIO
     ctx->linux_aio = NULL;
 #endif
@@ -374,6 +384,11 @@ AioContext *aio_context_new(Error **errp)
     qemu_mutex_init(&ctx->bh_lock);
     qemu_rec_mutex_init(&ctx->lock);
     timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
+
+    ctx->poll_ns = 0;
+    ctx->poll_max_ns = 0;
+    ctx->poll_grow = 0;
+    ctx->poll_shrink = 0;
 
     return ctx;
 fail:

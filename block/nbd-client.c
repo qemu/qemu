@@ -145,7 +145,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
     aio_context = bdrv_get_aio_context(bs);
 
     aio_set_fd_handler(aio_context, s->sioc->fd, false,
-                       nbd_reply_ready, nbd_restart_write, bs);
+                       nbd_reply_ready, nbd_restart_write, NULL, bs);
     if (qiov) {
         qio_channel_set_cork(s->ioc, true);
         rc = nbd_send_request(s->ioc, request);
@@ -161,7 +161,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
         rc = nbd_send_request(s->ioc, request);
     }
     aio_set_fd_handler(aio_context, s->sioc->fd, false,
-                       nbd_reply_ready, NULL, bs);
+                       nbd_reply_ready, NULL, NULL, bs);
     s->send_coroutine = NULL;
     qemu_co_mutex_unlock(&s->send_mutex);
     return rc;
@@ -366,14 +366,14 @@ void nbd_client_detach_aio_context(BlockDriverState *bs)
 {
     aio_set_fd_handler(bdrv_get_aio_context(bs),
                        nbd_get_client_session(bs)->sioc->fd,
-                       false, NULL, NULL, NULL);
+                       false, NULL, NULL, NULL, NULL);
 }
 
 void nbd_client_attach_aio_context(BlockDriverState *bs,
                                    AioContext *new_context)
 {
     aio_set_fd_handler(new_context, nbd_get_client_session(bs)->sioc->fd,
-                       false, nbd_reply_ready, NULL, bs);
+                       false, nbd_reply_ready, NULL, NULL, bs);
 }
 
 void nbd_client_close(BlockDriverState *bs)

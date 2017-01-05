@@ -44,6 +44,7 @@ void qemu_aio_ref(void *p);
 
 typedef struct AioHandler AioHandler;
 typedef void QEMUBHFunc(void *opaque);
+typedef bool AioPollFn(void *opaque);
 typedef void IOHandler(void *opaque);
 
 struct ThreadPool;
@@ -129,6 +130,18 @@ struct AioContext {
     QEMUTimerListGroup tlg;
 
     int external_disable_cnt;
+
+    /* Number of AioHandlers without .io_poll() */
+    int poll_disable_cnt;
+
+    /* Polling mode parameters */
+    int64_t poll_ns;        /* current polling time in nanoseconds */
+    int64_t poll_max_ns;    /* maximum polling time in nanoseconds */
+    int64_t poll_grow;      /* polling time growth factor */
+    int64_t poll_shrink;    /* polling time shrink factor */
+
+    /* Are we in polling mode or monitoring file descriptors? */
+    bool poll_started;
 
     /* epoll(7) state used when built with CONFIG_EPOLL */
     int epollfd;
@@ -295,8 +308,12 @@ bool aio_pending(AioContext *ctx);
 /* Dispatch any pending callbacks from the GSource attached to the AioContext.
  *
  * This is used internally in the implementation of the GSource.
+ *
+ * @dispatch_fds: true to process fds, false to skip them
+ *                (can be used as an optimization by callers that know there
+ *                are no fds ready)
  */
-bool aio_dispatch(AioContext *ctx);
+bool aio_dispatch(AioContext *ctx, bool dispatch_fds);
 
 /* Progress in completing AIO work to occur.  This can issue new pending
  * aio as a result of executing I/O completion or bh callbacks.
@@ -325,7 +342,16 @@ void aio_set_fd_handler(AioContext *ctx,
                         bool is_external,
                         IOHandler *io_read,
                         IOHandler *io_write,
+                        AioPollFn *io_poll,
                         void *opaque);
+
+/* Set polling begin/end callbacks for a file descriptor that has already been
+ * registered with aio_set_fd_handler.  Do nothing if the file descriptor is
+ * not registered.
+ */
+void aio_set_fd_poll(AioContext *ctx, int fd,
+                     IOHandler *io_poll_begin,
+                     IOHandler *io_poll_end);
 
 /* Register an event notifier and associated callbacks.  Behaves very similarly
  * to event_notifier_set_handler.  Unlike event_notifier_set_handler, these callbacks
@@ -337,7 +363,17 @@ void aio_set_fd_handler(AioContext *ctx,
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
                             bool is_external,
-                            EventNotifierHandler *io_read);
+                            EventNotifierHandler *io_read,
+                            AioPollFn *io_poll);
+
+/* Set polling begin/end callbacks for an event notifier that has already been
+ * registered with aio_set_event_notifier.  Do nothing if the event notifier is
+ * not registered.
+ */
+void aio_set_event_notifier_poll(AioContext *ctx,
+                                 EventNotifier *notifier,
+                                 EventNotifierHandler *io_poll_begin,
+                                 EventNotifierHandler *io_poll_end);
 
 /* Return a GSource that lets the main loop poll the file descriptors attached
  * to this AioContext.
@@ -473,5 +509,18 @@ static inline bool aio_context_in_iothread(AioContext *ctx)
  * Initialize the aio context.
  */
 void aio_context_setup(AioContext *ctx);
+
+/**
+ * aio_context_set_poll_params:
+ * @ctx: the aio context
+ * @max_ns: how long to busy poll for, in nanoseconds
+ * @grow: polling time growth factor
+ * @shrink: polling time shrink factor
+ *
+ * Poll mode can be disabled by setting poll_max_ns to 0.
+ */
+void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
+                                 int64_t grow, int64_t shrink,
+                                 Error **errp);
 
 #endif

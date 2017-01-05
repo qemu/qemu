@@ -588,13 +588,19 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
 
     blk_io_plug(s->blk);
 
-    while ((req = virtio_blk_get_request(s, vq))) {
-        if (virtio_blk_handle_request(req, &mrb)) {
-            virtqueue_detach_element(req->vq, &req->elem, 0);
-            virtio_blk_free_request(req);
-            break;
+    do {
+        virtio_queue_set_notification(vq, 0);
+
+        while ((req = virtio_blk_get_request(s, vq))) {
+            if (virtio_blk_handle_request(req, &mrb)) {
+                virtqueue_detach_element(req->vq, &req->elem, 0);
+                virtio_blk_free_request(req);
+                break;
+            }
         }
-    }
+
+        virtio_queue_set_notification(vq, 1);
+    } while (!virtio_queue_empty(vq));
 
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s->blk, &mrb);

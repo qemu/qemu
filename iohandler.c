@@ -63,7 +63,7 @@ void qemu_set_fd_handler(int fd,
 {
     iohandler_init();
     aio_set_fd_handler(iohandler_ctx, fd, false,
-                       fd_read, fd_write, opaque);
+                       fd_read, fd_write, NULL, opaque);
 }
 
 /* reaping of zombies.  right now we're not passing the status to
