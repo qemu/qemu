@@ -697,7 +697,7 @@ static void tcg_out_ldst(TCGContext *s, MIPSInsn opc, TCGReg data,
     if (ofs != lo) {
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP0, ofs - lo);
         if (addr != TCG_REG_ZERO) {
-            tcg_out_opc_reg(s, OPC_ADDU, TCG_TMP0, TCG_TMP0, addr);
+            tcg_out_opc_reg(s, ALIAS_PADD, TCG_TMP0, TCG_TMP0, addr);
         }
         addr = TCG_TMP0;
     }
@@ -707,13 +707,21 @@ static void tcg_out_ldst(TCGContext *s, MIPSInsn opc, TCGReg data,
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
                               TCGReg arg1, intptr_t arg2)
 {
-    tcg_out_ldst(s, OPC_LW, arg, arg1, arg2);
+    MIPSInsn opc = OPC_LD;
+    if (TCG_TARGET_REG_BITS == 32 || type == TCG_TYPE_I32) {
+        opc = OPC_LW;
+    }
+    tcg_out_ldst(s, opc, arg, arg1, arg2);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
                               TCGReg arg1, intptr_t arg2)
 {
-    tcg_out_ldst(s, OPC_SW, arg, arg1, arg2);
+    MIPSInsn opc = OPC_SD;
+    if (TCG_TARGET_REG_BITS == 32 || type == TCG_TYPE_I32) {
+        opc = OPC_SW;
+    }
+    tcg_out_ldst(s, opc, arg, arg1, arg2);
 }
 
 static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
