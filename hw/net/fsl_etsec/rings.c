@@ -358,12 +358,13 @@ void etsec_walk_tx_ring(eTSEC *etsec, int ring_nbr)
         /* Save flags before BD update */
         bd_flags = bd.flags;
 
-        if (bd_flags & BD_TX_READY) {
-            process_tx_bd(etsec, &bd);
-
-            /* Write back BD after update */
-            write_buffer_descriptor(etsec, bd_addr, &bd);
+        if (!(bd_flags & BD_TX_READY)) {
+            break;
         }
+
+        process_tx_bd(etsec, &bd);
+        /* Write back BD after update */
+        write_buffer_descriptor(etsec, bd_addr, &bd);
 
         /* Wrap or next BD */
         if (bd_flags & BD_WRAP) {
@@ -371,12 +372,10 @@ void etsec_walk_tx_ring(eTSEC *etsec, int ring_nbr)
         } else {
             bd_addr += sizeof(eTSEC_rxtx_bd);
         }
+    } while (TRUE);
 
-    } while (bd_addr != ring_base);
-
-    bd_addr = ring_base;
-
-    /* Save the Buffer Descriptor Pointers to current bd */
+    /* Save the Buffer Descriptor Pointers to last bd that was not
+     * succesfully closed */
     etsec->regs[TBPTR0 + ring_nbr].value = bd_addr;
 
     /* Set transmit halt THLTx */
