@@ -1051,7 +1051,7 @@ typedef struct VCChardev {
     QemuConsole *console;
 } VCChardev;
 
-static int console_puts(Chardev *chr, const uint8_t *buf, int len)
+static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     VCChardev *drv = (VCChardev *)chr;
     QemuConsole *s = drv->console;
@@ -1139,13 +1139,13 @@ void kbd_put_keysym_console(QemuConsole *s, int keysym)
             *q++ = '[';
             *q++ = keysym & 0xff;
         } else if (s->echo && (keysym == '\r' || keysym == '\n')) {
-            console_puts(s->chr, (const uint8_t *) "\r", 1);
+            vc_chr_write(s->chr, (const uint8_t *) "\r", 1);
             *q++ = '\n';
         } else {
             *q++ = keysym;
         }
         if (s->echo) {
-            console_puts(s->chr, buf, q - buf);
+            vc_chr_write(s->chr, buf, q - buf);
         }
         be = s->chr->be;
         if (be && be->chr_read) {
@@ -1962,7 +1962,7 @@ int qemu_console_get_height(QemuConsole *con, int fallback)
     return con ? surface_height(con->surface) : fallback;
 }
 
-static void text_console_set_echo(Chardev *chr, bool echo)
+static void vc_chr_set_echo(Chardev *chr, bool echo)
 {
     VCChardev *drv = (VCChardev *)chr;
     QemuConsole *s = drv->console;
@@ -2049,7 +2049,7 @@ static void text_console_do_init(Chardev *chr, DisplayState *ds)
 
         s->t_attrib.bgcol = QEMU_COLOR_BLUE;
         len = snprintf(msg, sizeof(msg), "%s console\r\n", chr->label);
-        console_puts(chr, (uint8_t*)msg, len);
+        vc_chr_write(chr, (uint8_t *)msg, len);
         s->t_attrib = s->t_attrib_default;
     }
 
@@ -2058,10 +2058,10 @@ static void text_console_do_init(Chardev *chr, DisplayState *ds)
 
 static const CharDriver vc_driver;
 
-static Chardev *vc_init(const CharDriver *driver,
-                        const char *id, ChardevBackend *backend,
-                        ChardevReturn *ret, bool *be_opened,
-                        Error **errp)
+static Chardev *vc_chr_init(const CharDriver *driver,
+                            const char *id, ChardevBackend *backend,
+                            ChardevReturn *ret, bool *be_opened,
+                            Error **errp)
 {
     ChardevVC *vc = backend->u.vc.data;
     ChardevCommon *common = qapi_ChardevVC_base(vc);
@@ -2197,9 +2197,9 @@ static const CharDriver vc_driver = {
     .instance_size = sizeof(VCChardev),
     .kind = CHARDEV_BACKEND_KIND_VC,
     .parse = qemu_chr_parse_vc,
-    .create = vc_init,
-    .chr_write = console_puts,
-    .chr_set_echo = text_console_set_echo,
+    .create = vc_chr_init,
+    .chr_write = vc_chr_write,
+    .chr_set_echo = vc_chr_set_echo,
 };
 
 static void register_types(void)
