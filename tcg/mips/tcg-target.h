@@ -27,7 +27,14 @@
 #ifndef MIPS_TCG_TARGET_H
 #define MIPS_TCG_TARGET_H
 
-#define TCG_TARGET_REG_BITS 32
+#if _MIPS_SIM == _ABIO32
+# define TCG_TARGET_REG_BITS 32
+#elif _MIPS_SIM == _ABIN32 || _MIPS_SIM == _ABI64
+# define TCG_TARGET_REG_BITS 64
+#else
+# error "Unknown ABI"
+#endif
+
 #define TCG_TARGET_INSN_UNIT_SIZE 4
 #define TCG_TARGET_TLB_DISPLACEMENT_BITS 16
 #define TCG_TARGET_NB_REGS 32
@@ -71,9 +78,13 @@ typedef enum {
 } TCGReg;
 
 /* used for function call generation */
-#define TCG_TARGET_STACK_ALIGN 8
-#define TCG_TARGET_CALL_STACK_OFFSET 16
-#define TCG_TARGET_CALL_ALIGN_ARGS 1
+#define TCG_TARGET_STACK_ALIGN        16
+#if _MIPS_SIM == _ABIO32
+# define TCG_TARGET_CALL_STACK_OFFSET 16
+#else
+# define TCG_TARGET_CALL_STACK_OFFSET 0
+#endif
+#define TCG_TARGET_CALL_ALIGN_ARGS    1
 
 /* MOVN/MOVZ instructions detection */
 #if (defined(__mips_isa_rev) && (__mips_isa_rev >= 1)) || \
