@@ -2465,3 +2465,47 @@ void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
     atomic_set((uint32_t *)jmp_addr, deposit32(OPC_J, 0, 26, addr >> 2));
     flush_icache_range(jmp_addr, jmp_addr + 4);
 }
+
+typedef struct {
+    DebugFrameHeader h;
+    uint8_t fde_def_cfa[4];
+    uint8_t fde_reg_ofs[ARRAY_SIZE(tcg_target_callee_save_regs) * 2];
+} DebugFrame;
+
+#define ELF_HOST_MACHINE EM_MIPS
+/* GDB doesn't appear to require proper setting of ELF_HOST_FLAGS,
+   which is good because they're really quite complicated for MIPS.  */
+
+static const DebugFrame debug_frame = {
+    .h.cie.len = sizeof(DebugFrameCIE) - 4, /* length after .len member */
+    .h.cie.id = -1,
+    .h.cie.version = 1,
+    .h.cie.code_align = 1,
+    .h.cie.data_align = -(TCG_TARGET_REG_BITS / 8) & 0x7f, /* sleb128 */
+    .h.cie.return_column = TCG_REG_RA,
+
+    /* Total FDE size does not include the "len" member.  */
+    .h.fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, h.fde.cie_offset),
+
+    .fde_def_cfa = {
+        12, TCG_REG_SP,                 /* DW_CFA_def_cfa sp, ... */
+        (FRAME_SIZE & 0x7f) | 0x80,     /* ... uleb128 FRAME_SIZE */
+        (FRAME_SIZE >> 7)
+    },
+    .fde_reg_ofs = {
+        0x80 + 16, 9,                   /* DW_CFA_offset, s0, -72 */
+        0x80 + 17, 8,                   /* DW_CFA_offset, s2, -64 */
+        0x80 + 18, 7,                   /* DW_CFA_offset, s3, -56 */
+        0x80 + 19, 6,                   /* DW_CFA_offset, s4, -48 */
+        0x80 + 20, 5,                   /* DW_CFA_offset, s5, -40 */
+        0x80 + 21, 4,                   /* DW_CFA_offset, s6, -32 */
+        0x80 + 22, 3,                   /* DW_CFA_offset, s7, -24 */
+        0x80 + 30, 2,                   /* DW_CFA_offset, s8, -16 */
+        0x80 + 31, 1,                   /* DW_CFA_offset, ra,  -8 */
+    }
+};
+
+void tcg_register_jit(void *buf, size_t buf_size)
+{
+    tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
+}
