@@ -253,7 +253,7 @@ static int baum_deferred_init(BaumChardev *baum)
 }
 
 /* The serial port can receive more of our data */
-static void baum_accept_input(struct Chardev *chr)
+static void baum_chr_accept_input(struct Chardev *chr)
 {
     BaumChardev *baum = (BaumChardev *)chr;
     int room, first;
@@ -470,7 +470,7 @@ static int baum_eat_packet(BaumChardev *baum, const uint8_t *buf, int len)
 }
 
 /* The other end is writing some data.  Store it and try to interpret */
-static int baum_write(Chardev *chr, const uint8_t *buf, int len)
+static int baum_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     BaumChardev *baum = (BaumChardev *)chr;
     int tocopy, cur, eaten, orig_len = len;
@@ -613,7 +613,7 @@ static void baum_chr_read(void *opaque)
     }
 }
 
-static void baum_free(struct Chardev *chr)
+static void baum_chr_free(struct Chardev *chr)
 {
     BaumChardev *baum = (BaumChardev *)chr;
 
@@ -624,7 +624,7 @@ static void baum_free(struct Chardev *chr)
     }
 }
 
-static Chardev *chr_baum_init(const CharDriver *driver,
+static Chardev *baum_chr_init(const CharDriver *driver,
                               const char *id,
                               ChardevBackend *backend,
                               ChardevReturn *ret,
@@ -670,10 +670,10 @@ static void register_types(void)
     static const CharDriver driver = {
         .instance_size = sizeof(BaumChardev),
         .kind = CHARDEV_BACKEND_KIND_BRAILLE,
-        .create = chr_baum_init,
-        .chr_write = baum_write,
-        .chr_accept_input = baum_accept_input,
-        .chr_free = baum_free,
+        .create = baum_chr_init,
+        .chr_write = baum_chr_write,
+        .chr_accept_input = baum_chr_accept_input,
+        .chr_free = baum_chr_free,
     };
 
     register_char_driver(&driver);
