@@ -28,6 +28,8 @@
 static struct virtio_gpu_simple_resource*
 virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id);
 
+static void virtio_gpu_cleanup_mapping(struct virtio_gpu_simple_resource *res);
+
 #ifdef CONFIG_VIRGL
 #include <virglrenderer.h>
 #define VIRGL(_g, _virgl, _simple, ...)                     \
@@ -338,10 +340,14 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
         return;
     }
-    res->image = pixman_image_create_bits(pformat,
-                                          c2d.width,
-                                          c2d.height,
-                                          NULL, 0);
+
+    res->hostmem = PIXMAN_FORMAT_BPP(pformat) * c2d.width * c2d.height;
+    if (res->hostmem + g->hostmem < g->conf.max_hostmem) {
+        res->image = pixman_image_create_bits(pformat,
+                                              c2d.width,
+                                              c2d.height,
+                                              NULL, 0);
+    }
 
     if (!res->image) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -353,13 +359,16 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
     }
 
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
+    g->hostmem += res->hostmem;
 }
 
 static void virtio_gpu_resource_destroy(VirtIOGPU *g,
                                         struct virtio_gpu_simple_resource *res)
 {
     pixman_image_unref(res->image);
+    virtio_gpu_cleanup_mapping(res);
     QTAILQ_REMOVE(&g->reslist, res, next);
+    g->hostmem -= res->hostmem;
     g_free(res);
 }
 
@@ -702,6 +711,11 @@ virtio_gpu_resource_attach_backing(VirtIOGPU *g,
         qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %d\n",
                       __func__, ab.resource_id);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    if (res->iov) {
+        cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         return;
     }
 
@@ -1241,6 +1255,8 @@ static const VMStateDescription vmstate_virtio_gpu = {
 
 static Property virtio_gpu_properties[] = {
     DEFINE_PROP_UINT32("max_outputs", VirtIOGPU, conf.max_outputs, 1),
+    DEFINE_PROP_SIZE("max_hostmem", VirtIOGPU, conf.max_hostmem,
+                     256 * 1024 * 1024),
 #ifdef CONFIG_VIRGL
     DEFINE_PROP_BIT("virgl", VirtIOGPU, conf.flags,
                     VIRTIO_GPU_FLAG_VIRGL_ENABLED, true),
