@@ -9,9 +9,9 @@ static inline void gen_reset_fpstatus(void)
     gen_helper_reset_fpstatus(cpu_env);
 }
 
-static inline void gen_compute_fprf(TCGv_i64 arg)
+static inline void gen_compute_fprf_float64(TCGv_i64 arg)
 {
-    gen_helper_compute_fprf(cpu_env, arg);
+    gen_helper_compute_fprf_float64(cpu_env, arg);
     gen_helper_float_check_status(cpu_env);
 }
 
@@ -47,7 +47,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
                         cpu_fpr[rD(ctx->opcode)]);                            \
     }                                                                         \
     if (set_fprf) {                                                           \
-        gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);                           \
+        gen_compute_fprf_float64(cpu_fpr[rD(ctx->opcode)]);                   \
     }                                                                         \
     if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
         gen_set_cr1_from_fpscr(ctx);                                          \
@@ -74,7 +74,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
                         cpu_fpr[rD(ctx->opcode)]);                            \
     }                                                                         \
     if (set_fprf) {                                                           \
-        gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);                           \
+        gen_compute_fprf_float64(cpu_fpr[rD(ctx->opcode)]);                   \
     }                                                                         \
     if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
         gen_set_cr1_from_fpscr(ctx);                                          \
@@ -100,7 +100,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
                         cpu_fpr[rD(ctx->opcode)]);                            \
     }                                                                         \
     if (set_fprf) {                                                           \
-        gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);                           \
+        gen_compute_fprf_float64(cpu_fpr[rD(ctx->opcode)]);                   \
     }                                                                         \
     if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
         gen_set_cr1_from_fpscr(ctx);                                          \
@@ -121,7 +121,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
     gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_env,                     \
                        cpu_fpr[rB(ctx->opcode)]);                             \
     if (set_fprf) {                                                           \
-        gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);                           \
+        gen_compute_fprf_float64(cpu_fpr[rD(ctx->opcode)]);                   \
     }                                                                         \
     if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
         gen_set_cr1_from_fpscr(ctx);                                          \
@@ -139,7 +139,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
     gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_env,                     \
                        cpu_fpr[rB(ctx->opcode)]);                             \
     if (set_fprf) {                                                           \
-        gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);                           \
+        gen_compute_fprf_float64(cpu_fpr[rD(ctx->opcode)]);                   \
     }                                                                         \
     if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
         gen_set_cr1_from_fpscr(ctx);                                          \
@@ -174,7 +174,7 @@ static void gen_frsqrtes(DisasContext *ctx)
                        cpu_fpr[rB(ctx->opcode)]);
     gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,
                     cpu_fpr[rD(ctx->opcode)]);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);
+    gen_compute_fprf_float64(cpu_fpr[rD(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_cr1_from_fpscr(ctx);
     }
@@ -196,7 +196,7 @@ static void gen_fsqrt(DisasContext *ctx)
     gen_reset_fpstatus();
     gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_env,
                      cpu_fpr[rB(ctx->opcode)]);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);
+    gen_compute_fprf_float64(cpu_fpr[rD(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_cr1_from_fpscr(ctx);
     }
@@ -213,7 +213,7 @@ static void gen_fsqrts(DisasContext *ctx)
                      cpu_fpr[rB(ctx->opcode)]);
     gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,
                     cpu_fpr[rD(ctx->opcode)]);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)]);
+    gen_compute_fprf_float64(cpu_fpr[rD(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_cr1_from_fpscr(ctx);
     }

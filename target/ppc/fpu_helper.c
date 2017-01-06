@@ -57,54 +57,57 @@ static inline int ppc_float64_get_unbiased_exp(float64 f)
     return ((f >> 52) & 0x7FF) - 1023;
 }
 
-void helper_compute_fprf(CPUPPCState *env, float64 arg)
-{
-    int isneg;
-    int fprf;
-
-    isneg = float64_is_neg(arg);
-    if (unlikely(float64_is_any_nan(arg))) {
-        if (float64_is_signaling_nan(arg, &env->fp_status)) {
-            /* Signaling NaN: flags are undefined */
-            fprf = 0x00;
-        } else {
-            /* Quiet NaN */
-            fprf = 0x11;
-        }
-    } else if (unlikely(float64_is_infinity(arg))) {
-        /* +/- infinity */
-        if (isneg) {
-            fprf = 0x09;
-        } else {
-            fprf = 0x05;
-        }
-    } else {
-        if (float64_is_zero(arg)) {
-            /* +/- zero */
-            if (isneg) {
-                fprf = 0x12;
-            } else {
-                fprf = 0x02;
-            }
-        } else {
-            if (float64_is_zero_or_denormal(arg)) {
-                /* Denormalized numbers */
-                fprf = 0x10;
-            } else {
-                /* Normalized numbers */
-                fprf = 0x00;
-            }
-            if (isneg) {
-                fprf |= 0x08;
-            } else {
-                fprf |= 0x04;
-            }
-        }
-    }
-    /* We update FPSCR_FPRF */
-    env->fpscr &= ~(0x1F << FPSCR_FPRF);
-    env->fpscr |= fprf << FPSCR_FPRF;
+#define COMPUTE_FPRF(tp)                                       \
+void helper_compute_fprf_##tp(CPUPPCState *env, tp arg)        \
+{                                                              \
+    int isneg;                                                 \
+    int fprf;                                                  \
+                                                               \
+    isneg = tp##_is_neg(arg);                                  \
+    if (unlikely(tp##_is_any_nan(arg))) {                      \
+        if (tp##_is_signaling_nan(arg, &env->fp_status)) {     \
+            /* Signaling NaN: flags are undefined */           \
+            fprf = 0x00;                                       \
+        } else {                                               \
+            /* Quiet NaN */                                    \
+            fprf = 0x11;                                       \
+        }                                                      \
+    } else if (unlikely(tp##_is_infinity(arg))) {              \
+        /* +/- infinity */                                     \
+        if (isneg) {                                           \
+            fprf = 0x09;                                       \
+        } else {                                               \
+            fprf = 0x05;                                       \
+        }                                                      \
+    } else {                                                   \
+        if (tp##_is_zero(arg)) {                               \
+            /* +/- zero */                                     \
+            if (isneg) {                                       \
+                fprf = 0x12;                                   \
+            } else {                                           \
+                fprf = 0x02;                                   \
+            }                                                  \
+        } else {                                               \
+            if (tp##_is_zero_or_denormal(arg)) {               \
+                /* Denormalized numbers */                     \
+                fprf = 0x10;                                   \
+            } else {                                           \
+                /* Normalized numbers */                       \
+                fprf = 0x00;                                   \
+            }                                                  \
+            if (isneg) {                                       \
+                fprf |= 0x08;                                  \
+            } else {                                           \
+                fprf |= 0x04;                                  \
+            }                                                  \
+        }                                                      \
+    }                                                          \
+    /* We update FPSCR_FPRF */                                 \
+    env->fpscr &= ~(0x1F << FPSCR_FPRF);                       \
+    env->fpscr |= fprf << FPSCR_FPRF;                          \
 }
+
+COMPUTE_FPRF(float64)
 
 /* Floating-point invalid operations exception */
 static inline __attribute__((__always_inline__))
@@ -1808,7 +1811,7 @@ void helper_##name(CPUPPCState *env, uint32_t opcode)                        \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld);                                \
+            helper_compute_fprf_float64(env, xt.fld);                        \
         }                                                                    \
     }                                                                        \
     putVSR(xT(opcode), &xt, env);                                            \
@@ -1863,7 +1866,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld);                                \
+            helper_compute_fprf_float64(env, xt.fld);                        \
         }                                                                    \
     }                                                                        \
                                                                              \
@@ -1917,7 +1920,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
-            helper_compute_fprf(env, xt.fld);                                 \
+            helper_compute_fprf_float64(env, xt.fld);                         \
         }                                                                     \
     }                                                                         \
                                                                               \
@@ -1958,7 +1961,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
-            helper_compute_fprf(env, xt.fld);                                 \
+            helper_compute_fprf_float64(env, xt.fld);                         \
         }                                                                     \
     }                                                                         \
                                                                               \
@@ -2007,7 +2010,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld);                                \
+            helper_compute_fprf_float64(env, xt.fld);                        \
         }                                                                    \
     }                                                                        \
                                                                              \
@@ -2057,7 +2060,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld);                                \
+            helper_compute_fprf_float64(env, xt.fld);                        \
         }                                                                    \
     }                                                                        \
                                                                              \
@@ -2257,7 +2260,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
-            helper_compute_fprf(env, xt_out.fld);                             \
+            helper_compute_fprf_float64(env, xt_out.fld);                     \
         }                                                                     \
     }                                                                         \
     putVSR(xT(opcode), &xt_out, env);                                         \
@@ -2647,7 +2650,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                \
             xt.tfld = ttp##_snan_to_qnan(xt.tfld);                 \
         }                                                          \
         if (sfprf) {                                               \
-            helper_compute_fprf(env, ttp##_to_float64(xt.tfld,     \
+            helper_compute_fprf_float64(env, ttp##_to_float64(xt.tfld, \
                                 &env->fp_status));                 \
         }                                                          \
     }                                                              \
@@ -2758,7 +2761,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
             xt.tfld = helper_frsp(env, xt.tfld);                        \
         }                                                               \
         if (sfprf) {                                                    \
-            helper_compute_fprf(env, xt.tfld);                          \
+            helper_compute_fprf_float64(env, xt.tfld);                  \
         }                                                               \
     }                                                                   \
                                                                         \
@@ -2814,7 +2817,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                    \
             xt.fld = tp##_round_to_int(xb.fld, &env->fp_status);       \
         }                                                              \
         if (sfprf) {                                                   \
-            helper_compute_fprf(env, xt.fld);                          \
+            helper_compute_fprf_float64(env, xt.fld);                  \
         }                                                              \
     }                                                                  \
                                                                        \
@@ -2854,7 +2857,7 @@ uint64_t helper_xsrsp(CPUPPCState *env, uint64_t xb)
 
     uint64_t xt = helper_frsp(env, xb);
 
-    helper_compute_fprf(env, xt);
+    helper_compute_fprf_float64(env, xt);
     float_check_status(env);
     return xt;
 }
