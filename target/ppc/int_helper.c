@@ -2027,6 +2027,31 @@ void helper_xxextractuw(CPUPPCState *env, target_ulong xtn,
     putVSR(xtn, &xt, env);
 }
 
+void helper_xxinsertw(CPUPPCState *env, target_ulong xtn,
+                      target_ulong xbn, uint32_t index)
+{
+    ppc_vsr_t xt, xb;
+    size_t es = sizeof(uint32_t);
+    int ins_index, i = 0;
+
+    getVSR(xbn, &xb, env);
+    getVSR(xtn, &xt, env);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    ins_index = index;
+    for (i = 0; i < es && ins_index < 16; i++, ins_index++) {
+        xt.u8[ins_index] = xb.u8[8 - es + i];
+    }
+#else
+    ins_index = 15 - index;
+    for (i = es - 1; i >= 0 && ins_index >= 0; i--, ins_index--) {
+        xt.u8[ins_index] = xb.u8[8 + i];
+    }
+#endif
+
+    putVSR(xtn, &xt, env);
+}
+
 #define VEXT_SIGNED(name, element, mask, cast, recast)              \
 void helper_##name(ppc_avr_t *r, ppc_avr_t *b)                      \
 {                                                                   \
