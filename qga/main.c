@@ -28,6 +28,7 @@
 #include "qga/channel.h"
 #include "qemu/bswap.h"
 #include "qemu/help_option.h"
+#include "qemu/sockets.h"
 #ifdef _WIN32
 #include "qga/service-win32.h"
 #include "qga/vss-win32.h"
@@ -183,6 +184,37 @@ void reopen_fd_to_null(int fd)
     }
 }
 #endif
+
+/**
+ * get_listen_fd:
+ * @consume: true to prevent future calls from succeeding
+ *
+ * Fetch a listen file descriptor that was passed via systemd socket
+ * activation.  Use @consume to prevent child processes from thinking a file
+ * descriptor was passed.
+ *
+ * Returns: file descriptor or -1 if no fd was passed
+ */
+static int get_listen_fd(bool consume)
+{
+#ifdef _WIN32
+    return -1; /* no fd passing expected, unsetenv(3) not available */
+#else
+    const char *listen_fds = getenv("LISTEN_FDS");
+    int fd = STDERR_FILENO + 1;
+
+    if (!listen_fds || strcmp(listen_fds, "1") != 0) {
+        return -1;
+    }
+
+    if (consume) {
+        unsetenv("LISTEN_FDS");
+    }
+
+    qemu_set_cloexec(fd);
+    return fd;
+#endif /* !_WIN32 */
+}
 
 static void usage(const char *cmd)
 {
@@ -648,7 +680,8 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
     return true;
 }
 
-static gboolean channel_init(GAState *s, const gchar *method, const gchar *path)
+static gboolean channel_init(GAState *s, const gchar *method, const gchar *path,
+                             int listen_fd)
 {
     GAChannelMethod channel_method;
 
@@ -666,7 +699,8 @@ static gboolean channel_init(GAState *s, const gchar *method, const gchar *path)
         return false;
     }
 
-    s->channel = ga_channel_new(channel_method, path, channel_event_cb, s);
+    s->channel = ga_channel_new(channel_method, path, listen_fd,
+                                channel_event_cb, s);
     if (!s->channel) {
         g_critical("failed to create guest agent channel");
         return false;
@@ -1025,7 +1059,9 @@ static void config_dump(GAConfig *config)
 
     g_key_file_set_boolean(keyfile, "general", "daemon", config->daemonize);
     g_key_file_set_string(keyfile, "general", "method", config->method);
-    g_key_file_set_string(keyfile, "general", "path", config->channel_path);
+    if (config->channel_path) {
+        g_key_file_set_string(keyfile, "general", "path", config->channel_path);
+    }
     if (config->log_filepath) {
         g_key_file_set_string(keyfile, "general", "logfile",
                               config->log_filepath);
@@ -1294,7 +1330,9 @@ static int run_agent(GAState *s, GAConfig *config)
 #endif
 
     s->main_loop = g_main_loop_new(NULL, false);
-    if (!channel_init(ga_state, config->method, config->channel_path)) {
+
+    if (!channel_init(ga_state, config->method, config->channel_path,
+                      get_listen_fd(true))) {
         g_critical("failed to initialize guest agent channel");
         return EXIT_FAILURE;
     }
@@ -1318,6 +1356,7 @@ int main(int argc, char **argv)
     int ret = EXIT_SUCCESS;
     GAState *s = g_new0(GAState, 1);
     GAConfig *config = g_new0(GAConfig, 1);
+    int listen_fd;
 
     config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
@@ -1339,7 +1378,32 @@ int main(int argc, char **argv)
         config->method = g_strdup("virtio-serial");
     }
 
-    if (config->channel_path == NULL) {
+    listen_fd = get_listen_fd(false);
+    if (listen_fd >= 0) {
+        SocketAddress *addr;
+
+        g_free(config->method);
+        g_free(config->channel_path);
+        config->method = NULL;
+        config->channel_path = NULL;
+
+        addr = socket_local_address(listen_fd, NULL);
+        if (addr) {
+            if (addr->type == SOCKET_ADDRESS_KIND_UNIX) {
+                config->method = g_strdup("unix-listen");
+            } else if (addr->type == SOCKET_ADDRESS_KIND_VSOCK) {
+                config->method = g_strdup("vsock-listen");
+            }
+
+            qapi_free_SocketAddress(addr);
+        }
+
+        if (!config->method) {
+            g_critical("unsupported listen fd type");
+            ret = EXIT_FAILURE;
+            goto end;
+        }
+    } else if (config->channel_path == NULL) {
         if (strcmp(config->method, "virtio-serial") == 0) {
             /* try the default path for the virtio-serial port */
             config->channel_path = g_strdup(QGA_VIRTIO_PATH_DEFAULT);

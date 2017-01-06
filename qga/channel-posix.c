@@ -118,14 +118,16 @@ static int ga_channel_client_add(GAChannel *c, int fd)
     return 0;
 }
 
-static gboolean ga_channel_open(GAChannel *c, const gchar *path, GAChannelMethod method)
+static gboolean ga_channel_open(GAChannel *c, const gchar *path,
+                                GAChannelMethod method, int fd)
 {
     int ret;
     c->method = method;
 
     switch (c->method) {
     case GA_CHANNEL_VIRTIO_SERIAL: {
-        int fd = qemu_open(path, O_RDWR | O_NONBLOCK
+        assert(fd < 0);
+        fd = qemu_open(path, O_RDWR | O_NONBLOCK
 #ifndef CONFIG_SOLARIS
                            | O_ASYNC
 #endif
@@ -153,7 +155,9 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path, GAChannelMethod
     }
     case GA_CHANNEL_ISA_SERIAL: {
         struct termios tio;
-        int fd = qemu_open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
+
+        assert(fd < 0);
+        fd = qemu_open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
         if (fd == -1) {
             g_critical("error opening channel: %s", strerror(errno));
             return false;
@@ -183,37 +187,41 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path, GAChannelMethod
         break;
     }
     case GA_CHANNEL_UNIX_LISTEN: {
-        Error *local_err = NULL;
-        int fd = unix_listen(path, NULL, strlen(path), &local_err);
-        if (local_err != NULL) {
-            g_critical("%s", error_get_pretty(local_err));
-            error_free(local_err);
-            return false;
+        if (fd < 0) {
+            Error *local_err = NULL;
+
+            fd = unix_listen(path, NULL, strlen(path), &local_err);
+            if (local_err != NULL) {
+                g_critical("%s", error_get_pretty(local_err));
+                error_free(local_err);
+                return false;
+            }
         }
         ga_channel_listen_add(c, fd, true);
         break;
     }
     case GA_CHANNEL_VSOCK_LISTEN: {
-        Error *local_err = NULL;
-        SocketAddress *addr;
-        char *addr_str;
-        int fd;
+        if (fd < 0) {
+            Error *local_err = NULL;
+            SocketAddress *addr;
+            char *addr_str;
 
-        addr_str = g_strdup_printf("vsock:%s", path);
-        addr = socket_parse(addr_str, &local_err);
-        g_free(addr_str);
-        if (local_err != NULL) {
-            g_critical("%s", error_get_pretty(local_err));
-            error_free(local_err);
-            return false;
-        }
+            addr_str = g_strdup_printf("vsock:%s", path);
+            addr = socket_parse(addr_str, &local_err);
+            g_free(addr_str);
+            if (local_err != NULL) {
+                g_critical("%s", error_get_pretty(local_err));
+                error_free(local_err);
+                return false;
+            }
 
-        fd = socket_listen(addr, &local_err);
-        qapi_free_SocketAddress(addr);
-        if (local_err != NULL) {
-            g_critical("%s", error_get_pretty(local_err));
-            error_free(local_err);
-            return false;
+            fd = socket_listen(addr, &local_err);
+            qapi_free_SocketAddress(addr);
+            if (local_err != NULL) {
+                g_critical("%s", error_get_pretty(local_err));
+                error_free(local_err);
+                return false;
+            }
         }
         ga_channel_listen_add(c, fd, true);
         break;
@@ -262,13 +270,13 @@ GIOStatus ga_channel_read(GAChannel *c, gchar *buf, gsize size, gsize *count)
 }
 
 GAChannel *ga_channel_new(GAChannelMethod method, const gchar *path,
-                          GAChannelCallback cb, gpointer opaque)
+                          int listen_fd, GAChannelCallback cb, gpointer opaque)
 {
     GAChannel *c = g_new0(GAChannel, 1);
     c->event_cb = cb;
     c->user_data = opaque;
 
-    if (!ga_channel_open(c, path, method)) {
+    if (!ga_channel_open(c, path, method, listen_fd)) {
         g_critical("error opening channel");
         ga_channel_free(c);
         return NULL;
