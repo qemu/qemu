@@ -19,3 +19,4 @@ common-obj-y += filter-mirror.o
 common-obj-y += colo-compare.o
 common-obj-y += colo.o
 common-obj-y += filter-rewriter.o
+common-obj-y += filter-replay.o

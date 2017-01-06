@@ -195,3 +195,17 @@ Queue is flushed at checkpoints and information about processed requests
 is recorded to the log. In replay phase the queue is matched with
 events read from the log. Therefore block devices requests are processed
 deterministically.
+
+Network devices
+---------------
+
+Record and replay for network interactions is performed with the network filter.
+Each backend must have its own instance of the replay filter as follows:
+ -netdev user,id=net1 -device rtl8139,netdev=net1
+ -object filter-replay,id=replay,netdev=net1
+
+Replay network filter is used to record and replay network packets. While
+recording the virtual machine this filter puts all packets coming from
+the outer world into the log. In replay mode packets from the log are
+injected into the network device. All interactions with network backend
+in replay mode are disabled.

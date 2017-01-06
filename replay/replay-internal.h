@@ -50,6 +50,7 @@ enum ReplayAsyncEventKind {
     REPLAY_ASYNC_EVENT_INPUT_SYNC,
     REPLAY_ASYNC_EVENT_CHAR_READ,
     REPLAY_ASYNC_EVENT_BLOCK,
+    REPLAY_ASYNC_EVENT_NET,
     REPLAY_ASYNC_COUNT
 };
 
@@ -160,6 +161,15 @@ void replay_event_char_read_run(void *opaque);
 void replay_event_char_read_save(void *opaque);
 /*! Reads char event read from the file. */
 void *replay_event_char_read_load(void);
+
+/* Network devices */
+
+/*! Called to run network event. */
+void replay_event_net_run(void *opaque);
+/*! Writes network event to the file. */
+void replay_event_net_save(void *opaque);
+/*! Reads network from the file. */
+void *replay_event_net_load(void);
 
 /* VMState-related functions */
 

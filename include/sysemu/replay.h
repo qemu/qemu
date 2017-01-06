@@ -39,6 +39,8 @@ enum ReplayCheckpoint {
 };
 typedef enum ReplayCheckpoint ReplayCheckpoint;
 
+typedef struct ReplayNetState ReplayNetState;
+
 extern ReplayMode replay_mode;
 
 /* Replay process control functions */
@@ -136,5 +138,15 @@ int replay_char_read_all_load(uint8_t *buf);
 void replay_char_read_all_save_error(int res);
 /*! Writes character read_all execution result into the replay log. */
 void replay_char_read_all_save_buf(uint8_t *buf, int offset);
+
+/* Network */
+
+/*! Registers replay network filter attached to some backend. */
+ReplayNetState *replay_register_net(NetFilterState *nfs);
+/*! Unregisters replay network filter. */
+void replay_unregister_net(ReplayNetState *rns);
+/*! Called to write network packet to the replay log. */
+void replay_net_packet_event(ReplayNetState *rns, unsigned flags,
+                             const struct iovec *iov, int iovcnt);
 
 #endif

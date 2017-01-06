@@ -1205,6 +1205,20 @@ static void rtl8139_reset_rxring(RTL8139State *s, uint32_t bufferSize)
     s->RxBufAddr = 0;
 }
 
+static void rtl8139_reset_phy(RTL8139State *s)
+{
+    s->BasicModeStatus  = 0x7809;
+    s->BasicModeStatus |= 0x0020; /* autonegotiation completed */
+    /* preserve link state */
+    s->BasicModeStatus |= qemu_get_queue(s->nic)->link_down ? 0 : 0x04;
+
+    s->NWayAdvert    = 0x05e1; /* all modes, full duplex */
+    s->NWayLPAR      = 0x05e1; /* all modes, full duplex */
+    s->NWayExpansion = 0x0001; /* autonegotiation supported */
+
+    s->CSCR = CSCR_F_LINK_100 | CSCR_HEART_BIT | CSCR_LD;
+}
+
 static void rtl8139_reset(DeviceState *d)
 {
     RTL8139State *s = RTL8139(d);
@@ -1256,25 +1270,14 @@ static void rtl8139_reset(DeviceState *d)
     s->Config3 = 0x1; /* fast back-to-back compatible */
     s->Config5 = 0x0;
 
-    s->CSCR = CSCR_F_LINK_100 | CSCR_HEART_BIT | CSCR_LD;
-
     s->CpCmd   = 0x0; /* reset C+ mode */
     s->cplus_enabled = 0;
-
 
 //    s->BasicModeCtrl = 0x3100; // 100Mbps, full duplex, autonegotiation
 //    s->BasicModeCtrl = 0x2100; // 100Mbps, full duplex
     s->BasicModeCtrl = 0x1000; // autonegotiation
 
-    s->BasicModeStatus  = 0x7809;
-    //s->BasicModeStatus |= 0x0040; /* UTP medium */
-    s->BasicModeStatus |= 0x0020; /* autonegotiation completed */
-    /* preserve link state */
-    s->BasicModeStatus |= qemu_get_queue(s->nic)->link_down ? 0 : 0x04;
-
-    s->NWayAdvert    = 0x05e1; /* all modes, full duplex */
-    s->NWayLPAR      = 0x05e1; /* all modes, full duplex */
-    s->NWayExpansion = 0x0001; /* autonegotiation supported */
+    rtl8139_reset_phy(s);
 
     /* also reset timer and disable timer interrupt */
     s->TCTR = 0;
@@ -1469,7 +1472,7 @@ static void rtl8139_BasicModeCtrl_write(RTL8139State *s, uint32_t val)
     DPRINTF("BasicModeCtrl register write(w) val=0x%04x\n", val);
 
     /* mask unwritable bits */
-    uint32_t mask = 0x4cff;
+    uint32_t mask = 0xccff;
 
     if (1 || !rtl8139_config_writable(s))
     {
@@ -1477,6 +1480,11 @@ static void rtl8139_BasicModeCtrl_write(RTL8139State *s, uint32_t val)
         mask |= 0x3000;
         /* Duplex mode setting is read-only */
         mask |= 0x0100;
+    }
+
+    if (val & 0x8000) {
+        /* Reset PHY */
+        rtl8139_reset_phy(s);
     }
 
     val = SET_MASKED(val, mask, s->BasicModeCtrl);
