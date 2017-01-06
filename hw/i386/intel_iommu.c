@@ -1996,7 +1996,27 @@ static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
 
 static const VMStateDescription vtd_vmstate = {
     .name = "iommu-intel",
-    .unmigratable = 1,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .priority = MIG_PRI_IOMMU,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(root, IntelIOMMUState),
+        VMSTATE_UINT64(intr_root, IntelIOMMUState),
+        VMSTATE_UINT64(iq, IntelIOMMUState),
+        VMSTATE_UINT32(intr_size, IntelIOMMUState),
+        VMSTATE_UINT16(iq_head, IntelIOMMUState),
+        VMSTATE_UINT16(iq_tail, IntelIOMMUState),
+        VMSTATE_UINT16(iq_size, IntelIOMMUState),
+        VMSTATE_UINT16(next_frcd_reg, IntelIOMMUState),
+        VMSTATE_UINT8_ARRAY(csr, IntelIOMMUState, DMAR_REG_SIZE),
+        VMSTATE_UINT8(iq_last_desc_type, IntelIOMMUState),
+        VMSTATE_BOOL(root_extended, IntelIOMMUState),
+        VMSTATE_BOOL(dmar_enabled, IntelIOMMUState),
+        VMSTATE_BOOL(qi_enabled, IntelIOMMUState),
+        VMSTATE_BOOL(intr_enabled, IntelIOMMUState),
+        VMSTATE_BOOL(intr_eime, IntelIOMMUState),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static const MemoryRegionOps vtd_mem_ops = {

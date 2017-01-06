@@ -188,6 +188,7 @@ enum VMStateFlags {
 
 typedef enum {
     MIG_PRI_DEFAULT = 0,
+    MIG_PRI_IOMMU,              /* Must happen before PCI devices */
     MIG_PRI_MAX,
 } MigrationPriority;
 
