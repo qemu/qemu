@@ -1213,6 +1213,19 @@ static void gen_##name(DisasContext *ctx)                       \
 VSX_EXTRACT_INSERT(xxextractuw)
 VSX_EXTRACT_INSERT(xxinsertw)
 
+#ifdef TARGET_PPC64
+static void gen_xsxexpdp(DisasContext *ctx)
+{
+    TCGv rt = cpu_gpr[rD(ctx->opcode)];
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    tcg_gen_shri_i64(rt, cpu_vsrh(xB(ctx->opcode)), 52);
+    tcg_gen_andi_i64(rt, rt, 0x7FF);
+}
+#endif
+
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
 #undef GEN_XX2IFORM
