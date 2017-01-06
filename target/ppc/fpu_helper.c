@@ -66,23 +66,21 @@ static inline int ppc_float64_get_unbiased_exp(float64 f)
     return ((f >> 52) & 0x7FF) - 1023;
 }
 
-void helper_compute_fprf(CPUPPCState *env, uint64_t arg)
+void helper_compute_fprf(CPUPPCState *env, float64 arg)
 {
-    CPU_DoubleU farg;
     int isneg;
     int fprf;
 
-    farg.ll = arg;
-    isneg = float64_is_neg(farg.d);
-    if (unlikely(float64_is_any_nan(farg.d))) {
-        if (float64_is_signaling_nan(farg.d, &env->fp_status)) {
+    isneg = float64_is_neg(arg);
+    if (unlikely(float64_is_any_nan(arg))) {
+        if (float64_is_signaling_nan(arg, &env->fp_status)) {
             /* Signaling NaN: flags are undefined */
             fprf = 0x00;
         } else {
             /* Quiet NaN */
             fprf = 0x11;
         }
-    } else if (unlikely(float64_is_infinity(farg.d))) {
+    } else if (unlikely(float64_is_infinity(arg))) {
         /* +/- infinity */
         if (isneg) {
             fprf = 0x09;
@@ -90,7 +88,7 @@ void helper_compute_fprf(CPUPPCState *env, uint64_t arg)
             fprf = 0x05;
         }
     } else {
-        if (float64_is_zero(farg.d)) {
+        if (float64_is_zero(arg)) {
             /* +/- zero */
             if (isneg) {
                 fprf = 0x12;
@@ -98,7 +96,7 @@ void helper_compute_fprf(CPUPPCState *env, uint64_t arg)
                 fprf = 0x02;
             }
         } else {
-            if (isden(farg.d)) {
+            if (isden(arg)) {
                 /* Denormalized numbers */
                 fprf = 0x10;
             } else {
