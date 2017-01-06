@@ -109,6 +109,7 @@ void helper_compute_fprf_##tp(CPUPPCState *env, tp arg)        \
 }
 
 COMPUTE_FPRF(float16)
+COMPUTE_FPRF(float32)
 COMPUTE_FPRF(float64)
 
 /* Floating-point invalid operations exception */
@@ -2652,8 +2653,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                \
             xt.tfld = ttp##_snan_to_qnan(xt.tfld);                 \
         }                                                          \
         if (sfprf) {                                               \
-            helper_compute_fprf_float64(env, ttp##_to_float64(xt.tfld, \
-                                &env->fp_status));                 \
+            helper_compute_fprf_##ttp(env, xt.tfld);               \
         }                                                          \
     }                                                              \
                                                                    \
