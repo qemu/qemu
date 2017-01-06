@@ -211,10 +211,12 @@ typedef union _ppc_vsr_t {
 
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VsrB(i) u8[i]
+#define VsrH(i) u16[i]
 #define VsrW(i) u32[i]
 #define VsrD(i) u64[i]
 #else
 #define VsrB(i) u8[15 - (i)]
+#define VsrH(i) u16[7 - (i)]
 #define VsrW(i) u32[3 - (i)]
 #define VsrD(i) u64[1 - (i)]
 #endif
@@ -241,4 +243,5 @@ static inline void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
     }
 }
 
+void helper_compute_fprf_float16(CPUPPCState *env, float16 arg);
 #endif /* PPC_INTERNAL_H */

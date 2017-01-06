@@ -24,6 +24,7 @@
 
 #define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ULL)
 #define float32_snan_to_qnan(x) ((x) | 0x00400000)
+#define float16_snan_to_qnan(x) ((x) | 0x0200)
 
 /*****************************************************************************/
 /* Floating point operations helpers */
@@ -107,6 +108,7 @@ void helper_compute_fprf_##tp(CPUPPCState *env, tp arg)        \
     env->fpscr |= fprf << FPSCR_FPRF;                          \
 }
 
+COMPUTE_FPRF(float16)
 COMPUTE_FPRF(float64)
 
 /* Floating-point invalid operations exception */
@@ -2663,6 +2665,37 @@ VSX_CVT_FP_TO_FP(xscvdpsp, 1, float64, float32, VsrD(0), VsrW(0), 1)
 VSX_CVT_FP_TO_FP(xscvspdp, 1, float32, float64, VsrW(0), VsrD(0), 1)
 VSX_CVT_FP_TO_FP(xvcvdpsp, 2, float64, float32, VsrD(i), VsrW(2*i), 0)
 VSX_CVT_FP_TO_FP(xvcvspdp, 2, float32, float64, VsrW(2*i), VsrD(i), 0)
+
+/* VSX_CVT_FP_TO_FP_HP - VSX floating point/floating point conversion
+ *                       involving one half precision value
+ *   op    - instruction mnemonic
+ *   stp   - source type
+ *   ttp   - target type
+ *   sfld  - source vsr_t field
+ *   tfld  - target vsr_t field
+ */
+#define VSX_CVT_FP_TO_FP_HP(op, stp, ttp, sfld, tfld)              \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                \
+{                                                                  \
+    ppc_vsr_t xt, xb;                                              \
+                                                                   \
+    getVSR(xB(opcode), &xb, env);                                  \
+    memset(&xt, 0, sizeof(xt));                                    \
+                                                                   \
+    xt.tfld = stp##_to_##ttp(xb.sfld, 1, &env->fp_status);         \
+    if (unlikely(stp##_is_signaling_nan(xb.sfld,                   \
+                                        &env->fp_status))) {       \
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);     \
+        xt.tfld = ttp##_snan_to_qnan(xt.tfld);                     \
+    }                                                              \
+    helper_compute_fprf_##ttp(env, xt.tfld);                       \
+                                                                   \
+    putVSR(xT(opcode), &xt, env);                                  \
+    float_check_status(env);                                       \
+}
+
+VSX_CVT_FP_TO_FP_HP(xscvdphp, float64, float16, VsrD(0), VsrH(3))
+VSX_CVT_FP_TO_FP_HP(xscvhpdp, float16, float64, VsrH(3), VsrD(0))
 
 uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
 {
