@@ -2001,6 +2001,32 @@ VEXTRACT(uw, u32)
 VEXTRACT(d, u64)
 #undef VEXTRACT
 
+void helper_xxextractuw(CPUPPCState *env, target_ulong xtn,
+                        target_ulong xbn, uint32_t index)
+{
+    ppc_vsr_t xt, xb;
+    size_t es = sizeof(uint32_t);
+    uint32_t ext_index;
+    int i;
+
+    getVSR(xbn, &xb, env);
+    memset(&xt, 0, sizeof(xt));
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    ext_index = index;
+    for (i = 0; i < es; i++, ext_index++) {
+        xt.u8[8 - es + i] = xb.u8[ext_index % 16];
+    }
+#else
+    ext_index = 15 - index;
+    for (i = es - 1; i >= 0; i--, ext_index--) {
+        xt.u8[8 + i] = xb.u8[ext_index % 16];
+    }
+#endif
+
+    putVSR(xtn, &xt, env);
+}
+
 #define VEXT_SIGNED(name, element, mask, cast, recast)              \
 void helper_##name(ppc_avr_t *r, ppc_avr_t *b)                      \
 {                                                                   \

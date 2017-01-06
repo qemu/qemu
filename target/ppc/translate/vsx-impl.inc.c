@@ -1180,6 +1180,36 @@ static void gen_xxsldwi(DisasContext *ctx)
     tcg_temp_free_i64(xtl);
 }
 
+#define VSX_EXTRACT(name)                                       \
+static void gen_##name(DisasContext *ctx)                       \
+{                                                               \
+    TCGv xt, xb;                                                \
+    TCGv_i32 t0 = tcg_temp_new_i32();                           \
+    uint8_t uimm = UIMM4(ctx->opcode);                          \
+                                                                \
+    if (unlikely(!ctx->vsx_enabled)) {                          \
+        gen_exception(ctx, POWERPC_EXCP_VSXU);                  \
+        return;                                                 \
+    }                                                           \
+    xt = tcg_const_tl(xT(ctx->opcode));                         \
+    xb = tcg_const_tl(xB(ctx->opcode));                         \
+    /* uimm > 15 out of bound and for                           \
+     * uimm > 12 handle as per hardware in helper               \
+     */                                                         \
+    if (uimm > 15) {                                            \
+        tcg_gen_movi_i64(cpu_vsrh(xT(ctx->opcode)), 0);         \
+        tcg_gen_movi_i64(cpu_vsrl(xT(ctx->opcode)), 0);         \
+        return;                                                 \
+    }                                                           \
+    tcg_gen_movi_i32(t0, uimm);                                 \
+    gen_helper_##name(cpu_env, xt, xb, t0);                     \
+    tcg_temp_free(xb);                                          \
+    tcg_temp_free(xt);                                          \
+    tcg_temp_free_i32(t0);                                      \
+}
+
+VSX_EXTRACT(xxextractuw)
+
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
 #undef GEN_XX2IFORM
