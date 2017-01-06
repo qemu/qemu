@@ -47,15 +47,6 @@ uint32_t helper_float64_to_float32(CPUPPCState *env, uint64_t arg)
     return f.l;
 }
 
-static inline int isden(float64 d)
-{
-    CPU_DoubleU u;
-
-    u.d = d;
-
-    return ((u.ll >> 52) & 0x7FF) == 0;
-}
-
 static inline int ppc_float32_get_unbiased_exp(float32 f)
 {
     return ((f >> 23) & 0xFF) - 127;
@@ -96,7 +87,7 @@ void helper_compute_fprf(CPUPPCState *env, float64 arg)
                 fprf = 0x02;
             }
         } else {
-            if (isden(arg)) {
+            if (float64_is_zero_or_denormal(arg)) {
                 /* Denormalized numbers */
                 fprf = 0x10;
             } else {
