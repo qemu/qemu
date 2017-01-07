@@ -74,3 +74,7 @@ ppc_tb_adjust(uint64_t offs1, uint64_t offs2, int64_t diff, int64_t seconds) "ad
 # hw/ppc/prep.c
 prep_io_800_writeb(uint32_t addr, uint32_t val) "0x%08" PRIx32 " => 0x%02" PRIx32
 prep_io_800_readb(uint32_t addr, uint32_t retval) "0x%08" PRIx32 " <= 0x%02" PRIx32
+
+# hw/ppc/prep_systemio.c
+prep_systemio_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+prep_systemio_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
