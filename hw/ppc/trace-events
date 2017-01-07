@@ -78,3 +78,10 @@ prep_io_800_readb(uint32_t addr, uint32_t retval) "0x%08" PRIx32 " <= 0x%02" PRI
 # hw/ppc/prep_systemio.c
 prep_systemio_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
 prep_systemio_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
+
+# hw/ppc/rs6000_mc.c
+rs6000mc_id_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+rs6000mc_presence_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+rs6000mc_size_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+rs6000mc_size_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
+rs6000mc_parity_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
