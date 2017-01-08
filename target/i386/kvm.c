@@ -963,8 +963,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
         has_msr_mcg_ext_ctl = has_msr_feature_control = true;
     }
 
-    c = cpuid_find_entry(&cpuid_data.cpuid, 0x80000007, 0);
-    if (c && (c->edx & 1<<8) && invtsc_mig_blocker == NULL) {
+    if ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC) &&
+        invtsc_mig_blocker == NULL) {
         /* for migration */
         error_setg(&invtsc_mig_blocker,
                    "State blocked by non-migratable CPU device"
