@@ -963,15 +963,17 @@ int kvm_arch_init_vcpu(CPUState *cs)
         has_msr_mcg_ext_ctl = has_msr_feature_control = true;
     }
 
-    if ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC) &&
-        invtsc_mig_blocker == NULL) {
-        /* for migration */
-        error_setg(&invtsc_mig_blocker,
-                   "State blocked by non-migratable CPU device"
-                   " (invtsc flag)");
-        migrate_add_blocker(invtsc_mig_blocker);
-        /* for savevm */
-        vmstate_x86_cpu.unmigratable = 1;
+    if (!env->user_tsc_khz) {
+        if ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC) &&
+            invtsc_mig_blocker == NULL) {
+            /* for migration */
+            error_setg(&invtsc_mig_blocker,
+                       "State blocked by non-migratable CPU device"
+                       " (invtsc flag)");
+            migrate_add_blocker(invtsc_mig_blocker);
+            /* for savevm */
+            vmstate_x86_cpu.unmigratable = 1;
+        }
     }
 
     cpuid_data.cpuid.padding = 0;
