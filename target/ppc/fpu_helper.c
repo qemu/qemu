@@ -22,6 +22,15 @@
 #include "exec/exec-all.h"
 #include "internal.h"
 
+static inline float128 float128_snan_to_qnan(float128 x)
+{
+    float128 r;
+
+    r.high = x.high | 0x0000800000000000;
+    r.low = x.low;
+    return r;
+}
+
 #define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ULL)
 #define float32_snan_to_qnan(x) ((x) | 0x00400000)
 #define float16_snan_to_qnan(x) ((x) | 0x0200)
@@ -2701,6 +2710,42 @@ VSX_CVT_FP_TO_FP(xscvdpsp, 1, float64, float32, VsrD(0), VsrW(0), 1)
 VSX_CVT_FP_TO_FP(xscvspdp, 1, float32, float64, VsrW(0), VsrD(0), 1)
 VSX_CVT_FP_TO_FP(xvcvdpsp, 2, float64, float32, VsrD(i), VsrW(2*i), 0)
 VSX_CVT_FP_TO_FP(xvcvspdp, 2, float32, float64, VsrW(2*i), VsrD(i), 0)
+
+/* VSX_CVT_FP_TO_FP_VECTOR - VSX floating point/floating point conversion
+ *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
+ *   stp   - source type (float32 or float64)
+ *   ttp   - target type (float32 or float64)
+ *   sfld  - source vsr_t field
+ *   tfld  - target vsr_t field (f32 or f64)
+ *   sfprf - set FPRF
+ */
+#define VSX_CVT_FP_TO_FP_VECTOR(op, nels, stp, ttp, sfld, tfld, sfprf)    \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
+{                                                                       \
+    ppc_vsr_t xt, xb;                                                   \
+    int i;                                                              \
+                                                                        \
+    getVSR(rB(opcode) + 32, &xb, env);                                  \
+    getVSR(rD(opcode) + 32, &xt, env);                                  \
+                                                                        \
+    for (i = 0; i < nels; i++) {                                        \
+        xt.tfld = stp##_to_##ttp(xb.sfld, &env->fp_status);             \
+        if (unlikely(stp##_is_signaling_nan(xb.sfld,                    \
+                                            &env->fp_status))) {        \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);      \
+            xt.tfld = ttp##_snan_to_qnan(xt.tfld);                      \
+        }                                                               \
+        if (sfprf) {                                                    \
+            helper_compute_fprf_##ttp(env, xt.tfld);                    \
+        }                                                               \
+    }                                                                   \
+                                                                        \
+    putVSR(rD(opcode) + 32, &xt, env);                                  \
+    float_check_status(env);                                            \
+}
+
+VSX_CVT_FP_TO_FP_VECTOR(xscvdpqp, 1, float64, float128, VsrD(0), f128, 1)
 
 /* VSX_CVT_FP_TO_FP_HP - VSX floating point/floating point conversion
  *                       involving one half precision value
