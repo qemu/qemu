@@ -24,8 +24,6 @@
 #include "hw/arm/virt.h"
 #include "qemu/notify.h"
 
-#define ACPI_GICC_ENABLED 1
-
 typedef struct VirtGuestInfo {
     int smp_cpus;
     FWCfgState *fw_cfg;
