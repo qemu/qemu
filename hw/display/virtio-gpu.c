@@ -1299,6 +1299,7 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
 
     dc->props = virtio_gpu_properties;
     dc->vmsd = &vmstate_virtio_gpu;
+    dc->hotpluggable = false;
 }
 
 static const TypeInfo virtio_gpu_info = {
