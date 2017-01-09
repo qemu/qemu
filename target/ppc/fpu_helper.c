@@ -111,6 +111,7 @@ void helper_compute_fprf_##tp(CPUPPCState *env, tp arg)        \
 COMPUTE_FPRF(float16)
 COMPUTE_FPRF(float32)
 COMPUTE_FPRF(float64)
+COMPUTE_FPRF(float128)
 
 /* Floating-point invalid operations exception */
 static inline __attribute__((__always_inline__))
@@ -1829,6 +1830,41 @@ VSX_ADD_SUB(xssubdp, sub, 1, float64, VsrD(0), 1, 0)
 VSX_ADD_SUB(xssubsp, sub, 1, float64, VsrD(0), 1, 1)
 VSX_ADD_SUB(xvsubdp, sub, 2, float64, VsrD(i), 0, 0)
 VSX_ADD_SUB(xvsubsp, sub, 4, float32, VsrW(i), 0, 0)
+
+void helper_xsaddqp(CPUPPCState *env, uint32_t opcode)
+{
+    ppc_vsr_t xt, xa, xb;
+    float_status tstat;
+
+    getVSR(rA(opcode) + 32, &xa, env);
+    getVSR(rB(opcode) + 32, &xb, env);
+    getVSR(rD(opcode) + 32, &xt, env);
+    helper_reset_fpstatus(env);
+
+    if (unlikely(Rc(opcode) != 0)) {
+        /* TODO: Support xsadddpo after round-to-odd is implemented */
+        abort();
+    }
+
+    tstat = env->fp_status;
+    set_float_exception_flags(0, &tstat);
+    xt.f128 = float128_add(xa.f128, xb.f128, &tstat);
+    env->fp_status.float_exception_flags |= tstat.float_exception_flags;
+
+    if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {
+        if (float128_is_infinity(xa.f128) && float128_is_infinity(xb.f128)) {
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+        } else if (float128_is_signaling_nan(xa.f128, &tstat) ||
+                   float128_is_signaling_nan(xb.f128, &tstat)) {
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+        }
+    }
+
+    helper_compute_fprf_float128(env, xt.f128);
+
+    putVSR(rD(opcode) + 32, &xt, env);
+    float_check_status(env);
+}
 
 /* VSX_MUL - VSX floating point multiply
  *   op    - instruction mnemonic

@@ -206,6 +206,7 @@ typedef union _ppc_vsr_t {
     uint64_t u64[2];
     float32 f32[4];
     float64 f64[2];
+    float128 f128;
     Int128  s128;
 } ppc_vsr_t;
 
@@ -245,4 +246,5 @@ static inline void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 
 void helper_compute_fprf_float16(CPUPPCState *env, float16 arg);
 void helper_compute_fprf_float32(CPUPPCState *env, float32 arg);
+void helper_compute_fprf_float128(CPUPPCState *env, float128 arg);
 #endif /* PPC_INTERNAL_H */
