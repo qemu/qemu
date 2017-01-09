@@ -1038,6 +1038,8 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size)
     uint32_t resource_id, pformat;
     int i;
 
+    g->hostmem = 0;
+
     resource_id = qemu_get_be32(f);
     while (resource_id != 0) {
         res = g_new0(struct virtio_gpu_simple_resource, 1);
@@ -1058,6 +1060,8 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size)
         if (!res->image) {
             return -EINVAL;
         }
+
+        res->hostmem = PIXMAN_FORMAT_BPP(pformat) * res->width * res->height;
 
         res->addrs = g_new(uint64_t, res->iov_cnt);
         res->iov = g_new(struct iovec, res->iov_cnt);
@@ -1081,6 +1085,7 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size)
         }
 
         QTAILQ_INSERT_HEAD(&g->reslist, res, next);
+        g->hostmem += res->hostmem;
 
         resource_id = qemu_get_be32(f);
     }
