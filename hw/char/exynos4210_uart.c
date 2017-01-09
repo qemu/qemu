@@ -629,22 +629,26 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     return dev;
 }
 
-static int exynos4210_uart_init(SysBusDevice *dev)
+static void exynos4210_uart_init(Object *obj)
 {
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     Exynos4210UartState *s = EXYNOS4210_UART(dev);
 
     /* memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_uart_ops, s,
+    memory_region_init_io(&s->iomem, obj, &exynos4210_uart_ops, s,
                           "exynos4210.uart", EXYNOS4210_UART_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
+}
+
+static void exynos4210_uart_realize(DeviceState *dev, Error **errp)
+{
+    Exynos4210UartState *s = EXYNOS4210_UART(dev);
 
     qemu_chr_fe_set_handlers(&s->chr, exynos4210_uart_can_receive,
                              exynos4210_uart_receive, exynos4210_uart_event,
                              s, NULL, true);
-
-    return 0;
 }
 
 static Property exynos4210_uart_properties[] = {
@@ -658,9 +662,8 @@ static Property exynos4210_uart_properties[] = {
 static void exynos4210_uart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = exynos4210_uart_init;
+    dc->realize = exynos4210_uart_realize;
     dc->reset = exynos4210_uart_reset;
     dc->props = exynos4210_uart_properties;
     dc->vmsd = &vmstate_exynos4210_uart;
@@ -670,6 +673,7 @@ static const TypeInfo exynos4210_uart_info = {
     .name          = TYPE_EXYNOS4210_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210UartState),
+    .instance_init = exynos4210_uart_init,
     .class_init    = exynos4210_uart_class_init,
 };
 
