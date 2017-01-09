@@ -71,6 +71,12 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque);
 void qemu_coroutine_enter(Coroutine *coroutine);
 
 /**
+ * Transfer control to a coroutine if it's not active (i.e. part of the call
+ * stack of the running coroutine). Otherwise, do nothing.
+ */
+void qemu_coroutine_enter_if_inactive(Coroutine *co);
+
+/**
  * Transfer control back to a coroutine's caller
  *
  * This function does not return until the coroutine is re-entered using

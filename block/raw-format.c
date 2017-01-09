@@ -1,4 +1,4 @@
-/* BlockDriver implementation for "raw"
+/* BlockDriver implementation for "raw" format driver
  *
  * Copyright (C) 2010-2016 Red Hat, Inc.
  * Copyright (C) 2010, Blue Swirl <blauwirbel@gmail.com>

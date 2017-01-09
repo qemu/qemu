@@ -19,38 +19,36 @@ typedef struct {
     BdrvChild *test_file;
 } BDRVBlkverifyState;
 
-typedef struct BlkverifyAIOCB BlkverifyAIOCB;
-struct BlkverifyAIOCB {
-    BlockAIOCB common;
+typedef struct BlkverifyRequest {
+    Coroutine *co;
+    BlockDriverState *bs;
 
     /* Request metadata */
     bool is_write;
-    int64_t sector_num;
-    int nb_sectors;
+    uint64_t offset;
+    uint64_t bytes;
+    int flags;
 
-    int ret;                    /* first completed request's result */
+    int (*request_fn)(BdrvChild *, int64_t, unsigned int, QEMUIOVector *,
+                      BdrvRequestFlags);
+
+    int ret;                    /* test image result */
+    int raw_ret;                /* raw image result */
+
     unsigned int done;          /* completion counter */
 
     QEMUIOVector *qiov;         /* user I/O vector */
-    QEMUIOVector raw_qiov;      /* cloned I/O vector for raw file */
-    void *buf;                  /* buffer for raw file I/O */
+    QEMUIOVector *raw_qiov;     /* cloned I/O vector for raw file */
+} BlkverifyRequest;
 
-    void (*verify)(BlkverifyAIOCB *acb);
-};
-
-static const AIOCBInfo blkverify_aiocb_info = {
-    .aiocb_size         = sizeof(BlkverifyAIOCB),
-};
-
-static void GCC_FMT_ATTR(2, 3) blkverify_err(BlkverifyAIOCB *acb,
+static void GCC_FMT_ATTR(2, 3) blkverify_err(BlkverifyRequest *r,
                                              const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    fprintf(stderr, "blkverify: %s sector_num=%" PRId64 " nb_sectors=%d ",
-            acb->is_write ? "write" : "read", acb->sector_num,
-            acb->nb_sectors);
+    fprintf(stderr, "blkverify: %s offset=%" PRId64 " bytes=%" PRId64 " ",
+            r->is_write ? "write" : "read", r->offset, r->bytes);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     va_end(ap);
@@ -166,113 +164,106 @@ static int64_t blkverify_getlength(BlockDriverState *bs)
     return bdrv_getlength(s->test_file->bs);
 }
 
-static BlkverifyAIOCB *blkverify_aio_get(BlockDriverState *bs, bool is_write,
-                                         int64_t sector_num, QEMUIOVector *qiov,
-                                         int nb_sectors,
-                                         BlockCompletionFunc *cb,
-                                         void *opaque)
+static void coroutine_fn blkverify_do_test_req(void *opaque)
 {
-    BlkverifyAIOCB *acb = qemu_aio_get(&blkverify_aiocb_info, bs, cb, opaque);
+    BlkverifyRequest *r = opaque;
+    BDRVBlkverifyState *s = r->bs->opaque;
 
-    acb->is_write = is_write;
-    acb->sector_num = sector_num;
-    acb->nb_sectors = nb_sectors;
-    acb->ret = -EINPROGRESS;
-    acb->done = 0;
-    acb->qiov = qiov;
-    acb->buf = NULL;
-    acb->verify = NULL;
-    return acb;
+    r->ret = r->request_fn(s->test_file, r->offset, r->bytes, r->qiov,
+                           r->flags);
+    r->done++;
+    qemu_coroutine_enter_if_inactive(r->co);
 }
 
-static void blkverify_aio_bh(void *opaque)
+static void coroutine_fn blkverify_do_raw_req(void *opaque)
 {
-    BlkverifyAIOCB *acb = opaque;
+    BlkverifyRequest *r = opaque;
 
-    if (acb->buf) {
-        qemu_iovec_destroy(&acb->raw_qiov);
-        qemu_vfree(acb->buf);
+    r->raw_ret = r->request_fn(r->bs->file, r->offset, r->bytes, r->raw_qiov,
+                               r->flags);
+    r->done++;
+    qemu_coroutine_enter_if_inactive(r->co);
+}
+
+static int coroutine_fn
+blkverify_co_prwv(BlockDriverState *bs, BlkverifyRequest *r, uint64_t offset,
+                  uint64_t bytes, QEMUIOVector *qiov, QEMUIOVector *raw_qiov,
+                  int flags, bool is_write)
+{
+    Coroutine *co_a, *co_b;
+
+    *r = (BlkverifyRequest) {
+        .co         = qemu_coroutine_self(),
+        .bs         = bs,
+        .offset     = offset,
+        .bytes      = bytes,
+        .qiov       = qiov,
+        .raw_qiov   = raw_qiov,
+        .flags      = flags,
+        .is_write   = is_write,
+        .request_fn = is_write ? bdrv_co_pwritev : bdrv_co_preadv,
+    };
+
+    co_a = qemu_coroutine_create(blkverify_do_test_req, r);
+    co_b = qemu_coroutine_create(blkverify_do_raw_req, r);
+
+    qemu_coroutine_enter(co_a);
+    qemu_coroutine_enter(co_b);
+
+    while (r->done < 2) {
+        qemu_coroutine_yield();
     }
-    acb->common.cb(acb->common.opaque, acb->ret);
-    qemu_aio_unref(acb);
-}
 
-static void blkverify_aio_cb(void *opaque, int ret)
-{
-    BlkverifyAIOCB *acb = opaque;
-
-    switch (++acb->done) {
-    case 1:
-        acb->ret = ret;
-        break;
-
-    case 2:
-        if (acb->ret != ret) {
-            blkverify_err(acb, "return value mismatch %d != %d", acb->ret, ret);
-        }
-
-        if (acb->verify) {
-            acb->verify(acb);
-        }
-
-        aio_bh_schedule_oneshot(bdrv_get_aio_context(acb->common.bs),
-                                blkverify_aio_bh, acb);
-        break;
+    if (r->ret != r->raw_ret) {
+        blkverify_err(r, "return value mismatch %d != %d", r->ret, r->raw_ret);
     }
+
+    return r->ret;
 }
 
-static void blkverify_verify_readv(BlkverifyAIOCB *acb)
+static int coroutine_fn
+blkverify_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+                    QEMUIOVector *qiov, int flags)
 {
-    ssize_t offset = qemu_iovec_compare(acb->qiov, &acb->raw_qiov);
-    if (offset != -1) {
-        blkverify_err(acb, "contents mismatch in sector %" PRId64,
-                      acb->sector_num + (int64_t)(offset / BDRV_SECTOR_SIZE));
+    BlkverifyRequest r;
+    QEMUIOVector raw_qiov;
+    void *buf;
+    ssize_t cmp_offset;
+    int ret;
+
+    buf = qemu_blockalign(bs->file->bs, qiov->size);
+    qemu_iovec_init(&raw_qiov, qiov->niov);
+    qemu_iovec_clone(&raw_qiov, qiov, buf);
+
+    ret = blkverify_co_prwv(bs, &r, offset, bytes, qiov, &raw_qiov, flags,
+                            false);
+
+    cmp_offset = qemu_iovec_compare(qiov, &raw_qiov);
+    if (cmp_offset != -1) {
+        blkverify_err(&r, "contents mismatch at offset %" PRId64,
+                      offset + cmp_offset);
     }
+
+    qemu_iovec_destroy(&raw_qiov);
+    qemu_vfree(buf);
+
+    return ret;
 }
 
-static BlockAIOCB *blkverify_aio_readv(BlockDriverState *bs,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockCompletionFunc *cb, void *opaque)
+static int coroutine_fn
+blkverify_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+                     QEMUIOVector *qiov, int flags)
 {
-    BDRVBlkverifyState *s = bs->opaque;
-    BlkverifyAIOCB *acb = blkverify_aio_get(bs, false, sector_num, qiov,
-                                            nb_sectors, cb, opaque);
-
-    acb->verify = blkverify_verify_readv;
-    acb->buf = qemu_blockalign(bs->file->bs, qiov->size);
-    qemu_iovec_init(&acb->raw_qiov, acb->qiov->niov);
-    qemu_iovec_clone(&acb->raw_qiov, qiov, acb->buf);
-
-    bdrv_aio_readv(s->test_file, sector_num, qiov, nb_sectors,
-                   blkverify_aio_cb, acb);
-    bdrv_aio_readv(bs->file, sector_num, &acb->raw_qiov, nb_sectors,
-                   blkverify_aio_cb, acb);
-    return &acb->common;
+    BlkverifyRequest r;
+    return blkverify_co_prwv(bs, &r, offset, bytes, qiov, qiov, flags, true);
 }
 
-static BlockAIOCB *blkverify_aio_writev(BlockDriverState *bs,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockCompletionFunc *cb, void *opaque)
-{
-    BDRVBlkverifyState *s = bs->opaque;
-    BlkverifyAIOCB *acb = blkverify_aio_get(bs, true, sector_num, qiov,
-                                            nb_sectors, cb, opaque);
-
-    bdrv_aio_writev(s->test_file, sector_num, qiov, nb_sectors,
-                    blkverify_aio_cb, acb);
-    bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors,
-                    blkverify_aio_cb, acb);
-    return &acb->common;
-}
-
-static BlockAIOCB *blkverify_aio_flush(BlockDriverState *bs,
-                                       BlockCompletionFunc *cb,
-                                       void *opaque)
+static int blkverify_co_flush(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
 
     /* Only flush test file, the raw file is not important */
-    return bdrv_aio_flush(s->test_file->bs, cb, opaque);
+    return bdrv_co_flush(s->test_file->bs);
 }
 
 static bool blkverify_recurse_is_first_non_filter(BlockDriverState *bs,
@@ -332,9 +323,9 @@ static BlockDriver bdrv_blkverify = {
     .bdrv_getlength                   = blkverify_getlength,
     .bdrv_refresh_filename            = blkverify_refresh_filename,
 
-    .bdrv_aio_readv                   = blkverify_aio_readv,
-    .bdrv_aio_writev                  = blkverify_aio_writev,
-    .bdrv_aio_flush                   = blkverify_aio_flush,
+    .bdrv_co_preadv                   = blkverify_co_preadv,
+    .bdrv_co_pwritev                  = blkverify_co_pwritev,
+    .bdrv_co_flush                    = blkverify_co_flush,
 
     .is_filter                        = true,
     .bdrv_recurse_is_first_non_filter = blkverify_recurse_is_first_non_filter,
