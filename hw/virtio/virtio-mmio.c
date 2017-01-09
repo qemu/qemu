@@ -402,7 +402,7 @@ static int virtio_mmio_set_guest_notifier(DeviceState *d, int n, bool assign,
         event_notifier_cleanup(notifier);
     }
 
-    if (vdc->guest_notifier_mask) {
+    if (vdc->guest_notifier_mask && vdev->use_guest_notifier_mask) {
         vdc->guest_notifier_mask(vdev, n, !assign);
     }
 

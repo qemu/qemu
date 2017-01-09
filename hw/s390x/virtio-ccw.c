@@ -1098,7 +1098,7 @@ static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
          * We do not support individual masking for channel devices, so we
          * need to manually trigger any guest masking callbacks here.
          */
-        if (k->guest_notifier_mask) {
+        if (k->guest_notifier_mask && vdev->use_guest_notifier_mask) {
             k->guest_notifier_mask(vdev, n, false);
         }
         /* get lost events and re-inject */
@@ -1107,7 +1107,7 @@ static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
             event_notifier_set(notifier);
         }
     } else {
-        if (k->guest_notifier_mask) {
+        if (k->guest_notifier_mask && vdev->use_guest_notifier_mask) {
             k->guest_notifier_mask(vdev, n, true);
         }
         if (with_irqfd) {

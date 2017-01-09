@@ -149,6 +149,7 @@ dummy := $(call unnest-vars,, \
                 qga-obj-y \
                 ivshmem-client-obj-y \
                 ivshmem-server-obj-y \
+                libvhost-user-obj-y \
                 qga-vss-dll-obj-y \
                 block-obj-y \
                 block-obj-m \
