@@ -2778,6 +2778,34 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                \
 VSX_CVT_FP_TO_FP_HP(xscvdphp, float64, float16, VsrD(0), VsrH(3))
 VSX_CVT_FP_TO_FP_HP(xscvhpdp, float16, float64, VsrH(3), VsrD(0))
 
+/*
+ * xscvqpdp isn't using VSX_CVT_FP_TO_FP() because xscvqpdpo will be
+ * added to this later.
+ */
+void helper_xscvqpdp(CPUPPCState *env, uint32_t opcode)
+{
+    ppc_vsr_t xt, xb;
+
+    getVSR(rB(opcode) + 32, &xb, env);
+    getVSR(rD(opcode) + 32, &xt, env);
+
+    if (unlikely(Rc(opcode) != 0)) {
+        /* TODO: Support xscvqpdpo after round-to-odd is implemented */
+        abort();
+    }
+
+    xt.VsrD(0) = float128_to_float64(xb.f128, &env->fp_status);
+    if (unlikely(float128_is_signaling_nan(xb.f128,
+                                           &env->fp_status))) {
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);
+        xt.VsrD(0) = float64_snan_to_qnan(xt.VsrD(0));
+    }
+    helper_compute_fprf_float64(env, xt.VsrD(0));
+
+    putVSR(rD(opcode) + 32, &xt, env);
+    float_check_status(env);
+}
+
 uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
 {
     float_status tstat = env->fp_status;
