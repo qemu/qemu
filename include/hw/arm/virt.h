@@ -78,13 +78,7 @@ typedef struct MemMapEntry {
 } MemMapEntry;
 
 typedef struct VirtGuestInfo {
-    int smp_cpus;
     FWCfgState *fw_cfg;
-    const MemMapEntry *memmap;
-    const int *irqmap;
-    bool use_highmem;
-    int gic_version;
-    bool no_its;
 } VirtGuestInfo;
 
 typedef struct {

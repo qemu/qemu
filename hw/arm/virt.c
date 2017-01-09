@@ -1372,13 +1372,7 @@ static void machvirt_init(MachineState *machine)
     create_fw_cfg(vms, &address_space_memory);
     rom_set_fw(fw_cfg_find());
 
-    guest_info->smp_cpus = smp_cpus;
     guest_info->fw_cfg = fw_cfg_find();
-    guest_info->memmap = vms->memmap;
-    guest_info->irqmap = vms->irqmap;
-    guest_info->use_highmem = vms->highmem;
-    guest_info->gic_version = vms->gic_version;
-    guest_info->no_its = vmc->no_its;
     vms->machine_done.notify = virt_machine_done;
     qemu_add_machine_init_done_notifier(&vms->machine_done);
 
