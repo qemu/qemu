@@ -889,7 +889,7 @@ static void create_flash(const VirtMachineState *vms,
     }
 }
 
-static void create_fw_cfg(const VirtMachineState *vms, AddressSpace *as)
+static FWCfgState *create_fw_cfg(const VirtMachineState *vms, AddressSpace *as)
 {
     hwaddr base = vms->memmap[VIRT_FW_CFG].base;
     hwaddr size = vms->memmap[VIRT_FW_CFG].size;
@@ -906,6 +906,7 @@ static void create_fw_cfg(const VirtMachineState *vms, AddressSpace *as)
     qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
                                  2, base, 2, size);
     g_free(nodename);
+    return fw_cfg;
 }
 
 static void create_pcie_irq_map(const VirtMachineState *vms,
@@ -1133,12 +1134,11 @@ static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 
 static void virt_build_smbios(VirtMachineState *vms)
 {
-    FWCfgState *fw_cfg = vms->acpi_guest_info.fw_cfg;
     uint8_t *smbios_tables, *smbios_anchor;
     size_t smbios_tables_len, smbios_anchor_len;
     const char *product = "QEMU Virtual Machine";
 
-    if (!fw_cfg) {
+    if (!vms->fw_cfg) {
         return;
     }
 
@@ -1153,9 +1153,9 @@ static void virt_build_smbios(VirtMachineState *vms)
                       &smbios_anchor, &smbios_anchor_len);
 
     if (smbios_anchor) {
-        fw_cfg_add_file(fw_cfg, "etc/smbios/smbios-tables",
+        fw_cfg_add_file(vms->fw_cfg, "etc/smbios/smbios-tables",
                         smbios_tables, smbios_tables_len);
-        fw_cfg_add_file(fw_cfg, "etc/smbios/smbios-anchor",
+        fw_cfg_add_file(vms->fw_cfg, "etc/smbios/smbios-anchor",
                         smbios_anchor, smbios_anchor_len);
     }
 }
@@ -1180,7 +1180,6 @@ static void machvirt_init(MachineState *machine)
     int n, virt_max_cpus;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     const char *cpu_model = machine->cpu_model;
-    VirtGuestInfo *guest_info = &vms->acpi_guest_info;
     char **cpustr;
     ObjectClass *oc;
     const char *typename;
@@ -1369,10 +1368,9 @@ static void machvirt_init(MachineState *machine)
      */
     create_virtio_devices(vms, pic);
 
-    create_fw_cfg(vms, &address_space_memory);
-    rom_set_fw(fw_cfg_find());
+    vms->fw_cfg = create_fw_cfg(vms, &address_space_memory);
+    rom_set_fw(vms->fw_cfg);
 
-    guest_info->fw_cfg = fw_cfg_find();
     vms->machine_done.notify = virt_machine_done;
     qemu_add_machine_init_done_notifier(&vms->machine_done);
 

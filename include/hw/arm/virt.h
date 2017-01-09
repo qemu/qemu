@@ -77,10 +77,6 @@ typedef struct MemMapEntry {
     hwaddr size;
 } MemMapEntry;
 
-typedef struct VirtGuestInfo {
-    FWCfgState *fw_cfg;
-} VirtGuestInfo;
-
 typedef struct {
     MachineClass parent;
     bool disallow_affinity_adjustment;
@@ -91,8 +87,8 @@ typedef struct {
 
 typedef struct {
     MachineState parent;
-    VirtGuestInfo acpi_guest_info;
     Notifier machine_done;
+    FWCfgState *fw_cfg;
     bool secure;
     bool highmem;
     int32_t gic_version;
