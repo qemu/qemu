@@ -430,21 +430,8 @@ typedef struct AcpiMadtGenericTranslator AcpiMadtGenericTranslator;
 /*
  * Generic Timer Description Table (GTDT)
  */
-
-#define ACPI_GTDT_INTERRUPT_MODE        (1 << 0)
-#define ACPI_GTDT_INTERRUPT_POLARITY    (1 << 1)
-#define ACPI_GTDT_ALWAYS_ON             (1 << 2)
-
-/* Triggering */
-
-#define ACPI_LEVEL_SENSITIVE            ((uint8_t) 0x00)
-#define ACPI_EDGE_SENSITIVE             ((uint8_t) 0x01)
-
-/* Polarity */
-
-#define ACPI_ACTIVE_HIGH                ((uint8_t) 0x00)
-#define ACPI_ACTIVE_LOW                 ((uint8_t) 0x01)
-#define ACPI_ACTIVE_BOTH                ((uint8_t) 0x02)
+#define ACPI_GTDT_INTERRUPT_MODE_EDGE     (1 << 0)
+#define ACPI_GTDT_CAP_ALWAYS_ON           (1 << 2)
 
 struct AcpiGenericTimerTable {
     ACPI_TABLE_HEADER_DEF
