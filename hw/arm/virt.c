@@ -71,6 +71,7 @@ typedef struct {
     bool disallow_affinity_adjustment;
     bool no_its;
     bool no_pmu;
+    bool claim_edge_triggered_timers;
 } VirtMachineClass;
 
 typedef struct {
@@ -309,12 +310,31 @@ static void fdt_add_psci_node(const VirtMachineState *vms)
 
 static void fdt_add_timer_nodes(const VirtMachineState *vms, int gictype)
 {
-    /* Note that on A15 h/w these interrupts are level-triggered,
-     * but for the GIC implementation provided by both QEMU and KVM
-     * they are edge-triggered.
+    /* On real hardware these interrupts are level-triggered.
+     * On KVM they were edge-triggered before host kernel version 4.4,
+     * and level-triggered afterwards.
+     * On emulated QEMU they are level-triggered.
+     *
+     * Getting the DTB info about them wrong is awkward for some
+     * guest kernels:
+     *  pre-4.8 ignore the DT and leave the interrupt configured
+     *   with whatever the GIC reset value (or the bootloader) left it at
+     *  4.8 before rc6 honour the incorrect data by programming it back
+     *   into the GIC, causing problems
+     *  4.8rc6 and later ignore the DT and always write "level triggered"
+     *   into the GIC
+     *
+     * For backwards-compatibility, virt-2.8 and earlier will continue
+     * to say these are edge-triggered, but later machines will report
+     * the correct information.
      */
     ARMCPU *armcpu;
-    uint32_t irqflags = GIC_FDT_IRQ_FLAGS_EDGE_LO_HI;
+    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+    uint32_t irqflags = GIC_FDT_IRQ_FLAGS_LEVEL_HI;
+
+    if (vmc->claim_edge_triggered_timers) {
+        irqflags = GIC_FDT_IRQ_FLAGS_EDGE_LO_HI;
+    }
 
     if (gictype == 2) {
         irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
@@ -1556,8 +1576,14 @@ static void virt_2_8_instance_init(Object *obj)
 
 static void virt_machine_2_8_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
     virt_machine_2_9_options(mc);
     SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_8);
+    /* For 2.8 and earlier we falsely claimed in the DT that
+     * our timers were edge-triggered, not level-triggered.
+     */
+    vmc->claim_edge_triggered_timers = true;
 }
 DEFINE_VIRT_MACHINE(2, 8)
 
