@@ -32,6 +32,9 @@
 
 #include "qemu-common.h"
 #include "exec/hwaddr.h"
+#include "qemu/notify.h"
+#include "hw/boards.h"
+#include "hw/arm/arm.h"
 
 #define NUM_GICV2M_SPIS       64
 #define NUM_VIRTIO_TRANSPORTS 32
@@ -74,5 +77,41 @@ typedef struct MemMapEntry {
     hwaddr size;
 } MemMapEntry;
 
+typedef struct {
+    MachineClass parent;
+    bool disallow_affinity_adjustment;
+    bool no_its;
+    bool no_pmu;
+    bool claim_edge_triggered_timers;
+} VirtMachineClass;
 
-#endif
+typedef struct {
+    MachineState parent;
+    Notifier machine_done;
+    FWCfgState *fw_cfg;
+    bool secure;
+    bool highmem;
+    int32_t gic_version;
+    struct arm_boot_info bootinfo;
+    const MemMapEntry *memmap;
+    const int *irqmap;
+    int smp_cpus;
+    void *fdt;
+    int fdt_size;
+    uint32_t clock_phandle;
+    uint32_t gic_phandle;
+    uint32_t msi_phandle;
+    bool using_psci;
+} VirtMachineState;
+
+#define TYPE_VIRT_MACHINE   MACHINE_TYPE_NAME("virt")
+#define VIRT_MACHINE(obj) \
+    OBJECT_CHECK(VirtMachineState, (obj), TYPE_VIRT_MACHINE)
+#define VIRT_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(VirtMachineClass, obj, TYPE_VIRT_MACHINE)
+#define VIRT_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(VirtMachineClass, klass, TYPE_VIRT_MACHINE)
+
+void virt_acpi_setup(VirtMachineState *vms);
+
+#endif /* QEMU_ARM_VIRT_H */

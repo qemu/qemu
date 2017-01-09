@@ -713,12 +713,14 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
     }
 }
 
-static void menelaus_event(I2CSlave *i2c, enum i2c_event event)
+static int menelaus_event(I2CSlave *i2c, enum i2c_event event)
 {
     MenelausState *s = TWL92230(i2c);
 
     if (event == I2C_START_SEND)
         s->firstbyte = 1;
+
+    return 0;
 }
 
 static int menelaus_tx(I2CSlave *i2c, uint8_t data)

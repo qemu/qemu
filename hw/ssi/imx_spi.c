@@ -320,9 +320,6 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
                       TYPE_IMX_SPI, __func__);
         break;
     case ECSPI_TXDATA:
-    case ECSPI_MSGDATA:
-        /* Is there any difference between TXDATA and MSGDATA ? */
-        /* I'll have to look in the linux driver */
         if (!imx_spi_is_enabled(s)) {
             /* Ignore writes if device is disabled */
             break;
@@ -379,6 +376,14 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
             }
         }
 
+        break;
+    case ECSPI_MSGDATA:
+        /* it is not clear from the spec what MSGDATA is for */
+        /* Anyway it is not used by Linux driver */
+        /* So for now we just ignore it */
+        qemu_log_mask(LOG_UNIMP,
+                      "[%s]%s: Trying to write to MSGDATA, ignoring\n",
+                      TYPE_IMX_SPI, __func__);
         break;
     default:
         s->regs[index] = value;
