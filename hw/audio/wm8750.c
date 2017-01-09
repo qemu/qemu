@@ -303,7 +303,7 @@ static void wm8750_reset(I2CSlave *i2c)
     s->i2c_len = 0;
 }
 
-static void wm8750_event(I2CSlave *i2c, enum i2c_event event)
+static int wm8750_event(I2CSlave *i2c, enum i2c_event event)
 {
     WM8750State *s = WM8750(i2c);
 
@@ -321,6 +321,8 @@ static void wm8750_event(I2CSlave *i2c, enum i2c_event event)
     default:
         break;
     }
+
+    return 0;
 }
 
 #define WM8750_LINVOL	0x00

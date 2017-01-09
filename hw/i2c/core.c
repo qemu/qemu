@@ -88,18 +88,26 @@ int i2c_bus_busy(I2CBus *bus)
     return !QLIST_EMPTY(&bus->current_devs);
 }
 
-/*
- * Returns non-zero if the address is not valid.  If this is called
- * again without an intervening i2c_end_transfer(), like in the SMBus
- * case where the operation is switched from write to read, this
- * function will not rescan the bus and thus cannot fail.
- */
 /* TODO: Make this handle multiple masters.  */
+/*
+ * Start or continue an i2c transaction.  When this is called for the
+ * first time or after an i2c_end_transfer(), if it returns an error
+ * the bus transaction is terminated (or really never started).  If
+ * this is called after another i2c_start_transfer() without an
+ * intervening i2c_end_transfer(), and it returns an error, the
+ * transaction will not be terminated.  The caller must do it.
+ *
+ * This corresponds with the way real hardware works.  The SMBus
+ * protocol uses a start transfer to switch from write to read mode
+ * without releasing the bus.  If that fails, the bus is still
+ * in a transaction.
+ */
 int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
 {
     BusChild *kid;
     I2CSlaveClass *sc;
     I2CNode *node;
+    bool bus_scanned = false;
 
     if (address == I2C_BROADCAST) {
         /*
@@ -130,6 +138,7 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
                 }
             }
         }
+        bus_scanned = true;
     }
 
     if (QLIST_EMPTY(&bus->current_devs)) {
@@ -137,11 +146,21 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
     }
 
     QLIST_FOREACH(node, &bus->current_devs, next) {
+        int rv;
+
         sc = I2C_SLAVE_GET_CLASS(node->elt);
         /* If the bus is already busy, assume this is a repeated
            start condition.  */
+
         if (sc->event) {
-            sc->event(node->elt, recv ? I2C_START_RECV : I2C_START_SEND);
+            rv = sc->event(node->elt, recv ? I2C_START_RECV : I2C_START_SEND);
+            if (rv && !bus->broadcast) {
+                if (bus_scanned) {
+                    /* First call, terminate the transfer. */
+                    i2c_end_transfer(bus);
+                }
+                return rv;
+            }
         }
     }
     return 0;

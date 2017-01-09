@@ -176,7 +176,7 @@ static int tmp105_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static void tmp105_event(I2CSlave *i2c, enum i2c_event event)
+static int tmp105_event(I2CSlave *i2c, enum i2c_event event)
 {
     TMP105State *s = TMP105(i2c);
 
@@ -185,6 +185,7 @@ static void tmp105_event(I2CSlave *i2c, enum i2c_event event)
     }
 
     s->len = 0;
+    return 0;
 }
 
 static int tmp105_post_load(void *opaque, int version_id)

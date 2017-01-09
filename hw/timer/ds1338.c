@@ -94,7 +94,7 @@ static void inc_regptr(DS1338State *s)
     }
 }
 
-static void ds1338_event(I2CSlave *i2c, enum i2c_event event)
+static int ds1338_event(I2CSlave *i2c, enum i2c_event event)
 {
     DS1338State *s = DS1338(i2c);
 
@@ -113,6 +113,8 @@ static void ds1338_event(I2CSlave *i2c, enum i2c_event event)
     default:
         break;
     }
+
+    return 0;
 }
 
 static int ds1338_recv(I2CSlave *i2c)

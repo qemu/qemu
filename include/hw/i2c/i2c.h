@@ -32,14 +32,22 @@ typedef struct I2CSlaveClass
     /* Callbacks provided by the device.  */
     int (*init)(I2CSlave *dev);
 
-    /* Master to slave.  */
+    /* Master to slave. Returns non-zero for a NAK, 0 for success. */
     int (*send)(I2CSlave *s, uint8_t data);
 
-    /* Slave to master.  */
+    /*
+     * Slave to master.  This cannot fail, the device should always
+     * return something here.  Negative values probably result in 0xff
+     * and a possible log from the driver, and shouldn't be used.
+     */
     int (*recv)(I2CSlave *s);
 
-    /* Notify the slave of a bus state change.  */
-    void (*event)(I2CSlave *s, enum i2c_event event);
+    /*
+     * Notify the slave of a bus state change.  For start event,
+     * returns non-zero to NAK an operation.  For other events the
+     * return code is not used and should be zero.
+     */
+    int (*event)(I2CSlave *s, enum i2c_event event);
 } I2CSlaveClass;
 
 struct I2CSlave

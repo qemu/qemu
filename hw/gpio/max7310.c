@@ -129,7 +129,7 @@ static int max7310_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static void max7310_event(I2CSlave *i2c, enum i2c_event event)
+static int max7310_event(I2CSlave *i2c, enum i2c_event event)
 {
     MAX7310State *s = MAX7310(i2c);
     s->len = 0;
@@ -147,6 +147,8 @@ static void max7310_event(I2CSlave *i2c, enum i2c_event event)
     default:
         break;
     }
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_max7310 = {
