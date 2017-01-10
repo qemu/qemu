@@ -1430,6 +1430,8 @@ static void gen_xvxexpdp(DisasContext *ctx)
     tcg_gen_andi_i64(xtl, xtl, 0x7FF);
 }
 
+GEN_VSX_HELPER_2(xvxsigsp, 0x00, 0x04, 0, PPC2_ISA300)
+
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
 #undef GEN_XX2IFORM

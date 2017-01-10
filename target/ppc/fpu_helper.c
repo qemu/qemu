@@ -3026,3 +3026,23 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                   \
 
 VSX_XXPERM(xxperm, 0)
 VSX_XXPERM(xxpermr, 1)
+
+void helper_xvxsigsp(CPUPPCState *env, uint32_t opcode)
+{
+    ppc_vsr_t xt, xb;
+    uint32_t exp, i, fraction;
+
+    getVSR(xB(opcode), &xb, env);
+    memset(&xt, 0, sizeof(xt));
+
+    for (i = 0; i < 4; i++) {
+        exp = (xb.VsrW(i) >> 23) & 0xFF;
+        fraction = xb.VsrW(i) & 0x7FFFFF;
+        if (exp != 0 && exp != 255) {
+            xt.VsrW(i) = fraction | 0x00800000;
+        } else {
+            xt.VsrW(i) = fraction;
+        }
+    }
+    putVSR(xT(opcode), &xt, env);
+}
