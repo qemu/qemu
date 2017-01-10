@@ -90,6 +90,9 @@
 #ifndef GDK_IS_X11_DISPLAY
 #define GDK_IS_X11_DISPLAY(dpy) (dpy == dpy)
 #endif
+#ifndef GDK_IS_WAYLAND_DISPLAY
+#define GDK_IS_WAYLAND_DISPLAY(dpy) (dpy == dpy)
+#endif
 #ifndef GDK_IS_WIN32_DISPLAY
 #define GDK_IS_WIN32_DISPLAY(dpy) (dpy == dpy)
 #endif
@@ -1054,6 +1057,10 @@ static int gd_map_keycode(GtkDisplayState *s, GdkDisplay *dpy, int gdk_keycode)
             qemu_keycode = translate_xfree86_keycode(gdk_keycode - 97);
         }
 #endif
+#ifdef GDK_WINDOWING_WAYLAND
+    } else if (GDK_IS_WAYLAND_DISPLAY(dpy) && gdk_keycode < 158) {
+        qemu_keycode = translate_evdev_keycode(gdk_keycode - 97);
+#endif
     } else if (gdk_keycode == 208) { /* Hiragana_Katakana */
         qemu_keycode = 0x70;
     } else if (gdk_keycode == 211) { /* backslash */
@@ -1699,6 +1706,11 @@ static CharDriverState *gd_vc_handler(ChardevVC *vc, Error **errp)
     ChardevCommon *common = qapi_ChardevVC_base(vc);
     CharDriverState *chr;
 
+    if (nb_vcs == MAX_VCS) {
+        error_setg(errp, "Maximum number of consoles reached");
+        return NULL;
+    }
+
     chr = qemu_chr_alloc(common, errp);
     if (!chr) {
         return NULL;
@@ -2171,6 +2183,8 @@ static gboolean gtkinit;
 
 void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 {
+    VirtualConsole *vc;
+
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     char *filename;
     GdkDisplay *window_display;
@@ -2249,9 +2263,11 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     }
 #endif
 
+    vc = gd_vc_find_current(s);
+    gtk_widget_set_sensitive(s->view_menu, vc != NULL);
 #ifdef CONFIG_VTE
     gtk_widget_set_sensitive(s->copy_item,
-                             gd_vc_find_current(s)->type == GD_VC_VTE);
+                             vc && vc->type == GD_VC_VTE);
 #endif
 
     if (full_screen) {

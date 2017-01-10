@@ -2459,10 +2459,14 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
 
     pixel_format_message(vs);
 
-    if (qemu_name)
+    if (qemu_name) {
         size = snprintf(buf, sizeof(buf), "QEMU (%s)", qemu_name);
-    else
+        if (size > sizeof(buf)) {
+            size = sizeof(buf);
+        }
+    } else {
         size = snprintf(buf, sizeof(buf), "QEMU");
+    }
 
     vnc_write_u32(vs, size);
     vnc_write(vs, buf, size);

@@ -27,12 +27,10 @@
 #include "sysemu/char.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
+#include "ui/console.h"
 #include <brlapi.h>
 #include <brlapi_constants.h>
 #include <brlapi_keycodes.h>
-#ifdef CONFIG_SDL
-#include <SDL_syswm.h>
-#endif
 
 #if 0
 #define DPRINTF(fmt, ...) \
@@ -227,12 +225,8 @@ static const uint8_t nabcc_translation[2][256] = {
 /* The guest OS has started discussing with us, finish initializing BrlAPI */
 static int baum_deferred_init(BaumDriverState *baum)
 {
-#if defined(CONFIG_SDL)
-#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
-    SDL_SysWMinfo info;
-#endif
-#endif
-    int tty;
+    int tty = BRLAPI_TTY_DEFAULT;
+    QemuConsole *con;
 
     if (baum->deferred_init) {
         return 1;
@@ -243,21 +237,12 @@ static int baum_deferred_init(BaumDriverState *baum)
         return 0;
     }
 
-#if defined(CONFIG_SDL)
-#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
-    memset(&info, 0, sizeof(info));
-    SDL_VERSION(&info.version);
-    if (SDL_GetWMInfo(&info)) {
-        tty = info.info.x11.wmwindow;
-    } else {
-#endif
-#endif
-        tty = BRLAPI_TTY_DEFAULT;
-#if defined(CONFIG_SDL)
-#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
+    con = qemu_console_lookup_by_index(0);
+    if (con && qemu_console_is_graphic(con)) {
+        tty = qemu_console_get_window_id(con);
+        if (tty == -1)
+            tty = BRLAPI_TTY_DEFAULT;
     }
-#endif
-#endif
 
     if (brlapi__enterTtyMode(baum->brlapi, tty, NULL) == -1) {
         brlapi_perror("baum: brlapi__enterTtyMode");
