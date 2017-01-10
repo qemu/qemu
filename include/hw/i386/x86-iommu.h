@@ -73,6 +73,7 @@ typedef struct IEC_Notifier IEC_Notifier;
 struct X86IOMMUState {
     SysBusDevice busdev;
     bool intr_supported;        /* Whether vIOMMU supports IR */
+    bool dt_supported;          /* Whether vIOMMU supports DT */
     IommuType type;             /* IOMMU type - AMD/Intel     */
     QLIST_HEAD(, IEC_Notifier) iec_notifiers; /* IEC notify list */
 };

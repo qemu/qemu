@@ -135,8 +135,10 @@ static int ioh3420_initfn(PCIDevice *d)
         goto err_pcie_cap;
     }
 
-    rc = pcie_aer_init(d, IOH_EP_AER_OFFSET, PCI_ERR_SIZEOF);
+    rc = pcie_aer_init(d, PCI_ERR_VER, IOH_EP_AER_OFFSET,
+                       PCI_ERR_SIZEOF, &err);
     if (rc < 0) {
+        error_report_err(err);
         goto err;
     }
     pcie_aer_root_init(d);

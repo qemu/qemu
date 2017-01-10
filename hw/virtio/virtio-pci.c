@@ -1144,6 +1144,14 @@ static int virtio_pci_query_nvectors(DeviceState *d)
     return proxy->nvectors;
 }
 
+static AddressSpace *virtio_pci_get_dma_as(DeviceState *d)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
+    PCIDevice *dev = &proxy->pci_dev;
+
+    return pci_get_address_space(dev);
+}
+
 static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
                                    struct virtio_pci_cap *cap)
 {
@@ -1601,6 +1609,11 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     }
 
     if (legacy) {
+        if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
+            error_setg(errp, "VIRTIO_F_IOMMU_PLATFORM was supported by"
+                       "neither legacy nor transitional device.");
+            return ;
+        }
         /* legacy and transitional */
         pci_set_word(config + PCI_SUBSYSTEM_VENDOR_ID,
                      pci_get_word(config + PCI_VENDOR_ID));
@@ -1802,6 +1815,11 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
          * PCI Power Management Interface Specification.
          */
         pci_set_word(pci_dev->config + pos + PCI_PM_PMC, 0x3);
+
+        if (proxy->flags & VIRTIO_PCI_FLAG_ATS) {
+            pcie_ats_init(pci_dev, 256);
+        }
+
     } else {
         /*
          * make future invocations of pci_is_express() return false
@@ -1855,6 +1873,8 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_PAGE_PER_VQ_BIT, false),
     DEFINE_PROP_BOOL("x-ignore-backend-features", VirtIOPCIProxy,
                      ignore_backend_features, false),
+    DEFINE_PROP_BIT("ats", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_ATS_BIT, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2520,6 +2540,7 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->query_nvectors = virtio_pci_query_nvectors;
     k->ioeventfd_enabled = virtio_pci_ioeventfd_enabled;
     k->ioeventfd_assign = virtio_pci_ioeventfd_assign;
+    k->get_dma_as = virtio_pci_get_dma_as;
 }
 
 static const TypeInfo virtio_pci_bus_info = {

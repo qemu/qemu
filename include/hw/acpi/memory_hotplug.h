@@ -30,7 +30,7 @@ typedef struct MemHotplugState {
 } MemHotplugState;
 
 void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
-                              MemHotplugState *state);
+                              MemHotplugState *state, uint16_t io_base);
 
 void acpi_memory_plug_cb(HotplugHandler *hotplug_dev, MemHotplugState *mem_st,
                          DeviceState *dev, Error **errp);
@@ -47,11 +47,7 @@ extern const VMStateDescription vmstate_memory_hotplug;
 
 void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list);
 
-#define MEMORY_HOTPLUG_DEVICE        "MHPD"
-#define MEMORY_SLOT_SCAN_METHOD      "MSCN"
-#define MEMORY_HOTPLUG_HANDLER_PATH "\\_SB.PCI0." \
-     MEMORY_HOTPLUG_DEVICE "." MEMORY_SLOT_SCAN_METHOD
-
-void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
-                              uint16_t io_base, uint16_t io_len);
+void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
+                              const char *res_root,
+                              const char *event_handler_method);
 #endif

@@ -73,8 +73,6 @@ void cryptodev_backend_cleanup(
     if (bc->cleanup) {
         bc->cleanup(backend, errp);
     }
-
-    backend->ready = false;
 }
 
 int64_t cryptodev_backend_sym_create_session(
@@ -189,12 +187,37 @@ cryptodev_backend_complete(UserCreatable *uc, Error **errp)
             goto out;
         }
     }
-    backend->ready = true;
+
     return;
 
 out:
-    backend->ready = false;
     error_propagate(errp, local_err);
+}
+
+void cryptodev_backend_set_used(CryptoDevBackend *backend, bool used)
+{
+    backend->is_used = used;
+}
+
+bool cryptodev_backend_is_used(CryptoDevBackend *backend)
+{
+    return backend->is_used;
+}
+
+void cryptodev_backend_set_ready(CryptoDevBackend *backend, bool ready)
+{
+    backend->ready = ready;
+}
+
+bool cryptodev_backend_is_ready(CryptoDevBackend *backend)
+{
+    return backend->ready;
+}
+
+static bool
+cryptodev_backend_can_be_deleted(UserCreatable *uc, Error **errp)
+{
+    return !cryptodev_backend_is_used(CRYPTODEV_BACKEND(uc));
 }
 
 static void cryptodev_backend_instance_init(Object *obj)
@@ -209,7 +232,9 @@ static void cryptodev_backend_instance_init(Object *obj)
 
 static void cryptodev_backend_finalize(Object *obj)
 {
+    CryptoDevBackend *backend = CRYPTODEV_BACKEND(obj);
 
+    cryptodev_backend_cleanup(backend, NULL);
 }
 
 static void
@@ -218,6 +243,7 @@ cryptodev_backend_class_init(ObjectClass *oc, void *data)
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = cryptodev_backend_complete;
+    ucc->can_be_deleted = cryptodev_backend_can_be_deleted;
 
     QTAILQ_INIT(&crypto_clients);
 }

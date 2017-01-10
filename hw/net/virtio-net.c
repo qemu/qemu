@@ -55,6 +55,8 @@ static VirtIOFeature feature_sizes[] = {
      .end = endof(struct virtio_net_config, status)},
     {.flags = 1 << VIRTIO_NET_F_MQ,
      .end = endof(struct virtio_net_config, max_virtqueue_pairs)},
+    {.flags = 1 << VIRTIO_NET_F_MTU,
+     .end = endof(struct virtio_net_config, mtu)},
     {}
 };
 
@@ -81,6 +83,7 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
 
     virtio_stw_p(vdev, &netcfg.status, n->status);
     virtio_stw_p(vdev, &netcfg.max_virtqueue_pairs, n->max_queues);
+    virtio_stw_p(vdev, &netcfg.mtu, n->net_conf.mtu);
     memcpy(netcfg.mac, n->mac, ETH_ALEN);
     memcpy(config, &netcfg, n->config_size);
 }
@@ -152,6 +155,16 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
             qemu_net_queue_purge(qnc->incoming_queue, qnc->peer);
         }
 
+        if (virtio_has_feature(vdev->guest_features, VIRTIO_NET_F_MTU)) {
+            r = vhost_net_set_mtu(get_vhost_net(nc->peer), n->net_conf.mtu);
+            if (r < 0) {
+                error_report("%uBytes MTU not supported by the backend",
+                             n->net_conf.mtu);
+
+                return;
+            }
+        }
+
         n->vhost_started = 1;
         r = vhost_net_start(vdev, n->nic->ncs, queues);
         if (r < 0) {
@@ -218,6 +231,14 @@ static void virtio_net_vnet_endian_status(VirtIONet *n, uint8_t status)
     }
 }
 
+static void virtio_net_drop_tx_queue_data(VirtIODevice *vdev, VirtQueue *vq)
+{
+    unsigned int dropped = virtqueue_drop_all(vq);
+    if (dropped) {
+        virtio_notify(vdev, vq);
+    }
+}
+
 static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -261,6 +282,14 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
                 timer_del(q->tx_timer);
             } else {
                 qemu_bh_cancel(q->tx_bh);
+            }
+            if ((n->status & VIRTIO_NET_S_LINK_UP) == 0 &&
+                (queue_status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+                /* if tx is waiting we are likely have some packets in tx queue
+                 * and disabled notification */
+                q->tx_waiting = 0;
+                virtio_queue_set_notification(q->tx_vq, 1);
+                virtio_net_drop_tx_queue_data(vdev, q->tx_vq);
             }
         }
     }
@@ -1323,6 +1352,11 @@ static void virtio_net_handle_tx_timer(VirtIODevice *vdev, VirtQueue *vq)
     VirtIONet *n = VIRTIO_NET(vdev);
     VirtIONetQueue *q = &n->vqs[vq2q(virtio_get_queue_index(vq))];
 
+    if (unlikely((n->status & VIRTIO_NET_S_LINK_UP) == 0)) {
+        virtio_net_drop_tx_queue_data(vdev, vq);
+        return;
+    }
+
     /* This happens when device was stopped but VCPU wasn't. */
     if (!vdev->vm_running) {
         q->tx_waiting = 1;
@@ -1348,6 +1382,11 @@ static void virtio_net_handle_tx_bh(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     VirtIONetQueue *q = &n->vqs[vq2q(virtio_get_queue_index(vq))];
+
+    if (unlikely((n->status & VIRTIO_NET_S_LINK_UP) == 0)) {
+        virtio_net_drop_tx_queue_data(vdev, vq);
+        return;
+    }
 
     if (unlikely(q->tx_waiting)) {
         return;
@@ -1695,6 +1734,7 @@ static void virtio_net_set_config_size(VirtIONet *n, uint64_t host_features)
 {
     int i, config_size = 0;
     virtio_add_feature(&host_features, VIRTIO_NET_F_MAC);
+
     for (i = 0; feature_sizes[i].flags != 0; i++) {
         if (host_features & feature_sizes[i].flags) {
             config_size = MAX(feature_sizes[i].end, config_size);
@@ -1723,6 +1763,10 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     VirtIONet *n = VIRTIO_NET(dev);
     NetClientState *nc;
     int i;
+
+    if (n->net_conf.mtu) {
+        n->host_features |= (0x1 << VIRTIO_NET_F_MTU);
+    }
 
     virtio_net_set_config_size(n, n->host_features);
     virtio_init(vdev, "virtio-net", VIRTIO_ID_NET, n->config_size);
@@ -1922,6 +1966,7 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_STRING("tx", VirtIONet, net_conf.tx),
     DEFINE_PROP_UINT16("rx_queue_size", VirtIONet, net_conf.rx_queue_size,
                        VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE),
+    DEFINE_PROP_UINT16("host_mtu", VirtIONet, net_conf.mtu, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -23,6 +23,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "migration/migration.h"
 #include "hw/virtio/virtio-access.h"
+#include "sysemu/dma.h"
 
 /*
  * The alignment to use between consumer and producer parts of vring.
@@ -92,7 +93,7 @@ struct VirtQueue
 
     uint16_t queue_index;
 
-    int inuse;
+    unsigned int inuse;
 
     uint16_t vector;
     VirtIOHandleOutput handle_output;
@@ -121,7 +122,7 @@ void virtio_queue_update_rings(VirtIODevice *vdev, int n)
 static void vring_desc_read(VirtIODevice *vdev, VRingDesc *desc,
                             hwaddr desc_pa, int i)
 {
-    address_space_read(&address_space_memory, desc_pa + i * sizeof(VRingDesc),
+    address_space_read(vdev->dma_as, desc_pa + i * sizeof(VRingDesc),
                        MEMTXATTRS_UNSPECIFIED, (void *)desc, sizeof(VRingDesc));
     virtio_tswap64s(vdev, &desc->addr);
     virtio_tswap32s(vdev, &desc->len);
@@ -163,7 +164,7 @@ static inline void vring_used_write(VirtQueue *vq, VRingUsedElem *uelem,
     virtio_tswap32s(vq->vdev, &uelem->id);
     virtio_tswap32s(vq->vdev, &uelem->len);
     pa = vq->vring.used + offsetof(VRingUsed, ring[i]);
-    address_space_write(&address_space_memory, pa, MEMTXATTRS_UNSPECIFIED,
+    address_space_write(vq->vdev->dma_as, pa, MEMTXATTRS_UNSPECIFIED,
                        (void *)uelem, sizeof(VRingUsedElem));
 }
 
@@ -249,6 +250,7 @@ int virtio_queue_empty(VirtQueue *vq)
 static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
                                unsigned int len)
 {
+    AddressSpace *dma_as = vq->vdev->dma_as;
     unsigned int offset;
     int i;
 
@@ -256,17 +258,18 @@ static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
     for (i = 0; i < elem->in_num; i++) {
         size_t size = MIN(len - offset, elem->in_sg[i].iov_len);
 
-        cpu_physical_memory_unmap(elem->in_sg[i].iov_base,
-                                  elem->in_sg[i].iov_len,
-                                  1, size);
+        dma_memory_unmap(dma_as, elem->in_sg[i].iov_base,
+                         elem->in_sg[i].iov_len,
+                         DMA_DIRECTION_FROM_DEVICE, size);
 
         offset += size;
     }
 
     for (i = 0; i < elem->out_num; i++)
-        cpu_physical_memory_unmap(elem->out_sg[i].iov_base,
-                                  elem->out_sg[i].iov_len,
-                                  0, elem->out_sg[i].iov_len);
+        dma_memory_unmap(dma_as, elem->out_sg[i].iov_base,
+                         elem->out_sg[i].iov_len,
+                         DMA_DIRECTION_TO_DEVICE,
+                         elem->out_sg[i].iov_len);
 }
 
 /* virtqueue_detach_element:
@@ -560,7 +563,10 @@ static bool virtqueue_map_desc(VirtIODevice *vdev, unsigned int *p_num_sg,
             goto out;
         }
 
-        iov[num_sg].iov_base = cpu_physical_memory_map(pa, &len, is_write);
+        iov[num_sg].iov_base = dma_memory_map(vdev->dma_as, pa, &len,
+                                              is_write ?
+                                              DMA_DIRECTION_FROM_DEVICE :
+                                              DMA_DIRECTION_TO_DEVICE);
         if (!iov[num_sg].iov_base) {
             virtio_error(vdev, "virtio: bogus descriptor or out of resources");
             goto out;
@@ -597,9 +603,9 @@ static void virtqueue_undo_map_desc(unsigned int out_num, unsigned int in_num,
     }
 }
 
-static void virtqueue_map_iovec(struct iovec *sg, hwaddr *addr,
-                                unsigned int *num_sg, unsigned int max_size,
-                                int is_write)
+static void virtqueue_map_iovec(VirtIODevice *vdev, struct iovec *sg,
+                                hwaddr *addr, unsigned int *num_sg,
+                                unsigned int max_size, int is_write)
 {
     unsigned int i;
     hwaddr len;
@@ -618,7 +624,10 @@ static void virtqueue_map_iovec(struct iovec *sg, hwaddr *addr,
 
     for (i = 0; i < *num_sg; i++) {
         len = sg[i].iov_len;
-        sg[i].iov_base = cpu_physical_memory_map(addr[i], &len, is_write);
+        sg[i].iov_base = dma_memory_map(vdev->dma_as,
+                                        addr[i], &len, is_write ?
+                                        DMA_DIRECTION_FROM_DEVICE :
+                                        DMA_DIRECTION_TO_DEVICE);
         if (!sg[i].iov_base) {
             error_report("virtio: error trying to map MMIO memory");
             exit(1);
@@ -630,12 +639,15 @@ static void virtqueue_map_iovec(struct iovec *sg, hwaddr *addr,
     }
 }
 
-void virtqueue_map(VirtQueueElement *elem)
+void virtqueue_map(VirtIODevice *vdev, VirtQueueElement *elem)
 {
-    virtqueue_map_iovec(elem->in_sg, elem->in_addr, &elem->in_num,
-                        VIRTQUEUE_MAX_SIZE, 1);
-    virtqueue_map_iovec(elem->out_sg, elem->out_addr, &elem->out_num,
-                        VIRTQUEUE_MAX_SIZE, 0);
+    virtqueue_map_iovec(vdev, elem->in_sg, elem->in_addr, &elem->in_num,
+                        MIN(ARRAY_SIZE(elem->in_sg), ARRAY_SIZE(elem->in_addr)),
+                        1);
+    virtqueue_map_iovec(vdev, elem->out_sg, elem->out_addr, &elem->out_num,
+                        MIN(ARRAY_SIZE(elem->out_sg),
+                        ARRAY_SIZE(elem->out_addr)),
+                        0);
 }
 
 static void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num)
@@ -771,6 +783,44 @@ err_undo_map:
     return NULL;
 }
 
+/* virtqueue_drop_all:
+ * @vq: The #VirtQueue
+ * Drops all queued buffers and indicates them to the guest
+ * as if they are done. Useful when buffers can not be
+ * processed but must be returned to the guest.
+ */
+unsigned int virtqueue_drop_all(VirtQueue *vq)
+{
+    unsigned int dropped = 0;
+    VirtQueueElement elem = {};
+    VirtIODevice *vdev = vq->vdev;
+    bool fEventIdx = virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX);
+
+    if (unlikely(vdev->broken)) {
+        return 0;
+    }
+
+    while (!virtio_queue_empty(vq) && vq->inuse < vq->vring.num) {
+        /* works similar to virtqueue_pop but does not map buffers
+        * and does not allocate any memory */
+        smp_rmb();
+        if (!virtqueue_get_head(vq, vq->last_avail_idx, &elem.index)) {
+            break;
+        }
+        vq->inuse++;
+        vq->last_avail_idx++;
+        if (fEventIdx) {
+            vring_set_avail_event(vq, vq->last_avail_idx);
+        }
+        /* immediately push the element, nothing to unmap
+         * as both in_num and out_num are set to 0 */
+        virtqueue_push(vq, &elem, 0);
+        dropped++;
+    }
+
+    return dropped;
+}
+
 /* Reading and writing a structure directly to QEMUFile is *awful*, but
  * it is what QEMU has always done by mistake.  We can change it sooner
  * or later by bumping the version number of the affected vm states.
@@ -788,7 +838,7 @@ typedef struct VirtQueueElementOld {
     struct iovec out_sg[VIRTQUEUE_MAX_SIZE];
 } VirtQueueElementOld;
 
-void *qemu_get_virtqueue_element(QEMUFile *f, size_t sz)
+void *qemu_get_virtqueue_element(VirtIODevice *vdev, QEMUFile *f, size_t sz)
 {
     VirtQueueElement *elem;
     VirtQueueElementOld data;
@@ -819,7 +869,7 @@ void *qemu_get_virtqueue_element(QEMUFile *f, size_t sz)
         elem->out_sg[i].iov_len = data.out_sg[i].iov_len;
     }
 
-    virtqueue_map(elem);
+    virtqueue_map(vdev, elem);
     return elem;
 }
 
@@ -877,6 +927,11 @@ void virtio_update_irq(VirtIODevice *vdev)
 static int virtio_validate_features(VirtIODevice *vdev)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+
+    if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM) &&
+        !virtio_vdev_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
+        return -EFAULT;
+    }
 
     if (k->validate_features) {
         return k->validate_features(vdev);
@@ -1861,9 +1916,11 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
             /*
              * Some devices migrate VirtQueueElements that have been popped
              * from the avail ring but not yet returned to the used ring.
+             * Since max ring size < UINT16_MAX it's safe to use modulo
+             * UINT16_MAX + 1 subtraction.
              */
-            vdev->vq[i].inuse = vdev->vq[i].last_avail_idx -
-                                vdev->vq[i].used_idx;
+            vdev->vq[i].inuse = (uint16_t)(vdev->vq[i].last_avail_idx -
+                                vdev->vq[i].used_idx);
             if (vdev->vq[i].inuse > vdev->vq[i].vring.num) {
                 error_report("VQ %d size 0x%x < last_avail_idx 0x%x - "
                              "used_idx 0x%x",
@@ -1999,6 +2056,11 @@ void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx)
 {
     vdev->vq[n].last_avail_idx = idx;
     vdev->vq[n].shadow_avail_idx = idx;
+}
+
+void virtio_queue_update_used_idx(VirtIODevice *vdev, int n)
+{
+    vdev->vq[n].used_idx = vring_used_idx(&vdev->vq[n]);
 }
 
 void virtio_queue_invalidate_signalled_used(VirtIODevice *vdev, int n)

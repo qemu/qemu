@@ -532,6 +532,34 @@ static int calculate_compat_instance_id(const char *idstr)
     return instance_id;
 }
 
+static inline MigrationPriority save_state_priority(SaveStateEntry *se)
+{
+    if (se->vmsd) {
+        return se->vmsd->priority;
+    }
+    return MIG_PRI_DEFAULT;
+}
+
+static void savevm_state_handler_insert(SaveStateEntry *nse)
+{
+    MigrationPriority priority = save_state_priority(nse);
+    SaveStateEntry *se;
+
+    assert(priority <= MIG_PRI_MAX);
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (save_state_priority(se) < priority) {
+            break;
+        }
+    }
+
+    if (se) {
+        QTAILQ_INSERT_BEFORE(se, nse, entry);
+    } else {
+        QTAILQ_INSERT_TAIL(&savevm_state.handlers, nse, entry);
+    }
+}
+
 /* TODO: Individual devices generally have very little idea about the rest
    of the system, so instance_id should be removed/replaced.
    Meanwhile pass -1 as instance_id if you do not already have a clearly
@@ -578,8 +606,7 @@ int register_savevm_live(DeviceState *dev,
         se->instance_id = instance_id;
     }
     assert(!se->compat || se->instance_id == 0);
-    /* add at the end of list */
-    QTAILQ_INSERT_TAIL(&savevm_state.handlers, se, entry);
+    savevm_state_handler_insert(se);
     return 0;
 }
 
@@ -662,8 +689,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
         se->instance_id = instance_id;
     }
     assert(!se->compat || se->instance_id == 0);
-    /* add at the end of list */
-    QTAILQ_INSERT_TAIL(&savevm_state.handlers, se, entry);
+    savevm_state_handler_insert(se);
     return 0;
 }
 

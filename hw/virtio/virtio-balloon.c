@@ -228,8 +228,13 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
             /* FIXME: remove get_system_memory(), but how? */
             section = memory_region_find(get_system_memory(), pa, 1);
-            if (!int128_nz(section.size) || !memory_region_is_ram(section.mr))
+            if (!int128_nz(section.size) ||
+                !memory_region_is_ram(section.mr) ||
+                memory_region_is_rom(section.mr) ||
+                memory_region_is_romd(section.mr)) {
+                trace_virtio_balloon_bad_addr(pa);
                 continue;
+            }
 
             trace_virtio_balloon_handle_output(memory_region_name(section.mr),
                                                pa);

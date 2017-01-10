@@ -32,6 +32,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_LOG_SHMFD = 1,
     VHOST_USER_PROTOCOL_F_RARP = 2,
     VHOST_USER_PROTOCOL_F_REPLY_ACK = 3,
+    VHOST_USER_PROTOCOL_F_NET_MTU = 4,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -59,6 +60,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_QUEUE_NUM = 17,
     VHOST_USER_SET_VRING_ENABLE = 18,
     VHOST_USER_SEND_RARP = 19,
+    VHOST_USER_NET_SET_MTU = 20,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -186,6 +188,7 @@ static bool vhost_user_one_time_request(VhostUserRequest request)
     case VHOST_USER_RESET_OWNER:
     case VHOST_USER_SET_MEM_TABLE:
     case VHOST_USER_GET_QUEUE_NUM:
+    case VHOST_USER_NET_SET_MTU:
         return true;
     default:
         return false;
@@ -685,6 +688,36 @@ static bool vhost_user_can_merge(struct vhost_dev *dev,
     return mfd == rfd;
 }
 
+static int vhost_user_net_set_mtu(struct vhost_dev *dev, uint16_t mtu)
+{
+    VhostUserMsg msg;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    if (!(dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_NET_MTU))) {
+        return 0;
+    }
+
+    msg.request = VHOST_USER_NET_SET_MTU;
+    msg.payload.u64 = mtu;
+    msg.size = sizeof(msg.payload.u64);
+    msg.flags = VHOST_USER_VERSION;
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    /* If reply_ack supported, slave has to ack specified MTU is valid */
+    if (reply_supported) {
+        return process_message_reply(dev, msg.request);
+    }
+
+    return 0;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
@@ -708,4 +741,5 @@ const VhostOps user_ops = {
         .vhost_requires_shm_log = vhost_user_requires_shm_log,
         .vhost_migration_done = vhost_user_migration_done,
         .vhost_backend_can_merge = vhost_user_can_merge,
+        .vhost_net_set_mtu = vhost_user_net_set_mtu,
 };

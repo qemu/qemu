@@ -628,6 +628,9 @@ static inline bool memory_region_is_romd(MemoryRegion *mr)
  */
 static inline bool memory_region_is_iommu(MemoryRegion *mr)
 {
+    if (mr->alias) {
+        return memory_region_is_iommu(mr->alias);
+    }
     return mr->iommu_ops;
 }
 
@@ -1537,6 +1540,11 @@ void stl_le_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val);
 void stl_be_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint32_t val);
 void stq_le_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint64_t val);
 void stq_be_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint64_t val);
+/* address_space_get_iotlb_entry: translate an address into an IOTLB
+ * entry. Should be called from an RCU critical section.
+ */
+IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
+                                            bool is_write);
 
 /* address_space_translate: translate an address range into an address space
  * into a MemoryRegion and an address range into that section.  Should be

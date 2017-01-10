@@ -29,6 +29,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pcie_regs.h"
+#include "qapi/error.h"
 
 //#define DEBUG_PCIE
 #ifdef DEBUG_PCIE
@@ -96,21 +97,17 @@ static void aer_log_clear_all_err(PCIEAERLog *aer_log)
     aer_log->log_num = 0;
 }
 
-int pcie_aer_init(PCIDevice *dev, uint16_t offset, uint16_t size)
+int pcie_aer_init(PCIDevice *dev, uint8_t cap_ver, uint16_t offset,
+                  uint16_t size, Error **errp)
 {
-    PCIExpressDevice *exp;
-
-    pcie_add_capability(dev, PCI_EXT_CAP_ID_ERR, PCI_ERR_VER,
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_ERR, cap_ver,
                         offset, size);
-    exp = &dev->exp;
-    exp->aer_cap = offset;
+    dev->exp.aer_cap = offset;
 
-    /* log_max is property */
-    if (dev->exp.aer_log.log_max == PCIE_AER_LOG_MAX_UNSET) {
-        dev->exp.aer_log.log_max = PCIE_AER_LOG_MAX_DEFAULT;
-    }
-    /* clip down the value to avoid unreasobale memory usage */
+    /* clip down the value to avoid unreasonable memory usage */
     if (dev->exp.aer_log.log_max > PCIE_AER_LOG_MAX_LIMIT) {
+        error_setg(errp, "Invalid aer_log_max %d. The max number of aer log "
+                "is %d", dev->exp.aer_log.log_max, PCIE_AER_LOG_MAX_LIMIT);
         return -EINVAL;
     }
     dev->exp.aer_log.log = g_malloc0(sizeof dev->exp.aer_log.log[0] *
