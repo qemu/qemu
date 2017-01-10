@@ -513,4 +513,31 @@ static inline uint64_t pow2ceil(uint64_t value)
     return 1ULL << (64 - nlz);
 }
 
+/**
+ * urshift - 128-bit Unsigned Right Shift.
+ * @plow: in/out - lower 64-bit integer.
+ * @phigh: in/out - higher 64-bit integer.
+ * @shift: in - bytes to shift, between 0 and 127.
+ *
+ * Result is zero-extended and stored in plow/phigh, which are
+ * input/output variables. Shift values outside the range will
+ * be mod to 128. In other words, the caller is responsible to
+ * verify/assert both the shift range and plow/phigh pointers.
+ */
+void urshift(uint64_t *plow, uint64_t *phigh, int32_t shift);
+
+/**
+ * ulshift - 128-bit Unsigned Left Shift.
+ * @plow: in/out - lower 64-bit integer.
+ * @phigh: in/out - higher 64-bit integer.
+ * @shift: in - bytes to shift, between 0 and 127.
+ * @overflow: out - true if any 1-bit is shifted out.
+ *
+ * Result is zero-extended and stored in plow/phigh, which are
+ * input/output variables. Shift values outside the range will
+ * be mod to 128. In other words, the caller is responsible to
+ * verify/assert both the shift range and plow/phigh pointers.
+ */
+void ulshift(uint64_t *plow, uint64_t *phigh, int32_t shift, bool *overflow);
+
 #endif
