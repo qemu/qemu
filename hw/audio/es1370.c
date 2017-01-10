@@ -1010,9 +1010,9 @@ static const VMStateDescription vmstate_es1370 = {
     }
 };
 
-static void es1370_on_reset (void *opaque)
+static void es1370_on_reset(DeviceState *dev)
 {
-    ES1370State *s = opaque;
+    ES1370State *s = container_of(dev, ES1370State, dev.qdev);
     es1370_reset (s);
 }
 
@@ -1035,7 +1035,6 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
 
     memory_region_init_io (&s->io, OBJECT(s), &es1370_io_ops, s, "es1370", 256);
     pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
-    qemu_register_reset (es1370_on_reset, s);
 
     AUD_register_card ("es1370", &s->card);
     es1370_reset (s);
@@ -1075,6 +1074,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "ENSONIQ AudioPCI ES1370";
     dc->vmsd = &vmstate_es1370;
+    dc->reset = es1370_on_reset;
 }
 
 static const TypeInfo es1370_info = {
