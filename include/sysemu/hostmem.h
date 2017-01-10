@@ -52,6 +52,7 @@ struct HostMemoryBackend {
     Object parent;
 
     /* protected */
+    char *id;
     uint64_t size;
     bool merge, dump;
     bool prealloc, force_prealloc, is_mapped;

@@ -518,6 +518,9 @@ static int query_memdev(Object *obj, void *opaque)
 
         m->value = g_malloc0(sizeof(*m->value));
 
+        m->value->id = object_property_get_str(obj, "id", NULL);
+        m->value->has_id = !!m->value->id;
+
         m->value->size = object_property_get_int(obj, "size",
                                                  &error_abort);
         m->value->merge = object_property_get_bool(obj, "merge",

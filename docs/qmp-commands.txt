@@ -3529,6 +3529,7 @@ Example (1):
          "policy": "bind"
        },
        {
+         "id": "mem1",
          "size": 536870912,
          "merge": false,
          "dump": true,
