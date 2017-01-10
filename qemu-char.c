@@ -499,7 +499,7 @@ void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
 
 static void remove_fd_in_watch(CharDriverState *chr);
 static void mux_chr_set_handlers(CharDriverState *chr, GMainContext *context);
-static void mux_set_focus(MuxDriver *d, int focus);
+static void mux_set_focus(CharDriverState *chr, int focus);
 
 static int null_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
@@ -666,7 +666,7 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
         case 'c':
             assert(d->mux_cnt > 0); /* handler registered with first fe */
             /* Switch to the next registered device */
-            mux_set_focus(d, (d->focus + 1) % d->mux_cnt);
+            mux_set_focus(chr, (d->focus + 1) % d->mux_cnt);
             break;
         case 't':
             d->timestamps = !d->timestamps;
@@ -826,8 +826,10 @@ static void mux_chr_set_handlers(CharDriverState *chr, GMainContext *context)
                              context, true);
 }
 
-static void mux_set_focus(MuxDriver *d, int focus)
+static void mux_set_focus(CharDriverState *chr, int focus)
 {
+    MuxDriver *d = chr->opaque;
+
     assert(focus >= 0);
     assert(focus < d->mux_cnt);
 
@@ -836,6 +838,7 @@ static void mux_set_focus(MuxDriver *d, int focus)
     }
 
     d->focus = focus;
+    chr->be = d->backends[focus];
     mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_IN);
 }
 
@@ -935,7 +938,9 @@ void qemu_chr_fe_deinit(CharBackend *b)
 
     if (b->chr) {
         qemu_chr_fe_set_handlers(b, NULL, NULL, NULL, NULL, NULL, true);
-        b->chr->be = NULL;
+        if (b->chr->be == b) {
+            b->chr->be = NULL;
+        }
         if (b->chr->is_mux) {
             MuxDriver *d = b->chr->opaque;
             d->backends[b->tag] = NULL;
@@ -999,7 +1004,7 @@ void qemu_chr_fe_take_focus(CharBackend *b)
     }
 
     if (b->chr->is_mux) {
-        mux_set_focus(b->chr->opaque, b->tag);
+        mux_set_focus(b->chr, b->tag);
     }
 }
 
