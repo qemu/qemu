@@ -2787,7 +2787,7 @@ void helper_xscvqpdp(CPUPPCState *env, uint32_t opcode)
     ppc_vsr_t xt, xb;
 
     getVSR(rB(opcode) + 32, &xb, env);
-    getVSR(rD(opcode) + 32, &xt, env);
+    memset(&xt, 0, sizeof(xt));
 
     if (unlikely(Rc(opcode) != 0)) {
         /* TODO: Support xscvqpdpo after round-to-odd is implemented */
