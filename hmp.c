@@ -1809,7 +1809,6 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     QemuOpts *opts;
-    Visitor *v;
     Object *obj = NULL;
 
     opts = qemu_opts_from_qdict(qemu_find_opts("object"), qdict, &err);
@@ -1818,9 +1817,7 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    v = opts_visitor_new(opts);
-    obj = user_creatable_add(qdict, v, &err);
-    visit_free(v);
+    obj = user_creatable_add_opts(opts, &err);
     qemu_opts_del(opts);
 
     if (err) {
