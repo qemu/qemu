@@ -2878,6 +2878,46 @@ VSX_CVT_FP_TO_INT(xvcvspsxws, 4, float32, int32, VsrW(i), VsrW(i), 0x80000000U)
 VSX_CVT_FP_TO_INT(xvcvspuxds, 2, float32, uint64, VsrW(2*i), VsrD(i), 0ULL)
 VSX_CVT_FP_TO_INT(xvcvspuxws, 4, float32, uint32, VsrW(i), VsrW(i), 0U)
 
+/* VSX_CVT_FP_TO_INT_VECTOR - VSX floating point to integer conversion
+ *   op    - instruction mnemonic
+ *   stp   - source type (float32 or float64)
+ *   ttp   - target type (int32, uint32, int64 or uint64)
+ *   sfld  - source vsr_t field
+ *   tfld  - target vsr_t field
+ *   rnan  - resulting NaN
+ */
+#define VSX_CVT_FP_TO_INT_VECTOR(op, stp, ttp, sfld, tfld, rnan)             \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
+{                                                                            \
+    ppc_vsr_t xt, xb;                                                        \
+                                                                             \
+    getVSR(rB(opcode) + 32, &xb, env);                                       \
+    memset(&xt, 0, sizeof(xt));                                              \
+                                                                             \
+    if (unlikely(stp##_is_any_nan(xb.sfld))) {                               \
+        if (stp##_is_signaling_nan(xb.sfld, &env->fp_status)) {              \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);           \
+        }                                                                    \
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 0);                \
+        xt.tfld = rnan;                                                      \
+    } else {                                                                 \
+        xt.tfld = stp##_to_##ttp##_round_to_zero(xb.sfld,                    \
+                      &env->fp_status);                                      \
+        if (env->fp_status.float_exception_flags & float_flag_invalid) {     \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 0);            \
+        }                                                                    \
+    }                                                                        \
+                                                                             \
+    putVSR(rD(opcode) + 32, &xt, env);                                       \
+    float_check_status(env);                                                 \
+}
+
+VSX_CVT_FP_TO_INT_VECTOR(xscvqpsdz, float128, int64, f128, VsrD(0),          \
+                  0x8000000000000000ULL)
+
+VSX_CVT_FP_TO_INT_VECTOR(xscvqpswz, float128, int32, f128, VsrD(0),          \
+                  0xffffffff80000000ULL)
+
 /* VSX_CVT_INT_TO_FP - VSX integer to floating point conversion
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
