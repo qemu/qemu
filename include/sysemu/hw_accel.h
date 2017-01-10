@@ -20,6 +20,9 @@ static inline void cpu_synchronize_state(CPUState *cpu)
     if (kvm_enabled()) {
         kvm_cpu_synchronize_state(cpu);
     }
+    if (hax_enabled()) {
+        hax_cpu_synchronize_state(cpu);
+    }
 }
 
 static inline void cpu_synchronize_post_reset(CPUState *cpu)
@@ -27,12 +30,18 @@ static inline void cpu_synchronize_post_reset(CPUState *cpu)
     if (kvm_enabled()) {
         kvm_cpu_synchronize_post_reset(cpu);
     }
+    if (hax_enabled()) {
+        hax_cpu_synchronize_post_reset(cpu);
+    }
 }
 
 static inline void cpu_synchronize_post_init(CPUState *cpu)
 {
     if (kvm_enabled()) {
         kvm_cpu_synchronize_post_init(cpu);
+    }
+    if (hax_enabled()) {
+        hax_cpu_synchronize_post_init(cpu);
     }
 }
 

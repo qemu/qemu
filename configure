@@ -228,6 +228,7 @@ vhost_net="no"
 vhost_scsi="no"
 vhost_vsock="no"
 kvm="no"
+hax="no"
 rdma=""
 gprof="no"
 debug_tcg="no"
@@ -561,6 +562,7 @@ CYGWIN*)
 ;;
 MINGW32*)
   mingw32="yes"
+  hax="yes"
   audio_possible_drivers="dsound sdl"
   if check_include dsound.h; then
     audio_drv_list="dsound"
@@ -610,6 +612,7 @@ OpenBSD)
 Darwin)
   bsd="yes"
   darwin="yes"
+  hax="yes"
   LDFLAGS_SHARED="-bundle -undefined dynamic_lookup"
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
@@ -918,6 +921,10 @@ for opt do
   --disable-kvm) kvm="no"
   ;;
   --enable-kvm) kvm="yes"
+  ;;
+  --disable-hax) hax="no"
+  ;;
+  --enable-hax) hax="yes"
   ;;
   --disable-tcg-interpreter) tcg_interpreter="no"
   ;;
@@ -1367,6 +1374,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   fdt             fdt device tree
   bluez           bluez stack connectivity
   kvm             KVM acceleration support
+  hax             HAX acceleration support
   rdma            RDMA-based migration support
   vde             support for vde network
   netmap          support for netmap network
@@ -5056,6 +5064,7 @@ echo "Linux AIO support $linux_aio"
 echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
+echo "HAX support       $hax"
 echo "RDMA support      $rdma"
 echo "TCG interpreter   $tcg_interpreter"
 echo "fdt support       $fdt"
@@ -6039,6 +6048,15 @@ case "$target_name" in
       fi
     fi
 esac
+if test "$hax" = "yes" ; then
+  if test "$target_softmmu" = "yes" ; then
+    case "$target_name" in
+    i386|x86_64)
+      echo "CONFIG_HAX=y" >> $config_target_mak
+    ;;
+    esac
+  fi
+fi
 if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=y" >> $config_target_mak
 fi

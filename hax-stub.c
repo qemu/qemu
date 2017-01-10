@@ -23,11 +23,6 @@ int hax_sync_vcpus(void)
     return 0;
 }
 
-int hax_populate_ram(uint64_t va, uint32_t size)
-{
-    return -ENOSYS;
-}
-
 int hax_init_vcpu(CPUState *cpu)
 {
     return -ENOSYS;

@@ -227,6 +227,8 @@ struct CPUWatchpoint {
 struct KVMState;
 struct kvm_run;
 
+struct hax_vcpu_state;
+
 #define TB_JMP_CACHE_BITS 12
 #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
 
@@ -392,6 +394,9 @@ struct CPUState {
        (absolute value) offset as small as possible.  This reduces code
        size, especially for hosts without large memory offsets.  */
     uint32_t tcg_exit_req;
+
+    bool hax_vcpu_dirty;
+    struct hax_vcpu_state *hax_vcpu;
 };
 
 QTAILQ_HEAD(CPUTailQ, CPUState);

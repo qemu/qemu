@@ -497,8 +497,8 @@ HANDLE qemu_thread_get_handle(QemuThread *thread)
 
     EnterCriticalSection(&data->cs);
     if (!data->exited) {
-        handle = OpenThread(SYNCHRONIZE | THREAD_SUSPEND_RESUME, FALSE,
-                            thread->tid);
+        handle = OpenThread(SYNCHRONIZE | THREAD_SUSPEND_RESUME |
+                            THREAD_SET_CONTEXT, FALSE, thread->tid);
     } else {
         handle = NULL;
     }
