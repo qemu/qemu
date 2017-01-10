@@ -1432,6 +1432,46 @@ static void gen_xvxexpdp(DisasContext *ctx)
 
 GEN_VSX_HELPER_2(xvxsigsp, 0x00, 0x04, 0, PPC2_ISA300)
 
+static void gen_xvxsigdp(DisasContext *ctx)
+{
+    TCGv_i64 xth = cpu_vsrh(xT(ctx->opcode));
+    TCGv_i64 xtl = cpu_vsrl(xT(ctx->opcode));
+    TCGv_i64 xbh = cpu_vsrh(xB(ctx->opcode));
+    TCGv_i64 xbl = cpu_vsrl(xB(ctx->opcode));
+
+    TCGv_i64 t0, zr, nan, exp;
+
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    exp = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+    zr = tcg_const_i64(0);
+    nan = tcg_const_i64(2047);
+
+    tcg_gen_shri_i64(exp, xbh, 52);
+    tcg_gen_andi_i64(exp, exp, 0x7FF);
+    tcg_gen_movi_i64(t0, 0x0010000000000000);
+    tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, zr, zr, t0);
+    tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
+    tcg_gen_andi_i64(xth, xbh, 0x000FFFFFFFFFFFFF);
+    tcg_gen_or_i64(xth, xth, t0);
+
+    tcg_gen_shri_i64(exp, xbl, 52);
+    tcg_gen_andi_i64(exp, exp, 0x7FF);
+    tcg_gen_movi_i64(t0, 0x0010000000000000);
+    tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, zr, zr, t0);
+    tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
+    tcg_gen_andi_i64(xtl, xbl, 0x000FFFFFFFFFFFFF);
+    tcg_gen_or_i64(xtl, xtl, t0);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(exp);
+    tcg_temp_free_i64(zr);
+    tcg_temp_free_i64(nan);
+}
+
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
 #undef GEN_XX2IFORM
