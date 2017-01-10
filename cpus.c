@@ -33,6 +33,7 @@
 #include "sysemu/block-backend.h"
 #include "exec/gdbstub.h"
 #include "sysemu/dma.h"
+#include "sysemu/hw_accel.h"
 #include "sysemu/kvm.h"
 #include "qmp-commands.h"
 #include "exec/exec-all.h"

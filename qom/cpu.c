@@ -22,7 +22,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qom/cpu.h"
-#include "sysemu/kvm.h"
+#include "sysemu/hw_accel.h"
 #include "qemu/notify.h"
 #include "qemu/log.h"
 #include "exec/log.h"

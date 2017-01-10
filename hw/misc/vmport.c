@@ -25,7 +25,7 @@
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
 #include "hw/i386/pc.h"
-#include "sysemu/kvm.h"
+#include "sysemu/hw_accel.h"
 #include "hw/qdev.h"
 
 //#define VMPORT_DEBUG

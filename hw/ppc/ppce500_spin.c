@@ -29,9 +29,9 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
-#include "sysemu/kvm.h"
+#include "sysemu/hw_accel.h"
+#include "sysemu/sysemu.h"
 #include "e500.h"
 
 #define MAX_CPUS 32

@@ -26,7 +26,7 @@
 #include "cpu.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/kvm.h"
+#include "sysemu/hw_accel.h"
 #include "sysemu/numa.h"
 #include "kvm_ppc.h"
 #include "sysemu/cpus.h"

@@ -14,6 +14,7 @@
 #include "cpu.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/pci/msi.h"
+#include "sysemu/hw_accel.h"
 #include "sysemu/kvm.h"
 #include "target/i386/kvm_i386.h"
 

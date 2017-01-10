@@ -31,7 +31,7 @@
 #endif
 #include "hw/arm/arm.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/kvm.h"
+#include "sysemu/hw_accel.h"
 #include "kvm_arm.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)

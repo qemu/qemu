@@ -18,6 +18,7 @@
 #include "s390-pci-bus.h"
 #include "exec/memory-internal.h"
 #include "qemu/error-report.h"
+#include "sysemu/hw_accel.h"
 
 /* #define DEBUG_S390PCI_INST */
 #ifdef DEBUG_S390PCI_INST
