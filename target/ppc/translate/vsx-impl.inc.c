@@ -1263,6 +1263,28 @@ static void gen_xsiexpdp(DisasContext *ctx)
     tcg_temp_free_i64(t0);
 }
 
+static void gen_xsiexpqp(DisasContext *ctx)
+{
+    TCGv_i64 xth = cpu_vsrh(rD(ctx->opcode) + 32);
+    TCGv_i64 xtl = cpu_vsrl(rD(ctx->opcode) + 32);
+    TCGv_i64 xah = cpu_vsrh(rA(ctx->opcode) + 32);
+    TCGv_i64 xal = cpu_vsrl(rA(ctx->opcode) + 32);
+    TCGv_i64 xbh = cpu_vsrh(rB(ctx->opcode) + 32);
+    TCGv_i64 t0;
+
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    t0 = tcg_temp_new_i64();
+    tcg_gen_andi_i64(xth, xah, 0x8000FFFFFFFFFFFF);
+    tcg_gen_andi_i64(t0, xbh, 0x7FFF);
+    tcg_gen_shli_i64(t0, t0, 48);
+    tcg_gen_or_i64(xth, xth, t0);
+    tcg_gen_mov_i64(xtl, xal);
+    tcg_temp_free_i64(t0);
+}
+
 static void gen_xsxsigdp(DisasContext *ctx)
 {
     TCGv rt = cpu_gpr[rD(ctx->opcode)];
