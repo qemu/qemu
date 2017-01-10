@@ -9,3 +9,6 @@ obj-$(call lnot,$(CONFIG_KVM)) += kvm-stub.o
 ifdef CONFIG_WIN32
 obj-$(CONFIG_HAX) += hax-all.o hax-mem.o hax-windows.o
 endif
+ifdef CONFIG_DARWIN
+obj-$(CONFIG_HAX) += hax-all.o hax-mem.o hax-darwin.o
+endif
