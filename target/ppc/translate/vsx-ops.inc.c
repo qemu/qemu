@@ -125,6 +125,7 @@ GEN_VSX_XFORM_300(xsiexpqp, 0x4, 0x1B, 0x00000001),
 #endif
 
 GEN_XX3FORM(xviexpsp, 0x00, 0x1B, PPC2_ISA300),
+GEN_XX3FORM(xviexpdp, 0x00, 0x1F, PPC2_ISA300),
 
 GEN_XX2FORM(xvabsdp, 0x12, 0x1D, PPC2_VSX),
 GEN_XX2FORM(xvnabsdp, 0x12, 0x1E, PPC2_VSX),
