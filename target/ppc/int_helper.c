@@ -3102,6 +3102,47 @@ uint32_t helper_bcds(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdus(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+{
+    int cr;
+    int i;
+    int invalid = 0;
+    bool ox_flag = false;
+    ppc_avr_t ret = *b;
+
+    for (i = 0; i < 32; i++) {
+        bcd_get_digit(b, i, &invalid);
+
+        if (unlikely(invalid)) {
+            return CRF_SO;
+        }
+    }
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    i = a->s8[7];
+#else
+    i = a->s8[8];
+#endif
+    if (i >= 32) {
+        ox_flag = true;
+        ret.u64[LO_IDX] = ret.u64[HI_IDX] = 0;
+    } else if (i <= -32) {
+        ret.u64[LO_IDX] = ret.u64[HI_IDX] = 0;
+    } else if (i > 0) {
+        ulshift(&ret.u64[LO_IDX], &ret.u64[HI_IDX], i * 4, &ox_flag);
+    } else {
+        urshift(&ret.u64[LO_IDX], &ret.u64[HI_IDX], -i * 4);
+    }
+    *r = ret;
+
+    cr = bcd_cmp_zero(r);
+    if (ox_flag) {
+        cr |= CRF_SO;
+    }
+
+    return cr;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
