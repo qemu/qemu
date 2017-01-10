@@ -3062,6 +3062,46 @@ uint32_t helper_bcdsetsgn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return bcd_cmp_zero(r);
 }
 
+uint32_t helper_bcds(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+{
+    int cr;
+#if defined(HOST_WORDS_BIGENDIAN)
+    int i = a->s8[7];
+#else
+    int i = a->s8[8];
+#endif
+    bool ox_flag = false;
+    int sgnb = bcd_get_sgn(b);
+    ppc_avr_t ret = *b;
+    ret.u64[LO_IDX] &= ~0xf;
+
+    if (bcd_is_valid(b) == false) {
+        return CRF_SO;
+    }
+
+    if (unlikely(i > 31)) {
+        i = 31;
+    } else if (unlikely(i < -31)) {
+        i = -31;
+    }
+
+    if (i > 0) {
+        ulshift(&ret.u64[LO_IDX], &ret.u64[HI_IDX], i * 4, &ox_flag);
+    } else {
+        urshift(&ret.u64[LO_IDX], &ret.u64[HI_IDX], -i * 4);
+    }
+    bcd_put_digit(&ret, bcd_preferred_sgn(sgnb, ps), 0);
+
+    *r = ret;
+
+    cr = bcd_cmp_zero(r);
+    if (ox_flag) {
+        cr |= CRF_SO;
+    }
+
+    return cr;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
