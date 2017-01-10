@@ -3,7 +3,6 @@
 #include "qom/object_interfaces.h"
 #include "qemu/module.h"
 #include "qapi-visit.h"
-#include "qapi/qobject-output-visitor.h"
 #include "qapi/opts-visitor.h"
 
 void user_creatable_complete(Object *obj, Error **errp)
