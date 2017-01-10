@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
 
+#ifndef CONFIG_INT128
 /* Long integer helpers */
 static inline void mul64(uint64_t *plow, uint64_t *phigh,
                          uint64_t a, uint64_t b)
@@ -158,4 +159,5 @@ int divs128(int64_t *plow, int64_t *phigh, int64_t divisor)
 
     return overflow;
 }
+#endif
 
