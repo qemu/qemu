@@ -152,8 +152,7 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                        | PVR0_USE_HW_MUL_MASK \
                        | PVR0_USE_EXC_MASK \
                        | PVR0_USE_ICACHE_MASK \
-                       | PVR0_USE_DCACHE_MASK \
-                       | (0xb << 8);
+                       | PVR0_USE_DCACHE_MASK;
     env->pvr.regs[2] = PVR2_D_OPB_MASK \
                         | PVR2_D_LMB_MASK \
                         | PVR2_I_OPB_MASK \
