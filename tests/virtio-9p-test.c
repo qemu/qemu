@@ -236,6 +236,16 @@ static void v9fs_req_send(P9Req *req)
     req->t_off = 0;
 }
 
+static const char *rmessage_name(uint8_t id)
+{
+    return
+        id == P9_RLERROR ? "RLERROR" :
+        id == P9_RVERSION ? "RVERSION" :
+        id == P9_RATTACH ? "RATTACH" :
+        id == P9_RWALK ? "RWALK" :
+        "<unknown>";
+}
+
 static void v9fs_req_recv(P9Req *req, uint8_t id)
 {
     QVirtIO9P *v9p = req->v9p;
@@ -258,11 +268,15 @@ static void v9fs_req_recv(P9Req *req, uint8_t id)
     g_assert_cmpint(hdr.size, <=, P9_MAX_SIZE);
     g_assert_cmpint(hdr.tag, ==, req->tag);
 
-    if (hdr.id != id && hdr.id == P9_RLERROR) {
-        uint32_t err;
-        v9fs_uint32_read(req, &err);
-        g_printerr("Received Rlerror (%d) instead of Response %d\n", err, id);
-        g_assert_not_reached();
+    if (hdr.id != id) {
+        g_printerr("Received response %d (%s) instead of %d (%s)\n",
+                   hdr.id, rmessage_name(hdr.id), id, rmessage_name(id));
+
+        if (hdr.id == P9_RLERROR) {
+            uint32_t err;
+            v9fs_uint32_read(req, &err);
+            g_printerr("Rlerror has errno %d (%s)\n", err, strerror(err));
+        }
     }
     g_assert_cmpint(hdr.id, ==, id);
 }
