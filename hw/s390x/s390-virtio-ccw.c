@@ -339,7 +339,6 @@ static const TypeInfo ccw_machine_info = {
         HW_COMPAT_2_7
 
 #define CCW_COMPAT_2_6 \
-        CCW_COMPAT_2_7 \
         HW_COMPAT_2_6 \
         {\
             .driver   = TYPE_S390_IPL,\
@@ -352,7 +351,6 @@ static const TypeInfo ccw_machine_info = {
         },
 
 #define CCW_COMPAT_2_5 \
-        CCW_COMPAT_2_6 \
         HW_COMPAT_2_5
 
 #define CCW_COMPAT_2_4 \
