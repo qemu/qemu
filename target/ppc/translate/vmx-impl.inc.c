@@ -1018,6 +1018,7 @@ GEN_BCD2(bcdsetsgn)
 GEN_BCD(bcdcpsgn);
 GEN_BCD(bcds);
 GEN_BCD(bcdus);
+GEN_BCD(bcdsr);
 
 static void gen_xpnd04_1(DisasContext *ctx)
 {

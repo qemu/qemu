@@ -3143,6 +3143,54 @@ uint32_t helper_bcdus(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdsr(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+{
+    int cr;
+    int unused = 0;
+    int invalid = 0;
+    bool ox_flag = false;
+    int sgnb = bcd_get_sgn(b);
+    ppc_avr_t ret = *b;
+    ret.u64[LO_IDX] &= ~0xf;
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    int i = a->s8[7];
+    ppc_avr_t bcd_one = { .u64 = { 0, 0x10 } };
+#else
+    int i = a->s8[8];
+    ppc_avr_t bcd_one = { .u64 = { 0x10, 0 } };
+#endif
+
+    if (bcd_is_valid(b) == false) {
+        return CRF_SO;
+    }
+
+    if (unlikely(i > 31)) {
+        i = 31;
+    } else if (unlikely(i < -31)) {
+        i = -31;
+    }
+
+    if (i > 0) {
+        ulshift(&ret.u64[LO_IDX], &ret.u64[HI_IDX], i * 4, &ox_flag);
+    } else {
+        urshift(&ret.u64[LO_IDX], &ret.u64[HI_IDX], -i * 4);
+
+        if (bcd_get_digit(&ret, 0, &invalid) >= 5) {
+            bcd_add_mag(&ret, &ret, &bcd_one, &invalid, &unused);
+        }
+    }
+    bcd_put_digit(&ret, bcd_preferred_sgn(sgnb, ps), 0);
+
+    cr = bcd_cmp_zero(&ret);
+    if (ox_flag) {
+        cr |= CRF_SO;
+    }
+    *r = ret;
+
+    return cr;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
