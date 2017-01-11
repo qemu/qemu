@@ -430,6 +430,8 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         g_assert(words[1] && words[2]);
         g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
         g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
+        /* We'd send garbage to libqtest if len is 0 */
+        g_assert(len);
 
         data = g_malloc(len);
         cpu_physical_memory_read(addr, data, len);

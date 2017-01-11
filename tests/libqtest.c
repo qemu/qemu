@@ -768,6 +768,10 @@ void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size)
     gchar **args;
     size_t i;
 
+    if (!size) {
+        return;
+    }
+
     qtest_sendf(s, "read 0x%" PRIx64 " 0x%zx\n", addr, size);
     args = qtest_rsp(s, 2);
 
@@ -858,7 +862,13 @@ void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
 {
     const uint8_t *ptr = data;
     size_t i;
-    char *enc = g_malloc(2 * size + 1);
+    char *enc;
+
+    if (!size) {
+        return;
+    }
+
+    enc = g_malloc(2 * size + 1);
 
     for (i = 0; i < size; i++) {
         sprintf(&enc[i * 2], "%02x", ptr[i]);
