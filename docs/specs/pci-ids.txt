@@ -57,7 +57,10 @@ PCI devices (other than virtio):
 1b36:0005  PCI test device (docs/specs/pci-testdev.txt)
 1b36:0006  PCI Rocker Ethernet switch device
 1b36:0007  PCI SD Card Host Controller Interface (SDHCI)
+1b36:0008  PCIe host bridge
+1b36:0009  PCI Expander Bridge (-device pxb)
 1b36:000a  PCI-PCI bridge (multiseat)
+1b36:000b  PCIe Expander Bridge (-device pxb-pcie)
 
 All these devices are documented in docs/specs.
 
