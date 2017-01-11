@@ -696,6 +696,7 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                                  "tap: open vhost char device failed");
                 return;
             }
+            fcntl(vhostfd, F_SETFL, O_NONBLOCK);
         }
         options.opaque = (void *)(uintptr_t)vhostfd;
 
