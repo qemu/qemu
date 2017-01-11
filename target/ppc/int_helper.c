@@ -2551,9 +2551,9 @@ void helper_vsubecuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 #define NATIONAL_NEG    0x2D
 
 #if defined(HOST_WORDS_BIGENDIAN)
-#define BCD_DIG_BYTE(n) (15 - (n/2))
+#define BCD_DIG_BYTE(n) (15 - ((n) / 2))
 #else
-#define BCD_DIG_BYTE(n) (n/2)
+#define BCD_DIG_BYTE(n) ((n) / 2)
 #endif
 
 static int bcd_get_sgn(ppc_avr_t *bcd)
@@ -2876,7 +2876,7 @@ uint32_t helper_bcdcfz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     }
 
     for (i = 0; i < 16; i++) {
-        zone_digit = (i * 2) ? b->u8[BCD_DIG_BYTE(i * 2)] >> 4 : zone_lead;
+        zone_digit = i ? b->u8[BCD_DIG_BYTE(i * 2)] >> 4 : zone_lead;
         digit = b->u8[BCD_DIG_BYTE(i * 2)] & 0xF;
         if (unlikely(zone_digit != zone_lead || digit > 0x9)) {
             invalid = 1;
