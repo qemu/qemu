@@ -2126,6 +2126,9 @@ static bool virtio_queue_host_notifier_aio_poll(void *opaque)
     }
 
     virtio_queue_notify_aio_vq(vq);
+
+    /* In case the handler function re-enabled notifications */
+    virtio_queue_set_notification(vq, 0);
     return true;
 }
 
