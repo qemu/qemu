@@ -1010,9 +1010,9 @@ static const VMStateDescription vmstate_es1370 = {
     }
 };
 
-static void es1370_on_reset (void *opaque)
+static void es1370_on_reset(DeviceState *dev)
 {
-    ES1370State *s = opaque;
+    ES1370State *s = container_of(dev, ES1370State, dev.qdev);
     es1370_reset (s);
 }
 
@@ -1035,10 +1035,22 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
 
     memory_region_init_io (&s->io, OBJECT(s), &es1370_io_ops, s, "es1370", 256);
     pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
-    qemu_register_reset (es1370_on_reset, s);
 
     AUD_register_card ("es1370", &s->card);
     es1370_reset (s);
+}
+
+static void es1370_exit(PCIDevice *dev)
+{
+    ES1370State *s = ES1370(dev);
+    int i;
+
+    for (i = 0; i < 2; ++i) {
+        AUD_close_out(&s->card, s->dac_voice[i]);
+    }
+
+    AUD_close_in(&s->card, s->adc_voice);
+    AUD_remove_card(&s->card);
 }
 
 static int es1370_init (PCIBus *bus)
@@ -1053,6 +1065,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS (klass);
 
     k->realize = es1370_realize;
+    k->exit = es1370_exit;
     k->vendor_id = PCI_VENDOR_ID_ENSONIQ;
     k->device_id = PCI_DEVICE_ID_ENSONIQ_ES1370;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
@@ -1061,6 +1074,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "ENSONIQ AudioPCI ES1370";
     dc->vmsd = &vmstate_es1370;
+    dc->reset = es1370_on_reset;
 }
 
 static const TypeInfo es1370_info = {

@@ -1387,6 +1387,16 @@ static void ac97_realize(PCIDevice *dev, Error **errp)
     ac97_on_reset (&s->dev.qdev);
 }
 
+static void ac97_exit(PCIDevice *dev)
+{
+    AC97LinkState *s = DO_UPCAST(AC97LinkState, dev, dev);
+
+    AUD_close_in(&s->card, s->voice_pi);
+    AUD_close_out(&s->card, s->voice_po);
+    AUD_close_in(&s->card, s->voice_mc);
+    AUD_remove_card(&s->card);
+}
+
 static int ac97_init (PCIBus *bus)
 {
     pci_create_simple (bus, -1, "AC97");
@@ -1404,6 +1414,7 @@ static void ac97_class_init (ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS (klass);
 
     k->realize = ac97_realize;
+    k->exit = ac97_exit;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801AA_5;
     k->revision = 0x01;

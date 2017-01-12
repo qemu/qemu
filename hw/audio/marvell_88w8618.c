@@ -241,19 +241,23 @@ static const MemoryRegionOps mv88w8618_audio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int mv88w8618_audio_init(SysBusDevice *dev)
+static void mv88w8618_audio_init(Object *obj)
 {
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     mv88w8618_audio_state *s = MV88W8618_AUDIO(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
-    wm8750_data_req_set(s->wm, mv88w8618_audio_callback, s);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &mv88w8618_audio_ops, s,
+    memory_region_init_io(&s->iomem, obj, &mv88w8618_audio_ops, s,
                           "audio", MP_AUDIO_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
+}
 
-    return 0;
+static void mv88w8618_audio_realize(DeviceState *dev, Error **errp)
+{
+    mv88w8618_audio_state *s = MV88W8618_AUDIO(dev);
+
+    wm8750_data_req_set(s->wm, mv88w8618_audio_callback, s);
 }
 
 static const VMStateDescription mv88w8618_audio_vmsd = {
@@ -282,9 +286,8 @@ static Property mv88w8618_audio_properties[] = {
 static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = mv88w8618_audio_init;
+    dc->realize = mv88w8618_audio_realize;
     dc->reset = mv88w8618_audio_reset;
     dc->vmsd = &mv88w8618_audio_vmsd;
     dc->props = mv88w8618_audio_properties;
@@ -296,6 +299,7 @@ static const TypeInfo mv88w8618_audio_info = {
     .name          = TYPE_MV88W8618_AUDIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_audio_state),
+    .instance_init = mv88w8618_audio_init,
     .class_init    = mv88w8618_audio_class_init,
 };
 
