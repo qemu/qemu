@@ -2960,6 +2960,31 @@ VSX_CVT_INT_TO_FP(xvcvuxdsp, 2, uint64, float32, VsrD(i), VsrW(2*i), 0, 0)
 VSX_CVT_INT_TO_FP(xvcvsxwsp, 4, int32, float32, VsrW(i), VsrW(i), 0, 0)
 VSX_CVT_INT_TO_FP(xvcvuxwsp, 4, uint32, float32, VsrW(i), VsrW(i), 0, 0)
 
+/* VSX_CVT_INT_TO_FP_VECTOR - VSX integer to floating point conversion
+ *   op    - instruction mnemonic
+ *   stp   - source type (int32, uint32, int64 or uint64)
+ *   ttp   - target type (float32 or float64)
+ *   sfld  - source vsr_t field
+ *   tfld  - target vsr_t field
+ */
+#define VSX_CVT_INT_TO_FP_VECTOR(op, stp, ttp, sfld, tfld)              \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
+{                                                                       \
+    ppc_vsr_t xt, xb;                                                   \
+                                                                        \
+    getVSR(rB(opcode) + 32, &xb, env);                                  \
+    getVSR(rD(opcode) + 32, &xt, env);                                  \
+                                                                        \
+    xt.tfld = stp##_to_##ttp(xb.sfld, &env->fp_status);                 \
+    helper_compute_fprf_##ttp(env, xt.tfld);                            \
+                                                                        \
+    putVSR(xT(opcode) + 32, &xt, env);                                  \
+    float_check_status(env);                                            \
+}
+
+VSX_CVT_INT_TO_FP_VECTOR(xscvsdqp, int64, float128, VsrD(0), f128)
+VSX_CVT_INT_TO_FP_VECTOR(xscvudqp, uint64, float128, VsrD(0), f128)
+
 /* For "use current rounding mode", define a value that will not be one of
  * the existing rounding model enums.
  */
