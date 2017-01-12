@@ -1038,6 +1038,8 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size)
     uint32_t resource_id, pformat;
     int i;
 
+    g->hostmem = 0;
+
     resource_id = qemu_get_be32(f);
     while (resource_id != 0) {
         res = g_new0(struct virtio_gpu_simple_resource, 1);
@@ -1050,14 +1052,18 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size)
         /* allocate */
         pformat = get_pixman_format(res->format);
         if (!pformat) {
+            g_free(res);
             return -EINVAL;
         }
         res->image = pixman_image_create_bits(pformat,
                                               res->width, res->height,
                                               NULL, 0);
         if (!res->image) {
+            g_free(res);
             return -EINVAL;
         }
+
+        res->hostmem = PIXMAN_FORMAT_BPP(pformat) * res->width * res->height;
 
         res->addrs = g_new(uint64_t, res->iov_cnt);
         res->iov = g_new(struct iovec, res->iov_cnt);
@@ -1076,11 +1082,22 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size)
             res->iov[i].iov_base =
                 cpu_physical_memory_map(res->addrs[i], &len, 1);
             if (!res->iov[i].iov_base || len != res->iov[i].iov_len) {
+                /* Clean up the half-a-mapping we just created... */
+                if (res->iov[i].iov_base) {
+                    cpu_physical_memory_unmap(res->iov[i].iov_base,
+                                              len, 0, 0);
+                }
+                /* ...and the mappings for previous loop iterations */
+                res->iov_cnt = i;
+                virtio_gpu_cleanup_mapping(res);
+                pixman_image_unref(res->image);
+                g_free(res);
                 return -EINVAL;
             }
         }
 
         QTAILQ_INSERT_HEAD(&g->reslist, res, next);
+        g->hostmem += res->hostmem;
 
         resource_id = qemu_get_be32(f);
     }
@@ -1282,6 +1299,7 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
 
     dc->props = virtio_gpu_properties;
     dc->vmsd = &vmstate_virtio_gpu;
+    dc->hotpluggable = false;
 }
 
 static const TypeInfo virtio_gpu_info = {
