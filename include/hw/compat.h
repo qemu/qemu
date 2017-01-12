@@ -2,7 +2,15 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_2_8 \
-    /* empty */
+    {\
+        .driver   = "fw_cfg_mem",\
+        .property = "x-file-slots",\
+        .value    = stringify(0x10),\
+    },{\
+        .driver   = "fw_cfg_io",\
+        .property = "x-file-slots",\
+        .value    = stringify(0x10),\
+    },
 
 #define HW_COMPAT_2_7 \
     {\

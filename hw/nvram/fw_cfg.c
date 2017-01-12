@@ -35,6 +35,8 @@
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 
+#define FW_CFG_FILE_SLOTS_DFLT 0x20
+
 #define FW_CFG_NAME "fw_cfg"
 #define FW_CFG_PATH "/machine/" FW_CFG_NAME
 
@@ -1058,7 +1060,7 @@ static Property fw_cfg_io_properties[] = {
     DEFINE_PROP_BOOL("dma_enabled", FWCfgIoState, parent_obj.dma_enabled,
                      true),
     DEFINE_PROP_UINT16("x-file-slots", FWCfgIoState, parent_obj.file_slots,
-                       FW_CFG_FILE_SLOTS_MIN),
+                       FW_CFG_FILE_SLOTS_DFLT),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1110,7 +1112,7 @@ static Property fw_cfg_mem_properties[] = {
     DEFINE_PROP_BOOL("dma_enabled", FWCfgMemState, parent_obj.dma_enabled,
                      true),
     DEFINE_PROP_UINT16("x-file-slots", FWCfgMemState, parent_obj.file_slots,
-                       FW_CFG_FILE_SLOTS_MIN),
+                       FW_CFG_FILE_SLOTS_DFLT),
     DEFINE_PROP_END_OF_LIST(),
 };
 
