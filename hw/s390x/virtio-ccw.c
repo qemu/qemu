@@ -149,7 +149,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, VqInfoBlock *info,
     } else {
         if (info) {
             /* virtio-1 allows changing the ring size. */
-            if (virtio_queue_get_num(vdev, index) < num) {
+            if (virtio_queue_get_max_num(vdev, index) < num) {
                 /* Fail if we exceed the maximum number. */
                 return -EINVAL;
             }

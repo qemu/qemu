@@ -1262,6 +1262,11 @@ int virtio_queue_get_num(VirtIODevice *vdev, int n)
     return vdev->vq[n].vring.num;
 }
 
+int virtio_queue_get_max_num(VirtIODevice *vdev, int n)
+{
+    return vdev->vq[n].vring.num_default;
+}
+
 int virtio_get_num_queues(VirtIODevice *vdev)
 {
     int i;
