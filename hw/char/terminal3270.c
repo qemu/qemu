@@ -260,12 +260,18 @@ static Property terminal_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription terminal3270_vmstate = {
+    .name = TYPE_TERMINAL_3270,
+    .unmigratable = 1,
+};
+
 static void terminal_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     EmulatedCcw3270Class *ck = EMULATED_CCW_3270_CLASS(klass);
 
     dc->props = terminal_properties;
+    dc->vmsd = &terminal3270_vmstate;
     ck->init = terminal_init;
     ck->read_payload_3270 = read_payload_3270;
     ck->write_payload_3270 = write_payload_3270;
