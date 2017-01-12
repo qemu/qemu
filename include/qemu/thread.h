@@ -100,7 +100,9 @@ static inline void qemu_spin_unlock(QemuSpin *spin)
 }
 
 struct QemuLockCnt {
+#ifndef CONFIG_LINUX
     QemuMutex mutex;
+#endif
     unsigned count;
 };
 
