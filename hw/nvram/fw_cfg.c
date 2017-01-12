@@ -33,6 +33,7 @@
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
+#include "qapi/error.h"
 
 #define FW_CFG_NAME "fw_cfg"
 #define FW_CFG_PATH "/machine/" FW_CFG_NAME
@@ -71,8 +72,9 @@ struct FWCfgState {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    FWCfgEntry entries[2][FW_CFG_MAX_ENTRY];
-    int entry_order[FW_CFG_MAX_ENTRY];
+    uint16_t file_slots;
+    FWCfgEntry *entries[2];
+    int *entry_order;
     FWCfgFiles *files;
     uint16_t cur_entry;
     uint32_t cur_offset;
@@ -257,13 +259,24 @@ static void fw_cfg_write(FWCfgState *s, uint8_t value)
     /* nothing, write support removed in QEMU v2.4+ */
 }
 
+static inline uint16_t fw_cfg_file_slots(const FWCfgState *s)
+{
+    return s->file_slots;
+}
+
+/* Note: this function returns an exclusive limit. */
+static inline uint32_t fw_cfg_max_entry(const FWCfgState *s)
+{
+    return FW_CFG_FILE_FIRST + fw_cfg_file_slots(s);
+}
+
 static int fw_cfg_select(FWCfgState *s, uint16_t key)
 {
     int arch, ret;
     FWCfgEntry *e;
 
     s->cur_offset = 0;
-    if ((key & FW_CFG_ENTRY_MASK) >= FW_CFG_MAX_ENTRY) {
+    if ((key & FW_CFG_ENTRY_MASK) >= fw_cfg_max_entry(s)) {
         s->cur_entry = FW_CFG_INVALID;
         ret = 0;
     } else {
@@ -610,7 +623,7 @@ static void fw_cfg_add_bytes_read_callback(FWCfgState *s, uint16_t key,
 
     key &= FW_CFG_ENTRY_MASK;
 
-    assert(key < FW_CFG_MAX_ENTRY && len < UINT32_MAX);
+    assert(key < fw_cfg_max_entry(s) && len < UINT32_MAX);
     assert(s->entries[arch][key].data == NULL); /* avoid key conflict */
 
     s->entries[arch][key].data = data;
@@ -628,7 +641,7 @@ static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
 
     key &= FW_CFG_ENTRY_MASK;
 
-    assert(key < FW_CFG_MAX_ENTRY && len < UINT32_MAX);
+    assert(key < fw_cfg_max_entry(s) && len < UINT32_MAX);
 
     /* return the old data to the function caller, avoid memory leak */
     ptr = s->entries[arch][key].data;
@@ -777,13 +790,13 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
     int order = 0;
 
     if (!s->files) {
-        dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * FW_CFG_FILE_SLOTS;
+        dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * fw_cfg_file_slots(s);
         s->files = g_malloc0(dsize);
         fw_cfg_add_bytes(s, FW_CFG_FILE_DIR, s->files, dsize);
     }
 
     count = be32_to_cpu(s->files->count);
-    assert(count < FW_CFG_FILE_SLOTS);
+    assert(count < fw_cfg_file_slots(s));
 
     /* Find the insertion point. */
     if (mc->legacy_fw_cfg_order) {
@@ -857,7 +870,7 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
     assert(s->files);
 
     index = be32_to_cpu(s->files->count);
-    assert(index < FW_CFG_FILE_SLOTS);
+    assert(index < fw_cfg_file_slots(s));
 
     for (i = 0; i < index; i++) {
         if (strcmp(filename, s->files->f[i].name) == 0) {
@@ -1014,12 +1027,38 @@ static const TypeInfo fw_cfg_info = {
     .class_init    = fw_cfg_class_init,
 };
 
+static void fw_cfg_file_slots_allocate(FWCfgState *s, Error **errp)
+{
+    uint16_t file_slots_max;
+
+    if (fw_cfg_file_slots(s) < FW_CFG_FILE_SLOTS_MIN) {
+        error_setg(errp, "\"file_slots\" must be at least 0x%x",
+                   FW_CFG_FILE_SLOTS_MIN);
+        return;
+    }
+
+    /* (UINT16_MAX & FW_CFG_ENTRY_MASK) is the highest inclusive selector value
+     * that we permit. The actual (exclusive) value coming from the
+     * configuration is (FW_CFG_FILE_FIRST + fw_cfg_file_slots(s)). */
+    file_slots_max = (UINT16_MAX & FW_CFG_ENTRY_MASK) - FW_CFG_FILE_FIRST + 1;
+    if (fw_cfg_file_slots(s) > file_slots_max) {
+        error_setg(errp, "\"file_slots\" must not exceed 0x%" PRIx16,
+                   file_slots_max);
+        return;
+    }
+
+    s->entries[0] = g_new0(FWCfgEntry, fw_cfg_max_entry(s));
+    s->entries[1] = g_new0(FWCfgEntry, fw_cfg_max_entry(s));
+    s->entry_order = g_new0(int, fw_cfg_max_entry(s));
+}
 
 static Property fw_cfg_io_properties[] = {
     DEFINE_PROP_UINT32("iobase", FWCfgIoState, iobase, -1),
     DEFINE_PROP_UINT32("dma_iobase", FWCfgIoState, dma_iobase, -1),
     DEFINE_PROP_BOOL("dma_enabled", FWCfgIoState, parent_obj.dma_enabled,
                      true),
+    DEFINE_PROP_UINT16("x-file-slots", FWCfgIoState, parent_obj.file_slots,
+                       FW_CFG_FILE_SLOTS_MIN),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1027,6 +1066,13 @@ static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
 {
     FWCfgIoState *s = FW_CFG_IO(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    Error *local_err = NULL;
+
+    fw_cfg_file_slots_allocate(FW_CFG(s), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     /* when using port i/o, the 8-bit data register ALWAYS overlaps
      * with half of the 16-bit control register. Hence, the total size
@@ -1063,6 +1109,8 @@ static Property fw_cfg_mem_properties[] = {
     DEFINE_PROP_UINT32("data_width", FWCfgMemState, data_width, -1),
     DEFINE_PROP_BOOL("dma_enabled", FWCfgMemState, parent_obj.dma_enabled,
                      true),
+    DEFINE_PROP_UINT16("x-file-slots", FWCfgMemState, parent_obj.file_slots,
+                       FW_CFG_FILE_SLOTS_MIN),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1071,6 +1119,13 @@ static void fw_cfg_mem_realize(DeviceState *dev, Error **errp)
     FWCfgMemState *s = FW_CFG_MEM(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     const MemoryRegionOps *data_ops = &fw_cfg_data_mem_ops;
+    Error *local_err = NULL;
+
+    fw_cfg_file_slots_allocate(FW_CFG(s), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     memory_region_init_io(&s->ctl_iomem, OBJECT(s), &fw_cfg_ctl_mem_ops,
                           FW_CFG(s), "fwcfg.ctl", FW_CFG_CTL_SIZE);

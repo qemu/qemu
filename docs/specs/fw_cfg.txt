@@ -156,7 +156,7 @@ Selector Reg.    Range Usage
 0xc000 - 0xffff  Arch. Specific (0x0000 - 0x3fff, RW, ignored in v2.4+)
 
 In practice, the number of allowed firmware configuration items is given
-by the value of FW_CFG_MAX_ENTRY (see fw_cfg.h).
+by the value (FW_CFG_FILE_FIRST + FW_CFG_FILE_SLOTS_MIN) (see fw_cfg.h).
 
 = Guest-side DMA Interface =
 
