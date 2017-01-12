@@ -2806,7 +2806,7 @@ static MemoryRegion *acpi_add_rom_blob(AcpiBuildState *build_state,
                                        uint64_t max_size)
 {
     return rom_add_blob(name, blob->data, acpi_data_len(blob), max_size, -1,
-                        name, acpi_build_update, build_state, NULL);
+                        name, acpi_build_update, build_state, NULL, true);
 }
 
 static const VMStateDescription vmstate_acpi_build = {
@@ -2872,7 +2872,7 @@ void acpi_setup(void)
         build_state->rsdp = g_memdup(tables.rsdp->data, rsdp_size);
         fw_cfg_add_file_callback(pcms->fw_cfg, ACPI_BUILD_RSDP_FILE,
                                  acpi_build_update, build_state,
-                                 build_state->rsdp, rsdp_size);
+                                 build_state->rsdp, rsdp_size, true);
         build_state->rsdp_mr = NULL;
     } else {
         build_state->rsdp = NULL;
