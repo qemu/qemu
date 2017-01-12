@@ -3228,6 +3228,57 @@ uint32_t helper_bcdtrunc(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     return bcd_cmp_zero(&ret) | ox_flag;
 }
 
+uint32_t helper_bcdutrunc(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    uint64_t mask;
+    uint32_t ox_flag = 0;
+    int invalid = 0;
+    ppc_avr_t ret = *b;
+
+    for (i = 0; i < 32; i++) {
+        bcd_get_digit(b, i, &invalid);
+
+        if (unlikely(invalid)) {
+            return CRF_SO;
+        }
+    }
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    i = a->s16[3];
+#else
+    i = a->s16[4];
+#endif
+    if (i > 16 && i < 33) {
+        mask = (uint64_t)-1 >> (128 - i * 4);
+        if (ret.u64[HI_IDX] & ~mask) {
+            ox_flag = CRF_SO;
+        }
+
+        ret.u64[HI_IDX] &= mask;
+    } else if (i > 0 && i <= 16) {
+        mask = (uint64_t)-1 >> (64 - i * 4);
+        if (ret.u64[HI_IDX] || (ret.u64[LO_IDX] & ~mask)) {
+            ox_flag = CRF_SO;
+        }
+
+        ret.u64[LO_IDX] &= mask;
+        ret.u64[HI_IDX] = 0;
+    } else if (i == 0) {
+        if (ret.u64[HI_IDX] || ret.u64[LO_IDX]) {
+            ox_flag = CRF_SO;
+        }
+        ret.u64[HI_IDX] = ret.u64[LO_IDX] = 0;
+    }
+
+    *r = ret;
+    if (r->u64[HI_IDX] == 0 && r->u64[LO_IDX] == 0) {
+        return ox_flag | CRF_EQ;
+    }
+
+    return ox_flag | CRF_GT;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;

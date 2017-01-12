@@ -1020,6 +1020,7 @@ GEN_BCD(bcds);
 GEN_BCD(bcdus);
 GEN_BCD(bcdsr);
 GEN_BCD(bcdtrunc);
+GEN_BCD(bcdutrunc);
 
 static void gen_xpnd04_1(DisasContext *ctx)
 {
@@ -1102,6 +1103,9 @@ GEN_VXFORM_DUAL(vsubsbs, PPC_ALTIVEC, PPC_NONE, \
                 bcdtrunc, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM_DUAL(vsubuqm, PPC2_ALTIVEC_207, PPC_NONE, \
                 bcdtrunc, PPC_NONE, PPC2_ISA300)
+GEN_VXFORM_DUAL(vsubcuq, PPC2_ALTIVEC_207, PPC_NONE, \
+                bcdutrunc, PPC_NONE, PPC2_ISA300)
+
 
 static void gen_vsbox(DisasContext *ctx)
 {
