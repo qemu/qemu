@@ -2817,33 +2817,42 @@ VSX_CVT_FP_TO_FP_VECTOR(xscvdpqp, 1, float64, float128, VsrD(0), f128, 1)
 /* VSX_CVT_FP_TO_FP_HP - VSX floating point/floating point conversion
  *                       involving one half precision value
  *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
  *   stp   - source type
  *   ttp   - target type
  *   sfld  - source vsr_t field
  *   tfld  - target vsr_t field
+ *   sfprf - set FPRF
  */
-#define VSX_CVT_FP_TO_FP_HP(op, stp, ttp, sfld, tfld)              \
+#define VSX_CVT_FP_TO_FP_HP(op, nels, stp, ttp, sfld, tfld, sfprf) \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                \
 {                                                                  \
     ppc_vsr_t xt, xb;                                              \
+    int i;                                                         \
                                                                    \
     getVSR(xB(opcode), &xb, env);                                  \
     memset(&xt, 0, sizeof(xt));                                    \
                                                                    \
-    xt.tfld = stp##_to_##ttp(xb.sfld, 1, &env->fp_status);         \
-    if (unlikely(stp##_is_signaling_nan(xb.sfld,                   \
-                                        &env->fp_status))) {       \
-        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);     \
-        xt.tfld = ttp##_snan_to_qnan(xt.tfld);                     \
+    for (i = 0; i < nels; i++) {                                   \
+        xt.tfld = stp##_to_##ttp(xb.sfld, 1, &env->fp_status);     \
+        if (unlikely(stp##_is_signaling_nan(xb.sfld,               \
+                                            &env->fp_status))) {   \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0); \
+            xt.tfld = ttp##_snan_to_qnan(xt.tfld);                 \
+        }                                                          \
+        if (sfprf) {                                               \
+            helper_compute_fprf_##ttp(env, xt.tfld);               \
+        }                                                          \
     }                                                              \
-    helper_compute_fprf_##ttp(env, xt.tfld);                       \
                                                                    \
     putVSR(xT(opcode), &xt, env);                                  \
     float_check_status(env);                                       \
 }
 
-VSX_CVT_FP_TO_FP_HP(xscvdphp, float64, float16, VsrD(0), VsrH(3))
-VSX_CVT_FP_TO_FP_HP(xscvhpdp, float16, float64, VsrH(3), VsrD(0))
+VSX_CVT_FP_TO_FP_HP(xscvdphp, 1, float64, float16, VsrD(0), VsrH(3), 1)
+VSX_CVT_FP_TO_FP_HP(xscvhpdp, 1, float16, float64, VsrH(3), VsrD(0), 1)
+VSX_CVT_FP_TO_FP_HP(xvcvsphp, 4, float32, float16, VsrW(i), VsrH(2 * i  + 1), 0)
+VSX_CVT_FP_TO_FP_HP(xvcvhpsp, 4, float16, float32, VsrH(2 * i + 1), VsrW(i), 0)
 
 /*
  * xscvqpdp isn't using VSX_CVT_FP_TO_FP() because xscvqpdpo will be
