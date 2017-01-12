@@ -88,8 +88,8 @@ struct VirtQueue
     /* Last used index value we have signalled on */
     bool signalled_used_valid;
 
-    /* Nested host->guest notification disabled counter */
-    unsigned int notification_disabled;
+    /* Notification enabled? */
+    bool notification;
 
     uint16_t queue_index;
 
@@ -202,7 +202,7 @@ static inline void vring_used_flags_unset_bit(VirtQueue *vq, int mask)
 static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
 {
     hwaddr pa;
-    if (vq->notification_disabled) {
+    if (!vq->notification) {
         return;
     }
     pa = vq->vring.used + offsetof(VRingUsed, ring[vq->vring.num]);
@@ -211,13 +211,7 @@ static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
 
 void virtio_queue_set_notification(VirtQueue *vq, int enable)
 {
-    if (enable) {
-        assert(vq->notification_disabled > 0);
-        vq->notification_disabled--;
-    } else {
-        vq->notification_disabled++;
-    }
-
+    vq->notification = enable;
     if (virtio_vdev_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_set_avail_event(vq, vring_avail_idx(vq));
     } else if (enable) {
@@ -1020,7 +1014,7 @@ void virtio_reset(void *opaque)
         virtio_queue_set_vector(vdev, i, VIRTIO_NO_VECTOR);
         vdev->vq[i].signalled_used = 0;
         vdev->vq[i].signalled_used_valid = false;
-        vdev->vq[i].notification_disabled = 0;
+        vdev->vq[i].notification = true;
         vdev->vq[i].vring.num = vdev->vq[i].vring.num_default;
         vdev->vq[i].inuse = 0;
     }
@@ -1831,7 +1825,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         vdev->vq[i].vring.desc = qemu_get_be64(f);
         qemu_get_be16s(f, &vdev->vq[i].last_avail_idx);
         vdev->vq[i].signalled_used_valid = false;
-        vdev->vq[i].notification_disabled = 0;
+        vdev->vq[i].notification = true;
 
         if (vdev->vq[i].vring.desc) {
             /* XXX virtio-1 devices */
