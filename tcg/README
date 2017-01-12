@@ -246,6 +246,14 @@ t0=~(t1|t2)
 
 t0=t1|~t2
 
+* clz_i32/i64 t0, t1, t2
+
+t0 = t1 ? clz(t1) : t2
+
+* ctz_i32/i64 t0, t1, t2
+
+t0 = t1 ? ctz(t1) : t2
+
 ********* Shifts/Rotates
 
 * shl_i32/i64 t0, t1, t2
@@ -314,10 +322,26 @@ The bitfield is described by POS/LEN, which are immediate values:
   LEN - the length of the bitfield
   POS - the position of the first bit, counting from the LSB
 
-For example, pos=8, len=4 indicates a 4-bit field at bit 8.
-This operation would be equivalent to
+For example, "deposit_i32 dest, t1, t2, 8, 4" indicates a 4-bit field
+at bit 8.  This operation would be equivalent to
 
   dest = (t1 & ~0x0f00) | ((t2 << 8) & 0x0f00)
+
+* extract_i32/i64 dest, t1, pos, len
+* sextract_i32/i64 dest, t1, pos, len
+
+Extract a bitfield from T1, placing the result in DEST.
+The bitfield is described by POS/LEN, which are immediate values,
+as above for deposit.  For extract_*, the result will be extended
+to the left with zeros; for sextract_*, the result will be extended
+to the left with copies of the bitfield sign bit at pos + len - 1.
+
+For example, "sextract_i32 dest, t1, 8, 4" indicates a 4-bit field
+at bit 8.  This operation would be equivalent to
+
+  dest = (t1 << 20) >> 28
+
+(using an arithmetic right shift).
 
 * extrl_i64_i32 t0, t1
 
@@ -523,23 +547,28 @@ version. Aliases are specified in the input operands as for GCC.
 The same register may be used for both an input and an output, even when
 they are not explicitly aliased.  If an op expands to multiple target
 instructions then care must be taken to avoid clobbering input values.
-GCC style "early clobber" outputs are not currently supported.
+GCC style "early clobber" outputs are supported, with '&'.
 
 A target can define specific register or constant constraints. If an
 operation uses a constant input constraint which does not allow all
 constants, it must also accept registers in order to have a fallback.
+The constraint 'i' is defined generically to accept any constant.
+The constraint 'r' is not defined generically, but is consistently
+used by each backend to indicate all registers.
 
 The movi_i32 and movi_i64 operations must accept any constants.
 
 The mov_i32 and mov_i64 operations must accept any registers of the
 same type.
 
-The ld/st instructions must accept signed 32 bit constant offsets. It
-can be implemented by reserving a specific register to compute the
-address if the offset is too big.
+The ld/st/sti instructions must accept signed 32 bit constant offsets.
+This can be implemented by reserving a specific register in which to
+compute the address if the offset is too big.
 
 The ld/st instructions must accept any destination (ld) or source (st)
 register.
+
+The sti instruction may fail if it cannot store the given constant.
 
 4.3) Function call assumptions
 

@@ -141,16 +141,6 @@ uint64_t helper_divde(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
 #endif
 
 
-target_ulong helper_cntlzw(target_ulong t)
-{
-    return clz32(t);
-}
-
-target_ulong helper_cnttzw(target_ulong t)
-{
-    return ctz32(t);
-}
-
 #if defined(TARGET_PPC64)
 /* if x = 0xab, returns 0xababababababababa */
 #define pattern(x) (((x) & 0xff) * (~(target_ulong)0 / 0xff))
@@ -173,16 +163,6 @@ uint32_t helper_cmpeqb(target_ulong ra, target_ulong rb)
 #undef pattern
 #undef haszero
 #undef hasvalue
-
-target_ulong helper_cntlzd(target_ulong t)
-{
-    return clz64(t);
-}
-
-target_ulong helper_cnttzd(target_ulong t)
-{
-    return ctz64(t);
-}
 
 /* Return invalid random number.
  *
@@ -292,6 +272,7 @@ target_ulong helper_srad(CPUPPCState *env, target_ulong value,
 #if defined(TARGET_PPC64)
 target_ulong helper_popcntb(target_ulong val)
 {
+    /* Note that we don't fold past bytes */
     val = (val & 0x5555555555555555ULL) + ((val >>  1) &
                                            0x5555555555555555ULL);
     val = (val & 0x3333333333333333ULL) + ((val >>  2) &
@@ -303,6 +284,7 @@ target_ulong helper_popcntb(target_ulong val)
 
 target_ulong helper_popcntw(target_ulong val)
 {
+    /* Note that we don't fold past words.  */
     val = (val & 0x5555555555555555ULL) + ((val >>  1) &
                                            0x5555555555555555ULL);
     val = (val & 0x3333333333333333ULL) + ((val >>  2) &
@@ -315,27 +297,13 @@ target_ulong helper_popcntw(target_ulong val)
                                            0x0000ffff0000ffffULL);
     return val;
 }
-
-target_ulong helper_popcntd(target_ulong val)
-{
-    return ctpop64(val);
-}
 #else
 target_ulong helper_popcntb(target_ulong val)
 {
+    /* Note that we don't fold past bytes */
     val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
     val = (val & 0x33333333) + ((val >>  2) & 0x33333333);
     val = (val & 0x0f0f0f0f) + ((val >>  4) & 0x0f0f0f0f);
-    return val;
-}
-
-target_ulong helper_popcntw(target_ulong val)
-{
-    val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
-    val = (val & 0x33333333) + ((val >>  2) & 0x33333333);
-    val = (val & 0x0f0f0f0f) + ((val >>  4) & 0x0f0f0f0f);
-    val = (val & 0x00ff00ff) + ((val >>  8) & 0x00ff00ff);
-    val = (val & 0x0000ffff) + ((val >> 16) & 0x0000ffff);
     return val;
 }
 #endif

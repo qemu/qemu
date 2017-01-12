@@ -3626,29 +3626,38 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
         /* Treat as NOP. */
         return;
     }
-    t0 = tcg_temp_new();
+    t0 = cpu_gpr[rd];
     gen_load_gpr(t0, rs);
+
     switch (opc) {
     case OPC_CLO:
     case R6_OPC_CLO:
-        gen_helper_clo(cpu_gpr[rd], t0);
+#if defined(TARGET_MIPS64)
+    case OPC_DCLO:
+    case R6_OPC_DCLO:
+#endif
+        tcg_gen_not_tl(t0, t0);
         break;
+    }
+
+    switch (opc) {
+    case OPC_CLO:
+    case R6_OPC_CLO:
     case OPC_CLZ:
     case R6_OPC_CLZ:
-        gen_helper_clz(cpu_gpr[rd], t0);
+        tcg_gen_ext32u_tl(t0, t0);
+        tcg_gen_clzi_tl(t0, t0, TARGET_LONG_BITS);
+        tcg_gen_subi_tl(t0, t0, TARGET_LONG_BITS - 32);
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DCLO:
     case R6_OPC_DCLO:
-        gen_helper_dclo(cpu_gpr[rd], t0);
-        break;
     case OPC_DCLZ:
     case R6_OPC_DCLZ:
-        gen_helper_dclz(cpu_gpr[rd], t0);
+        tcg_gen_clzi_i64(t0, t0, 64);
         break;
 #endif
     }
-    tcg_temp_free(t0);
 }
 
 /* Godson integer instructions */
@@ -4488,11 +4497,12 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
         if (lsb + msb > 31) {
             goto fail;
         }
-        tcg_gen_shri_tl(t0, t1, lsb);
         if (msb != 31) {
-            tcg_gen_andi_tl(t0, t0, (1U << (msb + 1)) - 1);
+            tcg_gen_extract_tl(t0, t1, lsb, msb + 1);
         } else {
-            tcg_gen_ext32s_tl(t0, t0);
+            /* The two checks together imply that lsb == 0,
+               so this is a simple sign-extension.  */
+            tcg_gen_ext32s_tl(t0, t1);
         }
         break;
 #if defined(TARGET_MIPS64)
@@ -4507,10 +4517,7 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
         if (lsb + msb > 63) {
             goto fail;
         }
-        tcg_gen_shri_tl(t0, t1, lsb);
-        if (msb != 63) {
-            tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1)) - 1);
-        }
+        tcg_gen_extract_tl(t0, t1, lsb, msb + 1);
         break;
 #endif
     case OPC_INS:

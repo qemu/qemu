@@ -1955,6 +1955,9 @@ extract_tbr (unsigned long insn,
 #define POWER4	PPC_OPCODE_POWER4
 #define POWER5	PPC_OPCODE_POWER5
 #define POWER6	PPC_OPCODE_POWER6
+/* Documentation purposes only; we don't actually check the isa for disas.  */
+#define POWER7  PPC_OPCODE_POWER6
+#define POWER9  PPC_OPCODE_POWER6
 #define CELL	PPC_OPCODE_CELL
 #define PPC32   PPC_OPCODE_32 | PPC_OPCODE_PPC
 #define PPC64   PPC_OPCODE_64 | PPC_OPCODE_PPC
@@ -3589,6 +3592,13 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "lbzux",   X(31,119),	X_MASK,		COM,		{ RT, RAL, RB } },
 
 { "popcntb", X(31,122), XRB_MASK,	POWER5,		{ RA, RS } },
+{ "popcntw", X(31,378), XRB_MASK,       POWER7,         { RA, RS } },
+{ "popcntd", X(31,506), XRB_MASK,       POWER7,         { RA, RS } },
+
+{ "cnttzw",  XRC(31,538,0), XRB_MASK,   POWER9,         { RA, RS } },
+{ "cnttzw.", XRC(31,538,1), XRB_MASK,   POWER9,         { RA, RS } },
+{ "cnttzd",  XRC(31,570,0), XRB_MASK,   POWER9,         { RA, RS } },
+{ "cnttzd.", XRC(31,570,1), XRB_MASK,   POWER9,         { RA, RS } },
 
 { "not",     XRC(31,124,0), X_MASK,	COM,		{ RA, RS, RBS } },
 { "nor",     XRC(31,124,0), X_MASK,	COM,		{ RA, RS, RB } },

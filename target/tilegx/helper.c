@@ -55,21 +55,6 @@ void helper_ext01_ics(CPUTLGState *env)
     }
 }
 
-uint64_t helper_cntlz(uint64_t arg)
-{
-    return clz64(arg);
-}
-
-uint64_t helper_cnttz(uint64_t arg)
-{
-    return ctz64(arg);
-}
-
-uint64_t helper_pcnt(uint64_t arg)
-{
-    return ctpop64(arg);
-}
-
 uint64_t helper_revbits(uint64_t arg)
 {
     return revbit64(arg);

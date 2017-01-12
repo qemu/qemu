@@ -13,9 +13,6 @@ DEF_HELPER_3(cp0_get, i32, env, i32, i32)
 DEF_HELPER_1(cp1_putc, void, i32)
 #endif
 
-DEF_HELPER_1(clz, i32, i32)
-DEF_HELPER_1(clo, i32, i32)
-
 DEF_HELPER_2(exception, void, env, i32)
 
 DEF_HELPER_3(asr_write, void, env, i32, i32)

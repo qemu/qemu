@@ -230,11 +230,6 @@ void helper_rfn(CPUCRISState *env)
 	env->pregs[PR_CCS] |= M_FLAG_V32;
 }
 
-uint32_t helper_lz(uint32_t t0)
-{
-	return clz32(t0);
-}
-
 uint32_t helper_btst(CPUCRISState *env, uint32_t t0, uint32_t t1, uint32_t ccs)
 {
 	/* FIXME: clean this up.  */

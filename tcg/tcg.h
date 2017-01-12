@@ -111,7 +111,12 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_eqv_i64          0
 #define TCG_TARGET_HAS_nand_i64         0
 #define TCG_TARGET_HAS_nor_i64          0
+#define TCG_TARGET_HAS_clz_i64          0
+#define TCG_TARGET_HAS_ctz_i64          0
+#define TCG_TARGET_HAS_ctpop_i64        0
 #define TCG_TARGET_HAS_deposit_i64      0
+#define TCG_TARGET_HAS_extract_i64      0
+#define TCG_TARGET_HAS_sextract_i64     0
 #define TCG_TARGET_HAS_movcond_i64      0
 #define TCG_TARGET_HAS_add2_i64         0
 #define TCG_TARGET_HAS_sub2_i64         0
@@ -129,6 +134,12 @@ typedef uint64_t TCGRegSet;
 #endif
 #ifndef TCG_TARGET_deposit_i64_valid
 #define TCG_TARGET_deposit_i64_valid(ofs, len) 1
+#endif
+#ifndef TCG_TARGET_extract_i32_valid
+#define TCG_TARGET_extract_i32_valid(ofs, len) 1
+#endif
+#ifndef TCG_TARGET_extract_i64_valid
+#define TCG_TARGET_extract_i64_valid(ofs, len) 1
 #endif
 
 /* Only one of DIV or DIV2 should be defined.  */
@@ -843,6 +854,7 @@ void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf);
 
 #define TCG_CT_ALIAS  0x80
 #define TCG_CT_IALIAS 0x40
+#define TCG_CT_NEWREG 0x20 /* output requires a new register */
 #define TCG_CT_REG    0x01
 #define TCG_CT_CONST  0x02 /* any constant of register size */
 
@@ -896,8 +908,6 @@ do {\
     fprintf(stderr, "%s:%d: tcg fatal error\n", __FILE__, __LINE__);\
     abort();\
 } while (0)
-
-void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 
 #if UINTPTR_MAX == UINT32_MAX
 #define TCGV_NAT_TO_PTR(n) MAKE_TCGV_PTR(GET_TCGV_I32(n))

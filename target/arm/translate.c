@@ -288,29 +288,6 @@ static void gen_revsh(TCGv_i32 var)
     tcg_gen_ext16s_i32(var, var);
 }
 
-/* Unsigned bitfield extract.  */
-static void gen_ubfx(TCGv_i32 var, int shift, uint32_t mask)
-{
-    if (shift)
-        tcg_gen_shri_i32(var, var, shift);
-    tcg_gen_andi_i32(var, var, mask);
-}
-
-/* Signed bitfield extract.  */
-static void gen_sbfx(TCGv_i32 var, int shift, int width)
-{
-    uint32_t signbit;
-
-    if (shift)
-        tcg_gen_sari_i32(var, var, shift);
-    if (shift + width < 32) {
-        signbit = 1u << (width - 1);
-        tcg_gen_andi_i32(var, var, (1u << width) - 1);
-        tcg_gen_xori_i32(var, var, signbit);
-        tcg_gen_subi_i32(var, var, signbit);
-    }
-}
-
 /* Return (b << 32) + a. Mark inputs as dead */
 static TCGv_i64 gen_addq_msw(TCGv_i64 a, TCGv_i32 b)
 {
@@ -7060,7 +7037,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             switch (size) {
                             case 0: gen_helper_neon_clz_u8(tmp, tmp); break;
                             case 1: gen_helper_neon_clz_u16(tmp, tmp); break;
-                            case 2: gen_helper_clz(tmp, tmp); break;
+                            case 2: tcg_gen_clzi_i32(tmp, tmp, 32); break;
                             default: abort();
                             }
                             break;
@@ -8242,7 +8219,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 ARCH(5);
                 rd = (insn >> 12) & 0xf;
                 tmp = load_reg(s, rm);
-                gen_helper_clz(tmp, tmp);
+                tcg_gen_clzi_i32(tmp, tmp, 32);
                 store_reg(s, rd, tmp);
             } else {
                 goto illegal_op;
@@ -9178,9 +9155,9 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                             goto illegal_op;
                         if (i < 32) {
                             if (op1 & 0x20) {
-                                gen_ubfx(tmp, shift, (1u << i) - 1);
+                                tcg_gen_extract_i32(tmp, tmp, shift, i);
                             } else {
-                                gen_sbfx(tmp, shift, i);
+                                tcg_gen_sextract_i32(tmp, tmp, shift, i);
                             }
                         }
                         store_reg(s, rd, tmp);
@@ -10015,7 +9992,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     tcg_temp_free_i32(tmp2);
                     break;
                 case 0x18: /* clz */
-                    gen_helper_clz(tmp, tmp);
+                    tcg_gen_clzi_i32(tmp, tmp, 32);
                     break;
                 case 0x20:
                 case 0x21:
@@ -10497,15 +10474,17 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         imm++;
                         if (shift + imm > 32)
                             goto illegal_op;
-                        if (imm < 32)
-                            gen_sbfx(tmp, shift, imm);
+                        if (imm < 32) {
+                            tcg_gen_sextract_i32(tmp, tmp, shift, imm);
+                        }
                         break;
                     case 6: /* Unsigned bitfield extract.  */
                         imm++;
                         if (shift + imm > 32)
                             goto illegal_op;
-                        if (imm < 32)
-                            gen_ubfx(tmp, shift, (1u << imm) - 1);
+                        if (imm < 32) {
+                            tcg_gen_extract_i32(tmp, tmp, shift, imm);
+                        }
                         break;
                     case 3: /* Bitfield insert/clear.  */
                         if (imm < shift)

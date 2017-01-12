@@ -25,36 +25,7 @@
 #include "elf.h"
 #include "tcg-be-ldst.h"
 
-/* The __ARM_ARCH define is provided by gcc 4.8.  Construct it otherwise.  */
-#ifndef __ARM_ARCH
-# if defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) \
-     || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) \
-     || defined(__ARM_ARCH_7EM__)
-#  define __ARM_ARCH 7
-# elif defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) \
-       || defined(__ARM_ARCH_6Z__) || defined(__ARM_ARCH_6ZK__) \
-       || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6T2__)
-#  define __ARM_ARCH 6
-# elif defined(__ARM_ARCH_5__) || defined(__ARM_ARCH_5E__) \
-       || defined(__ARM_ARCH_5T__) || defined(__ARM_ARCH_5TE__) \
-       || defined(__ARM_ARCH_5TEJ__)
-#  define __ARM_ARCH 5
-# else
-#  define __ARM_ARCH 4
-# endif
-#endif
-
-static int arm_arch = __ARM_ARCH;
-
-#if defined(__ARM_ARCH_5T__) \
-    || defined(__ARM_ARCH_5TE__) || defined(__ARM_ARCH_5TEJ__)
-# define use_armv5t_instructions 1
-#else
-# define use_armv5t_instructions use_armv6_instructions
-#endif
-
-#define use_armv6_instructions  (__ARM_ARCH >= 6 || arm_arch >= 6)
-#define use_armv7_instructions  (__ARM_ARCH >= 7 || arm_arch >= 7)
+int arm_arch = __ARM_ARCH;
 
 #ifndef use_idiv_instructions
 bool use_idiv_instructions;
@@ -143,12 +114,10 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
 #define TCG_CT_CONST_ZERO 0x800
 
 /* parse target specific constraints */
-static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
+static const char *target_parse_constraint(TCGArgConstraint *ct,
+                                           const char *ct_str, TCGType type)
 {
-    const char *ct_str;
-
-    ct_str = *pct_str;
-    switch (ct_str[0]) {
+    switch (*ct_str++) {
     case 'I':
         ct->ct |= TCG_CT_CONST_ARM;
         break;
@@ -201,12 +170,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         break;
 
     default:
-        return -1;
+        return NULL;
     }
-    ct_str++;
-    *pct_str = ct_str;
-
-    return 0;
+    return ct_str;
 }
 
 static inline uint32_t rotl(uint32_t val, int n)
@@ -289,6 +255,9 @@ typedef enum {
     ARITH_MOV = 0xd << 21,
     ARITH_BIC = 0xe << 21,
     ARITH_MVN = 0xf << 21,
+
+    INSN_CLZ       = 0x016f0f10,
+    INSN_RBIT      = 0x06ff0f30,
 
     INSN_LDR_IMM   = 0x04100000,
     INSN_LDR_REG   = 0x06100000,
@@ -730,16 +699,6 @@ static inline void tcg_out_bswap32(TCGContext *s, int cond, int rd, int rn)
     }
 }
 
-bool tcg_target_deposit_valid(int ofs, int len)
-{
-    /* ??? Without bfi, we could improve over generic code by combining
-       the right-shift from a non-zero ofs with the orr.  We do run into
-       problems when rd == rs, and the mask generated from ofs+len doesn't
-       fit into an immediate.  We would have to be careful not to pessimize
-       wrt the optimizations performed on the expanded code.  */
-    return use_armv7_instructions;
-}
-
 static inline void tcg_out_deposit(TCGContext *s, int cond, TCGReg rd,
                                    TCGArg a1, int ofs, int len, bool const_a1)
 {
@@ -750,6 +709,22 @@ static inline void tcg_out_deposit(TCGContext *s, int cond, TCGReg rd,
     /* bfi/bfc */
     tcg_out32(s, 0x07c00010 | (cond << 28) | (rd << 12) | a1
               | (ofs << 7) | ((ofs + len - 1) << 16));
+}
+
+static inline void tcg_out_extract(TCGContext *s, int cond, TCGReg rd,
+                                   TCGArg a1, int ofs, int len)
+{
+    /* ubfx */
+    tcg_out32(s, 0x07e00050 | (cond << 28) | (rd << 12) | a1
+              | (ofs << 7) | ((len - 1) << 16));
+}
+
+static inline void tcg_out_sextract(TCGContext *s, int cond, TCGReg rd,
+                                    TCGArg a1, int ofs, int len)
+{
+    /* sbfx */
+    tcg_out32(s, 0x07a00050 | (cond << 28) | (rd << 12) | a1
+              | (ofs << 7) | ((len - 1) << 16));
 }
 
 /* Note that this routine is used for both LDR and LDRH formats, so we do
@@ -1857,6 +1832,28 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_ctz_i32:
+        tcg_out_dat_reg(s, COND_AL, INSN_RBIT, TCG_REG_TMP, 0, args[1], 0);
+        a1 = TCG_REG_TMP;
+        goto do_clz;
+
+    case INDEX_op_clz_i32:
+        a1 = args[1];
+    do_clz:
+        a0 = args[0];
+        a2 = args[2];
+        c = const_args[2];
+        if (c && a2 == 32) {
+            tcg_out_dat_reg(s, COND_AL, INSN_CLZ, a0, 0, a1, 0);
+            break;
+        }
+        tcg_out_dat_imm(s, COND_AL, ARITH_CMP, 0, a1, 0);
+        tcg_out_dat_reg(s, COND_NE, INSN_CLZ, a0, 0, a1, 0);
+        if (c || a0 != a2) {
+            tcg_out_dat_rIK(s, COND_EQ, ARITH_MOV, ARITH_MVN, a0, 0, a2, c);
+        }
+        break;
+
     case INDEX_op_brcond_i32:
         tcg_out_dat_rIN(s, COND_AL, ARITH_CMP, ARITH_CMN, 0,
                        args[0], args[1], const_args[1]);
@@ -1933,6 +1930,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_deposit(s, COND_AL, args[0], args[2],
                         args[3], args[4], const_args[2]);
         break;
+    case INDEX_op_extract_i32:
+        tcg_out_extract(s, COND_AL, args[0], args[1], args[2], args[3]);
+        break;
+    case INDEX_op_sextract_i32:
+        tcg_out_sextract(s, COND_AL, args[0], args[1], args[2], args[3]);
+        break;
 
     case INDEX_op_div_i32:
         tcg_out_sdiv(s, COND_AL, args[0], args[1], args[2]);
@@ -1985,6 +1988,8 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_sar_i32, { "r", "r", "ri" } },
     { INDEX_op_rotl_i32, { "r", "r", "ri" } },
     { INDEX_op_rotr_i32, { "r", "r", "ri" } },
+    { INDEX_op_clz_i32, { "r", "r", "rIK" } },
+    { INDEX_op_ctz_i32, { "r", "r", "rIK" } },
 
     { INDEX_op_brcond_i32, { "r", "rIN" } },
     { INDEX_op_setcond_i32, { "r", "r", "rIN" } },
@@ -2015,6 +2020,8 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_ext16u_i32, { "r", "r" } },
 
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
+    { INDEX_op_extract_i32, { "r", "r" } },
+    { INDEX_op_sextract_i32, { "r", "r" } },
 
     { INDEX_op_div_i32, { "r", "r", "r" } },
     { INDEX_op_divu_i32, { "r", "r", "r" } },
@@ -2022,6 +2029,18 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_mb, { } },
     { -1 },
 };
+
+static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
+{
+    int i, n = ARRAY_SIZE(arm_op_defs);
+
+    for (i = 0; i < n; ++i) {
+        if (arm_op_defs[i].op == op) {
+            return &arm_op_defs[i];
+        }
+    }
+    return NULL;
+}
 
 static void tcg_target_init(TCGContext *s)
 {
@@ -2053,8 +2072,6 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_PC);
-
-    tcg_add_target_add_op_defs(arm_op_defs);
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,

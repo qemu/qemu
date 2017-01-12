@@ -2249,7 +2249,7 @@ static ExitStatus op_flogr(DisasContext *s, DisasOps *o)
     gen_op_update1_cc_i64(s, CC_OP_FLOGR, o->in2);
 
     /* R1 = IN ? CLZ(IN) : 64.  */
-    gen_helper_clz(o->out, o->in2);
+    tcg_gen_clzi_i64(o->out, o->in2, 64);
 
     /* R1+1 = IN & ~(found bit).  Note that we may attempt to shift this
        value by 64, which is undefined.  But since the shift is 64 iff the
@@ -3134,20 +3134,26 @@ static ExitStatus op_risbg(DisasContext *s, DisasOps *o)
         }
     }
 
-    /* In some cases we can implement this with deposit, which can be more
-       efficient on some hosts.  */
-    if (~mask == imask && i3 <= i4) {
-        if (s->fields->op2 == 0x5d) {
-            i3 += 32, i4 += 32;
-        }
+    len = i4 - i3 + 1;
+    pos = 63 - i4;
+    rot = i5 & 63;
+    if (s->fields->op2 == 0x5d) {
+        pos += 32;
+    }
+
+    /* In some cases we can implement this with extract.  */
+    if (imask == 0 && pos == 0 && len > 0 && rot + len <= 64) {
+        tcg_gen_extract_i64(o->out, o->in2, rot, len);
+        return NO_EXIT;
+    }
+
+    /* In some cases we can implement this with deposit.  */
+    if (len > 0 && (imask == 0 || ~mask == imask)) {
         /* Note that we rotate the bits to be inserted to the lsb, not to
            the position as described in the PoO.  */
-        len = i4 - i3 + 1;
-        pos = 63 - i4;
-        rot = (i5 - pos) & 63;
+        rot = (rot - pos) & 63;
     } else {
-        pos = len = -1;
-        rot = i5 & 63;
+        pos = -1;
     }
 
     /* Rotate the input as necessary.  */
@@ -3155,7 +3161,11 @@ static ExitStatus op_risbg(DisasContext *s, DisasOps *o)
 
     /* Insert the selected bits into the output.  */
     if (pos >= 0) {
-        tcg_gen_deposit_i64(o->out, o->out, o->in2, pos, len);
+        if (imask == 0) {
+            tcg_gen_deposit_z_i64(o->out, o->in2, pos, len);
+        } else {
+            tcg_gen_deposit_i64(o->out, o->out, o->in2, pos, len);
+        }
     } else if (imask == 0) {
         tcg_gen_andi_i64(o->out, o->in2, mask);
     } else {

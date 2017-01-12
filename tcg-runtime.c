@@ -101,6 +101,46 @@ int64_t HELPER(mulsh_i64)(int64_t arg1, int64_t arg2)
     return h;
 }
 
+uint32_t HELPER(clz_i32)(uint32_t arg, uint32_t zero_val)
+{
+    return arg ? clz32(arg) : zero_val;
+}
+
+uint32_t HELPER(ctz_i32)(uint32_t arg, uint32_t zero_val)
+{
+    return arg ? ctz32(arg) : zero_val;
+}
+
+uint64_t HELPER(clz_i64)(uint64_t arg, uint64_t zero_val)
+{
+    return arg ? clz64(arg) : zero_val;
+}
+
+uint64_t HELPER(ctz_i64)(uint64_t arg, uint64_t zero_val)
+{
+    return arg ? ctz64(arg) : zero_val;
+}
+
+uint32_t HELPER(clrsb_i32)(uint32_t arg)
+{
+    return clrsb32(arg);
+}
+
+uint64_t HELPER(clrsb_i64)(uint64_t arg)
+{
+    return clrsb64(arg);
+}
+
+uint32_t HELPER(ctpop_i32)(uint32_t arg)
+{
+    return ctpop32(arg);
+}
+
+uint64_t HELPER(ctpop_i64)(uint64_t arg)
+{
+    return ctpop64(arg);
+}
+
 void HELPER(exit_atomic)(CPUArchState *env)
 {
     cpu_loop_exit_atomic(ENV_GET_CPU(env), GETPC());

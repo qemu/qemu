@@ -115,12 +115,10 @@ static inline void patch_reloc(tcg_insn_unit *code_ptr, int type,
 #define TCG_CT_CONST_MONE 0x800
 
 /* parse target specific constraints */
-static int target_parse_constraint(TCGArgConstraint *ct,
-                                   const char **pct_str)
+static const char *target_parse_constraint(TCGArgConstraint *ct,
+                                           const char *ct_str, TCGType type)
 {
-    const char *ct_str = *pct_str;
-
-    switch (ct_str[0]) {
+    switch (*ct_str++) {
     case 'r':
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, (1ULL << TCG_TARGET_NB_REGS) - 1);
@@ -150,12 +148,9 @@ static int target_parse_constraint(TCGArgConstraint *ct,
         ct->ct |= TCG_CT_CONST_ZERO;
         break;
     default:
-        return -1;
+        return NULL;
     }
-
-    ct_str++;
-    *pct_str = ct_str;
-    return 0;
+    return ct_str;
 }
 
 static inline bool is_aimm(uint64_t val)
@@ -344,8 +339,12 @@ typedef enum {
     /* Conditional select instructions.  */
     I3506_CSEL      = 0x1a800000,
     I3506_CSINC     = 0x1a800400,
+    I3506_CSINV     = 0x5a800000,
+    I3506_CSNEG     = 0x5a800400,
 
     /* Data-processing (1 source) instructions.  */
+    I3507_CLZ       = 0x5ac01000,
+    I3507_RBIT      = 0x5ac00000,
     I3507_REV16     = 0x5ac00400,
     I3507_REV32     = 0x5ac00800,
     I3507_REV64     = 0x5ac00c00,
@@ -998,6 +997,37 @@ static inline void tcg_out_mb(TCGContext *s, TCGArg a0)
     tcg_out32(s, sync[a0 & TCG_MO_ALL]);
 }
 
+static void tcg_out_cltz(TCGContext *s, TCGType ext, TCGReg d,
+                         TCGReg a0, TCGArg b, bool const_b, bool is_ctz)
+{
+    TCGReg a1 = a0;
+    if (is_ctz) {
+        a1 = TCG_REG_TMP;
+        tcg_out_insn(s, 3507, RBIT, ext, a1, a0);
+    }
+    if (const_b && b == (ext ? 64 : 32)) {
+        tcg_out_insn(s, 3507, CLZ, ext, d, a1);
+    } else {
+        AArch64Insn sel = I3506_CSEL;
+
+        tcg_out_cmp(s, ext, a0, 0, 1);
+        tcg_out_insn(s, 3507, CLZ, ext, TCG_REG_TMP, a1);
+
+        if (const_b) {
+            if (b == -1) {
+                b = TCG_REG_XZR;
+                sel = I3506_CSINV;
+            } else if (b == 0) {
+                b = TCG_REG_XZR;
+            } else {
+                tcg_out_movi(s, ext, d, b);
+                b = d;
+            }
+        }
+        tcg_out_insn_3506(s, sel, ext, d, TCG_REG_TMP, b, TCG_COND_NE);
+    }
+}
+
 #ifdef CONFIG_SOFTMMU
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     TCGMemOpIdx oi, uintptr_t ra)
@@ -1564,6 +1594,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_clz_i64:
+    case INDEX_op_clz_i32:
+        tcg_out_cltz(s, ext, a0, a1, a2, c2, false);
+        break;
+    case INDEX_op_ctz_i64:
+    case INDEX_op_ctz_i32:
+        tcg_out_cltz(s, ext, a0, a1, a2, c2, true);
+        break;
+
     case INDEX_op_brcond_i32:
         a1 = (int32_t)a1;
         /* FALLTHRU */
@@ -1638,6 +1677,16 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_deposit_i64:
     case INDEX_op_deposit_i32:
         tcg_out_dep(s, ext, a0, REG0(2), args[3], args[4]);
+        break;
+
+    case INDEX_op_extract_i64:
+    case INDEX_op_extract_i32:
+        tcg_out_ubfm(s, ext, a0, a1, a2, a2 + args[3] - 1);
+        break;
+
+    case INDEX_op_sextract_i64:
+    case INDEX_op_sextract_i32:
+        tcg_out_sbfm(s, ext, a0, a1, a2, a2 + args[3] - 1);
         break;
 
     case INDEX_op_add2_i32:
@@ -1745,11 +1794,15 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_sar_i32, { "r", "r", "ri" } },
     { INDEX_op_rotl_i32, { "r", "r", "ri" } },
     { INDEX_op_rotr_i32, { "r", "r", "ri" } },
+    { INDEX_op_clz_i32, { "r", "r", "rAL" } },
+    { INDEX_op_ctz_i32, { "r", "r", "rAL" } },
     { INDEX_op_shl_i64, { "r", "r", "ri" } },
     { INDEX_op_shr_i64, { "r", "r", "ri" } },
     { INDEX_op_sar_i64, { "r", "r", "ri" } },
     { INDEX_op_rotl_i64, { "r", "r", "ri" } },
     { INDEX_op_rotr_i64, { "r", "r", "ri" } },
+    { INDEX_op_clz_i64, { "r", "r", "rAL" } },
+    { INDEX_op_ctz_i64, { "r", "r", "rAL" } },
 
     { INDEX_op_brcond_i32, { "r", "rA" } },
     { INDEX_op_brcond_i64, { "r", "rA" } },
@@ -1785,6 +1838,10 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
 
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
     { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
+    { INDEX_op_extract_i32, { "r", "r" } },
+    { INDEX_op_extract_i64, { "r", "r" } },
+    { INDEX_op_sextract_i32, { "r", "r" } },
+    { INDEX_op_sextract_i64, { "r", "r" } },
 
     { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
     { INDEX_op_add2_i64, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
@@ -1797,6 +1854,18 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_mb, { } },
     { -1 },
 };
+
+static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
+{
+    int i, n = ARRAY_SIZE(aarch64_op_defs);
+
+    for (i = 0; i < n; ++i) {
+        if (aarch64_op_defs[i].op == op) {
+            return &aarch64_op_defs[i];
+        }
+    }
+    return NULL;
+}
 
 static void tcg_target_init(TCGContext *s)
 {
@@ -1820,8 +1889,6 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_FP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_X18); /* platform register */
-
-    tcg_add_target_add_op_defs(aarch64_op_defs);
 }
 
 /* Saving pairs: (X19, X20) .. (X27, X28), (X29(fp), X30(lr)).  */

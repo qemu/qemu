@@ -296,6 +296,24 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
     CASE_OP_32_64(nor):
         return ~(x | y);
 
+    case INDEX_op_clz_i32:
+        return (uint32_t)x ? clz32(x) : y;
+
+    case INDEX_op_clz_i64:
+        return x ? clz64(x) : y;
+
+    case INDEX_op_ctz_i32:
+        return (uint32_t)x ? ctz32(x) : y;
+
+    case INDEX_op_ctz_i64:
+        return x ? ctz64(x) : y;
+
+    case INDEX_op_ctpop_i32:
+        return ctpop32(x);
+
+    case INDEX_op_ctpop_i64:
+        return ctpop64(x);
+
     CASE_OP_32_64(ext8s):
         return (int8_t)x;
 
@@ -878,9 +896,39 @@ void tcg_optimize(TCGContext *s)
                              temps[args[2]].mask);
             break;
 
+        CASE_OP_32_64(extract):
+            mask = extract64(temps[args[1]].mask, args[2], args[3]);
+            if (args[2] == 0) {
+                affected = temps[args[1]].mask & ~mask;
+            }
+            break;
+        CASE_OP_32_64(sextract):
+            mask = sextract64(temps[args[1]].mask, args[2], args[3]);
+            if (args[2] == 0 && (tcg_target_long)mask >= 0) {
+                affected = temps[args[1]].mask & ~mask;
+            }
+            break;
+
         CASE_OP_32_64(or):
         CASE_OP_32_64(xor):
             mask = temps[args[1]].mask | temps[args[2]].mask;
+            break;
+
+        case INDEX_op_clz_i32:
+        case INDEX_op_ctz_i32:
+            mask = temps[args[2]].mask | 31;
+            break;
+
+        case INDEX_op_clz_i64:
+        case INDEX_op_ctz_i64:
+            mask = temps[args[2]].mask | 63;
+            break;
+
+        case INDEX_op_ctpop_i32:
+            mask = 32 | 31;
+            break;
+        case INDEX_op_ctpop_i64:
+            mask = 64 | 63;
             break;
 
         CASE_OP_32_64(setcond):
@@ -996,6 +1044,7 @@ void tcg_optimize(TCGContext *s)
         CASE_OP_32_64(ext8u):
         CASE_OP_32_64(ext16s):
         CASE_OP_32_64(ext16u):
+        CASE_OP_32_64(ctpop):
         case INDEX_op_ext32s_i64:
         case INDEX_op_ext32u_i64:
         case INDEX_op_ext_i32_i64:
@@ -1039,10 +1088,40 @@ void tcg_optimize(TCGContext *s)
             }
             goto do_default;
 
+        CASE_OP_32_64(clz):
+        CASE_OP_32_64(ctz):
+            if (temp_is_const(args[1])) {
+                TCGArg v = temps[args[1]].val;
+                if (v != 0) {
+                    tmp = do_constant_folding(opc, v, 0);
+                    tcg_opt_gen_movi(s, op, args, args[0], tmp);
+                } else {
+                    tcg_opt_gen_mov(s, op, args, args[0], args[2]);
+                }
+                break;
+            }
+            goto do_default;
+
         CASE_OP_32_64(deposit):
             if (temp_is_const(args[1]) && temp_is_const(args[2])) {
                 tmp = deposit64(temps[args[1]].val, args[3], args[4],
                                 temps[args[2]].val);
+                tcg_opt_gen_movi(s, op, args, args[0], tmp);
+                break;
+            }
+            goto do_default;
+
+        CASE_OP_32_64(extract):
+            if (temp_is_const(args[1])) {
+                tmp = extract64(temps[args[1]].val, args[2], args[3]);
+                tcg_opt_gen_movi(s, op, args, args[0], tmp);
+                break;
+            }
+            goto do_default;
+
+        CASE_OP_32_64(sextract):
+            if (temp_is_const(args[1])) {
+                tmp = sextract64(temps[args[1]].val, args[2], args[3]);
                 tcg_opt_gen_movi(s, op, args, args[0], tmp);
                 break;
             }
@@ -1075,6 +1154,21 @@ void tcg_optimize(TCGContext *s)
             if (tmp != 2) {
                 tcg_opt_gen_mov(s, op, args, args[0], args[4-tmp]);
                 break;
+            }
+            if (temp_is_const(args[3]) && temp_is_const(args[4])) {
+                tcg_target_ulong tv = temps[args[3]].val;
+                tcg_target_ulong fv = temps[args[4]].val;
+                TCGCond cond = args[5];
+                if (fv == 1 && tv == 0) {
+                    cond = tcg_invert_cond(cond);
+                } else if (!(tv == 1 && fv == 0)) {
+                    goto do_default;
+                }
+                args[3] = cond;
+                op->opc = opc = (opc == INDEX_op_movcond_i32
+                                 ? INDEX_op_setcond_i32
+                                 : INDEX_op_setcond_i64);
+                nb_iargs = 2;
             }
             goto do_default;
 

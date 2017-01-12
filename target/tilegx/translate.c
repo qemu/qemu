@@ -608,12 +608,12 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     switch (opext) {
     case OE_RR_X0(CNTLZ):
     case OE_RR_Y0(CNTLZ):
-        gen_helper_cntlz(tdest, tsrca);
+        tcg_gen_clzi_tl(tdest, tsrca, TARGET_LONG_BITS);
         mnemonic = "cntlz";
         break;
     case OE_RR_X0(CNTTZ):
     case OE_RR_Y0(CNTTZ):
-        gen_helper_cnttz(tdest, tsrca);
+        tcg_gen_ctzi_tl(tdest, tsrca, TARGET_LONG_BITS);
         mnemonic = "cnttz";
         break;
     case OE_RR_X0(FSINGLE_PACK1):
@@ -697,7 +697,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RR_X0(PCNT):
     case OE_RR_Y0(PCNT):
-        gen_helper_pcnt(tdest, tsrca);
+        tcg_gen_ctpop_tl(tdest, tsrca);
         mnemonic = "pcnt";
         break;
     case OE_RR_X0(REVBITS):

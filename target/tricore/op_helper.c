@@ -1733,11 +1733,6 @@ EXTREMA_H_B(min, <)
 
 #undef EXTREMA_H_B
 
-uint32_t helper_clo(target_ulong r1)
-{
-    return clo32(r1);
-}
-
 uint32_t helper_clo_h(target_ulong r1)
 {
     uint32_t ret_hw0 = extract32(r1, 0, 16);
@@ -1756,11 +1751,6 @@ uint32_t helper_clo_h(target_ulong r1)
     return ret_hw0 | (ret_hw1 << 16);
 }
 
-uint32_t helper_clz(target_ulong r1)
-{
-    return clz32(r1);
-}
-
 uint32_t helper_clz_h(target_ulong r1)
 {
     uint32_t ret_hw0 = extract32(r1, 0, 16);
@@ -1777,11 +1767,6 @@ uint32_t helper_clz_h(target_ulong r1)
     }
 
     return ret_hw0 | (ret_hw1 << 16);
-}
-
-uint32_t helper_cls(target_ulong r1)
-{
-    return clrsb32(r1);
 }
 
 uint32_t helper_cls_h(target_ulong r1)

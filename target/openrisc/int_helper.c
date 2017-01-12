@@ -24,25 +24,6 @@
 #include "exception.h"
 #include "qemu/host-utils.h"
 
-target_ulong HELPER(ff1)(target_ulong x)
-{
-/*#ifdef TARGET_OPENRISC64
-    return x ? ctz64(x) + 1 : 0;
-#else*/
-    return x ? ctz32(x) + 1 : 0;
-/*#endif*/
-}
-
-target_ulong HELPER(fl1)(target_ulong x)
-{
-/* not used yet, open it when we need or64.  */
-/*#ifdef TARGET_OPENRISC64
-    return 64 - clz64(x);
-#else*/
-    return 32 - clz32(x);
-/*#endif*/
-}
-
 uint32_t HELPER(mul32)(CPUOpenRISCState *env,
                        uint32_t ra, uint32_t rb)
 {

@@ -26,6 +26,37 @@
 #ifndef ARM_TCG_TARGET_H
 #define ARM_TCG_TARGET_H
 
+/* The __ARM_ARCH define is provided by gcc 4.8.  Construct it otherwise.  */
+#ifndef __ARM_ARCH
+# if defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) \
+     || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) \
+     || defined(__ARM_ARCH_7EM__)
+#  define __ARM_ARCH 7
+# elif defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) \
+       || defined(__ARM_ARCH_6Z__) || defined(__ARM_ARCH_6ZK__) \
+       || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6T2__)
+#  define __ARM_ARCH 6
+# elif defined(__ARM_ARCH_5__) || defined(__ARM_ARCH_5E__) \
+       || defined(__ARM_ARCH_5T__) || defined(__ARM_ARCH_5TE__) \
+       || defined(__ARM_ARCH_5TEJ__)
+#  define __ARM_ARCH 5
+# else
+#  define __ARM_ARCH 4
+# endif
+#endif
+
+extern int arm_arch;
+
+#if defined(__ARM_ARCH_5T__) \
+    || defined(__ARM_ARCH_5TE__) || defined(__ARM_ARCH_5TEJ__)
+# define use_armv5t_instructions 1
+#else
+# define use_armv5t_instructions use_armv6_instructions
+#endif
+
+#define use_armv6_instructions  (__ARM_ARCH >= 6 || arm_arch >= 6)
+#define use_armv7_instructions  (__ARM_ARCH >= 7 || arm_arch >= 7)
+
 #undef TCG_TARGET_STACK_GROWSUP
 #define TCG_TARGET_INSN_UNIT_SIZE 4
 #define TCG_TARGET_TLB_DISPLACEMENT_BITS 16
@@ -79,7 +110,12 @@ extern bool use_idiv_instructions;
 #define TCG_TARGET_HAS_eqv_i32          0
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_nor_i32          0
-#define TCG_TARGET_HAS_deposit_i32      1
+#define TCG_TARGET_HAS_clz_i32          use_armv5t_instructions
+#define TCG_TARGET_HAS_ctz_i32          use_armv7_instructions
+#define TCG_TARGET_HAS_ctpop_i32        0
+#define TCG_TARGET_HAS_deposit_i32      use_armv7_instructions
+#define TCG_TARGET_HAS_extract_i32      use_armv7_instructions
+#define TCG_TARGET_HAS_sextract_i32     use_armv7_instructions
 #define TCG_TARGET_HAS_movcond_i32      1
 #define TCG_TARGET_HAS_mulu2_i32        1
 #define TCG_TARGET_HAS_muls2_i32        1
@@ -87,9 +123,6 @@ extern bool use_idiv_instructions;
 #define TCG_TARGET_HAS_mulsh_i32        0
 #define TCG_TARGET_HAS_div_i32          use_idiv_instructions
 #define TCG_TARGET_HAS_rem_i32          0
-
-extern bool tcg_target_deposit_valid(int ofs, int len);
-#define TCG_TARGET_deposit_i32_valid  tcg_target_deposit_valid
 
 enum {
     TCG_AREG0 = TCG_REG_R6,

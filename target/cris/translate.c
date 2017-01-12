@@ -767,7 +767,7 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
         t_gen_subx_carry(dc, dst);
         break;
     case CC_OP_LZ:
-        gen_helper_lz(dst, b);
+        tcg_gen_clzi_tl(dst, b, TARGET_LONG_BITS);
         break;
     case CC_OP_MULS:
         tcg_gen_muls2_tl(dst, cpu_PR[PR_MOF], a, b);

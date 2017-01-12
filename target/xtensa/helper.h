@@ -3,8 +3,6 @@ DEF_HELPER_3(exception_cause, noreturn, env, i32, i32)
 DEF_HELPER_4(exception_cause_vaddr, noreturn, env, i32, i32, i32)
 DEF_HELPER_3(debug_exception, noreturn, env, i32, i32)
 
-DEF_HELPER_FLAGS_1(nsa, TCG_CALL_NO_RWG_SE, i32, i32)
-DEF_HELPER_FLAGS_1(nsau, TCG_CALL_NO_RWG_SE, i32, i32)
 DEF_HELPER_2(wsr_windowbase, void, env, i32)
 DEF_HELPER_4(entry, void, env, i32, i32, i32)
 DEF_HELPER_2(retw, i32, env, i32)

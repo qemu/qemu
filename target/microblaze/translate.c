@@ -768,7 +768,7 @@ static void dec_bit(DisasContext *dc)
                 t_gen_raise_exception(dc, EXCP_HW_EXCP);
             }
             if (dc->cpu->env.pvr.regs[2] & PVR2_USE_PCMP_INSTR) {
-                gen_helper_clz(cpu_R[dc->rd], cpu_R[dc->ra]);
+                tcg_gen_clzi_i32(cpu_R[dc->rd], cpu_R[dc->ra], 32);
             }
             break;
         case 0x1e0:

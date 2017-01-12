@@ -6367,19 +6367,20 @@ static void decode_rr_logical_shift(CPUTriCoreState *env, DisasContext *ctx)
         tcg_gen_andc_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
         break;
     case OPC2_32_RR_CLO:
-        gen_helper_clo(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        tcg_gen_not_tl(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        tcg_gen_clzi_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], TARGET_LONG_BITS);
         break;
     case OPC2_32_RR_CLO_H:
         gen_helper_clo_h(cpu_gpr_d[r3], cpu_gpr_d[r1]);
         break;
     case OPC2_32_RR_CLS:
-        gen_helper_cls(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        tcg_gen_clrsb_tl(cpu_gpr_d[r3], cpu_gpr_d[r1]);
         break;
     case OPC2_32_RR_CLS_H:
         gen_helper_cls_h(cpu_gpr_d[r3], cpu_gpr_d[r1]);
         break;
     case OPC2_32_RR_CLZ:
-        gen_helper_clz(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        tcg_gen_clzi_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], TARGET_LONG_BITS);
         break;
     case OPC2_32_RR_CLZ_H:
         gen_helper_clz_h(cpu_gpr_d[r3], cpu_gpr_d[r1]);
