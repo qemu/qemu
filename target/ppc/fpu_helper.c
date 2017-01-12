@@ -2452,8 +2452,8 @@ void helper_xscmpexpqp(CPUPPCState *env, uint32_t opcode)
     exp_a = extract64(xa.VsrD(0), 48, 15);
     exp_b = extract64(xb.VsrD(0), 48, 15);
 
-    if (unlikely(float128_is_any_nan(make_float128(xa.VsrD(0), xa.VsrD(1))) ||
-                 float128_is_any_nan(make_float128(xb.VsrD(0), xb.VsrD(1))))) {
+    if (unlikely(float128_is_any_nan(xa.f128) ||
+                 float128_is_any_nan(xb.f128))) {
         cc = CRF_SO;
     } else {
         if (exp_a < exp_b) {
@@ -2528,24 +2528,20 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
     ppc_vsr_t xa, xb;                                                   \
     uint32_t cc = 0;                                                    \
     bool vxsnan_flag = false, vxvc_flag = false;                        \
-    float128 a, b;                                                      \
                                                                         \
     helper_reset_fpstatus(env);                                         \
     getVSR(rA(opcode) + 32, &xa, env);                                  \
     getVSR(rB(opcode) + 32, &xb, env);                                  \
                                                                         \
-    a = make_float128(xa.VsrD(0), xa.VsrD(1));                          \
-    b = make_float128(xb.VsrD(0), xb.VsrD(1));                          \
-                                                                        \
-    if (float128_is_signaling_nan(a, &env->fp_status) ||                \
-        float128_is_signaling_nan(b, &env->fp_status)) {                \
+    if (float128_is_signaling_nan(xa.f128, &env->fp_status) ||          \
+        float128_is_signaling_nan(xb.f128, &env->fp_status)) {          \
         vxsnan_flag = true;                                             \
         cc = CRF_SO;                                                    \
         if (fpscr_ve == 0 && ordered) {                                 \
             vxvc_flag = true;                                           \
         }                                                               \
-    } else if (float128_is_quiet_nan(a, &env->fp_status) ||             \
-               float128_is_quiet_nan(b, &env->fp_status)) {             \
+    } else if (float128_is_quiet_nan(xa.f128, &env->fp_status) ||       \
+               float128_is_quiet_nan(xb.f128, &env->fp_status)) {       \
         cc = CRF_SO;                                                    \
         if (ordered) {                                                  \
             vxvc_flag = true;                                           \
@@ -2558,9 +2554,9 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
         float_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);            \
     }                                                                   \
                                                                         \
-    if (float128_lt(a, b, &env->fp_status)) {                           \
+    if (float128_lt(xa.f128, xb.f128, &env->fp_status)) {               \
         cc |= CRF_LT;                                                   \
-    } else if (!float128_le(a, b, &env->fp_status)) {                   \
+    } else if (!float128_le(xa.f128, xb.f128, &env->fp_status)) {       \
         cc |= CRF_GT;                                                   \
     } else {                                                            \
         cc |= CRF_EQ;                                                   \
