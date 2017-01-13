@@ -371,5 +371,7 @@ TEXI2MAN = $(call quiet-command, \
 
 %.1:
 	$(call TEXI2MAN)
+%.7:
+	$(call TEXI2MAN)
 %.8:
 	$(call TEXI2MAN)
