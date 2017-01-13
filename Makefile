@@ -81,7 +81,7 @@ Makefile: ;
 configure: ;
 
 .PHONY: all clean cscope distclean html info install install-doc \
-	pdf recurse-all speed test dist msi FORCE
+	pdf txt recurse-all speed test dist msi FORCE
 
 $(call set-vpath, $(SRC_PATH))
 
@@ -90,7 +90,7 @@ LIBS+=-lz $(LIBS_TOOLS)
 HELPERS-$(CONFIG_LINUX) = qemu-bridge-helper$(EXESUF)
 
 ifdef BUILD_DOCS
-DOCS=qemu-doc.html qemu.1 qemu-img.1 qemu-nbd.8 qemu-ga.8
+DOCS=qemu-doc.html qemu-doc.txt qemu.1 qemu-img.1 qemu-nbd.8 qemu-ga.8
 ifdef CONFIG_VIRTFS
 DOCS+=fsdev/virtfs-proxy-helper.1
 endif
@@ -429,6 +429,7 @@ endif
 install-doc: $(DOCS)
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_docdir)"
 	$(INSTALL_DATA) qemu-doc.html "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) qemu-doc.txt "$(DESTDIR)$(qemu_docdir)"
 ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DATA) qemu.1 "$(DESTDIR)$(mandir)/man1"
@@ -536,6 +537,10 @@ TEXIFLAG=$(if $(V),,--quiet)
 %.info: %.texi
 	$(call quiet-command,$(MAKEINFO) $(MAKEINFOFLAGS) $< -o $@,"GEN","$@")
 
+%.txt: %.texi
+	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --no-headers \
+	--plaintext $< -o $@,"GEN","$@")
+
 %.pdf: %.texi
 	$(call quiet-command,texi2pdf $(TEXIFLAG) -I . $<,"GEN","$@")
 
@@ -561,6 +566,7 @@ qemu-ga.8: qemu-ga.texi
 html: qemu-doc.html
 info: qemu-doc.info
 pdf: qemu-doc.pdf
+txt: qemu-doc.txt
 
 qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi qemu-option-trace.texi \
@@ -659,7 +665,7 @@ help:
 	@echo  '  docker          - Help about targets running tests inside Docker containers'
 	@echo  ''
 	@echo  'Documentation targets:'
-	@echo  '  html info pdf'
+	@echo  '  html info pdf txt'
 	@echo  '                  - Build documentation in specified format'
 	@echo  ''
 ifdef CONFIG_WIN32
