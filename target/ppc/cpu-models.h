@@ -601,7 +601,7 @@ enum {
     CPU_POWERPC_LOGICAL_2_06       = 0x0F000003,
     CPU_POWERPC_LOGICAL_2_06_PLUS  = 0x0F100003,
     CPU_POWERPC_LOGICAL_2_07       = 0x0F000004,
-    CPU_POWERPC_LOGICAL_2_08       = 0x0F000005,
+    CPU_POWERPC_LOGICAL_3_00       = 0x0F000005,
 };
 
 /* System version register (used on MPC 8xxx)                                */
