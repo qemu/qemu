@@ -1014,8 +1014,14 @@ void hmp_memsave(Monitor *mon, const QDict *qdict)
     const char *filename = qdict_get_str(qdict, "filename");
     uint64_t addr = qdict_get_int(qdict, "val");
     Error *err = NULL;
+    int cpu_index = monitor_get_cpu_index();
 
-    qmp_memsave(addr, size, filename, true, monitor_get_cpu_index(), &err);
+    if (cpu_index < 0) {
+        monitor_printf(mon, "No CPU available\n");
+        return;
+    }
+
+    qmp_memsave(addr, size, filename, true, cpu_index, &err);
     hmp_handle_error(mon, &err);
 }
 
