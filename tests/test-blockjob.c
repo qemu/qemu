@@ -60,7 +60,7 @@ static BlockBackend *create_blk(const char *name)
     bs = bdrv_open("null-co://", NULL, NULL, 0, &error_abort);
     g_assert_nonnull(bs);
 
-    blk_insert_bs(blk, bs);
+    blk_insert_bs(blk, bs, &error_abort);
     bdrv_unref(bs);
 
     if (name) {

@@ -2194,8 +2194,11 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         }
         if (file_bs != NULL) {
             file = blk_new(BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
-            blk_insert_bs(file, file_bs);
+            blk_insert_bs(file, file_bs, &local_err);
             bdrv_unref(file_bs);
+            if (local_err) {
+                goto fail;
+            }
 
             qdict_put(options, "file",
                       qstring_from_str(bdrv_get_node_name(file_bs)));

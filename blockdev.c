@@ -2436,6 +2436,7 @@ static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
                                             BlockDriverState *bs, Error **errp)
 {
     bool has_device;
+    int ret;
 
     /* For BBs without a device, we can exchange the BDS tree at will */
     has_device = blk_get_attached_dev(blk);
@@ -2455,7 +2456,10 @@ static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
         return;
     }
 
-    blk_insert_bs(blk, bs);
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        return;
+    }
 
     if (!blk_dev_has_tray(blk)) {
         /* For tray-less devices, blockdev-close-tray is a no-op (or may not be
@@ -2891,7 +2895,10 @@ void qmp_block_resize(bool has_device, const char *device,
     }
 
     blk = blk_new(BLK_PERM_RESIZE, BLK_PERM_ALL);
-    blk_insert_bs(blk, bs);
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        goto out;
+    }
 
     /* complete all in-flight operations before resizing the device */
     bdrv_drain_all();

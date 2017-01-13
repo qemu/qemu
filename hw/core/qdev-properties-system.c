@@ -73,6 +73,7 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
 {
     BlockBackend *blk;
     bool blk_created = false;
+    int ret;
 
     blk = blk_by_name(str);
     if (!blk) {
@@ -80,8 +81,12 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
         if (bs) {
             /* FIXME Use real permissions */
             blk = blk_new(0, BLK_PERM_ALL);
-            blk_insert_bs(blk, bs);
             blk_created = true;
+
+            ret = blk_insert_bs(blk, bs, errp);
+            if (ret < 0) {
+                goto fail;
+            }
         }
     }
     if (!blk) {

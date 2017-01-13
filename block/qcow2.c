@@ -3113,6 +3113,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     uint64_t cluster_size = s->cluster_size;
     bool encrypt;
     int refcount_bits = s->refcount_bits;
+    Error *local_err = NULL;
     int ret;
     QemuOptDesc *desc = opts->list->desc;
     Qcow2AmendHelperCBInfo helper_cb_info;
@@ -3263,10 +3264,15 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
 
     if (new_size) {
         BlockBackend *blk = blk_new(BLK_PERM_RESIZE, BLK_PERM_ALL);
-        blk_insert_bs(blk, bs);
+        ret = blk_insert_bs(blk, bs, &local_err);
+        if (ret < 0) {
+            error_report_err(local_err);
+            blk_unref(blk);
+            return ret;
+        }
+
         ret = blk_truncate(blk, new_size);
         blk_unref(blk);
-
         if (ret < 0) {
             return ret;
         }

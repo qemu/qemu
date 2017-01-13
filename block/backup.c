@@ -626,7 +626,10 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
 
     /* FIXME Use real permissions */
     job->target = blk_new(0, BLK_PERM_ALL);
-    blk_insert_bs(job->target, target);
+    ret = blk_insert_bs(job->target, target, errp);
+    if (ret < 0) {
+        goto error;
+    }
 
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;

@@ -220,6 +220,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     BlockDriverState *iter;
     BlockDriverState *overlay_bs;
     Error *local_err = NULL;
+    int ret;
 
     assert(top != bs);
     if (top == base) {
@@ -256,8 +257,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         bdrv_reopen_multiple(bdrv_get_aio_context(bs), reopen_queue, &local_err);
         if (local_err != NULL) {
             error_propagate(errp, local_err);
-            block_job_unref(&s->common);
-            return;
+            goto fail;
         }
     }
 
@@ -277,11 +277,17 @@ void commit_start(const char *job_id, BlockDriverState *bs,
 
     /* FIXME Use real permissions */
     s->base = blk_new(0, BLK_PERM_ALL);
-    blk_insert_bs(s->base, base);
+    ret = blk_insert_bs(s->base, base, errp);
+    if (ret < 0) {
+        goto fail;
+    }
 
     /* FIXME Use real permissions */
     s->top = blk_new(0, BLK_PERM_ALL);
-    blk_insert_bs(s->top, top);
+    ret = blk_insert_bs(s->top, top, errp);
+    if (ret < 0) {
+        goto fail;
+    }
 
     s->active = bs;
 
@@ -294,6 +300,16 @@ void commit_start(const char *job_id, BlockDriverState *bs,
 
     trace_commit_start(bs, base, top, s);
     block_job_start(&s->common);
+    return;
+
+fail:
+    if (s->base) {
+        blk_unref(s->base);
+    }
+    if (s->top) {
+        blk_unref(s->top);
+    }
+    block_job_unref(&s->common);
 }
 
 
@@ -332,11 +348,17 @@ int bdrv_commit(BlockDriverState *bs)
 
     /* FIXME Use real permissions */
     src = blk_new(0, BLK_PERM_ALL);
-    blk_insert_bs(src, bs);
-
-    /* FIXME Use real permissions */
     backing = blk_new(0, BLK_PERM_ALL);
-    blk_insert_bs(backing, bs->backing->bs);
+
+    ret = blk_insert_bs(src, bs, NULL);
+    if (ret < 0) {
+        goto ro_cleanup;
+    }
+
+    ret = blk_insert_bs(backing, bs->backing->bs, NULL);
+    if (ret < 0) {
+        goto ro_cleanup;
+    }
 
     length = blk_getlength(src);
     if (length < 0) {

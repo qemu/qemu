@@ -891,10 +891,14 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
 {
     BlockBackend *blk;
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
+    int ret;
 
     /* FIXME Use real permissions */
     blk = blk_new(0, BLK_PERM_ALL);
-    blk_insert_bs(blk, bs);
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        goto fail;
+    }
     blk_set_enable_write_cache(blk, !writethrough);
 
     exp->refcount = 1;

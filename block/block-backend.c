@@ -508,19 +508,22 @@ void blk_remove_bs(BlockBackend *blk)
 /*
  * Associates a new BlockDriverState with @blk.
  */
-void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
+int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 {
-    bdrv_ref(bs);
-    /* FIXME Error handling */
     blk->root = bdrv_root_attach_child(bs, "root", &child_root,
-                                       blk->perm, blk->shared_perm, blk,
-                                       &error_abort);
+                                       blk->perm, blk->shared_perm, blk, errp);
+    if (blk->root == NULL) {
+        return -EPERM;
+    }
+    bdrv_ref(bs);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
     if (blk->public.throttle_state) {
         throttle_timers_attach_aio_context(
             &blk->public.throttle_timers, bdrv_get_aio_context(bs));
     }
+
+    return 0;
 }
 
 /*

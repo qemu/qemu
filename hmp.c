@@ -2045,6 +2045,7 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
     const char* device = qdict_get_str(qdict, "device");
     const char* command = qdict_get_str(qdict, "command");
     Error *err = NULL;
+    int ret;
 
     blk = blk_by_name(device);
     if (!blk) {
@@ -2052,7 +2053,10 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
         if (bs) {
             /* FIXME Use real permissions */
             blk = local_blk = blk_new(0, BLK_PERM_ALL);
-            blk_insert_bs(blk, bs);
+            ret = blk_insert_bs(blk, bs, &err);
+            if (ret < 0) {
+                goto fail;
+            }
         } else {
             goto fail;
         }

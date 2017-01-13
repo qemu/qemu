@@ -525,9 +525,12 @@ static void mirror_exit(BlockJob *job, void *opaque)
         bdrv_replace_in_backing_chain(to_replace, target_bs);
         bdrv_drained_end(target_bs);
 
-        /* We just changed the BDS the job BB refers to */
+        /* We just changed the BDS the job BB refers to, so switch the BB back
+         * so the cleanup does the right thing. We don't need any permissions
+         * any more now. */
         blk_remove_bs(job->blk);
-        blk_insert_bs(job->blk, src);
+        blk_set_perm(job->blk, 0, BLK_PERM_ALL, &error_abort);
+        blk_insert_bs(job->blk, src, &error_abort);
     }
     if (s->to_replace) {
         bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
@@ -995,6 +998,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              bool auto_complete)
 {
     MirrorBlockJob *s;
+    int ret;
 
     if (granularity == 0) {
         granularity = bdrv_get_default_bitmap_granularity(target);
@@ -1019,7 +1023,12 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
 
     /* FIXME Use real permissions */
     s->target = blk_new(0, BLK_PERM_ALL);
-    blk_insert_bs(s->target, target);
+    ret = blk_insert_bs(s->target, target, errp);
+    if (ret < 0) {
+        blk_unref(s->target);
+        block_job_unref(&s->common);
+        return;
+    }
 
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;

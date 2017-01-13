@@ -446,7 +446,7 @@ static void init_blk_migration(QEMUFile *f)
         BlockDriverState *bs = bmds_bs[i].bs;
 
         if (bmds) {
-            blk_insert_bs(bmds->blk, bs);
+            blk_insert_bs(bmds->blk, bs, &error_abort);
 
             alloc_aio_bitmap(bmds);
             error_setg(&bmds->blocker, "block device is in use by migration");

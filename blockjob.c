@@ -128,6 +128,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 {
     BlockBackend *blk;
     BlockJob *job;
+    int ret;
 
     if (bs->job) {
         error_setg(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
@@ -161,7 +162,11 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
     /* FIXME Use real permissions */
     blk = blk_new(0, BLK_PERM_ALL);
-    blk_insert_bs(blk, bs);
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        blk_unref(blk);
+        return NULL;
+    }
 
     job = g_malloc0(driver->instance_size);
     error_setg(&job->blocker, "block device is in use by block job: %s",
