@@ -1963,6 +1963,15 @@ DISAS_INSN(cas)
     gen_partset_reg(opsize, DREG(ext, 0), load);
 
     tcg_temp_free(load);
+
+    switch (extract32(insn, 3, 3)) {
+    case 3: /* Indirect postincrement.  */
+        tcg_gen_addi_i32(AREG(insn, 0), addr, opsize_bytes(opsize));
+        break;
+    case 4: /* Indirect predecrememnt.  */
+        tcg_gen_mov_i32(AREG(insn, 0), addr);
+        break;
+    }
 }
 
 DISAS_INSN(cas2w)
