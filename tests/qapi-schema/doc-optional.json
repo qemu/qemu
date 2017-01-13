@@ -1,0 +1,7 @@
+# Description #optional should match declaration
+
+##
+# @foo:
+# @a: a #optional
+##
+{ 'command': 'foo', 'data': {'a': 'int'} }

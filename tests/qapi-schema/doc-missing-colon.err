@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-missing-colon.json:4:1: Line should end with :

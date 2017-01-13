@@ -1,3 +1,10 @@
 # we reject a base that is not a struct
+
+##
+# @Union:
+##
 { 'union': 'Union', 'data': { 'a': 'int', 'b': 'str' } }
+##
+# @MyType:
+##
 { 'struct': 'MyType', 'base': 'Union', 'data': { 'c': 'int' } }

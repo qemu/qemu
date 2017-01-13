@@ -1,11 +1,24 @@
 # flat unions require a base
 # TODO: simple unions should be able to use an enum discriminator
+
+##
+# @TestTypeA:
+##
 { 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
+##
+# @TestTypeB:
+##
 { 'struct': 'TestTypeB',
   'data': { 'integer': 'int' } }
+##
+# @Enum:
+##
 { 'enum': 'Enum',
   'data': [ 'value1', 'value2' ] }
+##
+# @TestUnion:
+##
 { 'union': 'TestUnion',
   'discriminator': 'Enum',
   'data': { 'value1': 'TestTypeA',

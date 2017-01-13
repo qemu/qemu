@@ -1,10 +1,23 @@
 # we allow anonymous base, but enforce no duplicate keys
+
+##
+# @TestEnum:
+##
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
+##
+# @TestTypeA:
+##
 { 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
+##
+# @TestTypeB:
+##
 { 'struct': 'TestTypeB',
   'data': { 'integer': 'int' } }
+##
+# @TestUnion:
+##
 { 'union': 'TestUnion',
   'base': { 'enum1': 'TestEnum', 'string': 'str' },
   'discriminator': 'enum1',

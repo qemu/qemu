@@ -1,2 +1,8 @@
+##
+# @eins:
+##
 { 'command' : 'eins' }
+##
+# @zwei:
+##
  { 'command' : 'zwei' }

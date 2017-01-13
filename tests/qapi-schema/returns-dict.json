@@ -1,2 +1,6 @@
 # we reject inline struct return type
+
+##
+# @oops:
+##
 { 'command': 'oops', 'returns': { 'a': 'str' } }

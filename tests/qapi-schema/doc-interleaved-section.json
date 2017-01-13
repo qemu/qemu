@@ -1,0 +1,21 @@
+# Arguments and sections must not be interleaved
+
+##
+# @TestStruct:
+#
+# body
+#
+# @integer: foo
+#           blah
+#
+#           bao
+#
+# Note: a section.
+#
+# @foobar: catch this
+#
+# Since: 2.3
+#
+##
+{ 'struct': 'TestStruct',
+  'data': { 'integer': 'int', 'foobar': 'int' } }

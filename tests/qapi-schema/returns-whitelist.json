@@ -1,11 +1,27 @@
 # we enforce that 'returns' be a dict or array of dict unless whitelisted
+
+##
+# @human-monitor-command:
+##
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
   'returns': 'str' }
+##
+# @TpmModel:
+##
 { 'enum': 'TpmModel', 'data': [ 'tpm-tis' ] }
+##
+# @query-tpm-models:
+##
 { 'command': 'query-tpm-models', 'returns': ['TpmModel'] }
+##
+# @guest-get-time:
+##
 { 'command': 'guest-get-time',
   'returns': 'int' }
 
+##
+# @no-way-this-will-get-whitelisted:
+##
 { 'command': 'no-way-this-will-get-whitelisted',
   'returns': [ 'int' ] }

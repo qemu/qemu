@@ -1,2 +1,6 @@
 # we reject a loop in base classes
+
+##
+# @Loopy:
+##
 { 'struct': 'Loopy', 'base': 'Loopy', 'data': {} }

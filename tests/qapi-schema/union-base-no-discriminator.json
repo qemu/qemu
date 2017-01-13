@@ -1,13 +1,25 @@
+##
+# @TestTypeA:
+##
 # we reject simple unions with a base (or flat unions without discriminator)
 { 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
 
+##
+# @TestTypeB:
+##
 { 'struct': 'TestTypeB',
   'data': { 'integer': 'int' } }
 
+##
+# @Base:
+##
 { 'struct': 'Base',
   'data': { 'string': 'str' } }
 
+##
+# @TestUnion:
+##
 { 'union': 'TestUnion',
   'base': 'Base',
   'data': { 'value1': 'TestTypeA',

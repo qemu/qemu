@@ -1,3 +1,10 @@
 # we reject a loop in base classes
+
+##
+# @Base1:
+##
 { 'struct': 'Base1', 'base': 'Base2', 'data': {} }
+##
+# @Base2:
+##
 { 'struct': 'Base2', 'base': 'Base1', 'data': {} }

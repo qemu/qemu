@@ -1,1 +1,1 @@
-tests/qapi-schema/struct-base-clash-deep.json:10: 'name' (member of Sub) collides with 'name' (member of Base)
+tests/qapi-schema/struct-base-clash-deep.json:20: 'name' (member of Sub) collides with 'name' (member of Base)

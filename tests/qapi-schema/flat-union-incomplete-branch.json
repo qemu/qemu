@@ -1,8 +1,18 @@
 # we require all branches of the union to be covered
+
+##
+# @TestEnum:
+##
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
+##
+# @TestTypeA:
+##
 { 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
+##
+# @TestUnion:
+##
 { 'union': 'TestUnion',
   'base': { 'type': 'TestEnum' },
   'discriminator': 'type',

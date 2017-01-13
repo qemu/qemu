@@ -1,1 +1,1 @@
-tests/qapi-schema/reserved-type-list.json:5: struct 'FooList' should not end in 'List'
+tests/qapi-schema/reserved-type-list.json:9: struct 'FooList' should not end in 'List'

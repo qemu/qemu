@@ -1,1 +1,1 @@
-tests/qapi-schema/redefined-type.json:3: struct 'foo' is already defined
+tests/qapi-schema/redefined-type.json:10: struct 'foo' is already defined

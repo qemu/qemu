@@ -1,3 +1,11 @@
 # 'boxed' requires a non-empty type
+
+##
+# @Empty:
+##
 { 'struct': 'Empty', 'data': {} }
+
+##
+# @foo:
+##
 { 'command': 'foo', 'boxed': true, 'data': 'Empty' }

@@ -1,2 +1,6 @@
 # union branches cannot be optional
+
+##
+# @Union:
+##
 { 'union': 'Union', 'data': { '*a': 'int', 'b': 'str' } }

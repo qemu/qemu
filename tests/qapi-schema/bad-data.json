@@ -1,2 +1,6 @@
 # we ensure 'data' is a dictionary for all but enums
+
+##
+# @oops:
+##
 { 'command': 'oops', 'data': [ ] }

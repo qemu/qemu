@@ -1,2 +1,5 @@
+##
+# @Status:
+##
 { 'enum': 'Status',
   'data': [ 'good', 'bad', 'ugly' ] }

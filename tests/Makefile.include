@@ -352,6 +352,24 @@ qapi-schema += base-cycle-direct.json
 qapi-schema += base-cycle-indirect.json
 qapi-schema += command-int.json
 qapi-schema += comments.json
+qapi-schema += doc-bad-args.json
+qapi-schema += doc-bad-symbol.json
+qapi-schema += doc-duplicated-arg.json
+qapi-schema += doc-duplicated-return.json
+qapi-schema += doc-duplicated-since.json
+qapi-schema += doc-empty-arg.json
+qapi-schema += doc-empty-section.json
+qapi-schema += doc-empty-symbol.json
+qapi-schema += doc-interleaved-section.json
+qapi-schema += doc-invalid-end.json
+qapi-schema += doc-invalid-end2.json
+qapi-schema += doc-invalid-return.json
+qapi-schema += doc-invalid-section.json
+qapi-schema += doc-invalid-start.json
+qapi-schema += doc-missing-colon.json
+qapi-schema += doc-missing-expr.json
+qapi-schema += doc-missing-space.json
+qapi-schema += doc-optional.json
 qapi-schema += double-data.json
 qapi-schema += double-type.json
 qapi-schema += duplicate-key.json
@@ -445,6 +463,8 @@ qapi-schema += union-optional-branch.json
 qapi-schema += union-unknown.json
 qapi-schema += unknown-escape.json
 qapi-schema += unknown-expr-key.json
+
+
 check-qapi-schema-y := $(addprefix tests/qapi-schema/, $(qapi-schema))
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h \

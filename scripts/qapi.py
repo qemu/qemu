@@ -125,6 +125,122 @@ class QAPISemError(QAPIError):
                            info['parent'], msg)
 
 
+class QAPIDoc(object):
+    class Section(object):
+        def __init__(self, name=None):
+            # optional section name (argument/member or section name)
+            self.name = name
+            # the list of lines for this section
+            self.content = []
+
+        def append(self, line):
+            self.content.append(line)
+
+        def __repr__(self):
+            return "\n".join(self.content).strip()
+
+    class ArgSection(Section):
+        pass
+
+    def __init__(self, parser, info):
+        # self.parser is used to report errors with QAPIParseError.  The
+        # resulting error position depends on the state of the parser.
+        # It happens to be the beginning of the comment.  More or less
+        # servicable, but action at a distance.
+        self.parser = parser
+        self.info = info
+        self.symbol = None
+        self.body = QAPIDoc.Section()
+        # dict mapping parameter name to ArgSection
+        self.args = OrderedDict()
+        # a list of Section
+        self.sections = []
+        # the current section
+        self.section = self.body
+        # associated expression (to be set by expression parser)
+        self.expr = None
+
+    def has_section(self, name):
+        """Return True if we have a section with this name."""
+        for i in self.sections:
+            if i.name == name:
+                return True
+        return False
+
+    def append(self, line):
+        """Parse a comment line and add it to the documentation."""
+        line = line[1:]
+        if not line:
+            self._append_freeform(line)
+            return
+
+        if line[0] != ' ':
+            raise QAPIParseError(self.parser, "Missing space after #")
+        line = line[1:]
+
+        # FIXME not nice: things like '#  @foo:' and '# @foo: ' aren't
+        # recognized, and get silently treated as ordinary text
+        if self.symbol:
+            self._append_symbol_line(line)
+        elif not self.body.content and line.startswith("@"):
+            if not line.endswith(":"):
+                raise QAPIParseError(self.parser, "Line should end with :")
+            self.symbol = line[1:-1]
+            # FIXME invalid names other than the empty string aren't flagged
+            if not self.symbol:
+                raise QAPIParseError(self.parser, "Invalid name")
+        else:
+            self._append_freeform(line)
+
+    def _append_symbol_line(self, line):
+        name = line.split(' ', 1)[0]
+
+        if name.startswith("@") and name.endswith(":"):
+            line = line[len(name)+1:]
+            self._start_args_section(name[1:-1])
+        elif name in ("Returns:", "Since:",
+                      # those are often singular or plural
+                      "Note:", "Notes:",
+                      "Example:", "Examples:",
+                      "TODO:"):
+            line = line[len(name)+1:]
+            self._start_section(name[:-1])
+
+        self._append_freeform(line)
+
+    def _start_args_section(self, name):
+        # FIXME invalid names other than the empty string aren't flagged
+        if not name:
+            raise QAPIParseError(self.parser, "Invalid parameter name")
+        if name in self.args:
+            raise QAPIParseError(self.parser,
+                                 "'%s' parameter name duplicated" % name)
+        if self.sections:
+            raise QAPIParseError(self.parser,
+                                 "'@%s:' can't follow '%s' section"
+                                 % (name, self.sections[0].name))
+        self.section = QAPIDoc.ArgSection(name)
+        self.args[name] = self.section
+
+    def _start_section(self, name=""):
+        if name in ("Returns", "Since") and self.has_section(name):
+            raise QAPIParseError(self.parser,
+                                 "Duplicated '%s' section" % name)
+        self.section = QAPIDoc.Section(name)
+        self.sections.append(self.section)
+
+    def _append_freeform(self, line):
+        in_arg = isinstance(self.section, QAPIDoc.ArgSection)
+        if (in_arg and self.section.content
+                and not self.section.content[-1]
+                and line and not line[0].isspace()):
+            self._start_section()
+        if (in_arg or not self.section.name
+                or not self.section.name.startswith("Example")):
+            line = line.strip()
+        self.section.append(line)
+
+
 class QAPISchemaParser(object):
 
     def __init__(self, fp, previously_included=[], incl_info=None):
@@ -140,11 +256,17 @@ class QAPISchemaParser(object):
         self.line = 1
         self.line_pos = 0
         self.exprs = []
+        self.docs = []
         self.accept()
 
         while self.tok is not None:
             info = {'file': fname, 'line': self.line,
                     'parent': self.incl_info}
+            if self.tok == '#':
+                doc = self.get_doc(info)
+                self.docs.append(doc)
+                continue
+
             expr = self.get_expr(False)
             if isinstance(expr, dict) and "include" in expr:
                 if len(expr) != 1:
@@ -162,6 +284,7 @@ class QAPISchemaParser(object):
                         raise QAPISemError(info, "Inclusion loop for %s"
                                            % include)
                     inf = inf['parent']
+
                 # skip multiple include of the same file
                 if incl_abs_fname in previously_included:
                     continue
@@ -172,12 +295,19 @@ class QAPISchemaParser(object):
                 exprs_include = QAPISchemaParser(fobj, previously_included,
                                                  info)
                 self.exprs.extend(exprs_include.exprs)
+                self.docs.extend(exprs_include.docs)
             else:
                 expr_elem = {'expr': expr,
                              'info': info}
+                if (self.docs
+                        and self.docs[-1].info['file'] == fname
+                        and not self.docs[-1].expr):
+                    self.docs[-1].expr = expr
+                    expr_elem['doc'] = self.docs[-1]
+
                 self.exprs.append(expr_elem)
 
-    def accept(self):
+    def accept(self, skip_comment=True):
         while True:
             self.tok = self.src[self.cursor]
             self.pos = self.cursor
@@ -185,7 +315,13 @@ class QAPISchemaParser(object):
             self.val = None
 
             if self.tok == '#':
+                if self.src[self.cursor] == '#':
+                    # Start of doc comment
+                    skip_comment = False
                 self.cursor = self.src.find('\n', self.cursor)
+                if not skip_comment:
+                    self.val = self.src[self.pos:self.cursor]
+                    return
             elif self.tok in "{}:,[]":
                 return
             elif self.tok == "'":
@@ -318,6 +454,28 @@ class QAPISchemaParser(object):
         else:
             raise QAPIParseError(self, 'Expected "{", "[" or string')
         return expr
+
+    def get_doc(self, info):
+        if self.val != '##':
+            raise QAPIParseError(self, "Junk after '##' at start of "
+                                 "documentation comment")
+
+        doc = QAPIDoc(self, info)
+        self.accept(False)
+        while self.tok == '#':
+            if self.val.startswith('##'):
+                # End of doc comment
+                if self.val != '##':
+                    raise QAPIParseError(self, "Junk after '##' at end of "
+                                         "documentation comment")
+                self.accept()
+                return doc
+            else:
+                doc.append(self.val)
+            self.accept(False)
+
+        raise QAPIParseError(self, "Documentation comment must end with '##'")
+
 
 #
 # Semantic analysis of schema expressions
@@ -703,6 +861,11 @@ def check_exprs(exprs):
     for expr_elem in exprs:
         expr = expr_elem['expr']
         info = expr_elem['info']
+
+        if 'doc' not in expr_elem:
+            raise QAPISemError(info,
+                               "Expression missing documentation comment")
+
         if 'enum' in expr:
             check_keys(expr_elem, 'enum', ['data'], ['prefix'])
             add_enum(expr['enum'], info, expr['data'])
@@ -759,6 +922,88 @@ def check_exprs(exprs):
             assert False, 'unexpected meta type'
 
     return exprs
+
+
+def check_freeform_doc(doc):
+    if doc.symbol:
+        raise QAPISemError(doc.info,
+                           "Documention for '%s' is not followed"
+                           " by the definition" % doc.symbol)
+
+    body = str(doc.body)
+    if re.search(r'@\S+:', body, re.MULTILINE):
+        raise QAPISemError(doc.info,
+                           "Free-form documentation block must not contain"
+                           " @NAME: sections")
+
+
+def check_definition_doc(doc, expr, info):
+    for i in ('enum', 'union', 'alternate', 'struct', 'command', 'event'):
+        if i in expr:
+            meta = i
+            break
+
+    name = expr[meta]
+    if doc.symbol != name:
+        raise QAPISemError(info, "Definition of '%s' follows documentation"
+                           " for '%s'" % (name, doc.symbol))
+    if doc.has_section('Returns') and 'command' not in expr:
+        raise QAPISemError(info, "'Returns:' is only valid for commands")
+
+    if meta == 'union':
+        args = expr.get('base', [])
+    else:
+        args = expr.get('data', [])
+    if isinstance(args, str):
+        return
+    if isinstance(args, dict):
+        args = args.keys()
+    assert isinstance(args, list)
+
+    if (meta == 'alternate'
+            or (meta == 'union' and not expr.get('discriminator'))):
+        args.append('type')
+
+    for arg in args:
+        if arg[0] == '*':
+            opt = True
+            desc = doc.args.get(arg[1:])
+        else:
+            opt = False
+            desc = doc.args.get(arg)
+        if not desc:
+            continue
+        desc_opt = "#optional" in str(desc)
+        if desc_opt and not opt:
+            raise QAPISemError(info, "Description has #optional, "
+                               "but the declaration doesn't")
+        if not desc_opt and opt:
+            # silently fix the doc
+            # TODO either fix the schema and make this an error,
+            # or drop #optional entirely
+            desc.append("#optional")
+
+    doc_args = set(doc.args.keys())
+    args = set([name.strip('*') for name in args])
+    if not doc_args.issubset(args):
+        raise QAPISemError(info, "The following documented members are not in "
+                           "the declaration: %s" % ", ".join(doc_args - args))
+
+
+def check_docs(docs):
+    for doc in docs:
+        for section in doc.args.values() + doc.sections:
+            content = str(section)
+            if not content or content.isspace():
+                raise QAPISemError(doc.info,
+                                   "Empty doc section '%s'" % section.name)
+
+        if not doc.expr:
+            check_freeform_doc(doc)
+        else:
+            check_definition_doc(doc, doc.expr, doc.info)
+
+    return docs
 
 
 #
@@ -1229,7 +1474,9 @@ class QAPISchemaEvent(QAPISchemaEntity):
 class QAPISchema(object):
     def __init__(self, fname):
         try:
-            self.exprs = check_exprs(QAPISchemaParser(open(fname, "r")).exprs)
+            parser = QAPISchemaParser(open(fname, "r"))
+            self.exprs = check_exprs(parser.exprs)
+            self.docs = check_docs(parser.docs)
             self._entity_dict = {}
             self._predefining = True
             self._def_predefineds()

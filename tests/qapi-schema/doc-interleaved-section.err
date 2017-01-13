@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-interleaved-section.json:15:1: '@foobar:' can't follow 'Note' section

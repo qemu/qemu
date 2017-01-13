@@ -1,1 +1,1 @@
-tests/qapi-schema/union-clash-branches.json:4: 'a_b' (branch of TestUnion) collides with 'a-b' (branch of TestUnion)
+tests/qapi-schema/union-clash-branches.json:8: 'a_b' (branch of TestUnion) collides with 'a-b' (branch of TestUnion)

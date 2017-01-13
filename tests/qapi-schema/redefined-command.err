@@ -1,1 +1,1 @@
-tests/qapi-schema/redefined-command.json:3: command 'foo' is already defined
+tests/qapi-schema/redefined-command.json:10: command 'foo' is already defined

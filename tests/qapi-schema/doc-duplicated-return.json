@@ -1,0 +1,8 @@
+# Do not allow duplicated Returns section
+
+##
+# @foo:
+#
+# Returns: 0
+# Returns: 1
+##

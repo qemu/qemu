@@ -1,3 +1,10 @@
 # we reject duplicate events
+
+##
+# @EVENT_A:
+##
 { 'event': 'EVENT_A', 'data': { 'myint': 'int' } }
+##
+# @EVENT_A:
+##
 { 'event': 'EVENT_A', 'data': { 'myint': 'int' } }

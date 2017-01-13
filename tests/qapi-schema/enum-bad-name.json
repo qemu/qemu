@@ -1,2 +1,6 @@
 # we ensure all enum names can map to C
+
+##
+# @MyEnum:
+##
 { 'enum': 'MyEnum', 'data': [ 'not^possible' ] }

@@ -1,5 +1,12 @@
 # C entity name collision
 # We reject names like 'q-unix', because they can collide with the mangled
 # name for 'unix' in generated C.
+
+##
+# @unix:
+##
 { 'command': 'unix' }
+##
+# @q-unix:
+##
 { 'command': 'q-unix' }

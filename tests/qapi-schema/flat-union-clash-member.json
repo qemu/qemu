@@ -1,13 +1,29 @@
 # We check for no duplicate keys between branch members and base
 # base's member 'name' clashes with Branch1's
+
+##
+# @TestEnum:
+##
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
+##
+# @Base:
+##
 { 'struct': 'Base',
   'data': { 'enum1': 'TestEnum', '*name': 'str' } }
+##
+# @Branch1:
+##
 { 'struct': 'Branch1',
   'data': { 'name': 'str' } }
+##
+# @Branch2:
+##
 { 'struct': 'Branch2',
   'data': { 'value': 'int' } }
+##
+# @TestUnion:
+##
 { 'union': 'TestUnion',
   'base': 'Base',
   'discriminator': 'enum1',

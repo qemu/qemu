@@ -1,7 +1,14 @@
 # we do not allow array branches in alternates
+
+##
+# @One:
+##
 # TODO: should we support this?
 { 'struct': 'One',
   'data': { 'name': 'str' } }
+##
+# @Alt:
+##
 { 'alternate': 'Alt',
   'data': { 'one': 'One',
             'two': [ 'int' ] } }

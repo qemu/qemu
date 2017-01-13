@@ -1,5 +1,12 @@
 # we reject a nested alternate branch
+
+##
+# @Alt1:
+##
 { 'alternate': 'Alt1',
   'data': { 'name': 'str', 'value': 'int' } }
+##
+# @Alt2:
+##
 { 'alternate': 'Alt2',
   'data': { 'nested': 'Alt1', 'b': 'bool' } }

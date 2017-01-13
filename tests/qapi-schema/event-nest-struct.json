@@ -1,2 +1,6 @@
+##
+# @EVENT_A:
+# event-nest-struct
+##
 { 'event': 'EVENT_A',
   'data': { 'a' : { 'string' : 'str', 'integer': 'int' }, 'b' : 'str' } }

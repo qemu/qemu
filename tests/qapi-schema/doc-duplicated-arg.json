@@ -1,0 +1,7 @@
+# Do not allow duplicated argument
+
+##
+# @foo:
+# @a:
+# @a:
+##

@@ -3,67 +3,153 @@
 # This file is a stress test of supported qapi constructs that must
 # parse and compile correctly.
 
+##
+# = Section
+# == subsection
+#
+# Some text foo with *strong* and _emphasis_
+# 1. with a list
+# 2. like that @foo
+#
+# And some code:
+# | $ echo foo
+# | -> do this
+# | <- get that
+#
+# Note: is not a meta
+##
+
+##
+# @TestStruct:
+#
+# body with @var
+#
+# @integer: foo
+#           blah
+#
+#           bao
+#
+# @boolean: bar
+# @string: baz
+#
+# Example:
+#
+# -> { "execute": ... }
+# <- { "return": ... }
+#
+# Since: 2.3
+# Note: a note
+#
+##
 { 'struct': 'TestStruct',
   'data': { 'integer': 'int', 'boolean': 'bool', 'string': 'str' } }
 
+##
+# @NestedEnumsOne:
 # for testing enums
+##
 { 'struct': 'NestedEnumsOne',
   'data': { 'enum1': 'EnumOne',   # Intentional forward reference
             '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
 
+##
+# @MyEnum:
 # An empty enum, although unusual, is currently acceptable
+##
 { 'enum': 'MyEnum', 'data': [ ] }
 
+##
+# @Empty1:
 # Likewise for an empty struct, including an empty base
+##
 { 'struct': 'Empty1', 'data': { } }
+##
+# @Empty2:
+##
 { 'struct': 'Empty2', 'base': 'Empty1', 'data': { } }
 
+##
+# @user_def_cmd0:
+##
 { 'command': 'user_def_cmd0', 'data': 'Empty2', 'returns': 'Empty2' }
 
+##
+# @QEnumTwo:
 # for testing override of default naming heuristic
+##
 { 'enum': 'QEnumTwo',
   'prefix': 'QENUM_TWO',
   'data': [ 'value1', 'value2' ] }
 
+##
+# @UserDefOne:
 # for testing nested structs
+##
 { 'struct': 'UserDefOne',
   'base': 'UserDefZero',        # intentional forward reference
   'data': { 'string': 'str',
             '*enum1': 'EnumOne' } }   # intentional forward reference
 
+##
+# @EnumOne:
+##
 { 'enum': 'EnumOne',
   'data': [ 'value1', 'value2', 'value3' ] }
 
+##
+# @UserDefZero:
+##
 { 'struct': 'UserDefZero',
   'data': { 'integer': 'int' } }
 
+##
+# @UserDefTwoDictDict:
+##
 { 'struct': 'UserDefTwoDictDict',
   'data': { 'userdef': 'UserDefOne', 'string': 'str' } }
 
+##
+# @UserDefTwoDict:
+##
 { 'struct': 'UserDefTwoDict',
   'data': { 'string1': 'str',
             'dict2': 'UserDefTwoDictDict',
             '*dict3': 'UserDefTwoDictDict' } }
 
+##
+# @UserDefTwo:
+##
 { 'struct': 'UserDefTwo',
   'data': { 'string0': 'str',
             'dict1': 'UserDefTwoDict' } }
 
+##
+# @ForceArrays:
 # dummy struct to force generation of array types not otherwise mentioned
+##
 { 'struct': 'ForceArrays',
   'data': { 'unused1':['UserDefOne'], 'unused2':['UserDefTwo'],
             'unused3':['TestStruct'] } }
 
+##
+# @UserDefA:
 # for testing unions
 # Among other things, test that a name collision between branches does
 # not cause any problems (since only one branch can be in use at a time),
 # by intentionally using two branches that both have a C member 'a_b'
+##
 { 'struct': 'UserDefA',
   'data': { 'boolean': 'bool', '*a_b': 'int' } }
 
+##
+# @UserDefB:
+##
 { 'struct': 'UserDefB',
   'data': { 'intb': 'int', '*a-b': 'bool' } }
 
+##
+# @UserDefFlatUnion:
+##
 { 'union': 'UserDefFlatUnion',
   'base': 'UserDefUnionBase',   # intentional forward reference
   'discriminator': 'enum1',
@@ -71,35 +157,71 @@
             'value2' : 'UserDefB',
             'value3' : 'UserDefB' } }
 
+##
+# @UserDefUnionBase:
+##
 { 'struct': 'UserDefUnionBase',
   'base': 'UserDefZero',
   'data': { 'string': 'str', 'enum1': 'EnumOne' } }
 
+##
+# @UserDefFlatUnion2:
 # this variant of UserDefFlatUnion defaults to a union that uses members with
 # allocated types to test corner cases in the cleanup/dealloc visitor
+##
 { 'union': 'UserDefFlatUnion2',
   'base': { '*integer': 'int', 'string': 'str', 'enum1': 'QEnumTwo' },
   'discriminator': 'enum1',
   'data': { 'value1' : 'UserDefC', # intentional forward reference
             'value2' : 'UserDefB' } }
 
+##
+# @WrapAlternate:
+##
 { 'struct': 'WrapAlternate',
   'data': { 'alt': 'UserDefAlternate' } }
+##
+# @UserDefAlternate:
+##
 { 'alternate': 'UserDefAlternate',
   'data': { 'udfu': 'UserDefFlatUnion', 's': 'str', 'i': 'int' } }
 
+##
+# @UserDefC:
+##
 { 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
 
 # for testing use of 'number' within alternates
+##
+# @AltStrBool:
+##
 { 'alternate': 'AltStrBool', 'data': { 's': 'str', 'b': 'bool' } }
+##
+# @AltStrNum:
+##
 { 'alternate': 'AltStrNum', 'data': { 's': 'str', 'n': 'number' } }
+##
+# @AltNumStr:
+##
 { 'alternate': 'AltNumStr', 'data': { 'n': 'number', 's': 'str' } }
+##
+# @AltStrInt:
+##
 { 'alternate': 'AltStrInt', 'data': { 's': 'str', 'i': 'int' } }
+##
+# @AltIntNum:
+##
 { 'alternate': 'AltIntNum', 'data': { 'i': 'int', 'n': 'number' } }
+##
+# @AltNumInt:
+##
 { 'alternate': 'AltNumInt', 'data': { 'n': 'number', 'i': 'int' } }
 
+##
+# @UserDefNativeListUnion:
 # for testing native lists
+##
 { 'union': 'UserDefNativeListUnion',
   'data': { 'integer': ['int'],
             's8': ['int8'],
@@ -117,19 +239,61 @@
             'any': ['any'] } }
 
 # testing commands
+##
+# @user_def_cmd:
+##
 { 'command': 'user_def_cmd', 'data': {} }
+##
+# @user_def_cmd1:
+##
 { 'command': 'user_def_cmd1', 'data': {'ud1a': 'UserDefOne'} }
+##
+# @user_def_cmd2:
+##
 { 'command': 'user_def_cmd2',
   'data': {'ud1a': 'UserDefOne', '*ud1b': 'UserDefOne'},
   'returns': 'UserDefTwo' }
 
+##
+# Another comment
+##
+
+##
+# @guest-get-time:
+#
+# @guest-get-time body
+#
+# @a: an integer
+# @b: #optional integer
+#
+# Returns: returns something
+#
+# Example:
+#
+# -> { "execute": "guest-get-time", ... }
+# <- { "return": "42" }
+#
+##
+
 # Returning a non-dictionary requires a name from the whitelist
 { 'command': 'guest-get-time', 'data': {'a': 'int', '*b': 'int' },
   'returns': 'int' }
+##
+# @guest-sync:
+##
 { 'command': 'guest-sync', 'data': { 'arg': 'any' }, 'returns': 'any' }
+##
+# @boxed-struct:
+##
 { 'command': 'boxed-struct', 'boxed': true, 'data': 'UserDefZero' }
+##
+# @boxed-union:
+##
 { 'command': 'boxed-union', 'data': 'UserDefNativeListUnion', 'boxed': true }
 
+##
+# @UserDefOptions:
+#
 # For testing integer range flattening in opts-visitor. The following schema
 # corresponds to the option format:
 #
@@ -137,6 +301,7 @@
 #
 # For simplicity, this example doesn't use [type=]discriminator nor optargs
 # specific to discriminator values.
+##
 { 'struct': 'UserDefOptions',
   'data': {
     '*i64' : [ 'int'    ],
@@ -146,35 +311,83 @@
     '*u64x':   'uint64'  } }
 
 # testing event
+##
+# @EventStructOne:
+##
 { 'struct': 'EventStructOne',
   'data': { 'struct1': 'UserDefOne', 'string': 'str', '*enum2': 'EnumOne' } }
 
+##
+# @EVENT_A:
+##
 { 'event': 'EVENT_A' }
+##
+# @EVENT_B:
+##
 { 'event': 'EVENT_B',
   'data': { } }
+##
+# @EVENT_C:
+##
 { 'event': 'EVENT_C',
   'data': { '*a': 'int', '*b': 'UserDefOne', 'c': 'str' } }
+##
+# @EVENT_D:
+##
 { 'event': 'EVENT_D',
   'data': { 'a' : 'EventStructOne', 'b' : 'str', '*c': 'str', '*enum3': 'EnumOne' } }
+##
+# @EVENT_E:
+##
 { 'event': 'EVENT_E', 'boxed': true, 'data': 'UserDefZero' }
+##
+# @EVENT_F:
+##
 { 'event': 'EVENT_F', 'boxed': true, 'data': 'UserDefAlternate' }
 
 # test that we correctly compile downstream extensions, as well as munge
 # ticklish names
+##
+# @__org.qemu_x-Enum:
+##
 { 'enum': '__org.qemu_x-Enum', 'data': [ '__org.qemu_x-value' ] }
+##
+# @__org.qemu_x-Base:
+##
 { 'struct': '__org.qemu_x-Base',
   'data': { '__org.qemu_x-member1': '__org.qemu_x-Enum' } }
+##
+# @__org.qemu_x-Struct:
+##
 { 'struct': '__org.qemu_x-Struct', 'base': '__org.qemu_x-Base',
   'data': { '__org.qemu_x-member2': 'str', '*wchar-t': 'int' } }
+##
+# @__org.qemu_x-Union1:
+##
 { 'union': '__org.qemu_x-Union1', 'data': { '__org.qemu_x-branch': 'str' } }
+##
+# @__org.qemu_x-Struct2:
+##
 { 'struct': '__org.qemu_x-Struct2',
   'data': { 'array': ['__org.qemu_x-Union1'] } }
+##
+# @__org.qemu_x-Union2:
+##
 { 'union': '__org.qemu_x-Union2', 'base': '__org.qemu_x-Base',
   'discriminator': '__org.qemu_x-member1',
   'data': { '__org.qemu_x-value': '__org.qemu_x-Struct2' } }
+##
+# @__org.qemu_x-Alt:
+##
 { 'alternate': '__org.qemu_x-Alt',
   'data': { '__org.qemu_x-branch': 'str', 'b': '__org.qemu_x-Base' } }
+##
+# @__ORG.QEMU_X-EVENT:
+##
 { 'event': '__ORG.QEMU_X-EVENT', 'data': '__org.qemu_x-Struct' }
+##
+# @__org.qemu_x-command:
+##
 { 'command': '__org.qemu_x-command',
   'data': { 'a': ['__org.qemu_x-Enum'], 'b': ['__org.qemu_x-Struct'],
             'c': '__org.qemu_x-Union2', 'd': '__org.qemu_x-Alt' },

@@ -1,2 +1,6 @@
 # Branch names should be 'lower-case' unless the union is whitelisted
+
+##
+# @NoWayThisWillGetWhitelisted:
+##
 { 'union': 'NoWayThisWillGetWhitelisted', 'data': { 'Branch': 'int' } }
