@@ -272,9 +272,9 @@
 #
 # Emitted when guest executes ACPI _OST method.
 #
-# Since: 2.1
-#
 # @info: ACPIOSTInfo type as described in qapi-schema.json
+#
+# Since: 2.1
 ##
 { 'event': 'ACPI_DEVICE_OST',
      'data': { 'info': 'ACPIOSTInfo' } }
