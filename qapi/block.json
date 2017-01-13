@@ -1,9 +1,15 @@
 # -*- Mode: Python -*-
-#
-# QAPI block definitions (vm related)
+
+##
+# = QAPI block definitions
+##
 
 # QAPI block core definitions
 { 'include': 'block-core.json' }
+
+##
+# == QAPI block definitions (vm unrelated)
+##
 
 ##
 # @BiosAtaTranslation:

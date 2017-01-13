@@ -1,6 +1,8 @@
 # -*- Mode: Python -*-
-#
-# QAPI common definitions
+
+##
+# = QAPI common definitions
+##
 
 ##
 # @QapiErrorClass:

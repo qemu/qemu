@@ -21,6 +21,10 @@
 { 'include': 'qapi/introspect.json' }
 
 ##
+# = QMP commands
+##
+
+##
 # @qmp_capabilities:
 #
 # Enable QMP capabilities.
