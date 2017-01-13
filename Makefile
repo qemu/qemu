@@ -527,17 +527,17 @@ ui/console-gl.o: $(SRC_PATH)/ui/console-gl.c \
 
 # documentation
 MAKEINFO=makeinfo
-MAKEINFOFLAGS=--no-headers --no-split --number-sections
+MAKEINFOFLAGS=--no-split --number-sections
 TEXIFLAG=$(if $(V),,--quiet)
 %.dvi: %.texi
 	$(call quiet-command,texi2dvi $(TEXIFLAG) -I . $<,"GEN","$@")
 
 %.html: %.texi
-	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --html $< -o $@, \
-	"GEN","$@")
+	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --no-headers \
+	--html $< -o $@,"GEN","$@")
 
 %.info: %.texi
-	$(call quiet-command,$(MAKEINFO) $< -o $@,"GEN","$@")
+	$(call quiet-command,$(MAKEINFO) $(MAKEINFOFLAGS) $< -o $@,"GEN","$@")
 
 %.pdf: %.texi
 	$(call quiet-command,texi2pdf $(TEXIFLAG) -I . $<,"GEN","$@")
