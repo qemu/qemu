@@ -1708,6 +1708,11 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
     }
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
+        if (!pcms->acpi_nvdimm_state.is_enabled) {
+            error_setg(&local_err,
+                       "nvdimm is not enabled: missing 'nvdimm' in '-M'");
+            goto out;
+        }
         nvdimm_plug(&pcms->acpi_nvdimm_state);
     }
 
