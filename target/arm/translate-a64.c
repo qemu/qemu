@@ -3217,7 +3217,7 @@ static void disas_bitfield(DisasContext *s, uint32_t insn)
     tcg_tmp = read_cpu_reg(s, rn, 1);
 
     /* Recognize simple(r) extractions.  */
-    if (si <= ri) {
+    if (si >= ri) {
         /* Wd<s-r:0> = Wn<s:r> */
         len = (si - ri) + 1;
         if (opc == 0) { /* SBFM: ASR, SBFX, SXTB, SXTH, SXTW */
