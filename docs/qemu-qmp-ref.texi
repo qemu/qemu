@@ -6,6 +6,10 @@
 
 @settitle QEMU QMP Reference Manual
 
+@iftex
+@center @image{docs/qemu_logo}
+@end iftex
+
 @copying
 This is the QEMU QMP reference manual.
 

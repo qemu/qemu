@@ -6,6 +6,10 @@
 
 @settitle QEMU Guest Agent Protocol Reference
 
+@iftex
+@center @image{docs/qemu_logo}
+@end iftex
+
 @copying
 This is the QEMU Guest Agent Protocol reference manual.
 
