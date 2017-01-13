@@ -3196,17 +3196,22 @@ void helper_xvxsigsp(CPUPPCState *env, uint32_t opcode)
  *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   tfld   - target vsr_t field (VsrD(*) or VsrW(*))
  *   fld_max - target field max
+ *   scrf - set result in CR and FPCC
  */
-#define VSX_TEST_DC(op, nels, xbn, tp, fld, tfld, fld_max)  \
+#define VSX_TEST_DC(op, nels, xbn, tp, fld, tfld, fld_max, scrf)  \
 void helper_##op(CPUPPCState *env, uint32_t opcode)         \
 {                                                           \
     ppc_vsr_t xt, xb;                                       \
     uint32_t i, sign, dcmx;                                 \
-    uint32_t match = 0;                                     \
+    uint32_t cc, match = 0;                                 \
                                                             \
     getVSR(xbn, &xb, env);                                  \
-    memset(&xt, 0, sizeof(xt));                             \
-    dcmx = DCMX_XV(opcode);                                 \
+    if (!scrf) {                                            \
+        memset(&xt, 0, sizeof(xt));                         \
+        dcmx = DCMX_XV(opcode);                             \
+    } else {                                                \
+        dcmx = DCMX(opcode);                                \
+    }                                                       \
                                                             \
     for (i = 0; i < nels; i++) {                            \
         sign = tp##_is_neg(xb.fld);                         \
@@ -3219,11 +3224,56 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)         \
         } else if (tp##_is_zero_or_denormal(xb.fld)) {      \
             match = extract32(dcmx, 0 + !sign, 1);          \
         }                                                   \
-        xt.tfld = match ? fld_max : 0;                      \
+                                                            \
+        if (scrf) {                                         \
+            cc = sign << CRF_LT_BIT | match << CRF_EQ_BIT;  \
+            env->fpscr &= ~(0x0F << FPSCR_FPRF);            \
+            env->fpscr |= cc << FPSCR_FPRF;                 \
+            env->crf[BF(opcode)] = cc;                      \
+        } else {                                            \
+            xt.tfld = match ? fld_max : 0;                  \
+        }                                                   \
         match = 0;                                          \
     }                                                       \
-    putVSR(xT(opcode), &xt, env);                           \
+    if (!scrf) {                                            \
+        putVSR(xT(opcode), &xt, env);                       \
+    }                                                       \
 }
 
-VSX_TEST_DC(xvtstdcdp, 2, xB(opcode), float64, VsrD(i), VsrD(i), UINT64_MAX)
-VSX_TEST_DC(xvtstdcsp, 4, xB(opcode), float32, VsrW(i), VsrW(i), UINT32_MAX)
+VSX_TEST_DC(xvtstdcdp, 2, xB(opcode), float64, VsrD(i), VsrD(i), UINT64_MAX, 0)
+VSX_TEST_DC(xvtstdcsp, 4, xB(opcode), float32, VsrW(i), VsrW(i), UINT32_MAX, 0)
+VSX_TEST_DC(xststdcdp, 1, xB(opcode), float64, VsrD(0), VsrD(0), 0, 1)
+VSX_TEST_DC(xststdcqp, 1, (rB(opcode) + 32), float128, f128, VsrD(0), 0, 1)
+
+void helper_xststdcsp(CPUPPCState *env, uint32_t opcode)
+{
+    ppc_vsr_t xb;
+    uint32_t dcmx, sign, exp;
+    uint32_t cc, match = 0, not_sp = 0;
+
+    getVSR(xB(opcode), &xb, env);
+    dcmx = DCMX(opcode);
+    exp = (xb.VsrD(0) >> 52) & 0x7FF;
+
+    sign = float64_is_neg(xb.VsrD(0));
+    if (float64_is_any_nan(xb.VsrD(0))) {
+        match = extract32(dcmx, 6, 1);
+    } else if (float64_is_infinity(xb.VsrD(0))) {
+        match = extract32(dcmx, 4 + !sign, 1);
+    } else if (float64_is_zero(xb.VsrD(0))) {
+        match = extract32(dcmx, 2 + !sign, 1);
+    } else if (float64_is_zero_or_denormal(xb.VsrD(0)) ||
+               (exp > 0 && exp < 0x381)) {
+        match = extract32(dcmx, 0 + !sign, 1);
+    }
+
+    not_sp = !float64_eq(xb.VsrD(0),
+                         float32_to_float64(
+                             float64_to_float32(xb.VsrD(0), &env->fp_status),
+                             &env->fp_status), &env->fp_status);
+
+    cc = sign << CRF_LT_BIT | match << CRF_EQ_BIT | not_sp << CRF_SO_BIT;
+    env->fpscr &= ~(0x0F << FPSCR_FPRF);
+    env->fpscr |= cc << FPSCR_FPRF;
+    env->crf[BF(opcode)] = cc;
+}
