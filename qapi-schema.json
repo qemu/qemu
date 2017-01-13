@@ -2314,7 +2314,7 @@
 #                     "mac": "52:54:00:12:34:56" } }
 # <- { "return": {} }
 #
-# TODO This command effectively bypasses QAPI completely due to its
+# TODO: This command effectively bypasses QAPI completely due to its
 # "additional arguments" business.  It shouldn't have been added to
 # the schema in this form.  It should be qapified properly, or
 # replaced by a properly qapified command.
@@ -2515,7 +2515,7 @@
 #
 # Additional arguments depend on the type.
 #
-# TODO This command effectively bypasses QAPI completely due to its
+# TODO: This command effectively bypasses QAPI completely due to its
 # "additional arguments" business.  It shouldn't have been added to
 # the schema in this form.  It should be qapified properly, or
 # replaced by a properly qapified command.
