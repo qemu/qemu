@@ -60,7 +60,6 @@
 *.a
 *.aux
 *.cp
-*.dvi
 *.exe
 *.msi
 *.dll

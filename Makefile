@@ -80,7 +80,7 @@ GENERATED_HEADERS += module_block.h
 Makefile: ;
 configure: ;
 
-.PHONY: all clean cscope distclean dvi html info install install-doc \
+.PHONY: all clean cscope distclean html info install install-doc \
 	pdf recurse-all speed test dist msi FORCE
 
 $(call set-vpath, $(SRC_PATH))
@@ -387,7 +387,7 @@ distclean: clean
 	rm -f config-all-devices.mak config-all-disas.mak config.status
 	rm -f po/*.mo tests/qemu-iotests/common.env
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
-	rm -f qemu-doc.info qemu-doc.aux qemu-doc.cp qemu-doc.cps qemu-doc.dvi
+	rm -f qemu-doc.info qemu-doc.aux qemu-doc.cp qemu-doc.cps
 	rm -f qemu-doc.fn qemu-doc.fns qemu-doc.info qemu-doc.ky qemu-doc.kys
 	rm -f qemu-doc.log qemu-doc.pdf qemu-doc.pg qemu-doc.toc qemu-doc.tp
 	rm -f qemu-doc.vr
@@ -529,9 +529,6 @@ ui/console-gl.o: $(SRC_PATH)/ui/console-gl.c \
 MAKEINFO=makeinfo
 MAKEINFOFLAGS=--no-split --number-sections
 TEXIFLAG=$(if $(V),,--quiet)
-%.dvi: %.texi
-	$(call quiet-command,texi2dvi $(TEXIFLAG) -I . $<,"GEN","$@")
-
 %.html: %.texi
 	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --no-headers \
 	--html $< -o $@,"GEN","$@")
@@ -585,12 +582,11 @@ qemu-ga.8: qemu-ga.texi
 	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-ga.pod > $@, \
 	  "GEN","$@")
 
-dvi: qemu-doc.dvi
 html: qemu-doc.html
 info: qemu-doc.info
 pdf: qemu-doc.pdf
 
-qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
+qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi qemu-option-trace.texi \
 	qemu-monitor.texi qemu-img-cmds.texi qemu-ga.texi \
 	qemu-monitor-info.texi
@@ -687,7 +683,7 @@ help:
 	@echo  '  docker          - Help about targets running tests inside Docker containers'
 	@echo  ''
 	@echo  'Documentation targets:'
-	@echo  '  dvi html info pdf'
+	@echo  '  html info pdf'
 	@echo  '                  - Build documentation in specified format'
 	@echo  ''
 ifdef CONFIG_WIN32
