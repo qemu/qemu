@@ -37,6 +37,7 @@ $inf = "";
 $ibase = "";
 @ipath = ();
 $encoding = undef;
+@args = ();
 
 while ($_ = shift) {
     if (/^-D(.*)$/) {
@@ -162,7 +163,8 @@ while(<$inf>) {
 	if ($ended =~ /^(?:ifset|ifclear|ignore|menu|iftex)$/) {
 	    $skipping = pop @skstack;
 	    next;
-	} elsif ($ended =~ /^(?:example|smallexample|display)$/) {
+	} elsif ($ended =~ /^(?:example|smallexample|display
+                            |quotation|deftp|deftypefn)$/x) {
 	    $shift = "";
 	    $_ = "";	# need a paragraph break
 	} elsif ($ended =~ /^(?:itemize|enumerate|[fv]?table)$/) {
@@ -303,6 +305,7 @@ while(<$inf>) {
 	$ic =~ s/\@(?:code|kbd)/C/;
 	$ic =~ s/\@(?:dfn|var|emph|cite|i)/I/;
 	$ic =~ s/\@(?:file)/F/;
+	$ic =~ s/\@(?:asis)//;
 	$_ = "\n=over 4\n";
     };
 
@@ -323,10 +326,54 @@ while(<$inf>) {
 	$_ = "\n=item ".join (" : ", @columns)."\n";
     };
 
+    /^\@(quotation)\s*(.+)?$/ and do {
+        push @endwstack, $endw;
+        $endw = $1;
+        $_ = "\n$2:"
+    };
+
+    /^{(.*)}$|^(.*)$/ and $#args > 0 and do {
+        $kind = $args[0];
+        $arguments = $1 // "";
+        if ($endw eq "deftypefn") {
+            $ret = $args[1];
+            $fname = "B<$args[2]>";
+            $_ = $ret ? "$ret " : "";
+            $_ .= "$fname $arguments ($kind)";
+        } else {
+            $_ = "B<$args[1]> ($kind)\n\n$arguments";
+        }
+        @args = ();
+    };
+
+    /^\@(deftp)\s*(.+)?$/ and do {
+        push @endwstack, $endw;
+        $endw = $1;
+        $arg = $2;
+        $arg =~ s/{([^}]*)}/$1/g;
+        $arg =~ s/\@$//;
+        @args = split (/ /, $arg);
+        $_ = "";
+    };
+
+    /^\@(deftypefn)\s*(.+)?$/ and do {
+        push @endwstack, $endw;
+        $endw = $1;
+        $arg = $2;
+        $arg =~ s/{([^}]*)}/$1/g;
+        $arg =~ s/\@$//;
+        @args = split (/ /, $arg);
+        $_ = "";
+    };
+
     /^\@itemx?\s*(.+)?$/ and do {
 	if (defined $1) {
-	    # Entity escapes prevent munging by the <> processing below.
-	    $_ = "\n=item $ic\&LT;$1\&GT;\n";
+            if ($ic eq "") {
+                $_ = "\n=item $1\n";
+            } else {
+                # Entity escapes prevent munging by the <> processing below.
+                $_ = "\n=item $ic\&LT;$1\&GT;\n";
+            }
 	} else {
 	    $_ = "\n=item $ic\n";
 	    $ic =~ y/A-Ya-y/B-Zb-z/;
@@ -388,6 +435,7 @@ sub postprocess
     s/\@sc\{([^\}]*)\}/\U$1/g;
     s/\@file\{([^\}]*)\}/F<$1>/g;
     s/\@w\{([^\}]*)\}/S<$1>/g;
+    s/\@t\{([^\}]*)\}/$1/g;
     s/\@(?:dmn|math)\{([^\}]*)\}/$1/g;
 
     # keep references of the form @ref{...}, print them bold
