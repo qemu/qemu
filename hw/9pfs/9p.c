@@ -3454,7 +3454,7 @@ int v9fs_device_realize_common(V9fsState *s, Error **errp)
     /* initialize pdu allocator */
     QLIST_INIT(&s->free_list);
     QLIST_INIT(&s->active_list);
-    for (i = 0; i < (MAX_REQ - 1); i++) {
+    for (i = 0; i < MAX_REQ; i++) {
         QLIST_INSERT_HEAD(&s->free_list, &s->pdus[i], next);
         s->pdus[i].s = s;
         s->pdus[i].idx = i;
