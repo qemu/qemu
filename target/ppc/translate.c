@@ -6830,6 +6830,9 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     }
 #endif
 
+    if (env->spr_cb[SPR_LPCR].name)
+        cpu_fprintf(f, " LPCR " TARGET_FMT_lx "\n", env->spr[SPR_LPCR]);
+
     switch (env->mmu_model) {
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
