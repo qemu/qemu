@@ -2441,11 +2441,11 @@
 # BlockBackend will be created; otherwise, @node-name is mandatory at the top
 # level and no BlockBackend will be created.
 #
-# This command is still a work in progress.  It doesn't support all
+# For the arguments, see the documentation of BlockdevOptions.
+#
+# Note: This command is still a work in progress.  It doesn't support all
 # block drivers among other things.  Stay away from it unless you want
 # to help with its development.
-#
-# For the arguments, see the documentation of BlockdevOptions.
 #
 # Since: 1.7
 ##
@@ -2458,11 +2458,11 @@
 # The command will fail if the node is attached to a device or is
 # otherwise being used.
 #
-# This command is still a work in progress and is considered
+# @node-name: Name of the graph node to delete.
+#
+# Note: This command is still a work in progress and is considered
 # experimental. Stay away from it unless you want to help with its
 # development.
-#
-# @node-name: Name of the graph node to delete.
 #
 # Since: 2.5
 ##
@@ -2530,12 +2530,12 @@
 #
 # If the tray is open and there is no medium inserted, this will be a no-op.
 #
-# This command is still a work in progress and is considered experimental.
-# Stay away from it unless you want to help with its development.
-#
 # @device: #optional Block device name (deprecated, use @id instead)
 #
 # @id:     #optional The name or QOM path of the guest device (since: 2.8)
+#
+# Note: This command is still a work in progress and is considered experimental.
+# Stay away from it unless you want to help with its development.
 #
 # Since: 2.5
 ##
@@ -2550,14 +2550,14 @@
 # device's tray must currently be open (unless there is no attached guest
 # device) and there must be no medium inserted already.
 #
-# This command is still a work in progress and is considered experimental.
-# Stay away from it unless you want to help with its development.
-#
 # @device:    #optional Block device name (deprecated, use @id instead)
 #
 # @id:        #optional The name or QOM path of the guest device (since: 2.8)
 #
 # @node-name: name of a node in the block driver state graph
+#
+# Note: This command is still a work in progress and is considered experimental.
+# Stay away from it unless you want to help with its development.
 #
 # Since: 2.5
 ##
