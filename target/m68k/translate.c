@@ -1801,9 +1801,16 @@ DISAS_INSN(bitop_im)
     op = (insn >> 6) & 3;
 
     bitnum = read_im16(env, s);
-    if (bitnum & 0xff00) {
-        disas_undef(env, s, insn);
-        return;
+    if (m68k_feature(s->env, M68K_FEATURE_M68000)) {
+        if (bitnum & 0xfe00) {
+            disas_undef(env, s, insn);
+            return;
+        }
+    } else {
+        if (bitnum & 0xff00) {
+            disas_undef(env, s, insn);
+            return;
+        }
     }
 
     SRC_EA(env, src1, opsize, 0, op ? &addr: NULL);
