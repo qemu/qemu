@@ -3615,6 +3615,10 @@
 ##
 # @QKeyCode:
 #
+# An enumeration of key name.
+#
+# This is used by the @send-key command.
+#
 # @unmapped: since 2.0
 # @pause: since 2.0
 # @ro: since 2.4
@@ -3624,10 +3628,6 @@
 # @hiragana: since 2.9
 # @henkan: since 2.9
 # @yen: since 2.9
-#
-# An enumeration of key name.
-#
-# This is used by the send-key command.
 #
 # Since: 1.3.0
 #
