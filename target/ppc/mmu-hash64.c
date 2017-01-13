@@ -181,8 +181,8 @@ int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
     slb->vsid = vsid;
     slb->sps = sps;
 
-    LOG_SLB("%s: %d " TARGET_FMT_lx " - " TARGET_FMT_lx " => %016" PRIx64
-            " %016" PRIx64 "\n", __func__, slot, esid, vsid,
+    LOG_SLB("%s: " TARGET_FMT_lu " " TARGET_FMT_lx " - " TARGET_FMT_lx
+            " => %016" PRIx64 " %016" PRIx64 "\n", __func__, slot, esid, vsid,
             slb->esid, slb->vsid);
 
     return 0;
