@@ -1883,11 +1883,11 @@
 #
 #        Known limitations:
 #
-#        o This command is stateless, this means that commands that depend
+#        * This command is stateless, this means that commands that depend
 #          on state information (such as getfd) might not work
 #
-#       o Commands that prompt the user for data (eg. 'cont' when the block
-#         device is encrypted) don't currently work
+#        * Commands that prompt the user for data (eg. 'cont' when the block
+#          device is encrypted) don't currently work
 ##
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
