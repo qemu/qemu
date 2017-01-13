@@ -817,9 +817,15 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
         sdl2_console[i].dcl.con = con;
         register_displaychangelistener(&sdl2_console[i].dcl);
 
+#if defined(SDL_VIDEO_DRIVER_WINDOWS) || defined(SDL_VIDEO_DRIVER_X11)
         if (SDL_GetWindowWMInfo(sdl2_console[i].real_window, &info)) {
+#if defined(SDL_VIDEO_DRIVER_WINDOWS)
+            qemu_console_set_window_id(con, (uintptr_t)info.info.win.window);
+#elif defined(SDL_VIDEO_DRIVER_X11)
             qemu_console_set_window_id(con, info.info.x11.window);
+#endif
         }
+#endif
     }
 
     /* Load a 32x32x4 image. White pixels are transparent. */
