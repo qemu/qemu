@@ -68,7 +68,7 @@ static inline uint32_t name(uint32_t opcode)                                  \
             ((opcode >> (shift2)) & ((1 << (nb2)) - 1));                      \
 }
 
-#define EXTRACT_HELPER_DXFORM(name,                                           \
+#define EXTRACT_HELPER_SPLIT_3(name,                                          \
                               d0_bits, shift_op_d0, shift_d0,                 \
                               d1_bits, shift_op_d1, shift_d1,                 \
                               d2_bits, shift_op_d2, shift_d2)                 \
@@ -156,7 +156,7 @@ EXTRACT_HELPER(FPFLM, 17, 8);
 EXTRACT_HELPER(FPW, 16, 1);
 
 /* addpcis */
-EXTRACT_HELPER_DXFORM(DX, 10, 6, 6, 5, 16, 1, 1, 0, 0)
+EXTRACT_HELPER_SPLIT_3(DX, 10, 6, 6, 5, 16, 1, 1, 0, 0)
 #if defined(TARGET_PPC64)
 /* darn */
 EXTRACT_HELPER(L, 16, 2);
@@ -198,6 +198,7 @@ EXTRACT_HELPER(UIM, 16, 2);
 EXTRACT_HELPER(SHW, 8, 2);
 EXTRACT_HELPER(SP, 19, 2);
 EXTRACT_HELPER(IMM8, 11, 8);
+EXTRACT_HELPER_SPLIT_3(DCMX_XV, 5, 16, 0, 1, 2, 5, 1, 6, 6);
 
 typedef union _ppc_vsr_t {
     uint8_t u8[16];

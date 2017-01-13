@@ -3187,3 +3187,43 @@ void helper_xvxsigsp(CPUPPCState *env, uint32_t opcode)
     }
     putVSR(xT(opcode), &xt, env);
 }
+
+/* VSX_TEST_DC - VSX floating point test data class
+ *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
+ *   xbn   - VSR register number
+ *   tp    - type (float32 or float64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
+ *   tfld   - target vsr_t field (VsrD(*) or VsrW(*))
+ *   fld_max - target field max
+ */
+#define VSX_TEST_DC(op, nels, xbn, tp, fld, tfld, fld_max)  \
+void helper_##op(CPUPPCState *env, uint32_t opcode)         \
+{                                                           \
+    ppc_vsr_t xt, xb;                                       \
+    uint32_t i, sign, dcmx;                                 \
+    uint32_t match = 0;                                     \
+                                                            \
+    getVSR(xbn, &xb, env);                                  \
+    memset(&xt, 0, sizeof(xt));                             \
+    dcmx = DCMX_XV(opcode);                                 \
+                                                            \
+    for (i = 0; i < nels; i++) {                            \
+        sign = tp##_is_neg(xb.fld);                         \
+        if (tp##_is_any_nan(xb.fld)) {                      \
+            match = extract32(dcmx, 6, 1);                  \
+        } else if (tp##_is_infinity(xb.fld)) {              \
+            match = extract32(dcmx, 4 + !sign, 1);          \
+        } else if (tp##_is_zero(xb.fld)) {                  \
+            match = extract32(dcmx, 2 + !sign, 1);          \
+        } else if (tp##_is_zero_or_denormal(xb.fld)) {      \
+            match = extract32(dcmx, 0 + !sign, 1);          \
+        }                                                   \
+        xt.tfld = match ? fld_max : 0;                      \
+        match = 0;                                          \
+    }                                                       \
+    putVSR(xT(opcode), &xt, env);                           \
+}
+
+VSX_TEST_DC(xvtstdcdp, 2, xB(opcode), float64, VsrD(i), VsrD(i), UINT64_MAX)
+VSX_TEST_DC(xvtstdcsp, 4, xB(opcode), float32, VsrW(i), VsrW(i), UINT32_MAX)
