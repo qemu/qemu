@@ -2292,7 +2292,7 @@
 #
 # @bus: #optional the device's parent bus (device tree path)
 #
-# @id: the device's ID, must be unique
+# @id: #optional the device's ID, must be unique
 #
 # Additional arguments depend on the type.
 #
@@ -2322,7 +2322,7 @@
 # Since: 0.13
 ##
 { 'command': 'device_add',
-  'data': {'driver': 'str', 'id': 'str'},
+  'data': {'driver': 'str', '*bus': 'str', '*id': 'str'},
   'gen': false } # so we can get the additional arguments
 
 ##
