@@ -3221,6 +3221,9 @@
 # @unavailable-features: #optional List of properties that prevent
 #                        the CPU model from running in the current
 #                        host. (since 2.8)
+# @typename: Type name that can be used as argument to @device-list-properties,
+#            to introspect properties configurable using -cpu or -global.
+#            (since 2.9)
 #
 # @unavailable-features is a list of QOM property names that
 # represent CPU model attributes that prevent the CPU from running.
@@ -3242,7 +3245,7 @@
 ##
 { 'struct': 'CpuDefinitionInfo',
   'data': { 'name': 'str', '*migration-safe': 'bool', 'static': 'bool',
-            '*unavailable-features': [ 'str' ] } }
+            '*unavailable-features': [ 'str' ], 'typename': 'str' } }
 
 ##
 # @query-cpu-definitions:
@@ -4457,6 +4460,8 @@
 #
 # Information about memory backend
 #
+# @id: #optional backend's ID if backend has 'id' property (since 2.9)
+#
 # @size: memory backend size
 #
 # @merge: enables or disables memory merge support
@@ -4473,6 +4478,7 @@
 ##
 { 'struct': 'Memdev',
   'data': {
+    '*id':        'str',
     'size':       'size',
     'merge':      'bool',
     'dump':       'bool',

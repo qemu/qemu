@@ -76,23 +76,6 @@ void user_creatable_complete(Object *obj, Error **errp);
 bool user_creatable_can_be_deleted(UserCreatable *uc, Error **errp);
 
 /**
- * user_creatable_add:
- * @qdict: the object definition
- * @v: the visitor
- * @errp: if an error occurs, a pointer to an area to store the error
- *
- * Create an instance of the user creatable object whose type
- * is defined in @qdict by the 'qom-type' field, placing it
- * in the object composition tree with name provided by the
- * 'id' field. The remaining fields in @qdict are used to
- * initialize the object properties.
- *
- * Returns: the newly created object or NULL on error
- */
-Object *user_creatable_add(const QDict *qdict,
-                           Visitor *v, Error **errp);
-
-/**
  * user_creatable_add_type:
  * @type: the object type name
  * @id: the unique ID for the object

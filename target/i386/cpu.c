@@ -2235,6 +2235,7 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     info->name = x86_cpu_class_get_model_name(cc);
     x86_cpu_class_check_missing_features(cc, &info->unavailable_features);
     info->has_unavailable_features = true;
+    info->q_typename = g_strdup(object_class_get_name(oc));
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;

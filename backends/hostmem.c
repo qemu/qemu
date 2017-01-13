@@ -348,6 +348,24 @@ host_memory_backend_can_be_deleted(UserCreatable *uc, Error **errp)
     }
 }
 
+static char *get_id(Object *o, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(o);
+
+    return g_strdup(backend->id);
+}
+
+static void set_id(Object *o, const char *str, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(o);
+
+    if (backend->id) {
+        error_setg(errp, "cannot change property value");
+        return;
+    }
+    backend->id = g_strdup(str);
+}
+
 static void
 host_memory_backend_class_init(ObjectClass *oc, void *data)
 {
@@ -377,6 +395,13 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
         HostMemPolicy_lookup,
         host_memory_backend_get_policy,
         host_memory_backend_set_policy, &error_abort);
+    object_class_property_add_str(oc, "id", get_id, set_id, &error_abort);
+}
+
+static void host_memory_backend_finalize(Object *o)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(o);
+    g_free(backend->id);
 }
 
 static const TypeInfo host_memory_backend_info = {
@@ -387,6 +412,7 @@ static const TypeInfo host_memory_backend_info = {
     .class_init = host_memory_backend_class_init,
     .instance_size = sizeof(HostMemoryBackend),
     .instance_init = host_memory_backend_init,
+    .instance_finalize = host_memory_backend_finalize,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }

@@ -3,7 +3,6 @@
 #include "qom/object_interfaces.h"
 #include "qemu/module.h"
 #include "qapi-visit.h"
-#include "qapi/qobject-output-visitor.h"
 #include "qapi/opts-visitor.h"
 
 void user_creatable_complete(Object *obj, Error **errp)
@@ -35,57 +34,6 @@ bool user_creatable_can_be_deleted(UserCreatable *uc, Error **errp)
     }
 }
 
-
-Object *user_creatable_add(const QDict *qdict,
-                           Visitor *v, Error **errp)
-{
-    char *type = NULL;
-    char *id = NULL;
-    Object *obj = NULL;
-    Error *local_err = NULL;
-    QDict *pdict;
-
-    pdict = qdict_clone_shallow(qdict);
-
-    visit_start_struct(v, NULL, NULL, 0, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    qdict_del(pdict, "qom-type");
-    visit_type_str(v, "qom-type", &type, &local_err);
-    if (local_err) {
-        goto out_visit;
-    }
-
-    qdict_del(pdict, "id");
-    visit_type_str(v, "id", &id, &local_err);
-    if (local_err) {
-        goto out_visit;
-    }
-    visit_check_struct(v, &local_err);
-    if (local_err) {
-        goto out_visit;
-    }
-
-    obj = user_creatable_add_type(type, id, pdict, v, &local_err);
-
-out_visit:
-    visit_end_struct(v, NULL);
-
-out:
-    QDECREF(pdict);
-    g_free(id);
-    g_free(type);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        object_unref(obj);
-        return NULL;
-    }
-    return obj;
-}
-
-
 Object *user_creatable_add_type(const char *type, const char *id,
                                 const QDict *qdict,
                                 Visitor *v, Error **errp)
@@ -114,6 +62,12 @@ Object *user_creatable_add_type(const char *type, const char *id,
 
     assert(qdict);
     obj = object_new(type);
+    if (object_property_find(obj, "id", NULL)) {
+        object_property_set_str(obj, id, "id", &local_err);
+        if (local_err) {
+            goto out;
+        }
+    }
     visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
         goto out;
@@ -158,13 +112,27 @@ Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
 {
     Visitor *v;
     QDict *pdict;
-    Object *obj = NULL;
+    Object *obj;
+    const char *id = qemu_opts_id(opts);
+    const char *type = qemu_opt_get(opts, "qom-type");
+
+    if (!type) {
+        error_setg(errp, QERR_MISSING_PARAMETER, "qom-type");
+        return NULL;
+    }
+    if (!id) {
+        error_setg(errp, QERR_MISSING_PARAMETER, "id");
+        return NULL;
+    }
+
+    pdict = qemu_opts_to_qdict(opts, NULL);
+    qdict_del(pdict, "qom-type");
+    qdict_del(pdict, "id");
 
     v = opts_visitor_new(opts);
-    pdict = qemu_opts_to_qdict(opts, NULL);
-
-    obj = user_creatable_add(pdict, v, errp);
+    obj = user_creatable_add_type(type, id, pdict, v, errp);
     visit_free(v);
+
     QDECREF(pdict);
     return obj;
 }
