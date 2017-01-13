@@ -4,7 +4,6 @@ python:
   - "2.4"
 compiler:
   - gcc
-  - clang
 cache: ccache
 addons:
   apt:
@@ -68,6 +67,9 @@ script:
   - make -j3 && ${TEST_CMD}
 matrix:
   include:
+    # Test with CLang for compile portability
+    - env: CONFIG=""
+      compiler: clang
     # gprof/gcov are GCC features
     - env: CONFIG="--enable-gprof --enable-gcov --disable-pie"
       compiler: gcc
@@ -101,6 +103,26 @@ matrix:
         - sudo apt-get build-dep -qq qemu
         - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
         - git submodule update --init --recursive
+    # Trusty build with latest stable clang
+    - env: CONFIG=""
+      sudo: required
+      addons:
+      dist: trusty
+      language: generic
+      compiler: none
+      env:
+        - COMPILER_NAME=clang CXX=clang++-3.9 CC=clang-3.9
+        - CONFIG="--cc=clang-3.9 --cxx=clang++-3.9"
+      before_install:
+        - wget -nv -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
+        - sudo apt-add-repository -y 'deb http://llvm.org/apt/trusty llvm-toolchain-trusty-3.9 main'
+        - sudo apt-get update -qq
+        - sudo apt-get install -qq -y clang-3.9
+        - sudo apt-get build-dep -qq qemu
+        - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
+        - git submodule update --init --recursive
+      before_script:
+        - ./configure ${CONFIG} || cat config.log
     # Using newer GCC with sanitizers
     - addons:
         apt:
