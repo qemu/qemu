@@ -19,6 +19,40 @@ test ccount
     assert  ne, a3, a4
 test_end
 
+test ccount_write
+    rsr     a3, ccount
+    rsr     a4, ccount
+    sub     a4, a4, a3
+    movi    a2, 0x12345678
+    wsr     a2, ccount
+    esync
+    rsr     a3, ccount
+    sub     a3, a3, a2
+    slli    a4, a4, 2
+    assert  ltu, a3, a4
+test_end
+
+test ccount_update_deadline
+    movi    a2, 0
+    wsr     a2, intenable
+    rsr     a2, interrupt
+    wsr     a2, intclear
+    movi    a2, 0
+    wsr     a2, ccompare1
+    wsr     a2, ccompare2
+    movi    a2, 0x12345678
+    wsr     a2, ccompare0
+    rsr     a3, interrupt
+    assert  eqi, a3, 0
+    movi    a2, 0x12345677
+    wsr     a2, ccount
+    esync
+    nop
+    rsr     a2, interrupt
+    movi    a3, 1 << XCHAL_TIMER0_INTERRUPT
+    assert  eq, a2, a3
+test_end
+
 test ccompare
     movi    a2, 0
     wsr     a2, intenable
