@@ -59,7 +59,7 @@ test ccompare0_interrupt
     rsr     a2, interrupt
     assert  eqi, a2, 0
 
-    movi    a2, 0x40
+    movi    a2, 1 << XCHAL_TIMER0_INTERRUPT
     wsr     a2, intenable
     rsil    a2, 0
     loop    a3, 1f
@@ -87,7 +87,7 @@ test ccompare1_interrupt
     rsync
     rsr     a2, interrupt
     assert  eqi, a2, 0
-    movi    a2, 0x400
+    movi    a2, 1 << XCHAL_TIMER1_INTERRUPT
     wsr     a2, intenable
     rsil    a2, 2
     loop    a3, 1f
@@ -113,7 +113,7 @@ test ccompare2_interrupt
     rsync
     rsr     a2, interrupt
     assert  eqi, a2, 0
-    movi    a2, 0x2000
+    movi    a2, 1 << XCHAL_TIMER2_INTERRUPT
     wsr     a2, intenable
     rsil    a2, 4
     loop    a3, 1f
@@ -141,7 +141,7 @@ test ccompare_interrupt_masked
     rsr     a2, interrupt
     assert  eqi, a2, 0
 
-    movi    a2, 0x40
+    movi    a2, 1 << XCHAL_TIMER0_INTERRUPT
     wsr     a2, intenable
     rsil    a2, 0
     loop    a3, 1f
@@ -171,7 +171,7 @@ test ccompare_interrupt_masked_waiti
     rsr     a2, interrupt
     assert  eqi, a2, 0
 
-    movi    a2, 0x40
+    movi    a2, 1 << XCHAL_TIMER0_INTERRUPT
     wsr     a2, intenable
     waiti   0
     test_fail
