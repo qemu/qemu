@@ -357,10 +357,6 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     qapi_free_BlockInfo(info);
 }
 
-static BlockStats *bdrv_query_stats(BlockBackend *blk,
-                                    const BlockDriverState *bs,
-                                    bool query_backing);
-
 static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
 {
     BlockAcctStats *stats = blk_get_stats(blk);
@@ -428,9 +424,18 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
     }
 }
 
-static void bdrv_query_bds_stats(BlockStats *s, const BlockDriverState *bs,
+static BlockStats *bdrv_query_bds_stats(const BlockDriverState *bs,
                                  bool query_backing)
 {
+    BlockStats *s = NULL;
+
+    s = g_malloc0(sizeof(*s));
+    s->stats = g_malloc0(sizeof(*s->stats));
+
+    if (!bs) {
+        return s;
+    }
+
     if (bdrv_get_node_name(bs)[0]) {
         s->has_node_name = true;
         s->node_name = g_strdup(bdrv_get_node_name(bs));
@@ -440,14 +445,15 @@ static void bdrv_query_bds_stats(BlockStats *s, const BlockDriverState *bs,
 
     if (bs->file) {
         s->has_parent = true;
-        s->parent = bdrv_query_stats(NULL, bs->file->bs, query_backing);
+        s->parent = bdrv_query_bds_stats(bs->file->bs, query_backing);
     }
 
     if (query_backing && bs->backing) {
         s->has_backing = true;
-        s->backing = bdrv_query_stats(NULL, bs->backing->bs, query_backing);
+        s->backing = bdrv_query_bds_stats(bs->backing->bs, query_backing);
     }
 
+    return s;
 }
 
 static BlockStats *bdrv_query_stats(BlockBackend *blk,
@@ -456,16 +462,12 @@ static BlockStats *bdrv_query_stats(BlockBackend *blk,
 {
     BlockStats *s;
 
-    s = g_malloc0(sizeof(*s));
-    s->stats = g_malloc0(sizeof(*s->stats));
+    s = bdrv_query_bds_stats(bs, query_backing);
 
     if (blk) {
         s->has_device = true;
         s->device = g_strdup(blk_name(blk));
         bdrv_query_blk_stats(s->stats, blk);
-    }
-    if (bs) {
-        bdrv_query_bds_stats(s, bs, query_backing);
     }
 
     return s;
