@@ -3152,8 +3152,11 @@ void gen_intermediate_code(CPUXtensaState *env, TranslationBlock *tb)
         goto done;
     }
     if (tb->flags & XTENSA_TBFLAG_EXCEPTION) {
-        tcg_gen_movi_i32(cpu_pc, dc.pc);
+        tcg_gen_insn_start(dc.pc);
+        ++insn_count;
         gen_exception(&dc, EXCP_DEBUG);
+        dc.is_jmp = DISAS_UPDATE;
+        goto done;
     }
 
     do {
