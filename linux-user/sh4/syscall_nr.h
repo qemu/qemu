@@ -372,3 +372,17 @@
 #define TARGET_NR_process_vm_writev     366
 #define TARGET_NR_kcmp                  367
 #define TARGET_NR_finit_module          368
+#define TARGET_NR_sched_getattr         369
+#define TARGET_NR_sched_setattr         370
+#define TARGET_NR_renameat2             371
+#define TARGET_NR_seccomp               372
+#define TARGET_NR_getrandom             373
+#define TARGET_NR_memfd_create          374
+#define TARGET_NR_bpf                   375
+#define TARGET_NR_execveat              376
+#define TARGET_NR_userfaultfd           377
+#define TARGET_NR_membarrier            378
+#define TARGET_NR_mlock2                379
+#define TARGET_NR_copy_file_range       380
+#define TARGET_NR_preadv2               381
+#define TARGET_NR_pwritev2              382
