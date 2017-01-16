@@ -499,14 +499,18 @@ iscsi_allocmap_update(IscsiLun *iscsilun, int64_t sector_num,
     if (allocated) {
         bitmap_set(iscsilun->allocmap, cl_num_expanded, nb_cls_expanded);
     } else {
-        bitmap_clear(iscsilun->allocmap, cl_num_shrunk, nb_cls_shrunk);
+        if (nb_cls_shrunk > 0) {
+            bitmap_clear(iscsilun->allocmap, cl_num_shrunk, nb_cls_shrunk);
+        }
     }
 
     if (iscsilun->allocmap_valid == NULL) {
         return;
     }
     if (valid) {
-        bitmap_set(iscsilun->allocmap_valid, cl_num_shrunk, nb_cls_shrunk);
+        if (nb_cls_shrunk > 0) {
+            bitmap_set(iscsilun->allocmap_valid, cl_num_shrunk, nb_cls_shrunk);
+        }
     } else {
         bitmap_clear(iscsilun->allocmap_valid, cl_num_expanded,
                      nb_cls_expanded);
