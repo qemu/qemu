@@ -1015,8 +1015,9 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         buf_size = DEFAULT_MIRROR_BUF_SIZE;
     }
 
-    s = block_job_create(job_id, driver, bs, speed, creation_flags,
-                         cb, opaque, errp);
+    /* FIXME Use real permissions */
+    s = block_job_create(job_id, driver, bs, 0, BLK_PERM_ALL, speed,
+                         creation_flags, cb, opaque, errp);
     if (!s) {
         return;
     }

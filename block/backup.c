@@ -618,8 +618,9 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         goto error;
     }
 
-    job = block_job_create(job_id, &backup_job_driver, bs, speed,
-                           creation_flags, cb, opaque, errp);
+    /* FIXME Use real permissions */
+    job = block_job_create(job_id, &backup_job_driver, bs, 0, BLK_PERM_ALL,
+                           speed, creation_flags, cb, opaque, errp);
     if (!job) {
         goto error;
     }

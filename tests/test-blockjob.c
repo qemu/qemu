@@ -30,8 +30,9 @@ static BlockJob *do_test_id(BlockBackend *blk, const char *id,
     BlockJob *job;
     Error *errp = NULL;
 
-    job = block_job_create(id, &test_block_job_driver, blk_bs(blk), 0,
-                           BLOCK_JOB_DEFAULT, block_job_cb, NULL, &errp);
+    job = block_job_create(id, &test_block_job_driver, blk_bs(blk),
+                           0, BLK_PERM_ALL, 0, BLOCK_JOB_DEFAULT, block_job_cb,
+                           NULL, &errp);
     if (should_succeed) {
         g_assert_null(errp);
         g_assert_nonnull(job);

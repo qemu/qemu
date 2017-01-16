@@ -123,7 +123,8 @@ void block_job_add_bdrv(BlockJob *job, BlockDriverState *bs)
 }
 
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockDriverState *bs, int64_t speed, int flags,
+                       BlockDriverState *bs, uint64_t perm,
+                       uint64_t shared_perm, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
     BlockBackend *blk;
@@ -160,8 +161,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         }
     }
 
-    /* FIXME Use real permissions */
-    blk = blk_new(0, BLK_PERM_ALL);
+    blk = blk_new(perm, shared_perm);
     ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {
         blk_unref(blk);
