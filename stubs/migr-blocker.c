@@ -2,8 +2,9 @@
 #include "qemu-common.h"
 #include "migration/migration.h"
 
-void migrate_add_blocker(Error *reason)
+int migrate_add_blocker(Error *reason, Error **errp)
 {
+    return 0;
 }
 
 void migrate_del_blocker(Error *reason)

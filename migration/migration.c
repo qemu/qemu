@@ -1044,6 +1044,31 @@ bool migration_in_postcopy_after_devices(MigrationState *s)
     return migration_in_postcopy(s) && s->postcopy_after_devices;
 }
 
+bool migration_is_idle(MigrationState *s)
+{
+    if (!s) {
+        s = migrate_get_current();
+    }
+
+    switch (s->state) {
+    case MIGRATION_STATUS_NONE:
+    case MIGRATION_STATUS_CANCELLED:
+    case MIGRATION_STATUS_COMPLETED:
+    case MIGRATION_STATUS_FAILED:
+        return true;
+    case MIGRATION_STATUS_SETUP:
+    case MIGRATION_STATUS_CANCELLING:
+    case MIGRATION_STATUS_ACTIVE:
+    case MIGRATION_STATUS_POSTCOPY_ACTIVE:
+    case MIGRATION_STATUS_COLO:
+        return false;
+    case MIGRATION_STATUS__MAX:
+        g_assert_not_reached();
+    }
+
+    return false;
+}
+
 MigrationState *migrate_init(const MigrationParams *params)
 {
     MigrationState *s = migrate_get_current();
@@ -1086,9 +1111,17 @@ MigrationState *migrate_init(const MigrationParams *params)
 
 static GSList *migration_blockers;
 
-void migrate_add_blocker(Error *reason)
+int migrate_add_blocker(Error *reason, Error **errp)
 {
-    migration_blockers = g_slist_prepend(migration_blockers, reason);
+    if (migration_is_idle(NULL)) {
+        migration_blockers = g_slist_prepend(migration_blockers, reason);
+        return 0;
+    }
+
+    error_propagate(errp, error_copy(reason));
+    error_prepend(errp, "disallowing migration blocker (migration in "
+                      "progress) for: ");
+    return -EBUSY;
 }
 
 void migrate_del_blocker(Error *reason)

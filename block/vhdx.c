@@ -991,6 +991,17 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    /* Disable migration when VHDX images are used */
+    error_setg(&s->migration_blocker, "The vhdx format used by node '%s' "
+               "does not support live migration",
+               bdrv_get_device_or_node_name(bs));
+    ret = migrate_add_blocker(s->migration_blocker, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_free(s->migration_blocker);
+        goto fail;
+    }
+
     if (flags & BDRV_O_RDWR) {
         ret = vhdx_update_headers(bs, s, false, NULL);
         if (ret < 0) {
@@ -999,12 +1010,6 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* TODO: differencing files */
-
-    /* Disable migration when VHDX images are used */
-    error_setg(&s->migration_blocker, "The vhdx format used by node '%s' "
-               "does not support live migration",
-               bdrv_get_device_or_node_name(bs));
-    migrate_add_blocker(s->migration_blocker);
 
     return 0;
 fail:

@@ -510,6 +510,17 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (!kvm_arm_gic_can_save_restore(s)) {
+        error_setg(&s->migration_blocker, "This operating system kernel does "
+                                          "not support vGICv2 migration");
+        migrate_add_blocker(s->migration_blocker, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_free(s->migration_blocker);
+            return;
+        }
+    }
+
     gic_init_irqs_and_mmio(s, kvm_arm_gicv2_set_irq, NULL);
 
     for (i = 0; i < s->num_irq - GIC_INTERNAL; i++) {
@@ -557,12 +568,6 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
                             KVM_DEV_ARM_VGIC_GRP_ADDR,
                             KVM_VGIC_V2_ADDR_TYPE_CPU,
                             s->dev_fd);
-
-    if (!kvm_arm_gic_can_save_restore(s)) {
-        error_setg(&s->migration_blocker, "This operating system kernel does "
-                                          "not support vGICv2 migration");
-        migrate_add_blocker(s->migration_blocker);
-    }
 
     if (kvm_has_gsi_routing()) {
         /* set up irq routing */
