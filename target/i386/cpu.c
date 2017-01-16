@@ -2209,6 +2209,8 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     x86_cpu_class_check_missing_features(cc, &info->unavailable_features);
     info->has_unavailable_features = true;
     info->q_typename = g_strdup(object_class_get_name(oc));
+    info->migration_safe = cc->migration_safe;
+    info->has_migration_safe = true;
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
@@ -2356,6 +2358,7 @@ static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
 
     xcc->cpu_def = cpudef;
+    xcc->migration_safe = true;
 }
 
 static void x86_register_cpudef_type(X86CPUDefinition *def)

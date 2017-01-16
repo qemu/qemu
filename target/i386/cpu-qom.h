@@ -48,6 +48,7 @@ typedef struct X86CPUDefinition X86CPUDefinition;
  * X86CPUClass:
  * @cpu_def: CPU model definition
  * @kvm_required: Whether CPU model requires KVM to be enabled.
+ * @migration_safe: See CpuDefinitionInfo::migration_safe
  * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
@@ -62,6 +63,7 @@ typedef struct X86CPUClass {
     X86CPUDefinition *cpu_def;
 
     bool kvm_required;
+    bool migration_safe;
 
     /* Optional description of CPU model.
      * If unavailable, cpu_def->model_id is used */
