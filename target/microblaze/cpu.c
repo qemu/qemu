@@ -103,9 +103,8 @@ static void mb_cpu_reset(CPUState *s)
 
     mcc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUMBState, pvr));
+    memset(env, 0, offsetof(CPUMBState, end_reset_fields));
     env->res_addr = RES_ADDR_NONE;
-    tlb_flush(s, 1);
 
     /* Disable stack protector.  */
     env->shr = ~0;

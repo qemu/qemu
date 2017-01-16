@@ -417,7 +417,7 @@ static void sh7750_mem_writel(void *opaque, hwaddr addr,
     case SH7750_PTEH_A7:
         /* If asid changes, clear all registered tlb entries. */
         if ((s->cpu->env.pteh & 0xff) != (mem_value & 0xff)) {
-            tlb_flush(CPU(s->cpu), 1);
+            tlb_flush(CPU(s->cpu));
         }
         s->cpu->env.pteh = mem_value;
         return;

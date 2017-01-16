@@ -544,7 +544,7 @@ static int cpu_common_post_load(void *opaque, int version_id)
     /* 0x01 was CPU_INTERRUPT_EXIT. This line can be removed when the
        version_id is increased. */
     cpu->interrupt_request &= ~0x01;
-    tlb_flush(cpu, 1);
+    tlb_flush(cpu);
 
     return 0;
 }
@@ -2426,7 +2426,7 @@ static void tcg_commit(MemoryListener *listener)
      */
     d = atomic_rcu_read(&cpuas->as->dispatch);
     atomic_rcu_set(&cpuas->memory_dispatch, d);
-    tlb_flush(cpuas->cpu, 1);
+    tlb_flush(cpuas->cpu);
 }
 
 void address_space_init_dispatch(AddressSpace *as)

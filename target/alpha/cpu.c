@@ -273,7 +273,7 @@ static void alpha_cpu_initfn(Object *obj)
     CPUAlphaState *env = &cpu->env;
 
     cs->env_ptr = env;
-    tlb_flush(cs, 1);
+    tlb_flush(cs);
 
     alpha_translate_init();
 

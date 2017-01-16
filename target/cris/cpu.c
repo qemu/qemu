@@ -52,9 +52,8 @@ static void cris_cpu_reset(CPUState *s)
     ccc->parent_reset(s);
 
     vr = env->pregs[PR_VR];
-    memset(env, 0, offsetof(CPUCRISState, load_info));
+    memset(env, 0, offsetof(CPUCRISState, end_reset_fields));
     env->pregs[PR_VR] = vr;
-    tlb_flush(s, 1);
 
 #if defined(CONFIG_USER_ONLY)
     /* start in user mode with interrupts enabled.  */

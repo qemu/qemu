@@ -100,8 +100,7 @@ static void mips_cpu_reset(CPUState *s)
 
     mcc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUMIPSState, mvp));
-    tlb_flush(s, 1);
+    memset(env, 0, offsetof(CPUMIPSState, end_reset_fields));
 
     cpu_state_reset(env);
 

@@ -872,7 +872,7 @@ void HELPER(lctlg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
         s390_cpu_recompute_watchpoints(CPU(cpu));
     }
 
-    tlb_flush(CPU(cpu), 1);
+    tlb_flush(CPU(cpu));
 }
 
 void HELPER(lctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
@@ -900,7 +900,7 @@ void HELPER(lctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
         s390_cpu_recompute_watchpoints(CPU(cpu));
     }
 
-    tlb_flush(CPU(cpu), 1);
+    tlb_flush(CPU(cpu));
 }
 
 void HELPER(stctg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
@@ -1036,7 +1036,7 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
         cpu_stl_data(env, a2, env->regs[(r1 + 1) & 15]);
         if (r2 & 0x3) {
             /* flush TLB / ALB */
-            tlb_flush(CPU(cpu), 1);
+            tlb_flush(CPU(cpu));
         }
         cc = 0;
     } else {
@@ -1121,7 +1121,7 @@ void HELPER(ptlb)(CPUS390XState *env)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
 
-    tlb_flush(CPU(cpu), 1);
+    tlb_flush(CPU(cpu));
 }
 
 /* load using real address */

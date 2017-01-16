@@ -56,8 +56,7 @@ static void superh_cpu_reset(CPUState *s)
 
     scc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUSH4State, id));
-    tlb_flush(s, 1);
+    memset(env, 0, offsetof(CPUSH4State, end_reset_fields));
 
     env->pc = 0xA0000000;
 #if defined(CONFIG_USER_ONLY)

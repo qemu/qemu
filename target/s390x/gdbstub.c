@@ -199,7 +199,7 @@ static int cpu_write_c_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
     case S390_C0_REGNUM ... S390_C15_REGNUM:
         env->cregs[n] = ldtul_p(mem_buf);
         if (tcg_enabled()) {
-            tlb_flush(ENV_GET_CPU(env), 1);
+            tlb_flush(ENV_GET_CPU(env));
         }
         cpu_synchronize_post_init(ENV_GET_CPU(env));
         return 8;

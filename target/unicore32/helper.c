@@ -106,7 +106,7 @@ void helper_cp0_set(CPUUniCore32State *env, uint32_t val, uint32_t creg,
     case 6:
         if ((cop <= 6) && (cop >= 2)) {
             /* invalid all tlb */
-            tlb_flush(CPU(cpu), 1);
+            tlb_flush(CPU(cpu));
             return;
         }
         break;

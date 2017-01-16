@@ -1409,7 +1409,7 @@ void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
     /* If the ASID changes, flush qemu's TLB.  */
     if ((old & env->CP0_EntryHi_ASID_mask) !=
         (val & env->CP0_EntryHi_ASID_mask)) {
-        cpu_mips_tlb_flush(env, 1);
+        cpu_mips_tlb_flush(env);
     }
 }
 
@@ -1999,7 +1999,7 @@ void r4k_helper_tlbinv(CPUMIPSState *env)
             tlb->EHINV = 1;
         }
     }
-    cpu_mips_tlb_flush(env, 1);
+    cpu_mips_tlb_flush(env);
 }
 
 void r4k_helper_tlbinvf(CPUMIPSState *env)
@@ -2009,7 +2009,7 @@ void r4k_helper_tlbinvf(CPUMIPSState *env)
     for (idx = 0; idx < env->tlb->nb_tlb; idx++) {
         env->tlb->mmu.r4k.tlb[idx].EHINV = 1;
     }
-    cpu_mips_tlb_flush(env, 1);
+    cpu_mips_tlb_flush(env);
 }
 
 void r4k_helper_tlbwi(CPUMIPSState *env)
@@ -2123,7 +2123,7 @@ void r4k_helper_tlbr(CPUMIPSState *env)
 
     /* If this will change the current ASID, flush qemu's TLB.  */
     if (ASID != tlb->ASID)
-        cpu_mips_tlb_flush (env, 1);
+        cpu_mips_tlb_flush(env);
 
     r4k_mips_tlb_flush_extra(env, env->tlb->nb_tlb);
 

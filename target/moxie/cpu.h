@@ -56,6 +56,9 @@ typedef struct CPUMoxieState {
 
     void *irq[8];
 
+    /* Fields up to this point are cleared by a CPU reset */
+    struct {} end_reset_fields;
+
     CPU_COMMON
 
 } CPUMoxieState;

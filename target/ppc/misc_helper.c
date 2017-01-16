@@ -85,7 +85,7 @@ void helper_store_sdr1(CPUPPCState *env, target_ulong val)
     if (!env->external_htab) {
         if (env->spr[SPR_SDR1] != val) {
             ppc_store_sdr1(env, val);
-            tlb_flush(CPU(cpu), 1);
+            tlb_flush(CPU(cpu));
         }
     }
 }
@@ -114,7 +114,7 @@ void helper_store_403_pbr(CPUPPCState *env, uint32_t num, target_ulong value)
     if (likely(env->pb[num] != value)) {
         env->pb[num] = value;
         /* Should be optimized */
-        tlb_flush(CPU(cpu), 1);
+        tlb_flush(CPU(cpu));
     }
 }
 
