@@ -249,9 +249,9 @@ ETEXI
 
     {
         .name       = "mtree",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show memory tree",
+        .args_type  = "flatview:-f",
+        .params     = "[-f]",
+        .help       = "show memory tree (-f: dump flat view for address spaces)",
         .cmd        = hmp_info_mtree,
     },
 

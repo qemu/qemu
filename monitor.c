@@ -1529,7 +1529,9 @@ static void hmp_boot_set(Monitor *mon, const QDict *qdict)
 
 static void hmp_info_mtree(Monitor *mon, const QDict *qdict)
 {
-    mtree_info((fprintf_function)monitor_printf, mon);
+    bool flatview = qdict_get_try_bool(qdict, "flatview", false);
+
+    mtree_info((fprintf_function)monitor_printf, mon, flatview);
 }
 
 static void hmp_info_numa(Monitor *mon, const QDict *qdict)
