@@ -38,6 +38,9 @@
 #define QEMU_VM_COMMAND              0x08
 #define QEMU_VM_SECTION_FOOTER       0x7e
 
+/* for vl.c */
+extern int only_migratable;
+
 struct MigrationParams {
     bool blk;
     bool shared;
