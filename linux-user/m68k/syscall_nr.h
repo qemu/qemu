@@ -376,3 +376,6 @@
 #define TARGET_NR_userfaultfd           373
 #define TARGET_NR_membarrier            374
 #define TARGET_NR_mlock2                375
+#define TARGET_NR_copy_file_range       376
+#define TARGET_NR_preadv2               377
+#define TARGET_NR_pwritev2              378
