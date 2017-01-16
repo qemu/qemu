@@ -62,6 +62,7 @@ void consume_sclp_int(void);
 void panic(const char *string);
 void write_subsystem_identification(void);
 extern char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
+unsigned int get_loadparm_index(void);
 
 /* sclp.c */
 void sclp_print(const char *string);
