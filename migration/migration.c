@@ -1113,6 +1113,13 @@ static GSList *migration_blockers;
 
 int migrate_add_blocker(Error *reason, Error **errp)
 {
+    if (only_migratable) {
+        error_propagate(errp, error_copy(reason));
+        error_prepend(errp, "disallowing migration blocker "
+                          "(--only_migratable) for: ");
+        return -EACCES;
+    }
+
     if (migration_is_idle(NULL)) {
         migration_blockers = g_slist_prepend(migration_blockers, reason);
         return 0;

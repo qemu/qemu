@@ -291,7 +291,7 @@ int ram_postcopy_incoming_init(MigrationIncomingState *mis);
  *
  * @errp - [out] The reason (if any) we cannot block migration right now.
  *
- * @returns - 0 on success, -EBUSY on failure, with errp set.
+ * @returns - 0 on success, -EBUSY/-EACCES on failure, with errp set.
  */
 int migrate_add_blocker(Error *reason, Error **errp);
 
