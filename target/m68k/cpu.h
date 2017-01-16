@@ -37,6 +37,7 @@
 #define OS_DOUBLE   4
 #define OS_EXTENDED 5
 #define OS_PACKED   6
+#define OS_UNSIZED  7
 
 #define MAX_QREGS 32
 
