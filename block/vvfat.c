@@ -1189,7 +1189,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         init_mbr(s, cyls, heads, secs);
     }
 
-    //    assert(is_consistent(s));
     qemu_co_mutex_init(&s->lock);
 
     /* Disable migration when vvfat is used rw */
