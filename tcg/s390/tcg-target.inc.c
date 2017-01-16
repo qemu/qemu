@@ -1096,7 +1096,7 @@ static int tgen_cmp(TCGContext *s, TCGType type, TCGCond c, TCGReg r1,
             /* If we only got here because of load-and-test,
                and we couldn't use that, then we need to load
                the constant into a register.  */
-            if (!(facilities & FACILITY_EXT_IMM)) {
+            if (!(s390_facilities & FACILITY_EXT_IMM)) {
                 c2 = TCG_TMP0;
                 tcg_out_movi(s, type, c2, 0);
                 goto do_reg;

@@ -580,11 +580,9 @@ static void tcg_out_logicali(TCGContext *s, AArch64Insn insn, TCGType ext,
 static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
                          tcg_target_long value)
 {
-    AArch64Insn insn;
     int i, wantinv, shift;
     tcg_target_long svalue = value;
     tcg_target_long ivalue = ~value;
-    tcg_target_long imask;
 
     /* For 32-bit values, discard potential garbage in value.  For 64-bit
        values within [2**31, 2**32-1], we can create smaller sequences by
@@ -630,42 +628,35 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
 
     /* Would it take fewer insns to begin with MOVN?  For the value and its
        inverse, count the number of 16-bit lanes that are 0.  */
-    for (i = wantinv = imask = 0; i < 64; i += 16) {
+    for (i = wantinv = 0; i < 64; i += 16) {
         tcg_target_long mask = 0xffffull << i;
-        if ((value & mask) == 0) {
-            wantinv -= 1;
-        }
-        if ((ivalue & mask) == 0) {
-            wantinv += 1;
-            imask |= mask;
-        }
+        wantinv -= ((value & mask) == 0);
+        wantinv += ((ivalue & mask) == 0);
     }
 
-    /* If we had more 0xffff than 0x0000, invert VALUE and use MOVN.  */
-    insn = I3405_MOVZ;
-    if (wantinv > 0) {
-        value = ivalue;
-        insn = I3405_MOVN;
-    }
-
-    /* Find the lowest lane that is not 0x0000.  */
-    shift = ctz64(value) & (63 & -16);
-    tcg_out_insn_3405(s, insn, type, rd, value >> shift, shift);
-
-    if (wantinv > 0) {
-        /* Re-invert the value, so MOVK sees non-inverted bits.  */
-        value = ~value;
-        /* Clear out all the 0xffff lanes.  */
-        value ^= imask;
-    }
-    /* Clear out the lane that we just set.  */
-    value &= ~(0xffffUL << shift);
-
-    /* Iterate until all lanes have been set, and thus cleared from VALUE.  */
-    while (value) {
+    if (wantinv <= 0) {
+        /* Find the lowest lane that is not 0x0000.  */
         shift = ctz64(value) & (63 & -16);
-        tcg_out_insn(s, 3405, MOVK, type, rd, value >> shift, shift);
+        tcg_out_insn(s, 3405, MOVZ, type, rd, value >> shift, shift);
+        /* Clear out the lane that we just set.  */
         value &= ~(0xffffUL << shift);
+        /* Iterate until all non-zero lanes have been processed.  */
+        while (value) {
+            shift = ctz64(value) & (63 & -16);
+            tcg_out_insn(s, 3405, MOVK, type, rd, value >> shift, shift);
+            value &= ~(0xffffUL << shift);
+        }
+    } else {
+        /* Like above, but with the inverted value and MOVN to start.  */
+        shift = ctz64(ivalue) & (63 & -16);
+        tcg_out_insn(s, 3405, MOVN, type, rd, ivalue >> shift, shift);
+        ivalue &= ~(0xffffUL << shift);
+        while (ivalue) {
+            shift = ctz64(ivalue) & (63 & -16);
+            /* Provide MOVK with the non-inverted value.  */
+            tcg_out_insn(s, 3405, MOVK, type, rd, ~(ivalue >> shift), shift);
+            ivalue &= ~(0xffffUL << shift);
+        }
     }
 }
 
@@ -963,6 +954,15 @@ static inline void tcg_out_addsub2(TCGContext *s, int ext, TCGReg rl,
         if ((bl < 0) ^ sub) {
             insn = I3401_SUBSI;
             bl = -bl;
+        }
+        if (unlikely(al == TCG_REG_XZR)) {
+            /* ??? We want to allow al to be zero for the benefit of
+               negation via subtraction.  However, that leaves open the
+               possibility of adding 0+const in the low part, and the
+               immediate add instructions encode XSP not XZR.  Don't try
+               anything more elaborate here than loading another zero.  */
+            al = TCG_REG_TMP;
+            tcg_out_movi(s, ext, al, 0);
         }
         tcg_out_insn_3401(s, insn, ext, rl, al, bl);
     } else {
