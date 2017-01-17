@@ -4513,8 +4513,6 @@ int main(int argc, char **argv, char **envp)
 
     cpu_synchronize_all_post_init();
 
-    numa_post_machine_init();
-
     if (hax_enabled()) {
         hax_sync_vcpus();
     }
@@ -4539,6 +4537,9 @@ int main(int argc, char **argv, char **envp)
                           device_init_func, NULL, NULL)) {
         exit(1);
     }
+
+    numa_post_machine_init();
+
     rom_reset_order_override();
 
     /* Did we create any drives that we failed to create a device for? */
