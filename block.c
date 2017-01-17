@@ -2853,6 +2853,9 @@ static void change_parent_backing_link(BlockDriverState *from,
     BdrvChild *c, *next, *to_c;
 
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
+        if (c->role->stay_at_node) {
+            continue;
+        }
         if (c->role == &child_backing) {
             /* @from is generally not allowed to be a backing file, except for
              * when @to is the overlay. In that case, @from may not be replaced
