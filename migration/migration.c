@@ -891,6 +891,9 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
 
     if (params->has_x_checkpoint_delay) {
         s->parameters.x_checkpoint_delay = params->x_checkpoint_delay;
+        if (migration_in_colo_state()) {
+            colo_checkpoint_notify(s);
+        }
     }
 }
 

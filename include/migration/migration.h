@@ -188,6 +188,11 @@ struct MigrationState
     /* The RAMBlock used in the last src_page_request */
     RAMBlock *last_req_rb;
 
+    /* The semaphore is used to notify COLO thread to do checkpoint */
+    QemuSemaphore colo_checkpoint_sem;
+    int64_t colo_checkpoint_time;
+    QEMUTimer *colo_delay_timer;
+
     /* The last error that occurred */
     Error *error;
 };

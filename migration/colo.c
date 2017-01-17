@@ -302,7 +302,7 @@ static void colo_process_checkpoint(MigrationState *s)
 {
     QIOChannelBuffer *bioc;
     QEMUFile *fb = NULL;
-    int64_t current_time, checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    int64_t current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     Error *local_err = NULL;
     int ret;
 
@@ -332,26 +332,21 @@ static void colo_process_checkpoint(MigrationState *s)
     qemu_mutex_unlock_iothread();
     trace_colo_vm_state_change("stop", "run");
 
+    timer_mod(s->colo_delay_timer,
+            current_time + s->parameters.x_checkpoint_delay);
+
     while (s->state == MIGRATION_STATUS_COLO) {
         if (failover_get_state() != FAILOVER_STATUS_NONE) {
             error_report("failover request");
             goto out;
         }
 
-        current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
-        if (current_time - checkpoint_time <
-            s->parameters.x_checkpoint_delay) {
-            int64_t delay_ms;
+        qemu_sem_wait(&s->colo_checkpoint_sem);
 
-            delay_ms = s->parameters.x_checkpoint_delay -
-                       (current_time - checkpoint_time);
-            g_usleep(delay_ms * 1000);
-        }
         ret = colo_do_checkpoint_transaction(s, bioc, fb);
         if (ret < 0) {
             goto out;
         }
-        checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     }
 
 out:
@@ -364,14 +359,32 @@ out:
         qemu_fclose(fb);
     }
 
+    timer_del(s->colo_delay_timer);
+
     if (s->rp_state.from_dst_file) {
         qemu_fclose(s->rp_state.from_dst_file);
     }
 }
 
+void colo_checkpoint_notify(void *opaque)
+{
+    MigrationState *s = opaque;
+    int64_t next_notify_time;
+
+    qemu_sem_post(&s->colo_checkpoint_sem);
+    s->colo_checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    next_notify_time = s->colo_checkpoint_time +
+                    s->parameters.x_checkpoint_delay;
+    timer_mod(s->colo_delay_timer, next_notify_time);
+}
+
 void migrate_start_colo_process(MigrationState *s)
 {
     qemu_mutex_unlock_iothread();
+    qemu_sem_init(&s->colo_checkpoint_sem, 0);
+    s->colo_delay_timer =  timer_new_ms(QEMU_CLOCK_HOST,
+                                colo_checkpoint_notify, s);
+
     migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
     colo_process_checkpoint(s);
