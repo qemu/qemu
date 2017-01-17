@@ -1143,10 +1143,14 @@ static void tcg_out_movcond64(TCGContext *s, TCGCond cond, TCGReg dest,
 static void tcg_out_ctz(TCGContext *s, int rexw, TCGReg dest, TCGReg arg1,
                         TCGArg arg2, bool const_a2)
 {
-    if (const_a2) {
-        tcg_debug_assert(have_bmi1);
-        tcg_debug_assert(arg2 == (rexw ? 64 : 32));
+    if (have_bmi1) {
         tcg_out_modrm(s, OPC_TZCNT + rexw, dest, arg1);
+        if (const_a2) {
+            tcg_debug_assert(arg2 == (rexw ? 64 : 32));
+        } else {
+            tcg_debug_assert(dest != arg2);
+            tcg_out_cmov(s, TCG_COND_LTU, rexw, dest, arg2);
+        }
     } else {
         tcg_debug_assert(dest != arg2);
         tcg_out_modrm(s, OPC_BSF + rexw, dest, arg1);
