@@ -228,9 +228,7 @@ void bdrv_drained_begin(BlockDriverState *bs)
         bdrv_parent_drained_begin(bs);
     }
 
-    bdrv_io_unplugged_begin(bs);
     bdrv_drain_recurse(bs);
-    bdrv_io_unplugged_end(bs);
 }
 
 void bdrv_drained_end(BlockDriverState *bs)
@@ -302,7 +300,6 @@ void bdrv_drain_all_begin(void)
 
         aio_context_acquire(aio_context);
         bdrv_parent_drained_begin(bs);
-        bdrv_io_unplugged_begin(bs);
         aio_disable_external(aio_context);
         aio_context_release(aio_context);
 
@@ -347,7 +344,6 @@ void bdrv_drain_all_end(void)
 
         aio_context_acquire(aio_context);
         aio_enable_external(aio_context);
-        bdrv_io_unplugged_end(bs);
         bdrv_parent_drained_end(bs);
         aio_context_release(aio_context);
     }
@@ -2650,7 +2646,7 @@ void bdrv_io_plug(BlockDriverState *bs)
         bdrv_io_plug(child->bs);
     }
 
-    if (bs->io_plugged++ == 0 && bs->io_plug_disabled == 0) {
+    if (bs->io_plugged++ == 0) {
         BlockDriver *drv = bs->drv;
         if (drv && drv->bdrv_io_plug) {
             drv->bdrv_io_plug(bs);
@@ -2663,7 +2659,7 @@ void bdrv_io_unplug(BlockDriverState *bs)
     BdrvChild *child;
 
     assert(bs->io_plugged);
-    if (--bs->io_plugged == 0 && bs->io_plug_disabled == 0) {
+    if (--bs->io_plugged == 0) {
         BlockDriver *drv = bs->drv;
         if (drv && drv->bdrv_io_unplug) {
             drv->bdrv_io_unplug(bs);
@@ -2672,38 +2668,5 @@ void bdrv_io_unplug(BlockDriverState *bs)
 
     QLIST_FOREACH(child, &bs->children, next) {
         bdrv_io_unplug(child->bs);
-    }
-}
-
-void bdrv_io_unplugged_begin(BlockDriverState *bs)
-{
-    BdrvChild *child;
-
-    if (bs->io_plug_disabled++ == 0 && bs->io_plugged > 0) {
-        BlockDriver *drv = bs->drv;
-        if (drv && drv->bdrv_io_unplug) {
-            drv->bdrv_io_unplug(bs);
-        }
-    }
-
-    QLIST_FOREACH(child, &bs->children, next) {
-        bdrv_io_unplugged_begin(child->bs);
-    }
-}
-
-void bdrv_io_unplugged_end(BlockDriverState *bs)
-{
-    BdrvChild *child;
-
-    assert(bs->io_plug_disabled);
-    QLIST_FOREACH(child, &bs->children, next) {
-        bdrv_io_unplugged_end(child->bs);
-    }
-
-    if (--bs->io_plug_disabled == 0 && bs->io_plugged > 0) {
-        BlockDriver *drv = bs->drv;
-        if (drv && drv->bdrv_io_plug) {
-            drv->bdrv_io_plug(bs);
-        }
     }
 }

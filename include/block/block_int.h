@@ -526,9 +526,8 @@ struct BlockDriverState {
     uint64_t write_threshold_offset;
     NotifierWithReturn write_threshold_notifier;
 
-    /* counters for nested bdrv_io_plug and bdrv_io_unplugged_begin */
+    /* counter for nested bdrv_io_plug */
     unsigned io_plugged;
-    unsigned io_plug_disabled;
 
     int quiesce_counter;
 };

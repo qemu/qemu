@@ -84,9 +84,8 @@ How to synchronize with an IOThread
 AioContext is not thread-safe so some rules must be followed when using file
 descriptors, event notifiers, timers, or BHs across threads:
 
-1. AioContext functions can be called safely from file descriptor, event
-notifier, timer, or BH callbacks invoked by the AioContext.  No locking is
-necessary.
+1. AioContext functions can always be called safely.  They handle their
+own locking internally.
 
 2. Other threads wishing to access the AioContext must use
 aio_context_acquire()/aio_context_release() for mutual exclusion.  Once the
@@ -94,16 +93,14 @@ context is acquired no other thread can access it or run event loop iterations
 in this AioContext.
 
 aio_context_acquire()/aio_context_release() calls may be nested.  This
-means you can call them if you're not sure whether #1 applies.
+means you can call them if you're not sure whether #2 applies.
 
 There is currently no lock ordering rule if a thread needs to acquire multiple
 AioContexts simultaneously.  Therefore, it is only safe for code holding the
 QEMU global mutex to acquire other AioContexts.
 
-Side note: the best way to schedule a function call across threads is to create
-a BH in the target AioContext beforehand and then call qemu_bh_schedule().  No
-acquire/release or locking is needed for the qemu_bh_schedule() call.  But be
-sure to acquire the AioContext for aio_bh_new() if necessary.
+Side note: the best way to schedule a function call across threads is to call
+aio_bh_schedule_oneshot().  No acquire/release or locking is needed.
 
 AioContext and the block layer
 ------------------------------
