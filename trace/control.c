@@ -26,6 +26,7 @@
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
 #include "monitor/monitor.h"
+#include "trace.h"
 
 int trace_events_enabled_count;
 
@@ -257,6 +258,24 @@ void trace_init_file(const char *file)
         exit(1);
     }
 #endif
+}
+
+void trace_fini_vcpu(CPUState *vcpu)
+{
+    TraceEventIter iter;
+    TraceEvent *ev;
+
+    trace_guest_cpu_exit(vcpu);
+
+    trace_event_iter_init(&iter, NULL);
+    while ((ev = trace_event_iter_next(&iter)) != NULL) {
+        if (trace_event_is_vcpu(ev) &&
+            trace_event_get_state_static(ev) &&
+            trace_event_get_vcpu_state_dynamic(vcpu, ev)) {
+            /* must disable to affect the global counter */
+            trace_event_set_vcpu_state_dynamic(vcpu, ev, false);
+        }
+    }
 }
 
 bool trace_init_backends(void)

@@ -202,6 +202,14 @@ void trace_init_file(const char *file);
 void trace_init_vcpu(CPUState *vcpu);
 
 /**
+ * trace_fini_vcpu:
+ * @vcpu: Removed vCPU.
+ *
+ * Disable dynamic event state for a hot-unplugged vCPU.
+ */
+void trace_fini_vcpu(CPUState *vcpu);
+
+/**
  * trace_list_events:
  *
  * List all available events.

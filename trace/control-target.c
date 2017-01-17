@@ -79,7 +79,7 @@ void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
     }
 }
 
-static bool adding_first_cpu(void)
+static bool adding_first_cpu1(void)
 {
     CPUState *cpu;
     size_t count = 0;
@@ -90,6 +90,15 @@ static bool adding_first_cpu(void)
         }
     }
     return true;
+}
+
+static bool adding_first_cpu(void)
+{
+    bool res;
+    cpu_list_lock();
+    res = adding_first_cpu1();
+    cpu_list_unlock();
+    return res;
 }
 
 void trace_init_vcpu(CPUState *vcpu)

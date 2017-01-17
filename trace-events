@@ -53,7 +53,7 @@ qemu_system_shutdown_request(void) ""
 qemu_system_powerdown_request(void) ""
 
 # spice-qemu-char.c
-spice_vmc_write(ssize_t out, int len) "spice wrottn %zd of requested %d"
+spice_vmc_write(ssize_t out, int len) "spice wrote %zd of requested %d"
 spice_vmc_read(int bytes, int len) "spice read %d of requested %d"
 spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
 spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"
@@ -140,6 +140,12 @@ memory_region_ram_device_write(int cpu_index, void *mr, uint64_t addr, uint64_t 
 # Mode: user, softmmu
 # Targets: all
 vcpu guest_cpu_enter(void)
+
+# Hot-unplug a virtual (guest) CPU
+#
+# Mode: user, softmmu
+# Targets: all
+vcpu guest_cpu_exit(void)
 
 # Reset the state of a virtual (guest) CPU
 #
