@@ -116,6 +116,7 @@ struct MigrationIncomingState {
     QemuThread colo_incoming_thread;
     /* The coroutine we should enter (back) after failover */
     Coroutine *migration_incoming_co;
+    QemuSemaphore colo_incoming_sem;
 
     /* See savevm.c */
     LoadStateEntry_Head loadvm_handlers;
@@ -187,6 +188,8 @@ struct MigrationState
     QSIMPLEQ_HEAD(src_page_requests, MigrationSrcPageRequest) src_page_requests;
     /* The RAMBlock used in the last src_page_request */
     RAMBlock *last_req_rb;
+    /* The semaphore is used to notify COLO thread that failover is finished */
+    QemuSemaphore colo_exit_sem;
 
     /* The semaphore is used to notify COLO thread to do checkpoint */
     QemuSemaphore colo_checkpoint_sem;
