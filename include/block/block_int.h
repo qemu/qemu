@@ -452,6 +452,12 @@ struct BdrvChildRole {
      * name), or NULL if the parent can't provide a better name. */
     const char* (*get_name)(BdrvChild *child);
 
+    /* Returns a malloced string that describes the parent of the child for a
+     * human reader. This could be a node-name, BlockBackend name, qdev ID or
+     * QOM path of the device owning the BlockBackend, job type and ID etc. The
+     * caller is responsible for freeing the memory. */
+    char* (*get_parent_desc)(BdrvChild *child);
+
     /*
      * If this pair of functions is implemented, the parent doesn't issue new
      * requests after returning from .drained_begin() until .drained_end() is
