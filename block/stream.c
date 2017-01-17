@@ -248,7 +248,9 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     /* Block all intermediate nodes between bs and base, because they
      * will disappear from the chain after this operation */
     for (iter = backing_bs(bs); iter && iter != base; iter = backing_bs(iter)) {
-        block_job_add_bdrv(&s->common, iter);
+        /* FIXME Use real permissions */
+        block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
+                           BLK_PERM_ALL, &error_abort);
     }
 
     s->base = base;

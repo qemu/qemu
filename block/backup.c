@@ -657,7 +657,9 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         job->cluster_size = MAX(BACKUP_CLUSTER_SIZE_DEFAULT, bdi.cluster_size);
     }
 
-    block_job_add_bdrv(&job->common, target);
+    /* FIXME Use real permissions */
+    block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
+                       &error_abort);
     job->common.len = len;
     block_job_txn_add_job(txn, &job->common);
 

@@ -267,13 +267,17 @@ void commit_start(const char *job_id, BlockDriverState *bs,
      * disappear from the chain after this operation. */
     assert(bdrv_chain_contains(top, base));
     for (iter = top; iter != backing_bs(base); iter = backing_bs(iter)) {
-        block_job_add_bdrv(&s->common, iter);
+        /* FIXME Use real permissions */
+        block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
+                           BLK_PERM_ALL, &error_abort);
     }
     /* overlay_bs must be blocked because it needs to be modified to
      * update the backing image string, but if it's the root node then
      * don't block it again */
     if (bs != overlay_bs) {
-        block_job_add_bdrv(&s->common, overlay_bs);
+        /* FIXME Use real permissions */
+        block_job_add_bdrv(&s->common, "overlay of top", overlay_bs, 0,
+                           BLK_PERM_ALL, &error_abort);
     }
 
     /* FIXME Use real permissions */
