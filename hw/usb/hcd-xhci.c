@@ -3703,11 +3703,11 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
     }
 
     if (xhci->msix != ON_OFF_AUTO_OFF) {
-        /* TODO check for errors */
+        /* TODO check for errors, and should fail when msix=on */
         msix_init(dev, xhci->numintrs,
                   &xhci->mem, 0, OFF_MSIX_TABLE,
                   &xhci->mem, 0, OFF_MSIX_PBA,
-                  0x90);
+                  0x90, NULL);
     }
 }
 

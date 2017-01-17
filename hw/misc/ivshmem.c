@@ -749,13 +749,13 @@ static void ivshmem_reset(DeviceState *d)
     }
 }
 
-static int ivshmem_setup_interrupts(IVShmemState *s)
+static int ivshmem_setup_interrupts(IVShmemState *s, Error **errp)
 {
     /* allocate QEMU callback data for receiving interrupts */
     s->msi_vectors = g_malloc0(s->vectors * sizeof(MSIVector));
 
     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
-        if (msix_init_exclusive_bar(PCI_DEVICE(s), s->vectors, 1)) {
+        if (msix_init_exclusive_bar(PCI_DEVICE(s), s->vectors, 1, errp)) {
             return -1;
         }
 
@@ -898,8 +898,8 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
         qemu_chr_fe_set_handlers(&s->server_chr, ivshmem_can_receive,
                                  ivshmem_read, NULL, s, NULL, true);
 
-        if (ivshmem_setup_interrupts(s) < 0) {
-            error_setg(errp, "failed to initialize interrupts");
+        if (ivshmem_setup_interrupts(s, errp) < 0) {
+            error_prepend(errp, "Failed to initialize interrupts: ");
             return;
         }
     }
