@@ -1193,10 +1193,12 @@
 #
 # @completed: finish the process of failover
 #
+# @relaunch: restart the failover process, from 'none' -> 'completed' (Since 2.9)
+#
 # Since: 2.8
 ##
 { 'enum': 'FailoverStatus',
-  'data': [ 'none', 'require', 'active', 'completed'] }
+  'data': [ 'none', 'require', 'active', 'completed', 'relaunch' ] }
 
 ##
 # @x-colo-lost-heartbeat:
