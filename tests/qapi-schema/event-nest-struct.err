@@ -1,1 +1,1 @@
-tests/qapi-schema/event-nest-struct.json:1: Member 'a' of 'data' for event 'EVENT_A' should be a type name
+tests/qapi-schema/event-nest-struct.json:5: Member 'a' of 'data' for event 'EVENT_A' should be a type name

@@ -1,3 +1,7 @@
 # we reject a union with unknown type in branch
+
+##
+# @Union:
+##
 { 'union': 'Union',
   'data': { 'unknown': 'MissingType' } }

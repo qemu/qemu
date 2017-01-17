@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-optional.json:3: Description has #optional, but the declaration doesn't

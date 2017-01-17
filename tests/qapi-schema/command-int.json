@@ -1,2 +1,6 @@
 # we reject collisions between commands and types
+
+##
+# @int:
+##
 { 'command': 'int', 'data': { 'character': 'str' } }

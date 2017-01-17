@@ -16,8 +16,7 @@ QMP is JSON[1] based and features the following:
 For detailed information on QMP's usage, please, refer to the following files:
 
 o qmp-spec.txt      QEMU Machine Protocol current specification
-o qmp-commands.txt  QMP supported commands (auto-generated at build-time)
-o qmp-events.txt    List of available asynchronous events
+o qemu-qmp-ref.html QEMU QMP commands and events (auto-generated at build-time)
 
 [1] http://www.json.org
 

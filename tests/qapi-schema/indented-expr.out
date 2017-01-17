@@ -5,3 +5,5 @@ command eins None -> None
 object q_empty
 command zwei None -> None
    gen=True success_response=True boxed=False
+doc symbol=eins expr=('command', 'eins')
+doc symbol=zwei expr=('command', 'zwei')

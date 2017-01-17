@@ -1,2 +1,6 @@
 # we reject an expression with unknown top-level keys
+
+##
+# @bar:
+##
 { 'struct': 'bar', 'data': { 'string': 'str'}, 'bogus': { } }

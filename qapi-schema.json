@@ -1,6 +1,53 @@
 # -*- Mode: Python -*-
+##
+# = Introduction
 #
-# QAPI Schema
+# This document describes all commands currently supported by QMP.
+#
+# Most of the time their usage is exactly the same as in the user Monitor, this
+# means that any other document which also describe commands (the manpage,
+# QEMU's manual, etc) can and should be consulted.
+#
+# QMP has two types of commands: regular and query commands. Regular commands
+# usually change the Virtual Machine's state someway, while query commands just
+# return information. The sections below are divided accordingly.
+#
+# It's important to observe that all communication examples are formatted in
+# a reader-friendly way, so that they're easier to understand. However, in real
+# protocol usage, they're emitted as a single line.
+#
+# Also, the following notation is used to denote data flow:
+#
+# Example:
+#
+# | -> data issued by the Client
+# | <- Server data response
+#
+# Please, refer to the QMP specification (docs/qmp-spec.txt) for
+# detailed information on the Server command and response formats.
+#
+# = Stability Considerations
+#
+# The current QMP command set (described in this file) may be useful for a
+# number of use cases, however it's limited and several commands have bad
+# defined semantics, specially with regard to command completion.
+#
+# These problems are going to be solved incrementally in the next QEMU releases
+# and we're going to establish a deprecation policy for badly defined commands.
+#
+# If you're planning to adopt QMP, please observe the following:
+#
+#     1. The deprecation policy will take effect and be documented soon, please
+#        check the documentation of each used command as soon as a new release of
+#        QEMU is available
+#
+#     2. DO NOT rely on anything which is not explicit documented
+#
+#     3. Errors, in special, are not documented. Applications should NOT check
+#        for specific errors classes or data (it's strongly recommended to only
+#        check for the "error" key)
+#
+##
 
 # QAPI common definitions
 { 'include': 'qapi/common.json' }
@@ -19,6 +66,10 @@
 
 # QAPI introspection
 { 'include': 'qapi/introspect.json' }
+
+##
+# = QMP commands
+##
 
 ##
 # @qmp_capabilities:
@@ -85,6 +136,13 @@
 # Returns: nothing on success.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "add_client", "arguments": { "protocol": "vnc",
+#                                              "fdname": "myclient" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'add_client',
   'data': { 'protocol': 'str', 'fdname': 'str', '*skipauth': 'bool',
@@ -109,6 +167,12 @@
 # Returns: @NameInfo of the guest
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-name" }
+# <- { "return": { "name": "qemu-name" } }
+#
 ##
 { 'command': 'query-name', 'returns': 'NameInfo' }
 
@@ -133,6 +197,12 @@
 # Returns: @KvmInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-kvm" }
+# <- { "return": { "enabled": true, "present": true } }
+#
 ##
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
@@ -213,13 +283,21 @@
 # Returns: @StatusInfo reflecting all VCPUs
 #
 # Since:  0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-status" }
+# <- { "return": { "running": true,
+#                  "singlestep": false,
+#                  "status": "running" } }
+#
 ##
 { 'command': 'query-status', 'returns': 'StatusInfo' }
 
 ##
 # @UuidInfo:
 #
-# Guest UUID information.
+# Guest UUID information (Universally Unique Identifier).
 #
 # @UUID: the UUID of the guest
 #
@@ -237,6 +315,12 @@
 # Returns: The @UuidInfo for the guest
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-uuid" }
+# <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
+#
 ##
 { 'command': 'query-uuid', 'returns': 'UuidInfo' }
 
@@ -270,6 +354,30 @@
 # Returns: a list of @ChardevInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-chardev" }
+# <- {
+#       "return": [
+#          {
+#             "label": "charchannel0",
+#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.agent,server",
+#             "frontend-open": false
+#          },
+#          {
+#             "label": "charmonitor",
+#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.monitor,server",
+#             "frontend-open": true
+#          },
+#          {
+#             "label": "charserial0",
+#             "filename": "pty:/dev/pts/2",
+#             "frontend-open": true
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
 
@@ -292,6 +400,27 @@
 # Returns: a list of @ChardevBackendInfo
 #
 # Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "query-chardev-backends" }
+# <- {
+#       "return":[
+#          {
+#             "name":"udp"
+#          },
+#          {
+#             "name":"tcp"
+#          },
+#          {
+#             "name":"unix"
+#          },
+#          {
+#             "name":"spiceport"
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-chardev-backends', 'returns': ['ChardevBackendInfo'] }
 
@@ -328,6 +457,15 @@
 # Returns: Nothing on success
 #
 # Since: 1.4
+#
+# Example:
+#
+# -> { "execute": "ringbuf-write",
+#      "arguments": { "device": "foo",
+#                     "data": "abcdefgh",
+#                     "format": "utf8" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'ringbuf-write',
   'data': {'device': 'str', 'data': 'str',
@@ -355,6 +493,15 @@
 # Returns: data read from the device
 #
 # Since: 1.4
+#
+# Example:
+#
+# -> { "execute": "ringbuf-read",
+#      "arguments": { "device": "foo",
+#                     "size": 1000,
+#                     "format": "utf8" } }
+# <- { "return": "abcdefgh" }
+#
 ##
 { 'command': 'ringbuf-read',
   'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
@@ -379,6 +526,23 @@
 # Returns: A list of @EventInfo for all supported events
 #
 # Since: 1.2.0
+#
+# Example:
+#
+# -> { "execute": "query-events" }
+# <- {
+#      "return": [
+#          {
+#             "name":"SHUTDOWN"
+#          },
+#          {
+#             "name":"RESET"
+#          }
+#       ]
+#    }
+#
+# Note: This example has been shortened as the real response is too long.
+#
 ##
 { 'command': 'query-events', 'returns': ['EventInfo'] }
 
@@ -538,11 +702,124 @@
 ##
 # @query-migrate:
 #
-# Returns information about current migration process.
+# Returns information about current migration process. If migration
+# is active there will be another json-object with RAM migration
+# status and if block migration is active another one with block
+# migration status.
 #
 # Returns: @MigrationInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# 1. Before the first migration
+#
+# -> { "execute": "query-migrate" }
+# <- { "return": {} }
+#
+# 2. Migration is done and has succeeded
+#
+# -> { "execute": "query-migrate" }
+# <- { "return": {
+#         "status": "completed",
+#         "ram":{
+#           "transferred":123,
+#           "remaining":123,
+#           "total":246,
+#           "total-time":12345,
+#           "setup-time":12345,
+#           "downtime":12345,
+#           "duplicate":123,
+#           "normal":123,
+#           "normal-bytes":123456,
+#           "dirty-sync-count":15
+#         }
+#      }
+#    }
+#
+# 3. Migration is done and has failed
+#
+# -> { "execute": "query-migrate" }
+# <- { "return": { "status": "failed" } }
+#
+# 4. Migration is being performed and is not a block migration:
+#
+# -> { "execute": "query-migrate" }
+# <- {
+#       "return":{
+#          "status":"active",
+#          "ram":{
+#             "transferred":123,
+#             "remaining":123,
+#             "total":246,
+#             "total-time":12345,
+#             "setup-time":12345,
+#             "expected-downtime":12345,
+#             "duplicate":123,
+#             "normal":123,
+#             "normal-bytes":123456,
+#             "dirty-sync-count":15
+#          }
+#       }
+#    }
+#
+# 5. Migration is being performed and is a block migration:
+#
+# -> { "execute": "query-migrate" }
+# <- {
+#       "return":{
+#          "status":"active",
+#          "ram":{
+#             "total":1057024,
+#             "remaining":1053304,
+#             "transferred":3720,
+#             "total-time":12345,
+#             "setup-time":12345,
+#             "expected-downtime":12345,
+#             "duplicate":123,
+#             "normal":123,
+#             "normal-bytes":123456,
+#             "dirty-sync-count":15
+#          },
+#          "disk":{
+#             "total":20971520,
+#             "remaining":20880384,
+#             "transferred":91136
+#          }
+#       }
+#    }
+#
+# 6. Migration is being performed and XBZRLE is active:
+#
+# -> { "execute": "query-migrate" }
+# <- {
+#       "return":{
+#          "status":"active",
+#          "capabilities" : [ { "capability": "xbzrle", "state" : true } ],
+#          "ram":{
+#             "total":1057024,
+#             "remaining":1053304,
+#             "transferred":3720,
+#             "total-time":12345,
+#             "setup-time":12345,
+#             "expected-downtime":12345,
+#             "duplicate":10,
+#             "normal":3333,
+#             "normal-bytes":3412992,
+#             "dirty-sync-count":15
+#          },
+#          "xbzrle-cache":{
+#             "cache-size":67108864,
+#             "bytes":20971520,
+#             "pages":2444343,
+#             "cache-miss":2244,
+#             "cache-miss-rate":0.123,
+#             "overflow":34434
+#          }
+#       }
+#    }
+#
 ##
 { 'command': 'query-migrate', 'returns': 'MigrationInfo' }
 
@@ -616,6 +893,12 @@
 # @capabilities: json array of capability modifications to make
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "migrate-set-capabilities" , "arguments":
+#      { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
+#
 ##
 { 'command': 'migrate-set-capabilities',
   'data': { 'capabilities': ['MigrationCapabilityStatus'] } }
@@ -628,6 +911,21 @@
 # Returns: @MigrationCapabilitiesStatus
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "query-migrate-capabilities" }
+# <- { "return": [
+#       {"state": false, "capability": "xbzrle"},
+#       {"state": false, "capability": "rdma-pin-all"},
+#       {"state": false, "capability": "auto-converge"},
+#       {"state": false, "capability": "zero-blocks"},
+#       {"state": false, "capability": "compress"},
+#       {"state": true, "capability": "events"},
+#       {"state": false, "capability": "postcopy-ram"},
+#       {"state": false, "capability": "x-colo"}
+#    ]}
+#
 ##
 { 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
 
@@ -696,6 +994,12 @@
 # Set various migration parameters.  See MigrationParameters for details.
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "migrate-set-parameters" ,
+#      "arguments": { "compress-level": 1 } }
+#
 ##
 { 'command': 'migrate-set-parameters', 'boxed': true,
   'data': 'MigrationParameters' }
@@ -767,6 +1071,21 @@
 # Returns: @MigrationParameters
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "query-migrate-parameters" }
+# <- { "return": {
+#          "decompress-threads": 2,
+#          "cpu-throttle-increment": 10,
+#          "compress-threads": 8,
+#          "compress-level": 1,
+#          "cpu-throttle-initial": 20,
+#          "max-bandwidth": 33554432,
+#          "downtime-limit": 300
+#       }
+#    }
+#
 ##
 { 'command': 'query-migrate-parameters',
   'returns': 'MigrationParameters' }
@@ -785,6 +1104,15 @@
 # @cert-subject: #optional server certificate subject
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "client_migrate_info",
+#      "arguments": { "protocol": "spice",
+#                     "hostname": "virt42.lab.kraxel.org",
+#                     "port": 1234 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'client_migrate_info',
   'data': { 'protocol': 'str', 'hostname': 'str', '*port': 'int',
@@ -798,6 +1126,12 @@
 # command.
 #
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "migrate-start-postcopy" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate-start-postcopy' }
 
@@ -870,6 +1204,12 @@
 # then takes over server operation to become the service VM.
 #
 # Since: 2.8
+#
+# Example:
+#
+# -> { "execute": "x-colo-lost-heartbeat" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'x-colo-lost-heartbeat' }
 
@@ -900,6 +1240,26 @@
 # Returns: a list of @MouseInfo for each device
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-mice" }
+# <- { "return": [
+#          {
+#             "name":"QEMU Microsoft Mouse",
+#             "index":0,
+#             "current":false,
+#             "absolute":false
+#          },
+#          {
+#             "name":"QEMU PS/2 Mouse",
+#             "index":1,
+#             "current":true,
+#             "absolute":true
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-mice', 'returns': ['MouseInfo'] }
 
@@ -1024,6 +1384,32 @@
 # Returns: a list of @CpuInfo for each virtual CPU
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-cpus" }
+# <- { "return": [
+#          {
+#             "CPU":0,
+#             "current":true,
+#             "halted":false,
+#             "qom_path":"/machine/unattached/device[0]",
+#             "arch":"x86",
+#             "pc":3227107138,
+#             "thread_id":3134
+#          },
+#          {
+#             "CPU":1,
+#             "current":false,
+#             "halted":true,
+#             "qom_path":"/machine/unattached/device[2]",
+#             "arch":"x86",
+#             "pc":7108165,
+#             "thread_id":3135
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-cpus', 'returns': ['CpuInfo'] }
 
@@ -1053,6 +1439,22 @@
 # Returns: a list of @IOThreadInfo for each iothread
 #
 # Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "query-iothreads" }
+# <- { "return": [
+#          {
+#             "id":"iothread0",
+#             "thread-id":3134
+#          },
+#          {
+#             "id":"iothread1",
+#             "thread-id":3135
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-iothreads', 'returns': ['IOThreadInfo'] }
 
@@ -1235,6 +1637,26 @@
 # Returns: @VncInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-vnc" }
+# <- { "return": {
+#          "enabled":true,
+#          "host":"0.0.0.0",
+#          "service":"50402",
+#          "auth":"vnc",
+#          "family":"ipv4",
+#          "clients":[
+#             {
+#                "host":"127.0.0.1",
+#                "service":"50401",
+#                "family":"ipv4"
+#             }
+#          ]
+#       }
+#    }
+#
 ##
 { 'command': 'query-vnc', 'returns': 'VncInfo' }
 
@@ -1332,7 +1754,7 @@
 # @enabled: true if the SPICE server is enabled, false otherwise
 #
 # @migrated: true if the last guest migration completed and spice
-#            migration had completed as well. false otherwise.
+#            migration had completed as well. false otherwise. (since 1.4)
 #
 # @host: #optional The hostname the SPICE server is bound to.  This depends on
 #        the name resolution on the host and may be an IP address.
@@ -1350,9 +1772,7 @@
 #
 # @mouse-mode: The mode in which the mouse cursor is displayed currently. Can
 #              be determined by the client or the server, or unknown if spice
-#              server doesn't provide this information.
-#
-#              Since: 1.1
+#              server doesn't provide this information. (since: 1.1)
 #
 # @channels: a list of @SpiceChannel for each active spice channel
 #
@@ -1371,6 +1791,40 @@
 # Returns: @SpiceInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-spice" }
+# <- { "return": {
+#          "enabled": true,
+#          "auth": "spice",
+#          "port": 5920,
+#          "tls-port": 5921,
+#          "host": "0.0.0.0",
+#          "channels": [
+#             {
+#                "port": "54924",
+#                "family": "ipv4",
+#                "channel-type": 1,
+#                "connection-id": 1804289383,
+#                "host": "127.0.0.1",
+#                "channel-id": 0,
+#                "tls": true
+#             },
+#             {
+#                "port": "36710",
+#                "family": "ipv4",
+#                "channel-type": 4,
+#                "connection-id": 1804289383,
+#                "host": "127.0.0.1",
+#                "channel-id": 0,
+#                "tls": false
+#             },
+#             [ ... more channels follow ... ]
+#          ]
+#       }
+#    }
+#
 ##
 { 'command': 'query-spice', 'returns': 'SpiceInfo' }
 
@@ -1392,11 +1846,22 @@
 # Return information about the balloon device.
 #
 # Returns: @BalloonInfo on success
+#
 #          If the balloon driver is enabled but not functional because the KVM
 #          kernel module cannot support it, KvmMissingCap
+#
 #          If no balloon device is present, DeviceNotActive
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-balloon" }
+# <- { "return": {
+#          "actual": 1073741824,
+#       }
+#    }
+#
 ##
 { 'command': 'query-balloon', 'returns': 'BalloonInfo' }
 
@@ -1422,6 +1887,8 @@
 #
 # @type: 'io' if the region is a PIO region
 #        'memory' if the region is a MMIO region
+#
+# @size: memory size
 #
 # @prefetch: #optional if @type is 'memory', true if the memory is prefetchable
 #
@@ -1556,9 +2023,144 @@
 #
 # Return information about the PCI bus topology of the guest.
 #
-# Returns: a list of @PciInfo for each PCI bus
+# Returns: a list of @PciInfo for each PCI bus. Each bus is
+# represented by a json-object, which has a key with a json-array of
+# all PCI devices attached to it. Each device is represented by a
+# json-object.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-pci" }
+# <- { "return": [
+#          {
+#             "bus": 0,
+#             "devices": [
+#                {
+#                   "bus": 0,
+#                   "qdev_id": "",
+#                   "slot": 0,
+#                   "class_info": {
+#                      "class": 1536,
+#                      "desc": "Host bridge"
+#                   },
+#                   "id": {
+#                      "device": 32902,
+#                      "vendor": 4663
+#                   },
+#                   "function": 0,
+#                   "regions": [
+#                   ]
+#                },
+#                {
+#                   "bus": 0,
+#                   "qdev_id": "",
+#                   "slot": 1,
+#                   "class_info": {
+#                      "class": 1537,
+#                      "desc": "ISA bridge"
+#                   },
+#                   "id": {
+#                      "device": 32902,
+#                      "vendor": 28672
+#                   },
+#                   "function": 0,
+#                   "regions": [
+#                   ]
+#                },
+#                {
+#                   "bus": 0,
+#                   "qdev_id": "",
+#                   "slot": 1,
+#                   "class_info": {
+#                      "class": 257,
+#                      "desc": "IDE controller"
+#                   },
+#                   "id": {
+#                      "device": 32902,
+#                      "vendor": 28688
+#                   },
+#                   "function": 1,
+#                   "regions": [
+#                      {
+#                         "bar": 4,
+#                         "size": 16,
+#                         "address": 49152,
+#                         "type": "io"
+#                      }
+#                   ]
+#                },
+#                {
+#                   "bus": 0,
+#                   "qdev_id": "",
+#                   "slot": 2,
+#                   "class_info": {
+#                      "class": 768,
+#                      "desc": "VGA controller"
+#                   },
+#                   "id": {
+#                      "device": 4115,
+#                      "vendor": 184
+#                   },
+#                   "function": 0,
+#                   "regions": [
+#                      {
+#                         "prefetch": true,
+#                         "mem_type_64": false,
+#                         "bar": 0,
+#                         "size": 33554432,
+#                         "address": 4026531840,
+#                         "type": "memory"
+#                      },
+#                      {
+#                         "prefetch": false,
+#                         "mem_type_64": false,
+#                         "bar": 1,
+#                         "size": 4096,
+#                         "address": 4060086272,
+#                         "type": "memory"
+#                      },
+#                      {
+#                         "prefetch": false,
+#                         "mem_type_64": false,
+#                         "bar": 6,
+#                         "size": 65536,
+#                         "address": -1,
+#                         "type": "memory"
+#                      }
+#                   ]
+#                },
+#                {
+#                   "bus": 0,
+#                   "qdev_id": "",
+#                   "irq": 11,
+#                   "slot": 4,
+#                   "class_info": {
+#                      "class": 1280,
+#                      "desc": "RAM controller"
+#                   },
+#                   "id": {
+#                      "device": 6900,
+#                      "vendor": 4098
+#                   },
+#                   "function": 0,
+#                   "regions": [
+#                      {
+#                         "bar": 0,
+#                         "size": 32,
+#                         "address": 49280,
+#                         "type": "io"
+#                      }
+#                   ]
+#                }
+#             ]
+#          }
+#       ]
+#    }
+#
+# Note: This example has been shortened as the real response is too long.
+#
 ##
 { 'command': 'query-pci', 'returns': ['PciInfo'] }
 
@@ -1571,6 +2173,11 @@
 # unexpected.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "quit" }
+# <- { "return": {} }
 ##
 { 'command': 'quit' }
 
@@ -1585,6 +2192,12 @@
 #         state.  In "inmigrate" state, it will ensure that the guest
 #         remains paused once migration finishes, as if the -S option was
 #         passed on the command line.
+#
+# Example:
+#
+# -> { "execute": "stop" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'stop' }
 
@@ -1594,6 +2207,12 @@
 # Performs a hard reset of a guest.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "system_reset" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'system_reset' }
 
@@ -1608,6 +2227,11 @@
 #        returning does not indicate that a guest has accepted the request or
 #        that it has shut down.  Many guests will respond to this command by
 #        prompting the user in some way.
+# Example:
+#
+# -> { "execute": "system_powerdown" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'system_powerdown' }
 
@@ -1632,6 +2256,12 @@
 # Returns: Nothing on success
 #
 # Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "cpu-add", "arguments": { "id": 2 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'cpu-add', 'data': {'id': 'int'} }
 
@@ -1654,6 +2284,15 @@
 # Since: 0.14.0
 #
 # Notes: Errors were not reliably returned until 1.1
+#
+# Example:
+#
+# -> { "execute": "memsave",
+#      "arguments": { "val": 10,
+#                     "size": 100,
+#                     "filename": "/tmp/virtual-mem-dump" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'memsave',
   'data': {'val': 'int', 'size': 'int', 'filename': 'str', '*cpu-index': 'int'} }
@@ -1674,6 +2313,15 @@
 # Since: 0.14.0
 #
 # Notes: Errors were not reliably returned until 1.1
+#
+# Example:
+#
+# -> { "execute": "pmemsave",
+#      "arguments": { "val": 10,
+#                     "size": 100,
+#                     "filename": "/tmp/physical-mem-dump" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'pmemsave',
   'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
@@ -1694,6 +2342,12 @@
 #         this case, the effect of the command is to make sure the guest
 #         starts once migration finishes, removing the effect of the -S
 #         command line option if it was passed.
+#
+# Example:
+#
+# -> { "execute": "cont" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'cont' }
 
@@ -1705,6 +2359,12 @@
 # Since:  1.1
 #
 # Returns:  nothing.
+#
+# Example:
+#
+# -> { "execute": "system_wakeup" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'system_wakeup' }
 
@@ -1712,12 +2372,19 @@
 # @inject-nmi:
 #
 # Injects a Non-Maskable Interrupt into the default CPU (x86/s390) or all CPUs (ppc64).
+# The command fails when the guest doesn't support injecting.
 #
 # Returns:  If successful, nothing
 #
 # Since:  0.14.0
 #
 # Note: prior to 2.1, this command was only supported for x86 and s390 VMs
+#
+# Example:
+#
+# -> { "execute": "inject-nmi" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'inject-nmi' }
 
@@ -1738,6 +2405,13 @@
 # Notes: Not all network adapters support setting link status.  This command
 #        will succeed even if the network adapter does not support link status
 #        notification.
+#
+# Example:
+#
+# -> { "execute": "set_link",
+#      "arguments": { "name": "e1000.0", "up": false } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'set_link', 'data': {'name': 'str', 'up': 'bool'} }
 
@@ -1758,6 +2432,12 @@
 #        size independent of this command.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "balloon", "arguments": { "value": 536870912 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'balloon', 'data': {'value': 'int'} }
 
@@ -1795,28 +2475,29 @@
 # @TransactionAction:
 #
 # A discriminated record of operations that can be performed with
-# @transaction.
+# @transaction. Action @type can be:
+#
+# - @abort: since 1.6
+# - @block-dirty-bitmap-add: since 2.5
+# - @block-dirty-bitmap-clear: since 2.5
+# - @blockdev-backup: since 2.3
+# - @blockdev-snapshot: since 2.5
+# - @blockdev-snapshot-internal-sync: since 1.7
+# - @blockdev-snapshot-sync: since 1.1
+# - @drive-backup: since 1.6
 #
 # Since: 1.1
-#
-# drive-backup since 1.6
-# abort since 1.6
-# blockdev-snapshot-internal-sync since 1.7
-# blockdev-backup since 2.3
-# blockdev-snapshot since 2.5
-# block-dirty-bitmap-add since 2.5
-# block-dirty-bitmap-clear since 2.5
 ##
 { 'union': 'TransactionAction',
   'data': {
-       'blockdev-snapshot': 'BlockdevSnapshot',
-       'blockdev-snapshot-sync': 'BlockdevSnapshotSync',
-       'drive-backup': 'DriveBackup',
-       'blockdev-backup': 'BlockdevBackup',
        'abort': 'Abort',
-       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal',
        'block-dirty-bitmap-add': 'BlockDirtyBitmapAdd',
-       'block-dirty-bitmap-clear': 'BlockDirtyBitmap'
+       'block-dirty-bitmap-clear': 'BlockDirtyBitmap',
+       'blockdev-backup': 'BlockdevBackup',
+       'blockdev-snapshot': 'BlockdevSnapshot',
+       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal',
+       'blockdev-snapshot-sync': 'BlockdevSnapshotSync',
+       'drive-backup': 'DriveBackup'
    } }
 
 ##
@@ -1843,6 +2524,28 @@
 # operation fails, then the entire set of actions will be abandoned and the
 # appropriate error returned.
 #
+# For external snapshots, the dictionary contains the device, the file to use for
+# the new snapshot, and the format.  The default format, if not specified, is
+# qcow2.
+#
+# Each new snapshot defaults to being created by QEMU (wiping any
+# contents if the file already exists), but it is also possible to reuse
+# an externally-created file.  In the latter case, you should ensure that
+# the new image file has the same contents as the current one; QEMU cannot
+# perform any meaningful check.  Typically this is achieved by using the
+# current image file as the backing file for the new image.
+#
+# On failure, the original disks pre-snapshot attempt will be used.
+#
+# For internal snapshots, the dictionary contains the device and the snapshot's
+# name.  If an internal snapshot matching name already exists, the request will
+# be rejected.  Only some image formats support it, for example, qcow2, rbd,
+# and sheepdog.
+#
+# On failure, qemu will try delete the newly created internal snapshot in the
+# transaction.  When an I/O error occurs during deletion, the user needs to fix
+# it later with qemu-img or other command.
+#
 # @actions: List of @TransactionAction;
 #           information needed for the respective operations.
 #
@@ -1851,6 +2554,7 @@
 #              for additional detail.
 #
 # Returns: nothing on success
+#
 #          Errors depend on the operations of the transaction
 #
 # Note: The transaction aborts on the first failure.  Therefore, there will be
@@ -1858,6 +2562,28 @@
 # subsequent actions will not have been attempted.
 #
 # Since: 1.1
+#
+# Example:
+#
+# -> { "execute": "transaction",
+#      "arguments": { "actions": [
+#          { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd0",
+#                                      "snapshot-file": "/some/place/my-image",
+#                                      "format": "qcow2" } },
+#          { "type": "blockdev-snapshot-sync", "data" : { "node-name": "myfile",
+#                                      "snapshot-file": "/some/place/my-image2",
+#                                      "snapshot-node-name": "node3432",
+#                                      "mode": "existing",
+#                                      "format": "qcow2" } },
+#          { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd1",
+#                                      "snapshot-file": "/some/place/my-image2",
+#                                      "mode": "existing",
+#                                      "format": "qcow2" } },
+#          { "type": "blockdev-snapshot-internal-sync", "data" : {
+#                                      "device": "ide-hd2",
+#                                      "name": "snapshot0" } } ] } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'transaction',
   'data': { 'actions': [ 'TransactionAction' ],
@@ -1879,15 +2605,26 @@
 # Since: 0.14.0
 #
 # Notes: This command only exists as a stop-gap.  Its use is highly
-#        discouraged.  The semantics of this command are not guaranteed.
+#        discouraged.  The semantics of this command are not
+#        guaranteed: this means that command names, arguments and
+#        responses can change or be removed at ANY time.  Applications
+#        that rely on long term stability guarantees should NOT
+#        use this command.
 #
 #        Known limitations:
 #
-#        o This command is stateless, this means that commands that depend
+#        * This command is stateless, this means that commands that depend
 #          on state information (such as getfd) might not work
 #
-#       o Commands that prompt the user for data (eg. 'cont' when the block
-#         device is encrypted) don't currently work
+#        * Commands that prompt the user for data (eg. 'cont' when the block
+#          device is encrypted) don't currently work
+#
+# Example:
+#
+# -> { "execute": "human-monitor-command",
+#      "arguments": { "command-line": "info kvm" } }
+# <- { "return": "kvm support: enabled\r\n" }
+#
 ##
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
@@ -1903,6 +2640,12 @@
 # Notes: This command succeeds even if there is no migration process running.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "migrate_cancel" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate_cancel' }
 
@@ -1918,6 +2661,12 @@
 # Notes: This command is deprecated in favor of 'migrate-set-parameters'
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "migrate_set_downtime", "arguments": { "value": 0.1 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate_set_downtime', 'data': {'value': 'number'} }
 
@@ -1926,20 +2675,26 @@
 #
 # Set maximum speed for migration.
 #
-# @value: maximum speed in bytes.
+# @value: maximum speed in bytes per second.
 #
 # Returns: nothing on success
 #
 # Notes: This command is deprecated in favor of 'migrate-set-parameters'
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "migrate_set_speed", "arguments": { "value": 1024 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
 
 ##
 # @migrate-set-cache-size:
 #
-# Set XBZRLE cache size
+# Set cache size to be used by XBZRLE migration
 #
 # @value: cache size in bytes
 #
@@ -1949,17 +2704,30 @@
 # Returns: nothing on success
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "migrate-set-cache-size",
+#      "arguments": { "value": 536870912 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate-set-cache-size', 'data': {'value': 'int'} }
 
 ##
 # @query-migrate-cache-size:
 #
-# query XBZRLE cache size
+# Query migration XBZRLE cache size
 #
 # Returns: XBZRLE cache size in bytes
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "query-migrate-cache-size" }
+# <- { "return": 67108864 }
+#
 ##
 { 'command': 'query-migrate-cache-size', 'returns': 'int' }
 
@@ -2076,6 +2844,13 @@
 #          If Spice is not enabled, DeviceNotFound
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "set_password", "arguments": { "protocol": "vnc",
+#                                                "password": "secret" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'set_password',
   'data': {'protocol': 'str', 'password': 'str', '*connected': 'str'} }
@@ -2102,6 +2877,13 @@
 #        coordinate server time with client time.  It is not recommended to
 #        use the absolute time version of the @time parameter unless you're
 #        sure you are on the same machine as the QEMU instance.
+#
+# Example:
+#
+# -> { "execute": "expire_password", "arguments": { "protocol": "vnc",
+#                                                   "time": "+60" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'expire_password', 'data': {'protocol': 'str', 'time': 'str'} }
 
@@ -2152,6 +2934,23 @@
 #         change-vnc-password.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# 1. Change a removable medium
+#
+# -> { "execute": "change",
+#      "arguments": { "device": "ide1-cd0",
+#                     "target": "/srv/images/Fedora-12-x86_64-DVD.iso" } }
+# <- { "return": {} }
+#
+# 2. Change VNC password
+#
+# -> { "execute": "change",
+#      "arguments": { "device": "vnc", "target": "password",
+#                     "arg": "foobar1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'change',
   'data': {'device': 'str', 'target': 'str', '*arg': 'str'} }
@@ -2234,6 +3033,22 @@
 # Returns: nothing on success
 #
 # Since: 0.14.0
+#
+# Notes:
+#
+# 1. The 'query-migrate' command should be used to check migration's progress
+#    and final result (this information is provided by the 'status' member)
+#
+# 2. All boolean arguments default to false
+#
+# 3. The user Monitor's "detach" argument is invalid in QMP and should not
+#    be used
+#
+# Example:
+#
+# -> { "execute": "migrate", "arguments": { "uri": "tcp:0:4446" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate',
   'data': {'uri': 'str', '*blk': 'bool', '*inc': 'bool', '*detach': 'bool' } }
@@ -2250,9 +3065,24 @@
 # Returns: nothing on success
 #
 # Since: 2.3
-# Note: It's a bad idea to use a string for the uri, but it needs to stay
-# compatible with -incoming and the format of the uri is already exposed
-# above libvirt
+#
+# Notes:
+#
+# 1. It's a bad idea to use a string for the uri, but it needs to stay
+#    compatible with -incoming and the format of the uri is already exposed
+#    above libvirt.
+#
+# 2. QEMU must be started with -incoming defer to allow migrate-incoming to
+#    be used.
+#
+# 3. The uri format is the same as for -incoming
+#
+# Example:
+#
+# -> { "execute": "migrate-incoming",
+#      "arguments": { "uri": "tcp::4446" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
 
@@ -2269,6 +3099,13 @@
 # Returns: Nothing on success
 #
 # Since: 1.1
+#
+# Example:
+#
+# -> { "execute": "xen-save-devices-state",
+#      "arguments": { "filename": "/tmp/save" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'xen-save-devices-state', 'data': {'filename': 'str'} }
 
@@ -2282,6 +3119,13 @@
 # Returns: nothing
 #
 # Since: 1.3
+#
+# Example:
+#
+# -> { "execute": "xen-set-global-dirty-log",
+#      "arguments": { "enable": true } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'xen-set-global-dirty-log', 'data': { 'enable': 'bool' } }
 
@@ -2292,7 +3136,7 @@
 #
 # @bus: #optional the device's parent bus (device tree path)
 #
-# @id: the device's ID, must be unique
+# @id: #optional the device's ID, must be unique
 #
 # Additional arguments depend on the type.
 #
@@ -2314,7 +3158,7 @@
 #                     "mac": "52:54:00:12:34:56" } }
 # <- { "return": {} }
 #
-# TODO This command effectively bypasses QAPI completely due to its
+# TODO: This command effectively bypasses QAPI completely due to its
 # "additional arguments" business.  It shouldn't have been added to
 # the schema in this form.  It should be qapified properly, or
 # replaced by a properly qapified command.
@@ -2322,7 +3166,7 @@
 # Since: 0.13
 ##
 { 'command': 'device_add',
-  'data': {'driver': 'str', 'id': 'str'},
+  'data': {'driver': 'str', '*bus': 'str', '*id': 'str'},
   'gen': false } # so we can get the additional arguments
 
 ##
@@ -2330,7 +3174,7 @@
 #
 # Remove a device from a guest
 #
-# @id: the name or QOM path of the device
+# @id: the device's ID or QOM path
 #
 # Returns: Nothing on success
 #          If @id is not a valid device, DeviceNotFound
@@ -2343,6 +3187,17 @@
 #        for all devices.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "device_del",
+#      "arguments": { "id": "net1" } }
+# <- { "return": {} }
+#
+# -> { "execute": "device_del",
+#      "arguments": { "id": "/machine/peripheral-anon/device[0]" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'device_del', 'data': {'id': 'str'} }
 
@@ -2409,9 +3264,18 @@
 #          @length is not allowed to be specified with non-elf @format at the
 #          same time (since 2.0)
 #
+# Note: All boolean arguments default to false
+#
 # Returns: nothing on success
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "dump-guest-memory",
+#      "arguments": { "protocol": "fd:dump" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*detach': 'bool',
@@ -2462,6 +3326,13 @@
 # Returns: A @DumpStatus object showing the dump status.
 #
 # Since: 2.6
+#
+# Example:
+#
+# -> { "execute": "query-dump" }
+# <- { "return": { "status": "active", "completed": 1024000,
+#                  "total": 2048000 } }
+#
 ##
 { 'command': 'query-dump', 'returns': 'DumpQueryResult' }
 
@@ -2485,6 +3356,13 @@
 #           dump-guest-memory
 #
 # Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "query-dump-guest-memory-capability" }
+# <- { "return": { "formats":
+#                  ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] }
+#
 ##
 { 'command': 'query-dump-guest-memory-capability',
   'returns': 'DumpGuestMemoryCapability' }
@@ -2499,6 +3377,13 @@
 # This command is only supported on s390 architecture.
 #
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "dump-skeys",
+#      "arguments": { "filename": "/tmp/skeys" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'dump-skeys',
   'data': { 'filename': 'str' } }
@@ -2515,7 +3400,7 @@
 #
 # Additional arguments depend on the type.
 #
-# TODO This command effectively bypasses QAPI completely due to its
+# TODO: This command effectively bypasses QAPI completely due to its
 # "additional arguments" business.  It shouldn't have been added to
 # the schema in this form.  It should be qapified properly, or
 # replaced by a properly qapified command.
@@ -2524,6 +3409,14 @@
 #
 # Returns: Nothing on success
 #          If @type is not a valid network backend, DeviceNotFound
+#
+# Example:
+#
+# -> { "execute": "netdev_add",
+#      "arguments": { "type": "user", "id": "netdev1",
+#                     "dnssearch": "example.org" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'netdev_add',
   'data': {'type': 'str', 'id': 'str'},
@@ -2540,6 +3433,12 @@
 #          If @id is not a valid network backend, DeviceNotFound
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "netdev_del", "arguments": { "id": "netdev1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
 
@@ -2558,6 +3457,14 @@
 #          Error if @qom-type is not a valid class name
 #
 # Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "object-add",
+#      "arguments": { "qom-type": "rng-random", "id": "rng1",
+#                     "props": { "filename": "/dev/hwrng" } } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'object-add',
   'data': {'qom-type': 'str', 'id': 'str', '*props': 'any'} }
@@ -2573,6 +3480,12 @@
 #          Error if @id is not a valid id for a QOM object
 #
 # Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "object-del", "arguments": { "id": "rng1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'object-del', 'data': {'id': 'str'} }
 
@@ -3147,8 +4060,15 @@
 # Notes: If @fdname already exists, the file descriptor assigned to
 #        it will be closed and replaced by the received file
 #        descriptor.
+#
 #        The 'closefd' command can be used to explicitly close the
 #        file descriptor when it is no longer needed.
+#
+# Example:
+#
+# -> { "execute": "getfd", "arguments": { "fdname": "fd1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'getfd', 'data': {'fdname': 'str'} }
 
@@ -3162,6 +4082,12 @@
 # Returns: Nothing on success
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "closefd", "arguments": { "fdname": "fd1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'closefd', 'data': {'fdname': 'str'} }
 
@@ -3514,7 +4440,9 @@
 # @opaque: #optional A free-form string that can be used to describe the fd.
 #
 # Returns: @AddfdInfo on success
+#
 #          If file descriptor was not received, FdNotSupplied
+#
 #          If @fdset-id is a negative value, InvalidParameterValue
 #
 # Notes: The list of fd sets is shared by all monitor connections.
@@ -3522,6 +4450,12 @@
 #        If @fdset-id is not specified, a new fd set will be created.
 #
 # Since: 1.2.0
+#
+# Example:
+#
+# -> { "execute": "add-fd", "arguments": { "fdset-id": 1 } }
+# <- { "return": { "fdset-id": 1, "fd": 3 } }
+#
 ##
 { 'command': 'add-fd', 'data': {'*fdset-id': 'int', '*opaque': 'str'},
   'returns': 'AddfdInfo' }
@@ -3544,6 +4478,12 @@
 #
 #        If @fd is not specified, all file descriptors in @fdset-id
 #        will be removed.
+#
+# Example:
+#
+# -> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'remove-fd', 'data': {'fdset-id': 'int', '*fd': 'int'} }
 
@@ -3586,6 +4526,37 @@
 #
 # Note: The list of fd sets is shared by all monitor connections.
 #
+# Example:
+#
+# -> { "execute": "query-fdsets" }
+# <- { "return": [
+#        {
+#          "fds": [
+#            {
+#              "fd": 30,
+#              "opaque": "rdonly:/path/to/file"
+#            },
+#            {
+#              "fd": 24,
+#              "opaque": "rdwr:/path/to/file"
+#            }
+#          ],
+#          "fdset-id": 1
+#        },
+#        {
+#          "fds": [
+#            {
+#              "fd": 28
+#            },
+#            {
+#              "fd": 29
+#            }
+#          ],
+#          "fdset-id": 0
+#        }
+#      ]
+#    }
+#
 ##
 { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
 
@@ -3615,6 +4586,10 @@
 ##
 # @QKeyCode:
 #
+# An enumeration of key name.
+#
+# This is used by the @send-key command.
+#
 # @unmapped: since 2.0
 # @pause: since 2.0
 # @ro: since 2.4
@@ -3624,10 +4599,6 @@
 # @hiragana: since 2.9
 # @henkan: since 2.9
 # @yen: since 2.9
-#
-# An enumeration of key name.
-#
-# This is used by the send-key command.
 #
 # Since: 1.3.0
 #
@@ -3682,6 +4653,14 @@
 #
 # Since: 1.3.0
 #
+# Example:
+#
+# -> { "execute": "send-key",
+#      "arguments": { "keys": [ { "type": "qcode", "data": "ctrl" },
+#                               { "type": "qcode", "data": "alt" },
+#                               { "type": "qcode", "data": "delete" } ] } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'send-key',
   'data': { 'keys': ['KeyValue'], '*hold-time': 'int' } }
@@ -3696,6 +4675,13 @@
 # Returns: Nothing on success
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "screendump",
+#      "arguments": { "filename": "/tmp/image" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'screendump', 'data': {'filename': 'str'} }
 
@@ -3920,6 +4906,25 @@
 # Returns: ChardevReturn.
 #
 # Since: 1.4
+#
+# Example:
+#
+# -> { "execute" : "chardev-add",
+#      "arguments" : { "id" : "foo",
+#                      "backend" : { "type" : "null", "data" : {} } } }
+# <- { "return": {} }
+#
+# -> { "execute" : "chardev-add",
+#      "arguments" : { "id" : "bar",
+#                      "backend" : { "type" : "file",
+#                                    "data" : { "out" : "/tmp/bar.log" } } } }
+# <- { "return": {} }
+#
+# -> { "execute" : "chardev-add",
+#      "arguments" : { "id" : "baz",
+#                      "backend" : { "type" : "pty", "data" : {} } } }
+# <- { "return": { "pty" : "/dev/pty/42" } }
+#
 ##
 { 'command': 'chardev-add', 'data': {'id'      : 'str',
                                      'backend' : 'ChardevBackend' },
@@ -3935,6 +4940,12 @@
 # Returns: Nothing on success
 #
 # Since: 1.4
+#
+# Example:
+#
+# -> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'chardev-remove', 'data': {'id': 'str'} }
 
@@ -3957,6 +4968,12 @@
 # Returns: a list of TpmModel
 #
 # Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "query-tpm-models" }
+# <- { "return": [ "tpm-tis" ] }
+#
 ##
 { 'command': 'query-tpm-models', 'returns': ['TpmModel'] }
 
@@ -3979,6 +4996,12 @@
 # Returns: a list of TpmType
 #
 # Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "query-tpm-types" }
+# <- { "return": [ "passthrough" ] }
+#
 ##
 { 'command': 'query-tpm-types', 'returns': ['TpmType'] }
 
@@ -4035,6 +5058,25 @@
 # Returns: @TPMInfo on success
 #
 # Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "query-tpm" }
+# <- { "return":
+#      [
+#        { "model": "tpm-tis",
+#          "options":
+#            { "type": "passthrough",
+#              "data":
+#                { "cancel-path": "/sys/class/misc/tpm0/device/cancel",
+#                  "path": "/dev/tpm0"
+#                }
+#            },
+#          "id": "tpm0"
+#        }
+#      ]
+#    }
+#
 ##
 { 'command': 'query-tpm', 'returns': ['TPMInfo'] }
 
@@ -4161,6 +5203,28 @@
 #          @option).  Returns an error if the given @option doesn't exist.
 #
 # Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "query-command-line-options",
+#      "arguments": { "option": "option-rom" } }
+# <- { "return": [
+#         {
+#             "parameters": [
+#                 {
+#                     "name": "romfile",
+#                     "type": "string"
+#                 },
+#                 {
+#                     "name": "bootindex",
+#                     "type": "number"
+#                 }
+#             ],
+#             "option": "option-rom"
+#         }
+#      ]
+#    }
+#
 ##
 {'command': 'query-command-line-options', 'data': { '*option': 'str' },
  'returns': ['CommandLineOptionInfo'] }
@@ -4282,6 +5346,36 @@
 #          isn't a NIC.
 #
 # Since: 1.6
+#
+# Example:
+#
+# -> { "execute": "query-rx-filter", "arguments": { "name": "vnet0" } }
+# <- { "return": [
+#         {
+#             "promiscuous": true,
+#             "name": "vnet0",
+#             "main-mac": "52:54:00:12:34:56",
+#             "unicast": "normal",
+#             "vlan": "normal",
+#             "vlan-table": [
+#                 4,
+#                 0
+#             ],
+#             "unicast-table": [
+#             ],
+#             "multicast": "normal",
+#             "multicast-overflow": false,
+#             "unicast-overflow": false,
+#             "multicast-table": [
+#                 "01:00:5e:00:00:01",
+#                 "33:33:00:00:00:01",
+#                 "33:33:ff:12:34:56"
+#             ],
+#             "broadcast-allowed": false
+#         }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-rx-filter', 'data': { '*name': 'str' },
   'returns': ['RxFilterInfo'] }
@@ -4380,9 +5474,9 @@
 #
 # Returns: Nothing on success.
 #
-# The @display and @head parameters can be used to send the input
-# event to specific input devices in case (a) multiple input devices
-# of the same kind are added to the virtual machine and (b) you have
+# The @device and @head parameters can be used to send the input event
+# to specific input devices in case (a) multiple input devices of the
+# same kind are added to the virtual machine and (b) you have
 # configured input routing (see docs/multiseat.txt) for those input
 # devices.  The parameters work exactly like the device and head
 # properties of input devices.  If @device is missing, only devices
@@ -4392,6 +5486,48 @@
 # precedence.
 #
 # Since: 2.6
+#
+# Note: The consoles are visible in the qom tree, under
+# /backend/console[$index]. They have a device link and head property,
+# so it is possible to map which console belongs to which device and
+# display.
+#
+# Example:
+#
+# 1. Press left mouse button.
+#
+# -> { "execute": "input-send-event",
+#     "arguments": { "device": "video0",
+#                    "events": [ { "type": "btn",
+#                    "data" : { "down": true, "button": "left" } } ] } }
+# <- { "return": {} }
+#
+# -> { "execute": "input-send-event",
+#     "arguments": { "device": "video0",
+#                    "events": [ { "type": "btn",
+#                    "data" : { "down": false, "button": "left" } } ] } }
+# <- { "return": {} }
+#
+# 2. Press ctrl-alt-del.
+#
+# -> { "execute": "input-send-event",
+#      "arguments": { "events": [
+#         { "type": "key", "data" : { "down": true,
+#           "key": {"type": "qcode", "data": "ctrl" } } },
+#         { "type": "key", "data" : { "down": true,
+#           "key": {"type": "qcode", "data": "alt" } } },
+#         { "type": "key", "data" : { "down": true,
+#           "key": {"type": "qcode", "data": "delete" } } } ] } }
+# <- { "return": {} }
+#
+# 3. Move mouse pointer to absolute coordinates (20000, 400).
+#
+# -> { "execute": "input-send-event" ,
+#   "arguments": { "events": [
+#                { "type": "abs", "data" : { "axis": "x", "value" : 20000 } },
+#                { "type": "abs", "data" : { "axis": "y", "value" : 400 } } ] } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'input-send-event',
   'data': { '*device': 'str',
@@ -4494,6 +5630,31 @@
 # Returns: a list of @Memdev.
 #
 # Since: 2.1
+#
+# Example:
+#
+# -> { "execute": "query-memdev" }
+# <- { "return": [
+#        {
+#          "id": "mem1",
+#          "size": 536870912,
+#          "merge": false,
+#          "dump": true,
+#          "prealloc": false,
+#          "host-nodes": [0, 1],
+#          "policy": "bind"
+#        },
+#        {
+#          "size": 536870912,
+#          "merge": false,
+#          "dump": true,
+#          "prealloc": true,
+#          "host-nodes": [2, 3],
+#          "policy": "preferred"
+#        }
+#      ]
+#    }
+#
 ##
 { 'command': 'query-memdev', 'returns': ['Memdev'] }
 
@@ -4547,6 +5708,22 @@
 # Lists available memory devices and their state
 #
 # Since: 2.1
+#
+# Example:
+#
+# -> { "execute": "query-memory-devices" }
+# <- { "return": [ { "data":
+#                       { "addr": 5368709120,
+#                         "hotpluggable": true,
+#                         "hotplugged": true,
+#                         "id": "d1",
+#                         "memdev": "/objects/memX",
+#                         "node": 0,
+#                         "size": 1073741824,
+#                         "slot": 0},
+#                    "type": "dimm"
+#                  } ] }
+#
 ##
 { 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
 
@@ -4587,10 +5764,20 @@
 ##
 # @query-acpi-ospm-status:
 #
-# Lists ACPI OSPM status of ACPI device objects,
-# which might be reported via _OST method
+# Return a list of ACPIOSTInfo for devices that support status
+# reporting via ACPI _OST method.
 #
 # Since: 2.1
+#
+# Example:
+#
+# -> { "execute": "query-acpi-ospm-status" }
+# <- { "return": [ { "device": "d1", "slot": "0", "slot-type": "DIMM", "source": 1, "status": 0},
+#                  { "slot": "1", "slot-type": "DIMM", "source": 0, "status": 0},
+#                  { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
+#                  { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
+#    ]}
+#
 ##
 { 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }
 
@@ -4657,6 +5844,12 @@
 # command.
 #
 # Since: 2.1
+#
+# Example:
+#
+# -> { "execute": "rtc-reset-reinjection" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'rtc-reset-reinjection' }
 
@@ -4692,6 +5885,13 @@
 # format.
 #
 # Since: 2.7
+#
+# Example:
+#
+# -> { "execute": "xen-load-devices-state",
+#      "arguments": { "filename": "/tmp/resume" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'xen-load-devices-state', 'data': {'filename': 'str'} }
 
@@ -4728,6 +5928,13 @@
 # Returns: a list of GICCapability objects.
 #
 # Since: 2.6
+#
+# Example:
+#
+# -> { "execute": "query-gic-capabilities" }
+# <- { "return": [{ "version": 2, "emulated": true, "kernel": false },
+#                 { "version": 3, "emulated": false, "kernel": true } ] }
+#
 ##
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'] }
 
@@ -4738,16 +5945,16 @@
 # it should be passed by management with device_add command when
 # a CPU is being hotplugged.
 #
+# @node-id: #optional NUMA node ID the CPU belongs to
+# @socket-id: #optional socket number within node/board the CPU belongs to
+# @core-id: #optional core number within socket the CPU belongs to
+# @thread-id: #optional thread number within core the CPU belongs to
+#
 # Note: currently there are 4 properties that could be present
 # but management should be prepared to pass through other
 # properties with device_add command to allow for future
 # interface extension. This also requires the filed names to be kept in
 # sync with the properties passed to -device/device_add.
-#
-# @node-id: #optional NUMA node ID the CPU belongs to
-# @socket-id: #optional socket number within node/board the CPU belongs to
-# @core-id: #optional core number within socket the CPU belongs to
-# @thread-id: #optional thread number within core the CPU belongs to
 #
 # Since: 2.7
 ##
@@ -4784,5 +5991,33 @@
 # Returns: a list of HotpluggableCPU objects.
 #
 # Since: 2.7
+#
+# Example:
+#
+# For pseries machine type started with -smp 2,cores=2,maxcpus=4 -cpu POWER8:
+#
+# -> { "execute": "query-hotpluggable-cpus" }
+# <- {"return": [
+#      { "props": { "core": 8 }, "type": "POWER8-spapr-cpu-core",
+#        "vcpus-count": 1 },
+#      { "props": { "core": 0 }, "type": "POWER8-spapr-cpu-core",
+#        "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
+#    ]}'
+#
+# For pc machine type started with -smp 1,maxcpus=2:
+#
+# -> { "execute": "query-hotpluggable-cpus" }
+# <- {"return": [
+#      {
+#         "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
+#         "props": {"core-id": 0, "socket-id": 1, "thread-id": 0}
+#      },
+#      {
+#         "qom-path": "/machine/unattached/device[0]",
+#         "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
+#         "props": {"core-id": 0, "socket-id": 0, "thread-id": 0}
+#      }
+#    ]}
+#
 ##
 { 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'] }

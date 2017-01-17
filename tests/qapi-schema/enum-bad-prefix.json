@@ -1,2 +1,6 @@
 # The prefix must be a string type
+
+##
+# @MyEnum:
+##
 { 'enum': 'MyEnum', 'data': [ 'one' ], 'prefix': [ 'fish' ] }

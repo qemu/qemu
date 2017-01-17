@@ -1,1 +1,1 @@
-tests/qapi-schema/args-member-array-bad.json:2: Member 'member' of 'data' for command 'oops': array type must contain single type name
+tests/qapi-schema/args-member-array-bad.json:6: Member 'member' of 'data' for command 'oops': array type must contain single type name

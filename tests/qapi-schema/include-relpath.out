@@ -2,3 +2,4 @@ enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbo
     prefix QTYPE
 enum Status ['good', 'bad', 'ugly']
 object q_empty
+doc symbol=Status expr=('enum', 'Status')

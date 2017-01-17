@@ -1,1 +1,1 @@
-tests/qapi-schema/base-cycle-indirect.json:2: Object Base1 contains itself
+tests/qapi-schema/base-cycle-indirect.json:6: Object Base1 contains itself

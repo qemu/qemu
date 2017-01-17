@@ -1,9 +1,19 @@
 # we require branches to be a struct name
 # TODO: should we allow anonymous inline branch types?
+
+##
+# @TestEnum:
+##
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
+##
+# @Base:
+##
 { 'struct': 'Base',
   'data': { 'enum1': 'TestEnum', 'kind': 'str' } }
+##
+# @TestUnion:
+##
 { 'union': 'TestUnion',
   'base': 'Base',
   'discriminator': 'enum1',

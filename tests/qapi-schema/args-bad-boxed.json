@@ -1,2 +1,6 @@
 # 'boxed' should only appear with value true
+
+##
+# @foo:
+##
 { 'command': 'foo', 'boxed': false }

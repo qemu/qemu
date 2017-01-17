@@ -2,4 +2,8 @@
 # We reserve names ending in 'List' for use by array types.
 # TODO - we could choose array names to avoid collision with user types,
 # in order to let this compile
+
+##
+# @FooList:
+##
 { 'struct': 'FooList', 'data': { 's': 'str' } }

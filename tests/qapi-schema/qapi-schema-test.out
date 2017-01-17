@@ -232,3 +232,133 @@ command user_def_cmd1 q_obj_user_def_cmd1-arg -> None
    gen=True success_response=True boxed=False
 command user_def_cmd2 q_obj_user_def_cmd2-arg -> UserDefTwo
    gen=True success_response=True boxed=False
+doc freeform
+    body=
+= Section
+== subsection
+
+Some text foo with *strong* and _emphasis_
+1. with a list
+2. like that @foo
+
+And some code:
+| $ echo foo
+| -> do this
+| <- get that
+
+Note: is not a meta
+doc symbol=TestStruct expr=('struct', 'TestStruct')
+    arg=integer
+foo
+blah
+
+bao
+    arg=boolean
+bar
+    arg=string
+baz
+    section=Example
+-> { "execute": ... }
+<- { "return": ... }
+    section=Since
+2.3
+    section=Note
+a note
+    body=
+body with @var
+doc symbol=NestedEnumsOne expr=('struct', 'NestedEnumsOne')
+    body=
+for testing enums
+doc symbol=MyEnum expr=('enum', 'MyEnum')
+    body=
+An empty enum, although unusual, is currently acceptable
+doc symbol=Empty1 expr=('struct', 'Empty1')
+    body=
+Likewise for an empty struct, including an empty base
+doc symbol=Empty2 expr=('struct', 'Empty2')
+doc symbol=user_def_cmd0 expr=('command', 'user_def_cmd0')
+doc symbol=QEnumTwo expr=('enum', 'QEnumTwo')
+    body=
+for testing override of default naming heuristic
+doc symbol=UserDefOne expr=('struct', 'UserDefOne')
+    body=
+for testing nested structs
+doc symbol=EnumOne expr=('enum', 'EnumOne')
+doc symbol=UserDefZero expr=('struct', 'UserDefZero')
+doc symbol=UserDefTwoDictDict expr=('struct', 'UserDefTwoDictDict')
+doc symbol=UserDefTwoDict expr=('struct', 'UserDefTwoDict')
+doc symbol=UserDefTwo expr=('struct', 'UserDefTwo')
+doc symbol=ForceArrays expr=('struct', 'ForceArrays')
+    body=
+dummy struct to force generation of array types not otherwise mentioned
+doc symbol=UserDefA expr=('struct', 'UserDefA')
+    body=
+for testing unions
+Among other things, test that a name collision between branches does
+not cause any problems (since only one branch can be in use at a time),
+by intentionally using two branches that both have a C member 'a_b'
+doc symbol=UserDefB expr=('struct', 'UserDefB')
+doc symbol=UserDefFlatUnion expr=('union', 'UserDefFlatUnion')
+doc symbol=UserDefUnionBase expr=('struct', 'UserDefUnionBase')
+doc symbol=UserDefFlatUnion2 expr=('union', 'UserDefFlatUnion2')
+    body=
+this variant of UserDefFlatUnion defaults to a union that uses members with
+allocated types to test corner cases in the cleanup/dealloc visitor
+doc symbol=WrapAlternate expr=('struct', 'WrapAlternate')
+doc symbol=UserDefAlternate expr=('alternate', 'UserDefAlternate')
+doc symbol=UserDefC expr=('struct', 'UserDefC')
+doc symbol=AltStrBool expr=('alternate', 'AltStrBool')
+doc symbol=AltStrNum expr=('alternate', 'AltStrNum')
+doc symbol=AltNumStr expr=('alternate', 'AltNumStr')
+doc symbol=AltStrInt expr=('alternate', 'AltStrInt')
+doc symbol=AltIntNum expr=('alternate', 'AltIntNum')
+doc symbol=AltNumInt expr=('alternate', 'AltNumInt')
+doc symbol=UserDefNativeListUnion expr=('union', 'UserDefNativeListUnion')
+    body=
+for testing native lists
+doc symbol=user_def_cmd expr=('command', 'user_def_cmd')
+doc symbol=user_def_cmd1 expr=('command', 'user_def_cmd1')
+doc symbol=user_def_cmd2 expr=('command', 'user_def_cmd2')
+doc freeform
+    body=
+Another comment
+doc symbol=guest-get-time expr=('command', 'guest-get-time')
+    arg=a
+an integer
+    arg=b
+#optional integer
+    section=Returns
+returns something
+    section=Example
+-> { "execute": "guest-get-time", ... }
+<- { "return": "42" }
+    body=
+@guest-get-time body
+doc symbol=guest-sync expr=('command', 'guest-sync')
+doc symbol=boxed-struct expr=('command', 'boxed-struct')
+doc symbol=boxed-union expr=('command', 'boxed-union')
+doc symbol=UserDefOptions expr=('struct', 'UserDefOptions')
+    body=
+For testing integer range flattening in opts-visitor. The following schema
+corresponds to the option format:
+
+-userdef i64=3-6,i64=-5--1,u64=2,u16=1,u16=7-12
+
+For simplicity, this example doesn't use [type=]discriminator nor optargs
+specific to discriminator values.
+doc symbol=EventStructOne expr=('struct', 'EventStructOne')
+doc symbol=EVENT_A expr=('event', 'EVENT_A')
+doc symbol=EVENT_B expr=('event', 'EVENT_B')
+doc symbol=EVENT_C expr=('event', 'EVENT_C')
+doc symbol=EVENT_D expr=('event', 'EVENT_D')
+doc symbol=EVENT_E expr=('event', 'EVENT_E')
+doc symbol=EVENT_F expr=('event', 'EVENT_F')
+doc symbol=__org.qemu_x-Enum expr=('enum', '__org.qemu_x-Enum')
+doc symbol=__org.qemu_x-Base expr=('struct', '__org.qemu_x-Base')
+doc symbol=__org.qemu_x-Struct expr=('struct', '__org.qemu_x-Struct')
+doc symbol=__org.qemu_x-Union1 expr=('union', '__org.qemu_x-Union1')
+doc symbol=__org.qemu_x-Struct2 expr=('struct', '__org.qemu_x-Struct2')
+doc symbol=__org.qemu_x-Union2 expr=('union', '__org.qemu_x-Union2')
+doc symbol=__org.qemu_x-Alt expr=('alternate', '__org.qemu_x-Alt')
+doc symbol=__ORG.QEMU_X-EVENT expr=('event', '__ORG.QEMU_X-EVENT')
+doc symbol=__org.qemu_x-command expr=('command', '__org.qemu_x-command')

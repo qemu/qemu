@@ -1,2 +1,6 @@
 # we reject returns if it does not contain a known type
+
+##
+# @oops:
+##
 { 'command': 'oops', 'returns': 'NoSuchType' }

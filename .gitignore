@@ -40,6 +40,7 @@
 /qmp-marshal.c
 /qemu-doc.html
 /qemu-doc.info
+/qemu-doc.txt
 /qemu-img
 /qemu-nbd
 /qemu-options.def
@@ -60,7 +61,6 @@
 *.a
 *.aux
 *.cp
-*.dvi
 *.exe
 *.msi
 *.dll
@@ -105,6 +105,15 @@
 /pc-bios/optionrom/kvmvapic.img
 /pc-bios/s390-ccw/s390-ccw.elf
 /pc-bios/s390-ccw/s390-ccw.img
+/docs/qemu-ga-ref.html
+/docs/qemu-ga-ref.txt
+/docs/qemu-qmp-ref.html
+/docs/qemu-qmp-ref.txt
+docs/qemu-ga-ref.info*
+docs/qemu-qmp-ref.info*
+/qemu-ga-qapi.texi
+/qemu-qapi.texi
+*.tps
 .stgit-*
 cscope.*
 tags

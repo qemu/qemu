@@ -3,3 +3,4 @@ enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbo
 event oops None
    boxed=False
 object q_empty
+doc symbol=oops expr=('event', 'oops')

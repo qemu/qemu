@@ -1,1 +1,1 @@
-tests/qapi-schema/flat-union-base-union.json:14: 'base' for union 'TestUnion' cannot use union type 'UnionBase'
+tests/qapi-schema/flat-union-base-union.json:30: 'base' for union 'TestUnion' cannot use union type 'UnionBase'

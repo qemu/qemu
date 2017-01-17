@@ -1,6 +1,8 @@
 # -*- Mode: Python -*-
-#
-# QAPI block core definitions (vm unrelated)
+
+##
+# == QAPI block core definitions (vm unrelated)
+##
 
 # QAPI common definitions
 { 'include': 'common.json' }
@@ -467,6 +469,87 @@
 # Returns: a list of @BlockInfo describing each virtual block device
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-block" }
+# <- {
+#       "return":[
+#          {
+#             "io-status": "ok",
+#             "device":"ide0-hd0",
+#             "locked":false,
+#             "removable":false,
+#             "inserted":{
+#                "ro":false,
+#                "drv":"qcow2",
+#                "encrypted":false,
+#                "file":"disks/test.qcow2",
+#                "backing_file_depth":1,
+#                "bps":1000000,
+#                "bps_rd":0,
+#                "bps_wr":0,
+#                "iops":1000000,
+#                "iops_rd":0,
+#                "iops_wr":0,
+#                "bps_max": 8000000,
+#                "bps_rd_max": 0,
+#                "bps_wr_max": 0,
+#                "iops_max": 0,
+#                "iops_rd_max": 0,
+#                "iops_wr_max": 0,
+#                "iops_size": 0,
+#                "detect_zeroes": "on",
+#                "write_threshold": 0,
+#                "image":{
+#                   "filename":"disks/test.qcow2",
+#                   "format":"qcow2",
+#                   "virtual-size":2048000,
+#                   "backing_file":"base.qcow2",
+#                   "full-backing-filename":"disks/base.qcow2",
+#                   "backing-filename-format":"qcow2",
+#                   "snapshots":[
+#                      {
+#                         "id": "1",
+#                         "name": "snapshot1",
+#                         "vm-state-size": 0,
+#                         "date-sec": 10000200,
+#                         "date-nsec": 12,
+#                         "vm-clock-sec": 206,
+#                         "vm-clock-nsec": 30
+#                      }
+#                   ],
+#                   "backing-image":{
+#                       "filename":"disks/base.qcow2",
+#                       "format":"qcow2",
+#                       "virtual-size":2048000
+#                   }
+#                }
+#             },
+#             "type":"unknown"
+#          },
+#          {
+#             "io-status": "ok",
+#             "device":"ide1-cd0",
+#             "locked":false,
+#             "removable":true,
+#             "type":"unknown"
+#          },
+#          {
+#             "device":"floppy0",
+#             "locked":false,
+#             "removable":true,
+#             "type":"unknown"
+#          },
+#          {
+#             "device":"sd0",
+#             "locked":false,
+#             "removable":true,
+#             "type":"unknown"
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-block', 'returns': ['BlockInfo'] }
 
@@ -614,6 +697,9 @@
 # @stats:  A @BlockDeviceStats for the device.
 #
 # @parent: #optional This describes the file block device if it has one.
+#          Contains recursively the statistics of the underlying
+#          protocol (e.g. the host file for a qcow2 image). If there is
+#          no underlying protocol, this field is omitted
 #
 # @backing: #optional This describes the backing block device if it has one.
 #           (Since 2.0)
@@ -641,6 +727,106 @@
 # Returns: A list of @BlockStats for each virtual block devices.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-blockstats" }
+# <- {
+#       "return":[
+#          {
+#             "device":"ide0-hd0",
+#             "parent":{
+#                "stats":{
+#                   "wr_highest_offset":3686448128,
+#                   "wr_bytes":9786368,
+#                   "wr_operations":751,
+#                   "rd_bytes":122567168,
+#                   "rd_operations":36772
+#                   "wr_total_times_ns":313253456
+#                   "rd_total_times_ns":3465673657
+#                   "flush_total_times_ns":49653
+#                   "flush_operations":61,
+#                   "rd_merged":0,
+#                   "wr_merged":0,
+#                   "idle_time_ns":2953431879,
+#                   "account_invalid":true,
+#                   "account_failed":false
+#                }
+#             },
+#             "stats":{
+#                "wr_highest_offset":2821110784,
+#                "wr_bytes":9786368,
+#                "wr_operations":692,
+#                "rd_bytes":122739200,
+#                "rd_operations":36604
+#                "flush_operations":51,
+#                "wr_total_times_ns":313253456
+#                "rd_total_times_ns":3465673657
+#                "flush_total_times_ns":49653,
+#                "rd_merged":0,
+#                "wr_merged":0,
+#                "idle_time_ns":2953431879,
+#                "account_invalid":true,
+#                "account_failed":false
+#             }
+#          },
+#          {
+#             "device":"ide1-cd0",
+#             "stats":{
+#                "wr_highest_offset":0,
+#                "wr_bytes":0,
+#                "wr_operations":0,
+#                "rd_bytes":0,
+#                "rd_operations":0
+#                "flush_operations":0,
+#                "wr_total_times_ns":0
+#                "rd_total_times_ns":0
+#                "flush_total_times_ns":0,
+#                "rd_merged":0,
+#                "wr_merged":0,
+#                "account_invalid":false,
+#                "account_failed":false
+#             }
+#          },
+#          {
+#             "device":"floppy0",
+#             "stats":{
+#                "wr_highest_offset":0,
+#                "wr_bytes":0,
+#                "wr_operations":0,
+#                "rd_bytes":0,
+#                "rd_operations":0
+#                "flush_operations":0,
+#                "wr_total_times_ns":0
+#                "rd_total_times_ns":0
+#                "flush_total_times_ns":0,
+#                "rd_merged":0,
+#                "wr_merged":0,
+#                "account_invalid":false,
+#                "account_failed":false
+#             }
+#          },
+#          {
+#             "device":"sd0",
+#             "stats":{
+#                "wr_highest_offset":0,
+#                "wr_bytes":0,
+#                "wr_operations":0,
+#                "rd_bytes":0,
+#                "rd_operations":0
+#                "flush_operations":0,
+#                "wr_total_times_ns":0
+#                "rd_total_times_ns":0
+#                "flush_total_times_ns":0,
+#                "rd_merged":0,
+#                "wr_merged":0,
+#                "account_invalid":false,
+#                "account_failed":false
+#             }
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-blockstats',
   'data': { '*query-nodes': 'bool' },
@@ -785,6 +971,13 @@
 #         occur if an invalid password is specified.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "block_passwd", "arguments": { "device": "ide0-hd0",
+#                                                "password": "12345" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block_passwd', 'data': {'*device': 'str',
                                       '*node-name': 'str', 'password': 'str'} }
@@ -806,6 +999,13 @@
 #          If @device is not a valid block device, DeviceNotFound
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "block_resize",
+#      "arguments": { "device": "scratch", "size": 1073741824 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block_resize', 'data': { '*device': 'str',
                                        '*node-name': 'str',
@@ -837,7 +1037,9 @@
 #
 # @node-name: #optional graph node name to generate the snapshot from (Since 2.0)
 #
-# @snapshot-file: the target of the new image. A new file will be created.
+# @snapshot-file: the target of the new image. If the file exists, or
+# if it is a device, the snapshot will be created in the existing
+# file/device. Otherwise, a new file will be created.
 #
 # @snapshot-node-name: #optional the graph node name of the new image (Since 2.0)
 #
@@ -971,6 +1173,16 @@
 #          If @device is not a valid block device, DeviceNotFound
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "blockdev-snapshot-sync",
+#      "arguments": { "device": "ide-hd0",
+#                     "snapshot-file":
+#                     "/some/place/my-image",
+#                     "format": "qcow2" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-snapshot-sync',
   'data': 'BlockdevSnapshotSync' }
@@ -981,9 +1193,31 @@
 #
 # Generates a snapshot of a block device.
 #
+# Create a snapshot, by installing 'node' as the backing image of
+# 'overlay'. Additionally, if 'node' is associated with a block
+# device, the block device changes to using 'overlay' as its new active
+# image.
+#
 # For the arguments, see the documentation of BlockdevSnapshot.
 #
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "blockdev-add",
+#      "arguments": { "options": { "driver": "qcow2",
+#                                  "node-name": "node1534",
+#                                  "file": { "driver": "file",
+#                                            "filename": "hd1.qcow2" },
+#                                  "backing": "" } } }
+#
+# <- { "return": {} }
+#
+# -> { "execute": "blockdev-snapshot",
+#      "arguments": { "node": "ide-hd0",
+#                     "overlay": "node1534" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-snapshot',
   'data': 'BlockdevSnapshot' }
@@ -999,7 +1233,9 @@
 # updated.
 #
 # @image-node-name: The name of the block driver state node of the
-#                   image to modify.
+#                   image to modify. The "device" argument is used
+#                   to verify "image-node-name" is in the chain
+#                   described by "device".
 #
 # @device:          The device name or node-name of the root node that owns
 #                   image-node-name.
@@ -1008,6 +1244,10 @@
 #                   string is not validated, so care should be taken
 #                   when specifying the string or the image chain may
 #                   not be able to be reopened again.
+#
+# Returns: Nothing on success
+#
+#          If "device" does not exist or cannot be determined, DeviceNotFound
 #
 # Since: 2.1
 ##
@@ -1027,7 +1267,7 @@
 # @device:  the device name or node-name of a root node
 #
 # @base:   #optional The file name of the backing image to write data into.
-#                    If not specified, this is the deepest backing image
+#                    If not specified, this is the deepest backing image.
 #
 # @top:    #optional The file name of the backing image within the image chain,
 #                    which contains the topmost data to be committed down. If
@@ -1073,6 +1313,13 @@
 #
 # Since: 1.3
 #
+# Example:
+#
+# -> { "execute": "block-commit",
+#      "arguments": { "device": "virtio0",
+#                     "top": "/tmp/snap1.qcow2" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block-commit',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str', '*top': 'str',
@@ -1093,6 +1340,15 @@
 #          If @device is not a valid block device, GenericError
 #
 # Since: 1.6
+#
+# Example:
+#
+# -> { "execute": "drive-backup",
+#      "arguments": { "device": "drive0",
+#                     "sync": "full",
+#                     "target": "backup.img" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'drive-backup', 'boxed': true,
   'data': 'DriveBackup' }
@@ -1112,6 +1368,14 @@
 #          If @device is not a valid block device, DeviceNotFound
 #
 # Since: 2.3
+#
+# Example:
+# -> { "execute": "blockdev-backup",
+#      "arguments": { "device": "src-id",
+#                     "sync": "full",
+#                     "target": "tgt-id" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-backup', 'boxed': true,
   'data': 'BlockdevBackup' }
@@ -1125,13 +1389,67 @@
 # Returns: the list of BlockDeviceInfo
 #
 # Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "query-named-block-nodes" }
+# <- { "return": [ { "ro":false,
+#                    "drv":"qcow2",
+#                    "encrypted":false,
+#                    "file":"disks/test.qcow2",
+#                    "node-name": "my-node",
+#                    "backing_file_depth":1,
+#                    "bps":1000000,
+#                    "bps_rd":0,
+#                    "bps_wr":0,
+#                    "iops":1000000,
+#                    "iops_rd":0,
+#                    "iops_wr":0,
+#                    "bps_max": 8000000,
+#                    "bps_rd_max": 0,
+#                    "bps_wr_max": 0,
+#                    "iops_max": 0,
+#                    "iops_rd_max": 0,
+#                    "iops_wr_max": 0,
+#                    "iops_size": 0,
+#                    "write_threshold": 0,
+#                    "image":{
+#                       "filename":"disks/test.qcow2",
+#                       "format":"qcow2",
+#                       "virtual-size":2048000,
+#                       "backing_file":"base.qcow2",
+#                       "full-backing-filename":"disks/base.qcow2",
+#                       "backing-filename-format":"qcow2",
+#                       "snapshots":[
+#                          {
+#                             "id": "1",
+#                             "name": "snapshot1",
+#                             "vm-state-size": 0,
+#                             "date-sec": 10000200,
+#                             "date-nsec": 12,
+#                             "vm-clock-sec": 206,
+#                             "vm-clock-nsec": 30
+#                          }
+#                       ],
+#                       "backing-image":{
+#                           "filename":"disks/base.qcow2",
+#                           "format":"qcow2",
+#                           "virtual-size":2048000
+#                       }
+#                    } } ] }
+#
 ##
 { 'command': 'query-named-block-nodes', 'returns': [ 'BlockDeviceInfo' ] }
 
 ##
 # @drive-mirror:
 #
-# Start mirroring a block device's writes to a new destination.
+# Start mirroring a block device's writes to a new destination. target
+# specifies the target of the new image. If the file exists, or if it
+# is a device, it will be used as the new destination for writes. If
+# it does not exist, a new file will be created. format specifies the
+# format of the mirror image, default is to probe if mode='existing',
+# else the format of the source.
 #
 # See DriveMirror for parameter descriptions
 #
@@ -1139,6 +1457,16 @@
 #          If @device is not a valid block device, GenericError
 #
 # Since: 1.3
+#
+# Example:
+#
+# -> { "execute": "drive-mirror",
+#      "arguments": { "device": "ide-hd0",
+#                     "target": "/some/place/my-image",
+#                     "sync": "full",
+#                     "format": "qcow2" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'drive-mirror', 'boxed': true,
   'data': 'DriveMirror' }
@@ -1239,13 +1567,20 @@
 ##
 # @block-dirty-bitmap-add:
 #
-# Create a dirty bitmap with a name on the node
+# Create a dirty bitmap with a name on the node, and start tracking the writes.
 #
 # Returns: nothing on success
 #          If @node is not a valid block device or node, DeviceNotFound
 #          If @name is already taken, GenericError with an explanation
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "block-dirty-bitmap-add",
+#      "arguments": { "node": "drive0", "name": "bitmap0" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block-dirty-bitmap-add',
   'data': 'BlockDirtyBitmapAdd' }
@@ -1253,7 +1588,8 @@
 ##
 # @block-dirty-bitmap-remove:
 #
-# Remove a dirty bitmap on the node
+# Stop write tracking and remove the dirty bitmap that was created
+# with block-dirty-bitmap-add.
 #
 # Returns: nothing on success
 #          If @node is not a valid block device or node, DeviceNotFound
@@ -1261,6 +1597,13 @@
 #          if @name is frozen by an operation, GenericError
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "block-dirty-bitmap-remove",
+#      "arguments": { "node": "drive0", "name": "bitmap0" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block-dirty-bitmap-remove',
   'data': 'BlockDirtyBitmap' }
@@ -1268,13 +1611,22 @@
 ##
 # @block-dirty-bitmap-clear:
 #
-# Clear (reset) a dirty bitmap on the device
+# Clear (reset) a dirty bitmap on the device, so that an incremental
+# backup from this point in time forward will only backup clusters
+# modified after this clear operation.
 #
 # Returns: nothing on success
 #          If @node is not a valid block device, DeviceNotFound
 #          If @name is not found, GenericError with an explanation
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "block-dirty-bitmap-clear",
+#      "arguments": { "node": "drive0", "name": "bitmap0" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block-dirty-bitmap-clear',
   'data': 'BlockDirtyBitmap' }
@@ -1322,6 +1674,15 @@
 # Returns: nothing on success.
 #
 # Since: 2.6
+#
+# Example:
+#
+# -> { "execute": "blockdev-mirror",
+#      "arguments": { "device": "ide-hd0",
+#                     "target": "target0",
+#                     "sync": "full" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-mirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
@@ -1363,6 +1724,26 @@
 #          If @device is not a valid block device, DeviceNotFound
 #
 # Since: 1.1
+#
+# Example:
+#
+# -> { "execute": "block_set_io_throttle",
+#      "arguments": { "id": "ide0-1-0",
+#                     "bps": 1000000,
+#                     "bps_rd": 0,
+#                     "bps_wr": 0,
+#                     "iops": 0,
+#                     "iops_rd": 0,
+#                     "iops_wr": 0,
+#                     "bps_max": 8000000,
+#                     "bps_rd_max": 0,
+#                     "bps_wr_max": 0,
+#                     "iops_max": 0,
+#                     "iops_rd_max": 0,
+#                     "iops_wr_max": 0,
+#                     "bps_max_length": 60,
+#                     "iops_size": 0 } }
+# <- { "return": {} }
 ##
 { 'command': 'block_set_io_throttle', 'boxed': true,
   'data': 'BlockIOThrottle' }
@@ -1511,7 +1892,17 @@
 #            'stop' and 'enospc' can only be used if the block device
 #            supports io-status (see BlockInfo).  Since 1.3.
 #
+# Returns: Nothing on success. If @device does not exist, DeviceNotFound.
+#
 # Since: 1.1
+#
+# Example:
+#
+# -> { "execute": "block-stream",
+#      "arguments": { "device": "virtio0",
+#                     "base": "/tmp/master.qcow2" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
@@ -2441,13 +2832,52 @@
 # BlockBackend will be created; otherwise, @node-name is mandatory at the top
 # level and no BlockBackend will be created.
 #
-# This command is still a work in progress.  It doesn't support all
+# For the arguments, see the documentation of BlockdevOptions.
+#
+# Note: This command is still a work in progress.  It doesn't support all
 # block drivers among other things.  Stay away from it unless you want
 # to help with its development.
 #
-# For the arguments, see the documentation of BlockdevOptions.
-#
 # Since: 1.7
+#
+# Example:
+#
+# 1.
+# -> { "execute": "blockdev-add",
+#      "arguments": {
+#          "options" : { "driver": "qcow2",
+#                        "file": { "driver": "file",
+#                                  "filename": "test.qcow2" } } } }
+# <- { "return": {} }
+#
+# 2.
+# -> { "execute": "blockdev-add",
+#      "arguments": {
+#          "options": {
+#            "driver": "qcow2",
+#            "node-name": "node0",
+#            "discard": "unmap",
+#            "cache": {
+#                "direct": true,
+#                "writeback": true
+#            },
+#            "file": {
+#                "driver": "file",
+#                "filename": "/tmp/test.qcow2"
+#            },
+#            "backing": {
+#                "driver": "raw",
+#                "file": {
+#                    "driver": "file",
+#                    "filename": "/dev/fdset/4"
+#                }
+#            }
+#          }
+#        }
+#      }
+#
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true }
 
@@ -2458,13 +2888,35 @@
 # The command will fail if the node is attached to a device or is
 # otherwise being used.
 #
-# This command is still a work in progress and is considered
+# @node-name: Name of the graph node to delete.
+#
+# Note: This command is still a work in progress and is considered
 # experimental. Stay away from it unless you want to help with its
 # development.
 #
-# @node-name: Name of the graph node to delete.
-#
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "blockdev-add",
+#      "arguments": {
+#          "options": {
+#              "driver": "qcow2",
+#              "node-name": "node0",
+#              "file": {
+#                  "driver": "file",
+#                  "filename": "test.qcow2"
+#              }
+#          }
+#      }
+#    }
+# <- { "return": {} }
+#
+# -> { "execute": "x-blockdev-del",
+#      "arguments": { "node-name": "node0" }
+#    }
+# <- { "return": {} }
+#
 ##
 { 'command': 'x-blockdev-del', 'data': { 'node-name': 'str' } }
 
@@ -2496,6 +2948,21 @@
 #          it is locked
 #
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "blockdev-open-tray",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "timestamp": { "seconds": 1418751016,
+#                     "microseconds": 716996 },
+#      "event": "DEVICE_TRAY_MOVED",
+#      "data": { "device": "ide1-cd0",
+#                "id": "ide0-1-0",
+#                "tray-open": true } }
+#
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-open-tray',
   'data': { '*device': 'str',
@@ -2516,6 +2983,21 @@
 # @id:      #optional The name or QOM path of the guest device (since: 2.8)
 #
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "blockdev-close-tray",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "timestamp": { "seconds": 1418751345,
+#                     "microseconds": 272147 },
+#      "event": "DEVICE_TRAY_MOVED",
+#      "data": { "device": "ide1-cd0",
+#                "id": "ide0-1-0",
+#                "tray-open": false } }
+#
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-close-tray',
   'data': { '*device': 'str',
@@ -2530,14 +3012,40 @@
 #
 # If the tray is open and there is no medium inserted, this will be a no-op.
 #
-# This command is still a work in progress and is considered experimental.
-# Stay away from it unless you want to help with its development.
-#
 # @device: #optional Block device name (deprecated, use @id instead)
 #
 # @id:     #optional The name or QOM path of the guest device (since: 2.8)
 #
+# Note: This command is still a work in progress and is considered experimental.
+# Stay away from it unless you want to help with its development.
+#
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "x-blockdev-remove-medium",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "error": { "class": "GenericError",
+#                 "desc": "Tray of device 'ide0-1-0' is not open" } }
+#
+# -> { "execute": "blockdev-open-tray",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "timestamp": { "seconds": 1418751627,
+#                     "microseconds": 549958 },
+#      "event": "DEVICE_TRAY_MOVED",
+#      "data": { "device": "ide1-cd0",
+#                "id": "ide0-1-0",
+#                "tray-open": true } }
+#
+# <- { "return": {} }
+#
+# -> { "execute": "x-blockdev-remove-medium",
+#      "arguments": { "device": "ide0-1-0" } }
+#
+# <- { "return": {} }
+#
 ##
 { 'command': 'x-blockdev-remove-medium',
   'data': { '*device': 'str',
@@ -2550,16 +3058,33 @@
 # device's tray must currently be open (unless there is no attached guest
 # device) and there must be no medium inserted already.
 #
-# This command is still a work in progress and is considered experimental.
-# Stay away from it unless you want to help with its development.
-#
 # @device:    #optional Block device name (deprecated, use @id instead)
 #
 # @id:        #optional The name or QOM path of the guest device (since: 2.8)
 #
 # @node-name: name of a node in the block driver state graph
 #
+# Note: This command is still a work in progress and is considered experimental.
+# Stay away from it unless you want to help with its development.
+#
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "blockdev-add",
+#      "arguments": {
+#          "options": { "node-name": "node0",
+#                       "driver": "raw",
+#                       "file": { "driver": "file",
+#                                 "filename": "fedora.iso" } } } }
+# <- { "return": {} }
+#
+# -> { "execute": "x-blockdev-insert-medium",
+#      "arguments": { "id": "ide0-1-0",
+#                     "node-name": "node0" } }
+#
+# <- { "return": {} }
+#
 ##
 { 'command': 'x-blockdev-insert-medium',
   'data': { '*device': 'str',
@@ -2580,6 +3105,7 @@
 # @read-write:  Makes the device writable
 #
 # Since: 2.3
+#
 ##
 { 'enum': 'BlockdevChangeReadOnlyMode',
   'data': ['retain', 'read-only', 'read-write'] }
@@ -2607,6 +3133,37 @@
 #                   to 'retain'
 #
 # Since: 2.5
+#
+# Examples:
+#
+# 1. Change a removable medium
+#
+# -> { "execute": "blockdev-change-medium",
+#      "arguments": { "id": "ide0-1-0",
+#                     "filename": "/srv/images/Fedora-12-x86_64-DVD.iso",
+#                     "format": "raw" } }
+# <- { "return": {} }
+#
+# 2. Load a read-only medium into a writable drive
+#
+# -> { "execute": "blockdev-change-medium",
+#      "arguments": { "id": "floppyA",
+#                     "filename": "/srv/images/ro.img",
+#                     "format": "raw",
+#                     "read-only-mode": "retain" } }
+#
+# <- { "error":
+#      { "class": "GenericError",
+#        "desc": "Could not open '/srv/images/ro.img': Permission denied" } }
+#
+# -> { "execute": "blockdev-change-medium",
+#      "arguments": { "id": "floppyA",
+#                     "filename": "/srv/images/ro.img",
+#                     "format": "raw",
+#                     "read-only-mode": "read-only" } }
+#
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-change-medium',
   'data': { '*device': 'str',
@@ -2636,7 +3193,10 @@
 ##
 # @BLOCK_IMAGE_CORRUPTED:
 #
-# Emitted when a corruption has been detected in a disk image
+# Emitted when a disk image is being marked corrupt. The image can be
+# identified by its device or node name. The 'device' field is always
+# present for compatibility reasons, but it can be empty ("") if the
+# image does not have a device name associated.
 #
 # @device: device name. This is always present for compatibility
 #          reasons, but it can be empty ("") if the image does not
@@ -2654,9 +3214,20 @@
 # @size: #optional, if the corruption resulted from an image access, this is
 #        the access size
 #
-# fatal: if set, the image is marked corrupt and therefore unusable after this
+# @fatal: if set, the image is marked corrupt and therefore unusable after this
 #        event and must be repaired (Since 2.2; before, every
 #        BLOCK_IMAGE_CORRUPTED event was fatal)
+#
+# Note: If action is "stop", a STOP event will eventually follow the
+#       BLOCK_IO_ERROR event.
+#
+# Example:
+#
+# <- { "event": "BLOCK_IMAGE_CORRUPTED",
+#      "data": { "device": "ide0-hd0", "node-name": "node0",
+#                "msg": "Prevented active L1 table overwrite", "offset": 196608,
+#                "size": 65536 },
+#      "timestamp": { "seconds": 1378126126, "microseconds": 966463 } }
 #
 # Since: 1.7
 ##
@@ -2698,6 +3269,16 @@
 # BLOCK_IO_ERROR event
 #
 # Since: 0.13.0
+#
+# Example:
+#
+# <- { "event": "BLOCK_IO_ERROR",
+#      "data": { "device": "ide0-hd1",
+#                "node-name": "#block212",
+#                "operation": "write",
+#                "action": "stop" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
 ##
 { 'event': 'BLOCK_IO_ERROR',
   'data': { 'device': 'str', 'node-name': 'str', 'operation': 'IoOperationType',
@@ -2727,6 +3308,15 @@
 #         interpret the error string
 #
 # Since: 1.1
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_COMPLETED",
+#      "data": { "type": "stream", "device": "virtio-disk0",
+#                "len": 10737418240, "offset": 10737418240,
+#                "speed": 0 },
+#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#
 ##
 { 'event': 'BLOCK_JOB_COMPLETED',
   'data': { 'type'  : 'BlockJobType',
@@ -2754,6 +3344,15 @@
 # @speed: rate limit, bytes per second
 #
 # Since: 1.1
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_CANCELLED",
+#      "data": { "type": "stream", "device": "virtio-disk0",
+#                "len": 10737418240, "offset": 134217728,
+#                "speed": 0 },
+#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#
 ##
 { 'event': 'BLOCK_JOB_CANCELLED',
   'data': { 'type'  : 'BlockJobType',
@@ -2775,6 +3374,15 @@
 # @action: action that has been taken
 #
 # Since: 1.3
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_ERROR",
+#      "data": { "device": "ide0-hd1",
+#                "operation": "write",
+#                "action": "stop" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
 ##
 { 'event': 'BLOCK_JOB_ERROR',
   'data': { 'device'   : 'str',
@@ -2802,6 +3410,14 @@
 # event
 #
 # Since: 1.3
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_READY",
+#      "data": { "device": "drive0", "type": "mirror", "speed": 0,
+#                "len": 2097152, "offset": 2097152 }
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
 ##
 { 'event': 'BLOCK_JOB_READY',
   'data': { 'type'  : 'BlockJobType',
@@ -2854,8 +3470,12 @@
 ##
 # @block-set-write-threshold:
 #
-# Change the write threshold for a block drive. An event will be delivered
-# if a write to this block drive crosses the configured threshold.
+# Change the write threshold for a block drive. An event will be
+# delivered if a write to this block drive crosses the configured
+# threshold.  The threshold is an offset, thus must be
+# non-negative. Default is no write threshold. Setting the threshold
+# to zero disables it.
+#
 # This is useful to transparently resize thin-provisioned drives without
 # the guest OS noticing.
 #
@@ -2865,6 +3485,14 @@
 #                   Use 0 to disable the threshold.
 #
 # Since: 2.3
+#
+# Example:
+#
+# -> { "execute": "block-set-write-threshold",
+#      "arguments": { "node-name": "mydev",
+#                     "write-threshold": 17179869184 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block-set-write-threshold',
   'data': { 'node-name': 'str', 'write-threshold': 'uint64' } }
@@ -2895,6 +3523,28 @@
 # the rest of the array.
 #
 # Since: 2.7
+#
+# Example:
+#
+# 1. Add a new node to a quorum
+# -> { "execute": "blockdev-add",
+#      "arguments": {
+#          "options": { "driver": "raw",
+#                       "node-name": "new_node",
+#                        "file": { "driver": "file",
+#                                  "filename": "test.raw" } } } }
+# <- { "return": {} }
+# -> { "execute": "x-blockdev-change",
+#      "arguments": { "parent": "disk1",
+#                     "node": "new_node" } }
+# <- { "return": {} }
+#
+# 2. Delete a quorum's node
+# -> { "execute": "x-blockdev-change",
+#      "arguments": { "parent": "disk1",
+#                     "child": "children.1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'x-blockdev-change',
   'data' : { 'parent': 'str',

@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-missing-expr.json:3: Documention for 'bar' is not followed by the definition

@@ -697,21 +697,18 @@
 # Returns: The length of the initial sublist that has been successfully
 #          processed. The guest agent maximizes this value. Possible cases:
 #
-#          0:                if the @vcpus list was empty on input. Guest state
+#          - 0:              if the @vcpus list was empty on input. Guest state
 #                            has not been changed. Otherwise,
-#
-#          Error:            processing the first node of @vcpus failed for the
+#          - Error:          processing the first node of @vcpus failed for the
 #                            reason returned. Guest state has not been changed.
 #                            Otherwise,
-#
-#          < length(@vcpus): more than zero initial nodes have been processed,
+#          - < length(@vcpus): more than zero initial nodes have been processed,
 #                            but not the entire @vcpus list. Guest state has
 #                            changed accordingly. To retrieve the error
 #                            (assuming it persists), repeat the call with the
 #                            successfully processed initial sublist removed.
 #                            Otherwise,
-#
-#          length(@vcpus):   call successful.
+#          - length(@vcpus): call successful.
 #
 # Since: 1.5
 ##

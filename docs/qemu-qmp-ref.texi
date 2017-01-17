@@ -1,0 +1,78 @@
+\input texinfo
+@setfilename qemu-qmp-ref.info
+
+@exampleindent 0
+@paragraphindent 0
+
+@settitle QEMU QMP Reference Manual
+
+@iftex
+@center @image{docs/qemu_logo}
+@end iftex
+
+@copying
+This is the QEMU QMP reference manual.
+
+Copyright @copyright{} 2016 The QEMU Project developers
+
+@quotation
+This manual is free documentation: you can redistribute it and/or
+modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation, either version 2 of the
+License, or (at your option) any later version.
+
+This manual is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this manual.  If not, see http://www.gnu.org/licenses/.
+@end quotation
+@end copying
+
+@dircategory QEMU
+@direntry
+* QEMU-QMP-Ref: (qemu-qmp-ref). QEMU QMP Reference Manual
+@end direntry
+
+@titlepage
+@title QMP Reference Manual
+@subtitle QEMU version @value{VERSION}
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@contents
+
+@ifnottex
+@node Top
+@top QEMU QMP reference
+@end ifnottex
+
+@menu
+* API Reference::
+* Commands and Events Index::
+* Data Types Index::
+@end menu
+
+@node API Reference
+@chapter API Reference
+
+@c for texi2pod:
+@c man begin DESCRIPTION
+
+@include qemu-qapi.texi
+
+@c man end
+
+@node Commands and Events Index
+@unnumbered Commands and Events Index
+@printindex fn
+
+@node Data Types Index
+@unnumbered Data Types Index
+@printindex tp
+
+@bye

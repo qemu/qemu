@@ -44,40 +44,154 @@ Input must be ASCII (although QMP supports full Unicode strings, the
 QAPI parser does not).  At present, there is no place where a QAPI
 schema requires the use of JSON numbers or null.
 
-Comments are allowed; anything between an unquoted # and the following
-newline is ignored.  Although there is not yet a documentation
-generator, a form of stylized comments has developed for consistently
-documenting details about an expression and when it was added to the
-schema.  The documentation is delimited between two lines of ##, then
-the first line names the expression, an optional overview is provided,
-then individual documentation about each member of 'data' is provided,
-and finally, a 'Since: x.y.z' tag lists the release that introduced
-the expression.  Optional members are tagged with the phrase
-'#optional', often with their default value; and extensions added
-after the expression was first released are also given a '(since
-x.y.z)' comment.  For example:
 
-    ##
-    # @BlockStats:
-    #
-    # Statistics of a virtual block device or a block backing device.
-    #
-    # @device: #optional If the stats are for a virtual block device, the name
-    #          corresponding to the virtual block device.
-    #
-    # @stats:  A @BlockDeviceStats for the device.
-    #
-    # @parent: #optional This describes the file block device if it has one.
-    #
-    # @backing: #optional This describes the backing block device if it has one.
-    #           (Since 2.0)
-    #
-    # Since: 0.14.0
-    ##
-    { 'struct': 'BlockStats',
-      'data': {'*device': 'str', 'stats': 'BlockDeviceStats',
-               '*parent': 'BlockStats',
-               '*backing': 'BlockStats'} }
+=== Comments ===
+
+Comments are allowed; anything between an unquoted # and the following
+newline is ignored.
+
+A multi-line comment that starts and ends with a '##' line is a
+documentation comment.  These are parsed by the documentation
+generator, which recognizes certain markup detailed below.
+
+
+==== Documentation markup ====
+
+Comment text starting with '=' is a section title:
+
+    # = Section title
+
+Double the '=' for a subsection title:
+
+    # == Subection title
+
+'|' denotes examples:
+
+    # | Text of the example, may span
+    # | multiple lines
+
+'*' starts an itemized list:
+
+    # * First item, may span
+    #   multiple lines
+    # * Second item
+
+You can also use '-' instead of '*'.
+
+A decimal number followed by '.' starts a numbered list:
+
+    # 1. First item, may span
+    #    multiple lines
+    # 2. Second item
+
+The actual number doesn't matter.  You could even use '*' instead of
+'2.' for the second item.
+
+Lists can't be nested.  Blank lines are currently not supported within
+lists.
+
+Additional whitespace between the initial '#' and the comment text is
+permitted.
+
+*foo* and _foo_ are for strong and emphasis styles respectively (they
+do not work over multiple lines). @foo is used to reference a name in
+the schema.
+
+Example:
+
+##
+# = Section
+# == Subsection
+#
+# Some text foo with *strong* and _emphasis_
+# 1. with a list
+# 2. like that
+#
+# And some code:
+# | $ echo foo
+# | -> do this
+# | <- get that
+#
+##
+
+
+==== Expression documentation ====
+
+Each expression that isn't an include directive must be preceded by a
+documentation block.  Such blocks are called expression documentation
+blocks.
+
+The documentation block consists of a first line naming the
+expression, an optional overview, a description of each argument (for
+commands and events) or member (for structs, unions and alternates),
+and optional tagged sections.
+
+FIXME: the parser accepts these things in almost any order.
+
+Optional arguments / members are tagged with the phrase '#optional',
+often with their default value; and extensions added after the
+expression was first released are also given a '(since x.y.z)'
+comment.
+
+A tagged section starts with one of the following words:
+"Note:"/"Notes:", "Since:", "Example"/"Examples", "Returns:", "TODO:".
+The section ends with the start of a new section.
+
+A 'Since: x.y.z' tagged section lists the release that introduced the
+expression.
+
+For example:
+
+##
+# @BlockStats:
+#
+# Statistics of a virtual block device or a block backing device.
+#
+# @device: #optional If the stats are for a virtual block device, the name
+#          corresponding to the virtual block device.
+#
+# @node-name: #optional The node name of the device. (since 2.3)
+#
+# ... more members ...
+#
+# Since: 0.14.0
+##
+{ 'struct': 'BlockStats',
+  'data': {'*device': 'str', '*node-name': 'str',
+           ... more members ... } }
+
+##
+# @query-blockstats:
+#
+# Query the @BlockStats for all virtual block devices.
+#
+# @query-nodes: #optional If true, the command will query all the
+#               block nodes ... explain, explain ...  (since 2.3)
+#
+# Returns: A list of @BlockStats for each virtual block devices.
+#
+# Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-blockstats" }
+# <- {
+#      ... lots of output ...
+#    }
+#
+##
+{ 'command': 'query-blockstats',
+  'data': { '*query-nodes': 'bool' },
+  'returns': ['BlockStats'] }
+
+==== Free-form documentation ====
+
+A documentation block that isn't an expression documentation block is
+a free-form documentation block.  These may be used to provide
+additional text and structuring content.
+
+
+=== Schema overview ===
 
 The schema sets up a series of types, as well as commands and events
 that will use those types.  Forward references are allowed: the parser

@@ -1,3 +1,10 @@
 # we reject returns if it is an alternate type
+
+##
+# @Alt:
+##
 { 'alternate': 'Alt', 'data': { 'a': 'int', 'b': 'str' } }
+##
+# @oops:
+##
 { 'command': 'oops', 'returns': 'Alt' }

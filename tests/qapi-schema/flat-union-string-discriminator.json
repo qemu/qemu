@@ -1,15 +1,30 @@
+##
+# @TestEnum:
+##
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
 
+##
+# @TestBase:
+##
 { 'struct': 'TestBase',
   'data': { 'enum1': 'TestEnum', 'kind': 'str' } }
 
+##
+# @TestTypeA:
+##
 { 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
 
+##
+# @TestTypeB:
+##
 { 'struct': 'TestTypeB',
   'data': { 'integer': 'int' } }
 
+##
+# @TestUnion:
+##
 { 'union': 'TestUnion',
   'base': 'TestBase',
   'discriminator': 'kind',

@@ -78,13 +78,12 @@
 # @SchemaInfo:
 #
 # @name: the entity's name, inherited from @base.
+#        The SchemaInfo is always referenced by this name.
 #        Commands and events have the name defined in the QAPI schema.
 #        Unlike command and event names, type names are not part of
 #        the wire ABI.  Consequently, type names are meaningless
 #        strings here, although they are still guaranteed unique
 #        regardless of @meta-type.
-#
-# All references to other SchemaInfo are by name.
 #
 # @meta-type: the entity's meta type, inherited from @base.
 #
@@ -258,7 +257,7 @@
 #
 # @ret-type: the name of the command's result type.
 #
-# TODO @success-response (currently irrelevant, because it's QGA, not QMP)
+# TODO: @success-response (currently irrelevant, because it's QGA, not QMP)
 #
 # Since: 2.5
 ##

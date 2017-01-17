@@ -1,6 +1,9 @@
 # -*- Mode: Python -*-
 #
-# QAPI crypto definitions
+
+##
+# = QAPI crypto definitions
+##
 
 ##
 # @QCryptoTLSCredsEndpoint:

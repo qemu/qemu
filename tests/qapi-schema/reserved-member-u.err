@@ -1,1 +1,1 @@
-tests/qapi-schema/reserved-member-u.json:7: Member of 'data' for struct 'Oops' uses reserved name 'u'
+tests/qapi-schema/reserved-member-u.json:11: Member of 'data' for struct 'Oops' uses reserved name 'u'

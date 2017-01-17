@@ -1,2 +1,6 @@
 # we require that all qapi enums have an array for data
+
+##
+# @MyEnum:
+##
 { 'enum': 'MyEnum', 'data': { 'value': 'str' } }

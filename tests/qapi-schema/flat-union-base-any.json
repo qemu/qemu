@@ -1,10 +1,23 @@
 # we require the base to be an existing struct
+
+##
+# @TestEnum:
+##
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
+##
+# @TestTypeA:
+##
 { 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
+##
+# @TestTypeB:
+##
 { 'struct': 'TestTypeB',
   'data': { 'integer': 'int' } }
+##
+# @TestUnion:
+##
 { 'union': 'TestUnion',
   'base': 'any',
   'discriminator': 'enum1',

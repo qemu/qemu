@@ -5,6 +5,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or later.
 # See the COPYING file in the top-level directory.
 
+##
+# = Tracing commands
+##
 
 ##
 # @TraceEventState:
@@ -59,6 +62,13 @@
 # an error is returned.
 #
 # Since: 2.2
+#
+# Example:
+#
+# -> { "execute": "trace-event-get-state",
+#      "arguments": { "name": "qemu_memalign" } }
+# <- { "return": [ { "name": "qemu_memalign", "state": "disabled" } ] }
+#
 ##
 { 'command': 'trace-event-get-state',
   'data': {'name': 'str', '*vcpu': 'int'},
@@ -84,6 +94,13 @@
 # error is returned.
 #
 # Since: 2.2
+#
+# Example:
+#
+# -> { "execute": "trace-event-set-state",
+#      "arguments": { "name": "qemu_memalign", "enable": "true" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'trace-event-set-state',
   'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool',

@@ -1,2 +1,6 @@
 # we reject an expression with ambiguous metatype
+
+##
+# @foo:
+##
 { 'command': 'foo', 'struct': 'bar', 'data': { } }

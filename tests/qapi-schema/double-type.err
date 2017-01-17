@@ -1,1 +1,1 @@
-tests/qapi-schema/double-type.json:2: Unknown key 'command' in struct 'bar'
+tests/qapi-schema/double-type.json:6: Unknown key 'command' in struct 'bar'

@@ -1,2 +1,6 @@
 # we reject enums where members will clash when mapped to C enum
+
+##
+# @MyEnum:
+##
 { 'enum': 'MyEnum', 'data': [ 'one-two', 'one_two' ] }

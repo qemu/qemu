@@ -80,8 +80,8 @@ GENERATED_HEADERS += module_block.h
 Makefile: ;
 configure: ;
 
-.PHONY: all clean cscope distclean dvi html info install install-doc \
-	pdf recurse-all speed test dist msi FORCE
+.PHONY: all clean cscope distclean html info install install-doc \
+	pdf txt recurse-all speed test dist msi FORCE
 
 $(call set-vpath, $(SRC_PATH))
 
@@ -90,7 +90,9 @@ LIBS+=-lz $(LIBS_TOOLS)
 HELPERS-$(CONFIG_LINUX) = qemu-bridge-helper$(EXESUF)
 
 ifdef BUILD_DOCS
-DOCS=qemu-doc.html qemu.1 qemu-img.1 qemu-nbd.8 qemu-ga.8
+DOCS=qemu-doc.html qemu-doc.txt qemu.1 qemu-img.1 qemu-nbd.8 qemu-ga.8
+DOCS+=docs/qemu-qmp-ref.html docs/qemu-qmp-ref.txt docs/qemu-qmp-ref.7
+DOCS+=docs/qemu-ga-ref.html docs/qemu-ga-ref.txt docs/qemu-ga-ref.7
 ifdef CONFIG_VIRTFS
 DOCS+=fsdev/virtfs-proxy-helper.1
 endif
@@ -265,6 +267,7 @@ qemu-ga$(EXESUF): QEMU_CFLAGS += -I qga/qapi-generated
 gen-out-type = $(subst .,-,$(suffix $@))
 
 qapi-py = $(SRC_PATH)/scripts/qapi.py $(SRC_PATH)/scripts/ordereddict.py
+qapi-py += $(SRC_PATH)/scripts/qapi2texi.py
 
 qga/qapi-generated/qga-qapi-types.c qga/qapi-generated/qga-qapi-types.h :\
 $(SRC_PATH)/qga/qapi-schema.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
@@ -387,12 +390,17 @@ distclean: clean
 	rm -f config-all-devices.mak config-all-disas.mak config.status
 	rm -f po/*.mo tests/qemu-iotests/common.env
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
-	rm -f qemu-doc.info qemu-doc.aux qemu-doc.cp qemu-doc.cps qemu-doc.dvi
+	rm -f qemu-doc.info qemu-doc.aux qemu-doc.cp qemu-doc.cps
 	rm -f qemu-doc.fn qemu-doc.fns qemu-doc.info qemu-doc.ky qemu-doc.kys
 	rm -f qemu-doc.log qemu-doc.pdf qemu-doc.pg qemu-doc.toc qemu-doc.tp
 	rm -f qemu-doc.vr
 	rm -f config.log
 	rm -f linux-headers/asm
+	rm -f qemu-ga-qapi.texi qemu-qapi.texi
+	rm -f docs/qemu-qmp-ref.7 docs/qemu-ga-ref.7
+	rm -f docs/qemu-qmp-ref.txt docs/qemu-ga-ref.txt
+	rm -f docs/qemu-qmp-ref.pdf docs/qemu-ga-ref.pdf
+	rm -f docs/qemu-qmp-ref.html docs/qemu-ga-ref.html
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
@@ -429,10 +437,14 @@ endif
 install-doc: $(DOCS)
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_docdir)"
 	$(INSTALL_DATA) qemu-doc.html "$(DESTDIR)$(qemu_docdir)"
-	$(INSTALL_DATA) $(SRC_PATH)/docs/qmp-commands.txt "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) qemu-doc.txt "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) docs/qemu-qmp-ref.html "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) docs/qemu-qmp-ref.txt "$(DESTDIR)$(qemu_docdir)"
 ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DATA) qemu.1 "$(DESTDIR)$(mandir)/man1"
+	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man7"
+	$(INSTALL_DATA) docs/qemu-qmp-ref.7 "$(DESTDIR)$(mandir)/man7"
 ifneq ($(TOOLS),)
 	$(INSTALL_DATA) qemu-img.1 "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
@@ -440,6 +452,9 @@ ifneq ($(TOOLS),)
 endif
 ifneq (,$(findstring qemu-ga,$(TOOLS)))
 	$(INSTALL_DATA) qemu-ga.8 "$(DESTDIR)$(mandir)/man8"
+	$(INSTALL_DATA) docs/qemu-ga-ref.html "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) docs/qemu-ga-ref.txt "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) docs/qemu-ga-ref.7 "$(DESTDIR)$(mandir)/man7"
 endif
 endif
 ifdef CONFIG_VIRTFS
@@ -527,21 +542,23 @@ ui/console-gl.o: $(SRC_PATH)/ui/console-gl.c \
 	ui/shader/texture-blit-vert.h ui/shader/texture-blit-frag.h
 
 # documentation
-MAKEINFO=makeinfo
-MAKEINFOFLAGS=--no-headers --no-split --number-sections
-TEXIFLAG=$(if $(V),,--quiet)
-%.dvi: %.texi
-	$(call quiet-command,texi2dvi $(TEXIFLAG) -I . $<,"GEN","$@")
+MAKEINFO=makeinfo -D 'VERSION $(VERSION)'
+MAKEINFOFLAGS=--no-split --number-sections
+TEXIFLAG=$(if $(V),,--quiet) --command='@set VERSION $(VERSION)'
 
 %.html: %.texi
-	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --html $< -o $@, \
-	"GEN","$@")
+	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --no-headers \
+	--html $< -o $@,"GEN","$@")
 
 %.info: %.texi
-	$(call quiet-command,$(MAKEINFO) $< -o $@,"GEN","$@")
+	$(call quiet-command,$(MAKEINFO) $(MAKEINFOFLAGS) $< -o $@,"GEN","$@")
+
+%.txt: %.texi
+	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --no-headers \
+	--plaintext $< -o $@,"GEN","$@")
 
 %.pdf: %.texi
-	$(call quiet-command,texi2pdf $(TEXIFLAG) -I . $<,"GEN","$@")
+	$(call quiet-command,texi2pdf $(TEXIFLAG) -I $(SRC_PATH) -I . $< -o $@,"GEN","$@")
 
 qemu-options.texi: $(SRC_PATH)/qemu-options.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"GEN","$@")
@@ -555,46 +572,35 @@ qemu-monitor-info.texi: $(SRC_PATH)/hmp-commands-info.hx $(SRC_PATH)/scripts/hxt
 qemu-img-cmds.texi: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"GEN","$@")
 
+qemu-qapi.texi: $(qapi-modules) $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi2texi.py $< > $@,"GEN" "$@")
+
+qemu-ga-qapi.texi: $(SRC_PATH)/qga/qapi-schema.json $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi2texi.py $< > $@,"GEN","$@")
+
 qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi qemu-monitor-info.texi
-	$(call quiet-command, \
-	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu.pod && \
-	  $(POD2MAN) --section=1 --center=" " --release=" " qemu.pod > $@, \
-	  "GEN","$@")
 qemu.1: qemu-option-trace.texi
-
 qemu-img.1: qemu-img.texi qemu-option-trace.texi qemu-img-cmds.texi
-	$(call quiet-command, \
-	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-img.pod && \
-	  $(POD2MAN) --section=1 --center=" " --release=" " qemu-img.pod > $@, \
-	  "GEN","$@")
-
 fsdev/virtfs-proxy-helper.1: fsdev/virtfs-proxy-helper.texi
-	$(call quiet-command, \
-	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< fsdev/virtfs-proxy-helper.pod && \
-	  $(POD2MAN) --section=1 --center=" " --release=" " fsdev/virtfs-proxy-helper.pod > $@, \
-	  "GEN","$@")
-
 qemu-nbd.8: qemu-nbd.texi qemu-option-trace.texi
-	$(call quiet-command, \
-	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-nbd.pod && \
-	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-nbd.pod > $@, \
-	  "GEN","$@")
-
 qemu-ga.8: qemu-ga.texi
-	$(call quiet-command, \
-	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-ga.pod && \
-	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-ga.pod > $@, \
-	  "GEN","$@")
 
-dvi: qemu-doc.dvi
-html: qemu-doc.html
-info: qemu-doc.info
-pdf: qemu-doc.pdf
+html: qemu-doc.html docs/qemu-qmp-ref.html docs/qemu-ga-ref.html
+info: qemu-doc.info docs/qemu-qmp-ref.info docs/qemu-ga-ref.info
+pdf: qemu-doc.pdf docs/qemu-qmp-ref.pdf docs/qemu-ga-ref.pdf
+txt: qemu-doc.txt docs/qemu-qmp-ref.txt docs/qemu-ga-ref.txt
 
-qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
+qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi qemu-option-trace.texi \
 	qemu-monitor.texi qemu-img-cmds.texi qemu-ga.texi \
 	qemu-monitor-info.texi
+
+docs/qemu-ga-ref.dvi docs/qemu-ga-ref.html docs/qemu-ga-ref.info docs/qemu-ga-ref.pdf docs/qemu-ga-ref.txt docs/qemu-ga-ref.7: \
+docs/qemu-ga-ref.texi qemu-ga-qapi.texi
+
+docs/qemu-qmp-ref.dvi docs/qemu-qmp-ref.html docs/qemu-qmp-ref.info docs/qemu-qmp-ref.pdf docs/qemu-qmp-ref.txt docs/qemu-qmp-ref.7: \
+docs/qemu-qmp-ref.texi qemu-qapi.texi
+
 
 ifdef CONFIG_WIN32
 
@@ -688,7 +694,7 @@ help:
 	@echo  '  docker          - Help about targets running tests inside Docker containers'
 	@echo  ''
 	@echo  'Documentation targets:'
-	@echo  '  dvi html info pdf'
+	@echo  '  html info pdf txt'
 	@echo  '                  - Build documentation in specified format'
 	@echo  ''
 ifdef CONFIG_WIN32

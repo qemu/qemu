@@ -1,9 +1,15 @@
 # -*- Mode: Python -*-
-#
-# QAPI block definitions (vm related)
+
+##
+# = QAPI block definitions
+##
 
 # QAPI block core definitions
 { 'include': 'block-core.json' }
+
+##
+# == QAPI block definitions (vm unrelated)
+##
 
 ##
 # @BiosAtaTranslation:
@@ -75,19 +81,33 @@
 ##
 # @blockdev-snapshot-internal-sync:
 #
-# Synchronously take an internal snapshot of a block device, when the format
-# of the image used supports it.
+# Synchronously take an internal snapshot of a block device, when the
+# format of the image used supports it. If the name is an empty
+# string, or a snapshot with name already exists, the operation will
+# fail.
 #
 # For the arguments, see the documentation of BlockdevSnapshotInternal.
 #
 # Returns: nothing on success
+#
 #          If @device is not a valid block device, GenericError
+#
 #          If any snapshot matching @name exists, or @name is empty,
 #          GenericError
+#
 #          If the format of the image used does not support it,
 #          BlockFormatFeatureNotSupported
 #
 # Since: 1.7
+#
+# Example:
+#
+# -> { "execute": "blockdev-snapshot-internal-sync",
+#      "arguments": { "device": "ide-hd0",
+#                     "name": "snapshot0" }
+#    }
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-snapshot-internal-sync',
   'data': 'BlockdevSnapshotInternal' }
@@ -115,6 +135,24 @@
 #          If @id and @name are both not specified, GenericError
 #
 # Since: 1.7
+#
+# Example:
+#
+# -> { "execute": "blockdev-snapshot-delete-internal-sync",
+#      "arguments": { "device": "ide-hd0",
+#                     "name": "snapshot0" }
+#    }
+# <- { "return": {
+#                    "id": "1",
+#                    "name": "snapshot0",
+#                    "vm-state-size": 0,
+#                    "date-sec": 1000012,
+#                    "date-nsec": 10,
+#                    "vm-clock-sec": 100,
+#                    "vm-clock-nsec": 20
+#      }
+#    }
+#
 ##
 { 'command': 'blockdev-snapshot-delete-internal-sync',
   'data': { 'device': 'str', '*id': 'str', '*name': 'str'},
@@ -129,15 +167,21 @@
 #
 # @id:      #optional The name or QOM path of the guest device (since: 2.8)
 #
-# @force:   @optional If true, eject regardless of whether the drive is locked.
+# @force:   #optional If true, eject regardless of whether the drive is locked.
 #           If not specified, the default value is false.
 #
 # Returns:  Nothing on success
+#
 #           If @device is not a valid block device, DeviceNotFound
 #
-# Notes:    Ejecting a device will no media results in success
+# Notes:    Ejecting a device with no media results in success
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "eject", "arguments": { "device": "ide1-0-1" } }
+# <- { "return": {} }
 ##
 { 'command': 'eject',
   'data': { '*device': 'str',
@@ -204,6 +248,16 @@
 # @tray-open: true if the tray has been opened or false if it has been closed
 #
 # Since: 1.1
+#
+# Example:
+#
+# <- { "event": "DEVICE_TRAY_MOVED",
+#      "data": { "device": "ide1-cd0",
+#                "id": "/machine/unattached/device[22]",
+#                "tray-open": true
+#      },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
 ##
 { 'event': 'DEVICE_TRAY_MOVED',
   'data': { 'device': 'str', 'id': 'str', 'tray-open': 'bool' } }

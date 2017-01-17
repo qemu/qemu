@@ -1,6 +1,8 @@
 # -*- Mode: Python -*-
-#
-# QAPI common definitions
+
+##
+# = QAPI common definitions
+##
 
 ##
 # @QapiErrorClass:
@@ -75,6 +77,21 @@
 # Returns:  A @VersionInfo object describing the current version of QEMU.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-version" }
+# <- {
+#       "return":{
+#          "qemu":{
+#             "major":0,
+#             "minor":11,
+#             "micro":5
+#          },
+#          "package":""
+#       }
+#    }
+#
 ##
 { 'command': 'query-version', 'returns': 'VersionInfo' }
 
@@ -97,6 +114,23 @@
 # Returns: A list of @CommandInfo for all supported commands
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-commands" }
+# <- {
+#      "return":[
+#         {
+#            "name":"query-balloon"
+#         },
+#         {
+#            "name":"system_powerdown"
+#         }
+#      ]
+#    }
+#
+# Note: This example has been shortened as the real response is too long.
+#
 ##
 { 'command': 'query-commands', 'returns': ['CommandInfo'] }
 

@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-invalid-section.json:3: Free-form documentation block must not contain @NAME: sections

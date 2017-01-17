@@ -1,1 +1,1 @@
-tests/qapi-schema/flat-union-inline.json:7: Member 'value1' of union 'TestUnion' should be a type name
+tests/qapi-schema/flat-union-inline.json:17: Member 'value1' of union 'TestUnion' should be a type name

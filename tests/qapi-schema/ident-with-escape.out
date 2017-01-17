@@ -5,3 +5,4 @@ command fooA q_obj_fooA-arg -> None
 object q_empty
 object q_obj_fooA-arg
     member bar1: str optional=False
+doc symbol=fooA expr=('command', 'fooA')

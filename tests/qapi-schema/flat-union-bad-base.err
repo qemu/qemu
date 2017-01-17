@@ -1,1 +1,1 @@
-tests/qapi-schema/flat-union-bad-base.json:8: 'string' (member of TestTypeA) collides with 'string' (base of TestUnion)
+tests/qapi-schema/flat-union-bad-base.json:21: 'string' (member of TestTypeA) collides with 'string' (base of TestUnion)

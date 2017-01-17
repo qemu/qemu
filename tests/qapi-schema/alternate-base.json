@@ -1,6 +1,13 @@
 # we reject alternate with base type
+
+##
+# @Base:
+##
 { 'struct': 'Base',
   'data': { 'string': 'str' } }
+##
+# @Alt:
+##
 { 'alternate': 'Alt',
   'base': 'Base',
   'data': { 'number': 'int' } }

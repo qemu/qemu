@@ -2,11 +2,21 @@
 # Here, 'name' would have to appear twice on the wire, locally and
 # indirectly for the grandparent base; the collision doesn't care that
 # one instance is optional.
+
+##
+# @Base:
+##
 { 'struct': 'Base',
   'data': { 'name': 'str' } }
+##
+# @Mid:
+##
 { 'struct': 'Mid',
   'base': 'Base',
   'data': { 'value': 'int' } }
+##
+# @Sub:
+##
 { 'struct': 'Sub',
   'base': 'Mid',
   'data': { '*name': 'str' } }

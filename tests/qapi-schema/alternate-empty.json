@@ -1,2 +1,6 @@
 # alternates must list at least two types to be useful
+
+##
+# @Alt:
+##
 { 'alternate': 'Alt', 'data': { 'i': 'int' } }

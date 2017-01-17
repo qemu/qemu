@@ -1,3 +1,10 @@
 # Member names should be 'lower-case' unless the enum is whitelisted
+
+##
+# @UuidInfo:
+##
 { 'enum': 'UuidInfo', 'data': [ 'Value' ] } # UuidInfo is whitelisted
+##
+# @NoWayThisWillGetWhitelisted:
+##
 { 'enum': 'NoWayThisWillGetWhitelisted', 'data': [ 'Value' ] }

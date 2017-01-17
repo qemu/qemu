@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-bad-symbol.json:3: Definition of 'foo' follows documentation for 'food'

@@ -1,1 +1,1 @@
-tests/qapi-schema/flat-union-base-any.json:8: 'base' for union 'TestUnion' cannot use built-in type 'any'
+tests/qapi-schema/flat-union-base-any.json:21: 'base' for union 'TestUnion' cannot use built-in type 'any'

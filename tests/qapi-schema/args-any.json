@@ -1,2 +1,6 @@
 # we do not allow an 'any' argument
+
+##
+# @oops:
+##
 { 'command': 'oops', 'data': 'any' }
