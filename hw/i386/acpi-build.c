@@ -332,7 +332,7 @@ build_fadt(GArray *table_data, BIOSLinker *linker, AcpiPmInfo *pm,
 }
 
 void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
-                       CPUArchIdList *apic_ids, GArray *entry)
+                       const CPUArchIdList *apic_ids, GArray *entry)
 {
     uint32_t apic_id = apic_ids->cpus[uid].arch_id;
 
@@ -373,7 +373,7 @@ static void
 build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(pcms);
-    CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
+    const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
     int madt_start = table_data->len;
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(pcms->acpi_dev);
     AcpiDeviceIf *adev = ACPI_DEVICE_IF(pcms->acpi_dev);
@@ -394,7 +394,6 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
             x2apic_mode = true;
         }
     }
-    g_free(apic_ids);
 
     io_apic = acpi_data_push(table_data, sizeof *io_apic);
     io_apic->type = ACPI_APIC_IO;
@@ -2294,7 +2293,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     int srat_start, numa_start, slots;
     uint64_t mem_len, mem_base, next_base;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(machine);
+    const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(machine);
     PCMachineState *pcms = PC_MACHINE(machine);
     ram_addr_t hotplugabble_address_space_size =
         object_property_get_int(OBJECT(pcms), PC_MACHINE_MEMHP_REGION_SIZE,
@@ -2393,7 +2392,6 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
                  (void *)(table_data->data + srat_start),
                  "SRAT",
                  table_data->len - srat_start, 1, NULL, NULL);
-    g_free(apic_ids);
 }
 
 static void

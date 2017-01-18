@@ -2240,15 +2240,11 @@ static unsigned pc_cpu_index_to_socket_id(unsigned cpu_index)
     return topo.pkg_id;
 }
 
-static CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *machine)
+static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *machine)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
-    int len = sizeof(CPUArchIdList) +
-              sizeof(CPUArchId) * (pcms->possible_cpus->len);
-    CPUArchIdList *list = g_malloc(len);
-
-    memcpy(list, pcms->possible_cpus, len);
-    return list;
+    assert(pcms->possible_cpus);
+    return pcms->possible_cpus;
 }
 
 static HotpluggableCPUList *pc_query_hotpluggable_cpus(MachineState *machine)

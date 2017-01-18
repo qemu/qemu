@@ -190,7 +190,7 @@ void cpu_hotplug_hw_init(MemoryRegion *as, Object *owner,
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    CPUArchIdList *id_list;
+    const CPUArchIdList *id_list;
     int i;
 
     assert(mc->possible_cpu_arch_ids);
@@ -201,7 +201,6 @@ void cpu_hotplug_hw_init(MemoryRegion *as, Object *owner,
         state->devs[i].cpu =  id_list->cpus[i].cpu;
         state->devs[i].arch_id = id_list->cpus[i].arch_id;
     }
-    g_free(id_list);
     memory_region_init_io(&state->ctrl_reg, owner, &cpu_hotplug_ops, state,
                           "acpi-mem-hotplug", ACPI_CPU_HOTPLUG_REG_LEN);
     memory_region_add_subregion(as, base_addr, &state->ctrl_reg);
@@ -325,7 +324,7 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
     Aml *one = aml_int(1);
     Aml *sb_scope = aml_scope("_SB");
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    CPUArchIdList *arch_ids = mc->possible_cpu_arch_ids(machine);
+    const CPUArchIdList *arch_ids = mc->possible_cpu_arch_ids(machine);
     char *cphp_res_path = g_strdup_printf("%s." CPUHP_RES_DEVICE, res_root);
     Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, NULL);
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
@@ -574,5 +573,4 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
     aml_append(table, method);
 
     g_free(cphp_res_path);
-    g_free(arch_ids);
 }

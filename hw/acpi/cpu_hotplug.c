@@ -128,7 +128,7 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
     Aml *zero = aml_int(0);
     Aml *one = aml_int(1);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(machine);
+    const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(machine);
     PCMachineState *pcms = PC_MACHINE(machine);
 
     /*
@@ -329,8 +329,6 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
         apic_idx = apic_id + 1;
     }
     aml_append(sb_scope, aml_name_decl(CPU_ON_BITMAP, pkg));
-    g_free(apic_ids);
-
     aml_append(ctx, sb_scope);
 
     method = aml_method("\\_GPE._E02", 0, AML_NOTSERIALIZED);
