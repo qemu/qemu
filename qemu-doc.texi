@@ -2901,6 +2901,9 @@ The binary format is detected automatically.
 @command{qemu-mips} TODO.
 @command{qemu-mipsel} TODO.
 
+@cindex user mode (NiosII)
+@command{qemu-nios2} TODO.
+
 @cindex user mode (PowerPC)
 @command{qemu-ppc64abi32} TODO.
 @command{qemu-ppc64} TODO.
