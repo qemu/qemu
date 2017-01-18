@@ -41,3 +41,4 @@ obj-$(CONFIG_S390_FLIC_KVM) += s390_flic_kvm.o
 obj-$(CONFIG_ASPEED_SOC) += aspeed_vic.o
 obj-$(CONFIG_ARM_GIC) += arm_gicv3_cpuif.o
 obj-$(CONFIG_MIPS_CPS) += mips_gic.o
+obj-$(CONFIG_NIOS2) += nios2_iic.o
