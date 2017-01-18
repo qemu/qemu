@@ -222,6 +222,10 @@ enum bfd_architecture
   bfd_arch_ia64,      /* HP/Intel ia64 */
 #define bfd_mach_ia64_elf64    64
 #define bfd_mach_ia64_elf32    32
+  bfd_arch_nios2,	/* Nios II */
+#define bfd_mach_nios2          0
+#define bfd_mach_nios2r1        1
+#define bfd_mach_nios2r2        2
   bfd_arch_lm32,       /* Lattice Mico32 */
 #define bfd_mach_lm32 1
   bfd_arch_last
@@ -415,6 +419,8 @@ int print_insn_crisv10          (bfd_vma, disassemble_info*);
 int print_insn_microblaze       (bfd_vma, disassemble_info*);
 int print_insn_ia64             (bfd_vma, disassemble_info*);
 int print_insn_lm32             (bfd_vma, disassemble_info*);
+int print_insn_big_nios2        (bfd_vma, disassemble_info*);
+int print_insn_little_nios2     (bfd_vma, disassemble_info*);
 
 #if 0
 /* Fetch the disassembler for a given BFD, if that support is available.  */
