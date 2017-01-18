@@ -1092,28 +1092,24 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
-static X86CPU *pc_new_cpu(const char *typename, int64_t apic_id,
-                          Error **errp)
+static void pc_new_cpu(const char *typename, int64_t apic_id, Error **errp)
 {
-    X86CPU *cpu = NULL;
+    Object *cpu = NULL;
     Error *local_err = NULL;
 
-    cpu = X86_CPU(object_new(typename));
+    cpu = object_new(typename);
 
-    object_property_set_int(OBJECT(cpu), apic_id, "apic-id", &local_err);
-    object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
+    object_property_set_int(cpu, apic_id, "apic-id", &local_err);
+    object_property_set_bool(cpu, true, "realized", &local_err);
 
+    object_unref(cpu);
     if (local_err) {
         error_propagate(errp, local_err);
-        object_unref(OBJECT(cpu));
-        cpu = NULL;
     }
-    return cpu;
 }
 
 void pc_hot_add_cpu(const int64_t id, Error **errp)
 {
-    X86CPU *cpu;
     ObjectClass *oc;
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
     int64_t apic_id = x86_cpu_apic_id_from_index(id);
@@ -1133,12 +1129,11 @@ void pc_hot_add_cpu(const int64_t id, Error **errp)
 
     assert(pcms->possible_cpus->cpus[0].cpu); /* BSP is always present */
     oc = OBJECT_CLASS(CPU_GET_CLASS(pcms->possible_cpus->cpus[0].cpu));
-    cpu = pc_new_cpu(object_class_get_name(oc), apic_id, &local_err);
+    pc_new_cpu(object_class_get_name(oc), apic_id, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
-    object_unref(OBJECT(cpu));
 }
 
 void pc_cpus_init(PCMachineState *pcms)
@@ -1148,7 +1143,6 @@ void pc_cpus_init(PCMachineState *pcms)
     ObjectClass *oc;
     const char *typename;
     gchar **model_pieces;
-    X86CPU *cpu = NULL;
     MachineState *machine = MACHINE(pcms);
 
     /* init CPUs */
@@ -1190,9 +1184,7 @@ void pc_cpus_init(PCMachineState *pcms)
         pcms->possible_cpus->cpus[i].arch_id = x86_cpu_apic_id_from_index(i);
         pcms->possible_cpus->len++;
         if (i < smp_cpus) {
-            cpu = pc_new_cpu(typename, x86_cpu_apic_id_from_index(i),
-                             &error_fatal);
-            object_unref(OBJECT(cpu));
+            pc_new_cpu(typename, x86_cpu_apic_id_from_index(i), &error_fatal);
         }
     }
 }
