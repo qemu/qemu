@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "cpu.h"
 #ifdef CONFIG_USER_ONLY
@@ -1731,6 +1732,12 @@ int gdbserver_start(const char *device)
     CharDriverState *chr = NULL;
     CharDriverState *mon_chr;
     ChardevCommon common = { 0 };
+
+    if (!first_cpu) {
+        error_report("gdbstub: meaningless to attach gdb to a "
+                     "machine without any CPU.");
+        return -1;
+    }
 
     if (!device)
         return -1;
