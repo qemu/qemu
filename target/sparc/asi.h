@@ -211,6 +211,7 @@
 #define ASI_AFSR		0x4c /* Async fault status register	*/
 #define ASI_AFAR		0x4d /* Async fault address register	*/
 #define ASI_EC_TAG_DATA		0x4e /* E-cache tag/valid ram diag acc	*/
+#define ASI_HYP_SCRATCHPAD	0x4f /* (4V) Hypervisor scratchpad	*/
 #define ASI_IMMU		0x50 /* Insn-MMU main register space	*/
 #define ASI_IMMU_TSB_8KB_PTR	0x51 /* Insn-MMU 8KB TSB pointer reg	*/
 #define ASI_IMMU_TSB_64KB_PTR	0x52 /* Insn-MMU 64KB TSB pointer reg	*/

@@ -70,44 +70,47 @@
 #define QT1 (env->qt1)
 
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
-/* Calculates TSB pointer value for fault page size 8k or 64k */
-static uint64_t ultrasparc_tsb_pointer(uint64_t tsb_register,
-                                       uint64_t tag_access_register,
-                                       int page_size)
+/* Calculates TSB pointer value for fault page size
+ * UltraSPARC IIi has fixed sizes (8k or 64k) for the page pointers
+ * UA2005 holds the page size configuration in mmu_ctx registers */
+static uint64_t ultrasparc_tsb_pointer(CPUSPARCState *env,
+                                       const SparcV9MMU *mmu, const int idx)
 {
-    uint64_t tsb_base = tsb_register & ~0x1fffULL;
+    uint64_t tsb_register;
+    int page_size;
+    if (cpu_has_hypervisor(env)) {
+        int tsb_index = 0;
+        int ctx = mmu->tag_access & 0x1fffULL;
+        uint64_t ctx_register = mmu->sun4v_ctx_config[ctx ? 1 : 0];
+        tsb_index = idx;
+        tsb_index |= ctx ? 2 : 0;
+        page_size = idx ? ctx_register >> 8 : ctx_register;
+        page_size &= 7;
+        tsb_register = mmu->sun4v_tsb_pointers[tsb_index];
+    } else {
+        page_size = idx;
+        tsb_register = mmu->tsb;
+    }
     int tsb_split = (tsb_register & 0x1000ULL) ? 1 : 0;
     int tsb_size  = tsb_register & 0xf;
 
-    /* discard lower 13 bits which hold tag access context */
-    uint64_t tag_access_va = tag_access_register & ~0x1fffULL;
+    uint64_t tsb_base_mask = (~0x1fffULL) << tsb_size;
 
-    /* now reorder bits */
-    uint64_t tsb_base_mask = ~0x1fffULL;
-    uint64_t va = tag_access_va;
-
-    /* move va bits to correct position */
-    if (page_size == 8*1024) {
-        va >>= 9;
-    } else if (page_size == 64*1024) {
-        va >>= 12;
-    }
-
-    if (tsb_size) {
-        tsb_base_mask <<= tsb_size;
-    }
+    /* move va bits to correct position,
+     * the context bits will be masked out later */
+    uint64_t va = mmu->tag_access >> (3 * page_size + 9);
 
     /* calculate tsb_base mask and adjust va if split is in use */
     if (tsb_split) {
-        if (page_size == 8*1024) {
+        if (idx == 0) {
             va &= ~(1ULL << (13 + tsb_size));
-        } else if (page_size == 64*1024) {
+        } else {
             va |= (1ULL << (13 + tsb_size));
         }
         tsb_base_mask <<= 1;
     }
 
-    return ((tsb_base & tsb_base_mask) | (va & ~tsb_base_mask)) & ~0xfULL;
+    return ((tsb_register & tsb_base_mask) | (va & ~tsb_base_mask)) & ~0xfULL;
 }
 
 /* Calculates tag target register value by reordering bits
@@ -127,9 +130,8 @@ static void replace_tlb_entry(SparcTLBEntry *tlb,
     if (TTE_IS_VALID(tlb->tte)) {
         CPUState *cs = CPU(sparc_env_get_cpu(env1));
 
-        mask = 0xffffffffffffe000ULL;
-        mask <<= 3 * ((tlb->tte >> 61) & 3);
-        size = ~mask + 1;
+        size = 8192ULL << 3 * TTE_PGSIZE(tlb->tte);
+        mask = 1ULL + ~size;
 
         va = tlb->tag & mask;
 
@@ -202,12 +204,56 @@ static void demap_tlb(SparcTLBEntry *tlb, target_ulong demap_addr,
     }
 }
 
+static uint64_t sun4v_tte_to_sun4u(CPUSPARCState *env, uint64_t tag,
+                                   uint64_t sun4v_tte)
+{
+    uint64_t sun4u_tte;
+    if (!(cpu_has_hypervisor(env) && (tag & TLB_UST1_IS_SUN4V_BIT))) {
+        /* is already in the sun4u format */
+        return sun4v_tte;
+    }
+    sun4u_tte = TTE_PA(sun4v_tte) | (sun4v_tte & TTE_VALID_BIT);
+    sun4u_tte |= (sun4v_tte & 3ULL) << 61; /* TTE_PGSIZE */
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_NFO_BIT_UA2005, TTE_NFO_BIT);
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_USED_BIT_UA2005, TTE_USED_BIT);
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_W_OK_BIT_UA2005, TTE_W_OK_BIT);
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_SIDEEFFECT_BIT_UA2005,
+                             TTE_SIDEEFFECT_BIT);
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_PRIV_BIT_UA2005, TTE_PRIV_BIT);
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_LOCKED_BIT_UA2005, TTE_LOCKED_BIT);
+    return sun4u_tte;
+}
+
 static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
                                  uint64_t tlb_tag, uint64_t tlb_tte,
-                                 const char *strmmu, CPUSPARCState *env1)
+                                 const char *strmmu, CPUSPARCState *env1,
+                                 uint64_t addr)
 {
     unsigned int i, replace_used;
 
+    tlb_tte = sun4v_tte_to_sun4u(env1, addr, tlb_tte);
+    if (cpu_has_hypervisor(env1)) {
+        uint64_t new_vaddr = tlb_tag & ~0x1fffULL;
+        uint64_t new_size = 8192ULL << 3 * TTE_PGSIZE(tlb_tte);
+        uint32_t new_ctx = tlb_tag & 0x1fffU;
+        for (i = 0; i < 64; i++) {
+            uint32_t ctx = tlb[i].tag & 0x1fffU;
+            /* check if new mapping overlaps an existing one */
+            if (new_ctx == ctx) {
+                uint64_t vaddr = tlb[i].tag & ~0x1fffULL;
+                uint64_t size = 8192ULL << 3 * TTE_PGSIZE(tlb[i].tte);
+                if (new_vaddr == vaddr
+                    || (new_vaddr < vaddr + size
+                        && vaddr < new_vaddr + new_size)) {
+                    DPRINTF_MMU("auto demap entry [%d] %lx->%lx\n", i, vaddr,
+                                new_vaddr);
+                    replace_tlb_entry(&tlb[i], tlb_tag, tlb_tte, env1);
+                    return;
+                }
+            }
+
+        }
+    }
     /* Try replacing invalid entry */
     for (i = 0; i < 64; i++) {
         if (!TTE_IS_VALID(tlb[i].tte)) {
@@ -247,9 +293,11 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
     }
 
 #ifdef DEBUG_MMU
-    DPRINTF_MMU("%s lru replacement failed: no entries available\n", strmmu);
+    DPRINTF_MMU("%s lru replacement: no free entries available, "
+                "replacing the last one\n", strmmu);
 #endif
-    /* error state? */
+    /* corner case: the last entry is replaced anyway */
+    replace_tlb_entry(&tlb[63], tlb_tag, tlb_tte, env1);
 }
 
 #endif
@@ -294,6 +342,22 @@ static inline target_ulong asi_address_mask(CPUSPARCState *env,
     }
     return addr;
 }
+
+#ifndef CONFIG_USER_ONLY
+static inline void do_check_asi(CPUSPARCState *env, int asi, uintptr_t ra)
+{
+    /* ASIs >= 0x80 are user mode.
+     * ASIs >= 0x30 are hyper mode (or super if hyper is not available).
+     * ASIs <= 0x2f are super mode.
+     */
+    if (asi < 0x80
+        && !cpu_hypervisor_mode(env)
+        && (!cpu_supervisor_mode(env)
+            || (asi >= 0x30 && cpu_has_hypervisor(env)))) {
+        cpu_raise_exception_ra(env, TT_PRIV_ACT, ra);
+    }
+}
+#endif /* !CONFIG_USER_ONLY */
 #endif
 
 static void do_check_align(CPUSPARCState *env, target_ulong addr,
@@ -1119,13 +1183,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
 
     asi &= 0xff;
 
-    if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || (cpu_has_hypervisor(env)
-            && asi >= 0x30 && asi < 0x80
-            && !(env->hpstate & HS_PRIV))) {
-        cpu_raise_exception_ra(env, TT_PRIV_ACT, GETPC());
-    }
-
+    do_check_asi(env, asi, GETPC());
     do_check_align(env, addr, size - 1, GETPC());
     addr = asi_address_mask(env, asi, addr);
 
@@ -1220,30 +1278,39 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_IMMU: /* I-MMU regs */
         {
             int reg = (addr >> 3) & 0xf;
-
-            if (reg == 0) {
-                /* I-TSB Tag Target register */
+            switch (reg) {
+            case 0:
+                /* 0x00 I-TSB Tag Target register */
                 ret = ultrasparc_tag_target(env->immu.tag_access);
-            } else {
-                ret = env->immuregs[reg];
+                break;
+            case 3: /* SFSR */
+                ret = env->immu.sfsr;
+                break;
+            case 5: /* TSB access */
+                ret = env->immu.tsb;
+                break;
+            case 6:
+                /* 0x30 I-TSB Tag Access register */
+                ret = env->immu.tag_access;
+                break;
+            default:
+                cpu_unassigned_access(cs, addr, false, false, 1, size);
+                ret = 0;
             }
-
             break;
         }
     case ASI_IMMU_TSB_8KB_PTR: /* I-MMU 8k TSB pointer */
         {
             /* env->immuregs[5] holds I-MMU TSB register value
                env->immuregs[6] holds I-MMU Tag Access register value */
-            ret = ultrasparc_tsb_pointer(env->immu.tsb, env->immu.tag_access,
-                                         8*1024);
+            ret = ultrasparc_tsb_pointer(env, &env->immu, 0);
             break;
         }
     case ASI_IMMU_TSB_64KB_PTR: /* I-MMU 64k TSB pointer */
         {
             /* env->immuregs[5] holds I-MMU TSB register value
                env->immuregs[6] holds I-MMU Tag Access register value */
-            ret = ultrasparc_tsb_pointer(env->immu.tsb, env->immu.tag_access,
-                                         64*1024);
+            ret = ultrasparc_tsb_pointer(env, &env->immu, 1);
             break;
         }
     case ASI_ITLB_DATA_ACCESS: /* I-MMU data access */
@@ -1263,12 +1330,38 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_DMMU: /* D-MMU regs */
         {
             int reg = (addr >> 3) & 0xf;
-
-            if (reg == 0) {
-                /* D-TSB Tag Target register */
+            switch (reg) {
+            case 0:
+                /* 0x00 D-TSB Tag Target register */
                 ret = ultrasparc_tag_target(env->dmmu.tag_access);
-            } else {
-                ret = env->dmmuregs[reg];
+                break;
+            case 1: /* 0x08 Primary Context */
+                ret = env->dmmu.mmu_primary_context;
+                break;
+            case 2: /* 0x10 Secondary Context */
+                ret = env->dmmu.mmu_secondary_context;
+                break;
+            case 3: /* SFSR */
+                ret = env->dmmu.sfsr;
+                break;
+            case 4: /* 0x20 SFAR */
+                ret = env->dmmu.sfar;
+                break;
+            case 5: /* 0x28 TSB access */
+                ret = env->dmmu.tsb;
+                break;
+            case 6: /* 0x30 D-TSB Tag Access register */
+                ret = env->dmmu.tag_access;
+                break;
+            case 7:
+                ret = env->dmmu.virtual_watchpoint;
+                break;
+            case 8:
+                ret = env->dmmu.physical_watchpoint;
+                break;
+            default:
+                cpu_unassigned_access(cs, addr, false, false, 1, size);
+                ret = 0;
             }
             break;
         }
@@ -1276,16 +1369,14 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
         {
             /* env->dmmuregs[5] holds D-MMU TSB register value
                env->dmmuregs[6] holds D-MMU Tag Access register value */
-            ret = ultrasparc_tsb_pointer(env->dmmu.tsb, env->dmmu.tag_access,
-                                         8*1024);
+            ret = ultrasparc_tsb_pointer(env, &env->dmmu, 0);
             break;
         }
     case ASI_DMMU_TSB_64KB_PTR: /* D-MMU 64k TSB pointer */
         {
             /* env->dmmuregs[5] holds D-MMU TSB register value
                env->dmmuregs[6] holds D-MMU Tag Access register value */
-            ret = ultrasparc_tsb_pointer(env->dmmu.tsb, env->dmmu.tag_access,
-                                         64*1024);
+            ret = ultrasparc_tsb_pointer(env, &env->dmmu, 1);
             break;
         }
     case ASI_DTLB_DATA_ACCESS: /* D-MMU data access */
@@ -1315,6 +1406,30 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
             }
             break;
         }
+    case ASI_SCRATCHPAD: /* UA2005 privileged scratchpad */
+        if (unlikely((addr >= 0x20) && (addr < 0x30))) {
+            /* Hyperprivileged access only */
+            cpu_unassigned_access(cs, addr, false, false, 1, size);
+        }
+        /* fall through */
+    case ASI_HYP_SCRATCHPAD: /* UA2005 hyperprivileged scratchpad */
+        {
+            unsigned int i = (addr >> 3) & 0x7;
+            ret = env->scratch[i];
+            break;
+        }
+    case ASI_MMU: /* UA2005 Context ID registers */
+        switch ((addr >> 3) & 0x3) {
+        case 1:
+            ret = env->dmmu.mmu_primary_context;
+            break;
+        case 2:
+            ret = env->dmmu.mmu_secondary_context;
+            break;
+        default:
+          cpu_unassigned_access(cs, addr, true, false, 1, size);
+        }
+        break;
     case ASI_DCACHE_DATA:     /* D-cache data */
     case ASI_DCACHE_TAG:      /* D-cache tag access */
     case ASI_ESTATE_ERROR_EN: /* E-cache error enable */
@@ -1375,13 +1490,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 
     asi &= 0xff;
 
-    if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || (cpu_has_hypervisor(env)
-            && asi >= 0x30 && asi < 0x80
-            && !(env->hpstate & HS_PRIV))) {
-        cpu_raise_exception_ra(env, TT_PRIV_ACT, GETPC());
-    }
-
+    do_check_asi(env, asi, GETPC());
     do_check_align(env, addr, size - 1, GETPC());
     addr = asi_address_mask(env, asi, addr);
 
@@ -1417,7 +1526,67 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     case ASI_TWINX_SL: /* Secondary, twinx, LE */
         /* These are always handled inline.  */
         g_assert_not_reached();
-
+    /* these ASIs have different functions on UltraSPARC-IIIi
+     * and UA2005 CPUs. Use the explicit numbers to avoid confusion
+     */
+    case 0x31:
+    case 0x32:
+    case 0x39:
+    case 0x3a:
+        if (cpu_has_hypervisor(env)) {
+            /* UA2005
+             * ASI_DMMU_CTX_ZERO_TSB_BASE_PS0
+             * ASI_DMMU_CTX_ZERO_TSB_BASE_PS1
+             * ASI_DMMU_CTX_NONZERO_TSB_BASE_PS0
+             * ASI_DMMU_CTX_NONZERO_TSB_BASE_PS1
+             */
+            int idx = ((asi & 2) >> 1) | ((asi & 8) >> 2);
+            env->dmmu.sun4v_tsb_pointers[idx] = val;
+        } else {
+            helper_raise_exception(env, TT_ILL_INSN);
+        }
+        break;
+    case 0x33:
+    case 0x3b:
+        if (cpu_has_hypervisor(env)) {
+            /* UA2005
+             * ASI_DMMU_CTX_ZERO_CONFIG
+             * ASI_DMMU_CTX_NONZERO_CONFIG
+             */
+            env->dmmu.sun4v_ctx_config[(asi & 8) >> 3] = val;
+        } else {
+            helper_raise_exception(env, TT_ILL_INSN);
+        }
+        break;
+    case 0x35:
+    case 0x36:
+    case 0x3d:
+    case 0x3e:
+        if (cpu_has_hypervisor(env)) {
+            /* UA2005
+             * ASI_IMMU_CTX_ZERO_TSB_BASE_PS0
+             * ASI_IMMU_CTX_ZERO_TSB_BASE_PS1
+             * ASI_IMMU_CTX_NONZERO_TSB_BASE_PS0
+             * ASI_IMMU_CTX_NONZERO_TSB_BASE_PS1
+             */
+            int idx = ((asi & 2) >> 1) | ((asi & 8) >> 2);
+            env->immu.sun4v_tsb_pointers[idx] = val;
+        } else {
+            helper_raise_exception(env, TT_ILL_INSN);
+        }
+      break;
+    case 0x37:
+    case 0x3f:
+        if (cpu_has_hypervisor(env)) {
+            /* UA2005
+             * ASI_IMMU_CTX_ZERO_CONFIG
+             * ASI_IMMU_CTX_NONZERO_CONFIG
+             */
+            env->immu.sun4v_ctx_config[(asi & 8) >> 3] = val;
+        } else {
+          helper_raise_exception(env, TT_ILL_INSN);
+        }
+        break;
     case ASI_UPA_CONFIG: /* UPA config */
         /* XXX */
         return;
@@ -1429,7 +1598,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             int reg = (addr >> 3) & 0xf;
             uint64_t oldreg;
 
-            oldreg = env->immuregs[reg];
+            oldreg = env->immu.mmuregs[reg];
             switch (reg) {
             case 0: /* RO */
                 return;
@@ -1456,10 +1625,11 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             case 8:
                 return;
             default:
+                cpu_unassigned_access(cs, addr, true, false, 1, size);
                 break;
             }
 
-            if (oldreg != env->immuregs[reg]) {
+            if (oldreg != env->immu.mmuregs[reg]) {
                 DPRINTF_MMU("immu change reg[%d]: 0x%016" PRIx64 " -> 0x%016"
                             PRIx64 "\n", reg, oldreg, env->immuregs[reg]);
             }
@@ -1469,7 +1639,11 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             return;
         }
     case ASI_ITLB_DATA_IN: /* I-MMU data in */
-        replace_tlb_1bit_lru(env->itlb, env->immu.tag_access, val, "immu", env);
+        /* ignore real translation entries */
+        if (!(addr & TLB_UST1_IS_REAL_BIT)) {
+            replace_tlb_1bit_lru(env->itlb, env->immu.tag_access,
+                                 val, "immu", env, addr);
+        }
         return;
     case ASI_ITLB_DATA_ACCESS: /* I-MMU data access */
         {
@@ -1477,8 +1651,11 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 
             unsigned int i = (addr >> 3) & 0x3f;
 
-            replace_tlb_entry(&env->itlb[i], env->immu.tag_access, val, env);
-
+            /* ignore real translation entries */
+            if (!(addr & TLB_UST1_IS_REAL_BIT)) {
+                replace_tlb_entry(&env->itlb[i], env->immu.tag_access,
+                                  sun4v_tte_to_sun4u(env, addr, val), env);
+            }
 #ifdef DEBUG_MMU
             DPRINTF_MMU("immu data access replaced entry [%i]\n", i);
             dump_mmu(stdout, fprintf, env);
@@ -1493,7 +1670,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             int reg = (addr >> 3) & 0xf;
             uint64_t oldreg;
 
-            oldreg = env->dmmuregs[reg];
+            oldreg = env->dmmu.mmuregs[reg];
             switch (reg) {
             case 0: /* RO */
             case 4:
@@ -1526,13 +1703,17 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 env->dmmu.tag_access = val;
                 break;
             case 7: /* Virtual Watchpoint */
+                env->dmmu.virtual_watchpoint = val;
+                break;
             case 8: /* Physical Watchpoint */
+                env->dmmu.physical_watchpoint = val;
+                break;
             default:
-                env->dmmuregs[reg] = val;
+                cpu_unassigned_access(cs, addr, true, false, 1, size);
                 break;
             }
 
-            if (oldreg != env->dmmuregs[reg]) {
+            if (oldreg != env->dmmu.mmuregs[reg]) {
                 DPRINTF_MMU("dmmu change reg[%d]: 0x%016" PRIx64 " -> 0x%016"
                             PRIx64 "\n", reg, oldreg, env->dmmuregs[reg]);
             }
@@ -1542,14 +1723,21 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             return;
         }
     case ASI_DTLB_DATA_IN: /* D-MMU data in */
-        replace_tlb_1bit_lru(env->dtlb, env->dmmu.tag_access, val, "dmmu", env);
-        return;
+      /* ignore real translation entries */
+      if (!(addr & TLB_UST1_IS_REAL_BIT)) {
+          replace_tlb_1bit_lru(env->dtlb, env->dmmu.tag_access,
+                               val, "dmmu", env, addr);
+      }
+      return;
     case ASI_DTLB_DATA_ACCESS: /* D-MMU data access */
         {
             unsigned int i = (addr >> 3) & 0x3f;
 
-            replace_tlb_entry(&env->dtlb[i], env->dmmu.tag_access, val, env);
-
+            /* ignore real translation entries */
+            if (!(addr & TLB_UST1_IS_REAL_BIT)) {
+                replace_tlb_entry(&env->dtlb[i], env->dmmu.tag_access,
+                                  sun4v_tte_to_sun4u(env, addr, val), env);
+            }
 #ifdef DEBUG_MMU
             DPRINTF_MMU("dmmu data access replaced entry [%i]\n", i);
             dump_mmu(stdout, fprintf, env);
@@ -1562,6 +1750,38 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     case ASI_INTR_RECEIVE: /* Interrupt data receive */
         env->ivec_status = val & 0x20;
         return;
+    case ASI_SCRATCHPAD: /* UA2005 privileged scratchpad */
+        if (unlikely((addr >= 0x20) && (addr < 0x30))) {
+            /* Hyperprivileged access only */
+            cpu_unassigned_access(cs, addr, true, false, 1, size);
+        }
+        /* fall through */
+    case ASI_HYP_SCRATCHPAD: /* UA2005 hyperprivileged scratchpad */
+        {
+            unsigned int i = (addr >> 3) & 0x7;
+            env->scratch[i] = val;
+            return;
+        }
+    case ASI_MMU: /* UA2005 Context ID registers */
+        {
+          switch ((addr >> 3) & 0x3) {
+          case 1:
+              env->dmmu.mmu_primary_context = val;
+              env->immu.mmu_primary_context = val;
+              tlb_flush_by_mmuidx(CPU(cpu), MMU_USER_IDX, MMU_KERNEL_IDX, -1);
+              break;
+          case 2:
+              env->dmmu.mmu_secondary_context = val;
+              env->immu.mmu_secondary_context = val;
+              tlb_flush_by_mmuidx(CPU(cpu), MMU_USER_SECONDARY_IDX,
+                                  MMU_KERNEL_SECONDARY_IDX, -1);
+              break;
+          default:
+              cpu_unassigned_access(cs, addr, true, false, 1, size);
+          }
+        }
+        return;
+    case ASI_QUEUE: /* UA2005 CPU mondo queue */
     case ASI_DCACHE_DATA: /* D-cache data */
     case ASI_DCACHE_TAG: /* D-cache tag access */
     case ASI_ESTATE_ERROR_EN: /* E-cache error enable */
@@ -1664,14 +1884,25 @@ void sparc_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
-    int tt = is_exec ? TT_CODE_ACCESS : TT_DATA_ACCESS;
 
 #ifdef DEBUG_UNASSIGNED
     printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx
            "\n", addr, env->pc);
 #endif
 
-    cpu_raise_exception_ra(env, tt, GETPC());
+    if (is_exec) { /* XXX has_hypervisor */
+        if (env->lsu & (IMMU_E)) {
+            cpu_raise_exception_ra(env, TT_CODE_ACCESS, GETPC());
+        } else if (cpu_has_hypervisor(env) && !(env->hpstate & HS_PRIV)) {
+            cpu_raise_exception_ra(env, TT_INSN_REAL_TRANSLATION_MISS, GETPC());
+        }
+    } else {
+        if (env->lsu & (DMMU_E)) {
+            cpu_raise_exception_ra(env, TT_DATA_ACCESS, GETPC());
+        } else if (cpu_has_hypervisor(env) && !(env->hpstate & HS_PRIV)) {
+            cpu_raise_exception_ra(env, TT_DATA_REAL_TRANSLATION_MISS, GETPC());
+        }
+    }
 }
 #endif
 #endif

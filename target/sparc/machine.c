@@ -148,8 +148,8 @@ const VMStateDescription vmstate_sparc_cpu = {
         VMSTATE_UINT64_ARRAY(env.mmubpregs, SPARCCPU, 4),
 #else
         VMSTATE_UINT64(env.lsu, SPARCCPU),
-        VMSTATE_UINT64_ARRAY(env.immuregs, SPARCCPU, 16),
-        VMSTATE_UINT64_ARRAY(env.dmmuregs, SPARCCPU, 16),
+        VMSTATE_UINT64_ARRAY(env.immu.mmuregs, SPARCCPU, 16),
+        VMSTATE_UINT64_ARRAY(env.dmmu.mmuregs, SPARCCPU, 16),
         VMSTATE_STRUCT_ARRAY(env.itlb, SPARCCPU, 64, 0,
                              vmstate_tlb_entry, SparcTLBEntry),
         VMSTATE_STRUCT_ARRAY(env.dtlb, SPARCCPU, 64, 0,

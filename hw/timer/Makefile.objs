@@ -34,3 +34,5 @@ obj-$(CONFIG_ALLWINNER_A10_PIT) += allwinner-a10-pit.o
 
 common-obj-$(CONFIG_STM32F2XX_TIMER) += stm32f2xx_timer.o
 common-obj-$(CONFIG_ASPEED_SOC) += aspeed_timer.o
+
+common-obj-$(CONFIG_SUN4V_RTC) += sun4v-rtc.o

@@ -725,6 +725,13 @@ S: Maintained
 F: hw/sparc64/sun4u.c
 F: pc-bios/openbios-sparc64
 
+Sun4v
+M: Artyom Tarasenko <atar4qemu@gmail.com>
+S: Maintained
+F: hw/sparc64/sun4v.c
+F: hw/timer/sun4v-rtc.c
+F: include/hw/timer/sun4v-rtc.h
+
 Leon3
 M: Fabien Chouteau <chouteau@adacore.com>
 S: Maintained

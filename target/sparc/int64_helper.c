@@ -78,8 +78,10 @@ void sparc_cpu_do_interrupt(CPUState *cs)
         static int count;
         const char *name;
 
-        if (intno < 0 || intno >= 0x180) {
+        if (intno < 0 || intno >= 0x1ff) {
             name = "Unknown";
+        } else if (intno >= 0x180) {
+            name = "Hyperprivileged Trap Instruction";
         } else if (intno >= 0x100) {
             name = "Trap Instruction";
         } else if (intno >= 0xc0) {
@@ -135,16 +137,42 @@ void sparc_cpu_do_interrupt(CPUState *cs)
     tsptr->tnpc = env->npc;
     tsptr->tt = intno;
 
+    if (cpu_has_hypervisor(env)) {
+        env->htstate[env->tl] = env->hpstate;
+        /* XXX OpenSPARC T1 - UltraSPARC T3 have MAXPTL=2
+           but this may change in the future */
+        if (env->tl > 2) {
+            env->hpstate |= HS_PRIV;
+        }
+    }
+
+    if (env->def->features & CPU_FEATURE_GL) {
+        tsptr->tstate |= (env->gl & 7ULL) << 40;
+        cpu_gl_switch_gregs(env, env->gl + 1);
+        env->gl++;
+    }
+
     switch (intno) {
     case TT_IVEC:
-        cpu_change_pstate(env, PS_PEF | PS_PRIV | PS_IG);
+        if (!cpu_has_hypervisor(env)) {
+            cpu_change_pstate(env, PS_PEF | PS_PRIV | PS_IG);
+        }
         break;
     case TT_TFAULT:
     case TT_DFAULT:
     case TT_TMISS ... TT_TMISS + 3:
     case TT_DMISS ... TT_DMISS + 3:
     case TT_DPROT ... TT_DPROT + 3:
-        cpu_change_pstate(env, PS_PEF | PS_PRIV | PS_MG);
+        if (cpu_has_hypervisor(env)) {
+            env->hpstate |= HS_PRIV;
+            env->pstate = PS_PEF | PS_PRIV;
+        } else {
+            cpu_change_pstate(env, PS_PEF | PS_PRIV | PS_MG);
+        }
+        break;
+    case TT_INSN_REAL_TRANSLATION_MISS ... TT_DATA_REAL_TRANSLATION_MISS:
+    case TT_HTRAP ... TT_HTRAP + 127:
+        env->hpstate |= HS_PRIV;
         break;
     default:
         cpu_change_pstate(env, PS_PEF | PS_PRIV | PS_AG);
@@ -158,8 +186,13 @@ void sparc_cpu_do_interrupt(CPUState *cs)
     } else if ((intno & 0x1c0) == TT_FILL) {
         cpu_set_cwp(env, cpu_cwp_inc(env, env->cwp + 1));
     }
-    env->pc = env->tbr  & ~0x7fffULL;
-    env->pc |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
+
+    if (cpu_hypervisor_mode(env)) {
+        env->pc = (env->htba & ~0x3fffULL) | (intno << 5);
+    } else {
+        env->pc = env->tbr  & ~0x7fffULL;
+        env->pc |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
+    }
     env->npc = env->pc + 4;
     cs->exception_index = -1;
 }

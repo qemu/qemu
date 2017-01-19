@@ -5,6 +5,7 @@ DEF_HELPER_1(rdpsr, tl, env)
 DEF_HELPER_1(power_down, void, env)
 #else
 DEF_HELPER_FLAGS_2(wrpil, TCG_CALL_NO_RWG, void, env, tl)
+DEF_HELPER_2(wrgl, void, env, tl)
 DEF_HELPER_2(wrpstate, void, env, tl)
 DEF_HELPER_1(done, void, env)
 DEF_HELPER_1(retry, void, env)

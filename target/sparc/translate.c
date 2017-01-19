@@ -72,9 +72,16 @@ typedef struct DisasContext {
     target_ulong jump_pc[2]; /* used when JUMP_PC pc value is used */
     int is_br;
     int mem_idx;
-    int fpu_enabled;
-    int address_mask_32bit;
-    int singlestep;
+    bool fpu_enabled;
+    bool address_mask_32bit;
+    bool singlestep;
+#ifndef CONFIG_USER_ONLY
+    bool supervisor;
+#ifdef TARGET_SPARC64
+    bool hypervisor;
+#endif
+#endif
+
     uint32_t cc_op;  /* current CC operation */
     struct TranslationBlock *tb;
     sparc_def_t *def;
@@ -283,10 +290,11 @@ static void gen_move_Q(DisasContext *dc, unsigned int rd, unsigned int rs)
 #define hypervisor(dc) 0
 #endif
 #else
-#define supervisor(dc) (dc->mem_idx >= MMU_KERNEL_IDX)
 #ifdef TARGET_SPARC64
-#define hypervisor(dc) (dc->mem_idx == MMU_HYPV_IDX)
+#define hypervisor(dc) (dc->hypervisor)
+#define supervisor(dc) (dc->supervisor | dc->hypervisor)
 #else
+#define supervisor(dc) (dc->supervisor)
 #endif
 #endif
 
@@ -2134,7 +2142,11 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         case ASI_TWINX_NL:
         case ASI_NUCLEUS_QUAD_LDD:
         case ASI_NUCLEUS_QUAD_LDD_L:
-            mem_idx = MMU_NUCLEUS_IDX;
+            if (hypervisor(dc)) {
+                mem_idx = MMU_PHYS_IDX;
+            } else {
+                mem_idx = MMU_NUCLEUS_IDX;
+            }
             break;
         case ASI_AIUP:  /* As if user primary */
         case ASI_AIUPL: /* As if user primary LE */
@@ -2309,8 +2321,19 @@ static void gen_st_asi(DisasContext *dc, TCGv src, TCGv addr,
     case GET_ASI_EXCP:
         break;
     case GET_ASI_DTWINX: /* Reserved for stda.  */
+#ifndef TARGET_SPARC64
         gen_exception(dc, TT_ILL_INSN);
         break;
+#else
+        if (!(dc->def->features & CPU_FEATURE_HYPV)) {
+            /* Pre OpenSPARC CPUs don't have these */
+            gen_exception(dc, TT_ILL_INSN);
+            return;
+        }
+        /* in OpenSPARC T1+ CPUs TWINX ASIs in store instructions
+         * are ST_BLKINIT_ ASIs */
+        /* fall through */
+#endif
     case GET_ASI_DIRECT:
         gen_address_mask(dc, addr);
         tcg_gen_qemu_st_tl(src, addr, da.mem_idx, da.memop);
@@ -3286,7 +3309,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 
                 rs1 = GET_FIELD_SP(insn, 14, 18);
                 if (IS_IMM) {
-                    rs2 = GET_FIELD_SP(insn, 0, 6);
+                    rs2 = GET_FIELD_SP(insn, 0, 7);
                     if (rs1 == 0) {
                         tcg_gen_movi_i32(trap, (rs2 & mask) + TT_TRAP);
                         /* Signal that the trap value is fully constant.  */
@@ -3421,6 +3444,17 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 0x19: /* System tick compare */
                     gen_store_gpr(dc, rd, cpu_stick_cmpr);
                     break;
+                case 0x1a: /* UltraSPARC-T1 Strand status */
+                    /* XXX HYPV check maybe not enough, UA2005 & UA2007 describe
+                     * this ASR as impl. dep
+                     */
+                    CHECK_IU_FEATURE(dc, HYPV);
+                    {
+                        TCGv t = gen_dest_gpr(dc, rd);
+                        tcg_gen_movi_tl(t, 1UL);
+                        gen_store_gpr(dc, rd, t);
+                    }
+                    break;
                 case 0x10: /* Performance Control */
                 case 0x11: /* Performance Instrumentation Counter */
                 case 0x12: /* Dispatch Control */
@@ -3445,7 +3479,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 rs1 = GET_FIELD(insn, 13, 17);
                 switch (rs1) {
                 case 0: // hpstate
-                    // gen_op_rdhpstate();
+                    tcg_gen_ld_i64(cpu_dst, cpu_env,
+                                   offsetof(CPUSPARCState, hpstate));
                     break;
                 case 1: // htstate
                     // gen_op_rdhtstate();
@@ -4535,8 +4570,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 break;
                             case 16: // UA2005 gl
                                 CHECK_IU_FEATURE(dc, GL);
-                                tcg_gen_st32_tl(cpu_tmp0, cpu_env,
-                                                offsetof(CPUSPARCState, gl));
+                                gen_helper_wrgl(cpu_env, cpu_tmp0);
                                 break;
                             case 26: // UA2005 strand status
                                 CHECK_IU_FEATURE(dc, HYPV);
@@ -4570,7 +4604,9 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                             tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
                             switch (rd) {
                             case 0: // hpstate
-                                // XXX gen_op_wrhpstate();
+                                tcg_gen_st_i64(cpu_tmp0, cpu_env,
+                                               offsetof(CPUSPARCState,
+                                                        hpstate));
                                 save_state(dc);
                                 gen_op_next_insn();
                                 tcg_gen_exit_tb(0);
@@ -5710,9 +5746,15 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
     dc->fpu_enabled = tb_fpu_enabled(tb->flags);
     dc->address_mask_32bit = tb_am_enabled(tb->flags);
     dc->singlestep = (cs->singlestep_enabled || singlestep);
+#ifndef CONFIG_USER_ONLY
+    dc->supervisor = (tb->flags & TB_FLAG_SUPER) != 0;
+#endif
 #ifdef TARGET_SPARC64
     dc->fprs_dirty = 0;
     dc->asi = (tb->flags >> TB_FLAG_ASI_SHIFT) & 0xff;
+#ifndef CONFIG_USER_ONLY
+    dc->hypervisor = (tb->flags & TB_FLAG_HYPER) != 0;
+#endif
 #endif
 
     num_insns = 0;
