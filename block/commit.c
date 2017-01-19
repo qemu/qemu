@@ -401,11 +401,14 @@ fail:
 int bdrv_commit(BlockDriverState *bs)
 {
     BlockBackend *src, *backing;
+    BlockDriverState *backing_file_bs = NULL;
+    BlockDriverState *commit_top_bs = NULL;
     BlockDriver *drv = bs->drv;
     int64_t sector, total_sectors, length, backing_length;
     int n, ro, open_flags;
     int ret = 0;
     uint8_t *buf = NULL;
+    Error *local_err = NULL;
 
     if (!drv)
         return -ENOMEDIUM;
@@ -428,17 +431,31 @@ int bdrv_commit(BlockDriverState *bs)
         }
     }
 
-    /* FIXME Use real permissions */
-    src = blk_new(0, BLK_PERM_ALL);
-    backing = blk_new(0, BLK_PERM_ALL);
+    src = blk_new(BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
+    backing = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
 
-    ret = blk_insert_bs(src, bs, NULL);
+    ret = blk_insert_bs(src, bs, &local_err);
     if (ret < 0) {
+        error_report_err(local_err);
         goto ro_cleanup;
     }
 
-    ret = blk_insert_bs(backing, bs->backing->bs, NULL);
+    /* Insert commit_top block node above backing, so we can write to it */
+    backing_file_bs = backing_bs(bs);
+
+    commit_top_bs = bdrv_new_open_driver(&bdrv_commit_top, NULL, BDRV_O_RDWR,
+                                         &local_err);
+    if (commit_top_bs == NULL) {
+        error_report_err(local_err);
+        goto ro_cleanup;
+    }
+
+    bdrv_set_backing_hd(commit_top_bs, backing_file_bs);
+    bdrv_set_backing_hd(bs, commit_top_bs);
+
+    ret = blk_insert_bs(backing, backing_file_bs, &local_err);
     if (ret < 0) {
+        error_report_err(local_err);
         goto ro_cleanup;
     }
 
@@ -512,8 +529,12 @@ int bdrv_commit(BlockDriverState *bs)
 ro_cleanup:
     qemu_vfree(buf);
 
-    blk_unref(src);
     blk_unref(backing);
+    if (backing_file_bs) {
+        bdrv_set_backing_hd(bs, backing_file_bs);
+    }
+    bdrv_unref(commit_top_bs);
+    blk_unref(src);
 
     if (ro) {
         /* ignoring error return here */
