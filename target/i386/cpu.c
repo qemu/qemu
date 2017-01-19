@@ -1550,6 +1550,7 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 
     xcc->kvm_required = true;
+    xcc->ordering = 9;
 
     host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
     x86_cpu_vendor_words2str(host_cpudef.vendor, ebx, edx, ecx);
@@ -2126,7 +2127,7 @@ static void listflags(FILE *f, fprintf_function print, const char **featureset)
     }
 }
 
-/* Sort alphabetically by type name, listing kvm_required models last. */
+/* Sort alphabetically by type name, respecting X86CPUClass::ordering. */
 static gint x86_cpu_list_compare(gconstpointer a, gconstpointer b)
 {
     ObjectClass *class_a = (ObjectClass *)a;
@@ -2135,9 +2136,8 @@ static gint x86_cpu_list_compare(gconstpointer a, gconstpointer b)
     X86CPUClass *cc_b = X86_CPU_CLASS(class_b);
     const char *name_a, *name_b;
 
-    if (cc_a->kvm_required != cc_b->kvm_required) {
-        /* kvm_required items go last */
-        return cc_a->kvm_required ? 1 : -1;
+    if (cc_a->ordering != cc_b->ordering) {
+        return cc_a->ordering - cc_b->ordering;
     } else {
         name_a = object_class_get_name(class_a);
         name_b = object_class_get_name(class_b);
