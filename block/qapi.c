@@ -237,8 +237,8 @@ void bdrv_query_image_info(BlockDriverState *bs,
 
     size = bdrv_getlength(bs);
     if (size < 0) {
-        error_setg_errno(errp, -size, "Can't get size of device '%s'",
-                         bdrv_get_device_name(bs));
+        error_setg_errno(errp, -size, "Can't get image size '%s'",
+                         bs->exact_filename);
         goto out;
     }
 
