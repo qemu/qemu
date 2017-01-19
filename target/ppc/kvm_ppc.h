@@ -315,16 +315,4 @@ static inline void kvmppc_icbi_range(PowerPCCPU *cpu, uint8_t *addr, int len)
 
 #endif  /* CONFIG_KVM */
 
-#ifndef KVM_INTERRUPT_SET
-#define KVM_INTERRUPT_SET -1
-#endif
-
-#ifndef KVM_INTERRUPT_UNSET
-#define KVM_INTERRUPT_UNSET -2
-#endif
-
-#ifndef KVM_INTERRUPT_SET_LEVEL
-#define KVM_INTERRUPT_SET_LEVEL -3
-#endif
-
 #endif /* KVM_PPC_H */
