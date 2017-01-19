@@ -542,8 +542,8 @@ ui/console-gl.o: $(SRC_PATH)/ui/console-gl.c \
 	ui/shader/texture-blit-vert.h ui/shader/texture-blit-frag.h
 
 # documentation
-MAKEINFO=makeinfo -D 'VERSION $(VERSION)'
-MAKEINFOFLAGS=--no-split --number-sections
+MAKEINFO=makeinfo
+MAKEINFOFLAGS=--no-split --number-sections -D 'VERSION $(VERSION)'
 TEXIFLAG=$(if $(V),,--quiet) --command='@set VERSION $(VERSION)'
 
 %.html: %.texi
@@ -573,7 +573,7 @@ qemu-img-cmds.texi: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"GEN","$@")
 
 qemu-qapi.texi: $(qapi-modules) $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi2texi.py $< > $@,"GEN" "$@")
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi2texi.py $< > $@,"GEN","$@")
 
 qemu-ga-qapi.texi: $(SRC_PATH)/qga/qapi-schema.json $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi2texi.py $< > $@,"GEN","$@")
