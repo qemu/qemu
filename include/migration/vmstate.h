@@ -81,11 +81,20 @@ void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque);
 
 typedef struct VMStateInfo VMStateInfo;
 typedef struct VMStateDescription VMStateDescription;
+typedef struct VMStateField VMStateField;
 
+/* VMStateInfo allows customized migration of objects that don't fit in
+ * any category in VMStateFlags. Additional information is always passed
+ * into get and put in terms of field and vmdesc parameters. However
+ * these two parameters should only be used in cases when customized
+ * handling is needed, such as QTAILQ. For primitive data types such as
+ * integer, field and vmdesc parameters should be ignored inside get/put.
+ */
 struct VMStateInfo {
     const char *name;
-    int (*get)(QEMUFile *f, void *pv, size_t size);
-    void (*put)(QEMUFile *f, void *pv, size_t size);
+    int (*get)(QEMUFile *f, void *pv, size_t size, VMStateField *field);
+    int (*put)(QEMUFile *f, void *pv, size_t size, VMStateField *field,
+               QJSON *vmdesc);
 };
 
 enum VMStateFlags {
@@ -192,7 +201,7 @@ typedef enum {
     MIG_PRI_MAX,
 } MigrationPriority;
 
-typedef struct {
+struct VMStateField {
     const char *name;
     size_t offset;
     size_t size;
@@ -205,7 +214,7 @@ typedef struct {
     const VMStateDescription *vmsd;
     int version_id;
     bool (*field_exists)(void *opaque, int version_id);
-} VMStateField;
+};
 
 struct VMStateDescription {
     const char *name;

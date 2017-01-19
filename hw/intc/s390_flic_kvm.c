@@ -286,7 +286,8 @@ static void kvm_s390_release_adapter_routes(S390FLICState *fs,
  * increase until buffer is sufficient or maxium size is
  * reached
  */
-static void kvm_flic_save(QEMUFile *f, void *opaque, size_t size)
+static int kvm_flic_save(QEMUFile *f, void *opaque, size_t size,
+                         VMStateField *field, QJSON *vmdesc)
 {
     KVMS390FLICState *flic = opaque;
     int len = FLIC_SAVE_INITIAL_SIZE;
@@ -319,6 +320,8 @@ static void kvm_flic_save(QEMUFile *f, void *opaque, size_t size)
                         count * sizeof(struct kvm_s390_irq));
     }
     g_free(buf);
+
+    return 0;
 }
 
 /**
@@ -331,7 +334,8 @@ static void kvm_flic_save(QEMUFile *f, void *opaque, size_t size)
  * Note: Do nothing when no interrupts where stored
  * in QEMUFile
  */
-static int kvm_flic_load(QEMUFile *f, void *opaque, size_t size)
+static int kvm_flic_load(QEMUFile *f, void *opaque, size_t size,
+                         VMStateField *field)
 {
     uint64_t len = 0;
     uint64_t count = 0;
