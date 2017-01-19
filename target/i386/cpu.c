@@ -1571,8 +1571,6 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
      */
 
     dc->props = host_x86_cpu_properties;
-    /* Reason: host_x86_cpu_initfn() dies when !kvm_enabled() */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static void host_x86_cpu_initfn(Object *obj)
