@@ -1583,7 +1583,7 @@ static void host_x86_cpu_initfn(Object *obj)
     /* We can't fill the features array here because we don't know yet if
      * "migratable" is true or false.
      */
-    cpu->host_features = true;
+    cpu->max_features = true;
 
     /* If KVM is disabled, x86_cpu_realizefn() will report an error later */
     if (kvm_enabled()) {
@@ -3101,12 +3101,12 @@ static void x86_cpu_load_features(X86CPU *cpu, Error **errp)
     GList *l;
     Error *local_err = NULL;
 
-    /*TODO: cpu->host_features incorrectly overwrites features
+    /*TODO: cpu->max_features incorrectly overwrites features
      * set using "feat=on|off". Once we fix this, we can convert
      * plus_features & minus_features to global properties
      * inside x86_cpu_parse_featurestr() too.
      */
-    if (cpu->host_features) {
+    if (cpu->max_features) {
         for (w = 0; w < FEATURE_WORDS; w++) {
             env->features[w] =
                 x86_cpu_get_supported_feature_word(w, cpu->migratable);

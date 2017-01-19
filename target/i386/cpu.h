@@ -1211,7 +1211,7 @@ struct X86CPU {
     bool enforce_cpuid;
     bool expose_kvm;
     bool migratable;
-    bool host_features;
+    bool max_features; /* Enable all supported features automatically */
     uint32_t apic_id;
 
     /* Enables publishing of TSC increment and Local APIC bus frequencies to
