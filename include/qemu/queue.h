@@ -438,4 +438,64 @@ struct {                                                                \
 #define QTAILQ_PREV(elm, headname, field) \
         (*(((struct headname *)((elm)->field.tqe_prev))->tqh_last))
 
+#define field_at_offset(base, offset, type)                                    \
+        ((type) (((char *) (base)) + (offset)))
+
+typedef struct DUMMY_Q_ENTRY DUMMY_Q_ENTRY;
+typedef struct DUMMY_Q DUMMY_Q;
+
+struct DUMMY_Q_ENTRY {
+        QTAILQ_ENTRY(DUMMY_Q_ENTRY) next;
+};
+
+struct DUMMY_Q {
+        QTAILQ_HEAD(DUMMY_Q_HEAD, DUMMY_Q_ENTRY) head;
+};
+
+#define dummy_q ((DUMMY_Q *) 0)
+#define dummy_qe ((DUMMY_Q_ENTRY *) 0)
+
+/*
+ * Offsets of layout of a tail queue head.
+ */
+#define QTAILQ_FIRST_OFFSET (offsetof(typeof(dummy_q->head), tqh_first))
+#define QTAILQ_LAST_OFFSET  (offsetof(typeof(dummy_q->head), tqh_last))
+/*
+ * Raw access of elements of a tail queue
+ */
+#define QTAILQ_RAW_FIRST(head)                                                 \
+        (*field_at_offset(head, QTAILQ_FIRST_OFFSET, void **))
+#define QTAILQ_RAW_TQH_LAST(head)                                              \
+        (*field_at_offset(head, QTAILQ_LAST_OFFSET, void ***))
+
+/*
+ * Offsets of layout of a tail queue element.
+ */
+#define QTAILQ_NEXT_OFFSET (offsetof(typeof(dummy_qe->next), tqe_next))
+#define QTAILQ_PREV_OFFSET (offsetof(typeof(dummy_qe->next), tqe_prev))
+
+/*
+ * Raw access of elements of a tail entry
+ */
+#define QTAILQ_RAW_NEXT(elm, entry)                                            \
+        (*field_at_offset(elm, entry + QTAILQ_NEXT_OFFSET, void **))
+#define QTAILQ_RAW_TQE_PREV(elm, entry)                                        \
+        (*field_at_offset(elm, entry + QTAILQ_PREV_OFFSET, void ***))
+/*
+ * Tail queue tranversal using pointer arithmetic.
+ */
+#define QTAILQ_RAW_FOREACH(elm, head, entry)                                   \
+        for ((elm) = QTAILQ_RAW_FIRST(head);                                   \
+             (elm);                                                            \
+             (elm) = QTAILQ_RAW_NEXT(elm, entry))
+/*
+ * Tail queue insertion using pointer arithmetic.
+ */
+#define QTAILQ_RAW_INSERT_TAIL(head, elm, entry) do {                          \
+        QTAILQ_RAW_NEXT(elm, entry) = NULL;                                    \
+        QTAILQ_RAW_TQE_PREV(elm, entry) = QTAILQ_RAW_TQH_LAST(head);           \
+        *QTAILQ_RAW_TQH_LAST(head) = (elm);                                    \
+        QTAILQ_RAW_TQH_LAST(head) = &QTAILQ_RAW_NEXT(elm, entry);              \
+} while (/*CONSTCOND*/0)
+
 #endif /* QEMU_SYS_QUEUE_H */

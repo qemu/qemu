@@ -52,6 +52,10 @@ vmstate_n_elems(const char *name, int n_elems) "%s: %d"
 vmstate_subsection_load(const char *parent) "%s"
 vmstate_subsection_load_bad(const char *parent,  const char *sub, const char *sub2) "%s: %s/%s"
 vmstate_subsection_load_good(const char *parent) "%s"
+get_qtailq(const char *name, int version_id) "%s v%d"
+get_qtailq_end(const char *name, const char *reason, int val) "%s %s/%d"
+put_qtailq(const char *name, int version_id) "%s v%d"
+put_qtailq_end(const char *name, const char *reason) "%s %s"
 
 # migration/qemu-file.c
 qemu_file_fclose(void) ""
