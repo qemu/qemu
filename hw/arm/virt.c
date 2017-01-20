@@ -167,7 +167,6 @@ static const char *valid_cpus[] = {
     "cortex-a53",
     "cortex-a57",
     "host",
-    NULL
 };
 
 static bool cpuname_valid(const char *cpu)
