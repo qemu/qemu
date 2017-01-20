@@ -1580,6 +1580,8 @@ static void usb_mtp_class_initfn(ObjectClass *klass, void *data)
     uc->handle_reset   = usb_mtp_handle_reset;
     uc->handle_control = usb_mtp_handle_control;
     uc->handle_data    = usb_mtp_handle_data;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    dc->desc = "USB Media Transfer Protocol device";
     dc->fw_name = "mtp";
     dc->vmsd = &vmstate_usb_mtp;
     dc->props = mtp_properties;
