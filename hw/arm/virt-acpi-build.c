@@ -650,16 +650,30 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 }
 
 /* FADT */
-static void
-build_fadt(GArray *table_data, BIOSLinker *linker, unsigned dsdt_tbl_offset)
+static void build_fadt(GArray *table_data, BIOSLinker *linker,
+                       VirtMachineState *vms, unsigned dsdt_tbl_offset)
 {
     AcpiFadtDescriptorRev5_1 *fadt = acpi_data_push(table_data, sizeof(*fadt));
     unsigned dsdt_entry_offset = (char *)&fadt->dsdt - table_data->data;
+    uint16_t bootflags;
 
-    /* Hardware Reduced = 1 and use PSCI 0.2+ and with HVC */
+    switch (vms->psci_conduit) {
+    case QEMU_PSCI_CONDUIT_DISABLED:
+        bootflags = 0;
+        break;
+    case QEMU_PSCI_CONDUIT_HVC:
+        bootflags = ACPI_FADT_ARM_PSCI_COMPLIANT | ACPI_FADT_ARM_PSCI_USE_HVC;
+        break;
+    case QEMU_PSCI_CONDUIT_SMC:
+        bootflags = ACPI_FADT_ARM_PSCI_COMPLIANT;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    /* Hardware Reduced = 1 and use PSCI 0.2+ */
     fadt->flags = cpu_to_le32(1 << ACPI_FADT_F_HW_REDUCED_ACPI);
-    fadt->arm_boot_flags = cpu_to_le16(ACPI_FADT_ARM_PSCI_COMPLIANT |
-                                       ACPI_FADT_ARM_PSCI_USE_HVC);
+    fadt->arm_boot_flags = cpu_to_le16(bootflags);
 
     /* ACPI v5.1 (fadt->revision.fadt->minor_revision) */
     fadt->minor_revision = 0x1;
@@ -745,7 +759,7 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
 
     /* FADT MADT GTDT MCFG SPCR pointed to by RSDT */
     acpi_add_table(table_offsets, tables_blob);
-    build_fadt(tables_blob, tables->linker, dsdt);
+    build_fadt(tables_blob, tables->linker, vms, dsdt);
 
     acpi_add_table(table_offsets, tables_blob);
     build_madt(tables_blob, tables->linker, vms);
