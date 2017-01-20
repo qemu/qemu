@@ -36,6 +36,9 @@
 #define   CRTL_EXTENDED0       0  /* 32 bit addressing for SPI */
 #define R_CTRL0             0x10
 #define   CTRL_CE_STOP_ACTIVE  (1 << 2)
+#define   CTRL_READMODE        0x0
+#define   CTRL_FREADMODE       0x1
+#define   CTRL_WRITEMODE       0x2
 #define   CTRL_USERMODE        0x3
 
 #define ASPEED_FMC_BASE    0x1E620000
@@ -50,6 +53,8 @@ enum {
     READ = 0x03,
     PP = 0x02,
     WREN = 0x6,
+    RESET_ENABLE = 0x66,
+    RESET_MEMORY = 0x99,
     EN_4BYTE_ADDR = 0xB7,
     ERASE_SECTOR = 0xd8,
 };
@@ -76,6 +81,30 @@ static void spi_conf(uint32_t value)
     writel(ASPEED_FMC_BASE + R_CONF, conf);
 }
 
+static void spi_conf_remove(uint32_t value)
+{
+    uint32_t conf = readl(ASPEED_FMC_BASE + R_CONF);
+
+    conf &= ~value;
+    writel(ASPEED_FMC_BASE + R_CONF, conf);
+}
+
+static void spi_ce_ctrl(uint32_t value)
+{
+    uint32_t conf = readl(ASPEED_FMC_BASE + R_CE_CTRL);
+
+    conf |= value;
+    writel(ASPEED_FMC_BASE + R_CE_CTRL, conf);
+}
+
+static void spi_ctrl_setmode(uint8_t mode, uint8_t cmd)
+{
+    uint32_t ctrl = readl(ASPEED_FMC_BASE + R_CTRL0);
+    ctrl &= ~(CTRL_USERMODE | 0xff << 16);
+    ctrl |= mode | (cmd << 16);
+    writel(ASPEED_FMC_BASE + R_CTRL0, ctrl);
+}
+
 static void spi_ctrl_start_user(void)
 {
     uint32_t ctrl = readl(ASPEED_FMC_BASE + R_CTRL0);
@@ -95,6 +124,18 @@ static void spi_ctrl_stop_user(void)
     writel(ASPEED_FMC_BASE + R_CTRL0, ctrl);
 }
 
+static void flash_reset(void)
+{
+    spi_conf(CONF_ENABLE_W0);
+
+    spi_ctrl_start_user();
+    writeb(ASPEED_FLASH_BASE, RESET_ENABLE);
+    writeb(ASPEED_FLASH_BASE, RESET_MEMORY);
+    spi_ctrl_stop_user();
+
+    spi_conf_remove(CONF_ENABLE_W0);
+}
+
 static void test_read_jedec(void)
 {
     uint32_t jedec = 0x0;
@@ -107,6 +148,8 @@ static void test_read_jedec(void)
     jedec |= readb(ASPEED_FLASH_BASE) << 8;
     jedec |= readb(ASPEED_FLASH_BASE);
     spi_ctrl_stop_user();
+
+    flash_reset();
 
     g_assert_cmphex(jedec, ==, FLASH_JEDEC);
 }
@@ -126,6 +169,18 @@ static void read_page(uint32_t addr, uint32_t *page)
         page[i] = make_be32(readl(ASPEED_FLASH_BASE));
     }
     spi_ctrl_stop_user();
+}
+
+static void read_page_mem(uint32_t addr, uint32_t *page)
+{
+    int i;
+
+    /* move out USER mode to use direct reads from the AHB bus */
+    spi_ctrl_setmode(CTRL_READMODE, READ);
+
+    for (i = 0; i < PAGE_SIZE / 4; i++) {
+        page[i] = make_be32(readl(ASPEED_FLASH_BASE + addr + i * 4));
+    }
 }
 
 static void test_erase_sector(void)
@@ -155,6 +210,8 @@ static void test_erase_sector(void)
     for (i = 0; i < PAGE_SIZE / 4; i++) {
         g_assert_cmphex(page[i], ==, 0xffffffff);
     }
+
+    flash_reset();
 }
 
 static void test_erase_all(void)
@@ -182,6 +239,8 @@ static void test_erase_all(void)
     for (i = 0; i < PAGE_SIZE / 4; i++) {
         g_assert_cmphex(page[i], ==, 0xffffffff);
     }
+
+    flash_reset();
 }
 
 static void test_write_page(void)
@@ -195,6 +254,7 @@ static void test_write_page(void)
 
     spi_ctrl_start_user();
     writeb(ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
+    writeb(ASPEED_FLASH_BASE, WREN);
     writeb(ASPEED_FLASH_BASE, PP);
     writel(ASPEED_FLASH_BASE, make_be32(my_page_addr));
 
@@ -215,6 +275,77 @@ static void test_write_page(void)
     for (i = 0; i < PAGE_SIZE / 4; i++) {
         g_assert_cmphex(page[i], ==, 0xffffffff);
     }
+
+    flash_reset();
+}
+
+static void test_read_page_mem(void)
+{
+    uint32_t my_page_addr = 0x14000 * PAGE_SIZE; /* beyond 16MB */
+    uint32_t some_page_addr = 0x15000 * PAGE_SIZE;
+    uint32_t page[PAGE_SIZE / 4];
+    int i;
+
+    /* Enable 4BYTE mode for controller. This is should be strapped by
+     * HW for CE0 anyhow.
+     */
+    spi_ce_ctrl(1 << CRTL_EXTENDED0);
+
+    /* Enable 4BYTE mode for flash. */
+    spi_conf(CONF_ENABLE_W0);
+    spi_ctrl_start_user();
+    writeb(ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
+    spi_ctrl_stop_user();
+    spi_conf_remove(CONF_ENABLE_W0);
+
+    /* Check what was written */
+    read_page_mem(my_page_addr, page);
+    for (i = 0; i < PAGE_SIZE / 4; i++) {
+        g_assert_cmphex(page[i], ==, my_page_addr + i * 4);
+    }
+
+    /* Check some other page. It should be full of 0xff */
+    read_page_mem(some_page_addr, page);
+    for (i = 0; i < PAGE_SIZE / 4; i++) {
+        g_assert_cmphex(page[i], ==, 0xffffffff);
+    }
+
+    flash_reset();
+}
+
+static void test_write_page_mem(void)
+{
+    uint32_t my_page_addr = 0x15000 * PAGE_SIZE;
+    uint32_t page[PAGE_SIZE / 4];
+    int i;
+
+    /* Enable 4BYTE mode for controller. This is should be strapped by
+     * HW for CE0 anyhow.
+     */
+    spi_ce_ctrl(1 << CRTL_EXTENDED0);
+
+    /* Enable 4BYTE mode for flash. */
+    spi_conf(CONF_ENABLE_W0);
+    spi_ctrl_start_user();
+    writeb(ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
+    writeb(ASPEED_FLASH_BASE, WREN);
+    spi_ctrl_stop_user();
+
+    /* move out USER mode to use direct writes to the AHB bus */
+    spi_ctrl_setmode(CTRL_WRITEMODE, PP);
+
+    for (i = 0; i < PAGE_SIZE / 4; i++) {
+        writel(ASPEED_FLASH_BASE + my_page_addr + i * 4,
+               make_be32(my_page_addr + i * 4));
+    }
+
+    /* Check what was written */
+    read_page_mem(my_page_addr, page);
+    for (i = 0; i < PAGE_SIZE / 4; i++) {
+        g_assert_cmphex(page[i], ==, my_page_addr + i * 4);
+    }
+
+    flash_reset();
 }
 
 static char tmp_path[] = "/tmp/qtest.m25p80.XXXXXX";
@@ -242,6 +373,8 @@ int main(int argc, char **argv)
     qtest_add_func("/m25p80/erase_sector", test_erase_sector);
     qtest_add_func("/m25p80/erase_all",  test_erase_all);
     qtest_add_func("/m25p80/write_page", test_write_page);
+    qtest_add_func("/m25p80/read_page_mem", test_read_page_mem);
+    qtest_add_func("/m25p80/write_page_mem", test_write_page_mem);
 
     ret = g_test_run();
 

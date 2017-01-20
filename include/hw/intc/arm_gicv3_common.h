@@ -38,6 +38,9 @@
 /* Number of SGI target-list bits */
 #define GICV3_TARGETLIST_BITS 16
 
+/* Maximum number of list registers (architectural limit) */
+#define GICV3_LR_MAX 16
+
 /* Minimum BPR for Secure, or when security not enabled */
 #define GIC_MIN_BPR 0
 /* Minimum BPR for Nonsecure when security is enabled */
@@ -145,6 +148,9 @@ struct GICv3CPUState {
     CPUState *cpu;
     qemu_irq parent_irq;
     qemu_irq parent_fiq;
+    qemu_irq parent_virq;
+    qemu_irq parent_vfiq;
+    qemu_irq maintenance_irq;
 
     /* Redistributor */
     uint32_t level;                  /* Current IRQ level */
@@ -172,6 +178,21 @@ struct GICv3CPUState {
     uint64_t icc_apr[3][4];
     uint64_t icc_igrpen[3];
     uint64_t icc_ctlr_el3;
+
+    /* Virtualization control interface */
+    uint64_t ich_apr[3][4]; /* ich_apr[GICV3_G1][x] never used */
+    uint64_t ich_hcr_el2;
+    uint64_t ich_lr_el2[GICV3_LR_MAX];
+    uint64_t ich_vmcr_el2;
+
+    /* Properties of the CPU interface. These are initialized from
+     * the settings in the CPU proper.
+     * If the number of implemented list registers is 0 then the
+     * virtualization support is not implemented.
+     */
+    int num_list_regs;
+    int vpribits; /* number of virtual priority bits */
+    int vprebits; /* number of virtual preemption bits */
 
     /* Current highest priority pending interrupt for this CPU.
      * This is cached information that can be recalculated from the

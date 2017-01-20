@@ -49,6 +49,27 @@ static int gicv3_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool virt_state_needed(void *opaque)
+{
+    GICv3CPUState *cs = opaque;
+
+    return cs->num_list_regs != 0;
+}
+
+static const VMStateDescription vmstate_gicv3_cpu_virt = {
+    .name = "arm_gicv3_cpu/virt",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = virt_state_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64_2DARRAY(ich_apr, GICv3CPUState, 3, 4),
+        VMSTATE_UINT64(ich_hcr_el2, GICv3CPUState),
+        VMSTATE_UINT64_ARRAY(ich_lr_el2, GICv3CPUState, GICV3_LR_MAX),
+        VMSTATE_UINT64(ich_vmcr_el2, GICv3CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_gicv3_cpu = {
     .name = "arm_gicv3_cpu",
     .version_id = 1,
@@ -75,6 +96,10 @@ static const VMStateDescription vmstate_gicv3_cpu = {
         VMSTATE_UINT64_ARRAY(icc_igrpen, GICv3CPUState, 3),
         VMSTATE_UINT64(icc_ctlr_el3, GICv3CPUState),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_gicv3_cpu_virt,
+        NULL
     }
 };
 
@@ -125,6 +150,12 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
     }
     for (i = 0; i < s->num_cpu; i++) {
         sysbus_init_irq(sbd, &s->cpu[i].parent_fiq);
+    }
+    for (i = 0; i < s->num_cpu; i++) {
+        sysbus_init_irq(sbd, &s->cpu[i].parent_virq);
+    }
+    for (i = 0; i < s->num_cpu; i++) {
+        sysbus_init_irq(sbd, &s->cpu[i].parent_vfiq);
     }
 
     memory_region_init_io(&s->iomem_dist, OBJECT(s), ops, s,

@@ -465,6 +465,9 @@ static void arm_cpu_initfn(Object *obj)
                                                 arm_gt_stimer_cb, cpu);
     qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
                        ARRAY_SIZE(cpu->gt_timer_outputs));
+
+    qdev_init_gpio_out_named(DEVICE(cpu), &cpu->gicv3_maintenance_interrupt,
+                             "gicv3-maintenance-interrupt", 1);
 #endif
 
     /* DTB consumers generally don't in fact care what the 'compatible'
@@ -492,6 +495,9 @@ static Property arm_cpu_reset_hivecs_property =
 
 static Property arm_cpu_rvbar_property =
             DEFINE_PROP_UINT64("rvbar", ARMCPU, rvbar, 0);
+
+static Property arm_cpu_has_el2_property =
+            DEFINE_PROP_BOOL("has_el2", ARMCPU, has_el2, true);
 
 static Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
@@ -541,6 +547,11 @@ static void arm_cpu_post_init(Object *obj)
                                  OBJ_PROP_LINK_UNREF_ON_RELEASE,
                                  &error_abort);
 #endif
+    }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_EL2)) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_el2_property,
+                                 &error_abort);
     }
 
     if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
@@ -689,6 +700,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          */
         cpu->id_pfr1 &= ~0xf0;
         cpu->id_aa64pfr0 &= ~0xf000;
+    }
+
+    if (!cpu->has_el2) {
+        unset_feature(env, ARM_FEATURE_EL2);
     }
 
     if (!cpu->has_pmu || !kvm_enabled()) {
