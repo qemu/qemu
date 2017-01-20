@@ -69,6 +69,7 @@
 #define R_CTRL0           (0x10 / 4)
 #define   CTRL_CMD_SHIFT           16
 #define   CTRL_CMD_MASK            0xff
+#define   CTRL_AST2400_SPI_4BYTE   (1 << 13)
 #define   CTRL_CE_STOP_ACTIVE      (1 << 2)
 #define   CTRL_CMD_MODE_MASK       0x3
 #define     CTRL_READMODE          0x0
@@ -137,6 +138,9 @@
 #define ASPEED_SOC_FMC_FLASH_BASE   0x20000000
 #define ASPEED_SOC_SPI_FLASH_BASE   0x30000000
 #define ASPEED_SOC_SPI2_FLASH_BASE  0x38000000
+
+/* Flash opcodes. */
+#define SPI_OP_READ       0x03    /* Read data bytes (low frequency) */
 
 /*
  * Default segments mapping addresses and size for each slave per
@@ -402,11 +406,6 @@ static inline int aspeed_smc_flash_mode(const AspeedSMCFlash *fl)
     return s->regs[s->r_ctrl0 + fl->id] & CTRL_CMD_MODE_MASK;
 }
 
-static inline bool aspeed_smc_is_usermode(const AspeedSMCFlash *fl)
-{
-    return aspeed_smc_flash_mode(fl) == CTRL_USERMODE;
-}
-
 static inline bool aspeed_smc_is_writable(const AspeedSMCFlash *fl)
 {
     const AspeedSMCState *s = fl->controller;
@@ -414,21 +413,123 @@ static inline bool aspeed_smc_is_writable(const AspeedSMCFlash *fl)
     return s->regs[s->r_conf] & (1 << (s->conf_enable_w0 + fl->id));
 }
 
+static inline int aspeed_smc_flash_cmd(const AspeedSMCFlash *fl)
+{
+    const AspeedSMCState *s = fl->controller;
+    int cmd = (s->regs[s->r_ctrl0 + fl->id] >> CTRL_CMD_SHIFT) & CTRL_CMD_MASK;
+
+    /* In read mode, the default SPI command is READ (0x3). In other
+     * modes, the command should necessarily be defined */
+    if (aspeed_smc_flash_mode(fl) == CTRL_READMODE) {
+        cmd = SPI_OP_READ;
+    }
+
+    if (!cmd) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: no command defined for mode %d\n",
+                      __func__, aspeed_smc_flash_mode(fl));
+    }
+
+    return cmd;
+}
+
+static inline int aspeed_smc_flash_is_4byte(const AspeedSMCFlash *fl)
+{
+    const AspeedSMCState *s = fl->controller;
+
+    if (s->ctrl->segments == aspeed_segments_spi) {
+        return s->regs[s->r_ctrl0] & CTRL_AST2400_SPI_4BYTE;
+    } else {
+        return s->regs[s->r_ce_ctrl] & (1 << (CTRL_EXTENDED0 + fl->id));
+    }
+}
+
+static inline bool aspeed_smc_is_ce_stop_active(const AspeedSMCFlash *fl)
+{
+    const AspeedSMCState *s = fl->controller;
+
+    return s->regs[s->r_ctrl0 + fl->id] & CTRL_CE_STOP_ACTIVE;
+}
+
+static void aspeed_smc_flash_select(AspeedSMCFlash *fl)
+{
+    AspeedSMCState *s = fl->controller;
+
+    s->regs[s->r_ctrl0 + fl->id] &= ~CTRL_CE_STOP_ACTIVE;
+    qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
+}
+
+static void aspeed_smc_flash_unselect(AspeedSMCFlash *fl)
+{
+    AspeedSMCState *s = fl->controller;
+
+    s->regs[s->r_ctrl0 + fl->id] |= CTRL_CE_STOP_ACTIVE;
+    qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
+}
+
+static uint32_t aspeed_smc_check_segment_addr(const AspeedSMCFlash *fl,
+                                              uint32_t addr)
+{
+    const AspeedSMCState *s = fl->controller;
+    AspeedSegments seg;
+
+    aspeed_smc_reg_to_segment(s->regs[R_SEG_ADDR0 + fl->id], &seg);
+    if ((addr & (seg.size - 1)) != addr) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid address 0x%08x for CS%d segment : "
+                      "[ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
+                      s->ctrl->name, addr, fl->id, seg.addr,
+                      seg.addr + seg.size);
+    }
+
+    addr &= seg.size - 1;
+    return addr;
+}
+
+static void aspeed_smc_flash_send_addr(AspeedSMCFlash *fl, uint32_t addr)
+{
+    const AspeedSMCState *s = fl->controller;
+    uint8_t cmd = aspeed_smc_flash_cmd(fl);
+
+    /* Flash access can not exceed CS segment */
+    addr = aspeed_smc_check_segment_addr(fl, addr);
+
+    ssi_transfer(s->spi, cmd);
+
+    if (aspeed_smc_flash_is_4byte(fl)) {
+        ssi_transfer(s->spi, (addr >> 24) & 0xff);
+    }
+    ssi_transfer(s->spi, (addr >> 16) & 0xff);
+    ssi_transfer(s->spi, (addr >> 8) & 0xff);
+    ssi_transfer(s->spi, (addr & 0xff));
+}
+
 static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
 {
     AspeedSMCFlash *fl = opaque;
-    const AspeedSMCState *s = fl->controller;
+    AspeedSMCState *s = fl->controller;
     uint64_t ret = 0;
     int i;
 
-    if (aspeed_smc_is_usermode(fl)) {
+    switch (aspeed_smc_flash_mode(fl)) {
+    case CTRL_USERMODE:
         for (i = 0; i < size; i++) {
             ret |= ssi_transfer(s->spi, 0x0) << (8 * i);
         }
-    } else {
-        qemu_log_mask(LOG_UNIMP, "%s: usermode not implemented\n",
-                      __func__);
-        ret = -1;
+        break;
+    case CTRL_READMODE:
+    case CTRL_FREADMODE:
+        aspeed_smc_flash_select(fl);
+        aspeed_smc_flash_send_addr(fl, addr);
+
+        for (i = 0; i < size; i++) {
+            ret |= ssi_transfer(s->spi, 0x0) << (8 * i);
+        }
+
+        aspeed_smc_flash_unselect(fl);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid flash mode %d\n",
+                      __func__, aspeed_smc_flash_mode(fl));
     }
 
     return ret;
@@ -438,7 +539,7 @@ static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
                            unsigned size)
 {
     AspeedSMCFlash *fl = opaque;
-    const AspeedSMCState *s = fl->controller;
+    AspeedSMCState *s = fl->controller;
     int i;
 
     if (!aspeed_smc_is_writable(fl)) {
@@ -447,14 +548,25 @@ static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
         return;
     }
 
-    if (!aspeed_smc_is_usermode(fl)) {
-        qemu_log_mask(LOG_UNIMP, "%s: usermode not implemented\n",
-                      __func__);
-        return;
-    }
+    switch (aspeed_smc_flash_mode(fl)) {
+    case CTRL_USERMODE:
+        for (i = 0; i < size; i++) {
+            ssi_transfer(s->spi, (data >> (8 * i)) & 0xff);
+        }
+        break;
+    case CTRL_WRITEMODE:
+        aspeed_smc_flash_select(fl);
+        aspeed_smc_flash_send_addr(fl, addr);
 
-    for (i = 0; i < size; i++) {
-        ssi_transfer(s->spi, (data >> (8 * i)) & 0xff);
+        for (i = 0; i < size; i++) {
+            ssi_transfer(s->spi, (data >> (8 * i)) & 0xff);
+        }
+
+        aspeed_smc_flash_unselect(fl);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid flash mode %d\n",
+                      __func__, aspeed_smc_flash_mode(fl));
     }
 }
 
@@ -467,13 +579,6 @@ static const MemoryRegionOps aspeed_smc_flash_ops = {
         .max_access_size = 4,
     },
 };
-
-static inline bool aspeed_smc_is_ce_stop_active(const AspeedSMCFlash *fl)
-{
-    const AspeedSMCState *s = fl->controller;
-
-    return s->regs[s->r_ctrl0 + fl->id] & CTRL_CE_STOP_ACTIVE;
-}
 
 static void aspeed_smc_flash_update_cs(AspeedSMCFlash *fl)
 {
