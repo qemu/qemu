@@ -72,10 +72,18 @@ static void cpu_core_instance_init(Object *obj)
     core->nr_threads = smp_threads;
 }
 
+static void cpu_core_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    set_bit(DEVICE_CATEGORY_CPU, dc->categories);
+}
+
 static const TypeInfo cpu_core_type_info = {
     .name = TYPE_CPU_CORE,
     .parent = TYPE_DEVICE,
     .abstract = true,
+    .class_init = cpu_core_class_init,
     .instance_size = sizeof(CPUCore),
     .instance_init = cpu_core_instance_init,
 };
