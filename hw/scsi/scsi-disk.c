@@ -2380,7 +2380,8 @@ static void scsi_cd_realize(SCSIDevice *dev, Error **errp)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
 
     if (!dev->conf.blk) {
-        dev->conf.blk = blk_new();
+        /* FIXME Use real permissions */
+        dev->conf.blk = blk_new(0, BLK_PERM_ALL);
     }
 
     s->qdev.blocksize = 2048;

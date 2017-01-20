@@ -170,7 +170,8 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
             return -1;
         } else {
             /* Anonymous BlockBackend for an empty drive */
-            dev->conf.blk = blk_new();
+            /* FIXME Use real permissions */
+            dev->conf.blk = blk_new(0, BLK_PERM_ALL);
         }
     }
 

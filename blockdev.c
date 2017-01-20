@@ -558,7 +558,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     if ((!file || !*file) && !qdict_size(bs_opts)) {
         BlockBackendRootState *blk_rs;
 
-        blk = blk_new();
+        blk = blk_new(0, BLK_PERM_ALL);
         blk_rs = blk_get_root_state(blk);
         blk_rs->open_flags    = bdrv_flags;
         blk_rs->read_only     = read_only;
@@ -2890,7 +2890,7 @@ void qmp_block_resize(bool has_device, const char *device,
         goto out;
     }
 
-    blk = blk_new();
+    blk = blk_new(BLK_PERM_RESIZE, BLK_PERM_ALL);
     blk_insert_bs(blk, bs);
 
     /* complete all in-flight operations before resizing the device */

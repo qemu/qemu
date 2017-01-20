@@ -275,10 +275,12 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         block_job_add_bdrv(&s->common, overlay_bs);
     }
 
-    s->base = blk_new();
+    /* FIXME Use real permissions */
+    s->base = blk_new(0, BLK_PERM_ALL);
     blk_insert_bs(s->base, base);
 
-    s->top = blk_new();
+    /* FIXME Use real permissions */
+    s->top = blk_new(0, BLK_PERM_ALL);
     blk_insert_bs(s->top, top);
 
     s->active = bs;
@@ -328,10 +330,12 @@ int bdrv_commit(BlockDriverState *bs)
         }
     }
 
-    src = blk_new();
+    /* FIXME Use real permissions */
+    src = blk_new(0, BLK_PERM_ALL);
     blk_insert_bs(src, bs);
 
-    backing = blk_new();
+    /* FIXME Use real permissions */
+    backing = blk_new(0, BLK_PERM_ALL);
     blk_insert_bs(backing, bs->backing->bs);
 
     length = blk_getlength(src);

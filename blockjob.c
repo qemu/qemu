@@ -159,7 +159,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         }
     }
 
-    blk = blk_new();
+    /* FIXME Use real permissions */
+    blk = blk_new(0, BLK_PERM_ALL);
     blk_insert_bs(blk, bs);
 
     job = g_malloc0(driver->instance_size);

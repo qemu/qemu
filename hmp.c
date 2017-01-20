@@ -2050,7 +2050,8 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
     if (!blk) {
         BlockDriverState *bs = bdrv_lookup_bs(NULL, device, &err);
         if (bs) {
-            blk = local_blk = blk_new();
+            /* FIXME Use real permissions */
+            blk = local_blk = blk_new(0, BLK_PERM_ALL);
             blk_insert_bs(blk, bs);
         } else {
             goto fail;

@@ -3262,7 +3262,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     }
 
     if (new_size) {
-        BlockBackend *blk = blk_new();
+        BlockBackend *blk = blk_new(BLK_PERM_RESIZE, BLK_PERM_ALL);
         blk_insert_bs(blk, bs);
         ret = blk_truncate(blk, new_size);
         blk_unref(blk);
