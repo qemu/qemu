@@ -130,6 +130,9 @@
 #define R_SPI_MISC_CTRL   (0x10 / 4)
 #define R_SPI_TIMINGS     (0x14 / 4)
 
+#define ASPEED_SMC_R_SPI_MAX (0x20 / 4)
+#define ASPEED_SMC_R_SMC_MAX (0x20 / 4)
+
 #define ASPEED_SOC_SMC_FLASH_BASE   0x10000000
 #define ASPEED_SOC_FMC_FLASH_BASE   0x20000000
 #define ASPEED_SOC_SPI_FLASH_BASE   0x30000000
@@ -185,6 +188,7 @@ static const AspeedSMCController controllers[] = {
         .flash_window_base = ASPEED_SOC_SMC_FLASH_BASE,
         .flash_window_size = 0x6000000,
         .has_dma           = false,
+        .nregs             = ASPEED_SMC_R_SMC_MAX,
     }, {
         .name              = "aspeed.smc.fmc",
         .r_conf            = R_CONF,
@@ -197,6 +201,7 @@ static const AspeedSMCController controllers[] = {
         .flash_window_base = ASPEED_SOC_FMC_FLASH_BASE,
         .flash_window_size = 0x10000000,
         .has_dma           = true,
+        .nregs             = ASPEED_SMC_R_MAX,
     }, {
         .name              = "aspeed.smc.spi",
         .r_conf            = R_SPI_CONF,
@@ -209,6 +214,7 @@ static const AspeedSMCController controllers[] = {
         .flash_window_base = ASPEED_SOC_SPI_FLASH_BASE,
         .flash_window_size = 0x10000000,
         .has_dma           = false,
+        .nregs             = ASPEED_SMC_R_SPI_MAX,
     }, {
         .name              = "aspeed.smc.ast2500-fmc",
         .r_conf            = R_CONF,
@@ -221,6 +227,7 @@ static const AspeedSMCController controllers[] = {
         .flash_window_base = ASPEED_SOC_FMC_FLASH_BASE,
         .flash_window_size = 0x10000000,
         .has_dma           = true,
+        .nregs             = ASPEED_SMC_R_MAX,
     }, {
         .name              = "aspeed.smc.ast2500-spi1",
         .r_conf            = R_CONF,
@@ -233,6 +240,7 @@ static const AspeedSMCController controllers[] = {
         .flash_window_base = ASPEED_SOC_SPI_FLASH_BASE,
         .flash_window_size = 0x8000000,
         .has_dma           = false,
+        .nregs             = ASPEED_SMC_R_MAX,
     }, {
         .name              = "aspeed.smc.ast2500-spi2",
         .r_conf            = R_CONF,
@@ -245,6 +253,7 @@ static const AspeedSMCController controllers[] = {
         .flash_window_base = ASPEED_SOC_SPI2_FLASH_BASE,
         .flash_window_size = 0x8000000,
         .has_dma           = false,
+        .nregs             = ASPEED_SMC_R_MAX,
     },
 };
 
@@ -521,13 +530,6 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
 
     addr >>= 2;
 
-    if (addr >= ARRAY_SIZE(s->regs)) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out-of-bounds read at 0x%" HWADDR_PRIx "\n",
-                      __func__, addr);
-        return 0;
-    }
-
     if (addr == s->r_conf ||
         addr == s->r_timings ||
         addr == s->r_ce_ctrl ||
@@ -549,13 +551,6 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
     uint32_t value = data;
 
     addr >>= 2;
-
-    if (addr >= ARRAY_SIZE(s->regs)) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out-of-bounds write at 0x%" HWADDR_PRIx "\n",
-                      __func__, addr);
-        return;
-    }
 
     if (addr == s->r_conf ||
         addr == s->r_timings ||
@@ -624,7 +619,7 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
 
     /* The memory region for the controller registers */
     memory_region_init_io(&s->mmio, OBJECT(s), &aspeed_smc_ops, s,
-                          s->ctrl->name, ASPEED_SMC_R_MAX * 4);
+                          s->ctrl->name, s->ctrl->nregs * 4);
     sysbus_init_mmio(sbd, &s->mmio);
 
     /*
