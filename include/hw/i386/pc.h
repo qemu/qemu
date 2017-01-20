@@ -386,7 +386,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .property = "x-smi-broadcast",\
         .value    = "off",\
     },\
-
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "vmware-cpuid-freq",\
+        .value    = "off",\
+    },
 
 #define PC_COMPAT_2_7 \
     HW_COMPAT_2_7 \
