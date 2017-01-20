@@ -203,6 +203,73 @@ static int hppvi_index(GICv3CPUState *cs)
     return idx;
 }
 
+static uint32_t icv_gprio_mask(GICv3CPUState *cs, int group)
+{
+    /* Return a mask word which clears the subpriority bits from
+     * a priority value for a virtual interrupt in the specified group.
+     * This depends on the VBPR value:
+     *  a BPR of 0 means the group priority bits are [7:1];
+     *  a BPR of 1 means they are [7:2], and so on down to
+     *  a BPR of 7 meaning no group priority bits at all.
+     * Which BPR to use depends on the group of the interrupt and
+     * the current ICH_VMCR_EL2.VCBPR settings.
+     */
+    if (group == GICV3_G1NS && cs->ich_vmcr_el2 & ICH_VMCR_EL2_VCBPR) {
+        group = GICV3_G0;
+    }
+
+    return ~0U << (read_vbpr(cs, group) + 1);
+}
+
+static bool icv_hppi_can_preempt(GICv3CPUState *cs, uint64_t lr)
+{
+    /* Return true if we can signal this virtual interrupt defined by
+     * the given list register value; see the pseudocode functions
+     * CanSignalVirtualInterrupt and CanSignalVirtualInt.
+     * Compare also icc_hppi_can_preempt() which is the non-virtual
+     * equivalent of these checks.
+     */
+    int grp;
+    uint32_t mask, prio, rprio, vpmr;
+
+    if (!(cs->ich_hcr_el2 & ICH_HCR_EL2_EN)) {
+        /* Virtual interface disabled */
+        return false;
+    }
+
+    /* We don't need to check that this LR is in Pending state because
+     * that has already been done in hppvi_index().
+     */
+
+    prio = ich_lr_prio(lr);
+    vpmr = extract64(cs->ich_vmcr_el2, ICH_VMCR_EL2_VPMR_SHIFT,
+                     ICH_VMCR_EL2_VPMR_LENGTH);
+
+    if (prio >= vpmr) {
+        /* Priority mask masks this interrupt */
+        return false;
+    }
+
+    rprio = ich_highest_active_virt_prio(cs);
+    if (rprio == 0xff) {
+        /* No running interrupt so we can preempt */
+        return true;
+    }
+
+    grp = (lr & ICH_LR_EL2_GROUP) ? GICV3_G1NS : GICV3_G0;
+
+    mask = icv_gprio_mask(cs, grp);
+
+    /* We only preempt a running interrupt if the pending interrupt's
+     * group priority is sufficient (the subpriorities are not considered).
+     */
+    if ((prio & mask) < (rprio & mask)) {
+        return true;
+    }
+
+    return false;
+}
+
 static uint32_t eoi_maintenance_interrupt_state(GICv3CPUState *cs,
                                                 uint32_t *misr)
 {
@@ -478,6 +545,53 @@ static uint64_t icv_hppir_read(CPUARMState *env, const ARMCPRegInfo *ri)
 
     trace_gicv3_icv_hppir_read(grp, gicv3_redist_affid(cs), value);
     return value;
+}
+
+static void icv_activate_irq(GICv3CPUState *cs, int idx, int grp)
+{
+    /* Activate the interrupt in the specified list register
+     * by moving it from Pending to Active state, and update the
+     * Active Priority Registers.
+     */
+    uint32_t mask = icv_gprio_mask(cs, grp);
+    int prio = ich_lr_prio(cs->ich_lr_el2[idx]) & mask;
+    int aprbit = prio >> (8 - cs->vprebits);
+    int regno = aprbit / 32;
+    int regbit = aprbit % 32;
+
+    cs->ich_lr_el2[idx] &= ~ICH_LR_EL2_STATE_PENDING_BIT;
+    cs->ich_lr_el2[idx] |= ICH_LR_EL2_STATE_ACTIVE_BIT;
+    cs->ich_apr[grp][regno] |= (1 << regbit);
+}
+
+static uint64_t icv_iar_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    GICv3CPUState *cs = icc_cs_from_env(env);
+    int grp = ri->crm == 8 ? GICV3_G0 : GICV3_G1NS;
+    int idx = hppvi_index(cs);
+    uint64_t intid = INTID_SPURIOUS;
+
+    if (idx >= 0) {
+        uint64_t lr = cs->ich_lr_el2[idx];
+        int thisgrp = (lr & ICH_LR_EL2_GROUP) ? GICV3_G1NS : GICV3_G0;
+
+        if (thisgrp == grp && icv_hppi_can_preempt(cs, lr)) {
+            intid = ich_lr_vintid(lr);
+            if (intid < INTID_SECURE) {
+                icv_activate_irq(cs, idx, grp);
+            } else {
+                /* Interrupt goes from Pending to Invalid */
+                cs->ich_lr_el2[idx] &= ~ICH_LR_EL2_STATE_PENDING_BIT;
+                /* We will now return the (bogus) ID from the list register,
+                 * as per the pseudocode.
+                 */
+            }
+        }
+    }
+
+    trace_gicv3_icv_iar_read(ri->crm == 8 ? 0 : 1,
+                             gicv3_redist_affid(cs), intid);
+    return intid;
 }
 
 static int icc_highest_active_prio(GICv3CPUState *cs)
@@ -773,6 +887,10 @@ static uint64_t icc_iar0_read(CPUARMState *env, const ARMCPRegInfo *ri)
     GICv3CPUState *cs = icc_cs_from_env(env);
     uint64_t intid;
 
+    if (icv_access(env, HCR_FMO)) {
+        return icv_iar_read(env, ri);
+    }
+
     if (!icc_hppi_can_preempt(cs)) {
         intid = INTID_SPURIOUS;
     } else {
@@ -791,6 +909,10 @@ static uint64_t icc_iar1_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
     uint64_t intid;
+
+    if (icv_access(env, HCR_IMO)) {
+        return icv_iar_read(env, ri);
+    }
 
     if (!icc_hppi_can_preempt(cs)) {
         intid = INTID_SPURIOUS;
@@ -956,6 +1078,48 @@ static void icv_increment_eoicount(GICv3CPUState *cs)
                                 ICH_HCR_EL2_EOICOUNT_LENGTH, eoicount + 1);
 }
 
+static int icv_drop_prio(GICv3CPUState *cs)
+{
+    /* Drop the priority of the currently active virtual interrupt
+     * (favouring group 0 if there is a set active bit at
+     * the same priority for both group 0 and group 1).
+     * Return the priority value for the bit we just cleared,
+     * or 0xff if no bits were set in the AP registers at all.
+     * Note that though the ich_apr[] are uint64_t only the low
+     * 32 bits are actually relevant.
+     */
+    int i;
+    int aprmax = 1 << (cs->vprebits - 5);
+
+    assert(aprmax <= ARRAY_SIZE(cs->ich_apr[0]));
+
+    for (i = 0; i < aprmax; i++) {
+        uint64_t *papr0 = &cs->ich_apr[GICV3_G0][i];
+        uint64_t *papr1 = &cs->ich_apr[GICV3_G1NS][i];
+        int apr0count, apr1count;
+
+        if (!*papr0 && !*papr1) {
+            continue;
+        }
+
+        /* We can't just use the bit-twiddling hack icc_drop_prio() does
+         * because we need to return the bit number we cleared so
+         * it can be compared against the list register's priority field.
+         */
+        apr0count = ctz32(*papr0);
+        apr1count = ctz32(*papr1);
+
+        if (apr0count <= apr1count) {
+            *papr0 &= *papr0 - 1;
+            return (apr0count + i * 32) << (icv_min_vbpr(cs) + 1);
+        } else {
+            *papr1 &= *papr1 - 1;
+            return (apr1count + i * 32) << (icv_min_vbpr(cs) + 1);
+        }
+    }
+    return 0xff;
+}
+
 static void icv_dir_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
@@ -989,6 +1153,57 @@ static void icv_dir_write(CPUARMState *env, const ARMCPRegInfo *ri,
     gicv3_cpuif_virt_update(cs);
 }
 
+static void icv_eoir_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
+{
+    /* End of Interrupt */
+    GICv3CPUState *cs = icc_cs_from_env(env);
+    int irq = value & 0xffffff;
+    int grp = ri->crm == 8 ? GICV3_G0 : GICV3_G1NS;
+    int idx, dropprio;
+
+    trace_gicv3_icv_eoir_write(ri->crm == 8 ? 0 : 1,
+                               gicv3_redist_affid(cs), value);
+
+    if (irq >= cs->gic->num_irq) {
+        /* Also catches special interrupt numbers and LPIs */
+        return;
+    }
+
+    /* We implement the IMPDEF choice of "drop priority before doing
+     * error checks" (because that lets us avoid scanning the AP
+     * registers twice).
+     */
+    dropprio = icv_drop_prio(cs);
+    if (dropprio == 0xff) {
+        /* No active interrupt. It is CONSTRAINED UNPREDICTABLE
+         * whether the list registers are checked in this
+         * situation; we choose not to.
+         */
+        return;
+    }
+
+    idx = icv_find_active(cs, irq);
+
+    if (idx < 0) {
+        /* No valid list register corresponding to EOI ID */
+        icv_increment_eoicount(cs);
+    } else {
+        uint64_t lr = cs->ich_lr_el2[idx];
+        int thisgrp = (lr & ICH_LR_EL2_GROUP) ? GICV3_G1NS : GICV3_G0;
+        int lr_gprio = ich_lr_prio(lr) & icv_gprio_mask(cs, grp);
+
+        if (thisgrp == grp && lr_gprio == dropprio) {
+            if (!icv_eoi_split(env, cs)) {
+                /* Priority drop and deactivate not split: deactivate irq now */
+                icv_deactivate_irq(cs, idx);
+            }
+        }
+    }
+
+    gicv3_cpuif_virt_update(cs);
+}
+
 static void icc_eoir_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
@@ -996,6 +1211,11 @@ static void icc_eoir_write(CPUARMState *env, const ARMCPRegInfo *ri,
     GICv3CPUState *cs = icc_cs_from_env(env);
     int irq = value & 0xffffff;
     int grp;
+
+    if (icv_access(env, ri->crm == 8 ? HCR_FMO : HCR_IMO)) {
+        icv_eoir_write(env, ri, value);
+        return;
+    }
 
     trace_gicv3_icc_eoir_write(ri->crm == 8 ? 0 : 1,
                                gicv3_redist_affid(cs), value);
