@@ -39,11 +39,14 @@
 #define   CONF_ENABLE_W2       18
 #define   CONF_ENABLE_W1       17
 #define   CONF_ENABLE_W0       16
-#define   CONF_FLASH_TYPE4     9
-#define   CONF_FLASH_TYPE3     7
-#define   CONF_FLASH_TYPE2     5
-#define   CONF_FLASH_TYPE1     3
-#define   CONF_FLASH_TYPE0     1
+#define   CONF_FLASH_TYPE4     8
+#define   CONF_FLASH_TYPE3     6
+#define   CONF_FLASH_TYPE2     4
+#define   CONF_FLASH_TYPE1     2
+#define   CONF_FLASH_TYPE0     0
+#define      CONF_FLASH_TYPE_NOR   0x0
+#define      CONF_FLASH_TYPE_NAND  0x1
+#define      CONF_FLASH_TYPE_SPI   0x2
 
 /* CE Control Register */
 #define R_CE_CTRL            (0x04 / 4)
@@ -435,6 +438,25 @@ static void aspeed_smc_reset(DeviceState *d)
     for (i = 0; i < s->ctrl->max_slaves; ++i) {
         s->regs[R_SEG_ADDR0 + i] =
             aspeed_smc_segment_to_reg(&s->ctrl->segments[i]);
+    }
+
+    /* HW strapping for AST2500 FMC controllers  */
+    if (s->ctrl->segments == aspeed_segments_ast2500_fmc) {
+        /* flash type is fixed to SPI for CE0 and CE1 */
+        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0);
+        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1);
+
+        /* 4BYTE mode is autodetected for CE0. Let's force it to 1 for
+         * now */
+        s->regs[s->r_ce_ctrl] |= (1 << (CTRL_EXTENDED0));
+    }
+
+    /* HW strapping for AST2400 FMC controllers (SCU70). Let's use the
+     * configuration of the palmetto-bmc machine */
+    if (s->ctrl->segments == aspeed_segments_fmc) {
+        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0);
+
+        s->regs[s->r_ce_ctrl] |= (1 << (CTRL_EXTENDED0));
     }
 }
 
