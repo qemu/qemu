@@ -328,19 +328,23 @@ static const MemoryRegionOps aspeed_smc_flash_default_ops = {
     },
 };
 
-static inline int aspeed_smc_flash_mode(const AspeedSMCState *s, int cs)
+static inline int aspeed_smc_flash_mode(const AspeedSMCFlash *fl)
 {
-    return s->regs[s->r_ctrl0 + cs] & CTRL_CMD_MODE_MASK;
+    const AspeedSMCState *s = fl->controller;
+
+    return s->regs[s->r_ctrl0 + fl->id] & CTRL_CMD_MODE_MASK;
 }
 
-static inline bool aspeed_smc_is_usermode(const AspeedSMCState *s, int cs)
+static inline bool aspeed_smc_is_usermode(const AspeedSMCFlash *fl)
 {
-    return aspeed_smc_flash_mode(s, cs) == CTRL_USERMODE;
+    return aspeed_smc_flash_mode(fl) == CTRL_USERMODE;
 }
 
-static inline bool aspeed_smc_is_writable(const AspeedSMCState *s, int cs)
+static inline bool aspeed_smc_is_writable(const AspeedSMCFlash *fl)
 {
-    return s->regs[s->r_conf] & (1 << (s->conf_enable_w0 + cs));
+    const AspeedSMCState *s = fl->controller;
+
+    return s->regs[s->r_conf] & (1 << (s->conf_enable_w0 + fl->id));
 }
 
 static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
@@ -350,7 +354,7 @@ static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t ret = 0;
     int i;
 
-    if (aspeed_smc_is_usermode(s, fl->id)) {
+    if (aspeed_smc_is_usermode(fl)) {
         for (i = 0; i < size; i++) {
             ret |= ssi_transfer(s->spi, 0x0) << (8 * i);
         }
@@ -370,13 +374,13 @@ static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
     const AspeedSMCState *s = fl->controller;
     int i;
 
-    if (!aspeed_smc_is_writable(s, fl->id)) {
+    if (!aspeed_smc_is_writable(fl)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: flash is not writable at 0x%"
                       HWADDR_PRIx "\n", __func__, addr);
         return;
     }
 
-    if (!aspeed_smc_is_usermode(s, fl->id)) {
+    if (!aspeed_smc_is_usermode(fl)) {
         qemu_log_mask(LOG_UNIMP, "%s: usermode not implemented\n",
                       __func__);
         return;
@@ -397,18 +401,18 @@ static const MemoryRegionOps aspeed_smc_flash_ops = {
     },
 };
 
-static bool aspeed_smc_is_ce_stop_active(const AspeedSMCState *s, int cs)
+static inline bool aspeed_smc_is_ce_stop_active(const AspeedSMCFlash *fl)
 {
-    return s->regs[s->r_ctrl0 + cs] & CTRL_CE_STOP_ACTIVE;
+    const AspeedSMCState *s = fl->controller;
+
+    return s->regs[s->r_ctrl0 + fl->id] & CTRL_CE_STOP_ACTIVE;
 }
 
-static void aspeed_smc_update_cs(const AspeedSMCState *s)
+static void aspeed_smc_flash_update_cs(AspeedSMCFlash *fl)
 {
-    int i;
+    const AspeedSMCState *s = fl->controller;
 
-    for (i = 0; i < s->num_cs; ++i) {
-        qemu_set_irq(s->cs_lines[i], aspeed_smc_is_ce_stop_active(s, i));
-    }
+    qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
 }
 
 static void aspeed_smc_reset(DeviceState *d)
@@ -481,8 +485,9 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
         addr == s->r_ce_ctrl) {
         s->regs[addr] = value;
     } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs) {
+        int cs = addr - s->r_ctrl0;
         s->regs[addr] = value;
-        aspeed_smc_update_cs(s);
+        aspeed_smc_flash_update_cs(&s->flashes[cs]);
     } else if (addr >= R_SEG_ADDR0 &&
                addr < R_SEG_ADDR0 + s->ctrl->max_slaves) {
         int cs = addr - R_SEG_ADDR0;
