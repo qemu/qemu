@@ -201,7 +201,7 @@ static int kvm_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
         .addr = (uint64_t)&adapter,
     };
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING)) {
+    if (!kvm_gsi_routing_enabled()) {
         /* nothing to do */
         return 0;
     }
@@ -226,7 +226,7 @@ static int kvm_s390_io_adapter_map(S390FLICState *fs, uint32_t id,
     KVMS390FLICState *flic = KVM_S390_FLIC(fs);
     int r;
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING)) {
+    if (!kvm_gsi_routing_enabled()) {
         /* nothing to do */
         return 0;
     }
