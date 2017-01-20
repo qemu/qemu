@@ -1214,6 +1214,10 @@ struct X86CPU {
     bool host_features;
     uint32_t apic_id;
 
+    /* Enables publishing of TSC increment and Local APIC bus frequencies to
+     * the guest OS in CPUID page 0x40000010, the same way that VMWare does. */
+    bool vmware_cpuid_freq;
+
     /* if true the CPUID code directly forward host cache leaves to the guest */
     bool cache_info_passthrough;
 
