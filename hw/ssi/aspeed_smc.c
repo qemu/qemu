@@ -424,6 +424,7 @@ static void aspeed_smc_reset(DeviceState *d)
     /* Unselect all slaves */
     for (i = 0; i < s->num_cs; ++i) {
         s->regs[s->r_ctrl0 + i] |= CTRL_CE_STOP_ACTIVE;
+        qemu_set_irq(s->cs_lines[i], true);
     }
 
     /* setup default segment register values for all */
@@ -431,8 +432,6 @@ static void aspeed_smc_reset(DeviceState *d)
         s->regs[R_SEG_ADDR0 + i] =
             aspeed_smc_segment_to_reg(&s->ctrl->segments[i]);
     }
-
-    aspeed_smc_update_cs(s);
 }
 
 static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
