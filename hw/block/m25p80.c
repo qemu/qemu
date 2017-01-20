@@ -74,6 +74,12 @@ typedef struct FlashPartInfo {
     uint32_t n_sectors;
     uint32_t page_size;
     uint16_t flags;
+    /*
+     * Big sized spi nor are often stacked devices, thus sometime
+     * replace chip erase with die erase.
+     * This field inform how many die is in the chip.
+     */
+    uint8_t die_cnt;
 } FlashPartInfo;
 
 /* adapted from linux */
@@ -91,7 +97,8 @@ typedef struct FlashPartInfo {
     .sector_size = (_sector_size),\
     .n_sectors = (_n_sectors),\
     .page_size = 256,\
-    .flags = (_flags),
+    .flags = (_flags),\
+    .die_cnt = 0
 
 #define INFO6(_part_name, _jedec_id, _ext_id, _sector_size, _n_sectors, _flags)\
     .part_name = _part_name,\
@@ -108,6 +115,24 @@ typedef struct FlashPartInfo {
     .n_sectors = (_n_sectors),\
     .page_size = 256,\
     .flags = (_flags),\
+    .die_cnt = 0
+
+#define INFO_STACKED(_part_name, _jedec_id, _ext_id, _sector_size, _n_sectors,\
+                    _flags, _die_cnt)\
+    .part_name = _part_name,\
+    .id = {\
+        ((_jedec_id) >> 16) & 0xff,\
+        ((_jedec_id) >> 8) & 0xff,\
+        (_jedec_id) & 0xff,\
+        ((_ext_id) >> 8) & 0xff,\
+        (_ext_id) & 0xff,\
+          },\
+    .id_len = (!(_jedec_id) ? 0 : (3 + ((_ext_id) ? 2 : 0))),\
+    .sector_size = (_sector_size),\
+    .n_sectors = (_n_sectors),\
+    .page_size = 256,\
+    .flags = (_flags),\
+    .die_cnt = _die_cnt
 
 #define JEDEC_NUMONYX 0x20
 #define JEDEC_WINBOND 0xEF
@@ -360,6 +385,8 @@ typedef enum {
 
     REVCR = 0x65,
     WEVCR = 0x61,
+
+    DIE_ERASE = 0xC4,
 } FlashCMD;
 
 typedef enum {
@@ -517,6 +544,16 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
     case BULK_ERASE:
         len = s->size;
         break;
+    case DIE_ERASE:
+        if (s->pi->die_cnt) {
+            len = s->size / s->pi->die_cnt;
+            offset = offset & (~(len - 1));
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: die erase is not supported"
+                          " by device\n");
+            return;
+        }
+        break;
     default:
         abort();
     }
@@ -638,6 +675,7 @@ static void complete_collecting_data(Flash *s)
     case ERASE4_32K:
     case ERASE_SECTOR:
     case ERASE4_SECTOR:
+    case DIE_ERASE:
         flash_erase(s, s->cur_addr, s->cmd_in_progress);
         break;
     case WRSR:
@@ -884,6 +922,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case PP:
     case PP4:
     case PP4_4:
+    case DIE_ERASE:
         s->needed_bytes = get_addr_length(s);
         s->pos = 0;
         s->len = 0;
