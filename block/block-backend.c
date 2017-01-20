@@ -59,6 +59,9 @@ struct BlockBackend {
     bool iostatus_enabled;
     BlockDeviceIoStatus iostatus;
 
+    uint64_t perm;
+    uint64_t shared_perm;
+
     bool allow_write_beyond_eof;
 
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
@@ -126,6 +129,8 @@ BlockBackend *blk_new(void)
 
     blk = g_new0(BlockBackend, 1);
     blk->refcnt = 1;
+    blk->perm = 0;
+    blk->shared_perm = BLK_PERM_ALL;
     blk_set_enable_write_cache(blk, true);
 
     qemu_co_queue_init(&blk->public.throttled_reqs[0]);
@@ -511,6 +516,27 @@ void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
     }
 }
 
+/*
+ * Sets the permission bitmasks that the user of the BlockBackend needs.
+ */
+int blk_set_perm(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
+                 Error **errp)
+{
+    int ret;
+
+    if (blk->root) {
+        ret = bdrv_child_try_set_perm(blk->root, perm, shared_perm, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    blk->perm = perm;
+    blk->shared_perm = shared_perm;
+
+    return 0;
+}
+
 static int blk_do_attach_dev(BlockBackend *blk, void *dev)
 {
     if (blk->dev) {
@@ -557,6 +583,7 @@ void blk_detach_dev(BlockBackend *blk, void *dev)
     blk->dev_ops = NULL;
     blk->dev_opaque = NULL;
     blk->guest_block_size = 512;
+    blk_set_perm(blk, 0, BLK_PERM_ALL, &error_abort);
     blk_unref(blk);
 }
 
