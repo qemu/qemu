@@ -50,6 +50,8 @@ enum {
     READ = 0x03,
     PP = 0x02,
     WREN = 0x6,
+    RESET_ENABLE = 0x66,
+    RESET_MEMORY = 0x99,
     EN_4BYTE_ADDR = 0xB7,
     ERASE_SECTOR = 0xd8,
 };
@@ -76,6 +78,14 @@ static void spi_conf(uint32_t value)
     writel(ASPEED_FMC_BASE + R_CONF, conf);
 }
 
+static void spi_conf_remove(uint32_t value)
+{
+    uint32_t conf = readl(ASPEED_FMC_BASE + R_CONF);
+
+    conf &= ~value;
+    writel(ASPEED_FMC_BASE + R_CONF, conf);
+}
+
 static void spi_ctrl_start_user(void)
 {
     uint32_t ctrl = readl(ASPEED_FMC_BASE + R_CTRL0);
@@ -95,6 +105,18 @@ static void spi_ctrl_stop_user(void)
     writel(ASPEED_FMC_BASE + R_CTRL0, ctrl);
 }
 
+static void flash_reset(void)
+{
+    spi_conf(CONF_ENABLE_W0);
+
+    spi_ctrl_start_user();
+    writeb(ASPEED_FLASH_BASE, RESET_ENABLE);
+    writeb(ASPEED_FLASH_BASE, RESET_MEMORY);
+    spi_ctrl_stop_user();
+
+    spi_conf_remove(CONF_ENABLE_W0);
+}
+
 static void test_read_jedec(void)
 {
     uint32_t jedec = 0x0;
@@ -107,6 +129,8 @@ static void test_read_jedec(void)
     jedec |= readb(ASPEED_FLASH_BASE) << 8;
     jedec |= readb(ASPEED_FLASH_BASE);
     spi_ctrl_stop_user();
+
+    flash_reset();
 
     g_assert_cmphex(jedec, ==, FLASH_JEDEC);
 }
@@ -155,6 +179,8 @@ static void test_erase_sector(void)
     for (i = 0; i < PAGE_SIZE / 4; i++) {
         g_assert_cmphex(page[i], ==, 0xffffffff);
     }
+
+    flash_reset();
 }
 
 static void test_erase_all(void)
@@ -182,6 +208,8 @@ static void test_erase_all(void)
     for (i = 0; i < PAGE_SIZE / 4; i++) {
         g_assert_cmphex(page[i], ==, 0xffffffff);
     }
+
+    flash_reset();
 }
 
 static void test_write_page(void)
@@ -195,6 +223,7 @@ static void test_write_page(void)
 
     spi_ctrl_start_user();
     writeb(ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
+    writeb(ASPEED_FLASH_BASE, WREN);
     writeb(ASPEED_FLASH_BASE, PP);
     writel(ASPEED_FLASH_BASE, make_be32(my_page_addr));
 
@@ -215,6 +244,8 @@ static void test_write_page(void)
     for (i = 0; i < PAGE_SIZE / 4; i++) {
         g_assert_cmphex(page[i], ==, 0xffffffff);
     }
+
+    flash_reset();
 }
 
 static char tmp_path[] = "/tmp/qtest.m25p80.XXXXXX";
