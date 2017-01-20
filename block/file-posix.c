@@ -674,7 +674,7 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     struct stat st;
 
     if (!fstat(s->fd, &st)) {
-        if (S_ISBLK(st.st_mode)) {
+        if (S_ISBLK(st.st_mode) || S_ISCHR(st.st_mode)) {
             int ret = hdev_get_max_transfer_length(bs, s->fd);
             if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
                 bs->bl.max_transfer = pow2floor(ret);
