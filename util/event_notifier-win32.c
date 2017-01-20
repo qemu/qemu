@@ -32,18 +32,6 @@ HANDLE event_notifier_get_handle(EventNotifier *e)
     return e->event;
 }
 
-int event_notifier_set_handler(EventNotifier *e,
-                               bool is_external,
-                               EventNotifierHandler *handler)
-{
-    if (handler) {
-        return qemu_add_wait_object(e->event, (IOHandler *)handler, e);
-    } else {
-        qemu_del_wait_object(e->event, (IOHandler *)handler, e);
-        return 0;
-    }
-}
-
 int event_notifier_set(EventNotifier *e)
 {
     SetEvent(e->event);

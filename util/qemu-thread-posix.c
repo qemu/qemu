@@ -458,12 +458,6 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     if (err) {
         error_exit(err, __func__);
     }
-    if (mode == QEMU_THREAD_DETACHED) {
-        err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        if (err) {
-            error_exit(err, __func__);
-        }
-    }
 
     /* Leave signal handling to the iothread.  */
     sigfillset(&set);
@@ -476,6 +470,12 @@ void qemu_thread_create(QemuThread *thread, const char *name,
         qemu_thread_set_name(thread, name);
     }
 
+    if (mode == QEMU_THREAD_DETACHED) {
+        err = pthread_detach(thread->thread);
+        if (err) {
+            error_exit(err, __func__);
+        }
+    }
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
     pthread_attr_destroy(&attr);

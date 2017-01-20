@@ -407,7 +407,7 @@ static int init_event_notifier(EmulatedState *card)
         DPRINTF(card, 2, "event notifier creation failed\n");
         return -1;
     }
-    event_notifier_set_handler(&card->notifier, false, card_event_handler);
+    event_notifier_set_handler(&card->notifier, card_event_handler);
     return 0;
 }
 

@@ -203,6 +203,21 @@ void qemu_set_fd_handler(int fd,
                          IOHandler *fd_write,
                          void *opaque);
 
+
+/**
+ * event_notifier_set_handler: Register an EventNotifier with the main loop
+ *
+ * This function tells the main loop to wake up whenever the
+ * #EventNotifier was set.
+ *
+ * @e: The #EventNotifier to be observed.
+ *
+ * @handler: A level-triggered callback that is fired when @e
+ * has been set.  @e is passed to it as a parameter.
+ */
+void event_notifier_set_handler(EventNotifier *e,
+                                EventNotifierHandler *handler);
+
 GSource *iohandler_get_g_source(void);
 AioContext *iohandler_get_aio_context(void);
 #ifdef CONFIG_POSIX

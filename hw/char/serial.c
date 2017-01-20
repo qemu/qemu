@@ -906,6 +906,16 @@ void serial_realize_core(SerialState *s, Error **errp)
 void serial_exit_core(SerialState *s)
 {
     qemu_chr_fe_deinit(&s->chr);
+
+    timer_del(s->modem_status_poll);
+    timer_free(s->modem_status_poll);
+
+    timer_del(s->fifo_timeout_timer);
+    timer_free(s->fifo_timeout_timer);
+
+    fifo8_destroy(&s->recv_fifo);
+    fifo8_destroy(&s->xmit_fifo);
+
     qemu_unregister_reset(serial_reset, s);
 }
 

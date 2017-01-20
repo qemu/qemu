@@ -882,7 +882,7 @@ static void save_opt(const char **dest, QemuOpts *opts, const char *name)
     }
 }
 
-void smbios_entry_add(QemuOpts *opts)
+void smbios_entry_add(QemuOpts *opts, Error **errp)
 {
     const char *val;
 

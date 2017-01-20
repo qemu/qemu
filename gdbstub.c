@@ -32,6 +32,7 @@
 #define MAX_PACKET_LENGTH 4096
 
 #include "qemu/sockets.h"
+#include "sysemu/hw_accel.h"
 #include "sysemu/kvm.h"
 #include "exec/semihost.h"
 #include "exec/exec-all.h"

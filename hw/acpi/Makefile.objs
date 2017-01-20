@@ -1,10 +1,19 @@
+ifeq ($(CONFIG_ACPI),y)
 common-obj-$(CONFIG_ACPI_X86) += core.o piix4.o pcihp.o
 common-obj-$(CONFIG_ACPI_X86_ICH) += ich9.o tco.o
 common-obj-$(CONFIG_ACPI_CPU_HOTPLUG) += cpu_hotplug.o
 common-obj-$(CONFIG_ACPI_MEMORY_HOTPLUG) += memory_hotplug.o
 common-obj-$(CONFIG_ACPI_CPU_HOTPLUG) += cpu.o
 common-obj-$(CONFIG_ACPI_NVDIMM) += nvdimm.o
-common-obj-$(CONFIG_ACPI) += acpi_interface.o
-common-obj-$(CONFIG_ACPI) += bios-linker-loader.o
-common-obj-$(CONFIG_ACPI) += aml-build.o
-common-obj-$(call land,$(CONFIG_ACPI),$(CONFIG_IPMI)) += ipmi.o
+common-obj-$(call lnot,$(CONFIG_ACPI_X86)) += acpi-stub.o
+
+common-obj-y += acpi_interface.o
+common-obj-y += bios-linker-loader.o
+common-obj-y += aml-build.o
+
+common-obj-$(CONFIG_IPMI) += ipmi.o
+common-obj-$(call lnot,$(CONFIG_IPMI)) += ipmi-stub.o
+else
+common-obj-y += acpi-stub.o
+endif
+common-obj-$(CONFIG_ALL) += acpi-stub.o ipmi-stub.o

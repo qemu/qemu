@@ -33,6 +33,7 @@
 #include "target/i386/cpu.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/i386/x86-iommu.h"
+#include "trace.h"
 
 //#define DEBUG_IOAPIC
 
@@ -115,6 +116,7 @@ static void ioapic_service(IOAPICCommonState *s)
                     s->irr &= ~mask;
                 } else {
                     coalesce = s->ioredtbl[i] & IOAPIC_LVT_REMOTE_IRR;
+                    trace_ioapic_set_remote_irr(i);
                     s->ioredtbl[i] |= IOAPIC_LVT_REMOTE_IRR;
                 }
 
@@ -220,6 +222,8 @@ void ioapic_eoi_broadcast(int vector)
     uint64_t entry;
     int i, n;
 
+    trace_ioapic_eoi_broadcast(vector);
+
     for (i = 0; i < MAX_IOAPICS; i++) {
         s = ioapics[i];
         if (!s) {
@@ -229,6 +233,7 @@ void ioapic_eoi_broadcast(int vector)
             entry = s->ioredtbl[n];
             if ((entry & IOAPIC_LVT_REMOTE_IRR)
                 && (entry & IOAPIC_VECTOR_MASK) == vector) {
+                trace_ioapic_clear_remote_irr(n, vector);
                 s->ioredtbl[n] = entry & ~IOAPIC_LVT_REMOTE_IRR;
                 if (!(entry & IOAPIC_LVT_MASKED) && (s->irr & (1 << n))) {
                     ioapic_service(s);
@@ -256,7 +261,9 @@ ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
     int index;
     uint32_t val = 0;
 
-    switch (addr & 0xff) {
+    addr &= 0xff;
+
+    switch (addr) {
     case IOAPIC_IOREGSEL:
         val = s->ioregsel;
         break;
@@ -286,6 +293,9 @@ ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
         DPRINTF("read: %08x = %08x\n", s->ioregsel, val);
         break;
     }
+
+    trace_ioapic_mem_read(addr, size, val);
+
     return val;
 }
 
@@ -324,7 +334,10 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
     IOAPICCommonState *s = opaque;
     int index;
 
-    switch (addr & 0xff) {
+    addr &= 0xff;
+    trace_ioapic_mem_write(addr, size, val);
+
+    switch (addr) {
     case IOAPIC_IOREGSEL:
         s->ioregsel = val;
         break;
@@ -426,6 +439,11 @@ static void ioapic_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize = ioapic_realize;
+    /*
+     * If APIC is in kernel, we need to update the kernel cache after
+     * migration, otherwise first 24 gsi routes will be invalid.
+     */
+    k->post_load = ioapic_update_kvm_routes;
     dc->reset = ioapic_reset_common;
     dc->props = ioapic_properties;
 }

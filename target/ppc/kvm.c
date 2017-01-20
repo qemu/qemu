@@ -26,7 +26,7 @@
 #include "cpu.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/kvm.h"
+#include "sysemu/hw_accel.h"
 #include "sysemu/numa.h"
 #include "kvm_ppc.h"
 #include "sysemu/cpus.h"
@@ -142,6 +142,11 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 
     kvm_ppc_register_host_cpu_type();
 
+    return 0;
+}
+
+int kvm_arch_irqchip_create(MachineState *ms, KVMState *s)
+{
     return 0;
 }
 

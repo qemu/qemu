@@ -2082,10 +2082,10 @@ void virtio_queue_set_guest_notifier_fd_handler(VirtQueue *vq, bool assign,
                                                 bool with_irqfd)
 {
     if (assign && !with_irqfd) {
-        event_notifier_set_handler(&vq->guest_notifier, false,
+        event_notifier_set_handler(&vq->guest_notifier,
                                    virtio_queue_guest_notifier_read);
     } else {
-        event_notifier_set_handler(&vq->guest_notifier, false, NULL);
+        event_notifier_set_handler(&vq->guest_notifier, NULL);
     }
     if (!assign) {
         /* Test and clear notifier before closing it,
@@ -2257,7 +2257,7 @@ static int virtio_device_start_ioeventfd_impl(VirtIODevice *vdev)
             err = r;
             goto assign_error;
         }
-        event_notifier_set_handler(&vq->host_notifier, true,
+        event_notifier_set_handler(&vq->host_notifier,
                                    virtio_queue_host_notifier_read);
     }
 
@@ -2278,7 +2278,7 @@ assign_error:
             continue;
         }
 
-        event_notifier_set_handler(&vq->host_notifier, true, NULL);
+        event_notifier_set_handler(&vq->host_notifier, NULL);
         r = virtio_bus_set_host_notifier(qbus, n, false);
         assert(r >= 0);
     }
@@ -2304,7 +2304,7 @@ static void virtio_device_stop_ioeventfd_impl(VirtIODevice *vdev)
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
-        event_notifier_set_handler(&vq->host_notifier, true, NULL);
+        event_notifier_set_handler(&vq->host_notifier, NULL);
         r = virtio_bus_set_host_notifier(qbus, n, false);
         assert(r >= 0);
     }

@@ -20,7 +20,7 @@
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "qemu/log.h"
-#include "sysemu/kvm.h"
+#include "sysemu/hw_accel.h"
 #include "target/ppc/cpu.h"
 #include "hw/sysbus.h"
 

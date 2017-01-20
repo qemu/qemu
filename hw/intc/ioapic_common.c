@@ -58,7 +58,8 @@ void ioapic_print_redtbl(Monitor *mon, IOAPICCommonState *s)
     uint32_t remote_irr = 0;
     int i;
 
-    monitor_printf(mon, "ioapic id=0x%02x sel=0x%02x", s->id, s->ioregsel);
+    monitor_printf(mon, "ioapic ver=0x%x id=0x%02x sel=0x%02x",
+                   s->version, s->id, s->ioregsel);
     if (s->ioregsel) {
         monitor_printf(mon, " (redir[%u])\n",
                        (s->ioregsel - IOAPIC_REG_REDTBL_BASE) >> 1);

@@ -33,7 +33,9 @@
 #include "sysemu/block-backend.h"
 #include "exec/gdbstub.h"
 #include "sysemu/dma.h"
+#include "sysemu/hw_accel.h"
 #include "sysemu/kvm.h"
+#include "sysemu/hax.h"
 #include "qmp-commands.h"
 #include "exec/exec-all.h"
 
@@ -1220,6 +1222,46 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     return NULL;
 }
 
+static void *qemu_hax_cpu_thread_fn(void *arg)
+{
+    CPUState *cpu = arg;
+    int r;
+    qemu_thread_get_self(cpu->thread);
+    qemu_mutex_lock(&qemu_global_mutex);
+
+    cpu->thread_id = qemu_get_thread_id();
+    cpu->created = true;
+    cpu->halted = 0;
+    current_cpu = cpu;
+
+    hax_init_vcpu(cpu);
+    qemu_cond_signal(&qemu_cpu_cond);
+
+    while (1) {
+        if (cpu_can_run(cpu)) {
+            r = hax_smp_cpu_exec(cpu);
+            if (r == EXCP_DEBUG) {
+                cpu_handle_guest_debug(cpu);
+            }
+        }
+
+        while (cpu_thread_is_idle(cpu)) {
+            qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
+        }
+#ifdef _WIN32
+        SleepEx(0, TRUE);
+#endif
+        qemu_wait_io_event_common(cpu);
+    }
+    return NULL;
+}
+
+#ifdef _WIN32
+static void CALLBACK dummy_apc_func(ULONG_PTR unused)
+{
+}
+#endif
+
 static void qemu_cpu_kick_thread(CPUState *cpu)
 {
 #ifndef _WIN32
@@ -1235,7 +1277,13 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
         exit(1);
     }
 #else /* _WIN32 */
-    abort();
+    if (!qemu_cpu_is_self(cpu)) {
+        if (!QueueUserAPC(dummy_apc_func, cpu->hThread, 0)) {
+            fprintf(stderr, "%s: QueueUserAPC failed with error %lu\n",
+                    __func__, GetLastError());
+            exit(1);
+        }
+    }
 #endif
 }
 
@@ -1258,6 +1306,13 @@ void qemu_cpu_kick(CPUState *cpu)
     if (tcg_enabled()) {
         qemu_cpu_kick_no_halt();
     } else {
+        if (hax_enabled()) {
+            /*
+             * FIXME: race condition with the exit_request check in
+             * hax_vcpu_hax_exec
+             */
+            cpu->exit_request = 1;
+        }
         qemu_cpu_kick_thread(cpu);
     }
 }
@@ -1418,6 +1473,26 @@ static void qemu_tcg_init_vcpu(CPUState *cpu)
     }
 }
 
+static void qemu_hax_start_vcpu(CPUState *cpu)
+{
+    char thread_name[VCPU_THREAD_NAME_SIZE];
+
+    cpu->thread = g_malloc0(sizeof(QemuThread));
+    cpu->halt_cond = g_malloc0(sizeof(QemuCond));
+    qemu_cond_init(cpu->halt_cond);
+
+    snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/HAX",
+             cpu->cpu_index);
+    qemu_thread_create(cpu->thread, thread_name, qemu_hax_cpu_thread_fn,
+                       cpu, QEMU_THREAD_JOINABLE);
+#ifdef _WIN32
+    cpu->hThread = qemu_thread_get_handle(cpu->thread);
+#endif
+    while (!cpu->created) {
+        qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
+    }
+}
+
 static void qemu_kvm_start_vcpu(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
@@ -1468,6 +1543,8 @@ void qemu_init_vcpu(CPUState *cpu)
 
     if (kvm_enabled()) {
         qemu_kvm_start_vcpu(cpu);
+    } else if (hax_enabled()) {
+        qemu_hax_start_vcpu(cpu);
     } else if (tcg_enabled()) {
         qemu_tcg_init_vcpu(cpu);
     } else {

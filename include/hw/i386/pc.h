@@ -376,15 +376,14 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_2_8 \
     HW_COMPAT_2_8 \
-
-
-#define PC_COMPAT_2_7 \
-    HW_COMPAT_2_7 \
     {\
         .driver   = "kvmclock",\
         .property = "x-mach-use-reliable-get-clock",\
         .value    = "off",\
     },\
+
+#define PC_COMPAT_2_7 \
+    HW_COMPAT_2_7 \
     {\
         .driver   = TYPE_X86_CPU,\
         .property = "l3-cache",\

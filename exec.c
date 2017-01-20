@@ -1687,6 +1687,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
         qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_HUGEPAGE);
         /* MADV_DONTFORK is also needed by KVM in absence of synchronous MMU */
         qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_DONTFORK);
+        ram_block_notify_add(new_block->host, new_block->max_length);
     }
 }
 
@@ -1815,6 +1816,10 @@ void qemu_ram_free(RAMBlock *block)
 {
     if (!block) {
         return;
+    }
+
+    if (block->host) {
+        ram_block_notify_remove(block->host, block->max_length);
     }
 
     qemu_mutex_lock_ramlist();
@@ -2960,6 +2965,7 @@ bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_
         if (!memory_access_is_direct(mr, is_write)) {
             l = memory_access_size(mr, l, addr);
             if (!memory_region_access_valid(mr, xlat, l, is_write)) {
+                rcu_read_unlock();
                 return false;
             }
         }

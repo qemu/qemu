@@ -90,15 +90,6 @@ int event_notifier_get_fd(const EventNotifier *e)
     return e->rfd;
 }
 
-int event_notifier_set_handler(EventNotifier *e,
-                               bool is_external,
-                               EventNotifierHandler *handler)
-{
-    aio_set_fd_handler(iohandler_get_aio_context(), e->rfd, is_external,
-                       (IOHandler *)handler, NULL, NULL, e);
-    return 0;
-}
-
 int event_notifier_set(EventNotifier *e)
 {
     static const uint64_t value = 1;

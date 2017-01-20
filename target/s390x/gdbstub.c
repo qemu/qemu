@@ -23,6 +23,7 @@
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
 #include "qemu/bitops.h"
+#include "sysemu/hw_accel.h"
 
 int s390_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {

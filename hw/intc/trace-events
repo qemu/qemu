@@ -14,6 +14,13 @@ apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode, uint8_t
 apic_mem_readl(uint64_t addr, uint32_t val)  "%"PRIx64" = %08x"
 apic_mem_writel(uint64_t addr, uint32_t val) "%"PRIx64" = %08x"
 
+# hw/intc/ioapic.c
+ioapic_set_remote_irr(int n) "set remote irr for pin %d"
+ioapic_clear_remote_irr(int n, int vector) "clear remote irr for pin %d vector %d"
+ioapic_eoi_broadcast(int vector) "EOI broadcast for vector %d"
+ioapic_mem_read(uint8_t addr, uint8_t size, uint32_t val) "ioapic mem read addr 0x%"PRIx8" size 0x%"PRIx8" retval 0x%"PRIx32
+ioapic_mem_write(uint8_t addr, uint8_t size, uint32_t val) "ioapic mem write addr 0x%"PRIx8" size 0x%"PRIx8" val 0x%"PRIx32
+
 # hw/intc/slavio_intctl.c
 slavio_intctl_mem_readl(uint32_t cpu, uint64_t addr, uint32_t ret) "read cpu %d reg 0x%"PRIx64" = %x"
 slavio_intctl_mem_writel(uint32_t cpu, uint64_t addr, uint32_t val) "write cpu %d reg 0x%"PRIx64" = %x"
