@@ -1779,7 +1779,6 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
                                const char *default_devaddr)
 {
     const char *devaddr = nd->devaddr ? nd->devaddr : default_devaddr;
-    Error *err = NULL;
     PCIBus *bus;
     PCIDevice *pci_dev;
     DeviceState *dev;
@@ -1805,13 +1804,7 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
     pci_dev = pci_create(bus, devfn, pci_nic_names[i]);
     dev = &pci_dev->qdev;
     qdev_set_nic_properties(dev, nd);
-
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
-    if (err) {
-        error_report_err(err);
-        object_unparent(OBJECT(dev));
-        exit(1);
-    }
+    qdev_init_nofail(dev);
 
     return pci_dev;
 }

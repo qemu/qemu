@@ -21,10 +21,6 @@ qemu_irq *mcf_intc_init(struct MemoryRegion *sysmem,
                         hwaddr base,
                         M68kCPU *cpu);
 
-/* mcf_fec.c */
-void mcf_fec_init(struct MemoryRegion *sysmem, NICInfo *nd,
-                  hwaddr base, qemu_irq *irq);
-
 /* mcf5206.c */
 qemu_irq *mcf5206_init(struct MemoryRegion *sysmem,
                        uint32_t base, M68kCPU *cpu);
