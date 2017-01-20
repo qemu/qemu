@@ -104,8 +104,7 @@ matrix:
         - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
         - git submodule update --init --recursive
     # Trusty build with latest stable clang
-    - env: CONFIG=""
-      sudo: required
+    - sudo: required
       addons:
       dist: trusty
       language: generic
