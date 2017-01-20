@@ -1833,9 +1833,17 @@ static CPAccessResult gicv3_irqfiq_access(CPUARMState *env,
                                           const ARMCPRegInfo *ri, bool isread)
 {
     CPAccessResult r = CP_ACCESS_OK;
+    GICv3CPUState *cs = icc_cs_from_env(env);
+    int el = arm_current_el(env);
+
+    if ((cs->ich_hcr_el2 & ICH_HCR_EL2_TC) &&
+        el == 1 && !arm_is_secure_below_el3(env)) {
+        /* Takes priority over a possible EL3 trap */
+        return CP_ACCESS_TRAP_EL2;
+    }
 
     if ((env->cp15.scr_el3 & (SCR_FIQ | SCR_IRQ)) == (SCR_FIQ | SCR_IRQ)) {
-        switch (arm_current_el(env)) {
+        switch (el) {
         case 1:
             if (arm_is_secure_below_el3(env) ||
                 ((env->cp15.hcr_el2 & (HCR_IMO | HCR_FMO)) == 0)) {
@@ -1861,13 +1869,47 @@ static CPAccessResult gicv3_irqfiq_access(CPUARMState *env,
     return r;
 }
 
+static CPAccessResult gicv3_dir_access(CPUARMState *env,
+                                       const ARMCPRegInfo *ri, bool isread)
+{
+    GICv3CPUState *cs = icc_cs_from_env(env);
+
+    if ((cs->ich_hcr_el2 & ICH_HCR_EL2_TDIR) &&
+        arm_current_el(env) == 1 && !arm_is_secure_below_el3(env)) {
+        /* Takes priority over a possible EL3 trap */
+        return CP_ACCESS_TRAP_EL2;
+    }
+
+    return gicv3_irqfiq_access(env, ri, isread);
+}
+
+static CPAccessResult gicv3_sgi_access(CPUARMState *env,
+                                       const ARMCPRegInfo *ri, bool isread)
+{
+    if ((env->cp15.hcr_el2 & (HCR_IMO | HCR_FMO)) &&
+        arm_current_el(env) == 1 && !arm_is_secure_below_el3(env)) {
+        /* Takes priority over a possible EL3 trap */
+        return CP_ACCESS_TRAP_EL2;
+    }
+
+    return gicv3_irqfiq_access(env, ri, isread);
+}
+
 static CPAccessResult gicv3_fiq_access(CPUARMState *env,
                                        const ARMCPRegInfo *ri, bool isread)
 {
     CPAccessResult r = CP_ACCESS_OK;
+    GICv3CPUState *cs = icc_cs_from_env(env);
+    int el = arm_current_el(env);
+
+    if ((cs->ich_hcr_el2 & ICH_HCR_EL2_TALL0) &&
+        el == 1 && !arm_is_secure_below_el3(env)) {
+        /* Takes priority over a possible EL3 trap */
+        return CP_ACCESS_TRAP_EL2;
+    }
 
     if (env->cp15.scr_el3 & SCR_FIQ) {
-        switch (arm_current_el(env)) {
+        switch (el) {
         case 1:
             if (arm_is_secure_below_el3(env) ||
                 ((env->cp15.hcr_el2 & HCR_FMO) == 0)) {
@@ -1897,9 +1939,17 @@ static CPAccessResult gicv3_irq_access(CPUARMState *env,
                                        const ARMCPRegInfo *ri, bool isread)
 {
     CPAccessResult r = CP_ACCESS_OK;
+    GICv3CPUState *cs = icc_cs_from_env(env);
+    int el = arm_current_el(env);
+
+    if ((cs->ich_hcr_el2 & ICH_HCR_EL2_TALL1) &&
+        el == 1 && !arm_is_secure_below_el3(env)) {
+        /* Takes priority over a possible EL3 trap */
+        return CP_ACCESS_TRAP_EL2;
+    }
 
     if (env->cp15.scr_el3 & SCR_IRQ) {
-        switch (arm_current_el(env)) {
+        switch (el) {
         case 1:
             if (arm_is_secure_below_el3(env) ||
                 ((env->cp15.hcr_el2 & HCR_IMO) == 0)) {
@@ -2055,7 +2105,7 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
     { .name = "ICC_DIR_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 11, .opc2 = 1,
       .type = ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .access = PL1_W, .accessfn = gicv3_dir_access,
       .writefn = icc_dir_write,
     },
     { .name = "ICC_RPR_EL1", .state = ARM_CP_STATE_BOTH,
@@ -2067,37 +2117,37 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
     { .name = "ICC_SGI1R_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 11, .opc2 = 5,
       .type = ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .access = PL1_W, .accessfn = gicv3_sgi_access,
       .writefn = icc_sgi1r_write,
     },
     { .name = "ICC_SGI1R",
       .cp = 15, .opc1 = 0, .crm = 12,
       .type = ARM_CP_64BIT | ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .access = PL1_W, .accessfn = gicv3_sgi_access,
       .writefn = icc_sgi1r_write,
     },
     { .name = "ICC_ASGI1R_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 11, .opc2 = 6,
       .type = ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .access = PL1_W, .accessfn = gicv3_sgi_access,
       .writefn = icc_asgi1r_write,
     },
     { .name = "ICC_ASGI1R",
       .cp = 15, .opc1 = 1, .crm = 12,
       .type = ARM_CP_64BIT | ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .access = PL1_W, .accessfn = gicv3_sgi_access,
       .writefn = icc_asgi1r_write,
     },
     { .name = "ICC_SGI0R_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 11, .opc2 = 7,
       .type = ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .access = PL1_W, .accessfn = gicv3_sgi_access,
       .writefn = icc_sgi0r_write,
     },
     { .name = "ICC_SGI0R",
       .cp = 15, .opc1 = 2, .crm = 12,
       .type = ARM_CP_64BIT | ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .access = PL1_W, .accessfn = gicv3_sgi_access,
       .writefn = icc_sgi0r_write,
     },
     { .name = "ICC_IAR1_EL1", .state = ARM_CP_STATE_BOTH,
