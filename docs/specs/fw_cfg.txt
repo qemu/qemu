@@ -33,6 +33,10 @@ the selector value is between 0x4000-0x7fff or 0xc000-0xffff.
 NOTE: As of QEMU v2.4, writes to the fw_cfg data register are no
       longer supported, and will be ignored (treated as no-ops)!
 
+NOTE: As of QEMU v2.9, writes are reinstated, but only through the DMA
+      interface (see below). Furthermore, writeability of any specific item is
+      governed independently of Bit14 in the selector key value.
+
 Bit15 of the selector register indicates whether the configuration
 setting is architecture specific. A value of 0 means the item is a
 generic configuration item. A value of 1 means the item is specific
@@ -43,7 +47,7 @@ value between 0x8000-0xffff.
 
 == Data Register ==
 
-* Read/Write (writes ignored as of QEMU v2.4)
+* Read/Write (writes ignored as of QEMU v2.4, but see the DMA interface)
 * Location: platform dependent (IOport [*] or MMIO)
 * Width: 8-bit (if IOport), 8/16/32/64-bit (if MMIO)
 * Endianness: string-preserving
@@ -134,8 +138,8 @@ struct FWCfgFile {		/* an individual file entry, 64 bytes total */
 
 === All Other Data Items ===
 
-Please consult the QEMU source for the most up-to-date and authoritative
-list of selector keys and their respective items' purpose and format.
+Please consult the QEMU source for the most up-to-date and authoritative list
+of selector keys and their respective items' purpose, format and writeability.
 
 === Ranges ===
 
@@ -144,13 +148,15 @@ items, and up to 0x4000 architecturally specific ones.
 
 Selector Reg.    Range Usage
 ---------------  -----------
-0x0000 - 0x3fff  Generic (0x0000 - 0x3fff, RO)
+0x0000 - 0x3fff  Generic (0x0000 - 0x3fff, generally RO, possibly RW through
+                          the DMA interface in QEMU v2.9+)
 0x4000 - 0x7fff  Generic (0x0000 - 0x3fff, RW, ignored in QEMU v2.4+)
-0x8000 - 0xbfff  Arch. Specific (0x0000 - 0x3fff, RO)
+0x8000 - 0xbfff  Arch. Specific (0x0000 - 0x3fff, generally RO, possibly RW
+                                 through the DMA interface in QEMU v2.9+)
 0xc000 - 0xffff  Arch. Specific (0x0000 - 0x3fff, RW, ignored in v2.4+)
 
-In practice, the number of allowed firmware configuration items is given
-by the value of FW_CFG_MAX_ENTRY (see fw_cfg.h).
+In practice, the number of allowed firmware configuration items depends on the
+machine type/version.
 
 = Guest-side DMA Interface =
 
@@ -182,6 +188,7 @@ The "control" field has the following bits:
  - Bit 1: Read
  - Bit 2: Skip
  - Bit 3: Select. The upper 16 bits are the selected index.
+ - Bit 4: Write
 
 When an operation is triggered, if the "control" field has bit 3 set, the
 upper 16 bits are interpreted as an index of a firmware configuration item.
@@ -191,8 +198,17 @@ If the "control" field has bit 1 set, a read operation will be performed.
 "length" bytes for the current selector and offset will be copied into the
 physical RAM address specified by the "address" field.
 
-If the "control" field has bit 2 set (and not bit 1), a skip operation will be
-performed. The offset for the current selector will be advanced "length" bytes.
+If the "control" field has bit 4 set (and not bit 1), a write operation will be
+performed. "length" bytes will be copied from the physical RAM address
+specified by the "address" field to the current selector and offset. QEMU
+prevents starting or finishing the write beyond the end of the item associated
+with the current selector (i.e., the item cannot be resized). Truncated writes
+are dropped entirely. Writes to read-only items are also rejected. All of these
+write errors set bit 0 (the error bit) in the "control" field.
+
+If the "control" field has bit 2 set (and neither bit 1 nor bit 4), a skip
+operation will be performed. The offset for the current selector will be
+advanced "length" bytes.
 
 To check the result, read the "control" field:
    error bit set        ->  something went wrong.
@@ -234,3 +250,5 @@ Prefix "opt/org.qemu/" is reserved for QEMU itself.
 
 Use of names not beginning with "opt/" is potentially dangerous and
 entirely unsupported.  QEMU will warn if you try.
+
+All externally provided fw_cfg items are read-only to the guest.

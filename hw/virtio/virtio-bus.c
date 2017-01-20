@@ -47,6 +47,7 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
     VirtioBusState *bus = VIRTIO_BUS(qbus);
     VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    bool has_iommu = virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
 
     DPRINTF("%s: plug device.\n", qbus->name);
 
@@ -63,8 +64,8 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
         klass->device_plugged(qbus->parent, errp);
     }
 
-    if (klass->get_dma_as != NULL &&
-        virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
+    if (klass->get_dma_as != NULL && has_iommu) {
+        virtio_add_feature(&vdev->host_features, VIRTIO_F_IOMMU_PLATFORM);
         vdev->dma_as = klass->get_dma_as(qbus->parent);
     } else {
         vdev->dma_as = &address_space_memory;

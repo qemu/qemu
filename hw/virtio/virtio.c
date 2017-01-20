@@ -88,8 +88,8 @@ struct VirtQueue
     /* Last used index value we have signalled on */
     bool signalled_used_valid;
 
-    /* Nested host->guest notification disabled counter */
-    unsigned int notification_disabled;
+    /* Notification enabled? */
+    bool notification;
 
     uint16_t queue_index;
 
@@ -202,7 +202,7 @@ static inline void vring_used_flags_unset_bit(VirtQueue *vq, int mask)
 static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
 {
     hwaddr pa;
-    if (vq->notification_disabled) {
+    if (!vq->notification) {
         return;
     }
     pa = vq->vring.used + offsetof(VRingUsed, ring[vq->vring.num]);
@@ -211,13 +211,7 @@ static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
 
 void virtio_queue_set_notification(VirtQueue *vq, int enable)
 {
-    if (enable) {
-        assert(vq->notification_disabled > 0);
-        vq->notification_disabled--;
-    } else {
-        vq->notification_disabled++;
-    }
-
+    vq->notification = enable;
     if (virtio_vdev_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_set_avail_event(vq, vring_avail_idx(vq));
     } else if (enable) {
@@ -605,22 +599,10 @@ static void virtqueue_undo_map_desc(unsigned int out_num, unsigned int in_num,
 
 static void virtqueue_map_iovec(VirtIODevice *vdev, struct iovec *sg,
                                 hwaddr *addr, unsigned int *num_sg,
-                                unsigned int max_size, int is_write)
+                                int is_write)
 {
     unsigned int i;
     hwaddr len;
-
-    /* Note: this function MUST validate input, some callers
-     * are passing in num_sg values received over the network.
-     */
-    /* TODO: teach all callers that this can fail, and return failure instead
-     * of asserting here.
-     * When we do, we might be able to re-enable NDEBUG below.
-     */
-#ifdef NDEBUG
-#error building with NDEBUG is not supported
-#endif
-    assert(*num_sg <= max_size);
 
     for (i = 0; i < *num_sg; i++) {
         len = sg[i].iov_len;
@@ -641,13 +623,8 @@ static void virtqueue_map_iovec(VirtIODevice *vdev, struct iovec *sg,
 
 void virtqueue_map(VirtIODevice *vdev, VirtQueueElement *elem)
 {
-    virtqueue_map_iovec(vdev, elem->in_sg, elem->in_addr, &elem->in_num,
-                        MIN(ARRAY_SIZE(elem->in_sg), ARRAY_SIZE(elem->in_addr)),
-                        1);
-    virtqueue_map_iovec(vdev, elem->out_sg, elem->out_addr, &elem->out_num,
-                        MIN(ARRAY_SIZE(elem->out_sg),
-                        ARRAY_SIZE(elem->out_addr)),
-                        0);
+    virtqueue_map_iovec(vdev, elem->in_sg, elem->in_addr, &elem->in_num, 1);
+    virtqueue_map_iovec(vdev, elem->out_sg, elem->out_addr, &elem->out_num, 0);
 }
 
 static void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num)
@@ -846,6 +823,16 @@ void *qemu_get_virtqueue_element(VirtIODevice *vdev, QEMUFile *f, size_t sz)
 
     qemu_get_buffer(f, (uint8_t *)&data, sizeof(VirtQueueElementOld));
 
+    /* TODO: teach all callers that this can fail, and return failure instead
+     * of asserting here.
+     * When we do, we might be able to re-enable NDEBUG below.
+     */
+#ifdef NDEBUG
+#error building with NDEBUG is not supported
+#endif
+    assert(ARRAY_SIZE(data.in_addr) >= data.in_num);
+    assert(ARRAY_SIZE(data.out_addr) >= data.out_num);
+
     elem = virtqueue_alloc_element(sz, data.out_num, data.in_num);
     elem->index = data.index;
 
@@ -1020,7 +1007,7 @@ void virtio_reset(void *opaque)
         virtio_queue_set_vector(vdev, i, VIRTIO_NO_VECTOR);
         vdev->vq[i].signalled_used = 0;
         vdev->vq[i].signalled_used_valid = false;
-        vdev->vq[i].notification_disabled = 0;
+        vdev->vq[i].notification = true;
         vdev->vq[i].vring.num = vdev->vq[i].vring.num_default;
         vdev->vq[i].inuse = 0;
     }
@@ -1831,7 +1818,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         vdev->vq[i].vring.desc = qemu_get_be64(f);
         qemu_get_be16s(f, &vdev->vq[i].last_avail_idx);
         vdev->vq[i].signalled_used_valid = false;
-        vdev->vq[i].notification_disabled = 0;
+        vdev->vq[i].notification = true;
 
         if (vdev->vq[i].vring.desc) {
             /* XXX virtio-1 devices */
@@ -2132,6 +2119,9 @@ static bool virtio_queue_host_notifier_aio_poll(void *opaque)
     }
 
     virtio_queue_notify_aio_vq(vq);
+
+    /* In case the handler function re-enabled notifications */
+    virtio_queue_set_notification(vq, 0);
     return true;
 }
 

@@ -185,6 +185,102 @@ static int vhost_kernel_vsock_set_running(struct vhost_dev *dev, int start)
 }
 #endif /* CONFIG_VHOST_VSOCK */
 
+static void vhost_kernel_iotlb_read(void *opaque)
+{
+    struct vhost_dev *dev = opaque;
+    struct vhost_msg msg;
+    ssize_t len;
+
+    while ((len = read((uintptr_t)dev->opaque, &msg, sizeof msg)) > 0) {
+        struct vhost_iotlb_msg *imsg = &msg.iotlb;
+        if (len < sizeof msg) {
+            error_report("Wrong vhost message len: %d", (int)len);
+            break;
+        }
+        if (msg.type != VHOST_IOTLB_MSG) {
+            error_report("Unknown vhost iotlb message type");
+            break;
+        }
+        switch (imsg->type) {
+        case VHOST_IOTLB_MISS:
+            vhost_device_iotlb_miss(dev, imsg->iova,
+                                    imsg->perm != VHOST_ACCESS_RO);
+            break;
+        case VHOST_IOTLB_UPDATE:
+        case VHOST_IOTLB_INVALIDATE:
+            error_report("Unexpected IOTLB message type");
+            break;
+        case VHOST_IOTLB_ACCESS_FAIL:
+            /* FIXME: report device iotlb error */
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+static int vhost_kernel_update_device_iotlb(struct vhost_dev *dev,
+                                            uint64_t iova, uint64_t uaddr,
+                                            uint64_t len,
+                                            IOMMUAccessFlags perm)
+{
+    struct vhost_msg msg;
+    msg.type = VHOST_IOTLB_MSG;
+    msg.iotlb.iova =  iova;
+    msg.iotlb.uaddr = uaddr;
+    msg.iotlb.size = len;
+    msg.iotlb.type = VHOST_IOTLB_UPDATE;
+
+    switch (perm) {
+    case IOMMU_RO:
+        msg.iotlb.perm = VHOST_ACCESS_RO;
+        break;
+    case IOMMU_WO:
+        msg.iotlb.perm = VHOST_ACCESS_WO;
+        break;
+    case IOMMU_RW:
+        msg.iotlb.perm = VHOST_ACCESS_RW;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (write((uintptr_t)dev->opaque, &msg, sizeof msg) != sizeof msg) {
+        error_report("Fail to update device iotlb");
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
+static int vhost_kernel_invalidate_device_iotlb(struct vhost_dev *dev,
+                                                uint64_t iova, uint64_t len)
+{
+    struct vhost_msg msg;
+
+    msg.type = VHOST_IOTLB_MSG;
+    msg.iotlb.iova = iova;
+    msg.iotlb.size = len;
+    msg.iotlb.type = VHOST_IOTLB_INVALIDATE;
+
+    if (write((uintptr_t)dev->opaque, &msg, sizeof msg) != sizeof msg) {
+        error_report("Fail to invalidate device iotlb");
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
+static void vhost_kernel_set_iotlb_callback(struct vhost_dev *dev,
+                                           int enabled)
+{
+    if (enabled)
+        qemu_set_fd_handler((uintptr_t)dev->opaque,
+                            vhost_kernel_iotlb_read, NULL, dev);
+    else
+        qemu_set_fd_handler((uintptr_t)dev->opaque, NULL, NULL, NULL);
+}
+
 static const VhostOps kernel_ops = {
         .backend_type = VHOST_BACKEND_TYPE_KERNEL,
         .vhost_backend_init = vhost_kernel_init,
@@ -214,6 +310,9 @@ static const VhostOps kernel_ops = {
         .vhost_vsock_set_guest_cid = vhost_kernel_vsock_set_guest_cid,
         .vhost_vsock_set_running = vhost_kernel_vsock_set_running,
 #endif /* CONFIG_VHOST_VSOCK */
+        .vhost_set_iotlb_callback = vhost_kernel_set_iotlb_callback,
+        .vhost_update_device_iotlb = vhost_kernel_update_device_iotlb,
+        .vhost_invalidate_device_iotlb = vhost_kernel_invalidate_device_iotlb,
 };
 
 int vhost_set_backend_type(struct vhost_dev *dev, VhostBackendType backend_type)

@@ -29,8 +29,7 @@
 #define FW_CFG_FILE_DIR         0x19
 
 #define FW_CFG_FILE_FIRST       0x20
-#define FW_CFG_FILE_SLOTS       0x10
-#define FW_CFG_MAX_ENTRY        (FW_CFG_FILE_FIRST + FW_CFG_FILE_SLOTS)
+#define FW_CFG_FILE_SLOTS_MIN   0x10
 
 #define FW_CFG_WRITE_CHANNEL    0x4000
 #define FW_CFG_ARCH_LOCAL       0x8000
