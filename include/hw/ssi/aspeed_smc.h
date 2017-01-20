@@ -44,6 +44,7 @@ typedef struct AspeedSMCController {
     const AspeedSegments *segments;
     hwaddr flash_window_base;
     uint32_t flash_window_size;
+    bool has_dma;
 } AspeedSMCController;
 
 typedef struct AspeedSMCFlash {
