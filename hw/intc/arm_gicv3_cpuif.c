@@ -36,6 +36,12 @@ static bool gicv3_use_ns_bank(CPUARMState *env)
     return !arm_is_secure_below_el3(env);
 }
 
+/* The minimum BPR for the virtual interface is a configurable property */
+static inline int icv_min_vbpr(GICv3CPUState *cs)
+{
+    return 7 - cs->vprebits;
+}
+
 static int icc_highest_active_prio(GICv3CPUState *cs)
 {
     /* Calculate the current running priority based on the set bits
@@ -1081,6 +1087,13 @@ static void icc_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     cs->icc_ctlr_el3 = ICC_CTLR_EL3_NDS | ICC_CTLR_EL3_A3V |
         (1 << ICC_CTLR_EL3_IDBITS_SHIFT) |
         (7 << ICC_CTLR_EL3_PRIBITS_SHIFT);
+
+    memset(cs->ich_apr, 0, sizeof(cs->ich_apr));
+    cs->ich_hcr_el2 = 0;
+    memset(cs->ich_lr_el2, 0, sizeof(cs->ich_lr_el2));
+    cs->ich_vmcr_el2 = ICH_VMCR_EL2_VFIQEN |
+        (icv_min_vbpr(cs) << ICH_VMCR_EL2_VBPR1_SHIFT) |
+        (icv_min_vbpr(cs) << ICH_VMCR_EL2_VBPR0_SHIFT);
 }
 
 static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
