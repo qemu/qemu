@@ -186,7 +186,7 @@
 # At this point, it's safe to reuse the specified device ID. Device removal can
 # be initiated by the guest or by HMP/QMP commands.
 #
-# @device: #optional, device name
+# @device: #optional device name
 #
 # @path: device path
 #
@@ -209,7 +209,7 @@
 # Emitted once until the 'query-rx-filter' command is executed, the first event
 # will always be emitted
 #
-# @name: #optional, net client name
+# @name: #optional net client name
 #
 # @path: device path
 #
@@ -531,7 +531,7 @@
 #
 # @type: quorum operation type (Since 2.6)
 #
-# @error: #optional, error message. Only present on failure. This field
+# @error: #optional error message. Only present on failure. This field
 #         contains a human-readable error message. There are no semantics other
 #         than that the block layer reported an error and clients should not
 #         try to interpret the error string.
