@@ -158,9 +158,10 @@ static void niagara_init(MachineState *machine)
             exit(1);
         }
     }
-    serial_mm_init(sysmem, NIAGARA_UART_BASE, 0, NULL, 115200,
-                   serial_hds[0], DEVICE_BIG_ENDIAN);
-
+    if (serial_hds[0]) {
+        serial_mm_init(sysmem, NIAGARA_UART_BASE, 0, NULL, 115200,
+                       serial_hds[0], DEVICE_BIG_ENDIAN);
+    }
     empty_slot_init(NIAGARA_IOBBASE, NIAGARA_IOBSIZE);
     sun4v_rtc_init(NIAGARA_RTC_BASE);
 }
