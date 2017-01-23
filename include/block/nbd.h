@@ -70,7 +70,8 @@ enum {
     NBD_CMD_WRITE = 1,
     NBD_CMD_DISC = 2,
     NBD_CMD_FLUSH = 3,
-    NBD_CMD_TRIM = 4
+    NBD_CMD_TRIM = 4,
+    NBD_CMD_REREAD_SIZE = 5,
 };
 
 #define NBD_DEFAULT_PORT	10809

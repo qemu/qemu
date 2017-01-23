@@ -28,6 +28,8 @@
 
 #include "qemu/osdep.h"
 #include "nbd-client.h"
+#include "nbd/nbd-internal.h"
+#include <inttypes.h>
 
 #define HANDLE_TO_INDEX(bs, handle) ((handle) ^ ((uint64_t)(intptr_t)bs))
 #define INDEX_TO_HANDLE(bs, index)  ((index)  ^ ((uint64_t)(intptr_t)bs))
@@ -325,6 +327,144 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
     return -reply.error;
 
 }
+
+#if 0
+int nbd_client_reread_size(BlockDriverState *bs)
+{
+    NbdClientSession *client = nbd_get_client_session(bs);
+    ssize_t ret;
+    uint64_t size = 0;
+    struct nbd_request request = {
+        .type = NBD_CMD_REREAD_SIZE,
+    };
+    struct nbd_reply reply;
+
+    AioContext *aio_context = bs->aio_context;
+    nbd_client_detach_aio_context(bs);
+    qio_channel_set_blocking(client->ioc, true, NULL);
+
+    ret = nbd_send_request(client->ioc, &request);
+    logout("nbd_send_request: %ld\n", ret);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = nbd_receive_reply(client->ioc, &reply);
+    logout("nbd_receive_reply: %ld\n", ret);
+    if (ret != 0) {
+        return ret;
+    }
+
+    if (read_sync(client->ioc, &size, sizeof(size)) != sizeof(size)) {
+        logout("Failed to read data\n");
+        return -1;
+    }
+
+    size = be64_to_cpu(size);
+    logout("+++++++++Size is %" PRIu64 "++++++++++\n", size);
+    //client->size = size;
+
+    qio_channel_set_blocking(client->ioc, false, NULL);
+    nbd_client_attach_aio_context(bs, aio_context);
+    return 0;
+}
+
+#elif 0
+
+struct My_Strc {
+    int finished;
+    BlockDriverState *bs;
+};
+
+static coroutine_fn void do_my_co(void *opaque)
+{
+    struct My_Strc *my_strc = opaque;
+    BlockDriverState *bs = my_strc->bs;
+    logout("*****coroutine_fn*****\n");
+
+
+    NbdClientSession *client = nbd_get_client_session(bs);
+    ssize_t ret;
+    uint64_t size = 0;
+    struct nbd_request request = {
+        .type = NBD_CMD_REREAD_SIZE,
+    };
+    struct nbd_reply reply;
+
+#if 0
+    nbd_coroutine_start(client, &request);
+    ret = nbd_co_send_request(bs, &request, NULL);
+    if (ret < 0) {
+        reply.error = -ret;
+    } else {
+        nbd_co_receive_reply(client, &request, &reply, NULL);
+    }
+    nbd_coroutine_end(client, &request);
+#endif
+
+    my_strc->finished = 1;
+}
+
+
+/* Return -EIO in case of error, file descriptor on success */
+static int connect_to_nbd(BlockDriverState *s, Error **errp)
+{
+    int fd;
+
+    if (s->is_unix) {
+        fd = unix_connect(s->host_spec, errp);
+    } else {
+        fd = inet_connect(s->host_spec, errp);
+
+        if (fd >= 0) {
+            int ret = socket_set_nodelay(fd);
+            if (ret < 0) {
+                error_report("%s", strerror(errno));
+            }
+        }
+    }
+
+    if (fd >= 0) {
+        qemu_set_nonblock(fd);
+    } else {
+        fd = -EIO;
+    }
+
+    return fd;
+}
+
+int nbd_client_reread_size(BlockDriverState *bs)
+{
+
+    struct My_Strc my_strc = {.finished = 0, .bs = bs};
+
+
+    AioContext *c = bs->aio_context;
+    nbd_client_detach_aio_context(bs);
+    Coroutine *co = qemu_coroutine_create(do_my_co, bs);
+
+
+    logout("^^^^ before co enter \n^^^^^");
+    qemu_coroutine_enter(co);
+    logout("^^^^ before aio poll \n^^^^^");
+    while (!my_strc.finished) {
+        aio_poll(bs->aio_context, true);
+    }
+    logout("^^^^ after aio poll \n^^^^^");
+    nbd_client_attach_aio_context(bs, c);
+    return 0;
+}
+
+#else
+
+int nbd_client_resize(BlockDriverState *bs, int64_t offset)
+{
+    NbdClientSession *client = nbd_get_client_session(bs);
+    client->size = offset;
+    return 0;
+}
+
+#endif
 
 void nbd_client_detach_aio_context(BlockDriverState *bs)
 {

@@ -31,7 +31,7 @@
 #include "qemu/queue.h"
 #include "qemu/main-loop.h"
 
-/* #define DEBUG_NBD */
+#define DEBUG_NBD
 
 #ifdef DEBUG_NBD
 #define DEBUG_NBD_PRINT 1
