@@ -6,7 +6,7 @@
 #include "block/block_int.h"
 #include "io/channel-socket.h"
 
-/* #define DEBUG_NBD */
+#define DEBUG_NBD
 
 #if defined(DEBUG_NBD)
 #define logout(fmt, ...) \
@@ -54,5 +54,7 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
 void nbd_client_detach_aio_context(BlockDriverState *bs);
 void nbd_client_attach_aio_context(BlockDriverState *bs,
                                    AioContext *new_context);
+int nbd_client_reread_size(BlockDriverState *bs);
+int nbd_client_resize(BlockDriverState *bs, int64_t offset);
 
 #endif /* NBD_CLIENT_H */

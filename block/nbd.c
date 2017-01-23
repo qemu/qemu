@@ -400,6 +400,11 @@ static int nbd_co_flush(BlockDriverState *bs)
     return nbd_client_co_flush(bs);
 }
 
+static int nbd_truncate(BlockDriverState *bs, int64_t offset)
+{
+    return nbd_client_resize(bs, offset);
+}
+
 static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     bs->bl.max_pdiscard = NBD_MAX_BUFFER_SIZE;
@@ -499,6 +504,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_truncate              = nbd_truncate,
 };
 
 static BlockDriver bdrv_nbd_tcp = {
@@ -517,6 +523,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_truncate              = nbd_truncate,
 };
 
 static BlockDriver bdrv_nbd_unix = {
@@ -535,6 +542,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_truncate              = nbd_truncate,
 };
 
 static void bdrv_nbd_init(void)
