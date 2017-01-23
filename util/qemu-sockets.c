@@ -38,6 +38,10 @@
 # define AI_V4MAPPED 0
 #endif
 
+#ifndef AI_NUMERICSERV
+# define AI_NUMERICSERV 0
+#endif
+
 
 static int inet_getport(struct addrinfo *e)
 {
@@ -110,8 +114,8 @@ NetworkAddressFamily inet_netfamily(int family)
  * outside scope of this method and not currently handled by
  * callers at all.
  */
-static int inet_ai_family_from_address(InetSocketAddress *addr,
-                                       Error **errp)
+int inet_ai_family_from_address(InetSocketAddress *addr,
+                                Error **errp)
 {
     if (addr->has_ipv6 && addr->has_ipv4 &&
         !addr->ipv6 && !addr->ipv4) {
@@ -141,6 +145,9 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
 
     memset(&ai,0, sizeof(ai));
     ai.ai_flags = AI_PASSIVE;
+    if (saddr->has_numeric && saddr->numeric) {
+        ai.ai_flags |= AI_NUMERICHOST | AI_NUMERICSERV;
+    }
     ai.ai_family = inet_ai_family_from_address(saddr, &err);
     ai.ai_socktype = SOCK_STREAM;
 

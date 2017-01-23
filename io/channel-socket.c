@@ -156,20 +156,16 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
 }
 
 
-static int qio_channel_socket_connect_worker(QIOTask *task,
-                                             Error **errp,
-                                             gpointer opaque)
+static void qio_channel_socket_connect_worker(QIOTask *task,
+                                              gpointer opaque)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
     SocketAddress *addr = opaque;
-    int ret;
+    Error *err = NULL;
 
-    ret = qio_channel_socket_connect_sync(ioc,
-                                          addr,
-                                          errp);
+    qio_channel_socket_connect_sync(ioc, addr, &err);
 
-    object_unref(OBJECT(ioc));
-    return ret;
+    qio_task_set_error(task, err);
 }
 
 
@@ -219,20 +215,16 @@ int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
 }
 
 
-static int qio_channel_socket_listen_worker(QIOTask *task,
-                                            Error **errp,
-                                            gpointer opaque)
+static void qio_channel_socket_listen_worker(QIOTask *task,
+                                             gpointer opaque)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
     SocketAddress *addr = opaque;
-    int ret;
+    Error *err = NULL;
 
-    ret = qio_channel_socket_listen_sync(ioc,
-                                         addr,
-                                         errp);
+    qio_channel_socket_listen_sync(ioc, addr, &err);
 
-    object_unref(OBJECT(ioc));
-    return ret;
+    qio_task_set_error(task, err);
 }
 
 
@@ -295,22 +287,18 @@ static void qio_channel_socket_dgram_worker_free(gpointer opaque)
     g_free(data);
 }
 
-static int qio_channel_socket_dgram_worker(QIOTask *task,
-                                           Error **errp,
-                                           gpointer opaque)
+static void qio_channel_socket_dgram_worker(QIOTask *task,
+                                            gpointer opaque)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
     struct QIOChannelSocketDGramWorkerData *data = opaque;
-    int ret;
+    Error *err = NULL;
 
     /* socket_dgram() blocks in DNS lookups, so we must use a thread */
-    ret = qio_channel_socket_dgram_sync(ioc,
-                                        data->localAddr,
-                                        data->remoteAddr,
-                                        errp);
+    qio_channel_socket_dgram_sync(ioc, data->localAddr,
+                                  data->remoteAddr, &err);
 
-    object_unref(OBJECT(ioc));
-    return ret;
+    qio_task_set_error(task, err);
 }
 
 

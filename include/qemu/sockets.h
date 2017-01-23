@@ -32,6 +32,8 @@ int socket_set_fast_reuse(int fd);
  */
 typedef void NonBlockingConnectHandler(int fd, Error *err, void *opaque);
 
+int inet_ai_family_from_address(InetSocketAddress *addr,
+                                Error **errp);
 InetSocketAddress *inet_parse(const char *str, Error **errp);
 int inet_connect(const char *str, Error **errp);
 int inet_connect_saddr(InetSocketAddress *saddr, Error **errp,

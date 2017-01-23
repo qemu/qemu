@@ -3983,6 +3983,10 @@
 #
 # @port: port part of the address, or lowest port if @to is present
 #
+# @numeric: #optional true if the host/port are guaranteed to be numeric,
+#           false if name resolution should be attempted. Defaults to false.
+#           (Since 2.9)
+#
 # @to: highest port to try
 #
 # @ipv4: whether to accept IPv4 addresses, default try both IPv4 and IPv6
@@ -3997,6 +4001,7 @@
   'data': {
     'host': 'str',
     'port': 'str',
+    '*numeric':  'bool',
     '*to': 'uint16',
     '*ipv4': 'bool',
     '*ipv6': 'bool' } }

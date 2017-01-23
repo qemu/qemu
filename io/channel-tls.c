@@ -153,8 +153,9 @@ static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
 
     if (qcrypto_tls_session_handshake(ioc->session, &err) < 0) {
         trace_qio_channel_tls_handshake_fail(ioc);
-        qio_task_abort(task, err);
-        goto cleanup;
+        qio_task_set_error(task, err);
+        qio_task_complete(task);
+        return;
     }
 
     status = qcrypto_tls_session_get_handshake_status(ioc->session);
@@ -163,10 +164,10 @@ static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
         if (qcrypto_tls_session_check_credentials(ioc->session,
                                                   &err) < 0) {
             trace_qio_channel_tls_credentials_deny(ioc);
-            qio_task_abort(task, err);
-            goto cleanup;
+            qio_task_set_error(task, err);
+        } else {
+            trace_qio_channel_tls_credentials_allow(ioc);
         }
-        trace_qio_channel_tls_credentials_allow(ioc);
         qio_task_complete(task);
     } else {
         GIOCondition condition;
@@ -183,9 +184,6 @@ static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
                               task,
                               NULL);
     }
-
- cleanup:
-    error_free(err);
 }
 
 
@@ -199,8 +197,6 @@ static gboolean qio_channel_tls_handshake_io(QIOChannel *ioc,
 
     qio_channel_tls_handshake_task(
        tioc, task);
-
-    object_unref(OBJECT(tioc));
 
     return FALSE;
 }
