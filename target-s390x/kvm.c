@@ -197,7 +197,7 @@ void kvm_s390_cmma_reset(void)
         .attr = KVM_S390_VM_MEM_CLR_CMMA,
     };
 
-    if (!mem_path || !kvm_s390_cmma_available()) {
+    if (mem_path || !kvm_s390_cmma_available()) {
         return;
     }
 
