@@ -14,6 +14,7 @@ block-obj-y += throttle-groups.o
 
 block-obj-y += nbd.o nbd-client.o sheepdog.o
 block-obj-$(CONFIG_LIBISCSI) += iscsi.o
+block-obj-$(if $(CONFIG_LIBISCSI),y,n) += iscsi-opts.o
 block-obj-$(CONFIG_LIBNFS) += nfs.o
 block-obj-$(CONFIG_CURL) += curl.o
 block-obj-$(CONFIG_RBD) += rbd.o
