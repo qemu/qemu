@@ -165,7 +165,7 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
     pci_piix_init_ports(d);
 }
 
-int pci_piix3_xen_ide_unplug(DeviceState *dev)
+int pci_piix3_xen_ide_unplug(DeviceState *dev, bool aux)
 {
     PCIIDEState *pci_ide;
     DriveInfo *di;
@@ -174,7 +174,7 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev)
 
     pci_ide = PCI_IDE(dev);
 
-    for (i = 0; i < 4; i++) {
+    for (i = aux ? 1 : 0; i < 4; i++) {
         di = drive_get_by_index(IF_IDE, i);
         if (di != NULL && !di->media_cd) {
             BlockBackend *blk = blk_by_legacy_dinfo(di);

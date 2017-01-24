@@ -107,8 +107,12 @@ static void pci_unplug_nics(PCIBus *bus)
     pci_for_each_device(bus, 0, unplug_nic, NULL);
 }
 
-static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
+static void unplug_disks(PCIBus *b, PCIDevice *d, void *opaque)
 {
+    uint32_t flags = *(uint32_t *)opaque;
+    bool aux = (flags & UNPLUG_AUX_IDE_DISKS) &&
+        !(flags & UNPLUG_ALL_DISKS);
+
     /* We have to ignore passthrough devices */
     if (!strcmp(d->name, "xen-pci-passthrough")) {
         return;
@@ -116,12 +120,14 @@ static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
 
     switch (pci_get_word(d->config + PCI_CLASS_DEVICE)) {
     case PCI_CLASS_STORAGE_IDE:
-        pci_piix3_xen_ide_unplug(DEVICE(d));
+        pci_piix3_xen_ide_unplug(DEVICE(d), aux);
         break;
 
     case PCI_CLASS_STORAGE_SCSI:
     case PCI_CLASS_STORAGE_EXPRESS:
-        object_unparent(OBJECT(d));
+        if (!aux) {
+            object_unparent(OBJECT(d));
+        }
         break;
 
     default:
@@ -129,9 +135,9 @@ static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
     }
 }
 
-static void pci_unplug_disks(PCIBus *bus)
+static void pci_unplug_disks(PCIBus *bus, uint32_t flags)
 {
-    pci_for_each_device(bus, 0, unplug_disks, NULL);
+    pci_for_each_device(bus, 0, unplug_disks, &flags);
 }
 
 static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
@@ -144,16 +150,13 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
         /* Unplug devices.  Value is a bitmask of which devices to
            unplug, with bit 0 the disk devices, bit 1 the network
            devices, and bit 2 the non-primary-master IDE devices. */
-        if (val & UNPLUG_ALL_DISKS) {
+        if (val & (UNPLUG_ALL_DISKS | UNPLUG_AUX_IDE_DISKS)) {
             DPRINTF("unplug disks\n");
-            pci_unplug_disks(pci_dev->bus);
+            pci_unplug_disks(pci_dev->bus, val);
         }
         if (val & UNPLUG_ALL_NICS) {
             DPRINTF("unplug nics\n");
             pci_unplug_nics(pci_dev->bus);
-        }
-        if (val & UNPLUG_AUX_IDE_DISKS) {
-            DPRINTF("unplug auxiliary disks not supported\n");
         }
         break;
     }
@@ -335,14 +338,14 @@ static void xen_platform_ioport_writeb(void *opaque, hwaddr addr,
              * If VMDP was to control both disk and LAN it would use 4.
              * If it controlled just disk or just LAN, it would use 8 below.
              */
-            pci_unplug_disks(pci_dev->bus);
+            pci_unplug_disks(pci_dev->bus, UNPLUG_ALL_DISKS);
             pci_unplug_nics(pci_dev->bus);
         }
         break;
     case 8:
         switch (val) {
         case 1:
-            pci_unplug_disks(pci_dev->bus);
+            pci_unplug_disks(pci_dev->bus, UNPLUG_ALL_DISKS);
             break;
         case 2:
             pci_unplug_nics(pci_dev->bus);
