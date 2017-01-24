@@ -970,6 +970,7 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
     const Netdev *netdev;
     const char *name;
     NetClientState *peer = NULL;
+    static bool vlan_warned;
 
     if (is_netdev) {
         netdev = object;
@@ -1049,6 +1050,11 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
         if (netdev->type != NET_CLIENT_DRIVER_NIC ||
             !opts->u.nic.data->has_netdev) {
             peer = net_hub_add_port(net->has_vlan ? net->vlan : 0, NULL);
+        }
+
+        if (net->has_vlan && !vlan_warned) {
+            error_report("'vlan' is deprecated. Please use 'netdev' instead.");
+            vlan_warned = true;
         }
     }
 
