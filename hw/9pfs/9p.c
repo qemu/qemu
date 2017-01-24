@@ -1655,7 +1655,7 @@ static void v9fs_init_qiov_from_pdu(QEMUIOVector *qiov, V9fsPDU *pdu,
     if (is_write) {
         pdu->s->transport->init_out_iov_from_pdu(pdu, &iov, &niov);
     } else {
-        pdu->s->transport->init_in_iov_from_pdu(pdu, &iov, &niov, size);
+        pdu->s->transport->init_in_iov_from_pdu(pdu, &iov, &niov, size + skip);
     }
 
     qemu_iovec_init_external(&elem, iov, niov);
@@ -1685,8 +1685,8 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
     }
     offset += err;
 
-    v9fs_init_qiov_from_pdu(&qiov_full, pdu, 0, read_count, false);
-    err = v9fs_pack(qiov_full.iov, qiov_full.niov, offset,
+    v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset, read_count, false);
+    err = v9fs_pack(qiov_full.iov, qiov_full.niov, 0,
                     ((char *)fidp->fs.xattr.value) + off,
                     read_count);
     qemu_iovec_destroy(&qiov_full);
