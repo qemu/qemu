@@ -235,6 +235,8 @@ struct target_pt_regs {
 #define TARGET_ENOTRECOVERABLE	137
 #undef TARGET_ERFKILL
 #define TARGET_ERFKILL		138
+#undef TARGET_EHWPOISON
+#define TARGET_EHWPOISON        139
 
 // For sys_osf_getsysinfo
 #define TARGET_GSI_UACPROC		8

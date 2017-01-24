@@ -116,6 +116,8 @@ float32 float32_default_nan(float_status *status)
 #elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA) || \
       defined(TARGET_XTENSA) || defined(TARGET_S390X) || defined(TARGET_TRICORE)
     return const_float32(0x7FC00000);
+#elif defined(TARGET_HPPA)
+    return const_float32(0x7FA00000);
 #else
     if (status->snan_bit_is_one) {
         return const_float32(0x7FBFFFFF);
@@ -139,6 +141,8 @@ float64 float64_default_nan(float_status *status)
 #elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA) || \
       defined(TARGET_S390X)
     return const_float64(LIT64(0x7FF8000000000000));
+#elif defined(TARGET_HPPA)
+    return const_float64(LIT64(0x7FF4000000000000));
 #else
     if (status->snan_bit_is_one) {
         return const_float64(LIT64(0x7FF7FFFFFFFFFFFF));
@@ -361,7 +365,14 @@ float32 float32_maybe_silence_nan(float32 a_, float_status *status)
 {
     if (float32_is_signaling_nan(a_, status)) {
         if (status->snan_bit_is_one) {
+#ifdef TARGET_HPPA
+            uint32_t a = float32_val(a_);
+            a &= ~0x00400000;
+            a |=  0x00200000;
+            return make_float32(a);
+#else
             return float32_default_nan(status);
+#endif
         } else {
             uint32_t a = float32_val(a_);
             a |= (1 << 22);
@@ -449,7 +460,7 @@ static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
         return 1;
     }
 }
-#elif defined(TARGET_MIPS)
+#elif defined(TARGET_MIPS) || defined(TARGET_HPPA)
 static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
                     flag aIsLargerSignificand)
 {
@@ -794,7 +805,14 @@ float64 float64_maybe_silence_nan(float64 a_, float_status *status)
 {
     if (float64_is_signaling_nan(a_, status)) {
         if (status->snan_bit_is_one) {
+#ifdef TARGET_HPPA
+            uint64_t a = float64_val(a_);
+            a &= ~0x0008000000000000ULL;
+            a |=  0x0004000000000000ULL;
+            return make_float64(a);
+#else
             return float64_default_nan(status);
+#endif
         } else {
             uint64_t a = float64_val(a_);
             a |= LIT64(0x0008000000000000);
