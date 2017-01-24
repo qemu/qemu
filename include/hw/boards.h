@@ -135,7 +135,7 @@ struct MachineClass {
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
     unsigned (*cpu_index_to_socket_id)(unsigned cpu_index);
-    CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
+    const CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
     HotpluggableCPUList *(*query_hotpluggable_cpus)(MachineState *machine);
 };
 
