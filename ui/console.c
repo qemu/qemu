@@ -2116,7 +2116,7 @@ void qemu_console_resize(QemuConsole *s, int width, int height)
 
     assert(s->console_type == GRAPHIC_CONSOLE);
 
-    if (s->surface &&
+    if (s->surface && (s->surface->flags & QEMU_ALLOCATED_FLAG) &&
         pixman_image_get_width(s->surface->image) == width &&
         pixman_image_get_height(s->surface->image) == height) {
         return;
