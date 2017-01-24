@@ -2240,7 +2240,7 @@ static void scsi_disk_resize_cb(void *opaque)
     }
 }
 
-static void scsi_cd_change_media_cb(void *opaque, bool load)
+static void scsi_cd_change_media_cb(void *opaque, bool load, Error **errp)
 {
     SCSIDiskState *s = opaque;
 

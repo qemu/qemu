@@ -891,7 +891,7 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
                                uint64_t *nperm, uint64_t *nshared);
 
 const char *bdrv_get_parent_name(const BlockDriverState *bs);
-void blk_dev_change_media_cb(BlockBackend *blk, bool load);
+void blk_dev_change_media_cb(BlockBackend *blk, bool load, Error **errp);
 bool blk_dev_has_removable_media(BlockBackend *blk);
 bool blk_dev_has_tray(BlockBackend *blk);
 void blk_dev_eject_request(BlockBackend *blk, bool force);

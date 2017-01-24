@@ -2311,7 +2311,7 @@ static int do_open_tray(const char *blk_name, const char *qdev_id,
     }
 
     if (!locked || force) {
-        blk_dev_change_media_cb(blk, false);
+        blk_dev_change_media_cb(blk, false, &error_abort);
     }
 
     if (locked && !force) {
@@ -2349,6 +2349,7 @@ void qmp_blockdev_close_tray(bool has_device, const char *device,
                              Error **errp)
 {
     BlockBackend *blk;
+    Error *local_err = NULL;
 
     device = has_device ? device : NULL;
     id = has_id ? id : NULL;
@@ -2372,7 +2373,11 @@ void qmp_blockdev_close_tray(bool has_device, const char *device,
         return;
     }
 
-    blk_dev_change_media_cb(blk, true);
+    blk_dev_change_media_cb(blk, true, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 }
 
 void qmp_x_blockdev_remove_medium(bool has_device, const char *device,
@@ -2425,7 +2430,7 @@ void qmp_x_blockdev_remove_medium(bool has_device, const char *device,
          * called at all); therefore, the medium needs to be ejected here.
          * Do it after blk_remove_bs() so blk_is_inserted(blk) returns the @load
          * value passed here (i.e. false). */
-        blk_dev_change_media_cb(blk, false);
+        blk_dev_change_media_cb(blk, false, &error_abort);
     }
 
 out:
@@ -2435,6 +2440,7 @@ out:
 static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
                                             BlockDriverState *bs, Error **errp)
 {
+    Error *local_err = NULL;
     bool has_device;
     int ret;
 
@@ -2467,7 +2473,12 @@ static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
          * slot here.
          * Do it after blk_insert_bs() so blk_is_inserted(blk) returns the @load
          * value passed here (i.e. true). */
-        blk_dev_change_media_cb(blk, true);
+        blk_dev_change_media_cb(blk, true, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            blk_remove_bs(blk);
+            return;
+        }
     }
 }
 

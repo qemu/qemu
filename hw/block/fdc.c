@@ -469,7 +469,7 @@ static void fd_revalidate(FDrive *drv)
     }
 }
 
-static void fd_change_cb(void *opaque, bool load)
+static void fd_change_cb(void *opaque, bool load, Error **errp)
 {
     FDrive *drive = opaque;
 

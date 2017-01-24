@@ -677,19 +677,29 @@ void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
 
 /*
  * Notify @blk's attached device model of media change.
- * If @load is true, notify of media load.
- * Else, notify of media eject.
+ *
+ * If @load is true, notify of media load. This action can fail, meaning that
+ * the medium cannot be loaded. @errp is set then.
+ *
+ * If @load is false, notify of media eject. This can never fail.
+ *
  * Also send DEVICE_TRAY_MOVED events as appropriate.
  */
-void blk_dev_change_media_cb(BlockBackend *blk, bool load)
+void blk_dev_change_media_cb(BlockBackend *blk, bool load, Error **errp)
 {
     if (blk->dev_ops && blk->dev_ops->change_media_cb) {
         bool tray_was_open, tray_is_open;
+        Error *local_err = NULL;
 
         assert(!blk->legacy_dev);
 
         tray_was_open = blk_dev_is_tray_open(blk);
-        blk->dev_ops->change_media_cb(blk->dev_opaque, load);
+        blk->dev_ops->change_media_cb(blk->dev_opaque, load, &local_err);
+        if (local_err) {
+            assert(load == true);
+            error_propagate(errp, local_err);
+            return;
+        }
         tray_is_open = blk_dev_is_tray_open(blk);
 
         if (tray_was_open != tray_is_open) {
@@ -703,7 +713,7 @@ void blk_dev_change_media_cb(BlockBackend *blk, bool load)
 
 static void blk_root_change_media(BdrvChild *child, bool load)
 {
-    blk_dev_change_media_cb(child->opaque, load);
+    blk_dev_change_media_cb(child->opaque, load, NULL);
 }
 
 /*
