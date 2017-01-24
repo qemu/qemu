@@ -413,6 +413,12 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
     if (!kvm_enabled()) {
         cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                              &current_flags);
+        /* Account this instruction, because we will exit the tb.
+           This is the first instruction in the block. Therefore
+           there is no need in restoring CPU state. */
+        if (use_icount) {
+            --cs->icount_decr.u16.low;
+        }
     }
 
     pause_all_vcpus();
