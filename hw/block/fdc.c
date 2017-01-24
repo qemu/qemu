@@ -186,6 +186,7 @@ typedef enum FDiskFlags {
 struct FDrive {
     FDCtrl *fdctrl;
     BlockBackend *blk;
+    BlockConf *conf;
     /* Drive status */
     FloppyDriveType drive;    /* CMOS drive type        */
     uint8_t perpendicular;    /* 2.88 MB access mode    */
@@ -472,6 +473,19 @@ static void fd_revalidate(FDrive *drv)
 static void fd_change_cb(void *opaque, bool load, Error **errp)
 {
     FDrive *drive = opaque;
+    Error *local_err = NULL;
+
+    if (!load) {
+        blk_set_perm(drive->blk, 0, BLK_PERM_ALL, &error_abort);
+    } else {
+        blkconf_apply_backend_options(drive->conf,
+                                      blk_is_read_only(drive->blk), false,
+                                      &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
 
     drive->media_changed = 1;
     drive->media_validated = false;
@@ -508,6 +522,7 @@ static int floppy_drive_init(DeviceState *qdev)
     FloppyDrive *dev = FLOPPY_DRIVE(qdev);
     FloppyBus *bus = FLOPPY_BUS(qdev->parent_bus);
     FDrive *drive;
+    Error *local_err = NULL;
     int ret;
 
     if (dev->unit == -1) {
@@ -533,7 +548,6 @@ static int floppy_drive_init(DeviceState *qdev)
 
     if (!dev->conf.blk) {
         /* Anonymous BlockBackend for an empty drive */
-        /* FIXME Use real permissions */
         dev->conf.blk = blk_new(0, BLK_PERM_ALL);
         ret = blk_attach_dev(dev->conf.blk, qdev);
         assert(ret == 0);
@@ -552,7 +566,13 @@ static int floppy_drive_init(DeviceState *qdev)
      * blkconf_apply_backend_options(). */
     dev->conf.rerror = BLOCKDEV_ON_ERROR_AUTO;
     dev->conf.werror = BLOCKDEV_ON_ERROR_AUTO;
-    blkconf_apply_backend_options(&dev->conf);
+
+    blkconf_apply_backend_options(&dev->conf, blk_is_read_only(dev->conf.blk),
+                                  false, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -1;
+    }
 
     /* 'enospc' is the default for -drive, 'report' is what blk_new() gives us
      * for empty drives. */
@@ -566,6 +586,7 @@ static int floppy_drive_init(DeviceState *qdev)
         return -1;
     }
 
+    drive->conf = &dev->conf;
     drive->blk = dev->conf.blk;
     drive->fdctrl = bus->fdc;
 

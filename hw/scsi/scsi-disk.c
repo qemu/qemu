@@ -2328,7 +2328,13 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
             return;
         }
     }
-    blkconf_apply_backend_options(&dev->conf);
+    blkconf_apply_backend_options(&dev->conf,
+                                  blk_is_read_only(s->qdev.conf.blk),
+                                  dev->type == TYPE_DISK, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 
     if (s->qdev.conf.discard_granularity == -1) {
         s->qdev.conf.discard_granularity =
@@ -2380,7 +2386,6 @@ static void scsi_cd_realize(SCSIDevice *dev, Error **errp)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
 
     if (!dev->conf.blk) {
-        /* FIXME Use real permissions */
         dev->conf.blk = blk_new(0, BLK_PERM_ALL);
     }
 

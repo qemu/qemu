@@ -928,7 +928,13 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     }
 
     blkconf_serial(&conf->conf, &conf->serial);
-    blkconf_apply_backend_options(&conf->conf);
+    blkconf_apply_backend_options(&conf->conf,
+                                  blk_is_read_only(conf->conf.blk), true,
+                                  &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     s->original_wce = blk_enable_write_cache(conf->conf.blk);
     blkconf_geometry(&conf->conf, NULL, 65535, 255, 255, &err);
     if (err) {

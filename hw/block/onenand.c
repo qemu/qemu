@@ -778,6 +778,7 @@ static int onenand_initfn(SysBusDevice *sbd)
     OneNANDState *s = ONE_NAND(dev);
     uint32_t size = 1 << (24 + ((s->id.dev >> 4) & 7));
     void *ram;
+    Error *local_err = NULL;
 
     s->base = (hwaddr)-1;
     s->rdy = NULL;
@@ -794,6 +795,12 @@ static int onenand_initfn(SysBusDevice *sbd)
     } else {
         if (blk_is_read_only(s->blk)) {
             error_report("Can't use a read-only drive");
+            return -1;
+        }
+        blk_set_perm(s->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+                     BLK_PERM_ALL, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
             return -1;
         }
         s->blk_cur = s->blk;

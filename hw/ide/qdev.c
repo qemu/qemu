@@ -170,7 +170,6 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
             return -1;
         } else {
             /* Anonymous BlockBackend for an empty drive */
-            /* FIXME Use real permissions */
             dev->conf.blk = blk_new(0, BLK_PERM_ALL);
         }
     }
@@ -197,7 +196,12 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
             return -1;
         }
     }
-    blkconf_apply_backend_options(&dev->conf);
+    blkconf_apply_backend_options(&dev->conf, kind == IDE_CD, kind != IDE_CD,
+                                  &err);
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
 
     if (ide_init_drive(s, dev->conf.blk, kind,
                        dev->version, dev->serial, dev->model, dev->wwn,
