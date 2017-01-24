@@ -5217,28 +5217,6 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, void *data)
 
 /* Non-embedded PowerPC                                                      */
 
-/* POWER : same as 601, without mfmsr, mfsr                                  */
-POWERPC_FAMILY(POWER)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "POWER";
-    /* pcc->insns_flags = XXX_TODO; */
-    /* POWER RSC (from RAD6000) */
-    pcc->msr_mask = (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_FP) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_FE0) |
-                    (1ull << MSR_SE) |
-                    (1ull << MSR_DE) |
-                    (1ull << MSR_AL) |
-                    (1ull << MSR_EP) |
-                    (1ull << MSR_IR) |
-                    (1ull << MSR_DR);
-}
-
 #define POWERPC_MSRR_601     (0x0000000000001040ULL)
 
 static void init_proc_601 (CPUPPCState *env)
