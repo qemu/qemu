@@ -1006,6 +1006,16 @@ static void migrate_fd_cancel(MigrationState *s)
     if (s->state == MIGRATION_STATUS_CANCELLING && f) {
         qemu_file_shutdown(f);
     }
+    if (s->state == MIGRATION_STATUS_CANCELLING && s->block_inactive) {
+        Error *local_err = NULL;
+
+        bdrv_invalidate_cache_all(&local_err);
+        if (local_err) {
+            error_report_err(local_err);
+        } else {
+            s->block_inactive = false;
+        }
+    }
 }
 
 void add_migration_state_change_notifier(Notifier *notify)
@@ -1745,6 +1755,7 @@ static void migration_completion(MigrationState *s, int current_active_state,
             if (ret >= 0) {
                 qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
                 qemu_savevm_state_complete_precopy(s->to_dst_file, false);
+                s->block_inactive = true;
             }
         }
         qemu_mutex_unlock_iothread();
@@ -1795,10 +1806,14 @@ fail_invalidate:
     if (s->state == MIGRATION_STATUS_ACTIVE) {
         Error *local_err = NULL;
 
+        qemu_mutex_lock_iothread();
         bdrv_invalidate_cache_all(&local_err);
         if (local_err) {
             error_report_err(local_err);
+        } else {
+            s->block_inactive = false;
         }
+        qemu_mutex_unlock_iothread();
     }
 
 fail:
