@@ -88,7 +88,7 @@ static void log_writeb(PCIXenPlatformState *s, char val)
 }
 
 /* Xen Platform, Fixed IOPort */
-#define UNPLUG_ALL_IDE_DISKS 1
+#define UNPLUG_ALL_DISKS 1
 #define UNPLUG_ALL_NICS 2
 #define UNPLUG_AUX_IDE_DISKS 4
 
@@ -110,14 +110,21 @@ static void pci_unplug_nics(PCIBus *bus)
 static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
 {
     /* We have to ignore passthrough devices */
-    if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
-            PCI_CLASS_STORAGE_IDE
-            && strcmp(d->name, "xen-pci-passthrough") != 0) {
+    if (!strcmp(d->name, "xen-pci-passthrough")) {
+        return;
+    }
+
+    switch (pci_get_word(d->config + PCI_CLASS_DEVICE)) {
+    case PCI_CLASS_STORAGE_IDE:
         pci_piix3_xen_ide_unplug(DEVICE(d));
-    } else if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
-            PCI_CLASS_STORAGE_SCSI
-            && strcmp(d->name, "xen-pci-passthrough") != 0) {
+        break;
+
+    case PCI_CLASS_STORAGE_SCSI:
         object_unparent(OBJECT(d));
+        break;
+
+    default:
+        break;
     }
 }
 
@@ -134,9 +141,9 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
     case 0: {
         PCIDevice *pci_dev = PCI_DEVICE(s);
         /* Unplug devices.  Value is a bitmask of which devices to
-           unplug, with bit 0 the IDE devices, bit 1 the network
+           unplug, with bit 0 the disk devices, bit 1 the network
            devices, and bit 2 the non-primary-master IDE devices. */
-        if (val & UNPLUG_ALL_IDE_DISKS) {
+        if (val & UNPLUG_ALL_DISKS) {
             DPRINTF("unplug disks\n");
             pci_unplug_disks(pci_dev->bus);
         }
