@@ -1185,21 +1185,25 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->sector_count = s->faked_sectors + s->sectors_per_cluster*s->cluster_count;
 
-    if (s->first_sectors_number == 0x40) {
-        init_mbr(s, cyls, heads, secs);
-    }
-
-    //    assert(is_consistent(s));
-    qemu_co_mutex_init(&s->lock);
-
     /* Disable migration when vvfat is used rw */
     if (s->qcow) {
         error_setg(&s->migration_blocker,
                    "The vvfat (rw) format used by node '%s' "
                    "does not support live migration",
                    bdrv_get_device_or_node_name(bs));
-        migrate_add_blocker(s->migration_blocker);
+        ret = migrate_add_blocker(s->migration_blocker, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_free(s->migration_blocker);
+            goto fail;
+        }
     }
+
+    if (s->first_sectors_number == 0x40) {
+        init_mbr(s, cyls, heads, secs);
+    }
+
+    qemu_co_mutex_init(&s->lock);
 
     ret = 0;
 fail:

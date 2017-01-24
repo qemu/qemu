@@ -17,7 +17,8 @@ static bool vfp_needed(void *opaque)
     return arm_feature(env, ARM_FEATURE_VFP);
 }
 
-static int get_fpscr(QEMUFile *f, void *opaque, size_t size)
+static int get_fpscr(QEMUFile *f, void *opaque, size_t size,
+                     VMStateField *field)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
@@ -27,12 +28,14 @@ static int get_fpscr(QEMUFile *f, void *opaque, size_t size)
     return 0;
 }
 
-static void put_fpscr(QEMUFile *f, void *opaque, size_t size)
+static int put_fpscr(QEMUFile *f, void *opaque, size_t size,
+                     VMStateField *field, QJSON *vmdesc)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
 
     qemu_put_be32(f, vfp_get_fpscr(env));
+    return 0;
 }
 
 static const VMStateInfo vmstate_fpscr = {
@@ -163,7 +166,8 @@ static const VMStateDescription vmstate_pmsav7 = {
     }
 };
 
-static int get_cpsr(QEMUFile *f, void *opaque, size_t size)
+static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
+                    VMStateField *field)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
@@ -180,7 +184,8 @@ static int get_cpsr(QEMUFile *f, void *opaque, size_t size)
     return 0;
 }
 
-static void put_cpsr(QEMUFile *f, void *opaque, size_t size)
+static int put_cpsr(QEMUFile *f, void *opaque, size_t size,
+                    VMStateField *field, QJSON *vmdesc)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
@@ -193,6 +198,7 @@ static void put_cpsr(QEMUFile *f, void *opaque, size_t size)
     }
 
     qemu_put_be32(f, val);
+    return 0;
 }
 
 static const VMStateInfo vmstate_cpsr = {

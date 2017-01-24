@@ -19,7 +19,7 @@ static int cpu_post_load(void *opaque, int version_id)
 
 /* FPU state */
 
-static int get_fpr(QEMUFile *f, void *pv, size_t size)
+static int get_fpr(QEMUFile *f, void *pv, size_t size, VMStateField *field)
 {
     int i;
     fpr_t *v = pv;
@@ -30,7 +30,8 @@ static int get_fpr(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_fpr(QEMUFile *f, void *pv, size_t size)
+static int put_fpr(QEMUFile *f, void *pv, size_t size, VMStateField *field,
+                   QJSON *vmdesc)
 {
     int i;
     fpr_t *v = pv;
@@ -38,6 +39,8 @@ static void put_fpr(QEMUFile *f, void *pv, size_t size)
     for (i = 0; i < MSA_WRLEN/64; i++) {
         qemu_put_sbe64s(f, &v->wr.d[i]);
     }
+
+    return 0;
 }
 
 const VMStateInfo vmstate_info_fpr = {
@@ -124,7 +127,7 @@ const VMStateDescription vmstate_mvp = {
 
 /* TLB state */
 
-static int get_tlb(QEMUFile *f, void *pv, size_t size)
+static int get_tlb(QEMUFile *f, void *pv, size_t size, VMStateField *field)
 {
     r4k_tlb_t *v = pv;
     uint16_t flags;
@@ -151,7 +154,8 @@ static int get_tlb(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_tlb(QEMUFile *f, void *pv, size_t size)
+static int put_tlb(QEMUFile *f, void *pv, size_t size, VMStateField *field,
+                   QJSON *vmdesc)
 {
     r4k_tlb_t *v = pv;
 
@@ -175,6 +179,8 @@ static void put_tlb(QEMUFile *f, void *pv, size_t size)
     qemu_put_be16s(f, &flags);
     qemu_put_be64s(f, &v->PFN[0]);
     qemu_put_be64s(f, &v->PFN[1]);
+
+    return 0;
 }
 
 const VMStateInfo vmstate_info_tlb = {

@@ -81,11 +81,20 @@ void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque);
 
 typedef struct VMStateInfo VMStateInfo;
 typedef struct VMStateDescription VMStateDescription;
+typedef struct VMStateField VMStateField;
 
+/* VMStateInfo allows customized migration of objects that don't fit in
+ * any category in VMStateFlags. Additional information is always passed
+ * into get and put in terms of field and vmdesc parameters. However
+ * these two parameters should only be used in cases when customized
+ * handling is needed, such as QTAILQ. For primitive data types such as
+ * integer, field and vmdesc parameters should be ignored inside get/put.
+ */
 struct VMStateInfo {
     const char *name;
-    int (*get)(QEMUFile *f, void *pv, size_t size);
-    void (*put)(QEMUFile *f, void *pv, size_t size);
+    int (*get)(QEMUFile *f, void *pv, size_t size, VMStateField *field);
+    int (*put)(QEMUFile *f, void *pv, size_t size, VMStateField *field,
+               QJSON *vmdesc);
 };
 
 enum VMStateFlags {
@@ -192,7 +201,7 @@ typedef enum {
     MIG_PRI_MAX,
 } MigrationPriority;
 
-typedef struct {
+struct VMStateField {
     const char *name;
     size_t offset;
     size_t size;
@@ -205,7 +214,7 @@ typedef struct {
     const VMStateDescription *vmsd;
     int version_id;
     bool (*field_exists)(void *opaque, int version_id);
-} VMStateField;
+};
 
 struct VMStateDescription {
     const char *name;
@@ -251,6 +260,7 @@ extern const VMStateInfo vmstate_info_timer;
 extern const VMStateInfo vmstate_info_buffer;
 extern const VMStateInfo vmstate_info_unused_buffer;
 extern const VMStateInfo vmstate_info_bitmap;
+extern const VMStateInfo vmstate_info_qtailq;
 
 #define type_check_2darray(t1,t2,n,m) ((t1(*)[n][m])0 - (t2*)0)
 #define type_check_array(t1,t2,n) ((t1(*)[n])0 - (t2*)0)
@@ -660,6 +670,25 @@ extern const VMStateInfo vmstate_info_bitmap;
     .info         = &vmstate_info_bitmap,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER,                         \
     .offset       = offsetof(_state, _field),                        \
+}
+
+/* For migrating a QTAILQ.
+ * Target QTAILQ needs be properly initialized.
+ * _type: type of QTAILQ element
+ * _next: name of QTAILQ entry field in QTAILQ element
+ * _vmsd: VMSD for QTAILQ element
+ * size: size of QTAILQ element
+ * start: offset of QTAILQ entry in QTAILQ element
+ */
+#define VMSTATE_QTAILQ_V(_field, _state, _version, _vmsd, _type, _next)  \
+{                                                                        \
+    .name         = (stringify(_field)),                                 \
+    .version_id   = (_version),                                          \
+    .vmsd         = &(_vmsd),                                            \
+    .size         = sizeof(_type),                                       \
+    .info         = &vmstate_info_qtailq,                                \
+    .offset       = offsetof(_state, _field),                            \
+    .start        = offsetof(_type, _next),                              \
 }
 
 /* _f : field name

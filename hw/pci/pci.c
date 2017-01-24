@@ -445,7 +445,8 @@ int pci_bus_numa_node(PCIBus *bus)
     return PCI_BUS_GET_CLASS(bus)->numa_node(bus);
 }
 
-static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
+static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
+                                 VMStateField *field)
 {
     PCIDevice *s = container_of(pv, PCIDevice, config);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(s);
@@ -484,11 +485,14 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 }
 
 /* just put buffer */
-static void put_pci_config_device(QEMUFile *f, void *pv, size_t size)
+static int put_pci_config_device(QEMUFile *f, void *pv, size_t size,
+                                 VMStateField *field, QJSON *vmdesc)
 {
     const uint8_t **v = pv;
     assert(size == pci_config_size(container_of(pv, PCIDevice, config)));
     qemu_put_buffer(f, *v, size);
+
+    return 0;
 }
 
 static VMStateInfo vmstate_info_pci_config = {
@@ -497,7 +501,8 @@ static VMStateInfo vmstate_info_pci_config = {
     .put  = put_pci_config_device,
 };
 
-static int get_pci_irq_state(QEMUFile *f, void *pv, size_t size)
+static int get_pci_irq_state(QEMUFile *f, void *pv, size_t size,
+                             VMStateField *field)
 {
     PCIDevice *s = container_of(pv, PCIDevice, irq_state);
     uint32_t irq_state[PCI_NUM_PINS];
@@ -518,7 +523,8 @@ static int get_pci_irq_state(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_pci_irq_state(QEMUFile *f, void *pv, size_t size)
+static int put_pci_irq_state(QEMUFile *f, void *pv, size_t size,
+                             VMStateField *field, QJSON *vmdesc)
 {
     int i;
     PCIDevice *s = container_of(pv, PCIDevice, irq_state);
@@ -526,6 +532,8 @@ static void put_pci_irq_state(QEMUFile *f, void *pv, size_t size)
     for (i = 0; i < PCI_NUM_PINS; ++i) {
         qemu_put_be32(f, pci_irq_state(s, i));
     }
+
+    return 0;
 }
 
 static VMStateInfo vmstate_info_pci_irq_state = {
@@ -534,30 +542,29 @@ static VMStateInfo vmstate_info_pci_irq_state = {
     .put  = put_pci_irq_state,
 };
 
+static bool migrate_is_pcie(void *opaque, int version_id)
+{
+    return pci_is_express((PCIDevice *)opaque);
+}
+
+static bool migrate_is_not_pcie(void *opaque, int version_id)
+{
+    return !pci_is_express((PCIDevice *)opaque);
+}
+
 const VMStateDescription vmstate_pci_device = {
     .name = "PCIDevice",
     .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_INT32_POSITIVE_LE(version_id, PCIDevice),
-        VMSTATE_BUFFER_UNSAFE_INFO(config, PCIDevice, 0,
-                                   vmstate_info_pci_config,
+        VMSTATE_BUFFER_UNSAFE_INFO_TEST(config, PCIDevice,
+                                   migrate_is_not_pcie,
+                                   0, vmstate_info_pci_config,
                                    PCI_CONFIG_SPACE_SIZE),
-        VMSTATE_BUFFER_UNSAFE_INFO(irq_state, PCIDevice, 2,
-				   vmstate_info_pci_irq_state,
-				   PCI_NUM_PINS * sizeof(int32_t)),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-const VMStateDescription vmstate_pcie_device = {
-    .name = "PCIEDevice",
-    .version_id = 2,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_INT32_POSITIVE_LE(version_id, PCIDevice),
-        VMSTATE_BUFFER_UNSAFE_INFO(config, PCIDevice, 0,
-                                   vmstate_info_pci_config,
+        VMSTATE_BUFFER_UNSAFE_INFO_TEST(config, PCIDevice,
+                                   migrate_is_pcie,
+                                   0, vmstate_info_pci_config,
                                    PCIE_CONFIG_SPACE_SIZE),
         VMSTATE_BUFFER_UNSAFE_INFO(irq_state, PCIDevice, 2,
 				   vmstate_info_pci_irq_state,
@@ -566,10 +573,6 @@ const VMStateDescription vmstate_pcie_device = {
     }
 };
 
-static inline const VMStateDescription *pci_get_vmstate(PCIDevice *s)
-{
-    return pci_is_express(s) ? &vmstate_pcie_device : &vmstate_pci_device;
-}
 
 void pci_device_save(PCIDevice *s, QEMUFile *f)
 {
@@ -578,7 +581,7 @@ void pci_device_save(PCIDevice *s, QEMUFile *f)
      * This makes us compatible with old devices
      * which never set or clear this bit. */
     s->config[PCI_STATUS] &= ~PCI_STATUS_INTERRUPT;
-    vmstate_save_state(f, pci_get_vmstate(s), s, NULL);
+    vmstate_save_state(f, &vmstate_pci_device, s, NULL);
     /* Restore the interrupt status bit. */
     pci_update_irq_status(s);
 }
@@ -586,7 +589,7 @@ void pci_device_save(PCIDevice *s, QEMUFile *f)
 int pci_device_load(PCIDevice *s, QEMUFile *f)
 {
     int ret;
-    ret = vmstate_load_state(f, pci_get_vmstate(s), s, s->version_id);
+    ret = vmstate_load_state(f, &vmstate_pci_device, s, s->version_id);
     /* Restore the interrupt status bit. */
     pci_update_irq_status(s);
     return ret;

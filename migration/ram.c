@@ -45,14 +45,6 @@
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 
-#ifdef DEBUG_MIGRATION_RAM
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stdout, "migration_ram: " fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
-
 static int dirty_rate_high_cnt;
 
 static uint64_t bitmap_sync_count;
@@ -507,10 +499,10 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
                                        TARGET_PAGE_SIZE, XBZRLE.encoded_buf,
                                        TARGET_PAGE_SIZE);
     if (encoded_len == 0) {
-        DPRINTF("Skipping unmodified page\n");
+        trace_save_xbzrle_page_skipping();
         return 0;
     } else if (encoded_len == -1) {
-        DPRINTF("Overflow\n");
+        trace_save_xbzrle_page_overflow();
         acct_info.xbzrle_overflows++;
         /* update data in the cache */
         if (!last_stage) {
@@ -2020,8 +2012,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         if ((i & 63) == 0) {
             uint64_t t1 = (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - t0) / 1000000;
             if (t1 > MAX_WAIT) {
-                DPRINTF("big wait: %" PRIu64 " milliseconds, %d iterations\n",
-                        t1, i);
+                trace_ram_save_iterate_big_wait(t1, i);
                 break;
             }
         }
@@ -2594,8 +2585,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
     wait_for_decompress_done();
     rcu_read_unlock();
-    DPRINTF("Completed load of VM with exit code %d seq iteration "
-            "%" PRIu64 "\n", ret, seq_iter);
+    trace_ram_load_complete(ret, seq_iter);
     return ret;
 }
 

@@ -108,7 +108,8 @@ static bool virtio_pci_has_extra_state(DeviceState *d)
     return proxy->flags & VIRTIO_PCI_FLAG_MIGRATE_EXTRA;
 }
 
-static int get_virtio_pci_modern_state(QEMUFile *f, void *pv, size_t size)
+static int get_virtio_pci_modern_state(QEMUFile *f, void *pv, size_t size,
+                                       VMStateField *field)
 {
     VirtIOPCIProxy *proxy = pv;
     int i;
@@ -137,7 +138,8 @@ static void virtio_pci_save_modern_queue_state(VirtIOPCIQueue *vq,
     qemu_put_be32(f, vq->used[1]);
 }
 
-static void put_virtio_pci_modern_state(QEMUFile *f, void *pv, size_t size)
+static int put_virtio_pci_modern_state(QEMUFile *f, void *pv, size_t size,
+                                       VMStateField *field, QJSON *vmdesc)
 {
     VirtIOPCIProxy *proxy = pv;
     int i;
@@ -149,6 +151,8 @@ static void put_virtio_pci_modern_state(QEMUFile *f, void *pv, size_t size)
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         virtio_pci_save_modern_queue_state(&proxy->vqs[i], f);
     }
+
+    return 0;
 }
 
 static const VMStateInfo vmstate_info_virtio_pci_modern_state = {
