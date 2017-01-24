@@ -1144,6 +1144,7 @@ static void dec_sys(DisasContext *dc, uint32_t insn)
 
     case 0x200:    /* l.msync */
         LOG_DIS("l.msync\n");
+        tcg_gen_mb(TCG_MO_ALL);
         break;
 
     case 0x270:    /* l.psync */
