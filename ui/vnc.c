@@ -2724,8 +2724,10 @@ static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y)
 
 static int vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
 {
-    int width = pixman_image_get_width(vd->guest.fb);
-    int height = pixman_image_get_height(vd->guest.fb);
+    int width = MIN(pixman_image_get_width(vd->guest.fb),
+                    pixman_image_get_width(vd->server));
+    int height = MIN(pixman_image_get_height(vd->guest.fb),
+                     pixman_image_get_height(vd->server));
     int x, y;
     struct timeval res;
     int has_dirty = 0;
