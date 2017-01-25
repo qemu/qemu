@@ -20,6 +20,7 @@ $(obj)/generated-ust-provider.h: $(obj)/generated-ust-provider.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 $(obj)/generated-ust-provider.h-timestamp: $(BUILD_DIR)/trace-events-all $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=ust-events-h \
 		--backends=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
@@ -28,6 +29,7 @@ $(obj)/generated-ust.c: $(obj)/generated-ust.c-timestamp $(BUILD_DIR)/config-hos
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 $(obj)/generated-ust.c-timestamp: $(BUILD_DIR)/trace-events-all $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=ust-events-c \
 		--backends=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
@@ -48,6 +50,7 @@ $(obj)/generated-tracers.h: $(obj)/generated-tracers.h-timestamp
 	@cmp -s $< $@ || cp $< $@
 $(obj)/generated-tracers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=h \
 		--backends=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
@@ -59,6 +62,7 @@ $(obj)/generated-tracers.c: $(obj)/generated-tracers.c-timestamp
 	@cmp -s $< $@ || cp $< $@
 $(obj)/generated-tracers.c-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=c \
 		--backends=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
@@ -77,6 +81,7 @@ $(obj)/generated-tracers-dtrace.dtrace: $(obj)/generated-tracers-dtrace.dtrace-t
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 $(obj)/generated-tracers-dtrace.dtrace-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=d \
 		--backends=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
@@ -96,6 +101,7 @@ $(obj)/generated-helpers-wrappers.h: $(obj)/generated-helpers-wrappers.h-timesta
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 $(obj)/generated-helpers-wrappers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=tcg-helper-wrapper-h \
 		--backend=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
@@ -104,6 +110,7 @@ $(obj)/generated-helpers.h: $(obj)/generated-helpers.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 $(obj)/generated-helpers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=tcg-helper-h \
 		--backend=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
@@ -112,6 +119,7 @@ $(obj)/generated-helpers.c: $(obj)/generated-helpers.c-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 $(obj)/generated-helpers.c-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=tcg-helper-c \
 		--backend=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
@@ -125,6 +133,7 @@ $(obj)/generated-tcg-tracers.h: $(obj)/generated-tcg-tracers.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 $(obj)/generated-tcg-tracers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=tcg-h \
 		--backend=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")

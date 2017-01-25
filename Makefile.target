@@ -50,6 +50,7 @@ endif
 
 $(QEMU_PROG).stp-installed: $(BUILD_DIR)/trace-events-all
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=stap \
 		--backends=$(TRACE_BACKENDS) \
 		--binary=$(bindir)/$(QEMU_PROG) \
@@ -59,6 +60,7 @@ $(QEMU_PROG).stp-installed: $(BUILD_DIR)/trace-events-all
 
 $(QEMU_PROG).stp: $(BUILD_DIR)/trace-events-all
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=stap \
 		--backends=$(TRACE_BACKENDS) \
 		--binary=$(realpath .)/$(QEMU_PROG) \
@@ -68,6 +70,7 @@ $(QEMU_PROG).stp: $(BUILD_DIR)/trace-events-all
 
 $(QEMU_PROG)-simpletrace.stp: $(BUILD_DIR)/trace-events-all
 	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
 		--format=simpletrace-stap \
 		--backends=$(TRACE_BACKENDS) \
 		--probe-prefix=qemu.$(TARGET_TYPE).$(TARGET_NAME) \
