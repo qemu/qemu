@@ -73,10 +73,14 @@ def read_record(edict, idtoname, fobj):
 def read_trace_header(fobj):
     """Read and verify trace file header"""
     header = read_header(fobj, log_header_fmt)
-    if header is None or \
-       header[0] != header_event_id or \
-       header[1] != header_magic:
+    if header is None:
         raise ValueError('Not a valid trace file!')
+    if header[0] != header_event_id:
+        raise ValueError('Not a valid trace file, header id %d != %d' %
+                         (header[0], header_event_id))
+    if header[1] != header_magic:
+        raise ValueError('Not a valid trace file, header magic %d != %d' %
+                         (header[1], header_magic))
 
     log_version = header[2]
     if log_version not in [0, 2, 3, 4]:
