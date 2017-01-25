@@ -105,6 +105,9 @@ void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
     CPUState *cs = CPU(xtensa_env_get_cpu(env));
 
     cs->exception_index = excp;
+    if (excp == EXCP_YIELD) {
+        env->yield_needed = 0;
+    }
     if (excp == EXCP_DEBUG) {
         env->exception_taken = 0;
     }
@@ -385,22 +388,40 @@ void HELPER(waiti)(CPUXtensaState *env, uint32_t pc, uint32_t intlevel)
     }
 
     cpu = CPU(xtensa_env_get_cpu(env));
-    env->halt_clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     cpu->halted = 1;
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT)) {
-        xtensa_rearm_ccompare_timer(env);
-    }
     HELPER(exception)(env, EXCP_HLT);
 }
 
-void HELPER(timer_irq)(CPUXtensaState *env, uint32_t id, uint32_t active)
+void HELPER(update_ccount)(CPUXtensaState *env)
 {
-    xtensa_timer_irq(env, id, active);
+    uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    env->ccount_time = now;
+    env->sregs[CCOUNT] = env->ccount_base +
+        (uint32_t)((now - env->time_base) *
+                   env->config->clock_freq_khz / 1000000);
 }
 
-void HELPER(advance_ccount)(CPUXtensaState *env, uint32_t d)
+void HELPER(wsr_ccount)(CPUXtensaState *env, uint32_t v)
 {
-    xtensa_advance_ccount(env, d);
+    int i;
+
+    HELPER(update_ccount)(env);
+    env->ccount_base += v - env->sregs[CCOUNT];
+    for (i = 0; i < env->config->nccompare; ++i) {
+        HELPER(update_ccompare)(env, i);
+    }
+}
+
+void HELPER(update_ccompare)(CPUXtensaState *env, uint32_t i)
+{
+    uint64_t dcc;
+
+    HELPER(update_ccount)(env);
+    dcc = (uint64_t)(env->sregs[CCOMPARE + i] - env->sregs[CCOUNT] - 1) + 1;
+    timer_mod(env->ccompare[i].timer,
+              env->ccount_time + (dcc * 1000000) / env->config->clock_freq_khz);
+    env->yield_needed = 1;
 }
 
 void HELPER(check_interrupts)(CPUXtensaState *env)
@@ -470,6 +491,30 @@ void HELPER(check_atomctl)(CPUXtensaState *env, uint32_t pc, uint32_t vaddr)
     default:
         break;
     }
+}
+
+void HELPER(wsr_memctl)(CPUXtensaState *env, uint32_t v)
+{
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_ICACHE)) {
+        if (extract32(v, MEMCTL_IUSEWAYS_SHIFT, MEMCTL_IUSEWAYS_LEN) >
+            env->config->icache_ways) {
+            deposit32(v, MEMCTL_IUSEWAYS_SHIFT, MEMCTL_IUSEWAYS_LEN,
+                      env->config->icache_ways);
+        }
+    }
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_DCACHE)) {
+        if (extract32(v, MEMCTL_DUSEWAYS_SHIFT, MEMCTL_DUSEWAYS_LEN) >
+            env->config->dcache_ways) {
+            deposit32(v, MEMCTL_DUSEWAYS_SHIFT, MEMCTL_DUSEWAYS_LEN,
+                      env->config->dcache_ways);
+        }
+        if (extract32(v, MEMCTL_DALLOCWAYS_SHIFT, MEMCTL_DALLOCWAYS_LEN) >
+            env->config->dcache_ways) {
+            deposit32(v, MEMCTL_DALLOCWAYS_SHIFT, MEMCTL_DALLOCWAYS_LEN,
+                      env->config->dcache_ways);
+        }
+    }
+    env->sregs[MEMCTL] = v & env->config->memctl_mask;
 }
 
 void HELPER(wsr_rasid)(CPUXtensaState *env, uint32_t v)
@@ -968,4 +1013,16 @@ void HELPER(ule_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
 {
     int v = float32_compare_quiet(a, b, &env->fp_status);
     set_br(env, v != float_relation_greater, br);
+}
+
+uint32_t HELPER(rer)(CPUXtensaState *env, uint32_t addr)
+{
+    return address_space_ldl(env->address_space_er, addr,
+                             (MemTxAttrs){0}, NULL);
+}
+
+void HELPER(wer)(CPUXtensaState *env, uint32_t data, uint32_t addr)
+{
+    address_space_stl(env->address_space_er, addr, data,
+                      (MemTxAttrs){0}, NULL);
 }

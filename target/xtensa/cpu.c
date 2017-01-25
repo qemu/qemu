@@ -47,7 +47,7 @@ static bool xtensa_cpu_has_work(CPUState *cs)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
 
-    return cpu->env.pending_irq_level;
+    return !cpu->env.runstall && cpu->env.pending_irq_level;
 }
 
 /* CPUClass::reset() */
@@ -60,12 +60,13 @@ static void xtensa_cpu_reset(CPUState *s)
     xcc->parent_reset(s);
 
     env->exception_taken = 0;
-    env->pc = env->config->exception_vector[EXC_RESET];
+    env->pc = env->config->exception_vector[EXC_RESET0 + env->static_vectors];
     env->sregs[LITBASE] &= ~1;
     env->sregs[PS] = xtensa_option_enabled(env->config,
             XTENSA_OPTION_INTERRUPT) ? 0x1f : 0x10;
     env->sregs[VECBASE] = env->config->vecbase;
     env->sregs[IBREAKENABLE] = 0;
+    env->sregs[MEMCTL] = MEMCTL_IL0EN & env->config->memctl_mask;
     env->sregs[CACHEATTR] = 0x22222222;
     env->sregs[ATOMCTL] = xtensa_option_enabled(env->config,
             XTENSA_OPTION_ATOMCTL) ? 0x28 : 0x15;
@@ -74,6 +75,7 @@ static void xtensa_cpu_reset(CPUState *s)
 
     env->pending_irq_level = 0;
     reset_mmu(env);
+    s->halted = env->runstall;
 }
 
 static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
@@ -124,6 +126,12 @@ static void xtensa_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     env->config = xcc->config;
+
+    env->address_space_er = g_malloc(sizeof(*env->address_space_er));
+    env->system_er = g_malloc(sizeof(*env->system_er));
+    memory_region_init_io(env->system_er, NULL, NULL, env, "er",
+                          UINT64_C(0x100000000));
+    address_space_init(env->address_space_er, env->system_er, "ER");
 
     if (tcg_enabled() && !tcg_inited) {
         tcg_inited = true;

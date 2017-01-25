@@ -728,3 +728,16 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUXtensaState *env)
         cpu_fprintf(f, "No TLB for this CPU core\n");
     }
 }
+
+void xtensa_runstall(CPUXtensaState *env, bool runstall)
+{
+    CPUState *cpu = CPU(xtensa_env_get_cpu(env));
+
+    env->runstall = runstall;
+    cpu->halted = runstall;
+    if (runstall) {
+        cpu_interrupt(cpu, CPU_INTERRUPT_HALT);
+    } else {
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_HALT);
+    }
+}

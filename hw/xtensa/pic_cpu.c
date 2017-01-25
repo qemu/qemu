@@ -31,22 +31,6 @@
 #include "qemu/log.h"
 #include "qemu/timer.h"
 
-void xtensa_advance_ccount(CPUXtensaState *env, uint32_t d)
-{
-    uint32_t old_ccount = env->sregs[CCOUNT] + 1;
-
-    env->sregs[CCOUNT] += d;
-
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT)) {
-        int i;
-        for (i = 0; i < env->config->nccompare; ++i) {
-            if (env->sregs[CCOMPARE + i] - old_ccount < d) {
-                xtensa_timer_irq(env, i, 1);
-            }
-        }
-    }
-}
-
 void check_interrupts(CPUXtensaState *env)
 {
     CPUState *cs = CPU(xtensa_env_get_cpu(env));
@@ -54,17 +38,6 @@ void check_interrupts(CPUXtensaState *env)
     uint32_t int_set_enabled = env->sregs[INTSET] & env->sregs[INTENABLE];
     int level;
 
-    /* If the CPU is halted advance CCOUNT according to the QEMU_CLOCK_VIRTUAL time
-     * elapsed since the moment when it was advanced last time.
-     */
-    if (cs->halted) {
-        int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-
-        xtensa_advance_ccount(env,
-                muldiv64(now - env->halt_clock,
-                    env->config->clock_freq_khz, 1000000));
-        env->halt_clock = now;
-    }
     for (level = env->config->nlevel; level > minlevel; --level) {
         if (env->config->level_mask[level] & int_set_enabled) {
             env->pending_irq_level = level;
@@ -109,49 +82,29 @@ void xtensa_timer_irq(CPUXtensaState *env, uint32_t id, uint32_t active)
     qemu_set_irq(env->irq_inputs[env->config->timerint[id]], active);
 }
 
-void xtensa_rearm_ccompare_timer(CPUXtensaState *env)
-{
-    int i;
-    uint32_t wake_ccount = env->sregs[CCOUNT] - 1;
-
-    for (i = 0; i < env->config->nccompare; ++i) {
-        if (env->sregs[CCOMPARE + i] - env->sregs[CCOUNT] <
-                wake_ccount - env->sregs[CCOUNT]) {
-            wake_ccount = env->sregs[CCOMPARE + i];
-        }
-    }
-    env->wake_ccount = wake_ccount;
-    timer_mod(env->ccompare_timer, env->halt_clock +
-            (uint64_t)(wake_ccount - env->sregs[CCOUNT]) *
-            1000000 / env->config->clock_freq_khz);
-}
-
 static void xtensa_ccompare_cb(void *opaque)
 {
-    XtensaCPU *cpu = opaque;
-    CPUXtensaState *env = &cpu->env;
-    CPUState *cs = CPU(cpu);
+    XtensaCcompareTimer *ccompare = opaque;
+    CPUXtensaState *env = ccompare->env;
+    unsigned i = ccompare - env->ccompare;
 
-    if (cs->halted) {
-        env->halt_clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        xtensa_advance_ccount(env, env->wake_ccount - env->sregs[CCOUNT]);
-        if (!cpu_has_work(cs)) {
-            env->sregs[CCOUNT] = env->wake_ccount + 1;
-            xtensa_rearm_ccompare_timer(env);
-        }
-    }
+    xtensa_timer_irq(env, i, 1);
 }
 
 void xtensa_irq_init(CPUXtensaState *env)
 {
-    XtensaCPU *cpu = xtensa_env_get_cpu(env);
-
     env->irq_inputs = (void **)qemu_allocate_irqs(
             xtensa_set_irq, env, env->config->ninterrupt);
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT) &&
-            env->config->nccompare > 0) {
-        env->ccompare_timer =
-            timer_new_ns(QEMU_CLOCK_VIRTUAL, &xtensa_ccompare_cb, cpu);
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT)) {
+        unsigned i;
+
+        env->time_base = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        env->ccount_base = env->sregs[CCOUNT];
+        for (i = 0; i < env->config->nccompare; ++i) {
+            env->ccompare[i].env = env;
+            env->ccompare[i].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                    xtensa_ccompare_cb, env->ccompare + i);
+        }
     }
 }
 

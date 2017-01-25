@@ -1,12 +1,56 @@
 #include "macros.inc"
 
+#define CCOUNT_SHIFT 4
+#define WAIT_LOOPS 20
+
+.macro      make_ccount_delta target, delta
+    rsr     \delta, ccount
+    rsr     \target, ccount
+    sub     \delta, \target, \delta
+    slli    \delta, \delta, CCOUNT_SHIFT
+    add     \target, \target, \delta
+.endm
+
 test_suite timer
 
 test ccount
     rsr     a3, ccount
     rsr     a4, ccount
-    sub     a3, a4, a3
-    assert  eqi, a3, 1
+    assert  ne, a3, a4
+test_end
+
+test ccount_write
+    rsr     a3, ccount
+    rsr     a4, ccount
+    sub     a4, a4, a3
+    movi    a2, 0x12345678
+    wsr     a2, ccount
+    esync
+    rsr     a3, ccount
+    sub     a3, a3, a2
+    slli    a4, a4, 2
+    assert  ltu, a3, a4
+test_end
+
+test ccount_update_deadline
+    movi    a2, 0
+    wsr     a2, intenable
+    rsr     a2, interrupt
+    wsr     a2, intclear
+    movi    a2, 0
+    wsr     a2, ccompare1
+    wsr     a2, ccompare2
+    movi    a2, 0x12345678
+    wsr     a2, ccompare0
+    rsr     a3, interrupt
+    assert  eqi, a3, 0
+    movi    a2, 0x12345677
+    wsr     a2, ccount
+    esync
+    nop
+    rsr     a2, interrupt
+    movi    a3, 1 << XCHAL_TIMER0_INTERRUPT
+    assert  eq, a2, a3
 test_end
 
 test ccompare
@@ -18,18 +62,18 @@ test ccompare
     wsr     a2, ccompare1
     wsr     a2, ccompare2
 
-    movi    a3, 20
-    rsr     a2, ccount
-    addi    a2, a2, 20
+    make_ccount_delta a2, a15
     wsr     a2, ccompare0
-    rsr     a2, interrupt
-    assert  eqi, a2, 0
-    loop    a3, 1f
-    rsr     a3, interrupt
-    bnez    a3, 2f
 1:
-    test_fail
+    rsr     a3, interrupt
+    rsr     a4, ccount
+    rsr     a5, interrupt
+    sub     a4, a4, a2
+    bgez    a4, 2f
+    assert  eqi, a3, 0
+    j       1b
 2:
+    assert  nei, a5, 0
 test_end
 
 test ccompare0_interrupt
@@ -42,15 +86,14 @@ test ccompare0_interrupt
     wsr     a2, ccompare1
     wsr     a2, ccompare2
 
-    movi    a3, 20
-    rsr     a2, ccount
-    addi    a2, a2, 20
+    movi    a3, WAIT_LOOPS
+    make_ccount_delta a2, a15
     wsr     a2, ccompare0
     rsync
     rsr     a2, interrupt
     assert  eqi, a2, 0
 
-    movi    a2, 0x40
+    movi    a2, 1 << XCHAL_TIMER0_INTERRUPT
     wsr     a2, intenable
     rsil    a2, 0
     loop    a3, 1f
@@ -72,14 +115,13 @@ test ccompare1_interrupt
     wsr     a2, ccompare0
     wsr     a2, ccompare2
 
-    movi    a3, 20
-    rsr     a2, ccount
-    addi    a2, a2, 20
+    movi    a3, WAIT_LOOPS
+    make_ccount_delta a2, a15
     wsr     a2, ccompare1
     rsync
     rsr     a2, interrupt
     assert  eqi, a2, 0
-    movi    a2, 0x400
+    movi    a2, 1 << XCHAL_TIMER1_INTERRUPT
     wsr     a2, intenable
     rsil    a2, 2
     loop    a3, 1f
@@ -99,14 +141,13 @@ test ccompare2_interrupt
     wsr     a2, ccompare0
     wsr     a2, ccompare1
 
-    movi    a3, 20
-    rsr     a2, ccount
-    addi    a2, a2, 20
+    movi    a3, WAIT_LOOPS
+    make_ccount_delta a2, a15
     wsr     a2, ccompare2
     rsync
     rsr     a2, interrupt
     assert  eqi, a2, 0
-    movi    a2, 0x2000
+    movi    a2, 1 << XCHAL_TIMER2_INTERRUPT
     wsr     a2, intenable
     rsil    a2, 4
     loop    a3, 1f
@@ -125,17 +166,16 @@ test ccompare_interrupt_masked
     movi    a2, 0
     wsr     a2, ccompare2
 
-    movi    a3, 40
-    rsr     a2, ccount
-    addi    a2, a2, 20
+    movi    a3, 2 * WAIT_LOOPS
+    make_ccount_delta a2, a15
     wsr     a2, ccompare1
-    addi    a2, a2, 20
+    add     a2, a2, a15
     wsr     a2, ccompare0
     rsync
     rsr     a2, interrupt
     assert  eqi, a2, 0
 
-    movi    a2, 0x40
+    movi    a2, 1 << XCHAL_TIMER0_INTERRUPT
     wsr     a2, intenable
     rsil    a2, 0
     loop    a3, 1f
@@ -156,17 +196,16 @@ test ccompare_interrupt_masked_waiti
     movi    a2, 0
     wsr     a2, ccompare2
 
-    movi    a3, 40
-    rsr     a2, ccount
-    addi    a2, a2, 20
+    movi    a3, 2 * WAIT_LOOPS
+    make_ccount_delta a2, a15
     wsr     a2, ccompare1
-    addi    a2, a2, 20
+    add     a2, a2, a15
     wsr     a2, ccompare0
     rsync
     rsr     a2, interrupt
     assert  eqi, a2, 0
 
-    movi    a2, 0x40
+    movi    a2, 1 << XCHAL_TIMER0_INTERRUPT
     wsr     a2, intenable
     waiti   0
     test_fail

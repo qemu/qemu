@@ -103,6 +103,7 @@ enum {
     XTENSA_OPTION_PROCESSOR_ID,
     XTENSA_OPTION_DEBUG,
     XTENSA_OPTION_TRACE_PORT,
+    XTENSA_OPTION_EXTERN_REGS,
 };
 
 enum {
@@ -129,6 +130,7 @@ enum {
     ITLBCFG = 91,
     DTLBCFG = 92,
     IBREAKENABLE = 96,
+    MEMCTL = 97,
     CACHEATTR = 98,
     ATOMCTL = 99,
     IBREAKA = 128,
@@ -189,6 +191,20 @@ enum {
 #define DBREAKC_SB_LB (DBREAKC_SB | DBREAKC_LB)
 #define DBREAKC_MASK 0x3f
 
+#define MEMCTL_INIT 0x00800000
+#define MEMCTL_IUSEWAYS_SHIFT 18
+#define MEMCTL_IUSEWAYS_LEN 5
+#define MEMCTL_IUSEWAYS_MASK 0x007c0000
+#define MEMCTL_DALLOCWAYS_SHIFT 13
+#define MEMCTL_DALLOCWAYS_LEN 5
+#define MEMCTL_DALLOCWAYS_MASK 0x0003e000
+#define MEMCTL_DUSEWAYS_SHIFT 8
+#define MEMCTL_DUSEWAYS_LEN 5
+#define MEMCTL_DUSEWAYS_MASK 0x00001f00
+#define MEMCTL_ISNP 0x4
+#define MEMCTL_DSNP 0x2
+#define MEMCTL_IL0EN 0x1
+
 #define MAX_NAREG 64
 #define MAX_NINTERRUPT 32
 #define MAX_NLEVEL 6
@@ -209,7 +225,8 @@ enum {
 
 enum {
     /* Static vectors */
-    EXC_RESET,
+    EXC_RESET0,
+    EXC_RESET1,
     EXC_MEMORY_ERROR,
 
     /* Dynamic vectors */
@@ -268,6 +285,8 @@ typedef enum {
     INTTYPE_MAX
 } interrupt_type;
 
+struct CPUXtensaState;
+
 typedef struct xtensa_tlb_entry {
     uint32_t vaddr;
     uint32_t paddr;
@@ -297,6 +316,11 @@ typedef struct XtensaGdbRegmap {
     XtensaGdbReg reg[1 + 16 + 64 + 256 + 256];
 } XtensaGdbRegmap;
 
+typedef struct XtensaCcompareTimer {
+    struct CPUXtensaState *env;
+    QEMUTimer *timer;
+} XtensaCcompareTimer;
+
 struct XtensaConfig {
     const char *name;
     uint64_t options;
@@ -323,6 +347,10 @@ struct XtensaConfig {
     unsigned debug_level;
     unsigned nibreak;
     unsigned ndbreak;
+
+    unsigned icache_ways;
+    unsigned dcache_ways;
+    uint32_t memctl_mask;
 
     uint32_t configid[2];
 
@@ -365,14 +393,19 @@ typedef struct CPUXtensaState {
     xtensa_tlb_entry itlb[7][MAX_TLB_WAY_SIZE];
     xtensa_tlb_entry dtlb[10][MAX_TLB_WAY_SIZE];
     unsigned autorefill_idx;
-
+    bool runstall;
+    AddressSpace *address_space_er;
+    MemoryRegion *system_er;
     int pending_irq_level; /* level of last raised IRQ */
     void **irq_inputs;
-    QEMUTimer *ccompare_timer;
-    uint32_t wake_ccount;
-    int64_t halt_clock;
+    XtensaCcompareTimer ccompare[MAX_NCCOMPARE];
+    uint64_t time_base;
+    uint64_t ccount_time;
+    uint32_t ccount_base;
 
     int exception_taken;
+    int yield_needed;
+    unsigned static_vectors;
 
     /* Watchpoints for DBREAK registers */
     struct CPUWatchpoint *cpu_watchpoint[MAX_NDBREAK];
@@ -437,9 +470,7 @@ void xtensa_register_core(XtensaConfigList *node);
 void check_interrupts(CPUXtensaState *s);
 void xtensa_irq_init(CPUXtensaState *env);
 void *xtensa_get_extint(CPUXtensaState *env, unsigned extint);
-void xtensa_advance_ccount(CPUXtensaState *env, uint32_t d);
 void xtensa_timer_irq(CPUXtensaState *env, uint32_t id, uint32_t active);
-void xtensa_rearm_ccompare_timer(CPUXtensaState *env);
 int cpu_xtensa_signal_handler(int host_signum, void *pinfo, void *puc);
 void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void xtensa_sync_window_from_phys(CPUXtensaState *env);
@@ -460,7 +491,18 @@ int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
 void reset_mmu(CPUXtensaState *env);
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUXtensaState *env);
 void debug_exception_env(CPUXtensaState *new_env, uint32_t cause);
+static inline MemoryRegion *xtensa_get_er_region(CPUXtensaState *env)
+{
+    return env->system_er;
+}
 
+static inline void xtensa_select_static_vectors(CPUXtensaState *env,
+                                                unsigned n)
+{
+    assert(n < 2);
+    env->static_vectors = n;
+}
+void xtensa_runstall(CPUXtensaState *env, bool runstall);
 
 #define XTENSA_OPTION_BIT(opt) (((uint64_t)1) << (opt))
 #define XTENSA_OPTION_ALL (~(uint64_t)0)
@@ -539,6 +581,7 @@ static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 #define XTENSA_TBFLAG_EXCEPTION 0x4000
 #define XTENSA_TBFLAG_WINDOW_MASK 0x18000
 #define XTENSA_TBFLAG_WINDOW_SHIFT 15
+#define XTENSA_TBFLAG_YIELD 0x20000
 
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, uint32_t *flags)
@@ -579,6 +622,9 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         *flags |= w << XTENSA_TBFLAG_WINDOW_SHIFT;
     } else {
         *flags |= 3 << XTENSA_TBFLAG_WINDOW_SHIFT;
+    }
+    if (env->yield_needed) {
+        *flags |= XTENSA_TBFLAG_YIELD;
     }
 }
 
