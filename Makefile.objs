@@ -125,6 +125,7 @@ trace-events-y += io/trace-events
 trace-events-y += migration/trace-events
 trace-events-y += block/trace-events
 trace-events-y += hw/block/trace-events
+trace-events-y += hw/block/dataplane/trace-events
 trace-events-y += hw/char/trace-events
 trace-events-y += hw/intc/trace-events
 trace-events-y += hw/net/trace-events
