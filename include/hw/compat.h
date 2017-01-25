@@ -14,6 +14,10 @@
         .driver   = "pflash_cfi01",\
         .property = "old-multiple-chip-handling",\
         .value    = "on",\
+    },{\
+        .driver   = "pci-bridge",\
+        .property = "shpc",\
+        .value    = "on",\
     },
 
 #define HW_COMPAT_2_7 \
