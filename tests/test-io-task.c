@@ -127,7 +127,7 @@ static void test_task_failure(void)
     g_assert(data.source == obj);
     g_assert(data.err == err);
     g_assert(data.freed == false);
-
+    error_free(data.err);
 }
 
 
@@ -237,6 +237,8 @@ static void test_task_thread_failure(void)
 
     g_assert(data.source == obj);
     g_assert(data.err != NULL);
+
+    error_free(data.err);
 
     self = g_thread_self();
 
