@@ -22,7 +22,7 @@
 #include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "sysemu/xen-mapcache.h"
-#include "trace.h"
+#include "trace-root.h"
 #include "exec/address-spaces.h"
 
 #include <xen/hvm/ioreq.h>

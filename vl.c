@@ -110,7 +110,7 @@ int main(int argc, char **argv)
 
 #include "slirp/libslirp.h"
 
-#include "trace.h"
+#include "trace-root.h"
 #include "trace/control.h"
 #include "qemu/queue.h"
 #include "sysemu/arch_init.h"

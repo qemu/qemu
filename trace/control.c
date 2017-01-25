@@ -26,7 +26,7 @@
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
 #include "monitor/monitor.h"
-#include "trace.h"
+#include "trace-root.h"
 
 int trace_events_enabled_count;
 

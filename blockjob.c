@@ -25,7 +25,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "trace.h"
 #include "block/block.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"

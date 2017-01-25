@@ -25,7 +25,7 @@
  */
 
 #if !defined(SOFTMMU_CODE_ACCESS)
-#include "trace.h"
+#include "trace-root.h"
 #endif
 
 #include "trace/mem.h"

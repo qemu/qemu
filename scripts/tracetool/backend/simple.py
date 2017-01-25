@@ -44,7 +44,6 @@ def generate_h(event, group):
 
 def generate_c_begin(events, group):
     out('#include "qemu/osdep.h"',
-        '#include "trace.h"',
         '#include "trace/control.h"',
         '#include "trace/simple.h"',
         '')

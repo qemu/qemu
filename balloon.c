@@ -29,7 +29,7 @@
 #include "exec/cpu-common.h"
 #include "sysemu/kvm.h"
 #include "sysemu/balloon.h"
-#include "trace.h"
+#include "trace-root.h"
 #include "qmp-commands.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"

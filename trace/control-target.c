@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "trace.h"
+#include "trace-root.h"
 #include "trace/control.h"
 #include "translate-all.h"
 

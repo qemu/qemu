@@ -44,7 +44,7 @@
 #include "sysemu/dma.h"
 #include "exec/address-spaces.h"
 #include "sysemu/xen-mapcache.h"
-#include "trace.h"
+#include "trace-root.h"
 #endif
 #include "exec/cpu-all.h"
 #include "qemu/rcu_queue.h"

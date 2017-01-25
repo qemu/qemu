@@ -16,7 +16,6 @@
 #include "qapi/qmp/qerror.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
-#include "trace.h"
 #include "block/nbd.h"
 #include "io/channel-socket.h"
 
