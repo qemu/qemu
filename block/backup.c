@@ -618,15 +618,20 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         goto error;
     }
 
-    /* FIXME Use real permissions */
-    job = block_job_create(job_id, &backup_job_driver, bs, 0, BLK_PERM_ALL,
+    /* job->common.len is fixed, so we can't allow resize */
+    job = block_job_create(job_id, &backup_job_driver, bs,
+                           BLK_PERM_CONSISTENT_READ,
+                           BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE |
+                           BLK_PERM_WRITE_UNCHANGED | BLK_PERM_GRAPH_MOD,
                            speed, creation_flags, cb, opaque, errp);
     if (!job) {
         goto error;
     }
 
-    /* FIXME Use real permissions */
-    job->target = blk_new(0, BLK_PERM_ALL);
+    /* The target must match the source in size, so no resize here either */
+    job->target = blk_new(BLK_PERM_WRITE,
+                          BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE |
+                          BLK_PERM_WRITE_UNCHANGED | BLK_PERM_GRAPH_MOD);
     ret = blk_insert_bs(job->target, target, errp);
     if (ret < 0) {
         goto error;
@@ -657,7 +662,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         job->cluster_size = MAX(BACKUP_CLUSTER_SIZE_DEFAULT, bdi.cluster_size);
     }
 
-    /* FIXME Use real permissions */
+    /* Required permissions are already taken with target's blk_new() */
     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
                        &error_abort);
     job->common.len = len;
