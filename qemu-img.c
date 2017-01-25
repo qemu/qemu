@@ -814,6 +814,8 @@ static void run_block_job(BlockJob *job, Error **errp)
 {
     AioContext *aio_context = blk_get_aio_context(job->blk);
 
+    /* FIXME In error cases, the job simply goes away and we access a dangling
+     * pointer below. */
     aio_context_acquire(aio_context);
     do {
         aio_poll(aio_context, true);
@@ -835,6 +837,7 @@ static int img_commit(int argc, char **argv)
     const char *filename, *fmt, *cache, *base;
     BlockBackend *blk;
     BlockDriverState *bs, *base_bs;
+    BlockJob *job;
     bool progress = false, quiet = false, drop = false;
     bool writethrough;
     Error *local_err = NULL;
@@ -970,7 +973,8 @@ static int img_commit(int argc, char **argv)
         bdrv_ref(bs);
     }
 
-    run_block_job(bs->job, &local_err);
+    job = block_job_get("commit");
+    run_block_job(job, &local_err);
     if (local_err) {
         goto unref_backing;
     }
