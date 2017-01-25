@@ -709,6 +709,8 @@ static inline int regpairs_aligned(void *cpu_env, int num)
         return 0;
     }
 }
+#elif defined(TARGET_XTENSA)
+static inline int regpairs_aligned(void *cpu_env, int num) { return 1; }
 #else
 static inline int regpairs_aligned(void *cpu_env, int num) { return 0; }
 #endif

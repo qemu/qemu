@@ -345,12 +345,14 @@ static void gen_debug_exception(DisasContext *dc, uint32_t cause)
 
 static bool gen_check_privilege(DisasContext *dc)
 {
-    if (dc->cring) {
-        gen_exception_cause(dc, PRIVILEGED_CAUSE);
-        dc->is_jmp = DISAS_UPDATE;
-        return false;
+#ifndef CONFIG_USER_ONLY
+    if (!dc->cring) {
+        return true;
     }
-    return true;
+#endif
+    gen_exception_cause(dc, PRIVILEGED_CAUSE);
+    dc->is_jmp = DISAS_UPDATE;
+    return false;
 }
 
 static bool gen_check_cpenable(DisasContext *dc, unsigned cp)
@@ -498,6 +500,7 @@ static bool gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
     return true;
 }
 
+#ifndef CONFIG_USER_ONLY
 static bool gen_rsr_ccount(DisasContext *dc, TCGv_i32 d, uint32_t sr)
 {
     if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
@@ -519,14 +522,17 @@ static bool gen_rsr_ptevaddr(DisasContext *dc, TCGv_i32 d, uint32_t sr)
     tcg_gen_andi_i32(d, d, 0xfffffffc);
     return false;
 }
+#endif
 
 static bool gen_rsr(DisasContext *dc, TCGv_i32 d, uint32_t sr)
 {
     static bool (* const rsr_handler[256])(DisasContext *dc,
             TCGv_i32 d, uint32_t sr) = {
+#ifndef CONFIG_USER_ONLY
         [CCOUNT] = gen_rsr_ccount,
         [INTSET] = gen_rsr_ccount,
         [PTEVADDR] = gen_rsr_ptevaddr,
+#endif
     };
 
     if (rsr_handler[sr]) {
@@ -582,6 +588,7 @@ static bool gen_wsr_acchi(DisasContext *dc, uint32_t sr, TCGv_i32 s)
     return false;
 }
 
+#ifndef CONFIG_USER_ONLY
 static bool gen_wsr_windowbase(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     gen_helper_wsr_windowbase(cpu_env, v);
@@ -797,6 +804,11 @@ static bool gen_wsr_ccompare(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     }
     return ret;
 }
+#else
+static void gen_check_interrupts(DisasContext *dc)
+{
+}
+#endif
 
 static bool gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 {
@@ -808,6 +820,7 @@ static bool gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [BR] = gen_wsr_br,
         [LITBASE] = gen_wsr_litbase,
         [ACCHI] = gen_wsr_acchi,
+#ifndef CONFIG_USER_ONLY
         [WINDOW_BASE] = gen_wsr_windowbase,
         [WINDOW_START] = gen_wsr_windowstart,
         [PTEVADDR] = gen_wsr_ptevaddr,
@@ -834,6 +847,7 @@ static bool gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [CCOMPARE] = gen_wsr_ccompare,
         [CCOMPARE + 1] = gen_wsr_ccompare,
         [CCOMPARE + 2] = gen_wsr_ccompare,
+#endif
     };
 
     if (wsr_handler[sr]) {
@@ -878,6 +892,7 @@ static void gen_load_store_alignment(DisasContext *dc, int shift,
     }
 }
 
+#ifndef CONFIG_USER_ONLY
 static void gen_waiti(DisasContext *dc, uint32_t imm4)
 {
     TCGv_i32 pc = tcg_const_i32(dc->next_pc);
@@ -894,6 +909,7 @@ static void gen_waiti(DisasContext *dc, uint32_t imm4)
     tcg_temp_free(intlevel);
     gen_jumpi_check_loop_end(dc, 0);
 }
+#endif
 
 static bool gen_window_check1(DisasContext *dc, unsigned r1)
 {
@@ -1596,12 +1612,14 @@ static void translate_icache(DisasContext *dc, const uint32_t arg[],
 {
     if ((!par[0] || gen_check_privilege(dc)) &&
         gen_window_check1(dc, arg[0]) && par[1]) {
+#ifndef CONFIG_USER_ONLY
         TCGv_i32 addr = tcg_temp_new_i32();
 
         tcg_gen_movi_i32(cpu_pc, dc->pc);
         tcg_gen_addi_i32(addr, cpu_R[arg[0]], arg[1]);
         gen_helper_itlb_hit_test(cpu_env, addr);
         tcg_temp_free(addr);
+#endif
     }
 }
 
@@ -1610,12 +1628,14 @@ static void translate_itlb(DisasContext *dc, const uint32_t arg[],
 {
     if (gen_check_privilege(dc) &&
         gen_window_check1(dc, arg[0])) {
+#ifndef CONFIG_USER_ONLY
         TCGv_i32 dtlb = tcg_const_i32(par[0]);
 
         gen_helper_itlb(cpu_env, cpu_R[arg[0]], dtlb);
         /* This could change memory mapping, so exit tb */
         gen_jumpi_check_loop_end(dc, -1);
         tcg_temp_free(dtlb);
+#endif
     }
 }
 
@@ -1985,11 +2005,13 @@ static void translate_ptlb(DisasContext *dc, const uint32_t arg[],
 {
     if (gen_check_privilege(dc) &&
         gen_window_check2(dc, arg[0], arg[1])) {
+#ifndef CONFIG_USER_ONLY
         TCGv_i32 dtlb = tcg_const_i32(par[0]);
 
         tcg_gen_movi_i32(cpu_pc, dc->pc);
         gen_helper_ptlb(cpu_R[arg[0]], cpu_env, cpu_R[arg[1]], dtlb);
         tcg_temp_free(dtlb);
+#endif
     }
 }
 
@@ -2173,8 +2195,10 @@ static void translate_rtlb(DisasContext *dc, const uint32_t arg[],
 {
     static void (* const helper[])(TCGv_i32 r, TCGv_env env, TCGv_i32 a1,
                                    TCGv_i32 a2) = {
+#ifndef CONFIG_USER_ONLY
         gen_helper_rtlb0,
         gen_helper_rtlb1,
+#endif
     };
 
     if (gen_check_privilege(dc) &&
@@ -2283,11 +2307,14 @@ static void translate_sext(DisasContext *dc, const uint32_t arg[],
 static void translate_simcall(DisasContext *dc, const uint32_t arg[],
                               const uint32_t par[])
 {
+#ifndef CONFIG_USER_ONLY
     if (semihosting_enabled()) {
         if (gen_check_privilege(dc)) {
             gen_helper_simcall(cpu_env);
         }
-    } else {
+    } else
+#endif
+    {
         qemu_log_mask(LOG_GUEST_ERROR, "SIMCALL but semihosting is disabled\n");
         gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
     }
@@ -2470,7 +2497,9 @@ static void translate_waiti(DisasContext *dc, const uint32_t arg[],
                             const uint32_t par[])
 {
     if (gen_check_privilege(dc)) {
+#ifndef CONFIG_USER_ONLY
         gen_waiti(dc, arg[0]);
+#endif
     }
 }
 
@@ -2479,12 +2508,14 @@ static void translate_wtlb(DisasContext *dc, const uint32_t arg[],
 {
     if (gen_check_privilege(dc) &&
         gen_window_check2(dc, arg[0], arg[1])) {
+#ifndef CONFIG_USER_ONLY
         TCGv_i32 dtlb = tcg_const_i32(par[0]);
 
         gen_helper_wtlb(cpu_env, cpu_R[arg[0]], cpu_R[arg[1]], dtlb);
         /* This could change memory mapping, so exit tb */
         gen_jumpi_check_loop_end(dc, -1);
         tcg_temp_free(dtlb);
+#endif
     }
 }
 

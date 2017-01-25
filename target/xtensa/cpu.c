@@ -45,9 +45,13 @@ static void xtensa_cpu_set_pc(CPUState *cs, vaddr value)
 
 static bool xtensa_cpu_has_work(CPUState *cs)
 {
+#ifndef CONFIG_USER_ONLY
     XtensaCPU *cpu = XTENSA_CPU(cs);
 
     return !cpu->env.runstall && cpu->env.pending_irq_level;
+#else
+    return true;
+#endif
 }
 
 /* CPUClass::reset() */
@@ -62,8 +66,16 @@ static void xtensa_cpu_reset(CPUState *s)
     env->exception_taken = 0;
     env->pc = env->config->exception_vector[EXC_RESET0 + env->static_vectors];
     env->sregs[LITBASE] &= ~1;
+#ifndef CONFIG_USER_ONLY
     env->sregs[PS] = xtensa_option_enabled(env->config,
             XTENSA_OPTION_INTERRUPT) ? 0x1f : 0x10;
+    env->pending_irq_level = 0;
+#else
+    env->sregs[PS] =
+        (xtensa_option_enabled(env->config,
+                               XTENSA_OPTION_WINDOWED_REGISTER) ? PS_WOE : 0) |
+        PS_UM | (3 << PS_RING_SHIFT);
+#endif
     env->sregs[VECBASE] = env->config->vecbase;
     env->sregs[IBREAKENABLE] = 0;
     env->sregs[MEMCTL] = MEMCTL_IL0EN & env->config->memctl_mask;
@@ -73,9 +85,10 @@ static void xtensa_cpu_reset(CPUState *s)
     env->sregs[CONFIGID0] = env->config->configid[0];
     env->sregs[CONFIGID1] = env->config->configid[1];
 
-    env->pending_irq_level = 0;
+#ifndef CONFIG_USER_ONLY
     reset_mmu(env);
     s->halted = env->runstall;
+#endif
 }
 
 static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
@@ -104,11 +117,12 @@ static void xtensa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
 static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    XtensaCPU *cpu = XTENSA_CPU(dev);
     XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
-    xtensa_irq_init(&cpu->env);
+#ifndef CONFIG_USER_ONLY
+    xtensa_irq_init(&XTENSA_CPU(dev)->env);
+#endif
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
@@ -133,11 +147,13 @@ static void xtensa_cpu_initfn(Object *obj)
     cs->env_ptr = env;
     env->config = xcc->config;
 
+#ifndef CONFIG_USER_ONLY
     env->address_space_er = g_malloc(sizeof(*env->address_space_er));
     env->system_er = g_malloc(sizeof(*env->system_er));
     memory_region_init_io(env->system_er, NULL, NULL, env, "er",
                           UINT64_C(0x100000000));
     address_space_init(env->address_space_er, env->system_er, "ER");
+#endif
 }
 
 static const VMStateDescription vmstate_xtensa_cpu = {
@@ -166,7 +182,9 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_read_register = xtensa_cpu_gdb_read_register;
     cc->gdb_write_register = xtensa_cpu_gdb_write_register;
     cc->gdb_stop_before_watchpoint = true;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = xtensa_cpu_handle_mmu_fault;
+#else
     cc->do_unaligned_access = xtensa_cpu_do_unaligned_access;
     cc->get_phys_page_debug = xtensa_cpu_get_phys_page_debug;
     cc->do_unassigned_access = xtensa_cpu_do_unassigned_access;
