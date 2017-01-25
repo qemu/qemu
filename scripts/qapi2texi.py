@@ -9,7 +9,7 @@ import sys
 
 import qapi
 
-COMMAND_FMT = """
+MSG_FMT = """
 @deftypefn {type} {{}} {name}
 
 {body}
@@ -18,16 +18,7 @@ COMMAND_FMT = """
 
 """.format
 
-ENUM_FMT = """
-@deftp Enum {name}
-
-{body}
-
-@end deftp
-
-""".format
-
-STRUCT_FMT = """
+TYPE_FMT = """
 @deftp {{{type}}} {name}
 
 {body}
@@ -170,9 +161,9 @@ def texi_body(doc):
 def texi_alternate(expr, doc):
     """Format an alternate to texi"""
     body = texi_body(doc)
-    return STRUCT_FMT(type="Alternate",
-                      name=doc.symbol,
-                      body=body)
+    return TYPE_FMT(type="Alternate",
+                    name=doc.symbol,
+                    body=body)
 
 
 def texi_union(expr, doc):
@@ -184,9 +175,9 @@ def texi_union(expr, doc):
         union = "Simple Union"
 
     body = texi_body(doc)
-    return STRUCT_FMT(type=union,
-                      name=doc.symbol,
-                      body=body)
+    return TYPE_FMT(type=union,
+                    name=doc.symbol,
+                    body=body)
 
 
 def texi_enum(expr, doc):
@@ -195,32 +186,33 @@ def texi_enum(expr, doc):
         if i not in doc.args:
             doc.args[i] = ''
     body = texi_body(doc)
-    return ENUM_FMT(name=doc.symbol,
+    return TYPE_FMT(type="Enum",
+                    name=doc.symbol,
                     body=body)
 
 
 def texi_struct(expr, doc):
     """Format a struct to texi"""
     body = texi_body(doc)
-    return STRUCT_FMT(type="Struct",
-                      name=doc.symbol,
-                      body=body)
+    return TYPE_FMT(type="Struct",
+                    name=doc.symbol,
+                    body=body)
 
 
 def texi_command(expr, doc):
     """Format a command to texi"""
     body = texi_body(doc)
-    return COMMAND_FMT(type="Command",
-                       name=doc.symbol,
-                       body=body)
+    return MSG_FMT(type="Command",
+                   name=doc.symbol,
+                   body=body)
 
 
 def texi_event(expr, doc):
     """Format an event to texi"""
     body = texi_body(doc)
-    return COMMAND_FMT(type="Event",
-                       name=doc.symbol,
-                       body=body)
+    return MSG_FMT(type="Event",
+                   name=doc.symbol,
+                   body=body)
 
 
 def texi_expr(expr, doc):
