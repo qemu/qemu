@@ -180,7 +180,7 @@ typedef struct Q35PCIHost {
 uint64_t mch_mcfg_base(void);
 
 /*
- * Arbitary but unique BNF number for IOAPIC device.
+ * Arbitrary but unique BNF number for IOAPIC device.
  *
  * TODO: make sure there would have no conflict with real PCI bus
  */

@@ -786,7 +786,7 @@ static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
     vcrypto->max_queues = MAX(vcrypto->cryptodev->conf.peers.queues, 1);
     if (vcrypto->max_queues + 1 > VIRTIO_QUEUE_MAX) {
         error_setg(errp, "Invalid number of queues (= %" PRIu32 "), "
-                   "must be a postive integer less than %d.",
+                   "must be a positive integer less than %d.",
                    vcrypto->max_queues, VIRTIO_QUEUE_MAX);
         return;
     }

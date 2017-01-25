@@ -19,7 +19,7 @@ the controller so the USB 2.0 bus gets a individual name, for example
 '-device usb-ehci,id=ehci".  This will give you a USB 2.0 bus named
 "ehci.0".
 
-I strongly recomment to also use -device to attach usb devices because
+I strongly recommend to also use -device to attach usb devices because
 you can specify the bus they should be attached to this way.  Here is
 a complete example:
 

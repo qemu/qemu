@@ -45,6 +45,7 @@ of other UNIX targets. The simple steps to build QEMU are:
 Additional information can also be found online via the QEMU website:
 
   http://qemu-project.org/Hosts/Linux
+  http://qemu-project.org/Hosts/Mac
   http://qemu-project.org/Hosts/W32
 
 

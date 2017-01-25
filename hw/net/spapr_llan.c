@@ -105,7 +105,7 @@ typedef struct VIOsPAPRVLANDevice {
     uint32_t add_buf_ptr, use_buf_ptr, rx_bufs;
     hwaddr rxq_ptr;
     QEMUTimer *rxp_timer;
-    uint32_t compat_flags;             /* Compatability flags for migration */
+    uint32_t compat_flags;             /* Compatibility flags for migration */
     RxBufPool *rx_pool[RX_MAX_POOLS];  /* Receive buffer descriptor pools */
 } VIOsPAPRVLANDevice;
 
@@ -559,7 +559,7 @@ static target_long spapr_vlan_add_rxbuf_to_pool(VIOsPAPRVLANDevice *dev,
     if (pool < 0) {
         /*
          * No matching pool found? Try to use a new one. If the guest used all
-         * pools before, but changed the size of one pool inbetween, we might
+         * pools before, but changed the size of one pool in the meantime, we might
          * need to recycle that pool here (if it's empty already). Thus scan
          * all buffer pools now, starting with the last (likely empty) one.
          */

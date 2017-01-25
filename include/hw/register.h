@@ -92,7 +92,7 @@ struct RegisterInfo {
  * This structure is used to group all of the individual registers which are
  * modeled using the RegisterInfo structure.
  *
- * @r is an aray containing of all the relevent RegisterInfo structures.
+ * @r is an array containing of all the relevant RegisterInfo structures.
  *
  * @num_elements is the number of elements in the array r
  *

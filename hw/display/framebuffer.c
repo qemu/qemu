@@ -78,7 +78,7 @@ void framebuffer_update_display(
 
     i = *first_row;
     *first_row = -1;
-    src_len = src_width * rows;
+    src_len = (hwaddr)src_width * rows;
 
     mem = mem_section->mr;
     if (!mem) {

@@ -1777,7 +1777,7 @@ static int pc_apic_cmp(const void *a, const void *b)
 
 /* returns pointer to CPUArchId descriptor that matches CPU's apic_id
  * in pcms->possible_cpus->cpus, if pcms->possible_cpus->cpus has no
- * entry correponding to CPU's apic_id returns NULL.
+ * entry corresponding to CPU's apic_id returns NULL.
  */
 static CPUArchId *pc_find_cpu_slot(PCMachineState *pcms, CPUState *cpu,
                                    int *idx)

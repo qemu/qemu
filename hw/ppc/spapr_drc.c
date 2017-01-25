@@ -59,7 +59,7 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
     trace_spapr_drc_set_isolation_state(get_index(drc), state);
 
     if (state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) {
-        /* cannot unisolate a non-existant resource, and, or resources
+        /* cannot unisolate a non-existent resource, and, or resources
          * which are in an 'UNUSABLE' allocation state. (PAPR 2.7, 13.5.3.5)
          */
         if (!drc->dev ||

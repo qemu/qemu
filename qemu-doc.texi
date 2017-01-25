@@ -1037,7 +1037,7 @@ qemu-system-i386 -iscsi initiator-name=iqn.qemu.test:my-initiator \
 @node disk_images_gluster
 @subsection GlusterFS disk images
 
-GlusterFS is an user space distributed file system.
+GlusterFS is a user space distributed file system.
 
 You can boot from the GlusterFS disk image with the command:
 @example

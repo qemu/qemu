@@ -342,7 +342,7 @@ rfc3986_parse_port(URI *uri, const char **str)
  * @uri:  pointer to an URI structure
  * @str:  the string to analyze
  *
- * Parse an user informations part and fills in the appropriate fields
+ * Parse a user information part and fill in the appropriate fields
  * of the @uri structure
  *
  * userinfo      = *( unreserved / pct-encoded / sub-delims / ":" )
@@ -508,7 +508,7 @@ rfc3986_parse_authority(URI *uri, const char **str)
 
     cur = *str;
     /*
-     * try to parse an userinfo and check for the trailing @
+     * try to parse a userinfo and check for the trailing @
      */
     ret = rfc3986_parse_user_info(uri, &cur);
     if ((ret != 0) || (*cur != '@'))
