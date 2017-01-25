@@ -2910,34 +2910,36 @@
 # 1.
 # -> { "execute": "blockdev-add",
 #      "arguments": {
-#          "options" : { "driver": "qcow2",
-#                        "file": { "driver": "file",
-#                                  "filename": "test.qcow2" } } } }
+#           "driver": "qcow2",
+#           "node-name": "test1",
+#           "file": {
+#               "driver": "file",
+#               "filename": "test.qcow2"
+#            }
+#       }
+#     }
 # <- { "return": {} }
 #
 # 2.
 # -> { "execute": "blockdev-add",
 #      "arguments": {
-#          "options": {
-#            "driver": "qcow2",
-#            "node-name": "node0",
-#            "discard": "unmap",
-#            "cache": {
-#                "direct": true,
-#                "writeback": true
+#           "driver": "qcow2",
+#           "node-name": "node0",
+#           "discard": "unmap",
+#           "cache": {
+#              "direct": true
 #            },
 #            "file": {
-#                "driver": "file",
-#                "filename": "/tmp/test.qcow2"
+#              "driver": "file",
+#              "filename": "/tmp/test.qcow2"
 #            },
 #            "backing": {
-#                "driver": "raw",
-#                "file": {
-#                    "driver": "file",
-#                    "filename": "/dev/fdset/4"
+#               "driver": "raw",
+#               "file": {
+#                  "driver": "file",
+#                  "filename": "/dev/fdset/4"
 #                }
 #            }
-#          }
 #        }
 #      }
 #
@@ -2965,14 +2967,12 @@
 #
 # -> { "execute": "blockdev-add",
 #      "arguments": {
-#          "options": {
-#              "driver": "qcow2",
-#              "node-name": "node0",
-#              "file": {
-#                  "driver": "file",
-#                  "filename": "test.qcow2"
-#              }
-#          }
+#           "driver": "qcow2",
+#           "node-name": "node0",
+#           "file": {
+#               "driver": "file",
+#               "filename": "test.qcow2"
+#           }
 #      }
 #    }
 # <- { "return": {} }
