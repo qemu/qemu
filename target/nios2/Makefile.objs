@@ -1,0 +1,4 @@
+obj-y += translate.o op_helper.o helper.o cpu.o mmu.o
+obj-$(CONFIG_SOFTMMU) += monitor.o
+
+$(obj)/op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)

@@ -1,0 +1,1 @@
+obj-y = boot.o cpu_pic.o 10m50_devboard.o

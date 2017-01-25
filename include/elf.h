@@ -126,6 +126,8 @@ typedef int64_t  Elf64_Sxword;
  */
 #define EM_S390_OLD     0xA390
 
+#define EM_ALTERA_NIOS2 113     /* Altera Nios II soft-core processor */
+
 #define EM_MICROBLAZE      189
 #define EM_MICROBLAZE_OLD  0xBAAB
 

@@ -23,6 +23,7 @@ enum {
     QEMU_ARCH_UNICORE32 = (1 << 14),
     QEMU_ARCH_MOXIE = (1 << 15),
     QEMU_ARCH_TRICORE = (1 << 16),
+    QEMU_ARCH_NIOS2 = (1 << 17),
 };
 
 extern const uint32_t arch_type;
