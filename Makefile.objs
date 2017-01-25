@@ -144,6 +144,7 @@ trace-events-y += hw/sd/trace-events
 trace-events-y += hw/isa/trace-events
 trace-events-y += hw/mem/trace-events
 trace-events-y += hw/i386/trace-events
+trace-events-y += hw/i386/xen/trace-events
 trace-events-y += hw/9pfs/trace-events
 trace-events-y += hw/ppc/trace-events
 trace-events-y += hw/pci/trace-events
