@@ -1582,7 +1582,7 @@ out_nofid:
     v9fs_string_free(&name);
 }
 
-static void v9fs_fsync(void *opaque)
+static void coroutine_fn v9fs_fsync(void *opaque)
 {
     int err;
     int32_t fid;
@@ -1666,7 +1666,7 @@ static void v9fs_init_qiov_from_pdu(QEMUIOVector *qiov, V9fsPDU *pdu,
     if (is_write) {
         pdu->s->transport->init_out_iov_from_pdu(pdu, &iov, &niov);
     } else {
-        pdu->s->transport->init_in_iov_from_pdu(pdu, &iov, &niov, size);
+        pdu->s->transport->init_in_iov_from_pdu(pdu, &iov, &niov, size + skip);
     }
 
     qemu_iovec_init_external(&elem, iov, niov);
@@ -1696,8 +1696,8 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
     }
     offset += err;
 
-    v9fs_init_qiov_from_pdu(&qiov_full, pdu, 0, read_count, false);
-    err = v9fs_pack(qiov_full.iov, qiov_full.niov, offset,
+    v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset, read_count, false);
+    err = v9fs_pack(qiov_full.iov, qiov_full.niov, 0,
                     ((char *)fidp->fs.xattr.value) + off,
                     read_count);
     qemu_iovec_destroy(&qiov_full);
@@ -2348,7 +2348,7 @@ out_nofid:
     v9fs_string_free(&symname);
 }
 
-static void v9fs_flush(void *opaque)
+static void coroutine_fn v9fs_flush(void *opaque)
 {
     ssize_t err;
     int16_t tag;
@@ -3465,7 +3465,7 @@ int v9fs_device_realize_common(V9fsState *s, Error **errp)
     /* initialize pdu allocator */
     QLIST_INIT(&s->free_list);
     QLIST_INIT(&s->active_list);
-    for (i = 0; i < (MAX_REQ - 1); i++) {
+    for (i = 0; i < MAX_REQ; i++) {
         QLIST_INSERT_HEAD(&s->free_list, &s->pdus[i], next);
         s->pdus[i].s = s;
         s->pdus[i].idx = i;
