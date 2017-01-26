@@ -32,7 +32,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "chardev/char.h"
+#include "chardev/char-serial.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "trace.h"

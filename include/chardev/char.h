@@ -27,42 +27,6 @@ typedef enum {
 
 #define CHR_READ_BUF_LEN 4096
 
-#define CHR_IOCTL_SERIAL_SET_PARAMS   1
-typedef struct {
-    int speed;
-    int parity;
-    int data_bits;
-    int stop_bits;
-} QEMUSerialSetParams;
-
-#define CHR_IOCTL_SERIAL_SET_BREAK    2
-
-#define CHR_IOCTL_PP_READ_DATA        3
-#define CHR_IOCTL_PP_WRITE_DATA       4
-#define CHR_IOCTL_PP_READ_CONTROL     5
-#define CHR_IOCTL_PP_WRITE_CONTROL    6
-#define CHR_IOCTL_PP_READ_STATUS      7
-#define CHR_IOCTL_PP_EPP_READ_ADDR    8
-#define CHR_IOCTL_PP_EPP_READ         9
-#define CHR_IOCTL_PP_EPP_WRITE_ADDR  10
-#define CHR_IOCTL_PP_EPP_WRITE       11
-#define CHR_IOCTL_PP_DATA_DIR        12
-
-struct ParallelIOArg {
-    void *buffer;
-    int count;
-};
-
-#define CHR_IOCTL_SERIAL_SET_TIOCM   13
-#define CHR_IOCTL_SERIAL_GET_TIOCM   14
-
-#define CHR_TIOCM_CTS	0x020
-#define CHR_TIOCM_CAR	0x040
-#define CHR_TIOCM_DSR	0x100
-#define CHR_TIOCM_RI	0x080
-#define CHR_TIOCM_DTR	0x002
-#define CHR_TIOCM_RTS	0x004
-
 typedef void IOEventHandler(void *opaque, int event);
 
 typedef enum {

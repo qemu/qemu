@@ -26,7 +26,7 @@
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/char/escc.h"
-#include "chardev/char.h"
+#include "chardev/char-serial.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "trace.h"
