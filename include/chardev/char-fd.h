@@ -21,31 +21,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef CHAR_WIN_H
-#define CHAR_WIN_H
+#ifndef CHAR_FD_H
+#define CHAR_FD_H
 
-#include "sysemu/char.h"
+#include "io/channel.h"
+#include "chardev/char.h"
 
-typedef struct {
+typedef struct FDChardev {
     Chardev parent;
+    Chardev *chr;
+    QIOChannel *ioc_in, *ioc_out;
+    int max_size;
+} FDChardev;
 
-    bool keep_open; /* console do not close file */
-    HANDLE file, hrecv, hsend;
-    OVERLAPPED orecv;
-    BOOL fpipe;
+#define TYPE_CHARDEV_FD "chardev-fd"
 
-    /* Protected by the Chardev chr_write_lock.  */
-    OVERLAPPED osend;
-} WinChardev;
+#define FD_CHARDEV(obj) OBJECT_CHECK(FDChardev, (obj), TYPE_CHARDEV_FD)
 
-#define NSENDBUF 2048
-#define NRECVBUF 2048
+void qemu_chr_open_fd(Chardev *chr, int fd_in, int fd_out);
+int qmp_chardev_open_file_source(char *src, int flags, Error **errp);
 
-#define TYPE_CHARDEV_WIN "chardev-win"
-#define WIN_CHARDEV(obj) OBJECT_CHECK(WinChardev, (obj), TYPE_CHARDEV_WIN)
-
-void win_chr_set_file(Chardev *chr, HANDLE file, bool keep_open);
-int win_chr_serial_init(Chardev *chr, const char *filename, Error **errp);
-int win_chr_pipe_poll(void *opaque);
-
-#endif /* CHAR_WIN_H */
+#endif /* CHAR_FD_H */

@@ -23,8 +23,8 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "char-win.h"
-#include "char-win-stdio.h"
+#include "chardev/char-win.h"
+#include "chardev/char-win-stdio.h"
 
 typedef struct {
     Chardev parent;

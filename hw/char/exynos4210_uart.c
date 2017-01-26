@@ -23,7 +23,7 @@
 #include "hw/sysbus.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 #include "hw/arm/exynos4210.h"
 

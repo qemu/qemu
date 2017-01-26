@@ -27,14 +27,14 @@
 #include "qapi/error.h"
 
 #ifdef _WIN32
-#include "char-win.h"
+#include "chardev/char-win.h"
 #else
 #include <sys/ioctl.h>
 #include <termios.h>
-#include "char-fd.h"
+#include "chardev/char-fd.h"
 #endif
 
-#include "char-serial.h"
+#include "chardev/char-serial.h"
 
 #ifdef _WIN32
 

@@ -20,7 +20,7 @@
 #include "hw/block/block.h"
 #include "net/hub.h"
 #include "qapi/visitor.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "sysemu/iothread.h"
 
 static void get_pointer(Object *obj, Visitor *v, Property *prop,

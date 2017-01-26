@@ -24,7 +24,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/error.h"
-#include "char-win.h"
+#include "chardev/char-win.h"
 
 static void win_chr_read(Chardev *chr, DWORD len)
 {

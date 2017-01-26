@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
 #include "trace-root.h"
 #include "ui/qemu-spice.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "qemu/error-report.h"
 #include <spice.h>
 #include <spice/protocol.h>

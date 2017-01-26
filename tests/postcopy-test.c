@@ -16,7 +16,7 @@
 #include "qemu/option.h"
 #include "qemu/range.h"
 #include "qemu/sockets.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "sysemu/sysemu.h"
 #include "hw/nvram/chrp_nvram.h"
 

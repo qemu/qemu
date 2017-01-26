@@ -33,7 +33,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 #include <usbredirparser.h>
 #include <usbredirfilter.h>

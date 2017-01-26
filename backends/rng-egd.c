@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/rng.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 

@@ -21,7 +21,7 @@
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "trace.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 #include "hw/char/lm32_juart.h"
 

@@ -15,7 +15,7 @@
 #include "qemu/error-report.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 //#define DEBUG_Serial
 

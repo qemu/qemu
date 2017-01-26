@@ -29,7 +29,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "qemu/log.h"
 
 #include "hw/char/digic-uart.h"

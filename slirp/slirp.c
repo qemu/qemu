@@ -25,7 +25,7 @@
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "slirp.h"
 #include "hw/hw.h"
 #include "qemu/cutils.h"

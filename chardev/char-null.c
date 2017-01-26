@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 static void null_chr_open(Chardev *chr,
                           ChardevBackend *backend,

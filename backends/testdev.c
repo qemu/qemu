@@ -25,7 +25,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 #define BUF_SIZE 32
 

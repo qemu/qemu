@@ -24,7 +24,7 @@
 #include "qemu-common.h"
 #include "hw/arm/fsl-imx6.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "qemu/error-report.h"
 
 #define NAME_SIZE 20

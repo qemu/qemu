@@ -22,14 +22,14 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "io/channel-socket.h"
 #include "io/channel-tls.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
 
-#include "char-io.h"
+#include "chardev/char-io.h"
 
 /***********************************************************/
 /* TCP Net console */

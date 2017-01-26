@@ -25,11 +25,11 @@
 #include "qemu/sockets.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "io/channel-file.h"
 
-#include "char-fd.h"
-#include "char-io.h"
+#include "chardev/char-fd.h"
+#include "chardev/char-io.h"
 
 /* Called with chr_write_lock held.  */
 static int fd_chr_write(Chardev *chr, const uint8_t *buf, int len)

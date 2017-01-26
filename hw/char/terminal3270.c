@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "hw/s390x/3270-ccw.h"
 
 /* Enough spaces for different window sizes. */

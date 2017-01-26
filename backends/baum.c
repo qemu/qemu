@@ -24,7 +24,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
 #include "ui/console.h"

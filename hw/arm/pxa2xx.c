@@ -17,7 +17,7 @@
 #include "hw/char/serial.h"
 #include "hw/i2c/i2c.h"
 #include "hw/ssi/ssi.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "qemu/cutils.h"

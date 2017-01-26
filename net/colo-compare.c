@@ -25,7 +25,7 @@
 #include "qom/object.h"
 #include "qemu/typedefs.h"
 #include "net/queue.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "qemu/sockets.h"
 #include "qapi-visit.h"
 #include "net/colo.h"

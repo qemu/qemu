@@ -23,12 +23,12 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 #ifdef _WIN32
-#include "char-win.h"
+#include "chardev/char-win.h"
 #else
-#include "char-fd.h"
+#include "chardev/char-fd.h"
 #endif
 
 #ifdef _WIN32

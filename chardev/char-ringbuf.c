@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "qmp-commands.h"
 #include "qemu/base64.h"
 

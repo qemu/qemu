@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "io/channel-socket.h"
 #include "qapi/error.h"
 
-#include "char-io.h"
+#include "chardev/char-io.h"
 
 /***********************************************************/
 /* UDP Net console */

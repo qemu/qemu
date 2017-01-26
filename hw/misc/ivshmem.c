@@ -29,7 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/event_notifier.h"
 #include "qom/object_interfaces.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "sysemu/hostmem.h"
 #include "sysemu/qtest.h"
 #include "qapi/visitor.h"

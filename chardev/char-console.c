@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "char-win.h"
+#include "chardev/char-win.h"
 
 static void qemu_chr_open_win_con(Chardev *chr,
                                   ChardevBackend *backend,

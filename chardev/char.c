@@ -28,16 +28,16 @@
 #include "sysemu/sysemu.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "qmp-commands.h"
 #include "qapi-visit.h"
 #include "sysemu/replay.h"
 #include "qemu/help_option.h"
 
-#include "char-mux.h"
-#include "char-io.h"
-#include "char-parallel.h"
-#include "char-serial.h"
+#include "chardev/char-mux.h"
+#include "chardev/char-io.h"
+#include "chardev/char-parallel.h"
+#include "chardev/char-serial.h"
 
 /***********************************************************/
 /* character device */

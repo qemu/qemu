@@ -24,12 +24,12 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 #ifdef _WIN32
-#include "char-win.h"
+#include "chardev/char-win.h"
 #else
-#include "char-fd.h"
+#include "chardev/char-fd.h"
 #endif
 
 static void qmp_chardev_open_file(Chardev *chr,

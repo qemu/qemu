@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "qapi/error.h"
 #include <sys/ioctl.h>
 
@@ -41,8 +41,8 @@
 #endif
 #endif
 
-#include "char-fd.h"
-#include "char-parallel.h"
+#include "chardev/char-fd.h"
+#include "chardev/char-parallel.h"
 
 #if defined(__linux__)
 

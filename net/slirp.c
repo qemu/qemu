@@ -37,7 +37,7 @@
 #include "qemu/sockets.h"
 #include "slirp/libslirp.h"
 #include "slirp/ip6.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"

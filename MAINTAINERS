@@ -1238,6 +1238,7 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Maintained
 F: chardev/
+F: include/chardev/
 F: backends/msmouse.c
 F: backends/testdev.c
 

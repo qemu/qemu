@@ -24,9 +24,9 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "sysemu/block-backend.h"
-#include "char-mux.h"
+#include "chardev/char-mux.h"
 
 /* MUX driver for serial I/O splitting */
 

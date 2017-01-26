@@ -34,7 +34,7 @@
 #include "strongarm.h"
 #include "qemu/error-report.h"
 #include "hw/arm/arm.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "sysemu/sysemu.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/cutils.h"
