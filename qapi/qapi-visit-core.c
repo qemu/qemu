@@ -374,6 +374,7 @@ void visit_type_enum(Visitor *v, const char *name, int *obj,
                      const char *const strings[], Error **errp)
 {
     assert(obj && strings);
+    trace_visit_type_enum(v, name, obj);
     switch (v->type) {
     case VISITOR_INPUT:
         input_type_enum(v, name, obj, strings, errp);
