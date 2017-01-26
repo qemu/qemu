@@ -211,7 +211,7 @@ unavailable:
     return false;
 }
 
-void qemu_chr_fe_deinit(CharBackend *b)
+void qemu_chr_fe_deinit(CharBackend *b, bool del)
 {
     assert(b);
 
@@ -223,6 +223,9 @@ void qemu_chr_fe_deinit(CharBackend *b)
         if (CHARDEV_IS_MUX(b->chr)) {
             MuxChardev *d = MUX_CHARDEV(b->chr);
             d->backends[b->tag] = NULL;
+        }
+        if (del) {
+            object_unparent(OBJECT(b->chr));
         }
         b->chr = NULL;
     }

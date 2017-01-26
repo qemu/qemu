@@ -225,7 +225,7 @@ static void release_chr(Object *obj, const char *name, void *opaque)
     Property *prop = opaque;
     CharBackend *be = qdev_get_prop_ptr(dev, prop);
 
-    qemu_chr_fe_deinit(be);
+    qemu_chr_fe_deinit(be, false);
 }
 
 PropertyInfo qdev_prop_chr = {

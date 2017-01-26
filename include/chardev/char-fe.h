@@ -30,12 +30,14 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp);
 
 /**
  * @qemu_chr_fe_deinit:
- *
+ * @b: a CharBackend
+ * @del: if true, delete the chardev backend
+*
  * Dissociate the CharBackend from the Chardev.
  *
  * Safe to call without associated Chardev.
  */
-void qemu_chr_fe_deinit(CharBackend *b);
+void qemu_chr_fe_deinit(CharBackend *b, bool del);
 
 /**
  * @qemu_chr_fe_get_driver:

@@ -488,10 +488,8 @@ static inline void test_server_connect(TestServer *server)
 static gboolean _test_server_free(TestServer *server)
 {
     int i;
-    Chardev *chr = qemu_chr_fe_get_driver(&server->chr);
 
-    qemu_chr_fe_deinit(&server->chr);
-    object_unparent(OBJECT(chr));
+    qemu_chr_fe_deinit(&server->chr, true);
 
     for (i = 0; i < server->fds_num; i++) {
         close(server->fds[i]);

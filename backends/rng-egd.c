@@ -145,7 +145,7 @@ static void rng_egd_finalize(Object *obj)
 {
     RngEgd *s = RNG_EGD(obj);
 
-    qemu_chr_fe_deinit(&s->chr);
+    qemu_chr_fe_deinit(&s->chr, false);
     g_free(s->chr_name);
 }
 

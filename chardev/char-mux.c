@@ -266,7 +266,7 @@ static void char_mux_finalize(Object *obj)
             be->chr = NULL;
         }
     }
-    qemu_chr_fe_deinit(&d->chr);
+    qemu_chr_fe_deinit(&d->chr, false);
 }
 
 void mux_chr_set_handlers(Chardev *chr, GMainContext *context)

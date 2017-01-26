@@ -801,11 +801,9 @@ static void colo_compare_finalize(Object *obj)
 {
     CompareState *s = COLO_COMPARE(obj);
 
-    qemu_chr_fe_set_handlers(&s->chr_pri_in, NULL, NULL, NULL, NULL,
-                             s->worker_context, true);
-    qemu_chr_fe_set_handlers(&s->chr_sec_in, NULL, NULL, NULL, NULL,
-                             s->worker_context, true);
-    qemu_chr_fe_deinit(&s->chr_out);
+    qemu_chr_fe_deinit(&s->chr_pri_in, false);
+    qemu_chr_fe_deinit(&s->chr_sec_in, false);
+    qemu_chr_fe_deinit(&s->chr_out, false);
 
     g_main_loop_quit(s->compare_loop);
     qemu_thread_join(&s->thread);

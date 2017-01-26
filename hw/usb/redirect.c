@@ -1419,10 +1419,8 @@ static void usbredir_cleanup_device_queues(USBRedirDevice *dev)
 static void usbredir_unrealize(USBDevice *udev, Error **errp)
 {
     USBRedirDevice *dev = USB_REDIRECT(udev);
-    Chardev *chr = qemu_chr_fe_get_driver(&dev->cs);
 
-    qemu_chr_fe_deinit(&dev->cs);
-    object_unparent(OBJECT(chr));
+    qemu_chr_fe_deinit(&dev->cs, true);
 
     /* Note must be done after qemu_chr_close, as that causes a close event */
     qemu_bh_delete(dev->chardev_close_bh);

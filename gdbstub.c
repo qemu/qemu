@@ -1678,9 +1678,6 @@ void gdb_exit(CPUArchState *env, int code)
 {
   GDBState *s;
   char buf[4];
-#ifndef CONFIG_USER_ONLY
-  Chardev *chr;
-#endif
 
   s = gdbserver_state;
   if (!s) {
@@ -1690,19 +1687,13 @@ void gdb_exit(CPUArchState *env, int code)
   if (gdbserver_fd < 0 || s->fd < 0) {
       return;
   }
-#else
-  chr = qemu_chr_fe_get_driver(&s->chr);
-  if (!chr) {
-      return;
-  }
 #endif
 
   snprintf(buf, sizeof(buf), "W%02x", (uint8_t)code);
   put_packet(s, buf);
 
 #ifndef CONFIG_USER_ONLY
-  qemu_chr_fe_deinit(&s->chr);
-  object_unparent(OBJECT(chr));
+  qemu_chr_fe_deinit(&s->chr, true);
 #endif
 }
 
@@ -2002,9 +1993,7 @@ int gdbserver_start(const char *device)
                                    NULL, &error_abort);
         monitor_init(mon_chr, 0);
     } else {
-        if (qemu_chr_fe_get_driver(&s->chr)) {
-            object_unparent(OBJECT(qemu_chr_fe_get_driver(&s->chr)));
-        }
+        qemu_chr_fe_deinit(&s->chr, true);
         mon_chr = s->mon_chr;
         memset(s, 0, sizeof(GDBState));
         s->mon_chr = mon_chr;

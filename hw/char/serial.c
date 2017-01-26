@@ -905,7 +905,7 @@ void serial_realize_core(SerialState *s, Error **errp)
 
 void serial_exit_core(SerialState *s)
 {
-    qemu_chr_fe_deinit(&s->chr);
+    qemu_chr_fe_deinit(&s->chr, false);
 
     timer_del(s->modem_status_poll);
     timer_free(s->modem_status_poll);
