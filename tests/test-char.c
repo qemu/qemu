@@ -4,7 +4,7 @@
 #include "qemu-common.h"
 #include "qemu/config-file.h"
 #include "qemu/sockets.h"
-#include "chardev/char.h"
+#include "chardev/char-fe.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qom/qom-qobject.h"

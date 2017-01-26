@@ -20,7 +20,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include "chardev/char.h"
+#include "chardev/char-fe.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 

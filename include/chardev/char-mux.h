@@ -25,6 +25,7 @@
 #define CHAR_MUX_H
 
 #include "chardev/char.h"
+#include "chardev/char-fe.h"
 
 extern bool muxes_realized;
 

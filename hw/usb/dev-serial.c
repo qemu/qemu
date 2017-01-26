@@ -16,6 +16,7 @@
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "chardev/char-serial.h"
+#include "chardev/char-fe.h"
 
 //#define DEBUG_Serial
 

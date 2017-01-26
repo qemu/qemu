@@ -1,6 +1,7 @@
 chardev-obj-y += char.o
 chardev-obj-$(CONFIG_WIN32) += char-console.o
 chardev-obj-$(CONFIG_POSIX) += char-fd.o
+chardev-obj-y += char-fe.o
 chardev-obj-y += char-file.o
 chardev-obj-y += char-io.o
 chardev-obj-y += char-mux.o

@@ -9,7 +9,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "chardev/char.h"
+#include "chardev/char-fe.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "ccid.h"
