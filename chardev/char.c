@@ -96,7 +96,8 @@ static void qemu_chr_fe_write_log(Chardev *s,
 }
 
 static int qemu_chr_fe_write_buffer(Chardev *s,
-                                    const uint8_t *buf, int len, int *offset)
+                                    const uint8_t *buf, int len,
+                                    int *offset, bool write_all)
 {
     ChardevClass *cc = CHARDEV_GET_CLASS(s);
     int res = 0;
@@ -106,7 +107,7 @@ static int qemu_chr_fe_write_buffer(Chardev *s,
     while (*offset < len) {
     retry:
         res = cc->chr_write(s, buf + *offset, len - *offset);
-        if (res < 0 && errno == EAGAIN) {
+        if (res < 0 && errno == EAGAIN && write_all) {
             g_usleep(100);
             goto retry;
         }
@@ -116,6 +117,9 @@ static int qemu_chr_fe_write_buffer(Chardev *s,
         }
 
         *offset += res;
+        if (!write_all) {
+            break;
+        }
     }
     if (*offset > 0) {
         qemu_chr_fe_write_log(s, buf, *offset);
@@ -130,54 +134,20 @@ static bool qemu_chr_replay(Chardev *chr)
     return qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_REPLAY);
 }
 
-int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
+static int qemu_chr_write(Chardev *s, const uint8_t *buf, int len,
+                          bool write_all)
 {
-    Chardev *s = be->chr;
-    ChardevClass *cc;
-    int ret;
-
-    if (!s) {
-        return 0;
-    }
-
-    if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_PLAY) {
-        int offset;
-        replay_char_write_event_load(&ret, &offset);
-        assert(offset <= len);
-        qemu_chr_fe_write_buffer(s, buf, offset, &offset);
-        return ret;
-    }
-
-    cc = CHARDEV_GET_CLASS(s);
-    qemu_mutex_lock(&s->chr_write_lock);
-    ret = cc->chr_write(s, buf, len);
-
-    if (ret > 0) {
-        qemu_chr_fe_write_log(s, buf, ret);
-    }
-
-    qemu_mutex_unlock(&s->chr_write_lock);
-    
-    if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
-        replay_char_write_event_save(ret, ret < 0 ? 0 : ret);
-    }
-    
-    return ret;
-}
-
-int qemu_chr_write_all(Chardev *s, const uint8_t *buf, int len)
-{
-    int offset;
+    int offset = 0;
     int res;
 
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_PLAY) {
         replay_char_write_event_load(&res, &offset);
         assert(offset <= len);
-        qemu_chr_fe_write_buffer(s, buf, offset, &offset);
+        qemu_chr_fe_write_buffer(s, buf, offset, &offset, true);
         return res;
     }
 
-    res = qemu_chr_fe_write_buffer(s, buf, len, &offset);
+    res = qemu_chr_fe_write_buffer(s, buf, len, &offset, write_all);
 
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
         replay_char_write_event_save(res, offset);
@@ -189,6 +159,22 @@ int qemu_chr_write_all(Chardev *s, const uint8_t *buf, int len)
     return offset;
 }
 
+int qemu_chr_write_all(Chardev *s, const uint8_t *buf, int len)
+{
+    return qemu_chr_write(s, buf, len, true);
+}
+
+int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
+{
+    Chardev *s = be->chr;
+
+    if (!s) {
+        return 0;
+    }
+
+    return qemu_chr_write(s, buf, len, false);
+}
+
 int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len)
 {
     Chardev *s = be->chr;
@@ -197,7 +183,7 @@ int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len)
         return 0;
     }
 
-    return qemu_chr_write_all(s, buf, len);
+    return qemu_chr_write(s, buf, len, true);
 }
 
 int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
