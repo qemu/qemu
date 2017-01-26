@@ -48,6 +48,8 @@
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 #include "qom/cpu.h"
+#include "hw/nvram/fw_cfg.h"
+#include "qemu/cutils.h"
 
 /*****************************************************************************/
 /* ICH9 LPC PCI to ISA bridge */
@@ -360,13 +362,62 @@ static void ich9_set_sci(void *opaque, int irq_num, int level)
     }
 }
 
+static void smi_features_ok_callback(void *opaque)
+{
+    ICH9LPCState *lpc = opaque;
+    uint64_t guest_features;
+
+    if (lpc->smi_features_ok) {
+        /* negotiation already complete, features locked */
+        return;
+    }
+
+    memcpy(&guest_features, lpc->smi_guest_features_le, sizeof guest_features);
+    le64_to_cpus(&guest_features);
+    if (guest_features & ~lpc->smi_host_features) {
+        /* guest requests invalid features, leave @features_ok at zero */
+        return;
+    }
+
+    /* valid feature subset requested, lock it down, report success */
+    lpc->smi_negotiated_features = guest_features;
+    lpc->smi_features_ok = 1;
+}
+
 void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(lpc_pci);
     qemu_irq sci_irq;
+    FWCfgState *fw_cfg = fw_cfg_find();
 
     sci_irq = qemu_allocate_irq(ich9_set_sci, lpc, 0);
     ich9_pm_init(lpc_pci, &lpc->pm, smm_enabled, sci_irq);
+
+    if (lpc->smi_host_features && fw_cfg) {
+        uint64_t host_features_le;
+
+        host_features_le = cpu_to_le64(lpc->smi_host_features);
+        memcpy(lpc->smi_host_features_le, &host_features_le,
+               sizeof host_features_le);
+        fw_cfg_add_file(fw_cfg, "etc/smi/supported-features",
+                        lpc->smi_host_features_le,
+                        sizeof lpc->smi_host_features_le);
+
+        /* The other two guest-visible fields are cleared on device reset, we
+         * just link them into fw_cfg here.
+         */
+        fw_cfg_add_file_callback(fw_cfg, "etc/smi/requested-features",
+                                 NULL, NULL,
+                                 lpc->smi_guest_features_le,
+                                 sizeof lpc->smi_guest_features_le,
+                                 false);
+        fw_cfg_add_file_callback(fw_cfg, "etc/smi/features-ok",
+                                 smi_features_ok_callback, lpc,
+                                 &lpc->smi_features_ok,
+                                 sizeof lpc->smi_features_ok,
+                                 true);
+    }
+
     ich9_lpc_reset(&lpc->d.qdev);
 }
 
@@ -507,6 +558,10 @@ static void ich9_lpc_reset(DeviceState *qdev)
 
     lpc->sci_level = 0;
     lpc->rst_cnt = 0;
+
+    memset(lpc->smi_guest_features_le, 0, sizeof lpc->smi_guest_features_le);
+    lpc->smi_features_ok = 0;
+    lpc->smi_negotiated_features = 0;
 }
 
 /* root complex register block is mapped into memory space */
@@ -668,6 +723,29 @@ static const VMStateDescription vmstate_ich9_rst_cnt = {
     }
 };
 
+static bool ich9_smi_feat_needed(void *opaque)
+{
+    ICH9LPCState *lpc = opaque;
+
+    return !buffer_is_zero(lpc->smi_guest_features_le,
+                           sizeof lpc->smi_guest_features_le) ||
+           lpc->smi_features_ok;
+}
+
+static const VMStateDescription vmstate_ich9_smi_feat = {
+    .name = "ICH9LPC/smi_feat",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ich9_smi_feat_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8_ARRAY(smi_guest_features_le, ICH9LPCState,
+                            sizeof(uint64_t)),
+        VMSTATE_UINT8(smi_features_ok, ICH9LPCState),
+        VMSTATE_UINT64(smi_negotiated_features, ICH9LPCState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_ich9_lpc = {
     .name = "ICH9LPC",
     .version_id = 1,
@@ -683,6 +761,7 @@ static const VMStateDescription vmstate_ich9_lpc = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_ich9_rst_cnt,
+        &vmstate_ich9_smi_feat,
         NULL
     }
 };
