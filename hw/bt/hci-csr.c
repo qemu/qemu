@@ -82,17 +82,14 @@ enum {
 
 static inline void csrhci_fifo_wake(struct csrhci_s *s)
 {
-    Chardev *chr = (Chardev *)s;
-    CharBackend *be = chr->be;
+    Chardev *chr = CHARDEV(s);
 
     if (!s->enable || !s->out_len)
         return;
 
     /* XXX: Should wait for s->modem_state & CHR_TIOCM_RTS? */
-    if (be && be->chr_can_read && be->chr_can_read(be->opaque) &&
-        be->chr_read) {
-        be->chr_read(be->opaque,
-                     s->outfifo + s->out_start++, 1);
+    if (qemu_chr_be_can_write(chr)) {
+        qemu_chr_be_write(chr, s->outfifo + s->out_start++, 1);
         s->out_len--;
         if (s->out_start >= s->out_size) {
             s->out_start = 0;
