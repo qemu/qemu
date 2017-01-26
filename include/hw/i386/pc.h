@@ -381,6 +381,12 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .property = "x-mach-use-reliable-get-clock",\
         .value    = "off",\
     },\
+    {\
+        .driver   = "ICH9-LPC",\
+        .property = "x-smi-broadcast",\
+        .value    = "off",\
+    },\
+
 
 #define PC_COMPAT_2_7 \
     HW_COMPAT_2_7 \
