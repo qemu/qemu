@@ -565,10 +565,6 @@ S: Orphan
 F: hw/m68k/an5206.c
 F: hw/m68k/mcf5206.c
 
-dummy_m68k
-S: Orphan
-F: hw/m68k/dummy_m68k.c
-
 mcf5208
 S: Orphan
 F: hw/m68k/mcf5208.c
