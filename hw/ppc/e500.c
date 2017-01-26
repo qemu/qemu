@@ -827,6 +827,12 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         env = &cpu->env;
         cs = CPU(cpu);
 
+        if (env->mmu_model != POWERPC_MMU_BOOKE206) {
+            fprintf(stderr, "MMU model %i not supported by this machine.\n",
+                env->mmu_model);
+            exit(1);
+        }
+
         if (!firstenv) {
             firstenv = env;
         }

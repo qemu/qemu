@@ -221,6 +221,13 @@ static void virtex_init(MachineState *machine)
 
     cpu = ppc440_init_xilinx(&ram_size, 1, machine->cpu_model, 400000000);
     env = &cpu->env;
+
+    if (env->mmu_model != POWERPC_MMU_BOOKE) {
+        fprintf(stderr, "MMU model %i not supported by this machine.\n",
+            env->mmu_model);
+        exit(1);
+    }
+
     qemu_register_reset(main_cpu_reset, cpu);
 
     memory_region_allocate_system_memory(phys_ram, NULL, "ram", ram_size);
