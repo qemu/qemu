@@ -66,8 +66,7 @@ void qemu_chr_be_event(Chardev *s, int event)
 
 /* Not reporting errors from writing to logfile, as logs are
  * defined to be "best effort" only */
-static void qemu_chr_fe_write_log(Chardev *s,
-                                  const uint8_t *buf, size_t len)
+static void qemu_chr_write_log(Chardev *s, const uint8_t *buf, size_t len)
 {
     size_t done = 0;
     ssize_t ret;
@@ -91,9 +90,9 @@ static void qemu_chr_fe_write_log(Chardev *s,
     }
 }
 
-static int qemu_chr_fe_write_buffer(Chardev *s,
-                                    const uint8_t *buf, int len,
-                                    int *offset, bool write_all)
+static int qemu_chr_write_buffer(Chardev *s,
+                                 const uint8_t *buf, int len,
+                                 int *offset, bool write_all)
 {
     ChardevClass *cc = CHARDEV_GET_CLASS(s);
     int res = 0;
@@ -118,7 +117,7 @@ static int qemu_chr_fe_write_buffer(Chardev *s,
         }
     }
     if (*offset > 0) {
-        qemu_chr_fe_write_log(s, buf, *offset);
+        qemu_chr_write_log(s, buf, *offset);
     }
     qemu_mutex_unlock(&s->chr_write_lock);
 
@@ -133,11 +132,11 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_PLAY) {
         replay_char_write_event_load(&res, &offset);
         assert(offset <= len);
-        qemu_chr_fe_write_buffer(s, buf, offset, &offset, true);
+        qemu_chr_write_buffer(s, buf, offset, &offset, true);
         return res;
     }
 
-    res = qemu_chr_fe_write_buffer(s, buf, len, &offset, write_all);
+    res = qemu_chr_write_buffer(s, buf, len, &offset, write_all);
 
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
         replay_char_write_event_save(res, offset);
