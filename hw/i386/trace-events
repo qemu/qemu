@@ -23,7 +23,6 @@ amdvi_devtab_inval(uint8_t bus, uint8_t slot, uint8_t func) "device table entry 
 amdvi_completion_wait(uint64_t addr, uint64_t data) "completion wait requested with store address 0x%"PRIx64" and store data 0x%"PRIx64
 amdvi_control_status(uint64_t val) "MMIO_STATUS state 0x%"PRIx64
 amdvi_iotlb_reset(void) "IOTLB exceed size limit - reset "
-amdvi_completion_wait_exec(uint64_t addr, uint64_t data) "completion wait requested with store address 0x%"PRIx64" and store data 0x%"PRIx64
 amdvi_dte_get_fail(uint64_t addr, uint32_t offset) "error: failed to access Device Entry devtab 0x%"PRIx64" offset 0x%"PRIx32
 amdvi_invalid_dte(uint64_t addr) "PTE entry at 0x%"PRIx64" is invalid "
 amdvi_get_pte_hwerror(uint64_t addr) "hardware error eccessing PTE at addr 0x%"PRIx64

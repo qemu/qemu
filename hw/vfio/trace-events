@@ -46,7 +46,7 @@ vfio_pci_emulated_device_id(const char *name, uint16_t val) "%s %04x"
 vfio_pci_emulated_sub_vendor_id(const char *name, uint16_t val) "%s %04x"
 vfio_pci_emulated_sub_device_id(const char *name, uint16_t val) "%s %04x"
 
-# hw/vfio/pci-quirks.
+# hw/vfio/pci-quirks.c
 vfio_quirk_rom_blacklisted(const char *name, uint16_t vid, uint16_t did) "%s %04x:%04x"
 vfio_quirk_generic_window_address_write(const char *name, const char * region_name, uint64_t data) "%s %s 0x%"PRIx64
 vfio_quirk_generic_window_data_read(const char *name, const char * region_name, uint64_t data) "%s %s 0x%"PRIx64
