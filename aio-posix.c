@@ -508,7 +508,8 @@ static bool run_poll_handlers_once(AioContext *ctx)
 
     QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
         if (!node->deleted && node->io_poll &&
-                node->io_poll(node->opaque)) {
+            aio_node_check(ctx, node->is_external) &&
+            node->io_poll(node->opaque)) {
             progress = true;
         }
 
