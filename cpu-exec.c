@@ -627,21 +627,21 @@ int cpu_exec(CPUState *cpu)
     for(;;) {
         /* prepare setjmp context for exception handling */
         if (sigsetjmp(cpu->jmp_env, 0) == 0) {
-            TranslationBlock *last_tb = NULL;
-            int tb_exit = 0;
-
             /* if an exception is pending, we execute it here */
-            if (cpu_handle_exception(cpu, &ret)) {
-                break;
-            }
+            while (!cpu_handle_exception(cpu, &ret)) {
+                TranslationBlock *last_tb = NULL;
+                int tb_exit = 0;
 
-            while (!cpu_handle_interrupt(cpu, &last_tb)) {
-                TranslationBlock *tb = tb_find(cpu, last_tb, tb_exit);
-                cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit, &sc);
-                /* Try to align the host and virtual clocks
-                   if the guest is in advance */
-                align_clocks(&sc, cpu);
+                while (!cpu_handle_interrupt(cpu, &last_tb)) {
+                    TranslationBlock *tb = tb_find(cpu, last_tb, tb_exit);
+                    cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit, &sc);
+                    /* Try to align the host and virtual clocks
+                       if the guest is in advance */
+                    align_clocks(&sc, cpu);
+                }
             }
+            break;
+
         } else {
 #if defined(__clang__) || !QEMU_GNUC_PREREQ(4, 6)
             /* Some compilers wrongly smash all local variables after
