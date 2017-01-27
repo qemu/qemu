@@ -157,6 +157,7 @@ bool qio_task_propagate_error(QIOTask *task,
 {
     if (task->err) {
         error_propagate(errp, task->err);
+        task->err = NULL;
         return true;
     }
 
