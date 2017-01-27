@@ -85,6 +85,7 @@ struct VirtIODevice
     uint32_t generation;
     int nvectors;
     VirtQueue *vq;
+    MemoryListener listener;
     uint16_t device_id;
     bool vm_running;
     bool broken; /* device in invalid state, needs reset */
