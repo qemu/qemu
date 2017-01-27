@@ -2156,7 +2156,9 @@ void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx)
 
 void virtio_queue_update_used_idx(VirtIODevice *vdev, int n)
 {
-    vdev->vq[n].used_idx = vring_used_idx(&vdev->vq[n]);
+    if (vdev->vq[n].vring.desc) {
+        vdev->vq[n].used_idx = vring_used_idx(&vdev->vq[n]);
+    }
 }
 
 void virtio_queue_invalidate_signalled_used(VirtIODevice *vdev, int n)
