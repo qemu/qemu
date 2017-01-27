@@ -279,7 +279,7 @@ typedef struct S390PCIIOMMUTable {
     S390PCIIOMMU *iommu[PCI_SLOT_MAX];
 } S390PCIIOMMUTable;
 
-typedef struct S390PCIBusDevice {
+struct S390PCIBusDevice {
     DeviceState qdev;
     PCIDevice *pdev;
     ZpciState state;
@@ -301,7 +301,7 @@ typedef struct S390PCIBusDevice {
     IndAddr *indicator;
     QEMUTimer *release_timer;
     QTAILQ_ENTRY(S390PCIBusDevice) link;
-} S390PCIBusDevice;
+};
 
 typedef struct S390PCIBus {
     BusState qbus;
