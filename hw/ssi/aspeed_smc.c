@@ -69,7 +69,9 @@
 #define R_CTRL0           (0x10 / 4)
 #define   CTRL_CMD_SHIFT           16
 #define   CTRL_CMD_MASK            0xff
+#define   CTRL_DUMMY_HIGH_SHIFT    14
 #define   CTRL_AST2400_SPI_4BYTE   (1 << 13)
+#define   CTRL_DUMMY_LOW_SHIFT     6 /* 2 bits [7:6] */
 #define   CTRL_CE_STOP_ACTIVE      (1 << 2)
 #define   CTRL_CMD_MODE_MASK       0x3
 #define     CTRL_READMODE          0x0
@@ -485,6 +487,16 @@ static uint32_t aspeed_smc_check_segment_addr(const AspeedSMCFlash *fl,
     return addr;
 }
 
+static int aspeed_smc_flash_dummies(const AspeedSMCFlash *fl)
+{
+    const AspeedSMCState *s = fl->controller;
+    uint32_t r_ctrl0 = s->regs[s->r_ctrl0 + fl->id];
+    uint32_t dummy_high = (r_ctrl0 >> CTRL_DUMMY_HIGH_SHIFT) & 0x1;
+    uint32_t dummy_low = (r_ctrl0 >> CTRL_DUMMY_LOW_SHIFT) & 0x3;
+
+    return ((dummy_high << 2) | dummy_low) * 8;
+}
+
 static void aspeed_smc_flash_send_addr(AspeedSMCFlash *fl, uint32_t addr)
 {
     const AspeedSMCState *s = fl->controller;
@@ -520,6 +532,15 @@ static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
     case CTRL_FREADMODE:
         aspeed_smc_flash_select(fl);
         aspeed_smc_flash_send_addr(fl, addr);
+
+        /*
+         * Use fake transfers to model dummy bytes. The value should
+         * be configured to some non-zero value in fast read mode and
+         * zero in read mode.
+         */
+        for (i = 0; i < aspeed_smc_flash_dummies(fl); i++) {
+            ssi_transfer(fl->controller->spi, 0xFF);
+        }
 
         for (i = 0; i < size; i++) {
             ret |= ssi_transfer(s->spi, 0x0) << (8 * i);
