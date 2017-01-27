@@ -228,8 +228,7 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
         /* TODO: Implement SLEEPONEXIT.  */
         return 0;
     case 0xd14: /* Configuration Control.  */
-        /* TODO: Implement Configuration Control bits.  */
-        return 0;
+        return cpu->env.v7m.ccr;
     case 0xd24: /* System Handler Status.  */
         val = 0;
         if (s->gic.irq_state[ARMV7M_EXCP_MEM].active) val |= (1 << 0);
@@ -248,16 +247,19 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
         if (s->gic.irq_state[ARMV7M_EXCP_USAGE].enabled) val |= (1 << 18);
         return val;
     case 0xd28: /* Configurable Fault Status.  */
-        /* TODO: Implement Fault Status.  */
-        qemu_log_mask(LOG_UNIMP, "Configurable Fault Status unimplemented\n");
-        return 0;
+        return cpu->env.v7m.cfsr;
     case 0xd2c: /* Hard Fault Status.  */
+        return cpu->env.v7m.hfsr;
     case 0xd30: /* Debug Fault Status.  */
-    case 0xd34: /* Mem Manage Address.  */
+        return cpu->env.v7m.dfsr;
+    case 0xd34: /* MMFAR MemManage Fault Address */
+        return cpu->env.v7m.mmfar;
     case 0xd38: /* Bus Fault Address.  */
+        return cpu->env.v7m.bfar;
     case 0xd3c: /* Aux Fault Status.  */
         /* TODO: Implement fault status registers.  */
-        qemu_log_mask(LOG_UNIMP, "Fault status registers unimplemented\n");
+        qemu_log_mask(LOG_UNIMP,
+                      "Aux Fault status registers unimplemented\n");
         return 0;
     case 0xd40: /* PFR0.  */
         return 0x00000030;
@@ -366,9 +368,19 @@ static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
         }
         break;
     case 0xd10: /* System Control.  */
-    case 0xd14: /* Configuration Control.  */
         /* TODO: Implement control registers.  */
-        qemu_log_mask(LOG_UNIMP, "NVIC: SCR and CCR unimplemented\n");
+        qemu_log_mask(LOG_UNIMP, "NVIC: SCR unimplemented\n");
+        break;
+    case 0xd14: /* Configuration Control.  */
+        /* Enforce RAZ/WI on reserved and must-RAZ/WI bits */
+        value &= (R_V7M_CCR_STKALIGN_MASK |
+                  R_V7M_CCR_BFHFNMIGN_MASK |
+                  R_V7M_CCR_DIV_0_TRP_MASK |
+                  R_V7M_CCR_UNALIGN_TRP_MASK |
+                  R_V7M_CCR_USERSETMPEND_MASK |
+                  R_V7M_CCR_NONBASETHRDENA_MASK);
+
+        cpu->env.v7m.ccr = value;
         break;
     case 0xd24: /* System Handler Control.  */
         /* TODO: Real hardware allows you to set/clear the active bits
@@ -378,13 +390,23 @@ static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
         s->gic.irq_state[ARMV7M_EXCP_USAGE].enabled = (value & (1 << 18)) != 0;
         break;
     case 0xd28: /* Configurable Fault Status.  */
+        cpu->env.v7m.cfsr &= ~value; /* W1C */
+        break;
     case 0xd2c: /* Hard Fault Status.  */
+        cpu->env.v7m.hfsr &= ~value; /* W1C */
+        break;
     case 0xd30: /* Debug Fault Status.  */
+        cpu->env.v7m.dfsr &= ~value; /* W1C */
+        break;
     case 0xd34: /* Mem Manage Address.  */
+        cpu->env.v7m.mmfar = value;
+        return;
     case 0xd38: /* Bus Fault Address.  */
+        cpu->env.v7m.bfar = value;
+        return;
     case 0xd3c: /* Aux Fault Status.  */
         qemu_log_mask(LOG_UNIMP,
-                      "NVIC: fault status registers unimplemented\n");
+                      "NVIC: Aux fault status registers unimplemented\n");
         break;
     case 0xf00: /* Software Triggered Interrupt Register */
         if ((value & 0x1ff) < s->num_irq) {
