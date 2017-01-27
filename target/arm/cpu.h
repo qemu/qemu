@@ -1762,12 +1762,6 @@ bool write_list_to_cpustate(ARMCPU *cpu);
  */
 bool write_cpustate_to_list(ARMCPU *cpu);
 
-/* Does the core conform to the "MicroController" profile. e.g. Cortex-M3.
-   Note the M in older cores (eg. ARM7TDMI) stands for Multiply. These are
-   conventional cores (ie. Application or Realtime profile).  */
-
-#define IS_M(env) arm_feature(env, ARM_FEATURE_M)
-
 #define ARM_CPUID_TI915T      0x54029152
 #define ARM_CPUID_TI925T      0x54029252
 
