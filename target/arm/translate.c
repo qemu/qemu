@@ -11719,12 +11719,12 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             break;
         }
 #else
-        if (dc->pc >= 0xfffffff0 && arm_dc_feature(dc, ARM_FEATURE_M)) {
-            /* We always get here via a jump, so know we are not in a
-               conditional execution block.  */
-            gen_exception_internal(EXCP_EXCEPTION_EXIT);
-            dc->is_jmp = DISAS_EXC;
-            break;
+        if (arm_dc_feature(dc, ARM_FEATURE_M)) {
+            /* Branches to the magic exception-return addresses should
+             * already have been caught via the arm_v7m_unassigned_access hook,
+             * and never get here.
+             */
+            assert(dc->pc < 0xfffffff0);
         }
 #endif
 
