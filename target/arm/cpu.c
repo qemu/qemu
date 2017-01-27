@@ -179,15 +179,27 @@ static void arm_cpu_reset(CPUState *s)
     /* SVC mode with interrupts disabled.  */
     env->uncached_cpsr = ARM_CPU_MODE_SVC;
     env->daif = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F;
-    /* On ARMv7-M the CPSR_I is the value of the PRIMASK register, and is
-     * clear at reset. Initial SP and PC are loaded from ROM.
-     */
-    if (IS_M(env)) {
+
+    if (arm_feature(env, ARM_FEATURE_M)) {
         uint32_t initial_msp; /* Loaded from 0x0 */
         uint32_t initial_pc; /* Loaded from 0x4 */
         uint8_t *rom;
 
-        env->daif &= ~PSTATE_I;
+        /* For M profile we store FAULTMASK and PRIMASK in the
+         * PSTATE F and I bits; these are both clear at reset.
+         */
+        env->daif &= ~(PSTATE_I | PSTATE_F);
+
+        /* The reset value of this bit is IMPDEF, but ARM recommends
+         * that it resets to 1, so QEMU always does that rather than making
+         * it dependent on CPU model.
+         */
+        env->v7m.ccr = R_V7M_CCR_STKALIGN_MASK;
+
+        /* Unlike A/R profile, M profile defines the reset LR value */
+        env->regs[14] = 0xffffffff;
+
+        /* Load the initial SP and PC from the vector table at address 0 */
         rom = rom_ptr(0);
         if (rom) {
             /* Address zero is covered by ROM which hasn't yet been
@@ -292,6 +304,33 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 }
 
 #if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
+static void arm_v7m_unassigned_access(CPUState *cpu, hwaddr addr,
+                                      bool is_write, bool is_exec, int opaque,
+                                      unsigned size)
+{
+    ARMCPU *arm = ARM_CPU(cpu);
+    CPUARMState *env = &arm->env;
+
+    /* ARMv7-M interrupt return works by loading a magic value into the PC.
+     * On real hardware the load causes the return to occur.  The qemu
+     * implementation performs the jump normally, then does the exception
+     * return by throwing a special exception when when the CPU tries to
+     * execute code at the magic address.
+     */
+    if (env->v7m.exception != 0 && addr >= 0xfffffff0 && is_exec) {
+        cpu->exception_index = EXCP_EXCEPTION_EXIT;
+        cpu_loop_exit(cpu);
+    }
+
+    /* In real hardware an attempt to access parts of the address space
+     * with nothing there will usually cause an external abort.
+     * However our QEMU board models are often missing device models where
+     * the guest can boot anyway with the default read-as-zero/writes-ignored
+     * behaviour that you get without a QEMU unassigned_access hook.
+     * So just return here to retain that default behaviour.
+     */
+}
+
 static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);
@@ -1016,6 +1055,7 @@ static void arm_v7m_class_init(ObjectClass *oc, void *data)
     cc->do_interrupt = arm_v7m_cpu_do_interrupt;
 #endif
 
+    cc->do_unassigned_access = arm_v7m_unassigned_access;
     cc->cpu_exec_interrupt = arm_v7m_cpu_exec_interrupt;
 }
 

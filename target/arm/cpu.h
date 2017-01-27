@@ -21,6 +21,7 @@
 #define ARM_CPU_H
 
 #include "kvm-consts.h"
+#include "hw/registerfields.h"
 
 #if defined(TARGET_AARCH64)
   /* AArch64 definitions */
@@ -52,6 +53,7 @@
 #define EXCP_VIRQ           14
 #define EXCP_VFIQ           15
 #define EXCP_SEMIHOST       16   /* semihosting call */
+#define EXCP_NOCP           17   /* v7M NOCP UsageFault */
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2
@@ -405,7 +407,12 @@ typedef struct CPUARMState {
         uint32_t vecbase;
         uint32_t basepri;
         uint32_t control;
-        int current_sp;
+        uint32_t ccr; /* Configuration and Control */
+        uint32_t cfsr; /* Configurable Fault Status */
+        uint32_t hfsr; /* HardFault Status */
+        uint32_t dfsr; /* Debug Fault Status Register */
+        uint32_t mmfar; /* MemManage Fault Address */
+        uint32_t bfar; /* BusFault Address */
         int exception;
     } v7m;
 
@@ -1087,6 +1094,53 @@ enum arm_cpu_mode {
 #define ARM_IWMMXT_wCGR2	10
 #define ARM_IWMMXT_wCGR3	11
 
+/* V7M CCR bits */
+FIELD(V7M_CCR, NONBASETHRDENA, 0, 1)
+FIELD(V7M_CCR, USERSETMPEND, 1, 1)
+FIELD(V7M_CCR, UNALIGN_TRP, 3, 1)
+FIELD(V7M_CCR, DIV_0_TRP, 4, 1)
+FIELD(V7M_CCR, BFHFNMIGN, 8, 1)
+FIELD(V7M_CCR, STKALIGN, 9, 1)
+FIELD(V7M_CCR, DC, 16, 1)
+FIELD(V7M_CCR, IC, 17, 1)
+
+/* V7M CFSR bits for MMFSR */
+FIELD(V7M_CFSR, IACCVIOL, 0, 1)
+FIELD(V7M_CFSR, DACCVIOL, 1, 1)
+FIELD(V7M_CFSR, MUNSTKERR, 3, 1)
+FIELD(V7M_CFSR, MSTKERR, 4, 1)
+FIELD(V7M_CFSR, MLSPERR, 5, 1)
+FIELD(V7M_CFSR, MMARVALID, 7, 1)
+
+/* V7M CFSR bits for BFSR */
+FIELD(V7M_CFSR, IBUSERR, 8 + 0, 1)
+FIELD(V7M_CFSR, PRECISERR, 8 + 1, 1)
+FIELD(V7M_CFSR, IMPRECISERR, 8 + 2, 1)
+FIELD(V7M_CFSR, UNSTKERR, 8 + 3, 1)
+FIELD(V7M_CFSR, STKERR, 8 + 4, 1)
+FIELD(V7M_CFSR, LSPERR, 8 + 5, 1)
+FIELD(V7M_CFSR, BFARVALID, 8 + 7, 1)
+
+/* V7M CFSR bits for UFSR */
+FIELD(V7M_CFSR, UNDEFINSTR, 16 + 0, 1)
+FIELD(V7M_CFSR, INVSTATE, 16 + 1, 1)
+FIELD(V7M_CFSR, INVPC, 16 + 2, 1)
+FIELD(V7M_CFSR, NOCP, 16 + 3, 1)
+FIELD(V7M_CFSR, UNALIGNED, 16 + 8, 1)
+FIELD(V7M_CFSR, DIVBYZERO, 16 + 9, 1)
+
+/* V7M HFSR bits */
+FIELD(V7M_HFSR, VECTTBL, 1, 1)
+FIELD(V7M_HFSR, FORCED, 30, 1)
+FIELD(V7M_HFSR, DEBUGEVT, 31, 1)
+
+/* V7M DFSR bits */
+FIELD(V7M_DFSR, HALTED, 0, 1)
+FIELD(V7M_DFSR, BKPT, 1, 1)
+FIELD(V7M_DFSR, DWTTRAP, 2, 1)
+FIELD(V7M_DFSR, VCATCH, 3, 1)
+FIELD(V7M_DFSR, EXTERNAL, 4, 1)
+
 /* If adding a feature bit which corresponds to a Linux ELF
  * HWCAP bit, remember to update the feature-bit-to-hwcap
  * mapping in linux-user/elfload.c:get_elf_hwcap().
@@ -1762,12 +1816,6 @@ bool write_list_to_cpustate(ARMCPU *cpu);
  * reading all registers in the list.
  */
 bool write_cpustate_to_list(ARMCPU *cpu);
-
-/* Does the core conform to the "MicroController" profile. e.g. Cortex-M3.
-   Note the M in older cores (eg. ARM7TDMI) stands for Multiply. These are
-   conventional cores (ie. Application or Realtime profile).  */
-
-#define IS_M(env) arm_feature(env, ARM_FEATURE_M)
 
 #define ARM_CPUID_TI915T      0x54029152
 #define ARM_CPUID_TI925T      0x54029252
