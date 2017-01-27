@@ -53,6 +53,7 @@
 #define EXCP_VIRQ           14
 #define EXCP_VFIQ           15
 #define EXCP_SEMIHOST       16   /* semihosting call */
+#define EXCP_NOCP           17   /* v7M NOCP UsageFault */
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2

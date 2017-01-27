@@ -10217,6 +10217,14 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
         break;
     case 6: case 7: case 14: case 15:
         /* Coprocessor.  */
+        if (arm_dc_feature(s, ARM_FEATURE_M)) {
+            /* We don't currently implement M profile FP support,
+             * so this entire space should give a NOCP fault.
+             */
+            gen_exception_insn(s, 4, EXCP_NOCP, syn_uncategorized(),
+                               default_exception_el(s));
+            break;
+        }
         if (((insn >> 24) & 3) == 3) {
             /* Translate into the equivalent ARM encoding.  */
             insn = (insn & 0xe2ffffff) | ((insn & (1 << 28)) >> 4) | (1 << 28);
