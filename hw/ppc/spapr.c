@@ -2129,6 +2129,12 @@ static void ppc_spapr_init(MachineState *machine)
     qemu_register_reset(spapr_ccs_reset_hook, spapr);
 
     qemu_register_boot_set(spapr_boot_set, spapr);
+
+    /* to stop and start vmclock */
+    if (kvm_enabled()) {
+        qemu_add_vm_change_state_handler(cpu_ppc_clock_vm_state_change,
+                                         &spapr->tb);
+    }
 }
 
 static int spapr_kvm_type(const char *vm_type)
