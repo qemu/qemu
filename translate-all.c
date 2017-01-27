@@ -1958,7 +1958,7 @@ void dump_opcount_info(FILE *f, fprintf_function cpu_fprintf)
 void cpu_interrupt(CPUState *cpu, int mask)
 {
     cpu->interrupt_request |= mask;
-    cpu->tcg_exit_req = 1;
+    cpu->icount_decr.u16.high = -1;
 }
 
 /*

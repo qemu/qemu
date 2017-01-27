@@ -43,14 +43,11 @@ static void tcg_handle_interrupt(CPUState *cpu, int mask)
         return;
     }
 
-    if (use_icount) {
-        cpu->icount_decr.u16.high = 0xffff;
-        if (!cpu->can_do_io
-            && (mask & ~old_mask) != 0) {
-            cpu_abort(cpu, "Raised interrupt while not in I/O function");
-        }
-    } else {
-        cpu->tcg_exit_req = 1;
+    cpu->icount_decr.u16.high = -1;
+    if (use_icount &&
+        !cpu->can_do_io
+        && (mask & ~old_mask) != 0) {
+        cpu_abort(cpu, "Raised interrupt while not in I/O function");
     }
 }
 

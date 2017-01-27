@@ -185,12 +185,6 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
             cc->set_pc(cpu, last_tb->pc);
         }
     }
-    if (tb_exit == TB_EXIT_REQUESTED) {
-        /* We were asked to stop executing TBs (probably a pending
-         * interrupt. We've now stopped, so clear the flag.
-         */
-        atomic_set(&cpu->tcg_exit_req, 0);
-    }
     return ret;
 }
 
@@ -537,6 +531,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
                                     SyncClocks *sc)
 {
     uintptr_t ret;
+    int32_t insns_left;
 
     if (unlikely(atomic_read(&cpu->exit_request))) {
         return;
@@ -546,8 +541,15 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
     ret = cpu_tb_exec(cpu, tb);
     tb = (TranslationBlock *)(ret & ~TB_EXIT_MASK);
     *tb_exit = ret & TB_EXIT_MASK;
-    switch (*tb_exit) {
-    case TB_EXIT_REQUESTED:
+    if (*tb_exit != TB_EXIT_REQUESTED) {
+        *last_tb = tb;
+        return;
+    }
+
+    *last_tb = NULL;
+    insns_left = atomic_read(&cpu->icount_decr.u32);
+    atomic_set(&cpu->icount_decr.u16.high, 0);
+    if (insns_left < 0) {
         /* Something asked us to stop executing
          * chained TBs; just continue round the main
          * loop. Whatever requested the exit will also
@@ -559,38 +561,30 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
          * or cpu->interrupt_request.
          */
         smp_mb();
-        *last_tb = NULL;
-        break;
-    case TB_EXIT_ICOUNT_EXPIRED:
-    {
-        /* Instruction counter expired.  */
-#ifdef CONFIG_USER_ONLY
-        abort();
-#else
-        int insns_left = cpu->icount_decr.u32;
-        *last_tb = NULL;
-        if (cpu->icount_extra && insns_left >= 0) {
-            /* Refill decrementer and continue execution.  */
-            cpu->icount_extra += insns_left;
-            insns_left = MIN(0xffff, cpu->icount_extra);
-            cpu->icount_extra -= insns_left;
-            cpu->icount_decr.u16.low = insns_left;
-        } else {
-            if (insns_left > 0) {
-                /* Execute remaining instructions.  */
-                cpu_exec_nocache(cpu, insns_left, tb, false);
-                align_clocks(sc, cpu);
-            }
-            cpu->exception_index = EXCP_INTERRUPT;
-            cpu_loop_exit(cpu);
+        return;
+    }
+
+    /* Instruction counter expired.  */
+    assert(use_icount);
+#ifndef CONFIG_USER_ONLY
+    if (cpu->icount_extra) {
+        /* Refill decrementer and continue execution.  */
+        cpu->icount_extra += insns_left;
+        insns_left = MIN(0xffff, cpu->icount_extra);
+        cpu->icount_extra -= insns_left;
+        cpu->icount_decr.u16.low = insns_left;
+    } else {
+        /* Execute any remaining instructions, then let the main loop
+         * handle the next event.
+         */
+        if (insns_left > 0) {
+            cpu_exec_nocache(cpu, insns_left, tb, false);
+            align_clocks(sc, cpu);
         }
-        break;
+        cpu->exception_index = EXCP_INTERRUPT;
+        cpu_loop_exit(cpu);
+    }
 #endif
-    }
-    default:
-        *last_tb = tb;
-        break;
-    }
 }
 
 /* main execution loop */
