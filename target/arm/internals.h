@@ -25,6 +25,8 @@
 #ifndef TARGET_ARM_INTERNALS_H
 #define TARGET_ARM_INTERNALS_H
 
+#include "hw/registerfields.h"
+
 /* register banks for CPU modes */
 #define BANK_USRSYS 0
 #define BANK_SVC    1
@@ -74,6 +76,11 @@ static const char * const excnames[] = {
  * This gives a 62.5MHz timer.
  */
 #define GTIMER_SCALE 16
+
+/* Bit definitions for the v7M CONTROL register */
+FIELD(V7M_CONTROL, NPRIV, 0, 1)
+FIELD(V7M_CONTROL, SPSEL, 1, 1)
+FIELD(V7M_CONTROL, FPCA, 2, 1)
 
 /*
  * For AArch64, map a given EL to an index in the banked_spsr array.

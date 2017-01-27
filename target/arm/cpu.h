@@ -405,7 +405,6 @@ typedef struct CPUARMState {
         uint32_t vecbase;
         uint32_t basepri;
         uint32_t control;
-        int current_sp;
         int exception;
     } v7m;
 
