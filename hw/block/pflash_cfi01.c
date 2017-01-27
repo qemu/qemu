@@ -99,6 +99,7 @@ struct pflash_t {
     char *name;
     void *storage;
     VMChangeStateEntry *vmstate;
+    bool old_multiple_chip_handling;
 };
 
 static int pflash_post_load(void *opaque, int version_id);
@@ -703,7 +704,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pflash_t *pfl = CFI_PFLASH01(dev);
     uint64_t total_len;
     int ret;
-    uint64_t blocks_per_device, device_len;
+    uint64_t blocks_per_device, sector_len_per_device, device_len;
     int num_devices;
     Error *local_err = NULL;
 
@@ -726,8 +727,14 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
      * in the cfi_table[].
      */
     num_devices = pfl->device_width ? (pfl->bank_width / pfl->device_width) : 1;
-    blocks_per_device = pfl->nb_blocs / num_devices;
-    device_len = pfl->sector_len * blocks_per_device;
+    if (pfl->old_multiple_chip_handling) {
+        blocks_per_device = pfl->nb_blocs / num_devices;
+        sector_len_per_device = pfl->sector_len;
+    } else {
+        blocks_per_device = pfl->nb_blocs;
+        sector_len_per_device = pfl->sector_len / num_devices;
+    }
+    device_len = sector_len_per_device * blocks_per_device;
 
     /* XXX: to be fixed */
 #if 0
@@ -832,6 +839,9 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
         pfl->cfi_table[0x2A] = 0x0B;
     }
     pfl->writeblock_size = 1 << pfl->cfi_table[0x2A];
+    if (!pfl->old_multiple_chip_handling && num_devices > 1) {
+        pfl->writeblock_size *= num_devices;
+    }
 
     pfl->cfi_table[0x2B] = 0x00;
     /* Number of erase block regions (uniform) */
@@ -839,8 +849,8 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     /* Erase block region 1 */
     pfl->cfi_table[0x2D] = blocks_per_device - 1;
     pfl->cfi_table[0x2E] = (blocks_per_device - 1) >> 8;
-    pfl->cfi_table[0x2F] = pfl->sector_len >> 8;
-    pfl->cfi_table[0x30] = pfl->sector_len >> 16;
+    pfl->cfi_table[0x2F] = sector_len_per_device >> 8;
+    pfl->cfi_table[0x30] = sector_len_per_device >> 16;
 
     /* Extended */
     pfl->cfi_table[0x31] = 'P';
@@ -898,6 +908,8 @@ static Property pflash_cfi01_properties[] = {
     DEFINE_PROP_UINT16("id2", struct pflash_t, ident2, 0),
     DEFINE_PROP_UINT16("id3", struct pflash_t, ident3, 0),
     DEFINE_PROP_STRING("name", struct pflash_t, name),
+    DEFINE_PROP_BOOL("old-multiple-chip-handling", struct pflash_t,
+                     old_multiple_chip_handling, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

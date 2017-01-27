@@ -10,6 +10,10 @@
         .driver   = "fw_cfg_io",\
         .property = "x-file-slots",\
         .value    = stringify(0x10),\
+    },{\
+        .driver   = "pflash_cfi01",\
+        .property = "old-multiple-chip-handling",\
+        .value    = "on",\
     },
 
 #define HW_COMPAT_2_7 \
