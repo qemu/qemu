@@ -306,7 +306,7 @@ static void exynos4210_uart_update_irq(Exynos4210UartState *s)
 
 static void exynos4210_uart_update_parameters(Exynos4210UartState *s)
 {
-    int speed, parity, data_bits, stop_bits, frame_size;
+    int speed, parity, data_bits, stop_bits;
     QEMUSerialSetParams ssp;
     uint64_t uclk_rate;
 
@@ -314,9 +314,7 @@ static void exynos4210_uart_update_parameters(Exynos4210UartState *s)
         return;
     }
 
-    frame_size = 1; /* start bit */
     if (s->reg[I_(ULCON)] & 0x20) {
-        frame_size++; /* parity bit */
         if (s->reg[I_(ULCON)] & 0x28) {
             parity = 'E';
         } else {
@@ -333,8 +331,6 @@ static void exynos4210_uart_update_parameters(Exynos4210UartState *s)
     }
 
     data_bits = (s->reg[I_(ULCON)] & 0x3) + 5;
-
-    frame_size += data_bits + stop_bits;
 
     uclk_rate = 24000000;
 
