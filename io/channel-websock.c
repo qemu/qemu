@@ -570,21 +570,24 @@ static ssize_t qio_channel_websock_read_wire(QIOChannelWebsock *ioc,
         ioc->encinput.offset += ret;
     }
 
-    if (ioc->payload_remain == 0) {
-        ret = qio_channel_websock_decode_header(ioc, errp);
+    while (ioc->encinput.offset != 0) {
+        if (ioc->payload_remain == 0) {
+            ret = qio_channel_websock_decode_header(ioc, errp);
+            if (ret < 0) {
+                return ret;
+            }
+            if (ret == 0) {
+                ioc->io_eof = TRUE;
+                break;
+            }
+        }
+
+        ret = qio_channel_websock_decode_payload(ioc, errp);
         if (ret < 0) {
             return ret;
         }
-        if (ret == 0) {
-            return 0;
-        }
     }
-
-    ret = qio_channel_websock_decode_payload(ioc, errp);
-    if (ret < 0) {
-        return ret;
-    }
-    return ret;
+    return 1;
 }
 
 
@@ -641,9 +644,6 @@ static gboolean qio_channel_websock_flush(QIOChannel *ioc,
         ret = qio_channel_websock_read_wire(wioc, &wioc->io_err);
         if (ret < 0) {
             goto cleanup;
-        }
-        if (ret == 0) {
-            wioc->io_eof = TRUE;
         }
     }
 
