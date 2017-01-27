@@ -610,7 +610,10 @@ void timer_deinit(QEMUTimer *ts);
  *
  * Free a timer (it must not be on the active list)
  */
-void timer_free(QEMUTimer *ts);
+static inline void timer_free(QEMUTimer *ts)
+{
+    g_free(ts);
+}
 
 /**
  * timer_del:
