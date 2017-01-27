@@ -3126,10 +3126,10 @@
 #
 # @filename:        filename of the new image to be loaded
 #
-# @format:          #optional, format to open the new image with (defaults to
+# @format:          #optional format to open the new image with (defaults to
 #                   the probed format)
 #
-# @read-only-mode:  #optional, change the read-only mode of the device; defaults
+# @read-only-mode:  #optional change the read-only mode of the device; defaults
 #                   to 'retain'
 #
 # Since: 2.5
@@ -3208,10 +3208,10 @@
 #       corruption being detected. It should not be parsed by machine as it is
 #       not guaranteed to be stable
 #
-# @offset: #optional, if the corruption resulted from an image access, this is
+# @offset: #optional if the corruption resulted from an image access, this is
 #          the host's access offset into the image
 #
-# @size: #optional, if the corruption resulted from an image access, this is
+# @size: #optional if the corruption resulted from an image access, this is
 #        the access size
 #
 # @fatal: if set, the image is marked corrupt and therefore unusable after this
@@ -3302,7 +3302,7 @@
 #
 # @speed: rate limit, bytes per second
 #
-# @error: #optional, error message. Only present on failure. This field
+# @error: #optional error message. Only present on failure. This field
 #         contains a human-readable error message. There are no semantics
 #         other than that streaming has failed and clients should not try to
 #         interpret the error string
