@@ -29,8 +29,8 @@ static void test_io_channel_command_fifo(bool async)
 #define TEST_FIFO "tests/test-io-channel-command.fifo"
     QIOChannel *src, *dst;
     QIOChannelTest *test;
-    char *srcfifo = g_strdup_printf("PIPE:%s,wronly", TEST_FIFO);
-    char *dstfifo = g_strdup_printf("PIPE:%s,rdonly", TEST_FIFO);
+    const char *srcfifo = "PIPE:" TEST_FIFO ",wronly";
+    const char *dstfifo = "PIPE:" TEST_FIFO ",rdonly";
     const char *srcargv[] = {
         "/bin/socat", "-", srcfifo, NULL,
     };
@@ -59,8 +59,6 @@ static void test_io_channel_command_fifo(bool async)
     object_unref(OBJECT(src));
     object_unref(OBJECT(dst));
 
-    g_free(srcfifo);
-    g_free(dstfifo);
     unlink(TEST_FIFO);
 }
 
