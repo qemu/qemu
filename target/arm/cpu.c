@@ -188,6 +188,13 @@ static void arm_cpu_reset(CPUState *s)
         uint8_t *rom;
 
         env->daif &= ~PSTATE_I;
+
+        /* The reset value of this bit is IMPDEF, but ARM recommends
+         * that it resets to 1, so QEMU always does that rather than making
+         * it dependent on CPU model.
+         */
+        env->v7m.ccr = R_V7M_CCR_STKALIGN_MASK;
+
         rom = rom_ptr(0);
         if (rom) {
             /* Address zero is covered by ROM which hasn't yet been
