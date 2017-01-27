@@ -12,6 +12,7 @@
 #include "qemu/host-utils.h"
 #include "sysemu/replay.h"
 #include "sysemu/qtest.h"
+#include "block/aio.h"
 
 #define DELTA_ADJUST     1
 #define DELTA_NO_ADJUST -1
@@ -352,4 +353,11 @@ ptimer_state *ptimer_init(QEMUBH *bh, uint8_t policy_mask)
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ptimer_tick, s);
     s->policy_mask = policy_mask;
     return s;
+}
+
+void ptimer_free(ptimer_state *s)
+{
+    qemu_bh_delete(s->bh);
+    timer_free(s->timer);
+    g_free(s);
 }
