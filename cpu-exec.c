@@ -461,7 +461,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     return false;
 }
 
-static inline void cpu_handle_interrupt(CPUState *cpu,
+static inline bool cpu_handle_interrupt(CPUState *cpu,
                                         TranslationBlock **last_tb)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
@@ -475,7 +475,7 @@ static inline void cpu_handle_interrupt(CPUState *cpu,
         if (interrupt_request & CPU_INTERRUPT_DEBUG) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
             cpu->exception_index = EXCP_DEBUG;
-            cpu_loop_exit(cpu);
+            return true;
         }
         if (replay_mode == REPLAY_MODE_PLAY && !replay_has_interrupt()) {
             /* Do nothing */
@@ -484,7 +484,7 @@ static inline void cpu_handle_interrupt(CPUState *cpu,
             cpu->interrupt_request &= ~CPU_INTERRUPT_HALT;
             cpu->halted = 1;
             cpu->exception_index = EXCP_HLT;
-            cpu_loop_exit(cpu);
+            return true;
         }
 #if defined(TARGET_I386)
         else if (interrupt_request & CPU_INTERRUPT_INIT) {
@@ -494,13 +494,13 @@ static inline void cpu_handle_interrupt(CPUState *cpu,
             cpu_svm_check_intercept_param(env, SVM_EXIT_INIT, 0);
             do_cpu_init(x86_cpu);
             cpu->exception_index = EXCP_HALTED;
-            cpu_loop_exit(cpu);
+            return true;
         }
 #else
         else if (interrupt_request & CPU_INTERRUPT_RESET) {
             replay_interrupt();
             cpu_reset(cpu);
-            cpu_loop_exit(cpu);
+            return true;
         }
 #endif
         /* The target hook has 3 exit conditions:
@@ -526,8 +526,10 @@ static inline void cpu_handle_interrupt(CPUState *cpu,
     if (unlikely(atomic_read(&cpu->exit_request) || replay_has_interrupt())) {
         atomic_set(&cpu->exit_request, 0);
         cpu->exception_index = EXCP_INTERRUPT;
-        cpu_loop_exit(cpu);
+        return true;
     }
+
+    return false;
 }
 
 static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
@@ -625,7 +627,7 @@ int cpu_exec(CPUState *cpu)
     for(;;) {
         /* prepare setjmp context for exception handling */
         if (sigsetjmp(cpu->jmp_env, 0) == 0) {
-            TranslationBlock *tb, *last_tb = NULL;
+            TranslationBlock *last_tb = NULL;
             int tb_exit = 0;
 
             /* if an exception is pending, we execute it here */
@@ -633,14 +635,13 @@ int cpu_exec(CPUState *cpu)
                 break;
             }
 
-            for(;;) {
-                cpu_handle_interrupt(cpu, &last_tb);
-                tb = tb_find(cpu, last_tb, tb_exit);
+            while (!cpu_handle_interrupt(cpu, &last_tb)) {
+                TranslationBlock *tb = tb_find(cpu, last_tb, tb_exit);
                 cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit, &sc);
                 /* Try to align the host and virtual clocks
                    if the guest is in advance */
                 align_clocks(&sc, cpu);
-            } /* for(;;) */
+            }
         } else {
 #if defined(__clang__) || !QEMU_GNUC_PREREQ(4, 6)
             /* Some compilers wrongly smash all local variables after
