@@ -135,6 +135,7 @@ static const XtensaReg sregnames[256] = {
     [WINDOW_START] = XTENSA_REG("WINDOW_START",
             XTENSA_OPTION_WINDOWED_REGISTER),
     [PTEVADDR] = XTENSA_REG("PTEVADDR", XTENSA_OPTION_MMU),
+    [MMID] = XTENSA_REG_BITS("MMID", XTENSA_OPTION_ALL),
     [RASID] = XTENSA_REG("RASID", XTENSA_OPTION_MMU),
     [ITLBCFG] = XTENSA_REG("ITLBCFG", XTENSA_OPTION_MMU),
     [DTLBCFG] = XTENSA_REG("DTLBCFG", XTENSA_OPTION_MMU),
@@ -142,6 +143,7 @@ static const XtensaReg sregnames[256] = {
     [MEMCTL] = XTENSA_REG_BITS("MEMCTL", XTENSA_OPTION_ALL),
     [CACHEATTR] = XTENSA_REG("CACHEATTR", XTENSA_OPTION_CACHEATTR),
     [ATOMCTL] = XTENSA_REG("ATOMCTL", XTENSA_OPTION_ATOMCTL),
+    [DDR] = XTENSA_REG("DDR", XTENSA_OPTION_DEBUG),
     [IBREAKA] = XTENSA_REG("IBREAKA0", XTENSA_OPTION_DEBUG),
     [IBREAKA + 1] = XTENSA_REG("IBREAKA1", XTENSA_OPTION_DEBUG),
     [DBREAKA] = XTENSA_REG("DBREAKA0", XTENSA_OPTION_DEBUG),
@@ -2762,6 +2764,12 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "extw",
         .translate = translate_nop,
     }, {
+        .name = "hwwdtlba",
+        .translate = translate_ill,
+    }, {
+        .name = "hwwitlba",
+        .translate = translate_ill,
+    }, {
         .name = "idtlb",
         .translate = translate_itlb,
         .par = (const uint32_t[]){true},
@@ -2846,6 +2854,9 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "ldinc",
         .translate = translate_mac16,
         .par = (const uint32_t[]){MAC16_NONE, 0, 0, 4},
+    }, {
+        .name = "ldpte",
+        .translate = translate_ill,
     }, {
         .name = "loop",
         .translate = translate_loop,
@@ -3265,8 +3276,14 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "retw.n",
         .translate = translate_retw,
     }, {
+        .name = "rfdd",
+        .translate = translate_ill,
+    }, {
         .name = "rfde",
         .translate = translate_rfde,
+    }, {
+        .name = "rfdo",
+        .translate = translate_ill,
     }, {
         .name = "rfe",
         .translate = translate_rfe,
@@ -3367,6 +3384,10 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "rsr.dbreakc1",
         .translate = translate_rsr,
         .par = (const uint32_t[]){DBREAKC + 1},
+    }, {
+        .name = "rsr.ddr",
+        .translate = translate_rsr,
+        .par = (const uint32_t[]){DDR},
     }, {
         .name = "rsr.debugcause",
         .translate = translate_rsr,
@@ -3803,6 +3824,10 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .par = (const uint32_t[]){DBREAKC + 1},
     }, {
+        .name = "wsr.ddr",
+        .translate = translate_wsr,
+        .par = (const uint32_t[]){DDR},
+    }, {
         .name = "wsr.debugcause",
         .translate = translate_wsr,
         .par = (const uint32_t[]){DEBUGCAUSE},
@@ -3995,6 +4020,10 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .par = (const uint32_t[]){MISC + 3},
     }, {
+        .name = "wsr.mmid",
+        .translate = translate_wsr,
+        .par = (const uint32_t[]){MMID},
+    }, {
         .name = "wsr.prid",
         .translate = translate_wsr,
         .par = (const uint32_t[]){PRID},
@@ -4121,6 +4150,10 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "xsr.dbreakc1",
         .translate = translate_xsr,
         .par = (const uint32_t[]){DBREAKC + 1},
+    }, {
+        .name = "xsr.ddr",
+        .translate = translate_xsr,
+        .par = (const uint32_t[]){DDR},
     }, {
         .name = "xsr.debugcause",
         .translate = translate_xsr,
