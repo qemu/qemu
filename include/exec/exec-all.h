@@ -318,6 +318,7 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 static inline void tb_add_jump(TranslationBlock *tb, int n,
                                TranslationBlock *tb_next)
 {
+    assert(n < ARRAY_SIZE(tb->jmp_list_next));
     if (tb->jmp_list_next[n]) {
         /* Another thread has already done this while we were
          * outside of the lock; nothing to do in this case */
