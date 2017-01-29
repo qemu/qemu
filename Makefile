@@ -149,6 +149,7 @@ dummy := $(call unnest-vars,, \
                 stub-obj-y \
                 util-obj-y \
                 qga-obj-y \
+                await_trans_vm_sig-obj-y \
                 ivshmem-client-obj-y \
                 ivshmem-server-obj-y \
                 libvhost-user-obj-y \
@@ -344,6 +345,9 @@ ifneq ($(EXESUF),)
 .PHONY: qemu-ga
 qemu-ga: qemu-ga$(EXESUF) $(QGA_VSS_PROVIDER) $(QEMU_GA_MSI)
 endif
+
+await_trans_vm_sig$(EXESUF): $(await_trans_vm_sig-obj-y) libqemuutil.a libqemustub.a
+	$(call LINK, $^)
 
 ivshmem-client$(EXESUF): $(ivshmem-client-obj-y) libqemuutil.a libqemustub.a
 	$(call LINK, $^)

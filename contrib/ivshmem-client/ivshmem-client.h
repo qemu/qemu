@@ -209,4 +209,48 @@ ivshmem_client_search_peer(IvshmemClient *client, int64_t peer_id);
  */
 void ivshmem_client_dump(const IvshmemClient *client);
 
+#define IVSHMEM_CLIENT_DEFAULT_VERBOSE        0
+#define IVSHMEM_CLIENT_DEFAULT_UNIX_SOCK_PATH "/tmp/ivshmem_socket"
+
+typedef struct IvshmemClientArgs {
+    bool verbose;
+    const char *unix_sock_path;
+} IvshmemClientArgs;
+
+
+/* show ivshmem_client_usage and exit with given error code */
+void
+ivshmem_client_usage(const char *name, int code);
+
+/* parse the program arguments, exit on error */
+void
+ivshmem_client_parse_args(IvshmemClientArgs *args, int argc, char *argv[]);
+
+/* show command line help */
+void
+ivshmem_client_cmdline_help(void);
+
+/* read stdin and handle commands */
+int
+ivshmem_client_handle_stdin_command(IvshmemClient *client);
+
+/* handle message coming from server (new peer, new vectors) */
+int
+ivshmem_client_handle_server_msg(IvshmemClient *client);
+
+/* handle events from eventfd: just print a message on notification */
+int
+ivshmem_client_handle_event(IvshmemClient *client, const fd_set *cur, int maxfd);
+
+/* listen on stdin (command line), on unix socket (notifications of new
+ * and dead peers), and on eventfd (IRQ request) */
+int
+ivshmem_client_poll_events(IvshmemClient *client);
+
+/* callback when we receive a notification (just display it) */
+void
+ivshmem_client_notification_cb(const IvshmemClient *client,
+                               const IvshmemClientPeer *peer,
+                               unsigned vect, void *arg);
+
 #endif /* IVSHMEM_CLIENT_H */
