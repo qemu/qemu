@@ -769,6 +769,7 @@ static void display_mouse_set(DisplayChangeListener *dcl,
     g_free(ssd->ptr_move);
     ssd->ptr_move = qemu_spice_create_cursor_update(ssd, NULL, on);
     qemu_mutex_unlock(&ssd->lock);
+    qemu_spice_wakeup(ssd);
 }
 
 static void display_mouse_define(DisplayChangeListener *dcl,
@@ -787,6 +788,7 @@ static void display_mouse_define(DisplayChangeListener *dcl,
     g_free(ssd->ptr_define);
     ssd->ptr_define = qemu_spice_create_cursor_update(ssd, c, 0);
     qemu_mutex_unlock(&ssd->lock);
+    qemu_spice_wakeup(ssd);
 }
 
 static const DisplayChangeListenerOps display_listener_ops = {
