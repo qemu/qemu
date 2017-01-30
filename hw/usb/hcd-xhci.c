@@ -1897,7 +1897,7 @@ static int xhci_setup_packet(XHCITransfer *xfer)
     return 0;
 }
 
-static int xhci_complete_packet(XHCITransfer *xfer)
+static int xhci_try_complete_packet(XHCITransfer *xfer)
 {
     if (xfer->packet.status == USB_RET_ASYNC) {
         trace_usb_xhci_xfer_async(xfer);
@@ -2002,7 +2002,7 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 
     usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
 
-    xhci_complete_packet(xfer);
+    xhci_try_complete_packet(xfer);
     if (!xfer->running_async && !xfer->running_retry) {
         xhci_kick_epctx(xfer->epctx, 0);
     }
@@ -2106,7 +2106,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
     }
     usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
 
-    xhci_complete_packet(xfer);
+    xhci_try_complete_packet(xfer);
     if (!xfer->running_async && !xfer->running_retry) {
         xhci_kick_epctx(xfer->epctx, xfer->streamid);
     }
@@ -2185,7 +2185,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             }
             usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
             assert(xfer->packet.status != USB_RET_NAK);
-            xhci_complete_packet(xfer);
+            xhci_try_complete_packet(xfer);
         } else {
             /* retry nak'ed transfer */
             if (xhci_setup_packet(xfer) < 0) {
@@ -2195,7 +2195,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             if (xfer->packet.status == USB_RET_NAK) {
                 return;
             }
-            xhci_complete_packet(xfer);
+            xhci_try_complete_packet(xfer);
         }
         assert(!xfer->running_retry);
         if (xfer->complete) {
@@ -3492,7 +3492,7 @@ static void xhci_complete(USBPort *port, USBPacket *packet)
         xhci_ep_nuke_one_xfer(xfer, 0);
         return;
     }
-    xhci_complete_packet(xfer);
+    xhci_try_complete_packet(xfer);
     xhci_kick_epctx(xfer->epctx, xfer->streamid);
     if (xfer->complete) {
         xhci_ep_free_xfer(xfer);
