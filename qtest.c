@@ -670,7 +670,7 @@ static int qtest_init_accel(MachineState *ms)
 
 void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
 {
-    CharDriverState *chr;
+    Chardev *chr;
 
     chr = qemu_chr_new("qtest", qtest_chrdev);
 

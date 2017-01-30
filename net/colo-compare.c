@@ -564,7 +564,7 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
  * Return 0 is success.
  * Return 1 is failed.
  */
-static int find_and_check_chardev(CharDriverState **chr,
+static int find_and_check_chardev(Chardev **chr,
                                   char *chr_name,
                                   Error **errp)
 {
@@ -611,7 +611,7 @@ static void check_old_packet_regular(void *opaque)
 static void colo_compare_complete(UserCreatable *uc, Error **errp)
 {
     CompareState *s = COLO_COMPARE(uc);
-    CharDriverState *chr;
+    Chardev *chr;
     char thread_name[64];
     static int compare_id;
 

@@ -42,7 +42,7 @@ void tmu012_init(struct MemoryRegion *sysmem, hwaddr base,
 #define SH_SERIAL_FEAT_SCIF (1 << 0)
 void sh_serial_init(MemoryRegion *sysmem,
                     hwaddr base, int feat,
-		     uint32_t freq, CharDriverState *chr,
+                    uint32_t freq, Chardev *chr,
 		     qemu_irq eri_source,
 		     qemu_irq rxi_source,
 		     qemu_irq txi_source,

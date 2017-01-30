@@ -689,7 +689,7 @@ static const VMStateDescription vmstate_escc = {
 };
 
 MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
-              CharDriverState *chrA, CharDriverState *chrB,
+              Chardev *chrA, Chardev *chrB,
               int clock, int it_shift)
 {
     DeviceState *dev;

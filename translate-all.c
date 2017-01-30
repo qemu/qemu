@@ -1290,6 +1290,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         /* flush must be done */
         tb_flush(cpu);
         mmap_unlock();
+        /* Make the execution loop process the flush as soon as possible.  */
+        cpu->exception_index = EXCP_INTERRUPT;
         cpu_loop_exit(cpu);
     }
 

@@ -582,7 +582,7 @@ static const VMStateDescription vmstate_exynos4210_uart = {
 DeviceState *exynos4210_uart_create(hwaddr addr,
                                     int fifo_size,
                                     int channel,
-                                    CharDriverState *chr,
+                                    Chardev *chr,
                                     qemu_irq irq)
 {
     DeviceState  *dev;

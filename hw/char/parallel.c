@@ -603,7 +603,7 @@ static const MemoryRegionOps parallel_mm_ops = {
 /* If fd is zero, it means that the parallel device uses the console */
 bool parallel_mm_init(MemoryRegion *address_space,
                       hwaddr base, int it_shift, qemu_irq irq,
-                      CharDriverState *chr)
+                      Chardev *chr)
 {
     ParallelState *s;
 

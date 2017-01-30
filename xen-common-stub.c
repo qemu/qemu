@@ -9,6 +9,6 @@
 #include "qemu-common.h"
 #include "hw/xen/xen.h"
 
-void xenstore_store_pv_console_info(int i, CharDriverState *chr)
+void xenstore_store_pv_console_info(int i, Chardev *chr)
 {
 }

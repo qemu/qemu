@@ -18,7 +18,7 @@
 
 /* Char drivers that generate qemu_chr_be_write events
    that should be saved into the log. */
-static CharDriverState **char_drivers;
+static Chardev **char_drivers;
 static int drivers_count;
 
 /* Char event attributes. */
@@ -28,7 +28,7 @@ typedef struct CharEvent {
     size_t len;
 } CharEvent;
 
-static int find_char_driver(CharDriverState *chr)
+static int find_char_driver(Chardev *chr)
 {
     int i = 0;
     for ( ; i < drivers_count ; ++i) {
@@ -39,7 +39,7 @@ static int find_char_driver(CharDriverState *chr)
     return -1;
 }
 
-void replay_register_char_driver(CharDriverState *chr)
+void replay_register_char_driver(Chardev *chr)
 {
     if (replay_mode == REPLAY_MODE_NONE) {
         return;
@@ -49,7 +49,7 @@ void replay_register_char_driver(CharDriverState *chr)
     char_drivers[drivers_count++] = chr;
 }
 
-void replay_chr_be_write(CharDriverState *s, uint8_t *buf, int len)
+void replay_chr_be_write(Chardev *s, uint8_t *buf, int len)
 {
     CharEvent *event = g_malloc0(sizeof(CharEvent));
 

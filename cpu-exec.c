@@ -508,8 +508,8 @@ static inline void cpu_handle_interrupt(CPUState *cpu,
            True when it is, and we should restart on a new TB,
            and via longjmp via cpu_loop_exit.  */
         else {
-            replay_interrupt();
             if (cc->cpu_exec_interrupt(cpu, interrupt_request)) {
+                replay_interrupt();
                 *last_tb = NULL;
             }
             /* The target hook may have updated the 'cpu->interrupt_request';

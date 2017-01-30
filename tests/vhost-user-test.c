@@ -454,7 +454,7 @@ static void chr_event(void *opaque, int event)
 static void test_server_create_chr(TestServer *server, const gchar *opt)
 {
     gchar *chr_path;
-    CharDriverState *chr;
+    Chardev *chr;
 
     chr_path = g_strdup_printf("unix:%s%s", server->socket_path, opt);
     chr = qemu_chr_new(server->chr_name, chr_path);
@@ -486,7 +486,7 @@ static inline void test_server_connect(TestServer *server)
 static gboolean _test_server_free(TestServer *server)
 {
     int i;
-    CharDriverState *chr = qemu_chr_fe_get_driver(&server->chr);
+    Chardev *chr = qemu_chr_fe_get_driver(&server->chr);
 
     qemu_chr_fe_deinit(&server->chr);
     qemu_chr_delete(chr);

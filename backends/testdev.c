@@ -30,13 +30,18 @@
 #define BUF_SIZE 32
 
 typedef struct {
-    CharDriverState *chr;
+    Chardev parent;
+
     uint8_t in_buf[32];
     int in_buf_used;
-} TestdevCharState;
+} TestdevChardev;
+
+#define TYPE_CHARDEV_TESTDEV "chardev-testdev"
+#define TESTDEV_CHARDEV(obj)                                    \
+    OBJECT_CHECK(TestdevChardev, (obj), TYPE_CHARDEV_TESTDEV)
 
 /* Try to interpret a whole incoming packet */
-static int testdev_eat_packet(TestdevCharState *testdev)
+static int testdev_eat_packet(TestdevChardev *testdev)
 {
     const uint8_t *cur = testdev->in_buf;
     int len = testdev->in_buf_used;
@@ -77,9 +82,9 @@ static int testdev_eat_packet(TestdevCharState *testdev)
 }
 
 /* The other end is writing some data.  Store it and try to interpret */
-static int testdev_write(CharDriverState *chr, const uint8_t *buf, int len)
+static int testdev_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
-    TestdevCharState *testdev = chr->opaque;
+    TestdevChardev *testdev = TESTDEV_CHARDEV(chr);
     int tocopy, eaten, orig_len = len;
 
     while (len) {
@@ -102,36 +107,28 @@ static int testdev_write(CharDriverState *chr, const uint8_t *buf, int len)
     return orig_len;
 }
 
-static void testdev_free(struct CharDriverState *chr)
+static void char_testdev_class_init(ObjectClass *oc, void *data)
 {
-    TestdevCharState *testdev = chr->opaque;
+    ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    g_free(testdev);
+    cc->chr_write = testdev_chr_write;
 }
 
-static CharDriverState *chr_testdev_init(const char *id,
-                                         ChardevBackend *backend,
-                                         ChardevReturn *ret,
-                                         bool *be_opened,
-                                         Error **errp)
-{
-    TestdevCharState *testdev;
-    CharDriverState *chr;
-
-    testdev = g_new0(TestdevCharState, 1);
-    testdev->chr = chr = g_new0(CharDriverState, 1);
-
-    chr->opaque = testdev;
-    chr->chr_write = testdev_write;
-    chr->chr_free = testdev_free;
-
-    return chr;
-}
+static const TypeInfo char_testdev_type_info = {
+    .name = TYPE_CHARDEV_TESTDEV,
+    .parent = TYPE_CHARDEV,
+    .instance_size = sizeof(TestdevChardev),
+    .class_init = char_testdev_class_init,
+};
 
 static void register_types(void)
 {
-    register_char_driver("testdev", CHARDEV_BACKEND_KIND_TESTDEV, NULL,
-                         chr_testdev_init);
+    static const CharDriver driver = {
+        .kind = CHARDEV_BACKEND_KIND_TESTDEV,
+    };
+
+    register_char_driver(&driver);
+    type_register_static(&char_testdev_type_info);
 }
 
 type_init(register_types);

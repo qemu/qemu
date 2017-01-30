@@ -1642,6 +1642,7 @@ M: Peter Lieven <pl@kamp.de>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/iscsi.c
+F: block/iscsi-opts.c
 
 NFS
 M: Jeff Cody <jcody@redhat.com>

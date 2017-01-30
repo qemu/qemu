@@ -181,6 +181,15 @@ struct GtkDisplayState {
     bool ignore_keys;
 };
 
+typedef struct VCChardev {
+    Chardev parent;
+    VirtualConsole *console;
+    bool echo;
+} VCChardev;
+
+#define TYPE_CHARDEV_VC "chardev-vc"
+#define VC_CHARDEV(obj) OBJECT_CHECK(VCChardev, (obj), TYPE_CHARDEV_VC)
+
 static void gd_grab_pointer(VirtualConsole *vc, const char *reason);
 static void gd_ungrab_pointer(GtkDisplayState *s);
 static void gd_grab_keyboard(VirtualConsole *vc, const char *reason);
@@ -1683,49 +1692,69 @@ static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
     }
 }
 
-static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+static int gd_vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
-    VirtualConsole *vc = chr->opaque;
+    VCChardev *vcd = VC_CHARDEV(chr);
+    VirtualConsole *vc = vcd->console;
 
     vte_terminal_feed(VTE_TERMINAL(vc->vte.terminal), (const char *)buf, len);
     return len;
 }
 
-static void gd_vc_chr_set_echo(CharDriverState *chr, bool echo)
+static void gd_vc_chr_set_echo(Chardev *chr, bool echo)
 {
-    VirtualConsole *vc = chr->opaque;
+    VCChardev *vcd = VC_CHARDEV(chr);
+    VirtualConsole *vc = vcd->console;
 
-    vc->vte.echo = echo;
+    if (vc) {
+        vc->vte.echo = echo;
+    } else {
+        vcd->echo = echo;
+    }
 }
 
 static int nb_vcs;
-static CharDriverState *vcs[MAX_VCS];
+static Chardev *vcs[MAX_VCS];
+static const CharDriver gd_vc_driver;
 
-static CharDriverState *gd_vc_handler(ChardevVC *vc, Error **errp)
+static void gd_vc_open(Chardev *chr,
+                       ChardevBackend *backend,
+                       bool *be_opened,
+                       Error **errp)
 {
-    ChardevCommon *common = qapi_ChardevVC_base(vc);
-    CharDriverState *chr;
-
     if (nb_vcs == MAX_VCS) {
         error_setg(errp, "Maximum number of consoles reached");
-        return NULL;
+        return;
     }
-
-    chr = qemu_chr_alloc(common, errp);
-    if (!chr) {
-        return NULL;
-    }
-
-    chr->chr_write = gd_vc_chr_write;
-    chr->chr_set_echo = gd_vc_chr_set_echo;
-
-    /* Temporary, until gd_vc_vte_init runs.  */
-    chr->opaque = g_new0(VirtualConsole, 1);
 
     vcs[nb_vcs++] = chr;
 
-    return chr;
+    /* console/chardev init sometimes completes elsewhere in a 2nd
+     * stage, so defer OPENED events until they are fully initialized
+     */
+    *be_opened = false;
 }
+
+static void char_gd_vc_class_init(ObjectClass *oc, void *data)
+{
+    ChardevClass *cc = CHARDEV_CLASS(oc);
+
+    cc->open = gd_vc_open;
+    cc->chr_write = gd_vc_chr_write;
+    cc->chr_set_echo = gd_vc_chr_set_echo;
+}
+
+static const TypeInfo char_gd_vc_type_info = {
+    .name = TYPE_CHARDEV_VC,
+    .parent = TYPE_CHARDEV,
+    .instance_size = sizeof(VCChardev),
+    .class_init = char_gd_vc_class_init,
+};
+
+static const CharDriver gd_vc_driver = {
+    .kind = CHARDEV_BACKEND_KIND_VC,
+    .parse = qemu_chr_parse_vc,
+};
 
 static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
                          gpointer user_data)
@@ -1755,21 +1784,19 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
 }
 
 static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
-                              CharDriverState *chr, int idx,
+                              Chardev *chr, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
     char buffer[32];
     GtkWidget *box;
     GtkWidget *scrollbar;
     GtkAdjustment *vadjustment;
-    VirtualConsole *tmp_vc = chr->opaque;
+    VCChardev *vcd = VC_CHARDEV(chr);
 
     vc->s = s;
-    vc->vte.echo = tmp_vc->vte.echo;
-
+    vc->vte.echo = vcd->echo;
     vc->vte.chr = chr;
-    chr->opaque = vc;
-    g_free(tmp_vc);
+    vcd->console = vc;
 
     snprintf(buffer, sizeof(buffer), "vc%d", idx);
     vc->label = g_strdup_printf("%s", vc->vte.chr->label
@@ -2325,6 +2352,7 @@ void early_gtk_display_init(int opengl)
     }
 
 #if defined(CONFIG_VTE)
-    register_vc_handler(gd_vc_handler);
+    type_register(&char_gd_vc_type_info);
+    register_char_driver(&gd_vc_driver);
 #endif
 }

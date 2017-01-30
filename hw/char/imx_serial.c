@@ -170,7 +170,7 @@ static void imx_serial_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
-    CharDriverState *chr = qemu_chr_fe_get_driver(&s->chr);
+    Chardev *chr = qemu_chr_fe_get_driver(&s->chr);
     unsigned char ch;
 
     DPRINTF("write(offset=0x%" HWADDR_PRIx ", value = 0x%x) to %s\n",

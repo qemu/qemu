@@ -305,7 +305,7 @@ typedef struct GDBState {
     int running_state;
 #else
     CharBackend chr;
-    CharDriverState *mon_chr;
+    Chardev *mon_chr;
 #endif
     char syscall_buf[256];
     gdb_syscall_complete_cb current_syscall_cb;
@@ -1473,7 +1473,7 @@ void gdb_exit(CPUArchState *env, int code)
   GDBState *s;
   char buf[4];
 #ifndef CONFIG_USER_ONLY
-  CharDriverState *chr;
+  Chardev *chr;
 #endif
 
   s = gdbserver_state;
@@ -1698,7 +1698,7 @@ static void gdb_monitor_output(GDBState *s, const char *msg, int len)
     put_packet(s, buf);
 }
 
-static int gdb_monitor_write(CharDriverState *chr, const uint8_t *buf, int len)
+static int gdb_monitor_write(Chardev *chr, const uint8_t *buf, int len)
 {
     const char *p = (const char *)buf;
     int max_sz;
@@ -1725,13 +1725,35 @@ static void gdb_sigterm_handler(int signal)
 }
 #endif
 
+static void gdb_monitor_open(Chardev *chr, ChardevBackend *backend,
+                             bool *be_opened, Error **errp)
+{
+    *be_opened = false;
+}
+
+static void char_gdb_class_init(ObjectClass *oc, void *data)
+{
+    ChardevClass *cc = CHARDEV_CLASS(oc);
+
+    cc->internal = true;
+    cc->open = gdb_monitor_open;
+    cc->chr_write = gdb_monitor_write;
+}
+
+#define TYPE_CHARDEV_GDB "chardev-gdb"
+
+static const TypeInfo char_gdb_type_info = {
+    .name = TYPE_CHARDEV_GDB,
+    .parent = TYPE_CHARDEV,
+    .class_init = char_gdb_class_init,
+};
+
 int gdbserver_start(const char *device)
 {
     GDBState *s;
     char gdbstub_device_name[128];
-    CharDriverState *chr = NULL;
-    CharDriverState *mon_chr;
-    ChardevCommon common = { 0 };
+    Chardev *chr = NULL;
+    Chardev *mon_chr;
 
     if (!first_cpu) {
         error_report("gdbstub: meaningless to attach gdb to a "
@@ -1770,8 +1792,8 @@ int gdbserver_start(const char *device)
         qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
 
         /* Initialize a monitor terminal for gdb */
-        mon_chr = qemu_chr_alloc(&common, &error_abort);
-        mon_chr->chr_write = gdb_monitor_write;
+        mon_chr = qemu_chardev_new(NULL, TYPE_CHARDEV_GDB,
+                                   NULL, &error_abort);
         monitor_init(mon_chr, 0);
     } else {
         if (qemu_chr_fe_get_driver(&s->chr)) {
@@ -1794,4 +1816,11 @@ int gdbserver_start(const char *device)
 
     return 0;
 }
+
+static void register_types(void)
+{
+    type_register_static(&char_gdb_type_info);
+}
+
+type_init(register_types);
 #endif

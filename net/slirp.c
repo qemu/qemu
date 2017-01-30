@@ -748,7 +748,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
         }
     } else {
         Error *err = NULL;
-        CharDriverState *chr = qemu_chr_new(buf, p);
+        Chardev *chr = qemu_chr_new(buf, p);
 
         if (!chr) {
             error_report("could not open guest forwarding device '%s'", buf);

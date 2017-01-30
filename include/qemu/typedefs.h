@@ -17,7 +17,7 @@ typedef struct BlockBackendRootState BlockBackendRootState;
 typedef struct BlockDriverState BlockDriverState;
 typedef struct BusClass BusClass;
 typedef struct BusState BusState;
-typedef struct CharDriverState CharDriverState;
+typedef struct Chardev Chardev;
 typedef struct CompatProperty CompatProperty;
 typedef struct CPUAddressSpace CPUAddressSpace;
 typedef struct CPUState CPUState;

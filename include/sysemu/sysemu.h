@@ -74,6 +74,7 @@ void qemu_add_machine_init_done_notifier(Notifier *notify);
 void qemu_remove_machine_init_done_notifier(Notifier *notify);
 
 void hmp_savevm(Monitor *mon, const QDict *qdict);
+int save_vmstate(Monitor *mon, const char *name);
 int load_vmstate(const char *name);
 void hmp_delvm(Monitor *mon, const QDict *qdict);
 void hmp_info_snapshots(Monitor *mon, const QDict *qdict);
@@ -189,13 +190,13 @@ void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict);
 
 #define MAX_SERIAL_PORTS 4
 
-extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
+extern Chardev *serial_hds[MAX_SERIAL_PORTS];
 
 /* parallel ports */
 
 #define MAX_PARALLEL_PORTS 3
 
-extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
+extern Chardev *parallel_hds[MAX_PARALLEL_PORTS];
 
 void hmp_usb_add(Monitor *mon, const QDict *qdict);
 void hmp_usb_del(Monitor *mon, const QDict *qdict);

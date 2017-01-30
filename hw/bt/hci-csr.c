@@ -26,13 +26,14 @@
 #include "hw/irq.h"
 #include "sysemu/bt.h"
 #include "hw/bt.h"
+#include "qapi/error.h"
 
 struct csrhci_s {
+    Chardev parent;
     int enable;
     qemu_irq *pins;
     int pin_state;
     int modem_state;
-    CharDriverState chr;
 #define FIFO_LEN	4096
     int out_start;
     int out_len;
@@ -53,6 +54,9 @@ struct csrhci_s {
     bdaddr_t bd_addr;
     struct HCIInfo *hci;
 };
+
+#define TYPE_CHARDEV_HCI "chardev-hci"
+#define HCI_CHARDEV(obj) OBJECT_CHECK(struct csrhci_s, (obj), TYPE_CHARDEV_HCI)
 
 /* H4+ packet types */
 enum {
@@ -78,7 +82,8 @@ enum {
 
 static inline void csrhci_fifo_wake(struct csrhci_s *s)
 {
-    CharBackend *be = s->chr.be;
+    Chardev *chr = (Chardev *)s;
+    CharBackend *be = chr->be;
 
     if (!s->enable || !s->out_len)
         return;
@@ -311,10 +316,10 @@ static void csrhci_ready_for_next_inpkt(struct csrhci_s *s)
     s->in_hdr = INT_MAX;
 }
 
-static int csrhci_write(struct CharDriverState *chr,
+static int csrhci_write(struct Chardev *chr,
                 const uint8_t *buf, int len)
 {
-    struct csrhci_s *s = (struct csrhci_s *) chr->opaque;
+    struct csrhci_s *s = (struct csrhci_s *)chr;
     int total = 0;
 
     if (!s->enable)
@@ -384,10 +389,10 @@ static void csrhci_out_hci_packet_acl(void *opaque,
     csrhci_fifo_wake(s);
 }
 
-static int csrhci_ioctl(struct CharDriverState *chr, int cmd, void *arg)
+static int csrhci_ioctl(struct Chardev *chr, int cmd, void *arg)
 {
     QEMUSerialSetParams *ssp;
-    struct csrhci_s *s = (struct csrhci_s *) chr->opaque;
+    struct csrhci_s *s = (struct csrhci_s *) chr;
     int prev_state = s->modem_state;
 
     switch (cmd) {
@@ -453,21 +458,19 @@ static void csrhci_pins(void *opaque, int line, int level)
     }
 }
 
-qemu_irq *csrhci_pins_get(CharDriverState *chr)
+qemu_irq *csrhci_pins_get(Chardev *chr)
 {
-    struct csrhci_s *s = (struct csrhci_s *) chr->opaque;
+    struct csrhci_s *s = (struct csrhci_s *) chr;
 
     return s->pins;
 }
 
-CharDriverState *uart_hci_init(void)
+static void csrhci_open(Chardev *chr,
+                        ChardevBackend *backend,
+                        bool *be_opened,
+                        Error **errp)
 {
-    struct csrhci_s *s = (struct csrhci_s *)
-            g_malloc0(sizeof(struct csrhci_s));
-
-    s->chr.opaque = s;
-    s->chr.chr_write = csrhci_write;
-    s->chr.chr_ioctl = csrhci_ioctl;
+    struct csrhci_s *s = HCI_CHARDEV(chr);
 
     s->hci = qemu_next_hci();
     s->hci->opaque = s;
@@ -477,6 +480,35 @@ CharDriverState *uart_hci_init(void)
     s->out_tm = timer_new_ns(QEMU_CLOCK_VIRTUAL, csrhci_out_tick, s);
     s->pins = qemu_allocate_irqs(csrhci_pins, s, __csrhci_pins);
     csrhci_reset(s);
-
-    return &s->chr;
+    *be_opened = false;
 }
+
+static void char_hci_class_init(ObjectClass *oc, void *data)
+{
+    ChardevClass *cc = CHARDEV_CLASS(oc);
+
+    cc->internal = true;
+    cc->open = csrhci_open;
+    cc->chr_write = csrhci_write;
+    cc->chr_ioctl = csrhci_ioctl;
+}
+
+static const TypeInfo char_hci_type_info = {
+    .name = TYPE_CHARDEV_HCI,
+    .parent = TYPE_CHARDEV,
+    .instance_size = sizeof(struct csrhci_s),
+    .class_init = char_hci_class_init,
+};
+
+Chardev *uart_hci_init(void)
+{
+    return qemu_chardev_new(NULL, TYPE_CHARDEV_HCI,
+                            NULL, &error_abort);
+}
+
+static void register_types(void)
+{
+    type_register_static(&char_hci_type_info);
+}
+
+type_init(register_types);

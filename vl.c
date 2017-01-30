@@ -151,10 +151,10 @@ static int full_screen = 0;
 static int no_frame = 0;
 int no_quit = 0;
 static bool grab_on_hover;
-CharDriverState *serial_hds[MAX_SERIAL_PORTS];
-CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
-CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
-CharDriverState *sclp_hds[MAX_SCLP_CONSOLES];
+Chardev *serial_hds[MAX_SERIAL_PORTS];
+Chardev *parallel_hds[MAX_PARALLEL_PORTS];
+Chardev *virtcon_hds[MAX_VIRTIO_CONSOLES];
+Chardev *sclp_hds[MAX_SCLP_CONSOLES];
 int win2k_install_hack = 0;
 int singlestep = 0;
 int smp_cpus = 1;
@@ -465,6 +465,9 @@ static QemuOptsList qemu_icount_opts = {
         }, {
             .name = "rrfile",
             .type = QEMU_OPT_STRING,
+        }, {
+            .name = "rrsnapshot",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },
@@ -511,43 +514,6 @@ static QemuOptsList qemu_fw_cfg_opts = {
         { /* end of list */ }
     },
 };
-
-#ifdef CONFIG_LIBISCSI
-static QemuOptsList qemu_iscsi_opts = {
-    .name = "iscsi",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_iscsi_opts.head),
-    .desc = {
-        {
-            .name = "user",
-            .type = QEMU_OPT_STRING,
-            .help = "username for CHAP authentication to target",
-        },{
-            .name = "password",
-            .type = QEMU_OPT_STRING,
-            .help = "password for CHAP authentication to target",
-        },{
-            .name = "password-secret",
-            .type = QEMU_OPT_STRING,
-            .help = "ID of the secret providing password for CHAP "
-                    "authentication to target",
-        },{
-            .name = "header-digest",
-            .type = QEMU_OPT_STRING,
-            .help = "HeaderDigest setting. "
-                    "{CRC32C|CRC32C-NONE|NONE-CRC32C|NONE}",
-        },{
-            .name = "initiator-name",
-            .type = QEMU_OPT_STRING,
-            .help = "Initiator iqn name to use when connecting",
-        },{
-            .name = "timeout",
-            .type = QEMU_OPT_NUMBER,
-            .help = "Request timeout in seconds (default 0 = no timeout)",
-        },
-        { /* end of list */ }
-    },
-};
-#endif
 
 /**
  * Get machine options
@@ -2356,7 +2322,7 @@ static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 
 static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    CharDriverState *chr;
+    Chardev *chr;
     const char *chardev;
     const char *mode;
     int flags;
@@ -3042,9 +3008,6 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
-#ifdef CONFIG_LIBISCSI
-    qemu_add_opts(&qemu_iscsi_opts);
-#endif
     module_call_init(MODULE_INIT_OPTS);
 
     runstate_init();
@@ -4289,6 +4252,8 @@ int main(int argc, char **argv, char **envp)
         sdl_display_early_init(request_opengl);
     }
 
+    qemu_console_early_init();
+
     if (request_opengl == 1 && display_opengl == 0) {
 #if defined(CONFIG_OPENGL)
         error_report("OpenGL is not supported by the display");
@@ -4634,7 +4599,9 @@ int main(int argc, char **argv, char **envp)
     replay_checkpoint(CHECKPOINT_RESET);
     qemu_system_reset(VMRESET_SILENT);
     register_global_state();
-    if (loadvm) {
+    if (replay_mode != REPLAY_MODE_NONE) {
+        replay_vmstate_init();
+    } else if (loadvm) {
         if (load_vmstate(loadvm) < 0) {
             autostart = 0;
         }

@@ -191,7 +191,7 @@ static void filter_redirector_cleanup(NetFilterState *nf)
 static void filter_mirror_setup(NetFilterState *nf, Error **errp)
 {
     MirrorState *s = FILTER_MIRROR(nf);
-    CharDriverState *chr;
+    Chardev *chr;
 
     if (!s->outdev) {
         error_setg(errp, "filter mirror needs 'outdev' "
@@ -220,7 +220,7 @@ static void redirector_rs_finalize(SocketReadState *rs)
 static void filter_redirector_setup(NetFilterState *nf, Error **errp)
 {
     MirrorState *s = FILTER_REDIRECTOR(nf);
-    CharDriverState *chr;
+    Chardev *chr;
 
     if (!s->indev && !s->outdev) {
         error_setg(errp, "filter redirector needs 'indev' or "

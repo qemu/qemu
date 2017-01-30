@@ -43,6 +43,9 @@ typedef struct ReplayNetState ReplayNetState;
 
 extern ReplayMode replay_mode;
 
+/* Name of the initial VM snapshot */
+extern char *replay_snapshot;
+
 /* Replay process control functions */
 
 /*! Enables recording or saving event log with specified parameters */
@@ -125,9 +128,9 @@ uint64_t blkreplay_next_id(void);
 /* Character device */
 
 /*! Registers char driver to save it's events */
-void replay_register_char_driver(struct CharDriverState *chr);
+void replay_register_char_driver(struct Chardev *chr);
 /*! Saves write to char device event to the log */
-void replay_chr_be_write(struct CharDriverState *s, uint8_t *buf, int len);
+void replay_chr_be_write(struct Chardev *s, uint8_t *buf, int len);
 /*! Writes char write return value to the replay log. */
 void replay_char_write_event_save(int res, int offset);
 /*! Reads char write return value from the replay log. */
@@ -148,5 +151,11 @@ void replay_unregister_net(ReplayNetState *rns);
 /*! Called to write network packet to the replay log. */
 void replay_net_packet_event(ReplayNetState *rns, unsigned flags,
                              const struct iovec *iov, int iovcnt);
+
+/* VM state operations */
+
+/*! Called at the start of execution.
+    Loads or saves initial vmstate depending on execution mode. */
+void replay_vmstate_init(void);
 
 #endif

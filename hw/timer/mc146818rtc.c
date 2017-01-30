@@ -27,6 +27,7 @@
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/replay.h"
 #include "hw/timer/mc146818rtc.h"
 #include "qapi/visitor.h"
 #include "qapi-event.h"
@@ -734,10 +735,16 @@ static int rtc_post_load(void *opaque, int version_id)
         check_update_timer(s);
     }
 
-    uint64_t now = qemu_clock_get_ns(rtc_clock);
-    if (now < s->next_periodic_time ||
-        now > (s->next_periodic_time + get_max_clock_jump())) {
-        periodic_timer_update(s, qemu_clock_get_ns(rtc_clock));
+    /* The periodic timer is deterministic in record/replay mode,
+     * so there is no need to update it after loading the vmstate.
+     * Reading RTC here would misalign record and replay.
+     */
+    if (replay_mode == REPLAY_MODE_NONE) {
+        uint64_t now = qemu_clock_get_ns(rtc_clock);
+        if (now < s->next_periodic_time ||
+            now > (s->next_periodic_time + get_max_clock_jump())) {
+            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock));
+        }
     }
 
 #ifdef TARGET_I386

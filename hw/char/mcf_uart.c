@@ -275,7 +275,7 @@ static void mcf_uart_receive(void *opaque, const uint8_t *buf, int size)
     mcf_uart_push_byte(s, buf[0]);
 }
 
-void *mcf_uart_init(qemu_irq irq, CharDriverState *chr)
+void *mcf_uart_init(qemu_irq irq, Chardev *chr)
 {
     mcf_uart_state *s;
 
@@ -300,7 +300,7 @@ static const MemoryRegionOps mcf_uart_ops = {
 void mcf_uart_mm_init(MemoryRegion *sysmem,
                       hwaddr base,
                       qemu_irq irq,
-                      CharDriverState *chr)
+                      Chardev *chr)
 {
     mcf_uart_state *s;
 

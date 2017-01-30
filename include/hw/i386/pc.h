@@ -181,7 +181,7 @@ void parallel_hds_isa_init(ISABus *bus, int n);
 
 bool parallel_mm_init(MemoryRegion *address_space,
                       hwaddr base, int it_shift, qemu_irq irq,
-                      CharDriverState *chr);
+                      Chardev *chr);
 
 /* i8259.c */
 
@@ -381,6 +381,16 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .property = "x-mach-use-reliable-get-clock",\
         .value    = "off",\
     },\
+    {\
+        .driver   = "ICH9-LPC",\
+        .property = "x-smi-broadcast",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "vmware-cpuid-freq",\
+        .value    = "off",\
+    },
 
 #define PC_COMPAT_2_7 \
     HW_COMPAT_2_7 \

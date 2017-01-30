@@ -51,7 +51,7 @@ typedef struct {
 
 static inline DeviceState *cadence_uart_create(hwaddr addr,
                                         qemu_irq irq,
-                                        CharDriverState *chr)
+                                        Chardev *chr)
 {
     DeviceState *dev;
     SysBusDevice *s;
