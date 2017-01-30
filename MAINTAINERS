@@ -1194,6 +1194,7 @@ T: git git://github.com/jnsnow/qemu.git bitmaps
 
 Character device backends
 M: Paolo Bonzini <pbonzini@redhat.com>
+M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Maintained
 F: qemu-char.c
 F: backends/msmouse.c
