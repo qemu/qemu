@@ -388,9 +388,15 @@ create_iovec(BlockBackend *blk, QEMUIOVector *qiov, char **argv, int nr_iov,
             goto fail;
         }
 
-        if (len > SIZE_MAX) {
-            printf("Argument '%s' exceeds maximum size %llu\n", arg,
-                   (unsigned long long)SIZE_MAX);
+        if (len > BDRV_REQUEST_MAX_BYTES) {
+            printf("Argument '%s' exceeds maximum size %" PRIu64 "\n", arg,
+                   (uint64_t)BDRV_REQUEST_MAX_BYTES);
+            goto fail;
+        }
+
+        if (count > BDRV_REQUEST_MAX_BYTES - len) {
+            printf("The total number of bytes exceed the maximum size %" PRIu64
+                   "\n", (uint64_t)BDRV_REQUEST_MAX_BYTES);
             goto fail;
         }
 
@@ -682,9 +688,9 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
     if (count < 0) {
         print_cvtnum_err(count, argv[optind]);
         return 0;
-    } else if (count > SIZE_MAX) {
+    } else if (count > BDRV_REQUEST_MAX_BYTES) {
         printf("length cannot exceed %" PRIu64 ", given %s\n",
-               (uint64_t) SIZE_MAX, argv[optind]);
+               (uint64_t)BDRV_REQUEST_MAX_BYTES, argv[optind]);
         return 0;
     }
 
@@ -1004,9 +1010,9 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     if (count < 0) {
         print_cvtnum_err(count, argv[optind]);
         return 0;
-    } else if (count > SIZE_MAX) {
+    } else if (count > BDRV_REQUEST_MAX_BYTES) {
         printf("length cannot exceed %" PRIu64 ", given %s\n",
-               (uint64_t) SIZE_MAX, argv[optind]);
+               (uint64_t)BDRV_REQUEST_MAX_BYTES, argv[optind]);
         return 0;
     }
 
