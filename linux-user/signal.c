@@ -5155,6 +5155,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     target_ulong rt_sf_addr, newsp = 0;
     int i, err = 0;
 #if defined(TARGET_PPC64)
+    struct target_sigcontext *sc = 0;
     struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
 #endif
 
@@ -5183,6 +5184,10 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 #if defined(TARGET_PPC64)
     mctx = &rt_sf->uc.tuc_sigcontext.mcontext;
     trampptr = &rt_sf->trampoline[0];
+
+    sc = &rt_sf->uc.tuc_sigcontext;
+    __put_user(h2g(mctx), &sc->regs);
+    __put_user(sig, &sc->signal);
 #else
     mctx = &rt_sf->uc.tuc_mcontext;
     trampptr = (uint32_t *)&rt_sf->uc.tuc_mcontext.tramp;
