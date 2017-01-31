@@ -1231,8 +1231,6 @@ void vnc_disconnect_finish(VncState *vs)
         vnc_update_server_surface(vs->vd);
     }
 
-    if (vs->vd->lock_key_sync)
-        qemu_remove_led_event_handler(vs->led);
     vnc_unlock_output(vs);
 
     qemu_mutex_destroy(&vs->output_mutex);
@@ -1259,7 +1257,7 @@ ssize_t vnc_client_io_error(VncState *vs, ssize_t ret, Error **errp)
         if (ret == 0) {
             VNC_DEBUG("Closing down client sock: EOF\n");
         } else if (ret != QIO_CHANNEL_ERR_BLOCK) {
-            VNC_DEBUG("Closing down client sock: ret %d (%s)\n",
+            VNC_DEBUG("Closing down client sock: ret %zd (%s)\n",
                       ret, errp ? error_get_pretty(*errp) : "Unknown");
         }
 
@@ -1665,69 +1663,39 @@ static void press_key(VncState *vs, int keysym)
     qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
 }
 
-static int current_led_state(VncState *vs)
-{
-    int ledstate = 0;
-
-    if (vs->modifiers_state[0x46]) {
-        ledstate |= QEMU_SCROLL_LOCK_LED;
-    }
-    if (vs->modifiers_state[0x45]) {
-        ledstate |= QEMU_NUM_LOCK_LED;
-    }
-    if (vs->modifiers_state[0x3a]) {
-        ledstate |= QEMU_CAPS_LOCK_LED;
-    }
-
-    return ledstate;
-}
-
 static void vnc_led_state_change(VncState *vs)
 {
-    int ledstate = 0;
-
     if (!vnc_has_feature(vs, VNC_FEATURE_LED_STATE)) {
         return;
     }
 
-    ledstate = current_led_state(vs);
     vnc_lock_output(vs);
     vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1);
     vnc_framebuffer_update(vs, 0, 0, 1, 1, VNC_ENCODING_LED_STATE);
-    vnc_write_u8(vs, ledstate);
+    vnc_write_u8(vs, vs->vd->ledstate);
     vnc_unlock_output(vs);
     vnc_flush(vs);
 }
 
 static void kbd_leds(void *opaque, int ledstate)
 {
-    VncState *vs = opaque;
-    int caps, num, scr;
-    bool has_changed = (ledstate != current_led_state(vs));
+    VncDisplay *vd = opaque;
+    VncState *client;
 
     trace_vnc_key_guest_leds((ledstate & QEMU_CAPS_LOCK_LED),
                              (ledstate & QEMU_NUM_LOCK_LED),
                              (ledstate & QEMU_SCROLL_LOCK_LED));
 
-    caps = ledstate & QEMU_CAPS_LOCK_LED ? 1 : 0;
-    num  = ledstate & QEMU_NUM_LOCK_LED  ? 1 : 0;
-    scr  = ledstate & QEMU_SCROLL_LOCK_LED ? 1 : 0;
-
-    if (vs->modifiers_state[0x3a] != caps) {
-        vs->modifiers_state[0x3a] = caps;
-    }
-    if (vs->modifiers_state[0x45] != num) {
-        vs->modifiers_state[0x45] = num;
-    }
-    if (vs->modifiers_state[0x46] != scr) {
-        vs->modifiers_state[0x46] = scr;
+    if (ledstate == vd->ledstate) {
+        return;
     }
 
-    /* Sending the current led state message to the client */
-    if (has_changed) {
-        vnc_led_state_change(vs);
+    vd->ledstate = ledstate;
+
+    QTAILQ_FOREACH(client, &vd->clients, next) {
+        vnc_led_state_change(client);
     }
 }
 
@@ -2756,8 +2724,10 @@ static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y)
 
 static int vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
 {
-    int width = pixman_image_get_width(vd->guest.fb);
-    int height = pixman_image_get_height(vd->guest.fb);
+    int width = MIN(pixman_image_get_width(vd->guest.fb),
+                    pixman_image_get_width(vd->server));
+    int height = MIN(pixman_image_get_height(vd->guest.fb),
+                     pixman_image_get_height(vd->server));
     int x, y;
     struct timeval res;
     int has_dirty = 0;
@@ -3087,8 +3057,6 @@ void vnc_start_protocol(VncState *vs)
     vnc_write(vs, "RFB 003.008\n", 12);
     vnc_flush(vs);
     vnc_read_when(vs, protocol_version, 12);
-    if (vs->vd->lock_key_sync)
-        vs->led = qemu_add_led_event_handler(kbd_leds, vs);
 
     vs->mouse_mode_notifier.notify = check_pointer_type_change;
     qemu_add_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
@@ -3195,6 +3163,9 @@ static void vnc_display_close(VncDisplay *vd)
     }
     g_free(vd->tlsaclname);
     vd->tlsaclname = NULL;
+    if (vd->lock_key_sync) {
+        qemu_remove_led_event_handler(vd->led);
+    }
 }
 
 int vnc_display_password(const char *id, const char *password)
@@ -3762,6 +3733,10 @@ void vnc_display_open(const char *id, Error **errp)
     }
 #endif
     vd->lock_key_sync = lock_key_sync;
+    if (lock_key_sync) {
+        vd->led = qemu_add_led_event_handler(kbd_leds, vd);
+    }
+    vd->ledstate = 0;
     vd->key_delay_ms = key_delay_ms;
 
     device_id = qemu_opt_get(opts, "display");

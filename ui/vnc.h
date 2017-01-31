@@ -154,6 +154,8 @@ struct VncDisplay
     DisplayChangeListener dcl;
     kbd_layout_t *kbd_layout;
     int lock_key_sync;
+    QEMUPutLEDEntry *led;
+    int ledstate;
     int key_delay_ms;
     QemuMutex mutex;
 
@@ -304,7 +306,6 @@ struct VncState
     size_t read_handler_expect;
     /* input */
     uint8_t modifiers_state[256];
-    QEMUPutLEDEntry *led;
 
     bool abort;
     QemuMutex output_mutex;

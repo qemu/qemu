@@ -25,6 +25,12 @@
 #ifndef HW_PS2_H
 #define HW_PS2_H
 
+#define PS2_MOUSE_BUTTON_LEFT   0x01
+#define PS2_MOUSE_BUTTON_MIDDLE 0x02
+#define PS2_MOUSE_BUTTON_RIGHT  0x04
+#define PS2_MOUSE_BUTTON_SIDE   0x08
+#define PS2_MOUSE_BUTTON_EXTRA  0x10
+
 /* ps2.c */
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg);

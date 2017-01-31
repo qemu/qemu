@@ -291,6 +291,12 @@ static void input_linux_handle_mouse(InputLinux *il, struct input_event *event)
             qemu_input_queue_btn(NULL, INPUT_BUTTON_WHEEL_DOWN,
                                  event->value);
             break;
+        case BTN_SIDE:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_SIDE, event->value);
+            break;
+        case BTN_EXTRA:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_EXTRA, event->value);
+            break;
         };
         break;
     case EV_REL:
