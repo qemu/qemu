@@ -2258,8 +2258,12 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 
     s->free_scale = FALSE;
 
-    /* LC_MESSAGES only. See early_gtk_display_init() for details */
+    /* Mostly LC_MESSAGES only. See early_gtk_display_init() for details. For
+     * LC_CTYPE, we need to make sure that non-ASCII characters are considered
+     * printable, but without changing any of the character classes to make
+     * sure that we don't accidentally break implicit assumptions.  */
     setlocale(LC_MESSAGES, "");
+    setlocale(LC_CTYPE, "C.UTF-8");
     bindtextdomain("qemu", CONFIG_QEMU_LOCALEDIR);
     textdomain("qemu");
 
