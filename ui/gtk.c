@@ -105,6 +105,7 @@
 #define GDK_KEY_g GDK_g
 #define GDK_KEY_q GDK_q
 #define GDK_KEY_plus GDK_plus
+#define GDK_KEY_equal GDK_equal
 #define GDK_KEY_minus GDK_minus
 #define GDK_KEY_Pause GDK_Pause
 #define GDK_KEY_Delete GDK_Delete
@@ -1342,6 +1343,12 @@ static void gd_menu_zoom_in(GtkMenuItem *item, void *opaque)
     gd_update_windowsize(vc);
 }
 
+static void gd_accel_zoom_in(void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    gtk_menu_item_activate(GTK_MENU_ITEM(s->zoom_in_item));
+}
+
 static void gd_menu_zoom_out(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
@@ -2109,6 +2116,8 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s)
                                  "<QEMU>/View/Zoom In");
     gtk_accel_map_add_entry("<QEMU>/View/Zoom In", GDK_KEY_plus,
                             HOTKEY_MODIFIERS);
+    gtk_accel_group_connect(s->accel_group, GDK_KEY_equal, HOTKEY_MODIFIERS, 0,
+            g_cclosure_new_swap(G_CALLBACK(gd_accel_zoom_in), s, NULL));
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_in_item);
 
     s->zoom_out_item = gtk_menu_item_new_with_mnemonic(_("Zoom _Out"));
