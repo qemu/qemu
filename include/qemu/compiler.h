@@ -85,9 +85,13 @@
 #define typeof_field(type, field) typeof(((type *)0)->field)
 #define type_check(t1,t2) ((t1*)0 - (t2*)0)
 
+#ifdef __COUNTER__
 #define QEMU_BUILD_BUG_ON(x) \
-    typedef char glue(qemu_build_bug_on__, __LINE__)[(x) ? -1 : 1] \
+    typedef char glue(qemu_build_bug_on__, __COUNTER__)[(x) ? -1 : 1] \
         __attribute__((unused))
+#else
+#define QEMU_BUILD_BUG_ON(x)
+#endif
 
 #if defined __GNUC__
 # if !QEMU_GNUC_PREREQ(4, 4)
