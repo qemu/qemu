@@ -2,52 +2,42 @@ QA output created by 083
 === Check disconnect before neg1 ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect after neg1 ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect 8 neg1 ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect 16 neg1 ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect before export ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect after export ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect 4 export ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect 12 export ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect 16 export ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect before neg2 ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect after neg2 ===
 
@@ -56,12 +46,10 @@ read failed: Input/output error
 === Check disconnect 8 neg2 ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect 10 neg2 ===
 
 can't open device nbd:127.0.0.1:PORT:exportname=foo
-no file open, try 'help open'
 
 === Check disconnect before request ===
 
@@ -99,27 +87,22 @@ read 512/512 bytes at offset 0
 === Check disconnect before neg-classic ===
 
 can't open device nbd:127.0.0.1:PORT
-no file open, try 'help open'
 
 === Check disconnect 8 neg-classic ===
 
 can't open device nbd:127.0.0.1:PORT
-no file open, try 'help open'
 
 === Check disconnect 16 neg-classic ===
 
 can't open device nbd:127.0.0.1:PORT
-no file open, try 'help open'
 
 === Check disconnect 24 neg-classic ===
 
 can't open device nbd:127.0.0.1:PORT
-no file open, try 'help open'
 
 === Check disconnect 28 neg-classic ===
 
 can't open device nbd:127.0.0.1:PORT
-no file open, try 'help open'
 
 === Check disconnect after neg-classic ===
 

@@ -4,7 +4,6 @@ QA output created by 070
 can't open device TEST_DIR/iotest-dirtylog-10G-4M.vhdx: VHDX image file 'TEST_DIR/iotest-dirtylog-10G-4M.vhdx' opened read-only, but contains a log that needs to be replayed
 To replay the log, run:
 qemu-img check -r all 'TEST_DIR/iotest-dirtylog-10G-4M.vhdx'
- no file open, try 'help open'
 === Verify open image replays log  ===
 read 18874368/18874368 bytes at offset 0
 18 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
