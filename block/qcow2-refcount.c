@@ -83,6 +83,16 @@ static Qcow2SetRefcountFunc *const set_refcount_funcs[] = {
 /*********************************************************/
 /* refcount handling */
 
+static void update_max_refcount_table_index(BDRVQcow2State *s)
+{
+    unsigned i = s->refcount_table_size - 1;
+    while (i > 0 && (s->refcount_table[i] & REFT_OFFSET_MASK) == 0) {
+        i--;
+    }
+    /* Set s->max_refcount_table_index to the index of the last used entry */
+    s->max_refcount_table_index = i;
+}
+
 int qcow2_refcount_init(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
@@ -111,6 +121,7 @@ int qcow2_refcount_init(BlockDriverState *bs)
         }
         for(i = 0; i < s->refcount_table_size; i++)
             be64_to_cpus(&s->refcount_table[i]);
+        update_max_refcount_table_index(s);
     }
     return 0;
  fail:
@@ -439,6 +450,10 @@ static int alloc_refcount_block(BlockDriverState *bs,
         }
 
         s->refcount_table[refcount_table_index] = new_block;
+        /* If there's a hole in s->refcount_table then it can happen
+         * that refcount_table_index < s->max_refcount_table_index */
+        s->max_refcount_table_index =
+            MAX(s->max_refcount_table_index, refcount_table_index);
 
         /* The new refcount block may be where the caller intended to put its
          * data, so let it restart the search. */
@@ -580,6 +595,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     s->refcount_table = new_table;
     s->refcount_table_size = table_size;
     s->refcount_table_offset = table_offset;
+    update_max_refcount_table_index(s);
 
     /* Free old table. */
     qcow2_free_clusters(bs, old_table_offset, old_table_size * sizeof(uint64_t),
@@ -2171,6 +2187,7 @@ write_refblocks:
     s->refcount_table = on_disk_reftable;
     s->refcount_table_offset = reftable_offset;
     s->refcount_table_size = reftable_size;
+    update_max_refcount_table_index(s);
 
     return 0;
 
@@ -2383,7 +2400,11 @@ int qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
     }
 
     if ((chk & QCOW2_OL_REFCOUNT_BLOCK) && s->refcount_table) {
-        for (i = 0; i < s->refcount_table_size; i++) {
+        unsigned last_entry = s->max_refcount_table_index;
+        assert(last_entry < s->refcount_table_size);
+        assert(last_entry + 1 == s->refcount_table_size ||
+               (s->refcount_table[last_entry + 1] & REFT_OFFSET_MASK) == 0);
+        for (i = 0; i <= last_entry; i++) {
             if ((s->refcount_table[i] & REFT_OFFSET_MASK) &&
                 overlaps_with(s->refcount_table[i] & REFT_OFFSET_MASK,
                 s->cluster_size)) {
@@ -2871,6 +2892,7 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
     /* Now update the rest of the in-memory information */
     old_reftable = s->refcount_table;
     s->refcount_table = new_reftable;
+    update_max_refcount_table_index(s);
 
     s->refcount_bits = 1 << refcount_order;
     s->refcount_max = UINT64_C(1) << (s->refcount_bits - 1);

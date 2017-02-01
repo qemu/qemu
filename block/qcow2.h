@@ -251,6 +251,7 @@ typedef struct BDRVQcow2State {
     uint64_t *refcount_table;
     uint64_t refcount_table_offset;
     uint32_t refcount_table_size;
+    uint32_t max_refcount_table_index; /* Last used entry in refcount_table */
     uint64_t free_cluster_index;
     uint64_t free_byte_offset;
 

@@ -2743,6 +2743,7 @@ static int make_completely_empty(BlockDriverState *bs)
 
     s->refcount_table_offset = s->cluster_size;
     s->refcount_table_size   = s->cluster_size / sizeof(uint64_t);
+    s->max_refcount_table_index = 0;
 
     g_free(s->refcount_table);
     s->refcount_table = new_reftable;
