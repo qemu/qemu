@@ -381,7 +381,7 @@ static void ppc_powernv_init(MachineState *machine)
 
     fw_size = load_image_targphys(fw_filename, FW_LOAD_ADDR, FW_MAX_SIZE);
     if (fw_size < 0) {
-        hw_error("qemu: could not load OPAL '%s'\n", fw_filename);
+        error_report("qemu: could not load OPAL '%s'", fw_filename);
         exit(1);
     }
     g_free(fw_filename);
@@ -393,8 +393,8 @@ static void ppc_powernv_init(MachineState *machine)
         kernel_size = load_image_targphys(machine->kernel_filename,
                                           KERNEL_LOAD_ADDR, 0x2000000);
         if (kernel_size < 0) {
-            hw_error("qemu: could not load kernel'%s'\n",
-                     machine->kernel_filename);
+            error_report("qemu: could not load kernel'%s'",
+                         machine->kernel_filename);
             exit(1);
         }
     }
