@@ -355,6 +355,17 @@ _supported_fmt()
     _notrun "not suitable for this image format: $IMGFMT"
 }
 
+# tests whether $IMGFMT is one of the unsupported image format for a test
+#
+_unsupported_fmt()
+{
+    for f; do
+        if [ "$f" = "$IMGFMT" ]; then
+            _notrun "not suitable for this image format: $IMGFMT"
+        fi
+    done
+}
+
 # tests whether $IMGPROTO is one of the supported image protocols for a test
 #
 _supported_proto()
