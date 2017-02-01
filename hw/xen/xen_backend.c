@@ -124,10 +124,11 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     /* init new xendev */
     xendev = g_malloc0(ops->size);
     object_initialize(&xendev->qdev, ops->size, TYPE_XENBACKEND);
-    qdev_set_parent_bus(&xendev->qdev, xen_sysbus);
-    qdev_set_id(&xendev->qdev, g_strdup_printf("xen-%s-%d", type, dev));
-    qdev_init_nofail(&xendev->qdev);
-    object_unref(OBJECT(&xendev->qdev));
+    OBJECT(xendev)->free = g_free;
+    qdev_set_parent_bus(DEVICE(xendev), xen_sysbus);
+    qdev_set_id(DEVICE(xendev), g_strdup_printf("xen-%s-%d", type, dev));
+    qdev_init_nofail(DEVICE(xendev));
+    object_unref(OBJECT(xendev));
 
     xendev->type  = type;
     xendev->dom   = dom;
@@ -145,7 +146,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     xendev->evtchndev = xenevtchn_open(NULL, 0);
     if (xendev->evtchndev == NULL) {
         xen_pv_printf(NULL, 0, "can't open evtchn device\n");
-        g_free(xendev);
+        qdev_unplug(DEVICE(xendev), NULL);
         return NULL;
     }
     fcntl(xenevtchn_fd(xendev->evtchndev), F_SETFD, FD_CLOEXEC);
@@ -155,7 +156,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
         if (xendev->gnttabdev == NULL) {
             xen_pv_printf(NULL, 0, "can't open gnttab device\n");
             xenevtchn_close(xendev->evtchndev);
-            g_free(xendev);
+            qdev_unplug(DEVICE(xendev), NULL);
             return NULL;
         }
     } else {
