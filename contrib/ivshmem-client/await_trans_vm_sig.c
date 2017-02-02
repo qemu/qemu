@@ -1,3 +1,5 @@
+//communicate with ivshmem_server using argument
+//retrieve event fds, await on one of them.
 /*
  * Copyright 6WIND S.A., 2014
  *
@@ -11,12 +13,11 @@
 
 #include "ivshmem-client.h"
 
-#define IVSHMEM_CLIENT_DEFAULT_VERBOSE        0
-#define IVSHMEM_CLIENT_DEFAULT_UNIX_SOCK_PATH "/tmp/ivshmem_socket"
-
 int
 main(int argc, char *argv[])
 {
+    fd_set fds;
+    int maxfd;
     struct sigaction sa;
     IvshmemClient client;
     IvshmemClientArgs args = {
@@ -48,24 +49,26 @@ main(int argc, char *argv[])
         return 1;
     }
 
-    while (1) {
-        if (ivshmem_client_connect(&client) < 0) {
-            fprintf(stderr, "cannot connect to server, retry in 1 second\n");
-            sleep(1);
-            continue;
-        }
-
-        fprintf(stdout, "listen on server socket %d\n", client.sock_fd);
-
-        if (ivshmem_client_poll_events(&client) == 0) {
-            continue;
-        }
-
-        /* disconnected from server, reset all peers */
-        fprintf(stdout, "disconnected from server\n");
-
-        ivshmem_client_close(&client);
+    if (ivshmem_client_connect(&client) < 0) {
+      fprintf(stderr, "cannot connect to server\n");
+      return 1;
     }
+
+    fprintf(stdout, "listen on server socket %d\n", client.sock_fd);
+
+    maxfd = 0;
+    char junk[10];
+    ivshmem_client_handle_server_msg(&client);
+    ivshmem_client_handle_server_msg(&client);
+    ivshmem_client_dump(&client);
+    FD_ZERO(&fds);
+    ivshmem_client_get_fds(&client, &fds, &maxfd);
+    
+    select(maxfd, &fds, NULL, NULL, NULL);
+    fprintf(stdout, "read %ld from eventfd; vectors_count=%d, maxfd=%d\n",
+            read(client.local.vectors[0], junk, 8), client.local.vectors_count, maxfd);
+
+    ivshmem_client_close(&client);
 
     return 0;
 }
