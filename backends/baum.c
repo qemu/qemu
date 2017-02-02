@@ -616,9 +616,9 @@ static void baum_chr_read(void *opaque)
     }
 }
 
-static void baum_chr_free(Chardev *chr)
+static void char_braille_finalize(Object *obj)
 {
-    BaumChardev *baum = BAUM_CHARDEV(chr);
+    BaumChardev *baum = BAUM_CHARDEV(obj);
 
     timer_free(baum->cellCount_timer);
     if (baum->brlapi) {
@@ -659,23 +659,18 @@ static void char_braille_class_init(ObjectClass *oc, void *data)
     cc->open = baum_chr_open;
     cc->chr_write = baum_chr_write;
     cc->chr_accept_input = baum_chr_accept_input;
-    cc->chr_free = baum_chr_free;
 }
 
 static const TypeInfo char_braille_type_info = {
     .name = TYPE_CHARDEV_BRAILLE,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(BaumChardev),
+    .instance_finalize = char_braille_finalize,
     .class_init = char_braille_class_init,
 };
 
 static void register_types(void)
 {
-    static const CharDriver driver = {
-        .kind = CHARDEV_BACKEND_KIND_BRAILLE,
-    };
-
-    register_char_driver(&driver);
     type_register_static(&char_braille_type_info);
 }
 

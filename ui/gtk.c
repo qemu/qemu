@@ -1739,8 +1739,6 @@ static void gd_vc_chr_set_echo(Chardev *chr, bool echo)
 
 static int nb_vcs;
 static Chardev *vcs[MAX_VCS];
-static const CharDriver gd_vc_driver;
-
 static void gd_vc_open(Chardev *chr,
                        ChardevBackend *backend,
                        bool *be_opened,
@@ -1763,6 +1761,7 @@ static void char_gd_vc_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->parse = qemu_chr_parse_vc;
     cc->open = gd_vc_open;
     cc->chr_write = gd_vc_chr_write;
     cc->chr_set_echo = gd_vc_chr_set_echo;
@@ -1773,11 +1772,6 @@ static const TypeInfo char_gd_vc_type_info = {
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(VCChardev),
     .class_init = char_gd_vc_class_init,
-};
-
-static const CharDriver gd_vc_driver = {
-    .kind = CHARDEV_BACKEND_KIND_VC,
-    .parse = qemu_chr_parse_vc,
 };
 
 static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
@@ -2383,6 +2377,5 @@ void early_gtk_display_init(int opengl)
 
 #if defined(CONFIG_VTE)
     type_register(&char_gd_vc_type_info);
-    register_char_driver(&gd_vc_driver);
 #endif
 }
