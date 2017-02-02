@@ -33,7 +33,7 @@
 #include <vcard_emul.h>
 
 #include "qemu/thread.h"
-#include "sysemu/char.h"
+#include "qemu/main-loop.h"
 #include "ccid.h"
 
 #define DPRINTF(card, lvl, fmt, ...) \

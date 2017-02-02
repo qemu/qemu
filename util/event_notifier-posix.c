@@ -14,7 +14,6 @@
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qemu/event_notifier.h"
-#include "sysemu/char.h"
 #include "qemu/main-loop.h"
 
 #ifdef CONFIG_EVENTFD
