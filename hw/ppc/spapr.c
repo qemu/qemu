@@ -2488,7 +2488,8 @@ void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
     return fdt;
 }
 
-static void spapr_core_release(DeviceState *dev, void *opaque)
+static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                              Error **errp)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     CPUCore *cc = CPU_CORE(dev);
@@ -2497,8 +2498,17 @@ static void spapr_core_release(DeviceState *dev, void *opaque)
     object_unparent(OBJECT(dev));
 }
 
-static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                              Error **errp)
+static void spapr_core_release(DeviceState *dev, void *opaque)
+{
+    HotplugHandler *hotplug_ctrl;
+
+    hotplug_ctrl = qdev_get_hotplug_handler(dev);
+    hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
+}
+
+static
+void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
+                               Error **errp)
 {
     CPUCore *cc = CPU_CORE(dev);
     int smt = kvmppc_smt_threads();
@@ -2719,7 +2729,7 @@ static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
             error_setg(errp, "CPU hot unplug not supported on this machine");
             return;
         }
-        spapr_core_unplug(hotplug_dev, dev, errp);
+        spapr_core_unplug_request(hotplug_dev, dev, errp);
     }
 }
 
