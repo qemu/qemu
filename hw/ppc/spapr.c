@@ -2488,6 +2488,144 @@ void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
     return fdt;
 }
 
+static void spapr_core_release(DeviceState *dev, void *opaque)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    CPUCore *cc = CPU_CORE(dev);
+
+    spapr->cores[cc->core_id / smp_threads] = NULL;
+    object_unparent(OBJECT(dev));
+}
+
+static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                              Error **errp)
+{
+    CPUCore *cc = CPU_CORE(dev);
+    int smt = kvmppc_smt_threads();
+    int index = cc->core_id / smp_threads;
+    sPAPRDRConnector *drc =
+        spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, index * smt);
+    sPAPRDRConnectorClass *drck;
+    Error *local_err = NULL;
+
+    if (index == 0) {
+        error_setg(errp, "Boot CPU core may not be unplugged");
+        return;
+    }
+
+    g_assert(drc);
+
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    drck->detach(drc, dev, spapr_core_release, NULL, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    spapr_hotplug_req_remove_by_index(drc);
+}
+
+static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                            Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
+    MachineClass *mc = MACHINE_GET_CLASS(spapr);
+    sPAPRCPUCore *core = SPAPR_CPU_CORE(OBJECT(dev));
+    CPUCore *cc = CPU_CORE(dev);
+    CPUState *cs = CPU(core->threads);
+    sPAPRDRConnector *drc;
+    Error *local_err = NULL;
+    void *fdt = NULL;
+    int fdt_offset = 0;
+    int index = cc->core_id / smp_threads;
+    int smt = kvmppc_smt_threads();
+
+    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, index * smt);
+    spapr->cores[index] = OBJECT(dev);
+
+    g_assert(drc || !mc->query_hotpluggable_cpus);
+
+    /*
+     * Setup CPU DT entries only for hotplugged CPUs. For boot time or
+     * coldplugged CPUs DT entries are setup in spapr_build_fdt().
+     */
+    if (dev->hotplugged) {
+        fdt = spapr_populate_hotplug_cpu_dt(cs, &fdt_offset, spapr);
+    }
+
+    if (drc) {
+        sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+        drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, &local_err);
+        if (local_err) {
+            g_free(fdt);
+            spapr->cores[index] = NULL;
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
+    if (dev->hotplugged) {
+        /*
+         * Send hotplug notification interrupt to the guest only in case
+         * of hotplugged CPUs.
+         */
+        spapr_hotplug_req_add_by_index(drc);
+    } else {
+        /*
+         * Set the right DRC states for cold plugged CPU.
+         */
+        if (drc) {
+            sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+            drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_USABLE);
+            drck->set_isolation_state(drc, SPAPR_DR_ISOLATION_STATE_UNISOLATED);
+        }
+    }
+}
+
+static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                Error **errp)
+{
+    MachineState *machine = MACHINE(OBJECT(hotplug_dev));
+    MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
+    sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
+    int spapr_max_cores = max_cpus / smp_threads;
+    int index;
+    Error *local_err = NULL;
+    CPUCore *cc = CPU_CORE(dev);
+    char *base_core_type = spapr_get_cpu_core_type(machine->cpu_model);
+    const char *type = object_get_typename(OBJECT(dev));
+
+    if (dev->hotplugged && !mc->query_hotpluggable_cpus) {
+        error_setg(&local_err, "CPU hotplug not supported for this machine");
+        goto out;
+    }
+
+    if (strcmp(base_core_type, type)) {
+        error_setg(&local_err, "CPU core type should be %s", base_core_type);
+        goto out;
+    }
+
+    if (cc->core_id % smp_threads) {
+        error_setg(&local_err, "invalid core id %d", cc->core_id);
+        goto out;
+    }
+
+    index = cc->core_id / smp_threads;
+    if (index < 0 || index >= spapr_max_cores) {
+        error_setg(&local_err, "core id %d out of range", cc->core_id);
+        goto out;
+    }
+
+    if (spapr->cores[index]) {
+        error_setg(&local_err, "core %d already populated", cc->core_id);
+        goto out;
+    }
+
+out:
+    g_free(base_core_type);
+    error_propagate(errp, local_err);
+}
+
 static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
