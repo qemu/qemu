@@ -390,6 +390,7 @@ struct XHCIEPContext {
     dma_addr_t pctx;
     unsigned int max_psize;
     uint32_t state;
+    uint32_t kick_active;
 
     /* streams */
     unsigned int max_pstreams;
@@ -2131,6 +2132,9 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         return;
     }
 
+    if (epctx->kick_active) {
+        return;
+    }
     xhci_kick_epctx(epctx, streamid);
 }
 
@@ -2146,6 +2150,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
     int i;
 
     trace_usb_xhci_ep_kick(epctx->slotid, epctx->epid, streamid);
+    assert(!epctx->kick_active);
 
     /* If the device has been detached, but the guest has not noticed this
        yet the 2 above checks will succeed, but we must NOT continue */
@@ -2217,6 +2222,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
     }
     assert(ring->dequeue != 0);
 
+    epctx->kick_active++;
     while (1) {
         length = xhci_ring_chain_length(xhci, ring);
         if (length <= 0) {
@@ -2253,6 +2259,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             break;
         }
     }
+    epctx->kick_active--;
 
     ep = xhci_epid_to_usbep(epctx);
     if (ep) {
