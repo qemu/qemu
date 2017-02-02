@@ -143,8 +143,10 @@ static void mpc8xxx_gpio_write(void *opaque, hwaddr offset,
     mpc8xxx_gpio_update(s);
 }
 
-static void mpc8xxx_gpio_reset(MPC8XXXGPIOState *s)
+static void mpc8xxx_gpio_reset(DeviceState *dev)
 {
+    MPC8XXXGPIOState *s = MPC8XXX_GPIO(dev);
+
     s->dir = 0;
     s->odr = 0;
     s->dat = 0;
@@ -180,33 +182,33 @@ static const MemoryRegionOps mpc8xxx_gpio_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static int mpc8xxx_gpio_initfn(SysBusDevice *sbd)
+static void mpc8xxx_gpio_initfn(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    MPC8XXXGPIOState *s = MPC8XXX_GPIO(dev);
+    DeviceState *dev = DEVICE(obj);
+    MPC8XXXGPIOState *s = MPC8XXX_GPIO(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &mpc8xxx_gpio_ops, s, "mpc8xxx_gpio", 0x1000);
+    memory_region_init_io(&s->iomem, obj, &mpc8xxx_gpio_ops,
+                          s, "mpc8xxx_gpio", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
     qdev_init_gpio_in(dev, mpc8xxx_gpio_set_irq, 32);
     qdev_init_gpio_out(dev, s->out, 32);
-    mpc8xxx_gpio_reset(s);
-    return 0;
 }
 
 static void mpc8xxx_gpio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = mpc8xxx_gpio_initfn;
     dc->vmsd = &vmstate_mpc8xxx_gpio;
+    dc->reset = mpc8xxx_gpio_reset;
 }
 
 static const TypeInfo mpc8xxx_gpio_info = {
     .name          = TYPE_MPC8XXX_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MPC8XXXGPIOState),
+    .instance_init = mpc8xxx_gpio_initfn,
     .class_init    = mpc8xxx_gpio_class_init,
 };
 

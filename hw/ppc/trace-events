@@ -15,7 +15,7 @@ spapr_cas_continue(unsigned long n) "Copy changes to the guest: %ld bytes"
 
 # hw/ppc/spapr_hcall.c
 spapr_cas_pvr_try(uint32_t pvr) "%x"
-spapr_cas_pvr(uint32_t cur_pvr, bool cpu_match, uint32_t new_pvr, uint64_t pcr) "current=%x, cpu_match=%u, new=%x, compat flags=%"PRIx64
+spapr_cas_pvr(uint32_t cur_pvr, bool explicit_match, uint32_t new_pvr) "current=%x, explicit_match=%u, new=%x"
 
 # hw/ppc/spapr_iommu.c
 spapr_iommu_put(uint64_t liobn, uint64_t ioba, uint64_t tce, uint64_t ret) "liobn=%"PRIx64" ioba=0x%"PRIx64" tce=0x%"PRIx64" ret=%"PRId64
@@ -74,3 +74,14 @@ ppc_tb_adjust(uint64_t offs1, uint64_t offs2, int64_t diff, int64_t seconds) "ad
 # hw/ppc/prep.c
 prep_io_800_writeb(uint32_t addr, uint32_t val) "0x%08" PRIx32 " => 0x%02" PRIx32
 prep_io_800_readb(uint32_t addr, uint32_t retval) "0x%08" PRIx32 " <= 0x%02" PRIx32
+
+# hw/ppc/prep_systemio.c
+prep_systemio_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+prep_systemio_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
+
+# hw/ppc/rs6000_mc.c
+rs6000mc_id_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+rs6000mc_presence_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+rs6000mc_size_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+rs6000mc_size_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
+rs6000mc_parity_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"

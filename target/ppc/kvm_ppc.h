@@ -26,7 +26,7 @@ void kvmppc_enable_logical_ci_hcalls(void);
 void kvmppc_enable_set_mode_hcall(void);
 void kvmppc_enable_clear_ref_mod_hcalls(void);
 void kvmppc_set_papr(PowerPCCPU *cpu);
-int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version);
+int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr);
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy);
 int kvmppc_smt_threads(void);
 int kvmppc_clear_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits);
@@ -123,7 +123,7 @@ static inline void kvmppc_set_papr(PowerPCCPU *cpu)
 {
 }
 
-static inline int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version)
+static inline int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr)
 {
     return 0;
 }

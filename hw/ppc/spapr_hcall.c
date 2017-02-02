@@ -881,126 +881,103 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return ret;
 }
 
-typedef struct {
-    uint32_t cpu_version;
-    Error *err;
-} SetCompatState;
+#define H_SIGNAL_SYS_RESET_ALL         -1
+#define H_SIGNAL_SYS_RESET_ALLBUTSELF  -2
 
-static void do_set_compat(CPUState *cs, run_on_cpu_data arg)
+static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
+                                       sPAPRMachineState *spapr,
+                                       target_ulong opcode, target_ulong *args)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    SetCompatState *s = arg.host_ptr;
+    target_long target = args[0];
+    CPUState *cs;
 
-    cpu_synchronize_state(cs);
-    ppc_set_compat(cpu, s->cpu_version, &s->err);
-}
-
-#define get_compat_level(cpuver) ( \
-    ((cpuver) == CPU_POWERPC_LOGICAL_2_05) ? 2050 : \
-    ((cpuver) == CPU_POWERPC_LOGICAL_2_06) ? 2060 : \
-    ((cpuver) == CPU_POWERPC_LOGICAL_2_06_PLUS) ? 2061 : \
-    ((cpuver) == CPU_POWERPC_LOGICAL_2_07) ? 2070 : 0)
-
-static void cas_handle_compat_cpu(PowerPCCPUClass *pcc, uint32_t pvr,
-                                  unsigned max_lvl, unsigned *compat_lvl,
-                                  unsigned *cpu_version)
-{
-    unsigned lvl = get_compat_level(pvr);
-    bool is205, is206, is207;
-
-    if (!lvl) {
-        return;
-    }
-
-    /* If it is a logical PVR, try to determine the highest level */
-    is205 = (pcc->pcr_supported & PCR_COMPAT_2_05) &&
-            (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_05));
-    is206 = (pcc->pcr_supported & PCR_COMPAT_2_06) &&
-            ((lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06)) ||
-             (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06_PLUS)));
-    is207 = (pcc->pcr_supported & PCR_COMPAT_2_07) &&
-            (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_07));
-
-    if (is205 || is206 || is207) {
-        if (!max_lvl) {
-            /* User did not set the level, choose the highest */
-            if (*compat_lvl <= lvl) {
-                *compat_lvl = lvl;
-                *cpu_version = pvr;
-            }
-        } else if (max_lvl >= lvl) {
-            /* User chose the level, don't set higher than this */
-            *compat_lvl = lvl;
-            *cpu_version = pvr;
+    if (target < 0) {
+        /* Broadcast */
+        if (target < H_SIGNAL_SYS_RESET_ALLBUTSELF) {
+            return H_PARAMETER;
         }
+
+        CPU_FOREACH(cs) {
+            PowerPCCPU *c = POWERPC_CPU(cs);
+
+            if (target == H_SIGNAL_SYS_RESET_ALLBUTSELF) {
+                if (c == cpu) {
+                    continue;
+                }
+            }
+            run_on_cpu(cs, spapr_do_system_reset_on_cpu, RUN_ON_CPU_NULL);
+        }
+        return H_SUCCESS;
+
+    } else {
+        /* Unicast */
+        CPU_FOREACH(cs) {
+            if (cpu->cpu_dt_id == target) {
+                run_on_cpu(cs, spapr_do_system_reset_on_cpu, RUN_ON_CPU_NULL);
+                return H_SUCCESS;
+            }
+        }
+        return H_PARAMETER;
     }
 }
 
-static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
+static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
                                                   sPAPRMachineState *spapr,
                                                   target_ulong opcode,
                                                   target_ulong *args)
 {
     target_ulong list = ppc64_phys_to_real(args[0]);
     target_ulong ov_table;
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu_);
-    CPUState *cs;
-    bool cpu_match = false, cpu_update = true;
-    unsigned old_cpu_version = cpu_->cpu_version;
-    unsigned compat_lvl = 0, cpu_version = 0;
-    unsigned max_lvl = get_compat_level(cpu_->max_compat);
-    int counter;
+    bool explicit_match = false; /* Matched the CPU's real PVR */
+    uint32_t max_compat = cpu->max_compat;
+    uint32_t best_compat = 0;
+    int i;
     sPAPROptionVector *ov5_guest, *ov5_cas_old, *ov5_updates;
 
-    /* Parse PVR list */
-    for (counter = 0; counter < 512; ++counter) {
+    /*
+     * We scan the supplied table of PVRs looking for two things
+     *   1. Is our real CPU PVR in the list?
+     *   2. What's the "best" listed logical PVR
+     */
+    for (i = 0; i < 512; ++i) {
         uint32_t pvr, pvr_mask;
 
         pvr_mask = ldl_be_phys(&address_space_memory, list);
-        list += 4;
-        pvr = ldl_be_phys(&address_space_memory, list);
-        list += 4;
+        pvr = ldl_be_phys(&address_space_memory, list + 4);
+        list += 8;
 
-        trace_spapr_cas_pvr_try(pvr);
-        if (!max_lvl &&
-            ((cpu_->env.spr[SPR_PVR] & pvr_mask) == (pvr & pvr_mask))) {
-            cpu_match = true;
-            cpu_version = 0;
-        } else if (pvr == cpu_->cpu_version) {
-            cpu_match = true;
-            cpu_version = cpu_->cpu_version;
-        } else if (!cpu_match) {
-            cas_handle_compat_cpu(pcc, pvr, max_lvl, &compat_lvl, &cpu_version);
-        }
-        /* Terminator record */
         if (~pvr_mask & pvr) {
-            break;
+            break; /* Terminator record */
         }
-    }
 
-    /* Parsing finished */
-    trace_spapr_cas_pvr(cpu_->cpu_version, cpu_match,
-                        cpu_version, pcc->pcr_mask);
-
-    /* Update CPUs */
-    if (old_cpu_version != cpu_version) {
-        CPU_FOREACH(cs) {
-            SetCompatState s = {
-                .cpu_version = cpu_version,
-                .err = NULL,
-            };
-
-            run_on_cpu(cs, do_set_compat, RUN_ON_CPU_HOST_PTR(&s));
-
-            if (s.err) {
-                error_report_err(s.err);
-                return H_HARDWARE;
+        if ((cpu->env.spr[SPR_PVR] & pvr_mask) == (pvr & pvr_mask)) {
+            explicit_match = true;
+        } else {
+            if (ppc_check_compat(cpu, pvr, best_compat, max_compat)) {
+                best_compat = pvr;
             }
         }
     }
 
-    if (!cpu_version) {
-        cpu_update = false;
+    if ((best_compat == 0) && (!explicit_match || max_compat)) {
+        /* We couldn't find a suitable compatibility mode, and either
+         * the guest doesn't support "raw" mode for this CPU, or raw
+         * mode is disabled because a maximum compat mode is set */
+        return H_HARDWARE;
+    }
+
+    /* Parsing finished */
+    trace_spapr_cas_pvr(cpu->compat_pvr, explicit_match, best_compat);
+
+    /* Update CPUs */
+    if (cpu->compat_pvr != best_compat) {
+        Error *local_err = NULL;
+
+        ppc_set_compat_all(best_compat, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
     }
 
     /* For the future use: here @ov_table points to the first option vector */
@@ -1028,7 +1005,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
 
     if (!spapr->cas_reboot) {
         spapr->cas_reboot =
-            (spapr_h_cas_compose_response(spapr, args[1], args[2], cpu_update,
+            (spapr_h_cas_compose_response(spapr, args[1], args[2],
                                           ov5_updates) != 0);
     }
     spapr_ovec_cleanup(ov5_updates);
@@ -1101,6 +1078,7 @@ static void hypercall_register_types(void)
     /* hcall-splpar */
     spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);
     spapr_register_hypercall(H_CEDE, h_cede);
+    spapr_register_hypercall(H_SIGNAL_SYS_RESET, h_signal_sys_reset);
 
     /* processor register resource access h-calls */
     spapr_register_hypercall(H_SET_SPRG0, h_set_sprg0);

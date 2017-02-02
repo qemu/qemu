@@ -35,11 +35,6 @@
 #endif
 
 /*****************************************************************************/
-/* PowerPC Hypercall emulation */
-
-void (*cpu_ppc_hypercall)(PowerPCCPU *);
-
-/*****************************************************************************/
 /* Exception processing */
 #if defined(CONFIG_USER_ONLY)
 void ppc_cpu_do_interrupt(CPUState *cs)
@@ -318,8 +313,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         env->nip += 4;
 
         /* "PAPR mode" built-in hypercall emulation */
-        if ((lev == 1) && cpu_ppc_hypercall) {
-            cpu_ppc_hypercall(cpu);
+        if ((lev == 1) && cpu->vhyp) {
+            PPCVirtualHypervisorClass *vhc =
+                PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+            vhc->hypercall(cpu->vhyp, cpu);
             return;
         }
         if (lev == 1) {

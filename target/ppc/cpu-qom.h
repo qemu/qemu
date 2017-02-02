@@ -214,6 +214,9 @@ extern const struct VMStateDescription vmstate_ppc_timebase;
     .flags      = VMS_STRUCT,                                         \
     .offset     = vmstate_offset_value(_state, _field, PPCTimebase),  \
 }
+
+void cpu_ppc_clock_vm_state_change(void *opaque, int running,
+                                   RunState state);
 #endif
 
 #endif

@@ -24,6 +24,7 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "cpu.h"
+#include "cpu-models.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
@@ -2108,9 +2109,9 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
     cap_papr = 1;
 }
 
-int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version)
+int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr)
 {
-    return kvm_set_one_reg(CPU(cpu), KVM_REG_PPC_ARCH_COMPAT, &cpu_version);
+    return kvm_set_one_reg(CPU(cpu), KVM_REG_PPC_ARCH_COMPAT, &compat_pvr);
 }
 
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
@@ -2412,19 +2413,13 @@ static int kvm_ppc_register_host_cpu_type(void)
     };
     PowerPCCPUClass *pvr_pcc;
     DeviceClass *dc;
+    int i;
 
     pvr_pcc = kvm_ppc_get_host_cpu_class();
     if (pvr_pcc == NULL) {
         return -1;
     }
     type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
-    type_register(&type_info);
-
-    /* Register generic family CPU class for a family */
-    pvr_pcc = ppc_cpu_get_family_class(pvr_pcc);
-    dc = DEVICE_CLASS(pvr_pcc);
-    type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
-    type_info.name = g_strdup_printf("%s-"TYPE_POWERPC_CPU, dc->desc);
     type_register(&type_info);
 
 #if defined(TARGET_PPC64)
@@ -2436,13 +2431,28 @@ static int kvm_ppc_register_host_cpu_type(void)
     type_info.class_data = (void *) "host";
     type_register(&type_info);
     g_free((void *)type_info.name);
-
-    /* Register generic spapr CPU family class for current host CPU type */
-    type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, dc->desc);
-    type_info.class_data = (void *) dc->desc;
-    type_register(&type_info);
-    g_free((void *)type_info.name);
 #endif
+
+    /*
+     * Update generic CPU family class alias (e.g. on a POWER8NVL host,
+     * we want "POWER8" to be a "family" alias that points to the current
+     * host CPU type, too)
+     */
+    dc = DEVICE_CLASS(ppc_cpu_get_family_class(pvr_pcc));
+    for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
+        if (strcmp(ppc_cpu_aliases[i].alias, dc->desc) == 0) {
+            ObjectClass *oc = OBJECT_CLASS(pvr_pcc);
+            char *suffix;
+
+            ppc_cpu_aliases[i].model = g_strdup(object_class_get_name(oc));
+            suffix = strstr(ppc_cpu_aliases[i].model, "-"TYPE_POWERPC_CPU);
+            if (suffix) {
+                *suffix = 0;
+            }
+            ppc_cpu_aliases[i].oc = oc;
+            break;
+        }
+    }
 
     return 0;
 }

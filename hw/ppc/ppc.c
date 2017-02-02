@@ -847,9 +847,8 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
     cpu_ppc_store_purr(cpu, 0x0000000000000000ULL);
 }
 
-static void timebase_pre_save(void *opaque)
+static void timebase_save(PPCTimebase *tb)
 {
-    PPCTimebase *tb = opaque;
     uint64_t ticks = cpu_get_host_ticks();
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
 
@@ -858,43 +857,30 @@ static void timebase_pre_save(void *opaque)
         return;
     }
 
+    /* not used anymore, we keep it for compatibility */
     tb->time_of_the_day_ns = qemu_clock_get_ns(QEMU_CLOCK_HOST);
     /*
-     * tb_offset is only expected to be changed by migration so
+     * tb_offset is only expected to be changed by QEMU so
      * there is no need to update it from KVM here
      */
     tb->guest_timebase = ticks + first_ppc_cpu->env.tb_env->tb_offset;
 }
 
-static int timebase_post_load(void *opaque, int version_id)
+static void timebase_load(PPCTimebase *tb)
 {
-    PPCTimebase *tb_remote = opaque;
     CPUState *cpu;
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
-    int64_t tb_off_adj, tb_off, ns_diff;
-    int64_t migration_duration_ns, migration_duration_tb, guest_tb, host_ns;
+    int64_t tb_off_adj, tb_off;
     unsigned long freq;
 
     if (!first_ppc_cpu->env.tb_env) {
         error_report("No timebase object");
-        return -1;
+        return;
     }
 
     freq = first_ppc_cpu->env.tb_env->tb_freq;
-    /*
-     * Calculate timebase on the destination side of migration.
-     * The destination timebase must be not less than the source timebase.
-     * We try to adjust timebase by downtime if host clocks are not
-     * too much out of sync (1 second for now).
-     */
-    host_ns = qemu_clock_get_ns(QEMU_CLOCK_HOST);
-    ns_diff = MAX(0, host_ns - tb_remote->time_of_the_day_ns);
-    migration_duration_ns = MIN(NANOSECONDS_PER_SECOND, ns_diff);
-    migration_duration_tb = muldiv64(freq, migration_duration_ns,
-                                     NANOSECONDS_PER_SECOND);
-    guest_tb = tb_remote->guest_timebase + MIN(0, migration_duration_tb);
 
-    tb_off_adj = guest_tb - cpu_get_host_ticks();
+    tb_off_adj = tb->guest_timebase - cpu_get_host_ticks();
 
     tb_off = first_ppc_cpu->env.tb_env->tb_offset;
     trace_ppc_tb_adjust(tb_off, tb_off_adj, tb_off_adj - tb_off,
@@ -904,9 +890,44 @@ static int timebase_post_load(void *opaque, int version_id)
     CPU_FOREACH(cpu) {
         PowerPCCPU *pcpu = POWERPC_CPU(cpu);
         pcpu->env.tb_env->tb_offset = tb_off_adj;
+#if defined(CONFIG_KVM)
+        kvm_set_one_reg(cpu, KVM_REG_PPC_TB_OFFSET,
+                        &pcpu->env.tb_env->tb_offset);
+#endif
     }
+}
 
-    return 0;
+void cpu_ppc_clock_vm_state_change(void *opaque, int running,
+                                   RunState state)
+{
+    PPCTimebase *tb = opaque;
+
+    if (running) {
+        timebase_load(tb);
+    } else {
+        timebase_save(tb);
+    }
+}
+
+/*
+ * When migrating, read the clock just before migration,
+ * so that the guest clock counts during the events
+ * between:
+ *
+ *  * vm_stop()
+ *  *
+ *  * pre_save()
+ *
+ *  This reduces clock difference on migration from 5s
+ *  to 0.1s (when max_downtime == 5s), because sending the
+ *  final pages of memory (which happens between vm_stop()
+ *  and pre_save()) takes max_downtime.
+ */
+static void timebase_pre_save(void *opaque)
+{
+    PPCTimebase *tb = opaque;
+
+    timebase_save(tb);
 }
 
 const VMStateDescription vmstate_ppc_timebase = {
@@ -915,7 +936,6 @@ const VMStateDescription vmstate_ppc_timebase = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .pre_save = timebase_pre_save,
-    .post_load = timebase_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_UINT64(guest_timebase, PPCTimebase),
         VMSTATE_INT64(time_of_the_day_ns, PPCTimebase),
@@ -950,13 +970,6 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
 }
 
 /* Specific helpers for POWER & PowerPC 601 RTC */
-#if 0
-static clk_setup_cb cpu_ppc601_rtc_init (CPUPPCState *env)
-{
-    return cpu_ppc_tb_init(env, 7812500);
-}
-#endif
-
 void cpu_ppc601_store_rtcu (CPUPPCState *env, uint32_t value)
 {
     _cpu_ppc_store_tbu(env, value);

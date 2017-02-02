@@ -16,6 +16,8 @@ obj-y += ppc405_boards.o ppc4xx_devs.o ppc405_uc.o ppc440_bamboo.o
 obj-y += ppc4xx_pci.o
 # PReP
 obj-$(CONFIG_PREP) += prep.o
+obj-$(CONFIG_PREP) += prep_systemio.o
+obj-${CONFIG_RS6000_MC} += rs6000_mc.o
 # OldWorld PowerMac
 obj-$(CONFIG_MAC) += mac_oldworld.o
 # NewWorld PowerMac

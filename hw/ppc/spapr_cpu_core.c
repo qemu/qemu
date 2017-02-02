@@ -46,7 +46,8 @@ static void spapr_cpu_destroy(PowerPCCPU *cpu)
     qemu_unregister_reset(spapr_cpu_reset, cpu);
 }
 
-void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu, Error **errp)
+static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
+                           Error **errp)
 {
     CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
@@ -56,6 +57,7 @@ void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu, Error **errp)
     cpu_ppc_tb_init(env, SPAPR_TIMEBASE_FREQ);
 
     /* Enable PAPR mode in TCG or KVM */
+    cpu_ppc_set_vhyp(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
     cpu_ppc_set_papr(cpu);
 
     if (cpu->max_compat) {
@@ -166,11 +168,11 @@ void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                      Error **errp)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
+    MachineClass *mc = MACHINE_GET_CLASS(spapr);
     sPAPRCPUCore *core = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(dev);
     CPUState *cs = CPU(core->threads);
     sPAPRDRConnector *drc;
-    sPAPRDRConnectorClass *drck;
     Error *local_err = NULL;
     void *fdt = NULL;
     int fdt_offset = 0;
@@ -180,7 +182,7 @@ void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, index * smt);
     spapr->cores[index] = OBJECT(dev);
 
-    g_assert(drc);
+    g_assert(drc || !mc->query_hotpluggable_cpus);
 
     /*
      * Setup CPU DT entries only for hotplugged CPUs. For boot time or
@@ -190,13 +192,15 @@ void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         fdt = spapr_populate_hotplug_cpu_dt(cs, &fdt_offset, spapr);
     }
 
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, &local_err);
-    if (local_err) {
-        g_free(fdt);
-        spapr->cores[index] = NULL;
-        error_propagate(errp, local_err);
-        return;
+    if (drc) {
+        sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+        drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, &local_err);
+        if (local_err) {
+            g_free(fdt);
+            spapr->cores[index] = NULL;
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 
     if (dev->hotplugged) {
@@ -209,8 +213,11 @@ void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         /*
          * Set the right DRC states for cold plugged CPU.
          */
-        drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_USABLE);
-        drck->set_isolation_state(drc, SPAPR_DR_ISOLATION_STATE_UNISOLATED);
+        if (drc) {
+            sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+            drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_USABLE);
+            drck->set_isolation_state(drc, SPAPR_DR_ISOLATION_STATE_UNISOLATED);
+        }
     }
 }
 
@@ -227,18 +234,13 @@ void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     char *base_core_type = spapr_get_cpu_core_type(machine->cpu_model);
     const char *type = object_get_typename(OBJECT(dev));
 
-    if (!mc->query_hotpluggable_cpus) {
+    if (dev->hotplugged && !mc->query_hotpluggable_cpus) {
         error_setg(&local_err, "CPU hotplug not supported for this machine");
         goto out;
     }
 
     if (strcmp(base_core_type, type)) {
         error_setg(&local_err, "CPU core type should be %s", base_core_type);
-        goto out;
-    }
-
-    if (cc->nr_threads != smp_threads) {
-        error_setg(&local_err, "threads must be %d", smp_threads);
         goto out;
     }
 

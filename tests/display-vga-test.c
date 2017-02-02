@@ -50,9 +50,14 @@ static void pci_virtio_vga(void)
 
 int main(int argc, char **argv)
 {
+    const char *arch = qtest_get_arch();
+
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_func("/display/pci/cirrus", pci_cirrus);
+    if (strcmp(arch, "alpha") == 0 || strcmp(arch, "i386") == 0 ||
+        strcmp(arch, "mips") == 0 || strcmp(arch, "x86_64") == 0) {
+        qtest_add_func("/display/pci/cirrus", pci_cirrus);
+    }
     qtest_add_func("/display/pci/stdvga", pci_stdvga);
     qtest_add_func("/display/pci/secondary", pci_secondary);
     qtest_add_func("/display/pci/multihead", pci_multihead);

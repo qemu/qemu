@@ -5217,28 +5217,6 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, void *data)
 
 /* Non-embedded PowerPC                                                      */
 
-/* POWER : same as 601, without mfmsr, mfsr                                  */
-POWERPC_FAMILY(POWER)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "POWER";
-    /* pcc->insns_flags = XXX_TODO; */
-    /* POWER RSC (from RAD6000) */
-    pcc->msr_mask = (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_FP) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_FE0) |
-                    (1ull << MSR_SE) |
-                    (1ull << MSR_DE) |
-                    (1ull << MSR_AL) |
-                    (1ull << MSR_EP) |
-                    (1ull << MSR_IR) |
-                    (1ull << MSR_DR);
-}
-
 #define POWERPC_MSRR_601     (0x0000000000001040ULL)
 
 static void init_proc_601 (CPUPPCState *env)
@@ -8797,6 +8775,8 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
     dc->props = powerpc_servercpu_properties;
     pcc->pvr_match = ppc_pvr_match_power9;
     pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06 | PCR_COMPAT_2_07;
+    pcc->pcr_supported = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 |
+                         PCR_COMPAT_2_05;
     pcc->init_proc = init_proc_POWER9;
     pcc->check_pow = check_pow_nocheck;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
@@ -8856,6 +8836,11 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
 }
 
 #if !defined(CONFIG_USER_ONLY)
+
+void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
+{
+    cpu->vhyp = vhyp;
+}
 
 void cpu_ppc_set_papr(PowerPCCPU *cpu)
 {
@@ -9947,67 +9932,6 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
     }
 }
 
-int ppc_get_compat_smt_threads(PowerPCCPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-    int ret = MIN(cs->nr_threads, kvmppc_smt_threads());
-
-    switch (cpu->cpu_version) {
-    case CPU_POWERPC_LOGICAL_2_05:
-        ret = MIN(ret, 2);
-        break;
-    case CPU_POWERPC_LOGICAL_2_06:
-        ret = MIN(ret, 4);
-        break;
-    case CPU_POWERPC_LOGICAL_2_07:
-        ret = MIN(ret, 8);
-        break;
-    }
-
-    return ret;
-}
-
-#ifdef TARGET_PPC64
-void ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version, Error **errp)
-{
-    int ret = 0;
-    CPUPPCState *env = &cpu->env;
-    PowerPCCPUClass *host_pcc;
-
-    cpu->cpu_version = cpu_version;
-
-    switch (cpu_version) {
-    case CPU_POWERPC_LOGICAL_2_05:
-        env->spr[SPR_PCR] = PCR_TM_DIS | PCR_VSX_DIS | PCR_COMPAT_2_07 |
-                            PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
-        break;
-    case CPU_POWERPC_LOGICAL_2_06:
-    case CPU_POWERPC_LOGICAL_2_06_PLUS:
-        env->spr[SPR_PCR] = PCR_TM_DIS | PCR_COMPAT_2_07 | PCR_COMPAT_2_06;
-        break;
-    case CPU_POWERPC_LOGICAL_2_07:
-        env->spr[SPR_PCR] = PCR_COMPAT_2_07;
-        break;
-    default:
-        env->spr[SPR_PCR] = 0;
-        break;
-    }
-
-    host_pcc = kvm_ppc_get_host_cpu_class();
-    if (host_pcc) {
-        env->spr[SPR_PCR] &= host_pcc->pcr_mask;
-    }
-
-    if (kvm_enabled()) {
-        ret = kvmppc_set_compat(cpu, cpu->cpu_version);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret,
-                             "Unable to set CPU compatibility mode in KVM");
-        }
-    }
-}
-#endif
-
 static gint ppc_cpu_compare_class_pvr(gconstpointer a, gconstpointer b)
 {
     ObjectClass *oc = (ObjectClass *)a;
@@ -10591,9 +10515,16 @@ static const TypeInfo ppc_cpu_type_info = {
     .class_init = ppc_cpu_class_init,
 };
 
+static const TypeInfo ppc_vhyp_type_info = {
+    .name = TYPE_PPC_VIRTUAL_HYPERVISOR,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(PPCVirtualHypervisorClass),
+};
+
 static void ppc_cpu_register_types(void)
 {
     type_register_static(&ppc_cpu_type_info);
+    type_register_static(&ppc_vhyp_type_info);
 }
 
 type_init(ppc_cpu_register_types)
