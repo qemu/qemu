@@ -13,7 +13,6 @@
 #include <pthread.h>
 #endif
 #include "qemu/timer.h"
-#include "trace.h"
 #include "trace/control.h"
 #include "trace/simple.h"
 

@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "trace.h"
+#include "trace-root.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/char.h"
 #include "qemu/error-report.h"

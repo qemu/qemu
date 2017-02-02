@@ -10,8 +10,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "trace.h"
 #include "trace/control.h"
+#include "trace/ftrace.h"
 
 int trace_marker_fd;
 

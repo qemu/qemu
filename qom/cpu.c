@@ -29,7 +29,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "hw/qdev-properties.h"
-#include "trace.h"
+#include "trace-root.h"
 
 bool cpu_exists(int64_t id)
 {

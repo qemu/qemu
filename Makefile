@@ -56,24 +56,135 @@ GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
 GENERATED_HEADERS += qmp-introspect.h
 GENERATED_SOURCES += qmp-introspect.c
 
-GENERATED_HEADERS += trace/generated-tracers.h
-ifeq ($(findstring dtrace,$(TRACE_BACKENDS)),dtrace)
-GENERATED_HEADERS += trace/generated-tracers-dtrace.h
-endif
-GENERATED_SOURCES += trace/generated-tracers.c
-
 GENERATED_HEADERS += trace/generated-tcg-tracers.h
 
 GENERATED_HEADERS += trace/generated-helpers-wrappers.h
 GENERATED_HEADERS += trace/generated-helpers.h
 GENERATED_SOURCES += trace/generated-helpers.c
 
-ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
-GENERATED_HEADERS += trace/generated-ust-provider.h
-GENERATED_SOURCES += trace/generated-ust.c
+ifdef CONFIG_TRACE_UST
+GENERATED_HEADERS += trace-ust-all.h
+GENERATED_SOURCES += trace-ust-all.c
 endif
 
 GENERATED_HEADERS += module_block.h
+
+TRACE_HEADERS = trace-root.h $(trace-events-subdirs:%=%/trace.h)
+TRACE_SOURCES = trace-root.c $(trace-events-subdirs:%=%/trace.c)
+TRACE_DTRACE =
+ifdef CONFIG_TRACE_DTRACE
+TRACE_HEADERS += trace-dtrace-root.h $(trace-events-subdirs:%=%/trace-dtrace.h)
+TRACE_DTRACE += trace-dtrace-root.dtrace $(trace-events-subdirs:%=%/trace-dtrace.dtrace)
+endif
+ifdef CONFIG_TRACE_UST
+TRACE_HEADERS += trace-ust-root.h $(trace-events-subdirs:%=%/trace-ust.h)
+endif
+
+GENERATED_HEADERS += $(TRACE_HEADERS)
+GENERATED_SOURCES += $(TRACE_SOURCES)
+
+trace-group-name = $(shell dirname $1 | sed -e 's/[^a-zA-Z0-9]/_/g')
+
+%/trace.h: %/trace.h-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+%/trace.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--group=$(call trace-group-name,$@) \
+		--format=h \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$(@:%-timestamp=%)")
+
+%/trace.c: %/trace.c-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+%/trace.c-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--group=$(call trace-group-name,$@) \
+		--format=c \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$(@:%-timestamp=%)")
+
+%/trace-ust.h: %/trace-ust.h-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+%/trace-ust.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--group=$(call trace-group-name,$@) \
+		--format=ust-events-h \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$(@:%-timestamp=%)")
+
+%/trace-dtrace.dtrace: %/trace-dtrace.dtrace-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+%/trace-dtrace.dtrace-timestamp: $(SRC_PATH)/%/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--group=$(call trace-group-name,$@) \
+		--format=d \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$(@:%-timestamp=%)")
+
+%/trace-dtrace.h: %/trace-dtrace.dtrace $(tracetool-y)
+	$(call quiet-command,dtrace -o $@ -h -s $<, "GEN","$@")
+
+%/trace-dtrace.o: %/trace-dtrace.dtrace $(tracetool-y)
+
+
+trace-root.h: trace-root.h-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+trace-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--group=root \
+		--format=h \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$(@:%-timestamp=%)")
+
+trace-root.c: trace-root.c-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+trace-root.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--group=root \
+		--format=c \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$(@:%-timestamp=%)")
+
+trace-ust-root.h: trace-ust-root.h-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+trace-ust-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--group=root \
+		--format=ust-events-h \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$(@:%-timestamp=%)")
+
+trace-ust-all.h: trace-ust-all.h-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+trace-ust-all.h-timestamp: $(trace-events-files) $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
+		--format=ust-events-h \
+		--backends=$(TRACE_BACKENDS) \
+		$(trace-events-files) > $@,"GEN","$(@:%-timestamp=%)")
+
+trace-ust-all.c: trace-ust-all.c-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+trace-ust-all.c-timestamp: $(trace-events-files) $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--group=all \
+		--format=ust-events-c \
+		--backends=$(TRACE_BACKENDS) \
+		$(trace-events-files) > $@,"GEN","$(@:%-timestamp=%)")
+
+trace-dtrace-root.dtrace: trace-dtrace-root.dtrace-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+trace-dtrace-root.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--group=root \
+		--format=d \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$(@:%-timestamp=%)")
+
+trace-dtrace-root.h: trace-dtrace-root.dtrace
+	$(call quiet-command,dtrace -o $@ -h -s $<, "GEN","$@")
+
+trace-dtrace-root.o: trace-dtrace-root.dtrace
 
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them
@@ -161,7 +272,8 @@ dummy := $(call unnest-vars,, \
                 qom-obj-y \
                 io-obj-y \
                 common-obj-y \
-                common-obj-m)
+                common-obj-m \
+                trace-obj-y)
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/tests/Makefile.include
@@ -225,7 +337,7 @@ dtc/%:
 	mkdir -p $@
 
 $(SUBDIR_RULES): libqemuutil.a libqemustub.a $(common-obj-y) $(chardev-obj-y) \
-	$(qom-obj-y) $(crypto-aes-obj-$(CONFIG_USER_ONLY))
+	$(qom-obj-y) $(crypto-aes-obj-$(CONFIG_USER_ONLY)) $(trace-obj-y)
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 # Only keep -O and -g cflags
@@ -249,15 +361,17 @@ libqemuutil.a: $(util-obj-y)
 
 ######################################################################
 
+COMMON_LDADDS = $(trace-obj-y) libqemuutil.a libqemustub.a
+
 qemu-img.o: qemu-img-cmds.h
 
-qemu-img$(EXESUF): qemu-img.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) libqemuutil.a libqemustub.a
-qemu-nbd$(EXESUF): qemu-nbd.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) libqemuutil.a libqemustub.a
-qemu-io$(EXESUF): qemu-io.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) libqemuutil.a libqemustub.a
+qemu-img$(EXESUF): qemu-img.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
+qemu-nbd$(EXESUF): qemu-nbd.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
+qemu-io$(EXESUF): qemu-io.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
 
-qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o libqemuutil.a libqemustub.a
+qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o $(COMMON_LDADDS)
 
-fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/9p-marshal.o fsdev/9p-iov-marshal.o libqemuutil.a libqemustub.a
+fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/9p-marshal.o fsdev/9p-iov-marshal.o $(COMMON_LDADDS)
 fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
@@ -322,7 +436,7 @@ $(qapi-modules) $(SRC_PATH)/scripts/qapi-introspect.py $(qapi-py)
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
 $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
-qemu-ga$(EXESUF): $(qga-obj-y) libqemuutil.a libqemustub.a
+qemu-ga$(EXESUF): $(qga-obj-y) $(COMMON_LDADDS)
 	$(call LINK, $^)
 
 ifdef QEMU_GA_MSI_ENABLED
@@ -347,9 +461,9 @@ ifneq ($(EXESUF),)
 qemu-ga: qemu-ga$(EXESUF) $(QGA_VSS_PROVIDER) $(QEMU_GA_MSI)
 endif
 
-ivshmem-client$(EXESUF): $(ivshmem-client-obj-y) libqemuutil.a libqemustub.a
+ivshmem-client$(EXESUF): $(ivshmem-client-obj-y) $(COMMON_LDADDS)
 	$(call LINK, $^)
-ivshmem-server$(EXESUF): $(ivshmem-server-obj-y) libqemuutil.a libqemustub.a
+ivshmem-server$(EXESUF): $(ivshmem-server-obj-y) $(COMMON_LDADDS)
 	$(call LINK, $^)
 
 module_block.h: $(SRC_PATH)/scripts/modules/module_block.py config-host.mak
@@ -665,6 +779,10 @@ endif # CONFIG_WIN
 ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
 Makefile: $(GENERATED_HEADERS)
 endif
+
+.SECONDARY: $(TRACE_HEADERS) $(TRACE_HEADERS:%=%-timestamp) \
+	$(TRACE_SOURCES) $(TRACE_SOURCES:%=%-timestamp) \
+	$(TRACE_DTRACE) $(TRACE_DTRACE:%=%-timestamp)
 
 # Include automatically generated dependency files
 # Dependencies in Makefile.objs files come from our recursive subdir rules

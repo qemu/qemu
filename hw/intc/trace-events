@@ -67,7 +67,6 @@ xics_alloc(int irq) "irq %d"
 xics_alloc_block(int first, int num, bool lsi, int align) "first irq %d, %d irqs, lsi=%d, alignnum %d"
 xics_ics_free(int src, int irq, int num) "Source#%d, first irq %d, %d irqs"
 xics_ics_free_warn(int src, int irq) "Source#%d, irq %d is already free"
-xics_icp_post_load(uint32_t server_no, uint32_t xirr, uint64_t addr, uint8_t pend) "server_no %d, xirr %#x, xirr_owner 0x%" PRIx64 ", pending %d"
 
 # hw/intc/s390_flic_kvm.c
 flic_create_device(int err) "flic: create device failed %d"

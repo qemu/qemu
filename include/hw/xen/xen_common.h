@@ -18,7 +18,7 @@
 #include "hw/xen/xen.h"
 #include "hw/pci/pci.h"
 #include "qemu/queue.h"
-#include "trace.h"
+#include "hw/xen/trace.h"
 
 /*
  * We don't support Xen prior to 4.2.0.

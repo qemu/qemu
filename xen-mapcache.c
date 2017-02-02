@@ -19,7 +19,7 @@
 #include <xen/hvm/params.h>
 
 #include "sysemu/xen-mapcache.h"
-#include "trace.h"
+#include "trace-root.h"
 
 
 //#define MAPCACHE_DEBUG

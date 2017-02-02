@@ -1,12 +1,5 @@
 # See docs/tracing.txt for syntax documentation.
 
-# hw/i386/xen/xen_platform.c
-xen_platform_log(char *s) "xen platform: %s"
-
-# hw/i386/xen/xen_pvdevice.c
-xen_pv_mmio_read(uint64_t addr) "WARNING: read from Xen PV Device MMIO space (address %"PRIx64")"
-xen_pv_mmio_write(uint64_t addr) "WARNING: write to Xen PV Device MMIO space (address %"PRIx64")"
-
 # hw/i386/x86-iommu.c
 x86_iommu_iec_notify(bool global, uint32_t index, uint32_t mask) "Notify IEC invalidation: global=%d index=%" PRIu32 " mask=%" PRIu32
 
@@ -30,7 +23,6 @@ amdvi_devtab_inval(uint8_t bus, uint8_t slot, uint8_t func) "device table entry 
 amdvi_completion_wait(uint64_t addr, uint64_t data) "completion wait requested with store address 0x%"PRIx64" and store data 0x%"PRIx64
 amdvi_control_status(uint64_t val) "MMIO_STATUS state 0x%"PRIx64
 amdvi_iotlb_reset(void) "IOTLB exceed size limit - reset "
-amdvi_completion_wait_exec(uint64_t addr, uint64_t data) "completion wait requested with store address 0x%"PRIx64" and store data 0x%"PRIx64
 amdvi_dte_get_fail(uint64_t addr, uint32_t offset) "error: failed to access Device Entry devtab 0x%"PRIx64" offset 0x%"PRIx32
 amdvi_invalid_dte(uint64_t addr) "PTE entry at 0x%"PRIx64" is invalid "
 amdvi_get_pte_hwerror(uint64_t addr) "hardware error eccessing PTE at addr 0x%"PRIx64

@@ -1,4 +1,4 @@
-# qapi-visit-core.c
+# qapi/qapi-visit-core.c
 visit_free(void *v) "v=%p"
 visit_complete(void *v, void *opaque) "v=%p opaque=%p"
 
