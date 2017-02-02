@@ -933,10 +933,12 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         }
 
         if (qdev_get_vmsd(dev)) {
-            vmstate_register_with_alias_id(dev, -1, qdev_get_vmsd(dev), dev,
-                                           dev->instance_id_alias,
-                                           dev->alias_required_for_version,
-                                           NULL);
+            if (vmstate_register_with_alias_id(dev, -1, qdev_get_vmsd(dev), dev,
+                                               dev->instance_id_alias,
+                                               dev->alias_required_for_version,
+                                               &local_err) < 0) {
+                goto post_realize_fail;
+            }
         }
 
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
