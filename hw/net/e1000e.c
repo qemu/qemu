@@ -292,7 +292,7 @@ e1000e_init_msix(E1000EState *s)
                         E1000E_MSIX_IDX, E1000E_MSIX_TABLE,
                         &s->msix,
                         E1000E_MSIX_IDX, E1000E_MSIX_PBA,
-                        0xA0);
+                        0xA0, NULL);
 
     if (res < 0) {
         trace_e1000e_msix_init_fail(res);

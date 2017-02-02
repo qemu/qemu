@@ -306,12 +306,11 @@ void qxl_spice_reset_cursor(PCIQXLDevice *qxl)
 
 static ram_addr_t qxl_rom_size(void)
 {
-    uint32_t required_rom_size = sizeof(QXLRom) + sizeof(QXLModes) +
-                                 sizeof(qxl_modes);
-    uint32_t rom_size = 8192; /* two pages */
+#define QXL_REQUIRED_SZ (sizeof(QXLRom) + sizeof(QXLModes) + sizeof(qxl_modes))
+#define QXL_ROM_SZ 8192
 
-    QEMU_BUILD_BUG_ON(required_rom_size > rom_size);
-    return rom_size;
+    QEMU_BUILD_BUG_ON(QXL_REQUIRED_SZ > QXL_ROM_SZ);
+    return QXL_ROM_SZ;
 }
 
 static void init_qxl_rom(PCIQXLDevice *d)
