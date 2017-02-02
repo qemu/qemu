@@ -1601,6 +1601,7 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     QIOChannelBuffer *bioc;
     QEMUFile *fb;
     int64_t time_at_stop = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    bool restart_block = false;
     migrate_set_state(&ms->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_POSTCOPY_ACTIVE);
 
@@ -1620,6 +1621,7 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     if (ret < 0) {
         goto fail;
     }
+    restart_block = true;
 
     /*
      * Cause any non-postcopiable, but iterative devices to
@@ -1676,6 +1678,18 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
 
     /* <><> end of stuff going into the package */
 
+    /* Last point of recovery; as soon as we send the package the destination
+     * can open devices and potentially start running.
+     * Lets just check again we've not got any errors.
+     */
+    ret = qemu_file_get_error(ms->to_dst_file);
+    if (ret) {
+        error_report("postcopy_start: Migration stream errored (pre package)");
+        goto fail_closefb;
+    }
+
+    restart_block = false;
+
     /* Now send that blob */
     if (qemu_savevm_send_packaged(ms->to_dst_file, bioc->data, bioc->usage)) {
         goto fail_closefb;
@@ -1713,6 +1727,17 @@ fail_closefb:
 fail:
     migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
                           MIGRATION_STATUS_FAILED);
+    if (restart_block) {
+        /* A failure happened early enough that we know the destination hasn't
+         * accessed block devices, so we're safe to recover.
+         */
+        Error *local_err = NULL;
+
+        bdrv_invalidate_cache_all(&local_err);
+        if (local_err) {
+            error_report_err(local_err);
+        }
+    }
     qemu_mutex_unlock_iothread();
     return -1;
 }
