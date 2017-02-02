@@ -225,3 +225,10 @@ recording the virtual machine this filter puts all packets coming from
 the outer world into the log. In replay mode packets from the log are
 injected into the network device. All interactions with network backend
 in replay mode are disabled.
+
+Audio devices
+-------------
+
+Audio data is recorded and replay automatically. The command line for recording
+and replaying must contain identical specifications of audio hardware, e.g.:
+ -soundhw ac97

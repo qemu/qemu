@@ -29,6 +29,10 @@ enum ReplayEvents {
     /* for character device read all event */
     EVENT_CHAR_READ_ALL,
     EVENT_CHAR_READ_ALL_ERROR,
+    /* for audio out event */
+    EVENT_AUDIO_OUT,
+    /* for audio in event */
+    EVENT_AUDIO_IN,
     /* for clock read/writes */
     /* some of greater codes are reserved for clocks */
     EVENT_CLOCK,
