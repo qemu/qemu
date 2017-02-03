@@ -751,21 +751,21 @@ static inline ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
  * is actually a ram_addr_t (in system mode; the user mode emulation
  * version of this function returns a guest virtual address).
  */
-tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
+tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
 {
-    int mmu_idx, page_index, pd;
+    int mmu_idx, index, pd;
     void *p;
     MemoryRegion *mr;
-    CPUState *cpu = ENV_GET_CPU(env1);
+    CPUState *cpu = ENV_GET_CPU(env);
     CPUIOTLBEntry *iotlbentry;
 
-    page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    mmu_idx = cpu_mmu_index(env1, true);
-    if (unlikely(env1->tlb_table[mmu_idx][page_index].addr_code !=
+    index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    mmu_idx = cpu_mmu_index(env, true);
+    if (unlikely(env->tlb_table[mmu_idx][index].addr_code !=
                  (addr & TARGET_PAGE_MASK))) {
-        cpu_ldub_code(env1, addr);
+        cpu_ldub_code(env, addr);
     }
-    iotlbentry = &env1->iotlb[mmu_idx][page_index];
+    iotlbentry = &env->iotlb[mmu_idx][index];
     pd = iotlbentry->addr & ~TARGET_PAGE_MASK;
     mr = iotlb_to_region(cpu, pd, iotlbentry->attrs);
     if (memory_region_is_unassigned(mr)) {
@@ -777,7 +777,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
         report_bad_exec(cpu, addr);
         exit(1);
     }
-    p = (void *)((uintptr_t)addr + env1->tlb_table[mmu_idx][page_index].addend);
+    p = (void *)((uintptr_t)addr + env->tlb_table[mmu_idx][index].addend);
     return qemu_ram_addr_from_host_nofail(p);
 }
 
