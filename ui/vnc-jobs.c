@@ -128,29 +128,6 @@ static bool vnc_has_job_locked(VncState *vs)
     return false;
 }
 
-bool vnc_has_job(VncState *vs)
-{
-    bool ret;
-
-    vnc_lock_queue(queue);
-    ret = vnc_has_job_locked(vs);
-    vnc_unlock_queue(queue);
-    return ret;
-}
-
-void vnc_jobs_clear(VncState *vs)
-{
-    VncJob *job, *tmp;
-
-    vnc_lock_queue(queue);
-    QTAILQ_FOREACH_SAFE(job, &queue->jobs, next, tmp) {
-        if (job->vs == vs || !vs) {
-            QTAILQ_REMOVE(&queue->jobs, job, next);
-        }
-    }
-    vnc_unlock_queue(queue);
-}
-
 void vnc_jobs_join(VncState *vs)
 {
     vnc_lock_queue(queue);
