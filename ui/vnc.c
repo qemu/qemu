@@ -3558,7 +3558,13 @@ void vnc_display_open(const char *id, Error **errp)
                 wsaddr->type = SOCKET_ADDRESS_KIND_INET;
                 inet = wsaddr->u.inet.data = g_new0(InetSocketAddress, 1);
                 inet->host = g_strdup(saddr->u.inet.data->host);
-                inet->port = g_strdup(websocket);
+                if (g_str_equal(websocket, "") ||
+                    g_str_equal(websocket, "on")) {
+                    inet->port = g_strdup_printf(
+                        "%d", (int)baseport + 5700);
+                } else {
+                    inet->port = g_strdup(websocket);
+                }
 
                 if (to) {
                     inet->has_to = true;
