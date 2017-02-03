@@ -429,12 +429,20 @@ out_error:
     return NULL;
 }
 
-static VncBasicInfoList *qmp_query_server_entry(QIOChannelSocket *ioc,
-                                                bool websocket,
-                                                VncBasicInfoList *prev)
+
+static void qmp_query_auth(int auth, int subauth,
+                           VncPrimaryAuth *qmp_auth,
+                           VncVencryptSubAuth *qmp_vencrypt,
+                           bool *qmp_has_vencrypt);
+
+static VncServerInfo2List *qmp_query_server_entry(QIOChannelSocket *ioc,
+                                                  bool websocket,
+                                                  int auth,
+                                                  int subauth,
+                                                  VncServerInfo2List *prev)
 {
-    VncBasicInfoList *list;
-    VncBasicInfo *info;
+    VncServerInfo2List *list;
+    VncServerInfo2 *info;
     Error *err = NULL;
     SocketAddress *addr;
 
@@ -444,85 +452,91 @@ static VncBasicInfoList *qmp_query_server_entry(QIOChannelSocket *ioc,
         return prev;
     }
 
-    info = g_new0(VncBasicInfo, 1);
-    vnc_init_basic_info(addr, info, &err);
+    info = g_new0(VncServerInfo2, 1);
+    vnc_init_basic_info(addr, qapi_VncServerInfo2_base(info), &err);
     qapi_free_SocketAddress(addr);
     if (err) {
-        qapi_free_VncBasicInfo(info);
+        qapi_free_VncServerInfo2(info);
         error_free(err);
         return prev;
     }
     info->websocket = websocket;
 
-    list = g_new0(VncBasicInfoList, 1);
+    qmp_query_auth(auth, subauth, &info->auth,
+                   &info->vencrypt, &info->has_vencrypt);
+
+    list = g_new0(VncServerInfo2List, 1);
     list->value = info;
     list->next = prev;
     return list;
 }
 
-static void qmp_query_auth(VncDisplay *vd, VncInfo2 *info)
+static void qmp_query_auth(int auth, int subauth,
+                           VncPrimaryAuth *qmp_auth,
+                           VncVencryptSubAuth *qmp_vencrypt,
+                           bool *qmp_has_vencrypt)
 {
-    switch (vd->auth) {
+    switch (auth) {
     case VNC_AUTH_VNC:
-        info->auth = VNC_PRIMARY_AUTH_VNC;
+        *qmp_auth = VNC_PRIMARY_AUTH_VNC;
         break;
     case VNC_AUTH_RA2:
-        info->auth = VNC_PRIMARY_AUTH_RA2;
+        *qmp_auth = VNC_PRIMARY_AUTH_RA2;
         break;
     case VNC_AUTH_RA2NE:
-        info->auth = VNC_PRIMARY_AUTH_RA2NE;
+        *qmp_auth = VNC_PRIMARY_AUTH_RA2NE;
         break;
     case VNC_AUTH_TIGHT:
-        info->auth = VNC_PRIMARY_AUTH_TIGHT;
+        *qmp_auth = VNC_PRIMARY_AUTH_TIGHT;
         break;
     case VNC_AUTH_ULTRA:
-        info->auth = VNC_PRIMARY_AUTH_ULTRA;
+        *qmp_auth = VNC_PRIMARY_AUTH_ULTRA;
         break;
     case VNC_AUTH_TLS:
-        info->auth = VNC_PRIMARY_AUTH_TLS;
+        *qmp_auth = VNC_PRIMARY_AUTH_TLS;
         break;
     case VNC_AUTH_VENCRYPT:
-        info->auth = VNC_PRIMARY_AUTH_VENCRYPT;
-        info->has_vencrypt = true;
-        switch (vd->subauth) {
+        *qmp_auth = VNC_PRIMARY_AUTH_VENCRYPT;
+        *qmp_has_vencrypt = true;
+        switch (subauth) {
         case VNC_AUTH_VENCRYPT_PLAIN:
-            info->vencrypt = VNC_VENCRYPT_SUB_AUTH_PLAIN;
+            *qmp_vencrypt = VNC_VENCRYPT_SUB_AUTH_PLAIN;
             break;
         case VNC_AUTH_VENCRYPT_TLSNONE:
-            info->vencrypt = VNC_VENCRYPT_SUB_AUTH_TLS_NONE;
+            *qmp_vencrypt = VNC_VENCRYPT_SUB_AUTH_TLS_NONE;
             break;
         case VNC_AUTH_VENCRYPT_TLSVNC:
-            info->vencrypt = VNC_VENCRYPT_SUB_AUTH_TLS_VNC;
+            *qmp_vencrypt = VNC_VENCRYPT_SUB_AUTH_TLS_VNC;
             break;
         case VNC_AUTH_VENCRYPT_TLSPLAIN:
-            info->vencrypt = VNC_VENCRYPT_SUB_AUTH_TLS_PLAIN;
+            *qmp_vencrypt = VNC_VENCRYPT_SUB_AUTH_TLS_PLAIN;
             break;
         case VNC_AUTH_VENCRYPT_X509NONE:
-            info->vencrypt = VNC_VENCRYPT_SUB_AUTH_X509_NONE;
+            *qmp_vencrypt = VNC_VENCRYPT_SUB_AUTH_X509_NONE;
             break;
         case VNC_AUTH_VENCRYPT_X509VNC:
-            info->vencrypt = VNC_VENCRYPT_SUB_AUTH_X509_VNC;
+            *qmp_vencrypt = VNC_VENCRYPT_SUB_AUTH_X509_VNC;
             break;
         case VNC_AUTH_VENCRYPT_X509PLAIN:
-            info->vencrypt = VNC_VENCRYPT_SUB_AUTH_X509_PLAIN;
+            *qmp_vencrypt = VNC_VENCRYPT_SUB_AUTH_X509_PLAIN;
             break;
         case VNC_AUTH_VENCRYPT_TLSSASL:
-            info->vencrypt = VNC_VENCRYPT_SUB_AUTH_TLS_SASL;
+            *qmp_vencrypt = VNC_VENCRYPT_SUB_AUTH_TLS_SASL;
             break;
         case VNC_AUTH_VENCRYPT_X509SASL:
-            info->vencrypt = VNC_VENCRYPT_SUB_AUTH_X509_SASL;
+            *qmp_vencrypt = VNC_VENCRYPT_SUB_AUTH_X509_SASL;
             break;
         default:
-            info->has_vencrypt = false;
+            *qmp_has_vencrypt = false;
             break;
         }
         break;
     case VNC_AUTH_SASL:
-        info->auth = VNC_PRIMARY_AUTH_SASL;
+        *qmp_auth = VNC_PRIMARY_AUTH_SASL;
         break;
     case VNC_AUTH_NONE:
     default:
-        info->auth = VNC_PRIMARY_AUTH_NONE;
+        *qmp_auth = VNC_PRIMARY_AUTH_NONE;
         break;
     }
 }
@@ -538,7 +552,8 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
         info = g_new0(VncInfo2, 1);
         info->id = g_strdup(vd->id);
         info->clients = qmp_query_client_list(vd);
-        qmp_query_auth(vd, info);
+        qmp_query_auth(vd->auth, vd->subauth, &info->auth,
+                       &info->vencrypt, &info->has_vencrypt);
         if (vd->dcl.con) {
             dev = DEVICE(object_property_get_link(OBJECT(vd->dcl.con),
                                                   "device", NULL));
@@ -547,11 +562,11 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
         }
         if (vd->lsock != NULL) {
             info->server = qmp_query_server_entry(
-                vd->lsock, false, info->server);
+                vd->lsock, false, vd->auth, vd->subauth, info->server);
         }
         if (vd->lwebsock != NULL) {
             info->server = qmp_query_server_entry(
-                vd->lwebsock, true, info->server);
+                vd->lwebsock, true, vd->ws_auth, vd->ws_subauth, info->server);
         }
 
         item = g_new0(VncInfo2List, 1);
