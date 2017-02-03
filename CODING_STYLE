@@ -116,3 +116,10 @@ if (a == 1) {
 Rationale: Yoda conditions (as in 'if (1 == a)') are awkward to read.
 Besides, good compilers already warn users when '==' is mis-typed as '=',
 even when the constant is on the right.
+
+7. Comment style
+
+We use traditional C-style /* */ comments and avoid // comments.
+
+Rationale: The // form is valid in C99, so this is purely a matter of
+consistency of style. The checkpatch script will warn you about this.
