@@ -114,11 +114,11 @@ static void kvm_ioapic_put(IOAPICCommonState *s)
 
 void kvm_ioapic_dump_state(Monitor *mon, const QDict *qdict)
 {
-    IOAPICCommonState s;
+    IOAPICCommonState *s = IOAPIC_COMMON(object_resolve_path("ioapic", NULL));
 
-    kvm_ioapic_get(&s);
-
-    ioapic_print_redtbl(mon, &s);
+    assert(s);
+    kvm_ioapic_get(s);
+    ioapic_print_redtbl(mon, s);
 }
 
 static void kvm_ioapic_reset(DeviceState *dev)
