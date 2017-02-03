@@ -111,11 +111,19 @@ char *spapr_get_cpu_core_type(const char *model)
 
 static void spapr_core_release(DeviceState *dev, void *opaque)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    CPUCore *cc = CPU_CORE(dev);
+
+    spapr->cores[cc->core_id / smp_threads] = NULL;
+    object_unparent(OBJECT(dev));
+}
+
+static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)
+{
     sPAPRCPUCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(OBJECT(dev));
     const char *typename = object_class_get_name(scc->cpu_class);
     size_t size = object_type_get_instance_size(typename);
-    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     CPUCore *cc = CPU_CORE(dev);
     int i;
 
@@ -129,11 +137,7 @@ static void spapr_core_release(DeviceState *dev, void *opaque)
         cpu_remove_sync(cs);
         object_unparent(obj);
     }
-
-    spapr->cores[cc->core_id / smp_threads] = NULL;
-
     g_free(sc->threads);
-    object_unparent(OBJECT(dev));
 }
 
 void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
@@ -368,6 +372,7 @@ void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_CLASS(oc);
 
     dc->realize = spapr_cpu_core_realize;
+    dc->unrealize = spapr_cpu_core_unrealizefn;
     scc->cpu_class = cpu_class_by_name(TYPE_POWERPC_CPU, data);
     g_assert(scc->cpu_class);
 }
