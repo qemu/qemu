@@ -3336,3 +3336,59 @@ void helper_xsrqpi(CPUPPCState *env, uint32_t opcode)
     float_check_status(env);
     putVSR(rD(opcode) + 32, &xt, env);
 }
+
+void helper_xsrqpxp(CPUPPCState *env, uint32_t opcode)
+{
+    ppc_vsr_t xb;
+    ppc_vsr_t xt;
+    uint8_t r = Rrm(opcode);
+    uint8_t rmc = RMC(opcode);
+    uint8_t rmode = 0;
+    floatx80 round_res;
+    float_status tstat;
+
+    getVSR(rB(opcode) + 32, &xb, env);
+    memset(&xt, 0, sizeof(xt));
+    helper_reset_fpstatus(env);
+
+    if (r == 0 && rmc == 0) {
+        rmode = float_round_ties_away;
+    } else if (r == 0 && rmc == 0x3) {
+        rmode = fpscr_rn;
+    } else if (r == 1) {
+        switch (rmc) {
+        case 0:
+            rmode = float_round_nearest_even;
+            break;
+        case 1:
+            rmode = float_round_to_zero;
+            break;
+        case 2:
+            rmode = float_round_up;
+            break;
+        case 3:
+            rmode = float_round_down;
+            break;
+        default:
+            abort();
+        }
+    }
+
+    tstat = env->fp_status;
+    set_float_exception_flags(0, &tstat);
+    set_float_rounding_mode(rmode, &tstat);
+    round_res = float128_to_floatx80(xb.f128, &tstat);
+    xt.f128 = floatx80_to_float128(round_res, &tstat);
+    env->fp_status.float_exception_flags |= tstat.float_exception_flags;
+
+    if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {
+        if (float128_is_signaling_nan(xb.f128, &tstat)) {
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);
+            xt.f128 = float128_snan_to_qnan(xt.f128);
+        }
+    }
+
+    helper_compute_fprf_float128(env, xt.f128);
+    putVSR(rD(opcode) + 32, &xt, env);
+    float_check_status(env);
+}
