@@ -132,7 +132,8 @@ void qemu_put_byte(QEMUFile *f, int v);
  * put_buffer without copying the buffer.
  * The buffer should be available till it is sent asynchronously.
  */
-void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size);
+void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size,
+                           bool may_free);
 bool qemu_file_mode_is_not_valid(const char *mode);
 bool qemu_file_is_writable(QEMUFile *f);
 

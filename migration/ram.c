@@ -705,6 +705,16 @@ static int save_zero_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
     return pages;
 }
 
+static void ram_release_pages(MigrationState *ms, const char *block_name,
+                              uint64_t offset, int pages)
+{
+    if (!migrate_release_ram() || !migration_in_postcopy(ms)) {
+        return;
+    }
+
+    ram_discard_range(NULL, block_name, offset, pages << TARGET_PAGE_BITS);
+}
+
 /**
  * ram_save_page: Send the given page to the stream
  *
@@ -765,6 +775,7 @@ static int ram_save_page(MigrationState *ms, QEMUFile *f, PageSearchStatus *pss,
              * page would be stale
              */
             xbzrle_cache_zero_page(current_addr);
+            ram_release_pages(ms, block->idstr, pss->offset, pages);
         } else if (!ram_bulk_stage &&
                    !migration_in_postcopy(ms) && migrate_use_xbzrle()) {
             pages = save_xbzrle_page(f, &p, current_addr, block,
@@ -783,7 +794,9 @@ static int ram_save_page(MigrationState *ms, QEMUFile *f, PageSearchStatus *pss,
         *bytes_transferred += save_page_header(f, block,
                                                offset | RAM_SAVE_FLAG_PAGE);
         if (send_async) {
-            qemu_put_buffer_async(f, p, TARGET_PAGE_SIZE);
+            qemu_put_buffer_async(f, p, TARGET_PAGE_SIZE,
+                                  migrate_release_ram() &
+                                  migration_in_postcopy(ms));
         } else {
             qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
         }
@@ -813,6 +826,8 @@ static int do_compress_ram_page(QEMUFile *f, RAMBlock *block,
         error_report("compressed data failed!");
     } else {
         bytes_sent += blen;
+        ram_release_pages(migrate_get_current(), block->idstr,
+                          offset & TARGET_PAGE_MASK, 1);
     }
 
     return bytes_sent;
@@ -952,12 +967,17 @@ static int ram_save_compressed_page(MigrationState *ms, QEMUFile *f,
                     error_report("compressed data failed!");
                 }
             }
+            if (pages > 0) {
+                ram_release_pages(ms, block->idstr, pss->offset, pages);
+            }
         } else {
             offset |= RAM_SAVE_FLAG_CONTINUE;
             pages = save_zero_page(f, block, offset, p, bytes_transferred);
             if (pages == -1) {
                 pages = compress_page_with_multi_thread(f, block, offset,
                                                         bytes_transferred);
+            } else {
+                ram_release_pages(ms, block->idstr, pss->offset, pages);
             }
         }
     }
