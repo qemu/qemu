@@ -713,13 +713,14 @@ static int save_zero_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
  *          >=0 - Number of pages written - this might legally be 0
  *                if xbzrle noticed the page was the same.
  *
+ * @ms: The current migration state.
  * @f: QEMUFile where to send the data
  * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  * @last_stage: if we are at the completion stage
  * @bytes_transferred: increase it with the number of transferred bytes
  */
-static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
+static int ram_save_page(MigrationState *ms, QEMUFile *f, PageSearchStatus *pss,
                          bool last_stage, uint64_t *bytes_transferred)
 {
     int pages = -1;
@@ -765,8 +766,7 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
              */
             xbzrle_cache_zero_page(current_addr);
         } else if (!ram_bulk_stage &&
-                   !migration_in_postcopy(migrate_get_current()) &&
-                   migrate_use_xbzrle()) {
+                   !migration_in_postcopy(ms) && migrate_use_xbzrle()) {
             pages = save_xbzrle_page(f, &p, current_addr, block,
                                      offset, last_stage, bytes_transferred);
             if (!last_stage) {
@@ -893,14 +893,15 @@ static int compress_page_with_multi_thread(QEMUFile *f, RAMBlock *block,
  *
  * Returns: Number of pages written.
  *
+ * @ms: The current migration state.
  * @f: QEMUFile where to send the data
  * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  * @last_stage: if we are at the completion stage
  * @bytes_transferred: increase it with the number of transferred bytes
  */
-static int ram_save_compressed_page(QEMUFile *f, PageSearchStatus *pss,
-                                    bool last_stage,
+static int ram_save_compressed_page(MigrationState *ms, QEMUFile *f,
+                                    PageSearchStatus *pss, bool last_stage,
                                     uint64_t *bytes_transferred)
 {
     int pages = -1;
@@ -1231,11 +1232,11 @@ static int ram_save_target_page(MigrationState *ms, QEMUFile *f,
     if (migration_bitmap_clear_dirty(dirty_ram_abs)) {
         unsigned long *unsentmap;
         if (compression_switch && migrate_use_compression()) {
-            res = ram_save_compressed_page(f, pss,
+            res = ram_save_compressed_page(ms, f, pss,
                                            last_stage,
                                            bytes_transferred);
         } else {
-            res = ram_save_page(f, pss, last_stage,
+            res = ram_save_page(ms, f, pss, last_stage,
                                 bytes_transferred);
         }
 
