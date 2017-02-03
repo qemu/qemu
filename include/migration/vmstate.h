@@ -658,6 +658,17 @@ extern const VMStateInfo vmstate_info_qtailq;
     .flags        = VMS_BUFFER,                                      \
 }
 
+/* Discard size * field_num bytes, where field_num is a uint32 member */
+#define VMSTATE_UNUSED_VARRAY_UINT32(_state, _test, _version, _field_num, _size) {\
+    .name         = "unused",                                        \
+    .field_exists = (_test),                                         \
+    .num_offset   = vmstate_offset_value(_state, _field_num, uint32_t),\
+    .version_id   = (_version),                                      \
+    .size         = (_size),                                         \
+    .info         = &vmstate_info_unused_buffer,                     \
+    .flags        = VMS_VARRAY_UINT32 | VMS_BUFFER,                  \
+}
+
 /* _field_size should be a int32_t field in the _state struct giving the
  * size of the bitmap _field in bits.
  */
