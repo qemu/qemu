@@ -259,6 +259,7 @@ extern const VMStateInfo vmstate_info_cpudouble;
 extern const VMStateInfo vmstate_info_timer;
 extern const VMStateInfo vmstate_info_buffer;
 extern const VMStateInfo vmstate_info_unused_buffer;
+extern const VMStateInfo vmstate_info_tmp;
 extern const VMStateInfo vmstate_info_bitmap;
 extern const VMStateInfo vmstate_info_qtailq;
 
@@ -647,6 +648,24 @@ extern const VMStateInfo vmstate_info_qtailq;
     .info       = &vmstate_info_buffer,                              \
     .flags      = VMS_BUFFER|VMS_POINTER,                            \
     .offset     = offsetof(_state, _field),                          \
+}
+
+/* Allocate a temporary of type 'tmp_type', set tmp->parent to _state
+ * and execute the vmsd on the temporary.  Note that we're working with
+ * the whole of _state here, not a field within it.
+ * We compile time check that:
+ *    That _tmp_type contains a 'parent' member that's a pointer to the
+ *        '_state' type
+ *    That the pointer is right at the start of _tmp_type.
+ */
+#define VMSTATE_WITH_TMP(_state, _tmp_type, _vmsd) {                 \
+    .name         = "tmp",                                           \
+    .size         = sizeof(_tmp_type) +                              \
+                    QEMU_BUILD_BUG_ON_ZERO(offsetof(_tmp_type, parent) != 0) + \
+                    type_check_pointer(_state,                       \
+                        typeof_field(_tmp_type, parent)),            \
+    .vmsd         = &(_vmsd),                                        \
+    .info         = &vmstate_info_tmp,                               \
 }
 
 #define VMSTATE_UNUSED_BUFFER(_test, _version, _size) {              \
