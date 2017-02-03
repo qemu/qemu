@@ -789,11 +789,15 @@ static void xhci_msix_update(XHCIState *xhci, int v)
 static void xhci_intr_raise(XHCIState *xhci, int v)
 {
     PCIDevice *pci_dev = PCI_DEVICE(xhci);
+    bool pending = (xhci->intr[v].erdp_low & ERDP_EHB);
 
     xhci->intr[v].erdp_low |= ERDP_EHB;
     xhci->intr[v].iman |= IMAN_IP;
     xhci->usbsts |= USBSTS_EINT;
 
+    if (pending) {
+        return;
+    }
     if (!(xhci->intr[v].iman & IMAN_IE)) {
         return;
     }
@@ -3352,6 +3356,15 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
             intr->erdp_low &= ~ERDP_EHB;
         }
         intr->erdp_low = (val & ~ERDP_EHB) | (intr->erdp_low & ERDP_EHB);
+        if (val & ERDP_EHB) {
+            dma_addr_t erdp = xhci_addr64(intr->erdp_low, intr->erdp_high);
+            unsigned int dp_idx = (erdp - intr->er_start) / TRB_SIZE;
+            if (erdp >= intr->er_start &&
+                erdp < (intr->er_start + TRB_SIZE * intr->er_size) &&
+                dp_idx != intr->er_ep_idx) {
+                xhci_intr_raise(xhci, v);
+            }
+        }
         break;
     case 0x1c: /* ERDP high */
         intr->erdp_high = val;
