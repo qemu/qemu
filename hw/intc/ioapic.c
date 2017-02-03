@@ -408,13 +408,15 @@ static void ioapic_machine_done_notify(Notifier *notifier, void *data)
 #endif
 }
 
+#define IOAPIC_VER_DEF 0x20
+
 static void ioapic_realize(DeviceState *dev, Error **errp)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
 
     if (s->version != 0x11 && s->version != 0x20) {
         error_report("IOAPIC only supports version 0x11 or 0x20 "
-                     "(default: 0x11).");
+                     "(default: 0x%x).", IOAPIC_VER_DEF);
         exit(1);
     }
 
@@ -429,7 +431,7 @@ static void ioapic_realize(DeviceState *dev, Error **errp)
 }
 
 static Property ioapic_properties[] = {
-    DEFINE_PROP_UINT8("version", IOAPICCommonState, version, 0x20),
+    DEFINE_PROP_UINT8("version", IOAPICCommonState, version, IOAPIC_VER_DEF),
     DEFINE_PROP_END_OF_LIST(),
 };
 
