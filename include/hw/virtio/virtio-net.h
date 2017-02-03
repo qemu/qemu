@@ -47,7 +47,7 @@ typedef struct VirtIONetQueue {
     VirtQueue *tx_vq;
     QEMUTimer *tx_timer;
     QEMUBH *tx_bh;
-    int tx_waiting;
+    uint32_t tx_waiting;
     struct {
         VirtQueueElement *elem;
     } async_tx;
@@ -68,7 +68,7 @@ typedef struct VirtIONet {
     size_t guest_hdr_len;
     uint32_t host_features;
     uint8_t has_ufo;
-    int mergeable_rx_bufs;
+    uint32_t mergeable_rx_bufs;
     uint8_t promisc;
     uint8_t allmulti;
     uint8_t alluni;
