@@ -30,6 +30,12 @@ typedef ObjectClass IOThreadClass;
 #define IOTHREAD_CLASS(klass) \
    OBJECT_CLASS_CHECK(IOThreadClass, klass, TYPE_IOTHREAD)
 
+/* Benchmark results from 2016 on NVMe SSD drives show max polling times around
+ * 16-32 microseconds yield IOPS improvements for both iodepth=1 and iodepth=32
+ * workloads.
+ */
+#define IOTHREAD_POLL_MAX_NS_DEFAULT 32768ULL
+
 static __thread IOThread *my_iothread;
 
 AioContext *qemu_get_current_aio_context(void)
@@ -69,6 +75,13 @@ static int iothread_stop(Object *object, void *opaque)
     aio_notify(iothread->ctx);
     qemu_thread_join(&iothread->thread);
     return 0;
+}
+
+static void iothread_instance_init(Object *obj)
+{
+    IOThread *iothread = IOTHREAD(obj);
+
+    iothread->poll_max_ns = IOTHREAD_POLL_MAX_NS_DEFAULT;
 }
 
 static void iothread_instance_finalize(Object *obj)
@@ -215,6 +228,7 @@ static const TypeInfo iothread_info = {
     .parent = TYPE_OBJECT,
     .class_init = iothread_class_init,
     .instance_size = sizeof(IOThread),
+    .instance_init = iothread_instance_init,
     .instance_finalize = iothread_instance_finalize,
     .interfaces = (InterfaceInfo[]) {
         {TYPE_USER_CREATABLE},
