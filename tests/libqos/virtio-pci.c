@@ -27,6 +27,12 @@ typedef struct QVirtioPCIForeachData {
     void *user_data;
 } QVirtioPCIForeachData;
 
+void qvirtio_pci_device_free(QVirtioPCIDevice *dev)
+{
+    g_free(dev->pdev);
+    g_free(dev);
+}
+
 static QVirtioPCIDevice *qpcidevice_to_qvirtiodevice(QPCIDevice *pdev)
 {
     QVirtioPCIDevice *vpcidev;

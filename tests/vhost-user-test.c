@@ -139,6 +139,7 @@ enum {
 };
 
 typedef struct TestServer {
+    QPCIBus *bus;
     gchar *socket_path;
     gchar *mig_path;
     gchar *chr_name;
@@ -160,14 +161,13 @@ static const char *root;
 
 static void init_virtio_dev(TestServer *s)
 {
-    QPCIBus *bus;
     QVirtioPCIDevice *dev;
     uint32_t features;
 
-    bus = qpci_init_pc(NULL);
-    g_assert_nonnull(bus);
+    s->bus = qpci_init_pc(NULL);
+    g_assert_nonnull(s->bus);
 
-    dev = qvirtio_pci_device_find(bus, VIRTIO_ID_NET);
+    dev = qvirtio_pci_device_find(s->bus, VIRTIO_ID_NET);
     g_assert_nonnull(dev);
 
     qvirtio_pci_device_enable(dev);
@@ -180,6 +180,7 @@ static void init_virtio_dev(TestServer *s)
     qvirtio_set_features(&dev->vdev, features);
 
     qvirtio_set_driver_ok(&dev->vdev);
+    qvirtio_pci_device_free(dev);
 }
 
 static void wait_for_fds(TestServer *s)
@@ -507,6 +508,8 @@ static gboolean _test_server_free(TestServer *server)
     g_free(server->mig_path);
 
     g_free(server->chr_name);
+    qpci_free_pc(server->bus);
+
     g_free(server);
 
     return FALSE;

@@ -34,6 +34,8 @@ extern const QVirtioBus qvirtio_pci;
 void qvirtio_pci_foreach(QPCIBus *bus, uint16_t device_type,
                 void (*func)(QVirtioDevice *d, void *data), void *data);
 QVirtioPCIDevice *qvirtio_pci_device_find(QPCIBus *bus, uint16_t device_type);
+void qvirtio_pci_device_free(QVirtioPCIDevice *dev);
+
 void qvirtio_pci_device_enable(QVirtioPCIDevice *d);
 void qvirtio_pci_device_disable(QVirtioPCIDevice *d);
 
