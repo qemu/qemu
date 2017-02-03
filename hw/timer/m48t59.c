@@ -563,7 +563,7 @@ static const VMStateDescription vmstate_m48t59 = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(lock, M48t59State),
         VMSTATE_UINT16(addr, M48t59State),
-        VMSTATE_VBUFFER_UINT32(buffer, M48t59State, 0, NULL, 0, size),
+        VMSTATE_VBUFFER_UINT32(buffer, M48t59State, 0, NULL, size),
         VMSTATE_END_OF_LIST()
     }
 };

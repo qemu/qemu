@@ -68,10 +68,10 @@ static void *vmstate_base_addr(void *opaque, VMStateField *field, bool alloc)
                 }
             }
             if (size) {
-                *((void **)base_addr + field->start) = g_malloc(size);
+                *(void **)base_addr = g_malloc(size);
             }
         }
-        base_addr = *(void **)base_addr + field->start;
+        base_addr = *(void **)base_addr;
     }
 
     return base_addr;

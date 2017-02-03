@@ -356,7 +356,7 @@ static const VMStateDescription vmstate_configuration = {
     .pre_save = configuration_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(len, SaveState),
-        VMSTATE_VBUFFER_ALLOC_UINT32(name, SaveState, 0, NULL, 0, len),
+        VMSTATE_VBUFFER_ALLOC_UINT32(name, SaveState, 0, NULL, len),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {

@@ -393,7 +393,7 @@ static const VMStateDescription vmstate_exynos4210_irq_gate = {
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_VBUFFER_UINT32(level, Exynos4210IRQGateState, 1, NULL, 0, n_in),
+        VMSTATE_VBUFFER_UINT32(level, Exynos4210IRQGateState, 1, NULL, n_in),
         VMSTATE_END_OF_LIST()
     }
 };

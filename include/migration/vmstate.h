@@ -587,7 +587,8 @@ extern const VMStateInfo vmstate_info_qtailq;
     .offset       = vmstate_offset_buffer(_state, _field) + _start,  \
 }
 
-#define VMSTATE_VBUFFER_MULTIPLY(_field, _state, _version, _test, _start, _field_size, _multiply) { \
+#define VMSTATE_VBUFFER_MULTIPLY(_field, _state, _version, _test,    \
+                                 _field_size, _multiply) {           \
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
@@ -596,10 +597,9 @@ extern const VMStateInfo vmstate_info_qtailq;
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER|VMS_MULTIPLY,            \
     .offset       = offsetof(_state, _field),                        \
-    .start        = (_start),                                        \
 }
 
-#define VMSTATE_VBUFFER(_field, _state, _version, _test, _start, _field_size) { \
+#define VMSTATE_VBUFFER(_field, _state, _version, _test, _field_size) { \
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
@@ -607,10 +607,9 @@ extern const VMStateInfo vmstate_info_qtailq;
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER,                         \
     .offset       = offsetof(_state, _field),                        \
-    .start        = (_start),                                        \
 }
 
-#define VMSTATE_VBUFFER_UINT32(_field, _state, _version, _test, _start, _field_size) { \
+#define VMSTATE_VBUFFER_UINT32(_field, _state, _version, _test, _field_size) { \
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
@@ -618,10 +617,10 @@ extern const VMStateInfo vmstate_info_qtailq;
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER,                         \
     .offset       = offsetof(_state, _field),                        \
-    .start        = (_start),                                        \
 }
 
-#define VMSTATE_VBUFFER_ALLOC_UINT32(_field, _state, _version, _test, _start, _field_size) { \
+#define VMSTATE_VBUFFER_ALLOC_UINT32(_field, _state, _version,       \
+                                     _test, _field_size) {           \
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
@@ -629,7 +628,6 @@ extern const VMStateInfo vmstate_info_qtailq;
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER|VMS_ALLOC,               \
     .offset       = offsetof(_state, _field),                        \
-    .start        = (_start),                                        \
 }
 
 #define VMSTATE_BUFFER_UNSAFE_INFO_TEST(_field, _state, _test, _version, _info, _size) { \
@@ -948,13 +946,10 @@ extern const VMStateInfo vmstate_info_qtailq;
     VMSTATE_BUFFER_START_MIDDLE_V(_f, _s, _start, 0)
 
 #define VMSTATE_PARTIAL_VBUFFER(_f, _s, _size)                        \
-    VMSTATE_VBUFFER(_f, _s, 0, NULL, 0, _size)
+    VMSTATE_VBUFFER(_f, _s, 0, NULL, _size)
 
 #define VMSTATE_PARTIAL_VBUFFER_UINT32(_f, _s, _size)                        \
-    VMSTATE_VBUFFER_UINT32(_f, _s, 0, NULL, 0, _size)
-
-#define VMSTATE_SUB_VBUFFER(_f, _s, _start, _size)                    \
-    VMSTATE_VBUFFER(_f, _s, 0, NULL, _start, _size)
+    VMSTATE_VBUFFER_UINT32(_f, _s, 0, NULL, _size)
 
 #define VMSTATE_BUFFER_TEST(_f, _s, _test)                            \
     VMSTATE_STATIC_BUFFER(_f, _s, 0, _test, 0, sizeof(typeof_field(_s, _f)))
