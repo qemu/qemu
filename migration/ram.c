@@ -1537,6 +1537,25 @@ void ram_debug_dump_bitmap(unsigned long *todump, bool expected)
 
 /* **** functions for postcopy ***** */
 
+void ram_postcopy_migrated_memory_release(MigrationState *ms)
+{
+    struct RAMBlock *block;
+    unsigned long *bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        unsigned long first = block->offset >> TARGET_PAGE_BITS;
+        unsigned long range = first + (block->used_length >> TARGET_PAGE_BITS);
+        unsigned long run_start = find_next_zero_bit(bitmap, range, first);
+
+        while (run_start < range) {
+            unsigned long run_end = find_next_bit(bitmap, range, run_start + 1);
+            ram_discard_range(NULL, block->idstr, run_start << TARGET_PAGE_BITS,
+                              (run_end - run_start) << TARGET_PAGE_BITS);
+            run_start = find_next_zero_bit(bitmap, range, run_end + 1);
+        }
+    }
+}
+
 /*
  * Callback from postcopy_each_ram_send_discard for each RAMBlock
  * Note: At this point the 'unsentmap' is the processed bitmap combined

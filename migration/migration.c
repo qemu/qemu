@@ -1722,6 +1722,10 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
      */
     qemu_savevm_send_ping(ms->to_dst_file, 4);
 
+    if (migrate_release_ram()) {
+        ram_postcopy_migrated_memory_release(ms);
+    }
+
     ret = qemu_file_get_error(ms->to_dst_file);
     if (ret) {
         error_report("postcopy_start: Migration stream errored");
