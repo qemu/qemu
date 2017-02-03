@@ -1,0 +1,124 @@
+QEMU Virtual NVDIMM
+===================
+
+This document explains the usage of virtual NVDIMM (vNVDIMM) feature
+which is available since QEMU v2.6.0.
+
+The current QEMU only implements the persistent memory mode of vNVDIMM
+device and not the block window mode.
+
+Basic Usage
+-----------
+
+The storage of a vNVDIMM device in QEMU is provided by the memory
+backend (i.e. memory-backend-file and memory-backend-ram). A simple
+way to create a vNVDIMM device at startup time is done via the
+following command line options:
+
+ -machine pc,nvdimm
+ -m $RAM_SIZE,slots=$N,maxmem=$MAX_SIZE
+ -object memory-backend-file,id=mem1,share=on,mem-path=$PATH,size=$NVDIMM_SIZE
+ -device nvdimm,id=nvdimm1,memdev=mem1
+
+Where,
+
+ - the "nvdimm" machine option enables vNVDIMM feature.
+
+ - "slots=$N" should be equal to or larger than the total amount of
+   normal RAM devices and vNVDIMM devices, e.g. $N should be >= 2 here.
+
+ - "maxmem=$MAX_SIZE" should be equal to or larger than the total size
+   of normal RAM devices and vNVDIMM devices, e.g. $MAX_SIZE should be
+   >= $RAM_SIZE + $NVDIMM_SIZE here.
+
+ - "object memory-backend-file,id=mem1,share=on,mem-path=$PATH,size=$NVDIMM_SIZE"
+   creates a backend storage of size $NVDIMM_SIZE on a file $PATH. All
+   accesses to the virtual NVDIMM device go to the file $PATH.
+
+   "share=on/off" controls the visibility of guest writes. If
+   "share=on", then guest writes will be applied to the backend
+   file. If another guest uses the same backend file with option
+   "share=on", then above writes will be visible to it as well. If
+   "share=off", then guest writes won't be applied to the backend
+   file and thus will be invisible to other guests.
+
+ - "device nvdimm,id=nvdimm1,memdev=mem1" creates a virtual NVDIMM
+   device whose storage is provided by above memory backend device.
+
+Multiple vNVDIMM devices can be created if multiple pairs of "-object"
+and "-device" are provided.
+
+For above command line options, if the guest OS has the proper NVDIMM
+driver, it should be able to detect a NVDIMM device which is in the
+persistent memory mode and whose size is $NVDIMM_SIZE.
+
+Note:
+
+1. Prior to QEMU v2.8.0, if memory-backend-file is used and the actual
+   backend file size is not equal to the size given by "size" option,
+   QEMU will truncate the backend file by ftruncate(2), which will
+   corrupt the existing data in the backend file, especially for the
+   shrink case.
+
+   QEMU v2.8.0 and later check the backend file size and the "size"
+   option. If they do not match, QEMU will report errors and abort in
+   order to avoid the data corruption.
+
+2. QEMU v2.6.0 only puts a basic alignment requirement on the "size"
+   option of memory-backend-file, e.g. 4KB alignment on x86.  However,
+   QEMU v.2.7.0 puts an additional alignment requirement, which may
+   require a larger value than the basic one, e.g. 2MB on x86. This
+   change breaks the usage of memory-backend-file that only satisfies
+   the basic alignment.
+
+   QEMU v2.8.0 and later remove the additional alignment on non-s390x
+   architectures, so the broken memory-backend-file can work again.
+
+Label
+-----
+
+QEMU v2.7.0 and later implement the label support for vNVDIMM devices.
+To enable label on vNVDIMM devices, users can simply add
+"label-size=$SZ" option to "-device nvdimm", e.g.
+
+ -device nvdimm,id=nvdimm1,memdev=mem1,label-size=128K
+
+Note:
+
+1. The minimal label size is 128KB.
+
+2. QEMU v2.7.0 and later store labels at the end of backend storage.
+   If a memory backend file, which was previously used as the backend
+   of a vNVDIMM device without labels, is now used for a vNVDIMM
+   device with label, the data in the label area at the end of file
+   will be inaccessible to the guest. If any useful data (e.g. the
+   meta-data of the file system) was stored there, the latter usage
+   may result guest data corruption (e.g. breakage of guest file
+   system).
+
+Hotplug
+-------
+
+QEMU v2.8.0 and later implement the hotplug support for vNVDIMM
+devices. Similarly to the RAM hotplug, the vNVDIMM hotplug is
+accomplished by two monitor commands "object_add" and "device_add".
+
+For example, the following commands add another 4GB vNVDIMM device to
+the guest:
+
+ (qemu) object_add memory-backend-file,id=mem2,share=on,mem-path=new_nvdimm.img,size=4G
+ (qemu) device_add nvdimm,id=nvdimm2,memdev=mem2
+
+Note:
+
+1. Each hotplugged vNVDIMM device consumes one memory slot. Users
+   should always ensure the memory option "-m ...,slots=N" specifies
+   enough number of slots, i.e.
+     N >= number of RAM devices +
+          number of statically plugged vNVDIMM devices +
+          number of hotplugged vNVDIMM devices
+
+2. The similar is required for the memory option "-m ...,maxmem=M", i.e.
+     M >= size of RAM devices +
+          size of statically plugged vNVDIMM devices +
+          size of hotplugged vNVDIMM devices
