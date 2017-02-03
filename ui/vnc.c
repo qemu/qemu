@@ -224,8 +224,12 @@ static VncServerInfo *vnc_server_info_get(VncDisplay *vd)
     VncServerInfo *info;
     Error *err = NULL;
 
+    if (!vd->nlsock) {
+        return NULL;
+    }
+
     info = g_malloc0(sizeof(*info));
-    vnc_init_basic_info_from_server_addr(vd->lsock,
+    vnc_init_basic_info_from_server_addr(vd->lsock[0],
                                          qapi_VncServerInfo_base(info), &err);
     info->has_auth = true;
     info->auth = g_strdup(vnc_auth_name(vd));
@@ -371,7 +375,7 @@ VncInfo *qmp_query_vnc(Error **errp)
     VncDisplay *vd = vnc_display_find(NULL);
     SocketAddress *addr = NULL;
 
-    if (vd == NULL || !vd->lsock) {
+    if (vd == NULL || !vd->nlsock) {
         info->enabled = false;
     } else {
         info->enabled = true;
@@ -384,7 +388,7 @@ VncInfo *qmp_query_vnc(Error **errp)
             return info;
         }
 
-        addr = qio_channel_socket_get_local_address(vd->lsock, errp);
+        addr = qio_channel_socket_get_local_address(vd->lsock[0], errp);
         if (!addr) {
             goto out_error;
         }
@@ -547,6 +551,7 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
     VncInfo2 *info;
     VncDisplay *vd;
     DeviceState *dev;
+    size_t i;
 
     QTAILQ_FOREACH(vd, &vnc_displays, next) {
         info = g_new0(VncInfo2, 1);
@@ -560,13 +565,14 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
             info->has_display = true;
             info->display = g_strdup(dev->id);
         }
-        if (vd->lsock != NULL) {
+        for (i = 0; i < vd->nlsock; i++) {
             info->server = qmp_query_server_entry(
-                vd->lsock, false, vd->auth, vd->subauth, info->server);
+                vd->lsock[i], false, vd->auth, vd->subauth, info->server);
         }
-        if (vd->lwebsock != NULL) {
+        for (i = 0; i < vd->nlwebsock; i++) {
             info->server = qmp_query_server_entry(
-                vd->lwebsock, true, vd->ws_auth, vd->ws_subauth, info->server);
+                vd->lwebsock[i], true, vd->ws_auth,
+                vd->ws_subauth, info->server);
         }
 
         item = g_new0(VncInfo2List, 1);
@@ -3085,15 +3091,22 @@ static gboolean vnc_listen_io(QIOChannel *ioc,
     VncDisplay *vd = opaque;
     QIOChannelSocket *sioc = NULL;
     Error *err = NULL;
+    bool isWebsock = false;
+    size_t i;
+
+    for (i = 0; i < vd->nlwebsock; i++) {
+        if (ioc == QIO_CHANNEL(vd->lwebsock[i])) {
+            isWebsock = true;
+            break;
+        }
+    }
 
     sioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc), &err);
     if (sioc != NULL) {
         qio_channel_set_name(QIO_CHANNEL(sioc),
-                             ioc != QIO_CHANNEL(vd->lsock) ?
-                             "vnc-ws-server" : "vnc-server");
+                             isWebsock ? "vnc-ws-server" : "vnc-server");
         qio_channel_set_delay(QIO_CHANNEL(sioc), false);
-        vnc_connect(vd, sioc, false,
-                    ioc != QIO_CHANNEL(vd->lsock));
+        vnc_connect(vd, sioc, false, isWebsock);
         object_unref(OBJECT(sioc));
     } else {
         /* client probably closed connection before we got there */
@@ -3153,24 +3166,33 @@ void vnc_display_init(const char *id)
 
 static void vnc_display_close(VncDisplay *vd)
 {
+    size_t i;
     if (!vd) {
         return;
     }
     vd->is_unix = false;
-    if (vd->lsock != NULL) {
-        if (vd->lsock_tag) {
-            g_source_remove(vd->lsock_tag);
+    for (i = 0; i < vd->nlsock; i++) {
+        if (vd->lsock_tag[i]) {
+            g_source_remove(vd->lsock_tag[i]);
         }
-        object_unref(OBJECT(vd->lsock));
-        vd->lsock = NULL;
+        object_unref(OBJECT(vd->lsock[i]));
     }
-    if (vd->lwebsock != NULL) {
-        if (vd->lwebsock_tag) {
-            g_source_remove(vd->lwebsock_tag);
+    g_free(vd->lsock);
+    g_free(vd->lsock_tag);
+    vd->lsock = NULL;
+    vd->nlsock = 0;
+
+    for (i = 0; i < vd->nlwebsock; i++) {
+        if (vd->lwebsock_tag[i]) {
+            g_source_remove(vd->lwebsock_tag[i]);
         }
-        object_unref(OBJECT(vd->lwebsock));
-        vd->lwebsock = NULL;
+        object_unref(OBJECT(vd->lwebsock[i]));
     }
+    g_free(vd->lwebsock);
+    g_free(vd->lwebsock_tag);
+    vd->lwebsock = NULL;
+    vd->nlwebsock = 0;
+
     vd->auth = VNC_AUTH_INVALID;
     vd->subauth = VNC_AUTH_INVALID;
     if (vd->tlscreds) {
@@ -3220,7 +3242,11 @@ static void vnc_display_print_local_addr(VncDisplay *vd)
     SocketAddress *addr;
     Error *err = NULL;
 
-    addr = qio_channel_socket_get_local_address(vd->lsock, &err);
+    if (!vd->nlsock) {
+        return;
+    }
+
+    addr = qio_channel_socket_get_local_address(vd->lsock[0], &err);
     if (!addr) {
         return;
     }
@@ -3784,8 +3810,6 @@ void vnc_display_open(const char *id, Error **errp)
     if (reverse) {
         /* connect to viewer */
         QIOChannelSocket *sioc = NULL;
-        vd->lsock = NULL;
-        vd->lwebsock = NULL;
         if (ws_enabled) {
             error_setg(errp, "Cannot use websockets in reverse mode");
             goto fail;
@@ -3799,30 +3823,36 @@ void vnc_display_open(const char *id, Error **errp)
         vnc_connect(vd, sioc, false, false);
         object_unref(OBJECT(sioc));
     } else {
-        vd->lsock = qio_channel_socket_new();
-        qio_channel_set_name(QIO_CHANNEL(vd->lsock), "vnc-listen");
-        if (qio_channel_socket_listen_sync(vd->lsock, saddr, errp) < 0) {
+        vd->nlsock = 1;
+        vd->lsock = g_new0(QIOChannelSocket *, 1);
+        vd->lsock_tag = g_new0(guint, 1);
+
+        vd->lsock[0] = qio_channel_socket_new();
+        qio_channel_set_name(QIO_CHANNEL(vd->lsock[0]), "vnc-listen");
+        if (qio_channel_socket_listen_sync(vd->lsock[0], saddr, errp) < 0) {
             goto fail;
         }
         vd->is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
 
         if (ws_enabled) {
-            vd->lwebsock = qio_channel_socket_new();
-            qio_channel_set_name(QIO_CHANNEL(vd->lwebsock), "vnc-ws-listen");
-            if (qio_channel_socket_listen_sync(vd->lwebsock,
+            vd->nlwebsock = 1;
+            vd->lwebsock = g_new0(QIOChannelSocket *, 1);
+            vd->lwebsock_tag = g_new0(guint, 1);
+
+            vd->lwebsock[0] = qio_channel_socket_new();
+            qio_channel_set_name(QIO_CHANNEL(vd->lwebsock[0]), "vnc-ws-listen");
+            if (qio_channel_socket_listen_sync(vd->lwebsock[0],
                                                wsaddr, errp) < 0) {
-                object_unref(OBJECT(vd->lsock));
-                vd->lsock = NULL;
                 goto fail;
             }
         }
 
-        vd->lsock_tag = qio_channel_add_watch(
-            QIO_CHANNEL(vd->lsock),
+        vd->lsock_tag[0] = qio_channel_add_watch(
+            QIO_CHANNEL(vd->lsock[0]),
             G_IO_IN, vnc_listen_io, vd, NULL);
         if (ws_enabled) {
-            vd->lwebsock_tag = qio_channel_add_watch(
-                QIO_CHANNEL(vd->lwebsock),
+            vd->lwebsock_tag[0] = qio_channel_add_watch(
+                QIO_CHANNEL(vd->lwebsock[0]),
                 G_IO_IN, vnc_listen_io, vd, NULL);
         }
     }
@@ -3836,6 +3866,7 @@ void vnc_display_open(const char *id, Error **errp)
     return;
 
 fail:
+    vnc_display_close(vd);
     qapi_free_SocketAddress(saddr);
     qapi_free_SocketAddress(wsaddr);
     ws_enabled = false;
