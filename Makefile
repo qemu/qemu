@@ -589,7 +589,7 @@ endif
 endif
 
 
-install: all $(if $(BUILD_DOCS),install-doc) \
+install: all $(if $(BUILD_DOCS),install-doc) $(BUILD_DIR)/trace-events-all \
 install-datadir install-localstatedir
 ifneq ($(TOOLS),)
 	$(call install-prog,$(subst qemu-ga,qemu-ga$(EXESUF),$(TOOLS)),$(DESTDIR)$(bindir))
