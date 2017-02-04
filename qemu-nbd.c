@@ -463,6 +463,135 @@ static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, Error **errp)
     return creds;
 }
 
+static void setup_address_and_port(const char **address, const char **port)
+{
+    if (*address == NULL) {
+        *address = "0.0.0.0";
+    }
+
+    if (*port == NULL) {
+        *port = stringify(NBD_DEFAULT_PORT);
+    }
+}
+
+#define FIRST_SOCKET_ACTIVATION_FD 3 /* defined by systemd ABI */
+
+#ifndef _WIN32
+/*
+ * Check if socket activation was requested via use of the
+ * LISTEN_FDS and LISTEN_PID environment variables.
+ *
+ * Returns 0 if no socket activation, or the number of FDs.
+ */
+static unsigned int check_socket_activation(void)
+{
+    const char *s;
+    unsigned long pid;
+    unsigned long nr_fds;
+    unsigned int i;
+    int fd;
+    int err;
+
+    s = getenv("LISTEN_PID");
+    if (s == NULL) {
+        return 0;
+    }
+    err = qemu_strtoul(s, NULL, 10, &pid);
+    if (err) {
+        if (verbose) {
+            fprintf(stderr, "malformed %s environment variable (ignored)\n",
+                    "LISTEN_PID");
+        }
+        return 0;
+    }
+    if (pid != getpid()) {
+        if (verbose) {
+            fprintf(stderr, "%s was not for us (ignored)\n",
+                    "LISTEN_PID");
+        }
+        return 0;
+    }
+
+    s = getenv("LISTEN_FDS");
+    if (s == NULL) {
+        return 0;
+    }
+    err = qemu_strtoul(s, NULL, 10, &nr_fds);
+    if (err) {
+        if (verbose) {
+            fprintf(stderr, "malformed %s environment variable (ignored)\n",
+                    "LISTEN_FDS");
+        }
+        return 0;
+    }
+    assert(nr_fds <= UINT_MAX);
+
+    /* A limitation of current qemu-nbd is that it can only listen on
+     * a single socket.  When that limitation is lifted, we can change
+     * this function to allow LISTEN_FDS > 1, and remove the assertion
+     * in the main function below.
+     */
+    if (nr_fds > 1) {
+        error_report("qemu-nbd does not support socket activation with %s > 1",
+                     "LISTEN_FDS");
+        exit(EXIT_FAILURE);
+    }
+
+    /* So these are not passed to any child processes we might start. */
+    unsetenv("LISTEN_FDS");
+    unsetenv("LISTEN_PID");
+
+    /* So the file descriptors don't leak into child processes. */
+    for (i = 0; i < nr_fds; ++i) {
+        fd = FIRST_SOCKET_ACTIVATION_FD + i;
+        if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
+            /* If we cannot set FD_CLOEXEC then it probably means the file
+             * descriptor is invalid, so socket activation has gone wrong
+             * and we should exit.
+             */
+            error_report("Socket activation failed: "
+                         "invalid file descriptor fd = %d: %m",
+                         fd);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    return (unsigned int) nr_fds;
+}
+
+#else /* !_WIN32 */
+static unsigned int check_socket_activation(void)
+{
+    return 0;
+}
+#endif
+
+/*
+ * Check socket parameters compatibility when socket activation is used.
+ */
+static const char *socket_activation_validate_opts(const char *device,
+                                                   const char *sockpath,
+                                                   const char *address,
+                                                   const char *port)
+{
+    if (device != NULL) {
+        return "NBD device can't be set when using socket activation";
+    }
+
+    if (sockpath != NULL) {
+        return "Unix socket can't be set when using socket activation";
+    }
+
+    if (address != NULL) {
+        return "The interface can't be set when using socket activation";
+    }
+
+    if (port != NULL) {
+        return "TCP port number can't be set when using socket activation";
+    }
+
+    return NULL;
+}
 
 int main(int argc, char **argv)
 {
@@ -471,7 +600,7 @@ int main(int argc, char **argv)
     off_t dev_offset = 0;
     uint16_t nbdflags = 0;
     bool disconnect = false;
-    const char *bindto = "0.0.0.0";
+    const char *bindto = NULL;
     const char *port = NULL;
     char *sockpath = NULL;
     char *device = NULL;
@@ -533,6 +662,7 @@ int main(int argc, char **argv)
     char *trace_file = NULL;
     bool fork_process = false;
     int old_stderr = -1;
+    unsigned socket_activation;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -751,6 +881,19 @@ int main(int argc, char **argv)
     trace_init_file(trace_file);
     qemu_set_log(LOG_TRACE);
 
+    socket_activation = check_socket_activation();
+    if (socket_activation == 0) {
+        setup_address_and_port(&bindto, &port);
+    } else {
+        /* Using socket activation - check user didn't use -p etc. */
+        const char *err_msg = socket_activation_validate_opts(device, sockpath,
+                                                              bindto, port);
+        if (err_msg != NULL) {
+            error_report("%s", err_msg);
+            exit(EXIT_FAILURE);
+        }
+    }
+
     if (tlscredsid) {
         if (sockpath) {
             error_report("TLS is only supported with IPv4/IPv6");
@@ -855,7 +998,25 @@ int main(int argc, char **argv)
         snprintf(sockpath, 128, SOCKET_PATH, basename(device));
     }
 
-    saddr = nbd_build_socket_address(sockpath, bindto, port);
+    if (socket_activation == 0) {
+        server_ioc = qio_channel_socket_new();
+        saddr = nbd_build_socket_address(sockpath, bindto, port);
+        if (qio_channel_socket_listen_sync(server_ioc, saddr, &local_err) < 0) {
+            object_unref(OBJECT(server_ioc));
+            error_report_err(local_err);
+            return 1;
+        }
+    } else {
+        /* See comment in check_socket_activation above. */
+        assert(socket_activation == 1);
+        server_ioc = qio_channel_socket_new_fd(FIRST_SOCKET_ACTIVATION_FD,
+                                               &local_err);
+        if (server_ioc == NULL) {
+            error_report("Failed to use socket activation: %s",
+                         error_get_pretty(local_err));
+            exit(EXIT_FAILURE);
+        }
+    }
 
     if (qemu_init_main_loop(&local_err)) {
         error_report_err(local_err);
@@ -948,13 +1109,6 @@ int main(int argc, char **argv)
     } else if (export_description) {
         error_report("Export description requires an export name");
         exit(EXIT_FAILURE);
-    }
-
-    server_ioc = qio_channel_socket_new();
-    if (qio_channel_socket_listen_sync(server_ioc, saddr, &local_err) < 0) {
-        object_unref(OBJECT(server_ioc));
-        error_report_err(local_err);
-        return 1;
     }
 
     if (device) {
