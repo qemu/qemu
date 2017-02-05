@@ -144,7 +144,7 @@ static void free_test_data(test_data *data)
         g_free(temp->asl_file);
     }
 
-    g_array_free(data->tables, false);
+    g_array_free(data->tables, true);
 }
 
 static uint8_t acpi_checksum(const uint8_t *data, int len)
