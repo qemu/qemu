@@ -420,6 +420,7 @@ int main(int argc, char **argv)
           " -device ipmi-bmc-extern,chardev=ipmi0,id=bmc0"
           " -device isa-ipmi-bt,bmc=bmc0", emu_port);
     qtest_start(cmdline);
+    g_free(cmdline);
     qtest_irq_intercept_in(global_qtest, "ioapic");
     qtest_add_func("/ipmi/extern/connect", test_connect);
     qtest_add_func("/ipmi/extern/bt_base", test_bt_base);
