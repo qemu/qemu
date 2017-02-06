@@ -487,6 +487,8 @@ struct XHCIState {
     XHCIInterrupter intr[MAXINTRS];
 
     XHCIRing cmd_ring;
+
+    bool nec_quirks;
 };
 
 #define TYPE_XHCI "base-xhci"
@@ -2745,20 +2747,26 @@ static void xhci_process_commands(XHCIState *xhci)
             xhci_via_challenge(xhci, trb.parameter);
             break;
         case CR_VENDOR_NEC_FIRMWARE_REVISION:
-            event.type = 48; /* NEC reply */
-            event.length = 0x3025;
+            if (xhci->nec_quirks) {
+                event.type = 48; /* NEC reply */
+                event.length = 0x3025;
+            } else {
+                event.ccode = CC_TRB_ERROR;
+            }
             break;
         case CR_VENDOR_NEC_CHALLENGE_RESPONSE:
-        {
-            uint32_t chi = trb.parameter >> 32;
-            uint32_t clo = trb.parameter;
-            uint32_t val = xhci_nec_challenge(chi, clo);
-            event.length = val & 0xFFFF;
-            event.epid = val >> 16;
-            slotid = val >> 24;
-            event.type = 48; /* NEC reply */
-        }
-        break;
+            if (xhci->nec_quirks) {
+                uint32_t chi = trb.parameter >> 32;
+                uint32_t clo = trb.parameter;
+                uint32_t val = xhci_nec_challenge(chi, clo);
+                event.length = val & 0xFFFF;
+                event.epid = val >> 16;
+                slotid = val >> 24;
+                event.type = 48; /* NEC reply */
+            } else {
+                event.ccode = CC_TRB_ERROR;
+            }
+            break;
         default:
             trace_usb_xhci_unimplemented("command", type);
             event.ccode = CC_TRB_ERROR;
@@ -3265,9 +3273,12 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
         intr->erstsz = val & 0xffff;
         break;
     case 0x10: /* ERSTBA low */
-        /* XXX NEC driver bug: it doesn't align this to 64 bytes
-        intr->erstba_low = val & 0xffffffc0; */
-        intr->erstba_low = val & 0xfffffff0;
+        if (xhci->nec_quirks) {
+            /* NEC driver bug: it doesn't align this to 64 bytes */
+            intr->erstba_low = val & 0xfffffff0;
+        } else {
+            intr->erstba_low = val & 0xffffffc0;
+        }
         break;
     case 0x14: /* ERSTBA high */
         intr->erstba_high = val;
@@ -3562,6 +3573,9 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
     dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
     dev->config[0x60] = 0x30; /* release number */
 
+    if (strcmp(object_get_typename(OBJECT(dev)), TYPE_NEC_XHCI) == 0) {
+        xhci->nec_quirks = true;
+    }
     if (xhci->numintrs > MAXINTRS) {
         xhci->numintrs = MAXINTRS;
     }
