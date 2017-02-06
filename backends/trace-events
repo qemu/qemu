@@ -1,0 +1,10 @@
+# See docs/tracing.txt for syntax documentation.
+
+# backends/wctablet.c
+wct_init(void) ""
+wct_cmd_re(void) ""
+wct_cmd_st(void) ""
+wct_cmd_sp(void) ""
+wct_cmd_ts(int input) "0x%02x"
+wct_cmd_other(const char *cmd) "%s"
+wct_speed(int speed) "%d"

@@ -4890,7 +4890,7 @@
 #
 # Configuration info for the new chardev backend.
 #
-# Since: 1.4 (testdev since 2.2)
+# Since: 1.4 (testdev since 2.2, wctablet since 2.9)
 ##
 { 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
                                        'serial' : 'ChardevHostdev',
@@ -4902,6 +4902,7 @@
                                        'null'   : 'ChardevCommon',
                                        'mux'    : 'ChardevMux',
                                        'msmouse': 'ChardevCommon',
+                                       'wctablet' : 'ChardevCommon',
                                        'braille': 'ChardevCommon',
                                        'testdev': 'ChardevCommon',
                                        'stdio'  : 'ChardevStdio',
