@@ -489,7 +489,9 @@ struct XHCIState {
     XHCIRing cmd_ring;
 };
 
-#define TYPE_XHCI "nec-usb-xhci"
+#define TYPE_XHCI "base-xhci"
+#define TYPE_NEC_XHCI "nec-usb-xhci"
+#define TYPE_QEMU_XHCI "qemu-xhci"
 
 #define XHCI(obj) \
     OBJECT_CHECK(XHCIState, (obj), TYPE_XHCI)
@@ -3881,10 +3883,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
     k->realize      = usb_xhci_realize;
     k->exit         = usb_xhci_exit;
-    k->vendor_id    = PCI_VENDOR_ID_NEC;
-    k->device_id    = PCI_DEVICE_ID_NEC_UPD720200;
     k->class_id     = PCI_CLASS_SERIAL_USB;
-    k->revision     = 0x03;
     k->is_express   = 1;
 }
 
@@ -3893,11 +3892,44 @@ static const TypeInfo xhci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XHCIState),
     .class_init    = xhci_class_init,
+    .abstract      = true,
+};
+
+static void nec_xhci_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->vendor_id    = PCI_VENDOR_ID_NEC;
+    k->device_id    = PCI_DEVICE_ID_NEC_UPD720200;
+    k->revision     = 0x03;
+}
+
+static const TypeInfo nec_xhci_info = {
+    .name          = TYPE_NEC_XHCI,
+    .parent        = TYPE_XHCI,
+    .class_init    = nec_xhci_class_init,
+};
+
+static void qemu_xhci_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->vendor_id    = PCI_VENDOR_ID_REDHAT;
+    k->device_id    = PCI_DEVICE_ID_REDHAT_XHCI;
+    k->revision     = 0x01;
+}
+
+static const TypeInfo qemu_xhci_info = {
+    .name          = TYPE_QEMU_XHCI,
+    .parent        = TYPE_XHCI,
+    .class_init    = qemu_xhci_class_init,
 };
 
 static void xhci_register_types(void)
 {
     type_register_static(&xhci_info);
+    type_register_static(&nec_xhci_info);
+    type_register_static(&qemu_xhci_info);
 }
 
 type_init(xhci_register_types)
