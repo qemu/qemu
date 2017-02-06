@@ -374,7 +374,6 @@ define unnest-vars
                 $(eval $(o:%.mo=%$(DSOSUF)): module-common.o $($o-objs)),
                 $(error $o added in $v but $o-objs is not set)))
         $(shell mkdir -p ./ $(sort $(dir $($v))))
-        $(shell cd $(BUILD_DIR) && mkdir -p ./ $(sort $(dir $($v))))
         # Include all the .d files
         $(eval -include $(patsubst %.o,%.d,$(patsubst %.mo,%.d,$($v))))
         $(eval $v := $(filter-out %/,$($v))))

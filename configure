@@ -1474,7 +1474,7 @@ fi
 
 gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
-gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
+gcc_flags="-Wno-missing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
 gcc_flags="-Wendif-labels -Wno-shift-negative-value $gcc_flags"
 gcc_flags="-Wno-initializer-overrides $gcc_flags"
 gcc_flags="-Wno-string-plus-int $gcc_flags"
