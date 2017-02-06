@@ -2679,6 +2679,44 @@ VSX_MAX_MIN(xsmindp, minnum, 1, float64, VsrD(0))
 VSX_MAX_MIN(xvmindp, minnum, 2, float64, VsrD(i))
 VSX_MAX_MIN(xvminsp, minnum, 4, float32, VsrW(i))
 
+#define VSX_MAX_MINC(name, max)                                               \
+void helper_##name(CPUPPCState *env, uint32_t opcode)                         \
+{                                                                             \
+    ppc_vsr_t xt, xa, xb;                                                     \
+    bool vxsnan_flag = false, vex_flag = false;                               \
+                                                                              \
+    getVSR(rA(opcode) + 32, &xa, env);                                        \
+    getVSR(rB(opcode) + 32, &xb, env);                                        \
+    getVSR(rD(opcode) + 32, &xt, env);                                        \
+                                                                              \
+    if (unlikely(float64_is_any_nan(xa.VsrD(0)) ||                            \
+                 float64_is_any_nan(xb.VsrD(0)))) {                           \
+        if (float64_is_signaling_nan(xa.VsrD(0), &env->fp_status) ||          \
+            float64_is_signaling_nan(xb.VsrD(0), &env->fp_status)) {          \
+            vxsnan_flag = true;                                               \
+        }                                                                     \
+        xt.VsrD(0) = xb.VsrD(0);                                              \
+    } else if ((max &&                                                        \
+               !float64_lt(xa.VsrD(0), xb.VsrD(0), &env->fp_status)) ||       \
+               (!max &&                                                       \
+               float64_lt(xa.VsrD(0), xb.VsrD(0), &env->fp_status))) {        \
+        xt.VsrD(0) = xa.VsrD(0);                                              \
+    } else {                                                                  \
+        xt.VsrD(0) = xb.VsrD(0);                                              \
+    }                                                                         \
+                                                                              \
+    vex_flag = fpscr_ve & vxsnan_flag;                                        \
+    if (vxsnan_flag) {                                                        \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);            \
+    }                                                                         \
+    if (!vex_flag) {                                                          \
+        putVSR(rD(opcode) + 32, &xt, env);                                    \
+    }                                                                         \
+}                                                                             \
+
+VSX_MAX_MINC(xsmaxcdp, 1);
+VSX_MAX_MINC(xsmincdp, 0);
+
 /* VSX_CMP - VSX floating point compare
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
