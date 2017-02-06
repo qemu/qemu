@@ -653,7 +653,8 @@ static void usb_uas_handle_control(USBDevice *dev, USBPacket *p,
     if (ret >= 0) {
         return;
     }
-    error_report("%s: unhandled control request", __func__);
+    error_report("%s: unhandled control request (req 0x%x, val 0x%x, idx 0x%x",
+                 __func__, request, value, index);
     p->status = USB_RET_STALL;
 }
 

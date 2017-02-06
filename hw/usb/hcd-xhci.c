@@ -390,6 +390,7 @@ struct XHCIEPContext {
     dma_addr_t pctx;
     unsigned int max_psize;
     uint32_t state;
+    uint32_t kick_active;
 
     /* streams */
     unsigned int max_pstreams;
@@ -788,11 +789,15 @@ static void xhci_msix_update(XHCIState *xhci, int v)
 static void xhci_intr_raise(XHCIState *xhci, int v)
 {
     PCIDevice *pci_dev = PCI_DEVICE(xhci);
+    bool pending = (xhci->intr[v].erdp_low & ERDP_EHB);
 
     xhci->intr[v].erdp_low |= ERDP_EHB;
     xhci->intr[v].iman |= IMAN_IP;
     xhci->usbsts |= USBSTS_EINT;
 
+    if (pending) {
+        return;
+    }
     if (!(xhci->intr[v].iman & IMAN_IE)) {
         return;
     }
@@ -1897,7 +1902,7 @@ static int xhci_setup_packet(XHCITransfer *xfer)
     return 0;
 }
 
-static int xhci_complete_packet(XHCITransfer *xfer)
+static int xhci_try_complete_packet(XHCITransfer *xfer)
 {
     if (xfer->packet.status == USB_RET_ASYNC) {
         trace_usb_xhci_xfer_async(xfer);
@@ -2001,11 +2006,7 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     xfer->packet.parameter = trb_setup->parameter;
 
     usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
-
-    xhci_complete_packet(xfer);
-    if (!xfer->running_async && !xfer->running_retry) {
-        xhci_kick_epctx(xfer->epctx, 0);
-    }
+    xhci_try_complete_packet(xfer);
     return 0;
 }
 
@@ -2105,11 +2106,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
         return -1;
     }
     usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
-
-    xhci_complete_packet(xfer);
-    if (!xfer->running_async && !xfer->running_retry) {
-        xhci_kick_epctx(xfer->epctx, xfer->streamid);
-    }
+    xhci_try_complete_packet(xfer);
     return 0;
 }
 
@@ -2139,6 +2136,9 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         return;
     }
 
+    if (epctx->kick_active) {
+        return;
+    }
     xhci_kick_epctx(epctx, streamid);
 }
 
@@ -2154,6 +2154,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
     int i;
 
     trace_usb_xhci_ep_kick(epctx->slotid, epctx->epid, streamid);
+    assert(!epctx->kick_active);
 
     /* If the device has been detached, but the guest has not noticed this
        yet the 2 above checks will succeed, but we must NOT continue */
@@ -2185,7 +2186,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             }
             usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
             assert(xfer->packet.status != USB_RET_NAK);
-            xhci_complete_packet(xfer);
+            xhci_try_complete_packet(xfer);
         } else {
             /* retry nak'ed transfer */
             if (xhci_setup_packet(xfer) < 0) {
@@ -2195,10 +2196,12 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             if (xfer->packet.status == USB_RET_NAK) {
                 return;
             }
-            xhci_complete_packet(xfer);
+            xhci_try_complete_packet(xfer);
         }
         assert(!xfer->running_retry);
-        xhci_ep_free_xfer(epctx->retry);
+        if (xfer->complete) {
+            xhci_ep_free_xfer(epctx->retry);
+        }
         epctx->retry = NULL;
     }
 
@@ -2223,6 +2226,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
     }
     assert(ring->dequeue != 0);
 
+    epctx->kick_active++;
     while (1) {
         length = xhci_ring_chain_length(xhci, ring);
         if (length <= 0) {
@@ -2259,6 +2263,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             break;
         }
     }
+    epctx->kick_active--;
 
     ep = xhci_epid_to_usbep(epctx);
     if (ep) {
@@ -3351,6 +3356,15 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
             intr->erdp_low &= ~ERDP_EHB;
         }
         intr->erdp_low = (val & ~ERDP_EHB) | (intr->erdp_low & ERDP_EHB);
+        if (val & ERDP_EHB) {
+            dma_addr_t erdp = xhci_addr64(intr->erdp_low, intr->erdp_high);
+            unsigned int dp_idx = (erdp - intr->er_start) / TRB_SIZE;
+            if (erdp >= intr->er_start &&
+                erdp < (intr->er_start + TRB_SIZE * intr->er_size) &&
+                dp_idx != intr->er_ep_idx) {
+                xhci_intr_raise(xhci, v);
+            }
+        }
         break;
     case 0x1c: /* ERDP high */
         intr->erdp_high = val;
@@ -3490,7 +3504,7 @@ static void xhci_complete(USBPort *port, USBPacket *packet)
         xhci_ep_nuke_one_xfer(xfer, 0);
         return;
     }
-    xhci_complete_packet(xfer);
+    xhci_try_complete_packet(xfer);
     xhci_kick_epctx(xfer->epctx, xfer->streamid);
     if (xfer->complete) {
         xhci_ep_free_xfer(xfer);
