@@ -84,7 +84,8 @@ with or without a command shows help and lists the supported formats
 @item -p
 display progress bar (compare, convert and rebase commands only).
 If the @var{-p} option is not used for a command that supports it, the
-progress is reported when the process receives a @code{SIGUSR1} signal.
+progress is reported when the process receives a @code{SIGUSR1} or
+@code{SIGINFO} signal.
 @item -q
 Quiet mode - do not print any output (except errors). There's no progress bar
 in case both @var{-q} and @var{-p} options are used.
