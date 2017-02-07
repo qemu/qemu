@@ -108,7 +108,7 @@ static QVirtioPCIDevice *virtio_blk_pci_init(QPCIBus *bus, int slot)
 {
     QVirtioPCIDevice *dev;
 
-    dev = qvirtio_pci_device_find(bus, VIRTIO_ID_BLOCK);
+    dev = qvirtio_pci_device_find_slot(bus, VIRTIO_ID_BLOCK, slot);
     g_assert(dev != NULL);
     g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_BLOCK);
     g_assert_cmphex(dev->pdev->devfn, ==, ((slot << 3) | PCI_FN));
@@ -296,7 +296,7 @@ static void pci_basic(void)
     /* End test */
     qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, qs->alloc);
     qvirtio_pci_device_disable(dev);
-    g_free(dev);
+    qvirtio_pci_device_free(dev);
     qtest_shutdown(qs);
 }
 
@@ -389,7 +389,7 @@ static void pci_indirect(void)
     /* End test */
     qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, qs->alloc);
     qvirtio_pci_device_disable(dev);
-    g_free(dev);
+    qvirtio_pci_device_free(dev);
     qtest_shutdown(qs);
 }
 
@@ -418,7 +418,7 @@ static void pci_config(void)
     g_assert_cmpint(capacity, ==, n_size / 512);
 
     qvirtio_pci_device_disable(dev);
-    g_free(dev);
+    qvirtio_pci_device_free(dev);
 
     qtest_shutdown(qs);
 }
@@ -526,7 +526,7 @@ static void pci_msix(void)
     qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, qs->alloc);
     qpci_msix_disable(dev->pdev);
     qvirtio_pci_device_disable(dev);
-    g_free(dev);
+    qvirtio_pci_device_free(dev);
     qtest_shutdown(qs);
 }
 
@@ -642,7 +642,7 @@ static void pci_idx(void)
     qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, qs->alloc);
     qpci_msix_disable(dev->pdev);
     qvirtio_pci_device_disable(dev);
-    g_free(dev);
+    qvirtio_pci_device_free(dev);
     qtest_shutdown(qs);
 }
 
@@ -661,7 +661,7 @@ static void pci_hotplug(void)
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT_HP);
     g_assert(dev);
     qvirtio_pci_device_disable(dev);
-    g_free(dev);
+    qvirtio_pci_device_free(dev);
 
     /* unplug secondary disk */
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {

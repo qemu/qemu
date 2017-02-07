@@ -61,13 +61,14 @@ static void qvirtio_pci_foreach_callback(
         (!d->has_slot || vpcidev->pdev->devfn == d->slot << 3)) {
         d->func(&vpcidev->vdev, d->user_data);
     } else {
-        g_free(vpcidev);
+        qvirtio_pci_device_free(vpcidev);
     }
 }
 
 static void qvirtio_pci_assign_device(QVirtioDevice *d, void *data)
 {
     QVirtioPCIDevice **vpcidev = data;
+    assert(!*vpcidev);
     *vpcidev = (QVirtioPCIDevice *)d;
 }
 
