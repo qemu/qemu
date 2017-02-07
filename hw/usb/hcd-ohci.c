@@ -42,6 +42,8 @@
 
 #define OHCI_MAX_PORTS 15
 
+#define ED_LINK_LIMIT 4
+
 static int64_t usb_frame_time;
 static int64_t usb_bit_time;
 
@@ -1184,7 +1186,7 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
     uint32_t next_ed;
     uint32_t cur;
     int active;
-
+    uint32_t link_cnt = 0;
     active = 0;
 
     if (head == 0)
@@ -1198,6 +1200,11 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
         }
 
         next_ed = ed.next & OHCI_DPTR_MASK;
+
+        if (++link_cnt > ED_LINK_LIMIT) {
+            ohci_die(ohci);
+            return 0;
+        }
 
         if ((ed.head & OHCI_ED_H) || (ed.flags & OHCI_ED_K)) {
             uint32_t addr;
