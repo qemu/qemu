@@ -24,6 +24,11 @@ void qusb_pci_init_one(QPCIBus *pcibus, struct qhc *hc, uint32_t devfn, int bar)
     hc->bar = qpci_iomap(hc->dev, bar, NULL);
 }
 
+void uhci_deinit(struct qhc *hc)
+{
+    g_free(hc->dev);
+}
+
 void uhci_port_test(struct qhc *hc, int port, uint16_t expect)
 {
     uint16_t value = qpci_io_readw(hc->dev, hc->bar, 0x10 + 2 * port);

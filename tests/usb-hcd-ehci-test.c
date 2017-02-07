@@ -61,6 +61,15 @@ static void test_init(void)
     qusb_pci_init_one(pcibus, &ehci1, QPCI_DEVFN(0x1d, 7), 0);
 }
 
+static void test_deinit(void)
+{
+    uhci_deinit(&uhci1);
+    uhci_deinit(&uhci2);
+    uhci_deinit(&uhci3);
+    uhci_deinit(&ehci1);
+    qpci_free_pc(pcibus);
+}
+
 static void pci_uhci_port_1(void)
 {
     g_assert(pcibus != NULL);
@@ -161,6 +170,7 @@ int main(int argc, char **argv)
 
     test_init();
     ret = g_test_run();
+    test_deinit();
 
     qtest_end();
 
