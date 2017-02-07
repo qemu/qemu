@@ -1675,6 +1675,9 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_stop_before_watchpoint = true;
     cc->debug_excp_handler = arm_debug_excp_handler;
     cc->debug_check_watchpoint = arm_debug_check_watchpoint;
+#if !defined(CONFIG_USER_ONLY)
+    cc->adjust_watchpoint_address = arm_adjust_watchpoint_address;
+#endif
 
     cc->disas_set_info = arm_disas_set_info;
 }
