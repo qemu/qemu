@@ -2830,7 +2830,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 {
                     TCGv_i32 pc = tcg_const_i32(dc->pc);
                     TCGv_i32 s = tcg_const_i32(BRI12_S);
-                    TCGv_i32 imm = tcg_const_i32(BRI12_IMM12);
+                    TCGv_i32 imm = tcg_const_i32(BRI12_IMM12 << 3);
                     gen_helper_entry(cpu_env, pc, s, imm);
                     tcg_temp_free(imm);
                     tcg_temp_free(s);
