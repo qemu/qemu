@@ -122,7 +122,6 @@ struct MigrationIncomingState {
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
-MigrationIncomingState *migration_incoming_state_new(QEMUFile *f);
 void migration_incoming_state_destroy(void);
 
 /*
