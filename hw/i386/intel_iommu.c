@@ -259,7 +259,7 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
     uint64_t *key = g_malloc(sizeof(*key));
     uint64_t gfn = vtd_get_iotlb_gfn(addr, level);
 
-    VTD_DPRINTF(CACHE, "update iotlb sid 0x%"PRIx16 " gpa 0x%"PRIx64
+    VTD_DPRINTF(CACHE, "update iotlb sid 0x%"PRIx16 " iova 0x%"PRIx64
                 " slpte 0x%"PRIx64 " did 0x%"PRIx16, source_id, addr, slpte,
                 domain_id);
     if (g_hash_table_size(s->iotlb) >= VTD_IOTLB_MAX_SIZE) {
@@ -575,12 +575,12 @@ static uint64_t vtd_get_slpte(dma_addr_t base_addr, uint32_t index)
     return slpte;
 }
 
-/* Given a gpa and the level of paging structure, return the offset of current
- * level.
+/* Given an iova and the level of paging structure, return the offset
+ * of current level.
  */
-static inline uint32_t vtd_gpa_level_offset(uint64_t gpa, uint32_t level)
+static inline uint32_t vtd_iova_level_offset(uint64_t iova, uint32_t level)
 {
-    return (gpa >> vtd_slpt_level_shift(level)) &
+    return (iova >> vtd_slpt_level_shift(level)) &
             ((1ULL << VTD_SL_LEVEL_BITS) - 1);
 }
 
@@ -628,12 +628,12 @@ static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
     }
 }
 
-/* Given the @gpa, get relevant @slptep. @slpte_level will be the last level
+/* Given the @iova, get relevant @slptep. @slpte_level will be the last level
  * of the translation, can be used for deciding the size of large page.
  */
-static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, bool is_write,
-                            uint64_t *slptep, uint32_t *slpte_level,
-                            bool *reads, bool *writes)
+static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
+                             uint64_t *slptep, uint32_t *slpte_level,
+                             bool *reads, bool *writes)
 {
     dma_addr_t addr = vtd_get_slpt_base_from_context(ce);
     uint32_t level = vtd_get_level_from_context_entry(ce);
@@ -642,11 +642,11 @@ static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, bool is_write,
     uint32_t ce_agaw = vtd_get_agaw_from_context_entry(ce);
     uint64_t access_right_check;
 
-    /* Check if @gpa is above 2^X-1, where X is the minimum of MGAW in CAP_REG
-     * and AW in context-entry.
+    /* Check if @iova is above 2^X-1, where X is the minimum of MGAW
+     * in CAP_REG and AW in context-entry.
      */
-    if (gpa & ~((1ULL << MIN(ce_agaw, VTD_MGAW)) - 1)) {
-        VTD_DPRINTF(GENERAL, "error: gpa 0x%"PRIx64 " exceeds limits", gpa);
+    if (iova & ~((1ULL << MIN(ce_agaw, VTD_MGAW)) - 1)) {
+        VTD_DPRINTF(GENERAL, "error: iova 0x%"PRIx64 " exceeds limits", iova);
         return -VTD_FR_ADDR_BEYOND_MGAW;
     }
 
@@ -654,13 +654,13 @@ static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, bool is_write,
     access_right_check = is_write ? VTD_SL_W : VTD_SL_R;
 
     while (true) {
-        offset = vtd_gpa_level_offset(gpa, level);
+        offset = vtd_iova_level_offset(iova, level);
         slpte = vtd_get_slpte(addr, offset);
 
         if (slpte == (uint64_t)-1) {
             VTD_DPRINTF(GENERAL, "error: fail to access second-level paging "
-                        "entry at level %"PRIu32 " for gpa 0x%"PRIx64,
-                        level, gpa);
+                        "entry at level %"PRIu32 " for iova 0x%"PRIx64,
+                        level, iova);
             if (level == vtd_get_level_from_context_entry(ce)) {
                 /* Invalid programming of context-entry */
                 return -VTD_FR_CONTEXT_ENTRY_INV;
@@ -672,8 +672,8 @@ static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, bool is_write,
         *writes = (*writes) && (slpte & VTD_SL_W);
         if (!(slpte & access_right_check)) {
             VTD_DPRINTF(GENERAL, "error: lack of %s permission for "
-                        "gpa 0x%"PRIx64 " slpte 0x%"PRIx64,
-                        (is_write ? "write" : "read"), gpa, slpte);
+                        "iova 0x%"PRIx64 " slpte 0x%"PRIx64,
+                        (is_write ? "write" : "read"), iova, slpte);
             return is_write ? -VTD_FR_WRITE : -VTD_FR_READ;
         }
         if (vtd_slpte_nonzero_rsvd(slpte, level)) {
@@ -827,7 +827,7 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     /* Try to fetch slpte form IOTLB */
     iotlb_entry = vtd_lookup_iotlb(s, source_id, addr);
     if (iotlb_entry) {
-        VTD_DPRINTF(CACHE, "hit iotlb sid 0x%"PRIx16 " gpa 0x%"PRIx64
+        VTD_DPRINTF(CACHE, "hit iotlb sid 0x%"PRIx16 " iova 0x%"PRIx64
                     " slpte 0x%"PRIx64 " did 0x%"PRIx16, source_id, addr,
                     iotlb_entry->slpte, iotlb_entry->domain_id);
         slpte = iotlb_entry->slpte;
@@ -867,8 +867,8 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         cc_entry->context_cache_gen = s->context_cache_gen;
     }
 
-    ret_fr = vtd_gpa_to_slpte(&ce, addr, is_write, &slpte, &level,
-                              &reads, &writes);
+    ret_fr = vtd_iova_to_slpte(&ce, addr, is_write, &slpte, &level,
+                               &reads, &writes);
     if (ret_fr) {
         ret_fr = -ret_fr;
         if (is_fpd_set && vtd_is_qualified_fault(ret_fr)) {
@@ -2033,7 +2033,7 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
                            is_write, &ret);
     VTD_DPRINTF(MMU,
                 "bus %"PRIu8 " slot %"PRIu8 " func %"PRIu8 " devfn %"PRIu8
-                " gpa 0x%"PRIx64 " hpa 0x%"PRIx64, pci_bus_num(vtd_as->bus),
+                " iova 0x%"PRIx64 " hpa 0x%"PRIx64, pci_bus_num(vtd_as->bus),
                 VTD_PCI_SLOT(vtd_as->devfn), VTD_PCI_FUNC(vtd_as->devfn),
                 vtd_as->devfn, addr, ret.translated_addr);
     return ret;
