@@ -35,6 +35,7 @@
 #include "sysemu/kvm.h"
 #include "hw/i386/apic_internal.h"
 #include "kvm_i386.h"
+#include "trace.h"
 
 /*#define DEBUG_INTEL_IOMMU*/
 #ifdef DEBUG_INTEL_IOMMU
@@ -474,22 +475,19 @@ static void vtd_handle_inv_queue_error(IntelIOMMUState *s)
 /* Set the IWC field and try to generate an invalidation completion interrupt */
 static void vtd_generate_completion_event(IntelIOMMUState *s)
 {
-    VTD_DPRINTF(INV, "completes an invalidation wait command with "
-                "Interrupt Flag");
     if (vtd_get_long_raw(s, DMAR_ICS_REG) & VTD_ICS_IWC) {
-        VTD_DPRINTF(INV, "there is a previous interrupt condition to be "
-                    "serviced by software, "
-                    "new invalidation event is not generated");
+        trace_vtd_inv_desc_wait_irq("One pending, skip current");
         return;
     }
     vtd_set_clear_mask_long(s, DMAR_ICS_REG, 0, VTD_ICS_IWC);
     vtd_set_clear_mask_long(s, DMAR_IECTL_REG, 0, VTD_IECTL_IP);
     if (vtd_get_long_raw(s, DMAR_IECTL_REG) & VTD_IECTL_IM) {
-        VTD_DPRINTF(INV, "IM filed in IECTL_REG is set, new invalidation "
-                    "event is not generated");
+        trace_vtd_inv_desc_wait_irq("IM in IECTL_REG is set, "
+                                    "new event not generated");
         return;
     } else {
         /* Generate the interrupt event */
+        trace_vtd_inv_desc_wait_irq("Generating complete event");
         vtd_generate_interrupt(s, DMAR_IEADDR_REG, DMAR_IEDATA_REG);
         vtd_set_clear_mask_long(s, DMAR_IECTL_REG, VTD_IECTL_IP, 0);
     }
@@ -923,6 +921,7 @@ static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
 
 static void vtd_context_global_invalidate(IntelIOMMUState *s)
 {
+    trace_vtd_inv_desc_cc_global();
     s->context_cache_gen++;
     if (s->context_cache_gen == VTD_CONTEXT_CACHE_GEN_MAX) {
         vtd_reset_context_cache(s);
@@ -962,8 +961,10 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
     uint16_t mask;
     VTDBus *vtd_bus;
     VTDAddressSpace *vtd_as;
-    uint16_t devfn;
+    uint8_t bus_n, devfn;
     uint16_t devfn_it;
+
+    trace_vtd_inv_desc_cc_devices(source_id, func_mask);
 
     switch (func_mask & 3) {
     case 0:
@@ -980,16 +981,16 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
         break;
     }
     mask = ~mask;
-    VTD_DPRINTF(INV, "device-selective invalidation source 0x%"PRIx16
-                    " mask %"PRIu16, source_id, mask);
-    vtd_bus = vtd_find_as_from_bus_num(s, VTD_SID_TO_BUS(source_id));
+
+    bus_n = VTD_SID_TO_BUS(source_id);
+    vtd_bus = vtd_find_as_from_bus_num(s, bus_n);
     if (vtd_bus) {
         devfn = VTD_SID_TO_DEVFN(source_id);
         for (devfn_it = 0; devfn_it < X86_IOMMU_PCI_DEVFN_MAX; ++devfn_it) {
             vtd_as = vtd_bus->dev_as[devfn_it];
             if (vtd_as && ((devfn_it & mask) == (devfn & mask))) {
-                VTD_DPRINTF(INV, "invalidate context-cahce of devfn 0x%"PRIx16,
-                            devfn_it);
+                trace_vtd_inv_desc_cc_device(bus_n, VTD_PCI_SLOT(devfn_it),
+                                             VTD_PCI_FUNC(devfn_it));
                 vtd_as->context_cache_entry.context_cache_gen = 0;
             }
         }
@@ -1302,9 +1303,7 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 {
     if ((inv_desc->hi & VTD_INV_DESC_WAIT_RSVD_HI) ||
         (inv_desc->lo & VTD_INV_DESC_WAIT_RSVD_LO)) {
-        VTD_DPRINTF(GENERAL, "error: non-zero reserved field in Invalidation "
-                    "Wait Descriptor hi 0x%"PRIx64 " lo 0x%"PRIx64,
-                    inv_desc->hi, inv_desc->lo);
+        trace_vtd_inv_desc_wait_invalid(inv_desc->hi, inv_desc->lo);
         return false;
     }
     if (inv_desc->lo & VTD_INV_DESC_WAIT_SW) {
@@ -1316,21 +1315,18 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 
         /* FIXME: need to be masked with HAW? */
         dma_addr_t status_addr = inv_desc->hi;
-        VTD_DPRINTF(INV, "status data 0x%x, status addr 0x%"PRIx64,
-                    status_data, status_addr);
+        trace_vtd_inv_desc_wait_sw(status_addr, status_data);
         status_data = cpu_to_le32(status_data);
         if (dma_memory_write(&address_space_memory, status_addr, &status_data,
                              sizeof(status_data))) {
-            VTD_DPRINTF(GENERAL, "error: fail to perform a coherent write");
+            trace_vtd_inv_desc_wait_write_fail(inv_desc->hi, inv_desc->lo);
             return false;
         }
     } else if (inv_desc->lo & VTD_INV_DESC_WAIT_IF) {
         /* Interrupt flag */
-        VTD_DPRINTF(INV, "Invalidation Wait Descriptor interrupt completion");
         vtd_generate_completion_event(s);
     } else {
-        VTD_DPRINTF(GENERAL, "error: invalid Invalidation Wait Descriptor: "
-                    "hi 0x%"PRIx64 " lo 0x%"PRIx64, inv_desc->hi, inv_desc->lo);
+        trace_vtd_inv_desc_wait_invalid(inv_desc->hi, inv_desc->lo);
         return false;
     }
     return true;
@@ -1339,30 +1335,29 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 static bool vtd_process_context_cache_desc(IntelIOMMUState *s,
                                            VTDInvDesc *inv_desc)
 {
+    uint16_t sid, fmask;
+
     if ((inv_desc->lo & VTD_INV_DESC_CC_RSVD) || inv_desc->hi) {
-        VTD_DPRINTF(GENERAL, "error: non-zero reserved field in Context-cache "
-                    "Invalidate Descriptor");
+        trace_vtd_inv_desc_cc_invalid(inv_desc->hi, inv_desc->lo);
         return false;
     }
     switch (inv_desc->lo & VTD_INV_DESC_CC_G) {
     case VTD_INV_DESC_CC_DOMAIN:
-        VTD_DPRINTF(INV, "domain-selective invalidation domain 0x%"PRIx16,
-                    (uint16_t)VTD_INV_DESC_CC_DID(inv_desc->lo));
+        trace_vtd_inv_desc_cc_domain(
+            (uint16_t)VTD_INV_DESC_CC_DID(inv_desc->lo));
         /* Fall through */
     case VTD_INV_DESC_CC_GLOBAL:
-        VTD_DPRINTF(INV, "global invalidation");
         vtd_context_global_invalidate(s);
         break;
 
     case VTD_INV_DESC_CC_DEVICE:
-        vtd_context_device_invalidate(s, VTD_INV_DESC_CC_SID(inv_desc->lo),
-                                      VTD_INV_DESC_CC_FM(inv_desc->lo));
+        sid = VTD_INV_DESC_CC_SID(inv_desc->lo);
+        fmask = VTD_INV_DESC_CC_FM(inv_desc->lo);
+        vtd_context_device_invalidate(s, sid, fmask);
         break;
 
     default:
-        VTD_DPRINTF(GENERAL, "error: invalid granularity in Context-cache "
-                    "Invalidate Descriptor hi 0x%"PRIx64  " lo 0x%"PRIx64,
-                    inv_desc->hi, inv_desc->lo);
+        trace_vtd_inv_desc_cc_invalid(inv_desc->hi, inv_desc->lo);
         return false;
     }
     return true;
@@ -1376,22 +1371,19 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 
     if ((inv_desc->lo & VTD_INV_DESC_IOTLB_RSVD_LO) ||
         (inv_desc->hi & VTD_INV_DESC_IOTLB_RSVD_HI)) {
-        VTD_DPRINTF(GENERAL, "error: non-zero reserved field in IOTLB "
-                    "Invalidate Descriptor hi 0x%"PRIx64 " lo 0x%"PRIx64,
-                    inv_desc->hi, inv_desc->lo);
+        trace_vtd_inv_desc_iotlb_invalid(inv_desc->hi, inv_desc->lo);
         return false;
     }
 
     switch (inv_desc->lo & VTD_INV_DESC_IOTLB_G) {
     case VTD_INV_DESC_IOTLB_GLOBAL:
-        VTD_DPRINTF(INV, "global invalidation");
+        trace_vtd_inv_desc_iotlb_global();
         vtd_iotlb_global_invalidate(s);
         break;
 
     case VTD_INV_DESC_IOTLB_DOMAIN:
         domain_id = VTD_INV_DESC_IOTLB_DID(inv_desc->lo);
-        VTD_DPRINTF(INV, "domain-selective invalidation domain 0x%"PRIx16,
-                    domain_id);
+        trace_vtd_inv_desc_iotlb_domain(domain_id);
         vtd_iotlb_domain_invalidate(s, domain_id);
         break;
 
@@ -1399,20 +1391,16 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
         domain_id = VTD_INV_DESC_IOTLB_DID(inv_desc->lo);
         addr = VTD_INV_DESC_IOTLB_ADDR(inv_desc->hi);
         am = VTD_INV_DESC_IOTLB_AM(inv_desc->hi);
-        VTD_DPRINTF(INV, "page-selective invalidation domain 0x%"PRIx16
-                    " addr 0x%"PRIx64 " mask %"PRIu8, domain_id, addr, am);
+        trace_vtd_inv_desc_iotlb_pages(domain_id, addr, am);
         if (am > VTD_MAMV) {
-            VTD_DPRINTF(GENERAL, "error: supported max address mask value is "
-                        "%"PRIu8, (uint8_t)VTD_MAMV);
+            trace_vtd_inv_desc_iotlb_invalid(inv_desc->hi, inv_desc->lo);
             return false;
         }
         vtd_iotlb_page_invalidate(s, domain_id, addr, am);
         break;
 
     default:
-        VTD_DPRINTF(GENERAL, "error: invalid granularity in IOTLB Invalidate "
-                    "Descriptor hi 0x%"PRIx64 " lo 0x%"PRIx64,
-                    inv_desc->hi, inv_desc->lo);
+        trace_vtd_inv_desc_iotlb_invalid(inv_desc->hi, inv_desc->lo);
         return false;
     }
     return true;
@@ -1511,33 +1499,28 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
 
     switch (desc_type) {
     case VTD_INV_DESC_CC:
-        VTD_DPRINTF(INV, "Context-cache Invalidate Descriptor hi 0x%"PRIx64
-                    " lo 0x%"PRIx64, inv_desc.hi, inv_desc.lo);
+        trace_vtd_inv_desc("context-cache", inv_desc.hi, inv_desc.lo);
         if (!vtd_process_context_cache_desc(s, &inv_desc)) {
             return false;
         }
         break;
 
     case VTD_INV_DESC_IOTLB:
-        VTD_DPRINTF(INV, "IOTLB Invalidate Descriptor hi 0x%"PRIx64
-                    " lo 0x%"PRIx64, inv_desc.hi, inv_desc.lo);
+        trace_vtd_inv_desc("iotlb", inv_desc.hi, inv_desc.lo);
         if (!vtd_process_iotlb_desc(s, &inv_desc)) {
             return false;
         }
         break;
 
     case VTD_INV_DESC_WAIT:
-        VTD_DPRINTF(INV, "Invalidation Wait Descriptor hi 0x%"PRIx64
-                    " lo 0x%"PRIx64, inv_desc.hi, inv_desc.lo);
+        trace_vtd_inv_desc("wait", inv_desc.hi, inv_desc.lo);
         if (!vtd_process_wait_desc(s, &inv_desc)) {
             return false;
         }
         break;
 
     case VTD_INV_DESC_IEC:
-        VTD_DPRINTF(INV, "Invalidation Interrupt Entry Cache "
-                    "Descriptor hi 0x%"PRIx64 " lo 0x%"PRIx64,
-                    inv_desc.hi, inv_desc.lo);
+        trace_vtd_inv_desc("iec", inv_desc.hi, inv_desc.lo);
         if (!vtd_process_inv_iec_desc(s, &inv_desc)) {
             return false;
         }
@@ -1552,9 +1535,7 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
         break;
 
     default:
-        VTD_DPRINTF(GENERAL, "error: unkonw Invalidation Descriptor type "
-                    "hi 0x%"PRIx64 " lo 0x%"PRIx64 " type %"PRIu8,
-                    inv_desc.hi, inv_desc.lo, desc_type);
+        trace_vtd_inv_desc_invalid(inv_desc.hi, inv_desc.lo);
         return false;
     }
     s->iq_head++;
