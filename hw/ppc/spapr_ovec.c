@@ -250,5 +250,5 @@ int spapr_ovec_populate_dt(void *fdt, int fdt_offset,
         }
     }
 
-    return fdt_setprop(fdt, fdt_offset, name, vec, vec_len);
+    return fdt_setprop(fdt, fdt_offset, name, vec, vec_len + 1);
 }
