@@ -1220,6 +1220,40 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         0x40024000, 0x40025000, 0x40026000};
     static const int gpio_irq[7] = {0, 1, 2, 3, 4, 30, 31};
 
+    /* Memory map of SoC devices, from
+     * Stellaris LM3S6965 Microcontroller Data Sheet (rev I)
+     * http://www.ti.com/lit/ds/symlink/lm3s6965.pdf
+     *
+     * 40000000 wdtimer (unimplemented)
+     * 40002000 i2c (unimplemented)
+     * 40004000 GPIO
+     * 40005000 GPIO
+     * 40006000 GPIO
+     * 40007000 GPIO
+     * 40008000 SSI
+     * 4000c000 UART
+     * 4000d000 UART
+     * 4000e000 UART
+     * 40020000 i2c
+     * 40021000 i2c (unimplemented)
+     * 40024000 GPIO
+     * 40025000 GPIO
+     * 40026000 GPIO
+     * 40028000 PWM (unimplemented)
+     * 4002c000 QEI (unimplemented)
+     * 4002d000 QEI (unimplemented)
+     * 40030000 gptimer
+     * 40031000 gptimer
+     * 40032000 gptimer
+     * 40033000 gptimer
+     * 40038000 ADC
+     * 4003c000 analogue comparator (unimplemented)
+     * 40048000 ethernet
+     * 400fc000 hibernation module (unimplemented)
+     * 400fd000 flash memory control (unimplemented)
+     * 400fe000 system control
+     */
+
     DeviceState *gpio_dev[7], *nvic;
     qemu_irq gpio_in[7][8];
     qemu_irq gpio_out[7][8];
