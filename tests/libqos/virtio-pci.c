@@ -24,6 +24,8 @@
 typedef struct QVirtioPCIForeachData {
     void (*func)(QVirtioDevice *d, void *data);
     uint16_t device_type;
+    bool has_slot;
+    int slot;
     void *user_data;
 } QVirtioPCIForeachData;
 
@@ -55,7 +57,8 @@ static void qvirtio_pci_foreach_callback(
     QVirtioPCIForeachData *d = data;
     QVirtioPCIDevice *vpcidev = qpcidevice_to_qvirtiodevice(dev);
 
-    if (vpcidev->vdev.device_type == d->device_type) {
+    if (vpcidev->vdev.device_type == d->device_type &&
+        (!d->has_slot || vpcidev->pdev->devfn == d->slot << 3)) {
         d->func(&vpcidev->vdev, d->user_data);
     } else {
         g_free(vpcidev);
@@ -290,21 +293,39 @@ const QVirtioBus qvirtio_pci = {
     .virtqueue_kick = qvirtio_pci_virtqueue_kick,
 };
 
-void qvirtio_pci_foreach(QPCIBus *bus, uint16_t device_type,
+static void qvirtio_pci_foreach(QPCIBus *bus, uint16_t device_type,
+                bool has_slot, int slot,
                 void (*func)(QVirtioDevice *d, void *data), void *data)
 {
     QVirtioPCIForeachData d = { .func = func,
                                 .device_type = device_type,
+                                .has_slot = has_slot,
+                                .slot = slot,
                                 .user_data = data };
 
     qpci_device_foreach(bus, PCI_VENDOR_ID_REDHAT_QUMRANET, -1,
-                                qvirtio_pci_foreach_callback, &d);
+                        qvirtio_pci_foreach_callback, &d);
 }
 
 QVirtioPCIDevice *qvirtio_pci_device_find(QPCIBus *bus, uint16_t device_type)
 {
     QVirtioPCIDevice *dev = NULL;
-    qvirtio_pci_foreach(bus, device_type, qvirtio_pci_assign_device, &dev);
+
+    qvirtio_pci_foreach(bus, device_type, false, 0,
+                        qvirtio_pci_assign_device, &dev);
+
+    dev->vdev.bus = &qvirtio_pci;
+
+    return dev;
+}
+
+QVirtioPCIDevice *qvirtio_pci_device_find_slot(QPCIBus *bus,
+                                               uint16_t device_type, int slot)
+{
+    QVirtioPCIDevice *dev = NULL;
+
+    qvirtio_pci_foreach(bus, device_type, true, slot,
+                        qvirtio_pci_assign_device, &dev);
 
     dev->vdev.bus = &qvirtio_pci;
 
