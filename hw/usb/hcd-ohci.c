@@ -725,7 +725,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
     if (ohci_read_iso_td(ohci, addr, &iso_td)) {
         trace_usb_ohci_iso_td_read_failed(addr);
         ohci_die(ohci);
-        return 0;
+        return 1;
     }
 
     starting_frame = OHCI_BM(iso_td.flags, TD_SF);
