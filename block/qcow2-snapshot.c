@@ -478,13 +478,6 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     }
     sn = &s->snapshots[snapshot_index];
 
-    if (sn->disk_size != bs->total_sectors * BDRV_SECTOR_SIZE) {
-        error_report("qcow2: Loading snapshots with different disk "
-            "size is not implemented");
-        ret = -ENOTSUP;
-        goto fail;
-    }
-
     /*
      * Make sure that the current L1 table is big enough to contain the whole
      * L1 table of the snapshot. If the snapshot L1 table is smaller, the
@@ -497,6 +490,7 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
 
     cur_l1_bytes = s->l1_size * sizeof(uint64_t);
     sn_l1_bytes = sn->l1_size * sizeof(uint64_t);
+    int max_l1_size_bytes = MAX(sn_l1_bytes, cur_l1_bytes);
 
     /*
      * Copy the snapshot L1 table to the current L1 table.
@@ -506,8 +500,8 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
      * Decrease the refcount referenced by the old one only when the L1
      * table is overwritten.
      */
-    sn_l1_table = g_try_malloc0(cur_l1_bytes);
-    if (cur_l1_bytes && sn_l1_table == NULL) {
+    sn_l1_table = g_try_malloc0(max_l1_size_bytes);
+    if (sn_l1_bytes && sn_l1_table == NULL) {
         ret = -ENOMEM;
         goto fail;
     }
@@ -524,17 +518,32 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         goto fail;
     }
 
+    /* update meta data first, for failed */
+    int old_l1_size = s->l1_size;
+    uint64_t old_total_sectors = bs->total_sectors;
+    bs->total_sectors = sn->disk_size / BDRV_SECTOR_SIZE;
+    s->l1_size = sn->l1_size;
+    ret = qcow2_update_header(bs);
+    if (ret < 0) {
+        s->l1_size = old_l1_size;
+        bs->total_sectors = old_total_sectors;
+        goto fail;
+    }
+
+    /* and then update l1 table */
     ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L1,
-                                        s->l1_table_offset, cur_l1_bytes);
+                                        s->l1_table_offset, max_l1_size_bytes);
     if (ret < 0) {
         goto fail;
     }
 
     ret = bdrv_pwrite_sync(bs->file, s->l1_table_offset, sn_l1_table,
-                           cur_l1_bytes);
+                           max_l1_size_bytes);
     if (ret < 0) {
         goto fail;
     }
+
+    s->l1_vm_state_index = size_to_l1(s, sn->disk_size);;
 
     /*
      * Decrease refcount of clusters of current L1 table.
@@ -546,6 +555,7 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
      * the in-memory data instead of really using the offset to load a new one,
      * which is why this works.
      */
+    s->l1_size = old_l1_size;
     ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset,
                                          s->l1_size, -1);
 
@@ -553,7 +563,8 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
      * Now update the in-memory L1 table to be in sync with the on-disk one. We
      * need to do this even if updating refcounts failed.
      */
-    for(i = 0;i < s->l1_size; i++) {
+    memset(s->l1_table, 0, s->l1_size * sizeof(uint64_t));
+    for (i = 0; i < sn->l1_size; i++) {
         s->l1_table[i] = be64_to_cpu(sn_l1_table[i]);
     }
 
@@ -564,6 +575,7 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     g_free(sn_l1_table);
     sn_l1_table = NULL;
 
+    s->l1_size = sn->l1_size;
     /*
      * Update QCOW_OFLAG_COPIED in the active L1 table (it may have changed
      * when we decreased the refcount of the old snapshot.
@@ -676,6 +688,7 @@ int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
         sn_info->date_sec = sn->date_sec;
         sn_info->date_nsec = sn->date_nsec;
         sn_info->vm_clock_nsec = sn->vm_clock_nsec;
+        sn_info->disk_size = sn->disk_size;
     }
     *psn_tab = sn_tab;
     return s->nb_snapshots;

@@ -32,6 +32,58 @@
 #include "qemu/bswap.h"
 #include "trace.h"
 
+static int free_some_l2_table(BlockDriverState *bs, int64_t old_size,
+                              int64_t new_size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int old_l1_size = size_to_l1(s, old_size);
+    int new_l1_size = size_to_l1(s, new_size);
+    if (old_l1_size == new_l1_size) {
+        return 0;
+    }
+    int i;
+    for (i = new_l1_size; i < old_l1_size; i++) {
+        uint64_t l2_offset = s->l1_table[i] & L1E_OFFSET_MASK;
+        qcow2_free_clusters(bs, l2_offset, s->cluster_size,
+                            QCOW2_DISCARD_OTHER);
+        s->l1_table[i] = 0;
+        /* write l1 entry will be called for several times and
+         * because l1 is short, i think is tolerated! */
+        qcow2_write_l1_entry(bs, i);
+    }
+    return 0;
+}
+
+int shrink_disk(BlockDriverState *bs, int64_t new_size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int64_t old_size = bs->total_sectors * 512;
+    int64_t new_sector_nb = DIV_ROUND_UP(new_size, 512);
+    int64_t discard_sectors_nb = bs->total_sectors - new_sector_nb;
+    int64_t old_cluster_nb = DIV_ROUND_UP(old_size, s->cluster_size);
+    int64_t new_cluster_nb = DIV_ROUND_UP(new_size, s->cluster_size);
+    if (old_cluster_nb == new_cluster_nb) {
+        return 0;
+    }
+    s->l1_size = size_to_l1(s, new_size);
+    bs->total_sectors = new_sector_nb;
+    int ret = qcow2_update_header(bs);
+    if (ret < 0) {
+        s->l1_size = size_to_l1(s, old_size);
+        bs->total_sectors = old_size / 512;
+        return ret;
+    }
+
+    /* can't be undone here, if failed nothing will be done */
+    ret = qcow2_discard_clusters(bs, new_size, discard_sectors_nb,
+                                 QCOW2_DISCARD_OTHER, true);
+    if (ret < 0) {
+        return 0;
+    }
+    free_some_l2_table(bs, old_size, new_size);
+    return 0;
+}
+
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size)
 {

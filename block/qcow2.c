@@ -2522,22 +2522,33 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
         return -EINVAL;
     }
 
-    /* cannot proceed if image has snapshots */
-    if (s->nb_snapshots) {
-        error_report("Can't resize an image which has snapshots");
+    bool v3_truncate = (s->qcow_version == 3);
+
+    /* cannot proceed if image has snapshots and qcow_version is not 3 */
+    if (!v3_truncate && s->nb_snapshots) {
+        error_report("Can't resize an image which has snapshots and "
+                     "qcow_version is not 3");
         return -ENOTSUP;
     }
 
-    /* shrinking is currently not supported */
-    if (offset < bs->total_sectors * 512) {
-        error_report("qcow2 doesn't support shrinking images yet");
+    /* shrinking is supported from version 3 */
+    if (!v3_truncate && offset < bs->total_sectors * 512) {
+        error_report("qcow2 doesn't support shrinking images yet while"
+                     " qcow_version is not 3");
         return -ENOTSUP;
     }
 
     new_l1_size = size_to_l1(s, offset);
-    ret = qcow2_grow_l1_table(bs, new_l1_size, true);
-    if (ret < 0) {
-        return ret;
+    if (offset < bs->total_sectors * 512) {
+        ret = shrink_disk(bs, offset);
+        if (ret < 0) {
+            return ret;
+        }
+    } else {
+        ret = qcow2_grow_l1_table(bs, new_l1_size, true);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     /* write updated header.size */
