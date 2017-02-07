@@ -1433,7 +1433,6 @@ static ExitStatus do_cbranch(DisasContext *ctx, target_long disp, bool is_n,
     target_ulong dest = iaoq_dest(ctx, disp);
     TCGLabel *taken = NULL;
     TCGCond c = cond->c;
-    int which = 0;
     bool n;
 
     assert(ctx->null_cond.c == TCG_COND_NEVER);
@@ -1455,14 +1454,14 @@ static ExitStatus do_cbranch(DisasContext *ctx, target_long disp, bool is_n,
     n = is_n && disp < 0;
     if (n && use_nullify_skip(ctx)) {
         nullify_set(ctx, 0);
-        gen_goto_tb(ctx, which++, ctx->iaoq_n, ctx->iaoq_n + 4);
+        gen_goto_tb(ctx, 0, ctx->iaoq_n, ctx->iaoq_n + 4);
     } else {
         if (!n && ctx->null_lab) {
             gen_set_label(ctx->null_lab);
             ctx->null_lab = NULL;
         }
         nullify_set(ctx, n);
-        gen_goto_tb(ctx, which++, ctx->iaoq_b, ctx->iaoq_n);
+        gen_goto_tb(ctx, 0, ctx->iaoq_b, ctx->iaoq_n);
     }
 
     gen_set_label(taken);
@@ -1471,23 +1470,17 @@ static ExitStatus do_cbranch(DisasContext *ctx, target_long disp, bool is_n,
     n = is_n && disp >= 0;
     if (n && use_nullify_skip(ctx)) {
         nullify_set(ctx, 0);
-        gen_goto_tb(ctx, which++, dest, dest + 4);
+        gen_goto_tb(ctx, 1, dest, dest + 4);
     } else {
         nullify_set(ctx, n);
-        gen_goto_tb(ctx, which++, ctx->iaoq_b, dest);
+        gen_goto_tb(ctx, 1, ctx->iaoq_b, dest);
     }
 
     /* Not taken: the branch itself was nullified.  */
     if (ctx->null_lab) {
         gen_set_label(ctx->null_lab);
         ctx->null_lab = NULL;
-        if (which < 2) {
-            nullify_set(ctx, 0);
-            gen_goto_tb(ctx, which, ctx->iaoq_b, ctx->iaoq_n);
-            return EXIT_GOTO_TB;
-        } else {
-            return EXIT_IAQ_N_STALE;
-        }
+        return EXIT_IAQ_N_STALE;
     } else {
         return EXIT_GOTO_TB;
     }

@@ -9343,7 +9343,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_socket
     case TARGET_NR_socket:
         ret = do_socket(arg1, arg2, arg3);
-        fd_trans_unregister(ret);
         break;
 #endif
 #ifdef TARGET_NR_socketpair
