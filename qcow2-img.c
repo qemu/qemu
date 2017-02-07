@@ -38,6 +38,11 @@ enum {
     OPTION_NO_DRAIN = 262,
 };
 
+typedef enum OutputFormat {
+    OFORMAT_JSON,
+    OFORMAT_HUMAN,
+} OutputFormat;
+
 static QemuOptsList qemu_object_opts = {
     .name = "object",
     .implied_opt_name = "qom-type",
@@ -70,11 +75,25 @@ static void QEMU_NORETURN GCC_FMT_ATTR(1, 2) error_exit(const char *fmt, ...)
     exit(EXIT_FAILURE);
 }
 
+static int GCC_FMT_ATTR(2, 3) qprintf(bool quiet, const char *fmt, ...)
+{
+    int ret = 0;
+    if (!quiet) {
+        va_list args;
+        va_start(args, fmt);
+        ret = vprintf(fmt, args);
+        va_end(args);
+    }
+    return ret;
+}
+
 static void QEMU_NORETURN help(void)
 {
     const char *help_msg =
             "usage: qcow2-img command [command options]\n"
-            "create [-o options] {-t <template file> -l <layer UUID> -s <size>} filename\n";
+            "create [-o options] {-t <template file> -l <layer UUID> -s <size>} filename\n"
+            "resize filename [+ | -]size\n"
+            "info filename\n";
     printf("%s", help_msg);
     exit(EXIT_SUCCESS);
 }
@@ -85,6 +104,102 @@ static char *generate_encoded_backingfile(const char* template, const char* laye
     snprintf(backing_string, PATH_MAX*2, "qcow2://%s?layer=%s", template, layer_uuid);
     return backing_string;
 }
+
+static int img_open_password(BlockBackend *blk, const char *filename,
+                             int flags, bool quiet)
+{
+    BlockDriverState *bs;
+    char password[256];
+
+    bs = blk_bs(blk);
+    if (bdrv_is_encrypted(bs) && bdrv_key_required(bs) &&
+        !(flags & BDRV_O_NO_IO)) {
+        qprintf(quiet, "Disk image '%s' is encrypted.\n", filename);
+        if (qemu_read_password(password, sizeof(password)) < 0) {
+            error_report("No password given");
+            return -1;
+        }
+        if (bdrv_set_key(bs, password) < 0) {
+            error_report("invalid password");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static BlockBackend *img_open_opts(const char *optstr,
+                                   QemuOpts *opts, int flags, bool writethrough,
+                                   bool quiet)
+{
+    QDict *options;
+    Error *local_err = NULL;
+    BlockBackend *blk;
+    options = qemu_opts_to_qdict(opts, NULL);
+    blk = blk_new_open(NULL, NULL, options, flags, &local_err);
+    if (!blk) {
+        error_reportf_err(local_err, "Could not open '%s': ", optstr);
+        return NULL;
+    }
+    blk_set_enable_write_cache(blk, !writethrough);
+
+    if (img_open_password(blk, optstr, flags, quiet) < 0) {
+        blk_unref(blk);
+        return NULL;
+    }
+    return blk;
+}
+
+static BlockBackend *img_open_file(const char *filename,
+                                   const char *fmt, int flags,
+                                   bool writethrough, bool quiet)
+{
+    BlockBackend *blk;
+    Error *local_err = NULL;
+    QDict *options = NULL;
+
+    if (fmt) {
+        options = qdict_new();
+        qdict_put(options, "driver", qstring_from_str(fmt));
+    }
+
+    blk = blk_new_open(filename, NULL, options, flags, &local_err);
+    if (!blk) {
+        error_reportf_err(local_err, "Could not open '%s': ", filename);
+        return NULL;
+    }
+    blk_set_enable_write_cache(blk, !writethrough);
+
+    if (img_open_password(blk, filename, flags, quiet) < 0) {
+        blk_unref(blk);
+        return NULL;
+    }
+    return blk;
+}
+
+static BlockBackend *img_open(bool image_opts,
+                              const char *filename,
+                              const char *fmt, int flags, bool writethrough,
+                              bool quiet)
+{
+    BlockBackend *blk;
+    if (image_opts) {
+        QemuOpts *opts;
+        if (fmt) {
+            error_report("--image-opts and --format are mutually exclusive");
+            return NULL;
+        }
+        opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                       filename, true);
+        if (!opts) {
+            return NULL;
+        }
+        blk = img_open_opts(filename, opts, flags, writethrough, quiet);
+    } else {
+        blk = img_open_file(filename, fmt, flags, writethrough, quiet);
+    }
+    return blk;
+}
+
 
 static int img_resize(int argc, char **argv)
 {
@@ -197,7 +312,7 @@ static int img_resize(int argc, char **argv)
     qemu_opts_del(param);
 
     blk = img_open(image_opts, filename, fmt,
-                   BDRV_O_RDWR, false, quiet);
+            BDRV_O_NO_BACKING | BDRV_O_RDWR, false, quiet);
     if (!blk) {
         ret = -1;
         goto out;
@@ -234,6 +349,243 @@ out:
     if (ret) {
         return 1;
     }
+    return 0;
+}
+
+static gboolean str_equal_func(gconstpointer a, gconstpointer b)
+{
+    return strcmp(a, b) == 0;
+}
+
+static void dump_snapshots(BlockDriverState *bs)
+{
+    QEMUSnapshotInfo *sn_tab, *sn;
+    int nb_sns, i;
+
+    nb_sns = bdrv_snapshot_list(bs, &sn_tab);
+    if (nb_sns <= 0)
+        return;
+    printf("Snapshot list:\n");
+    bdrv_snapshot_dump(fprintf, stdout, NULL);
+    printf("\n");
+    for(i = 0; i < nb_sns; i++) {
+        sn = &sn_tab[i];
+        bdrv_snapshot_dump(fprintf, stdout, sn);
+        printf("\n");
+    }
+    g_free(sn_tab);
+}
+
+static void dump_json_image_info_list(ImageInfoList *list)
+{
+    QString *str;
+    QObject *obj;
+    Visitor *v = qobject_output_visitor_new(&obj);
+
+    visit_type_ImageInfoList(v, NULL, &list, &error_abort);
+    visit_complete(v, &obj);
+    str = qobject_to_json_pretty(obj);
+    assert(str != NULL);
+    printf("%s\n", qstring_get_str(str));
+    qobject_decref(obj);
+    visit_free(v);
+    QDECREF(str);
+}
+
+static void dump_json_image_info(ImageInfo *info)
+{
+    QString *str;
+    QObject *obj;
+    Visitor *v = qobject_output_visitor_new(&obj);
+
+    visit_type_ImageInfo(v, NULL, &info, &error_abort);
+    visit_complete(v, &obj);
+    str = qobject_to_json_pretty(obj);
+    assert(str != NULL);
+    printf("%s\n", qstring_get_str(str));
+    qobject_decref(obj);
+    visit_free(v);
+    QDECREF(str);
+}
+
+static void dump_human_image_info_list(ImageInfoList *list)
+{
+    ImageInfoList *elem;
+    bool delim = false;
+
+    for (elem = list; elem; elem = elem->next) {
+        if (delim) {
+            printf("\n");
+        }
+        delim = true;
+
+        bdrv_image_info_dump(fprintf, stdout, elem->value);
+    }
+}
+
+static ImageInfoList *collect_image_info_list(bool image_opts,
+                                              const char *filename,
+                                              const char *fmt,
+                                              bool chain)
+{
+    ImageInfoList *head = NULL;
+    ImageInfoList **last = &head;
+    GHashTable *filenames;
+    Error *err = NULL;
+
+    filenames = g_hash_table_new_full(g_str_hash, str_equal_func, NULL, NULL);
+
+    while (filename) {
+        BlockBackend *blk;
+        BlockDriverState *bs;
+        ImageInfo *info;
+        ImageInfoList *elem;
+
+        if (g_hash_table_lookup_extended(filenames, filename, NULL, NULL)) {
+            error_report("Backing file '%s' creates an infinite loop.",
+                         filename);
+            goto err;
+        }
+        g_hash_table_insert(filenames, (gpointer)filename, NULL);
+
+        blk = img_open(image_opts, filename, fmt,
+                       BDRV_O_NO_BACKING | BDRV_O_NO_IO, false, false);
+        if (!blk) {
+            goto err;
+        }
+        bs = blk_bs(blk);
+
+        bdrv_query_image_info(bs, &info, &err);
+        if (err) {
+            error_report_err(err);
+            blk_unref(blk);
+            goto err;
+        }
+
+        elem = g_new0(ImageInfoList, 1);
+        elem->value = info;
+        *last = elem;
+        last = &elem->next;
+
+        blk_unref(blk);
+
+        filename = fmt = NULL;
+        if (chain) {
+            if (info->has_full_backing_filename) {
+                filename = info->full_backing_filename;
+            } else if (info->has_backing_filename) {
+                error_report("Could not determine absolute backing filename,"
+                             " but backing filename '%s' present",
+                             info->backing_filename);
+                goto err;
+            }
+            if (info->has_backing_filename_format) {
+                fmt = info->backing_filename_format;
+            }
+        }
+    }
+    g_hash_table_destroy(filenames);
+    return head;
+
+err:
+    qapi_free_ImageInfoList(head);
+    g_hash_table_destroy(filenames);
+    return NULL;
+}
+
+static int img_info(int argc, char **argv)
+{
+    int c;
+    OutputFormat output_format = OFORMAT_HUMAN;
+    bool chain = false;
+    const char *filename, *fmt, *output;
+    ImageInfoList *list;
+    bool image_opts = false;
+
+    fmt = NULL;
+    output = NULL;
+    for(;;) {
+        int option_index = 0;
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"format", required_argument, 0, 'f'},
+            {"output", required_argument, 0, OPTION_OUTPUT},
+            {"backing-chain", no_argument, 0, OPTION_BACKING_CHAIN},
+            {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, "f:h",
+                        long_options, &option_index);
+        if (c == -1) {
+            break;
+        }
+        switch(c) {
+        case '?':
+        case 'h':
+            help();
+            break;
+        case 'f':
+            fmt = optarg;
+            break;
+        case OPTION_OUTPUT:
+            output = optarg;
+            break;
+        case OPTION_BACKING_CHAIN:
+            chain = true;
+            break;
+        case OPTION_OBJECT: {
+            QemuOpts *opts;
+            opts = qemu_opts_parse_noisily(&qemu_object_opts,
+                                           optarg, true);
+            if (!opts) {
+                return 1;
+            }
+        }   break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        }
+    }
+    if (optind != argc - 1) {
+        error_exit("Expecting one image file name");
+    }
+    filename = argv[optind++];
+
+    if (output && !strcmp(output, "json")) {
+        output_format = OFORMAT_JSON;
+    } else if (output && !strcmp(output, "human")) {
+        output_format = OFORMAT_HUMAN;
+    } else if (output) {
+        error_report("--output must be used with human or json as argument.");
+        return 1;
+    }
+
+    if (qemu_opts_foreach(&qemu_object_opts,
+                          user_creatable_add_opts_foreach,
+                          NULL, NULL)) {
+        return 1;
+    }
+
+    list = collect_image_info_list(image_opts, filename, fmt, chain);
+    if (!list) {
+        return 1;
+    }
+
+    switch (output_format) {
+    case OFORMAT_HUMAN:
+        dump_human_image_info_list(list);
+        break;
+    case OFORMAT_JSON:
+        if (chain) {
+            dump_json_image_info_list(list);
+        } else {
+            dump_json_image_info(list->value);
+        }
+        break;
+    }
+
+    qapi_free_ImageInfoList(list);
     return 0;
 }
 
@@ -346,7 +698,7 @@ static int img_create(int argc, char **argv)
     }
 
     const char *backing_string = NULL;
-    if (template_filename && layer_uuid) {
+    if (template_filename) {
         backing_string = generate_encoded_backingfile(template_filename, layer_uuid);
     }
     bdrv_img_create(filename, "qcow2", backing_string, NULL,
@@ -369,6 +721,8 @@ static const img_cmd_t img_cmds[] = {
     { option, callback },
 // #include "qemu-img-cmds.h"
     DEF("create", img_create, "create [-o options] {-t <template file> -l <layer UUID> -s <size>} filename")
+    DEF("resize", img_resize, "resize filename [+ | -]size")
+    DEF("info", img_info, "info filename")
 #undef DEF
 #undef GEN_DOCS
     { NULL, NULL, },
