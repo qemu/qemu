@@ -21,6 +21,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 #include "hw/char/pl011.h"
+#include "hw/misc/unimp.h"
 
 #define GPIO_A 0
 #define GPIO_B 1
@@ -1404,6 +1405,19 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
             }
         }
     }
+
+    /* Add dummy regions for the devices we don't implement yet,
+     * so guest accesses don't cause unlogged crashes.
+     */
+    create_unimplemented_device("wdtimer", 0x40000000, 0x1000);
+    create_unimplemented_device("i2c-0", 0x40002000, 0x1000);
+    create_unimplemented_device("i2c-2", 0x40021000, 0x1000);
+    create_unimplemented_device("PWM", 0x40028000, 0x1000);
+    create_unimplemented_device("QEI-0", 0x4002c000, 0x1000);
+    create_unimplemented_device("QEI-1", 0x4002d000, 0x1000);
+    create_unimplemented_device("analogue-comparator", 0x4003c000, 0x1000);
+    create_unimplemented_device("hibernation", 0x400fc000, 0x1000);
+    create_unimplemented_device("flash-control", 0x400fd000, 0x1000);
 }
 
 /* FIXME: Figure out how to generate these from stellaris_boards.  */
