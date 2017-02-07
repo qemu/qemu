@@ -446,6 +446,21 @@ print_insn_thumb1(bfd_vma pc, disassemble_info *info)
   return print_insn_arm(pc | 1, info);
 }
 
+static int arm_read_memory_func(bfd_vma memaddr, bfd_byte *b,
+                                int length, struct disassemble_info *info)
+{
+    assert(info->read_memory_inner_func);
+    assert((info->flags & INSN_ARM_BE32) == 0 || length == 2 || length == 4);
+
+    if ((info->flags & INSN_ARM_BE32) != 0 && length == 2) {
+        assert(info->endian == BFD_ENDIAN_LITTLE);
+        return info->read_memory_inner_func(memaddr ^ 2, (bfd_byte *)b, 2,
+                                            info);
+    } else {
+        return info->read_memory_inner_func(memaddr, b, length, info);
+    }
+}
+
 static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     ARMCPU *ac = ARM_CPU(cpu);
@@ -470,6 +485,14 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 #else
         info->endian = BFD_ENDIAN_BIG;
 #endif
+    }
+    if (info->read_memory_inner_func == NULL) {
+        info->read_memory_inner_func = info->read_memory_func;
+        info->read_memory_func = arm_read_memory_func;
+    }
+    info->flags &= ~INSN_ARM_BE32;
+    if (arm_sctlr_b(env)) {
+        info->flags |= INSN_ARM_BE32;
     }
 }
 
@@ -541,6 +564,9 @@ static Property arm_cpu_has_el2_property =
 static Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
 
+static Property arm_cpu_cfgend_property =
+            DEFINE_PROP_BOOL("cfgend", ARMCPU, cfgend, false);
+
 /* use property name "pmu" to match other archs and virt tools */
 static Property arm_cpu_has_pmu_property =
             DEFINE_PROP_BOOL("pmu", ARMCPU, has_pmu, true);
@@ -608,6 +634,8 @@ static void arm_cpu_post_init(Object *obj)
         }
     }
 
+    qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property,
+                             &error_abort);
 }
 
 static void arm_cpu_finalizefn(Object *obj)
@@ -726,6 +754,14 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (cpu->reset_hivecs) {
             cpu->reset_sctlr |= (1 << 13);
+    }
+
+    if (cpu->cfgend) {
+        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            cpu->reset_sctlr |= SCTLR_EE;
+        } else {
+            cpu->reset_sctlr |= SCTLR_B;
+        }
     }
 
     if (!cpu->has_el3) {
@@ -1639,6 +1675,9 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_stop_before_watchpoint = true;
     cc->debug_excp_handler = arm_debug_excp_handler;
     cc->debug_check_watchpoint = arm_debug_check_watchpoint;
+#if !defined(CONFIG_USER_ONLY)
+    cc->adjust_watchpoint_address = arm_adjust_watchpoint_address;
+#endif
 
     cc->disas_set_info = arm_disas_set_info;
 }

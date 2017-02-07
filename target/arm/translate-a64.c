@@ -379,20 +379,6 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint64_t dest)
     }
 }
 
-static void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
-{
-    /* We don't need to save all of the syndrome so we mask and shift
-     * out uneeded bits to help the sleb128 encoder do a better job.
-     */
-    syn &= ARM_INSN_START_WORD2_MASK;
-    syn >>= ARM_INSN_START_WORD2_SHIFT;
-
-    /* We check and clear insn_start_idx to catch multiple updates.  */
-    assert(s->insn_start_idx != 0);
-    tcg_set_insn_param(s->insn_start_idx, 2, syn);
-    s->insn_start_idx = 0;
-}
-
 static void unallocated_encoding(DisasContext *s)
 {
     /* Unallocated and reserved encodings are uncategorized */

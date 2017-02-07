@@ -6,6 +6,8 @@ common-obj-$(CONFIG_SGA) += sga.o
 common-obj-$(CONFIG_ISA_TESTDEV) += pc-testdev.o
 common-obj-$(CONFIG_PCI_TESTDEV) += pci-testdev.o
 
+common-obj-y += unimp.o
+
 obj-$(CONFIG_VMPORT) += vmport.o
 
 # ARM devices
