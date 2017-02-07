@@ -541,6 +541,9 @@ static Property arm_cpu_has_el2_property =
 static Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
 
+static Property arm_cpu_cfgend_property =
+            DEFINE_PROP_BOOL("cfgend", ARMCPU, cfgend, false);
+
 /* use property name "pmu" to match other archs and virt tools */
 static Property arm_cpu_has_pmu_property =
             DEFINE_PROP_BOOL("pmu", ARMCPU, has_pmu, true);
@@ -608,6 +611,8 @@ static void arm_cpu_post_init(Object *obj)
         }
     }
 
+    qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property,
+                             &error_abort);
 }
 
 static void arm_cpu_finalizefn(Object *obj)
@@ -726,6 +731,14 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (cpu->reset_hivecs) {
             cpu->reset_sctlr |= (1 << 13);
+    }
+
+    if (cpu->cfgend) {
+        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            cpu->reset_sctlr |= SCTLR_EE;
+        } else {
+            cpu->reset_sctlr |= SCTLR_B;
+        }
     }
 
     if (!cpu->has_el3) {
