@@ -8782,6 +8782,8 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             } else {
                 int address_offset;
                 bool load = insn & (1 << 20);
+                bool wbit = insn & (1 << 21);
+                bool pbit = insn & (1 << 24);
                 bool doubleword = false;
                 /* Misc load/store */
                 rn = (insn >> 16) & 0xf;
@@ -8799,8 +8801,9 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 }
 
                 addr = load_reg(s, rn);
-                if (insn & (1 << 24))
+                if (pbit) {
                     gen_add_datah_offset(s, insn, 0, addr);
+                }
                 address_offset = 0;
 
                 if (doubleword) {
@@ -8849,10 +8852,10 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                    ensure correct behavior with overlapping index registers.
                    ldrd with base writeback is undefined if the
                    destination and index registers overlap.  */
-                if (!(insn & (1 << 24))) {
+                if (!pbit) {
                     gen_add_datah_offset(s, insn, address_offset, addr);
                     store_reg(s, rn, addr);
-                } else if (insn & (1 << 21)) {
+                } else if (wbit) {
                     if (address_offset)
                         tcg_gen_addi_i32(addr, addr, address_offset);
                     store_reg(s, rn, addr);
