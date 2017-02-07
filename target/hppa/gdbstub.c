@@ -85,6 +85,7 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         break;
     case 35:
         env->iaoq_b = val;
+        break;
     case 59:
         env->cr26 = val;
         break;
