@@ -577,27 +577,42 @@ static void integratorcp_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
+    char **cpustr;
     ObjectClass *cpu_oc;
+    CPUClass *cc;
     Object *cpuobj;
     ARMCPU *cpu;
+    const char *typename;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
     qemu_irq pic[32];
     DeviceState *dev, *sic, *icp;
     int i;
+    Error *err = NULL;
 
     if (!cpu_model) {
         cpu_model = "arm926";
     }
 
-    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
+    cpustr = g_strsplit(cpu_model, ",", 2);
+
+    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, cpustr[0]);
     if (!cpu_oc) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    typename = object_class_get_name(cpu_oc);
 
-    cpuobj = object_new(object_class_get_name(cpu_oc));
+    cc = CPU_CLASS(cpu_oc);
+    cc->parse_features(typename, cpustr[1], &err);
+    g_strfreev(cpustr);
+    if (err) {
+        error_report_err(err);
+        exit(1);
+    }
+
+    cpuobj = object_new(typename);
 
     /* By default ARM1176 CPUs have EL3 enabled.  This board does not
      * currently support EL3 so the CPU EL3 property is disabled before
