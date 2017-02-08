@@ -469,31 +469,34 @@ int kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
     ram_addr_t ram_addr;
     hwaddr paddr;
 
-    if ((env->mcg_cap & MCG_SER_P) && addr
-        && (code == BUS_MCEERR_AR || code == BUS_MCEERR_AO)) {
-        ram_addr = qemu_ram_addr_from_host(addr);
-        if (ram_addr == RAM_ADDR_INVALID ||
-            !kvm_physical_memory_addr_from_host(c->kvm_state, addr, &paddr)) {
-            fprintf(stderr, "Hardware memory error for memory used by "
-                    "QEMU itself instead of guest system!\n");
-            /* Hope we are lucky for AO MCE */
-            if (code == BUS_MCEERR_AO) {
-                return 0;
-            } else {
-                hardware_memory_error();
-            }
-        }
-        kvm_hwpoison_page_add(ram_addr);
-        kvm_mce_inject(cpu, paddr, code);
-    } else {
-        if (code == BUS_MCEERR_AO) {
-            return 0;
-        } else if (code == BUS_MCEERR_AR) {
-            hardware_memory_error();
-        } else {
-            return 1;
-        }
+    if (code != BUS_MCEERR_AR && code != BUS_MCEERR_AO) {
+        return 1;
     }
+
+    /* Because the MCE happened while running the VCPU, KVM could have
+     * injected action required MCEs too.  Action optional MCEs should
+     * be delivered to the main thread, which qemu_init_sigbus identifies
+     * as the "early kill" thread, but if we get one for whatever reason
+     * we just handle it just like the main thread would.
+     */
+    if ((env->mcg_cap & MCG_SER_P) && addr) {
+        ram_addr = qemu_ram_addr_from_host(addr);
+        if (ram_addr != RAM_ADDR_INVALID &&
+            kvm_physical_memory_addr_from_host(c->kvm_state, addr, &paddr)) {
+            kvm_hwpoison_page_add(ram_addr);
+            kvm_mce_inject(cpu, paddr, code);
+            return 0;
+        }
+
+        fprintf(stderr, "Hardware memory error for memory used by "
+                "QEMU itself instead of guest system!\n");
+    }
+
+    if (code == BUS_MCEERR_AR) {
+        hardware_memory_error();
+    }
+
+    /* Hope we are lucky for AO MCE */
     return 0;
 }
 
@@ -501,29 +504,29 @@ int kvm_arch_on_sigbus(int code, void *addr)
 {
     X86CPU *cpu = X86_CPU(first_cpu);
 
-    if ((cpu->env.mcg_cap & MCG_SER_P) && addr && code == BUS_MCEERR_AO) {
+    if (code != BUS_MCEERR_AR && code != BUS_MCEERR_AO) {
+        return 1;
+    }
+
+    if (code == BUS_MCEERR_AR) {
+        hardware_memory_error();
+    }
+
+    /* Hope we are lucky for AO MCE */
+    if ((cpu->env.mcg_cap & MCG_SER_P) && addr) {
         ram_addr_t ram_addr;
         hwaddr paddr;
 
-        /* Hope we are lucky for AO MCE */
         ram_addr = qemu_ram_addr_from_host(addr);
-        if (ram_addr == RAM_ADDR_INVALID ||
-            !kvm_physical_memory_addr_from_host(first_cpu->kvm_state,
-                                                addr, &paddr)) {
-            fprintf(stderr, "Hardware memory error for memory used by "
-                    "QEMU itself instead of guest system!: %p\n", addr);
-            return 0;
+        if (ram_addr != RAM_ADDR_INVALID &&
+            kvm_physical_memory_addr_from_host(first_cpu->kvm_state,
+                                               addr, &paddr)) {
+            kvm_hwpoison_page_add(ram_addr);
+            kvm_mce_inject(X86_CPU(first_cpu), paddr, code);
         }
-        kvm_hwpoison_page_add(ram_addr);
-        kvm_mce_inject(X86_CPU(first_cpu), paddr, code);
-    } else {
-        if (code == BUS_MCEERR_AO) {
-            return 0;
-        } else if (code == BUS_MCEERR_AR) {
-            hardware_memory_error();
-        } else {
-            return 1;
-        }
+
+        fprintf(stderr, "Hardware memory error for memory used by "
+                "QEMU itself instead of guest system!: %p\n", addr);
     }
     return 0;
 }
