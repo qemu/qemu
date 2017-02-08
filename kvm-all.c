@@ -1893,6 +1893,12 @@ void kvm_cpu_synchronize_post_init(CPUState *cpu)
     run_on_cpu(cpu, do_kvm_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }
 
+#ifdef KVM_HAVE_MCE_INJECTION
+static __thread void *pending_sigbus_addr;
+static __thread int pending_sigbus_code;
+static __thread bool have_sigbus_pending;
+#endif
+
 int kvm_cpu_exec(CPUState *cpu)
 {
     struct kvm_run *run = cpu->kvm_run;
@@ -1929,6 +1935,16 @@ int kvm_cpu_exec(CPUState *cpu)
         run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
 
         attrs = kvm_arch_post_run(cpu, run);
+
+#ifdef KVM_HAVE_MCE_INJECTION
+        if (unlikely(have_sigbus_pending)) {
+            qemu_mutex_lock_iothread();
+            kvm_arch_on_sigbus_vcpu(cpu, pending_sigbus_code,
+                                    pending_sigbus_addr);
+            have_sigbus_pending = false;
+            qemu_mutex_unlock_iothread();
+        }
+#endif
 
         if (run_ret < 0) {
             if (run_ret == -EINTR || run_ret == -EAGAIN) {
@@ -2392,13 +2408,27 @@ int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
     return r;
 }
 
+/* Called asynchronously in VCPU thread.  */
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
-    return kvm_arch_on_sigbus_vcpu(cpu, code, addr);
+#ifdef KVM_HAVE_MCE_INJECTION
+    if (have_sigbus_pending) {
+        return 1;
+    }
+    have_sigbus_pending = true;
+    pending_sigbus_addr = addr;
+    pending_sigbus_code = code;
+    atomic_set(&cpu->exit_request, 1);
+    return 0;
+#else
+    return 1;
+#endif
 }
 
+/* Called synchronously (via signalfd) in main thread.  */
 int kvm_on_sigbus(int code, void *addr)
 {
+#ifdef KVM_HAVE_MCE_INJECTION
     /* Action required MCE kills the process if SIGBUS is blocked.  Because
      * that's what happens in the I/O thread, where we handle MCE via signalfd,
      * we can only get action optional here.
@@ -2406,6 +2436,9 @@ int kvm_on_sigbus(int code, void *addr)
     assert(code != BUS_MCEERR_AR);
     kvm_arch_on_sigbus_vcpu(first_cpu, code, addr);
     return 0;
+#else
+    return 1;
+#endif
 }
 
 int kvm_create_device(KVMState *s, uint64_t type, bool test)

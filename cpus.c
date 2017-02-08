@@ -926,8 +926,16 @@ static void sigbus_handler(int n, siginfo_t *siginfo, void *ctx)
         sigbus_reraise();
     }
 
-    if (kvm_on_sigbus(siginfo->si_code, siginfo->si_addr)) {
-        sigbus_reraise();
+    if (current_cpu) {
+        /* Called asynchronously in VCPU thread.  */
+        if (kvm_on_sigbus_vcpu(current_cpu, siginfo->si_code, siginfo->si_addr)) {
+            sigbus_reraise();
+        }
+    } else {
+        /* Called synchronously (via signalfd) in main thread.  */
+        if (kvm_on_sigbus(siginfo->si_code, siginfo->si_addr)) {
+            sigbus_reraise();
+        }
     }
 }
 
@@ -958,8 +966,9 @@ static void qemu_kvm_init_cpu_signals(CPUState *cpu)
     sigaction(SIG_IPI, &sigact, NULL);
 
     pthread_sigmask(SIG_BLOCK, NULL, &set);
-    sigdelset(&set, SIG_IPI);
     sigdelset(&set, SIGBUS);
+    pthread_sigmask(SIG_SETMASK, &set, NULL);
+    sigdelset(&set, SIG_IPI);
     r = kvm_set_signal_mask(cpu, &set);
     if (r) {
         fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
@@ -977,7 +986,6 @@ static void qemu_kvm_eat_signals(CPUState *cpu)
 
     sigemptyset(&waitset);
     sigaddset(&waitset, SIG_IPI);
-    sigaddset(&waitset, SIGBUS);
 
     do {
         r = sigtimedwait(&waitset, &siginfo, &ts);
@@ -986,25 +994,12 @@ static void qemu_kvm_eat_signals(CPUState *cpu)
             exit(1);
         }
 
-        switch (r) {
-        case SIGBUS:
-            if (siginfo.si_code != BUS_MCEERR_AO && siginfo.si_code != BUS_MCEERR_AR) {
-                sigbus_reraise();
-            }
-            if (kvm_on_sigbus_vcpu(cpu, siginfo.si_code, siginfo.si_addr)) {
-                sigbus_reraise();
-            }
-            break;
-        default:
-            break;
-        }
-
         r = sigpending(&chkset);
         if (r == -1) {
             perror("sigpending");
             exit(1);
         }
-    } while (sigismember(&chkset, SIG_IPI) || sigismember(&chkset, SIGBUS));
+    } while (sigismember(&chkset, SIG_IPI));
 }
 #else /* !CONFIG_LINUX */
 static void qemu_init_sigbus(void)

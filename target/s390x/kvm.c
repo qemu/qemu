@@ -2140,11 +2140,6 @@ bool kvm_arch_stop_on_emulation_error(CPUState *cpu)
     return true;
 }
 
-int kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
-{
-    return 1;
-}
-
 void kvm_s390_io_interrupt(uint16_t subchannel_id,
                            uint16_t subchannel_nr, uint32_t io_int_parm,
                            uint32_t io_int_word)

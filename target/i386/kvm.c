@@ -455,7 +455,7 @@ static void hardware_memory_error(void)
     exit(1);
 }
 
-int kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
+void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
 {
     X86CPU *cpu = X86_CPU(c);
     CPUX86State *env = &cpu->env;
@@ -475,7 +475,7 @@ int kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
             kvm_physical_memory_addr_from_host(c->kvm_state, addr, &paddr)) {
             kvm_hwpoison_page_add(ram_addr);
             kvm_mce_inject(cpu, paddr, code);
-            return 0;
+            return;
         }
 
         fprintf(stderr, "Hardware memory error for memory used by "
@@ -487,7 +487,6 @@ int kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
     }
 
     /* Hope we are lucky for AO MCE */
-    return 0;
 }
 
 static int kvm_inject_mce_oldstyle(X86CPU *cpu)
