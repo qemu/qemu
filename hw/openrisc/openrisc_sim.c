@@ -139,10 +139,10 @@ static void openrisc_sim_init(MachineState *machine)
 
 static void openrisc_sim_machine_init(MachineClass *mc)
 {
-    mc->desc = "or32 simulation";
+    mc->desc = "or1k simulation";
     mc->init = openrisc_sim_init;
     mc->max_cpus = 1;
     mc->is_default = 1;
 }
 
-DEFINE_MACHINE("or32-sim", openrisc_sim_machine_init)
+DEFINE_MACHINE("or1k-sim", openrisc_sim_machine_init)

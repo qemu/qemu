@@ -32,7 +32,7 @@ struct OpenRISCCPU;
 #include "fpu/softfloat.h"
 #include "qom/cpu.h"
 
-#define TYPE_OPENRISC_CPU "or32-cpu"
+#define TYPE_OPENRISC_CPU "or1k-cpu"
 
 #define OPENRISC_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(OpenRISCCPUClass, (klass), TYPE_OPENRISC_CPU)

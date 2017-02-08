@@ -1,8 +1,8 @@
 -include ../../config-host.mak
 
-CROSS = or32-linux-
+CROSS = or1k-linux-
 
-SIM = qemu-or32
+SIM = qemu-or1k
 
 CC = $(CROSS)gcc
 
