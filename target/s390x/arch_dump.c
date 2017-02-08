@@ -59,8 +59,7 @@ typedef struct S390xElfVregsHiStruct S390xElfVregsHi;
 
 typedef struct noteStruct {
     Elf64_Nhdr hdr;
-    char name[5];
-    char pad3[3];
+    char name[8];
     union {
         S390xElfPrstatus prstatus;
         S390xElfFpregset fpregset;
@@ -162,13 +161,19 @@ static void s390x_write_elf64_prefix(Note *note, S390CPU *cpu)
 }
 
 
-static const struct NoteFuncDescStruct {
+typedef struct NoteFuncDescStruct {
     int contents_size;
     void (*note_contents_func)(Note *note, S390CPU *cpu);
-} note_func[] = {
+} NoteFuncDesc;
+
+static const NoteFuncDesc note_core[] = {
     {sizeof(((Note *)0)->contents.prstatus), s390x_write_elf64_prstatus},
-    {sizeof(((Note *)0)->contents.prefix),   s390x_write_elf64_prefix},
     {sizeof(((Note *)0)->contents.fpregset), s390x_write_elf64_fpregset},
+    { 0, NULL}
+};
+
+static const NoteFuncDesc note_linux[] = {
+    {sizeof(((Note *)0)->contents.prefix),   s390x_write_elf64_prefix},
     {sizeof(((Note *)0)->contents.ctrs),     s390x_write_elf64_ctrs},
     {sizeof(((Note *)0)->contents.timer),    s390x_write_elf64_timer},
     {sizeof(((Note *)0)->contents.todcmp),   s390x_write_elf64_todcmp},
@@ -178,22 +183,20 @@ static const struct NoteFuncDescStruct {
     { 0, NULL}
 };
 
-typedef struct NoteFuncDescStruct NoteFuncDesc;
-
-
-static int s390x_write_all_elf64_notes(const char *note_name,
+static int s390x_write_elf64_notes(const char *note_name,
                                        WriteCoreDumpFunction f,
                                        S390CPU *cpu, int id,
-                                       void *opaque)
+                                       void *opaque,
+                                       const NoteFuncDesc *funcs)
 {
     Note note;
     const NoteFuncDesc *nf;
     int note_size;
     int ret = -1;
 
-    for (nf = note_func; nf->note_contents_func; nf++) {
+    for (nf = funcs; nf->note_contents_func; nf++) {
         memset(&note, 0, sizeof(note));
-        note.hdr.n_namesz = cpu_to_be32(sizeof(note.name));
+        note.hdr.n_namesz = cpu_to_be32(strlen(note_name) + 1);
         note.hdr.n_descsz = cpu_to_be32(nf->contents_size);
         strncpy(note.name, note_name, sizeof(note.name));
         (*nf->note_contents_func)(&note, cpu);
@@ -215,7 +218,13 @@ int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
                               int cpuid, void *opaque)
 {
     S390CPU *cpu = S390_CPU(cs);
-    return s390x_write_all_elf64_notes("CORE", f, cpu, cpuid, opaque);
+    int r;
+
+    r = s390x_write_elf64_notes("CORE", f, cpu, cpuid, opaque, note_core);
+    if (r) {
+        return r;
+    }
+    return s390x_write_elf64_notes("LINUX", f, cpu, cpuid, opaque, note_linux);
 }
 
 int cpu_get_dump_info(ArchDumpInfo *info,
@@ -230,7 +239,7 @@ int cpu_get_dump_info(ArchDumpInfo *info,
 
 ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 {
-    int name_size = 8; /* "CORE" or "QEMU" rounded */
+    int name_size = 8; /* "LINUX" or "CORE" + pad */
     size_t elf_note_size = 0;
     int note_head_size;
     const NoteFuncDesc *nf;
@@ -240,7 +249,11 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 
     note_head_size = sizeof(Elf64_Nhdr);
 
-    for (nf = note_func; nf->note_contents_func; nf++) {
+    for (nf = note_core; nf->note_contents_func; nf++) {
+        elf_note_size = elf_note_size + note_head_size + name_size +
+                        nf->contents_size;
+    }
+    for (nf = note_linux; nf->note_contents_func; nf++) {
         elf_note_size = elf_note_size + note_head_size + name_size +
                         nf->contents_size;
     }
