@@ -807,6 +807,57 @@ const BdrvChildRole child_format = {
     .drained_end     = bdrv_child_cb_drained_end,
 };
 
+static void bdrv_backing_attach(BdrvChild *c)
+{
+    BlockDriverState *parent = c->opaque;
+    BlockDriverState *backing_hd = c->bs;
+
+    assert(!parent->backing_blocker);
+    error_setg(&parent->backing_blocker,
+               "node is used as backing hd of '%s'",
+               bdrv_get_device_or_node_name(parent));
+
+    parent->open_flags &= ~BDRV_O_NO_BACKING;
+    pstrcpy(parent->backing_file, sizeof(parent->backing_file),
+            backing_hd->filename);
+    pstrcpy(parent->backing_format, sizeof(parent->backing_format),
+            backing_hd->drv ? backing_hd->drv->format_name : "");
+
+    bdrv_op_block_all(backing_hd, parent->backing_blocker);
+    /* Otherwise we won't be able to commit or stream */
+    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET,
+                    parent->backing_blocker);
+    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_STREAM,
+                    parent->backing_blocker);
+    /*
+     * We do backup in 3 ways:
+     * 1. drive backup
+     *    The target bs is new opened, and the source is top BDS
+     * 2. blockdev backup
+     *    Both the source and the target are top BDSes.
+     * 3. internal backup(used for block replication)
+     *    Both the source and the target are backing file
+     *
+     * In case 1 and 2, neither the source nor the target is the backing file.
+     * In case 3, we will block the top BDS, so there is only one block job
+     * for the top BDS and its backing chain.
+     */
+    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_BACKUP_SOURCE,
+                    parent->backing_blocker);
+    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_BACKUP_TARGET,
+                    parent->backing_blocker);
+}
+
+static void bdrv_backing_detach(BdrvChild *c)
+{
+    BlockDriverState *parent = c->opaque;
+
+    assert(parent->backing_blocker);
+    bdrv_op_unblock_all(c->bs, parent->backing_blocker);
+    error_free(parent->backing_blocker);
+    parent->backing_blocker = NULL;
+}
+
 /*
  * Returns the options and flags that bs->backing should get, based on the
  * given options and flags for the parent BDS
@@ -833,6 +884,8 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
 
 const BdrvChildRole child_backing = {
     .get_parent_desc = bdrv_child_get_parent_desc,
+    .attach          = bdrv_backing_attach,
+    .detach          = bdrv_backing_detach,
     .inherit_options = bdrv_backing_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_end     = bdrv_child_cb_drained_end,
@@ -1670,6 +1723,9 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
         if (old_bs->quiesce_counter && child->role->drained_end) {
             child->role->drained_end(child);
         }
+        if (child->role->detach) {
+            child->role->detach(child);
+        }
         QLIST_REMOVE(child, next_parent);
 
         /* Update permissions for old node. This is guaranteed to succeed
@@ -1693,6 +1749,10 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
             bdrv_check_perm(new_bs, perm, shared_perm, &error_abort);
         }
         bdrv_set_perm(new_bs, perm, shared_perm);
+
+        if (child->role->attach) {
+            child->role->attach(child);
+        }
     }
 }
 
@@ -1830,52 +1890,17 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
     }
 
     if (bs->backing) {
-        assert(bs->backing_blocker);
-        bdrv_op_unblock_all(bs->backing->bs, bs->backing_blocker);
         bdrv_unref_child(bs, bs->backing);
-    } else if (backing_hd) {
-        error_setg(&bs->backing_blocker,
-                   "node is used as backing hd of '%s'",
-                   bdrv_get_device_or_node_name(bs));
     }
 
     if (!backing_hd) {
-        error_free(bs->backing_blocker);
-        bs->backing_blocker = NULL;
         bs->backing = NULL;
         goto out;
     }
     /* FIXME Error handling */
     bs->backing = bdrv_attach_child(bs, backing_hd, "backing", &child_backing,
                                     &error_abort);
-    bs->open_flags &= ~BDRV_O_NO_BACKING;
-    pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_hd->filename);
-    pstrcpy(bs->backing_format, sizeof(bs->backing_format),
-            backing_hd->drv ? backing_hd->drv->format_name : "");
 
-    bdrv_op_block_all(backing_hd, bs->backing_blocker);
-    /* Otherwise we won't be able to commit or stream */
-    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET,
-                    bs->backing_blocker);
-    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_STREAM,
-                    bs->backing_blocker);
-    /*
-     * We do backup in 3 ways:
-     * 1. drive backup
-     *    The target bs is new opened, and the source is top BDS
-     * 2. blockdev backup
-     *    Both the source and the target are top BDSes.
-     * 3. internal backup(used for block replication)
-     *    Both the source and the target are backing file
-     *
-     * In case 1 and 2, neither the source nor the target is the backing file.
-     * In case 3, we will block the top BDS, so there is only one block job
-     * for the top BDS and its backing chain.
-     */
-    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_BACKUP_SOURCE,
-                    bs->backing_blocker);
-    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_BACKUP_TARGET,
-                    bs->backing_blocker);
 out:
     bdrv_refresh_limits(bs, NULL);
 }
