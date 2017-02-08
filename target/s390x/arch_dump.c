@@ -73,7 +73,7 @@ typedef struct noteStruct {
     } contents;
 } QEMU_PACKED Note;
 
-static void s390x_write_elf64_prstatus(Note *note, S390CPU *cpu)
+static void s390x_write_elf64_prstatus(Note *note, S390CPU *cpu, int id)
 {
     int i;
     S390xUserRegs *regs;
@@ -87,9 +87,10 @@ static void s390x_write_elf64_prstatus(Note *note, S390CPU *cpu)
         regs->acrs[i] = cpu_to_be32(cpu->env.aregs[i]);
         regs->gprs[i] = cpu_to_be64(cpu->env.regs[i]);
     }
+    note->contents.prstatus.pid = id;
 }
 
-static void s390x_write_elf64_fpregset(Note *note, S390CPU *cpu)
+static void s390x_write_elf64_fpregset(Note *note, S390CPU *cpu, int id)
 {
     int i;
     CPUS390XState *cs = &cpu->env;
@@ -101,7 +102,7 @@ static void s390x_write_elf64_fpregset(Note *note, S390CPU *cpu)
     }
 }
 
-static void s390x_write_elf64_vregslo(Note *note, S390CPU *cpu)
+static void s390x_write_elf64_vregslo(Note *note, S390CPU *cpu,  int id)
 {
     int i;
 
@@ -111,7 +112,7 @@ static void s390x_write_elf64_vregslo(Note *note, S390CPU *cpu)
     }
 }
 
-static void s390x_write_elf64_vregshi(Note *note, S390CPU *cpu)
+static void s390x_write_elf64_vregshi(Note *note, S390CPU *cpu, int id)
 {
     int i;
     S390xElfVregsHi *temp_vregshi;
@@ -125,25 +126,25 @@ static void s390x_write_elf64_vregshi(Note *note, S390CPU *cpu)
     }
 }
 
-static void s390x_write_elf64_timer(Note *note, S390CPU *cpu)
+static void s390x_write_elf64_timer(Note *note, S390CPU *cpu, int id)
 {
     note->hdr.n_type = cpu_to_be32(NT_S390_TIMER);
     note->contents.timer = cpu_to_be64((uint64_t)(cpu->env.cputm));
 }
 
-static void s390x_write_elf64_todcmp(Note *note, S390CPU *cpu)
+static void s390x_write_elf64_todcmp(Note *note, S390CPU *cpu, int id)
 {
     note->hdr.n_type = cpu_to_be32(NT_S390_TODCMP);
     note->contents.todcmp = cpu_to_be64((uint64_t)(cpu->env.ckc));
 }
 
-static void s390x_write_elf64_todpreg(Note *note, S390CPU *cpu)
+static void s390x_write_elf64_todpreg(Note *note, S390CPU *cpu, int id)
 {
     note->hdr.n_type = cpu_to_be32(NT_S390_TODPREG);
     note->contents.todpreg = cpu_to_be32((uint32_t)(cpu->env.todpr));
 }
 
-static void s390x_write_elf64_ctrs(Note *note, S390CPU *cpu)
+static void s390x_write_elf64_ctrs(Note *note, S390CPU *cpu, int id)
 {
     int i;
 
@@ -154,7 +155,7 @@ static void s390x_write_elf64_ctrs(Note *note, S390CPU *cpu)
     }
 }
 
-static void s390x_write_elf64_prefix(Note *note, S390CPU *cpu)
+static void s390x_write_elf64_prefix(Note *note, S390CPU *cpu, int id)
 {
     note->hdr.n_type = cpu_to_be32(NT_S390_PREFIX);
     note->contents.prefix = cpu_to_be32((uint32_t)(cpu->env.psa));
@@ -163,7 +164,7 @@ static void s390x_write_elf64_prefix(Note *note, S390CPU *cpu)
 
 typedef struct NoteFuncDescStruct {
     int contents_size;
-    void (*note_contents_func)(Note *note, S390CPU *cpu);
+    void (*note_contents_func)(Note *note, S390CPU *cpu, int id);
 } NoteFuncDesc;
 
 static const NoteFuncDesc note_core[] = {
@@ -199,7 +200,7 @@ static int s390x_write_elf64_notes(const char *note_name,
         note.hdr.n_namesz = cpu_to_be32(strlen(note_name) + 1);
         note.hdr.n_descsz = cpu_to_be32(nf->contents_size);
         strncpy(note.name, note_name, sizeof(note.name));
-        (*nf->note_contents_func)(&note, cpu);
+        (*nf->note_contents_func)(&note, cpu, id);
 
         note_size = sizeof(note) - sizeof(note.contents) + nf->contents_size;
         ret = f(&note, note_size, opaque);
