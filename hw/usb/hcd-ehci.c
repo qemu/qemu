@@ -2545,6 +2545,11 @@ void usb_ehci_init(EHCIState *s, DeviceState *dev)
                                 &s->mem_ports);
 }
 
+void usb_ehci_finalize(EHCIState *s)
+{
+    usb_packet_cleanup(&s->ipacket);
+}
+
 /*
  * vim: expandtab ts=4
  */
