@@ -1346,6 +1346,11 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
     ram_addr_t dirty_ram_abs; /* Address of the start of the dirty page in
                                  ram_addr_t space */
 
+    /* No dirty page as there is zero RAM */
+    if (!ram_bytes_total()) {
+        return pages;
+    }
+
     pss.block = last_seen_block;
     pss.offset = last_offset;
     pss.complete_round = false;
@@ -1952,14 +1957,17 @@ static int ram_save_init_globals(void)
     bytes_transferred = 0;
     reset_ram_globals();
 
-    ram_bitmap_pages = last_ram_offset() >> TARGET_PAGE_BITS;
     migration_bitmap_rcu = g_new0(struct BitmapRcu, 1);
-    migration_bitmap_rcu->bmap = bitmap_new(ram_bitmap_pages);
-    bitmap_set(migration_bitmap_rcu->bmap, 0, ram_bitmap_pages);
+    /* Skip setting bitmap if there is no RAM */
+    if (ram_bytes_total()) {
+        ram_bitmap_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+        migration_bitmap_rcu->bmap = bitmap_new(ram_bitmap_pages);
+        bitmap_set(migration_bitmap_rcu->bmap, 0, ram_bitmap_pages);
 
-    if (migrate_postcopy_ram()) {
-        migration_bitmap_rcu->unsentmap = bitmap_new(ram_bitmap_pages);
-        bitmap_set(migration_bitmap_rcu->unsentmap, 0, ram_bitmap_pages);
+        if (migrate_postcopy_ram()) {
+            migration_bitmap_rcu->unsentmap = bitmap_new(ram_bitmap_pages);
+            bitmap_set(migration_bitmap_rcu->unsentmap, 0, ram_bitmap_pages);
+        }
     }
 
     /*
