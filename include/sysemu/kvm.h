@@ -358,7 +358,6 @@ bool kvm_vcpu_id_is_valid(int vcpu_id);
 unsigned long kvm_arch_vcpu_id(CPUState *cpu);
 
 int kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
-int kvm_arch_on_sigbus(int code, void *addr);
 
 void kvm_arch_init_irq_routing(KVMState *s);
 

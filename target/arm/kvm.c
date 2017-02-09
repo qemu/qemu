@@ -565,11 +565,6 @@ int kvm_arch_on_sigbus_vcpu(CPUState *cs, int code, void *addr)
     return 1;
 }
 
-int kvm_arch_on_sigbus(int code, void *addr)
-{
-    return 1;
-}
-
 /* The #ifdef protections are until 32bit headers are imported and can
  * be removed once both 32 and 64 bit reach feature parity.
  */

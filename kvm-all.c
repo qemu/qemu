@@ -2391,6 +2391,7 @@ int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 
     return r;
 }
+
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
     return kvm_arch_on_sigbus_vcpu(cpu, code, addr);
@@ -2398,7 +2399,13 @@ int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 
 int kvm_on_sigbus(int code, void *addr)
 {
-    return kvm_arch_on_sigbus(code, addr);
+    /* Action required MCE kills the process if SIGBUS is blocked.  Because
+     * that's what happens in the I/O thread, where we handle MCE via signalfd,
+     * we can only get action optional here.
+     */
+    assert(code != BUS_MCEERR_AR);
+    kvm_arch_on_sigbus_vcpu(first_cpu, code, addr);
+    return 0;
 }
 
 int kvm_create_device(KVMState *s, uint64_t type, bool test)
