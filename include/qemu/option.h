@@ -100,6 +100,15 @@ typedef int (*qemu_opt_loopfunc)(void *opaque,
 int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
                      Error **errp);
 
+typedef struct {
+    QemuOpts *opts;
+    QemuOpt *opt;
+    const char *name;
+} QemuOptsIter;
+
+void qemu_opt_iter_init(QemuOptsIter *iter, QemuOpts *opts, const char *name);
+const char *qemu_opt_iter_next(QemuOptsIter *iter);
+
 QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id);
 QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
                            int fail_if_exists, Error **errp);

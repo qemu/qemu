@@ -146,10 +146,12 @@ struct VncDisplay
     int num_exclusive;
     int connections_limit;
     VncSharePolicy share_policy;
-    QIOChannelSocket *lsock;
-    guint lsock_tag;
-    QIOChannelSocket *lwebsock;
-    guint lwebsock_tag;
+    size_t nlsock;
+    QIOChannelSocket **lsock;
+    guint *lsock_tag;
+    size_t nlwebsock;
+    QIOChannelSocket **lwebsock;
+    guint *lwebsock_tag;
     DisplaySurface *ds;
     DisplayChangeListener dcl;
     kbd_layout_t *kbd_layout;

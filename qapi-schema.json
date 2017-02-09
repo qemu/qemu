@@ -1506,7 +1506,8 @@
 #
 # The network connection information for server
 #
-# @auth: #optional authentication method
+# @auth: #optional authentication method used for
+#        the plain (non-websocket) VNC server
 #
 # Since: 2.1
 ##
@@ -1597,6 +1598,25 @@
             'tls-plain', 'x509-plain',
             'tls-sasl',  'x509-sasl' ] }
 
+
+##
+# @VncServerInfo2:
+#
+# The network connection information for server
+#
+# @auth: The current authentication type used by the servers
+#
+# @vencrypt: #optional The vencrypt sub authentication type used by the
+#            servers, only specified in case auth == vencrypt.
+#
+# Since: 2.9
+##
+{ 'struct': 'VncServerInfo2',
+  'base': 'VncBasicInfo',
+  'data': { 'auth'      : 'VncPrimaryAuth',
+            '*vencrypt' : 'VncVencryptSubAuth' } }
+
+
 ##
 # @VncInfo2:
 #
@@ -1612,9 +1632,9 @@
 # @clients: A list of @VncClientInfo of all currently connected clients.
 #           The list can be empty, for obvious reasons.
 #
-# @auth: The current authentication type used by the server
+# @auth: The current authentication type used by the non-websockets servers
 #
-# @vencrypt: #optional The vencrypt sub authentication type used by the server,
+# @vencrypt: #optional The vencrypt authentication type used by the servers,
 #            only specified in case auth == vencrypt.
 #
 # @display: #optional The display device the vnc server is linked to.
@@ -1623,7 +1643,7 @@
 ##
 { 'struct': 'VncInfo2',
   'data': { 'id'        : 'str',
-            'server'    : ['VncBasicInfo'],
+            'server'    : ['VncServerInfo2'],
             'clients'   : ['VncClientInfo'],
             'auth'      : 'VncPrimaryAuth',
             '*vencrypt' : 'VncVencryptSubAuth',
