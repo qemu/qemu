@@ -2897,8 +2897,8 @@ static void change_parent_backing_link(BlockDriverState *from,
  */
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
 {
-    assert(!bdrv_requests_pending(bs_top));
-    assert(!bdrv_requests_pending(bs_new));
+    assert(!atomic_read(&bs_top->in_flight));
+    assert(!atomic_read(&bs_new->in_flight));
 
     bdrv_ref(bs_top);
 
