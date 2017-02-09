@@ -115,7 +115,8 @@ void helper_slbia(CPUPPCState *env)
     }
 }
 
-void helper_slbie(CPUPPCState *env, target_ulong addr)
+static void __helper_slbie(CPUPPCState *env, target_ulong addr,
+                           target_ulong global)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_slb_t *slb;
@@ -132,8 +133,19 @@ void helper_slbie(CPUPPCState *env, target_ulong addr)
          *      and we still don't have a tlb_flush_mask(env, n, mask)
          *      in QEMU, we just invalidate all TLBs
          */
-        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
+        env->tlb_need_flush |=
+            (global == false ? TLB_NEED_LOCAL_FLUSH : TLB_NEED_GLOBAL_FLUSH);
     }
+}
+
+void helper_slbie(CPUPPCState *env, target_ulong addr)
+{
+    __helper_slbie(env, addr, false);
+}
+
+void helper_slbieg(CPUPPCState *env, target_ulong addr)
+{
+    __helper_slbie(env, addr, true);
 }
 
 int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
