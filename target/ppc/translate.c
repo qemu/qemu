@@ -6132,6 +6132,19 @@ static inline void gen_cp_abort(DisasContext *ctx)
     // Do Nothing
 }
 
+#define GEN_CP_PASTE_NOOP(name)                           \
+static inline void gen_##name(DisasContext *ctx)          \
+{                                                         \
+    /* Generate invalid exception until                   \
+     * we have an implementation of the copy              \
+     * paste facility                                     \
+     */                                                   \
+    gen_invalid(ctx);                                     \
+}
+
+GEN_CP_PASTE_NOOP(copy)
+GEN_CP_PASTE_NOOP(paste)
+
 static void gen_tcheck(DisasContext *ctx)
 {
     if (unlikely(!ctx->tm_enabled)) {
@@ -6281,7 +6294,9 @@ GEN_HANDLER2(andi_, "andi.", 0x1C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(andis_, "andis.", 0x1D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(cntlzw, 0x1F, 0x1A, 0x00, 0x00000000, PPC_INTEGER),
 GEN_HANDLER_E(cnttzw, 0x1F, 0x1A, 0x10, 0x00000000, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(copy, 0x1F, 0x06, 0x18, 0x03C00001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(cp_abort, 0x1F, 0x06, 0x1A, 0x03FFF801, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(paste, 0x1F, 0x06, 0x1C, 0x03C00000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(or, 0x1F, 0x1C, 0x0D, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(xor, 0x1F, 0x1C, 0x09, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(ori, 0x18, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
