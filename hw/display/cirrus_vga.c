@@ -683,14 +683,39 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
     }
 }
 
-static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
-					    const uint8_t * src)
+static int cirrus_bitblt_common_patterncopy(CirrusVGAState *s, bool videosrc)
 {
+    uint32_t patternsize;
     uint8_t *dst;
+    uint8_t *src;
 
     dst = s->vga.vram_ptr + s->cirrus_blt_dstaddr;
 
-    if (blit_is_unsafe(s, false, true)) {
+    if (videosrc) {
+        switch (s->vga.get_bpp(&s->vga)) {
+        case 8:
+            patternsize = 64;
+            break;
+        case 15:
+        case 16:
+            patternsize = 128;
+            break;
+        case 24:
+        case 32:
+        default:
+            patternsize = 256;
+            break;
+        }
+        s->cirrus_blt_srcaddr &= ~(patternsize - 1);
+        if (s->cirrus_blt_srcaddr + patternsize > s->vga.vram_size) {
+            return 0;
+        }
+        src = s->vga.vram_ptr + s->cirrus_blt_srcaddr;
+    } else {
+        src = s->cirrus_bltbuf;
+    }
+
+    if (blit_is_unsafe(s, true, true)) {
         return 0;
     }
 
@@ -731,8 +756,7 @@ static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
 
 static int cirrus_bitblt_videotovideo_patterncopy(CirrusVGAState * s)
 {
-    return cirrus_bitblt_common_patterncopy(s, s->vga.vram_ptr +
-                                            (s->cirrus_blt_srcaddr & ~7));
+    return cirrus_bitblt_common_patterncopy(s, true);
 }
 
 static int cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
@@ -831,7 +855,7 @@ static void cirrus_bitblt_cputovideo_next(CirrusVGAState * s)
 
     if (s->cirrus_srccounter > 0) {
         if (s->cirrus_blt_mode & CIRRUS_BLTMODE_PATTERNCOPY) {
-            cirrus_bitblt_common_patterncopy(s, s->cirrus_bltbuf);
+            cirrus_bitblt_common_patterncopy(s, false);
         the_end:
             s->cirrus_srccounter = 0;
             cirrus_bitblt_reset(s);
