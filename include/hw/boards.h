@@ -41,15 +41,18 @@ int machine_phandle_start(MachineState *machine);
 bool machine_dump_guest_core(MachineState *machine);
 bool machine_mem_merge(MachineState *machine);
 void machine_register_compat_props(MachineState *machine);
+HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine);
 
 /**
  * CPUArchId:
  * @arch_id - architecture-dependent CPU ID of present or possible CPU
  * @cpu - pointer to corresponding CPU object if it's present on NULL otherwise
  * @props - CPU object properties, initialized by board
+ * #vcpus_count - number of threads provided by @cpu object
  */
 typedef struct {
     uint64_t arch_id;
+    int64_t vcpus_count;
     CpuInstanceProperties props;
     Object *cpu;
 } CPUArchId;

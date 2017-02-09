@@ -2799,6 +2799,7 @@ static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
     for (i = 0; i < machine->possible_cpus->len; i++) {
         int core_id = i * smp_threads;
 
+        machine->possible_cpus->cpus[i].vcpus_count = smp_threads;
         machine->possible_cpus->cpus[i].arch_id = core_id;
         machine->possible_cpus->cpus[i].props.has_core_id = true;
         machine->possible_cpus->cpus[i].props.core_id = core_id;
@@ -2806,37 +2807,6 @@ static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
            to which node core belongs */
     }
     return machine->possible_cpus;
-}
-
-static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
-{
-    int i;
-    Object *cpu;
-    HotpluggableCPUList *head = NULL;
-    const char *cpu_type;
-
-    cpu = machine->possible_cpus->cpus[0].cpu;
-    assert(cpu); /* Boot cpu is always present */
-    cpu_type = object_get_typename(cpu);
-    for (i = 0; i < machine->possible_cpus->len; i++) {
-        HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
-        HotpluggableCPU *cpu_item = g_new0(typeof(*cpu_item), 1);
-
-        cpu_item->type = g_strdup(cpu_type);
-        cpu_item->vcpus_count = smp_threads; // TODO: ??? generalize
-        cpu_item->props = g_memdup(&machine->possible_cpus->cpus[i].props,
-                                   sizeof(*cpu_item->props));
-
-        cpu = machine->possible_cpus->cpus[i].cpu;
-        if (cpu) {
-            cpu_item->has_qom_path = true;
-            cpu_item->qom_path = object_get_canonical_path(cpu);
-        }
-        list_item->value = cpu_item;
-        list_item->next = head;
-        head = list_item;
-    }
-    return head;
 }
 
 static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
@@ -2927,7 +2897,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
 
     smc->dr_lmb_enabled = true;
     smc->tcg_default_cpu = "POWER8";
-    mc->query_hotpluggable_cpus = spapr_query_hotpluggable_cpus;
+    mc->query_hotpluggable_cpus = machine_query_hotpluggable_cpus;
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
     smc->phb_placement = spapr_phb_placement;
