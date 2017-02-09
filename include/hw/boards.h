@@ -46,9 +46,11 @@ void machine_register_compat_props(MachineState *machine);
  * CPUArchId:
  * @arch_id - architecture-dependent CPU ID of present or possible CPU
  * @cpu - pointer to corresponding CPU object if it's present on NULL otherwise
+ * @props - CPU object properties, initialized by board
  */
 typedef struct {
     uint64_t arch_id;
+    CpuInstanceProperties props;
     struct CPUState *cpu;
 } CPUArchId;
 
