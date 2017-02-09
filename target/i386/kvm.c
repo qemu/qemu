@@ -64,13 +64,6 @@
  * 255 kvm_msr_entry structs */
 #define MSR_BUF_SIZE 4096
 
-#ifndef BUS_MCEERR_AR
-#define BUS_MCEERR_AR 4
-#endif
-#ifndef BUS_MCEERR_AO
-#define BUS_MCEERR_AO 5
-#endif
-
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(SET_TSS_ADDR),
     KVM_CAP_INFO(EXT_CPUID),
@@ -469,9 +462,7 @@ int kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
     ram_addr_t ram_addr;
     hwaddr paddr;
 
-    if (code != BUS_MCEERR_AR && code != BUS_MCEERR_AO) {
-        return 1;
-    }
+    assert(code == BUS_MCEERR_AR || code == BUS_MCEERR_AO);
 
     /* Because the MCE happened while running the VCPU, KVM could have
      * injected action required MCEs too.  Action optional MCEs should
@@ -504,9 +495,7 @@ int kvm_arch_on_sigbus(int code, void *addr)
 {
     X86CPU *cpu = X86_CPU(first_cpu);
 
-    if (code != BUS_MCEERR_AR && code != BUS_MCEERR_AO) {
-        return 1;
-    }
+    assert(code == BUS_MCEERR_AR || code == BUS_MCEERR_AO);
 
     if (code == BUS_MCEERR_AR) {
         hardware_memory_error();

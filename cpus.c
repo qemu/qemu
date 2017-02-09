@@ -922,6 +922,10 @@ static void sigbus_reraise(void)
 
 static void sigbus_handler(int n, siginfo_t *siginfo, void *ctx)
 {
+    if (siginfo->si_code != BUS_MCEERR_AO && siginfo->si_code != BUS_MCEERR_AR) {
+        sigbus_reraise();
+    }
+
     if (kvm_on_sigbus(siginfo->si_code, siginfo->si_addr)) {
         sigbus_reraise();
     }
@@ -939,55 +943,6 @@ static void qemu_init_sigbus(void)
     prctl(PR_MCE_KILL, PR_MCE_KILL_SET, PR_MCE_KILL_EARLY, 0, 0);
 }
 
-static void qemu_kvm_eat_signals(CPUState *cpu)
-{
-    struct timespec ts = { 0, 0 };
-    siginfo_t siginfo;
-    sigset_t waitset;
-    sigset_t chkset;
-    int r;
-
-    sigemptyset(&waitset);
-    sigaddset(&waitset, SIG_IPI);
-    sigaddset(&waitset, SIGBUS);
-
-    do {
-        r = sigtimedwait(&waitset, &siginfo, &ts);
-        if (r == -1 && !(errno == EAGAIN || errno == EINTR)) {
-            perror("sigtimedwait");
-            exit(1);
-        }
-
-        switch (r) {
-        case SIGBUS:
-            if (kvm_on_sigbus_vcpu(cpu, siginfo.si_code, siginfo.si_addr)) {
-                sigbus_reraise();
-            }
-            break;
-        default:
-            break;
-        }
-
-        r = sigpending(&chkset);
-        if (r == -1) {
-            perror("sigpending");
-            exit(1);
-        }
-    } while (sigismember(&chkset, SIG_IPI) || sigismember(&chkset, SIGBUS));
-}
-
-#else /* !CONFIG_LINUX */
-
-static void qemu_init_sigbus(void)
-{
-}
-
-static void qemu_kvm_eat_signals(CPUState *cpu)
-{
-}
-#endif /* !CONFIG_LINUX */
-
-#ifndef _WIN32
 static void dummy_signal(int sig)
 {
 }
@@ -1012,12 +967,58 @@ static void qemu_kvm_init_cpu_signals(CPUState *cpu)
     }
 }
 
-#else /* _WIN32 */
+static void qemu_kvm_eat_signals(CPUState *cpu)
+{
+    struct timespec ts = { 0, 0 };
+    siginfo_t siginfo;
+    sigset_t waitset;
+    sigset_t chkset;
+    int r;
+
+    sigemptyset(&waitset);
+    sigaddset(&waitset, SIG_IPI);
+    sigaddset(&waitset, SIGBUS);
+
+    do {
+        r = sigtimedwait(&waitset, &siginfo, &ts);
+        if (r == -1 && !(errno == EAGAIN || errno == EINTR)) {
+            perror("sigtimedwait");
+            exit(1);
+        }
+
+        switch (r) {
+        case SIGBUS:
+            if (siginfo.si_code != BUS_MCEERR_AO && siginfo.si_code != BUS_MCEERR_AR) {
+                sigbus_reraise();
+            }
+            if (kvm_on_sigbus_vcpu(cpu, siginfo.si_code, siginfo.si_addr)) {
+                sigbus_reraise();
+            }
+            break;
+        default:
+            break;
+        }
+
+        r = sigpending(&chkset);
+        if (r == -1) {
+            perror("sigpending");
+            exit(1);
+        }
+    } while (sigismember(&chkset, SIG_IPI) || sigismember(&chkset, SIGBUS));
+}
+#else /* !CONFIG_LINUX */
+static void qemu_init_sigbus(void)
+{
+}
+
+static void qemu_kvm_eat_signals(CPUState *cpu)
+{
+}
+
 static void qemu_kvm_init_cpu_signals(CPUState *cpu)
 {
-    abort();
 }
-#endif /* _WIN32 */
+#endif /* !CONFIG_LINUX */
 
 static QemuMutex qemu_global_mutex;
 
