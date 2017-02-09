@@ -593,7 +593,7 @@ static void test_groups(void)
     BlockBackend *blk1, *blk2, *blk3;
     BlockBackendPublic *blkp1, *blkp2, *blkp3;
 
-    /* FIXME Use real permissions */
+    /* No actual I/O is performed on these devices */
     blk1 = blk_new(0, BLK_PERM_ALL);
     blk2 = blk_new(0, BLK_PERM_ALL);
     blk3 = blk_new(0, BLK_PERM_ALL);
