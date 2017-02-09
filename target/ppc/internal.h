@@ -133,6 +133,8 @@ EXTRACT_HELPER(UIMM4, 16, 4);
 EXTRACT_HELPER(NB, 11, 5);
 /* Shift count */
 EXTRACT_HELPER(SH, 11, 5);
+/* lwat/stwat/ldat/lwat */
+EXTRACT_HELPER(FC, 11, 5);
 /* Vector shift count */
 EXTRACT_HELPER(VSH, 6, 4);
 /* Mask start */
