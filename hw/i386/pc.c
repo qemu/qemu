@@ -1830,7 +1830,7 @@ static void pc_cpu_plug(HotplugHandler *hotplug_dev,
     }
 
     found_cpu = pc_find_cpu_slot(MACHINE(pcms), cpu->apic_id, NULL);
-    found_cpu->cpu = CPU(dev);
+    found_cpu->cpu = OBJECT(dev);
 out:
     error_propagate(errp, local_err);
 }
@@ -2288,13 +2288,13 @@ static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *ms)
 static HotpluggableCPUList *pc_query_hotpluggable_cpus(MachineState *machine)
 {
     int i;
-    CPUState *cpu;
+    Object *cpu;
     HotpluggableCPUList *head = NULL;
     const char *cpu_type;
 
     cpu = machine->possible_cpus->cpus[0].cpu;
     assert(cpu); /* BSP is always present */
-    cpu_type = object_class_get_name(OBJECT_CLASS(CPU_GET_CLASS(cpu)));
+    cpu_type = object_get_typename(cpu);
 
     for (i = 0; i < machine->possible_cpus->len; i++) {
         HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
@@ -2308,7 +2308,7 @@ static HotpluggableCPUList *pc_query_hotpluggable_cpus(MachineState *machine)
         cpu = machine->possible_cpus->cpus[i].cpu;
         if (cpu) {
             cpu_item->has_qom_path = true;
-            cpu_item->qom_path = object_get_canonical_path(OBJECT(cpu));
+            cpu_item->qom_path = object_get_canonical_path(cpu);
         }
 
         list_item->value = cpu_item;
