@@ -84,6 +84,8 @@ static void stream_complete(BlockJob *job, void *opaque)
 
     /* Reopen the image back in read-only mode if necessary */
     if (s->bs_flags != bdrv_get_flags(bs)) {
+        /* Give up write permissions before making it read-only */
+        blk_set_perm(job->blk, 0, BLK_PERM_ALL, &error_abort);
         bdrv_reopen(bs, s->bs_flags, NULL);
     }
 
@@ -229,28 +231,35 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     BlockDriverState *iter;
     int orig_bs_flags;
 
-    /* FIXME Use real permissions */
-    s = block_job_create(job_id, &stream_job_driver, bs, 0, BLK_PERM_ALL,
-                         speed, BLOCK_JOB_DEFAULT, NULL, NULL, errp);
-    if (!s) {
-        return;
-    }
-
     /* Make sure that the image is opened in read-write mode */
     orig_bs_flags = bdrv_get_flags(bs);
     if (!(orig_bs_flags & BDRV_O_RDWR)) {
         if (bdrv_reopen(bs, orig_bs_flags | BDRV_O_RDWR, errp) != 0) {
-            block_job_unref(&s->common);
             return;
         }
     }
 
-    /* Block all intermediate nodes between bs and base, because they
-     * will disappear from the chain after this operation */
+    /* Prevent concurrent jobs trying to modify the graph structure here, we
+     * already have our own plans. Also don't allow resize as the image size is
+     * queried only at the job start and then cached. */
+    s = block_job_create(job_id, &stream_job_driver, bs,
+                         BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
+                         BLK_PERM_GRAPH_MOD,
+                         BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
+                         BLK_PERM_WRITE,
+                         speed, BLOCK_JOB_DEFAULT, NULL, NULL, errp);
+    if (!s) {
+        goto fail;
+    }
+
+    /* Block all intermediate nodes between bs and base, because they will
+     * disappear from the chain after this operation. The streaming job reads
+     * every block only once, assuming that it doesn't change, so block writes
+     * and resizes. */
     for (iter = backing_bs(bs); iter && iter != base; iter = backing_bs(iter)) {
-        /* FIXME Use real permissions */
         block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
-                           BLK_PERM_ALL, &error_abort);
+                           BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED,
+                           &error_abort);
     }
 
     s->base = base;
@@ -260,4 +269,10 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     s->on_error = on_error;
     trace_stream_start(bs, base, s);
     block_job_start(&s->common);
+    return;
+
+fail:
+    if (orig_bs_flags != bdrv_get_flags(bs)) {
+        bdrv_reopen(bs, s->bs_flags, NULL);
+    }
 }
