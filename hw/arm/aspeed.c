@@ -113,9 +113,19 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
 {
     BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
     uint8_t *storage;
+    int64_t size;
 
-    if (rom_size > blk_getlength(blk)) {
-        rom_size = blk_getlength(blk);
+    /* The block backend size should have already been 'validated' by
+     * the creation of the m25p80 object.
+     */
+    size = blk_getlength(blk);
+    if (size <= 0) {
+        error_setg(errp, "failed to get flash size");
+        return;
+    }
+
+    if (rom_size > size) {
+        rom_size = size;
     }
 
     storage = g_new0(uint8_t, rom_size);
@@ -138,10 +148,6 @@ static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
         DriveInfo *dinfo = drive_get_next(IF_MTD);
         qemu_irq cs_line;
 
-        /*
-         * FIXME: check that we are not using a flash module exceeding
-         * the controller segment size
-         */
         fl->flash = ssi_create_slave_no_init(s->spi, flashtype);
         if (dinfo) {
             qdev_prop_set_drive(fl->flash, "drive", blk_by_legacy_dinfo(dinfo),
@@ -200,7 +206,9 @@ static void aspeed_board_init(MachineState *machine,
 
         /*
          * create a ROM region using the default mapping window size of
-         * the flash module.
+         * the flash module. The window size is 64MB for the AST2400
+         * SoC and 128MB for the AST2500 SoC, which is twice as big as
+         * needed by the flash modules of the Aspeed machines.
          */
         memory_region_init_rom(boot_rom, OBJECT(bmc), "aspeed.boot_rom",
                                fl->size, &error_abort);

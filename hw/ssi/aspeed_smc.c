@@ -475,15 +475,15 @@ static uint32_t aspeed_smc_check_segment_addr(const AspeedSMCFlash *fl,
     AspeedSegments seg;
 
     aspeed_smc_reg_to_segment(s->regs[R_SEG_ADDR0 + fl->id], &seg);
-    if ((addr & (seg.size - 1)) != addr) {
+    if ((addr % seg.size) != addr) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid address 0x%08x for CS%d segment : "
                       "[ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
                       s->ctrl->name, addr, fl->id, seg.addr,
                       seg.addr + seg.size);
+        addr %= seg.size;
     }
 
-    addr &= seg.size - 1;
     return addr;
 }
 
@@ -536,10 +536,13 @@ static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
         /*
          * Use fake transfers to model dummy bytes. The value should
          * be configured to some non-zero value in fast read mode and
-         * zero in read mode.
+         * zero in read mode. But, as the HW allows inconsistent
+         * settings, let's check for fast read mode.
          */
-        for (i = 0; i < aspeed_smc_flash_dummies(fl); i++) {
-            ssi_transfer(fl->controller->spi, 0xFF);
+        if (aspeed_smc_flash_mode(fl) == CTRL_FREADMODE) {
+            for (i = 0; i < aspeed_smc_flash_dummies(fl); i++) {
+                ssi_transfer(fl->controller->spi, 0xFF);
+            }
         }
 
         for (i = 0; i < size; i++) {
