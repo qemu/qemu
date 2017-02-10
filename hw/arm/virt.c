@@ -471,7 +471,7 @@ static void fdt_add_pmu_nodes(const VirtMachineState *vms)
     CPU_FOREACH(cpu) {
         armcpu = ARM_CPU(cpu);
         if (!arm_feature(&armcpu->env, ARM_FEATURE_PMU) ||
-            !kvm_arm_pmu_create(cpu, PPI(VIRTUAL_PMU_IRQ))) {
+            (kvm_enabled() && !kvm_arm_pmu_create(cpu, PPI(VIRTUAL_PMU_IRQ)))) {
             return;
         }
     }
