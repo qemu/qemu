@@ -3623,24 +3623,24 @@ static int img_bench(int argc, char **argv)
             break;
         case 'c':
         {
-            char *end;
-            errno = 0;
-            count = strtoul(optarg, &end, 0);
-            if (errno || *end || count > INT_MAX) {
+            unsigned long res;
+
+            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
                 error_report("Invalid request count specified");
                 return 1;
             }
+            count = res;
             break;
         }
         case 'd':
         {
-            char *end;
-            errno = 0;
-            depth = strtoul(optarg, &end, 0);
-            if (errno || *end || depth > INT_MAX) {
+            unsigned long res;
+
+            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
                 error_report("Invalid queue depth specified");
                 return 1;
             }
+            depth = res;
             break;
         }
         case 'f':
@@ -3707,24 +3707,24 @@ static int img_bench(int argc, char **argv)
             break;
         case OPTION_PATTERN:
         {
-            char *end;
-            errno = 0;
-            pattern = strtoul(optarg, &end, 0);
-            if (errno || *end || pattern > 0xff) {
+            unsigned long res;
+
+            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > 0xff) {
                 error_report("Invalid pattern byte specified");
                 return 1;
             }
+            pattern = res;
             break;
         }
         case OPTION_FLUSH_INTERVAL:
         {
-            char *end;
-            errno = 0;
-            flush_interval = strtoul(optarg, &end, 0);
-            if (errno || *end || flush_interval > INT_MAX) {
+            unsigned long res;
+
+            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
                 error_report("Invalid flush interval specified");
                 return 1;
             }
+            flush_interval = res;
             break;
         }
         case OPTION_NO_DRAIN:
