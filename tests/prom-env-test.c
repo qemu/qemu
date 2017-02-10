@@ -30,8 +30,8 @@ static void check_guest_memory(void)
     uint32_t signature;
     int i;
 
-    /* Poll until code has run and modified memory. Wait at most 30 seconds */
-    for (i = 0; i < 10000; ++i) {
+    /* Poll until code has run and modified memory. Wait at most 120 seconds */
+    for (i = 0; i < 12000; ++i) {
         signature = readl(ADDRESS);
         if (signature == MAGIC) {
             break;
@@ -45,9 +45,14 @@ static void check_guest_memory(void)
 static void test_machine(const void *machine)
 {
     char *args;
+    const char *extra_args;
 
-    args = g_strdup_printf("-M %s,accel=tcg -prom-env 'boot-command=%x %x l!'",
-                           (const char *)machine, MAGIC, ADDRESS);
+    /* The pseries firmware boots much faster without the default devices */
+    extra_args = strcmp(machine, "pseries") == 0 ? "-nodefaults" : "";
+
+    args = g_strdup_printf("-M %s,accel=tcg %s -prom-env 'use-nvramrc?=true' "
+                           "-prom-env 'nvramrc=%x %x l!' ",
+                           (const char *)machine, extra_args, MAGIC, ADDRESS);
 
     qtest_start(args);
     check_guest_memory();
