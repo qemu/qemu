@@ -652,7 +652,15 @@ static void ppc_hash64_set_isi(CPUState *cs, CPUPPCState *env,
     if (msr_ir) {
         vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM1);
     } else {
-        vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM0);
+        switch (env->mmu_model) {
+        case POWERPC_MMU_3_00:
+            /* Field deprecated in ISAv3.00 - interrupts always go to hyperv */
+            vpm = true;
+            break;
+        default:
+            vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM0);
+            break;
+        }
     }
     if (vpm && !msr_hv) {
         cs->exception_index = POWERPC_EXCP_HISI;
@@ -670,7 +678,15 @@ static void ppc_hash64_set_dsi(CPUState *cs, CPUPPCState *env, uint64_t dar,
     if (msr_dr) {
         vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM1);
     } else {
-        vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM0);
+        switch (env->mmu_model) {
+        case POWERPC_MMU_3_00:
+            /* Field deprecated in ISAv3.00 - interrupts always go to hyperv */
+            vpm = true;
+            break;
+        default:
+            vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM0);
+            break;
+        }
     }
     if (vpm && !msr_hv) {
         cs->exception_index = POWERPC_EXCP_HDSI;
