@@ -1968,10 +1968,10 @@ static int img_convert(int argc, char **argv)
     }
 
     if (sn_opts) {
-        ret = bdrv_snapshot_load_tmp(bs[0],
-                                     qemu_opt_get(sn_opts, SNAPSHOT_OPT_ID),
-                                     qemu_opt_get(sn_opts, SNAPSHOT_OPT_NAME),
-                                     &local_err);
+        bdrv_snapshot_load_tmp(bs[0],
+                               qemu_opt_get(sn_opts, SNAPSHOT_OPT_ID),
+                               qemu_opt_get(sn_opts, SNAPSHOT_OPT_NAME),
+                               &local_err);
     } else if (snapshot_name != NULL) {
         if (bs_n > 1) {
             error_report("No support for concatenating multiple snapshot");
