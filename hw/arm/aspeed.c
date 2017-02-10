@@ -113,9 +113,19 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
 {
     BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
     uint8_t *storage;
+    int64_t size;
 
-    if (rom_size > blk_getlength(blk)) {
-        rom_size = blk_getlength(blk);
+    /* The block backend size should have already been 'validated' by
+     * the creation of the m25p80 object.
+     */
+    size = blk_getlength(blk);
+    if (size <= 0) {
+        error_setg(errp, "failed to get flash size");
+        return;
+    }
+
+    if (rom_size > size) {
+        rom_size = size;
     }
 
     storage = g_new0(uint8_t, rom_size);
