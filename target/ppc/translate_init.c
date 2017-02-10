@@ -8816,8 +8816,7 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
                     (1ull << MSR_PMM) |
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
-    /* Using 2.07 defines until new radix model is added. */
-    pcc->mmu_model = POWERPC_MMU_2_07;
+    pcc->mmu_model = POWERPC_MMU_3_00;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
     /* segment page size remain the same */
