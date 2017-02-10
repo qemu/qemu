@@ -90,6 +90,7 @@ static void acpi_dsdt_add_fw_cfg(Aml *scope, const MemMapEntry *fw_cfg_memmap)
     aml_append(dev, aml_name_decl("_HID", aml_string("QEMU0002")));
     /* device present, functioning, decoding, not shown in UI */
     aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
+    aml_append(dev, aml_name_decl("_CCA", aml_int(1)));
 
     Aml *crs = aml_resource_template();
     aml_append(crs, aml_memory32_fixed(fw_cfg_memmap->base,
