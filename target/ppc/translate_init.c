@@ -8870,12 +8870,24 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu)
     lpcr->default_value &= ~LPCR_RMLS;
     lpcr->default_value |= 1ull << LPCR_RMLS_SHIFT;
 
-    /* P7 and P8 has slightly different PECE bits, mostly because P8 adds
-     * bit 47 and 48 which are reserved on P7. Here we set them all, which
-     * will work as expected for both implementations
-     */
-    lpcr->default_value |= LPCR_P8_PECE0 | LPCR_P8_PECE1 | LPCR_P8_PECE2 |
-                           LPCR_P8_PECE3 | LPCR_P8_PECE4;
+    switch (env->mmu_model) {
+    case POWERPC_MMU_3_00:
+        /* By default we choose legacy mode and switch to new hash or radix
+         * when a register process table hcall is made. So disable process
+         * tables and guest translation shootdown by default
+         */
+        lpcr->default_value &= ~(LPCR_UPRT | LPCR_GTSE);
+        lpcr->default_value |= LPCR_PDEE | LPCR_HDEE | LPCR_EEE | LPCR_DEE |
+                               LPCR_OEE;
+        break;
+    default:
+        /* P7 and P8 has slightly different PECE bits, mostly because P8 adds
+         * bit 47 and 48 which are reserved on P7. Here we set them all, which
+         * will work as expected for both implementations
+         */
+        lpcr->default_value |= LPCR_P8_PECE0 | LPCR_P8_PECE1 | LPCR_P8_PECE2 |
+                               LPCR_P8_PECE3 | LPCR_P8_PECE4;
+    }
 
     /* We should be followed by a CPU reset but update the active value
      * just in case...

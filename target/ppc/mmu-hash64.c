@@ -1062,6 +1062,14 @@ void helper_store_lpcr(CPUPPCState *env, target_ulong val)
                       LPCR_P8_PECE2 | LPCR_P8_PECE3 | LPCR_P8_PECE4 |
                       LPCR_MER | LPCR_TC | LPCR_LPES0 | LPCR_HDICE);
         break;
+    case POWERPC_MMU_3_00: /* P9 */
+        lpcr = val & (LPCR_VPM1 | LPCR_ISL | LPCR_KBV | LPCR_DPFD |
+                      (LPCR_PECE_U_MASK & LPCR_HVEE) | LPCR_ILE | LPCR_AIL |
+                      LPCR_UPRT | LPCR_EVIRT | LPCR_ONL |
+                      (LPCR_PECE_L_MASK & (LPCR_PDEE | LPCR_HDEE | LPCR_EEE |
+                      LPCR_DEE | LPCR_OEE)) | LPCR_MER | LPCR_GTSE | LPCR_TC |
+                      LPCR_HEIC | LPCR_LPES0 | LPCR_HVICE | LPCR_HDICE);
+        break;
     default:
         ;
     }

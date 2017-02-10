@@ -384,12 +384,19 @@ struct ppc_slb_t {
 #define LPCR_DPFD         (0x7ull << LPCR_DPFD_SHIFT)
 #define LPCR_VRMASD_SHIFT (63 - 16)
 #define LPCR_VRMASD       (0x1full << LPCR_VRMASD_SHIFT)
+/* P9: Power-saving mode Exit Cause Enable (Upper Section) Mask */
+#define LPCR_PECE_U_SHIFT (63 - 19)
+#define LPCR_PECE_U_MASK  (0x7ull << LPCR_PECE_U_SHIFT)
+#define LPCR_HVEE         (1ull << (63 - 17)) /* Hypervisor Virt Exit Enable */
 #define LPCR_RMLS_SHIFT   (63 - 37)
 #define LPCR_RMLS         (0xfull << LPCR_RMLS_SHIFT)
 #define LPCR_ILE          (1ull << (63 - 38))
 #define LPCR_AIL_SHIFT    (63 - 40)      /* Alternate interrupt location */
 #define LPCR_AIL          (3ull << LPCR_AIL_SHIFT)
+#define LPCR_UPRT         (1ull << (63 - 41)) /* Use Process Table */
+#define LPCR_EVIRT        (1ull << (63 - 42)) /* Enhanced Virtualisation */
 #define LPCR_ONL          (1ull << (63 - 45))
+#define LPCR_LD           (1ull << (63 - 46)) /* Large Decrementer */
 #define LPCR_P7_PECE0     (1ull << (63 - 49))
 #define LPCR_P7_PECE1     (1ull << (63 - 50))
 #define LPCR_P7_PECE2     (1ull << (63 - 51))
@@ -398,11 +405,22 @@ struct ppc_slb_t {
 #define LPCR_P8_PECE2     (1ull << (63 - 49))
 #define LPCR_P8_PECE3     (1ull << (63 - 50))
 #define LPCR_P8_PECE4     (1ull << (63 - 51))
+/* P9: Power-saving mode Exit Cause Enable (Lower Section) Mask */
+#define LPCR_PECE_L_SHIFT (63 - 51)
+#define LPCR_PECE_L_MASK  (0x1full << LPCR_PECE_L_SHIFT)
+#define LPCR_PDEE         (1ull << (63 - 47)) /* Privileged Doorbell Exit EN */
+#define LPCR_HDEE         (1ull << (63 - 48)) /* Hyperv Doorbell Exit Enable */
+#define LPCR_EEE          (1ull << (63 - 49)) /* External Exit Enable        */
+#define LPCR_DEE          (1ull << (63 - 50)) /* Decrementer Exit Enable     */
+#define LPCR_OEE          (1ull << (63 - 51)) /* Other Exit Enable           */
 #define LPCR_MER          (1ull << (63 - 52))
+#define LPCR_GTSE         (1ull << (63 - 53)) /* Guest Translation Shootdown */
 #define LPCR_TC           (1ull << (63 - 54))
+#define LPCR_HEIC         (1ull << (63 - 59)) /* HV Extern Interrupt Control */
 #define LPCR_LPES0        (1ull << (63 - 60))
 #define LPCR_LPES1        (1ull << (63 - 61))
 #define LPCR_RMI          (1ull << (63 - 62))
+#define LPCR_HVICE        (1ull << (63 - 62)) /* HV Virtualisation Int Enable */
 #define LPCR_HDICE        (1ull << (63 - 63))
 
 #define msr_sf   ((env->msr >> MSR_SF)   & 1)
