@@ -488,7 +488,7 @@ static void ahci_reg_init(AHCIState *s)
     s->control_regs.cap = (s->ports - 1) |
                           (AHCI_NUM_COMMAND_SLOTS << 8) |
                           (AHCI_SUPPORTED_SPEED_GEN1 << AHCI_SUPPORTED_SPEED) |
-                          HOST_CAP_NCQ | HOST_CAP_AHCI;
+                          HOST_CAP_NCQ | HOST_CAP_AHCI | HOST_CAP_64;
 
     s->control_regs.impl = (1 << s->ports) - 1;
 
