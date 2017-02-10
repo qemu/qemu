@@ -85,3 +85,7 @@ rs6000mc_presence_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
 rs6000mc_size_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
 rs6000mc_size_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
 rs6000mc_parity_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+
+# hw/ppc/mac_newworld.c
+mac99_uninorth_write(uint64_t addr, uint64_t value) "addr=0x%" PRIx64 " val=0x%"PRIx64
+mac99_uninorth_read(uint64_t addr, uint64_t value) "addr=0x%" PRIx64 " val=0x%"PRIx64
