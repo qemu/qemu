@@ -1955,7 +1955,7 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
     }
 
     /* if 'address' properties socket-id/core-id/thread-id are not set, set them
-     * so that query_hotpluggable_cpus would show correct values
+     * so that machine_query_hotpluggable_cpus would show correct values
      */
     /* TODO: move socket_id/core_id/thread_id checks into x86_cpu_realizefn()
      * once -smp refactoring is complete and there will be CPU private
@@ -2326,7 +2326,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->get_hotplug_handler = pc_get_hotpug_handler;
     mc->cpu_index_to_socket_id = pc_cpu_index_to_socket_id;
     mc->possible_cpu_arch_ids = pc_possible_cpu_arch_ids;
-    mc->query_hotpluggable_cpus = machine_query_hotpluggable_cpus;
+    mc->has_hotpluggable_cpus = true;
     mc->default_boot_order = "cad";
     mc->hot_add_cpu = pc_hot_add_cpu;
     mc->block_default_type = IF_IDE;

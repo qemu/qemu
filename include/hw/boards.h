@@ -87,10 +87,8 @@ typedef struct {
  *    Returns an array of @CPUArchId architecture-dependent CPU IDs
  *    which includes CPU IDs for present and possible to hotplug CPUs.
  *    Caller is responsible for freeing returned list.
- * @query_hotpluggable_cpus:
- *    Returns a @HotpluggableCPUList, which describes CPUs objects which
- *    could be added with -device/device_add.
- *    Caller is responsible for freeing returned list.
+ * @has_hotpluggable_cpus:
+ *    If true, board supports CPUs creation with -device/device_add.
  * @minimum_page_bits:
  *    If non-zero, the board promises never to create a CPU with a page size
  *    smaller than this, so QEMU can use a more efficient larger page
@@ -136,12 +134,12 @@ struct MachineClass {
     bool option_rom_has_mr;
     bool rom_file_has_mr;
     int minimum_page_bits;
+    bool has_hotpluggable_cpus;
 
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
     unsigned (*cpu_index_to_socket_id)(unsigned cpu_index);
     const CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
-    HotpluggableCPUList *(*query_hotpluggable_cpus)(MachineState *machine);
 };
 
 /**
