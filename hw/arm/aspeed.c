@@ -148,10 +148,6 @@ static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
         DriveInfo *dinfo = drive_get_next(IF_MTD);
         qemu_irq cs_line;
 
-        /*
-         * FIXME: check that we are not using a flash module exceeding
-         * the controller segment size
-         */
         fl->flash = ssi_create_slave_no_init(s->spi, flashtype);
         if (dinfo) {
             qdev_prop_set_drive(fl->flash, "drive", blk_by_legacy_dinfo(dinfo),
@@ -210,7 +206,9 @@ static void aspeed_board_init(MachineState *machine,
 
         /*
          * create a ROM region using the default mapping window size of
-         * the flash module.
+         * the flash module. The window size is 64MB for the AST2400
+         * SoC and 128MB for the AST2500 SoC, which is twice as big as
+         * needed by the flash modules of the Aspeed machines.
          */
         memory_region_init_rom(boot_rom, OBJECT(bmc), "aspeed.boot_rom",
                                fl->size, &error_abort);
