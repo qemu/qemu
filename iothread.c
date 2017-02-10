@@ -268,6 +268,9 @@ static int query_one_iothread(Object *object, void *opaque)
     info = g_new0(IOThreadInfo, 1);
     info->id = iothread_get_id(iothread);
     info->thread_id = iothread->thread_id;
+    info->poll_max_ns = iothread->poll_max_ns;
+    info->poll_grow = iothread->poll_grow;
+    info->poll_shrink = iothread->poll_shrink;
 
     elem = g_new0(IOThreadInfoList, 1);
     elem->value = info;
