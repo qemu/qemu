@@ -584,6 +584,12 @@ int blk_set_perm(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
     return 0;
 }
 
+void blk_get_perm(BlockBackend *blk, uint64_t *perm, uint64_t *shared_perm)
+{
+    *perm = blk->perm;
+    *shared_perm = blk->shared_perm;
+}
+
 static int blk_do_attach_dev(BlockBackend *blk, void *dev)
 {
     if (blk->dev) {
