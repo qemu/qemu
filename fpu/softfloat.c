@@ -6128,6 +6128,65 @@ int64_t float128_to_int64_round_to_zero(float128 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Returns the result of converting the quadruple-precision floating-point value
+| `a' to the 64-bit unsigned integer format.  The conversion is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic---which means in particular that the conversion is rounded
+| according to the current rounding mode.  If `a' is a NaN, the largest
+| positive integer is returned.  If the conversion overflows, the
+| largest unsigned integer is returned.  If 'a' is negative, the value is
+| rounded and zero is returned; negative values that do not round to zero
+| will raise the inexact exception.
+*----------------------------------------------------------------------------*/
+
+uint64_t float128_to_uint64(float128 a, float_status *status)
+{
+    flag aSign;
+    int aExp;
+    int shiftCount;
+    uint64_t aSig0, aSig1;
+
+    aSig0 = extractFloat128Frac0(a);
+    aSig1 = extractFloat128Frac1(a);
+    aExp = extractFloat128Exp(a);
+    aSign = extractFloat128Sign(a);
+    if (aSign && (aExp > 0x3FFE)) {
+        float_raise(float_flag_invalid, status);
+        if (float128_is_any_nan(a)) {
+            return LIT64(0xFFFFFFFFFFFFFFFF);
+        } else {
+            return 0;
+        }
+    }
+    if (aExp) {
+        aSig0 |= LIT64(0x0001000000000000);
+    }
+    shiftCount = 0x402F - aExp;
+    if (shiftCount <= 0) {
+        if (0x403E < aExp) {
+            float_raise(float_flag_invalid, status);
+            return LIT64(0xFFFFFFFFFFFFFFFF);
+        }
+        shortShift128Left(aSig0, aSig1, -shiftCount, &aSig0, &aSig1);
+    } else {
+        shift64ExtraRightJamming(aSig0, aSig1, shiftCount, &aSig0, &aSig1);
+    }
+    return roundAndPackUint64(aSign, aSig0, aSig1, status);
+}
+
+uint64_t float128_to_uint64_round_to_zero(float128 a, float_status *status)
+{
+    uint64_t v;
+    signed char current_rounding_mode = status->float_rounding_mode;
+
+    set_float_rounding_mode(float_round_to_zero, status);
+    v = float128_to_uint64(a, status);
+    set_float_rounding_mode(current_rounding_mode, status);
+
+    return v;
+}
+
+/*----------------------------------------------------------------------------
 | Returns the result of converting the quadruple-precision floating-point
 | value `a' to the single-precision floating-point format.  The conversion
 | is performed according to the IEC/IEEE Standard for Binary Floating-Point
