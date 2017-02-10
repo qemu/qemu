@@ -1850,12 +1850,11 @@ void helper_xsaddqp(CPUPPCState *env, uint32_t opcode)
     getVSR(rD(opcode) + 32, &xt, env);
     helper_reset_fpstatus(env);
 
+    tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        /* TODO: Support xsadddpo after round-to-odd is implemented */
-        abort();
+        tstat.float_rounding_mode = float_round_to_odd;
     }
 
-    tstat = env->fp_status;
     set_float_exception_flags(0, &tstat);
     xt.f128 = float128_add(xa.f128, xb.f128, &tstat);
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;
@@ -1930,19 +1929,18 @@ VSX_MUL(xvmulsp, 4, float32, VsrW(i), 0, 0)
 void helper_xsmulqp(CPUPPCState *env, uint32_t opcode)
 {
     ppc_vsr_t xt, xa, xb;
+    float_status tstat;
 
     getVSR(rA(opcode) + 32, &xa, env);
     getVSR(rB(opcode) + 32, &xb, env);
     getVSR(rD(opcode) + 32, &xt, env);
 
+    helper_reset_fpstatus(env);
+    tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        /* TODO: Support xsmulpo after round-to-odd is implemented */
-        abort();
+        tstat.float_rounding_mode = float_round_to_odd;
     }
 
-    helper_reset_fpstatus(env);
-
-    float_status tstat = env->fp_status;
     set_float_exception_flags(0, &tstat);
     xt.f128 = float128_mul(xa.f128, xb.f128, &tstat);
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;
@@ -2019,18 +2017,18 @@ VSX_DIV(xvdivsp, 4, float32, VsrW(i), 0, 0)
 void helper_xsdivqp(CPUPPCState *env, uint32_t opcode)
 {
     ppc_vsr_t xt, xa, xb;
+    float_status tstat;
 
     getVSR(rA(opcode) + 32, &xa, env);
     getVSR(rB(opcode) + 32, &xb, env);
     getVSR(rD(opcode) + 32, &xt, env);
 
+    helper_reset_fpstatus(env);
+    tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        /* TODO: Support xsdivqpo after round-to-odd is implemented */
-        abort();
+        tstat.float_rounding_mode = float_round_to_odd;
     }
 
-    helper_reset_fpstatus(env);
-    float_status tstat = env->fp_status;
     set_float_exception_flags(0, &tstat);
     xt.f128 = float128_div(xa.f128, xb.f128, &tstat);
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;
@@ -2954,18 +2952,20 @@ VSX_CVT_FP_TO_FP_HP(xvcvhpsp, 4, float16, float32, VsrH(2 * i + 1), VsrW(i), 0)
 void helper_xscvqpdp(CPUPPCState *env, uint32_t opcode)
 {
     ppc_vsr_t xt, xb;
+    float_status tstat;
 
     getVSR(rB(opcode) + 32, &xb, env);
     memset(&xt, 0, sizeof(xt));
 
+    tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        /* TODO: Support xscvqpdpo after round-to-odd is implemented */
-        abort();
+        tstat.float_rounding_mode = float_round_to_odd;
     }
 
-    xt.VsrD(0) = float128_to_float64(xb.f128, &env->fp_status);
+    xt.VsrD(0) = float128_to_float64(xb.f128, &tstat);
+    env->fp_status.float_exception_flags |= tstat.float_exception_flags;
     if (unlikely(float128_is_signaling_nan(xb.f128,
-                                           &env->fp_status))) {
+                                           &tstat))) {
         float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);
         xt.VsrD(0) = float64_snan_to_qnan(xt.VsrD(0));
     }
@@ -3496,12 +3496,11 @@ void helper_xssqrtqp(CPUPPCState *env, uint32_t opcode)
     memset(&xt, 0, sizeof(xt));
     helper_reset_fpstatus(env);
 
+    tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        /* TODO: Support xsadddpo after round-to-odd is implemented */
-        abort();
+        tstat.float_rounding_mode = float_round_to_odd;
     }
 
-    tstat = env->fp_status;
     set_float_exception_flags(0, &tstat);
     xt.f128 = float128_sqrt(xb.f128, &tstat);
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;
@@ -3534,12 +3533,11 @@ void helper_xssubqp(CPUPPCState *env, uint32_t opcode)
     getVSR(rD(opcode) + 32, &xt, env);
     helper_reset_fpstatus(env);
 
+    tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        /* TODO: Support xssubqp after round-to-odd is implemented */
-        abort();
+        tstat.float_rounding_mode = float_round_to_odd;
     }
 
-    tstat = env->fp_status;
     set_float_exception_flags(0, &tstat);
     xt.f128 = float128_sub(xa.f128, xb.f128, &tstat);
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;
