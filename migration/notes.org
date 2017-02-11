@@ -1,0 +1,28 @@
+
+savevm.c:
+int =qemu_savevm_state_iterate(QEMUFile *f)=
+
+for each qemu state handler. ca;; =save_live_iterate=
+
+ram.c
+
+=ram_save_iterate= , =ram_save_complete=
+
+=ram_find_and_save_block= (do save_host_page while pages)
+-> =ram_save_host_page= saves one host_page , same block
+  -> =ram_save_target_page=
+    ->  =ram_save_page(File/stream, pagesearchstautus, last_stage)=
+       -> Saves actual page to file 
+
+last_sent_block is global
+
+
+=ram_save_iterate= callback registered as savevm =save_live_iterate=
+
+iterations incre
+
+
+
+hmp_info_migrate , add monitor_printf(migration)
+
+migration.c =populate_ram_info=
