@@ -561,16 +561,19 @@ F: hw/lm32/milkymist.c
 M68K Machines
 -------------
 an5206
-S: Orphan
+M: Thomas Huth <huth@tuxfamily.org>
+S: Odd Fixes
 F: hw/m68k/an5206.c
 F: hw/m68k/mcf5206.c
 
 mcf5208
-S: Orphan
+M: Thomas Huth <huth@tuxfamily.org>
+S: Odd Fixes
 F: hw/m68k/mcf5208.c
 F: hw/m68k/mcf_intc.c
 F: hw/char/mcf_uart.c
 F: hw/net/mcf_fec.c
+F: include/hw/m68k/mcf*.h
 
 MicroBlaze Machines
 -------------------
