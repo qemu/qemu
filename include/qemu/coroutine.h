@@ -112,51 +112,6 @@ bool qemu_in_coroutine(void);
  */
 bool qemu_coroutine_entered(Coroutine *co);
 
-
-/**
- * CoQueues are a mechanism to queue coroutines in order to continue executing
- * them later. They provide the fundamental primitives on which coroutine locks
- * are built.
- */
-typedef struct CoQueue {
-    QSIMPLEQ_HEAD(, Coroutine) entries;
-} CoQueue;
-
-/**
- * Initialise a CoQueue. This must be called before any other operation is used
- * on the CoQueue.
- */
-void qemu_co_queue_init(CoQueue *queue);
-
-/**
- * Adds the current coroutine to the CoQueue and transfers control to the
- * caller of the coroutine.
- */
-void coroutine_fn qemu_co_queue_wait(CoQueue *queue);
-
-/**
- * Restarts the next coroutine in the CoQueue and removes it from the queue.
- *
- * Returns true if a coroutine was restarted, false if the queue is empty.
- */
-bool coroutine_fn qemu_co_queue_next(CoQueue *queue);
-
-/**
- * Restarts all coroutines in the CoQueue and leaves the queue empty.
- */
-void coroutine_fn qemu_co_queue_restart_all(CoQueue *queue);
-
-/**
- * Enter the next coroutine in the queue
- */
-bool qemu_co_enter_next(CoQueue *queue);
-
-/**
- * Checks if the CoQueue is empty.
- */
-bool qemu_co_queue_empty(CoQueue *queue);
-
-
 /**
  * Provides a mutex that can be used to synchronise coroutines
  */
@@ -201,6 +156,50 @@ void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex);
  * lock to be run.
  */
 void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
+
+
+/**
+ * CoQueues are a mechanism to queue coroutines in order to continue executing
+ * them later.
+ */
+typedef struct CoQueue {
+    QSIMPLEQ_HEAD(, Coroutine) entries;
+} CoQueue;
+
+/**
+ * Initialise a CoQueue. This must be called before any other operation is used
+ * on the CoQueue.
+ */
+void qemu_co_queue_init(CoQueue *queue);
+
+/**
+ * Adds the current coroutine to the CoQueue and transfers control to the
+ * caller of the coroutine.
+ */
+void coroutine_fn qemu_co_queue_wait(CoQueue *queue);
+
+/**
+ * Restarts the next coroutine in the CoQueue and removes it from the queue.
+ *
+ * Returns true if a coroutine was restarted, false if the queue is empty.
+ */
+bool coroutine_fn qemu_co_queue_next(CoQueue *queue);
+
+/**
+ * Restarts all coroutines in the CoQueue and leaves the queue empty.
+ */
+void coroutine_fn qemu_co_queue_restart_all(CoQueue *queue);
+
+/**
+ * Enter the next coroutine in the queue
+ */
+bool qemu_co_enter_next(CoQueue *queue);
+
+/**
+ * Checks if the CoQueue is empty.
+ */
+bool qemu_co_queue_empty(CoQueue *queue);
+
 
 typedef struct CoRwlock {
     bool writer;
