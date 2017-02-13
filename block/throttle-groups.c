@@ -416,7 +416,9 @@ static void timer_cb(BlockBackend *blk, bool is_write)
     qemu_mutex_unlock(&tg->lock);
 
     /* Run the request that was waiting for this timer */
+    aio_context_acquire(blk_get_aio_context(blk));
     empty_queue = !qemu_co_enter_next(&blkp->throttled_reqs[is_write]);
+    aio_context_release(blk_get_aio_context(blk));
 
     /* If the request queue was empty then we have to take care of
      * scheduling the next one */

@@ -454,9 +454,7 @@ bool aio_dispatch(AioContext *ctx, bool dispatch_fds)
     }
 
     /* Run our timers */
-    aio_context_acquire(ctx);
     progress |= timerlistgroup_run_timers(&ctx->tlg);
-    aio_context_release(ctx);
 
     return progress;
 }

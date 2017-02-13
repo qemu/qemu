@@ -345,10 +345,22 @@ static void qed_need_check_timer_cb(void *opaque)
 
     trace_qed_need_check_timer_cb(s);
 
+    qed_acquire(s);
     qed_plug_allocating_write_reqs(s);
 
     /* Ensure writes are on disk before clearing flag */
     bdrv_aio_flush(s->bs->file->bs, qed_clear_need_check, s);
+    qed_release(s);
+}
+
+void qed_acquire(BDRVQEDState *s)
+{
+    aio_context_acquire(bdrv_get_aio_context(s->bs));
+}
+
+void qed_release(BDRVQEDState *s)
+{
+    aio_context_release(bdrv_get_aio_context(s->bs));
 }
 
 static void qed_start_need_check_timer(BDRVQEDState *s)
