@@ -3,17 +3,14 @@ QA output created by 059
 === Testing invalid granularity ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 can't open device TEST_DIR/t.vmdk: Invalid granularity, image may be corrupt
-no file open, try 'help open'
 
 === Testing too big L2 table size ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 can't open device TEST_DIR/t.vmdk: L2 table size too big
-no file open, try 'help open'
 
 === Testing too big L1 table size ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 can't open device TEST_DIR/t.vmdk: L1 size too big
-no file open, try 'help open'
 
 === Testing monolithicFlat creation and opening ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648 subformat=monolithicFlat
@@ -2361,5 +2358,5 @@ Offset          Length          Mapped to       File
 0x140000000     0x10000         0x50000         TEST_DIR/iotest-version3-s003.vmdk
 
 === Testing afl image with a very large capacity ===
-qemu-img: Can't get size of device 'image': File too large
+qemu-img: Can't get image size 'TEST_DIR/afl9.IMGFMT': File too large
 *** done

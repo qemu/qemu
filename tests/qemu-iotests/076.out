@@ -6,15 +6,12 @@ read 65536/65536 bytes at offset 0
 
 == Negative catalog size ==
 can't open device TEST_DIR/parallels-v1: Catalog too large
-no file open, try 'help open'
 
 == Overflow in catalog allocation ==
 can't open device TEST_DIR/parallels-v1: Catalog too large
-no file open, try 'help open'
 
 == Zero sectors per track ==
 can't open device TEST_DIR/parallels-v1: Invalid image: Zero sectors per track
-no file open, try 'help open'
 
 == Read from a valid v2 image ==
 read 65536/65536 bytes at offset 0

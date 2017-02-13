@@ -1,5 +1,5 @@
 check.log
-check.time
+check.time*
 common.env
 *.out.bad
 *.notrun

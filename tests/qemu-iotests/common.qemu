@@ -27,8 +27,8 @@
 
 QEMU_COMM_TIMEOUT=10
 
-QEMU_FIFO_IN="${TEST_DIR}/qmp-in-$$"
-QEMU_FIFO_OUT="${TEST_DIR}/qmp-out-$$"
+QEMU_FIFO_IN="${QEMU_TEST_DIR}/qmp-in-$$"
+QEMU_FIFO_OUT="${QEMU_TEST_DIR}/qmp-out-$$"
 
 QEMU_HANDLE=0
 
@@ -204,9 +204,9 @@ function _cleanup_qemu()
     for i in "${!QEMU_OUT[@]}"
     do
         local QEMU_PID
-        if [ -f "${TEST_DIR}/qemu-${i}.pid" ]; then
-            read QEMU_PID < "${TEST_DIR}/qemu-${i}.pid"
-            rm -f "${TEST_DIR}/qemu-${i}.pid"
+        if [ -f "${QEMU_TEST_DIR}/qemu-${i}.pid" ]; then
+            read QEMU_PID < "${QEMU_TEST_DIR}/qemu-${i}.pid"
+            rm -f "${QEMU_TEST_DIR}/qemu-${i}.pid"
             if [ -z "${wait}" ] && [ -n "${QEMU_PID}" ]; then
                 kill -KILL ${QEMU_PID} 2>/dev/null
             fi

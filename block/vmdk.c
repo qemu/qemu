@@ -1361,8 +1361,8 @@ static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
             goto out;
         }
 
-        data->lba = offset >> BDRV_SECTOR_BITS;
-        data->size = buf_len;
+        data->lba = cpu_to_le64(offset >> BDRV_SECTOR_BITS);
+        data->size = cpu_to_le32(buf_len);
 
         n_bytes = buf_len + sizeof(VmdkGrainMarker);
         iov = (struct iovec) {

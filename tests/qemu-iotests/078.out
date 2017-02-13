@@ -6,23 +6,17 @@ read 512/512 bytes at offset 0
 
 == Negative catalog size ==
 can't open device TEST_DIR/empty.bochs: Catalog size is too large
-no file open, try 'help open'
 
 == Overflow for catalog size * sizeof(uint32_t) ==
 can't open device TEST_DIR/empty.bochs: Catalog size is too large
-no file open, try 'help open'
 
 == Too small catalog bitmap for image size ==
 can't open device TEST_DIR/empty.bochs: Catalog size is too small for this disk size
-no file open, try 'help open'
 can't open device TEST_DIR/empty.bochs: Catalog size is too small for this disk size
-no file open, try 'help open'
 
 == Negative extent size ==
 can't open device TEST_DIR/empty.bochs: Extent size 2147483648 is too large
-no file open, try 'help open'
 
 == Zero extent size ==
 can't open device TEST_DIR/empty.bochs: Extent size must be at least 512
-no file open, try 'help open'
 *** done

@@ -35,7 +35,7 @@ _filter_generated_node_ids()
 # replace occurrences of the actual TEST_DIR value with TEST_DIR
 _filter_testdir()
 {
-    sed -e "s#$TEST_DIR#TEST_DIR#g"
+    sed -e "s#$TEST_DIR/#TEST_DIR/#g"
 }
 
 # replace occurrences of the actual IMGFMT value with IMGFMT

@@ -912,7 +912,9 @@ static int img_commit(int argc, char **argv)
     if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (!base_bs) {
-            error_setg(&local_err, QERR_BASE_NOT_FOUND, base);
+            error_setg(&local_err,
+                       "Did not find '%s' in the backing chain of '%s'",
+                       base, filename);
             goto done;
         }
     } else {
@@ -1966,10 +1968,10 @@ static int img_convert(int argc, char **argv)
     }
 
     if (sn_opts) {
-        ret = bdrv_snapshot_load_tmp(bs[0],
-                                     qemu_opt_get(sn_opts, SNAPSHOT_OPT_ID),
-                                     qemu_opt_get(sn_opts, SNAPSHOT_OPT_NAME),
-                                     &local_err);
+        bdrv_snapshot_load_tmp(bs[0],
+                               qemu_opt_get(sn_opts, SNAPSHOT_OPT_ID),
+                               qemu_opt_get(sn_opts, SNAPSHOT_OPT_NAME),
+                               &local_err);
     } else if (snapshot_name != NULL) {
         if (bs_n > 1) {
             error_report("No support for concatenating multiple snapshot");
@@ -3621,24 +3623,24 @@ static int img_bench(int argc, char **argv)
             break;
         case 'c':
         {
-            char *end;
-            errno = 0;
-            count = strtoul(optarg, &end, 0);
-            if (errno || *end || count > INT_MAX) {
+            unsigned long res;
+
+            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
                 error_report("Invalid request count specified");
                 return 1;
             }
+            count = res;
             break;
         }
         case 'd':
         {
-            char *end;
-            errno = 0;
-            depth = strtoul(optarg, &end, 0);
-            if (errno || *end || depth > INT_MAX) {
+            unsigned long res;
+
+            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
                 error_report("Invalid queue depth specified");
                 return 1;
             }
+            depth = res;
             break;
         }
         case 'f':
@@ -3705,24 +3707,24 @@ static int img_bench(int argc, char **argv)
             break;
         case OPTION_PATTERN:
         {
-            char *end;
-            errno = 0;
-            pattern = strtoul(optarg, &end, 0);
-            if (errno || *end || pattern > 0xff) {
+            unsigned long res;
+
+            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > 0xff) {
                 error_report("Invalid pattern byte specified");
                 return 1;
             }
+            pattern = res;
             break;
         }
         case OPTION_FLUSH_INTERVAL:
         {
-            char *end;
-            errno = 0;
-            flush_interval = strtoul(optarg, &end, 0);
-            if (errno || *end || flush_interval > INT_MAX) {
+            unsigned long res;
+
+            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
                 error_report("Invalid flush interval specified");
                 return 1;
             }
+            flush_interval = res;
             break;
         }
         case OPTION_NO_DRAIN:
