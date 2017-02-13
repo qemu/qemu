@@ -118,7 +118,7 @@ void qemu_coroutine_enter(Coroutine *co)
     co->ctx = qemu_get_current_aio_context();
 
     /* Store co->ctx before anything that stores co.  Matches
-     * barrier in aio_co_wake.
+     * barrier in aio_co_wake and qemu_co_mutex_wake.
      */
     smp_wmb();
 

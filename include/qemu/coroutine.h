@@ -167,6 +167,11 @@ typedef struct CoMutex {
      */
     unsigned locked;
 
+    /* Context that is holding the lock.  Useful to avoid spinning
+     * when two coroutines on the same AioContext try to get the lock. :)
+     */
+    AioContext *ctx;
+
     /* A queue of waiters.  Elements are added atomically in front of
      * from_push.  to_pop is only populated, and popped from, by whoever
      * is in charge of the next wakeup.  This can be an unlocker or,
