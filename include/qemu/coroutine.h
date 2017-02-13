@@ -204,8 +204,9 @@ bool qemu_co_queue_empty(CoQueue *queue);
 
 
 typedef struct CoRwlock {
-    bool writer;
+    int pending_writer;
     int reader;
+    CoMutex mutex;
     CoQueue queue;
 } CoRwlock;
 
