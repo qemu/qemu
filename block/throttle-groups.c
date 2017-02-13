@@ -326,7 +326,7 @@ void coroutine_fn throttle_group_co_io_limits_intercept(BlockBackend *blk,
     if (must_wait || blkp->pending_reqs[is_write]) {
         blkp->pending_reqs[is_write]++;
         qemu_mutex_unlock(&tg->lock);
-        qemu_co_queue_wait(&blkp->throttled_reqs[is_write]);
+        qemu_co_queue_wait(&blkp->throttled_reqs[is_write], NULL);
         qemu_mutex_lock(&tg->lock);
         blkp->pending_reqs[is_write]--;
     }

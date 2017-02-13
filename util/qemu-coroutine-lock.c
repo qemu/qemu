@@ -40,12 +40,30 @@ void qemu_co_queue_init(CoQueue *queue)
     QSIMPLEQ_INIT(&queue->entries);
 }
 
-void coroutine_fn qemu_co_queue_wait(CoQueue *queue)
+void coroutine_fn qemu_co_queue_wait(CoQueue *queue, CoMutex *mutex)
 {
     Coroutine *self = qemu_coroutine_self();
     QSIMPLEQ_INSERT_TAIL(&queue->entries, self, co_queue_next);
+
+    if (mutex) {
+        qemu_co_mutex_unlock(mutex);
+    }
+
+    /* There is no race condition here.  Other threads will call
+     * aio_co_schedule on our AioContext, which can reenter this
+     * coroutine but only after this yield and after the main loop
+     * has gone through the next iteration.
+     */
     qemu_coroutine_yield();
     assert(qemu_in_coroutine());
+
+    /* TODO: OSv implements wait morphing here, where the wakeup
+     * primitive automatically places the woken coroutine on the
+     * mutex's queue.  This avoids the thundering herd effect.
+     */
+    if (mutex) {
+        qemu_co_mutex_lock(mutex);
+    }
 }
 
 /**
@@ -335,7 +353,7 @@ void qemu_co_rwlock_rdlock(CoRwlock *lock)
     Coroutine *self = qemu_coroutine_self();
 
     while (lock->writer) {
-        qemu_co_queue_wait(&lock->queue);
+        qemu_co_queue_wait(&lock->queue, NULL);
     }
     lock->reader++;
     self->locks_held++;
@@ -365,7 +383,7 @@ void qemu_co_rwlock_wrlock(CoRwlock *lock)
     Coroutine *self = qemu_coroutine_self();
 
     while (lock->writer || lock->reader) {
-        qemu_co_queue_wait(&lock->queue);
+        qemu_co_queue_wait(&lock->queue, NULL);
     }
     lock->writer = true;
     self->locks_held++;

@@ -160,7 +160,8 @@ void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
 
 /**
  * CoQueues are a mechanism to queue coroutines in order to continue executing
- * them later.
+ * them later.  They are similar to condition variables, but they need help
+ * from an external mutex in order to maintain thread-safety.
  */
 typedef struct CoQueue {
     QSIMPLEQ_HEAD(, Coroutine) entries;
@@ -174,9 +175,10 @@ void qemu_co_queue_init(CoQueue *queue);
 
 /**
  * Adds the current coroutine to the CoQueue and transfers control to the
- * caller of the coroutine.
+ * caller of the coroutine.  The mutex is unlocked during the wait and
+ * locked again afterwards.
  */
-void coroutine_fn qemu_co_queue_wait(CoQueue *queue);
+void coroutine_fn qemu_co_queue_wait(CoQueue *queue, CoMutex *mutex);
 
 /**
  * Restarts the next coroutine in the CoQueue and removes it from the queue.

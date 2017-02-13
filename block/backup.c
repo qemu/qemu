@@ -64,7 +64,7 @@ static void coroutine_fn wait_for_overlapping_requests(BackupBlockJob *job,
         retry = false;
         QLIST_FOREACH(req, &job->inflight_reqs, list) {
             if (end > req->start && start < req->end) {
-                qemu_co_queue_wait(&req->wait_queue);
+                qemu_co_queue_wait(&req->wait_queue, NULL);
                 retry = true;
                 break;
             }

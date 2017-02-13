@@ -539,7 +539,7 @@ static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
                  * (instead of producing a deadlock in the former case). */
                 if (!req->waiting_for) {
                     self->waiting_for = req;
-                    qemu_co_queue_wait(&req->wait_queue);
+                    qemu_co_queue_wait(&req->wait_queue, NULL);
                     self->waiting_for = NULL;
                     retry = true;
                     waited = true;
@@ -2275,7 +2275,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 
     /* Wait until any previous flushes are completed */
     while (bs->active_flush_req) {
-        qemu_co_queue_wait(&bs->flush_queue);
+        qemu_co_queue_wait(&bs->flush_queue, NULL);
     }
 
     bs->active_flush_req = true;
