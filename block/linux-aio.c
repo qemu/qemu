@@ -251,7 +251,9 @@ static void qemu_laio_completion_cb(EventNotifier *e)
     LinuxAioState *s = container_of(e, LinuxAioState, e);
 
     if (event_notifier_test_and_clear(&s->e)) {
+        aio_context_acquire(s->aio_context);
         qemu_laio_process_completions_and_submit(s);
+        aio_context_release(s->aio_context);
     }
 }
 
@@ -265,7 +267,9 @@ static bool qemu_laio_poll_cb(void *opaque)
         return false;
     }
 
+    aio_context_acquire(s->aio_context);
     qemu_laio_process_completions_and_submit(s);
+    aio_context_release(s->aio_context);
     return true;
 }
 

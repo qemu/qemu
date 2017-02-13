@@ -150,7 +150,8 @@ static void virtio_blk_ioctl_complete(void *opaque, int status)
 {
     VirtIOBlockIoctlReq *ioctl_req = opaque;
     VirtIOBlockReq *req = ioctl_req->req;
-    VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
+    VirtIOBlock *s = req->dev;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
     struct virtio_scsi_inhdr *scsi;
     struct sg_io_hdr *hdr;
 
@@ -587,6 +588,7 @@ bool virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     MultiReqBuffer mrb = {};
     bool progress = false;
 
+    aio_context_acquire(blk_get_aio_context(s->blk));
     blk_io_plug(s->blk);
 
     do {
@@ -609,6 +611,7 @@ bool virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     }
 
     blk_io_unplug(s->blk);
+    aio_context_release(blk_get_aio_context(s->blk));
     return progress;
 }
 
