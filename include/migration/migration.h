@@ -22,6 +22,7 @@
 #include "qapi-types.h"
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
+#include "qom/object.h"
 
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
@@ -312,6 +313,8 @@ int migrate_add_blocker(Error *reason, Error **errp);
  * @reason - the error blocking migration
  */
 void migrate_del_blocker(Error *reason);
+
+int check_migratable(Object *obj, Error **err);
 
 bool migrate_release_ram(void);
 bool migrate_postcopy_ram(void);

@@ -1150,6 +1150,21 @@ void migrate_del_blocker(Error *reason)
     migration_blockers = g_slist_remove(migration_blockers, reason);
 }
 
+int check_migratable(Object *obj, Error **err)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
+    if (only_migratable && dc->vmsd) {
+        if (dc->vmsd->unmigratable) {
+            error_setg(err, "Device %s is not migratable, but "
+                       "--only-migratable was specified",
+                       object_get_typename(obj));
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 void qmp_migrate_incoming(const char *uri, Error **errp)
 {
     Error *local_err = NULL;
