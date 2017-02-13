@@ -1041,6 +1041,7 @@ static int igd_gen(VFIOPCIDevice *vdev)
 typedef struct VFIOIGDQuirk {
     struct VFIOPCIDevice *vdev;
     uint32_t index;
+    uint32_t bdsm;
 } VFIOIGDQuirk;
 
 #define IGD_GMCH 0x50 /* Graphics Control Register */
@@ -1185,6 +1186,7 @@ static void vfio_pci_igd_lpc_bridge_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "VFIO dummy ISA/LPC bridge for IGD assignment";
     dc->hotpluggable = false;
     k->realize = vfio_pci_igd_lpc_bridge_realize;
@@ -1304,7 +1306,7 @@ static void vfio_igd_quirk_data_write(void *opaque, hwaddr addr,
                          "BIOS reserved stolen memory.  Unsupported BIOS?");
             }
 
-            val = base | (data & ((1 << 20) - 1));
+            val = data - igd->bdsm + base;
         } else {
             val = 0; /* upper 32bits of pte, we only enable below 4G PTEs */
         }
@@ -1503,6 +1505,8 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     igd = quirk->data = g_malloc0(sizeof(*igd));
     igd->vdev = vdev;
     igd->index = ~0;
+    igd->bdsm = vfio_pci_read_config(&vdev->pdev, IGD_BDSM, 4);
+    igd->bdsm &= ~((1 << 20) - 1); /* 1MB aligned */
 
     memory_region_init_io(&quirk->mem[0], OBJECT(vdev), &vfio_igd_index_quirk,
                           igd, "vfio-igd-index-quirk", 4);
