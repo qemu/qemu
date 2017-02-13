@@ -75,7 +75,6 @@ static inline ssize_t io_event_ret(struct io_event *ev)
  */
 static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
 {
-    LinuxAioState *s = laiocb->ctx;
     int ret;
 
     ret = laiocb->ret;
@@ -94,7 +93,6 @@ static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
     }
 
     laiocb->ret = ret;
-    aio_context_acquire(s->aio_context);
     if (laiocb->co) {
         /* If the coroutine is already entered it must be in ioq_submit() and
          * will notice laio->ret has been filled in when it eventually runs
@@ -102,13 +100,12 @@ static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
          * that!
          */
         if (!qemu_coroutine_entered(laiocb->co)) {
-            qemu_coroutine_enter(laiocb->co);
+            aio_co_wake(laiocb->co);
         }
     } else {
         laiocb->common.cb(laiocb->common.opaque, ret);
         qemu_aio_unref(laiocb);
     }
-    aio_context_release(s->aio_context);
 }
 
 /**

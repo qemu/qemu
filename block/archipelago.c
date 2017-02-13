@@ -310,11 +310,8 @@ static void qemu_archipelago_complete_aio(void *opaque)
 {
     AIORequestData *reqdata = (AIORequestData *) opaque;
     ArchipelagoAIOCB *aio_cb = (ArchipelagoAIOCB *) reqdata->aio_cb;
-    AioContext *ctx = bdrv_get_aio_context(aio_cb->common.bs);
 
-    aio_context_acquire(ctx);
     aio_cb->common.cb(aio_cb->common.opaque, aio_cb->ret);
-    aio_context_release(ctx);
     aio_cb->status = 0;
 
     qemu_aio_unref(aio_cb);

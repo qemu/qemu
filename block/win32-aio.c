@@ -87,10 +87,7 @@ static void win32_aio_process_completion(QEMUWin32AIOState *s,
         qemu_vfree(waiocb->buf);
     }
 
-
-    aio_context_acquire(s->aio_ctx);
     waiocb->common.cb(waiocb->common.opaque, ret);
-    aio_context_release(s->aio_ctx);
     qemu_aio_unref(waiocb);
 }
 

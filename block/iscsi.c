@@ -136,16 +136,13 @@ static void
 iscsi_bh_cb(void *p)
 {
     IscsiAIOCB *acb = p;
-    AioContext *ctx = bdrv_get_aio_context(acb->common.bs);
 
     qemu_bh_delete(acb->bh);
 
     g_free(acb->buf);
     acb->buf = NULL;
 
-    aio_context_acquire(ctx);
     acb->common.cb(acb->common.opaque, acb->status);
-    aio_context_release(ctx);
 
     if (acb->task != NULL) {
         scsi_free_scsi_task(acb->task);
