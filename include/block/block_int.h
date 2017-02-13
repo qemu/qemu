@@ -430,22 +430,15 @@ struct BdrvChild {
  * copied as well.
  */
 struct BlockDriverState {
-    int64_t total_sectors; /* if we are reading a disk image, give its
-                              size in sectors */
+    /* Protected by big QEMU lock or read-only after opening.  No special
+     * locking needed during I/O...
+     */
     int open_flags; /* flags used to open the file, re-used for re-open */
     bool read_only; /* if true, the media is read only */
     bool encrypted; /* if true, the media is encrypted */
     bool valid_key; /* if true, a valid encryption key has been set */
     bool sg;        /* if true, the device is a /dev/sg* */
     bool probed;    /* if true, format was probed rather than specified */
-
-    int copy_on_read; /* if nonzero, copy read backing sectors into image.
-                         note this is a reference count */
-
-    CoQueue flush_queue;            /* Serializing flush queue */
-    bool active_flush_req;          /* Flush request in flight? */
-    unsigned int write_gen;         /* Current data generation */
-    unsigned int flushed_gen;       /* Flushed write generation */
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
@@ -468,18 +461,6 @@ struct BlockDriverState {
     BdrvChild *backing;
     BdrvChild *file;
 
-    /* Callback before write request is processed */
-    NotifierWithReturnList before_write_notifiers;
-
-    /* number of in-flight requests; overall and serialising */
-    unsigned int in_flight;
-    unsigned int serialising_in_flight;
-
-    bool wakeup;
-
-    /* Offset after the highest byte written to */
-    uint64_t wr_highest_offset;
-
     /* I/O Limits */
     BlockLimits bl;
 
@@ -497,10 +478,7 @@ struct BlockDriverState {
     QTAILQ_ENTRY(BlockDriverState) bs_list;
     /* element of the list of monitor-owned BDS */
     QTAILQ_ENTRY(BlockDriverState) monitor_list;
-    QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
     int refcnt;
-
-    QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
 
     /* operation blockers */
     QLIST_HEAD(, BdrvOpBlocker) op_blockers[BLOCK_OP_TYPE_MAX];
@@ -522,12 +500,48 @@ struct BlockDriverState {
     /* The error object in use for blocking operations on backing_hd */
     Error *backing_blocker;
 
+    /* Protected by AioContext lock */
+
+    /* If true, copy read backing sectors into image.  Can be >1 if more
+     * than one client has requested copy-on-read.
+     */
+    int copy_on_read;
+
+    /* If we are reading a disk image, give its size in sectors.
+     * Generally read-only; it is written to by load_vmstate and save_vmstate,
+     * but the block layer is quiescent during those.
+     */
+    int64_t total_sectors;
+
+    /* Callback before write request is processed */
+    NotifierWithReturnList before_write_notifiers;
+
+    /* number of in-flight requests; overall and serialising */
+    unsigned int in_flight;
+    unsigned int serialising_in_flight;
+
+    bool wakeup;
+
+    /* Offset after the highest byte written to */
+    uint64_t wr_highest_offset;
+
     /* threshold limit for writes, in bytes. "High water mark". */
     uint64_t write_threshold_offset;
     NotifierWithReturn write_threshold_notifier;
 
     /* counter for nested bdrv_io_plug */
     unsigned io_plugged;
+
+    QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
+    CoQueue flush_queue;                  /* Serializing flush queue */
+    bool active_flush_req;                /* Flush request in flight? */
+    unsigned int write_gen;               /* Current data generation */
+    unsigned int flushed_gen;             /* Flushed write generation */
+
+    QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
+
+    /* do we need to tell the quest if we have a volatile write cache? */
+    int enable_write_cache;
 
     int quiesce_counter;
 };
