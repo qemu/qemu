@@ -402,7 +402,9 @@ static bool aio_dispatch_handlers(AioContext *ctx)
             (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) &&
             aio_node_check(ctx, node->is_external) &&
             node->io_read) {
+            aio_context_acquire(ctx);
             node->io_read(node->opaque);
+            aio_context_release(ctx);
 
             /* aio_notify() does not count as progress */
             if (node->opaque != &ctx->notifier) {
@@ -413,7 +415,9 @@ static bool aio_dispatch_handlers(AioContext *ctx)
             (revents & (G_IO_OUT | G_IO_ERR)) &&
             aio_node_check(ctx, node->is_external) &&
             node->io_write) {
+            aio_context_acquire(ctx);
             node->io_write(node->opaque);
+            aio_context_release(ctx);
             progress = true;
         }
 
@@ -450,7 +454,9 @@ bool aio_dispatch(AioContext *ctx, bool dispatch_fds)
     }
 
     /* Run our timers */
+    aio_context_acquire(ctx);
     progress |= timerlistgroup_run_timers(&ctx->tlg);
+    aio_context_release(ctx);
 
     return progress;
 }
@@ -597,9 +603,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
     int64_t timeout;
     int64_t start = 0;
 
-    aio_context_acquire(ctx);
-    progress = false;
-
     /* aio_notify can avoid the expensive event_notifier_set if
      * everything (file descriptors, bottom halves, timers) will
      * be re-evaluated before the next blocking poll().  This is
@@ -617,9 +620,11 @@ bool aio_poll(AioContext *ctx, bool blocking)
         start = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     }
 
-    if (try_poll_mode(ctx, blocking)) {
-        progress = true;
-    } else {
+    aio_context_acquire(ctx);
+    progress = try_poll_mode(ctx, blocking);
+    aio_context_release(ctx);
+
+    if (!progress) {
         assert(npfd == 0);
 
         /* fill pollfds */
@@ -636,9 +641,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
         timeout = blocking ? aio_compute_timeout(ctx) : 0;
 
         /* wait until next event */
-        if (timeout) {
-            aio_context_release(ctx);
-        }
         if (aio_epoll_check_poll(ctx, pollfds, npfd, timeout)) {
             AioHandler epoll_handler;
 
@@ -649,9 +651,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
             ret = aio_epoll(ctx, pollfds, npfd, timeout);
         } else  {
             ret = qemu_poll_ns(pollfds, npfd, timeout);
-        }
-        if (timeout) {
-            aio_context_acquire(ctx);
         }
     }
 
@@ -716,8 +715,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
     if (aio_dispatch(ctx, ret > 0)) {
         progress = true;
     }
-
-    aio_context_release(ctx);
 
     return progress;
 }
