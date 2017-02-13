@@ -119,3 +119,15 @@ qxl_set_client_capabilities_unsupported_by_revision(int qid, int revision) "%d r
 qxl_render_blit(int32_t stride, int32_t left, int32_t right, int32_t top, int32_t bottom) "stride=%d [%d, %d, %d, %d]"
 qxl_render_guest_primary_resized(int32_t width, int32_t height, int32_t stride, int32_t bytes_pp, int32_t bits_pp) "%dx%d, stride %d, bpp %d, depth %d"
 qxl_render_update_area_done(void *cookie) "%p"
+
+# hw/display/vga.c
+vga_std_read_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
+vga_std_write_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
+vga_vbe_read(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+vga_vbe_write(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+
+# hw/display/cirrus_vga.c
+vga_cirrus_read_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
+vga_cirrus_write_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
+vga_cirrus_read_blt(uint32_t offset, uint32_t val) "offset 0x%x, val 0x%x"
+vga_cirrus_write_blt(uint32_t offset, uint32_t val) "offset 0x%x, val 0x%x"

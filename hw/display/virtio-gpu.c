@@ -608,6 +608,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
             cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
             return;
         }
+        pixman_image_unref(rect);
         dpy_gfx_replace_surface(g->scanout[ss.scanout_id].con, scanout->ds);
     }
 
