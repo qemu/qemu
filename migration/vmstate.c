@@ -68,10 +68,10 @@ static void *vmstate_base_addr(void *opaque, VMStateField *field, bool alloc)
                 }
             }
             if (size) {
-                *((void **)base_addr + field->start) = g_malloc(size);
+                *(void **)base_addr = g_malloc(size);
             }
         }
-        base_addr = *(void **)base_addr + field->start;
+        base_addr = *(void **)base_addr;
     }
 
     return base_addr;
@@ -933,6 +933,46 @@ const VMStateInfo vmstate_info_unused_buffer = {
     .name = "unused_buffer",
     .get  = get_unused_buffer,
     .put  = put_unused_buffer,
+};
+
+/* vmstate_info_tmp, see VMSTATE_WITH_TMP, the idea is that we allocate
+ * a temporary buffer and the pre_load/pre_save methods in the child vmsd
+ * copy stuff from the parent into the child and do calculations to fill
+ * in fields that don't really exist in the parent but need to be in the
+ * stream.
+ */
+static int get_tmp(QEMUFile *f, void *pv, size_t size, VMStateField *field)
+{
+    int ret;
+    const VMStateDescription *vmsd = field->vmsd;
+    int version_id = field->version_id;
+    void *tmp = g_malloc(size);
+
+    /* Writes the parent field which is at the start of the tmp */
+    *(void **)tmp = pv;
+    ret = vmstate_load_state(f, vmsd, tmp, version_id);
+    g_free(tmp);
+    return ret;
+}
+
+static int put_tmp(QEMUFile *f, void *pv, size_t size, VMStateField *field,
+                    QJSON *vmdesc)
+{
+    const VMStateDescription *vmsd = field->vmsd;
+    void *tmp = g_malloc(size);
+
+    /* Writes the parent field which is at the start of the tmp */
+    *(void **)tmp = pv;
+    vmstate_save_state(f, vmsd, tmp, vmdesc);
+    g_free(tmp);
+
+    return 0;
+}
+
+const VMStateInfo vmstate_info_tmp = {
+    .name = "tmp",
+    .get = get_tmp,
+    .put = put_tmp,
 };
 
 /* bitmaps (as defined by bitmap.h). Note that size here is the size

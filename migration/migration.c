@@ -891,6 +891,9 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
 
     if (params->has_x_checkpoint_delay) {
         s->parameters.x_checkpoint_delay = params->x_checkpoint_delay;
+        if (migration_in_colo_state()) {
+            colo_checkpoint_notify(s);
+        }
     }
 }
 
@@ -1295,6 +1298,15 @@ void qmp_migrate_set_downtime(double value, Error **errp)
     };
 
     qmp_migrate_set_parameters(&p, errp);
+}
+
+bool migrate_release_ram(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_RELEASE_RAM];
 }
 
 bool migrate_postcopy_ram(void)
@@ -1712,6 +1724,10 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
      * used for getting a better measurement of downtime at the source.
      */
     qemu_savevm_send_ping(ms->to_dst_file, 4);
+
+    if (migrate_release_ram()) {
+        ram_postcopy_migrated_memory_release(ms);
+    }
 
     ret = qemu_file_get_error(ms->to_dst_file);
     if (ret) {

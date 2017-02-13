@@ -2397,7 +2397,7 @@ static const VMStateDescription vmxstate_vmxnet3_mcast_list = {
     .pre_load = vmxnet3_mcast_list_pre_load,
     .needed = vmxnet3_mc_list_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_VBUFFER_UINT32(mcast_list, VMXNET3State, 0, NULL, 0,
+        VMSTATE_VBUFFER_UINT32(mcast_list, VMXNET3State, 0, NULL,
             mcast_list_buff_size),
         VMSTATE_END_OF_LIST()
     }

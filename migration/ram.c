@@ -705,6 +705,16 @@ static int save_zero_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
     return pages;
 }
 
+static void ram_release_pages(MigrationState *ms, const char *block_name,
+                              uint64_t offset, int pages)
+{
+    if (!migrate_release_ram() || !migration_in_postcopy(ms)) {
+        return;
+    }
+
+    ram_discard_range(NULL, block_name, offset, pages << TARGET_PAGE_BITS);
+}
+
 /**
  * ram_save_page: Send the given page to the stream
  *
@@ -713,13 +723,14 @@ static int save_zero_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
  *          >=0 - Number of pages written - this might legally be 0
  *                if xbzrle noticed the page was the same.
  *
+ * @ms: The current migration state.
  * @f: QEMUFile where to send the data
  * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  * @last_stage: if we are at the completion stage
  * @bytes_transferred: increase it with the number of transferred bytes
  */
-static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
+static int ram_save_page(MigrationState *ms, QEMUFile *f, PageSearchStatus *pss,
                          bool last_stage, uint64_t *bytes_transferred)
 {
     int pages = -1;
@@ -764,9 +775,9 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
              * page would be stale
              */
             xbzrle_cache_zero_page(current_addr);
+            ram_release_pages(ms, block->idstr, pss->offset, pages);
         } else if (!ram_bulk_stage &&
-                   !migration_in_postcopy(migrate_get_current()) &&
-                   migrate_use_xbzrle()) {
+                   !migration_in_postcopy(ms) && migrate_use_xbzrle()) {
             pages = save_xbzrle_page(f, &p, current_addr, block,
                                      offset, last_stage, bytes_transferred);
             if (!last_stage) {
@@ -783,7 +794,9 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
         *bytes_transferred += save_page_header(f, block,
                                                offset | RAM_SAVE_FLAG_PAGE);
         if (send_async) {
-            qemu_put_buffer_async(f, p, TARGET_PAGE_SIZE);
+            qemu_put_buffer_async(f, p, TARGET_PAGE_SIZE,
+                                  migrate_release_ram() &
+                                  migration_in_postcopy(ms));
         } else {
             qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
         }
@@ -813,6 +826,8 @@ static int do_compress_ram_page(QEMUFile *f, RAMBlock *block,
         error_report("compressed data failed!");
     } else {
         bytes_sent += blen;
+        ram_release_pages(migrate_get_current(), block->idstr,
+                          offset & TARGET_PAGE_MASK, 1);
     }
 
     return bytes_sent;
@@ -893,14 +908,15 @@ static int compress_page_with_multi_thread(QEMUFile *f, RAMBlock *block,
  *
  * Returns: Number of pages written.
  *
+ * @ms: The current migration state.
  * @f: QEMUFile where to send the data
  * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  * @last_stage: if we are at the completion stage
  * @bytes_transferred: increase it with the number of transferred bytes
  */
-static int ram_save_compressed_page(QEMUFile *f, PageSearchStatus *pss,
-                                    bool last_stage,
+static int ram_save_compressed_page(MigrationState *ms, QEMUFile *f,
+                                    PageSearchStatus *pss, bool last_stage,
                                     uint64_t *bytes_transferred)
 {
     int pages = -1;
@@ -951,12 +967,17 @@ static int ram_save_compressed_page(QEMUFile *f, PageSearchStatus *pss,
                     error_report("compressed data failed!");
                 }
             }
+            if (pages > 0) {
+                ram_release_pages(ms, block->idstr, pss->offset, pages);
+            }
         } else {
             offset |= RAM_SAVE_FLAG_CONTINUE;
             pages = save_zero_page(f, block, offset, p, bytes_transferred);
             if (pages == -1) {
                 pages = compress_page_with_multi_thread(f, block, offset,
                                                         bytes_transferred);
+            } else {
+                ram_release_pages(ms, block->idstr, pss->offset, pages);
             }
         }
     }
@@ -1231,11 +1252,11 @@ static int ram_save_target_page(MigrationState *ms, QEMUFile *f,
     if (migration_bitmap_clear_dirty(dirty_ram_abs)) {
         unsigned long *unsentmap;
         if (compression_switch && migrate_use_compression()) {
-            res = ram_save_compressed_page(f, pss,
+            res = ram_save_compressed_page(ms, f, pss,
                                            last_stage,
                                            bytes_transferred);
         } else {
-            res = ram_save_page(f, pss, last_stage,
+            res = ram_save_page(ms, f, pss, last_stage,
                                 bytes_transferred);
         }
 
@@ -1324,6 +1345,11 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
     bool again, found;
     ram_addr_t dirty_ram_abs; /* Address of the start of the dirty page in
                                  ram_addr_t space */
+
+    /* No dirty page as there is zero RAM */
+    if (!ram_bytes_total()) {
+        return pages;
+    }
 
     pss.block = last_seen_block;
     pss.offset = last_offset;
@@ -1515,6 +1541,25 @@ void ram_debug_dump_bitmap(unsigned long *todump, bool expected)
 }
 
 /* **** functions for postcopy ***** */
+
+void ram_postcopy_migrated_memory_release(MigrationState *ms)
+{
+    struct RAMBlock *block;
+    unsigned long *bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        unsigned long first = block->offset >> TARGET_PAGE_BITS;
+        unsigned long range = first + (block->used_length >> TARGET_PAGE_BITS);
+        unsigned long run_start = find_next_zero_bit(bitmap, range, first);
+
+        while (run_start < range) {
+            unsigned long run_end = find_next_bit(bitmap, range, run_start + 1);
+            ram_discard_range(NULL, block->idstr, run_start << TARGET_PAGE_BITS,
+                              (run_end - run_start) << TARGET_PAGE_BITS);
+            run_start = find_next_zero_bit(bitmap, range, run_end + 1);
+        }
+    }
+}
 
 /*
  * Callback from postcopy_each_ram_send_discard for each RAMBlock
@@ -1912,14 +1957,17 @@ static int ram_save_init_globals(void)
     bytes_transferred = 0;
     reset_ram_globals();
 
-    ram_bitmap_pages = last_ram_offset() >> TARGET_PAGE_BITS;
     migration_bitmap_rcu = g_new0(struct BitmapRcu, 1);
-    migration_bitmap_rcu->bmap = bitmap_new(ram_bitmap_pages);
-    bitmap_set(migration_bitmap_rcu->bmap, 0, ram_bitmap_pages);
+    /* Skip setting bitmap if there is no RAM */
+    if (ram_bytes_total()) {
+        ram_bitmap_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+        migration_bitmap_rcu->bmap = bitmap_new(ram_bitmap_pages);
+        bitmap_set(migration_bitmap_rcu->bmap, 0, ram_bitmap_pages);
 
-    if (migrate_postcopy_ram()) {
-        migration_bitmap_rcu->unsentmap = bitmap_new(ram_bitmap_pages);
-        bitmap_set(migration_bitmap_rcu->unsentmap, 0, ram_bitmap_pages);
+        if (migrate_postcopy_ram()) {
+            migration_bitmap_rcu->unsentmap = bitmap_new(ram_bitmap_pages);
+            bitmap_set(migration_bitmap_rcu->unsentmap, 0, ram_bitmap_pages);
+        }
     }
 
     /*

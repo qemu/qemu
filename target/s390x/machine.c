@@ -180,7 +180,7 @@ const VMStateDescription vmstate_s390_cpu = {
         VMSTATE_UINT8(env.cpu_state, S390CPU),
         VMSTATE_UINT8(env.sigp_order, S390CPU),
         VMSTATE_UINT32_V(irqstate_saved_size, S390CPU, 4),
-        VMSTATE_VBUFFER_UINT32(irqstate, S390CPU, 4, NULL, 0,
+        VMSTATE_VBUFFER_UINT32(irqstate, S390CPU, 4, NULL,
                                irqstate_saved_size),
         VMSTATE_END_OF_LIST()
     },
