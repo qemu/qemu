@@ -273,7 +273,19 @@ static CachedL2Table *qed_new_l2_table(BDRVQEDState *s)
     return l2_table;
 }
 
-static void qed_aio_next_io(void *opaque, int ret);
+static void qed_aio_next_io(QEDAIOCB *acb, int ret);
+
+static void qed_aio_start_io(QEDAIOCB *acb)
+{
+    qed_aio_next_io(acb, 0);
+}
+
+static void qed_aio_next_io_cb(void *opaque, int ret)
+{
+    QEDAIOCB *acb = opaque;
+
+    qed_aio_next_io(acb, ret);
+}
 
 static void qed_plug_allocating_write_reqs(BDRVQEDState *s)
 {
@@ -292,7 +304,7 @@ static void qed_unplug_allocating_write_reqs(BDRVQEDState *s)
 
     acb = QSIMPLEQ_FIRST(&s->allocating_write_reqs);
     if (acb) {
-        qed_aio_next_io(acb, 0);
+        qed_aio_start_io(acb);
     }
 }
 
@@ -959,7 +971,7 @@ static void qed_aio_complete(QEDAIOCB *acb, int ret)
         QSIMPLEQ_REMOVE_HEAD(&s->allocating_write_reqs, next);
         acb = QSIMPLEQ_FIRST(&s->allocating_write_reqs);
         if (acb) {
-            qed_aio_next_io(acb, 0);
+            qed_aio_start_io(acb);
         } else if (s->header.features & QED_F_NEED_CHECK) {
             qed_start_need_check_timer(s);
         }
@@ -984,7 +996,7 @@ static void qed_commit_l2_update(void *opaque, int ret)
     acb->request.l2_table = qed_find_l2_cache_entry(&s->l2_cache, l2_offset);
     assert(acb->request.l2_table != NULL);
 
-    qed_aio_next_io(opaque, ret);
+    qed_aio_next_io(acb, ret);
 }
 
 /**
@@ -1032,11 +1044,11 @@ static void qed_aio_write_l2_update(QEDAIOCB *acb, int ret, uint64_t offset)
     if (need_alloc) {
         /* Write out the whole new L2 table */
         qed_write_l2_table(s, &acb->request, 0, s->table_nelems, true,
-                            qed_aio_write_l1_update, acb);
+                           qed_aio_write_l1_update, acb);
     } else {
         /* Write out only the updated part of the L2 table */
         qed_write_l2_table(s, &acb->request, index, acb->cur_nclusters, false,
-                            qed_aio_next_io, acb);
+                           qed_aio_next_io_cb, acb);
     }
     return;
 
@@ -1088,7 +1100,7 @@ static void qed_aio_write_main(void *opaque, int ret)
     }
 
     if (acb->find_cluster_ret == QED_CLUSTER_FOUND) {
-        next_fn = qed_aio_next_io;
+        next_fn = qed_aio_next_io_cb;
     } else {
         if (s->bs->backing) {
             next_fn = qed_aio_write_flush_before_l2_update;
@@ -1201,7 +1213,7 @@ static void qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
     if (acb->flags & QED_AIOCB_ZERO) {
         /* Skip ahead if the clusters are already zero */
         if (acb->find_cluster_ret == QED_CLUSTER_ZERO) {
-            qed_aio_next_io(acb, 0);
+            qed_aio_start_io(acb);
             return;
         }
 
@@ -1321,18 +1333,18 @@ static void qed_aio_read_data(void *opaque, int ret,
     /* Handle zero cluster and backing file reads */
     if (ret == QED_CLUSTER_ZERO) {
         qemu_iovec_memset(&acb->cur_qiov, 0, 0, acb->cur_qiov.size);
-        qed_aio_next_io(acb, 0);
+        qed_aio_start_io(acb);
         return;
     } else if (ret != QED_CLUSTER_FOUND) {
         qed_read_backing_file(s, acb->cur_pos, &acb->cur_qiov,
-                              &acb->backing_qiov, qed_aio_next_io, acb);
+                              &acb->backing_qiov, qed_aio_next_io_cb, acb);
         return;
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
     bdrv_aio_readv(bs->file, offset / BDRV_SECTOR_SIZE,
                    &acb->cur_qiov, acb->cur_qiov.size / BDRV_SECTOR_SIZE,
-                   qed_aio_next_io, acb);
+                   qed_aio_next_io_cb, acb);
     return;
 
 err:
@@ -1342,9 +1354,8 @@ err:
 /**
  * Begin next I/O or complete the request
  */
-static void qed_aio_next_io(void *opaque, int ret)
+static void qed_aio_next_io(QEDAIOCB *acb, int ret)
 {
-    QEDAIOCB *acb = opaque;
     BDRVQEDState *s = acb_to_s(acb);
     QEDFindClusterFunc *io_fn = (acb->flags & QED_AIOCB_WRITE) ?
                                 qed_aio_write_data : qed_aio_read_data;
@@ -1400,7 +1411,7 @@ static BlockAIOCB *qed_aio_setup(BlockDriverState *bs,
     qemu_iovec_init(&acb->cur_qiov, qiov->niov);
 
     /* Start request */
-    qed_aio_next_io(acb, 0);
+    qed_aio_start_io(acb);
     return &acb->common;
 }
 
