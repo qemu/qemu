@@ -778,7 +778,7 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
     ssize_t ret;
 
     ret = read_sync(ioc, buf, sizeof(buf));
-    if (ret < 0) {
+    if (ret <= 0) {
         return ret;
     }
 
