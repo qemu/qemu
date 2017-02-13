@@ -136,13 +136,16 @@ static void
 iscsi_bh_cb(void *p)
 {
     IscsiAIOCB *acb = p;
+    AioContext *ctx = bdrv_get_aio_context(acb->common.bs);
 
     qemu_bh_delete(acb->bh);
 
     g_free(acb->buf);
     acb->buf = NULL;
 
+    aio_context_acquire(ctx);
     acb->common.cb(acb->common.opaque, acb->status);
+    aio_context_release(ctx);
 
     if (acb->task != NULL) {
         scsi_free_scsi_task(acb->task);
@@ -165,8 +168,9 @@ iscsi_schedule_bh(IscsiAIOCB *acb)
 static void iscsi_co_generic_bh_cb(void *opaque)
 {
     struct IscsiTask *iTask = opaque;
+
     iTask->complete = 1;
-    qemu_coroutine_enter(iTask->co);
+    aio_co_wake(iTask->co);
 }
 
 static void iscsi_retry_timer_expired(void *opaque)

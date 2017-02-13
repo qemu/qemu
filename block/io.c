@@ -189,7 +189,7 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     bdrv_dec_in_flight(bs);
     bdrv_drained_begin(bs);
     data->done = true;
-    qemu_coroutine_enter(co);
+    aio_co_wake(co);
 }
 
 static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
@@ -2152,9 +2152,13 @@ static void bdrv_co_complete(BlockAIOCBCoroutine *acb)
 static void bdrv_co_em_bh(void *opaque)
 {
     BlockAIOCBCoroutine *acb = opaque;
+    BlockDriverState *bs = acb->common.bs;
+    AioContext *ctx = bdrv_get_aio_context(bs);
 
     assert(!acb->need_bh);
+    aio_context_acquire(ctx);
     bdrv_co_complete(acb);
+    aio_context_release(ctx);
 }
 
 static void bdrv_co_maybe_schedule_bh(BlockAIOCBCoroutine *acb)

@@ -60,7 +60,7 @@ static int64_t blkreplay_getlength(BlockDriverState *bs)
 static void blkreplay_bh_cb(void *opaque)
 {
     Request *req = opaque;
-    qemu_coroutine_enter(req->co);
+    aio_co_wake(req->co);
     qemu_bh_delete(req->bh);
     g_free(req);
 }

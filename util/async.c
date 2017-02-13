@@ -114,9 +114,7 @@ int aio_bh_poll(AioContext *ctx)
                 ret = 1;
             }
             bh->idle = 0;
-            aio_context_acquire(ctx);
             aio_bh_call(bh);
-            aio_context_release(ctx);
         }
         if (bh->deleted) {
             deleted = true;
@@ -389,7 +387,9 @@ static void co_schedule_bh_cb(void *opaque)
         Coroutine *co = QSLIST_FIRST(&straight);
         QSLIST_REMOVE_HEAD(&straight, co_scheduled_next);
         trace_aio_co_schedule_bh_cb(ctx, co);
+        aio_context_acquire(ctx);
         qemu_coroutine_enter(co);
+        aio_context_release(ctx);
     }
 }
 

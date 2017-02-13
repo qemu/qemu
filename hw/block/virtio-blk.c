@@ -647,6 +647,7 @@ static void virtio_blk_dma_restart_bh(void *opaque)
 
     s->rq = NULL;
 
+    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     while (req) {
         VirtIOBlockReq *next = req->next;
         if (virtio_blk_handle_request(req, &mrb)) {
@@ -667,6 +668,7 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s->blk, &mrb);
     }
+    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 static void virtio_blk_dma_restart_cb(void *opaque, int running,

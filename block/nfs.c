@@ -237,8 +237,9 @@ static void nfs_co_init_task(BlockDriverState *bs, NFSRPC *task)
 static void nfs_co_generic_bh_cb(void *opaque)
 {
     NFSRPC *task = opaque;
+
     task->complete = 1;
-    qemu_coroutine_enter(task->co);
+    aio_co_wake(task->co);
 }
 
 static void
