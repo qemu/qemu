@@ -196,6 +196,88 @@ static void test_multi_co_schedule_10(void)
     test_multi_co_schedule(10);
 }
 
+/* CoMutex thread-safety.  */
+
+static uint32_t atomic_counter;
+static uint32_t running;
+static uint32_t counter;
+static CoMutex comutex;
+
+static void coroutine_fn test_multi_co_mutex_entry(void *opaque)
+{
+    while (!atomic_mb_read(&now_stopping)) {
+        qemu_co_mutex_lock(&comutex);
+        counter++;
+        qemu_co_mutex_unlock(&comutex);
+
+        /* Increase atomic_counter *after* releasing the mutex.  Otherwise
+         * there is a chance (it happens about 1 in 3 runs) that the iothread
+         * exits before the coroutine is woken up, causing a spurious
+         * assertion failure.
+         */
+        atomic_inc(&atomic_counter);
+    }
+    atomic_dec(&running);
+}
+
+static void test_multi_co_mutex(int threads, int seconds)
+{
+    int i;
+
+    qemu_co_mutex_init(&comutex);
+    counter = 0;
+    atomic_counter = 0;
+    now_stopping = false;
+
+    create_aio_contexts();
+    assert(threads <= NUM_CONTEXTS);
+    running = threads;
+    for (i = 0; i < threads; i++) {
+        Coroutine *co1 = qemu_coroutine_create(test_multi_co_mutex_entry, NULL);
+        aio_co_schedule(ctx[i], co1);
+    }
+
+    g_usleep(seconds * 1000000);
+
+    atomic_mb_set(&now_stopping, true);
+    while (running > 0) {
+        g_usleep(100000);
+    }
+
+    join_aio_contexts();
+    g_test_message("%d iterations/second\n", counter / seconds);
+    g_assert_cmpint(counter, ==, atomic_counter);
+}
+
+/* Testing with NUM_CONTEXTS threads focuses on the queue.  The mutex however
+ * is too contended (and the threads spend too much time in aio_poll)
+ * to actually stress the handoff protocol.
+ */
+static void test_multi_co_mutex_1(void)
+{
+    test_multi_co_mutex(NUM_CONTEXTS, 1);
+}
+
+static void test_multi_co_mutex_10(void)
+{
+    test_multi_co_mutex(NUM_CONTEXTS, 10);
+}
+
+/* Testing with fewer threads stresses the handoff protocol too.  Still, the
+ * case where the locker _can_ pick up a handoff is very rare, happening
+ * about 10 times in 1 million, so increase the runtime a bit compared to
+ * other "quick" testcases that only run for 1 second.
+ */
+static void test_multi_co_mutex_2_3(void)
+{
+    test_multi_co_mutex(2, 3);
+}
+
+static void test_multi_co_mutex_2_30(void)
+{
+    test_multi_co_mutex(2, 30);
+}
+
 /* End of tests.  */
 
 int main(int argc, char **argv)
@@ -206,8 +288,12 @@ int main(int argc, char **argv)
     g_test_add_func("/aio/multi/lifecycle", test_lifecycle);
     if (g_test_quick()) {
         g_test_add_func("/aio/multi/schedule", test_multi_co_schedule_1);
+        g_test_add_func("/aio/multi/mutex/contended", test_multi_co_mutex_1);
+        g_test_add_func("/aio/multi/mutex/handoff", test_multi_co_mutex_2_3);
     } else {
         g_test_add_func("/aio/multi/schedule", test_multi_co_schedule_10);
+        g_test_add_func("/aio/multi/mutex/contended", test_multi_co_mutex_10);
+        g_test_add_func("/aio/multi/mutex/handoff", test_multi_co_mutex_2_30);
     }
     return g_test_run();
 }

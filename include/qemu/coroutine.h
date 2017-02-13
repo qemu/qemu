@@ -160,10 +160,23 @@ bool qemu_co_queue_empty(CoQueue *queue);
 /**
  * Provides a mutex that can be used to synchronise coroutines
  */
+struct CoWaitRecord;
 typedef struct CoMutex {
-    bool locked;
+    /* Count of pending lockers; 0 for a free mutex, 1 for an
+     * uncontended mutex.
+     */
+    unsigned locked;
+
+    /* A queue of waiters.  Elements are added atomically in front of
+     * from_push.  to_pop is only populated, and popped from, by whoever
+     * is in charge of the next wakeup.  This can be an unlocker or,
+     * through the handoff protocol, a locker that is about to go to sleep.
+     */
+    QSLIST_HEAD(, CoWaitRecord) from_push, to_pop;
+
+    unsigned handoff, sequence;
+
     Coroutine *holder;
-    CoQueue queue;
 } CoMutex;
 
 /**
