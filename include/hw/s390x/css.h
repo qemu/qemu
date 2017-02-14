@@ -172,6 +172,11 @@ extern PropertyInfo css_devid_propinfo;
 #define DEFINE_PROP_CSS_DEV_ID(_n, _s, _f) \
     DEFINE_PROP(_n, _s, _f, css_devid_propinfo, CssDevId)
 
+extern PropertyInfo css_devid_ro_propinfo;
+
+#define DEFINE_PROP_CSS_DEV_ID_RO(_n, _s, _f) \
+    DEFINE_PROP(_n, _s, _f, css_devid_ro_propinfo, CssDevId)
+
 /**
  * Create a subchannel for the given bus id.
  *

@@ -1894,6 +1894,13 @@ PropertyInfo css_devid_propinfo = {
     .set = set_css_devid,
 };
 
+PropertyInfo css_devid_ro_propinfo = {
+    .name = "str",
+    .description = "Read-only identifier of an I/O device in the channel "
+                   "subsystem, example: fe.1.23ab",
+    .get = get_css_devid,
+};
+
 SubchDev *css_create_virtual_sch(CssDevId bus_id, Error **errp)
 {
     uint16_t schid = 0;
