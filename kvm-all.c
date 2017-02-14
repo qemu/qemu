@@ -2002,7 +2002,7 @@ int kvm_cpu_exec(CPUState *cpu)
             case KVM_SYSTEM_EVENT_CRASH:
                 kvm_cpu_synchronize_state(cpu);
                 qemu_mutex_lock_iothread();
-                qemu_system_guest_panicked();
+                qemu_system_guest_panicked(cpu_get_crash_info(cpu));
                 qemu_mutex_unlock_iothread();
                 ret = 0;
                 break;

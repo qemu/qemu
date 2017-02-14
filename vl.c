@@ -1679,17 +1679,22 @@ void qemu_system_reset(bool report)
     cpu_synchronize_all_post_reset();
 }
 
-void qemu_system_guest_panicked(void)
+void qemu_system_guest_panicked(GuestPanicInformation *info)
 {
     if (current_cpu) {
         current_cpu->crash_occurred = true;
     }
-    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE, &error_abort);
+    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
+                                   !!info, info, &error_abort);
     vm_stop(RUN_STATE_GUEST_PANICKED);
     if (!no_shutdown) {
         qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_POWEROFF,
-                                       &error_abort);
+                                       !!info, info, &error_abort);
         qemu_system_shutdown_request();
+    }
+
+    if (info) {
+        qapi_free_GuestPanicInformation(info);
     }
 }
 
