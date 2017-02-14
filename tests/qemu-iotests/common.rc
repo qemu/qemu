@@ -379,6 +379,18 @@ _supported_proto()
     _notrun "not suitable for this image protocol: $IMGPROTO"
 }
 
+# tests whether $IMGPROTO is specified as an unsupported image protocol for a test
+#
+_unsupported_proto()
+{
+    for f; do
+        if [ "$f" = "$IMGPROTO" ]; then
+            _notrun "not suitable for this image protocol: $IMGPROTO"
+            return
+        fi
+    done
+}
+
 # tests whether the host OS is one of the supported OSes for a test
 #
 _supported_os()
