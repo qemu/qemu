@@ -94,6 +94,7 @@ struct VirtioCcwDevice {
     IndAddr *indicators2;
     IndAddr *summary_indicator;
     uint64_t ind_bit;
+    bool force_revision_1;
 };
 
 /* The maximum virtio revision we support. */

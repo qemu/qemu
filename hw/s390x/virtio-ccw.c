@@ -280,6 +280,15 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                    ccw.cmd_code);
     check_len = !((ccw.flags & CCW_FLAG_SLI) && !(ccw.flags & CCW_FLAG_DC));
 
+    if (dev->force_revision_1 && dev->revision < 0 &&
+        ccw.cmd_code != CCW_CMD_SET_VIRTIO_REV) {
+        /*
+         * virtio-1 drivers must start with negotiating to a revision >= 1,
+         * so post a command reject for all other commands
+         */
+        return -ENOSYS;
+    }
+
     /* Look at the command. */
     switch (ccw.cmd_code) {
     case CCW_CMD_SET_VQ:
@@ -638,7 +647,8 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
          * need to fetch it here. Nothing to do for now, though.
          */
         if (dev->revision >= 0 ||
-            revinfo.revision > virtio_ccw_rev_max(dev)) {
+            revinfo.revision > virtio_ccw_rev_max(dev) ||
+            (dev->force_revision_1 && !revinfo.revision)) {
             ret = -ENOSYS;
             break;
         }
@@ -667,6 +677,12 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     Error *err = NULL;
 
     if (!sch) {
+        return;
+    }
+    if (!virtio_ccw_rev_max(dev) && dev->force_revision_1) {
+        error_setg(&err, "Invalid value of property max_rev "
+                   "(is %d expected >= 1)", virtio_ccw_rev_max(dev));
+        error_propagate(errp, err);
         return;
     }
 
