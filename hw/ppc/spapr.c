@@ -101,9 +101,10 @@ static XICSState *try_create_xics(const char *type, int nr_servers,
     Error *err = NULL;
     DeviceState *dev;
 
-    dev = qdev_create(NULL, type);
+    dev = DEVICE(object_new(type));
     qdev_prop_set_uint32(dev, "nr_servers", nr_servers);
     qdev_prop_set_uint32(dev, "nr_irqs", nr_irqs);
+    qdev_set_parent_bus(dev, sysbus_get_default());
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);

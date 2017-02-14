@@ -80,7 +80,7 @@ struct XICSStateClass {
 
 struct XICSState {
     /*< private >*/
-    SysBusDevice parent_obj;
+    DeviceState parent_obj;
     /*< public >*/
     uint32_t nr_servers;
     uint32_t nr_irqs;

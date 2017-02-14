@@ -260,7 +260,7 @@ static void xics_common_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo xics_common_info = {
     .name          = TYPE_XICS_COMMON,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_DEVICE,
     .instance_size = sizeof(XICSState),
     .class_size    = sizeof(XICSStateClass),
     .instance_init = xics_common_initfn,
