@@ -31,4 +31,6 @@ struct target_pt_regs {
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
 
+#define MMAP_SHIFT TARGET_PAGE_BITS
+
 #endif /* OPENRISC_TARGET_SYSCALL_H */

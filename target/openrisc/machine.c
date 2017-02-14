@@ -24,20 +24,64 @@
 #include "hw/boards.h"
 #include "migration/cpu.h"
 
+static int get_sr(QEMUFile *f, void *opaque, size_t size, VMStateField *field)
+{
+    CPUOpenRISCState *env = opaque;
+    cpu_set_sr(env, qemu_get_be32(f));
+    return 0;
+}
+
+static int put_sr(QEMUFile *f, void *opaque, size_t size,
+                  VMStateField *field, QJSON *vmdesc)
+{
+    CPUOpenRISCState *env = opaque;
+    qemu_put_be32(f, cpu_get_sr(env));
+    return 0;
+}
+
+static const VMStateInfo vmstate_sr = {
+    .name = "sr",
+    .get = get_sr,
+    .put = put_sr,
+};
+
 static const VMStateDescription vmstate_env = {
     .name = "env",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(gpr, CPUOpenRISCState, 32),
-        VMSTATE_UINT32(sr, CPUOpenRISCState),
-        VMSTATE_UINT32(epcr, CPUOpenRISCState),
-        VMSTATE_UINT32(eear, CPUOpenRISCState),
+        VMSTATE_UINTTL_ARRAY(gpr, CPUOpenRISCState, 32),
+        VMSTATE_UINTTL(pc, CPUOpenRISCState),
+        VMSTATE_UINTTL(ppc, CPUOpenRISCState),
+        VMSTATE_UINTTL(jmp_pc, CPUOpenRISCState),
+        VMSTATE_UINTTL(lock_addr, CPUOpenRISCState),
+        VMSTATE_UINTTL(lock_value, CPUOpenRISCState),
+        VMSTATE_UINTTL(epcr, CPUOpenRISCState),
+        VMSTATE_UINTTL(eear, CPUOpenRISCState),
+
+        /* Save the architecture value of the SR, not the internally
+           expanded version.  Since this architecture value does not
+           exist in memory to be stored, this requires a but of hoop
+           jumping.  We want OFFSET=0 so that we effectively pass ENV
+           to the helper functions, and we need to fill in the name by
+           hand since there's no field of that name.  */
+        {
+            .name = "sr",
+            .version_id = 0,
+            .size = sizeof(uint32_t),
+            .info = &vmstate_sr,
+            .flags = VMS_SINGLE,
+            .offset = 0
+        },
+
+        VMSTATE_UINT32(vr, CPUOpenRISCState),
+        VMSTATE_UINT32(upr, CPUOpenRISCState),
+        VMSTATE_UINT32(cpucfgr, CPUOpenRISCState),
+        VMSTATE_UINT32(dmmucfgr, CPUOpenRISCState),
+        VMSTATE_UINT32(immucfgr, CPUOpenRISCState),
         VMSTATE_UINT32(esr, CPUOpenRISCState),
         VMSTATE_UINT32(fpcsr, CPUOpenRISCState),
-        VMSTATE_UINT32(pc, CPUOpenRISCState),
-        VMSTATE_UINT32(npc, CPUOpenRISCState),
-        VMSTATE_UINT32(ppc, CPUOpenRISCState),
+        VMSTATE_UINT64(mac, CPUOpenRISCState),
         VMSTATE_END_OF_LIST()
     }
 };

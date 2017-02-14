@@ -5843,7 +5843,7 @@ target_name=$(echo $target | cut -d '-' -f 1)
 target_bigendian="no"
 
 case "$target_name" in
-  armeb|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or32|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
+  armeb|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or1k|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
   target_bigendian=yes
   ;;
 esac
@@ -5937,7 +5937,7 @@ case "$target_name" in
   ;;
   nios2)
   ;;
-  or32)
+  or1k)
     TARGET_ARCH=openrisc
     TARGET_BASE_ARCH=openrisc
   ;;
@@ -6145,7 +6145,7 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
   nios2)
     disas_config "NIOS2"
   ;;
-  or32)
+  or1k)
     disas_config "OPENRISC"
   ;;
   ppc*)

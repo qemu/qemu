@@ -146,52 +146,32 @@ FLOAT_CALC(div)
 FLOAT_CALC(rem)
 #undef FLOAT_CALC
 
-#define FLOAT_TERNOP(name1, name2)                                        \
-uint64_t helper_float_ ## name1 ## name2 ## _d(CPUOpenRISCState *env,     \
-                                               uint64_t fdt0,             \
-                                               uint64_t fdt1)             \
-{                                                                         \
-    uint64_t result, temp, hi, lo;                                        \
-    uint32_t val1, val2;                                                  \
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
-    hi = env->fpmaddhi;                                                   \
-    lo = env->fpmaddlo;                                                   \
-    set_float_exception_flags(0, &cpu->env.fp_status);                    \
-    result = float64_ ## name1(fdt0, fdt1, &cpu->env.fp_status);          \
-    lo &= 0xffffffff;                                                     \
-    hi &= 0xffffffff;                                                     \
-    temp = (hi << 32) | lo;                                               \
-    result = float64_ ## name2(result, temp, &cpu->env.fp_status);        \
-    val1 = result >> 32;                                                  \
-    val2 = (uint32_t) (result & 0xffffffff);                              \
-    update_fpcsr(cpu);                                                    \
-    cpu->env.fpmaddlo = val2;                                             \
-    cpu->env.fpmaddhi = val1;                                             \
-    return 0;                                                             \
-}                                                                         \
-                                                                          \
-uint32_t helper_float_ ## name1 ## name2 ## _s(CPUOpenRISCState *env,     \
-                                            uint32_t fdt0, uint32_t fdt1) \
-{                                                                         \
-    uint64_t result, temp, hi, lo;                                        \
-    uint32_t val1, val2;                                                  \
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
-    hi = cpu->env.fpmaddhi;                                               \
-    lo = cpu->env.fpmaddlo;                                               \
-    set_float_exception_flags(0, &cpu->env.fp_status);                    \
-    result = float64_ ## name1(fdt0, fdt1, &cpu->env.fp_status);          \
-    temp = (hi << 32) | lo;                                               \
-    result = float64_ ## name2(result, temp, &cpu->env.fp_status);        \
-    val1 = result >> 32;                                                  \
-    val2 = (uint32_t) (result & 0xffffffff);                              \
-    update_fpcsr(cpu);                                                    \
-    cpu->env.fpmaddlo = val2;                                             \
-    cpu->env.fpmaddhi = val1;                                             \
-    return 0;                                                             \
+
+uint64_t helper_float_madd_d(CPUOpenRISCState *env, uint64_t a,
+                             uint64_t b, uint64_t c)
+{
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
+    uint64_t result;
+    set_float_exception_flags(0, &cpu->env.fp_status);
+    /* Note that or1ksim doesn't use merged operation.  */
+    result = float64_mul(b, c, &cpu->env.fp_status);
+    result = float64_add(result, a, &cpu->env.fp_status);
+    update_fpcsr(cpu);
+    return result;
 }
 
-FLOAT_TERNOP(mul, add)
-#undef FLOAT_TERNOP
+uint32_t helper_float_madd_s(CPUOpenRISCState *env, uint32_t a,
+                             uint32_t b, uint32_t c)
+{
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
+    uint32_t result;
+    set_float_exception_flags(0, &cpu->env.fp_status);
+    /* Note that or1ksim doesn't use merged operation.  */
+    result = float32_mul(b, c, &cpu->env.fp_status);
+    result = float32_add(result, a, &cpu->env.fp_status);
+    update_fpcsr(cpu);
+    return result;
+}
 
 
 #define FLOAT_CMP(name)                                                   \

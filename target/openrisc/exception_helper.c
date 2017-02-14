@@ -19,7 +19,9 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "exec/exec-all.h"
 #include "exception.h"
 
 void HELPER(exception)(CPUOpenRISCState *env, uint32_t excp)
@@ -27,4 +29,34 @@ void HELPER(exception)(CPUOpenRISCState *env, uint32_t excp)
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     raise_exception(cpu, excp);
+}
+
+static void QEMU_NORETURN do_range(CPUOpenRISCState *env, uintptr_t pc)
+{
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    cs->exception_index = EXCP_RANGE;
+    cpu_loop_exit_restore(cs, pc);
+}
+
+void HELPER(ove_cy)(CPUOpenRISCState *env)
+{
+    if (env->sr_cy) {
+        do_range(env, GETPC());
+    }
+}
+
+void HELPER(ove_ov)(CPUOpenRISCState *env)
+{
+    if (env->sr_ov < 0) {
+        do_range(env, GETPC());
+    }
+}
+
+void HELPER(ove_cyov)(CPUOpenRISCState *env)
+{
+    if (env->sr_cy || env->sr_ov < 0) {
+        do_range(env, GETPC());
+    }
 }
