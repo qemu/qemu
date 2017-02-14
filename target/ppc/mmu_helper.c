@@ -825,7 +825,7 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         tlb = &env->tlb.tlbe[i];
         ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address, rw,
                                  access_type, i);
-        if (!ret) {
+        if (ret != -1) {
             break;
         }
     }
