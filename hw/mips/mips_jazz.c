@@ -291,10 +291,6 @@ static void mips_jazz_init(MachineState *machine,
              qdev_get_gpio_in(rc4030, 5), &esp_reset, &dma_enable);
 
     /* Floppy */
-    if (drive_get_max_bus(IF_FLOPPY) >= MAX_FD) {
-        fprintf(stderr, "qemu: too many floppy drives\n");
-        exit(1);
-    }
     for (n = 0; n < MAX_FD; n++) {
         fds[n] = drive_get(IF_FLOPPY, 0, n);
     }
