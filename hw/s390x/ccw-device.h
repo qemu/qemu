@@ -20,7 +20,7 @@ typedef struct CcwDevice {
     SubchDev *sch;
     /* <cssid>.<ssid>.<device number> */
     /* The user-set busid of the virtual ccw device. */
-    CssDevId bus_id;
+    CssDevId devno;
     /* The actual busid of the virtual ccw device. */
     CssDevId dev_id;
     /* The actual busid of the virtual subchannel. */
