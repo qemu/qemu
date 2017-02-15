@@ -897,14 +897,6 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
     /* override default SCSI bus hotplug-handler, with virtio-scsi's one */
     qbus_set_hotplug_handler(BUS(&s->bus), dev, &error_abort);
 
-    if (!dev->hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
-            return;
-        }
-    }
-
     virtio_scsi_dataplane_setup(s, errp);
 }
 

@@ -62,6 +62,7 @@ int main(int argc, char **argv)
 #include "hw/usb.h"
 #include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
+#include "hw/scsi/scsi.h"
 #include "hw/bt.h"
 #include "sysemu/watchdog.h"
 #include "hw/smbios/smbios.h"
@@ -4508,6 +4509,9 @@ int main(int argc, char **argv, char **envp)
     numa_post_machine_init();
 
     rom_reset_order_override();
+
+    /* Create frontends for -drive if=scsi */
+    scsi_legacy_handle_cmdline();
 
     /* Did we create any drives that we failed to create a device for? */
     drive_check_orphaned();

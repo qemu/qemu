@@ -2216,9 +2216,6 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
     QTAILQ_INIT(&s->queue);
 
     scsi_bus_new(&s->bus, sizeof(s->bus), d, &lsi_scsi_info, NULL);
-    if (!d->hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus, errp);
-    }
 }
 
 static void lsi_scsi_unrealize(DeviceState *dev, Error **errp)

@@ -2325,7 +2325,6 @@ static const struct SCSIBusInfo megasas_scsi_info = {
 
 static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
 {
-    DeviceState *d = DEVICE(dev);
     MegasasState *s = MEGASAS(dev);
     MegasasBaseClass *b = MEGASAS_DEVICE_GET_CLASS(s);
     uint8_t *pci_conf;
@@ -2426,9 +2425,6 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
 
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
                  &megasas_scsi_info, NULL);
-    if (!d->hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus, errp);
-    }
 }
 
 static Property megasas_properties_gen1[] = {

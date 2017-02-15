@@ -1271,7 +1271,6 @@ static const struct SCSIBusInfo mptsas_scsi_info = {
 
 static void mptsas_scsi_realize(PCIDevice *dev, Error **errp)
 {
-    DeviceState *d = DEVICE(dev);
     MPTSASState *s = MPT_SAS(dev);
     Error *err = NULL;
     int ret;
@@ -1326,9 +1325,6 @@ static void mptsas_scsi_realize(PCIDevice *dev, Error **errp)
     QTAILQ_INIT(&s->pending);
 
     scsi_bus_new(&s->bus, sizeof(s->bus), &dev->qdev, &mptsas_scsi_info, NULL);
-    if (!d->hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus, errp);
-    }
 }
 
 static void mptsas_scsi_uninit(PCIDevice *dev)
