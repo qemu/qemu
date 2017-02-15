@@ -2968,6 +2968,7 @@ static void write_target_close(BlockDriverState *bs) {
 
 static BlockDriver vvfat_write_target = {
     .format_name        = "vvfat_write_target",
+    .instance_size      = sizeof(void*),
     .bdrv_co_pwritev    = write_target_commit,
     .bdrv_close         = write_target_close,
 };
@@ -3036,13 +3037,12 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     unlink(s->qcow_filename);
 #endif
 
-    backing = bdrv_new();
+    backing = bdrv_new_open_driver(&vvfat_write_target, NULL, BDRV_O_ALLOW_RDWR,
+                                   &error_abort);
+    *(void**) backing->opaque = s;
+
     bdrv_set_backing_hd(s->bs, backing);
     bdrv_unref(backing);
-
-    s->bs->backing->bs->drv = &vvfat_write_target;
-    s->bs->backing->bs->opaque = g_new(void *, 1);
-    *(void**)s->bs->backing->bs->opaque = s;
 
     return 0;
 
