@@ -438,12 +438,13 @@ static bool kvm_valid_page_size(uint32_t flags, long rampgsize, uint32_t shift)
     return (1ul << shift) <= rampgsize;
 }
 
+static long max_cpu_page_size;
+
 static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 {
     static struct kvm_ppc_smmu_info smmu_info;
     static bool has_smmu_info;
     CPUPPCState *env = &cpu->env;
-    long rampagesize;
     int iq, ik, jq, jk;
     bool has_64k_pages = false;
 
@@ -458,7 +459,9 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
         has_smmu_info = true;
     }
 
-    rampagesize = getrampagesize();
+    if (!max_cpu_page_size) {
+        max_cpu_page_size = getrampagesize();
+    }
 
     /* Convert to QEMU form */
     memset(&env->sps, 0, sizeof(env->sps));
@@ -478,14 +481,14 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
         struct ppc_one_seg_page_size *qsps = &env->sps.sps[iq];
         struct kvm_ppc_one_seg_page_size *ksps = &smmu_info.sps[ik];
 
-        if (!kvm_valid_page_size(smmu_info.flags, rampagesize,
+        if (!kvm_valid_page_size(smmu_info.flags, max_cpu_page_size,
                                  ksps->page_shift)) {
             continue;
         }
         qsps->page_shift = ksps->page_shift;
         qsps->slb_enc = ksps->slb_enc;
         for (jk = jq = 0; jk < KVM_PPC_PAGE_SIZES_MAX_SZ; jk++) {
-            if (!kvm_valid_page_size(smmu_info.flags, rampagesize,
+            if (!kvm_valid_page_size(smmu_info.flags, max_cpu_page_size,
                                      ksps->enc[jk].page_shift)) {
                 continue;
             }
@@ -510,10 +513,31 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
         env->mmu_model &= ~POWERPC_MMU_64K;
     }
 }
+
+bool kvmppc_is_mem_backend_page_size_ok(char *obj_path)
+{
+    Object *mem_obj = object_resolve_path(obj_path, NULL);
+    char *mempath = object_property_get_str(mem_obj, "mem-path", NULL);
+    long pagesize;
+
+    if (mempath) {
+        pagesize = gethugepagesize(mempath);
+    } else {
+        pagesize = getpagesize();
+    }
+
+    return pagesize >= max_cpu_page_size;
+}
+
 #else /* defined (TARGET_PPC64) */
 
 static inline void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 {
+}
+
+bool kvmppc_is_mem_backend_page_size_ok(char *obj_path)
+{
+    return true;
 }
 
 #endif /* !defined (TARGET_PPC64) */

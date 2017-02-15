@@ -2367,10 +2367,18 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     uint64_t align = memory_region_get_alignment(mr);
     uint64_t size = memory_region_size(mr);
     uint64_t addr;
+    char *mem_dev;
 
     if (size % SPAPR_MEMORY_BLOCK_SIZE) {
         error_setg(&local_err, "Hotplugged memory size must be a multiple of "
                       "%lld MB", SPAPR_MEMORY_BLOCK_SIZE/M_BYTE);
+        goto out;
+    }
+
+    mem_dev = object_property_get_str(OBJECT(dimm), PC_DIMM_MEMDEV_PROP, NULL);
+    if (mem_dev && !kvmppc_is_mem_backend_page_size_ok(mem_dev)) {
+        error_setg(&local_err, "Memory backend has bad page size. "
+                   "Use 'memory-backend-file' with correct mem-path.");
         goto out;
     }
 
