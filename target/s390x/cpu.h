@@ -89,6 +89,7 @@ typedef struct CPUS390XState {
     CPU_DoubleU vregs[32][2];  /* vector registers */
     uint32_t aregs[16];    /* access registers */
     uint8_t riccb[64];     /* runtime instrumentation control */
+    uint64_t gscb[4];      /* guarded storage control */
 
     /* Fields up to this point are not cleared by initial CPU reset */
     struct {} start_initial_reset_fields;
@@ -1166,6 +1167,7 @@ int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
 void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu);
 int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu);
 int kvm_s390_get_ri(void);
+int kvm_s390_get_gs(void);
 void kvm_s390_crypto_reset(void);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
@@ -1217,6 +1219,10 @@ static inline int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
     return 0;
 }
 static inline int kvm_s390_get_ri(void)
+{
+    return 0;
+}
+static inline int kvm_s390_get_gs(void)
 {
     return 0;
 }
@@ -1328,6 +1334,7 @@ static inline bool s390_get_squash_mcss(void)
 #define MCIC_VB_CR 0x0000000400000000ULL
 #define MCIC_VB_ST 0x0000000100000000ULL
 #define MCIC_VB_AR 0x0000000040000000ULL
+#define MCIC_VB_GS 0x0000000008000000ULL
 #define MCIC_VB_PR 0x0000000000200000ULL
 #define MCIC_VB_FC 0x0000000000100000ULL
 #define MCIC_VB_CT 0x0000000000020000ULL

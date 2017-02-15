@@ -174,6 +174,22 @@ const VMStateDescription vmstate_exval = {
     }
 };
 
+static bool gscb_needed(void *opaque)
+{
+    return kvm_s390_get_gs();
+}
+
+const VMStateDescription vmstate_gscb = {
+    .name = "cpu/gscb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = gscb_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(env.gscb, S390CPU, 4),
+        VMSTATE_END_OF_LIST()
+        }
+};
+
 const VMStateDescription vmstate_s390_cpu = {
     .name = "cpu",
     .post_load = cpu_post_load,
@@ -207,6 +223,7 @@ const VMStateDescription vmstate_s390_cpu = {
         &vmstate_vregs,
         &vmstate_riccb,
         &vmstate_exval,
+        &vmstate_gscb,
         NULL
     },
 };
