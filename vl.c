@@ -4510,7 +4510,13 @@ int main(int argc, char **argv, char **envp)
 
     rom_reset_order_override();
 
-    /* Create frontends for -drive if=scsi */
+    /*
+     * Create frontends for -drive if=scsi leftovers.
+     * Normally, frontends for -drive get created by machine
+     * initialization for onboard SCSI HBAs.  However, we create a few
+     * more ever since SCSI qdevification, but this is pretty much an
+     * implementation accident, and deprecated.
+     */
     scsi_legacy_handle_cmdline();
 
     /* Did we create any drives that we failed to create a device for? */

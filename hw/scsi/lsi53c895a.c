@@ -2268,3 +2268,10 @@ static void lsi53c895a_register_types(void)
 }
 
 type_init(lsi53c895a_register_types)
+
+void lsi53c895a_create(PCIBus *bus)
+{
+    LSIState *s = LSI53C895A(pci_create_simple(bus, -1, "lsi53c895a"));
+
+    scsi_bus_legacy_handle_cmdline(&s->bus, false);
+}

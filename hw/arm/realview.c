@@ -259,7 +259,7 @@ static void realview_init(MachineState *machine,
         }
         n = drive_get_max_bus(IF_SCSI);
         while (n >= 0) {
-            pci_create_simple(pci_bus, -1, "lsi53c895a");
+            lsi53c895a_create(pci_bus);
             n--;
         }
     }

@@ -261,7 +261,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     return SCSI_DEVICE(dev);
 }
 
-void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
+void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, bool deprecated)
 {
     Location loc;
     DriveInfo *dinfo;
@@ -274,6 +274,17 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
             continue;
         }
         qemu_opts_loc_restore(dinfo->opts);
+        if (deprecated) {
+            /* Handling -drive not claimed by machine initialization */
+            if (blk_get_attached_dev(blk_by_legacy_dinfo(dinfo))) {
+                continue;       /* claimed */
+            }
+            if (!dinfo->is_default) {
+                error_report("warning: bus=%d,unit=%d is deprecated with this"
+                             " machine type",
+                             bus->busnr, unit);
+            }
+        }
         scsi_bus_legacy_add_drive(bus, blk_by_legacy_dinfo(dinfo),
                                   unit, false, -1, NULL, &error_fatal);
     }
@@ -304,7 +315,7 @@ static int scsi_legacy_handle_cmdline_cb(Object *obj, void *opaque)
     SCSIBus *bus = (SCSIBus *)object_dynamic_cast(obj, TYPE_SCSI_BUS);
 
     if (bus && is_scsi_hba_with_legacy_magic(OBJECT(bus->qbus.parent))) {
-        scsi_bus_legacy_handle_cmdline(bus);
+        scsi_bus_legacy_handle_cmdline(bus, true);
     }
 
     return 0;

@@ -1652,7 +1652,7 @@ void pc_pci_device_init(PCIBus *pci_bus)
 
     max_bus = drive_get_max_bus(IF_SCSI);
     for (bus = 0; bus <= max_bus; bus++) {
-        pci_create_simple(pci_bus, -1, "lsi53c895a");
+        lsi53c895a_create(pci_bus);
     }
 }
 
