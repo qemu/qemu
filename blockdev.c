@@ -227,30 +227,30 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     return NULL;
 }
 
-bool drive_check_orphaned(void)
+void drive_check_orphaned(void)
 {
     BlockBackend *blk;
     DriveInfo *dinfo;
     Location loc;
-    bool rs = false;
+    bool orphans = false;
 
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
         dinfo = blk_legacy_dinfo(blk);
-        /* If dinfo->bdrv->dev is NULL, it has no device attached. */
-        /* Unless this is a default drive, this may be an oversight. */
         if (!blk_get_attached_dev(blk) && !dinfo->is_default &&
             dinfo->type != IF_NONE) {
             loc_push_none(&loc);
             qemu_opts_loc_restore(dinfo->opts);
-            error_report("warning: machine type does not support"
+            error_report("machine type does not support"
                          " if=%s,bus=%d,unit=%d",
                          if_name[dinfo->type], dinfo->bus, dinfo->unit);
             loc_pop(&loc);
-            rs = true;
+            orphans = true;
         }
     }
 
-    return rs;
+    if (orphans) {
+        exit(1);
+    }
 }
 
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index)
