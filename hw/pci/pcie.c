@@ -610,7 +610,8 @@ bool pcie_cap_is_arifwd_enabled(const PCIDevice *dev)
  * uint16_t ext_cap_size
  */
 
-static uint16_t pcie_find_capability_list(PCIDevice *dev, uint16_t cap_id,
+/* Passing a cap_id value > 0xffff will return 0 and put end of list in prev */
+static uint16_t pcie_find_capability_list(PCIDevice *dev, uint32_t cap_id,
                                           uint16_t *prev_p)
 {
     uint16_t prev = 0;
@@ -679,9 +680,11 @@ void pcie_add_capability(PCIDevice *dev,
     } else {
         uint16_t prev;
 
-        /* 0 is reserved cap id. use internally to find the last capability
-           in the linked list */
-        next = pcie_find_capability_list(dev, 0, &prev);
+        /*
+         * 0xffffffff is not a valid cap id (it's a 16 bit field). use
+         * internally to find the last capability in the linked list.
+         */
+        next = pcie_find_capability_list(dev, 0xffffffff, &prev);
 
         assert(prev >= PCI_CONFIG_SPACE_SIZE);
         assert(next == 0);
