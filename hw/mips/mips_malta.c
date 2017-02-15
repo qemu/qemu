@@ -1264,6 +1264,7 @@ static void mips_malta_machine_init(MachineClass *mc)
 {
     mc->desc = "MIPS Malta Core LV";
     mc->init = mips_malta_init;
+    mc->block_default_type = IF_IDE;
     mc->max_cpus = 16;
     mc->is_default = 1;
 }

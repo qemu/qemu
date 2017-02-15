@@ -684,6 +684,7 @@ static void prep_machine_init(MachineClass *mc)
 {
     mc->desc = "PowerPC PREP platform";
     mc->init = ppc_prep_init;
+    mc->block_default_type = IF_IDE;
     mc->max_cpus = MAX_CPUS;
     mc->default_boot_order = "cad";
 }

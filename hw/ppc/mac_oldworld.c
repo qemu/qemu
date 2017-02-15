@@ -368,6 +368,7 @@ static void heathrow_machine_init(MachineClass *mc)
 {
     mc->desc = "Heathrow based PowerMAC";
     mc->init = ppc_heathrow_init;
+    mc->block_default_type = IF_IDE;
     mc->max_cpus = MAX_CPUS;
 #ifndef TARGET_PPC64
     mc->is_default = 1;
