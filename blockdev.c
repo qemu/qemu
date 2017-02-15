@@ -231,6 +231,7 @@ bool drive_check_orphaned(void)
 {
     BlockBackend *blk;
     DriveInfo *dinfo;
+    Location loc;
     bool rs = false;
 
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
@@ -239,10 +240,12 @@ bool drive_check_orphaned(void)
         /* Unless this is a default drive, this may be an oversight. */
         if (!blk_get_attached_dev(blk) && !dinfo->is_default &&
             dinfo->type != IF_NONE) {
-            fprintf(stderr, "Warning: Orphaned drive without device: "
-                    "id=%s,file=%s,if=%s,bus=%d,unit=%d\n",
-                    blk_name(blk), blk_bs(blk) ? blk_bs(blk)->filename : "",
-                    if_name[dinfo->type], dinfo->bus, dinfo->unit);
+            loc_push_none(&loc);
+            qemu_opts_loc_restore(dinfo->opts);
+            error_report("warning: machine type does not support"
+                         " if=%s,bus=%d,unit=%d",
+                         if_name[dinfo->type], dinfo->bus, dinfo->unit);
+            loc_pop(&loc);
             rs = true;
         }
     }
