@@ -1650,9 +1650,15 @@ void pc_pci_device_init(PCIBus *pci_bus)
     int max_bus;
     int bus;
 
+    /* Note: if=scsi is deprecated with PC machine types */
     max_bus = drive_get_max_bus(IF_SCSI);
     for (bus = 0; bus <= max_bus; bus++) {
-        lsi53c895a_create(pci_bus);
+        pci_create_simple(pci_bus, -1, "lsi53c895a");
+        /*
+         * By not creating frontends here, we make
+         * scsi_legacy_handle_cmdline() create them, and warn that
+         * this usage is deprecated.
+         */
     }
 }
 
