@@ -88,20 +88,21 @@ net_rx_pkt_pull_data(struct NetRxPkt *pkt,
                         const struct iovec *iov, int iovcnt,
                         size_t ploff)
 {
+    uint32_t pllen = iov_size(iov, iovcnt) - ploff;
+
     if (pkt->ehdr_buf_len) {
         net_rx_pkt_iovec_realloc(pkt, iovcnt + 1);
 
         pkt->vec[0].iov_base = pkt->ehdr_buf;
         pkt->vec[0].iov_len = pkt->ehdr_buf_len;
 
-        pkt->tot_len = iov_size(iov, iovcnt) - ploff + pkt->ehdr_buf_len;
+        pkt->tot_len = pllen + pkt->ehdr_buf_len;
         pkt->vec_len = iov_copy(pkt->vec + 1, pkt->vec_len_total - 1,
-                                iov, iovcnt, ploff,
-                                pkt->tot_len - pkt->ehdr_buf_len) + 1;
+                                iov, iovcnt, ploff, pllen) + 1;
     } else {
         net_rx_pkt_iovec_realloc(pkt, iovcnt);
 
-        pkt->tot_len = iov_size(iov, iovcnt) - ploff;
+        pkt->tot_len = pllen;
         pkt->vec_len = iov_copy(pkt->vec, pkt->vec_len_total,
                                 iov, iovcnt, ploff, pkt->tot_len);
     }
