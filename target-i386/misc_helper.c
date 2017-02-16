@@ -101,7 +101,7 @@ void helper_cpuid(CPUX86State *env)
 {
     uint32_t eax, ebx, ecx, edx;
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_CPUID, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_CPUID, 0, GETPC());
 
     cpu_x86_cpuid(env, (uint32_t)env->regs[R_EAX], (uint32_t)env->regs[R_ECX],
                   &eax, &ebx, &ecx, &edx);
@@ -125,7 +125,7 @@ target_ulong helper_read_crN(CPUX86State *env, int reg)
 {
     target_ulong val;
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_READ_CR0 + reg, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_READ_CR0 + reg, 0, GETPC());
     switch (reg) {
     default:
         val = env->cr[reg];
@@ -143,7 +143,7 @@ target_ulong helper_read_crN(CPUX86State *env, int reg)
 
 void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
 {
-    cpu_svm_check_intercept_param(env, SVM_EXIT_WRITE_CR0 + reg, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_WRITE_CR0 + reg, 0, GETPC());
     switch (reg) {
     case 0:
         cpu_x86_update_cr0(env, t0);
@@ -179,7 +179,7 @@ void helper_invlpg(CPUX86State *env, target_ulong addr)
 {
     X86CPU *cpu = x86_env_get_cpu(env);
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0, GETPC());
     tlb_flush_page(CPU(cpu), addr);
 }
 
@@ -190,7 +190,7 @@ void helper_rdtsc(CPUX86State *env)
     if ((env->cr[4] & CR4_TSD_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
         raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
-    cpu_svm_check_intercept_param(env, SVM_EXIT_RDTSC, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_RDTSC, 0, GETPC());
 
     val = cpu_get_tsc(env) + env->tsc_offset;
     env->regs[R_EAX] = (uint32_t)(val);
@@ -208,7 +208,7 @@ void helper_rdpmc(CPUX86State *env)
     if ((env->cr[4] & CR4_PCE_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
         raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
-    cpu_svm_check_intercept_param(env, SVM_EXIT_RDPMC, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_RDPMC, 0, GETPC());
 
     /* currently unimplemented */
     qemu_log_mask(LOG_UNIMP, "x86: unimplemented rdpmc\n");
@@ -228,7 +228,7 @@ void helper_wrmsr(CPUX86State *env)
 {
     uint64_t val;
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_MSR, 1);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_MSR, 1, GETPC());
 
     val = ((uint32_t)env->regs[R_EAX]) |
         ((uint64_t)((uint32_t)env->regs[R_EDX]) << 32);
@@ -388,7 +388,7 @@ void helper_rdmsr(CPUX86State *env)
 {
     uint64_t val;
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_MSR, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_MSR, 0, GETPC());
 
     switch ((uint32_t)env->regs[R_ECX]) {
     case MSR_IA32_SYSENTER_CS:
@@ -557,7 +557,7 @@ void helper_hlt(CPUX86State *env, int next_eip_addend)
 {
     X86CPU *cpu = x86_env_get_cpu(env);
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_HLT, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_HLT, 0, GETPC());
     env->eip += next_eip_addend;
 
     do_hlt(cpu);
@@ -569,7 +569,7 @@ void helper_monitor(CPUX86State *env, target_ulong ptr)
         raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     /* XXX: store address? */
-    cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0, GETPC());
 }
 
 void helper_mwait(CPUX86State *env, int next_eip_addend)
@@ -580,7 +580,7 @@ void helper_mwait(CPUX86State *env, int next_eip_addend)
     if ((uint32_t)env->regs[R_ECX] != 0) {
         raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
-    cpu_svm_check_intercept_param(env, SVM_EXIT_MWAIT, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_MWAIT, 0, GETPC());
     env->eip += next_eip_addend;
 
     cpu = x86_env_get_cpu(env);
@@ -597,7 +597,7 @@ void helper_pause(CPUX86State *env, int next_eip_addend)
 {
     X86CPU *cpu = x86_env_get_cpu(env);
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_PAUSE, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_PAUSE, 0, GETPC());
     env->eip += next_eip_addend;
 
     do_pause(cpu);

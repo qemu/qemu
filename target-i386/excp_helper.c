@@ -39,7 +39,8 @@ void helper_raise_exception(CPUX86State *env, int exception_index)
  * needed. It should only be called, if this is not an interrupt.
  * Returns the new exception number.
  */
-static int check_exception(CPUX86State *env, int intno, int *error_code)
+static int check_exception(CPUX86State *env, int intno, int *error_code,
+                           uintptr_t retaddr)
 {
     int first_contributory = env->old_exception == 0 ||
                               (env->old_exception >= 10 &&
@@ -53,7 +54,7 @@ static int check_exception(CPUX86State *env, int intno, int *error_code)
 #if !defined(CONFIG_USER_ONLY)
     if (env->old_exception == EXCP08_DBLE) {
         if (env->hflags & HF_SVMI_MASK) {
-            cpu_vmexit(env, SVM_EXIT_SHUTDOWN, 0); /* does not return */
+            cpu_vmexit(env, SVM_EXIT_SHUTDOWN, 0, retaddr); /* does not return */
         }
 
         qemu_log_mask(CPU_LOG_RESET, "Triple fault\n");
@@ -93,10 +94,10 @@ static void QEMU_NORETURN raise_interrupt2(CPUX86State *env, int intno,
 
     if (!is_int) {
         cpu_svm_check_intercept_param(env, SVM_EXIT_EXCP_BASE + intno,
-                                      error_code);
-        intno = check_exception(env, intno, &error_code);
+                                      error_code, retaddr);
+        intno = check_exception(env, intno, &error_code, retaddr);
     } else {
-        cpu_svm_check_intercept_param(env, SVM_EXIT_SWINT, 0);
+        cpu_svm_check_intercept_param(env, SVM_EXIT_SWINT, 0, retaddr);
     }
 
     cs->exception_index = intno;

@@ -60,11 +60,8 @@ void helper_invlpga(CPUX86State *env, int aflag)
 {
 }
 
-void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
-{
-}
-
-void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1)
+void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1,
+                uintptr_t retaddr)
 {
 }
 
@@ -74,7 +71,7 @@ void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
 }
 
 void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
-                                   uint64_t param)
+                                   uint64_t param, uintptr_t retaddr)
 {
 }
 
@@ -130,7 +127,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     uint32_t event_inj;
     uint32_t int_ctl;
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_VMRUN, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_VMRUN, 0, GETPC());
 
     if (aflag == 2) {
         addr = env->regs[R_EAX];
@@ -355,7 +352,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 
 void helper_vmmcall(CPUX86State *env)
 {
-    cpu_svm_check_intercept_param(env, SVM_EXIT_VMMCALL, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_VMMCALL, 0, GETPC());
     raise_exception(env, EXCP06_ILLOP);
 }
 
@@ -364,7 +361,7 @@ void helper_vmload(CPUX86State *env, int aflag)
     CPUState *cs = CPU(x86_env_get_cpu(env));
     target_ulong addr;
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_VMLOAD, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_VMLOAD, 0, GETPC());
 
     if (aflag == 2) {
         addr = env->regs[R_EAX];
@@ -404,7 +401,7 @@ void helper_vmsave(CPUX86State *env, int aflag)
     CPUState *cs = CPU(x86_env_get_cpu(env));
     target_ulong addr;
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_VMSAVE, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_VMSAVE, 0, GETPC());
 
     if (aflag == 2) {
         addr = env->regs[R_EAX];
@@ -445,19 +442,19 @@ void helper_vmsave(CPUX86State *env, int aflag)
 
 void helper_stgi(CPUX86State *env)
 {
-    cpu_svm_check_intercept_param(env, SVM_EXIT_STGI, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_STGI, 0, GETPC());
     env->hflags2 |= HF2_GIF_MASK;
 }
 
 void helper_clgi(CPUX86State *env)
 {
-    cpu_svm_check_intercept_param(env, SVM_EXIT_CLGI, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_CLGI, 0, GETPC());
     env->hflags2 &= ~HF2_GIF_MASK;
 }
 
 void helper_skinit(CPUX86State *env)
 {
-    cpu_svm_check_intercept_param(env, SVM_EXIT_SKINIT, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_SKINIT, 0, GETPC());
     /* XXX: not implemented */
     raise_exception(env, EXCP06_ILLOP);
 }
@@ -467,7 +464,7 @@ void helper_invlpga(CPUX86State *env, int aflag)
     X86CPU *cpu = x86_env_get_cpu(env);
     target_ulong addr;
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPGA, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPGA, 0, GETPC());
 
     if (aflag == 2) {
         addr = env->regs[R_EAX];
@@ -480,8 +477,8 @@ void helper_invlpga(CPUX86State *env, int aflag)
     tlb_flush_page(CPU(cpu), addr);
 }
 
-void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
-                                      uint64_t param)
+void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
+                                   uint64_t param, uintptr_t retaddr)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
 
@@ -491,27 +488,27 @@ void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
     switch (type) {
     case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR0 + 8:
         if (env->intercept_cr_read & (1 << (type - SVM_EXIT_READ_CR0))) {
-            helper_vmexit(env, type, param);
+            cpu_vmexit(env, type, param, retaddr);
         }
         break;
     case SVM_EXIT_WRITE_CR0 ... SVM_EXIT_WRITE_CR0 + 8:
         if (env->intercept_cr_write & (1 << (type - SVM_EXIT_WRITE_CR0))) {
-            helper_vmexit(env, type, param);
+            cpu_vmexit(env, type, param, retaddr);
         }
         break;
     case SVM_EXIT_READ_DR0 ... SVM_EXIT_READ_DR0 + 7:
         if (env->intercept_dr_read & (1 << (type - SVM_EXIT_READ_DR0))) {
-            helper_vmexit(env, type, param);
+            cpu_vmexit(env, type, param, retaddr);
         }
         break;
     case SVM_EXIT_WRITE_DR0 ... SVM_EXIT_WRITE_DR0 + 7:
         if (env->intercept_dr_write & (1 << (type - SVM_EXIT_WRITE_DR0))) {
-            helper_vmexit(env, type, param);
+            cpu_vmexit(env, type, param, retaddr);
         }
         break;
     case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 31:
         if (env->intercept_exceptions & (1 << (type - SVM_EXIT_EXCP_BASE))) {
-            helper_vmexit(env, type, param);
+            cpu_vmexit(env, type, param, retaddr);
         }
         break;
     case SVM_EXIT_MSR:
@@ -538,28 +535,28 @@ void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
                 t0 %= 8;
                 break;
             default:
-                helper_vmexit(env, type, param);
+                cpu_vmexit(env, type, param, retaddr);
                 t0 = 0;
                 t1 = 0;
                 break;
             }
             if (x86_ldub_phys(cs, addr + t1) & ((1 << param) << t0)) {
-                helper_vmexit(env, type, param);
+                cpu_vmexit(env, type, param, retaddr);
             }
         }
         break;
     default:
         if (env->intercept & (1ULL << (type - SVM_EXIT_INTR))) {
-            helper_vmexit(env, type, param);
+            cpu_vmexit(env, type, param, retaddr);
         }
         break;
     }
 }
 
-void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
-                                   uint64_t param)
+void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
+                                      uint64_t param)
 {
-    helper_svm_check_intercept_param(env, type, param);
+    cpu_svm_check_intercept_param(env, type, param, GETPC());
 }
 
 void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
@@ -578,16 +575,21 @@ void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
             x86_stq_phys(cs,
                      env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2),
                      env->eip + next_eip_addend);
-            helper_vmexit(env, SVM_EXIT_IOIO, param | (port << 16));
+            cpu_vmexit(env, SVM_EXIT_IOIO, param | (port << 16), GETPC());
         }
     }
 }
 
 /* Note: currently only 32 bits of exit_code are used */
-void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
+void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1,
+                uintptr_t retaddr)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
     uint32_t int_ctl;
+
+    if (retaddr) {
+        cpu_restore_state(cs, retaddr);
+    }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmexit(%08x, %016" PRIx64 ", %016"
                   PRIx64 ", " TARGET_FMT_lx ")!\n",
@@ -764,11 +766,6 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     env->old_exception = -1;
 
     cpu_loop_exit(cs);
-}
-
-void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
-{
-    helper_vmexit(env, exit_code, exit_info_1);
 }
 
 #endif
