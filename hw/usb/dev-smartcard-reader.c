@@ -1003,20 +1003,19 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
     if (p->iov.size + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
         goto err;
     }
-    ccid_header = (CCID_Header *)s->bulk_out_data;
     usb_packet_copy(p, s->bulk_out_data + s->bulk_out_pos, p->iov.size);
     s->bulk_out_pos += p->iov.size;
+    if (s->bulk_out_pos < 10) {
+        DPRINTF(s, 1, "%s: header incomplete\n", __func__);
+        goto err;
+    }
+
+    ccid_header = (CCID_Header *)s->bulk_out_data;
     if (p->iov.size == CCID_MAX_PACKET_SIZE) {
         DPRINTF(s, D_VERBOSE,
             "usb-ccid: bulk_in: expecting more packets (%zd/%d)\n",
             p->iov.size, ccid_header->dwLength);
         return;
-    }
-    if (s->bulk_out_pos < 10) {
-        DPRINTF(s, 1,
-                "%s: bad USB_TOKEN_OUT length, should be at least 10 bytes\n",
-                __func__);
-        goto err;
     }
 
     DPRINTF(s, D_MORE_INFO, "%s %x %s\n", __func__,
