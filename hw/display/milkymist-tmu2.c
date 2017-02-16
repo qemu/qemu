@@ -293,7 +293,7 @@ static void tmu2_start(MilkymistTMU2State *s)
     cpu_physical_memory_unmap(mesh, mesh_len, 0, mesh_len);
 
     /* Write back the OpenGL framebuffer to the QEMU framebuffer */
-    fb_len = 2 * s->regs[R_DSTHRES] * s->regs[R_DSTVRES];
+    fb_len = 2ULL * s->regs[R_DSTHRES] * s->regs[R_DSTVRES];
     fb = cpu_physical_memory_map(s->regs[R_DSTFBUF], &fb_len, 1);
     if (fb == NULL) {
         glDeleteTextures(1, &texture);
