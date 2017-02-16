@@ -2262,6 +2262,7 @@ static int symcmp(const void *s0, const void *s1)
 static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
 {
     int i, shnum, nsyms, sym_idx = 0, str_idx = 0;
+    uint64_t segsz;
     struct elf_shdr *shdr;
     char *strings = NULL;
     struct syminfo *s = NULL;
@@ -2293,19 +2294,26 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
         goto give_up;
     }
 
-    i = shdr[str_idx].sh_size;
-    s->disas_strtab = strings = g_try_malloc(i);
-    if (!strings || pread(fd, strings, i, shdr[str_idx].sh_offset) != i) {
+    segsz = shdr[str_idx].sh_size;
+    s->disas_strtab = strings = g_try_malloc(segsz);
+    if (!strings ||
+        pread(fd, strings, segsz, shdr[str_idx].sh_offset) != segsz) {
         goto give_up;
     }
 
-    i = shdr[sym_idx].sh_size;
-    syms = g_try_malloc(i);
-    if (!syms || pread(fd, syms, i, shdr[sym_idx].sh_offset) != i) {
+    segsz = shdr[sym_idx].sh_size;
+    syms = g_try_malloc(segsz);
+    if (!syms || pread(fd, syms, segsz, shdr[sym_idx].sh_offset) != segsz) {
         goto give_up;
     }
 
-    nsyms = i / sizeof(struct elf_sym);
+    if (segsz / sizeof(struct elf_sym) > INT_MAX) {
+        /* Implausibly large symbol table: give up rather than ploughing
+         * on with the number of symbols calculation overflowing
+         */
+        goto give_up;
+    }
+    nsyms = segsz / sizeof(struct elf_sym);
     for (i = 0; i < nsyms; ) {
         bswap_sym(syms + i);
         /* Throw away entries which we do not need.  */

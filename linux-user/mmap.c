@@ -193,9 +193,6 @@ static int mmap_frag(abi_ulong real_start,
 
 #if HOST_LONG_BITS == 64 && TARGET_ABI_BITS == 64
 # define TASK_UNMAPPED_BASE  (1ul << 38)
-#elif defined(__CYGWIN__)
-/* Cygwin doesn't have a whole lot of address space.  */
-# define TASK_UNMAPPED_BASE  0x18000000
 #else
 # define TASK_UNMAPPED_BASE  0x40000000
 #endif
@@ -429,9 +426,9 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
        may need to truncate file maps at EOF and add extra anonymous pages
        up to the targets page boundary.  */
 
-    if ((qemu_real_host_page_size < TARGET_PAGE_SIZE)
-        && !(flags & MAP_ANONYMOUS)) {
-       struct stat sb;
+    if ((qemu_real_host_page_size < qemu_host_page_size) &&
+        !(flags & MAP_ANONYMOUS)) {
+        struct stat sb;
 
        if (fstat (fd, &sb) == -1)
            goto fail;

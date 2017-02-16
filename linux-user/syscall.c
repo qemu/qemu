@@ -2326,6 +2326,8 @@ static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
     case QEMU_IFLA_GROUP:
     case QEMU_IFLA_MASTER:
     case QEMU_IFLA_NUM_VF:
+    case QEMU_IFLA_GSO_MAX_SEGS:
+    case QEMU_IFLA_GSO_MAX_SIZE:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
         break;
@@ -11228,7 +11230,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             arg3 = arg4;
             arg4 = arg5;
         }
-        ret = get_errno(readahead(arg1, ((off64_t)arg3 << 32) | arg2, arg4));
+        ret = get_errno(readahead(arg1, target_offset64(arg2, arg3) , arg4));
 #else
         ret = get_errno(readahead(arg1, arg2, arg3));
 #endif
@@ -11561,7 +11563,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef CONFIG_INOTIFY1
 #if defined(TARGET_NR_inotify_init1) && defined(__NR_inotify_init1)
     case TARGET_NR_inotify_init1:
-        ret = get_errno(sys_inotify_init1(arg1));
+        ret = get_errno(sys_inotify_init1(target_to_host_bitmask(arg1,
+                                          fcntl_flags_tbl)));
         break;
 #endif
 #endif
@@ -11582,17 +11585,22 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_mq_open:
         {
             struct mq_attr posix_mq_attr;
+            struct mq_attr *pposix_mq_attr;
             int host_flags;
 
             host_flags = target_to_host_bitmask(arg2, fcntl_flags_tbl);
-            if (copy_from_user_mq_attr(&posix_mq_attr, arg4) != 0) {
-                goto efault;
+            pposix_mq_attr = NULL;
+            if (arg4) {
+                if (copy_from_user_mq_attr(&posix_mq_attr, arg4) != 0) {
+                    goto efault;
+                }
+                pposix_mq_attr = &posix_mq_attr;
             }
             p = lock_user_string(arg1 - 1);
             if (!p) {
                 goto efault;
             }
-            ret = get_errno(mq_open(p, host_flags, arg3, &posix_mq_attr));
+            ret = get_errno(mq_open(p, host_flags, arg3, pposix_mq_attr));
             unlock_user (p, arg1, 0);
         }
         break;
@@ -12035,10 +12043,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             timer_t htimer = g_posix_timers[timerid];
             struct itimerspec hspec_new = {{0},}, hspec_old = {{0},};
 
-            target_to_host_itimerspec(&hspec_new, arg3);
+            if (target_to_host_itimerspec(&hspec_new, arg3)) {
+                goto efault;
+            }
             ret = get_errno(
                           timer_settime(htimer, arg2, &hspec_new, &hspec_old));
-            host_to_target_itimerspec(arg2, &hspec_old);
+            if (arg4 && host_to_target_itimerspec(arg4, &hspec_old)) {
+                goto efault;
+            }
         }
         break;
     }
