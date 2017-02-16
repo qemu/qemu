@@ -1734,7 +1734,7 @@ static int check_refblocks(BlockDriverState *bs, BdrvCheckResult *res,
                     goto resize_fail;
                 }
 
-                ret = bdrv_truncate(bs->file->bs, offset + s->cluster_size);
+                ret = bdrv_truncate(bs->file, offset + s->cluster_size);
                 if (ret < 0) {
                     goto resize_fail;
                 }

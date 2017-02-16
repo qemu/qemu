@@ -1605,7 +1605,7 @@ int blk_truncate(BlockBackend *blk, int64_t offset)
         return -ENOMEDIUM;
     }
 
-    return bdrv_truncate(blk_bs(blk), offset);
+    return bdrv_truncate(blk->root, offset);
 }
 
 static void blk_pdiscard_entry(void *opaque)
