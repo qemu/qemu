@@ -96,7 +96,8 @@ net_rx_pkt_pull_data(struct NetRxPkt *pkt,
 
         pkt->tot_len = iov_size(iov, iovcnt) - ploff + pkt->ehdr_buf_len;
         pkt->vec_len = iov_copy(pkt->vec + 1, pkt->vec_len_total - 1,
-                                iov, iovcnt, ploff, pkt->tot_len);
+                                iov, iovcnt, ploff,
+                                pkt->tot_len - pkt->ehdr_buf_len);
     } else {
         net_rx_pkt_iovec_realloc(pkt, iovcnt);
 
