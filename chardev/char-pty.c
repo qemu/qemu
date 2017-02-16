@@ -129,7 +129,7 @@ static int char_pty_chr_write(Chardev *chr, const uint8_t *buf, int len)
         /* guest sends data, check for (re-)connect */
         pty_chr_update_read_handler_locked(chr);
         if (!s->connected) {
-            return 0;
+            return len;
         }
     }
     return io_channel_send(s->ioc, buf, len);

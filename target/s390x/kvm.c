@@ -1864,7 +1864,7 @@ static void unmanageable_intercept(S390CPU *cpu, const char *str, int pswoffset)
                  str, cs->cpu_index, ldq_phys(cs->as, cpu->env.psa + pswoffset),
                  ldq_phys(cs->as, cpu->env.psa + pswoffset + 8));
     s390_cpu_halt(cpu);
-    qemu_system_guest_panicked();
+    qemu_system_guest_panicked(NULL);
 }
 
 static int handle_intercept(S390CPU *cpu)
@@ -1897,7 +1897,7 @@ static int handle_intercept(S390CPU *cpu)
                 if (is_special_wait_psw(cs)) {
                     qemu_system_shutdown_request();
                 } else {
-                    qemu_system_guest_panicked();
+                    qemu_system_guest_panicked(NULL);
                 }
             }
             r = EXCP_HALTED;

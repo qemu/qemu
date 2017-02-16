@@ -334,7 +334,8 @@ static void rtas_ibm_os_term(PowerPCCPU *cpu,
 {
     target_ulong ret = 0;
 
-    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE, &error_abort);
+    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE, false, NULL,
+                                   &error_abort);
 
     rtas_st(rets, 0, ret);
 }

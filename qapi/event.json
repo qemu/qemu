@@ -488,7 +488,9 @@
 #
 # @action: action that has been taken, currently always "pause"
 #
-# Since: 1.5
+# @info: optional information about a panic
+#
+# Since: 1.5 (@info since 2.9)
 #
 # Example:
 #
@@ -497,7 +499,7 @@
 #
 ##
 { 'event': 'GUEST_PANICKED',
-  'data': { 'action': 'GuestPanicAction' } }
+  'data': { 'action': 'GuestPanicAction', '*info': 'GuestPanicInformation' } }
 
 ##
 # @QUORUM_FAILURE:

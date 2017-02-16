@@ -42,7 +42,7 @@ static void handle_event(int event)
     }
 
     if (event & PVPANIC_PANICKED) {
-        qemu_system_guest_panicked();
+        qemu_system_guest_panicked(NULL);
         return;
     }
 }
