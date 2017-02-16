@@ -78,6 +78,21 @@ struct BiosLinkerLoaderEntry {
             uint32_t length;
         } cksum;
 
+        /*
+         * COMMAND_WRITE_POINTER - write the fw_cfg file (originating from
+         * @dest_file) at @wr_pointer.offset, by adding a pointer to
+         * @src_offset within the table originating from @src_file.
+         * 1,2,4 or 8 byte unsigned addition is used depending on
+         * @wr_pointer.size.
+         */
+        struct {
+            char dest_file[BIOS_LINKER_LOADER_FILESZ];
+            char src_file[BIOS_LINKER_LOADER_FILESZ];
+            uint32_t dst_offset;
+            uint32_t src_offset;
+            uint8_t size;
+        } wr_pointer;
+
         /* padding */
         char pad[124];
     };
@@ -85,9 +100,10 @@ struct BiosLinkerLoaderEntry {
 typedef struct BiosLinkerLoaderEntry BiosLinkerLoaderEntry;
 
 enum {
-    BIOS_LINKER_LOADER_COMMAND_ALLOCATE     = 0x1,
-    BIOS_LINKER_LOADER_COMMAND_ADD_POINTER  = 0x2,
-    BIOS_LINKER_LOADER_COMMAND_ADD_CHECKSUM = 0x3,
+    BIOS_LINKER_LOADER_COMMAND_ALLOCATE          = 0x1,
+    BIOS_LINKER_LOADER_COMMAND_ADD_POINTER       = 0x2,
+    BIOS_LINKER_LOADER_COMMAND_ADD_CHECKSUM      = 0x3,
+    BIOS_LINKER_LOADER_COMMAND_WRITE_POINTER     = 0x4,
 };
 
 enum {
@@ -275,6 +291,50 @@ void bios_linker_loader_add_pointer(BIOSLinker *linker,
     le_src_offset = cpu_to_le64(src_offset);
     memcpy(dst_file->blob->data + dst_patched_offset,
            &le_src_offset, dst_patched_size);
+
+    g_array_append_vals(linker->cmd_blob, &entry, sizeof entry);
+}
+
+/*
+ * bios_linker_loader_write_pointer: ask guest to write a pointer to the
+ * source file into the destination file, and write it back to QEMU via
+ * fw_cfg DMA.
+ *
+ * @linker: linker object instance
+ * @dest_file: destination file that must be written
+ * @dst_patched_offset: location within destination file blob to be patched
+ *                      with the pointer to @src_file, in bytes
+ * @dst_patched_offset_size: size of the pointer to be patched
+ *                      at @dst_patched_offset in @dest_file blob, in bytes
+ * @src_file: source file who's address must be taken
+ * @src_offset: location within source file blob to which
+ *              @dest_file+@dst_patched_offset will point to after
+ *              firmware's executed WRITE_POINTER command
+ */
+void bios_linker_loader_write_pointer(BIOSLinker *linker,
+                                    const char *dest_file,
+                                    uint32_t dst_patched_offset,
+                                    uint8_t dst_patched_size,
+                                    const char *src_file,
+                                    uint32_t src_offset)
+{
+    BiosLinkerLoaderEntry entry;
+    const BiosLinkerFileEntry *source_file =
+        bios_linker_find_file(linker, src_file);
+
+    assert(source_file);
+    assert(src_offset < source_file->blob->len);
+    memset(&entry, 0, sizeof entry);
+    strncpy(entry.wr_pointer.dest_file, dest_file,
+            sizeof entry.wr_pointer.dest_file - 1);
+    strncpy(entry.wr_pointer.src_file, src_file,
+            sizeof entry.wr_pointer.src_file - 1);
+    entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_WRITE_POINTER);
+    entry.wr_pointer.dst_offset = cpu_to_le32(dst_patched_offset);
+    entry.wr_pointer.src_offset = cpu_to_le32(src_offset);
+    entry.wr_pointer.size = dst_patched_size;
+    assert(dst_patched_size == 1 || dst_patched_size == 2 ||
+           dst_patched_size == 4 || dst_patched_size == 8);
 
     g_array_append_vals(linker->cmd_blob, &entry, sizeof entry);
 }
