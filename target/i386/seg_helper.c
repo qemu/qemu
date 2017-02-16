@@ -1335,7 +1335,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     } else if (env->hflags2 & HF2_GIF_MASK) {
         if ((interrupt_request & CPU_INTERRUPT_SMI) &&
             !(env->hflags & HF_SMM_MASK)) {
-            cpu_svm_check_intercept_param(env, SVM_EXIT_SMI, 0);
+            cpu_svm_check_intercept_param(env, SVM_EXIT_SMI, 0, 0);
             cs->interrupt_request &= ~CPU_INTERRUPT_SMI;
             do_smm_enter(cpu);
             ret = true;
@@ -1356,7 +1356,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
                      (env->eflags & IF_MASK &&
                       !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
             int intno;
-            cpu_svm_check_intercept_param(env, SVM_EXIT_INTR, 0);
+            cpu_svm_check_intercept_param(env, SVM_EXIT_INTR, 0, 0);
             cs->interrupt_request &= ~(CPU_INTERRUPT_HARD |
                                        CPU_INTERRUPT_VIRQ);
             intno = cpu_get_pic_interrupt(env);
@@ -1372,7 +1372,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
                    !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
             int intno;
             /* FIXME: this should respect TPR */
-            cpu_svm_check_intercept_param(env, SVM_EXIT_VINTR, 0);
+            cpu_svm_check_intercept_param(env, SVM_EXIT_VINTR, 0, 0);
             intno = x86_ldl_phys(cs, env->vm_vmcb
                              + offsetof(struct vmcb, control.int_vector));
             qemu_log_mask(CPU_LOG_TB_IN_ASM,
