@@ -806,7 +806,8 @@ typedef struct E1000E_RingInfo_st {
 static inline bool
 e1000e_ring_empty(E1000ECore *core, const E1000E_RingInfo *r)
 {
-    return core->mac[r->dh] == core->mac[r->dt];
+    return core->mac[r->dh] == core->mac[r->dt] ||
+                core->mac[r->dt] >= core->mac[r->dlen] / E1000_RING_DESC_LEN;
 }
 
 static inline uint64_t
@@ -1507,6 +1508,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
     const E1000E_RingInfo *rxi;
     size_t ps_hdr_len = 0;
     bool do_ps = e1000e_do_ps(core, pkt, &ps_hdr_len);
+    bool is_first = true;
 
     rxi = rxr->i;
 
@@ -1514,12 +1516,15 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
         hwaddr ba[MAX_PS_BUFFERS];
         e1000e_ba_state bastate = { { 0 } };
         bool is_last = false;
-        bool is_first = true;
 
         desc_size = total_size - desc_offset;
 
         if (desc_size > core->rx_desc_buf_size) {
             desc_size = core->rx_desc_buf_size;
+        }
+
+        if (e1000e_ring_empty(core, rxi)) {
+            return;
         }
 
         base = e1000e_ring_head_descr(core, rxi);

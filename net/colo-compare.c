@@ -101,6 +101,15 @@ static int compare_chr_send(CharBackend *out,
                             const uint8_t *buf,
                             uint32_t size);
 
+static gint seq_sorter(Packet *a, Packet *b, gpointer data)
+{
+    struct tcphdr *atcp, *btcp;
+
+    atcp = (struct tcphdr *)(a->transport_header);
+    btcp = (struct tcphdr *)(b->transport_header);
+    return ntohl(atcp->th_seq) - ntohl(btcp->th_seq);
+}
+
 /*
  * Return 0 on success, if return -1 means the pkt
  * is unsupported(arp and ipv6) and will be sent later
@@ -137,6 +146,11 @@ static int packet_enqueue(CompareState *s, int mode)
         if (g_queue_get_length(&conn->primary_list) <=
                                MAX_QUEUE_SIZE) {
             g_queue_push_tail(&conn->primary_list, pkt);
+            if (conn->ip_proto == IPPROTO_TCP) {
+                g_queue_sort(&conn->primary_list,
+                             (GCompareDataFunc)seq_sorter,
+                             NULL);
+            }
         } else {
             error_report("colo compare primary queue size too big,"
                          "drop packet");
@@ -145,6 +159,11 @@ static int packet_enqueue(CompareState *s, int mode)
         if (g_queue_get_length(&conn->secondary_list) <=
                                MAX_QUEUE_SIZE) {
             g_queue_push_tail(&conn->secondary_list, pkt);
+            if (conn->ip_proto == IPPROTO_TCP) {
+                g_queue_sort(&conn->secondary_list,
+                             (GCompareDataFunc)seq_sorter,
+                             NULL);
+            }
         } else {
             error_report("colo compare secondary queue size too big,"
                          "drop packet");
