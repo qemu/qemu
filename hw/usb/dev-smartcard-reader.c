@@ -1011,11 +1011,18 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
     }
 
     ccid_header = (CCID_Header *)s->bulk_out_data;
-    if (p->iov.size == CCID_MAX_PACKET_SIZE) {
+    if ((s->bulk_out_pos - 10 < ccid_header->dwLength) &&
+        (p->iov.size == CCID_MAX_PACKET_SIZE)) {
         DPRINTF(s, D_VERBOSE,
-            "usb-ccid: bulk_in: expecting more packets (%zd/%d)\n",
-            p->iov.size, ccid_header->dwLength);
+                "usb-ccid: bulk_in: expecting more packets (%d/%d)\n",
+                s->bulk_out_pos - 10, ccid_header->dwLength);
         return;
+    }
+    if (s->bulk_out_pos - 10 != ccid_header->dwLength) {
+        DPRINTF(s, 1,
+                "usb-ccid: bulk_in: message size mismatch (got %d, expected %d)\n",
+                s->bulk_out_pos - 10, ccid_header->dwLength);
+        goto err;
     }
 
     DPRINTF(s, D_MORE_INFO, "%s %x %s\n", __func__,
