@@ -7680,7 +7680,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #ifdef TARGET_NR_fork
     case TARGET_NR_fork:
-        ret = get_errno(do_fork(cpu_env, SIGCHLD, 0, 0, 0, 0));
+        ret = get_errno(do_fork(cpu_env, TARGET_SIGCHLD, 0, 0, 0, 0));
         break;
 #endif
 #ifdef TARGET_NR_waitpid
@@ -10490,7 +10490,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_vfork
     case TARGET_NR_vfork:
-        ret = get_errno(do_fork(cpu_env, CLONE_VFORK | CLONE_VM | SIGCHLD,
+        ret = get_errno(do_fork(cpu_env,
+                        CLONE_VFORK | CLONE_VM | TARGET_SIGCHLD,
                         0, 0, 0, 0));
         break;
 #endif
