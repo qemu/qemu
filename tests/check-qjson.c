@@ -921,10 +921,8 @@ static void float_number(void)
         QFloat *qfloat;
 
         obj = qobject_from_json(test_cases[i].encoded);
-        g_assert(obj != NULL);
-        g_assert(qobject_type(obj) == QTYPE_QFLOAT);
-
         qfloat = qobject_to_qfloat(obj);
+        g_assert(qfloat);
         g_assert(qfloat_get_double(qfloat) == test_cases[i].decoded);
 
         if (test_cases[i].skip == 0) {
@@ -941,7 +939,6 @@ static void float_number(void)
 
 static void vararg_number(void)
 {
-    QObject *obj;
     QInt *qint;
     QFloat *qfloat;
     int value = 0x2342;
@@ -956,13 +953,8 @@ static void vararg_number(void)
     g_assert(qint_get_int(qint) == value_ll);
     QDECREF(qint);
 
-    obj = qobject_from_jsonf("%f", valuef);
-    g_assert(obj != NULL);
-    g_assert(qobject_type(obj) == QTYPE_QFLOAT);
-
-    qfloat = qobject_to_qfloat(obj);
+    qfloat = qobject_to_qfloat(qobject_from_jsonf("%f", valuef));
     g_assert(qfloat_get_double(qfloat) == valuef);
-
     QDECREF(qfloat);
 }
 
