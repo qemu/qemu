@@ -28,13 +28,12 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
     bool has_exec_key = false;
     QDict *dict = NULL;
 
-    if (qobject_type(request) != QTYPE_QDICT) {
+    dict = qobject_to_qdict(request);
+    if (!dict) {
         error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT,
                    "request is not a dictionary");
         return NULL;
     }
-
-    dict = qobject_to_qdict(request);
 
     for (ent = qdict_first(dict); ent;
          ent = qdict_next(dict, ent)) {

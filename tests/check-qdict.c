@@ -591,7 +591,6 @@ static void qdict_join_test(void)
 static void qdict_crumple_test_recursive(void)
 {
     QDict *src, *dst, *rule, *vnc, *acl, *listen;
-    QObject *res;
     QList *rules;
 
     src = qdict_new();
@@ -605,12 +604,8 @@ static void qdict_crumple_test_recursive(void)
     qdict_put(src, "vnc.acl..name", qstring_from_str("acl0"));
     qdict_put(src, "vnc.acl.rule..name", qstring_from_str("acl0"));
 
-    res = qdict_crumple(src, &error_abort);
-
-    g_assert_cmpint(qobject_type(res), ==, QTYPE_QDICT);
-
-    dst = qobject_to_qdict(res);
-
+    dst = qobject_to_qdict(qdict_crumple(src, &error_abort));
+    g_assert(dst);
     g_assert_cmpint(qdict_size(dst), ==, 1);
 
     vnc = qdict_get_qdict(dst, "vnc");

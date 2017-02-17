@@ -3686,12 +3686,12 @@ static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
     int has_exec_key = 0;
     QDict *input_dict;
 
-    if (qobject_type(input_obj) != QTYPE_QDICT) {
+    input_dict = qobject_to_qdict(input_obj);
+    if (!input_dict) {
         error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT, "object");
         return NULL;
     }
 
-    input_dict = qobject_to_qdict(input_obj);
 
     for (ent = qdict_first(input_dict); ent; ent = qdict_next(input_dict, ent)){
         const char *arg_name = qdict_entry_key(ent);
