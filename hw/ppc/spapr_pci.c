@@ -43,6 +43,7 @@
 
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_ids.h"
 #include "hw/ppc/spapr_drc.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/kvm.h"
@@ -946,6 +947,274 @@ static void populate_resource_props(PCIDevice *d, ResourceProps *rp)
     rp->assigned_len = assigned_idx * sizeof(ResourceFields);
 }
 
+typedef struct PCIClass PCIClass;
+typedef struct PCISubClass PCISubClass;
+typedef struct PCIIFace PCIIFace;
+
+struct PCIIFace {
+    int iface;
+    const char *name;
+};
+
+struct PCISubClass {
+    int subclass;
+    const char *name;
+    const PCIIFace *iface;
+};
+
+struct PCIClass {
+    const char *name;
+    const PCISubClass *subc;
+};
+
+static const PCISubClass undef_subclass[] = {
+    { PCI_CLASS_NOT_DEFINED_VGA, "display", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass mass_subclass[] = {
+    { PCI_CLASS_STORAGE_SCSI, "scsi", NULL },
+    { PCI_CLASS_STORAGE_IDE, "ide", NULL },
+    { PCI_CLASS_STORAGE_FLOPPY, "fdc", NULL },
+    { PCI_CLASS_STORAGE_IPI, "ipi", NULL },
+    { PCI_CLASS_STORAGE_RAID, "raid", NULL },
+    { PCI_CLASS_STORAGE_ATA, "ata", NULL },
+    { PCI_CLASS_STORAGE_SATA, "sata", NULL },
+    { PCI_CLASS_STORAGE_SAS, "sas", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass net_subclass[] = {
+    { PCI_CLASS_NETWORK_ETHERNET, "ethernet", NULL },
+    { PCI_CLASS_NETWORK_TOKEN_RING, "token-ring", NULL },
+    { PCI_CLASS_NETWORK_FDDI, "fddi", NULL },
+    { PCI_CLASS_NETWORK_ATM, "atm", NULL },
+    { PCI_CLASS_NETWORK_ISDN, "isdn", NULL },
+    { PCI_CLASS_NETWORK_WORLDFIP, "worldfip", NULL },
+    { PCI_CLASS_NETWORK_PICMG214, "picmg", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass displ_subclass[] = {
+    { PCI_CLASS_DISPLAY_VGA, "vga", NULL },
+    { PCI_CLASS_DISPLAY_XGA, "xga", NULL },
+    { PCI_CLASS_DISPLAY_3D, "3d-controller", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass media_subclass[] = {
+    { PCI_CLASS_MULTIMEDIA_VIDEO, "video", NULL },
+    { PCI_CLASS_MULTIMEDIA_AUDIO, "sound", NULL },
+    { PCI_CLASS_MULTIMEDIA_PHONE, "telephony", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass mem_subclass[] = {
+    { PCI_CLASS_MEMORY_RAM, "memory", NULL },
+    { PCI_CLASS_MEMORY_FLASH, "flash", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass bridg_subclass[] = {
+    { PCI_CLASS_BRIDGE_HOST, "host", NULL },
+    { PCI_CLASS_BRIDGE_ISA, "isa", NULL },
+    { PCI_CLASS_BRIDGE_EISA, "eisa", NULL },
+    { PCI_CLASS_BRIDGE_MC, "mca", NULL },
+    { PCI_CLASS_BRIDGE_PCI, "pci", NULL },
+    { PCI_CLASS_BRIDGE_PCMCIA, "pcmcia", NULL },
+    { PCI_CLASS_BRIDGE_NUBUS, "nubus", NULL },
+    { PCI_CLASS_BRIDGE_CARDBUS, "cardbus", NULL },
+    { PCI_CLASS_BRIDGE_RACEWAY, "raceway", NULL },
+    { PCI_CLASS_BRIDGE_PCI_SEMITP, "semi-transparent-pci", NULL },
+    { PCI_CLASS_BRIDGE_IB_PCI, "infiniband", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass comm_subclass[] = {
+    { PCI_CLASS_COMMUNICATION_SERIAL, "serial", NULL },
+    { PCI_CLASS_COMMUNICATION_PARALLEL, "parallel", NULL },
+    { PCI_CLASS_COMMUNICATION_MULTISERIAL, "multiport-serial", NULL },
+    { PCI_CLASS_COMMUNICATION_MODEM, "modem", NULL },
+    { PCI_CLASS_COMMUNICATION_GPIB, "gpib", NULL },
+    { PCI_CLASS_COMMUNICATION_SC, "smart-card", NULL },
+    { 0xFF, NULL, NULL, },
+};
+
+static const PCIIFace pic_iface[] = {
+    { PCI_CLASS_SYSTEM_PIC_IOAPIC, "io-apic" },
+    { PCI_CLASS_SYSTEM_PIC_IOXAPIC, "io-xapic" },
+    { 0xFF, NULL },
+};
+
+static const PCISubClass sys_subclass[] = {
+    { PCI_CLASS_SYSTEM_PIC, "interrupt-controller", pic_iface },
+    { PCI_CLASS_SYSTEM_DMA, "dma-controller", NULL },
+    { PCI_CLASS_SYSTEM_TIMER, "timer", NULL },
+    { PCI_CLASS_SYSTEM_RTC, "rtc", NULL },
+    { PCI_CLASS_SYSTEM_PCI_HOTPLUG, "hot-plug-controller", NULL },
+    { PCI_CLASS_SYSTEM_SDHCI, "sd-host-controller", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass inp_subclass[] = {
+    { PCI_CLASS_INPUT_KEYBOARD, "keyboard", NULL },
+    { PCI_CLASS_INPUT_PEN, "pen", NULL },
+    { PCI_CLASS_INPUT_MOUSE, "mouse", NULL },
+    { PCI_CLASS_INPUT_SCANNER, "scanner", NULL },
+    { PCI_CLASS_INPUT_GAMEPORT, "gameport", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass dock_subclass[] = {
+    { PCI_CLASS_DOCKING_GENERIC, "dock", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass cpu_subclass[] = {
+    { PCI_CLASS_PROCESSOR_PENTIUM, "pentium", NULL },
+    { PCI_CLASS_PROCESSOR_POWERPC, "powerpc", NULL },
+    { PCI_CLASS_PROCESSOR_MIPS, "mips", NULL },
+    { PCI_CLASS_PROCESSOR_CO, "co-processor", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCIIFace usb_iface[] = {
+    { PCI_CLASS_SERIAL_USB_UHCI, "usb-uhci" },
+    { PCI_CLASS_SERIAL_USB_OHCI, "usb-ohci", },
+    { PCI_CLASS_SERIAL_USB_EHCI, "usb-ehci" },
+    { PCI_CLASS_SERIAL_USB_XHCI, "usb-xhci" },
+    { PCI_CLASS_SERIAL_USB_UNKNOWN, "usb-unknown" },
+    { PCI_CLASS_SERIAL_USB_DEVICE, "usb-device" },
+    { 0xFF, NULL },
+};
+
+static const PCISubClass ser_subclass[] = {
+    { PCI_CLASS_SERIAL_FIREWIRE, "firewire", NULL },
+    { PCI_CLASS_SERIAL_ACCESS, "access-bus", NULL },
+    { PCI_CLASS_SERIAL_SSA, "ssa", NULL },
+    { PCI_CLASS_SERIAL_USB, "usb", usb_iface },
+    { PCI_CLASS_SERIAL_FIBER, "fibre-channel", NULL },
+    { PCI_CLASS_SERIAL_SMBUS, "smb", NULL },
+    { PCI_CLASS_SERIAL_IB, "infiniband", NULL },
+    { PCI_CLASS_SERIAL_IPMI, "ipmi", NULL },
+    { PCI_CLASS_SERIAL_SERCOS, "sercos", NULL },
+    { PCI_CLASS_SERIAL_CANBUS, "canbus", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass wrl_subclass[] = {
+    { PCI_CLASS_WIRELESS_IRDA, "irda", NULL },
+    { PCI_CLASS_WIRELESS_CIR, "consumer-ir", NULL },
+    { PCI_CLASS_WIRELESS_RF_CONTROLLER, "rf-controller", NULL },
+    { PCI_CLASS_WIRELESS_BLUETOOTH, "bluetooth", NULL },
+    { PCI_CLASS_WIRELESS_BROADBAND, "broadband", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass sat_subclass[] = {
+    { PCI_CLASS_SATELLITE_TV, "satellite-tv", NULL },
+    { PCI_CLASS_SATELLITE_AUDIO, "satellite-audio", NULL },
+    { PCI_CLASS_SATELLITE_VOICE, "satellite-voice", NULL },
+    { PCI_CLASS_SATELLITE_DATA, "satellite-data", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass crypt_subclass[] = {
+    { PCI_CLASS_CRYPT_NETWORK, "network-encryption", NULL },
+    { PCI_CLASS_CRYPT_ENTERTAINMENT,
+      "entertainment-encryption", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCISubClass spc_subclass[] = {
+    { PCI_CLASS_SP_DPIO, "dpio", NULL },
+    { PCI_CLASS_SP_PERF, "counter", NULL },
+    { PCI_CLASS_SP_SYNCH, "measurement", NULL },
+    { PCI_CLASS_SP_MANAGEMENT, "management-card", NULL },
+    { 0xFF, NULL, NULL },
+};
+
+static const PCIClass pci_classes[] = {
+    { "legacy-device", undef_subclass },
+    { "mass-storage",  mass_subclass },
+    { "network", net_subclass },
+    { "display", displ_subclass, },
+    { "multimedia-device", media_subclass },
+    { "memory-controller", mem_subclass },
+    { "unknown-bridge", bridg_subclass },
+    { "communication-controller", comm_subclass},
+    { "system-peripheral", sys_subclass },
+    { "input-controller", inp_subclass },
+    { "docking-station", dock_subclass },
+    { "cpu", cpu_subclass },
+    { "serial-bus", ser_subclass },
+    { "wireless-controller", wrl_subclass },
+    { "intelligent-io", NULL },
+    { "satellite-device", sat_subclass },
+    { "encryption", crypt_subclass },
+    { "data-processing-controller", spc_subclass },
+};
+
+static const char *pci_find_device_name(uint8_t class, uint8_t subclass,
+                                        uint8_t iface)
+{
+    const PCIClass *pclass;
+    const PCISubClass *psubclass;
+    const PCIIFace *piface;
+    const char *name;
+
+    if (class >= ARRAY_SIZE(pci_classes)) {
+        return "pci";
+    }
+
+    pclass = pci_classes + class;
+    name = pclass->name;
+
+    if (pclass->subc == NULL) {
+        return name;
+    }
+
+    psubclass = pclass->subc;
+    while ((psubclass->subclass & 0xff) != 0xff) {
+        if ((psubclass->subclass & 0xff) == subclass) {
+            name = psubclass->name;
+            break;
+        }
+        psubclass++;
+    }
+
+    piface = psubclass->iface;
+    if (piface == NULL) {
+        return name;
+    }
+    while ((piface->iface & 0xff) != 0xff) {
+        if ((piface->iface & 0xff) == iface) {
+            name = piface->name;
+            break;
+        }
+        piface++;
+    }
+
+    return name;
+}
+
+static void pci_get_node_name(char *nodename, int len, PCIDevice *dev)
+{
+    int slot = PCI_SLOT(dev->devfn);
+    int func = PCI_FUNC(dev->devfn);
+    uint32_t ccode = pci_default_read_config(dev, PCI_CLASS_PROG, 3);
+    const char *name;
+
+    name = pci_find_device_name((ccode >> 16) & 0xff, (ccode >> 8) & 0xff,
+                                ccode & 0xff);
+
+    if (func != 0) {
+        snprintf(nodename, len, "%s@%x,%x", name, slot, func);
+    } else {
+        snprintf(nodename, len, "%s@%x", name, slot);
+    }
+}
+
 static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
                                             PCIDevice *pdev);
 
@@ -957,6 +1226,7 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     int pci_status, err;
     char *buf = NULL;
     uint32_t drc_index = spapr_phb_get_pci_drc_index(sphb, dev);
+    uint32_t ccode = pci_default_read_config(dev, PCI_CLASS_PROG, 3);
     uint32_t max_msi, max_msix;
 
     if (pci_default_read_config(dev, PCI_HEADER_TYPE, 1) ==
@@ -971,8 +1241,7 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                           pci_default_read_config(dev, PCI_DEVICE_ID, 2)));
     _FDT(fdt_setprop_cell(fdt, offset, "revision-id",
                           pci_default_read_config(dev, PCI_REVISION_ID, 1)));
-    _FDT(fdt_setprop_cell(fdt, offset, "class-code",
-                          pci_default_read_config(dev, PCI_CLASS_PROG, 3)));
+    _FDT(fdt_setprop_cell(fdt, offset, "class-code", ccode));
     if (pci_default_read_config(dev, PCI_INTERRUPT_PIN, 1)) {
         _FDT(fdt_setprop_cell(fdt, offset, "interrupts",
                  pci_default_read_config(dev, PCI_INTERRUPT_PIN, 1)));
@@ -1013,11 +1282,10 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
         _FDT(fdt_setprop(fdt, offset, "udf-supported", NULL, 0));
     }
 
-    /* NOTE: this is normally generated by firmware via path/unit name,
-     * but in our case we must set it manually since it does not get
-     * processed by OF beforehand
-     */
-    _FDT(fdt_setprop_string(fdt, offset, "name", "pci"));
+    _FDT(fdt_setprop_string(fdt, offset, "name",
+                            pci_find_device_name((ccode >> 16) & 0xff,
+                                                 (ccode >> 8) & 0xff,
+                                                 ccode & 0xff)));
     buf = spapr_phb_get_loc_code(sphb, dev);
     if (!buf) {
         error_report("Failed setting the ibm,loc-code");
@@ -1061,15 +1329,9 @@ static int spapr_create_pci_child_dt(sPAPRPHBState *phb, PCIDevice *dev,
                                      void *fdt, int node_offset)
 {
     int offset, ret;
-    int slot = PCI_SLOT(dev->devfn);
-    int func = PCI_FUNC(dev->devfn);
     char nodename[FDT_NAME_MAX];
 
-    if (func != 0) {
-        snprintf(nodename, FDT_NAME_MAX, "pci@%x,%x", slot, func);
-    } else {
-        snprintf(nodename, FDT_NAME_MAX, "pci@%x", slot);
-    }
+    pci_get_node_name(nodename, FDT_NAME_MAX, dev);
     offset = fdt_add_subnode(fdt, node_offset, nodename);
     ret = spapr_populate_pci_child_dt(dev, fdt, offset, phb);
 
