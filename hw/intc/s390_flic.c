@@ -79,15 +79,47 @@ static int qemu_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
     return -ENOSYS;
 }
 
+static int qemu_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
+                                     uint16_t mode)
+{
+    QEMUS390FLICState *flic  = QEMU_S390_FLIC(fs);
+
+    switch (mode) {
+    case SIC_IRQ_MODE_ALL:
+        flic->simm &= ~AIS_MODE_MASK(isc);
+        flic->nimm &= ~AIS_MODE_MASK(isc);
+        break;
+    case SIC_IRQ_MODE_SINGLE:
+        flic->simm |= AIS_MODE_MASK(isc);
+        flic->nimm &= ~AIS_MODE_MASK(isc);
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static void qemu_s390_flic_reset(DeviceState *dev)
+{
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(dev);
+
+    flic->simm = 0;
+    flic->nimm = 0;
+}
+
 static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
 
+    dc->reset = qemu_s390_flic_reset;
     fsc->register_io_adapter = qemu_s390_register_io_adapter;
     fsc->io_adapter_map = qemu_s390_io_adapter_map;
     fsc->add_adapter_routes = qemu_s390_add_adapter_routes;
     fsc->release_adapter_routes = qemu_s390_release_adapter_routes;
     fsc->clear_io_irq = qemu_s390_clear_io_flic;
+    fsc->modify_ais_mode = qemu_s390_modify_ais_mode;
 }
 
 static Property s390_flic_common_properties[] = {
@@ -98,12 +130,15 @@ static Property s390_flic_common_properties[] = {
 
 static void s390_flic_common_realize(DeviceState *dev, Error **errp)
 {
-    uint32_t max_batch = S390_FLIC_COMMON(dev)->adapter_routes_max_batch;
+    S390FLICState *fs = S390_FLIC_COMMON(dev);
+    uint32_t max_batch = fs->adapter_routes_max_batch;
 
     if (max_batch > ADAPTER_ROUTES_MAX_GSI) {
         error_setg(errp, "flic property adapter_routes_max_batch too big"
                    " (%d > %d)", max_batch, ADAPTER_ROUTES_MAX_GSI);
     }
+
+    fs->ais_supported = true;
 }
 
 static void s390_flic_class_init(ObjectClass *oc, void *data)

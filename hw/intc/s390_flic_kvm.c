@@ -20,6 +20,7 @@
 #include "sysemu/kvm.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/adapter.h"
+#include "hw/s390x/css.h"
 #include "trace.h"
 
 #define FLIC_SAVE_INITIAL_SIZE getpagesize()
@@ -147,6 +148,26 @@ static int kvm_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
     }
     rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
     return rc ? -errno : 0;
+}
+
+static int kvm_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
+                                    uint16_t mode)
+{
+    KVMS390FLICState *flic = KVM_S390_FLIC(fs);
+    struct kvm_s390_ais_req req = {
+        .isc = isc,
+        .mode = mode,
+    };
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_FLIC_AISM,
+        .addr = (uint64_t)&req,
+    };
+
+    if (!fs->ais_supported) {
+        return -ENOSYS;
+    }
+
+    return ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr) ? -errno : 0;
 }
 
 /**
@@ -406,6 +427,7 @@ typedef struct KVMS390FLICStateClass {
 
 static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
 {
+    S390FLICState *fs = S390_FLIC_COMMON(dev);
     KVMS390FLICState *flic_state = KVM_S390_FLIC(dev);
     struct kvm_create_device cd = {0};
     struct kvm_device_attr test_attr = {0};
@@ -438,6 +460,7 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
     flic_state->clear_io_supported = !ioctl(flic_state->fd,
                                             KVM_HAS_DEVICE_ATTR, test_attr);
 
+    fs->ais_supported = false;
     return;
 fail:
     error_propagate(errp, errp_local);
@@ -446,16 +469,28 @@ fail:
 static void kvm_s390_flic_reset(DeviceState *dev)
 {
     KVMS390FLICState *flic = KVM_S390_FLIC(dev);
+    S390FLICState *fs = S390_FLIC_COMMON(dev);
     struct kvm_device_attr attr = {
         .group = KVM_DEV_FLIC_CLEAR_IRQS,
     };
     int rc = 0;
+    uint8_t isc;
 
     if (flic->fd == -1) {
         return;
     }
 
     flic_disable_wait_pfault(flic);
+
+    if (fs->ais_supported) {
+        for (isc = 0; isc <= MAX_ISC; isc++) {
+            rc = kvm_s390_modify_ais_mode(fs, isc, SIC_IRQ_MODE_ALL);
+            if (rc) {
+                error_report("Failed to reset ais mode for isc %d: %s",
+                             isc, strerror(-rc));
+            }
+        }
+    }
 
     rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
     if (rc) {
@@ -479,6 +514,7 @@ static void kvm_s390_flic_class_init(ObjectClass *oc, void *data)
     fsc->add_adapter_routes = kvm_s390_add_adapter_routes;
     fsc->release_adapter_routes = kvm_s390_release_adapter_routes;
     fsc->clear_io_irq = kvm_s390_clear_io_flic;
+    fsc->modify_ais_mode = kvm_s390_modify_ais_mode;
 }
 
 static const TypeInfo kvm_s390_flic_info = {
