@@ -302,20 +302,27 @@ static int coroutine_fn nfs_co_pwritev(BlockDriverState *bs, uint64_t offset,
     NFSClient *client = bs->opaque;
     NFSRPC task;
     char *buf = NULL;
+    bool my_buffer = false;
 
     nfs_co_init_task(bs, &task);
 
-    buf = g_try_malloc(bytes);
-    if (bytes && buf == NULL) {
-        return -ENOMEM;
+    if (iov->niov != 1) {
+        buf = g_try_malloc(bytes);
+        if (bytes && buf == NULL) {
+            return -ENOMEM;
+        }
+        qemu_iovec_to_buf(iov, 0, buf, bytes);
+        my_buffer = true;
+    } else {
+        buf = iov->iov[0].iov_base;
     }
-
-    qemu_iovec_to_buf(iov, 0, buf, bytes);
 
     if (nfs_pwrite_async(client->context, client->fh,
                          offset, bytes, buf,
                          nfs_co_generic_cb, &task) != 0) {
-        g_free(buf);
+        if (my_buffer) {
+            g_free(buf);
+        }
         return -ENOMEM;
     }
 
@@ -324,7 +331,9 @@ static int coroutine_fn nfs_co_pwritev(BlockDriverState *bs, uint64_t offset,
         qemu_coroutine_yield();
     }
 
-    g_free(buf);
+    if (my_buffer) {
+        g_free(buf);
+    }
 
     if (task.ret != bytes) {
         return task.ret < 0 ? task.ret : -EIO;
