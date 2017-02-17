@@ -1546,28 +1546,12 @@ free_exit:
     return ret;
 }
 
-/*
- * Opens a disk image whose options are given as BlockdevRef in another block
- * device's options.
- *
- * If allow_none is true, no image will be opened if filename is false and no
- * BlockdevRef is given. NULL will be returned, but errp remains unset.
- *
- * bdrev_key specifies the key for the image's BlockdevRef in the options QDict.
- * That QDict has to be flattened; therefore, if the BlockdevRef is a QDict
- * itself, all options starting with "${bdref_key}." are considered part of the
- * BlockdevRef.
- *
- * The BlockdevRef will be removed from the options QDict.
- */
-BdrvChild *bdrv_open_child(const char *filename,
-                           QDict *options, const char *bdref_key,
-                           BlockDriverState* parent,
-                           const BdrvChildRole *child_role,
-                           bool allow_none, Error **errp)
+static BlockDriverState *
+bdrv_open_child_bs(const char *filename, QDict *options, const char *bdref_key,
+                   BlockDriverState *parent, const BdrvChildRole *child_role,
+                   bool allow_none, Error **errp)
 {
-    BdrvChild *c = NULL;
-    BlockDriverState *bs;
+    BlockDriverState *bs = NULL;
     QDict *image_options;
     char *bdref_key_dot;
     const char *reference;
@@ -1594,11 +1578,40 @@ BdrvChild *bdrv_open_child(const char *filename,
         goto done;
     }
 
-    c = bdrv_attach_child(parent, bs, bdref_key, child_role);
-
 done:
     qdict_del(options, bdref_key);
-    return c;
+    return bs;
+}
+
+/*
+ * Opens a disk image whose options are given as BlockdevRef in another block
+ * device's options.
+ *
+ * If allow_none is true, no image will be opened if filename is false and no
+ * BlockdevRef is given. NULL will be returned, but errp remains unset.
+ *
+ * bdrev_key specifies the key for the image's BlockdevRef in the options QDict.
+ * That QDict has to be flattened; therefore, if the BlockdevRef is a QDict
+ * itself, all options starting with "${bdref_key}." are considered part of the
+ * BlockdevRef.
+ *
+ * The BlockdevRef will be removed from the options QDict.
+ */
+BdrvChild *bdrv_open_child(const char *filename,
+                           QDict *options, const char *bdref_key,
+                           BlockDriverState *parent,
+                           const BdrvChildRole *child_role,
+                           bool allow_none, Error **errp)
+{
+    BlockDriverState *bs;
+
+    bs = bdrv_open_child_bs(filename, options, bdref_key, parent, child_role,
+                            allow_none, errp);
+    if (bs == NULL) {
+        return NULL;
+    }
+
+    return bdrv_attach_child(parent, bs, bdref_key, child_role);
 }
 
 static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
