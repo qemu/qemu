@@ -58,13 +58,13 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
                                  const void *unused)
 {
     int64_t value = -42;
-    QObject *obj;
+    QInt *qint;
 
     visit_type_int(data->ov, NULL, &value, &error_abort);
 
-    obj = visitor_get(data);
-    g_assert(qobject_type(obj) == QTYPE_QINT);
-    g_assert_cmpint(qint_get_int(qobject_to_qint(obj)), ==, value);
+    qint = qobject_to_qint(visitor_get(data));
+    g_assert(qint);
+    g_assert_cmpint(qint_get_int(qint), ==, value);
 }
 
 static void test_visitor_out_bool(TestOutputVisitorData *data,
@@ -335,13 +335,12 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     QBool *qbool;
     QString *qstring;
     QDict *qdict;
-    QObject *obj;
 
     qobj = QOBJECT(qint_from_int(-42));
     visit_type_any(data->ov, NULL, &qobj, &error_abort);
-    obj = visitor_get(data);
-    g_assert(qobject_type(obj) == QTYPE_QINT);
-    g_assert_cmpint(qint_get_int(qobject_to_qint(obj)), ==, -42);
+    qint = qobject_to_qint(visitor_get(data));
+    g_assert(qint);
+    g_assert_cmpint(qint_get_int(qint), ==, -42);
     qobject_decref(qobj);
 
     visitor_reset(data);
@@ -354,9 +353,7 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     qobject_decref(qobj);
     qdict = qobject_to_qdict(visitor_get(data));
     g_assert(qdict);
-    qobj = qdict_get(qdict, "integer");
-    g_assert(qobj);
-    qint = qobject_to_qint(qobj);
+    qint = qobject_to_qint(qdict_get(qdict, "integer"));
     g_assert(qint);
     g_assert_cmpint(qint_get_int(qint), ==, -42);
     qobj = qdict_get(qdict, "boolean");
@@ -394,8 +391,8 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
 static void test_visitor_out_alternate(TestOutputVisitorData *data,
                                        const void *unused)
 {
-    QObject *arg;
     UserDefAlternate *tmp;
+    QInt *qint;
     QString *qstr;
     QDict *qdict;
 
@@ -404,10 +401,9 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     tmp->u.i = 42;
 
     visit_type_UserDefAlternate(data->ov, NULL, &tmp, &error_abort);
-    arg = visitor_get(data);
-
-    g_assert(qobject_type(arg) == QTYPE_QINT);
-    g_assert_cmpint(qint_get_int(qobject_to_qint(arg)), ==, 42);
+    qint = qobject_to_qint(visitor_get(data));
+    g_assert(qint);
+    g_assert_cmpint(qint_get_int(qint), ==, 42);
 
     qapi_free_UserDefAlternate(tmp);
 

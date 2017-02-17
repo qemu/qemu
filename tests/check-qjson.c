@@ -884,19 +884,15 @@ static void simple_number(void)
     };
 
     for (i = 0; test_cases[i].encoded; i++) {
-        QObject *obj;
         QInt *qint;
 
-        obj = qobject_from_json(test_cases[i].encoded);
-        g_assert(obj != NULL);
-        g_assert(qobject_type(obj) == QTYPE_QINT);
-
-        qint = qobject_to_qint(obj);
+        qint = qobject_to_qint(qobject_from_json(test_cases[i].encoded));
+        g_assert(qint);
         g_assert(qint_get_int(qint) == test_cases[i].decoded);
         if (test_cases[i].skip == 0) {
             QString *str;
 
-            str = qobject_to_json(obj);
+            str = qobject_to_json(QOBJECT(qint));
             g_assert(strcmp(qstring_get_str(str), test_cases[i].encoded) == 0);
             QDECREF(str);
         }
@@ -952,22 +948,12 @@ static void vararg_number(void)
     long long value_ll = 0x2342342343LL;
     double valuef = 2.323423423;
 
-    obj = qobject_from_jsonf("%d", value);
-    g_assert(obj != NULL);
-    g_assert(qobject_type(obj) == QTYPE_QINT);
-
-    qint = qobject_to_qint(obj);
+    qint = qobject_to_qint(qobject_from_jsonf("%d", value));
     g_assert(qint_get_int(qint) == value);
-
     QDECREF(qint);
 
-    obj = qobject_from_jsonf("%lld", value_ll);
-    g_assert(obj != NULL);
-    g_assert(qobject_type(obj) == QTYPE_QINT);
-
-    qint = qobject_to_qint(obj);
+    qint = qobject_to_qint(qobject_from_jsonf("%lld", value_ll));
     g_assert(qint_get_int(qint) == value_ll);
-
     QDECREF(qint);
 
     obj = qobject_from_jsonf("%f", valuef);
