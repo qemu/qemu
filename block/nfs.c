@@ -263,9 +263,9 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
                             nfs_co_generic_bh_cb, task);
 }
 
-static int coroutine_fn nfs_co_readv(BlockDriverState *bs,
-                                     int64_t sector_num, int nb_sectors,
-                                     QEMUIOVector *iov)
+static int coroutine_fn nfs_co_preadv(BlockDriverState *bs, uint64_t offset,
+                                      uint64_t bytes, QEMUIOVector *iov,
+                                      int flags)
 {
     NFSClient *client = bs->opaque;
     NFSRPC task;
@@ -274,9 +274,7 @@ static int coroutine_fn nfs_co_readv(BlockDriverState *bs,
     task.iov = iov;
 
     if (nfs_pread_async(client->context, client->fh,
-                        sector_num * BDRV_SECTOR_SIZE,
-                        nb_sectors * BDRV_SECTOR_SIZE,
-                        nfs_co_generic_cb, &task) != 0) {
+                        offset, bytes, nfs_co_generic_cb, &task) != 0) {
         return -ENOMEM;
     }
 
@@ -297,9 +295,9 @@ static int coroutine_fn nfs_co_readv(BlockDriverState *bs,
     return 0;
 }
 
-static int coroutine_fn nfs_co_writev(BlockDriverState *bs,
-                                        int64_t sector_num, int nb_sectors,
-                                        QEMUIOVector *iov)
+static int coroutine_fn nfs_co_pwritev(BlockDriverState *bs, uint64_t offset,
+                                       uint64_t bytes, QEMUIOVector *iov,
+                                       int flags)
 {
     NFSClient *client = bs->opaque;
     NFSRPC task;
@@ -307,17 +305,16 @@ static int coroutine_fn nfs_co_writev(BlockDriverState *bs,
 
     nfs_co_init_task(bs, &task);
 
-    buf = g_try_malloc(nb_sectors * BDRV_SECTOR_SIZE);
-    if (nb_sectors && buf == NULL) {
+    buf = g_try_malloc(bytes);
+    if (bytes && buf == NULL) {
         return -ENOMEM;
     }
 
-    qemu_iovec_to_buf(iov, 0, buf, nb_sectors * BDRV_SECTOR_SIZE);
+    qemu_iovec_to_buf(iov, 0, buf, bytes);
 
     if (nfs_pwrite_async(client->context, client->fh,
-                         sector_num * BDRV_SECTOR_SIZE,
-                         nb_sectors * BDRV_SECTOR_SIZE,
-                         buf, nfs_co_generic_cb, &task) != 0) {
+                         offset, bytes, buf,
+                         nfs_co_generic_cb, &task) != 0) {
         g_free(buf);
         return -ENOMEM;
     }
@@ -329,7 +326,7 @@ static int coroutine_fn nfs_co_writev(BlockDriverState *bs,
 
     g_free(buf);
 
-    if (task.ret != nb_sectors * BDRV_SECTOR_SIZE) {
+    if (task.ret != bytes) {
         return task.ret < 0 ? task.ret : -EIO;
     }
 
@@ -861,8 +858,8 @@ static BlockDriver bdrv_nfs = {
     .bdrv_create                    = nfs_file_create,
     .bdrv_reopen_prepare            = nfs_reopen_prepare,
 
-    .bdrv_co_readv                  = nfs_co_readv,
-    .bdrv_co_writev                 = nfs_co_writev,
+    .bdrv_co_preadv                 = nfs_co_preadv,
+    .bdrv_co_pwritev                = nfs_co_pwritev,
     .bdrv_co_flush_to_disk          = nfs_co_flush,
 
     .bdrv_detach_aio_context        = nfs_detach_aio_context,
