@@ -107,6 +107,7 @@ docs/qemu-ga-ref.info*
 docs/qemu-qmp-ref.info*
 /qemu-ga-qapi.texi
 /qemu-qapi.texi
+/version.texi
 *.tps
 .stgit-*
 cscope.*
