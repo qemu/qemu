@@ -121,7 +121,7 @@ static void commit_complete(BlockJob *job, void *opaque)
      * filter driver from the backing chain. Do this as the final step so that
      * the 'consistent read' permission can be granted.  */
     if (remove_commit_top_bs) {
-        bdrv_set_backing_hd(overlay_bs, top);
+        bdrv_set_backing_hd(overlay_bs, top, &error_abort);
     }
 }
 
@@ -316,8 +316,8 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         goto fail;
     }
 
-    bdrv_set_backing_hd(commit_top_bs, top);
-    bdrv_set_backing_hd(overlay_bs, commit_top_bs);
+    bdrv_set_backing_hd(commit_top_bs, top, &error_abort);
+    bdrv_set_backing_hd(overlay_bs, commit_top_bs, &error_abort);
 
     s->commit_top_bs = commit_top_bs;
     bdrv_unref(commit_top_bs);
@@ -390,7 +390,7 @@ fail:
         blk_unref(s->top);
     }
     if (commit_top_bs) {
-        bdrv_set_backing_hd(overlay_bs, top);
+        bdrv_set_backing_hd(overlay_bs, top, &error_abort);
     }
     block_job_unref(&s->common);
 }
@@ -451,8 +451,8 @@ int bdrv_commit(BlockDriverState *bs)
         goto ro_cleanup;
     }
 
-    bdrv_set_backing_hd(commit_top_bs, backing_file_bs);
-    bdrv_set_backing_hd(bs, commit_top_bs);
+    bdrv_set_backing_hd(commit_top_bs, backing_file_bs, &error_abort);
+    bdrv_set_backing_hd(bs, commit_top_bs, &error_abort);
 
     ret = blk_insert_bs(backing, backing_file_bs, &local_err);
     if (ret < 0) {
@@ -532,7 +532,7 @@ ro_cleanup:
 
     blk_unref(backing);
     if (backing_file_bs) {
-        bdrv_set_backing_hd(bs, backing_file_bs);
+        bdrv_set_backing_hd(bs, backing_file_bs, &error_abort);
     }
     bdrv_unref(commit_top_bs);
     blk_unref(src);

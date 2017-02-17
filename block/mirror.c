@@ -503,6 +503,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
     BlockDriverState *src = s->source;
     BlockDriverState *target_bs = blk_bs(s->target);
     BlockDriverState *mirror_top_bs = s->mirror_top_bs;
+    Error *local_err = NULL;
 
     /* Make sure that the source BDS doesn't go away before we called
      * block_job_completed(). */
@@ -516,7 +517,11 @@ static void mirror_exit(BlockJob *job, void *opaque)
     if (s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing = s->is_none_mode ? src : s->base;
         if (backing_bs(target_bs) != backing) {
-            bdrv_set_backing_hd(target_bs, backing);
+            bdrv_set_backing_hd(target_bs, backing, &local_err);
+            if (local_err) {
+                error_report_err(local_err);
+                data->ret = -EPERM;
+            }
         }
     }
 

@@ -3041,7 +3041,7 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
                                    &error_abort);
     *(void**) backing->opaque = s;
 
-    bdrv_set_backing_hd(s->bs, backing);
+    bdrv_set_backing_hd(s->bs, backing, &error_abort);
     bdrv_unref(backing);
 
     return 0;
