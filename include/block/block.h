@@ -82,6 +82,7 @@ typedef struct HDGeometry {
 } HDGeometry;
 
 #define BDRV_O_RDWR        0x0002
+#define BDRV_O_RESIZE      0x0004 /* request permission for resizing the node */
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
 #define BDRV_O_TEMPORARY   0x0010 /* delete the file after use */
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */

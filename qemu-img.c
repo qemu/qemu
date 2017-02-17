@@ -3419,7 +3419,7 @@ static int img_resize(int argc, char **argv)
     qemu_opts_del(param);
 
     blk = img_open(image_opts, filename, fmt,
-                   BDRV_O_RDWR, false, quiet);
+                   BDRV_O_RDWR | BDRV_O_RESIZE, false, quiet);
     if (!blk) {
         ret = -1;
         goto out;

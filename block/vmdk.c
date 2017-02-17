@@ -1703,7 +1703,8 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     }
 
     blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                       &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         ret = -EIO;
@@ -2071,7 +2072,8 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     new_blk = blk_new_open(filename, NULL, NULL,
-                           BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
+                           BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                           &local_err);
     if (new_blk == NULL) {
         error_propagate(errp, local_err);
         ret = -EIO;
