@@ -13,8 +13,11 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"
+#include "hw/s390x/ioinst.h"
 #include "hw/s390x/s390_flic.h"
+#include "hw/s390x/css.h"
 #include "trace.h"
+#include "cpu.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
 #include "hw/s390x/s390-virtio-ccw.h"
@@ -100,6 +103,29 @@ static int qemu_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
     return 0;
 }
 
+static int qemu_s390_inject_airq(S390FLICState *fs, uint8_t type,
+                                 uint8_t isc, uint8_t flags)
+{
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(fs);
+    bool flag = flags & S390_ADAPTER_SUPPRESSIBLE;
+    uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
+
+    if (flag && (flic->nimm & AIS_MODE_MASK(isc))) {
+        trace_qemu_s390_airq_suppressed(type, isc);
+        return 0;
+    }
+
+    s390_io_interrupt(0, 0, 0, io_int_word);
+
+    if (flag && (flic->simm & AIS_MODE_MASK(isc))) {
+        flic->nimm |= AIS_MODE_MASK(isc);
+        trace_qemu_s390_suppress_airq(isc, "Single-Interruption Mode",
+                                      "NO-Interruptions Mode");
+    }
+
+    return 0;
+}
+
 static void qemu_s390_flic_reset(DeviceState *dev)
 {
     QEMUS390FLICState *flic = QEMU_S390_FLIC(dev);
@@ -120,6 +146,7 @@ static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
     fsc->release_adapter_routes = qemu_s390_release_adapter_routes;
     fsc->clear_io_irq = qemu_s390_clear_io_flic;
     fsc->modify_ais_mode = qemu_s390_modify_ais_mode;
+    fsc->inject_airq = qemu_s390_inject_airq;
 }
 
 static Property s390_flic_common_properties[] = {

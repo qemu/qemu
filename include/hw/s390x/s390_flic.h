@@ -64,6 +64,8 @@ typedef struct S390FLICStateClass {
     int (*clear_io_irq)(S390FLICState *fs, uint16_t subchannel_id,
                         uint16_t subchannel_nr);
     int (*modify_ais_mode)(S390FLICState *fs, uint8_t isc, uint16_t mode);
+    int (*inject_airq)(S390FLICState *fs, uint8_t type, uint8_t isc,
+                       uint8_t flags);
 } S390FLICStateClass;
 
 #define TYPE_KVM_S390_FLIC "s390-flic-kvm"

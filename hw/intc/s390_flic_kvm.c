@@ -170,6 +170,23 @@ static int kvm_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
     return ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr) ? -errno : 0;
 }
 
+static int kvm_s390_inject_airq(S390FLICState *fs, uint8_t type,
+                                uint8_t isc, uint8_t flags)
+{
+    KVMS390FLICState *flic = KVM_S390_FLIC(fs);
+    uint32_t id = css_get_adapter_id(type, isc);
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_FLIC_AIRQ_INJECT,
+        .attr = id,
+    };
+
+    if (!fs->ais_supported) {
+        return -ENOSYS;
+    }
+
+    return ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr) ? -errno : 0;
+}
+
 /**
  * __get_all_irqs - store all pending irqs in buffer
  * @flic: pointer to flic device state
@@ -515,6 +532,7 @@ static void kvm_s390_flic_class_init(ObjectClass *oc, void *data)
     fsc->release_adapter_routes = kvm_s390_release_adapter_routes;
     fsc->clear_io_irq = kvm_s390_clear_io_flic;
     fsc->modify_ais_mode = kvm_s390_modify_ais_mode;
+    fsc->inject_airq = kvm_s390_inject_airq;
 }
 
 static const TypeInfo kvm_s390_flic_info = {
