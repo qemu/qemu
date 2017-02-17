@@ -805,8 +805,6 @@ static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
     ov = qobject_output_visitor_new(&server_qdict);
     visit_type_NFSServer(ov, NULL, &client->server, &error_abort);
     visit_complete(ov, &server_qdict);
-    assert(qobject_type(server_qdict) == QTYPE_QDICT);
-
     qdict_put_obj(opts, "server", server_qdict);
     qdict_put(opts, "path", qstring_from_str(client->path));
 
