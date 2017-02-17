@@ -261,7 +261,6 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
     bool value_bool = true;
     int value_int = 10;
     QListEntry *entry;
-    QObject *obj;
     QList *qlist;
     int i;
 
@@ -279,10 +278,8 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
 
     visit_type_TestStructList(data->ov, NULL, &head, &error_abort);
 
-    obj = visitor_get(data);
-    g_assert(qobject_type(obj) == QTYPE_QLIST);
-
-    qlist = qobject_to_qlist(obj);
+    qlist = qobject_to_qlist(visitor_get(data));
+    g_assert(qlist);
     g_assert(!qlist_empty(qlist));
 
     /* ...and ensure that the visitor sees it in order */
