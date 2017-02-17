@@ -1594,9 +1594,14 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
     switch (prealloc) {
 #ifdef CONFIG_POSIX_FALLOCATE
     case PREALLOC_MODE_FALLOC:
-        /* posix_fallocate() doesn't set errno. */
+        /*
+         * Truncating before posix_fallocate() makes it about twice slower on
+         * file systems that do not support fallocate(), trying to check if a
+         * block is allocated before allocating it, so don't do that here.
+         */
         result = -posix_fallocate(fd, 0, total_size);
         if (result != 0) {
+            /* posix_fallocate() doesn't set errno. */
             error_setg_errno(errp, -result,
                              "Could not preallocate data for the new file");
         }
