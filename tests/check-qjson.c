@@ -966,10 +966,8 @@ static void keyword_literal(void)
     QString *str;
 
     obj = qobject_from_json("true");
-    g_assert(obj != NULL);
-    g_assert(qobject_type(obj) == QTYPE_QBOOL);
-
     qbool = qobject_to_qbool(obj);
+    g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == true);
 
     str = qobject_to_json(obj);
@@ -979,10 +977,8 @@ static void keyword_literal(void)
     QDECREF(qbool);
 
     obj = qobject_from_json("false");
-    g_assert(obj != NULL);
-    g_assert(qobject_type(obj) == QTYPE_QBOOL);
-
     qbool = qobject_to_qbool(obj);
+    g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == false);
 
     str = qobject_to_json(obj);
@@ -991,23 +987,15 @@ static void keyword_literal(void)
 
     QDECREF(qbool);
 
-    obj = qobject_from_jsonf("%i", false);
-    g_assert(obj != NULL);
-    g_assert(qobject_type(obj) == QTYPE_QBOOL);
-
-    qbool = qobject_to_qbool(obj);
+    qbool = qobject_to_qbool(qobject_from_jsonf("%i", false));
+    g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == false);
-
     QDECREF(qbool);
 
     /* Test that non-zero values other than 1 get collapsed to true */
-    obj = qobject_from_jsonf("%i", 2);
-    g_assert(obj != NULL);
-    g_assert(qobject_type(obj) == QTYPE_QBOOL);
-
-    qbool = qobject_to_qbool(obj);
+    qbool = qobject_to_qbool(qobject_from_jsonf("%i", 2));
+    g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == true);
-
     QDECREF(qbool);
 
     obj = qobject_from_json("null");

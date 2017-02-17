@@ -71,13 +71,13 @@ static void test_visitor_out_bool(TestOutputVisitorData *data,
                                   const void *unused)
 {
     bool value = true;
-    QObject *obj;
+    QBool *qbool;
 
     visit_type_bool(data->ov, NULL, &value, &error_abort);
 
-    obj = visitor_get(data);
-    g_assert(qobject_type(obj) == QTYPE_QBOOL);
-    g_assert(qbool_get_bool(qobject_to_qbool(obj)) == value);
+    qbool = qobject_to_qbool(visitor_get(data));
+    g_assert(qbool);
+    g_assert(qbool_get_bool(qbool) == value);
 }
 
 static void test_visitor_out_number(TestOutputVisitorData *data,
@@ -356,9 +356,7 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     qint = qobject_to_qint(qdict_get(qdict, "integer"));
     g_assert(qint);
     g_assert_cmpint(qint_get_int(qint), ==, -42);
-    qobj = qdict_get(qdict, "boolean");
-    g_assert(qobj);
-    qbool = qobject_to_qbool(qobj);
+    qbool = qobject_to_qbool(qdict_get(qdict, "boolean"));
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == true);
     qstring = qobject_to_qstring(qdict_get(qdict, "string"));
