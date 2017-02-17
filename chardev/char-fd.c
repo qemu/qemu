@@ -58,7 +58,7 @@ static gboolean fd_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     ret = qio_channel_read(
         chan, (gchar *)buf, len, NULL);
     if (ret == 0) {
-        remove_fd_in_watch(chr);
+        remove_fd_in_watch(chr, NULL);
         qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
         return FALSE;
     }
@@ -89,7 +89,7 @@ static void fd_chr_update_read_handler(Chardev *chr,
 {
     FDChardev *s = FD_CHARDEV(chr);
 
-    remove_fd_in_watch(chr);
+    remove_fd_in_watch(chr, NULL);
     if (s->ioc_in) {
         chr->fd_in_tag = io_add_watch_poll(chr, s->ioc_in,
                                            fd_chr_read_poll,
@@ -103,7 +103,7 @@ static void char_fd_finalize(Object *obj)
     Chardev *chr = CHARDEV(obj);
     FDChardev *s = FD_CHARDEV(obj);
 
-    remove_fd_in_watch(chr);
+    remove_fd_in_watch(chr, NULL);
     if (s->ioc_in) {
         object_unref(OBJECT(s->ioc_in));
     }
