@@ -97,42 +97,41 @@ static void test_visitor_out_string(TestOutputVisitorData *data,
                                     const void *unused)
 {
     char *string = (char *) "Q E M U";
-    QObject *obj;
+    QString *qstr;
 
     visit_type_str(data->ov, NULL, &string, &error_abort);
 
-    obj = visitor_get(data);
-    g_assert(qobject_type(obj) == QTYPE_QSTRING);
-    g_assert_cmpstr(qstring_get_str(qobject_to_qstring(obj)), ==, string);
+    qstr = qobject_to_qstring(visitor_get(data));
+    g_assert(qstr);
+    g_assert_cmpstr(qstring_get_str(qstr), ==, string);
 }
 
 static void test_visitor_out_no_string(TestOutputVisitorData *data,
                                        const void *unused)
 {
     char *string = NULL;
-    QObject *obj;
+    QString *qstr;
 
     /* A null string should return "" */
     visit_type_str(data->ov, NULL, &string, &error_abort);
 
-    obj = visitor_get(data);
-    g_assert(qobject_type(obj) == QTYPE_QSTRING);
-    g_assert_cmpstr(qstring_get_str(qobject_to_qstring(obj)), ==, "");
+    qstr = qobject_to_qstring(visitor_get(data));
+    g_assert(qstr);
+    g_assert_cmpstr(qstring_get_str(qstr), ==, "");
 }
 
 static void test_visitor_out_enum(TestOutputVisitorData *data,
                                   const void *unused)
 {
-    QObject *obj;
     EnumOne i;
+    QString *qstr;
 
     for (i = 0; i < ENUM_ONE__MAX; i++) {
         visit_type_EnumOne(data->ov, "unused", &i, &error_abort);
 
-        obj = visitor_get(data);
-        g_assert(qobject_type(obj) == QTYPE_QSTRING);
-        g_assert_cmpstr(qstring_get_str(qobject_to_qstring(obj)), ==,
-                        EnumOne_lookup[i]);
+        qstr = qobject_to_qstring(visitor_get(data));
+        g_assert(qstr);
+        g_assert_cmpstr(qstring_get_str(qstr), ==, EnumOne_lookup[i]);
         visitor_reset(data);
     }
 }
@@ -365,9 +364,7 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     qbool = qobject_to_qbool(qobj);
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == true);
-    qobj = qdict_get(qdict, "string");
-    g_assert(qobj);
-    qstring = qobject_to_qstring(qobj);
+    qstring = qobject_to_qstring(qdict_get(qdict, "string"));
     g_assert(qstring);
     g_assert_cmpstr(qstring_get_str(qstring), ==, "foo");
 }
@@ -399,6 +396,7 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
 {
     QObject *arg;
     UserDefAlternate *tmp;
+    QString *qstr;
     QDict *qdict;
 
     tmp = g_new0(UserDefAlternate, 1);
@@ -419,10 +417,9 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     tmp->u.s = g_strdup("hello");
 
     visit_type_UserDefAlternate(data->ov, NULL, &tmp, &error_abort);
-    arg = visitor_get(data);
-
-    g_assert(qobject_type(arg) == QTYPE_QSTRING);
-    g_assert_cmpstr(qstring_get_str(qobject_to_qstring(arg)), ==, "hello");
+    qstr = qobject_to_qstring(visitor_get(data));
+    g_assert(qstr);
+    g_assert_cmpstr(qstring_get_str(qstr), ==, "hello");
 
     qapi_free_UserDefAlternate(tmp);
 

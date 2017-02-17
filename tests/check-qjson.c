@@ -54,11 +54,8 @@ static void escaped_string(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded);
-
-        g_assert(obj != NULL);
-        g_assert(qobject_type(obj) == QTYPE_QSTRING);
-        
         str = qobject_to_qstring(obj);
+        g_assert(str);
         g_assert_cmpstr(qstring_get_str(str), ==, test_cases[i].decoded);
 
         if (test_cases[i].skip == 0) {
@@ -89,11 +86,8 @@ static void simple_string(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded);
-
-        g_assert(obj != NULL);
-        g_assert(qobject_type(obj) == QTYPE_QSTRING);
-        
         str = qobject_to_qstring(obj);
+        g_assert(str);
         g_assert(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
 
         str = qobject_to_json(obj);
@@ -123,11 +117,8 @@ static void single_quote_string(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded);
-
-        g_assert(obj != NULL);
-        g_assert(qobject_type(obj) == QTYPE_QSTRING);
-        
         str = qobject_to_qstring(obj);
+        g_assert(str);
         g_assert(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
 
         QDECREF(str);
@@ -820,9 +811,8 @@ static void utf8_string(void)
 
         obj = qobject_from_json(json_in);
         if (utf8_out) {
-            g_assert(obj);
-            g_assert(qobject_type(obj) == QTYPE_QSTRING);
             str = qobject_to_qstring(obj);
+            g_assert(str);
             g_assert_cmpstr(qstring_get_str(str), ==, utf8_out);
         } else {
             g_assert(!obj);
@@ -847,9 +837,8 @@ static void utf8_string(void)
          */
         if (0 && json_out != json_in) {
             obj = qobject_from_json(json_out);
-            g_assert(obj);
-            g_assert(qobject_type(obj) == QTYPE_QSTRING);
             str = qobject_to_qstring(obj);
+            g_assert(str);
             g_assert_cmpstr(qstring_get_str(str), ==, utf8_out);
         }
     }
@@ -867,15 +856,11 @@ static void vararg_string(void)
     };
 
     for (i = 0; test_cases[i].decoded; i++) {
-        QObject *obj;
         QString *str;
 
-        obj = qobject_from_jsonf("%s", test_cases[i].decoded);
-
-        g_assert(obj != NULL);
-        g_assert(qobject_type(obj) == QTYPE_QSTRING);
-        
-        str = qobject_to_qstring(obj);
+        str = qobject_to_qstring(qobject_from_jsonf("%s",
+                                                    test_cases[i].decoded));
+        g_assert(str);
         g_assert(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
 
         QDECREF(str);
