@@ -3250,7 +3250,11 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     }
 
     if (new_size) {
-        ret = bdrv_truncate(bs, new_size);
+        BlockBackend *blk = blk_new();
+        blk_insert_bs(blk, bs);
+        ret = blk_truncate(blk, new_size);
+        blk_unref(blk);
+
         if (ret < 0) {
             return ret;
         }
