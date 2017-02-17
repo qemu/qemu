@@ -3122,6 +3122,9 @@ int bdrv_truncate(BdrvChild *child, int64_t offset)
     BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
     int ret;
+
+    assert(child->perm & BLK_PERM_RESIZE);
+
     if (!drv)
         return -ENOMEDIUM;
     if (!drv->bdrv_truncate)
