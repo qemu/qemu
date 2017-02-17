@@ -83,6 +83,8 @@ typedef struct CompareState {
     GHashTable *connection_track_table;
     /* compare thread, a thread for each NIC */
     QemuThread thread;
+
+    GMainLoop *compare_loop;
 } CompareState;
 
 typedef struct CompareClass {
@@ -496,7 +498,6 @@ static gboolean check_old_packet_regular(void *opaque)
 static void *colo_compare_thread(void *opaque)
 {
     GMainContext *worker_context;
-    GMainLoop *compare_loop;
     CompareState *s = opaque;
     GSource *timeout_source;
 
@@ -507,7 +508,7 @@ static void *colo_compare_thread(void *opaque)
     qemu_chr_fe_set_handlers(&s->chr_sec_in, compare_chr_can_read,
                              compare_sec_chr_in, NULL, s, worker_context, true);
 
-    compare_loop = g_main_loop_new(worker_context, FALSE);
+    s->compare_loop = g_main_loop_new(worker_context, FALSE);
 
     /* To kick any packets that the secondary doesn't match */
     timeout_source = g_timeout_source_new(REGULAR_PACKET_CHECK_MS);
@@ -515,10 +516,10 @@ static void *colo_compare_thread(void *opaque)
                           (GSourceFunc)check_old_packet_regular, s, NULL);
     g_source_attach(timeout_source, worker_context);
 
-    g_main_loop_run(compare_loop);
+    g_main_loop_run(s->compare_loop);
 
     g_source_unref(timeout_source);
-    g_main_loop_unref(compare_loop);
+    g_main_loop_unref(s->compare_loop);
     g_main_context_unref(worker_context);
     return NULL;
 }
@@ -675,6 +676,23 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     return;
 }
 
+static void colo_flush_packets(void *opaque, void *user_data)
+{
+    CompareState *s = user_data;
+    Connection *conn = opaque;
+    Packet *pkt = NULL;
+
+    while (!g_queue_is_empty(&conn->primary_list)) {
+        pkt = g_queue_pop_head(&conn->primary_list);
+        compare_chr_send(&s->chr_out, pkt->data, pkt->size);
+        packet_destroy(pkt, NULL);
+    }
+    while (!g_queue_is_empty(&conn->secondary_list)) {
+        pkt = g_queue_pop_head(&conn->secondary_list);
+        packet_destroy(pkt, NULL);
+    }
+}
+
 static void colo_compare_class_init(ObjectClass *oc, void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
@@ -703,14 +721,15 @@ static void colo_compare_finalize(Object *obj)
     qemu_chr_fe_deinit(&s->chr_sec_in);
     qemu_chr_fe_deinit(&s->chr_out);
 
+    g_main_loop_quit(s->compare_loop);
+    qemu_thread_join(&s->thread);
+
+    /* Release all unhandled packets after compare thead exited */
+    g_queue_foreach(&s->conn_list, colo_flush_packets, s);
+
     g_queue_free(&s->conn_list);
 
-    if (qemu_thread_is_self(&s->thread)) {
-        /* compare connection */
-        g_queue_foreach(&s->conn_list, colo_compare_connection, s);
-        qemu_thread_join(&s->thread);
-    }
-
+    g_hash_table_destroy(s->connection_track_table);
     g_free(s->pri_indev);
     g_free(s->sec_indev);
     g_free(s->outdev);
