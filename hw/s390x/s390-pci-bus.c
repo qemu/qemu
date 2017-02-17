@@ -504,7 +504,7 @@ static void s390_msi_ctrl_write(void *opaque, hwaddr addr, uint64_t data,
                    0x80 >> ((ind_bit + vec) % 8));
     if (!set_ind_atomic(pbdev->routes.adapter.summary_addr + sum_bit / 8,
                                        0x80 >> (sum_bit % 8))) {
-        css_adapter_interrupt(pbdev->isc);
+        css_adapter_interrupt(CSS_IO_ADAPTER_PCI, pbdev->isc);
     }
 }
 

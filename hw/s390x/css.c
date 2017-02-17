@@ -547,12 +547,26 @@ out:
     return r;
 }
 
-void css_adapter_interrupt(uint8_t isc)
+void css_adapter_interrupt(CssIoAdapterType type, uint8_t isc)
 {
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
     uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
+    IoAdapter *adapter = channel_subsys.io_adapters[type][isc];
+
+    if (!adapter) {
+        return;
+    }
 
     trace_css_adapter_interrupt(isc);
-    s390_io_interrupt(0, 0, 0, io_int_word);
+    if (fs->ais_supported) {
+        if (fsc->inject_airq(fs, type, isc, adapter->flags)) {
+            error_report("Failed to inject airq with AIS supported");
+            exit(1);
+        }
+    } else {
+        s390_io_interrupt(0, 0, 0, io_int_word);
+    }
 }
 
 static void sch_handle_clear_func(SubchDev *sch)
