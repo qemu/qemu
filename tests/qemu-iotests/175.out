@@ -1,0 +1,18 @@
+QA output created by 175
+
+== creating image with default preallocation ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+size=1048576, blocks=0
+
+== creating image with preallocation off ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 preallocation=off
+size=1048576, blocks=0
+
+== creating image with preallocation full ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 preallocation=full
+size=1048576, blocks=2048
+
+== creating image with preallocation falloc ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 preallocation=falloc
+size=1048576, blocks=2048
+ *** done
