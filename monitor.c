@@ -3735,10 +3735,11 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     Error *err = NULL;
 
     req = json_parser_parse_err(tokens, NULL, &err);
-    if (err || !req || qobject_type(req) != QTYPE_QDICT) {
-        if (!err) {
-            error_setg(&err, QERR_JSON_PARSING);
-        }
+    if (!req && !err) {
+        /* json_parser_parse_err() sucks: can fail without setting @err */
+        error_setg(&err, QERR_JSON_PARSING);
+    }
+    if (err) {
         goto err_out;
     }
 
