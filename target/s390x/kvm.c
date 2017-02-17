@@ -1206,7 +1206,21 @@ static int kvm_stpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
 
 static int kvm_sic_service_call(S390CPU *cpu, struct kvm_run *run)
 {
-    /* NOOP */
+    CPUS390XState *env = &cpu->env;
+    uint8_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
+    uint8_t r3 = run->s390_sieic.ipa & 0x000f;
+    uint8_t isc;
+    uint16_t mode;
+    int r;
+
+    cpu_synchronize_state(CPU(cpu));
+    mode = env->regs[r1] & 0xffff;
+    isc = (env->regs[r3] >> 27) & 0x7;
+    r = css_do_sic(env, isc, mode);
+    if (r) {
+        enter_pgmcheck(cpu, -r);
+    }
+
     return 0;
 }
 

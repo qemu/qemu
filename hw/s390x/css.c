@@ -521,6 +521,32 @@ void css_conditional_io_interrupt(SubchDev *sch)
     }
 }
 
+int css_do_sic(CPUS390XState *env, uint8_t isc, uint16_t mode)
+{
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+    int r;
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        r = -PGM_PRIVILEGED;
+        goto out;
+    }
+
+    trace_css_do_sic(mode, isc);
+    switch (mode) {
+    case SIC_IRQ_MODE_ALL:
+    case SIC_IRQ_MODE_SINGLE:
+        break;
+    default:
+        r = -PGM_OPERAND;
+        goto out;
+    }
+
+    r = fsc->modify_ais_mode(fs, isc, mode) ? -PGM_OPERATION : 0;
+out:
+    return r;
+}
+
 void css_adapter_interrupt(uint8_t isc)
 {
     uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
