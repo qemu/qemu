@@ -164,6 +164,14 @@ struct target_sockaddr_in {
                 sizeof(struct target_in_addr)];
 };
 
+struct target_sockaddr_in6 {
+    uint16_t sin6_family;
+    uint16_t sin6_port; /* big endian */
+    uint32_t sin6_flowinfo; /* big endian */
+    struct in6_addr sin6_addr; /* IPv6 address, big endian */
+    uint32_t sin6_scope_id;
+};
+
 struct target_sock_filter {
     abi_ushort code;
     uint8_t jt;
