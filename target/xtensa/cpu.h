@@ -108,6 +108,7 @@ enum {
 };
 
 enum {
+    EXPSTATE = 230,
     THREADPTR = 231,
     FCR = 232,
     FSR = 233,
