@@ -2194,6 +2194,16 @@ static void translate_s32e(DisasContext *dc, const uint32_t arg[],
     }
 }
 
+static void translate_salt(DisasContext *dc, const uint32_t arg[],
+                           const uint32_t par[])
+{
+    if (gen_window_check3(dc, arg[0], arg[1], arg[2])) {
+        tcg_gen_setcond_i32(par[0],
+                            cpu_R[arg[0]],
+                            cpu_R[arg[1]], cpu_R[arg[2]]);
+    }
+}
+
 static void translate_sext(DisasContext *dc, const uint32_t arg[],
                            const uint32_t par[])
 {
@@ -3661,6 +3671,14 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "s8i",
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_UB, false, true},
+    }, {
+        .name = "salt",
+        .translate = translate_salt,
+        .par = (const uint32_t[]){TCG_COND_LT},
+    }, {
+        .name = "saltu",
+        .translate = translate_salt,
+        .par = (const uint32_t[]){TCG_COND_LTU},
     }, {
         .name = "sext",
         .translate = translate_sext,
