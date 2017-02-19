@@ -8835,17 +8835,13 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-
-void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
-{
-    cpu->vhyp = vhyp;
-}
-
-void cpu_ppc_set_papr(PowerPCCPU *cpu)
+void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
 {
     CPUPPCState *env = &cpu->env;
     ppc_spr_t *lpcr = &env->spr_cb[SPR_LPCR];
     ppc_spr_t *amor = &env->spr_cb[SPR_AMOR];
+
+    cpu->vhyp = vhyp;
 
     /* PAPR always has exception vectors in RAM not ROM. To ensure this,
      * MSR[IP] should never be set.
