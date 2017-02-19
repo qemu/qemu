@@ -740,10 +740,22 @@ static void gen_spr_ne_601 (CPUPPCState *env)
                  &spr_read_decr, &spr_write_decr,
                  0x00000000);
     /* Memory management */
-    spr_register(env, SPR_SDR1, "SDR1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_sdr1,
-                 0x00000000);
+#ifndef CONFIG_USER_ONLY
+    if (env->has_hv_mode) {
+        /* SDR1 is a hypervisor resource on CPUs which have a
+         * hypervisor mode */
+        spr_register_hv(env, SPR_SDR1, "SDR1",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_sdr1,
+                        0x00000000);
+    } else {
+        spr_register(env, SPR_SDR1, "SDR1",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_sdr1,
+                     0x00000000);
+    }
+#endif
 }
 
 /* BATs 0-3 */
