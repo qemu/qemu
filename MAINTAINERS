@@ -1800,10 +1800,14 @@ F: docs/block-replication.txt
 Build and test automation
 -------------------------
 M: Alex Bennée <alex.bennee@linaro.org>
+M: Fam Zheng <famz@redhat.com>
 L: qemu-devel@nongnu.org
-S: Supported
+S: Maintained
 F: .travis.yml
 F: .shippable.yml
+F: tests/docker/
+W: https://travis-ci.org/qemu/qemu
+W: http://patchew.org/QEMU/
 
 Documentation
 -------------
@@ -1812,9 +1816,3 @@ M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
 F: docs/build-system.txt
 
-Docker testing
---------------
-Docker based testing framework and cases
-M: Fam Zheng <famz@redhat.com>
-S: Maintained
-F: tests/docker/
