@@ -131,21 +131,6 @@ static void bitband_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
-static void armv7m_bitband_init(void)
-{
-    DeviceState *dev;
-
-    dev = qdev_create(NULL, TYPE_BITBAND);
-    qdev_prop_set_uint32(dev, "base", 0x20000000);
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x22000000);
-
-    dev = qdev_create(NULL, TYPE_BITBAND);
-    qdev_prop_set_uint32(dev, "base", 0x40000000);
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x42000000);
-}
-
 /* Board init.  */
 
 static const hwaddr bitband_input_addr[ARMV7M_NUM_BITBANDS] = {
@@ -282,35 +267,25 @@ static void armv7m_reset(void *opaque)
 
 /* Init CPU and memory for a v7-M based board.
    mem_size is in bytes.
-   Returns the NVIC array.  */
+   Returns the ARMv7M device.  */
 
 DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
                       const char *kernel_filename, const char *cpu_model)
 {
-    ARMCPU *cpu;
-    CPUARMState *env;
-    DeviceState *nvic;
+    DeviceState *armv7m;
 
     if (cpu_model == NULL) {
-	cpu_model = "cortex-m3";
+        cpu_model = "cortex-m3";
     }
-    cpu = cpu_arm_init(cpu_model);
-    if (cpu == NULL) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
-    }
-    env = &cpu->env;
 
-    armv7m_bitband_init();
+    armv7m = qdev_create(NULL, "armv7m");
+    qdev_prop_set_uint32(armv7m, "num-irq", num_irq);
+    qdev_prop_set_string(armv7m, "cpu-model", cpu_model);
+    /* This will exit with an error if the user passed us a bad cpu_model */
+    qdev_init_nofail(armv7m);
 
-    nvic = qdev_create(NULL, "armv7m_nvic");
-    qdev_prop_set_uint32(nvic, "num-irq", num_irq);
-    env->nvic = nvic;
-    qdev_init_nofail(nvic);
-    sysbus_connect_irq(SYS_BUS_DEVICE(nvic), 0,
-                       qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
-    armv7m_load_kernel(cpu, kernel_filename, mem_size);
-    return nvic;
+    armv7m_load_kernel(ARM_CPU(first_cpu), kernel_filename, mem_size);
+    return armv7m;
 }
 
 void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
