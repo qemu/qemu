@@ -1088,7 +1088,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              void *opaque, Error **errp,
                              const BlockJobDriver *driver,
                              bool is_none_mode, BlockDriverState *base,
-                             bool auto_complete)
+                             bool auto_complete, const char *filter_node_name)
 {
     MirrorBlockJob *s;
     BlockDriverState *mirror_top_bs;
@@ -1114,8 +1114,8 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     /* In the case of active commit, add dummy driver to provide consistent
      * reads on the top, while disabling it in the intermediate nodes, and make
      * the backing chain writable. */
-    mirror_top_bs = bdrv_new_open_driver(&bdrv_mirror_top, NULL, BDRV_O_RDWR,
-                                         errp);
+    mirror_top_bs = bdrv_new_open_driver(&bdrv_mirror_top, filter_node_name,
+                                         BDRV_O_RDWR, errp);
     if (mirror_top_bs == NULL) {
         return;
     }
@@ -1225,7 +1225,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
-                  bool unmap, Error **errp)
+                  bool unmap, const char *filter_node_name, Error **errp)
 {
     bool is_none_mode;
     BlockDriverState *base;
@@ -1239,7 +1239,8 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
     mirror_start_job(job_id, bs, BLOCK_JOB_DEFAULT, target, replaces,
                      speed, granularity, buf_size, backing_mode,
                      on_source_error, on_target_error, unmap, NULL, NULL, errp,
-                     &mirror_job_driver, is_none_mode, base, false);
+                     &mirror_job_driver, is_none_mode, base, false,
+                     filter_node_name);
 }
 
 void commit_active_start(const char *job_id, BlockDriverState *bs,
@@ -1260,7 +1261,8 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
     mirror_start_job(job_id, bs, creation_flags, base, NULL, speed, 0, 0,
                      MIRROR_LEAVE_BACKING_CHAIN,
                      on_error, on_error, true, cb, opaque, &local_err,
-                     &commit_active_job_driver, false, base, auto_complete);
+                     &commit_active_job_driver, false, base, auto_complete,
+                     NULL);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error_restore_flags;

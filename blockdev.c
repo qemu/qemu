@@ -3366,6 +3366,8 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    bool has_on_target_error,
                                    BlockdevOnError on_target_error,
                                    bool has_unmap, bool unmap,
+                                   bool has_filter_node_name,
+                                   const char *filter_node_name,
                                    Error **errp)
 {
 
@@ -3386,6 +3388,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     }
     if (!has_unmap) {
         unmap = true;
+    }
+    if (!has_filter_node_name) {
+        filter_node_name = NULL;
     }
 
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
@@ -3416,7 +3421,8 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     mirror_start(job_id, bs, target,
                  has_replaces ? replaces : NULL,
                  speed, granularity, buf_size, sync, backing_mode,
-                 on_source_error, on_target_error, unmap, errp);
+                 on_source_error, on_target_error, unmap, filter_node_name,
+                 errp);
 }
 
 void qmp_drive_mirror(DriveMirror *arg, Error **errp)
@@ -3554,6 +3560,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
                            arg->has_on_source_error, arg->on_source_error,
                            arg->has_on_target_error, arg->on_target_error,
                            arg->has_unmap, arg->unmap,
+                           false, NULL,
                            &local_err);
     bdrv_unref(target_bs);
     error_propagate(errp, local_err);
@@ -3572,6 +3579,8 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          BlockdevOnError on_source_error,
                          bool has_on_target_error,
                          BlockdevOnError on_target_error,
+                         bool has_filter_node_name,
+                         const char *filter_node_name,
                          Error **errp)
 {
     BlockDriverState *bs;
@@ -3603,6 +3612,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                            has_on_source_error, on_source_error,
                            has_on_target_error, on_target_error,
                            true, true,
+                           has_filter_node_name, filter_node_name,
                            &local_err);
     error_propagate(errp, local_err);
 
