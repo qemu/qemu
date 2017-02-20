@@ -223,7 +223,11 @@ int qemu_egl_init_dpy(EGLNativeDisplayType dpy, bool gles, bool debug)
     }
 
     egl_dbg("eglGetDisplay (dpy %p) ...\n", dpy);
+#ifdef EGL_MESA_platform_gbm
+    qemu_egl_display = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, dpy, NULL);
+#else
     qemu_egl_display = eglGetDisplay(dpy);
+#endif
     if (qemu_egl_display == EGL_NO_DISPLAY) {
         error_report("egl: eglGetDisplay failed");
         return -1;
