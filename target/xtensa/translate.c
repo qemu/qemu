@@ -59,7 +59,6 @@ typedef struct DisasContext {
     int ring;
     uint32_t lbeg;
     uint32_t lend;
-    TCGv_i32 litbase;
     int is_jmp;
     int singlestep_enabled;
 
@@ -259,21 +258,6 @@ void xtensa_translate_init(void)
 static inline bool option_enabled(DisasContext *dc, int opt)
 {
     return xtensa_option_enabled(dc->config, opt);
-}
-
-static void init_litbase(DisasContext *dc)
-{
-    if (dc->tb->flags & XTENSA_TBFLAG_LITBASE) {
-        dc->litbase = tcg_temp_local_new_i32();
-        tcg_gen_andi_i32(dc->litbase, cpu_SR[LITBASE], 0xfffff000);
-    }
-}
-
-static void reset_litbase(DisasContext *dc)
-{
-    if (dc->tb->flags & XTENSA_TBFLAG_LITBASE) {
-        tcg_temp_free(dc->litbase);
-    }
 }
 
 static void init_sar_tracker(DisasContext *dc)
@@ -1089,7 +1073,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
         dc.slotbuf = xtensa_insnbuf_alloc(dc.config->isa);
     }
 
-    init_litbase(&dc);
     init_sar_tracker(&dc);
     if (dc.icount) {
         dc.next_icount = tcg_temp_local_new_i32();
@@ -1164,7 +1147,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
             dc.pc + xtensa_insn_len(env, &dc) <= next_page_start &&
             !tcg_op_buf_full());
 done:
-    reset_litbase(&dc);
     reset_sar_tracker(&dc);
     if (dc.icount) {
         tcg_temp_free(dc.next_icount);
@@ -1667,12 +1649,13 @@ static void translate_l32r(DisasContext *dc, const uint32_t arg[],
                            const uint32_t par[])
 {
     if (gen_window_check1(dc, arg[0])) {
-        TCGv_i32 tmp = (dc->tb->flags & XTENSA_TBFLAG_LITBASE) ?
-                       tcg_const_i32(dc->raw_arg[1] - 1) :
-                       tcg_const_i32(arg[1]);
+        TCGv_i32 tmp;
 
         if (dc->tb->flags & XTENSA_TBFLAG_LITBASE) {
-            tcg_gen_add_i32(tmp, tmp, dc->litbase);
+            tmp = tcg_const_i32(dc->raw_arg[1] - 1);
+            tcg_gen_add_i32(tmp, cpu_SR[LITBASE], tmp);
+        } else {
+            tmp = tcg_const_i32(arg[1]);
         }
         tcg_gen_qemu_ld32u(cpu_R[arg[0]], tmp, dc->cring);
         tcg_temp_free(tmp);
