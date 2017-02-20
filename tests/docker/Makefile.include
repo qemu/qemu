@@ -54,6 +54,10 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)),\
 		"BUILD","$*")
 
+# Enforce dependancies for composite images
+docker-image-debian-armhf-cross: docker-image-debian
+docker-image-debian-arm64-cross: docker-image-debian
+
 # Expand all the pre-requistes for each docker image and test combination
 $(foreach i,$(DOCKER_IMAGES), \
 	$(foreach t,$(DOCKER_TESTS) $(DOCKER_TOOLS), \
