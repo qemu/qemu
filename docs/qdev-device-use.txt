@@ -200,7 +200,7 @@ LEGACY-CHARDEV translates to -chardev HOST-OPTS... as follows:
 
 * null becomes -chardev null
 
-* pty, msmouse, braille, stdio likewise
+* pty, msmouse, wctablet, braille, stdio likewise
 
 * vc:WIDTHxHEIGHT becomes -chardev vc,width=WIDTH,height=HEIGHT
 
