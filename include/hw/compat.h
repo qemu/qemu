@@ -22,6 +22,10 @@
         .driver   = TYPE_PCI_DEVICE,\
         .property = "x-pcie-extcap-init",\
         .value    = "off",\
+    },{\
+        .driver   = "virtio-pci",\
+        .property = "x-pcie-deverr-init",\
+        .value    = "off",\
     },
 
 #define HW_COMPAT_2_7 \
