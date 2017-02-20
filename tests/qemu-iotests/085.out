@@ -74,7 +74,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/
 
 === Invalid command - snapshot node used as backing hd ===
 
-{"error": {"class": "GenericError", "desc": "Node 'snap_11' is busy: node is used as backing hd of 'virtio0'"}}
+{"error": {"class": "GenericError", "desc": "Node 'snap_11' is busy: node is used as backing hd of 'snap_12'"}}
 
 === Invalid command - snapshot node has a backing image ===
 

@@ -1099,6 +1099,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     BlockDriverState *mirror_top_bs;
     bool target_graph_mod;
     bool target_is_backing;
+    Error *local_err = NULL;
     int ret;
 
     if (granularity == 0) {
@@ -1130,8 +1131,14 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
      * it alive until block_job_create() even if bs has no parent. */
     bdrv_ref(mirror_top_bs);
     bdrv_drained_begin(bs);
-    bdrv_append(mirror_top_bs, bs);
+    bdrv_append(mirror_top_bs, bs, &local_err);
     bdrv_drained_end(bs);
+
+    if (local_err) {
+        bdrv_unref(mirror_top_bs);
+        error_propagate(errp, local_err);
+        return;
+    }
 
     /* Make sure that the source is not resized while the job is running */
     s = block_job_create(job_id, driver, mirror_top_bs,
