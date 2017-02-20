@@ -3032,6 +3032,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                       bool has_top, const char *top,
                       bool has_backing_file, const char *backing_file,
                       bool has_speed, int64_t speed,
+                      bool has_filter_node_name, const char *filter_node_name,
                       Error **errp)
 {
     BlockDriverState *bs;
@@ -3046,6 +3047,9 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
 
     if (!has_speed) {
         speed = 0;
+    }
+    if (!has_filter_node_name) {
+        filter_node_name = NULL;
     }
 
     /* Important Note:
@@ -3121,8 +3125,8 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
             goto out;
         }
         commit_active_start(has_job_id ? job_id : NULL, bs, base_bs,
-                            BLOCK_JOB_DEFAULT, speed, on_error, NULL, NULL,
-                            &local_err, false);
+                            BLOCK_JOB_DEFAULT, speed, on_error,
+                            filter_node_name, NULL, NULL, &local_err, false);
     } else {
         BlockDriverState *overlay_bs = bdrv_find_overlay(bs, top_bs);
         if (bdrv_op_is_blocked(overlay_bs, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
@@ -3130,7 +3134,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
         }
         commit_start(has_job_id ? job_id : NULL, bs, base_bs, top_bs, speed,
                      on_error, has_backing_file ? backing_file : NULL,
-                     &local_err);
+                     filter_node_name, &local_err);
     }
     if (local_err != NULL) {
         error_propagate(errp, local_err);

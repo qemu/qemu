@@ -257,7 +257,7 @@ static BlockDriver bdrv_commit_top = {
 void commit_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, BlockDriverState *top, int64_t speed,
                   BlockdevOnError on_error, const char *backing_file_str,
-                  Error **errp)
+                  const char *filter_node_name, Error **errp)
 {
     CommitBlockJob *s;
     BlockReopenQueue *reopen_queue = NULL;
@@ -310,7 +310,8 @@ void commit_start(const char *job_id, BlockDriverState *bs,
 
     /* Insert commit_top block node above top, so we can block consistent read
      * on the backing chain below it */
-    commit_top_bs = bdrv_new_open_driver(&bdrv_commit_top, NULL, 0, errp);
+    commit_top_bs = bdrv_new_open_driver(&bdrv_commit_top, filter_node_name, 0,
+                                         errp);
     if (commit_top_bs == NULL) {
         goto fail;
     }
