@@ -1,6 +1,8 @@
 \input texinfo
 @setfilename qemu-ga-ref.info
 
+@include version.texi
+
 @exampleindent 0
 @paragraphindent 0
 

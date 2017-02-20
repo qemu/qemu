@@ -159,12 +159,10 @@ def texi_body(doc):
             func = texi_example
 
         if name:
-            # FIXME the indentation produced by @quotation in .txt and
-            # .html output is confusing
-            body += "\n@quotation %s\n%s\n@end quotation" % \
-                    (name, func(doc))
-        else:
-            body += func(doc)
+            # prefer @b over @strong, so txt doesn't translate it to *Foo:*
+            body += "\n\n@b{%s:}\n" % name
+
+        body += func(doc)
 
     return body
 
