@@ -1803,6 +1803,7 @@ M: Alex Bennée <alex.bennee@linaro.org>
 L: qemu-devel@nongnu.org
 S: Supported
 F: .travis.yml
+F: .shippable.yml
 
 Documentation
 -------------
