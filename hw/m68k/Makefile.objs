@@ -1,4 +1,2 @@
 obj-y += an5206.o mcf5208.o
-obj-y += dummy_m68k.o
-
 obj-y += mcf5206.o mcf_intc.o
