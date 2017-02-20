@@ -19,7 +19,6 @@
 #include "hw/arm/arm.h"
 #include "hw/arm/armv7m_nvic.h"
 #include "target/arm/cpu.h"
-#include "exec/address-spaces.h"
 #include "qemu/log.h"
 #include "trace.h"
 
@@ -1043,10 +1042,8 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
                           "nvic_sysregs", 0x1000);
     memory_region_add_subregion(&s->container, 0, &s->sysregmem);
 
-    /* Map the whole thing into system memory at the location required
-     * by the v7M architecture.
-     */
-    memory_region_add_subregion(get_system_memory(), 0xe000e000, &s->container);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->container);
+
     s->systick.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, systick_timer_tick, s);
 }
 
