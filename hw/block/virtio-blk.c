@@ -581,10 +581,11 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     return 0;
 }
 
-void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
+bool virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
 {
     VirtIOBlockReq *req;
     MultiReqBuffer mrb = {};
+    bool progress = false;
 
     blk_io_plug(s->blk);
 
@@ -592,6 +593,7 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
         virtio_queue_set_notification(vq, 0);
 
         while ((req = virtio_blk_get_request(s, vq))) {
+            progress = true;
             if (virtio_blk_handle_request(req, &mrb)) {
                 virtqueue_detach_element(req->vq, &req->elem, 0);
                 virtio_blk_free_request(req);
@@ -607,6 +609,12 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     }
 
     blk_io_unplug(s->blk);
+    return progress;
+}
+
+static void virtio_blk_handle_output_do(VirtIOBlock *s, VirtQueue *vq)
+{
+    virtio_blk_handle_vq(s, vq);
 }
 
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
@@ -622,7 +630,7 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             return;
         }
     }
-    virtio_blk_handle_vq(s, vq);
+    virtio_blk_handle_output_do(s, vq);
 }
 
 static void virtio_blk_dma_restart_bh(void *opaque)

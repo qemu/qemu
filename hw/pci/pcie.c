@@ -610,7 +610,8 @@ bool pcie_cap_is_arifwd_enabled(const PCIDevice *dev)
  * uint16_t ext_cap_size
  */
 
-static uint16_t pcie_find_capability_list(PCIDevice *dev, uint16_t cap_id,
+/* Passing a cap_id value > 0xffff will return 0 and put end of list in prev */
+static uint16_t pcie_find_capability_list(PCIDevice *dev, uint32_t cap_id,
                                           uint16_t *prev_p)
 {
     uint16_t prev = 0;
@@ -664,30 +665,24 @@ void pcie_add_capability(PCIDevice *dev,
                          uint16_t cap_id, uint8_t cap_ver,
                          uint16_t offset, uint16_t size)
 {
-    uint32_t header;
-    uint16_t next;
-
     assert(offset >= PCI_CONFIG_SPACE_SIZE);
     assert(offset < offset + size);
     assert(offset + size <= PCIE_CONFIG_SPACE_SIZE);
     assert(size >= 8);
     assert(pci_is_express(dev));
 
-    if (offset == PCI_CONFIG_SPACE_SIZE) {
-        header = pci_get_long(dev->config + offset);
-        next = PCI_EXT_CAP_NEXT(header);
-    } else {
+    if (offset != PCI_CONFIG_SPACE_SIZE) {
         uint16_t prev;
 
-        /* 0 is reserved cap id. use internally to find the last capability
-           in the linked list */
-        next = pcie_find_capability_list(dev, 0, &prev);
-
+        /*
+         * 0xffffffff is not a valid cap id (it's a 16 bit field). use
+         * internally to find the last capability in the linked list.
+         */
+        pcie_find_capability_list(dev, 0xffffffff, &prev);
         assert(prev >= PCI_CONFIG_SPACE_SIZE);
-        assert(next == 0);
         pcie_ext_cap_set_next(dev, prev, offset);
     }
-    pci_set_long(dev->config + offset, PCI_EXT_CAP(cap_id, cap_ver, next));
+    pci_set_long(dev->config + offset, PCI_EXT_CAP(cap_id, cap_ver, 0));
 
     /* Make capability read-only by default */
     memset(dev->wmask + offset, 0, size);

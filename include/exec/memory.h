@@ -1426,6 +1426,8 @@ struct MemoryRegionCache {
     bool is_write;
 };
 
+#define MEMORY_REGION_CACHE_INVALID ((MemoryRegionCache) { .mr = NULL })
+
 /* address_space_cache_init: prepare for repeated access to a physical
  * memory region
  *

@@ -436,13 +436,16 @@ static inline void virtio_scsi_release(VirtIOSCSI *s)
     }
 }
 
-void virtio_scsi_handle_ctrl_vq(VirtIOSCSI *s, VirtQueue *vq)
+bool virtio_scsi_handle_ctrl_vq(VirtIOSCSI *s, VirtQueue *vq)
 {
     VirtIOSCSIReq *req;
+    bool progress = false;
 
     while ((req = virtio_scsi_pop_req(s, vq))) {
+        progress = true;
         virtio_scsi_handle_ctrl_req(s, req);
     }
+    return progress;
 }
 
 static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
@@ -591,10 +594,11 @@ static void virtio_scsi_handle_cmd_req_submit(VirtIOSCSI *s, VirtIOSCSIReq *req)
     scsi_req_unref(sreq);
 }
 
-void virtio_scsi_handle_cmd_vq(VirtIOSCSI *s, VirtQueue *vq)
+bool virtio_scsi_handle_cmd_vq(VirtIOSCSI *s, VirtQueue *vq)
 {
     VirtIOSCSIReq *req, *next;
     int ret = 0;
+    bool progress = false;
 
     QTAILQ_HEAD(, VirtIOSCSIReq) reqs = QTAILQ_HEAD_INITIALIZER(reqs);
 
@@ -602,6 +606,7 @@ void virtio_scsi_handle_cmd_vq(VirtIOSCSI *s, VirtQueue *vq)
         virtio_queue_set_notification(vq, 0);
 
         while ((req = virtio_scsi_pop_req(s, vq))) {
+            progress = true;
             ret = virtio_scsi_handle_cmd_req_prepare(s, req);
             if (!ret) {
                 QTAILQ_INSERT_TAIL(&reqs, req, next);
@@ -624,6 +629,7 @@ void virtio_scsi_handle_cmd_vq(VirtIOSCSI *s, VirtQueue *vq)
     QTAILQ_FOREACH_SAFE(req, &reqs, next, next) {
         virtio_scsi_handle_cmd_req_submit(s, req);
     }
+    return progress;
 }
 
 static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
@@ -752,11 +758,13 @@ out:
     virtio_scsi_release(s);
 }
 
-void virtio_scsi_handle_event_vq(VirtIOSCSI *s, VirtQueue *vq)
+bool virtio_scsi_handle_event_vq(VirtIOSCSI *s, VirtQueue *vq)
 {
     if (s->events_dropped) {
         virtio_scsi_push_event(s, NULL, VIRTIO_SCSI_T_NO_EVENT, 0);
+        return true;
     }
+    return false;
 }
 
 static void virtio_scsi_handle_event(VirtIODevice *vdev, VirtQueue *vq)

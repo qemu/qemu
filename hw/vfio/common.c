@@ -294,18 +294,55 @@ static bool vfio_listener_skipped_section(MemoryRegionSection *section)
            section->offset_within_address_space & (1ULL << 63);
 }
 
+/* Called with rcu_read_lock held.  */
+static bool vfio_get_vaddr(IOMMUTLBEntry *iotlb, void **vaddr,
+                           bool *read_only)
+{
+    MemoryRegion *mr;
+    hwaddr xlat;
+    hwaddr len = iotlb->addr_mask + 1;
+    bool writable = iotlb->perm & IOMMU_WO;
+
+    /*
+     * The IOMMU TLB entry we have just covers translation through
+     * this IOMMU to its immediate target.  We need to translate
+     * it the rest of the way through to memory.
+     */
+    mr = address_space_translate(&address_space_memory,
+                                 iotlb->translated_addr,
+                                 &xlat, &len, writable);
+    if (!memory_region_is_ram(mr)) {
+        error_report("iommu map to non memory area %"HWADDR_PRIx"",
+                     xlat);
+        return false;
+    }
+
+    /*
+     * Translation truncates length to the IOMMU page size,
+     * check that it did not truncate too much.
+     */
+    if (len & iotlb->addr_mask) {
+        error_report("iommu has granularity incompatible with target AS");
+        return false;
+    }
+
+    *vaddr = memory_region_get_ram_ptr(mr) + xlat;
+    *read_only = !writable || mr->readonly;
+
+    return true;
+}
+
 static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 {
     VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
     VFIOContainer *container = giommu->container;
     hwaddr iova = iotlb->iova + giommu->iommu_offset;
-    MemoryRegion *mr;
-    hwaddr xlat;
-    hwaddr len = iotlb->addr_mask + 1;
+    bool read_only;
     void *vaddr;
     int ret;
 
-    trace_vfio_iommu_map_notify(iova, iova + iotlb->addr_mask);
+    trace_vfio_iommu_map_notify(iotlb->perm == IOMMU_NONE ? "UNMAP" : "MAP",
+                                iova, iova + iotlb->addr_mask);
 
     if (iotlb->target_as != &address_space_memory) {
         error_report("Wrong target AS \"%s\", only system memory is allowed",
@@ -313,34 +350,22 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
         return;
     }
 
-    /*
-     * The IOMMU TLB entry we have just covers translation through
-     * this IOMMU to its immediate target.  We need to translate
-     * it the rest of the way through to memory.
-     */
     rcu_read_lock();
-    mr = address_space_translate(&address_space_memory,
-                                 iotlb->translated_addr,
-                                 &xlat, &len, iotlb->perm & IOMMU_WO);
-    if (!memory_region_is_ram(mr)) {
-        error_report("iommu map to non memory area %"HWADDR_PRIx"",
-                     xlat);
-        goto out;
-    }
-    /*
-     * Translation truncates length to the IOMMU page size,
-     * check that it did not truncate too much.
-     */
-    if (len & iotlb->addr_mask) {
-        error_report("iommu has granularity incompatible with target AS");
-        goto out;
-    }
 
     if ((iotlb->perm & IOMMU_RW) != IOMMU_NONE) {
-        vaddr = memory_region_get_ram_ptr(mr) + xlat;
+        if (!vfio_get_vaddr(iotlb, &vaddr, &read_only)) {
+            goto out;
+        }
+        /*
+         * vaddr is only valid until rcu_read_unlock(). But after
+         * vfio_dma_map has set up the mapping the pages will be
+         * pinned by the kernel. This makes sure that the RAM backend
+         * of vaddr will always be there, even if the memory object is
+         * destroyed and its backing memory munmap-ed.
+         */
         ret = vfio_dma_map(container, iova,
                            iotlb->addr_mask + 1, vaddr,
-                           !(iotlb->perm & IOMMU_WO) || mr->readonly);
+                           read_only);
         if (ret) {
             error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                          "0x%"HWADDR_PRIx", %p) = %d (%m)",

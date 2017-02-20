@@ -49,35 +49,35 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
     }
 }
 
-static void virtio_scsi_data_plane_handle_cmd(VirtIODevice *vdev,
+static bool virtio_scsi_data_plane_handle_cmd(VirtIODevice *vdev,
                                               VirtQueue *vq)
 {
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
 
     assert(s->ctx && s->dataplane_started);
-    virtio_scsi_handle_cmd_vq(s, vq);
+    return virtio_scsi_handle_cmd_vq(s, vq);
 }
 
-static void virtio_scsi_data_plane_handle_ctrl(VirtIODevice *vdev,
+static bool virtio_scsi_data_plane_handle_ctrl(VirtIODevice *vdev,
                                                VirtQueue *vq)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
     assert(s->ctx && s->dataplane_started);
-    virtio_scsi_handle_ctrl_vq(s, vq);
+    return virtio_scsi_handle_ctrl_vq(s, vq);
 }
 
-static void virtio_scsi_data_plane_handle_event(VirtIODevice *vdev,
+static bool virtio_scsi_data_plane_handle_event(VirtIODevice *vdev,
                                                 VirtQueue *vq)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
     assert(s->ctx && s->dataplane_started);
-    virtio_scsi_handle_event_vq(s, vq);
+    return virtio_scsi_handle_event_vq(s, vq);
 }
 
 static int virtio_scsi_vring_init(VirtIOSCSI *s, VirtQueue *vq, int n,
-                                  void (*fn)(VirtIODevice *vdev, VirtQueue *vq))
+                                  VirtIOHandleAIOOutput fn)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
     int rc;

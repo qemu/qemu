@@ -1130,7 +1130,8 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     return 0;
 }
 
-static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
+                                      size_t size)
 {
     VirtIONet *n = qemu_get_nic_opaque(nc);
     VirtIONetQueue *q = virtio_net_get_subqueue(nc);
@@ -1231,6 +1232,17 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
     virtio_notify(vdev, q->rx_vq);
 
     return size;
+}
+
+static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf,
+                                  size_t size)
+{
+    ssize_t r;
+
+    rcu_read_lock();
+    r = virtio_net_receive_rcu(nc, buf, size);
+    rcu_read_unlock();
+    return r;
 }
 
 static int32_t virtio_net_flush_tx(VirtIONetQueue *q);
