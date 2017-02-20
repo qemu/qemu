@@ -21,8 +21,10 @@ typedef struct {
     SysBusDevice parent_obj;
     /*< public >*/
 
+    AddressSpace *source_as;
     MemoryRegion iomem;
     uint32_t base;
+    MemoryRegion *source_memory;
 } BitBandState;
 
 #define TYPE_ARMV7M "armv7m"

@@ -23,103 +23,73 @@
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
 
 /* Get the byte address of the real memory for a bitband access.  */
-static inline uint32_t bitband_addr(void * opaque, uint32_t addr)
+static inline hwaddr bitband_addr(BitBandState *s, hwaddr offset)
 {
-    uint32_t res;
-
-    res = *(uint32_t *)opaque;
-    res |= (addr & 0x1ffffff) >> 5;
-    return res;
-
+    return s->base | (offset & 0x1ffffff) >> 5;
 }
 
-static uint32_t bitband_readb(void *opaque, hwaddr offset)
+static MemTxResult bitband_read(void *opaque, hwaddr offset,
+                                uint64_t *data, unsigned size, MemTxAttrs attrs)
 {
-    uint8_t v;
-    cpu_physical_memory_read(bitband_addr(opaque, offset), &v, 1);
-    return (v & (1 << ((offset >> 2) & 7))) != 0;
+    BitBandState *s = opaque;
+    uint8_t buf[4];
+    MemTxResult res;
+    int bitpos, bit;
+    hwaddr addr;
+
+    assert(size <= 4);
+
+    /* Find address in underlying memory and round down to multiple of size */
+    addr = bitband_addr(s, offset) & (-size);
+    res = address_space_read(s->source_as, addr, attrs, buf, size);
+    if (res) {
+        return res;
+    }
+    /* Bit position in the N bytes read... */
+    bitpos = (offset >> 2) & ((size * 8) - 1);
+    /* ...converted to byte in buffer and bit in byte */
+    bit = (buf[bitpos >> 3] >> (bitpos & 7)) & 1;
+    *data = bit;
+    return MEMTX_OK;
 }
 
-static void bitband_writeb(void *opaque, hwaddr offset,
-                           uint32_t value)
+static MemTxResult bitband_write(void *opaque, hwaddr offset, uint64_t value,
+                                 unsigned size, MemTxAttrs attrs)
 {
-    uint32_t addr;
-    uint8_t mask;
-    uint8_t v;
-    addr = bitband_addr(opaque, offset);
-    mask = (1 << ((offset >> 2) & 7));
-    cpu_physical_memory_read(addr, &v, 1);
-    if (value & 1)
-        v |= mask;
-    else
-        v &= ~mask;
-    cpu_physical_memory_write(addr, &v, 1);
-}
+    BitBandState *s = opaque;
+    uint8_t buf[4];
+    MemTxResult res;
+    int bitpos, bit;
+    hwaddr addr;
 
-static uint32_t bitband_readw(void *opaque, hwaddr offset)
-{
-    uint32_t addr;
-    uint16_t mask;
-    uint16_t v;
-    addr = bitband_addr(opaque, offset) & ~1;
-    mask = (1 << ((offset >> 2) & 15));
-    mask = tswap16(mask);
-    cpu_physical_memory_read(addr, &v, 2);
-    return (v & mask) != 0;
-}
+    assert(size <= 4);
 
-static void bitband_writew(void *opaque, hwaddr offset,
-                           uint32_t value)
-{
-    uint32_t addr;
-    uint16_t mask;
-    uint16_t v;
-    addr = bitband_addr(opaque, offset) & ~1;
-    mask = (1 << ((offset >> 2) & 15));
-    mask = tswap16(mask);
-    cpu_physical_memory_read(addr, &v, 2);
-    if (value & 1)
-        v |= mask;
-    else
-        v &= ~mask;
-    cpu_physical_memory_write(addr, &v, 2);
-}
-
-static uint32_t bitband_readl(void *opaque, hwaddr offset)
-{
-    uint32_t addr;
-    uint32_t mask;
-    uint32_t v;
-    addr = bitband_addr(opaque, offset) & ~3;
-    mask = (1 << ((offset >> 2) & 31));
-    mask = tswap32(mask);
-    cpu_physical_memory_read(addr, &v, 4);
-    return (v & mask) != 0;
-}
-
-static void bitband_writel(void *opaque, hwaddr offset,
-                           uint32_t value)
-{
-    uint32_t addr;
-    uint32_t mask;
-    uint32_t v;
-    addr = bitband_addr(opaque, offset) & ~3;
-    mask = (1 << ((offset >> 2) & 31));
-    mask = tswap32(mask);
-    cpu_physical_memory_read(addr, &v, 4);
-    if (value & 1)
-        v |= mask;
-    else
-        v &= ~mask;
-    cpu_physical_memory_write(addr, &v, 4);
+    /* Find address in underlying memory and round down to multiple of size */
+    addr = bitband_addr(s, offset) & (-size);
+    res = address_space_read(s->source_as, addr, attrs, buf, size);
+    if (res) {
+        return res;
+    }
+    /* Bit position in the N bytes read... */
+    bitpos = (offset >> 2) & ((size * 8) - 1);
+    /* ...converted to byte in buffer and bit in byte */
+    bit = 1 << (bitpos & 7);
+    if (value & 1) {
+        buf[bitpos >> 3] |= bit;
+    } else {
+        buf[bitpos >> 3] &= ~bit;
+    }
+    return address_space_write(s->source_as, addr, attrs, buf, size);
 }
 
 static const MemoryRegionOps bitband_ops = {
-    .old_mmio = {
-        .read = { bitband_readb, bitband_readw, bitband_readl, },
-        .write = { bitband_writeb, bitband_writew, bitband_writel, },
-    },
+    .read_with_attrs = bitband_read,
+    .write_with_attrs = bitband_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
 };
 
 static void bitband_init(Object *obj)
@@ -127,9 +97,28 @@ static void bitband_init(Object *obj)
     BitBandState *s = BITBAND(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, obj, &bitband_ops, &s->base,
+    object_property_add_link(obj, "source-memory",
+                             TYPE_MEMORY_REGION,
+                             (Object **)&s->source_memory,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
+    memory_region_init_io(&s->iomem, obj, &bitband_ops, s,
                           "bitband", 0x02000000);
     sysbus_init_mmio(dev, &s->iomem);
+}
+
+static void bitband_realize(DeviceState *dev, Error **errp)
+{
+    BitBandState *s = BITBAND(dev);
+
+    if (!s->source_memory) {
+        error_setg(errp, "source-memory property not set");
+        return;
+    }
+
+    s->source_as = address_space_init_shareable(s->source_memory,
+                                                "bitband-source");
 }
 
 /* Board init.  */
@@ -250,6 +239,8 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
+        object_property_set_link(obj, OBJECT(s->board_memory),
+                                 "source-memory", &error_abort);
         object_property_set_bool(obj, true, "realized", &err);
         if (err != NULL) {
             error_propagate(errp, err);
@@ -365,6 +356,7 @@ static void bitband_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->realize = bitband_realize;
     dc->props = bitband_properties;
 }
 
