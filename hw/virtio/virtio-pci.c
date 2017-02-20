@@ -1812,6 +1812,7 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 
         pos = pci_add_capability(pci_dev, PCI_CAP_ID_PM, 0, PCI_PM_SIZEOF);
         assert(pos > 0);
+        pci_dev->exp.pm_cap = pos;
 
         /*
          * Indicates that this function complies with revision 1.2 of the
@@ -1827,6 +1828,12 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
         if (proxy->flags & VIRTIO_PCI_FLAG_INIT_LNKCTL) {
             /* Init Link Control Register */
             pcie_cap_lnkctl_init(pci_dev);
+        }
+
+        if (proxy->flags & VIRTIO_PCI_FLAG_INIT_PM) {
+            /* Init Power Management Control Register */
+            pci_set_word(pci_dev->wmask + pos + PCI_PM_CTRL,
+                         PCI_PM_CTRL_STATE_MASK);
         }
 
         if (proxy->flags & VIRTIO_PCI_FLAG_ATS) {
@@ -1877,6 +1884,8 @@ static void virtio_pci_reset(DeviceState *qdev)
     if (pci_is_express(dev)) {
         pcie_cap_deverr_reset(dev);
         pcie_cap_lnkctl_reset(dev);
+
+        pci_set_word(dev->config + dev->exp.pm_cap + PCI_PM_CTRL, 0);
     }
 }
 
@@ -1902,6 +1911,8 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_INIT_DEVERR_BIT, true),
     DEFINE_PROP_BIT("x-pcie-lnkctl-init", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_INIT_LNKCTL_BIT, true),
+    DEFINE_PROP_BIT("x-pcie-pm-init", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_INIT_PM_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
