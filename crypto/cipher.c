@@ -63,18 +63,14 @@ static bool mode_need_iv[QCRYPTO_CIPHER_MODE__MAX] = {
 
 size_t qcrypto_cipher_get_block_len(QCryptoCipherAlgorithm alg)
 {
-    if (alg >= G_N_ELEMENTS(alg_key_len)) {
-        return 0;
-    }
+    assert(alg < G_N_ELEMENTS(alg_key_len));
     return alg_block_len[alg];
 }
 
 
 size_t qcrypto_cipher_get_key_len(QCryptoCipherAlgorithm alg)
 {
-    if (alg >= G_N_ELEMENTS(alg_key_len)) {
-        return 0;
-    }
+    assert(alg < G_N_ELEMENTS(alg_key_len));
     return alg_key_len[alg];
 }
 
