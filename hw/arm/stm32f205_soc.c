@@ -49,6 +49,9 @@ static void stm32f205_soc_initfn(Object *obj)
     STM32F205State *s = STM32F205_SOC(obj);
     int i;
 
+    object_initialize(&s->armv7m, sizeof(s->armv7m), TYPE_ARMV7M);
+    qdev_set_parent_bus(DEVICE(&s->armv7m), sysbus_get_default());
+
     object_initialize(&s->syscfg, sizeof(s->syscfg), TYPE_STM32F2XX_SYSCFG);
     qdev_set_parent_bus(DEVICE(&s->syscfg), sysbus_get_default());
 
@@ -110,8 +113,16 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, sram);
 
-    nvic = armv7m_init(get_system_memory(), FLASH_SIZE, 96,
-                       s->kernel_filename, s->cpu_model);
+    nvic = DEVICE(&s->armv7m);
+    qdev_prop_set_uint32(nvic, "num-irq", 96);
+    qdev_prop_set_string(nvic, "cpu-model", s->cpu_model);
+    object_property_set_link(OBJECT(&s->armv7m), OBJECT(get_system_memory()),
+                                     "memory", &error_abort);
+    object_property_set_bool(OBJECT(&s->armv7m), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
     /* System configuration controller */
     dev = DEVICE(&s->syscfg);
@@ -192,7 +203,6 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
 }
 
 static Property stm32f205_soc_properties[] = {
-    DEFINE_PROP_STRING("kernel-filename", STM32F205State, kernel_filename),
     DEFINE_PROP_STRING("cpu-model", STM32F205State, cpu_model),
     DEFINE_PROP_END_OF_LIST(),
 };
