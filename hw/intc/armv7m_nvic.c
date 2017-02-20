@@ -17,6 +17,7 @@
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "hw/arm/arm.h"
+#include "hw/arm/armv7m_nvic.h"
 #include "target/arm/cpu.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
@@ -47,60 +48,12 @@
  * "exception" more or less interchangeably.
  */
 #define NVIC_FIRST_IRQ 16
-#define NVIC_MAX_VECTORS 512
 #define NVIC_MAX_IRQ (NVIC_MAX_VECTORS - NVIC_FIRST_IRQ)
 
 /* Effective running priority of the CPU when no exception is active
  * (higher than the highest possible priority value)
  */
 #define NVIC_NOEXC_PRIO 0x100
-
-typedef struct VecInfo {
-    /* Exception priorities can range from -3 to 255; only the unmodifiable
-     * priority values for RESET, NMI and HardFault can be negative.
-     */
-    int16_t prio;
-    uint8_t enabled;
-    uint8_t pending;
-    uint8_t active;
-    uint8_t level; /* exceptions <=15 never set level */
-} VecInfo;
-
-typedef struct NVICState {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    ARMCPU *cpu;
-
-    VecInfo vectors[NVIC_MAX_VECTORS];
-    uint32_t prigroup;
-
-    /* vectpending and exception_prio are both cached state that can
-     * be recalculated from the vectors[] array and the prigroup field.
-     */
-    unsigned int vectpending; /* highest prio pending enabled exception */
-    int exception_prio; /* group prio of the highest prio active exception */
-
-    struct {
-        uint32_t control;
-        uint32_t reload;
-        int64_t tick;
-        QEMUTimer *timer;
-    } systick;
-
-    MemoryRegion sysregmem;
-    MemoryRegion container;
-
-    uint32_t num_irq;
-    qemu_irq excpout;
-    qemu_irq sysresetreq;
-} NVICState;
-
-#define TYPE_NVIC "armv7m_nvic"
-
-#define NVIC(obj) \
-    OBJECT_CHECK(NVICState, (obj), TYPE_NVIC)
 
 static const uint8_t nvic_id[] = {
     0x00, 0xb0, 0x1b, 0x00, 0x0d, 0xe0, 0x05, 0xb1
