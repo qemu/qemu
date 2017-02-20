@@ -14,8 +14,7 @@ extern int qemu_egl_rn_fd;
 extern struct gbm_device *qemu_egl_rn_gbm_dev;
 extern EGLContext qemu_egl_rn_ctx;
 
-int qemu_egl_rendernode_open(void);
-int egl_rendernode_init(void);
+int egl_rendernode_init(const char *rendernode);
 int egl_get_fd_for_texture(uint32_t tex_id, EGLint *stride, EGLint *fourcc);
 
 #endif

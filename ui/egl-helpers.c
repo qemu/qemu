@@ -44,12 +44,16 @@ int qemu_egl_rn_fd;
 struct gbm_device *qemu_egl_rn_gbm_dev;
 EGLContext qemu_egl_rn_ctx;
 
-int qemu_egl_rendernode_open(void)
+static int qemu_egl_rendernode_open(const char *rendernode)
 {
     DIR *dir;
     struct dirent *e;
     int r, fd;
     char *p;
+
+    if (rendernode) {
+        return open(rendernode, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
+    }
 
     dir = opendir("/dev/dri");
     if (!dir) {
@@ -85,11 +89,11 @@ int qemu_egl_rendernode_open(void)
     return fd;
 }
 
-int egl_rendernode_init(void)
+int egl_rendernode_init(const char *rendernode)
 {
     qemu_egl_rn_fd = -1;
 
-    qemu_egl_rn_fd = qemu_egl_rendernode_open();
+    qemu_egl_rn_fd = qemu_egl_rendernode_open(rendernode);
     if (qemu_egl_rn_fd == -1) {
         error_report("egl: no drm render node available");
         goto err;
@@ -219,7 +223,11 @@ int qemu_egl_init_dpy(EGLNativeDisplayType dpy, bool gles, bool debug)
     }
 
     egl_dbg("eglGetDisplay (dpy %p) ...\n", dpy);
+#ifdef EGL_MESA_platform_gbm
+    qemu_egl_display = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, dpy, NULL);
+#else
     qemu_egl_display = eglGetDisplay(dpy);
+#endif
     if (qemu_egl_display == EGL_NO_DISPLAY) {
         error_report("egl: eglGetDisplay failed");
         return -1;
