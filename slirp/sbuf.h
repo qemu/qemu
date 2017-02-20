@@ -12,8 +12,8 @@
 #define sbspace(sb) ((sb)->sb_datalen - (sb)->sb_cc)
 
 struct sbuf {
-	u_int	sb_cc;		/* actual chars in buffer */
-	u_int	sb_datalen;	/* Length of data  */
+	uint32_t sb_cc;		/* actual chars in buffer */
+	uint32_t sb_datalen;	/* Length of data  */
 	char	*sb_wptr;	/* write pointer. points to where the next
 				 * bytes should be written in the sbuf */
 	char	*sb_rptr;	/* read pointer. points to where the next
