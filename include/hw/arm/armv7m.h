@@ -35,6 +35,9 @@ typedef struct {
  * + Named GPIO output SYSRESETREQ: signalled for guest AIRCR.SYSRESETREQ
  * + Property "cpu-model": CPU model to instantiate
  * + Property "num-irq": number of external IRQ lines
+ * + Property "memory": MemoryRegion defining the physical address space
+ *   that CPU accesses see. (The NVIC, bitbanding and other CPU-internal
+ *   devices will be automatically layered on top of this view.)
  */
 typedef struct ARMv7MState {
     /*< private >*/
@@ -44,8 +47,15 @@ typedef struct ARMv7MState {
     BitBandState bitband[ARMV7M_NUM_BITBANDS];
     ARMCPU *cpu;
 
+    /* MemoryRegion we pass to the CPU, with our devices layered on
+     * top of the ones the board provides in board_memory.
+     */
+    MemoryRegion container;
+
     /* Properties */
     char *cpu_model;
+    /* MemoryRegion the board provides to us (with its devices, RAM, etc) */
+    MemoryRegion *board_memory;
 } ARMv7MState;
 
 #endif

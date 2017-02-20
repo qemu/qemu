@@ -18,6 +18,7 @@
 #include "elf.h"
 #include "sysemu/qtest.h"
 #include "qemu/error-report.h"
+#include "exec/address-spaces.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
 
@@ -148,6 +149,14 @@ static void armv7m_instance_init(Object *obj)
 
     /* Can't init the cpu here, we don't yet know which model to use */
 
+    object_property_add_link(obj, "memory",
+                             TYPE_MEMORY_REGION,
+                             (Object **)&s->board_memory,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
+    memory_region_init(&s->container, obj, "armv7m-container", UINT64_MAX);
+
     object_initialize(&s->nvic, sizeof(s->nvic), "armv7m_nvic");
     qdev_set_parent_bus(DEVICE(&s->nvic), sysbus_get_default());
     object_property_add_alias(obj, "num-irq",
@@ -168,6 +177,13 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     ObjectClass *oc;
     const char *typename;
     CPUClass *cc;
+
+    if (!s->board_memory) {
+        error_setg(errp, "memory property was not set");
+        return;
+    }
+
+    memory_region_add_subregion_overlap(&s->container, 0, s->board_memory, -1);
 
     cpustr = g_strsplit(s->cpu_model, ",", 2);
 
@@ -193,6 +209,8 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    object_property_set_link(OBJECT(s->cpu), OBJECT(&s->container), "memory",
+                             &error_abort);
     object_property_set_bool(OBJECT(s->cpu), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
@@ -233,7 +251,8 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        sysbus_mmio_map(sbd, 0, bitband_output_addr[i]);
+        memory_region_add_subregion(&s->container, bitband_output_addr[i],
+                                    sysbus_mmio_get_region(sbd, 0));
     }
 }
 
@@ -281,6 +300,8 @@ DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
     armv7m = qdev_create(NULL, "armv7m");
     qdev_prop_set_uint32(armv7m, "num-irq", num_irq);
     qdev_prop_set_string(armv7m, "cpu-model", cpu_model);
+    object_property_set_link(OBJECT(armv7m), OBJECT(get_system_memory()),
+                                     "memory", &error_abort);
     /* This will exit with an error if the user passed us a bad cpu_model */
     qdev_init_nofail(armv7m);
 
