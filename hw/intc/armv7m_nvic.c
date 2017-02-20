@@ -58,65 +58,6 @@ static const uint8_t nvic_id[] = {
     0x00, 0xb0, 0x1b, 0x00, 0x0d, 0xe0, 0x05, 0xb1
 };
 
-/* qemu timers run at 1GHz.   We want something closer to 1MHz.  */
-#define SYSTICK_SCALE 1000ULL
-
-#define SYSTICK_ENABLE    (1 << 0)
-#define SYSTICK_TICKINT   (1 << 1)
-#define SYSTICK_CLKSOURCE (1 << 2)
-#define SYSTICK_COUNTFLAG (1 << 16)
-
-int system_clock_scale;
-
-/* Conversion factor from qemu timer to SysTick frequencies.  */
-static inline int64_t systick_scale(NVICState *s)
-{
-    if (s->systick.control & SYSTICK_CLKSOURCE)
-        return system_clock_scale;
-    else
-        return 1000;
-}
-
-static void systick_reload(NVICState *s, int reset)
-{
-    /* The Cortex-M3 Devices Generic User Guide says that "When the
-     * ENABLE bit is set to 1, the counter loads the RELOAD value from the
-     * SYST RVR register and then counts down". So, we need to check the
-     * ENABLE bit before reloading the value.
-     */
-    if ((s->systick.control & SYSTICK_ENABLE) == 0) {
-        return;
-    }
-
-    if (reset)
-        s->systick.tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    s->systick.tick += (s->systick.reload + 1) * systick_scale(s);
-    timer_mod(s->systick.timer, s->systick.tick);
-}
-
-static void systick_timer_tick(void * opaque)
-{
-    NVICState *s = (NVICState *)opaque;
-    s->systick.control |= SYSTICK_COUNTFLAG;
-    if (s->systick.control & SYSTICK_TICKINT) {
-        /* Trigger the interrupt.  */
-        armv7m_nvic_set_pending(s, ARMV7M_EXCP_SYSTICK);
-    }
-    if (s->systick.reload == 0) {
-        s->systick.control &= ~SYSTICK_ENABLE;
-    } else {
-        systick_reload(s, 0);
-    }
-}
-
-static void systick_reset(NVICState *s)
-{
-    s->systick.control = 0;
-    s->systick.reload = 0;
-    s->systick.tick = 0;
-    timer_del(s->systick.timer);
-}
-
 static int nvic_pending_prio(NVICState *s)
 {
     /* return the priority of the current pending interrupt,
@@ -462,30 +403,6 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
     switch (offset) {
     case 4: /* Interrupt Control Type.  */
         return ((s->num_irq - NVIC_FIRST_IRQ) / 32) - 1;
-    case 0x10: /* SysTick Control and Status.  */
-        val = s->systick.control;
-        s->systick.control &= ~SYSTICK_COUNTFLAG;
-        return val;
-    case 0x14: /* SysTick Reload Value.  */
-        return s->systick.reload;
-    case 0x18: /* SysTick Current Value.  */
-        {
-            int64_t t;
-            if ((s->systick.control & SYSTICK_ENABLE) == 0)
-                return 0;
-            t = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-            if (t >= s->systick.tick)
-                return 0;
-            val = ((s->systick.tick - (t + 1)) / systick_scale(s)) + 1;
-            /* The interrupt in triggered when the timer reaches zero.
-               However the counter is not reloaded until the next clock
-               tick.  This is a hack to return zero during the first tick.  */
-            if (val > s->systick.reload)
-                val = 0;
-            return val;
-        }
-    case 0x1c: /* SysTick Calibration Value.  */
-        return 10000;
     case 0xd00: /* CPUID Base.  */
         return cpu->midr;
     case 0xd04: /* Interrupt Control State.  */
@@ -620,40 +537,8 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
 static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
 {
     ARMCPU *cpu = s->cpu;
-    uint32_t oldval;
+
     switch (offset) {
-    case 0x10: /* SysTick Control and Status.  */
-        oldval = s->systick.control;
-        s->systick.control &= 0xfffffff8;
-        s->systick.control |= value & 7;
-        if ((oldval ^ value) & SYSTICK_ENABLE) {
-            int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-            if (value & SYSTICK_ENABLE) {
-                if (s->systick.tick) {
-                    s->systick.tick += now;
-                    timer_mod(s->systick.timer, s->systick.tick);
-                } else {
-                    systick_reload(s, 1);
-                }
-            } else {
-                timer_del(s->systick.timer);
-                s->systick.tick -= now;
-                if (s->systick.tick < 0)
-                  s->systick.tick = 0;
-            }
-        } else if ((oldval ^ value) & SYSTICK_CLKSOURCE) {
-            /* This is a hack. Force the timer to be reloaded
-               when the reference clock is changed.  */
-            systick_reload(s, 1);
-        }
-        break;
-    case 0x14: /* SysTick Reload Value.  */
-        s->systick.reload = value;
-        break;
-    case 0x18: /* SysTick Current Value.  Writes reload the timer.  */
-        systick_reload(s, 1);
-        s->systick.control &= ~SYSTICK_COUNTFLAG;
-        break;
     case 0xd04: /* Interrupt Control State.  */
         if (value & (1 << 31)) {
             armv7m_nvic_set_pending(s, ARMV7M_EXCP_NMI);
@@ -952,16 +837,12 @@ static const VMStateDescription vmstate_VecInfo = {
 
 static const VMStateDescription vmstate_nvic = {
     .name = "armv7m_nvic",
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .post_load = &nvic_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(vectors, NVICState, NVIC_MAX_VECTORS, 1,
                              vmstate_VecInfo, VecInfo),
-        VMSTATE_UINT32(systick.control, NVICState),
-        VMSTATE_UINT32(systick.reload, NVICState),
-        VMSTATE_INT64(systick.tick, NVICState),
-        VMSTATE_TIMER_PTR(systick.timer, NVICState),
         VMSTATE_UINT32(prigroup, NVICState),
         VMSTATE_END_OF_LIST()
     }
@@ -999,13 +880,26 @@ static void armv7m_nvic_reset(DeviceState *dev)
 
     s->exception_prio = NVIC_NOEXC_PRIO;
     s->vectpending = 0;
+}
 
-    systick_reset(s);
+static void nvic_systick_trigger(void *opaque, int n, int level)
+{
+    NVICState *s = opaque;
+
+    if (level) {
+        /* SysTick just asked us to pend its exception.
+         * (This is different from an external interrupt line's
+         * behaviour.)
+         */
+        armv7m_nvic_set_pending(s, ARMV7M_EXCP_SYSTICK);
+    }
 }
 
 static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
 {
     NVICState *s = NVIC(dev);
+    SysBusDevice *systick_sbd;
+    Error *err = NULL;
 
     s->cpu = ARM_CPU(qemu_get_cpu(0));
     assert(s->cpu);
@@ -1020,10 +914,19 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     /* include space for internal exception vectors */
     s->num_irq += NVIC_FIRST_IRQ;
 
+    object_property_set_bool(OBJECT(&s->systick), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    systick_sbd = SYS_BUS_DEVICE(&s->systick);
+    sysbus_connect_irq(systick_sbd, 0,
+                       qdev_get_gpio_in_named(dev, "systick-trigger", 0));
+
     /* The NVIC and System Control Space (SCS) starts at 0xe000e000
      * and looks like this:
      *  0x004 - ICTR
-     *  0x010 - 0x1c - systick
+     *  0x010 - 0xff - systick
      *  0x100..0x7ec - NVIC
      *  0x7f0..0xcff - Reserved
      *  0xd00..0xd3c - SCS registers
@@ -1041,10 +944,11 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->sysregmem, OBJECT(s), &nvic_sysreg_ops, s,
                           "nvic_sysregs", 0x1000);
     memory_region_add_subregion(&s->container, 0, &s->sysregmem);
+    memory_region_add_subregion_overlap(&s->container, 0x10,
+                                        sysbus_mmio_get_region(systick_sbd, 0),
+                                        1);
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->container);
-
-    s->systick.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, systick_timer_tick, s);
 }
 
 static void armv7m_nvic_instance_init(Object *obj)
@@ -1059,8 +963,12 @@ static void armv7m_nvic_instance_init(Object *obj)
     NVICState *nvic = NVIC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
+    object_initialize(&nvic->systick, sizeof(nvic->systick), TYPE_SYSTICK);
+    qdev_set_parent_bus(DEVICE(&nvic->systick), sysbus_get_default());
+
     sysbus_init_irq(sbd, &nvic->excpout);
     qdev_init_gpio_out_named(dev, &nvic->sysresetreq, "SYSRESETREQ", 1);
+    qdev_init_gpio_in_named(dev, nvic_systick_trigger, "systick-trigger", 1);
 }
 
 static void armv7m_nvic_class_init(ObjectClass *klass, void *data)

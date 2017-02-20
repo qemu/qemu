@@ -12,6 +12,7 @@
 
 #include "target/arm/cpu.h"
 #include "hw/sysbus.h"
+#include "hw/timer/armv7m_systick.h"
 
 #define TYPE_NVIC "armv7m_nvic"
 
@@ -48,19 +49,14 @@ typedef struct NVICState {
     unsigned int vectpending; /* highest prio pending enabled exception */
     int exception_prio; /* group prio of the highest prio active exception */
 
-    struct {
-        uint32_t control;
-        uint32_t reload;
-        int64_t tick;
-        QEMUTimer *timer;
-    } systick;
-
     MemoryRegion sysregmem;
     MemoryRegion container;
 
     uint32_t num_irq;
     qemu_irq excpout;
     qemu_irq sysresetreq;
+
+    SysTickState systick;
 } NVICState;
 
 #endif
