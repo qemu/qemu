@@ -96,6 +96,9 @@ uint8_t pcie_cap_flags_get_vector(PCIDevice *dev);
 void pcie_cap_deverr_init(PCIDevice *dev);
 void pcie_cap_deverr_reset(PCIDevice *dev);
 
+void pcie_cap_lnkctl_init(PCIDevice *dev);
+void pcie_cap_lnkctl_reset(PCIDevice *dev);
+
 void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot);
 void pcie_cap_slot_reset(PCIDevice *dev);
 void pcie_cap_slot_write_config(PCIDevice *dev,

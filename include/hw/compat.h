@@ -26,6 +26,10 @@
         .driver   = "virtio-pci",\
         .property = "x-pcie-deverr-init",\
         .value    = "off",\
+    },{\
+        .driver   = "virtio-pci",\
+        .property = "x-pcie-lnkctl-init",\
+        .value    = "off",\
     },
 
 #define HW_COMPAT_2_7 \
