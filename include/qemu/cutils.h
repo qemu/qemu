@@ -139,9 +139,9 @@ int parse_uint(const char *s, unsigned long long *value, char **endptr,
                int base);
 int parse_uint_full(const char *s, unsigned long long *value, int base);
 
-int64_t qemu_strtosz(const char *nptr, char **end);
-int64_t qemu_strtosz_MiB(const char *nptr, char **end);
-int64_t qemu_strtosz_metric(const char *nptr, char **end);
+int qemu_strtosz(const char *nptr, char **end, int64_t *result);
+int qemu_strtosz_MiB(const char *nptr, char **end, int64_t *result);
+int qemu_strtosz_metric(const char *nptr, char **end, int64_t *result);
 
 #define K_BYTE     (1ULL << 10)
 #define M_BYTE     (1ULL << 20)

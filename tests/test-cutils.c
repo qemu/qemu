@@ -1373,45 +1373,54 @@ static void test_qemu_strtosz_simple(void)
 {
     const char *str;
     char *endptr = NULL;
-    int64_t res;
+    int err;
+    int64_t res = 0xbaadf00d;
 
     str = "0";
-    res = qemu_strtosz(str, &endptr);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 0);
     g_assert(endptr == str + 1);
 
     str = "12345";
-    res = qemu_strtosz(str, &endptr);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 12345);
     g_assert(endptr == str + 5);
 
-    res = qemu_strtosz(str, NULL);
+    err = qemu_strtosz(str, NULL, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 12345);
 
     /* Note: precision is 53 bits since we're parsing with strtod() */
 
     str = "9007199254740991"; /* 2^53-1 */
-    res = qemu_strtosz(str, &endptr);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 0x1fffffffffffff);
     g_assert(endptr == str + 16);
 
     str = "9007199254740992"; /* 2^53 */
-    res = qemu_strtosz(str, &endptr);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 0x20000000000000);
     g_assert(endptr == str + 16);
 
     str = "9007199254740993"; /* 2^53+1 */
-    res = qemu_strtosz(str, &endptr);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 0x20000000000000); /* rounded to 53 bits */
     g_assert(endptr == str + 16);
 
     str = "9223372036854774784"; /* 0x7ffffffffffffc00 (53 msbs set) */
-    res = qemu_strtosz(str, &endptr);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 0x7ffffffffffffc00);
     g_assert(endptr == str + 19);
 
     str = "9223372036854775295"; /* 0x7ffffffffffffdff */
-    res = qemu_strtosz(str, &endptr);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 0x7ffffffffffffc00); /* rounded to 53 bits */
     g_assert(endptr == str + 19);
 
@@ -1429,39 +1438,48 @@ static void test_qemu_strtosz_units(void)
     const char *t = "1T";
     const char *p = "1P";
     const char *e = "1E";
+    int err;
     char *endptr = NULL;
-    int64_t res;
+    int64_t res = 0xbaadf00d;
 
     /* default is M */
-    res = qemu_strtosz_MiB(none, &endptr);
+    err = qemu_strtosz_MiB(none, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, M_BYTE);
     g_assert(endptr == none + 1);
 
-    res = qemu_strtosz(b, &endptr);
+    err = qemu_strtosz(b, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 1);
     g_assert(endptr == b + 2);
 
-    res = qemu_strtosz(k, &endptr);
+    err = qemu_strtosz(k, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, K_BYTE);
     g_assert(endptr == k + 2);
 
-    res = qemu_strtosz(m, &endptr);
+    err = qemu_strtosz(m, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, M_BYTE);
     g_assert(endptr == m + 2);
 
-    res = qemu_strtosz(g, &endptr);
+    err = qemu_strtosz(g, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, G_BYTE);
     g_assert(endptr == g + 2);
 
-    res = qemu_strtosz(t, &endptr);
+    err = qemu_strtosz(t, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, T_BYTE);
     g_assert(endptr == t + 2);
 
-    res = qemu_strtosz(p, &endptr);
+    err = qemu_strtosz(p, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, P_BYTE);
     g_assert(endptr == p + 2);
 
-    res = qemu_strtosz(e, &endptr);
+    err = qemu_strtosz(e, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, E_BYTE);
     g_assert(endptr == e + 2);
 }
@@ -1469,10 +1487,12 @@ static void test_qemu_strtosz_units(void)
 static void test_qemu_strtosz_float(void)
 {
     const char *str = "12.345M";
+    int err;
     char *endptr = NULL;
-    int64_t res;
+    int64_t res = 0xbaadf00d;
 
-    res = qemu_strtosz(str, &endptr);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 12.345 * M_BYTE);
     g_assert(endptr == str + 7);
 }
@@ -1481,21 +1501,22 @@ static void test_qemu_strtosz_invalid(void)
 {
     const char *str;
     char *endptr = NULL;
-    int64_t res;
+    int err;
+    int64_t res = 0xbaadf00d;
 
     str = "";
-    res = qemu_strtosz(str, &endptr);
-    g_assert_cmpint(res, ==, -EINVAL);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
     g_assert(endptr == str);
 
     str = " \t ";
-    res = qemu_strtosz(str, &endptr);
-    g_assert_cmpint(res, ==, -EINVAL);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
     g_assert(endptr == str);
 
     str = "crap";
-    res = qemu_strtosz(str, &endptr);
-    g_assert_cmpint(res, ==, -EINVAL);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
     g_assert(endptr == str);
 }
 
@@ -1503,64 +1524,69 @@ static void test_qemu_strtosz_trailing(void)
 {
     const char *str;
     char *endptr = NULL;
-    int64_t res;
+    int err;
+    int64_t res = 0xbaadf00d;
 
     str = "123xxx";
-    res = qemu_strtosz_MiB(str, &endptr);
+    err = qemu_strtosz_MiB(str, &endptr, &res);
     g_assert_cmpint(res, ==, 123 * M_BYTE);
     g_assert(endptr == str + 3);
 
-    res = qemu_strtosz(str, NULL);
-    g_assert_cmpint(res, ==, -EINVAL);
+    err = qemu_strtosz(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
 
     str = "1kiB";
-    res = qemu_strtosz(str, &endptr);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 1024);
     g_assert(endptr == str + 2);
 
-    res = qemu_strtosz(str, NULL);
-    g_assert_cmpint(res, ==, -EINVAL);
+    err = qemu_strtosz(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtosz_erange(void)
 {
     const char *str;
     char *endptr = NULL;
-    int64_t res;
+    int err;
+    int64_t res = 0xbaadf00d;
 
     str = "-1";
-    res = qemu_strtosz(str, &endptr);
-    g_assert_cmpint(res, ==, -ERANGE);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
     g_assert(endptr == str + 2);
 
     str = "9223372036854775296"; /* 0x7ffffffffffffe00 */
-    res = qemu_strtosz(str, &endptr);
-    g_assert_cmpint(res, ==, -ERANGE);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
     g_assert(endptr == str + 19);
 
     str = "9223372036854775807"; /* 2^63-1 */
-    res = qemu_strtosz(str, &endptr);
-    g_assert_cmpint(res, ==, -ERANGE);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
     g_assert(endptr == str + 19);
 
     str = "9223372036854775808"; /* 2^63 */
-    res = qemu_strtosz(str, &endptr);
-    g_assert_cmpint(res, ==, -ERANGE);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
     g_assert(endptr == str + 19);
 
     str = "10E";
-    res = qemu_strtosz(str, &endptr);
-    g_assert_cmpint(res, ==, -ERANGE);
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
     g_assert(endptr == str + 3);
 }
 
 static void test_qemu_strtosz_metric(void)
 {
     const char *str = "12345k";
+    int err;
     char *endptr = NULL;
-    int64_t res;
+    int64_t res = 0xbaadf00d;
 
-    res = qemu_strtosz_metric(str, &endptr);
+    err = qemu_strtosz_metric(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 12345000);
     g_assert(endptr == str + 6);
 }

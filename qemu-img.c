@@ -370,10 +370,14 @@ static int add_old_style_options(const char *fmt, QemuOpts *opts,
 
 static int64_t cvtnum(const char *s)
 {
-    int64_t ret;
+    int err;
+    int64_t value;
 
-    ret = qemu_strtosz(s, NULL);
-    return ret;
+    err = qemu_strtosz(s, NULL, &value);
+    if (err < 0) {
+        return err;
+    }
+    return value;
 }
 
 static int img_create(int argc, char **argv)

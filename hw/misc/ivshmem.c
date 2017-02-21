@@ -1267,8 +1267,11 @@ static void ivshmem_realize(PCIDevice *dev, Error **errp)
     if (s->sizearg == NULL) {
         s->legacy_size = 4 << 20; /* 4 MB default */
     } else {
-        int64_t size = qemu_strtosz_MiB(s->sizearg, NULL);
-        if (size < 0 || (size_t)size != size || !is_power_of_2(size)) {
+        int ret;
+        int64_t size;
+
+        ret = qemu_strtosz_MiB(s->sizearg, NULL, &size);
+        if (ret < 0 || (size_t)size != size || !is_power_of_2(size)) {
             error_setg(errp, "Invalid size %s", s->sizearg);
             return;
         }

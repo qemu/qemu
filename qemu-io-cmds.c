@@ -137,10 +137,14 @@ static char **breakline(char *input, int *count)
 
 static int64_t cvtnum(const char *s)
 {
-    int64_t ret;
+    int err;
+    int64_t value;
 
-    ret = qemu_strtosz(s, NULL);
-    return ret;
+    err = qemu_strtosz(s, NULL, &value);
+    if (err < 0) {
+        return err;
+    }
+    return value;
 }
 
 static void print_cvtnum_err(int64_t rc, const char *arg)
