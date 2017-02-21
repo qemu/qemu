@@ -1735,6 +1735,17 @@ QEMUGLContext dpy_gl_ctx_get_current(QemuConsole *con)
     return con->gl->ops->dpy_gl_ctx_get_current(con->gl);
 }
 
+void dpy_gl_scanout_disable(QemuConsole *con)
+{
+    assert(con->gl);
+    if (con->gl->ops->dpy_gl_scanout_disable) {
+        con->gl->ops->dpy_gl_scanout_disable(con->gl);
+    } else {
+        con->gl->ops->dpy_gl_scanout_texture(con->gl, 0, false, 0, 0,
+                                             0, 0, 0, 0);
+    }
+}
+
 void dpy_gl_scanout_texture(QemuConsole *con,
                             uint32_t backing_id,
                             bool backing_y_0_top,

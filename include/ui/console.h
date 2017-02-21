@@ -215,6 +215,7 @@ typedef struct DisplayChangeListenerOps {
                                    QEMUGLContext ctx);
     QEMUGLContext (*dpy_gl_ctx_get_current)(DisplayChangeListener *dcl);
 
+    void (*dpy_gl_scanout_disable)(DisplayChangeListener *dcl);
     void (*dpy_gl_scanout_texture)(DisplayChangeListener *dcl,
                                    uint32_t backing_id,
                                    bool backing_y_0_top,
@@ -287,6 +288,7 @@ bool dpy_cursor_define_supported(QemuConsole *con);
 bool dpy_gfx_check_format(QemuConsole *con,
                           pixman_format_code_t format);
 
+void dpy_gl_scanout_disable(QemuConsole *con);
 void dpy_gl_scanout_texture(QemuConsole *con,
                             uint32_t backing_id, bool backing_y_0_top,
                             uint32_t backing_width, uint32_t backing_height,
