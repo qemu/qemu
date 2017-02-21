@@ -215,7 +215,10 @@ static void char_spice_finalize(Object *obj)
     SpiceChardev *s = SPICE_CHARDEV(obj);
 
     vmc_unregister_interface(s);
-    QLIST_REMOVE(s, next);
+
+    if (s->next.le_prev) {
+        QLIST_REMOVE(s, next);
+    }
 
     g_free((char *)s->sin.subtype);
 #if SPICE_SERVER_VERSION >= 0x000c02
