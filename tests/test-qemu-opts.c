@@ -603,17 +603,15 @@ static void test_opts_parse_number(void)
 
     /* Above upper limit */
     opts = qemu_opts_parse(&opts_list_01, "number1=18446744073709551616",
-                           false, &error_abort);
-    /* BUG: should reject */
-    g_assert_cmpuint(opts_count(opts), ==, 1);
-    g_assert_cmpuint(qemu_opt_get_number(opts, "number1", 1), ==, UINT64_MAX);
+                           false, &err);
+    error_free_or_abort(&err);
+    g_assert(!opts);
 
     /* Below lower limit */
     opts = qemu_opts_parse(&opts_list_01, "number1=-18446744073709551616",
-                           false, &error_abort);
-    /* BUG: should reject */
-    g_assert_cmpuint(opts_count(opts), ==, 1);
-    g_assert_cmpuint(qemu_opt_get_number(opts, "number1", 1), ==, UINT64_MAX);
+                           false, &err);
+    error_free_or_abort(&err);
+    g_assert(!opts);
 
     /* Hex and octal */
     opts = qemu_opts_parse(&opts_list_01, "number1=0x2a,number2=052",
@@ -624,9 +622,8 @@ static void test_opts_parse_number(void)
 
     /* Invalid */
     opts = qemu_opts_parse(&opts_list_01, "number1=", false, &err);
-    /* BUG: should reject */
-    g_assert_cmpuint(opts_count(opts), ==, 1);
-    g_assert_cmpuint(qemu_opt_get_number(opts, "number1", 1), ==, 0);
+    error_free_or_abort(&err);
+    g_assert(!opts);
     opts = qemu_opts_parse(&opts_list_01, "number1=eins", false, &err);
     error_free_or_abort(&err);
     g_assert(!opts);

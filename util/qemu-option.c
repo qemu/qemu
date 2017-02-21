@@ -141,11 +141,16 @@ static void parse_option_bool(const char *name, const char *value, bool *ret,
 static void parse_option_number(const char *name, const char *value,
                                 uint64_t *ret, Error **errp)
 {
-    char *postfix;
     uint64_t number;
+    int err;
 
-    number = strtoull(value, &postfix, 0);
-    if (*postfix != '\0') {
+    err = qemu_strtou64(value, NULL, 0, &number);
+    if (err == -ERANGE) {
+        error_setg(errp, "Value '%s' is too large for parameter '%s'",
+                   value, name);
+        return;
+    }
+    if (err) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
         return;
     }
