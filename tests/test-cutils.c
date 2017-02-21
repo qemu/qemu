@@ -1376,16 +1376,16 @@ static void test_qemu_strtosz_simple(void)
     int64_t res;
 
     str = "0";
-    res = qemu_strtosz(str, &endptr);
+    res = qemu_strtosz_MiB(str, &endptr);
     g_assert_cmpint(res, ==, 0);
     g_assert(endptr == str + 1);
 
     str = "12345M";
-    res = qemu_strtosz(str, &endptr);
+    res = qemu_strtosz_MiB(str, &endptr);
     g_assert_cmpint(res, ==, 12345 * M_BYTE);
     g_assert(endptr == str + 6);
 
-    res = qemu_strtosz(str, NULL);
+    res = qemu_strtosz_MiB(str, NULL);
     g_assert_cmpint(res, ==, 12345 * M_BYTE);
 
     /* Note: precision is 53 bits since we're parsing with strtod() */
@@ -1433,35 +1433,35 @@ static void test_qemu_strtosz_units(void)
     int64_t res;
 
     /* default is M */
-    res = qemu_strtosz(none, &endptr);
+    res = qemu_strtosz_MiB(none, &endptr);
     g_assert_cmpint(res, ==, M_BYTE);
     g_assert(endptr == none + 1);
 
-    res = qemu_strtosz(b, &endptr);
+    res = qemu_strtosz_MiB(b, &endptr);
     g_assert_cmpint(res, ==, 1);
     g_assert(endptr == b + 2);
 
-    res = qemu_strtosz(k, &endptr);
+    res = qemu_strtosz_MiB(k, &endptr);
     g_assert_cmpint(res, ==, K_BYTE);
     g_assert(endptr == k + 2);
 
-    res = qemu_strtosz(m, &endptr);
+    res = qemu_strtosz_MiB(m, &endptr);
     g_assert_cmpint(res, ==, M_BYTE);
     g_assert(endptr == m + 2);
 
-    res = qemu_strtosz(g, &endptr);
+    res = qemu_strtosz_MiB(g, &endptr);
     g_assert_cmpint(res, ==, G_BYTE);
     g_assert(endptr == g + 2);
 
-    res = qemu_strtosz(t, &endptr);
+    res = qemu_strtosz_MiB(t, &endptr);
     g_assert_cmpint(res, ==, T_BYTE);
     g_assert(endptr == t + 2);
 
-    res = qemu_strtosz(p, &endptr);
+    res = qemu_strtosz_MiB(p, &endptr);
     g_assert_cmpint(res, ==, P_BYTE);
     g_assert(endptr == p + 2);
 
-    res = qemu_strtosz(e, &endptr);
+    res = qemu_strtosz_MiB(e, &endptr);
     g_assert_cmpint(res, ==, E_BYTE);
     g_assert(endptr == e + 2);
 }
@@ -1472,7 +1472,7 @@ static void test_qemu_strtosz_float(void)
     char *endptr = NULL;
     int64_t res;
 
-    res = qemu_strtosz(str, &endptr);
+    res = qemu_strtosz_MiB(str, &endptr);
     g_assert_cmpint(res, ==, 12.345 * M_BYTE);
     g_assert(endptr == str + 7);
 }
@@ -1484,17 +1484,17 @@ static void test_qemu_strtosz_invalid(void)
     int64_t res;
 
     str = "";
-    res = qemu_strtosz(str, &endptr);
+    res = qemu_strtosz_MiB(str, &endptr);
     g_assert_cmpint(res, ==, -EINVAL);
     g_assert(endptr == str);
 
     str = " \t ";
-    res = qemu_strtosz(str, &endptr);
+    res = qemu_strtosz_MiB(str, &endptr);
     g_assert_cmpint(res, ==, -EINVAL);
     g_assert(endptr == str);
 
     str = "crap";
-    res = qemu_strtosz(str, &endptr);
+    res = qemu_strtosz_MiB(str, &endptr);
     g_assert_cmpint(res, ==, -EINVAL);
     g_assert(endptr == str);
 }
@@ -1506,12 +1506,12 @@ static void test_qemu_strtosz_trailing(void)
     int64_t res;
 
     str = "123xxx";
-    res = qemu_strtosz(str, &endptr);
+    res = qemu_strtosz_MiB(str, &endptr);
     g_assert_cmpint(res, ==, 123 * M_BYTE);
     g_assert(endptr == str + 3);
 
     str = "1kiB";
-    res = qemu_strtosz(str, &endptr);
+    res = qemu_strtosz_MiB(str, &endptr);
     g_assert_cmpint(res, ==, 1024);
     g_assert(endptr == str + 2);
 }
@@ -1523,7 +1523,7 @@ static void test_qemu_strtosz_erange(void)
     int64_t res;
 
     str = "-1";
-    res = qemu_strtosz(str, &endptr);
+    res = qemu_strtosz_MiB(str, &endptr);
     g_assert_cmpint(res, ==, -ERANGE);
     g_assert(endptr == str + 2);
 
@@ -1543,7 +1543,7 @@ static void test_qemu_strtosz_erange(void)
     g_assert(endptr == str + 19);
 
     str = "10E";
-    res = qemu_strtosz(str, &endptr);
+    res = qemu_strtosz_MiB(str, &endptr);
     g_assert_cmpint(res, ==, -ERANGE);
     g_assert(endptr == str + 3);
 }

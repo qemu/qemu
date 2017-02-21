@@ -1385,7 +1385,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                 break;
             case MIGRATION_PARAMETER_MAX_BANDWIDTH:
                 p.has_max_bandwidth = true;
-                valuebw = qemu_strtosz(valuestr, &endp);
+                valuebw = qemu_strtosz_MiB(valuestr, &endp);
                 if (valuebw < 0 || (size_t)valuebw != valuebw
                     || *endp != '\0') {
                     error_setg(&err, "Invalid size %s", valuestr);

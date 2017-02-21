@@ -254,7 +254,7 @@ int64_t qemu_strtosz_suffix(const char *nptr, char **end,
     return do_strtosz(nptr, end, default_suffix, 1024);
 }
 
-int64_t qemu_strtosz(const char *nptr, char **end)
+int64_t qemu_strtosz_MiB(const char *nptr, char **end)
 {
     return qemu_strtosz_suffix(nptr, end, QEMU_STRTOSZ_DEFSUFFIX_MB);
 }
