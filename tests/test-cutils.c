@@ -1441,6 +1441,28 @@ static void test_qemu_strtosz_float(void)
     g_assert(endptr == str + 7);
 }
 
+static void test_qemu_strtosz_invalid(void)
+{
+    const char *str;
+    char *endptr = NULL;
+    int64_t res;
+
+    str = "";
+    res = qemu_strtosz(str, &endptr);
+    g_assert_cmpint(res, ==, -EINVAL);
+    g_assert(endptr == str);
+
+    str = " \t ";
+    res = qemu_strtosz(str, &endptr);
+    g_assert_cmpint(res, ==, -EINVAL);
+    g_assert(endptr == str);
+
+    str = "crap";
+    res = qemu_strtosz(str, &endptr);
+    g_assert_cmpint(res, ==, -EINVAL);
+    g_assert(endptr == str);
+}
+
 static void test_qemu_strtosz_erange(void)
 {
     const char *str = "10E";
@@ -1652,6 +1674,8 @@ int main(int argc, char **argv)
                     test_qemu_strtosz_units);
     g_test_add_func("/cutils/strtosz/float",
                     test_qemu_strtosz_float);
+    g_test_add_func("/cutils/strtosz/invalid",
+                    test_qemu_strtosz_invalid);
     g_test_add_func("/cutils/strtosz/erange",
                     test_qemu_strtosz_erange);
     g_test_add_func("/cutils/strtosz/suffix-unit",
