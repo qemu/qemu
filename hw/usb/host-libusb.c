@@ -1065,7 +1065,7 @@ static void usb_host_instance_init(Object *obj)
                                   &udev->qdev, NULL);
 }
 
-static void usb_host_handle_destroy(USBDevice *udev)
+static void usb_host_unrealize(USBDevice *udev, Error **errp)
 {
     USBHostDevice *s = USB_HOST_DEVICE(udev);
 
@@ -1568,7 +1568,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     uc->handle_data    = usb_host_handle_data;
     uc->handle_control = usb_host_handle_control;
     uc->handle_reset   = usb_host_handle_reset;
-    uc->handle_destroy = usb_host_handle_destroy;
+    uc->unrealize      = usb_host_unrealize;
     uc->flush_ep_queue = usb_host_flush_ep_queue;
     uc->alloc_streams  = usb_host_alloc_streams;
     uc->free_streams   = usb_host_free_streams;

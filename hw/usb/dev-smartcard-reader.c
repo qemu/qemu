@@ -1163,7 +1163,7 @@ static void ccid_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void ccid_handle_destroy(USBDevice *dev)
+static void ccid_unrealize(USBDevice *dev, Error **errp)
 {
     USBCCIDState *s = USB_CCID_DEV(dev);
 
@@ -1470,7 +1470,7 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     uc->handle_reset   = ccid_handle_reset;
     uc->handle_control = ccid_handle_control;
     uc->handle_data    = ccid_handle_data;
-    uc->handle_destroy = ccid_handle_destroy;
+    uc->unrealize      = ccid_unrealize;
     dc->desc = "CCID Rev 1.1 smartcard reader";
     dc->vmsd = &ccid_vmstate;
     dc->props = ccid_properties;

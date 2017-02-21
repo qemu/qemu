@@ -496,7 +496,7 @@ static void usb_bt_out_hci_packet_acl(void *opaque,
     usb_bt_fifo_enqueue(&s->acl, data, len);
 }
 
-static void usb_bt_handle_destroy(USBDevice *dev)
+static void usb_bt_unrealize(USBDevice *dev, Error **errp)
 {
     struct USBBtState *s = (struct USBBtState *) dev->opaque;
 
@@ -559,7 +559,7 @@ static void usb_bt_class_initfn(ObjectClass *klass, void *data)
     uc->handle_reset   = usb_bt_handle_reset;
     uc->handle_control = usb_bt_handle_control;
     uc->handle_data    = usb_bt_handle_data;
-    uc->handle_destroy = usb_bt_handle_destroy;
+    uc->unrealize      = usb_bt_unrealize;
     dc->vmsd = &vmstate_usb_bt;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
