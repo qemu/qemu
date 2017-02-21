@@ -1391,27 +1391,27 @@ static void test_qemu_strtosz_simple(void)
     /* Note: precision is 53 bits since we're parsing with strtod() */
 
     str = "9007199254740991"; /* 2^53-1 */
-    res = qemu_strtosz_suffix(str, &endptr, QEMU_STRTOSZ_DEFSUFFIX_B);
+    res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, 0x1fffffffffffff);
     g_assert(endptr == str + 16);
 
     str = "9007199254740992"; /* 2^53 */
-    res = qemu_strtosz_suffix(str, &endptr, QEMU_STRTOSZ_DEFSUFFIX_B);
+    res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, 0x20000000000000);
     g_assert(endptr == str + 16);
 
     str = "9007199254740993"; /* 2^53+1 */
-    res = qemu_strtosz_suffix(str, &endptr, QEMU_STRTOSZ_DEFSUFFIX_B);
+    res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, 0x20000000000000); /* rounded to 53 bits */
     g_assert(endptr == str + 16);
 
     str = "9223372036854774784"; /* 0x7ffffffffffffc00 (53 msbs set) */
-    res = qemu_strtosz_suffix(str, &endptr, QEMU_STRTOSZ_DEFSUFFIX_B);
+    res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, 0x7ffffffffffffc00);
     g_assert(endptr == str + 19);
 
     str = "9223372036854775295"; /* 0x7ffffffffffffdff */
-    res = qemu_strtosz_suffix(str, &endptr, QEMU_STRTOSZ_DEFSUFFIX_B);
+    res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, 0x7ffffffffffffc00); /* rounded to 53 bits */
     g_assert(endptr == str + 19);
 
@@ -1528,17 +1528,17 @@ static void test_qemu_strtosz_erange(void)
     g_assert(endptr == str + 2);
 
     str = "9223372036854775296"; /* 0x7ffffffffffffe00 */
-    res = qemu_strtosz_suffix(str, &endptr, QEMU_STRTOSZ_DEFSUFFIX_B);
+    res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, -ERANGE);
     g_assert(endptr == str + 19);
 
     str = "9223372036854775807"; /* 2^63-1 */
-    res = qemu_strtosz_suffix(str, &endptr, QEMU_STRTOSZ_DEFSUFFIX_B);
+    res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, -ERANGE);
     g_assert(endptr == str + 19);
 
     str = "9223372036854775808"; /* 2^63 */
-    res = qemu_strtosz_suffix(str, &endptr, QEMU_STRTOSZ_DEFSUFFIX_B);
+    res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, -ERANGE);
     g_assert(endptr == str + 19);
 

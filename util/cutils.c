@@ -178,6 +178,14 @@ int fcntl_setfl(int fd, int flag)
 }
 #endif
 
+#define QEMU_STRTOSZ_DEFSUFFIX_EB 'E'
+#define QEMU_STRTOSZ_DEFSUFFIX_PB 'P'
+#define QEMU_STRTOSZ_DEFSUFFIX_TB 'T'
+#define QEMU_STRTOSZ_DEFSUFFIX_GB 'G'
+#define QEMU_STRTOSZ_DEFSUFFIX_MB 'M'
+#define QEMU_STRTOSZ_DEFSUFFIX_KB 'K'
+#define QEMU_STRTOSZ_DEFSUFFIX_B 'B'
+
 static int64_t suffix_mul(char suffix, int64_t unit)
 {
     switch (qemu_toupper(suffix)) {
@@ -248,15 +256,14 @@ fail:
     return retval;
 }
 
-int64_t qemu_strtosz_suffix(const char *nptr, char **end,
-                            const char default_suffix)
+int64_t qemu_strtosz(const char *nptr, char **end)
 {
-    return do_strtosz(nptr, end, default_suffix, 1024);
+    return do_strtosz(nptr, end, QEMU_STRTOSZ_DEFSUFFIX_B, 1024);
 }
 
 int64_t qemu_strtosz_MiB(const char *nptr, char **end)
 {
-    return qemu_strtosz_suffix(nptr, end, QEMU_STRTOSZ_DEFSUFFIX_MB);
+    return do_strtosz(nptr, end, QEMU_STRTOSZ_DEFSUFFIX_MB, 1024);
 }
 
 int64_t qemu_strtosz_metric(const char *nptr, char **end)

@@ -139,22 +139,7 @@ int parse_uint(const char *s, unsigned long long *value, char **endptr,
                int base);
 int parse_uint_full(const char *s, unsigned long long *value, int base);
 
-/*
- * qemu_strtosz() suffixes used to specify the default treatment of an
- * argument passed to qemu_strtosz() without an explicit suffix.
- * These should be defined using upper case characters in the range
- * A-Z, as qemu_strtosz() will use qemu_toupper() on the given argument
- * prior to comparison.
- */
-#define QEMU_STRTOSZ_DEFSUFFIX_EB 'E'
-#define QEMU_STRTOSZ_DEFSUFFIX_PB 'P'
-#define QEMU_STRTOSZ_DEFSUFFIX_TB 'T'
-#define QEMU_STRTOSZ_DEFSUFFIX_GB 'G'
-#define QEMU_STRTOSZ_DEFSUFFIX_MB 'M'
-#define QEMU_STRTOSZ_DEFSUFFIX_KB 'K'
-#define QEMU_STRTOSZ_DEFSUFFIX_B 'B'
-int64_t qemu_strtosz_suffix(const char *nptr, char **end,
-                            const char default_suffix);
+int64_t qemu_strtosz(const char *nptr, char **end);
 int64_t qemu_strtosz_MiB(const char *nptr, char **end);
 int64_t qemu_strtosz_metric(const char *nptr, char **end);
 

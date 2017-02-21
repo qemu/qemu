@@ -462,8 +462,7 @@ static int img_create(int argc, char **argv)
     if (optind < argc) {
         int64_t sval;
         char *end;
-        sval = qemu_strtosz_suffix(argv[optind++], &end,
-                                   QEMU_STRTOSZ_DEFSUFFIX_B);
+        sval = qemu_strtosz(argv[optind++], &end);
         if (sval < 0 || *end) {
             if (sval == -ERANGE) {
                 error_report("Image size must be less than 8 EiB!");
@@ -1865,7 +1864,7 @@ static int img_convert(int argc, char **argv)
         {
             int64_t sval;
             char *end;
-            sval = qemu_strtosz_suffix(optarg, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
+            sval = qemu_strtosz(optarg, &end);
             if (sval < 0 || *end) {
                 error_report("Invalid minimum zero buffer size for sparse output specified");
                 ret = -1;
@@ -3653,8 +3652,7 @@ static int img_bench(int argc, char **argv)
         {
             char *end;
             errno = 0;
-            offset = qemu_strtosz_suffix(optarg, &end,
-                                         QEMU_STRTOSZ_DEFSUFFIX_B);
+            offset = qemu_strtosz(optarg, &end);
             if (offset < 0|| *end) {
                 error_report("Invalid offset specified");
                 return 1;
@@ -3670,7 +3668,7 @@ static int img_bench(int argc, char **argv)
             int64_t sval;
             char *end;
 
-            sval = qemu_strtosz_suffix(optarg, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
+            sval = qemu_strtosz(optarg, &end);
             if (sval < 0 || sval > INT_MAX || *end) {
                 error_report("Invalid buffer size specified");
                 return 1;
@@ -3684,7 +3682,7 @@ static int img_bench(int argc, char **argv)
             int64_t sval;
             char *end;
 
-            sval = qemu_strtosz_suffix(optarg, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
+            sval = qemu_strtosz(optarg, &end);
             if (sval < 0 || sval > INT_MAX || *end) {
                 error_report("Invalid step size specified");
                 return 1;
@@ -3847,7 +3845,7 @@ static int img_dd_bs(const char *arg,
     char *end;
     int64_t res;
 
-    res = qemu_strtosz_suffix(arg, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
+    res = qemu_strtosz(arg, &end);
 
     if (res <= 0 || res > INT_MAX || *end) {
         error_report("invalid number: '%s'", arg);
@@ -3864,7 +3862,7 @@ static int img_dd_count(const char *arg,
 {
     char *end;
 
-    dd->count = qemu_strtosz_suffix(arg, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
+    dd->count = qemu_strtosz(arg, &end);
 
     if (dd->count < 0 || *end) {
         error_report("invalid number: '%s'", arg);
@@ -3898,7 +3896,7 @@ static int img_dd_skip(const char *arg,
 {
     char *end;
 
-    in->offset = qemu_strtosz_suffix(arg, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
+    in->offset = qemu_strtosz(arg, &end);
 
     if (in->offset < 0 || *end) {
         error_report("invalid number: '%s'", arg);
