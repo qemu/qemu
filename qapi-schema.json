@@ -3959,6 +3959,15 @@
     'opts':  'NetLegacyOptions' } }
 
 ##
+# @NetLegacyOptionsType:
+#
+# Since: 1.2
+##
+{ 'enum': 'NetLegacyOptionsType',
+  'data': ['none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
+           'dump', 'bridge', 'netmap', 'vhost-user'] }
+
+##
 # @NetLegacyOptions:
 #
 # Like Netdev, but for use only by the legacy command line options
@@ -3966,6 +3975,8 @@
 # Since: 1.2
 ##
 { 'union': 'NetLegacyOptions',
+  'base': { 'type': 'NetLegacyOptionsType' },
+  'discriminator': 'type',
   'data': {
     'none':     'NetdevNoneOptions',
     'nic':      'NetLegacyNicOptions',
