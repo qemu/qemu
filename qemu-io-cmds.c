@@ -138,11 +138,14 @@ static char **breakline(char *input, int *count)
 static int64_t cvtnum(const char *s)
 {
     int err;
-    int64_t value;
+    uint64_t value;
 
     err = qemu_strtosz(s, NULL, &value);
     if (err < 0) {
         return err;
+    }
+    if (value > INT64_MAX) {
+        return -ERANGE;
     }
     return value;
 }

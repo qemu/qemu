@@ -2800,7 +2800,7 @@ static QDict *monitor_parse_arguments(Monitor *mon,
         case 'o':
             {
                 int ret;
-                int64_t val;
+                uint64_t val;
                 char *end;
 
                 while (qemu_isspace(*p)) {
@@ -2813,7 +2813,7 @@ static QDict *monitor_parse_arguments(Monitor *mon,
                     }
                 }
                 ret = qemu_strtosz_MiB(p, &end, &val);
-                if (ret < 0) {
+                if (ret < 0 || val > INT64_MAX) {
                     monitor_printf(mon, "invalid size\n");
                     goto fail;
                 }

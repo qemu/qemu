@@ -207,7 +207,7 @@ static int64_t suffix_mul(char suffix, int64_t unit)
  */
 static int do_strtosz(const char *nptr, char **end,
                       const char default_suffix, int64_t unit,
-                      int64_t *result)
+                      uint64_t *result)
 {
     int retval;
     char *endptr;
@@ -237,7 +237,11 @@ static int do_strtosz(const char *nptr, char **end,
         retval = -EINVAL;
         goto out;
     }
-    if ((val * mul >= INT64_MAX) || val < 0) {
+    /*
+     * Values >= 0xfffffffffffffc00 overflow uint64_t after their trip
+     * through double (53 bits of precision).
+     */
+    if ((val * mul >= 0xfffffffffffffc00) || val < 0) {
         retval = -ERANGE;
         goto out;
     }
@@ -254,17 +258,17 @@ out:
     return retval;
 }
 
-int qemu_strtosz(const char *nptr, char **end, int64_t *result)
+int qemu_strtosz(const char *nptr, char **end, uint64_t *result)
 {
     return do_strtosz(nptr, end, 'B', 1024, result);
 }
 
-int qemu_strtosz_MiB(const char *nptr, char **end, int64_t *result)
+int qemu_strtosz_MiB(const char *nptr, char **end, uint64_t *result)
 {
     return do_strtosz(nptr, end, 'M', 1024, result);
 }
 
-int qemu_strtosz_metric(const char *nptr, char **end, int64_t *result)
+int qemu_strtosz_metric(const char *nptr, char **end, uint64_t *result)
 {
     return do_strtosz(nptr, end, 'B', 1000, result);
 }
