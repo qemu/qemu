@@ -1035,8 +1035,25 @@ static void qemu_spice_display_init_one(QemuConsole *con)
 
 void qemu_spice_display_init(void)
 {
-    QemuConsole *con;
+    QemuOptsList *olist = qemu_find_opts("spice");
+    QemuOpts *opts = QTAILQ_FIRST(&olist->head);
+    QemuConsole *spice_con, *con;
+    const char *str;
     int i;
+
+    str = qemu_opt_get(opts, "display");
+    if (str) {
+        int head = qemu_opt_get_number(opts, "head", 0);
+        Error *err = NULL;
+
+        spice_con = qemu_console_lookup_by_device_name(str, head, &err);
+        if (err) {
+            error_report("Failed to lookup display/head");
+            exit(1);
+        }
+    } else {
+        spice_con = NULL;
+    }
 
     for (i = 0;; i++) {
         con = qemu_console_lookup_by_index(i);
@@ -1044,6 +1061,9 @@ void qemu_spice_display_init(void)
             break;
         }
         if (qemu_spice_have_display_interface(con)) {
+            continue;
+        }
+        if (spice_con != NULL && spice_con != con) {
             continue;
         }
         qemu_spice_display_init_one(con);
