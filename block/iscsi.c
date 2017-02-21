@@ -1245,28 +1245,13 @@ retry:
     return 0;
 }
 
-static void parse_chap(struct iscsi_context *iscsi, const char *target,
+static void apply_chap(struct iscsi_context *iscsi, QemuOpts *opts,
                        Error **errp)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
     const char *user = NULL;
     const char *password = NULL;
     const char *secretid;
     char *secret = NULL;
-
-    list = qemu_find_opts("iscsi");
-    if (!list) {
-        return;
-    }
-
-    opts = qemu_opts_find(list, target);
-    if (opts == NULL) {
-        opts = QTAILQ_FIRST(&list->head);
-        if (!opts) {
-            return;
-        }
-    }
 
     user = qemu_opt_get(opts, "user");
     if (!user) {
@@ -1298,64 +1283,36 @@ static void parse_chap(struct iscsi_context *iscsi, const char *target,
     g_free(secret);
 }
 
-static void parse_header_digest(struct iscsi_context *iscsi, const char *target,
+static void apply_header_digest(struct iscsi_context *iscsi, QemuOpts *opts,
                                 Error **errp)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
     const char *digest = NULL;
-
-    list = qemu_find_opts("iscsi");
-    if (!list) {
-        return;
-    }
-
-    opts = qemu_opts_find(list, target);
-    if (opts == NULL) {
-        opts = QTAILQ_FIRST(&list->head);
-        if (!opts) {
-            return;
-        }
-    }
 
     digest = qemu_opt_get(opts, "header-digest");
     if (!digest) {
-        return;
-    }
-
-    if (!strcmp(digest, "CRC32C")) {
+        iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
+    } else if (!strcmp(digest, "crc32c")) {
         iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_CRC32C);
-    } else if (!strcmp(digest, "NONE")) {
+    } else if (!strcmp(digest, "none")) {
         iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE);
-    } else if (!strcmp(digest, "CRC32C-NONE")) {
+    } else if (!strcmp(digest, "crc32c-none")) {
         iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_CRC32C_NONE);
-    } else if (!strcmp(digest, "NONE-CRC32C")) {
+    } else if (!strcmp(digest, "none-crc32c")) {
         iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
     } else {
         error_setg(errp, "Invalid header-digest setting : %s", digest);
     }
 }
 
-static char *parse_initiator_name(const char *target)
+static char *get_initiator_name(QemuOpts *opts)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
     const char *name;
     char *iscsi_name;
     UuidInfo *uuid_info;
 
-    list = qemu_find_opts("iscsi");
-    if (list) {
-        opts = qemu_opts_find(list, target);
-        if (!opts) {
-            opts = QTAILQ_FIRST(&list->head);
-        }
-        if (opts) {
-            name = qemu_opt_get(opts, "initiator-name");
-            if (name) {
-                return g_strdup(name);
-            }
-        }
+    name = qemu_opt_get(opts, "initiator-name");
+    if (name) {
+        return g_strdup(name);
     }
 
     uuid_info = qmp_query_uuid(NULL);
@@ -1368,29 +1325,6 @@ static char *parse_initiator_name(const char *target)
                                  name ? ":" : "", name ? name : "");
     qapi_free_UuidInfo(uuid_info);
     return iscsi_name;
-}
-
-static int parse_timeout(const char *target)
-{
-    QemuOptsList *list;
-    QemuOpts *opts;
-    const char *timeout;
-
-    list = qemu_find_opts("iscsi");
-    if (list) {
-        opts = qemu_opts_find(list, target);
-        if (!opts) {
-            opts = QTAILQ_FIRST(&list->head);
-        }
-        if (opts) {
-            timeout = qemu_opt_get(opts, "timeout");
-            if (timeout) {
-                return atoi(timeout);
-            }
-        }
-    }
-
-    return 0;
 }
 
 static void iscsi_nop_timed_event(void *opaque)
@@ -1482,20 +1416,6 @@ static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
         scsi_free_scsi_task(task);
     }
 }
-
-/* TODO Convert to fine grained options */
-static QemuOptsList runtime_opts = {
-    .name = "iscsi",
-    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
-    .desc = {
-        {
-            .name = "filename",
-            .type = QEMU_OPT_STRING,
-            .help = "URL to the iscsi image",
-        },
-        { /* end of list */ }
-    },
-};
 
 static struct scsi_task *iscsi_do_inquiry(struct iscsi_context *iscsi, int lun,
                                           int evpd, int pc, void **inq, Error **errp)
@@ -1614,24 +1534,178 @@ out:
     }
 }
 
+static void iscsi_parse_iscsi_option(const char *target, QDict *options)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    const char *user, *password, *password_secret, *initiator_name,
+               *header_digest, *timeout;
+
+    list = qemu_find_opts("iscsi");
+    if (!list) {
+        return;
+    }
+
+    opts = qemu_opts_find(list, target);
+    if (opts == NULL) {
+        opts = QTAILQ_FIRST(&list->head);
+        if (!opts) {
+            return;
+        }
+    }
+
+    user = qemu_opt_get(opts, "user");
+    if (user) {
+        qdict_set_default_str(options, "user", user);
+    }
+
+    password = qemu_opt_get(opts, "password");
+    if (password) {
+        qdict_set_default_str(options, "password", password);
+    }
+
+    password_secret = qemu_opt_get(opts, "password-secret");
+    if (password_secret) {
+        qdict_set_default_str(options, "password-secret", password_secret);
+    }
+
+    initiator_name = qemu_opt_get(opts, "initiator-name");
+    if (initiator_name) {
+        qdict_set_default_str(options, "initiator-name", initiator_name);
+    }
+
+    header_digest = qemu_opt_get(opts, "header-digest");
+    if (header_digest) {
+        /* -iscsi takes upper case values, but QAPI only supports lower case
+         * enum constant names, so we have to convert here. */
+        char *qapi_value = g_ascii_strdown(header_digest, -1);
+        qdict_set_default_str(options, "header-digest", qapi_value);
+        g_free(qapi_value);
+    }
+
+    timeout = qemu_opt_get(opts, "timeout");
+    if (timeout) {
+        qdict_set_default_str(options, "timeout", timeout);
+    }
+}
+
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
  */
+static void iscsi_parse_filename(const char *filename, QDict *options,
+                                 Error **errp)
+{
+    struct iscsi_url *iscsi_url;
+    const char *transport_name;
+    char *lun_str;
+
+    iscsi_url = iscsi_parse_full_url(NULL, filename);
+    if (iscsi_url == NULL) {
+        error_setg(errp, "Failed to parse URL : %s", filename);
+        return;
+    }
+
+#if LIBISCSI_API_VERSION >= (20160603)
+    switch (iscsi_url->transport) {
+    case TCP_TRANSPORT:
+        transport_name = "tcp";
+        break;
+    case ISER_TRANSPORT:
+        transport_name = "iser";
+        break;
+    default:
+        error_setg(errp, "Unknown transport type (%d)",
+                   iscsi_url->transport);
+        return;
+    }
+#else
+    transport_name = "tcp";
+#endif
+
+    qdict_set_default_str(options, "transport", transport_name);
+    qdict_set_default_str(options, "portal", iscsi_url->portal);
+    qdict_set_default_str(options, "target", iscsi_url->target);
+
+    lun_str = g_strdup_printf("%d", iscsi_url->lun);
+    qdict_set_default_str(options, "lun", lun_str);
+    g_free(lun_str);
+
+    /* User/password from -iscsi take precedence over those from the URL */
+    iscsi_parse_iscsi_option(iscsi_url->target, options);
+
+    if (iscsi_url->user[0] != '\0') {
+        qdict_set_default_str(options, "user", iscsi_url->user);
+        qdict_set_default_str(options, "password", iscsi_url->passwd);
+    }
+
+    iscsi_destroy_url(iscsi_url);
+}
+
+static QemuOptsList runtime_opts = {
+    .name = "iscsi",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = "transport",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "portal",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "target",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "user",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "password",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "password-secret",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "lun",
+            .type = QEMU_OPT_NUMBER,
+        },
+        {
+            .name = "initiator-name",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "header-digest",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "timeout",
+            .type = QEMU_OPT_NUMBER,
+        },
+        { /* end of list */ }
+    },
+};
+
 static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = NULL;
-    struct iscsi_url *iscsi_url = NULL;
     struct scsi_task *task = NULL;
     struct scsi_inquiry_standard *inq = NULL;
     struct scsi_inquiry_supported_pages *inq_vpd;
     char *initiator_name = NULL;
     QemuOpts *opts;
     Error *local_err = NULL;
-    const char *filename;
-    int i, ret = 0, timeout = 0;
+    const char *transport_name, *portal, *target;
+#if LIBISCSI_API_VERSION >= (20160603)
+    enum iscsi_transport_type transport;
+#endif
+    int i, ret = 0, timeout = 0, lun;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -1641,18 +1715,34 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
-    filename = qemu_opt_get(opts, "filename");
+    transport_name = qemu_opt_get(opts, "transport");
+    portal = qemu_opt_get(opts, "portal");
+    target = qemu_opt_get(opts, "target");
+    lun = qemu_opt_get_number(opts, "lun", 0);
 
-    iscsi_url = iscsi_parse_full_url(iscsi, filename);
-    if (iscsi_url == NULL) {
-        error_setg(errp, "Failed to parse URL : %s", filename);
+    if (!transport_name || !portal || !target) {
+        error_setg(errp, "Need all of transport, portal and target options");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    if (!strcmp(transport_name, "tcp")) {
+#if LIBISCSI_API_VERSION >= (20160603)
+        transport = TCP_TRANSPORT;
+    } else if (!strcmp(transport_name, "iser")) {
+        transport = ISER_TRANSPORT;
+#else
+        /* TCP is what older libiscsi versions always use */
+#endif
+    } else {
+        error_setg(errp, "Unknown transport: %s", transport_name);
         ret = -EINVAL;
         goto out;
     }
 
     memset(iscsilun, 0, sizeof(IscsiLun));
 
-    initiator_name = parse_initiator_name(iscsi_url->target);
+    initiator_name = get_initiator_name(opts);
 
     iscsi = iscsi_create_context(initiator_name);
     if (iscsi == NULL) {
@@ -1661,30 +1751,20 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 #if LIBISCSI_API_VERSION >= (20160603)
-    if (iscsi_init_transport(iscsi, iscsi_url->transport)) {
+    if (iscsi_init_transport(iscsi, transport)) {
         error_setg(errp, ("Error initializing transport."));
         ret = -EINVAL;
         goto out;
     }
 #endif
-    if (iscsi_set_targetname(iscsi, iscsi_url->target)) {
+    if (iscsi_set_targetname(iscsi, target)) {
         error_setg(errp, "iSCSI: Failed to set target name.");
         ret = -EINVAL;
         goto out;
     }
 
-    if (iscsi_url->user[0] != '\0') {
-        ret = iscsi_set_initiator_username_pwd(iscsi, iscsi_url->user,
-                                              iscsi_url->passwd);
-        if (ret != 0) {
-            error_setg(errp, "Failed to set initiator username and password");
-            ret = -EINVAL;
-            goto out;
-        }
-    }
-
     /* check if we got CHAP username/password via the options */
-    parse_chap(iscsi, iscsi_url->target, &local_err);
+    apply_chap(iscsi, opts, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -1697,10 +1777,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
-    iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
-
     /* check if we got HEADER_DIGEST via the options */
-    parse_header_digest(iscsi, iscsi_url->target, &local_err);
+    apply_header_digest(iscsi, opts, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -1708,7 +1786,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* timeout handling is broken in libiscsi before 1.15.0 */
-    timeout = parse_timeout(iscsi_url->target);
+    timeout = qemu_opt_get_number(opts, "timeout", 0);
 #if LIBISCSI_API_VERSION >= 20150621
     iscsi_set_timeout(iscsi, timeout);
 #else
@@ -1717,7 +1795,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 #endif
 
-    if (iscsi_full_connect_sync(iscsi, iscsi_url->portal, iscsi_url->lun) != 0) {
+    if (iscsi_full_connect_sync(iscsi, portal, lun) != 0) {
         error_setg(errp, "iSCSI: Failed to connect to LUN : %s",
             iscsi_get_error(iscsi));
         ret = -EINVAL;
@@ -1726,7 +1804,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
 
     iscsilun->iscsi = iscsi;
     iscsilun->aio_context = bdrv_get_aio_context(bs);
-    iscsilun->lun   = iscsi_url->lun;
+    iscsilun->lun = lun;
     iscsilun->has_write_same = true;
 
     task = iscsi_do_inquiry(iscsilun->iscsi, iscsilun->lun, 0, 0,
@@ -1829,9 +1907,6 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
 out:
     qemu_opts_del(opts);
     g_free(initiator_name);
-    if (iscsi_url != NULL) {
-        iscsi_destroy_url(iscsi_url);
-    }
     if (task != NULL) {
         scsi_free_scsi_task(task);
     }
@@ -2040,15 +2115,15 @@ static BlockDriver bdrv_iscsi = {
     .format_name     = "iscsi",
     .protocol_name   = "iscsi",
 
-    .instance_size   = sizeof(IscsiLun),
-    .bdrv_needs_filename = true,
-    .bdrv_file_open  = iscsi_open,
-    .bdrv_close      = iscsi_close,
-    .bdrv_create     = iscsi_create,
-    .create_opts     = &iscsi_create_opts,
-    .bdrv_reopen_prepare   = iscsi_reopen_prepare,
-    .bdrv_reopen_commit    = iscsi_reopen_commit,
-    .bdrv_invalidate_cache = iscsi_invalidate_cache,
+    .instance_size          = sizeof(IscsiLun),
+    .bdrv_parse_filename    = iscsi_parse_filename,
+    .bdrv_file_open         = iscsi_open,
+    .bdrv_close             = iscsi_close,
+    .bdrv_create            = iscsi_create,
+    .create_opts            = &iscsi_create_opts,
+    .bdrv_reopen_prepare    = iscsi_reopen_prepare,
+    .bdrv_reopen_commit     = iscsi_reopen_commit,
+    .bdrv_invalidate_cache  = iscsi_invalidate_cache,
 
     .bdrv_getlength  = iscsi_getlength,
     .bdrv_get_info   = iscsi_get_info,
@@ -2075,15 +2150,15 @@ static BlockDriver bdrv_iser = {
     .format_name     = "iser",
     .protocol_name   = "iser",
 
-    .instance_size   = sizeof(IscsiLun),
-    .bdrv_needs_filename = true,
-    .bdrv_file_open  = iscsi_open,
-    .bdrv_close      = iscsi_close,
-    .bdrv_create     = iscsi_create,
-    .create_opts     = &iscsi_create_opts,
-    .bdrv_reopen_prepare   = iscsi_reopen_prepare,
-    .bdrv_reopen_commit    = iscsi_reopen_commit,
-    .bdrv_invalidate_cache = iscsi_invalidate_cache,
+    .instance_size          = sizeof(IscsiLun),
+    .bdrv_parse_filename    = iscsi_parse_filename,
+    .bdrv_file_open         = iscsi_open,
+    .bdrv_close             = iscsi_close,
+    .bdrv_create            = iscsi_create,
+    .create_opts            = &iscsi_create_opts,
+    .bdrv_reopen_prepare    = iscsi_reopen_prepare,
+    .bdrv_reopen_commit     = iscsi_reopen_commit,
+    .bdrv_invalidate_cache  = iscsi_invalidate_cache,
 
     .bdrv_getlength  = iscsi_getlength,
     .bdrv_get_info   = iscsi_get_info,

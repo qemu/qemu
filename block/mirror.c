@@ -69,6 +69,7 @@ typedef struct MirrorBlockJob {
     bool waiting_for_io;
     int target_cluster_sectors;
     int max_iov;
+    bool initial_zeroing_ongoing;
 } MirrorBlockJob;
 
 typedef struct MirrorOp {
@@ -117,9 +118,10 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
         if (s->cow_bitmap) {
             bitmap_set(s->cow_bitmap, chunk_num, nb_chunks);
         }
-        s->common.offset += (uint64_t)op->nb_sectors * BDRV_SECTOR_SIZE;
+        if (!s->initial_zeroing_ongoing) {
+            s->common.offset += (uint64_t)op->nb_sectors * BDRV_SECTOR_SIZE;
+        }
     }
-
     qemu_iovec_destroy(&op->qiov);
     g_free(op);
 
@@ -572,6 +574,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             return 0;
         }
 
+        s->initial_zeroing_ongoing = true;
         for (sector_num = 0; sector_num < end; ) {
             int nb_sectors = MIN(end - sector_num,
                 QEMU_ALIGN_DOWN(INT_MAX, s->granularity) >> BDRV_SECTOR_BITS);
@@ -579,6 +582,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             mirror_throttle(s);
 
             if (block_job_is_cancelled(&s->common)) {
+                s->initial_zeroing_ongoing = false;
                 return 0;
             }
 
@@ -593,6 +597,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
         }
 
         mirror_wait_for_all_io(s);
+        s->initial_zeroing_ongoing = false;
     }
 
     /* First part, loop on the sectors and initialize the dirty bitmap.  */
