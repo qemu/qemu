@@ -702,10 +702,9 @@ static void test_opts_parse_size(void)
     g_assert(!opts);
     opts = qemu_opts_parse(&opts_list_02,
                            "size1=18446744073709550592", /* fffffffffffffc00 */
-                           false, &error_abort);
-    /* BUG: should reject */
-    g_assert_cmpuint(opts_count(opts), ==, 1);
-    g_assert_cmpuint(qemu_opt_get_size(opts, "size1", 1), ==, 0);
+                           false, &err);
+    error_free_or_abort(&err);
+    g_assert(!opts);
 
     /* Suffixes */
     opts = qemu_opts_parse(&opts_list_02, "size1=8b,size2=1.5k,size3=2M",
@@ -723,19 +722,17 @@ static void test_opts_parse_size(void)
 
     /* Beyond limit with suffix */
     opts = qemu_opts_parse(&opts_list_02, "size1=16777216T",
-                           false, &error_abort);
-    /* BUG: should reject */
-    g_assert_cmpuint(opts_count(opts), ==, 1);
-    g_assert_cmpuint(qemu_opt_get_size(opts, "size1", 1), ==, 0);
+                           false, &err);
+    error_free_or_abort(&err);
+    g_assert(!opts);
 
     /* Trailing crap */
     opts = qemu_opts_parse(&opts_list_02, "size1=16E", false, &err);
     error_free_or_abort(&err);
     g_assert(!opts);
-    opts = qemu_opts_parse(&opts_list_02, "size1=16Gi", false, &error_abort);
-    /* BUG: should reject */
-    g_assert_cmpuint(opts_count(opts), ==, 1);
-    g_assert_cmpuint(qemu_opt_get_size(opts, "size1", 1), ==, 16 * G_BYTE);
+    opts = qemu_opts_parse(&opts_list_02, "size1=16Gi", false, &err);
+    error_free_or_abort(&err);
+    g_assert(!opts);
 
     qemu_opts_reset(&opts_list_02);
 }
