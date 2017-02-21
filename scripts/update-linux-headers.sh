@@ -75,7 +75,13 @@ for arch in $ARCHLIST; do
         continue
     fi
 
-    make -C "$linux" INSTALL_HDR_PATH="$tmpdir" SRCARCH=$arch headers_install
+    if [ "$arch" = x86 ]; then
+        arch_var=SRCARCH
+    else
+        arch_var=ARCH
+    fi
+
+    make -C "$linux" INSTALL_HDR_PATH="$tmpdir" $arch_var=$arch headers_install
 
     rm -rf "$output/linux-headers/asm-$arch"
     mkdir -p "$output/linux-headers/asm-$arch"
@@ -91,6 +97,11 @@ for arch in $ARCHLIST; do
     if [ $arch = s390 ]; then
         cp_portable "$tmpdir/include/asm/kvm_virtio.h" "$output/include/standard-headers/asm-s390/"
         cp_portable "$tmpdir/include/asm/virtio-ccw.h" "$output/include/standard-headers/asm-s390/"
+    fi
+    if [ $arch = arm ]; then
+        cp "$tmpdir/include/asm/unistd-eabi.h" "$output/linux-headers/asm-arm/"
+        cp "$tmpdir/include/asm/unistd-oabi.h" "$output/linux-headers/asm-arm/"
+        cp "$tmpdir/include/asm/unistd-common.h" "$output/linux-headers/asm-arm/"
     fi
     if [ $arch = x86 ]; then
         cp_portable "$tmpdir/include/asm/hyperv.h" "$output/include/standard-headers/asm-x86/"
