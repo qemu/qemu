@@ -170,11 +170,11 @@ QEMUGLContext gd_egl_create_context(DisplayChangeListener *dcl,
     return qemu_egl_create_context(dcl, params);
 }
 
-void gd_egl_scanout(DisplayChangeListener *dcl,
-                    uint32_t backing_id, bool backing_y_0_top,
-                    uint32_t backing_width, uint32_t backing_height,
-                    uint32_t x, uint32_t y,
-                    uint32_t w, uint32_t h)
+void gd_egl_scanout_texture(DisplayChangeListener *dcl,
+                            uint32_t backing_id, bool backing_y_0_top,
+                            uint32_t backing_width, uint32_t backing_height,
+                            uint32_t x, uint32_t y,
+                            uint32_t w, uint32_t h)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 

@@ -928,13 +928,13 @@ static QEMUGLContext qemu_spice_gl_create_context(DisplayChangeListener *dcl,
     return qemu_egl_create_context(dcl, params);
 }
 
-static void qemu_spice_gl_scanout(DisplayChangeListener *dcl,
-                                  uint32_t tex_id,
-                                  bool y_0_top,
-                                  uint32_t backing_width,
-                                  uint32_t backing_height,
-                                  uint32_t x, uint32_t y,
-                                  uint32_t w, uint32_t h)
+static void qemu_spice_gl_scanout_texture(DisplayChangeListener *dcl,
+                                          uint32_t tex_id,
+                                          bool y_0_top,
+                                          uint32_t backing_width,
+                                          uint32_t backing_height,
+                                          uint32_t x, uint32_t y,
+                                          uint32_t w, uint32_t h)
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
     EGLint stride = 0, fourcc = 0;
@@ -993,7 +993,7 @@ static const DisplayChangeListenerOps display_listener_gl_ops = {
     .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
     .dpy_gl_ctx_get_current  = qemu_egl_get_current_context,
 
-    .dpy_gl_scanout          = qemu_spice_gl_scanout,
+    .dpy_gl_scanout_texture  = qemu_spice_gl_scanout_texture,
     .dpy_gl_update           = qemu_spice_gl_update,
 };
 
