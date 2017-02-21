@@ -178,30 +178,22 @@ int fcntl_setfl(int fd, int flag)
 }
 #endif
 
-#define QEMU_STRTOSZ_DEFSUFFIX_EB 'E'
-#define QEMU_STRTOSZ_DEFSUFFIX_PB 'P'
-#define QEMU_STRTOSZ_DEFSUFFIX_TB 'T'
-#define QEMU_STRTOSZ_DEFSUFFIX_GB 'G'
-#define QEMU_STRTOSZ_DEFSUFFIX_MB 'M'
-#define QEMU_STRTOSZ_DEFSUFFIX_KB 'K'
-#define QEMU_STRTOSZ_DEFSUFFIX_B 'B'
-
 static int64_t suffix_mul(char suffix, int64_t unit)
 {
     switch (qemu_toupper(suffix)) {
-    case QEMU_STRTOSZ_DEFSUFFIX_B:
+    case 'B':
         return 1;
-    case QEMU_STRTOSZ_DEFSUFFIX_KB:
+    case 'K':
         return unit;
-    case QEMU_STRTOSZ_DEFSUFFIX_MB:
+    case 'M':
         return unit * unit;
-    case QEMU_STRTOSZ_DEFSUFFIX_GB:
+    case 'G':
         return unit * unit * unit;
-    case QEMU_STRTOSZ_DEFSUFFIX_TB:
+    case 'T':
         return unit * unit * unit * unit;
-    case QEMU_STRTOSZ_DEFSUFFIX_PB:
+    case 'P':
         return unit * unit * unit * unit * unit;
-    case QEMU_STRTOSZ_DEFSUFFIX_EB:
+    case 'E':
         return unit * unit * unit * unit * unit * unit;
     }
     return -1;
@@ -258,17 +250,17 @@ fail:
 
 int64_t qemu_strtosz(const char *nptr, char **end)
 {
-    return do_strtosz(nptr, end, QEMU_STRTOSZ_DEFSUFFIX_B, 1024);
+    return do_strtosz(nptr, end, 'B', 1024);
 }
 
 int64_t qemu_strtosz_MiB(const char *nptr, char **end)
 {
-    return do_strtosz(nptr, end, QEMU_STRTOSZ_DEFSUFFIX_MB, 1024);
+    return do_strtosz(nptr, end, 'M', 1024);
 }
 
 int64_t qemu_strtosz_metric(const char *nptr, char **end)
 {
-    return do_strtosz(nptr, end, QEMU_STRTOSZ_DEFSUFFIX_B, 1000);
+    return do_strtosz(nptr, end, 'B', 1000);
 }
 
 /**
