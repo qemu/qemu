@@ -112,11 +112,56 @@ bool qemu_in_coroutine(void);
  */
 bool qemu_coroutine_entered(Coroutine *co);
 
+/**
+ * Provides a mutex that can be used to synchronise coroutines
+ */
+struct CoWaitRecord;
+typedef struct CoMutex {
+    /* Count of pending lockers; 0 for a free mutex, 1 for an
+     * uncontended mutex.
+     */
+    unsigned locked;
+
+    /* Context that is holding the lock.  Useful to avoid spinning
+     * when two coroutines on the same AioContext try to get the lock. :)
+     */
+    AioContext *ctx;
+
+    /* A queue of waiters.  Elements are added atomically in front of
+     * from_push.  to_pop is only populated, and popped from, by whoever
+     * is in charge of the next wakeup.  This can be an unlocker or,
+     * through the handoff protocol, a locker that is about to go to sleep.
+     */
+    QSLIST_HEAD(, CoWaitRecord) from_push, to_pop;
+
+    unsigned handoff, sequence;
+
+    Coroutine *holder;
+} CoMutex;
+
+/**
+ * Initialises a CoMutex. This must be called before any other operation is used
+ * on the CoMutex.
+ */
+void qemu_co_mutex_init(CoMutex *mutex);
+
+/**
+ * Locks the mutex. If the lock cannot be taken immediately, control is
+ * transferred to the caller of the current coroutine.
+ */
+void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex);
+
+/**
+ * Unlocks the mutex and schedules the next coroutine that was waiting for this
+ * lock to be run.
+ */
+void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
+
 
 /**
  * CoQueues are a mechanism to queue coroutines in order to continue executing
- * them later. They provide the fundamental primitives on which coroutine locks
- * are built.
+ * them later.  They are similar to condition variables, but they need help
+ * from an external mutex in order to maintain thread-safety.
  */
 typedef struct CoQueue {
     QSIMPLEQ_HEAD(, Coroutine) entries;
@@ -130,9 +175,10 @@ void qemu_co_queue_init(CoQueue *queue);
 
 /**
  * Adds the current coroutine to the CoQueue and transfers control to the
- * caller of the coroutine.
+ * caller of the coroutine.  The mutex is unlocked during the wait and
+ * locked again afterwards.
  */
-void coroutine_fn qemu_co_queue_wait(CoQueue *queue);
+void coroutine_fn qemu_co_queue_wait(CoQueue *queue, CoMutex *mutex);
 
 /**
  * Restarts the next coroutine in the CoQueue and removes it from the queue.
@@ -157,36 +203,10 @@ bool qemu_co_enter_next(CoQueue *queue);
 bool qemu_co_queue_empty(CoQueue *queue);
 
 
-/**
- * Provides a mutex that can be used to synchronise coroutines
- */
-typedef struct CoMutex {
-    bool locked;
-    Coroutine *holder;
-    CoQueue queue;
-} CoMutex;
-
-/**
- * Initialises a CoMutex. This must be called before any other operation is used
- * on the CoMutex.
- */
-void qemu_co_mutex_init(CoMutex *mutex);
-
-/**
- * Locks the mutex. If the lock cannot be taken immediately, control is
- * transferred to the caller of the current coroutine.
- */
-void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex);
-
-/**
- * Unlocks the mutex and schedules the next coroutine that was waiting for this
- * lock to be run.
- */
-void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
-
 typedef struct CoRwlock {
-    bool writer;
+    int pending_writer;
     int reader;
+    CoMutex mutex;
     CoQueue queue;
 } CoRwlock;
 

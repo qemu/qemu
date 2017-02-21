@@ -19,7 +19,7 @@
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
-#include "trace-root.h"
+#include "trace.h"
 #include "block/thread-pool.h"
 #include "qemu/main-loop.h"
 
@@ -165,6 +165,7 @@ static void thread_pool_completion_bh(void *opaque)
     ThreadPool *pool = opaque;
     ThreadPoolElement *elem, *next;
 
+    aio_context_acquire(pool->ctx);
 restart:
     QLIST_FOREACH_SAFE(elem, &pool->head, all, next) {
         if (elem->state != THREAD_DONE) {
@@ -184,13 +185,16 @@ restart:
              */
             qemu_bh_schedule(pool->completion_bh);
 
+            aio_context_release(pool->ctx);
             elem->common.cb(elem->common.opaque, elem->ret);
+            aio_context_acquire(pool->ctx);
             qemu_aio_unref(elem);
             goto restart;
         } else {
             qemu_aio_unref(elem);
         }
     }
+    aio_context_release(pool->ctx);
 }
 
 static void thread_pool_cancel(BlockAIOCB *acb)
@@ -267,7 +271,7 @@ static void thread_pool_co_cb(void *opaque, int ret)
     ThreadPoolCo *co = opaque;
 
     co->ret = ret;
-    qemu_coroutine_enter(co->co);
+    aio_co_wake(co->co);
 }
 
 int coroutine_fn thread_pool_submit_co(ThreadPool *pool, ThreadPoolFunc *func,

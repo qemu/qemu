@@ -47,6 +47,7 @@ typedef void QEMUBHFunc(void *opaque);
 typedef bool AioPollFn(void *opaque);
 typedef void IOHandler(void *opaque);
 
+struct Coroutine;
 struct ThreadPool;
 struct LinuxAioState;
 
@@ -107,6 +108,9 @@ struct AioContext {
      */
     bool notified;
     EventNotifier notifier;
+
+    QSLIST_HEAD(, Coroutine) scheduled_coroutines;
+    QEMUBH *co_schedule_bh;
 
     /* Thread pool for performing work and receiving completion callbacks.
      * Has its own locking.
@@ -306,12 +310,8 @@ bool aio_pending(AioContext *ctx);
 /* Dispatch any pending callbacks from the GSource attached to the AioContext.
  *
  * This is used internally in the implementation of the GSource.
- *
- * @dispatch_fds: true to process fds, false to skip them
- *                (can be used as an optimization by callers that know there
- *                are no fds ready)
  */
-bool aio_dispatch(AioContext *ctx, bool dispatch_fds);
+void aio_dispatch(AioContext *ctx);
 
 /* Progress in completing AIO work to occur.  This can issue new pending
  * aio as a result of executing I/O completion or bh callbacks.
@@ -481,6 +481,34 @@ static inline bool aio_node_check(AioContext *ctx, bool is_external)
 {
     return !is_external || !atomic_read(&ctx->external_disable_cnt);
 }
+
+/**
+ * aio_co_schedule:
+ * @ctx: the aio context
+ * @co: the coroutine
+ *
+ * Start a coroutine on a remote AioContext.
+ *
+ * The coroutine must not be entered by anyone else while aio_co_schedule()
+ * is active.  In addition the coroutine must have yielded unless ctx
+ * is the context in which the coroutine is running (i.e. the value of
+ * qemu_get_current_aio_context() from the coroutine itself).
+ */
+void aio_co_schedule(AioContext *ctx, struct Coroutine *co);
+
+/**
+ * aio_co_wake:
+ * @co: the coroutine
+ *
+ * Restart a coroutine on the AioContext where it was running last, thus
+ * preventing coroutines from jumping from one context to another when they
+ * go to sleep.
+ *
+ * aio_co_wake may be executed either in coroutine or non-coroutine
+ * context.  The coroutine must not be entered by anyone else while
+ * aio_co_wake() is active.
+ */
+void aio_co_wake(struct Coroutine *co);
 
 /**
  * Return the AioContext whose event loop runs in the current thread.

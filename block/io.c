@@ -189,7 +189,7 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     bdrv_dec_in_flight(bs);
     bdrv_drained_begin(bs);
     data->done = true;
-    qemu_coroutine_enter(co);
+    aio_co_wake(co);
 }
 
 static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
@@ -539,7 +539,7 @@ static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
                  * (instead of producing a deadlock in the former case). */
                 if (!req->waiting_for) {
                     self->waiting_for = req;
-                    qemu_co_queue_wait(&req->wait_queue);
+                    qemu_co_queue_wait(&req->wait_queue, NULL);
                     self->waiting_for = NULL;
                     retry = true;
                     waited = true;
@@ -813,7 +813,7 @@ static void bdrv_co_io_em_complete(void *opaque, int ret)
     CoroutineIOCompletion *co = opaque;
 
     co->ret = ret;
-    qemu_coroutine_enter(co->coroutine);
+    aio_co_wake(co->coroutine);
 }
 
 static int coroutine_fn bdrv_driver_preadv(BlockDriverState *bs,
@@ -2080,6 +2080,11 @@ void bdrv_aio_cancel(BlockAIOCB *acb)
         if (acb->aiocb_info->get_aio_context) {
             aio_poll(acb->aiocb_info->get_aio_context(acb), true);
         } else if (acb->bs) {
+            /* qemu_aio_ref and qemu_aio_unref are not thread-safe, so
+             * assert that we're not using an I/O thread.  Thread-safe
+             * code should use bdrv_aio_cancel_async exclusively.
+             */
+            assert(bdrv_get_aio_context(acb->bs) == qemu_get_aio_context());
             aio_poll(bdrv_get_aio_context(acb->bs), true);
         } else {
             abort();
@@ -2239,35 +2244,6 @@ BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
     return &acb->common;
 }
 
-void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
-                   BlockCompletionFunc *cb, void *opaque)
-{
-    BlockAIOCB *acb;
-
-    acb = g_malloc(aiocb_info->aiocb_size);
-    acb->aiocb_info = aiocb_info;
-    acb->bs = bs;
-    acb->cb = cb;
-    acb->opaque = opaque;
-    acb->refcnt = 1;
-    return acb;
-}
-
-void qemu_aio_ref(void *p)
-{
-    BlockAIOCB *acb = p;
-    acb->refcnt++;
-}
-
-void qemu_aio_unref(void *p)
-{
-    BlockAIOCB *acb = p;
-    assert(acb->refcnt > 0);
-    if (--acb->refcnt == 0) {
-        g_free(acb);
-    }
-}
-
 /**************************************************************/
 /* Coroutine block device emulation */
 
@@ -2299,7 +2275,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 
     /* Wait until any previous flushes are completed */
     while (bs->active_flush_req) {
-        qemu_co_queue_wait(&bs->flush_queue);
+        qemu_co_queue_wait(&bs->flush_queue, NULL);
     }
 
     bs->active_flush_req = true;

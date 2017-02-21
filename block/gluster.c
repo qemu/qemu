@@ -698,13 +698,6 @@ static struct glfs *qemu_gluster_init(BlockdevOptionsGluster *gconf,
     return qemu_gluster_glfs_init(gconf, errp);
 }
 
-static void qemu_gluster_complete_aio(void *opaque)
-{
-    GlusterAIOCB *acb = (GlusterAIOCB *)opaque;
-
-    qemu_coroutine_enter(acb->coroutine);
-}
-
 /*
  * AIO callback routine called from GlusterFS thread.
  */
@@ -720,7 +713,7 @@ static void gluster_finish_aiocb(struct glfs_fd *fd, ssize_t ret, void *arg)
         acb->ret = -EIO; /* Partial read/write - fail it */
     }
 
-    aio_bh_schedule_oneshot(acb->aio_context, qemu_gluster_complete_aio, acb);
+    aio_co_schedule(acb->aio_context, acb->coroutine);
 }
 
 static void qemu_gluster_parse_flags(int bdrv_flags, int *open_flags)

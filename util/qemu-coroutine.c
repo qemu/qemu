@@ -19,6 +19,7 @@
 #include "qemu/atomic.h"
 #include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
+#include "block/aio.h"
 
 enum {
     POOL_BATCH_SIZE = 64,
@@ -114,6 +115,13 @@ void qemu_coroutine_enter(Coroutine *co)
     }
 
     co->caller = self;
+    co->ctx = qemu_get_current_aio_context();
+
+    /* Store co->ctx before anything that stores co.  Matches
+     * barrier in aio_co_wake and qemu_co_mutex_wake.
+     */
+    smp_wmb();
+
     ret = qemu_coroutine_switch(self, co, COROUTINE_ENTER);
 
     qemu_co_queue_run_restart(co);

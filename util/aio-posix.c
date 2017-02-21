@@ -19,7 +19,7 @@
 #include "qemu/rcu_queue.h"
 #include "qemu/sockets.h"
 #include "qemu/cutils.h"
-#include "trace-root.h"
+#include "trace.h"
 #ifdef CONFIG_EPOLL_CREATE1
 #include <sys/epoll.h>
 #endif
@@ -386,12 +386,6 @@ static bool aio_dispatch_handlers(AioContext *ctx)
     AioHandler *node, *tmp;
     bool progress = false;
 
-    /*
-     * We have to walk very carefully in case aio_set_fd_handler is
-     * called while we're walking.
-     */
-    qemu_lockcnt_inc(&ctx->list_lock);
-
     QLIST_FOREACH_SAFE_RCU(node, &ctx->aio_handlers, node, tmp) {
         int revents;
 
@@ -426,33 +420,17 @@ static bool aio_dispatch_handlers(AioContext *ctx)
         }
     }
 
-    qemu_lockcnt_dec(&ctx->list_lock);
     return progress;
 }
 
-/*
- * Note that dispatch_fds == false has the side-effect of post-poning the
- * freeing of deleted handlers.
- */
-bool aio_dispatch(AioContext *ctx, bool dispatch_fds)
+void aio_dispatch(AioContext *ctx)
 {
-    bool progress;
+    qemu_lockcnt_inc(&ctx->list_lock);
+    aio_bh_poll(ctx);
+    aio_dispatch_handlers(ctx);
+    qemu_lockcnt_dec(&ctx->list_lock);
 
-    /*
-     * If there are callbacks left that have been queued, we need to call them.
-     * Do not call select in this case, because it is possible that the caller
-     * does not need a complete flush (as is the case for aio_poll loops).
-     */
-    progress = aio_bh_poll(ctx);
-
-    if (dispatch_fds) {
-        progress |= aio_dispatch_handlers(ctx);
-    }
-
-    /* Run our timers */
-    progress |= timerlistgroup_run_timers(&ctx->tlg);
-
-    return progress;
+    timerlistgroup_run_timers(&ctx->tlg);
 }
 
 /* These thread-local variables are used only in a small part of aio_poll
@@ -597,9 +575,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
     int64_t timeout;
     int64_t start = 0;
 
-    aio_context_acquire(ctx);
-    progress = false;
-
     /* aio_notify can avoid the expensive event_notifier_set if
      * everything (file descriptors, bottom halves, timers) will
      * be re-evaluated before the next blocking poll().  This is
@@ -617,9 +592,8 @@ bool aio_poll(AioContext *ctx, bool blocking)
         start = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     }
 
-    if (try_poll_mode(ctx, blocking)) {
-        progress = true;
-    } else {
+    progress = try_poll_mode(ctx, blocking);
+    if (!progress) {
         assert(npfd == 0);
 
         /* fill pollfds */
@@ -636,9 +610,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
         timeout = blocking ? aio_compute_timeout(ctx) : 0;
 
         /* wait until next event */
-        if (timeout) {
-            aio_context_release(ctx);
-        }
         if (aio_epoll_check_poll(ctx, pollfds, npfd, timeout)) {
             AioHandler epoll_handler;
 
@@ -649,9 +620,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
             ret = aio_epoll(ctx, pollfds, npfd, timeout);
         } else  {
             ret = qemu_poll_ns(pollfds, npfd, timeout);
-        }
-        if (timeout) {
-            aio_context_acquire(ctx);
         }
     }
 
@@ -710,14 +678,16 @@ bool aio_poll(AioContext *ctx, bool blocking)
     }
 
     npfd = 0;
-    qemu_lockcnt_dec(&ctx->list_lock);
 
-    /* Run dispatch even if there were no readable fds to run timers */
-    if (aio_dispatch(ctx, ret > 0)) {
-        progress = true;
+    progress |= aio_bh_poll(ctx);
+
+    if (ret > 0) {
+        progress |= aio_dispatch_handlers(ctx);
     }
 
-    aio_context_release(ctx);
+    qemu_lockcnt_dec(&ctx->list_lock);
+
+    progress |= timerlistgroup_run_timers(&ctx->tlg);
 
     return progress;
 }

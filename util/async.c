@@ -1,7 +1,8 @@
 /*
- * QEMU System Emulator
+ * Data plane event loop
  *
  * Copyright (c) 2003-2008 Fabrice Bellard
+ * Copyright (c) 2009-2017 QEMU contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +31,8 @@
 #include "qemu/main-loop.h"
 #include "qemu/atomic.h"
 #include "block/raw-aio.h"
+#include "qemu/coroutine_int.h"
+#include "trace.h"
 
 /***********************************************************/
 /* bottom halves (can be seen as timers which expire ASAP) */
@@ -87,14 +90,15 @@ void aio_bh_call(QEMUBH *bh)
     bh->cb(bh->opaque);
 }
 
-/* Multiple occurrences of aio_bh_poll cannot be called concurrently */
+/* Multiple occurrences of aio_bh_poll cannot be called concurrently.
+ * The count in ctx->list_lock is incremented before the call, and is
+ * not affected by the call.
+ */
 int aio_bh_poll(AioContext *ctx)
 {
     QEMUBH *bh, **bhp, *next;
     int ret;
     bool deleted = false;
-
-    qemu_lockcnt_inc(&ctx->list_lock);
 
     ret = 0;
     for (bh = atomic_rcu_read(&ctx->first_bh); bh; bh = next) {
@@ -120,11 +124,10 @@ int aio_bh_poll(AioContext *ctx)
 
     /* remove deleted bhs */
     if (!deleted) {
-        qemu_lockcnt_dec(&ctx->list_lock);
         return ret;
     }
 
-    if (qemu_lockcnt_dec_and_lock(&ctx->list_lock)) {
+    if (qemu_lockcnt_dec_if_lock(&ctx->list_lock)) {
         bhp = &ctx->first_bh;
         while (*bhp) {
             bh = *bhp;
@@ -135,7 +138,7 @@ int aio_bh_poll(AioContext *ctx)
                 bhp = &bh->next;
             }
         }
-        qemu_lockcnt_unlock(&ctx->list_lock);
+        qemu_lockcnt_inc_and_unlock(&ctx->list_lock);
     }
     return ret;
 }
@@ -255,7 +258,7 @@ aio_ctx_dispatch(GSource     *source,
     AioContext *ctx = (AioContext *) source;
 
     assert(callback == NULL);
-    aio_dispatch(ctx, true);
+    aio_dispatch(ctx);
     return true;
 }
 
@@ -273,6 +276,9 @@ aio_ctx_finalize(GSource     *source)
         ctx->linux_aio = NULL;
     }
 #endif
+
+    assert(QSLIST_EMPTY(&ctx->scheduled_coroutines));
+    qemu_bh_delete(ctx->co_schedule_bh);
 
     qemu_lockcnt_lock(&ctx->list_lock);
     assert(!qemu_lockcnt_count(&ctx->list_lock));
@@ -363,6 +369,30 @@ static bool event_notifier_poll(void *opaque)
     return atomic_read(&ctx->notified);
 }
 
+static void co_schedule_bh_cb(void *opaque)
+{
+    AioContext *ctx = opaque;
+    QSLIST_HEAD(, Coroutine) straight, reversed;
+
+    QSLIST_MOVE_ATOMIC(&reversed, &ctx->scheduled_coroutines);
+    QSLIST_INIT(&straight);
+
+    while (!QSLIST_EMPTY(&reversed)) {
+        Coroutine *co = QSLIST_FIRST(&reversed);
+        QSLIST_REMOVE_HEAD(&reversed, co_scheduled_next);
+        QSLIST_INSERT_HEAD(&straight, co, co_scheduled_next);
+    }
+
+    while (!QSLIST_EMPTY(&straight)) {
+        Coroutine *co = QSLIST_FIRST(&straight);
+        QSLIST_REMOVE_HEAD(&straight, co_scheduled_next);
+        trace_aio_co_schedule_bh_cb(ctx, co);
+        aio_context_acquire(ctx);
+        qemu_coroutine_enter(co);
+        aio_context_release(ctx);
+    }
+}
+
 AioContext *aio_context_new(Error **errp)
 {
     int ret;
@@ -378,6 +408,10 @@ AioContext *aio_context_new(Error **errp)
     }
     g_source_set_can_recurse(&ctx->source, true);
     qemu_lockcnt_init(&ctx->list_lock);
+
+    ctx->co_schedule_bh = aio_bh_new(ctx, co_schedule_bh_cb, ctx);
+    QSLIST_INIT(&ctx->scheduled_coroutines);
+
     aio_set_event_notifier(ctx, &ctx->notifier,
                            false,
                            (EventNotifierHandler *)
@@ -399,6 +433,40 @@ AioContext *aio_context_new(Error **errp)
 fail:
     g_source_destroy(&ctx->source);
     return NULL;
+}
+
+void aio_co_schedule(AioContext *ctx, Coroutine *co)
+{
+    trace_aio_co_schedule(ctx, co);
+    QSLIST_INSERT_HEAD_ATOMIC(&ctx->scheduled_coroutines,
+                              co, co_scheduled_next);
+    qemu_bh_schedule(ctx->co_schedule_bh);
+}
+
+void aio_co_wake(struct Coroutine *co)
+{
+    AioContext *ctx;
+
+    /* Read coroutine before co->ctx.  Matches smp_wmb in
+     * qemu_coroutine_enter.
+     */
+    smp_read_barrier_depends();
+    ctx = atomic_read(&co->ctx);
+
+    if (ctx != qemu_get_current_aio_context()) {
+        aio_co_schedule(ctx, co);
+        return;
+    }
+
+    if (qemu_in_coroutine()) {
+        Coroutine *self = qemu_coroutine_self();
+        assert(self != co);
+        QSIMPLEQ_INSERT_TAIL(&self->co_queue_wakeup, co, co_queue_next);
+    } else {
+        aio_context_acquire(ctx);
+        qemu_coroutine_enter(co);
+        aio_context_release(ctx);
+    }
 }
 
 void aio_context_ref(AioContext *ctx)
