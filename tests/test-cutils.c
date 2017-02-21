@@ -1510,10 +1510,16 @@ static void test_qemu_strtosz_trailing(void)
     g_assert_cmpint(res, ==, 123 * M_BYTE);
     g_assert(endptr == str + 3);
 
+    res = qemu_strtosz(str, NULL);
+    g_assert_cmpint(res, ==, -EINVAL);
+
     str = "1kiB";
     res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, 1024);
     g_assert(endptr == str + 2);
+
+    res = qemu_strtosz(str, NULL);
+    g_assert_cmpint(res, ==, -EINVAL);
 }
 
 static void test_qemu_strtosz_erange(void)

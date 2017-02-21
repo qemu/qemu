@@ -208,7 +208,7 @@ static int64_t suffix_mul(char suffix, int64_t unit)
 static int64_t do_strtosz(const char *nptr, char **end,
                           const char default_suffix, int64_t unit)
 {
-    int64_t retval = -EINVAL;
+    int64_t retval;
     char *endptr;
     unsigned char c;
     int mul_required = 0;
@@ -217,7 +217,8 @@ static int64_t do_strtosz(const char *nptr, char **end,
     errno = 0;
     val = strtod(nptr, &endptr);
     if (isnan(val) || endptr == nptr || errno != 0) {
-        goto fail;
+        retval = -EINVAL;
+        goto out;
     }
     fraction = modf(val, &integral);
     if (fraction != 0) {
@@ -232,17 +233,20 @@ static int64_t do_strtosz(const char *nptr, char **end,
         assert(mul >= 0);
     }
     if (mul == 1 && mul_required) {
-        goto fail;
+        retval = -EINVAL;
+        goto out;
     }
     if ((val * mul >= INT64_MAX) || val < 0) {
         retval = -ERANGE;
-        goto fail;
+        goto out;
     }
     retval = val * mul;
 
-fail:
+out:
     if (end) {
         *end = endptr;
+    } else if (*endptr) {
+        retval = -EINVAL;
     }
 
     return retval;

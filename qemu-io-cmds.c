@@ -137,14 +137,9 @@ static char **breakline(char *input, int *count)
 
 static int64_t cvtnum(const char *s)
 {
-    char *end;
     int64_t ret;
 
-    ret = qemu_strtosz(s, &end);
-    if (*end != '\0') {
-        /* Detritus at the end of the string */
-        return -EINVAL;
-    }
+    ret = qemu_strtosz(s, NULL);
     return ret;
 }
 

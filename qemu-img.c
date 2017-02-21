@@ -370,14 +370,9 @@ static int add_old_style_options(const char *fmt, QemuOpts *opts,
 
 static int64_t cvtnum(const char *s)
 {
-    char *end;
     int64_t ret;
 
-    ret = qemu_strtosz(s, &end);
-    if (*end != '\0') {
-        /* Detritus at the end of the string */
-        return -EINVAL;
-    }
+    ret = qemu_strtosz(s, NULL);
     return ret;
 }
 
