@@ -688,6 +688,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
 
                 return -1;
             }
+            g_free(id);
 
             se->compat = g_new0(CompatEntry, 1);
             pstrcpy(se->compat->idstr, sizeof(se->compat->idstr), vmsd->name);
