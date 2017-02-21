@@ -1393,60 +1393,75 @@ static void test_qemu_strtosz_units(void)
     const char *t = "1T";
     const char *p = "1P";
     const char *e = "1E";
+    char *endptr = NULL;
     int64_t res;
 
     /* default is M */
-    res = qemu_strtosz(none, NULL);
+    res = qemu_strtosz(none, &endptr);
     g_assert_cmpint(res, ==, M_BYTE);
+    g_assert(endptr == none + 1);
 
-    res = qemu_strtosz(b, NULL);
+    res = qemu_strtosz(b, &endptr);
     g_assert_cmpint(res, ==, 1);
+    g_assert(endptr == b + 2);
 
-    res = qemu_strtosz(k, NULL);
+    res = qemu_strtosz(k, &endptr);
     g_assert_cmpint(res, ==, K_BYTE);
+    g_assert(endptr == k + 2);
 
-    res = qemu_strtosz(m, NULL);
+    res = qemu_strtosz(m, &endptr);
     g_assert_cmpint(res, ==, M_BYTE);
+    g_assert(endptr == m + 2);
 
-    res = qemu_strtosz(g, NULL);
+    res = qemu_strtosz(g, &endptr);
     g_assert_cmpint(res, ==, G_BYTE);
+    g_assert(endptr == g + 2);
 
-    res = qemu_strtosz(t, NULL);
+    res = qemu_strtosz(t, &endptr);
     g_assert_cmpint(res, ==, T_BYTE);
+    g_assert(endptr == t + 2);
 
-    res = qemu_strtosz(p, NULL);
+    res = qemu_strtosz(p, &endptr);
     g_assert_cmpint(res, ==, P_BYTE);
+    g_assert(endptr == p + 2);
 
-    res = qemu_strtosz(e, NULL);
+    res = qemu_strtosz(e, &endptr);
     g_assert_cmpint(res, ==, E_BYTE);
+    g_assert(endptr == e + 2);
 }
 
 static void test_qemu_strtosz_float(void)
 {
     const char *str = "12.345M";
+    char *endptr = NULL;
     int64_t res;
 
-    res = qemu_strtosz(str, NULL);
+    res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, 12.345 * M_BYTE);
+    g_assert(endptr == str + 7);
 }
 
 static void test_qemu_strtosz_erange(void)
 {
     const char *str = "10E";
+    char *endptr = NULL;
     int64_t res;
 
-    res = qemu_strtosz(str, NULL);
+    res = qemu_strtosz(str, &endptr);
     g_assert_cmpint(res, ==, -ERANGE);
+    g_assert(endptr == str + 3);
 }
 
 static void test_qemu_strtosz_suffix_unit(void)
 {
     const char *str = "12345";
+    char *endptr = NULL;
     int64_t res;
 
-    res = qemu_strtosz_suffix_unit(str, NULL,
+    res = qemu_strtosz_suffix_unit(str, &endptr,
                                    QEMU_STRTOSZ_DEFSUFFIX_KB, 1000);
     g_assert_cmpint(res, ==, 12345000);
+    g_assert(endptr == str + 5);
 }
 
 int main(int argc, char **argv)
