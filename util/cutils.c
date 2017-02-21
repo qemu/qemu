@@ -372,7 +372,7 @@ int qemu_strtoul(const char *nptr, const char **endptr, int base,
  * Works like qemu_strtol(), except it stores INT64_MAX on overflow,
  * and INT_MIN on underflow.
  */
-int qemu_strtoll(const char *nptr, const char **endptr, int base,
+int qemu_strtoi64(const char *nptr, const char **endptr, int base,
                  int64_t *result)
 {
     char *p;
@@ -396,7 +396,7 @@ int qemu_strtoll(const char *nptr, const char **endptr, int base,
  *
  * Works like qemu_strtoul(), except it stores UINT64_MAX on overflow.
  */
-int qemu_strtoull(const char *nptr, const char **endptr, int base,
+int qemu_strtou64(const char *nptr, const char **endptr, int base,
                   uint64_t *result)
 {
     char *p;
