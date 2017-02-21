@@ -2036,8 +2036,7 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
             int64_t tsc_freq;
             char *err;
 
-            tsc_freq = qemu_strtosz_suffix_unit(val, &err,
-                                           QEMU_STRTOSZ_DEFSUFFIX_B, 1000);
+            tsc_freq = qemu_strtosz_metric(val, &err);
             if (tsc_freq < 0 || *err) {
                 error_setg(errp, "bad numerical value %s", val);
                 return;

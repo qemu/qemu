@@ -156,8 +156,8 @@ int parse_uint_full(const char *s, unsigned long long *value, int base);
 int64_t qemu_strtosz(const char *nptr, char **end);
 int64_t qemu_strtosz_suffix(const char *nptr, char **end,
                             const char default_suffix);
-int64_t qemu_strtosz_suffix_unit(const char *nptr, char **end,
-                            const char default_suffix, int64_t unit);
+int64_t qemu_strtosz_metric(const char *nptr, char **end);
+
 #define K_BYTE     (1ULL << 10)
 #define M_BYTE     (1ULL << 20)
 #define G_BYTE     (1ULL << 30)

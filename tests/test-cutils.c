@@ -1548,16 +1548,15 @@ static void test_qemu_strtosz_erange(void)
     g_assert(endptr == str + 3);
 }
 
-static void test_qemu_strtosz_suffix_unit(void)
+static void test_qemu_strtosz_metric(void)
 {
-    const char *str = "12345";
+    const char *str = "12345k";
     char *endptr = NULL;
     int64_t res;
 
-    res = qemu_strtosz_suffix_unit(str, &endptr,
-                                   QEMU_STRTOSZ_DEFSUFFIX_KB, 1000);
+    res = qemu_strtosz_metric(str, &endptr);
     g_assert_cmpint(res, ==, 12345000);
-    g_assert(endptr == str + 5);
+    g_assert(endptr == str + 6);
 }
 
 int main(int argc, char **argv)
@@ -1754,8 +1753,8 @@ int main(int argc, char **argv)
                     test_qemu_strtosz_trailing);
     g_test_add_func("/cutils/strtosz/erange",
                     test_qemu_strtosz_erange);
-    g_test_add_func("/cutils/strtosz/suffix-unit",
-                    test_qemu_strtosz_suffix_unit);
+    g_test_add_func("/cutils/strtosz/metric",
+                    test_qemu_strtosz_metric);
 
     return g_test_run();
 }

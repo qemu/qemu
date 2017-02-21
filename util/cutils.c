@@ -205,8 +205,8 @@ static int64_t suffix_mul(char suffix, int64_t unit)
  * in *end, if not NULL. Return -ERANGE on overflow, Return -EINVAL on
  * other error.
  */
-int64_t qemu_strtosz_suffix_unit(const char *nptr, char **end,
-                            const char default_suffix, int64_t unit)
+static int64_t do_strtosz(const char *nptr, char **end,
+                          const char default_suffix, int64_t unit)
 {
     int64_t retval = -EINVAL;
     char *endptr;
@@ -251,12 +251,17 @@ fail:
 int64_t qemu_strtosz_suffix(const char *nptr, char **end,
                             const char default_suffix)
 {
-    return qemu_strtosz_suffix_unit(nptr, end, default_suffix, 1024);
+    return do_strtosz(nptr, end, default_suffix, 1024);
 }
 
 int64_t qemu_strtosz(const char *nptr, char **end)
 {
     return qemu_strtosz_suffix(nptr, end, QEMU_STRTOSZ_DEFSUFFIX_MB);
+}
+
+int64_t qemu_strtosz_metric(const char *nptr, char **end)
+{
+    return do_strtosz(nptr, end, QEMU_STRTOSZ_DEFSUFFIX_B, 1000);
 }
 
 /**
