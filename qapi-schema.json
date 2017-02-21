@@ -5571,6 +5571,14 @@
             'events' : [ 'InputEvent' ] } }
 
 ##
+# @NumaOptionsType:
+#
+# Since: 2.1
+##
+{ 'enum': 'NumaOptionsType',
+  'data': [ 'node' ] }
+
+##
 # @NumaOptions:
 #
 # A discriminated record of NUMA options. (for OptsVisitor)
@@ -5578,6 +5586,8 @@
 # Since: 2.1
 ##
 { 'union': 'NumaOptions',
+  'base': { 'type': 'NumaOptionsType' },
+  'discriminator': 'type',
   'data': {
     'node': 'NumaNodeOptions' }}
 

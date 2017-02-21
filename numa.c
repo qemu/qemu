@@ -228,8 +228,8 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     switch (object->type) {
-    case NUMA_OPTIONS_KIND_NODE:
-        numa_node_parse(object->u.node.data, opts, &err);
+    case NUMA_OPTIONS_TYPE_NODE:
+        numa_node_parse(&object->u.node, opts, &err);
         if (err) {
             goto end;
         }
