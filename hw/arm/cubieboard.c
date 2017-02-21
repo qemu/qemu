@@ -71,6 +71,8 @@ static void cubieboard_init(MachineState *machine)
     memory_region_add_subregion(get_system_memory(), AW_A10_SDRAM_BASE,
                                 &s->sdram);
 
+    /* TODO create and connect IDE devices for ide_drive_get() */
+
     cubieboard_binfo.ram_size = machine->ram_size;
     cubieboard_binfo.kernel_filename = machine->kernel_filename;
     cubieboard_binfo.kernel_cmdline = machine->kernel_cmdline;
@@ -82,6 +84,8 @@ static void cubieboard_machine_init(MachineClass *mc)
 {
     mc->desc = "cubietech cubieboard";
     mc->init = cubieboard_init;
+    mc->block_default_type = IF_IDE;
+    mc->units_per_default_bus = 1;
 }
 
 DEFINE_MACHINE("cubieboard", cubieboard_machine_init)

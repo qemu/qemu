@@ -2840,23 +2840,6 @@ const VMStateDescription vmstate_ide_bus = {
 void ide_drive_get(DriveInfo **hd, int n)
 {
     int i;
-    int highest_bus = drive_get_max_bus(IF_IDE) + 1;
-    int max_devs = drive_get_max_devs(IF_IDE);
-    int n_buses = max_devs ? (n / max_devs) : n;
-
-    /*
-     * Note: The number of actual buses available is not known.
-     * We compute this based on the size of the DriveInfo* array, n.
-     * If it is less than max_devs * <num_real_buses>,
-     * We will stop looking for drives prematurely instead of overfilling
-     * the array.
-     */
-
-    if (highest_bus > n_buses) {
-        error_report("Too many IDE buses defined (%d > %d)",
-                     highest_bus, n_buses);
-        exit(1);
-    }
 
     for (i = 0; i < n; i++) {
         hd[i] = drive_get_by_index(IF_IDE, i);

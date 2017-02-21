@@ -306,6 +306,7 @@ static void mips_machine_init(MachineClass *mc)
 {
     mc->desc = "mips r4k platform";
     mc->init = mips_r4k_init;
+    mc->block_default_type = IF_IDE;
 }
 
 DEFINE_MACHINE("mips", mips_machine_init)

@@ -106,6 +106,8 @@ static void xlnx_ep108_init(MachineState *machine)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.spi[i]), 1, cs_line);
     }
 
+    /* TODO create and connect IDE devices for ide_drive_get() */
+
     xlnx_ep108_binfo.ram_size = ram_size;
     xlnx_ep108_binfo.kernel_filename = machine->kernel_filename;
     xlnx_ep108_binfo.kernel_cmdline = machine->kernel_cmdline;
@@ -118,6 +120,8 @@ static void xlnx_ep108_machine_init(MachineClass *mc)
 {
     mc->desc = "Xilinx ZynqMP EP108 board";
     mc->init = xlnx_ep108_init;
+    mc->block_default_type = IF_IDE;
+    mc->units_per_default_bus = 1;
 }
 
 DEFINE_MACHINE("xlnx-ep108", xlnx_ep108_machine_init)
@@ -126,6 +130,8 @@ static void xlnx_zcu102_machine_init(MachineClass *mc)
 {
     mc->desc = "Xilinx ZynqMP ZCU102 board";
     mc->init = xlnx_ep108_init;
+    mc->block_default_type = IF_IDE;
+    mc->units_per_default_bus = 1;
 }
 
 DEFINE_MACHINE("xlnx-zcu102", xlnx_zcu102_machine_init)
