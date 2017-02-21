@@ -368,6 +368,19 @@ static int add_old_style_options(const char *fmt, QemuOpts *opts,
     return 0;
 }
 
+static int64_t cvtnum(const char *s)
+{
+    char *end;
+    int64_t ret;
+
+    ret = qemu_strtosz(s, &end);
+    if (*end != '\0') {
+        /* Detritus at the end of the string */
+        return -EINVAL;
+    }
+    return ret;
+}
+
 static int img_create(int argc, char **argv)
 {
     int c;
@@ -461,9 +474,9 @@ static int img_create(int argc, char **argv)
     /* Get image size, if specified */
     if (optind < argc) {
         int64_t sval;
-        char *end;
-        sval = qemu_strtosz(argv[optind++], &end);
-        if (sval < 0 || *end) {
+
+        sval = cvtnum(argv[optind++]);
+        if (sval < 0) {
             if (sval == -ERANGE) {
                 error_report("Image size must be less than 8 EiB!");
             } else {
@@ -1863,9 +1876,9 @@ static int img_convert(int argc, char **argv)
         case 'S':
         {
             int64_t sval;
-            char *end;
-            sval = qemu_strtosz(optarg, &end);
-            if (sval < 0 || *end) {
+
+            sval = cvtnum(optarg);
+            if (sval < 0) {
                 error_report("Invalid minimum zero buffer size for sparse output specified");
                 ret = -1;
                 goto fail_getopt;
@@ -3650,10 +3663,8 @@ static int img_bench(int argc, char **argv)
             break;
         case 'o':
         {
-            char *end;
-            errno = 0;
-            offset = qemu_strtosz(optarg, &end);
-            if (offset < 0|| *end) {
+            offset = cvtnum(optarg);
+            if (offset < 0) {
                 error_report("Invalid offset specified");
                 return 1;
             }
@@ -3666,10 +3677,9 @@ static int img_bench(int argc, char **argv)
         case 's':
         {
             int64_t sval;
-            char *end;
 
-            sval = qemu_strtosz(optarg, &end);
-            if (sval < 0 || sval > INT_MAX || *end) {
+            sval = cvtnum(optarg);
+            if (sval < 0 || sval > INT_MAX) {
                 error_report("Invalid buffer size specified");
                 return 1;
             }
@@ -3680,10 +3690,9 @@ static int img_bench(int argc, char **argv)
         case 'S':
         {
             int64_t sval;
-            char *end;
 
-            sval = qemu_strtosz(optarg, &end);
-            if (sval < 0 || sval > INT_MAX || *end) {
+            sval = cvtnum(optarg);
+            if (sval < 0 || sval > INT_MAX) {
                 error_report("Invalid step size specified");
                 return 1;
             }
@@ -3842,12 +3851,11 @@ static int img_dd_bs(const char *arg,
                      struct DdIo *in, struct DdIo *out,
                      struct DdInfo *dd)
 {
-    char *end;
     int64_t res;
 
-    res = qemu_strtosz(arg, &end);
+    res = cvtnum(arg);
 
-    if (res <= 0 || res > INT_MAX || *end) {
+    if (res <= 0 || res > INT_MAX) {
         error_report("invalid number: '%s'", arg);
         return 1;
     }
@@ -3860,11 +3868,9 @@ static int img_dd_count(const char *arg,
                         struct DdIo *in, struct DdIo *out,
                         struct DdInfo *dd)
 {
-    char *end;
+    dd->count = cvtnum(arg);
 
-    dd->count = qemu_strtosz(arg, &end);
-
-    if (dd->count < 0 || *end) {
+    if (dd->count < 0) {
         error_report("invalid number: '%s'", arg);
         return 1;
     }
@@ -3894,11 +3900,9 @@ static int img_dd_skip(const char *arg,
                        struct DdIo *in, struct DdIo *out,
                        struct DdInfo *dd)
 {
-    char *end;
+    in->offset = cvtnum(arg);
 
-    in->offset = qemu_strtosz(arg, &end);
-
-    if (in->offset < 0 || *end) {
+    if (in->offset < 0) {
         error_report("invalid number: '%s'", arg);
         return 1;
     }
