@@ -62,6 +62,7 @@ int sdl2_gl_make_context_current(DisplayChangeListener *dcl,
                                  QEMUGLContext ctx);
 QEMUGLContext sdl2_gl_get_current_context(DisplayChangeListener *dcl);
 
+void sdl2_gl_scanout_disable(DisplayChangeListener *dcl);
 void sdl2_gl_scanout_texture(DisplayChangeListener *dcl,
                              uint32_t backing_id,
                              bool backing_y_0_top,
