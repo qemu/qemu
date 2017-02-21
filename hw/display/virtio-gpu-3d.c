@@ -185,8 +185,7 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
         if (ss.scanout_id != 0) {
             dpy_gfx_replace_surface(g->scanout[ss.scanout_id].con, NULL);
         }
-        dpy_gl_scanout_texture(g->scanout[ss.scanout_id].con, 0, false,
-                               0, 0, 0, 0, 0, 0);
+        dpy_gl_scanout_disable(g->scanout[ss.scanout_id].con);
     }
     g->scanout[ss.scanout_id].resource_id = ss.resource_id;
 }
@@ -597,7 +596,7 @@ void virtio_gpu_virgl_reset(VirtIOGPU *g)
         if (i != 0) {
             dpy_gfx_replace_surface(g->scanout[i].con, NULL);
         }
-        dpy_gl_scanout_texture(g->scanout[i].con, 0, false, 0, 0, 0, 0, 0, 0);
+        dpy_gl_scanout_disable(g->scanout[i].con);
     }
 }
 
