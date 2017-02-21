@@ -1380,13 +1380,13 @@ static void test_qemu_strtosz_simple(void)
     g_assert_cmpint(res, ==, 0);
     g_assert(endptr == str + 1);
 
-    str = "12345M";
+    str = "12345";
     res = qemu_strtosz(str, &endptr);
-    g_assert_cmpint(res, ==, 12345 * M_BYTE);
-    g_assert(endptr == str + 6);
+    g_assert_cmpint(res, ==, 12345);
+    g_assert(endptr == str + 5);
 
     res = qemu_strtosz(str, NULL);
-    g_assert_cmpint(res, ==, 12345 * M_BYTE);
+    g_assert_cmpint(res, ==, 12345);
 
     /* Note: precision is 53 bits since we're parsing with strtod() */
 
