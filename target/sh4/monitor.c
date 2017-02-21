@@ -44,6 +44,11 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
     CPUArchState *env = mon_get_cpu_env();
     int i;
 
+    if (!env) {
+        monitor_printf(mon, "No CPU available\n");
+        return;
+    }
+
     monitor_printf (mon, "ITLB:\n");
     for (i = 0 ; i < ITLB_SIZE ; i++)
         print_tlb (mon, i, &env->itlb[i]);
