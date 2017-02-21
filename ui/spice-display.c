@@ -928,6 +928,17 @@ static QEMUGLContext qemu_spice_gl_create_context(DisplayChangeListener *dcl,
     return qemu_egl_create_context(dcl, params);
 }
 
+static void qemu_spice_gl_scanout_disable(DisplayChangeListener *dcl)
+{
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+
+    dprint(1, "%s: no framebuffer\n", __func__);
+    spice_qxl_gl_scanout(&ssd->qxl, -1, 0, 0, 0, 0, false);
+    qemu_spice_gl_monitor_config(ssd, 0, 0, 0, 0);
+    ssd->have_surface = false;
+    ssd->have_scanout = false;
+}
+
 static void qemu_spice_gl_scanout_texture(DisplayChangeListener *dcl,
                                           uint32_t tex_id,
                                           bool y_0_top,
@@ -940,27 +951,21 @@ static void qemu_spice_gl_scanout_texture(DisplayChangeListener *dcl,
     EGLint stride = 0, fourcc = 0;
     int fd = -1;
 
-    if (tex_id) {
-        fd = egl_get_fd_for_texture(tex_id, &stride, &fourcc);
-        if (fd < 0) {
-            fprintf(stderr, "%s: failed to get fd for texture\n", __func__);
-            return;
-        }
-        dprint(1, "%s: %dx%d (stride %d, fourcc 0x%x)\n", __func__,
-               w, h, stride, fourcc);
-    } else {
-        dprint(1, "%s: no texture (no framebuffer)\n", __func__);
+    assert(tex_id);
+    fd = egl_get_fd_for_texture(tex_id, &stride, &fourcc);
+    if (fd < 0) {
+        fprintf(stderr, "%s: failed to get fd for texture\n", __func__);
+        return;
     }
-
-    assert(!tex_id || fd >= 0);
+    dprint(1, "%s: %dx%d (stride %d, fourcc 0x%x)\n", __func__,
+           w, h, stride, fourcc);
 
     /* note: spice server will close the fd */
     spice_qxl_gl_scanout(&ssd->qxl, fd, backing_width, backing_height,
                          stride, fourcc, y_0_top);
-    ssd->have_surface = false;
-    ssd->have_scanout = (tex_id != 0);
-
     qemu_spice_gl_monitor_config(ssd, x, y, w, h);
+    ssd->have_surface = false;
+    ssd->have_scanout = true;
 }
 
 static void qemu_spice_gl_update(DisplayChangeListener *dcl,
@@ -993,6 +998,7 @@ static const DisplayChangeListenerOps display_listener_gl_ops = {
     .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
     .dpy_gl_ctx_get_current  = qemu_egl_get_current_context,
 
+    .dpy_gl_scanout_disable  = qemu_spice_gl_scanout_disable,
     .dpy_gl_scanout_texture  = qemu_spice_gl_scanout_texture,
     .dpy_gl_update           = qemu_spice_gl_update,
 };
