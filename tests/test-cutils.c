@@ -523,7 +523,7 @@ static void test_qemu_strtoul_correct(void)
     err = qemu_strtoul(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 12345);
+    g_assert_cmpuint(res, ==, 12345);
     g_assert(endptr == str + 5);
 }
 
@@ -593,7 +593,7 @@ static void test_qemu_strtoul_trailing(void)
     err = qemu_strtoul(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 123);
+    g_assert_cmpuint(res, ==, 123);
     g_assert(endptr == str + 3);
 }
 
@@ -608,7 +608,7 @@ static void test_qemu_strtoul_octal(void)
     err = qemu_strtoul(str, &endptr, 8, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0123);
+    g_assert_cmpuint(res, ==, 0123);
     g_assert(endptr == str + strlen(str));
 
     res = 999;
@@ -616,7 +616,7 @@ static void test_qemu_strtoul_octal(void)
     err = qemu_strtoul(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0123);
+    g_assert_cmpuint(res, ==, 0123);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -631,7 +631,7 @@ static void test_qemu_strtoul_decimal(void)
     err = qemu_strtoul(str, &endptr, 10, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 123);
+    g_assert_cmpuint(res, ==, 123);
     g_assert(endptr == str + strlen(str));
 
     str = "123";
@@ -640,7 +640,7 @@ static void test_qemu_strtoul_decimal(void)
     err = qemu_strtoul(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 123);
+    g_assert_cmpuint(res, ==, 123);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -655,7 +655,7 @@ static void test_qemu_strtoul_hex(void)
     err = qemu_strtoul(str, &endptr, 16, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0x123);
+    g_assert_cmphex(res, ==, 0x123);
     g_assert(endptr == str + strlen(str));
 
     str = "0x123";
@@ -664,7 +664,7 @@ static void test_qemu_strtoul_hex(void)
     err = qemu_strtoul(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0x123);
+    g_assert_cmphex(res, ==, 0x123);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -679,7 +679,7 @@ static void test_qemu_strtoul_max(void)
     err = qemu_strtoul(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, ULONG_MAX);
+    g_assert_cmphex(res, ==, ULONG_MAX);
     g_assert(endptr == str + strlen(str));
     g_free(str);
 }
@@ -695,7 +695,7 @@ static void test_qemu_strtoul_overflow(void)
     err = qemu_strtoul(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -ERANGE);
-    g_assert_cmpint(res, ==, ULONG_MAX);
+    g_assert_cmphex(res, ==, ULONG_MAX);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -710,7 +710,7 @@ static void test_qemu_strtoul_underflow(void)
     err  = qemu_strtoul(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -ERANGE);
-    g_assert_cmpint(res, ==, -1ul);
+    g_assert_cmpuint(res, ==, -1ul);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -725,7 +725,7 @@ static void test_qemu_strtoul_negative(void)
     err = qemu_strtoul(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, -321ul);
+    g_assert_cmpuint(res, ==, -321ul);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -738,7 +738,7 @@ static void test_qemu_strtoul_full_correct(void)
     err = qemu_strtoul(str, NULL, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 123);
+    g_assert_cmpuint(res, ==, 123);
 }
 
 static void test_qemu_strtoul_full_null(void)
@@ -769,7 +769,7 @@ static void test_qemu_strtoul_full_negative(void)
 
     err = qemu_strtoul(str, NULL, 0, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, -321ul);
+    g_assert_cmpuint(res, ==, -321ul);
 }
 
 static void test_qemu_strtoul_full_trailing(void)
@@ -792,7 +792,7 @@ static void test_qemu_strtoul_full_max(void)
     err = qemu_strtoul(str, NULL, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, ULONG_MAX);
+    g_assert_cmphex(res, ==, ULONG_MAX);
     g_free(str);
 }
 
@@ -1094,7 +1094,7 @@ static void test_qemu_strtoull_correct(void)
     err = qemu_strtoull(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 12345);
+    g_assert_cmpuint(res, ==, 12345);
     g_assert(endptr == str + 5);
 }
 
@@ -1164,7 +1164,7 @@ static void test_qemu_strtoull_trailing(void)
     err = qemu_strtoull(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 123);
+    g_assert_cmpuint(res, ==, 123);
     g_assert(endptr == str + 3);
 }
 
@@ -1179,7 +1179,7 @@ static void test_qemu_strtoull_octal(void)
     err = qemu_strtoull(str, &endptr, 8, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0123);
+    g_assert_cmpuint(res, ==, 0123);
     g_assert(endptr == str + strlen(str));
 
     endptr = &f;
@@ -1187,7 +1187,7 @@ static void test_qemu_strtoull_octal(void)
     err = qemu_strtoull(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0123);
+    g_assert_cmpuint(res, ==, 0123);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -1202,7 +1202,7 @@ static void test_qemu_strtoull_decimal(void)
     err = qemu_strtoull(str, &endptr, 10, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 123);
+    g_assert_cmpuint(res, ==, 123);
     g_assert(endptr == str + strlen(str));
 
     str = "123";
@@ -1211,7 +1211,7 @@ static void test_qemu_strtoull_decimal(void)
     err = qemu_strtoull(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 123);
+    g_assert_cmpuint(res, ==, 123);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -1226,7 +1226,7 @@ static void test_qemu_strtoull_hex(void)
     err = qemu_strtoull(str, &endptr, 16, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0x123);
+    g_assert_cmphex(res, ==, 0x123);
     g_assert(endptr == str + strlen(str));
 
     str = "0x123";
@@ -1235,7 +1235,7 @@ static void test_qemu_strtoull_hex(void)
     err = qemu_strtoull(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0x123);
+    g_assert_cmphex(res, ==, 0x123);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -1250,7 +1250,7 @@ static void test_qemu_strtoull_max(void)
     err = qemu_strtoull(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, ULLONG_MAX);
+    g_assert_cmphex(res, ==, ULLONG_MAX);
     g_assert(endptr == str + strlen(str));
     g_free(str);
 }
@@ -1266,7 +1266,7 @@ static void test_qemu_strtoull_overflow(void)
     err = qemu_strtoull(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -ERANGE);
-    g_assert_cmpint(res, ==, ULLONG_MAX);
+    g_assert_cmphex(res, ==, ULLONG_MAX);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -1281,7 +1281,7 @@ static void test_qemu_strtoull_underflow(void)
     err  = qemu_strtoull(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -ERANGE);
-    g_assert_cmpint(res, ==, -1);
+    g_assert_cmphex(res, ==, -1ull);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -1296,7 +1296,7 @@ static void test_qemu_strtoull_negative(void)
     err = qemu_strtoull(str, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, -321);
+    g_assert_cmpuint(res, ==, -321ull);
     g_assert(endptr == str + strlen(str));
 }
 
@@ -1309,7 +1309,7 @@ static void test_qemu_strtoull_full_correct(void)
     err = qemu_strtoull(str, NULL, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 18446744073709551614LLU);
+    g_assert_cmpuint(res, ==, 18446744073709551614ull);
 }
 
 static void test_qemu_strtoull_full_null(void)
@@ -1342,7 +1342,7 @@ static void test_qemu_strtoull_full_negative(void)
     err = qemu_strtoull(str, NULL, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 18446744073709551295LLU);
+    g_assert_cmpuint(res, ==, -321ull);
 }
 
 static void test_qemu_strtoull_full_trailing(void)
@@ -1365,7 +1365,7 @@ static void test_qemu_strtoull_full_max(void)
     err = qemu_strtoull(str, NULL, 0, &res);
 
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, ULLONG_MAX);
+    g_assert_cmphex(res, ==, ULLONG_MAX);
     g_free(str);
 }
 
