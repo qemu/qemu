@@ -83,9 +83,11 @@ static const S390FeatDef s390_features[] = {
     FEAT_INIT("dfppc", S390_FEAT_TYPE_STFL, 80, "Decimal-floating-point packed-conversion facility"),
     FEAT_INIT("vx", S390_FEAT_TYPE_STFL, 129, "Vector facility"),
 
+    /* SCLP SCCB Byte 80 - 98  (bit numbers relative to byte-80) */
     FEAT_INIT("gsls", S390_FEAT_TYPE_SCLP_CONF_CHAR, 40, "SIE: Guest-storage-limit-suppression facility"),
     FEAT_INIT("esop", S390_FEAT_TYPE_SCLP_CONF_CHAR, 46, "Enhanced-suppression-on-protection facility"),
 
+    /* SCLP SCCB Byte 116 - 119 (bit numbers relative to byte-116) */
     FEAT_INIT("64bscao", S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT, 0, "SIE: 64-bit-SCAO facility"),
     FEAT_INIT("cmma", S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT, 1, "SIE: Collaborative-memory-management assist"),
     FEAT_INIT("pfmfi", S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT, 9, "SIE: PFMF interpretation facility"),
@@ -183,6 +185,7 @@ static const S390FeatDef s390_features[] = {
     FEAT_INIT("kimd-sha-256", S390_FEAT_TYPE_KIMD, 2, "KIMD SHA-256"),
     FEAT_INIT("kimd-sha-512", S390_FEAT_TYPE_KIMD, 3, "KIMD SHA-512"),
     FEAT_INIT("kimd-ghash", S390_FEAT_TYPE_KIMD, 65, "KIMD GHASH"),
+
     FEAT_INIT("klmd-sha-1", S390_FEAT_TYPE_KLMD, 1, "KLMD SHA-1"),
     FEAT_INIT("klmd-sha-256", S390_FEAT_TYPE_KLMD, 2, "KLMD SHA-256"),
     FEAT_INIT("klmd-sha-512", S390_FEAT_TYPE_KLMD, 3, "KLMD SHA-512"),
