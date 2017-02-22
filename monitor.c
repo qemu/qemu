@@ -984,8 +984,10 @@ static void qmp_unregister_commands_hack(void)
 #ifndef TARGET_ARM
     qmp_unregister_command("query-gic-capabilities");
 #endif
-#if !defined(TARGET_S390X)
+#if !defined(TARGET_S390X) && !defined(TARGET_I386)
     qmp_unregister_command("query-cpu-model-expansion");
+#endif
+#if !defined(TARGET_S390X)
     qmp_unregister_command("query-cpu-model-baseline");
     qmp_unregister_command("query-cpu-model-comparison");
 #endif
