@@ -1503,15 +1503,15 @@ void x86_cpu_change_kvm_default(const char *prop, const char *value)
 static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
                                                    bool migratable_only);
 
-#ifdef CONFIG_KVM
-
 static bool lmce_supported(void)
 {
-    uint64_t mce_cap;
+    uint64_t mce_cap = 0;
 
+#ifdef CONFIG_KVM
     if (kvm_ioctl(kvm_state, KVM_X86_GET_MCE_CAP_SUPPORTED, &mce_cap) < 0) {
         return false;
     }
+#endif
 
     return !!(mce_cap & MCG_LMCE_P);
 }
@@ -1533,23 +1533,22 @@ static int cpu_x86_fill_model_id(char *str)
 
 static X86CPUDefinition host_cpudef;
 
-static Property host_x86_cpu_properties[] = {
+static Property max_x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("migratable", X86CPU, migratable, true),
     DEFINE_PROP_BOOL("host-cache-info", X86CPU, cache_info_passthrough, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
-/* class_init for the "host" CPU model
+/* class_init for the "max" CPU model
  *
  * This function may be called before KVM is initialized.
  */
-static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
+static void max_x86_cpu_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 
-    xcc->kvm_required = true;
     xcc->ordering = 9;
 
     host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
@@ -1564,17 +1563,16 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
 
     xcc->cpu_def = &host_cpudef;
     xcc->model_description =
-        "KVM processor with all supported host features "
-        "(only available in KVM mode)";
+        "Enables all features supported by the accelerator in the current host";
 
     /* level, xlevel, xlevel2, and the feature words are initialized on
      * instance_init, because they require KVM to be initialized.
      */
 
-    dc->props = host_x86_cpu_properties;
+    dc->props = max_x86_cpu_properties;
 }
 
-static void host_x86_cpu_initfn(Object *obj)
+static void max_x86_cpu_initfn(Object *obj)
 {
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
@@ -1585,7 +1583,6 @@ static void host_x86_cpu_initfn(Object *obj)
      */
     cpu->max_features = true;
 
-    /* If KVM is disabled, x86_cpu_realizefn() will report an error later */
     if (kvm_enabled()) {
         env->cpuid_min_level =
             kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
@@ -1602,10 +1599,30 @@ static void host_x86_cpu_initfn(Object *obj)
     object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
 }
 
+static const TypeInfo max_x86_cpu_type_info = {
+    .name = X86_CPU_TYPE_NAME("max"),
+    .parent = TYPE_X86_CPU,
+    .instance_init = max_x86_cpu_initfn,
+    .class_init = max_x86_cpu_class_init,
+};
+
+#ifdef CONFIG_KVM
+
+static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
+{
+    X86CPUClass *xcc = X86_CPU_CLASS(oc);
+
+    xcc->kvm_required = true;
+    xcc->ordering = 8;
+
+    xcc->model_description =
+        "KVM processor with all supported host features "
+        "(only available in KVM mode)";
+}
+
 static const TypeInfo host_x86_cpu_type_info = {
     .name = X86_CPU_TYPE_NAME("host"),
-    .parent = TYPE_X86_CPU,
-    .instance_init = host_x86_cpu_initfn,
+    .parent = X86_CPU_TYPE_NAME("max"),
     .class_init = host_x86_cpu_class_init,
 };
 
@@ -3820,6 +3837,7 @@ static void x86_cpu_register_types(void)
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
         x86_register_cpudef_type(&builtin_x86_defs[i]);
     }
+    type_register_static(&max_x86_cpu_type_info);
 #ifdef CONFIG_KVM
     type_register_static(&host_x86_cpu_type_info);
 #endif
