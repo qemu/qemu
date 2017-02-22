@@ -1001,7 +1001,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     if (ohci_read_td(ohci, addr, &td)) {
         trace_usb_ohci_td_read_error(addr);
         ohci_die(ohci);
-        return 0;
+        return 1;
     }
 
     dir = OHCI_BM(ed->flags, ED_D);
