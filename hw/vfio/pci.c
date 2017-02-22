@@ -1880,16 +1880,26 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
     /*
      * Extended capabilities are chained with each pointing to the next, so we
      * can drop anything other than the head of the chain simply by modifying
-     * the previous next pointer.  For the head of the chain, we can modify the
-     * capability ID to something that cannot match a valid capability.  ID
-     * 0 is reserved for this since absence of capabilities is indicated by
-     * 0 for the ID, version, AND next pointer.  However, pcie_add_capability()
-     * uses ID 0 as reserved for list management and will incorrectly match and
-     * assert if we attempt to pre-load the head of the chain with this ID.
-     * Use ID 0xFFFF temporarily since it is also seems to be reserved in
-     * part for identifying absence of capabilities in a root complex register
-     * block.  If the ID still exists after adding capabilities, switch back to
-     * zero.  We'll mark this entire first dword as emulated for this purpose.
+     * the previous next pointer.  Seed the head of the chain here such that
+     * we can simply skip any capabilities we want to drop below, regardless
+     * of their position in the chain.  If this stub capability still exists
+     * after we add the capabilities we want to expose, update the capability
+     * ID to zero.  Note that we cannot seed with the capability header being
+     * zero as this conflicts with definition of an absent capability chain
+     * and prevents capabilities beyond the head of the list from being added.
+     * By replacing the dummy capability ID with zero after walking the device
+     * chain, we also transparently mark extended capabilities as absent if
+     * no capabilities were added.  Note that the PCIe spec defines an absence
+     * of extended capabilities to be determined by a value of zero for the
+     * capability ID, version, AND next pointer.  A non-zero next pointer
+     * should be sufficient to indicate additional capabilities are present,
+     * which will occur if we call pcie_add_capability() below.  The entire
+     * first dword is emulated to support this.
+     *
+     * NB. The kernel side does similar masking, so be prepared that our
+     * view of the device may also contain a capability ID zero in the head
+     * of the chain.  Skip it for the same reason that we cannot seed the
+     * chain with a zero capability.
      */
     pci_set_long(pdev->config + PCI_CONFIG_SPACE_SIZE,
                  PCI_EXT_CAP(0xFFFF, 0, 0));
@@ -1915,6 +1925,7 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
                                    PCI_EXT_CAP_NEXT_MASK);
 
         switch (cap_id) {
+        case 0: /* kernel masked capability */
         case PCI_EXT_CAP_ID_SRIOV: /* Read-only VF BARs confuse OVMF */
         case PCI_EXT_CAP_ID_ARI: /* XXX Needs next function virtualization */
             trace_vfio_add_ext_cap_dropped(vdev->vbasedev.name, cap_id, next);
