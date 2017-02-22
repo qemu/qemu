@@ -2229,6 +2229,7 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     info->q_typename = g_strdup(object_class_get_name(oc));
     info->migration_safe = cc->migration_safe;
     info->has_migration_safe = true;
+    info->q_static = cc->static_model;
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
@@ -3835,6 +3836,24 @@ static const TypeInfo x86_cpu_type_info = {
     .class_init = x86_cpu_common_class_init,
 };
 
+
+/* "base" CPU model, used by query-cpu-model-expansion */
+static void x86_cpu_base_class_init(ObjectClass *oc, void *data)
+{
+    X86CPUClass *xcc = X86_CPU_CLASS(oc);
+
+    xcc->static_model = true;
+    xcc->migration_safe = true;
+    xcc->model_description = "base CPU model type with no features enabled";
+    xcc->ordering = 8;
+}
+
+static const TypeInfo x86_base_cpu_type_info = {
+        .name = X86_CPU_TYPE_NAME("base"),
+        .parent = TYPE_X86_CPU,
+        .class_init = x86_cpu_base_class_init,
+};
+
 static void x86_cpu_register_types(void)
 {
     int i;
@@ -3844,6 +3863,7 @@ static void x86_cpu_register_types(void)
         x86_register_cpudef_type(&builtin_x86_defs[i]);
     }
     type_register_static(&max_x86_cpu_type_info);
+    type_register_static(&x86_base_cpu_type_info);
 #ifdef CONFIG_KVM
     type_register_static(&host_x86_cpu_type_info);
 #endif
