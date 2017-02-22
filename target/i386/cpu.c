@@ -1594,6 +1594,15 @@ static void max_x86_cpu_initfn(Object *obj)
         if (lmce_supported()) {
             object_property_set_bool(OBJECT(cpu), true, "lmce", &error_abort);
         }
+    } else {
+        object_property_set_str(OBJECT(cpu), CPUID_VENDOR_AMD,
+                                "vendor", &error_abort);
+        object_property_set_int(OBJECT(cpu), 6, "family", &error_abort);
+        object_property_set_int(OBJECT(cpu), 6, "model", &error_abort);
+        object_property_set_int(OBJECT(cpu), 3, "stepping", &error_abort);
+        object_property_set_str(OBJECT(cpu),
+                                "QEMU TCG CPU version " QEMU_HW_VERSION,
+                                "model-id", &error_abort);
     }
 
     object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
