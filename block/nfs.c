@@ -54,6 +54,7 @@ typedef struct NFSClient {
     int events;
     bool has_zero_init;
     AioContext *aio_context;
+    QemuMutex mutex;
     blkcnt_t st_blocks;
     bool cache_used;
     NFSServer *server;
@@ -191,6 +192,7 @@ static void nfs_parse_filename(const char *filename, QDict *options,
 static void nfs_process_read(void *arg);
 static void nfs_process_write(void *arg);
 
+/* Called with QemuMutex held.  */
 static void nfs_set_events(NFSClient *client)
 {
     int ev = nfs_which_events(client->context);
@@ -209,20 +211,20 @@ static void nfs_process_read(void *arg)
 {
     NFSClient *client = arg;
 
-    aio_context_acquire(client->aio_context);
+    qemu_mutex_lock(&client->mutex);
     nfs_service(client->context, POLLIN);
     nfs_set_events(client);
-    aio_context_release(client->aio_context);
+    qemu_mutex_unlock(&client->mutex);
 }
 
 static void nfs_process_write(void *arg)
 {
     NFSClient *client = arg;
 
-    aio_context_acquire(client->aio_context);
+    qemu_mutex_lock(&client->mutex);
     nfs_service(client->context, POLLOUT);
     nfs_set_events(client);
-    aio_context_release(client->aio_context);
+    qemu_mutex_unlock(&client->mutex);
 }
 
 static void nfs_co_init_task(BlockDriverState *bs, NFSRPC *task)
@@ -242,6 +244,7 @@ static void nfs_co_generic_bh_cb(void *opaque)
     aio_co_wake(task->co);
 }
 
+/* Called (via nfs_service) with QemuMutex held.  */
 static void
 nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
                   void *private_data)
@@ -273,12 +276,15 @@ static int coroutine_fn nfs_co_preadv(BlockDriverState *bs, uint64_t offset,
     nfs_co_init_task(bs, &task);
     task.iov = iov;
 
+    qemu_mutex_lock(&client->mutex);
     if (nfs_pread_async(client->context, client->fh,
                         offset, bytes, nfs_co_generic_cb, &task) != 0) {
+        qemu_mutex_unlock(&client->mutex);
         return -ENOMEM;
     }
 
     nfs_set_events(client);
+    qemu_mutex_unlock(&client->mutex);
     while (!task.complete) {
         qemu_coroutine_yield();
     }
@@ -317,9 +323,11 @@ static int coroutine_fn nfs_co_pwritev(BlockDriverState *bs, uint64_t offset,
         buf = iov->iov[0].iov_base;
     }
 
+    qemu_mutex_lock(&client->mutex);
     if (nfs_pwrite_async(client->context, client->fh,
                          offset, bytes, buf,
                          nfs_co_generic_cb, &task) != 0) {
+        qemu_mutex_unlock(&client->mutex);
         if (my_buffer) {
             g_free(buf);
         }
@@ -327,6 +335,7 @@ static int coroutine_fn nfs_co_pwritev(BlockDriverState *bs, uint64_t offset,
     }
 
     nfs_set_events(client);
+    qemu_mutex_unlock(&client->mutex);
     while (!task.complete) {
         qemu_coroutine_yield();
     }
@@ -349,12 +358,15 @@ static int coroutine_fn nfs_co_flush(BlockDriverState *bs)
 
     nfs_co_init_task(bs, &task);
 
+    qemu_mutex_lock(&client->mutex);
     if (nfs_fsync_async(client->context, client->fh, nfs_co_generic_cb,
                         &task) != 0) {
+        qemu_mutex_unlock(&client->mutex);
         return -ENOMEM;
     }
 
     nfs_set_events(client);
+    qemu_mutex_unlock(&client->mutex);
     while (!task.complete) {
         qemu_coroutine_yield();
     }
@@ -440,6 +452,7 @@ static void nfs_file_close(BlockDriverState *bs)
 {
     NFSClient *client = bs->opaque;
     nfs_client_close(client);
+    qemu_mutex_destroy(&client->mutex);
 }
 
 static NFSServer *nfs_config(QDict *options, Error **errp)
@@ -647,6 +660,7 @@ static int nfs_file_open(BlockDriverState *bs, QDict *options, int flags,
     if (ret < 0) {
         return ret;
     }
+    qemu_mutex_init(&client->mutex);
     bs->total_sectors = ret;
     ret = 0;
     return ret;
@@ -702,6 +716,7 @@ static int nfs_has_zero_init(BlockDriverState *bs)
     return client->has_zero_init;
 }
 
+/* Called (via nfs_service) with QemuMutex held.  */
 static void
 nfs_get_allocated_file_size_cb(int ret, struct nfs_context *nfs, void *data,
                                void *private_data)
