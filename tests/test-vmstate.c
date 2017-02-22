@@ -568,6 +568,50 @@ static void test_arr_ptr_str_0_load(void)
     }
 }
 
+typedef struct TestArrayOfPtrToInt {
+    int32_t *ar[AR_SIZE];
+} TestArrayOfPtrToInt;
+
+const VMStateDescription vmsd_arpp = {
+    .name = "test/arps",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_ARRAY_OF_POINTER(ar, TestArrayOfPtrToInt,
+                AR_SIZE, 0, vmstate_info_int32, int32_t*),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void test_arr_ptr_prim_0_save(void)
+{
+    int32_t ar[AR_SIZE] = {0 , 1, 2, 3};
+    TestArrayOfPtrToInt  sample = {.ar = {&ar[0], NULL, &ar[2], &ar[3]} };
+
+    save_vmstate(&vmsd_arpp, &sample);
+    compare_vmstate(wire_arr_ptr_0, sizeof(wire_arr_ptr_0));
+}
+
+static void test_arr_ptr_prim_0_load(void)
+{
+    int32_t ar_gt[AR_SIZE] = {0, 1, 2, 3};
+    int32_t ar[AR_SIZE] = {3 , 42, 1, 0};
+    TestArrayOfPtrToInt obj = {.ar = {&ar[0], NULL, &ar[2], &ar[3]} };
+    int idx;
+
+    save_buffer(wire_arr_ptr_0, sizeof(wire_arr_ptr_0));
+    SUCCESS(load_vmstate_one(&vmsd_arpp, &obj, 1,
+                          wire_arr_ptr_0, sizeof(wire_arr_ptr_0)));
+    for (idx = 0; idx < AR_SIZE; ++idx) {
+        /* compare the target array ar with the ground truth array ar_gt */
+        if (idx == 1) {
+            g_assert_cmpint(42, ==, ar[idx]);
+        } else {
+            g_assert_cmpint(ar_gt[idx], ==, ar[idx]);
+        }
+    }
+}
+
 /* test QTAILQ migration */
 typedef struct TestQtailqElement TestQtailqElement;
 
@@ -821,6 +865,10 @@ int main(int argc, char **argv)
     g_test_add_func("/vmstate/array/ptr/str/0/save", test_arr_ptr_str_0_save);
     g_test_add_func("/vmstate/array/ptr/str/0/load",
                     test_arr_ptr_str_0_load);
+    g_test_add_func("/vmstate/array/ptr/prim/0/save",
+                    test_arr_ptr_prim_0_save);
+    g_test_add_func("/vmstate/array/ptr/prim/0/load",
+                    test_arr_ptr_prim_0_load);
     g_test_add_func("/vmstate/qtailq/save/saveq", test_save_q);
     g_test_add_func("/vmstate/qtailq/load/loadq", test_load_q);
     g_test_add_func("/vmstate/tmp_struct", test_tmp_struct);
