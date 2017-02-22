@@ -729,7 +729,7 @@ static void colo_compare_finalize(Object *obj)
     /* Release all unhandled packets after compare thead exited */
     g_queue_foreach(&s->conn_list, colo_flush_packets, s);
 
-    g_queue_free(&s->conn_list);
+    g_queue_clear(&s->conn_list);
 
     g_hash_table_destroy(s->connection_track_table);
     g_free(s->pri_indev);
