@@ -2343,18 +2343,8 @@ enum {
 
 /*****************************************************************************/
 
-static inline target_ulong cpu_read_xer(CPUPPCState *env)
-{
-    return env->xer | (env->so << XER_SO) | (env->ov << XER_OV) | (env->ca << XER_CA);
-}
-
-static inline void cpu_write_xer(CPUPPCState *env, target_ulong xer)
-{
-    env->so = (xer >> XER_SO) & 1;
-    env->ov = (xer >> XER_OV) & 1;
-    env->ca = (xer >> XER_CA) & 1;
-    env->xer = xer & ~((1u << XER_SO) | (1u << XER_OV) | (1u << XER_CA));
-}
+target_ulong cpu_read_xer(CPUPPCState *env);
+void cpu_write_xer(CPUPPCState *env, target_ulong xer);
 
 static inline void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)

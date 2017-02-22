@@ -1,4 +1,5 @@
 obj-y += cpu-models.o
+obj-y += cpu.o
 obj-y += translate.o
 ifeq ($(CONFIG_SOFTMMU),y)
 obj-y += machine.o mmu_helper.o mmu-hash32.o monitor.o
