@@ -60,7 +60,9 @@ typedef struct X86CPUClass {
     CPUClass parent_class;
     /*< public >*/
 
-    /* Should be eventually replaced by subclass-specific property defaults. */
+    /* CPU definition, automatically loaded by instance_init if not NULL.
+     * Should be eventually replaced by subclass-specific property defaults.
+     */
     X86CPUDefinition *cpu_def;
 
     bool kvm_required;
