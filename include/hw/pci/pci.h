@@ -429,6 +429,10 @@ int pci_bus_numa_node(PCIBus *bus);
 void pci_for_each_device(PCIBus *bus, int bus_num,
                          void (*fn)(PCIBus *bus, PCIDevice *d, void *opaque),
                          void *opaque);
+void pci_for_each_device_reverse(PCIBus *bus, int bus_num,
+                                 void (*fn)(PCIBus *bus, PCIDevice *d,
+                                            void *opaque),
+                                 void *opaque);
 void pci_for_each_bus_depth_first(PCIBus *bus,
                                   void *(*begin)(PCIBus *bus, void *parent_state),
                                   void (*end)(PCIBus *bus, void *state),

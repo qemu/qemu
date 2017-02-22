@@ -2044,9 +2044,9 @@ static void spapr_populate_pci_devices_dt(PCIBus *bus, PCIDevice *pdev,
     s_fdt.fdt = p->fdt;
     s_fdt.node_off = offset;
     s_fdt.sphb = p->sphb;
-    pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
-                        spapr_populate_pci_devices_dt,
-                        &s_fdt);
+    pci_for_each_device_reverse(sec_bus, pci_bus_num(sec_bus),
+                                spapr_populate_pci_devices_dt,
+                                &s_fdt);
 }
 
 static void spapr_phb_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
@@ -2215,9 +2215,9 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     s_fdt.fdt = fdt;
     s_fdt.node_off = bus_off;
     s_fdt.sphb = phb;
-    pci_for_each_device(bus, pci_bus_num(bus),
-                        spapr_populate_pci_devices_dt,
-                        &s_fdt);
+    pci_for_each_device_reverse(bus, pci_bus_num(bus),
+                                spapr_populate_pci_devices_dt,
+                                &s_fdt);
 
     ret = spapr_drc_populate_dt(fdt, bus_off, OBJECT(phb),
                                 SPAPR_DR_CONNECTOR_TYPE_PCI);
