@@ -116,21 +116,21 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
              field->field_exists(opaque, version_id)) ||
             (!field->field_exists &&
              field->version_id <= version_id)) {
-            void *base_addr = vmstate_base_addr(opaque, field, true);
+            void *first_elem = vmstate_base_addr(opaque, field, true);
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
 
             for (i = 0; i < n_elems; i++) {
-                void *addr = base_addr + size * i;
+                void *curr_elem = first_elem + size * i;
 
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
-                    addr = *(void **)addr;
+                    curr_elem = *(void **)curr_elem;
                 }
                 if (field->flags & VMS_STRUCT) {
-                    ret = vmstate_load_state(f, field->vmsd, addr,
+                    ret = vmstate_load_state(f, field->vmsd, curr_elem,
                                              field->vmsd->version_id);
                 } else {
-                   ret = field->info->get(f, addr, size, field);
+                    ret = field->info->get(f, curr_elem, size, field);
                 }
                 if (ret >= 0) {
                     ret = qemu_file_get_error(f);
@@ -321,7 +321,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
     while (field->name) {
         if (!field->field_exists ||
             field->field_exists(opaque, vmsd->version_id)) {
-            void *base_addr = vmstate_base_addr(opaque, field, false);
+            void *first_elem = vmstate_base_addr(opaque, field, false);
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
             int64_t old_offset, written_bytes;
@@ -329,18 +329,18 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
 
             trace_vmstate_save_state_loop(vmsd->name, field->name, n_elems);
             for (i = 0; i < n_elems; i++) {
-                void *addr = base_addr + size * i;
+                void *curr_elem = first_elem + size * i;
 
                 vmsd_desc_field_start(vmsd, vmdesc_loop, field, i, n_elems);
                 old_offset = qemu_ftell_fast(f);
-
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
-                    addr = *(void **)addr;
+                    assert(curr_elem);
+                    curr_elem = *(void **)curr_elem;
                 }
                 if (field->flags & VMS_STRUCT) {
-                    vmstate_save_state(f, field->vmsd, addr, vmdesc_loop);
+                    vmstate_save_state(f, field->vmsd, curr_elem, vmdesc_loop);
                 } else {
-                    field->info->put(f, addr, size, field, vmdesc_loop);
+                    field->info->put(f, curr_elem, size, field, vmdesc_loop);
                 }
 
                 written_bytes = qemu_ftell_fast(f) - old_offset;
