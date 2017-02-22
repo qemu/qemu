@@ -680,6 +680,7 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
 {
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
+    CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
     SubchDev *sch = css_create_virtual_sch(ccw_dev->bus_id, errp);
     Error *err = NULL;
 
@@ -689,8 +690,7 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     if (!virtio_ccw_rev_max(dev) && dev->force_revision_1) {
         error_setg(&err, "Invalid value of property max_rev "
                    "(is %d expected >= 1)", virtio_ccw_rev_max(dev));
-        error_propagate(errp, err);
-        return;
+        goto out_err;
     }
 
     sch->driver_data = dev;
@@ -713,13 +713,23 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
 
     if (k->realize) {
         k->realize(dev, &err);
+        if (err) {
+            goto out_err;
+        }
     }
+
+    ck->realize(ccw_dev, &err);
     if (err) {
-        error_propagate(errp, err);
-        css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
-        ccw_dev->sch = NULL;
-        g_free(sch);
+        goto out_err;
     }
+
+    return;
+
+out_err:
+    error_propagate(errp, err);
+    css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
+    ccw_dev->sch = NULL;
+    g_free(sch);
 }
 
 static int virtio_ccw_exit(VirtioCcwDevice *dev)
@@ -1261,12 +1271,17 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
     CcwDevice *ccw_dev = CCW_DEVICE(d);
+    CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
     SubchDev *s = ccw_dev->sch;
     VirtIODevice *vdev = virtio_ccw_get_vdev(s);
     int len;
 
     s->driver_data = dev;
     subch_device_load(s, f);
+    /* Re-fill subch_id after loading the subchannel states.*/
+    if (ck->refill_ids) {
+        ck->refill_ids(ccw_dev);
+    }
     len = qemu_get_be32(f);
     if (len != 0) {
         dev->indicators = get_indicator(qemu_get_be64(f), len);
