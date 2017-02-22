@@ -117,7 +117,11 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
                     curr_elem = *(void **)curr_elem;
                 }
-                if (field->flags & VMS_STRUCT) {
+                if (!curr_elem) {
+                    /* if null pointer check placeholder and do not follow */
+                    assert(field->flags & VMS_ARRAY_OF_POINTER);
+                    ret = vmstate_info_nullptr.get(f, curr_elem, size, NULL);
+                } else if (field->flags & VMS_STRUCT) {
                     ret = vmstate_load_state(f, field->vmsd, curr_elem,
                                              field->vmsd->version_id);
                 } else {
@@ -332,7 +336,11 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                     assert(curr_elem);
                     curr_elem = *(void **)curr_elem;
                 }
-                if (field->flags & VMS_STRUCT) {
+                if (!curr_elem) {
+                    /* if null pointer write placeholder and do not follow */
+                    assert(field->flags & VMS_ARRAY_OF_POINTER);
+                    vmstate_info_nullptr.put(f, curr_elem, size, NULL, NULL);
+                } else if (field->flags & VMS_STRUCT) {
                     vmstate_save_state(f, field->vmsd, curr_elem, vmdesc_loop);
                 } else {
                     field->info->put(f, curr_elem, size, field, vmdesc_loop);
@@ -745,6 +753,34 @@ const VMStateInfo vmstate_info_uint64 = {
     .name = "uint64",
     .get  = get_uint64,
     .put  = put_uint64,
+};
+
+static int get_nullptr(QEMUFile *f, void *pv, size_t size, VMStateField *field)
+
+{
+    if (qemu_get_byte(f) == VMS_NULLPTR_MARKER) {
+        return  0;
+    }
+    error_report("vmstate: get_nullptr expected VMS_NULLPTR_MARKER");
+    return -EINVAL;
+}
+
+static int put_nullptr(QEMUFile *f, void *pv, size_t size,
+                        VMStateField *field, QJSON *vmdesc)
+
+{
+    if (pv == NULL) {
+        qemu_put_byte(f, VMS_NULLPTR_MARKER);
+        return 0;
+    }
+    error_report("vmstate: put_nullptr must be called with pv == NULL");
+    return -EINVAL;
+}
+
+const VMStateInfo vmstate_info_nullptr = {
+    .name = "uint64",
+    .get  = get_nullptr,
+    .put  = put_nullptr,
 };
 
 /* 64 bit unsigned int. See that the received value is the same than the one
