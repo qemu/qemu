@@ -2419,6 +2419,34 @@ static void x86_cpu_to_dict(X86CPU *cpu, QDict *props)
     }
 }
 
+/* Convert CPU model data from X86CPU object to a property dictionary
+ * that can recreate exactly the same CPU model, including every
+ * writeable QOM property.
+ */
+static void x86_cpu_to_dict_full(X86CPU *cpu, QDict *props)
+{
+    ObjectPropertyIterator iter;
+    ObjectProperty *prop;
+
+    object_property_iter_init(&iter, OBJECT(cpu));
+    while ((prop = object_property_iter_next(&iter))) {
+        /* skip read-only or write-only properties */
+        if (!prop->get || !prop->set) {
+            continue;
+        }
+
+        /* "hotplugged" is the only property that is configurable
+         * on the command-line but will be set differently on CPUs
+         * created using "-cpu ... -smp ..." and by CPUs created
+         * on the fly by x86_cpu_from_model() for querying. Skip it.
+         */
+        if (!strcmp(prop->name, "hotplugged")) {
+            continue;
+        }
+        x86_cpu_expand_prop(cpu, props, prop->name);
+    }
+}
+
 static void object_apply_props(Object *obj, QDict *props, Error **errp)
 {
     const QDictEntry *prop;
@@ -2489,11 +2517,13 @@ arch_query_cpu_model_expansion(CpuModelExpansionType type,
         goto out;
     }
 
+    props = qdict_new();
 
     switch (type) {
     case CPU_MODEL_EXPANSION_TYPE_STATIC:
         /* Static expansion will be based on "base" only */
         base_name = "base";
+        x86_cpu_to_dict(xc, props);
     break;
     case CPU_MODEL_EXPANSION_TYPE_FULL:
         /* As we don't return every single property, full expansion needs
@@ -2501,9 +2531,7 @@ arch_query_cpu_model_expansion(CpuModelExpansionType type,
          * properties on top of that.
          */
         base_name = model->name;
-        if (model->has_props && model->props) {
-            props = qdict_clone_shallow(qobject_to_qdict(model->props));
-        }
+        x86_cpu_to_dict_full(xc, props);
     break;
     default:
         error_setg(&err, "Unsupportted expansion type");
