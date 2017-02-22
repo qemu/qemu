@@ -2506,12 +2506,16 @@ static void vfio_unregister_err_notifier(VFIOPCIDevice *vdev)
 static void vfio_req_notifier_handler(void *opaque)
 {
     VFIOPCIDevice *vdev = opaque;
+    Error *err = NULL;
 
     if (!event_notifier_test_and_clear(&vdev->req_notifier)) {
         return;
     }
 
-    qdev_unplug(&vdev->pdev.qdev, NULL);
+    qdev_unplug(&vdev->pdev.qdev, &err);
+    if (err) {
+        error_reportf_err(err, WARN_PREFIX, vdev->vbasedev.name);
+    }
 }
 
 static void vfio_register_req_notifier(VFIOPCIDevice *vdev)
