@@ -52,29 +52,15 @@ static int vmstate_size(void *opaque, VMStateField *field)
     return size;
 }
 
-static void *vmstate_base_addr(void *opaque, VMStateField *field, bool alloc)
+static void vmstate_handle_alloc(void *ptr, VMStateField *field, void *opaque)
 {
-    void *base_addr = opaque + field->offset;
-
-    if (field->flags & VMS_POINTER) {
-        if (alloc && (field->flags & VMS_ALLOC)) {
-            gsize size = 0;
-            if (field->flags & VMS_VBUFFER) {
-                size = vmstate_size(opaque, field);
-            } else {
-                int n_elems = vmstate_n_elems(opaque, field);
-                if (n_elems) {
-                    size = n_elems * field->size;
-                }
-            }
-            if (size) {
-                *(void **)base_addr = g_malloc(size);
-            }
+    if (field->flags & VMS_POINTER && field->flags & VMS_ALLOC) {
+        gsize size = vmstate_size(opaque, field);
+        size *= vmstate_n_elems(opaque, field);
+        if (size) {
+            *(void **)ptr = g_malloc(size);
         }
-        base_addr = *(void **)base_addr;
     }
-
-    return base_addr;
 }
 
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
@@ -116,10 +102,15 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
              field->field_exists(opaque, version_id)) ||
             (!field->field_exists &&
              field->version_id <= version_id)) {
-            void *first_elem = vmstate_base_addr(opaque, field, true);
+            void *first_elem = opaque + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
 
+            vmstate_handle_alloc(first_elem, field, opaque);
+            if (field->flags & VMS_POINTER) {
+                first_elem = *(void **)first_elem;
+                assert(first_elem  || !n_elems);
+            }
             for (i = 0; i < n_elems; i++) {
                 void *curr_elem = first_elem + size * i;
 
@@ -321,13 +312,17 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
     while (field->name) {
         if (!field->field_exists ||
             field->field_exists(opaque, vmsd->version_id)) {
-            void *first_elem = vmstate_base_addr(opaque, field, false);
+            void *first_elem = opaque + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
             int64_t old_offset, written_bytes;
             QJSON *vmdesc_loop = vmdesc;
 
             trace_vmstate_save_state_loop(vmsd->name, field->name, n_elems);
+            if (field->flags & VMS_POINTER) {
+                first_elem = *(void **)first_elem;
+                assert(first_elem  || !n_elems);
+            }
             for (i = 0; i < n_elems; i++) {
                 void *curr_elem = first_elem + size * i;
 
