@@ -36,4 +36,6 @@ extern int smp_threads;
 
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg);
 
+void qemu_tcg_configure(QemuOpts *opts, Error **errp);
+
 #endif

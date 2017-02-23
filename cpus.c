@@ -25,6 +25,7 @@
 /* Needed early for CONFIG_BSD etc. */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/config-file.h"
 #include "cpu.h"
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
@@ -45,6 +46,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
 #include "qemu/seqlock.h"
+#include "tcg.h"
 #include "qapi-event.h"
 #include "hw/nmi.h"
 #include "sysemu/replay.h"
@@ -150,6 +152,77 @@ typedef struct TimersState {
 } TimersState;
 
 static TimersState timers_state;
+bool mttcg_enabled;
+
+/*
+ * We default to false if we know other options have been enabled
+ * which are currently incompatible with MTTCG. Otherwise when each
+ * guest (target) has been updated to support:
+ *   - atomic instructions
+ *   - memory ordering primitives (barriers)
+ * they can set the appropriate CONFIG flags in ${target}-softmmu.mak
+ *
+ * Once a guest architecture has been converted to the new primitives
+ * there are two remaining limitations to check.
+ *
+ * - The guest can't be oversized (e.g. 64 bit guest on 32 bit host)
+ * - The host must have a stronger memory order than the guest
+ *
+ * It may be possible in future to support strong guests on weak hosts
+ * but that will require tagging all load/stores in a guest with their
+ * implicit memory order requirements which would likely slow things
+ * down a lot.
+ */
+
+static bool check_tcg_memory_orders_compatible(void)
+{
+#if defined(TCG_GUEST_DEFAULT_MO) && defined(TCG_TARGET_DEFAULT_MO)
+    return (TCG_GUEST_DEFAULT_MO & ~TCG_TARGET_DEFAULT_MO) == 0;
+#else
+    return false;
+#endif
+}
+
+static bool default_mttcg_enabled(void)
+{
+    QemuOpts *icount_opts = qemu_find_opts_singleton("icount");
+    const char *rr = qemu_opt_get(icount_opts, "rr");
+
+    if (rr || TCG_OVERSIZED_GUEST) {
+        return false;
+    } else {
+#ifdef TARGET_SUPPORTS_MTTCG
+        return check_tcg_memory_orders_compatible();
+#else
+        return false;
+#endif
+    }
+}
+
+void qemu_tcg_configure(QemuOpts *opts, Error **errp)
+{
+    const char *t = qemu_opt_get(opts, "thread");
+    if (t) {
+        if (strcmp(t, "multi") == 0) {
+            if (TCG_OVERSIZED_GUEST) {
+                error_setg(errp, "No MTTCG when guest word size > hosts");
+            } else {
+                if (!check_tcg_memory_orders_compatible()) {
+                    error_report("Guest expects a stronger memory ordering "
+                                 "than the host provides");
+                    error_printf("This may cause strange/hard to debug errors");
+                }
+                mttcg_enabled = true;
+            }
+        } else if (strcmp(t, "single") == 0) {
+            mttcg_enabled = false;
+        } else {
+            error_setg(errp, "Invalid 'thread' setting %s", t);
+        }
+    } else {
+        mttcg_enabled = default_mttcg_enabled();
+    }
+}
 
 int64_t cpu_get_icount_raw(void)
 {
