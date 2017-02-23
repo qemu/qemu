@@ -138,6 +138,7 @@
 #define ICC_CTLR_EL1_EOIMODE        (1U << 1)
 #define ICC_CTLR_EL1_PMHE           (1U << 6)
 #define ICC_CTLR_EL1_PRIBITS_SHIFT 8
+#define ICC_CTLR_EL1_PRIBITS_MASK   (7U << ICC_CTLR_EL1_PRIBITS_SHIFT)
 #define ICC_CTLR_EL1_IDBITS_SHIFT 11
 #define ICC_CTLR_EL1_SEIS           (1U << 14)
 #define ICC_CTLR_EL1_A3V            (1U << 15)
