@@ -28,6 +28,15 @@
 /*****************************************************************************/
 /* Fixed point operations helpers */
 
+static inline void helper_update_ov_legacy(CPUPPCState *env, int ov)
+{
+    if (unlikely(ov)) {
+        env->so = env->ov = 1;
+    } else {
+        env->ov = 0;
+    }
+}
+
 target_ulong helper_divweu(CPUPPCState *env, target_ulong ra, target_ulong rb,
                            uint32_t oe)
 {
@@ -49,11 +58,7 @@ target_ulong helper_divweu(CPUPPCState *env, target_ulong ra, target_ulong rb,
     }
 
     if (oe) {
-        if (unlikely(overflow)) {
-            env->so = env->ov = 1;
-        } else {
-            env->ov = 0;
-        }
+        helper_update_ov_legacy(env, overflow);
     }
 
     return (target_ulong)rt;
@@ -81,11 +86,7 @@ target_ulong helper_divwe(CPUPPCState *env, target_ulong ra, target_ulong rb,
     }
 
     if (oe) {
-        if (unlikely(overflow)) {
-            env->so = env->ov = 1;
-        } else {
-            env->ov = 0;
-        }
+        helper_update_ov_legacy(env, overflow);
     }
 
     return (target_ulong)rt;
@@ -105,11 +106,7 @@ uint64_t helper_divdeu(CPUPPCState *env, uint64_t ra, uint64_t rb, uint32_t oe)
     }
 
     if (oe) {
-        if (unlikely(overflow)) {
-            env->so = env->ov = 1;
-        } else {
-            env->ov = 0;
-        }
+        helper_update_ov_legacy(env, overflow);
     }
 
     return rt;
@@ -127,12 +124,7 @@ uint64_t helper_divde(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
     }
 
     if (oe) {
-
-        if (unlikely(overflow)) {
-            env->so = env->ov = 1;
-        } else {
-            env->ov = 0;
-        }
+        helper_update_ov_legacy(env, overflow);
     }
 
     return rt;
