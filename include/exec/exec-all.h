@@ -404,7 +404,4 @@ bool memory_region_is_unassigned(MemoryRegion *mr);
 /* vl.c */
 extern int singlestep;
 
-/* cpu-exec.c, accessed with atomic_mb_read/atomic_mb_set */
-extern bool exit_request;
-
 #endif

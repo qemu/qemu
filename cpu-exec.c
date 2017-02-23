@@ -568,15 +568,13 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
     *tb_exit = ret & TB_EXIT_MASK;
     switch (*tb_exit) {
     case TB_EXIT_REQUESTED:
-        /* Something asked us to stop executing
-         * chained TBs; just continue round the main
-         * loop. Whatever requested the exit will also
-         * have set something else (eg exit_request or
-         * interrupt_request) which we will handle
-         * next time around the loop.  But we need to
-         * ensure the zeroing of tcg_exit_req (see cpu_tb_exec)
-         * comes before the next read of cpu->exit_request
-         * or cpu->interrupt_request.
+        /* Something asked us to stop executing chained TBs; just
+         * continue round the main loop. Whatever requested the exit
+         * will also have set something else (eg interrupt_request)
+         * which we will handle next time around the loop.  But we
+         * need to ensure the tcg_exit_req read in generated code
+         * comes before the next read of cpu->exit_request or
+         * cpu->interrupt_request.
          */
         smp_mb();
         *last_tb = NULL;
@@ -629,10 +627,6 @@ int cpu_exec(CPUState *cpu)
     }
 
     rcu_read_lock();
-
-    if (unlikely(atomic_mb_read(&exit_request))) {
-        cpu->exit_request = 1;
-    }
 
     cc->cpu_exec_enter(cpu);
 
