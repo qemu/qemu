@@ -342,31 +342,89 @@ void tlb_unprotect_code(ram_addr_t ram_addr)
     cpu_physical_memory_set_dirty_flag(ram_addr, DIRTY_MEMORY_CODE);
 }
 
-static bool tlb_is_dirty_ram(CPUTLBEntry *tlbe)
-{
-    return (tlbe->addr_write & (TLB_INVALID_MASK|TLB_MMIO|TLB_NOTDIRTY)) == 0;
-}
 
-void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry, uintptr_t start,
+/*
+ * Dirty write flag handling
+ *
+ * When the TCG code writes to a location it looks up the address in
+ * the TLB and uses that data to compute the final address. If any of
+ * the lower bits of the address are set then the slow path is forced.
+ * There are a number of reasons to do this but for normal RAM the
+ * most usual is detecting writes to code regions which may invalidate
+ * generated code.
+ *
+ * Because we want other vCPUs to respond to changes straight away we
+ * update the te->addr_write field atomically. If the TLB entry has
+ * been changed by the vCPU in the mean time we skip the update.
+ *
+ * As this function uses atomic accesses we also need to ensure
+ * updates to tlb_entries follow the same access rules. We don't need
+ * to worry about this for oversized guests as MTTCG is disabled for
+ * them.
+ */
+
+static void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry, uintptr_t start,
                            uintptr_t length)
 {
-    uintptr_t addr;
+#if TCG_OVERSIZED_GUEST
+    uintptr_t addr = tlb_entry->addr_write;
 
-    if (tlb_is_dirty_ram(tlb_entry)) {
-        addr = (tlb_entry->addr_write & TARGET_PAGE_MASK) + tlb_entry->addend;
+    if ((addr & (TLB_INVALID_MASK | TLB_MMIO | TLB_NOTDIRTY)) == 0) {
+        addr &= TARGET_PAGE_MASK;
+        addr += tlb_entry->addend;
         if ((addr - start) < length) {
             tlb_entry->addr_write |= TLB_NOTDIRTY;
         }
     }
+#else
+    /* paired with atomic_mb_set in tlb_set_page_with_attrs */
+    uintptr_t orig_addr = atomic_mb_read(&tlb_entry->addr_write);
+    uintptr_t addr = orig_addr;
+
+    if ((addr & (TLB_INVALID_MASK | TLB_MMIO | TLB_NOTDIRTY)) == 0) {
+        addr &= TARGET_PAGE_MASK;
+        addr += atomic_read(&tlb_entry->addend);
+        if ((addr - start) < length) {
+            uintptr_t notdirty_addr = orig_addr | TLB_NOTDIRTY;
+            atomic_cmpxchg(&tlb_entry->addr_write, orig_addr, notdirty_addr);
+        }
+    }
+#endif
 }
 
+/* For atomic correctness when running MTTCG we need to use the right
+ * primitives when copying entries */
+static inline void copy_tlb_helper(CPUTLBEntry *d, CPUTLBEntry *s,
+                                   bool atomic_set)
+{
+#if TCG_OVERSIZED_GUEST
+    *d = *s;
+#else
+    if (atomic_set) {
+        d->addr_read = s->addr_read;
+        d->addr_code = s->addr_code;
+        atomic_set(&d->addend, atomic_read(&s->addend));
+        /* Pairs with flag setting in tlb_reset_dirty_range */
+        atomic_mb_set(&d->addr_write, atomic_read(&s->addr_write));
+    } else {
+        d->addr_read = s->addr_read;
+        d->addr_write = atomic_read(&s->addr_write);
+        d->addr_code = s->addr_code;
+        d->addend = atomic_read(&s->addend);
+    }
+#endif
+}
+
+/* This is a cross vCPU call (i.e. another vCPU resetting the flags of
+ * the target vCPU). As such care needs to be taken that we don't
+ * dangerously race with another vCPU update. The only thing actually
+ * updated is the target TLB entry ->addr_write flags.
+ */
 void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length)
 {
     CPUArchState *env;
 
     int mmu_idx;
-
-    assert_cpu_is_self(cpu);
 
     env = cpu->env_ptr;
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
@@ -455,7 +513,7 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     target_ulong address;
     target_ulong code_address;
     uintptr_t addend;
-    CPUTLBEntry *te;
+    CPUTLBEntry *te, *tv, tn;
     hwaddr iotlb, xlat, sz;
     unsigned vidx = env->vtlb_index++ % CPU_VTLB_SIZE;
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
@@ -490,41 +548,50 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
 
     index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     te = &env->tlb_table[mmu_idx][index];
-
     /* do not discard the translation in te, evict it into a victim tlb */
-    env->tlb_v_table[mmu_idx][vidx] = *te;
+    tv = &env->tlb_v_table[mmu_idx][vidx];
+
+    /* addr_write can race with tlb_reset_dirty_range */
+    copy_tlb_helper(tv, te, true);
+
     env->iotlb_v[mmu_idx][vidx] = env->iotlb[mmu_idx][index];
 
     /* refill the tlb */
     env->iotlb[mmu_idx][index].addr = iotlb - vaddr;
     env->iotlb[mmu_idx][index].attrs = attrs;
-    te->addend = addend - vaddr;
+
+    /* Now calculate the new entry */
+    tn.addend = addend - vaddr;
     if (prot & PAGE_READ) {
-        te->addr_read = address;
+        tn.addr_read = address;
     } else {
-        te->addr_read = -1;
+        tn.addr_read = -1;
     }
 
     if (prot & PAGE_EXEC) {
-        te->addr_code = code_address;
+        tn.addr_code = code_address;
     } else {
-        te->addr_code = -1;
+        tn.addr_code = -1;
     }
+
+    tn.addr_write = -1;
     if (prot & PAGE_WRITE) {
         if ((memory_region_is_ram(section->mr) && section->readonly)
             || memory_region_is_romd(section->mr)) {
             /* Write access calls the I/O callback.  */
-            te->addr_write = address | TLB_MMIO;
+            tn.addr_write = address | TLB_MMIO;
         } else if (memory_region_is_ram(section->mr)
                    && cpu_physical_memory_is_clean(
                         memory_region_get_ram_addr(section->mr) + xlat)) {
-            te->addr_write = address | TLB_NOTDIRTY;
+            tn.addr_write = address | TLB_NOTDIRTY;
         } else {
-            te->addr_write = address;
+            tn.addr_write = address;
         }
-    } else {
-        te->addr_write = -1;
     }
+
+    /* Pairs with flag setting in tlb_reset_dirty_range */
+    copy_tlb_helper(te, &tn, true);
+    /* atomic_mb_set(&te->addr_write, write_address); */
 }
 
 /* Add a new TLB entry, but without specifying the memory
@@ -687,10 +754,13 @@ static bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
         if (cmp == page) {
             /* Found entry in victim tlb, swap tlb and iotlb.  */
             CPUTLBEntry tmptlb, *tlb = &env->tlb_table[mmu_idx][index];
+
+            copy_tlb_helper(&tmptlb, tlb, false);
+            copy_tlb_helper(tlb, vtlb, true);
+            copy_tlb_helper(vtlb, &tmptlb, true);
+
             CPUIOTLBEntry tmpio, *io = &env->iotlb[mmu_idx][index];
             CPUIOTLBEntry *vio = &env->iotlb_v[mmu_idx][vidx];
-
-            tmptlb = *tlb; *tlb = *vtlb; *vtlb = tmptlb;
             tmpio = *io; *io = *vio; *vio = tmpio;
             return true;
         }
