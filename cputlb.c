@@ -58,6 +58,12 @@
     } \
 } while (0)
 
+#define assert_cpu_is_self(this_cpu) do {                         \
+        if (DEBUG_TLB_GATE) {                                     \
+            g_assert(!cpu->created || qemu_cpu_is_self(cpu));     \
+        }                                                         \
+    } while (0)
+
 /* statistics */
 int tlb_flush_count;
 
@@ -70,6 +76,9 @@ void tlb_flush(CPUState *cpu)
 {
     CPUArchState *env = cpu->env_ptr;
 
+    assert_cpu_is_self(cpu);
+    tlb_debug("(count: %d)\n", tlb_flush_count++);
+
     memset(env->tlb_table, -1, sizeof(env->tlb_table));
     memset(env->tlb_v_table, -1, sizeof(env->tlb_v_table));
     memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
@@ -77,13 +86,13 @@ void tlb_flush(CPUState *cpu)
     env->vtlb_index = 0;
     env->tlb_flush_addr = -1;
     env->tlb_flush_mask = 0;
-    tlb_flush_count++;
 }
 
 static inline void v_tlb_flush_by_mmuidx(CPUState *cpu, va_list argp)
 {
     CPUArchState *env = cpu->env_ptr;
 
+    assert_cpu_is_self(cpu);
     tlb_debug("start\n");
 
     for (;;) {
@@ -128,6 +137,7 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
     int i;
     int mmu_idx;
 
+    assert_cpu_is_self(cpu);
     tlb_debug("page :" TARGET_FMT_lx "\n", addr);
 
     /* Check if we need to flush due to large pages.  */
@@ -165,6 +175,7 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, ...)
 
     va_start(argp, addr);
 
+    assert_cpu_is_self(cpu);
     tlb_debug("addr "TARGET_FMT_lx"\n", addr);
 
     /* Check if we need to flush due to large pages.  */
@@ -253,6 +264,8 @@ void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length)
 
     int mmu_idx;
 
+    assert_cpu_is_self(cpu);
+
     env = cpu->env_ptr;
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         unsigned int i;
@@ -283,6 +296,8 @@ void tlb_set_dirty(CPUState *cpu, target_ulong vaddr)
     CPUArchState *env = cpu->env_ptr;
     int i;
     int mmu_idx;
+
+    assert_cpu_is_self(cpu);
 
     vaddr &= TARGET_PAGE_MASK;
     i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -343,6 +358,7 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     unsigned vidx = env->vtlb_index++ % CPU_VTLB_SIZE;
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
 
+    assert_cpu_is_self(cpu);
     assert(size >= TARGET_PAGE_SIZE);
     if (size != TARGET_PAGE_SIZE) {
         tlb_add_large_page(env, vaddr, size);
