@@ -106,21 +106,22 @@ void tlb_flush(CPUState *cpu);
  * tlb_flush_page_by_mmuidx:
  * @cpu: CPU whose TLB should be flushed
  * @addr: virtual address of page to be flushed
- * @...: list of MMU indexes to flush, terminated by a negative value
+ * @idxmap: bitmap of MMU indexes to flush
  *
  * Flush one page from the TLB of the specified CPU, for the specified
  * MMU indexes.
  */
-void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, ...);
+void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr,
+                              uint16_t idxmap);
 /**
  * tlb_flush_by_mmuidx:
  * @cpu: CPU whose TLB should be flushed
- * @...: list of MMU indexes to flush, terminated by a negative value
+ * @idxmap: bitmap of MMU indexes to flush
  *
  * Flush all entries from the TLB of the specified CPU, for the specified
  * MMU indexes.
  */
-void tlb_flush_by_mmuidx(CPUState *cpu, ...);
+void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap);
 /**
  * tlb_set_page_with_attrs:
  * @cpu: CPU to add this TLB entry for
@@ -169,11 +170,11 @@ static inline void tlb_flush(CPUState *cpu)
 }
 
 static inline void tlb_flush_page_by_mmuidx(CPUState *cpu,
-                                            target_ulong addr, ...)
+                                            target_ulong addr, uint16_t idxmap)
 {
 }
 
-static inline void tlb_flush_by_mmuidx(CPUState *cpu, ...)
+static inline void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
 {
 }
 #endif

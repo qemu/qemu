@@ -122,26 +122,25 @@ void tlb_flush(CPUState *cpu)
     }
 }
 
-static inline void v_tlb_flush_by_mmuidx(CPUState *cpu, va_list argp)
+static inline void v_tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
 {
     CPUArchState *env = cpu->env_ptr;
+    unsigned long mmu_idx_bitmask = idxmap;
+    int mmu_idx;
 
     assert_cpu_is_self(cpu);
     tlb_debug("start\n");
 
     tb_lock();
 
-    for (;;) {
-        int mmu_idx = va_arg(argp, int);
+    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
 
-        if (mmu_idx < 0) {
-            break;
+        if (test_bit(mmu_idx, &mmu_idx_bitmask)) {
+            tlb_debug("%d\n", mmu_idx);
+
+            memset(env->tlb_table[mmu_idx], -1, sizeof(env->tlb_table[0]));
+            memset(env->tlb_v_table[mmu_idx], -1, sizeof(env->tlb_v_table[0]));
         }
-
-        tlb_debug("%d\n", mmu_idx);
-
-        memset(env->tlb_table[mmu_idx], -1, sizeof(env->tlb_table[0]));
-        memset(env->tlb_v_table[mmu_idx], -1, sizeof(env->tlb_v_table[0]));
     }
 
     memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
@@ -149,12 +148,9 @@ static inline void v_tlb_flush_by_mmuidx(CPUState *cpu, va_list argp)
     tb_unlock();
 }
 
-void tlb_flush_by_mmuidx(CPUState *cpu, ...)
+void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
 {
-    va_list argp;
-    va_start(argp, cpu);
-    v_tlb_flush_by_mmuidx(cpu, argp);
-    va_end(argp);
+    v_tlb_flush_by_mmuidx(cpu, idxmap);
 }
 
 static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
@@ -219,13 +215,11 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
     }
 }
 
-void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, ...)
+void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
 {
     CPUArchState *env = cpu->env_ptr;
-    int i, k;
-    va_list argp;
-
-    va_start(argp, addr);
+    unsigned long mmu_idx_bitmap = idxmap;
+    int i, page, mmu_idx;
 
     assert_cpu_is_self(cpu);
     tlb_debug("addr "TARGET_FMT_lx"\n", addr);
@@ -236,31 +230,23 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, ...)
                   TARGET_FMT_lx "/" TARGET_FMT_lx ")\n",
                   env->tlb_flush_addr, env->tlb_flush_mask);
 
-        v_tlb_flush_by_mmuidx(cpu, argp);
-        va_end(argp);
+        v_tlb_flush_by_mmuidx(cpu, idxmap);
         return;
     }
 
     addr &= TARGET_PAGE_MASK;
-    i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    page = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
 
-    for (;;) {
-        int mmu_idx = va_arg(argp, int);
+    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        if (test_bit(mmu_idx, &mmu_idx_bitmap)) {
+            tlb_flush_entry(&env->tlb_table[mmu_idx][page], addr);
 
-        if (mmu_idx < 0) {
-            break;
-        }
-
-        tlb_debug("idx %d\n", mmu_idx);
-
-        tlb_flush_entry(&env->tlb_table[mmu_idx][i], addr);
-
-        /* check whether there are vltb entries that need to be flushed */
-        for (k = 0; k < CPU_VTLB_SIZE; k++) {
-            tlb_flush_entry(&env->tlb_v_table[mmu_idx][k], addr);
+            /* check whether there are vltb entries that need to be flushed */
+            for (i = 0; i < CPU_VTLB_SIZE; i++) {
+                tlb_flush_entry(&env->tlb_v_table[mmu_idx][i], addr);
+            }
         }
     }
-    va_end(argp);
 
     tb_flush_jmp_cache(cpu, addr);
 }
