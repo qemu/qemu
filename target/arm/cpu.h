@@ -30,6 +30,9 @@
 #  define TARGET_LONG_BITS 32
 #endif
 
+/* ARM processors have a weak memory model */
+#define TCG_GUEST_DEFAULT_MO      (0)
+
 #define CPUArchState struct CPUARMState
 
 #include "qemu-common.h"
