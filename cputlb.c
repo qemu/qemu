@@ -68,6 +68,11 @@
  * target_ulong even on 32 bit builds */
 QEMU_BUILD_BUG_ON(sizeof(target_ulong) > sizeof(run_on_cpu_data));
 
+/* We currently can't handle more than 16 bits in the MMUIDX bitmask.
+ */
+QEMU_BUILD_BUG_ON(NB_MMU_MODES > 16);
+#define ALL_MMUIDX_BITS ((1 << NB_MMU_MODES) - 1)
+
 /* statistics */
 int tlb_flush_count;
 
@@ -102,7 +107,7 @@ static void tlb_flush_nocheck(CPUState *cpu)
 
     tb_unlock();
 
-    atomic_mb_set(&cpu->pending_tlb_flush, false);
+    atomic_mb_set(&cpu->pending_tlb_flush, 0);
 }
 
 static void tlb_flush_global_async_work(CPUState *cpu, run_on_cpu_data data)
@@ -113,7 +118,8 @@ static void tlb_flush_global_async_work(CPUState *cpu, run_on_cpu_data data)
 void tlb_flush(CPUState *cpu)
 {
     if (cpu->created && !qemu_cpu_is_self(cpu)) {
-        if (atomic_cmpxchg(&cpu->pending_tlb_flush, false, true) == true) {
+        if (atomic_mb_read(&cpu->pending_tlb_flush) != ALL_MMUIDX_BITS) {
+            atomic_mb_set(&cpu->pending_tlb_flush, ALL_MMUIDX_BITS);
             async_run_on_cpu(cpu, tlb_flush_global_async_work,
                              RUN_ON_CPU_NULL);
         }
@@ -122,16 +128,17 @@ void tlb_flush(CPUState *cpu)
     }
 }
 
-static inline void v_tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
+static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
 {
     CPUArchState *env = cpu->env_ptr;
-    unsigned long mmu_idx_bitmask = idxmap;
+    unsigned long mmu_idx_bitmask = data.host_int;
     int mmu_idx;
 
     assert_cpu_is_self(cpu);
-    tlb_debug("start\n");
 
     tb_lock();
+
+    tlb_debug("start: mmu_idx:0x%04lx\n", mmu_idx_bitmask);
 
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
 
@@ -145,12 +152,30 @@ static inline void v_tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
 
     memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
 
+    tlb_debug("done\n");
+
     tb_unlock();
 }
 
 void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
 {
-    v_tlb_flush_by_mmuidx(cpu, idxmap);
+    tlb_debug("mmu_idx: 0x%" PRIx16 "\n", idxmap);
+
+    if (!qemu_cpu_is_self(cpu)) {
+        uint16_t pending_flushes = idxmap;
+        pending_flushes &= ~atomic_mb_read(&cpu->pending_tlb_flush);
+
+        if (pending_flushes) {
+            tlb_debug("reduced mmu_idx: 0x%" PRIx16 "\n", pending_flushes);
+
+            atomic_or(&cpu->pending_tlb_flush, pending_flushes);
+            async_run_on_cpu(cpu, tlb_flush_by_mmuidx_async_work,
+                             RUN_ON_CPU_HOST_INT(pending_flushes));
+        }
+    } else {
+        tlb_flush_by_mmuidx_async_work(cpu,
+                                       RUN_ON_CPU_HOST_INT(idxmap));
+    }
 }
 
 static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
@@ -215,27 +240,26 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
     }
 }
 
-void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
+/* As we are going to hijack the bottom bits of the page address for a
+ * mmuidx bit mask we need to fail to build if we can't do that
+ */
+QEMU_BUILD_BUG_ON(NB_MMU_MODES > TARGET_PAGE_BITS_MIN);
+
+static void tlb_flush_page_by_mmuidx_async_work(CPUState *cpu,
+                                                run_on_cpu_data data)
 {
     CPUArchState *env = cpu->env_ptr;
-    unsigned long mmu_idx_bitmap = idxmap;
-    int i, page, mmu_idx;
+    target_ulong addr_and_mmuidx = (target_ulong) data.target_ptr;
+    target_ulong addr = addr_and_mmuidx & TARGET_PAGE_MASK;
+    unsigned long mmu_idx_bitmap = addr_and_mmuidx & ALL_MMUIDX_BITS;
+    int page = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    int mmu_idx;
+    int i;
 
     assert_cpu_is_self(cpu);
-    tlb_debug("addr "TARGET_FMT_lx"\n", addr);
 
-    /* Check if we need to flush due to large pages.  */
-    if ((addr & env->tlb_flush_mask) == env->tlb_flush_addr) {
-        tlb_debug("forced full flush ("
-                  TARGET_FMT_lx "/" TARGET_FMT_lx ")\n",
-                  env->tlb_flush_addr, env->tlb_flush_mask);
-
-        v_tlb_flush_by_mmuidx(cpu, idxmap);
-        return;
-    }
-
-    addr &= TARGET_PAGE_MASK;
-    page = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    tlb_debug("page:%d addr:"TARGET_FMT_lx" mmu_idx:0x%lx\n",
+              page, addr, mmu_idx_bitmap);
 
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         if (test_bit(mmu_idx, &mmu_idx_bitmap)) {
@@ -249,6 +273,48 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
     }
 
     tb_flush_jmp_cache(cpu, addr);
+}
+
+static void tlb_check_page_and_flush_by_mmuidx_async_work(CPUState *cpu,
+                                                          run_on_cpu_data data)
+{
+    CPUArchState *env = cpu->env_ptr;
+    target_ulong addr_and_mmuidx = (target_ulong) data.target_ptr;
+    target_ulong addr = addr_and_mmuidx & TARGET_PAGE_MASK;
+    unsigned long mmu_idx_bitmap = addr_and_mmuidx & ALL_MMUIDX_BITS;
+
+    tlb_debug("addr:"TARGET_FMT_lx" mmu_idx: %04lx\n", addr, mmu_idx_bitmap);
+
+    /* Check if we need to flush due to large pages.  */
+    if ((addr & env->tlb_flush_mask) == env->tlb_flush_addr) {
+        tlb_debug("forced full flush ("
+                  TARGET_FMT_lx "/" TARGET_FMT_lx ")\n",
+                  env->tlb_flush_addr, env->tlb_flush_mask);
+
+        tlb_flush_by_mmuidx_async_work(cpu,
+                                       RUN_ON_CPU_HOST_INT(mmu_idx_bitmap));
+    } else {
+        tlb_flush_page_by_mmuidx_async_work(cpu, data);
+    }
+}
+
+void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
+{
+    target_ulong addr_and_mmu_idx;
+
+    tlb_debug("addr: "TARGET_FMT_lx" mmu_idx:%" PRIx16 "\n", addr, idxmap);
+
+    /* This should already be page aligned */
+    addr_and_mmu_idx = addr & TARGET_PAGE_MASK;
+    addr_and_mmu_idx |= idxmap;
+
+    if (!qemu_cpu_is_self(cpu)) {
+        async_run_on_cpu(cpu, tlb_check_page_and_flush_by_mmuidx_async_work,
+                         RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+    } else {
+        tlb_check_page_and_flush_by_mmuidx_async_work(
+            cpu, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+    }
 }
 
 void tlb_flush_page_all(target_ulong addr)

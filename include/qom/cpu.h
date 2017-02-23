@@ -407,7 +407,7 @@ struct CPUState {
      * avoid potential races. The aim of the flag is to avoid
      * unnecessary flushes.
      */
-    bool pending_tlb_flush;
+    uint16_t pending_tlb_flush;
 };
 
 QTAILQ_HEAD(CPUTailQ, CPUState);
