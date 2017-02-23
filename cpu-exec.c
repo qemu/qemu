@@ -612,7 +612,6 @@ int cpu_exec(CPUState *cpu)
         return EXCP_HALTED;
     }
 
-    atomic_mb_set(&tcg_current_cpu, cpu);
     rcu_read_lock();
 
     if (unlikely(atomic_mb_read(&exit_request))) {
@@ -666,7 +665,5 @@ int cpu_exec(CPUState *cpu)
     /* fail safe : never use current_cpu outside cpu_exec() */
     current_cpu = NULL;
 
-    /* Does not need atomic_mb_set because a spurious wakeup is okay.  */
-    atomic_set(&tcg_current_cpu, NULL);
     return ret;
 }
