@@ -45,7 +45,7 @@ static bool arm_cpu_has_work(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
 
-    return !cpu->powered_off
+    return (cpu->power_state != PSCI_OFF)
         && cs->interrupt_request &
         (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
          | CPU_INTERRUPT_VFIQ | CPU_INTERRUPT_VIRQ
@@ -132,7 +132,7 @@ static void arm_cpu_reset(CPUState *s)
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
     env->vfp.xregs[ARM_VFP_MVFR2] = cpu->mvfr2;
 
-    cpu->powered_off = cpu->start_powered_off;
+    cpu->power_state = cpu->start_powered_off ? PSCI_OFF : PSCI_ON;
     s->halted = cpu->start_powered_off;
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {

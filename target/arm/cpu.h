@@ -526,6 +526,15 @@ typedef struct CPUARMState {
  */
 typedef void ARMELChangeHook(ARMCPU *cpu, void *opaque);
 
+
+/* These values map onto the return values for
+ * QEMU_PSCI_0_2_FN_AFFINITY_INFO */
+typedef enum ARMPSCIState {
+    PSCI_OFF = 0,
+    PSCI_ON = 1,
+    PSCI_ON_PENDING = 2
+} ARMPSCIState;
+
 /**
  * ARMCPU:
  * @env: #CPUARMState
@@ -582,8 +591,10 @@ struct ARMCPU {
 
     /* Should CPU start in PSCI powered-off state? */
     bool start_powered_off;
-    /* CPU currently in PSCI powered-off state */
-    bool powered_off;
+
+    /* Current power state, access guarded by BQL */
+    ARMPSCIState power_state;
+
     /* CPU has virtualization extension */
     bool has_el2;
     /* CPU has security extension */
