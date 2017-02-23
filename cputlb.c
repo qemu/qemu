@@ -73,6 +73,25 @@ QEMU_BUILD_BUG_ON(sizeof(target_ulong) > sizeof(run_on_cpu_data));
 QEMU_BUILD_BUG_ON(NB_MMU_MODES > 16);
 #define ALL_MMUIDX_BITS ((1 << NB_MMU_MODES) - 1)
 
+/* flush_all_helper: run fn across all cpus
+ *
+ * If the wait flag is set then the src cpu's helper will be queued as
+ * "safe" work and the loop exited creating a synchronisation point
+ * where all queued work will be finished before execution starts
+ * again.
+ */
+static void flush_all_helper(CPUState *src, run_on_cpu_func fn,
+                             run_on_cpu_data d)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        if (cpu != src) {
+            async_run_on_cpu(cpu, fn, d);
+        }
+    }
+}
+
 /* statistics */
 int tlb_flush_count;
 
@@ -128,6 +147,20 @@ void tlb_flush(CPUState *cpu)
     }
 }
 
+void tlb_flush_all_cpus(CPUState *src_cpu)
+{
+    const run_on_cpu_func fn = tlb_flush_global_async_work;
+    flush_all_helper(src_cpu, fn, RUN_ON_CPU_NULL);
+    fn(src_cpu, RUN_ON_CPU_NULL);
+}
+
+void tlb_flush_all_cpus_synced(CPUState *src_cpu)
+{
+    const run_on_cpu_func fn = tlb_flush_global_async_work;
+    flush_all_helper(src_cpu, fn, RUN_ON_CPU_NULL);
+    async_safe_run_on_cpu(src_cpu, fn, RUN_ON_CPU_NULL);
+}
+
 static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
 {
     CPUArchState *env = cpu->env_ptr;
@@ -177,6 +210,29 @@ void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
                                        RUN_ON_CPU_HOST_INT(idxmap));
     }
 }
+
+void tlb_flush_by_mmuidx_all_cpus(CPUState *src_cpu, uint16_t idxmap)
+{
+    const run_on_cpu_func fn = tlb_flush_by_mmuidx_async_work;
+
+    tlb_debug("mmu_idx: 0x%"PRIx16"\n", idxmap);
+
+    flush_all_helper(src_cpu, fn, RUN_ON_CPU_HOST_INT(idxmap));
+    fn(src_cpu, RUN_ON_CPU_HOST_INT(idxmap));
+}
+
+void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
+                                                       uint16_t idxmap)
+{
+    const run_on_cpu_func fn = tlb_flush_by_mmuidx_async_work;
+
+    tlb_debug("mmu_idx: 0x%"PRIx16"\n", idxmap);
+
+    flush_all_helper(src_cpu, fn, RUN_ON_CPU_HOST_INT(idxmap));
+    async_safe_run_on_cpu(src_cpu, fn, RUN_ON_CPU_HOST_INT(idxmap));
+}
+
+
 
 static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
 {
@@ -317,14 +373,54 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
     }
 }
 
-void tlb_flush_page_all(target_ulong addr)
+void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, target_ulong addr,
+                                       uint16_t idxmap)
 {
-    CPUState *cpu;
+    const run_on_cpu_func fn = tlb_check_page_and_flush_by_mmuidx_async_work;
+    target_ulong addr_and_mmu_idx;
 
-    CPU_FOREACH(cpu) {
-        async_run_on_cpu(cpu, tlb_flush_page_async_work,
-                         RUN_ON_CPU_TARGET_PTR(addr));
-    }
+    tlb_debug("addr: "TARGET_FMT_lx" mmu_idx:%"PRIx16"\n", addr, idxmap);
+
+    /* This should already be page aligned */
+    addr_and_mmu_idx = addr & TARGET_PAGE_MASK;
+    addr_and_mmu_idx |= idxmap;
+
+    flush_all_helper(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+    fn(src_cpu, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+}
+
+void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
+                                                            target_ulong addr,
+                                                            uint16_t idxmap)
+{
+    const run_on_cpu_func fn = tlb_check_page_and_flush_by_mmuidx_async_work;
+    target_ulong addr_and_mmu_idx;
+
+    tlb_debug("addr: "TARGET_FMT_lx" mmu_idx:%"PRIx16"\n", addr, idxmap);
+
+    /* This should already be page aligned */
+    addr_and_mmu_idx = addr & TARGET_PAGE_MASK;
+    addr_and_mmu_idx |= idxmap;
+
+    flush_all_helper(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+    async_safe_run_on_cpu(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+}
+
+void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
+{
+    const run_on_cpu_func fn = tlb_flush_page_async_work;
+
+    flush_all_helper(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
+    fn(src, RUN_ON_CPU_TARGET_PTR(addr));
+}
+
+void tlb_flush_page_all_cpus_synced(CPUState *src,
+                                                  target_ulong addr)
+{
+    const run_on_cpu_func fn = tlb_flush_page_async_work;
+
+    flush_all_helper(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
+    async_safe_run_on_cpu(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
 }
 
 /* update the TLBs so that writes to code in the virtual page 'addr'
