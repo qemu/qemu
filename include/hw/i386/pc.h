@@ -623,6 +623,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = "Broadwell-noTSX" "-" TYPE_X86_CPU,\
         .property = "xlevel",\
         .value    = stringify(0x8000000a),\
+    },{\
+        .driver = TYPE_X86_CPU,\
+        .property = "kvm-no-smi-migration",\
+        .value    = "on",\
     },
 
 #define PC_COMPAT_2_2 \

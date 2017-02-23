@@ -2492,7 +2492,12 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
             events.smi.pending = 0;
             events.smi.latched_init = 0;
         }
-        events.flags |= KVM_VCPUEVENT_VALID_SMM;
+        /* Stop SMI delivery on old machine types to avoid a reboot
+         * on an inward migration of an old VM.
+         */
+        if (!cpu->kvm_no_smi_migration) {
+            events.flags |= KVM_VCPUEVENT_VALID_SMM;
+        }
     }
 
     if (level >= KVM_PUT_RESET_STATE) {

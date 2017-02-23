@@ -1255,6 +1255,9 @@ struct X86CPU {
     /* if true override the phys_bits value with a value read from the host */
     bool host_phys_bits;
 
+    /* Stop SMI delivery for migration compatibility with old machines */
+    bool kvm_no_smi_migration;
+
     /* Number of physical address bits supported */
     uint32_t phys_bits;
 
