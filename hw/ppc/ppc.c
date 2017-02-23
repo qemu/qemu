@@ -62,7 +62,16 @@ void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    unsigned int old_pending = env->pending_interrupts;
+    unsigned int old_pending;
+    bool locked = false;
+
+    /* We may already have the BQL if coming from the reset path */
+    if (!qemu_mutex_iothread_locked()) {
+        locked = true;
+        qemu_mutex_lock_iothread();
+    }
+
+    old_pending = env->pending_interrupts;
 
     if (level) {
         env->pending_interrupts |= 1 << n_IRQ;
@@ -80,9 +89,14 @@ void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
 #endif
     }
 
+
     LOG_IRQ("%s: %p n_IRQ %d level %d => pending %08" PRIx32
                 "req %08x\n", __func__, env, n_IRQ, level,
                 env->pending_interrupts, CPU(cpu)->interrupt_request);
+
+    if (locked) {
+        qemu_mutex_unlock_iothread();
+    }
 }
 
 /* PowerPC 6xx / 7xx internal IRQ controller */

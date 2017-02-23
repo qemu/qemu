@@ -329,6 +329,7 @@ struct CPUState {
     bool unplug;
     bool crash_occurred;
     bool exit_request;
+    /* updates protected by BQL */
     uint32_t interrupt_request;
     int singlestep_enabled;
     int64_t icount_extra;

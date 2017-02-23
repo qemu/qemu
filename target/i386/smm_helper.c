@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/log.h"
@@ -42,10 +43,13 @@ void helper_rsm(CPUX86State *env)
 #define SMM_REVISION_ID 0x00020000
 #endif
 
+/* Called with iothread lock taken */
 void cpu_smm_update(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     bool smm_enabled = (env->hflags & HF_SMM_MASK);
+
+    g_assert(qemu_mutex_iothread_locked());
 
     if (cpu->smram) {
         memory_region_set_enabled(cpu->smram, smm_enabled);
@@ -333,7 +337,10 @@ void helper_rsm(CPUX86State *env)
     }
     env->hflags2 &= ~HF2_SMM_INSIDE_NMI_MASK;
     env->hflags &= ~HF_SMM_MASK;
+
+    qemu_mutex_lock_iothread();
     cpu_smm_update(cpu);
+    qemu_mutex_unlock_iothread();
 
     qemu_log_mask(CPU_LOG_INT, "SMM: after RSM\n");
     log_cpu_state_mask(CPU_LOG_INT, CPU(cpu), CPU_DUMP_CCOP);
