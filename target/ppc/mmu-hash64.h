@@ -101,13 +101,16 @@ static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
 
 static inline hwaddr ppc_hash64_hpt_mask(PowerPCCPU *cpu)
 {
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        return vhc->hpt_mask(cpu->vhyp);
+    }
     return (1ULL << ((cpu->env.spr[SPR_SDR1] & SDR_64_HTABSIZE) + 18 - 7)) - 1;
 }
 
 void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
                          Error **errp);
-void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
-                                 Error **errp);
 
 struct ppc_hash_pte64 {
     uint64_t pte0, pte1;

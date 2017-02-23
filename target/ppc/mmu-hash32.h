@@ -80,10 +80,8 @@ static inline hwaddr ppc_hash32_hpt_mask(PowerPCCPU *cpu)
 static inline target_ulong ppc_hash32_load_hpte0(PowerPCCPU *cpu,
                                                  hwaddr pte_offset)
 {
-    CPUPPCState *env = &cpu->env;
     target_ulong base = ppc_hash32_hpt_base(cpu);
 
-    assert(!env->external_htab); /* Not supported on 32-bit for now */
     return ldl_phys(CPU(cpu)->as, base + pte_offset);
 }
 
@@ -91,29 +89,23 @@ static inline target_ulong ppc_hash32_load_hpte1(PowerPCCPU *cpu,
                                                  hwaddr pte_offset)
 {
     target_ulong base = ppc_hash32_hpt_base(cpu);
-    CPUPPCState *env = &cpu->env;
 
-    assert(!env->external_htab); /* Not supported on 32-bit for now */
     return ldl_phys(CPU(cpu)->as, base + pte_offset + HASH_PTE_SIZE_32 / 2);
 }
 
 static inline void ppc_hash32_store_hpte0(PowerPCCPU *cpu,
                                           hwaddr pte_offset, target_ulong pte0)
 {
-    CPUPPCState *env = &cpu->env;
     target_ulong base = ppc_hash32_hpt_base(cpu);
 
-    assert(!env->external_htab); /* Not supported on 32-bit for now */
     stl_phys(CPU(cpu)->as, base + pte_offset, pte0);
 }
 
 static inline void ppc_hash32_store_hpte1(PowerPCCPU *cpu,
                                           hwaddr pte_offset, target_ulong pte1)
 {
-    CPUPPCState *env = &cpu->env;
     target_ulong base = ppc_hash32_hpt_base(cpu);
 
-    assert(!env->external_htab); /* Not supported on 32-bit for now */
     stl_phys(CPU(cpu)->as, base + pte_offset + HASH_PTE_SIZE_32 / 2, pte1);
 }
 

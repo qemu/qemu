@@ -13,10 +13,12 @@
 #include "hw/boards.h"
 #include "qapi/error.h"
 #include "sysemu/cpus.h"
+#include "sysemu/kvm.h"
 #include "target/ppc/kvm_ppc.h"
 #include "hw/ppc/ppc.h"
 #include "target/ppc/mmu-hash64.h"
 #include "sysemu/numa.h"
+#include "qemu/error-report.h"
 
 static void spapr_cpu_reset(void *opaque)
 {
@@ -34,8 +36,19 @@ static void spapr_cpu_reset(void *opaque)
 
     env->spr[SPR_HIOR] = 0;
 
-    ppc_hash64_set_external_hpt(cpu, spapr->htab, spapr->htab_shift,
-                                &error_fatal);
+    /*
+     * This is a hack for the benefit of KVM PR - it abuses the SDR1
+     * slot in kvm_sregs to communicate the userspace address of the
+     * HPT
+     */
+    if (kvm_enabled()) {
+        env->spr[SPR_SDR1] = (target_ulong)(uintptr_t)spapr->htab
+            | (spapr->htab_shift - 18);
+        if (kvmppc_put_books_sregs(cpu) < 0) {
+            error_report("Unable to update SDR1 in KVM");
+            exit(1);
+        }
+    }
 }
 
 static void spapr_cpu_destroy(PowerPCCPU *cpu)

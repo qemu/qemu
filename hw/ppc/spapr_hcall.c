@@ -326,7 +326,6 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_read(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
-    CPUPPCState *env = &cpu->env;
     target_ulong flags = args[0];
     target_ulong ptex = args[1];
     uint8_t *hpte;
@@ -342,7 +341,7 @@ static target_ulong h_read(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         n_entries = 4;
     }
 
-    hpte = env->external_htab + (ptex * HASH_PTE_SIZE_64);
+    hpte = spapr->htab + (ptex * HASH_PTE_SIZE_64);
 
     for (i = 0, ridx = 0; i < n_entries; i++) {
         args[ridx++] = ldq_p(hpte);

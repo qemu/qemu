@@ -999,8 +999,6 @@ struct CPUPPCState {
 #endif
     /* segment registers */
     target_ulong sr[32];
-    /* externally stored hash table */
-    uint8_t *external_htab;
     /* BATs */
     uint32_t nb_BATs;
     target_ulong DBAT[2][8];
@@ -1208,6 +1206,14 @@ struct PPCVirtualHypervisor {
 struct PPCVirtualHypervisorClass {
     InterfaceClass parent;
     void (*hypercall)(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu);
+    hwaddr (*hpt_mask)(PPCVirtualHypervisor *vhyp);
+    const ppc_hash_pte64_t *(*map_hptes)(PPCVirtualHypervisor *vhyp,
+                                         hwaddr ptex, int n);
+    void (*unmap_hptes)(PPCVirtualHypervisor *vhyp,
+                        const ppc_hash_pte64_t *hptes,
+                        hwaddr ptex, int n);
+    void (*store_hpte)(PPCVirtualHypervisor *vhyp, hwaddr ptex,
+                       uint64_t pte0, uint64_t pte1);
 };
 
 #define TYPE_PPC_VIRTUAL_HYPERVISOR "ppc-virtual-hypervisor"

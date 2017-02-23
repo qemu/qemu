@@ -1251,7 +1251,7 @@ static int kvmppc_get_books_sregs(PowerPCCPU *cpu)
         return ret;
     }
 
-    if (!env->external_htab) {
+    if (!cpu->vhyp) {
         ppc_store_sdr1(env, sregs.u.s.sdr1);
     }
 

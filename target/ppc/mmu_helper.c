@@ -2001,8 +2001,9 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 /* Special registers manipulation */
 void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     qemu_log_mask(CPU_LOG_MMU, "%s: " TARGET_FMT_lx "\n", __func__, value);
-    assert(!env->external_htab);
+    assert(!cpu->vhyp);
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
         PowerPCCPU *cpu = ppc_env_get_cpu(env);

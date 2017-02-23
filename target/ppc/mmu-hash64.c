@@ -38,12 +38,6 @@
 #endif
 
 /*
- * Used to indicate that a CPU has its hash page table (HPT) managed
- * within the host kernel
- */
-#define MMU_HASH64_KVM_MANAGED_HPT      ((void *)-1)
-
-/*
  * SLB handling
  */
 
@@ -313,31 +307,6 @@ void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
     env->spr[SPR_SDR1] = value;
 }
 
-void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
-                                 Error **errp)
-{
-    CPUPPCState *env = &cpu->env;
-    Error *local_err = NULL;
-
-    if (hpt) {
-        env->external_htab = hpt;
-    } else {
-        env->external_htab = MMU_HASH64_KVM_MANAGED_HPT;
-    }
-    ppc_hash64_set_sdr1(cpu, (target_ulong)(uintptr_t)hpt | (shift - 18),
-                        &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    if (kvm_enabled()) {
-        if (kvmppc_put_books_sregs(cpu) < 0) {
-            error_setg(errp, "Unable to update SDR1 in KVM");
-        }
-    }
-}
-
 static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
                                ppc_slb_t *slb, ppc_hash_pte64_t pte)
 {
@@ -429,29 +398,24 @@ static int ppc_hash64_amr_prot(PowerPCCPU *cpu, ppc_hash_pte64_t pte)
 const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
                                              hwaddr ptex, int n)
 {
-    ppc_hash_pte64_t *hptes = NULL;
     hwaddr pte_offset = ptex * HASH_PTE_SIZE_64;
+    hwaddr base = ppc_hash64_hpt_base(cpu);
+    hwaddr plen = n * HASH_PTE_SIZE_64;
+    const ppc_hash_pte64_t *hptes;
 
-    if (cpu->env.external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
-        /*
-         * HTAB is controlled by KVM. Fetch into temporary buffer
-         */
-        hptes = g_malloc(HASH_PTEG_SIZE_64);
-        kvmppc_read_hptes(hptes, ptex, n);
-    } else if (cpu->env.external_htab) {
-        /*
-         * HTAB is controlled by QEMU. Just point to the internally
-         * accessible PTEG.
-         */
-        hptes = (ppc_hash_pte64_t *)(cpu->env.external_htab + pte_offset);
-    } else if (ppc_hash64_hpt_base(cpu)) {
-        hwaddr base = ppc_hash64_hpt_base(cpu);
-        hwaddr plen = n * HASH_PTE_SIZE_64;
-        hptes = address_space_map(CPU(cpu)->as, base + pte_offset,
-                                  &plen, false);
-        if (plen < (n * HASH_PTE_SIZE_64)) {
-            hw_error("%s: Unable to map all requested HPTEs\n", __func__);
-        }
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        return vhc->map_hptes(cpu->vhyp, ptex, n);
+    }
+
+    if (!base) {
+        return NULL;
+    }
+
+    hptes = address_space_map(CPU(cpu)->as, base + pte_offset, &plen, false);
+    if (plen < (n * HASH_PTE_SIZE_64)) {
+        hw_error("%s: Unable to map all requested HPTEs\n", __func__);
     }
     return hptes;
 }
@@ -459,12 +423,15 @@ const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
 void ppc_hash64_unmap_hptes(PowerPCCPU *cpu, const ppc_hash_pte64_t *hptes,
                             hwaddr ptex, int n)
 {
-    if (cpu->env.external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
-        g_free((void *)hptes);
-    } else if (!cpu->env.external_htab) {
-        address_space_unmap(CPU(cpu)->as, (void *)hptes, n * HASH_PTE_SIZE_64,
-                            false, n * HASH_PTE_SIZE_64);
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        vhc->unmap_hptes(cpu->vhyp, hptes, ptex, n);
+        return;
     }
+
+    address_space_unmap(CPU(cpu)->as, (void *)hptes, n * HASH_PTE_SIZE_64,
+                        false, n * HASH_PTE_SIZE_64);
 }
 
 static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
@@ -916,22 +883,18 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
 void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
                            uint64_t pte0, uint64_t pte1)
 {
-    CPUPPCState *env = &cpu->env;
+    hwaddr base = ppc_hash64_hpt_base(cpu);
     hwaddr offset = ptex * HASH_PTE_SIZE_64;
 
-    if (env->external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
-        kvmppc_write_hpte(ptex, pte0, pte1);
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        vhc->store_hpte(cpu->vhyp, ptex, pte0, pte1);
         return;
     }
 
-    if (env->external_htab) {
-        stq_p(env->external_htab + offset, pte0);
-        stq_p(env->external_htab + offset + HASH_PTE_SIZE_64 / 2, pte1);
-    } else {
-        hwaddr base = ppc_hash64_hpt_base(cpu);
-        stq_phys(CPU(cpu)->as, base + offset, pte0);
-        stq_phys(CPU(cpu)->as, base + offset + HASH_PTE_SIZE_64 / 2, pte1);
-    }
+    stq_phys(CPU(cpu)->as, base + offset, pte0);
+    stq_phys(CPU(cpu)->as, base + offset + HASH_PTE_SIZE_64 / 2, pte1);
 }
 
 void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
