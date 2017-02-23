@@ -20233,6 +20233,16 @@ bool cpu_supports_cps_smp(const char *cpu_model)
     return (def->CP0_Config3 & (1 << CP0C3_CMGCR)) != 0;
 }
 
+bool cpu_supports_isa(const char *cpu_model, unsigned int isa)
+{
+    const mips_def_t *def = cpu_mips_find_by_name(cpu_model);
+    if (!def) {
+        return false;
+    }
+
+    return (def->insn_flags & isa) != 0;
+}
+
 void cpu_set_exception_base(int vp_index, target_ulong address)
 {
     MIPSCPU *vp = MIPS_CPU(qemu_get_cpu(vp_index));

@@ -4,3 +4,4 @@ obj-$(CONFIG_JAZZ) += mips_jazz.o
 obj-$(CONFIG_FULONG) += mips_fulong2e.o
 obj-y += gt64xxx_pci.o
 obj-$(CONFIG_MIPS_CPS) += cps.o
+obj-$(CONFIG_MIPS_BOSTON) += boston.o

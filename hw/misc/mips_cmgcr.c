@@ -29,6 +29,20 @@ static inline bool is_gic_connected(MIPSGCRState *s)
     return s->gic_mr != NULL;
 }
 
+static inline void update_gcr_base(MIPSGCRState *gcr, uint64_t val)
+{
+    CPUState *cpu;
+    MIPSCPU *mips_cpu;
+
+    gcr->gcr_base = val & GCR_BASE_GCRBASE_MSK;
+    memory_region_set_address(&gcr->iomem, gcr->gcr_base);
+
+    CPU_FOREACH(cpu) {
+        mips_cpu = MIPS_CPU(cpu);
+        mips_cpu->env.CP0_CMGCRBase = gcr->gcr_base >> 4;
+    }
+}
+
 static inline void update_cpc_base(MIPSGCRState *gcr, uint64_t val)
 {
     if (is_cpc_connected(gcr)) {
@@ -117,6 +131,9 @@ static void gcr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
     MIPSGCRVPState *other_vps = &gcr->vps[current_vps->other];
 
     switch (addr) {
+    case GCR_BASE_OFS:
+        update_gcr_base(gcr, data);
+        break;
     case GCR_GIC_BASE_OFS:
         update_gic_base(gcr, data);
         break;
