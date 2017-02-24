@@ -2027,6 +2027,9 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         qemu_put_byte(f, strlen(block->idstr));
         qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
         qemu_put_be64(f, block->used_length);
+        if (migrate_postcopy_ram() && block->page_size != qemu_host_page_size) {
+            qemu_put_be64(f, block->page_size);
+        }
     }
 
     rcu_read_unlock();
@@ -2528,6 +2531,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
      * be atomic
      */
     bool postcopy_running = postcopy_state_get() >= POSTCOPY_INCOMING_LISTENING;
+    /* ADVISE is earlier, it shows the source has the postcopy capability on */
+    bool postcopy_advised = postcopy_state_get() >= POSTCOPY_INCOMING_ADVISE;
 
     seq_iter++;
 
@@ -2590,6 +2595,18 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                                               &local_err);
                         if (local_err) {
                             error_report_err(local_err);
+                        }
+                    }
+                    /* For postcopy we need to check hugepage sizes match */
+                    if (postcopy_advised &&
+                        block->page_size != qemu_host_page_size) {
+                        uint64_t remote_page_size = qemu_get_be64(f);
+                        if (remote_page_size != block->page_size) {
+                            error_report("Mismatched RAM page size %s "
+                                         "(local) %zd != %" PRId64,
+                                         id, block->page_size,
+                                         remote_page_size);
+                            ret = -EINVAL;
                         }
                     }
                     ram_control_load_hook(f, RAM_CONTROL_BLOCK_REG,
