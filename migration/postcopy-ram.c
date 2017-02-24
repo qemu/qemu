@@ -378,6 +378,10 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
         error_report("%s userfault register: %s", __func__, strerror(errno));
         return -1;
     }
+    if (!(reg_struct.ioctls & ((__u64)1 << _UFFDIO_COPY))) {
+        error_report("%s userfault: Region doesn't support COPY", __func__);
+        return -1;
+    }
 
     return 0;
 }
