@@ -56,7 +56,7 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
  * Hash page table definitions
  */
 
-#define SDR_64_HTABORG         0xFFFFFFFFFFFC0000ULL
+#define SDR_64_HTABORG         0x0FFFFFFFFFFC0000ULL
 #define SDR_64_HTABSIZE        0x000000000000001FULL
 
 #define HPTES_PER_GROUP         8
