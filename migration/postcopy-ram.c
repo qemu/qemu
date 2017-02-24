@@ -200,27 +200,6 @@ out:
     return ret;
 }
 
-/**
- * postcopy_ram_discard_range: Discard a range of memory.
- * We can assume that if we've been called postcopy_ram_hosttest returned true.
- *
- * @mis: Current incoming migration state.
- * @start, @length: range of memory to discard.
- *
- * returns: 0 on success.
- */
-int postcopy_ram_discard_range(MigrationIncomingState *mis, uint8_t *start,
-                               size_t length)
-{
-    trace_postcopy_ram_discard_range(start, length);
-    if (madvise(start, length, MADV_DONTNEED)) {
-        error_report("%s MADV_DONTNEED: %s", __func__, strerror(errno));
-        return -1;
-    }
-
-    return 0;
-}
-
 /*
  * Setup an area of RAM so that it *can* be used for postcopy later; this
  * must be done right at the start prior to pre-copy.
@@ -239,7 +218,7 @@ static int init_range(const char *block_name, void *host_addr,
      * - we're going to get the copy from the source anyway.
      * (Precopy will just overwrite this data, so doesn't need the discard)
      */
-    if (postcopy_ram_discard_range(mis, host_addr, length)) {
+    if (ram_discard_range(mis, block_name, 0, length)) {
         return -1;
     }
 
@@ -653,13 +632,6 @@ int postcopy_ram_incoming_init(MigrationIncomingState *mis, size_t ram_pages)
 }
 
 int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
-{
-    assert(0);
-    return -1;
-}
-
-int postcopy_ram_discard_range(MigrationIncomingState *mis, uint8_t *start,
-                               size_t length)
 {
     assert(0);
     return -1;

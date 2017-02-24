@@ -1890,6 +1890,8 @@ int ram_discard_range(MigrationIncomingState *mis,
 {
     int ret = -1;
 
+    trace_ram_discard_range(block_name, start, length);
+
     rcu_read_lock();
     RAMBlock *rb = qemu_ram_block_by_name(block_name);
 
@@ -1899,27 +1901,7 @@ int ram_discard_range(MigrationIncomingState *mis,
         goto err;
     }
 
-    uint8_t *host_startaddr = rb->host + start;
-
-    if ((uintptr_t)host_startaddr & (qemu_host_page_size - 1)) {
-        error_report("ram_discard_range: Unaligned start address: %p",
-                     host_startaddr);
-        goto err;
-    }
-
-    if ((start + length) <= rb->used_length) {
-        uint8_t *host_endaddr = host_startaddr + length;
-        if ((uintptr_t)host_endaddr & (qemu_host_page_size - 1)) {
-            error_report("ram_discard_range: Unaligned end address: %p",
-                         host_endaddr);
-            goto err;
-        }
-        ret = postcopy_ram_discard_range(mis, host_startaddr, length);
-    } else {
-        error_report("ram_discard_range: Overrun block '%s' (%" PRIu64
-                     "/%zx/" RAM_ADDR_FMT")",
-                     block_name, start, length, rb->used_length);
-    }
+    ret = ram_block_discard_range(rb, start, length);
 
 err:
     rcu_read_unlock();
