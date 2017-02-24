@@ -1672,11 +1672,16 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
 {
     unsigned long *bitmap;
     unsigned long *unsentmap;
-    unsigned int host_ratio = qemu_host_page_size / TARGET_PAGE_SIZE;
+    unsigned int host_ratio = block->page_size / TARGET_PAGE_SIZE;
     unsigned long first = block->offset >> TARGET_PAGE_BITS;
     unsigned long len = block->used_length >> TARGET_PAGE_BITS;
     unsigned long last = first + (len - 1);
     unsigned long run_start;
+
+    if (block->page_size == TARGET_PAGE_SIZE) {
+        /* Easy case - TPS==HPS for a non-huge page RAMBlock */
+        return;
+    }
 
     bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
     unsentmap = atomic_rcu_read(&migration_bitmap_rcu)->unsentmap;
@@ -1781,18 +1786,14 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
  * Utility for the outgoing postcopy code.
  *
  * Discard any partially sent host-page size chunks, mark any partially
- * dirty host-page size chunks as all dirty.
+ * dirty host-page size chunks as all dirty.  In this case the host-page
+ * is the host-page for the particular RAMBlock, i.e. it might be a huge page
  *
  * Returns: 0 on success
  */
 static int postcopy_chunk_hostpages(MigrationState *ms)
 {
     struct RAMBlock *block;
-
-    if (qemu_host_page_size == TARGET_PAGE_SIZE) {
-        /* Easy case - TPS==HPS - nothing to be done */
-        return 0;
-    }
 
     /* Easiest way to make sure we don't resume in the middle of a host-page */
     last_seen_block = NULL;
@@ -1849,7 +1850,7 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
         return -EINVAL;
     }
 
-    /* Deal with TPS != HPS */
+    /* Deal with TPS != HPS and huge pages */
     ret = postcopy_chunk_hostpages(ms);
     if (ret) {
         rcu_read_unlock();
