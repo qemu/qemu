@@ -870,7 +870,7 @@ int qemu_savevm_send_packaged(QEMUFile *f, const uint8_t *buf, size_t len)
 void qemu_savevm_send_postcopy_advise(QEMUFile *f)
 {
     uint64_t tmp[2];
-    tmp[0] = cpu_to_be64(getpagesize());
+    tmp[0] = cpu_to_be64(ram_pagesize_summary());
     tmp[1] = cpu_to_be64(1ul << qemu_target_page_bits());
 
     trace_qemu_savevm_send_postcopy_advise();
@@ -1352,7 +1352,7 @@ static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis);
 static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis)
 {
     PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_ADVISE);
-    uint64_t remote_hps, remote_tps;
+    uint64_t remote_pagesize_summary, local_pagesize_summary, remote_tps;
 
     trace_loadvm_postcopy_handle_advise();
     if (ps != POSTCOPY_INCOMING_NONE) {
@@ -1365,17 +1365,27 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis)
         return -1;
     }
 
-    remote_hps = qemu_get_be64(mis->from_src_file);
-    if (remote_hps != getpagesize())  {
+    remote_pagesize_summary = qemu_get_be64(mis->from_src_file);
+    local_pagesize_summary = ram_pagesize_summary();
+
+    if (remote_pagesize_summary != local_pagesize_summary)  {
         /*
-         * Some combinations of mismatch are probably possible but it gets
-         * a bit more complicated.  In particular we need to place whole
-         * host pages on the dest at once, and we need to ensure that we
-         * handle dirtying to make sure we never end up sending part of
-         * a hostpage on it's own.
+         * This detects two potential causes of mismatch:
+         *   a) A mismatch in host page sizes
+         *      Some combinations of mismatch are probably possible but it gets
+         *      a bit more complicated.  In particular we need to place whole
+         *      host pages on the dest at once, and we need to ensure that we
+         *      handle dirtying to make sure we never end up sending part of
+         *      a hostpage on it's own.
+         *   b) The use of different huge page sizes on source/destination
+         *      a more fine grain test is performed during RAM block migration
+         *      but this test here causes a nice early clear failure, and
+         *      also fails when passed to an older qemu that doesn't
+         *      do huge pages.
          */
-        error_report("Postcopy needs matching host page sizes (s=%d d=%d)",
-                     (int)remote_hps, getpagesize());
+        error_report("Postcopy needs matching RAM page sizes (s=%" PRIx64
+                                                             " d=%" PRIx64 ")",
+                     remote_pagesize_summary, local_pagesize_summary);
         return -1;
     }
 

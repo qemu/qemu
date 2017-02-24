@@ -600,6 +600,23 @@ static void migration_bitmap_sync_init(void)
     iterations_prev = 0;
 }
 
+/* Returns a summary bitmap of the page sizes of all RAMBlocks;
+ * for VMs with just normal pages this is equivalent to the
+ * host page size.  If it's got some huge pages then it's the OR
+ * of all the different page sizes.
+ */
+uint64_t ram_pagesize_summary(void)
+{
+    RAMBlock *block;
+    uint64_t summary = 0;
+
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        summary |= block->page_size;
+    }
+
+    return summary;
+}
+
 static void migration_bitmap_sync(void)
 {
     RAMBlock *block;
