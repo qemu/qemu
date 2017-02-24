@@ -387,6 +387,7 @@ static void process_incoming_migration_co(void *opaque)
     int ret;
 
     mis->from_src_file = f;
+    mis->largest_page_size = qemu_ram_pagesize_largest();
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
     migrate_set_state(&mis->state, MIGRATION_STATUS_NONE,
                       MIGRATION_STATUS_ACTIVE);
