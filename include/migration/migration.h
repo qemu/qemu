@@ -109,6 +109,7 @@ struct MigrationIncomingState {
     QEMUFile *to_src_file;
     QemuMutex rp_mutex;    /* We send replies from multiple threads */
     void     *postcopy_tmp_page;
+    void     *postcopy_tmp_zero_page;
 
     QEMUBH *bh;
 

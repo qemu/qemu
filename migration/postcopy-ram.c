@@ -324,6 +324,10 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
         munmap(mis->postcopy_tmp_page, mis->largest_page_size);
         mis->postcopy_tmp_page = NULL;
     }
+    if (mis->postcopy_tmp_zero_page) {
+        munmap(mis->postcopy_tmp_zero_page, mis->largest_page_size);
+        mis->postcopy_tmp_zero_page = NULL;
+    }
     trace_postcopy_ram_incoming_cleanup_exit();
     return 0;
 }
@@ -593,8 +597,23 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
             return -e;
         }
     } else {
-        /* TODO: The kernel can't use UFFDIO_ZEROPAGE for hugepages */
-        assert(0);
+        /* The kernel can't use UFFDIO_ZEROPAGE for hugepages */
+        if (!mis->postcopy_tmp_zero_page) {
+            mis->postcopy_tmp_zero_page = mmap(NULL, mis->largest_page_size,
+                                               PROT_READ | PROT_WRITE,
+                                               MAP_PRIVATE | MAP_ANONYMOUS,
+                                               -1, 0);
+            if (mis->postcopy_tmp_zero_page == MAP_FAILED) {
+                int e = errno;
+                mis->postcopy_tmp_zero_page = NULL;
+                error_report("%s: %s mapping large zero page",
+                             __func__, strerror(e));
+                return -e;
+            }
+            memset(mis->postcopy_tmp_zero_page, '\0', mis->largest_page_size);
+        }
+        return postcopy_place_page(mis, host, mis->postcopy_tmp_zero_page,
+                                   pagesize);
     }
 
     return 0;
