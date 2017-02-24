@@ -26,13 +26,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "exec/address-spaces.h"
-
-#undef DEBUG
-#ifdef DEBUG
-#define DPRINTF(fmt, ...) do { printf(fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif /* DEBUG */
+#include "trace.h"
 
 struct PCIMasterMap {
     uint32_t la;
@@ -249,8 +243,7 @@ static int ppc4xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     int slot = pci_dev->devfn >> 3;
 
-    DPRINTF("%s: devfn %x irq %d -> %d\n", __func__,
-            pci_dev->devfn, irq_num, slot);
+    trace_ppc4xx_pci_map_irq(pci_dev->devfn, irq_num, slot);
 
     return slot - 1;
 }
@@ -259,7 +252,7 @@ static void ppc4xx_pci_set_irq(void *opaque, int irq_num, int level)
 {
     qemu_irq *pci_irqs = opaque;
 
-    DPRINTF("%s: PCI irq %d\n", __func__, irq_num);
+    trace_ppc4xx_pci_set_irq(irq_num);
     if (irq_num < 0) {
         fprintf(stderr, "%s: PCI irq %d\n", __func__, irq_num);
         return;

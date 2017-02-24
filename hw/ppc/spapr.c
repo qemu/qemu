@@ -958,7 +958,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
         _FDT(spapr_drc_populate_dt(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_LMB));
     }
 
-    if (mc->query_hotpluggable_cpus) {
+    if (mc->has_hotpluggable_cpus) {
         int offset = fdt_path_offset(fdt, "/cpus");
         ret = spapr_drc_populate_dt(fdt, offset, NULL,
                                     SPAPR_DR_CONNECTOR_TYPE_CPU);
@@ -1751,13 +1751,28 @@ static void spapr_validate_node_memory(MachineState *machine, Error **errp)
     }
 }
 
+/* find cpu slot in machine->possible_cpus by core_id */
+static CPUArchId *spapr_find_cpu_slot(MachineState *ms, uint32_t id, int *idx)
+{
+    int index = id / smp_threads;
+
+    if (index >= ms->possible_cpus->len) {
+        return NULL;
+    }
+    if (idx) {
+        *idx = index;
+    }
+    return &ms->possible_cpus->cpus[index];
+}
+
 static void spapr_init_cpus(sPAPRMachineState *spapr)
 {
     MachineState *machine = MACHINE(spapr);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     char *type = spapr_get_cpu_core_type(machine->cpu_model);
     int smt = kvmppc_smt_threads();
-    int spapr_max_cores, spapr_cores;
+    const CPUArchIdList *possible_cpus;
+    int boot_cores_nr = smp_cpus / smp_threads;
     int i;
 
     if (!type) {
@@ -1765,7 +1780,8 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
         exit(1);
     }
 
-    if (mc->query_hotpluggable_cpus) {
+    possible_cpus = mc->possible_cpu_arch_ids(machine);
+    if (mc->has_hotpluggable_cpus) {
         if (smp_cpus % smp_threads) {
             error_report("smp_cpus (%u) must be multiple of threads (%u)",
                          smp_cpus, smp_threads);
@@ -1776,24 +1792,18 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
                          max_cpus, smp_threads);
             exit(1);
         }
-
-        spapr_max_cores = max_cpus / smp_threads;
-        spapr_cores = smp_cpus / smp_threads;
     } else {
         if (max_cpus != smp_cpus) {
             error_report("This machine version does not support CPU hotplug");
             exit(1);
         }
-
-        spapr_max_cores = QEMU_ALIGN_UP(smp_cpus, smp_threads) / smp_threads;
-        spapr_cores = spapr_max_cores;
+        boot_cores_nr = possible_cpus->len;
     }
 
-    spapr->cores = g_new0(Object *, spapr_max_cores);
-    for (i = 0; i < spapr_max_cores; i++) {
+    for (i = 0; i < possible_cpus->len; i++) {
         int core_id = i * smp_threads;
 
-        if (mc->query_hotpluggable_cpus) {
+        if (mc->has_hotpluggable_cpus) {
             sPAPRDRConnector *drc =
                 spapr_dr_connector_new(OBJECT(spapr),
                                        SPAPR_DR_CONNECTOR_TYPE_CPU,
@@ -1802,7 +1812,7 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
             qemu_register_reset(spapr_drc_reset, drc);
         }
 
-        if (i < spapr_cores) {
+        if (i < boot_cores_nr) {
             Object *core  = object_new(type);
             int nr_threads = smp_threads;
 
@@ -2357,10 +2367,18 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     uint64_t align = memory_region_get_alignment(mr);
     uint64_t size = memory_region_size(mr);
     uint64_t addr;
+    char *mem_dev;
 
     if (size % SPAPR_MEMORY_BLOCK_SIZE) {
         error_setg(&local_err, "Hotplugged memory size must be a multiple of "
                       "%lld MB", SPAPR_MEMORY_BLOCK_SIZE/M_BYTE);
+        goto out;
+    }
+
+    mem_dev = object_property_get_str(OBJECT(dimm), PC_DIMM_MEMDEV_PROP, NULL);
+    if (mem_dev && !kvmppc_is_mem_backend_page_size_ok(mem_dev)) {
+        error_setg(&local_err, "Memory backend has bad page size. "
+                   "Use 'memory-backend-file' with correct mem-path.");
         goto out;
     }
 
@@ -2488,6 +2506,165 @@ void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
     return fdt;
 }
 
+static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                              Error **errp)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    CPUCore *cc = CPU_CORE(dev);
+    CPUArchId *core_slot = spapr_find_cpu_slot(ms, cc->core_id, NULL);
+
+    core_slot->cpu = NULL;
+    object_unparent(OBJECT(dev));
+}
+
+static void spapr_core_release(DeviceState *dev, void *opaque)
+{
+    HotplugHandler *hotplug_ctrl;
+
+    hotplug_ctrl = qdev_get_hotplug_handler(dev);
+    hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
+}
+
+static
+void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
+                               Error **errp)
+{
+    int index;
+    sPAPRDRConnector *drc;
+    sPAPRDRConnectorClass *drck;
+    Error *local_err = NULL;
+    CPUCore *cc = CPU_CORE(dev);
+    int smt = kvmppc_smt_threads();
+
+    if (!spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index)) {
+        error_setg(errp, "Unable to find CPU core with core-id: %d",
+                   cc->core_id);
+        return;
+    }
+    if (index == 0) {
+        error_setg(errp, "Boot CPU core may not be unplugged");
+        return;
+    }
+
+    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, index * smt);
+    g_assert(drc);
+
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    drck->detach(drc, dev, spapr_core_release, NULL, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    spapr_hotplug_req_remove_by_index(drc);
+}
+
+static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                            Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
+    MachineClass *mc = MACHINE_GET_CLASS(spapr);
+    sPAPRCPUCore *core = SPAPR_CPU_CORE(OBJECT(dev));
+    CPUCore *cc = CPU_CORE(dev);
+    CPUState *cs = CPU(core->threads);
+    sPAPRDRConnector *drc;
+    Error *local_err = NULL;
+    void *fdt = NULL;
+    int fdt_offset = 0;
+    int smt = kvmppc_smt_threads();
+    CPUArchId *core_slot;
+    int index;
+
+    core_slot = spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index);
+    if (!core_slot) {
+        error_setg(errp, "Unable to find CPU core with core-id: %d",
+                   cc->core_id);
+        return;
+    }
+    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, index * smt);
+
+    g_assert(drc || !mc->has_hotpluggable_cpus);
+
+    /*
+     * Setup CPU DT entries only for hotplugged CPUs. For boot time or
+     * coldplugged CPUs DT entries are setup in spapr_build_fdt().
+     */
+    if (dev->hotplugged) {
+        fdt = spapr_populate_hotplug_cpu_dt(cs, &fdt_offset, spapr);
+    }
+
+    if (drc) {
+        sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+        drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, &local_err);
+        if (local_err) {
+            g_free(fdt);
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
+    if (dev->hotplugged) {
+        /*
+         * Send hotplug notification interrupt to the guest only in case
+         * of hotplugged CPUs.
+         */
+        spapr_hotplug_req_add_by_index(drc);
+    } else {
+        /*
+         * Set the right DRC states for cold plugged CPU.
+         */
+        if (drc) {
+            sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+            drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_USABLE);
+            drck->set_isolation_state(drc, SPAPR_DR_ISOLATION_STATE_UNISOLATED);
+        }
+    }
+    core_slot->cpu = OBJECT(dev);
+}
+
+static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                Error **errp)
+{
+    MachineState *machine = MACHINE(OBJECT(hotplug_dev));
+    MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
+    Error *local_err = NULL;
+    CPUCore *cc = CPU_CORE(dev);
+    char *base_core_type = spapr_get_cpu_core_type(machine->cpu_model);
+    const char *type = object_get_typename(OBJECT(dev));
+    CPUArchId *core_slot;
+    int index;
+
+    if (dev->hotplugged && !mc->has_hotpluggable_cpus) {
+        error_setg(&local_err, "CPU hotplug not supported for this machine");
+        goto out;
+    }
+
+    if (strcmp(base_core_type, type)) {
+        error_setg(&local_err, "CPU core type should be %s", base_core_type);
+        goto out;
+    }
+
+    if (cc->core_id % smp_threads) {
+        error_setg(&local_err, "invalid core id %d", cc->core_id);
+        goto out;
+    }
+
+    core_slot = spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index);
+    if (!core_slot) {
+        error_setg(&local_err, "core id %d out of range", cc->core_id);
+        goto out;
+    }
+
+    if (core_slot->cpu) {
+        error_setg(&local_err, "core %d already populated", cc->core_id);
+        goto out;
+    }
+
+out:
+    g_free(base_core_type);
+    error_propagate(errp, local_err);
+}
+
 static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
@@ -2550,7 +2727,7 @@ static void spapr_machine_device_unplug(HotplugHandler *hotplug_dev,
             error_setg(errp, "Memory hot unplug not supported for this guest");
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
-        if (!mc->query_hotpluggable_cpus) {
+        if (!mc->has_hotpluggable_cpus) {
             error_setg(errp, "CPU hot unplug not supported on this machine");
             return;
         }
@@ -2577,11 +2754,11 @@ static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
             error_setg(errp, "Memory hot unplug not supported for this guest");
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
-        if (!mc->query_hotpluggable_cpus) {
+        if (!mc->has_hotpluggable_cpus) {
             error_setg(errp, "CPU hot unplug not supported on this machine");
             return;
         }
-        spapr_core_unplug(hotplug_dev, dev, errp);
+        spapr_core_unplug_request(hotplug_dev, dev, errp);
     }
 }
 
@@ -2610,35 +2787,34 @@ static unsigned spapr_cpu_index_to_socket_id(unsigned cpu_index)
     return cpu_index / smp_threads / smp_cores;
 }
 
-static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
+static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
 {
     int i;
-    HotpluggableCPUList *head = NULL;
-    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
     int spapr_max_cores = max_cpus / smp_threads;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
 
-    for (i = 0; i < spapr_max_cores; i++) {
-        HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
-        HotpluggableCPU *cpu_item = g_new0(typeof(*cpu_item), 1);
-        CpuInstanceProperties *cpu_props = g_new0(typeof(*cpu_props), 1);
+    if (!mc->has_hotpluggable_cpus) {
+        spapr_max_cores = QEMU_ALIGN_UP(smp_cpus, smp_threads) / smp_threads;
+    }
+    if (machine->possible_cpus) {
+        assert(machine->possible_cpus->len == spapr_max_cores);
+        return machine->possible_cpus;
+    }
 
-        cpu_item->type = spapr_get_cpu_core_type(machine->cpu_model);
-        cpu_item->vcpus_count = smp_threads;
-        cpu_props->has_core_id = true;
-        cpu_props->core_id = i * smp_threads;
+    machine->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
+                             sizeof(CPUArchId) * spapr_max_cores);
+    machine->possible_cpus->len = spapr_max_cores;
+    for (i = 0; i < machine->possible_cpus->len; i++) {
+        int core_id = i * smp_threads;
+
+        machine->possible_cpus->cpus[i].vcpus_count = smp_threads;
+        machine->possible_cpus->cpus[i].arch_id = core_id;
+        machine->possible_cpus->cpus[i].props.has_core_id = true;
+        machine->possible_cpus->cpus[i].props.core_id = core_id;
         /* TODO: add 'has_node/node' here to describe
            to which node core belongs */
-
-        cpu_item->props = cpu_props;
-        if (spapr->cores[i]) {
-            cpu_item->has_qom_path = true;
-            cpu_item->qom_path = object_get_canonical_path(spapr->cores[i]);
-        }
-        list_item->value = cpu_item;
-        list_item->next = head;
-        head = list_item;
     }
-    return head;
+    return machine->possible_cpus;
 }
 
 static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
@@ -2724,11 +2900,12 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->plug = spapr_machine_device_plug;
     hc->unplug = spapr_machine_device_unplug;
     mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
+    mc->possible_cpu_arch_ids = spapr_possible_cpu_arch_ids;
     hc->unplug_request = spapr_machine_device_unplug_request;
 
     smc->dr_lmb_enabled = true;
     smc->tcg_default_cpu = "POWER8";
-    mc->query_hotpluggable_cpus = spapr_query_hotpluggable_cpus;
+    mc->has_hotpluggable_cpus = true;
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
     smc->phb_placement = spapr_phb_placement;
@@ -2928,7 +3105,7 @@ static void spapr_machine_2_6_instance_options(MachineState *machine)
 static void spapr_machine_2_6_class_options(MachineClass *mc)
 {
     spapr_machine_2_7_class_options(mc);
-    mc->query_hotpluggable_cpus = NULL;
+    mc->has_hotpluggable_cpus = false;
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_6);
 }
 

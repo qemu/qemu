@@ -115,7 +115,8 @@ void helper_slbia(CPUPPCState *env)
     }
 }
 
-void helper_slbie(CPUPPCState *env, target_ulong addr)
+static void __helper_slbie(CPUPPCState *env, target_ulong addr,
+                           target_ulong global)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_slb_t *slb;
@@ -132,8 +133,19 @@ void helper_slbie(CPUPPCState *env, target_ulong addr)
          *      and we still don't have a tlb_flush_mask(env, n, mask)
          *      in QEMU, we just invalidate all TLBs
          */
-        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
+        env->tlb_need_flush |=
+            (global == false ? TLB_NEED_LOCAL_FLUSH : TLB_NEED_GLOBAL_FLUSH);
     }
+}
+
+void helper_slbie(CPUPPCState *env, target_ulong addr)
+{
+    __helper_slbie(env, addr, false);
+}
+
+void helper_slbieg(CPUPPCState *env, target_ulong addr)
+{
+    __helper_slbie(env, addr, true);
 }
 
 int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
@@ -640,7 +652,15 @@ static void ppc_hash64_set_isi(CPUState *cs, CPUPPCState *env,
     if (msr_ir) {
         vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM1);
     } else {
-        vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM0);
+        switch (env->mmu_model) {
+        case POWERPC_MMU_3_00:
+            /* Field deprecated in ISAv3.00 - interrupts always go to hyperv */
+            vpm = true;
+            break;
+        default:
+            vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM0);
+            break;
+        }
     }
     if (vpm && !msr_hv) {
         cs->exception_index = POWERPC_EXCP_HISI;
@@ -658,7 +678,15 @@ static void ppc_hash64_set_dsi(CPUState *cs, CPUPPCState *env, uint64_t dar,
     if (msr_dr) {
         vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM1);
     } else {
-        vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM0);
+        switch (env->mmu_model) {
+        case POWERPC_MMU_3_00:
+            /* Field deprecated in ISAv3.00 - interrupts always go to hyperv */
+            vpm = true;
+            break;
+        default:
+            vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM0);
+            break;
+        }
     }
     if (vpm && !msr_hv) {
         cs->exception_index = POWERPC_EXCP_HDSI;
@@ -1049,6 +1077,14 @@ void helper_store_lpcr(CPUPPCState *env, target_ulong val)
                       LPCR_AIL | LPCR_ONL | LPCR_P8_PECE0 | LPCR_P8_PECE1 |
                       LPCR_P8_PECE2 | LPCR_P8_PECE3 | LPCR_P8_PECE4 |
                       LPCR_MER | LPCR_TC | LPCR_LPES0 | LPCR_HDICE);
+        break;
+    case POWERPC_MMU_3_00: /* P9 */
+        lpcr = val & (LPCR_VPM1 | LPCR_ISL | LPCR_KBV | LPCR_DPFD |
+                      (LPCR_PECE_U_MASK & LPCR_HVEE) | LPCR_ILE | LPCR_AIL |
+                      LPCR_UPRT | LPCR_EVIRT | LPCR_ONL |
+                      (LPCR_PECE_L_MASK & (LPCR_PDEE | LPCR_HDEE | LPCR_EEE |
+                      LPCR_DEE | LPCR_OEE)) | LPCR_MER | LPCR_GTSE | LPCR_TC |
+                      LPCR_HEIC | LPCR_LPES0 | LPCR_HVICE | LPCR_HDICE);
         break;
     default:
         ;

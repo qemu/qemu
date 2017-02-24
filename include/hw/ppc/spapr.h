@@ -94,7 +94,6 @@ struct sPAPRMachineState {
     /*< public >*/
     char *kvm_type;
     MemoryHotplugState hotplug_memory;
-    Object **cores;
 };
 
 #define H_SUCCESS         0

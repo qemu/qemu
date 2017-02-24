@@ -41,15 +41,20 @@ int machine_phandle_start(MachineState *machine);
 bool machine_dump_guest_core(MachineState *machine);
 bool machine_mem_merge(MachineState *machine);
 void machine_register_compat_props(MachineState *machine);
+HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine);
 
 /**
  * CPUArchId:
  * @arch_id - architecture-dependent CPU ID of present or possible CPU
  * @cpu - pointer to corresponding CPU object if it's present on NULL otherwise
+ * @props - CPU object properties, initialized by board
+ * #vcpus_count - number of threads provided by @cpu object
  */
 typedef struct {
     uint64_t arch_id;
-    struct CPUState *cpu;
+    int64_t vcpus_count;
+    CpuInstanceProperties props;
+    Object *cpu;
 } CPUArchId;
 
 /**
@@ -82,10 +87,8 @@ typedef struct {
  *    Returns an array of @CPUArchId architecture-dependent CPU IDs
  *    which includes CPU IDs for present and possible to hotplug CPUs.
  *    Caller is responsible for freeing returned list.
- * @query_hotpluggable_cpus:
- *    Returns a @HotpluggableCPUList, which describes CPUs objects which
- *    could be added with -device/device_add.
- *    Caller is responsible for freeing returned list.
+ * @has_hotpluggable_cpus:
+ *    If true, board supports CPUs creation with -device/device_add.
  * @minimum_page_bits:
  *    If non-zero, the board promises never to create a CPU with a page size
  *    smaller than this, so QEMU can use a more efficient larger page
@@ -131,12 +134,12 @@ struct MachineClass {
     bool option_rom_has_mr;
     bool rom_file_has_mr;
     int minimum_page_bits;
+    bool has_hotpluggable_cpus;
 
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
     unsigned (*cpu_index_to_socket_id)(unsigned cpu_index);
     const CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
-    HotpluggableCPUList *(*query_hotpluggable_cpus)(MachineState *machine);
 };
 
 /**
@@ -178,6 +181,7 @@ struct MachineState {
     char *initrd_filename;
     const char *cpu_model;
     AccelState *accelerator;
+    CPUArchIdList *possible_cpus;
 };
 
 #define DEFINE_MACHINE(namestr, machine_initfn) \
