@@ -102,10 +102,10 @@ typedef struct BDRVRBDState {
     char *snap;
 } BDRVRBDState;
 
-static int qemu_rbd_next_tok(char *dst, int dst_len,
-                             char *src, char delim,
-                             const char *name,
-                             char **p, Error **errp)
+static char *qemu_rbd_next_tok(int max_len,
+                               char *src, char delim,
+                               const char *name,
+                               char **p, Error **errp)
 {
     int l;
     char *end;
@@ -127,17 +127,15 @@ static int qemu_rbd_next_tok(char *dst, int dst_len,
         }
     }
     l = strlen(src);
-    if (l >= dst_len) {
+    if (l >= max_len) {
         error_setg(errp, "%s too long", name);
-        return -EINVAL;
+        return NULL;
     } else if (l == 0) {
         error_setg(errp, "%s too short", name);
-        return -EINVAL;
+        return NULL;
     }
 
-    pstrcpy(dst, dst_len, src);
-
-    return 0;
+    return src;
 }
 
 static void qemu_rbd_unescape(char *src)
@@ -162,7 +160,9 @@ static int qemu_rbd_parsename(const char *filename,
 {
     const char *start;
     char *p, *buf;
-    int ret;
+    int ret = 0;
+    char *found_str;
+    Error *local_err = NULL;
 
     if (!strstart(filename, "rbd:", &start)) {
         error_setg(errp, "File name must start with 'rbd:'");
@@ -174,36 +174,60 @@ static int qemu_rbd_parsename(const char *filename,
     *snap = '\0';
     *conf = '\0';
 
-    ret = qemu_rbd_next_tok(pool, pool_len, p,
-                            '/', "pool name", &p, errp);
-    if (ret < 0 || !p) {
-        ret = -EINVAL;
+    found_str = qemu_rbd_next_tok(pool_len, p,
+                                  '/', "pool name", &p, &local_err);
+    if (local_err) {
         goto done;
     }
-    qemu_rbd_unescape(pool);
+    if (!p) {
+        ret = -EINVAL;
+        error_setg(errp, "Pool name is required");
+        goto done;
+    }
+    qemu_rbd_unescape(found_str);
+    g_strlcpy(pool, found_str, pool_len);
 
     if (strchr(p, '@')) {
-        ret = qemu_rbd_next_tok(name, name_len, p,
-                                '@', "object name", &p, errp);
-        if (ret < 0) {
+        found_str = qemu_rbd_next_tok(name_len, p,
+                                      '@', "object name", &p, &local_err);
+        if (local_err) {
             goto done;
         }
-        ret = qemu_rbd_next_tok(snap, snap_len, p,
-                                ':', "snap name", &p, errp);
-        qemu_rbd_unescape(snap);
+        qemu_rbd_unescape(found_str);
+        g_strlcpy(name, found_str, name_len);
+
+        found_str = qemu_rbd_next_tok(snap_len, p,
+                                      ':', "snap name", &p, &local_err);
+        if (local_err) {
+            goto done;
+        }
+        qemu_rbd_unescape(found_str);
+        g_strlcpy(snap, found_str, snap_len);
     } else {
-        ret = qemu_rbd_next_tok(name, name_len, p,
-                                ':', "object name", &p, errp);
+        found_str = qemu_rbd_next_tok(name_len, p,
+                                      ':', "object name", &p, &local_err);
+        if (local_err) {
+            goto done;
+        }
+        qemu_rbd_unescape(found_str);
+        g_strlcpy(name, found_str, name_len);
     }
-    qemu_rbd_unescape(name);
-    if (ret < 0 || !p) {
+    if (!p) {
         goto done;
     }
 
-    ret = qemu_rbd_next_tok(conf, conf_len, p,
-                            '\0', "configuration", &p, errp);
+    found_str = qemu_rbd_next_tok(conf_len, p,
+                                  '\0', "configuration", &p, &local_err);
+    if (local_err) {
+        goto done;
+    }
+    g_strlcpy(conf, found_str, conf_len);
 
 done:
+    if (local_err) {
+        ret = -EINVAL;
+        error_propagate(errp, local_err);
+    }
     g_free(buf);
     return ret;
 }
@@ -262,17 +286,18 @@ static int qemu_rbd_set_conf(rados_t cluster, const char *conf,
                              Error **errp)
 {
     char *p, *buf;
-    char name[RBD_MAX_CONF_NAME_SIZE];
-    char value[RBD_MAX_CONF_VAL_SIZE];
+    char *name;
+    char *value;
+    Error *local_err = NULL;
     int ret = 0;
 
     buf = g_strdup(conf);
     p = buf;
 
     while (p) {
-        ret = qemu_rbd_next_tok(name, sizeof(name), p,
-                                '=', "conf option name", &p, errp);
-        if (ret < 0) {
+        name = qemu_rbd_next_tok(RBD_MAX_CONF_NAME_SIZE, p,
+                                 '=', "conf option name", &p, &local_err);
+        if (local_err) {
             break;
         }
         qemu_rbd_unescape(name);
@@ -283,9 +308,9 @@ static int qemu_rbd_set_conf(rados_t cluster, const char *conf,
             break;
         }
 
-        ret = qemu_rbd_next_tok(value, sizeof(value), p,
-                                ':', "conf option value", &p, errp);
-        if (ret < 0) {
+        value = qemu_rbd_next_tok(RBD_MAX_CONF_VAL_SIZE, p,
+                                  ':', "conf option value", &p, &local_err);
+        if (local_err) {
             break;
         }
         qemu_rbd_unescape(value);
@@ -313,6 +338,10 @@ static int qemu_rbd_set_conf(rados_t cluster, const char *conf,
         }
     }
 
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+    }
     g_free(buf);
     return ret;
 }
