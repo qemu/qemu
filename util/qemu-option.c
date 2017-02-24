@@ -128,36 +128,33 @@ int get_param_value(char *buf, int buf_size,
 static void parse_option_bool(const char *name, const char *value, bool *ret,
                               Error **errp)
 {
-    if (value != NULL) {
-        if (!strcmp(value, "on")) {
-            *ret = 1;
-        } else if (!strcmp(value, "off")) {
-            *ret = 0;
-        } else {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name, "'on' or 'off'");
-        }
-    } else {
+    if (!strcmp(value, "on")) {
         *ret = 1;
+    } else if (!strcmp(value, "off")) {
+        *ret = 0;
+    } else {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   name, "'on' or 'off'");
     }
 }
 
 static void parse_option_number(const char *name, const char *value,
                                 uint64_t *ret, Error **errp)
 {
-    char *postfix;
     uint64_t number;
+    int err;
 
-    if (value != NULL) {
-        number = strtoull(value, &postfix, 0);
-        if (*postfix != '\0') {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
-            return;
-        }
-        *ret = number;
-    } else {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
+    err = qemu_strtou64(value, NULL, 0, &number);
+    if (err == -ERANGE) {
+        error_setg(errp, "Value '%s' is too large for parameter '%s'",
+                   value, name);
+        return;
     }
+    if (err) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
+        return;
+    }
+    *ret = number;
 }
 
 static const QemuOptDesc *find_desc_by_name(const QemuOptDesc *desc,
@@ -177,43 +174,24 @@ static const QemuOptDesc *find_desc_by_name(const QemuOptDesc *desc,
 void parse_option_size(const char *name, const char *value,
                        uint64_t *ret, Error **errp)
 {
-    char *postfix;
-    double sizef;
+    uint64_t size;
+    int err;
 
-    if (value != NULL) {
-        sizef = strtod(value, &postfix);
-        if (sizef < 0 || sizef > UINT64_MAX) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name,
-                             "a non-negative number below 2^64");
-            return;
-        }
-        switch (*postfix) {
-        case 'T':
-            sizef *= 1024;
-            /* fall through */
-        case 'G':
-            sizef *= 1024;
-            /* fall through */
-        case 'M':
-            sizef *= 1024;
-            /* fall through */
-        case 'K':
-        case 'k':
-            sizef *= 1024;
-            /* fall through */
-        case 'b':
-        case '\0':
-            *ret = (uint64_t) sizef;
-            break;
-        default:
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a size");
-            error_append_hint(errp, "You may use k, M, G or T suffixes for "
-                    "kilobytes, megabytes, gigabytes and terabytes.\n");
-            return;
-        }
-    } else {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a size");
+    err = qemu_strtosz(value, NULL, &size);
+    if (err == -ERANGE) {
+        error_setg(errp, "Value '%s' is too large for parameter '%s'",
+                   value, name);
+        return;
     }
+    if (err) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name,
+                   "a non-negative number below 2^64");
+        error_append_hint(errp, "Optional suffix k, M, G, T, P or E means"
+                          " kilo-, mega-, giga-, tera-, peta-\n"
+                          "and exabytes, respectively.\n");
+        return;
+    }
+    *ret = size;
 }
 
 bool has_help_option(const char *param)
@@ -566,6 +544,7 @@ static void opt_set(QemuOpts *opts, const char *name, const char *value,
     }
     opt->desc = desc;
     opt->str = g_strdup(value);
+    assert(opt->str);
     qemu_opt_parse(opt, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);

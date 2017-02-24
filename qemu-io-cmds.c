@@ -137,15 +137,17 @@ static char **breakline(char *input, int *count)
 
 static int64_t cvtnum(const char *s)
 {
-    char *end;
-    int64_t ret;
+    int err;
+    uint64_t value;
 
-    ret = qemu_strtosz_suffix(s, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
-    if (*end != '\0') {
-        /* Detritus at the end of the string */
-        return -EINVAL;
+    err = qemu_strtosz(s, NULL, &value);
+    if (err < 0) {
+        return err;
     }
-    return ret;
+    if (value > INT64_MAX) {
+        return -ERANGE;
+    }
+    return value;
 }
 
 static void print_cvtnum_err(int64_t rc, const char *arg)

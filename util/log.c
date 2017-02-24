@@ -183,13 +183,13 @@ void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
             goto out;
         }
 
-        if (qemu_strtoull(r, &e, 0, &r1val)
+        if (qemu_strtou64(r, &e, 0, &r1val)
             || e != range_op) {
             error_setg(errp, "Invalid number to the left of %.*s",
                        (int)(r2 - range_op), range_op);
             goto out;
         }
-        if (qemu_strtoull(r2, NULL, 0, &r2val)) {
+        if (qemu_strtou64(r2, NULL, 0, &r2val)) {
             error_setg(errp, "Invalid number to the right of %.*s",
                        (int)(r2 - range_op), range_op);
             goto out;

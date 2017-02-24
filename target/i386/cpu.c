@@ -2033,12 +2033,11 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
 
         /* Special case: */
         if (!strcmp(name, "tsc-freq")) {
-            int64_t tsc_freq;
-            char *err;
+            int ret;
+            uint64_t tsc_freq;
 
-            tsc_freq = qemu_strtosz_suffix_unit(val, &err,
-                                           QEMU_STRTOSZ_DEFSUFFIX_B, 1000);
-            if (tsc_freq < 0 || *err) {
+            ret = qemu_strtosz_metric(val, NULL, &tsc_freq);
+            if (ret < 0 || tsc_freq > INT64_MAX) {
                 error_setg(errp, "bad numerical value %s", val);
                 return;
             }
