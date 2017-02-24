@@ -74,13 +74,15 @@ void postcopy_discard_send_finish(MigrationState *ms,
  *    to use other postcopy_ routines to allocate.
  * returns 0 on success
  */
-int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from);
+int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
+                        size_t pagesize);
 
 /*
  * Place a zero page at (host) atomically
  * returns 0 on success
  */
-int postcopy_place_page_zero(MigrationIncomingState *mis, void *host);
+int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
+                             size_t pagesize);
 
 /*
  * Allocate a page of memory that can be mapped at a later point in time

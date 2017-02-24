@@ -2402,6 +2402,7 @@ static int ram_load_postcopy(QEMUFile *f)
         void *host = NULL;
         void *page_buffer = NULL;
         void *place_source = NULL;
+        RAMBlock *block = NULL;
         uint8_t ch;
 
         addr = qemu_get_be64(f);
@@ -2411,7 +2412,7 @@ static int ram_load_postcopy(QEMUFile *f)
         trace_ram_load_postcopy_loop((uint64_t)addr, flags);
         place_needed = false;
         if (flags & (RAM_SAVE_FLAG_COMPRESS | RAM_SAVE_FLAG_PAGE)) {
-            RAMBlock *block = ram_block_from_stream(f, flags);
+            block = ram_block_from_stream(f, flags);
 
             host = host_from_ram_block_offset(block, addr);
             if (!host) {
@@ -2486,14 +2487,14 @@ static int ram_load_postcopy(QEMUFile *f)
 
         if (place_needed) {
             /* This gets called at the last target page in the host page */
+            void *place_dest = host + TARGET_PAGE_SIZE - block->page_size;
+
             if (all_zero) {
-                ret = postcopy_place_page_zero(mis,
-                                               host + TARGET_PAGE_SIZE -
-                                               qemu_host_page_size);
+                ret = postcopy_place_page_zero(mis, place_dest,
+                                               block->page_size);
             } else {
-                ret = postcopy_place_page(mis, host + TARGET_PAGE_SIZE -
-                                               qemu_host_page_size,
-                                               place_source);
+                ret = postcopy_place_page(mis, place_dest,
+                                          place_source, block->page_size);
             }
         }
         if (!ret) {
