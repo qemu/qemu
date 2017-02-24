@@ -55,6 +55,21 @@
 #include "qemu/error-report.h"
 #endif
 
+#define MAX_MEM_PREALLOC_THREAD_COUNT (MIN(sysconf(_SC_NPROCESSORS_ONLN), 16))
+
+struct MemsetThread {
+    char *addr;
+    uint64_t numpages;
+    uint64_t hpagesize;
+    QemuThread pgthread;
+    sigjmp_buf env;
+};
+typedef struct MemsetThread MemsetThread;
+
+static MemsetThread *memset_thread;
+static int memset_num_threads;
+static bool memset_thread_failed;
+
 int qemu_get_thread_id(void)
 {
 #if defined(__linux__)
@@ -316,18 +331,83 @@ char *qemu_get_exec_dir(void)
     return g_strdup(exec_dir);
 }
 
-static sigjmp_buf sigjump;
-
 static void sigbus_handler(int signal)
 {
-    siglongjmp(sigjump, 1);
+    int i;
+    if (memset_thread) {
+        for (i = 0; i < memset_num_threads; i++) {
+            if (qemu_thread_is_self(&memset_thread[i].pgthread)) {
+                siglongjmp(memset_thread[i].env, 1);
+            }
+        }
+    }
 }
 
-void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
+static void *do_touch_pages(void *arg)
+{
+    MemsetThread *memset_args = (MemsetThread *)arg;
+    char *addr = memset_args->addr;
+    uint64_t numpages = memset_args->numpages;
+    uint64_t hpagesize = memset_args->hpagesize;
+    sigset_t set, oldset;
+    int i = 0;
+
+    /* unblock SIGBUS */
+    sigemptyset(&set);
+    sigaddset(&set, SIGBUS);
+    pthread_sigmask(SIG_UNBLOCK, &set, &oldset);
+
+    if (sigsetjmp(memset_args->env, 1)) {
+        memset_thread_failed = true;
+    } else {
+        for (i = 0; i < numpages; i++) {
+            memset(addr, 0, 1);
+            addr += hpagesize;
+        }
+    }
+    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+    return NULL;
+}
+
+static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
+                            int smp_cpus)
+{
+    uint64_t numpages_per_thread, size_per_thread;
+    char *addr = area;
+    int i = 0;
+
+    memset_thread_failed = false;
+    memset_num_threads = MIN(smp_cpus, MAX_MEM_PREALLOC_THREAD_COUNT);
+    memset_thread = g_new0(MemsetThread, memset_num_threads);
+    numpages_per_thread = (numpages / memset_num_threads);
+    size_per_thread = (hpagesize * numpages_per_thread);
+    for (i = 0; i < memset_num_threads; i++) {
+        memset_thread[i].addr = addr;
+        memset_thread[i].numpages = (i == (memset_num_threads - 1)) ?
+                                    numpages : numpages_per_thread;
+        memset_thread[i].hpagesize = hpagesize;
+        qemu_thread_create(&memset_thread[i].pgthread, "touch_pages",
+                           do_touch_pages, &memset_thread[i],
+                           QEMU_THREAD_JOINABLE);
+        addr += size_per_thread;
+        numpages -= numpages_per_thread;
+    }
+    for (i = 0; i < memset_num_threads; i++) {
+        qemu_thread_join(&memset_thread[i].pgthread);
+    }
+    g_free(memset_thread);
+    memset_thread = NULL;
+
+    return memset_thread_failed;
+}
+
+void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
+                     Error **errp)
 {
     int ret;
     struct sigaction act, oldact;
-    sigset_t set, oldset;
+    size_t hpagesize = qemu_fd_getpagesize(fd);
+    size_t numpages = DIV_ROUND_UP(memory, hpagesize);
 
     memset(&act, 0, sizeof(act));
     act.sa_handler = &sigbus_handler;
@@ -340,23 +420,10 @@ void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
         return;
     }
 
-    /* unblock SIGBUS */
-    sigemptyset(&set);
-    sigaddset(&set, SIGBUS);
-    pthread_sigmask(SIG_UNBLOCK, &set, &oldset);
-
-    if (sigsetjmp(sigjump, 1)) {
+    /* touch pages simultaneously */
+    if (touch_all_pages(area, hpagesize, numpages, smp_cpus)) {
         error_setg(errp, "os_mem_prealloc: Insufficient free host memory "
             "pages available to allocate guest RAM\n");
-    } else {
-        int i;
-        size_t hpagesize = qemu_fd_getpagesize(fd);
-        size_t numpages = DIV_ROUND_UP(memory, hpagesize);
-
-        /* MAP_POPULATE silently ignores failures */
-        for (i = 0; i < numpages; i++) {
-            memset(area + (hpagesize * i), 0, 1);
-        }
     }
 
     ret = sigaction(SIGBUS, &oldact, NULL);
@@ -365,7 +432,6 @@ void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
         perror("os_mem_prealloc: failed to reinstall signal handler");
         exit(1);
     }
-    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 }
 
 
