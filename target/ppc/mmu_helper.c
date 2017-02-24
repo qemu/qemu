@@ -466,6 +466,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
 static inline int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                                       target_ulong eaddr, int rw, int type)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     hwaddr hash;
     target_ulong vsid;
     int ds, pr, target_page_bits;
@@ -503,7 +504,7 @@ static inline int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
             qemu_log_mask(CPU_LOG_MMU, "htab_base " TARGET_FMT_plx
                     " htab_mask " TARGET_FMT_plx
                     " hash " TARGET_FMT_plx "\n",
-                    env->htab_base, env->htab_mask, hash);
+                    ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
             ctx->hash[0] = hash;
             ctx->hash[1] = ~hash;
 
@@ -518,9 +519,11 @@ static inline int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                 uint32_t a0, a1, a2, a3;
 
                 qemu_log("Page table: " TARGET_FMT_plx " len " TARGET_FMT_plx
-                         "\n", env->htab_base, env->htab_mask + 0x80);
-                for (curaddr = env->htab_base;
-                     curaddr < (env->htab_base + env->htab_mask + 0x80);
+                         "\n", ppc_hash32_hpt_base(cpu),
+                         ppc_hash32_hpt_mask(env) + 0x80);
+                for (curaddr = ppc_hash32_hpt_base(cpu);
+                     curaddr < (ppc_hash32_hpt_base(cpu)
+                                + ppc_hash32_hpt_mask(cpu) + 0x80);
                      curaddr += 16) {
                     a0 = ldl_phys(cs->as, curaddr);
                     a1 = ldl_phys(cs->as, curaddr + 4);
@@ -1205,12 +1208,13 @@ static void mmu6xx_dump_BATs(FILE *f, fprintf_function cpu_fprintf,
 static void mmu6xx_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
                             CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc6xx_tlb_t *tlb;
     target_ulong sr;
     int type, way, entry, i;
 
-    cpu_fprintf(f, "HTAB base = 0x%"HWADDR_PRIx"\n", env->htab_base);
-    cpu_fprintf(f, "HTAB mask = 0x%"HWADDR_PRIx"\n", env->htab_mask);
+    cpu_fprintf(f, "HTAB base = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_base(cpu));
+    cpu_fprintf(f, "HTAB mask = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_mask(cpu));
 
     cpu_fprintf(f, "\nSegment registers:\n");
     for (i = 0; i < 32; i++) {
@@ -1592,9 +1596,9 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     env->spr[SPR_DCMP] = 0x80000000 | ctx.ptem;
                 tlb_miss:
                     env->error_code |= ctx.key << 19;
-                    env->spr[SPR_HASH1] = env->htab_base +
+                    env->spr[SPR_HASH1] = ppc_hash32_hpt_base(cpu) +
                         get_pteg_offset32(cpu, ctx.hash[0]);
-                    env->spr[SPR_HASH2] = env->htab_base +
+                    env->spr[SPR_HASH2] = ppc_hash32_hpt_base(cpu) +
                         get_pteg_offset32(cpu, ctx.hash[1]);
                     break;
                 case POWERPC_MMU_SOFT_74xx:
@@ -1999,7 +2003,6 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
 {
     qemu_log_mask(CPU_LOG_MMU, "%s: " TARGET_FMT_lx "\n", __func__, value);
     assert(!env->external_htab);
-    env->spr[SPR_SDR1] = value;
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
         PowerPCCPU *cpu = ppc_env_get_cpu(env);
@@ -2009,14 +2012,12 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
         if (local_err) {
             error_report_err(local_err);
             error_free(local_err);
+            return;
         }
-    } else
-#endif /* defined(TARGET_PPC64) */
-    {
-        /* FIXME: Should check for valid HTABMASK values */
-        env->htab_mask = ((value & SDR_32_HTABMASK) << 16) | 0xFFFF;
-        env->htab_base = value & SDR_32_HTABORG;
     }
+#endif /* defined(TARGET_PPC64) */
+    /* FIXME: Should check for valid HTABMASK values in 32-bit case */
+    env->spr[SPR_SDR1] = value;
 }
 
 /* Segment registers load and store */

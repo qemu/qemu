@@ -306,14 +306,6 @@ union ppc_tlb_t {
 #define TLB_MAS                3
 #endif
 
-#define SDR_32_HTABORG         0xFFFF0000UL
-#define SDR_32_HTABMASK        0x000001FFUL
-
-#if defined(TARGET_PPC64)
-#define SDR_64_HTABORG         0xFFFFFFFFFFFC0000ULL
-#define SDR_64_HTABSIZE        0x000000000000001FULL
-#endif /* defined(TARGET_PPC64 */
-
 typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
     uint64_t esid;
@@ -1006,9 +998,6 @@ struct CPUPPCState {
     /* tcg TLB needs flush (deferred slb inval instruction typically) */
 #endif
     /* segment registers */
-    hwaddr htab_base;
-    /* mask used to normalize hash value to PTEG index */
-    hwaddr htab_mask;
     target_ulong sr[32];
     /* externally stored hash table */
     uint8_t *external_htab;

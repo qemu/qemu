@@ -56,6 +56,9 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
  * Hash page table definitions
  */
 
+#define SDR_64_HTABORG         0xFFFFFFFFFFFC0000ULL
+#define SDR_64_HTABSIZE        0x000000000000001FULL
+
 #define HPTES_PER_GROUP         8
 #define HASH_PTE_SIZE_64        16
 #define HASH_PTEG_SIZE_64       (HASH_PTE_SIZE_64 * HPTES_PER_GROUP)
@@ -90,6 +93,16 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 
 #define HPTE64_V_1TB_SEG        0x4000000000000000ULL
 #define HPTE64_V_VRMA_MASK      0x4001ffffff000000ULL
+
+static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
+{
+    return cpu->env.spr[SPR_SDR1] & SDR_64_HTABORG;
+}
+
+static inline hwaddr ppc_hash64_hpt_mask(PowerPCCPU *cpu)
+{
+    return (1ULL << ((cpu->env.spr[SPR_SDR1] & SDR_64_HTABSIZE) + 18 - 7)) - 1;
+}
 
 void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
                          Error **errp);

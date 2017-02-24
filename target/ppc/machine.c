@@ -229,7 +229,6 @@ static int cpu_post_load(void *opaque, int version_id)
     }
 
     if (!env->external_htab) {
-        /* Restore htab_base and htab_mask variables */
         ppc_store_sdr1(env, env->spr[SPR_SDR1]);
     }
 

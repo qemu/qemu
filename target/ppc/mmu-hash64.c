@@ -304,15 +304,13 @@ void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
     CPUPPCState *env = &cpu->env;
     target_ulong htabsize = value & SDR_64_HTABSIZE;
 
-    env->spr[SPR_SDR1] = value;
     if (htabsize > 28) {
         error_setg(errp,
                    "Invalid HTABSIZE 0x" TARGET_FMT_lx" stored in SDR1",
                    htabsize);
-        htabsize = 28;
+        return;
     }
-    env->htab_mask = (1ULL << (htabsize + 18 - 7)) - 1;
-    env->htab_base = value & SDR_64_HTABORG;
+    env->spr[SPR_SDR1] = value;
 }
 
 void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
@@ -332,10 +330,6 @@ void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
         error_propagate(errp, local_err);
         return;
     }
-
-    /* Not strictly necessary, but makes it clearer that an external
-     * htab is in use when debugging */
-    env->htab_base = -1;
 
     if (kvm_enabled()) {
         if (kvmppc_put_books_sregs(cpu) < 0) {
@@ -450,10 +444,11 @@ const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
          * accessible PTEG.
          */
         hptes = (ppc_hash_pte64_t *)(cpu->env.external_htab + pte_offset);
-    } else if (cpu->env.htab_base) {
+    } else if (ppc_hash64_hpt_base(cpu)) {
+        hwaddr base = ppc_hash64_hpt_base(cpu);
         hwaddr plen = n * HASH_PTE_SIZE_64;
-        hptes = address_space_map(CPU(cpu)->as, cpu->env.htab_base + pte_offset,
-                                 &plen, false);
+        hptes = address_space_map(CPU(cpu)->as, base + pte_offset,
+                                  &plen, false);
         if (plen < (n * HASH_PTE_SIZE_64)) {
             hw_error("%s: Unable to map all requested HPTEs\n", __func__);
         }
@@ -514,13 +509,12 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
                                      target_ulong ptem,
                                      ppc_hash_pte64_t *pte, unsigned *pshift)
 {
-    CPUPPCState *env = &cpu->env;
     int i;
     const ppc_hash_pte64_t *pteg;
     target_ulong pte0, pte1;
     target_ulong ptex;
 
-    ptex = (hash & env->htab_mask) * HPTES_PER_GROUP;
+    ptex = (hash & ppc_hash64_hpt_mask(cpu)) * HPTES_PER_GROUP;
     pteg = ppc_hash64_map_hptes(cpu, ptex, HPTES_PER_GROUP);
     if (!pteg) {
         return -1;
@@ -598,14 +592,15 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
     qemu_log_mask(CPU_LOG_MMU,
             "htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
             " hash " TARGET_FMT_plx "\n",
-            env->htab_base, env->htab_mask, hash);
+            ppc_hash64_hpt_base(cpu), ppc_hash64_hpt_mask(cpu), hash);
 
     /* Primary PTEG lookup */
     qemu_log_mask(CPU_LOG_MMU,
             "0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
-            env->htab_base, env->htab_mask, vsid, ptem,  hash);
+            ppc_hash64_hpt_base(cpu), ppc_hash64_hpt_mask(cpu),
+            vsid, ptem,  hash);
     ptex = ppc_hash64_pteg_search(cpu, hash, sps, ptem, pte, pshift);
 
     if (ptex == -1) {
@@ -614,8 +609,8 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
         qemu_log_mask(CPU_LOG_MMU,
                 "1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
                 " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
-                " hash=" TARGET_FMT_plx "\n", env->htab_base,
-                env->htab_mask, vsid, ptem, ~hash);
+                " hash=" TARGET_FMT_plx "\n", ppc_hash64_hpt_base(cpu),
+                ppc_hash64_hpt_mask(cpu), vsid, ptem, ~hash);
 
         ptex = ppc_hash64_pteg_search(cpu, ~hash, sps, ptem, pte, pshift);
     }
@@ -933,9 +928,9 @@ void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
         stq_p(env->external_htab + offset, pte0);
         stq_p(env->external_htab + offset + HASH_PTE_SIZE_64 / 2, pte1);
     } else {
-        stq_phys(CPU(cpu)->as, env->htab_base + offset, pte0);
-        stq_phys(CPU(cpu)->as,
-                 env->htab_base + offset + HASH_PTE_SIZE_64 / 2, pte1);
+        hwaddr base = ppc_hash64_hpt_base(cpu);
+        stq_phys(CPU(cpu)->as, base + offset, pte0);
+        stq_phys(CPU(cpu)->as, base + offset + HASH_PTE_SIZE_64 / 2, pte1);
     }
 }
 
