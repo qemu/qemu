@@ -81,6 +81,17 @@ static bool ufd_version_check(int ufd)
         return false;
     }
 
+    if (getpagesize() != ram_pagesize_summary()) {
+        bool have_hp = false;
+        /* We've got a huge page */
+#ifdef UFFD_FEATURE_MISSING_HUGETLBFS
+        have_hp = api_struct.features & UFFD_FEATURE_MISSING_HUGETLBFS;
+#endif
+        if (!have_hp) {
+            error_report("Userfault on this host does not support huge pages");
+            return false;
+        }
+    }
     return true;
 }
 
@@ -115,7 +126,6 @@ bool postcopy_ram_supported_by_host(void)
     if (!ufd_version_check(ufd)) {
         goto out;
     }
-    /* TODO: Only allow huge pages if the kernel supports it */
 
     /*
      * userfault and mlock don't go together; we'll put it back later if
