@@ -289,24 +289,6 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
     return rt;
 }
 
-/*
- * 64-bit hash table MMU handling
- */
-void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
-                         Error **errp)
-{
-    CPUPPCState *env = &cpu->env;
-    target_ulong htabsize = value & SDR_64_HTABSIZE;
-
-    if (htabsize > 28) {
-        error_setg(errp,
-                   "Invalid HTABSIZE 0x" TARGET_FMT_lx" stored in SDR1",
-                   htabsize);
-        return;
-    }
-    env->spr[SPR_SDR1] = value;
-}
-
 static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
                                ppc_slb_t *slb, ppc_hash_pte64_t pte)
 {

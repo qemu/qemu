@@ -28,6 +28,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
 #include "helper_regs.h"
+#include "qemu/error-report.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
@@ -2006,13 +2007,11 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
     assert(!cpu->vhyp);
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
-        PowerPCCPU *cpu = ppc_env_get_cpu(env);
-        Error *local_err = NULL;
+        target_ulong htabsize = value & SDR_64_HTABSIZE;
 
-        ppc_hash64_set_sdr1(cpu, value, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            error_free(local_err);
+        if (htabsize > 28) {
+            error_report("Invalid HTABSIZE 0x" TARGET_FMT_lx" stored in SDR1",
+                         htabsize);
             return;
         }
     }
