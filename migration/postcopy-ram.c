@@ -85,24 +85,6 @@ static bool ufd_version_check(int ufd)
 }
 
 /*
- * Check for things that postcopy won't support; returns 0 if the block
- * is fine.
- */
-static int check_range(const char *block_name, void *host_addr,
-                      ram_addr_t offset, ram_addr_t length, void *opaque)
-{
-    RAMBlock *rb = qemu_ram_block_by_name(block_name);
-
-    if (qemu_ram_pagesize(rb) > getpagesize()) {
-        error_report("Postcopy doesn't support large page sizes yet (%s)",
-                     block_name);
-        return -E2BIG;
-    }
-
-    return 0;
-}
-
-/*
  * Note: This has the side effect of munlock'ing all of RAM, that's
  * normally fine since if the postcopy succeeds it gets turned back on at the
  * end.
@@ -122,12 +104,6 @@ bool postcopy_ram_supported_by_host(void)
         goto out;
     }
 
-    /* Check for anything about the RAMBlocks we don't support */
-    if (qemu_ram_foreach_block(check_range, NULL)) {
-        /* check_range will have printed its own error */
-        goto out;
-    }
-
     ufd = syscall(__NR_userfaultfd, O_CLOEXEC);
     if (ufd == -1) {
         error_report("%s: userfaultfd not available: %s", __func__,
@@ -139,6 +115,7 @@ bool postcopy_ram_supported_by_host(void)
     if (!ufd_version_check(ufd)) {
         goto out;
     }
+    /* TODO: Only allow huge pages if the kernel supports it */
 
     /*
      * userfault and mlock don't go together; we'll put it back later if
