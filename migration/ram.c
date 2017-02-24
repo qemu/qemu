@@ -2390,7 +2390,7 @@ static int ram_load_postcopy(QEMUFile *f)
 {
     int flags = 0, ret = 0;
     bool place_needed = false;
-    bool matching_page_sizes = qemu_host_page_size == TARGET_PAGE_SIZE;
+    bool matching_page_sizes = false;
     MigrationIncomingState *mis = migration_incoming_get_current();
     /* Temporary page that is later 'placed' */
     void *postcopy_host_page = postcopy_get_tmp_page(mis);
@@ -2420,8 +2420,11 @@ static int ram_load_postcopy(QEMUFile *f)
                 ret = -EINVAL;
                 break;
             }
+            matching_page_sizes = block->page_size == TARGET_PAGE_SIZE;
             /*
-             * Postcopy requires that we place whole host pages atomically.
+             * Postcopy requires that we place whole host pages atomically;
+             * these may be huge pages for RAMBlocks that are backed by
+             * hugetlbfs.
              * To make it atomic, the data is read into a temporary page
              * that's moved into place later.
              * The migration protocol uses,  possibly smaller, target-pages
@@ -2429,9 +2432,9 @@ static int ram_load_postcopy(QEMUFile *f)
              * of a host page in order.
              */
             page_buffer = postcopy_host_page +
-                          ((uintptr_t)host & ~qemu_host_page_mask);
+                          ((uintptr_t)host & (block->page_size - 1));
             /* If all TP are zero then we can optimise the place */
-            if (!((uintptr_t)host & ~qemu_host_page_mask)) {
+            if (!((uintptr_t)host & (block->page_size - 1))) {
                 all_zero = true;
             } else {
                 /* not the 1st TP within the HP */
@@ -2449,7 +2452,7 @@ static int ram_load_postcopy(QEMUFile *f)
              * page
              */
             place_needed = (((uintptr_t)host + TARGET_PAGE_SIZE) &
-                                     ~qemu_host_page_mask) == 0;
+                                     (block->page_size - 1)) == 0;
             place_source = postcopy_host_page;
         }
         last_host = host;
