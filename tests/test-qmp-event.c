@@ -95,24 +95,18 @@ static bool qdict_cmp_simple(QDict *a, QDict *b)
    correctness. */
 static void event_test_emit(test_QAPIEvent event, QDict *d, Error **errp)
 {
-    QObject *obj;
     QDict *t;
     int64_t s, ms;
 
     /* Verify that we have timestamp, then remove it to compare other fields */
-    obj = qdict_get(d, "timestamp");
-    g_assert(obj);
-    t = qobject_to_qdict(obj);
+    t = qdict_get_qdict(d, "timestamp");
     g_assert(t);
-    obj = qdict_get(t, "seconds");
-    g_assert(obj && qobject_type(obj) == QTYPE_QINT);
-    s = qint_get_int(qobject_to_qint(obj));
-    obj = qdict_get(t, "microseconds");
-    g_assert(obj && qobject_type(obj) == QTYPE_QINT);
-    ms = qint_get_int(qobject_to_qint(obj));
+    s = qdict_get_try_int(t, "seconds", -2);
+    ms = qdict_get_try_int(t, "microseconds", -2);
     if (s == -1) {
         g_assert(ms == -1);
     } else {
+        g_assert(s >= 0);
         g_assert(ms >= 0 && ms <= 999999);
     }
     g_assert(qdict_size(t) == 2);

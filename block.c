@@ -1169,13 +1169,13 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
         return NULL;
     }
 
-    if (qobject_type(options_obj) != QTYPE_QDICT) {
+    options = qobject_to_qdict(options_obj);
+    if (!options) {
         qobject_decref(options_obj);
         error_setg(errp, "Invalid JSON object given");
         return NULL;
     }
 
-    options = qobject_to_qdict(options_obj);
     qdict_flatten(options);
 
     return options;

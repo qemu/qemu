@@ -3972,6 +3972,15 @@
     'opts':  'NetLegacyOptions' } }
 
 ##
+# @NetLegacyOptionsType:
+#
+# Since: 1.2
+##
+{ 'enum': 'NetLegacyOptionsType',
+  'data': ['none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
+           'dump', 'bridge', 'netmap', 'vhost-user'] }
+
+##
 # @NetLegacyOptions:
 #
 # Like Netdev, but for use only by the legacy command line options
@@ -3979,6 +3988,8 @@
 # Since: 1.2
 ##
 { 'union': 'NetLegacyOptions',
+  'base': { 'type': 'NetLegacyOptionsType' },
+  'discriminator': 'type',
   'data': {
     'none':     'NetdevNoneOptions',
     'nic':      'NetLegacyNicOptions',
@@ -5584,6 +5595,14 @@
             'events' : [ 'InputEvent' ] } }
 
 ##
+# @NumaOptionsType:
+#
+# Since: 2.1
+##
+{ 'enum': 'NumaOptionsType',
+  'data': [ 'node' ] }
+
+##
 # @NumaOptions:
 #
 # A discriminated record of NUMA options. (for OptsVisitor)
@@ -5591,6 +5610,8 @@
 # Since: 2.1
 ##
 { 'union': 'NumaOptions',
+  'base': { 'type': 'NumaOptionsType' },
+  'discriminator': 'type',
   'data': {
     'node': 'NumaNodeOptions' }}
 

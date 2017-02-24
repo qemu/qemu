@@ -591,7 +591,6 @@ static void qdict_join_test(void)
 static void qdict_crumple_test_recursive(void)
 {
     QDict *src, *dst, *rule, *vnc, *acl, *listen;
-    QObject *child, *res;
     QList *rules;
 
     src = qdict_new();
@@ -605,40 +604,37 @@ static void qdict_crumple_test_recursive(void)
     qdict_put(src, "vnc.acl..name", qstring_from_str("acl0"));
     qdict_put(src, "vnc.acl.rule..name", qstring_from_str("acl0"));
 
-    res = qdict_crumple(src, &error_abort);
-
-    g_assert_cmpint(qobject_type(res), ==, QTYPE_QDICT);
-
-    dst = qobject_to_qdict(res);
-
+    dst = qobject_to_qdict(qdict_crumple(src, &error_abort));
+    g_assert(dst);
     g_assert_cmpint(qdict_size(dst), ==, 1);
 
-    child = qdict_get(dst, "vnc");
-    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
-    vnc = qobject_to_qdict(child);
+    vnc = qdict_get_qdict(dst, "vnc");
+    g_assert(vnc);
+    g_assert_cmpint(qdict_size(vnc), ==, 3);
 
-    child = qdict_get(vnc, "listen");
-    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
-    listen = qobject_to_qdict(child);
+    listen = qdict_get_qdict(vnc, "listen");
+    g_assert(listen);
+    g_assert_cmpint(qdict_size(listen), ==, 2);
     g_assert_cmpstr("127.0.0.1", ==, qdict_get_str(listen, "addr"));
     g_assert_cmpstr("5901", ==, qdict_get_str(listen, "port"));
 
-    child = qdict_get(vnc, "acl");
-    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
-    acl = qobject_to_qdict(child);
+    acl = qdict_get_qdict(vnc, "acl");
+    g_assert(acl);
+    g_assert_cmpint(qdict_size(acl), ==, 3);
 
-    child = qdict_get(acl, "rules");
-    g_assert_cmpint(qobject_type(child), ==, QTYPE_QLIST);
-    rules = qobject_to_qlist(child);
+    rules = qdict_get_qlist(acl, "rules");
+    g_assert(rules);
     g_assert_cmpint(qlist_size(rules), ==, 2);
 
     rule = qobject_to_qdict(qlist_pop(rules));
+    g_assert(rule);
     g_assert_cmpint(qdict_size(rule), ==, 2);
     g_assert_cmpstr("fred", ==, qdict_get_str(rule, "match"));
     g_assert_cmpstr("allow", ==, qdict_get_str(rule, "policy"));
     QDECREF(rule);
 
     rule = qobject_to_qdict(qlist_pop(rules));
+    g_assert(rule);
     g_assert_cmpint(qdict_size(rule), ==, 2);
     g_assert_cmpstr("bob", ==, qdict_get_str(rule, "match"));
     g_assert_cmpstr("deny", ==, qdict_get_str(rule, "policy"));
@@ -646,9 +642,6 @@ static void qdict_crumple_test_recursive(void)
 
     /* With recursive crumpling, we should see all names unescaped */
     g_assert_cmpstr("acl0", ==, qdict_get_str(vnc, "acl.name"));
-    child = qdict_get(vnc, "acl");
-    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
-    acl = qdict_get_qdict(vnc, "acl");
     g_assert_cmpstr("acl0", ==, qdict_get_str(acl, "rule.name"));
 
     QDECREF(src);
