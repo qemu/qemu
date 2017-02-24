@@ -136,11 +136,12 @@ USBDevice *usb_device_find_device(USBDevice *dev, uint8_t addr)
     return NULL;
 }
 
-static void usb_device_handle_destroy(USBDevice *dev)
+static void usb_device_unrealize(USBDevice *dev, Error **errp)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
-    if (klass->handle_destroy) {
-        klass->handle_destroy(dev);
+
+    if (klass->unrealize) {
+        klass->unrealize(dev, errp);
     }
 }
 
@@ -291,7 +292,7 @@ static void usb_qdev_unrealize(DeviceState *qdev, Error **errp)
     if (dev->attached) {
         usb_device_detach(dev);
     }
-    usb_device_handle_destroy(dev);
+    usb_device_unrealize(dev, errp);
     if (dev->port) {
         usb_release_port(dev);
     }

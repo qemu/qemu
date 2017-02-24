@@ -329,7 +329,7 @@ static void usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_wacom_handle_destroy(USBDevice *dev)
+static void usb_wacom_unrealize(USBDevice *dev, Error **errp)
 {
     USBWacomState *s = (USBWacomState *) dev;
 
@@ -364,7 +364,7 @@ static void usb_wacom_class_init(ObjectClass *klass, void *data)
     uc->handle_reset   = usb_wacom_handle_reset;
     uc->handle_control = usb_wacom_handle_control;
     uc->handle_data    = usb_wacom_handle_data;
-    uc->handle_destroy = usb_wacom_handle_destroy;
+    uc->unrealize      = usb_wacom_unrealize;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "QEMU PenPartner Tablet";
     dc->vmsd = &vmstate_usb_wacom;

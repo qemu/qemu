@@ -617,7 +617,7 @@ static void usb_audio_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_audio_handle_destroy(USBDevice *dev)
+static void usb_audio_unrealize(USBDevice *dev, Error **errp)
 {
     USBAudioState *s = USB_AUDIO(dev);
 
@@ -683,7 +683,7 @@ static void usb_audio_class_init(ObjectClass *klass, void *data)
     k->handle_reset   = usb_audio_handle_reset;
     k->handle_control = usb_audio_handle_control;
     k->handle_data    = usb_audio_handle_data;
-    k->handle_destroy = usb_audio_handle_destroy;
+    k->unrealize      = usb_audio_unrealize;
     k->set_interface  = usb_audio_set_interface;
 }
 

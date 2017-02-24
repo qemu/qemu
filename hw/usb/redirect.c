@@ -1427,7 +1427,7 @@ static void usbredir_cleanup_device_queues(USBRedirDevice *dev)
     }
 }
 
-static void usbredir_handle_destroy(USBDevice *udev)
+static void usbredir_unrealize(USBDevice *udev, Error **errp)
 {
     USBRedirDevice *dev = USB_REDIRECT(udev);
     Chardev *chr = qemu_chr_fe_get_driver(&dev->cs);
@@ -2513,7 +2513,7 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
 
     uc->realize        = usbredir_realize;
     uc->product_desc   = "USB Redirection Device";
-    uc->handle_destroy = usbredir_handle_destroy;
+    uc->unrealize      = usbredir_unrealize;
     uc->cancel_packet  = usbredir_cancel_packet;
     uc->handle_reset   = usbredir_handle_reset;
     uc->handle_data    = usbredir_handle_data;
