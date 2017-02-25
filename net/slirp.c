@@ -487,7 +487,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str,
         goto fail_syntax;
     }
     host_port = strtol(buf, &end, 0);
-    if (*end != '\0' || host_port < 1 || host_port > 65535) {
+    if (*end != '\0' || host_port < 0 || host_port > 65535) {
         goto fail_syntax;
     }
 
