@@ -173,6 +173,29 @@ void qmp_xen_set_replication(bool enable, bool primary,
     }
 }
 
+ReplicationStatus *qmp_query_xen_replication_status(Error **errp)
+{
+    Error *err = NULL;
+    ReplicationStatus *s = g_new0(ReplicationStatus, 1);
+
+    replication_get_error_all(&err);
+    if (err) {
+        s->error = true;
+        s->has_desc = true;
+        s->desc = g_strdup(error_get_pretty(err));
+    } else {
+        s->error = false;
+    }
+
+    error_free(err);
+    return s;
+}
+
+void qmp_xen_colo_do_checkpoint(Error **errp)
+{
+    replication_do_checkpoint_all(errp);
+}
+
 static void colo_send_message(QEMUFile *f, COLOMessage msg,
                               Error **errp)
 {
