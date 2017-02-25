@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "qemu-common.h"
 #include "hw/irq.h"
 #include "qom/object.h"

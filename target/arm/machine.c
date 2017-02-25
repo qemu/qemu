@@ -211,6 +211,38 @@ static const VMStateInfo vmstate_cpsr = {
     .put = put_cpsr,
 };
 
+static int get_power(QEMUFile *f, void *opaque, size_t size,
+                    VMStateField *field)
+{
+    ARMCPU *cpu = opaque;
+    bool powered_off = qemu_get_byte(f);
+    cpu->power_state = powered_off ? PSCI_OFF : PSCI_ON;
+    return 0;
+}
+
+static int put_power(QEMUFile *f, void *opaque, size_t size,
+                    VMStateField *field, QJSON *vmdesc)
+{
+    ARMCPU *cpu = opaque;
+
+    /* Migration should never happen while we transition power states */
+
+    if (cpu->power_state == PSCI_ON ||
+        cpu->power_state == PSCI_OFF) {
+        bool powered_off = (cpu->power_state == PSCI_OFF) ? true : false;
+        qemu_put_byte(f, powered_off);
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+static const VMStateInfo vmstate_powered_off = {
+    .name = "powered_off",
+    .get = get_power,
+    .put = put_power,
+};
+
 static void cpu_pre_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
@@ -329,7 +361,14 @@ const VMStateDescription vmstate_arm_cpu = {
         VMSTATE_UINT64(env.exception.vaddress, ARMCPU),
         VMSTATE_TIMER_PTR(gt_timer[GTIMER_PHYS], ARMCPU),
         VMSTATE_TIMER_PTR(gt_timer[GTIMER_VIRT], ARMCPU),
-        VMSTATE_BOOL(powered_off, ARMCPU),
+        {
+            .name = "power_state",
+            .version_id = 0,
+            .size = sizeof(bool),
+            .info = &vmstate_powered_off,
+            .flags = VMS_SINGLE,
+            .offset = 0,
+        },
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {

@@ -165,4 +165,15 @@ static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
 }
 
+/* This defines the natural memory order supported by this
+ * architecture before guarantees made by various barrier
+ * instructions.
+ *
+ * The x86 has a pretty strong memory ordering which only really
+ * allows for some stores to be re-ordered after loads.
+ */
+#include "tcg-mo.h"
+
+#define TCG_TARGET_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
+
 #endif

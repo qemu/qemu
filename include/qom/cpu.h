@@ -329,6 +329,7 @@ struct CPUState {
     bool unplug;
     bool crash_occurred;
     bool exit_request;
+    /* updates protected by BQL */
     uint32_t interrupt_request;
     int singlestep_enabled;
     int64_t icount_extra;
@@ -401,6 +402,12 @@ struct CPUState {
 
     bool hax_vcpu_dirty;
     struct hax_vcpu_state *hax_vcpu;
+
+    /* The pending_tlb_flush flag is set and cleared atomically to
+     * avoid potential races. The aim of the flag is to avoid
+     * unnecessary flushes.
+     */
+    uint16_t pending_tlb_flush;
 };
 
 QTAILQ_HEAD(CPUTailQ, CPUState);
@@ -414,6 +421,15 @@ extern struct CPUTailQ cpus;
 #define first_cpu QTAILQ_FIRST(&cpus)
 
 extern __thread CPUState *current_cpu;
+
+/**
+ * qemu_tcg_mttcg_enabled:
+ * Check whether we are running MultiThread TCG or not.
+ *
+ * Returns: %true if we are in MTTCG mode %false otherwise.
+ */
+extern bool mttcg_enabled;
+#define qemu_tcg_mttcg_enabled() (mttcg_enabled)
 
 /**
  * cpu_paging_enabled:

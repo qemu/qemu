@@ -55,11 +55,11 @@
 #include "translate-all.h"
 #include "qemu/bitmap.h"
 #include "qemu/timer.h"
+#include "qemu/main-loop.h"
 #include "exec/log.h"
 
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
-/* #define DEBUG_LOCKING */
 /* make various TB consistency checks */
 /* #define DEBUG_TB_CHECK */
 
@@ -74,20 +74,10 @@
  * access to the memory related structures are protected with the
  * mmap_lock.
  */
-#ifdef DEBUG_LOCKING
-#define DEBUG_MEM_LOCKS 1
-#else
-#define DEBUG_MEM_LOCKS 0
-#endif
-
 #ifdef CONFIG_SOFTMMU
-#define assert_memory_lock() do { /* nothing */ } while (0)
+#define assert_memory_lock() tcg_debug_assert(have_tb_lock)
 #else
-#define assert_memory_lock() do {               \
-        if (DEBUG_MEM_LOCKS) {                  \
-            g_assert(have_mmap_lock());         \
-        }                                       \
-    } while (0)
+#define assert_memory_lock() tcg_debug_assert(have_mmap_lock())
 #endif
 
 #define SMC_BITMAP_USE_THRESHOLD 10
@@ -145,9 +135,7 @@ TCGContext tcg_ctx;
 bool parallel_cpus;
 
 /* translation block context */
-#ifdef CONFIG_USER_ONLY
 __thread int have_tb_lock;
-#endif
 
 static void page_table_config_init(void)
 {
@@ -169,50 +157,30 @@ static void page_table_config_init(void)
     assert(v_l2_levels >= 0);
 }
 
+#define assert_tb_locked() tcg_debug_assert(have_tb_lock)
+#define assert_tb_unlocked() tcg_debug_assert(!have_tb_lock)
+
 void tb_lock(void)
 {
-#ifdef CONFIG_USER_ONLY
-    assert(!have_tb_lock);
+    assert_tb_unlocked();
     qemu_mutex_lock(&tcg_ctx.tb_ctx.tb_lock);
     have_tb_lock++;
-#endif
 }
 
 void tb_unlock(void)
 {
-#ifdef CONFIG_USER_ONLY
-    assert(have_tb_lock);
+    assert_tb_locked();
     have_tb_lock--;
     qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
-#endif
 }
 
 void tb_lock_reset(void)
 {
-#ifdef CONFIG_USER_ONLY
     if (have_tb_lock) {
         qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
         have_tb_lock = 0;
     }
-#endif
 }
-
-#ifdef DEBUG_LOCKING
-#define DEBUG_TB_LOCKS 1
-#else
-#define DEBUG_TB_LOCKS 0
-#endif
-
-#ifdef CONFIG_SOFTMMU
-#define assert_tb_lock() do { /* nothing */ } while (0)
-#else
-#define assert_tb_lock() do {               \
-        if (DEBUG_TB_LOCKS) {               \
-            g_assert(have_tb_lock);         \
-        }                                   \
-    } while (0)
-#endif
-
 
 static TranslationBlock *tb_find_pc(uintptr_t tc_ptr);
 
@@ -847,7 +815,7 @@ static TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
 
-    assert_tb_lock();
+    assert_tb_locked();
 
     if (tcg_ctx.tb_ctx.nb_tbs >= tcg_ctx.code_gen_max_blocks) {
         return NULL;
@@ -862,7 +830,7 @@ static TranslationBlock *tb_alloc(target_ulong pc)
 /* Called with tb_lock held.  */
 void tb_free(TranslationBlock *tb)
 {
-    assert_tb_lock();
+    assert_tb_locked();
 
     /* In practice this is mostly used for single use temporary TB
        Ignore the hard cases and just back up if this TB happens to
@@ -1104,7 +1072,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     uint32_t h;
     tb_page_addr_t phys_pc;
 
-    assert_tb_lock();
+    assert_tb_locked();
 
     atomic_set(&tb->invalid, true);
 
@@ -1421,7 +1389,7 @@ static void tb_invalidate_phys_range_1(tb_page_addr_t start, tb_page_addr_t end)
 #ifdef CONFIG_SOFTMMU
 void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
 {
-    assert_tb_lock();
+    assert_tb_locked();
     tb_invalidate_phys_range_1(start, end);
 }
 #else
@@ -1464,7 +1432,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 #endif /* TARGET_HAS_PRECISE_SMC */
 
     assert_memory_lock();
-    assert_tb_lock();
+    assert_tb_locked();
 
     p = page_find(start >> TARGET_PAGE_BITS);
     if (!p) {
@@ -1543,7 +1511,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 #ifdef CONFIG_SOFTMMU
 /* len must be <= 8 and start must be a multiple of len.
  * Called via softmmu_template.h when code areas are written to with
- * tb_lock held.
+ * iothread mutex not held.
  */
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
 {
@@ -1745,7 +1713,10 @@ void tb_check_watchpoint(CPUState *cpu)
 
 #ifndef CONFIG_USER_ONLY
 /* in deterministic execution mode, instructions doing device I/Os
-   must be at the end of the TB */
+ * must be at the end of the TB.
+ *
+ * Called by softmmu_template.h, with iothread mutex not held.
+ */
 void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
 {
 #if defined(TARGET_MIPS) || defined(TARGET_SH4)
@@ -1957,6 +1928,7 @@ void dump_opcount_info(FILE *f, fprintf_function cpu_fprintf)
 
 void cpu_interrupt(CPUState *cpu, int mask)
 {
+    g_assert(qemu_mutex_iothread_locked());
     cpu->interrupt_request |= mask;
     cpu->tcg_exit_req = 1;
 }

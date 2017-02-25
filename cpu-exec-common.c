@@ -23,9 +23,6 @@
 #include "exec/exec-all.h"
 #include "exec/memory-internal.h"
 
-bool exit_request;
-CPUState *tcg_current_cpu;
-
 /* exit the current TB, but without causing any exception to be raised */
 void cpu_loop_exit_noexc(CPUState *cpu)
 {

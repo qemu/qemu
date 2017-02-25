@@ -1768,13 +1768,15 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
           case 1:
               env->dmmu.mmu_primary_context = val;
               env->immu.mmu_primary_context = val;
-              tlb_flush_by_mmuidx(CPU(cpu), MMU_USER_IDX, MMU_KERNEL_IDX, -1);
+              tlb_flush_by_mmuidx(CPU(cpu),
+                                  (1 << MMU_USER_IDX) | (1 << MMU_KERNEL_IDX));
               break;
           case 2:
               env->dmmu.mmu_secondary_context = val;
               env->immu.mmu_secondary_context = val;
-              tlb_flush_by_mmuidx(CPU(cpu), MMU_USER_SECONDARY_IDX,
-                                  MMU_KERNEL_SECONDARY_IDX, -1);
+              tlb_flush_by_mmuidx(CPU(cpu),
+                                  (1 << MMU_USER_SECONDARY_IDX) |
+                                  (1 << MMU_KERNEL_SECONDARY_IDX));
               break;
           default:
               cpu_unassigned_access(cs, addr, true, false, 1, size);
