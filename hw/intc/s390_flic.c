@@ -16,6 +16,8 @@
 #include "migration/qemu-file.h"
 #include "hw/s390x/s390_flic.h"
 #include "trace.h"
+#include "hw/qdev.h"
+#include "qapi/error.h"
 
 S390FLICState *s390_get_flic(void)
 {
@@ -85,6 +87,30 @@ static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
     fsc->clear_io_irq = qemu_s390_clear_io_flic;
 }
 
+static Property s390_flic_common_properties[] = {
+    DEFINE_PROP_UINT32("adapter_routes_max_batch", S390FLICState,
+                       adapter_routes_max_batch, ADAPTER_ROUTES_MAX_GSI),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void s390_flic_common_realize(DeviceState *dev, Error **errp)
+{
+    uint32_t max_batch = S390_FLIC_COMMON(dev)->adapter_routes_max_batch;
+
+    if (max_batch > ADAPTER_ROUTES_MAX_GSI) {
+        error_setg(errp, "flic adapter_routes_max_batch too big"
+                   "%d (%d allowed)", max_batch, ADAPTER_ROUTES_MAX_GSI);
+    }
+}
+
+static void s390_flic_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->props = s390_flic_common_properties;
+    dc->realize = s390_flic_common_realize;
+}
+
 static const TypeInfo qemu_s390_flic_info = {
     .name          = TYPE_QEMU_S390_FLIC,
     .parent        = TYPE_S390_FLIC_COMMON,
@@ -92,10 +118,12 @@ static const TypeInfo qemu_s390_flic_info = {
     .class_init    = qemu_s390_flic_class_init,
 };
 
+
 static const TypeInfo s390_flic_common_info = {
     .name          = TYPE_S390_FLIC_COMMON,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S390FLICState),
+    .class_init    = s390_flic_class_init,
     .class_size    = sizeof(S390FLICStateClass),
 };
 

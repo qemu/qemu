@@ -293,6 +293,7 @@ static int kvm_flic_save(QEMUFile *f, void *opaque, size_t size,
     int len = FLIC_SAVE_INITIAL_SIZE;
     void *buf;
     int count;
+    int r = 0;
 
     flic_disable_wait_pfault((struct KVMS390FLICState *) opaque);
 
@@ -303,7 +304,7 @@ static int kvm_flic_save(QEMUFile *f, void *opaque, size_t size,
          * migration state */
         error_report("flic: couldn't allocate memory");
         qemu_put_be64(f, FLIC_FAILED);
-        return 0;
+        return -ENOMEM;
     }
 
     count = __get_all_irqs(flic, &buf, len);
@@ -314,6 +315,7 @@ static int kvm_flic_save(QEMUFile *f, void *opaque, size_t size,
          * target system to fail when attempting to load irqs from the
          * migration state */
         qemu_put_be64(f, FLIC_FAILED);
+        r = count;
     } else {
         qemu_put_be64(f, count);
         qemu_put_buffer(f, (uint8_t *) buf,
@@ -321,7 +323,7 @@ static int kvm_flic_save(QEMUFile *f, void *opaque, size_t size,
     }
     g_free(buf);
 
-    return 0;
+    return r;
 }
 
 /**

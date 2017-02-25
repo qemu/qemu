@@ -44,16 +44,6 @@
 #include "hw/s390x/ipl.h"
 #include "cpu.h"
 
-//#define DEBUG_S390
-
-#ifdef DEBUG_S390
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
-
 #define MAX_BLK_DEVS                    10
 
 #define S390_TOD_CLOCK_VALUE_MISSING    0x00
