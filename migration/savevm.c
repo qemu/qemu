@@ -1277,6 +1277,11 @@ done:
         status = MIGRATION_STATUS_COMPLETED;
     }
     migrate_set_state(&ms->state, MIGRATION_STATUS_SETUP, status);
+
+    /* f is outer parameter, it should not stay in global migration state after
+     * this function finished */
+    ms->to_dst_file = NULL;
+
     return ret;
 }
 
