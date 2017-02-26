@@ -367,6 +367,155 @@ static int local_set_xattr(const char *path, FsCred *credp)
     return 0;
 }
 
+static int local_set_mapped_file_attrat(int dirfd, const char *name,
+                                        FsCred *credp)
+{
+    FILE *fp;
+    int ret;
+    char buf[ATTR_MAX];
+    int uid = -1, gid = -1, mode = -1, rdev = -1;
+    int map_dirfd;
+
+    ret = mkdirat(dirfd, VIRTFS_META_DIR, 0700);
+    if (ret < 0 && errno != EEXIST) {
+        return -1;
+    }
+
+    map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
+    if (map_dirfd == -1) {
+        return -1;
+    }
+
+    fp = local_fopenat(map_dirfd, name, "r");
+    if (!fp) {
+        if (errno == ENOENT) {
+            goto update_map_file;
+        } else {
+            close_preserve_errno(map_dirfd);
+            return -1;
+        }
+    }
+    memset(buf, 0, ATTR_MAX);
+    while (fgets(buf, ATTR_MAX, fp)) {
+        if (!strncmp(buf, "virtfs.uid", 10)) {
+            uid = atoi(buf + 11);
+        } else if (!strncmp(buf, "virtfs.gid", 10)) {
+            gid = atoi(buf + 11);
+        } else if (!strncmp(buf, "virtfs.mode", 11)) {
+            mode = atoi(buf + 12);
+        } else if (!strncmp(buf, "virtfs.rdev", 11)) {
+            rdev = atoi(buf + 12);
+        }
+        memset(buf, 0, ATTR_MAX);
+    }
+    fclose(fp);
+
+update_map_file:
+    fp = local_fopenat(map_dirfd, name, "w");
+    close_preserve_errno(map_dirfd);
+    if (!fp) {
+        return -1;
+    }
+
+    if (credp->fc_uid != -1) {
+        uid = credp->fc_uid;
+    }
+    if (credp->fc_gid != -1) {
+        gid = credp->fc_gid;
+    }
+    if (credp->fc_mode != -1) {
+        mode = credp->fc_mode;
+    }
+    if (credp->fc_rdev != -1) {
+        rdev = credp->fc_rdev;
+    }
+
+    if (uid != -1) {
+        fprintf(fp, "virtfs.uid=%d\n", uid);
+    }
+    if (gid != -1) {
+        fprintf(fp, "virtfs.gid=%d\n", gid);
+    }
+    if (mode != -1) {
+        fprintf(fp, "virtfs.mode=%d\n", mode);
+    }
+    if (rdev != -1) {
+        fprintf(fp, "virtfs.rdev=%d\n", rdev);
+    }
+    fclose(fp);
+
+    return 0;
+}
+
+static int fchmodat_nofollow(int dirfd, const char *name, mode_t mode)
+{
+    int fd, ret;
+
+    /* FIXME: this should be handled with fchmodat(AT_SYMLINK_NOFOLLOW).
+     * Unfortunately, the linux kernel doesn't implement it yet. As an
+     * alternative, let's open the file and use fchmod() instead. This
+     * may fail depending on the permissions of the file, but it is the
+     * best we can do to avoid TOCTTOU. We first try to open read-only
+     * in case name points to a directory. If that fails, we try write-only
+     * in case name doesn't point to a directory.
+     */
+    fd = openat_file(dirfd, name, O_RDONLY, 0);
+    if (fd == -1) {
+        /* In case the file is writable-only and isn't a directory. */
+        if (errno == EACCES) {
+            fd = openat_file(dirfd, name, O_WRONLY, 0);
+        }
+        if (fd == -1 && errno == EISDIR) {
+            errno = EACCES;
+        }
+    }
+    if (fd == -1) {
+        return -1;
+    }
+    ret = fchmod(fd, mode);
+    close_preserve_errno(fd);
+    return ret;
+}
+
+static int local_set_xattrat(int dirfd, const char *path, FsCred *credp)
+{
+    int err;
+
+    if (credp->fc_uid != -1) {
+        uint32_t tmp_uid = cpu_to_le32(credp->fc_uid);
+        err = fsetxattrat_nofollow(dirfd, path, "user.virtfs.uid", &tmp_uid,
+                                   sizeof(uid_t), 0);
+        if (err) {
+            return err;
+        }
+    }
+    if (credp->fc_gid != -1) {
+        uint32_t tmp_gid = cpu_to_le32(credp->fc_gid);
+        err = fsetxattrat_nofollow(dirfd, path, "user.virtfs.gid", &tmp_gid,
+                                   sizeof(gid_t), 0);
+        if (err) {
+            return err;
+        }
+    }
+    if (credp->fc_mode != -1) {
+        uint32_t tmp_mode = cpu_to_le32(credp->fc_mode);
+        err = fsetxattrat_nofollow(dirfd, path, "user.virtfs.mode", &tmp_mode,
+                                   sizeof(mode_t), 0);
+        if (err) {
+            return err;
+        }
+    }
+    if (credp->fc_rdev != -1) {
+        uint64_t tmp_rdev = cpu_to_le64(credp->fc_rdev);
+        err = fsetxattrat_nofollow(dirfd, path, "user.virtfs.rdev", &tmp_rdev,
+                                   sizeof(dev_t), 0);
+        if (err) {
+            return err;
+        }
+    }
+    return 0;
+}
+
 static int local_post_create_passthrough(FsContext *fs_ctx, const char *path,
                                          FsCred *credp)
 {
@@ -558,22 +707,29 @@ static ssize_t local_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
 
 static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
 {
-    char *buffer;
+    char *dirpath = g_path_get_dirname(fs_path->data);
+    char *name = g_path_get_basename(fs_path->data);
     int ret = -1;
-    char *path = fs_path->data;
+    int dirfd;
+
+    dirfd = local_opendir_nofollow(fs_ctx, dirpath);
+    if (dirfd == -1) {
+        goto out;
+    }
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
-        buffer = rpath(fs_ctx, path);
-        ret = local_set_xattr(buffer, credp);
-        g_free(buffer);
+        ret = local_set_xattrat(dirfd, name, credp);
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        return local_set_mapped_file_attr(fs_ctx, path, credp);
-    } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
-               (fs_ctx->export_flags & V9FS_SM_NONE)) {
-        buffer = rpath(fs_ctx, path);
-        ret = chmod(buffer, credp->fc_mode);
-        g_free(buffer);
+        ret = local_set_mapped_file_attrat(dirfd, name, credp);
+    } else if (fs_ctx->export_flags & V9FS_SM_PASSTHROUGH ||
+               fs_ctx->export_flags & V9FS_SM_NONE) {
+        ret = fchmodat_nofollow(dirfd, name, credp->fc_mode);
     }
+    close_preserve_errno(dirfd);
+
+out:
+    g_free(dirpath);
+    g_free(name);
     return ret;
 }
 
