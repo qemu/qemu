@@ -67,6 +67,14 @@ int local_opendir_nofollow(FsContext *fs_ctx, const char *path)
     return local_open_nofollow(fs_ctx, path, O_DIRECTORY | O_RDONLY, 0);
 }
 
+static void renameat_preserve_errno(int odirfd, const char *opath, int ndirfd,
+                                    const char *npath)
+{
+    int serrno = errno;
+    renameat(odirfd, opath, ndirfd, npath);
+    errno = serrno;
+}
+
 #define VIRTFS_META_DIR ".virtfs_metadata"
 
 static char *local_mapped_attr_path(FsContext *ctx, const char *path)
@@ -146,8 +154,7 @@ static void local_mapped_file_attr(int dirfd, const char *name,
     char buf[ATTR_MAX];
     int map_dirfd;
 
-    map_dirfd = openat(dirfd, VIRTFS_META_DIR,
-                       O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+    map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
     if (map_dirfd == -1) {
         return;
     }
@@ -1186,17 +1193,64 @@ static int local_renameat(FsContext *ctx, V9fsPath *olddir,
                           const char *new_name)
 {
     int ret;
-    V9fsString old_full_name, new_full_name;
+    int odirfd, ndirfd;
 
-    v9fs_string_init(&old_full_name);
-    v9fs_string_init(&new_full_name);
+    odirfd = local_opendir_nofollow(ctx, olddir->data);
+    if (odirfd == -1) {
+        return -1;
+    }
 
-    v9fs_string_sprintf(&old_full_name, "%s/%s", olddir->data, old_name);
-    v9fs_string_sprintf(&new_full_name, "%s/%s", newdir->data, new_name);
+    ndirfd = local_opendir_nofollow(ctx, newdir->data);
+    if (ndirfd == -1) {
+        close_preserve_errno(odirfd);
+        return -1;
+    }
 
-    ret = local_rename(ctx, old_full_name.data, new_full_name.data);
-    v9fs_string_free(&old_full_name);
-    v9fs_string_free(&new_full_name);
+    ret = renameat(odirfd, old_name, ndirfd, new_name);
+    if (ret < 0) {
+        goto out;
+    }
+
+    if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
+        int omap_dirfd, nmap_dirfd;
+
+        ret = mkdirat(ndirfd, VIRTFS_META_DIR, 0700);
+        if (ret < 0 && errno != EEXIST) {
+            goto err_undo_rename;
+        }
+
+        omap_dirfd = openat(odirfd, VIRTFS_META_DIR,
+                            O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+        if (omap_dirfd == -1) {
+            goto err;
+        }
+
+        nmap_dirfd = openat(ndirfd, VIRTFS_META_DIR,
+                            O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+        if (nmap_dirfd == -1) {
+            close_preserve_errno(omap_dirfd);
+            goto err;
+        }
+
+        /* rename the .virtfs_metadata files */
+        ret = renameat(omap_dirfd, old_name, nmap_dirfd, new_name);
+        close_preserve_errno(nmap_dirfd);
+        close_preserve_errno(omap_dirfd);
+        if (ret < 0 && errno != ENOENT) {
+            goto err_undo_rename;
+        }
+
+        ret = 0;
+    }
+    goto out;
+
+err:
+    ret = -1;
+err_undo_rename:
+    renameat_preserve_errno(ndirfd, new_name, odirfd, old_name);
+out:
+    close_preserve_errno(ndirfd);
+    close_preserve_errno(odirfd);
     return ret;
 }
 
