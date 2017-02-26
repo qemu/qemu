@@ -15,6 +15,8 @@
 #include "9p.h"
 #include "fsdev/file-op-9p.h"
 #include "9p-xattr.h"
+#include "9p-util.h"
+#include "9p-local.h"
 
 
 static XattrOperations *get_xattr_operations(XattrOperations **h,
@@ -143,16 +145,31 @@ int v9fs_remove_xattr(FsContext *ctx,
 
 }
 
+ssize_t local_getxattr_nofollow(FsContext *ctx, const char *path,
+                                const char *name, void *value, size_t size)
+{
+    char *dirpath = g_path_get_dirname(path);
+    char *filename = g_path_get_basename(path);
+    int dirfd;
+    ssize_t ret = -1;
+
+    dirfd = local_opendir_nofollow(ctx, dirpath);
+    if (dirfd == -1) {
+        goto out;
+    }
+
+    ret = fgetxattrat_nofollow(dirfd, filename, name, value, size);
+    close_preserve_errno(dirfd);
+out:
+    g_free(dirpath);
+    g_free(filename);
+    return ret;
+}
+
 ssize_t pt_getxattr(FsContext *ctx, const char *path, const char *name,
                     void *value, size_t size)
 {
-    char *buffer;
-    ssize_t ret;
-
-    buffer = rpath(ctx, path);
-    ret = lgetxattr(buffer, name, value, size);
-    g_free(buffer);
-    return ret;
+    return local_getxattr_nofollow(ctx, path, name, value, size);
 }
 
 int pt_setxattr(FsContext *ctx, const char *path, const char *name, void *value,

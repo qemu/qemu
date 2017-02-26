@@ -46,5 +46,7 @@ static inline int openat_file(int dirfd, const char *name, int flags,
 
 int relative_openat_nofollow(int dirfd, const char *path, int flags,
                              mode_t mode);
+ssize_t fgetxattrat_nofollow(int dirfd, const char *path, const char *name,
+                             void *value, size_t size);
 
 #endif
