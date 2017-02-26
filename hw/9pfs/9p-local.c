@@ -887,62 +887,45 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
 static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
                        int flags, FsCred *credp, V9fsFidOpenState *fs)
 {
-    char *path;
     int fd = -1;
     int err = -1;
-    int serrno = 0;
-    V9fsString fullname;
-    char *buffer = NULL;
+    int dirfd;
 
     /*
      * Mark all the open to not follow symlinks
      */
     flags |= O_NOFOLLOW;
 
-    v9fs_string_init(&fullname);
-    v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
-    path = fullname.data;
+    dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
+    if (dirfd == -1) {
+        return -1;
+    }
 
     /* Determine the security model */
-    if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
-        buffer = rpath(fs_ctx, path);
-        fd = open(buffer, flags, SM_LOCAL_MODE_BITS);
+    if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
+        fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
+        fd = openat_file(dirfd, name, flags, SM_LOCAL_MODE_BITS);
         if (fd == -1) {
-            err = fd;
             goto out;
         }
         credp->fc_mode = credp->fc_mode|S_IFREG;
-        /* Set cleint credentials in xattr */
-        err = local_set_xattr(buffer, credp);
-        if (err == -1) {
-            serrno = errno;
-            goto err_end;
+        if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
+            /* Set cleint credentials in xattr */
+            err = local_set_xattrat(dirfd, name, credp);
+        } else {
+            err = local_set_mapped_file_attrat(dirfd, name, credp);
         }
-    } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        buffer = rpath(fs_ctx, path);
-        fd = open(buffer, flags, SM_LOCAL_MODE_BITS);
-        if (fd == -1) {
-            err = fd;
-            goto out;
-        }
-        credp->fc_mode = credp->fc_mode|S_IFREG;
-        /* Set client credentials in .virtfs_metadata directory files */
-        err = local_set_mapped_file_attr(fs_ctx, path, credp);
         if (err == -1) {
-            serrno = errno;
             goto err_end;
         }
     } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
                (fs_ctx->export_flags & V9FS_SM_NONE)) {
-        buffer = rpath(fs_ctx, path);
-        fd = open(buffer, flags, credp->fc_mode);
+        fd = openat_file(dirfd, name, flags, credp->fc_mode);
         if (fd == -1) {
-            err = fd;
             goto out;
         }
-        err = local_post_create_passthrough(fs_ctx, path, credp);
+        err = local_set_cred_passthrough(fs_ctx, dirfd, name, credp);
         if (err == -1) {
-            serrno = errno;
             goto err_end;
         }
     }
@@ -951,12 +934,11 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     goto out;
 
 err_end:
-    close(fd);
-    remove(buffer);
-    errno = serrno;
+    unlinkat_preserve_errno(dirfd, name,
+                            flags & O_DIRECTORY ? AT_REMOVEDIR : 0);
+    close_preserve_errno(fd);
 out:
-    g_free(buffer);
-    v9fs_string_free(&fullname);
+    close_preserve_errno(dirfd);
     return err;
 }
 
