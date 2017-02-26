@@ -29,6 +29,8 @@ typedef struct xattr_operations
                        const char *path, const char *name);
 } XattrOperations;
 
+ssize_t local_getxattr_nofollow(FsContext *ctx, const char *path,
+                                const char *name, void *value, size_t size);
 
 extern XattrOperations mapped_user_xattr;
 extern XattrOperations passthrough_user_xattr;
