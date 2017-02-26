@@ -143,6 +143,67 @@ int v9fs_remove_xattr(FsContext *ctx,
 
 }
 
+ssize_t pt_getxattr(FsContext *ctx, const char *path, const char *name,
+                    void *value, size_t size)
+{
+    char *buffer;
+    ssize_t ret;
+
+    buffer = rpath(ctx, path);
+    ret = lgetxattr(buffer, name, value, size);
+    g_free(buffer);
+    return ret;
+}
+
+int pt_setxattr(FsContext *ctx, const char *path, const char *name, void *value,
+                size_t size, int flags)
+{
+    char *buffer;
+    int ret;
+
+    buffer = rpath(ctx, path);
+    ret = lsetxattr(buffer, name, value, size, flags);
+    g_free(buffer);
+    return ret;
+}
+
+int pt_removexattr(FsContext *ctx, const char *path, const char *name)
+{
+    char *buffer;
+    int ret;
+
+    buffer = rpath(ctx, path);
+    ret = lremovexattr(path, name);
+    g_free(buffer);
+    return ret;
+}
+
+ssize_t notsup_getxattr(FsContext *ctx, const char *path, const char *name,
+                        void *value, size_t size)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+
+int notsup_setxattr(FsContext *ctx, const char *path, const char *name,
+                    void *value, size_t size, int flags)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+
+ssize_t notsup_listxattr(FsContext *ctx, const char *path, char *name,
+                         void *value, size_t size)
+{
+    return 0;
+}
+
+int notsup_removexattr(FsContext *ctx, const char *path, const char *name)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+
 XattrOperations *mapped_xattr_ops[] = {
     &mapped_user_xattr,
     &mapped_pacl_xattr,
