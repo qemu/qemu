@@ -1591,18 +1591,17 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
 #endif
     }
 
-    if (ftruncate(fd, total_size) != 0) {
-        result = -errno;
-        error_setg_errno(errp, -result, "Could not resize file");
-        goto out_close;
-    }
-
     switch (prealloc) {
 #ifdef CONFIG_POSIX_FALLOCATE
     case PREALLOC_MODE_FALLOC:
-        /* posix_fallocate() doesn't set errno. */
+        /*
+         * Truncating before posix_fallocate() makes it about twice slower on
+         * file systems that do not support fallocate(), trying to check if a
+         * block is allocated before allocating it, so don't do that here.
+         */
         result = -posix_fallocate(fd, 0, total_size);
         if (result != 0) {
+            /* posix_fallocate() doesn't set errno. */
             error_setg_errno(errp, -result,
                              "Could not preallocate data for the new file");
         }
@@ -1610,6 +1609,17 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
 #endif
     case PREALLOC_MODE_FULL:
     {
+        /*
+         * Knowing the final size from the beginning could allow the file
+         * system driver to do less allocations and possibly avoid
+         * fragmentation of the file.
+         */
+        if (ftruncate(fd, total_size) != 0) {
+            result = -errno;
+            error_setg_errno(errp, -result, "Could not resize file");
+            goto out_close;
+        }
+
         int64_t num = 0, left = total_size;
         buf = g_malloc0(65536);
 
@@ -1636,6 +1646,10 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
         break;
     }
     case PREALLOC_MODE_OFF:
+        if (ftruncate(fd, total_size) != 0) {
+            result = -errno;
+            error_setg_errno(errp, -result, "Could not resize file");
+        }
         break;
     default:
         result = -EINVAL;

@@ -814,8 +814,8 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
     return ret;
 }
 
-static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
-                      Error **errp)
+static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     unsigned int len, i;
@@ -1203,6 +1203,18 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     g_free(s->cluster_cache);
     qemu_vfree(s->cluster_data);
     return ret;
+}
+
+static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
+                      Error **errp)
+{
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+                               false, errp);
+    if (!bs->file) {
+        return -EINVAL;
+    }
+
+    return qcow2_do_open(bs, options, flags, errp);
 }
 
 static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
@@ -1785,7 +1797,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
     options = qdict_clone_shallow(bs->options);
 
     flags &= ~BDRV_O_INACTIVE;
-    ret = qcow2_open(bs, options, flags, &local_err);
+    ret = qcow2_do_open(bs, options, flags, &local_err);
     QDECREF(options);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -2570,7 +2582,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
         cluster_offset = bdrv_getlength(bs->file->bs);
-        return bdrv_truncate(bs->file->bs, cluster_offset);
+        return bdrv_truncate(bs->file, cluster_offset);
     }
 
     buf = qemu_blockalign(bs, s->cluster_size);
@@ -2784,7 +2796,7 @@ static int make_completely_empty(BlockDriverState *bs)
         goto fail;
     }
 
-    ret = bdrv_truncate(bs->file->bs, (3 + l1_clusters) * s->cluster_size);
+    ret = bdrv_truncate(bs->file, (3 + l1_clusters) * s->cluster_size);
     if (ret < 0) {
         goto fail;
     }
@@ -3250,7 +3262,11 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     }
 
     if (new_size) {
-        ret = bdrv_truncate(bs, new_size);
+        BlockBackend *blk = blk_new();
+        blk_insert_bs(blk, bs);
+        ret = blk_truncate(blk, new_size);
+        blk_unref(blk);
+
         if (ret < 0) {
             return ret;
         }

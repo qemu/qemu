@@ -54,7 +54,10 @@ static BlockJob *do_test_id(BlockBackend *blk, const char *id,
 static BlockBackend *create_blk(const char *name)
 {
     BlockBackend *blk = blk_new();
-    BlockDriverState *bs = bdrv_new();
+    BlockDriverState *bs;
+
+    bs = bdrv_open("null-co://", NULL, NULL, 0, &error_abort);
+    g_assert_nonnull(bs);
 
     blk_insert_bs(blk, bs);
     bdrv_unref(bs);
@@ -140,6 +143,7 @@ static void test_job_ids(void)
 int main(int argc, char **argv)
 {
     qemu_init_main_loop(&error_abort);
+    bdrv_init();
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/blockjob/ids", test_job_ids);

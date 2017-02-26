@@ -662,7 +662,28 @@ static void coroutine_fn mirror_run(void *opaque)
     if (s->bdev_length < 0) {
         ret = s->bdev_length;
         goto immediate_exit;
-    } else if (s->bdev_length == 0) {
+    }
+
+    /* Active commit must resize the base image if its size differs from the
+     * active layer. */
+    if (s->base == blk_bs(s->target)) {
+        int64_t base_length;
+
+        base_length = blk_getlength(s->target);
+        if (base_length < 0) {
+            ret = base_length;
+            goto immediate_exit;
+        }
+
+        if (s->bdev_length > base_length) {
+            ret = blk_truncate(s->target, s->bdev_length);
+            if (ret < 0) {
+                goto immediate_exit;
+            }
+        }
+    }
+
+    if (s->bdev_length == 0) {
         /* Report BLOCK_JOB_READY and wait for complete. */
         block_job_event_ready(&s->common);
         s->synced = true;
@@ -1063,40 +1084,13 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
                          BlockCompletionFunc *cb, void *opaque, Error **errp,
                          bool auto_complete)
 {
-    int64_t length, base_length;
     int orig_base_flags;
-    int ret;
     Error *local_err = NULL;
 
     orig_base_flags = bdrv_get_flags(base);
 
     if (bdrv_reopen(base, bs->open_flags, errp)) {
         return;
-    }
-
-    length = bdrv_getlength(bs);
-    if (length < 0) {
-        error_setg_errno(errp, -length,
-                         "Unable to determine length of %s", bs->filename);
-        goto error_restore_flags;
-    }
-
-    base_length = bdrv_getlength(base);
-    if (base_length < 0) {
-        error_setg_errno(errp, -base_length,
-                         "Unable to determine length of %s", base->filename);
-        goto error_restore_flags;
-    }
-
-    if (length > base_length) {
-        ret = bdrv_truncate(base, length);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret,
-                            "Top image %s is larger than base image %s, and "
-                             "resize of base image failed",
-                             bs->filename, base->filename);
-            goto error_restore_flags;
-        }
     }
 
     mirror_start_job(job_id, bs, creation_flags, base, NULL, speed, 0, 0,

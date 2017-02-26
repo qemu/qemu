@@ -96,7 +96,10 @@ static BlockJob *test_block_job_start(unsigned int iterations,
     char job_id[24];
 
     data = g_new0(TestBlockJobCBData, 1);
-    bs = bdrv_new();
+
+    bs = bdrv_open("null-co://", NULL, NULL, 0, &error_abort);
+    g_assert_nonnull(bs);
+
     snprintf(job_id, sizeof(job_id), "job%u", counter++);
     s = block_job_create(job_id, &test_block_job_driver, bs, 0,
                          BLOCK_JOB_DEFAULT, test_block_job_cb,
@@ -242,6 +245,7 @@ static void test_pair_jobs_fail_cancel_race(void)
 int main(int argc, char **argv)
 {
     qemu_init_main_loop(&error_abort);
+    bdrv_init();
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/single/success", test_single_job_success);

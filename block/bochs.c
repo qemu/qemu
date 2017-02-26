@@ -104,6 +104,12 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     struct bochs_header bochs;
     int ret;
 
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+                               false, errp);
+    if (!bs->file) {
+        return -EINVAL;
+    }
+
     bs->read_only = true; /* no write support yet */
 
     ret = bdrv_pread(bs->file, 0, &bochs, sizeof(bochs));

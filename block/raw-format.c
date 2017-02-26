@@ -341,7 +341,7 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
 
     s->size = offset;
     offset += s->offset;
-    return bdrv_truncate(bs->file->bs, offset);
+    return bdrv_truncate(bs->file, offset);
 }
 
 static int raw_media_changed(BlockDriverState *bs)
@@ -383,6 +383,12 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVRawState *s = bs->opaque;
     int ret;
+
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+                               false, errp);
+    if (!bs->file) {
+        return -EINVAL;
+    }
 
     bs->sg = bs->file->bs->sg;
     bs->supported_write_flags = BDRV_REQ_FUA &
