@@ -31,6 +31,9 @@ typedef struct xattr_operations
 
 ssize_t local_getxattr_nofollow(FsContext *ctx, const char *path,
                                 const char *name, void *value, size_t size);
+ssize_t local_setxattr_nofollow(FsContext *ctx, const char *path,
+                                const char *name, void *value, size_t size,
+                                int flags);
 
 extern XattrOperations mapped_user_xattr;
 extern XattrOperations passthrough_user_xattr;
