@@ -234,15 +234,41 @@ int pt_setxattr(FsContext *ctx, const char *path, const char *name, void *value,
     return local_setxattr_nofollow(ctx, path, name, value, size, flags);
 }
 
-int pt_removexattr(FsContext *ctx, const char *path, const char *name)
+static ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
+                                       const char *name)
 {
-    char *buffer;
+    char *proc_path = g_strdup_printf("/proc/self/fd/%d/%s", dirfd, filename);
     int ret;
 
-    buffer = rpath(ctx, path);
-    ret = lremovexattr(path, name);
-    g_free(buffer);
+    ret = lremovexattr(proc_path, name);
+    g_free(proc_path);
     return ret;
+}
+
+ssize_t local_removexattr_nofollow(FsContext *ctx, const char *path,
+                                   const char *name)
+{
+    char *dirpath = g_path_get_dirname(path);
+    char *filename = g_path_get_basename(path);
+    int dirfd;
+    ssize_t ret = -1;
+
+    dirfd = local_opendir_nofollow(ctx, dirpath);
+    if (dirfd == -1) {
+        goto out;
+    }
+
+    ret = fremovexattrat_nofollow(dirfd, filename, name);
+    close_preserve_errno(dirfd);
+out:
+    g_free(dirpath);
+    g_free(filename);
+    return ret;
+}
+
+int pt_removexattr(FsContext *ctx, const char *path, const char *name)
+{
+    return local_removexattr_nofollow(ctx, path, name);
 }
 
 ssize_t notsup_getxattr(FsContext *ctx, const char *path, const char *name,
