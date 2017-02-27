@@ -756,18 +756,6 @@ static const TypeInfo xics_fabric_info = {
 /*
  * Exported functions
  */
-ICSState *xics_find_source(XICSState *xics, int irq)
-{
-    ICSState *ics;
-
-    QLIST_FOREACH(ics, &xics->ics, list) {
-        if (ics_valid_irq(ics, irq)) {
-            return ics;
-        }
-    }
-    return NULL;
-}
-
 qemu_irq xics_get_qirq(XICSFabric *xi, int irq)
 {
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
