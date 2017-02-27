@@ -30,29 +30,6 @@
 
 #include "hw/sysbus.h"
 
-#define TYPE_XICS_COMMON "xics-common"
-#define XICS_COMMON(obj) OBJECT_CHECK(XICSState, (obj), TYPE_XICS_COMMON)
-
-/*
- * Retain xics as the type name to be compatible for migration. Rest all the
- * functions, class and variables are renamed as xics_spapr.
- */
-#define TYPE_XICS_SPAPR "xics"
-#define XICS_SPAPR(obj) OBJECT_CHECK(XICSState, (obj), TYPE_XICS_SPAPR)
-
-#define TYPE_XICS_SPAPR_KVM "xics-spapr-kvm"
-#define XICS_SPAPR_KVM(obj) \
-     OBJECT_CHECK(KVMXICSState, (obj), TYPE_XICS_SPAPR_KVM)
-
-#define XICS_COMMON_CLASS(klass) \
-     OBJECT_CLASS_CHECK(XICSStateClass, (klass), TYPE_XICS_COMMON)
-#define XICS_SPAPR_CLASS(klass) \
-     OBJECT_CLASS_CHECK(XICSStateClass, (klass), TYPE_XICS_SPAPR)
-#define XICS_COMMON_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(XICSStateClass, (obj), TYPE_XICS_COMMON)
-#define XICS_SPAPR_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(XICSStateClass, (obj), TYPE_XICS_SPAPR)
-
 #define XICS_IPI        0x2
 #define XICS_BUID       0x1
 #define XICS_IRQ_BASE   (XICS_BUID << 12)
@@ -62,24 +39,12 @@
  * (the kernel implementation supports more but we don't exploit
  *  that yet)
  */
-typedef struct XICSStateClass XICSStateClass;
-typedef struct XICSState XICSState;
 typedef struct ICPStateClass ICPStateClass;
 typedef struct ICPState ICPState;
 typedef struct ICSStateClass ICSStateClass;
 typedef struct ICSState ICSState;
 typedef struct ICSIRQState ICSIRQState;
 typedef struct XICSFabric XICSFabric;
-
-struct XICSStateClass {
-    DeviceClass parent_class;
-};
-
-struct XICSState {
-    /*< private >*/
-    DeviceState parent_obj;
-    /*< public >*/
-};
 
 #define TYPE_ICP "icp"
 #define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)

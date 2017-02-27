@@ -257,13 +257,6 @@ int xics_spapr_init(sPAPRMachineState *spapr, Error **errp)
     return 0;
 }
 
-static const TypeInfo xics_spapr_info = {
-    .name          = TYPE_XICS_SPAPR,
-    .parent        = TYPE_XICS_COMMON,
-    .instance_size = sizeof(XICSState),
-    .class_size = sizeof(XICSStateClass),
-};
-
 #define ICS_IRQ_FREE(ics, srcno)   \
     (!((ics)->irqs[(srcno)].flags & (XICS_FLAGS_IRQ_MASK)))
 
@@ -400,10 +393,3 @@ void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle)
     _FDT(fdt_setprop_cell(fdt, node, "linux,phandle", phandle));
     _FDT(fdt_setprop_cell(fdt, node, "phandle", phandle));
 }
-
-static void xics_spapr_register_types(void)
-{
-    type_register_static(&xics_spapr_info);
-}
-
-type_init(xics_spapr_register_types)

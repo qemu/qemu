@@ -58,7 +58,6 @@ struct sPAPRMachineState {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
     struct sPAPRNVRAM *nvram;
-    XICSState *xics;
     ICSState *ics;
     DeviceState *rtc;
 

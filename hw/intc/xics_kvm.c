@@ -42,12 +42,6 @@
 
 static int kernel_xics_fd = -1;
 
-typedef struct KVMXICSState {
-    XICSState parent_obj;
-
-    int kernel_xics_fd;
-} KVMXICSState;
-
 /*
  * ICP-KVM
  */
@@ -429,15 +423,8 @@ fail:
     return -1;
 }
 
-static const TypeInfo xics_spapr_kvm_info = {
-    .name          = TYPE_XICS_SPAPR_KVM,
-    .parent        = TYPE_XICS_COMMON,
-    .instance_size = sizeof(KVMXICSState),
-};
-
 static void xics_kvm_register_types(void)
 {
-    type_register_static(&xics_spapr_kvm_info);
     type_register_static(&ics_kvm_info);
     type_register_static(&icp_kvm_info);
 }

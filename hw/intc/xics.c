@@ -135,16 +135,6 @@ static void ics_simple_pic_print_info(InterruptStatsProvider *obj,
 }
 
 /*
- * XICS Common class - parent for emulated XICS and KVM-XICS
- */
-static const TypeInfo xics_common_info = {
-    .name          = TYPE_XICS_COMMON,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(XICSState),
-    .class_size    = sizeof(XICSStateClass),
-};
-
-/*
  * ICP: Presentation layer
  */
 
@@ -752,7 +742,6 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
 
 static void xics_register_types(void)
 {
-    type_register_static(&xics_common_info);
     type_register_static(&ics_simple_info);
     type_register_static(&ics_base_info);
     type_register_static(&icp_info);
