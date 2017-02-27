@@ -5,6 +5,8 @@ env:
       TARGET_LIST=arm-softmmu,arm-linux-user
     - IMAGE=debian-arm64-cross
       TARGET_LIST=aarch64-softmmu,aarch64-linux-user
+    - IMAGE=debian-s390x-cross
+      TARGET_LIST=s390x-softmmu,s390x-linux-user
 build:
   pre_ci:
     - make docker-image-${IMAGE}
