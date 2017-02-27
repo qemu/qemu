@@ -2666,6 +2666,28 @@
             '*header-digest': 'IscsiHeaderDigest',
             '*timeout': 'int' } }
 
+
+##
+# @RbdAuthSupport:
+#
+# An enumeration of RBD auth support
+#
+# Since: 2.9
+##
+{ 'enum': 'RbdAuthSupport',
+  'data': [ 'cephx', 'none' ] }
+
+
+##
+# @RbdAuthMethod:
+#
+# An enumeration of rados auth_supported types
+#
+# Since: 2.9
+##
+{ 'struct': 'RbdAuthMethod',
+  'data': { 'auth': 'RbdAuthSupport' } }
+
 ##
 # @BlockdevOptionsRbd:
 #
@@ -2681,6 +2703,11 @@
 #
 # @user:               #optional Ceph id name.
 #
+# @server:             #optional Monitor host address and port.  This maps
+#                      to the "mon_host" Ceph option.
+#
+# @auth-supported:     #optional Authentication supported.
+#
 # @password-secret:    #optional The ID of a QCryptoSecret object providing
 #                      the password for the login.
 #
@@ -2692,6 +2719,8 @@
             '*conf': 'str',
             '*snapshot': 'str',
             '*user': 'str',
+            '*server': ['InetSocketAddress'],
+            '*auth-supported': ['RbdAuthMethod'],
             '*password-secret': 'str' } }
 
 ##

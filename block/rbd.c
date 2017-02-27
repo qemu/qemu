@@ -405,6 +405,19 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Legacy rados key/value option parameters",
         },
+        {
+            .name = "host",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "port",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "auth",
+            .type = QEMU_OPT_STRING,
+            .help = "Supported authentication method, either cephx or none",
+        },
         { /* end of list */ }
     },
 };
@@ -565,6 +578,94 @@ static void qemu_rbd_complete_aio(RADOSCB *rcb)
     qemu_aio_unref(acb);
 }
 
+#define RBD_MON_HOST          0
+#define RBD_AUTH_SUPPORTED    1
+
+static char *qemu_rbd_array_opts(QDict *options, const char *prefix, int type,
+                                 Error **errp)
+{
+    int num_entries;
+    QemuOpts *opts = NULL;
+    QDict *sub_options;
+    const char *host;
+    const char *port;
+    char *str;
+    char *rados_str = NULL;
+    Error *local_err = NULL;
+    int i;
+
+    assert(type == RBD_MON_HOST || type == RBD_AUTH_SUPPORTED);
+
+    num_entries = qdict_array_entries(options, prefix);
+
+    if (num_entries < 0) {
+        error_setg(errp, "Parse error on RBD QDict array");
+        return NULL;
+    }
+
+    for (i = 0; i < num_entries; i++) {
+        char *strbuf = NULL;
+        const char *value;
+        char *rados_str_tmp;
+
+        str = g_strdup_printf("%s%d.", prefix, i);
+        qdict_extract_subqdict(options, &sub_options, str);
+        g_free(str);
+
+        opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
+        qemu_opts_absorb_qdict(opts, sub_options, &local_err);
+        QDECREF(sub_options);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            g_free(rados_str);
+            rados_str = NULL;
+            goto exit;
+        }
+
+        if (type == RBD_MON_HOST) {
+            host = qemu_opt_get(opts, "host");
+            port = qemu_opt_get(opts, "port");
+
+            value = host;
+            if (port) {
+                /* check for ipv6 */
+                if (strchr(host, ':')) {
+                    strbuf = g_strdup_printf("[%s]:%s", host, port);
+                } else {
+                    strbuf = g_strdup_printf("%s:%s", host, port);
+                }
+                value = strbuf;
+            } else if (strchr(host, ':')) {
+                strbuf = g_strdup_printf("[%s]", host);
+                value = strbuf;
+            }
+        } else {
+            value = qemu_opt_get(opts, "auth");
+        }
+
+
+        /* each iteration in the for loop will build upon the string, and if
+         * rados_str is NULL then it is our first pass */
+        if (rados_str) {
+            /* separate options with ';', as that  is what rados_conf_set()
+             * requires */
+            rados_str_tmp = rados_str;
+            rados_str = g_strdup_printf("%s;%s", rados_str_tmp, value);
+            g_free(rados_str_tmp);
+        } else {
+            rados_str = g_strdup(value);
+        }
+
+        g_free(strbuf);
+        qemu_opts_del(opts);
+        opts = NULL;
+    }
+
+exit:
+    qemu_opts_del(opts);
+    return rados_str;
+}
+
 static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
                          Error **errp)
 {
@@ -573,6 +674,8 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     const char *secretid;
     QemuOpts *opts;
     Error *local_err = NULL;
+    char *mon_host = NULL;
+    char *auth_supported = NULL;
     int r;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
@@ -581,6 +684,22 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         error_propagate(errp, local_err);
         qemu_opts_del(opts);
         return -EINVAL;
+    }
+
+    auth_supported = qemu_rbd_array_opts(options, "auth-supported.",
+                                         RBD_AUTH_SUPPORTED, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        r = -EINVAL;
+        goto failed_opts;
+    }
+
+    mon_host = qemu_rbd_array_opts(options, "server.",
+                                   RBD_MON_HOST, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        r = -EINVAL;
+        goto failed_opts;
     }
 
     secretid = qemu_opt_get(opts, "password-secret");
@@ -613,6 +732,20 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     r = qemu_rbd_set_keypairs(s->cluster, keypairs, errp);
     if (r < 0) {
         goto failed_shutdown;
+    }
+
+    if (mon_host) {
+        r = rados_conf_set(s->cluster, "mon_host", mon_host);
+        if (r < 0) {
+            goto failed_shutdown;
+        }
+    }
+
+    if (auth_supported) {
+        r = rados_conf_set(s->cluster, "auth_supported", auth_supported);
+        if (r < 0) {
+            goto failed_shutdown;
+        }
     }
 
     if (qemu_rbd_set_auth(s->cluster, secretid, errp) < 0) {
@@ -663,6 +796,8 @@ failed_shutdown:
     g_free(s->snap);
 failed_opts:
     qemu_opts_del(opts);
+    g_free(mon_host);
+    g_free(auth_supported);
     return r;
 }
 
