@@ -83,7 +83,6 @@ struct XICSState {
     /*< public >*/
     uint32_t nr_servers;
     ICPState *ss;
-    QLIST_HEAD(, ICSState) ics;
 };
 
 #define TYPE_ICP "icp"
@@ -154,7 +153,6 @@ struct ICSState {
     qemu_irq *qirqs;
     ICSIRQState *irqs;
     XICSState *xics;
-    QLIST_ENTRY(ICSState) list;
 };
 
 static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)

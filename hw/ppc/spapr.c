@@ -123,7 +123,6 @@ static XICSState *try_create_xics(sPAPRMachineState *spapr,
     if (err) {
         goto error;
     }
-    QLIST_INSERT_HEAD(&xics->ics, ics, list);
 
     xics->ss = g_malloc0(nr_servers * sizeof(ICPState));
     xics->nr_servers = nr_servers;

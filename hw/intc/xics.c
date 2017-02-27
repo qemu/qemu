@@ -146,13 +146,6 @@ static void xics_common_reset(DeviceState *d)
     }
 }
 
-static void xics_common_initfn(Object *obj)
-{
-    XICSState *xics = XICS_COMMON(obj);
-
-    QLIST_INIT(&xics->ics);
-}
-
 static void xics_common_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -165,7 +158,6 @@ static const TypeInfo xics_common_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(XICSState),
     .class_size    = sizeof(XICSStateClass),
-    .instance_init = xics_common_initfn,
     .class_init    = xics_common_class_init,
 };
 
