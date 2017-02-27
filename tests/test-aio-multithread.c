@@ -309,7 +309,7 @@ static void mcs_mutex_lock(void)
 static void mcs_mutex_unlock(void)
 {
     int next;
-    if (nodes[id].next == -1) {
+    if (atomic_read(&nodes[id].next) == -1) {
         if (atomic_read(&mutex_head) == id &&
             atomic_cmpxchg(&mutex_head, id, -1) == id) {
             /* Last item in the list, exit.  */
@@ -323,7 +323,7 @@ static void mcs_mutex_unlock(void)
     }
 
     /* Wake up the next in line.  */
-    next = nodes[id].next;
+    next = atomic_read(&nodes[id].next);
     nodes[next].locked = 0;
     qemu_futex_wake(&nodes[next].locked, 1);
 }
