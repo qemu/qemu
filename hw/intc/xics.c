@@ -139,15 +139,10 @@ static void ics_simple_pic_print_info(InterruptStatsProvider *obj,
 static void xics_common_reset(DeviceState *d)
 {
     XICSState *xics = XICS_COMMON(d);
-    ICSState *ics;
     int i;
 
     for (i = 0; i < xics->nr_servers; i++) {
         device_reset(DEVICE(&xics->ss[i]));
-    }
-
-    QLIST_FOREACH(ics, &xics->ics, list) {
-        device_reset(DEVICE(ics));
     }
 }
 
