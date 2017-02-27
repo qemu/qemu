@@ -137,29 +137,11 @@ static void ics_simple_pic_print_info(InterruptStatsProvider *obj,
 /*
  * XICS Common class - parent for emulated XICS and KVM-XICS
  */
-static void xics_common_reset(DeviceState *d)
-{
-    XICSState *xics = XICS_COMMON(d);
-    int i;
-
-    for (i = 0; i < xics->nr_servers; i++) {
-        device_reset(DEVICE(&xics->ss[i]));
-    }
-}
-
-static void xics_common_class_init(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->reset = xics_common_reset;
-}
-
 static const TypeInfo xics_common_info = {
     .name          = TYPE_XICS_COMMON,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(XICSState),
     .class_size    = sizeof(XICSStateClass),
-    .class_init    = xics_common_class_init,
 };
 
 /*

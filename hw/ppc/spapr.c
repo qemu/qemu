@@ -131,6 +131,7 @@ static XICSState *try_create_xics(sPAPRMachineState *spapr,
         ICPState *icp = &xics->ss[i];
 
         object_initialize(icp, sizeof(*icp), type_icp);
+        qdev_set_parent_bus(DEVICE(icp), sysbus_get_default());
         object_property_add_child(OBJECT(xics), "icp[*]", OBJECT(icp), NULL);
         object_property_add_const_link(OBJECT(icp), "xics", OBJECT(xi), NULL);
         object_property_set_bool(OBJECT(icp), true, "realized", &err);
