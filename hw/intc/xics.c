@@ -92,44 +92,44 @@ void xics_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
     }
 }
 
-static void xics_common_pic_print_info(InterruptStatsProvider *obj,
-                                       Monitor *mon)
+static void icp_pic_print_info(InterruptStatsProvider *obj,
+                           Monitor *mon)
 {
-    XICSState *xics = XICS_COMMON(obj);
-    ICSState *ics;
+    ICPState *icp = ICP(obj);
+    int cpu_index = icp->cs ? icp->cs->cpu_index : -1;
+
+    if (!icp->output) {
+        return;
+    }
+    monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
+                   cpu_index, icp->xirr, icp->xirr_owner,
+                   icp->pending_priority, icp->mfrr);
+}
+
+static void ics_simple_pic_print_info(InterruptStatsProvider *obj,
+                                      Monitor *mon)
+{
+    ICSState *ics = ICS_SIMPLE(obj);
     uint32_t i;
 
-    for (i = 0; i < xics->nr_servers; i++) {
-        ICPState *icp = &xics->ss[i];
+    monitor_printf(mon, "ICS %4x..%4x %p\n",
+                   ics->offset, ics->offset + ics->nr_irqs - 1, ics);
 
-        if (!icp->output) {
-            continue;
-        }
-        monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
-                       i, icp->xirr, icp->xirr_owner,
-                       icp->pending_priority, icp->mfrr);
+    if (!ics->irqs) {
+        return;
     }
 
-    QLIST_FOREACH(ics, &xics->ics, list) {
-        monitor_printf(mon, "ICS %4x..%4x %p\n",
-                       ics->offset, ics->offset + ics->nr_irqs - 1, ics);
+    for (i = 0; i < ics->nr_irqs; i++) {
+        ICSIRQState *irq = ics->irqs + i;
 
-        if (!ics->irqs) {
+        if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
             continue;
         }
-
-        for (i = 0; i < ics->nr_irqs; i++) {
-            ICSIRQState *irq = ics->irqs + i;
-
-            if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
-                continue;
-            }
-            monitor_printf(mon, "  %4x %s %02x %02x\n",
-                           ics->offset + i,
-                           (irq->flags & XICS_FLAGS_IRQ_LSI) ?
-                           "LSI" : "MSI",
-                           irq->priority, irq->status);
-        }
+        monitor_printf(mon, "  %4x %s %02x %02x\n",
+                       ics->offset + i,
+                       (irq->flags & XICS_FLAGS_IRQ_LSI) ?
+                       "LSI" : "MSI",
+                       irq->priority, irq->status);
     }
 }
 
@@ -161,10 +161,8 @@ static void xics_common_initfn(Object *obj)
 static void xics_common_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
     dc->reset = xics_common_reset;
-    ic->print_info = xics_common_pic_print_info;
 }
 
 static const TypeInfo xics_common_info = {
@@ -174,10 +172,6 @@ static const TypeInfo xics_common_info = {
     .class_size    = sizeof(XICSStateClass),
     .instance_init = xics_common_initfn,
     .class_init    = xics_common_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { }
-    },
 };
 
 /*
@@ -414,10 +408,12 @@ static void icp_realize(DeviceState *dev, Error **errp)
 static void icp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     dc->reset = icp_reset;
     dc->vmsd = &vmstate_icp_server;
     dc->realize = icp_realize;
+    ic->print_info = icp_pic_print_info;
 }
 
 static const TypeInfo icp_info = {
@@ -426,6 +422,10 @@ static const TypeInfo icp_info = {
     .instance_size = sizeof(ICPState),
     .class_init = icp_class_init,
     .class_size = sizeof(ICPStateClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_INTERRUPT_STATS_PROVIDER },
+        { }
+    },
 };
 
 /*
@@ -682,6 +682,7 @@ static void ics_simple_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICSStateClass *isc = ICS_BASE_CLASS(klass);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     isc->realize = ics_simple_realize;
     dc->props = ics_simple_properties;
@@ -691,6 +692,7 @@ static void ics_simple_class_init(ObjectClass *klass, void *data)
     isc->reject = ics_simple_reject;
     isc->resend = ics_simple_resend;
     isc->eoi = ics_simple_eoi;
+    ic->print_info = ics_simple_pic_print_info;
 }
 
 static const TypeInfo ics_simple_info = {
@@ -700,6 +702,10 @@ static const TypeInfo ics_simple_info = {
     .class_init = ics_simple_class_init,
     .class_size = sizeof(ICSStateClass),
     .instance_init = ics_simple_initfn,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_INTERRUPT_STATS_PROVIDER },
+        { }
+    },
 };
 
 static void ics_base_realize(DeviceState *dev, Error **errp)
