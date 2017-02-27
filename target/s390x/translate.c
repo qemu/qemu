@@ -1194,6 +1194,7 @@ typedef enum DisasFacility {
     FAC_SCF,                /* store clock fast */
     FAC_SFLE,               /* store facility list extended */
     FAC_ILA,                /* interlocked access facility 1 */
+    FAC_LPP,                /* load-program-parameter */
 } DisasFacility;
 
 struct DisasInsn {
@@ -2564,6 +2565,14 @@ static ExitStatus op_lra(DisasContext *s, DisasOps *o)
     potential_page_fault(s);
     gen_helper_lra(o->out, cpu_env, o->in2);
     set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_lpp(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+
+    tcg_gen_st_i64(o->in2, cpu_env, offsetof(CPUS390XState, pp));
     return NO_EXIT;
 }
 

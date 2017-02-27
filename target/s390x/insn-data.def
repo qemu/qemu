@@ -845,6 +845,8 @@
 /* LOAD CONTROL */
     C(0xb700, LCTL,    RS_a,  Z,   0, a2, 0, 0, lctl, 0)
     C(0xeb2f, LCTLG,   RSY_a, Z,   0, a2, 0, 0, lctlg, 0)
+/* LOAD PROGRAM PARAMETER */
+    C(0xb280, LPP,     S,   LPP,   0, m2_64, 0, 0, lpp, 0)
 /* LOAD PSW */
     C(0x8200, LPSW,    S,     Z,   0, a2, 0, 0, lpsw, 0)
 /* LOAD PSW EXTENDED */
