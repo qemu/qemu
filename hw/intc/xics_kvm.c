@@ -308,7 +308,7 @@ static void ics_kvm_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICSStateClass *icsc = ICS_BASE_CLASS(klass);
 
-    dc->realize = ics_kvm_realize;
+    icsc->realize = ics_kvm_realize;
     dc->reset = ics_kvm_reset;
     icsc->pre_save = ics_get_kvm_state;
     icsc->post_load = ics_set_kvm_state;
@@ -358,18 +358,6 @@ static void xics_kvm_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
     ss->cap_irq_xics_enabled = true;
 }
 
-static void xics_kvm_set_nr_irqs(XICSState *xics, uint32_t nr_irqs,
-                                 Error **errp)
-{
-    ICSState *ics = QLIST_FIRST(&xics->ics);
-
-    /* This needs to be deprecated ... */
-    xics->nr_irqs = nr_irqs;
-    if (ics) {
-        ics->nr_irqs = nr_irqs;
-    }
-}
-
 static void xics_kvm_set_nr_servers(XICSState *xics, uint32_t nr_servers,
                                     Error **errp)
 {
@@ -389,7 +377,6 @@ static void xics_kvm_realize(DeviceState *dev, Error **errp)
 {
     KVMXICSState *xicskvm = XICS_SPAPR_KVM(dev);
     XICSState *xics = XICS_COMMON(dev);
-    ICSState *ics;
     int i, rc;
     Error *error = NULL;
     struct kvm_create_device xics_create_device = {
@@ -441,14 +428,6 @@ static void xics_kvm_realize(DeviceState *dev, Error **errp)
 
     xicskvm->kernel_xics_fd = xics_create_device.fd;
 
-    QLIST_FOREACH(ics, &xics->ics, list) {
-        object_property_set_bool(OBJECT(ics), true, "realized", &error);
-        if (error) {
-            error_propagate(errp, error);
-            goto fail;
-        }
-    }
-
     assert(xics->nr_servers);
     for (i = 0; i < xics->nr_servers; i++) {
         object_property_set_bool(OBJECT(&xics->ss[i]), true, "realized",
@@ -472,17 +451,6 @@ fail:
     kvmppc_define_rtas_kernel_token(0, "ibm,int-off");
 }
 
-static void xics_kvm_initfn(Object *obj)
-{
-    XICSState *xics = XICS_COMMON(obj);
-    ICSState *ics;
-
-    ics = ICS_SIMPLE(object_new(TYPE_ICS_KVM));
-    object_property_add_child(obj, "ics", OBJECT(ics), NULL);
-    ics->xics = xics;
-    QLIST_INSERT_HEAD(&xics->ics, ics, list);
-}
-
 static void xics_kvm_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -490,7 +458,6 @@ static void xics_kvm_class_init(ObjectClass *oc, void *data)
 
     dc->realize = xics_kvm_realize;
     xsc->cpu_setup = xics_kvm_cpu_setup;
-    xsc->set_nr_irqs = xics_kvm_set_nr_irqs;
     xsc->set_nr_servers = xics_kvm_set_nr_servers;
 }
 
@@ -499,7 +466,6 @@ static const TypeInfo xics_spapr_kvm_info = {
     .parent        = TYPE_XICS_COMMON,
     .instance_size = sizeof(KVMXICSState),
     .class_init    = xics_kvm_class_init,
-    .instance_init = xics_kvm_initfn,
 };
 
 static void xics_kvm_register_types(void)

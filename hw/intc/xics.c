@@ -151,38 +151,6 @@ static void xics_common_reset(DeviceState *d)
     }
 }
 
-static void xics_prop_get_nr_irqs(Object *obj, Visitor *v, const char *name,
-                                  void *opaque, Error **errp)
-{
-    XICSState *xics = XICS_COMMON(obj);
-    int64_t value = xics->nr_irqs;
-
-    visit_type_int(v, name, &value, errp);
-}
-
-static void xics_prop_set_nr_irqs(Object *obj, Visitor *v, const char *name,
-                                  void *opaque, Error **errp)
-{
-    XICSState *xics = XICS_COMMON(obj);
-    XICSStateClass *info = XICS_COMMON_GET_CLASS(xics);
-    Error *error = NULL;
-    int64_t value;
-
-    visit_type_int(v, name, &value, &error);
-    if (error) {
-        error_propagate(errp, error);
-        return;
-    }
-    if (xics->nr_irqs) {
-        error_setg(errp, "Number of interrupts is already set to %u",
-                   xics->nr_irqs);
-        return;
-    }
-
-    assert(info->set_nr_irqs);
-    info->set_nr_irqs(xics, value, errp);
-}
-
 void xics_set_nr_servers(XICSState *xics, uint32_t nr_servers,
                          const char *typename, Error **errp)
 {
@@ -241,9 +209,6 @@ static void xics_common_initfn(Object *obj)
     XICSState *xics = XICS_COMMON(obj);
 
     QLIST_INIT(&xics->ics);
-    object_property_add(obj, "nr_irqs", "int",
-                        xics_prop_get_nr_irqs, xics_prop_set_nr_irqs,
-                        NULL, NULL, NULL);
     object_property_add(obj, "nr_servers", "int",
                         xics_prop_get_nr_servers, xics_prop_set_nr_servers,
                         NULL, NULL, NULL);
@@ -746,12 +711,18 @@ static void ics_simple_realize(DeviceState *dev, Error **errp)
     ics->qirqs = qemu_allocate_irqs(ics_simple_set_irq, ics, ics->nr_irqs);
 }
 
+static Property ics_simple_properties[] = {
+    DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ics_simple_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICSStateClass *isc = ICS_BASE_CLASS(klass);
 
-    dc->realize = ics_simple_realize;
+    isc->realize = ics_simple_realize;
+    dc->props = ics_simple_properties;
     dc->vmsd = &vmstate_ics_simple;
     dc->reset = ics_simple_reset;
     isc->post_load = ics_simple_post_load;
@@ -769,11 +740,40 @@ static const TypeInfo ics_simple_info = {
     .instance_init = ics_simple_initfn,
 };
 
+static void ics_base_realize(DeviceState *dev, Error **errp)
+{
+    ICSStateClass *icsc = ICS_BASE_GET_CLASS(dev);
+    ICSState *ics = ICS_BASE(dev);
+    Object *obj;
+    Error *err = NULL;
+
+    obj = object_property_get_link(OBJECT(dev), "xics", &err);
+    if (!obj) {
+        error_setg(errp, "%s: required link 'xics' not found: %s",
+                   __func__, error_get_pretty(err));
+        return;
+    }
+    ics->xics = XICS_COMMON(obj);
+
+
+    if (icsc->realize) {
+        icsc->realize(dev, errp);
+    }
+}
+
+static void ics_base_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = ics_base_realize;
+}
+
 static const TypeInfo ics_base_info = {
     .name = TYPE_ICS_BASE,
     .parent = TYPE_DEVICE,
     .abstract = true,
     .instance_size = sizeof(ICSState),
+    .class_init = ics_base_class_init,
     .class_size = sizeof(ICSStateClass),
 };
 

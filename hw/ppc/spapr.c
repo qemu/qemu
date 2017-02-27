@@ -95,23 +95,42 @@
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
-static XICSState *try_create_xics(const char *type, int nr_servers,
-                                  int nr_irqs, Error **errp)
+static XICSState *try_create_xics(const char *type, const char *type_ics,
+                                  int nr_servers, int nr_irqs, Error **errp)
 {
-    Error *err = NULL;
-    DeviceState *dev;
+    Error *err = NULL, *local_err = NULL;
+    XICSState *xics;
+    ICSState *ics = NULL;
 
-    dev = DEVICE(object_new(type));
-    qdev_prop_set_uint32(dev, "nr_servers", nr_servers);
-    qdev_prop_set_uint32(dev, "nr_irqs", nr_irqs);
-    qdev_set_parent_bus(dev, sysbus_get_default());
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    xics = XICS_COMMON(object_new(type));
+    qdev_set_parent_bus(DEVICE(xics), sysbus_get_default());
+    object_property_set_int(OBJECT(xics), nr_servers, "nr_servers", &err);
+    object_property_set_bool(OBJECT(xics), true, "realized", &local_err);
+    error_propagate(&err, local_err);
     if (err) {
-        error_propagate(errp, err);
-        object_unparent(OBJECT(dev));
-        return NULL;
+        goto error;
     }
-    return XICS_COMMON(dev);
+
+    ics = ICS_SIMPLE(object_new(type_ics));
+    object_property_add_child(OBJECT(xics), "ics", OBJECT(ics), NULL);
+    object_property_set_int(OBJECT(ics), nr_irqs, "nr-irqs", &err);
+    object_property_add_const_link(OBJECT(ics), "xics", OBJECT(xics), NULL);
+    object_property_set_bool(OBJECT(ics), true, "realized", &local_err);
+    error_propagate(&err, local_err);
+    if (err) {
+        goto error;
+    }
+    QLIST_INSERT_HEAD(&xics->ics, ics, list);
+
+    return xics;
+
+error:
+    error_propagate(errp, err);
+    if (ics) {
+        object_unparent(OBJECT(ics));
+    }
+    object_unparent(OBJECT(xics));
+    return NULL;
 }
 
 static XICSState *xics_system_init(MachineState *machine,
@@ -123,8 +142,8 @@ static XICSState *xics_system_init(MachineState *machine,
         Error *err = NULL;
 
         if (machine_kernel_irqchip_allowed(machine)) {
-            xics = try_create_xics(TYPE_XICS_SPAPR_KVM, nr_servers, nr_irqs,
-                                   &err);
+            xics = try_create_xics(TYPE_XICS_SPAPR_KVM, TYPE_ICS_KVM,
+                                   nr_servers, nr_irqs, &err);
         }
         if (machine_kernel_irqchip_required(machine) && !xics) {
             error_reportf_err(err,
@@ -135,7 +154,8 @@ static XICSState *xics_system_init(MachineState *machine,
     }
 
     if (!xics) {
-        xics = try_create_xics(TYPE_XICS_SPAPR, nr_servers, nr_irqs, errp);
+        xics = try_create_xics(TYPE_XICS_SPAPR, TYPE_ICS_SIMPLE, nr_servers,
+                               nr_irqs, errp);
     }
 
     return xics;

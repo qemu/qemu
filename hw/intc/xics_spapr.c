@@ -239,18 +239,6 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
-static void xics_spapr_set_nr_irqs(XICSState *xics, uint32_t nr_irqs,
-                                   Error **errp)
-{
-    ICSState *ics = QLIST_FIRST(&xics->ics);
-
-    /* This needs to be deprecated ... */
-    xics->nr_irqs = nr_irqs;
-    if (ics) {
-        ics->nr_irqs = nr_irqs;
-    }
-}
-
 static void xics_spapr_set_nr_servers(XICSState *xics, uint32_t nr_servers,
                                       Error **errp)
 {
@@ -260,7 +248,6 @@ static void xics_spapr_set_nr_servers(XICSState *xics, uint32_t nr_servers,
 static void xics_spapr_realize(DeviceState *dev, Error **errp)
 {
     XICSState *xics = XICS_SPAPR(dev);
-    ICSState *ics;
     Error *error = NULL;
     int i;
 
@@ -282,14 +269,6 @@ static void xics_spapr_realize(DeviceState *dev, Error **errp)
     spapr_register_hypercall(H_EOI, h_eoi);
     spapr_register_hypercall(H_IPOLL, h_ipoll);
 
-    QLIST_FOREACH(ics, &xics->ics, list) {
-        object_property_set_bool(OBJECT(ics), true, "realized", &error);
-        if (error) {
-            error_propagate(errp, error);
-            return;
-        }
-    }
-
     for (i = 0; i < xics->nr_servers; i++) {
         object_property_set_bool(OBJECT(&xics->ss[i]), true, "realized",
                                  &error);
@@ -300,24 +279,12 @@ static void xics_spapr_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void xics_spapr_initfn(Object *obj)
-{
-    XICSState *xics = XICS_SPAPR(obj);
-    ICSState *ics;
-
-    ics = ICS_SIMPLE(object_new(TYPE_ICS_SIMPLE));
-    object_property_add_child(obj, "ics", OBJECT(ics), NULL);
-    ics->xics = xics;
-    QLIST_INSERT_HEAD(&xics->ics, ics, list);
-}
-
 static void xics_spapr_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     XICSStateClass *xsc = XICS_SPAPR_CLASS(oc);
 
     dc->realize = xics_spapr_realize;
-    xsc->set_nr_irqs = xics_spapr_set_nr_irqs;
     xsc->set_nr_servers = xics_spapr_set_nr_servers;
 }
 
@@ -327,7 +294,6 @@ static const TypeInfo xics_spapr_info = {
     .instance_size = sizeof(XICSState),
     .class_size = sizeof(XICSStateClass),
     .class_init    = xics_spapr_class_init,
-    .instance_init = xics_spapr_initfn,
 };
 
 #define ICS_IRQ_FREE(ics, srcno)   \

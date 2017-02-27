@@ -74,7 +74,6 @@ struct XICSStateClass {
     DeviceClass parent_class;
 
     void (*cpu_setup)(XICSState *icp, PowerPCCPU *cpu);
-    void (*set_nr_irqs)(XICSState *icp, uint32_t nr_irqs, Error **errp);
     void (*set_nr_servers)(XICSState *icp, uint32_t nr_servers, Error **errp);
 };
 
@@ -83,7 +82,6 @@ struct XICSState {
     DeviceState parent_obj;
     /*< public >*/
     uint32_t nr_servers;
-    uint32_t nr_irqs;
     ICPState *ss;
     QLIST_HEAD(, ICSState) ics;
 };
@@ -139,6 +137,7 @@ struct ICPState {
 struct ICSStateClass {
     DeviceClass parent_class;
 
+    void (*realize)(DeviceState *dev, Error **errp);
     void (*pre_save)(ICSState *s);
     int (*post_load)(ICSState *s, int version_id);
     void (*reject)(ICSState *s, uint32_t irq);
