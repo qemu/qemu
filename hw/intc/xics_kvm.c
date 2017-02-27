@@ -124,6 +124,34 @@ static void icp_kvm_reset(DeviceState *dev)
     icp_set_kvm_state(icp, 1);
 }
 
+static void icp_kvm_cpu_setup(ICPState *ss, PowerPCCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    int ret;
+
+    if (kernel_xics_fd == -1) {
+        abort();
+    }
+
+    /*
+     * If we are reusing a parked vCPU fd corresponding to the CPU
+     * which was hot-removed earlier we don't have to renable
+     * KVM_CAP_IRQ_XICS capability again.
+     */
+    if (ss->cap_irq_xics_enabled) {
+        return;
+    }
+
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_XICS, 0, kernel_xics_fd,
+                              kvm_arch_vcpu_id(cs));
+    if (ret < 0) {
+        error_report("Unable to connect CPU%ld to kernel XICS: %s",
+                     kvm_arch_vcpu_id(cs), strerror(errno));
+        exit(1);
+    }
+    ss->cap_irq_xics_enabled = true;
+}
+
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -132,6 +160,7 @@ static void icp_kvm_class_init(ObjectClass *klass, void *data)
     dc->reset = icp_kvm_reset;
     icpc->pre_save = icp_get_kvm_state;
     icpc->post_load = icp_set_kvm_state;
+    icpc->cpu_setup = icp_kvm_cpu_setup;
 }
 
 static const TypeInfo icp_kvm_info = {
@@ -324,33 +353,6 @@ static const TypeInfo ics_kvm_info = {
 /*
  * XICS-KVM
  */
-static void xics_kvm_cpu_setup(ICPState *ss, PowerPCCPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-    int ret;
-
-    if (kernel_xics_fd == -1) {
-        abort();
-    }
-
-    /*
-     * If we are reusing a parked vCPU fd corresponding to the CPU
-     * which was hot-removed earlier we don't have to renable
-     * KVM_CAP_IRQ_XICS capability again.
-     */
-    if (ss->cap_irq_xics_enabled) {
-        return;
-    }
-
-    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_XICS, 0, kernel_xics_fd,
-                              kvm_arch_vcpu_id(cs));
-    if (ret < 0) {
-        error_report("Unable to connect CPU%ld to kernel XICS: %s",
-                     kvm_arch_vcpu_id(cs), strerror(errno));
-        exit(1);
-    }
-    ss->cap_irq_xics_enabled = true;
-}
 
 static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                        uint32_t token,
@@ -429,10 +431,8 @@ fail:
 static void xics_kvm_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    XICSStateClass *xsc = XICS_COMMON_CLASS(oc);
 
     dc->realize = xics_kvm_realize;
-    xsc->cpu_setup = xics_kvm_cpu_setup;
 }
 
 static const TypeInfo xics_spapr_kvm_info = {

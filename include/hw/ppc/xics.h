@@ -73,8 +73,6 @@ typedef struct XICSFabric XICSFabric;
 
 struct XICSStateClass {
     DeviceClass parent_class;
-
-    void (*cpu_setup)(ICPState *icp, PowerPCCPU *cpu);
 };
 
 struct XICSState {
@@ -101,6 +99,7 @@ struct ICPStateClass {
 
     void (*pre_save)(ICPState *s);
     int (*post_load)(ICPState *s, int version_id);
+    void (*cpu_setup)(ICPState *icp, PowerPCCPU *cpu);
 };
 
 struct ICPState {
