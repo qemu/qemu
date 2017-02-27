@@ -95,7 +95,8 @@
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
-static XICSState *try_create_xics(const char *type, const char *type_ics,
+static XICSState *try_create_xics(sPAPRMachineState *spapr,
+                                  const char *type, const char *type_ics,
                                   const char *type_icp, int nr_servers,
                                   int nr_irqs, Error **errp)
 {
@@ -112,7 +113,7 @@ static XICSState *try_create_xics(const char *type, const char *type_ics,
     }
 
     ics = ICS_SIMPLE(object_new(type_ics));
-    object_property_add_child(OBJECT(xics), "ics", OBJECT(ics), NULL);
+    object_property_add_child(OBJECT(spapr), "ics", OBJECT(ics), NULL);
     object_property_set_int(OBJECT(ics), nr_irqs, "nr-irqs", &err);
     object_property_add_const_link(OBJECT(ics), "xics", OBJECT(xics), NULL);
     object_property_set_bool(OBJECT(ics), true, "realized", &local_err);
@@ -138,6 +139,7 @@ static XICSState *try_create_xics(const char *type, const char *type_ics,
         object_unref(OBJECT(icp));
     }
 
+    spapr->ics = ics;
     return xics;
 
 error:
@@ -158,7 +160,8 @@ static XICSState *xics_system_init(MachineState *machine,
         Error *err = NULL;
 
         if (machine_kernel_irqchip_allowed(machine)) {
-            xics = try_create_xics(TYPE_XICS_SPAPR_KVM, TYPE_ICS_KVM,
+            xics = try_create_xics(SPAPR_MACHINE(machine),
+                                   TYPE_XICS_SPAPR_KVM, TYPE_ICS_KVM,
                                    TYPE_KVM_ICP, nr_servers, nr_irqs, &err);
         }
         if (machine_kernel_irqchip_required(machine) && !xics) {
@@ -170,8 +173,9 @@ static XICSState *xics_system_init(MachineState *machine,
     }
 
     if (!xics) {
-        xics = try_create_xics(TYPE_XICS_SPAPR, TYPE_ICS_SIMPLE, TYPE_ICP,
-                               nr_servers, nr_irqs, errp);
+        xics = try_create_xics(SPAPR_MACHINE(machine),
+                               TYPE_XICS_SPAPR, TYPE_ICS_SIMPLE,
+                               TYPE_ICP, nr_servers, nr_irqs, errp);
     }
 
     return xics;

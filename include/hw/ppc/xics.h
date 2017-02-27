@@ -181,10 +181,10 @@ struct ICSIRQState {
 #define XICS_IRQS_SPAPR               1024
 
 qemu_irq xics_get_qirq(XICSState *icp, int irq);
-int xics_spapr_alloc(XICSState *icp, int irq_hint, bool lsi, Error **errp);
-int xics_spapr_alloc_block(XICSState *icp, int num, bool lsi, bool align,
+int spapr_ics_alloc(ICSState *ics, int irq_hint, bool lsi, Error **errp);
+int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi, bool align,
                            Error **errp);
-void xics_spapr_free(XICSState *icp, int irq, int num);
+void spapr_ics_free(ICSState *ics, int irq, int num);
 void spapr_dt_xics(XICSState *xics, void *fdt, uint32_t phandle);
 
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu);

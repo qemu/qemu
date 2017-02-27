@@ -59,6 +59,7 @@ struct sPAPRMachineState {
     QLIST_HEAD(, sPAPRPHBState) phbs;
     struct sPAPRNVRAM *nvram;
     XICSState *xics;
+    ICSState *ics;
     DeviceState *rtc;
 
     void *htab;

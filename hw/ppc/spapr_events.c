@@ -752,7 +752,7 @@ void spapr_events_init(sPAPRMachineState *spapr)
     spapr->event_sources = spapr_event_sources_new();
 
     spapr_event_sources_register(spapr->event_sources, EVENT_CLASS_EPOW,
-                                 xics_spapr_alloc(spapr->xics, 0, false,
+                                 spapr_ics_alloc(spapr->ics, 0, false,
                                                   &error_fatal));
 
     /* NOTE: if machine supports modern/dedicated hotplug event source,
@@ -765,7 +765,7 @@ void spapr_events_init(sPAPRMachineState *spapr)
      */
     if (spapr->use_hotplug_event_source) {
         spapr_event_sources_register(spapr->event_sources, EVENT_CLASS_HOT_PLUG,
-                                     xics_spapr_alloc(spapr->xics, 0, false,
+                                     spapr_ics_alloc(spapr->ics, 0, false,
                                                       &error_fatal));
     }
 
