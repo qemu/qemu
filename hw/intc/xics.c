@@ -52,38 +52,38 @@ int xics_get_cpu_index_by_dt_id(int cpu_dt_id)
 void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    ICPState *ss = xics_icp_get(xi, cs->cpu_index);
+    ICPState *icp = xics_icp_get(xi, cs->cpu_index);
 
-    assert(ss);
-    assert(cs == ss->cs);
+    assert(icp);
+    assert(cs == icp->cs);
 
-    ss->output = NULL;
-    ss->cs = NULL;
+    icp->output = NULL;
+    icp->cs = NULL;
 }
 
 void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    ICPState *ss = xics_icp_get(xi, cs->cpu_index);
+    ICPState *icp = xics_icp_get(xi, cs->cpu_index);
     ICPStateClass *icpc;
 
-    assert(ss);
+    assert(icp);
 
-    ss->cs = cs;
+    icp->cs = cs;
 
-    icpc = ICP_GET_CLASS(ss);
+    icpc = ICP_GET_CLASS(icp);
     if (icpc->cpu_setup) {
-        icpc->cpu_setup(ss, cpu);
+        icpc->cpu_setup(icp, cpu);
     }
 
     switch (PPC_INPUT(env)) {
     case PPC_FLAGS_INPUT_POWER7:
-        ss->output = env->irq_inputs[POWER7_INPUT_INT];
+        icp->output = env->irq_inputs[POWER7_INPUT_INT];
         break;
 
     case PPC_FLAGS_INPUT_970:
-        ss->output = env->irq_inputs[PPC970_INPUT_INT];
+        icp->output = env->irq_inputs[PPC970_INPUT_INT];
         break;
 
     default:
@@ -137,8 +137,8 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon)
 #define XISR_MASK  0x00ffffff
 #define CPPR_MASK  0xff000000
 
-#define XISR(ss)   (((ss)->xirr) & XISR_MASK)
-#define CPPR(ss)   (((ss)->xirr) >> 24)
+#define XISR(icp)   (((icp)->xirr) & XISR_MASK)
+#define CPPR(icp)   (((icp)->xirr) >> 24)
 
 static void ics_reject(ICSState *ics, uint32_t nr)
 {
@@ -167,152 +167,152 @@ static void ics_eoi(ICSState *ics, int nr)
     }
 }
 
-static void icp_check_ipi(ICPState *ss)
+static void icp_check_ipi(ICPState *icp)
 {
-    if (XISR(ss) && (ss->pending_priority <= ss->mfrr)) {
+    if (XISR(icp) && (icp->pending_priority <= icp->mfrr)) {
         return;
     }
 
-    trace_xics_icp_check_ipi(ss->cs->cpu_index, ss->mfrr);
+    trace_xics_icp_check_ipi(icp->cs->cpu_index, icp->mfrr);
 
-    if (XISR(ss) && ss->xirr_owner) {
-        ics_reject(ss->xirr_owner, XISR(ss));
+    if (XISR(icp) && icp->xirr_owner) {
+        ics_reject(icp->xirr_owner, XISR(icp));
     }
 
-    ss->xirr = (ss->xirr & ~XISR_MASK) | XICS_IPI;
-    ss->pending_priority = ss->mfrr;
-    ss->xirr_owner = NULL;
-    qemu_irq_raise(ss->output);
+    icp->xirr = (icp->xirr & ~XISR_MASK) | XICS_IPI;
+    icp->pending_priority = icp->mfrr;
+    icp->xirr_owner = NULL;
+    qemu_irq_raise(icp->output);
 }
 
-void icp_resend(ICPState *ss)
+void icp_resend(ICPState *icp)
 {
-    XICSFabric *xi = ss->xics;
+    XICSFabric *xi = icp->xics;
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
 
-    if (ss->mfrr < CPPR(ss)) {
-        icp_check_ipi(ss);
+    if (icp->mfrr < CPPR(icp)) {
+        icp_check_ipi(icp);
     }
 
     xic->ics_resend(xi);
 }
 
-void icp_set_cppr(ICPState *ss, uint8_t cppr)
+void icp_set_cppr(ICPState *icp, uint8_t cppr)
 {
     uint8_t old_cppr;
     uint32_t old_xisr;
 
-    old_cppr = CPPR(ss);
-    ss->xirr = (ss->xirr & ~CPPR_MASK) | (cppr << 24);
+    old_cppr = CPPR(icp);
+    icp->xirr = (icp->xirr & ~CPPR_MASK) | (cppr << 24);
 
     if (cppr < old_cppr) {
-        if (XISR(ss) && (cppr <= ss->pending_priority)) {
-            old_xisr = XISR(ss);
-            ss->xirr &= ~XISR_MASK; /* Clear XISR */
-            ss->pending_priority = 0xff;
-            qemu_irq_lower(ss->output);
-            if (ss->xirr_owner) {
-                ics_reject(ss->xirr_owner, old_xisr);
-                ss->xirr_owner = NULL;
+        if (XISR(icp) && (cppr <= icp->pending_priority)) {
+            old_xisr = XISR(icp);
+            icp->xirr &= ~XISR_MASK; /* Clear XISR */
+            icp->pending_priority = 0xff;
+            qemu_irq_lower(icp->output);
+            if (icp->xirr_owner) {
+                ics_reject(icp->xirr_owner, old_xisr);
+                icp->xirr_owner = NULL;
             }
         }
     } else {
-        if (!XISR(ss)) {
-            icp_resend(ss);
+        if (!XISR(icp)) {
+            icp_resend(icp);
         }
     }
 }
 
-void icp_set_mfrr(ICPState *ss, uint8_t mfrr)
+void icp_set_mfrr(ICPState *icp, uint8_t mfrr)
 {
-    ss->mfrr = mfrr;
-    if (mfrr < CPPR(ss)) {
-        icp_check_ipi(ss);
+    icp->mfrr = mfrr;
+    if (mfrr < CPPR(icp)) {
+        icp_check_ipi(icp);
     }
 }
 
-uint32_t icp_accept(ICPState *ss)
+uint32_t icp_accept(ICPState *icp)
 {
-    uint32_t xirr = ss->xirr;
+    uint32_t xirr = icp->xirr;
 
-    qemu_irq_lower(ss->output);
-    ss->xirr = ss->pending_priority << 24;
-    ss->pending_priority = 0xff;
-    ss->xirr_owner = NULL;
+    qemu_irq_lower(icp->output);
+    icp->xirr = icp->pending_priority << 24;
+    icp->pending_priority = 0xff;
+    icp->xirr_owner = NULL;
 
-    trace_xics_icp_accept(xirr, ss->xirr);
+    trace_xics_icp_accept(xirr, icp->xirr);
 
     return xirr;
 }
 
-uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr)
+uint32_t icp_ipoll(ICPState *icp, uint32_t *mfrr)
 {
     if (mfrr) {
-        *mfrr = ss->mfrr;
+        *mfrr = icp->mfrr;
     }
-    return ss->xirr;
+    return icp->xirr;
 }
 
-void icp_eoi(ICPState *ss, uint32_t xirr)
+void icp_eoi(ICPState *icp, uint32_t xirr)
 {
-    XICSFabric *xi = ss->xics;
+    XICSFabric *xi = icp->xics;
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
     ICSState *ics;
     uint32_t irq;
 
     /* Send EOI -> ICS */
-    ss->xirr = (ss->xirr & ~CPPR_MASK) | (xirr & CPPR_MASK);
-    trace_xics_icp_eoi(ss->cs->cpu_index, xirr, ss->xirr);
+    icp->xirr = (icp->xirr & ~CPPR_MASK) | (xirr & CPPR_MASK);
+    trace_xics_icp_eoi(icp->cs->cpu_index, xirr, icp->xirr);
     irq = xirr & XISR_MASK;
 
     ics = xic->ics_get(xi, irq);
     if (ics) {
         ics_eoi(ics, irq);
     }
-    if (!XISR(ss)) {
-        icp_resend(ss);
+    if (!XISR(icp)) {
+        icp_resend(icp);
     }
 }
 
 static void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
 {
-    ICPState *ss = xics_icp_get(ics->xics, server);
+    ICPState *icp = xics_icp_get(ics->xics, server);
 
     trace_xics_icp_irq(server, nr, priority);
 
-    if ((priority >= CPPR(ss))
-        || (XISR(ss) && (ss->pending_priority <= priority))) {
+    if ((priority >= CPPR(icp))
+        || (XISR(icp) && (icp->pending_priority <= priority))) {
         ics_reject(ics, nr);
     } else {
-        if (XISR(ss) && ss->xirr_owner) {
-            ics_reject(ss->xirr_owner, XISR(ss));
-            ss->xirr_owner = NULL;
+        if (XISR(icp) && icp->xirr_owner) {
+            ics_reject(icp->xirr_owner, XISR(icp));
+            icp->xirr_owner = NULL;
         }
-        ss->xirr = (ss->xirr & ~XISR_MASK) | (nr & XISR_MASK);
-        ss->xirr_owner = ics;
-        ss->pending_priority = priority;
-        trace_xics_icp_raise(ss->xirr, ss->pending_priority);
-        qemu_irq_raise(ss->output);
+        icp->xirr = (icp->xirr & ~XISR_MASK) | (nr & XISR_MASK);
+        icp->xirr_owner = ics;
+        icp->pending_priority = priority;
+        trace_xics_icp_raise(icp->xirr, icp->pending_priority);
+        qemu_irq_raise(icp->output);
     }
 }
 
 static void icp_dispatch_pre_save(void *opaque)
 {
-    ICPState *ss = opaque;
-    ICPStateClass *info = ICP_GET_CLASS(ss);
+    ICPState *icp = opaque;
+    ICPStateClass *info = ICP_GET_CLASS(icp);
 
     if (info->pre_save) {
-        info->pre_save(ss);
+        info->pre_save(icp);
     }
 }
 
 static int icp_dispatch_post_load(void *opaque, int version_id)
 {
-    ICPState *ss = opaque;
-    ICPStateClass *info = ICP_GET_CLASS(ss);
+    ICPState *icp = opaque;
+    ICPStateClass *info = ICP_GET_CLASS(icp);
 
     if (info->post_load) {
-        return info->post_load(ss, version_id);
+        return info->post_load(icp, version_id);
     }
 
     return 0;

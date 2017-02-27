@@ -45,7 +45,7 @@ static int kernel_xics_fd = -1;
 /*
  * ICP-KVM
  */
-static void icp_get_kvm_state(ICPState *ss)
+static void icp_get_kvm_state(ICPState *icp)
 {
     uint64_t state;
     struct kvm_one_reg reg = {
@@ -55,25 +55,25 @@ static void icp_get_kvm_state(ICPState *ss)
     int ret;
 
     /* ICP for this CPU thread is not in use, exiting */
-    if (!ss->cs) {
+    if (!icp->cs) {
         return;
     }
 
-    ret = kvm_vcpu_ioctl(ss->cs, KVM_GET_ONE_REG, &reg);
+    ret = kvm_vcpu_ioctl(icp->cs, KVM_GET_ONE_REG, &reg);
     if (ret != 0) {
         error_report("Unable to retrieve KVM interrupt controller state"
-                " for CPU %ld: %s", kvm_arch_vcpu_id(ss->cs), strerror(errno));
+                " for CPU %ld: %s", kvm_arch_vcpu_id(icp->cs), strerror(errno));
         exit(1);
     }
 
-    ss->xirr = state >> KVM_REG_PPC_ICP_XISR_SHIFT;
-    ss->mfrr = (state >> KVM_REG_PPC_ICP_MFRR_SHIFT)
+    icp->xirr = state >> KVM_REG_PPC_ICP_XISR_SHIFT;
+    icp->mfrr = (state >> KVM_REG_PPC_ICP_MFRR_SHIFT)
         & KVM_REG_PPC_ICP_MFRR_MASK;
-    ss->pending_priority = (state >> KVM_REG_PPC_ICP_PPRI_SHIFT)
+    icp->pending_priority = (state >> KVM_REG_PPC_ICP_PPRI_SHIFT)
         & KVM_REG_PPC_ICP_PPRI_MASK;
 }
 
-static int icp_set_kvm_state(ICPState *ss, int version_id)
+static int icp_set_kvm_state(ICPState *icp, int version_id)
 {
     uint64_t state;
     struct kvm_one_reg reg = {
@@ -83,18 +83,18 @@ static int icp_set_kvm_state(ICPState *ss, int version_id)
     int ret;
 
     /* ICP for this CPU thread is not in use, exiting */
-    if (!ss->cs) {
+    if (!icp->cs) {
         return 0;
     }
 
-    state = ((uint64_t)ss->xirr << KVM_REG_PPC_ICP_XISR_SHIFT)
-        | ((uint64_t)ss->mfrr << KVM_REG_PPC_ICP_MFRR_SHIFT)
-        | ((uint64_t)ss->pending_priority << KVM_REG_PPC_ICP_PPRI_SHIFT);
+    state = ((uint64_t)icp->xirr << KVM_REG_PPC_ICP_XISR_SHIFT)
+        | ((uint64_t)icp->mfrr << KVM_REG_PPC_ICP_MFRR_SHIFT)
+        | ((uint64_t)icp->pending_priority << KVM_REG_PPC_ICP_PPRI_SHIFT);
 
-    ret = kvm_vcpu_ioctl(ss->cs, KVM_SET_ONE_REG, &reg);
+    ret = kvm_vcpu_ioctl(icp->cs, KVM_SET_ONE_REG, &reg);
     if (ret != 0) {
         error_report("Unable to restore KVM interrupt controller state (0x%"
-                PRIx64 ") for CPU %ld: %s", state, kvm_arch_vcpu_id(ss->cs),
+                PRIx64 ") for CPU %ld: %s", state, kvm_arch_vcpu_id(icp->cs),
                 strerror(errno));
         return ret;
     }
@@ -118,7 +118,7 @@ static void icp_kvm_reset(DeviceState *dev)
     icp_set_kvm_state(icp, 1);
 }
 
-static void icp_kvm_cpu_setup(ICPState *ss, PowerPCCPU *cpu)
+static void icp_kvm_cpu_setup(ICPState *icp, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
     int ret;
@@ -132,7 +132,7 @@ static void icp_kvm_cpu_setup(ICPState *ss, PowerPCCPU *cpu)
      * which was hot-removed earlier we don't have to renable
      * KVM_CAP_IRQ_XICS capability again.
      */
-    if (ss->cap_irq_xics_enabled) {
+    if (icp->cap_irq_xics_enabled) {
         return;
     }
 
@@ -143,7 +143,7 @@ static void icp_kvm_cpu_setup(ICPState *ss, PowerPCCPU *cpu)
                      kvm_arch_vcpu_id(cs), strerror(errno));
         exit(1);
     }
-    ss->cap_irq_xics_enabled = true;
+    icp->cap_irq_xics_enabled = true;
 }
 
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
