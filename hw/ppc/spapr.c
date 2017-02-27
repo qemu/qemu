@@ -100,6 +100,7 @@ static XICSState *try_create_xics(sPAPRMachineState *spapr,
                                   const char *type_icp, int nr_servers,
                                   int nr_irqs, Error **errp)
 {
+    XICSFabric *xi = XICS_FABRIC(spapr);
     Error *err = NULL, *local_err = NULL;
     XICSState *xics;
     ICSState *ics = NULL;
@@ -131,7 +132,7 @@ static XICSState *try_create_xics(sPAPRMachineState *spapr,
 
         object_initialize(icp, sizeof(*icp), type_icp);
         object_property_add_child(OBJECT(xics), "icp[*]", OBJECT(icp), NULL);
-        object_property_add_const_link(OBJECT(icp), "xics", OBJECT(xics), NULL);
+        object_property_add_const_link(OBJECT(icp), "xics", OBJECT(xi), NULL);
         object_property_set_bool(OBJECT(icp), true, "realized", &err);
         if (err) {
             goto error;

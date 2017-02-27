@@ -69,6 +69,7 @@ typedef struct ICPState ICPState;
 typedef struct ICSStateClass ICSStateClass;
 typedef struct ICSState ICSState;
 typedef struct ICSIRQState ICSIRQState;
+typedef struct XICSFabric XICSFabric;
 
 struct XICSStateClass {
     DeviceClass parent_class;
@@ -115,7 +116,7 @@ struct ICPState {
     qemu_irq output;
     bool cap_irq_xics_enabled;
 
-    XICSState *xics;
+    XICSFabric *xics;
 };
 
 #define TYPE_ICS_BASE "ics-base"

@@ -231,14 +231,14 @@ static void icp_check_ipi(ICPState *ss)
 
 static void icp_resend(ICPState *ss)
 {
-    ICSState *ics;
+    XICSFabric *xi = ss->xics;
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
 
     if (ss->mfrr < CPPR(ss)) {
         icp_check_ipi(ss);
     }
-    QLIST_FOREACH(ics, &ss->xics->ics, list) {
-        ics_resend(ics);
-    }
+
+    xic->ics_resend(xi);
 }
 
 void icp_set_cppr(ICPState *ss, uint8_t cppr)
@@ -299,6 +299,8 @@ uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr)
 
 void icp_eoi(ICPState *ss, uint32_t xirr)
 {
+    XICSFabric *xi = ss->xics;
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
     ICSState *ics;
     uint32_t irq;
 
@@ -306,10 +308,10 @@ void icp_eoi(ICPState *ss, uint32_t xirr)
     ss->xirr = (ss->xirr & ~CPPR_MASK) | (xirr & CPPR_MASK);
     trace_xics_icp_eoi(ss->cs->cpu_index, xirr, ss->xirr);
     irq = xirr & XISR_MASK;
-    QLIST_FOREACH(ics, &ss->xics->ics, list) {
-        if (ics_valid_irq(ics, irq)) {
-            ics_eoi(ics, irq);
-        }
+
+    ics = xic->ics_get(xi, irq);
+    if (ics) {
+        ics_eoi(ics, irq);
     }
     if (!XISR(ss)) {
         icp_resend(ss);
@@ -401,7 +403,7 @@ static void icp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    icp->xics = XICS_COMMON(obj);
+    icp->xics = XICS_FABRIC(obj);
 }
 
 
