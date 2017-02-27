@@ -497,6 +497,12 @@ static QemuOptsList qemu_spice_opts = {
         },{
             .name = "seamless-migration",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "display",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "head",
+            .type = QEMU_OPT_NUMBER,
 #ifdef HAVE_SPICE_GL
         },{
             .name = "gl",

@@ -184,11 +184,24 @@ QEMUGLContext sdl2_gl_get_current_context(DisplayChangeListener *dcl)
     return (QEMUGLContext)sdlctx;
 }
 
-void sdl2_gl_scanout(DisplayChangeListener *dcl,
-                     uint32_t backing_id, bool backing_y_0_top,
-                     uint32_t backing_width, uint32_t backing_height,
-                     uint32_t x, uint32_t y,
-                     uint32_t w, uint32_t h)
+void sdl2_gl_scanout_disable(DisplayChangeListener *dcl)
+{
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
+
+    assert(scon->opengl);
+    scon->w = 0;
+    scon->h = 0;
+    scon->tex_id = 0;
+    sdl2_set_scanout_mode(scon, false);
+}
+
+void sdl2_gl_scanout_texture(DisplayChangeListener *dcl,
+                             uint32_t backing_id,
+                             bool backing_y_0_top,
+                             uint32_t backing_width,
+                             uint32_t backing_height,
+                             uint32_t x, uint32_t y,
+                             uint32_t w, uint32_t h)
 {
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
 
@@ -201,11 +214,6 @@ void sdl2_gl_scanout(DisplayChangeListener *dcl,
     scon->y0_top = backing_y_0_top;
 
     SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
-
-    if (scon->tex_id == 0 || scon->w == 0 || scon->h == 0) {
-        sdl2_set_scanout_mode(scon, false);
-        return;
-    }
 
     sdl2_set_scanout_mode(scon, true);
     if (!scon->fbo_id) {

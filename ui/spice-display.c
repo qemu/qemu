@@ -928,39 +928,44 @@ static QEMUGLContext qemu_spice_gl_create_context(DisplayChangeListener *dcl,
     return qemu_egl_create_context(dcl, params);
 }
 
-static void qemu_spice_gl_scanout(DisplayChangeListener *dcl,
-                                  uint32_t tex_id,
-                                  bool y_0_top,
-                                  uint32_t backing_width,
-                                  uint32_t backing_height,
-                                  uint32_t x, uint32_t y,
-                                  uint32_t w, uint32_t h)
+static void qemu_spice_gl_scanout_disable(DisplayChangeListener *dcl)
+{
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+
+    dprint(1, "%s: no framebuffer\n", __func__);
+    spice_qxl_gl_scanout(&ssd->qxl, -1, 0, 0, 0, 0, false);
+    qemu_spice_gl_monitor_config(ssd, 0, 0, 0, 0);
+    ssd->have_surface = false;
+    ssd->have_scanout = false;
+}
+
+static void qemu_spice_gl_scanout_texture(DisplayChangeListener *dcl,
+                                          uint32_t tex_id,
+                                          bool y_0_top,
+                                          uint32_t backing_width,
+                                          uint32_t backing_height,
+                                          uint32_t x, uint32_t y,
+                                          uint32_t w, uint32_t h)
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
     EGLint stride = 0, fourcc = 0;
     int fd = -1;
 
-    if (tex_id) {
-        fd = egl_get_fd_for_texture(tex_id, &stride, &fourcc);
-        if (fd < 0) {
-            fprintf(stderr, "%s: failed to get fd for texture\n", __func__);
-            return;
-        }
-        dprint(1, "%s: %dx%d (stride %d, fourcc 0x%x)\n", __func__,
-               w, h, stride, fourcc);
-    } else {
-        dprint(1, "%s: no texture (no framebuffer)\n", __func__);
+    assert(tex_id);
+    fd = egl_get_fd_for_texture(tex_id, &stride, &fourcc);
+    if (fd < 0) {
+        fprintf(stderr, "%s: failed to get fd for texture\n", __func__);
+        return;
     }
-
-    assert(!tex_id || fd >= 0);
+    dprint(1, "%s: %dx%d (stride %d, fourcc 0x%x)\n", __func__,
+           w, h, stride, fourcc);
 
     /* note: spice server will close the fd */
     spice_qxl_gl_scanout(&ssd->qxl, fd, backing_width, backing_height,
                          stride, fourcc, y_0_top);
-    ssd->have_surface = false;
-    ssd->have_scanout = (tex_id != 0);
-
     qemu_spice_gl_monitor_config(ssd, x, y, w, h);
+    ssd->have_surface = false;
+    ssd->have_scanout = true;
 }
 
 static void qemu_spice_gl_update(DisplayChangeListener *dcl,
@@ -993,7 +998,8 @@ static const DisplayChangeListenerOps display_listener_gl_ops = {
     .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
     .dpy_gl_ctx_get_current  = qemu_egl_get_current_context,
 
-    .dpy_gl_scanout          = qemu_spice_gl_scanout,
+    .dpy_gl_scanout_disable  = qemu_spice_gl_scanout_disable,
+    .dpy_gl_scanout_texture  = qemu_spice_gl_scanout_texture,
     .dpy_gl_update           = qemu_spice_gl_update,
 };
 
@@ -1029,8 +1035,25 @@ static void qemu_spice_display_init_one(QemuConsole *con)
 
 void qemu_spice_display_init(void)
 {
-    QemuConsole *con;
+    QemuOptsList *olist = qemu_find_opts("spice");
+    QemuOpts *opts = QTAILQ_FIRST(&olist->head);
+    QemuConsole *spice_con, *con;
+    const char *str;
     int i;
+
+    str = qemu_opt_get(opts, "display");
+    if (str) {
+        int head = qemu_opt_get_number(opts, "head", 0);
+        Error *err = NULL;
+
+        spice_con = qemu_console_lookup_by_device_name(str, head, &err);
+        if (err) {
+            error_report("Failed to lookup display/head");
+            exit(1);
+        }
+    } else {
+        spice_con = NULL;
+    }
 
     for (i = 0;; i++) {
         con = qemu_console_lookup_by_index(i);
@@ -1038,6 +1061,9 @@ void qemu_spice_display_init(void)
             break;
         }
         if (qemu_spice_have_display_interface(con)) {
+            continue;
+        }
+        if (spice_con != NULL && spice_con != con) {
             continue;
         }
         qemu_spice_display_init_one(con);

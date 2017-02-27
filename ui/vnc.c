@@ -3181,6 +3181,7 @@ static void vnc_display_close(VncDisplay *vd)
     g_free(vd->lsock);
     g_free(vd->lsock_tag);
     vd->lsock = NULL;
+    vd->lsock_tag = NULL;
     vd->nlsock = 0;
 
     for (i = 0; i < vd->nlwebsock; i++) {
@@ -3192,6 +3193,7 @@ static void vnc_display_close(VncDisplay *vd)
     g_free(vd->lwebsock);
     g_free(vd->lwebsock_tag);
     vd->lwebsock = NULL;
+    vd->lwebsock_tag = NULL;
     vd->nlwebsock = 0;
 
     vd->auth = VNC_AUTH_INVALID;
@@ -3204,6 +3206,7 @@ static void vnc_display_close(VncDisplay *vd)
     vd->tlsaclname = NULL;
     if (vd->lock_key_sync) {
         qemu_remove_led_event_handler(vd->led);
+        vd->led = NULL;
     }
 }
 
