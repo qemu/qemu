@@ -363,7 +363,7 @@ static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                  __func__);
 }
 
-static void xics_kvm_realize(DeviceState *dev, Error **errp)
+int xics_kvm_init(sPAPRMachineState *spapr, Error **errp)
 {
     int rc;
     struct kvm_create_device xics_create_device = {
@@ -419,27 +419,20 @@ static void xics_kvm_realize(DeviceState *dev, Error **errp)
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_direct_mapping = true;
 
-    return;
+    return rc;
 
 fail:
     kvmppc_define_rtas_kernel_token(0, "ibm,set-xive");
     kvmppc_define_rtas_kernel_token(0, "ibm,get-xive");
     kvmppc_define_rtas_kernel_token(0, "ibm,int-on");
     kvmppc_define_rtas_kernel_token(0, "ibm,int-off");
-}
-
-static void xics_kvm_class_init(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = xics_kvm_realize;
+    return -1;
 }
 
 static const TypeInfo xics_spapr_kvm_info = {
     .name          = TYPE_XICS_SPAPR_KVM,
     .parent        = TYPE_XICS_COMMON,
     .instance_size = sizeof(KVMXICSState),
-    .class_init    = xics_kvm_class_init,
 };
 
 static void xics_kvm_register_types(void)

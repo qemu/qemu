@@ -161,7 +161,8 @@ static XICSState *xics_system_init(MachineState *machine,
     if (kvm_enabled()) {
         Error *err = NULL;
 
-        if (machine_kernel_irqchip_allowed(machine)) {
+        if (machine_kernel_irqchip_allowed(machine) &&
+            !xics_kvm_init(SPAPR_MACHINE(machine), errp)) {
             xics = try_create_xics(SPAPR_MACHINE(machine),
                                    TYPE_XICS_SPAPR_KVM, TYPE_ICS_KVM,
                                    TYPE_KVM_ICP, nr_servers, nr_irqs, &err);
@@ -175,6 +176,7 @@ static XICSState *xics_system_init(MachineState *machine,
     }
 
     if (!xics) {
+        xics_spapr_init(SPAPR_MACHINE(machine), errp);
         xics = try_create_xics(SPAPR_MACHINE(machine),
                                TYPE_XICS_SPAPR, TYPE_ICS_SIMPLE,
                                TYPE_ICP, nr_servers, nr_irqs, errp);

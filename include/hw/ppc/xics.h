@@ -224,4 +224,9 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 void ics_resend(ICSState *ics);
 void icp_resend(ICPState *ss);
 
+typedef struct sPAPRMachineState sPAPRMachineState;
+
+int xics_kvm_init(sPAPRMachineState *spapr, Error **errp);
+int xics_spapr_init(sPAPRMachineState *spapr, Error **errp);
+
 #endif /* XICS_H */

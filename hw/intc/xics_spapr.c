@@ -240,7 +240,7 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
-static void xics_spapr_realize(DeviceState *dev, Error **errp)
+int xics_spapr_init(sPAPRMachineState *spapr, Error **errp)
 {
     /* Registration of global state belongs into realize */
     spapr_rtas_register(RTAS_IBM_SET_XIVE, "ibm,set-xive", rtas_set_xive);
@@ -254,13 +254,7 @@ static void xics_spapr_realize(DeviceState *dev, Error **errp)
     spapr_register_hypercall(H_XIRR_X, h_xirr_x);
     spapr_register_hypercall(H_EOI, h_eoi);
     spapr_register_hypercall(H_IPOLL, h_ipoll);
-}
-
-static void xics_spapr_class_init(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = xics_spapr_realize;
+    return 0;
 }
 
 static const TypeInfo xics_spapr_info = {
@@ -268,7 +262,6 @@ static const TypeInfo xics_spapr_info = {
     .parent        = TYPE_XICS_COMMON,
     .instance_size = sizeof(XICSState),
     .class_size = sizeof(XICSStateClass),
-    .class_init    = xics_spapr_class_init,
 };
 
 #define ICS_IRQ_FREE(ics, srcno)   \
