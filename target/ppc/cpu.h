@@ -223,7 +223,7 @@ enum {
 typedef struct opc_handler_t opc_handler_t;
 
 /*****************************************************************************/
-/* Types used to describe some PowerPC registers */
+/* Types used to describe some PowerPC registers etc. */
 typedef struct DisasContext DisasContext;
 typedef struct ppc_spr_t ppc_spr_t;
 typedef union ppc_avr_t ppc_avr_t;

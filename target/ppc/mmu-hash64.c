@@ -27,6 +27,7 @@
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
 #include "exec/log.h"
+#include "hw/hw.h"
 
 //#define DEBUG_SLB
 
@@ -431,35 +432,43 @@ static int ppc_hash64_amr_prot(PowerPCCPU *cpu, ppc_hash_pte64_t pte)
     return prot;
 }
 
-uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index)
+const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
+                                             hwaddr ptex, int n)
 {
-    uint64_t token = 0;
-    hwaddr pte_offset;
+    ppc_hash_pte64_t *hptes = NULL;
+    hwaddr pte_offset = ptex * HASH_PTE_SIZE_64;
 
-    pte_offset = pte_index * HASH_PTE_SIZE_64;
     if (cpu->env.external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
-        ppc_hash_pte64_t *pteg = g_malloc(HASH_PTEG_SIZE_64);
         /*
-         * HTAB is controlled by KVM. Fetch the PTEG into a new buffer.
+         * HTAB is controlled by KVM. Fetch into temporary buffer
          */
-        kvmppc_read_hptes(pteg, pte_index, HPTES_PER_GROUP);
-        token = (uint64_t)(uintptr_t)pteg;
+        hptes = g_malloc(HASH_PTEG_SIZE_64);
+        kvmppc_read_hptes(hptes, ptex, n);
     } else if (cpu->env.external_htab) {
         /*
          * HTAB is controlled by QEMU. Just point to the internally
          * accessible PTEG.
          */
-        token = (uint64_t)(uintptr_t) cpu->env.external_htab + pte_offset;
+        hptes = (ppc_hash_pte64_t *)(cpu->env.external_htab + pte_offset);
     } else if (cpu->env.htab_base) {
-        token = cpu->env.htab_base + pte_offset;
+        hwaddr plen = n * HASH_PTE_SIZE_64;
+        hptes = address_space_map(CPU(cpu)->as, cpu->env.htab_base + pte_offset,
+                                 &plen, false);
+        if (plen < (n * HASH_PTE_SIZE_64)) {
+            hw_error("%s: Unable to map all requested HPTEs\n", __func__);
+        }
     }
-    return token;
+    return hptes;
 }
 
-void ppc_hash64_stop_access(PowerPCCPU *cpu, uint64_t token)
+void ppc_hash64_unmap_hptes(PowerPCCPU *cpu, const ppc_hash_pte64_t *hptes,
+                            hwaddr ptex, int n)
 {
     if (cpu->env.external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
-        g_free((void *)token);
+        g_free((void *)hptes);
+    } else if (!cpu->env.external_htab) {
+        address_space_unmap(CPU(cpu)->as, (void *)hptes, n * HASH_PTE_SIZE_64,
+                            false, n * HASH_PTE_SIZE_64);
     }
 }
 
@@ -507,18 +516,18 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
 {
     CPUPPCState *env = &cpu->env;
     int i;
-    uint64_t token;
+    const ppc_hash_pte64_t *pteg;
     target_ulong pte0, pte1;
-    target_ulong pte_index;
+    target_ulong ptex;
 
-    pte_index = (hash & env->htab_mask) * HPTES_PER_GROUP;
-    token = ppc_hash64_start_access(cpu, pte_index);
-    if (!token) {
+    ptex = (hash & env->htab_mask) * HPTES_PER_GROUP;
+    pteg = ppc_hash64_map_hptes(cpu, ptex, HPTES_PER_GROUP);
+    if (!pteg) {
         return -1;
     }
     for (i = 0; i < HPTES_PER_GROUP; i++) {
-        pte0 = ppc_hash64_load_hpte0(cpu, token, i);
-        pte1 = ppc_hash64_load_hpte1(cpu, token, i);
+        pte0 = ppc_hash64_hpte0(cpu, pteg, i);
+        pte1 = ppc_hash64_hpte1(cpu, pteg, i);
 
         /* This compares V, B, H (secondary) and the AVPN */
         if (HPTE64_V_COMPARE(pte0, ptem)) {
@@ -538,11 +547,11 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
              */
             pte->pte0 = pte0;
             pte->pte1 = pte1;
-            ppc_hash64_stop_access(cpu, token);
-            return (pte_index + i) * HASH_PTE_SIZE_64;
+            ppc_hash64_unmap_hptes(cpu, pteg, ptex, HPTES_PER_GROUP);
+            return ptex + i;
         }
     }
-    ppc_hash64_stop_access(cpu, token);
+    ppc_hash64_unmap_hptes(cpu, pteg, ptex, HPTES_PER_GROUP);
     /*
      * We didn't find a valid entry.
      */
@@ -554,8 +563,7 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
                                      ppc_hash_pte64_t *pte, unsigned *pshift)
 {
     CPUPPCState *env = &cpu->env;
-    hwaddr pte_offset;
-    hwaddr hash;
+    hwaddr hash, ptex;
     uint64_t vsid, epnmask, epn, ptem;
     const struct ppc_one_seg_page_size *sps = slb->sps;
 
@@ -598,9 +606,9 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem,  hash);
-    pte_offset = ppc_hash64_pteg_search(cpu, hash, sps, ptem, pte, pshift);
+    ptex = ppc_hash64_pteg_search(cpu, hash, sps, ptem, pte, pshift);
 
-    if (pte_offset == -1) {
+    if (ptex == -1) {
         /* Secondary PTEG lookup */
         ptem |= HPTE64_V_SECONDARY;
         qemu_log_mask(CPU_LOG_MMU,
@@ -609,10 +617,10 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
 
-        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, sps, ptem, pte, pshift);
+        ptex = ppc_hash64_pteg_search(cpu, ~hash, sps, ptem, pte, pshift);
     }
 
-    return pte_offset;
+    return ptex;
 }
 
 unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
@@ -710,7 +718,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     CPUPPCState *env = &cpu->env;
     ppc_slb_t *slb;
     unsigned apshift;
-    hwaddr pte_offset;
+    hwaddr ptex;
     ppc_hash_pte64_t pte;
     int pp_prot, amr_prot, prot;
     uint64_t new_pte1, dsisr;
@@ -794,8 +802,8 @@ skip_slb_search:
     }
 
     /* 4. Locate the PTE in the hash table */
-    pte_offset = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte, &apshift);
-    if (pte_offset == -1) {
+    ptex = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte, &apshift);
+    if (ptex == -1) {
         dsisr = 0x40000000;
         if (rwx == 2) {
             ppc_hash64_set_isi(cs, env, dsisr);
@@ -808,7 +816,7 @@ skip_slb_search:
         return 1;
     }
     qemu_log_mask(CPU_LOG_MMU,
-                "found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
+                  "found PTE at index %08" HWADDR_PRIx "\n", ptex);
 
     /* 5. Check access permissions */
 
@@ -851,8 +859,7 @@ skip_slb_search:
     }
 
     if (new_pte1 != pte.pte1) {
-        ppc_hash64_store_hpte(cpu, pte_offset / HASH_PTE_SIZE_64,
-                              pte.pte0, new_pte1);
+        ppc_hash64_store_hpte(cpu, ptex, pte.pte0, new_pte1);
     }
 
     /* 7. Determine the real address from the PTE */
@@ -869,7 +876,7 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
 {
     CPUPPCState *env = &cpu->env;
     ppc_slb_t *slb;
-    hwaddr pte_offset, raddr;
+    hwaddr ptex, raddr;
     ppc_hash_pte64_t pte;
     unsigned apshift;
 
@@ -902,8 +909,8 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
         }
     }
 
-    pte_offset = ppc_hash64_htab_lookup(cpu, slb, addr, &pte, &apshift);
-    if (pte_offset == -1) {
+    ptex = ppc_hash64_htab_lookup(cpu, slb, addr, &pte, &apshift);
+    if (ptex == -1) {
         return -1;
     }
 
@@ -911,30 +918,28 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
         & TARGET_PAGE_MASK;
 }
 
-void ppc_hash64_store_hpte(PowerPCCPU *cpu,
-                           target_ulong pte_index,
-                           target_ulong pte0, target_ulong pte1)
+void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
+                           uint64_t pte0, uint64_t pte1)
 {
     CPUPPCState *env = &cpu->env;
+    hwaddr offset = ptex * HASH_PTE_SIZE_64;
 
     if (env->external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
-        kvmppc_write_hpte(pte_index, pte0, pte1);
+        kvmppc_write_hpte(ptex, pte0, pte1);
         return;
     }
 
-    pte_index *= HASH_PTE_SIZE_64;
     if (env->external_htab) {
-        stq_p(env->external_htab + pte_index, pte0);
-        stq_p(env->external_htab + pte_index + HASH_PTE_SIZE_64 / 2, pte1);
+        stq_p(env->external_htab + offset, pte0);
+        stq_p(env->external_htab + offset + HASH_PTE_SIZE_64 / 2, pte1);
     } else {
-        stq_phys(CPU(cpu)->as, env->htab_base + pte_index, pte0);
+        stq_phys(CPU(cpu)->as, env->htab_base + offset, pte0);
         stq_phys(CPU(cpu)->as,
-                 env->htab_base + pte_index + HASH_PTE_SIZE_64 / 2, pte1);
+                 env->htab_base + offset + HASH_PTE_SIZE_64 / 2, pte1);
     }
 }
 
-void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu,
-                               target_ulong pte_index,
+void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
                                target_ulong pte0, target_ulong pte1)
 {
     /*
