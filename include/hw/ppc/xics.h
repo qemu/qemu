@@ -79,8 +79,6 @@ struct XICSState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
-    uint32_t nr_servers;
-    ICPState *ss;
 };
 
 #define TYPE_ICP "icp"

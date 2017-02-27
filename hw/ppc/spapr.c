@@ -124,15 +124,15 @@ static XICSState *try_create_xics(sPAPRMachineState *spapr,
         goto error;
     }
 
-    xics->ss = g_malloc0(nr_servers * sizeof(ICPState));
-    xics->nr_servers = nr_servers;
+    spapr->icps = g_malloc0(nr_servers * sizeof(ICPState));
+    spapr->nr_servers = nr_servers;
 
     for (i = 0; i < nr_servers; i++) {
-        ICPState *icp = &xics->ss[i];
+        ICPState *icp = &spapr->icps[i];
 
         object_initialize(icp, sizeof(*icp), type_icp);
         qdev_set_parent_bus(DEVICE(icp), sysbus_get_default());
-        object_property_add_child(OBJECT(xics), "icp[*]", OBJECT(icp), NULL);
+        object_property_add_child(OBJECT(spapr), "icp[*]", OBJECT(icp), NULL);
         object_property_add_const_link(OBJECT(icp), "xics", OBJECT(xi), NULL);
         object_property_set_bool(OBJECT(icp), true, "realized", &err);
         if (err) {
@@ -967,7 +967,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
-    spapr_dt_xics(spapr->xics->nr_servers, fdt, PHANDLE_XICP);
+    spapr_dt_xics(spapr->nr_servers, fdt, PHANDLE_XICP);
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
@@ -2989,8 +2989,7 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int server)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
 
-    return (server < spapr->xics->nr_servers) ? &spapr->xics->ss[server] :
-        NULL;
+    return (server < spapr->nr_servers) ? &spapr->icps[server] : NULL;
 }
 
 static void spapr_icp_resend(XICSFabric *xi)
@@ -2998,8 +2997,8 @@ static void spapr_icp_resend(XICSFabric *xi)
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
     int i;
 
-    for (i = 0; i < spapr->xics->nr_servers; i++) {
-        icp_resend(&spapr->xics->ss[i]);
+    for (i = 0; i < spapr->nr_servers; i++) {
+        icp_resend(&spapr->icps[i]);
     }
 }
 
