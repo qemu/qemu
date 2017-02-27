@@ -179,7 +179,7 @@ void parse_option_size(const char *name, const char *value,
 
     err = qemu_strtosz(value, NULL, &size);
     if (err == -ERANGE) {
-        error_setg(errp, "Value '%s' is too large for parameter '%s'",
+        error_setg(errp, "Value '%s' is out of range for parameter '%s'",
                    value, name);
         return;
     }
