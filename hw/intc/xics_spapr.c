@@ -387,10 +387,10 @@ void spapr_ics_free(ICSState *ics, int irq, int num)
     }
 }
 
-void spapr_dt_xics(XICSState *xics, void *fdt, uint32_t phandle)
+void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle)
 {
     uint32_t interrupt_server_ranges_prop[] = {
-        0, cpu_to_be32(xics->nr_servers),
+        0, cpu_to_be32(nr_servers),
     };
     int node;
 
