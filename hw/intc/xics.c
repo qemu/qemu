@@ -745,6 +745,12 @@ static const TypeInfo ics_base_info = {
     .class_size = sizeof(ICSStateClass),
 };
 
+static const TypeInfo xics_fabric_info = {
+    .name = TYPE_XICS_FABRIC,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(XICSFabricClass),
+};
+
 /*
  * Exported functions
  */
@@ -785,6 +791,7 @@ static void xics_register_types(void)
     type_register_static(&ics_simple_info);
     type_register_static(&ics_base_info);
     type_register_static(&icp_info);
+    type_register_static(&xics_fabric_info);
 }
 
 type_init(xics_register_types)
