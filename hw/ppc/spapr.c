@@ -2969,6 +2969,20 @@ static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
     *mmio64 = SPAPR_PCI_BASE + (index + 1) * SPAPR_PCI_MEM64_WIN_SIZE;
 }
 
+static ICSState *spapr_ics_get(XICSFabric *dev, int irq)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(dev);
+
+    return ics_valid_irq(spapr->ics, irq) ? spapr->ics : NULL;
+}
+
+static void spapr_ics_resend(XICSFabric *dev)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(dev);
+
+    ics_resend(spapr->ics);
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2977,6 +2991,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     NMIClass *nc = NMI_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     PPCVirtualHypervisorClass *vhc = PPC_VIRTUAL_HYPERVISOR_CLASS(oc);
+    XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
 
     mc->desc = "pSeries Logical Partition (PAPR compliant)";
 
@@ -3014,6 +3029,8 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     vhc->map_hptes = spapr_map_hptes;
     vhc->unmap_hptes = spapr_unmap_hptes;
     vhc->store_hpte = spapr_store_hpte;
+    xic->ics_get = spapr_ics_get;
+    xic->ics_resend = spapr_ics_resend;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -3030,6 +3047,7 @@ static const TypeInfo spapr_machine_info = {
         { TYPE_NMI },
         { TYPE_HOTPLUG_HANDLER },
         { TYPE_PPC_VIRTUAL_HYPERVISOR },
+        { TYPE_XICS_FABRIC },
         { }
     },
 };

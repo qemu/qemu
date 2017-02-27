@@ -193,7 +193,7 @@ static void ics_reject(ICSState *ics, uint32_t nr)
     }
 }
 
-static void ics_resend(ICSState *ics)
+void ics_resend(ICSState *ics)
 {
     ICSStateClass *k = ICS_BASE_GET_CLASS(ics);
 
