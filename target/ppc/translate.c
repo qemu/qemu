@@ -810,9 +810,16 @@ static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
     }
     tcg_temp_free(t0);
     if (NARROW_MODE(ctx)) {
-        tcg_gen_ext32s_tl(cpu_ov, cpu_ov);
+        tcg_gen_extract_tl(cpu_ov, cpu_ov, 31, 1);
+        if (is_isa300(ctx)) {
+            tcg_gen_mov_tl(cpu_ov32, cpu_ov);
+        }
+    } else {
+        if (is_isa300(ctx)) {
+            tcg_gen_extract_tl(cpu_ov32, cpu_ov, 31, 1);
+        }
+        tcg_gen_extract_tl(cpu_ov, cpu_ov, 63, 1);
     }
-    tcg_gen_shri_tl(cpu_ov, cpu_ov, TARGET_LONG_BITS - 1);
     tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
 }
 
