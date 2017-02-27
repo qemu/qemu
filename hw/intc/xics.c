@@ -551,15 +551,6 @@ static void ics_simple_reset(DeviceState *dev)
     }
 }
 
-static int ics_simple_post_load(ICSState *ics, int version_id)
-{
-    XICSFabric *xi = ics->xics;
-    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
-
-    xic->icp_resend(xi);
-    return 0;
-}
-
 static void ics_simple_dispatch_pre_save(void *opaque)
 {
     ICSState *ics = opaque;
@@ -647,7 +638,6 @@ static void ics_simple_class_init(ObjectClass *klass, void *data)
     dc->props = ics_simple_properties;
     dc->vmsd = &vmstate_ics_simple;
     dc->reset = ics_simple_reset;
-    isc->post_load = ics_simple_post_load;
     isc->reject = ics_simple_reject;
     isc->resend = ics_simple_resend;
     isc->eoi = ics_simple_eoi;

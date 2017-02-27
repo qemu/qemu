@@ -156,7 +156,6 @@ typedef struct XICSFabricClass {
     ICSState *(*ics_get)(XICSFabric *xi, int irq);
     void (*ics_resend)(XICSFabric *xi);
     ICPState *(*icp_get)(XICSFabric *xi, int server);
-    void (*icp_resend)(XICSFabric *xi);
 } XICSFabricClass;
 
 #define XICS_IRQS_SPAPR               1024
