@@ -151,7 +151,7 @@ struct ICSState {
     uint32_t offset;
     qemu_irq *qirqs;
     ICSIRQState *irqs;
-    XICSState *xics;
+    XICSFabric *xics;
 };
 
 static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)
@@ -198,16 +198,16 @@ typedef struct XICSFabricClass {
 
 #define XICS_IRQS_SPAPR               1024
 
-qemu_irq xics_get_qirq(XICSFabric *xi, int irq);
-
 int spapr_ics_alloc(ICSState *ics, int irq_hint, bool lsi, Error **errp);
 int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi, bool align,
                            Error **errp);
 void spapr_ics_free(ICSState *ics, int irq, int num);
 void spapr_dt_xics(XICSState *xics, void *fdt, uint32_t phandle);
 
-void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu);
-void xics_cpu_destroy(XICSState *icp, PowerPCCPU *cpu);
+qemu_irq xics_get_qirq(XICSFabric *xi, int irq);
+ICPState *xics_icp_get(XICSFabric *xi, int server);
+void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu);
+void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu);
 
 /* Internal XICS interfaces */
 int xics_get_cpu_index_by_dt_id(int cpu_dt_id);

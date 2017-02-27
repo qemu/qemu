@@ -49,26 +49,26 @@ int xics_get_cpu_index_by_dt_id(int cpu_dt_id)
     return -1;
 }
 
-void xics_cpu_destroy(XICSState *xics, PowerPCCPU *cpu)
+void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    ICPState *ss = &xics->ss[cs->cpu_index];
+    ICPState *ss = xics_icp_get(xi, cs->cpu_index);
 
-    assert(cs->cpu_index < xics->nr_servers);
+    assert(ss);
     assert(cs == ss->cs);
 
     ss->output = NULL;
     ss->cs = NULL;
 }
 
-void xics_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
+void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    ICPState *ss = &xics->ss[cs->cpu_index];
+    ICPState *ss = xics_icp_get(xi, cs->cpu_index);
     ICPStateClass *icpc;
 
-    assert(cs->cpu_index < xics->nr_servers);
+    assert(ss);
 
     ss->cs = cs;
 
@@ -308,8 +308,7 @@ void icp_eoi(ICPState *ss, uint32_t xirr)
 
 static void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
 {
-    XICSState *xics = ics->xics;
-    ICPState *ss = xics->ss + server;
+    ICPState *ss = xics_icp_get(ics->xics, server);
 
     trace_xics_icp_irq(server, nr, priority);
 
@@ -582,12 +581,10 @@ static void ics_simple_reset(DeviceState *dev)
 
 static int ics_simple_post_load(ICSState *ics, int version_id)
 {
-    int i;
+    XICSFabric *xi = ics->xics;
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
 
-    for (i = 0; i < ics->xics->nr_servers; i++) {
-        icp_resend(&ics->xics->ss[i]);
-    }
-
+    xic->icp_resend(xi);
     return 0;
 }
 
@@ -711,7 +708,7 @@ static void ics_base_realize(DeviceState *dev, Error **errp)
                    __func__, error_get_pretty(err));
         return;
     }
-    ics->xics = XICS_COMMON(obj);
+    ics->xics = XICS_FABRIC(obj);
 
 
     if (icsc->realize) {
@@ -754,6 +751,13 @@ qemu_irq xics_get_qirq(XICSFabric *xi, int irq)
     }
 
     return NULL;
+}
+
+ICPState *xics_icp_get(XICSFabric *xi, int server)
+{
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
+
+    return xic->icp_get(xi, server);
 }
 
 void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)

@@ -55,7 +55,7 @@ static void spapr_cpu_destroy(PowerPCCPU *cpu)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
-    xics_cpu_destroy(spapr->xics, cpu);
+    xics_cpu_destroy(XICS_FABRIC(spapr), cpu);
     qemu_unregister_reset(spapr_cpu_reset, cpu);
 }
 
@@ -88,7 +88,7 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
             cs->numa_node = i;
     }
 
-    xics_cpu_setup(spapr->xics, cpu);
+    xics_cpu_setup(XICS_FABRIC(spapr), cpu);
 
     qemu_register_reset(spapr_cpu_reset, cpu);
     spapr_cpu_reset(cpu);

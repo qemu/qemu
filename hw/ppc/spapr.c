@@ -117,7 +117,7 @@ static XICSState *try_create_xics(sPAPRMachineState *spapr,
     qdev_set_parent_bus(DEVICE(ics), sysbus_get_default());
     object_property_add_child(OBJECT(spapr), "ics", OBJECT(ics), NULL);
     object_property_set_int(OBJECT(ics), nr_irqs, "nr-irqs", &err);
-    object_property_add_const_link(OBJECT(ics), "xics", OBJECT(xics), NULL);
+    object_property_add_const_link(OBJECT(ics), "xics", OBJECT(xi), NULL);
     object_property_set_bool(OBJECT(ics), true, "realized", &local_err);
     error_propagate(&err, local_err);
     if (err) {
