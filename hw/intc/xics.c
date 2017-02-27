@@ -766,9 +766,10 @@ ICSState *xics_find_source(XICSState *xics, int irq)
     return NULL;
 }
 
-qemu_irq xics_get_qirq(XICSState *xics, int irq)
+qemu_irq xics_get_qirq(XICSFabric *xi, int irq)
 {
-    ICSState *ics = xics_find_source(xics, irq);
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
+    ICSState *ics = xic->ics_get(xi, irq);
 
     if (ics) {
         return ics->qirqs[irq - ics->offset];

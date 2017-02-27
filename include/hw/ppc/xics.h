@@ -198,7 +198,8 @@ typedef struct XICSFabricClass {
 
 #define XICS_IRQS_SPAPR               1024
 
-qemu_irq xics_get_qirq(XICSState *icp, int irq);
+qemu_irq xics_get_qirq(XICSFabric *xi, int irq);
+
 int spapr_ics_alloc(ICSState *ics, int irq_hint, bool lsi, Error **errp);
 int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi, bool align,
                            Error **errp);

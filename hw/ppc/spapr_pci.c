@@ -737,7 +737,7 @@ static void spapr_msi_write(void *opaque, hwaddr addr,
 
     trace_spapr_pci_msi_write(addr, data, irq);
 
-    qemu_irq_pulse(xics_get_qirq(spapr->xics, irq));
+    qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr), irq));
 }
 
 static const MemoryRegionOps spapr_msi_ops = {
