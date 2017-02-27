@@ -96,17 +96,17 @@
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
 static XICSState *try_create_xics(const char *type, const char *type_ics,
-                                  int nr_servers, int nr_irqs, Error **errp)
+                                  const char *type_icp, int nr_servers,
+                                  int nr_irqs, Error **errp)
 {
     Error *err = NULL, *local_err = NULL;
     XICSState *xics;
     ICSState *ics = NULL;
+    int i;
 
     xics = XICS_COMMON(object_new(type));
     qdev_set_parent_bus(DEVICE(xics), sysbus_get_default());
-    object_property_set_int(OBJECT(xics), nr_servers, "nr_servers", &err);
-    object_property_set_bool(OBJECT(xics), true, "realized", &local_err);
-    error_propagate(&err, local_err);
+    object_property_set_bool(OBJECT(xics), true, "realized", &err);
     if (err) {
         goto error;
     }
@@ -121,6 +121,22 @@ static XICSState *try_create_xics(const char *type, const char *type_ics,
         goto error;
     }
     QLIST_INSERT_HEAD(&xics->ics, ics, list);
+
+    xics->ss = g_malloc0(nr_servers * sizeof(ICPState));
+    xics->nr_servers = nr_servers;
+
+    for (i = 0; i < nr_servers; i++) {
+        ICPState *icp = &xics->ss[i];
+
+        object_initialize(icp, sizeof(*icp), type_icp);
+        object_property_add_child(OBJECT(xics), "icp[*]", OBJECT(icp), NULL);
+        object_property_add_const_link(OBJECT(icp), "xics", OBJECT(xics), NULL);
+        object_property_set_bool(OBJECT(icp), true, "realized", &err);
+        if (err) {
+            goto error;
+        }
+        object_unref(OBJECT(icp));
+    }
 
     return xics;
 
@@ -143,7 +159,7 @@ static XICSState *xics_system_init(MachineState *machine,
 
         if (machine_kernel_irqchip_allowed(machine)) {
             xics = try_create_xics(TYPE_XICS_SPAPR_KVM, TYPE_ICS_KVM,
-                                   nr_servers, nr_irqs, &err);
+                                   TYPE_KVM_ICP, nr_servers, nr_irqs, &err);
         }
         if (machine_kernel_irqchip_required(machine) && !xics) {
             error_reportf_err(err,
@@ -154,8 +170,8 @@ static XICSState *xics_system_init(MachineState *machine,
     }
 
     if (!xics) {
-        xics = try_create_xics(TYPE_XICS_SPAPR, TYPE_ICS_SIMPLE, nr_servers,
-                               nr_irqs, errp);
+        xics = try_create_xics(TYPE_XICS_SPAPR, TYPE_ICS_SIMPLE, TYPE_ICP,
+                               nr_servers, nr_irqs, errp);
     }
 
     return xics;

@@ -358,12 +358,6 @@ static void xics_kvm_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
     ss->cap_irq_xics_enabled = true;
 }
 
-static void xics_kvm_set_nr_servers(XICSState *xics, uint32_t nr_servers,
-                                    Error **errp)
-{
-    xics_set_nr_servers(xics, nr_servers, TYPE_KVM_ICP, errp);
-}
-
 static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                        uint32_t token,
                        uint32_t nargs, target_ulong args,
@@ -376,9 +370,7 @@ static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static void xics_kvm_realize(DeviceState *dev, Error **errp)
 {
     KVMXICSState *xicskvm = XICS_SPAPR_KVM(dev);
-    XICSState *xics = XICS_COMMON(dev);
-    int i, rc;
-    Error *error = NULL;
+    int rc;
     struct kvm_create_device xics_create_device = {
         .type = KVM_DEV_TYPE_XICS,
         .flags = 0,
@@ -428,16 +420,6 @@ static void xics_kvm_realize(DeviceState *dev, Error **errp)
 
     xicskvm->kernel_xics_fd = xics_create_device.fd;
 
-    assert(xics->nr_servers);
-    for (i = 0; i < xics->nr_servers; i++) {
-        object_property_set_bool(OBJECT(&xics->ss[i]), true, "realized",
-                                 &error);
-        if (error) {
-            error_propagate(errp, error);
-            goto fail;
-        }
-    }
-
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_direct_mapping = true;
@@ -458,7 +440,6 @@ static void xics_kvm_class_init(ObjectClass *oc, void *data)
 
     dc->realize = xics_kvm_realize;
     xsc->cpu_setup = xics_kvm_cpu_setup;
-    xsc->set_nr_servers = xics_kvm_set_nr_servers;
 }
 
 static const TypeInfo xics_spapr_kvm_info = {

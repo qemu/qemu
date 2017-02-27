@@ -74,7 +74,6 @@ struct XICSStateClass {
     DeviceClass parent_class;
 
     void (*cpu_setup)(XICSState *icp, PowerPCCPU *cpu);
-    void (*set_nr_servers)(XICSState *icp, uint32_t nr_servers, Error **errp);
 };
 
 struct XICSState {
@@ -190,8 +189,6 @@ void spapr_dt_xics(XICSState *xics, void *fdt, uint32_t phandle);
 
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu);
 void xics_cpu_destroy(XICSState *icp, PowerPCCPU *cpu);
-void xics_set_nr_servers(XICSState *xics, uint32_t nr_servers,
-                         const char *typename, Error **errp);
 
 /* Internal XICS interfaces */
 int xics_get_cpu_index_by_dt_id(int cpu_dt_id);

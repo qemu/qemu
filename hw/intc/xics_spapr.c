@@ -239,23 +239,8 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
-static void xics_spapr_set_nr_servers(XICSState *xics, uint32_t nr_servers,
-                                      Error **errp)
-{
-    xics_set_nr_servers(xics, nr_servers, TYPE_ICP, errp);
-}
-
 static void xics_spapr_realize(DeviceState *dev, Error **errp)
 {
-    XICSState *xics = XICS_SPAPR(dev);
-    Error *error = NULL;
-    int i;
-
-    if (!xics->nr_servers) {
-        error_setg(errp, "Number of servers needs to be greater 0");
-        return;
-    }
-
     /* Registration of global state belongs into realize */
     spapr_rtas_register(RTAS_IBM_SET_XIVE, "ibm,set-xive", rtas_set_xive);
     spapr_rtas_register(RTAS_IBM_GET_XIVE, "ibm,get-xive", rtas_get_xive);
@@ -268,24 +253,13 @@ static void xics_spapr_realize(DeviceState *dev, Error **errp)
     spapr_register_hypercall(H_XIRR_X, h_xirr_x);
     spapr_register_hypercall(H_EOI, h_eoi);
     spapr_register_hypercall(H_IPOLL, h_ipoll);
-
-    for (i = 0; i < xics->nr_servers; i++) {
-        object_property_set_bool(OBJECT(&xics->ss[i]), true, "realized",
-                                 &error);
-        if (error) {
-            error_propagate(errp, error);
-            return;
-        }
-    }
 }
 
 static void xics_spapr_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    XICSStateClass *xsc = XICS_SPAPR_CLASS(oc);
 
     dc->realize = xics_spapr_realize;
-    xsc->set_nr_servers = xics_spapr_set_nr_servers;
 }
 
 static const TypeInfo xics_spapr_info = {

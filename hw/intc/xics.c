@@ -151,67 +151,11 @@ static void xics_common_reset(DeviceState *d)
     }
 }
 
-void xics_set_nr_servers(XICSState *xics, uint32_t nr_servers,
-                         const char *typename, Error **errp)
-{
-    int i;
-
-    xics->nr_servers = nr_servers;
-
-    xics->ss = g_malloc0(xics->nr_servers * sizeof(ICPState));
-    for (i = 0; i < xics->nr_servers; i++) {
-        char name[32];
-        ICPState *icp = &xics->ss[i];
-
-        object_initialize(icp, sizeof(*icp), typename);
-        snprintf(name, sizeof(name), "icp[%d]", i);
-        object_property_add_child(OBJECT(xics), name, OBJECT(icp), errp);
-        icp->xics = xics;
-    }
-}
-
-static void xics_prop_get_nr_servers(Object *obj, Visitor *v,
-                                     const char *name, void *opaque,
-                                     Error **errp)
-{
-    XICSState *xics = XICS_COMMON(obj);
-    int64_t value = xics->nr_servers;
-
-    visit_type_int(v, name, &value, errp);
-}
-
-static void xics_prop_set_nr_servers(Object *obj, Visitor *v,
-                                     const char *name, void *opaque,
-                                     Error **errp)
-{
-    XICSState *xics = XICS_COMMON(obj);
-    XICSStateClass *xsc = XICS_COMMON_GET_CLASS(xics);
-    Error *error = NULL;
-    int64_t value;
-
-    visit_type_int(v, name, &value, &error);
-    if (error) {
-        error_propagate(errp, error);
-        return;
-    }
-    if (xics->nr_servers) {
-        error_setg(errp, "Number of servers is already set to %u",
-                   xics->nr_servers);
-        return;
-    }
-
-    assert(xsc->set_nr_servers);
-    xsc->set_nr_servers(xics, value, errp);
-}
-
 static void xics_common_initfn(Object *obj)
 {
     XICSState *xics = XICS_COMMON(obj);
 
     QLIST_INIT(&xics->ics);
-    object_property_add(obj, "nr_servers", "int",
-                        xics_prop_get_nr_servers, xics_prop_set_nr_servers,
-                        NULL, NULL, NULL);
 }
 
 static void xics_common_class_init(ObjectClass *oc, void *data)
@@ -450,12 +394,30 @@ static void icp_reset(DeviceState *dev)
     qemu_set_irq(icp->output, 0);
 }
 
+static void icp_realize(DeviceState *dev, Error **errp)
+{
+    ICPState *icp = ICP(dev);
+    Object *obj;
+    Error *err = NULL;
+
+    obj = object_property_get_link(OBJECT(dev), "xics", &err);
+    if (!obj) {
+        error_setg(errp, "%s: required link 'xics' not found: %s",
+                   __func__, error_get_pretty(err));
+        return;
+    }
+
+    icp->xics = XICS_COMMON(obj);
+}
+
+
 static void icp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = icp_reset;
     dc->vmsd = &vmstate_icp_server;
+    dc->realize = icp_realize;
 }
 
 static const TypeInfo icp_info = {
