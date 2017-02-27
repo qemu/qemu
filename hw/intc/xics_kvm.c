@@ -40,6 +40,8 @@
 
 #include <sys/ioctl.h>
 
+static int kernel_xics_fd = -1;
+
 typedef struct KVMXICSState {
     XICSState parent_obj;
 
@@ -145,7 +147,6 @@ static const TypeInfo icp_kvm_info = {
  */
 static void ics_get_kvm_state(ICSState *ics)
 {
-    KVMXICSState *xicskvm = XICS_SPAPR_KVM(ics->xics);
     uint64_t state;
     struct kvm_device_attr attr = {
         .flags = 0,
@@ -160,7 +161,7 @@ static void ics_get_kvm_state(ICSState *ics)
 
         attr.attr = i + ics->offset;
 
-        ret = ioctl(xicskvm->kernel_xics_fd, KVM_GET_DEVICE_ATTR, &attr);
+        ret = ioctl(kernel_xics_fd, KVM_GET_DEVICE_ATTR, &attr);
         if (ret != 0) {
             error_report("Unable to retrieve KVM interrupt controller state"
                     " for IRQ %d: %s", i + ics->offset, strerror(errno));
@@ -204,7 +205,6 @@ static void ics_get_kvm_state(ICSState *ics)
 
 static int ics_set_kvm_state(ICSState *ics, int version_id)
 {
-    KVMXICSState *xicskvm = XICS_SPAPR_KVM(ics->xics);
     uint64_t state;
     struct kvm_device_attr attr = {
         .flags = 0,
@@ -238,7 +238,7 @@ static int ics_set_kvm_state(ICSState *ics, int version_id)
             }
         }
 
-        ret = ioctl(xicskvm->kernel_xics_fd, KVM_SET_DEVICE_ATTR, &attr);
+        ret = ioctl(kernel_xics_fd, KVM_SET_DEVICE_ATTR, &attr);
         if (ret != 0) {
             error_report("Unable to restore KVM interrupt controller state"
                     " for IRQs %d: %s", i + ics->offset, strerror(errno));
@@ -328,14 +328,13 @@ static void xics_kvm_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
 {
     CPUState *cs;
     ICPState *ss;
-    KVMXICSState *xicskvm = XICS_SPAPR_KVM(xics);
     int ret;
 
     cs = CPU(cpu);
     ss = &xics->ss[cs->cpu_index];
 
     assert(cs->cpu_index < xics->nr_servers);
-    if (xicskvm->kernel_xics_fd == -1) {
+    if (kernel_xics_fd == -1) {
         abort();
     }
 
@@ -348,7 +347,7 @@ static void xics_kvm_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
         return;
     }
 
-    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_XICS, 0, xicskvm->kernel_xics_fd,
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_XICS, 0, kernel_xics_fd,
                               kvm_arch_vcpu_id(cs));
     if (ret < 0) {
         error_report("Unable to connect CPU%ld to kernel XICS: %s",
@@ -369,7 +368,6 @@ static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
 static void xics_kvm_realize(DeviceState *dev, Error **errp)
 {
-    KVMXICSState *xicskvm = XICS_SPAPR_KVM(dev);
     int rc;
     struct kvm_create_device xics_create_device = {
         .type = KVM_DEV_TYPE_XICS,
@@ -418,7 +416,7 @@ static void xics_kvm_realize(DeviceState *dev, Error **errp)
         goto fail;
     }
 
-    xicskvm->kernel_xics_fd = xics_create_device.fd;
+    kernel_xics_fd = xics_create_device.fd;
 
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;
