@@ -2984,6 +2984,24 @@ static void spapr_ics_resend(XICSFabric *dev)
     ics_resend(spapr->ics);
 }
 
+static ICPState *spapr_icp_get(XICSFabric *xi, int server)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+
+    return (server < spapr->xics->nr_servers) ? &spapr->xics->ss[server] :
+        NULL;
+}
+
+static void spapr_icp_resend(XICSFabric *xi)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    int i;
+
+    for (i = 0; i < spapr->xics->nr_servers; i++) {
+        icp_resend(&spapr->xics->ss[i]);
+    }
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -3032,6 +3050,8 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     vhc->store_hpte = spapr_store_hpte;
     xic->ics_get = spapr_ics_get;
     xic->ics_resend = spapr_ics_resend;
+    xic->icp_get = spapr_icp_get;
+    xic->icp_resend = spapr_icp_resend;
 }
 
 static const TypeInfo spapr_machine_info = {

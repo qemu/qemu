@@ -216,7 +216,7 @@ static void icp_check_ipi(ICPState *ss)
     qemu_irq_raise(ss->output);
 }
 
-static void icp_resend(ICPState *ss)
+void icp_resend(ICPState *ss)
 {
     XICSFabric *xi = ss->xics;
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);

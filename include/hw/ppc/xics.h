@@ -193,6 +193,8 @@ typedef struct XICSFabricClass {
     InterfaceClass parent;
     ICSState *(*ics_get)(XICSFabric *xi, int irq);
     void (*ics_resend)(XICSFabric *xi);
+    ICPState *(*icp_get)(XICSFabric *xi, int server);
+    void (*icp_resend)(XICSFabric *xi);
 } XICSFabricClass;
 
 #define XICS_IRQS_SPAPR               1024
@@ -223,5 +225,6 @@ void ics_simple_write_xive(ICSState *ics, int nr, int server,
 void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 
 void ics_resend(ICSState *ics);
+void icp_resend(ICPState *ss);
 
 #endif /* XICS_H */
