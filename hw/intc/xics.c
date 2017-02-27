@@ -66,14 +66,15 @@ void xics_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     ICPState *ss = &xics->ss[cs->cpu_index];
-    XICSStateClass *info = XICS_COMMON_GET_CLASS(xics);
+    XICSStateClass *info;
 
     assert(cs->cpu_index < xics->nr_servers);
 
     ss->cs = cs;
 
+    info = XICS_COMMON_GET_CLASS(xics);
     if (info->cpu_setup) {
-        info->cpu_setup(xics, cpu);
+        info->cpu_setup(ss, cpu);
     }
 
     switch (PPC_INPUT(env)) {
