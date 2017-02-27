@@ -2201,11 +2201,12 @@ static void gd_set_keycode_type(GtkDisplayState *s)
     GdkDisplay *display = gtk_widget_get_display(s->window);
     if (GDK_IS_X11_DISPLAY(display)) {
         Display *x11_display = gdk_x11_display_get_xdisplay(display);
-        XkbDescPtr desc = XkbGetKeyboard(x11_display, XkbGBN_AllComponentsMask,
-                                         XkbUseCoreKbd);
+        XkbDescPtr desc = XkbGetMap(x11_display, XkbGBN_AllComponentsMask,
+                                    XkbUseCoreKbd);
         char *keycodes = NULL;
 
-        if (desc && desc->names) {
+        if (desc &&
+            (XkbGetNames(x11_display, XkbKeycodesNameMask, desc) == Success)) {
             keycodes = XGetAtomName(x11_display, desc->names->keycodes);
         }
         if (keycodes == NULL) {

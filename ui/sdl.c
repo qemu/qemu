@@ -233,10 +233,12 @@ static int check_for_evdev(void)
     if (!SDL_GetWMInfo(&info)) {
         return 0;
     }
-    desc = XkbGetKeyboard(info.info.x11.display,
-                          XkbGBN_AllComponentsMask,
-                          XkbUseCoreKbd);
-    if (desc && desc->names) {
+    desc = XkbGetMap(info.info.x11.display,
+                     XkbGBN_AllComponentsMask,
+                     XkbUseCoreKbd);
+    if (desc &&
+        (XkbGetNames(info.info.x11.display,
+                     XkbKeycodesNameMask, desc) == Success)) {
         keycodes = XGetAtomName(info.info.x11.display, desc->names->keycodes);
         if (keycodes == NULL) {
             fprintf(stderr, "could not lookup keycode name\n");
