@@ -63,6 +63,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/nmi.h"
+#include "hw/intc/intc.h"
 
 #include "hw/compat.h"
 #include "qemu/cutils.h"
@@ -2988,6 +2989,19 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int server)
     return (server < spapr->nr_servers) ? &spapr->icps[server] : NULL;
 }
 
+static void spapr_pic_print_info(InterruptStatsProvider *obj,
+                                 Monitor *mon)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    int i;
+
+    for (i = 0; i < spapr->nr_servers; i++) {
+        icp_pic_print_info(&spapr->icps[i], mon);
+    }
+
+    ics_pic_print_info(spapr->ics, mon);
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2997,6 +3011,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     PPCVirtualHypervisorClass *vhc = PPC_VIRTUAL_HYPERVISOR_CLASS(oc);
     XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
+    InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
     mc->desc = "pSeries Logical Partition (PAPR compliant)";
 
@@ -3037,6 +3052,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     xic->ics_get = spapr_ics_get;
     xic->ics_resend = spapr_ics_resend;
     xic->icp_get = spapr_icp_get;
+    ispc->print_info = spapr_pic_print_info;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -3054,6 +3070,7 @@ static const TypeInfo spapr_machine_info = {
         { TYPE_HOTPLUG_HANDLER },
         { TYPE_PPC_VIRTUAL_HYPERVISOR },
         { TYPE_XICS_FABRIC },
+        { TYPE_INTERRUPT_STATS_PROVIDER },
         { }
     },
 };

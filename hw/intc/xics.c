@@ -93,10 +93,8 @@ void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu)
     }
 }
 
-static void icp_pic_print_info(InterruptStatsProvider *obj,
-                           Monitor *mon)
+void icp_pic_print_info(ICPState *icp, Monitor *mon)
 {
-    ICPState *icp = ICP(obj);
     int cpu_index = icp->cs ? icp->cs->cpu_index : -1;
 
     if (!icp->output) {
@@ -107,10 +105,8 @@ static void icp_pic_print_info(InterruptStatsProvider *obj,
                    icp->pending_priority, icp->mfrr);
 }
 
-static void ics_simple_pic_print_info(InterruptStatsProvider *obj,
-                                      Monitor *mon)
+void ics_pic_print_info(ICSState *ics, Monitor *mon)
 {
-    ICSState *ics = ICS_SIMPLE(obj);
     uint32_t i;
 
     monitor_printf(mon, "ICS %4x..%4x %p\n",
@@ -369,12 +365,10 @@ static void icp_realize(DeviceState *dev, Error **errp)
 static void icp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     dc->reset = icp_reset;
     dc->vmsd = &vmstate_icp_server;
     dc->realize = icp_realize;
-    ic->print_info = icp_pic_print_info;
 }
 
 static const TypeInfo icp_info = {
@@ -383,10 +377,6 @@ static const TypeInfo icp_info = {
     .instance_size = sizeof(ICPState),
     .class_init = icp_class_init,
     .class_size = sizeof(ICPStateClass),
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { }
-    },
 };
 
 /*
@@ -632,7 +622,6 @@ static void ics_simple_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICSStateClass *isc = ICS_BASE_CLASS(klass);
-    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     isc->realize = ics_simple_realize;
     dc->props = ics_simple_properties;
@@ -641,7 +630,6 @@ static void ics_simple_class_init(ObjectClass *klass, void *data)
     isc->reject = ics_simple_reject;
     isc->resend = ics_simple_resend;
     isc->eoi = ics_simple_eoi;
-    ic->print_info = ics_simple_pic_print_info;
 }
 
 static const TypeInfo ics_simple_info = {
@@ -651,10 +639,6 @@ static const TypeInfo ics_simple_info = {
     .class_init = ics_simple_class_init,
     .class_size = sizeof(ICSStateClass),
     .instance_init = ics_simple_initfn,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { }
-    },
 };
 
 static void ics_base_realize(DeviceState *dev, Error **errp)
