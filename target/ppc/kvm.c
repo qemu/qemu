@@ -2596,89 +2596,85 @@ void kvm_arch_init_irq_routing(KVMState *s)
 {
 }
 
-struct kvm_get_htab_buf {
-    struct kvm_get_htab_header header;
-    /*
-     * We require one extra byte for read
-     */
-    target_ulong hpte[(HPTES_PER_GROUP * 2) + 1];
-};
-
-uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu, target_ulong pte_index)
+void kvmppc_read_hptes(ppc_hash_pte64_t *hptes, hwaddr ptex, int n)
 {
-    int htab_fd;
-    struct kvm_get_htab_fd ghf;
-    struct kvm_get_htab_buf  *hpte_buf;
+    struct kvm_get_htab_fd ghf = {
+        .flags = 0,
+        .start_index = ptex,
+    };
+    int fd, rc;
+    int i;
 
-    ghf.flags = 0;
-    ghf.start_index = pte_index;
-    htab_fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
-    if (htab_fd < 0) {
-        goto error_out;
+    fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
+    if (fd < 0) {
+        hw_error("kvmppc_read_hptes: Unable to open HPT fd");
     }
 
-    hpte_buf = g_malloc0(sizeof(*hpte_buf));
-    /*
-     * Read the hpte group
-     */
-    if (read(htab_fd, hpte_buf, sizeof(*hpte_buf)) < 0) {
-        goto out_close;
+    i = 0;
+    while (i < n) {
+        struct kvm_get_htab_header *hdr;
+        int m = n < HPTES_PER_GROUP ? n : HPTES_PER_GROUP;
+        char buf[sizeof(*hdr) + m * HASH_PTE_SIZE_64];
+
+        rc = read(fd, buf, sizeof(buf));
+        if (rc < 0) {
+            hw_error("kvmppc_read_hptes: Unable to read HPTEs");
+        }
+
+        hdr = (struct kvm_get_htab_header *)buf;
+        while ((i < n) && ((char *)hdr < (buf + rc))) {
+            int invalid = hdr->n_invalid;
+
+            if (hdr->index != (ptex + i)) {
+                hw_error("kvmppc_read_hptes: Unexpected HPTE index %"PRIu32
+                         " != (%"HWADDR_PRIu" + %d", hdr->index, ptex, i);
+            }
+
+            memcpy(hptes + i, hdr + 1, HASH_PTE_SIZE_64 * hdr->n_valid);
+            i += hdr->n_valid;
+
+            if ((n - i) < invalid) {
+                invalid = n - i;
+            }
+            memset(hptes + i, 0, invalid * HASH_PTE_SIZE_64);
+            i += hdr->n_invalid;
+
+            hdr = (struct kvm_get_htab_header *)
+                ((char *)(hdr + 1) + HASH_PTE_SIZE_64 * hdr->n_valid);
+        }
     }
 
-    close(htab_fd);
-    return (uint64_t)(uintptr_t) hpte_buf->hpte;
-
-out_close:
-    g_free(hpte_buf);
-    close(htab_fd);
-error_out:
-    return 0;
+    close(fd);
 }
 
-void kvmppc_hash64_free_pteg(uint64_t token)
+void kvmppc_write_hpte(hwaddr ptex, uint64_t pte0, uint64_t pte1)
 {
-    struct kvm_get_htab_buf *htab_buf;
-
-    htab_buf = container_of((void *)(uintptr_t) token, struct kvm_get_htab_buf,
-                            hpte);
-    g_free(htab_buf);
-    return;
-}
-
-void kvmppc_hash64_write_pte(CPUPPCState *env, target_ulong pte_index,
-                             target_ulong pte0, target_ulong pte1)
-{
-    int htab_fd;
+    int fd, rc;
     struct kvm_get_htab_fd ghf;
-    struct kvm_get_htab_buf hpte_buf;
+    struct {
+        struct kvm_get_htab_header hdr;
+        uint64_t pte0;
+        uint64_t pte1;
+    } buf;
 
     ghf.flags = 0;
     ghf.start_index = 0;     /* Ignored */
-    htab_fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
-    if (htab_fd < 0) {
-        goto error_out;
+    fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
+    if (fd < 0) {
+        hw_error("kvmppc_write_hpte: Unable to open HPT fd");
     }
 
-    hpte_buf.header.n_valid = 1;
-    hpte_buf.header.n_invalid = 0;
-    hpte_buf.header.index = pte_index;
-    hpte_buf.hpte[0] = pte0;
-    hpte_buf.hpte[1] = pte1;
-    /*
-     * Write the hpte entry.
-     * CAUTION: write() has the warn_unused_result attribute. Hence we
-     * need to check the return value, even though we do nothing.
-     */
-    if (write(htab_fd, &hpte_buf, sizeof(hpte_buf)) < 0) {
-        goto out_close;
+    buf.hdr.n_valid = 1;
+    buf.hdr.n_invalid = 0;
+    buf.hdr.index = ptex;
+    buf.pte0 = cpu_to_be64(pte0);
+    buf.pte1 = cpu_to_be64(pte1);
+
+    rc = write(fd, &buf, sizeof(buf));
+    if (rc != sizeof(buf)) {
+        hw_error("kvmppc_write_hpte: Unable to update KVM HPT");
     }
-
-out_close:
-    close(htab_fd);
-    return;
-
-error_out:
-    return;
+    close(fd);
 }
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,

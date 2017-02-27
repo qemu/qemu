@@ -438,10 +438,12 @@ uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index)
 
     pte_offset = pte_index * HASH_PTE_SIZE_64;
     if (cpu->env.external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
+        ppc_hash_pte64_t *pteg = g_malloc(HASH_PTEG_SIZE_64);
         /*
          * HTAB is controlled by KVM. Fetch the PTEG into a new buffer.
          */
-        token = kvmppc_hash64_read_pteg(cpu, pte_index);
+        kvmppc_read_hptes(pteg, pte_index, HPTES_PER_GROUP);
+        token = (uint64_t)(uintptr_t)pteg;
     } else if (cpu->env.external_htab) {
         /*
          * HTAB is controlled by QEMU. Just point to the internally
@@ -457,7 +459,7 @@ uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index)
 void ppc_hash64_stop_access(PowerPCCPU *cpu, uint64_t token)
 {
     if (cpu->env.external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
-        kvmppc_hash64_free_pteg(token);
+        g_free((void *)token);
     }
 }
 
@@ -916,7 +918,7 @@ void ppc_hash64_store_hpte(PowerPCCPU *cpu,
     CPUPPCState *env = &cpu->env;
 
     if (env->external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
-        kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);
+        kvmppc_write_hpte(pte_index, pte0, pte1);
         return;
     }
 

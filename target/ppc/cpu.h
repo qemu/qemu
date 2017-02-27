@@ -228,6 +228,7 @@ typedef struct DisasContext DisasContext;
 typedef struct ppc_spr_t ppc_spr_t;
 typedef union ppc_avr_t ppc_avr_t;
 typedef union ppc_tlb_t ppc_tlb_t;
+typedef struct ppc_hash_pte64 ppc_hash_pte64_t;
 
 /* SPR access micro-ops generations callbacks */
 struct ppc_spr_t {

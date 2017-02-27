@@ -127,7 +127,7 @@ static inline target_ulong ppc_hash64_load_hpte1(PowerPCCPU *cpu,
     }
 }
 
-typedef struct {
+typedef struct ppc_hash_pte64 {
     uint64_t pte0, pte1;
 } ppc_hash_pte64_t;
 
