@@ -7990,9 +7990,13 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
     TCGv_i32 addr;
     TCGv_i64 tmp64;
 
-    /* M variants do not implement ARM mode.  */
+    /* M variants do not implement ARM mode; this must raise the INVSTATE
+     * UsageFault exception.
+     */
     if (arm_dc_feature(s, ARM_FEATURE_M)) {
-        goto illegal_op;
+        gen_exception_insn(s, 4, EXCP_INVSTATE, syn_uncategorized(),
+                           default_exception_el(s));
+        return;
     }
     cond = insn >> 28;
     if (cond == 0xf){
