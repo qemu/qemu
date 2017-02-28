@@ -30,6 +30,9 @@
 #define TARGET_LONG_BITS 32
 #endif
 
+/* The x86 has a strong memory model with some store-after-load re-ordering */
+#define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL & ~TCG_MO_ST_LD)
+
 /* Maximum instruction code size */
 #define TARGET_MAX_INSN_SIZE 16
 
