@@ -386,7 +386,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
                             nb_chunks * sectors_per_chunk);
     bitmap_set(s->in_flight_bitmap, sector_num / sectors_per_chunk, nb_chunks);
     while (nb_chunks > 0 && sector_num < end) {
-        int ret;
+        int64_t ret;
         int io_sectors, io_sectors_acct;
         BlockDriverState *file;
         enum MirrorMethod {
