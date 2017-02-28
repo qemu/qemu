@@ -286,6 +286,13 @@ static inline int nvic_exec_prio(NVICState *s)
     return MIN(running, s->exception_prio);
 }
 
+bool armv7m_nvic_can_take_pending_exception(void *opaque)
+{
+    NVICState *s = opaque;
+
+    return nvic_exec_prio(s) > nvic_pending_prio(s);
+}
+
 /* caller must call nvic_irq_update() after this */
 static void set_prio(NVICState *s, unsigned irq, uint8_t prio)
 {

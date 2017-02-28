@@ -338,13 +338,6 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     CPUARMState *env = &cpu->env;
     bool ret = false;
 
-
-    if (interrupt_request & CPU_INTERRUPT_FIQ
-        && !(env->daif & PSTATE_F)) {
-        cs->exception_index = EXCP_FIQ;
-        cc->do_interrupt(cs);
-        ret = true;
-    }
     /* ARMv7-M interrupt return works by loading a magic value
      * into the PC.  On real hardware the load causes the
      * return to occur.  The qemu implementation performs the
@@ -354,9 +347,16 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
      * the stack if an interrupt occurred at the wrong time.
      * We avoid this by disabling interrupts when
      * pc contains a magic address.
+     *
+     * ARMv7-M interrupt masking works differently than -A or -R.
+     * There is no FIQ/IRQ distinction. Instead of I and F bits
+     * masking FIQ and IRQ interrupts, an exception is taken only
+     * if it is higher priority than the current execution priority
+     * (which depends on state like BASEPRI, FAULTMASK and the
+     * currently active exception).
      */
     if (interrupt_request & CPU_INTERRUPT_HARD
-        && !(env->daif & PSTATE_I)
+        && (armv7m_nvic_can_take_pending_exception(env->nvic))
         && (env->regs[15] < 0xfffffff0)) {
         cs->exception_index = EXCP_IRQ;
         cc->do_interrupt(cs);
