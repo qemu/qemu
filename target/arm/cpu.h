@@ -1365,7 +1365,7 @@ static inline bool armv7m_nvic_can_take_pending_exception(void *opaque)
 }
 #endif
 void armv7m_nvic_set_pending(void *opaque, int irq);
-int armv7m_nvic_acknowledge_irq(void *opaque);
+void armv7m_nvic_acknowledge_irq(void *opaque);
 void armv7m_nvic_complete_irq(void *opaque, int irq);
 
 /* Interface for defining coprocessor registers.
