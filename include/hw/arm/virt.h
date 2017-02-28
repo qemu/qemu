@@ -93,6 +93,7 @@ typedef struct {
     FWCfgState *fw_cfg;
     bool secure;
     bool highmem;
+    bool its;
     bool virt;
     int32_t gic_version;
     struct arm_boot_info bootinfo;
