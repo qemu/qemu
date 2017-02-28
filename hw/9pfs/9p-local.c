@@ -1208,6 +1208,7 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
 {
     const char *sec_model = qemu_opt_get(opts, "security_model");
     const char *path = qemu_opt_get(opts, "path");
+    Error *err = NULL;
 
     if (!sec_model) {
         error_report("Security model not specified, local fs needs security model");
@@ -1236,6 +1237,13 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
         error_report("fsdev: No path specified");
         return -1;
     }
+
+    fsdev_throttle_parse_opts(opts, &fse->fst, &err);
+    if (err) {
+        error_reportf_err(err, "Throttle configuration is not valid: ");
+        return -1;
+    }
+
     fse->path = g_strdup(path);
 
     return 0;
