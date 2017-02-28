@@ -47,6 +47,7 @@ test-io-channel-file.txt
 test-io-channel-socket
 test-io-channel-tls
 test-io-task
+test-keyval
 test-logging
 test-mul64
 test-opts-visitor
