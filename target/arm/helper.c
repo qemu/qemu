@@ -6002,6 +6002,72 @@ static void switch_v7m_sp(CPUARMState *env, bool new_spsel)
     }
 }
 
+static uint32_t arm_v7m_load_vector(ARMCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    CPUARMState *env = &cpu->env;
+    MemTxResult result;
+    hwaddr vec = env->v7m.vecbase + env->v7m.exception * 4;
+    uint32_t addr;
+
+    addr = address_space_ldl(cs->as, vec,
+                             MEMTXATTRS_UNSPECIFIED, &result);
+    if (result != MEMTX_OK) {
+        /* Architecturally this should cause a HardFault setting HSFR.VECTTBL,
+         * which would then be immediately followed by our failing to load
+         * the entry vector for that HardFault, which is a Lockup case.
+         * Since we don't model Lockup, we just report this guest error
+         * via cpu_abort().
+         */
+        cpu_abort(cs, "Failed to read from exception vector table "
+                  "entry %08x\n", (unsigned)vec);
+    }
+    return addr;
+}
+
+static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr)
+{
+    /* Do the "take the exception" parts of exception entry,
+     * but not the pushing of state to the stack. This is
+     * similar to the pseudocode ExceptionTaken() function.
+     */
+    CPUARMState *env = &cpu->env;
+    uint32_t addr;
+
+    armv7m_nvic_acknowledge_irq(env->nvic);
+    switch_v7m_sp(env, 0);
+    /* Clear IT bits */
+    env->condexec_bits = 0;
+    env->regs[14] = lr;
+    addr = arm_v7m_load_vector(cpu);
+    env->regs[15] = addr & 0xfffffffe;
+    env->thumb = addr & 1;
+}
+
+static void v7m_push_stack(ARMCPU *cpu)
+{
+    /* Do the "set up stack frame" part of exception entry,
+     * similar to pseudocode PushStack().
+     */
+    CPUARMState *env = &cpu->env;
+    uint32_t xpsr = xpsr_read(env);
+
+    /* Align stack pointer if the guest wants that */
+    if ((env->regs[13] & 4) && (env->v7m.ccr & R_V7M_CCR_STKALIGN_MASK)) {
+        env->regs[13] -= 4;
+        xpsr |= 0x200;
+    }
+    /* Switch to the handler mode.  */
+    v7m_push(env, xpsr);
+    v7m_push(env, env->regs[15]);
+    v7m_push(env, env->regs[14]);
+    v7m_push(env, env->regs[12]);
+    v7m_push(env, env->regs[3]);
+    v7m_push(env, env->regs[2]);
+    v7m_push(env, env->regs[1]);
+    v7m_push(env, env->regs[0]);
+}
+
 static void do_v7m_exception_exit(CPUARMState *env)
 {
     uint32_t type;
@@ -6063,37 +6129,11 @@ static void arm_log_exception(int idx)
     }
 }
 
-static uint32_t arm_v7m_load_vector(ARMCPU *cpu)
-
-{
-    CPUState *cs = CPU(cpu);
-    CPUARMState *env = &cpu->env;
-    MemTxResult result;
-    hwaddr vec = env->v7m.vecbase + env->v7m.exception * 4;
-    uint32_t addr;
-
-    addr = address_space_ldl(cs->as, vec,
-                             MEMTXATTRS_UNSPECIFIED, &result);
-    if (result != MEMTX_OK) {
-        /* Architecturally this should cause a HardFault setting HSFR.VECTTBL,
-         * which would then be immediately followed by our failing to load
-         * the entry vector for that HardFault, which is a Lockup case.
-         * Since we don't model Lockup, we just report this guest error
-         * via cpu_abort().
-         */
-        cpu_abort(cs, "Failed to read from exception vector table "
-                  "entry %08x\n", (unsigned)vec);
-    }
-    return addr;
-}
-
 void arm_v7m_cpu_do_interrupt(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    uint32_t xpsr = xpsr_read(env);
     uint32_t lr;
-    uint32_t addr;
 
     arm_log_exception(cs->exception_index);
 
@@ -6151,31 +6191,9 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         return; /* Never happens.  Keep compiler happy.  */
     }
 
-    armv7m_nvic_acknowledge_irq(env->nvic);
-
+    v7m_push_stack(cpu);
+    v7m_exception_taken(cpu, lr);
     qemu_log_mask(CPU_LOG_INT, "... as %d\n", env->v7m.exception);
-
-    /* Align stack pointer if the guest wants that */
-    if ((env->regs[13] & 4) && (env->v7m.ccr & R_V7M_CCR_STKALIGN_MASK)) {
-        env->regs[13] -= 4;
-        xpsr |= 0x200;
-    }
-    /* Switch to the handler mode.  */
-    v7m_push(env, xpsr);
-    v7m_push(env, env->regs[15]);
-    v7m_push(env, env->regs[14]);
-    v7m_push(env, env->regs[12]);
-    v7m_push(env, env->regs[3]);
-    v7m_push(env, env->regs[2]);
-    v7m_push(env, env->regs[1]);
-    v7m_push(env, env->regs[0]);
-    switch_v7m_sp(env, 0);
-    /* Clear IT bits */
-    env->condexec_bits = 0;
-    env->regs[14] = lr;
-    addr = arm_v7m_load_vector(cpu);
-    env->regs[15] = addr & 0xfffffffe;
-    env->thumb = addr & 1;
 }
 
 /* Function used to synchronize QEMU's AArch64 register set with AArch32
