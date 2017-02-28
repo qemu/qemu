@@ -15,6 +15,8 @@
 #ifndef QEMU_SECCOMP_H
 #define QEMU_SECCOMP_H
 
+#define QEMU_SECCOMP_SET_DEFAULT     (1 << 0)
+
 #include <seccomp.h>
 
 int seccomp_start(void);
