@@ -137,6 +137,12 @@ Parameters to convert subcommand:
 
 @item -n
 Skip the creation of the target volume
+@item -m
+Number of parallel coroutines for the convert process
+@item -W
+Allow out-of-order writes to the destination. This option improves performance,
+but is only recommended for preallocated devices like host devices or other
+raw block devices.
 @end table
 
 Parameters to dd subcommand:
@@ -296,7 +302,7 @@ Error on reading data
 
 @end table
 
-@item convert [-c] [-p] [-n] [-f @var{fmt}] [-t @var{cache}] [-T @var{src_cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_id_or_name}] [-l @var{snapshot_param}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-p] [-n] [-f @var{fmt}] [-t @var{cache}] [-T @var{src_cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_id_or_name}] [-l @var{snapshot_param}] [-m @var{num_coroutines}] [-W] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 
 Convert the disk image @var{filename} or a snapshot @var{snapshot_param}(@var{snapshot_id_or_name} is deprecated)
 to disk image @var{output_filename} using format @var{output_fmt}. It can be optionally compressed (@code{-c}
@@ -325,6 +331,14 @@ If the @code{-n} option is specified, the target volume creation will be
 skipped. This is useful for formats such as @code{rbd} if the target
 volume has already been created with site specific options that cannot
 be supplied through qemu-img.
+
+Out of order writes can be enabled with @code{-W} to improve performance.
+This is only recommended for preallocated devices like host devices or other
+raw block devices. Out of order write does not work in combination with
+creating compressed images.
+
+@var{num_coroutines} specifies how many coroutines work in parallel during
+the convert process (defaults to 8).
 
 @item dd [-f @var{fmt}] [-O @var{output_fmt}] [bs=@var{block_size}] [count=@var{blocks}] [skip=@var{blocks}] if=@var{input} of=@var{output}
 
