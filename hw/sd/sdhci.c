@@ -1023,7 +1023,11 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         /* Writing to last byte of sdmasysad might trigger transfer */
         if (!(mask & 0xFF000000) && TRANSFERRING_DATA(s->prnsts) && s->blkcnt &&
                 s->blksize && SDHC_DMA_TYPE(s->hostctl) == SDHC_CTRL_SDMA) {
-            sdhci_sdma_transfer_multi_blocks(s);
+            if (s->trnmod & SDHC_TRNS_MULTI) {
+                sdhci_sdma_transfer_multi_blocks(s);
+            } else {
+                sdhci_sdma_transfer_single_block(s);
+            }
         }
         break;
     case SDHC_BLKSIZE:
