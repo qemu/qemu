@@ -50,24 +50,24 @@ endif
 
 include $(SRC_PATH)/rules.mak
 
-GENERATED_HEADERS = qemu-version.h config-host.h qemu-options.def
-GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h qapi-event.h
-GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
-GENERATED_HEADERS += qmp-introspect.h
-GENERATED_SOURCES += qmp-introspect.c
+GENERATED_FILES = qemu-version.h config-host.h qemu-options.def
+GENERATED_FILES += qmp-commands.h qapi-types.h qapi-visit.h qapi-event.h
+GENERATED_FILES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
+GENERATED_FILES += qmp-introspect.h
+GENERATED_FILES += qmp-introspect.c
 
-GENERATED_HEADERS += trace/generated-tcg-tracers.h
+GENERATED_FILES += trace/generated-tcg-tracers.h
 
-GENERATED_HEADERS += trace/generated-helpers-wrappers.h
-GENERATED_HEADERS += trace/generated-helpers.h
-GENERATED_SOURCES += trace/generated-helpers.c
+GENERATED_FILES += trace/generated-helpers-wrappers.h
+GENERATED_FILES += trace/generated-helpers.h
+GENERATED_FILES += trace/generated-helpers.c
 
 ifdef CONFIG_TRACE_UST
-GENERATED_HEADERS += trace-ust-all.h
-GENERATED_SOURCES += trace-ust-all.c
+GENERATED_FILES += trace-ust-all.h
+GENERATED_FILES += trace-ust-all.c
 endif
 
-GENERATED_HEADERS += module_block.h
+GENERATED_FILES += module_block.h
 
 TRACE_HEADERS = trace-root.h $(trace-events-subdirs:%=%/trace.h)
 TRACE_SOURCES = trace-root.c $(trace-events-subdirs:%=%/trace.c)
@@ -80,8 +80,8 @@ ifdef CONFIG_TRACE_UST
 TRACE_HEADERS += trace-ust-root.h $(trace-events-subdirs:%=%/trace-ust.h)
 endif
 
-GENERATED_HEADERS += $(TRACE_HEADERS)
-GENERATED_SOURCES += $(TRACE_SOURCES)
+GENERATED_FILES += $(TRACE_HEADERS)
+GENERATED_FILES += $(TRACE_SOURCES)
 
 trace-group-name = $(shell dirname $1 | sed -e 's/[^a-zA-Z0-9]/_/g')
 
@@ -485,11 +485,10 @@ clean:
 	rm -f fsdev/*.pod
 	rm -f qemu-img-cmds.h
 	rm -f ui/shader/*-vert.h ui/shader/*-frag.h
-	@# May not be present in GENERATED_HEADERS
+	@# May not be present in GENERATED_FILES
 	rm -f trace/generated-tracers-dtrace.dtrace*
 	rm -f trace/generated-tracers-dtrace.h*
-	rm -f $(foreach f,$(GENERATED_HEADERS),$(f) $(f)-timestamp)
-	rm -f $(foreach f,$(GENERATED_SOURCES),$(f) $(f)-timestamp)
+	rm -f $(foreach f,$(GENERATED_FILES),$(f) $(f)-timestamp)
 	rm -rf qapi-generated
 	rm -rf qga/qapi-generated
 	for d in $(ALL_SUBDIRS); do \
@@ -784,7 +783,7 @@ endif # CONFIG_WIN
 # Add a dependency on the generated files, so that they are always
 # rebuilt before other object files
 ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
-Makefile: $(GENERATED_HEADERS)
+Makefile: $(GENERATED_FILES)
 endif
 
 .SECONDARY: $(TRACE_HEADERS) $(TRACE_HEADERS:%=%-timestamp) \

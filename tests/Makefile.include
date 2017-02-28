@@ -482,7 +482,7 @@ qapi-schema += unknown-expr-key.json
 
 check-qapi-schema-y := $(addprefix tests/qapi-schema/, $(qapi-schema))
 
-GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h \
+GENERATED_FILES += tests/test-qapi-types.h tests/test-qapi-visit.h \
 	tests/test-qmp-commands.h tests/test-qapi-event.h \
 	tests/test-qmp-introspect.h
 
