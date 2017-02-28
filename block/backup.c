@@ -24,6 +24,7 @@
 #include "qemu/cutils.h"
 #include "sysemu/block-backend.h"
 #include "qemu/bitmap.h"
+#include "qemu/error-report.h"
 
 #define BACKUP_CLUSTER_SIZE_DEFAULT (1 << 16)
 #define SLICE_TIME 100000000ULL /* ns */
@@ -648,7 +649,16 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
      * backup cluster size is smaller than the target cluster size. Even for
      * targets with a backing file, try to avoid COW if possible. */
     ret = bdrv_get_info(target, &bdi);
-    if (ret < 0 && !target->backing) {
+    if (ret == -ENOTSUP && !target->backing) {
+        /* Cluster size is not defined */
+        error_report("WARNING: The target block device doesn't provide "
+                     "information about the block size and it doesn't have a "
+                     "backing file. The default block size of %u bytes is "
+                     "used. If the actual block size of the target exceeds "
+                     "this default, the backup may be unusable",
+                     BACKUP_CLUSTER_SIZE_DEFAULT);
+        job->cluster_size = BACKUP_CLUSTER_SIZE_DEFAULT;
+    } else if (ret < 0 && !target->backing) {
         error_setg_errno(errp, -ret,
             "Couldn't determine the cluster size of the target image, "
             "which has no backing file");
