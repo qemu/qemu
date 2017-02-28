@@ -41,3 +41,12 @@ has three bootable devices target1, target3, target5 connected to it,
 the option ROM will have a boot method for each of them, but it is not
 possible to map from boot method back to a specific target.  This is a
 shortcoming of the PC BIOS boot specification.
+
+== Mixing bootindex and boot order parameters ==
+
+Note that it does not make sense to use the bootindex property together
+with the "-boot order=..." (or "-boot once=...") parameter. The guest
+firmware implementations normally either support the one or the other,
+but not both parameters at the same time. Mixing them will result in
+undefined behavior, and thus the guest firmware will likely not boot
+from the expected devices.
