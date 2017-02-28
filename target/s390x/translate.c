@@ -2559,6 +2559,7 @@ static ExitStatus op_lctlg(DisasContext *s, DisasOps *o)
     tcg_temp_free_i32(r3);
     return NO_EXIT;
 }
+
 static ExitStatus op_lra(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
@@ -2756,6 +2757,31 @@ static ExitStatus op_lm64(DisasContext *s, DisasOps *o)
     }
     tcg_temp_free(t1);
 
+    return NO_EXIT;
+}
+
+static ExitStatus op_lpd(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 a1, a2;
+    TCGMemOp mop = s->insn->data;
+
+    /* In a parallel context, stop the world and single step.  */
+    if (parallel_cpus) {
+        potential_page_fault(s);
+        gen_exception(EXCP_ATOMIC);
+        return EXIT_NORETURN;
+    }
+
+    /* In a serial context, perform the two loads ... */
+    a1 = get_address(s, 0, get_field(s->fields, b1), get_field(s->fields, d1));
+    a2 = get_address(s, 0, get_field(s->fields, b2), get_field(s->fields, d2));
+    tcg_gen_qemu_ld_i64(o->out, a1, get_mem_index(s), mop | MO_ALIGN);
+    tcg_gen_qemu_ld_i64(o->out2, a2, get_mem_index(s), mop | MO_ALIGN);
+    tcg_temp_free_i64(a1);
+    tcg_temp_free_i64(a2);
+
+    /* ... and indicate that we performed them while interlocked.  */
+    gen_op_movi_cc(s, 0);
     return NO_EXIT;
 }
 
@@ -4429,6 +4455,22 @@ static void wout_r1_D32(DisasContext *s, DisasFields *f, DisasOps *o)
     store_reg32_i64(r1, o->out);
 }
 #define SPEC_wout_r1_D32 SPEC_r1_even
+
+static void wout_r3_P32(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    int r3 = get_field(f, r3);
+    store_reg32_i64(r3, o->out);
+    store_reg32_i64(r3 + 1, o->out2);
+}
+#define SPEC_wout_r3_P32 SPEC_r3_even
+
+static void wout_r3_P64(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    int r3 = get_field(f, r3);
+    store_reg(r3, o->out);
+    store_reg(r3 + 1, o->out2);
+}
+#define SPEC_wout_r3_P64 SPEC_r3_even
 
 static void wout_e1(DisasContext *s, DisasFields *f, DisasOps *o)
 {
