@@ -41,6 +41,7 @@ struct QObjectInputVisitor {
 
     /* Root of visit at visitor creation. */
     QObject *root;
+    bool keyval;                /* Assume @root made with keyval_parse() */
 
     /* Stack of objects being visited (all entries will be either
      * QDict or QList). */
@@ -73,7 +74,9 @@ static const char *full_name_nth(QObjectInputVisitor *qiv, const char *name,
             g_string_prepend(qiv->errname, name ?: "<anonymous>");
             g_string_prepend_c(qiv->errname, '.');
         } else {
-            snprintf(buf, sizeof(buf), "[%u]", so->index);
+            snprintf(buf, sizeof(buf),
+                     qiv->keyval ? ".%u" : "[%u]",
+                     so->index);
             g_string_prepend(qiv->errname, buf);
         }
         name = so->name;
@@ -673,6 +676,7 @@ Visitor *qobject_input_visitor_new_keyval(QObject *obj)
     v->visitor.type_any = qobject_input_type_any;
     v->visitor.type_null = qobject_input_type_null;
     v->visitor.type_size = qobject_input_type_size_keyval;
+    v->keyval = true;
 
     return &v->visitor;
 }

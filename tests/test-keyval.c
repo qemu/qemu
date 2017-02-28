@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qstring.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
@@ -179,6 +180,72 @@ static void test_keyval_parse(void)
 
     /* Empty key is not an implied key */
     qdict = keyval_parse("=val", "implied", &err);
+    error_free_or_abort(&err);
+    g_assert(!qdict);
+}
+
+static void check_list012(QList *qlist)
+{
+    static const char *expected[] = { "null", "eins", "zwei" };
+    int i;
+    QString *qstr;
+
+    g_assert(qlist);
+    for (i = 0; i < ARRAY_SIZE(expected); i++) {
+        qstr = qobject_to_qstring(qlist_pop(qlist));
+        g_assert(qstr);
+        g_assert_cmpstr(qstring_get_str(qstr), ==, expected[i]);
+        QDECREF(qstr);
+    }
+    g_assert(qlist_empty(qlist));
+}
+
+static void test_keyval_parse_list(void)
+{
+    Error *err = NULL;
+    QDict *qdict, *sub_qdict;
+
+    /* Root can't be a list */
+    qdict = keyval_parse("0=1", NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!qdict);
+
+    /* List elements need not be in order */
+    qdict = keyval_parse("list.0=null,list.2=zwei,list.1=eins",
+                         NULL, &error_abort);
+    g_assert_cmpint(qdict_size(qdict), ==, 1);
+    check_list012(qdict_get_qlist(qdict, "list"));
+    QDECREF(qdict);
+
+    /* Multiple indexes, last one wins */
+    qdict = keyval_parse("list.1=goner,list.0=null,list.1=eins,list.2=zwei",
+                         NULL, &error_abort);
+    g_assert_cmpint(qdict_size(qdict), ==, 1);
+    check_list012(qdict_get_qlist(qdict, "list"));
+    QDECREF(qdict);
+
+    /* List at deeper nesting */
+    qdict = keyval_parse("a.list.1=eins,a.list.0=null,a.list.2=zwei",
+                         NULL, &error_abort);
+    g_assert_cmpint(qdict_size(qdict), ==, 1);
+    sub_qdict = qdict_get_qdict(qdict, "a");
+    g_assert_cmpint(qdict_size(sub_qdict), ==, 1);
+    check_list012(qdict_get_qlist(sub_qdict, "list"));
+    QDECREF(qdict);
+
+    /* Inconsistent dotted keys: both list and dictionary */
+    qdict = keyval_parse("a.b.c=1,a.b.0=2", NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!qdict);
+    qdict = keyval_parse("a.0.c=1,a.b.c=2", NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!qdict);
+
+    /* Missing list indexes */
+    qdict = keyval_parse("list.2=lonely", NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!qdict);
+    qdict = keyval_parse("list.0=null,list.2=eins,list.02=zwei", NULL, &err);
     error_free_or_abort(&err);
     g_assert(!qdict);
 }
@@ -459,6 +526,59 @@ static void test_keyval_visit_dict(void)
     visit_free(v);
 }
 
+static void test_keyval_visit_list(void)
+{
+    Error *err = NULL;
+    Visitor *v;
+    QDict *qdict;
+    char *s;
+
+    qdict = keyval_parse("a.0=,a.1=I,a.2.0=II", NULL, &error_abort);
+    /* TODO empty list */
+    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    QDECREF(qdict);
+    visit_start_struct(v, NULL, NULL, 0, &error_abort);
+    visit_start_list(v, "a", NULL, 0, &error_abort);
+    visit_type_str(v, NULL, &s, &error_abort);
+    g_assert_cmpstr(s, ==, "");
+    g_free(s);
+    visit_type_str(v, NULL, &s, &error_abort);
+    g_assert_cmpstr(s, ==, "I");
+    g_free(s);
+    visit_start_list(v, NULL, NULL, 0, &error_abort);
+    visit_type_str(v, NULL, &s, &error_abort);
+    g_assert_cmpstr(s, ==, "II");
+    g_free(s);
+    visit_check_list(v, &error_abort);
+    visit_end_list(v, NULL);
+    visit_check_list(v, &error_abort);
+    visit_end_list(v, NULL);
+    visit_check_struct(v, &error_abort);
+    visit_end_struct(v, NULL);
+    visit_free(v);
+
+    qdict = keyval_parse("a.0=,b.0.0=head", NULL, &error_abort);
+    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    QDECREF(qdict);
+    visit_start_struct(v, NULL, NULL, 0, &error_abort);
+    visit_start_list(v, "a", NULL, 0, &error_abort);
+    visit_check_list(v, &err);  /* a[0] unexpected */
+    error_free_or_abort(&err);
+    visit_end_list(v, NULL);
+    visit_start_list(v, "b", NULL, 0, &error_abort);
+    visit_start_list(v, NULL, NULL, 0, &error_abort);
+    visit_type_str(v, NULL, &s, &error_abort);
+    g_assert_cmpstr(s, ==, "head");
+    g_free(s);
+    visit_type_str(v, NULL, &s, &err); /* b[0][1] missing */
+    error_free_or_abort(&err);
+    visit_end_list(v, NULL);
+    visit_end_list(v, NULL);
+    visit_check_struct(v, &error_abort);
+    visit_end_struct(v, NULL);
+    visit_free(v);
+}
+
 static void test_keyval_visit_optional(void)
 {
     Visitor *v;
@@ -492,10 +612,12 @@ int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/keyval/keyval_parse", test_keyval_parse);
+    g_test_add_func("/keyval/keyval_parse/list", test_keyval_parse_list);
     g_test_add_func("/keyval/visit/bool", test_keyval_visit_bool);
     g_test_add_func("/keyval/visit/number", test_keyval_visit_number);
     g_test_add_func("/keyval/visit/size", test_keyval_visit_size);
     g_test_add_func("/keyval/visit/dict", test_keyval_visit_dict);
+    g_test_add_func("/keyval/visit/list", test_keyval_visit_list);
     g_test_add_func("/keyval/visit/optional", test_keyval_visit_optional);
     g_test_run();
     return 0;
