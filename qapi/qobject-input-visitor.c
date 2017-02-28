@@ -619,12 +619,11 @@ static void qobject_input_free(Visitor *v)
     g_free(qiv);
 }
 
-Visitor *qobject_input_visitor_new(QObject *obj)
+static QObjectInputVisitor *qobject_input_visitor_base_new(QObject *obj)
 {
-    QObjectInputVisitor *v;
+    QObjectInputVisitor *v = g_malloc0(sizeof(*v));
 
     assert(obj);
-    v = g_malloc0(sizeof(*v));
 
     v->visitor.type = VISITOR_INPUT;
     v->visitor.start_struct = qobject_input_start_struct;
@@ -635,6 +634,19 @@ Visitor *qobject_input_visitor_new(QObject *obj)
     v->visitor.check_list = qobject_input_check_list;
     v->visitor.end_list = qobject_input_pop;
     v->visitor.start_alternate = qobject_input_start_alternate;
+    v->visitor.optional = qobject_input_optional;
+    v->visitor.free = qobject_input_free;
+
+    v->root = obj;
+    qobject_incref(obj);
+
+    return v;
+}
+
+Visitor *qobject_input_visitor_new(QObject *obj)
+{
+    QObjectInputVisitor *v = qobject_input_visitor_base_new(obj);
+
     v->visitor.type_int64 = qobject_input_type_int64;
     v->visitor.type_uint64 = qobject_input_type_uint64;
     v->visitor.type_bool = qobject_input_type_bool;
@@ -642,30 +654,14 @@ Visitor *qobject_input_visitor_new(QObject *obj)
     v->visitor.type_number = qobject_input_type_number;
     v->visitor.type_any = qobject_input_type_any;
     v->visitor.type_null = qobject_input_type_null;
-    v->visitor.optional = qobject_input_optional;
-    v->visitor.free = qobject_input_free;
-
-    v->root = obj;
-    qobject_incref(obj);
 
     return &v->visitor;
 }
 
 Visitor *qobject_input_visitor_new_keyval(QObject *obj)
 {
-    QObjectInputVisitor *v;
+    QObjectInputVisitor *v = qobject_input_visitor_base_new(obj);
 
-    v = g_malloc0(sizeof(*v));
-
-    v->visitor.type = VISITOR_INPUT;
-    v->visitor.start_struct = qobject_input_start_struct;
-    v->visitor.check_struct = qobject_input_check_struct;
-    v->visitor.end_struct = qobject_input_pop;
-    v->visitor.start_list = qobject_input_start_list;
-    v->visitor.next_list = qobject_input_next_list;
-    v->visitor.check_list = qobject_input_check_list;
-    v->visitor.end_list = qobject_input_pop;
-    v->visitor.start_alternate = qobject_input_start_alternate;
     v->visitor.type_int64 = qobject_input_type_int64_keyval;
     v->visitor.type_uint64 = qobject_input_type_uint64_keyval;
     v->visitor.type_bool = qobject_input_type_bool_keyval;
@@ -674,11 +670,6 @@ Visitor *qobject_input_visitor_new_keyval(QObject *obj)
     v->visitor.type_any = qobject_input_type_any;
     v->visitor.type_null = qobject_input_type_null;
     v->visitor.type_size = qobject_input_type_size_keyval;
-    v->visitor.optional = qobject_input_optional;
-    v->visitor.free = qobject_input_free;
-
-    v->root = obj;
-    qobject_incref(obj);
 
     return &v->visitor;
 }
