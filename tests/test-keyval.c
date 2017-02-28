@@ -41,6 +41,11 @@ static void test_keyval_parse(void)
     error_free_or_abort(&err);
     g_assert(!qdict);
 
+    /* Invalid non-empty key (qemu_opts_parse() doesn't care) */
+    qdict = keyval_parse("7up=val", NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!qdict);
+
     /* Overlong key */
     memset(long_key, 'a', 127);
     long_key[127] = 'z';
@@ -72,6 +77,11 @@ static void test_keyval_parse(void)
     g_assert_cmpstr(qdict_get_try_str(sub_qdict, long_key + 1), ==, "v");
     QDECREF(qdict);
     g_free(params);
+
+    /* Crap after valid key */
+    qdict = keyval_parse("key[0]=val", NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!qdict);
 
     /* Multiple keys, last one wins */
     qdict = keyval_parse("a=1,b=2,,x,a=3", NULL, &error_abort);

@@ -34,6 +34,8 @@
  *   doesn't have one, because R.a must be an object to satisfy a.b=1
  *   and a string to satisfy a=2.
  *
+ * Key-fragments must be valid QAPI names.
+ *
  * The length of any key-fragment must be between 1 and 127.
  *
  * Design flaw: there is no way to denote an empty non-root object.
@@ -51,12 +53,12 @@
  * where no-key is syntactic sugar for implied-key=val-no-key.
  *
  * TODO support lists
- * TODO support key-fragment with __RFQDN_ prefix (downstream extensions)
  */
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/util.h"
 #include "qemu/option.h"
 
 /*
@@ -118,6 +120,7 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
     size_t len;
     char key_in_cur[128];
     QDict *cur;
+    int ret;
     QObject *next;
     QString *val;
 
@@ -137,9 +140,10 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
     cur = qdict;
     s = key;
     for (;;) {
-        for (len = 0; s + len < key_end && s[len] != '.'; len++) {
-        }
-        if (!len) {
+        ret = parse_qapi_name(s, false);
+        len = ret < 0 ? 0 : ret;
+        assert(s + len <= key_end);
+        if (!len || (s + len < key_end && s[len] != '.')) {
             assert(key != implied_key);
             error_setg(errp, "Invalid parameter '%.*s'",
                        (int)(key_end - key), key);
