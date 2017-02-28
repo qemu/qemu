@@ -19,6 +19,8 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "migration/failover.h"
+#include "replication.h"
+#include "qmp-commands.h"
 
 static bool vmstate_loading;
 
@@ -144,6 +146,30 @@ void colo_do_failover(MigrationState *s)
         primary_vm_do_failover();
     } else {
         secondary_vm_do_failover();
+    }
+}
+
+void qmp_xen_set_replication(bool enable, bool primary,
+                             bool has_failover, bool failover,
+                             Error **errp)
+{
+    ReplicationMode mode = primary ?
+                           REPLICATION_MODE_PRIMARY :
+                           REPLICATION_MODE_SECONDARY;
+
+    if (has_failover && enable) {
+        error_setg(errp, "Parameter 'failover' is only for"
+                   " stopping replication");
+        return;
+    }
+
+    if (enable) {
+        replication_start_all(mode, errp);
+    } else {
+        if (!has_failover) {
+            failover = NULL;
+        }
+        replication_stop_all(failover, failover ? NULL : errp);
     }
 }
 
