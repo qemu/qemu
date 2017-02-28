@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "hw/boards.h"
 #include "sysemu/sysemu.h"
@@ -73,6 +74,9 @@
 
 /* PMU SFR base address */
 #define EXYNOS4210_PMU_BASE_ADDR            0x10020000
+
+/* Clock controller SFR base address */
+#define EXYNOS4210_CLK_BASE_ADDR            0x10030000
 
 /* Display controllers (FIMD) */
 #define EXYNOS4210_FIMD0_BASE_ADDR          0x11C00000
@@ -296,6 +300,8 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     * loader uses PMU INFORM5 register as a holding pen.
     */
     sysbus_create_simple("exynos4210.pmu", EXYNOS4210_PMU_BASE_ADDR, NULL);
+
+    sysbus_create_simple("exynos4210.clk", EXYNOS4210_CLK_BASE_ADDR, NULL);
 
     /* PWM */
     sysbus_create_varargs("exynos4210.pwm", EXYNOS4210_PWM_BASE_ADDR,
