@@ -3010,7 +3010,6 @@ out_nofid:
  */
 static void coroutine_fn v9fs_lock(void *opaque)
 {
-    int8_t status;
     V9fsFlock flock;
     size_t offset = 7;
     struct stat stbuf;
@@ -3018,7 +3017,6 @@ static void coroutine_fn v9fs_lock(void *opaque)
     int32_t fid, err = 0;
     V9fsPDU *pdu = opaque;
 
-    status = P9_LOCK_ERROR;
     v9fs_string_init(&flock.client_id);
     err = pdu_unmarshal(pdu, offset, "dbdqqds", &fid, &flock.type,
                         &flock.flags, &flock.start, &flock.length,
@@ -3044,15 +3042,15 @@ static void coroutine_fn v9fs_lock(void *opaque)
     if (err < 0) {
         goto out;
     }
-    status = P9_LOCK_SUCCESS;
+    err = pdu_marshal(pdu, offset, "b", P9_LOCK_SUCCESS);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
+    trace_v9fs_lock_return(pdu->tag, pdu->id, P9_LOCK_SUCCESS);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    err = pdu_marshal(pdu, offset, "b", status);
-    if (err > 0) {
-        err += offset;
-    }
-    trace_v9fs_lock_return(pdu->tag, pdu->id, status);
     pdu_complete(pdu, err);
     v9fs_string_free(&flock.client_id);
 }
