@@ -1378,6 +1378,7 @@ static void machvirt_init(MachineState *machine)
         }
 
         object_property_set_bool(cpuobj, true, "realized", NULL);
+        object_unref(cpuobj);
     }
     fdt_add_timer_nodes(vms);
     fdt_add_cpu_nodes(vms);
