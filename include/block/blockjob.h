@@ -181,6 +181,15 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
                        uint64_t perm, uint64_t shared_perm, Error **errp);
 
 /**
+ * block_job_remove_all_bdrv:
+ * @job: The block job
+ *
+ * Remove all BlockDriverStates from the list of nodes that are involved in the
+ * job. This removes the blockers added with block_job_add_bdrv().
+ */
+void block_job_remove_all_bdrv(BlockJob *job);
+
+/**
  * block_job_set_speed:
  * @job: The job to set the speed for.
  * @speed: The new value

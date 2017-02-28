@@ -128,6 +128,18 @@ static void block_job_detach_aio_context(void *opaque)
     block_job_unref(job);
 }
 
+void block_job_remove_all_bdrv(BlockJob *job)
+{
+    GSList *l;
+    for (l = job->nodes; l; l = l->next) {
+        BdrvChild *c = l->data;
+        bdrv_op_unblock_all(c->bs, job->blocker);
+        bdrv_root_unref_child(c);
+    }
+    g_slist_free(job->nodes);
+    job->nodes = NULL;
+}
+
 int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
                        uint64_t perm, uint64_t shared_perm, Error **errp)
 {
@@ -258,15 +270,9 @@ void block_job_ref(BlockJob *job)
 void block_job_unref(BlockJob *job)
 {
     if (--job->refcnt == 0) {
-        GSList *l;
         BlockDriverState *bs = blk_bs(job->blk);
         bs->job = NULL;
-        for (l = job->nodes; l; l = l->next) {
-            BdrvChild *c = l->data;
-            bdrv_op_unblock_all(c->bs, job->blocker);
-            bdrv_root_unref_child(c);
-        }
-        g_slist_free(job->nodes);
+        block_job_remove_all_bdrv(job);
         blk_remove_aio_context_notifier(job->blk,
                                         block_job_attached_aio_context,
                                         block_job_detach_aio_context, job);
