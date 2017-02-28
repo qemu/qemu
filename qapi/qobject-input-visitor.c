@@ -167,9 +167,18 @@ static const char *qobject_input_get_keyval(QObjectInputVisitor *qiv,
 
     qstr = qobject_to_qstring(qobj);
     if (!qstr) {
-        error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
-                   full_name(qiv, name), "string");
-        return NULL;
+        switch (qobject_type(qobj)) {
+        case QTYPE_QDICT:
+        case QTYPE_QLIST:
+            error_setg(errp, "Parameters '%s.*' are unexpected",
+                       full_name(qiv, name));
+            return NULL;
+        default:
+            /* Non-string scalar (should this be an assertion?) */
+            error_setg(errp, "Internal error: parameter %s invalid",
+                       full_name(qiv, name));
+            return NULL;
+        }
     }
 
     return qstring_get_str(qstr);
@@ -479,6 +488,15 @@ static void qobject_input_type_str(Visitor *v, const char *name, char **obj,
     *obj = g_strdup(qstring_get_str(qstr));
 }
 
+static void qobject_input_type_str_keyval(Visitor *v, const char *name,
+                                          char **obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    const char *str = qobject_input_get_keyval(qiv, name, errp);
+
+    *obj = g_strdup(str);
+}
+
 static void qobject_input_type_number(Visitor *v, const char *name, double *obj,
                                       Error **errp)
 {
@@ -650,7 +668,7 @@ Visitor *qobject_input_visitor_new_keyval(QObject *obj)
     v->visitor.type_int64 = qobject_input_type_int64_keyval;
     v->visitor.type_uint64 = qobject_input_type_uint64_keyval;
     v->visitor.type_bool = qobject_input_type_bool_keyval;
-    v->visitor.type_str = qobject_input_type_str;
+    v->visitor.type_str = qobject_input_type_str_keyval;
     v->visitor.type_number = qobject_input_type_number_keyval;
     v->visitor.type_any = qobject_input_type_any;
     v->visitor.type_null = qobject_input_type_null;
