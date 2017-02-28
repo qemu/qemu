@@ -2625,29 +2625,29 @@
 ##
 # @BlockdevOptionsIscsi:
 #
-# @transport        The iscsi transport type
+# @transport:       The iscsi transport type
 #
-# @portal           The address of the iscsi portal
+# @portal:          The address of the iscsi portal
 #
-# @target           The target iqn name
+# @target:          The target iqn name
 #
-# @lun              #optional LUN to connect to. Defaults to 0.
+# @lun:             #optional LUN to connect to. Defaults to 0.
 #
-# @user             #optional User name to log in with. If omitted, no CHAP
+# @user:            #optional User name to log in with. If omitted, no CHAP
 #                   authentication is performed.
 #
-# @password-secret  #optional The ID of a QCryptoSecret object providing
+# @password-secret: #optional The ID of a QCryptoSecret object providing
 #                   the password for the login. This option is required if
 #                   @user is specified.
 #
-# @initiator-name   #optional The iqn name we want to identify to the target
+# @initiator-name:  #optional The iqn name we want to identify to the target
 #                   as. If this option is not specified, an initiator name is
 #                   generated automatically.
 #
-# @header-digest    #optional The desired header digest. Defaults to
+# @header-digest:   #optional The desired header digest. Defaults to
 #                   none-crc32c.
 #
-# @timeout          #optional Timeout in seconds after which a request will
+# @timeout:         #optional Timeout in seconds after which a request will
 #                   timeout. 0 means no timeout and is the default.
 #
 # Driver specific block device options for iscsi
