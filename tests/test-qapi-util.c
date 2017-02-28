@@ -42,10 +42,44 @@ static void test_qapi_enum_parse(void)
     g_assert_cmpint(ret, ==, QTYPE__MAX - 1);
 }
 
+static void test_parse_qapi_name(void)
+{
+    int ret;
+
+    /* Must start with a letter */
+    ret = parse_qapi_name("a", true);
+    g_assert(ret == 1);
+    ret = parse_qapi_name("a$", false);
+    g_assert(ret == 1);
+    ret = parse_qapi_name("", false);
+    g_assert(ret == -1);
+    ret = parse_qapi_name("1", false);
+    g_assert(ret == -1);
+
+    /* Only letters, digits, hyphen, underscore */
+    ret = parse_qapi_name("A-Za-z0-9_", true);
+    g_assert(ret == 10);
+    ret = parse_qapi_name("A-Za-z0-9_$", false);
+    g_assert(ret == 10);
+    ret = parse_qapi_name("A-Za-z0-9_$", true);
+    g_assert(ret == -1);
+
+    /* __RFQDN_ */
+    ret = parse_qapi_name("__com.redhat_supports", true);
+    g_assert(ret == 21);
+    ret = parse_qapi_name("_com.example_", false);
+    g_assert(ret == -1);
+    ret = parse_qapi_name("__com.example", false);
+    g_assert(ret == -1);
+    ret = parse_qapi_name("__com.example_", false);
+    g_assert(ret == -1);
+}
+
 int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/qapi/util/qapi_enum_parse", test_qapi_enum_parse);
+    g_test_add_func("/qapi/util/parse_qapi_name", test_parse_qapi_name);
     g_test_run();
     return 0;
 }

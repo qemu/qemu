@@ -14,4 +14,6 @@
 int qapi_enum_parse(const char * const lookup[], const char *buf,
                     int max, int def, Error **errp);
 
+int parse_qapi_name(const char *name, bool complete);
+
 #endif
