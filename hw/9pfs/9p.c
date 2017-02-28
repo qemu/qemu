@@ -3010,7 +3010,6 @@ out_nofid:
  */
 static void coroutine_fn v9fs_lock(void *opaque)
 {
-    int8_t status;
     V9fsFlock flock;
     size_t offset = 7;
     struct stat stbuf;
@@ -3018,7 +3017,6 @@ static void coroutine_fn v9fs_lock(void *opaque)
     int32_t fid, err = 0;
     V9fsPDU *pdu = opaque;
 
-    status = P9_LOCK_ERROR;
     v9fs_string_init(&flock.client_id);
     err = pdu_unmarshal(pdu, offset, "dbdqqds", &fid, &flock.type,
                         &flock.flags, &flock.start, &flock.length,
@@ -3044,15 +3042,15 @@ static void coroutine_fn v9fs_lock(void *opaque)
     if (err < 0) {
         goto out;
     }
-    status = P9_LOCK_SUCCESS;
+    err = pdu_marshal(pdu, offset, "b", P9_LOCK_SUCCESS);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
+    trace_v9fs_lock_return(pdu->tag, pdu->id, P9_LOCK_SUCCESS);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    err = pdu_marshal(pdu, offset, "b", status);
-    if (err > 0) {
-        err += offset;
-    }
-    trace_v9fs_lock_return(pdu->tag, pdu->id, status);
     pdu_complete(pdu, err);
     v9fs_string_free(&flock.client_id);
 }
@@ -3531,6 +3529,10 @@ int v9fs_device_realize_common(V9fsState *s, Error **errp)
         error_setg(errp, "share path %s is not a directory", fse->path);
         goto out;
     }
+
+    s->ctx.fst = &fse->fst;
+    fsdev_throttle_init(s->ctx.fst);
+
     v9fs_path_free(&path);
 
     rc = 0;
@@ -3551,6 +3553,7 @@ void v9fs_device_unrealize_common(V9fsState *s, Error **errp)
     if (s->ops->cleanup) {
         s->ops->cleanup(&s->ctx);
     }
+    fsdev_throttle_cleanup(s->ctx.fst);
     g_free(s->tag);
     g_free(s->ctx.fs_root);
 }
