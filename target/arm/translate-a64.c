@@ -10933,6 +10933,10 @@ static void disas_crypto_aes(DisasContext *s, uint32_t insn)
         return;
     }
 
+    if (!fp_access_check(s)) {
+        return;
+    }
+
     /* Note that we convert the Vx register indexes into the
      * index within the vfp.regs[] array, so we can share the
      * helper with the AArch32 instructions.
@@ -10997,6 +11001,10 @@ static void disas_crypto_three_reg_sha(DisasContext *s, uint32_t insn)
         return;
     }
 
+    if (!fp_access_check(s)) {
+        return;
+    }
+
     tcg_rd_regno = tcg_const_i32(rd << 1);
     tcg_rn_regno = tcg_const_i32(rn << 1);
     tcg_rm_regno = tcg_const_i32(rm << 1);
@@ -11057,6 +11065,10 @@ static void disas_crypto_two_reg_sha(DisasContext *s, uint32_t insn)
 
     if (!arm_dc_feature(s, feature)) {
         unallocated_encoding(s);
+        return;
+    }
+
+    if (!fp_access_check(s)) {
         return;
     }
 
