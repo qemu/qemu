@@ -10497,11 +10497,12 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #else
     cc->get_phys_page_debug = ppc_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_ppc_cpu;
-#if defined(TARGET_PPC64)
-    cc->write_elf64_note = ppc64_cpu_write_elf64_note;
-#endif
 #endif
     cc->cpu_exec_enter = ppc_cpu_exec_enter;
+#if defined(CONFIG_SOFTMMU)
+    cc->write_elf64_note = ppc64_cpu_write_elf64_note;
+    cc->write_elf32_note = ppc32_cpu_write_elf32_note;
+#endif
 
     cc->gdb_num_core_regs = 71;
 
