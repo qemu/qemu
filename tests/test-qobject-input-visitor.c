@@ -51,7 +51,7 @@ static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
 {
     visitor_input_teardown(data, NULL);
 
-    data->obj = qobject_from_jsonv(json_string, ap);
+    data->obj = qobject_from_jsonv(json_string, ap, NULL);
     g_assert(data->obj);
 
     if (keyval) {
