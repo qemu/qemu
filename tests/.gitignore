@@ -53,6 +53,7 @@ test-mul64
 test-opts-visitor
 test-qapi-event.[ch]
 test-qapi-types.[ch]
+test-qapi-util
 test-qapi-visit.[ch]
 test-qdev-global-props
 test-qemu-opts
