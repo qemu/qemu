@@ -24,6 +24,9 @@
 typedef struct NVICState {
     GICState gic;
     ARMCPU *cpu;
+
+    uint32_t prigroup;
+
     struct {
         uint32_t control;
         uint32_t reload;
@@ -223,7 +226,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
     case 0xd08: /* Vector Table Offset.  */
         return cpu->env.v7m.vecbase;
     case 0xd0c: /* Application Interrupt/Reset Control.  */
-        return 0xfa050000;
+        return 0xfa050000 | (s->prigroup << 8);
     case 0xd10: /* System Control.  */
         /* TODO: Implement SLEEPONEXIT.  */
         return 0;
@@ -362,9 +365,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
             if (value & 1) {
                 qemu_log_mask(LOG_UNIMP, "AIRCR system reset unimplemented\n");
             }
-            if (value & 0x700) {
-                qemu_log_mask(LOG_UNIMP, "PRIGROUP unimplemented\n");
-            }
+            s->prigroup = extract32(value, 8, 3);
         }
         break;
     case 0xd10: /* System Control.  */
@@ -483,13 +484,14 @@ static const MemoryRegionOps nvic_sysreg_ops = {
 
 static const VMStateDescription vmstate_nvic = {
     .name = "armv7m_nvic",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(systick.control, NVICState),
         VMSTATE_UINT32(systick.reload, NVICState),
         VMSTATE_INT64(systick.tick, NVICState),
         VMSTATE_TIMER_PTR(systick.timer, NVICState),
+        VMSTATE_UINT32(prigroup, NVICState),
         VMSTATE_END_OF_LIST()
     }
 };
