@@ -45,6 +45,7 @@ static void visitor_input_teardown(TestInputVisitorData *data,
    function so that the JSON string used by the tests are kept in the test
    functions (and not in main()). */
 static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
+                                                 bool keyval,
                                                  const char *json_string,
                                                  va_list *ap)
 {
@@ -53,9 +54,27 @@ static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
     data->obj = qobject_from_jsonv(json_string, ap);
     g_assert(data->obj);
 
-    data->qiv = qobject_input_visitor_new(data->obj);
+    if (keyval) {
+        data->qiv = qobject_input_visitor_new_keyval(data->obj);
+    } else {
+        data->qiv = qobject_input_visitor_new(data->obj);
+    }
     g_assert(data->qiv);
     return data->qiv;
+}
+
+static GCC_FMT_ATTR(3, 4)
+Visitor *visitor_input_test_init_full(TestInputVisitorData *data,
+                                      bool keyval,
+                                      const char *json_string, ...)
+{
+    Visitor *v;
+    va_list ap;
+
+    va_start(ap, json_string);
+    v = visitor_input_test_init_internal(data, keyval, json_string, &ap);
+    va_end(ap);
+    return v;
 }
 
 static GCC_FMT_ATTR(2, 3)
@@ -66,7 +85,7 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
     va_list ap;
 
     va_start(ap, json_string);
-    v = visitor_input_test_init_internal(data, json_string, &ap);
+    v = visitor_input_test_init_internal(data, false, json_string, &ap);
     va_end(ap);
     return v;
 }
@@ -81,7 +100,7 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
 static Visitor *visitor_input_test_init_raw(TestInputVisitorData *data,
                                             const char *json_string)
 {
-    return visitor_input_test_init_internal(data, json_string, NULL);
+    return visitor_input_test_init_internal(data, false, json_string, NULL);
 }
 
 static void test_visitor_in_int(TestInputVisitorData *data,
@@ -114,6 +133,43 @@ static void test_visitor_in_int_overflow(TestInputVisitorData *data,
     error_free_or_abort(&err);
 }
 
+static void test_visitor_in_int_keyval(TestInputVisitorData *data,
+                                       const void *unused)
+{
+    int64_t res = 0, value = -42;
+    Error *err = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, "%" PRId64, value);
+    visit_type_int(v, NULL, &res, &err);
+    error_free_or_abort(&err);
+}
+
+static void test_visitor_in_int_str_keyval(TestInputVisitorData *data,
+                                           const void *unused)
+{
+    int64_t res = 0, value = -42;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, "\"-42\"");
+
+    visit_type_int(v, NULL, &res, &error_abort);
+    g_assert_cmpint(res, ==, value);
+}
+
+static void test_visitor_in_int_str_fail(TestInputVisitorData *data,
+                                         const void *unused)
+{
+    int64_t res = 0;
+    Visitor *v;
+    Error *err = NULL;
+
+    v = visitor_input_test_init(data, "\"-42\"");
+
+    visit_type_int(v, NULL, &res, &err);
+    error_free_or_abort(&err);
+}
+
 static void test_visitor_in_bool(TestInputVisitorData *data,
                                  const void *unused)
 {
@@ -126,6 +182,44 @@ static void test_visitor_in_bool(TestInputVisitorData *data,
     g_assert_cmpint(res, ==, true);
 }
 
+static void test_visitor_in_bool_keyval(TestInputVisitorData *data,
+                                        const void *unused)
+{
+    bool res = false;
+    Error *err = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, "true");
+
+    visit_type_bool(v, NULL, &res, &err);
+    error_free_or_abort(&err);
+}
+
+static void test_visitor_in_bool_str_keyval(TestInputVisitorData *data,
+                                            const void *unused)
+{
+    bool res = false;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, "\"on\"");
+
+    visit_type_bool(v, NULL, &res, &error_abort);
+    g_assert_cmpint(res, ==, true);
+}
+
+static void test_visitor_in_bool_str_fail(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    bool res = false;
+    Visitor *v;
+    Error *err = NULL;
+
+    v = visitor_input_test_init(data, "\"true\"");
+
+    visit_type_bool(v, NULL, &res, &err);
+    error_free_or_abort(&err);
+}
+
 static void test_visitor_in_number(TestInputVisitorData *data,
                                    const void *unused)
 {
@@ -136,6 +230,69 @@ static void test_visitor_in_number(TestInputVisitorData *data,
 
     visit_type_number(v, NULL, &res, &error_abort);
     g_assert_cmpfloat(res, ==, value);
+}
+
+static void test_visitor_in_number_keyval(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    double res = 0, value = 3.14;
+    Error *err = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, "%f", value);
+
+    visit_type_number(v, NULL, &res, &err);
+    error_free_or_abort(&err);
+}
+
+static void test_visitor_in_number_str_keyval(TestInputVisitorData *data,
+                                              const void *unused)
+{
+    double res = 0, value = 3.14;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, "\"3.14\"");
+
+    visit_type_number(v, NULL, &res, &error_abort);
+    g_assert_cmpfloat(res, ==, value);
+}
+
+static void test_visitor_in_number_str_fail(TestInputVisitorData *data,
+                                            const void *unused)
+{
+    double res = 0;
+    Visitor *v;
+    Error *err = NULL;
+
+    v = visitor_input_test_init(data, "\"3.14\"");
+
+    visit_type_number(v, NULL, &res, &err);
+    error_free_or_abort(&err);
+}
+
+static void test_visitor_in_size_str_keyval(TestInputVisitorData *data,
+                                            const void *unused)
+{
+    uint64_t res, value = 500 * 1024 * 1024;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, "\"500M\"");
+
+    visit_type_size(v, NULL, &res, &error_abort);
+    g_assert_cmpfloat(res, ==, value);
+}
+
+static void test_visitor_in_size_str_fail(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    uint64_t res = 0;
+    Visitor *v;
+    Error *err = NULL;
+
+    v = visitor_input_test_init(data, "\"500M\"");
+
+    visit_type_size(v, NULL, &res, &err);
+    error_free_or_abort(&err);
 }
 
 static void test_visitor_in_string(TestInputVisitorData *data,
@@ -294,7 +451,8 @@ static void test_visitor_in_null(TestInputVisitorData *data,
      * when input is not null.
      */
 
-    v = visitor_input_test_init(data, "{ 'a': null, 'b': '', 'c': null }");
+    v = visitor_input_test_init_full(data, false,
+                                     "{ 'a': null, 'b': '' }");
     visit_start_struct(v, NULL, NULL, 0, &error_abort);
     visit_type_null(v, "a", &error_abort);
     visit_type_null(v, "b", &err);
@@ -1069,10 +1227,32 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_int);
     input_visitor_test_add("/visitor/input/int_overflow",
                            NULL, test_visitor_in_int_overflow);
+    input_visitor_test_add("/visitor/input/int_keyval",
+                           NULL, test_visitor_in_int_keyval);
+    input_visitor_test_add("/visitor/input/int_str_keyval",
+                           NULL, test_visitor_in_int_str_keyval);
+    input_visitor_test_add("/visitor/input/int_str_fail",
+                           NULL, test_visitor_in_int_str_fail);
     input_visitor_test_add("/visitor/input/bool",
                            NULL, test_visitor_in_bool);
+    input_visitor_test_add("/visitor/input/bool_keyval",
+                           NULL, test_visitor_in_bool_keyval);
+    input_visitor_test_add("/visitor/input/bool_str_keyval",
+                           NULL, test_visitor_in_bool_str_keyval);
+    input_visitor_test_add("/visitor/input/bool_str_fail",
+                           NULL, test_visitor_in_bool_str_fail);
     input_visitor_test_add("/visitor/input/number",
                            NULL, test_visitor_in_number);
+    input_visitor_test_add("/visitor/input/number_keyval",
+                           NULL, test_visitor_in_number_keyval);
+    input_visitor_test_add("/visitor/input/number_str_keyval",
+                           NULL, test_visitor_in_number_str_keyval);
+    input_visitor_test_add("/visitor/input/number_str_fail",
+                           NULL, test_visitor_in_number_str_fail);
+    input_visitor_test_add("/visitor/input/size_str_keyval",
+                           NULL, test_visitor_in_size_str_keyval);
+    input_visitor_test_add("/visitor/input/size_str_fail",
+                           NULL, test_visitor_in_size_str_fail);
     input_visitor_test_add("/visitor/input/string",
                            NULL, test_visitor_in_string);
     input_visitor_test_add("/visitor/input/enum",

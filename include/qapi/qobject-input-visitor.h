@@ -59,4 +59,13 @@ typedef struct QObjectInputVisitor QObjectInputVisitor;
  */
 Visitor *qobject_input_visitor_new(QObject *obj);
 
+/*
+ * Create a QObject input visitor for @obj for use with keyval_parse()
+ *
+ * This is like qobject_input_visitor_new(), except scalars are all
+ * QString, and error messages refer to parts of @obj in the syntax
+ * keyval_parse() uses for KEYs.
+ */
+Visitor *qobject_input_visitor_new_keyval(QObject *obj);
+
 #endif
