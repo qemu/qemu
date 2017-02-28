@@ -441,16 +441,24 @@ void armv7m_nvic_acknowledge_irq(void *opaque)
     nvic_irq_update(s);
 }
 
-void armv7m_nvic_complete_irq(void *opaque, int irq)
+int armv7m_nvic_complete_irq(void *opaque, int irq)
 {
     NVICState *s = (NVICState *)opaque;
     VecInfo *vec;
+    int ret;
 
     assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
 
     vec = &s->vectors[irq];
 
     trace_nvic_complete_irq(irq);
+
+    if (!vec->active) {
+        /* Tell the caller this was an illegal exception return */
+        return -1;
+    }
+
+    ret = nvic_rettobase(s);
 
     vec->active = 0;
     if (vec->level) {
@@ -462,6 +470,8 @@ void armv7m_nvic_complete_irq(void *opaque, int irq)
     }
 
     nvic_irq_update(s);
+
+    return ret;
 }
 
 /* callback when external interrupt line is changed */

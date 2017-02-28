@@ -6068,22 +6068,99 @@ static void v7m_push_stack(ARMCPU *cpu)
     v7m_push(env, env->regs[0]);
 }
 
-static void do_v7m_exception_exit(CPUARMState *env)
+static void do_v7m_exception_exit(ARMCPU *cpu)
 {
+    CPUARMState *env = &cpu->env;
     uint32_t type;
     uint32_t xpsr;
+    bool ufault = false;
+    bool return_to_sp_process = false;
+    bool return_to_handler = false;
+    bool rettobase = false;
 
+    /* We can only get here from an EXCP_EXCEPTION_EXIT, and
+     * arm_v7m_do_unassigned_access() enforces the architectural rule
+     * that jumps to magic addresses don't have magic behaviour unless
+     * we're in Handler mode (compare pseudocode BXWritePC()).
+     */
+    assert(env->v7m.exception != 0);
+
+    /* In the spec pseudocode ExceptionReturn() is called directly
+     * from BXWritePC() and gets the full target PC value including
+     * bit zero. In QEMU's implementation we treat it as a normal
+     * jump-to-register (which is then caught later on), and so split
+     * the target value up between env->regs[15] and env->thumb in
+     * gen_bx(). Reconstitute it.
+     */
     type = env->regs[15];
+    if (env->thumb) {
+        type |= 1;
+    }
+
+    qemu_log_mask(CPU_LOG_INT, "Exception return: magic PC %" PRIx32
+                  " previous exception %d\n",
+                  type, env->v7m.exception);
+
+    if (extract32(type, 5, 23) != extract32(-1, 5, 23)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "M profile: zero high bits in exception "
+                      "exit PC value 0x%" PRIx32 " are UNPREDICTABLE\n", type);
+    }
+
     if (env->v7m.exception != ARMV7M_EXCP_NMI) {
         /* Auto-clear FAULTMASK on return from other than NMI */
         env->daif &= ~PSTATE_F;
     }
-    if (env->v7m.exception != 0) {
-        armv7m_nvic_complete_irq(env->nvic, env->v7m.exception);
+
+    switch (armv7m_nvic_complete_irq(env->nvic, env->v7m.exception)) {
+    case -1:
+        /* attempt to exit an exception that isn't active */
+        ufault = true;
+        break;
+    case 0:
+        /* still an irq active now */
+        break;
+    case 1:
+        /* we returned to base exception level, no nesting.
+         * (In the pseudocode this is written using "NestedActivation != 1"
+         * where we have 'rettobase == false'.)
+         */
+        rettobase = true;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    switch (type & 0xf) {
+    case 1: /* Return to Handler */
+        return_to_handler = true;
+        break;
+    case 13: /* Return to Thread using Process stack */
+        return_to_sp_process = true;
+        /* fall through */
+    case 9: /* Return to Thread using Main stack */
+        if (!rettobase &&
+            !(env->v7m.ccr & R_V7M_CCR_NONBASETHRDENA_MASK)) {
+            ufault = true;
+        }
+        break;
+    default:
+        ufault = true;
+    }
+
+    if (ufault) {
+        /* Bad exception return: instead of popping the exception
+         * stack, directly take a usage fault on the current stack.
+         */
+        env->v7m.cfsr |= R_V7M_CFSR_INVPC_MASK;
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
+        v7m_exception_taken(cpu, type | 0xf0000000);
+        qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
+                      "stackframe: failed exception return integrity check\n");
+        return;
     }
 
     /* Switch to the target stack.  */
-    switch_v7m_sp(env, (type & 4) != 0);
+    switch_v7m_sp(env, return_to_sp_process);
     /* Pop registers.  */
     env->regs[0] = v7m_pop(env);
     env->regs[1] = v7m_pop(env);
@@ -6107,11 +6184,24 @@ static void do_v7m_exception_exit(CPUARMState *env)
     /* Undo stack alignment.  */
     if (xpsr & 0x200)
         env->regs[13] |= 4;
-    /* ??? The exception return type specifies Thread/Handler mode.  However
-       this is also implied by the xPSR value. Not sure what to do
-       if there is a mismatch.  */
-    /* ??? Likewise for mismatches between the CONTROL register and the stack
-       pointer.  */
+
+    /* The restored xPSR exception field will be zero if we're
+     * resuming in Thread mode. If that doesn't match what the
+     * exception return type specified then this is a UsageFault.
+     */
+    if (return_to_handler == (env->v7m.exception == 0)) {
+        /* Take an INVPC UsageFault by pushing the stack again. */
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
+        env->v7m.cfsr |= R_V7M_CFSR_INVPC_MASK;
+        v7m_push_stack(cpu);
+        v7m_exception_taken(cpu, type | 0xf0000000);
+        qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on new stackframe: "
+                      "failed exception return integrity check\n");
+        return;
+    }
+
+    /* Otherwise, we have a successful exception exit. */
+    qemu_log_mask(CPU_LOG_INT, "...successful exception return\n");
 }
 
 static void arm_log_exception(int idx)
@@ -6184,7 +6274,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     case EXCP_IRQ:
         break;
     case EXCP_EXCEPTION_EXIT:
-        do_v7m_exception_exit(env);
+        do_v7m_exception_exit(cpu);
         return;
     default:
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
