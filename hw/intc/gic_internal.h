@@ -25,9 +25,7 @@
 
 #define ALL_CPU_MASK ((unsigned)(((1 << GIC_NCPU) - 1)))
 
-/* The NVIC has 16 internal vectors.  However these are not exposed
-   through the normal GIC interface.  */
-#define GIC_BASE_IRQ ((s->revision == REV_NVIC) ? 32 : 0)
+#define GIC_BASE_IRQ 0
 
 #define GIC_SET_ENABLED(irq, cm) s->irq_state[irq].enabled |= (cm)
 #define GIC_CLEAR_ENABLED(irq, cm) s->irq_state[irq].enabled &= ~(cm)
@@ -75,7 +73,6 @@
 
 /* The special cases for the revision property: */
 #define REV_11MPCORE 0
-#define REV_NVIC 0xffffffff
 
 void gic_set_pending_private(GICState *s, int cpu, int irq);
 uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs);
@@ -87,7 +84,7 @@ void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val,
 
 static inline bool gic_test_pending(GICState *s, int irq, int cm)
 {
-    if (s->revision == REV_NVIC || s->revision == REV_11MPCORE) {
+    if (s->revision == REV_11MPCORE) {
         return s->irq_state[irq].pending & cm;
     } else {
         /* Edge-triggered interrupts are marked pending on a rising edge, but
