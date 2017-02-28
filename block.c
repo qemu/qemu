@@ -1262,7 +1262,7 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
     ret = strstart(filename, "json:", &filename);
     assert(ret);
 
-    options_obj = qobject_from_json(filename);
+    options_obj = qobject_from_json(filename, NULL);
     if (!options_obj) {
         error_setg(errp, "Could not parse the JSON options");
         return NULL;

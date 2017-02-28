@@ -953,7 +953,7 @@ EventInfoList *qmp_query_events(Error **errp)
 static void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
                                  Error **errp)
 {
-    *ret_data = qobject_from_json(qmp_schema_json);
+    *ret_data = qobject_from_json(qmp_schema_json, NULL);
 }
 
 /*

@@ -50,9 +50,9 @@ QObject *qobject_from_jsonv(const char *string, va_list *ap, Error **errp)
     return state.result;
 }
 
-QObject *qobject_from_json(const char *string)
+QObject *qobject_from_json(const char *string, Error **errp)
 {
-    return qobject_from_jsonv(string, NULL, NULL);
+    return qobject_from_jsonv(string, NULL, errp);
 }
 
 /*
