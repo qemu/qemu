@@ -40,6 +40,12 @@ static void machine_none_init(MachineState *mch)
         memory_region_allocate_system_memory(ram, NULL, "ram", mch->ram_size);
         memory_region_add_subregion(get_system_memory(), 0, ram);
     }
+
+    if (mch->kernel_filename) {
+        error_report("The -kernel parameter is not supported "
+                     "(use the generic 'loader' device instead).");
+        exit(1);
+    }
 }
 
 static void machine_none_machine_init(MachineClass *mc)
