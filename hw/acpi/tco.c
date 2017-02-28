@@ -49,6 +49,7 @@ static inline void tco_timer_reload(TCOIORegs *tr)
 static inline void tco_timer_stop(TCOIORegs *tr)
 {
     tr->expire_time = -1;
+    timer_del(tr->tco_timer);
 }
 
 static void tco_timer_expired(void *opaque)
