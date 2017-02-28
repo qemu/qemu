@@ -20,6 +20,7 @@
 #include "hw/s390x/virtio-ccw.h"
 #include "hw/s390x/css.h"
 #include "ipl.h"
+#include "qemu/error-report.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define KERN_PARM_AREA                  0x010480UL
@@ -209,6 +210,7 @@ static Property s390_ipl_properties[] = {
     DEFINE_PROP_STRING("initrd", S390IPLState, initrd),
     DEFINE_PROP_STRING("cmdline", S390IPLState, cmdline),
     DEFINE_PROP_STRING("firmware", S390IPLState, firmware),
+    DEFINE_PROP_STRING("netboot_fw", S390IPLState, netboot_fw),
     DEFINE_PROP_BOOL("enforce_bios", S390IPLState, enforce_bios, false),
     DEFINE_PROP_BOOL("iplbext_migration", S390IPLState, iplbext_migration,
                      true),
@@ -226,6 +228,12 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
                 TYPE_VIRTIO_CCW_DEVICE);
         SCSIDevice *sd = (SCSIDevice *) object_dynamic_cast(OBJECT(dev_st),
                                                             TYPE_SCSI_DEVICE);
+        VirtIONet *vn = (VirtIONet *) object_dynamic_cast(OBJECT(dev_st),
+                                                          TYPE_VIRTIO_NET);
+
+        if (vn) {
+            ipl->netboot = true;
+        }
         if (virtio_ccw_dev) {
             CcwDevice *ccw_dev = CCW_DEVICE(virtio_ccw_dev);
 
@@ -258,12 +266,86 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
     return false;
 }
 
+static int load_netboot_image(Error **errp)
+{
+    S390IPLState *ipl = get_ipl_device();
+    char *netboot_filename;
+    MemoryRegion *sysmem =  get_system_memory();
+    MemoryRegion *mr = NULL;
+    void *ram_ptr = NULL;
+    int img_size = -1;
+
+    mr = memory_region_find(sysmem, 0, 1).mr;
+    if (!mr) {
+        error_setg(errp, "Failed to find memory region at address 0");
+        return -1;
+    }
+
+    ram_ptr = memory_region_get_ram_ptr(mr);
+    if (!ram_ptr) {
+        error_setg(errp, "No RAM found");
+        goto unref_mr;
+    }
+
+    netboot_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, ipl->netboot_fw);
+    if (netboot_filename == NULL) {
+        error_setg(errp, "Could not find network bootloader");
+        goto unref_mr;
+    }
+
+    img_size = load_elf_ram(netboot_filename, NULL, NULL, &ipl->start_addr,
+                            NULL, NULL, 1, EM_S390, 0, 0, NULL, false);
+
+    if (img_size < 0) {
+        img_size = load_image_size(netboot_filename, ram_ptr, ram_size);
+        ipl->start_addr = KERN_IMAGE_START;
+    }
+
+    if (img_size < 0) {
+        error_setg(errp, "Failed to load network bootloader");
+    }
+
+    g_free(netboot_filename);
+
+unref_mr:
+    memory_region_unref(mr);
+    return img_size;
+}
+
+static bool is_virtio_net_device(IplParameterBlock *iplb)
+{
+    uint8_t cssid;
+    uint8_t ssid;
+    uint16_t devno;
+    uint16_t schid;
+    SubchDev *sch = NULL;
+
+    if (iplb->pbt != S390_IPL_TYPE_CCW) {
+        return false;
+    }
+
+    devno = be16_to_cpu(iplb->ccw.devno);
+    ssid = iplb->ccw.ssid & 3;
+
+    for (schid = 0; schid < MAX_SCHID; schid++) {
+        for (cssid = 0; cssid < MAX_CSSID; cssid++) {
+            sch = css_find_subch(1, cssid, ssid, schid);
+
+            if (sch && sch->devno == devno) {
+                return sch->id.cu_model == VIRTIO_ID_NET;
+            }
+        }
+    }
+    return false;
+}
+
 void s390_ipl_update_diag308(IplParameterBlock *iplb)
 {
     S390IPLState *ipl = get_ipl_device();
 
     ipl->iplb = *iplb;
     ipl->iplb_valid = true;
+    ipl->netboot = is_virtio_net_device(iplb);
 }
 
 IplParameterBlock *s390_ipl_get_iplb(void)
@@ -287,6 +369,7 @@ void s390_reipl_request(void)
 void s390_ipl_prepare_cpu(S390CPU *cpu)
 {
     S390IPLState *ipl = get_ipl_device();
+    Error *err = NULL;
 
     cpu->env.psw.addr = ipl->start_addr;
     cpu->env.psw.mask = IPL_PSW_MASK;
@@ -296,6 +379,13 @@ void s390_ipl_prepare_cpu(S390CPU *cpu)
         if (!ipl->iplb_valid) {
             ipl->iplb_valid = s390_gen_initial_iplb(ipl);
         }
+    }
+    if (ipl->netboot) {
+        if (load_netboot_image(&err) < 0) {
+            error_report_err(err);
+            vm_stop(RUN_STATE_INTERNAL_ERROR);
+        }
+        ipl->iplb.ccw.netboot_start_addr = ipl->start_addr;
     }
 }
 
