@@ -2886,27 +2886,39 @@ void bdrv_close_all(void)
     assert(QTAILQ_EMPTY(&all_bdrv_states));
 }
 
+static bool should_update_child(BdrvChild *c, BlockDriverState *to)
+{
+    BdrvChild *to_c;
+
+    if (c->role->stay_at_node) {
+        return false;
+    }
+
+    if (c->role == &child_backing) {
+        /* If @from is a backing file of @to, ignore the child to avoid
+         * creating a loop. We only want to change the pointer of other
+         * parents. */
+        QLIST_FOREACH(to_c, &to->children, next) {
+            if (to_c == c) {
+                break;
+            }
+        }
+        if (to_c) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static void change_parent_backing_link(BlockDriverState *from,
                                        BlockDriverState *to)
 {
-    BdrvChild *c, *next, *to_c;
+    BdrvChild *c, *next;
 
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
-        if (c->role->stay_at_node) {
+        if (!should_update_child(c, to)) {
             continue;
-        }
-        if (c->role == &child_backing) {
-            /* If @from is a backing file of @to, ignore the child to avoid
-             * creating a loop. We only want to change the pointer of other
-             * parents. */
-            QLIST_FOREACH(to_c, &to->children, next) {
-                if (to_c == c) {
-                    break;
-                }
-            }
-            if (to_c) {
-                continue;
-            }
         }
 
         bdrv_ref(to);
