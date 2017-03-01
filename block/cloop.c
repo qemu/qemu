@@ -290,6 +290,7 @@ static BlockDriver bdrv_cloop = {
     .instance_size  = sizeof(BDRVCloopState),
     .bdrv_probe     = cloop_probe,
     .bdrv_open      = cloop_open,
+    .bdrv_child_perm     = bdrv_format_default_perms,
     .bdrv_refresh_limits = cloop_refresh_limits,
     .bdrv_co_preadv = cloop_co_preadv,
     .bdrv_close     = cloop_close,

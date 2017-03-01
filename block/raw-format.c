@@ -467,6 +467,7 @@ BlockDriver bdrv_raw = {
     .bdrv_reopen_abort    = &raw_reopen_abort,
     .bdrv_open            = &raw_open,
     .bdrv_close           = &raw_close,
+    .bdrv_child_perm      = bdrv_filter_default_perms,
     .bdrv_create          = &raw_create,
     .bdrv_co_preadv       = &raw_co_preadv,
     .bdrv_co_pwritev      = &raw_co_pwritev,

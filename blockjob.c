@@ -55,6 +55,19 @@ struct BlockJobTxn {
 
 static QLIST_HEAD(, BlockJob) block_jobs = QLIST_HEAD_INITIALIZER(block_jobs);
 
+static char *child_job_get_parent_desc(BdrvChild *c)
+{
+    BlockJob *job = c->opaque;
+    return g_strdup_printf("%s job '%s'",
+                           BlockJobType_lookup[job->driver->job_type],
+                           job->id);
+}
+
+static const BdrvChildRole child_job = {
+    .get_parent_desc    = child_job_get_parent_desc,
+    .stay_at_node       = true,
+};
+
 BlockJob *block_job_next(BlockJob *job)
 {
     if (!job) {
@@ -115,19 +128,44 @@ static void block_job_detach_aio_context(void *opaque)
     block_job_unref(job);
 }
 
-void block_job_add_bdrv(BlockJob *job, BlockDriverState *bs)
+void block_job_remove_all_bdrv(BlockJob *job)
 {
-    job->nodes = g_slist_prepend(job->nodes, bs);
+    GSList *l;
+    for (l = job->nodes; l; l = l->next) {
+        BdrvChild *c = l->data;
+        bdrv_op_unblock_all(c->bs, job->blocker);
+        bdrv_root_unref_child(c);
+    }
+    g_slist_free(job->nodes);
+    job->nodes = NULL;
+}
+
+int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
+                       uint64_t perm, uint64_t shared_perm, Error **errp)
+{
+    BdrvChild *c;
+
+    c = bdrv_root_attach_child(bs, name, &child_job, perm, shared_perm,
+                               job, errp);
+    if (c == NULL) {
+        return -EPERM;
+    }
+
+    job->nodes = g_slist_prepend(job->nodes, c);
     bdrv_ref(bs);
     bdrv_op_block_all(bs, job->blocker);
+
+    return 0;
 }
 
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockDriverState *bs, int64_t speed, int flags,
+                       BlockDriverState *bs, uint64_t perm,
+                       uint64_t shared_perm, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
     BlockBackend *blk;
     BlockJob *job;
+    int ret;
 
     if (bs->job) {
         error_setg(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
@@ -159,13 +197,17 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         }
     }
 
-    blk = blk_new();
-    blk_insert_bs(blk, bs);
+    blk = blk_new(perm, shared_perm);
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        blk_unref(blk);
+        return NULL;
+    }
 
     job = g_malloc0(driver->instance_size);
     error_setg(&job->blocker, "block device is in use by block job: %s",
                BlockJobType_lookup[driver->job_type]);
-    block_job_add_bdrv(job, bs);
+    block_job_add_bdrv(job, "main node", bs, 0, BLK_PERM_ALL, &error_abort);
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     job->driver        = driver;
@@ -228,15 +270,9 @@ void block_job_ref(BlockJob *job)
 void block_job_unref(BlockJob *job)
 {
     if (--job->refcnt == 0) {
-        GSList *l;
         BlockDriverState *bs = blk_bs(job->blk);
         bs->job = NULL;
-        for (l = job->nodes; l; l = l->next) {
-            bs = l->data;
-            bdrv_op_unblock_all(bs, job->blocker);
-            bdrv_unref(bs);
-        }
-        g_slist_free(job->nodes);
+        block_job_remove_all_bdrv(job);
         blk_remove_aio_context_notifier(job->blk,
                                         block_job_attached_aio_context,
                                         block_job_detach_aio_context, job);

@@ -83,6 +83,29 @@ static int command(BlockBackend *blk, const cmdinfo_t *ct, int argc,
         }
         return 0;
     }
+
+    /* Request additional permissions if necessary for this command. The caller
+     * is responsible for restoring the original permissions afterwards if this
+     * is what it wants. */
+    if (ct->perm && blk_is_available(blk)) {
+        uint64_t orig_perm, orig_shared_perm;
+        blk_get_perm(blk, &orig_perm, &orig_shared_perm);
+
+        if (ct->perm & ~orig_perm) {
+            uint64_t new_perm;
+            Error *local_err = NULL;
+            int ret;
+
+            new_perm = orig_perm | ct->perm;
+
+            ret = blk_set_perm(blk, new_perm, orig_shared_perm, &local_err);
+            if (ret < 0) {
+                error_report_err(local_err);
+                return 0;
+            }
+        }
+    }
+
     optind = 0;
     return ct->cfunc(blk, argc, argv);
 }
@@ -918,6 +941,7 @@ static const cmdinfo_t write_cmd = {
     .name       = "write",
     .altname    = "w",
     .cfunc      = write_f,
+    .perm       = BLK_PERM_WRITE,
     .argmin     = 2,
     .argmax     = -1,
     .args       = "[-bcCfquz] [-P pattern] off len",
@@ -1093,6 +1117,7 @@ static int writev_f(BlockBackend *blk, int argc, char **argv);
 static const cmdinfo_t writev_cmd = {
     .name       = "writev",
     .cfunc      = writev_f,
+    .perm       = BLK_PERM_WRITE,
     .argmin     = 2,
     .argmax     = -1,
     .args       = "[-Cfq] [-P pattern] off len [len..]",
@@ -1392,6 +1417,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv);
 static const cmdinfo_t aio_write_cmd = {
     .name       = "aio_write",
     .cfunc      = aio_write_f,
+    .perm       = BLK_PERM_WRITE,
     .argmin     = 2,
     .argmax     = -1,
     .args       = "[-Cfiquz] [-P pattern] off len [len..]",
@@ -1556,6 +1582,7 @@ static const cmdinfo_t truncate_cmd = {
     .name       = "truncate",
     .altname    = "t",
     .cfunc      = truncate_f,
+    .perm       = BLK_PERM_WRITE | BLK_PERM_RESIZE,
     .argmin     = 1,
     .argmax     = 1,
     .args       = "off",
@@ -1653,6 +1680,7 @@ static const cmdinfo_t discard_cmd = {
     .name       = "discard",
     .altname    = "d",
     .cfunc      = discard_f,
+    .perm       = BLK_PERM_WRITE,
     .argmin     = 2,
     .argmax     = -1,
     .args       = "[-Cq] off len",

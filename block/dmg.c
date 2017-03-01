@@ -697,6 +697,7 @@ static BlockDriver bdrv_dmg = {
     .bdrv_probe     = dmg_probe,
     .bdrv_open      = dmg_open,
     .bdrv_refresh_limits = dmg_refresh_limits,
+    .bdrv_child_perm     = bdrv_format_default_perms,
     .bdrv_co_preadv = dmg_co_preadv,
     .bdrv_close     = dmg_close,
 };

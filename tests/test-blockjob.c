@@ -30,8 +30,9 @@ static BlockJob *do_test_id(BlockBackend *blk, const char *id,
     BlockJob *job;
     Error *errp = NULL;
 
-    job = block_job_create(id, &test_block_job_driver, blk_bs(blk), 0,
-                           BLOCK_JOB_DEFAULT, block_job_cb, NULL, &errp);
+    job = block_job_create(id, &test_block_job_driver, blk_bs(blk),
+                           0, BLK_PERM_ALL, 0, BLOCK_JOB_DEFAULT, block_job_cb,
+                           NULL, &errp);
     if (should_succeed) {
         g_assert_null(errp);
         g_assert_nonnull(job);
@@ -53,13 +54,14 @@ static BlockJob *do_test_id(BlockBackend *blk, const char *id,
  * BlockDriverState inserted. */
 static BlockBackend *create_blk(const char *name)
 {
-    BlockBackend *blk = blk_new();
+    /* No I/O is performed on this device */
+    BlockBackend *blk = blk_new(0, BLK_PERM_ALL);
     BlockDriverState *bs;
 
     bs = bdrv_open("null-co://", NULL, NULL, 0, &error_abort);
     g_assert_nonnull(bs);
 
-    blk_insert_bs(blk, bs);
+    blk_insert_bs(blk, bs, &error_abort);
     bdrv_unref(bs);
 
     if (name) {

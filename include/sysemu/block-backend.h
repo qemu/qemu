@@ -34,7 +34,7 @@ typedef struct BlockDevOps {
      * changes.  Sure would be useful if it did.
      * Device models with removable media must implement this callback.
      */
-    void (*change_media_cb)(void *opaque, bool load);
+    void (*change_media_cb)(void *opaque, bool load, Error **errp);
     /*
      * Runs when an eject request is issued from the monitor, the tray
      * is closed, and the medium is locked.
@@ -84,7 +84,7 @@ typedef struct BlockBackendPublic {
     QLIST_ENTRY(BlockBackendPublic) round_robin;
 } BlockBackendPublic;
 
-BlockBackend *blk_new(void);
+BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm);
 BlockBackend *blk_new_open(const char *filename, const char *reference,
                            QDict *options, int flags, Error **errp);
 int blk_get_refcnt(BlockBackend *blk);
@@ -102,9 +102,12 @@ BlockBackend *blk_by_public(BlockBackendPublic *public);
 
 BlockDriverState *blk_bs(BlockBackend *blk);
 void blk_remove_bs(BlockBackend *blk);
-void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs);
+int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp);
 bool bdrv_has_blk(BlockDriverState *bs);
 bool bdrv_is_root_node(BlockDriverState *bs);
+int blk_set_perm(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
+                 Error **errp);
+void blk_get_perm(BlockBackend *blk, uint64_t *perm, uint64_t *shared_perm);
 
 void blk_set_allow_write_beyond_eof(BlockBackend *blk, bool allow);
 void blk_iostatus_enable(BlockBackend *blk);

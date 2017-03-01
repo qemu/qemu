@@ -82,6 +82,7 @@ typedef struct HDGeometry {
 } HDGeometry;
 
 #define BDRV_O_RDWR        0x0002
+#define BDRV_O_RESIZE      0x0004 /* request permission for resizing the node */
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
 #define BDRV_O_TEMPORARY   0x0010 /* delete the file after use */
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */
@@ -187,6 +188,42 @@ typedef enum BlockOpType {
     BLOCK_OP_TYPE_MAX,
 } BlockOpType;
 
+/* Block node permission constants */
+enum {
+    /**
+     * A user that has the "permission" of consistent reads is guaranteed that
+     * their view of the contents of the block device is complete and
+     * self-consistent, representing the contents of a disk at a specific
+     * point.
+     *
+     * For most block devices (including their backing files) this is true, but
+     * the property cannot be maintained in a few situations like for
+     * intermediate nodes of a commit block job.
+     */
+    BLK_PERM_CONSISTENT_READ    = 0x01,
+
+    /** This permission is required to change the visible disk contents. */
+    BLK_PERM_WRITE              = 0x02,
+
+    /**
+     * This permission (which is weaker than BLK_PERM_WRITE) is both enough and
+     * required for writes to the block node when the caller promises that
+     * the visible disk content doesn't change.
+     */
+    BLK_PERM_WRITE_UNCHANGED    = 0x04,
+
+    /** This permission is required to change the size of a block node. */
+    BLK_PERM_RESIZE             = 0x08,
+
+    /**
+     * This permission is required to change the node that this BdrvChild
+     * points to.
+     */
+    BLK_PERM_GRAPH_MOD          = 0x10,
+
+    BLK_PERM_ALL                = 0x1f,
+};
+
 /* disk I/O throttling */
 void bdrv_init(void);
 void bdrv_init_with_whitelist(void);
@@ -199,7 +236,8 @@ int bdrv_create(BlockDriver *drv, const char* filename,
                 QemuOpts *opts, Error **errp);
 int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp);
 BlockDriverState *bdrv_new(void);
-void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
+void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
+                 Error **errp);
 void bdrv_replace_in_backing_chain(BlockDriverState *old,
                                    BlockDriverState *new);
 
@@ -210,7 +248,8 @@ BdrvChild *bdrv_open_child(const char *filename,
                            BlockDriverState* parent,
                            const BdrvChildRole *child_role,
                            bool allow_none, Error **errp);
-void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd);
+void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
+                         Error **errp);
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
                            const char *bdref_key, Error **errp);
 BlockDriverState *bdrv_open(const char *filename, const char *reference,
@@ -484,7 +523,8 @@ void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child);
 BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              BlockDriverState *child_bs,
                              const char *child_name,
-                             const BdrvChildRole *child_role);
+                             const BdrvChildRole *child_role,
+                             Error **errp);
 
 bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp);
 void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason);

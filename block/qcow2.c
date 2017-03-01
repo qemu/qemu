@@ -2202,7 +2202,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     }
 
     blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                       &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         return -EIO;
@@ -2266,7 +2267,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     options = qdict_new();
     qdict_put(options, "driver", qstring_from_str("qcow2"));
     blk = blk_new_open(filename, NULL, options,
-                       BDRV_O_RDWR | BDRV_O_NO_FLUSH, &local_err);
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_NO_FLUSH,
+                       &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         ret = -EIO;
@@ -3113,6 +3115,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     uint64_t cluster_size = s->cluster_size;
     bool encrypt;
     int refcount_bits = s->refcount_bits;
+    Error *local_err = NULL;
     int ret;
     QemuOptDesc *desc = opts->list->desc;
     Qcow2AmendHelperCBInfo helper_cb_info;
@@ -3262,11 +3265,16 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     }
 
     if (new_size) {
-        BlockBackend *blk = blk_new();
-        blk_insert_bs(blk, bs);
+        BlockBackend *blk = blk_new(BLK_PERM_RESIZE, BLK_PERM_ALL);
+        ret = blk_insert_bs(blk, bs, &local_err);
+        if (ret < 0) {
+            error_report_err(local_err);
+            blk_unref(blk);
+            return ret;
+        }
+
         ret = blk_truncate(blk, new_size);
         blk_unref(blk);
-
         if (ret < 0) {
             return ret;
         }
@@ -3403,6 +3411,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_reopen_commit   = qcow2_reopen_commit,
     .bdrv_reopen_abort    = qcow2_reopen_abort,
     .bdrv_join_options    = qcow2_join_options,
+    .bdrv_child_perm      = bdrv_format_default_perms,
     .bdrv_create        = qcow2_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = qcow2_co_get_block_status,

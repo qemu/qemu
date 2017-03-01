@@ -2045,13 +2045,17 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
     const char* device = qdict_get_str(qdict, "device");
     const char* command = qdict_get_str(qdict, "command");
     Error *err = NULL;
+    int ret;
 
     blk = blk_by_name(device);
     if (!blk) {
         BlockDriverState *bs = bdrv_lookup_bs(NULL, device, &err);
         if (bs) {
-            blk = local_blk = blk_new();
-            blk_insert_bs(blk, bs);
+            blk = local_blk = blk_new(0, BLK_PERM_ALL);
+            ret = blk_insert_bs(blk, bs, &err);
+            if (ret < 0) {
+                goto fail;
+            }
         } else {
             goto fail;
         }
@@ -2060,6 +2064,31 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
     aio_context = blk_get_aio_context(blk);
     aio_context_acquire(aio_context);
 
+    /*
+     * Notably absent: Proper permission management. This is sad, but it seems
+     * almost impossible to achieve without changing the semantics and thereby
+     * limiting the use cases of the qemu-io HMP command.
+     *
+     * In an ideal world we would unconditionally create a new BlockBackend for
+     * qemuio_command(), but we have commands like 'reopen' and want them to
+     * take effect on the exact BlockBackend whose name the user passed instead
+     * of just on a temporary copy of it.
+     *
+     * Another problem is that deleting the temporary BlockBackend involves
+     * draining all requests on it first, but some qemu-iotests cases want to
+     * issue multiple aio_read/write requests and expect them to complete in
+     * the background while the monitor has already returned.
+     *
+     * This is also what prevents us from saving the original permissions and
+     * restoring them later: We can't revoke permissions until all requests
+     * have completed, and we don't know when that is nor can we really let
+     * anything else run before we have revoken them to avoid race conditions.
+     *
+     * What happens now is that command() in qemu-io-cmds.c can extend the
+     * permissions if necessary for the qemu-io command. And they simply stay
+     * extended, possibly resulting in a read-only guest device keeping write
+     * permissions. Ugly, but it appears to be the lesser evil.
+     */
     qemuio_command(blk, command);
 
     aio_context_release(aio_context);

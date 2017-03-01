@@ -1609,7 +1609,7 @@ static int sd_prealloc(const char *filename, Error **errp)
     int ret;
 
     blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_PROTOCOL, errp);
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
     if (blk == NULL) {
         ret = -EIO;
         goto out_with_err_set;

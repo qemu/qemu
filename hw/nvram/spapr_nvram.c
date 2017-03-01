@@ -141,9 +141,17 @@ static void rtas_nvram_store(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static void spapr_nvram_realize(VIOsPAPRDevice *dev, Error **errp)
 {
     sPAPRNVRAM *nvram = VIO_SPAPR_NVRAM(dev);
+    int ret;
 
     if (nvram->blk) {
         nvram->size = blk_getlength(nvram->blk);
+
+        ret = blk_set_perm(nvram->blk,
+                           BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+                           BLK_PERM_ALL, errp);
+        if (ret < 0) {
+            return;
+        }
     } else {
         nvram->size = DEFAULT_NVRAM_SIZE;
     }

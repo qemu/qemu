@@ -95,14 +95,14 @@ qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- -1024
 qemu-img: Image size must be less than 8 EiB!
 
 qemu-img create -f qcow2 -o size=-1024 TEST_DIR/t.qcow2
-qemu-img: Parameter 'size' expects a non-negative number below 2^64
+qemu-img: Value '-1024' is out of range for parameter 'size'
 qemu-img: TEST_DIR/t.qcow2: Invalid options for file format 'qcow2'
 
 qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- -1k
 qemu-img: Image size must be less than 8 EiB!
 
 qemu-img create -f qcow2 -o size=-1k TEST_DIR/t.qcow2
-qemu-img: Parameter 'size' expects a non-negative number below 2^64
+qemu-img: Value '-1k' is out of range for parameter 'size'
 qemu-img: TEST_DIR/t.qcow2: Invalid options for file format 'qcow2'
 
 qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- 1kilobyte
@@ -110,15 +110,19 @@ qemu-img: Invalid image size specified! You may use k, M, G, T, P or E suffixes 
 qemu-img: kilobytes, megabytes, gigabytes, terabytes, petabytes and exabytes.
 
 qemu-img create -f qcow2 -o size=1kilobyte TEST_DIR/t.qcow2
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off refcount_bits=16
+qemu-img: Parameter 'size' expects a non-negative number below 2^64
+Optional suffix k, M, G, T, P or E means kilo-, mega-, giga-, tera-, peta-
+and exabytes, respectively.
+qemu-img: TEST_DIR/t.qcow2: Invalid options for file format 'qcow2'
 
 qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- foobar
 qemu-img: Invalid image size specified! You may use k, M, G, T, P or E suffixes for
 qemu-img: kilobytes, megabytes, gigabytes, terabytes, petabytes and exabytes.
 
 qemu-img create -f qcow2 -o size=foobar TEST_DIR/t.qcow2
-qemu-img: Parameter 'size' expects a size
-You may use k, M, G or T suffixes for kilobytes, megabytes, gigabytes and terabytes.
+qemu-img: Parameter 'size' expects a non-negative number below 2^64
+Optional suffix k, M, G, T, P or E means kilo-, mega-, giga-, tera-, peta-
+and exabytes, respectively.
 qemu-img: TEST_DIR/t.qcow2: Invalid options for file format 'qcow2'
 
 == Check correct interpretation of suffixes for cluster size ==

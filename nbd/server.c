@@ -891,9 +891,21 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
 {
     BlockBackend *blk;
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
+    uint64_t perm;
+    int ret;
 
-    blk = blk_new();
-    blk_insert_bs(blk, bs);
+    /* Don't allow resize while the NBD server is running, otherwise we don't
+     * care what happens with the node. */
+    perm = BLK_PERM_CONSISTENT_READ;
+    if ((nbdflags & NBD_FLAG_READ_ONLY) == 0) {
+        perm |= BLK_PERM_WRITE;
+    }
+    blk = blk_new(perm, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
+                        BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD);
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        goto fail;
+    }
     blk_set_enable_write_cache(blk, !writethrough);
 
     exp->refcount = 1;

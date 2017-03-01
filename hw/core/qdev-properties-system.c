@@ -73,14 +73,19 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
 {
     BlockBackend *blk;
     bool blk_created = false;
+    int ret;
 
     blk = blk_by_name(str);
     if (!blk) {
         BlockDriverState *bs = bdrv_lookup_bs(NULL, str, NULL);
         if (bs) {
-            blk = blk_new();
-            blk_insert_bs(blk, bs);
+            blk = blk_new(0, BLK_PERM_ALL);
             blk_created = true;
+
+            ret = blk_insert_bs(blk, bs, errp);
+            if (ret < 0) {
+                goto fail;
+            }
         }
     }
     if (!blk) {
