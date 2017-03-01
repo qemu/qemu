@@ -701,7 +701,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     hwaddr ptex;
     ppc_hash_pte64_t pte;
     int exec_prot, pp_prot, amr_prot, prot;
-    uint64_t new_pte1, dsisr;
+    uint64_t new_pte1;
     const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
     hwaddr raddr;
 
@@ -742,11 +742,11 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
             } else {
                 /* The access failed, generate the approriate interrupt */
                 if (rwx == 2) {
-                    ppc_hash64_set_isi(cs, env, 0x08000000);
+                    ppc_hash64_set_isi(cs, env, SRR1_PROTFAULT);
                 } else {
-                    dsisr = 0x08000000;
+                    int dsisr = DSISR_PROTFAULT;
                     if (rwx == 1) {
-                        dsisr |= 0x02000000;
+                        dsisr |= DSISR_ISSTORE;
                     }
                     ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
                 }
@@ -784,19 +784,19 @@ skip_slb_search:
 
     /* 3. Check for segment level no-execute violation */
     if ((rwx == 2) && (slb->vsid & SLB_VSID_N)) {
-        ppc_hash64_set_isi(cs, env, 0x10000000);
+        ppc_hash64_set_isi(cs, env, SRR1_NOEXEC_GUARD);
         return 1;
     }
 
     /* 4. Locate the PTE in the hash table */
     ptex = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte, &apshift);
     if (ptex == -1) {
-        dsisr = 0x40000000;
         if (rwx == 2) {
-            ppc_hash64_set_isi(cs, env, dsisr);
+            ppc_hash64_set_isi(cs, env, SRR1_NOPTE);
         } else {
+            int dsisr = DSISR_NOPTE;
             if (rwx == 1) {
-                dsisr |= 0x02000000;
+                dsisr |= DSISR_ISSTORE;
             }
             ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
         }
@@ -827,15 +827,15 @@ skip_slb_search:
             }
             ppc_hash64_set_isi(cs, env, srr1);
         } else {
-            dsisr = 0;
+            int dsisr = 0;
             if (need_prot[rwx] & ~pp_prot) {
-                dsisr |= 0x08000000;
+                dsisr |= DSISR_PROTFAULT;
             }
             if (rwx == 1) {
-                dsisr |= 0x02000000;
+                dsisr |= DSISR_ISSTORE;
             }
             if (need_prot[rwx] & ~amr_prot) {
-                dsisr |= 0x00200000;
+                dsisr |= DSISR_AMR;
             }
             ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
         }
