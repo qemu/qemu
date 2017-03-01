@@ -290,6 +290,16 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
     return rt;
 }
 
+/* Check No-Execute or Guarded Storage */
+static inline int ppc_hash64_pte_noexec_guard(PowerPCCPU *cpu,
+                                              ppc_hash_pte64_t pte)
+{
+    /* Exec permissions CANNOT take away read or write permissions */
+    return (pte.pte1 & HPTE64_R_N) || (pte.pte1 & HPTE64_R_G) ?
+            PAGE_READ | PAGE_WRITE : PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+}
+
+/* Check Basic Storage Protection */
 static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
                                ppc_slb_t *slb, ppc_hash_pte64_t pte)
 {
@@ -331,12 +341,6 @@ static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
             prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
             break;
         }
-    }
-
-    /* No execute if either noexec or guarded bits set */
-    if (!(pte.pte1 & HPTE64_R_N) || (pte.pte1 & HPTE64_R_G)
-        || (slb->vsid & SLB_VSID_N)) {
-        prot |= PAGE_EXEC;
     }
 
     return prot;
@@ -696,7 +700,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     unsigned apshift;
     hwaddr ptex;
     ppc_hash_pte64_t pte;
-    int pp_prot, amr_prot, prot;
+    int exec_prot, pp_prot, amr_prot, prot;
     uint64_t new_pte1, dsisr;
     const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
     hwaddr raddr;
@@ -803,16 +807,19 @@ skip_slb_search:
 
     /* 5. Check access permissions */
 
+    exec_prot = ppc_hash64_pte_noexec_guard(cpu, pte);
     pp_prot = ppc_hash64_pte_prot(cpu, slb, pte);
     amr_prot = ppc_hash64_amr_prot(cpu, pte);
-    prot = pp_prot & amr_prot;
+    prot = exec_prot & pp_prot & amr_prot;
 
     if ((need_prot[rwx] & ~prot) != 0) {
         /* Access right violation */
         qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
         if (rwx == 2) {
             int srr1 = 0;
-            if (PAGE_EXEC & ~pp_prot) {
+            if (PAGE_EXEC & ~exec_prot) {
+                srr1 |= SRR1_NOEXEC_GUARD; /* Access violates noexec or guard */
+            } else if (PAGE_EXEC & ~pp_prot) {
                 srr1 |= SRR1_PROTFAULT; /* Access violates access authority */
             }
             if (PAGE_EXEC & ~amr_prot) {

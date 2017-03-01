@@ -475,6 +475,7 @@ struct ppc_slb_t {
 
 /* SRR1 error code fields */
 
+#define SRR1_NOEXEC_GUARD        0x10000000
 #define SRR1_PROTFAULT           0x08000000
 #define SRR1_IAMR                0x00200000
 
