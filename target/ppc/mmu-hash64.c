@@ -308,28 +308,27 @@ static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
         case 0x0:
         case 0x1:
         case 0x2:
-            prot = PAGE_READ | PAGE_WRITE;
+            prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
             break;
 
         case 0x3:
         case 0x6:
-            prot = PAGE_READ;
+            prot = PAGE_READ | PAGE_EXEC;
             break;
         }
     } else {
         switch (pp) {
         case 0x0:
         case 0x6:
-            prot = 0;
             break;
 
         case 0x1:
         case 0x3:
-            prot = PAGE_READ;
+            prot = PAGE_READ | PAGE_EXEC;
             break;
 
         case 0x2:
-            prot = PAGE_READ | PAGE_WRITE;
+            prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
             break;
         }
     }
