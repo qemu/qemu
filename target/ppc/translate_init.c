@@ -8858,10 +8858,54 @@ static bool ppc_pvr_match_power9(PowerPCCPUClass *pcc, uint32_t pvr)
     return false;
 }
 
+static bool cpu_has_work_POWER9(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    if (cs->halted) {
+        if (!(cs->interrupt_request & CPU_INTERRUPT_HARD)) {
+            return false;
+        }
+        /* External Exception */
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
+            (env->spr[SPR_LPCR] & LPCR_EEE)) {
+            return true;
+        }
+        /* Decrementer Exception */
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
+            (env->spr[SPR_LPCR] & LPCR_DEE)) {
+            return true;
+        }
+        /* Machine Check or Hypervisor Maintenance Exception */
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_MCK |
+            1u << PPC_INTERRUPT_HMI)) && (env->spr[SPR_LPCR] & LPCR_OEE)) {
+            return true;
+        }
+        /* Privileged Doorbell Exception */
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DOORBELL)) &&
+            (env->spr[SPR_LPCR] & LPCR_PDEE)) {
+            return true;
+        }
+        /* Hypervisor Doorbell Exception */
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HDOORBELL)) &&
+            (env->spr[SPR_LPCR] & LPCR_HDEE)) {
+            return true;
+        }
+        if (env->pending_interrupts & (1u << PPC_INTERRUPT_RESET)) {
+            return true;
+        }
+        return false;
+    } else {
+        return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
+    }
+}
+
 POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
 
     dc->fw_name = "PowerPC,POWER9";
     dc->desc = "POWER9";
@@ -8872,6 +8916,7 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
                          PCR_COMPAT_2_05;
     pcc->init_proc = init_proc_POWER9;
     pcc->check_pow = check_pow_nocheck;
+    cc->has_work = cpu_has_work_POWER9;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
                        PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
                        PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
