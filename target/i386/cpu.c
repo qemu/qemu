@@ -3239,7 +3239,7 @@ static void x86_cpu_machine_done(Notifier *n, void *unused)
         cpu->smram = g_new(MemoryRegion, 1);
         memory_region_init_alias(cpu->smram, OBJECT(cpu), "smram",
                                  smram, 0, 1ull << 32);
-        memory_region_set_enabled(cpu->smram, false);
+        memory_region_set_enabled(cpu->smram, true);
         memory_region_add_subregion_overlap(cpu->cpu_as_root, 0, cpu->smram, 1);
     }
 }
@@ -3619,7 +3619,9 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
 #ifndef CONFIG_USER_ONLY
     if (tcg_enabled()) {
-        AddressSpace *newas = g_new(AddressSpace, 1);
+        AddressSpace *as_normal = address_space_init_shareable(cs->memory,
+                                                               "cpu-memory");
+        AddressSpace *as_smm = g_new(AddressSpace, 1);
 
         cpu->cpu_as_mem = g_new(MemoryRegion, 1);
         cpu->cpu_as_root = g_new(MemoryRegion, 1);
@@ -3635,9 +3637,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
                                  get_system_memory(), 0, ~0ull);
         memory_region_add_subregion_overlap(cpu->cpu_as_root, 0, cpu->cpu_as_mem, 0);
         memory_region_set_enabled(cpu->cpu_as_mem, true);
-        address_space_init(newas, cpu->cpu_as_root, "CPU");
-        cs->num_ases = 1;
-        cpu_address_space_init(cs, newas, 0);
+        address_space_init(as_smm, cpu->cpu_as_root, "CPU");
+
+        cs->num_ases = 2;
+        cpu_address_space_init(cs, as_normal, 0);
+        cpu_address_space_init(cs, as_smm, 1);
 
         /* ... SMRAM with higher priority, linked from /machine/smram.  */
         cpu->machine_done.notify = x86_cpu_machine_done;
@@ -4053,6 +4057,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 #ifdef CONFIG_USER_ONLY
     cc->handle_mmu_fault = x86_cpu_handle_mmu_fault;
 #else
+    cc->asidx_from_attrs = x86_asidx_from_attrs;
     cc->get_memory_mapping = x86_cpu_get_memory_mapping;
     cc->get_phys_page_debug = x86_cpu_get_phys_page_debug;
     cc->write_elf64_note = x86_cpu_write_elf64_note;

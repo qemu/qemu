@@ -1451,6 +1451,16 @@ int x86_cpu_handle_mmu_fault(CPUState *cpu, vaddr addr,
 void x86_cpu_set_a20(X86CPU *cpu, int a20_state);
 
 #ifndef CONFIG_USER_ONLY
+static inline int x86_asidx_from_attrs(CPUState *cs, MemTxAttrs attrs)
+{
+    return !!attrs.secure;
+}
+
+static inline AddressSpace *cpu_addressspace(CPUState *cs, MemTxAttrs attrs)
+{
+    return cpu_get_address_space(cs, cpu_asidx_from_attrs(cs, attrs));
+}
+
 uint8_t x86_ldub_phys(CPUState *cs, hwaddr addr);
 uint32_t x86_lduw_phys(CPUState *cs, hwaddr addr);
 uint32_t x86_ldl_phys(CPUState *cs, hwaddr addr);
@@ -1653,7 +1663,6 @@ void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 
 /* smm_helper.c */
 void do_smm_enter(X86CPU *cpu);
-void cpu_smm_update(X86CPU *cpu);
 
 /* apic.c */
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);

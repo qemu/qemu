@@ -274,10 +274,6 @@ static int cpu_post_load(void *opaque, int version_id)
         cpu_x86_update_dr7(env, dr7);
     }
     tlb_flush(cs);
-
-    if (tcg_enabled()) {
-        cpu_smm_update(cpu);
-    }
     return 0;
 }
 
