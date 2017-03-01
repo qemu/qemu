@@ -343,6 +343,23 @@ static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
     return prot;
 }
 
+/* Check the instruction access permissions specified in the IAMR */
+static int ppc_hash64_iamr_prot(PowerPCCPU *cpu, int key)
+{
+    CPUPPCState *env = &cpu->env;
+    int iamr_bits = (env->spr[SPR_IAMR] >> 2 * (31 - key)) & 0x3;
+
+    /*
+     * An instruction fetch is permitted if the IAMR bit is 0.
+     * If the bit is set, return PAGE_READ | PAGE_WRITE because this bit
+     * can only take away EXEC permissions not READ or WRITE permissions.
+     * If bit is cleared return PAGE_READ | PAGE_WRITE | PAGE_EXEC since
+     * EXEC permissions are allowed.
+     */
+    return (iamr_bits & 0x1) ? PAGE_READ | PAGE_WRITE :
+                               PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+}
+
 static int ppc_hash64_amr_prot(PowerPCCPU *cpu, ppc_hash_pte64_t pte)
 {
     CPUPPCState *env = &cpu->env;
@@ -373,6 +390,21 @@ static int ppc_hash64_amr_prot(PowerPCCPU *cpu, ppc_hash_pte64_t pte)
      */
     if (amrbits & 0x1) {
         prot &= ~PAGE_READ;
+    }
+
+    switch (env->mmu_model) {
+    /*
+     * MMU version 2.07 and later support IAMR
+     * Check if the IAMR allows the instruction access - it will return
+     * PAGE_EXEC if it doesn't (and thus that bit will be cleared) or 0
+     * if it does (and prot will be unchanged indicating execution support).
+     */
+    case POWERPC_MMU_2_07:
+    case POWERPC_MMU_3_00:
+        prot &= ppc_hash64_iamr_prot(cpu, key);
+        break;
+    default:
+        break;
     }
 
     return prot;
@@ -780,7 +812,14 @@ skip_slb_search:
         /* Access right violation */
         qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
         if (rwx == 2) {
-            ppc_hash64_set_isi(cs, env, 0x08000000);
+            int srr1 = 0;
+            if (PAGE_EXEC & ~pp_prot) {
+                srr1 |= SRR1_PROTFAULT; /* Access violates access authority */
+            }
+            if (PAGE_EXEC & ~amr_prot) {
+                srr1 |= SRR1_IAMR; /* Access violates virt pg class key prot */
+            }
+            ppc_hash64_set_isi(cs, env, srr1);
         } else {
             dsisr = 0;
             if (need_prot[rwx] & ~pp_prot) {

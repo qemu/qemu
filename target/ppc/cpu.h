@@ -473,6 +473,11 @@ struct ppc_slb_t {
 #endif
 #endif
 
+/* SRR1 error code fields */
+
+#define SRR1_PROTFAULT           0x08000000
+#define SRR1_IAMR                0x00200000
+
 /* Facility Status and Control (FSCR) bits */
 #define FSCR_EBB        (63 - 56) /* Event-Based Branch Facility */
 #define FSCR_TAR        (63 - 55) /* Target Address Register */
