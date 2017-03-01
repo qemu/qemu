@@ -27,17 +27,18 @@
 #include "hw/boards.h"
 #include "qemu/error-report.h"
 #include "hw/arm/stm32f205_soc.h"
+#include "hw/arm/arm.h"
 
 static void netduino2_init(MachineState *machine)
 {
     DeviceState *dev;
 
     dev = qdev_create(NULL, TYPE_STM32F205_SOC);
-    if (machine->kernel_filename) {
-        qdev_prop_set_string(dev, "kernel-filename", machine->kernel_filename);
-    }
     qdev_prop_set_string(dev, "cpu-model", "cortex-m3");
     object_property_set_bool(OBJECT(dev), true, "realized", &error_fatal);
+
+    armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
+                       FLASH_SIZE);
 }
 
 static void netduino2_machine_init(MachineClass *mc)
