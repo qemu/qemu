@@ -7671,6 +7671,28 @@ static target_timer_t get_timer_id(abi_long arg)
     return timerid;
 }
 
+static abi_long swap_data_eventfd(void *buf, size_t len)
+{
+    uint64_t *counter = buf;
+    int i;
+
+    if (len < sizeof(uint64_t)) {
+        return -EINVAL;
+    }
+
+    for (i = 0; i < len; i += sizeof(uint64_t)) {
+        *counter = tswap64(*counter);
+        counter++;
+    }
+
+    return len;
+}
+
+static TargetFdTrans target_eventfd_trans = {
+    .host_to_target_data = swap_data_eventfd,
+    .target_to_host_data = swap_data_eventfd,
+};
+
 /* do_syscall() should always have a single exit point at the end so
    that actions, such as logging of syscall results, can be performed.
    All errnos that do_syscall() returns must be -TARGET_<errcode>. */
@@ -11876,7 +11898,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_eventfd)
     case TARGET_NR_eventfd:
         ret = get_errno(eventfd(arg1, 0));
-        fd_trans_unregister(ret);
+        fd_trans_register(ret, &target_eventfd_trans);
         break;
 #endif
 #if defined(TARGET_NR_eventfd2)
@@ -11890,7 +11912,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             host_flags |= O_CLOEXEC;
         }
         ret = get_errno(eventfd(arg1, host_flags));
-        fd_trans_unregister(ret);
+        fd_trans_register(ret, &target_eventfd_trans);
         break;
     }
 #endif
