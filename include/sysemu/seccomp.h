@@ -16,8 +16,9 @@
 #define QEMU_SECCOMP_H
 
 #define QEMU_SECCOMP_SET_DEFAULT     (1 << 0)
+#define QEMU_SECCOMP_SET_OBSOLETE    (1 << 1)
 
 #include <seccomp.h>
 
-int seccomp_start(void);
+int seccomp_start(uint32_t seccomp_opts);
 #endif
