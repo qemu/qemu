@@ -63,6 +63,7 @@ struct sPAPRMachineState {
 
     void *htab;
     uint32_t htab_shift;
+    uint64_t patb_entry; /* Process tbl registed in H_REGISTER_PROCESS_TABLE */
     hwaddr rma_size;
     int vrma_adjust;
     ssize_t rtas_size;

@@ -1216,6 +1216,7 @@ struct PPCVirtualHypervisorClass {
                         hwaddr ptex, int n);
     void (*store_hpte)(PPCVirtualHypervisor *vhyp, hwaddr ptex,
                        uint64_t pte0, uint64_t pte1);
+    uint64_t (*get_patbe)(PPCVirtualHypervisor *vhyp);
 };
 
 #define TYPE_PPC_VIRTUAL_HYPERVISOR "ppc-virtual-hypervisor"
