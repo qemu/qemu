@@ -288,6 +288,10 @@ void virtio_queue_set_notification(VirtQueue *vq, int enable)
 {
     vq->notification = enable;
 
+    if (!vq->vring.desc) {
+        return;
+    }
+
     rcu_read_lock();
     if (virtio_vdev_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_set_avail_event(vq, vring_avail_idx(vq));
