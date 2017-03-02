@@ -509,6 +509,13 @@ static void mirror_exit(BlockJob *job, void *opaque)
      * block_job_completed(). */
     bdrv_ref(src);
     bdrv_ref(mirror_top_bs);
+    bdrv_ref(target_bs);
+
+    /* Remove target parent that still uses BLK_PERM_WRITE/RESIZE before
+     * inserting target_bs at s->to_replace, where we might not be able to get
+     * these permissions. */
+    blk_unref(s->target);
+    s->target = NULL;
 
     /* We don't access the source any more. Dropping any WRITE/RESIZE is
      * required before it could become a backing file of target_bs. */
@@ -555,8 +562,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
         aio_context_release(replace_aio_context);
     }
     g_free(s->replaces);
-    blk_unref(s->target);
-    s->target = NULL;
+    bdrv_unref(target_bs);
 
     /* Remove the mirror filter driver from the graph. Before this, get rid of
      * the blockers on the intermediate nodes so that the resulting state is
