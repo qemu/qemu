@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <sys/poll.h>
 #include <linux/vhost.h>
 #include "standard-headers/linux/virtio_ring.h"
 
@@ -192,11 +193,11 @@ typedef struct VuVirtq {
 } VuVirtq;
 
 enum VuWatchCondtion {
-    VU_WATCH_IN = 1 << 0,
-    VU_WATCH_OUT = 1 << 1,
-    VU_WATCH_PRI = 1 << 2,
-    VU_WATCH_ERR = 1 << 3,
-    VU_WATCH_HUP = 1 << 4,
+    VU_WATCH_IN = POLLIN,
+    VU_WATCH_OUT = POLLOUT,
+    VU_WATCH_PRI = POLLPRI,
+    VU_WATCH_ERR = POLLERR,
+    VU_WATCH_HUP = POLLHUP,
 };
 
 typedef void (*vu_panic_cb) (VuDev *dev, const char *err);

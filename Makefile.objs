@@ -110,6 +110,10 @@ qga-vss-dll-obj-y = qga/
 ivshmem-client-obj-y = contrib/ivshmem-client/
 ivshmem-server-obj-y = contrib/ivshmem-server/
 libvhost-user-obj-y = contrib/libvhost-user/
+vhost-user-scsi.o-cflags := $(LIBISCSI_CFLAGS)
+vhost-user-scsi.o-libs := $(LIBISCSI_LIBS)
+vhost-user-scsi-obj-y = contrib/vhost-user-scsi/
+vhost-user-scsi-obj-y += contrib/libvhost-user/libvhost-user.o
 
 ######################################################################
 trace-events-subdirs =
