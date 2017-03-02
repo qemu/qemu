@@ -2123,6 +2123,7 @@
 # @replication: Since 2.8
 # @ssh: Since 2.8
 # @iscsi: Since 2.9
+# @rbd: Since 2.9
 #
 # Since: 2.0
 ##
@@ -2131,7 +2132,7 @@
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
             'host_device', 'http', 'https', 'iscsi', 'luks', 'nbd', 'nfs',
             'null-aio', 'null-co', 'parallels', 'qcow', 'qcow2', 'qed',
-            'quorum', 'raw', 'replication', 'ssh', 'vdi', 'vhdx', 'vmdk',
+            'quorum', 'raw', 'rbd', 'replication', 'ssh', 'vdi', 'vhdx', 'vmdk',
             'vpc', 'vvfat' ] }
 
 ##
@@ -2677,6 +2678,63 @@
             '*header-digest': 'IscsiHeaderDigest',
             '*timeout': 'int' } }
 
+
+##
+# @RbdAuthSupport:
+#
+# An enumeration of RBD auth support
+#
+# Since: 2.9
+##
+{ 'enum': 'RbdAuthSupport',
+  'data': [ 'cephx', 'none' ] }
+
+
+##
+# @RbdAuthMethod:
+#
+# An enumeration of rados auth_supported types
+#
+# Since: 2.9
+##
+{ 'struct': 'RbdAuthMethod',
+  'data': { 'auth': 'RbdAuthSupport' } }
+
+##
+# @BlockdevOptionsRbd:
+#
+# @pool:               Ceph pool name.
+#
+# @image:              Image name in the Ceph pool.
+#
+# @conf:               #optional path to Ceph configuration file.  Values
+#                      in the configuration file will be overridden by
+#                      options specified via QAPI.
+#
+# @snapshot:           #optional Ceph snapshot name.
+#
+# @user:               #optional Ceph id name.
+#
+# @server:             #optional Monitor host address and port.  This maps
+#                      to the "mon_host" Ceph option.
+#
+# @auth-supported:     #optional Authentication supported.
+#
+# @password-secret:    #optional The ID of a QCryptoSecret object providing
+#                      the password for the login.
+#
+# Since: 2.9
+##
+{ 'struct': 'BlockdevOptionsRbd',
+  'data': { 'pool': 'str',
+            'image': 'str',
+            '*conf': 'str',
+            '*snapshot': 'str',
+            '*user': 'str',
+            '*server': ['InetSocketAddress'],
+            '*auth-supported': ['RbdAuthMethod'],
+            '*password-secret': 'str' } }
+
 ##
 # @ReplicationMode:
 #
@@ -2875,7 +2933,7 @@
       'qed':        'BlockdevOptionsGenericCOWFormat',
       'quorum':     'BlockdevOptionsQuorum',
       'raw':        'BlockdevOptionsRaw',
-# TODO rbd: Wait for structured options
+      'rbd':        'BlockdevOptionsRbd',
       'replication':'BlockdevOptionsReplication',
 # TODO sheepdog: Wait for structured options
       'ssh':        'BlockdevOptionsSsh',
