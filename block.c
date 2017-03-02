@@ -2933,21 +2933,53 @@ static bool should_update_child(BdrvChild *c, BlockDriverState *to)
 }
 
 static void change_parent_backing_link(BlockDriverState *from,
-                                       BlockDriverState *to)
+                                       BlockDriverState *to, Error **errp)
 {
     BdrvChild *c, *next;
+    GSList *list = NULL, *p;
+    uint64_t old_perm, old_shared;
+    uint64_t perm = 0, shared = BLK_PERM_ALL;
+    int ret;
 
+    /* Make sure that @from doesn't go away until we have successfully attached
+     * all of its parents to @to. */
+    bdrv_ref(from);
+
+    /* Put all parents into @list and calculate their cumulative permissions */
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
         if (!should_update_child(c, to)) {
             continue;
         }
+        list = g_slist_prepend(list, c);
+        perm |= c->perm;
+        shared &= c->shared_perm;
+    }
+
+    /* Check whether the required permissions can be granted on @to, ignoring
+     * all BdrvChild in @list so that they can't block themselves. */
+    ret = bdrv_check_update_perm(to, perm, shared, list, errp);
+    if (ret < 0) {
+        bdrv_abort_perm_update(to);
+        goto out;
+    }
+
+    /* Now actually perform the change. We performed the permission check for
+     * all elements of @list at once, so set the permissions all at once at the
+     * very end. */
+    for (p = list; p != NULL; p = p->next) {
+        c = p->data;
 
         bdrv_ref(to);
-        /* FIXME Are we sure that bdrv_replace_child() can't run into
-         * &error_abort because of permissions? */
-        bdrv_replace_child(c, to, true);
+        bdrv_replace_child_noperm(c, to);
         bdrv_unref(from);
     }
+
+    bdrv_get_cumulative_perm(to, &old_perm, &old_shared);
+    bdrv_set_perm(to, old_perm | perm, old_shared | shared);
+
+out:
+    g_slist_free(list);
+    bdrv_unref(from);
 }
 
 /*
@@ -2980,7 +3012,12 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
         goto out;
     }
 
-    change_parent_backing_link(bs_top, bs_new);
+    change_parent_backing_link(bs_top, bs_new, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        bdrv_set_backing_hd(bs_new, NULL, &error_abort);
+        goto out;
+    }
 
     /* bs_new is now referenced by its new parents, we don't need the
      * additional reference any more. */
@@ -2995,7 +3032,8 @@ void bdrv_replace_in_backing_chain(BlockDriverState *old, BlockDriverState *new)
 
     bdrv_ref(old);
 
-    change_parent_backing_link(old, new);
+    /* FIXME Proper error handling */
+    change_parent_backing_link(old, new, &error_abort);
 
     bdrv_unref(old);
 }
