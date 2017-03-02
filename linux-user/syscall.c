@@ -7693,6 +7693,33 @@ static TargetFdTrans target_eventfd_trans = {
     .target_to_host_data = swap_data_eventfd,
 };
 
+#if (defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)) || \
+    (defined(CONFIG_INOTIFY1) && defined(TARGET_NR_inotify_init1) && \
+     defined(__NR_inotify_init1))
+static abi_long host_to_target_data_inotify(void *buf, size_t len)
+{
+    struct inotify_event *ev;
+    int i;
+    uint32_t name_len;
+
+    for (i = 0; i < len; i += sizeof(struct inotify_event) + name_len) {
+        ev = (struct inotify_event *)((char *)buf + i);
+        name_len = ev->len;
+
+        ev->wd = tswap32(ev->wd);
+        ev->mask = tswap32(ev->mask);
+        ev->cookie = tswap32(ev->cookie);
+        ev->len = tswap32(name_len);
+    }
+
+    return len;
+}
+
+static TargetFdTrans target_inotify_trans = {
+    .host_to_target_data = host_to_target_data_inotify,
+};
+#endif
+
 /* do_syscall() should always have a single exit point at the end so
    that actions, such as logging of syscall results, can be performed.
    All errnos that do_syscall() returns must be -TARGET_<errcode>. */
@@ -11736,6 +11763,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
     case TARGET_NR_inotify_init:
         ret = get_errno(sys_inotify_init());
+        fd_trans_register(ret, &target_inotify_trans);
         break;
 #endif
 #ifdef CONFIG_INOTIFY1
@@ -11743,6 +11771,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_inotify_init1:
         ret = get_errno(sys_inotify_init1(target_to_host_bitmask(arg1,
                                           fcntl_flags_tbl)));
+        fd_trans_register(ret, &target_inotify_trans);
         break;
 #endif
 #endif
