@@ -35,13 +35,6 @@ int postcopy_ram_incoming_init(MigrationIncomingState *mis, size_t ram_pages);
 int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis);
 
 /*
- * Discard the contents of 'length' bytes from 'start'
- * We can assume that if we've been called postcopy_ram_hosttest returned true
- */
-int postcopy_ram_discard_range(MigrationIncomingState *mis, uint8_t *start,
-                               size_t length);
-
-/*
  * Userfault requires us to mark RAM as NOHUGEPAGE prior to discard
  * however leaving it until after precopy means that most of the precopy
  * data is still THPd
@@ -81,13 +74,15 @@ void postcopy_discard_send_finish(MigrationState *ms,
  *    to use other postcopy_ routines to allocate.
  * returns 0 on success
  */
-int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from);
+int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
+                        size_t pagesize);
 
 /*
  * Place a zero page at (host) atomically
  * returns 0 on success
  */
-int postcopy_place_page_zero(MigrationIncomingState *mis, void *host);
+int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
+                             size_t pagesize);
 
 /*
  * Allocate a page of memory that can be mapped at a later point in time

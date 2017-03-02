@@ -45,6 +45,12 @@
 #include "exec/address-spaces.h"
 #include "sysemu/xen-mapcache.h"
 #include "trace-root.h"
+
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+#include <fcntl.h>
+#include <linux/falloc.h>
+#endif
+
 #endif
 #include "exec/cpu-all.h"
 #include "qemu/rcu_queue.h"
@@ -1516,6 +1522,19 @@ void qemu_ram_unset_idstr(RAMBlock *block)
 size_t qemu_ram_pagesize(RAMBlock *rb)
 {
     return rb->page_size;
+}
+
+/* Returns the largest size of page in use */
+size_t qemu_ram_pagesize_largest(void)
+{
+    RAMBlock *block;
+    size_t largest = 0;
+
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        largest = MAX(largest, qemu_ram_pagesize(block));
+    }
+
+    return largest;
 }
 
 static int memory_try_enable_merging(void *addr, size_t len)
@@ -3294,4 +3313,68 @@ int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
     rcu_read_unlock();
     return ret;
 }
+
+/*
+ * Unmap pages of memory from start to start+length such that
+ * they a) read as 0, b) Trigger whatever fault mechanism
+ * the OS provides for postcopy.
+ * The pages must be unmapped by the end of the function.
+ * Returns: 0 on success, none-0 on failure
+ *
+ */
+int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
+{
+    int ret = -1;
+
+    uint8_t *host_startaddr = rb->host + start;
+
+    if ((uintptr_t)host_startaddr & (rb->page_size - 1)) {
+        error_report("ram_block_discard_range: Unaligned start address: %p",
+                     host_startaddr);
+        goto err;
+    }
+
+    if ((start + length) <= rb->used_length) {
+        uint8_t *host_endaddr = host_startaddr + length;
+        if ((uintptr_t)host_endaddr & (rb->page_size - 1)) {
+            error_report("ram_block_discard_range: Unaligned end address: %p",
+                         host_endaddr);
+            goto err;
+        }
+
+        errno = ENOTSUP; /* If we are missing MADVISE etc */
+
+        if (rb->page_size == qemu_host_page_size) {
+#if defined(CONFIG_MADVISE)
+            /* Note: We need the madvise MADV_DONTNEED behaviour of definitely
+             * freeing the page.
+             */
+            ret = madvise(host_startaddr, length, MADV_DONTNEED);
+#endif
+        } else {
+            /* Huge page case  - unfortunately it can't do DONTNEED, but
+             * it can do the equivalent by FALLOC_FL_PUNCH_HOLE in the
+             * huge page file.
+             */
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+            ret = fallocate(rb->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                            start, length);
+#endif
+        }
+        if (ret) {
+            ret = -errno;
+            error_report("ram_block_discard_range: Failed to discard range "
+                         "%s:%" PRIx64 " +%zx (%d)",
+                         rb->idstr, start, length, ret);
+        }
+    } else {
+        error_report("ram_block_discard_range: Overrun block '%s' (%" PRIu64
+                     "/%zx/" RAM_ADDR_FMT")",
+                     rb->idstr, start, length, rb->used_length);
+    }
+
+err:
+    return ret;
+}
+
 #endif

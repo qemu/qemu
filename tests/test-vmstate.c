@@ -476,6 +476,8 @@ const VMStateDescription vmsd_tst = {
     }
 };
 
+/* test array migration */
+
 #define AR_SIZE 4
 
 typedef struct {
@@ -492,20 +494,22 @@ const VMStateDescription vmsd_arps = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+static uint8_t wire_arr_ptr_no0[] = {
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x02,
+    0x00, 0x00, 0x00, 0x03,
+    QEMU_VM_EOF
+};
+
 static void test_arr_ptr_str_no0_save(void)
 {
     TestStructTriv ar[AR_SIZE] = {{.i = 0}, {.i = 1}, {.i = 2}, {.i = 3} };
     TestArrayOfPtrToStuct sample = {.ar = {&ar[0], &ar[1], &ar[2], &ar[3]} };
-    uint8_t wire_sample[] = {
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x01,
-        0x00, 0x00, 0x00, 0x02,
-        0x00, 0x00, 0x00, 0x03,
-        QEMU_VM_EOF
-    };
 
     save_vmstate(&vmsd_arps, &sample);
-    compare_vmstate(wire_sample, sizeof(wire_sample));
+    compare_vmstate(wire_arr_ptr_no0, sizeof(wire_arr_ptr_no0));
 }
 
 static void test_arr_ptr_str_no0_load(void)
@@ -514,20 +518,97 @@ static void test_arr_ptr_str_no0_load(void)
     TestStructTriv ar[AR_SIZE] = {};
     TestArrayOfPtrToStuct obj = {.ar = {&ar[0], &ar[1], &ar[2], &ar[3]} };
     int idx;
-    uint8_t wire_sample[] = {
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x01,
-        0x00, 0x00, 0x00, 0x02,
-        0x00, 0x00, 0x00, 0x03,
-        QEMU_VM_EOF
-    };
 
-    save_buffer(wire_sample, sizeof(wire_sample));
+    save_buffer(wire_arr_ptr_no0, sizeof(wire_arr_ptr_no0));
     SUCCESS(load_vmstate_one(&vmsd_arps, &obj, 1,
-                          wire_sample, sizeof(wire_sample)));
+                          wire_arr_ptr_no0, sizeof(wire_arr_ptr_no0)));
     for (idx = 0; idx < AR_SIZE; ++idx) {
         /* compare the target array ar with the ground truth array ar_gt */
         g_assert_cmpint(ar_gt[idx].i, ==, ar[idx].i);
+    }
+}
+
+static uint8_t wire_arr_ptr_0[] = {
+    0x00, 0x00, 0x00, 0x00,
+    VMS_NULLPTR_MARKER,
+    0x00, 0x00, 0x00, 0x02,
+    0x00, 0x00, 0x00, 0x03,
+    QEMU_VM_EOF
+};
+
+static void test_arr_ptr_str_0_save(void)
+{
+    TestStructTriv ar[AR_SIZE] = {{.i = 0}, {.i = 1}, {.i = 2}, {.i = 3} };
+    TestArrayOfPtrToStuct sample = {.ar = {&ar[0], NULL, &ar[2], &ar[3]} };
+
+    save_vmstate(&vmsd_arps, &sample);
+    compare_vmstate(wire_arr_ptr_0, sizeof(wire_arr_ptr_0));
+}
+
+static void test_arr_ptr_str_0_load(void)
+{
+    TestStructTriv ar_gt[AR_SIZE] = {{.i = 0}, {.i = 0}, {.i = 2}, {.i = 3} };
+    TestStructTriv ar[AR_SIZE] = {};
+    TestArrayOfPtrToStuct obj = {.ar = {&ar[0], NULL, &ar[2], &ar[3]} };
+    int idx;
+
+    save_buffer(wire_arr_ptr_0, sizeof(wire_arr_ptr_0));
+    SUCCESS(load_vmstate_one(&vmsd_arps, &obj, 1,
+                          wire_arr_ptr_0, sizeof(wire_arr_ptr_0)));
+    for (idx = 0; idx < AR_SIZE; ++idx) {
+        /* compare the target array ar with the ground truth array ar_gt */
+        g_assert_cmpint(ar_gt[idx].i, ==, ar[idx].i);
+    }
+    for (idx = 0; idx < AR_SIZE; ++idx) {
+        if (idx == 1) {
+            g_assert_cmpint((uintptr_t)(obj.ar[idx]), ==, 0);
+        } else {
+            g_assert_cmpint((uintptr_t)(obj.ar[idx]), !=, 0);
+        }
+    }
+}
+
+typedef struct TestArrayOfPtrToInt {
+    int32_t *ar[AR_SIZE];
+} TestArrayOfPtrToInt;
+
+const VMStateDescription vmsd_arpp = {
+    .name = "test/arps",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_ARRAY_OF_POINTER(ar, TestArrayOfPtrToInt,
+                AR_SIZE, 0, vmstate_info_int32, int32_t*),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void test_arr_ptr_prim_0_save(void)
+{
+    int32_t ar[AR_SIZE] = {0 , 1, 2, 3};
+    TestArrayOfPtrToInt  sample = {.ar = {&ar[0], NULL, &ar[2], &ar[3]} };
+
+    save_vmstate(&vmsd_arpp, &sample);
+    compare_vmstate(wire_arr_ptr_0, sizeof(wire_arr_ptr_0));
+}
+
+static void test_arr_ptr_prim_0_load(void)
+{
+    int32_t ar_gt[AR_SIZE] = {0, 1, 2, 3};
+    int32_t ar[AR_SIZE] = {3 , 42, 1, 0};
+    TestArrayOfPtrToInt obj = {.ar = {&ar[0], NULL, &ar[2], &ar[3]} };
+    int idx;
+
+    save_buffer(wire_arr_ptr_0, sizeof(wire_arr_ptr_0));
+    SUCCESS(load_vmstate_one(&vmsd_arpp, &obj, 1,
+                          wire_arr_ptr_0, sizeof(wire_arr_ptr_0)));
+    for (idx = 0; idx < AR_SIZE; ++idx) {
+        /* compare the target array ar with the ground truth array ar_gt */
+        if (idx == 1) {
+            g_assert_cmpint(42, ==, ar[idx]);
+        } else {
+            g_assert_cmpint(ar_gt[idx], ==, ar[idx]);
+        }
     }
 }
 
@@ -781,6 +862,13 @@ int main(int argc, char **argv)
                     test_arr_ptr_str_no0_save);
     g_test_add_func("/vmstate/array/ptr/str/no0/load",
                     test_arr_ptr_str_no0_load);
+    g_test_add_func("/vmstate/array/ptr/str/0/save", test_arr_ptr_str_0_save);
+    g_test_add_func("/vmstate/array/ptr/str/0/load",
+                    test_arr_ptr_str_0_load);
+    g_test_add_func("/vmstate/array/ptr/prim/0/save",
+                    test_arr_ptr_prim_0_save);
+    g_test_add_func("/vmstate/array/ptr/prim/0/load",
+                    test_arr_ptr_prim_0_load);
     g_test_add_func("/vmstate/qtailq/save/saveq", test_save_q);
     g_test_add_func("/vmstate/qtailq/load/loadq", test_load_q);
     g_test_add_func("/vmstate/tmp_struct", test_tmp_struct);

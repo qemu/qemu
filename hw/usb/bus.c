@@ -8,7 +8,6 @@
 #include "monitor/monitor.h"
 #include "trace.h"
 #include "qemu/cutils.h"
-#include "migration/migration.h"
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
 
@@ -688,8 +687,6 @@ USBDevice *usbdevice_create(const char *cmdline)
     const char *params;
     int len;
     USBDevice *dev;
-    ObjectClass *klass;
-    DeviceClass *dc;
 
     params = strchr(cmdline,':');
     if (params) {
@@ -722,22 +719,6 @@ USBDevice *usbdevice_create(const char *cmdline)
                      "please try -machine usb=on and check that "
                      "the machine model supports USB", driver);
         return NULL;
-    }
-
-    klass = object_class_by_name(f->name);
-    if (klass == NULL) {
-        error_report("Device '%s' not found", f->name);
-        return NULL;
-    }
-
-    dc = DEVICE_CLASS(klass);
-
-    if (only_migratable) {
-        if (dc->vmsd->unmigratable) {
-            error_report("Device %s is not migratable, but --only-migratable "
-                         "was specified", f->name);
-            return NULL;
-        }
     }
 
     if (f->usbdevice_init) {
