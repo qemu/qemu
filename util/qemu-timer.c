@@ -658,7 +658,9 @@ bool qemu_clock_run_all_timers(void)
     QEMUClockType type;
 
     for (type = 0; type < QEMU_CLOCK_MAX; type++) {
-        progress |= qemu_clock_run_timers(type);
+        if (qemu_clock_use_for_deadline(type)) {
+            progress |= qemu_clock_run_timers(type);
+        }
     }
 
     return progress;

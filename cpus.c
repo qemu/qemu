@@ -800,9 +800,25 @@ static void qemu_cpu_kick_rr_cpu(void)
     } while (cpu != atomic_mb_read(&tcg_current_rr_cpu));
 }
 
+static void do_nothing(CPUState *cpu, run_on_cpu_data unused)
+{
+}
+
 void qemu_timer_notify_cb(void *opaque, QEMUClockType type)
 {
-    qemu_notify_event();
+    if (!use_icount || type != QEMU_CLOCK_VIRTUAL) {
+        qemu_notify_event();
+        return;
+    }
+
+    if (!qemu_in_vcpu_thread() && first_cpu) {
+        /* qemu_cpu_kick is not enough to kick a halted CPU out of
+         * qemu_tcg_wait_io_event.  async_run_on_cpu, instead,
+         * causes cpu_thread_is_idle to return false.  This way,
+         * handle_icount_deadline can run.
+         */
+        async_run_on_cpu(first_cpu, do_nothing, RUN_ON_CPU_NULL);
+    }
 }
 
 static void kick_tcg_thread(void *opaque)
@@ -1150,12 +1166,15 @@ static int64_t tcg_get_icount_limit(void)
 
 static void handle_icount_deadline(void)
 {
+    assert(qemu_in_vcpu_thread());
     if (use_icount) {
         int64_t deadline =
             qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
 
         if (deadline == 0) {
+            /* Wake up other AioContexts.  */
             qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+            qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
         }
     }
 }
@@ -1268,6 +1287,11 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
         /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
         qemu_account_warp_timer();
 
+        /* Run the timers here.  This is much more efficient than
+         * waking up the I/O thread and waiting for completion.
+         */
+        handle_icount_deadline();
+
         if (!cpu) {
             cpu = first_cpu;
         }
@@ -1308,8 +1332,6 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
         if (cpu && cpu->exit_request) {
             atomic_mb_set(&cpu->exit_request, 0);
         }
-
-        handle_icount_deadline();
 
         qemu_tcg_wait_io_event(cpu ? cpu : QTAILQ_FIRST(&cpus));
         deal_with_unplugged_cpus();
