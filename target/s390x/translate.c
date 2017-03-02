@@ -2309,6 +2309,50 @@ static ExitStatus op_iske(DisasContext *s, DisasOps *o)
 }
 #endif
 
+static ExitStatus op_laa(DisasContext *s, DisasOps *o)
+{
+    /* The real output is indeed the original value in memory;
+       recompute the addition for the computation of CC.  */
+    tcg_gen_atomic_fetch_add_i64(o->in2, o->in2, o->in1, get_mem_index(s),
+                                 s->insn->data | MO_ALIGN);
+    /* However, we need to recompute the addition for setting CC.  */
+    tcg_gen_add_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_lan(DisasContext *s, DisasOps *o)
+{
+    /* The real output is indeed the original value in memory;
+       recompute the addition for the computation of CC.  */
+    tcg_gen_atomic_fetch_and_i64(o->in2, o->in2, o->in1, get_mem_index(s),
+                                 s->insn->data | MO_ALIGN);
+    /* However, we need to recompute the operation for setting CC.  */
+    tcg_gen_and_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_lao(DisasContext *s, DisasOps *o)
+{
+    /* The real output is indeed the original value in memory;
+       recompute the addition for the computation of CC.  */
+    tcg_gen_atomic_fetch_or_i64(o->in2, o->in2, o->in1, get_mem_index(s),
+                                s->insn->data | MO_ALIGN);
+    /* However, we need to recompute the operation for setting CC.  */
+    tcg_gen_or_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_lax(DisasContext *s, DisasOps *o)
+{
+    /* The real output is indeed the original value in memory;
+       recompute the addition for the computation of CC.  */
+    tcg_gen_atomic_fetch_xor_i64(o->in2, o->in2, o->in1, get_mem_index(s),
+                                 s->insn->data | MO_ALIGN);
+    /* However, we need to recompute the operation for setting CC.  */
+    tcg_gen_xor_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_ldeb(DisasContext *s, DisasOps *o)
 {
     gen_helper_ldeb(o->out, cpu_env, o->in2);
@@ -4483,21 +4527,17 @@ static void wout_m2_32(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_wout_m2_32 0
 
-static void wout_m2_32_r1_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
+static void wout_in2_r1(DisasContext *s, DisasFields *f, DisasOps *o)
 {
-    /* XXX release reservation */
-    tcg_gen_qemu_st32(o->out, o->addr1, get_mem_index(s));
-    store_reg32_i64(get_field(f, r1), o->in2);
-}
-#define SPEC_wout_m2_32_r1_atomic 0
-
-static void wout_m2_64_r1_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
-{
-    /* XXX release reservation */
-    tcg_gen_qemu_st64(o->out, o->addr1, get_mem_index(s));
     store_reg(get_field(f, r1), o->in2);
 }
-#define SPEC_wout_m2_64_r1_atomic 0
+#define SPEC_wout_in2_r1 0
+
+static void wout_in2_r1_32(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    store_reg32_i64(get_field(f, r1), o->in2);
+}
+#define SPEC_wout_in2_r1_32 0
 
 /* ====================================================================== */
 /* The "INput 1" generators.  These load the first operand to an insn.  */
@@ -4940,24 +4980,6 @@ static void in2_mri2_64(DisasContext *s, DisasFields *f, DisasOps *o)
     tcg_gen_qemu_ld64(o->in2, o->in2, get_mem_index(s));
 }
 #define SPEC_in2_mri2_64 0
-
-static void in2_m2_32s_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
-{
-    /* XXX should reserve the address */
-    in1_la2(s, f, o);
-    o->in2 = tcg_temp_new_i64();
-    tcg_gen_qemu_ld32s(o->in2, o->addr1, get_mem_index(s));
-}
-#define SPEC_in2_m2_32s_atomic 0
-
-static void in2_m2_64_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
-{
-    /* XXX should reserve the address */
-    in1_la2(s, f, o);
-    o->in2 = tcg_temp_new_i64();
-    tcg_gen_qemu_ld64(o->in2, o->addr1, get_mem_index(s));
-}
-#define SPEC_in2_m2_64_atomic 0
 
 static void in2_i2(DisasContext *s, DisasFields *f, DisasOps *o)
 {

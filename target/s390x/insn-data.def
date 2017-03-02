@@ -390,20 +390,20 @@
 /* LOAD ADDRESS RELATIVE LONG */
     C(0xc000, LARL,    RIL_b, Z,   0, ri2, 0, r1, mov2, 0)
 /* LOAD AND ADD */
-    C(0xebf8, LAA,     RSY_a, ILA, r3_32s, m2_32s_atomic, new, m2_32_r1_atomic, add, adds32)
-    C(0xebe8, LAAG,    RSY_a, ILA, r3, m2_64_atomic, new, m2_64_r1_atomic, add, adds64)
+    D(0xebf8, LAA,     RSY_a, ILA, r3_32s, a2, new, in2_r1_32, laa, adds32, MO_TESL)
+    D(0xebe8, LAAG,    RSY_a, ILA, r3, a2, new, in2_r1, laa, adds64, MO_TEQ)
 /* LOAD AND ADD LOGICAL */
-    C(0xebfa, LAAL,    RSY_a, ILA, r3_32s, m2_32s_atomic, new, m2_32_r1_atomic, add, addu32)
-    C(0xebea, LAALG,   RSY_a, ILA, r3, m2_64_atomic, new, m2_64_r1_atomic, add, addu64)
+    D(0xebfa, LAAL,    RSY_a, ILA, r3_32u, a2, new, in2_r1_32, laa, addu32, MO_TEUL)
+    D(0xebea, LAALG,   RSY_a, ILA, r3, a2, new, in2_r1, laa, addu64, MO_TEQ)
 /* LOAD AND AND */
-    C(0xebf4, LAN,     RSY_a, ILA, r3_32s, m2_32s_atomic, new, m2_32_r1_atomic, and, nz32)
-    C(0xebe4, LANG,    RSY_a, ILA, r3, m2_64_atomic, new, m2_64_r1_atomic, and, nz64)
+    D(0xebf4, LAN,     RSY_a, ILA, r3_32s, a2, new, in2_r1_32, lan, nz32, MO_TESL)
+    D(0xebe4, LANG,    RSY_a, ILA, r3, a2, new, in2_r1, lan, nz64, MO_TEQ)
 /* LOAD AND EXCLUSIVE OR */
-    C(0xebf7, LAX,     RSY_a, ILA, r3_32s, m2_32s_atomic, new, m2_32_r1_atomic, xor, nz32)
-    C(0xebe7, LAXG,    RSY_a, ILA, r3, m2_64_atomic, new, m2_64_r1_atomic, xor, nz64)
+    D(0xebf7, LAX,     RSY_a, ILA, r3_32s, a2, new, in2_r1_32, lax, nz32, MO_TESL)
+    D(0xebe7, LAXG,    RSY_a, ILA, r3, a2, new, in2_r1, lax, nz64, MO_TEQ)
 /* LOAD AND OR */
-    C(0xebf6, LAO,     RSY_a, ILA, r3_32s, m2_32s_atomic, new, m2_32_r1_atomic, or, nz32)
-    C(0xebe6, LAOG,    RSY_a, ILA, r3, m2_64_atomic, new, m2_64_r1_atomic, or, nz64)
+    D(0xebf6, LAO,     RSY_a, ILA, r3_32s, a2, new, in2_r1_32, lao, nz32, MO_TESL)
+    D(0xebe6, LAOG,    RSY_a, ILA, r3, a2, new, in2_r1, lao, nz64, MO_TEQ)
 /* LOAD AND TEST */
     C(0x1200, LTR,     RR_a,  Z,   0, r2_o, 0, cond_r1r2_32, mov2, s32)
     C(0xb902, LTGR,    RRE,   Z,   0, r2_o, 0, r1, mov2, s64)
