@@ -866,7 +866,7 @@ static inline void tcg_out_goto_label(TCGContext *s, TCGLabel *l)
     }
 }
 
-static void tcg_out_brcond(TCGContext *s, TCGMemOp ext, TCGCond c, TCGArg a,
+static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
                            TCGArg b, bool b_const, TCGLabel *l)
 {
     intptr_t offset;
@@ -937,7 +937,7 @@ static void tcg_out_addsubi(TCGContext *s, int ext, TCGReg rd,
     }
 }
 
-static inline void tcg_out_addsub2(TCGContext *s, int ext, TCGReg rl,
+static inline void tcg_out_addsub2(TCGContext *s, TCGType ext, TCGReg rl,
                                    TCGReg rh, TCGReg al, TCGReg ah,
                                    tcg_target_long bl, tcg_target_long bh,
                                    bool const_bl, bool const_bh, bool sub)
