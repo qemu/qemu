@@ -1614,6 +1614,7 @@ typedef struct ExternalSnapshotState {
     BlockDriverState *old_bs;
     BlockDriverState *new_bs;
     AioContext *aio_context;
+    bool overlay_appended;
 } ExternalSnapshotState;
 
 static void external_snapshot_prepare(BlkActionState *common,
@@ -1780,6 +1781,7 @@ static void external_snapshot_prepare(BlkActionState *common,
         error_propagate(errp, local_err);
         return;
     }
+    state->overlay_appended = true;
 }
 
 static void external_snapshot_commit(BlkActionState *common)
@@ -1803,7 +1805,7 @@ static void external_snapshot_abort(BlkActionState *common)
     ExternalSnapshotState *state =
                              DO_UPCAST(ExternalSnapshotState, common, common);
     if (state->new_bs) {
-        if (state->new_bs->backing) {
+        if (state->overlay_appended) {
             bdrv_replace_in_backing_chain(state->new_bs, state->old_bs);
         }
     }
