@@ -248,6 +248,7 @@ GuidInfo *qmp_query_vm_generation_id(Error **errp)
     Object *obj = find_vmgenid_dev();
 
     if (!obj) {
+        error_setg(errp, "VM Generation ID device not found");
         return NULL;
     }
     vms = VMGENID(obj);

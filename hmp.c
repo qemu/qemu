@@ -2608,9 +2608,11 @@ void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
 
 void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict)
 {
-    GuidInfo *info = qmp_query_vm_generation_id(NULL);
+    Error *err = NULL;
+    GuidInfo *info = qmp_query_vm_generation_id(&err);
     if (info) {
         monitor_printf(mon, "%s\n", info->guid);
     }
+    hmp_handle_error(mon, &err);
     qapi_free_GuidInfo(info);
 }
