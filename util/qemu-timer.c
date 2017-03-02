@@ -355,11 +355,6 @@ void timer_deinit(QEMUTimer *ts)
     ts->timer_list = NULL;
 }
 
-void timer_free(QEMUTimer *ts)
-{
-    g_free(ts);
-}
-
 static void timer_del_locked(QEMUTimerList *timer_list, QEMUTimer *ts)
 {
     QEMUTimer **pt, *t;

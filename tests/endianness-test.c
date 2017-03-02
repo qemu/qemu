@@ -295,14 +295,17 @@ int main(int argc, char **argv)
         path = g_strdup_printf("endianness/%s",
                                test_cases[i].machine);
         qtest_add_data_func(path, &test_cases[i], test_endianness);
+        g_free(path);
 
         path = g_strdup_printf("endianness/split/%s",
                                test_cases[i].machine);
         qtest_add_data_func(path, &test_cases[i], test_endianness_split);
+        g_free(path);
 
         path = g_strdup_printf("endianness/combine/%s",
                                test_cases[i].machine);
         qtest_add_data_func(path, &test_cases[i], test_endianness_combine);
+        g_free(path);
     }
 
     return g_test_run();

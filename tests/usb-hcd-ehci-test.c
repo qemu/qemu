@@ -50,11 +50,8 @@ static void ehci_port_test(struct qhc *hc, int port, uint32_t expect)
 
 /* tests */
 
-static void pci_init(void)
+static void test_init(void)
 {
-    if (pcibus) {
-        return;
-    }
     pcibus = qpci_init_pc(NULL);
     g_assert(pcibus != NULL);
 
@@ -62,6 +59,15 @@ static void pci_init(void)
     qusb_pci_init_one(pcibus, &uhci2, QPCI_DEVFN(0x1d, 1), 4);
     qusb_pci_init_one(pcibus, &uhci3, QPCI_DEVFN(0x1d, 2), 4);
     qusb_pci_init_one(pcibus, &ehci1, QPCI_DEVFN(0x1d, 7), 0);
+}
+
+static void test_deinit(void)
+{
+    uhci_deinit(&uhci1);
+    uhci_deinit(&uhci2);
+    uhci_deinit(&uhci3);
+    uhci_deinit(&ehci1);
+    qpci_free_pc(pcibus);
 }
 
 static void pci_uhci_port_1(void)
@@ -142,7 +148,7 @@ int main(int argc, char **argv)
     int ret;
 
     g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/ehci/pci/init", pci_init);
+
     qtest_add_func("/ehci/pci/uhci-port-1", pci_uhci_port_1);
     qtest_add_func("/ehci/pci/ehci-port-1", pci_ehci_port_1);
     qtest_add_func("/ehci/pci/ehci-config", pci_ehci_config);
@@ -161,7 +167,10 @@ int main(int argc, char **argv)
                 "-drive if=none,id=usbcdrom,media=cdrom "
                 "-device usb-tablet,bus=ich9-ehci-1.0,port=1,usb_version=1 "
                 "-device usb-storage,bus=ich9-ehci-1.0,port=2,drive=usbcdrom ");
+
+    test_init();
     ret = g_test_run();
+    test_deinit();
 
     qtest_end();
 

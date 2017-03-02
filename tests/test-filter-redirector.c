@@ -99,7 +99,7 @@ static void test_redirector_tx(void)
     g_assert_cmpint(recv_sock, !=, -1);
 
     /* send a qmp command to guarantee that 'connected' is setting to true. */
-    qmp("{ 'execute' : 'query-status'}");
+    qmp_discard_response("{ 'execute' : 'query-status'}");
 
     struct iovec iov[] = {
         {
@@ -184,7 +184,7 @@ static void test_redirector_rx(void)
     send_sock = unix_connect(sock_path1, NULL);
     g_assert_cmpint(send_sock, !=, -1);
     /* send a qmp command to guarantee that 'connected' is setting to true. */
-    qmp("{ 'execute' : 'query-status'}");
+    qmp_discard_response("{ 'execute' : 'query-status'}");
 
     ret = iov_send(send_sock, iov, 2, 0, sizeof(size) + sizeof(send_buf));
     g_assert_cmpint(ret, ==, sizeof(send_buf) + sizeof(size));

@@ -805,17 +805,7 @@ void qtest_add_data_func_full(const char *str, void *data,
                               GDestroyNotify data_free_func)
 {
     gchar *path = g_strdup_printf("/%s/%s", qtest_get_arch(), str);
-#if GLIB_CHECK_VERSION(2, 34, 0)
     g_test_add_data_func_full(path, data, fn, data_free_func);
-#elif GLIB_CHECK_VERSION(2, 26, 0)
-    /* back-compat casts, remove this once we can require new-enough glib */
-    g_test_add_vtable(path, 0, data, NULL,
-                      (GTestFixtureFunc)fn, (GTestFixtureFunc) data_free_func);
-#else
-    /* back-compat casts, remove this once we can require new-enough glib */
-    g_test_add_vtable(path, 0, data, NULL,
-                      (void (*)(void)) fn, (void (*)(void)) data_free_func);
-#endif
     g_free(path);
 }
 

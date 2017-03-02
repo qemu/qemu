@@ -440,6 +440,8 @@ static void piix4_update_bus_hotplug(PCIBus *pci_bus, void *opaque)
 {
     PIIX4PMState *s = opaque;
 
+    /* pci_bus cannot outlive PIIX4PMState, because /machine keeps it alive
+     * and it's not hot-unpluggable */
     qbus_set_hotplug_handler(BUS(pci_bus), DEVICE(s), &error_abort);
 }
 

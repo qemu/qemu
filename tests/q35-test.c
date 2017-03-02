@@ -71,6 +71,9 @@ static void test_smram_lock(void)
     g_assert(smram_test_bit(pcidev, MCH_HOST_BRIDGE_SMRAM_D_OPEN) == false);
     smram_set_bit(pcidev, MCH_HOST_BRIDGE_SMRAM_D_OPEN, true);
     g_assert(smram_test_bit(pcidev, MCH_HOST_BRIDGE_SMRAM_D_OPEN) == true);
+
+    g_free(pcidev);
+    qpci_free_pc(pcibus);
 }
 
 int main(int argc, char **argv)
