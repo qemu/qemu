@@ -166,8 +166,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
     def __cli_expr(self, tokens, parent):
         for arg in tokens:
-            (key, _, val) = arg.partition('=')
-            if not val:
+            (key, sep, val) = arg.partition('=')
+            if sep != '=':
                 raise QMPShellError("Expected a key=value pair, got '%s'" % arg)
 
             value = self.__parse_value(val)
