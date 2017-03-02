@@ -29,10 +29,16 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qfloat.h"
 
 #include "qapi-types.h"
 #include "qapi-visit.h"
 #include "qapi/visitor.h"
+#include "qom/qom-qobject.h"
 #include "sysemu/arch_init.h"
 
 #if defined(CONFIG_KVM)
@@ -1503,15 +1509,15 @@ void x86_cpu_change_kvm_default(const char *prop, const char *value)
 static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
                                                    bool migratable_only);
 
-#ifdef CONFIG_KVM
-
 static bool lmce_supported(void)
 {
-    uint64_t mce_cap;
+    uint64_t mce_cap = 0;
 
+#ifdef CONFIG_KVM
     if (kvm_ioctl(kvm_state, KVM_X86_GET_MCE_CAP_SUPPORTED, &mce_cap) < 0) {
         return false;
     }
+#endif
 
     return !!(mce_cap & MCG_LMCE_P);
 }
@@ -1531,51 +1537,28 @@ static int cpu_x86_fill_model_id(char *str)
     return 0;
 }
 
-static X86CPUDefinition host_cpudef;
-
-static Property host_x86_cpu_properties[] = {
+static Property max_x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("migratable", X86CPU, migratable, true),
     DEFINE_PROP_BOOL("host-cache-info", X86CPU, cache_info_passthrough, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
-/* class_init for the "host" CPU model
- *
- * This function may be called before KVM is initialized.
- */
-static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
+static void max_x86_cpu_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
-    uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 
-    xcc->kvm_required = true;
+    xcc->ordering = 9;
 
-    host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
-    x86_cpu_vendor_words2str(host_cpudef.vendor, ebx, edx, ecx);
-
-    host_cpuid(0x1, 0, &eax, &ebx, &ecx, &edx);
-    host_cpudef.family = ((eax >> 8) & 0x0F) + ((eax >> 20) & 0xFF);
-    host_cpudef.model = ((eax >> 4) & 0x0F) | ((eax & 0xF0000) >> 12);
-    host_cpudef.stepping = eax & 0x0F;
-
-    cpu_x86_fill_model_id(host_cpudef.model_id);
-
-    xcc->cpu_def = &host_cpudef;
     xcc->model_description =
-        "KVM processor with all supported host features "
-        "(only available in KVM mode)";
+        "Enables all features supported by the accelerator in the current host";
 
-    /* level, xlevel, xlevel2, and the feature words are initialized on
-     * instance_init, because they require KVM to be initialized.
-     */
-
-    dc->props = host_x86_cpu_properties;
-    /* Reason: host_x86_cpu_initfn() dies when !kvm_enabled() */
-    dc->cannot_destroy_with_object_finalize_yet = true;
+    dc->props = max_x86_cpu_properties;
 }
 
-static void host_x86_cpu_initfn(Object *obj)
+static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp);
+
+static void max_x86_cpu_initfn(Object *obj)
 {
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
@@ -1584,10 +1567,24 @@ static void host_x86_cpu_initfn(Object *obj)
     /* We can't fill the features array here because we don't know yet if
      * "migratable" is true or false.
      */
-    cpu->host_features = true;
+    cpu->max_features = true;
 
-    /* If KVM is disabled, x86_cpu_realizefn() will report an error later */
     if (kvm_enabled()) {
+        X86CPUDefinition host_cpudef = { };
+        uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
+
+        host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
+        x86_cpu_vendor_words2str(host_cpudef.vendor, ebx, edx, ecx);
+
+        host_cpuid(0x1, 0, &eax, &ebx, &ecx, &edx);
+        host_cpudef.family = ((eax >> 8) & 0x0F) + ((eax >> 20) & 0xFF);
+        host_cpudef.model = ((eax >> 4) & 0x0F) | ((eax & 0xF0000) >> 12);
+        host_cpudef.stepping = eax & 0x0F;
+
+        cpu_x86_fill_model_id(host_cpudef.model_id);
+
+        x86_cpu_load_def(cpu, &host_cpudef, &error_abort);
+
         env->cpuid_min_level =
             kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
         env->cpuid_min_xlevel =
@@ -1598,15 +1595,44 @@ static void host_x86_cpu_initfn(Object *obj)
         if (lmce_supported()) {
             object_property_set_bool(OBJECT(cpu), true, "lmce", &error_abort);
         }
+    } else {
+        object_property_set_str(OBJECT(cpu), CPUID_VENDOR_AMD,
+                                "vendor", &error_abort);
+        object_property_set_int(OBJECT(cpu), 6, "family", &error_abort);
+        object_property_set_int(OBJECT(cpu), 6, "model", &error_abort);
+        object_property_set_int(OBJECT(cpu), 3, "stepping", &error_abort);
+        object_property_set_str(OBJECT(cpu),
+                                "QEMU TCG CPU version " QEMU_HW_VERSION,
+                                "model-id", &error_abort);
     }
 
     object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
 }
 
+static const TypeInfo max_x86_cpu_type_info = {
+    .name = X86_CPU_TYPE_NAME("max"),
+    .parent = TYPE_X86_CPU,
+    .instance_init = max_x86_cpu_initfn,
+    .class_init = max_x86_cpu_class_init,
+};
+
+#ifdef CONFIG_KVM
+
+static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
+{
+    X86CPUClass *xcc = X86_CPU_CLASS(oc);
+
+    xcc->kvm_required = true;
+    xcc->ordering = 8;
+
+    xcc->model_description =
+        "KVM processor with all supported host features "
+        "(only available in KVM mode)";
+}
+
 static const TypeInfo host_x86_cpu_type_info = {
     .name = X86_CPU_TYPE_NAME("host"),
-    .parent = TYPE_X86_CPU,
-    .instance_init = host_x86_cpu_initfn,
+    .parent = X86_CPU_TYPE_NAME("max"),
     .class_init = host_x86_cpu_class_init,
 };
 
@@ -2060,7 +2086,7 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
     }
 }
 
-static void x86_cpu_load_features(X86CPU *cpu, Error **errp);
+static void x86_cpu_expand_features(X86CPU *cpu, Error **errp);
 static int x86_cpu_filter_features(X86CPU *cpu);
 
 /* Check for missing features that may prevent the CPU class from
@@ -2083,9 +2109,9 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
 
     xc = X86_CPU(object_new(object_class_get_name(OBJECT_CLASS(xcc))));
 
-    x86_cpu_load_features(xc, &err);
+    x86_cpu_expand_features(xc, &err);
     if (err) {
-        /* Errors at x86_cpu_load_features should never happen,
+        /* Errors at x86_cpu_expand_features should never happen,
          * but in case it does, just report the model as not
          * runnable at all using the "type" property.
          */
@@ -2128,7 +2154,7 @@ static void listflags(FILE *f, fprintf_function print, const char **featureset)
     }
 }
 
-/* Sort alphabetically by type name, listing kvm_required models last. */
+/* Sort alphabetically by type name, respecting X86CPUClass::ordering. */
 static gint x86_cpu_list_compare(gconstpointer a, gconstpointer b)
 {
     ObjectClass *class_a = (ObjectClass *)a;
@@ -2137,9 +2163,8 @@ static gint x86_cpu_list_compare(gconstpointer a, gconstpointer b)
     X86CPUClass *cc_b = X86_CPU_CLASS(class_b);
     const char *name_a, *name_b;
 
-    if (cc_a->kvm_required != cc_b->kvm_required) {
-        /* kvm_required items go last */
-        return cc_a->kvm_required ? 1 : -1;
+    if (cc_a->ordering != cc_b->ordering) {
+        return cc_a->ordering - cc_b->ordering;
     } else {
         name_a = object_class_get_name(class_a);
         name_b = object_class_get_name(class_b);
@@ -2161,7 +2186,7 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
     CPUListState *s = user_data;
     char *name = x86_cpu_class_get_model_name(cc);
     const char *desc = cc->model_description;
-    if (!desc) {
+    if (!desc && cc->cpu_def) {
         desc = cc->cpu_def->model_id;
     }
 
@@ -2210,6 +2235,7 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     info->q_typename = g_strdup(object_class_get_name(oc));
     info->migration_safe = cc->migration_safe;
     info->has_migration_safe = true;
+    info->q_static = cc->static_model;
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
@@ -2247,31 +2273,6 @@ static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
     return r;
 }
 
-/*
- * Filters CPU feature words based on host availability of each feature.
- *
- * Returns: 0 if all flags are supported by the host, non-zero otherwise.
- */
-static int x86_cpu_filter_features(X86CPU *cpu)
-{
-    CPUX86State *env = &cpu->env;
-    FeatureWord w;
-    int rv = 0;
-
-    for (w = 0; w < FEATURE_WORDS; w++) {
-        uint32_t host_feat =
-            x86_cpu_get_supported_feature_word(w, false);
-        uint32_t requested_features = env->features[w];
-        env->features[w] &= host_feat;
-        cpu->filtered_features[w] = requested_features & ~env->features[w];
-        if (cpu->filtered_features[w]) {
-            rv = 1;
-        }
-    }
-
-    return rv;
-}
-
 static void x86_cpu_report_filtered_features(X86CPU *cpu)
 {
     FeatureWord w;
@@ -2293,7 +2294,7 @@ static void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
     }
 }
 
-/* Load data from X86CPUDefinition
+/* Load data from X86CPUDefinition into a X86CPU object
  */
 static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
 {
@@ -2301,6 +2302,11 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
     const char *vendor;
     char host_vendor[CPUID_VENDOR_SZ + 1];
     FeatureWord w;
+
+    /*NOTE: any property set by this function should be returned by
+     * x86_cpu_static_props(), so static expansion of
+     * query-cpu-model-expansion is always complete.
+     */
 
     /* CPU models only set _minimum_ values for level/xlevel: */
     object_property_set_int(OBJECT(cpu), def->level, "min-level", errp);
@@ -2344,6 +2350,212 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
 
     object_property_set_str(OBJECT(cpu), vendor, "vendor", errp);
 
+}
+
+/* Return a QDict containing keys for all properties that can be included
+ * in static expansion of CPU models. All properties set by x86_cpu_load_def()
+ * must be included in the dictionary.
+ */
+static QDict *x86_cpu_static_props(void)
+{
+    FeatureWord w;
+    int i;
+    static const char *props[] = {
+        "min-level",
+        "min-xlevel",
+        "family",
+        "model",
+        "stepping",
+        "model-id",
+        "vendor",
+        "lmce",
+        NULL,
+    };
+    static QDict *d;
+
+    if (d) {
+        return d;
+    }
+
+    d = qdict_new();
+    for (i = 0; props[i]; i++) {
+        qdict_put_obj(d, props[i], qnull());
+    }
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        FeatureWordInfo *fi = &feature_word_info[w];
+        int bit;
+        for (bit = 0; bit < 32; bit++) {
+            if (!fi->feat_names[bit]) {
+                continue;
+            }
+            qdict_put_obj(d, fi->feat_names[bit], qnull());
+        }
+    }
+
+    return d;
+}
+
+/* Add an entry to @props dict, with the value for property. */
+static void x86_cpu_expand_prop(X86CPU *cpu, QDict *props, const char *prop)
+{
+    QObject *value = object_property_get_qobject(OBJECT(cpu), prop,
+                                                 &error_abort);
+
+    qdict_put_obj(props, prop, value);
+}
+
+/* Convert CPU model data from X86CPU object to a property dictionary
+ * that can recreate exactly the same CPU model.
+ */
+static void x86_cpu_to_dict(X86CPU *cpu, QDict *props)
+{
+    QDict *sprops = x86_cpu_static_props();
+    const QDictEntry *e;
+
+    for (e = qdict_first(sprops); e; e = qdict_next(sprops, e)) {
+        const char *prop = qdict_entry_key(e);
+        x86_cpu_expand_prop(cpu, props, prop);
+    }
+}
+
+/* Convert CPU model data from X86CPU object to a property dictionary
+ * that can recreate exactly the same CPU model, including every
+ * writeable QOM property.
+ */
+static void x86_cpu_to_dict_full(X86CPU *cpu, QDict *props)
+{
+    ObjectPropertyIterator iter;
+    ObjectProperty *prop;
+
+    object_property_iter_init(&iter, OBJECT(cpu));
+    while ((prop = object_property_iter_next(&iter))) {
+        /* skip read-only or write-only properties */
+        if (!prop->get || !prop->set) {
+            continue;
+        }
+
+        /* "hotplugged" is the only property that is configurable
+         * on the command-line but will be set differently on CPUs
+         * created using "-cpu ... -smp ..." and by CPUs created
+         * on the fly by x86_cpu_from_model() for querying. Skip it.
+         */
+        if (!strcmp(prop->name, "hotplugged")) {
+            continue;
+        }
+        x86_cpu_expand_prop(cpu, props, prop->name);
+    }
+}
+
+static void object_apply_props(Object *obj, QDict *props, Error **errp)
+{
+    const QDictEntry *prop;
+    Error *err = NULL;
+
+    for (prop = qdict_first(props); prop; prop = qdict_next(props, prop)) {
+        object_property_set_qobject(obj, qdict_entry_value(prop),
+                                         qdict_entry_key(prop), &err);
+        if (err) {
+            break;
+        }
+    }
+
+    error_propagate(errp, err);
+}
+
+/* Create X86CPU object according to model+props specification */
+static X86CPU *x86_cpu_from_model(const char *model, QDict *props, Error **errp)
+{
+    X86CPU *xc = NULL;
+    X86CPUClass *xcc;
+    Error *err = NULL;
+
+    xcc = X86_CPU_CLASS(cpu_class_by_name(TYPE_X86_CPU, model));
+    if (xcc == NULL) {
+        error_setg(&err, "CPU model '%s' not found", model);
+        goto out;
+    }
+
+    xc = X86_CPU(object_new(object_class_get_name(OBJECT_CLASS(xcc))));
+    if (props) {
+        object_apply_props(OBJECT(xc), props, &err);
+        if (err) {
+            goto out;
+        }
+    }
+
+    x86_cpu_expand_features(xc, &err);
+    if (err) {
+        goto out;
+    }
+
+out:
+    if (err) {
+        error_propagate(errp, err);
+        object_unref(OBJECT(xc));
+        xc = NULL;
+    }
+    return xc;
+}
+
+CpuModelExpansionInfo *
+arch_query_cpu_model_expansion(CpuModelExpansionType type,
+                                                      CpuModelInfo *model,
+                                                      Error **errp)
+{
+    X86CPU *xc = NULL;
+    Error *err = NULL;
+    CpuModelExpansionInfo *ret = g_new0(CpuModelExpansionInfo, 1);
+    QDict *props = NULL;
+    const char *base_name;
+
+    xc = x86_cpu_from_model(model->name,
+                            model->has_props ?
+                                qobject_to_qdict(model->props) :
+                                NULL, &err);
+    if (err) {
+        goto out;
+    }
+
+    props = qdict_new();
+
+    switch (type) {
+    case CPU_MODEL_EXPANSION_TYPE_STATIC:
+        /* Static expansion will be based on "base" only */
+        base_name = "base";
+        x86_cpu_to_dict(xc, props);
+    break;
+    case CPU_MODEL_EXPANSION_TYPE_FULL:
+        /* As we don't return every single property, full expansion needs
+         * to keep the original model name+props, and add extra
+         * properties on top of that.
+         */
+        base_name = model->name;
+        x86_cpu_to_dict_full(xc, props);
+    break;
+    default:
+        error_setg(&err, "Unsupportted expansion type");
+        goto out;
+    }
+
+    if (!props) {
+        props = qdict_new();
+    }
+    x86_cpu_to_dict(xc, props);
+
+    ret->model = g_new0(CpuModelInfo, 1);
+    ret->model->name = g_strdup(base_name);
+    ret->model->props = QOBJECT(props);
+    ret->model->has_props = true;
+
+out:
+    object_unref(OBJECT(xc));
+    if (err) {
+        error_propagate(errp, err);
+        qapi_free_CpuModelExpansionInfo(ret);
+        ret = NULL;
+    }
+    return ret;
 }
 
 X86CPU *cpu_x86_init(const char *cpu_model)
@@ -3095,20 +3307,59 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
     env->features[FEAT_XSAVE_COMP_HI] = mask >> 32;
 }
 
-/* Load CPUID data based on configured features */
-static void x86_cpu_load_features(X86CPU *cpu, Error **errp)
+/***** Steps involved on loading and filtering CPUID data
+ *
+ * When initializing and realizing a CPU object, the steps
+ * involved in setting up CPUID data are:
+ *
+ * 1) Loading CPU model definition (X86CPUDefinition). This is
+ *    implemented by x86_cpu_load_def() and should be completely
+ *    transparent, as it is done automatically by instance_init.
+ *    No code should need to look at X86CPUDefinition structs
+ *    outside instance_init.
+ *
+ * 2) CPU expansion. This is done by realize before CPUID
+ *    filtering, and will make sure host/accelerator data is
+ *    loaded for CPU models that depend on host capabilities
+ *    (e.g. "host"). Done by x86_cpu_expand_features().
+ *
+ * 3) CPUID filtering. This initializes extra data related to
+ *    CPUID, and checks if the host supports all capabilities
+ *    required by the CPU. Runnability of a CPU model is
+ *    determined at this step. Done by x86_cpu_filter_features().
+ *
+ * Some operations don't require all steps to be performed.
+ * More precisely:
+ *
+ * - CPU instance creation (instance_init) will run only CPU
+ *   model loading. CPU expansion can't run at instance_init-time
+ *   because host/accelerator data may be not available yet.
+ * - CPU realization will perform both CPU model expansion and CPUID
+ *   filtering, and return an error in case one of them fails.
+ * - query-cpu-definitions needs to run all 3 steps. It needs
+ *   to run CPUID filtering, as the 'unavailable-features'
+ *   field is set based on the filtering results.
+ * - The query-cpu-model-expansion QMP command only needs to run
+ *   CPU model loading and CPU expansion. It should not filter
+ *   any CPUID data based on host capabilities.
+ */
+
+/* Expand CPU configuration data, based on configured features
+ * and host/accelerator capabilities when appropriate.
+ */
+static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 {
     CPUX86State *env = &cpu->env;
     FeatureWord w;
     GList *l;
     Error *local_err = NULL;
 
-    /*TODO: cpu->host_features incorrectly overwrites features
+    /*TODO: cpu->max_features incorrectly overwrites features
      * set using "feat=on|off". Once we fix this, we can convert
      * plus_features & minus_features to global properties
      * inside x86_cpu_parse_featurestr() too.
      */
-    if (cpu->host_features) {
+    if (cpu->max_features) {
         for (w = 0; w < FEATURE_WORDS; w++) {
             env->features[w] =
                 x86_cpu_get_supported_feature_word(w, cpu->migratable);
@@ -3173,6 +3424,32 @@ out:
     }
 }
 
+/*
+ * Finishes initialization of CPUID data, filters CPU feature
+ * words based on host availability of each feature.
+ *
+ * Returns: 0 if all flags are supported by the host, non-zero otherwise.
+ */
+static int x86_cpu_filter_features(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    FeatureWord w;
+    int rv = 0;
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        uint32_t host_feat =
+            x86_cpu_get_supported_feature_word(w, false);
+        uint32_t requested_features = env->features[w];
+        env->features[w] &= host_feat;
+        cpu->filtered_features[w] = requested_features & ~env->features[w];
+        if (cpu->filtered_features[w]) {
+            rv = 1;
+        }
+    }
+
+    return rv;
+}
+
 #define IS_INTEL_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_INTEL_1 && \
                            (env)->cpuid_vendor2 == CPUID_VENDOR_INTEL_2 && \
                            (env)->cpuid_vendor3 == CPUID_VENDOR_INTEL_3)
@@ -3200,7 +3477,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    x86_cpu_load_features(cpu, &local_err);
+    x86_cpu_expand_features(cpu, &local_err);
     if (local_err) {
         goto out;
     }
@@ -3619,7 +3896,9 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add_alias(obj, "sse4_1", obj, "sse4.1", &error_abort);
     object_property_add_alias(obj, "sse4_2", obj, "sse4.2", &error_abort);
 
-    x86_cpu_load_def(cpu, xcc->cpu_def, &error_abort);
+    if (xcc->cpu_def) {
+        x86_cpu_load_def(cpu, xcc->cpu_def, &error_abort);
+    }
 }
 
 static int64_t x86_cpu_get_arch_id(CPUState *cs)
@@ -3774,6 +4053,24 @@ static const TypeInfo x86_cpu_type_info = {
     .class_init = x86_cpu_common_class_init,
 };
 
+
+/* "base" CPU model, used by query-cpu-model-expansion */
+static void x86_cpu_base_class_init(ObjectClass *oc, void *data)
+{
+    X86CPUClass *xcc = X86_CPU_CLASS(oc);
+
+    xcc->static_model = true;
+    xcc->migration_safe = true;
+    xcc->model_description = "base CPU model type with no features enabled";
+    xcc->ordering = 8;
+}
+
+static const TypeInfo x86_base_cpu_type_info = {
+        .name = X86_CPU_TYPE_NAME("base"),
+        .parent = TYPE_X86_CPU,
+        .class_init = x86_cpu_base_class_init,
+};
+
 static void x86_cpu_register_types(void)
 {
     int i;
@@ -3782,6 +4079,8 @@ static void x86_cpu_register_types(void)
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
         x86_register_cpudef_type(&builtin_x86_defs[i]);
     }
+    type_register_static(&max_x86_cpu_type_info);
+    type_register_static(&x86_base_cpu_type_info);
 #ifdef CONFIG_KVM
     type_register_static(&host_x86_cpu_type_info);
 #endif
