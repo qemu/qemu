@@ -166,4 +166,9 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
 bool audio_is_cleaning_up(void);
 void audio_cleanup(void);
 
+void audio_sample_to_uint64(void *samples, int pos,
+                            uint64_t *left, uint64_t *right);
+void audio_sample_from_uint64(void *samples, int pos,
+                            uint64_t left, uint64_t right);
+
 #endif /* QEMU_AUDIO_H */
