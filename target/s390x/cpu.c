@@ -430,6 +430,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->write_elf64_note = s390_cpu_write_elf64_note;
     cc->cpu_exec_interrupt = s390_cpu_exec_interrupt;
     cc->debug_excp_handler = s390x_cpu_debug_excp_handler;
+    cc->do_unaligned_access = s390x_cpu_do_unaligned_access;
 #endif
     cc->disas_set_info = s390_cpu_disas_set_info;
 
