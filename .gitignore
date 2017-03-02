@@ -50,6 +50,7 @@
 /qemu-version.h.tmp
 /module_block.h
 /vscclient
+/vhost-user-scsi
 /fsdev/virtfs-proxy-helper
 *.[1-9]
 *.a
