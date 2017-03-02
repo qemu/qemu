@@ -71,6 +71,7 @@ enum powerpc_mmu_t {
 #define POWERPC_MMU_1TSEG    0x00020000
 #define POWERPC_MMU_AMR      0x00040000
 #define POWERPC_MMU_64K      0x00080000
+#define POWERPC_MMU_V3       0x00100000 /* ISA V3.00 MMU Support */
     /* 64 bits PowerPC MMU                                     */
     POWERPC_MMU_64B        = POWERPC_MMU_64 | 0x00000001,
     /* Architecture 2.03 and later (has LPCR) */
@@ -92,7 +93,8 @@ enum powerpc_mmu_t {
     /* Architecture 3.00 variant                               */
     POWERPC_MMU_3_00       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
                              | POWERPC_MMU_64K
-                             | POWERPC_MMU_AMR | 0x00000005,
+                             | POWERPC_MMU_AMR | POWERPC_MMU_V3
+                             | 0x00000005,
 };
 
 /*****************************************************************************/
