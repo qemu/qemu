@@ -18,6 +18,7 @@
 #include "hw/qdev.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/vhost.h"
+#include "hw/virtio/vhost-scsi-common.h"
 
 enum vhost_scsi_vq_list {
     VHOST_SCSI_VQ_CONTROL = 0,
@@ -30,15 +31,7 @@ enum vhost_scsi_vq_list {
         OBJECT_CHECK(VHostSCSI, (obj), TYPE_VHOST_SCSI)
 
 typedef struct VHostSCSI {
-    VirtIOSCSICommon parent_obj;
-
-    Error *migration_blocker;
-
-    struct vhost_dev dev;
-    int32_t bootindex;
-    int channel;
-    int target;
-    int lun;
+    VHostSCSICommon parent_obj;
 } VHostSCSI;
 
 #endif
