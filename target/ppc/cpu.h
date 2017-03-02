@@ -223,11 +223,12 @@ enum {
 typedef struct opc_handler_t opc_handler_t;
 
 /*****************************************************************************/
-/* Types used to describe some PowerPC registers */
+/* Types used to describe some PowerPC registers etc. */
 typedef struct DisasContext DisasContext;
 typedef struct ppc_spr_t ppc_spr_t;
 typedef union ppc_avr_t ppc_avr_t;
 typedef union ppc_tlb_t ppc_tlb_t;
+typedef struct ppc_hash_pte64 ppc_hash_pte64_t;
 
 /* SPR access micro-ops generations callbacks */
 struct ppc_spr_t {
@@ -304,14 +305,6 @@ union ppc_tlb_t {
 #define TLB_EMB                2
 #define TLB_MAS                3
 #endif
-
-#define SDR_32_HTABORG         0xFFFF0000UL
-#define SDR_32_HTABMASK        0x000001FFUL
-
-#if defined(TARGET_PPC64)
-#define SDR_64_HTABORG         0xFFFFFFFFFFFC0000ULL
-#define SDR_64_HTABSIZE        0x000000000000001FULL
-#endif /* defined(TARGET_PPC64 */
 
 typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
@@ -965,6 +958,8 @@ struct CPUPPCState {
     target_ulong so;
     target_ulong ov;
     target_ulong ca;
+    target_ulong ov32;
+    target_ulong ca32;
     /* Reservation address */
     target_ulong reserve_addr;
     /* Reservation value */
@@ -1005,12 +1000,7 @@ struct CPUPPCState {
     /* tcg TLB needs flush (deferred slb inval instruction typically) */
 #endif
     /* segment registers */
-    hwaddr htab_base;
-    /* mask used to normalize hash value to PTEG index */
-    hwaddr htab_mask;
     target_ulong sr[32];
-    /* externally stored hash table */
-    uint8_t *external_htab;
     /* BATs */
     uint32_t nb_BATs;
     target_ulong DBAT[2][8];
@@ -1218,6 +1208,14 @@ struct PPCVirtualHypervisor {
 struct PPCVirtualHypervisorClass {
     InterfaceClass parent;
     void (*hypercall)(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu);
+    hwaddr (*hpt_mask)(PPCVirtualHypervisor *vhyp);
+    const ppc_hash_pte64_t *(*map_hptes)(PPCVirtualHypervisor *vhyp,
+                                         hwaddr ptex, int n);
+    void (*unmap_hptes)(PPCVirtualHypervisor *vhyp,
+                        const ppc_hash_pte64_t *hptes,
+                        hwaddr ptex, int n);
+    void (*store_hpte)(PPCVirtualHypervisor *vhyp, hwaddr ptex,
+                       uint64_t pte0, uint64_t pte1);
 };
 
 #define TYPE_PPC_VIRTUAL_HYPERVISOR "ppc-virtual-hypervisor"
@@ -1242,6 +1240,8 @@ int ppc_cpu_gdb_read_register_apple(CPUState *cpu, uint8_t *buf, int reg);
 int ppc_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 int ppc_cpu_gdb_write_register_apple(CPUState *cpu, uint8_t *buf, int reg);
 int ppc64_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
+                               int cpuid, void *opaque);
+int ppc32_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
                                int cpuid, void *opaque);
 #ifndef CONFIG_USER_ONLY
 void ppc_cpu_do_system_reset(CPUState *cs);
@@ -1300,8 +1300,7 @@ void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
 void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
-void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp);
-void cpu_ppc_set_papr(PowerPCCPU *cpu);
+void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp);
 #endif
 #endif
 
@@ -1372,11 +1371,15 @@ int ppc_compat_max_threads(PowerPCCPU *cpu);
 #define XER_SO  31
 #define XER_OV  30
 #define XER_CA  29
+#define XER_OV32  19
+#define XER_CA32  18
 #define XER_CMP  8
 #define XER_BC   0
 #define xer_so  (env->so)
 #define xer_ov  (env->ov)
 #define xer_ca  (env->ca)
+#define xer_ov32  (env->ov)
+#define xer_ca32  (env->ca)
 #define xer_cmp ((env->xer >> XER_CMP) & 0xFF)
 #define xer_bc  ((env->xer >> XER_BC)  & 0x7F)
 
@@ -2343,18 +2346,9 @@ enum {
 
 /*****************************************************************************/
 
-static inline target_ulong cpu_read_xer(CPUPPCState *env)
-{
-    return env->xer | (env->so << XER_SO) | (env->ov << XER_OV) | (env->ca << XER_CA);
-}
-
-static inline void cpu_write_xer(CPUPPCState *env, target_ulong xer)
-{
-    env->so = (xer >> XER_SO) & 1;
-    env->ov = (xer >> XER_OV) & 1;
-    env->ca = (xer >> XER_CA) & 1;
-    env->xer = xer & ~((1u << XER_SO) | (1u << XER_OV) | (1u << XER_CA));
-}
+#define is_isa300(ctx) (!!(ctx->insns_flags2 & PPC2_ISA300))
+target_ulong cpu_read_xer(CPUPPCState *env);
+void cpu_write_xer(CPUPPCState *env, target_ulong xer);
 
 static inline void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)

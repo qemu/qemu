@@ -63,6 +63,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/nmi.h"
+#include "hw/intc/intc.h"
 
 #include "hw/compat.h"
 #include "qemu/cutils.h"
@@ -95,37 +96,68 @@
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
-static XICSState *try_create_xics(const char *type, int nr_servers,
-                                  int nr_irqs, Error **errp)
+static int try_create_xics(sPAPRMachineState *spapr, const char *type_ics,
+                           const char *type_icp, int nr_servers,
+                           int nr_irqs, Error **errp)
 {
-    Error *err = NULL;
-    DeviceState *dev;
+    XICSFabric *xi = XICS_FABRIC(spapr);
+    Error *err = NULL, *local_err = NULL;
+    ICSState *ics = NULL;
+    int i;
 
-    dev = qdev_create(NULL, type);
-    qdev_prop_set_uint32(dev, "nr_servers", nr_servers);
-    qdev_prop_set_uint32(dev, "nr_irqs", nr_irqs);
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    ics = ICS_SIMPLE(object_new(type_ics));
+    qdev_set_parent_bus(DEVICE(ics), sysbus_get_default());
+    object_property_add_child(OBJECT(spapr), "ics", OBJECT(ics), NULL);
+    object_property_set_int(OBJECT(ics), nr_irqs, "nr-irqs", &err);
+    object_property_add_const_link(OBJECT(ics), "xics", OBJECT(xi), NULL);
+    object_property_set_bool(OBJECT(ics), true, "realized", &local_err);
+    error_propagate(&err, local_err);
     if (err) {
-        error_propagate(errp, err);
-        object_unparent(OBJECT(dev));
-        return NULL;
+        goto error;
     }
-    return XICS_COMMON(dev);
+
+    spapr->icps = g_malloc0(nr_servers * sizeof(ICPState));
+    spapr->nr_servers = nr_servers;
+
+    for (i = 0; i < nr_servers; i++) {
+        ICPState *icp = &spapr->icps[i];
+
+        object_initialize(icp, sizeof(*icp), type_icp);
+        qdev_set_parent_bus(DEVICE(icp), sysbus_get_default());
+        object_property_add_child(OBJECT(spapr), "icp[*]", OBJECT(icp), NULL);
+        object_property_add_const_link(OBJECT(icp), "xics", OBJECT(xi), NULL);
+        object_property_set_bool(OBJECT(icp), true, "realized", &err);
+        if (err) {
+            goto error;
+        }
+        object_unref(OBJECT(icp));
+    }
+
+    spapr->ics = ics;
+    return 0;
+
+error:
+    error_propagate(errp, err);
+    if (ics) {
+        object_unparent(OBJECT(ics));
+    }
+    return -1;
 }
 
-static XICSState *xics_system_init(MachineState *machine,
-                                   int nr_servers, int nr_irqs, Error **errp)
+static int xics_system_init(MachineState *machine,
+                            int nr_servers, int nr_irqs, Error **errp)
 {
-    XICSState *xics = NULL;
+    int rc = -1;
 
     if (kvm_enabled()) {
         Error *err = NULL;
 
-        if (machine_kernel_irqchip_allowed(machine)) {
-            xics = try_create_xics(TYPE_XICS_SPAPR_KVM, nr_servers, nr_irqs,
-                                   &err);
+        if (machine_kernel_irqchip_allowed(machine) &&
+            !xics_kvm_init(SPAPR_MACHINE(machine), errp)) {
+            rc = try_create_xics(SPAPR_MACHINE(machine), TYPE_ICS_KVM,
+                                 TYPE_KVM_ICP, nr_servers, nr_irqs, &err);
         }
-        if (machine_kernel_irqchip_required(machine) && !xics) {
+        if (machine_kernel_irqchip_required(machine) && rc < 0) {
             error_reportf_err(err,
                               "kernel_irqchip requested but unavailable: ");
         } else {
@@ -133,11 +165,13 @@ static XICSState *xics_system_init(MachineState *machine,
         }
     }
 
-    if (!xics) {
-        xics = try_create_xics(TYPE_XICS_SPAPR, nr_servers, nr_irqs, errp);
+    if (rc < 0) {
+        xics_spapr_init(SPAPR_MACHINE(machine), errp);
+        rc = try_create_xics(SPAPR_MACHINE(machine), TYPE_ICS_SIMPLE,
+                               TYPE_ICP, nr_servers, nr_irqs, errp);
     }
 
-    return xics;
+    return rc;
 }
 
 static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
@@ -924,7 +958,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
-    spapr_dt_xics(spapr->xics, fdt, PHANDLE_XICP);
+    spapr_dt_xics(spapr->nr_servers, fdt, PHANDLE_XICP);
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
@@ -1051,6 +1085,62 @@ static void close_htab_fd(sPAPRMachineState *spapr)
         close(spapr->htab_fd);
     }
     spapr->htab_fd = -1;
+}
+
+static hwaddr spapr_hpt_mask(PPCVirtualHypervisor *vhyp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    return HTAB_SIZE(spapr) / HASH_PTEG_SIZE_64 - 1;
+}
+
+static const ppc_hash_pte64_t *spapr_map_hptes(PPCVirtualHypervisor *vhyp,
+                                                hwaddr ptex, int n)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
+    hwaddr pte_offset = ptex * HASH_PTE_SIZE_64;
+
+    if (!spapr->htab) {
+        /*
+         * HTAB is controlled by KVM. Fetch into temporary buffer
+         */
+        ppc_hash_pte64_t *hptes = g_malloc(n * HASH_PTE_SIZE_64);
+        kvmppc_read_hptes(hptes, ptex, n);
+        return hptes;
+    }
+
+    /*
+     * HTAB is controlled by QEMU. Just point to the internally
+     * accessible PTEG.
+     */
+    return (const ppc_hash_pte64_t *)(spapr->htab + pte_offset);
+}
+
+static void spapr_unmap_hptes(PPCVirtualHypervisor *vhyp,
+                              const ppc_hash_pte64_t *hptes,
+                              hwaddr ptex, int n)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    if (!spapr->htab) {
+        g_free((void *)hptes);
+    }
+
+    /* Nothing to do for qemu managed HPT */
+}
+
+static void spapr_store_hpte(PPCVirtualHypervisor *vhyp, hwaddr ptex,
+                             uint64_t pte0, uint64_t pte1)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
+    hwaddr offset = ptex * HASH_PTE_SIZE_64;
+
+    if (!spapr->htab) {
+        kvmppc_write_hpte(ptex, pte0, pte1);
+    } else {
+        stq_p(spapr->htab + offset, pte0);
+        stq_p(spapr->htab + offset + HASH_PTE_SIZE_64 / 2, pte1);
+    }
 }
 
 static int spapr_hpt_shift_for_ramsize(uint64_t ramsize)
@@ -1251,6 +1341,13 @@ static int spapr_post_load(void *opaque, int version_id)
 {
     sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
     int err = 0;
+
+    if (!object_dynamic_cast(OBJECT(spapr->ics), TYPE_ICS_KVM)) {
+        int i;
+        for (i = 0; i < spapr->nr_servers; i++) {
+            icp_resend(&spapr->icps[i]);
+        }
+    }
 
     /* In earlier versions, there was no separate qdev for the PAPR
      * RTC, so the RTC offset was stored directly in sPAPREnvironment.
@@ -1902,9 +1999,8 @@ static void ppc_spapr_init(MachineState *machine)
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
 
     /* Set up Interrupt Controller before we create the VCPUs */
-    spapr->xics = xics_system_init(machine,
-                                   DIV_ROUND_UP(max_cpus * smt, smp_threads),
-                                   XICS_IRQS_SPAPR, &error_fatal);
+    xics_system_init(machine, DIV_ROUND_UP(max_cpus * smt, smp_threads),
+                     XICS_IRQS_SPAPR, &error_fatal);
 
     /* Set up containers for ibm,client-set-architecture negotiated options */
     spapr->ov5 = spapr_ovec_new();
@@ -2872,6 +2968,40 @@ static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
     *mmio64 = SPAPR_PCI_BASE + (index + 1) * SPAPR_PCI_MEM64_WIN_SIZE;
 }
 
+static ICSState *spapr_ics_get(XICSFabric *dev, int irq)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(dev);
+
+    return ics_valid_irq(spapr->ics, irq) ? spapr->ics : NULL;
+}
+
+static void spapr_ics_resend(XICSFabric *dev)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(dev);
+
+    ics_resend(spapr->ics);
+}
+
+static ICPState *spapr_icp_get(XICSFabric *xi, int server)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+
+    return (server < spapr->nr_servers) ? &spapr->icps[server] : NULL;
+}
+
+static void spapr_pic_print_info(InterruptStatsProvider *obj,
+                                 Monitor *mon)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    int i;
+
+    for (i = 0; i < spapr->nr_servers; i++) {
+        icp_pic_print_info(&spapr->icps[i], mon);
+    }
+
+    ics_pic_print_info(spapr->ics, mon);
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2880,6 +3010,8 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     NMIClass *nc = NMI_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     PPCVirtualHypervisorClass *vhc = PPC_VIRTUAL_HYPERVISOR_CLASS(oc);
+    XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
+    InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
     mc->desc = "pSeries Logical Partition (PAPR compliant)";
 
@@ -2891,7 +3023,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->init = ppc_spapr_init;
     mc->reset = ppc_spapr_reset;
     mc->block_default_type = IF_SCSI;
-    mc->max_cpus = 255;
+    mc->max_cpus = 1024;
     mc->no_parallel = 1;
     mc->default_boot_order = "";
     mc->default_ram_size = 512 * M_BYTE;
@@ -2913,6 +3045,14 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     nc->nmi_monitor_handler = spapr_nmi;
     smc->phb_placement = spapr_phb_placement;
     vhc->hypercall = emulate_spapr_hypercall;
+    vhc->hpt_mask = spapr_hpt_mask;
+    vhc->map_hptes = spapr_map_hptes;
+    vhc->unmap_hptes = spapr_unmap_hptes;
+    vhc->store_hpte = spapr_store_hpte;
+    xic->ics_get = spapr_ics_get;
+    xic->ics_resend = spapr_ics_resend;
+    xic->icp_get = spapr_icp_get;
+    ispc->print_info = spapr_pic_print_info;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -2929,6 +3069,8 @@ static const TypeInfo spapr_machine_info = {
         { TYPE_NMI },
         { TYPE_HOTPLUG_HANDLER },
         { TYPE_PPC_VIRTUAL_HYPERVISOR },
+        { TYPE_XICS_FABRIC },
+        { TYPE_INTERRUPT_STATS_PROVIDER },
         { }
     },
 };

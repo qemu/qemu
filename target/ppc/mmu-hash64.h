@@ -10,8 +10,8 @@ int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
 hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr);
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr address, int rw,
                                 int mmu_idx);
-void ppc_hash64_store_hpte(PowerPCCPU *cpu, target_ulong index,
-                           target_ulong pte0, target_ulong pte1);
+void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
+                           uint64_t pte0, uint64_t pte1);
 void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu,
                                target_ulong pte_index,
                                target_ulong pte0, target_ulong pte1);
@@ -56,6 +56,9 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
  * Hash page table definitions
  */
 
+#define SDR_64_HTABORG         0x0FFFFFFFFFFC0000ULL
+#define SDR_64_HTABSIZE        0x000000000000001FULL
+
 #define HPTES_PER_GROUP         8
 #define HASH_PTE_SIZE_64        16
 #define HASH_PTEG_SIZE_64       (HASH_PTE_SIZE_64 * HPTES_PER_GROUP)
@@ -91,45 +94,41 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 #define HPTE64_V_1TB_SEG        0x4000000000000000ULL
 #define HPTE64_V_VRMA_MASK      0x4001ffffff000000ULL
 
-void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
-                         Error **errp);
-void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
-                                 Error **errp);
-
-uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index);
-void ppc_hash64_stop_access(PowerPCCPU *cpu, uint64_t token);
-
-static inline target_ulong ppc_hash64_load_hpte0(PowerPCCPU *cpu,
-                                                 uint64_t token, int index)
+static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
 {
-    CPUPPCState *env = &cpu->env;
-    uint64_t addr;
-
-    addr = token + (index * HASH_PTE_SIZE_64);
-    if (env->external_htab) {
-        return  ldq_p((const void *)(uintptr_t)addr);
-    } else {
-        return ldq_phys(CPU(cpu)->as, addr);
-    }
+    return cpu->env.spr[SPR_SDR1] & SDR_64_HTABORG;
 }
 
-static inline target_ulong ppc_hash64_load_hpte1(PowerPCCPU *cpu,
-                                                 uint64_t token, int index)
+static inline hwaddr ppc_hash64_hpt_mask(PowerPCCPU *cpu)
 {
-    CPUPPCState *env = &cpu->env;
-    uint64_t addr;
-
-    addr = token + (index * HASH_PTE_SIZE_64) + HASH_PTE_SIZE_64/2;
-    if (env->external_htab) {
-        return  ldq_p((const void *)(uintptr_t)addr);
-    } else {
-        return ldq_phys(CPU(cpu)->as, addr);
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        return vhc->hpt_mask(cpu->vhyp);
     }
+    return (1ULL << ((cpu->env.spr[SPR_SDR1] & SDR_64_HTABSIZE) + 18 - 7)) - 1;
 }
 
-typedef struct {
+struct ppc_hash_pte64 {
     uint64_t pte0, pte1;
-} ppc_hash_pte64_t;
+};
+
+const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
+                                             hwaddr ptex, int n);
+void ppc_hash64_unmap_hptes(PowerPCCPU *cpu, const ppc_hash_pte64_t *hptes,
+                            hwaddr ptex, int n);
+
+static inline uint64_t ppc_hash64_hpte0(PowerPCCPU *cpu,
+                                        const ppc_hash_pte64_t *hptes, int i)
+{
+    return ldq_p(&(hptes[i].pte0));
+}
+
+static inline uint64_t ppc_hash64_hpte1(PowerPCCPU *cpu,
+                                        const ppc_hash_pte64_t *hptes, int i)
+{
+    return ldq_p(&(hptes[i].pte1));
+}
 
 #endif /* CONFIG_USER_ONLY */
 

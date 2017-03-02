@@ -58,7 +58,7 @@ struct sPAPRMachineState {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
     struct sPAPRNVRAM *nvram;
-    XICSState *xics;
+    ICSState *ics;
     DeviceState *rtc;
 
     void *htab;
@@ -94,6 +94,9 @@ struct sPAPRMachineState {
     /*< public >*/
     char *kvm_type;
     MemoryHotplugState hotplug_memory;
+
+    uint32_t nr_servers;
+    ICPState *icps;
 };
 
 #define H_SUCCESS         0

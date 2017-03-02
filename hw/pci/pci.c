@@ -1530,6 +1530,34 @@ static const pci_class_desc pci_class_descriptions[] =
     { 0, NULL}
 };
 
+static void pci_for_each_device_under_bus_reverse(PCIBus *bus,
+                                                  void (*fn)(PCIBus *b,
+                                                             PCIDevice *d,
+                                                             void *opaque),
+                                                  void *opaque)
+{
+    PCIDevice *d;
+    int devfn;
+
+    for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
+        d = bus->devices[ARRAY_SIZE(bus->devices) - 1 - devfn];
+        if (d) {
+            fn(bus, d, opaque);
+        }
+    }
+}
+
+void pci_for_each_device_reverse(PCIBus *bus, int bus_num,
+                         void (*fn)(PCIBus *b, PCIDevice *d, void *opaque),
+                         void *opaque)
+{
+    bus = pci_find_bus_nr(bus, bus_num);
+
+    if (bus) {
+        pci_for_each_device_under_bus_reverse(bus, fn, opaque);
+    }
+}
+
 static void pci_for_each_device_under_bus(PCIBus *bus,
                                           void (*fn)(PCIBus *b, PCIDevice *d,
                                                      void *opaque),

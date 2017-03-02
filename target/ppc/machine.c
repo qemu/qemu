@@ -76,7 +76,7 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
         qemu_get_betls(f, &env->pb[i]);
     for (i = 0; i < 1024; i++)
         qemu_get_betls(f, &env->spr[i]);
-    if (!env->external_htab) {
+    if (!cpu->vhyp) {
         ppc_store_sdr1(env, sdr1);
     }
     qemu_get_be32s(f, &env->vscr);
@@ -228,8 +228,7 @@ static int cpu_post_load(void *opaque, int version_id)
         env->IBAT[1][i+4] = env->spr[SPR_IBAT4U + 2*i + 1];
     }
 
-    if (!env->external_htab) {
-        /* Restore htab_base and htab_mask variables */
+    if (!cpu->vhyp) {
         ppc_store_sdr1(env, env->spr[SPR_SDR1]);
     }
 

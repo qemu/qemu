@@ -107,7 +107,7 @@ static void spr_access_nop(DisasContext *ctx, int sprn, int gprn)
 /* XER */
 static void spr_read_xer (DisasContext *ctx, int gprn, int sprn)
 {
-    gen_read_xer(cpu_gpr[gprn]);
+    gen_read_xer(ctx, cpu_gpr[gprn]);
 }
 
 static void spr_write_xer (DisasContext *ctx, int sprn, int gprn)
@@ -740,10 +740,22 @@ static void gen_spr_ne_601 (CPUPPCState *env)
                  &spr_read_decr, &spr_write_decr,
                  0x00000000);
     /* Memory management */
-    spr_register(env, SPR_SDR1, "SDR1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_sdr1,
-                 0x00000000);
+#ifndef CONFIG_USER_ONLY
+    if (env->has_hv_mode) {
+        /* SDR1 is a hypervisor resource on CPUs which have a
+         * hypervisor mode */
+        spr_register_hv(env, SPR_SDR1, "SDR1",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_sdr1,
+                        0x00000000);
+    } else {
+        spr_register(env, SPR_SDR1, "SDR1",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_sdr1,
+                     0x00000000);
+    }
+#endif
 }
 
 /* BATs 0-3 */
@@ -8835,17 +8847,13 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-
-void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
-{
-    cpu->vhyp = vhyp;
-}
-
-void cpu_ppc_set_papr(PowerPCCPU *cpu)
+void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
 {
     CPUPPCState *env = &cpu->env;
     ppc_spr_t *lpcr = &env->spr_cb[SPR_LPCR];
     ppc_spr_t *amor = &env->spr_cb[SPR_AMOR];
+
+    cpu->vhyp = vhyp;
 
     /* PAPR always has exception vectors in RAM not ROM. To ensure this,
      * MSR[IP] should never be set.
@@ -10489,11 +10497,12 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #else
     cc->get_phys_page_debug = ppc_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_ppc_cpu;
-#if defined(TARGET_PPC64)
-    cc->write_elf64_note = ppc64_cpu_write_elf64_note;
-#endif
 #endif
     cc->cpu_exec_enter = ppc_cpu_exec_enter;
+#if defined(CONFIG_SOFTMMU)
+    cc->write_elf64_note = ppc64_cpu_write_elf64_note;
+    cc->write_elf32_note = ppc32_cpu_write_elf32_note;
+#endif
 
     cc->gdb_num_core_regs = 71;
 
