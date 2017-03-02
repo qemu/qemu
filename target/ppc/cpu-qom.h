@@ -80,22 +80,22 @@ enum powerpc_mmu_t {
     POWERPC_MMU_2_06       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
                              | POWERPC_MMU_64K
                              | POWERPC_MMU_AMR | 0x00000003,
-    /* Architecture 2.06 "degraded" (no 1T segments)           */
-    POWERPC_MMU_2_06a      = POWERPC_MMU_64 | POWERPC_MMU_AMR
-                             | 0x00000003,
     /* Architecture 2.07 variant                               */
     POWERPC_MMU_2_07       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
                              | POWERPC_MMU_64K
                              | POWERPC_MMU_AMR | 0x00000004,
-    /* Architecture 2.07 "degraded" (no 1T segments)           */
-    POWERPC_MMU_2_07a      = POWERPC_MMU_64 | POWERPC_MMU_AMR
-                             | 0x00000004,
     /* Architecture 3.00 variant                               */
     POWERPC_MMU_3_00       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
                              | POWERPC_MMU_64K
                              | POWERPC_MMU_AMR | POWERPC_MMU_V3
                              | 0x00000005,
 };
+#define POWERPC_MMU_VER(x) ((x) & (POWERPC_MMU_64 | 0xFFFF))
+#define POWERPC_MMU_VER_64B POWERPC_MMU_VER(POWERPC_MMU_64B)
+#define POWERPC_MMU_VER_2_03 POWERPC_MMU_VER(POWERPC_MMU_2_03)
+#define POWERPC_MMU_VER_2_06 POWERPC_MMU_VER(POWERPC_MMU_2_06)
+#define POWERPC_MMU_VER_2_07 POWERPC_MMU_VER(POWERPC_MMU_2_07)
+#define POWERPC_MMU_VER_3_00 POWERPC_MMU_VER(POWERPC_MMU_3_00)
 
 /*****************************************************************************/
 /* Exception model                                                           */

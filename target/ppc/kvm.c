@@ -283,8 +283,8 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
             info->flags |= KVM_PPC_1T_SEGMENTS;
         }
 
-        if (env->mmu_model == POWERPC_MMU_2_06 ||
-            env->mmu_model == POWERPC_MMU_2_07) {
+        if (POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_06 ||
+           POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_07) {
             info->slb_size = 32;
         } else {
             info->slb_size = 64;
@@ -298,8 +298,8 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
         i++;
 
         /* 64K on MMU 2.06 and later */
-        if (env->mmu_model == POWERPC_MMU_2_06 ||
-            env->mmu_model == POWERPC_MMU_2_07) {
+        if (POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_06 ||
+            POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_07) {
             info->sps[i].page_shift = 16;
             info->sps[i].slb_enc = 0x110;
             info->sps[i].enc[0].page_shift = 16;

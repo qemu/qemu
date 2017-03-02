@@ -407,18 +407,16 @@ static void spapr_populate_pa_features(CPUPPCState *env, void *fdt, int offset)
     uint8_t *pa_features;
     size_t pa_size;
 
-    switch (env->mmu_model) {
-    case POWERPC_MMU_2_06:
-    case POWERPC_MMU_2_06a:
+    switch (POWERPC_MMU_VER(env->mmu_model)) {
+    case POWERPC_MMU_VER_2_06:
         pa_features = pa_features_206;
         pa_size = sizeof(pa_features_206);
         break;
-    case POWERPC_MMU_2_07:
-    case POWERPC_MMU_2_07a:
+    case POWERPC_MMU_VER_2_07:
         pa_features = pa_features_207;
         pa_size = sizeof(pa_features_207);
         break;
-    case POWERPC_MMU_3_00:
+    case POWERPC_MMU_VER_3_00:
         pa_features = pa_features_300;
         pa_size = sizeof(pa_features_300);
         break;

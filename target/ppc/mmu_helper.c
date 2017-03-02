@@ -1266,7 +1266,7 @@ static void mmu6xx_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
 {
-    switch (env->mmu_model) {
+    switch (POWERPC_MMU_VER(env->mmu_model)) {
     case POWERPC_MMU_BOOKE:
         mmubooke_dump_mmu(f, cpu_fprintf, env);
         break;
@@ -1278,15 +1278,13 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
         mmu6xx_dump_mmu(f, cpu_fprintf, env);
         break;
 #if defined(TARGET_PPC64)
-    case POWERPC_MMU_64B:
-    case POWERPC_MMU_2_03:
-    case POWERPC_MMU_2_06:
-    case POWERPC_MMU_2_06a:
-    case POWERPC_MMU_2_07:
-    case POWERPC_MMU_2_07a:
+    case POWERPC_MMU_VER_64B:
+    case POWERPC_MMU_VER_2_03:
+    case POWERPC_MMU_VER_2_06:
+    case POWERPC_MMU_VER_2_07:
         dump_slb(f, cpu_fprintf, ppc_env_get_cpu(env));
         break;
-    case POWERPC_MMU_3_00:
+    case POWERPC_MMU_VER_3_00:
         if (ppc64_radix_guest(ppc_env_get_cpu(env))) {
             /* TODO - Unsupported */
         } else {
@@ -1425,16 +1423,14 @@ hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     CPUPPCState *env = &cpu->env;
     mmu_ctx_t ctx;
 
-    switch (env->mmu_model) {
+    switch (POWERPC_MMU_VER(env->mmu_model)) {
 #if defined(TARGET_PPC64)
-    case POWERPC_MMU_64B:
-    case POWERPC_MMU_2_03:
-    case POWERPC_MMU_2_06:
-    case POWERPC_MMU_2_06a:
-    case POWERPC_MMU_2_07:
-    case POWERPC_MMU_2_07a:
+    case POWERPC_MMU_VER_64B:
+    case POWERPC_MMU_VER_2_03:
+    case POWERPC_MMU_VER_2_06:
+    case POWERPC_MMU_VER_2_07:
         return ppc_hash64_get_phys_page_debug(cpu, addr);
-    case POWERPC_MMU_3_00:
+    case POWERPC_MMU_VER_3_00:
         if (ppc64_radix_guest(ppc_env_get_cpu(env))) {
             /* TODO - Unsupported */
         } else {
@@ -1924,6 +1920,12 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
 
+#if defined(TARGET_PPC64)
+    if (env->mmu_model & POWERPC_MMU_64) {
+        env->tlb_need_flush = 0;
+        tlb_flush(CPU(cpu));
+    } else
+#endif /* defined(TARGET_PPC64) */
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
@@ -1948,21 +1950,12 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
-#if defined(TARGET_PPC64)
-    case POWERPC_MMU_64B:
-    case POWERPC_MMU_2_03:
-    case POWERPC_MMU_2_06:
-    case POWERPC_MMU_2_06a:
-    case POWERPC_MMU_2_07:
-    case POWERPC_MMU_2_07a:
-    case POWERPC_MMU_3_00:
-#endif /* defined(TARGET_PPC64) */
         env->tlb_need_flush = 0;
         tlb_flush(CPU(cpu));
         break;
     default:
         /* XXX: TODO */
-        cpu_abort(CPU(cpu), "Unknown MMU model %d\n", env->mmu_model);
+        cpu_abort(CPU(cpu), "Unknown MMU model %x\n", env->mmu_model);
         break;
     }
 }
@@ -1971,6 +1964,16 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 {
 #if !defined(FLUSH_ALL_TLBS)
     addr &= TARGET_PAGE_MASK;
+#if defined(TARGET_PPC64)
+    if (env->mmu_model & POWERPC_MMU_64) {
+        /* tlbie invalidate TLBs for all segments */
+        /* XXX: given the fact that there are too many segments to invalidate,
+         *      and we still don't have a tlb_flush_mask(env, n, mask) in QEMU,
+         *      we just invalidate all TLBs
+         */
+        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
+    } else
+#endif /* defined(TARGET_PPC64) */
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
@@ -1988,22 +1991,6 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
          */
         env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
         break;
-#if defined(TARGET_PPC64)
-    case POWERPC_MMU_64B:
-    case POWERPC_MMU_2_03:
-    case POWERPC_MMU_2_06:
-    case POWERPC_MMU_2_06a:
-    case POWERPC_MMU_2_07:
-    case POWERPC_MMU_2_07a:
-    case POWERPC_MMU_3_00:
-        /* tlbie invalidate TLBs for all segments */
-        /* XXX: given the fact that there are too many segments to invalidate,
-         *      and we still don't have a tlb_flush_mask(env, n, mask) in QEMU,
-         *      we just invalidate all TLBs
-         */
-        env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
-        break;
-#endif /* defined(TARGET_PPC64) */
     default:
         /* Should never reach here with other MMU models */
         assert(0);
