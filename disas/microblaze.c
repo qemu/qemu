@@ -748,9 +748,11 @@ read_insn_microblaze (bfd_vma memaddr,
     }
 
   if (info->endian == BFD_ENDIAN_BIG)
-    inst = (ibytes[0] << 24) | (ibytes[1] << 16) | (ibytes[2] << 8) | ibytes[3];
+    inst = ((unsigned)ibytes[0] << 24) | (ibytes[1] << 16)
+      | (ibytes[2] << 8) | ibytes[3];
   else if (info->endian == BFD_ENDIAN_LITTLE)
-    inst = (ibytes[3] << 24) | (ibytes[2] << 16) | (ibytes[1] << 8) | ibytes[0];
+    inst = ((unsigned)ibytes[3] << 24) | (ibytes[2] << 16)
+      | (ibytes[1] << 8) | ibytes[0];
   else
     abort ();
 
