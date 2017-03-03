@@ -123,6 +123,7 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     int64List *res = NULL;
     int64List *tail;
     Visitor *v;
+    int64_t val;
 
     /* Valid lists */
 
@@ -172,6 +173,21 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
 
     visit_check_list(v, &err);
     error_free_or_abort(&err);
+    visit_end_list(v, (void **)&res);
+
+    qapi_free_int64List(res);
+
+    /* Visit beyond end of list */
+    v = visitor_input_test_init(data, "0");
+
+    visit_start_list(v, NULL, (GenericList **)&res, sizeof(*res),
+                     &error_abort);
+    tail = res;
+    visit_type_int64(v, NULL, &tail->value, &err);
+    g_assert_cmpint(tail->value, ==, 0);
+    visit_type_int64(v, NULL, &val, &err);
+    g_assert_cmpint(val, ==, 1); /* BUG */
+    visit_check_list(v, &error_abort);
     visit_end_list(v, (void **)&res);
 
     qapi_free_int64List(res);
