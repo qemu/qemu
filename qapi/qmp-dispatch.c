@@ -30,7 +30,7 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 
     dict = qobject_to_qdict(request);
     if (!dict) {
-        error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT, "object");
+        error_setg(errp, "Expected '%s' in QMP input", "object");
         return NULL;
     }
 
@@ -41,25 +41,26 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 
         if (!strcmp(arg_name, "execute")) {
             if (qobject_type(arg_obj) != QTYPE_QSTRING) {
-                error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER, "execute",
-                           "string");
+                error_setg(errp, "QMP input object member '%s' expects '%s'",
+                           "execute", "string");
                 return NULL;
             }
             has_exec_key = true;
         } else if (!strcmp(arg_name, "arguments")) {
             if (qobject_type(arg_obj) != QTYPE_QDICT) {
-                error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
+                error_setg(errp, "QMP input object member '%s' expects '%s'",
                            "arguments", "object");
                 return NULL;
             }
         } else {
-            error_setg(errp, QERR_QMP_EXTRA_MEMBER, arg_name);
+            error_setg(errp, "QMP input object member '%s' is unexpected",
+                       arg_name);
             return NULL;
         }
     }
 
     if (!has_exec_key) {
-        error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT, "execute");
+        error_setg(errp, "Expected '%s' in QMP input", "execute");
         return NULL;
     }
 

@@ -140,7 +140,8 @@ static void qobject_input_check_struct(Visitor *v, Error **errp)
 
             g_hash_table_iter_init(&iter, top_ht);
             if (g_hash_table_iter_next(&iter, (void **)&key, NULL)) {
-                error_setg(errp, QERR_QMP_EXTRA_MEMBER, key);
+                error_setg(errp, "QMP input object member '%s' is unexpected",
+                           key);
             }
         }
     }
