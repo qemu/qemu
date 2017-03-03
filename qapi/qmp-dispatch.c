@@ -67,7 +67,8 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
     return dict;
 }
 
-static QObject *do_qmp_dispatch(QObject *request, Error **errp)
+static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
+                                Error **errp)
 {
     Error *local_err = NULL;
     const char *command;
@@ -81,7 +82,7 @@ static QObject *do_qmp_dispatch(QObject *request, Error **errp)
     }
 
     command = qdict_get_str(dict, "execute");
-    cmd = qmp_find_command(command);
+    cmd = qmp_find_command(cmds, command);
     if (cmd == NULL) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "The command %s has not been found", command);
@@ -121,13 +122,13 @@ QObject *qmp_build_error_object(Error *err)
                               error_get_pretty(err));
 }
 
-QObject *qmp_dispatch(QObject *request)
+QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request)
 {
     Error *err = NULL;
     QObject *ret;
     QDict *rsp;
 
-    ret = do_qmp_dispatch(request, &err);
+    ret = do_qmp_dispatch(cmds, request, &err);
 
     rsp = qdict_new();
     if (err) {

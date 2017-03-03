@@ -221,6 +221,8 @@ static int mon_refcount;
 static mon_cmd_t mon_cmds[];
 static mon_cmd_t info_cmds[];
 
+QmpCommandList qmp_commands;
+
 Monitor *cur_mon;
 
 static QEMUClockType event_clock_type = QEMU_CLOCK_REALTIME;
@@ -919,7 +921,7 @@ CommandInfoList *qmp_query_commands(Error **errp)
 {
     CommandInfoList *list = NULL;
 
-    qmp_for_each_command(query_commands_cb, &list);
+    qmp_for_each_command(&qmp_commands, query_commands_cb, &list);
 
     return list;
 }
@@ -973,39 +975,40 @@ static void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
 static void qmp_unregister_commands_hack(void)
 {
 #ifndef CONFIG_SPICE
-    qmp_unregister_command("query-spice");
+    qmp_unregister_command(&qmp_commands, "query-spice");
 #endif
 #ifndef TARGET_I386
-    qmp_unregister_command("rtc-reset-reinjection");
+    qmp_unregister_command(&qmp_commands, "rtc-reset-reinjection");
 #endif
 #ifndef TARGET_S390X
-    qmp_unregister_command("dump-skeys");
+    qmp_unregister_command(&qmp_commands, "dump-skeys");
 #endif
 #ifndef TARGET_ARM
-    qmp_unregister_command("query-gic-capabilities");
+    qmp_unregister_command(&qmp_commands, "query-gic-capabilities");
 #endif
 #if !defined(TARGET_S390X) && !defined(TARGET_I386)
-    qmp_unregister_command("query-cpu-model-expansion");
+    qmp_unregister_command(&qmp_commands, "query-cpu-model-expansion");
 #endif
 #if !defined(TARGET_S390X)
-    qmp_unregister_command("query-cpu-model-baseline");
-    qmp_unregister_command("query-cpu-model-comparison");
+    qmp_unregister_command(&qmp_commands, "query-cpu-model-baseline");
+    qmp_unregister_command(&qmp_commands, "query-cpu-model-comparison");
 #endif
 #if !defined(TARGET_PPC) && !defined(TARGET_ARM) && !defined(TARGET_I386) \
     && !defined(TARGET_S390X)
-    qmp_unregister_command("query-cpu-definitions");
+    qmp_unregister_command(&qmp_commands, "query-cpu-definitions");
 #endif
 }
 
 void monitor_init_qmp_commands(void)
 {
-    qmp_init_marshal();
+    qmp_init_marshal(&qmp_commands);
 
-    qmp_register_command("query-qmp-schema", qmp_query_qmp_schema,
+    qmp_register_command(&qmp_commands, "query-qmp-schema",
+                         qmp_query_qmp_schema,
                          QCO_NO_OPTIONS);
-    qmp_register_command("device_add", qmp_device_add,
+    qmp_register_command(&qmp_commands, "device_add", qmp_device_add,
                          QCO_NO_OPTIONS);
-    qmp_register_command("netdev_add", qmp_netdev_add,
+    qmp_register_command(&qmp_commands, "netdev_add", qmp_netdev_add,
                          QCO_NO_OPTIONS);
 
     qmp_unregister_commands_hack();
@@ -3787,7 +3790,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err_out;
     }
 
-    rsp = qmp_dispatch(req);
+    rsp = qmp_dispatch(&qmp_commands, req);
 
 err_out:
     if (err) {

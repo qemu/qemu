@@ -92,6 +92,7 @@ struct GAState {
 };
 
 struct GAState *ga_state;
+QmpCommandList ga_commands;
 
 /* commands that are safe to issue while filesystems are frozen */
 static const char *ga_freeze_whitelist[] = {
@@ -370,7 +371,7 @@ static void ga_disable_non_whitelisted(QmpCommand *cmd, void *opaque)
     }
     if (!whitelisted) {
         g_debug("disabling command: %s", name);
-        qmp_disable_command(name);
+        qmp_disable_command(&ga_commands, name);
     }
 }
 
@@ -383,7 +384,7 @@ static void ga_enable_non_blacklisted(QmpCommand *cmd, void *opaque)
     if (g_list_find_custom(blacklist, name, ga_strcmp) == NULL &&
         !qmp_command_is_enabled(cmd)) {
         g_debug("enabling command: %s", name);
-        qmp_enable_command(name);
+        qmp_enable_command(&ga_commands, name);
     }
 }
 
@@ -420,7 +421,7 @@ void ga_set_frozen(GAState *s)
         return;
     }
     /* disable all non-whitelisted (for frozen state) commands */
-    qmp_for_each_command(ga_disable_non_whitelisted, NULL);
+    qmp_for_each_command(&ga_commands, ga_disable_non_whitelisted, NULL);
     g_warning("disabling logging due to filesystem freeze");
     ga_disable_logging(s);
     s->frozen = true;
@@ -456,7 +457,7 @@ void ga_unset_frozen(GAState *s)
     }
 
     /* enable all disabled, non-blacklisted commands */
-    qmp_for_each_command(ga_enable_non_blacklisted, s->blacklist);
+    qmp_for_each_command(&ga_commands, ga_enable_non_blacklisted, s->blacklist);
     s->frozen = false;
     if (!ga_delete_file(s->state_filepath_isfrozen)) {
         g_warning("unable to delete %s, fsfreeze may not function properly",
@@ -555,7 +556,7 @@ static void process_command(GAState *s, QDict *req)
 
     g_assert(req);
     g_debug("processing command");
-    rsp = qmp_dispatch(QOBJECT(req));
+    rsp = qmp_dispatch(&ga_commands, QOBJECT(req));
     if (rsp) {
         ret = send_response(s, rsp);
         if (ret < 0) {
@@ -1119,7 +1120,7 @@ static void config_parse(GAConfig *config, int argc, char **argv)
             break;
         case 'b': {
             if (is_help_option(optarg)) {
-                qmp_for_each_command(ga_print_cmd, NULL);
+                qmp_for_each_command(&ga_commands, ga_print_cmd, NULL);
                 exit(EXIT_SUCCESS);
             }
             config->blacklist = g_list_concat(config->blacklist,
@@ -1247,7 +1248,7 @@ static int run_agent(GAState *s, GAConfig *config)
             s->deferred_options.log_filepath = config->log_filepath;
         }
         ga_disable_logging(s);
-        qmp_for_each_command(ga_disable_non_whitelisted, NULL);
+        qmp_for_each_command(&ga_commands, ga_disable_non_whitelisted, NULL);
     } else {
         if (config->daemonize) {
             become_daemon(config->pid_filepath);
@@ -1277,7 +1278,7 @@ static int run_agent(GAState *s, GAConfig *config)
         s->blacklist = config->blacklist;
         do {
             g_debug("disabling command: %s", (char *)l->data);
-            qmp_disable_command(l->data);
+            qmp_disable_command(&ga_commands, l->data);
             l = g_list_next(l);
         } while (l);
     }
@@ -1321,7 +1322,7 @@ int main(int argc, char **argv)
 
     config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
-    qmp_init_marshal();
+    qga_qmp_init_marshal(&ga_commands);
 
     init_dfl_pathnames();
     config_load(config);
