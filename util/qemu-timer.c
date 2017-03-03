@@ -199,7 +199,7 @@ bool timerlist_expired(QEMUTimerList *timer_list)
     expire_time = timer_list->active_timers->expire_time;
     qemu_mutex_unlock(&timer_list->active_timers_lock);
 
-    return expire_time < qemu_clock_get_ns(timer_list->clock->type);
+    return expire_time <= qemu_clock_get_ns(timer_list->clock->type);
 }
 
 bool qemu_clock_expired(QEMUClockType type)
