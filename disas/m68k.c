@@ -4685,10 +4685,11 @@ get_field (const unsigned char *data, enum floatformat_byteorders order,
 	/* This is the last byte; zero out the bits which are not part of
 	   this field.  */
 	result |=
-	  (*(data + cur_byte) & ((1 << (len - cur_bitshift)) - 1))
+	  (unsigned long)(*(data + cur_byte)
+			  & ((1 << (len - cur_bitshift)) - 1))
 	    << cur_bitshift;
       else
-	result |= *(data + cur_byte) << cur_bitshift;
+	result |= (unsigned long)*(data + cur_byte) << cur_bitshift;
       cur_bitshift += FLOATFORMAT_CHAR_BIT;
       if (order == floatformat_little)
 	++cur_byte;
