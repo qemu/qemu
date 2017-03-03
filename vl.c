@@ -1888,17 +1888,14 @@ static bool main_loop_should_exit(void)
 
 static void main_loop(void)
 {
-    bool nonblocking;
-    int last_io = 0;
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
     do {
-        nonblocking = tcg_enabled() && last_io > 0;
 #ifdef CONFIG_PROFILER
         ti = profile_getclock();
 #endif
-        last_io = main_loop_wait(nonblocking);
+        main_loop_wait(false);
 #ifdef CONFIG_PROFILER
         dev_time += profile_getclock() - ti;
 #endif
