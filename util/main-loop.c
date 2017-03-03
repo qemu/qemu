@@ -144,7 +144,7 @@ int qemu_init_main_loop(Error **errp)
     GSource *src;
     Error *local_error = NULL;
 
-    init_clocks();
+    init_clocks(qemu_timer_notify_cb);
 
     ret = qemu_signal_init();
     if (ret) {

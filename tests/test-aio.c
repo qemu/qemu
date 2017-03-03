@@ -835,7 +835,7 @@ int main(int argc, char **argv)
     Error *local_error = NULL;
     GSource *src;
 
-    init_clocks();
+    init_clocks(NULL);
 
     ctx = aio_context_new(&local_error);
     if (!ctx) {

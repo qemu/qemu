@@ -59,7 +59,7 @@ struct QEMUTimerListGroup {
 };
 
 typedef void QEMUTimerCB(void *opaque);
-typedef void QEMUTimerListNotifyCB(void *opaque);
+typedef void QEMUTimerListNotifyCB(void *opaque, QEMUClockType type);
 
 struct QEMUTimer {
     int64_t expire_time;        /* in nanoseconds */
@@ -776,7 +776,7 @@ static inline int64_t qemu_soonest_timeout(int64_t timeout1, int64_t timeout2)
  *
  * Initialise the clock & timer infrastructure
  */
-void init_clocks(void);
+void init_clocks(QEMUTimerListNotifyCB *notify_cb);
 
 int64_t cpu_get_ticks(void);
 /* Caller must hold BQL */

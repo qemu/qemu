@@ -800,6 +800,11 @@ static void qemu_cpu_kick_rr_cpu(void)
     } while (cpu != atomic_mb_read(&tcg_current_rr_cpu));
 }
 
+void qemu_timer_notify_cb(void *opaque, QEMUClockType type)
+{
+    qemu_notify_event();
+}
+
 static void kick_tcg_thread(void *opaque)
 {
     timer_mod(tcg_kick_vcpu_timer, qemu_tcg_next_kick());

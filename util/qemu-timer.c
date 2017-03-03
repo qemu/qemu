@@ -122,7 +122,7 @@ void timerlist_free(QEMUTimerList *timer_list)
     g_free(timer_list);
 }
 
-static void qemu_clock_init(QEMUClockType type)
+static void qemu_clock_init(QEMUClockType type, QEMUTimerListNotifyCB *notify_cb)
 {
     QEMUClock *clock = qemu_clock_ptr(type);
 
@@ -134,7 +134,7 @@ static void qemu_clock_init(QEMUClockType type)
     clock->last = INT64_MIN;
     QLIST_INIT(&clock->timerlists);
     notifier_list_init(&clock->reset_notifiers);
-    main_loop_tlg.tl[type] = timerlist_new(type, NULL, NULL);
+    main_loop_tlg.tl[type] = timerlist_new(type, notify_cb, NULL);
 }
 
 bool qemu_clock_use_for_deadline(QEMUClockType type)
@@ -278,7 +278,7 @@ QEMUTimerList *qemu_clock_get_main_loop_timerlist(QEMUClockType type)
 void timerlist_notify(QEMUTimerList *timer_list)
 {
     if (timer_list->notify_cb) {
-        timer_list->notify_cb(timer_list->notify_opaque);
+        timer_list->notify_cb(timer_list->notify_opaque, timer_list->clock->type);
     } else {
         qemu_notify_event();
     }
@@ -635,11 +635,11 @@ void qemu_clock_unregister_reset_notifier(QEMUClockType type,
     notifier_remove(notifier);
 }
 
-void init_clocks(void)
+void init_clocks(QEMUTimerListNotifyCB *notify_cb)
 {
     QEMUClockType type;
     for (type = 0; type < QEMU_CLOCK_MAX; type++) {
-        qemu_clock_init(type);
+        qemu_clock_init(type, notify_cb);
     }
 
 #ifdef CONFIG_PRCTL_PR_SET_TIMERSLACK

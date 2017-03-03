@@ -22,6 +22,7 @@ void dump_drift_info(FILE *f, fprintf_function cpu_fprintf);
 
 /* Unblock cpu */
 void qemu_cpu_kick_self(void);
+void qemu_timer_notify_cb(void *opaque, QEMUClockType type);
 
 void cpu_synchronize_all_states(void);
 void cpu_synchronize_all_post_reset(void);
