@@ -66,12 +66,6 @@
  * object, @name is the key associated with the value; and when
  * visiting a member of a list, @name is NULL.
  *
- * FIXME: Clients must pass NULL for @name when visiting a member of a
- * list, but this leads to poor error messages; it might be nicer to
- * require a non-NULL name such as "key.0" for '{ "key": [ "value" ]
- * }' if an error is encountered on "value" (or to have the visitor
- * core auto-generate the nicer name).
- *
  * The visit_type_FOO() functions expect a non-null @obj argument;
  * they allocate *@obj during input visits, leave it unchanged on
  * output visits, and recursively free any resources during a dealloc
