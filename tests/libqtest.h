@@ -32,6 +32,14 @@ extern QTestState *global_qtest;
 QTestState *qtest_init(const char *extra_args);
 
 /**
+ * qtest_init_without_qmp_handshake:
+ * @extra_args: other arguments to pass to QEMU.
+ *
+ * Returns: #QTestState instance.
+ */
+QTestState *qtest_init_without_qmp_handshake(const char *extra_args);
+
+/**
  * qtest_quit:
  * @s: #QTestState instance to operate on.
  *
