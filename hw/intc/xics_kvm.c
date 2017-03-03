@@ -102,7 +102,7 @@ static int icp_set_kvm_state(ICPState *icp, int version_id)
     return 0;
 }
 
-static void icp_kvm_reset(DeviceState *dev)
+static void icp_kvm_reset(void *dev)
 {
     ICPState *icp = ICP(dev);
 
@@ -146,12 +146,17 @@ static void icp_kvm_cpu_setup(ICPState *icp, PowerPCCPU *cpu)
     icp->cap_irq_xics_enabled = true;
 }
 
+static void icp_kvm_realize(DeviceState *dev, Error **errp)
+{
+    qemu_register_reset(icp_kvm_reset, dev);
+}
+
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICPStateClass *icpc = ICP_CLASS(klass);
 
-    dc->reset = icp_kvm_reset;
+    dc->realize = icp_kvm_realize;
     icpc->pre_save = icp_get_kvm_state;
     icpc->post_load = icp_set_kvm_state;
     icpc->cpu_setup = icp_kvm_cpu_setup;
@@ -293,7 +298,7 @@ static void ics_kvm_set_irq(void *opaque, int srcno, int val)
     }
 }
 
-static void ics_kvm_reset(DeviceState *dev)
+static void ics_kvm_reset(void *dev)
 {
     ICSState *ics = ICS_SIMPLE(dev);
     int i;
@@ -324,15 +329,15 @@ static void ics_kvm_realize(DeviceState *dev, Error **errp)
     }
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
     ics->qirqs = qemu_allocate_irqs(ics_kvm_set_irq, ics, ics->nr_irqs);
+
+    qemu_register_reset(ics_kvm_reset, dev);
 }
 
 static void ics_kvm_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     ICSStateClass *icsc = ICS_BASE_CLASS(klass);
 
     icsc->realize = ics_kvm_realize;
-    dc->reset = ics_kvm_reset;
     icsc->pre_save = ics_get_kvm_state;
     icsc->post_load = ics_set_kvm_state;
 }

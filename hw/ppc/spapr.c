@@ -106,7 +106,6 @@ static int try_create_xics(sPAPRMachineState *spapr, const char *type_ics,
     int i;
 
     ics = ICS_SIMPLE(object_new(type_ics));
-    qdev_set_parent_bus(DEVICE(ics), sysbus_get_default());
     object_property_add_child(OBJECT(spapr), "ics", OBJECT(ics), NULL);
     object_property_set_int(OBJECT(ics), nr_irqs, "nr-irqs", &err);
     object_property_add_const_link(OBJECT(ics), "xics", OBJECT(xi), NULL);
@@ -123,7 +122,6 @@ static int try_create_xics(sPAPRMachineState *spapr, const char *type_ics,
         ICPState *icp = &spapr->icps[i];
 
         object_initialize(icp, sizeof(*icp), type_icp);
-        qdev_set_parent_bus(DEVICE(icp), sysbus_get_default());
         object_property_add_child(OBJECT(spapr), "icp[*]", OBJECT(icp), NULL);
         object_property_add_const_link(OBJECT(icp), "xics", OBJECT(xi), NULL);
         object_property_set_bool(OBJECT(icp), true, "realized", &err);
