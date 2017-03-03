@@ -21,7 +21,6 @@ typedef struct sPAPREventSource sPAPREventSource;
 #define SPAPR_TIMEBASE_FREQ     512000000ULL
 
 typedef struct sPAPRMachineClass sPAPRMachineClass;
-typedef struct sPAPRMachineState sPAPRMachineState;
 
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
 #define SPAPR_MACHINE(obj) \

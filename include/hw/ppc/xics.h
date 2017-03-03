@@ -139,9 +139,9 @@ struct ICSIRQState {
     uint8_t flags;
 };
 
-typedef struct XICSFabric {
+struct XICSFabric {
     Object parent;
-} XICSFabric;
+};
 
 #define TYPE_XICS_FABRIC "xics-fabric"
 #define XICS_FABRIC(obj)                                     \
