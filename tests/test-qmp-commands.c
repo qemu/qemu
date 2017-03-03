@@ -273,7 +273,7 @@ int main(int argc, char **argv)
     g_test_add_func("/0.15/dealloc_types", test_dealloc_types);
     g_test_add_func("/0.15/dealloc_partial", test_dealloc_partial);
 
-    module_call_init(MODULE_INIT_QAPI);
+    qmp_init_marshal();
     g_test_run();
 
     return 0;

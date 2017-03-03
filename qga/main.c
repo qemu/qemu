@@ -1321,7 +1321,7 @@ int main(int argc, char **argv)
 
     config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
-    module_call_init(MODULE_INIT_QAPI);
+    qmp_init_marshal();
 
     init_dfl_pathnames();
     config_load(config);

@@ -997,8 +997,10 @@ static void qmp_unregister_commands_hack(void)
 #endif
 }
 
-static void qmp_init_marshal(void)
+void monitor_init_qmp_commands(void)
 {
+    qmp_init_marshal();
+
     qmp_register_command("query-qmp-schema", qmp_query_qmp_schema,
                          QCO_NO_OPTIONS);
     qmp_register_command("device_add", qmp_device_add,
@@ -1006,11 +1008,8 @@ static void qmp_init_marshal(void)
     qmp_register_command("netdev_add", qmp_netdev_add,
                          QCO_NO_OPTIONS);
 
-    /* call it after the rest of qapi_init() */
-    register_module_init(qmp_unregister_commands_hack, MODULE_INIT_QAPI);
+    qmp_unregister_commands_hack();
 }
-
-qapi_init(qmp_init_marshal);
 
 /* set the current CPU defined by the user */
 int monitor_set_cpu(int cpu_index)

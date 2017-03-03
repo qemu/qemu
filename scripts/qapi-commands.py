@@ -208,14 +208,12 @@ def gen_register_command(name, success_response):
 def gen_registry(registry):
     ret = mcgen('''
 
-static void qmp_init_marshal(void)
+void qmp_init_marshal(void)
 {
 ''')
     ret += registry
     ret += mcgen('''
 }
-
-qapi_init(qmp_init_marshal);
 ''')
     return ret
 
@@ -308,6 +306,7 @@ fdecl.write(mcgen('''
 #include "qapi/qmp/qdict.h"
 #include "qapi/error.h"
 
+void qmp_init_marshal(void);
 ''',
                   prefix=prefix))
 
