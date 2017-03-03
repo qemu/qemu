@@ -39,6 +39,8 @@ static
 Visitor *visitor_input_test_init(TestInputVisitorData *data,
                                  const char *string)
 {
+    visitor_input_teardown(data, NULL);
+
     data->v = string_input_visitor_new(string);
     g_assert(data->v);
     return data->v;
@@ -56,8 +58,6 @@ static void test_visitor_in_int(TestInputVisitorData *data,
     visit_type_int(v, NULL, &res, &err);
     g_assert(!err);
     g_assert_cmpint(res, ==, value);
-
-    visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "not an int");
 
@@ -87,8 +87,6 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
 
     qapi_free_int16List(res);
 
-    visitor_input_teardown(data, unused);
-
     v = visitor_input_test_init(data, "not an int list");
 
     visit_type_int16List(v, NULL, &res, &err);
@@ -108,35 +106,30 @@ static void test_visitor_in_bool(TestInputVisitorData *data,
     visit_type_bool(v, NULL, &res, &err);
     g_assert(!err);
     g_assert_cmpint(res, ==, true);
-    visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "yes");
 
     visit_type_bool(v, NULL, &res, &err);
     g_assert(!err);
     g_assert_cmpint(res, ==, true);
-    visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "on");
 
     visit_type_bool(v, NULL, &res, &err);
     g_assert(!err);
     g_assert_cmpint(res, ==, true);
-    visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "false");
 
     visit_type_bool(v, NULL, &res, &err);
     g_assert(!err);
     g_assert_cmpint(res, ==, false);
-    visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "no");
 
     visit_type_bool(v, NULL, &res, &err);
     g_assert(!err);
     g_assert_cmpint(res, ==, false);
-    visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "off");
 
@@ -190,8 +183,6 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
         visit_type_EnumOne(v, NULL, &res, &err);
         g_assert(!err);
         g_assert_cmpint(i, ==, res);
-
-        visitor_input_teardown(data, NULL);
     }
 }
 
@@ -224,30 +215,24 @@ static void test_visitor_in_fuzz(TestInputVisitorData *data,
 
         v = visitor_input_test_init(data, buf);
         visit_type_int(v, NULL, &ires, NULL);
-        visitor_input_teardown(data, NULL);
 
         v = visitor_input_test_init(data, buf);
         visit_type_intList(v, NULL, &ilres, NULL);
         qapi_free_intList(ilres);
-        visitor_input_teardown(data, NULL);
 
         v = visitor_input_test_init(data, buf);
         visit_type_bool(v, NULL, &bres, NULL);
-        visitor_input_teardown(data, NULL);
 
         v = visitor_input_test_init(data, buf);
         visit_type_number(v, NULL, &nres, NULL);
-        visitor_input_teardown(data, NULL);
 
         v = visitor_input_test_init(data, buf);
         sres = NULL;
         visit_type_str(v, NULL, &sres, NULL);
         g_free(sres);
-        visitor_input_teardown(data, NULL);
 
         v = visitor_input_test_init(data, buf);
         visit_type_EnumOne(v, NULL, &eres, NULL);
-        visitor_input_teardown(data, NULL);
     }
 }
 
