@@ -2009,7 +2009,7 @@ print_with_operands (const struct cris_opcode *opcodep,
       case 'n':
 	{
 	  /* Like N but pc-relative to the start of the insn.  */
-	  unsigned long number
+	  uint32_t number
 	    = (buffer[2] + buffer[3] * 256 + buffer[4] * 65536
 	       + buffer[5] * 0x1000000 + addr);
 
@@ -2201,7 +2201,7 @@ print_with_operands (const struct cris_opcode *opcodep,
 		      {
 			/* It's [pc+].  This cannot possibly be anything
 			   but an address.  */
-			unsigned long number
+			uint32_t number
 			  = prefix_buffer[2] + prefix_buffer[3] * 256
 			  + prefix_buffer[4] * 65536
 			  + prefix_buffer[5] * 0x1000000;
