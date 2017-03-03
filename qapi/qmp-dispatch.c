@@ -47,7 +47,13 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
                 return NULL;
             }
             has_exec_key = true;
-        } else if (strcmp(arg_name, "arguments")) {
+        } else if (!strcmp(arg_name, "arguments")) {
+            if (qobject_type(arg_obj) != QTYPE_QDICT) {
+                error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
+                           "arguments", "object");
+                return NULL;
+            }
+        } else {
             error_setg(errp, QERR_QMP_EXTRA_MEMBER, arg_name);
             return NULL;
         }
