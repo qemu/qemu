@@ -923,6 +923,46 @@ static void test_visitor_in_fail_struct_missing(TestInputVisitorData *data,
     visit_end_struct(v, NULL);
 }
 
+static void test_visitor_in_fail_list(TestInputVisitorData *data,
+                                      const void *unused)
+{
+    int64_t i64 = -1;
+    Visitor *v;
+
+    /* Unvisited list tail */
+
+    v = visitor_input_test_init(data, "[ 1, 2, 3 ]");
+
+    visit_start_list(v, NULL, NULL, 0, &error_abort);
+    visit_type_int(v, NULL, &i64, &error_abort);
+    g_assert_cmpint(i64, ==, 1);
+    visit_type_int(v, NULL, &i64, &error_abort);
+    g_assert_cmpint(i64, ==, 2);
+    visit_end_list(v, NULL);
+    /* BUG: unvisited tail not reported; actually not reportable by design */
+}
+
+static void test_visitor_in_fail_list_nested(TestInputVisitorData *data,
+                                             const void *unused)
+{
+    int64_t i64 = -1;
+    Visitor *v;
+
+    /* Unvisited nested list tail */
+
+    v = visitor_input_test_init(data, "[ 0, [ 1, 2, 3 ] ]");
+
+    visit_start_list(v, NULL, NULL, 0, &error_abort);
+    visit_type_int(v, NULL, &i64, &error_abort);
+    g_assert_cmpint(i64, ==, 0);
+    visit_start_list(v, NULL, NULL, 0, &error_abort);
+    visit_type_int(v, NULL, &i64, &error_abort);
+    g_assert_cmpint(i64, ==, 1);
+    visit_end_list(v, NULL);
+    /* BUG: unvisited tail not reported; actually not reportable by design */
+    visit_end_list(v, NULL);
+}
+
 static void test_visitor_in_fail_union_native_list(TestInputVisitorData *data,
                                                    const void *unused)
 {
@@ -1070,6 +1110,10 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_fail_struct_in_list);
     input_visitor_test_add("/visitor/input/fail/struct-missing",
                            NULL, test_visitor_in_fail_struct_missing);
+    input_visitor_test_add("/visitor/input/fail/list",
+                           NULL, test_visitor_in_fail_list);
+    input_visitor_test_add("/visitor/input/fail/list-nested",
+                           NULL, test_visitor_in_fail_list_nested);
     input_visitor_test_add("/visitor/input/fail/union-flat",
                            NULL, test_visitor_in_fail_union_flat);
     input_visitor_test_add("/visitor/input/fail/union-flat-no-discriminator",

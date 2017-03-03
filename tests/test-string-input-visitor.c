@@ -121,6 +121,7 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     uint64_t expect4[] = { UINT64_MAX };
     Error *err = NULL;
     int64List *res = NULL;
+    int64List *tail;
     Visitor *v;
 
     /* Valid lists */
@@ -151,6 +152,27 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     visit_type_int64List(v, NULL, &res, &err);
     error_free_or_abort(&err);
     g_assert(!res);
+
+    /* Unvisited list tail */
+
+    v = visitor_input_test_init(data, "0,2-3");
+
+    /* Would be simpler if the visitor genuinely supported virtual walks */
+    visit_start_list(v, NULL, (GenericList **)&res, sizeof(*res),
+                     &error_abort);
+    tail = res;
+    visit_type_int64(v, NULL, &tail->value, &error_abort);
+    g_assert_cmpint(tail->value, ==, 0);
+    tail = (int64List *)visit_next_list(v, (GenericList *)tail, sizeof(*res));
+    g_assert(tail);
+    visit_type_int64(v, NULL, &tail->value, &error_abort);
+    g_assert_cmpint(tail->value, ==, 2);
+    tail = (int64List *)visit_next_list(v, (GenericList *)tail, sizeof(*res));
+    g_assert(tail);
+    visit_end_list(v, (void **)&res);
+    /* BUG: unvisited tail not reported; actually not reportable by design */
+
+    qapi_free_int64List(res);
 }
 
 static void test_visitor_in_bool(TestInputVisitorData *data,
