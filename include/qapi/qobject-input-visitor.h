@@ -21,10 +21,7 @@ typedef struct QObjectInputVisitor QObjectInputVisitor;
 
 /*
  * Return a new input visitor that converts a QObject to a QAPI object.
- *
- * Set @strict to reject a parse that doesn't consume all keys of a
- * dictionary; otherwise excess input is ignored.
  */
-Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
+Visitor *qobject_input_visitor_new(QObject *obj);
 
 #endif

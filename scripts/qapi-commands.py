@@ -130,7 +130,7 @@ def gen_marshal(name, arg_type, boxed, ret_type):
         push_indent()
 
     ret += mcgen('''
-    v = qobject_input_visitor_new(QOBJECT(args), true);
+    v = qobject_input_visitor_new(QOBJECT(args));
     visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
         goto out;

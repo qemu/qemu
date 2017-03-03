@@ -23,7 +23,7 @@ void object_property_set_qobject(Object *obj, QObject *value,
 {
     Visitor *v;
 
-    v = qobject_input_visitor_new(value, true);
+    v = qobject_input_visitor_new(value);
     object_property_set(obj, v, name, errp);
     visit_free(v);
 }

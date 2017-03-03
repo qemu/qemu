@@ -278,7 +278,7 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options, Error **errp)
         goto done;
     }
 
-    iv = qobject_input_visitor_new(crumpled_addr, true);
+    iv = qobject_input_visitor_new(crumpled_addr);
     visit_type_SocketAddress(iv, NULL, &saddr, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);

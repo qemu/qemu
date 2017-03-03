@@ -346,7 +346,7 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
     }
 
     if (qdict) {
-        visitor = qobject_input_visitor_new(info->props, true);
+        visitor = qobject_input_visitor_new(info->props);
         visit_start_struct(visitor, NULL, NULL, 0, errp);
         if (*errp) {
             object_unref(obj);

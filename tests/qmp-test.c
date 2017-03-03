@@ -34,7 +34,7 @@ static void test_version(QObject *version)
     VersionInfo *vinfo;
 
     g_assert(version);
-    v = qobject_input_visitor_new(version, true);
+    v = qobject_input_visitor_new(version);
     visit_type_VersionInfo(v, "version", &vinfo, &error_abort);
     qapi_free_VersionInfo(vinfo);
     visit_free(v);

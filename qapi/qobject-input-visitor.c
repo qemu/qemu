@@ -43,9 +43,6 @@ struct QObjectInputVisitor {
      * QDict or QList). */
     QSLIST_HEAD(, StackObject) stack;
 
-    /* True to reject parse in visit_end_struct() if unvisited keys remain. */
-    bool strict;
-
     GString *errname;           /* Accumulator for full_name() */
 };
 
@@ -157,11 +154,12 @@ static const QListEntry *qobject_input_push(QObjectInputVisitor *qiv,
     tos->obj = obj;
     tos->qapi = qapi;
 
-    if (qiv->strict && qobject_type(obj) == QTYPE_QDICT) {
+    if (qobject_type(obj) == QTYPE_QDICT) {
         h = g_hash_table_new(g_str_hash, g_str_equal);
         qdict_iter(qobject_to_qdict(obj), qdict_add_key, h);
         tos->h = h;
-    } else if (qobject_type(obj) == QTYPE_QLIST) {
+    } else {
+        assert(qobject_type(obj) == QTYPE_QLIST);
         tos->entry = qlist_first(qobject_to_qlist(obj));
         tos->index = -1;
     }
@@ -175,20 +173,15 @@ static void qobject_input_check_struct(Visitor *v, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     StackObject *tos = QSLIST_FIRST(&qiv->stack);
+    GHashTableIter iter;
+    const char *key;
 
     assert(tos && !tos->entry);
-    if (qiv->strict) {
-        GHashTable *const top_ht = tos->h;
-        if (top_ht) {
-            GHashTableIter iter;
-            const char *key;
 
-            g_hash_table_iter_init(&iter, top_ht);
-            if (g_hash_table_iter_next(&iter, (void **)&key, NULL)) {
-                error_setg(errp, "Parameter '%s' is unexpected",
-                           full_name(qiv, key));
-            }
-        }
+    g_hash_table_iter_init(&iter, tos->h);
+    if (g_hash_table_iter_next(&iter, (void **)&key, NULL)) {
+        error_setg(errp, "Parameter '%s' is unexpected",
+                   full_name(qiv, key));
     }
 }
 
@@ -465,7 +458,7 @@ static void qobject_input_free(Visitor *v)
     g_free(qiv);
 }
 
-Visitor *qobject_input_visitor_new(QObject *obj, bool strict)
+Visitor *qobject_input_visitor_new(QObject *obj)
 {
     QObjectInputVisitor *v;
 
@@ -489,7 +482,6 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict)
     v->visitor.type_null = qobject_input_type_null;
     v->visitor.optional = qobject_input_optional;
     v->visitor.free = qobject_input_free;
-    v->strict = strict;
 
     v->root = obj;
     qobject_incref(obj);
