@@ -26,5 +26,12 @@ void bios_linker_loader_add_pointer(BIOSLinker *linker,
                                     const char *src_file,
                                     uint32_t src_offset);
 
+void bios_linker_loader_write_pointer(BIOSLinker *linker,
+                                      const char *dest_file,
+                                      uint32_t dst_patched_offset,
+                                      uint8_t dst_patched_size,
+                                      const char *src_file,
+                                      uint32_t src_offset);
+
 void bios_linker_loader_cleanup(BIOSLinker *linker);
 #endif
