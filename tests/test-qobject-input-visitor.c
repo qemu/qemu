@@ -894,7 +894,7 @@ static void test_visitor_in_fail_struct_missing(TestInputVisitorData *data,
     char *str;
     double dbl;
 
-    v = visitor_input_test_init(data, "{}");
+    v = visitor_input_test_init(data, "{ 'sub': [ {} ] }");
     visit_start_struct(v, NULL, NULL, 0, &error_abort);
     visit_start_struct(v, "struct", NULL, 0, &err);
     error_free_or_abort(&err);
@@ -920,6 +920,12 @@ static void test_visitor_in_fail_struct_missing(TestInputVisitorData *data,
     error_free_or_abort(&err);
     visit_type_null(v, "null", &err);
     error_free_or_abort(&err);
+    visit_start_list(v, "sub", NULL, 0, &error_abort);
+    visit_start_struct(v, NULL, NULL, 0, &error_abort);
+    visit_type_int(v, "i64", &i64, &err);
+    error_free_or_abort(&err);
+    visit_end_struct(v, NULL);
+    visit_end_list(v, NULL);
     visit_end_struct(v, NULL);
 }
 
