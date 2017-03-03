@@ -637,6 +637,7 @@ retry:
     }
 #endif
     if (iTask.task == NULL) {
+        qemu_mutex_unlock(&iscsilun->mutex);
         return -ENOMEM;
     }
 #if LIBISCSI_API_VERSION < (20160603)
@@ -864,6 +865,7 @@ retry:
     }
 #endif
     if (iTask.task == NULL) {
+        qemu_mutex_unlock(&iscsilun->mutex);
         return -ENOMEM;
     }
 #if LIBISCSI_API_VERSION < (20160603)
@@ -904,6 +906,7 @@ static int coroutine_fn iscsi_co_flush(BlockDriverState *bs)
 retry:
     if (iscsi_synchronizecache10_task(iscsilun->iscsi, iscsilun->lun, 0, 0, 0,
                                       0, iscsi_co_generic_cb, &iTask) == NULL) {
+        qemu_mutex_unlock(&iscsilun->mutex);
         return -ENOMEM;
     }
 
@@ -1237,6 +1240,7 @@ retry:
                                             0, 0, iscsi_co_generic_cb, &iTask);
     }
     if (iTask.task == NULL) {
+        qemu_mutex_unlock(&iscsilun->mutex);
         return -ENOMEM;
     }
 

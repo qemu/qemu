@@ -1101,7 +1101,6 @@ static inline unsigned get_mmuidx(TCGMemOpIdx oi)
 #define TB_EXIT_MASK 3
 #define TB_EXIT_IDX0 0
 #define TB_EXIT_IDX1 1
-#define TB_EXIT_ICOUNT_EXPIRED 2
 #define TB_EXIT_REQUESTED 3
 
 #ifdef HAVE_TCG_QEMU_TB_EXEC

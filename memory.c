@@ -1182,7 +1182,7 @@ static void memory_region_ram_device_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps ram_device_mem_ops = {
     .read = memory_region_ram_device_read,
     .write = memory_region_ram_device_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_HOST_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 8,
@@ -2588,13 +2588,24 @@ static void mtree_print_flatview(fprintf_function p, void *f,
 
     while (n--) {
         mr = range->mr;
-        p(f, MTREE_INDENT TARGET_FMT_plx "-"
-          TARGET_FMT_plx " (prio %d, %s): %s\n",
-          int128_get64(range->addr.start),
-          int128_get64(range->addr.start) + MR_SIZE(range->addr.size),
-          mr->priority,
-          memory_region_type(mr),
-          memory_region_name(mr));
+        if (range->offset_in_region) {
+            p(f, MTREE_INDENT TARGET_FMT_plx "-"
+              TARGET_FMT_plx " (prio %d, %s): %s @" TARGET_FMT_plx "\n",
+              int128_get64(range->addr.start),
+              int128_get64(range->addr.start) + MR_SIZE(range->addr.size),
+              mr->priority,
+              range->readonly ? "rom" : memory_region_type(mr),
+              memory_region_name(mr),
+              range->offset_in_region);
+        } else {
+            p(f, MTREE_INDENT TARGET_FMT_plx "-"
+              TARGET_FMT_plx " (prio %d, %s): %s\n",
+              int128_get64(range->addr.start),
+              int128_get64(range->addr.start) + MR_SIZE(range->addr.size),
+              mr->priority,
+              range->readonly ? "rom" : memory_region_type(mr),
+              memory_region_name(mr));
+        }
         range++;
     }
 

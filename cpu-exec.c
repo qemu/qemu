@@ -186,12 +186,6 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
             cc->set_pc(cpu, last_tb->pc);
         }
     }
-    if (tb_exit == TB_EXIT_REQUESTED) {
-        /* We were asked to stop executing TBs (probably a pending
-         * interrupt. We've now stopped, so clear the flag.
-         */
-        atomic_set(&cpu->tcg_exit_req, 0);
-    }
     return ret;
 }
 
@@ -560,8 +554,9 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
         qemu_mutex_unlock_iothread();
     }
 
-
-    if (unlikely(atomic_read(&cpu->exit_request) || replay_has_interrupt())) {
+    /* Finally, check if we need to exit to the main loop.  */
+    if (unlikely(atomic_read(&cpu->exit_request)
+        || (use_icount && cpu->icount_decr.u16.low + cpu->icount_extra == 0))) {
         atomic_set(&cpu->exit_request, 0);
         cpu->exception_index = EXCP_INTERRUPT;
         return true;
@@ -571,62 +566,54 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
 }
 
 static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
-                                    TranslationBlock **last_tb, int *tb_exit,
-                                    SyncClocks *sc)
+                                    TranslationBlock **last_tb, int *tb_exit)
 {
     uintptr_t ret;
-
-    if (unlikely(atomic_read(&cpu->exit_request))) {
-        return;
-    }
+    int32_t insns_left;
 
     trace_exec_tb(tb, tb->pc);
     ret = cpu_tb_exec(cpu, tb);
     tb = (TranslationBlock *)(ret & ~TB_EXIT_MASK);
     *tb_exit = ret & TB_EXIT_MASK;
-    switch (*tb_exit) {
-    case TB_EXIT_REQUESTED:
+    if (*tb_exit != TB_EXIT_REQUESTED) {
+        *last_tb = tb;
+        return;
+    }
+
+    *last_tb = NULL;
+    insns_left = atomic_read(&cpu->icount_decr.u32);
+    atomic_set(&cpu->icount_decr.u16.high, 0);
+    if (insns_left < 0) {
         /* Something asked us to stop executing chained TBs; just
          * continue round the main loop. Whatever requested the exit
-         * will also have set something else (eg interrupt_request)
-         * which we will handle next time around the loop.  But we
-         * need to ensure the tcg_exit_req read in generated code
-         * comes before the next read of cpu->exit_request or
-         * cpu->interrupt_request.
+         * will also have set something else (eg exit_request or
+         * interrupt_request) which we will handle next time around
+         * the loop.  But we need to ensure the zeroing of icount_decr
+         * comes before the next read of cpu->exit_request
+         * or cpu->interrupt_request.
          */
         smp_mb();
-        *last_tb = NULL;
-        break;
-    case TB_EXIT_ICOUNT_EXPIRED:
-    {
-        /* Instruction counter expired.  */
-#ifdef CONFIG_USER_ONLY
-        abort();
-#else
-        int insns_left = cpu->icount_decr.u32;
-        *last_tb = NULL;
-        if (cpu->icount_extra && insns_left >= 0) {
-            /* Refill decrementer and continue execution.  */
-            cpu->icount_extra += insns_left;
-            insns_left = MIN(0xffff, cpu->icount_extra);
-            cpu->icount_extra -= insns_left;
-            cpu->icount_decr.u16.low = insns_left;
-        } else {
-            if (insns_left > 0) {
-                /* Execute remaining instructions.  */
-                cpu_exec_nocache(cpu, insns_left, tb, false);
-                align_clocks(sc, cpu);
-            }
-            cpu->exception_index = EXCP_INTERRUPT;
-            cpu_loop_exit(cpu);
+        return;
+    }
+
+    /* Instruction counter expired.  */
+    assert(use_icount);
+#ifndef CONFIG_USER_ONLY
+    if (cpu->icount_extra) {
+        /* Refill decrementer and continue execution.  */
+        cpu->icount_extra += insns_left;
+        insns_left = MIN(0xffff, cpu->icount_extra);
+        cpu->icount_extra -= insns_left;
+        cpu->icount_decr.u16.low = insns_left;
+    } else {
+        /* Execute any remaining instructions, then let the main loop
+         * handle the next event.
+         */
+        if (insns_left > 0) {
+            cpu_exec_nocache(cpu, insns_left, tb, false);
         }
-        break;
+    }
 #endif
-    }
-    default:
-        *last_tb = tb;
-        break;
-    }
 }
 
 /* main execution loop */
@@ -635,7 +622,7 @@ int cpu_exec(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
     int ret;
-    SyncClocks sc;
+    SyncClocks sc = { 0 };
 
     /* replay_interrupt may need current_cpu */
     current_cpu = cpu;
@@ -683,7 +670,7 @@ int cpu_exec(CPUState *cpu)
 
         while (!cpu_handle_interrupt(cpu, &last_tb)) {
             TranslationBlock *tb = tb_find(cpu, last_tb, tb_exit);
-            cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit, &sc);
+            cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit);
             /* Try to align the host and virtual clocks
                if the guest is in advance */
             align_clocks(&sc, cpu);

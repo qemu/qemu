@@ -2582,16 +2582,6 @@ bool kvm_arch_stop_on_emulation_error(CPUState *cpu)
     return true;
 }
 
-int kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
-{
-    return 1;
-}
-
-int kvm_arch_on_sigbus(int code, void *addr)
-{
-    return 1;
-}
-
 void kvm_arch_init_irq_routing(KVMState *s)
 {
 }

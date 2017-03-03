@@ -133,7 +133,7 @@ void cpu_exit(CPUState *cpu)
     atomic_set(&cpu->exit_request, 1);
     /* Ensure cpu_exec will see the exit request after TCG has exited.  */
     smp_wmb();
-    atomic_set(&cpu->tcg_exit_req, 1);
+    atomic_set(&cpu->icount_decr.u16.high, -1);
 }
 
 int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,

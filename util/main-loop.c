@@ -34,8 +34,6 @@
 
 #ifndef _WIN32
 
-#include "qemu/compatfd.h"
-
 /* If we have signalfd, we mask out the signals we want to handle and then
  * use signalfd to listen for them.  We rely on whatever the current signal
  * handler is to dispatch the signals when we receive them.
@@ -63,8 +61,7 @@ static void sigfd_handler(void *opaque)
 
         sigaction(info.ssi_signo, NULL, &action);
         if ((action.sa_flags & SA_SIGINFO) && action.sa_sigaction) {
-            action.sa_sigaction(info.ssi_signo,
-                                (siginfo_t *)&info, NULL);
+            sigaction_invoke(&action, &info);
         } else if (action.sa_handler) {
             action.sa_handler(info.ssi_signo);
         }
