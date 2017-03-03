@@ -77,6 +77,7 @@
 #include "qapi-event.h"
 #include "qmp-introspect.h"
 #include "sysemu/qtest.h"
+#include "sysemu/cpus.h"
 #include "qemu/cutils.h"
 #include "qapi/qmp/dispatch.h"
 

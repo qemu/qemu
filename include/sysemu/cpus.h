@@ -1,6 +1,8 @@
 #ifndef QEMU_CPUS_H
 #define QEMU_CPUS_H
 
+#include "qemu/timer.h"
+
 /* cpus.c */
 bool qemu_in_vcpu_thread(void);
 void qemu_init_cpu_loop(void);
