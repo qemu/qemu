@@ -364,7 +364,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
 
     /* Required permissions are already taken with block_job_add_bdrv() */
     s->top = blk_new(0, BLK_PERM_ALL);
-    blk_insert_bs(s->top, top, errp);
+    ret = blk_insert_bs(s->top, top, errp);
     if (ret < 0) {
         goto fail;
     }
