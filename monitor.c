@@ -165,7 +165,7 @@ typedef struct {
      * When command qmp_capabilities succeeds, we go into command
      * mode.
      */
-    bool in_command_mode;       /* are we in command mode? */
+    QmpCommandList *commands;
 } MonitorQMP;
 
 /*
@@ -221,7 +221,7 @@ static int mon_refcount;
 static mon_cmd_t mon_cmds[];
 static mon_cmd_t info_cmds[];
 
-QmpCommandList qmp_commands;
+QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 
 Monitor *cur_mon;
 
@@ -416,7 +416,8 @@ static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
 
     trace_monitor_protocol_event_emit(event, qdict);
     QLIST_FOREACH(mon, &mon_list, entry) {
-        if (monitor_is_qmp(mon) && mon->qmp.in_command_mode) {
+        if (monitor_is_qmp(mon)
+            && mon->qmp.commands != &qmp_cap_negotiation_commands) {
             monitor_json_emitter(mon, QOBJECT(qdict));
         }
     }
@@ -563,11 +564,6 @@ static void monitor_qapi_event_init(void)
     monitor_qapi_event_state = g_hash_table_new(qapi_event_throttle_hash,
                                                 qapi_event_throttle_equal);
     qmp_event_set_func_emit(monitor_qapi_event_queue);
-}
-
-void qmp_qmp_capabilities(Error **errp)
-{
-    cur_mon->qmp.in_command_mode = true;
 }
 
 static void handle_hmp_command(Monitor *mon, const char *cmdline);
@@ -921,7 +917,7 @@ CommandInfoList *qmp_query_commands(Error **errp)
 {
     CommandInfoList *list = NULL;
 
-    qmp_for_each_command(&qmp_commands, query_commands_cb, &list);
+    qmp_for_each_command(cur_mon->qmp.commands, query_commands_cb, &list);
 
     return list;
 }
@@ -1001,6 +997,13 @@ static void qmp_unregister_commands_hack(void)
 
 void monitor_init_qmp_commands(void)
 {
+    /*
+     * Two command lists:
+     * - qmp_commands contains all QMP commands
+     * - qmp_cap_negotiation_commands contains just
+     *   "qmp_capabilities", to enforce capability negotiation
+     */
+
     qmp_init_marshal(&qmp_commands);
 
     qmp_register_command(&qmp_commands, "query-qmp-schema",
@@ -1012,6 +1015,22 @@ void monitor_init_qmp_commands(void)
                          QCO_NO_OPTIONS);
 
     qmp_unregister_commands_hack();
+
+    QTAILQ_INIT(&qmp_cap_negotiation_commands);
+    qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
+                         qmp_marshal_qmp_capabilities, QCO_NO_OPTIONS);
+}
+
+void qmp_qmp_capabilities(Error **errp)
+{
+    if (cur_mon->qmp.commands == &qmp_commands) {
+        error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
+                  "Capabilities negotiation is already complete, command "
+                  "ignored");
+        return;
+    }
+
+    cur_mon->qmp.commands = &qmp_commands;
 }
 
 /* set the current CPU defined by the user */
@@ -3681,26 +3700,6 @@ static int monitor_can_read(void *opaque)
     return (mon->suspend_cnt == 0) ? 1 : 0;
 }
 
-static bool invalid_qmp_mode(const Monitor *mon, const char *cmd,
-                             Error **errp)
-{
-    bool is_cap = g_str_equal(cmd, "qmp_capabilities");
-
-    if (is_cap && mon->qmp.in_command_mode) {
-        error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
-                  "Capabilities negotiation is already complete, command "
-                  "'%s' ignored", cmd);
-        return true;
-    }
-    if (!is_cap && !mon->qmp.in_command_mode) {
-        error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
-                  "Expecting capabilities negotiation with "
-                  "'qmp_capabilities' before command '%s'", cmd);
-        return true;
-    }
-    return false;
-}
-
 /*
  * Input object checking rules
  *
@@ -3786,11 +3785,20 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     cmd_name = qdict_get_str(qdict, "execute");
     trace_handle_qmp_command(mon, cmd_name);
 
-    if (invalid_qmp_mode(mon, cmd_name, &err)) {
-        goto err_out;
-    }
+    rsp = qmp_dispatch(cur_mon->qmp.commands, req);
 
-    rsp = qmp_dispatch(&qmp_commands, req);
+    if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
+        qdict = qdict_get_qdict(qobject_to_qdict(rsp), "error");
+        if (qdict
+            && !g_strcmp0(qdict_get_try_str(qdict, "class"),
+                    QapiErrorClass_lookup[ERROR_CLASS_COMMAND_NOT_FOUND])) {
+            /* Provide a more useful error message */
+            qdict_del(qdict, "desc");
+            qdict_put(qdict, "desc",
+                      qstring_from_str("Expecting capabilities negotiation"
+                                       " with 'qmp_capabilities'"));
+        }
+    }
 
 err_out:
     if (err) {
@@ -3888,7 +3896,7 @@ static void monitor_qmp_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        mon->qmp.in_command_mode = false;
+        mon->qmp.commands = &qmp_cap_negotiation_commands;
         data = get_qmp_greeting();
         monitor_json_emitter(mon, data);
         qobject_decref(data);
