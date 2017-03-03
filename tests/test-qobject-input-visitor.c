@@ -5,6 +5,7 @@
  *
  * Authors:
  *  Luiz Capitulino <lcapitulino@redhat.com>
+ *  Paolo Bonzini <pbonzini@redhat.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -19,6 +20,9 @@
 #include "test-qapi-visit.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qjson.h"
+#include "test-qmp-introspect.h"
+#include "qmp-introspect.h"
+#include "qapi-visit.h"
 
 typedef struct TestInputVisitorData {
     QObject *obj;
@@ -833,6 +837,171 @@ static void test_visitor_in_wrong_type(TestInputVisitorData *data,
     error_free_or_abort(&err);
 }
 
+static void test_visitor_in_fail_struct(TestInputVisitorData *data,
+                                        const void *unused)
+{
+    TestStruct *p = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo', 'extra': 42 }");
+
+    visit_type_TestStruct(v, NULL, &p, &err);
+    error_free_or_abort(&err);
+    g_assert(!p);
+}
+
+static void test_visitor_in_fail_struct_nested(TestInputVisitorData *data,
+                                               const void *unused)
+{
+    UserDefTwo *udp = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, "{ 'string0': 'string0', 'dict1': { 'string1': 'string1', 'dict2': { 'userdef1': { 'integer': 42, 'string': 'string', 'extra': [42, 23, {'foo':'bar'}] }, 'string2': 'string2'}}}");
+
+    visit_type_UserDefTwo(v, NULL, &udp, &err);
+    error_free_or_abort(&err);
+    g_assert(!udp);
+}
+
+static void test_visitor_in_fail_struct_in_list(TestInputVisitorData *data,
+                                                const void *unused)
+{
+    UserDefOneList *head = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, "[ { 'string': 'string0', 'integer': 42 }, { 'string': 'string1', 'integer': 43 }, { 'string': 'string2', 'integer': 44, 'extra': 'ggg' } ]");
+
+    visit_type_UserDefOneList(v, NULL, &head, &err);
+    error_free_or_abort(&err);
+    g_assert(!head);
+}
+
+static void test_visitor_in_fail_struct_missing(TestInputVisitorData *data,
+                                                const void *unused)
+{
+    Error *err = NULL;
+    Visitor *v;
+    QObject *any;
+    GenericAlternate *alt;
+    bool present;
+    int en;
+    int64_t i64;
+    uint32_t u32;
+    int8_t i8;
+    char *str;
+    double dbl;
+
+    v = visitor_input_test_init(data, "{}");
+    visit_start_struct(v, NULL, NULL, 0, &error_abort);
+    visit_start_struct(v, "struct", NULL, 0, &err);
+    error_free_or_abort(&err);
+    visit_start_list(v, "list", NULL, 0, &err);
+    error_free_or_abort(&err);
+    visit_start_alternate(v, "alternate", &alt, sizeof(*alt), false, &err);
+    error_free_or_abort(&err);
+    visit_optional(v, "optional", &present);
+    g_assert(!present);
+    visit_type_enum(v, "enum", &en, EnumOne_lookup, &err);
+    error_free_or_abort(&err);
+    visit_type_int(v, "i64", &i64, &err);
+    error_free_or_abort(&err);
+    visit_type_uint32(v, "u32", &u32, &err);
+    error_free_or_abort(&err);
+    visit_type_int8(v, "i8", &i8, &err);
+    error_free_or_abort(&err);
+    visit_type_str(v, "i8", &str, &err);
+    error_free_or_abort(&err);
+    visit_type_number(v, "dbl", &dbl, &err);
+    error_free_or_abort(&err);
+    visit_type_any(v, "any", &any, &err);
+    error_free_or_abort(&err);
+    visit_type_null(v, "null", &err);
+    error_free_or_abort(&err);
+    visit_end_struct(v, NULL);
+}
+
+static void test_visitor_in_fail_union_native_list(TestInputVisitorData *data,
+                                                   const void *unused)
+{
+    UserDefNativeListUnion *tmp = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init(data,
+                                "{ 'type': 'integer', 'data' : [ 'string' ] }");
+
+    visit_type_UserDefNativeListUnion(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+    g_assert(!tmp);
+}
+
+static void test_visitor_in_fail_union_flat(TestInputVisitorData *data,
+                                            const void *unused)
+{
+    UserDefFlatUnion *tmp = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, "{ 'string': 'c', 'integer': 41, 'boolean': true }");
+
+    visit_type_UserDefFlatUnion(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+    g_assert(!tmp);
+}
+
+static void test_visitor_in_fail_union_flat_no_discrim(TestInputVisitorData *data,
+                                                       const void *unused)
+{
+    UserDefFlatUnion2 *tmp = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    /* test situation where discriminator field ('enum1' here) is missing */
+    v = visitor_input_test_init(data, "{ 'integer': 42, 'string': 'c', 'string1': 'd', 'string2': 'e' }");
+
+    visit_type_UserDefFlatUnion2(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+    g_assert(!tmp);
+}
+
+static void test_visitor_in_fail_alternate(TestInputVisitorData *data,
+                                           const void *unused)
+{
+    UserDefAlternate *tmp;
+    Visitor *v;
+    Error *err = NULL;
+
+    v = visitor_input_test_init(data, "3.14");
+
+    visit_type_UserDefAlternate(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+    g_assert(!tmp);
+}
+
+static void do_test_visitor_in_qmp_introspect(TestInputVisitorData *data,
+                                              const char *schema_json)
+{
+    SchemaInfoList *schema = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init_raw(data, schema_json);
+
+    visit_type_SchemaInfoList(v, NULL, &schema, &error_abort);
+    g_assert(schema);
+
+    qapi_free_SchemaInfoList(schema);
+}
+
+static void test_visitor_in_qmp_introspect(TestInputVisitorData *data,
+                                           const void *unused)
+{
+    do_test_visitor_in_qmp_introspect(data, test_qmp_schema_json);
+    do_test_visitor_in_qmp_introspect(data, qmp_schema_json);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -893,6 +1062,24 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_native_list_string);
     input_visitor_test_add("/visitor/input/native_list/number",
                            NULL, test_visitor_in_native_list_number);
+    input_visitor_test_add("/visitor/input/fail/struct",
+                           NULL, test_visitor_in_fail_struct);
+    input_visitor_test_add("/visitor/input/fail/struct-nested",
+                           NULL, test_visitor_in_fail_struct_nested);
+    input_visitor_test_add("/visitor/input/fail/struct-in-list",
+                           NULL, test_visitor_in_fail_struct_in_list);
+    input_visitor_test_add("/visitor/input/fail/struct-missing",
+                           NULL, test_visitor_in_fail_struct_missing);
+    input_visitor_test_add("/visitor/input/fail/union-flat",
+                           NULL, test_visitor_in_fail_union_flat);
+    input_visitor_test_add("/visitor/input/fail/union-flat-no-discriminator",
+                           NULL, test_visitor_in_fail_union_flat_no_discrim);
+    input_visitor_test_add("/visitor/input/fail/alternate",
+                           NULL, test_visitor_in_fail_alternate);
+    input_visitor_test_add("/visitor/input/fail/union-native-list",
+                           NULL, test_visitor_in_fail_union_native_list);
+    input_visitor_test_add("/visitor/input/qmp-introspect",
+                           NULL, test_visitor_in_qmp_introspect);
 
     g_test_run();
 
