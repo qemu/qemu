@@ -49,7 +49,7 @@ static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
     data->obj = qobject_from_jsonv(json_string, ap);
     g_assert(data->obj);
 
-    data->qiv = qobject_input_visitor_new(data->obj, false);
+    data->qiv = qobject_input_visitor_new(data->obj, true);
     g_assert(data->qiv);
     return data->qiv;
 }
@@ -290,13 +290,13 @@ static void test_visitor_in_null(TestInputVisitorData *data,
      * when input is not null.
      */
 
-    v = visitor_input_test_init(data, "{ 'a': null, 'b': '' }");
+    v = visitor_input_test_init(data, "{ 'a': null, 'b': '', 'c': null }");
     visit_start_struct(v, NULL, NULL, 0, &error_abort);
     visit_type_null(v, "a", &error_abort);
-    visit_type_str(v, "a", &tmp, &err);
-    g_assert(!tmp);
-    error_free_or_abort(&err);
     visit_type_null(v, "b", &err);
+    error_free_or_abort(&err);
+    visit_type_str(v, "c", &tmp, &err);
+    g_assert(!tmp);
     error_free_or_abort(&err);
     visit_check_struct(v, &error_abort);
     visit_end_struct(v, NULL);
