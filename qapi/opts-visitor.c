@@ -273,6 +273,16 @@ opts_next_list(Visitor *v, GenericList *tail, size_t size)
 
 
 static void
+opts_check_list(Visitor *v, Error **errp)
+{
+    /*
+     * FIXME should set error when unvisited elements remain.  Mostly
+     * harmless, as the generated visits always visit all elements.
+     */
+}
+
+
+static void
 opts_end_list(Visitor *v, void **obj)
 {
     OptsVisitor *ov = to_ov(v);
@@ -539,6 +549,7 @@ opts_visitor_new(const QemuOpts *opts)
 
     ov->visitor.start_list = &opts_start_list;
     ov->visitor.next_list  = &opts_next_list;
+    ov->visitor.check_list = &opts_check_list;
     ov->visitor.end_list   = &opts_end_list;
 
     ov->visitor.type_int64  = &opts_type_int64;

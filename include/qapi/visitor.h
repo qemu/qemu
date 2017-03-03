@@ -370,6 +370,19 @@ void visit_start_list(Visitor *v, const char *name, GenericList **list,
 GenericList *visit_next_list(Visitor *v, GenericList *tail, size_t size);
 
 /*
+ * Prepare for completing a list visit.
+ *
+ * @errp obeys typical error usage, and reports failures such as
+ * unvisited list tail remaining in the input stream.
+ *
+ * Should be called prior to visit_end_list() if all other
+ * intermediate visit steps were successful, to allow the visitor one
+ * last chance to report errors.  May be skipped on a cleanup path,
+ * where there is no need to check for further errors.
+ */
+void visit_check_list(Visitor *v, Error **errp);
+
+/*
  * Complete a list visit started earlier.
  *
  * @list must match what was passed to the paired visit_start_list().

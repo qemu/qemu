@@ -61,6 +61,9 @@ struct Visitor
     /* Must be set */
     GenericList *(*next_list)(Visitor *v, GenericList *tail, size_t size);
 
+    /* Optional; intended for input visitors */
+    void (*check_list)(Visitor *v, Error **errp);
+
     /* Must be set */
     void (*end_list)(Visitor *v, void **list);
 

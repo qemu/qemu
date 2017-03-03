@@ -170,6 +170,35 @@ static GenericList *next_list(Visitor *v, GenericList *tail, size_t size)
     return tail->next;
 }
 
+static void check_list(Visitor *v, Error **errp)
+{
+    const StringInputVisitor *siv = to_siv(v);
+    Range *r;
+    GList *cur_range;
+
+    if (!siv->ranges || !siv->cur_range) {
+        return;
+    }
+
+    r = siv->cur_range->data;
+    if (!r) {
+        return;
+    }
+
+    if (!range_contains(r, siv->cur)) {
+        cur_range = g_list_next(siv->cur_range);
+        if (!cur_range) {
+            return;
+        }
+        r = cur_range->data;
+        if (!r) {
+            return;
+        }
+    }
+
+    error_setg(errp, "Range contains too many values");
+}
+
 static void end_list(Visitor *v, void **obj)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -318,6 +347,7 @@ Visitor *string_input_visitor_new(const char *str)
     v->visitor.type_number = parse_type_number;
     v->visitor.start_list = start_list;
     v->visitor.next_list = next_list;
+    v->visitor.check_list = check_list;
     v->visitor.end_list = end_list;
     v->visitor.free = string_input_free;
 

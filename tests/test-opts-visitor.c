@@ -199,8 +199,8 @@ test_opts_range_unvisited(void)
     g_assert_cmpint(tail->value, ==, 1);
     tail = (intList *)visit_next_list(v, (GenericList *)tail, sizeof(*list));
     g_assert(tail);
+    visit_check_list(v, &error_abort); /* BUG: unvisited tail not reported */
     visit_end_list(v, (void **)&list);
-    /* BUG: unvisited tail not reported; actually not reportable by design */
 
     visit_check_struct(v, &error_abort);
     visit_end_struct(v, NULL);
