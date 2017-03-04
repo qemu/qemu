@@ -773,6 +773,7 @@ static void NAME(CPUPPCState *env, TP arg1, TP arg2, TP arg3,           \
         }                                                               \
     }                                                                   \
 }
+FPU_MADDSUB_UPDATE(float32_maddsub_update_excp, float32)
 FPU_MADDSUB_UPDATE(float64_maddsub_update_excp, float64)
 
 #define FPU_FMADD(op, madd_flags)                                       \
@@ -2239,24 +2240,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags;  \
                                                                               \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {     \
-            if (tp##_is_signaling_nan(xa.fld, &tstat) ||                      \
-                tp##_is_signaling_nan(b->fld, &tstat) ||                      \
-                tp##_is_signaling_nan(c->fld, &tstat)) {                      \
-                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
-                tstat.float_exception_flags &= ~float_flag_invalid;           \
-            }                                                                 \
-            if ((tp##_is_infinity(xa.fld) && tp##_is_zero(b->fld)) ||         \
-                (tp##_is_zero(xa.fld) && tp##_is_infinity(b->fld))) {         \
-                xt_out.fld = float64_to_##tp(float_invalid_op_excp(env,       \
-                    POWERPC_EXCP_FP_VXIMZ, sfprf), &env->fp_status);          \
-                tstat.float_exception_flags &= ~float_flag_invalid;           \
-            }                                                                 \
-            if ((tstat.float_exception_flags & float_flag_invalid) &&         \
-                ((tp##_is_infinity(xa.fld) ||                                 \
-                  tp##_is_infinity(b->fld)) &&                                \
-                  tp##_is_infinity(c->fld))) {                                \
-                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, sfprf);     \
-            }                                                                 \
+            tp##_maddsub_update_excp(env, xa.fld, b->fld, c->fld, maddflgs);  \
         }                                                                     \
                                                                               \
         if (r2sp) {                                                           \
