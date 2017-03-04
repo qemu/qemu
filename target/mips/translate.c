@@ -33,6 +33,7 @@
 #include "sysemu/kvm.h"
 #include "exec/semihost.h"
 
+#include "target/mips/trace.h"
 #include "trace-tcg.h"
 #include "exec/log.h"
 
@@ -4866,9 +4867,7 @@ static void gen_mfhc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
         goto cp0_unimplemented;
     }
-
-    (void)rn; /* avoid a compiler warning */
-    LOG_DISAS("mfhc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    trace_mips_translate_c0("mfhc0", rn, reg, sel);
     return;
 
 cp0_unimplemented:
@@ -4941,8 +4940,8 @@ static void gen_mthc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
         goto cp0_unimplemented;
     }
+    trace_mips_translate_c0("mthc0", rn, reg, sel);
 
-    (void)rn; /* avoid a compiler warning */
 cp0_unimplemented:
     qemu_log_mask(LOG_UNIMP, "mthc0 %s (reg %d sel %d)\n", rn, reg, sel);
 }
@@ -5622,8 +5621,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
        goto cp0_unimplemented;
     }
-    (void)rn; /* avoid a compiler warning */
-    LOG_DISAS("mfc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    trace_mips_translate_c0("mfc0", rn, reg, sel);
     return;
 
 cp0_unimplemented:
@@ -6284,8 +6282,8 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
        goto cp0_unimplemented;
     }
-    (void)rn; /* avoid a compiler warning */
-    LOG_DISAS("mtc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    trace_mips_translate_c0("mtc0", rn, reg, sel);
+
     /* For simplicity assume that all writes can cause interrupts.  */
     if (ctx->tb->cflags & CF_USE_ICOUNT) {
         gen_io_end();
@@ -6923,8 +6921,7 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
         goto cp0_unimplemented;
     }
-    (void)rn; /* avoid a compiler warning */
-    LOG_DISAS("dmfc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    trace_mips_translate_c0("dmfc0", rn, reg, sel);
     return;
 
 cp0_unimplemented:
@@ -7583,8 +7580,8 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
         goto cp0_unimplemented;
     }
-    (void)rn; /* avoid a compiler warning */
-    LOG_DISAS("dmtc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    trace_mips_translate_c0("dmtc0", rn, reg, sel);
+
     /* For simplicity assume that all writes can cause interrupts.  */
     if (ctx->tb->cflags & CF_USE_ICOUNT) {
         gen_io_end();
@@ -7803,7 +7800,7 @@ static void gen_mftr(CPUMIPSState *env, DisasContext *ctx, int rt, int rd,
     default:
         goto die;
     }
-    LOG_DISAS("mftr (reg %d u %d sel %d h %d)\n", rt, u, sel, h);
+    trace_mips_translate_tr("mftr", rt, u, sel, h);
     gen_store_gpr(t0, rd);
     tcg_temp_free(t0);
     return;
@@ -8008,7 +8005,7 @@ static void gen_mttr(CPUMIPSState *env, DisasContext *ctx, int rd, int rt,
     default:
         goto die;
     }
-    LOG_DISAS("mttr (reg %d u %d sel %d h %d)\n", rd, u, sel, h);
+    trace_mips_translate_tr("mttr", rd, u, sel, h);
     tcg_temp_free(t0);
     return;
 
