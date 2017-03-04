@@ -5137,7 +5137,6 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 //            gen_helper_mfc0_contextconfig(arg); /* SmartMIPS ASE */
             rn = "ContextConfig";
             goto cp0_unimplemented;
-//            break;
         case 2:
             CP0_CHECK(ctx->ulri);
             tcg_gen_ld32s_tl(arg, cpu_env,
@@ -5791,7 +5790,6 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 //            gen_helper_mtc0_contextconfig(cpu_env, arg); /* SmartMIPS ASE */
             rn = "ContextConfig";
             goto cp0_unimplemented;
-//            break;
         case 2:
             CP0_CHECK(ctx->ulri);
             tcg_gen_st_tl(arg, cpu_env,
@@ -6454,7 +6452,6 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 //            gen_helper_dmfc0_contextconfig(arg); /* SmartMIPS ASE */
             rn = "ContextConfig";
             goto cp0_unimplemented;
-//            break;
         case 2:
             CP0_CHECK(ctx->ulri);
             tcg_gen_ld_tl(arg, cpu_env,
@@ -7092,7 +7089,6 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 //           gen_helper_mtc0_contextconfig(cpu_env, arg); /* SmartMIPS ASE */
             rn = "ContextConfig";
             goto cp0_unimplemented;
-//           break;
         case 2:
             CP0_CHECK(ctx->ulri);
             tcg_gen_st_tl(arg, cpu_env,
