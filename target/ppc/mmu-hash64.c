@@ -28,6 +28,7 @@
 #include "mmu-hash64.h"
 #include "exec/log.h"
 #include "hw/hw.h"
+#include "mmu-book3s-v3.h"
 
 //#define DEBUG_SLB
 
@@ -289,6 +290,16 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
     return rt;
 }
 
+/* Check No-Execute or Guarded Storage */
+static inline int ppc_hash64_pte_noexec_guard(PowerPCCPU *cpu,
+                                              ppc_hash_pte64_t pte)
+{
+    /* Exec permissions CANNOT take away read or write permissions */
+    return (pte.pte1 & HPTE64_R_N) || (pte.pte1 & HPTE64_R_G) ?
+            PAGE_READ | PAGE_WRITE : PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+}
+
+/* Check Basic Storage Protection */
 static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
                                ppc_slb_t *slb, ppc_hash_pte64_t pte)
 {
@@ -307,39 +318,49 @@ static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
         case 0x0:
         case 0x1:
         case 0x2:
-            prot = PAGE_READ | PAGE_WRITE;
+            prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
             break;
 
         case 0x3:
         case 0x6:
-            prot = PAGE_READ;
+            prot = PAGE_READ | PAGE_EXEC;
             break;
         }
     } else {
         switch (pp) {
         case 0x0:
         case 0x6:
-            prot = 0;
             break;
 
         case 0x1:
         case 0x3:
-            prot = PAGE_READ;
+            prot = PAGE_READ | PAGE_EXEC;
             break;
 
         case 0x2:
-            prot = PAGE_READ | PAGE_WRITE;
+            prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
             break;
         }
     }
 
-    /* No execute if either noexec or guarded bits set */
-    if (!(pte.pte1 & HPTE64_R_N) || (pte.pte1 & HPTE64_R_G)
-        || (slb->vsid & SLB_VSID_N)) {
-        prot |= PAGE_EXEC;
-    }
-
     return prot;
+}
+
+/* Check the instruction access permissions specified in the IAMR */
+static int ppc_hash64_iamr_prot(PowerPCCPU *cpu, int key)
+{
+    CPUPPCState *env = &cpu->env;
+    int iamr_bits = (env->spr[SPR_IAMR] >> 2 * (31 - key)) & 0x3;
+
+    /*
+     * An instruction fetch is permitted if the IAMR bit is 0.
+     * If the bit is set, return PAGE_READ | PAGE_WRITE because this bit
+     * can only take away EXEC permissions not READ or WRITE permissions.
+     * If bit is cleared return PAGE_READ | PAGE_WRITE | PAGE_EXEC since
+     * EXEC permissions are allowed.
+     */
+    return (iamr_bits & 0x1) ? PAGE_READ | PAGE_WRITE :
+                               PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 }
 
 static int ppc_hash64_amr_prot(PowerPCCPU *cpu, ppc_hash_pte64_t pte)
@@ -372,6 +393,21 @@ static int ppc_hash64_amr_prot(PowerPCCPU *cpu, ppc_hash_pte64_t pte)
      */
     if (amrbits & 0x1) {
         prot &= ~PAGE_READ;
+    }
+
+    switch (env->mmu_model) {
+    /*
+     * MMU version 2.07 and later support IAMR
+     * Check if the IAMR allows the instruction access - it will return
+     * PAGE_EXEC if it doesn't (and thus that bit will be cleared) or 0
+     * if it does (and prot will be unchanged indicating execution support).
+     */
+    case POWERPC_MMU_2_07:
+    case POWERPC_MMU_3_00:
+        prot &= ppc_hash64_iamr_prot(cpu, key);
+        break;
+    default:
+        break;
     }
 
     return prot;
@@ -664,8 +700,8 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     unsigned apshift;
     hwaddr ptex;
     ppc_hash_pte64_t pte;
-    int pp_prot, amr_prot, prot;
-    uint64_t new_pte1, dsisr;
+    int exec_prot, pp_prot, amr_prot, prot;
+    uint64_t new_pte1;
     const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
     hwaddr raddr;
 
@@ -706,11 +742,11 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
             } else {
                 /* The access failed, generate the approriate interrupt */
                 if (rwx == 2) {
-                    ppc_hash64_set_isi(cs, env, 0x08000000);
+                    ppc_hash64_set_isi(cs, env, SRR1_PROTFAULT);
                 } else {
-                    dsisr = 0x08000000;
+                    int dsisr = DSISR_PROTFAULT;
                     if (rwx == 1) {
-                        dsisr |= 0x02000000;
+                        dsisr |= DSISR_ISSTORE;
                     }
                     ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
                 }
@@ -726,6 +762,13 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     /* 2. Translation is on, so look up the SLB */
     slb = slb_lookup(cpu, eaddr);
     if (!slb) {
+        /* No entry found, check if in-memory segment tables are in use */
+        if ((env->mmu_model & POWERPC_MMU_V3) && ppc64_use_proc_tbl(cpu)) {
+            /* TODO - Unsupported */
+            error_report("Segment Table Support Unimplemented");
+            exit(1);
+        }
+        /* Segment still not found, generate the appropriate interrupt */
         if (rwx == 2) {
             cs->exception_index = POWERPC_EXCP_ISEG;
             env->error_code = 0;
@@ -741,19 +784,19 @@ skip_slb_search:
 
     /* 3. Check for segment level no-execute violation */
     if ((rwx == 2) && (slb->vsid & SLB_VSID_N)) {
-        ppc_hash64_set_isi(cs, env, 0x10000000);
+        ppc_hash64_set_isi(cs, env, SRR1_NOEXEC_GUARD);
         return 1;
     }
 
     /* 4. Locate the PTE in the hash table */
     ptex = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte, &apshift);
     if (ptex == -1) {
-        dsisr = 0x40000000;
         if (rwx == 2) {
-            ppc_hash64_set_isi(cs, env, dsisr);
+            ppc_hash64_set_isi(cs, env, SRR1_NOPTE);
         } else {
+            int dsisr = DSISR_NOPTE;
             if (rwx == 1) {
-                dsisr |= 0x02000000;
+                dsisr |= DSISR_ISSTORE;
             }
             ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
         }
@@ -764,25 +807,35 @@ skip_slb_search:
 
     /* 5. Check access permissions */
 
+    exec_prot = ppc_hash64_pte_noexec_guard(cpu, pte);
     pp_prot = ppc_hash64_pte_prot(cpu, slb, pte);
     amr_prot = ppc_hash64_amr_prot(cpu, pte);
-    prot = pp_prot & amr_prot;
+    prot = exec_prot & pp_prot & amr_prot;
 
     if ((need_prot[rwx] & ~prot) != 0) {
         /* Access right violation */
         qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
         if (rwx == 2) {
-            ppc_hash64_set_isi(cs, env, 0x08000000);
+            int srr1 = 0;
+            if (PAGE_EXEC & ~exec_prot) {
+                srr1 |= SRR1_NOEXEC_GUARD; /* Access violates noexec or guard */
+            } else if (PAGE_EXEC & ~pp_prot) {
+                srr1 |= SRR1_PROTFAULT; /* Access violates access authority */
+            }
+            if (PAGE_EXEC & ~amr_prot) {
+                srr1 |= SRR1_IAMR; /* Access violates virt pg class key prot */
+            }
+            ppc_hash64_set_isi(cs, env, srr1);
         } else {
-            dsisr = 0;
+            int dsisr = 0;
             if (need_prot[rwx] & ~pp_prot) {
-                dsisr |= 0x08000000;
+                dsisr |= DSISR_PROTFAULT;
             }
             if (rwx == 1) {
-                dsisr |= 0x02000000;
+                dsisr |= DSISR_ISSTORE;
             }
             if (need_prot[rwx] & ~amr_prot) {
-                dsisr |= 0x00200000;
+                dsisr |= DSISR_AMR;
             }
             ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
         }
@@ -979,8 +1032,8 @@ void helper_store_lpcr(CPUPPCState *env, target_ulong val)
     uint64_t lpcr = 0;
 
     /* Filter out bits */
-    switch (env->mmu_model) {
-    case POWERPC_MMU_64B: /* 970 */
+    switch (POWERPC_MMU_VER(env->mmu_model)) {
+    case POWERPC_MMU_VER_64B: /* 970 */
         if (val & 0x40) {
             lpcr |= LPCR_LPES0;
         }
@@ -1006,26 +1059,26 @@ void helper_store_lpcr(CPUPPCState *env, target_ulong val)
          * to dig HRMOR out of HID5
          */
         break;
-    case POWERPC_MMU_2_03: /* P5p */
+    case POWERPC_MMU_VER_2_03: /* P5p */
         lpcr = val & (LPCR_RMLS | LPCR_ILE |
                       LPCR_LPES0 | LPCR_LPES1 |
                       LPCR_RMI | LPCR_HDICE);
         break;
-    case POWERPC_MMU_2_06: /* P7 */
+    case POWERPC_MMU_VER_2_06: /* P7 */
         lpcr = val & (LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_DPFD |
                       LPCR_VRMASD | LPCR_RMLS | LPCR_ILE |
                       LPCR_P7_PECE0 | LPCR_P7_PECE1 | LPCR_P7_PECE2 |
                       LPCR_MER | LPCR_TC |
                       LPCR_LPES0 | LPCR_LPES1 | LPCR_HDICE);
         break;
-    case POWERPC_MMU_2_07: /* P8 */
+    case POWERPC_MMU_VER_2_07: /* P8 */
         lpcr = val & (LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_KBV |
                       LPCR_DPFD | LPCR_VRMASD | LPCR_RMLS | LPCR_ILE |
                       LPCR_AIL | LPCR_ONL | LPCR_P8_PECE0 | LPCR_P8_PECE1 |
                       LPCR_P8_PECE2 | LPCR_P8_PECE3 | LPCR_P8_PECE4 |
                       LPCR_MER | LPCR_TC | LPCR_LPES0 | LPCR_HDICE);
         break;
-    case POWERPC_MMU_3_00: /* P9 */
+    case POWERPC_MMU_VER_3_00: /* P9 */
         lpcr = val & (LPCR_VPM1 | LPCR_ISL | LPCR_KBV | LPCR_DPFD |
                       (LPCR_PECE_U_MASK & LPCR_HVEE) | LPCR_ILE | LPCR_AIL |
                       LPCR_UPRT | LPCR_EVIRT | LPCR_ONL |
