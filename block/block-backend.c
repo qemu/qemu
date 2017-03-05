@@ -420,7 +420,7 @@ void monitor_remove_blk(BlockBackend *blk)
  * Return @blk's name, a non-null string.
  * Returns an empty string iff @blk is not referenced by the monitor.
  */
-const char *blk_name(BlockBackend *blk)
+const char *blk_name(const BlockBackend *blk)
 {
     return blk->name ?: "";
 }
