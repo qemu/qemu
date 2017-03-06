@@ -4105,14 +4105,14 @@
 #
 # Available SocketAddressFlat types
 #
-# @tcp:   Internet address
+# @inet:  Internet address
 #
 # @unix:  Unix domain socket
 #
 # Since: 2.9
 ##
 { 'enum': 'SocketAddressFlatType',
-  'data': [ 'unix', 'tcp' ] }
+  'data': [ 'unix', 'inet' ] }
 
 ##
 # @SocketAddressFlat:
@@ -4127,7 +4127,7 @@
 #    A flat union is nicer than simple because it avoids nesting
 #    (i.e. more {}) on the wire.
 #
-# 2. SocketAddressFlat supports only types 'unix' and 'tcp', because
+# 2. SocketAddressFlat supports only types 'unix' and 'inet', because
 #    that's what its current users need.
 #
 # Since: 2.9
@@ -4136,7 +4136,7 @@
   'base': { 'type': 'SocketAddressFlatType' },
   'discriminator': 'type',
   'data': { 'unix': 'UnixSocketAddress',
-            'tcp': 'InetSocketAddress' } }
+            'inet': 'InetSocketAddress' } }
 
 ##
 # @getfd:
