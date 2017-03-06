@@ -1008,7 +1008,7 @@ static int local_remove(FsContext *ctx, const char *path)
     int err = -1;
 
     dirfd = local_opendir_nofollow(ctx, dirpath);
-    if (dirfd) {
+    if (dirfd == -1) {
         goto out;
     }
 
