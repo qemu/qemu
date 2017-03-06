@@ -13,8 +13,8 @@ RUN cat /etc/apt/sources.list | sed "s/deb/deb-src/" >> /etc/apt/sources.list
 RUN dpkg --add-architecture s390x
 
 # Grab the updated list of packages
-RUN apt update
-RUN apt dist-upgrade -yy
+RUN apt update && apt dist-upgrade -yy
+RUN apt install -yy build-essential clang
 RUN apt-get build-dep -yy -a s390x qemu || apt-get -f install
 RUN apt install -yy gcc-multilib-s390x-linux-gnu binutils-multiarch
 
