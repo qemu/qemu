@@ -1392,7 +1392,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
-        goto out;
+        goto err_no_fd;
     }
 
     filename = qemu_opt_get(opts, "filename");
@@ -1412,17 +1412,17 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     }
     if (ret < 0) {
         error_setg(errp, "Can't parse filename");
-        goto out;
+        goto err_no_fd;
     }
     s->fd = get_sheep_fd(s, errp);
     if (s->fd < 0) {
         ret = s->fd;
-        goto out;
+        goto err_no_fd;
     }
 
     ret = find_vdi_name(s, vdi, snapid, tag, &vid, true, errp);
     if (ret) {
-        goto out;
+        goto err;
     }
 
     /*
@@ -1443,7 +1443,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     fd = connect_to_sdog(s, errp);
     if (fd < 0) {
         ret = fd;
-        goto out;
+        goto err;
     }
 
     buf = g_malloc(SD_INODE_SIZE);
@@ -1454,7 +1454,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (ret) {
         error_setg(errp, "Can't read snapshot inode");
-        goto out;
+        goto err;
     }
 
     memcpy(&s->inode, buf, sizeof(s->inode));
@@ -1466,12 +1466,12 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_opts_del(opts);
     g_free(buf);
     return 0;
-out:
+
+err:
     aio_set_fd_handler(bdrv_get_aio_context(bs), s->fd,
                        false, NULL, NULL, NULL, NULL);
-    if (s->fd >= 0) {
-        closesocket(s->fd);
-    }
+    closesocket(s->fd);
+err_no_fd:
     qemu_opts_del(opts);
     g_free(buf);
     return ret;
