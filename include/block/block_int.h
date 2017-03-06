@@ -441,8 +441,8 @@ typedef struct BdrvAioNotifier {
 } BdrvAioNotifier;
 
 struct BdrvChildRole {
-    /* If true, bdrv_replace_in_backing_chain() doesn't change the node this
-     * BdrvChild points to. */
+    /* If true, bdrv_replace_node() doesn't change the node this BdrvChild
+     * points to. */
     bool stay_at_node;
 
     void (*inherit_options)(int *child_flags, QDict *child_options,

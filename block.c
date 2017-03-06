@@ -2932,14 +2932,17 @@ static bool should_update_child(BdrvChild *c, BlockDriverState *to)
     return true;
 }
 
-static void change_parent_backing_link(BlockDriverState *from,
-                                       BlockDriverState *to, Error **errp)
+void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
+                       Error **errp)
 {
     BdrvChild *c, *next;
     GSList *list = NULL, *p;
     uint64_t old_perm, old_shared;
     uint64_t perm = 0, shared = BLK_PERM_ALL;
     int ret;
+
+    assert(!atomic_read(&from->in_flight));
+    assert(!atomic_read(&to->in_flight));
 
     /* Make sure that @from doesn't go away until we have successfully attached
      * all of its parents to @to. */
@@ -3003,16 +3006,13 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
 {
     Error *local_err = NULL;
 
-    assert(!atomic_read(&bs_top->in_flight));
-    assert(!atomic_read(&bs_new->in_flight));
-
     bdrv_set_backing_hd(bs_new, bs_top, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
     }
 
-    change_parent_backing_link(bs_top, bs_new, &local_err);
+    bdrv_replace_node(bs_top, bs_new, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         bdrv_set_backing_hd(bs_new, NULL, &error_abort);
@@ -3023,19 +3023,6 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
      * additional reference any more. */
 out:
     bdrv_unref(bs_new);
-}
-
-void bdrv_replace_in_backing_chain(BlockDriverState *old, BlockDriverState *new)
-{
-    assert(!bdrv_requests_pending(old));
-    assert(!bdrv_requests_pending(new));
-
-    bdrv_ref(old);
-
-    /* FIXME Proper error handling */
-    change_parent_backing_link(old, new, &error_abort);
-
-    bdrv_unref(old);
 }
 
 static void bdrv_delete(BlockDriverState *bs)

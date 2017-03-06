@@ -550,8 +550,12 @@ static void mirror_exit(BlockJob *job, void *opaque)
         /* The mirror job has no requests in flight any more, but we need to
          * drain potential other users of the BDS before changing the graph. */
         bdrv_drained_begin(target_bs);
-        bdrv_replace_in_backing_chain(to_replace, target_bs);
+        bdrv_replace_node(to_replace, target_bs, &local_err);
         bdrv_drained_end(target_bs);
+        if (local_err) {
+            error_report_err(local_err);
+            data->ret = -EPERM;
+        }
     }
     if (s->to_replace) {
         bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
@@ -570,12 +574,11 @@ static void mirror_exit(BlockJob *job, void *opaque)
      * block the removal. */
     block_job_remove_all_bdrv(job);
     bdrv_child_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL);
-    bdrv_replace_in_backing_chain(mirror_top_bs, backing_bs(mirror_top_bs));
+    bdrv_replace_node(mirror_top_bs, backing_bs(mirror_top_bs), &error_abort);
 
     /* We just changed the BDS the job BB refers to (with either or both of the
-     * bdrv_replace_in_backing_chain() calls), so switch the BB back so the
-     * cleanup does the right thing. We don't need any permissions any more
-     * now. */
+     * bdrv_replace_node() calls), so switch the BB back so the cleanup does
+     * the right thing. We don't need any permissions any more now. */
     blk_remove_bs(job->blk);
     blk_set_perm(job->blk, 0, BLK_PERM_ALL, &error_abort);
     blk_insert_bs(job->blk, mirror_top_bs, &error_abort);
@@ -1234,7 +1237,7 @@ fail:
     }
 
     bdrv_child_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL);
-    bdrv_replace_in_backing_chain(mirror_top_bs, backing_bs(mirror_top_bs));
+    bdrv_replace_node(mirror_top_bs, backing_bs(mirror_top_bs), &error_abort);
 }
 
 void mirror_start(const char *job_id, BlockDriverState *bs,
