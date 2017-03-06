@@ -1197,10 +1197,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
 
     s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, NULL, errp);
     if (!s->dirty_bitmap) {
-        g_free(s->replaces);
-        blk_unref(s->target);
-        block_job_unref(&s->common);
-        return;
+        goto fail;
     }
 
     /* Required permissions are already taken with blk_new() */
