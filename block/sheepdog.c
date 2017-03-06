@@ -2457,6 +2457,10 @@ static int sd_snapshot_delete(BlockDriverState *bs,
                               const char *name,
                               Error **errp)
 {
+    /*
+     * FIXME should delete the snapshot matching both @snapshot_id and
+     * @name, but @name not used here
+     */
     unsigned long snap_id = 0;
     char snap_tag[SD_MAX_VDI_TAG_LEN];
     int fd, ret;
@@ -2481,6 +2485,11 @@ static int sd_snapshot_delete(BlockDriverState *bs,
     pstrcpy(buf, SD_MAX_VDI_LEN, s->name);
     ret = qemu_strtoul(snapshot_id, NULL, 10, &snap_id);
     if (ret || snap_id > UINT32_MAX) {
+        /*
+         * FIXME Since qemu_strtoul() returns -EINVAL when
+         * @snapshot_id is null, @snapshot_id is mandatory.  Correct
+         * would be to require at least one of @snapshot_id and @name.
+         */
         error_setg(errp, "Invalid snapshot ID: %s",
                          snapshot_id ? snapshot_id : "<null>");
         return -EINVAL;
@@ -2489,6 +2498,7 @@ static int sd_snapshot_delete(BlockDriverState *bs,
     if (snap_id) {
         hdr.snapid = (uint32_t) snap_id;
     } else {
+        /* FIXME I suspect we should use @name here */
         pstrcpy(snap_tag, sizeof(snap_tag), snapshot_id);
         pstrcpy(buf + SD_MAX_VDI_LEN, SD_MAX_VDI_TAG_LEN, snap_tag);
     }
