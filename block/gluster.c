@@ -412,8 +412,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
 
     for (server = gconf->server; server; server = server->next) {
         if (server->value->type  == GLUSTER_TRANSPORT_UNIX) {
-            ret = glfs_set_volfile_server(glfs,
-                                   GlusterTransport_lookup[server->value->type],
+            ret = glfs_set_volfile_server(glfs, "unix",
                                    server->value->u.q_unix.path, 0);
         } else {
             if (parse_uint_full(server->value->u.tcp.port, &port, 10) < 0 ||
@@ -423,8 +422,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
                 errno = EINVAL;
                 goto out;
             }
-            ret = glfs_set_volfile_server(glfs,
-                                   GlusterTransport_lookup[server->value->type],
+            ret = glfs_set_volfile_server(glfs, "tcp",
                                    server->value->u.tcp.host,
                                    (int)port);
         }
