@@ -36,7 +36,7 @@ guint io_add_watch_poll(Chardev *chr,
                         gpointer user_data,
                         GMainContext *context);
 
-void remove_fd_in_watch(Chardev *chr);
+void remove_fd_in_watch(Chardev *chr, GMainContext *context);
 
 int io_channel_send(QIOChannel *ioc, const void *buf, size_t len);
 

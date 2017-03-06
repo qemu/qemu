@@ -560,7 +560,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
     cc = CHARDEV_GET_CLASS(s);
     if (!opaque && !fd_can_read && !fd_read && !fd_event) {
         fe_open = 0;
-        remove_fd_in_watch(s);
+        remove_fd_in_watch(s, context);
     } else {
         fe_open = 1;
     }

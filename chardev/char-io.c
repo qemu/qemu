@@ -127,14 +127,14 @@ guint io_add_watch_poll(Chardev *chr,
     return tag;
 }
 
-static void io_remove_watch_poll(guint tag)
+static void io_remove_watch_poll(guint tag, GMainContext *context)
 {
     GSource *source;
     IOWatchPoll *iwp;
 
     g_return_if_fail(tag > 0);
 
-    source = g_main_context_find_source_by_id(NULL, tag);
+    source = g_main_context_find_source_by_id(context, tag);
     g_return_if_fail(source != NULL);
 
     iwp = io_watch_poll_from_source(source);
@@ -146,10 +146,10 @@ static void io_remove_watch_poll(guint tag)
     g_source_destroy(&iwp->parent);
 }
 
-void remove_fd_in_watch(Chardev *chr)
+void remove_fd_in_watch(Chardev *chr, GMainContext *context)
 {
     if (chr->fd_in_tag) {
-        io_remove_watch_poll(chr->fd_in_tag);
+        io_remove_watch_poll(chr->fd_in_tag, context);
         chr->fd_in_tag = 0;
     }
 }

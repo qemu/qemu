@@ -23,13 +23,13 @@
 
 struct NetRxPkt {
     struct virtio_net_hdr virt_hdr;
-    uint8_t ehdr_buf[sizeof(struct eth_header)];
+    uint8_t ehdr_buf[sizeof(struct eth_header) + sizeof(struct vlan_header)];
     struct iovec *vec;
     uint16_t vec_len_total;
     uint16_t vec_len;
     uint32_t tot_len;
     uint16_t tci;
-    bool vlan_stripped;
+    size_t ehdr_buf_len;
     bool has_virt_hdr;
     eth_pkt_types_e packet_type;
 
@@ -88,21 +88,21 @@ net_rx_pkt_pull_data(struct NetRxPkt *pkt,
                         const struct iovec *iov, int iovcnt,
                         size_t ploff)
 {
-    if (pkt->vlan_stripped) {
+    uint32_t pllen = iov_size(iov, iovcnt) - ploff;
+
+    if (pkt->ehdr_buf_len) {
         net_rx_pkt_iovec_realloc(pkt, iovcnt + 1);
 
         pkt->vec[0].iov_base = pkt->ehdr_buf;
-        pkt->vec[0].iov_len = sizeof(pkt->ehdr_buf);
+        pkt->vec[0].iov_len = pkt->ehdr_buf_len;
 
-        pkt->tot_len =
-            iov_size(iov, iovcnt) - ploff + sizeof(struct eth_header);
-
+        pkt->tot_len = pllen + pkt->ehdr_buf_len;
         pkt->vec_len = iov_copy(pkt->vec + 1, pkt->vec_len_total - 1,
-                                iov, iovcnt, ploff, pkt->tot_len);
+                                iov, iovcnt, ploff, pllen) + 1;
     } else {
         net_rx_pkt_iovec_realloc(pkt, iovcnt);
 
-        pkt->tot_len = iov_size(iov, iovcnt) - ploff;
+        pkt->tot_len = pllen;
         pkt->vec_len = iov_copy(pkt->vec, pkt->vec_len_total,
                                 iov, iovcnt, ploff, pkt->tot_len);
     }
@@ -123,11 +123,12 @@ void net_rx_pkt_attach_iovec(struct NetRxPkt *pkt,
     uint16_t tci = 0;
     uint16_t ploff = iovoff;
     assert(pkt);
-    pkt->vlan_stripped = false;
 
     if (strip_vlan) {
-        pkt->vlan_stripped = eth_strip_vlan(iov, iovcnt, iovoff, pkt->ehdr_buf,
-                                            &ploff, &tci);
+        pkt->ehdr_buf_len = eth_strip_vlan(iov, iovcnt, iovoff, pkt->ehdr_buf,
+                                           &ploff, &tci);
+    } else {
+        pkt->ehdr_buf_len = 0;
     }
 
     pkt->tci = tci;
@@ -143,12 +144,13 @@ void net_rx_pkt_attach_iovec_ex(struct NetRxPkt *pkt,
     uint16_t tci = 0;
     uint16_t ploff = iovoff;
     assert(pkt);
-    pkt->vlan_stripped = false;
 
     if (strip_vlan) {
-        pkt->vlan_stripped = eth_strip_vlan_ex(iov, iovcnt, iovoff, vet,
-                                               pkt->ehdr_buf,
-                                               &ploff, &tci);
+        pkt->ehdr_buf_len = eth_strip_vlan_ex(iov, iovcnt, iovoff, vet,
+                                              pkt->ehdr_buf,
+                                              &ploff, &tci);
+    } else {
+        pkt->ehdr_buf_len = 0;
     }
 
     pkt->tci = tci;
@@ -159,11 +161,10 @@ void net_rx_pkt_attach_iovec_ex(struct NetRxPkt *pkt,
 void net_rx_pkt_dump(struct NetRxPkt *pkt)
 {
 #ifdef NET_RX_PKT_DEBUG
-    NetRxPkt *pkt = (NetRxPkt *)pkt;
     assert(pkt);
 
-    printf("RX PKT: tot_len: %d, vlan_stripped: %d, vlan_tag: %d\n",
-              pkt->tot_len, pkt->vlan_stripped, pkt->tci);
+    printf("RX PKT: tot_len: %d, ehdr_buf_len: %lu, vlan_tag: %d\n",
+              pkt->tot_len, pkt->ehdr_buf_len, pkt->tci);
 #endif
 }
 
@@ -426,7 +427,7 @@ bool net_rx_pkt_is_vlan_stripped(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
-    return pkt->vlan_stripped;
+    return pkt->ehdr_buf_len ? true : false;
 }
 
 bool net_rx_pkt_has_virt_hdr(struct NetRxPkt *pkt)
