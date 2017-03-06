@@ -1713,11 +1713,10 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
     *nshared = shared;
 }
 
-static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
-                               bool check_new_perm)
+static void bdrv_replace_child_noperm(BdrvChild *child,
+                                      BlockDriverState *new_bs)
 {
     BlockDriverState *old_bs = child->bs;
-    uint64_t perm, shared_perm;
 
     if (old_bs) {
         if (old_bs->quiesce_counter && child->role->drained_end) {
@@ -1727,13 +1726,6 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
             child->role->detach(child);
         }
         QLIST_REMOVE(child, next_parent);
-
-        /* Update permissions for old node. This is guaranteed to succeed
-         * because we're just taking a parent away, so we're loosening
-         * restrictions. */
-        bdrv_get_cumulative_perm(old_bs, &perm, &shared_perm);
-        bdrv_check_perm(old_bs, perm, shared_perm, &error_abort);
-        bdrv_set_perm(old_bs, perm, shared_perm);
     }
 
     child->bs = new_bs;
@@ -1744,15 +1736,35 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
             child->role->drained_begin(child);
         }
 
+        if (child->role->attach) {
+            child->role->attach(child);
+        }
+    }
+}
+
+static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
+                               bool check_new_perm)
+{
+    BlockDriverState *old_bs = child->bs;
+    uint64_t perm, shared_perm;
+
+    if (old_bs) {
+        /* Update permissions for old node. This is guaranteed to succeed
+         * because we're just taking a parent away, so we're loosening
+         * restrictions. */
+        bdrv_get_cumulative_perm(old_bs, &perm, &shared_perm);
+        bdrv_check_perm(old_bs, perm, shared_perm, &error_abort);
+        bdrv_set_perm(old_bs, perm, shared_perm);
+    }
+
+    bdrv_replace_child_noperm(child, new_bs);
+
+    if (new_bs) {
         bdrv_get_cumulative_perm(new_bs, &perm, &shared_perm);
         if (check_new_perm) {
             bdrv_check_perm(new_bs, perm, shared_perm, &error_abort);
         }
         bdrv_set_perm(new_bs, perm, shared_perm);
-
-        if (child->role->attach) {
-            child->role->attach(child);
-        }
     }
 }
 
