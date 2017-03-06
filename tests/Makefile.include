@@ -28,7 +28,6 @@ check-unit-y += tests/test-clone-visitor$(EXESUF)
 gcov-files-test-clone-visitor-y = qapi/qapi-clone-visitor.c
 check-unit-y += tests/test-qobject-input-visitor$(EXESUF)
 gcov-files-test-qobject-input-visitor-y = qapi/qobject-input-visitor.c
-check-unit-y += tests/test-qobject-input-strict$(EXESUF)
 check-unit-y += tests/test-qmp-commands$(EXESUF)
 gcov-files-test-qmp-commands-y = qapi/qmp-dispatch.c
 check-unit-y += tests/test-string-input-visitor$(EXESUF)
@@ -133,7 +132,9 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
 
-check-qtest-generic-y = tests/device-introspect-test$(EXESUF)
+check-qtest-generic-y = tests/qmp-test$(EXESUF)
+gcov-files-generic-y = monitor.c qapi/qmp-dispatch.c
+check-qtest-generic-y += tests/device-introspect-test$(EXESUF)
 gcov-files-generic-y = qdev-monitor.c qmp.c
 
 gcov-files-ipack-y += hw/ipack/ipack.c
@@ -487,7 +488,7 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-coroutine.o tests/test-string-output-visitor.o \
 	tests/test-string-input-visitor.o tests/test-qobject-output-visitor.o \
 	tests/test-clone-visitor.o \
-	tests/test-qobject-input-visitor.o tests/test-qobject-input-strict.o \
+	tests/test-qobject-input-visitor.o \
 	tests/test-qmp-commands.o tests/test-visitor-serialization.o \
 	tests/test-x86-cpuid.o tests/test-mul64.o tests/test-int128.o \
 	tests/test-opts-visitor.o tests/test-qmp-event.o \
@@ -596,7 +597,6 @@ tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y)
 tests/test-qobject-output-visitor$(EXESUF): tests/test-qobject-output-visitor.o $(test-qapi-obj-y)
 tests/test-clone-visitor$(EXESUF): tests/test-clone-visitor.o $(test-qapi-obj-y)
 tests/test-qobject-input-visitor$(EXESUF): tests/test-qobject-input-visitor.o $(test-qapi-obj-y)
-tests/test-qobject-input-strict$(EXESUF): tests/test-qobject-input-strict.o $(test-qapi-obj-y)
 tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y)
 tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y)
 tests/test-opts-visitor$(EXESUF): tests/test-opts-visitor.o $(test-qapi-obj-y)
@@ -653,6 +653,7 @@ libqos-imx-obj-y = $(libqos-obj-y) tests/libqos/i2c-imx.o
 libqos-usb-obj-y = $(libqos-spapr-obj-y) $(libqos-pc-obj-y) tests/libqos/usb.o
 libqos-virtio-obj-y = $(libqos-spapr-obj-y) $(libqos-pc-obj-y) tests/libqos/virtio.o tests/libqos/virtio-pci.o tests/libqos/virtio-mmio.o tests/libqos/malloc-generic.o
 
+tests/qmp-test$(EXESUF): tests/qmp-test.o
 tests/device-introspect-test$(EXESUF): tests/device-introspect-test.o
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o

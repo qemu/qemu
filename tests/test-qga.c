@@ -213,7 +213,7 @@ static void test_qga_invalid_args(gconstpointer fix)
     desc = qdict_get_try_str(error, "desc");
 
     g_assert_cmpstr(class, ==, "GenericError");
-    g_assert_cmpstr(desc, ==, "QMP input object member 'foo' is unexpected");
+    g_assert_cmpstr(desc, ==, "Parameter 'foo' is unexpected");
 
     QDECREF(ret);
 }

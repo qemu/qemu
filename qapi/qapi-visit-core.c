@@ -90,6 +90,14 @@ GenericList *visit_next_list(Visitor *v, GenericList *tail, size_t size)
     return v->next_list(v, tail, size);
 }
 
+void visit_check_list(Visitor *v, Error **errp)
+{
+    trace_visit_check_list(v);
+    if (v->check_list) {
+        v->check_list(v, errp);
+    }
+}
+
 void visit_end_list(Visitor *v, void **obj)
 {
     trace_visit_end_list(v, obj);

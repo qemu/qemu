@@ -82,15 +82,6 @@
 #define QERR_QGA_COMMAND_FAILED \
     "Guest agent command failed, error was '%s'"
 
-#define QERR_QMP_BAD_INPUT_OBJECT \
-    "Expected '%s' in QMP input"
-
-#define QERR_QMP_BAD_INPUT_OBJECT_MEMBER \
-    "QMP input object member '%s' expects '%s'"
-
-#define QERR_QMP_EXTRA_MEMBER \
-    "QMP input object member '%s' is unexpected"
-
 #define QERR_SET_PASSWD_FAILED \
     "Could not set password"
 

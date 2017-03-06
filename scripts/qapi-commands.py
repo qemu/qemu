@@ -130,7 +130,7 @@ def gen_marshal(name, arg_type, boxed, ret_type):
         push_indent()
 
     ret += mcgen('''
-    v = qobject_input_visitor_new(QOBJECT(args), true);
+    v = qobject_input_visitor_new(QOBJECT(args));
     visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
         goto out;
@@ -198,7 +198,8 @@ def gen_register_command(name, success_response):
         options = 'QCO_NO_SUCCESS_RESP'
 
     ret = mcgen('''
-    qmp_register_command("%(name)s", qmp_marshal_%(c_name)s, %(opts)s);
+    qmp_register_command(cmds, "%(name)s", 
+                         qmp_marshal_%(c_name)s, %(opts)s);
 ''',
                 name=name, c_name=c_name(name),
                 opts=options)
@@ -208,14 +209,15 @@ def gen_register_command(name, success_response):
 def gen_registry(registry):
     ret = mcgen('''
 
-static void qmp_init_marshal(void)
+void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
 {
-''')
+    QTAILQ_INIT(cmds);
+
+''',
+                c_prefix=c_name(prefix, protect=False))
     ret += registry
     ret += mcgen('''
 }
-
-qapi_init(qmp_init_marshal);
 ''')
     return ret
 
@@ -291,7 +293,6 @@ fdef.write(mcgen('''
 #include "qemu-common.h"
 #include "qemu/module.h"
 #include "qapi/qmp/types.h"
-#include "qapi/qmp/dispatch.h"
 #include "qapi/visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qobject-input-visitor.h"
@@ -306,10 +307,12 @@ fdef.write(mcgen('''
 fdecl.write(mcgen('''
 #include "%(prefix)sqapi-types.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/dispatch.h"
 #include "qapi/error.h"
 
+void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
-                  prefix=prefix))
+                  prefix=prefix, c_prefix=c_name(prefix, protect=False)))
 
 schema = QAPISchema(input_file)
 gen = QAPISchemaGenCommandVisitor()

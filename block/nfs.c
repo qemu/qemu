@@ -474,7 +474,7 @@ static NFSServer *nfs_config(QDict *options, Error **errp)
         goto out;
     }
 
-    iv = qobject_input_visitor_new(crumpled_addr, true);
+    iv = qobject_input_visitor_new(crumpled_addr);
     visit_type_NFSServer(iv, NULL, &server, &local_error);
     if (local_error) {
         error_propagate(errp, local_error);
