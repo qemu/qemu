@@ -985,7 +985,10 @@ static int sd_parse_uri(BDRVSheepdogState *s, const char *filename,
         ret = -EINVAL;
         goto out;
     }
-    pstrcpy(vdi, SD_MAX_VDI_LEN, uri->path + 1);
+    if (g_strlcpy(vdi, uri->path + 1, SD_MAX_VDI_LEN) >= SD_MAX_VDI_LEN) {
+        ret = -EINVAL;
+        goto out;
+    }
 
     qp = query_params_parse(uri->query);
     if (qp->n > 1 || (s->is_unix && !qp->n) || (!s->is_unix && qp->n)) {
