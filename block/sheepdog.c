@@ -957,16 +957,18 @@ static bool sd_parse_snapid_or_tag(const char *str,
     return true;
 }
 
-static int sd_parse_uri(BDRVSheepdogState *s, const char *filename,
-                        char *vdi, uint32_t *snapid, char *tag)
+static void sd_parse_uri(BDRVSheepdogState *s, const char *filename,
+                         char *vdi, uint32_t *snapid, char *tag,
+                         Error **errp)
 {
+    Error *err = NULL;
     URI *uri;
     QueryParams *qp = NULL;
-    int ret = 0;
 
     uri = uri_parse(filename);
     if (!uri) {
-        return -EINVAL;
+        error_setg(&err, "invalid URI");
+        goto out;
     }
 
     /* transport */
@@ -977,34 +979,46 @@ static int sd_parse_uri(BDRVSheepdogState *s, const char *filename,
     } else if (!strcmp(uri->scheme, "sheepdog+unix")) {
         s->is_unix = true;
     } else {
-        ret = -EINVAL;
+        error_setg(&err, "URI scheme must be 'sheepdog', 'sheepdog+tcp',"
+                   " or 'sheepdog+unix'");
         goto out;
     }
 
     if (uri->path == NULL || !strcmp(uri->path, "/")) {
-        ret = -EINVAL;
+        error_setg(&err, "missing file path in URI");
         goto out;
     }
     if (g_strlcpy(vdi, uri->path + 1, SD_MAX_VDI_LEN) >= SD_MAX_VDI_LEN) {
-        ret = -EINVAL;
+        error_setg(&err, "VDI name is too long");
         goto out;
     }
 
     qp = query_params_parse(uri->query);
-    if (qp->n > 1 || (s->is_unix && !qp->n) || (!s->is_unix && qp->n)) {
-        ret = -EINVAL;
-        goto out;
-    }
 
     if (s->is_unix) {
         /* sheepdog+unix:///vdiname?socket=path */
-        if (uri->server || uri->port || strcmp(qp->p[0].name, "socket")) {
-            ret = -EINVAL;
+        if (uri->server || uri->port) {
+            error_setg(&err, "URI scheme %s doesn't accept a server address",
+                       uri->scheme);
+            goto out;
+        }
+        if (!qp->n) {
+            error_setg(&err,
+                       "URI scheme %s requires query parameter 'socket'",
+                       uri->scheme);
+            goto out;
+        }
+        if (qp->n != 1 || strcmp(qp->p[0].name, "socket")) {
+            error_setg(&err, "unexpected query parameters");
             goto out;
         }
         s->host_spec = g_strdup(qp->p[0].value);
     } else {
         /* sheepdog[+tcp]://[host:port]/vdiname */
+        if (qp->n) {
+            error_setg(&err, "unexpected query parameters");
+            goto out;
+        }
         s->host_spec = g_strdup_printf("%s:%d", uri->server ?: SD_DEFAULT_ADDR,
                                        uri->port ?: SD_DEFAULT_PORT);
     }
@@ -1012,7 +1026,8 @@ static int sd_parse_uri(BDRVSheepdogState *s, const char *filename,
     /* snapshot tag */
     if (uri->fragment) {
         if (!sd_parse_snapid_or_tag(uri->fragment, snapid, tag)) {
-            ret = -EINVAL;
+            error_setg(&err, "'%s' is not a valid snapshot ID",
+                       uri->fragment);
             goto out;
         }
     } else {
@@ -1020,11 +1035,11 @@ static int sd_parse_uri(BDRVSheepdogState *s, const char *filename,
     }
 
 out:
+    error_propagate(errp, err);
     if (qp) {
         query_params_free(qp);
     }
     uri_free(uri);
-    return ret;
 }
 
 /*
@@ -1044,12 +1059,14 @@ out:
  * You can run VMs outside the Sheepdog cluster by specifying
  * `hostname' and `port' (experimental).
  */
-static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
-                         char *vdi, uint32_t *snapid, char *tag)
+static void parse_vdiname(BDRVSheepdogState *s, const char *filename,
+                          char *vdi, uint32_t *snapid, char *tag,
+                          Error **errp)
 {
+    Error *err = NULL;
     char *p, *q, *uri;
     const char *host_spec, *vdi_spec;
-    int nr_sep, ret;
+    int nr_sep;
 
     strstart(filename, "sheepdog:", &filename);
     p = q = g_strdup(filename);
@@ -1084,12 +1101,23 @@ static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
 
     uri = g_strdup_printf("sheepdog://%s/%s", host_spec, vdi_spec);
 
-    ret = sd_parse_uri(s, uri, vdi, snapid, tag);
+    /*
+     * FIXME We to escape URI meta-characters, e.g. "x?y=z"
+     * produces "sheepdog://x?y=z".  Because of that ...
+     */
+    sd_parse_uri(s, uri, vdi, snapid, tag, &err);
+    if (err) {
+        /*
+         * ... this can fail, but the error message is misleading.
+         * Replace it by the traditional useless one until the
+         * escaping is fixed.
+         */
+        error_free(err);
+        error_setg(errp, "Can't parse filename");
+    }
 
     g_free(q);
     g_free(uri);
-
-    return ret;
 }
 
 static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
@@ -1452,12 +1480,13 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     memset(tag, 0, sizeof(tag));
 
     if (strstr(filename, "://")) {
-        ret = sd_parse_uri(s, filename, vdi, &snapid, tag);
+        sd_parse_uri(s, filename, vdi, &snapid, tag, &local_err);
     } else {
-        ret = parse_vdiname(s, filename, vdi, &snapid, tag);
+        parse_vdiname(s, filename, vdi, &snapid, tag, &local_err);
     }
-    if (ret < 0) {
-        error_setg(errp, "Can't parse filename");
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
         goto err_no_fd;
     }
     s->fd = get_sheep_fd(s, errp);
@@ -1785,6 +1814,7 @@ static int parse_block_size_shift(BDRVSheepdogState *s, QemuOpts *opt)
 static int sd_create(const char *filename, QemuOpts *opts,
                      Error **errp)
 {
+    Error *err = NULL;
     int ret = 0;
     uint32_t vid = 0;
     char *backing_file = NULL;
@@ -1799,12 +1829,12 @@ static int sd_create(const char *filename, QemuOpts *opts,
 
     memset(tag, 0, sizeof(tag));
     if (strstr(filename, "://")) {
-        ret = sd_parse_uri(s, filename, s->name, &snapid, tag);
+        sd_parse_uri(s, filename, s->name, &snapid, tag, &err);
     } else {
-        ret = parse_vdiname(s, filename, s->name, &snapid, tag);
+        parse_vdiname(s, filename, s->name, &snapid, tag, &err);
     }
-    if (ret < 0) {
-        error_setg(errp, "Can't parse filename");
+    if (err) {
+        error_propagate(errp, err);
         goto out;
     }
 
