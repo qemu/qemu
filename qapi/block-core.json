@@ -2546,50 +2546,6 @@
             '*read-pattern': 'QuorumReadPattern' } }
 
 ##
-# @GlusterTransport:
-#
-# An enumeration of Gluster transport types
-#
-# @tcp:   TCP   - Transmission Control Protocol
-#
-# @unix:  UNIX  - Unix domain socket
-#
-# Since: 2.7
-##
-{ 'enum': 'GlusterTransport',
-  'data': [ 'unix', 'tcp' ] }
-
-
-##
-# @GlusterServer:
-#
-# Captures the address of a socket
-#
-# Details for connecting to a gluster server
-#
-# @type:       Transport type used for gluster connection
-#
-# This is similar to SocketAddress, only distinction:
-#
-# 1. GlusterServer is a flat union, SocketAddress is a simple union.
-#    A flat union is nicer than simple because it avoids nesting
-#    (i.e. more {}) on the wire.
-#
-# 2. GlusterServer lacks case 'fd', since gluster doesn't let you
-#    pass in a file descriptor.
-#
-# GlusterServer is actually not Gluster-specific, its a
-# compatibility evolved into an alternate for SocketAddress.
-#
-# Since: 2.7
-##
-{ 'union': 'GlusterServer',
-  'base': { 'type': 'GlusterTransport' },
-  'discriminator': 'type',
-  'data': { 'unix': 'UnixSocketAddress',
-            'tcp': 'InetSocketAddress' } }
-
-##
 # @BlockdevOptionsGluster:
 #
 # Driver specific block device options for Gluster
@@ -2610,7 +2566,7 @@
 { 'struct': 'BlockdevOptionsGluster',
   'data': { 'volume': 'str',
             'path': 'str',
-            'server': ['GlusterServer'],
+            'server': ['SocketAddressFlat'],
             '*debug': 'int',
             '*logfile': 'str' } }
 

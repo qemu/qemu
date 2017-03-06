@@ -321,7 +321,7 @@ static int parse_volume_options(BlockdevOptionsGluster *gconf, char *path)
 static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
                                   const char *filename)
 {
-    GlusterServer *gsconf;
+    SocketAddressFlat *gsconf;
     URI *uri;
     QueryParams *qp = NULL;
     bool is_unix = false;
@@ -332,19 +332,19 @@ static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
         return -EINVAL;
     }
 
-    gconf->server = g_new0(GlusterServerList, 1);
-    gconf->server->value = gsconf = g_new0(GlusterServer, 1);
+    gconf->server = g_new0(SocketAddressFlatList, 1);
+    gconf->server->value = gsconf = g_new0(SocketAddressFlat, 1);
 
     /* transport */
     if (!uri->scheme || !strcmp(uri->scheme, "gluster")) {
-        gsconf->type = GLUSTER_TRANSPORT_TCP;
+        gsconf->type = SOCKET_ADDRESS_FLAT_TYPE_TCP;
     } else if (!strcmp(uri->scheme, "gluster+tcp")) {
-        gsconf->type = GLUSTER_TRANSPORT_TCP;
+        gsconf->type = SOCKET_ADDRESS_FLAT_TYPE_TCP;
     } else if (!strcmp(uri->scheme, "gluster+unix")) {
-        gsconf->type = GLUSTER_TRANSPORT_UNIX;
+        gsconf->type = SOCKET_ADDRESS_FLAT_TYPE_UNIX;
         is_unix = true;
     } else if (!strcmp(uri->scheme, "gluster+rdma")) {
-        gsconf->type = GLUSTER_TRANSPORT_TCP;
+        gsconf->type = SOCKET_ADDRESS_FLAT_TYPE_TCP;
         error_report("Warning: rdma feature is not supported, falling "
                      "back to tcp");
     } else {
@@ -396,7 +396,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
     struct glfs *glfs;
     int ret;
     int old_errno;
-    GlusterServerList *server;
+    SocketAddressFlatList *server;
     unsigned long long port;
 
     glfs = glfs_find_preopened(gconf->volume);
@@ -412,7 +412,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
     glfs_set_preopened(gconf->volume, glfs);
 
     for (server = gconf->server; server; server = server->next) {
-        if (server->value->type  == GLUSTER_TRANSPORT_UNIX) {
+        if (server->value->type  == SOCKET_ADDRESS_FLAT_TYPE_UNIX) {
             ret = glfs_set_volfile_server(glfs, "unix",
                                    server->value->u.q_unix.path, 0);
         } else {
@@ -443,7 +443,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
         error_setg(errp, "Gluster connection for volume %s, path %s failed"
                          " to connect", gconf->volume, gconf->path);
         for (server = gconf->server; server; server = server->next) {
-            if (server->value->type  == GLUSTER_TRANSPORT_UNIX) {
+            if (server->value->type  == SOCKET_ADDRESS_FLAT_TYPE_UNIX) {
                 error_append_hint(errp, "hint: failed on socket %s ",
                                   server->value->u.q_unix.path);
             } else {
@@ -480,8 +480,8 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
                                   QDict *options, Error **errp)
 {
     QemuOpts *opts;
-    GlusterServer *gsconf = NULL;
-    GlusterServerList *curr = NULL;
+    SocketAddressFlat *gsconf = NULL;
+    SocketAddressFlatList *curr = NULL;
     QDict *backing_options = NULL;
     Error *local_err = NULL;
     char *str = NULL;
@@ -535,9 +535,9 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
             goto out;
 
         }
-        gsconf = g_new0(GlusterServer, 1);
-        gsconf->type = qapi_enum_parse(GlusterTransport_lookup, ptr,
-                                       GLUSTER_TRANSPORT__MAX, -1,
+        gsconf = g_new0(SocketAddressFlat, 1);
+        gsconf->type = qapi_enum_parse(SocketAddressFlatType_lookup, ptr,
+                                       SOCKET_ADDRESS_FLAT_TYPE__MAX, -1,
                                        &local_err);
         if (local_err) {
             error_append_hint(&local_err,
@@ -548,7 +548,7 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
         }
         qemu_opts_del(opts);
 
-        if (gsconf->type == GLUSTER_TRANSPORT_TCP) {
+        if (gsconf->type == SOCKET_ADDRESS_FLAT_TYPE_TCP) {
             /* create opts info from runtime_tcp_opts list */
             opts = qemu_opts_create(&runtime_tcp_opts, NULL, 0, &error_abort);
             qemu_opts_absorb_qdict(opts, backing_options, &local_err);
@@ -617,11 +617,11 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
         }
 
         if (gconf->server == NULL) {
-            gconf->server = g_new0(GlusterServerList, 1);
+            gconf->server = g_new0(SocketAddressFlatList, 1);
             gconf->server->value = gsconf;
             curr = gconf->server;
         } else {
-            curr->next = g_new0(GlusterServerList, 1);
+            curr->next = g_new0(SocketAddressFlatList, 1);
             curr->next->value = gsconf;
             curr = curr->next;
         }
@@ -637,7 +637,7 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
 
 out:
     error_propagate(errp, local_err);
-    qapi_free_GlusterServer(gsconf);
+    qapi_free_SocketAddressFlat(gsconf);
     qemu_opts_del(opts);
     g_free(str);
     QDECREF(backing_options);
