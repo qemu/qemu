@@ -566,8 +566,10 @@ static void mirror_exit(BlockJob *job, void *opaque)
 
     /* Remove the mirror filter driver from the graph. Before this, get rid of
      * the blockers on the intermediate nodes so that the resulting state is
-     * valid. */
+     * valid. Also give up permissions on mirror_top_bs->backing, which might
+     * block the removal. */
     block_job_remove_all_bdrv(job);
+    bdrv_child_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL);
     bdrv_replace_in_backing_chain(mirror_top_bs, backing_bs(mirror_top_bs));
 
     /* We just changed the BDS the job BB refers to (with either or both of the
@@ -1234,6 +1236,7 @@ fail:
         block_job_unref(&s->common);
     }
 
+    bdrv_child_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL);
     bdrv_replace_in_backing_chain(mirror_top_bs, backing_bs(mirror_top_bs));
 }
 
