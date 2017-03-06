@@ -333,7 +333,7 @@ static const VMStateDescription vmstate_icp_server = {
     },
 };
 
-static void icp_reset(DeviceState *dev)
+static void icp_reset(void *dev)
 {
     ICPState *icp = ICP(dev);
 
@@ -359,6 +359,8 @@ static void icp_realize(DeviceState *dev, Error **errp)
     }
 
     icp->xics = XICS_FABRIC(obj);
+
+    qemu_register_reset(icp_reset, dev);
 }
 
 
@@ -366,7 +368,6 @@ static void icp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = icp_reset;
     dc->vmsd = &vmstate_icp_server;
     dc->realize = icp_realize;
 }
@@ -522,7 +523,7 @@ static void ics_simple_eoi(ICSState *ics, uint32_t nr)
     }
 }
 
-static void ics_simple_reset(DeviceState *dev)
+static void ics_simple_reset(void *dev)
 {
     ICSState *ics = ICS_SIMPLE(dev);
     int i;
@@ -611,6 +612,8 @@ static void ics_simple_realize(DeviceState *dev, Error **errp)
     }
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
     ics->qirqs = qemu_allocate_irqs(ics_simple_set_irq, ics, ics->nr_irqs);
+
+    qemu_register_reset(ics_simple_reset, dev);
 }
 
 static Property ics_simple_properties[] = {
@@ -626,7 +629,6 @@ static void ics_simple_class_init(ObjectClass *klass, void *data)
     isc->realize = ics_simple_realize;
     dc->props = ics_simple_properties;
     dc->vmsd = &vmstate_ics_simple;
-    dc->reset = ics_simple_reset;
     isc->reject = ics_simple_reject;
     isc->resend = ics_simple_resend;
     isc->eoi = ics_simple_eoi;

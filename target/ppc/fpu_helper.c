@@ -743,34 +743,38 @@ uint64_t helper_frim(CPUPPCState *env, uint64_t arg)
     return do_fri(env, arg, float_round_down);
 }
 
-static void float64_maddsub_update_excp(CPUPPCState *env, float64 arg1,
-                                        float64 arg2, float64 arg3,
-                                        unsigned int madd_flags)
-{
-    if (unlikely((float64_is_infinity(arg1) && float64_is_zero(arg2)) ||
-                 (float64_is_zero(arg1) && float64_is_infinity(arg2)))) {
-        /* Multiplication of zero by infinity */
-        arg1 = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
-    } else if (unlikely(float64_is_signaling_nan(arg1, &env->fp_status) ||
-                        float64_is_signaling_nan(arg2, &env->fp_status) ||
-                        float64_is_signaling_nan(arg3, &env->fp_status))) {
-        /* sNaN operation */
-        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
-    } else if ((float64_is_infinity(arg1) || float64_is_infinity(arg2)) &&
-               float64_is_infinity(arg3)) {
-        uint8_t aSign, bSign, cSign;
-
-        aSign = float64_is_neg(arg1);
-        bSign = float64_is_neg(arg2);
-        cSign = float64_is_neg(arg3);
-        if (madd_flags & float_muladd_negate_c) {
-            cSign ^= 1;
-        }
-        if (aSign ^ bSign ^ cSign) {
-            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
-        }
-    }
+#define FPU_MADDSUB_UPDATE(NAME, TP)                                    \
+static void NAME(CPUPPCState *env, TP arg1, TP arg2, TP arg3,           \
+                 unsigned int madd_flags)                               \
+{                                                                       \
+    if (TP##_is_signaling_nan(arg1, &env->fp_status) ||                 \
+        TP##_is_signaling_nan(arg2, &env->fp_status) ||                 \
+        TP##_is_signaling_nan(arg3, &env->fp_status)) {                 \
+        /* sNaN operation */                                            \
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);          \
+    }                                                                   \
+    if ((TP##_is_infinity(arg1) && TP##_is_zero(arg2)) ||               \
+        (TP##_is_zero(arg1) && TP##_is_infinity(arg2))) {               \
+        /* Multiplication of zero by infinity */                        \
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);           \
+    }                                                                   \
+    if ((TP##_is_infinity(arg1) || TP##_is_infinity(arg2)) &&           \
+        TP##_is_infinity(arg3)) {                                       \
+        uint8_t aSign, bSign, cSign;                                    \
+                                                                        \
+        aSign = TP##_is_neg(arg1);                                      \
+        bSign = TP##_is_neg(arg2);                                      \
+        cSign = TP##_is_neg(arg3);                                      \
+        if (madd_flags & float_muladd_negate_c) {                       \
+            cSign ^= 1;                                                 \
+        }                                                               \
+        if (aSign ^ bSign ^ cSign) {                                    \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);       \
+        }                                                               \
+    }                                                                   \
 }
+FPU_MADDSUB_UPDATE(float32_maddsub_update_excp, float32)
+FPU_MADDSUB_UPDATE(float64_maddsub_update_excp, float64)
 
 #define FPU_FMADD(op, madd_flags)                                       \
 uint64_t helper_##op(CPUPPCState *env, uint64_t arg1,                   \
@@ -2236,24 +2240,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags;  \
                                                                               \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {     \
-            if (tp##_is_signaling_nan(xa.fld, &tstat) ||                      \
-                tp##_is_signaling_nan(b->fld, &tstat) ||                      \
-                tp##_is_signaling_nan(c->fld, &tstat)) {                      \
-                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
-                tstat.float_exception_flags &= ~float_flag_invalid;           \
-            }                                                                 \
-            if ((tp##_is_infinity(xa.fld) && tp##_is_zero(b->fld)) ||         \
-                (tp##_is_zero(xa.fld) && tp##_is_infinity(b->fld))) {         \
-                xt_out.fld = float64_to_##tp(float_invalid_op_excp(env,       \
-                    POWERPC_EXCP_FP_VXIMZ, sfprf), &env->fp_status);          \
-                tstat.float_exception_flags &= ~float_flag_invalid;           \
-            }                                                                 \
-            if ((tstat.float_exception_flags & float_flag_invalid) &&         \
-                ((tp##_is_infinity(xa.fld) ||                                 \
-                  tp##_is_infinity(b->fld)) &&                                \
-                  tp##_is_infinity(c->fld))) {                                \
-                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, sfprf);     \
-            }                                                                 \
+            tp##_maddsub_update_excp(env, xa.fld, b->fld, c->fld, maddflgs);  \
         }                                                                     \
                                                                               \
         if (r2sp) {                                                           \
