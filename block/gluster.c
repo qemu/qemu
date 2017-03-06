@@ -12,6 +12,7 @@
 #include "block/block_int.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/util.h"
 #include "qemu/uri.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
@@ -472,23 +473,6 @@ out:
     return NULL;
 }
 
-static int qapi_enum_parse(const char *opt)
-{
-    int i;
-
-    if (!opt) {
-        return GLUSTER_TRANSPORT__MAX;
-    }
-
-    for (i = 0; i < GLUSTER_TRANSPORT__MAX; i++) {
-        if (!strcmp(opt, GlusterTransport_lookup[i])) {
-            return i;
-        }
-    }
-
-    return i;
-}
-
 /*
  * Convert the json formatted command line into qapi.
 */
@@ -546,16 +530,20 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
 
         ptr = qemu_opt_get(opts, GLUSTER_OPT_TYPE);
         gsconf = g_new0(GlusterServer, 1);
-        gsconf->type = qapi_enum_parse(ptr);
+        gsconf->type = qapi_enum_parse(GlusterTransport_lookup, ptr,
+                                       GLUSTER_TRANSPORT__MAX,
+                                       GLUSTER_TRANSPORT__MAX,
+                                       &local_err);
         if (!ptr) {
             error_setg(&local_err, QERR_MISSING_PARAMETER, GLUSTER_OPT_TYPE);
             error_append_hint(&local_err, GERR_INDEX_HINT, i);
             goto out;
 
         }
-        if (gsconf->type == GLUSTER_TRANSPORT__MAX) {
-            error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE,
-                       GLUSTER_OPT_TYPE, "tcp or unix");
+        if (local_err) {
+            error_append_hint(&local_err,
+                              "Parameter '%s' may be 'tcp' or 'unix'\n",
+                              GLUSTER_OPT_TYPE);
             error_append_hint(&local_err, GERR_INDEX_HINT, i);
             goto out;
         }
