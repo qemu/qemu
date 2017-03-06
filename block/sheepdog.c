@@ -1829,14 +1829,12 @@ static int sd_create(const char *filename, QemuOpts *opts,
     if (s->inode.block_size_shift == 0) {
         SheepdogVdiReq hdr;
         SheepdogClusterRsp *rsp = (SheepdogClusterRsp *)&hdr;
-        Error *local_err = NULL;
         int fd;
         unsigned int wlen = 0, rlen = 0;
 
-        fd = connect_to_sdog(s, &local_err);
+        fd = connect_to_sdog(s, errp);
         if (fd < 0) {
-            error_report_err(local_err);
-            ret = -EIO;
+            ret = fd;
             goto out;
         }
 
