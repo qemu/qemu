@@ -480,7 +480,7 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
                                   QDict *options, Error **errp)
 {
     QemuOpts *opts;
-    GlusterServer *gsconf;
+    GlusterServer *gsconf = NULL;
     GlusterServerList *curr = NULL;
     QDict *backing_options = NULL;
     Error *local_err = NULL;
@@ -529,17 +529,16 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
         }
 
         ptr = qemu_opt_get(opts, GLUSTER_OPT_TYPE);
-        gsconf = g_new0(GlusterServer, 1);
-        gsconf->type = qapi_enum_parse(GlusterTransport_lookup, ptr,
-                                       GLUSTER_TRANSPORT__MAX,
-                                       GLUSTER_TRANSPORT__MAX,
-                                       &local_err);
         if (!ptr) {
             error_setg(&local_err, QERR_MISSING_PARAMETER, GLUSTER_OPT_TYPE);
             error_append_hint(&local_err, GERR_INDEX_HINT, i);
             goto out;
 
         }
+        gsconf = g_new0(GlusterServer, 1);
+        gsconf->type = qapi_enum_parse(GlusterTransport_lookup, ptr,
+                                       GLUSTER_TRANSPORT__MAX, -1,
+                                       &local_err);
         if (local_err) {
             error_append_hint(&local_err,
                               "Parameter '%s' may be 'tcp' or 'unix'\n",
@@ -626,8 +625,10 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
             curr->next->value = gsconf;
             curr = curr->next;
         }
+        gsconf = NULL;
 
-        qdict_del(backing_options, str);
+        QDECREF(backing_options);
+        backing_options = NULL;
         g_free(str);
         str = NULL;
     }
@@ -636,11 +637,10 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
 
 out:
     error_propagate(errp, local_err);
+    qapi_free_GlusterServer(gsconf);
     qemu_opts_del(opts);
-    if (str) {
-        qdict_del(backing_options, str);
-        g_free(str);
-    }
+    g_free(str);
+    QDECREF(backing_options);
     errno = EINVAL;
     return -errno;
 }
