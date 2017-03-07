@@ -349,7 +349,7 @@ static int local_set_cred_passthrough(FsContext *fs_ctx, int dirfd,
                                       const char *name, FsCred *credp)
 {
     if (fchownat(dirfd, name, credp->fc_uid, credp->fc_gid,
-                 AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH) < 0) {
+                 AT_SYMLINK_NOFOLLOW) < 0) {
         /*
          * If we fail to change ownership and if we are
          * using security model none. Ignore the error
@@ -435,6 +435,7 @@ static int local_opendir(FsContext *ctx,
 
     stream = fdopendir(dirfd);
     if (!stream) {
+        close(dirfd);
         return -1;
     }
     fs->dir.stream = stream;
@@ -959,7 +960,7 @@ static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
         if (flags == AT_REMOVEDIR) {
             int fd;
 
-            fd = openat(dirfd, name, O_RDONLY | O_DIRECTORY | O_PATH);
+            fd = openat_dir(dirfd, name);
             if (fd == -1) {
                 goto err_out;
             }
@@ -1008,7 +1009,7 @@ static int local_remove(FsContext *ctx, const char *path)
     int err = -1;
 
     dirfd = local_opendir_nofollow(ctx, dirpath);
-    if (dirfd) {
+    if (dirfd == -1) {
         goto out;
     }
 
@@ -1052,6 +1053,9 @@ static int local_statfs(FsContext *s, V9fsPath *fs_path, struct statfs *stbuf)
     int fd, ret;
 
     fd = local_open_nofollow(s, fs_path->data, O_RDONLY, 0);
+    if (fd == -1) {
+        return -1;
+    }
     ret = fstatfs(fd, stbuf);
     close_preserve_errno(fd);
     return ret;
