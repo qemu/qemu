@@ -6840,6 +6840,7 @@ case "$target_name" in
   ;;
   xtensa|xtensaeb)
     TARGET_ARCH=xtensa
+    mttcg="yes"
   ;;
   *)
     error_exit "Unsupported target CPU"
