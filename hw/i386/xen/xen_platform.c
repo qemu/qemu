@@ -195,7 +195,7 @@ static void platform_fixed_ioport_writeb(void *opaque, uint32_t addr, uint32_t v
     case 0: /* Platform flags */ {
         hvmmem_type_t mem_type = (val & PFFLAG_ROM_LOCK) ?
             HVMMEM_ram_ro : HVMMEM_ram_rw;
-        if (xc_hvm_set_mem_type(xen_xc, xen_domid, mem_type, 0xc0, 0x40)) {
+        if (xen_set_mem_type(xen_domid, mem_type, 0xc0, 0x40)) {
             DPRINTF("unable to change ro/rw state of ROM memory area!\n");
         } else {
             s->flags = val & PFFLAG_ROM_LOCK;

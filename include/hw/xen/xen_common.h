@@ -26,6 +26,50 @@ extern xc_interface *xen_xc;
  * We don't support Xen prior to 4.2.0.
  */
 
+static inline int xen_set_mem_type(domid_t domid, hvmmem_type_t type,
+                                   uint64_t first_pfn, uint32_t nr)
+{
+    return xc_hvm_set_mem_type(xen_xc, domid, type, first_pfn, nr);
+}
+
+static inline int xen_set_pci_intx_level(domid_t domid, uint16_t segment,
+                                         uint8_t bus, uint8_t device,
+                                         uint8_t intx, unsigned int level)
+{
+    return xc_hvm_set_pci_intx_level(xen_xc, domid, segment, bus, device,
+                                     intx, level);
+}
+
+static inline int xen_set_pci_link_route(domid_t domid, uint8_t link,
+                                         uint8_t irq)
+{
+    return xc_hvm_set_pci_link_route(xen_xc, domid, link, irq);
+}
+
+static inline int xen_inject_msi(domid_t domid, uint64_t msi_addr,
+                                 uint32_t msi_data)
+{
+    return xc_hvm_inject_msi(xen_xc, domid, msi_addr, msi_data);
+}
+
+static inline int xen_set_isa_irq_level(domid_t domid, uint8_t irq,
+                                        unsigned int level)
+{
+    return xc_hvm_set_isa_irq_level(xen_xc, domid, irq, level);
+}
+
+static inline int xen_track_dirty_vram(domid_t domid, uint64_t first_pfn,
+                                       uint32_t nr, unsigned long *bitmap)
+{
+    return xc_hvm_track_dirty_vram(xen_xc, domid, first_pfn, nr, bitmap);
+}
+
+static inline int xen_modified_memory(domid_t domid, uint64_t first_pfn,
+                                      uint32_t nr)
+{
+    return xc_hvm_modified_memory(xen_xc, domid, first_pfn, nr);
+}
+
 /* Xen 4.2 through 4.6 */
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
 

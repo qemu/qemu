@@ -125,8 +125,8 @@ int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 
 void xen_piix3_set_irq(void *opaque, int irq_num, int level)
 {
-    xc_hvm_set_pci_intx_level(xen_xc, xen_domid, 0, 0, irq_num >> 2,
-                              irq_num & 3, level);
+    xen_set_pci_intx_level(xen_domid, 0, 0, irq_num >> 2,
+                           irq_num & 3, level);
 }
 
 void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
@@ -141,7 +141,7 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
         }
         v &= 0xf;
         if (((address + i) >= 0x60) && ((address + i) <= 0x63)) {
-            xc_hvm_set_pci_link_route(xen_xc, xen_domid, address + i - 0x60, v);
+            xen_set_pci_link_route(xen_domid, address + i - 0x60, v);
         }
     }
 }
@@ -156,7 +156,7 @@ int xen_is_pirq_msi(uint32_t msi_data)
 
 void xen_hvm_inject_msi(uint64_t addr, uint32_t data)
 {
-    xc_hvm_inject_msi(xen_xc, xen_domid, addr, data);
+    xen_inject_msi(xen_domid, addr, data);
 }
 
 static void xen_suspend_notifier(Notifier *notifier, void *data)
@@ -168,7 +168,7 @@ static void xen_suspend_notifier(Notifier *notifier, void *data)
 
 static void xen_set_irq(void *opaque, int irq, int level)
 {
-    xc_hvm_set_isa_irq_level(xen_xc, xen_domid, irq, level);
+    xen_set_isa_irq_level(xen_domid, irq, level);
 }
 
 qemu_irq *xen_interrupt_controller_init(void)
@@ -481,10 +481,10 @@ static void xen_set_memory(struct MemoryListener *listener,
                                section->mr, section->offset_within_region);
         } else {
             mem_type = HVMMEM_ram_ro;
-            if (xc_hvm_set_mem_type(xen_xc, xen_domid, mem_type,
-                                    start_addr >> TARGET_PAGE_BITS,
-                                    size >> TARGET_PAGE_BITS)) {
-                DPRINTF("xc_hvm_set_mem_type error, addr: "TARGET_FMT_plx"\n",
+            if (xen_set_mem_type(xen_domid, mem_type,
+                                 start_addr >> TARGET_PAGE_BITS,
+                                 size >> TARGET_PAGE_BITS)) {
+                DPRINTF("xen_set_mem_type error, addr: "TARGET_FMT_plx"\n",
                         start_addr);
             }
         }
@@ -586,9 +586,8 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
         return;
     }
 
-    rc = xc_hvm_track_dirty_vram(xen_xc, xen_domid,
-                                 start_addr >> TARGET_PAGE_BITS, npages,
-                                 bitmap);
+    rc = xen_track_dirty_vram(xen_domid, start_addr >> TARGET_PAGE_BITS,
+                              npages, bitmap);
     if (rc < 0) {
 #ifndef ENODATA
 #define ENODATA  ENOENT
@@ -634,7 +633,7 @@ static void xen_log_stop(MemoryListener *listener, MemoryRegionSection *section,
     if (old & ~new & (1 << DIRTY_MEMORY_VGA)) {
         state->log_for_dirtybit = NULL;
         /* Disable dirty bit tracking */
-        xc_hvm_track_dirty_vram(xen_xc, xen_domid, 0, 0, NULL);
+        xen_track_dirty_vram(xen_domid, 0, 0, NULL);
     }
 }
 
@@ -1403,7 +1402,7 @@ void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
         start_pfn = start >> TARGET_PAGE_BITS;
         nb_pages = ((start + length + TARGET_PAGE_SIZE - 1) >> TARGET_PAGE_BITS)
             - start_pfn;
-        rc = xc_hvm_modified_memory(xen_xc, xen_domid, start_pfn, nb_pages);
+        rc = xen_modified_memory(xen_domid, start_pfn, nb_pages);
         if (rc) {
             fprintf(stderr,
                     "%s failed for "RAM_ADDR_FMT" ("RAM_ADDR_FMT"): %i, %s\n",
