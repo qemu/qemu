@@ -186,13 +186,14 @@ static int __get_all_irqs(KVMS390FLICState *flic,
 
 static int kvm_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
                                         uint8_t isc, bool swap,
-                                        bool is_maskable)
+                                        bool is_maskable, uint8_t flags)
 {
     struct kvm_s390_io_adapter adapter = {
         .id = id,
         .isc = isc,
         .maskable = is_maskable,
         .swap = swap,
+        .flags = flags,
     };
     KVMS390FLICState *flic = KVM_S390_FLIC(fs);
     int r;

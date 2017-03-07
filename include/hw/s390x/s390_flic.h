@@ -56,7 +56,7 @@ typedef struct S390FLICStateClass {
     DeviceClass parent_class;
 
     int (*register_io_adapter)(S390FLICState *fs, uint32_t id, uint8_t isc,
-                               bool swap, bool maskable);
+                               bool swap, bool maskable, uint8_t flags);
     int (*io_adapter_map)(S390FLICState *fs, uint32_t id, uint64_t map_addr,
                           bool do_map);
     int (*add_adapter_routes)(S390FLICState *fs, AdapterRoutes *routes);

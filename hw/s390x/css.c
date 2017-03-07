@@ -225,6 +225,7 @@ typedef struct IoAdapter {
     uint32_t id;
     uint8_t type;
     uint8_t isc;
+    uint8_t flags;
 } IoAdapter;
 
 typedef struct ChannelSubSys {
@@ -392,10 +393,12 @@ uint32_t css_get_adapter_id(CssIoAdapterType type, uint8_t isc)
  *
  * @swap: an indication if byte swap is needed.
  * @maskable: an indication if the adapter is subject to the mask operation.
+ * @flags: further characteristics of the adapter.
+ *         e.g. suppressible, an indication if the adapter is subject to AIS.
  * @errp: location to store error information.
  */
 void css_register_io_adapters(CssIoAdapterType type, bool swap, bool maskable,
-                              Error **errp)
+                              uint8_t flags, Error **errp)
 {
     uint32_t id;
     int ret, isc;
@@ -413,12 +416,13 @@ void css_register_io_adapters(CssIoAdapterType type, bool swap, bool maskable,
 
     for (isc = 0; isc <= MAX_ISC; isc++) {
         id = (type << 3) | isc;
-        ret = fsc->register_io_adapter(fs, id, isc, swap, maskable);
+        ret = fsc->register_io_adapter(fs, id, isc, swap, maskable, flags);
         if (ret == 0) {
             adapter = g_new0(IoAdapter, 1);
             adapter->id = id;
             adapter->isc = isc;
             adapter->type = type;
+            adapter->flags = flags;
             channel_subsys.io_adapters[type][isc] = adapter;
         } else {
             error_setg_errno(errp, -ret, "Unexpected error %d when "

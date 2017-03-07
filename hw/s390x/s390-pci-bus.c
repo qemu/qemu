@@ -582,7 +582,8 @@ static int s390_pcihost_init(SysBusDevice *dev)
     QTAILQ_INIT(&s->pending_sei);
     QTAILQ_INIT(&s->zpci_devs);
 
-    css_register_io_adapters(CSS_IO_ADAPTER_PCI, true, false, &error_abort);
+    css_register_io_adapters(CSS_IO_ADAPTER_PCI, true, false,
+                             S390_ADAPTER_SUPPRESSIBLE, &error_abort);
 
     return 0;
 }

@@ -48,7 +48,7 @@ void s390_flic_init(void)
 
 static int qemu_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
                                          uint8_t isc, bool swap,
-                                         bool is_maskable)
+                                         bool is_maskable, uint8_t flags)
 {
     /* nothing to do */
     return 0;
