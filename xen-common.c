@@ -25,6 +25,9 @@
     do { } while (0)
 #endif
 
+xc_interface *xen_xc;
+xenforeignmemory_handle *xen_fmem;
+
 static int store_dev_info(int domid, Chardev *cs, const char *string)
 {
     struct xs_handle *xs = NULL;

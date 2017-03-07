@@ -454,10 +454,10 @@ static void xen_set_memory(struct MemoryListener *listener,
         return;
     } else {
         if (add) {
-            xen_map_memory_section(xen_xc, xen_domid, state->ioservid,
+            xen_map_memory_section(xen_domid, state->ioservid,
                                    section);
         } else {
-            xen_unmap_memory_section(xen_xc, xen_domid, state->ioservid,
+            xen_unmap_memory_section(xen_domid, state->ioservid,
                                      section);
         }
     }
@@ -521,7 +521,7 @@ static void xen_io_add(MemoryListener *listener,
 
     memory_region_ref(mr);
 
-    xen_map_io_section(xen_xc, xen_domid, state->ioservid, section);
+    xen_map_io_section(xen_domid, state->ioservid, section);
 }
 
 static void xen_io_del(MemoryListener *listener,
@@ -534,7 +534,7 @@ static void xen_io_del(MemoryListener *listener,
         return;
     }
 
-    xen_unmap_io_section(xen_xc, xen_domid, state->ioservid, section);
+    xen_unmap_io_section(xen_domid, state->ioservid, section);
 
     memory_region_unref(mr);
 }
@@ -547,7 +547,7 @@ static void xen_device_realize(DeviceListener *listener,
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         PCIDevice *pci_dev = PCI_DEVICE(dev);
 
-        xen_map_pcidev(xen_xc, xen_domid, state->ioservid, pci_dev);
+        xen_map_pcidev(xen_domid, state->ioservid, pci_dev);
     }
 }
 
@@ -559,7 +559,7 @@ static void xen_device_unrealize(DeviceListener *listener,
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         PCIDevice *pci_dev = PCI_DEVICE(dev);
 
-        xen_unmap_pcidev(xen_xc, xen_domid, state->ioservid, pci_dev);
+        xen_unmap_pcidev(xen_domid, state->ioservid, pci_dev);
     }
 }
 
@@ -1139,7 +1139,7 @@ static void xen_hvm_change_state_handler(void *opaque, int running,
         xen_main_loop_prepare(state);
     }
 
-    xen_set_ioreq_server_state(xen_xc, xen_domid,
+    xen_set_ioreq_server_state(xen_domid,
                                state->ioservid,
                                (rstate == RUN_STATE_RUNNING));
 }
@@ -1227,7 +1227,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
         goto err;
     }
 
-    xen_create_ioreq_server(xen_xc, xen_domid, &state->ioservid);
+    xen_create_ioreq_server(xen_domid, &state->ioservid);
 
     state->exit.notify = xen_exit_notifier;
     qemu_add_exit_notifier(&state->exit);
@@ -1238,7 +1238,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     state->wakeup.notify = xen_wakeup_notifier;
     qemu_register_wakeup_notifier(&state->wakeup);
 
-    rc = xen_get_ioreq_server_info(xen_xc, xen_domid, state->ioservid,
+    rc = xen_get_ioreq_server_info(xen_domid, state->ioservid,
                                    &ioreq_pfn, &bufioreq_pfn,
                                    &bufioreq_evtchn);
     if (rc < 0) {
@@ -1288,7 +1288,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     /* Note: cpus is empty at this point in init */
     state->cpu_by_vcpu_id = g_malloc0(max_cpus * sizeof(CPUState *));
 
-    rc = xen_set_ioreq_server_state(xen_xc, xen_domid, state->ioservid, true);
+    rc = xen_set_ioreq_server_state(xen_domid, state->ioservid, true);
     if (rc < 0) {
         error_report("failed to enable ioreq server info: error %d handle=%p",
                      errno, xen_xc);

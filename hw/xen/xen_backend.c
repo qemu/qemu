@@ -43,8 +43,6 @@ BusState *xen_sysbus;
 /* ------------------------------------------------------------- */
 
 /* public */
-xc_interface *xen_xc = NULL;
-xenforeignmemory_handle *xen_fmem = NULL;
 struct xs_handle *xenstore = NULL;
 const char *xen_protocol;
 
