@@ -1561,6 +1561,11 @@ const char *qemu_ram_get_idstr(RAMBlock *rb)
     return rb->idstr;
 }
 
+bool qemu_ram_is_shared(RAMBlock *rb)
+{
+    return rb->flags & RAM_SHARED;
+}
+
 /* Called with iothread lock held.  */
 void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
 {
