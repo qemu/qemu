@@ -17,9 +17,10 @@
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qstring.h"
 
-QObject *qobject_from_json(const char *string);
+QObject *qobject_from_json(const char *string, Error **errp);
 QObject *qobject_from_jsonf(const char *string, ...) GCC_FMT_ATTR(1, 2);
-QObject *qobject_from_jsonv(const char *string, va_list *ap) GCC_FMT_ATTR(1, 0);
+QObject *qobject_from_jsonv(const char *string, va_list *ap, Error **errp)
+    GCC_FMT_ATTR(1, 0);
 
 QString *qobject_to_json(const QObject *obj);
 QString *qobject_to_json_pretty(const QObject *obj);
