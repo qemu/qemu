@@ -1391,7 +1391,7 @@ void xen_shutdown_fatal_error(const char *fmt, ...)
     qemu_system_shutdown_request();
 }
 
-void xen_modified_memory(ram_addr_t start, ram_addr_t length)
+void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
 {
     if (unlikely(xen_in_migration)) {
         int rc;
