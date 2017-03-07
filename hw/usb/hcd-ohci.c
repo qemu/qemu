@@ -42,7 +42,7 @@
 
 #define OHCI_MAX_PORTS 15
 
-#define ED_LINK_LIMIT 4
+#define ED_LINK_LIMIT 32
 
 static int64_t usb_frame_time;
 static int64_t usb_bit_time;
