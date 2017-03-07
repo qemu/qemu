@@ -924,7 +924,9 @@ int main(int argc, char **argv)
     g_test_add_data_func("/qga/info", &fix, test_qga_info);
     g_test_add_data_func("/qga/network-get-interfaces", &fix,
                          test_qga_network_get_interfaces);
-    g_test_add_data_func("/qga/get-vcpus", &fix, test_qga_get_vcpus);
+    if (!access("/sys/devices/system/cpu/cpu0", F_OK)) {
+        g_test_add_data_func("/qga/get-vcpus", &fix, test_qga_get_vcpus);
+    }
     g_test_add_data_func("/qga/get-fsinfo", &fix, test_qga_get_fsinfo);
     g_test_add_data_func("/qga/get-memory-block-info", &fix,
                          test_qga_get_memory_block_info);

@@ -316,7 +316,7 @@ static gboolean ga_channel_open(GAChannel *c, GAChannelMethod method,
 }
 
 GAChannel *ga_channel_new(GAChannelMethod method, const gchar *path,
-                          GAChannelCallback cb, gpointer opaque)
+                          int listen_fd, GAChannelCallback cb, gpointer opaque)
 {
     GAChannel *c = g_new0(GAChannel, 1);
     SECURITY_ATTRIBUTES sec_attrs;
