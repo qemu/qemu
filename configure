@@ -1976,7 +1976,7 @@ fi
 
 if test "$xen" != "no" ; then
   xen_libs="-lxenstore -lxenctrl -lxenguest"
-  xen_stable_libs="-lxenforeignmemory -lxengnttab -lxenevtchn"
+  xen_stable_libs="-lxencall -lxenforeignmemory -lxengnttab -lxenevtchn"
 
   # First we test whether Xen headers and libraries are available.
   # If no, we are done and there is no Xen support.
@@ -1997,6 +1997,25 @@ EOF
     xen=no
 
   # Xen unstable
+  elif
+      cat > $TMPC <<EOF &&
+#undef XC_WANT_COMPAT_DEVICEMODEL_API
+#define __XEN_TOOLS__
+#include <xendevicemodel.h>
+int main(void) {
+  xendevicemodel_handle *xd;
+
+  xd = xendevicemodel_open(0, 0);
+  xendevicemodel_close(xd);
+
+  return 0;
+}
+EOF
+      compile_prog "" "$xen_libs -lxendevicemodel $xen_stable_libs"
+    then
+    xen_stable_libs="-lxendevicemodel $xen_stable_libs"
+    xen_ctrl_version=490
+    xen=yes
   elif
       cat > $TMPC <<EOF &&
 /*
