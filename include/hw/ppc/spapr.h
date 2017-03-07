@@ -20,6 +20,18 @@ typedef struct sPAPREventSource sPAPREventSource;
 
 #define SPAPR_TIMEBASE_FREQ     512000000ULL
 
+#define TYPE_SPAPR_RTC "spapr-rtc"
+
+#define SPAPR_RTC(obj)                                  \
+    OBJECT_CHECK(sPAPRRTCState, (obj), TYPE_SPAPR_RTC)
+
+typedef struct sPAPRRTCState sPAPRRTCState;
+struct sPAPRRTCState {
+    /*< private >*/
+    DeviceState parent_obj;
+    int64_t ns_offset;
+};
+
 typedef struct sPAPRMachineClass sPAPRMachineClass;
 
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
@@ -58,7 +70,7 @@ struct sPAPRMachineState {
     QLIST_HEAD(, sPAPRPHBState) phbs;
     struct sPAPRNVRAM *nvram;
     ICSState *ics;
-    DeviceState *rtc;
+    sPAPRRTCState rtc;
 
     void *htab;
     uint32_t htab_shift;
@@ -629,11 +641,10 @@ struct sPAPRConfigureConnectorState {
 
 void spapr_ccs_reset_hook(void *opaque);
 
-#define TYPE_SPAPR_RTC "spapr-rtc"
-#define TYPE_SPAPR_RNG "spapr-rng"
+void spapr_rtc_read(sPAPRRTCState *rtc, struct tm *tm, uint32_t *ns);
+int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);
 
-void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns);
-int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset);
+#define TYPE_SPAPR_RNG "spapr-rng"
 
 int spapr_rng_populate_dt(void *fdt);
 

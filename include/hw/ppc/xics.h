@@ -28,7 +28,7 @@
 #ifndef XICS_H
 #define XICS_H
 
-#include "hw/sysbus.h"
+#include "hw/qdev.h"
 
 #define XICS_IPI        0x2
 #define XICS_BUID       0x1

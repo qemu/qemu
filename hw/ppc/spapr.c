@@ -1333,13 +1333,13 @@ static void spapr_create_nvram(sPAPRMachineState *spapr)
 
 static void spapr_rtc_create(sPAPRMachineState *spapr)
 {
-    DeviceState *dev = qdev_create(NULL, TYPE_SPAPR_RTC);
-
-    qdev_init_nofail(dev);
-    spapr->rtc = dev;
-
-    object_property_add_alias(qdev_get_machine(), "rtc-time",
-                              OBJECT(spapr->rtc), "date", NULL);
+    object_initialize(&spapr->rtc, sizeof(spapr->rtc), TYPE_SPAPR_RTC);
+    object_property_add_child(OBJECT(spapr), "rtc", OBJECT(&spapr->rtc),
+                              &error_fatal);
+    object_property_set_bool(OBJECT(&spapr->rtc), true, "realized",
+                              &error_fatal);
+    object_property_add_alias(OBJECT(spapr), "rtc-time", OBJECT(&spapr->rtc),
+                              "date", &error_fatal);
 }
 
 /* Returns whether we want to use VGA or not */
@@ -1377,7 +1377,7 @@ static int spapr_post_load(void *opaque, int version_id)
      * So when migrating from those versions, poke the incoming offset
      * value into the RTC device */
     if (version_id < 3) {
-        err = spapr_rtc_import_offset(spapr->rtc, spapr->rtc_offset);
+        err = spapr_rtc_import_offset(&spapr->rtc, spapr->rtc_offset);
     }
 
     return err;
