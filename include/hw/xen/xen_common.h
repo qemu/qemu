@@ -26,48 +26,184 @@ extern xc_interface *xen_xc;
  * We don't support Xen prior to 4.2.0.
  */
 
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 490
+
+typedef xc_interface xendevicemodel_handle;
+
+static inline xendevicemodel_handle *xendevicemodel_open(
+    struct xentoollog_logger *logger, unsigned int open_flags)
+{
+    return xen_xc;
+}
+
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 450
+
+static inline int xendevicemodel_create_ioreq_server(
+    xendevicemodel_handle *dmod, domid_t domid, int handle_bufioreq,
+    ioservid_t *id)
+{
+    return xc_hvm_create_ioreq_server(dmod, domid, handle_bufioreq,
+                                      id);
+}
+
+static inline int xendevicemodel_get_ioreq_server_info(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id,
+    xen_pfn_t *ioreq_pfn, xen_pfn_t *bufioreq_pfn,
+    evtchn_port_t *bufioreq_port)
+{
+    return xc_hvm_get_ioreq_server_info(dmod, domid, id, ioreq_pfn,
+                                        bufioreq_pfn, bufioreq_port);
+}
+
+static inline int xendevicemodel_map_io_range_to_ioreq_server(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id, int is_mmio,
+    uint64_t start, uint64_t end)
+{
+    return xc_hvm_map_io_range_to_ioreq_server(dmod, domid, id, is_mmio,
+                                               start, end);
+}
+
+static inline int xendevicemodel_unmap_io_range_from_ioreq_server(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id, int is_mmio,
+    uint64_t start, uint64_t end)
+{
+    return xc_hvm_unmap_io_range_from_ioreq_server(dmod, domid, id, is_mmio,
+                                                   start, end);
+}
+
+static inline int xendevicemodel_map_pcidev_to_ioreq_server(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id,
+    uint16_t segment, uint8_t bus, uint8_t device, uint8_t function)
+{
+    return xc_hvm_map_pcidev_to_ioreq_server(dmod, domid, id, segment,
+                                             bus, device, function);
+}
+
+static inline int xendevicemodel_unmap_pcidev_from_ioreq_server(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id,
+    uint16_t segment, uint8_t bus, uint8_t device, uint8_t function)
+{
+    return xc_hvm_unmap_pcidev_from_ioreq_server(dmod, domid, id, segment,
+                                                 bus, device, function);
+}
+
+static inline int xendevicemodel_destroy_ioreq_server(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id)
+{
+    return xc_hvm_destroy_ioreq_server(dmod, domid, id);
+}
+
+static inline int xendevicemodel_set_ioreq_server_state(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id, int enabled)
+{
+    return xc_hvm_set_ioreq_server_state(dmod, domid, id, enabled);
+}
+
+#endif /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 450 */
+
+static inline int xendevicemodel_set_pci_intx_level(
+    xendevicemodel_handle *dmod, domid_t domid, uint16_t segment,
+    uint8_t bus, uint8_t device, uint8_t intx, unsigned int level)
+{
+    return xc_hvm_set_pci_intx_level(dmod, domid, segment, bus, device,
+                                     intx, level);
+}
+
+static inline int xendevicemodel_set_isa_irq_level(
+    xendevicemodel_handle *dmod, domid_t domid, uint8_t irq,
+    unsigned int level)
+{
+    return xc_hvm_set_isa_irq_level(dmod, domid, irq, level);
+}
+
+static inline int xendevicemodel_set_pci_link_route(
+    xendevicemodel_handle *dmod, domid_t domid, uint8_t link, uint8_t irq)
+{
+    return xc_hvm_set_pci_link_route(dmod, domid, link, irq);
+}
+
+static inline int xendevicemodel_inject_msi(
+    xendevicemodel_handle *dmod, domid_t domid, uint64_t msi_addr,
+    uint32_t msi_data)
+{
+    return xc_hvm_inject_msi(dmod, domid, msi_addr, msi_data);
+}
+
+static inline int xendevicemodel_track_dirty_vram(
+    xendevicemodel_handle *dmod, domid_t domid, uint64_t first_pfn,
+    uint32_t nr, unsigned long *dirty_bitmap)
+{
+    return xc_hvm_track_dirty_vram(dmod, domid, first_pfn, nr,
+                                   dirty_bitmap);
+}
+
+static inline int xendevicemodel_modified_memory(
+    xendevicemodel_handle *dmod, domid_t domid, uint64_t first_pfn,
+    uint32_t nr)
+{
+    return xc_hvm_modified_memory(dmod, domid, first_pfn, nr);
+}
+
+static inline int xendevicemodel_set_mem_type(
+    xendevicemodel_handle *dmod, domid_t domid, hvmmem_type_t mem_type,
+    uint64_t first_pfn, uint32_t nr)
+{
+    return xc_hvm_set_mem_type(dmod, domid, mem_type, first_pfn, nr);
+}
+
+#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 490 */
+
+#undef XC_WANT_COMPAT_DEVICEMODEL_API
+#include <xendevicemodel.h>
+
+#endif
+
+extern xendevicemodel_handle *xen_dmod;
+
 static inline int xen_set_mem_type(domid_t domid, hvmmem_type_t type,
                                    uint64_t first_pfn, uint32_t nr)
 {
-    return xc_hvm_set_mem_type(xen_xc, domid, type, first_pfn, nr);
+    return xendevicemodel_set_mem_type(xen_dmod, domid, type, first_pfn,
+                                       nr);
 }
 
 static inline int xen_set_pci_intx_level(domid_t domid, uint16_t segment,
                                          uint8_t bus, uint8_t device,
                                          uint8_t intx, unsigned int level)
 {
-    return xc_hvm_set_pci_intx_level(xen_xc, domid, segment, bus, device,
-                                     intx, level);
+    return xendevicemodel_set_pci_intx_level(xen_dmod, domid, segment, bus,
+                                             device, intx, level);
 }
 
 static inline int xen_set_pci_link_route(domid_t domid, uint8_t link,
                                          uint8_t irq)
 {
-    return xc_hvm_set_pci_link_route(xen_xc, domid, link, irq);
+    return xendevicemodel_set_pci_link_route(xen_dmod, domid, link, irq);
 }
 
 static inline int xen_inject_msi(domid_t domid, uint64_t msi_addr,
                                  uint32_t msi_data)
 {
-    return xc_hvm_inject_msi(xen_xc, domid, msi_addr, msi_data);
+    return xendevicemodel_inject_msi(xen_dmod, domid, msi_addr, msi_data);
 }
 
 static inline int xen_set_isa_irq_level(domid_t domid, uint8_t irq,
                                         unsigned int level)
 {
-    return xc_hvm_set_isa_irq_level(xen_xc, domid, irq, level);
+    return xendevicemodel_set_isa_irq_level(xen_dmod, domid, irq, level);
 }
 
 static inline int xen_track_dirty_vram(domid_t domid, uint64_t first_pfn,
                                        uint32_t nr, unsigned long *bitmap)
 {
-    return xc_hvm_track_dirty_vram(xen_xc, domid, first_pfn, nr, bitmap);
+    return xendevicemodel_track_dirty_vram(xen_dmod, domid, first_pfn, nr,
+                                           bitmap);
 }
 
 static inline int xen_modified_memory(domid_t domid, uint64_t first_pfn,
                                       uint32_t nr)
 {
-    return xc_hvm_modified_memory(xen_xc, domid, first_pfn, nr);
+    return xendevicemodel_modified_memory(xen_dmod, domid, first_pfn, nr);
 }
 
 /* Xen 4.2 through 4.6 */
@@ -97,6 +233,7 @@ typedef xc_gnttab xengnttab_handle;
     xc_gnttab_map_domain_grant_refs(h, c, d, r, p)
 
 #define xenforeignmemory_open(l, f) xen_xc
+#define xenforeignmemory_close(h)
 
 static inline void *xenforeignmemory_map(xc_interface *h, uint32_t dom,
                                          int prot, size_t pages,
@@ -285,8 +422,8 @@ static inline void xen_map_memory_section(domid_t dom,
     }
 
     trace_xen_map_mmio_range(ioservid, start_addr, end_addr);
-    xc_hvm_map_io_range_to_ioreq_server(xen_xc, dom, ioservid, 1,
-                                        start_addr, end_addr);
+    xendevicemodel_map_io_range_to_ioreq_server(xen_dmod, dom, ioservid, 1,
+                                                start_addr, end_addr);
 }
 
 static inline void xen_unmap_memory_section(domid_t dom,
@@ -302,8 +439,8 @@ static inline void xen_unmap_memory_section(domid_t dom,
     }
 
     trace_xen_unmap_mmio_range(ioservid, start_addr, end_addr);
-    xc_hvm_unmap_io_range_from_ioreq_server(xen_xc, dom, ioservid,
-                                            1, start_addr, end_addr);
+    xendevicemodel_unmap_io_range_from_ioreq_server(xen_dmod, dom, ioservid,
+                                                    1, start_addr, end_addr);
 }
 
 static inline void xen_map_io_section(domid_t dom,
@@ -319,8 +456,8 @@ static inline void xen_map_io_section(domid_t dom,
     }
 
     trace_xen_map_portio_range(ioservid, start_addr, end_addr);
-    xc_hvm_map_io_range_to_ioreq_server(xen_xc, dom, ioservid, 0,
-                                        start_addr, end_addr);
+    xendevicemodel_map_io_range_to_ioreq_server(xen_dmod, dom, ioservid, 0,
+                                                start_addr, end_addr);
 }
 
 static inline void xen_unmap_io_section(domid_t dom,
@@ -336,8 +473,8 @@ static inline void xen_unmap_io_section(domid_t dom,
     }
 
     trace_xen_unmap_portio_range(ioservid, start_addr, end_addr);
-    xc_hvm_unmap_io_range_from_ioreq_server(xen_xc, dom, ioservid,
-                                            0, start_addr, end_addr);
+    xendevicemodel_unmap_io_range_from_ioreq_server(xen_dmod, dom, ioservid,
+                                                    0, start_addr, end_addr);
 }
 
 static inline void xen_map_pcidev(domid_t dom,
@@ -350,10 +487,10 @@ static inline void xen_map_pcidev(domid_t dom,
 
     trace_xen_map_pcidev(ioservid, pci_bus_num(pci_dev->bus),
                          PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn));
-    xc_hvm_map_pcidev_to_ioreq_server(xen_xc, dom, ioservid, 0,
-                                      pci_bus_num(pci_dev->bus),
-                                      PCI_SLOT(pci_dev->devfn),
-                                      PCI_FUNC(pci_dev->devfn));
+    xendevicemodel_map_pcidev_to_ioreq_server(xen_dmod, dom, ioservid, 0,
+                                              pci_bus_num(pci_dev->bus),
+                                              PCI_SLOT(pci_dev->devfn),
+                                              PCI_FUNC(pci_dev->devfn));
 }
 
 static inline void xen_unmap_pcidev(domid_t dom,
@@ -366,18 +503,18 @@ static inline void xen_unmap_pcidev(domid_t dom,
 
     trace_xen_unmap_pcidev(ioservid, pci_bus_num(pci_dev->bus),
                            PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn));
-    xc_hvm_unmap_pcidev_from_ioreq_server(xen_xc, dom, ioservid, 0,
-                                          pci_bus_num(pci_dev->bus),
-                                          PCI_SLOT(pci_dev->devfn),
-                                          PCI_FUNC(pci_dev->devfn));
+    xendevicemodel_unmap_pcidev_from_ioreq_server(xen_dmod, dom, ioservid, 0,
+                                                  pci_bus_num(pci_dev->bus),
+                                                  PCI_SLOT(pci_dev->devfn),
+                                                  PCI_FUNC(pci_dev->devfn));
 }
 
 static inline void xen_create_ioreq_server(domid_t dom,
                                            ioservid_t *ioservid)
 {
-    int rc = xc_hvm_create_ioreq_server(xen_xc, dom,
-                                        HVM_IOREQSRV_BUFIOREQ_ATOMIC,
-                                        ioservid);
+    int rc = xendevicemodel_create_ioreq_server(xen_dmod, dom,
+                                                HVM_IOREQSRV_BUFIOREQ_ATOMIC,
+                                                ioservid);
 
     if (rc == 0) {
         trace_xen_ioreq_server_create(*ioservid);
@@ -397,7 +534,7 @@ static inline void xen_destroy_ioreq_server(domid_t dom,
     }
 
     trace_xen_ioreq_server_destroy(ioservid);
-    xc_hvm_destroy_ioreq_server(xen_xc, dom, ioservid);
+    xendevicemodel_destroy_ioreq_server(xen_dmod, dom, ioservid);
 }
 
 static inline int xen_get_ioreq_server_info(domid_t dom,
@@ -412,9 +549,9 @@ static inline int xen_get_ioreq_server_info(domid_t dom,
                                                  bufioreq_evtchn);
     }
 
-    return xc_hvm_get_ioreq_server_info(xen_xc, dom, ioservid,
-                                        ioreq_pfn, bufioreq_pfn,
-                                        bufioreq_evtchn);
+    return xendevicemodel_get_ioreq_server_info(xen_dmod, dom, ioservid,
+                                                ioreq_pfn, bufioreq_pfn,
+                                                bufioreq_evtchn);
 }
 
 static inline int xen_set_ioreq_server_state(domid_t dom,
@@ -426,8 +563,8 @@ static inline int xen_set_ioreq_server_state(domid_t dom,
     }
 
     trace_xen_ioreq_server_state(ioservid, enable);
-    return xc_hvm_set_ioreq_server_state(xen_xc, dom, ioservid,
-                                         enable);
+    return xendevicemodel_set_ioreq_server_state(xen_dmod, dom, ioservid,
+                                                 enable);
 }
 
 #endif
