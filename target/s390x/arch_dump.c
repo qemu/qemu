@@ -57,6 +57,12 @@ struct S390xElfVregsHiStruct {
 
 typedef struct S390xElfVregsHiStruct S390xElfVregsHi;
 
+struct S390xElfGSCBStruct {
+    uint64_t gsregs[4];
+} QEMU_PACKED;
+
+typedef struct S390xElfGSCBStruct S390xElfGSCB;
+
 typedef struct noteStruct {
     Elf64_Nhdr hdr;
     char name[8];
@@ -65,6 +71,7 @@ typedef struct noteStruct {
         S390xElfFpregset fpregset;
         S390xElfVregsLo vregslo;
         S390xElfVregsHi vregshi;
+        S390xElfGSCB gscb;
         uint32_t prefix;
         uint64_t timer;
         uint64_t todcmp;
@@ -126,6 +133,16 @@ static void s390x_write_elf64_vregshi(Note *note, S390CPU *cpu, int id)
     }
 }
 
+static void s390x_write_elf64_gscb(Note *note, S390CPU *cpu, int id)
+{
+    int i;
+
+    note->hdr.n_type = cpu_to_be32(NT_S390_GS_CB);
+    for (i = 0; i < 4; i++) {
+        note->contents.gscb.gsregs[i] = cpu_to_be64(cpu->env.gscb[i]);
+    }
+}
+
 static void s390x_write_elf64_timer(Note *note, S390CPU *cpu, int id)
 {
     note->hdr.n_type = cpu_to_be32(NT_S390_TIMER);
@@ -181,6 +198,7 @@ static const NoteFuncDesc note_linux[] = {
     {sizeof(((Note *)0)->contents.todpreg),  s390x_write_elf64_todpreg},
     {sizeof(((Note *)0)->contents.vregslo),  s390x_write_elf64_vregslo},
     {sizeof(((Note *)0)->contents.vregshi),  s390x_write_elf64_vregshi},
+    {sizeof(((Note *)0)->contents.gscb),     s390x_write_elf64_gscb},
     { 0, NULL}
 };
 
