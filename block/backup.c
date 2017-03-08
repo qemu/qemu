@@ -468,13 +468,14 @@ static void coroutine_fn backup_run(void *opaque)
         /* Both FULL and TOP SYNC_MODE's require copying.. */
         for (; start < end; start++) {
             bool error_is_read;
+            int alloced = 0;
+
             if (yield_and_check(job)) {
                 break;
             }
 
             if (job->sync_mode == MIRROR_SYNC_MODE_TOP) {
                 int i, n;
-                int alloced = 0;
 
                 /* Check to see if these blocks are already in the
                  * backing file. */
@@ -492,7 +493,7 @@ static void coroutine_fn backup_run(void *opaque)
                                 sectors_per_cluster - i, &n);
                     i += n;
 
-                    if (alloced == 1 || n == 0) {
+                    if (alloced || n == 0) {
                         break;
                     }
                 }
@@ -504,8 +505,13 @@ static void coroutine_fn backup_run(void *opaque)
                 }
             }
             /* FULL sync mode we copy the whole drive. */
-            ret = backup_do_cow(job, start * sectors_per_cluster,
-                                sectors_per_cluster, &error_is_read, false);
+            if (alloced < 0) {
+                ret = alloced;
+            } else {
+                ret = backup_do_cow(job, start * sectors_per_cluster,
+                                    sectors_per_cluster, &error_is_read,
+                                    false);
+            }
             if (ret < 0) {
                 /* Depending on error action, fail now or retry cluster */
                 BlockErrorAction action =
