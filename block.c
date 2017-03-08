@@ -1756,8 +1756,18 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     }
 }
 
-static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
-                               bool check_new_perm)
+/*
+ * Updates @child to change its reference to point to @new_bs, including
+ * checking and applying the necessary permisson updates both to the old node
+ * and to @new_bs.
+ *
+ * NULL is passed as @new_bs for removing the reference before freeing @child.
+ *
+ * If @new_bs is not NULL, bdrv_check_perm() must be called beforehand, as this
+ * function uses bdrv_set_perm() to update the permissions according to the new
+ * reference that @new_bs gets.
+ */
+static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
 {
     BlockDriverState *old_bs = child->bs;
     uint64_t perm, shared_perm;
@@ -1775,9 +1785,6 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
 
     if (new_bs) {
         bdrv_get_cumulative_perm(new_bs, &perm, &shared_perm);
-        if (check_new_perm) {
-            bdrv_check_perm(new_bs, perm, shared_perm, NULL, &error_abort);
-        }
         bdrv_set_perm(new_bs, perm, shared_perm);
     }
 }
@@ -1808,7 +1815,7 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
     };
 
     /* This performs the matching bdrv_set_perm() for the above check. */
-    bdrv_replace_child(child, child_bs, false);
+    bdrv_replace_child(child, child_bs);
 
     return child;
 }
@@ -1845,7 +1852,7 @@ static void bdrv_detach_child(BdrvChild *child)
         child->next.le_prev = NULL;
     }
 
-    bdrv_replace_child(child, NULL, false);
+    bdrv_replace_child(child, NULL);
 
     g_free(child->name);
     g_free(child);
