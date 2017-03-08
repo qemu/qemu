@@ -301,7 +301,6 @@ glusterfs=""
 glusterfs_xlator_opt="no"
 glusterfs_discard="no"
 glusterfs_zerofill="no"
-archipelago="no"
 gtk=""
 gtkabi=""
 gtk_gl="no"
@@ -1101,10 +1100,6 @@ for opt do
   ;;
   --enable-glusterfs) glusterfs="yes"
   ;;
-  --disable-archipelago) archipelago="no"
-  ;;
-  --enable-archipelago) archipelago="yes"
-  ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
       echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
   ;;
@@ -1396,7 +1391,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   seccomp         seccomp support
   coroutine-pool  coroutine freelist (better performance)
   glusterfs       GlusterFS backend
-  archipelago     Archipelago backend
   tpm             TPM support
   libssh2         ssh block device support
   numa            libnuma support
@@ -3466,37 +3460,6 @@ EOF
   fi
 fi
 
-##########################################
-# archipelago probe
-if test "$archipelago" != "no" ; then
-    cat > $TMPC <<EOF
-#include <stdio.h>
-#include <xseg/xseg.h>
-#include <xseg/protocol.h>
-int main(void) {
-    xseg_initialize();
-    return 0;
-}
-EOF
-    archipelago_libs=-lxseg
-    if compile_prog "" "$archipelago_libs"; then
-        archipelago="yes"
-        libs_tools="$archipelago_libs $libs_tools"
-        libs_softmmu="$archipelago_libs $libs_softmmu"
-
-	echo "WARNING: Please check the licenses of QEMU and libxseg carefully."
-	echo "GPLv3 versions of libxseg may not be compatible with QEMU's"
-	echo "license and therefore prevent redistribution."
-	echo
-	echo "To disable Archipelago, use --disable-archipelago"
-    else
-      if test "$archipelago" = "yes" ; then
-        feature_not_found "Archipelago backend support" "Install libxseg devel"
-      fi
-      archipelago="no"
-    fi
-fi
-
 
 ##########################################
 # glusterfs probe
@@ -5099,7 +5062,6 @@ echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
 echo "debug stack usage $debug_stack_usage"
 echo "GlusterFS support $glusterfs"
-echo "Archipelago support $archipelago"
 echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
@@ -5638,11 +5600,6 @@ fi
 
 if test "$glusterfs_zerofill" = "yes" ; then
   echo "CONFIG_GLUSTERFS_ZEROFILL=y" >> $config_host_mak
-fi
-
-if test "$archipelago" = "yes" ; then
-  echo "CONFIG_ARCHIPELAGO=m" >> $config_host_mak
-  echo "ARCHIPELAGO_LIBS=$archipelago_libs" >> $config_host_mak
 fi
 
 if test "$libssh2" = "yes" ; then

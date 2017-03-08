@@ -251,6 +251,7 @@
 #       2.5: 'host_floppy' dropped
 #       2.6: 'luks' added
 #       2.8: 'replication' added, 'tftp' dropped
+#       2.9: 'archipelago' dropped
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
@@ -2129,7 +2130,7 @@
 # Since: 2.0
 ##
 { 'enum': 'BlockdevDriver',
-  'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
+  'data': [ 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
             'host_device', 'http', 'https', 'iscsi', 'luks', 'nbd', 'nfs',
             'null-aio', 'null-co', 'parallels', 'qcow', 'qcow2', 'qed',
@@ -2341,35 +2342,6 @@
             '*refcount-cache-size': 'int',
             '*cache-clean-interval': 'int' } }
 
-
-##
-# @BlockdevOptionsArchipelago:
-#
-# Driver specific block device options for Archipelago.
-#
-# @volume:              Name of the Archipelago volume image
-#
-# @mport:               #optional The port number on which mapperd is
-#                       listening. This is optional
-#                       and if not specified, QEMU will make Archipelago
-#                       use the default port (1001).
-#
-# @vport:               #optional The port number on which vlmcd is
-#                       listening. This is optional
-#                       and if not specified, QEMU will make Archipelago
-#                       use the default port (501).
-#
-# @segment:             #optional The name of the shared memory segment
-#                       Archipelago stack is using. This is optional
-#                       and if not specified, QEMU will make Archipelago
-#                       use the default value, 'archipelago'.
-# Since: 2.2
-##
-{ 'struct': 'BlockdevOptionsArchipelago',
-  'data': { 'volume': 'str',
-            '*mport': 'int',
-            '*vport': 'int',
-            '*segment': 'str' } }
 
 ##
 # @BlockdevOptionsSsh:
@@ -2884,7 +2856,6 @@
             '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
   'discriminator': 'driver',
   'data': {
-      'archipelago':'BlockdevOptionsArchipelago',
       'blkdebug':   'BlockdevOptionsBlkdebug',
       'blkverify':  'BlockdevOptionsBlkverify',
       'bochs':      'BlockdevOptionsGenericFormat',
