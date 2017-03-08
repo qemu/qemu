@@ -1760,7 +1760,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 
     if (ret & BDRV_BLOCK_RAW) {
         assert(ret & BDRV_BLOCK_OFFSET_VALID);
-        ret = bdrv_get_block_status(bs->file->bs, ret >> BDRV_SECTOR_BITS,
+        ret = bdrv_get_block_status(*file, ret >> BDRV_SECTOR_BITS,
                                     *pnum, pnum, file);
         goto out;
     }
