@@ -441,8 +441,8 @@ typedef struct BdrvAioNotifier {
 } BdrvAioNotifier;
 
 struct BdrvChildRole {
-    /* If true, bdrv_replace_in_backing_chain() doesn't change the node this
-     * BdrvChild points to. */
+    /* If true, bdrv_replace_node() doesn't change the node this BdrvChild
+     * points to. */
     bool stay_at_node;
 
     void (*inherit_options)(int *child_flags, QDict *child_options,
@@ -890,7 +890,7 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
 void bdrv_root_unref_child(BdrvChild *child);
 
 int bdrv_child_check_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
-                          Error **errp);
+                          GSList *ignore_children, Error **errp);
 void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared);
 void bdrv_child_abort_perm_update(BdrvChild *c);
 int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,

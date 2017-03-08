@@ -316,8 +316,20 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         goto fail;
     }
 
-    bdrv_set_backing_hd(commit_top_bs, top, &error_abort);
-    bdrv_set_backing_hd(overlay_bs, commit_top_bs, &error_abort);
+    bdrv_set_backing_hd(commit_top_bs, top, &local_err);
+    if (local_err) {
+        bdrv_unref(commit_top_bs);
+        commit_top_bs = NULL;
+        error_propagate(errp, local_err);
+        goto fail;
+    }
+    bdrv_set_backing_hd(overlay_bs, commit_top_bs, &local_err);
+    if (local_err) {
+        bdrv_unref(commit_top_bs);
+        commit_top_bs = NULL;
+        error_propagate(errp, local_err);
+        goto fail;
+    }
 
     s->commit_top_bs = commit_top_bs;
     bdrv_unref(commit_top_bs);
@@ -364,7 +376,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
 
     /* Required permissions are already taken with block_job_add_bdrv() */
     s->top = blk_new(0, BLK_PERM_ALL);
-    blk_insert_bs(s->top, top, errp);
+    ret = blk_insert_bs(s->top, top, errp);
     if (ret < 0) {
         goto fail;
     }

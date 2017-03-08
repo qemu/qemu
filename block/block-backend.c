@@ -213,7 +213,12 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     }
 
     blk->root = bdrv_root_attach_child(bs, "root", &child_root,
-                                       perm, BLK_PERM_ALL, blk, &error_abort);
+                                       perm, BLK_PERM_ALL, blk, errp);
+    if (!blk->root) {
+        bdrv_unref(bs);
+        blk_unref(blk);
+        return NULL;
+    }
 
     return blk;
 }
