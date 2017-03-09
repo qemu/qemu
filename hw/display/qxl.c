@@ -477,6 +477,11 @@ static int qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
             qxl->guest_cursor = ext->cmd.data;
             qemu_mutex_unlock(&qxl->track_lock);
         }
+        if (cmd->type == QXL_CURSOR_HIDE) {
+            qemu_mutex_lock(&qxl->track_lock);
+            qxl->guest_cursor = 0;
+            qemu_mutex_unlock(&qxl->track_lock);
+        }
         break;
     }
     }
