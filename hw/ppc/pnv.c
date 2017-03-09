@@ -723,6 +723,7 @@ static void pnv_chip_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_CPU, dc->categories);
     dc->realize = pnv_chip_realize;
     dc->props = pnv_chip_properties;
     dc->desc = "PowerNV Chip";
