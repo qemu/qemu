@@ -371,7 +371,8 @@ void memory_region_init_io(MemoryRegion *mr,
  *
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
- * @name: the name of the region.
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
  * @size: size of the region.
  * @errp: pointer to Error*, to store an error if it happens.
  */
@@ -390,7 +391,8 @@ void memory_region_init_ram(MemoryRegion *mr,
  *
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
- * @name: the name of the region.
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
  * @size: used size of the region.
  * @max_size: max size of the region.
  * @resized: callback to notify owner about used size change.
@@ -412,7 +414,8 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
  *
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
- * @name: the name of the region.
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
  * @size: size of the region.
  * @share: %true if memory must be mmaped with the MAP_SHARED flag
  * @path: the path in which to allocate the RAM.
@@ -434,7 +437,8 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
  *
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
- * @name: the name of the region.
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
  * @size: size of the region.
  * @ptr: memory to be mapped; must contain at least @size bytes.
  */
@@ -496,7 +500,8 @@ void memory_region_init_alias(MemoryRegion *mr,
  *
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
- * @name: the name of the region.
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
  * @size: size of the region.
  * @errp: pointer to Error*, to store an error if it happens.
  */
@@ -513,7 +518,8 @@ void memory_region_init_rom(MemoryRegion *mr,
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
  * @ops: callbacks for write access handling (must not be NULL).
- * @name: the name of the region.
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
  * @size: size of the region.
  * @errp: pointer to Error*, to store an error if it happens.
  */
