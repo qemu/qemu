@@ -142,6 +142,9 @@ void cpu_check_irqs(CPUSPARCState *env)
 {
     CPUState *cs;
 
+    /* We should be holding the BQL before we mess with IRQs */
+    g_assert(qemu_mutex_iothread_locked());
+
     if (env->pil_in && (env->interrupt_index == 0 ||
                         (env->interrupt_index & ~15) == TT_EXTINT)) {
         unsigned int i;

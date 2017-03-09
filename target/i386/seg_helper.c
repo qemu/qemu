@@ -1297,15 +1297,17 @@ void x86_cpu_do_interrupt(CPUState *cs)
     /* successfully delivered */
     env->old_exception = -1;
 #else
-    /* simulate a real cpu exception. On i386, it can
-       trigger new exceptions, but we do not handle
-       double or triple faults yet. */
-    do_interrupt_all(cpu, cs->exception_index,
-                     env->exception_is_int,
-                     env->error_code,
-                     env->exception_next_eip, 0);
-    /* successfully delivered */
-    env->old_exception = -1;
+    if (cs->exception_index >= EXCP_VMEXIT) {
+        assert(env->old_exception == -1);
+        do_vmexit(env, cs->exception_index - EXCP_VMEXIT, env->error_code);
+    } else {
+        do_interrupt_all(cpu, cs->exception_index,
+                         env->exception_is_int,
+                         env->error_code,
+                         env->exception_next_eip, 0);
+        /* successfully delivered */
+        env->old_exception = -1;
+    }
 #endif
 }
 

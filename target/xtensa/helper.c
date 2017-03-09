@@ -217,6 +217,7 @@ static void handle_interrupt(CPUXtensaState *env)
     }
 }
 
+/* Called from cpu_handle_interrupt with BQL held */
 void xtensa_cpu_do_interrupt(CPUState *cs)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
