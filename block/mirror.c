@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "trace.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
@@ -1060,6 +1061,13 @@ static int coroutine_fn bdrv_mirror_top_pdiscard(BlockDriverState *bs,
     return bdrv_co_pdiscard(bs->backing->bs, offset, count);
 }
 
+static void bdrv_mirror_top_refresh_filename(BlockDriverState *bs, QDict *opts)
+{
+    bdrv_refresh_filename(bs->backing->bs);
+    pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
+            bs->backing->bs->filename);
+}
+
 static void bdrv_mirror_top_close(BlockDriverState *bs)
 {
 }
@@ -1088,6 +1096,7 @@ static BlockDriver bdrv_mirror_top = {
     .bdrv_co_pdiscard           = bdrv_mirror_top_pdiscard,
     .bdrv_co_flush              = bdrv_mirror_top_flush,
     .bdrv_co_get_block_status   = bdrv_mirror_top_get_block_status,
+    .bdrv_refresh_filename      = bdrv_mirror_top_refresh_filename,
     .bdrv_close                 = bdrv_mirror_top_close,
     .bdrv_child_perm            = bdrv_mirror_top_child_perm,
 };
