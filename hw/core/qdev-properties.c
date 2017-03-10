@@ -1010,7 +1010,8 @@ void qdev_prop_set_string(DeviceState *dev, const char *name, const char *value)
     object_property_set_str(OBJECT(dev), value, name, &error_abort);
 }
 
-void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value)
+void qdev_prop_set_macaddr(DeviceState *dev, const char *name,
+                           const uint8_t *value)
 {
     char str[2 * 6 + 5 + 1];
     snprintf(str, sizeof(str), "%02x:%02x:%02x:%02x:%02x:%02x",
