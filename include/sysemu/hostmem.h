@@ -62,6 +62,7 @@ struct HostMemoryBackend {
     MemoryRegion mr;
 };
 
+bool host_memory_backend_mr_inited(HostMemoryBackend *backend);
 MemoryRegion *host_memory_backend_get_memory(HostMemoryBackend *backend,
                                              Error **errp);
 
