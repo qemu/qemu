@@ -88,8 +88,8 @@ static void pci_init_bus_master(PCIDevice *pci_dev)
                              OBJECT(pci_dev), "bus master",
                              dma_as->root, 0, memory_region_size(dma_as->root));
     memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
-    address_space_init(&pci_dev->bus_master_as,
-                       &pci_dev->bus_master_enable_region, pci_dev->name);
+    memory_region_add_subregion(&pci_dev->bus_master_container_region, 0,
+                                &pci_dev->bus_master_enable_region);
 }
 
 static void pcibus_machine_done(Notifier *notifier, void *data)
@@ -994,6 +994,11 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
 
     pci_dev->devfn = devfn;
     pci_dev->requester_id_cache = pci_req_id_cache_get(pci_dev);
+
+    memory_region_init(&pci_dev->bus_master_container_region, OBJECT(pci_dev),
+                       "bus master container", UINT64_MAX);
+    address_space_init(&pci_dev->bus_master_as,
+                       &pci_dev->bus_master_container_region, pci_dev->name);
 
     if (qdev_hotplug) {
         pci_init_bus_master(pci_dev);
