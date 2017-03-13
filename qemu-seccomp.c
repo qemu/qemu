@@ -78,6 +78,10 @@ static const struct QemuSeccompSyscall blacklist[] = {
     { SCMP_SYS(setresgid),              QEMU_SECCOMP_SET_PRIVILEGED },
     { SCMP_SYS(setfsuid),               QEMU_SECCOMP_SET_PRIVILEGED },
     { SCMP_SYS(setfsgid),               QEMU_SECCOMP_SET_PRIVILEGED },
+    /* spawn */
+    { SCMP_SYS(fork),                   QEMU_SECCOMP_SET_SPAWN },
+    { SCMP_SYS(vfork),                  QEMU_SECCOMP_SET_SPAWN },
+    { SCMP_SYS(execve),                 QEMU_SECCOMP_SET_SPAWN },
 };
 
 
