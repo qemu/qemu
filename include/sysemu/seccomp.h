@@ -17,6 +17,7 @@
 
 #define QEMU_SECCOMP_SET_DEFAULT     (1 << 0)
 #define QEMU_SECCOMP_SET_OBSOLETE    (1 << 1)
+#define QEMU_SECCOMP_SET_PRIVILEGED  (1 << 2)
 
 #include <seccomp.h>
 

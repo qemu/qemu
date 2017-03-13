@@ -67,6 +67,17 @@ static const struct QemuSeccompSyscall blacklist[] = {
     { SCMP_SYS(sysfs),                  QEMU_SECCOMP_SET_OBSOLETE },
     { SCMP_SYS(uselib),                 QEMU_SECCOMP_SET_OBSOLETE },
     { SCMP_SYS(ustat),                  QEMU_SECCOMP_SET_OBSOLETE },
+    /* privileged */
+    { SCMP_SYS(setuid),                 QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setgid),                 QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setpgid),                QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setsid),                 QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setreuid),               QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setregid),               QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setresuid),              QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setresgid),              QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setfsuid),               QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setfsgid),               QEMU_SECCOMP_SET_PRIVILEGED },
 };
 
 
