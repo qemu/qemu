@@ -634,7 +634,8 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             }
 
             if (s->in_flight >= MAX_IN_FLIGHT) {
-                trace_mirror_yield(s, s->in_flight, s->buf_free_count, -1);
+                trace_mirror_yield(s, UINT64_MAX, s->buf_free_count,
+                                   s->in_flight);
                 mirror_wait_for_io(s);
                 continue;
             }
@@ -809,7 +810,7 @@ static void coroutine_fn mirror_run(void *opaque)
             s->common.iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
             if (s->in_flight >= MAX_IN_FLIGHT || s->buf_free_count == 0 ||
                 (cnt == 0 && s->in_flight > 0)) {
-                trace_mirror_yield(s, s->in_flight, s->buf_free_count, cnt);
+                trace_mirror_yield(s, cnt, s->buf_free_count, s->in_flight);
                 mirror_wait_for_io(s);
                 continue;
             } else if (cnt != 0) {
