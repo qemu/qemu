@@ -197,11 +197,6 @@ uint64_t dup_mig_pages_transferred(void)
     return ram_state.zero_pages;
 }
 
-uint64_t norm_mig_bytes_transferred(void)
-{
-    return ram_state.norm_pages * TARGET_PAGE_SIZE;
-}
-
 uint64_t norm_mig_pages_transferred(void)
 {
     return ram_state.norm_pages;
