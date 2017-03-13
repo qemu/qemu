@@ -177,6 +177,8 @@ struct RAMState {
     uint64_t xbzrle_bytes;
     /* xbzrle transmmited pages */
     uint64_t xbzrle_pages;
+    /* xbzrle number of cache miss */
+    uint64_t xbzrle_cache_miss;
 };
 typedef struct RAMState RAMState;
 
@@ -184,7 +186,6 @@ static RAMState ram_state;
 
 /* accounting for migration statistics */
 typedef struct AccountingInfo {
-    uint64_t xbzrle_cache_miss;
     double xbzrle_cache_miss_rate;
     uint64_t xbzrle_overflows;
 } AccountingInfo;
@@ -218,7 +219,7 @@ uint64_t xbzrle_mig_pages_transferred(void)
 
 uint64_t xbzrle_mig_pages_cache_miss(void)
 {
-    return acct_info.xbzrle_cache_miss;
+    return ram_state.xbzrle_cache_miss;
 }
 
 double xbzrle_mig_cache_miss_rate(void)
@@ -498,7 +499,7 @@ static int save_xbzrle_page(RAMState *rs, QEMUFile *f, uint8_t **current_data,
     uint8_t *prev_cached_page;
 
     if (!cache_is_cached(XBZRLE.cache, current_addr, rs->bitmap_sync_count)) {
-        acct_info.xbzrle_cache_miss++;
+        rs->xbzrle_cache_miss++;
         if (!last_stage) {
             if (cache_insert(XBZRLE.cache, current_addr, *current_data,
                              rs->bitmap_sync_count) == -1) {
@@ -699,12 +700,12 @@ static void migration_bitmap_sync(RAMState *rs)
         if (migrate_use_xbzrle()) {
             if (rs->iterations_prev != rs->iterations) {
                 acct_info.xbzrle_cache_miss_rate =
-                   (double)(acct_info.xbzrle_cache_miss -
+                   (double)(rs->xbzrle_cache_miss -
                             rs->xbzrle_cache_miss_prev) /
                    (rs->iterations - rs->iterations_prev);
             }
             rs->iterations_prev = rs->iterations;
-            rs->xbzrle_cache_miss_prev = acct_info.xbzrle_cache_miss;
+            rs->xbzrle_cache_miss_prev = rs->xbzrle_cache_miss;
         }
         s->dirty_pages_rate = rs->num_dirty_pages_period * 1000
             / (end_time - rs->time_last_bitmap_sync);
@@ -2001,6 +2002,7 @@ static int ram_save_init_globals(RAMState *rs)
     rs->iterations = 0;
     rs->xbzrle_bytes = 0;
     rs->xbzrle_pages = 0;
+    rs->xbzrle_cache_miss = 0;
     migration_bitmap_sync_init(rs);
     qemu_mutex_init(&migration_bitmap_mutex);
 
