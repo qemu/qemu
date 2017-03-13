@@ -138,6 +138,19 @@ out:
     return ret;
 }
 
+struct RAMBitmap {
+    struct rcu_head rcu;
+    /* Main migration bitmap */
+    unsigned long *bmap;
+    /* bitmap of pages that haven't been sent even once
+     * only maintained and used in postcopy at the moment
+     * where it's used to send the dirtymap at the start
+     * of the postcopy phase
+     */
+    unsigned long *unsentmap;
+};
+typedef struct RAMBitmap RAMBitmap;
+
 /* State of RAM for migration */
 struct RAMState {
     /* Last block that we have visited searching for dirty pages */
@@ -187,6 +200,8 @@ struct RAMState {
     uint64_t migration_dirty_pages;
     /* protects modification of the bitmap */
     QemuMutex bitmap_mutex;
+    /* Ram Bitmap protected by RCU */
+    RAMBitmap *ram_bitmap;
 };
 typedef struct RAMState RAMState;
 
@@ -242,18 +257,6 @@ struct PageSearchStatus {
     bool         complete_round;
 };
 typedef struct PageSearchStatus PageSearchStatus;
-
-static struct BitmapRcu {
-    struct rcu_head rcu;
-    /* Main migration bitmap */
-    unsigned long *bmap;
-    /* bitmap of pages that haven't been sent even once
-     * only maintained and used in postcopy at the moment
-     * where it's used to send the dirtymap at the start
-     * of the postcopy phase
-     */
-    unsigned long *unsentmap;
-} *migration_bitmap_rcu;
 
 struct CompressParam {
     bool done;
@@ -577,7 +580,7 @@ ram_addr_t migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
 
     unsigned long next;
 
-    bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+    bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
     if (rs->ram_bulk_stage && nr > base) {
         next = nr + 1;
     } else {
@@ -592,7 +595,7 @@ static inline bool migration_bitmap_clear_dirty(RAMState *rs, ram_addr_t addr)
 {
     bool ret;
     int nr = addr >> TARGET_PAGE_BITS;
-    unsigned long *bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+    unsigned long *bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
 
     ret = test_and_clear_bit(nr, bitmap);
 
@@ -606,7 +609,7 @@ static void migration_bitmap_sync_range(RAMState *rs, ram_addr_t start,
                                         ram_addr_t length)
 {
     unsigned long *bitmap;
-    bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+    bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
     rs->migration_dirty_pages +=
         cpu_physical_memory_sync_dirty_bitmap(bitmap, start, length,
                                               &rs->num_dirty_pages_period);
@@ -1149,14 +1152,14 @@ static bool get_queued_page(RAMState *rs, MigrationState *ms,
          */
         if (block) {
             unsigned long *bitmap;
-            bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+            bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
             dirty = test_bit(*ram_addr_abs >> TARGET_PAGE_BITS, bitmap);
             if (!dirty) {
                 trace_get_queued_page_not_dirty(
                     block->idstr, (uint64_t)offset,
                     (uint64_t)*ram_addr_abs,
                     test_bit(*ram_addr_abs >> TARGET_PAGE_BITS,
-                         atomic_rcu_read(&migration_bitmap_rcu)->unsentmap));
+                         atomic_rcu_read(&rs->ram_bitmap)->unsentmap));
             } else {
                 trace_get_queued_page(block->idstr,
                                       (uint64_t)offset,
@@ -1316,7 +1319,7 @@ static int ram_save_target_page(RAMState *rs, MigrationState *ms, QEMUFile *f,
         if (res < 0) {
             return res;
         }
-        unsentmap = atomic_rcu_read(&migration_bitmap_rcu)->unsentmap;
+        unsentmap = atomic_rcu_read(&rs->ram_bitmap)->unsentmap;
         if (unsentmap) {
             clear_bit(dirty_ram_abs >> TARGET_PAGE_BITS, unsentmap);
         }
@@ -1480,7 +1483,7 @@ void free_xbzrle_decoded_buf(void)
     xbzrle_decoded_buf = NULL;
 }
 
-static void migration_bitmap_free(struct BitmapRcu *bmap)
+static void migration_bitmap_free(struct RAMBitmap *bmap)
 {
     g_free(bmap->bmap);
     g_free(bmap->unsentmap);
@@ -1489,11 +1492,13 @@ static void migration_bitmap_free(struct BitmapRcu *bmap)
 
 static void ram_migration_cleanup(void *opaque)
 {
+    RAMState *rs = opaque;
+
     /* caller have hold iothread lock or is in a bh, so there is
      * no writing race against this migration_bitmap
      */
-    struct BitmapRcu *bitmap = migration_bitmap_rcu;
-    atomic_rcu_set(&migration_bitmap_rcu, NULL);
+    struct RAMBitmap *bitmap = rs->ram_bitmap;
+    atomic_rcu_set(&rs->ram_bitmap, NULL);
     if (bitmap) {
         memory_global_dirty_log_stop();
         call_rcu(bitmap, migration_bitmap_free, rcu);
@@ -1530,9 +1535,9 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
     /* called in qemu main thread, so there is
      * no writing race against this migration_bitmap
      */
-    if (migration_bitmap_rcu) {
-        struct BitmapRcu *old_bitmap = migration_bitmap_rcu, *bitmap;
-        bitmap = g_new(struct BitmapRcu, 1);
+    if (rs->ram_bitmap) {
+        struct RAMBitmap *old_bitmap = rs->ram_bitmap, *bitmap;
+        bitmap = g_new(struct RAMBitmap, 1);
         bitmap->bmap = bitmap_new(new);
 
         /* prevent migration_bitmap content from being set bit
@@ -1550,7 +1555,7 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
          */
         bitmap->unsentmap = NULL;
 
-        atomic_rcu_set(&migration_bitmap_rcu, bitmap);
+        atomic_rcu_set(&rs->ram_bitmap, bitmap);
         qemu_mutex_unlock(&rs->bitmap_mutex);
         rs->migration_dirty_pages += new - old;
         call_rcu(old_bitmap, migration_bitmap_free, rcu);
@@ -1565,13 +1570,13 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
 void ram_debug_dump_bitmap(unsigned long *todump, bool expected)
 {
     int64_t ram_pages = last_ram_offset() >> TARGET_PAGE_BITS;
-
+    RAMState *rs = &ram_state;
     int64_t cur;
     int64_t linelen = 128;
     char linebuf[129];
 
     if (!todump) {
-        todump = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+        todump = atomic_rcu_read(&rs->ram_bitmap)->bmap;
     }
 
     for (cur = 0; cur < ram_pages; cur += linelen) {
@@ -1600,8 +1605,9 @@ void ram_debug_dump_bitmap(unsigned long *todump, bool expected)
 
 void ram_postcopy_migrated_memory_release(MigrationState *ms)
 {
+    RAMState *rs = &ram_state;
     struct RAMBlock *block;
-    unsigned long *bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+    unsigned long *bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
 
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
         unsigned long first = block->offset >> TARGET_PAGE_BITS;
@@ -1636,11 +1642,12 @@ static int postcopy_send_discard_bm_ram(MigrationState *ms,
                                         unsigned long start,
                                         unsigned long length)
 {
+    RAMState *rs = &ram_state;
     unsigned long end = start + length; /* one after the end */
     unsigned long current;
     unsigned long *unsentmap;
 
-    unsentmap = atomic_rcu_read(&migration_bitmap_rcu)->unsentmap;
+    unsentmap = atomic_rcu_read(&rs->ram_bitmap)->unsentmap;
     for (current = start; current < end; ) {
         unsigned long one = find_next_bit(unsentmap, end, current);
 
@@ -1739,8 +1746,8 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
         return;
     }
 
-    bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
-    unsentmap = atomic_rcu_read(&migration_bitmap_rcu)->unsentmap;
+    bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
+    unsentmap = atomic_rcu_read(&rs->ram_bitmap)->unsentmap;
 
     if (unsent_pass) {
         /* Find a sent page */
@@ -1898,15 +1905,16 @@ static int postcopy_chunk_hostpages(MigrationState *ms)
  */
 int ram_postcopy_send_discard_bitmap(MigrationState *ms)
 {
+    RAMState *rs = &ram_state;
     int ret;
     unsigned long *bitmap, *unsentmap;
 
     rcu_read_lock();
 
     /* This should be our last sync, the src is now paused */
-    migration_bitmap_sync(&ram_state);
+    migration_bitmap_sync(rs);
 
-    unsentmap = atomic_rcu_read(&migration_bitmap_rcu)->unsentmap;
+    unsentmap = atomic_rcu_read(&rs->ram_bitmap)->unsentmap;
     if (!unsentmap) {
         /* We don't have a safe way to resize the sentmap, so
          * if the bitmap was resized it will be NULL at this
@@ -1927,7 +1935,7 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
     /*
      * Update the unsentmap to be unsentmap = unsentmap | dirty
      */
-    bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+    bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
     bitmap_or(unsentmap, unsentmap, bitmap,
                last_ram_offset() >> TARGET_PAGE_BITS);
 
@@ -2022,16 +2030,16 @@ static int ram_state_init(RAMState *rs)
     bytes_transferred = 0;
     ram_state_reset(rs);
 
-    migration_bitmap_rcu = g_new0(struct BitmapRcu, 1);
+    rs->ram_bitmap = g_new0(struct RAMBitmap, 1);
     /* Skip setting bitmap if there is no RAM */
     if (ram_bytes_total()) {
         ram_bitmap_pages = last_ram_offset() >> TARGET_PAGE_BITS;
-        migration_bitmap_rcu->bmap = bitmap_new(ram_bitmap_pages);
-        bitmap_set(migration_bitmap_rcu->bmap, 0, ram_bitmap_pages);
+        rs->ram_bitmap->bmap = bitmap_new(ram_bitmap_pages);
+        bitmap_set(rs->ram_bitmap->bmap, 0, ram_bitmap_pages);
 
         if (migrate_postcopy_ram()) {
-            migration_bitmap_rcu->unsentmap = bitmap_new(ram_bitmap_pages);
-            bitmap_set(migration_bitmap_rcu->unsentmap, 0, ram_bitmap_pages);
+            rs->ram_bitmap->unsentmap = bitmap_new(ram_bitmap_pages);
+            bitmap_set(rs->ram_bitmap->unsentmap, 0, ram_bitmap_pages);
         }
     }
 
