@@ -168,6 +168,8 @@ struct RAMState {
     /* Accounting fields */
     /* number of zero pages.  It used to be pages filled by the same char. */
     uint64_t zero_pages;
+    /* number of normal transferred pages */
+    uint64_t norm_pages;
 };
 typedef struct RAMState RAMState;
 
@@ -175,7 +177,6 @@ static RAMState ram_state;
 
 /* accounting for migration statistics */
 typedef struct AccountingInfo {
-    uint64_t norm_pages;
     uint64_t iterations;
     uint64_t xbzrle_bytes;
     uint64_t xbzrle_pages;
@@ -198,12 +199,12 @@ uint64_t dup_mig_pages_transferred(void)
 
 uint64_t norm_mig_bytes_transferred(void)
 {
-    return acct_info.norm_pages * TARGET_PAGE_SIZE;
+    return ram_state.norm_pages * TARGET_PAGE_SIZE;
 }
 
 uint64_t norm_mig_pages_transferred(void)
 {
-    return acct_info.norm_pages;
+    return ram_state.norm_pages;
 }
 
 uint64_t xbzrle_mig_bytes_transferred(void)
@@ -808,7 +809,7 @@ static int ram_save_page(RAMState *rs, MigrationState *ms, QEMUFile *f,
     if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
         if (ret != RAM_SAVE_CONTROL_DELAYED) {
             if (bytes_xmit > 0) {
-                acct_info.norm_pages++;
+                rs->norm_pages++;
             } else if (bytes_xmit == 0) {
                 rs->zero_pages++;
             }
@@ -847,7 +848,7 @@ static int ram_save_page(RAMState *rs, MigrationState *ms, QEMUFile *f,
         }
         *bytes_transferred += TARGET_PAGE_SIZE;
         pages = 1;
-        acct_info.norm_pages++;
+        rs->norm_pages++;
     }
 
     XBZRLE_cache_unlock();
@@ -914,8 +915,8 @@ static inline void set_compress_params(CompressParam *param, RAMBlock *block,
     param->offset = offset;
 }
 
-static int compress_page_with_multi_thread(QEMUFile *f, RAMBlock *block,
-                                           ram_addr_t offset,
+static int compress_page_with_multi_thread(RAMState *rs, QEMUFile *f,
+                                           RAMBlock *block, ram_addr_t offset,
                                            uint64_t *bytes_transferred)
 {
     int idx, thread_count, bytes_xmit = -1, pages = -1;
@@ -932,7 +933,7 @@ static int compress_page_with_multi_thread(QEMUFile *f, RAMBlock *block,
                 qemu_cond_signal(&comp_param[idx].cond);
                 qemu_mutex_unlock(&comp_param[idx].mutex);
                 pages = 1;
-                acct_info.norm_pages++;
+                rs->norm_pages++;
                 *bytes_transferred += bytes_xmit;
                 break;
             }
@@ -984,7 +985,7 @@ static int ram_save_compressed_page(RAMState *rs, MigrationState *ms,
     if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
         if (ret != RAM_SAVE_CONTROL_DELAYED) {
             if (bytes_xmit > 0) {
-                acct_info.norm_pages++;
+                rs->norm_pages++;
             } else if (bytes_xmit == 0) {
                 rs->zero_pages++;
             }
@@ -1007,7 +1008,7 @@ static int ram_save_compressed_page(RAMState *rs, MigrationState *ms,
                                                  migrate_compress_level());
                 if (blen > 0) {
                     *bytes_transferred += bytes_xmit + blen;
-                    acct_info.norm_pages++;
+                    rs->norm_pages++;
                     pages = 1;
                 } else {
                     qemu_file_set_error(f, blen);
@@ -1021,7 +1022,7 @@ static int ram_save_compressed_page(RAMState *rs, MigrationState *ms,
             offset |= RAM_SAVE_FLAG_CONTINUE;
             pages = save_zero_page(rs, f, block, offset, p, bytes_transferred);
             if (pages == -1) {
-                pages = compress_page_with_multi_thread(f, block, offset,
+                pages = compress_page_with_multi_thread(rs, f, block, offset,
                                                         bytes_transferred);
             } else {
                 ram_release_pages(ms, block->idstr, pss->offset, pages);
@@ -1456,7 +1457,7 @@ void acct_update_position(QEMUFile *f, size_t size, bool zero)
     if (zero) {
         rs->zero_pages += pages;
     } else {
-        acct_info.norm_pages += pages;
+        rs->norm_pages += pages;
         bytes_transferred += size;
         qemu_update_position(f, size);
     }
@@ -1997,6 +1998,7 @@ static int ram_save_init_globals(RAMState *rs)
     rs->dirty_rate_high_cnt = 0;
     rs->bitmap_sync_count = 0;
     rs->zero_pages = 0;
+    rs->norm_pages = 0;
     migration_bitmap_sync_init(rs);
     qemu_mutex_init(&migration_bitmap_mutex);
 
