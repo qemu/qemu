@@ -651,7 +651,8 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->transferred = ram_bytes_transferred();
     info->ram->total = ram_bytes_total();
     info->ram->duplicate = dup_mig_pages_transferred();
-    info->ram->skipped = skipped_mig_pages_transferred();
+    /* legacy value.  It is not used anymore */
+    info->ram->skipped = 0;
     info->ram->normal = norm_mig_pages_transferred();
     info->ram->normal_bytes = norm_mig_bytes_transferred();
     info->ram->mbps = s->mbps;
