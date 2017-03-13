@@ -198,6 +198,8 @@ struct RAMState {
     uint64_t xbzrle_overflows;
     /* number of dirty bits in the bitmap */
     uint64_t migration_dirty_pages;
+    /* total number of bytes transferred */
+    uint64_t bytes_transferred;
     /* protects modification of the bitmap */
     QemuMutex bitmap_mutex;
     /* Ram Bitmap protected by RCU */
@@ -245,6 +247,11 @@ uint64_t xbzrle_mig_pages_overflow(void)
 static ram_addr_t ram_save_remaining(void)
 {
     return ram_state.migration_dirty_pages;
+}
+
+uint64_t ram_bytes_transferred(void)
+{
+    return ram_state.bytes_transferred;
 }
 
 /* used by the search for pages to send */
@@ -871,9 +878,7 @@ static int do_compress_ram_page(QEMUFile *f, RAMBlock *block,
     return bytes_sent;
 }
 
-static uint64_t bytes_transferred;
-
-static void flush_compressed_data(QEMUFile *f)
+static void flush_compressed_data(RAMState *rs, QEMUFile *f)
 {
     int idx, len, thread_count;
 
@@ -894,7 +899,7 @@ static void flush_compressed_data(QEMUFile *f)
         qemu_mutex_lock(&comp_param[idx].mutex);
         if (!comp_param[idx].quit) {
             len = qemu_put_qemu_file(f, comp_param[idx].file);
-            bytes_transferred += len;
+            rs->bytes_transferred += len;
         }
         qemu_mutex_unlock(&comp_param[idx].mutex);
     }
@@ -990,7 +995,7 @@ static int ram_save_compressed_page(RAMState *rs, MigrationState *ms,
          * is used to avoid resending the block name.
          */
         if (block != rs->last_sent_block) {
-            flush_compressed_data(f);
+            flush_compressed_data(rs, f);
             pages = save_zero_page(rs, f, block, offset, p, bytes_transferred);
             if (pages == -1) {
                 /* Make sure the first page is sent out before other pages */
@@ -1066,7 +1071,7 @@ static bool find_dirty_block(RAMState *rs, QEMUFile *f, PageSearchStatus *pss,
                 /* If xbzrle is on, stop using the data compression at this
                  * point. In theory, xbzrle can do better than compression.
                  */
-                flush_compressed_data(f);
+                flush_compressed_data(rs, f);
                 compression_switch = false;
             }
         }
@@ -1450,7 +1455,7 @@ void acct_update_position(QEMUFile *f, size_t size, bool zero)
         rs->zero_pages += pages;
     } else {
         rs->norm_pages += pages;
-        bytes_transferred += size;
+        rs->bytes_transferred += size;
         qemu_update_position(f, size);
     }
 }
@@ -1458,11 +1463,6 @@ void acct_update_position(QEMUFile *f, size_t size, bool zero)
 uint64_t ram_bytes_remaining(void)
 {
     return ram_save_remaining() * TARGET_PAGE_SIZE;
-}
-
-uint64_t ram_bytes_transferred(void)
-{
-    return bytes_transferred;
 }
 
 uint64_t ram_bytes_total(void)
@@ -2027,7 +2027,6 @@ static int ram_state_init(RAMState *rs)
 
     qemu_mutex_lock_ramlist();
     rcu_read_lock();
-    bytes_transferred = 0;
     ram_state_reset(rs);
 
     rs->ram_bitmap = g_new0(struct RAMBitmap, 1);
@@ -2139,7 +2138,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     while ((ret = qemu_file_rate_limit(f)) == 0) {
         int pages;
 
-        pages = ram_find_and_save_block(rs, f, false, &bytes_transferred);
+        pages = ram_find_and_save_block(rs, f, false, &rs->bytes_transferred);
         /* no more pages to sent */
         if (pages == 0) {
             done = 1;
@@ -2161,7 +2160,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         }
         i++;
     }
-    flush_compressed_data(f);
+    flush_compressed_data(rs, f);
     rcu_read_unlock();
 
     /*
@@ -2171,7 +2170,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     ram_control_after_iterate(f, RAM_CONTROL_ROUND);
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
-    bytes_transferred += 8;
+    rs->bytes_transferred += 8;
 
     ret = qemu_file_get_error(f);
     if (ret < 0) {
@@ -2210,14 +2209,14 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         int pages;
 
         pages = ram_find_and_save_block(rs, f, !migration_in_colo_state(),
-                                        &bytes_transferred);
+                                        &rs->bytes_transferred);
         /* no more blocks to sent */
         if (pages == 0) {
             break;
         }
     }
 
-    flush_compressed_data(f);
+    flush_compressed_data(rs, f);
     ram_control_after_iterate(f, RAM_CONTROL_FINISH);
 
     rcu_read_unlock();
