@@ -170,6 +170,8 @@ struct RAMState {
     uint64_t zero_pages;
     /* number of normal transferred pages */
     uint64_t norm_pages;
+    /* Iterations since start */
+    uint64_t iterations;
 };
 typedef struct RAMState RAMState;
 
@@ -177,7 +179,6 @@ static RAMState ram_state;
 
 /* accounting for migration statistics */
 typedef struct AccountingInfo {
-    uint64_t iterations;
     uint64_t xbzrle_bytes;
     uint64_t xbzrle_pages;
     uint64_t xbzrle_cache_miss;
@@ -693,13 +694,13 @@ static void migration_bitmap_sync(RAMState *rs)
         }
 
         if (migrate_use_xbzrle()) {
-            if (rs->iterations_prev != acct_info.iterations) {
+            if (rs->iterations_prev != rs->iterations) {
                 acct_info.xbzrle_cache_miss_rate =
                    (double)(acct_info.xbzrle_cache_miss -
                             rs->xbzrle_cache_miss_prev) /
-                   (acct_info.iterations - rs->iterations_prev);
+                   (rs->iterations - rs->iterations_prev);
             }
-            rs->iterations_prev = acct_info.iterations;
+            rs->iterations_prev = rs->iterations;
             rs->xbzrle_cache_miss_prev = acct_info.xbzrle_cache_miss;
         }
         s->dirty_pages_rate = rs->num_dirty_pages_period * 1000
@@ -1994,6 +1995,7 @@ static int ram_save_init_globals(RAMState *rs)
     rs->bitmap_sync_count = 0;
     rs->zero_pages = 0;
     rs->norm_pages = 0;
+    rs->iterations = 0;
     migration_bitmap_sync_init(rs);
     qemu_mutex_init(&migration_bitmap_mutex);
 
@@ -2151,7 +2153,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
             done = 1;
             break;
         }
-        acct_info.iterations++;
+        rs->iterations++;
 
         /* we want to check in the 1st loop, just in case it was the 1st time
            and we had to sync the dirty bitmap.
