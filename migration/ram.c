@@ -612,15 +612,6 @@ static void migration_bitmap_sync_range(RAMState *rs, ram_addr_t start,
                                               &rs->num_dirty_pages_period);
 }
 
-static void migration_bitmap_sync_init(RAMState *rs)
-{
-    rs->time_last_bitmap_sync = 0;
-    rs->bytes_xfer_prev = 0;
-    rs->num_dirty_pages_period = 0;
-    rs->xbzrle_cache_miss_prev = 0;
-    rs->iterations_prev = 0;
-}
-
 /**
  * ram_pagesize_summary: calculate all the pagesizes of a VM
  *
@@ -1986,21 +1977,11 @@ err:
     return ret;
 }
 
-static int ram_save_init_globals(RAMState *rs)
+static int ram_state_init(RAMState *rs)
 {
     int64_t ram_bitmap_pages; /* Size of bitmap in pages, including gaps */
 
-    rs->dirty_rate_high_cnt = 0;
-    rs->bitmap_sync_count = 0;
-    rs->zero_pages = 0;
-    rs->norm_pages = 0;
-    rs->iterations = 0;
-    rs->xbzrle_bytes = 0;
-    rs->xbzrle_pages = 0;
-    rs->xbzrle_cache_miss = 0;
-    rs->xbzrle_cache_miss_rate = 0;
-    rs->xbzrle_overflows = 0;
-    migration_bitmap_sync_init(rs);
+    memset(rs, 0, sizeof(*rs));
     qemu_mutex_init(&migration_bitmap_mutex);
 
     if (migrate_use_xbzrle()) {
@@ -2090,7 +2071,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
-        if (ram_save_init_globals(rs) < 0) {
+        if (ram_state_init(rs) < 0) {
             return -1;
          }
     }
