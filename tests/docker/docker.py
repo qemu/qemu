@@ -28,6 +28,9 @@ from shutil import copy, rmtree
 from pwd import getpwuid
 
 
+FILTERED_ENV_NAMES = ['ftp_proxy', 'http_proxy', 'https_proxy']
+
+
 DEVNULL = open(os.devnull, 'wb')
 
 
@@ -272,6 +275,9 @@ class BuildCommand(SubCommand):
                 _copy_binary_with_libs(args.include_executable,
                                        docker_dir)
 
+            argv += ["--build-arg=" + k.lower() + "=" + v
+                        for k, v in os.environ.iteritems()
+                        if k.lower() in FILTERED_ENV_NAMES]
             dkr.build_image(tag, docker_dir, dockerfile,
                             quiet=args.quiet, user=args.user, argv=argv)
 
