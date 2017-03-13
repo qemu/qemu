@@ -163,6 +163,8 @@ struct RAMState {
     uint64_t num_dirty_pages_period;
     /* xbzrle misses since the beginning of the period */
     uint64_t xbzrle_cache_miss_prev;
+    /* number of iterations at the beginning of period */
+    uint64_t iterations_prev;
 };
 typedef struct RAMState RAMState;
 
@@ -625,16 +627,13 @@ static void migration_bitmap_sync_range(RAMState *rs, ram_addr_t start,
                              start, length, &rs->num_dirty_pages_period);
 }
 
-/* Fix me: there are too many global variables used in migration process. */
-static uint64_t iterations_prev;
-
 static void migration_bitmap_sync_init(RAMState *rs)
 {
     rs->time_last_bitmap_sync = 0;
     rs->bytes_xfer_prev = 0;
     rs->num_dirty_pages_period = 0;
     rs->xbzrle_cache_miss_prev = 0;
-    iterations_prev = 0;
+    rs->iterations_prev = 0;
 }
 
 /**
@@ -712,13 +711,13 @@ static void migration_bitmap_sync(RAMState *rs)
         }
 
         if (migrate_use_xbzrle()) {
-            if (iterations_prev != acct_info.iterations) {
+            if (rs->iterations_prev != acct_info.iterations) {
                 acct_info.xbzrle_cache_miss_rate =
                    (double)(acct_info.xbzrle_cache_miss -
                             rs->xbzrle_cache_miss_prev) /
-                   (acct_info.iterations - iterations_prev);
+                   (acct_info.iterations - rs->iterations_prev);
             }
-            iterations_prev = acct_info.iterations;
+            rs->iterations_prev = acct_info.iterations;
             rs->xbzrle_cache_miss_prev = acct_info.xbzrle_cache_miss;
         }
         s->dirty_pages_rate = rs->num_dirty_pages_period * 1000
