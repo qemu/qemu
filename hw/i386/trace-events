@@ -37,6 +37,7 @@ amdvi_cache_update(uint16_t domid, uint8_t bus, uint8_t slot, uint8_t func, uint
 amdvi_completion_wait_fail(uint64_t addr) "error: fail to write at address 0x%"PRIx64
 amdvi_mmio_write(const char *reg, uint64_t addr, unsigned size, uint64_t val, uint64_t offset) "%s write addr 0x%"PRIx64", size %u, val 0x%"PRIx64", offset 0x%"PRIx64
 amdvi_mmio_read(const char *reg, uint64_t addr, unsigned size, uint64_t offset) "%s read addr 0x%"PRIx64", size %u offset 0x%"PRIx64
+amdvi_mmio_read_invalid(int max, uint64_t addr, unsigned size) "error: addr outside region (max 0x%x): read addr 0x%" PRIx64 ", size %u"
 amdvi_command_error(uint64_t status) "error: Executing commands with command buffer disabled 0x%"PRIx64
 amdvi_command_read_fail(uint64_t addr, uint32_t head) "error: fail to access memory at 0x%"PRIx64" + 0x%"PRIx32
 amdvi_command_exec(uint32_t head, uint32_t tail, uint64_t buf) "command buffer head at 0x%"PRIx32" command buffer tail at 0x%"PRIx32" command buffer base at 0x%"PRIx64
