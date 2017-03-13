@@ -1674,14 +1674,6 @@ S: Supported
 F: block/ssh.c
 T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
-ARCHIPELAGO
-M: Chrysostomos Nanakos <chris@include.gr>
-M: Jeff Cody <jcody@redhat.com>
-L: qemu-block@nongnu.org
-S: Maintained
-F: block/archipelago.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
-
 CURL
 M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org

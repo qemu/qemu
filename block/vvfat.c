@@ -1394,7 +1394,13 @@ static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
 	   return -1;
 	if (s->qcow) {
 	    int n;
-            if (bdrv_is_allocated(s->qcow->bs, sector_num, nb_sectors-i, &n)) {
+            int ret;
+            ret = bdrv_is_allocated(s->qcow->bs, sector_num,
+                                    nb_sectors - i, &n);
+            if (ret < 0) {
+                return ret;
+            }
+            if (ret) {
                 DLOG(fprintf(stderr, "sectors %d+%d allocated\n",
                              (int)sector_num, n));
                 if (bdrv_read(s->qcow, sector_num, buf + i * 0x200, n)) {
@@ -1668,7 +1674,8 @@ static inline uint32_t modified_fat_get(BDRVVVFATState* s,
     }
 }
 
-static inline int cluster_was_modified(BDRVVVFATState* s, uint32_t cluster_num)
+static inline bool cluster_was_modified(BDRVVVFATState *s,
+                                        uint32_t cluster_num)
 {
     int was_modified = 0;
     int i, dummy;
@@ -1683,7 +1690,13 @@ static inline int cluster_was_modified(BDRVVVFATState* s, uint32_t cluster_num)
                                          1, &dummy);
     }
 
-    return was_modified;
+    /*
+     * Note that this treats failures to learn allocation status the
+     * same as if an allocation has occurred.  It's as safe as
+     * anything else, given that a failure to learn allocation status
+     * will probably result in more failures.
+     */
+    return !!was_modified;
 }
 
 static const char* get_basename(const char* path)
@@ -1833,6 +1846,9 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
                     int res;
 
                     res = bdrv_is_allocated(s->qcow->bs, offset + i, 1, &dummy);
+                    if (res < 0) {
+                        return -1;
+                    }
                     if (!res) {
                         res = vvfat_read(s->bs, offset, s->cluster_buffer, 1);
                         if (res) {
