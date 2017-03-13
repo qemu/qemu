@@ -154,6 +154,9 @@ struct RAMState {
     int dirty_rate_high_cnt;
     /* How many times we have synchronized the bitmap */
     uint64_t bitmap_sync_count;
+    /* these variables are used for bitmap sync */
+    /* last time we did a full bitmap_sync */
+    int64_t time_last_bitmap_sync;
 };
 typedef struct RAMState RAMState;
 
@@ -617,14 +620,13 @@ static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
 }
 
 /* Fix me: there are too many global variables used in migration process. */
-static int64_t start_time;
 static int64_t bytes_xfer_prev;
 static uint64_t xbzrle_cache_miss_prev;
 static uint64_t iterations_prev;
 
-static void migration_bitmap_sync_init(void)
+static void migration_bitmap_sync_init(RAMState *rs)
 {
-    start_time = 0;
+    rs->time_last_bitmap_sync = 0;
     bytes_xfer_prev = 0;
     num_dirty_pages_period = 0;
     xbzrle_cache_miss_prev = 0;
@@ -665,8 +667,8 @@ static void migration_bitmap_sync(RAMState *rs)
         bytes_xfer_prev = ram_bytes_transferred();
     }
 
-    if (!start_time) {
-        start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    if (!rs->time_last_bitmap_sync) {
+        rs->time_last_bitmap_sync = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     }
 
     trace_migration_bitmap_sync_start();
@@ -685,7 +687,7 @@ static void migration_bitmap_sync(RAMState *rs)
     end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     /* more than 1 second = 1000 millisecons */
-    if (end_time > start_time + 1000) {
+    if (end_time > rs->time_last_bitmap_sync + 1000) {
         if (migrate_auto_converge()) {
             /* The following detection logic can be refined later. For now:
                Check to see if the dirtied bytes is 50% more than the approx.
@@ -716,9 +718,9 @@ static void migration_bitmap_sync(RAMState *rs)
             xbzrle_cache_miss_prev = acct_info.xbzrle_cache_miss;
         }
         s->dirty_pages_rate = num_dirty_pages_period * 1000
-            / (end_time - start_time);
+            / (end_time - rs->time_last_bitmap_sync);
         s->dirty_bytes_rate = s->dirty_pages_rate * TARGET_PAGE_SIZE;
-        start_time = end_time;
+        rs->time_last_bitmap_sync = end_time;
         num_dirty_pages_period = 0;
     }
     s->dirty_sync_count = rs->bitmap_sync_count;
@@ -2001,7 +2003,7 @@ static int ram_save_init_globals(RAMState *rs)
 
     rs->dirty_rate_high_cnt = 0;
     rs->bitmap_sync_count = 0;
-    migration_bitmap_sync_init();
+    migration_bitmap_sync_init(rs);
     qemu_mutex_init(&migration_bitmap_mutex);
 
     if (migrate_use_xbzrle()) {
