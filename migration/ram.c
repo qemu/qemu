@@ -45,8 +45,6 @@
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 
-static uint64_t bitmap_sync_count;
-
 /***********************************************************/
 /* ram save/restore */
 
@@ -154,6 +152,8 @@ struct RAMState {
     bool ram_bulk_stage;
     /* How many times we have dirty too many pages */
     int dirty_rate_high_cnt;
+    /* How many times we have synchronized the bitmap */
+    uint64_t bitmap_sync_count;
 };
 typedef struct RAMState RAMState;
 
@@ -471,7 +471,7 @@ static void xbzrle_cache_zero_page(RAMState *rs, ram_addr_t current_addr)
     /* We don't care if this fails to allocate a new cache page
      * as long as it updated an old one */
     cache_insert(XBZRLE.cache, current_addr, ZERO_TARGET_PAGE,
-                 bitmap_sync_count);
+                 rs->bitmap_sync_count);
 }
 
 #define ENCODING_FLAG_XBZRLE 0x1
@@ -483,6 +483,7 @@ static void xbzrle_cache_zero_page(RAMState *rs, ram_addr_t current_addr)
  *          0 means that page is identical to the one already sent
  *          -1 means that xbzrle would be longer than normal
  *
+ * @rs: current RAM state
  * @f: QEMUFile where to send the data
  * @current_data: pointer to the address of the page contents
  * @current_addr: addr of the page
@@ -491,7 +492,7 @@ static void xbzrle_cache_zero_page(RAMState *rs, ram_addr_t current_addr)
  * @last_stage: if we are at the completion stage
  * @bytes_transferred: increase it with the number of transferred bytes
  */
-static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
+static int save_xbzrle_page(RAMState *rs, QEMUFile *f, uint8_t **current_data,
                             ram_addr_t current_addr, RAMBlock *block,
                             ram_addr_t offset, bool last_stage,
                             uint64_t *bytes_transferred)
@@ -499,11 +500,11 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
     int encoded_len = 0, bytes_xbzrle;
     uint8_t *prev_cached_page;
 
-    if (!cache_is_cached(XBZRLE.cache, current_addr, bitmap_sync_count)) {
+    if (!cache_is_cached(XBZRLE.cache, current_addr, rs->bitmap_sync_count)) {
         acct_info.xbzrle_cache_miss++;
         if (!last_stage) {
             if (cache_insert(XBZRLE.cache, current_addr, *current_data,
-                             bitmap_sync_count) == -1) {
+                             rs->bitmap_sync_count) == -1) {
                 return -1;
             } else {
                 /* update *current_data when the page has been
@@ -658,7 +659,7 @@ static void migration_bitmap_sync(RAMState *rs)
     int64_t end_time;
     int64_t bytes_xfer_now;
 
-    bitmap_sync_count++;
+    rs->bitmap_sync_count++;
 
     if (!bytes_xfer_prev) {
         bytes_xfer_prev = ram_bytes_transferred();
@@ -720,9 +721,9 @@ static void migration_bitmap_sync(RAMState *rs)
         start_time = end_time;
         num_dirty_pages_period = 0;
     }
-    s->dirty_sync_count = bitmap_sync_count;
+    s->dirty_sync_count = rs->bitmap_sync_count;
     if (migrate_use_events()) {
-        qapi_event_send_migration_pass(bitmap_sync_count, NULL);
+        qapi_event_send_migration_pass(rs->bitmap_sync_count, NULL);
     }
 }
 
@@ -829,7 +830,7 @@ static int ram_save_page(RAMState *rs, MigrationState *ms, QEMUFile *f,
             ram_release_pages(ms, block->idstr, pss->offset, pages);
         } else if (!rs->ram_bulk_stage &&
                    !migration_in_postcopy(ms) && migrate_use_xbzrle()) {
-            pages = save_xbzrle_page(f, &p, current_addr, block,
+            pages = save_xbzrle_page(rs, f, &p, current_addr, block,
                                      offset, last_stage, bytes_transferred);
             if (!last_stage) {
                 /* Can't send this cached data async, since the cache page
@@ -1999,7 +2000,7 @@ static int ram_save_init_globals(RAMState *rs)
     int64_t ram_bitmap_pages; /* Size of bitmap in pages, including gaps */
 
     rs->dirty_rate_high_cnt = 0;
-    bitmap_sync_count = 0;
+    rs->bitmap_sync_count = 0;
     migration_bitmap_sync_init();
     qemu_mutex_init(&migration_bitmap_mutex);
 
