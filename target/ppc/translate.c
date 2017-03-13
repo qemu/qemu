@@ -818,7 +818,7 @@ static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
         if (is_isa300(ctx)) {
             tcg_gen_extract_tl(cpu_ov32, cpu_ov, 31, 1);
         }
-        tcg_gen_extract_tl(cpu_ov, cpu_ov, 63, 1);
+        tcg_gen_extract_tl(cpu_ov, cpu_ov, TARGET_LONG_BITS - 1, 1);
     }
     tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
 }
