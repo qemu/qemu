@@ -4853,6 +4853,20 @@ EOF
 fi
 
 ##########################################
+# check for _Static_assert()
+
+have_static_assert=no
+cat > $TMPC << EOF
+_Static_assert(1, "success");
+int main(void) {
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+    have_static_assert=yes
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -5846,6 +5860,10 @@ fi
 
 if test "$have_sysmacros" = "yes" ; then
   echo "CONFIG_SYSMACROS=y" >> $config_host_mak
+fi
+
+if test "$have_static_assert" = "yes" ; then
+  echo "CONFIG_STATIC_ASSERT=y" >> $config_host_mak
 fi
 
 # Hold two types of flag:
