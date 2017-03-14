@@ -3401,6 +3401,7 @@ vnc_display_create_creds(bool x509,
 
 static int vnc_display_get_address(const char *addrstr,
                                    bool websocket,
+                                   bool reverse,
                                    int displaynum,
                                    int to,
                                    bool has_ipv4,
@@ -3480,21 +3481,22 @@ static int vnc_display_get_address(const char *addrstr,
                 inet->port = g_strdup(port);
             }
         } else {
+            int offset = reverse ? 0 : 5900;
             if (parse_uint_full(port, &baseport, 10) < 0) {
                 error_setg(errp, "can't convert to a number: %s", port);
                 goto cleanup;
             }
             if (baseport > 65535 ||
-                baseport + 5900 > 65535) {
+                baseport + offset > 65535) {
                 error_setg(errp, "port %s out of range", port);
                 goto cleanup;
             }
             inet->port = g_strdup_printf(
-                "%d", (int)baseport + 5900);
+                "%d", (int)baseport + offset);
 
             if (to) {
                 inet->has_to = true;
-                inet->to = to + 5900;
+                inet->to = to + offset;
             }
         }
 
@@ -3516,6 +3518,7 @@ static int vnc_display_get_address(const char *addrstr,
 }
 
 static int vnc_display_get_addresses(QemuOpts *opts,
+                                     bool reverse,
                                      SocketAddress ***retsaddr,
                                      size_t *retnsaddr,
                                      SocketAddress ***retwsaddr,
@@ -3555,7 +3558,7 @@ static int vnc_display_get_addresses(QemuOpts *opts,
     qemu_opt_iter_init(&addriter, opts, "vnc");
     while ((addr = qemu_opt_iter_next(&addriter)) != NULL) {
         int rv;
-        rv = vnc_display_get_address(addr, false, 0, to,
+        rv = vnc_display_get_address(addr, false, reverse, 0, to,
                                      has_ipv4, has_ipv6,
                                      ipv4, ipv6,
                                      &saddr, errp);
@@ -3580,7 +3583,7 @@ static int vnc_display_get_addresses(QemuOpts *opts,
 
     qemu_opt_iter_init(&addriter, opts, "websocket");
     while ((addr = qemu_opt_iter_next(&addriter)) != NULL) {
-        if (vnc_display_get_address(addr, true, displaynum, to,
+        if (vnc_display_get_address(addr, true, reverse, displaynum, to,
                                     has_ipv4, has_ipv6,
                                     ipv4, ipv6,
                                     &wsaddr, errp) < 0) {
@@ -3777,7 +3780,8 @@ void vnc_display_open(const char *id, Error **errp)
         return;
     }
 
-    if (vnc_display_get_addresses(opts, &saddr, &nsaddr,
+    reverse = qemu_opt_get_bool(opts, "reverse", false);
+    if (vnc_display_get_addresses(opts, reverse, &saddr, &nsaddr,
                                   &wsaddr, &nwsaddr, errp) < 0) {
         goto fail;
     }
@@ -3803,7 +3807,6 @@ void vnc_display_open(const char *id, Error **errp)
         }
     }
 
-    reverse = qemu_opt_get_bool(opts, "reverse", false);
     lock_key_sync = qemu_opt_get_bool(opts, "lock-key-sync", true);
     key_delay_ms = qemu_opt_get_number(opts, "key-delay-ms", 1);
     sasl = qemu_opt_get_bool(opts, "sasl", false);
