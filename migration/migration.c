@@ -1118,7 +1118,6 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->downtime = 0;
     s->expected_downtime = 0;
     s->dirty_pages_rate = 0;
-    s->dirty_bytes_rate = 0;
     s->setup_time = 0;
     s->start_postcopy = false;
     s->postcopy_after_devices = false;
@@ -2008,8 +2007,9 @@ static void *migration_thread(void *opaque)
                                       bandwidth, max_size);
             /* if we haven't sent anything, we don't want to recalculate
                10000 is a small enough number for our purposes */
-            if (s->dirty_bytes_rate && transferred_bytes > 10000) {
-                s->expected_downtime = s->dirty_bytes_rate / bandwidth;
+            if (s->dirty_pages_rate && transferred_bytes > 10000) {
+                s->expected_downtime = s->dirty_pages_rate *
+                    (1ul << qemu_target_page_bits()) / bandwidth;
             }
 
             qemu_file_reset_rate_limit(s->to_dst_file);
