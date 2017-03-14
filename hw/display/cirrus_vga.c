@@ -205,6 +205,7 @@ typedef struct CirrusVGAState {
     uint32_t cirrus_bank_base[2];
     uint32_t cirrus_bank_limit[2];
     uint8_t cirrus_hidden_palette[48];
+    bool enable_blitter;
     int cirrus_blt_pixelwidth;
     int cirrus_blt_width;
     int cirrus_blt_height;
@@ -959,6 +960,10 @@ static int cirrus_bitblt_videotovideo(CirrusVGAState * s)
 static void cirrus_bitblt_start(CirrusVGAState * s)
 {
     uint8_t blt_rop;
+
+    if (!s->enable_blitter) {
+        goto bitblt_ignore;
+    }
 
     s->vga.gr[0x31] |= CIRRUS_BLT_BUSY;
 
@@ -3024,6 +3029,8 @@ static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
 static Property isa_cirrus_vga_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", struct ISACirrusVGAState,
                        cirrus_vga.vga.vram_size_mb, 4),
+    DEFINE_PROP_BOOL("blitter", struct ISACirrusVGAState,
+                       cirrus_vga.enable_blitter, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -3093,6 +3100,8 @@ static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
 static Property pci_vga_cirrus_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", struct PCICirrusVGAState,
                        cirrus_vga.vga.vram_size_mb, 4),
+    DEFINE_PROP_BOOL("blitter", struct PCICirrusVGAState,
+                     cirrus_vga.enable_blitter, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
