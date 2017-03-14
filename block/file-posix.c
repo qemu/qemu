@@ -703,6 +703,9 @@ static int hdev_get_max_segments(const struct stat *st)
     }
 
 out:
+    if (fd != -1) {
+        close(fd);
+    }
     g_free(sysfspath);
     return ret;
 #else
