@@ -686,7 +686,7 @@ static int hdev_get_max_segments(const struct stat *st)
         goto out;
     }
     do {
-        ret = read(fd, buf, sizeof(buf));
+        ret = read(fd, buf, sizeof(buf) - 1);
     } while (ret == -1 && errno == EINTR);
     if (ret < 0) {
         ret = -errno;
