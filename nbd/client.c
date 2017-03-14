@@ -812,6 +812,6 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
         LOG("invalid magic (got 0x%" PRIx32 ")", magic);
         return -EINVAL;
     }
-    return 0;
+    return sizeof(buf);
 }
 
