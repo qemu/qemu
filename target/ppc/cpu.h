@@ -1408,7 +1408,7 @@ int ppc_compat_max_threads(PowerPCCPU *cpu);
 #define SPR_601_UDECR         (0x006)
 #define SPR_LR                (0x008)
 #define SPR_CTR               (0x009)
-#define SPR_UAMR              (0x00C)
+#define SPR_UAMR              (0x00D)
 #define SPR_DSCR              (0x011)
 #define SPR_DSISR             (0x012)
 #define SPR_DAR               (0x013) /* DAE for PowerPC 601 */
