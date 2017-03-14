@@ -25,8 +25,6 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
-#include "qemu/timer.h"
-#include "qemu/log.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "trace.h"
