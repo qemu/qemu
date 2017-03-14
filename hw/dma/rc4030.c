@@ -99,8 +99,8 @@ typedef struct rc4030State
 
 static void set_next_tick(rc4030State *s)
 {
-    qemu_irq_lower(s->timer_irq);
     uint32_t tm_hz;
+    qemu_irq_lower(s->timer_irq);
 
     tm_hz = 1000 / (s->itr + 1);
 
