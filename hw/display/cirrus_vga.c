@@ -796,21 +796,15 @@ static int cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
         }
     }
 
-    /* we have to flush all pending changes so that the copy
-       is generated at the appropriate moment in time */
-    if (notify)
-        graphic_hw_update(s->vga.con);
-
     (*s->cirrus_rop) (s, s->vga.vram_ptr + s->cirrus_blt_dstaddr,
                       s->vga.vram_ptr + s->cirrus_blt_srcaddr,
 		      s->cirrus_blt_dstpitch, s->cirrus_blt_srcpitch,
 		      s->cirrus_blt_width, s->cirrus_blt_height);
 
     if (notify) {
-        qemu_console_copy(s->vga.con,
-			  sx, sy, dx, dy,
-			  s->cirrus_blt_width / depth,
-			  s->cirrus_blt_height);
+        dpy_gfx_update(s->vga.con, dx, dy,
+                       s->cirrus_blt_width / depth,
+                       s->cirrus_blt_height);
     }
 
     /* we don't have to notify the display that this portion has
