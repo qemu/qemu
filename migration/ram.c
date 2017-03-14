@@ -212,6 +212,8 @@ struct RAMState {
     uint64_t migration_dirty_pages;
     /* total number of bytes transferred */
     uint64_t bytes_transferred;
+    /* number of dirtied pages in the last second */
+    uint64_t dirty_pages_rate;
     /* protects modification of the bitmap */
     QemuMutex bitmap_mutex;
     /* Ram Bitmap protected by RCU */
@@ -274,6 +276,11 @@ uint64_t ram_bytes_remaining(void)
 uint64_t ram_dirty_sync_count(void)
 {
     return ram_state.bitmap_sync_count;
+}
+
+uint64_t ram_dirty_pages_rate(void)
+{
+    return ram_state.dirty_pages_rate;
 }
 
 /* used by the search for pages to send */
@@ -666,7 +673,6 @@ uint64_t ram_pagesize_summary(void)
 static void migration_bitmap_sync(RAMState *rs)
 {
     RAMBlock *block;
-    MigrationState *s = migrate_get_current();
     int64_t end_time;
     uint64_t bytes_xfer_now;
 
@@ -705,7 +711,7 @@ static void migration_bitmap_sync(RAMState *rs)
                throttling */
             bytes_xfer_now = ram_bytes_transferred();
 
-            if (s->dirty_pages_rate &&
+            if (rs->dirty_pages_rate &&
                (rs->num_dirty_pages_period * TARGET_PAGE_SIZE >
                    (bytes_xfer_now - rs->bytes_xfer_prev) / 2) &&
                (rs->dirty_rate_high_cnt++ >= 2)) {
@@ -726,7 +732,7 @@ static void migration_bitmap_sync(RAMState *rs)
             rs->iterations_prev = rs->iterations;
             rs->xbzrle_cache_miss_prev = rs->xbzrle_cache_miss;
         }
-        s->dirty_pages_rate = rs->num_dirty_pages_period * 1000
+        rs->dirty_pages_rate = rs->num_dirty_pages_period * 1000
             / (end_time - rs->time_last_bitmap_sync);
         rs->time_last_bitmap_sync = end_time;
         rs->num_dirty_pages_period = 0;

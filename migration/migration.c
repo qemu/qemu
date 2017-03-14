@@ -661,7 +661,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
 
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
-        info->ram->dirty_pages_rate = s->dirty_pages_rate;
+        info->ram->dirty_pages_rate = ram_dirty_pages_rate();
     }
 }
 
@@ -1117,7 +1117,6 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->mbps = 0.0;
     s->downtime = 0;
     s->expected_downtime = 0;
-    s->dirty_pages_rate = 0;
     s->setup_time = 0;
     s->start_postcopy = false;
     s->postcopy_after_devices = false;
@@ -2007,8 +2006,8 @@ static void *migration_thread(void *opaque)
                                       bandwidth, max_size);
             /* if we haven't sent anything, we don't want to recalculate
                10000 is a small enough number for our purposes */
-            if (s->dirty_pages_rate && transferred_bytes > 10000) {
-                s->expected_downtime = s->dirty_pages_rate *
+            if (ram_dirty_pages_rate() && transferred_bytes > 10000) {
+                s->expected_downtime = ram_dirty_pages_rate() *
                     (1ul << qemu_target_page_bits()) / bandwidth;
             }
 

@@ -154,7 +154,6 @@ struct MigrationState
     int64_t total_time;
     int64_t downtime;
     int64_t expected_downtime;
-    int64_t dirty_pages_rate;
     bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];
     int64_t xbzrle_cache_size;
     int64_t setup_time;
@@ -254,6 +253,7 @@ uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_transferred(void);
 uint64_t ram_bytes_total(void);
 uint64_t ram_dirty_sync_count(void);
+uint64_t ram_dirty_pages_rate(void);
 void free_xbzrle_decoded_buf(void);
 
 void acct_update_position(QEMUFile *f, size_t size, bool zero);
