@@ -889,10 +889,6 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   void *opaque, Error **errp);
 void bdrv_root_unref_child(BdrvChild *child);
 
-int bdrv_child_check_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
-                          GSList *ignore_children, Error **errp);
-void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared);
-void bdrv_child_abort_perm_update(BdrvChild *c);
 int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
                             Error **errp);
 
