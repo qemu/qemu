@@ -57,6 +57,7 @@
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "exec/log.h"
+#include "sysemu/cpus.h"
 
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */

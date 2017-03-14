@@ -13,6 +13,7 @@
 #include "sysemu/replay.h"
 #include "sysemu/qtest.h"
 #include "block/aio.h"
+#include "sysemu/cpus.h"
 
 #define DELTA_ADJUST     1
 #define DELTA_NO_ADJUST -1

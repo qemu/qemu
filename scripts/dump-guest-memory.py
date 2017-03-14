@@ -314,8 +314,18 @@ def get_arch_phdr(endianness, elfclass):
 def int128_get64(val):
     """Returns low 64bit part of Int128 struct."""
 
-    assert val["hi"] == 0
-    return val["lo"]
+    try:
+        assert val["hi"] == 0
+        return val["lo"]
+    except gdb.error:
+        u64t = gdb.lookup_type('uint64_t').array(2)
+        u64 = val.cast(u64t)
+        if sys.byteorder == 'little':
+            assert u64[1] == 0
+            return u64[0]
+        else:
+            assert u64[0] == 0
+            return u64[1]
 
 
 def qlist_foreach(head, field_str):

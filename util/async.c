@@ -351,7 +351,7 @@ void aio_notify_accept(AioContext *ctx)
     }
 }
 
-static void aio_timerlist_notify(void *opaque)
+static void aio_timerlist_notify(void *opaque, QEMUClockType type)
 {
     aio_notify(opaque);
 }

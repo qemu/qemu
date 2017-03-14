@@ -1824,6 +1824,12 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         return ret;
     }
 
+    if (ret < cpu->kvm_msr_buf->nmsrs) {
+        struct kvm_msr_entry *e = &cpu->kvm_msr_buf->entries[ret];
+        error_report("error: failed to set MSR 0x%" PRIx32 " to 0x%" PRIx64,
+                     (uint32_t)e->index, (uint64_t)e->data);
+    }
+
     assert(ret == cpu->kvm_msr_buf->nmsrs);
     return 0;
 }
@@ -2187,6 +2193,12 @@ static int kvm_get_msrs(X86CPU *cpu)
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, cpu->kvm_msr_buf);
     if (ret < 0) {
         return ret;
+    }
+
+    if (ret < cpu->kvm_msr_buf->nmsrs) {
+        struct kvm_msr_entry *e = &cpu->kvm_msr_buf->entries[ret];
+        error_report("error: failed to get MSR 0x%" PRIx32,
+                     (uint32_t)e->index);
     }
 
     assert(ret == cpu->kvm_msr_buf->nmsrs);

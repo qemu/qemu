@@ -33,6 +33,7 @@
 #if defined(TARGET_I386) && !defined(CONFIG_USER_ONLY)
 #include "hw/i386/apic.h"
 #endif
+#include "sysemu/cpus.h"
 #include "sysemu/replay.h"
 
 /* -icount align implementation. */

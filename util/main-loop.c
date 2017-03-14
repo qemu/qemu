@@ -28,6 +28,7 @@
 #include "qemu/timer.h"
 #include "qemu/sockets.h"	// struct in_addr needed for libslirp.h
 #include "sysemu/qtest.h"
+#include "sysemu/cpus.h"
 #include "slirp/libslirp.h"
 #include "qemu/main-loop.h"
 #include "block/aio.h"
@@ -143,7 +144,7 @@ int qemu_init_main_loop(Error **errp)
     GSource *src;
     Error *local_error = NULL;
 
-    init_clocks();
+    init_clocks(qemu_timer_notify_cb);
 
     ret = qemu_signal_init();
     if (ret) {
