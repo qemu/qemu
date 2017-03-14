@@ -1126,7 +1126,6 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->postcopy_after_devices = false;
     s->postcopy_requests = 0;
     s->migration_thread_running = false;
-    s->last_req_rb = NULL;
     error_free(s->error);
     s->error = NULL;
 

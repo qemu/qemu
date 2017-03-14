@@ -204,6 +204,8 @@ struct RAMState {
     QemuMutex bitmap_mutex;
     /* Ram Bitmap protected by RCU */
     RAMBitmap *ram_bitmap;
+    /* The RAMBlock used in the last src_page_requests */
+    RAMBlock *last_req_rb;
 };
 typedef struct RAMState RAMState;
 
@@ -1226,12 +1228,13 @@ int ram_save_queue_pages(MigrationState *ms, const char *rbname,
                          ram_addr_t start, ram_addr_t len)
 {
     RAMBlock *ramblock;
+    RAMState *rs = &ram_state;
 
     ms->postcopy_requests++;
     rcu_read_lock();
     if (!rbname) {
         /* Reuse last RAMBlock */
-        ramblock = ms->last_req_rb;
+        ramblock = rs->last_req_rb;
 
         if (!ramblock) {
             /*
@@ -1249,7 +1252,7 @@ int ram_save_queue_pages(MigrationState *ms, const char *rbname,
             error_report("ram_save_queue_pages no block '%s'", rbname);
             goto err;
         }
-        ms->last_req_rb = ramblock;
+        rs->last_req_rb = ramblock;
     }
     trace_ram_save_queue_pages(ramblock->idstr, start, len);
     if (start+len > ramblock->used_length) {

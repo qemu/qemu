@@ -189,8 +189,6 @@ struct MigrationState
     /* Queue of outstanding page requests from the destination */
     QemuMutex src_page_req_mutex;
     QSIMPLEQ_HEAD(src_page_requests, MigrationSrcPageRequest) src_page_requests;
-    /* The RAMBlock used in the last src_page_request */
-    RAMBlock *last_req_rb;
     /* The semaphore is used to notify COLO thread that failover is finished */
     QemuSemaphore colo_exit_sem;
 
