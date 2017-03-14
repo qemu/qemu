@@ -18,6 +18,14 @@
         .driver   = "pci-bridge",\
         .property = "shpc",\
         .value    = "on",\
+    },{\
+        .driver   = "cirrus-vga",\
+        .property = "vgamem_mb",\
+        .value    = "8",\
+    },{\
+        .driver   = "isa-cirrus-vga",\
+        .property = "vgamem_mb",\
+        .value    = "8",\
     },
 
 #define HW_COMPAT_2_7 \
