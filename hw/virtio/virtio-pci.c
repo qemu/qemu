@@ -1153,7 +1153,7 @@ static AddressSpace *virtio_pci_get_dma_as(DeviceState *d)
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
     PCIDevice *dev = &proxy->pci_dev;
 
-    return pci_device_iommu_address_space(dev);
+    return pci_get_address_space(dev);
 }
 
 static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
@@ -1857,6 +1857,10 @@ static void virtio_pci_reset(DeviceState *qdev)
 
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         proxy->vqs[i].enabled = 0;
+        proxy->vqs[i].num = 0;
+        proxy->vqs[i].desc[0] = proxy->vqs[i].desc[1] = 0;
+        proxy->vqs[i].avail[0] = proxy->vqs[i].avail[1] = 0;
+        proxy->vqs[i].used[0] = proxy->vqs[i].used[1] = 0;
     }
 }
 
