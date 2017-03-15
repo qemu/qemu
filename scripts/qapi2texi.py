@@ -136,7 +136,7 @@ def texi_body(doc):
         for arg, section in doc.args.iteritems():
             desc = str(section)
             opt = ''
-            if "#optional" in desc:
+            if section.optional:
                 desc = re.sub(r'^ *#optional *\n?|\n? *#optional *$|#optional',
                               '', desc)
                 opt = ' (optional)'
@@ -185,7 +185,7 @@ def texi_enum(expr, doc):
     """Format an enum to texi"""
     for i in expr['data']:
         if i not in doc.args:
-            doc.args[i] = ''
+            doc.args[i] = qapi.QAPIDoc.ArgSection(i)
     body = texi_body(doc)
     return TYPE_FMT(type="Enum",
                     name=doc.symbol,

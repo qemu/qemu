@@ -107,6 +107,7 @@ class QAPIDoc(object):
             self.name = name
             # the list of lines for this section
             self.content = []
+            self.optional = False
 
         def append(self, line):
             self.content.append(line)
@@ -982,15 +983,15 @@ def check_definition_doc(doc, expr, info):
             desc = doc.args.get(arg)
         if not desc:
             continue
+        desc.optional = opt
         desc_opt = "#optional" in str(desc)
         if desc_opt and not opt:
             raise QAPISemError(info, "Description has #optional, "
                                "but the declaration doesn't")
         if not desc_opt and opt:
-            # silently fix the doc
             # TODO either fix the schema and make this an error,
             # or drop #optional entirely
-            desc.append("#optional")
+            pass
 
     doc_args = set(doc.args.keys())
     args = set([name.strip('*') for name in args])
