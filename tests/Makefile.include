@@ -443,6 +443,7 @@ qapi-schema += nested-struct-data.json
 qapi-schema += non-objects.json
 qapi-schema += pragma-doc-required-crap.json
 qapi-schema += pragma-extra-junk.json
+qapi-schema += pragma-name-case-whitelist-crap.json
 qapi-schema += pragma-non-dict.json
 qapi-schema += pragma-returns-whitelist-crap.json
 qapi-schema += qapi-schema-test.json

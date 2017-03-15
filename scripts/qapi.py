@@ -44,16 +44,7 @@ doc_required = False
 returns_whitelist = []
 
 # Whitelist of entities allowed to violate case conventions
-case_whitelist = [
-    # From QMP:
-    'ACPISlotType',         # DIMM, visible through query-acpi-ospm-status
-    'CpuInfoMIPS',          # PC, visible through query-cpu
-    'CpuInfoTricore',       # PC, visible through query-cpu
-    'QapiErrorClass',       # all members, visible through errors
-    'UuidInfo',             # UUID, visible through query-uuid
-    'X86CPURegister32',     # all members, visible indirectly through qom-get
-    'q_obj_CpuInfo-base',   # CPU, visible through query-cpu
-]
+name_case_whitelist = []
 
 enum_types = []
 struct_types = []
@@ -302,7 +293,7 @@ class QAPISchemaParser(object):
         self.docs.extend(exprs_include.docs)
 
     def _pragma(self, name, value, info):
-        global doc_required, returns_whitelist
+        global doc_required, returns_whitelist, name_case_whitelist
         if name == 'doc-required':
             if not isinstance(value, bool):
                 raise QAPISemError(info,
@@ -315,6 +306,13 @@ class QAPISchemaParser(object):
                                    "Pragma returns-whitelist must be"
                                    " a list of strings")
             returns_whitelist = value
+        elif name == 'name-case-whitelist':
+            if (not isinstance(value, list)
+                    or any([not isinstance(elt, str) for elt in value])):
+                raise QAPISemError(info,
+                                   "Pragma name-case-whitelist must be"
+                                   " a list of strings")
+            name_case_whitelist = value
         else:
             raise QAPISemError(info, "Unknown pragma '%s'" % name)
 
@@ -1287,7 +1285,7 @@ class QAPISchemaMember(object):
 
     def check_clash(self, info, seen):
         cname = c_name(self.name)
-        if cname.lower() != cname and self.owner not in case_whitelist:
+        if cname.lower() != cname and self.owner not in name_case_whitelist:
             raise QAPISemError(info,
                                "%s should not use uppercase" % self.describe())
         if cname in seen:
