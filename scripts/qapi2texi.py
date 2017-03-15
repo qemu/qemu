@@ -145,7 +145,10 @@ def texi_members(doc, what, member_func, show_undocumented):
     for section in doc.args.itervalues():
         if not section.content and not show_undocumented:
             continue          # Undocumented TODO require doc and drop
-        desc = str(section)
+        if section.content:
+            desc = str(section)
+        else:
+            desc = 'Not documented'
         items += member_func(section.member) + texi_format(desc) + '\n'
     if not items:
         return ''
