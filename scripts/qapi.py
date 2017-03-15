@@ -49,7 +49,6 @@ name_case_whitelist = []
 enum_types = []
 struct_types = []
 union_types = []
-events = []
 all_names = {}
 
 #
@@ -756,14 +755,12 @@ def check_command(expr, info):
 
 
 def check_event(expr, info):
-    global events
     name = expr['event']
     boxed = expr.get('boxed', False)
 
     meta = ['struct']
     if boxed:
         meta += ['union', 'alternate']
-    events.append(name)
     check_type(info, "'data' for event '%s'" % name,
                expr.get('data'), allow_dict=not boxed, allow_optional=True,
                allow_metas=meta)
