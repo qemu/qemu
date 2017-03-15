@@ -148,11 +148,16 @@ def texi_members(doc, what, base, variants, member_func):
     """Format the table of members"""
     items = ''
     for section in doc.args.itervalues():
+        # TODO Drop fallbacks when undocumented members are outlawed
         if section.content:
-            desc = str(section)
+            desc = texi_format(str(section))
+        elif (variants and variants.tag_member == section.member
+              and not section.member.type.doc_type()):
+            values = section.member.type.member_names()
+            desc = 'One of ' + ', '.join(['@t{"%s"}' % v for v in values])
         else:
             desc = 'Not documented'
-        items += member_func(section.member) + texi_format(desc) + '\n'
+        items += member_func(section.member) + desc + '\n'
     if base:
         items += '@item The members of @code{%s}\n' % base.doc_type()
     if variants:
