@@ -48,7 +48,7 @@ name_case_whitelist = []
 
 enum_types = {}
 struct_types = {}
-union_types = []
+union_types = {}
 all_names = {}
 
 #
@@ -569,7 +569,7 @@ def find_alternate_member_qtype(qapi_type):
         return 'QTYPE_QDICT'
     elif qapi_type in enum_types:
         return 'QTYPE_QSTRING'
-    elif find_union(qapi_type):
+    elif qapi_type in union_types:
         return 'QTYPE_QDICT'
     return None
 
@@ -636,19 +636,6 @@ def add_name(name, info, meta, implicit=False):
         raise QAPISemError(info, "%s '%s' should not end in '%s'"
                            % (meta, name, name[-4:]))
     all_names[name] = meta
-
-
-def add_union(definition, info):
-    global union_types
-    union_types.append(definition)
-
-
-def find_union(name):
-    global union_types
-    for union in union_types:
-        if union['union'] == name:
-            return union
-    return None
 
 
 def check_type(info, source, value, allow_array=False,
@@ -908,7 +895,7 @@ def check_exprs(exprs):
             meta = 'union'
             check_keys(expr_elem, 'union', ['data'],
                        ['base', 'discriminator'])
-            add_union(expr, info)
+            union_types[expr[meta]] = expr
         elif 'alternate' in expr:
             meta = 'alternate'
             check_keys(expr_elem, 'alternate', ['data'])
