@@ -668,16 +668,17 @@ def find_union(name):
     return None
 
 
-def add_enum(name, info, enum_values=None, implicit=False):
+def add_enum(definition, info):
     global enum_types
-    add_name(name, info, 'enum', implicit)
-    enum_types.append({'enum_name': name, 'enum_values': enum_values})
+    name = definition['enum']
+    add_name(name, info, 'enum', 'data' not in definition)
+    enum_types.append(definition)
 
 
 def find_enum(name):
     global enum_types
     for enum in enum_types:
-        if enum['enum_name'] == name:
+        if enum['enum'] == name:
             return enum
     return None
 
@@ -825,15 +826,15 @@ def check_union(expr, info):
         # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
         if enum_define:
-            if key not in enum_define['enum_values']:
+            if key not in enum_define['data']:
                 raise QAPISemError(info,
                                    "Discriminator value '%s' is not found in "
                                    "enum '%s'"
-                                   % (key, enum_define['enum_name']))
+                                   % (key, enum_define['enum']))
 
     # If discriminator is user-defined, ensure all values are covered
     if enum_define:
-        for value in enum_define['enum_values']:
+        for value in enum_define['data']:
             if value not in members.keys():
                 raise QAPISemError(info, "Union '%s' data missing '%s' branch"
                                    % (name, value))
@@ -938,7 +939,7 @@ def check_exprs(exprs):
         if 'enum' in expr:
             name = expr['enum']
             check_keys(expr_elem, 'enum', ['data'], ['prefix'])
-            add_enum(name, info, expr['data'])
+            add_enum(expr, info)
         elif 'union' in expr:
             name = expr['union']
             check_keys(expr_elem, 'union', ['data'],
@@ -971,13 +972,13 @@ def check_exprs(exprs):
     # Try again for hidden UnionKind enum
     for expr_elem in exprs:
         expr = expr_elem['expr']
-        if 'union' in expr:
-            if not discriminator_find_enum_define(expr):
-                add_enum('%sKind' % expr['union'], expr_elem['info'],
-                         implicit=True)
+        if 'union' in expr and not discriminator_find_enum_define(expr):
+            name = '%sKind' % expr['union']
         elif 'alternate' in expr:
-            add_enum('%sKind' % expr['alternate'], expr_elem['info'],
-                     implicit=True)
+            name = '%sKind' % expr['alternate']
+        else:
+            continue
+        add_enum({ 'enum': name }, expr_elem['info'])
 
     # Validate that exprs make sense
     for expr_elem in exprs:
