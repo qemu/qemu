@@ -47,7 +47,7 @@ returns_whitelist = []
 name_case_whitelist = []
 
 enum_types = {}
-struct_types = []
+struct_types = {}
 union_types = []
 all_names = {}
 
@@ -555,7 +555,7 @@ class QAPISchemaParser(object):
 def find_base_members(base):
     if isinstance(base, dict):
         return base
-    base_struct_define = find_struct(base)
+    base_struct_define = struct_types.get(base)
     if not base_struct_define:
         return None
     return base_struct_define['data']
@@ -565,7 +565,7 @@ def find_base_members(base):
 def find_alternate_member_qtype(qapi_type):
     if qapi_type in builtin_types:
         return builtin_types[qapi_type]
-    elif find_struct(qapi_type):
+    elif qapi_type in struct_types:
         return 'QTYPE_QDICT'
     elif qapi_type in enum_types:
         return 'QTYPE_QSTRING'
@@ -636,19 +636,6 @@ def add_name(name, info, meta, implicit=False):
         raise QAPISemError(info, "%s '%s' should not end in '%s'"
                            % (meta, name, name[-4:]))
     all_names[name] = meta
-
-
-def add_struct(definition, info):
-    global struct_types
-    struct_types.append(definition)
-
-
-def find_struct(name):
-    global struct_types
-    for struct in struct_types:
-        if struct['struct'] == name:
-            return struct
-    return None
 
 
 def add_union(definition, info):
@@ -928,7 +915,7 @@ def check_exprs(exprs):
         elif 'struct' in expr:
             meta = 'struct'
             check_keys(expr_elem, 'struct', ['data'], ['base'])
-            add_struct(expr, info)
+            struct_types[expr[meta]] = expr
         elif 'command' in expr:
             meta = 'command'
             check_keys(expr_elem, 'command', [],
