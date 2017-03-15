@@ -138,8 +138,6 @@ class QAPIDoc(object):
         self.sections = []
         # the current section
         self.section = self.body
-        # associated expression (to be set by expression parser)
-        self.expr = None
 
     def has_section(self, name):
         """Return True if we have a section with this name."""
@@ -249,6 +247,11 @@ class QAPIDoc(object):
             self.args[member.name] = QAPIDoc.ArgSection(member.name)
         self.args[member.name].connect(member)
 
+    def check_expr(self, expr):
+        if self.has_section('Returns') and 'command' not in expr:
+            raise QAPISemError(self.info,
+                               "'Returns:' is only valid for commands")
+
     def check(self):
         bogus = [name for name, section in self.args.iteritems()
                  if not section.member]
@@ -316,7 +319,6 @@ class QAPISchemaParser(object):
                         raise QAPISemError(
                             self.cur_doc.info,
                             "Expression documentation required")
-                    self.cur_doc.expr = expr
                     expr_elem['doc'] = self.cur_doc
                 self.exprs.append(expr_elem)
             self.cur_doc = None
@@ -984,6 +986,7 @@ def check_exprs(exprs):
     for expr_elem in exprs:
         expr = expr_elem['expr']
         info = expr_elem['info']
+        doc = expr_elem.get('doc')
 
         if 'enum' in expr:
             check_enum(expr, info)
@@ -1000,20 +1003,10 @@ def check_exprs(exprs):
         else:
             assert False, 'unexpected meta type'
 
+        if doc:
+            doc.check_expr(expr)
+
     return exprs
-
-
-def check_definition_doc(doc, expr, info):
-    if doc.has_section('Returns') and 'command' not in expr:
-        raise QAPISemError(info, "'Returns:' is only valid for commands")
-
-
-def check_docs(docs):
-    for doc in docs:
-        if doc.expr:
-            check_definition_doc(doc, doc.expr, doc.info)
-
-    return docs
 
 
 #
@@ -1511,7 +1504,7 @@ class QAPISchema(object):
         try:
             parser = QAPISchemaParser(open(fname, 'r'))
             self.exprs = check_exprs(parser.exprs)
-            self.docs = check_docs(parser.docs)
+            self.docs = parser.docs
             self._entity_dict = {}
             self._predefining = True
             self._def_predefineds()
