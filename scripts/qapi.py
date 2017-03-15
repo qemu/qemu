@@ -1105,6 +1105,11 @@ class QAPISchemaType(QAPISchemaEntity):
         }
         return json2qtype.get(self.json_type())
 
+    def doc_type(self):
+        if self.is_implicit():
+            return None
+        return self.name
+
 
 class QAPISchemaBuiltinType(QAPISchemaType):
     def __init__(self, name, json_type, c_type):
@@ -1128,6 +1133,9 @@ class QAPISchemaBuiltinType(QAPISchemaType):
 
     def json_type(self):
         return self._json_type_name
+
+    def doc_type(self):
+        return self.json_type()
 
     def visit(self, visitor):
         visitor.visit_builtin_type(self.name, self.info, self.json_type())
@@ -1187,6 +1195,12 @@ class QAPISchemaArrayType(QAPISchemaType):
 
     def json_type(self):
         return 'array'
+
+    def doc_type(self):
+        elt_doc_type = self.element_type.doc_type()
+        if not elt_doc_type:
+            return None
+        return 'array of ' + elt_doc_type
 
     def visit(self, visitor):
         visitor.visit_array_type(self.name, self.info, self.element_type)
