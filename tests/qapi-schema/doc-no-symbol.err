@@ -1,1 +1,1 @@
-tests/qapi-schema/doc-no-symbol.json:4: Definition of 'foo' follows documentation for 'None'
+tests/qapi-schema/doc-no-symbol.json:3: Expression documentation required

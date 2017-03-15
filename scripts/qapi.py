@@ -248,18 +248,21 @@ class QAPISchemaParser(object):
         self.line_pos = 0
         self.exprs = []
         self.docs = []
+        self.cur_doc = None
         self.accept()
 
         while self.tok is not None:
             info = {'file': fname, 'line': self.line,
                     'parent': self.incl_info}
             if self.tok == '#':
-                doc = self.get_doc(info)
-                self.docs.append(doc)
+                self.reject_expr_doc()
+                self.cur_doc = self.get_doc(info)
+                self.docs.append(self.cur_doc)
                 continue
 
             expr = self.get_expr(False)
             if 'include' in expr:
+                self.reject_expr_doc()
                 if len(expr) != 1:
                     raise QAPISemError(info, "Invalid 'include' directive")
                 include = expr['include']
@@ -269,6 +272,7 @@ class QAPISchemaParser(object):
                 self._include(include, info, os.path.dirname(abs_fname),
                               previously_included)
             elif "pragma" in expr:
+                self.reject_expr_doc()
                 if len(expr) != 1:
                     raise QAPISemError(info, "Invalid 'pragma' directive")
                 pragma = expr['pragma']
@@ -280,13 +284,23 @@ class QAPISchemaParser(object):
             else:
                 expr_elem = {'expr': expr,
                              'info': info}
-                if (self.docs
-                        and self.docs[-1].info['file'] == fname
-                        and not self.docs[-1].expr):
-                    self.docs[-1].expr = expr
-                    expr_elem['doc'] = self.docs[-1]
-
+                if self.cur_doc:
+                    if not self.cur_doc.symbol:
+                        raise QAPISemError(
+                            self.cur_doc.info,
+                            "Expression documentation required")
+                    self.cur_doc.expr = expr
+                    expr_elem['doc'] = self.cur_doc
                 self.exprs.append(expr_elem)
+            self.cur_doc = None
+        self.reject_expr_doc()
+
+    def reject_expr_doc(self):
+        if self.cur_doc and self.cur_doc.symbol:
+            raise QAPISemError(
+                self.cur_doc.info,
+                "Documentation for '%s' is not followed by the definition"
+                % self.cur_doc.symbol)
 
     def _include(self, include, info, base_dir, previously_included):
         incl_abs_fname = os.path.join(base_dir, include)
@@ -950,11 +964,6 @@ def check_exprs(exprs):
 
 
 def check_freeform_doc(doc):
-    if doc.symbol:
-        raise QAPISemError(doc.info,
-                           "Documention for '%s' is not followed"
-                           " by the definition" % doc.symbol)
-
     body = str(doc.body)
     if re.search(r'@\S+:', body, re.MULTILINE):
         raise QAPISemError(doc.info,
