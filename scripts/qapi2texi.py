@@ -137,7 +137,8 @@ def texi_body(doc):
             desc = str(section)
             opt = ''
             if "#optional" in desc:
-                desc = desc.replace("#optional", "")
+                desc = re.sub(r'^ *#optional *\n?|\n? *#optional *$|#optional',
+                              '', desc)
                 opt = ' (optional)'
             body += "@item @code{'%s'}%s\n%s\n" % (arg, opt,
                                                    texi_format(desc))

@@ -3779,11 +3779,11 @@
 #
 # @dstport: #optional destination port - mandatory for udp, optional for ip
 #
-# @ipv6: #optional - force the use of ipv6
+# @ipv6: #optional force the use of ipv6
 #
-# @udp: #optional - use the udp version of l2tpv3 encapsulation
+# @udp: #optional use the udp version of l2tpv3 encapsulation
 #
-# @cookie64: #optional - use 64 bit coookies
+# @cookie64: #optional use 64 bit coookies
 #
 # @counter: #optional have sequence counter
 #
