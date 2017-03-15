@@ -143,7 +143,7 @@ def texi_member(member):
         ' (optional)' if member.optional else '')
 
 
-def texi_members(doc, what, member_func):
+def texi_members(doc, what, base, member_func):
     """Format the table of members"""
     items = ''
     for section in doc.args.itervalues():
@@ -152,6 +152,8 @@ def texi_members(doc, what, member_func):
         else:
             desc = 'Not documented'
         items += member_func(section.member) + texi_format(desc) + '\n'
+    if base:
+        items += '@item The members of @code{%s}\n' % base.doc_type()
     if not items:
         return ''
     return '\n@b{%s:}\n@table @asis\n%s@end table\n' % (what, items)
@@ -174,9 +176,9 @@ def texi_sections(doc):
     return body
 
 
-def texi_entity(doc, what, member_func=texi_member):
+def texi_entity(doc, what, base=None, member_func=texi_member):
     return (texi_body(doc)
-            + texi_members(doc, what, member_func)
+            + texi_members(doc, what, base, member_func)
             + texi_sections(doc))
 
 
@@ -205,11 +207,13 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
             typ = 'Flat Union'
         else:
             typ = 'Simple Union'
+        if base and base.is_implicit():
+            base = None
         if self.out:
             self.out += '\n'
         self.out += TYPE_FMT(type=typ,
                              name=doc.symbol,
-                             body=texi_entity(doc, 'Members'))
+                             body=texi_entity(doc, 'Members', base))
 
     def visit_alternate_type(self, name, info, variants):
         doc = self.cur_doc
