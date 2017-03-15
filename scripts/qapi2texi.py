@@ -123,31 +123,39 @@ def texi_format(doc):
     return "\n".join(lines)
 
 
-def texi_body(doc, only_documented=False):
-    """
-    Format the body of a symbol documentation:
-    - main body
-    - table of arguments
-    - followed by "Returns/Notes/Since/Example" sections
-    """
-    body = texi_format(str(doc.body)) + "\n"
+def texi_body(doc):
+    """Format the main documentation body"""
+    return texi_format(str(doc.body)) + '\n'
 
-    args = ''
-    for name, section in doc.args.iteritems():
-        if not section.content and not only_documented:
-            continue        # Undocumented TODO require doc and drop
-        desc = str(section)
-        opt = ''
-        if section.optional:
-            desc = re.sub(r'^ *#optional *\n?|\n? *#optional *$|#optional',
-                          '', desc)
-            opt = ' (optional)'
-        args += "@item @code{'%s'}%s\n%s\n" % (name, opt, texi_format(desc))
-    if args:
-        body += "@table @asis\n"
-        body += args
-        body += "@end table\n"
 
+def texi_enum_value(value):
+    """Format a table of members item for an enumeration value"""
+    return "@item @code{'%s'}\n" % value.name
+
+
+def texi_member(member):
+    """Format a table of members item for an object type member"""
+    return "@item @code{'%s'}%s\n" % (
+        member.name, ' (optional)' if member.optional else '')
+
+
+def texi_members(doc, member_func, show_undocumented):
+    """Format the table of members"""
+    items = ''
+    for section in doc.args.itervalues():
+        if not section.content and not show_undocumented:
+            continue          # Undocumented TODO require doc and drop
+        desc = re.sub(r'^ *#optional *\n?|\n? *#optional *$|#optional',
+                      '', str(section))
+        items += member_func(section.member) + texi_format(desc) + '\n'
+    if not items:
+        return ''
+    return '@table @asis\n' + items + '@end table\n'
+
+
+def texi_sections(doc):
+    """Format additional sections following arguments"""
+    body = ''
     for section in doc.sections:
         name, doc = (section.name, str(section))
         func = texi_format
@@ -159,94 +167,94 @@ def texi_body(doc, only_documented=False):
             body += "\n\n@b{%s:}\n" % name
 
         body += func(doc)
-
     return body
 
 
-def texi_alternate(expr, doc):
-    """Format an alternate to texi"""
-    body = texi_body(doc)
-    return TYPE_FMT(type="Alternate",
-                    name=doc.symbol,
-                    body=body)
+def texi_entity(doc, member_func=texi_member, show_undocumented=False):
+    return (texi_body(doc)
+            + texi_members(doc, member_func, show_undocumented)
+            + texi_sections(doc))
 
 
-def texi_union(expr, doc):
-    """Format a union to texi"""
-    discriminator = expr.get("discriminator")
-    if discriminator:
-        union = "Flat Union"
-    else:
-        union = "Simple Union"
+class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
+    def __init__(self):
+        self.out = None
+        self.cur_doc = None
 
-    body = texi_body(doc)
-    return TYPE_FMT(type=union,
-                    name=doc.symbol,
-                    body=body)
+    def visit_begin(self, schema):
+        self.out = ''
+
+    def visit_enum_type(self, name, info, values, prefix):
+        doc = self.cur_doc
+        if self.out:
+            self.out += '\n'
+        self.out += TYPE_FMT(type='Enum',
+                             name=doc.symbol,
+                             body=texi_entity(doc,
+                                              member_func=texi_enum_value,
+                                              show_undocumented=True))
+
+    def visit_object_type(self, name, info, base, members, variants):
+        doc = self.cur_doc
+        if not variants:
+            typ = 'Struct'
+        elif variants._tag_name:        # TODO unclean member access
+            typ = 'Flat Union'
+        else:
+            typ = 'Simple Union'
+        if self.out:
+            self.out += '\n'
+        self.out += TYPE_FMT(type=typ,
+                             name=doc.symbol,
+                             body=texi_entity(doc))
+
+    def visit_alternate_type(self, name, info, variants):
+        doc = self.cur_doc
+        if self.out:
+            self.out += '\n'
+        self.out += TYPE_FMT(type='Alternate',
+                             name=doc.symbol,
+                             body=texi_entity(doc))
+
+    def visit_command(self, name, info, arg_type, ret_type,
+                      gen, success_response, boxed):
+        doc = self.cur_doc
+        if self.out:
+            self.out += '\n'
+        self.out += MSG_FMT(type='Command',
+                            name=doc.symbol,
+                            body=texi_entity(doc))
+
+    def visit_event(self, name, info, arg_type, boxed):
+        doc = self.cur_doc
+        if self.out:
+            self.out += '\n'
+        self.out += MSG_FMT(type='Event',
+                            name=doc.symbol,
+                            body=texi_entity(doc))
+
+    def symbol(self, doc, entity):
+        self.cur_doc = doc
+        entity.visit(self)
+        self.cur_doc = None
+
+    def freeform(self, doc):
+        assert not doc.args
+        if self.out:
+            self.out += '\n'
+        self.out += texi_body(doc) + texi_sections(doc)
 
 
-def texi_enum(expr, doc):
-    """Format an enum to texi"""
-    body = texi_body(doc, True)
-    return TYPE_FMT(type="Enum",
-                    name=doc.symbol,
-                    body=body)
-
-
-def texi_struct(expr, doc):
-    """Format a struct to texi"""
-    body = texi_body(doc)
-    return TYPE_FMT(type="Struct",
-                    name=doc.symbol,
-                    body=body)
-
-
-def texi_command(expr, doc):
-    """Format a command to texi"""
-    body = texi_body(doc)
-    return MSG_FMT(type="Command",
-                   name=doc.symbol,
-                   body=body)
-
-
-def texi_event(expr, doc):
-    """Format an event to texi"""
-    body = texi_body(doc)
-    return MSG_FMT(type="Event",
-                   name=doc.symbol,
-                   body=body)
-
-
-def texi_expr(expr, doc):
-    """Format an expr to texi"""
-    (kind, _) = expr.items()[0]
-
-    fmt = {"command": texi_command,
-           "struct": texi_struct,
-           "enum": texi_enum,
-           "union": texi_union,
-           "alternate": texi_alternate,
-           "event": texi_event}[kind]
-
-    return fmt(expr, doc)
-
-
-def texi(docs):
-    """Convert QAPI schema expressions to texi documentation"""
-    res = []
-    for doc in docs:
-        expr = doc.expr
-        if not expr:
-            res.append(texi_body(doc))
-            continue
-        try:
-            doc = texi_expr(expr, doc)
-            res.append(doc)
-        except:
-            print >>sys.stderr, "error at @%s" % doc.info
-            raise
-
-    return '\n'.join(res)
+def texi_schema(schema):
+    """Convert QAPI schema documentation to Texinfo"""
+    gen = QAPISchemaGenDocVisitor()
+    gen.visit_begin(schema)
+    for doc in schema.docs:
+        if doc.symbol:
+            gen.symbol(doc, schema.lookup_entity(doc.symbol))
+        else:
+            gen.freeform(doc)
+    return gen.out
 
 
 def main(argv):
@@ -259,7 +267,7 @@ def main(argv):
     if not qapi.doc_required:
         print >>sys.stderr, ("%s: need pragma 'doc-required' "
                              "to generate documentation" % argv[0])
-    print texi(schema.docs)
+    print texi_schema(schema)
 
 
 if __name__ == "__main__":
