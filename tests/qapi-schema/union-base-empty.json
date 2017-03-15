@@ -1,0 +1,9 @@
+# Flat union with empty base and therefore without discriminator
+
+{ 'struct': 'Empty', 'data': { } }
+
+{ 'union': 'TestUnion',
+  'base': 'Empty',
+  'discriminator': 'type',
+  'data': { 'value1': 'int',
+            'value2': 'str' } }
