@@ -254,6 +254,9 @@ def main(argv):
         sys.exit(1)
 
     schema = qapi.QAPISchema(argv[1])
+    if not qapi.doc_required:
+        print >>sys.stderr, ("%s: need pragma 'doc-required' "
+                             "to generate documentation" % argv[0])
     print texi(schema.docs)
 
 

@@ -117,9 +117,12 @@ Example:
 
 ==== Expression documentation ====
 
-Each expression that isn't an include directive must be preceded by a
+Each expression that isn't an include directive may be preceded by a
 documentation block.  Such blocks are called expression documentation
 blocks.
+
+When documentation is required (see pragma 'doc-required'), expression
+documentation blocks are mandatory.
 
 The documentation block consists of a first line naming the
 expression, an optional overview, a description of each argument (for
@@ -204,17 +207,17 @@ once.  It is permissible for the schema to contain additional types
 not used by any commands or events in the Client JSON Protocol, for
 the side effect of generated C code used internally.
 
-There are seven top-level expressions recognized by the parser:
-'include', 'command', 'struct', 'enum', 'union', 'alternate', and
-'event'.  There are several groups of types: simple types (a number of
-built-in types, such as 'int' and 'str'; as well as enumerations),
-complex types (structs and two flavors of unions), and alternate types
-(a choice between other types).  The 'command' and 'event' expressions
-can refer to existing types by name, or list an anonymous type as a
-dictionary. Listing a type name inside an array refers to a
-single-dimension array of that type; multi-dimension arrays are not
-directly supported (although an array of a complex struct that
-contains an array member is possible).
+There are eight top-level expressions recognized by the parser:
+'include', 'pragma', 'command', 'struct', 'enum', 'union',
+'alternate', and 'event'.  There are several groups of types: simple
+types (a number of built-in types, such as 'int' and 'str'; as well as
+enumerations), complex types (structs and two flavors of unions), and
+alternate types (a choice between other types).  The 'command' and
+'event' expressions can refer to existing types by name, or list an
+anonymous type as a dictionary. Listing a type name inside an array
+refers to a single-dimension array of that type; multi-dimension
+arrays are not directly supported (although an array of a complex
+struct that contains an array member is possible).
 
 All names must begin with a letter, and contain only ASCII letters,
 digits, hyphen, and underscore.  There are two exceptions: enum values
@@ -282,7 +285,7 @@ The following types are predefined, and map to C as follows:
   QType     QType      JSON string matching enum QType values
 
 
-=== Includes ===
+=== Include directives ===
 
 Usage: { 'include': STRING }
 
@@ -300,6 +303,20 @@ self-contained, but at the moment, nothing prevents an included file
 from making a forward reference to a type that is only introduced by
 an outer file.  The parser may be made stricter in the future to
 prevent incomplete include files.
+
+
+=== Pragma directives ===
+
+Usage: { 'pragma': DICT }
+
+The pragma directive lets you control optional generator behavior.
+The dictionary's entries are pragma names and values.
+
+Pragma's scope is currently the complete schema.  Setting the same
+pragma to different values in parts of the schema doesn't work.
+
+Pragma 'doc-required' takes a boolean value.  If true, documentation
+is required.  Default is false.
 
 
 === Struct types ===

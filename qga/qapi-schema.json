@@ -11,6 +11,8 @@
 #
 ##
 
+{ 'pragma': { 'doc-required': true } }
+
 ##
 # @guest-sync-delimited:
 #

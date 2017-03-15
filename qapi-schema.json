@@ -49,6 +49,8 @@
 #
 ##
 
+{ 'pragma': { 'doc-required': true } }
+
 # QAPI common definitions
 { 'include': 'qapi/common.json' }
 

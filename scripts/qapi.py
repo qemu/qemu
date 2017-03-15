@@ -37,6 +37,9 @@ builtin_types = {
     'QType':    'QTYPE_QSTRING',
 }
 
+# Are documentation comments required?
+doc_required = False
+
 # Whitelist of commands allowed to return a non-dictionary
 returns_whitelist = [
     # From QMP:
@@ -277,6 +280,15 @@ class QAPISchemaParser(object):
                                        "Value of 'include' must be a string")
                 self._include(include, info, os.path.dirname(abs_fname),
                               previously_included)
+            elif "pragma" in expr:
+                if len(expr) != 1:
+                    raise QAPISemError(info, "Invalid 'pragma' directive")
+                pragma = expr['pragma']
+                if not isinstance(pragma, dict):
+                    raise QAPISemError(
+                        info, "Value of 'pragma' must be a dictionary")
+                for name, value in pragma.iteritems():
+                    self._pragma(name, value, info)
             else:
                 expr_elem = {'expr': expr,
                              'info': info}
@@ -307,6 +319,16 @@ class QAPISchemaParser(object):
         exprs_include = QAPISchemaParser(fobj, previously_included, info)
         self.exprs.extend(exprs_include.exprs)
         self.docs.extend(exprs_include.docs)
+
+    def _pragma(self, name, value, info):
+        global doc_required
+        if name == 'doc-required':
+            if not isinstance(value, bool):
+                raise QAPISemError(info,
+                                   "Pragma 'doc-required' must be boolean")
+            doc_required = value
+        else:
+            raise QAPISemError(info, "Unknown pragma '%s'" % name)
 
     def accept(self, skip_comment=True):
         while True:
@@ -863,7 +885,7 @@ def check_exprs(exprs):
         expr = expr_elem['expr']
         info = expr_elem['info']
 
-        if 'doc' not in expr_elem:
+        if 'doc' not in expr_elem and doc_required:
             raise QAPISemError(info,
                                "Expression missing documentation comment")
 

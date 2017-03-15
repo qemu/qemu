@@ -1,0 +1,1 @@
+tests/qapi-schema/pragma-doc-required-crap.json:3: Pragma 'doc-required' must be boolean
