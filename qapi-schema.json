@@ -1017,7 +1017,7 @@
 ##
 # @migrate-set-parameters:
 #
-# Set various migration parameters.  See MigrationParameters for details.
+# Set various migration parameters.
 #
 # Since: 2.4
 #

@@ -1341,8 +1341,6 @@
 # The operation can be stopped before it has completed using the
 # block-job-cancel command.
 #
-# For the arguments, see the documentation of DriveBackup.
-#
 # Returns: nothing on success
 #          If @device is not a valid block device, GenericError
 #
@@ -1368,8 +1366,6 @@
 # query-block-jobs where the BlockJobInfo.type field has the value 'backup'.
 # The operation can be stopped before it has completed using the
 # block-job-cancel command.
-#
-# For the arguments, see the documentation of BlockdevBackup.
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -1457,8 +1453,6 @@
 # it does not exist, a new file will be created. format specifies the
 # format of the mirror image, default is to probe if mode='existing',
 # else the format of the source.
-#
-# See DriveMirror for parameter descriptions
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, GenericError
@@ -1730,8 +1724,6 @@
 # I/O limits can be disabled by setting all of them to 0. In this case
 # the device will be removed from its group and the rest of its
 # members will not be affected. The 'group' parameter is ignored.
-#
-# See BlockIOThrottle for parameter descriptions.
 #
 # Returns: Nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -2914,8 +2906,6 @@
 # Creates a new block device. If the @id option is given at the top level, a
 # BlockBackend will be created; otherwise, @node-name is mandatory at the top
 # level and no BlockBackend will be created.
-#
-# For the arguments, see the documentation of BlockdevOptions.
 #
 # Note: This command is still a work in progress.  It doesn't support all
 # block drivers among other things.  Stay away from it unless you want
