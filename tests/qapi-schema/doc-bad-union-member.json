@@ -1,0 +1,19 @@
+# Arguments listed in the doc comment must exist in the actual schema
+
+##
+# @Frob:
+# @a: a
+# @b: b
+##
+{ 'union': 'Frob',
+  'base': 'Base',
+  'discriminator': 'type',
+  'data': { 'nothing': 'Empty' } }
+
+{ 'struct': 'Base',
+  'data': { 'type': 'T' } }
+
+{ 'struct': 'Empty',
+  'data': { } }
+
+{ 'enum': 'T', 'data': ['nothing'] }
