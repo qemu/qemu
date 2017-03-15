@@ -173,6 +173,9 @@ class QAPIDoc(object):
         else:
             self._append_freeform(line)
 
+    def end_comment(self):
+        self._end_section()
+
     def _append_symbol_line(self, line):
         name = line.split(' ', 1)[0]
 
@@ -200,6 +203,7 @@ class QAPIDoc(object):
             raise QAPIParseError(self.parser,
                                  "'@%s:' can't follow '%s' section"
                                  % (name, self.sections[0].name))
+        self._end_section()
         self.section = QAPIDoc.ArgSection(name)
         self.args[name] = self.section
 
@@ -207,8 +211,17 @@ class QAPIDoc(object):
         if name in ('Returns', 'Since') and self.has_section(name):
             raise QAPIParseError(self.parser,
                                  "Duplicated '%s' section" % name)
+        self._end_section()
         self.section = QAPIDoc.Section(name)
         self.sections.append(self.section)
+
+    def _end_section(self):
+        if self.section:
+            contents = str(self.section)
+            if self.section.name and (not contents or contents.isspace()):
+                raise QAPIParseError(self.parser, "Empty doc section '%s'"
+                                     % self.section.name)
+            self.section = None
 
     def _append_freeform(self, line):
         in_arg = isinstance(self.section, QAPIDoc.ArgSection)
@@ -512,6 +525,7 @@ class QAPISchemaParser(object):
                 if self.val != '##':
                     raise QAPIParseError(self, "Junk after '##' at end of "
                                          "documentation comment")
+                doc.end_comment()
                 self.accept()
                 return doc
             else:
@@ -1012,12 +1026,6 @@ def check_definition_doc(doc, expr, info):
 
 def check_docs(docs):
     for doc in docs:
-        for section in doc.args.values() + doc.sections:
-            content = str(section)
-            if not content or content.isspace():
-                raise QAPISemError(doc.info,
-                                   "Empty doc section '%s'" % section.name)
-
         if doc.expr:
             check_definition_doc(doc, doc.expr, doc.info)
 
