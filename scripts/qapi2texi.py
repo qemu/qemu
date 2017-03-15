@@ -139,12 +139,10 @@ def texi_member(member):
         member.name, ' (optional)' if member.optional else '')
 
 
-def texi_members(doc, what, member_func, show_undocumented):
+def texi_members(doc, what, member_func):
     """Format the table of members"""
     items = ''
     for section in doc.args.itervalues():
-        if not section.content and not show_undocumented:
-            continue          # Undocumented TODO require doc and drop
         if section.content:
             desc = str(section)
         else:
@@ -172,10 +170,9 @@ def texi_sections(doc):
     return body
 
 
-def texi_entity(doc, what, member_func=texi_member,
-                show_undocumented=False):
+def texi_entity(doc, what, member_func=texi_member):
     return (texi_body(doc)
-            + texi_members(doc, what, member_func, show_undocumented)
+            + texi_members(doc, what, member_func)
             + texi_sections(doc))
 
 
@@ -194,8 +191,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
         self.out += TYPE_FMT(type='Enum',
                              name=doc.symbol,
                              body=texi_entity(doc, 'Values',
-                                              member_func=texi_enum_value,
-                                              show_undocumented=True))
+                                              member_func=texi_enum_value))
 
     def visit_object_type(self, name, info, base, members, variants):
         doc = self.cur_doc
