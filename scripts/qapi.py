@@ -1183,7 +1183,7 @@ class QAPISchemaObjectType(QAPISchemaType):
             self.base = schema.lookup_type(self._base_name)
             assert isinstance(self.base, QAPISchemaObjectType)
             self.base.check(schema)
-            self.base.check_clash(schema, self.info, seen)
+            self.base.check_clash(self.info, seen)
         for m in self.local_members:
             m.check(schema)
             m.check_clash(self.info, seen)
@@ -1193,14 +1193,14 @@ class QAPISchemaObjectType(QAPISchemaType):
         if self.variants:
             self.variants.check(schema, seen)
             assert self.variants.tag_member in self.members
-            self.variants.check_clash(schema, self.info, seen)
+            self.variants.check_clash(self.info, seen)
         if self.doc:
             self.doc.check()
 
     # Check that the members of this type do not cause duplicate JSON members,
     # and update seen to track the members seen so far. Report any errors
     # on behalf of info, which is not necessarily self.info
-    def check_clash(self, schema, info, seen):
+    def check_clash(self, info, seen):
         assert not self.variants       # not implemented
         for m in self.members:
             m.check_clash(info, seen)
@@ -1329,12 +1329,12 @@ class QAPISchemaObjectTypeVariants(object):
                 assert isinstance(v.type, QAPISchemaObjectType)
                 v.type.check(schema)
 
-    def check_clash(self, schema, info, seen):
+    def check_clash(self, info, seen):
         for v in self.variants:
             # Reset seen map for each variant, since qapi names from one
             # branch do not affect another branch
             assert isinstance(v.type, QAPISchemaObjectType)
-            v.type.check_clash(schema, info, dict(seen))
+            v.type.check_clash(info, dict(seen))
 
 
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
