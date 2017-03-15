@@ -178,11 +178,12 @@
 
 struct CirrusVGAState;
 typedef void (*cirrus_bitblt_rop_t) (struct CirrusVGAState *s,
-                                     uint8_t * dst, const uint8_t * src,
+                                     uint32_t dstaddr, const uint8_t *src,
 				     int dstpitch, int srcpitch,
 				     int bltwidth, int bltheight);
 typedef void (*cirrus_fill_t)(struct CirrusVGAState *s,
-                              uint8_t *dst, int dst_pitch, int width, int height);
+                              uint32_t dstaddr, int dst_pitch,
+                              int width, int height);
 
 typedef struct CirrusVGAState {
     VGACommonState vga;
@@ -321,14 +322,14 @@ static bool blit_is_unsafe(struct CirrusVGAState *s, bool dst_only)
 }
 
 static void cirrus_bitblt_rop_nop(CirrusVGAState *s,
-                                  uint8_t *dst,const uint8_t *src,
+                                  uint32_t dstaddr, const uint8_t *src,
                                   int dstpitch,int srcpitch,
                                   int bltwidth,int bltheight)
 {
 }
 
 static void cirrus_bitblt_fill_nop(CirrusVGAState *s,
-                                   uint8_t *dst,
+                                   uint32_t dstaddr,
                                    int dstpitch, int bltwidth,int bltheight)
 {
 }
@@ -678,10 +679,7 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
 static int cirrus_bitblt_common_patterncopy(CirrusVGAState *s, bool videosrc)
 {
     uint32_t patternsize;
-    uint8_t *dst;
     uint8_t *src;
-
-    dst = s->vga.vram_ptr + s->cirrus_blt_dstaddr;
 
     if (videosrc) {
         switch (s->vga.get_bpp(&s->vga)) {
@@ -711,7 +709,7 @@ static int cirrus_bitblt_common_patterncopy(CirrusVGAState *s, bool videosrc)
         return 0;
     }
 
-    (*s->cirrus_rop) (s, dst, src,
+    (*s->cirrus_rop) (s, s->cirrus_blt_dstaddr, src,
                       s->cirrus_blt_dstpitch, 0,
                       s->cirrus_blt_width, s->cirrus_blt_height);
     cirrus_invalidate_region(s, s->cirrus_blt_dstaddr,
@@ -730,7 +728,7 @@ static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
         return 0;
     }
     rop_func = cirrus_fill[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
-    rop_func(s, s->vga.vram_ptr + s->cirrus_blt_dstaddr,
+    rop_func(s, s->cirrus_blt_dstaddr,
              s->cirrus_blt_dstpitch,
              s->cirrus_blt_width, s->cirrus_blt_height);
     cirrus_invalidate_region(s, s->cirrus_blt_dstaddr,
@@ -797,7 +795,7 @@ static int cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
         }
     }
 
-    (*s->cirrus_rop) (s, s->vga.vram_ptr + s->cirrus_blt_dstaddr,
+    (*s->cirrus_rop) (s, s->cirrus_blt_dstaddr,
                       s->vga.vram_ptr + s->cirrus_blt_srcaddr,
 		      s->cirrus_blt_dstpitch, s->cirrus_blt_srcpitch,
 		      s->cirrus_blt_width, s->cirrus_blt_height);
@@ -848,7 +846,7 @@ static void cirrus_bitblt_cputovideo_next(CirrusVGAState * s)
         } else {
             /* at least one scan line */
             do {
-                (*s->cirrus_rop)(s, s->vga.vram_ptr + s->cirrus_blt_dstaddr,
+                (*s->cirrus_rop)(s, s->cirrus_blt_dstaddr,
                                   s->cirrus_bltbuf, 0, 0, s->cirrus_blt_width, 1);
                 cirrus_invalidate_region(s, s->cirrus_blt_dstaddr, 0,
                                          s->cirrus_blt_width, 1);
