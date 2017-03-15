@@ -46,7 +46,7 @@ returns_whitelist = []
 # Whitelist of entities allowed to violate case conventions
 name_case_whitelist = []
 
-enum_types = []
+enum_types = {}
 struct_types = []
 union_types = []
 all_names = {}
@@ -567,7 +567,7 @@ def find_alternate_member_qtype(qapi_type):
         return builtin_types[qapi_type]
     elif find_struct(qapi_type):
         return 'QTYPE_QDICT'
-    elif find_enum(qapi_type):
+    elif qapi_type in enum_types:
         return 'QTYPE_QSTRING'
     elif find_union(qapi_type):
         return 'QTYPE_QDICT'
@@ -591,7 +591,7 @@ def discriminator_find_enum_define(expr):
     if not discriminator_type:
         return None
 
-    return find_enum(discriminator_type)
+    return enum_types.get(discriminator_type)
 
 
 # Names must be letters, numbers, -, and _.  They must start with letter,
@@ -662,23 +662,6 @@ def find_union(name):
         if union['union'] == name:
             return union
     return None
-
-
-def add_enum(definition, info):
-    global enum_types
-    enum_types.append(definition)
-
-
-def find_enum(name):
-    global enum_types
-    for enum in enum_types:
-        if enum['enum'] == name:
-            return enum
-    return None
-
-
-def is_enum(name):
-    return find_enum(name) is not None
 
 
 def check_type(info, source, value, allow_array=False,
@@ -799,7 +782,7 @@ def check_union(expr, info):
                                "Discriminator '%s' is not a member of base "
                                "struct '%s'"
                                % (discriminator, base))
-        enum_define = find_enum(discriminator_type)
+        enum_define = enum_types.get(discriminator_type)
         allow_metas = ['struct']
         # Do not allow string discriminator
         if not enum_define:
@@ -933,7 +916,7 @@ def check_exprs(exprs):
         if 'enum' in expr:
             meta = 'enum'
             check_keys(expr_elem, 'enum', ['data'], ['prefix'])
-            add_enum(expr, info)
+            enum_types[expr[meta]] = expr
         elif 'union' in expr:
             meta = 'union'
             check_keys(expr_elem, 'union', ['data'],
@@ -971,7 +954,7 @@ def check_exprs(exprs):
             name = '%sKind' % expr['alternate']
         else:
             continue
-        add_enum({ 'enum': name }, expr_elem['info'])
+        enum_types[name] = {'enum': name}
         add_name(name, info, 'enum', implicit=True)
 
     # Validate that exprs make sense
