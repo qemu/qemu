@@ -1152,8 +1152,8 @@ class QAPISchemaEnumType(QAPISchemaType):
             v.check_clash(self.info, seen)
 
     def is_implicit(self):
-        # See QAPISchema._make_implicit_enum_type()
-        return self.name.endswith('Kind')
+        # See QAPISchema._make_implicit_enum_type() and ._def_predefineds()
+        return self.name.endswith('Kind') or self.name == 'QType'
 
     def c_type(self):
         return c_name(self.name)
