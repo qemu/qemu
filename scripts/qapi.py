@@ -640,8 +640,6 @@ def add_name(name, info, meta, implicit=False):
 
 def add_struct(definition, info):
     global struct_types
-    name = definition['struct']
-    add_name(name, info, 'struct')
     struct_types.append(definition)
 
 
@@ -655,8 +653,6 @@ def find_struct(name):
 
 def add_union(definition, info):
     global union_types
-    name = definition['union']
-    add_name(name, info, 'union')
     union_types.append(definition)
 
 
@@ -670,8 +666,6 @@ def find_union(name):
 
 def add_enum(definition, info):
     global enum_types
-    name = definition['enum']
-    add_name(name, info, 'enum', 'data' not in definition)
     enum_types.append(definition)
 
 
@@ -937,34 +931,33 @@ def check_exprs(exprs):
                                "Expression missing documentation comment")
 
         if 'enum' in expr:
-            name = expr['enum']
+            meta = 'enum'
             check_keys(expr_elem, 'enum', ['data'], ['prefix'])
             add_enum(expr, info)
         elif 'union' in expr:
-            name = expr['union']
+            meta = 'union'
             check_keys(expr_elem, 'union', ['data'],
                        ['base', 'discriminator'])
             add_union(expr, info)
         elif 'alternate' in expr:
-            name = expr['alternate']
+            meta = 'alternate'
             check_keys(expr_elem, 'alternate', ['data'])
-            add_name(name, info, 'alternate')
         elif 'struct' in expr:
-            name = expr['struct']
+            meta = 'struct'
             check_keys(expr_elem, 'struct', ['data'], ['base'])
             add_struct(expr, info)
         elif 'command' in expr:
-            name = expr['command']
+            meta = 'command'
             check_keys(expr_elem, 'command', [],
                        ['data', 'returns', 'gen', 'success-response', 'boxed'])
-            add_name(name, info, 'command')
         elif 'event' in expr:
-            name = expr['event']
+            meta = 'event'
             check_keys(expr_elem, 'event', [], ['data', 'boxed'])
-            add_name(name, info, 'event')
         else:
             raise QAPISemError(expr_elem['info'],
                                "Expression is missing metatype")
+        name = expr[meta]
+        add_name(name, info, meta)
         if doc and doc.symbol != name:
             raise QAPISemError(info, "Definition of '%s' follows documentation"
                                " for '%s'" % (name, doc.symbol))
@@ -979,6 +972,7 @@ def check_exprs(exprs):
         else:
             continue
         add_enum({ 'enum': name }, expr_elem['info'])
+        add_name(name, info, 'enum', implicit=True)
 
     # Validate that exprs make sense
     for expr_elem in exprs:
