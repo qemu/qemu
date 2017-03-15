@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-no-symbol.json:4: Definition of 'foo' follows documentation for 'None'

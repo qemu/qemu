@@ -1,0 +1,7 @@
+# Documentation for expression lacks symbol
+# BUG: Error message claims it has symbol 'None'
+
+##
+# foo:
+##
+{ 'command': 'foo', 'data': {'a': 'int'} }

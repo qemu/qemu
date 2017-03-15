@@ -1,0 +1,8 @@
+# Doc comment separated from defining expression by non-defining expression
+# BUG: not rejected
+
+##
+# @foo:
+##
+{ 'pragma': {} }
+{ 'struct': 'foo', 'data': {} }
