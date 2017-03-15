@@ -310,6 +310,9 @@ static void fadt_setup(AcpiFadtDescriptorRev3 *fadt, AcpiPmInfo *pm)
     fadt->reset_register.space_id = AML_SYSTEM_IO;
     fadt->reset_register.bit_width = 8;
     fadt->reset_register.address = cpu_to_le64(ICH9_RST_CNT_IOPORT);
+    /* The above need not be conditional on machine type because the reset port
+     * happens to be the same on PIIX (pc) and ICH9 (q35). */
+    QEMU_BUILD_BUG_ON(ICH9_RST_CNT_IOPORT != RCR_IOPORT);
 
     fadt->xpm1a_event_block.space_id = AML_SYSTEM_IO;
     fadt->xpm1a_event_block.bit_width = fadt->pm1_evt_len * 8;
