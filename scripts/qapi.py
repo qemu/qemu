@@ -894,40 +894,52 @@ def check_keys(expr_elem, meta, required, optional=[]):
 def check_exprs(exprs):
     global all_names
 
-    # Learn the types and check for valid expression keys
+    # Populate name table with names of built-in types
     for builtin in builtin_types.keys():
         all_names[builtin] = 'built-in'
+
+    # Learn the types and check for valid expression keys
     for expr_elem in exprs:
         expr = expr_elem['expr']
         info = expr_elem['info']
+        doc = expr_elem.get('doc')
 
-        if 'doc' not in expr_elem and doc_required:
+        if not doc and doc_required:
             raise QAPISemError(info,
                                "Expression missing documentation comment")
 
         if 'enum' in expr:
+            name = expr['enum']
             check_keys(expr_elem, 'enum', ['data'], ['prefix'])
-            add_enum(expr['enum'], info, expr['data'])
+            add_enum(name, info, expr['data'])
         elif 'union' in expr:
+            name = expr['union']
             check_keys(expr_elem, 'union', ['data'],
                        ['base', 'discriminator'])
             add_union(expr, info)
         elif 'alternate' in expr:
+            name = expr['alternate']
             check_keys(expr_elem, 'alternate', ['data'])
-            add_name(expr['alternate'], info, 'alternate')
+            add_name(name, info, 'alternate')
         elif 'struct' in expr:
+            name = expr['struct']
             check_keys(expr_elem, 'struct', ['data'], ['base'])
             add_struct(expr, info)
         elif 'command' in expr:
+            name = expr['command']
             check_keys(expr_elem, 'command', [],
                        ['data', 'returns', 'gen', 'success-response', 'boxed'])
-            add_name(expr['command'], info, 'command')
+            add_name(name, info, 'command')
         elif 'event' in expr:
+            name = expr['event']
             check_keys(expr_elem, 'event', [], ['data', 'boxed'])
-            add_name(expr['event'], info, 'event')
+            add_name(name, info, 'event')
         else:
             raise QAPISemError(expr_elem['info'],
                                "Expression is missing metatype")
+        if doc and doc.symbol != name:
+            raise QAPISemError(info, "Definition of '%s' follows documentation"
+                               " for '%s'" % (name, doc.symbol))
 
     # Try again for hidden UnionKind enum
     for expr_elem in exprs:
@@ -977,10 +989,6 @@ def check_definition_doc(doc, expr, info):
             meta = i
             break
 
-    name = expr[meta]
-    if doc.symbol != name:
-        raise QAPISemError(info, "Definition of '%s' follows documentation"
-                           " for '%s'" % (name, doc.symbol))
     if doc.has_section('Returns') and 'command' not in expr:
         raise QAPISemError(info, "'Returns:' is only valid for commands")
 
