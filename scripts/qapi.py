@@ -219,6 +219,10 @@ class QAPIDoc(object):
         if (in_arg or not self.section.name
                 or not self.section.name.startswith("Example")):
             line = line.strip()
+        # TODO Drop this once the dust has settled
+        if (isinstance(self.section, QAPIDoc.ArgSection)
+                and '#optional' in line):
+            raise QAPISemError(self.info, "Please drop the #optional tag")
         self.section.append(line)
 
     def connect_member(self, member):
@@ -984,25 +988,6 @@ def check_definition_doc(doc, expr, info):
     if (meta == 'alternate'
             or (meta == 'union' and not expr.get('discriminator'))):
         args.append('type')
-
-    for arg in args:
-        if arg[0] == '*':
-            opt = True
-            desc = doc.args.get(arg[1:])
-        else:
-            opt = False
-            desc = doc.args.get(arg)
-        if not desc:
-            continue
-        desc.optional = opt
-        desc_opt = "#optional" in str(desc)
-        if desc_opt and not opt:
-            raise QAPISemError(info, "Description has #optional, "
-                               "but the declaration doesn't")
-        if not desc_opt and opt:
-            # TODO either fix the schema and make this an error,
-            # or drop #optional entirely
-            pass
 
     doc_args = set(doc.args.keys())
     args = set([name.strip('*') for name in args])

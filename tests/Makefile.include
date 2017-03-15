@@ -385,7 +385,6 @@ qapi-schema += doc-missing.json
 qapi-schema += doc-missing-colon.json
 qapi-schema += doc-missing-expr.json
 qapi-schema += doc-missing-space.json
-qapi-schema += doc-optional.json
 qapi-schema += double-data.json
 qapi-schema += double-type.json
 qapi-schema += duplicate-key.json

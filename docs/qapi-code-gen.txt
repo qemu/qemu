@@ -131,10 +131,8 @@ and optional tagged sections.
 
 FIXME: the parser accepts these things in almost any order.
 
-Optional arguments / members are tagged with the phrase '#optional',
-often with their default value; and extensions added after the
-expression was first released are also given a '(since x.y.z)'
-comment.
+Extensions added after the expression was first released carry a
+'(since x.y.z)' comment.
 
 A tagged section starts with one of the following words:
 "Note:"/"Notes:", "Since:", "Example"/"Examples", "Returns:", "TODO:".
@@ -150,10 +148,10 @@ For example:
 #
 # Statistics of a virtual block device or a block backing device.
 #
-# @device: #optional If the stats are for a virtual block device, the name
+# @device: If the stats are for a virtual block device, the name
 #          corresponding to the virtual block device.
 #
-# @node-name: #optional The node name of the device. (since 2.3)
+# @node-name: The node name of the device. (since 2.3)
 #
 # ... more members ...
 #
@@ -168,7 +166,7 @@ For example:
 #
 # Query the @BlockStats for all virtual block devices.
 #
-# @query-nodes: #optional If true, the command will query all the
+# @query-nodes: If true, the command will query all the
 #               block nodes ... explain, explain ...  (since 2.3)
 #
 # Returns: A list of @BlockStats for each virtual block devices.

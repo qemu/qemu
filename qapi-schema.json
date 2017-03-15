@@ -150,10 +150,10 @@
 #
 # @fdname: file descriptor name previously passed via 'getfd' command
 #
-# @skipauth: #optional whether to skip authentication. Only applies
+# @skipauth: whether to skip authentication. Only applies
 #            to "vnc" and "spice" protocols
 #
-# @tls: #optional whether to perform TLS. Only applies to the "spice"
+# @tls: whether to perform TLS. Only applies to the "spice"
 #       protocol
 #
 # Returns: nothing on success.
@@ -176,7 +176,7 @@
 #
 # Guest name information.
 #
-# @name: #optional The name of the guest
+# @name: The name of the guest
 #
 # Since: 0.14.0
 ##
@@ -470,7 +470,7 @@
 #
 # @data: data to write
 #
-# @format: #optional data encoding (default 'utf8').
+# @format: data encoding (default 'utf8').
 #          - base64: data must be base64 encoded text.  Its binary
 #            decoding gets written.
 #          - utf8: data's UTF-8 encoding is written
@@ -503,7 +503,7 @@
 #
 # @size: how many bytes to read at most
 #
-# @format: #optional data encoding (default 'utf8').
+# @format: data encoding (default 'utf8').
 #          - base64: the data read is returned in base64 encoding.
 #          - utf8: the data read is interpreted as UTF-8.
 #            Bug: can screw up when the buffer contains invalid UTF-8
@@ -667,45 +667,45 @@
 #
 # Information about current migration process.
 #
-# @status: #optional @MigrationStatus describing the current migration status.
+# @status: @MigrationStatus describing the current migration status.
 #          If this field is not returned, no migration process
 #          has been initiated
 #
-# @ram: #optional @MigrationStats containing detailed migration
+# @ram: @MigrationStats containing detailed migration
 #       status, only returned if status is 'active' or
 #       'completed'(since 1.2)
 #
-# @disk: #optional @MigrationStats containing detailed disk migration
+# @disk: @MigrationStats containing detailed disk migration
 #        status, only returned if status is 'active' and it is a block
 #        migration
 #
-# @xbzrle-cache: #optional @XBZRLECacheStats containing detailed XBZRLE
+# @xbzrle-cache: @XBZRLECacheStats containing detailed XBZRLE
 #                migration statistics, only returned if XBZRLE feature is on and
 #                status is 'active' or 'completed' (since 1.2)
 #
-# @total-time: #optional total amount of milliseconds since migration started.
+# @total-time: total amount of milliseconds since migration started.
 #        If migration has ended, it returns the total migration
 #        time. (since 1.2)
 #
-# @downtime: #optional only present when migration finishes correctly
+# @downtime: only present when migration finishes correctly
 #        total downtime in milliseconds for the guest.
 #        (since 1.3)
 #
-# @expected-downtime: #optional only present while migration is active
+# @expected-downtime: only present while migration is active
 #        expected downtime in milliseconds for the guest in last walk
 #        of the dirty bitmap. (since 1.3)
 #
-# @setup-time: #optional amount of setup time in milliseconds _before_ the
+# @setup-time: amount of setup time in milliseconds _before_ the
 #        iterations begin but _after_ the QMP command is issued. This is designed
 #        to provide an accounting of any activities (such as RDMA pinning) which
 #        may be expensive, but do not actually occur during the iterative
 #        migration rounds themselves. (since 1.6)
 #
-# @cpu-throttle-percentage: #optional percentage of time guest cpus are being
+# @cpu-throttle-percentage: percentage of time guest cpus are being
 #        throttled during auto-converge. This is only present when auto-converge
 #        has started throttling guest cpus. (Since 2.7)
 #
-# @error-desc: #optional the human readable error description string, when
+# @error-desc: the human readable error description string, when
 #              @status is 'failed'. Clients should not attempt to parse the
 #              error strings. (Since 2.7)
 #
@@ -1038,21 +1038,21 @@
 # ('query-migrate-parameters'), with the exception of tls-creds and
 # tls-hostname.
 #
-# @compress-level: #optional compression level
+# @compress-level: compression level
 #
-# @compress-threads: #optional compression thread count
+# @compress-threads: compression thread count
 #
-# @decompress-threads: #optional decompression thread count
+# @decompress-threads: decompression thread count
 #
-# @cpu-throttle-initial: #optional Initial percentage of time guest cpus are
+# @cpu-throttle-initial: Initial percentage of time guest cpus are
 #                        throttledwhen migration auto-converge is activated.
 #                        The default value is 20. (Since 2.7)
 #
-# @cpu-throttle-increment: #optional throttle percentage increase each time
+# @cpu-throttle-increment: throttle percentage increase each time
 #                          auto-converge detects that migration is not making
 #                          progress. The default value is 10. (Since 2.7)
 #
-# @tls-creds: #optional ID of the 'tls-creds' object that provides credentials
+# @tls-creds: ID of the 'tls-creds' object that provides credentials
 #             for establishing a TLS connection over the migration data
 #             channel. On the outgoing side of the migration, the credentials
 #             must be for a 'client' endpoint, while for the incoming side the
@@ -1060,7 +1060,7 @@
 #             will enable TLS for all migrations. The default is unset,
 #             resulting in unsecured migration at the QEMU level. (Since 2.7)
 #
-# @tls-hostname: #optional hostname of the target host for the migration. This
+# @tls-hostname: hostname of the target host for the migration. This
 #                is required when using x509 based TLS credentials and the
 #                migration URI does not already include a hostname. For
 #                example if using fd: or exec: based migration, the
@@ -1125,9 +1125,9 @@
 #
 # @protocol:     must be "spice"
 # @hostname:     migration target hostname
-# @port:         #optional spice tcp port for plaintext channels
-# @tls-port:     #optional spice tcp port for tls-secured channels
-# @cert-subject: #optional server certificate subject
+# @port:         spice tcp port for plaintext channels
+# @tls-port:     spice tcp port for tls-secured channels
+# @cert-subject: server certificate subject
 #
 # Since: 0.14.0
 #
@@ -1547,7 +1547,7 @@
 #
 # The network connection information for server
 #
-# @auth: #optional authentication method used for
+# @auth: authentication method used for
 #        the plain (non-websocket) VNC server
 #
 # Since: 2.1
@@ -1561,10 +1561,10 @@
 #
 # Information about a connected VNC client.
 #
-# @x509_dname: #optional If x509 authentication is in use, the Distinguished
+# @x509_dname: If x509 authentication is in use, the Distinguished
 #              Name of the client.
 #
-# @sasl_username: #optional If SASL authentication is in use, the SASL username
+# @sasl_username: If SASL authentication is in use, the SASL username
 #                 used for authentication.
 #
 # Since: 0.14.0
@@ -1580,19 +1580,19 @@
 #
 # @enabled: true if the VNC server is enabled, false otherwise
 #
-# @host: #optional The hostname the VNC server is bound to.  This depends on
+# @host: The hostname the VNC server is bound to.  This depends on
 #        the name resolution on the host and may be an IP address.
 #
-# @family: #optional 'ipv6' if the host is listening for IPv6 connections
+# @family: 'ipv6' if the host is listening for IPv6 connections
 #                    'ipv4' if the host is listening for IPv4 connections
 #                    'unix' if the host is listening on a unix domain socket
 #                    'unknown' otherwise
 #
-# @service: #optional The service name of the server's port.  This may depends
+# @service: The service name of the server's port.  This may depends
 #           on the host system's service database so symbolic names should not
 #           be relied on.
 #
-# @auth: #optional the current authentication type used by the server
+# @auth: the current authentication type used by the server
 #        'none' if no authentication is being used
 #        'vnc' if VNC authentication is being used
 #        'vencrypt+plain' if VEncrypt is used with plain text authentication
@@ -1647,7 +1647,7 @@
 #
 # @auth: The current authentication type used by the servers
 #
-# @vencrypt: #optional The vencrypt sub authentication type used by the
+# @vencrypt: The vencrypt sub authentication type used by the
 #            servers, only specified in case auth == vencrypt.
 #
 # Since: 2.9
@@ -1675,10 +1675,10 @@
 #
 # @auth: The current authentication type used by the non-websockets servers
 #
-# @vencrypt: #optional The vencrypt authentication type used by the servers,
+# @vencrypt: The vencrypt authentication type used by the servers,
 #            only specified in case auth == vencrypt.
 #
-# @display: #optional The display device the vnc server is linked to.
+# @display: The display device the vnc server is linked to.
 #
 # Since: 2.3
 ##
@@ -1755,7 +1755,7 @@
 #
 # Information about a SPICE server
 #
-# @auth: #optional authentication method
+# @auth: authentication method
 #
 # Since: 2.1
 ##
@@ -1817,16 +1817,16 @@
 # @migrated: true if the last guest migration completed and spice
 #            migration had completed as well. false otherwise. (since 1.4)
 #
-# @host: #optional The hostname the SPICE server is bound to.  This depends on
+# @host: The hostname the SPICE server is bound to.  This depends on
 #        the name resolution on the host and may be an IP address.
 #
-# @port: #optional The SPICE server's port number.
+# @port: The SPICE server's port number.
 #
-# @compiled-version: #optional SPICE server version.
+# @compiled-version: SPICE server version.
 #
-# @tls-port: #optional The SPICE server's TLS port number.
+# @tls-port: The SPICE server's TLS port number.
 #
-# @auth: #optional the current authentication type used by the server
+# @auth: the current authentication type used by the server
 #        'none'  if no authentication is being used
 #        'spice' uses SASL or direct TLS authentication, depending on command
 #                line options
@@ -1951,9 +1951,9 @@
 #
 # @size: memory size
 #
-# @prefetch: #optional if @type is 'memory', true if the memory is prefetchable
+# @prefetch: if @type is 'memory', true if the memory is prefetchable
 #
-# @mem_type_64: #optional if @type is 'memory', true if the BAR is 64-bit
+# @mem_type_64: if @type is 'memory', true if the BAR is 64-bit
 #
 # Since: 0.14.0
 ##
@@ -2009,7 +2009,7 @@
 #
 # Information about the Class of a PCI device
 #
-# @desc: #optional a string description of the device's class
+# @desc: a string description of the device's class
 #
 # @class: the class code of the device
 #
@@ -2047,7 +2047,7 @@
 #
 # @id: the PCI device id
 #
-# @irq: #optional if an IRQ is assigned to the device, the IRQ number
+# @irq: if an IRQ is assigned to the device, the IRQ number
 #
 # @qdev_id: the device name of the PCI device
 #
@@ -2337,7 +2337,7 @@
 #
 # @filename: the file to save the memory to as binary data
 #
-# @cpu-index: #optional the index of the virtual CPU to use for translating the
+# @cpu-index: the index of the virtual CPU to use for translating the
 #                       virtual address (defaults to CPU 0)
 #
 # Returns: Nothing on success
@@ -2566,7 +2566,7 @@
 #
 # Optional arguments to modify the behavior of a Transaction.
 #
-# @completion-mode: #optional Controls how jobs launched asynchronously by
+# @completion-mode: Controls how jobs launched asynchronously by
 #                   Actions will complete or fail as a group.
 #                   See @ActionCompletionMode for details.
 #
@@ -2610,7 +2610,7 @@
 # @actions: List of @TransactionAction;
 #           information needed for the respective operations.
 #
-# @properties: #optional structure of additional options to control the
+# @properties: structure of additional options to control the
 #              execution of the transaction. See @TransactionProperties
 #              for additional detail.
 #
@@ -2659,7 +2659,7 @@
 #
 # @command-line: the command to execute in the human monitor
 #
-# @cpu-index: #optional The CPU to use for commands that require an implicit CPU
+# @cpu-index: The CPU to use for commands that require an implicit CPU
 #
 # Returns: the output of the command as a string
 #
@@ -2895,7 +2895,7 @@
 #
 # @password: the new password
 #
-# @connected: #optional how to handle existing clients when changing the
+# @connected: how to handle existing clients when changing the
 #                       password.  If nothing is specified, defaults to `keep'
 #                       `fail' to fail the command if clients are connected
 #                       `disconnect' to disconnect existing clients
@@ -3054,7 +3054,7 @@
 #
 # @name: the name of the property
 # @type: the typename of the property
-# @description: #optional if specified, the description of the property.
+# @description: if specified, the description of the property.
 #               (since 2.2)
 #
 # Since: 1.2
@@ -3084,9 +3084,9 @@
 #
 # @uri: the Uniform Resource Identifier of the destination VM
 #
-# @blk: #optional do block migration (full disk copy)
+# @blk: do block migration (full disk copy)
 #
-# @inc: #optional incremental disk copy migration
+# @inc: incremental disk copy migration
 #
 # @detach: this argument exists only for compatibility reasons and
 #          is ignored by QEMU
@@ -3195,9 +3195,9 @@
 #
 # @driver: the name of the new device's driver
 #
-# @bus: #optional the device's parent bus (device tree path)
+# @bus: the device's parent bus (device tree path)
 #
-# @id: #optional the device's ID, must be unique
+# @id: the device's ID, must be unique
 #
 # Additional arguments depend on the type.
 #
@@ -3310,17 +3310,17 @@
 #            2. fd: the protocol starts with "fd:", and the following string
 #               is the fd's name.
 #
-# @detach: #optional if true, QMP will return immediately rather than
+# @detach: if true, QMP will return immediately rather than
 #          waiting for the dump to finish. The user can track progress
 #          using "query-dump". (since 2.6).
 #
-# @begin: #optional if specified, the starting physical address.
+# @begin: if specified, the starting physical address.
 #
-# @length: #optional if specified, the memory size, in bytes. If you don't
+# @length: if specified, the memory size, in bytes. If you don't
 #          want to dump all guest's memory, please specify the start @begin
 #          and @length
 #
-# @format: #optional if specified, the format of guest memory dump. But non-elf
+# @format: if specified, the format of guest memory dump. But non-elf
 #          format is conflict with paging and filter, ie. @paging, @begin and
 #          @length is not allowed to be specified with non-elf @format at the
 #          same time (since 2.0)
@@ -3512,7 +3512,7 @@
 #
 # @id: the name of the new object
 #
-# @props: #optional a dictionary of properties to be passed to the backend
+# @props: a dictionary of properties to be passed to the backend
 #
 # Returns: Nothing on success
 #          Error if @qom-type is not a valid class name
@@ -3565,15 +3565,15 @@
 #
 # Create a new Network Interface Card.
 #
-# @netdev: #optional id of -netdev to connect to
+# @netdev: id of -netdev to connect to
 #
-# @macaddr: #optional MAC address
+# @macaddr: MAC address
 #
-# @model: #optional device model (e1000, rtl8139, virtio etc.)
+# @model: device model (e1000, rtl8139, virtio etc.)
 #
-# @addr: #optional PCI device address
+# @addr: PCI device address
 #
-# @vectors: #optional number of MSI-x vectors, 0 to disable MSI-X
+# @vectors: number of MSI-x vectors, 0 to disable MSI-X
 #
 # Since: 1.2
 ##
@@ -3602,57 +3602,57 @@
 # Use the user mode network stack which requires no administrator privilege to
 # run.
 #
-# @hostname: #optional client hostname reported by the builtin DHCP server
+# @hostname: client hostname reported by the builtin DHCP server
 #
-# @restrict: #optional isolate the guest from the host
+# @restrict: isolate the guest from the host
 #
-# @ipv4: #optional whether to support IPv4, default true for enabled
+# @ipv4: whether to support IPv4, default true for enabled
 #        (since 2.6)
 #
-# @ipv6: #optional whether to support IPv6, default true for enabled
+# @ipv6: whether to support IPv6, default true for enabled
 #        (since 2.6)
 #
-# @ip: #optional legacy parameter, use net= instead
+# @ip: legacy parameter, use net= instead
 #
-# @net: #optional IP network address that the guest will see, in the
+# @net: IP network address that the guest will see, in the
 #       form addr[/netmask] The netmask is optional, and can be
 #       either in the form a.b.c.d or as a number of valid top-most
 #       bits. Default is 10.0.2.0/24.
 #
-# @host: #optional guest-visible address of the host
+# @host: guest-visible address of the host
 #
-# @tftp: #optional root directory of the built-in TFTP server
+# @tftp: root directory of the built-in TFTP server
 #
-# @bootfile: #optional BOOTP filename, for use with tftp=
+# @bootfile: BOOTP filename, for use with tftp=
 #
-# @dhcpstart: #optional the first of the 16 IPs the built-in DHCP server can
+# @dhcpstart: the first of the 16 IPs the built-in DHCP server can
 #             assign
 #
-# @dns: #optional guest-visible address of the virtual nameserver
+# @dns: guest-visible address of the virtual nameserver
 #
-# @dnssearch: #optional list of DNS suffixes to search, passed as DHCP option
+# @dnssearch: list of DNS suffixes to search, passed as DHCP option
 #             to the guest
 #
-# @ipv6-prefix: #optional IPv6 network prefix (default is fec0::) (since
+# @ipv6-prefix: IPv6 network prefix (default is fec0::) (since
 #               2.6). The network prefix is given in the usual
 #               hexadecimal IPv6 address notation.
 #
-# @ipv6-prefixlen: #optional IPv6 network prefix length (default is 64)
+# @ipv6-prefixlen: IPv6 network prefix length (default is 64)
 #                  (since 2.6)
 #
-# @ipv6-host: #optional guest-visible IPv6 address of the host (since 2.6)
+# @ipv6-host: guest-visible IPv6 address of the host (since 2.6)
 #
-# @ipv6-dns: #optional guest-visible IPv6 address of the virtual
+# @ipv6-dns: guest-visible IPv6 address of the virtual
 #            nameserver (since 2.6)
 #
-# @smb: #optional root directory of the built-in SMB server
+# @smb: root directory of the built-in SMB server
 #
-# @smbserver: #optional IP address of the built-in SMB server
+# @smbserver: IP address of the built-in SMB server
 #
-# @hostfwd: #optional redirect incoming TCP or UDP host connections to guest
+# @hostfwd: redirect incoming TCP or UDP host connections to guest
 #           endpoints
 #
-# @guestfwd: #optional forward guest TCP connections
+# @guestfwd: forward guest TCP connections
 #
 # Since: 1.2
 ##
@@ -3684,37 +3684,37 @@
 #
 # Connect the host TAP network interface name to the VLAN.
 #
-# @ifname: #optional interface name
+# @ifname: interface name
 #
-# @fd: #optional file descriptor of an already opened tap
+# @fd: file descriptor of an already opened tap
 #
-# @fds: #optional multiple file descriptors of already opened multiqueue capable
+# @fds: multiple file descriptors of already opened multiqueue capable
 # tap
 #
-# @script: #optional script to initialize the interface
+# @script: script to initialize the interface
 #
-# @downscript: #optional script to shut down the interface
+# @downscript: script to shut down the interface
 #
-# @br: #optional bridge name (since 2.8)
+# @br: bridge name (since 2.8)
 #
-# @helper: #optional command to execute to configure bridge
+# @helper: command to execute to configure bridge
 #
-# @sndbuf: #optional send buffer limit. Understands [TGMKkb] suffixes.
+# @sndbuf: send buffer limit. Understands [TGMKkb] suffixes.
 #
-# @vnet_hdr: #optional enable the IFF_VNET_HDR flag on the tap interface
+# @vnet_hdr: enable the IFF_VNET_HDR flag on the tap interface
 #
-# @vhost: #optional enable vhost-net network accelerator
+# @vhost: enable vhost-net network accelerator
 #
-# @vhostfd: #optional file descriptor of an already opened vhost net device
+# @vhostfd: file descriptor of an already opened vhost net device
 #
-# @vhostfds: #optional file descriptors of multiple already opened vhost net
+# @vhostfds: file descriptors of multiple already opened vhost net
 # devices
 #
-# @vhostforce: #optional vhost on for non-MSIX virtio guests
+# @vhostforce: vhost on for non-MSIX virtio guests
 #
-# @queues: #optional number of queues to be created for multiqueue capable tap
+# @queues: number of queues to be created for multiqueue capable tap
 #
-# @poll-us: #optional maximum number of microseconds that could
+# @poll-us: maximum number of microseconds that could
 # be spent on busy polling for tap (since 2.7)
 #
 # Since: 1.2
@@ -3743,17 +3743,17 @@
 # Connect the VLAN to a remote VLAN in another QEMU virtual machine using a TCP
 # socket connection.
 #
-# @fd: #optional file descriptor of an already opened socket
+# @fd: file descriptor of an already opened socket
 #
-# @listen: #optional port number, and optional hostname, to listen on
+# @listen: port number, and optional hostname, to listen on
 #
-# @connect: #optional port number, and optional hostname, to connect to
+# @connect: port number, and optional hostname, to connect to
 #
-# @mcast: #optional UDP multicast address and port number
+# @mcast: UDP multicast address and port number
 #
-# @localaddr: #optional source address and port for multicast and udp packets
+# @localaddr: source address and port for multicast and udp packets
 #
-# @udp: #optional UDP unicast address and port number
+# @udp: UDP unicast address and port number
 #
 # Since: 1.2
 ##
@@ -3775,32 +3775,32 @@
 #
 # @dst: destination address
 #
-# @srcport: #optional source port - mandatory for udp, optional for ip
+# @srcport: source port - mandatory for udp, optional for ip
 #
-# @dstport: #optional destination port - mandatory for udp, optional for ip
+# @dstport: destination port - mandatory for udp, optional for ip
 #
-# @ipv6: #optional force the use of ipv6
+# @ipv6: force the use of ipv6
 #
-# @udp: #optional use the udp version of l2tpv3 encapsulation
+# @udp: use the udp version of l2tpv3 encapsulation
 #
-# @cookie64: #optional use 64 bit coookies
+# @cookie64: use 64 bit coookies
 #
-# @counter: #optional have sequence counter
+# @counter: have sequence counter
 #
-# @pincounter: #optional pin sequence counter to zero -
+# @pincounter: pin sequence counter to zero -
 #              workaround for buggy implementations or
 #              networks with packet reorder
 #
-# @txcookie: #optional 32 or 64 bit transmit cookie
+# @txcookie: 32 or 64 bit transmit cookie
 #
-# @rxcookie: #optional 32 or 64 bit receive cookie
+# @rxcookie: 32 or 64 bit receive cookie
 #
 # @txsession: 32 bit transmit session
 #
-# @rxsession: #optional 32 bit receive session - if not specified
+# @rxsession: 32 bit receive session - if not specified
 #             set to the same value as transmit
 #
-# @offset: #optional additional offset - allows the insertion of
+# @offset: additional offset - allows the insertion of
 #          additional application-specific data before the packet payload
 #
 # Since: 2.1
@@ -3827,13 +3827,13 @@
 #
 # Connect the VLAN to a vde switch running on the host.
 #
-# @sock: #optional socket path
+# @sock: socket path
 #
-# @port: #optional port number
+# @port: port number
 #
-# @group: #optional group owner of socket
+# @group: group owner of socket
 #
-# @mode: #optional permissions for socket
+# @mode: permissions for socket
 #
 # Since: 1.2
 ##
@@ -3849,10 +3849,10 @@
 #
 # Dump VLAN network traffic to a file.
 #
-# @len: #optional per-packet size limit (64k default). Understands [TGMKkb]
+# @len: per-packet size limit (64k default). Understands [TGMKkb]
 # suffixes.
 #
-# @file: #optional dump file path (default is qemu-vlan0.pcap)
+# @file: dump file path (default is qemu-vlan0.pcap)
 #
 # Since: 1.2
 ##
@@ -3866,9 +3866,9 @@
 #
 # Connect a host TAP network interface to a host bridge device.
 #
-# @br: #optional bridge name
+# @br: bridge name
 #
-# @helper: #optional command to execute to configure bridge
+# @helper: command to execute to configure bridge
 #
 # Since: 1.2
 ##
@@ -3902,7 +3902,7 @@
 #          YYY identifies a port of the switch. VALE ports having the
 #          same XXX are therefore connected to the same switch.
 #
-# @devname: #optional path of the netmap device (default: '/dev/netmap').
+# @devname: path of the netmap device (default: '/dev/netmap').
 #
 # Since: 2.0
 ##
@@ -3918,9 +3918,9 @@
 #
 # @chardev: name of a unix socket chardev
 #
-# @vhostforce: #optional vhost on for non-MSIX virtio guests (default: false).
+# @vhostforce: vhost on for non-MSIX virtio guests (default: false).
 #
-# @queues: #optional number of queues to be created for multiqueue vhost-user
+# @queues: number of queues to be created for multiqueue vhost-user
 #          (default: 1) (Since 2.5)
 #
 # Since: 2.1
@@ -3977,11 +3977,11 @@
 #
 # Captures the configuration of a network device; legacy.
 #
-# @vlan: #optional vlan number
+# @vlan: vlan number
 #
-# @id: #optional identifier for monitor commands
+# @id: identifier for monitor commands
 #
-# @name: #optional identifier for monitor commands, ignored if @id is present
+# @name: identifier for monitor commands, ignored if @id is present
 #
 # @opts: device type specific properties (legacy)
 #
@@ -4055,17 +4055,15 @@
 #
 # @port: port part of the address, or lowest port if @to is present
 #
-# @numeric: #optional true if the host/port are guaranteed to be numeric,
+# @numeric: true if the host/port are guaranteed to be numeric,
 #           false if name resolution should be attempted. Defaults to false.
 #           (Since 2.9)
 #
 # @to: highest port to try
 #
 # @ipv4: whether to accept IPv4 addresses, default try both IPv4 and IPv6
-#        #optional
 #
 # @ipv6: whether to accept IPv6 addresses, default try both IPv4 and IPv6
-#        #optional
 #
 # Since: 1.3
 ##
@@ -4213,9 +4211,9 @@
 #
 # @name: the name of the machine
 #
-# @alias: #optional an alias for the machine name
+# @alias: an alias for the machine name
 #
-# @is-default: #optional whether the machine is default
+# @is-default: whether the machine is default
 #
 # @cpu-max: maximum number of CPUs supported by the machine type
 #           (since 1.5.0)
@@ -4247,7 +4245,7 @@
 #
 # @name: the name of the CPU definition
 #
-# @migration-safe: #optional whether a CPU definition can be safely used for
+# @migration-safe: whether a CPU definition can be safely used for
 #                  migration in combination with a QEMU compatibility machine
 #                  when migrating between different QMU versions and between
 #                  hosts with different sets of (hardware or software)
@@ -4259,7 +4257,7 @@
 #          QEMU version, machine type, machine options and accelerator options.
 #          A static model is always migration-safe. (since 2.8)
 #
-# @unavailable-features: #optional List of properties that prevent
+# @unavailable-features: List of properties that prevent
 #                        the CPU model from running in the current
 #                        host. (since 2.8)
 # @typename: Type name that can be used as argument to @device-list-properties,
@@ -4310,7 +4308,7 @@
 # However, if required, architectures can expose relevant properties.
 #
 # @name: the name of the CPU definition the model is based on
-# @props: #optional a dictionary of QOM properties to be applied
+# @props: a dictionary of QOM properties to be applied
 #
 # Since: 2.8.0
 ##
@@ -4559,9 +4557,9 @@
 #
 # Add a file descriptor, that was passed via SCM rights, to an fd set.
 #
-# @fdset-id: #optional The ID of the fd set to add the file descriptor to.
+# @fdset-id: The ID of the fd set to add the file descriptor to.
 #
-# @opaque: #optional A free-form string that can be used to describe the fd.
+# @opaque: A free-form string that can be used to describe the fd.
 #
 # Returns: @AddfdInfo on success
 #
@@ -4591,7 +4589,7 @@
 #
 # @fdset-id: The ID of the fd set that the file descriptor belongs to.
 #
-# @fd: #optional The file descriptor that is to be removed.
+# @fd: The file descriptor that is to be removed.
 #
 # Returns: Nothing on success
 #          If @fdset-id or @fd is not found, FdNotFound
@@ -4618,7 +4616,7 @@
 #
 # @fd: The file descriptor value.
 #
-# @opaque: #optional A free-form string that can be used to describe the fd.
+# @opaque: A free-form string that can be used to describe the fd.
 #
 # Since: 1.2.0
 ##
@@ -4769,7 +4767,7 @@
 #        directly to the guest, while @KeyValue.qcode must be a valid
 #        @QKeyCode value
 #
-# @hold-time: #optional time to delay key up events, milliseconds. Defaults
+# @hold-time: time to delay key up events, milliseconds. Defaults
 #             to 100
 #
 # Returns: Nothing on success
@@ -4815,8 +4813,8 @@
 #
 # Configuration shared across all chardev backends
 #
-# @logfile: #optional The name of a logfile to save output
-# @logappend: #optional true to append instead of truncate
+# @logfile: The name of a logfile to save output
+# @logappend: true to append instead of truncate
 #             (default to false to truncate)
 #
 # Since: 2.6
@@ -4829,9 +4827,9 @@
 #
 # Configuration info for file chardevs.
 #
-# @in:  #optional The name of the input file
+# @in:  The name of the input file
 # @out: The name of the output file
-# @append: #optional Open the file in append mode (default false to
+# @append: Open the file in append mode (default false to
 #          truncate) (Since 2.6)
 #
 # Since: 1.4
@@ -4861,14 +4859,14 @@
 #
 # @addr: socket address to listen on (server=true)
 #        or connect to (server=false)
-# @tls-creds: #optional the ID of the TLS credentials object (since 2.6)
-# @server: #optional create server socket (default: true)
-# @wait: #optional wait for incoming connection on server
+# @tls-creds: the ID of the TLS credentials object (since 2.6)
+# @server: create server socket (default: true)
+# @wait: wait for incoming connection on server
 #        sockets (default: false).
-# @nodelay: #optional set TCP_NODELAY socket option (default: false)
-# @telnet: #optional enable telnet protocol on server
+# @nodelay: set TCP_NODELAY socket option (default: false)
+# @telnet: enable telnet protocol on server
 #          sockets (default: false)
-# @reconnect: #optional For a client socket, if a socket is disconnected,
+# @reconnect: For a client socket, if a socket is disconnected,
 #          then attempt a reconnect after the given number of seconds.
 #          Setting this to zero disables this function. (default: 0)
 #          (Since: 2.2)
@@ -4890,7 +4888,7 @@
 # Configuration info for datagram socket chardevs.
 #
 # @remote: remote address
-# @local: #optional local address
+# @local: local address
 #
 # Since: 1.5
 ##
@@ -4915,7 +4913,7 @@
 #
 # Configuration info for stdio chardevs.
 #
-# @signal: #optional Allow signals (such as SIGINT triggered by ^C)
+# @signal: Allow signals (such as SIGINT triggered by ^C)
 #          be delivered to qemu.  Default: true in -nographic mode,
 #          false otherwise.
 #
@@ -4972,7 +4970,7 @@
 #
 # Configuration info for ring buffer chardevs.
 #
-# @size: #optional ring buffer size, must be power of two, default is 65536
+# @size: ring buffer size, must be power of two, default is 65536
 #
 # Since: 1.5
 ##
@@ -5013,7 +5011,7 @@
 #
 # Return info about the chardev backend just created.
 #
-# @pty: #optional name of the slave pseudoterminal device, present if
+# @pty: name of the slave pseudoterminal device, present if
 #       and only if a chardev of type 'pty' was created
 #
 # Since: 1.4
@@ -5135,9 +5133,9 @@
 #
 # Information about the TPM passthrough type
 #
-# @path: #optional string describing the path used for accessing the TPM device
+# @path: string describing the path used for accessing the TPM device
 #
-# @cancel-path: #optional string showing the TPM's sysfs cancel file
+# @cancel-path: string showing the TPM's sysfs cancel file
 #               for cancellation of TPM commands while they are executing
 #
 # Since: 1.5
@@ -5223,28 +5221,28 @@
 # String fields are copied into the matching ACPI member from lowest address
 # upwards, and silently truncated / NUL-padded to length.
 #
-# @sig: #optional table signature / identifier (4 bytes)
+# @sig: table signature / identifier (4 bytes)
 #
-# @rev: #optional table revision number (dependent on signature, 1 byte)
+# @rev: table revision number (dependent on signature, 1 byte)
 #
-# @oem_id: #optional OEM identifier (6 bytes)
+# @oem_id: OEM identifier (6 bytes)
 #
-# @oem_table_id: #optional OEM table identifier (8 bytes)
+# @oem_table_id: OEM table identifier (8 bytes)
 #
-# @oem_rev: #optional OEM-supplied revision number (4 bytes)
+# @oem_rev: OEM-supplied revision number (4 bytes)
 #
-# @asl_compiler_id: #optional identifier of the utility that created the table
+# @asl_compiler_id: identifier of the utility that created the table
 #                   (4 bytes)
 #
-# @asl_compiler_rev: #optional revision number of the utility that created the
+# @asl_compiler_rev: revision number of the utility that created the
 #                    table (4 bytes)
 #
-# @file: #optional colon (:) separated list of pathnames to load and
+# @file: colon (:) separated list of pathnames to load and
 #        concatenate as table data. The resultant binary blob is expected to
 #        have an ACPI table header. At least one file is required. This field
 #        excludes @data.
 #
-# @data: #optional colon (:) separated list of pathnames to load and
+# @data: colon (:) separated list of pathnames to load and
 #        concatenate as table data. The resultant binary blob must not have an
 #        ACPI table header. At least one file is required. This field excludes
 #        @file.
@@ -5291,9 +5289,9 @@
 #
 # @type: parameter @CommandLineParameterType
 #
-# @help: #optional human readable text string, not suitable for parsing.
+# @help: human readable text string, not suitable for parsing.
 #
-# @default: #optional default value string (since 2.1)
+# @default: default value string (since 2.1)
 #
 # Since: 1.5
 ##
@@ -5322,7 +5320,7 @@
 #
 # Query command line option schema.
 #
-# @option: #optional option name
+# @option: option name
 #
 # Returns: list of @CommandLineOptionInfo for all options (or for the given
 #          @option).  Returns an error if the given @option doesn't exist.
@@ -5371,7 +5369,7 @@
 #
 # @cpuid-input-eax: Input EAX value for CPUID instruction for that feature word
 #
-# @cpuid-input-ecx: #optional Input ECX value for CPUID instruction for that
+# @cpuid-input-ecx: Input ECX value for CPUID instruction for that
 #                   feature word
 #
 # @cpuid-register: Output register containing the feature bits
@@ -5463,7 +5461,7 @@
 #
 # Return rx-filter information for all NICs (or for the given NIC).
 #
-# @name: #optional net client name
+# @name: net client name
 #
 # Returns: list of @RxFilterInfo for all NICs (or for the given NIC).
 #          Returns an error if the given @name doesn't exist, or given
@@ -5597,8 +5595,8 @@
 #
 # Send input event(s) to guest.
 #
-# @device: #optional display device to send event(s) to.
-# @head: #optional head to send event(s) to, in case the
+# @device: display device to send event(s) to.
+# @head: head to send event(s) to, in case the
 #        display device supports multiple scanouts.
 # @events: List of InputEvent union.
 #
@@ -5690,16 +5688,16 @@
 #
 # Create a guest NUMA node. (for OptsVisitor)
 #
-# @nodeid: #optional NUMA node ID (increase by 1 from 0 if omitted)
+# @nodeid: NUMA node ID (increase by 1 from 0 if omitted)
 #
-# @cpus: #optional VCPUs belonging to this node (assign VCPUS round-robin
+# @cpus: VCPUs belonging to this node (assign VCPUS round-robin
 #         if omitted)
 #
-# @mem: #optional memory size of this node; mutually exclusive with @memdev.
+# @mem: memory size of this node; mutually exclusive with @memdev.
 #       Equally divide total memory among nodes if both @mem and @memdev are
 #       omitted.
 #
-# @memdev: #optional memory backend object.  If specified for one node,
+# @memdev: memory backend object.  If specified for one node,
 #          it must be specified for all nodes.
 #
 # Since: 2.1
@@ -5736,7 +5734,7 @@
 #
 # Information about memory backend
 #
-# @id: #optional backend's ID if backend has 'id' property (since 2.9)
+# @id: backend's ID if backend has 'id' property (since 2.9)
 #
 # @size: memory backend size
 #
@@ -5803,7 +5801,7 @@
 #
 # PCDIMMDevice state information
 #
-# @id: #optional device's ID
+# @id: device's ID
 #
 # @addr: physical address, where device is mapped
 #
@@ -5882,7 +5880,7 @@
 # For description of possible values of @source and @status fields
 # see "_OST (OSPM Status Indication)" chapter of ACPI5.0 spec.
 #
-# @device: #optional device ID associated with slot
+# @device: device ID associated with slot
 #
 # @slot: slot ID, unique per slot of a given @slot-type
 #
@@ -6080,7 +6078,7 @@
 #
 # @primary: true for primary or false for secondary.
 #
-# @failover: #optional true to do failover, false to stop. but cannot be
+# @failover: true to do failover, false to stop. but cannot be
 #            specified if 'enable' is true. default value is false.
 #
 # Returns: nothing.
@@ -6103,7 +6101,7 @@
 #
 # @error: true if an error happened, false if replication is normal.
 #
-# @desc: #optional the human readable error description string, when
+# @desc: the human readable error description string, when
 #        @error is 'true'.
 #
 # Since: 2.9
@@ -6194,10 +6192,10 @@
 # it should be passed by management with device_add command when
 # a CPU is being hotplugged.
 #
-# @node-id: #optional NUMA node ID the CPU belongs to
-# @socket-id: #optional socket number within node/board the CPU belongs to
-# @core-id: #optional core number within socket the CPU belongs to
-# @thread-id: #optional thread number within core the CPU belongs to
+# @node-id: NUMA node ID the CPU belongs to
+# @socket-id: socket number within node/board the CPU belongs to
+# @core-id: core number within socket the CPU belongs to
+# @thread-id: thread number within core the CPU belongs to
 #
 # Note: currently there are 4 properties that could be present
 # but management should be prepared to pass through other
@@ -6221,7 +6219,7 @@
 # @type: CPU object type for usage with device_add command
 # @props: list of properties to be used for hotplugging CPU
 # @vcpus-count: number of logical VCPU threads @HotpluggableCPU provides
-# @qom-path: #optional link to existing CPU object if CPU is present or
+# @qom-path: link to existing CPU object if CPU is present or
 #            omitted if CPU is not present.
 #
 # Since: 2.7
