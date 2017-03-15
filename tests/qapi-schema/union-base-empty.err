@@ -1,10 +1,1 @@
-Traceback (most recent call last):
-  File "tests/qapi-schema/test-qapi.py", line 56, in <module>
-    schema = QAPISchema(sys.argv[1])
-  File "scripts/qapi.py", line 1487, in __init__
-    self.exprs = check_exprs(parser.exprs)
-  File "scripts/qapi.py", line 921, in check_exprs
-    check_union(expr, info)
-  File "scripts/qapi.py", line 738, in check_union
-    assert base_members
-AssertionError
+tests/qapi-schema/union-base-empty.json:5: Discriminator 'type' is not a member of base struct 'Empty'

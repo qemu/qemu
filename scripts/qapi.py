@@ -735,7 +735,7 @@ def check_union(expr, info):
             raise QAPISemError(info, "Flat union '%s' must have a base"
                                % name)
         base_members = find_base_members(base)
-        assert base_members
+        assert base_members is not None
 
         # The value of member 'discriminator' must name a non-optional
         # member of the base struct.
