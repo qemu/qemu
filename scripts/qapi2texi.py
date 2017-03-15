@@ -133,17 +133,18 @@ def texi_enum_value(value):
     return '@item @code{%s}\n' % value.name
 
 
-def texi_member(member):
+def texi_member(member, suffix=''):
     """Format a table of members item for an object type member"""
     typ = member.type.doc_type()
-    return '@item @code{%s%s%s}%s\n' % (
+    return '@item @code{%s%s%s}%s%s\n' % (
         member.name,
         ': ' if typ else '',
         typ if typ else '',
-        ' (optional)' if member.optional else '')
+        ' (optional)' if member.optional else '',
+        suffix)
 
 
-def texi_members(doc, what, base, member_func):
+def texi_members(doc, what, base, variants, member_func):
     """Format the table of members"""
     items = ''
     for section in doc.args.itervalues():
@@ -154,6 +155,17 @@ def texi_members(doc, what, base, member_func):
         items += member_func(section.member) + texi_format(desc) + '\n'
     if base:
         items += '@item The members of @code{%s}\n' % base.doc_type()
+    if variants:
+        for v in variants.variants:
+            when = ' when @code{%s} is @t{"%s"}' % (
+                variants.tag_member.name, v.name)
+            if v.type.is_implicit():
+                assert not v.type.base and not v.type.variants
+                for m in v.type.local_members:
+                    items += member_func(m, when)
+            else:
+                items += '@item The members of @code{%s}%s\n' % (
+                    v.type.doc_type(), when)
     if not items:
         return ''
     return '\n@b{%s:}\n@table @asis\n%s@end table\n' % (what, items)
@@ -176,9 +188,10 @@ def texi_sections(doc):
     return body
 
 
-def texi_entity(doc, what, base=None, member_func=texi_member):
+def texi_entity(doc, what, base=None, variants=None,
+                member_func=texi_member):
     return (texi_body(doc)
-            + texi_members(doc, what, base, member_func)
+            + texi_members(doc, what, base, variants, member_func)
             + texi_sections(doc))
 
 
@@ -213,7 +226,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
             self.out += '\n'
         self.out += TYPE_FMT(type=typ,
                              name=doc.symbol,
-                             body=texi_entity(doc, 'Members', base))
+                             body=texi_entity(doc, 'Members', base, variants))
 
     def visit_alternate_type(self, name, info, variants):
         doc = self.cur_doc
