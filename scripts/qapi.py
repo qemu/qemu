@@ -554,7 +554,7 @@ def discriminator_find_enum_define(expr):
 # Names must be letters, numbers, -, and _.  They must start with letter,
 # except for downstream extensions which must start with __RFQDN_.
 # Dots are only valid in the downstream extension prefix.
-valid_name = re.compile('^(__[a-zA-Z0-9.-]+_)?'
+valid_name = re.compile(r'^(__[a-zA-Z0-9.-]+_)?'
                         '[a-zA-Z][a-zA-Z0-9_-]*$')
 
 
@@ -1831,10 +1831,10 @@ def cgen(code, **kwds):
     if indent_level:
         indent = genindent(indent_level)
         # re.subn() lacks flags support before Python 2.7, use re.compile()
-        raw = re.subn(re.compile("^.", re.MULTILINE),
+        raw = re.subn(re.compile(r'^.', re.MULTILINE),
                       indent + r'\g<0>', raw)
         raw = raw[0]
-    return re.sub(re.escape(eatspace) + ' *', '', raw)
+    return re.sub(re.escape(eatspace) + r' *', '', raw)
 
 
 def mcgen(code, **kwds):
@@ -1968,7 +1968,7 @@ def parse_command_line(extra_options="", extra_long_options=[]):
     for oa in opts:
         o, a = oa
         if o in ("-p", "--prefix"):
-            match = re.match('([A-Za-z_.-][A-Za-z0-9_.-]*)?', a)
+            match = re.match(r'([A-Za-z_.-][A-Za-z0-9_.-]*)?', a)
             if match.end() != len(a):
                 print >>sys.stderr, \
                     "%s: 'funny character '%s' in argument of --prefix" \
