@@ -87,6 +87,16 @@ typedef struct {
     g_assert_cmpstr(ACPI_ASSERT_CMP_str, ==, expected); \
 } while (0)
 
+#define ACPI_READ_GENERIC_ADDRESS(field, addr)       \
+    do {                                             \
+        ACPI_READ_FIELD((field).space_id, addr);     \
+        ACPI_READ_FIELD((field).bit_width, addr);    \
+        ACPI_READ_FIELD((field).bit_offset, addr);   \
+        ACPI_READ_FIELD((field).access_width, addr); \
+        ACPI_READ_FIELD((field).address, addr);      \
+    } while (0);
+
+
 uint8_t acpi_calc_checksum(const uint8_t *data, int len);
 uint32_t acpi_find_rsdp_address(void);
 void acpi_parse_rsdp_table(uint32_t addr, AcpiRsdpDescriptor *rsdp_table);
