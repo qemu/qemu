@@ -249,6 +249,15 @@ class QAPIDoc(object):
             self.args[member.name] = QAPIDoc.ArgSection(member.name)
         self.args[member.name].connect(member)
 
+    def check(self):
+        bogus = [name for name, section in self.args.iteritems()
+                 if not section.member]
+        if bogus:
+            raise QAPISemError(
+                self.info,
+                "The following documented members are not in "
+                "the declaration: %s" % ", ".join(bogus))
+
 
 class QAPISchemaParser(object):
 
@@ -995,33 +1004,8 @@ def check_exprs(exprs):
 
 
 def check_definition_doc(doc, expr, info):
-    for i in ('enum', 'union', 'alternate', 'struct', 'command', 'event'):
-        if i in expr:
-            meta = i
-            break
-
     if doc.has_section('Returns') and 'command' not in expr:
         raise QAPISemError(info, "'Returns:' is only valid for commands")
-
-    if meta == 'union':
-        args = expr.get('base', [])
-    else:
-        args = expr.get('data', [])
-    if isinstance(args, str):
-        return
-    if isinstance(args, dict):
-        args = args.keys()
-    assert isinstance(args, list)
-
-    if (meta == 'alternate'
-            or (meta == 'union' and not expr.get('discriminator'))):
-        args.append('type')
-
-    doc_args = set(doc.args.keys())
-    args = set([name.strip('*') for name in args])
-    if not doc_args.issubset(args):
-        raise QAPISemError(info, "The following documented members are not in "
-                           "the declaration: %s" % ', '.join(doc_args - args))
 
 
 def check_docs(docs):
@@ -1268,6 +1252,8 @@ class QAPISchemaObjectType(QAPISchemaType):
             self.variants.check(schema, seen)
             assert self.variants.tag_member in self.members
             self.variants.check_clash(schema, self.info, seen)
+        if self.doc:
+            self.doc.check()
 
     # Check that the members of this type do not cause duplicate JSON members,
     # and update seen to track the members seen so far. Report any errors
@@ -1437,6 +1423,8 @@ class QAPISchemaAlternateType(QAPISchemaType):
             v.check_clash(self.info, seen)
             if self.doc:
                 self.doc.connect_member(v)
+        if self.doc:
+            self.doc.check()
 
     def c_type(self):
         return c_name(self.name) + pointer_suffix
