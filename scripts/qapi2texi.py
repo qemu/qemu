@@ -219,17 +219,11 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
 
     def visit_object_type(self, name, info, base, members, variants):
         doc = self.cur_doc
-        if not variants:
-            typ = 'Struct'
-        elif variants._tag_name:        # TODO unclean member access
-            typ = 'Flat Union'
-        else:
-            typ = 'Simple Union'
         if base and base.is_implicit():
             base = None
         if self.out:
             self.out += '\n'
-        self.out += TYPE_FMT(type=typ,
+        self.out += TYPE_FMT(type='Object',
                              name=doc.symbol,
                              body=texi_entity(doc, 'Members', base, variants))
 
