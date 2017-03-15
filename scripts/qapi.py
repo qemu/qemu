@@ -519,7 +519,8 @@ class QAPISchemaParser(object):
             expr = self.val
             self.accept()
         else:
-            raise QAPIParseError(self, 'Expected "{", "[" or string')
+            raise QAPIParseError(self, 'Expected "{", "[", string, '
+                                 'boolean or "null"')
         return expr
 
     def get_doc(self, info):
