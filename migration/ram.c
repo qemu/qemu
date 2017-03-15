@@ -165,6 +165,8 @@ struct RAMSrcPageRequest {
 
 /* State of RAM for migration */
 struct RAMState {
+    /* QEMUFile used for this migration */
+    QEMUFile *f;
     /* Last block that we have visited searching for dirty pages */
     RAMBlock *last_seen_block;
     /* Last block from where we have sent data */
@@ -525,14 +527,13 @@ static void xbzrle_cache_zero_page(RAMState *rs, ram_addr_t current_addr)
  *          -1 means that xbzrle would be longer than normal
  *
  * @rs: current RAM state
- * @f: QEMUFile where to send the data
  * @current_data: pointer to the address of the page contents
  * @current_addr: addr of the page
  * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  * @last_stage: if we are at the completion stage
  */
-static int save_xbzrle_page(RAMState *rs, QEMUFile *f, uint8_t **current_data,
+static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
                             ram_addr_t current_addr, RAMBlock *block,
                             ram_addr_t offset, bool last_stage)
 {
@@ -583,10 +584,11 @@ static int save_xbzrle_page(RAMState *rs, QEMUFile *f, uint8_t **current_data,
     }
 
     /* Send XBZRLE based compressed page */
-    bytes_xbzrle = save_page_header(f, block, offset | RAM_SAVE_FLAG_XBZRLE);
-    qemu_put_byte(f, ENCODING_FLAG_XBZRLE);
-    qemu_put_be16(f, encoded_len);
-    qemu_put_buffer(f, XBZRLE.encoded_buf, encoded_len);
+    bytes_xbzrle = save_page_header(rs->f, block,
+                                    offset | RAM_SAVE_FLAG_XBZRLE);
+    qemu_put_byte(rs->f, ENCODING_FLAG_XBZRLE);
+    qemu_put_be16(rs->f, encoded_len);
+    qemu_put_buffer(rs->f, XBZRLE.encoded_buf, encoded_len);
     bytes_xbzrle += encoded_len + 1 + 2;
     rs->xbzrle_pages++;
     rs->xbzrle_bytes += bytes_xbzrle;
@@ -850,7 +852,7 @@ static int ram_save_page(RAMState *rs, MigrationState *ms, QEMUFile *f,
             ram_release_pages(ms, block->idstr, pss->offset, pages);
         } else if (!rs->ram_bulk_stage &&
                    !migration_in_postcopy(ms) && migrate_use_xbzrle()) {
-            pages = save_xbzrle_page(rs, f, &p, current_addr, block,
+            pages = save_xbzrle_page(rs, &p, current_addr, block,
                                      offset, last_stage);
             if (!last_stage) {
                 /* Can't send this cached data async, since the cache page
@@ -2090,6 +2092,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
             return -1;
          }
     }
+    rs->f = f;
 
     rcu_read_lock();
 
