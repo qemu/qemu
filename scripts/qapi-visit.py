@@ -13,7 +13,6 @@
 # See the COPYING file in the top-level directory.
 
 from qapi import *
-import re
 
 
 def gen_visit_decl(name, scalar=False):

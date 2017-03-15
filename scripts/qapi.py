@@ -11,13 +11,13 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
-import re
-from ordereddict import OrderedDict
 import errno
 import getopt
 import os
-import sys
+import re
 import string
+import sys
+from ordereddict import OrderedDict
 
 builtin_types = {
     'str':      'QTYPE_QSTRING',
@@ -1587,7 +1587,7 @@ class QAPISchema(object):
         tag_member = None
         if isinstance(base, dict):
             base = (self._make_implicit_object_type(
-                    name, info, doc, 'base', self._make_members(base, info)))
+                name, info, doc, 'base', self._make_members(base, info)))
         if tag_name:
             variants = [self._make_variant(key, value)
                         for (key, value) in data.iteritems()]
