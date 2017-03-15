@@ -1,6 +1,2 @@
 # 'gen' should only appear with value false
-
-##
-# @foo:
-##
 { 'command': 'foo', 'gen': 'whatever' }

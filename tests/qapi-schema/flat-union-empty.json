@@ -1,14 +1,4 @@
 # flat unions cannot be empty
-
-##
-# @Empty:
-##
 { 'enum': 'Empty', 'data': [ ] }
-##
-# @Base:
-##
 { 'struct': 'Base', 'data': { 'type': 'Empty' } }
-##
-# @Union:
-##
 { 'union': 'Union', 'base': 'Base', 'discriminator': 'type', 'data': { } }

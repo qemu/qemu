@@ -1,13 +1,6 @@
 # we reject alternates with multiple string-like branches
-
-##
-# @Enum:
-##
 { 'enum': 'Enum',
   'data': [ 'hello', 'world' ] }
-##
-# @Alt:
-##
 { 'alternate': 'Alt',
   'data': { 'one': 'str',
             'two': 'Enum' } }

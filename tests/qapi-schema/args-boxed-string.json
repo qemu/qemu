@@ -1,6 +1,2 @@
 # 'boxed' requires a complex (not built-in) type
-
-##
-# @foo:
-##
 { 'command': 'foo', 'boxed': true, 'data': 'str' }

@@ -1,5 +1,2 @@
-##
-# @foo:
-##
 { 'command': 'foo',
   'data': false }

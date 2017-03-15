@@ -1,6 +1,2 @@
 # we reject types that would conflict with implicit union enum
-
-##
-# @UnionKind:
-##
 { 'enum': 'UnionKind', 'data': [ 'oops' ] }
