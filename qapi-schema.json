@@ -1036,6 +1036,8 @@
 #             credentials must be for a 'server' endpoint. Setting this
 #             will enable TLS for all migrations. The default is unset,
 #             resulting in unsecured migration at the QEMU level. (Since 2.7)
+#             An empty string means that QEMU will use plain text mode for
+#             migration, rather than TLS (Since 2.9)
 #
 # @tls-hostname: #optional hostname of the target host for the migration. This
 #                is required when using x509 based TLS credentials and the
@@ -1043,6 +1045,8 @@
 #                example if using fd: or exec: based migration, the
 #                hostname must be provided so that the server's x509
 #                certificate identity can be validated. (Since 2.7)
+#                An empty string means that QEMU will use the hostname
+#                associated with the migration URI, if any. (Since 2.9)
 #
 # @max-bandwidth: to set maximum speed for migration. maximum speed in
 #                 bytes per second. (Since 2.8)

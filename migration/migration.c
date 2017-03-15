@@ -110,6 +110,8 @@ MigrationState *migrate_get_current(void)
 
     if (!once) {
         qemu_mutex_init(&current_migration.src_page_req_mutex);
+        current_migration.parameters.tls_creds = g_strdup("");
+        current_migration.parameters.tls_hostname = g_strdup("");
         once = true;
     }
     return &current_migration;
@@ -458,6 +460,7 @@ void migration_channel_process_incoming(MigrationState *s,
         ioc, object_get_typename(OBJECT(ioc)));
 
     if (s->parameters.tls_creds &&
+        *s->parameters.tls_creds &&
         !object_dynamic_cast(OBJECT(ioc),
                              TYPE_QIO_CHANNEL_TLS)) {
         Error *local_err = NULL;
@@ -480,6 +483,7 @@ void migration_channel_connect(MigrationState *s,
         ioc, object_get_typename(OBJECT(ioc)), hostname);
 
     if (s->parameters.tls_creds &&
+        *s->parameters.tls_creds &&
         !object_dynamic_cast(OBJECT(ioc),
                              TYPE_QIO_CHANNEL_TLS)) {
         Error *local_err = NULL;

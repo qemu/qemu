@@ -141,7 +141,7 @@ void migration_tls_channel_connect(MigrationState *s,
         return;
     }
 
-    if (s->parameters.tls_hostname) {
+    if (s->parameters.tls_hostname && *s->parameters.tls_hostname) {
         hostname = s->parameters.tls_hostname;
     }
     if (!hostname) {
