@@ -58,9 +58,9 @@ all_names = {}
 
 
 def error_path(parent):
-    res = ""
+    res = ''
     while parent:
-        res = ("In file included from %s:%d:\n" % (parent['file'],
+        res = ('In file included from %s:%d:\n' % (parent['file'],
                                                    parent['line'])) + res
         parent = parent['parent']
     return res
@@ -76,10 +76,10 @@ class QAPIError(Exception):
         self.msg = msg
 
     def __str__(self):
-        loc = "%s:%d" % (self.fname, self.line)
+        loc = '%s:%d' % (self.fname, self.line)
         if self.col is not None:
-            loc += ":%s" % self.col
-        return error_path(self.info) + "%s: %s" % (loc, self.msg)
+            loc += ':%s' % self.col
+        return error_path(self.info) + '%s: %s' % (loc, self.msg)
 
 
 class QAPIParseError(QAPIError):
@@ -113,7 +113,7 @@ class QAPIDoc(object):
             self.content.append(line)
 
         def __repr__(self):
-            return "\n".join(self.content).strip()
+            return '\n'.join(self.content).strip()
 
     class ArgSection(Section):
         def __init__(self, name):
@@ -163,8 +163,8 @@ class QAPIDoc(object):
         # recognized, and get silently treated as ordinary text
         if self.symbol:
             self._append_symbol_line(line)
-        elif not self.body.content and line.startswith("@"):
-            if not line.endswith(":"):
+        elif not self.body.content and line.startswith('@'):
+            if not line.endswith(':'):
                 raise QAPIParseError(self.parser, "Line should end with :")
             self.symbol = line[1:-1]
             # FIXME invalid names other than the empty string aren't flagged
@@ -176,14 +176,14 @@ class QAPIDoc(object):
     def _append_symbol_line(self, line):
         name = line.split(' ', 1)[0]
 
-        if name.startswith("@") and name.endswith(":"):
+        if name.startswith('@') and name.endswith(':'):
             line = line[len(name)+1:]
             self._start_args_section(name[1:-1])
-        elif name in ("Returns:", "Since:",
+        elif name in ('Returns:', 'Since:',
                       # those are often singular or plural
-                      "Note:", "Notes:",
-                      "Example:", "Examples:",
-                      "TODO:"):
+                      'Note:', 'Notes:',
+                      'Example:', 'Examples:',
+                      'TODO:'):
             line = line[len(name)+1:]
             self._start_section(name[:-1])
 
@@ -203,8 +203,8 @@ class QAPIDoc(object):
         self.section = QAPIDoc.ArgSection(name)
         self.args[name] = self.section
 
-    def _start_section(self, name=""):
-        if name in ("Returns", "Since") and self.has_section(name):
+    def _start_section(self, name=''):
+        if name in ('Returns', 'Since') and self.has_section(name):
             raise QAPIParseError(self.parser,
                                  "Duplicated '%s' section" % name)
         self.section = QAPIDoc.Section(name)
@@ -217,7 +217,7 @@ class QAPIDoc(object):
                 and line and not line[0].isspace()):
             self._start_section()
         if (in_arg or not self.section.name
-                or not self.section.name.startswith("Example")):
+                or not self.section.name.startswith('Example')):
             line = line.strip()
         # TODO Drop this once the dust has settled
         if (isinstance(self.section, QAPIDoc.ArgSection)
@@ -262,7 +262,7 @@ class QAPISchemaParser(object):
             if 'include' in expr:
                 if len(expr) != 1:
                     raise QAPISemError(info, "Invalid 'include' directive")
-                include = expr["include"]
+                include = expr['include']
                 if not isinstance(include, str):
                     raise QAPISemError(info,
                                        "Value of 'include' must be a string")
@@ -347,7 +347,7 @@ class QAPISchemaParser(object):
                 if not skip_comment:
                     self.val = self.src[self.pos:self.cursor]
                     return
-            elif self.tok in "{}:,[]":
+            elif self.tok in '{}:,[]':
                 return
             elif self.tok == "'":
                 string = ''
@@ -373,7 +373,7 @@ class QAPISchemaParser(object):
                             for _ in range(0, 4):
                                 ch = self.src[self.cursor]
                                 self.cursor += 1
-                                if ch not in "0123456789abcdefABCDEF":
+                                if ch not in '0123456789abcdefABCDEF':
                                     raise QAPIParseError(self,
                                                          '\\u escape needs 4 '
                                                          'hex digits')
@@ -388,28 +388,28 @@ class QAPISchemaParser(object):
                                                      'only supports non-zero '
                                                      'values up to \\u007f')
                             string += chr(value)
-                        elif ch in "\\/'\"":
+                        elif ch in '\\/\'"':
                             string += ch
                         else:
                             raise QAPIParseError(self,
                                                  "Unknown escape \\%s" % ch)
                         esc = False
-                    elif ch == "\\":
+                    elif ch == '\\':
                         esc = True
                     elif ch == "'":
                         self.val = string
                         return
                     else:
                         string += ch
-            elif self.src.startswith("true", self.pos):
+            elif self.src.startswith('true', self.pos):
                 self.val = True
                 self.cursor += 3
                 return
-            elif self.src.startswith("false", self.pos):
+            elif self.src.startswith('false', self.pos):
                 self.val = False
                 self.cursor += 4
                 return
-            elif self.src.startswith("null", self.pos):
+            elif self.src.startswith('null', self.pos):
                 self.val = None
                 self.cursor += 3
                 return
@@ -523,11 +523,11 @@ def find_alternate_member_qtype(qapi_type):
     if qapi_type in builtin_types:
         return builtin_types[qapi_type]
     elif find_struct(qapi_type):
-        return "QTYPE_QDICT"
+        return 'QTYPE_QDICT'
     elif find_enum(qapi_type):
-        return "QTYPE_QSTRING"
+        return 'QTYPE_QSTRING'
     elif find_union(qapi_type):
-        return "QTYPE_QDICT"
+        return 'QTYPE_QDICT'
     return None
 
 
@@ -628,7 +628,7 @@ def find_union(name):
 def add_enum(name, info, enum_values=None, implicit=False):
     global enum_types
     add_name(name, info, 'enum', implicit)
-    enum_types.append({"enum_name": name, "enum_values": enum_values})
+    enum_types.append({'enum_name': name, 'enum_values': enum_values})
 
 
 def find_enum(name):
@@ -788,7 +788,7 @@ def check_union(expr, info):
                 raise QAPISemError(info,
                                    "Discriminator value '%s' is not found in "
                                    "enum '%s'"
-                                   % (key, enum_define["enum_name"]))
+                                   % (key, enum_define['enum_name']))
 
     # If discriminator is user-defined, ensure all values are covered
     if enum_define:
@@ -993,7 +993,7 @@ def check_definition_doc(doc, expr, info):
     args = set([name.strip('*') for name in args])
     if not doc_args.issubset(args):
         raise QAPISemError(info, "The following documented members are not in "
-                           "the declaration: %s" % ", ".join(doc_args - args))
+                           "the declaration: %s" % ', '.join(doc_args - args))
 
 
 def check_docs(docs):
@@ -1487,7 +1487,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
 class QAPISchema(object):
     def __init__(self, fname):
         try:
-            parser = QAPISchemaParser(open(fname, "r"))
+            parser = QAPISchemaParser(open(fname, 'r'))
             self.exprs = check_exprs(parser.exprs)
             self.docs = check_docs(parser.docs)
             self._entity_dict = {}
@@ -1740,8 +1740,8 @@ def camel_to_upper(value):
     l = len(c_fun_str)
     for i in range(l):
         c = c_fun_str[i]
-        # When c is upper and no "_" appears before, do more checks
-        if c.isupper() and (i > 0) and c_fun_str[i - 1] != "_":
+        # When c is upper and no '_' appears before, do more checks
+        if c.isupper() and (i > 0) and c_fun_str[i - 1] != '_':
             if i < l - 1 and c_fun_str[i + 1].islower():
                 new_name += '_'
             elif c_fun_str[i - 1].isdigit():
@@ -1760,7 +1760,7 @@ c_name_trans = string.maketrans('.-', '__')
 
 # Map @name to a valid C identifier.
 # If @protect, avoid returning certain ticklish identifiers (like
-# C keywords) by prepending "q_".
+# C keywords) by prepending 'q_'.
 #
 # Used for converting 'name' from a 'name':'type' qapi definition
 # into a generated struct member, as well as converting type names
@@ -1798,7 +1798,7 @@ def c_name(name, protect=True):
     name = name.translate(c_name_trans)
     if protect and (name in c89_words | c99_words | c11_words | gcc_words
                     | cpp_words | polluted_words):
-        return "q_" + name
+        return 'q_' + name
     return name
 
 eatspace = '\033EATSPACE.'
@@ -1806,9 +1806,9 @@ pointer_suffix = ' *' + eatspace
 
 
 def genindent(count):
-    ret = ""
+    ret = ''
     for _ in range(count):
-        ret += " "
+        ret += ' '
     return ret
 
 indent_level = 0
@@ -1948,26 +1948,26 @@ def gen_params(arg_type, boxed, extra):
 #
 
 
-def parse_command_line(extra_options="", extra_long_options=[]):
+def parse_command_line(extra_options='', extra_long_options=[]):
 
     try:
         opts, args = getopt.gnu_getopt(sys.argv[1:],
-                                       "chp:o:" + extra_options,
-                                       ["source", "header", "prefix=",
-                                        "output-dir="] + extra_long_options)
+                                       'chp:o:' + extra_options,
+                                       ['source', 'header', 'prefix=',
+                                        'output-dir='] + extra_long_options)
     except getopt.GetoptError as err:
         print >>sys.stderr, "%s: %s" % (sys.argv[0], str(err))
         sys.exit(1)
 
-    output_dir = ""
-    prefix = ""
+    output_dir = ''
+    prefix = ''
     do_c = False
     do_h = False
     extra_opts = []
 
     for oa in opts:
         o, a = oa
-        if o in ("-p", "--prefix"):
+        if o in ('-p', '--prefix'):
             match = re.match(r'([A-Za-z_.-][A-Za-z0-9_.-]*)?', a)
             if match.end() != len(a):
                 print >>sys.stderr, \
@@ -1975,11 +1975,11 @@ def parse_command_line(extra_options="", extra_long_options=[]):
                     % (sys.argv[0], a[match.end()])
                 sys.exit(1)
             prefix = a
-        elif o in ("-o", "--output-dir"):
-            output_dir = a + "/"
-        elif o in ("-c", "--source"):
+        elif o in ('-o', '--output-dir'):
+            output_dir = a + '/'
+        elif o in ('-c', '--source'):
             do_c = True
-        elif o in ("-h", "--header"):
+        elif o in ('-h', '--header'):
             do_h = True
         else:
             extra_opts.append(oa)

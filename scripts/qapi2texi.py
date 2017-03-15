@@ -50,7 +50,7 @@ def subst_vars(doc):
 
 def subst_braces(doc):
     """Replaces {} with @{ @}"""
-    return doc.replace("{", "@{").replace("}", "@}")
+    return doc.replace('{', '@{').replace('}', '@}')
 
 
 def texi_example(doc):
@@ -79,10 +79,10 @@ def texi_format(doc):
     doc = subst_vars(doc)
     doc = subst_emph(doc)
     doc = subst_strong(doc)
-    inlist = ""
+    inlist = ''
     lastempty = False
     for line in doc.split('\n'):
-        empty = line == ""
+        empty = line == ''
 
         # FIXME: Doing this in a single if / elif chain is
         # problematic.  For instance, a line without markup terminates
@@ -92,35 +92,35 @@ def texi_format(doc):
         #
         # Make sure to update section "Documentation markup" in
         # docs/qapi-code-gen.txt when fixing this.
-        if line.startswith("| "):
+        if line.startswith('| '):
             line = EXAMPLE_FMT(code=line[2:])
-        elif line.startswith("= "):
-            line = "@section " + line[2:]
-        elif line.startswith("== "):
-            line = "@subsection " + line[3:]
+        elif line.startswith('= '):
+            line = '@section ' + line[2:]
+        elif line.startswith('== '):
+            line = '@subsection ' + line[3:]
         elif re.match(r'^([0-9]*\.) ', line):
             if not inlist:
-                lines.append("@enumerate")
-                inlist = "enumerate"
-            line = line[line.find(" ")+1:]
-            lines.append("@item")
+                lines.append('@enumerate')
+                inlist = 'enumerate'
+            line = line[line.find(' ')+1:]
+            lines.append('@item')
         elif re.match(r'^[*-] ', line):
             if not inlist:
-                lines.append("@itemize %s" % {'*': "@bullet",
-                                              '-': "@minus"}[line[0]])
-                inlist = "itemize"
-            lines.append("@item")
+                lines.append('@itemize %s' % {'*': '@bullet',
+                                              '-': '@minus'}[line[0]])
+                inlist = 'itemize'
+            lines.append('@item')
             line = line[2:]
         elif lastempty and inlist:
-            lines.append("@end %s\n" % inlist)
-            inlist = ""
+            lines.append('@end %s\n' % inlist)
+            inlist = ''
 
         lastempty = empty
         lines.append(line)
 
     if inlist:
-        lines.append("@end %s\n" % inlist)
-    return "\n".join(lines)
+        lines.append('@end %s\n' % inlist)
+    return '\n'.join(lines)
 
 
 def texi_body(doc):
@@ -158,12 +158,12 @@ def texi_sections(doc):
     for section in doc.sections:
         name, doc = (section.name, str(section))
         func = texi_format
-        if name.startswith("Example"):
+        if name.startswith('Example'):
             func = texi_example
 
         if name:
             # prefer @b over @strong, so txt doesn't translate it to *Foo:*
-            body += "\n\n@b{%s:}\n" % name
+            body += '\n\n@b{%s:}\n' % name
 
         body += func(doc)
     return body
@@ -269,5 +269,5 @@ def main(argv):
     print texi_schema(schema)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main(sys.argv)
