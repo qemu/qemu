@@ -145,8 +145,7 @@ static void test_visitor_out_enum_errors(TestOutputVisitorData *data,
     for (i = 0; i < ARRAY_SIZE(bad_values) ; i++) {
         err = NULL;
         visit_type_EnumOne(data->ov, "unused", &bad_values[i], &err);
-        g_assert(err);
-        error_free(err);
+        error_free_or_abort(&err);
         visitor_reset(data);
     }
 }
@@ -244,8 +243,7 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
         u.has_enum1 = true;
         u.enum1 = bad_values[i];
         visit_type_UserDefOne(data->ov, "unused", &pu, &err);
-        g_assert(err);
-        error_free(err);
+        error_free_or_abort(&err);
         visitor_reset(data);
     }
 }

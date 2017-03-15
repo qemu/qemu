@@ -93,8 +93,7 @@ static void test_find_unknown_opts(void)
     /* should not return anything, we don't have an "unknown" option */
     list = qemu_find_opts_err("unknown", &err);
     g_assert(list == NULL);
-    g_assert(err);
-    error_free(err);
+    error_free_or_abort(&err);
 }
 
 static void test_qemu_find_opts(void)
