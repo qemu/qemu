@@ -318,6 +318,9 @@ pragma to different values in parts of the schema doesn't work.
 Pragma 'doc-required' takes a boolean value.  If true, documentation
 is required.  Default is false.
 
+Pragma 'returns-whitelist' takes a list of command names that may
+violate the rules on permitted return types.  Default is none.
+
 
 === Struct types ===
 
@@ -566,12 +569,10 @@ The member is optional from the command declaration; if absent, the
 "return" member will be an empty dictionary.  If 'returns' is present,
 it must be the string name of a complex or built-in type, a
 one-element array containing the name of a complex or built-in type.
-Although it is permitted to have the 'returns' member name a built-in
-type or an array of built-in types, any command that does this cannot
-be extended to return additional information in the future; thus, new
-commands should strongly consider returning a dictionary-based type or
-an array of dictionaries, even if the dictionary only contains one
-member at the present.
+To return anything else, you have to list the command in pragma
+'returns-whitelist'.  If you do this, the command cannot be extended
+to return additional information in the future.  Use of
+'returns-whitelist' for new commands is strongly discouraged.
 
 All commands in Client JSON Protocol use a dictionary to report
 failure, with no way to specify that in QAPI.  Where the error return

@@ -41,26 +41,7 @@ builtin_types = {
 doc_required = False
 
 # Whitelist of commands allowed to return a non-dictionary
-returns_whitelist = [
-    # From QMP:
-    'human-monitor-command',
-    'qom-get',
-    'query-migrate-cache-size',
-    'query-tpm-models',
-    'query-tpm-types',
-    'ringbuf-read',
-
-    # From QGA:
-    'guest-file-open',
-    'guest-fsfreeze-freeze',
-    'guest-fsfreeze-freeze-list',
-    'guest-fsfreeze-status',
-    'guest-fsfreeze-thaw',
-    'guest-get-time',
-    'guest-set-vcpus',
-    'guest-sync',
-    'guest-sync-delimited',
-]
+returns_whitelist = []
 
 # Whitelist of entities allowed to violate case conventions
 case_whitelist = [
@@ -321,12 +302,19 @@ class QAPISchemaParser(object):
         self.docs.extend(exprs_include.docs)
 
     def _pragma(self, name, value, info):
-        global doc_required
+        global doc_required, returns_whitelist
         if name == 'doc-required':
             if not isinstance(value, bool):
                 raise QAPISemError(info,
                                    "Pragma 'doc-required' must be boolean")
             doc_required = value
+        elif name == 'returns-whitelist':
+            if (not isinstance(value, list)
+                    or any([not isinstance(elt, str) for elt in value])):
+                raise QAPISemError(info,
+                                   "Pragma returns-whitelist must be"
+                                   " a list of strings")
+            returns_whitelist = value
         else:
             raise QAPISemError(info, "Unknown pragma '%s'" % name)
 

@@ -13,6 +13,21 @@
 
 { 'pragma': { 'doc-required': true } }
 
+# Whitelists to permit QAPI rule violations; think twice before you
+# add to them!
+{ 'pragma': {
+    # Commands allowed to return a non-dictionary:
+    'returns-whitelist': [
+        'guest-file-open',
+        'guest-fsfreeze-freeze',
+        'guest-fsfreeze-freeze-list',
+        'guest-fsfreeze-status',
+        'guest-fsfreeze-thaw',
+        'guest-get-time',
+        'guest-set-vcpus',
+        'guest-sync',
+        'guest-sync-delimited' ] } }
+
 ##
 # @guest-sync-delimited:
 #

@@ -51,6 +51,18 @@
 
 { 'pragma': { 'doc-required': true } }
 
+# Whitelists to permit QAPI rule violations; think twice before you
+# add to them!
+{ 'pragma': {
+    # Commands allowed to return a non-dictionary:
+    'returns-whitelist': [
+        'human-monitor-command',
+        'qom-get',
+        'query-migrate-cache-size',
+        'query-tpm-models',
+        'query-tpm-types',
+        'ringbuf-read' ] } }
+
 # QAPI common definitions
 { 'include': 'qapi/common.json' }
 

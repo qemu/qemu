@@ -3,6 +3,13 @@
 # This file is a stress test of supported qapi constructs that must
 # parse and compile correctly.
 
+# Whitelists to permit QAPI rule violations
+{ 'pragma': {
+    # Commands allowed to return a non-dictionary:
+    'returns-whitelist': [
+        'guest-get-time',
+        'guest-sync' ] } }
+
 { 'struct': 'TestStruct',
   'data': { 'integer': 'int', 'boolean': 'bool', 'string': 'str' } }
 
