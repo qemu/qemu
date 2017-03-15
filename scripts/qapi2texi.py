@@ -123,7 +123,7 @@ def texi_format(doc):
     return "\n".join(lines)
 
 
-def texi_body(doc):
+def texi_body(doc, only_documented=False):
     """
     Format the body of a symbol documentation:
     - main body
@@ -131,17 +131,21 @@ def texi_body(doc):
     - followed by "Returns/Notes/Since/Example" sections
     """
     body = texi_format(str(doc.body)) + "\n"
-    if doc.args:
+
+    args = ''
+    for name, section in doc.args.iteritems():
+        if not section.content and not only_documented:
+            continue        # Undocumented TODO require doc and drop
+        desc = str(section)
+        opt = ''
+        if section.optional:
+            desc = re.sub(r'^ *#optional *\n?|\n? *#optional *$|#optional',
+                          '', desc)
+            opt = ' (optional)'
+        args += "@item @code{'%s'}%s\n%s\n" % (name, opt, texi_format(desc))
+    if args:
         body += "@table @asis\n"
-        for arg, section in doc.args.iteritems():
-            desc = str(section)
-            opt = ''
-            if section.optional:
-                desc = re.sub(r'^ *#optional *\n?|\n? *#optional *$|#optional',
-                              '', desc)
-                opt = ' (optional)'
-            body += "@item @code{'%s'}%s\n%s\n" % (arg, opt,
-                                                   texi_format(desc))
+        body += args
         body += "@end table\n"
 
     for section in doc.sections:
@@ -183,10 +187,7 @@ def texi_union(expr, doc):
 
 def texi_enum(expr, doc):
     """Format an enum to texi"""
-    for i in expr['data']:
-        if i not in doc.args:
-            doc.args[i] = qapi.QAPIDoc.ArgSection(i)
-    body = texi_body(doc)
+    body = texi_body(doc, True)
     return TYPE_FMT(type="Enum",
                     name=doc.symbol,
                     body=body)

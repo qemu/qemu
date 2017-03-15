@@ -224,9 +224,8 @@ class QAPIDoc(object):
     def connect_member(self, member):
         if member.name not in self.args:
             # Undocumented TODO outlaw
-            pass
-        else:
-            self.args[member.name].connect(member)
+            self.args[member.name] = QAPIDoc.ArgSection(member.name)
+        self.args[member.name].connect(member)
 
 
 class QAPISchemaParser(object):
