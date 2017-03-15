@@ -219,6 +219,11 @@ class QAPIDoc(object):
         if (in_arg or not self.section.name
                 or not self.section.name.startswith('Example')):
             line = line.strip()
+        match = re.match(r'(@\S+:)', line)
+        if match:
+            raise QAPIParseError(self.parser,
+                                 "'%s' not allowed in free-form documentation"
+                                 % match.group(1))
         # TODO Drop this once the dust has settled
         if (isinstance(self.section, QAPIDoc.ArgSection)
                 and '#optional' in line):
@@ -975,14 +980,6 @@ def check_exprs(exprs):
     return exprs
 
 
-def check_freeform_doc(doc):
-    body = str(doc.body)
-    if re.search(r'@\S+:', body, re.MULTILINE):
-        raise QAPISemError(doc.info,
-                           "Free-form documentation block must not contain"
-                           " @NAME: sections")
-
-
 def check_definition_doc(doc, expr, info):
     for i in ('enum', 'union', 'alternate', 'struct', 'command', 'event'):
         if i in expr:
@@ -1021,9 +1018,7 @@ def check_docs(docs):
                 raise QAPISemError(doc.info,
                                    "Empty doc section '%s'" % section.name)
 
-        if not doc.expr:
-            check_freeform_doc(doc)
-        else:
+        if doc.expr:
             check_definition_doc(doc, doc.expr, doc.info)
 
     return docs
