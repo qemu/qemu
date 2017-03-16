@@ -1484,6 +1484,7 @@ S: Maintained
 F: crypto/
 F: include/crypto/
 F: tests/test-crypto-*
+F: qemu.sasl
 
 Coroutines
 M: Stefan Hajnoczi <stefanha@redhat.com>
