@@ -109,6 +109,12 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
                  PCI_EXP_DEVCAP2_EFF | PCI_EXP_DEVCAP2_EETLPP);
 
     pci_set_word(dev->wmask + pos + PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_EETLPPB);
+
+    if (dev->cap_present & QEMU_PCIE_EXTCAP_INIT) {
+        /* read-only to behave like a 'NULL' Extended Capability Header */
+        pci_set_long(dev->wmask + PCI_CONFIG_SPACE_SIZE, 0);
+    }
+
     return pos;
 }
 
@@ -215,6 +221,20 @@ void pcie_cap_deverr_reset(PCIDevice *dev)
     pci_long_test_and_clear_mask(devctl,
                                  PCI_EXP_DEVCTL_CERE | PCI_EXP_DEVCTL_NFERE |
                                  PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE);
+}
+
+void pcie_cap_lnkctl_init(PCIDevice *dev)
+{
+    uint32_t pos = dev->exp.exp_cap;
+    pci_long_test_and_set_mask(dev->wmask + pos + PCI_EXP_LNKCTL,
+                               PCI_EXP_LNKCTL_CCC | PCI_EXP_LNKCTL_ES);
+}
+
+void pcie_cap_lnkctl_reset(PCIDevice *dev)
+{
+    uint8_t *lnkctl = dev->config + dev->exp.exp_cap + PCI_EXP_LNKCTL;
+    pci_long_test_and_clear_mask(lnkctl,
+                                 PCI_EXP_LNKCTL_CCC | PCI_EXP_LNKCTL_ES);
 }
 
 static void hotplug_event_update_event_status(PCIDevice *dev)
