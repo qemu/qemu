@@ -34,6 +34,14 @@
         .driver   = "virtio-pci",\
         .property = "x-pcie-pm-init",\
         .value    = "off",\
+    },{\
+        .driver   = "cirrus-vga",\
+        .property = "vgamem_mb",\
+        .value    = "8",\
+    },{\
+        .driver   = "isa-cirrus-vga",\
+        .property = "vgamem_mb",\
+        .value    = "8",\
     },
 
 #define HW_COMPAT_2_7 \
