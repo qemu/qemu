@@ -1,0 +1,3 @@
+# 'include' must be the sole member
+
+{ 'include': 'comments.json', 'junk': true }

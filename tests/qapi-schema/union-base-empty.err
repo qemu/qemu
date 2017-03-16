@@ -1,0 +1,1 @@
+tests/qapi-schema/union-base-empty.json:5: Discriminator 'type' is not a member of base struct 'Empty'

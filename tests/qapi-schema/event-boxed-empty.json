@@ -1,6 +1,2 @@
 # 'boxed' requires a non-empty type
-
-##
-# @FOO:
-##
 { 'event': 'FOO', 'boxed': true }

@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-bad-union-member.json:3: The following documented members are not in the declaration: a, b

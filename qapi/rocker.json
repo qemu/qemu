@@ -1,3 +1,5 @@
+# -*- Mode: Python -*-
+
 ##
 # = Rocker switch device
 ##
@@ -119,26 +121,26 @@
 #
 # @tbl-id: flow table ID
 #
-# @in-pport: #optional physical input port
+# @in-pport: physical input port
 #
-# @tunnel-id: #optional tunnel ID
+# @tunnel-id: tunnel ID
 #
-# @vlan-id: #optional VLAN ID
+# @vlan-id: VLAN ID
 #
-# @eth-type: #optional Ethernet header type
+# @eth-type: Ethernet header type
 #
-# @eth-src: #optional Ethernet header source MAC address
+# @eth-src: Ethernet header source MAC address
 #
-# @eth-dst: #optional Ethernet header destination MAC address
+# @eth-dst: Ethernet header destination MAC address
 #
-# @ip-proto: #optional IP Header protocol field
+# @ip-proto: IP Header protocol field
 #
-# @ip-tos: #optional IP header TOS field
+# @ip-tos: IP header TOS field
 #
-# @ip-dst: #optional IP header destination address
+# @ip-dst: IP header destination address
 #
-# Note: fields are marked #optional to indicate that they may or may not
-# appear in the flow key depending if they're relevant to the flow key.
+# Note: optional members may or may not appear in the flow key
+# depending if they're relevant to the flow key.
 #
 # Since: 2.4
 ##
@@ -153,22 +155,22 @@
 #
 # Rocker switch OF-DPA flow mask
 #
-# @in-pport: #optional physical input port
+# @in-pport: physical input port
 #
-# @tunnel-id: #optional tunnel ID
+# @tunnel-id: tunnel ID
 #
-# @vlan-id: #optional VLAN ID
+# @vlan-id: VLAN ID
 #
-# @eth-src: #optional Ethernet header source MAC address
+# @eth-src: Ethernet header source MAC address
 #
-# @eth-dst: #optional Ethernet header destination MAC address
+# @eth-dst: Ethernet header destination MAC address
 #
-# @ip-proto: #optional IP Header protocol field
+# @ip-proto: IP Header protocol field
 #
-# @ip-tos: #optional IP header TOS field
+# @ip-tos: IP header TOS field
 #
-# Note: fields are marked #optional to indicate that they may or may not
-# appear in the flow mask depending if they're relevant to the flow mask.
+# Note: optional members may or may not appear in the flow mask
+# depending if they're relevant to the flow mask.
 #
 # Since: 2.4
 ##
@@ -182,20 +184,20 @@
 #
 # Rocker switch OF-DPA flow action
 #
-# @goto-tbl: #optional next table ID
+# @goto-tbl: next table ID
 #
-# @group-id: #optional group ID
+# @group-id: group ID
 #
-# @tunnel-lport: #optional tunnel logical port ID
+# @tunnel-lport: tunnel logical port ID
 #
-# @vlan-id: #optional VLAN ID
+# @vlan-id: VLAN ID
 #
-# @new-vlan-id: #optional new VLAN ID
+# @new-vlan-id: new VLAN ID
 #
-# @out-pport: #optional physical output port
+# @out-pport: physical output port
 #
-# Note: fields are marked #optional to indicate that they may or may not
-# appear in the flow action depending if they're relevant to the flow action.
+# Note: optional members may or may not appear in the flow action
+# depending if they're relevant to the flow action.
 #
 # Since: 2.4
 ##
@@ -232,7 +234,7 @@
 #
 # @name: switch name
 #
-# @tbl-id: #optional flow table ID.  If tbl-id is not specified, returns
+# @tbl-id: flow table ID.  If tbl-id is not specified, returns
 # flow information for all tables.
 #
 # Returns: rocker OF-DPA flow information
@@ -266,30 +268,30 @@
 #
 # @type: group type
 #
-# @vlan-id: #optional VLAN ID
+# @vlan-id: VLAN ID
 #
-# @pport: #optional physical port number
+# @pport: physical port number
 #
-# @index: #optional group index, unique with group type
+# @index: group index, unique with group type
 #
-# @out-pport: #optional output physical port number
+# @out-pport: output physical port number
 #
-# @group-id: #optional next group ID
+# @group-id: next group ID
 #
-# @set-vlan-id: #optional VLAN ID to set
+# @set-vlan-id: VLAN ID to set
 #
-# @pop-vlan: #optional pop VLAN headr from packet
+# @pop-vlan: pop VLAN headr from packet
 #
-# @group-ids: #optional list of next group IDs
+# @group-ids: list of next group IDs
 #
-# @set-eth-src: #optional set source MAC address in Ethernet header
+# @set-eth-src: set source MAC address in Ethernet header
 #
-# @set-eth-dst: #optional set destination MAC address in Ethernet header
+# @set-eth-dst: set destination MAC address in Ethernet header
 #
-# @ttl-check: #optional perform TTL check
+# @ttl-check: perform TTL check
 #
-# Note: fields are marked #optional to indicate that they may or may not
-# appear in the group depending if they're relevant to the group type.
+# Note: optional members may or may not appear in the group depending
+# if they're relevant to the group type.
 #
 # Since: 2.4
 ##
@@ -308,7 +310,7 @@
 #
 # @name: switch name
 #
-# @type: #optional group type.  If type is not specified, returns
+# @type: group type.  If type is not specified, returns
 # group information for all group types.
 #
 # Returns: rocker OF-DPA group information

@@ -1,0 +1,1 @@
+tests/qapi-schema/pragma-non-dict.json:3: Value of 'pragma' must be a dictionary

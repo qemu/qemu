@@ -170,10 +170,10 @@ const char %(c_name)s[] = %(c_string)s;
 opt_unmask = False
 
 (input_file, output_dir, do_c, do_h, prefix, opts) = \
-    parse_command_line("u", ["unmask-non-abi-names"])
+    parse_command_line('u', ['unmask-non-abi-names'])
 
 for o, a in opts:
-    if o in ("-u", "--unmask-non-abi-names"):
+    if o in ('-u', '--unmask-non-abi-names'):
         opt_unmask = True
 
 c_comment = '''

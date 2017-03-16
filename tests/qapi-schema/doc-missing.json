@@ -1,0 +1,5 @@
+# Expression documentation required
+
+{ 'pragma': { 'doc-required': true } }
+
+{ 'command': 'undocumented' }

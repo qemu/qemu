@@ -252,7 +252,7 @@ here goes "hello-world"'s new entry for the qapi-schema.json file:
 #
 # Print a client provided string to the standard output stream.
 #
-# @message: #optional string to be printed
+# @message: string to be printed
 #
 # Returns: Nothing on success.
 #
@@ -358,7 +358,7 @@ The best way to return that data is to create a new QAPI type, as shown below:
 #
 # @clock-name: The alarm clock method's name.
 #
-# @next-deadline: #optional The time (in nanoseconds) the next alarm will fire.
+# @next-deadline: The time (in nanoseconds) the next alarm will fire.
 #
 # Since: 1.0
 ##

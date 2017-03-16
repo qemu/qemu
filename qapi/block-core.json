@@ -37,9 +37,9 @@
 #
 # @compat: compatibility level
 #
-# @lazy-refcounts: #optional on or off; only valid for compat >= 1.1
+# @lazy-refcounts: on or off; only valid for compat >= 1.1
 #
-# @corrupt: #optional true if the image has been marked corrupt; only valid for
+# @corrupt: true if the image has been marked corrupt; only valid for
 #           compat >= 1.1 (since 2.2)
 #
 # @refcount-bits: width of a refcount entry in bits (since 2.3)
@@ -103,27 +103,27 @@
 #
 # @virtual-size: maximum capacity in bytes of the image
 #
-# @actual-size: #optional actual size on disk in bytes of the image
+# @actual-size: actual size on disk in bytes of the image
 #
-# @dirty-flag: #optional true if image is not cleanly closed
+# @dirty-flag: true if image is not cleanly closed
 #
-# @cluster-size: #optional size of a cluster in bytes
+# @cluster-size: size of a cluster in bytes
 #
-# @encrypted: #optional true if the image is encrypted
+# @encrypted: true if the image is encrypted
 #
-# @compressed: #optional true if the image is compressed (Since 1.7)
+# @compressed: true if the image is compressed (Since 1.7)
 #
-# @backing-filename: #optional name of the backing file
+# @backing-filename: name of the backing file
 #
-# @full-backing-filename: #optional full path of the backing file
+# @full-backing-filename: full path of the backing file
 #
-# @backing-filename-format: #optional the format of the backing file
+# @backing-filename-format: the format of the backing file
 #
-# @snapshots: #optional list of VM snapshots
+# @snapshots: list of VM snapshots
 #
-# @backing-image: #optional info of the backing image (since 1.6)
+# @backing-image: info of the backing image (since 1.6)
 #
-# @format-specific: #optional structure supplying additional format-specific
+# @format-specific: structure supplying additional format-specific
 # information (since 1.7)
 #
 # Since: 1.3
@@ -149,31 +149,31 @@
 #
 # @check-errors: number of unexpected errors occurred during check
 #
-# @image-end-offset: #optional offset (in bytes) where the image ends, this
+# @image-end-offset: offset (in bytes) where the image ends, this
 #                    field is present if the driver for the image format
 #                    supports it
 #
-# @corruptions: #optional number of corruptions found during the check if any
+# @corruptions: number of corruptions found during the check if any
 #
-# @leaks: #optional number of leaks found during the check if any
+# @leaks: number of leaks found during the check if any
 #
-# @corruptions-fixed: #optional number of corruptions fixed during the check
+# @corruptions-fixed: number of corruptions fixed during the check
 #                     if any
 #
-# @leaks-fixed: #optional number of leaks fixed during the check if any
+# @leaks-fixed: number of leaks fixed during the check if any
 #
-# @total-clusters: #optional total number of clusters, this field is present
+# @total-clusters: total number of clusters, this field is present
 #                  if the driver for the image format supports it
 #
-# @allocated-clusters: #optional total number of allocated clusters, this
+# @allocated-clusters: total number of allocated clusters, this
 #                      field is present if the driver for the image format
 #                      supports it
 #
-# @fragmented-clusters: #optional total number of fragmented clusters, this
+# @fragmented-clusters: total number of fragmented clusters, this
 #                       field is present if the driver for the image format
 #                       supports it
 #
-# @compressed-clusters: #optional total number of compressed clusters, this
+# @compressed-clusters: total number of compressed clusters, this
 #                       field is present if the driver for the image format
 #                       supports it
 #
@@ -202,9 +202,9 @@
 #
 # @depth: the depth of the mapping
 #
-# @offset: #optional the offset in file that the virtual sectors are mapped to
+# @offset: the offset in file that the virtual sectors are mapped to
 #
-# @filename: #optional filename that is referred to by @offset
+# @filename: filename that is referred to by @offset
 #
 # Since: 2.6
 #
@@ -237,7 +237,7 @@
 #
 # @file: the filename of the backing device
 #
-# @node-name: #optional the name of the block driver node (Since 2.0)
+# @node-name: the name of the block driver node (Since 2.0)
 #
 # @ro: true if the backing device was open read-only
 #
@@ -253,7 +253,7 @@
 #       2.8: 'replication' added, 'tftp' dropped
 #       2.9: 'archipelago' dropped
 #
-# @backing_file: #optional the name of the backing file (for copy-on-write)
+# @backing_file: the name of the backing file (for copy-on-write)
 #
 # @backing_file_depth: number of files in the backing file chain (since: 1.2)
 #
@@ -278,45 +278,45 @@
 #
 # @image: the info of image used (since: 1.6)
 #
-# @bps_max: #optional total throughput limit during bursts,
+# @bps_max: total throughput limit during bursts,
 #                     in bytes (Since 1.7)
 #
-# @bps_rd_max: #optional read throughput limit during bursts,
+# @bps_rd_max: read throughput limit during bursts,
 #                        in bytes (Since 1.7)
 #
-# @bps_wr_max: #optional write throughput limit during bursts,
+# @bps_wr_max: write throughput limit during bursts,
 #                        in bytes (Since 1.7)
 #
-# @iops_max: #optional total I/O operations per second during bursts,
+# @iops_max: total I/O operations per second during bursts,
 #                      in bytes (Since 1.7)
 #
-# @iops_rd_max: #optional read I/O operations per second during bursts,
+# @iops_rd_max: read I/O operations per second during bursts,
 #                         in bytes (Since 1.7)
 #
-# @iops_wr_max: #optional write I/O operations per second during bursts,
+# @iops_wr_max: write I/O operations per second during bursts,
 #                         in bytes (Since 1.7)
 #
-# @bps_max_length: #optional maximum length of the @bps_max burst
+# @bps_max_length: maximum length of the @bps_max burst
 #                            period, in seconds. (Since 2.6)
 #
-# @bps_rd_max_length: #optional maximum length of the @bps_rd_max
+# @bps_rd_max_length: maximum length of the @bps_rd_max
 #                               burst period, in seconds. (Since 2.6)
 #
-# @bps_wr_max_length: #optional maximum length of the @bps_wr_max
+# @bps_wr_max_length: maximum length of the @bps_wr_max
 #                               burst period, in seconds. (Since 2.6)
 #
-# @iops_max_length: #optional maximum length of the @iops burst
+# @iops_max_length: maximum length of the @iops burst
 #                             period, in seconds. (Since 2.6)
 #
-# @iops_rd_max_length: #optional maximum length of the @iops_rd_max
+# @iops_rd_max_length: maximum length of the @iops_rd_max
 #                                burst period, in seconds. (Since 2.6)
 #
-# @iops_wr_max_length: #optional maximum length of the @iops_wr_max
+# @iops_wr_max_length: maximum length of the @iops_wr_max
 #                                burst period, in seconds. (Since 2.6)
 #
-# @iops_size: #optional an I/O size in bytes (Since 1.7)
+# @iops_size: an I/O size in bytes (Since 1.7)
 #
-# @group: #optional throttle group name (Since 2.4)
+# @group: throttle group name (Since 2.4)
 #
 # @cache: the cache mode used for the block device (since: 2.3)
 #
@@ -411,7 +411,7 @@
 #
 # Block dirty bitmap information.
 #
-# @name: #optional the name of the dirty bitmap (Since 2.4)
+# @name: the name of the dirty bitmap (Since 2.4)
 #
 # @count: number of dirty bytes according to the dirty bitmap
 #
@@ -441,17 +441,17 @@
 # @locked: True if the guest has locked this device from having its media
 #          removed
 #
-# @tray_open: #optional True if the device's tray is open
+# @tray_open: True if the device's tray is open
 #             (only present if it has a tray)
 #
-# @dirty-bitmaps: #optional dirty bitmaps information (only present if the
+# @dirty-bitmaps: dirty bitmaps information (only present if the
 #                 driver has one or more dirty bitmaps) (Since 2.0)
 #
-# @io-status: #optional @BlockDeviceIoStatus. Only present if the device
+# @io-status: @BlockDeviceIoStatus. Only present if the device
 #             supports it and the VM is configured to stop on errors
 #             (supported device models: virtio-blk, ide, scsi-disk)
 #
-# @inserted: #optional @BlockDeviceInfo describing the device if media is
+# @inserted: @BlockDeviceInfo describing the device if media is
 #            present
 #
 # Since:  0.14.0
@@ -640,7 +640,7 @@
 # @wr_merged: Number of write requests that have been merged into another
 #             request (Since 2.3).
 #
-# @idle_time_ns: #optional Time since the last I/O operation, in
+# @idle_time_ns: Time since the last I/O operation, in
 #                nanoseconds. If the field is absent it means that
 #                there haven't been any operations yet (Since 2.5).
 #
@@ -690,19 +690,19 @@
 #
 # Statistics of a virtual block device or a block backing device.
 #
-# @device: #optional If the stats are for a virtual block device, the name
+# @device: If the stats are for a virtual block device, the name
 #          corresponding to the virtual block device.
 #
-# @node-name: #optional The node name of the device. (Since 2.3)
+# @node-name: The node name of the device. (Since 2.3)
 #
 # @stats:  A @BlockDeviceStats for the device.
 #
-# @parent: #optional This describes the file block device if it has one.
+# @parent: This describes the file block device if it has one.
 #          Contains recursively the statistics of the underlying
 #          protocol (e.g. the host file for a qcow2 image). If there is
 #          no underlying protocol, this field is omitted
 #
-# @backing: #optional This describes the backing block device if it has one.
+# @backing: This describes the backing block device if it has one.
 #           (Since 2.0)
 #
 # Since: 0.14.0
@@ -718,7 +718,7 @@
 #
 # Query the @BlockStats for all virtual block devices.
 #
-# @query-nodes: #optional If true, the command will query all the block nodes
+# @query-nodes: If true, the command will query all the block nodes
 #               that have a node name, in a list which will include "parent"
 #               information, but not "backing".
 #               If false or omitted, the behavior is as before - query all the
@@ -957,9 +957,9 @@
 #
 # Either @device or @node-name must be set but not both.
 #
-# @device: #optional the name of the block backend device to set the password on
+# @device: the name of the block backend device to set the password on
 #
-# @node-name: #optional graph node name to set the password on (Since 2.0)
+# @node-name: graph node name to set the password on (Since 2.0)
 #
 # @password: the password to use for the device
 #
@@ -990,9 +990,9 @@
 #
 # Either @device or @node-name must be set but not both.
 #
-# @device: #optional the name of the device to get the image resized
+# @device: the name of the device to get the image resized
 #
-# @node-name: #optional graph node name to get the image resized (Since 2.0)
+# @node-name: graph node name to get the image resized (Since 2.0)
 #
 # @size:  new image size in bytes
 #
@@ -1034,19 +1034,19 @@
 #
 # Either @device or @node-name must be set but not both.
 #
-# @device: #optional the name of the device to generate the snapshot from.
+# @device: the name of the device to generate the snapshot from.
 #
-# @node-name: #optional graph node name to generate the snapshot from (Since 2.0)
+# @node-name: graph node name to generate the snapshot from (Since 2.0)
 #
 # @snapshot-file: the target of the new image. If the file exists, or
 # if it is a device, the snapshot will be created in the existing
 # file/device. Otherwise, a new file will be created.
 #
-# @snapshot-node-name: #optional the graph node name of the new image (Since 2.0)
+# @snapshot-node-name: the graph node name of the new image (Since 2.0)
 #
-# @format: #optional the format of the snapshot image, default is 'qcow2'.
+# @format: the format of the snapshot image, default is 'qcow2'.
 #
-# @mode: #optional whether and how QEMU should create a new image, default is
+# @mode: whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 ##
 { 'struct': 'BlockdevSnapshotSync',
@@ -1072,7 +1072,7 @@
 ##
 # @DriveBackup:
 #
-# @job-id: #optional identifier for the newly-created block job. If
+# @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
 # @device: the device name or node-name of a root node which should be copied.
@@ -1081,30 +1081,30 @@
 #          is a device, the existing file/device will be used as the new
 #          destination.  If it does not exist, a new file will be created.
 #
-# @format: #optional the format of the new destination, default is to
+# @format: the format of the new destination, default is to
 #          probe if @mode is 'existing', else the format of the source
 #
 # @sync: what parts of the disk image should be copied to the destination
 #        (all the disk, only the sectors allocated in the topmost image, from a
 #        dirty bitmap, or only new I/O).
 #
-# @mode: #optional whether and how QEMU should create a new image, default is
+# @mode: whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 #
-# @speed: #optional the maximum speed, in bytes per second
+# @speed: the maximum speed, in bytes per second
 #
-# @bitmap: #optional the name of dirty bitmap if sync is "incremental".
+# @bitmap: the name of dirty bitmap if sync is "incremental".
 #          Must be present if sync is "incremental", must NOT be present
 #          otherwise. (Since 2.4)
 #
-# @compress: #optional true to compress data, if the target format supports it.
+# @compress: true to compress data, if the target format supports it.
 #            (default: false) (since 2.8)
 #
-# @on-source-error: #optional the action to take on an error on the source,
+# @on-source-error: the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
 #                   if the block device supports io-status (see BlockInfo).
 #
-# @on-target-error: #optional the action to take on an error on the target,
+# @on-target-error: the action to take on an error on the target,
 #                   default 'report' (no limitations, since this applies to
 #                   a different block device than @device).
 #
@@ -1124,7 +1124,7 @@
 ##
 # @BlockdevBackup:
 #
-# @job-id: #optional identifier for the newly-created block job. If
+# @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
 # @device: the device name or node-name of a root node which should be copied.
@@ -1135,17 +1135,17 @@
 #        (all the disk, only the sectors allocated in the topmost image, or
 #        only new I/O).
 #
-# @speed: #optional the maximum speed, in bytes per second. The default is 0,
+# @speed: the maximum speed, in bytes per second. The default is 0,
 #         for unlimited.
 #
-# @compress: #optional true to compress data, if the target format supports it.
+# @compress: true to compress data, if the target format supports it.
 #            (default: false) (since 2.8)
 #
-# @on-source-error: #optional the action to take on an error on the source,
+# @on-source-error: the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
 #                   if the block device supports io-status (see BlockInfo).
 #
-# @on-target-error: #optional the action to take on an error on the target,
+# @on-target-error: the action to take on an error on the target,
 #                   default 'report' (no limitations, since this applies to
 #                   a different block device than @device).
 #
@@ -1262,19 +1262,19 @@
 # Live commit of data from overlay image nodes into backing nodes - i.e.,
 # writes data between 'top' and 'base' into 'base'.
 #
-# @job-id: #optional identifier for the newly-created block job. If
+# @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
 # @device:  the device name or node-name of a root node
 #
-# @base:   #optional The file name of the backing image to write data into.
+# @base:   The file name of the backing image to write data into.
 #                    If not specified, this is the deepest backing image.
 #
-# @top:    #optional The file name of the backing image within the image chain,
+# @top:    The file name of the backing image within the image chain,
 #                    which contains the topmost data to be committed down. If
 #                    not specified, this is the active layer.
 #
-# @backing-file:  #optional The backing file string to write into the overlay
+# @backing-file:  The backing file string to write into the overlay
 #                           image of 'top'.  If 'top' is the active layer,
 #                           specifying a backing file string is an error. This
 #                           filename is not validated.
@@ -1303,9 +1303,9 @@
 #                    size of the smaller top, you can safely truncate it
 #                    yourself once the commit operation successfully completes.
 #
-# @speed:  #optional the maximum speed, in bytes per second
+# @speed:  the maximum speed, in bytes per second
 #
-# @filter-node-name: #optional the node name that should be assigned to the
+# @filter-node-name: the node name that should be assigned to the
 #                    filter driver that the commit job inserts into the graph
 #                    above @top. If this option is not given, a node name is
 #                    autogenerated. (Since: 2.9)
@@ -1341,8 +1341,6 @@
 # The operation can be stopped before it has completed using the
 # block-job-cancel command.
 #
-# For the arguments, see the documentation of DriveBackup.
-#
 # Returns: nothing on success
 #          If @device is not a valid block device, GenericError
 #
@@ -1368,8 +1366,6 @@
 # query-block-jobs where the BlockJobInfo.type field has the value 'backup'.
 # The operation can be stopped before it has completed using the
 # block-job-cancel command.
-#
-# For the arguments, see the documentation of BlockdevBackup.
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -1458,8 +1454,6 @@
 # format of the mirror image, default is to probe if mode='existing',
 # else the format of the source.
 #
-# See DriveMirror for parameter descriptions
-#
 # Returns: nothing on success
 #          If @device is not a valid block device, GenericError
 #
@@ -1483,7 +1477,7 @@
 #
 # A set of parameters describing drive mirror setup.
 #
-# @job-id: #optional identifier for the newly-created block job. If
+# @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
 # @device:  the device name or node-name of a root node whose writes should be
@@ -1493,41 +1487,41 @@
 #          is a device, the existing file/device will be used as the new
 #          destination.  If it does not exist, a new file will be created.
 #
-# @format: #optional the format of the new destination, default is to
+# @format: the format of the new destination, default is to
 #          probe if @mode is 'existing', else the format of the source
 #
-# @node-name: #optional the new block driver state node name in the graph
+# @node-name: the new block driver state node name in the graph
 #             (Since 2.1)
 #
-# @replaces: #optional with sync=full graph node name to be replaced by the new
+# @replaces: with sync=full graph node name to be replaced by the new
 #            image when a whole image copy is done. This can be used to repair
 #            broken Quorum files. (Since 2.1)
 #
-# @mode: #optional whether and how QEMU should create a new image, default is
+# @mode: whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 #
-# @speed:  #optional the maximum speed, in bytes per second
+# @speed:  the maximum speed, in bytes per second
 #
 # @sync: what parts of the disk image should be copied to the destination
 #        (all the disk, only the sectors allocated in the topmost image, or
 #        only new I/O).
 #
-# @granularity: #optional granularity of the dirty bitmap, default is 64K
+# @granularity: granularity of the dirty bitmap, default is 64K
 #               if the image format doesn't have clusters, 4K if the clusters
 #               are smaller than that, else the cluster size.  Must be a
 #               power of 2 between 512 and 64M (since 1.4).
 #
-# @buf-size: #optional maximum amount of data in flight from source to
+# @buf-size: maximum amount of data in flight from source to
 #            target (since 1.4).
 #
-# @on-source-error: #optional the action to take on an error on the source,
+# @on-source-error: the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
 #                   if the block device supports io-status (see BlockInfo).
 #
-# @on-target-error: #optional the action to take on an error on the target,
+# @on-target-error: the action to take on an error on the target,
 #                   default 'report' (no limitations, since this applies to
 #                   a different block device than @device).
-# @unmap: #optional Whether to try to unmap target sectors where source has
+# @unmap: Whether to try to unmap target sectors where source has
 #         only zero. If true, and target unallocated sectors will read as zero,
 #         target image sectors will be unmapped; otherwise, zeroes will be
 #         written. Both will result in identical contents.
@@ -1563,7 +1557,7 @@
 #
 # @name: name of the dirty bitmap
 #
-# @granularity: #optional the bitmap granularity, default is 64k for
+# @granularity: the bitmap granularity, default is 64k for
 #               block-dirty-bitmap-add
 #
 # Since: 2.4
@@ -1643,7 +1637,7 @@
 #
 # Start mirroring a block device's writes to a new destination.
 #
-# @job-id: #optional identifier for the newly-created block job. If
+# @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
 # @device: The device name or node-name of a root node whose writes should be
@@ -1652,33 +1646,33 @@
 # @target: the id or node-name of the block device to mirror to. This mustn't be
 #          attached to guest.
 #
-# @replaces: #optional with sync=full graph node name to be replaced by the new
+# @replaces: with sync=full graph node name to be replaced by the new
 #            image when a whole image copy is done. This can be used to repair
 #            broken Quorum files.
 #
-# @speed:  #optional the maximum speed, in bytes per second
+# @speed:  the maximum speed, in bytes per second
 #
 # @sync: what parts of the disk image should be copied to the destination
 #        (all the disk, only the sectors allocated in the topmost image, or
 #        only new I/O).
 #
-# @granularity: #optional granularity of the dirty bitmap, default is 64K
+# @granularity: granularity of the dirty bitmap, default is 64K
 #               if the image format doesn't have clusters, 4K if the clusters
 #               are smaller than that, else the cluster size.  Must be a
 #               power of 2 between 512 and 64M
 #
-# @buf-size: #optional maximum amount of data in flight from source to
+# @buf-size: maximum amount of data in flight from source to
 #            target
 #
-# @on-source-error: #optional the action to take on an error on the source,
+# @on-source-error: the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
 #                   if the block device supports io-status (see BlockInfo).
 #
-# @on-target-error: #optional the action to take on an error on the target,
+# @on-target-error: the action to take on an error on the target,
 #                   default 'report' (no limitations, since this applies to
 #                   a different block device than @device).
 #
-# @filter-node-name: #optional the node name that should be assigned to the
+# @filter-node-name: the node name that should be assigned to the
 #                    filter driver that the mirror job inserts into the graph
 #                    above @device. If this option is not given, a node name is
 #                    autogenerated. (Since: 2.9)
@@ -1731,8 +1725,6 @@
 # the device will be removed from its group and the rest of its
 # members will not be affected. The 'group' parameter is ignored.
 #
-# See BlockIOThrottle for parameter descriptions.
-#
 # Returns: Nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #
@@ -1766,9 +1758,9 @@
 #
 # A set of parameters describing block throttling.
 #
-# @device: #optional Block device name (deprecated, use @id instead)
+# @device: Block device name (deprecated, use @id instead)
 #
-# @id: #optional The name or QOM path of the guest device (since: 2.8)
+# @id: The name or QOM path of the guest device (since: 2.8)
 #
 # @bps: total throughput limit in bytes per second
 #
@@ -1782,57 +1774,57 @@
 #
 # @iops_wr: write I/O operations per second
 #
-# @bps_max: #optional total throughput limit during bursts,
+# @bps_max: total throughput limit during bursts,
 #                     in bytes (Since 1.7)
 #
-# @bps_rd_max: #optional read throughput limit during bursts,
+# @bps_rd_max: read throughput limit during bursts,
 #                        in bytes (Since 1.7)
 #
-# @bps_wr_max: #optional write throughput limit during bursts,
+# @bps_wr_max: write throughput limit during bursts,
 #                        in bytes (Since 1.7)
 #
-# @iops_max: #optional total I/O operations per second during bursts,
+# @iops_max: total I/O operations per second during bursts,
 #                      in bytes (Since 1.7)
 #
-# @iops_rd_max: #optional read I/O operations per second during bursts,
+# @iops_rd_max: read I/O operations per second during bursts,
 #                         in bytes (Since 1.7)
 #
-# @iops_wr_max: #optional write I/O operations per second during bursts,
+# @iops_wr_max: write I/O operations per second during bursts,
 #                         in bytes (Since 1.7)
 #
-# @bps_max_length: #optional maximum length of the @bps_max burst
+# @bps_max_length: maximum length of the @bps_max burst
 #                            period, in seconds. It must only
 #                            be set if @bps_max is set as well.
 #                            Defaults to 1. (Since 2.6)
 #
-# @bps_rd_max_length: #optional maximum length of the @bps_rd_max
+# @bps_rd_max_length: maximum length of the @bps_rd_max
 #                               burst period, in seconds. It must only
 #                               be set if @bps_rd_max is set as well.
 #                               Defaults to 1. (Since 2.6)
 #
-# @bps_wr_max_length: #optional maximum length of the @bps_wr_max
+# @bps_wr_max_length: maximum length of the @bps_wr_max
 #                               burst period, in seconds. It must only
 #                               be set if @bps_wr_max is set as well.
 #                               Defaults to 1. (Since 2.6)
 #
-# @iops_max_length: #optional maximum length of the @iops burst
+# @iops_max_length: maximum length of the @iops burst
 #                             period, in seconds. It must only
 #                             be set if @iops_max is set as well.
 #                             Defaults to 1. (Since 2.6)
 #
-# @iops_rd_max_length: #optional maximum length of the @iops_rd_max
+# @iops_rd_max_length: maximum length of the @iops_rd_max
 #                                burst period, in seconds. It must only
 #                                be set if @iops_rd_max is set as well.
 #                                Defaults to 1. (Since 2.6)
 #
-# @iops_wr_max_length: #optional maximum length of the @iops_wr_max
+# @iops_wr_max_length: maximum length of the @iops_wr_max
 #                                burst period, in seconds. It must only
 #                                be set if @iops_wr_max is set as well.
 #                                Defaults to 1. (Since 2.6)
 #
-# @iops_size: #optional an I/O size in bytes (Since 1.7)
+# @iops_size: an I/O size in bytes (Since 1.7)
 #
-# @group: #optional throttle group name (Since 2.4)
+# @group: throttle group name (Since 2.4)
 #
 # Since: 1.1
 ##
@@ -1873,18 +1865,18 @@
 # On successful completion the image file is updated to drop the backing file
 # and the BLOCK_JOB_COMPLETED event is emitted.
 #
-# @job-id: #optional identifier for the newly-created block job. If
+# @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
 # @device: the device or node name of the top image
 #
-# @base:   #optional the common backing file name.
+# @base:   the common backing file name.
 #                    It cannot be set if @base-node is also set.
 #
-# @base-node: #optional the node name of the backing file.
+# @base-node: the node name of the backing file.
 #                       It cannot be set if @base is also set. (Since 2.8)
 #
-# @backing-file: #optional The backing file string to write into the top
+# @backing-file: The backing file string to write into the top
 #                          image. This filename is not validated.
 #
 #                          If a pathname string is such that it cannot be
@@ -1899,9 +1891,9 @@
 #                          protocol.
 #                          (Since 2.1)
 #
-# @speed:  #optional the maximum speed, in bytes per second
+# @speed:  the maximum speed, in bytes per second
 #
-# @on-error: #optional the action to take on an error (default report).
+# @on-error: the action to take on an error (default report).
 #            'stop' and 'enospc' can only be used if the block device
 #            supports io-status (see BlockInfo).  Since 1.3.
 #
@@ -1968,7 +1960,7 @@
 #          the name of the parameter), but since QEMU 2.7 it can have
 #          other values.
 #
-# @force: #optional whether to allow cancellation of a paused job (default
+# @force: whether to allow cancellation of a paused job (default
 #         false).  Since 1.3.
 #
 # Returns: Nothing on success
@@ -2100,9 +2092,9 @@
 #
 # Includes cache-related options for block devices
 #
-# @direct:      #optional enables use of O_DIRECT (bypass the host page cache;
+# @direct:      enables use of O_DIRECT (bypass the host page cache;
 #               default: false)
-# @no-flush:    #optional ignore any flush requests for the device (default:
+# @no-flush:    ignore any flush requests for the device (default:
 #               false)
 #
 # Since: 1.7
@@ -2143,7 +2135,7 @@
 # Driver specific block device options for the file backend.
 #
 # @filename:    path to the image file
-# @aio:         #optional AIO backend (default: threads) (since: 2.8)
+# @aio:         AIO backend (default: threads) (since: 2.8)
 #
 # Since: 1.7
 ##
@@ -2156,8 +2148,8 @@
 #
 # Driver specific block device options for the null backend.
 #
-# @size:    #optional size of the device in bytes.
-# @latency-ns: #optional emulated latency (in nanoseconds) in processing
+# @size:    size of the device in bytes.
+# @latency-ns: emulated latency (in nanoseconds) in processing
 #              requests. Default to zero which completes requests immediately.
 #              (Since 2.4)
 #
@@ -2172,14 +2164,14 @@
 # Driver specific block device options for the vvfat protocol.
 #
 # @dir:         directory to be exported as FAT image
-# @fat-type:    #optional FAT type: 12, 16 or 32
-# @floppy:      #optional whether to export a floppy image (true) or
+# @fat-type:    FAT type: 12, 16 or 32
+# @floppy:      whether to export a floppy image (true) or
 #               partitioned hard disk (false; default)
-# @label:       #optional set the volume label, limited to 11 bytes. FAT16 and
+# @label:       set the volume label, limited to 11 bytes. FAT16 and
 #               FAT32 traditionally have some restrictions on labels, which are
 #               ignored by most operating systems. Defaults to "QEMU VVFAT".
 #               (since 2.4)
-# @rw:          #optional whether to allow write operations (default: false)
+# @rw:          whether to allow write operations (default: false)
 #
 # Since: 1.7
 ##
@@ -2205,7 +2197,7 @@
 #
 # Driver specific block device options for LUKS.
 #
-# @key-secret: #optional the ID of a QCryptoSecret object providing
+# @key-secret: the ID of a QCryptoSecret object providing
 #              the decryption key (since 2.6). Mandatory except when
 #              doing a metadata-only probe of the image.
 #
@@ -2222,7 +2214,7 @@
 # Driver specific block device options for image format that have no option
 # besides their data source and an optional backing file.
 #
-# @backing:     #optional reference to or definition of the backing file block
+# @backing:     reference to or definition of the backing file block
 #               device (if missing, taken from the image file content). It is
 #               allowed to pass an empty string here in order to disable the
 #               default backing file.
@@ -2298,33 +2290,33 @@
 #
 # Driver specific block device options for qcow2.
 #
-# @lazy-refcounts:        #optional whether to enable the lazy refcounts
+# @lazy-refcounts:        whether to enable the lazy refcounts
 #                         feature (default is taken from the image file)
 #
-# @pass-discard-request:  #optional whether discard requests to the qcow2
+# @pass-discard-request:  whether discard requests to the qcow2
 #                         device should be forwarded to the data source
 #
-# @pass-discard-snapshot: #optional whether discard requests for the data source
+# @pass-discard-snapshot: whether discard requests for the data source
 #                         should be issued when a snapshot operation (e.g.
 #                         deleting a snapshot) frees clusters in the qcow2 file
 #
-# @pass-discard-other:    #optional whether discard requests for the data source
+# @pass-discard-other:    whether discard requests for the data source
 #                         should be issued on other occasions where a cluster
 #                         gets freed
 #
-# @overlap-check:         #optional which overlap checks to perform for writes
+# @overlap-check:         which overlap checks to perform for writes
 #                         to the image, defaults to 'cached' (since 2.2)
 #
-# @cache-size:            #optional the maximum total size of the L2 table and
+# @cache-size:            the maximum total size of the L2 table and
 #                         refcount block caches in bytes (since 2.2)
 #
-# @l2-cache-size:         #optional the maximum size of the L2 table cache in
+# @l2-cache-size:         the maximum size of the L2 table cache in
 #                         bytes (since 2.2)
 #
-# @refcount-cache-size:   #optional the maximum size of the refcount block cache
+# @refcount-cache-size:   the maximum size of the refcount block cache
 #                         in bytes (since 2.2)
 #
-# @cache-clean-interval:  #optional clean unused entries in the L2 and refcount
+# @cache-clean-interval:  clean unused entries in the L2 and refcount
 #                         caches. The interval is in seconds. The default value
 #                         is 0 and it disables this feature (since 2.5)
 #
@@ -2350,7 +2342,7 @@
 #
 # @path:                path to the image on the host
 #
-# @user:                #optional user as which to connect, defaults to current
+# @user:                user as which to connect, defaults to current
 #                       local user name
 #
 # TODO: Expose the host_key_check option in QMP
@@ -2393,20 +2385,20 @@
 #
 # @event:       trigger event
 #
-# @state:       #optional the state identifier blkdebug needs to be in to
+# @state:       the state identifier blkdebug needs to be in to
 #               actually trigger the event; defaults to "any"
 #
-# @errno:       #optional error identifier (errno) to be returned; defaults to
+# @errno:       error identifier (errno) to be returned; defaults to
 #               EIO
 #
-# @sector:      #optional specifies the sector index which has to be affected
+# @sector:      specifies the sector index which has to be affected
 #               in order to actually trigger the event; defaults to "any
 #               sector"
 #
-# @once:        #optional disables further events after this one has been
+# @once:        disables further events after this one has been
 #               triggered; defaults to false
 #
-# @immediately: #optional fail immediately; defaults to false
+# @immediately: fail immediately; defaults to false
 #
 # Since: 2.0
 ##
@@ -2425,7 +2417,7 @@
 #
 # @event:       trigger event
 #
-# @state:       #optional the current state identifier blkdebug needs to be in;
+# @state:       the current state identifier blkdebug needs to be in;
 #               defaults to "any"
 #
 # @new_state:   the state identifier blkdebug is supposed to assume if
@@ -2445,14 +2437,14 @@
 #
 # @image:           underlying raw block device (or image file)
 #
-# @config:          #optional filename of the configuration file
+# @config:          filename of the configuration file
 #
-# @align:           #optional required alignment for requests in bytes,
+# @align:           required alignment for requests in bytes,
 #                   must be power of 2, or 0 for default
 #
-# @inject-error:    #optional array of error injection descriptions
+# @inject-error:    array of error injection descriptions
 #
-# @set-state:       #optional array of state-change descriptions
+# @set-state:       array of state-change descriptions
 #
 # Since: 2.0
 ##
@@ -2496,17 +2488,17 @@
 #
 # Driver specific block device options for Quorum
 #
-# @blkverify:      #optional true if the driver must print content mismatch
+# @blkverify:      true if the driver must print content mismatch
 #                  set to false by default
 #
 # @children:       the children block devices to use
 #
 # @vote-threshold: the vote limit under which a read will fail
 #
-# @rewrite-corrupted: #optional rewrite corrupted data when quorum is reached
+# @rewrite-corrupted: rewrite corrupted data when quorum is reached
 #                     (Since 2.1)
 #
-# @read-pattern: #optional choose read pattern and set to quorum by default
+# @read-pattern: choose read pattern and set to quorum by default
 #                (Since 2.2)
 #
 # Since: 2.0
@@ -2529,10 +2521,10 @@
 #
 # @server:      gluster servers description
 #
-# @debug:       #optional libgfapi log level (default '4' which is Error)
+# @debug:       libgfapi log level (default '4' which is Error)
 #               (Since 2.8)
 #
-# @logfile:     #optional libgfapi log file (default /dev/stderr) (Since 2.8)
+# @logfile:     libgfapi log file (default /dev/stderr) (Since 2.8)
 #
 # Since: 2.7
 ##
@@ -2573,23 +2565,23 @@
 #
 # @target:          The target iqn name
 #
-# @lun:             #optional LUN to connect to. Defaults to 0.
+# @lun:             LUN to connect to. Defaults to 0.
 #
-# @user:            #optional User name to log in with. If omitted, no CHAP
+# @user:            User name to log in with. If omitted, no CHAP
 #                   authentication is performed.
 #
-# @password-secret: #optional The ID of a QCryptoSecret object providing
+# @password-secret: The ID of a QCryptoSecret object providing
 #                   the password for the login. This option is required if
 #                   @user is specified.
 #
-# @initiator-name:  #optional The iqn name we want to identify to the target
+# @initiator-name:  The iqn name we want to identify to the target
 #                   as. If this option is not specified, an initiator name is
 #                   generated automatically.
 #
-# @header-digest:   #optional The desired header digest. Defaults to
+# @header-digest:   The desired header digest. Defaults to
 #                   none-crc32c.
 #
-# @timeout:         #optional Timeout in seconds after which a request will
+# @timeout:         Timeout in seconds after which a request will
 #                   timeout. 0 means no timeout and is the default.
 #
 # Driver specific block device options for iscsi
@@ -2636,20 +2628,20 @@
 #
 # @image:              Image name in the Ceph pool.
 #
-# @conf:               #optional path to Ceph configuration file.  Values
+# @conf:               path to Ceph configuration file.  Values
 #                      in the configuration file will be overridden by
 #                      options specified via QAPI.
 #
-# @snapshot:           #optional Ceph snapshot name.
+# @snapshot:           Ceph snapshot name.
 #
-# @user:               #optional Ceph id name.
+# @user:               Ceph id name.
 #
-# @server:             #optional Monitor host address and port.  This maps
+# @server:             Monitor host address and port.  This maps
 #                      to the "mon_host" Ceph option.
 #
-# @auth-supported:     #optional Authentication supported.
+# @auth-supported:     Authentication supported.
 #
-# @password-secret:    #optional The ID of a QCryptoSecret object providing
+# @password-secret:    The ID of a QCryptoSecret object providing
 #                      the password for the login.
 #
 # Since: 2.9
@@ -2704,7 +2696,7 @@
 #
 # @mode: the replication mode
 #
-# @top-id: #optional In secondary mode, node name or device ID of the root
+# @top-id: In secondary mode, node name or device ID of the root
 #          node who owns the replication node chain. Must not be given in
 #          primary mode.
 #
@@ -2751,24 +2743,24 @@
 #
 # @path:                    path of the image on the host
 #
-# @user:                    #optional UID value to use when talking to the
+# @user:                    UID value to use when talking to the
 #                           server (defaults to 65534 on Windows and getuid()
 #                           on unix)
 #
-# @group:                   #optional GID value to use when talking to the
+# @group:                   GID value to use when talking to the
 #                           server (defaults to 65534 on Windows and getgid()
 #                           in unix)
 #
-# @tcp-syn-count:           #optional number of SYNs during the session
+# @tcp-syn-count:           number of SYNs during the session
 #                           establishment (defaults to libnfs default)
 #
-# @readahead-size:          #optional set the readahead size in bytes (defaults
+# @readahead-size:          set the readahead size in bytes (defaults
 #                           to libnfs default)
 #
-# @page-cache-size:         #optional set the pagecache size in bytes (defaults
+# @page-cache-size:         set the pagecache size in bytes (defaults
 #                           to libnfs default)
 #
-# @debug:                   #optional set the NFS debug level (max 2) (defaults
+# @debug:                   set the NFS debug level (max 2) (defaults
 #                           to libnfs default)
 #
 # Since: 2.8
@@ -2802,9 +2794,9 @@
 #
 # @server:      NBD server address
 #
-# @export:      #optional export name
+# @export:      export name
 #
-# @tls-creds:   #optional TLS credentials ID
+# @tls-creds:   TLS credentials ID
 #
 # Since: 2.8
 ##
@@ -2818,8 +2810,8 @@
 #
 # Driver specific block device options for the raw driver.
 #
-# @offset:      #optional position where the block device starts
-# @size:        #optional the assumed size of the device
+# @offset:      position where the block device starts
+# @size:        the assumed size of the device
 #
 # Since: 2.8
 ##
@@ -2834,13 +2826,13 @@
 # block devices, independent of the block driver:
 #
 # @driver:        block driver name
-# @node-name:     #optional the node name of the new node (Since 2.0).
+# @node-name:     the node name of the new node (Since 2.0).
 #                 This option is required on the top level of blockdev-add.
-# @discard:       #optional discard-related options (default: ignore)
-# @cache:         #optional cache-related options
-# @read-only:     #optional whether the block device should be read-only
+# @discard:       discard-related options (default: ignore)
+# @cache:         cache-related options
+# @read-only:     whether the block device should be read-only
 #                 (default: false)
-# @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
+# @detect-zeroes: detect and optimize zero writes (Since 2.1)
 #                 (default: off)
 #
 # Remaining options are determined by the block driver.
@@ -2914,8 +2906,6 @@
 # Creates a new block device. If the @id option is given at the top level, a
 # BlockBackend will be created; otherwise, @node-name is mandatory at the top
 # level and no BlockBackend will be created.
-#
-# For the arguments, see the documentation of BlockdevOptions.
 #
 # Note: This command is still a work in progress.  It doesn't support all
 # block drivers among other things.  Stay away from it unless you want
@@ -3021,11 +3011,11 @@
 #   to it
 # - if the guest device does not have an actual tray
 #
-# @device: #optional Block device name (deprecated, use @id instead)
+# @device: Block device name (deprecated, use @id instead)
 #
-# @id:     #optional The name or QOM path of the guest device (since: 2.8)
+# @id:     The name or QOM path of the guest device (since: 2.8)
 #
-# @force:  #optional if false (the default), an eject request will be sent to
+# @force:  if false (the default), an eject request will be sent to
 #          the guest if it has locked the tray (and the tray will not be opened
 #          immediately); if true, the tray will be opened regardless of whether
 #          it is locked
@@ -3061,9 +3051,9 @@
 #
 # If the tray was already closed before, this will be a no-op.
 #
-# @device:  #optional Block device name (deprecated, use @id instead)
+# @device:  Block device name (deprecated, use @id instead)
 #
-# @id:      #optional The name or QOM path of the guest device (since: 2.8)
+# @id:      The name or QOM path of the guest device (since: 2.8)
 #
 # Since: 2.5
 #
@@ -3095,9 +3085,9 @@
 #
 # If the tray is open and there is no medium inserted, this will be a no-op.
 #
-# @device: #optional Block device name (deprecated, use @id instead)
+# @device: Block device name (deprecated, use @id instead)
 #
-# @id:     #optional The name or QOM path of the guest device (since: 2.8)
+# @id:     The name or QOM path of the guest device (since: 2.8)
 #
 # Note: This command is still a work in progress and is considered experimental.
 # Stay away from it unless you want to help with its development.
@@ -3141,9 +3131,9 @@
 # device's tray must currently be open (unless there is no attached guest
 # device) and there must be no medium inserted already.
 #
-# @device:    #optional Block device name (deprecated, use @id instead)
+# @device:    Block device name (deprecated, use @id instead)
 #
-# @id:        #optional The name or QOM path of the guest device (since: 2.8)
+# @id:        The name or QOM path of the guest device (since: 2.8)
 #
 # @node-name: name of a node in the block driver state graph
 #
@@ -3202,17 +3192,17 @@
 # combines blockdev-open-tray, x-blockdev-remove-medium,
 # x-blockdev-insert-medium and blockdev-close-tray).
 #
-# @device:          #optional Block device name (deprecated, use @id instead)
+# @device:          Block device name (deprecated, use @id instead)
 #
-# @id:              #optional The name or QOM path of the guest device
+# @id:              The name or QOM path of the guest device
 #                   (since: 2.8)
 #
 # @filename:        filename of the new image to be loaded
 #
-# @format:          #optional format to open the new image with (defaults to
+# @format:          format to open the new image with (defaults to
 #                   the probed format)
 #
-# @read-only-mode:  #optional change the read-only mode of the device; defaults
+# @read-only-mode:  change the read-only mode of the device; defaults
 #                   to 'retain'
 #
 # Since: 2.5
@@ -3285,16 +3275,16 @@
 #          reasons, but it can be empty ("") if the image does not
 #          have a device name associated.
 #
-# @node-name: #optional node name (Since: 2.4)
+# @node-name: node name (Since: 2.4)
 #
 # @msg: informative message for human consumption, such as the kind of
 #       corruption being detected. It should not be parsed by machine as it is
 #       not guaranteed to be stable
 #
-# @offset: #optional if the corruption resulted from an image access, this is
+# @offset: if the corruption resulted from an image access, this is
 #          the host's access offset into the image
 #
-# @size: #optional if the corruption resulted from an image access, this is
+# @size: if the corruption resulted from an image access, this is
 #        the access size
 #
 # @fatal: if set, the image is marked corrupt and therefore unusable after this
@@ -3339,7 +3329,7 @@
 #
 # @action: action that has been taken
 #
-# @nospace: #optional true if I/O error was caused due to a no-space
+# @nospace: true if I/O error was caused due to a no-space
 #           condition. This key is only present if query-block's
 #           io-status is present, please see query-block documentation
 #           for more information (since: 2.2)
@@ -3385,7 +3375,7 @@
 #
 # @speed: rate limit, bytes per second
 #
-# @error: #optional error message. Only present on failure. This field
+# @error: error message. Only present on failure. This field
 #         contains a human-readable error message. There are no semantics
 #         other than that streaming has failed and clients should not try to
 #         interpret the error string
@@ -3594,9 +3584,9 @@
 #
 # @parent: the id or name of the parent node.
 #
-# @child: #optional the name of a child under the given parent node.
+# @child: the name of a child under the given parent node.
 #
-# @node: #optional the name of the node that will be added.
+# @node: the name of the node that will be added.
 #
 # Note: this command is experimental, and its API is not stable. It
 # does not support all kinds of operations, all kinds of children, nor

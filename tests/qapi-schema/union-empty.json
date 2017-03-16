@@ -1,6 +1,2 @@
 # unions cannot be empty
-
-##
-# @Union:
-##
 { 'union': 'Union', 'data': { } }

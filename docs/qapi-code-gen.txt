@@ -117,9 +117,12 @@ Example:
 
 ==== Expression documentation ====
 
-Each expression that isn't an include directive must be preceded by a
+Each expression that isn't an include directive may be preceded by a
 documentation block.  Such blocks are called expression documentation
 blocks.
+
+When documentation is required (see pragma 'doc-required'), expression
+documentation blocks are mandatory.
 
 The documentation block consists of a first line naming the
 expression, an optional overview, a description of each argument (for
@@ -128,10 +131,8 @@ and optional tagged sections.
 
 FIXME: the parser accepts these things in almost any order.
 
-Optional arguments / members are tagged with the phrase '#optional',
-often with their default value; and extensions added after the
-expression was first released are also given a '(since x.y.z)'
-comment.
+Extensions added after the expression was first released carry a
+'(since x.y.z)' comment.
 
 A tagged section starts with one of the following words:
 "Note:"/"Notes:", "Since:", "Example"/"Examples", "Returns:", "TODO:".
@@ -147,10 +148,10 @@ For example:
 #
 # Statistics of a virtual block device or a block backing device.
 #
-# @device: #optional If the stats are for a virtual block device, the name
+# @device: If the stats are for a virtual block device, the name
 #          corresponding to the virtual block device.
 #
-# @node-name: #optional The node name of the device. (since 2.3)
+# @node-name: The node name of the device. (since 2.3)
 #
 # ... more members ...
 #
@@ -165,7 +166,7 @@ For example:
 #
 # Query the @BlockStats for all virtual block devices.
 #
-# @query-nodes: #optional If true, the command will query all the
+# @query-nodes: If true, the command will query all the
 #               block nodes ... explain, explain ...  (since 2.3)
 #
 # Returns: A list of @BlockStats for each virtual block devices.
@@ -204,17 +205,17 @@ once.  It is permissible for the schema to contain additional types
 not used by any commands or events in the Client JSON Protocol, for
 the side effect of generated C code used internally.
 
-There are seven top-level expressions recognized by the parser:
-'include', 'command', 'struct', 'enum', 'union', 'alternate', and
-'event'.  There are several groups of types: simple types (a number of
-built-in types, such as 'int' and 'str'; as well as enumerations),
-complex types (structs and two flavors of unions), and alternate types
-(a choice between other types).  The 'command' and 'event' expressions
-can refer to existing types by name, or list an anonymous type as a
-dictionary. Listing a type name inside an array refers to a
-single-dimension array of that type; multi-dimension arrays are not
-directly supported (although an array of a complex struct that
-contains an array member is possible).
+There are eight top-level expressions recognized by the parser:
+'include', 'pragma', 'command', 'struct', 'enum', 'union',
+'alternate', and 'event'.  There are several groups of types: simple
+types (a number of built-in types, such as 'int' and 'str'; as well as
+enumerations), complex types (structs and two flavors of unions), and
+alternate types (a choice between other types).  The 'command' and
+'event' expressions can refer to existing types by name, or list an
+anonymous type as a dictionary. Listing a type name inside an array
+refers to a single-dimension array of that type; multi-dimension
+arrays are not directly supported (although an array of a complex
+struct that contains an array member is possible).
 
 All names must begin with a letter, and contain only ASCII letters,
 digits, hyphen, and underscore.  There are two exceptions: enum values
@@ -249,6 +250,9 @@ Any name (command, event, type, member, or enum value) beginning with
 "x-" is marked experimental, and may be withdrawn or changed
 incompatibly in a future release.
 
+Pragma 'name-case-whitelist' lets you violate the rules on use of
+upper and lower case.  Use for new code is strongly discouraged.
+
 In the rest of this document, usage lines are given for each
 expression type, with literal strings written in lower case and
 placeholders written in capitals.  If a literal string includes a
@@ -282,7 +286,7 @@ The following types are predefined, and map to C as follows:
   QType     QType      JSON string matching enum QType values
 
 
-=== Includes ===
+=== Include directives ===
 
 Usage: { 'include': STRING }
 
@@ -300,6 +304,26 @@ self-contained, but at the moment, nothing prevents an included file
 from making a forward reference to a type that is only introduced by
 an outer file.  The parser may be made stricter in the future to
 prevent incomplete include files.
+
+
+=== Pragma directives ===
+
+Usage: { 'pragma': DICT }
+
+The pragma directive lets you control optional generator behavior.
+The dictionary's entries are pragma names and values.
+
+Pragma's scope is currently the complete schema.  Setting the same
+pragma to different values in parts of the schema doesn't work.
+
+Pragma 'doc-required' takes a boolean value.  If true, documentation
+is required.  Default is false.
+
+Pragma 'returns-whitelist' takes a list of command names that may
+violate the rules on permitted return types.  Default is none.
+
+Pragma 'name-case-whitelist' takes a list of names that may violate
+rules on use of upper- vs. lower-case letters.  Default is none.
 
 
 === Struct types ===
@@ -541,22 +565,18 @@ The 'data' argument maps to the "arguments" dictionary passed in as
 part of a Client JSON Protocol command.  The 'data' member is optional
 and defaults to {} (an empty dictionary).  If present, it must be the
 string name of a complex type, or a dictionary that declares an
-anonymous type with the same semantics as a 'struct' expression, with
-one exception noted below when 'gen' is used.
+anonymous type with the same semantics as a 'struct' expression.
 
 The 'returns' member describes what will appear in the "return" member
 of a Client JSON Protocol reply on successful completion of a command.
 The member is optional from the command declaration; if absent, the
 "return" member will be an empty dictionary.  If 'returns' is present,
 it must be the string name of a complex or built-in type, a
-one-element array containing the name of a complex or built-in type,
-with one exception noted below when 'gen' is used.  Although it is
-permitted to have the 'returns' member name a built-in type or an
-array of built-in types, any command that does this cannot be extended
-to return additional information in the future; thus, new commands
-should strongly consider returning a dictionary-based type or an array
-of dictionaries, even if the dictionary only contains one member at the
-present.
+one-element array containing the name of a complex or built-in type.
+To return anything else, you have to list the command in pragma
+'returns-whitelist'.  If you do this, the command cannot be extended
+to return additional information in the future.  Use of
+'returns-whitelist' for new commands is strongly discouraged.
 
 All commands in Client JSON Protocol use a dictionary to report
 failure, with no way to specify that in QAPI.  Where the error return

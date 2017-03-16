@@ -11,6 +11,23 @@
 #
 ##
 
+{ 'pragma': { 'doc-required': true } }
+
+# Whitelists to permit QAPI rule violations; think twice before you
+# add to them!
+{ 'pragma': {
+    # Commands allowed to return a non-dictionary:
+    'returns-whitelist': [
+        'guest-file-open',
+        'guest-fsfreeze-freeze',
+        'guest-fsfreeze-freeze-list',
+        'guest-fsfreeze-status',
+        'guest-fsfreeze-thaw',
+        'guest-get-time',
+        'guest-set-vcpus',
+        'guest-sync',
+        'guest-sync-delimited' ] } }
+
 ##
 # @guest-sync-delimited:
 #
@@ -127,7 +144,7 @@
 # If that's the case users are advised to always pass a
 # value.
 #
-# @time: #optional time of nanoseconds, relative to the Epoch
+# @time: time of nanoseconds, relative to the Epoch
 #        of 1970-01-01 in UTC.
 #
 # Returns: Nothing on success.
@@ -186,7 +203,7 @@
 # Initiate guest-activated shutdown. Note: this is an asynchronous
 # shutdown request, with no guarantee of successful shutdown.
 #
-# @mode: #optional "halt", "powerdown" (default), or "reboot"
+# @mode: "halt", "powerdown" (default), or "reboot"
 #
 # This command does NOT return a response on success. Success condition
 # is indicated by the VM exiting with a zero exit status or, when
@@ -205,7 +222,7 @@
 #
 # @path: Full path to the file in the guest to open.
 #
-# @mode: #optional open mode, as per fopen(), "r" is the default.
+# @mode: open mode, as per fopen(), "r" is the default.
 #
 # Returns: Guest file handle on success.
 #
@@ -253,7 +270,7 @@
 #
 # @handle: filehandle returned by guest-file-open
 #
-# @count: #optional maximum number of bytes to read (default is 4KB)
+# @count: maximum number of bytes to read (default is 4KB)
 #
 # Returns: @GuestFileRead on success.
 #
@@ -287,7 +304,7 @@
 #
 # @buf-b64: base64-encoded string representing data to be written
 #
-# @count: #optional bytes to write (actual bytes, after base64-decode),
+# @count: bytes to write (actual bytes, after base64-decode),
 #         default is all content in buf-b64 buffer after base64 decoding
 #
 # Returns: @GuestFileWrite on success.
@@ -424,7 +441,7 @@
 #
 # Sync and freeze specified guest filesystems
 #
-# @mountpoints: #optional an array of mountpoints of filesystems to be frozen.
+# @mountpoints: an array of mountpoints of filesystems to be frozen.
 #               If omitted, every mounted filesystem is frozen.
 #
 # Returns: Number of file systems currently frozen. On error, all filesystems
@@ -653,7 +670,7 @@
 #
 # @online: Whether the VCPU is enabled.
 #
-# @can-offline: #optional Whether offlining the VCPU is possible. This member
+# @can-offline: Whether offlining the VCPU is possible. This member
 #               is always filled in by the guest agent when the structure is
 #               returned, and always ignored on input (hence it can be omitted
 #               then).
@@ -841,7 +858,7 @@
 #
 # @online: Whether the MEMORY BLOCK is enabled in guest.
 #
-# @can-offline: #optional Whether offlining the MEMORY BLOCK is possible.
+# @can-offline: Whether offlining the MEMORY BLOCK is possible.
 #               This member is always filled in by the guest agent when the
 #               structure is returned, and always ignored on input (hence it
 #               can be omitted then).
@@ -894,7 +911,7 @@
 #
 # @response: the result of memory block operation.
 #
-# @error-code: #optional the error number.
+# @error-code: the error number.
 #               When memory block operation fails, we assign the value of
 #               'errno' to this member, it indicates what goes wrong.
 #               When the operation succeeds, it will be omitted.
@@ -962,16 +979,16 @@
 # @GuestExecStatus:
 #
 # @exited: true if process has already terminated.
-# @exitcode: #optional process exit code if it was normally terminated.
-# @signal: #optional signal number (linux) or unhandled exception code
+# @exitcode: process exit code if it was normally terminated.
+# @signal: signal number (linux) or unhandled exception code
 #       (windows) if the process was abnormally terminated.
-# @out-data: #optional base64-encoded stdout of the process
-# @err-data: #optional base64-encoded stderr of the process
+# @out-data: base64-encoded stdout of the process
+# @err-data: base64-encoded stderr of the process
 #       Note: @out-data and @err-data are present only
 #       if 'capture-output' was specified for 'guest-exec'
-# @out-truncated: #optional true if stdout was not fully captured
+# @out-truncated: true if stdout was not fully captured
 #       due to size limitation.
-# @err-truncated: #optional true if stderr was not fully captured
+# @err-truncated: true if stderr was not fully captured
 #       due to size limitation.
 #
 # Since: 2.5
@@ -1011,10 +1028,10 @@
 # Execute a command in the guest
 #
 # @path: path or executable name to execute
-# @arg: #optional argument list to pass to executable
-# @env: #optional environment variables to pass to executable
-# @input-data: #optional data to be passed to process stdin (base64 encoded)
-# @capture-output: #optional bool flag to enable capture of
+# @arg: argument list to pass to executable
+# @env: environment variables to pass to executable
+# @input-data: data to be passed to process stdin (base64 encoded)
+# @capture-output: bool flag to enable capture of
 #                  stdout/stderr of running process. defaults to false.
 #
 # Returns: PID on success.
