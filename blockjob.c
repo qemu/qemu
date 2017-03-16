@@ -68,6 +68,23 @@ static const BdrvChildRole child_job = {
     .stay_at_node       = true,
 };
 
+static void block_job_drained_begin(void *opaque)
+{
+    BlockJob *job = opaque;
+    block_job_pause(job);
+}
+
+static void block_job_drained_end(void *opaque)
+{
+    BlockJob *job = opaque;
+    block_job_resume(job);
+}
+
+static const BlockDevOps block_job_dev_ops = {
+    .drained_begin = block_job_drained_begin,
+    .drained_end = block_job_drained_end,
+};
+
 BlockJob *block_job_next(BlockJob *job)
 {
     if (!job) {
@@ -205,11 +222,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     }
 
     job = g_malloc0(driver->instance_size);
-    error_setg(&job->blocker, "block device is in use by block job: %s",
-               BlockJobType_lookup[driver->job_type]);
-    block_job_add_bdrv(job, "main node", bs, 0, BLK_PERM_ALL, &error_abort);
-    bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
-
     job->driver        = driver;
     job->id            = g_strdup(job_id);
     job->blk           = blk;
@@ -219,7 +231,14 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->paused        = true;
     job->pause_count   = 1;
     job->refcnt        = 1;
+
+    error_setg(&job->blocker, "block device is in use by block job: %s",
+               BlockJobType_lookup[driver->job_type]);
+    block_job_add_bdrv(job, "main node", bs, 0, BLK_PERM_ALL, &error_abort);
     bs->job = job;
+
+    blk_set_dev_ops(blk, &block_job_dev_ops, job);
+    bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     QLIST_INSERT_HEAD(&block_jobs, job, job_list);
 
