@@ -2014,7 +2014,7 @@ EOF
       compile_prog "" "$xen_libs -lxendevicemodel $xen_stable_libs"
     then
     xen_stable_libs="-lxendevicemodel $xen_stable_libs"
-    xen_ctrl_version=490
+    xen_ctrl_version=40900
     xen=yes
   elif
       cat > $TMPC <<EOF &&
@@ -2069,7 +2069,7 @@ int main(void) {
 EOF
       compile_prog "" "$xen_libs $xen_stable_libs"
     then
-    xen_ctrl_version=480
+    xen_ctrl_version=40800
     xen=yes
   elif
       cat > $TMPC <<EOF &&
@@ -2120,7 +2120,7 @@ int main(void) {
 EOF
       compile_prog "" "$xen_libs $xen_stable_libs"
     then
-    xen_ctrl_version=471
+    xen_ctrl_version=40701
     xen=yes
   elif
       cat > $TMPC <<EOF &&
@@ -2135,7 +2135,7 @@ int main(void) {
 EOF
       compile_prog "" "$xen_libs"
     then
-    xen_ctrl_version=470
+    xen_ctrl_version=40700
     xen=yes
 
   # Xen 4.6
@@ -2163,7 +2163,7 @@ int main(void) {
 EOF
       compile_prog "" "$xen_libs"
     then
-    xen_ctrl_version=460
+    xen_ctrl_version=40600
     xen=yes
 
   # Xen 4.5
@@ -2190,7 +2190,7 @@ int main(void) {
 EOF
       compile_prog "" "$xen_libs"
     then
-    xen_ctrl_version=450
+    xen_ctrl_version=40500
     xen=yes
 
   elif
@@ -2215,7 +2215,7 @@ int main(void) {
 EOF
       compile_prog "" "$xen_libs"
     then
-    xen_ctrl_version=420
+    xen_ctrl_version=40200
     xen=yes
 
   else
@@ -2227,7 +2227,7 @@ EOF
   fi
 
   if test "$xen" = yes; then
-    if test $xen_ctrl_version -ge 471  ; then
+    if test $xen_ctrl_version -ge 40701  ; then
       libs_softmmu="$xen_stable_libs $libs_softmmu"
     fi
     libs_softmmu="$xen_libs $libs_softmmu"

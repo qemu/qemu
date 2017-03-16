@@ -26,7 +26,7 @@ extern xc_interface *xen_xc;
  * We don't support Xen prior to 4.2.0.
  */
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 490
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40900
 
 typedef xc_interface xendevicemodel_handle;
 
@@ -36,7 +36,7 @@ static inline xendevicemodel_handle *xendevicemodel_open(
     return xen_xc;
 }
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 450
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40500
 
 static inline int xendevicemodel_create_ioreq_server(
     xendevicemodel_handle *dmod, domid_t domid, int handle_bufioreq,
@@ -99,7 +99,7 @@ static inline int xendevicemodel_set_ioreq_server_state(
     return xc_hvm_set_ioreq_server_state(dmod, domid, id, enabled);
 }
 
-#endif /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 450 */
+#endif /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40500 */
 
 static inline int xendevicemodel_set_pci_intx_level(
     xendevicemodel_handle *dmod, domid_t domid, uint16_t segment,
@@ -151,7 +151,7 @@ static inline int xendevicemodel_set_mem_type(
     return xc_hvm_set_mem_type(dmod, domid, mem_type, first_pfn, nr);
 }
 
-#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 490 */
+#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40900 */
 
 #undef XC_WANT_COMPAT_DEVICEMODEL_API
 #include <xendevicemodel.h>
@@ -207,7 +207,7 @@ static inline int xen_modified_memory(domid_t domid, uint64_t first_pfn,
 }
 
 /* Xen 4.2 through 4.6 */
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40701
 
 typedef xc_interface xenforeignmemory_handle;
 typedef xc_evtchn xenevtchn_handle;
@@ -248,7 +248,7 @@ static inline void *xenforeignmemory_map(xc_interface *h, uint32_t dom,
 
 #define xenforeignmemory_unmap(h, p, s) munmap(p, s * XC_PAGE_SIZE)
 
-#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 471 */
+#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40701 */
 
 #include <xenevtchn.h>
 #include <xengnttab.h>
@@ -284,7 +284,7 @@ static inline int xen_get_vmport_regs_pfn(xc_interface *xc, domid_t dom,
 #endif
 
 /* Xen before 4.6 */
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 460
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40600
 
 #ifndef HVM_IOREQSRV_BUFIOREQ_ATOMIC
 #define HVM_IOREQSRV_BUFIOREQ_ATOMIC 2
@@ -330,7 +330,7 @@ static inline int xen_get_default_ioreq_server_info(domid_t dom,
 }
 
 /* Xen before 4.5 */
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 450
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40500
 
 #ifndef HVM_PARAM_BUFIOREQ_EVTCHN
 #define HVM_PARAM_BUFIOREQ_EVTCHN 26
@@ -569,7 +569,7 @@ static inline int xen_set_ioreq_server_state(domid_t dom,
 
 #endif
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 460
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40600
 static inline int xen_xc_domain_add_to_physmap(xc_interface *xch, uint32_t domid,
                                                unsigned int space,
                                                unsigned long idx,
@@ -592,7 +592,7 @@ static inline int xen_xc_domain_add_to_physmap(xc_interface *xch, uint32_t domid
 #endif
 
 #ifdef CONFIG_XEN_PV_DOMAIN_BUILD
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 470
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40700
 static inline int xen_domain_create(xc_interface *xc, uint32_t ssidref,
                                     xen_domain_handle_t handle, uint32_t flags,
                                     uint32_t *pdomid)
@@ -611,7 +611,7 @@ static inline int xen_domain_create(xc_interface *xc, uint32_t ssidref,
 
 /* Xen before 4.8 */
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 480
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40800
 
 
 typedef void *xengnttab_grant_copy_segment_t;

@@ -492,7 +492,7 @@ static int ioreq_map(struct ioreq *ioreq)
     return 0;
 }
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 480
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40800
 
 static void ioreq_free_copy_buffers(struct ioreq *ioreq)
 {
