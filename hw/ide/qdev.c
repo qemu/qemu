@@ -31,7 +31,7 @@
 /* --------------------------------- */
 
 static char *idebus_get_fw_dev_path(DeviceState *dev);
-static void idebus_unrealize(DeviceState *qdev, Error **errp);
+static void idebus_unrealize(BusState *qdev, Error **errp);
 
 static Property ide_props[] = {
     DEFINE_PROP_UINT32("unit", IDEDevice, unit, -1),
@@ -43,14 +43,15 @@ static void ide_bus_class_init(ObjectClass *klass, void *data)
     BusClass *k = BUS_CLASS(klass);
 
     k->get_fw_dev_path = idebus_get_fw_dev_path;
+    k->unrealize = idebus_unrealize;
 }
 
-static void idebus_unrealize(DeviceState *qdev, Error **errp)
+static void idebus_unrealize(BusState *bus, Error **errp)
 {
-    IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev->parent_bus);
+    IDEBus *ibus = IDE_BUS(bus);
 
-    if (bus->vmstate) {
-        qemu_del_vm_change_state_handler(bus->vmstate);
+    if (ibus->vmstate) {
+        qemu_del_vm_change_state_handler(ibus->vmstate);
     }
 }
 
@@ -370,7 +371,6 @@ static void ide_device_class_init(ObjectClass *klass, void *data)
     k->init = ide_qdev_init;
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
     k->bus_type = TYPE_IDE_BUS;
-    k->unrealize = idebus_unrealize;
     k->props = ide_props;
 }
 
