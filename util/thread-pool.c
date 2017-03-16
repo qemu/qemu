@@ -188,6 +188,13 @@ restart:
             aio_context_release(pool->ctx);
             elem->common.cb(elem->common.opaque, elem->ret);
             aio_context_acquire(pool->ctx);
+
+            /* We can safely cancel the completion_bh here regardless of someone
+             * else having scheduled it meanwhile because we reenter the
+             * completion function anyway (goto restart).
+             */
+            qemu_bh_cancel(pool->completion_bh);
+
             qemu_aio_unref(elem);
             goto restart;
         } else {
