@@ -109,7 +109,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
             vmstate_handle_alloc(first_elem, field, opaque);
             if (field->flags & VMS_POINTER) {
                 first_elem = *(void **)first_elem;
-                assert(first_elem  || !n_elems);
+                assert(first_elem || !n_elems || !size);
             }
             for (i = 0; i < n_elems; i++) {
                 void *curr_elem = first_elem + size * i;
@@ -117,7 +117,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
                     curr_elem = *(void **)curr_elem;
                 }
-                if (!curr_elem) {
+                if (!curr_elem && size) {
                     /* if null pointer check placeholder and do not follow */
                     assert(field->flags & VMS_ARRAY_OF_POINTER);
                     ret = vmstate_info_nullptr.get(f, curr_elem, size, NULL);
@@ -325,7 +325,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
             trace_vmstate_save_state_loop(vmsd->name, field->name, n_elems);
             if (field->flags & VMS_POINTER) {
                 first_elem = *(void **)first_elem;
-                assert(first_elem  || !n_elems);
+                assert(first_elem || !n_elems || !size);
             }
             for (i = 0; i < n_elems; i++) {
                 void *curr_elem = first_elem + size * i;
@@ -336,7 +336,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                     assert(curr_elem);
                     curr_elem = *(void **)curr_elem;
                 }
-                if (!curr_elem) {
+                if (!curr_elem && size) {
                     /* if null pointer write placeholder and do not follow */
                     assert(field->flags & VMS_ARRAY_OF_POINTER);
                     vmstate_info_nullptr.put(f, curr_elem, size, NULL, NULL);

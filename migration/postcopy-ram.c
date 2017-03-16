@@ -95,6 +95,19 @@ static bool ufd_version_check(int ufd)
     return true;
 }
 
+/* Callback from postcopy_ram_supported_by_host block iterator.
+ */
+static int test_range_shared(const char *block_name, void *host_addr,
+                             ram_addr_t offset, ram_addr_t length, void *opaque)
+{
+    if (qemu_ram_is_shared(qemu_ram_block_by_name(block_name))) {
+        error_report("Postcopy on shared RAM (%s) is not yet supported",
+                     block_name);
+        return 1;
+    }
+    return 0;
+}
+
 /*
  * Note: This has the side effect of munlock'ing all of RAM, that's
  * normally fine since if the postcopy succeeds it gets turned back on at the
@@ -124,6 +137,11 @@ bool postcopy_ram_supported_by_host(void)
 
     /* Version and features check */
     if (!ufd_version_check(ufd)) {
+        goto out;
+    }
+
+    /* We don't support postcopy with shared RAM yet */
+    if (qemu_ram_foreach_block(test_range_shared, NULL)) {
         goto out;
     }
 
