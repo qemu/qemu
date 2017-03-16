@@ -1,13 +1,5 @@
 # -*- mode: makefile -*-
 
-######################################################################
-# tracetool source files
-# Every rule that invokes tracetool must depend on this so code is regenerated
-# if tracetool itself changes.
-
-tracetool-y = $(SRC_PATH)/scripts/tracetool.py
-tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
-
 $(BUILD_DIR)/trace-events-all: $(trace-events-files)
 	$(call quiet-command,cat $^ > $@)
 
