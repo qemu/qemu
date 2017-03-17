@@ -3677,6 +3677,7 @@ static int vnc_display_listen_addr(VncDisplay *vd,
         qio_channel_set_name(QIO_CHANNEL(sioc), name);
         if (qio_channel_socket_listen_sync(
                 sioc, rawaddrs[i], listenerr == NULL ? &listenerr : NULL) < 0) {
+            object_unref(OBJECT(sioc));
             continue;
         }
         listening = true;
