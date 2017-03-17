@@ -377,7 +377,7 @@ static void curl_multi_check_completion(BDRVCURLState *s)
                     }
 
                     qemu_mutex_unlock(&s->mutex);
-                    acb->common.cb(acb->common.opaque, -EPROTO);
+                    acb->common.cb(acb->common.opaque, -EIO);
                     qemu_mutex_lock(&s->mutex);
                     qemu_aio_unref(acb);
                     state->acb[i] = NULL;
