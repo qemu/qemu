@@ -3500,47 +3500,47 @@ static int img_amend(int argc, char **argv)
         }
 
         switch (c) {
-            case 'h':
-            case '?':
-                help();
-                break;
-            case 'o':
-                if (!is_valid_option_list(optarg)) {
-                    error_report("Invalid option list: %s", optarg);
-                    ret = -1;
-                    goto out_no_progress;
-                }
-                if (!options) {
-                    options = g_strdup(optarg);
-                } else {
-                    char *old_options = options;
-                    options = g_strdup_printf("%s,%s", options, optarg);
-                    g_free(old_options);
-                }
-                break;
-            case 'f':
-                fmt = optarg;
-                break;
-            case 't':
-                cache = optarg;
-                break;
-            case 'p':
-                progress = true;
-                break;
-            case 'q':
-                quiet = true;
-                break;
-            case OPTION_OBJECT:
-                opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                               optarg, true);
-                if (!opts) {
-                    ret = -1;
-                    goto out_no_progress;
-                }
-                break;
-            case OPTION_IMAGE_OPTS:
-                image_opts = true;
-                break;
+        case 'h':
+        case '?':
+            help();
+            break;
+        case 'o':
+            if (!is_valid_option_list(optarg)) {
+                error_report("Invalid option list: %s", optarg);
+                ret = -1;
+                goto out_no_progress;
+            }
+            if (!options) {
+                options = g_strdup(optarg);
+            } else {
+                char *old_options = options;
+                options = g_strdup_printf("%s,%s", options, optarg);
+                g_free(old_options);
+            }
+            break;
+        case 'f':
+            fmt = optarg;
+            break;
+        case 't':
+            cache = optarg;
+            break;
+        case 'p':
+            progress = true;
+            break;
+        case 'q':
+            quiet = true;
+            break;
+        case OPTION_OBJECT:
+            opts = qemu_opts_parse_noisily(&qemu_object_opts,
+                                           optarg, true);
+            if (!opts) {
+                ret = -1;
+                goto out_no_progress;
+            }
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         }
     }
 
