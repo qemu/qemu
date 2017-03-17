@@ -219,7 +219,7 @@ glue(glue(cirrus_bitblt_rop_bkwd_transp_, ROP_NAME),_16)(CirrusVGAState *s,
     srcpitch += bltwidth;
     for (y = 0; y < bltheight; y++) {
         for (x = 0; x < bltwidth; x+=2) {
-            ROP_OP_TR_16(s, dstaddr, cirrus_src16(s, srcaddr), transp);
+            ROP_OP_TR_16(s, dstaddr - 1, cirrus_src16(s, srcaddr - 1), transp);
             dstaddr -= 2;
             srcaddr -= 2;
         }
