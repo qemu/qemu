@@ -2030,6 +2030,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     bdrv_set_backing_hd(bs, backing_hd, &local_err);
     bdrv_unref(backing_hd);
     if (local_err) {
+        error_propagate(errp, local_err);
         ret = -EINVAL;
         goto free_exit;
     }
