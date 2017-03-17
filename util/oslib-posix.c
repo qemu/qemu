@@ -709,8 +709,6 @@ void sigaction_invoke(struct sigaction *action,
         si.si_pid = info->ssi_pid;
         si.si_status = info->ssi_status;
         si.si_uid = info->ssi_uid;
-    } else if (info->ssi_signo == SIGIO) {
-        si.si_band = info->ssi_band;
     }
     action->sa_sigaction(info->ssi_signo, &si, NULL);
 }
