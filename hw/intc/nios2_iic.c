@@ -62,17 +62,15 @@ static void altera_iic_init(Object *obj)
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &pv->parent_irq);
 }
 
-static Property altera_iic_properties[] = {
-    DEFINE_PROP_PTR("cpu", AlteraIIC, cpu),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void altera_iic_realize(DeviceState *dev, Error **errp)
 {
     struct AlteraIIC *pv = ALTERA_IIC(dev);
+    Error *err = NULL;
 
+    pv->cpu = object_property_get_link(OBJECT(dev), "cpu", &err);
     if (!pv->cpu) {
-        error_setg(errp, "altera,iic: CPU not connected");
+        error_setg(errp, "altera,iic: CPU link not found: %s",
+                   error_get_pretty(err));
         return;
     }
 }
@@ -81,8 +79,7 @@ static void altera_iic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = altera_iic_properties;
-    /* Reason: pointer property "cpu" */
+    /* Reason: needs to be wired up, e.g. by nios2_10m50_ghrd_init() */
     dc->cannot_instantiate_with_device_add_yet = true;
     dc->realize = altera_iic_realize;
 }
