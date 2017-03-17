@@ -199,12 +199,7 @@ static int mmap_frag(abi_ulong real_start,
     return 0;
 }
 
-#if defined(__CYGWIN__)
-/* Cygwin doesn't have a whole lot of address space.  */
-static abi_ulong mmap_next_start = 0x18000000;
-#else
 static abi_ulong mmap_next_start = 0x40000000;
-#endif
 
 unsigned long last_brk;
 
