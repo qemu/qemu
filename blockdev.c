@@ -2047,7 +2047,9 @@ static void block_dirty_bitmap_clear_abort(BlkActionState *common)
     BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
                                              common, common);
 
-    bdrv_undo_clear_dirty_bitmap(state->bitmap, state->backup);
+    if (state->backup) {
+        bdrv_undo_clear_dirty_bitmap(state->bitmap, state->backup);
+    }
 }
 
 static void block_dirty_bitmap_clear_commit(BlkActionState *common)

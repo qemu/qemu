@@ -574,7 +574,8 @@ static void mirror_exit(BlockJob *job, void *opaque)
      * valid. Also give up permissions on mirror_top_bs->backing, which might
      * block the removal. */
     block_job_remove_all_bdrv(job);
-    bdrv_child_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL);
+    bdrv_child_try_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL,
+                            &error_abort);
     bdrv_replace_node(mirror_top_bs, backing_bs(mirror_top_bs), &error_abort);
 
     /* We just changed the BDS the job BB refers to (with either or both of the
@@ -1245,7 +1246,8 @@ fail:
         block_job_unref(&s->common);
     }
 
-    bdrv_child_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL);
+    bdrv_child_try_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL,
+                            &error_abort);
     bdrv_replace_node(mirror_top_bs, backing_bs(mirror_top_bs), &error_abort);
 }
 
