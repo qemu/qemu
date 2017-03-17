@@ -4339,6 +4339,7 @@ int main(int argc, char **argv)
     while ((c = getopt_long(argc, argv, "+hVT:", long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
+        case '?':
             help();
             return 0;
         case 'V':
