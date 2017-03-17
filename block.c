@@ -4350,7 +4350,14 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
 
 void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
 {
+    AioContext *ctx;
+
     bdrv_drain(bs); /* ensure there are no in-flight requests */
+
+    ctx = bdrv_get_aio_context(bs);
+    while (aio_poll(ctx, false)) {
+        /* wait for all bottom halves to execute */
+    }
 
     bdrv_detach_aio_context(bs);
 
