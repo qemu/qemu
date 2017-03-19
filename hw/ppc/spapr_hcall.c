@@ -878,6 +878,32 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return ret;
 }
 
+static target_ulong h_clean_slb(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                target_ulong opcode, target_ulong *args)
+{
+    qemu_log_mask(LOG_UNIMP, "Unimplemented SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
+                  opcode, " (H_CLEAN_SLB)");
+    return H_FUNCTION;
+}
+
+static target_ulong h_invalidate_pid(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                     target_ulong opcode, target_ulong *args)
+{
+    qemu_log_mask(LOG_UNIMP, "Unimplemented SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
+                  opcode, " (H_INVALIDATE_PID)");
+    return H_FUNCTION;
+}
+
+static target_ulong h_register_process_table(PowerPCCPU *cpu,
+                                             sPAPRMachineState *spapr,
+                                             target_ulong opcode,
+                                             target_ulong *args)
+{
+    qemu_log_mask(LOG_UNIMP, "Unimplemented SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
+                  opcode, " (H_REGISTER_PROC_TBL)");
+    return H_FUNCTION;
+}
+
 #define H_SIGNAL_SYS_RESET_ALL         -1
 #define H_SIGNAL_SYS_RESET_ALLBUTSELF  -2
 
@@ -1083,6 +1109,11 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(H_SET_XDABR, h_set_xdabr);
     spapr_register_hypercall(H_PAGE_INIT, h_page_init);
     spapr_register_hypercall(H_SET_MODE, h_set_mode);
+
+    /* In Memory Table MMU h-calls */
+    spapr_register_hypercall(H_CLEAN_SLB, h_clean_slb);
+    spapr_register_hypercall(H_INVALIDATE_PID, h_invalidate_pid);
+    spapr_register_hypercall(H_REGISTER_PROC_TBL, h_register_process_table);
 
     /* "debugger" hcalls (also used by SLOF). Note: We do -not- differenciate
      * here between the "CI" and the "CACHE" variants, they will use whatever
