@@ -362,6 +362,37 @@ struct ppc_radix_page_info *kvm_get_radix_page_info(void)
     return radix_page_info;
 }
 
+target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
+                                     bool radix, bool gtse,
+                                     uint64_t proc_tbl)
+{
+    CPUState *cs = CPU(cpu);
+    int ret;
+    uint64_t flags = 0;
+    struct kvm_ppc_mmuv3_cfg cfg = {
+        .process_table = proc_tbl,
+    };
+
+    if (radix) {
+        flags |= KVM_PPC_MMUV3_RADIX;
+    }
+    if (gtse) {
+        flags |= KVM_PPC_MMUV3_GTSE;
+    }
+    cfg.flags = flags;
+    ret = kvm_vm_ioctl(cs->kvm_state, KVM_PPC_CONFIGURE_V3_MMU, &cfg);
+    switch (ret) {
+    case 0:
+        return H_SUCCESS;
+    case -EINVAL:
+        return H_PARAMETER;
+    case -ENODEV:
+        return H_NOT_AVAILABLE;
+    default:
+        return H_HARDWARE;
+    }
+}
+
 static bool kvm_valid_page_size(uint32_t flags, long rampgsize, uint32_t shift)
 {
     if (!(flags & KVM_PPC_PAGE_SIZES_REAL)) {

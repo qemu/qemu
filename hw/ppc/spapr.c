@@ -40,6 +40,7 @@
 #include "kvm_ppc.h"
 #include "migration/migration.h"
 #include "mmu-hash64.h"
+#include "mmu-book3s-v3.h"
 #include "qom/cpu.h"
 
 #include "hw/boards.h"
@@ -1113,7 +1114,7 @@ static int get_htab_fd(sPAPRMachineState *spapr)
     return spapr->htab_fd;
 }
 
-static void close_htab_fd(sPAPRMachineState *spapr)
+void close_htab_fd(sPAPRMachineState *spapr)
 {
     if (spapr->htab_fd >= 0) {
         close(spapr->htab_fd);
@@ -1240,6 +1241,19 @@ static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
     }
 }
 
+void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
+{
+    spapr_reallocate_hpt(spapr,
+                     spapr_hpt_shift_for_ramsize(MACHINE(spapr)->maxram_size),
+                     &error_fatal);
+    if (spapr->vrma_adjust) {
+        spapr->rma_size = kvmppc_rma_size(spapr_node0_size(),
+                                          spapr->htab_shift);
+    }
+    /* We're setting up a hash table, so that means we're not radix */
+    spapr->patb_entry = 0;
+}
+
 static void find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
 {
     bool matched = false;
@@ -1268,17 +1282,14 @@ static void ppc_spapr_reset(void)
     /* Check for unknown sysbus devices */
     foreach_dynamic_sysbus_device(find_unknown_sysbus_device, NULL);
 
-    spapr->patb_entry = 0;
-
-    /* Allocate and/or reset the hash page table */
-    spapr_reallocate_hpt(spapr,
-                         spapr_hpt_shift_for_ramsize(machine->maxram_size),
-                         &error_fatal);
-
-    /* Update the RMA size if necessary */
-    if (spapr->vrma_adjust) {
-        spapr->rma_size = kvmppc_rma_size(spapr_node0_size(),
-                                          spapr->htab_shift);
+    if (kvm_enabled() && kvmppc_has_cap_mmu_radix()) {
+        /* If using KVM with radix mode available, VCPUs can be started
+         * without a HPT because KVM will start them in radix mode.
+         * Set the GR bit in PATB so that we know there is no HPT. */
+        spapr->patb_entry = PATBE1_GR;
+    } else {
+        spapr->patb_entry = 0;
+        spapr_setup_hpt_and_vrma(spapr);
     }
 
     qemu_devices_reset();

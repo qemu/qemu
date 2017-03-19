@@ -12,6 +12,8 @@
 #include "trace.h"
 #include "kvm_ppc.h"
 #include "hw/ppc/spapr_ovec.h"
+#include "qemu/error-report.h"
+#include "mmu-book3s-v3.h"
 
 struct SPRSyncState {
     int spr;
@@ -894,14 +896,119 @@ static target_ulong h_invalidate_pid(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_FUNCTION;
 }
 
+static void spapr_check_setup_free_hpt(sPAPRMachineState *spapr,
+                                       uint64_t patbe_old, uint64_t patbe_new)
+{
+    /*
+     * We have 4 Options:
+     * HASH->HASH || RADIX->RADIX || NOTHING->RADIX : Do Nothing
+     * HASH->RADIX                                  : Free HPT
+     * RADIX->HASH                                  : Allocate HPT
+     * NOTHING->HASH                                : Allocate HPT
+     * Note: NOTHING implies the case where we said the guest could choose
+     *       later and so assumed radix and now it's called H_REG_PROC_TBL
+     */
+
+    if ((patbe_old & PATBE1_GR) == (patbe_new & PATBE1_GR)) {
+        /* We assume RADIX, so this catches all the "Do Nothing" cases */
+    } else if (!(patbe_old & PATBE1_GR)) {
+        /* HASH->RADIX : Free HPT */
+        g_free(spapr->htab);
+        spapr->htab = NULL;
+        spapr->htab_shift = 0;
+        close_htab_fd(spapr);
+    } else if (!(patbe_new & PATBE1_GR)) {
+        /* RADIX->HASH || NOTHING->HASH : Allocate HPT */
+        spapr_setup_hpt_and_vrma(spapr);
+    }
+    return;
+}
+
+#define FLAGS_MASK              0x01FULL
+#define FLAG_MODIFY             0x10
+#define FLAG_REGISTER           0x08
+#define FLAG_RADIX              0x04
+#define FLAG_HASH_PROC_TBL      0x02
+#define FLAG_GTSE               0x01
+
 static target_ulong h_register_process_table(PowerPCCPU *cpu,
                                              sPAPRMachineState *spapr,
                                              target_ulong opcode,
                                              target_ulong *args)
 {
-    qemu_log_mask(LOG_UNIMP, "Unimplemented SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
-                  opcode, " (H_REGISTER_PROC_TBL)");
-    return H_FUNCTION;
+    CPUPPCState *env = &cpu->env;
+    target_ulong flags = args[0];
+    target_ulong proc_tbl = args[1];
+    target_ulong page_size = args[2];
+    target_ulong table_size = args[3];
+    uint64_t cproc;
+
+    if (flags & ~FLAGS_MASK) { /* Check no reserved bits are set */
+        return H_PARAMETER;
+    }
+    if (flags & FLAG_MODIFY) {
+        if (flags & FLAG_REGISTER) {
+            if (flags & FLAG_RADIX) { /* Register new RADIX process table */
+                if (proc_tbl & 0xfff || proc_tbl >> 60) {
+                    return H_P2;
+                } else if (page_size) {
+                    return H_P3;
+                } else if (table_size > 24) {
+                    return H_P4;
+                }
+                cproc = PATBE1_GR | proc_tbl | table_size;
+            } else { /* Register new HPT process table */
+                if (flags & FLAG_HASH_PROC_TBL) { /* Hash with Segment Tables */
+                    /* TODO - Not Supported */
+                    /* Technically caused by flag bits => H_PARAMETER */
+                    return H_PARAMETER;
+                } else { /* Hash with SLB */
+                    if (proc_tbl >> 38) {
+                        return H_P2;
+                    } else if (page_size & ~0x7) {
+                        return H_P3;
+                    } else if (table_size > 24) {
+                        return H_P4;
+                    }
+                }
+                cproc = (proc_tbl << 25) | page_size << 5 | table_size;
+            }
+
+        } else { /* Deregister current process table */
+            /* Set to benign value: (current GR) | 0. This allows
+             * deregistration in KVM to succeed even if the radix bit in flags
+             * doesn't match the radix bit in the old PATB. */
+            cproc = spapr->patb_entry & PATBE1_GR;
+        }
+    } else { /* Maintain current registration */
+        if (!(flags & FLAG_RADIX) != !(spapr->patb_entry & PATBE1_GR)) {
+            /* Technically caused by flag bits => H_PARAMETER */
+            return H_PARAMETER; /* Existing Process Table Mismatch */
+        }
+        cproc = spapr->patb_entry;
+    }
+
+    /* Check if we need to setup OR free the hpt */
+    spapr_check_setup_free_hpt(spapr, spapr->patb_entry, cproc);
+
+    spapr->patb_entry = cproc; /* Save new process table */
+    if ((flags & FLAG_RADIX) || (flags & FLAG_HASH_PROC_TBL)) {
+        /* Use Process TBL */
+        env->spr[SPR_LPCR] |= LPCR_UPRT;
+    } else {
+        env->spr[SPR_LPCR] &= ~LPCR_UPRT;
+    }
+    if (flags & FLAG_GTSE) { /* Partition Uses Guest Translation Shootdwn */
+        env->spr[SPR_LPCR] |= LPCR_GTSE;
+    } else {
+        env->spr[SPR_LPCR] &= ~LPCR_GTSE;
+    }
+
+    if (kvm_enabled()) {
+        return kvmppc_configure_v3_mmu(cpu, flags & FLAG_RADIX,
+                                       flags & FLAG_GTSE, cproc);
+    }
+    return H_SUCCESS;
 }
 
 #define H_SIGNAL_SYS_RESET_ALL         -1
