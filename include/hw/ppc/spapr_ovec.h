@@ -43,6 +43,9 @@ typedef struct sPAPROptionVector sPAPROptionVector;
 
 #define OV_BIT(byte, bit) ((byte - 1) * BITS_PER_BYTE + bit)
 
+/* option vector 1 */
+#define OV1_PPC_3_00            OV_BIT(3, 0) /* guest supports PowerPC 3.00? */
+
 /* option vector 5 */
 #define OV5_DRCONF_MEMORY       OV_BIT(2, 2)
 #define OV5_FORM1_AFFINITY      OV_BIT(5, 0)
