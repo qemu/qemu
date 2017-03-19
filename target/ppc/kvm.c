@@ -86,6 +86,8 @@ static int cap_papr;
 static int cap_htab_fd;
 static int cap_fixup_hcalls;
 static int cap_htm;             /* Hardware transactional memory support */
+static int cap_mmu_radix;
+static int cap_mmu_hash_v3;
 
 static uint32_t debug_inst_opcode;
 
@@ -140,6 +142,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_htab_fd = kvm_check_extension(s, KVM_CAP_PPC_HTAB_FD);
     cap_fixup_hcalls = kvm_check_extension(s, KVM_CAP_PPC_FIXUP_HCALL);
     cap_htm = kvm_vm_check_extension(s, KVM_CAP_PPC_HTM);
+    cap_mmu_radix = kvm_vm_check_extension(s, KVM_CAP_PPC_MMU_RADIX);
+    cap_mmu_hash_v3 = kvm_vm_check_extension(s, KVM_CAP_PPC_MMU_HASH_V3);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -2352,6 +2356,16 @@ bool kvmppc_has_cap_fixup_hcalls(void)
 bool kvmppc_has_cap_htm(void)
 {
     return cap_htm;
+}
+
+bool kvmppc_has_cap_mmu_radix(void)
+{
+    return cap_mmu_radix;
+}
+
+bool kvmppc_has_cap_mmu_hash_v3(void)
+{
+    return cap_mmu_hash_v3;
 }
 
 static PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)
