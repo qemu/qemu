@@ -10500,7 +10500,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         gen_exception_return(s, tmp);
                         break;
                     case 6: /* MRS */
-                        if (extract32(insn, 5, 1)) {
+                        if (extract32(insn, 5, 1) &&
+                            !arm_dc_feature(s, ARM_FEATURE_M)) {
                             /* MRS (banked) */
                             int sysm = extract32(insn, 16, 4) |
                                 (extract32(insn, 4, 1) << 4);
@@ -10521,7 +10522,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         store_reg(s, rd, tmp);
                         break;
                     case 7: /* MRS */
-                        if (extract32(insn, 5, 1)) {
+                        if (extract32(insn, 5, 1) &&
+                            !arm_dc_feature(s, ARM_FEATURE_M)) {
                             /* MRS (banked) */
                             int sysm = extract32(insn, 16, 4) |
                                 (extract32(insn, 4, 1) << 4);
