@@ -1575,13 +1575,32 @@ bool dpy_gfx_check_format(QemuConsole *con,
     return true;
 }
 
+/*
+ * Safe DPY refresh for TCG guests. This runs when the TCG vCPUs are
+ * quiescent so we can avoid races between dirty page tracking for
+ * direct frame-buffer access by the guest.
+ *
+ * This is a temporary stopgap until we've fixed the dirty tracking
+ * races in display adapters.
+ */
+static void do_safe_dpy_refresh(CPUState *cpu, run_on_cpu_data opaque)
+{
+    DisplayChangeListener *dcl = opaque.host_ptr;
+    dcl->ops->dpy_refresh(dcl);
+}
+
 static void dpy_refresh(DisplayState *s)
 {
     DisplayChangeListener *dcl;
 
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_refresh) {
-            dcl->ops->dpy_refresh(dcl);
+            if (tcg_enabled()) {
+                async_safe_run_on_cpu(first_cpu, do_safe_dpy_refresh,
+                                      RUN_ON_CPU_HOST_PTR(dcl));
+            } else {
+                dcl->ops->dpy_refresh(dcl);
+            }
         }
     }
 }
