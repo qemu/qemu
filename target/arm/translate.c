@@ -10403,7 +10403,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     case 0: /* msr cpsr.  */
                         if (arm_dc_feature(s, ARM_FEATURE_M)) {
                             tmp = load_reg(s, rn);
-                            addr = tcg_const_i32(insn & 0xff);
+                            /* the constant is the mask and SYSm fields */
+                            addr = tcg_const_i32(insn & 0xfff);
                             gen_helper_v7m_msr(cpu_env, addr, tmp);
                             tcg_temp_free_i32(addr);
                             tcg_temp_free_i32(tmp);

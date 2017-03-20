@@ -8548,8 +8548,18 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
     }
 }
 
-void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
+void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
 {
+    /* We're passed bits [11..0] of the instruction; extract
+     * SYSm and the mask bits.
+     * Invalid combinations of SYSm and mask are UNPREDICTABLE;
+     * we choose to treat them as if the mask bits were valid.
+     * NB that the pseudocode 'mask' variable is bits [11..10],
+     * whereas ours is [11..8].
+     */
+    uint32_t mask = extract32(maskreg, 8, 4);
+    uint32_t reg = extract32(maskreg, 0, 8);
+
     if (arm_current_el(env) == 0 && reg > 7) {
         /* only xPSR sub-fields may be written by unprivileged */
         return;
@@ -8558,8 +8568,16 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
     switch (reg) {
     case 0 ... 7: /* xPSR sub-fields */
         /* only APSR is actually writable */
-        if (reg & 4) {
-            xpsr_write(env, val, 0xf8000000); /* APSR */
+        if (!(reg & 4)) {
+            uint32_t apsrmask = 0;
+
+            if (mask & 8) {
+                apsrmask |= 0xf8000000; /* APSR NZCVQ */
+            }
+            if ((mask & 4) && arm_feature(env, ARM_FEATURE_THUMB_DSP)) {
+                apsrmask |= 0x000f0000; /* APSR GE[3:0] */
+            }
+            xpsr_write(env, val, apsrmask);
         }
         break;
     case 8: /* MSP */
