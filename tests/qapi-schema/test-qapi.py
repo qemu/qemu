@@ -55,3 +55,14 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
 
 schema = QAPISchema(sys.argv[1])
 schema.visit(QAPISchemaTestVisitor())
+
+for doc in schema.docs:
+    if doc.symbol:
+        print 'doc symbol=%s' % doc.symbol
+    else:
+        print 'doc freeform'
+    print '    body=\n%s' % doc.body
+    for arg, section in doc.args.iteritems():
+        print '    arg=%s\n%s' % (arg, section)
+    for section in doc.sections:
+        print '    section=%s\n%s' % (section.name, section)
