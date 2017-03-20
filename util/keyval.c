@@ -61,6 +61,16 @@
  * "key absent" already means "optional object/array absent", which
  * isn't the same as "empty object/array present".
  *
+ * Design flaw: scalar values can only be strings; there is no way to
+ * denote numbers, true, false or null.  The special QObject input
+ * visitor returned by qobject_input_visitor_new_keyval() mostly hides
+ * this by automatically converting strings to the type the visitor
+ * expects.  Breaks down for alternate types and type 'any', where the
+ * visitor's expectation isn't clear.  Code visiting such types needs
+ * to do the conversion itself, but only when using this keyval
+ * visitor.  Awkward.  Alternate types without a string member don't
+ * work at all.
+ *
  * Additional syntax for use with an implied key:
  *
  *   key-vals-ik  = val-no-key [ ',' key-vals ]
