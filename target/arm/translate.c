@@ -10510,6 +10510,14 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                             break;
                         }
 
+                        if (extract32(insn, 16, 4) != 0xf) {
+                            goto illegal_op;
+                        }
+                        if (!arm_dc_feature(s, ARM_FEATURE_M) &&
+                            extract32(insn, 0, 8) != 0) {
+                            goto illegal_op;
+                        }
+
                         /* mrs cpsr */
                         tmp = tcg_temp_new_i32();
                         if (arm_dc_feature(s, ARM_FEATURE_M)) {
@@ -10537,6 +10545,12 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         if (IS_USER(s) || arm_dc_feature(s, ARM_FEATURE_M)) {
                             goto illegal_op;
                         }
+
+                        if (extract32(insn, 16, 4) != 0xf ||
+                            extract32(insn, 0, 8) != 0) {
+                            goto illegal_op;
+                        }
+
                         tmp = load_cpu_field(spsr);
                         store_reg(s, rd, tmp);
                         break;
