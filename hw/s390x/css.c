@@ -1675,12 +1675,27 @@ void subch_device_save(SubchDev *s, QEMUFile *f)
 
 int subch_device_load(SubchDev *s, QEMUFile *f)
 {
+    SubchDev *old_s;
+    uint16_t old_schid = s->schid;
     int i;
 
     s->cssid = qemu_get_byte(f);
     s->ssid = qemu_get_byte(f);
     s->schid = qemu_get_be16(f);
     s->devno = qemu_get_be16(f);
+    /* Re-assign subch. */
+    if (old_schid != s->schid) {
+        old_s = channel_subsys.css[s->cssid]->sch_set[s->ssid]->sch[old_schid];
+        /*
+         * (old_s != s) means that some other device has its correct
+         * subchannel already assigned (in load).
+         */
+        if (old_s == s) {
+            css_subch_assign(s->cssid, s->ssid, old_schid, s->devno, NULL);
+        }
+        /* It's OK to re-assign without a prior de-assign. */
+        css_subch_assign(s->cssid, s->ssid, s->schid, s->devno, s);
+    }
     s->thinint_active = qemu_get_byte(f);
     /* SCHIB */
     /*     PMCW */
