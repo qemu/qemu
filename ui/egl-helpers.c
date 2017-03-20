@@ -192,6 +192,56 @@ EGLSurface qemu_egl_init_surface_x11(EGLContext ectx, Window win)
 
 /* ---------------------------------------------------------------------- */
 
+/*
+ * Taken from glamor_egl.h from the Xorg xserver, which is MIT licensed
+ *
+ * Create an EGLDisplay from a native display type. This is a little quirky
+ * for a few reasons.
+ *
+ * 1: GetPlatformDisplayEXT and GetPlatformDisplay are the API you want to
+ * use, but have different function signatures in the third argument; this
+ * happens not to matter for us, at the moment, but it means epoxy won't alias
+ * them together.
+ *
+ * 2: epoxy 1.3 and earlier don't understand EGL client extensions, which
+ * means you can't call "eglGetPlatformDisplayEXT" directly, as the resolver
+ * will crash.
+ *
+ * 3: You can't tell whether you have EGL 1.5 at this point, because
+ * eglQueryString(EGL_VERSION) is a property of the display, which we don't
+ * have yet. So you have to query for extensions no matter what. Fortunately
+ * epoxy_has_egl_extension _does_ let you query for client extensions, so
+ * we don't have to write our own extension string parsing.
+ *
+ * 4. There is no EGL_KHR_platform_base to complement the EXT one, thus one
+ * needs to know EGL 1.5 is supported in order to use the eglGetPlatformDisplay
+ * function pointer.
+ * We can workaround this (circular dependency) by probing for the EGL 1.5
+ * platform extensions (EGL_KHR_platform_gbm and friends) yet it doesn't seem
+ * like mesa will be able to advertise these (even though it can do EGL 1.5).
+ */
+static EGLDisplay qemu_egl_get_display(void *native)
+{
+    EGLDisplay dpy = EGL_NO_DISPLAY;
+
+#ifdef EGL_MESA_platform_gbm
+    /* In practise any EGL 1.5 implementation would support the EXT extension */
+    if (epoxy_has_egl_extension(NULL, "EGL_EXT_platform_base")) {
+        PFNEGLGETPLATFORMDISPLAYEXTPROC getPlatformDisplayEXT =
+            (void *) eglGetProcAddress("eglGetPlatformDisplayEXT");
+        if (getPlatformDisplayEXT) {
+            dpy = getPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, native, NULL);
+        }
+    }
+#endif
+
+    if (dpy == EGL_NO_DISPLAY) {
+        /* fallback */
+        dpy = eglGetDisplay(native);
+    }
+    return dpy;
+}
+
 int qemu_egl_init_dpy(EGLNativeDisplayType dpy, bool gles, bool debug)
 {
     static const EGLint conf_att_gl[] = {
@@ -222,12 +272,8 @@ int qemu_egl_init_dpy(EGLNativeDisplayType dpy, bool gles, bool debug)
         setenv("LIBGL_DEBUG", "verbose", true);
     }
 
-    egl_dbg("eglGetDisplay (dpy %p) ...\n", dpy);
-#ifdef EGL_MESA_platform_gbm
-    qemu_egl_display = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, dpy, NULL);
-#else
-    qemu_egl_display = eglGetDisplay(dpy);
-#endif
+    egl_dbg("qemu_egl_get_display (dpy %p) ...\n", dpy);
+    qemu_egl_display = qemu_egl_get_display(dpy);
     if (qemu_egl_display == EGL_NO_DISPLAY) {
         error_report("egl: eglGetDisplay failed");
         return -1;
