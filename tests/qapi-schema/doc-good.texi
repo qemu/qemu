@@ -2,7 +2,7 @@
 
 @subsection Subsection
 
-@emph{strong}  @emph{with emphasis} 
+@strong{strong} @emph{with emphasis}
 @code{var} @{in braces@}
 @itemize @bullet
 @item
@@ -67,7 +67,7 @@ Example:
 Examples:
 @itemize @minus
 @item
-@emph{verbatim}
+@strong{verbatim}
 @item
 @{braces@}
 @end itemize
@@ -76,12 +76,12 @@ Examples:
 
 @deftp {Enum} Enum
 
-@subsection Produces @emph{invalid} texinfo
+@subsection Produces @strong{invalid} texinfo
 
 @b{Values:}
 @table @asis
 @item @code{one}
-The  @emph{one}  @{and only@}
+The @emph{one} @{and only@}
 @item @code{two}
 Not documented
 @end table

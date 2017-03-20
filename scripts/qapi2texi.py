@@ -35,12 +35,12 @@ EXAMPLE_FMT = """@example
 
 def subst_strong(doc):
     """Replaces *foo* by @strong{foo}"""
-    return re.sub(r'\*([^*\n]+)\*', r'@emph{\1}', doc)
+    return re.sub(r'\*([^*\n]+)\*', r'@strong{\1}', doc)
 
 
 def subst_emph(doc):
     """Replaces _foo_ by @emph{foo}"""
-    return re.sub(r'\b_([^_\n]+)_\b', r' @emph{\1} ', doc)
+    return re.sub(r'\b_([^_\n]+)_\b', r'@emph{\1}', doc)
 
 
 def subst_vars(doc):
