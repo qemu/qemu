@@ -1344,8 +1344,9 @@ static void *qemu_hax_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
     int r;
+
+    qemu_mutex_lock_iothread();
     qemu_thread_get_self(cpu->thread);
-    qemu_mutex_lock(&qemu_global_mutex);
 
     cpu->thread_id = qemu_get_thread_id();
     cpu->created = true;
