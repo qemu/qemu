@@ -24,6 +24,7 @@ typedef struct VmGenIdState {
     bool write_pointer_available;
 } VmGenIdState;
 
+/* returns NULL unless there is exactly one device */
 static inline Object *find_vmgenid_dev(void)
 {
     return object_resolve_path_type("", VMGENID_DEVICE, NULL);

@@ -221,6 +221,14 @@ static void vmgenid_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* Given that this function is executing, there is at least one VMGENID
+     * device. Check if there are several.
+     */
+    if (!find_vmgenid_dev()) {
+        error_setg(errp, "at most one %s device is permitted", VMGENID_DEVICE);
+        return;
+    }
+
     qemu_register_reset(vmgenid_handle_reset, vms);
 }
 
