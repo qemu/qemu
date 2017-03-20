@@ -33,6 +33,7 @@
 #include "sysemu/kvm.h"
 #include "exec/semihost.h"
 
+#include "target/mips/trace.h"
 #include "trace-tcg.h"
 #include "exec/log.h"
 
@@ -4866,13 +4867,11 @@ static void gen_mfhc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
         goto cp0_unimplemented;
     }
-
-    (void)rn; /* avoid a compiler warning */
-    LOG_DISAS("mfhc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    trace_mips_translate_c0("mfhc0", rn, reg, sel);
     return;
 
 cp0_unimplemented:
-    LOG_DISAS("mfhc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    qemu_log_mask(LOG_UNIMP, "mfhc0 %s (reg %d sel %d)\n", rn, reg, sel);
     tcg_gen_movi_tl(arg, 0);
 }
 
@@ -4941,10 +4940,10 @@ static void gen_mthc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
         goto cp0_unimplemented;
     }
+    trace_mips_translate_c0("mthc0", rn, reg, sel);
 
-    (void)rn; /* avoid a compiler warning */
 cp0_unimplemented:
-    LOG_DISAS("mthc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    qemu_log_mask(LOG_UNIMP, "mthc0 %s (reg %d sel %d)\n", rn, reg, sel);
 }
 
 static inline void gen_mfc0_unimplemented(DisasContext *ctx, TCGv arg)
@@ -5137,7 +5136,6 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 //            gen_helper_mfc0_contextconfig(arg); /* SmartMIPS ASE */
             rn = "ContextConfig";
             goto cp0_unimplemented;
-//            break;
         case 2:
             CP0_CHECK(ctx->ulri);
             tcg_gen_ld32s_tl(arg, cpu_env,
@@ -5459,19 +5457,19 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 1:
 //            gen_helper_mfc0_tracecontrol(arg); /* PDtrace support */
             rn = "TraceControl";
-//            break;
+            goto cp0_unimplemented;
         case 2:
 //            gen_helper_mfc0_tracecontrol2(arg); /* PDtrace support */
             rn = "TraceControl2";
-//            break;
+            goto cp0_unimplemented;
         case 3:
 //            gen_helper_mfc0_usertracedata(arg); /* PDtrace support */
             rn = "UserTraceData";
-//            break;
+            goto cp0_unimplemented;
         case 4:
 //            gen_helper_mfc0_tracebpc(arg); /* PDtrace support */
             rn = "TraceBPC";
-//            break;
+            goto cp0_unimplemented;
         default:
             goto cp0_unimplemented;
         }
@@ -5497,31 +5495,31 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 1:
 //            gen_helper_mfc0_performance1(arg);
             rn = "Performance1";
-//            break;
+            goto cp0_unimplemented;
         case 2:
 //            gen_helper_mfc0_performance2(arg);
             rn = "Performance2";
-//            break;
+            goto cp0_unimplemented;
         case 3:
 //            gen_helper_mfc0_performance3(arg);
             rn = "Performance3";
-//            break;
+            goto cp0_unimplemented;
         case 4:
 //            gen_helper_mfc0_performance4(arg);
             rn = "Performance4";
-//            break;
+            goto cp0_unimplemented;
         case 5:
 //            gen_helper_mfc0_performance5(arg);
             rn = "Performance5";
-//            break;
+            goto cp0_unimplemented;
         case 6:
 //            gen_helper_mfc0_performance6(arg);
             rn = "Performance6";
-//            break;
+            goto cp0_unimplemented;
         case 7:
 //            gen_helper_mfc0_performance7(arg);
             rn = "Performance7";
-//            break;
+            goto cp0_unimplemented;
         default:
             goto cp0_unimplemented;
         }
@@ -5623,12 +5621,11 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
        goto cp0_unimplemented;
     }
-    (void)rn; /* avoid a compiler warning */
-    LOG_DISAS("mfc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    trace_mips_translate_c0("mfc0", rn, reg, sel);
     return;
 
 cp0_unimplemented:
-    LOG_DISAS("mfc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    qemu_log_mask(LOG_UNIMP, "mfc0 %s (reg %d sel %d)\n", rn, reg, sel);
     gen_mfc0_unimplemented(ctx, arg);
 }
 
@@ -5791,7 +5788,6 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 //            gen_helper_mtc0_contextconfig(cpu_env, arg); /* SmartMIPS ASE */
             rn = "ContextConfig";
             goto cp0_unimplemented;
-//            break;
         case 2:
             CP0_CHECK(ctx->ulri);
             tcg_gen_st_tl(arg, cpu_env,
@@ -6118,13 +6114,13 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             rn = "TraceControl";
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
-//            break;
+            goto cp0_unimplemented;
         case 2:
 //            gen_helper_mtc0_tracecontrol2(cpu_env, arg); /* PDtrace support */
             rn = "TraceControl2";
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
-//            break;
+            goto cp0_unimplemented;
         case 3:
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
@@ -6132,13 +6128,13 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             rn = "UserTraceData";
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
-//            break;
+            goto cp0_unimplemented;
         case 4:
 //            gen_helper_mtc0_tracebpc(cpu_env, arg); /* PDtrace support */
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "TraceBPC";
-//            break;
+            goto cp0_unimplemented;
         default:
             goto cp0_unimplemented;
         }
@@ -6163,31 +6159,31 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 1:
 //            gen_helper_mtc0_performance1(arg);
             rn = "Performance1";
-//            break;
+            goto cp0_unimplemented;
         case 2:
 //            gen_helper_mtc0_performance2(arg);
             rn = "Performance2";
-//            break;
+            goto cp0_unimplemented;
         case 3:
 //            gen_helper_mtc0_performance3(arg);
             rn = "Performance3";
-//            break;
+            goto cp0_unimplemented;
         case 4:
 //            gen_helper_mtc0_performance4(arg);
             rn = "Performance4";
-//            break;
+            goto cp0_unimplemented;
         case 5:
 //            gen_helper_mtc0_performance5(arg);
             rn = "Performance5";
-//            break;
+            goto cp0_unimplemented;
         case 6:
 //            gen_helper_mtc0_performance6(arg);
             rn = "Performance6";
-//            break;
+            goto cp0_unimplemented;
         case 7:
 //            gen_helper_mtc0_performance7(arg);
             rn = "Performance7";
-//            break;
+            goto cp0_unimplemented;
         default:
             goto cp0_unimplemented;
         }
@@ -6286,8 +6282,8 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
        goto cp0_unimplemented;
     }
-    (void)rn; /* avoid a compiler warning */
-    LOG_DISAS("mtc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    trace_mips_translate_c0("mtc0", rn, reg, sel);
+
     /* For simplicity assume that all writes can cause interrupts.  */
     if (ctx->tb->cflags & CF_USE_ICOUNT) {
         gen_io_end();
@@ -6296,7 +6292,7 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     return;
 
 cp0_unimplemented:
-    LOG_DISAS("mtc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    qemu_log_mask(LOG_UNIMP, "mtc0 %s (reg %d sel %d)\n", rn, reg, sel);
 }
 
 #if defined(TARGET_MIPS64)
@@ -6454,7 +6450,6 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 //            gen_helper_dmfc0_contextconfig(arg); /* SmartMIPS ASE */
             rn = "ContextConfig";
             goto cp0_unimplemented;
-//            break;
         case 2:
             CP0_CHECK(ctx->ulri);
             tcg_gen_ld_tl(arg, cpu_env,
@@ -6769,19 +6764,19 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 1:
 //            gen_helper_dmfc0_tracecontrol(arg, cpu_env); /* PDtrace support */
             rn = "TraceControl";
-//            break;
+            goto cp0_unimplemented;
         case 2:
 //            gen_helper_dmfc0_tracecontrol2(arg, cpu_env); /* PDtrace support */
             rn = "TraceControl2";
-//            break;
+            goto cp0_unimplemented;
         case 3:
 //            gen_helper_dmfc0_usertracedata(arg, cpu_env); /* PDtrace support */
             rn = "UserTraceData";
-//            break;
+            goto cp0_unimplemented;
         case 4:
 //            gen_helper_dmfc0_tracebpc(arg, cpu_env); /* PDtrace support */
             rn = "TraceBPC";
-//            break;
+            goto cp0_unimplemented;
         default:
             goto cp0_unimplemented;
         }
@@ -6806,31 +6801,31 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 1:
 //            gen_helper_dmfc0_performance1(arg);
             rn = "Performance1";
-//            break;
+            goto cp0_unimplemented;
         case 2:
 //            gen_helper_dmfc0_performance2(arg);
             rn = "Performance2";
-//            break;
+            goto cp0_unimplemented;
         case 3:
 //            gen_helper_dmfc0_performance3(arg);
             rn = "Performance3";
-//            break;
+            goto cp0_unimplemented;
         case 4:
 //            gen_helper_dmfc0_performance4(arg);
             rn = "Performance4";
-//            break;
+            goto cp0_unimplemented;
         case 5:
 //            gen_helper_dmfc0_performance5(arg);
             rn = "Performance5";
-//            break;
+            goto cp0_unimplemented;
         case 6:
 //            gen_helper_dmfc0_performance6(arg);
             rn = "Performance6";
-//            break;
+            goto cp0_unimplemented;
         case 7:
 //            gen_helper_dmfc0_performance7(arg);
             rn = "Performance7";
-//            break;
+            goto cp0_unimplemented;
         default:
             goto cp0_unimplemented;
         }
@@ -6926,12 +6921,11 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
         goto cp0_unimplemented;
     }
-    (void)rn; /* avoid a compiler warning */
-    LOG_DISAS("dmfc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    trace_mips_translate_c0("dmfc0", rn, reg, sel);
     return;
 
 cp0_unimplemented:
-    LOG_DISAS("dmfc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    qemu_log_mask(LOG_UNIMP, "dmfc0 %s (reg %d sel %d)\n", rn, reg, sel);
     gen_mfc0_unimplemented(ctx, arg);
 }
 
@@ -7092,7 +7086,6 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 //           gen_helper_mtc0_contextconfig(cpu_env, arg); /* SmartMIPS ASE */
             rn = "ContextConfig";
             goto cp0_unimplemented;
-//           break;
         case 2:
             CP0_CHECK(ctx->ulri);
             tcg_gen_st_tl(arg, cpu_env,
@@ -7421,25 +7414,25 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "TraceControl";
-//            break;
+            goto cp0_unimplemented;
         case 2:
 //            gen_helper_mtc0_tracecontrol2(cpu_env, arg); /* PDtrace support */
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "TraceControl2";
-//            break;
+            goto cp0_unimplemented;
         case 3:
 //            gen_helper_mtc0_usertracedata(cpu_env, arg); /* PDtrace support */
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "UserTraceData";
-//            break;
+            goto cp0_unimplemented;
         case 4:
 //            gen_helper_mtc0_tracebpc(cpu_env, arg); /* PDtrace support */
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "TraceBPC";
-//            break;
+            goto cp0_unimplemented;
         default:
             goto cp0_unimplemented;
         }
@@ -7464,31 +7457,31 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 1:
 //            gen_helper_mtc0_performance1(cpu_env, arg);
             rn = "Performance1";
-//            break;
+            goto cp0_unimplemented;
         case 2:
 //            gen_helper_mtc0_performance2(cpu_env, arg);
             rn = "Performance2";
-//            break;
+            goto cp0_unimplemented;
         case 3:
 //            gen_helper_mtc0_performance3(cpu_env, arg);
             rn = "Performance3";
-//            break;
+            goto cp0_unimplemented;
         case 4:
 //            gen_helper_mtc0_performance4(cpu_env, arg);
             rn = "Performance4";
-//            break;
+            goto cp0_unimplemented;
         case 5:
 //            gen_helper_mtc0_performance5(cpu_env, arg);
             rn = "Performance5";
-//            break;
+            goto cp0_unimplemented;
         case 6:
 //            gen_helper_mtc0_performance6(cpu_env, arg);
             rn = "Performance6";
-//            break;
+            goto cp0_unimplemented;
         case 7:
 //            gen_helper_mtc0_performance7(cpu_env, arg);
             rn = "Performance7";
-//            break;
+            goto cp0_unimplemented;
         default:
             goto cp0_unimplemented;
         }
@@ -7587,8 +7580,8 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     default:
         goto cp0_unimplemented;
     }
-    (void)rn; /* avoid a compiler warning */
-    LOG_DISAS("dmtc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    trace_mips_translate_c0("dmtc0", rn, reg, sel);
+
     /* For simplicity assume that all writes can cause interrupts.  */
     if (ctx->tb->cflags & CF_USE_ICOUNT) {
         gen_io_end();
@@ -7597,7 +7590,7 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     return;
 
 cp0_unimplemented:
-    LOG_DISAS("dmtc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    qemu_log_mask(LOG_UNIMP, "dmtc0 %s (reg %d sel %d)\n", rn, reg, sel);
 }
 #endif /* TARGET_MIPS64 */
 
@@ -7807,7 +7800,7 @@ static void gen_mftr(CPUMIPSState *env, DisasContext *ctx, int rt, int rd,
     default:
         goto die;
     }
-    LOG_DISAS("mftr (reg %d u %d sel %d h %d)\n", rt, u, sel, h);
+    trace_mips_translate_tr("mftr", rt, u, sel, h);
     gen_store_gpr(t0, rd);
     tcg_temp_free(t0);
     return;
@@ -8012,7 +8005,7 @@ static void gen_mttr(CPUMIPSState *env, DisasContext *ctx, int rd, int rt,
     default:
         goto die;
     }
-    LOG_DISAS("mttr (reg %d u %d sel %d h %d)\n", rd, u, sel, h);
+    trace_mips_translate_tr("mttr", rd, u, sel, h);
     tcg_temp_free(t0);
     return;
 
@@ -18169,7 +18162,7 @@ static void gen_msa_branch(CPUMIPSState *env, DisasContext *ctx, uint32_t op1)
 
     check_msa_access(ctx);
 
-    if (ctx->insn_flags & ISA_MIPS32R6 && ctx->hflags & MIPS_HFLAG_BMASK) {
+    if (ctx->hflags & MIPS_HFLAG_BMASK) {
         generate_exception_end(ctx, EXCP_RI);
         return;
     }
