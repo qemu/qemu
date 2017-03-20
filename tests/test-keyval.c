@@ -218,14 +218,14 @@ static void test_keyval_parse_list(void)
     QDECREF(qdict);
 
     /* Multiple indexes, last one wins */
-    qdict = keyval_parse("list.1=goner,list.0=null,list.1=eins,list.2=zwei",
+    qdict = keyval_parse("list.1=goner,list.0=null,list.01=eins,list.2=zwei",
                          NULL, &error_abort);
     g_assert_cmpint(qdict_size(qdict), ==, 1);
     check_list012(qdict_get_qlist(qdict, "list"));
     QDECREF(qdict);
 
     /* List at deeper nesting */
-    qdict = keyval_parse("a.list.1=eins,a.list.0=null,a.list.2=zwei",
+    qdict = keyval_parse("a.list.1=eins,a.list.00=null,a.list.2=zwei",
                          NULL, &error_abort);
     g_assert_cmpint(qdict_size(qdict), ==, 1);
     sub_qdict = qdict_get_qdict(qdict, "a");
@@ -242,7 +242,7 @@ static void test_keyval_parse_list(void)
     g_assert(!qdict);
 
     /* Missing list indexes */
-    qdict = keyval_parse("list.2=lonely", NULL, &err);
+    qdict = keyval_parse("list.1=lonely", NULL, &err);
     error_free_or_abort(&err);
     g_assert(!qdict);
     qdict = keyval_parse("list.0=null,list.2=eins,list.02=zwei", NULL, &err);
