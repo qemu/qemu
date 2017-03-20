@@ -2888,6 +2888,12 @@ for drv in $audio_drv_list; do
     audio_pt_int="yes"
     ;;
 
+    sdl)
+    if test "$sdl" = "no"; then
+        error_exit "sdl not found or disabled, can not use sdl audio driver"
+    fi
+    ;;
+
     coreaudio)
       libs_softmmu="-framework CoreAudio $libs_softmmu"
     ;;
@@ -2901,8 +2907,8 @@ for drv in $audio_drv_list; do
       libs_softmmu="$oss_lib $libs_softmmu"
     ;;
 
-    sdl|wav)
-    # XXX: Probes for CoreAudio, DirectSound, SDL(?)
+    wav)
+    # XXX: Probes for CoreAudio, DirectSound
     ;;
 
     *)
