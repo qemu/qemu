@@ -10377,6 +10377,9 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     goto illegal_op;
 
                 if (insn & (1 << 26)) {
+                    if (arm_dc_feature(s, ARM_FEATURE_M)) {
+                        goto illegal_op;
+                    }
                     if (!(insn & (1 << 20))) {
                         /* Hypervisor call (v7) */
                         int imm16 = extract32(insn, 16, 4) << 12
