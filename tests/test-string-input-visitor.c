@@ -63,6 +63,11 @@ static void test_visitor_in_int(TestInputVisitorData *data,
 
     visit_type_int(v, NULL, &res, &err);
     error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "");
+
+    visit_type_int(v, NULL, &res, &err);
+    error_free_or_abort(&err);
 }
 
 static void check_ilist(Visitor *v, int64_t *expected, size_t n)
@@ -140,11 +145,11 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     v = visitor_input_test_init(data, "18446744073709551615");
     check_ulist(v, expect4, ARRAY_SIZE(expect4));
 
-    /* Empty list is invalid (weird) */
+    /* Empty list */
 
     v = visitor_input_test_init(data, "");
-    visit_type_int64List(v, NULL, &res, &err);
-    error_free_or_abort(&err);
+    visit_type_int64List(v, NULL, &res, &error_abort);
+    g_assert(!res);
 
     /* Not a list */
 
