@@ -21,6 +21,7 @@ typedef struct VmGenIdState {
     DeviceClass parent_obj;
     QemuUUID guid;                /* The 128-bit GUID seen by the guest */
     uint8_t vmgenid_addr_le[8];   /* Address of the GUID (little-endian) */
+    bool write_pointer_available;
 } VmGenIdState;
 
 static inline Object *find_vmgenid_dev(void)
