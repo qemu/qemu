@@ -794,13 +794,11 @@ static void ram_release_pages(const char *rbname, uint64_t offset, int pages)
  *                if xbzrle noticed the page was the same.
  *
  * @rs: current RAM state
- * @ms: current migration state
  * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  * @last_stage: if we are at the completion stage
  */
-static int ram_save_page(RAMState *rs, MigrationState *ms,
-                         PageSearchStatus *pss, bool last_stage)
+static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
 {
     int pages = -1;
     uint64_t bytes_xmit;
@@ -974,13 +972,12 @@ static int compress_page_with_multi_thread(RAMState *rs, RAMBlock *block,
  * Returns the number of pages written.
  *
  * @rs: current RAM state
- * @ms: current migration state
  * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  * @last_stage: if we are at the completion stage
  */
-static int ram_save_compressed_page(RAMState *rs, MigrationState *ms,
-                                    PageSearchStatus *pss, bool last_stage)
+static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
+                                    bool last_stage)
 {
     int pages = -1;
     uint64_t bytes_xmit = 0;
@@ -1311,10 +1308,8 @@ err:
  * @last_stage: if we are at the completion stage
  * @dirty_ram_abs: address of the start of the dirty page in ram_addr_t space
  */
-static int ram_save_target_page(RAMState *rs, MigrationState *ms,
-                                PageSearchStatus *pss,
-                                bool last_stage,
-                                ram_addr_t dirty_ram_abs)
+static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
+                                bool last_stage, ram_addr_t dirty_ram_abs)
 {
     int res = 0;
 
@@ -1329,9 +1324,9 @@ static int ram_save_target_page(RAMState *rs, MigrationState *ms,
 
         if (migrate_use_compression()
             && (rs->ram_bulk_stage || !migrate_use_xbzrle())) {
-            res = ram_save_compressed_page(rs, ms, pss, last_stage);
+            res = ram_save_compressed_page(rs, pss, last_stage);
         } else {
-            res = ram_save_page(rs, ms, pss, last_stage);
+            res = ram_save_page(rs, pss, last_stage);
         }
 
         if (res < 0) {
@@ -1370,8 +1365,7 @@ static int ram_save_target_page(RAMState *rs, MigrationState *ms,
  * @last_stage: if we are at the completion stage
  * @dirty_ram_abs: Address of the start of the dirty page in ram_addr_t space
  */
-static int ram_save_host_page(RAMState *rs, MigrationState *ms,
-                              PageSearchStatus *pss,
+static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
                               bool last_stage,
                               ram_addr_t dirty_ram_abs)
 {
@@ -1379,7 +1373,7 @@ static int ram_save_host_page(RAMState *rs, MigrationState *ms,
     size_t pagesize = qemu_ram_pagesize(pss->block);
 
     do {
-        tmppages = ram_save_target_page(rs, ms, pss, last_stage, dirty_ram_abs);
+        tmppages = ram_save_target_page(rs, pss, last_stage, dirty_ram_abs);
         if (tmppages < 0) {
             return tmppages;
         }
@@ -1411,7 +1405,6 @@ static int ram_save_host_page(RAMState *rs, MigrationState *ms,
 static int ram_find_and_save_block(RAMState *rs, bool last_stage)
 {
     PageSearchStatus pss;
-    MigrationState *ms = migrate_get_current();
     int pages = 0;
     bool again, found;
     ram_addr_t dirty_ram_abs; /* Address of the start of the dirty page in
@@ -1440,7 +1433,7 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
         }
 
         if (found) {
-            pages = ram_save_host_page(rs, ms, &pss, last_stage, dirty_ram_abs);
+            pages = ram_save_host_page(rs, &pss, last_stage, dirty_ram_abs);
         }
     } while (!pages && again);
 
