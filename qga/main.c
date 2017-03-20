@@ -29,6 +29,7 @@
 #include "qemu/bswap.h"
 #include "qemu/help_option.h"
 #include "qemu/sockets.h"
+#include "qemu/systemd.h"
 #ifdef _WIN32
 #include "qga/service-win32.h"
 #include "qga/vss-win32.h"
@@ -185,37 +186,6 @@ void reopen_fd_to_null(int fd)
     }
 }
 #endif
-
-/**
- * get_listen_fd:
- * @consume: true to prevent future calls from succeeding
- *
- * Fetch a listen file descriptor that was passed via systemd socket
- * activation.  Use @consume to prevent child processes from thinking a file
- * descriptor was passed.
- *
- * Returns: file descriptor or -1 if no fd was passed
- */
-static int get_listen_fd(bool consume)
-{
-#ifdef _WIN32
-    return -1; /* no fd passing expected, unsetenv(3) not available */
-#else
-    const char *listen_fds = getenv("LISTEN_FDS");
-    int fd = STDERR_FILENO + 1;
-
-    if (!listen_fds || strcmp(listen_fds, "1") != 0) {
-        return -1;
-    }
-
-    if (consume) {
-        unsetenv("LISTEN_FDS");
-    }
-
-    qemu_set_cloexec(fd);
-    return fd;
-#endif /* !_WIN32 */
-}
 
 static void usage(const char *cmd)
 {
@@ -1251,7 +1221,7 @@ static bool check_is_frozen(GAState *s)
     return false;
 }
 
-static int run_agent(GAState *s, GAConfig *config)
+static int run_agent(GAState *s, GAConfig *config, int socket_activation)
 {
     ga_state = s;
 
@@ -1333,7 +1303,7 @@ static int run_agent(GAState *s, GAConfig *config)
     s->main_loop = g_main_loop_new(NULL, false);
 
     if (!channel_init(ga_state, config->method, config->channel_path,
-                      get_listen_fd(true))) {
+                      socket_activation ? FIRST_SOCKET_ACTIVATION_FD : -1)) {
         g_critical("failed to initialize guest agent channel");
         return EXIT_FAILURE;
     }
@@ -1357,7 +1327,7 @@ int main(int argc, char **argv)
     int ret = EXIT_SUCCESS;
     GAState *s = g_new0(GAState, 1);
     GAConfig *config = g_new0(GAConfig, 1);
-    int listen_fd;
+    int socket_activation;
 
     config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
@@ -1379,8 +1349,13 @@ int main(int argc, char **argv)
         config->method = g_strdup("virtio-serial");
     }
 
-    listen_fd = get_listen_fd(false);
-    if (listen_fd >= 0) {
+    socket_activation = check_socket_activation();
+    if (socket_activation > 1) {
+        g_critical("qemu-ga only supports listening on one socket");
+        ret = EXIT_FAILURE;
+        goto end;
+    }
+    if (socket_activation) {
         SocketAddress *addr;
 
         g_free(config->method);
@@ -1388,7 +1363,7 @@ int main(int argc, char **argv)
         config->method = NULL;
         config->channel_path = NULL;
 
-        addr = socket_local_address(listen_fd, NULL);
+        addr = socket_local_address(FIRST_SOCKET_ACTIVATION_FD, NULL);
         if (addr) {
             if (addr->type == SOCKET_ADDRESS_KIND_UNIX) {
                 config->method = g_strdup("unix-listen");
@@ -1433,7 +1408,7 @@ int main(int argc, char **argv)
         goto end;
     }
 
-    ret = run_agent(s, config);
+    ret = run_agent(s, config, socket_activation);
 
 end:
     if (s->command_state) {
