@@ -1,0 +1,136 @@
+# -*- Mode: Python -*-
+# Positive QAPI doc comment tests
+
+{ 'pragma': { 'doc-required': true } }
+
+##
+# = Section
+#
+# == Subsection
+#
+# *strong* _with emphasis_
+# @var {in braces}
+# * List item one
+# - Two, multiple
+#   lines
+#
+# 3. Three
+# Still in list
+#
+#   Not in list
+# - Second list
+# Note: still in list
+#
+# Note: not in list
+# 1. Third list
+#    is numbered
+#
+# - another item
+#
+# | example
+# | multiple lines
+#
+# Returns: the King
+# Since: the first age
+# Notes:
+#
+# 1. Lorem ipsum dolor sit amet
+#
+# 2. Ut enim ad minim veniam
+#
+# Duis aute irure dolor
+#
+# Example:
+#
+# -> in
+# <- out
+# Examples:
+# - *verbatim*
+# - {braces}
+##
+
+##
+# @Enum:
+# == Produces *invalid* texinfo
+# @one: The _one_ {and only}
+#
+# @two is undocumented
+##
+{ 'enum': 'Enum', 'data': [ 'one', 'two' ] }
+
+##
+# @Base:
+# @base1:
+#   the first member
+##
+{ 'struct': 'Base', 'data': { 'base1': 'Enum' } }
+
+##
+# @Variant1:
+# A paragraph
+#
+# Another paragraph (but no @var: line)
+##
+{ 'struct': 'Variant1', 'data': { 'var1': 'str' } }
+
+##
+# @Variant2:
+##
+{ 'struct': 'Variant2', 'data': {} }
+
+##
+# @Object:
+##
+{ 'union': 'Object',
+  'base': 'Base',
+  'discriminator': 'base1',
+  'data': { 'one': 'Variant1', 'two': 'Variant2' } }
+
+##
+# @SugaredUnion:
+##
+{ 'union': 'SugaredUnion',
+  'data': { 'one': 'Variant1', 'two': 'Variant2' } }
+
+##
+# == Another subsection
+##
+
+##
+# @cmd:
+# @arg1: the first argument
+#
+# @arg2: the second
+# argument
+# Note: @arg3 is undocumented
+# Returns: @Object
+# TODO: frobnicate
+# Notes:
+# - Lorem ipsum dolor sit amet
+# - Ut enim ad minim veniam
+#
+# Duis aute irure dolor
+# Example:
+#
+# -> in
+# <- out
+# Examples:
+# - *verbatim*
+# - {braces}
+# Since: 2.10
+##
+{ 'command': 'cmd',
+  'data': { 'arg1': 'int', '*arg2': 'str', 'arg3': 'bool' },
+  'returns': 'Object' }
+
+##
+# @cmd-boxed:
+# If you're bored enough to read this, go see a video of boxed cats
+# Example:
+#
+# -> in
+#
+# <- out
+##
+{ 'command': 'cmd-boxed', 'boxed': true,
+  'data': 'Object' }
