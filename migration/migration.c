@@ -109,7 +109,6 @@ MigrationState *migrate_get_current(void)
     };
 
     if (!once) {
-        qemu_mutex_init(&current_migration.src_page_req_mutex);
         current_migration.parameters.tls_creds = g_strdup("");
         current_migration.parameters.tls_hostname = g_strdup("");
         once = true;
@@ -957,7 +956,7 @@ static void migrate_fd_cleanup(void *opaque)
     qemu_bh_delete(s->cleanup_bh);
     s->cleanup_bh = NULL;
 
-    migration_page_queue_free(s);
+    migration_page_queue_free();
 
     if (s->to_dst_file) {
         trace_migrate_fd_cleanup();
@@ -1130,8 +1129,6 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->error = NULL;
 
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
-
-    QSIMPLEQ_INIT(&s->src_page_requests);
 
     s->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     return s;

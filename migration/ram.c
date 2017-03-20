@@ -151,6 +151,18 @@ struct RAMBitmap {
 };
 typedef struct RAMBitmap RAMBitmap;
 
+/*
+ * An outstanding page request, on the source, having been received
+ * and queued
+ */
+struct RAMSrcPageRequest {
+    RAMBlock *rb;
+    hwaddr    offset;
+    hwaddr    len;
+
+    QSIMPLEQ_ENTRY(RAMSrcPageRequest) next_req;
+};
+
 /* State of RAM for migration */
 struct RAMState {
     /* Last block that we have visited searching for dirty pages */
@@ -206,6 +218,9 @@ struct RAMState {
     RAMBitmap *ram_bitmap;
     /* The RAMBlock used in the last src_page_requests */
     RAMBlock *last_req_rb;
+    /* Queue of outstanding page requests from the destination */
+    QemuMutex src_page_req_mutex;
+    QSIMPLEQ_HEAD(src_page_requests, RAMSrcPageRequest) src_page_requests;
 };
 typedef struct RAMState RAMState;
 
@@ -1085,20 +1100,20 @@ static bool find_dirty_block(RAMState *rs, QEMUFile *f, PageSearchStatus *pss,
  *
  * Returns the block of the page (or NULL if none available)
  *
- * @ms: current migration state
+ * @rs: current RAM state
  * @offset: used to return the offset within the RAMBlock
  * @ram_addr_abs: pointer into which to store the address of the dirty page
  *                within the global ram_addr space
  */
-static RAMBlock *unqueue_page(MigrationState *ms, ram_addr_t *offset,
+static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset,
                               ram_addr_t *ram_addr_abs)
 {
     RAMBlock *block = NULL;
 
-    qemu_mutex_lock(&ms->src_page_req_mutex);
-    if (!QSIMPLEQ_EMPTY(&ms->src_page_requests)) {
-        struct MigrationSrcPageRequest *entry =
-                                QSIMPLEQ_FIRST(&ms->src_page_requests);
+    qemu_mutex_lock(&rs->src_page_req_mutex);
+    if (!QSIMPLEQ_EMPTY(&rs->src_page_requests)) {
+        struct RAMSrcPageRequest *entry =
+                                QSIMPLEQ_FIRST(&rs->src_page_requests);
         block = entry->rb;
         *offset = entry->offset;
         *ram_addr_abs = (entry->offset + entry->rb->offset) &
@@ -1109,11 +1124,11 @@ static RAMBlock *unqueue_page(MigrationState *ms, ram_addr_t *offset,
             entry->offset += TARGET_PAGE_SIZE;
         } else {
             memory_region_unref(block->mr);
-            QSIMPLEQ_REMOVE_HEAD(&ms->src_page_requests, next_req);
+            QSIMPLEQ_REMOVE_HEAD(&rs->src_page_requests, next_req);
             g_free(entry);
         }
     }
-    qemu_mutex_unlock(&ms->src_page_req_mutex);
+    qemu_mutex_unlock(&rs->src_page_req_mutex);
 
     return block;
 }
@@ -1126,13 +1141,11 @@ static RAMBlock *unqueue_page(MigrationState *ms, ram_addr_t *offset,
  * Returns if a queued page is found
  *
  * @rs: current RAM state
- * @ms: current migration state
  * @pss: data about the state of the current dirty page scan
  * @ram_addr_abs: pointer into which to store the address of the dirty page
  *                within the global ram_addr space
  */
-static bool get_queued_page(RAMState *rs, MigrationState *ms,
-                            PageSearchStatus *pss,
+static bool get_queued_page(RAMState *rs, PageSearchStatus *pss,
                             ram_addr_t *ram_addr_abs)
 {
     RAMBlock  *block;
@@ -1140,7 +1153,7 @@ static bool get_queued_page(RAMState *rs, MigrationState *ms,
     bool dirty;
 
     do {
-        block = unqueue_page(ms, &offset, ram_addr_abs);
+        block = unqueue_page(rs, &offset, ram_addr_abs);
         /*
          * We're sending this page, and since it's postcopy nothing else
          * will dirty it, and we must make sure it doesn't get sent again
@@ -1194,18 +1207,18 @@ static bool get_queued_page(RAMState *rs, MigrationState *ms,
  * It should be empty at the end anyway, but in error cases there may
  * be some left.  in case that there is any page left, we drop it.
  *
- * @ms: current migration state
  */
-void migration_page_queue_free(MigrationState *ms)
+void migration_page_queue_free(void)
 {
-    struct MigrationSrcPageRequest *mspr, *next_mspr;
+    struct RAMSrcPageRequest *mspr, *next_mspr;
+    RAMState *rs = &ram_state;
     /* This queue generally should be empty - but in the case of a failed
      * migration might have some droppings in.
      */
     rcu_read_lock();
-    QSIMPLEQ_FOREACH_SAFE(mspr, &ms->src_page_requests, next_req, next_mspr) {
+    QSIMPLEQ_FOREACH_SAFE(mspr, &rs->src_page_requests, next_req, next_mspr) {
         memory_region_unref(mspr->rb->mr);
-        QSIMPLEQ_REMOVE_HEAD(&ms->src_page_requests, next_req);
+        QSIMPLEQ_REMOVE_HEAD(&rs->src_page_requests, next_req);
         g_free(mspr);
     }
     rcu_read_unlock();
@@ -1262,16 +1275,16 @@ int ram_save_queue_pages(MigrationState *ms, const char *rbname,
         goto err;
     }
 
-    struct MigrationSrcPageRequest *new_entry =
-        g_malloc0(sizeof(struct MigrationSrcPageRequest));
+    struct RAMSrcPageRequest *new_entry =
+        g_malloc0(sizeof(struct RAMSrcPageRequest));
     new_entry->rb = ramblock;
     new_entry->offset = start;
     new_entry->len = len;
 
     memory_region_ref(ramblock->mr);
-    qemu_mutex_lock(&ms->src_page_req_mutex);
-    QSIMPLEQ_INSERT_TAIL(&ms->src_page_requests, new_entry, next_req);
-    qemu_mutex_unlock(&ms->src_page_req_mutex);
+    qemu_mutex_lock(&rs->src_page_req_mutex);
+    QSIMPLEQ_INSERT_TAIL(&rs->src_page_requests, new_entry, next_req);
+    qemu_mutex_unlock(&rs->src_page_req_mutex);
     rcu_read_unlock();
 
     return 0;
@@ -1410,7 +1423,7 @@ static int ram_find_and_save_block(RAMState *rs, QEMUFile *f, bool last_stage)
 
     do {
         again = true;
-        found = get_queued_page(rs, ms, &pss, &dirty_ram_abs);
+        found = get_queued_page(rs, &pss, &dirty_ram_abs);
 
         if (!found) {
             /* priority queue empty, so just search for something dirty */
@@ -1970,6 +1983,8 @@ static int ram_state_init(RAMState *rs)
 
     memset(rs, 0, sizeof(*rs));
     qemu_mutex_init(&rs->bitmap_mutex);
+    qemu_mutex_init(&rs->src_page_req_mutex);
+    QSIMPLEQ_INIT(&rs->src_page_requests);
 
     if (migrate_use_xbzrle()) {
         XBZRLE_cache_lock();

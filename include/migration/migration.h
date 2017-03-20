@@ -128,18 +128,6 @@ struct MigrationIncomingState {
 MigrationIncomingState *migration_incoming_get_current(void);
 void migration_incoming_state_destroy(void);
 
-/*
- * An outstanding page request, on the source, having been received
- * and queued
- */
-struct MigrationSrcPageRequest {
-    RAMBlock *rb;
-    hwaddr    offset;
-    hwaddr    len;
-
-    QSIMPLEQ_ENTRY(MigrationSrcPageRequest) next_req;
-};
-
 struct MigrationState
 {
     size_t bytes_xfer;
@@ -186,9 +174,6 @@ struct MigrationState
     /* Flag set once the migration thread called bdrv_inactivate_all */
     bool block_inactive;
 
-    /* Queue of outstanding page requests from the destination */
-    QemuMutex src_page_req_mutex;
-    QSIMPLEQ_HEAD(src_page_requests, MigrationSrcPageRequest) src_page_requests;
     /* The semaphore is used to notify COLO thread that failover is finished */
     QemuSemaphore colo_exit_sem;
 
@@ -371,7 +356,7 @@ void savevm_skip_configuration(void);
 int global_state_store(void);
 void global_state_store_running(void);
 
-void migration_page_queue_free(MigrationState *ms);
+void migration_page_queue_free(void);
 int ram_save_queue_pages(MigrationState *ms, const char *rbname,
                          ram_addr_t start, ram_addr_t len);
 uint64_t ram_pagesize_summary(void);
