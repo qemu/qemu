@@ -238,7 +238,7 @@ bool migration_is_idle(MigrationState *s);
 bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);
 /* True if outgoing migration has entered postcopy phase */
-bool migration_in_postcopy(MigrationState *);
+bool migration_in_postcopy(void);
 /* ...and after the device transmission */
 bool migration_in_postcopy_after_devices(MigrationState *);
 MigrationState *migrate_get_current(void);

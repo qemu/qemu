@@ -1062,14 +1062,16 @@ bool migration_has_failed(MigrationState *s)
             s->state == MIGRATION_STATUS_FAILED);
 }
 
-bool migration_in_postcopy(MigrationState *s)
+bool migration_in_postcopy(void)
 {
+    MigrationState *s = migrate_get_current();
+
     return (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
 bool migration_in_postcopy_after_devices(MigrationState *s)
 {
-    return migration_in_postcopy(s) && s->postcopy_after_devices;
+    return migration_in_postcopy() && s->postcopy_after_devices;
 }
 
 bool migration_is_idle(MigrationState *s)
