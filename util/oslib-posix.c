@@ -55,7 +55,7 @@
 #include "qemu/error-report.h"
 #endif
 
-#define MAX_MEM_PREALLOC_THREAD_COUNT (MIN(sysconf(_SC_NPROCESSORS_ONLN), 16))
+#define MAX_MEM_PREALLOC_THREAD_COUNT 16
 
 struct MemsetThread {
     char *addr;
@@ -381,6 +381,18 @@ static void *do_touch_pages(void *arg)
     return NULL;
 }
 
+static inline int get_memset_num_threads(int smp_cpus)
+{
+    long host_procs = sysconf(_SC_NPROCESSORS_ONLN);
+    int ret = 1;
+
+    if (host_procs > 0) {
+        ret = MIN(MIN(host_procs, MAX_MEM_PREALLOC_THREAD_COUNT), smp_cpus);
+    }
+    /* In case sysconf() fails, we fall back to single threaded */
+    return ret;
+}
+
 static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
                             int smp_cpus)
 {
@@ -389,7 +401,7 @@ static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
     int i = 0;
 
     memset_thread_failed = false;
-    memset_num_threads = MIN(smp_cpus, MAX_MEM_PREALLOC_THREAD_COUNT);
+    memset_num_threads = get_memset_num_threads(smp_cpus);
     memset_thread = g_new0(MemsetThread, memset_num_threads);
     numpages_per_thread = (numpages / memset_num_threads);
     size_per_thread = (hpagesize * numpages_per_thread);
