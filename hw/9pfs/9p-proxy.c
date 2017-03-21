@@ -165,7 +165,8 @@ static int v9fs_receive_response(V9fsProxy *proxy, int type,
         return retval;
     }
     reply->iov_len = PROXY_HDR_SZ;
-    proxy_unmarshal(reply, 0, "dd", &header.type, &header.size);
+    retval = proxy_unmarshal(reply, 0, "dd", &header.type, &header.size);
+    assert(retval == 4 * 2);
     /*
      * if response size > PROXY_MAX_IO_SZ, read the response but ignore it and
      * return -ENOBUFS
@@ -194,9 +195,7 @@ static int v9fs_receive_response(V9fsProxy *proxy, int type,
     if (header.type == T_ERROR) {
         int ret;
         ret = proxy_unmarshal(reply, PROXY_HDR_SZ, "d", status);
-        if (ret < 0) {
-            *status = ret;
-        }
+        assert(ret == 4);
         return 0;
     }
 
@@ -213,6 +212,7 @@ static int v9fs_receive_response(V9fsProxy *proxy, int type,
                                  &prstat.st_atim_sec, &prstat.st_atim_nsec,
                                  &prstat.st_mtim_sec, &prstat.st_mtim_nsec,
                                  &prstat.st_ctim_sec, &prstat.st_ctim_nsec);
+        assert(retval == 8 * 3 + 4 * 3 + 8 * 10);
         prstat_to_stat(response, &prstat);
         break;
     }
@@ -225,6 +225,7 @@ static int v9fs_receive_response(V9fsProxy *proxy, int type,
                                  &prstfs.f_files, &prstfs.f_ffree,
                                  &prstfs.f_fsid[0], &prstfs.f_fsid[1],
                                  &prstfs.f_namelen, &prstfs.f_frsize);
+        assert(retval == 8 * 11);
         prstatfs_to_statfs(response, &prstfs);
         break;
     }
@@ -246,7 +247,8 @@ static int v9fs_receive_response(V9fsProxy *proxy, int type,
         break;
     }
     case T_GETVERSION:
-        proxy_unmarshal(reply, PROXY_HDR_SZ, "q", response);
+        retval = proxy_unmarshal(reply, PROXY_HDR_SZ, "q", response);
+        assert(retval == 8);
         break;
     default:
         return -1;
@@ -274,18 +276,16 @@ static int v9fs_receive_status(V9fsProxy *proxy,
         return retval;
     }
     reply->iov_len = PROXY_HDR_SZ;
-    proxy_unmarshal(reply, 0, "dd", &header.type, &header.size);
-    if (header.size != sizeof(int)) {
-        *status = -ENOBUFS;
-        return 0;
-    }
+    retval = proxy_unmarshal(reply, 0, "dd", &header.type, &header.size);
+    assert(retval == 4 * 2);
     retval = socket_read(proxy->sockfd,
                          reply->iov_base + PROXY_HDR_SZ, header.size);
     if (retval < 0) {
         return retval;
     }
     reply->iov_len += header.size;
-    proxy_unmarshal(reply, PROXY_HDR_SZ, "d", status);
+    retval = proxy_unmarshal(reply, PROXY_HDR_SZ, "d", status);
+    assert(retval == 4);
     return 0;
 }
 
