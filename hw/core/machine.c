@@ -396,6 +396,11 @@ static void machine_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 128 * M_BYTE;
     mc->rom_file_has_mr = true;
 
+    /* numa node memory size aligned on 8MB by default.
+     * On Linux, each node's border has to be 8MB aligned
+     */
+    mc->numa_mem_align_shift = 23;
+
     object_class_property_add_str(oc, "accel",
         machine_get_accel, machine_set_accel, &error_abort);
     object_class_property_set_description(oc, "accel",
