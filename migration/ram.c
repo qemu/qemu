@@ -782,7 +782,7 @@ static void ram_release_pages(const char *rbname, uint64_t offset, int pages)
         return;
     }
 
-    ram_discard_range(NULL, rbname, offset, pages << TARGET_PAGE_BITS);
+    ram_discard_range(rbname, offset, pages << TARGET_PAGE_BITS);
 }
 
 /**
@@ -1608,7 +1608,7 @@ void ram_postcopy_migrated_memory_release(MigrationState *ms)
 
         while (run_start < range) {
             unsigned long run_end = find_next_bit(bitmap, range, run_start + 1);
-            ram_discard_range(NULL, block->idstr, run_start << TARGET_PAGE_BITS,
+            ram_discard_range(block->idstr, run_start << TARGET_PAGE_BITS,
                               (run_end - run_start) << TARGET_PAGE_BITS);
             run_start = find_next_zero_bit(bitmap, range, run_end + 1);
         }
@@ -1948,15 +1948,12 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
  *
  * Returns zero on success
  *
- * @mis: current migration incoming state
  * @rbname: name of the RAMBlock of the request. NULL means the
  *          same that last one.
  * @start: RAMBlock starting page
  * @length: RAMBlock size
  */
-int ram_discard_range(MigrationIncomingState *mis,
-                      const char *rbname,
-                      uint64_t start, size_t length)
+int ram_discard_range(const char *rbname, uint64_t start, size_t length)
 {
     int ret = -1;
 

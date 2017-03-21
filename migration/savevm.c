@@ -1479,8 +1479,7 @@ static int loadvm_postcopy_ram_handle_discard(MigrationIncomingState *mis,
         block_length = qemu_get_be64(mis->from_src_file);
 
         len -= 16;
-        int ret = ram_discard_range(mis, ramid, start_addr,
-                                    block_length);
+        int ret = ram_discard_range(ramid, start_addr, block_length);
         if (ret) {
             return ret;
         }

@@ -213,8 +213,6 @@ out:
 static int init_range(const char *block_name, void *host_addr,
                       ram_addr_t offset, ram_addr_t length, void *opaque)
 {
-    MigrationIncomingState *mis = opaque;
-
     trace_postcopy_init_range(block_name, host_addr, offset, length);
 
     /*
@@ -223,7 +221,7 @@ static int init_range(const char *block_name, void *host_addr,
      * - we're going to get the copy from the source anyway.
      * (Precopy will just overwrite this data, so doesn't need the discard)
      */
-    if (ram_discard_range(mis, block_name, 0, length)) {
+    if (ram_discard_range(block_name, 0, length)) {
         return -1;
     }
 
@@ -271,7 +269,7 @@ static int cleanup_range(const char *block_name, void *host_addr,
  */
 int postcopy_ram_incoming_init(MigrationIncomingState *mis, size_t ram_pages)
 {
-    if (qemu_ram_foreach_block(init_range, mis)) {
+    if (qemu_ram_foreach_block(init_range, NULL)) {
         return -1;
     }
 
