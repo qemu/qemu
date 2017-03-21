@@ -173,7 +173,7 @@ Secondary:
 { 'execute': 'nbd-server-start',
   'arguments': {'addr': {'type': 'inet', 'data': {'host': 'xx.xx.xx.xx', 'port': '8889'} } }
 }
-{'execute': 'nbd-server-add', 'arguments': {'device': 'secondeary-disk0', 'writable': true } }
+{'execute': 'nbd-server-add', 'arguments': {'device': 'secondary-disk0', 'writable': true } }
 
 Note:
   a. The qmp command nbd-server-start and nbd-server-add must be run
