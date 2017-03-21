@@ -1451,7 +1451,7 @@ void free_xbzrle_decoded_buf(void)
     xbzrle_decoded_buf = NULL;
 }
 
-static void migration_bitmap_free(struct RAMBitmap *bmap)
+static void migration_bitmap_free(RAMBitmap *bmap)
 {
     g_free(bmap->bmap);
     g_free(bmap->unsentmap);
@@ -1465,7 +1465,7 @@ static void ram_migration_cleanup(void *opaque)
     /* caller have hold iothread lock or is in a bh, so there is
      * no writing race against this migration_bitmap
      */
-    struct RAMBitmap *bitmap = rs->ram_bitmap;
+    RAMBitmap *bitmap = rs->ram_bitmap;
     atomic_rcu_set(&rs->ram_bitmap, NULL);
     if (bitmap) {
         memory_global_dirty_log_stop();
@@ -1504,8 +1504,8 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
      * no writing race against this migration_bitmap
      */
     if (rs->ram_bitmap) {
-        struct RAMBitmap *old_bitmap = rs->ram_bitmap, *bitmap;
-        bitmap = g_new(struct RAMBitmap, 1);
+        RAMBitmap *old_bitmap = rs->ram_bitmap, *bitmap;
+        bitmap = g_new(RAMBitmap, 1);
         bitmap->bmap = bitmap_new(new);
 
         /* prevent migration_bitmap content from being set bit
@@ -1995,7 +1995,7 @@ static int ram_state_init(RAMState *rs)
     rcu_read_lock();
     ram_state_reset(rs);
 
-    rs->ram_bitmap = g_new0(struct RAMBitmap, 1);
+    rs->ram_bitmap = g_new0(RAMBitmap, 1);
     /* Skip setting bitmap if there is no RAM */
     if (ram_bytes_total()) {
         ram_bitmap_pages = last_ram_page();
