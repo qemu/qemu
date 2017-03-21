@@ -451,18 +451,22 @@ void migrate_compress_threads_create(void)
  * @offset: offset inside the block for the page
  *          in the lower bits, it contains flags
  */
-static size_t save_page_header(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
+static size_t save_page_header(RAMState *rs, RAMBlock *block, ram_addr_t offset)
 {
     size_t size, len;
 
-    qemu_put_be64(f, offset);
+    if (block == rs->last_sent_block) {
+        offset |= RAM_SAVE_FLAG_CONTINUE;
+    }
+    qemu_put_be64(rs->f, offset);
     size = 8;
 
     if (!(offset & RAM_SAVE_FLAG_CONTINUE)) {
         len = strlen(block->idstr);
-        qemu_put_byte(f, len);
-        qemu_put_buffer(f, (uint8_t *)block->idstr, len);
+        qemu_put_byte(rs->f, len);
+        qemu_put_buffer(rs->f, (uint8_t *)block->idstr, len);
         size += 1 + len;
+        rs->last_sent_block = block;
     }
     return size;
 }
@@ -582,7 +586,7 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
     }
 
     /* Send XBZRLE based compressed page */
-    bytes_xbzrle = save_page_header(rs->f, block,
+    bytes_xbzrle = save_page_header(rs, block,
                                     offset | RAM_SAVE_FLAG_XBZRLE);
     qemu_put_byte(rs->f, ENCODING_FLAG_XBZRLE);
     qemu_put_be16(rs->f, encoded_len);
@@ -767,7 +771,7 @@ static int save_zero_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
     if (is_zero_range(p, TARGET_PAGE_SIZE)) {
         rs->zero_pages++;
         rs->bytes_transferred +=
-            save_page_header(rs->f, block, offset | RAM_SAVE_FLAG_COMPRESS);
+            save_page_header(rs, block, offset | RAM_SAVE_FLAG_COMPRESS);
         qemu_put_byte(rs->f, 0);
         rs->bytes_transferred += 1;
         pages = 1;
@@ -824,9 +828,6 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
 
     current_addr = block->offset + offset;
 
-    if (block == rs->last_sent_block) {
-        offset |= RAM_SAVE_FLAG_CONTINUE;
-    }
     if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
         if (ret != RAM_SAVE_CONTROL_DELAYED) {
             if (bytes_xmit > 0) {
@@ -858,8 +859,8 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
 
     /* XBZRLE overflow or normal page */
     if (pages == -1) {
-        rs->bytes_transferred += save_page_header(rs->f, block,
-                                               offset | RAM_SAVE_FLAG_PAGE);
+        rs->bytes_transferred += save_page_header(rs, block,
+                                                  offset | RAM_SAVE_FLAG_PAGE);
         if (send_async) {
             qemu_put_buffer_async(rs->f, p, TARGET_PAGE_SIZE,
                                   migrate_release_ram() &
@@ -880,10 +881,11 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
 static int do_compress_ram_page(QEMUFile *f, RAMBlock *block,
                                 ram_addr_t offset)
 {
+    RAMState *rs = &ram_state;
     int bytes_sent, blen;
     uint8_t *p = block->host + (offset & TARGET_PAGE_MASK);
 
-    bytes_sent = save_page_header(f, block, offset |
+    bytes_sent = save_page_header(rs, block, offset |
                                   RAM_SAVE_FLAG_COMPRESS_PAGE);
     blen = qemu_put_compression_data(f, p, TARGET_PAGE_SIZE,
                                      migrate_compress_level());
@@ -1014,7 +1016,7 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
             pages = save_zero_page(rs, block, offset, p);
             if (pages == -1) {
                 /* Make sure the first page is sent out before other pages */
-                bytes_xmit = save_page_header(rs->f, block, offset |
+                bytes_xmit = save_page_header(rs, block, offset |
                                               RAM_SAVE_FLAG_COMPRESS_PAGE);
                 blen = qemu_put_compression_data(rs->f, p, TARGET_PAGE_SIZE,
                                                  migrate_compress_level());
@@ -1031,7 +1033,6 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
                 ram_release_pages(block->idstr, pss->offset, pages);
             }
         } else {
-            offset |= RAM_SAVE_FLAG_CONTINUE;
             pages = save_zero_page(rs, block, offset, p);
             if (pages == -1) {
                 pages = compress_page_with_multi_thread(rs, block, offset);
@@ -1335,13 +1336,6 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
         unsentmap = atomic_rcu_read(&rs->ram_bitmap)->unsentmap;
         if (unsentmap) {
             clear_bit(dirty_ram_abs >> TARGET_PAGE_BITS, unsentmap);
-        }
-        /* Only update last_sent_block if a block was actually sent; xbzrle
-         * might have decided the page was identical so didn't bother writing
-         * to the stream.
-         */
-        if (res > 0) {
-            rs->last_sent_block = pss->block;
         }
     }
 
