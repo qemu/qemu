@@ -123,7 +123,7 @@ bool postcopy_ram_supported_by_host(void)
     struct uffdio_range range_struct;
     uint64_t feature_mask;
 
-    if ((1ul << qemu_target_page_bits()) > pagesize) {
+    if (qemu_target_page_size() > pagesize) {
         error_report("Target page size bigger than host page size");
         goto out;
     }
@@ -745,10 +745,10 @@ PostcopyDiscardState *postcopy_discard_send_init(MigrationState *ms,
 void postcopy_discard_send_range(MigrationState *ms, PostcopyDiscardState *pds,
                                 unsigned long start, unsigned long length)
 {
-    size_t tp_bits = qemu_target_page_bits();
+    size_t tp_size = qemu_target_page_size();
     /* Convert to byte offsets within the RAM block */
-    pds->start_list[pds->cur_entry] = (start - pds->offset) << tp_bits;
-    pds->length_list[pds->cur_entry] = length << tp_bits;
+    pds->start_list[pds->cur_entry] = (start - pds->offset) * tp_size;
+    pds->length_list[pds->cur_entry] = length * tp_size;
     trace_postcopy_discard_send_range(pds->ramblock_name, start, length);
     pds->cur_entry++;
     pds->nsentwords++;

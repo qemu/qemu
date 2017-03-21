@@ -3307,9 +3307,9 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
  * Allows code that needs to deal with migration bitmaps etc to still be built
  * target independent.
  */
-size_t qemu_target_page_bits(void)
+size_t qemu_target_page_size(void)
 {
-    return TARGET_PAGE_BITS;
+    return TARGET_PAGE_SIZE;
 }
 
 #endif

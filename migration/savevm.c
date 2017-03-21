@@ -871,7 +871,7 @@ void qemu_savevm_send_postcopy_advise(QEMUFile *f)
 {
     uint64_t tmp[2];
     tmp[0] = cpu_to_be64(ram_pagesize_summary());
-    tmp[1] = cpu_to_be64(1ul << qemu_target_page_bits());
+    tmp[1] = cpu_to_be64(qemu_target_page_size());
 
     trace_qemu_savevm_send_postcopy_advise();
     qemu_savevm_command_send(f, MIG_CMD_POSTCOPY_ADVISE, 16, (uint8_t *)tmp);
@@ -1390,13 +1390,13 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis)
     }
 
     remote_tps = qemu_get_be64(mis->from_src_file);
-    if (remote_tps != (1ul << qemu_target_page_bits())) {
+    if (remote_tps != qemu_target_page_size()) {
         /*
          * Again, some differences could be dealt with, but for now keep it
          * simple.
          */
-        error_report("Postcopy needs matching target page sizes (s=%d d=%d)",
-                     (int)remote_tps, 1 << qemu_target_page_bits());
+        error_report("Postcopy needs matching target page sizes (s=%d d=%zd)",
+                     (int)remote_tps, qemu_target_page_size());
         return -1;
     }
 

@@ -654,7 +654,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->skipped = 0;
     info->ram->normal = norm_mig_pages_transferred();
     info->ram->normal_bytes = norm_mig_pages_transferred() *
-        (1ul << qemu_target_page_bits());
+        qemu_target_page_size();
     info->ram->mbps = s->mbps;
     info->ram->dirty_sync_count = ram_dirty_sync_count();
     info->ram->postcopy_requests = ram_postcopy_requests();
@@ -2009,7 +2009,7 @@ static void *migration_thread(void *opaque)
                10000 is a small enough number for our purposes */
             if (ram_dirty_pages_rate() && transferred_bytes > 10000) {
                 s->expected_downtime = ram_dirty_pages_rate() *
-                    (1ul << qemu_target_page_bits()) / bandwidth;
+                    qemu_target_page_size() / bandwidth;
             }
 
             qemu_file_reset_rate_limit(s->to_dst_file);
