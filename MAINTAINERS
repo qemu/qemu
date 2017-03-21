@@ -1131,7 +1131,7 @@ F: tests/rocker/
 F: docs/specs/rocker.txt
 
 NVDIMM
-M: Xiao Guangrong <guangrong.xiao@linux.intel.com>
+M: Xiao Guangrong <xiaoguangrong.eric@gmail.com>
 S: Maintained
 F: hw/acpi/nvdimm.c
 F: hw/mem/nvdimm.c
