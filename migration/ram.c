@@ -646,13 +646,13 @@ static inline bool migration_bitmap_clear_dirty(RAMState *rs, ram_addr_t addr)
     return ret;
 }
 
-static void migration_bitmap_sync_range(RAMState *rs, ram_addr_t start,
-                                        ram_addr_t length)
+static void migration_bitmap_sync_range(RAMState *rs, RAMBlock *rb,
+                                        ram_addr_t start, ram_addr_t length)
 {
     unsigned long *bitmap;
     bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
     rs->migration_dirty_pages +=
-        cpu_physical_memory_sync_dirty_bitmap(bitmap, start, length,
+        cpu_physical_memory_sync_dirty_bitmap(bitmap, rb, start, length,
                                               &rs->num_dirty_pages_period);
 }
 
@@ -699,7 +699,7 @@ static void migration_bitmap_sync(RAMState *rs)
     qemu_mutex_lock(&rs->bitmap_mutex);
     rcu_read_lock();
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        migration_bitmap_sync_range(rs, block->offset, block->used_length);
+        migration_bitmap_sync_range(rs, block, 0, block->used_length);
     }
     rcu_read_unlock();
     qemu_mutex_unlock(&rs->bitmap_mutex);
