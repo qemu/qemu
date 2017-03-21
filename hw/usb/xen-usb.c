@@ -33,7 +33,7 @@
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
 
-#include <xen/io/ring.h>
+#include "hw/xen/io/ring.h"
 #include <xen/io/usbif.h>
 
 /*
