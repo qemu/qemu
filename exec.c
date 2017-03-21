@@ -1528,7 +1528,7 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
     return offset;
 }
 
-ram_addr_t last_ram_offset(void)
+unsigned long last_ram_page(void)
 {
     RAMBlock *block;
     ram_addr_t last = 0;
@@ -1538,7 +1538,7 @@ ram_addr_t last_ram_offset(void)
         last = MAX(last, block->offset + block->max_length);
     }
     rcu_read_unlock();
-    return last;
+    return last >> TARGET_PAGE_BITS;
 }
 
 static void qemu_ram_setup_dump(void *addr, ram_addr_t size)
@@ -1727,7 +1727,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
     ram_addr_t old_ram_size, new_ram_size;
     Error *err = NULL;
 
-    old_ram_size = last_ram_offset() >> TARGET_PAGE_BITS;
+    old_ram_size = last_ram_page();
 
     qemu_mutex_lock_ramlist();
     new_block->offset = find_ram_offset(new_block->max_length);

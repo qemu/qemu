@@ -1537,7 +1537,7 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
  */
 void ram_debug_dump_bitmap(unsigned long *todump, bool expected)
 {
-    int64_t ram_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+    unsigned long ram_pages = last_ram_page();
     RAMState *rs = &ram_state;
     int64_t cur;
     int64_t linelen = 128;
@@ -1904,8 +1904,7 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
      * Update the unsentmap to be unsentmap = unsentmap | dirty
      */
     bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
-    bitmap_or(unsentmap, unsentmap, bitmap,
-               last_ram_offset() >> TARGET_PAGE_BITS);
+    bitmap_or(unsentmap, unsentmap, bitmap, last_ram_page());
 
 
     trace_ram_postcopy_send_discard_bitmap();
@@ -1953,7 +1952,7 @@ err:
 
 static int ram_state_init(RAMState *rs)
 {
-    int64_t ram_bitmap_pages; /* Size of bitmap in pages, including gaps */
+    unsigned long ram_bitmap_pages;
 
     memset(rs, 0, sizeof(*rs));
     qemu_mutex_init(&rs->bitmap_mutex);
@@ -1999,7 +1998,7 @@ static int ram_state_init(RAMState *rs)
     rs->ram_bitmap = g_new0(struct RAMBitmap, 1);
     /* Skip setting bitmap if there is no RAM */
     if (ram_bytes_total()) {
-        ram_bitmap_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+        ram_bitmap_pages = last_ram_page();
         rs->ram_bitmap->bmap = bitmap_new(ram_bitmap_pages);
         bitmap_set(rs->ram_bitmap->bmap, 0, ram_bitmap_pages);
 
@@ -2460,7 +2459,7 @@ static void decompress_data_with_multi_threads(QEMUFile *f,
  */
 int ram_postcopy_incoming_init(MigrationIncomingState *mis)
 {
-    size_t ram_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+    unsigned long ram_pages = last_ram_page();
 
     return postcopy_ram_incoming_init(mis, ram_pages);
 }
