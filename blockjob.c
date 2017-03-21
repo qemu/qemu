@@ -755,12 +755,16 @@ static void block_job_defer_to_main_loop_bh(void *opaque)
 
     /* Fetch BDS AioContext again, in case it has changed */
     aio_context = blk_get_aio_context(data->job->blk);
-    aio_context_acquire(aio_context);
+    if (aio_context != data->aio_context) {
+        aio_context_acquire(aio_context);
+    }
 
     data->job->deferred_to_main_loop = false;
     data->fn(data->job, data->opaque);
 
-    aio_context_release(aio_context);
+    if (aio_context != data->aio_context) {
+        aio_context_release(aio_context);
+    }
 
     aio_context_release(data->aio_context);
 
