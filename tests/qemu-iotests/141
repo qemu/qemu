@@ -65,7 +65,7 @@ test_blockjob()
 
     # We want this to return an error because the block job is still running
     _send_qemu_cmd $QEMU_HANDLE \
-        "{'execute': 'x-blockdev-del',
+        "{'execute': 'blockdev-del',
           'arguments': {'node-name': 'drv0'}}" \
         'error' | _filter_generated_node_ids
 
@@ -75,7 +75,7 @@ test_blockjob()
         "$3"
 
     _send_qemu_cmd $QEMU_HANDLE \
-        "{'execute': 'x-blockdev-del',
+        "{'execute': 'blockdev-del',
           'arguments': {'node-name': 'drv0'}}" \
         'return'
 }

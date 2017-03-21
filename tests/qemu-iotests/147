@@ -57,7 +57,7 @@ class NBDBlockdevAddBase(iotests.QMPTestCase):
                                                     filename)
                 break
 
-        result = self.vm.qmp('x-blockdev-del', node_name='nbd-blockdev')
+        result = self.vm.qmp('blockdev-del', node_name='nbd-blockdev')
         self.assert_qmp(result, 'return', {})
 
 
