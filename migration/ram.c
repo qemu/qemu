@@ -171,8 +171,8 @@ struct RAMState {
     RAMBlock *last_seen_block;
     /* Last block from where we have sent data */
     RAMBlock *last_sent_block;
-    /* Last offset we have sent data from */
-    ram_addr_t last_offset;
+    /* Last dirty target page we have sent */
+    ram_addr_t last_page;
     /* last ram version we have seen */
     uint32_t last_version;
     /* We are in the first round */
@@ -1061,7 +1061,7 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss,
     pss->offset = migration_bitmap_find_dirty(rs, pss->block, pss->offset,
                                               page_abs);
     if (pss->complete_round && pss->block == rs->last_seen_block &&
-        pss->offset >= rs->last_offset) {
+        (pss->offset >> TARGET_PAGE_BITS) >= rs->last_page) {
         /*
          * We've been once around the RAM and haven't found anything.
          * Give up.
@@ -1402,7 +1402,7 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
     }
 
     pss.block = rs->last_seen_block;
-    pss.offset = rs->last_offset;
+    pss.offset = rs->last_page << TARGET_PAGE_BITS;
     pss.complete_round = false;
 
     if (!pss.block) {
@@ -1424,7 +1424,7 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
     } while (!pages && again);
 
     rs->last_seen_block = pss.block;
-    rs->last_offset = pss.offset;
+    rs->last_page = pss.offset >> TARGET_PAGE_BITS;
 
     return pages;
 }
@@ -1499,7 +1499,7 @@ static void ram_state_reset(RAMState *rs)
 {
     rs->last_seen_block = NULL;
     rs->last_sent_block = NULL;
-    rs->last_offset = 0;
+    rs->last_page = 0;
     rs->last_version = ram_list.version;
     rs->ram_bulk_stage = true;
 }
@@ -1844,7 +1844,7 @@ static int postcopy_chunk_hostpages(MigrationState *ms)
     /* Easiest way to make sure we don't resume in the middle of a host-page */
     rs->last_seen_block = NULL;
     rs->last_sent_block = NULL;
-    rs->last_offset     = 0;
+    rs->last_page = 0;
 
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
         unsigned long first = block->offset >> TARGET_PAGE_BITS;
