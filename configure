@@ -5144,8 +5144,8 @@ if test "$supported_os" = "no"; then
     echo
     echo "WARNING: SUPPORT FOR THIS HOST OS WILL GO AWAY IN FUTURE RELEASES!"
     echo
-    echo "CPU host OS $targetos support is not currently maintained."
-    echo "The QEMU project intends to remove support for this host CPU in"
+    echo "Host OS $targetos support is not currently maintained."
+    echo "The QEMU project intends to remove support for this host OS in"
     echo "a future release if nobody volunteers to maintain it and to"
     echo "provide a build host for our continuous integration setup."
     echo "configure has succeeded and you can continue to build, but"
