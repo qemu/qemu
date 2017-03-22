@@ -136,6 +136,7 @@ typedef struct DisasContext {
     int cpuid_ext3_features;
     int cpuid_7_0_ebx_features;
     int cpuid_xsave_features;
+    sigjmp_buf jmpbuf;
 } DisasContext;
 
 static void gen_eob(DisasContext *s);
@@ -1863,11 +1864,27 @@ static void gen_shifti(DisasContext *s1, int op, TCGMemOp ot, int d, int c)
     }
 }
 
+#define X86_MAX_INSN_LENGTH 15
+
 static uint64_t advance_pc(CPUX86State *env, DisasContext *s, int num_bytes)
 {
     uint64_t pc = s->pc;
 
     s->pc += num_bytes;
+    if (unlikely(s->pc - s->pc_start > X86_MAX_INSN_LENGTH)) {
+        /* If the instruction's 16th byte is on a different page than the 1st, a
+         * page fault on the second page wins over the general protection fault
+         * caused by the instruction being too long.
+         * This can happen even if the operand is only one byte long!
+         */
+        if (((s->pc - 1) ^ (pc - 1)) & TARGET_PAGE_MASK) {
+            volatile uint8_t unused =
+                cpu_ldub_code(env, (s->pc - 1) & TARGET_PAGE_MASK);
+            (void) unused;
+        }
+        siglongjmp(s->jmpbuf, 1);
+    }
+
     return pc;
 }
 
@@ -4463,14 +4480,12 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     s->rip_offset = 0; /* for relative ip address */
     s->vex_l = 0;
     s->vex_v = 0;
- next_byte:
-    /* x86 has an upper limit of 15 bytes for an instruction. Since we
-     * do not want to decode and generate IR for an illegal
-     * instruction, the following check limits the instruction size to
-     * 25 bytes: 14 prefix + 1 opc + 6 (modrm+sib+ofs) + 4 imm */
-    if (s->pc - pc_start > 14) {
-        goto illegal_op;
+    if (sigsetjmp(s->jmpbuf, 0) != 0) {
+        gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        return s->pc;
     }
+
+ next_byte:
     b = x86_ldub_code(env, s);
     /* Collect prefixes.  */
     switch (b) {
