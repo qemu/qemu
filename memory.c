@@ -906,12 +906,6 @@ void memory_region_transaction_begin(void)
     ++memory_region_transaction_depth;
 }
 
-static void memory_region_clear_pending(void)
-{
-    memory_region_update_pending = false;
-    ioeventfd_update_pending = false;
-}
-
 void memory_region_transaction_commit(void)
 {
     AddressSpace *as;
@@ -927,14 +921,14 @@ void memory_region_transaction_commit(void)
             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
                 address_space_update_topology(as);
             }
-
+            memory_region_update_pending = false;
             MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
         } else if (ioeventfd_update_pending) {
             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
                 address_space_update_ioeventfds(as);
             }
+            ioeventfd_update_pending = false;
         }
-        memory_region_clear_pending();
    }
 }
 
