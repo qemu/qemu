@@ -29,8 +29,8 @@
 #elif DEPTH == 24
 #define PUTPIXEL(s, a, c)    do {          \
         ROP_OP(s, a,     c);               \
-        ROP_OP(s, a + 1, (col >> 8));      \
-        ROP_OP(s, a + 2, (col >> 16));     \
+        ROP_OP(s, a + 1, (c >> 8));        \
+        ROP_OP(s, a + 2, (c >> 16));       \
     } while (0)
 #elif DEPTH == 32
 #define PUTPIXEL(s, a, c)    ROP_OP_32(s, a, c)
