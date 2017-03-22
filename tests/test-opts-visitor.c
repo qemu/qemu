@@ -172,6 +172,24 @@ expect_u64_max(OptsVisitorFixture *f, gconstpointer test_data)
 
 /* test cases */
 
+static void
+test_opts_dict_unvisited(void)
+{
+    QemuOpts *opts;
+    Visitor *v;
+    UserDefOptions *userdef;
+
+    opts = qemu_opts_parse(qemu_find_opts("userdef"), "i64x=0,bogus=1", false,
+                           &error_abort);
+
+    v = opts_visitor_new(opts);
+    /* BUG: bogus should be diagnosed */
+    visit_type_UserDefOptions(v, NULL, &userdef, &error_abort);
+    visit_free(v);
+    qemu_opts_del(opts);
+    qapi_free_UserDefOptions(userdef);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -262,6 +280,8 @@ main(int argc, char **argv)
              "i64=-0x8000000000000000--0x7fffffffffff0000");
     add_test("/visitor/opts/i64/range/2big/full", &expect_fail,
              "i64=-0x8000000000000000-0x7fffffffffffffff");
+
+    g_test_add_func("/visitor/opts/dict/unvisited", test_opts_dict_unvisited);
 
     g_test_run();
     return 0;
