@@ -1496,40 +1496,6 @@ static void ram_state_reset(RAMState *rs)
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
 
-void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
-{
-    RAMState *rs = &ram_state;
-
-    /* called in qemu main thread, so there is
-     * no writing race against this migration_bitmap
-     */
-    if (rs->ram_bitmap) {
-        RAMBitmap *old_bitmap = rs->ram_bitmap, *bitmap;
-        bitmap = g_new(RAMBitmap, 1);
-        bitmap->bmap = bitmap_new(new);
-
-        /* prevent migration_bitmap content from being set bit
-         * by migration_bitmap_sync_range() at the same time.
-         * it is safe to migration if migration_bitmap is cleared bit
-         * at the same time.
-         */
-        qemu_mutex_lock(&rs->bitmap_mutex);
-        bitmap_copy(bitmap->bmap, old_bitmap->bmap, old);
-        bitmap_set(bitmap->bmap, old, new - old);
-
-        /* We don't have a way to safely extend the sentmap
-         * with RCU; so mark it as missing, entry to postcopy
-         * will fail.
-         */
-        bitmap->unsentmap = NULL;
-
-        atomic_rcu_set(&rs->ram_bitmap, bitmap);
-        qemu_mutex_unlock(&rs->bitmap_mutex);
-        rs->migration_dirty_pages += new - old;
-        call_rcu(old_bitmap, migration_bitmap_free, rcu);
-    }
-}
-
 /*
  * 'expected' is the value you expect the bitmap mostly to be full
  * of; it won't bother printing lines that are all this value.

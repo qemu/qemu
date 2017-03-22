@@ -413,7 +413,5 @@ uint64_t cpu_physical_memory_sync_dirty_bitmap(unsigned long *dest,
 
     return num_dirty;
 }
-
-void migration_bitmap_extend(ram_addr_t old, ram_addr_t new);
 #endif
 #endif
