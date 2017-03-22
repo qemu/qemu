@@ -164,7 +164,7 @@ opts_check_struct(Visitor *v, Error **errp)
     GHashTableIter iter;
     GQueue *any;
 
-    if (ov->depth > 0) {
+    if (ov->depth > 1) {
         return;
     }
 

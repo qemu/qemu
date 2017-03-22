@@ -175,6 +175,7 @@ expect_u64_max(OptsVisitorFixture *f, gconstpointer test_data)
 static void
 test_opts_dict_unvisited(void)
 {
+    Error *err = NULL;
     QemuOpts *opts;
     Visitor *v;
     UserDefOptions *userdef;
@@ -183,11 +184,11 @@ test_opts_dict_unvisited(void)
                            &error_abort);
 
     v = opts_visitor_new(opts);
-    /* BUG: bogus should be diagnosed */
-    visit_type_UserDefOptions(v, NULL, &userdef, &error_abort);
+    visit_type_UserDefOptions(v, NULL, &userdef, &err);
+    error_free_or_abort(&err);
     visit_free(v);
     qemu_opts_del(opts);
-    qapi_free_UserDefOptions(userdef);
+    g_assert(!userdef);
 }
 
 int
