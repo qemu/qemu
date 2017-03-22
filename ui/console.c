@@ -1586,7 +1586,9 @@ bool dpy_gfx_check_format(QemuConsole *con,
 static void do_safe_dpy_refresh(CPUState *cpu, run_on_cpu_data opaque)
 {
     DisplayChangeListener *dcl = opaque.host_ptr;
+    qemu_mutex_lock_iothread();
     dcl->ops->dpy_refresh(dcl);
+    qemu_mutex_unlock_iothread();
 }
 
 static void dpy_refresh(DisplayState *s)
