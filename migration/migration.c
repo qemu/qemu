@@ -1075,11 +1075,9 @@ bool migration_in_postcopy_after_devices(MigrationState *s)
     return migration_in_postcopy() && s->postcopy_after_devices;
 }
 
-bool migration_is_idle(MigrationState *s)
+bool migration_is_idle(void)
 {
-    if (!s) {
-        s = migrate_get_current();
-    }
+    MigrationState *s = migrate_get_current();
 
     switch (s->state) {
     case MIGRATION_STATUS_NONE:
@@ -1144,7 +1142,7 @@ int migrate_add_blocker(Error *reason, Error **errp)
         return -EACCES;
     }
 
-    if (migration_is_idle(NULL)) {
+    if (migration_is_idle()) {
         migration_blockers = g_slist_prepend(migration_blockers, reason);
         return 0;
     }
