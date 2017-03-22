@@ -180,6 +180,25 @@ static void xen_9pfs_init_in_iov_from_pdu(V9fsPDU *pdu,
 
 static void xen_9pfs_push_and_notify(V9fsPDU *pdu)
 {
+    RING_IDX prod;
+    Xen9pfsDev *priv = container_of(pdu->s, Xen9pfsDev, state);
+    Xen9pfsRing *ring = &priv->rings[pdu->tag % priv->num_rings];
+
+    g_free(ring->sg);
+    ring->sg = NULL;
+
+    ring->intf->out_cons = ring->out_cons;
+    xen_wmb();
+
+    prod = ring->intf->in_prod;
+    xen_rmb();
+    ring->intf->in_prod = prod + pdu->size;
+    xen_wmb();
+
+    ring->inprogress = false;
+    xenevtchn_notify(ring->evtchndev, ring->local_port);
+
+    qemu_bh_schedule(ring->bh);
 }
 
 static const struct V9fsTransport xen_9p_transport = {
