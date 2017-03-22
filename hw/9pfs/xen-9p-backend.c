@@ -100,12 +100,62 @@ static int xen_9pfs_init(struct XenDevice *xendev)
     return 0;
 }
 
+static int xen_9pfs_receive(Xen9pfsRing *ring)
+{
+    P9MsgHeader h;
+    RING_IDX cons, prod, masked_prod, masked_cons;
+    V9fsPDU *pdu;
+
+    if (ring->inprogress) {
+        return 0;
+    }
+
+    cons = ring->intf->out_cons;
+    prod = ring->intf->out_prod;
+    xen_rmb();
+
+    if (xen_9pfs_queued(prod, cons, XEN_FLEX_RING_SIZE(ring->ring_order)) <
+        sizeof(h)) {
+        return 0;
+    }
+    ring->inprogress = true;
+
+    masked_prod = xen_9pfs_mask(prod, XEN_FLEX_RING_SIZE(ring->ring_order));
+    masked_cons = xen_9pfs_mask(cons, XEN_FLEX_RING_SIZE(ring->ring_order));
+
+    xen_9pfs_read_packet((uint8_t *) &h, ring->ring.out, sizeof(h),
+                         masked_prod, &masked_cons,
+                         XEN_FLEX_RING_SIZE(ring->ring_order));
+
+    /* cannot fail, because we only handle one request per ring at a time */
+    pdu = pdu_alloc(&ring->priv->state);
+    pdu->size = le32_to_cpu(h.size_le);
+    pdu->id = h.id;
+    pdu->tag = le32_to_cpu(h.tag_le);
+    ring->out_size = le32_to_cpu(h.size_le);
+    ring->out_cons = cons + le32_to_cpu(h.size_le);
+
+    qemu_co_queue_init(&pdu->complete);
+    pdu_submit(pdu);
+
+    return 0;
+}
+
 static void xen_9pfs_bh(void *opaque)
 {
+    Xen9pfsRing *ring = opaque;
+    xen_9pfs_receive(ring);
 }
 
 static void xen_9pfs_evtchn_event(void *opaque)
 {
+    Xen9pfsRing *ring = opaque;
+    evtchn_port_t port;
+
+    port = xenevtchn_pending(ring->evtchndev);
+    xenevtchn_unmask(ring->evtchndev, port);
+
+    qemu_bh_schedule(ring->bh);
 }
 
 static int xen_9pfs_free(struct XenDevice *xendev)
