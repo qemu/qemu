@@ -164,7 +164,7 @@ opts_check_struct(Visitor *v, Error **errp)
     GHashTableIter iter;
     GQueue *any;
 
-    if (ov->depth > 0) {
+    if (ov->depth > 1) {
         return;
     }
 
@@ -276,8 +276,8 @@ static void
 opts_check_list(Visitor *v, Error **errp)
 {
     /*
-     * FIXME should set error when unvisited elements remain.  Mostly
-     * harmless, as the generated visits always visit all elements.
+     * Unvisited list elements will be reported later when checking
+     * whether unvisited struct members remain.
      */
 }
 
