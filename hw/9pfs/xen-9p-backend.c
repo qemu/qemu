@@ -54,12 +54,81 @@ typedef struct Xen9pfsDev {
     Xen9pfsRing *rings;
 } Xen9pfsDev;
 
+static void xen_9pfs_in_sg(Xen9pfsRing *ring,
+                           struct iovec *in_sg,
+                           int *num,
+                           uint32_t idx,
+                           uint32_t size)
+{
+    RING_IDX cons, prod, masked_prod, masked_cons;
+
+    cons = ring->intf->in_cons;
+    prod = ring->intf->in_prod;
+    xen_rmb();
+    masked_prod = xen_9pfs_mask(prod, XEN_FLEX_RING_SIZE(ring->ring_order));
+    masked_cons = xen_9pfs_mask(cons, XEN_FLEX_RING_SIZE(ring->ring_order));
+
+    if (masked_prod < masked_cons) {
+        in_sg[0].iov_base = ring->ring.in + masked_prod;
+        in_sg[0].iov_len = masked_cons - masked_prod;
+        *num = 1;
+    } else {
+        in_sg[0].iov_base = ring->ring.in + masked_prod;
+        in_sg[0].iov_len = XEN_FLEX_RING_SIZE(ring->ring_order) - masked_prod;
+        in_sg[1].iov_base = ring->ring.in;
+        in_sg[1].iov_len = masked_cons;
+        *num = 2;
+    }
+}
+
+static void xen_9pfs_out_sg(Xen9pfsRing *ring,
+                            struct iovec *out_sg,
+                            int *num,
+                            uint32_t idx)
+{
+    RING_IDX cons, prod, masked_prod, masked_cons;
+
+    cons = ring->intf->out_cons;
+    prod = ring->intf->out_prod;
+    xen_rmb();
+    masked_prod = xen_9pfs_mask(prod, XEN_FLEX_RING_SIZE(ring->ring_order));
+    masked_cons = xen_9pfs_mask(cons, XEN_FLEX_RING_SIZE(ring->ring_order));
+
+    if (masked_cons < masked_prod) {
+        out_sg[0].iov_base = ring->ring.out + masked_cons;
+        out_sg[0].iov_len = ring->out_size;
+        *num = 1;
+    } else {
+        if (ring->out_size >
+            (XEN_FLEX_RING_SIZE(ring->ring_order) - masked_cons)) {
+            out_sg[0].iov_base = ring->ring.out + masked_cons;
+            out_sg[0].iov_len = XEN_FLEX_RING_SIZE(ring->ring_order) -
+                                masked_cons;
+            out_sg[1].iov_base = ring->ring.out;
+            out_sg[1].iov_len = ring->out_size -
+                                (XEN_FLEX_RING_SIZE(ring->ring_order) -
+                                 masked_cons);
+            *num = 2;
+        } else {
+            out_sg[0].iov_base = ring->ring.out + masked_cons;
+            out_sg[0].iov_len = ring->out_size;
+            *num = 1;
+        }
+    }
+}
+
 static ssize_t xen_9pfs_pdu_vmarshal(V9fsPDU *pdu,
                                      size_t offset,
                                      const char *fmt,
                                      va_list ap)
 {
-    return 0;
+    Xen9pfsDev *xen_9pfs = container_of(pdu->s, Xen9pfsDev, state);
+    struct iovec in_sg[2];
+    int num;
+
+    xen_9pfs_in_sg(&xen_9pfs->rings[pdu->tag % xen_9pfs->num_rings],
+                   in_sg, &num, pdu->idx, ROUND_UP(offset + 128, 512));
+    return v9fs_iov_vmarshal(in_sg, num, offset, 0, fmt, ap);
 }
 
 static ssize_t xen_9pfs_pdu_vunmarshal(V9fsPDU *pdu,
@@ -67,13 +136,29 @@ static ssize_t xen_9pfs_pdu_vunmarshal(V9fsPDU *pdu,
                                        const char *fmt,
                                        va_list ap)
 {
-    return 0;
+    Xen9pfsDev *xen_9pfs = container_of(pdu->s, Xen9pfsDev, state);
+    struct iovec out_sg[2];
+    int num;
+
+    xen_9pfs_out_sg(&xen_9pfs->rings[pdu->tag % xen_9pfs->num_rings],
+                    out_sg, &num, pdu->idx);
+    return v9fs_iov_vunmarshal(out_sg, num, offset, 0, fmt, ap);
 }
 
 static void xen_9pfs_init_out_iov_from_pdu(V9fsPDU *pdu,
                                            struct iovec **piov,
                                            unsigned int *pniov)
 {
+    Xen9pfsDev *xen_9pfs = container_of(pdu->s, Xen9pfsDev, state);
+    Xen9pfsRing *ring = &xen_9pfs->rings[pdu->tag % xen_9pfs->num_rings];
+    int num;
+
+    g_free(ring->sg);
+
+    ring->sg = g_malloc0(sizeof(*ring->sg) * 2);
+    xen_9pfs_out_sg(ring, ring->sg, &num, pdu->idx);
+    *piov = ring->sg;
+    *pniov = num;
 }
 
 static void xen_9pfs_init_in_iov_from_pdu(V9fsPDU *pdu,
@@ -81,6 +166,16 @@ static void xen_9pfs_init_in_iov_from_pdu(V9fsPDU *pdu,
                                           unsigned int *pniov,
                                           size_t size)
 {
+    Xen9pfsDev *xen_9pfs = container_of(pdu->s, Xen9pfsDev, state);
+    Xen9pfsRing *ring = &xen_9pfs->rings[pdu->tag % xen_9pfs->num_rings];
+    int num;
+
+    g_free(ring->sg);
+
+    ring->sg = g_malloc0(sizeof(*ring->sg) * 2);
+    xen_9pfs_in_sg(ring, ring->sg, &num, pdu->idx, size);
+    *piov = ring->sg;
+    *pniov = num;
 }
 
 static void xen_9pfs_push_and_notify(V9fsPDU *pdu)
