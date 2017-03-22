@@ -361,8 +361,6 @@ static void cryptodev_builtin_cleanup(
         }
     }
 
-    assert(queues == 1);
-
     for (i = 0; i < queues; i++) {
         cc = backend->conf.peers.ccs[i];
         if (cc) {
