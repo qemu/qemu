@@ -21,6 +21,7 @@ enum xen_mode {
 
 extern uint32_t xen_domid;
 extern enum xen_mode xen_mode;
+extern bool xen_domid_restrict;
 
 extern bool xen_allowed;
 

@@ -151,6 +151,13 @@ static inline int xendevicemodel_set_mem_type(
     return xc_hvm_set_mem_type(dmod, domid, mem_type, first_pfn, nr);
 }
 
+static inline int xendevicemodel_restrict(
+    xendevicemodel_handle *dmod, domid_t domid)
+{
+    errno = ENOTTY;
+    return -1;
+}
+
 #else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40900 */
 
 #undef XC_WANT_COMPAT_DEVICEMODEL_API
@@ -204,6 +211,19 @@ static inline int xen_modified_memory(domid_t domid, uint64_t first_pfn,
                                       uint32_t nr)
 {
     return xendevicemodel_modified_memory(xen_dmod, domid, first_pfn, nr);
+}
+
+static inline int xen_restrict(domid_t domid)
+{
+    int rc = xendevicemodel_restrict(xen_dmod, domid);
+
+    trace_xen_domid_restrict(errno);
+
+    if (errno == ENOTTY) {
+        return 0;
+    }
+
+    return rc;
 }
 
 /* Xen 4.2 through 4.6 */
