@@ -144,6 +144,7 @@ typedef struct BDRVRawState {
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
     bool use_linux_aio:1;
+    bool page_cache_inconsistent:1;
     bool has_fallocate;
     bool needs_alignment;
 } BDRVRawState;
@@ -824,10 +825,31 @@ static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
 
 static ssize_t handle_aiocb_flush(RawPosixAIOData *aiocb)
 {
+    BDRVRawState *s = aiocb->bs->opaque;
     int ret;
+
+    if (s->page_cache_inconsistent) {
+        return -EIO;
+    }
 
     ret = qemu_fdatasync(aiocb->aio_fildes);
     if (ret == -1) {
+        /* There is no clear definition of the semantics of a failing fsync(),
+         * so we may have to assume the worst. The sad truth is that this
+         * assumption is correct for Linux. Some pages are now probably marked
+         * clean in the page cache even though they are inconsistent with the
+         * on-disk contents. The next fdatasync() call would succeed, but no
+         * further writeback attempt will be made. We can't get back to a state
+         * in which we know what is on disk (we would have to rewrite
+         * everything that was touched since the last fdatasync() at least), so
+         * make bdrv_flush() fail permanently. Given that the behaviour isn't
+         * really defined, I have little hope that other OSes are doing better.
+         *
+         * Obviously, this doesn't affect O_DIRECT, which bypasses the page
+         * cache. */
+        if ((s->open_flags & O_DIRECT) == 0) {
+            s->page_cache_inconsistent = true;
+        }
         return -errno;
     }
     return 0;
