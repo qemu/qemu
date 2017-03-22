@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
 #include "sysemu/block-backend.h"
+#include "migration/migration.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -603,6 +604,11 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         return NULL;
     }
 
+    if (!migration_is_idle()) {
+        error_setg(errp, "device_add not allowed while migrating");
+        return NULL;
+    }
+
     /* create device */
     dev = DEVICE(object_new(driver));
 
@@ -850,6 +856,11 @@ void qdev_unplug(DeviceState *dev, Error **errp)
     if (!dc->hotpluggable) {
         error_setg(errp, QERR_DEVICE_NO_HOTPLUG,
                    object_get_typename(OBJECT(dev)));
+        return;
+    }
+
+    if (!migration_is_idle()) {
+        error_setg(errp, "device_del not allowed while migrating");
         return;
     }
 
