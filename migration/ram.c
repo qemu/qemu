@@ -743,14 +743,14 @@ static int save_zero_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
     return pages;
 }
 
-static void ram_release_pages(MigrationState *ms, const char *block_name,
+static void ram_release_pages(MigrationState *ms, const char *rbname,
                               uint64_t offset, int pages)
 {
     if (!migrate_release_ram() || !migration_in_postcopy(ms)) {
         return;
     }
 
-    ram_discard_range(NULL, block_name, offset, pages << TARGET_PAGE_BITS);
+    ram_discard_range(NULL, rbname, offset, pages << TARGET_PAGE_BITS);
 }
 
 /**
@@ -1943,25 +1943,24 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
  * Returns zero on success
  *
  * @mis: current migration incoming state
- * @block_name: Name of the RAMBlock of the request. NULL means the
- *              same that last one.
+ * @rbname: name of the RAMBlock of the request. NULL means the
+ *          same that last one.
  * @start: RAMBlock starting page
  * @length: RAMBlock size
  */
 int ram_discard_range(MigrationIncomingState *mis,
-                      const char *block_name,
+                      const char *rbname,
                       uint64_t start, size_t length)
 {
     int ret = -1;
 
-    trace_ram_discard_range(block_name, start, length);
+    trace_ram_discard_range(rbname, start, length);
 
     rcu_read_lock();
-    RAMBlock *rb = qemu_ram_block_by_name(block_name);
+    RAMBlock *rb = qemu_ram_block_by_name(rbname);
 
     if (!rb) {
-        error_report("ram_discard_range: Failed to find block '%s'",
-                     block_name);
+        error_report("ram_discard_range: Failed to find block '%s'", rbname);
         goto err;
     }
 
