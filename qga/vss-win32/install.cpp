@@ -14,7 +14,7 @@
 
 #include "vss-common.h"
 #include <inc/win2003/vscoordint.h>
-#include <comadmin.h>
+#include "install.h"
 #include <wbemidl.h>
 #include <comdef.h>
 #include <comutil.h>
@@ -276,7 +276,7 @@ STDAPI COMRegister(void)
 
     chk(pCatalog->CreateServiceForApplication(
             _bstr_t(QGA_PROVIDER_LNAME), _bstr_t(QGA_PROVIDER_LNAME),
-            _bstr_t(L"SERVICE_AUTO_START"), _bstr_t(L"SERVICE_ERROR_NORMAL"),
+            _bstr_t(L"SERVICE_DEMAND_START"), _bstr_t(L"SERVICE_ERROR_NORMAL"),
             _bstr_t(L""), _bstr_t(L".\\localsystem"), _bstr_t(L""), FALSE));
     chk(pCatalog->InstallComponent(_bstr_t(QGA_PROVIDER_LNAME),
                                    _bstr_t(dllPath), _bstr_t(tlbPath),
@@ -460,4 +460,28 @@ namespace _com_util
         }
         return bstr;
     }
+}
+
+/* Stop QGA VSS provider service from COM+ Application Admin Catalog */
+
+STDAPI StopService(void)
+{
+    HRESULT hr;
+    COMInitializer initializer;
+    COMPointer<IUnknown> pUnknown;
+    COMPointer<ICOMAdminCatalog2> pCatalog;
+
+    int count = 0;
+
+    chk(QGAProviderFind(QGAProviderCount, (void *)&count));
+    if (count) {
+        chk(CoCreateInstance(CLSID_COMAdminCatalog, NULL, CLSCTX_INPROC_SERVER,
+            IID_IUnknown, (void **)pUnknown.replace()));
+        chk(pUnknown->QueryInterface(IID_ICOMAdminCatalog2,
+            (void **)pCatalog.replace()));
+        chk(pCatalog->ShutdownApplication(_bstr_t(QGA_PROVIDER_LNAME)));
+    }
+
+out:
+    return hr;
 }
