@@ -114,7 +114,7 @@ static QemuOptsList parallels_runtime_opts = {
             .name = PARALLELS_OPT_PREALLOC_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "Preallocation size on image expansion",
-            .def_value_str = "128MiB",
+            .def_value_str = "128M",
         },
         {
             .name = PARALLELS_OPT_PREALLOC_MODE,
