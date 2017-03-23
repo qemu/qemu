@@ -122,6 +122,7 @@ Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
     }
     if (!id) {
         error_setg(errp, QERR_MISSING_PARAMETER, "id");
+        qemu_opt_set(opts, "qom-type", type, &error_abort);
         g_free(type);
         return NULL;
     }
@@ -134,6 +135,7 @@ Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
     visit_free(v);
 
     qemu_opts_set_id(opts, (char *) id);
+    qemu_opt_set(opts, "qom-type", type, &error_abort);
     g_free(type);
     QDECREF(pdict);
     return obj;
