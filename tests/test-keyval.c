@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qobject-input-visitor.h"
+#include "test-qapi-visit.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 
@@ -218,14 +219,14 @@ static void test_keyval_parse_list(void)
     QDECREF(qdict);
 
     /* Multiple indexes, last one wins */
-    qdict = keyval_parse("list.1=goner,list.0=null,list.1=eins,list.2=zwei",
+    qdict = keyval_parse("list.1=goner,list.0=null,list.01=eins,list.2=zwei",
                          NULL, &error_abort);
     g_assert_cmpint(qdict_size(qdict), ==, 1);
     check_list012(qdict_get_qlist(qdict, "list"));
     QDECREF(qdict);
 
     /* List at deeper nesting */
-    qdict = keyval_parse("a.list.1=eins,a.list.0=null,a.list.2=zwei",
+    qdict = keyval_parse("a.list.1=eins,a.list.00=null,a.list.2=zwei",
                          NULL, &error_abort);
     g_assert_cmpint(qdict_size(qdict), ==, 1);
     sub_qdict = qdict_get_qdict(qdict, "a");
@@ -242,7 +243,7 @@ static void test_keyval_parse_list(void)
     g_assert(!qdict);
 
     /* Missing list indexes */
-    qdict = keyval_parse("list.2=lonely", NULL, &err);
+    qdict = keyval_parse("list.1=lonely", NULL, &err);
     error_free_or_abort(&err);
     g_assert(!qdict);
     qdict = keyval_parse("list.0=null,list.2=eins,list.02=zwei", NULL, &err);
@@ -608,6 +609,56 @@ static void test_keyval_visit_optional(void)
     visit_free(v);
 }
 
+static void test_keyval_visit_alternate(void)
+{
+    Error *err = NULL;
+    Visitor *v;
+    QDict *qdict;
+    AltNumStr *ans;
+    AltNumInt *ani;
+
+    /*
+     * Can't do scalar alternate variants other than string.  You get
+     * the string variant if there is one, else an error.
+     */
+    qdict = keyval_parse("a=1,b=2", NULL, &error_abort);
+    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    QDECREF(qdict);
+    visit_start_struct(v, NULL, NULL, 0, &error_abort);
+    visit_type_AltNumStr(v, "a", &ans, &error_abort);
+    g_assert_cmpint(ans->type, ==, QTYPE_QSTRING);
+    g_assert_cmpstr(ans->u.s, ==, "1");
+    visit_type_AltNumInt(v, "a", &ani, &err);
+    error_free_or_abort(&err);
+    visit_end_struct(v, NULL);
+    visit_free(v);
+}
+
+static void test_keyval_visit_any(void)
+{
+    Visitor *v;
+    QDict *qdict;
+    QObject *any;
+    QList *qlist;
+    QString *qstr;
+
+    qdict = keyval_parse("a.0=null,a.1=1", NULL, &error_abort);
+    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    QDECREF(qdict);
+    visit_start_struct(v, NULL, NULL, 0, &error_abort);
+    visit_type_any(v, "a", &any, &error_abort);
+    qlist = qobject_to_qlist(any);
+    g_assert(qlist);
+    qstr = qobject_to_qstring(qlist_pop(qlist));
+    g_assert_cmpstr(qstring_get_str(qstr), ==, "null");
+    qstr = qobject_to_qstring(qlist_pop(qlist));
+    g_assert_cmpstr(qstring_get_str(qstr), ==, "1");
+    g_assert(qlist_empty(qlist));
+    visit_check_struct(v, &error_abort);
+    visit_end_struct(v, NULL);
+    visit_free(v);
+}
+
 int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
@@ -619,6 +670,8 @@ int main(int argc, char *argv[])
     g_test_add_func("/keyval/visit/dict", test_keyval_visit_dict);
     g_test_add_func("/keyval/visit/list", test_keyval_visit_list);
     g_test_add_func("/keyval/visit/optional", test_keyval_visit_optional);
+    g_test_add_func("/keyval/visit/alternate", test_keyval_visit_alternate);
+    g_test_add_func("/keyval/visit/any", test_keyval_visit_any);
     g_test_run();
     return 0;
 }

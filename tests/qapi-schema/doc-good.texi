@@ -1,0 +1,243 @@
+@section Section
+
+@subsection Subsection
+
+@strong{strong} @emph{with emphasis}
+@code{var} @{in braces@}
+@itemize @bullet
+@item
+List item one
+@item
+Two, multiple
+lines
+
+@item
+Three
+Still in list
+
+@end itemize
+
+Not in list
+@itemize @minus
+@item
+Second list
+Note: still in list
+
+@end itemize
+
+Note: not in list
+@enumerate
+@item
+Third list
+is numbered
+
+@item
+another item
+
+@example
+example
+@end example
+
+@example
+multiple lines
+@end example
+
+
+@end enumerate
+
+Returns: the King
+Since: the first age
+Notes:
+
+@enumerate
+@item
+Lorem ipsum dolor sit amet
+
+@item
+Ut enim ad minim veniam
+
+@end enumerate
+
+Duis aute irure dolor
+
+Example:
+
+-> in
+<- out
+Examples:
+@itemize @minus
+@item
+@strong{verbatim}
+@item
+@{braces@}
+@end itemize
+
+
+
+@deftp {Enum} Enum
+
+@subsection Produces @strong{invalid} texinfo
+
+@b{Values:}
+@table @asis
+@item @code{one}
+The @emph{one} @{and only@}
+@item @code{two}
+Not documented
+@end table
+@code{two} is undocumented
+
+@end deftp
+
+
+
+@deftp {Object} Base
+
+
+
+@b{Members:}
+@table @asis
+@item @code{base1: Enum}
+the first member
+@end table
+
+
+@end deftp
+
+
+
+@deftp {Object} Variant1
+
+A paragraph
+
+Another paragraph (but no @code{var}: line)
+
+@b{Members:}
+@table @asis
+@item @code{var1: string}
+Not documented
+@end table
+
+
+@end deftp
+
+
+
+@deftp {Object} Variant2
+
+
+
+
+@end deftp
+
+
+
+@deftp {Object} Object
+
+
+
+@b{Members:}
+@table @asis
+@item The members of @code{Base}
+@item The members of @code{Variant1} when @code{base1} is @t{"one"}
+@item The members of @code{Variant2} when @code{base1} is @t{"two"}
+@end table
+
+
+@end deftp
+
+
+
+@deftp {Object} SugaredUnion
+
+
+
+@b{Members:}
+@table @asis
+@item @code{type}
+One of @t{"one"}, @t{"two"}
+@item @code{data: Variant1} when @code{type} is @t{"one"}
+@item @code{data: Variant2} when @code{type} is @t{"two"}
+@end table
+
+
+@end deftp
+
+
+@subsection Another subsection
+
+
+@deftypefn Command {} cmd
+
+
+
+@b{Arguments:}
+@table @asis
+@item @code{arg1: int}
+the first argument
+@item @code{arg2: string} (optional)
+the second
+argument
+@item @code{arg3: boolean}
+Not documented
+@end table
+
+
+@b{Note:}
+@code{arg3} is undocumented
+
+@b{Returns:}
+@code{Object}
+
+@b{TODO:}
+frobnicate
+
+@b{Notes:}
+@itemize @minus
+@item
+Lorem ipsum dolor sit amet
+@item
+Ut enim ad minim veniam
+
+@end itemize
+
+Duis aute irure dolor
+
+@b{Example:}
+@example
+-> in
+<- out
+@end example
+
+
+@b{Examples:}
+@example
+- *verbatim*
+- @{braces@}
+@end example
+
+
+@b{Since:}
+2.10
+
+@end deftypefn
+
+
+
+@deftypefn Command {} cmd-boxed
+
+If you're bored enough to read this, go see a video of boxed cats
+
+@b{Arguments:} the members of @code{Object}
+
+@b{Example:}
+@example
+-> in
+
+<- out
+@end example
+
+
+@end deftypefn
+
+

@@ -21,22 +21,36 @@
  *
  * Semantics defined by reduction to JSON:
  *
- *   key-vals is a tree of objects and arrays rooted at object R
- *   where for each key-val = key-fragment . ... = val in key-vals
- *       R op key-fragment op ... = val'
- *       where (left-associative) op is
- *                 array subscript L[key-fragment] for numeric key-fragment
- *                 member reference L.key-fragment otherwise
- *             val' is val with ',,' replaced by ','
- *   and only R may be empty.
+ *   key-vals specifies a JSON object, i.e. a tree whose root is an
+ *   object, inner nodes other than the root are objects or arrays,
+ *   and leaves are strings.
  *
- *   Duplicate keys are permitted; all but the last one are ignored.
+ *   Each key-val = key-fragment '.' ... '=' val specifies a path from
+ *   root to a leaf (left of '='), and the leaf's value (right of
+ *   '=').
  *
- *   The equations must have a solution.  Counter-example: a.b=1,a=2
- *   doesn't have one, because R.a must be an object to satisfy a.b=1
- *   and a string to satisfy a=2.
+ *   A path from the root is defined recursively:
+ *       L '.' key-fragment is a child of the node denoted by path L
+ *       key-fragment is a child of the tree root
+ *   If key-fragment is numeric, the parent is an array and the child
+ *   is its key-fragment-th member, counting from zero.
+ *   Else, the parent is an object, and the child is its member named
+ *   key-fragment.
  *
- * Key-fragments must be valid QAPI names or consist only of digits.
+ *   This constrains inner nodes to be either array or object.  The
+ *   constraints must be satisfiable.  Counter-example: a.b=1,a=2 is
+ *   not, because root.a must be an object to satisfy a.b=1 and a
+ *   string to satisfy a=2.
+ *
+ *   Array subscripts can occur in any order, but the set of
+ *   subscripts must not have gaps.  For instance, a.1=v is not okay,
+ *   because root.a[0] is missing.
+ *
+ *   If multiple key-val denote the same leaf, the last one determines
+ *   the value.
+ *
+ * Key-fragments must be valid QAPI names or consist only of decimal
+ * digits.
  *
  * The length of any key-fragment must be between 1 and 127.
  *
@@ -46,6 +60,16 @@
  * there are more, so why not when it's the last), it doesn't work:
  * "key absent" already means "optional object/array absent", which
  * isn't the same as "empty object/array present".
+ *
+ * Design flaw: scalar values can only be strings; there is no way to
+ * denote numbers, true, false or null.  The special QObject input
+ * visitor returned by qobject_input_visitor_new_keyval() mostly hides
+ * this by automatically converting strings to the type the visitor
+ * expects.  Breaks down for alternate types and type 'any', where the
+ * visitor's expectation isn't clear.  Code visiting such types needs
+ * to do the conversion itself, but only when using this keyval
+ * visitor.  Awkward.  Alternate types without a string member don't
+ * work at all.
  *
  * Additional syntax for use with an implied key:
  *
@@ -64,8 +88,8 @@
 
 /*
  * Convert @key to a list index.
- * Convert all leading digits to a (non-negative) number, capped at
- * INT_MAX.
+ * Convert all leading decimal digits to a (non-negative) number,
+ * capped at INT_MAX.
  * If @end is non-null, assign a pointer to the first character after
  * the number to *@end.
  * Else, fail if any characters follow.
@@ -337,7 +361,8 @@ static QObject *keyval_listify(QDict *cur, GSList *key_of_cur, Error **errp)
     }
 
     /*
-     * Make a list from @elt[], reporting any missing elements.
+     * Make a list from @elt[], reporting the first missing element,
+     * if any.
      * If we dropped an index >= nelt in the previous loop, this loop
      * will run into the sentinel and report index @nelt missing.
      */

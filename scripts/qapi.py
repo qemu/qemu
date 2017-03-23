@@ -106,7 +106,6 @@ class QAPIDoc(object):
             self.name = name
             # the list of lines for this section
             self.content = []
-            self.optional = False
 
         def append(self, line):
             self.content.append(line)

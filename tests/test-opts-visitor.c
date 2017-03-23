@@ -175,6 +175,7 @@ expect_u64_max(OptsVisitorFixture *f, gconstpointer test_data)
 static void
 test_opts_range_unvisited(void)
 {
+    Error *err = NULL;
     intList *list = NULL;
     intList *tail;
     QemuOpts *opts;
@@ -199,10 +200,11 @@ test_opts_range_unvisited(void)
     g_assert_cmpint(tail->value, ==, 1);
     tail = (intList *)visit_next_list(v, (GenericList *)tail, sizeof(*list));
     g_assert(tail);
-    visit_check_list(v, &error_abort); /* BUG: unvisited tail not reported */
+    visit_check_list(v, &error_abort); /* unvisited tail ignored until... */
     visit_end_list(v, (void **)&list);
 
-    visit_check_struct(v, &error_abort);
+    visit_check_struct(v, &err); /* ...here */
+    error_free_or_abort(&err);
     visit_end_struct(v, NULL);
 
     qapi_free_intList(list);
@@ -245,6 +247,25 @@ test_opts_range_beyond(void)
     qapi_free_intList(list);
     visit_free(v);
     qemu_opts_del(opts);
+}
+
+static void
+test_opts_dict_unvisited(void)
+{
+    Error *err = NULL;
+    QemuOpts *opts;
+    Visitor *v;
+    UserDefOptions *userdef;
+
+    opts = qemu_opts_parse(qemu_find_opts("userdef"), "i64x=0,bogus=1", false,
+                           &error_abort);
+
+    v = opts_visitor_new(opts);
+    visit_type_UserDefOptions(v, NULL, &userdef, &err);
+    error_free_or_abort(&err);
+    visit_free(v);
+    qemu_opts_del(opts);
+    g_assert(!userdef);
 }
 
 int
@@ -342,6 +363,8 @@ main(int argc, char **argv)
                     test_opts_range_unvisited);
     g_test_add_func("/visitor/opts/range/beyond",
                     test_opts_range_beyond);
+
+    g_test_add_func("/visitor/opts/dict/unvisited", test_opts_dict_unvisited);
 
     g_test_run();
     return 0;

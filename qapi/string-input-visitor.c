@@ -54,6 +54,10 @@ static int parse_str(StringInputVisitor *siv, const char *name, Error **errp)
         return 0;
     }
 
+    if (!*str) {
+        return 0;
+    }
+
     do {
         errno = 0;
         start = strtoll(str, &endptr, 0);
