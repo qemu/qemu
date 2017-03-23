@@ -220,28 +220,28 @@ static int probe_logical_blocksize(int fd, unsigned int *sector_size_p)
 {
     unsigned int sector_size;
     bool success = false;
+    int i;
 
     errno = ENOTSUP;
-
-    /* Try a few ioctls to get the right size */
+    static const unsigned long ioctl_list[] = {
 #ifdef BLKSSZGET
-    if (ioctl(fd, BLKSSZGET, &sector_size) >= 0) {
-        *sector_size_p = sector_size;
-        success = true;
-    }
+        BLKSSZGET,
 #endif
 #ifdef DKIOCGETBLOCKSIZE
-    if (ioctl(fd, DKIOCGETBLOCKSIZE, &sector_size) >= 0) {
-        *sector_size_p = sector_size;
-        success = true;
-    }
+        DKIOCGETBLOCKSIZE,
 #endif
 #ifdef DIOCGSECTORSIZE
-    if (ioctl(fd, DIOCGSECTORSIZE, &sector_size) >= 0) {
-        *sector_size_p = sector_size;
-        success = true;
-    }
+        DIOCGSECTORSIZE,
 #endif
+    };
+
+    /* Try a few ioctls to get the right size */
+    for (i = 0; i < (int)ARRAY_SIZE(ioctl_list); i++) {
+        if (ioctl(fd, ioctl_list[i], &sector_size) >= 0) {
+            *sector_size_p = sector_size;
+            success = true;
+        }
+    }
 
     return success ? 0 : -errno;
 }
