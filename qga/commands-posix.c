@@ -999,7 +999,9 @@ static void build_guest_fsinfo_for_virtual_device(char const *syspath,
     dirpath = g_strdup_printf("%s/slaves", syspath);
     dir = opendir(dirpath);
     if (!dir) {
-        error_setg_errno(errp, errno, "opendir(\"%s\")", dirpath);
+        if (errno != ENOENT) {
+            error_setg_errno(errp, errno, "opendir(\"%s\")", dirpath);
+        }
         g_free(dirpath);
         return;
     }
