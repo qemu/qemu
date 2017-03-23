@@ -205,9 +205,30 @@ static void vmgenid_handle_reset(void *opaque)
     memset(vms->vmgenid_addr_le, 0, ARRAY_SIZE(vms->vmgenid_addr_le));
 }
 
+static Property vmgenid_properties[] = {
+    DEFINE_PROP_BOOL("x-write-pointer-available", VmGenIdState,
+                     write_pointer_available, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void vmgenid_realize(DeviceState *dev, Error **errp)
 {
     VmGenIdState *vms = VMGENID(dev);
+
+    if (!vms->write_pointer_available) {
+        error_setg(errp, "%s requires DMA write support in fw_cfg, "
+                   "which this machine type does not provide", VMGENID_DEVICE);
+        return;
+    }
+
+    /* Given that this function is executing, there is at least one VMGENID
+     * device. Check if there are several.
+     */
+    if (!find_vmgenid_dev()) {
+        error_setg(errp, "at most one %s device is permitted", VMGENID_DEVICE);
+        return;
+    }
+
     qemu_register_reset(vmgenid_handle_reset, vms);
 }
 
@@ -218,6 +239,7 @@ static void vmgenid_device_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_vmgenid;
     dc->realize = vmgenid_realize;
     dc->hotpluggable = false;
+    dc->props = vmgenid_properties;
 
     object_class_property_add_str(klass, VMGENID_GUID, NULL,
                                   vmgenid_set_guid, NULL);

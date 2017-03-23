@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 #include "hw/qdev.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio.h"
@@ -48,20 +49,33 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
     VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     bool has_iommu = virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
+    Error *local_err = NULL;
 
     DPRINTF("%s: plug device.\n", qbus->name);
 
     if (klass->pre_plugged != NULL) {
-        klass->pre_plugged(qbus->parent, errp);
+        klass->pre_plugged(qbus->parent, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 
     /* Get the features of the plugged device. */
     assert(vdc->get_features != NULL);
     vdev->host_features = vdc->get_features(vdev, vdev->host_features,
-                                            errp);
+                                            &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     if (klass->device_plugged != NULL) {
-        klass->device_plugged(qbus->parent, errp);
+        klass->device_plugged(qbus->parent, &local_err);
+    }
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 
     if (klass->get_dma_as != NULL && has_iommu) {
