@@ -48,6 +48,11 @@ typedef struct sPAPROptionVector sPAPROptionVector;
 #define OV5_FORM1_AFFINITY      OV_BIT(5, 0)
 #define OV5_HP_EVT              OV_BIT(6, 5)
 
+/* ISA 3.00 MMU features: */
+#define OV5_MMU_BOTH            OV_BIT(24, 0) /* Radix and hash */
+#define OV5_MMU_RADIX_300       OV_BIT(24, 1) /* 1=Radix only, 0=Hash only */
+#define OV5_MMU_RADIX_GTSE      OV_BIT(26, 1) /* Radix GTSE */
+
 /* interfaces */
 sPAPROptionVector *spapr_ovec_new(void);
 sPAPROptionVector *spapr_ovec_clone(sPAPROptionVector *ov_orig);

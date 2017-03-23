@@ -237,20 +237,31 @@ static void spapr_populate_pa_features(CPUPPCState *env, void *fdt, int offset)
         0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
         0x80, 0x00, 0x80, 0x00, 0x00, 0x00 };
-    /* Currently we don't advertise any of the "new" ISAv3.00 functionality */
-    uint8_t pa_features_300[] = { 64, 0,
-        0xf6, 0x1f, 0xc7, 0xc0, 0x80, 0xf0, /*  0 -  5 */
-        0x80, 0x00, 0x00, 0x00, 0x00, 0x00, /*  6 - 11 */
+    uint8_t pa_features_300[] = { 66, 0,
+        /* 0: MMU|FPU|SLB|RUN|DABR|NX, 1: fri[nzpm]|DABRX|SPRG3|SLB0|PP110 */
+        /* 2: VPM|DS205|PPR|DS202|DS206, 3: LSD|URG, SSO, 5: LE|CFAR|EB|LSQ */
+        0xf6, 0x1f, 0xc7, 0xc0, 0x80, 0xf0, /* 0 - 5 */
+        /* 6: DS207 */
+        0x80, 0x00, 0x00, 0x00, 0x00, 0x00, /* 6 - 11 */
+        /* 16: Vector */
         0x00, 0x00, 0x00, 0x00, 0x80, 0x00, /* 12 - 17 */
-        0x80, 0x00, 0x80, 0x00, 0x00, 0x00, /* 18 - 23 */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 24 - 29 */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 30 - 35 */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 36 - 41 */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 42 - 47 */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 48 - 53 */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 54 - 59 */
-        0x00, 0x00, 0x00, 0x00           }; /* 60 - 63 */
-
+        /* 18: Vec. Scalar, 20: Vec. XOR, 22: HTM */
+        0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 18 - 23 */
+        /* 24: Ext. Dec, 26: 64 bit ftrs, 28: PM ftrs */
+        0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 24 - 29 */
+        /* 30: MMR, 32: LE atomic, 34: EBB + ext EBB */
+        0x80, 0x00, 0x80, 0x00, 0xC0, 0x00, /* 30 - 35 */
+        /* 36: SPR SO, 38: Copy/Paste, 40: Radix MMU */
+        0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 36 - 41 */
+        /* 42: PM, 44: PC RA, 46: SC vec'd */
+        0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 42 - 47 */
+        /* 48: SIMD, 50: QP BFP, 52: String */
+        0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 48 - 53 */
+        /* 54: DecFP, 56: DecI, 58: SHA */
+        0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 54 - 59 */
+        /* 60: NM atomic, 62: RNG */
+        0x80, 0x00, 0x80, 0x00, 0x00, 0x00, /* 60 - 65 */
+    };
     uint8_t *pa_features;
     size_t pa_size;
 
@@ -856,6 +867,33 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
     spapr_dt_rtas_tokens(fdt, rtas);
 }
 
+/* Prepare ibm,arch-vec-5-platform-support, which indicates the MMU features
+ * that the guest may request and thus the valid values for bytes 24..26 of
+ * option vector 5: */
+static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
+{
+    char val[2 * 3] = {
+        24, 0x00, /* Hash/Radix, filled in below. */
+        25, 0x00, /* Hash options: Segment Tables == no, GTSE == no. */
+        26, 0x40, /* Radix options: GTSE == yes. */
+    };
+
+    if (kvm_enabled()) {
+        if (kvmppc_has_cap_mmu_radix() && kvmppc_has_cap_mmu_hash_v3()) {
+            val[1] = 0x80; /* OV5_MMU_BOTH */
+        } else if (kvmppc_has_cap_mmu_radix()) {
+            val[1] = 0x40; /* OV5_MMU_RADIX_300 */
+        } else {
+            val[1] = 0x00; /* Hash */
+        }
+    } else {
+        /* TODO: TCG case, hash */
+        val[1] = 0x00;
+    }
+    _FDT(fdt_setprop(fdt, chosen, "ibm,arch-vec-5-platform-support",
+                     val, sizeof(val)));
+}
+
 static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
 {
     MachineState *machine = MACHINE(spapr);
@@ -908,6 +946,8 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
     if (!spapr->has_graphics && stdout_path) {
         _FDT(fdt_setprop_string(fdt, chosen, "linux,stdout-path", stdout_path));
     }
+
+    spapr_dt_ov5_platform_support(fdt, chosen);
 
     g_free(stdout_path);
     g_free(bootlist);
@@ -2078,6 +2118,11 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     spapr_ovec_set(spapr->ov5, OV5_FORM1_AFFINITY);
+    if (kvmppc_has_cap_mmu_radix()) {
+        /* KVM always allows GTSE with radix... */
+        spapr_ovec_set(spapr->ov5, OV5_MMU_RADIX_GTSE);
+    }
+    /* ... but not with hash (currently). */
 
     /* advertise support for dedicated HP event source to guests */
     if (spapr->use_hotplug_event_source) {
