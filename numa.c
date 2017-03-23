@@ -338,12 +338,12 @@ void parse_numa_opts(MachineClass *mc)
         if (i == nb_numa_nodes) {
             uint64_t usedmem = 0;
 
-            /* On Linux, each node's border has to be 8MB aligned,
-             * the final node gets the rest.
+            /* Align each node according to the alignment
+             * requirements of the machine class
              */
             for (i = 0; i < nb_numa_nodes - 1; i++) {
                 numa_info[i].node_mem = (ram_size / nb_numa_nodes) &
-                                        ~((1 << 23UL) - 1);
+                                        ~((1 << mc->numa_mem_align_shift) - 1);
                 usedmem += numa_info[i].node_mem;
             }
             numa_info[i].node_mem = ram_size - usedmem;
