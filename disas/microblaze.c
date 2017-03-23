@@ -159,7 +159,7 @@ enum microblaze_instr_type {
 #define MIN_PVR_REGNUM 0
 #define MAX_PVR_REGNUM 15
 
-#define REG_PC  32 /* PC */
+/* 32 is REG_PC */
 #define REG_MSR 33 /* machine status reg */
 #define REG_EAR 35 /* Exception reg */
 #define REG_ESR 37 /* Exception reg */
