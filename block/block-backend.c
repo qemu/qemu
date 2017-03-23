@@ -65,6 +65,8 @@ struct BlockBackend {
     bool allow_write_beyond_eof;
 
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
+
+    int quiesce_counter;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -699,12 +701,17 @@ void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
                      void *opaque)
 {
     /* All drivers that use blk_set_dev_ops() are qdevified and we want to keep
-     * it that way, so we can assume blk->dev is a DeviceState if blk->dev_ops
-     * is set. */
+     * it that way, so we can assume blk->dev, if present, is a DeviceState if
+     * blk->dev_ops is set. Non-device users may use dev_ops without device. */
     assert(!blk->legacy_dev);
 
     blk->dev_ops = ops;
     blk->dev_opaque = opaque;
+
+    /* Are we currently quiesced? Should we enforce this right now? */
+    if (blk->quiesce_counter && ops->drained_begin) {
+        ops->drained_begin(opaque);
+    }
 }
 
 /*
@@ -1870,6 +1877,12 @@ static void blk_root_drained_begin(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
 
+    if (++blk->quiesce_counter == 1) {
+        if (blk->dev_ops && blk->dev_ops->drained_begin) {
+            blk->dev_ops->drained_begin(blk->dev_opaque);
+        }
+    }
+
     /* Note that blk->root may not be accessible here yet if we are just
      * attaching to a BlockDriverState that is drained. Use child instead. */
 
@@ -1881,7 +1894,14 @@ static void blk_root_drained_begin(BdrvChild *child)
 static void blk_root_drained_end(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
+    assert(blk->quiesce_counter);
 
     assert(blk->public.io_limits_disabled);
     --blk->public.io_limits_disabled;
+
+    if (--blk->quiesce_counter == 0) {
+        if (blk->dev_ops && blk->dev_ops->drained_end) {
+            blk->dev_ops->drained_end(blk->dev_opaque);
+        }
+    }
 }
