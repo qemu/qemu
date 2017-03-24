@@ -32,8 +32,8 @@ void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
     /* queue up events ... */
     if (vinput->qindex == vinput->qsize) {
         vinput->qsize++;
-        vinput->queue = realloc(vinput->queue, vinput->qsize *
-                                sizeof(virtio_input_event));
+        vinput->queue = g_realloc(vinput->queue, vinput->qsize *
+                                  sizeof(virtio_input_event));
     }
     vinput->queue[vinput->qindex++] = *event;
 
@@ -272,6 +272,8 @@ static void virtio_input_finalize(Object *obj)
         QTAILQ_REMOVE(&vinput->cfg_list, cfg, node);
         g_free(cfg);
     }
+
+    g_free(vinput->queue);
 }
 static void virtio_input_device_unrealize(DeviceState *dev, Error **errp)
 {
