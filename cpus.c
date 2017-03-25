@@ -209,7 +209,7 @@ void qemu_tcg_configure(QemuOpts *opts, Error **errp)
                 if (!check_tcg_memory_orders_compatible()) {
                     error_report("Guest expects a stronger memory ordering "
                                  "than the host provides");
-                    error_printf("This may cause strange/hard to debug errors");
+                    error_printf("This may cause strange/hard to debug errors\n");
                 }
                 mttcg_enabled = true;
             }
