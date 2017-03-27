@@ -40,6 +40,7 @@ def generate(events, backend, group):
         '#define TRACE_%s_GENERATED_TCG_TRACERS_H' % group.upper(),
         '',
         '#include "exec/helper-proto.h"',
+        '#include "%s"' % header,
         '',
         )
 
