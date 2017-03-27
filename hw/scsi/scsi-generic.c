@@ -237,9 +237,8 @@ static void scsi_read_complete(void * opaque, int ret)
         assert(max_transfer);
         stl_be_p(&r->buf[8], max_transfer);
         /* Also take care of the opt xfer len. */
-        if (ldl_be_p(&r->buf[12]) > max_transfer) {
-            stl_be_p(&r->buf[12], max_transfer);
-        }
+        stl_be_p(&r->buf[12],
+                 MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
     }
     scsi_req_data(&r->req, len);
     scsi_req_unref(&r->req);

@@ -285,8 +285,6 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options, Error **errp)
         goto done;
     }
 
-    s->client.is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
-
 done:
     QDECREF(addr);
     qobject_decref(crumpled_addr);

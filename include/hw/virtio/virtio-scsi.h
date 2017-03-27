@@ -121,6 +121,20 @@ typedef struct VirtIOSCSIReq {
     } req;
 } VirtIOSCSIReq;
 
+static inline void virtio_scsi_acquire(VirtIOSCSI *s)
+{
+    if (s->ctx) {
+        aio_context_acquire(s->ctx);
+    }
+}
+
+static inline void virtio_scsi_release(VirtIOSCSI *s)
+{
+    if (s->ctx) {
+        aio_context_release(s->ctx);
+    }
+}
+
 void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
                                 VirtIOHandleOutput ctrl, VirtIOHandleOutput evt,
                                 VirtIOHandleOutput cmd);
