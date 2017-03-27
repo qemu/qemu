@@ -39,6 +39,7 @@ target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
 #ifndef CONFIG_USER_ONLY
 off_t kvmppc_alloc_rma(void **rma);
 bool kvmppc_spapr_use_multitce(void);
+int kvmppc_spapr_enable_inkernel_multitce(void);
 void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t page_shift,
                               uint64_t bus_offset, uint32_t nb_table,
                               int *pfd, bool need_vfio);
@@ -178,6 +179,11 @@ static inline off_t kvmppc_alloc_rma(void **rma)
 static inline bool kvmppc_spapr_use_multitce(void)
 {
     return false;
+}
+
+static inline int kvmppc_spapr_enable_inkernel_multitce(void)
+{
+    return -1;
 }
 
 static inline void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t page_shift,
