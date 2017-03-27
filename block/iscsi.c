@@ -103,7 +103,6 @@ typedef struct IscsiTask {
 
 typedef struct IscsiAIOCB {
     BlockAIOCB common;
-    QEMUIOVector *qiov;
     QEMUBH *bh;
     IscsiLun *iscsilun;
     struct scsi_task *task;
