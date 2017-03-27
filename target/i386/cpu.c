@@ -3373,15 +3373,19 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     GList *l;
     Error *local_err = NULL;
 
-    /*TODO: cpu->max_features incorrectly overwrites features
-     * set using "feat=on|off". Once we fix this, we can convert
+    /*TODO: Now cpu->max_features doesn't overwrite features
+     * set using QOM properties, and we can convert
      * plus_features & minus_features to global properties
      * inside x86_cpu_parse_featurestr() too.
      */
     if (cpu->max_features) {
         for (w = 0; w < FEATURE_WORDS; w++) {
-            env->features[w] =
-                x86_cpu_get_supported_feature_word(w, cpu->migratable);
+            /* Override only features that weren't set explicitly
+             * by the user.
+             */
+            env->features[w] |=
+                x86_cpu_get_supported_feature_word(w, cpu->migratable) &
+                ~env->user_features[w];
         }
     }
 
@@ -3731,6 +3735,7 @@ static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
     } else {
         cpu->env.features[fp->w] &= ~fp->mask;
     }
+    cpu->env.user_features[fp->w] |= fp->mask;
 }
 
 static void x86_cpu_release_bit_prop(Object *obj, const char *name,
