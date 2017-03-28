@@ -1191,21 +1191,6 @@ for opt do
   esac
 done
 
-if ! has $python; then
-  error_exit "Python not found. Use --python=/path/to/python"
-fi
-
-# Note that if the Python conditional here evaluates True we will exit
-# with status 1 which is a shell 'false' value.
-if ! $python -c 'import sys; sys.exit(sys.version_info < (2,6) or sys.version_info >= (3,))'; then
-  error_exit "Cannot use '$python', Python 2.6 or later is required." \
-      "Note that Python 3 or later is not yet supported." \
-      "Use --python=/path/to/python to specify a supported Python."
-fi
-
-# Suppress writing compiled files
-python="$python -B"
-
 case "$cpu" in
     ppc)
            CPU_CFLAGS="-m32"
@@ -1280,6 +1265,9 @@ for config in $mak_wilds; do
     default_target_list="${default_target_list} $(basename "$config" .mak)"
 done
 
+# Enumerate public trace backends for --help output
+trace_backend_list=$(echo $(grep -le '^PUBLIC = True$' scripts/tracetool/backend/*.py | sed -e 's/^.*\/\(.*\)\.py$/\1/'))
+
 if test x"$show_help" = x"yes" ; then
 cat << EOF
 
@@ -1333,7 +1321,7 @@ Advanced options (experts only):
                            set block driver read-only whitelist
                            (affects only QEMU, not qemu-img)
   --enable-trace-backends=B Set trace backend
-                           Available backends: $($python $source_path/scripts/tracetool.py --list-backends)
+                           Available backends: $trace_backend_list
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
                            Default:trace-<pid>
   --disable-slirp          disable SLIRP userspace network connectivity
@@ -1432,6 +1420,21 @@ NOTE: The object files are built at the place where configure is launched
 EOF
 exit 0
 fi
+
+if ! has $python; then
+  error_exit "Python not found. Use --python=/path/to/python"
+fi
+
+# Note that if the Python conditional here evaluates True we will exit
+# with status 1 which is a shell 'false' value.
+if ! $python -c 'import sys; sys.exit(sys.version_info < (2,6) or sys.version_info >= (3,))'; then
+  error_exit "Cannot use '$python', Python 2.6 or later is required." \
+      "Note that Python 3 or later is not yet supported." \
+      "Use --python=/path/to/python to specify a supported Python."
+fi
+
+# Suppress writing compiled files
+python="$python -B"
 
 # Now we have handled --enable-tcg-interpreter and know we're not just
 # printing the help message, bail out if the host CPU isn't supported.
