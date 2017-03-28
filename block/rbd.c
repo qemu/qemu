@@ -320,8 +320,7 @@ static QemuOptsList runtime_opts = {
             .help = "Rados id name",
         },
         /*
-         * server.* and auth-supported.* extracted manually, see
-         * qemu_rbd_array_opts()
+         * server.* extracted manually, see qemu_rbd_array_opts()
          */
         {
             .name = "password-secret",
@@ -355,11 +354,6 @@ static QemuOptsList runtime_opts = {
         {
             .name = "port",
             .type = QEMU_OPT_STRING,
-        },
-        {
-            .name = "auth",
-            .type = QEMU_OPT_STRING,
-            .help = "Supported authentication method, either cephx or none",
         },
         { /* end of list */ }
     },
@@ -512,7 +506,6 @@ static void qemu_rbd_complete_aio(RADOSCB *rcb)
 }
 
 #define RBD_MON_HOST          0
-#define RBD_AUTH_SUPPORTED    1
 
 static char *qemu_rbd_array_opts(QDict *options, const char *prefix, int type,
                                  Error **errp)
@@ -527,7 +520,7 @@ static char *qemu_rbd_array_opts(QDict *options, const char *prefix, int type,
     Error *local_err = NULL;
     int i;
 
-    assert(type == RBD_MON_HOST || type == RBD_AUTH_SUPPORTED);
+    assert(type == RBD_MON_HOST);
 
     num_entries = qdict_array_entries(options, prefix);
 
@@ -573,9 +566,8 @@ static char *qemu_rbd_array_opts(QDict *options, const char *prefix, int type,
                 value = strbuf;
             }
         } else {
-            value = qemu_opt_get(opts, "auth");
+            abort();
         }
-
 
         /* each iteration in the for loop will build upon the string, and if
          * rados_str is NULL then it is our first pass */
@@ -608,7 +600,6 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *opts;
     Error *local_err = NULL;
     char *mon_host = NULL;
-    char *auth_supported = NULL;
     int r;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
@@ -617,14 +608,6 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         error_propagate(errp, local_err);
         qemu_opts_del(opts);
         return -EINVAL;
-    }
-
-    auth_supported = qemu_rbd_array_opts(options, "auth-supported.",
-                                         RBD_AUTH_SUPPORTED, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        r = -EINVAL;
-        goto failed_opts;
     }
 
     mon_host = qemu_rbd_array_opts(options, "server.",
@@ -673,13 +656,6 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (mon_host) {
         r = rados_conf_set(s->cluster, "mon_host", mon_host);
-        if (r < 0) {
-            goto failed_shutdown;
-        }
-    }
-
-    if (auth_supported) {
-        r = rados_conf_set(s->cluster, "auth_supported", auth_supported);
         if (r < 0) {
             goto failed_shutdown;
         }
@@ -735,7 +711,6 @@ failed_shutdown:
 failed_opts:
     qemu_opts_del(opts);
     g_free(mon_host);
-    g_free(auth_supported);
     return r;
 }
 

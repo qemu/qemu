@@ -2601,27 +2601,6 @@
 
 
 ##
-# @RbdAuthSupport:
-#
-# An enumeration of RBD auth support
-#
-# Since: 2.9
-##
-{ 'enum': 'RbdAuthSupport',
-  'data': [ 'cephx', 'none' ] }
-
-
-##
-# @RbdAuthMethod:
-#
-# An enumeration of rados auth_supported types
-#
-# Since: 2.9
-##
-{ 'struct': 'RbdAuthMethod',
-  'data': { 'auth': 'RbdAuthSupport' } }
-
-##
 # @BlockdevOptionsRbd:
 #
 # @pool:               Ceph pool name.
@@ -2639,8 +2618,6 @@
 # @server:             Monitor host address and port.  This maps
 #                      to the "mon_host" Ceph option.
 #
-# @auth-supported:     Authentication supported.
-#
 # @password-secret:    The ID of a QCryptoSecret object providing
 #                      the password for the login.
 #
@@ -2653,7 +2630,6 @@
             '*snapshot': 'str',
             '*user': 'str',
             '*server': ['InetSocketAddressBase'],
-            '*auth-supported': ['RbdAuthMethod'],
             '*password-secret': 'str' } }
 
 ##
