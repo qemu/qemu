@@ -104,19 +104,17 @@ static char *qemu_rbd_next_tok(char *src, char delim, char **p)
 
     *p = NULL;
 
-    if (delim != '\0') {
-        for (end = src; *end; ++end) {
-            if (*end == delim) {
-                break;
-            }
-            if (*end == '\\' && end[1] != '\0') {
-                end++;
-            }
-        }
+    for (end = src; *end; ++end) {
         if (*end == delim) {
-            *p = end + 1;
-            *end = '\0';
+            break;
         }
+        if (*end == '\\' && end[1] != '\0') {
+            end++;
+        }
+    }
+    if (*end == delim) {
+        *p = end + 1;
+        *end = '\0';
     }
     return src;
 }
@@ -176,10 +174,6 @@ static void qemu_rbd_parse_filename(const char *filename, QDict *options,
     if (!p) {
         goto done;
     }
-
-    found_str = qemu_rbd_next_tok(p, '\0', &p);
-
-    p = found_str;
 
     /* The following are essentially all key/value pairs, and we treat
      * 'id' and 'conf' a bit special.  Key/value pairs may be in any order. */
