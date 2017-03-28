@@ -160,7 +160,7 @@ struct RAMState {
     /* bytes transferred at start_time */
     uint64_t bytes_xfer_prev;
     /* number of dirty pages since start_time */
-    int64_t num_dirty_pages_period;
+    uint64_t num_dirty_pages_period;
 };
 typedef struct RAMState RAMState;
 

@@ -356,7 +356,7 @@ static inline
 uint64_t cpu_physical_memory_sync_dirty_bitmap(unsigned long *dest,
                                                ram_addr_t start,
                                                ram_addr_t length,
-                                               int64_t *real_dirty_pages)
+                                               uint64_t *real_dirty_pages)
 {
     ram_addr_t addr;
     unsigned long page = BIT_WORD(start >> TARGET_PAGE_BITS);
