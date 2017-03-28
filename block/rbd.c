@@ -215,7 +215,7 @@ static void qemu_rbd_parse_filename(const char *filename, QDict *options,
     }
 
     if (keypairs[0]) {
-        qdict_put(options, "keyvalue-pairs", qstring_from_str(keypairs));
+        qdict_put(options, "=keyvalue-pairs", qstring_from_str(keypairs));
     }
 
 
@@ -330,7 +330,11 @@ static QemuOptsList runtime_opts = {
             .help = "Rados id name",
         },
         {
-            .name = "keyvalue-pairs",
+            /*
+             * HACK: name starts with '=' so that qemu_opts_parse()
+             * can't set it
+             */
+            .name = "=keyvalue-pairs",
             .type = QEMU_OPT_STRING,
             .help = "Legacy rados key/value option parameters",
         },
@@ -405,7 +409,7 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
     conf       = qemu_opt_get(rbd_opts, "conf");
     clientname = qemu_opt_get(rbd_opts, "user");
     name       = qemu_opt_get(rbd_opts, "image");
-    keypairs   = qemu_opt_get(rbd_opts, "keyvalue-pairs");
+    keypairs   = qemu_opt_get(rbd_opts, "=keyvalue-pairs");
 
     ret = rados_create(&cluster, clientname);
     if (ret < 0) {
@@ -638,7 +642,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     snap           = qemu_opt_get(opts, "snapshot");
     clientname     = qemu_opt_get(opts, "user");
     name           = qemu_opt_get(opts, "image");
-    keypairs       = qemu_opt_get(opts, "keyvalue-pairs");
+    keypairs       = qemu_opt_get(opts, "=keyvalue-pairs");
 
     if (!pool || !name) {
         error_setg(errp, "Parameters 'pool' and 'image' are required");
