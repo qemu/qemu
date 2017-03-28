@@ -55,6 +55,7 @@ def generate(events, backend, group):
         '#include "qemu-common.h"',
         '#include "cpu.h"',
         '#include "exec/helper-proto.h"',
+        '#include "%s"' % header,
         '',
         )
 
