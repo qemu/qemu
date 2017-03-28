@@ -2053,7 +2053,7 @@
 # @ignore:      Ignore the request
 # @unmap:       Forward as an unmap request
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'enum': 'BlockdevDiscardOptions',
   'data': [ 'ignore', 'unmap' ] }
@@ -2082,7 +2082,7 @@
 # @threads:     Use qemu's thread pool
 # @native:      Use native AIO backend (only Linux and Windows)
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'enum': 'BlockdevAioOptions',
   'data': [ 'threads', 'native' ] }
@@ -2097,7 +2097,7 @@
 # @no-flush:    ignore any flush requests for the device (default:
 #               false)
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'struct': 'BlockdevCacheOptions',
   'data': { '*direct': 'bool',
@@ -2108,18 +2108,7 @@
 #
 # Drivers that are supported in block device operations.
 #
-# @host_device: Since 2.1
-# @host_cdrom: Since 2.1
-# @gluster: Since 2.7
-# @nbd: Since 2.8
-# @nfs: Since 2.8
-# @replication: Since 2.8
-# @ssh: Since 2.8
-# @iscsi: Since 2.9
-# @rbd: Since 2.9
-# @sheepdog: Since 2.9
-#
-# Since: 2.0
+# Since: 2.9
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'blkdebug', 'blkverify', 'bochs', 'cloop',
@@ -2137,7 +2126,7 @@
 # @filename:    path to the image file
 # @aio:         AIO backend (default: threads) (since: 2.8)
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsFile',
   'data': { 'filename': 'str',
@@ -2153,7 +2142,7 @@
 #              requests. Default to zero which completes requests immediately.
 #              (Since 2.4)
 #
-# Since: 2.2
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNull',
   'data': { '*size': 'int', '*latency-ns': 'uint64' } }
@@ -2173,7 +2162,7 @@
 #               (since 2.4)
 # @rw:          whether to allow write operations (default: false)
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsVVFAT',
   'data': { 'dir': 'str', '*fat-type': 'int', '*floppy': 'bool',
@@ -2187,7 +2176,7 @@
 #
 # @file:        reference to or definition of the data source block device
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsGenericFormat',
   'data': { 'file': 'BlockdevRef' } }
@@ -2201,7 +2190,7 @@
 #              the decryption key (since 2.6). Mandatory except when
 #              doing a metadata-only probe of the image.
 #
-# Since: 2.6
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsLUKS',
   'base': 'BlockdevOptionsGenericFormat',
@@ -2219,7 +2208,7 @@
 #               allowed to pass an empty string here in order to disable the
 #               default backing file.
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsGenericCOWFormat',
   'base': 'BlockdevOptionsGenericFormat',
@@ -2240,7 +2229,7 @@
 #
 # @all:         Perform all available overlap checks
 #
-# Since: 2.2
+# Since: 2.9
 ##
 { 'enum': 'Qcow2OverlapCheckMode',
   'data': [ 'none', 'constant', 'cached', 'all' ] }
@@ -2255,7 +2244,7 @@
 # @template: Specifies a template mode which can be adjusted using the other
 #            flags, defaults to 'cached'
 #
-# Since: 2.2
+# Since: 2.9
 ##
 { 'struct': 'Qcow2OverlapCheckFlags',
   'data': { '*template':       'Qcow2OverlapCheckMode',
@@ -2279,7 +2268,7 @@
 #
 # @mode:    named mode which chooses a specific set of flags
 #
-# Since: 2.2
+# Since: 2.9
 ##
 { 'alternate': 'Qcow2OverlapChecks',
   'data': { 'flags': 'Qcow2OverlapCheckFlags',
@@ -2320,7 +2309,7 @@
 #                         caches. The interval is in seconds. The default value
 #                         is 0 and it disables this feature (since 2.5)
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsQcow2',
   'base': 'BlockdevOptionsGenericCOWFormat',
@@ -2347,7 +2336,7 @@
 #
 # TODO: Expose the host_key_check option in QMP
 #
-# Since: 2.8
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsSsh',
   'data': { 'server': 'InetSocketAddress',
@@ -2360,7 +2349,7 @@
 #
 # Trigger events supported by blkdebug.
 #
-# Since: 2.0
+# Since: 2.9
 ##
 { 'enum': 'BlkdebugEvent', 'prefix': 'BLKDBG',
   'data': [ 'l1_update', 'l1_grow_alloc_table', 'l1_grow_write_table',
@@ -2400,7 +2389,7 @@
 #
 # @immediately: fail immediately; defaults to false
 #
-# Since: 2.0
+# Since: 2.9
 ##
 { 'struct': 'BlkdebugInjectErrorOptions',
   'data': { 'event': 'BlkdebugEvent',
@@ -2423,7 +2412,7 @@
 # @new_state:   the state identifier blkdebug is supposed to assume if
 #               this event is triggered
 #
-# Since: 2.0
+# Since: 2.9
 ##
 { 'struct': 'BlkdebugSetStateOptions',
   'data': { 'event': 'BlkdebugEvent',
@@ -2446,7 +2435,7 @@
 #
 # @set-state:       array of state-change descriptions
 #
-# Since: 2.0
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsBlkdebug',
   'data': { 'image': 'BlockdevRef',
@@ -2464,7 +2453,7 @@
 #
 # @raw:     raw image used for verification
 #
-# Since: 2.0
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsBlkverify',
   'data': { 'test': 'BlockdevRef',
@@ -2479,7 +2468,7 @@
 #
 # @fifo: read only from the first child that has not failed
 #
-# Since: 2.2
+# Since: 2.9
 ##
 { 'enum': 'QuorumReadPattern', 'data': [ 'quorum', 'fifo' ] }
 
@@ -2501,7 +2490,7 @@
 # @read-pattern: choose read pattern and set to quorum by default
 #                (Since 2.2)
 #
-# Since: 2.0
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsQuorum',
   'data': { '*blkverify': 'bool',
@@ -2526,7 +2515,7 @@
 #
 # @logfile:     libgfapi log file (default /dev/stderr) (Since 2.8)
 #
-# Since: 2.7
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsGluster',
   'data': { 'volume': 'str',
@@ -2685,7 +2674,7 @@
 #
 # @secondary: Secondary mode, receive the vm's state from primary QEMU.
 #
-# Since: 2.8
+# Since: 2.9
 ##
 { 'enum' : 'ReplicationMode', 'data' : [ 'primary', 'secondary' ] }
 
@@ -2700,7 +2689,7 @@
 #          node who owns the replication node chain. Must not be given in
 #          primary mode.
 #
-# Since: 2.8
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsReplication',
   'base': 'BlockdevOptionsGenericFormat',
@@ -2714,7 +2703,7 @@
 #
 # @inet:        TCP transport
 #
-# Since: 2.8
+# Since: 2.9
 ##
 { 'enum': 'NFSTransport',
   'data': [ 'inet' ] }
@@ -2728,7 +2717,7 @@
 #
 # @host:        host address for NFS server
 #
-# Since: 2.8
+# Since: 2.9
 ##
 { 'struct': 'NFSServer',
   'data': { 'type': 'NFSTransport',
@@ -2763,7 +2752,7 @@
 # @debug:                   set the NFS debug level (max 2) (defaults
 #                           to libnfs default)
 #
-# Since: 2.8
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNfs',
   'data': { 'server': 'NFSServer',
@@ -2782,7 +2771,7 @@
 #
 # @filename:    path to the image file
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsCurl',
   'data': { 'filename': 'str' } }
@@ -2798,7 +2787,7 @@
 #
 # @tls-creds:   TLS credentials ID
 #
-# Since: 2.8
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNbd',
   'data': { 'server': 'SocketAddress',
@@ -2813,7 +2802,7 @@
 # @offset:      position where the block device starts
 # @size:        the assumed size of the device
 #
-# Since: 2.8
+# Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsRaw',
   'base': 'BlockdevOptionsGenericFormat',
@@ -2837,7 +2826,7 @@
 #
 # Remaining options are determined by the block driver.
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'union': 'BlockdevOptions',
   'base': { 'driver': 'BlockdevDriver',
@@ -2894,7 +2883,7 @@
 #                   empty string means that no block device should be
 #                   referenced.
 #
-# Since: 1.7
+# Since: 2.9
 ##
 { 'alternate': 'BlockdevRef',
   'data': { 'definition': 'BlockdevOptions',
@@ -2907,11 +2896,7 @@
 # BlockBackend will be created; otherwise, @node-name is mandatory at the top
 # level and no BlockBackend will be created.
 #
-# Note: This command is still a work in progress.  It doesn't support all
-# block drivers among other things.  Stay away from it unless you want
-# to help with its development.
-#
-# Since: 1.7
+# Since: 2.9
 #
 # Example:
 #
@@ -2957,7 +2942,7 @@
 { 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true }
 
 ##
-# @x-blockdev-del:
+# @blockdev-del:
 #
 # Deletes a block device that has been added using blockdev-add.
 # The command will fail if the node is attached to a device or is
@@ -2965,11 +2950,7 @@
 #
 # @node-name: Name of the graph node to delete.
 #
-# Note: This command is still a work in progress and is considered
-# experimental. Stay away from it unless you want to help with its
-# development.
-#
-# Since: 2.5
+# Since: 2.9
 #
 # Example:
 #
@@ -2985,13 +2966,13 @@
 #    }
 # <- { "return": {} }
 #
-# -> { "execute": "x-blockdev-del",
+# -> { "execute": "blockdev-del",
 #      "arguments": { "node-name": "node0" }
 #    }
 # <- { "return": {} }
 #
 ##
-{ 'command': 'x-blockdev-del', 'data': { 'node-name': 'str' } }
+{ 'command': 'blockdev-del', 'data': { 'node-name': 'str' } }
 
 ##
 # @blockdev-open-tray:
