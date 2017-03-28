@@ -24,8 +24,7 @@
 
 //#define DEBUG_MMAP
 
-#if defined(CONFIG_USE_NPTL)
-pthread_mutex_t mmap_mutex;
+static pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int __thread mmap_lock_count;
 
 void mmap_lock(void)
@@ -62,16 +61,6 @@ void mmap_fork_end(int child)
     else
         pthread_mutex_unlock(&mmap_mutex);
 }
-#else
-/* We aren't threadsafe to start with, so no need to worry about locking.  */
-void mmap_lock(void)
-{
-}
-
-void mmap_unlock(void)
-{
-}
-#endif
 
 /* NOTE: all the constants are the HOST ones, but addresses are target. */
 int target_mprotect(abi_ulong start, abi_ulong len, int prot)

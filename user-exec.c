@@ -57,9 +57,22 @@ static void cpu_exit_tb_from_sighandler(CPUState *cpu, sigset_t *old_set)
 static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
                                     int is_write, sigset_t *old_set)
 {
-    CPUState *cpu;
+    CPUState *cpu = current_cpu;
     CPUClass *cc;
     int ret;
+
+    /* For synchronous signals we expect to be coming from the vCPU
+     * thread (so current_cpu should be valid) and either from running
+     * code or during translation which can fault as we cross pages.
+     *
+     * If neither is true then something has gone wrong and we should
+     * abort rather than try and restart the vCPU execution.
+     */
+    if (!cpu || !cpu->running) {
+        printf("qemu:%s received signal outside vCPU context @ pc=0x%"
+               PRIxPTR "\n",  __func__, pc);
+        abort();
+    }
 
 #if defined(DEBUG_SIGNAL)
     printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n",
@@ -83,7 +96,7 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
              * currently executing TB was modified and must be exited
              * immediately.
              */
-            cpu_exit_tb_from_sighandler(current_cpu, old_set);
+            cpu_exit_tb_from_sighandler(cpu, old_set);
             g_assert_not_reached();
         default:
             g_assert_not_reached();
@@ -94,7 +107,6 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
        are still valid segv ones */
     address = h2g_nocheck(address);
 
-    cpu = current_cpu;
     cc = CPU_GET_CLASS(cpu);
     /* see if it is an MMU fault */
     g_assert(cc->handle_mmu_fault);
