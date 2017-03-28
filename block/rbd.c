@@ -711,6 +711,12 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     name           = qemu_opt_get(opts, "image");
     keypairs       = qemu_opt_get(opts, "keyvalue-pairs");
 
+    if (!pool || !name) {
+        error_setg(errp, "Parameters 'pool' and 'image' are required");
+        r = -EINVAL;
+        goto failed_opts;
+    }
+
     r = rados_create(&s->cluster, clientname);
     if (r < 0) {
         error_setg_errno(errp, -r, "error initializing");
@@ -718,9 +724,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->snap = g_strdup(snap);
-    if (name) {
-        pstrcpy(s->name, RBD_MAX_IMAGE_NAME_SIZE, name);
-    }
+    pstrcpy(s->name, RBD_MAX_IMAGE_NAME_SIZE, name);
 
     /* try default location when conf=NULL, but ignore failure */
     r = rados_conf_read_file(s->cluster, conf);
