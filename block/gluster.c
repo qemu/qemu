@@ -1100,7 +1100,9 @@ static int qemu_gluster_truncate(BlockDriverState *bs, int64_t offset,
 
     ret = glfs_ftruncate(s->fd, offset);
     if (ret < 0) {
-        return -errno;
+        ret = -errno;
+        error_setg_errno(errp, -ret, "Failed to truncate file");
+        return ret;
     }
 
     return 0;
