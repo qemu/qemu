@@ -22,8 +22,33 @@
 #include "qcow2-img-utils.h"
 #include <getopt.h>
 
+static void set_disk_info(BlockDriverState *bs, Snapshot_cache_t *cache, uint64_t *l1_table_offset, uint32_t *l1_size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    if(cache->snapshot_index != SNAPSHOT_MAX_INDEX){
+        QCowSnapshot *snapshot = &s->snapshots[cache->snapshot_index];
+        *l1_size = snapshot->l1_size;
+        *l1_table_offset = snapshot->l1_table_offset;
+    }else{
+        *l1_size = s->l1_size;
+        *l1_table_offset = s->l1_table_offset;
+    }
+}
+
+static int get_max_l1_size(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int max_l1_size = s->l1_size;
+    int i;
+    for(i = 0; i < s->nb_snapshots; i++){
+        QCowSnapshot *snapshot = &s->snapshots[i];
+        max_l1_size = MAX(max_l1_size, snapshot->l1_size);
+    }
+    return max_l1_size;
+}
+
 #define SNAPSHOT_MAX_INDEX (0x7fffffff)
-int get_snapshot_cluster_l2_offset(BlockDriverState *bs, Snapshot_cache_t *cache, int64_t cluster_index, uint64_t * ret_offset)
+int get_snapshot_cluster_l2_offset(BlockDriverState *bs, Snapshot_cache_t *cache, int64_t cluster_index, uint64_t* ret_offset)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t cluster_nb;
@@ -36,7 +61,7 @@ int get_snapshot_cluster_l2_offset(BlockDriverState *bs, Snapshot_cache_t *cache
     }
 
     if(cache->snapshot_index >= (int)s->nb_snapshots && SNAPSHOT_MAX_INDEX != cache->snapshot_index){
-        LOG_ERROR("error cache->snapshot_index is %d, totoal is %d", cache->snapshot_index, s->nb_snapshots);
+        error_report("error cache->snapshot_index is %d, totoal is %d", cache->snapshot_index, s->nb_snapshots);
         goto faild;
     }
 
@@ -48,7 +73,7 @@ int get_snapshot_cluster_l2_offset(BlockDriverState *bs, Snapshot_cache_t *cache
             cache->sn_l1_be_table_cache.table = g_malloc0(align_offset(max_l1_size * sizeof(uint64_t), 512));
             int ret = bdrv_pread(bs->file, l1_table_offset, cache->sn_l1_table_cache.table, l1_size * sizeof(uint64_t));
             if (ret < 0) {
-                LOG_ERROR("bdrv_pread error ret %d, offset %ld size %d", ret, l1_table_offset, l1_size * sizeof(uint64_t));
+                error_report("bdrv_pread error ret %d, offset %ld size %ld", ret, l1_table_offset, l1_size * sizeof(uint64_t));
                 goto faild;
             }
             cache->l1_size = l1_size;
@@ -56,7 +81,8 @@ int get_snapshot_cluster_l2_offset(BlockDriverState *bs, Snapshot_cache_t *cache
             cache->sn_l1_table_cache.cluster_offset = l1_table_offset;
             cache->sn_l1_be_table_cache.cluster_offset = l1_table_offset;
             memcpy(cache->sn_l1_be_table_cache.table, cache->sn_l1_table_cache.table, l1_size * sizeof(uint64_t));
-            for(uint32_t i = 0;i < l1_size; i++) {
+            uint32_t i;
+            for(i = 0;i < l1_size; i++) {
                 be64_to_cpus(&cache->sn_l1_table_cache.table[i]);
                 cache->sn_l1_table_cache.table[i] &= L1E_OFFSET_MASK;
             }
@@ -65,7 +91,7 @@ int get_snapshot_cluster_l2_offset(BlockDriverState *bs, Snapshot_cache_t *cache
 
     cluster_nb = disk_size >> s->cluster_bits;
     if(cluster_index >= cluster_nb){
-        LOG_ERROR("cluster_index >= cluster_nb %ld %ld", cluster_index, cluster_nb);
+        error_report("cluster_index >= cluster_nb %ld %ld", cluster_index, cluster_nb);
 faild:
         return -1;
     }
@@ -87,7 +113,7 @@ int get_snapshot_cluster_offset(BlockDriverState *bs, Snapshot_cache_t *cache, i
     uint64_t l2_offset;
     int ret = get_snapshot_cluster_l2_offset(bs, cache, cluster_index, &l2_offset);
     if(ret < 0){
-        LOG_ERROR("%s get_snapshot_cluster_l2_offset ret %d", __func__, ret);
+        error_report("%s get_snapshot_cluster_l2_offset ret %d", __func__, ret);
         return ret;
     }
 
@@ -102,13 +128,14 @@ int get_snapshot_cluster_offset(BlockDriverState *bs, Snapshot_cache_t *cache, i
     }
 
     if( l2_offset != cache->sn_l2_table_cache.cluster_offset){
-        LOG_DEBUG("misss cache offset 0x%x", l2_offset);
+        // LOG_DEBUG("misss cache offset 0x%x", l2_offset);
         ret = bdrv_pread(bs->file, l2_offset, cache->sn_l2_table_cache.table, s->cluster_size);
         if (ret < 0) {
             return ret;
         }
         cache->sn_l2_table_cache.cluster_offset = l2_offset;
-        for(uint32_t i = 0; i < (s->cluster_size / sizeof(uint64_t)); i++){
+        uint32_t i;
+        for(i = 0; i < (s->cluster_size / sizeof(uint64_t)); i++){
             be64_to_cpus(&cache->sn_l2_table_cache.table[i]);
         }
     }
@@ -141,11 +168,51 @@ int get_snapshot_cluster_pure_offset(BlockDriverState *bs, Snapshot_cache_t *cac
     return ret;
 }
 
+static int __is_backing_file_allocated(BlockDriverState *bs, int64_t cluster_index, int32_t cluster_bits)
+{
+    uint64_t cluster_offset;
+    // unsigned int sector_nb = (1<<cluster_bits)>>9;
+    unsigned int bytes = (1<<cluster_bits);
+    int64_t offset = cluster_index<<cluster_bits;
+
+    if(!bs){
+        return 0;
+    }
+
+    int ret = qcow2_get_cluster_offset(bs, offset, &bytes, &cluster_offset);
+    if(ret < 0){
+        error_report("error is_backing_file_allocated ret %d", ret);
+        return ret;
+    }
+    if(cluster_offset == 0){
+        return 0;
+    }
+    return 1;
+}
+
+static int is_backing_file_allocated(BlockDriverState *_backing_bs, int64_t cluster_index, int32_t cluster_bits, BlockDriverState **real_data_backing_bs)
+{
+    BlockDriverState *backing_bs = _backing_bs;
+    *real_data_backing_bs = NULL;
+    while(backing_bs){
+        int ret = __is_backing_file_allocated(backing_bs, cluster_index, cluster_bits);
+        if(ret == 1){
+            *real_data_backing_bs = backing_bs;
+            return ret;
+        }
+        if(ret < 0){
+            return ret;
+        }
+        backing_bs = backing_bs->backing->bs;
+    }
+    return 0;
+}
+
 // a cluster one time, for full read
 int read_snapshot_cluster_get_offset(BlockDriverState *bs, Snapshot_cache_t *cache, int64_t cluster_index, ClusterData_t *data,
                                      uint64_t *out_offset, bool* backing_with_data, ClusterData_t *backing_data)
 {
-    BlockDriverState *backing_bs = bs->backing.bs;
+    BlockDriverState *backing_bs = bs->backing->bs;
     BlockDriverState *real_data_backing_bs = NULL;
     BDRVQcow2State *s = bs->opaque;
     uint64_t cluster_offset;
@@ -161,7 +228,7 @@ int read_snapshot_cluster_get_offset(BlockDriverState *bs, Snapshot_cache_t *cac
 
     int ret = get_snapshot_cluster_offset(bs, cache, cluster_index, &cluster_offset);
     if(ret < 0){
-        LOG_ERROR("%s get_snapshot_cluster_offset ret %d", __func__, ret);
+        error_report("%s get_snapshot_cluster_offset ret %d", __func__, ret);
         return ret;
     }
     bool zero_flag = false;
@@ -173,7 +240,7 @@ int read_snapshot_cluster_get_offset(BlockDriverState *bs, Snapshot_cache_t *cac
             use_backing = isbaking_alloc;
         }
         if(use_backing == 1){
-            LOG_DEBUG("read snapshot cluster %ld is in backing file", cluster_index);
+            // LOG_DEBUG("read snapshot cluster %ld is in backing file", cluster_index);
             break;
         }
         // use_backing == 0, backing al
@@ -187,7 +254,7 @@ int read_snapshot_cluster_get_offset(BlockDriverState *bs, Snapshot_cache_t *cac
         cluster_offset &= L2E_OFFSET_MASK;
         break;
     default:
-        LOG_ERROR("error unknown type ret %d", ret);
+        error_report("error unknown type ret %d", ret);
         return -1;
         break;
     }
@@ -198,7 +265,7 @@ int read_snapshot_cluster_get_offset(BlockDriverState *bs, Snapshot_cache_t *cac
     data->cluset_index = cluster_index;
 
     if(isbaking_alloc && backing_data){
-        ret = bdrv_pread(real_data_backing_bs, cluster_index<<s->cluster_bits, backing_data->buf, s->cluster_size);
+        ret = bdrv_pread(real_data_backing_bs->file, cluster_index<<s->cluster_bits, backing_data->buf, s->cluster_size);
         if(ret < 0){
             return -1;
         }
@@ -210,7 +277,7 @@ int read_snapshot_cluster_get_offset(BlockDriverState *bs, Snapshot_cache_t *cac
             memcpy(data->buf, backing_data->buf, s->cluster_size);
             ret = s->cluster_size;
         }else{
-            ret = bdrv_pread(real_data_backing_bs, cluster_index<<s->cluster_bits, data->buf, s->cluster_size);
+            ret = bdrv_pread(real_data_backing_bs->file, cluster_index<<s->cluster_bits, data->buf, s->cluster_size);
         }
     }else{
         if(!zero_flag){
@@ -225,7 +292,7 @@ int read_snapshot_cluster_get_offset(BlockDriverState *bs, Snapshot_cache_t *cac
     }
 normal:
     if(zero_flag){
-        LOG_INFO("cluster index %ld is zeros", cluster_index);
+        // LOG_INFO("cluster index %ld is zeros", cluster_index);
         return 2;
     }
     return 1;
@@ -244,7 +311,8 @@ int count_full_image_clusters(BlockDriverState *bs, Snapshot_cache_t *cache, uin
     uint64_t total_cluster_count;
     *allocated_cluster_count = 0;
     total_cluster_count = TOTAL_CLUSTER_NB(bs);
-    for(uint64_t i = start_cluster; i < total_cluster_count; i ++){
+    uint64_t i;
+    for(i = start_cluster; i < total_cluster_count; i ++){
         int ret = read_snapshot_cluster(bs, cache, i, NULL);
         if(ret < 0)
             return ret;
@@ -293,7 +361,7 @@ int read_snapshot_cluster_increment(BlockDriverState *bs, Snapshot_cache_t *self
     }
 out:
     if(zero_flag){
-        LOG_INFO("cluster index %ld is zeros", cluster_index);
+        // LOG_INFO("cluster index %ld is zeros", cluster_index);
         return 2;
     }
     return 1;
@@ -304,7 +372,8 @@ int count_increment_clusters(BlockDriverState *bs, Snapshot_cache_t *self_cache,
     uint64_t total_cluster_count;
     *increment_cluster_count = 0;
     total_cluster_count = TOTAL_CLUSTER_NB(bs);
-    for(uint64_t i = start_cluster; i < total_cluster_count; i++){
+    uint64_t i;
+    for(i = start_cluster; i < total_cluster_count; i++){
         int ret = read_snapshot_cluster_increment(bs, self_cache, father_cache, i, NULL, NULL);
         if(ret < 0)
             return ret;

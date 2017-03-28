@@ -1096,12 +1096,12 @@ static int img_layer_dump(int argc, char **argv)
     }
 
     if (template_filename == NULL) {
-        error_report("template_filename can't be none", template_filename);
+        error_report("template_filename can't be none");
         return 1;
     }
 
     if (layer_uuid == NULL) {
-        error_report("layer_uuid can't be none", layer_uuid);
+        error_report("layer_uuid can't be none");
         return 1;
     }
 
@@ -1147,6 +1147,7 @@ fail:
 static int img_layer_remove(int argc, char **argv)
 {
 
+    return 0;
 }
 
 static const img_cmd_t img_cmds[] = {
