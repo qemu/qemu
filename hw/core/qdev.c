@@ -41,7 +41,7 @@
 
 bool qdev_hotplug = false;
 static bool qdev_hot_added = false;
-static bool qdev_hot_removed = false;
+bool qdev_hot_removed = false;
 
 const VMStateDescription *qdev_get_vmsd(DeviceState *dev)
 {
