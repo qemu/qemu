@@ -323,6 +323,7 @@ replication="yes"
 
 supported_cpu="no"
 supported_os="no"
+bogus_os="no"
 
 # parse CC options first
 for opt do
@@ -694,7 +695,10 @@ Linux)
   supported_os="yes"
 ;;
 *)
-  error_exit "Unsupported host OS $targetos"
+  # This is a fatal error, but don't report it yet, because we
+  # might be going to just print the --help text, or it might
+  # be the result of a missing compiler.
+  bogus_os="yes"
 ;;
 esac
 
@@ -1458,6 +1462,14 @@ else
 fi
 if ! compile_prog ; then
     error_exit "\"$cc\" cannot build an executable (is your linker broken?)"
+fi
+
+if test "$bogus_os" = "yes"; then
+    # Now that we know that we're not printing the help and that
+    # the compiler works (so the results of the check_defines we used
+    # to identify the OS are reliable), if we didn't recognize the
+    # host OS we should stop now.
+    error_exit "Unrecognized host OS $targetos"
 fi
 
 # Check that the C++ compiler exists and works with the C compiler
