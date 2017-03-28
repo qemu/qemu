@@ -1171,7 +1171,7 @@ static int vhdx_allocate_block(BlockDriverState *bs, BDRVVHDXState *s,
     /* per the spec, the address for a block is in units of 1MB */
     *new_offset = ROUND_UP(*new_offset, 1024 * 1024);
 
-    return bdrv_truncate(bs->file, *new_offset + s->block_size);
+    return bdrv_truncate(bs->file, *new_offset + s->block_size, NULL);
 }
 
 /*
@@ -1607,17 +1607,13 @@ static int vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
     if (type == VHDX_TYPE_DYNAMIC) {
         /* All zeroes, so we can just extend the file - the end of the BAT
          * is the furthest thing we have written yet */
-        ret = blk_truncate(blk, data_file_offset);
+        ret = blk_truncate(blk, data_file_offset, errp);
         if (ret < 0) {
-            error_setg_errno(errp, -ret,
-                            "Failed to resize the underlying file");
             goto exit;
         }
     } else if (type == VHDX_TYPE_FIXED) {
-        ret = blk_truncate(blk, data_file_offset + image_size);
+        ret = blk_truncate(blk, data_file_offset + image_size, errp);
         if (ret < 0) {
-            error_setg_errno(errp, -ret,
-                            "Failed to resize the underlying file");
             goto exit;
         }
     } else {

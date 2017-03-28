@@ -341,7 +341,7 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
 
     s->size = offset;
     offset += s->offset;
-    return bdrv_truncate(bs->file, offset);
+    return bdrv_truncate(bs->file, offset, NULL);
 }
 
 static int raw_media_changed(BlockDriverState *bs)
