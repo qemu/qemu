@@ -157,6 +157,8 @@ struct RAMState {
     /* these variables are used for bitmap sync */
     /* last time we did a full bitmap_sync */
     int64_t time_last_bitmap_sync;
+    /* bytes transferred at start_time */
+    int64_t bytes_xfer_prev;
 };
 typedef struct RAMState RAMState;
 
@@ -620,14 +622,13 @@ static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
 }
 
 /* Fix me: there are too many global variables used in migration process. */
-static int64_t bytes_xfer_prev;
 static uint64_t xbzrle_cache_miss_prev;
 static uint64_t iterations_prev;
 
 static void migration_bitmap_sync_init(RAMState *rs)
 {
     rs->time_last_bitmap_sync = 0;
-    bytes_xfer_prev = 0;
+    rs->bytes_xfer_prev = 0;
     num_dirty_pages_period = 0;
     xbzrle_cache_miss_prev = 0;
     iterations_prev = 0;
@@ -663,8 +664,8 @@ static void migration_bitmap_sync(RAMState *rs)
 
     rs->bitmap_sync_count++;
 
-    if (!bytes_xfer_prev) {
-        bytes_xfer_prev = ram_bytes_transferred();
+    if (!rs->bytes_xfer_prev) {
+        rs->bytes_xfer_prev = ram_bytes_transferred();
     }
 
     if (!rs->time_last_bitmap_sync) {
@@ -698,13 +699,13 @@ static void migration_bitmap_sync(RAMState *rs)
 
             if (s->dirty_pages_rate &&
                (num_dirty_pages_period * TARGET_PAGE_SIZE >
-                   (bytes_xfer_now - bytes_xfer_prev)/2) &&
+                   (bytes_xfer_now - rs->bytes_xfer_prev) / 2) &&
                (rs->dirty_rate_high_cnt++ >= 2)) {
                     trace_migration_throttle();
                     rs->dirty_rate_high_cnt = 0;
                     mig_throttle_guest_down();
              }
-             bytes_xfer_prev = bytes_xfer_now;
+             rs->bytes_xfer_prev = bytes_xfer_now;
         }
 
         if (migrate_use_xbzrle()) {
