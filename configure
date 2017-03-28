@@ -4229,7 +4229,6 @@ EOF
 fi
 
 # check for smartcard support
-smartcard_cflags=""
 if test "$smartcard" != "no"; then
     if $pkg_config libcacard; then
         libcacard_cflags=$($pkg_config --cflags libcacard)
