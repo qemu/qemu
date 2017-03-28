@@ -124,8 +124,12 @@ static void release_drive(Object *obj, const char *name, void *opaque)
     BlockBackend **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr) {
+        AioContext *ctx = blk_get_aio_context(*ptr);
+
+        aio_context_acquire(ctx);
         blockdev_auto_del(*ptr);
         blk_detach_dev(*ptr, dev);
+        aio_context_release(ctx);
     }
 }
 
