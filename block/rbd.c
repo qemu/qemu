@@ -376,7 +376,6 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
     rados_t cluster;
     rados_ioctx_t io_ctx;
     QDict *options = NULL;
-    QemuOpts *rbd_opts = NULL;
     int ret = 0;
 
     secretid = qemu_opt_get(opts, "password-secret");
@@ -407,19 +406,11 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
         goto exit;
     }
 
-    rbd_opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(rbd_opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto exit;
-    }
-
-    pool       = qemu_opt_get(rbd_opts, "pool");
-    conf       = qemu_opt_get(rbd_opts, "conf");
-    clientname = qemu_opt_get(rbd_opts, "user");
-    name       = qemu_opt_get(rbd_opts, "image");
-    keypairs   = qemu_opt_get(rbd_opts, "=keyvalue-pairs");
+    pool       = qdict_get_try_str(options, "pool");
+    conf       = qdict_get_try_str(options, "conf");
+    clientname = qdict_get_try_str(options, "user");
+    name       = qdict_get_try_str(options, "image");
+    keypairs   = qdict_get_try_str(options, "=keyvalue-pairs");
 
     ret = rados_create(&cluster, clientname);
     if (ret < 0) {
@@ -470,7 +461,6 @@ shutdown:
 
 exit:
     QDECREF(options);
-    qemu_opts_del(rbd_opts);
     return ret;
 }
 
