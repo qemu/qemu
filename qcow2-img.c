@@ -364,14 +364,13 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
     return strcmp(a, b) == 0;
 }
 
-static void dump_snapshots(BlockDriverState *bs)
+static void dump_snapshots(QEMUSnapshotInfo *sn_tab, int nb_sns)
 {
-    QEMUSnapshotInfo *sn_tab, *sn;
-    int nb_sns, i;
-
-    nb_sns = bdrv_snapshot_list(bs, &sn_tab);
-    if (nb_sns <= 0)
+    if (!sn_tab) {
         return;
+    }
+    QEMUSnapshotInfo *sn;
+    int i;
     printf("Snapshot list:\n");
     bdrv_snapshot_dump(fprintf, stdout, NULL);
     printf("\n");
@@ -433,7 +432,9 @@ static void dump_human_image_info_list(ImageInfoList *list)
 static ImageInfoList *collect_image_info_list(bool image_opts,
                                               const char *filename,
                                               const char *fmt,
-                                              bool chain)
+                                              bool chain,
+                                              QEMUSnapshotInfo **sn_tab,
+                                              int *nb_sns)
 {
     ImageInfoList *head = NULL;
     ImageInfoList **last = &head;
@@ -468,6 +469,7 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
             blk_unref(blk);
             goto err;
         }
+        *nb_sns = bdrv_snapshot_list(bs, sn_tab);
 
         elem = g_new0(ImageInfoList, 1);
         elem->value = info;
@@ -574,7 +576,9 @@ static int img_info(int argc, char **argv)
         return 1;
     }
 
-    list = collect_image_info_list(image_opts, filename, fmt, chain);
+    QEMUSnapshotInfo *sn_tab = NULL;
+    int nb_sns = 0;
+    list = collect_image_info_list(image_opts, filename, fmt, chain, &sn_tab, &nb_sns);
     if (!list) {
         return 1;
     }
@@ -591,7 +595,7 @@ static int img_info(int argc, char **argv)
         }
         break;
     }
-
+    dump_snapshots(sn_tab, nb_sns);
     qapi_free_ImageInfoList(list);
     return 0;
 }
@@ -601,14 +605,91 @@ typedef struct CommonBlockJobCBInfo {
     Error **errp;
 } CommonBlockJobCBInfo;
 
+static int get_last_snapshot_uuid(char* uuid, ImageInfo *info)
+{
+    if (!info->snapshots) {
+        return 3;
+    }
+    SnapshotInfoList *cur = info->snapshots;
+    while(cur->next){
+        cur = cur->next;
+    }
+    char p_uuid[PATH_MAX], commit_msg[PATH_MAX];
+    return sscanf(cur->value->name, "%[^,],%[^,],%s", uuid, p_uuid, commit_msg);
+}
+
+static int search_snapshot_by_name(char* uuid, int* index, char* puuid, char* msg, ImageInfo *info)
+{
+    if (!info->snapshots) {
+        return -1;
+    }
+
+    int count = 0;
+    SnapshotInfoList *cur = info->snapshots;
+    do{
+        char tmp_uuid[PATH_MAX] = "", tmp_puuid[PATH_MAX] = "", commit_msg[PATH_MAX] = "";
+        int ret = sscanf(cur->value->name, "%[^,],%[^,],%s", tmp_uuid, tmp_puuid, commit_msg);
+        if(ret != 3){
+            return -1;
+        }
+        if (0 == strcmp(uuid, tmp_uuid)) {
+            if(puuid){
+                strcpy(puuid, tmp_puuid);
+            }
+            if(msg){
+                strcpy(msg, commit_msg);
+            }
+            *index = count;
+            return 0;
+        }
+        count++;
+        cur = cur->next;
+    }while(cur);
+    return -1;
+}
+
+static int generate_enforced_snapshotname(char* buf, char* p_uuid, char* uuid, char* commit_msg)
+{
+    return sprintf(buf, "%s,%s,%s", uuid, p_uuid, commit_msg);
+}
+
+static void common_block_job_cb(void *opaque, int ret)
+{
+    CommonBlockJobCBInfo *cbi = opaque;
+
+    if (ret < 0) {
+        error_setg_errno(cbi->errp, -ret, "Block job failed");
+    }
+}
+
+static void run_block_job(BlockJob *job, Error **errp)
+{
+    AioContext *aio_context = blk_get_aio_context(job->blk);
+
+    aio_context_acquire(aio_context);
+    do {
+        aio_poll(aio_context, true);
+        qemu_progress_print(job->len ?
+                            ((float)job->offset / job->len * 100.f) : 0.0f, 0);
+    } while (!job->ready);
+
+    block_job_complete_sync(job, errp);
+    aio_context_release(aio_context);
+
+    /* A block job may finish instantaneously without publishing any progress,
+     * so just signal completion here */
+    qemu_progress_print(100.f, 0);
+}
+
 static int img_commit(int argc, char **argv)
 {
     int c, ret, flags;
     const char *filename, *fmt, *cache, *base;
-    BlockBackend *blk;
+    BlockBackend *blk, *base_blk = NULL;
     BlockDriverState *bs, *base_bs;
     bool progress = false, quiet = false, drop = false;
     bool writethrough;
+    char *commit_msg = NULL, *snapshot_uuid = NULL;
     Error *local_err = NULL;
     CommonBlockJobCBInfo cbi;
     bool image_opts = false;
@@ -651,6 +732,9 @@ static int img_commit(int argc, char **argv)
         case 'q':
             quiet = true;
             break;
+        case 'm':
+
+            break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
             opts = qemu_opts_parse_noisily(&qemu_object_opts,
@@ -688,12 +772,22 @@ static int img_commit(int argc, char **argv)
         return 1;
     }
 
+    if (commit_msg == NULL) {
+        error_report("commit_msg can't be none");
+        return 1;
+    }
+
+    if (snapshot_uuid == NULL) {
+        error_report("snapshot_uuid can't be none");
+        return 1;
+    }
+
     blk = img_open(image_opts, filename, fmt, flags, writethrough, quiet);
     if (!blk) {
         return 1;
     }
     bs = blk_bs(blk);
-    ImageInfo *info;
+    ImageInfo *info, *base_info;
     bdrv_query_image_info(bs, &info, &local_err);
     if (local_err) {
         error_report_err(local_err);
@@ -705,34 +799,37 @@ static int img_commit(int argc, char **argv)
         goto done;
     }
 
-    char tmplate_name[PATH_MAX], layername[PATH_MAX];
+    char tmplate_name[PATH_MAX] = "", layername[PATH_MAX] = "";
     ret = get_encoded_backingfile(info->backing_filename, tmplate_name, layername);
     if (ret != 2) {
         error_setg_errno(&local_err, -1, "error get get_encoded_backingfile, can't commit");
         goto done;
     }
 
-    base_bs = img_open(image_opts, tmplate_name, fmt, flags, writethrough, quiet);
-    if (!base_bs){
+    base_blk = img_open(image_opts, tmplate_name, fmt, flags, writethrough, quiet);
+    if (!base_blk) {
         error_setg_errno(&local_err, -1, "error open backing file %s, can't commit", tmplate_name);
         goto done;
     }
+    base_bs = blk_bs(base_blk);
 
-    if (base) {
-        base_bs = bdrv_find_backing_image(bs, base);
-        if (!base_bs) {
-            error_setg(&local_err, QERR_BASE_NOT_FOUND, base);
-            goto done;
-        }
-    } else {
-        /* This is different from QMP, which by default uses the deepest file in
-         * the backing chain (i.e., the very base); however, the traditional
-         * behavior of qemu-img commit is using the immediate backing file. */
-        base_bs = backing_bs(bs);
-        if (!base_bs) {
-            error_setg(&local_err, "Image does not have a backing file");
-            goto done;
-        }
+    bdrv_query_image_info(base_bs, &base_info, &local_err);
+    if (local_err) {
+        error_setg_errno(&local_err, -1, "error get image info from backing file, can't commit");
+        goto done;
+    }
+
+    char last_snapshot_uuid[PATH_MAX] = "";
+    ret = get_last_snapshot_uuid(last_snapshot_uuid, base_info);
+    if (ret != 3) {
+        error_setg_errno(&local_err, -1, "error get last from backing file, can't commit");
+        goto done;
+    }
+
+    if (strcmp(layername, last_snapshot_uuid) != 0) {
+        error_setg_errno(&local_err, -1, "error backing file is not the last uuid "
+                         "(%s) (%s) , can't commit", last_snapshot_uuid, layername);
+        goto done;
     }
 
     cbi = (CommonBlockJobCBInfo){
@@ -766,6 +863,22 @@ static int img_commit(int argc, char **argv)
         goto unref_backing;
     }
 
+    char enforced_snapshot_name[PATH_MAX*2];
+    generate_enforced_snapshotname(enforced_snapshot_name, layername, snapshot_uuid, commit_msg);
+    QEMUSnapshotInfo sn;
+    qemu_timeval tv;
+    memset(&sn, 0, sizeof(sn));
+    pstrcpy(sn.name, sizeof(sn.name), enforced_snapshot_name);
+    qemu_gettimeofday(&tv);
+    sn.date_sec = tv.tv_sec;
+    sn.date_nsec = tv.tv_usec * 1000;
+
+    ret = bdrv_snapshot_create(bs, &sn);
+    if (ret) {
+        error_report("Could not create snapshot '%s': %d (%s)",
+                enforced_snapshot_name, ret, strerror(-ret));
+    }
+
     if (!drop && bs->drv->bdrv_make_empty) {
         ret = bs->drv->bdrv_make_empty(bs);
         if (ret) {
@@ -784,6 +897,7 @@ done:
     qemu_progress_end();
 
     blk_unref(blk);
+    blk_unref(base_blk);
 
     if (local_err) {
         error_report_err(local_err);
@@ -921,6 +1035,120 @@ fail:
     return 1;
 }
 
+static int img_layer_dump(int argc, char **argv)
+{
+    int c, flags;
+    char *options = NULL;
+    BlockDriverState *bs, *base_bs;
+    BlockBackend *blk, *base_blk = NULL;
+    const char *filename = NULL;
+    const char *fmt = "qcow2";
+    char *template_filename = NULL;
+    bool progress = false, quiet = false, drop = false;
+    bool image_opts = false;
+    Error *local_err = NULL;
+    bool writethrough = false;
+    char *layer_uuid = NULL;
+    for(;;) {
+            static const struct option long_options[] = {
+                {"help", no_argument, 0, 'h'},
+                {"object", required_argument, 0, OPTION_OBJECT},
+                {0, 0, 0, 0}
+            };
+            c = getopt_long(argc, argv, "t:l:h",
+                            long_options, NULL);
+            if (c == -1) {
+                break;
+            }
+            switch(c) {
+            case '?':
+            case 'h':
+                help();
+                break;
+            case 't':
+                template_filename = optarg;
+                break;
+            case 'l':
+                layer_uuid = optarg;
+                break;
+            case OPTION_IMAGE_OPTS:
+                image_opts = true;
+                break;
+            }
+    }
+
+    /* Get the filename */
+    filename = (optind < argc) ? argv[optind] : NULL;
+    if (options && has_help_option(options)) {
+        g_free(options);
+        return -1;
+    }
+
+    if (optind >= argc) {
+        error_exit("Expecting image file name");
+    }
+    optind++;
+
+    if (qemu_opts_foreach(&qemu_object_opts,
+                              user_creatable_add_opts_foreach,
+                          NULL, NULL)) {
+        goto fail;
+    }
+
+    if (template_filename == NULL) {
+        error_report("template_filename can't be none", template_filename);
+        return 1;
+    }
+
+    if (layer_uuid == NULL) {
+        error_report("layer_uuid can't be none", layer_uuid);
+        return 1;
+    }
+
+    if (optind != argc) {
+        error_exit("Unexpected argument: %s", argv[optind]);
+    }
+
+    base_blk = img_open(image_opts, filename, fmt, flags, writethrough, quiet);
+    if (!base_blk) {
+        return 1;
+    }
+    base_bs = blk_bs(base_blk);
+    ImageInfo *info, *base_info;
+    bdrv_query_image_info(base_bs, &base_info, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        goto done;
+    }
+
+    char snapshot_uuid[PATH_MAX] = "";
+    char parent_snapshot_uuid[PATH_MAX] = "";
+    int snapshot_index, parent_snapshot_index;
+    int ret = search_snapshot_by_name(layer_uuid, &snapshot_index, &parent_snapshot_uuid, NULL, base_info);
+    if(ret < 0){
+        error_exit("search_snapshot %s failed", layer_uuid);
+    }
+    if(parent_snapshot_uuid[0]){
+        ret = search_snapshot_by_name(parent_snapshot_uuid, &parent_snapshot_index, NULL, NULL, base_info);
+        if(ret < 0){
+            error_exit("search_snapshot %s failed", parent_snapshot_uuid);
+        }
+    }
+
+done:
+    blk_unref(blk);
+
+    return 0;
+fail:
+    g_free(options);
+    return 1;
+}
+
+static int img_layer_remove(int argc, char **argv)
+{
+
+}
+
 static const img_cmd_t img_cmds[] = {
 #define DEF(option, callback, arg_string)        \
     { option, callback },
@@ -929,6 +1157,8 @@ static const img_cmd_t img_cmds[] = {
     DEF("resize", img_resize, "resize filename [+ | -]size")
     DEF("info", img_info, "info filename")
     DEF("commit", img_commit, "commit [-t <cache>] [-s <snapshot>] -m <commit-message> filename")
+    DEF("layerdump", img_layer_dump, "layerdump -t <template file> -l <layer UUID> filename")
+    DEF("layerremove", img_layer_remove, "layerremove -l <layer UUID> filename")
 #undef DEF
 #undef GEN_DOCS
     { NULL, NULL, },
