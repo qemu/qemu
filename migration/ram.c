@@ -158,7 +158,7 @@ struct RAMState {
     /* last time we did a full bitmap_sync */
     int64_t time_last_bitmap_sync;
     /* bytes transferred at start_time */
-    int64_t bytes_xfer_prev;
+    uint64_t bytes_xfer_prev;
 };
 typedef struct RAMState RAMState;
 
@@ -660,7 +660,7 @@ static void migration_bitmap_sync(RAMState *rs)
     RAMBlock *block;
     MigrationState *s = migrate_get_current();
     int64_t end_time;
-    int64_t bytes_xfer_now;
+    uint64_t bytes_xfer_now;
 
     rs->bitmap_sync_count++;
 
