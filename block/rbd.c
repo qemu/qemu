@@ -294,21 +294,6 @@ static QemuOptsList runtime_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
     .desc = {
         {
-            .name = "filename",
-            .type = QEMU_OPT_STRING,
-            .help = "Specification of the rbd image",
-        },
-        {
-            .name = "password-secret",
-            .type = QEMU_OPT_STRING,
-            .help = "ID of secret providing the password",
-        },
-        {
-            .name = "conf",
-            .type = QEMU_OPT_STRING,
-            .help = "Rados config file location",
-        },
-        {
             .name = "pool",
             .type = QEMU_OPT_STRING,
             .help = "Rados pool name",
@@ -317,6 +302,11 @@ static QemuOptsList runtime_opts = {
             .name = "image",
             .type = QEMU_OPT_STRING,
             .help = "Image name in the pool",
+        },
+        {
+            .name = "conf",
+            .type = QEMU_OPT_STRING,
+            .help = "Rados config file location",
         },
         {
             .name = "snapshot",
@@ -329,6 +319,19 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Rados id name",
         },
+        /*
+         * server.* and auth-supported.* extracted manually, see
+         * qemu_rbd_array_opts()
+         */
+        {
+            .name = "password-secret",
+            .type = QEMU_OPT_STRING,
+            .help = "ID of secret providing the password",
+        },
+
+        /*
+         * Keys for qemu_rbd_parse_filename(), not in the QAPI schema
+         */
         {
             /*
              * HACK: name starts with '=' so that qemu_opts_parse()
@@ -338,6 +341,13 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Legacy rados key/value option parameters",
         },
+
+        /*
+         * The remainder aren't option keys, but option sub-sub-keys,
+         * so that qemu_rbd_array_opts() can abuse runtime_opts for
+         * its own purposes
+         * TODO clean this up
+         */
         {
             .name = "host",
             .type = QEMU_OPT_STRING,
