@@ -1307,19 +1307,14 @@ char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
 {
     char *buf;
     InetSocketAddress *inet;
-    char host_port[INET6_ADDRSTRLEN + 5 + 4];
 
     switch (addr->type) {
     case SOCKET_ADDRESS_KIND_INET:
         inet = addr->u.inet.data;
         if (strchr(inet->host, ':') == NULL) {
-            snprintf(host_port, sizeof(host_port), "%s:%s", inet->host,
-                    inet->port);
-            buf = g_strdup(host_port);
+            buf = g_strdup_printf("%s:%s", inet->host, inet->port);
         } else {
-            snprintf(host_port, sizeof(host_port), "[%s]:%s", inet->host,
-                    inet->port);
-            buf = g_strdup(host_port);
+            buf = g_strdup_printf("[%s]:%s", inet->host, inet->port);
         }
         break;
 
