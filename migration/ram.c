@@ -159,6 +159,8 @@ struct RAMState {
     int64_t time_last_bitmap_sync;
     /* bytes transferred at start_time */
     uint64_t bytes_xfer_prev;
+    /* number of dirty pages since start_time */
+    int64_t num_dirty_pages_period;
 };
 typedef struct RAMState RAMState;
 
@@ -612,13 +614,13 @@ static inline bool migration_bitmap_clear_dirty(ram_addr_t addr)
     return ret;
 }
 
-static int64_t num_dirty_pages_period;
-static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
+static void migration_bitmap_sync_range(RAMState *rs, ram_addr_t start,
+                                        ram_addr_t length)
 {
     unsigned long *bitmap;
     bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
     migration_dirty_pages += cpu_physical_memory_sync_dirty_bitmap(bitmap,
-                             start, length, &num_dirty_pages_period);
+                             start, length, &rs->num_dirty_pages_period);
 }
 
 /* Fix me: there are too many global variables used in migration process. */
@@ -629,7 +631,7 @@ static void migration_bitmap_sync_init(RAMState *rs)
 {
     rs->time_last_bitmap_sync = 0;
     rs->bytes_xfer_prev = 0;
-    num_dirty_pages_period = 0;
+    rs->num_dirty_pages_period = 0;
     xbzrle_cache_miss_prev = 0;
     iterations_prev = 0;
 }
@@ -678,12 +680,12 @@ static void migration_bitmap_sync(RAMState *rs)
     qemu_mutex_lock(&migration_bitmap_mutex);
     rcu_read_lock();
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        migration_bitmap_sync_range(block->offset, block->used_length);
+        migration_bitmap_sync_range(rs, block->offset, block->used_length);
     }
     rcu_read_unlock();
     qemu_mutex_unlock(&migration_bitmap_mutex);
 
-    trace_migration_bitmap_sync_end(num_dirty_pages_period);
+    trace_migration_bitmap_sync_end(rs->num_dirty_pages_period);
 
     end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
@@ -698,7 +700,7 @@ static void migration_bitmap_sync(RAMState *rs)
             bytes_xfer_now = ram_bytes_transferred();
 
             if (s->dirty_pages_rate &&
-               (num_dirty_pages_period * TARGET_PAGE_SIZE >
+               (rs->num_dirty_pages_period * TARGET_PAGE_SIZE >
                    (bytes_xfer_now - rs->bytes_xfer_prev) / 2) &&
                (rs->dirty_rate_high_cnt++ >= 2)) {
                     trace_migration_throttle();
@@ -718,11 +720,11 @@ static void migration_bitmap_sync(RAMState *rs)
             iterations_prev = acct_info.iterations;
             xbzrle_cache_miss_prev = acct_info.xbzrle_cache_miss;
         }
-        s->dirty_pages_rate = num_dirty_pages_period * 1000
+        s->dirty_pages_rate = rs->num_dirty_pages_period * 1000
             / (end_time - rs->time_last_bitmap_sync);
         s->dirty_bytes_rate = s->dirty_pages_rate * TARGET_PAGE_SIZE;
         rs->time_last_bitmap_sync = end_time;
-        num_dirty_pages_period = 0;
+        rs->num_dirty_pages_period = 0;
     }
     s->dirty_sync_count = rs->bitmap_sync_count;
     if (migrate_use_events()) {
