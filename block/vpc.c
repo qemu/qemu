@@ -851,20 +851,21 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
 }
 
 static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
-                             int64_t total_size)
+                             int64_t total_size, Error **errp)
 {
     int ret;
 
     /* Add footer to total size */
     total_size += HEADER_SIZE;
 
-    ret = blk_truncate(blk, total_size);
+    ret = blk_truncate(blk, total_size, errp);
     if (ret < 0) {
         return ret;
     }
 
     ret = blk_pwrite(blk, total_size - HEADER_SIZE, buf, HEADER_SIZE, 0);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Unable to write VHD header");
         return ret;
     }
 
@@ -996,11 +997,11 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
 
     if (disk_type == VHD_DYNAMIC) {
         ret = create_dynamic_disk(blk, buf, total_sectors);
+        if (ret < 0) {
+            error_setg(errp, "Unable to create or write VHD header");
+        }
     } else {
-        ret = create_fixed_disk(blk, buf, total_size);
-    }
-    if (ret < 0) {
-        error_setg(errp, "Unable to create or write VHD header");
+        ret = create_fixed_disk(blk, buf, total_size, errp);
     }
 
 out:

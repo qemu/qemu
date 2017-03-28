@@ -1714,10 +1714,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     blk_set_allow_write_beyond_eof(blk, true);
 
     if (flat) {
-        ret = blk_truncate(blk, filesize);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Could not truncate file");
-        }
+        ret = blk_truncate(blk, filesize, errp);
         goto exit;
     }
     magic = cpu_to_be32(VMDK4_MAGIC);
@@ -1780,9 +1777,8 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
         goto exit;
     }
 
-    ret = blk_truncate(blk, le64_to_cpu(header.grain_offset) << 9);
+    ret = blk_truncate(blk, le64_to_cpu(header.grain_offset) << 9, errp);
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "Could not truncate file");
         goto exit;
     }
 
@@ -2090,10 +2086,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
     /* bdrv_pwrite write padding zeros to align to sector, we don't need that
      * for description file */
     if (desc_offset == 0) {
-        ret = blk_truncate(new_blk, desc_len);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Could not truncate file");
-        }
+        ret = blk_truncate(new_blk, desc_len, errp);
     }
 exit:
     if (new_blk) {

@@ -389,7 +389,7 @@ static int block_crypto_truncate(BlockDriverState *bs, int64_t offset)
 
     offset += payload_offset;
 
-    return bdrv_truncate(bs->file, offset);
+    return bdrv_truncate(bs->file, offset, NULL);
 }
 
 static void block_crypto_close(BlockDriverState *bs)

@@ -3500,20 +3500,11 @@ static int img_resize(int argc, char **argv)
         goto out;
     }
 
-    ret = blk_truncate(blk, total_size);
-    switch (ret) {
-    case 0:
+    ret = blk_truncate(blk, total_size, &err);
+    if (!ret) {
         qprintf(quiet, "Image resized.\n");
-        break;
-    case -ENOTSUP:
-        error_report("This image does not support resize");
-        break;
-    case -EACCES:
-        error_report("Image is read-only");
-        break;
-    default:
-        error_report("Error resizing image: %s", strerror(-ret));
-        break;
+    } else {
+        error_report_err(err);
     }
 out:
     blk_unref(blk);
