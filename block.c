@@ -3328,13 +3328,13 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, Error **errp)
         return -EACCES;
     }
 
-    ret = drv->bdrv_truncate(bs, offset);
+    ret = drv->bdrv_truncate(bs, offset, errp);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
         bdrv_dirty_bitmap_truncate(bs);
         bdrv_parent_cb_resize(bs);
         ++bs->write_gen;
-    } else {
+    } else if (errp && !*errp) {
         error_setg_errno(errp, -ret, "Failed to resize image");
     }
     return ret;
