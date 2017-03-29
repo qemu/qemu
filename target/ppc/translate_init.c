@@ -8808,6 +8808,25 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
 }
 
+#ifdef CONFIG_SOFTMMU
+/*
+ * Radix pg sizes and AP encodings for dt node ibm,processor-radix-AP-encodings
+ * Encoded as array of int_32s in the form:
+ *  0bxxxyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+ *  x -> AP encoding
+ *  y -> radix mode supported page size (encoded as a shift)
+ */
+static struct ppc_radix_page_info POWER9_radix_page_info = {
+    .count = 4,
+    .entries = {
+        0x0000000c, /*  4K - enc: 0x0 */
+        0xa0000010, /* 64K - enc: 0x5 */
+        0x20000015, /*  2M - enc: 0x1 */
+        0x4000001e  /*  1G - enc: 0x2 */
+    }
+};
+#endif /* CONFIG_SOFTMMU */
+
 static void init_proc_POWER9(CPUPPCState *env)
 {
     /* Common Registers */
@@ -8959,6 +8978,7 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
     pcc->handle_mmu_fault = ppc64_v3_handle_mmu_fault;
     /* segment page size remain the same */
     pcc->sps = &POWER7_POWER8_sps;
+    pcc->radix_page_info = &POWER9_radix_page_info;
 #endif
     pcc->excp_model = POWERPC_EXCP_POWER8;
     pcc->bus_model = PPC_FLAGS_INPUT_POWER7;
