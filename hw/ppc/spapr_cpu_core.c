@@ -63,6 +63,8 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
                            Error **errp)
 {
     CPUPPCState *env = &cpu->env;
+    XICSFabric *xi = XICS_FABRIC(spapr);
+    ICPState *icp = xics_icp_get(xi, CPU(cpu)->cpu_index);
 
     /* Set time-base frequency to 512 MHz */
     cpu_ppc_tb_init(env, SPAPR_TIMEBASE_FREQ);
@@ -80,7 +82,7 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
         }
     }
 
-    xics_cpu_setup(XICS_FABRIC(spapr), cpu);
+    xics_cpu_setup(xi, cpu, icp);
 
     qemu_register_reset(spapr_cpu_reset, cpu);
     spapr_cpu_reset(cpu);
