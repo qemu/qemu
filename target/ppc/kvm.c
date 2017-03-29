@@ -49,6 +49,7 @@
 #if defined(TARGET_PPC64)
 #include "hw/ppc/spapr_cpu_core.h"
 #endif
+#include "elf.h"
 
 //#define DEBUG_KVM
 
@@ -509,8 +510,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
     case POWERPC_MMU_2_07:
         if (!cap_htm && !kvmppc_is_pr(cs->kvm_state)) {
             /* KVM-HV has transactional memory on POWER8 also without the
-             * KVM_CAP_PPC_HTM extension, so enable it here instead. */
-            cap_htm = true;
+             * KVM_CAP_PPC_HTM extension, so enable it here instead as
+             * long as it's availble to userspace on the host. */
+            if (qemu_getauxval(AT_HWCAP2) & PPC_FEATURE2_HAS_HTM) {
+                cap_htm = true;
+            }
         }
         break;
     default:
