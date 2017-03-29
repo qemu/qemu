@@ -37,10 +37,20 @@ struct vhost_log {
     vhost_log_chunk_t *log;
 };
 
+struct vhost_dev;
+struct vhost_iommu {
+    struct vhost_dev *hdev;
+    MemoryRegion *mr;
+    hwaddr iommu_offset;
+    IOMMUNotifier n;
+    QLIST_ENTRY(vhost_iommu) iommu_next;
+};
+
 struct vhost_memory;
 struct vhost_dev {
     VirtIODevice *vdev;
     MemoryListener memory_listener;
+    MemoryListener iommu_listener;
     struct vhost_memory *mem;
     int n_mem_sections;
     MemoryRegionSection *mem_sections;
@@ -64,6 +74,7 @@ struct vhost_dev {
     void *opaque;
     struct vhost_log *log;
     QLIST_ENTRY(vhost_dev) entry;
+    QLIST_HEAD(, vhost_iommu) iommu_list;
     IOMMUNotifier n;
 };
 
