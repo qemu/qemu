@@ -50,8 +50,6 @@
 #include "sysemu/hostmem.h"
 #include "sysemu/numa.h"
 
-#include "hw/vfio/vfio.h"
-
 /* Copied from the kernel arch/powerpc/platforms/pseries/msi.c */
 #define RTAS_QUERY_FN           0
 #define RTAS_CHANGE_FN          1
