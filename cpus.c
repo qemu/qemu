@@ -1179,6 +1179,46 @@ static void handle_icount_deadline(void)
     }
 }
 
+static void prepare_icount_for_run(CPUState *cpu)
+{
+    if (use_icount) {
+        int64_t count;
+        int decr;
+
+        /* These should always be cleared by process_icount_data after
+         * each vCPU execution. However u16.high can be raised
+         * asynchronously by cpu_exit/cpu_interrupt/tcg_handle_interrupt
+         */
+        g_assert(cpu->icount_decr.u16.low == 0);
+        g_assert(cpu->icount_extra == 0);
+
+
+        count = tcg_get_icount_limit();
+
+        timers_state.qemu_icount += count;
+        decr = (count > 0xffff) ? 0xffff : count;
+        count -= decr;
+        cpu->icount_decr.u16.low = decr;
+        cpu->icount_extra = count;
+    }
+}
+
+static void process_icount_data(CPUState *cpu)
+{
+    if (use_icount) {
+        /* Fold pending instructions back into the
+           instruction counter, and clear the interrupt flag.  */
+        timers_state.qemu_icount -= (cpu->icount_decr.u16.low
+                        + cpu->icount_extra);
+
+        /* Reset the counters */
+        cpu->icount_decr.u16.low = 0;
+        cpu->icount_extra = 0;
+        replay_account_executed_instructions();
+    }
+}
+
+
 static int tcg_cpu_exec(CPUState *cpu)
 {
     int ret;
@@ -1189,20 +1229,6 @@ static int tcg_cpu_exec(CPUState *cpu)
 #ifdef CONFIG_PROFILER
     ti = profile_getclock();
 #endif
-    if (use_icount) {
-        int64_t count;
-        int decr;
-        timers_state.qemu_icount -= (cpu->icount_decr.u16.low
-                                    + cpu->icount_extra);
-        cpu->icount_decr.u16.low = 0;
-        cpu->icount_extra = 0;
-        count = tcg_get_icount_limit();
-        timers_state.qemu_icount += count;
-        decr = (count > 0xffff) ? 0xffff : count;
-        count -= decr;
-        cpu->icount_decr.u16.low = decr;
-        cpu->icount_extra = count;
-    }
     qemu_mutex_unlock_iothread();
     cpu_exec_start(cpu);
     ret = cpu_exec(cpu);
@@ -1211,15 +1237,6 @@ static int tcg_cpu_exec(CPUState *cpu)
 #ifdef CONFIG_PROFILER
     tcg_time += profile_getclock() - ti;
 #endif
-    if (use_icount) {
-        /* Fold pending instructions back into the
-           instruction counter, and clear the interrupt flag.  */
-        timers_state.qemu_icount -= (cpu->icount_decr.u16.low
-                        + cpu->icount_extra);
-        cpu->icount_decr.u32 = 0;
-        cpu->icount_extra = 0;
-        replay_account_executed_instructions();
-    }
     return ret;
 }
 
@@ -1306,7 +1323,13 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
 
             if (cpu_can_run(cpu)) {
                 int r;
+
+                prepare_icount_for_run(cpu);
+
                 r = tcg_cpu_exec(cpu);
+
+                process_icount_data(cpu);
+
                 if (r == EXCP_DEBUG) {
                     cpu_handle_guest_debug(cpu);
                     break;
