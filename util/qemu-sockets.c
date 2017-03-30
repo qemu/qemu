@@ -1337,9 +1337,7 @@ char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
         break;
 
     default:
-        error_setg(errp, "socket family %d unsupported",
-                   addr->type);
-        return NULL;
+        abort();
     }
     return buf;
 }

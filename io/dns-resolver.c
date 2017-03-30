@@ -164,9 +164,12 @@ int qio_dns_resolver_lookup_sync(QIODNSResolver *resolver,
                                                 addrs,
                                                 errp);
 
-    default:
-        error_setg(errp, "Unknown socket address kind");
+    case SOCKET_ADDRESS_KIND_FD:
+        error_setg(errp, "Unsupported socket address type 'fd'");
         return -1;
+
+    default:
+        abort();
     }
 }
 
