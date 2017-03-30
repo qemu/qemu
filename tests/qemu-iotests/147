@@ -30,6 +30,13 @@ NBD_PORT = 10811
 test_img = os.path.join(iotests.test_dir, 'test.img')
 unix_socket = os.path.join(iotests.test_dir, 'nbd.socket')
 
+
+def flatten_sock_addr(crumpled_address):
+    result = { 'type': crumpled_address['type'] }
+    result.update(crumpled_address['data'])
+    return result
+
+
 class NBDBlockdevAddBase(iotests.QMPTestCase):
     def blockdev_add_options(self, address, export=None):
         options = { 'node-name': 'nbd-blockdev',
@@ -85,13 +92,15 @@ class QemuNBD(NBDBlockdevAddBase):
                         'host': 'localhost',
                         'port': str(NBD_PORT)
                     } }
-        self.client_test('nbd://localhost:%i' % NBD_PORT, address)
+        self.client_test('nbd://localhost:%i' % NBD_PORT,
+                         flatten_sock_addr(address))
 
     def test_unix(self):
         self._server_up('-k', unix_socket)
         address = { 'type': 'unix',
                     'data': { 'path': unix_socket } }
-        self.client_test('nbd+unix://?socket=' + unix_socket, address)
+        self.client_test('nbd+unix://?socket=' + unix_socket,
+                         flatten_sock_addr(address))
 
 
 class BuiltinNBD(NBDBlockdevAddBase):
@@ -134,7 +143,7 @@ class BuiltinNBD(NBDBlockdevAddBase):
                     } }
         self._server_up(address)
         self.client_test('nbd://localhost:%i/nbd-export' % NBD_PORT,
-                         address, 'nbd-export')
+                         flatten_sock_addr(address), 'nbd-export')
         self._server_down()
 
     def test_inet6(self):
@@ -149,10 +158,10 @@ class BuiltinNBD(NBDBlockdevAddBase):
                      'file': {
                          'driver': 'nbd',
                          'export': 'nbd-export',
-                         'server': address
+                         'server': flatten_sock_addr(address)
                      } }
         self._server_up(address)
-        self.client_test(filename, address, 'nbd-export')
+        self.client_test(filename, flatten_sock_addr(address), 'nbd-export')
         self._server_down()
 
     def test_unix(self):
@@ -160,7 +169,7 @@ class BuiltinNBD(NBDBlockdevAddBase):
                     'data': { 'path': unix_socket } }
         self._server_up(address)
         self.client_test('nbd+unix:///nbd-export?socket=' + unix_socket,
-                         address, 'nbd-export')
+                         flatten_sock_addr(address), 'nbd-export')
         self._server_down()
 
     def test_fd(self):
@@ -182,9 +191,9 @@ class BuiltinNBD(NBDBlockdevAddBase):
                      'file': {
                          'driver': 'nbd',
                          'export': 'nbd-export',
-                         'server': address
+                         'server': flatten_sock_addr(address)
                      } }
-        self.client_test(filename, address, 'nbd-export')
+        self.client_test(filename, flatten_sock_addr(address), 'nbd-export')
 
         self._server_down()
 
