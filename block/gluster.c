@@ -429,6 +429,8 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
                                    server->value->u.inet.host,
                                    (int)port);
             break;
+        case SOCKET_ADDRESS_FLAT_TYPE_VSOCK:
+        case SOCKET_ADDRESS_FLAT_TYPE_FD:
         default:
             abort();
         }
