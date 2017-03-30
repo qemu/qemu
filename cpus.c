@@ -1392,6 +1392,8 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
 
+    g_assert(!use_icount);
+
     rcu_register_thread();
 
     qemu_mutex_lock_iothread();
@@ -1433,8 +1435,6 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
                 break;
             }
         }
-
-        handle_icount_deadline();
 
         atomic_mb_set(&cpu->exit_request, 0);
         qemu_tcg_wait_io_event(cpu);
