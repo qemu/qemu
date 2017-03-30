@@ -919,4 +919,12 @@ void qmp_fd_send(int fd, const char *fmt, ...);
 QDict *qmp_fdv(int fd, const char *fmt, va_list ap);
 QDict *qmp_fd(int fd, const char *fmt, ...);
 
+/**
+ * qtest_cb_for_every_machine:
+ * @cb: Pointer to the callback function
+ *
+ *  Call a callback function for every name of all available machines.
+ */
+void qtest_cb_for_every_machine(void (*cb)(const char *machine));
+
 #endif

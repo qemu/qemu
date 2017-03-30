@@ -946,3 +946,33 @@ bool qtest_big_endian(QTestState *s)
 {
     return s->big_endian;
 }
+
+void qtest_cb_for_every_machine(void (*cb)(const char *machine))
+{
+    QDict *response, *minfo;
+    QList *list;
+    const QListEntry *p;
+    QObject *qobj;
+    QString *qstr;
+    const char *mname;
+
+    qtest_start("-machine none");
+    response = qmp("{ 'execute': 'query-machines' }");
+    g_assert(response);
+    list = qdict_get_qlist(response, "return");
+    g_assert(list);
+
+    for (p = qlist_first(list); p; p = qlist_next(p)) {
+        minfo = qobject_to_qdict(qlist_entry_obj(p));
+        g_assert(minfo);
+        qobj = qdict_get(minfo, "name");
+        g_assert(qobj);
+        qstr = qobject_to_qstring(qobj);
+        g_assert(qstr);
+        mname = qstring_get_str(qstr);
+        cb(mname);
+    }
+
+    qtest_end();
+    QDECREF(response);
+}
