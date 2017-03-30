@@ -1144,7 +1144,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
         /* Skip the high-part; we'll perform the extract in the trampoline.  */
         param++;
     }
-    tcg_out_mov(s, TCG_TYPE_REG, param++, addr);
+    tcg_out_mov(s, TCG_TYPE_REG, param++, addrz);
 
     /* We use the helpers to extend SB and SW data, leaving the case
        of SL needing explicit extending below.  */
@@ -1224,7 +1224,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
         /* Skip the high-part; we'll perform the extract in the trampoline.  */
         param++;
     }
-    tcg_out_mov(s, TCG_TYPE_REG, param++, addr);
+    tcg_out_mov(s, TCG_TYPE_REG, param++, addrz);
     if (!SPARC64 && (memop & MO_SIZE) == MO_64) {
         /* Skip the high-part; we'll perform the extract in the trampoline.  */
         param++;
