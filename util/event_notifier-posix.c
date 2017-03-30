@@ -81,8 +81,10 @@ void event_notifier_cleanup(EventNotifier *e)
 {
     if (e->rfd != e->wfd) {
         close(e->rfd);
+        e->rfd = -1;
     }
     close(e->wfd);
+    e->wfd = -1;
 }
 
 int event_notifier_get_fd(const EventNotifier *e)

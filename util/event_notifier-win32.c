@@ -25,6 +25,7 @@ int event_notifier_init(EventNotifier *e, int active)
 void event_notifier_cleanup(EventNotifier *e)
 {
     CloseHandle(e->event);
+    e->event = NULL;
 }
 
 HANDLE event_notifier_get_handle(EventNotifier *e)
