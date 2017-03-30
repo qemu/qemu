@@ -1524,16 +1524,16 @@ static void htab_save_first_pass(QEMUFile *f, sPAPRMachineState *spapr,
         /* Consume invalid HPTEs */
         while ((index < htabslots)
                && !HPTE_VALID(HPTE(spapr->htab, index))) {
-            index++;
             CLEAN_HPTE(HPTE(spapr->htab, index));
+            index++;
         }
 
         /* Consume valid HPTEs */
         chunkstart = index;
         while ((index < htabslots) && (index - chunkstart < USHRT_MAX)
                && HPTE_VALID(HPTE(spapr->htab, index))) {
-            index++;
             CLEAN_HPTE(HPTE(spapr->htab, index));
+            index++;
         }
 
         if (index > chunkstart) {
