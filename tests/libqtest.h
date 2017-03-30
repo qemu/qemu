@@ -132,11 +132,12 @@ void qtest_qmp_eventwait(QTestState *s, const char *event);
 QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event);
 
 /**
- * qtest_hmpv:
+ * qtest_hmp:
  * @s: #QTestState instance to operate on.
  * @fmt...: HMP command to send to QEMU
  *
  * Send HMP command to QEMU via QMP's human-monitor-command.
+ * QMP events are discarded.
  *
  * Returns: the command's output.  The caller should g_free() it.
  */
@@ -149,6 +150,7 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...);
  * @ap: HMP command arguments
  *
  * Send HMP command to QEMU via QMP's human-monitor-command.
+ * QMP events are discarded.
  *
  * Returns: the command's output.  The caller should g_free() it.
  */
