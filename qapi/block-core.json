@@ -2623,7 +2623,7 @@
 # Driver specific block device options for sheepdog
 #
 # @vdi:         Virtual disk image name
-# @addr:        The Sheepdog server to connect to
+# @server:      The Sheepdog server to connect to
 # @snap-id:     Snapshot ID
 # @tag:         Snapshot tag name
 #
@@ -2632,7 +2632,7 @@
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsSheepdog',
-  'data': { 'addr': 'SocketAddressFlat',
+  'data': { 'server': 'SocketAddressFlat',
             'vdi': 'str',
             '*snap-id': 'uint32',
             '*tag': 'str' } }
