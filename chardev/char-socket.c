@@ -357,6 +357,10 @@ static char *SocketAddress_to_str(const char *prefix, SocketAddress *addr,
         return g_strdup_printf("%sfd:%s%s", prefix, addr->u.fd.data->str,
                                is_listen ? ",server" : "");
         break;
+    case SOCKET_ADDRESS_KIND_VSOCK:
+        return g_strdup_printf("%svsock:%s:%s", prefix,
+                               addr->u.vsock.data->cid,
+                               addr->u.vsock.data->port);
     default:
         abort();
     }
