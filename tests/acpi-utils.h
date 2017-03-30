@@ -26,7 +26,7 @@ typedef struct {
     gsize asl_len;
     gchar *asl_file;
     bool tmp_files_retain;   /* do not delete the temp asl/aml */
-} QEMU_PACKED AcpiSdtTable;
+} AcpiSdtTable;
 
 #define ACPI_READ_FIELD(field, addr)           \
     do {                                       \
