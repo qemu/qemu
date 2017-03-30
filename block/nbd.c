@@ -421,6 +421,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
             goto error;
         }
 
+        /* TODO SOCKET_ADDRESS_KIND_FD where fd has AF_INET or AF_INET6 */
         if (s->saddr->type != SOCKET_ADDRESS_KIND_INET) {
             error_setg(errp, "TLS only supported over IP sockets");
             goto error;
