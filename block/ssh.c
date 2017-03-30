@@ -601,6 +601,14 @@ static InetSocketAddress *ssh_config(QDict *options, Error **errp)
         goto out;
     }
 
+    /*
+     * FIXME .numeric, .to, .ipv4 or .ipv6 don't work with -drive.
+     * .to doesn't matter, it's ignored anyway.
+     * That's because when @options come from -blockdev or
+     * blockdev_add, members are typed according to the QAPI schema,
+     * but when they come from -drive, they're all QString.  The
+     * visitor expects the former.
+     */
     iv = qobject_input_visitor_new(crumpled_addr);
     visit_type_InetSocketAddress(iv, NULL, &inet, &local_error);
     if (local_error) {

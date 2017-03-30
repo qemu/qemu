@@ -474,6 +474,13 @@ static NFSServer *nfs_config(QDict *options, Error **errp)
         goto out;
     }
 
+    /*
+     * Caution: this works only because all scalar members of
+     * NFSServer are QString in @crumpled_addr.  The visitor expects
+     * @crumpled_addr to be typed according to the QAPI schema.  It
+     * is when @options come from -blockdev or blockdev_add.  But when
+     * they come from -drive, they're all QString.
+     */
     iv = qobject_input_visitor_new(crumpled_addr);
     visit_type_NFSServer(iv, NULL, &server, &local_error);
     if (local_error) {
