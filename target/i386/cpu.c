@@ -3373,15 +3373,19 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     GList *l;
     Error *local_err = NULL;
 
-    /*TODO: cpu->max_features incorrectly overwrites features
-     * set using "feat=on|off". Once we fix this, we can convert
+    /*TODO: Now cpu->max_features doesn't overwrite features
+     * set using QOM properties, and we can convert
      * plus_features & minus_features to global properties
      * inside x86_cpu_parse_featurestr() too.
      */
     if (cpu->max_features) {
         for (w = 0; w < FEATURE_WORDS; w++) {
-            env->features[w] =
-                x86_cpu_get_supported_feature_word(w, cpu->migratable);
+            /* Override only features that weren't set explicitly
+             * by the user.
+             */
+            env->features[w] |=
+                x86_cpu_get_supported_feature_word(w, cpu->migratable) &
+                ~env->user_features[w];
         }
     }
 
@@ -3692,15 +3696,17 @@ static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
 }
 
 typedef struct BitProperty {
-    uint32_t *ptr;
+    FeatureWord w;
     uint32_t mask;
 } BitProperty;
 
 static void x86_cpu_get_bit_prop(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
+    X86CPU *cpu = X86_CPU(obj);
     BitProperty *fp = opaque;
-    bool value = (*fp->ptr & fp->mask) == fp->mask;
+    uint32_t f = cpu->env.features[fp->w];
+    bool value = (f & fp->mask) == fp->mask;
     visit_type_bool(v, name, &value, errp);
 }
 
@@ -3708,6 +3714,7 @@ static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
+    X86CPU *cpu = X86_CPU(obj);
     BitProperty *fp = opaque;
     Error *local_err = NULL;
     bool value;
@@ -3724,10 +3731,11 @@ static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
     }
 
     if (value) {
-        *fp->ptr |= fp->mask;
+        cpu->env.features[fp->w] |= fp->mask;
     } else {
-        *fp->ptr &= ~fp->mask;
+        cpu->env.features[fp->w] &= ~fp->mask;
     }
+    cpu->env.user_features[fp->w] |= fp->mask;
 }
 
 static void x86_cpu_release_bit_prop(Object *obj, const char *name,
@@ -3745,7 +3753,7 @@ static void x86_cpu_release_bit_prop(Object *obj, const char *name,
  */
 static void x86_cpu_register_bit_prop(X86CPU *cpu,
                                       const char *prop_name,
-                                      uint32_t *field,
+                                      FeatureWord w,
                                       int bitnr)
 {
     BitProperty *fp;
@@ -3755,11 +3763,11 @@ static void x86_cpu_register_bit_prop(X86CPU *cpu,
     op = object_property_find(OBJECT(cpu), prop_name, NULL);
     if (op) {
         fp = op->opaque;
-        assert(fp->ptr == field);
+        assert(fp->w == w);
         fp->mask |= mask;
     } else {
         fp = g_new0(BitProperty, 1);
-        fp->ptr = field;
+        fp->w = w;
         fp->mask = mask;
         object_property_add(OBJECT(cpu), prop_name, "bool",
                             x86_cpu_get_bit_prop,
@@ -3787,7 +3795,7 @@ static void x86_cpu_register_feature_bit_props(X86CPU *cpu,
     /* aliases don't use "|" delimiters anymore, they are registered
      * manually using object_property_add_alias() */
     assert(!strchr(name, '|'));
-    x86_cpu_register_bit_prop(cpu, name, &cpu->env.features[w], bitnr);
+    x86_cpu_register_bit_prop(cpu, name, w, bitnr);
 }
 
 static GuestPanicInformation *x86_cpu_get_crash_info(CPUState *cs)
