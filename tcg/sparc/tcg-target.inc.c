@@ -843,6 +843,29 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
 static tcg_insn_unit *qemu_ld_trampoline[16];
 static tcg_insn_unit *qemu_st_trampoline[16];
 
+static void emit_extend(TCGContext *s, TCGReg r, int op)
+{
+    /* Emit zero extend of 8, 16 or 32 bit data as
+     * required by the MO_* value op; do nothing for 64 bit.
+     */
+    switch (op & MO_SIZE) {
+    case MO_8:
+        tcg_out_arithi(s, r, r, 0xff, ARITH_AND);
+        break;
+    case MO_16:
+        tcg_out_arithi(s, r, r, 16, SHIFT_SLL);
+        tcg_out_arithi(s, r, r, 16, SHIFT_SRL);
+        break;
+    case MO_32:
+        if (SPARC64) {
+            tcg_out_arith(s, r, r, 0, SHIFT_SRL);
+        }
+        break;
+    case MO_64:
+        break;
+    }
+}
+
 static void build_trampolines(TCGContext *s)
 {
     static void * const qemu_ld_helpers[16] = {
@@ -910,6 +933,7 @@ static void build_trampolines(TCGContext *s)
         qemu_st_trampoline[i] = s->code_ptr;
 
         if (SPARC64) {
+            emit_extend(s, TCG_REG_O2, i);
             ra = TCG_REG_O4;
         } else {
             ra = TCG_REG_O1;
@@ -925,6 +949,7 @@ static void build_trampolines(TCGContext *s)
                 tcg_out_arithi(s, ra, ra + 1, 32, SHIFT_SRLX);
                 ra += 2;
             } else {
+                emit_extend(s, ra, i);
                 ra += 1;
             }
             /* Skip the oi argument.  */
