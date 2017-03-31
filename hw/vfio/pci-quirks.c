@@ -1367,45 +1367,14 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     uint16_t cmd_orig, cmd;
     Error *err = NULL;
 
-    /* This must be an Intel VGA device. */
+    /*
+     * This must be an Intel VGA device at address 00:02.0 for us to even
+     * consider enabling legacy mode.  The vBIOS has dependencies on the
+     * PCI bus address.
+     */
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
-        !vfio_is_vga(vdev) || nr != 4) {
-        return;
-    }
-
-    /*
-     * IGD is not a standard, they like to change their specs often.  We
-     * only attempt to support back to SandBridge and we hope that newer
-     * devices maintain compatibility with generation 8.
-     */
-    gen = igd_gen(vdev);
-    if (gen != 6 && gen != 8) {
-        error_report("IGD device %s is unsupported by IGD quirks, "
-                     "try SandyBridge or newer", vdev->vbasedev.name);
-        return;
-    }
-
-    /*
-     * Regardless of running in UPT or legacy mode, the guest graphics
-     * driver may attempt to use stolen memory, however only legacy mode
-     * has BIOS support for reserving stolen memory in the guest VM.
-     * Emulate the GMCH register in all cases and zero out the stolen
-     * memory size here. Legacy mode may request allocation and re-write
-     * this below.
-     */
-    gmch = vfio_pci_read_config(&vdev->pdev, IGD_GMCH, 4);
-    gmch &= ~((gen < 8 ? 0x1f : 0xff) << (gen < 8 ? 3 : 8));
-
-    /* GMCH is read-only, emulated */
-    pci_set_long(vdev->pdev.config + IGD_GMCH, gmch);
-    pci_set_long(vdev->pdev.wmask + IGD_GMCH, 0);
-    pci_set_long(vdev->emulated_config_bits + IGD_GMCH, ~0);
-
-    /*
-     * This must be at address 00:02.0 for us to even onsider enabling
-     * legacy mode.  The vBIOS has dependencies on the PCI bus address.
-     */
-    if (&vdev->pdev != pci_find_device(pci_device_root_bus(&vdev->pdev),
+        !vfio_is_vga(vdev) || nr != 4 ||
+        &vdev->pdev != pci_find_device(pci_device_root_bus(&vdev->pdev),
                                        0, PCI_DEVFN(0x2, 0))) {
         return;
     }
@@ -1421,6 +1390,18 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
                                            "vfio-pci-igd-lpc-bridge")) {
         error_report("IGD device %s cannot support legacy mode due to existing "
                      "devices at address 1f.0", vdev->vbasedev.name);
+        return;
+    }
+
+    /*
+     * IGD is not a standard, they like to change their specs often.  We
+     * only attempt to support back to SandBridge and we hope that newer
+     * devices maintain compatibility with generation 8.
+     */
+    gen = igd_gen(vdev);
+    if (gen != 6 && gen != 8) {
+        error_report("IGD device %s is unsupported in legacy mode, "
+                     "try SandyBridge or newer", vdev->vbasedev.name);
         return;
     }
 
@@ -1478,6 +1459,8 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
                      "legacy mode disabled", vdev->vbasedev.name);
         goto out;
     }
+
+    gmch = vfio_pci_read_config(&vdev->pdev, IGD_GMCH, 4);
 
     /*
      * If IGD VGA Disable is clear (expected) and VGA is not already enabled,
@@ -1549,11 +1532,12 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
      * when IVD (IGD VGA Disable) is clear, but the claim is that it's unused,
      * so let's not waste VM memory for it.
      */
+    gmch &= ~((gen < 8 ? 0x1f : 0xff) << (gen < 8 ? 3 : 8));
+
     if (vdev->igd_gms) {
         if (vdev->igd_gms <= 0x10) {
             gms_mb = vdev->igd_gms * 32;
             gmch |= vdev->igd_gms << (gen < 8 ? 3 : 8);
-            pci_set_long(vdev->pdev.config + IGD_GMCH, gmch);
         } else {
             error_report("Unsupported IGD GMS value 0x%x", vdev->igd_gms);
             vdev->igd_gms = 0;
@@ -1572,6 +1556,11 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     *bdsm_size = cpu_to_le64((ggms_mb + gms_mb) * 1024 * 1024);
     fw_cfg_add_file(fw_cfg_find(), "etc/igd-bdsm-size",
                     bdsm_size, sizeof(*bdsm_size));
+
+    /* GMCH is read-only, emulated */
+    pci_set_long(vdev->pdev.config + IGD_GMCH, gmch);
+    pci_set_long(vdev->pdev.wmask + IGD_GMCH, 0);
+    pci_set_long(vdev->emulated_config_bits + IGD_GMCH, ~0);
 
     /* BDSM is read-write, emulated.  The BIOS needs to be able to write it */
     pci_set_long(vdev->pdev.config + IGD_BDSM, 0);
