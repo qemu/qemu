@@ -113,7 +113,7 @@ static void QEMU_NORETURN help(void)
 static char *generate_encoded_backingfile(const char* template, const char* layer_uuid)
 {
     char *backing_string = malloc(PATH_MAX*2);
-    snprintf(backing_string, PATH_MAX*2, "qcow2://%s?layer=%s", template, layer_uuid ? layer_uuid : "");
+    snprintf(backing_string, PATH_MAX*2, "qcow2://%s?layer=%s", template, (layer_uuid ? layer_uuid : ""));
     return backing_string;
 }
 
@@ -1705,11 +1705,6 @@ static int mount(int argc, char **argv)
 
     saddr = nbd_build_socket_address(sockpath, bindto, port);
 
-    if (qemu_init_main_loop(&local_err)) {
-        error_report_err(local_err);
-        exit(EXIT_FAILURE);
-    }
-    bdrv_init();
     atexit(bdrv_close_all);
 
     srcpath = argv[optind];
