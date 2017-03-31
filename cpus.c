@@ -223,6 +223,15 @@ void qemu_tcg_configure(QemuOpts *opts, Error **errp)
     }
 }
 
+/* The current number of executed instructions is based on what we
+ * originally budgeted minus the current state of the decrementing
+ * icount counters in extra/u16.low.
+ */
+static int64_t cpu_get_icount_executed(CPUState *cpu)
+{
+    return cpu->icount_budget - (cpu->icount_decr.u16.low + cpu->icount_extra);
+}
+
 int64_t cpu_get_icount_raw(void)
 {
     int64_t icount;
@@ -234,7 +243,8 @@ int64_t cpu_get_icount_raw(void)
             fprintf(stderr, "Bad icount read\n");
             exit(1);
         }
-        icount -= (cpu->icount_decr.u16.low + cpu->icount_extra);
+        /* Take into account what has run */
+        icount += cpu_get_icount_executed(cpu);
     }
     return icount;
 }
@@ -1195,7 +1205,10 @@ static void prepare_icount_for_run(CPUState *cpu)
 
         count = tcg_get_icount_limit();
 
-        timers_state.qemu_icount += count;
+        /* To calculate what we have executed so far we need to know
+         * what we originally budgeted to run this cycle */
+        cpu->icount_budget = count;
+
         decr = (count > 0xffff) ? 0xffff : count;
         count -= decr;
         cpu->icount_decr.u16.low = decr;
@@ -1206,14 +1219,14 @@ static void prepare_icount_for_run(CPUState *cpu)
 static void process_icount_data(CPUState *cpu)
 {
     if (use_icount) {
-        /* Fold pending instructions back into the
-           instruction counter, and clear the interrupt flag.  */
-        timers_state.qemu_icount -= (cpu->icount_decr.u16.low
-                        + cpu->icount_extra);
+        /* Account for executed instructions */
+        timers_state.qemu_icount += cpu_get_icount_executed(cpu);
 
         /* Reset the counters */
         cpu->icount_decr.u16.low = 0;
         cpu->icount_extra = 0;
+        cpu->icount_budget = 0;
+
         replay_account_executed_instructions();
     }
 }
