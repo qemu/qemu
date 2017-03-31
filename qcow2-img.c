@@ -104,6 +104,7 @@ static void QEMU_NORETURN help(void)
             "commit [-t <cache>] [-s <snapshot>] -m <commit-message> filename\n"
             "layerdump -t <template file> -l <layer UUID> filename\n"
             "layerremove -l <layer UUID> filename\n"
+            "mount -c </dev/nbdx> filename\n"
             ;
     printf("%s", help_msg);
     exit(EXIT_SUCCESS);
