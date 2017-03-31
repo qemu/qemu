@@ -1369,8 +1369,9 @@ static int open_template(char* tmplate_name, char* layername, BlockBackend **blk
     BlockDriverState *base_bs = blk_bs(base_blk);
     bdrv_query_image_info(base_bs, &base_info, errp);
     if (*errp) {
-        error_setg_errno(errp, -1, "error get image info from backing file, can't commit");
         return -1;
+//        error_setg_errno(errp, -1, "error get image info from backing file, can't commit");
+//        return -1;
     }
 
     if(disk_size){
