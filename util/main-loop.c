@@ -218,8 +218,11 @@ static void glib_pollfds_poll(void)
 
 static int os_host_main_loop_wait(int64_t timeout)
 {
+    GMainContext *context = g_main_context_default();
     int ret;
     static int spin_counter;
+
+    g_main_context_acquire(context);
 
     glib_pollfds_fill(&timeout);
 
@@ -256,6 +259,9 @@ static int os_host_main_loop_wait(int64_t timeout)
     }
 
     glib_pollfds_poll();
+
+    g_main_context_release(context);
+
     return ret;
 }
 #else
@@ -412,12 +418,15 @@ static int os_host_main_loop_wait(int64_t timeout)
     fd_set rfds, wfds, xfds;
     int nfds;
 
+    g_main_context_acquire(context);
+
     /* XXX: need to suppress polling by better using win32 events */
     ret = 0;
     for (pe = first_polling_entry; pe != NULL; pe = pe->next) {
         ret |= pe->func(pe->opaque);
     }
     if (ret != 0) {
+        g_main_context_release(context);
         return ret;
     }
 
@@ -471,6 +480,8 @@ static int os_host_main_loop_wait(int64_t timeout)
     if (g_main_context_check(context, max_priority, poll_fds, n_poll_fds)) {
         g_main_context_dispatch(context);
     }
+
+    g_main_context_release(context);
 
     return select_ret || g_poll_ret;
 }
