@@ -391,8 +391,7 @@ int cpu_get_dump_info(ArchDumpInfo *info,
 
 #ifdef TARGET_X86_64
     X86CPU *first_x86_cpu = X86_CPU(first_cpu);
-
-    lma = !!(first_x86_cpu->env.hflags & HF_LMA_MASK);
+    lma = first_cpu && (first_x86_cpu->env.hflags & HF_LMA_MASK);
 #endif
 
     if (lma) {
