@@ -2063,7 +2063,7 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
 static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
 {
     XHCIState *xhci = epctx->xhci;
-    XHCIStreamContext *stctx;
+    XHCIStreamContext *stctx = NULL;
     XHCITransfer *xfer;
     XHCIRing *ring;
     USBEndpoint *ep = NULL;
@@ -2186,6 +2186,8 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             break;
         }
     }
+    /* update ring dequeue ptr */
+    xhci_set_ep_state(xhci, epctx, stctx, epctx->state);
     epctx->kick_active--;
 
     ep = xhci_epid_to_usbep(epctx);
