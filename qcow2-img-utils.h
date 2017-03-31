@@ -30,9 +30,16 @@ typedef struct ClusterData{
     char buf[0];
 }ClusterData_t;
 
+static inline void init_cache(Snapshot_cache_t * cache, int snapshot_index)
+{
+    memset(cache, 0, sizeof(Snapshot_cache_t));
+    cache->snapshot_index = snapshot_index;
+}
+
 #define DISK_SIZE(bs) (unsigned long int)(bs->total_sectors * BDRV_SECTOR_SIZE)
 #define TOTAL_CLUSTER_NB(bs) (DISK_SIZE(bs) >> ((BDRVQcow2State *)bs->opaque)->cluster_bits)
 #define SNAPSHOT_MAX_INDEX (0x7fffffff)
+#define SIZE_TO_CLUSTER_NB(bs, size) ((size) >> ((BDRVQcow2State *)bs->opaque)->cluster_bits)
 
 int get_snapshot_cluster_l2_offset(BlockDriverState *bs, Snapshot_cache_t *cache, int64_t cluster_index, uint64_t* ret_offset);
 int get_snapshot_cluster_offset(BlockDriverState *bs, Snapshot_cache_t *cache, int64_t cluster_index, uint64_t *ret_offset);
@@ -46,5 +53,7 @@ int read_snapshot_cluster_increment(BlockDriverState *bs, Snapshot_cache_t *self
                                     int64_t cluster_index, ClusterData_t *data, bool* is_0_offset);
 int count_increment_clusters(BlockDriverState *bs, Snapshot_cache_t *self_cache, Snapshot_cache_t *father_cache,
                              uint64_t *increment_cluster_count, uint64_t start_cluster);
+uint64_t get_layer_disk_size(BlockDriverState *bs, int snapshot_index);
+uint64_t get_layer_cluster_nb(BlockDriverState *bs, int snapshot_index);
 
 #endif /* QCOW2_IMG_UTILS_H_ */

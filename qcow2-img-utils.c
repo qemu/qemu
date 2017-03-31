@@ -35,6 +35,17 @@ static void set_disk_info(BlockDriverState *bs, Snapshot_cache_t *cache, uint64_
     }
 }
 
+uint64_t get_layer_disk_size(BlockDriverState *bs, int snapshot_index)
+{
+    BDRVQcow2State *s = bs->opaque;
+    if(snapshot_index != SNAPSHOT_MAX_INDEX){
+        QCowSnapshot *snapshot = &s->snapshots[snapshot_index];
+        return snapshot->disk_size;
+    }else{
+        return bs->total_sectors<<9;
+    }
+}
+
 static int get_max_l1_size(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
@@ -45,6 +56,11 @@ static int get_max_l1_size(BlockDriverState *bs)
         max_l1_size = MAX(max_l1_size, snapshot->l1_size);
     }
     return max_l1_size;
+}
+
+uint64_t get_layer_cluster_nb(BlockDriverState *bs, int snapshot_index)
+{
+    return SIZE_TO_CLUSTER_NB(bs, get_layer_disk_size(bs, snapshot_index));
 }
 
 #define SNAPSHOT_MAX_INDEX (0x7fffffff)

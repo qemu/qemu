@@ -188,6 +188,7 @@ int bdrv_query_snapshot_info_list(BlockDriverState *bs,
         info->date_nsec     = sn_tab[i].date_nsec;
         info->vm_clock_sec  = sn_tab[i].vm_clock_nsec / 1000000000;
         info->vm_clock_nsec = sn_tab[i].vm_clock_nsec % 1000000000;
+        info->disk_size = sn_tab[i].disk_size;
 
         info_list = g_new0(SnapshotInfoList, 1);
         info_list->value = info;

@@ -18,6 +18,11 @@
 #include "block/qapi.h"
 #include "crypto/init.h"
 #include "trace/control.h"
+#include "block/qcow2.h"
+#include "qcow2-img-utils.h"
+#include "block/block.h"
+#include "io/channel-socket.h"
+#include "block/nbd.h"
 #include <getopt.h>
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION QEMU_PKGVERSION \
@@ -95,7 +100,11 @@ static void QEMU_NORETURN help(void)
             "usage: qcow2-img command [command options]\n"
             "create [-o options] {-t <template file> -l <layer UUID> -s <size>} filename\n"
             "resize filename [+ | -]size\n"
-            "info filename\n";
+            "info filename\n"
+            "commit [-t <cache>] [-s <snapshot>] -m <commit-message> filename\n"
+            "layerdump -t <template file> -l <layer UUID> filename\n"
+            "layerremove -l <layer UUID> filename\n"
+            ;
     printf("%s", help_msg);
     exit(EXIT_SUCCESS);
 }
@@ -618,10 +627,10 @@ static int get_last_snapshot_uuid(char* uuid, ImageInfo *info)
     return sscanf(cur->value->name, "%[^,],%[^,],%s", uuid, p_uuid, commit_msg);
 }
 
-static int search_snapshot_by_name(char* uuid, int* index, char* puuid, char* msg, ImageInfo *info)
+static int64_t search_snapshot_by_name(char* uuid, int* index, char* puuid, char* msg, uint64_t* disk_size, ImageInfo *info)
 {
     if (!info->snapshots) {
-        return -1;
+        return -1L;
     }
 
     int count = 0;
@@ -630,7 +639,7 @@ static int search_snapshot_by_name(char* uuid, int* index, char* puuid, char* ms
         char tmp_uuid[PATH_MAX] = "", tmp_puuid[PATH_MAX] = "", commit_msg[PATH_MAX] = "";
         int ret = sscanf(cur->value->name, "%[^,],%[^,],%s", tmp_uuid, tmp_puuid, commit_msg);
         if(ret != 3){
-            return -1;
+            return -1L;
         }
         if (0 == strcmp(uuid, tmp_uuid)) {
             if(puuid){
@@ -639,13 +648,17 @@ static int search_snapshot_by_name(char* uuid, int* index, char* puuid, char* ms
             if(msg){
                 strcpy(msg, commit_msg);
             }
+            if(disk_size){
+                *disk_size = cur->value->disk_size;
+            }
             *index = count;
-            return 0;
+            return atol(cur->value->id);
         }
         count++;
         cur = cur->next;
     }while(cur);
-    return -1;
+
+    return -1L;
 }
 
 static int generate_enforced_snapshotname(char* buf, char* p_uuid, char* uuid, char* commit_msg)
@@ -1035,16 +1048,25 @@ fail:
     return 1;
 }
 
+static int bdrv_write_zeros(BlockDriverState *bs, int64_t offset, int bytes)
+{
+    int ret = bs->drv->bdrv_co_pwrite_zeroes(bs, offset>>BDRV_SECTOR_BITS, bytes>>BDRV_SECTOR_BITS, BDRV_REQ_ZERO_WRITE);
+    if(ret < 0){
+        return ret;
+    }
+    return bytes;
+}
+
 static int img_layer_dump(int argc, char **argv)
 {
-    int c, flags;
+    int c, flags = 0;
     char *options = NULL;
     BlockDriverState *bs, *base_bs;
     BlockBackend *blk, *base_blk = NULL;
     const char *filename = NULL;
     const char *fmt = "qcow2";
     char *template_filename = NULL;
-    bool progress = false, quiet = false, drop = false;
+    bool quiet = false;
     bool image_opts = false;
     Error *local_err = NULL;
     bool writethrough = false;
@@ -1109,34 +1131,79 @@ static int img_layer_dump(int argc, char **argv)
         error_exit("Unexpected argument: %s", argv[optind]);
     }
 
-    base_blk = img_open(image_opts, filename, fmt, flags, writethrough, quiet);
+    base_blk = img_open(image_opts, template_filename, fmt, flags, writethrough, quiet);
     if (!base_blk) {
+        error_report("error open img: %s", template_filename);
         return 1;
     }
     base_bs = blk_bs(base_blk);
-    ImageInfo *info, *base_info;
+    ImageInfo *base_info;
     bdrv_query_image_info(base_bs, &base_info, &local_err);
     if (local_err) {
         error_report_err(local_err);
-        goto done;
+        goto fail;
     }
 
-    char snapshot_uuid[PATH_MAX] = "";
     char parent_snapshot_uuid[PATH_MAX] = "";
-    int snapshot_index, parent_snapshot_index;
-    int ret = search_snapshot_by_name(layer_uuid, &snapshot_index, &parent_snapshot_uuid, NULL, base_info);
-    if(ret < 0){
+    int snapshot_index, parent_snapshot_index = -1;
+    uint64_t snapshot_disk_size;
+    int64_t sn_id = search_snapshot_by_name(layer_uuid, &snapshot_index, parent_snapshot_uuid, NULL, &snapshot_disk_size, base_info);
+    if(sn_id < 0){
         error_exit("search_snapshot %s failed", layer_uuid);
     }
     if(parent_snapshot_uuid[0]){
-        ret = search_snapshot_by_name(parent_snapshot_uuid, &parent_snapshot_index, NULL, NULL, base_info);
-        if(ret < 0){
+        sn_id = search_snapshot_by_name(parent_snapshot_uuid, &parent_snapshot_index, NULL, NULL, NULL, base_info);
+        if(sn_id < 0){
             error_exit("search_snapshot %s failed", parent_snapshot_uuid);
         }
     }
 
-done:
+    char *backing_str = generate_encoded_backingfile(template_filename, layer_uuid);
+    bdrv_img_create(filename, "qcow2", backing_str, NULL,
+                    options, snapshot_disk_size, 0, &local_err, quiet);
+
+    blk = img_open(image_opts, filename, fmt, flags, writethrough, quiet);
+    if (!blk) {
+        error_report("error open img: %s", filename);
+        return 1;
+    }
+    bs = blk_bs(blk);
+
+    Snapshot_cache_t cache, parent_cache;
+    uint64_t increament_cluster_count;
+    init_cache(&cache, snapshot_index);
+    init_cache(&parent_cache, parent_snapshot_index);
+    uint64_t total_cluster_nb = get_layer_cluster_nb(base_bs, snapshot_index);
+    BDRVQcow2State *s = base_bs->opaque;
+    const int data_size = sizeof(ClusterData_t) + s->cluster_size;
+    ClusterData_t *data = malloc(data_size);
+    int ret = count_increment_clusters(base_bs, &cache, &parent_cache, &increament_cluster_count, 0);
+    if(ret < 0){
+        error_exit("count_increment_clusters failed");
+    }
+
+    uint64_t i;
+    for(i = 0; i < total_cluster_nb; i++) {
+        bool is_cluster_0_offset;
+        ret = read_snapshot_cluster_increment(base_bs, &cache, &parent_cache, i, data, &is_cluster_0_offset);
+        if(ret < 0){
+            error_report("error read snapshot cluster");
+            goto fail;
+        }
+        if(ret == 0){
+            continue;
+        }
+        uint64_t off = data->cluset_index << s->cluster_bits;
+        ret = ret == 1 ? bdrv_pwrite(bs->file, off, data->buf, s->cluster_size) :
+                         bdrv_write_zeros(bs, off, s->cluster_size);
+        if(ret < s->cluster_size){
+            error_report("error bdrv_pwrite ret is %d", ret);
+            goto fail;
+        }
+    }
+
     blk_unref(blk);
+    blk_unref(base_blk);
 
     return 0;
 fail:
@@ -1146,8 +1213,608 @@ fail:
 
 static int img_layer_remove(int argc, char **argv)
 {
+    int c, flags = 0;
+    bool image_opts = false;
+    char *layer_uuid = NULL;
+    const char *filename = NULL;
+    char *options = NULL;
+    const char *fmt = "qcow2";
+    bool writethrough = false;
+    bool quiet = false;
+    Error *local_err = NULL;
+    for(;;) {
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"object", required_argument, 0, OPTION_OBJECT},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, "l:h",
+                        long_options, NULL);
+        if (c == -1) {
+            break;
+        }
+        switch(c) {
+        case '?':
+        case 'h':
+            help();
+            break;
+        case 'l':
+            layer_uuid = optarg;
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        }
+    }
+
+    /* Get the filename */
+    filename = (optind < argc) ? argv[optind] : NULL;
+    if (options && has_help_option(options)) {
+        g_free(options);
+        return -1;
+    }
+
+    if (optind >= argc) {
+        error_exit("Expecting image file name");
+    }
+    optind++;
+
+    if (qemu_opts_foreach(&qemu_object_opts,
+                          user_creatable_add_opts_foreach,
+                          NULL, NULL)) {
+        goto fail;
+    }
+
+    if (layer_uuid == NULL) {
+        error_exit("need to input layer_uuid");
+    }
+
+    BlockBackend *blk = img_open(image_opts, filename, fmt, flags, writethrough, quiet);
+    if (!blk) {
+        error_report("error open img: %s", filename);
+        return 1;
+    }
+    BlockDriverState *bs = blk_bs(blk);
+    ImageInfo *info;
+    bdrv_query_image_info(bs, &info, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        goto fail;
+    }
+
+    char parent_snapshot_uuid[PATH_MAX] = "";
+    int snapshot_index;
+    uint64_t snapshot_disk_size;
+    int64_t sn_id = search_snapshot_by_name(layer_uuid, &snapshot_index, parent_snapshot_uuid, NULL, &snapshot_disk_size, info);
+    if(sn_id < 0){
+        error_exit("search_snapshot %s failed", layer_uuid);
+    }
+
+    char id[32] = "";
+    sprintf(id, "%ld", sn_id);
+    int ret = bdrv_snapshot_delete_by_id_or_name(bs, id, &local_err);
+
+    return ret;
+
+fail:
+    g_free(options);
+    return 1;
+}
+
+static BlockBackend *blk_open_enforced_img(const char *filename, Error **errp)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs;
+
+    int flags = BDRV_O_RDWR | BDRV_O_UNMAP | BDRV_O_NO_BACKING;
+    blk = img_open(false, filename, "qcow2", flags, true, true);
+    if (!blk) {
+        return NULL;
+    }
+    bs = blk_bs(blk);
+
+    ImageInfo *info;
+    bdrv_query_image_info(bs, &info, errp);
+    if (*errp) {
+        error_report_err(*errp);
+        return NULL;
+    }
+
+    if(!info->has_backing_filename){
+        return blk;
+    }
+
+    char tmplate_name[PATH_MAX] = "", layername[PATH_MAX] = "";
+    int ret = get_encoded_backingfile(info->backing_filename, tmplate_name, layername);
+    if (ret != 2) {
+        error_setg_errno(errp, -1, "error get get_encoded_backingfile, can't commit");
+        return NULL;
+    }
+
+    int backing_flags = BDRV_O_RDWR | BDRV_O_UNMAP | BDRV_O_NO_BACKING;
+    BlockBackend *base_blk = img_open(false, tmplate_name, "qcow2", backing_flags, true, true);
+    if (!base_blk) {
+        error_setg_errno(errp, -1, "error open backing file %s, can't commit", tmplate_name);
+        return NULL;
+    }
+    ImageInfo *base_info;
+    BlockDriverState *base_bs = blk_bs(base_blk);
+    bdrv_query_image_info(base_bs, &base_info, errp);
+    if (*errp) {
+        error_setg_errno(errp, -1, "error get image info from backing file, can't commit");
+        return NULL;
+    }
+
+    int index;
+    int64_t id = search_snapshot_by_name(layername, &index, NULL, NULL, NULL, base_info);
+    if(id < 0){
+        error_setg_errno(errp, -1, "error search snapshot by name");
+        return NULL;
+    }
+    char snapshotid[32];
+    sprintf(snapshotid, "%ld", id);
+    ret = bdrv_snapshot_load_tmp_by_id_or_name(base_bs, snapshotid, errp);
+    if(ret < 0){
+        error_setg_errno(errp, -1, "error qcow2_snapshot_load_tmp");
+        return NULL;
+    }
+
+    bdrv_set_backing_hd(bs, base_bs);
+    bdrv_unref(base_bs);
+
+    return blk;
+}
+
+
+#define SOCKET_PATH                "/var/lock/qemu-nbd-%s"
+static SocketAddress *saddr;
+static char *srcpath;
+static NBDExport *exp;
+static bool newproto;
+static QIOChannelSocket *server_ioc;
+static int verbose;
+static int server_watch = -1;
+static int shared = 1;
+static int nb_fds;
+static int persistent = 0;
+static enum { RUNNING, TERMINATE, TERMINATING, TERMINATED } state;
+static QCryptoTLSCreds *tlscreds;
+
+static void *show_parts(void *arg)
+{
+    char *device = arg;
+    int nbd;
+
+    /* linux just needs an open() to trigger
+     * the partition table update
+     * but remember to load the module with max_part != 0 :
+     *     modprobe nbd max_part=63
+     */
+    nbd = open(device, O_RDWR);
+    if (nbd >= 0) {
+        close(nbd);
+    }
+    return NULL;
+}
+
+static void *nbd_client_thread(void *arg)
+{
+    char *device = arg;
+    off_t size;
+    uint16_t nbdflags;
+    QIOChannelSocket *sioc;
+    int fd;
+    int ret;
+    pthread_t show_parts_thread;
+    Error *local_error = NULL;
+
+    sioc = qio_channel_socket_new();
+    if (qio_channel_socket_connect_sync(sioc,
+                                        saddr,
+                                        &local_error) < 0) {
+        error_report_err(local_error);
+        goto out;
+    }
+
+    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), NULL, &nbdflags,
+                                NULL, NULL, NULL,
+                                &size, &local_error);
+    if (ret < 0) {
+        if (local_error) {
+            error_report_err(local_error);
+        }
+        goto out_socket;
+    }
+
+    fd = open(device, O_RDWR);
+    if (fd < 0) {
+        /* Linux-only, we can use %m in printf.  */
+        error_report("Failed to open %s: %m", device);
+        goto out_socket;
+    }
+
+    ret = nbd_init(fd, sioc, nbdflags, size);
+    if (ret < 0) {
+        goto out_fd;
+    }
+
+    /* update partition table */
+    pthread_create(&show_parts_thread, NULL, show_parts, device);
+
+    if (verbose) {
+        fprintf(stderr, "NBD device %s is now connected to %s\n",
+                device, srcpath);
+    } else {
+        /* Close stderr so that the qemu-nbd process exits.  */
+        dup2(STDOUT_FILENO, STDERR_FILENO);
+    }
+
+    ret = nbd_client(fd);
+    if (ret) {
+        goto out_fd;
+    }
+    close(fd);
+    object_unref(OBJECT(sioc));
+    kill(getpid(), SIGTERM);
+    return (void *) EXIT_SUCCESS;
+
+out_fd:
+    close(fd);
+out_socket:
+    object_unref(OBJECT(sioc));
+out:
+    kill(getpid(), SIGTERM);
+    return (void *) EXIT_FAILURE;
+}
+
+static QemuOptsList file_opts = {
+    .name = "file",
+    .implied_opt_name = "file",
+    .head = QTAILQ_HEAD_INITIALIZER(file_opts.head),
+    .desc = {
+        /* no elements => accept any params */
+        { /* end of list */ }
+    },
+};
+
+static void nbd_export_closed(NBDExport *exp)
+{
+    assert(state == TERMINATING);
+    state = TERMINATED;
+}
+
+static SocketAddress *nbd_build_socket_address(const char *sockpath,
+                                               const char *bindto,
+                                               const char *port)
+{
+    SocketAddress *saddr;
+
+    saddr = g_new0(SocketAddress, 1);
+    if (sockpath) {
+        saddr->type = SOCKET_ADDRESS_KIND_UNIX;
+        saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
+        saddr->u.q_unix.data->path = g_strdup(sockpath);
+    } else {
+        InetSocketAddress *inet;
+        saddr->type = SOCKET_ADDRESS_KIND_INET;
+        inet = saddr->u.inet.data = g_new0(InetSocketAddress, 1);
+        inet->host = g_strdup(bindto);
+        if (port) {
+            inet->port = g_strdup(port);
+        } else  {
+            inet->port = g_strdup_printf("%d", NBD_DEFAULT_PORT);
+        }
+    }
+
+    return saddr;
+}
+
+static int nbd_can_accept(void)
+{
+    return nb_fds < shared;
+}
+
+static void nbd_update_server_watch(void);
+static void nbd_client_closed(NBDClient *client)
+{
+    nb_fds--;
+    if (nb_fds == 0 && !persistent && state == RUNNING) {
+        state = TERMINATE;
+    }
+    nbd_update_server_watch();
+    nbd_client_put(client);
+}
+
+static gboolean nbd_accept(QIOChannel *ioc, GIOCondition cond, gpointer opaque)
+{
+    QIOChannelSocket *cioc;
+
+    cioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
+                                     NULL);
+    if (!cioc) {
+        return TRUE;
+    }
+
+    if (state >= TERMINATE) {
+        object_unref(OBJECT(cioc));
+        return TRUE;
+    }
+
+    nb_fds++;
+    nbd_update_server_watch();
+    nbd_client_new(newproto ? NULL : exp, cioc,
+                   tlscreds, NULL, nbd_client_closed);
+    object_unref(OBJECT(cioc));
+
+    return TRUE;
+}
+
+static void nbd_update_server_watch(void)
+{
+    if (nbd_can_accept()) {
+        if (server_watch == -1) {
+            server_watch = qio_channel_add_watch(QIO_CHANNEL(server_ioc),
+                                                 G_IO_IN,
+                                                 nbd_accept,
+                                                 NULL, NULL);
+        }
+    } else {
+        if (server_watch != -1) {
+            g_source_remove(server_watch);
+            server_watch = -1;
+        }
+    }
+}
+
+static int mount(int argc, char **argv)
+{
+    int c;
+    BlockBackend *blk;
+    BlockDriverState *bs;
+    const char *filename = NULL;
+    bool image_opts = false;
+    char *options = NULL;
+    char *device = NULL;
+    int old_stderr = -1;
+    const char *bindto = "0.0.0.0";
+    const char *port = NULL;
+    char *sockpath = NULL;
+    Error *local_err = NULL;
+    bool writethrough = true;
+    off_t dev_offset = 0;
+    off_t fd_size;
+    pthread_t client_thread;
+    uint16_t nbdflags = 0;
+    const char *export_name = NULL;
+    const char *export_description = NULL;
+    bool fork_process = false;
+    BlockdevDetectZeroesOptions detect_zeroes = BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
+    for(;;) {
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"object", required_argument, 0, OPTION_OBJECT},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, "c:h",
+                        long_options, NULL);
+        if (c == -1) {
+            break;
+        }
+        switch(c) {
+        case '?':
+        case 'h':
+            help();
+            break;
+        case 'c':
+            device = optarg;
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        }
+    }
+
+    /* Get the filename */
+    filename = (optind < argc) ? argv[optind] : NULL;
+    if (options && has_help_option(options)) {
+        g_free(options);
+        return -1;
+    }
+
+    if (optind >= argc) {
+        error_exit("Expecting image file name");
+    }
+    optind++;
+
+    if (qemu_opts_foreach(&qemu_object_opts,
+                          user_creatable_add_opts_foreach,
+                          NULL, NULL)) {
+        goto fail;
+    }
+
+    if(!device) {
+        error_exit("device can't be null");
+    }
+
+    if (device) {
+        int stderr_fd[2];
+        pid_t pid;
+        int ret;
+
+        if (qemu_pipe(stderr_fd) < 0) {
+            error_report("Error setting up communication pipe: %s",
+                         strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        /* Now daemonize, but keep a communication channel open to
+         * print errors and exit with the proper status code.
+         */
+        pid = fork();
+        if (pid < 0) {
+            error_report("Failed to fork: %s", strerror(errno));
+            exit(EXIT_FAILURE);
+        } else if (pid == 0) {
+            close(stderr_fd[0]);
+            ret = qemu_daemon(1, 0);
+
+            /* Temporarily redirect stderr to the parent's pipe...  */
+            old_stderr = dup(STDERR_FILENO);
+            dup2(stderr_fd[1], STDERR_FILENO);
+            if (ret < 0) {
+                error_report("Failed to daemonize: %s", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+
+            /* ... close the descriptor we inherited and go on.  */
+            close(stderr_fd[1]);
+        } else {
+            bool errors = false;
+            char *buf;
+
+            /* In the parent.  Print error messages from the child until
+             * it closes the pipe.
+             */
+            close(stderr_fd[1]);
+            buf = g_malloc(1024);
+            while ((ret = read(stderr_fd[0], buf, 1024)) > 0) {
+                errors = true;
+                ret = qemu_write_full(STDERR_FILENO, buf, ret);
+                if (ret < 0) {
+                    exit(EXIT_FAILURE);
+                }
+            }
+            if (ret < 0) {
+                error_report("Cannot read from daemon: %s",
+                             strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+
+            /* Usually the daemon should not print any message.
+             * Exit with zero status in that case.
+             */
+            exit(errors);
+        }
+    }
+
+    if (device != NULL && sockpath == NULL) {
+        sockpath = g_malloc(128);
+        snprintf(sockpath, 128, SOCKET_PATH, basename(device));
+    }
+
+    saddr = nbd_build_socket_address(sockpath, bindto, port);
+
+    if (qemu_init_main_loop(&local_err)) {
+        error_report_err(local_err);
+        exit(EXIT_FAILURE);
+    }
+    bdrv_init();
+    atexit(bdrv_close_all);
+
+    srcpath = argv[optind];
+    blk = blk_open_enforced_img(srcpath, &local_err);
+    if (!blk) {
+        error_reportf_err(local_err, "Failed to blk_new_open '%s': ",
+                          argv[optind]);
+        exit(EXIT_FAILURE);
+    }
+    bs = blk_bs(blk);
+
+    blk_set_enable_write_cache(blk, !writethrough);
+
+    bs->detect_zeroes = detect_zeroes;
+    fd_size = blk_getlength(blk);
+    if (fd_size < 0) {
+        error_report("Failed to determine the image length: %s",
+                     strerror(-fd_size));
+        exit(EXIT_FAILURE);
+    }
+
+    if (dev_offset >= fd_size) {
+        error_report("Offset (%lld) has to be smaller than the image size "
+                     "(%lld)",
+                     (long long int)dev_offset, (long long int)fd_size);
+        exit(EXIT_FAILURE);
+    }
+    fd_size -= dev_offset;
+
+    exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags, nbd_export_closed,
+                         writethrough, NULL, &local_err);
+    if (!exp) {
+        error_report_err(local_err);
+        exit(EXIT_FAILURE);
+    }
+    if (export_name) {
+        nbd_export_set_name(exp, export_name);
+        nbd_export_set_description(exp, export_description);
+        newproto = true;
+    } else if (export_description) {
+        error_report("Export description requires an export name");
+        exit(EXIT_FAILURE);
+    }
+
+    server_ioc = qio_channel_socket_new();
+    if (qio_channel_socket_listen_sync(server_ioc, saddr, &local_err) < 0) {
+        object_unref(OBJECT(server_ioc));
+        error_report_err(local_err);
+        return 1;
+    }
+
+    if (device) {
+        int ret;
+
+        ret = pthread_create(&client_thread, NULL, nbd_client_thread, device);
+        if (ret != 0) {
+            error_report("Failed to create client thread: %s", strerror(ret));
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        /* Shut up GCC warnings.  */
+        memset(&client_thread, 0, sizeof(client_thread));
+    }
+
+    nbd_update_server_watch();
+
+    /* now when the initialization is (almost) complete, chdir("/")
+     * to free any busy filesystems */
+    if (chdir("/") < 0) {
+        error_report("Could not chdir to root directory: %s",
+                     strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    if (fork_process) {
+        dup2(old_stderr, STDERR_FILENO);
+        close(old_stderr);
+    }
+
+    state = RUNNING;
+    do {
+        main_loop_wait(false);
+        if (state == TERMINATE) {
+            state = TERMINATING;
+            nbd_export_close(exp);
+            nbd_export_put(exp);
+            exp = NULL;
+        }
+    } while (state != TERMINATED);
+
+    blk_unref(blk);
+    if (sockpath) {
+        unlink(sockpath);
+    }
+
+    if (device) {
+        void *ret;
+        pthread_join(client_thread, &ret);
+        exit(ret != NULL);
+    } else {
+        exit(EXIT_SUCCESS);
+    }
 
     return 0;
+fail:
+    return 1;
 }
 
 static const img_cmd_t img_cmds[] = {
@@ -1160,6 +1827,7 @@ static const img_cmd_t img_cmds[] = {
     DEF("commit", img_commit, "commit [-t <cache>] [-s <snapshot>] -m <commit-message> filename")
     DEF("layerdump", img_layer_dump, "layerdump -t <template file> -l <layer UUID> filename")
     DEF("layerremove", img_layer_remove, "layerremove -l <layer UUID> filename")
+    DEF("mount", mount, "mount -c </dev/nbdx> filename")
 #undef DEF
 #undef GEN_DOCS
     { NULL, NULL, },
