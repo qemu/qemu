@@ -639,7 +639,8 @@ static int64_t search_snapshot_by_name(char* uuid, int* index, char* puuid, char
     do{
         char tmp_uuid[PATH_MAX] = "", tmp_puuid[PATH_MAX] = "", commit_msg[PATH_MAX] = "";
         int ret = sscanf(cur->value->name, "%[^,],%[^,],%s", tmp_uuid, tmp_puuid, commit_msg);
-        if(ret != 3){
+        if(ret < 1){
+            error_report("sscanf %s ret %d", cur->value->name, ret);
             return -1L;
         }
         if (0 == strcmp(uuid, tmp_uuid)) {
@@ -1040,9 +1041,8 @@ static int img_create(int argc, char **argv)
         backing_string = generate_encoded_backingfile(template_filename, layer_uuid);
         BlockBackend *base_blk;
         BlockDriverState *base_bs;
-        Error *errp;
         uint64_t template_size;
-        int ret = open_template((char*)template_filename, (char*)layer_uuid, &base_blk, &base_bs, &template_size, &errp);
+        int ret = open_template((char*)template_filename, (char*)layer_uuid, &base_blk, &base_bs, &template_size, &local_err);
         if(ret != 0){
             goto fail;
         }
@@ -1359,7 +1359,7 @@ fail:
 static int open_template(char* tmplate_name, char* layername, BlockBackend **blk, BlockDriverState **bs, uint64_t *disk_size, Error **errp)
 {
     int ret;
-    int backing_flags = BDRV_O_RDWR | BDRV_O_UNMAP | BDRV_O_NO_BACKING;
+    int backing_flags =  BDRV_O_UNMAP | BDRV_O_NO_BACKING;
     BlockBackend *base_blk = img_open(false, tmplate_name, "qcow2", backing_flags, true, true);
     if (!base_blk) {
         error_setg_errno(errp, -1, "error open backing file %s, can't commit", tmplate_name);
@@ -1367,11 +1367,11 @@ static int open_template(char* tmplate_name, char* layername, BlockBackend **blk
     }
     ImageInfo *base_info;
     BlockDriverState *base_bs = blk_bs(base_blk);
-    bdrv_query_image_info(base_bs, &base_info, errp);
-    if (*errp) {
+    Error *err = NULL;
+    bdrv_query_image_info(base_bs, &base_info, &err);
+    if (err) {
+        error_setg_errno(errp, -1, "error get image info from backing file, can't commit");
         return -1;
-//        error_setg_errno(errp, -1, "error get image info from backing file, can't commit");
-//        return -1;
     }
 
     if(disk_size){
@@ -1389,7 +1389,7 @@ static int open_template(char* tmplate_name, char* layername, BlockBackend **blk
         sprintf(snapshotid, "%ld", id);
         ret = bdrv_snapshot_load_tmp_by_id_or_name(base_bs, snapshotid, errp);
         if(ret < 0){
-            error_setg_errno(errp, -1, "error qcow2_snapshot_load_tmp");
+            error_report("error qcow2_snapshot_load_tmp %s %d %s", snapshotid, ret, *(char**)(*errp));
             return ret;
         }
     }
