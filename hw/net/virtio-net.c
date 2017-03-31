@@ -510,6 +510,10 @@ static int peer_attach(VirtIONet *n, int index)
         return 0;
     }
 
+    if (n->max_queues == 1) {
+        return 0;
+    }
+
     return tap_enable(nc->peer);
 }
 
