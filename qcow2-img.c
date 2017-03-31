@@ -719,7 +719,7 @@ static int img_commit(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "ht:b:dpq",
+        c = getopt_long(argc, argv, "ht:b:dpqm:s:",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -746,8 +746,11 @@ static int img_commit(int argc, char **argv)
         case 'q':
             quiet = true;
             break;
+        case 's':
+            snapshot_uuid = optarg;
+            break;
         case 'm':
-
+            commit_msg = optarg;
             break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
@@ -887,7 +890,7 @@ static int img_commit(int argc, char **argv)
     sn.date_sec = tv.tv_sec;
     sn.date_nsec = tv.tv_usec * 1000;
 
-    ret = bdrv_snapshot_create(bs, &sn);
+    ret = bdrv_snapshot_create(base_bs, &sn);
     if (ret) {
         error_report("Could not create snapshot '%s': %d (%s)",
                 enforced_snapshot_name, ret, strerror(-ret));
@@ -921,6 +924,8 @@ done:
     qprintf(quiet, "Image committed.\n");
     return 0;
 }
+
+static int open_template(char* tmplate_name, char* layername, BlockBackend **blk, BlockDriverState **bs, uint64_t *disk_size, Error **errp);
 
 static int img_create(int argc, char **argv)
 {
@@ -1033,10 +1038,59 @@ static int img_create(int argc, char **argv)
     const char *backing_string = NULL;
     if (template_filename) {
         backing_string = generate_encoded_backingfile(template_filename, layer_uuid);
+        BlockBackend *base_blk;
+        BlockDriverState *base_bs;
+        Error *errp;
+        uint64_t template_size;
+        int ret = open_template((char*)template_filename, (char*)layer_uuid, &base_blk, &base_bs, &template_size, &errp);
+        if(ret != 0){
+            goto fail;
+        }
+        if(img_size == -1){
+            img_size = template_size;
+        }
     }
-    bdrv_img_create(filename, "qcow2", backing_string, NULL,
-                    options, img_size, 0, &local_err, quiet);
-    if (local_err) {
+
+    BlockDriver *drv, *proto_drv;
+    int ret = 0;
+    QemuOptsList *create_opts = NULL;
+    QemuOpts *opts = NULL;
+
+    /* Find driver and parse its options */
+    drv = bdrv_find_format("qcow2");
+    if (!drv) {
+        error_setg(&local_err, "Unknown file format '%s'", "qcow2");
+        goto fail;
+    }
+
+    proto_drv = bdrv_find_protocol(filename, true, &local_err);
+    if (!proto_drv) {
+        goto fail;
+    }
+
+    if (!drv->create_opts) {
+        error_setg(&local_err, "Format driver '%s' does not support image creation",
+                   drv->format_name);
+        goto fail;
+    }
+
+    if (!proto_drv->create_opts) {
+        error_setg(&local_err, "Protocol driver '%s' does not support image creation",
+                   proto_drv->format_name);
+        goto fail;
+    }
+
+    create_opts = qemu_opts_append(create_opts, drv->create_opts);
+    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+
+    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size, &error_abort);
+
+    if(backing_string){
+        qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, backing_string, &local_err);
+    }
+    ret = bdrv_create(drv, filename, opts, &local_err);
+    if (ret == -EFBIG) {
         error_reportf_err(local_err, "%s: ", filename);
         goto fail;
     }
@@ -1302,6 +1356,47 @@ fail:
     return 1;
 }
 
+static int open_template(char* tmplate_name, char* layername, BlockBackend **blk, BlockDriverState **bs, uint64_t *disk_size, Error **errp)
+{
+    int ret;
+    int backing_flags = BDRV_O_RDWR | BDRV_O_UNMAP | BDRV_O_NO_BACKING;
+    BlockBackend *base_blk = img_open(false, tmplate_name, "qcow2", backing_flags, true, true);
+    if (!base_blk) {
+        error_setg_errno(errp, -1, "error open backing file %s, can't commit", tmplate_name);
+        return -1;
+    }
+    ImageInfo *base_info;
+    BlockDriverState *base_bs = blk_bs(base_blk);
+    bdrv_query_image_info(base_bs, &base_info, errp);
+    if (*errp) {
+        error_setg_errno(errp, -1, "error get image info from backing file, can't commit");
+        return -1;
+    }
+
+    if(disk_size){
+        *disk_size = blk_getlength(base_blk);
+    }
+
+    if(layername[0]){
+        int index;
+        int64_t id = search_snapshot_by_name(layername, &index, NULL, NULL, disk_size, base_info);
+        if(id < 0){
+            error_setg_errno(errp, -1, "error search snapshot by name");
+            return -1;
+        }
+        char snapshotid[32];
+        sprintf(snapshotid, "%ld", id);
+        ret = bdrv_snapshot_load_tmp_by_id_or_name(base_bs, snapshotid, errp);
+        if(ret < 0){
+            error_setg_errno(errp, -1, "error qcow2_snapshot_load_tmp");
+            return ret;
+        }
+    }
+    *blk = base_blk;
+    *bs = base_bs;
+    return 0;
+}
+
 static BlockBackend *blk_open_enforced_img(const char *filename, Error **errp)
 {
     BlockBackend *blk;
@@ -1332,31 +1427,10 @@ static BlockBackend *blk_open_enforced_img(const char *filename, Error **errp)
         return NULL;
     }
 
-    int backing_flags = BDRV_O_RDWR | BDRV_O_UNMAP | BDRV_O_NO_BACKING;
-    BlockBackend *base_blk = img_open(false, tmplate_name, "qcow2", backing_flags, true, true);
-    if (!base_blk) {
-        error_setg_errno(errp, -1, "error open backing file %s, can't commit", tmplate_name);
-        return NULL;
-    }
-    ImageInfo *base_info;
-    BlockDriverState *base_bs = blk_bs(base_blk);
-    bdrv_query_image_info(base_bs, &base_info, errp);
-    if (*errp) {
-        error_setg_errno(errp, -1, "error get image info from backing file, can't commit");
-        return NULL;
-    }
-
-    int index;
-    int64_t id = search_snapshot_by_name(layername, &index, NULL, NULL, NULL, base_info);
-    if(id < 0){
-        error_setg_errno(errp, -1, "error search snapshot by name");
-        return NULL;
-    }
-    char snapshotid[32];
-    sprintf(snapshotid, "%ld", id);
-    ret = bdrv_snapshot_load_tmp_by_id_or_name(base_bs, snapshotid, errp);
-    if(ret < 0){
-        error_setg_errno(errp, -1, "error qcow2_snapshot_load_tmp");
+    BlockBackend *base_blk;
+    BlockDriverState *base_bs;
+    ret = open_template(tmplate_name, layername, &base_blk, &base_bs, NULL, errp);
+    if(ret != 0){
         return NULL;
     }
 
@@ -1707,8 +1781,7 @@ static int mount(int argc, char **argv)
 
     atexit(bdrv_close_all);
 
-    srcpath = argv[optind];
-    blk = blk_open_enforced_img(srcpath, &local_err);
+    blk = blk_open_enforced_img(filename, &local_err);
     if (!blk) {
         error_reportf_err(local_err, "Failed to blk_new_open '%s': ",
                           argv[optind]);
