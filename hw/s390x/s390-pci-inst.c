@@ -20,14 +20,16 @@
 #include "qemu/error-report.h"
 #include "sysemu/hw_accel.h"
 
-/* #define DEBUG_S390PCI_INST */
-#ifdef DEBUG_S390PCI_INST
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, "s390pci-inst: " fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
+#ifndef DEBUG_S390PCI_INST
+#define DEBUG_S390PCI_INST  0
 #endif
+
+#define DPRINTF(fmt, ...)                                          \
+    do {                                                           \
+        if (DEBUG_S390PCI_INST) {                                  \
+            fprintf(stderr, "s390pci-inst: " fmt, ## __VA_ARGS__); \
+        }                                                          \
+    } while (0)
 
 static void s390_set_status_code(CPUS390XState *env,
                                  uint8_t r, uint64_t status_code)
