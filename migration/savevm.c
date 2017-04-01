@@ -1197,7 +1197,7 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
  * the result is split into the amount for units that can and
  * for units that can't do postcopy.
  */
-void qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size,
+void qemu_savevm_state_pending(QEMUFile *f, uint64_t threshold_size,
                                uint64_t *res_non_postcopiable,
                                uint64_t *res_postcopiable)
 {
@@ -1216,7 +1216,7 @@ void qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size,
                 continue;
             }
         }
-        se->ops->save_live_pending(f, se->opaque, max_size,
+        se->ops->save_live_pending(f, se->opaque, threshold_size,
                                    res_non_postcopiable, res_postcopiable);
     }
 }

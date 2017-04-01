@@ -1910,7 +1910,12 @@ static void *migration_thread(void *opaque)
     int64_t initial_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     int64_t setup_start = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     int64_t initial_bytes = 0;
-    int64_t max_size = 0;
+    /*
+     * The final stage happens when the remaining data is smaller than
+     * this threshold; it's calculated from the requested downtime and
+     * measured bandwidth
+     */
+    int64_t threshold_size = 0;
     int64_t start_time = initial_time;
     int64_t end_time;
     bool old_vm_running = false;
@@ -1954,17 +1959,17 @@ static void *migration_thread(void *opaque)
         if (!qemu_file_rate_limit(s->to_dst_file)) {
             uint64_t pend_post, pend_nonpost;
 
-            qemu_savevm_state_pending(s->to_dst_file, max_size, &pend_nonpost,
-                                      &pend_post);
+            qemu_savevm_state_pending(s->to_dst_file, threshold_size,
+                                      &pend_nonpost, &pend_post);
             pending_size = pend_nonpost + pend_post;
-            trace_migrate_pending(pending_size, max_size,
+            trace_migrate_pending(pending_size, threshold_size,
                                   pend_post, pend_nonpost);
-            if (pending_size && pending_size >= max_size) {
+            if (pending_size && pending_size >= threshold_size) {
                 /* Still a significant amount to transfer */
 
                 if (migrate_postcopy_ram() &&
                     s->state != MIGRATION_STATUS_POSTCOPY_ACTIVE &&
-                    pend_nonpost <= max_size &&
+                    pend_nonpost <= threshold_size &&
                     atomic_read(&s->start_postcopy)) {
 
                     if (!postcopy_start(s, &old_vm_running)) {
@@ -1996,13 +2001,13 @@ static void *migration_thread(void *opaque)
                                          initial_bytes;
             uint64_t time_spent = current_time - initial_time;
             double bandwidth = (double)transferred_bytes / time_spent;
-            max_size = bandwidth * s->parameters.downtime_limit;
+            threshold_size = bandwidth * s->parameters.downtime_limit;
 
             s->mbps = (((double) transferred_bytes * 8.0) /
                     ((double) time_spent / 1000.0)) / 1000.0 / 1000.0;
 
             trace_migrate_transferred(transferred_bytes, time_spent,
-                                      bandwidth, max_size);
+                                      bandwidth, threshold_size);
             /* if we haven't sent anything, we don't want to recalculate
                10000 is a small enough number for our purposes */
             if (ram_dirty_pages_rate() && transferred_bytes > 10000) {
