@@ -311,6 +311,7 @@ static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
                                     saddr,
                                     &local_err);
     if (local_err) {
+        object_unref(OBJECT(sioc));
         error_propagate(errp, local_err);
         return NULL;
     }
