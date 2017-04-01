@@ -659,7 +659,7 @@ static int64_t search_snapshot_by_pname(char* puuid, int* index, char* uuid, cha
             error_report("sscanf %s ret %d", cur->value->name, ret);
             return -1L;
         }
-        if (0 == strcmp(tmp_puuid, tmp_puuid)) {
+        if (0 == strcmp(tmp_puuid, puuid)) {
             if(uuid){
                 strcpy(uuid, tmp_uuid);
             }
@@ -669,7 +669,9 @@ static int64_t search_snapshot_by_pname(char* puuid, int* index, char* uuid, cha
             if(disk_size){
                 *disk_size = cur->value->disk_size;
             }
-            *index = count;
+            if(index){
+                *index = count;
+            }
             return atol(cur->value->id);
         }
         count++;
@@ -1403,7 +1405,7 @@ static int img_layer_remove(int argc, char **argv)
             break;
         }
         char child_id[32] = "";
-        sprintf(id, "%ld", child_sn_id);
+        sprintf(child_id, "%ld", child_sn_id);
         char enforced_snapshot_uuid[PATH_MAX*2];
         generate_enforced_snapshotname(enforced_snapshot_uuid, parent_snapshot_uuid, child_snapshot_uuid, child_msg);
         ret = bdrv_snapshot_rename(bs, child_id, enforced_snapshot_uuid, &local_err);

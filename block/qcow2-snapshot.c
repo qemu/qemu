@@ -610,7 +610,7 @@ int qcow2_snapshot_rename(BlockDriverState *bs,
     /* Search the snapshot */
    snapshot_index = find_snapshot_by_id_and_name(bs, snapshot_id, NULL);
    if (snapshot_index < 0) {
-       error_setg(errp, "Can't find the snapshot");
+       error_setg(errp, "Can't find the snapshot %s", snapshot_id);
        return -ENOENT;
    }
    sn = &s->snapshots[snapshot_index];
