@@ -3415,6 +3415,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_snapshot_create   = qcow2_snapshot_create,
     .bdrv_snapshot_goto     = qcow2_snapshot_goto,
     .bdrv_snapshot_delete   = qcow2_snapshot_delete,
+    .bdrv_snapshot_rename   = qcow2_snapshot_rename,
     .bdrv_snapshot_list     = qcow2_snapshot_list,
     .bdrv_snapshot_load_tmp = qcow2_snapshot_load_tmp,
     .bdrv_get_info          = qcow2_get_info,

@@ -560,6 +560,10 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
                           const char *snapshot_id,
                           const char *name,
                           Error **errp);
+int qcow2_snapshot_rename(BlockDriverState *bs,
+                          const char *snapshot_id,
+                          const char *name,
+                          Error **errp);
 int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab);
 int qcow2_snapshot_load_tmp(BlockDriverState *bs,
                             const char *snapshot_id,

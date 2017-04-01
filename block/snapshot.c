@@ -260,6 +260,30 @@ int bdrv_snapshot_delete(BlockDriverState *bs,
     return ret;
 }
 
+int bdrv_snapshot_rename(BlockDriverState *bs,
+                         const char *snapshot_id,
+                         const char *name,
+                         Error **errp)
+{
+    BlockDriver *drv = bs->drv;
+    int ret = 0;
+
+    if (!drv) {
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, bdrv_get_device_name(bs));
+        return -ENOMEDIUM;
+    }
+    if (!snapshot_id || !name) {
+        error_setg(errp, "snapshot_id and name cant be NULL");
+        return -EINVAL;
+    }
+
+    if (drv->bdrv_snapshot_rename) {
+        ret = drv->bdrv_snapshot_rename(bs, snapshot_id, name, errp);
+    }
+
+    return ret;
+}
+
 int bdrv_snapshot_delete_by_id_or_name(BlockDriverState *bs,
                                        const char *id_or_name,
                                        Error **errp)

@@ -63,6 +63,10 @@ int bdrv_snapshot_delete(BlockDriverState *bs,
                          const char *snapshot_id,
                          const char *name,
                          Error **errp);
+int bdrv_snapshot_rename(BlockDriverState *bs,
+                         const char *snapshot_id,
+                         const char *name,
+                         Error **errp);
 int bdrv_snapshot_delete_by_id_or_name(BlockDriverState *bs,
                                        const char *id_or_name,
                                        Error **errp);

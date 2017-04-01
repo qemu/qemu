@@ -213,6 +213,10 @@ struct BlockDriver {
                                 const char *snapshot_id,
                                 const char *name,
                                 Error **errp);
+    int (*bdrv_snapshot_rename)(BlockDriverState *bs,
+                                const char *snapshot_id,
+                                const char *name,
+                                Error **errp);
     int (*bdrv_snapshot_list)(BlockDriverState *bs,
                               QEMUSnapshotInfo **psn_info);
     int (*bdrv_snapshot_load_tmp)(BlockDriverState *bs,

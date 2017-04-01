@@ -374,24 +374,6 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
     return strcmp(a, b) == 0;
 }
 
-static void dump_snapshots(QEMUSnapshotInfo *sn_tab, int nb_sns)
-{
-    if (!sn_tab) {
-        return;
-    }
-    QEMUSnapshotInfo *sn;
-    int i;
-    printf("Snapshot list:\n");
-    bdrv_snapshot_dump(fprintf, stdout, NULL);
-    printf("\n");
-    for(i = 0; i < nb_sns; i++) {
-        sn = &sn_tab[i];
-        bdrv_snapshot_dump(fprintf, stdout, sn);
-        printf("\n");
-    }
-    g_free(sn_tab);
-}
-
 static void dump_json_image_info_list(ImageInfoList *list)
 {
     QString *str;
@@ -605,7 +587,6 @@ static int img_info(int argc, char **argv)
         }
         break;
     }
-    dump_snapshots(sn_tab, nb_sns);
     qapi_free_ImageInfoList(list);
     return 0;
 }
@@ -646,6 +627,41 @@ static int64_t search_snapshot_by_name(char* uuid, int* index, char* puuid, char
         if (0 == strcmp(uuid, tmp_uuid)) {
             if(puuid){
                 strcpy(puuid, tmp_puuid);
+            }
+            if(msg){
+                strcpy(msg, commit_msg);
+            }
+            if(disk_size){
+                *disk_size = cur->value->disk_size;
+            }
+            *index = count;
+            return atol(cur->value->id);
+        }
+        count++;
+        cur = cur->next;
+    }while(cur);
+
+    return -1L;
+}
+
+static int64_t search_snapshot_by_pname(char* puuid, int* index, char* uuid, char* msg, uint64_t* disk_size, ImageInfo *info)
+{
+    if (!info->snapshots) {
+        return -1L;
+    }
+
+    int count = 0;
+    SnapshotInfoList *cur = info->snapshots;
+    do{
+        char tmp_uuid[PATH_MAX] = "", tmp_puuid[PATH_MAX] = "", commit_msg[PATH_MAX] = "";
+        int ret = sscanf(cur->value->name, "%[^,],%[^,],%s", tmp_uuid, tmp_puuid, commit_msg);
+        if(ret < 1){
+            error_report("sscanf %s ret %d", cur->value->name, ret);
+            return -1L;
+        }
+        if (0 == strcmp(tmp_puuid, tmp_puuid)) {
+            if(uuid){
+                strcpy(uuid, tmp_uuid);
             }
             if(msg){
                 strcpy(msg, commit_msg);
@@ -839,7 +855,7 @@ static int img_commit(int argc, char **argv)
 
     char last_snapshot_uuid[PATH_MAX] = "";
     ret = get_last_snapshot_uuid(last_snapshot_uuid, base_info);
-    if (ret != 3) {
+    if (ret < 1) {
         error_setg_errno(&local_err, -1, "error get last from backing file, can't commit");
         goto done;
     }
@@ -912,21 +928,76 @@ unref_backing:
     }
 
 done:
-    qemu_progress_end();
-
-    blk_unref(blk);
-    blk_unref(base_blk);
-
     if (local_err) {
         error_report_err(local_err);
         return 1;
     }
 
+    qemu_progress_end();
+
+    blk_unref(blk);
+    blk_unref(base_blk);
+
     qprintf(quiet, "Image committed.\n");
     return 0;
 }
 
-static int open_template(char* tmplate_name, char* layername, BlockBackend **blk, BlockDriverState **bs, uint64_t *disk_size, Error **errp);
+static int open_template(char* tmplate_name, char* layername,
+                         BlockBackend **blk, BlockDriverState **bs,
+                         uint64_t *disk_size, Error **errp);
+
+static int _img_create(const char *filename, const char *fmt,
+                       const char *base_filename, const char *base_fmt,
+                       char *options, uint64_t img_size, int flags,
+                       Error **errp, bool quiet)
+{
+    BlockDriver *drv, *proto_drv;
+    int ret = 0;
+    QemuOptsList *create_opts = NULL;
+    QemuOpts *opts = NULL;
+
+    /* Find driver and parse its options */
+    drv = bdrv_find_format(fmt);
+    if (!drv) {
+        error_setg(errp, "Unknown file format '%s'", "qcow2");
+        goto fail;
+    }
+
+    proto_drv = bdrv_find_protocol(filename, true, errp);
+    if (!proto_drv) {
+        goto fail;
+    }
+
+    if (!drv->create_opts) {
+        error_setg(errp, "Format driver '%s' does not support image creation",
+                   drv->format_name);
+        goto fail;
+    }
+
+    if (!proto_drv->create_opts) {
+        error_setg(errp, "Protocol driver '%s' does not support image creation",
+                   proto_drv->format_name);
+        goto fail;
+    }
+
+    create_opts = qemu_opts_append(create_opts, drv->create_opts);
+    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+
+    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size, &error_abort);
+
+    if(base_filename){
+        qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, base_filename, errp);
+    }
+    ret = bdrv_create(drv, filename, opts, errp);
+    if (ret == -EFBIG) {
+        error_reportf_err(*errp, "%s: ", filename);
+        goto fail;
+    }
+    return 0;
+fail:
+    return -1;
+}
 
 static int img_create(int argc, char **argv)
 {
@@ -1051,47 +1122,9 @@ static int img_create(int argc, char **argv)
         }
     }
 
-    BlockDriver *drv, *proto_drv;
-    int ret = 0;
-    QemuOptsList *create_opts = NULL;
-    QemuOpts *opts = NULL;
-
-    /* Find driver and parse its options */
-    drv = bdrv_find_format("qcow2");
-    if (!drv) {
-        error_setg(&local_err, "Unknown file format '%s'", "qcow2");
-        goto fail;
-    }
-
-    proto_drv = bdrv_find_protocol(filename, true, &local_err);
-    if (!proto_drv) {
-        goto fail;
-    }
-
-    if (!drv->create_opts) {
-        error_setg(&local_err, "Format driver '%s' does not support image creation",
-                   drv->format_name);
-        goto fail;
-    }
-
-    if (!proto_drv->create_opts) {
-        error_setg(&local_err, "Protocol driver '%s' does not support image creation",
-                   proto_drv->format_name);
-        goto fail;
-    }
-
-    create_opts = qemu_opts_append(create_opts, drv->create_opts);
-    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
-
-    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size, &error_abort);
-
-    if(backing_string){
-        qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, backing_string, &local_err);
-    }
-    ret = bdrv_create(drv, filename, opts, &local_err);
-    if (ret == -EFBIG) {
-        error_reportf_err(local_err, "%s: ", filename);
+    int ret = _img_create(filename, "qcow2", backing_string, NULL, options, img_size, 0,
+                          &local_err, quiet);
+    if(ret != 0){
         goto fail;
     }
 
@@ -1114,7 +1147,7 @@ static int bdrv_write_zeros(BlockDriverState *bs, int64_t offset, int bytes)
 
 static int img_layer_dump(int argc, char **argv)
 {
-    int c, flags = 0;
+    int c;
     char *options = NULL;
     BlockDriverState *bs, *base_bs;
     BlockBackend *blk, *base_blk = NULL;
@@ -1186,7 +1219,7 @@ static int img_layer_dump(int argc, char **argv)
         error_exit("Unexpected argument: %s", argv[optind]);
     }
 
-    base_blk = img_open(image_opts, template_filename, fmt, flags, writethrough, quiet);
+    base_blk = img_open(image_opts, template_filename, fmt, BDRV_O_RDWR, writethrough, quiet);
     if (!base_blk) {
         error_report("error open img: %s", template_filename);
         return 1;
@@ -1214,10 +1247,14 @@ static int img_layer_dump(int argc, char **argv)
     }
 
     char *backing_str = generate_encoded_backingfile(template_filename, layer_uuid);
-    bdrv_img_create(filename, "qcow2", backing_str, NULL,
-                    options, snapshot_disk_size, 0, &local_err, quiet);
+    int ret = _img_create(filename, "qcow2", backing_str, NULL, options, snapshot_disk_size, 0,
+                          &local_err, quiet);
+   if(ret != 0){
+       error_report_err(local_err);
+       goto fail;
+   }
 
-    blk = img_open(image_opts, filename, fmt, flags, writethrough, quiet);
+    blk = img_open(image_opts, filename, fmt, BDRV_O_NO_BACKING | BDRV_O_RDWR, writethrough, quiet);
     if (!blk) {
         error_report("error open img: %s", filename);
         return 1;
@@ -1232,7 +1269,7 @@ static int img_layer_dump(int argc, char **argv)
     BDRVQcow2State *s = base_bs->opaque;
     const int data_size = sizeof(ClusterData_t) + s->cluster_size;
     ClusterData_t *data = malloc(data_size);
-    int ret = count_increment_clusters(base_bs, &cache, &parent_cache, &increament_cluster_count, 0);
+    ret = count_increment_clusters(base_bs, &cache, &parent_cache, &increament_cluster_count, 0);
     if(ret < 0){
         error_exit("count_increment_clusters failed");
     }
@@ -1268,7 +1305,7 @@ fail:
 
 static int img_layer_remove(int argc, char **argv)
 {
-    int c, flags = 0;
+    int c;
     bool image_opts = false;
     char *layer_uuid = NULL;
     const char *filename = NULL;
@@ -1324,7 +1361,7 @@ static int img_layer_remove(int argc, char **argv)
         error_exit("need to input layer_uuid");
     }
 
-    BlockBackend *blk = img_open(image_opts, filename, fmt, flags, writethrough, quiet);
+    BlockBackend *blk = img_open(image_opts, filename, fmt, BDRV_O_RDWR, writethrough, quiet);
     if (!blk) {
         error_report("error open img: %s", filename);
         return 1;
@@ -1348,10 +1385,37 @@ static int img_layer_remove(int argc, char **argv)
     char id[32] = "";
     sprintf(id, "%ld", sn_id);
     int ret = bdrv_snapshot_delete_by_id_or_name(bs, id, &local_err);
+    if(ret != 0){
+         goto fail;
+    }
+
+    int64_t child_sn_id;
+    do {
+        bdrv_query_image_info(bs, &info, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            goto fail;
+        }
+
+        char child_snapshot_uuid[PATH_MAX] = "", child_msg[PATH_MAX] = "";
+        child_sn_id = search_snapshot_by_pname(layer_uuid, NULL, child_snapshot_uuid, child_msg, NULL, info);
+        if(child_sn_id < 0){
+            break;
+        }
+        char child_id[32] = "";
+        sprintf(id, "%ld", child_sn_id);
+        char enforced_snapshot_uuid[PATH_MAX*2];
+        generate_enforced_snapshotname(enforced_snapshot_uuid, parent_snapshot_uuid, child_snapshot_uuid, child_msg);
+        ret = bdrv_snapshot_rename(bs, child_id, enforced_snapshot_uuid, &local_err);
+        if(ret < 0){
+            goto fail;
+        }
+    } while(1);
 
     return ret;
 
 fail:
+    error_report_err(local_err);
     g_free(options);
     return 1;
 }
@@ -1378,7 +1442,7 @@ static int open_template(char* tmplate_name, char* layername, BlockBackend **blk
         *disk_size = blk_getlength(base_blk);
     }
 
-    if(layername[0]){
+    if(layername && layername[0]){
         int index;
         int64_t id = search_snapshot_by_name(layername, &index, NULL, NULL, disk_size, base_info);
         if(id < 0){

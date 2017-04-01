@@ -598,6 +598,34 @@ fail:
     return ret;
 }
 
+int qcow2_snapshot_rename(BlockDriverState *bs,
+                          const char *snapshot_id,
+                          const char *name,
+                          Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+    QCowSnapshot *sn;
+    int snapshot_index, ret;
+
+    /* Search the snapshot */
+   snapshot_index = find_snapshot_by_id_and_name(bs, snapshot_id, NULL);
+   if (snapshot_index < 0) {
+       error_setg(errp, "Can't find the snapshot");
+       return -ENOENT;
+   }
+   sn = &s->snapshots[snapshot_index];
+   free(sn->name);
+   sn->name = strdup(name);
+
+   ret = qcow2_write_snapshots(bs);
+   if (ret < 0) {
+       error_setg_errno(errp, -ret,
+                        "Failed to remove snapshot from snapshot list");
+       return ret;
+   }
+   return 0;
+}
+
 int qcow2_snapshot_delete(BlockDriverState *bs,
                           const char *snapshot_id,
                           const char *name,
