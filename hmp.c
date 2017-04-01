@@ -268,13 +268,11 @@ void hmp_info_migrate_capabilities(Monitor *mon, const QDict *qdict)
     caps = qmp_query_migrate_capabilities(NULL);
 
     if (caps) {
-        monitor_printf(mon, "capabilities: ");
         for (cap = caps; cap; cap = cap->next) {
-            monitor_printf(mon, "%s: %s ",
+            monitor_printf(mon, "%s: %s\n",
                            MigrationCapability_lookup[cap->value->capability],
                            cap->value->state ? "on" : "off");
         }
-        monitor_printf(mon, "\n");
     }
 
     qapi_free_MigrationCapabilityStatusList(caps);
