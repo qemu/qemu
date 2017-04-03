@@ -159,7 +159,10 @@ static void usb_host_attach_kernel(USBHostDevice *s);
 #define BULK_TIMEOUT         0        /* unlimited */
 #define INTR_TIMEOUT         0        /* unlimited */
 
-#if LIBUSBX_API_VERSION >= 0x01000103
+#ifndef LIBUSB_API_VERSION
+# define LIBUSB_API_VERSION LIBUSBX_API_VERSION
+#endif
+#if LIBUSB_API_VERSION >= 0x01000103
 # define HAVE_STREAMS 1
 #endif
 
@@ -269,7 +272,7 @@ static int usb_host_get_port(libusb_device *dev, char *port, size_t len)
     size_t off;
     int rc, i;
 
-#if LIBUSBX_API_VERSION >= 0x01000102
+#if LIBUSB_API_VERSION >= 0x01000102
     rc = libusb_get_port_numbers(dev, path, 7);
 #else
     rc = libusb_get_port_path(ctx, dev, path, 7);
