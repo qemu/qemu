@@ -64,7 +64,7 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
 {
     CPUPPCState *env = &cpu->env;
     XICSFabric *xi = XICS_FABRIC(spapr);
-    ICPState *icp = xics_icp_get(xi, CPU(cpu)->cpu_index);
+    ICPState *icp = xics_icp_get(xi, cpu->cpu_dt_id);
 
     /* Set time-base frequency to 512 MHz */
     cpu_ppc_tb_init(env, SPAPR_TIMEBASE_FREQ);

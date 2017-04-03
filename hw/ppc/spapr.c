@@ -3112,9 +3112,10 @@ static void spapr_ics_resend(XICSFabric *dev)
     ics_resend(spapr->ics);
 }
 
-static ICPState *spapr_icp_get(XICSFabric *xi, int server)
+static ICPState *spapr_icp_get(XICSFabric *xi, int cpu_dt_id)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    int server = xics_get_cpu_index_by_dt_id(cpu_dt_id);
 
     return (server < spapr->nr_servers) ? &spapr->icps[server] : NULL;
 }
