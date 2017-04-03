@@ -1402,15 +1402,25 @@ static const VMStateDescription vmstate_slirp_socket = {
     }
 };
 
-static void slirp_bootp_save(QEMUFile *f, Slirp *slirp)
-{
-    int i;
-
-    for (i = 0; i < NB_BOOTP_CLIENTS; i++) {
-        qemu_put_be16(f, slirp->bootp_clients[i].allocated);
-        qemu_put_buffer(f, slirp->bootp_clients[i].macaddr, 6);
+static const VMStateDescription vmstate_slirp_bootp_client = {
+    .name = "slirp_bootpclient",
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT16(allocated, BOOTPClient),
+        VMSTATE_BUFFER(macaddr, BOOTPClient),
+        VMSTATE_END_OF_LIST()
     }
-}
+};
+
+static const VMStateDescription vmstate_slirp = {
+    .name = "slirp",
+    .version_id = 4,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT16_V(ip_id, Slirp, 2),
+        VMSTATE_STRUCT_ARRAY(bootp_clients, Slirp, NB_BOOTP_CLIENTS, 3,
+                             vmstate_slirp_bootp_client, BOOTPClient),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void slirp_state_save(QEMUFile *f, void *opaque)
 {
@@ -1430,21 +1440,9 @@ static void slirp_state_save(QEMUFile *f, void *opaque)
         }
     qemu_put_byte(f, 0);
 
-    qemu_put_be16(f, slirp->ip_id);
-
-    slirp_bootp_save(f, slirp);
+    vmstate_save_state(f, &vmstate_slirp, slirp, NULL);
 }
 
-
-static void slirp_bootp_load(QEMUFile *f, Slirp *slirp)
-{
-    int i;
-
-    for (i = 0; i < NB_BOOTP_CLIENTS; i++) {
-        slirp->bootp_clients[i].allocated = qemu_get_be16(f);
-        qemu_get_buffer(f, slirp->bootp_clients[i].macaddr, 6);
-    }
-}
 
 static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
 {
@@ -1480,13 +1478,5 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
         so->extra = (void *)ex_ptr->ex_exec;
     }
 
-    if (version_id >= 2) {
-        slirp->ip_id = qemu_get_be16(f);
-    }
-
-    if (version_id >= 3) {
-        slirp_bootp_load(f, slirp);
-    }
-
-    return 0;
+    return vmstate_load_state(f, &vmstate_slirp, slirp, version_id);
 }
