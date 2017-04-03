@@ -337,6 +337,7 @@ static void icp_reset(void *dev)
 static void icp_realize(DeviceState *dev, Error **errp)
 {
     ICPState *icp = ICP(dev);
+    ICPStateClass *icpc = ICP_GET_CLASS(dev);
     Object *obj;
     Error *err = NULL;
 
@@ -348,6 +349,10 @@ static void icp_realize(DeviceState *dev, Error **errp)
     }
 
     icp->xics = XICS_FABRIC(obj);
+
+    if (icpc->realize) {
+        icpc->realize(dev, errp);
+    }
 
     qemu_register_reset(icp_reset, dev);
 }
