@@ -2193,6 +2193,12 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
 
 #if defined(__APPLE__) && defined(__MACH__)
+    /*
+     * Caution: while qdict_get_str() is fine, getting non-string types
+     * would require more care.  When @options come from -blockdev or
+     * blockdev_add, its members are typed according to the QAPI
+     * schema, but when they come from -drive, they're all QString.
+     */
     const char *filename = qdict_get_str(options, "filename");
     char bsd_path[MAXPATHLEN] = "";
     bool error_occurred = false;

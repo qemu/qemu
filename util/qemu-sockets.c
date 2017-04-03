@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "qemu/sockets.h"
 #include "qemu/main-loop.h"
+#include "qapi/clone-visitor.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi-visit.h"
@@ -1154,6 +1155,10 @@ int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
 {
     int fd;
 
+    /*
+     * TODO SOCKET_ADDRESS_KIND_FD when fd is AF_INET or AF_INET6
+     * (although other address families can do SOCK_DGRAM, too)
+     */
     switch (remote->type) {
     case SOCKET_ADDRESS_KIND_INET:
         fd = inet_dgram_saddr(remote->u.inet.data,
@@ -1333,9 +1338,38 @@ char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
         break;
 
     default:
-        error_setg(errp, "socket family %d unsupported",
-                   addr->type);
-        return NULL;
+        abort();
     }
     return buf;
+}
+
+SocketAddress *socket_address_crumple(SocketAddressFlat *addr_flat)
+{
+    SocketAddress *addr = g_new(SocketAddress, 1);
+
+    switch (addr_flat->type) {
+    case SOCKET_ADDRESS_FLAT_TYPE_INET:
+        addr->type = SOCKET_ADDRESS_KIND_INET;
+        addr->u.inet.data = QAPI_CLONE(InetSocketAddress,
+                                       &addr_flat->u.inet);
+        break;
+    case SOCKET_ADDRESS_FLAT_TYPE_UNIX:
+        addr->type = SOCKET_ADDRESS_KIND_UNIX;
+        addr->u.q_unix.data = QAPI_CLONE(UnixSocketAddress,
+                                         &addr_flat->u.q_unix);
+        break;
+    case SOCKET_ADDRESS_FLAT_TYPE_VSOCK:
+        addr->type = SOCKET_ADDRESS_KIND_VSOCK;
+        addr->u.vsock.data = QAPI_CLONE(VsockSocketAddress,
+                                        &addr_flat->u.vsock);
+        break;
+    case SOCKET_ADDRESS_FLAT_TYPE_FD:
+        addr->type = SOCKET_ADDRESS_KIND_FD;
+        addr->u.fd.data = QAPI_CLONE(String, &addr_flat->u.fd);
+        break;
+    default:
+        abort();
+    }
+
+    return addr;
 }

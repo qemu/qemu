@@ -13,9 +13,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi-visit.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qint.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qemu/uri.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
@@ -545,6 +547,47 @@ static SocketAddress *sd_socket_address(const char *path,
     }
 
     return addr;
+}
+
+static SocketAddress *sd_server_config(QDict *options, Error **errp)
+{
+    QDict *server = NULL;
+    QObject *crumpled_server = NULL;
+    Visitor *iv = NULL;
+    SocketAddressFlat *saddr_flat = NULL;
+    SocketAddress *saddr = NULL;
+    Error *local_err = NULL;
+
+    qdict_extract_subqdict(options, &server, "server.");
+
+    crumpled_server = qdict_crumple(server, errp);
+    if (!crumpled_server) {
+        goto done;
+    }
+
+    /*
+     * FIXME .numeric, .to, .ipv4 or .ipv6 don't work with -drive
+     * server.type=inet.  .to doesn't matter, it's ignored anyway.
+     * That's because when @options come from -blockdev or
+     * blockdev_add, members are typed according to the QAPI schema,
+     * but when they come from -drive, they're all QString.  The
+     * visitor expects the former.
+     */
+    iv = qobject_input_visitor_new(crumpled_server);
+    visit_type_SocketAddressFlat(iv, NULL, &saddr_flat, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto done;
+    }
+
+    saddr = socket_address_crumple(saddr_flat);
+
+done:
+    qapi_free_SocketAddressFlat(saddr_flat);
+    visit_free(iv);
+    qobject_decref(crumpled_server);
+    QDECREF(server);
+    return saddr;
 }
 
 /* Return -EIO in case of error, file descriptor on success */
@@ -1174,15 +1217,15 @@ static void sd_parse_filename(const char *filename, QDict *options,
         return;
     }
 
-    if (cfg.host) {
-        qdict_set_default_str(options, "host", cfg.host);
-    }
-    if (cfg.port) {
-        snprintf(buf, sizeof(buf), "%d", cfg.port);
-        qdict_set_default_str(options, "port", buf);
-    }
     if (cfg.path) {
-        qdict_set_default_str(options, "path", cfg.path);
+        qdict_set_default_str(options, "server.path", cfg.path);
+        qdict_set_default_str(options, "server.type", "unix");
+    } else {
+        qdict_set_default_str(options, "server.type", "inet");
+        qdict_set_default_str(options, "server.host",
+                              cfg.host ?: SD_DEFAULT_ADDR);
+        snprintf(buf, sizeof(buf), "%d", cfg.port ?: SD_DEFAULT_PORT);
+        qdict_set_default_str(options, "server.port", buf);
     }
     qdict_set_default_str(options, "vdi", cfg.vdi);
     qdict_set_default_str(options, "tag", cfg.tag);
@@ -1510,18 +1553,6 @@ static QemuOptsList runtime_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
     .desc = {
         {
-            .name = "host",
-            .type = QEMU_OPT_STRING,
-        },
-        {
-            .name = "port",
-            .type = QEMU_OPT_STRING,
-        },
-        {
-            .name = "path",
-            .type = QEMU_OPT_STRING,
-        },
-        {
             .name = "vdi",
             .type = QEMU_OPT_STRING,
         },
@@ -1543,7 +1574,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     int ret, fd;
     uint32_t vid = 0;
     BDRVSheepdogState *s = bs->opaque;
-    const char *host, *port, *path, *vdi, *snap_id_str, *tag;
+    const char *vdi, *snap_id_str, *tag;
     uint64_t snap_id;
     char *buf = NULL;
     QemuOpts *opts;
@@ -1560,19 +1591,16 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
         goto err_no_fd;
     }
 
-    host = qemu_opt_get(opts, "host");
-    port = qemu_opt_get(opts, "port");
-    path = qemu_opt_get(opts, "path");
+    s->addr = sd_server_config(options, errp);
+    if (!s->addr) {
+        ret = -EINVAL;
+        goto err_no_fd;
+    }
+
     vdi = qemu_opt_get(opts, "vdi");
     snap_id_str = qemu_opt_get(opts, "snap-id");
     snap_id = qemu_opt_get_number(opts, "snap-id", CURRENT_VDI_ID);
     tag = qemu_opt_get(opts, "tag");
-
-    if ((host || port) && path) {
-        error_setg(errp, "can't use 'path' together with 'host' or 'port'");
-        ret = -EINVAL;
-        goto err_no_fd;
-    }
 
     if (!vdi) {
         error_setg(errp, "parameter 'vdi' is missing");
@@ -1603,8 +1631,6 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EINVAL;
         goto err_no_fd;
     }
-
-    s->addr = sd_socket_address(path, host, port);
 
     QLIST_INIT(&s->inflight_aio_head);
     QLIST_INIT(&s->failed_aio_head);

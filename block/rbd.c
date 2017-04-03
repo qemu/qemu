@@ -385,6 +385,12 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
         goto exit;
     }
 
+    /*
+     * Caution: while qdict_get_try_str() is fine, getting non-string
+     * types would require more care.  When @options come from -blockdev
+     * or blockdev_add, its members are typed according to the QAPI
+     * schema, but when they come from -drive, they're all QString.
+     */
     pool       = qdict_get_try_str(options, "pool");
     conf       = qdict_get_try_str(options, "conf");
     clientname = qdict_get_try_str(options, "user");

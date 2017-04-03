@@ -412,10 +412,12 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
     glfs_set_preopened(gconf->volume, glfs);
 
     for (server = gconf->server; server; server = server->next) {
-        if (server->value->type  == SOCKET_ADDRESS_FLAT_TYPE_UNIX) {
+        switch (server->value->type) {
+        case SOCKET_ADDRESS_FLAT_TYPE_UNIX:
             ret = glfs_set_volfile_server(glfs, "unix",
                                    server->value->u.q_unix.path, 0);
-        } else {
+            break;
+        case SOCKET_ADDRESS_FLAT_TYPE_INET:
             if (parse_uint_full(server->value->u.inet.port, &port, 10) < 0 ||
                 port > 65535) {
                 error_setg(errp, "'%s' is not a valid port number",
@@ -426,6 +428,11 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
             ret = glfs_set_volfile_server(glfs, "tcp",
                                    server->value->u.inet.host,
                                    (int)port);
+            break;
+        case SOCKET_ADDRESS_FLAT_TYPE_VSOCK:
+        case SOCKET_ADDRESS_FLAT_TYPE_FD:
+        default:
+            abort();
         }
 
         if (ret < 0) {
@@ -487,7 +494,7 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
     char *str = NULL;
     const char *ptr;
     size_t num_servers;
-    int i;
+    int i, type;
 
     /* create opts info from runtime_json_opts list */
     opts = qemu_opts_create(&runtime_json_opts, NULL, 0, &error_abort);
@@ -539,16 +546,17 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
         if (!strcmp(ptr, "tcp")) {
             ptr = "inet";       /* accept legacy "tcp" */
         }
-        gsconf->type = qapi_enum_parse(SocketAddressFlatType_lookup, ptr,
-                                       SOCKET_ADDRESS_FLAT_TYPE__MAX, -1,
-                                       &local_err);
-        if (local_err) {
-            error_append_hint(&local_err,
-                              "Parameter '%s' may be 'inet' or 'unix'\n",
-                              GLUSTER_OPT_TYPE);
+        type = qapi_enum_parse(SocketAddressFlatType_lookup, ptr,
+                               SOCKET_ADDRESS_FLAT_TYPE__MAX, -1, NULL);
+        if (type != SOCKET_ADDRESS_FLAT_TYPE_INET
+            && type != SOCKET_ADDRESS_FLAT_TYPE_UNIX) {
+            error_setg(&local_err,
+                       "Parameter '%s' may be 'inet' or 'unix'",
+                       GLUSTER_OPT_TYPE);
             error_append_hint(&local_err, GERR_INDEX_HINT, i);
             goto out;
         }
+        gsconf->type = type;
         qemu_opts_del(opts);
 
         if (gsconf->type == SOCKET_ADDRESS_FLAT_TYPE_INET) {

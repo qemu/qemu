@@ -4144,7 +4144,7 @@
 # Since: 2.9
 ##
 { 'enum': 'SocketAddressFlatType',
-  'data': [ 'unix', 'inet' ] }
+  'data': [ 'inet', 'unix', 'vsock', 'fd' ] }
 
 ##
 # @SocketAddressFlat:
@@ -4153,22 +4153,19 @@
 #
 # @type:       Transport type
 #
-# This is similar to SocketAddress, only distinction:
-#
-# 1. SocketAddressFlat is a flat union, SocketAddress is a simple union.
-#    A flat union is nicer than simple because it avoids nesting
-#    (i.e. more {}) on the wire.
-#
-# 2. SocketAddressFlat supports only types 'unix' and 'inet', because
-#    that's what its current users need.
+# This is just like SocketAddress, except it's a flat union rather
+# than a simple union.  Nicer because it avoids nesting on the wire,
+# i.e. this form has fewer {}.
 #
 # Since: 2.9
 ##
 { 'union': 'SocketAddressFlat',
   'base': { 'type': 'SocketAddressFlatType' },
   'discriminator': 'type',
-  'data': { 'unix': 'UnixSocketAddress',
-            'inet': 'InetSocketAddress' } }
+  'data': { 'inet': 'InetSocketAddress',
+            'unix': 'UnixSocketAddress',
+            'vsock': 'VsockSocketAddress',
+            'fd': 'String' } }
 
 ##
 # @getfd:

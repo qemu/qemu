@@ -47,7 +47,6 @@ typedef struct {
     int max_size;
     int do_telnetopt;
     int do_nodelay;
-    int is_unix;
     int *read_msgfds;
     size_t read_msgfds_num;
     int *write_msgfds;
@@ -358,6 +357,10 @@ static char *SocketAddress_to_str(const char *prefix, SocketAddress *addr,
         return g_strdup_printf("%sfd:%s%s", prefix, addr->u.fd.data->str,
                                is_listen ? ",server" : "");
         break;
+    case SOCKET_ADDRESS_KIND_VSOCK:
+        return g_strdup_printf("%svsock:%s:%s", prefix,
+                               addr->u.vsock.data->cid,
+                               addr->u.vsock.data->port);
     default:
         abort();
     }
@@ -825,7 +828,6 @@ static void qmp_chardev_open_socket(Chardev *chr,
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
     QIOChannelSocket *sioc = NULL;
 
-    s->is_unix = addr->type == SOCKET_ADDRESS_KIND_UNIX;
     s->is_listen = is_listen;
     s->is_telnet = is_telnet;
     s->do_nodelay = do_nodelay;
@@ -865,7 +867,8 @@ static void qmp_chardev_open_socket(Chardev *chr,
     s->addr = QAPI_CLONE(SocketAddress, sock->addr);
 
     qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
-    if (s->is_unix) {
+    /* TODO SOCKET_ADDRESS_FD where fd has AF_UNIX */
+    if (addr->type == SOCKET_ADDRESS_KIND_UNIX) {
         qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_FD_PASS);
     }
 

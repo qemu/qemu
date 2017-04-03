@@ -129,10 +129,13 @@ static void vnc_init_basic_info(SocketAddress *addr,
         info->family = NETWORK_ADDRESS_FAMILY_UNIX;
         break;
 
-    default:
-        error_setg(errp, "Unsupported socket kind %d",
-                   addr->type);
+    case SOCKET_ADDRESS_KIND_VSOCK:
+    case SOCKET_ADDRESS_KIND_FD:
+        error_setg(errp, "Unsupported socket address type %s",
+                   SocketAddressKind_lookup[addr->type]);
         break;
+    default:
+        abort();
     }
 
     return;
@@ -411,10 +414,13 @@ VncInfo *qmp_query_vnc(Error **errp)
             info->family = NETWORK_ADDRESS_FAMILY_UNIX;
             break;
 
-        default:
-            error_setg(errp, "Unsupported socket kind %d",
-                       addr->type);
+        case SOCKET_ADDRESS_KIND_VSOCK:
+        case SOCKET_ADDRESS_KIND_FD:
+            error_setg(errp, "Unsupported socket address type %s",
+                       SocketAddressKind_lookup[addr->type]);
             goto out_error;
+        default:
+            abort();
         }
 
         info->has_host = true;
@@ -3642,6 +3648,7 @@ static int vnc_display_connect(VncDisplay *vd,
         error_setg(errp, "Expected a single address in reverse mode");
         return -1;
     }
+    /* TODO SOCKET_ADDRESS_KIND_FD when fd has AF_UNIX */
     vd->is_unix = saddr[0]->type == SOCKET_ADDRESS_KIND_UNIX;
     sioc = qio_channel_socket_new();
     qio_channel_set_name(QIO_CHANNEL(sioc), "vnc-reverse");
