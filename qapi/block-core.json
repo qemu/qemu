@@ -2737,16 +2737,101 @@
             '*debug': 'int' } }
 
 ##
-# @BlockdevOptionsCurl:
+# @BlockdevOptionsCurlBase:
 #
-# Driver specific block device options for the curl backend.
+# Driver specific block device options shared by all protocols supported by the
+# curl backend.
 #
-# @filename:    path to the image file
+# @url:                     URL of the image file
+#
+# @readahead:               Size of the read-ahead cache; must be a multiple of
+#                           512 (defaults to 256 kB)
+#
+# @timeout:                 Timeout for connections, in seconds (defaults to 5)
+#
+# @username:                Username for authentication (defaults to none)
+#
+# @password-secret:         ID of a QCryptoSecret object providing a password
+#                           for authentication (defaults to no password)
+#
+# @proxy-username:          Username for proxy authentication (defaults to none)
+#
+# @proxy-password-secret:   ID of a QCryptoSecret object providing a password
+#                           for proxy authentication (defaults to no password)
 #
 # Since: 2.9
 ##
-{ 'struct': 'BlockdevOptionsCurl',
-  'data': { 'filename': 'str' } }
+{ 'struct': 'BlockdevOptionsCurlBase',
+  'data': { 'url': 'str',
+            '*readahead': 'int',
+            '*timeout': 'int',
+            '*username': 'str',
+            '*password-secret': 'str',
+            '*proxy-username': 'str',
+            '*proxy-password-secret': 'str' } }
+
+##
+# @BlockdevOptionsCurlHttp:
+#
+# Driver specific block device options for HTTP connections over the curl
+# backend.  URLs must start with "http://".
+#
+# @cookie:      List of cookies to set; format is
+#               "name1=content1; name2=content2;" as explained by
+#               CURLOPT_COOKIE(3). Defaults to no cookies.
+#
+# Since: 2.9
+##
+{ 'struct': 'BlockdevOptionsCurlHttp',
+  'base': 'BlockdevOptionsCurlBase',
+  'data': { '*cookie': 'str' } }
+
+##
+# @BlockdevOptionsCurlHttps:
+#
+# Driver specific block device options for HTTPS connections over the curl
+# backend.  URLs must start with "https://".
+#
+# @cookie:      List of cookies to set; format is
+#               "name1=content1; name2=content2;" as explained by
+#               CURLOPT_COOKIE(3). Defaults to no cookies.
+#
+# @sslverify:   Whether to verify the SSL certificate's validity (defaults to
+#               true)
+#
+# Since: 2.9
+##
+{ 'struct': 'BlockdevOptionsCurlHttps',
+  'base': 'BlockdevOptionsCurlBase',
+  'data': { '*cookie': 'str',
+            '*sslverify': 'bool' } }
+
+##
+# @BlockdevOptionsCurlFtp:
+#
+# Driver specific block device options for FTP connections over the curl
+# backend.  URLs must start with "ftp://".
+#
+# Since: 2.9
+##
+{ 'struct': 'BlockdevOptionsCurlFtp',
+  'base': 'BlockdevOptionsCurlBase',
+  'data': { } }
+
+##
+# @BlockdevOptionsCurlFtps:
+#
+# Driver specific block device options for FTPS connections over the curl
+# backend.  URLs must start with "ftps://".
+#
+# @sslverify:   Whether to verify the SSL certificate's validity (defaults to
+#               true)
+#
+# Since: 2.9
+##
+{ 'struct': 'BlockdevOptionsCurlFtps',
+  'base': 'BlockdevOptionsCurlBase',
+  'data': { '*sslverify': 'bool' } }
 
 ##
 # @BlockdevOptionsNbd:
@@ -2815,13 +2900,13 @@
       'cloop':      'BlockdevOptionsGenericFormat',
       'dmg':        'BlockdevOptionsGenericFormat',
       'file':       'BlockdevOptionsFile',
-      'ftp':        'BlockdevOptionsCurl',
-      'ftps':       'BlockdevOptionsCurl',
+      'ftp':        'BlockdevOptionsCurlFtp',
+      'ftps':       'BlockdevOptionsCurlFtps',
       'gluster':    'BlockdevOptionsGluster',
       'host_cdrom': 'BlockdevOptionsFile',
       'host_device':'BlockdevOptionsFile',
-      'http':       'BlockdevOptionsCurl',
-      'https':      'BlockdevOptionsCurl',
+      'http':       'BlockdevOptionsCurlHttp',
+      'https':      'BlockdevOptionsCurlHttps',
       'iscsi':      'BlockdevOptionsIscsi',
       'luks':       'BlockdevOptionsLUKS',
       'nbd':        'BlockdevOptionsNbd',
