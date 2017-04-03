@@ -41,16 +41,21 @@
  */
 typedef struct ICPStateClass ICPStateClass;
 typedef struct ICPState ICPState;
+typedef struct PnvICPState PnvICPState;
 typedef struct ICSStateClass ICSStateClass;
 typedef struct ICSState ICSState;
 typedef struct ICSIRQState ICSIRQState;
 typedef struct XICSFabric XICSFabric;
+typedef struct PowerPCCPU PowerPCCPU;
 
 #define TYPE_ICP "icp"
 #define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
 
 #define TYPE_KVM_ICP "icp-kvm"
 #define KVM_ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_KVM_ICP)
+
+#define TYPE_PNV_ICP "pnv-icp"
+#define PNV_ICP(obj) OBJECT_CHECK(PnvICPState, (obj), TYPE_PNV_ICP)
 
 #define ICP_CLASS(klass) \
      OBJECT_CLASS_CHECK(ICPStateClass, (klass), TYPE_ICP)
@@ -79,6 +84,13 @@ struct ICPState {
     bool cap_irq_xics_enabled;
 
     XICSFabric *xics;
+};
+
+struct PnvICPState {
+    ICPState parent_obj;
+
+    MemoryRegion mmio;
+    uint32_t links[3];
 };
 
 #define TYPE_ICS_BASE "ics-base"
