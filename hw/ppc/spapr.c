@@ -2790,6 +2790,12 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         goto out;
     }
 
+    if (cc->nr_threads != smp_threads) {
+        error_setg(errp, "invalid nr-threads %d, must be %d",
+                   cc->nr_threads, smp_threads);
+        return;
+    }
+
     core_slot = spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index);
     if (!core_slot) {
         error_setg(&local_err, "core id %d out of range", cc->core_id);
