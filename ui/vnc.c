@@ -3786,10 +3786,6 @@ void vnc_display_open(const char *id, Error **errp)
         goto fail;
     }
 
-    if (saddr == NULL) {
-        return;
-    }
-
     password = qemu_opt_get_bool(opts, "password", false);
     if (password) {
         if (fips_get_state()) {
@@ -3972,6 +3968,10 @@ void vnc_display_open(const char *id, Error **errp)
         unregister_displaychangelistener(&vd->dcl);
         vd->dcl.con = con;
         register_displaychangelistener(&vd->dcl);
+    }
+
+    if (saddr == NULL) {
+        goto cleanup;
     }
 
     if (reverse) {
