@@ -104,7 +104,6 @@ static int try_create_xics(sPAPRMachineState *spapr, const char *type_ics,
     XICSFabric *xi = XICS_FABRIC(spapr);
     Error *err = NULL, *local_err = NULL;
     ICSState *ics = NULL;
-    int i;
 
     ics = ICS_SIMPLE(object_new(type_ics));
     object_property_add_child(OBJECT(spapr), "ics", OBJECT(ics), NULL);
@@ -113,34 +112,14 @@ static int try_create_xics(sPAPRMachineState *spapr, const char *type_ics,
     object_property_set_bool(OBJECT(ics), true, "realized", &local_err);
     error_propagate(&err, local_err);
     if (err) {
-        goto error;
+        error_propagate(errp, err);
+        return -1;
     }
 
-    spapr->icps = g_malloc0(nr_servers * sizeof(ICPState));
     spapr->nr_servers = nr_servers;
-
-    for (i = 0; i < nr_servers; i++) {
-        ICPState *icp = &spapr->icps[i];
-
-        object_initialize(icp, sizeof(*icp), type_icp);
-        object_property_add_child(OBJECT(spapr), "icp[*]", OBJECT(icp), NULL);
-        object_property_add_const_link(OBJECT(icp), "xics", OBJECT(xi), NULL);
-        object_property_set_bool(OBJECT(icp), true, "realized", &err);
-        if (err) {
-            goto error;
-        }
-        object_unref(OBJECT(icp));
-    }
-
     spapr->ics = ics;
+    spapr->icp_type = type_icp;
     return 0;
-
-error:
-    error_propagate(errp, err);
-    if (ics) {
-        object_unparent(OBJECT(ics));
-    }
-    return -1;
 }
 
 static int xics_system_init(MachineState *machine,
@@ -1441,9 +1420,10 @@ static int spapr_post_load(void *opaque, int version_id)
     int err = 0;
 
     if (!object_dynamic_cast(OBJECT(spapr->ics), TYPE_ICS_KVM)) {
-        int i;
-        for (i = 0; i < spapr->nr_servers; i++) {
-            icp_resend(&spapr->icps[i]);
+        CPUState *cs;
+        CPU_FOREACH(cs) {
+            PowerPCCPU *cpu = POWERPC_CPU(cs);
+            icp_resend(ICP(cpu->intc));
         }
     }
 
@@ -3114,20 +3094,21 @@ static void spapr_ics_resend(XICSFabric *dev)
 
 static ICPState *spapr_icp_get(XICSFabric *xi, int cpu_dt_id)
 {
-    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
-    int server = xics_get_cpu_index_by_dt_id(cpu_dt_id);
+    PowerPCCPU *cpu = ppc_get_vcpu_by_dt_id(cpu_dt_id);
 
-    return (server < spapr->nr_servers) ? &spapr->icps[server] : NULL;
+    return cpu ? ICP(cpu->intc) : NULL;
 }
 
 static void spapr_pic_print_info(InterruptStatsProvider *obj,
                                  Monitor *mon)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
-    int i;
+    CPUState *cs;
 
-    for (i = 0; i < spapr->nr_servers; i++) {
-        icp_pic_print_info(&spapr->icps[i], mon);
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        icp_pic_print_info(ICP(cpu->intc), mon);
     }
 
     ics_pic_print_info(spapr->ics, mon);

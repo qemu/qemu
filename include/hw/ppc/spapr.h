@@ -109,7 +109,7 @@ struct sPAPRMachineState {
     MemoryHotplugState hotplug_memory;
 
     uint32_t nr_servers;
-    ICPState *icps;
+    const char *icp_type;
 };
 
 #define H_SUCCESS         0
