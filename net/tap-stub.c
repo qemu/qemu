@@ -29,7 +29,7 @@
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
              int vnet_hdr_required, int mq_required, Error **errp)
 {
-    error_setg(errp, "no tap on AIX");
+    error_setg(errp, "tap is not supported in this build");
     return -1;
 }
 
@@ -85,4 +85,3 @@ int tap_fd_get_ifname(int fd, char *ifname)
 {
     return -1;
 }
-
