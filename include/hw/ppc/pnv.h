@@ -54,6 +54,7 @@ typedef struct PnvChip {
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
     AddressSpace xscom_as;
+    MemoryRegion icp_mmio;
 
     PnvLpcController lpc;
 } PnvChip;
@@ -135,5 +136,23 @@ typedef struct PnvMachineState {
 #define PNV_XSCOM_SIZE        0x800000000ull
 #define PNV_XSCOM_BASE(chip)                                            \
     (chip->xscom_base + ((uint64_t)(chip)->chip_id) * PNV_XSCOM_SIZE)
+
+/*
+ * XSCOM 0x20109CA defines the ICP BAR:
+ *
+ * 0:29   : bits 14 to 43 of address to define 1 MB region.
+ * 30     : 1 to enable ICP to receive loads/stores against its BAR region
+ * 31:63  : Constant 0
+ *
+ * Usually defined as :
+ *
+ *      0xffffe00200000000 -> 0x0003ffff80000000
+ *      0xffffe00600000000 -> 0x0003ffff80100000
+ *      0xffffe02200000000 -> 0x0003ffff80800000
+ *      0xffffe02600000000 -> 0x0003ffff80900000
+ */
+#define PNV_ICP_SIZE         0x0000000000100000ull
+#define PNV_ICP_BASE(chip)                                              \
+    (0x0003ffff80000000ull + (uint64_t) PNV_CHIP_INDEX(chip) * PNV_ICP_SIZE)
 
 #endif /* _PPC_PNV_H */

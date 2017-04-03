@@ -218,6 +218,43 @@ static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
                        servers_prop, sizeof(servers_prop))));
 }
 
+static void powernv_populate_icp(PnvChip *chip, void *fdt, uint32_t pir,
+                                 uint32_t nr_threads)
+{
+    uint64_t addr = PNV_ICP_BASE(chip) | (pir << 12);
+    char *name;
+    const char compat[] = "IBM,power8-icp\0IBM,ppc-xicp";
+    uint32_t irange[2], i, rsize;
+    uint64_t *reg;
+    int offset;
+
+    irange[0] = cpu_to_be32(pir);
+    irange[1] = cpu_to_be32(nr_threads);
+
+    rsize = sizeof(uint64_t) * 2 * nr_threads;
+    reg = g_malloc(rsize);
+    for (i = 0; i < nr_threads; i++) {
+        reg[i * 2] = cpu_to_be64(addr | ((pir + i) * 0x1000));
+        reg[i * 2 + 1] = cpu_to_be64(0x1000);
+    }
+
+    name = g_strdup_printf("interrupt-controller@%"PRIX64, addr);
+    offset = fdt_add_subnode(fdt, 0, name);
+    _FDT(offset);
+    g_free(name);
+
+    _FDT((fdt_setprop(fdt, offset, "compatible", compat, sizeof(compat))));
+    _FDT((fdt_setprop(fdt, offset, "reg", reg, rsize)));
+    _FDT((fdt_setprop_string(fdt, offset, "device_type",
+                              "PowerPC-External-Interrupt-Presentation")));
+    _FDT((fdt_setprop(fdt, offset, "interrupt-controller", NULL, 0)));
+    _FDT((fdt_setprop(fdt, offset, "ibm,interrupt-server-ranges",
+                       irange, sizeof(irange))));
+    _FDT((fdt_setprop_cell(fdt, offset, "#interrupt-cells", 1)));
+    _FDT((fdt_setprop_cell(fdt, offset, "#address-cells", 0)));
+    g_free(reg);
+}
+
 static void powernv_populate_chip(PnvChip *chip, void *fdt)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
@@ -231,6 +268,10 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
         PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
 
         powernv_create_core_node(chip, pnv_core, fdt);
+
+        /* Interrupt Control Presenters (ICP). One per core. */
+        powernv_populate_icp(chip, fdt, pnv_core->pir,
+                             CPU_CORE(pnv_core)->nr_threads);
     }
 
     if (chip->ram_size) {
@@ -643,6 +684,38 @@ static void pnv_chip_init(Object *obj)
     object_property_add_child(obj, "lpc", OBJECT(&chip->lpc), NULL);
 }
 
+static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
+{
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    char *typename = pnv_core_typename(pcc->cpu_model);
+    size_t typesize = object_type_get_instance_size(typename);
+    int i, j;
+    char *name;
+    XICSFabric *xi = XICS_FABRIC(qdev_get_machine());
+
+    name = g_strdup_printf("icp-%x", chip->chip_id);
+    memory_region_init(&chip->icp_mmio, OBJECT(chip), name, PNV_ICP_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(chip), &chip->icp_mmio);
+    g_free(name);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 1, PNV_ICP_BASE(chip));
+
+    /* Map the ICP registers for each thread */
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
+        int core_hwid = CPU_CORE(pnv_core)->core_id;
+
+        for (j = 0; j < CPU_CORE(pnv_core)->nr_threads; j++) {
+            uint32_t pir = pcc->core_pir(chip, core_hwid) + j;
+            PnvICPState *icp = PNV_ICP(xics_icp_get(xi, pir));
+
+            memory_region_add_subregion(&chip->icp_mmio, pir << 12, &icp->mmio);
+        }
+    }
+
+    g_free(typename);
+}
+
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
 {
     PnvChip *chip = PNV_CHIP(dev);
@@ -713,6 +786,14 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     object_property_set_bool(OBJECT(&chip->lpc), true, "realized",
                              &error_fatal);
     pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip->lpc.xscom_regs);
+
+    /* Interrupt Management Area. This is the memory region holding
+     * all the Interrupt Control Presenter (ICP) registers */
+    pnv_chip_icp_realize(chip, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
 }
 
 static Property pnv_chip_properties[] = {
