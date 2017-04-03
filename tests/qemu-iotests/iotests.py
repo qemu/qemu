@@ -177,6 +177,14 @@ class VM(qtest.QEMUQtestMachine):
         self._num_drives += 1
         return self
 
+    def add_blockdev(self, opts):
+        self._args.append('-blockdev')
+        if isinstance(opts, str):
+            self._args.append(opts)
+        else:
+            self._args.append(','.join(opts))
+        return self
+
     def pause_drive(self, drive, event=None):
         '''Pause drive r/w operations'''
         if not event:
@@ -234,6 +242,13 @@ class QMPTestCase(unittest.TestCase):
         else:
             output[basestr[:-1]] = obj # Strip trailing '.'
         return output
+
+    def qmp_to_opts(self, obj):
+        obj = self.flatten_qmp_object(obj)
+        output_list = list()
+        for key in obj:
+            output_list += [key + '=' + obj[key]]
+        return ','.join(output_list)
 
     def assert_qmp_absent(self, d, path):
         try:
