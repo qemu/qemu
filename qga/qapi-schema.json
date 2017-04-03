@@ -426,7 +426,13 @@
 ##
 # @guest-fsfreeze-freeze:
 #
-# Sync and freeze all freezable, local guest filesystems
+# Sync and freeze all freezable, local guest filesystems. If this
+# command succeeded, you may call @guest-fsfreeze-thaw later to
+# unfreeze.
+#
+# Note: On Windows, the command is implemented with the help of a
+# Volume Shadow-copy Service DLL helper. The frozen state is limited
+# for up to 10 seconds by VSS.
 #
 # Returns: Number of file systems currently frozen. On error, all filesystems
 # will be thawed.
@@ -439,10 +445,12 @@
 ##
 # @guest-fsfreeze-freeze-list:
 #
-# Sync and freeze specified guest filesystems
+# Sync and freeze specified guest filesystems.
+# See also @guest-fsfreeze-freeze.
 #
 # @mountpoints: an array of mountpoints of filesystems to be frozen.
 #               If omitted, every mounted filesystem is frozen.
+#               Invalid mount points are ignored.
 #
 # Returns: Number of file systems currently frozen. On error, all filesystems
 # will be thawed.
