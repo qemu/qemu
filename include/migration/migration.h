@@ -377,7 +377,7 @@ void savevm_skip_configuration(void);
 int global_state_store(void);
 void global_state_store_running(void);
 
-void flush_page_queue(MigrationState *ms);
+void migration_page_queue_free(MigrationState *ms);
 int ram_save_queue_pages(MigrationState *ms, const char *rbname,
                          ram_addr_t start, ram_addr_t len);
 uint64_t ram_pagesize_summary(void);

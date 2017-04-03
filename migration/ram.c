@@ -1186,14 +1186,15 @@ static bool get_queued_page(MigrationState *ms, PageSearchStatus *pss,
 }
 
 /**
- * flush_page_queue: flush any remaining pages in the ram request queue
+ * migration_page_queue_free: drop any remaining pages in the ram
+ * request queue
  *
  * It should be empty at the end anyway, but in error cases there may
  * be some left.  in case that there is any page left, we drop it.
  *
  * @ms: current migration state
  */
-void flush_page_queue(MigrationState *ms)
+void migration_page_queue_free(MigrationState *ms)
 {
     struct MigrationSrcPageRequest *mspr, *next_mspr;
     /* This queue generally should be empty - but in the case of a failed

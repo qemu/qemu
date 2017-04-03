@@ -955,7 +955,7 @@ static void migrate_fd_cleanup(void *opaque)
     qemu_bh_delete(s->cleanup_bh);
     s->cleanup_bh = NULL;
 
-    flush_page_queue(s);
+    migration_page_queue_free(s);
 
     if (s->to_dst_file) {
         trace_migrate_fd_cleanup();
