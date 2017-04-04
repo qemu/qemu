@@ -499,3 +499,14 @@ int ga_parse_whence(GuestFileWhence *whence, Error **errp)
     error_setg(errp, "invalid whence code %"PRId64, whence->u.value);
     return -1;
 }
+
+GuestHostName *qmp_guest_get_host_name(Error **err)
+{
+    GuestHostName *result = NULL;
+    gchar const *hostname = g_get_host_name();
+    if (hostname != NULL) {
+        result = g_new0(GuestHostName, 1);
+        result->host_name = g_strdup(hostname);
+    }
+    return result;
+}
