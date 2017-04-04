@@ -539,14 +539,15 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
 
     /* Free all fids */
     while (s->fid_list) {
+        /* Get fid */
         fidp = s->fid_list;
-        s->fid_list = fidp->next;
+        fidp->ref++;
 
-        if (fidp->ref) {
-            fidp->clunked = 1;
-        } else {
-            free_fid(pdu, fidp);
-        }
+        /* Clunk fid */
+        s->fid_list = fidp->next;
+        fidp->clunked = 1;
+
+        put_fid(pdu, fidp);
     }
 }
 
@@ -2387,8 +2388,10 @@ static void coroutine_fn v9fs_flush(void *opaque)
          * Wait for pdu to complete.
          */
         qemu_co_queue_wait(&cancel_pdu->complete, NULL);
-        cancel_pdu->cancelled = 0;
-        pdu_free(cancel_pdu);
+        if (!qemu_co_queue_next(&cancel_pdu->complete)) {
+            cancel_pdu->cancelled = 0;
+            pdu_free(cancel_pdu);
+        }
     }
     pdu_complete(pdu, 7);
 }
