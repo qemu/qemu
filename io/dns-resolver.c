@@ -158,15 +158,12 @@ int qio_dns_resolver_lookup_sync(QIODNSResolver *resolver,
 
     case SOCKET_ADDRESS_KIND_UNIX:
     case SOCKET_ADDRESS_KIND_VSOCK:
+    case SOCKET_ADDRESS_KIND_FD:
         return qio_dns_resolver_lookup_sync_nop(resolver,
                                                 addr,
                                                 naddrs,
                                                 addrs,
                                                 errp);
-
-    case SOCKET_ADDRESS_KIND_FD:
-        error_setg(errp, "Unsupported socket address type 'fd'");
-        return -1;
 
     default:
         abort();
