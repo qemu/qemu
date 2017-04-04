@@ -207,6 +207,12 @@ void qmp_cont(Error **errp)
         }
     }
 
+    blk_resume_after_migration(&local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         autostart = 1;
     } else {
