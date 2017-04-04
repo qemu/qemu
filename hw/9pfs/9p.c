@@ -539,14 +539,15 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
 
     /* Free all fids */
     while (s->fid_list) {
+        /* Get fid */
         fidp = s->fid_list;
-        s->fid_list = fidp->next;
+        fidp->ref++;
 
-        if (fidp->ref) {
-            fidp->clunked = 1;
-        } else {
-            free_fid(pdu, fidp);
-        }
+        /* Clunk fid */
+        s->fid_list = fidp->next;
+        fidp->clunked = 1;
+
+        put_fid(pdu, fidp);
     }
 }
 
