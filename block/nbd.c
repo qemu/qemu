@@ -322,6 +322,7 @@ static QIOChannelSocket *nbd_establish_connection(SocketAddressFlat *saddr_flat,
                                     &local_err);
     qapi_free_SocketAddress(saddr);
     if (local_err) {
+        object_unref(OBJECT(sioc));
         error_propagate(errp, local_err);
         return NULL;
     }

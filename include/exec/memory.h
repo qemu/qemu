@@ -1426,13 +1426,11 @@ void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val);
 
 struct MemoryRegionCache {
     hwaddr xlat;
-    void *ptr;
     hwaddr len;
-    MemoryRegion *mr;
-    bool is_write;
+    AddressSpace *as;
 };
 
-#define MEMORY_REGION_CACHE_INVALID ((MemoryRegionCache) { .mr = NULL })
+#define MEMORY_REGION_CACHE_INVALID ((MemoryRegionCache) { .as = NULL })
 
 /* address_space_cache_init: prepare for repeated access to a physical
  * memory region
@@ -1688,7 +1686,7 @@ address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
                           void *buf, int len)
 {
     assert(addr < cache->len && len <= cache->len - addr);
-    memcpy(buf, cache->ptr + addr, len);
+    address_space_read(cache->as, cache->xlat + addr, MEMTXATTRS_UNSPECIFIED, buf, len);
 }
 
 /**
@@ -1704,7 +1702,7 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
                            void *buf, int len)
 {
     assert(addr < cache->len && len <= cache->len - addr);
-    memcpy(cache->ptr + addr, buf, len);
+    address_space_write(cache->as, cache->xlat + addr, MEMTXATTRS_UNSPECIFIED, buf, len);
 }
 
 #endif

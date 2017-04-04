@@ -3236,75 +3236,33 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
                                  hwaddr len,
                                  bool is_write)
 {
-    hwaddr l, xlat;
-    MemoryRegion *mr;
-    void *ptr;
-
-    assert(len > 0);
-
-    l = len;
-    mr = address_space_translate(as, addr, &xlat, &l, is_write);
-    if (!memory_access_is_direct(mr, is_write)) {
-        return -EINVAL;
-    }
-
-    l = address_space_extend_translation(as, addr, len, mr, xlat, l, is_write);
-    ptr = qemu_ram_ptr_length(mr->ram_block, xlat, &l);
-
-    cache->xlat = xlat;
-    cache->is_write = is_write;
-    cache->mr = mr;
-    cache->ptr = ptr;
-    cache->len = l;
-    memory_region_ref(cache->mr);
-
-    return l;
+    cache->len = len;
+    cache->as = as;
+    cache->xlat = addr;
+    return len;
 }
 
 void address_space_cache_invalidate(MemoryRegionCache *cache,
                                     hwaddr addr,
                                     hwaddr access_len)
 {
-    assert(cache->is_write);
-    invalidate_and_set_dirty(cache->mr, addr + cache->xlat, access_len);
 }
 
 void address_space_cache_destroy(MemoryRegionCache *cache)
 {
-    if (!cache->mr) {
-        return;
-    }
-
-    if (xen_enabled()) {
-        xen_invalidate_map_cache_entry(cache->ptr);
-    }
-    memory_region_unref(cache->mr);
-    cache->mr = NULL;
-}
-
-/* Called from RCU critical section.  This function has the same
- * semantics as address_space_translate, but it only works on a
- * predefined range of a MemoryRegion that was mapped with
- * address_space_cache_init.
- */
-static inline MemoryRegion *address_space_translate_cached(
-    MemoryRegionCache *cache, hwaddr addr, hwaddr *xlat,
-    hwaddr *plen, bool is_write)
-{
-    assert(addr < cache->len && *plen <= cache->len - addr);
-    *xlat = addr + cache->xlat;
-    return cache->mr;
+    cache->as = NULL;
 }
 
 #define ARG1_DECL                MemoryRegionCache *cache
 #define ARG1                     cache
 #define SUFFIX                   _cached
-#define TRANSLATE(...)           address_space_translate_cached(cache, __VA_ARGS__)
+#define TRANSLATE(addr, ...)     \
+    address_space_translate(cache->as, cache->xlat + (addr), __VA_ARGS__)
 #define IS_DIRECT(mr, is_write)  true
-#define MAP_RAM(mr, ofs)         (cache->ptr + (ofs - cache->xlat))
-#define INVALIDATE(mr, ofs, len) ((void)0)
-#define RCU_READ_LOCK()          ((void)0)
-#define RCU_READ_UNLOCK()        ((void)0)
+#define MAP_RAM(mr, ofs)         qemu_map_ram_ptr((mr)->ram_block, ofs)
+#define INVALIDATE(mr, ofs, len) invalidate_and_set_dirty(mr, ofs, len)
+#define RCU_READ_LOCK()          rcu_read_lock()
+#define RCU_READ_UNLOCK()        rcu_read_unlock()
 #include "memory_ldst.inc.c"
 
 /* virtual memory access for debug (includes writing to ROM) */
