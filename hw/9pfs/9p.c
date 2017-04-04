@@ -2387,8 +2387,10 @@ static void coroutine_fn v9fs_flush(void *opaque)
          * Wait for pdu to complete.
          */
         qemu_co_queue_wait(&cancel_pdu->complete, NULL);
-        cancel_pdu->cancelled = 0;
-        pdu_free(cancel_pdu);
+        if (!qemu_co_queue_next(&cancel_pdu->complete)) {
+            cancel_pdu->cancelled = 0;
+            pdu_free(cancel_pdu);
+        }
     }
     pdu_complete(pdu, 7);
 }
