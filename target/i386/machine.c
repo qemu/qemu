@@ -136,38 +136,46 @@ static const VMStateDescription vmstate_mtrr_var = {
 #define VMSTATE_MTRR_VARS(_field, _state, _n, _v)                    \
     VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_mtrr_var, MTRRVar)
 
-static int get_fpreg(QEMUFile *f, void *opaque, size_t size,
-                     VMStateField *field)
-{
-    FPReg *fp_reg = opaque;
-    uint64_t mant;
-    uint16_t exp;
+typedef struct x86_FPReg_tmp {
+    FPReg *parent;
+    uint64_t tmp_mant;
+    uint16_t tmp_exp;
+} x86_FPReg_tmp;
 
-    qemu_get_be64s(f, &mant);
-    qemu_get_be16s(f, &exp);
-    fp_reg->d = cpu_set_fp80(mant, exp);
-    return 0;
-}
-
-static int put_fpreg(QEMUFile *f, void *opaque, size_t size,
-                     VMStateField *field, QJSON *vmdesc)
+static void fpreg_pre_save(void *opaque)
 {
-    FPReg *fp_reg = opaque;
-    uint64_t mant;
-    uint16_t exp;
+    x86_FPReg_tmp *tmp = opaque;
+
     /* we save the real CPU data (in case of MMX usage only 'mant'
        contains the MMX register */
-    cpu_get_fp80(&mant, &exp, fp_reg->d);
-    qemu_put_be64s(f, &mant);
-    qemu_put_be16s(f, &exp);
+    cpu_get_fp80(&tmp->tmp_mant, &tmp->tmp_exp, tmp->parent->d);
+}
 
+static int fpreg_post_load(void *opaque, int version)
+{
+    x86_FPReg_tmp *tmp = opaque;
+
+    tmp->parent->d = cpu_set_fp80(tmp->tmp_mant, tmp->tmp_exp);
     return 0;
 }
 
-static const VMStateInfo vmstate_fpreg = {
+static const VMStateDescription vmstate_fpreg_tmp = {
+    .name = "fpreg_tmp",
+    .post_load = fpreg_post_load,
+    .pre_save  = fpreg_pre_save,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(tmp_mant, x86_FPReg_tmp),
+        VMSTATE_UINT16(tmp_exp, x86_FPReg_tmp),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_fpreg = {
     .name = "fpreg",
-    .get  = get_fpreg,
-    .put  = put_fpreg,
+    .fields = (VMStateField[]) {
+        VMSTATE_WITH_TMP(FPReg, x86_FPReg_tmp, vmstate_fpreg_tmp),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static bool version_is_5(void *opaque, int version_id)
