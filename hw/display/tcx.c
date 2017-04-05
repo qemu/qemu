@@ -123,22 +123,16 @@ static int tcx_check_dirty(TCXState *s, ram_addr_t addr, int len)
     return ret;
 }
 
-static inline void tcx24_reset_dirty(TCXState *ts, ram_addr_t page_min,
-                               ram_addr_t page_max, ram_addr_t page24,
-                              ram_addr_t cpage)
+static void tcx_reset_dirty(TCXState *s, ram_addr_t addr, int len)
 {
-    memory_region_reset_dirty(&ts->vram_mem,
-                              page_min,
-                              (page_max - page_min) + TARGET_PAGE_SIZE,
-                              DIRTY_MEMORY_VGA);
-    memory_region_reset_dirty(&ts->vram_mem,
-                              page24 + page_min * 4,
-                              (page_max - page_min) * 4 + TARGET_PAGE_SIZE,
-                              DIRTY_MEMORY_VGA);
-    memory_region_reset_dirty(&ts->vram_mem,
-                              cpage + page_min * 4,
-                              (page_max - page_min) * 4 + TARGET_PAGE_SIZE,
-                              DIRTY_MEMORY_VGA);
+    memory_region_reset_dirty(&s->vram_mem, addr, len, DIRTY_MEMORY_VGA);
+
+    if (s->depth == 24) {
+        memory_region_reset_dirty(&s->vram_mem, s->vram24_offset + addr * 4,
+                                  len * 4, DIRTY_MEMORY_VGA);
+        memory_region_reset_dirty(&s->vram_mem, s->cplane_offset + addr * 4,
+                                  len * 4, DIRTY_MEMORY_VGA);
+    }
 }
 
 static void update_palette_entries(TCXState *s, int start, int end)
@@ -428,10 +422,7 @@ static void tcx_update_display(void *opaque)
     }
     /* reset modified pages */
     if (page_max >= page_min) {
-        memory_region_reset_dirty(&ts->vram_mem,
-                                  page_min,
-                                  (page_max - page_min) + TARGET_PAGE_SIZE,
-                                  DIRTY_MEMORY_VGA);
+        tcx_reset_dirty(ts, page_min, page_max - page_min);
     }
 }
 
@@ -528,7 +519,7 @@ static void tcx24_update_display(void *opaque)
     }
     /* reset modified pages */
     if (page_max >= page_min) {
-        tcx24_reset_dirty(ts, page_min, page_max, page24, cpage);
+        tcx_reset_dirty(ts, page_min, page_max - page_min);
     }
 }
 
