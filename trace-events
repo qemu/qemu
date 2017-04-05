@@ -48,11 +48,6 @@ spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
 spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"
 spice_vmc_event(int event) "spice vmc event %d"
 
-# xen-mapcache.c
-xen_map_cache(uint64_t phys_addr) "want %#"PRIx64
-xen_remap_bucket(uint64_t index) "index %#"PRIx64
-xen_map_cache_return(void* ptr) "%p"
-
 # monitor.c
 monitor_protocol_event_handler(uint32_t event, void *qdict) "event=%d data=%p"
 monitor_protocol_event_emit(uint32_t event, void *data) "event=%d data=%p"

@@ -149,9 +149,6 @@ obj-y += dump.o
 obj-y += migration/ram.o migration/savevm.o
 LIBS := $(libs_softmmu) $(LIBS)
 
-# xen support
-obj-$(CONFIG_XEN_I386) += xen-mapcache.o
-
 # Hardware support
 ifeq ($(TARGET_NAME), sparc64)
 obj-y += hw/sparc64/
