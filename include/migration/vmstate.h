@@ -37,7 +37,6 @@ typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 
 typedef struct SaveVMHandlers {
     /* This runs inside the iothread lock.  */
-    void (*set_params)(const MigrationParams *params, void * opaque);
     SaveStateHandler *save_state;
 
     void (*cleanup)(void *opaque);

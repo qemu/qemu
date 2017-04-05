@@ -38,10 +38,6 @@
 #define QEMU_VM_COMMAND              0x08
 #define QEMU_VM_SECTION_FOOTER       0x7e
 
-struct MigrationParams {
-    bool unused; /* C doesn't allow empty structs */
-};
-
 /* Messages sent on the return path from destination to source */
 enum mig_rp_message_type {
     MIG_RP_MSG_INVALID = 0,  /* Must be 0 */
@@ -109,12 +105,10 @@ struct MigrationState
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
 
-    /* New style params from 'migrate-set-parameters' */
+    /* params from 'migrate-set-parameters' */
     MigrationParameters parameters;
 
     int state;
-    /* Old style params from 'migrate' command */
-    MigrationParams params;
 
     /* State related to return path */
     struct {
@@ -207,7 +201,7 @@ void migrate_fd_connect(MigrationState *s);
 
 void add_migration_state_change_notifier(Notifier *notify);
 void remove_migration_state_change_notifier(Notifier *notify);
-MigrationState *migrate_init(const MigrationParams *params);
+MigrationState *migrate_init(void);
 bool migration_is_blocked(Error **errp);
 bool migration_in_setup(MigrationState *);
 bool migration_is_idle(void);

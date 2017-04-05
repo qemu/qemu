@@ -966,20 +966,12 @@ void qemu_savevm_state_header(QEMUFile *f)
 
 }
 
-void qemu_savevm_state_begin(QEMUFile *f,
-                             const MigrationParams *params)
+void qemu_savevm_state_begin(QEMUFile *f)
 {
     SaveStateEntry *se;
     int ret;
 
     trace_savevm_state_begin();
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (!se->ops || !se->ops->set_params) {
-            continue;
-        }
-        se->ops->set_params(params, se->opaque);
-    }
-
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops || !se->ops->save_live_setup) {
             continue;
@@ -1232,9 +1224,7 @@ void qemu_savevm_state_cleanup(void)
 static int qemu_savevm_state(QEMUFile *f, Error **errp)
 {
     int ret;
-    MigrationParams params = {
-    };
-    MigrationState *ms = migrate_init(&params);
+    MigrationState *ms = migrate_init();
     MigrationStatus status;
     ms->to_dst_file = f;
 
@@ -1251,7 +1241,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
 
     qemu_mutex_unlock_iothread();
     qemu_savevm_state_header(f);
-    qemu_savevm_state_begin(f, &params);
+    qemu_savevm_state_begin(f);
     qemu_mutex_lock_iothread();
 
     while (qemu_file_get_error(f) == 0) {
