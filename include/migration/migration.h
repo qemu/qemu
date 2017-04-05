@@ -39,8 +39,7 @@
 #define QEMU_VM_SECTION_FOOTER       0x7e
 
 struct MigrationParams {
-    bool blk;
-    bool shared;
+    bool unused; /* C doesn't allow empty structs */
 };
 
 /* Messages sent on the return path from destination to source */

@@ -1233,14 +1233,18 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
 {
     int ret;
     MigrationParams params = {
-        .blk = 0,
-        .shared = 0
     };
     MigrationState *ms = migrate_init(&params);
     MigrationStatus status;
     ms->to_dst_file = f;
 
     if (migration_is_blocked(errp)) {
+        ret = -EINVAL;
+        goto done;
+    }
+
+    if (migrate_use_block()) {
+        error_setg(errp, "Block migration and snapshots are incompatible");
         ret = -EINVAL;
         goto done;
     }
