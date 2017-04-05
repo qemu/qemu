@@ -79,7 +79,6 @@ static void socket_outgoing_migration(QIOTask *task,
 
     if (qio_task_propagate_error(task, &err)) {
         trace_migration_socket_outgoing_error(error_get_pretty(err));
-        data->s->to_dst_file = NULL;
         migrate_fd_error(data->s, err);
         error_free(err);
     } else {
