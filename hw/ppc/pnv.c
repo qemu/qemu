@@ -353,15 +353,22 @@ static void ppc_powernv_reset(void)
  * have a CPLD that will collect the SerIRQ and shoot them as a
  * single level interrupt to the P8 chip. So let's setup a hook
  * for doing just that.
- *
- * Note: The actual interrupt input isn't emulated yet, this will
- * come with the PSI bridge model.
  */
 static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
 {
-    /* We don't yet emulate the PSI bridge which provides the external
-     * interrupt, so just drop interrupts on the floor
-     */
+    PnvMachineState *pnv = POWERNV_MACHINE(qdev_get_machine());
+    uint32_t old_state = pnv->cpld_irqstate;
+    PnvChip *chip = opaque;
+
+    if (level) {
+        pnv->cpld_irqstate |= 1u << n;
+    } else {
+        pnv->cpld_irqstate &= ~(1u << n);
+    }
+    if (pnv->cpld_irqstate != old_state) {
+        pnv_psi_irq_set(&chip->psi, PSIHB_IRQ_EXTERNAL,
+                        pnv->cpld_irqstate != 0);
+    }
 }
 
 static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
@@ -682,6 +689,11 @@ static void pnv_chip_init(Object *obj)
 
     object_initialize(&chip->lpc, sizeof(chip->lpc), TYPE_PNV_LPC);
     object_property_add_child(obj, "lpc", OBJECT(&chip->lpc), NULL);
+
+    object_initialize(&chip->psi, sizeof(chip->psi), TYPE_PNV_PSI);
+    object_property_add_child(obj, "psi", OBJECT(&chip->psi), NULL);
+    object_property_add_const_link(OBJECT(&chip->psi), "xics",
+                                   OBJECT(qdev_get_machine()), &error_abort);
 }
 
 static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
@@ -794,6 +806,16 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, error);
         return;
     }
+
+    /* Processor Service Interface (PSI) Host Bridge */
+    object_property_set_int(OBJECT(&chip->psi), PNV_PSIHB_BASE(chip),
+                            "bar", &error_fatal);
+    object_property_set_bool(OBJECT(&chip->psi), true, "realized", &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV_XSCOM_PSIHB_BASE, &chip->psi.xscom_regs);
 }
 
 static Property pnv_chip_properties[] = {
@@ -824,6 +846,29 @@ static const TypeInfo pnv_chip_info = {
     .abstract      = true,
 };
 
+static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(xi);
+    int i;
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        if (ics_valid_irq(&pnv->chips[i]->psi.ics, irq)) {
+            return &pnv->chips[i]->psi.ics;
+        }
+    }
+    return NULL;
+}
+
+static void pnv_ics_resend(XICSFabric *xi)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(xi);
+    int i;
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        ics_resend(&pnv->chips[i]->psi.ics);
+    }
+}
+
 static PowerPCCPU *ppc_get_vcpu_by_pir(int pir)
 {
     CPUState *cs;
@@ -850,12 +895,18 @@ static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
 static void pnv_pic_print_info(InterruptStatsProvider *obj,
                                Monitor *mon)
 {
+    PnvMachineState *pnv = POWERNV_MACHINE(obj);
+    int i;
     CPUState *cs;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         icp_pic_print_info(ICP(cpu->intc), mon);
+    }
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        ics_pic_print_info(&pnv->chips[i]->psi.ics, mon);
     }
 }
 
@@ -922,6 +973,8 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = NULL;
     mc->default_ram_size = 1 * G_BYTE;
     xic->icp_get = pnv_icp_get;
+    xic->ics_get = pnv_ics_get;
+    xic->ics_resend = pnv_ics_resend;
     ispc->print_info = pnv_pic_print_info;
 
     powernv_machine_class_props_init(oc);
