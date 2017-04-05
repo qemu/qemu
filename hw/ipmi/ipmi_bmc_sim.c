@@ -27,6 +27,7 @@
 #include "qemu/timer.h"
 #include "hw/ipmi/ipmi.h"
 #include "qemu/error-report.h"
+#include "hw/loader.h"
 
 #define IPMI_NETFN_CHASSIS            0x00
 
@@ -213,6 +214,7 @@ struct IPMIBmcSim {
     IPMISel sel;
     IPMISdr sdr;
     IPMISensor sensors[MAX_SENSORS];
+    char *sdr_filename;
 
     /* Odd netfns are for responses, so we only need the even ones. */
     const IPMINetfn *netfns[MAX_NETFNS / 2];
@@ -1696,21 +1698,32 @@ static void ipmi_sdr_init(IPMIBmcSim *ibs)
 
     sdrs_size = sizeof(init_sdrs);
     sdrs = init_sdrs;
+    if (ibs->sdr_filename &&
+        !g_file_get_contents(ibs->sdr_filename, (gchar **) &sdrs, &sdrs_size,
+                             NULL)) {
+        error_report("failed to load sdr file '%s'", ibs->sdr_filename);
+        sdrs_size = sizeof(init_sdrs);
+        sdrs = init_sdrs;
+    }
 
     for (i = 0; i < sdrs_size; i += len) {
         struct ipmi_sdr_header *sdrh;
 
         if (i + IPMI_SDR_HEADER_SIZE > sdrs_size) {
             error_report("Problem with recid 0x%4.4x", i);
-            return;
+            break;
         }
         sdrh = (struct ipmi_sdr_header *) &sdrs[i];
         len = ipmi_sdr_length(sdrh);
         if (i + len > sdrs_size) {
             error_report("Problem with recid 0x%4.4x", i);
-            return;
+            break;
         }
         sdr_add_entry(ibs, sdrh, len, NULL);
+    }
+
+    if (sdrs != init_sdrs) {
+        g_free(sdrs);
     }
 }
 
@@ -1780,6 +1793,11 @@ static void ipmi_sim_realize(DeviceState *dev, Error **errp)
     vmstate_register(NULL, 0, &vmstate_ipmi_sim, ibs);
 }
 
+static Property ipmi_sim_properties[] = {
+    DEFINE_PROP_STRING("sdrfile", IPMIBmcSim, sdr_filename),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ipmi_sim_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -1787,6 +1805,7 @@ static void ipmi_sim_class_init(ObjectClass *oc, void *data)
 
     dc->hotpluggable = false;
     dc->realize = ipmi_sim_realize;
+    dc->props = ipmi_sim_properties;
     bk->handle_command = ipmi_sim_handle_command;
 }
 
