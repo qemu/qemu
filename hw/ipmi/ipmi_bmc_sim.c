@@ -80,6 +80,9 @@
 #define IPMI_CMD_ENTER_SDR_REP_UPD_MODE   0x2A
 #define IPMI_CMD_EXIT_SDR_REP_UPD_MODE    0x2B
 #define IPMI_CMD_RUN_INIT_AGENT           0x2C
+#define IPMI_CMD_GET_FRU_AREA_INFO        0x10
+#define IPMI_CMD_READ_FRU_DATA            0x11
+#define IPMI_CMD_WRITE_FRU_DATA           0x12
 #define IPMI_CMD_GET_SEL_INFO             0x40
 #define IPMI_CMD_GET_SEL_ALLOC_INFO       0x41
 #define IPMI_CMD_RESERVE_SEL              0x42
@@ -121,6 +124,13 @@ typedef struct IPMISdr {
     uint8_t last_clear[4];
     uint8_t overflow;
 } IPMISdr;
+
+typedef struct IPMIFru {
+    char *filename;
+    unsigned int nentries;
+    uint16_t areasize;
+    uint8_t *data;
+} IPMIFru;
 
 typedef struct IPMISensor {
     uint8_t status;
@@ -213,6 +223,7 @@ struct IPMIBmcSim {
 
     IPMISel sel;
     IPMISdr sdr;
+    IPMIFru fru;
     IPMISensor sensors[MAX_SENSORS];
     char *sdr_filename;
 
@@ -1317,6 +1328,91 @@ static void get_sel_info(IPMIBmcSim *ibs,
     rsp_buffer_push(rsp, (ibs->sel.overflow << 7) | 0x02);
 }
 
+static void get_fru_area_info(IPMIBmcSim *ibs,
+                         uint8_t *cmd, unsigned int cmd_len,
+                         RspBuffer *rsp)
+{
+    uint8_t fruid;
+    uint16_t fru_entry_size;
+
+    fruid = cmd[2];
+
+    if (fruid >= ibs->fru.nentries) {
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
+        return;
+    }
+
+    fru_entry_size = ibs->fru.areasize;
+
+    rsp_buffer_push(rsp, fru_entry_size & 0xff);
+    rsp_buffer_push(rsp, fru_entry_size >> 8 & 0xff);
+    rsp_buffer_push(rsp, 0x0);
+}
+
+static void read_fru_data(IPMIBmcSim *ibs,
+                         uint8_t *cmd, unsigned int cmd_len,
+                         RspBuffer *rsp)
+{
+    uint8_t fruid;
+    uint16_t offset;
+    int i;
+    uint8_t *fru_entry;
+    unsigned int count;
+
+    fruid = cmd[2];
+    offset = (cmd[3] | cmd[4] << 8);
+
+    if (fruid >= ibs->fru.nentries) {
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
+        return;
+    }
+
+    if (offset >= ibs->fru.areasize - 1) {
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
+        return;
+    }
+
+    fru_entry = &ibs->fru.data[fruid * ibs->fru.areasize];
+
+    count = MIN(cmd[5], ibs->fru.areasize - offset);
+
+    rsp_buffer_push(rsp, count & 0xff);
+    for (i = 0; i < count; i++) {
+        rsp_buffer_push(rsp, fru_entry[offset + i]);
+    }
+}
+
+static void write_fru_data(IPMIBmcSim *ibs,
+                         uint8_t *cmd, unsigned int cmd_len,
+                         RspBuffer *rsp)
+{
+    uint8_t fruid;
+    uint16_t offset;
+    uint8_t *fru_entry;
+    unsigned int count;
+
+    fruid = cmd[2];
+    offset = (cmd[3] | cmd[4] << 8);
+
+    if (fruid >= ibs->fru.nentries) {
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
+        return;
+    }
+
+    if (offset >= ibs->fru.areasize - 1) {
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
+        return;
+    }
+
+    fru_entry = &ibs->fru.data[fruid * ibs->fru.areasize];
+
+    count = MIN(cmd_len - 5, ibs->fru.areasize - offset);
+
+    memcpy(fru_entry + offset, cmd + 5, count);
+
+    rsp_buffer_push(rsp, count & 0xff);
+}
+
 static void reserve_sel(IPMIBmcSim *ibs,
                         uint8_t *cmd, unsigned int cmd_len,
                         RspBuffer *rsp)
@@ -1653,6 +1749,9 @@ static const IPMINetfn app_netfn = {
 };
 
 static const IPMICmdHandler storage_cmds[] = {
+    [IPMI_CMD_GET_FRU_AREA_INFO] = { get_fru_area_info, 3 },
+    [IPMI_CMD_READ_FRU_DATA] = { read_fru_data, 5 },
+    [IPMI_CMD_WRITE_FRU_DATA] = { write_fru_data, 5 },
     [IPMI_CMD_GET_SDR_REP_INFO] = { get_sdr_rep_info },
     [IPMI_CMD_RESERVE_SDR_REP] = { reserve_sdr_rep },
     [IPMI_CMD_GET_SDR] = { get_sdr, 8 },
@@ -1755,6 +1854,36 @@ static const VMStateDescription vmstate_ipmi_sim = {
     }
 };
 
+static void ipmi_fru_init(IPMIFru *fru)
+{
+    int fsize;
+    int size = 0;
+
+    if (!fru->filename) {
+        goto out;
+    }
+
+    fsize = get_image_size(fru->filename);
+    if (fsize > 0) {
+        size = QEMU_ALIGN_UP(fsize, fru->areasize);
+        fru->data = g_malloc0(size);
+        if (load_image_size(fru->filename, fru->data, fsize) != fsize) {
+            error_report("Could not load file '%s'", fru->filename);
+            g_free(fru->data);
+            fru->data = NULL;
+        }
+    }
+
+out:
+    if (!fru->data) {
+        /* give one default FRU */
+        size = fru->areasize;
+        fru->data = g_malloc0(size);
+    }
+
+    fru->nentries = size / fru->areasize;
+}
+
 static void ipmi_sim_realize(DeviceState *dev, Error **errp)
 {
     IPMIBmc *b = IPMI_BMC(dev);
@@ -1776,6 +1905,8 @@ static void ipmi_sim_realize(DeviceState *dev, Error **errp)
 
     ipmi_sdr_init(ibs);
 
+    ipmi_fru_init(&ibs->fru);
+
     ibs->acpi_power_state[0] = 0;
     ibs->acpi_power_state[1] = 0;
 
@@ -1794,6 +1925,8 @@ static void ipmi_sim_realize(DeviceState *dev, Error **errp)
 }
 
 static Property ipmi_sim_properties[] = {
+    DEFINE_PROP_UINT16("fruareasize", IPMIBmcSim, fru.areasize, 1024),
+    DEFINE_PROP_STRING("frudatafile", IPMIBmcSim, fru.filename),
     DEFINE_PROP_STRING("sdrfile", IPMIBmcSim, sdr_filename),
     DEFINE_PROP_END_OF_LIST(),
 };
