@@ -473,6 +473,30 @@ static int attn_irq_enabled(IPMIBmcSim *ibs)
             IPMI_BMC_MSG_FLAG_EVT_BUF_FULL_SET(ibs));
 }
 
+void ipmi_bmc_gen_event(IPMIBmc *b, uint8_t *evt, bool log)
+{
+    IPMIBmcSim *ibs = IPMI_BMC_SIMULATOR(b);
+    IPMIInterface *s = ibs->parent.intf;
+    IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
+
+    if (!IPMI_BMC_EVENT_MSG_BUF_ENABLED(ibs)) {
+        return;
+    }
+
+    if (log && IPMI_BMC_EVENT_LOG_ENABLED(ibs)) {
+        sel_add_event(ibs, evt);
+    }
+
+    if (ibs->msg_flags & IPMI_BMC_MSG_FLAG_EVT_BUF_FULL) {
+        goto out;
+    }
+
+    memcpy(ibs->evtbuf, evt, 16);
+    ibs->msg_flags |= IPMI_BMC_MSG_FLAG_EVT_BUF_FULL;
+    k->set_atn(s, 1, attn_irq_enabled(ibs));
+ out:
+    return;
+}
 static void gen_event(IPMIBmcSim *ibs, unsigned int sens_num, uint8_t deassert,
                       uint8_t evd1, uint8_t evd2, uint8_t evd3)
 {

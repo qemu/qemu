@@ -261,4 +261,6 @@ typedef uint8_t ipmi_sdr_compact_buffer[sizeof(struct ipmi_sdr_compact)];
 
 int ipmi_bmc_sdr_find(IPMIBmc *b, uint16_t recid,
                       const struct ipmi_sdr_compact **sdr, uint16_t *nextrec);
+void ipmi_bmc_gen_event(IPMIBmc *b, uint8_t *evt, bool log);
+
 #endif
