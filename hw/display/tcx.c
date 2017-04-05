@@ -93,9 +93,9 @@ typedef struct TCXState {
     uint16_t cursy;
 } TCXState;
 
-static void tcx_set_dirty(TCXState *s)
+static void tcx_set_dirty(TCXState *s, ram_addr_t addr, int len)
 {
-    memory_region_set_dirty(&s->vram_mem, 0, MAXX * MAXY);
+    memory_region_set_dirty(&s->vram_mem, addr, len);
 }
 
 static inline int tcx24_check_dirty(TCXState *s, ram_addr_t page,
@@ -156,7 +156,7 @@ static void update_palette_entries(TCXState *s, int start, int end)
             break;
         }
     }
-    tcx_set_dirty(s);
+    tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
 }
 
 static void tcx_draw_line32(TCXState *s1, uint8_t *d,
@@ -526,7 +526,7 @@ static void tcx_invalidate_display(void *opaque)
 {
     TCXState *s = opaque;
 
-    tcx_set_dirty(s);
+    tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
     qemu_console_resize(s->con, s->width, s->height);
 }
 
@@ -534,7 +534,7 @@ static void tcx24_invalidate_display(void *opaque)
 {
     TCXState *s = opaque;
 
-    tcx_set_dirty(s);
+    tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
     qemu_console_resize(s->con, s->width, s->height);
 }
 
@@ -543,7 +543,7 @@ static int vmstate_tcx_post_load(void *opaque, int version_id)
     TCXState *s = opaque;
 
     update_palette_entries(s, 0, 256);
-    tcx_set_dirty(s);
+    tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
     return 0;
 }
 
