@@ -26,7 +26,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "cpu.h"
 #include "qemu/error-report.h"
 #include "ui/console.h"
 #include "hw/sysbus.h"
@@ -114,7 +113,7 @@ static void cg3_update_display(void *opaque)
     for (y = 0; y < height; y++) {
         int update = s->full_update;
 
-        page = (y * width) & TARGET_PAGE_MASK;
+        page = y * width;
         update |= memory_region_get_dirty(&s->vram_mem, page, page + width,
                                           DIRTY_MEMORY_VGA);
         if (update) {
@@ -148,8 +147,7 @@ static void cg3_update_display(void *opaque)
     }
     if (page_max >= page_min) {
         memory_region_reset_dirty(&s->vram_mem,
-                              page_min, page_max - page_min + TARGET_PAGE_SIZE,
-                              DIRTY_MEMORY_VGA);
+                              page_min, page_max - page_min, DIRTY_MEMORY_VGA);
     }
     /* vsync interrupt? */
     if (s->regs[0] & CG3_CR_ENABLE_INTS) {
