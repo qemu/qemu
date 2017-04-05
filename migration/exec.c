@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "channel.h"
+#include "exec.h"
 #include "migration/migration.h"
 #include "io/channel-command.h"
 #include "trace.h"

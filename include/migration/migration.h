@@ -163,10 +163,6 @@ void migration_tls_channel_connect(MigrationState *s,
 
 uint64_t migrate_max_downtime(void);
 
-void exec_start_incoming_migration(const char *host_port, Error **errp);
-
-void exec_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp);
-
 void tcp_start_incoming_migration(const char *host_port, Error **errp);
 
 void tcp_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp);
