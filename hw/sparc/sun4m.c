@@ -491,7 +491,6 @@ static void tcx_init(hwaddr addr, qemu_irq irq, int vram_size, int width,
     qdev_prop_set_uint16(dev, "width", width);
     qdev_prop_set_uint16(dev, "height", height);
     qdev_prop_set_uint16(dev, "depth", depth);
-    qdev_prop_set_uint64(dev, "prom_addr", addr);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
 

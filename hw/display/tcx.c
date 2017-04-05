@@ -843,8 +843,7 @@ static void tcx_realizefn(DeviceState *dev, Error **errp)
     vmstate_register_ram_global(&s->rom);
     fcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, TCX_ROM_FILE);
     if (fcode_filename) {
-        ret = load_image_targphys(fcode_filename, s->prom_addr,
-                                  FCODE_MAX_ROM_SIZE);
+        ret = load_image_mr(fcode_filename, &s->rom);
         g_free(fcode_filename);
         if (ret < 0 || ret > FCODE_MAX_ROM_SIZE) {
             error_report("tcx: could not load prom '%s'", TCX_ROM_FILE);
@@ -902,7 +901,6 @@ static Property tcx_properties[] = {
     DEFINE_PROP_UINT16("width",    TCXState, width,     -1),
     DEFINE_PROP_UINT16("height",   TCXState, height,    -1),
     DEFINE_PROP_UINT16("depth",    TCXState, depth,     -1),
-    DEFINE_PROP_UINT64("prom_addr", TCXState, prom_addr, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
