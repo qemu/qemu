@@ -25,7 +25,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "cpu.h" /* FIXME shouldn't use TARGET_PAGE_SIZE */
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "hw/loader.h"
@@ -423,8 +422,8 @@ static void tcx24_update_display(void *opaque)
     ds = 1024;
 
     memory_region_sync_dirty_bitmap(&ts->vram_mem);
-    for (y = 0; y < ts->height; page += TARGET_PAGE_SIZE) {
-        if (tcx_check_dirty(ts, page, TARGET_PAGE_SIZE)) {
+    for (y = 0; y < ts->height; y++, page += ds) {
+        if (tcx_check_dirty(ts, page, ds)) {
             if (y_start < 0)
                 y_start = y;
             if (page < page_min)
@@ -435,38 +434,6 @@ static void tcx24_update_display(void *opaque)
             if (y >= ts->cursy && y < ts->cursy+32 && ts->cursx < ts->width) {
                 tcx_draw_cursor32(ts, d, y, ts->width);
             }
-            d += dd;
-            s += ds;
-            cptr += ds;
-            s24 += ds;
-            y++;
-            tcx24_draw_line32(ts, d, s, ts->width, cptr, s24);
-            if (y >= ts->cursy && y < ts->cursy+32 && ts->cursx < ts->width) {
-                tcx_draw_cursor32(ts, d, y, ts->width);
-            }
-            d += dd;
-            s += ds;
-            cptr += ds;
-            s24 += ds;
-            y++;
-            tcx24_draw_line32(ts, d, s, ts->width, cptr, s24);
-            if (y >= ts->cursy && y < ts->cursy+32 && ts->cursx < ts->width) {
-                tcx_draw_cursor32(ts, d, y, ts->width);
-            }
-            d += dd;
-            s += ds;
-            cptr += ds;
-            s24 += ds;
-            y++;
-            tcx24_draw_line32(ts, d, s, ts->width, cptr, s24);
-            if (y >= ts->cursy && y < ts->cursy+32 && ts->cursx < ts->width) {
-                tcx_draw_cursor32(ts, d, y, ts->width);
-            }
-            d += dd;
-            s += ds;
-            cptr += ds;
-            s24 += ds;
-            y++;
         } else {
             if (y_start >= 0) {
                 /* flush to display */
@@ -474,12 +441,11 @@ static void tcx24_update_display(void *opaque)
                                ts->width, y - y_start);
                 y_start = -1;
             }
-            d += dd * 4;
-            s += ds * 4;
-            cptr += ds * 4;
-            s24 += ds * 4;
-            y += 4;
         }
+        d += dd;
+        s += ds;
+        cptr += ds;
+        s24 += ds;
     }
     if (y_start >= 0) {
         /* flush to display */
