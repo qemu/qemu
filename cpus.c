@@ -232,12 +232,31 @@ static int64_t cpu_get_icount_executed(CPUState *cpu)
     return cpu->icount_budget - (cpu->icount_decr.u16.low + cpu->icount_extra);
 }
 
+/*
+ * Update the global shared timer_state.qemu_icount to take into
+ * account executed instructions. This is done by the TCG vCPU
+ * thread so the main-loop can see time has moved forward.
+ */
+void cpu_update_icount(CPUState *cpu)
+{
+    int64_t executed = cpu_get_icount_executed(cpu);
+    cpu->icount_budget -= executed;
+
+#ifdef CONFIG_ATOMIC64
+    atomic_set__nocheck(&timers_state.qemu_icount,
+                        atomic_read__nocheck(&timers_state.qemu_icount) +
+                        executed);
+#else /* FIXME: we need 64bit atomics to do this safely */
+    timers_state.qemu_icount += executed;
+#endif
+}
+
 int64_t cpu_get_icount_raw(void)
 {
     int64_t icount;
     CPUState *cpu = current_cpu;
 
-    icount = timers_state.qemu_icount;
+    icount = atomic_read(&timers_state.qemu_icount);
     if (cpu && cpu->running) {
         if (!cpu->can_do_io) {
             fprintf(stderr, "Bad icount read\n");
@@ -1220,7 +1239,7 @@ static void process_icount_data(CPUState *cpu)
 {
     if (use_icount) {
         /* Account for executed instructions */
-        timers_state.qemu_icount += cpu_get_icount_executed(cpu);
+        cpu_update_icount(cpu);
 
         /* Reset the counters */
         cpu->icount_decr.u16.low = 0;
