@@ -252,7 +252,7 @@ struct BlockDriver {
      * Returns 0 for completed check, -errno for internal errors.
      * The check results are stored in result.
      */
-    int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result,
+    int (*bdrv_check)(BlockDriverState *bs, BdrvCheckResult *result,
         BdrvCheckMode fix);
 
     int (*bdrv_amend_options)(BlockDriverState *bs, QemuOpts *opts,
@@ -454,13 +454,13 @@ struct BdrvChildRole {
     /* Returns a name that is supposedly more useful for human users than the
      * node name for identifying the node in question (in particular, a BB
      * name), or NULL if the parent can't provide a better name. */
-    const char* (*get_name)(BdrvChild *child);
+    const char *(*get_name)(BdrvChild *child);
 
     /* Returns a malloced string that describes the parent of the child for a
      * human reader. This could be a node-name, BlockBackend name, qdev ID or
      * QOM path of the device owning the BlockBackend, job type and ID etc. The
      * caller is responsible for freeing the memory. */
-    char* (*get_parent_desc)(BdrvChild *child);
+    char *(*get_parent_desc)(BdrvChild *child);
 
     /*
      * If this pair of functions is implemented, the parent doesn't issue new
