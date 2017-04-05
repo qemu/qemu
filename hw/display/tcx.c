@@ -105,17 +105,21 @@ static void tcx_set_dirty(TCXState *s, ram_addr_t addr, int len)
     }
 }
 
-static inline int tcx24_check_dirty(TCXState *s, ram_addr_t page,
-                                    ram_addr_t page24, ram_addr_t cpage)
+static int tcx_check_dirty(TCXState *s, ram_addr_t addr, int len)
 {
     int ret;
 
-    ret = memory_region_get_dirty(&s->vram_mem, page, TARGET_PAGE_SIZE,
-                                  DIRTY_MEMORY_VGA);
-    ret |= memory_region_get_dirty(&s->vram_mem, page24, TARGET_PAGE_SIZE * 4,
-                                   DIRTY_MEMORY_VGA);
-    ret |= memory_region_get_dirty(&s->vram_mem, cpage, TARGET_PAGE_SIZE * 4,
-                                   DIRTY_MEMORY_VGA);
+    ret = memory_region_get_dirty(&s->vram_mem, addr, len, DIRTY_MEMORY_VGA);
+
+    if (s->depth == 24) {
+        ret |= memory_region_get_dirty(&s->vram_mem,
+                                       s->vram24_offset + addr * 4, len * 4,
+                                       DIRTY_MEMORY_VGA);
+        ret |= memory_region_get_dirty(&s->vram_mem,
+                                       s->cplane_offset + addr * 4, len * 4,
+                                       DIRTY_MEMORY_VGA);
+    }
+
     return ret;
 }
 
@@ -366,8 +370,7 @@ static void tcx_update_display(void *opaque)
 
     memory_region_sync_dirty_bitmap(&ts->vram_mem);
     for (y = 0; y < ts->height; page += TARGET_PAGE_SIZE) {
-        if (memory_region_get_dirty(&ts->vram_mem, page, TARGET_PAGE_SIZE,
-                                    DIRTY_MEMORY_VGA)) {
+        if (tcx_check_dirty(ts, page, TARGET_PAGE_SIZE)) {
             if (y_start < 0)
                 y_start = y;
             if (page < page_min)
@@ -461,7 +464,7 @@ static void tcx24_update_display(void *opaque)
     memory_region_sync_dirty_bitmap(&ts->vram_mem);
     for (y = 0; y < ts->height; page += TARGET_PAGE_SIZE,
             page24 += TARGET_PAGE_SIZE, cpage += TARGET_PAGE_SIZE) {
-        if (tcx24_check_dirty(ts, page, page24, cpage)) {
+        if (tcx_check_dirty(ts, page, TARGET_PAGE_SIZE)) {
             if (y_start < 0)
                 y_start = y;
             if (page < page_min)
