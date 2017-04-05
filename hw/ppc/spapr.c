@@ -97,45 +97,40 @@
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
-static int try_create_xics(sPAPRMachineState *spapr, const char *type_ics,
-                           const char *type_icp, int nr_servers,
-                           int nr_irqs, Error **errp)
+static ICSState *spapr_ics_create(sPAPRMachineState *spapr,
+                                  const char *type_ics,
+                                  int nr_irqs, Error **errp)
 {
-    XICSFabric *xi = XICS_FABRIC(spapr);
     Error *err = NULL, *local_err = NULL;
-    ICSState *ics = NULL;
+    Object *obj;
 
-    ics = ICS_SIMPLE(object_new(type_ics));
-    object_property_add_child(OBJECT(spapr), "ics", OBJECT(ics), NULL);
-    object_property_set_int(OBJECT(ics), nr_irqs, "nr-irqs", &err);
-    object_property_add_const_link(OBJECT(ics), "xics", OBJECT(xi), NULL);
-    object_property_set_bool(OBJECT(ics), true, "realized", &local_err);
+    obj = object_new(type_ics);
+    object_property_add_child(OBJECT(spapr), "ics", obj, NULL);
+    object_property_add_const_link(obj, "xics", OBJECT(spapr), &error_abort);
+    object_property_set_int(obj, nr_irqs, "nr-irqs", &err);
+    object_property_set_bool(obj, true, "realized", &local_err);
     error_propagate(&err, local_err);
     if (err) {
         error_propagate(errp, err);
-        return -1;
+        return NULL;
     }
 
-    spapr->nr_servers = nr_servers;
-    spapr->ics = ics;
-    spapr->icp_type = type_icp;
-    return 0;
+    return ICS_SIMPLE(obj);
 }
 
-static int xics_system_init(MachineState *machine,
-                            int nr_servers, int nr_irqs, Error **errp)
+static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
 {
-    int rc = -1;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
 
     if (kvm_enabled()) {
         Error *err = NULL;
 
         if (machine_kernel_irqchip_allowed(machine) &&
-            !xics_kvm_init(SPAPR_MACHINE(machine), errp)) {
-            rc = try_create_xics(SPAPR_MACHINE(machine), TYPE_ICS_KVM,
-                                 TYPE_KVM_ICP, nr_servers, nr_irqs, &err);
+            !xics_kvm_init(spapr, errp)) {
+            spapr->icp_type = TYPE_KVM_ICP;
+            spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs, &err);
         }
-        if (machine_kernel_irqchip_required(machine) && rc < 0) {
+        if (machine_kernel_irqchip_required(machine) && !spapr->ics) {
             error_reportf_err(err,
                               "kernel_irqchip requested but unavailable: ");
         } else {
@@ -143,13 +138,11 @@ static int xics_system_init(MachineState *machine,
         }
     }
 
-    if (rc < 0) {
-        xics_spapr_init(SPAPR_MACHINE(machine), errp);
-        rc = try_create_xics(SPAPR_MACHINE(machine), TYPE_ICS_SIMPLE,
-                               TYPE_ICP, nr_servers, nr_irqs, errp);
+    if (!spapr->ics) {
+        xics_spapr_init(spapr, errp);
+        spapr->icp_type = TYPE_ICP;
+        spapr->ics = spapr_ics_create(spapr, TYPE_ICS_SIMPLE, nr_irqs, errp);
     }
-
-    return rc;
 }
 
 static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
@@ -977,6 +970,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     void *fdt;
     sPAPRPHBState *phb;
     char *buf;
+    int smt = kvmppc_smt_threads();
 
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create_empty_tree(fdt, FDT_MAX_SIZE)));
@@ -1016,7 +1010,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
-    spapr_dt_xics(spapr->nr_servers, fdt, PHANDLE_XICP);
+    spapr_dt_xics(DIV_ROUND_UP(max_cpus * smt, smp_threads), fdt, PHANDLE_XICP);
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
@@ -2045,7 +2039,6 @@ static void ppc_spapr_init(MachineState *machine)
     hwaddr node0_size = spapr_node0_size();
     long load_limit, fw_size;
     char *filename;
-    int smt = kvmppc_smt_threads();
 
     msi_nonbroken = true;
 
@@ -2096,8 +2089,7 @@ static void ppc_spapr_init(MachineState *machine)
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
 
     /* Set up Interrupt Controller before we create the VCPUs */
-    xics_system_init(machine, DIV_ROUND_UP(max_cpus * smt, smp_threads),
-                     XICS_IRQS_SPAPR, &error_fatal);
+    xics_system_init(machine, XICS_IRQS_SPAPR, &error_fatal);
 
     /* Set up containers for ibm,client-set-architecture negotiated options */
     spapr->ov5 = spapr_ovec_new();
