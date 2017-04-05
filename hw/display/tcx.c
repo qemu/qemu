@@ -96,6 +96,13 @@ typedef struct TCXState {
 static void tcx_set_dirty(TCXState *s, ram_addr_t addr, int len)
 {
     memory_region_set_dirty(&s->vram_mem, addr, len);
+
+    if (s->depth == 24) {
+        memory_region_set_dirty(&s->vram_mem, s->vram24_offset + addr * 4,
+                                len * 4);
+        memory_region_set_dirty(&s->vram_mem, s->cplane_offset + addr * 4,
+                                len * 4);
+    }
 }
 
 static inline int tcx24_check_dirty(TCXState *s, ram_addr_t page,
