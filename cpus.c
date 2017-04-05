@@ -1211,8 +1211,7 @@ static void handle_icount_deadline(void)
 static void prepare_icount_for_run(CPUState *cpu)
 {
     if (use_icount) {
-        int64_t count;
-        int decr;
+        int insns_left;
 
         /* These should always be cleared by process_icount_data after
          * each vCPU execution. However u16.high can be raised
@@ -1221,17 +1220,10 @@ static void prepare_icount_for_run(CPUState *cpu)
         g_assert(cpu->icount_decr.u16.low == 0);
         g_assert(cpu->icount_extra == 0);
 
-
-        count = tcg_get_icount_limit();
-
-        /* To calculate what we have executed so far we need to know
-         * what we originally budgeted to run this cycle */
-        cpu->icount_budget = count;
-
-        decr = (count > 0xffff) ? 0xffff : count;
-        count -= decr;
-        cpu->icount_decr.u16.low = decr;
-        cpu->icount_extra = count;
+        cpu->icount_budget = tcg_get_icount_limit();
+        insns_left = MIN(0xffff, cpu->icount_budget);
+        cpu->icount_decr.u16.low = insns_left;
+        cpu->icount_extra = cpu->icount_budget - insns_left;
     }
 }
 

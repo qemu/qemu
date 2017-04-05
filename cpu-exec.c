@@ -600,13 +600,13 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
     /* Instruction counter expired.  */
     assert(use_icount);
 #ifndef CONFIG_USER_ONLY
-    if (cpu->icount_extra) {
-        /* Refill decrementer and continue execution.  */
-        cpu->icount_extra += insns_left;
-        insns_left = MIN(0xffff, cpu->icount_extra);
-        cpu->icount_extra -= insns_left;
-        cpu->icount_decr.u16.low = insns_left;
-    } else {
+    /* Ensure global icount has gone forward */
+    cpu_update_icount(cpu);
+    /* Refill decrementer and continue execution.  */
+    insns_left = MIN(0xffff, cpu->icount_budget);
+    cpu->icount_decr.u16.low = insns_left;
+    cpu->icount_extra = cpu->icount_budget - insns_left;
+    if (!cpu->icount_extra) {
         /* Execute any remaining instructions, then let the main loop
          * handle the next event.
          */
