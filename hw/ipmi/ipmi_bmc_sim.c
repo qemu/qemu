@@ -416,6 +416,22 @@ static int sdr_find_entry(IPMISdr *sdr, uint16_t recid,
     return 1;
 }
 
+int ipmi_bmc_sdr_find(IPMIBmc *b, uint16_t recid,
+                      const struct ipmi_sdr_compact **sdr, uint16_t *nextrec)
+
+{
+    IPMIBmcSim *ibs = IPMI_BMC_SIMULATOR(b);
+    unsigned int pos;
+
+    pos = 0;
+    if (sdr_find_entry(&ibs->sdr, recid, &pos, nextrec)) {
+        return -1;
+    }
+
+    *sdr = (const struct ipmi_sdr_compact *) &ibs->sdr.sdr[pos];
+    return 0;
+}
+
 static void sel_inc_reservation(IPMISel *sel)
 {
     sel->reservation++;
