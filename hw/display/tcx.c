@@ -430,7 +430,7 @@ static void tcx24_update_display(void *opaque)
 {
     TCXState *ts = opaque;
     DisplaySurface *surface = qemu_console_surface(ts->con);
-    ram_addr_t page, page_min, page_max, cpage, page24;
+    ram_addr_t page, page_min, page_max;
     int y, y_start, dd, ds;
     uint8_t *d, *s;
     uint32_t *cptr, *s24;
@@ -440,8 +440,6 @@ static void tcx24_update_display(void *opaque)
     }
 
     page = 0;
-    page24 = ts->vram24_offset;
-    cpage = ts->cplane_offset;
     y_start = -1;
     page_min = -1;
     page_max = 0;
@@ -453,8 +451,7 @@ static void tcx24_update_display(void *opaque)
     ds = 1024;
 
     memory_region_sync_dirty_bitmap(&ts->vram_mem);
-    for (y = 0; y < ts->height; page += TARGET_PAGE_SIZE,
-            page24 += TARGET_PAGE_SIZE, cpage += TARGET_PAGE_SIZE) {
+    for (y = 0; y < ts->height; page += TARGET_PAGE_SIZE) {
         if (tcx_check_dirty(ts, page, TARGET_PAGE_SIZE)) {
             if (y_start < 0)
                 y_start = y;
