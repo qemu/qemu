@@ -20,6 +20,7 @@
 #include "migration/blocker.h"
 #include "exec.h"
 #include "fd.h"
+#include "socket.h"
 #include "migration/migration.h"
 #include "savevm.h"
 #include "qemu-file-channel.h"

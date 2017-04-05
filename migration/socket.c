@@ -20,6 +20,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "channel.h"
+#include "socket.h"
 #include "migration/migration.h"
 #include "qemu-file.h"
 #include "io/channel-socket.h"
