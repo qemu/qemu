@@ -140,25 +140,12 @@ static void update_palette_entries(TCXState *s, int start, int end)
     int i;
 
     for (i = start; i < end; i++) {
-        switch (surface_bits_per_pixel(surface)) {
-        default:
-        case 8:
-            s->palette[i] = rgb_to_pixel8(s->r[i], s->g[i], s->b[i]);
-            break;
-        case 15:
-            s->palette[i] = rgb_to_pixel15(s->r[i], s->g[i], s->b[i]);
-            break;
-        case 16:
-            s->palette[i] = rgb_to_pixel16(s->r[i], s->g[i], s->b[i]);
-            break;
-        case 32:
-            if (is_surface_bgr(surface)) {
-                s->palette[i] = rgb_to_pixel32bgr(s->r[i], s->g[i], s->b[i]);
-            } else {
-                s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
-            }
-            break;
+        if (is_surface_bgr(surface)) {
+            s->palette[i] = rgb_to_pixel32bgr(s->r[i], s->g[i], s->b[i]);
+        } else {
+            s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
         }
+        break;
     }
     tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
 }
@@ -173,31 +160,6 @@ static void tcx_draw_line32(TCXState *s1, uint8_t *d,
     for (x = 0; x < width; x++) {
         val = *s++;
         *p++ = s1->palette[val];
-    }
-}
-
-static void tcx_draw_line16(TCXState *s1, uint8_t *d,
-                            const uint8_t *s, int width)
-{
-    int x;
-    uint8_t val;
-    uint16_t *p = (uint16_t *)d;
-
-    for (x = 0; x < width; x++) {
-        val = *s++;
-        *p++ = s1->palette[val];
-    }
-}
-
-static void tcx_draw_line8(TCXState *s1, uint8_t *d,
-                           const uint8_t *s, int width)
-{
-    int x;
-    uint8_t val;
-
-    for(x = 0; x < width; x++) {
-        val = *s++;
-        *d++ = s1->palette[val];
     }
 }
 
@@ -222,57 +184,6 @@ static void tcx_draw_cursor32(TCXState *s1, uint8_t *d,
             }
         }
         p++;
-        mask <<= 1;
-        bits <<= 1;
-    }
-}
-
-static void tcx_draw_cursor16(TCXState *s1, uint8_t *d,
-                              int y, int width)
-{
-    int x, len;
-    uint32_t mask, bits;
-    uint16_t *p = (uint16_t *)d;
-
-    y = y - s1->cursy;
-    mask = s1->cursmask[y];
-    bits = s1->cursbits[y];
-    len = MIN(width - s1->cursx, 32);
-    p = &p[s1->cursx];
-    for (x = 0; x < len; x++) {
-        if (mask & 0x80000000) {
-            if (bits & 0x80000000) {
-                *p = s1->palette[259];
-            } else {
-                *p = s1->palette[258];
-            }
-        }
-        p++;
-        mask <<= 1;
-        bits <<= 1;
-    }
-}
-
-static void tcx_draw_cursor8(TCXState *s1, uint8_t *d,
-                              int y, int width)
-{
-    int x, len;
-    uint32_t mask, bits;
-
-    y = y - s1->cursy;
-    mask = s1->cursmask[y];
-    bits = s1->cursbits[y];
-    len = MIN(width - s1->cursx, 32);
-    d = &d[s1->cursx];
-    for (x = 0; x < len; x++) {
-        if (mask & 0x80000000) {
-            if (bits & 0x80000000) {
-                *d = s1->palette[259];
-            } else {
-                *d = s1->palette[258];
-            }
-        }
-        d++;
         mask <<= 1;
         bits <<= 1;
     }
@@ -326,10 +237,8 @@ static void tcx_update_display(void *opaque)
     ram_addr_t page, page_min, page_max;
     int y, y_start, dd, ds;
     uint8_t *d, *s;
-    void (*f)(TCXState *s1, uint8_t *dst, const uint8_t *src, int width);
-    void (*fc)(TCXState *s1, uint8_t *dst, int y, int width);
 
-    if (surface_bits_per_pixel(surface) == 0) {
+    if (surface_bits_per_pixel(surface) != 32) {
         return;
     }
 
@@ -342,25 +251,6 @@ static void tcx_update_display(void *opaque)
     dd = surface_stride(surface);
     ds = 1024;
 
-    switch (surface_bits_per_pixel(surface)) {
-    case 32:
-        f = tcx_draw_line32;
-        fc = tcx_draw_cursor32;
-        break;
-    case 15:
-    case 16:
-        f = tcx_draw_line16;
-        fc = tcx_draw_cursor16;
-        break;
-    default:
-    case 8:
-        f = tcx_draw_line8;
-        fc = tcx_draw_cursor8;
-        break;
-    case 0:
-        return;
-    }
-
     memory_region_sync_dirty_bitmap(&ts->vram_mem);
     for (y = 0; y < ts->height; y++, page += ds) {
         if (tcx_check_dirty(ts, page, ds)) {
@@ -371,9 +261,9 @@ static void tcx_update_display(void *opaque)
             if (page > page_max)
                 page_max = page;
 
-            f(ts, d, s, ts->width);
+            tcx_draw_line32(ts, d, s, ts->width);
             if (y >= ts->cursy && y < ts->cursy + 32 && ts->cursx < ts->width) {
-                fc(ts, d, y, ts->width);
+                tcx_draw_cursor32(ts, d, y, ts->width);
             }
         } else {
             if (y_start >= 0) {
