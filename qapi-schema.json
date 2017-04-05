@@ -894,11 +894,18 @@
 # @release-ram: if enabled, qemu will free the migrated ram pages on the source
 #        during postcopy-ram migration. (since 2.9)
 #
+# @block: If enabled, QEMU will also migrate the contents of all block
+#          devices.  Default is disabled.  A possible alternative uses
+#          mirror jobs to a builtin NBD server on the destination, which
+#          offers more flexibility.
+#          (Since 2.10)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
-           'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram'] }
+           'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
+           'block' ] }
 
 ##
 # @MigrationCapabilityStatus:
@@ -1009,13 +1016,20 @@
 # @x-checkpoint-delay: The delay time (in ms) between two COLO checkpoints in
 #          periodic mode. (Since 2.8)
 #
+# @block-incremental: Affects how much storage is migrated when the
+# 	block migration capability is enabled.  When false, the entire
+# 	storage backing chain is migrated into a flattened image at
+# 	the destination; when true, only the active qcow2 layer is
+# 	migrated and the destination must already have access to the
+# 	same backing chain as was used on the source.  (since 2.10)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
-           'downtime-limit', 'x-checkpoint-delay' ] }
+           'downtime-limit', 'x-checkpoint-delay', 'block-incremental' ] }
 
 ##
 # @migrate-set-parameters:
@@ -1082,6 +1096,13 @@
 #
 # @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
 #
+# @block-incremental: Affects how much storage is migrated when the
+# 	block migration capability is enabled.  When false, the entire
+# 	storage backing chain is migrated into a flattened image at
+# 	the destination; when true, only the active qcow2 layer is
+# 	migrated and the destination must already have access to the
+# 	same backing chain as was used on the source.  (since 2.10)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -1094,7 +1115,8 @@
             '*tls-hostname': 'str',
             '*max-bandwidth': 'int',
             '*downtime-limit': 'int',
-            '*x-checkpoint-delay': 'int'} }
+            '*x-checkpoint-delay': 'int',
+            '*block-incremental': 'bool' } }
 
 ##
 # @query-migrate-parameters:

@@ -327,6 +327,10 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRId64 "\n",
             MigrationParameter_lookup[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY],
             params->x_checkpoint_delay);
+        assert(params->has_block_incremental);
+        monitor_printf(mon, "%s: %s\n",
+            MigrationParameter_lookup[MIGRATION_PARAMETER_BLOCK_INCREMENTAL],
+                       params->block_incremental ? "on" : "off");
     }
 
     qapi_free_MigrationParameters(params);
@@ -1528,6 +1532,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     Visitor *v = string_input_visitor_new(valuestr);
     uint64_t valuebw = 0;
     int64_t valueint = 0;
+    bool valuebool = false;
     Error *err = NULL;
     bool use_int_value = false;
     int i, ret;
@@ -1581,6 +1586,14 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
             case MIGRATION_PARAMETER_X_CHECKPOINT_DELAY:
                 p.has_x_checkpoint_delay = true;
                 use_int_value = true;
+                break;
+            case MIGRATION_PARAMETER_BLOCK_INCREMENTAL:
+                p.has_block_incremental = true;
+                visit_type_bool(v, param, &valuebool, &err);
+                if (err) {
+                    goto cleanup;
+                }
+                p.block_incremental = valuebool;
                 break;
             }
 

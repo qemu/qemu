@@ -592,6 +592,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->downtime_limit = s->parameters.downtime_limit;
     params->has_x_checkpoint_delay = true;
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
+    params->has_block_incremental = true;
+    params->block_incremental = s->parameters.block_incremental;
 
     return params;
 }
@@ -900,6 +902,9 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
             colo_checkpoint_notify(s);
         }
     }
+    if (params->has_block_incremental) {
+        s->parameters.block_incremental = params->block_incremental;
+    }
 }
 
 
@@ -935,6 +940,33 @@ void migrate_set_state(int *state, int old_state, int new_state)
     }
 }
 
+void migrate_set_block_enabled(bool value, Error **errp)
+{
+    MigrationCapabilityStatusList *cap;
+
+    cap = g_new0(MigrationCapabilityStatusList, 1);
+    cap->value = g_new0(MigrationCapabilityStatus, 1);
+    cap->value->capability = MIGRATION_CAPABILITY_BLOCK;
+    cap->value->state = value;
+    qmp_migrate_set_capabilities(cap, errp);
+    qapi_free_MigrationCapabilityStatusList(cap);
+}
+
+static void migrate_set_block_incremental(MigrationState *s, bool value)
+{
+    s->parameters.block_incremental = value;
+}
+
+static void block_cleanup_parameters(MigrationState *s)
+{
+    if (s->must_remove_block_options) {
+        /* setting to false can never fail */
+        migrate_set_block_enabled(false, &error_abort);
+        migrate_set_block_incremental(s, false);
+        s->must_remove_block_options = false;
+    }
+}
+
 static void migrate_fd_cleanup(void *opaque)
 {
     MigrationState *s = opaque;
@@ -967,6 +999,7 @@ static void migrate_fd_cleanup(void *opaque)
     }
 
     notifier_list_notify(&migration_state_notifiers, s);
+    block_cleanup_parameters(s);
 }
 
 void migrate_fd_error(MigrationState *s, const Error *error)
@@ -979,6 +1012,7 @@ void migrate_fd_error(MigrationState *s, const Error *error)
         s->error = error_copy(error);
     }
     notifier_list_notify(&migration_state_notifiers, s);
+    block_cleanup_parameters(s);
 }
 
 static void migrate_fd_cancel(MigrationState *s)
@@ -1020,6 +1054,7 @@ static void migrate_fd_cancel(MigrationState *s)
             s->block_inactive = false;
         }
     }
+    block_cleanup_parameters(s);
 }
 
 void add_migration_state_change_notifier(Notifier *notify)
@@ -1205,6 +1240,24 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 
     if (migration_is_blocked(errp)) {
         return;
+    }
+
+    if ((has_blk && blk) || (has_inc && inc)) {
+        if (migrate_use_block() || migrate_use_block_incremental()) {
+            error_setg(errp, "Command options are incompatible with "
+                       "current migration capabilities");
+            return;
+        }
+        migrate_set_block_enabled(true, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+        s->must_remove_block_options = true;
+    }
+
+    if (has_inc && inc) {
+        migrate_set_block_incremental(s, true);
     }
 
     s = migrate_init(&params);
@@ -1402,6 +1455,24 @@ int64_t migrate_xbzrle_cache_size(void)
     s = migrate_get_current();
 
     return s->xbzrle_cache_size;
+}
+
+bool migrate_use_block(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK];
+}
+
+bool migrate_use_block_incremental(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.block_incremental;
 }
 
 /* migration thread support */

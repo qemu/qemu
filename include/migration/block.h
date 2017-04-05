@@ -20,4 +20,6 @@ uint64_t blk_mig_bytes_transferred(void);
 uint64_t blk_mig_bytes_remaining(void);
 uint64_t blk_mig_bytes_total(void);
 
+void migrate_set_block_enabled(bool value, Error **errp);
+
 #endif /* MIGRATION_BLOCK_H */

@@ -153,6 +153,9 @@ struct MigrationState
 
     /* The last error that occurred */
     Error *error;
+    /* Do we have to clean up -b/-i from old migrate parameters */
+    /* This feature is deprecated and will be removed */
+    bool must_remove_block_options;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
@@ -264,6 +267,9 @@ int64_t migrate_xbzrle_cache_size(void);
 bool migrate_colo_enabled(void);
 
 int64_t xbzrle_cache_resize(int64_t new_size);
+
+bool migrate_use_block(void);
+bool migrate_use_block_incremental(void);
 
 bool migrate_use_compression(void);
 int migrate_compress_level(void);
