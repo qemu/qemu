@@ -525,7 +525,7 @@ static void tcx_stip_writel(void *opaque, hwaddr addr,
                 val <<= 1;
             }
         }
-        memory_region_set_dirty(&s->vram_mem, addr, 32);
+        tcx_set_dirty(s, addr, 32);
     }
 }
 
@@ -558,7 +558,7 @@ static void tcx_rstip_writel(void *opaque, hwaddr addr,
                 val <<= 1;
             }
         }
-        memory_region_set_dirty(&s->vram_mem, addr, 32);
+        tcx_set_dirty(s, addr, 32);
     }
 }
 
@@ -616,7 +616,7 @@ static void tcx_blit_writel(void *opaque, hwaddr addr,
                 memcpy(&s->vram24[addr], &s->vram24[adsr], len * 4);
             }
         }
-        memory_region_set_dirty(&s->vram_mem, addr, len);
+        tcx_set_dirty(s, addr, len);
     }
 }
 
@@ -650,7 +650,7 @@ static void tcx_rblit_writel(void *opaque, hwaddr addr,
                 memcpy(&s->cplane[addr], &s->cplane[adsr], len * 4);
             }
         }
-        memory_region_set_dirty(&s->vram_mem, addr, len);
+        tcx_set_dirty(s, addr, len);
     }
 }
 
@@ -687,7 +687,7 @@ static void tcx_invalidate_cursor_position(TCXState *s)
     start = ymin * 1024;
     end   = ymax * 1024;
 
-    memory_region_set_dirty(&s->vram_mem, start, end-start);
+    tcx_set_dirty(s, start, end - start);
 }
 
 static uint64_t tcx_thc_readl(void *opaque, hwaddr addr,
