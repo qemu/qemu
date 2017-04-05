@@ -12,7 +12,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
-#include "include/migration/migration.h"
+#include "xbzrle.h"
 
 /*
   page = zrun nzrun

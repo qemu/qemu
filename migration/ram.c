@@ -35,6 +35,7 @@
 #include "qemu/bitmap.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
+#include "xbzrle.h"
 #include "migration/migration.h"
 #include "postcopy-ram.h"
 #include "exec/address-spaces.h"
