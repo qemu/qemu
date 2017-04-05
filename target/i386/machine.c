@@ -136,36 +136,6 @@ static const VMStateDescription vmstate_mtrr_var = {
 #define VMSTATE_MTRR_VARS(_field, _state, _n, _v)                    \
     VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_mtrr_var, MTRRVar)
 
-static int put_fpreg_error(QEMUFile *f, void *opaque, size_t size,
-                           VMStateField *field, QJSON *vmdesc)
-{
-    fprintf(stderr, "call put_fpreg() with invalid arguments\n");
-    exit(0);
-    return 0;
-}
-
-/* XXX: add that in a FPU generic layer */
-union x86_longdouble {
-    uint64_t mant;
-    uint16_t exp;
-};
-
-#define MANTD1(fp)	(fp & ((1LL << 52) - 1))
-#define EXPBIAS1 1023
-#define EXPD1(fp)	((fp >> 52) & 0x7FF)
-#define SIGND1(fp)	((fp >> 32) & 0x80000000)
-
-static void fp64_to_fp80(union x86_longdouble *p, uint64_t temp)
-{
-    int e;
-    /* mantissa */
-    p->mant = (MANTD1(temp) << 11) | (1LL << 63);
-    /* exponent + sign */
-    e = EXPD1(temp) - EXPBIAS1 + 16383;
-    e |= SIGND1(temp) >> 16;
-    p->exp = e;
-}
-
 static int get_fpreg(QEMUFile *f, void *opaque, size_t size,
                      VMStateField *field)
 {
@@ -199,76 +169,6 @@ static const VMStateInfo vmstate_fpreg = {
     .get  = get_fpreg,
     .put  = put_fpreg,
 };
-
-static int get_fpreg_1_mmx(QEMUFile *f, void *opaque, size_t size,
-                           VMStateField *field)
-{
-    union x86_longdouble *p = opaque;
-    uint64_t mant;
-
-    qemu_get_be64s(f, &mant);
-    p->mant = mant;
-    p->exp = 0xffff;
-    return 0;
-}
-
-static const VMStateInfo vmstate_fpreg_1_mmx = {
-    .name = "fpreg_1_mmx",
-    .get  = get_fpreg_1_mmx,
-    .put  = put_fpreg_error,
-};
-
-static int get_fpreg_1_no_mmx(QEMUFile *f, void *opaque, size_t size,
-                              VMStateField *field)
-{
-    union x86_longdouble *p = opaque;
-    uint64_t mant;
-
-    qemu_get_be64s(f, &mant);
-    fp64_to_fp80(p, mant);
-    return 0;
-}
-
-static const VMStateInfo vmstate_fpreg_1_no_mmx = {
-    .name = "fpreg_1_no_mmx",
-    .get  = get_fpreg_1_no_mmx,
-    .put  = put_fpreg_error,
-};
-
-static bool fpregs_is_0(void *opaque, int version_id)
-{
-    X86CPU *cpu = opaque;
-    CPUX86State *env = &cpu->env;
-
-    return (env->fpregs_format_vmstate == 0);
-}
-
-static bool fpregs_is_1_mmx(void *opaque, int version_id)
-{
-    X86CPU *cpu = opaque;
-    CPUX86State *env = &cpu->env;
-    int guess_mmx;
-
-    guess_mmx = ((env->fptag_vmstate == 0xff) &&
-                 (env->fpus_vmstate & 0x3800) == 0);
-    return (guess_mmx && (env->fpregs_format_vmstate == 1));
-}
-
-static bool fpregs_is_1_no_mmx(void *opaque, int version_id)
-{
-    X86CPU *cpu = opaque;
-    CPUX86State *env = &cpu->env;
-    int guess_mmx;
-
-    guess_mmx = ((env->fptag_vmstate == 0xff) &&
-                 (env->fpus_vmstate & 0x3800) == 0);
-    return (!guess_mmx && (env->fpregs_format_vmstate == 1));
-}
-
-#define VMSTATE_FP_REGS(_field, _state, _n)                               \
-    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_0, vmstate_fpreg, FPReg), \
-    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_1_mmx, vmstate_fpreg_1_mmx, FPReg), \
-    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_1_no_mmx, vmstate_fpreg_1_no_mmx, FPReg)
 
 static bool version_is_5(void *opaque, int version_id)
 {
@@ -356,6 +256,10 @@ static int cpu_post_load(void *opaque, int version_id)
         return -EINVAL;
     }
 
+    if (env->fpregs_format_vmstate) {
+        error_report("Unsupported old non-softfloat CPU state");
+        return -EINVAL;
+    }
     /*
      * Real mode guest segments register DPL should be zero.
      * Older KVM version were setting it wrongly.
@@ -943,7 +847,8 @@ VMStateDescription vmstate_x86_cpu = {
         VMSTATE_UINT16(env.fpus_vmstate, X86CPU),
         VMSTATE_UINT16(env.fptag_vmstate, X86CPU),
         VMSTATE_UINT16(env.fpregs_format_vmstate, X86CPU),
-        VMSTATE_FP_REGS(env.fpregs, X86CPU, 8),
+
+        VMSTATE_STRUCT_ARRAY(env.fpregs, X86CPU, 8, 0, vmstate_fpreg, FPReg),
 
         VMSTATE_SEGMENT_ARRAY(env.segs, X86CPU, 6),
         VMSTATE_SEGMENT(env.ldt, X86CPU),
