@@ -2590,17 +2590,17 @@ void cpu_loop(CPUOpenRISCState *env)
         case EXCP_SYSCALL:
             env->pc += 4;   /* 0xc00; */
             ret = do_syscall(env,
-                             env->gpr[11], /* return value       */
-                             env->gpr[3],  /* r3 - r7 are params */
-                             env->gpr[4],
-                             env->gpr[5],
-                             env->gpr[6],
-                             env->gpr[7],
-                             env->gpr[8], 0, 0);
+                             cpu_get_gpr(env, 11), /* return value       */
+                             cpu_get_gpr(env, 3),  /* r3 - r7 are params */
+                             cpu_get_gpr(env, 4),
+                             cpu_get_gpr(env, 5),
+                             cpu_get_gpr(env, 6),
+                             cpu_get_gpr(env, 7),
+                             cpu_get_gpr(env, 8), 0, 0);
             if (ret == -TARGET_ERESTARTSYS) {
                 env->pc -= 4;
             } else if (ret != -TARGET_QEMU_ESIGRETURN) {
-                env->gpr[11] = ret;
+                cpu_set_gpr(env, 11, ret);
             }
             break;
         case EXCP_DPF:
@@ -4765,7 +4765,7 @@ int main(int argc, char **argv, char **envp)
         int i;
 
         for (i = 0; i < 32; i++) {
-            env->gpr[i] = regs->gpr[i];
+            cpu_set_gpr(env, i, regs->gpr[i]);
         }
         env->pc = regs->pc;
         cpu_set_sr(env, regs->sr);

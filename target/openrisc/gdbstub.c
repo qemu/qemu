@@ -28,7 +28,7 @@ int openrisc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     CPUOpenRISCState *env = &cpu->env;
 
     if (n < 32) {
-        return gdb_get_reg32(mem_buf, env->gpr[n]);
+        return gdb_get_reg32(mem_buf, cpu_get_gpr(env, n));
     } else {
         switch (n) {
         case 32:    /* PPC */
@@ -61,7 +61,7 @@ int openrisc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     tmp = ldl_p(mem_buf);
 
     if (n < 32) {
-        env->gpr[n] = tmp;
+        cpu_set_gpr(env, n, tmp);
     } else {
         switch (n) {
         case 32: /* PPC */

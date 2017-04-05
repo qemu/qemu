@@ -20,7 +20,7 @@ typedef struct target_sigaltstack {
 
 static inline abi_ulong get_sp_from_cpustate(CPUOpenRISCState *state)
 {
-    return state->gpr[1];
+    return cpu_get_gpr(state, 1);
 }
 
 
