@@ -363,8 +363,8 @@ static void tcx_update_display(void *opaque)
     }
 
     memory_region_sync_dirty_bitmap(&ts->vram_mem);
-    for (y = 0; y < ts->height; page += TARGET_PAGE_SIZE) {
-        if (tcx_check_dirty(ts, page, TARGET_PAGE_SIZE)) {
+    for (y = 0; y < ts->height; y++, page += ds) {
+        if (tcx_check_dirty(ts, page, ds)) {
             if (y_start < 0)
                 y_start = y;
             if (page < page_min)
@@ -376,33 +376,6 @@ static void tcx_update_display(void *opaque)
             if (y >= ts->cursy && y < ts->cursy + 32 && ts->cursx < ts->width) {
                 fc(ts, d, y, ts->width);
             }
-            d += dd;
-            s += ds;
-            y++;
-
-            f(ts, d, s, ts->width);
-            if (y >= ts->cursy && y < ts->cursy + 32 && ts->cursx < ts->width) {
-                fc(ts, d, y, ts->width);
-            }
-            d += dd;
-            s += ds;
-            y++;
-
-            f(ts, d, s, ts->width);
-            if (y >= ts->cursy && y < ts->cursy + 32 && ts->cursx < ts->width) {
-                fc(ts, d, y, ts->width);
-            }
-            d += dd;
-            s += ds;
-            y++;
-
-            f(ts, d, s, ts->width);
-            if (y >= ts->cursy && y < ts->cursy + 32 && ts->cursx < ts->width) {
-                fc(ts, d, y, ts->width);
-            }
-            d += dd;
-            s += ds;
-            y++;
         } else {
             if (y_start >= 0) {
                 /* flush to display */
@@ -410,10 +383,9 @@ static void tcx_update_display(void *opaque)
                                ts->width, y - y_start);
                 y_start = -1;
             }
-            d += dd * 4;
-            s += ds * 4;
-            y += 4;
         }
+        s += ds;
+        d += dd;
     }
     if (y_start >= 0) {
         /* flush to display */
