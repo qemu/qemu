@@ -150,9 +150,7 @@ obj-y += migration/ram.o migration/savevm.o
 LIBS := $(libs_softmmu) $(LIBS)
 
 # xen support
-obj-$(CONFIG_XEN) += xen-common.o
 obj-$(CONFIG_XEN_I386) += xen-hvm.o xen-mapcache.o
-obj-$(call lnot,$(CONFIG_XEN)) += xen-common-stub.o
 obj-$(call lnot,$(CONFIG_XEN_I386)) += xen-hvm-stub.o
 
 # Hardware support
