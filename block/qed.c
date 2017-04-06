@@ -19,7 +19,6 @@
 #include "trace.h"
 #include "qed.h"
 #include "qapi/qmp/qerror.h"
-#include "migration/migration.h"
 #include "sysemu/block-backend.h"
 
 static const AIOCBInfo qed_aiocb_info = {

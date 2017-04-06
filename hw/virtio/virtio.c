@@ -21,7 +21,6 @@
 #include "hw/virtio/virtio.h"
 #include "qemu/atomic.h"
 #include "hw/virtio/virtio-bus.h"
-#include "migration/migration.h"
 #include "hw/virtio/virtio-access.h"
 #include "sysemu/dma.h"
 

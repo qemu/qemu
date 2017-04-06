@@ -46,7 +46,6 @@
 #include "hw/ide/ahci.h"
 #include "hw/usb.h"
 #include "qemu/error-report.h"
-#include "migration/migration.h"
 #include "sysemu/numa.h"
 
 /* ICH9 AHCI has 6 ports */
