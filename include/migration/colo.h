@@ -14,7 +14,6 @@
 #define QEMU_COLO_H
 
 #include "qemu-common.h"
-#include "migration/migration.h"
 #include "qemu/coroutine_int.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
