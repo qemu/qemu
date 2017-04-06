@@ -559,7 +559,7 @@ static void qdict_join_test(void)
         g_assert(qdict_size(dict1) == 2);
         g_assert(qdict_size(dict2) == !overwrite);
 
-        g_assert(qdict_get_int(dict1, "foo") == overwrite ? 84 : 42);
+        g_assert(qdict_get_int(dict1, "foo") == (overwrite ? 84 : 42));
         g_assert(qdict_get_int(dict1, "bar") == 23);
 
         if (!overwrite) {
