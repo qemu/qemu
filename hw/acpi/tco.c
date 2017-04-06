@@ -75,8 +75,6 @@ static void tco_timer_expired(void *opaque)
 
     if (pm->smi_en & ICH9_PMIO_SMI_EN_TCO_EN) {
         ich9_generate_smi();
-    } else {
-        ich9_generate_nmi();
     }
     tr->tco.rld = tr->tco.tmr;
     tco_timer_reload(tr);
