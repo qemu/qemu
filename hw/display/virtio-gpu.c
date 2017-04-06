@@ -19,7 +19,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-bus.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 

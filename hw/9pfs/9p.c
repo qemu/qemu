@@ -23,7 +23,7 @@
 #include "9p-xattr.h"
 #include "coth.h"
 #include "trace.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 
 int open_fd_hw;
 int total_open_fd;

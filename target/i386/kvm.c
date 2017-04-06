@@ -43,7 +43,7 @@
 #include "standard-headers/asm-x86/hyperv.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 #include "exec/memattrs.h"
 #include "trace.h"
 

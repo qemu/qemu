@@ -28,7 +28,7 @@
 #include "kvm_arm.h"
 #include "gicv3_internal.h"
 #include "vgic_common.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 
 #ifdef DEBUG_GICV3_KVM
 #define DPRINTF(fmt, ...) \

@@ -26,7 +26,7 @@
 #include "qemu/queue.h"
 #include "qemu/atomic.h"
 #include "sysemu/sysemu.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 #include "trace.h"
 
 #include "qxl.h"

@@ -25,7 +25,7 @@
 #include "exec/address-spaces.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 #include "sysemu/dma.h"
 
 /* enabled until disconnected backend stabilizes */

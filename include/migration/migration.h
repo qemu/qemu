@@ -275,24 +275,6 @@ int ram_discard_range(const char *block_name, uint64_t start, size_t length);
 int ram_postcopy_incoming_init(MigrationIncomingState *mis);
 void ram_postcopy_migrated_memory_release(MigrationState *ms);
 
-/**
- * @migrate_add_blocker - prevent migration from proceeding
- *
- * @reason - an error to be returned whenever migration is attempted
- *
- * @errp - [out] The reason (if any) we cannot block migration right now.
- *
- * @returns - 0 on success, -EBUSY/-EACCES on failure, with errp set.
- */
-int migrate_add_blocker(Error *reason, Error **errp);
-
-/**
- * @migrate_del_blocker - remove a blocking error from migration
- *
- * @reason - the error blocking migration
- */
-void migrate_del_blocker(Error *reason);
-
 int check_migratable(Object *obj, Error **err);
 
 bool migrate_release_ram(void);

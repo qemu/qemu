@@ -25,7 +25,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "sysemu/kvm.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 #include "qemu/error-report.h"
 #include "qemu/event_notifier.h"
 #include "qom/object_interfaces.h"
