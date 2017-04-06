@@ -1410,6 +1410,8 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
     static DisplaySurface *dummy;
     QemuConsole *con;
 
+    assert(!dcl->ds);
+
     if (dcl->ops->dpy_gl_ctx_create) {
         /* display has opengl support */
         assert(dcl->con);
