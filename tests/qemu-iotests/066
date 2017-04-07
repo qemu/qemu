@@ -42,16 +42,18 @@ _supported_fmt qcow2
 _supported_proto generic
 _supported_os Linux
 
+# Intentionally create an unaligned image
 IMGOPTS="compat=1.1"
-IMG_SIZE=64M
+IMG_SIZE=$((64 * 1024 * 1024 + 512))
 
 echo
-echo "=== Testing snapshotting an image with zero clusters ==="
+echo "=== Testing cluster discards ==="
 echo
 _make_test_img $IMG_SIZE
-# Write some normal clusters, zero them (creating preallocated zero clusters)
-# and discard those
-$QEMU_IO -c "write 0 256k" -c "write -z 0 256k" -c "discard 0 256k" "$TEST_IMG" \
+# Write some normal clusters, zero some of them (creating preallocated
+# zero clusters) and discard everything. Everything should now read as 0.
+$QEMU_IO -c "write 0 256k" -c "write -z 0 256k" -c "write 64M 512" \
+	 -c "discard 0 $IMG_SIZE" -c "read -P 0 0 $IMG_SIZE" "$TEST_IMG" \
          | _filter_qemu_io
 # Check the image (there shouldn't be any leaks)
 _check_test_img

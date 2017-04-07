@@ -2515,7 +2515,12 @@ static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
 
     if (!QEMU_IS_ALIGNED(offset | count, s->cluster_size)) {
         assert(count < s->cluster_size);
-        return -ENOTSUP;
+        /* Ignore partial clusters, except for the special case of the
+         * complete partial cluster at the end of an unaligned file */
+        if (!QEMU_IS_ALIGNED(offset, s->cluster_size) ||
+            offset + count != bs->total_sectors * BDRV_SECTOR_SIZE) {
+            return -ENOTSUP;
+        }
     }
 
     qemu_co_mutex_lock(&s->lock);
