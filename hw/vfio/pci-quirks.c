@@ -660,7 +660,7 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
     VFIOConfigWindowQuirk *window;
 
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID) ||
-        !vdev->vga || nr != 5) {
+        !vdev->vga || nr != 5 || !vdev->bars[5].ioport) {
         return;
     }
 
