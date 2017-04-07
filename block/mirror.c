@@ -1148,6 +1148,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         return;
     }
     mirror_top_bs->total_sectors = bs->total_sectors;
+    bdrv_set_aio_context(mirror_top_bs, bdrv_get_aio_context(bs));
 
     /* bdrv_append takes ownership of the mirror_top_bs reference, need to keep
      * it alive until block_job_create() succeeds even if bs has no parent. */
