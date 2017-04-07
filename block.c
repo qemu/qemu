@@ -192,6 +192,11 @@ void path_combine(char *dest, int dest_size,
     }
 }
 
+void bdrv_set_read_only(BlockDriverState *bs, bool read_only)
+{
+    bs->read_only = read_only;
+}
+
 void bdrv_get_full_backing_filename_from_filename(const char *backed,
                                                   const char *backing,
                                                   char *dest, size_t sz,
