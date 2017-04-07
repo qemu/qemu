@@ -945,7 +945,14 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
     size_t skip_bytes;
     int ret;
 
-    assert(child->perm & (BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE));
+    /* FIXME We cannot require callers to have write permissions when all they
+     * are doing is a read request. If we did things right, write permissions
+     * would be obtained anyway, but internally by the copy-on-read code. As
+     * long as it is implemented here rather than in a separat filter driver,
+     * the copy-on-read code doesn't have its own BdrvChild, however, for which
+     * it could request permissions. Therefore we have to bypass the permission
+     * system for the moment. */
+    // assert(child->perm & (BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE));
 
     /* Cover entire cluster so no additional backing file I/O is required when
      * allocating cluster in the image file.
