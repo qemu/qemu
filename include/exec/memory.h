@@ -77,12 +77,29 @@ typedef enum {
 
 #define IOMMU_NOTIFIER_ALL (IOMMU_NOTIFIER_MAP | IOMMU_NOTIFIER_UNMAP)
 
+struct IOMMUNotifier;
+typedef void (*IOMMUNotify)(struct IOMMUNotifier *notifier,
+                            IOMMUTLBEntry *data);
+
 struct IOMMUNotifier {
-    void (*notify)(struct IOMMUNotifier *notifier, IOMMUTLBEntry *data);
+    IOMMUNotify notify;
     IOMMUNotifierFlag notifier_flags;
+    /* Notify for address space range start <= addr <= end */
+    hwaddr start;
+    hwaddr end;
     QLIST_ENTRY(IOMMUNotifier) node;
 };
 typedef struct IOMMUNotifier IOMMUNotifier;
+
+static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
+                                       IOMMUNotifierFlag flags,
+                                       hwaddr start, hwaddr end)
+{
+    n->notify = fn;
+    n->notifier_flags = flags;
+    n->start = start;
+    n->end = end;
+}
 
 /* New-style MMIO accessors can indicate that the transaction failed.
  * A zero (MEMTX_OK) response means success; anything else is a failure

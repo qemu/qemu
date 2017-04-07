@@ -1606,6 +1606,7 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr,
 
     /* We need to register for at least one bitfield */
     assert(n->notifier_flags != IOMMU_NOTIFIER_NONE);
+    assert(n->start <= n->end);
     QLIST_INSERT_HEAD(&mr->iommu_notify, n, node);
     memory_region_update_iommu_notify_flags(mr);
 }
@@ -1667,6 +1668,14 @@ void memory_region_notify_iommu(MemoryRegion *mr,
     }
 
     QLIST_FOREACH(iommu_notifier, &mr->iommu_notify, node) {
+        /*
+         * Skip the notification if the notification does not overlap
+         * with registered range.
+         */
+        if (iommu_notifier->start > entry.iova + entry.addr_mask + 1 ||
+            iommu_notifier->end < entry.iova) {
+            continue;
+        }
         if (iommu_notifier->notifier_flags & request_flags) {
             iommu_notifier->notify(iommu_notifier, &entry);
         }
