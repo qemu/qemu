@@ -1156,8 +1156,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->current_cluster=0xffffffff;
 
-    /* read only is the default for safety */
-    bdrv_set_read_only(bs, true);
     s->qcow = NULL;
     s->qcow_filename = NULL;
     s->fat2 = NULL;
@@ -1169,11 +1167,24 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     s->sector_count = cyls * heads * secs - (s->first_sectors_number - 1);
 
     if (qemu_opt_get_bool(opts, "rw", false)) {
-        ret = enable_write_target(bs, errp);
-        if (ret < 0) {
+        if (!bdrv_is_read_only(bs)) {
+            ret = enable_write_target(bs, errp);
+            if (ret < 0) {
+                goto fail;
+            }
+        } else {
+            ret = -EPERM;
+            error_setg(errp,
+                       "Unable to set VVFAT to 'rw' when drive is read-only");
             goto fail;
         }
-        bdrv_set_read_only(bs, false);
+    } else  {
+        /* read only is the default for safety */
+        ret = bdrv_set_read_only(bs, true, &local_err);
+        if (ret < 0) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
     }
 
     bs->total_sectors = cyls * heads * secs;

@@ -635,13 +635,22 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto failed_shutdown;
     }
 
+    /* rbd_open is always r/w */
     r = rbd_open(s->io_ctx, s->name, &s->image, s->snap);
     if (r < 0) {
         error_setg_errno(errp, -r, "error reading header from %s", s->name);
         goto failed_open;
     }
 
-    bdrv_set_read_only(bs, (s->snap != NULL));
+    /* If we are using an rbd snapshot, we must be r/o, otherwise
+     * leave as-is */
+    if (s->snap != NULL) {
+        r = bdrv_set_read_only(bs, true, &local_err);
+        if (r < 0) {
+            error_propagate(errp, local_err);
+            goto failed_open;
+        }
+    }
 
     qemu_opts_del(opts);
     return 0;
