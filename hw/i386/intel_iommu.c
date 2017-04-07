@@ -1457,7 +1457,7 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
     entry.iova = addr;
     entry.perm = IOMMU_NONE;
     entry.translated_addr = 0;
-    memory_region_notify_iommu(entry.target_as->root, entry);
+    memory_region_notify_iommu(&vtd_dev_as->iommu, entry);
 
 done:
     return true;
