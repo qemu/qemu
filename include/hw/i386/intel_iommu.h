@@ -83,6 +83,8 @@ struct VTDAddressSpace {
     uint8_t devfn;
     AddressSpace as;
     MemoryRegion iommu;
+    MemoryRegion root;
+    MemoryRegion sys_alias;
     MemoryRegion iommu_ir;      /* Interrupt region: 0xfeeXXXXX */
     IntelIOMMUState *iommu_state;
     VTDContextCacheEntry context_cache_entry;
