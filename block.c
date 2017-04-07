@@ -192,6 +192,11 @@ void path_combine(char *dest, int dest_size,
     }
 }
 
+bool bdrv_is_read_only(BlockDriverState *bs)
+{
+    return bs->read_only;
+}
+
 int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
 {
     /* Do not set read_only if copy_on_read is enabled */
@@ -3373,11 +3378,6 @@ void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
     int64_t nb_sectors = bdrv_nb_sectors(bs);
 
     *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
-}
-
-bool bdrv_is_read_only(BlockDriverState *bs)
-{
-    return bs->read_only;
 }
 
 bool bdrv_is_sg(BlockDriverState *bs)
