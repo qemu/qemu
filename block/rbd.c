@@ -94,7 +94,7 @@ typedef struct BDRVRBDState {
     rados_t cluster;
     rados_ioctx_t io_ctx;
     rbd_image_t image;
-    char *name;
+    char *image_name;
     char *snap;
 } BDRVRBDState;
 
@@ -350,7 +350,7 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
     int64_t bytes = 0;
     int64_t objsize;
     int obj_order = 0;
-    const char *pool, *name, *conf, *clientname, *keypairs;
+    const char *pool, *image_name, *conf, *user, *keypairs;
     const char *secretid;
     rados_t cluster;
     rados_ioctx_t io_ctx;
@@ -393,11 +393,11 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
      */
     pool       = qdict_get_try_str(options, "pool");
     conf       = qdict_get_try_str(options, "conf");
-    clientname = qdict_get_try_str(options, "user");
-    name       = qdict_get_try_str(options, "image");
+    user       = qdict_get_try_str(options, "user");
+    image_name = qdict_get_try_str(options, "image");
     keypairs   = qdict_get_try_str(options, "=keyvalue-pairs");
 
-    ret = rados_create(&cluster, clientname);
+    ret = rados_create(&cluster, user);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "error initializing");
         goto exit;
@@ -434,7 +434,7 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
         goto shutdown;
     }
 
-    ret = rbd_create(io_ctx, name, bytes, &obj_order);
+    ret = rbd_create(io_ctx, image_name, bytes, &obj_order);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "error rbd create");
     }
@@ -540,7 +540,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
                          Error **errp)
 {
     BDRVRBDState *s = bs->opaque;
-    const char *pool, *snap, *conf, *clientname, *name, *keypairs;
+    const char *pool, *snap, *conf, *user, *image_name, *keypairs;
     const char *secretid;
     QemuOpts *opts;
     Error *local_err = NULL;
@@ -567,24 +567,24 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     pool           = qemu_opt_get(opts, "pool");
     conf           = qemu_opt_get(opts, "conf");
     snap           = qemu_opt_get(opts, "snapshot");
-    clientname     = qemu_opt_get(opts, "user");
-    name           = qemu_opt_get(opts, "image");
+    user           = qemu_opt_get(opts, "user");
+    image_name     = qemu_opt_get(opts, "image");
     keypairs       = qemu_opt_get(opts, "=keyvalue-pairs");
 
-    if (!pool || !name) {
+    if (!pool || !image_name) {
         error_setg(errp, "Parameters 'pool' and 'image' are required");
         r = -EINVAL;
         goto failed_opts;
     }
 
-    r = rados_create(&s->cluster, clientname);
+    r = rados_create(&s->cluster, user);
     if (r < 0) {
         error_setg_errno(errp, -r, "error initializing");
         goto failed_opts;
     }
 
     s->snap = g_strdup(snap);
-    s->name = g_strdup(name);
+    s->image_name = g_strdup(image_name);
 
     /* try default location when conf=NULL, but ignore failure */
     r = rados_conf_read_file(s->cluster, conf);
@@ -636,9 +636,10 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* rbd_open is always r/w */
-    r = rbd_open(s->io_ctx, s->name, &s->image, s->snap);
+    r = rbd_open(s->io_ctx, s->image_name, &s->image, s->snap);
     if (r < 0) {
-        error_setg_errno(errp, -r, "error reading header from %s", s->name);
+        error_setg_errno(errp, -r, "error reading header from %s",
+                         s->image_name);
         goto failed_open;
     }
 
@@ -660,7 +661,7 @@ failed_open:
 failed_shutdown:
     rados_shutdown(s->cluster);
     g_free(s->snap);
-    g_free(s->name);
+    g_free(s->image_name);
 failed_opts:
     qemu_opts_del(opts);
     g_free(mon_host);
@@ -674,7 +675,7 @@ static void qemu_rbd_close(BlockDriverState *bs)
     rbd_close(s->image);
     rados_ioctx_destroy(s->io_ctx);
     g_free(s->snap);
-    g_free(s->name);
+    g_free(s->image_name);
     rados_shutdown(s->cluster);
 }
 
