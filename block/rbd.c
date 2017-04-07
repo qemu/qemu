@@ -668,6 +668,26 @@ failed_opts:
     return r;
 }
 
+
+/* Since RBD is currently always opened R/W via the API,
+ * we just need to check if we are using a snapshot or not, in
+ * order to determine if we will allow it to be R/W */
+static int qemu_rbd_reopen_prepare(BDRVReopenState *state,
+                                   BlockReopenQueue *queue, Error **errp)
+{
+    BDRVRBDState *s = state->bs->opaque;
+    int ret = 0;
+
+    if (s->snap && state->flags & BDRV_O_RDWR) {
+        error_setg(errp,
+                   "Cannot change node '%s' to r/w when using RBD snapshot",
+                   bdrv_get_device_or_node_name(state->bs));
+        ret = -EINVAL;
+    }
+
+    return ret;
+}
+
 static void qemu_rbd_close(BlockDriverState *bs)
 {
     BDRVRBDState *s = bs->opaque;
@@ -1074,6 +1094,7 @@ static BlockDriver bdrv_rbd = {
     .bdrv_parse_filename    = qemu_rbd_parse_filename,
     .bdrv_file_open         = qemu_rbd_open,
     .bdrv_close             = qemu_rbd_close,
+    .bdrv_reopen_prepare    = qemu_rbd_reopen_prepare,
     .bdrv_create            = qemu_rbd_create,
     .bdrv_has_zero_init     = bdrv_has_zero_init_1,
     .bdrv_get_info          = qemu_rbd_getinfo,
