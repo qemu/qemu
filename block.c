@@ -197,7 +197,7 @@ bool bdrv_is_read_only(BlockDriverState *bs)
     return bs->read_only;
 }
 
-int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
+int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
 {
     /* Do not set read_only if copy_on_read is enabled */
     if (bs->copy_on_read && read_only) {
@@ -211,6 +211,18 @@ int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
         error_setg(errp, "Node '%s' is read only",
                    bdrv_get_device_or_node_name(bs));
         return -EPERM;
+    }
+
+    return 0;
+}
+
+int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
+{
+    int ret = 0;
+
+    ret = bdrv_can_set_read_only(bs, read_only, errp);
+    if (ret < 0) {
+        return ret;
     }
 
     bs->read_only = read_only;
