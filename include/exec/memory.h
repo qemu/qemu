@@ -55,6 +55,8 @@ typedef enum {
     IOMMU_RW   = 3,
 } IOMMUAccessFlags;
 
+#define IOMMU_ACCESS_FLAG(r, w) (((r) ? IOMMU_RO : 0) | ((w) ? IOMMU_WO : 0))
+
 struct IOMMUTLBEntry {
     AddressSpace    *target_as;
     hwaddr           iova;

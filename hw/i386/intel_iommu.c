@@ -595,6 +595,22 @@ static inline uint32_t vtd_get_agaw_from_context_entry(VTDContextEntry *ce)
     return 30 + (ce->hi & VTD_CONTEXT_ENTRY_AW) * 9;
 }
 
+static inline uint64_t vtd_iova_limit(VTDContextEntry *ce)
+{
+    uint32_t ce_agaw = vtd_get_agaw_from_context_entry(ce);
+    return 1ULL << MIN(ce_agaw, VTD_MGAW);
+}
+
+/* Return true if IOVA passes range check, otherwise false. */
+static inline bool vtd_iova_range_check(uint64_t iova, VTDContextEntry *ce)
+{
+    /*
+     * Check if @iova is above 2^X-1, where X is the minimum of MGAW
+     * in CAP_REG and AW in context-entry.
+     */
+    return !(iova & ~(vtd_iova_limit(ce) - 1));
+}
+
 static const uint64_t vtd_paging_entry_rsvd_field[] = {
     [0] = ~0ULL,
     /* For not large page */
@@ -630,13 +646,9 @@ static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
     uint32_t level = vtd_get_level_from_context_entry(ce);
     uint32_t offset;
     uint64_t slpte;
-    uint32_t ce_agaw = vtd_get_agaw_from_context_entry(ce);
     uint64_t access_right_check;
 
-    /* Check if @iova is above 2^X-1, where X is the minimum of MGAW
-     * in CAP_REG and AW in context-entry.
-     */
-    if (iova & ~((1ULL << MIN(ce_agaw, VTD_MGAW)) - 1)) {
+    if (!vtd_iova_range_check(iova, ce)) {
         VTD_DPRINTF(GENERAL, "error: iova 0x%"PRIx64 " exceeds limits", iova);
         return -VTD_FR_ADDR_BEYOND_MGAW;
     }
@@ -682,6 +694,134 @@ static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
         addr = vtd_get_slpte_addr(slpte);
         level--;
     }
+}
+
+typedef int (*vtd_page_walk_hook)(IOMMUTLBEntry *entry, void *private);
+
+/**
+ * vtd_page_walk_level - walk over specific level for IOVA range
+ *
+ * @addr: base GPA addr to start the walk
+ * @start: IOVA range start address
+ * @end: IOVA range end address (start <= addr < end)
+ * @hook_fn: hook func to be called when detected page
+ * @private: private data to be passed into hook func
+ * @read: whether parent level has read permission
+ * @write: whether parent level has write permission
+ * @notify_unmap: whether we should notify invalid entries
+ */
+static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
+                               uint64_t end, vtd_page_walk_hook hook_fn,
+                               void *private, uint32_t level,
+                               bool read, bool write, bool notify_unmap)
+{
+    bool read_cur, write_cur, entry_valid;
+    uint32_t offset;
+    uint64_t slpte;
+    uint64_t subpage_size, subpage_mask;
+    IOMMUTLBEntry entry;
+    uint64_t iova = start;
+    uint64_t iova_next;
+    int ret = 0;
+
+    trace_vtd_page_walk_level(addr, level, start, end);
+
+    subpage_size = 1ULL << vtd_slpt_level_shift(level);
+    subpage_mask = vtd_slpt_level_page_mask(level);
+
+    while (iova < end) {
+        iova_next = (iova & subpage_mask) + subpage_size;
+
+        offset = vtd_iova_level_offset(iova, level);
+        slpte = vtd_get_slpte(addr, offset);
+
+        if (slpte == (uint64_t)-1) {
+            trace_vtd_page_walk_skip_read(iova, iova_next);
+            goto next;
+        }
+
+        if (vtd_slpte_nonzero_rsvd(slpte, level)) {
+            trace_vtd_page_walk_skip_reserve(iova, iova_next);
+            goto next;
+        }
+
+        /* Permissions are stacked with parents' */
+        read_cur = read && (slpte & VTD_SL_R);
+        write_cur = write && (slpte & VTD_SL_W);
+
+        /*
+         * As long as we have either read/write permission, this is a
+         * valid entry. The rule works for both page entries and page
+         * table entries.
+         */
+        entry_valid = read_cur | write_cur;
+
+        if (vtd_is_last_slpte(slpte, level)) {
+            entry.target_as = &address_space_memory;
+            entry.iova = iova & subpage_mask;
+            /* NOTE: this is only meaningful if entry_valid == true */
+            entry.translated_addr = vtd_get_slpte_addr(slpte);
+            entry.addr_mask = ~subpage_mask;
+            entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
+            if (!entry_valid && !notify_unmap) {
+                trace_vtd_page_walk_skip_perm(iova, iova_next);
+                goto next;
+            }
+            trace_vtd_page_walk_one(level, entry.iova, entry.translated_addr,
+                                    entry.addr_mask, entry.perm);
+            if (hook_fn) {
+                ret = hook_fn(&entry, private);
+                if (ret < 0) {
+                    return ret;
+                }
+            }
+        } else {
+            if (!entry_valid) {
+                trace_vtd_page_walk_skip_perm(iova, iova_next);
+                goto next;
+            }
+            ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte), iova,
+                                      MIN(iova_next, end), hook_fn, private,
+                                      level - 1, read_cur, write_cur,
+                                      notify_unmap);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+
+next:
+        iova = iova_next;
+    }
+
+    return 0;
+}
+
+/**
+ * vtd_page_walk - walk specific IOVA range, and call the hook
+ *
+ * @ce: context entry to walk upon
+ * @start: IOVA address to start the walk
+ * @end: IOVA range end address (start <= addr < end)
+ * @hook_fn: the hook that to be called for each detected area
+ * @private: private data for the hook function
+ */
+static int vtd_page_walk(VTDContextEntry *ce, uint64_t start, uint64_t end,
+                         vtd_page_walk_hook hook_fn, void *private)
+{
+    dma_addr_t addr = vtd_get_slpt_base_from_context(ce);
+    uint32_t level = vtd_get_level_from_context_entry(ce);
+
+    if (!vtd_iova_range_check(start, ce)) {
+        return -VTD_FR_ADDR_BEYOND_MGAW;
+    }
+
+    if (!vtd_iova_range_check(end, ce)) {
+        /* Fix end so that it reaches the maximum */
+        end = vtd_iova_limit(ce);
+    }
+
+    return vtd_page_walk_level(addr, start, end, hook_fn, private,
+                               level, true, true, false);
 }
 
 /* Map a device to its corresponding domain (context-entry) */
@@ -2402,6 +2542,37 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
     return vtd_dev_as;
 }
 
+static int vtd_replay_hook(IOMMUTLBEntry *entry, void *private)
+{
+    memory_region_notify_one((IOMMUNotifier *)private, entry);
+    return 0;
+}
+
+static void vtd_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n)
+{
+    VTDAddressSpace *vtd_as = container_of(mr, VTDAddressSpace, iommu);
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    uint8_t bus_n = pci_bus_num(vtd_as->bus);
+    VTDContextEntry ce;
+
+    if (vtd_dev_to_context_entry(s, bus_n, vtd_as->devfn, &ce) == 0) {
+        /*
+         * Scanned a valid context entry, walk over the pages and
+         * notify when needed.
+         */
+        trace_vtd_replay_ce_valid(bus_n, PCI_SLOT(vtd_as->devfn),
+                                  PCI_FUNC(vtd_as->devfn),
+                                  VTD_CONTEXT_ENTRY_DID(ce.hi),
+                                  ce.hi, ce.lo);
+        vtd_page_walk(&ce, 0, ~0ULL, vtd_replay_hook, (void *)n);
+    } else {
+        trace_vtd_replay_ce_invalid(bus_n, PCI_SLOT(vtd_as->devfn),
+                                    PCI_FUNC(vtd_as->devfn));
+    }
+
+    return;
+}
+
 /* Do the initialization. It will also be called when reset, so pay
  * attention when adding new initialization stuff.
  */
@@ -2416,6 +2587,7 @@ static void vtd_init(IntelIOMMUState *s)
 
     s->iommu_ops.translate = vtd_iommu_translate;
     s->iommu_ops.notify_flag_changed = vtd_iommu_notify_flag_changed;
+    s->iommu_ops.replay = vtd_iommu_replay;
     s->root = 0;
     s->root_extended = false;
     s->dmar_enabled = false;
