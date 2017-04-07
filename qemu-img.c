@@ -1554,9 +1554,15 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 
     if (s->sector_next_status <= sector_num) {
         BlockDriverState *file;
-        ret = bdrv_get_block_status(blk_bs(s->src[src_cur]),
-                                    sector_num - src_cur_offset,
-                                    n, &n, &file);
+        if (s->target_has_backing) {
+            ret = bdrv_get_block_status(blk_bs(s->src[src_cur]),
+                                        sector_num - src_cur_offset,
+                                        n, &n, &file);
+        } else {
+            ret = bdrv_get_block_status_above(blk_bs(s->src[src_cur]), NULL,
+                                              sector_num - src_cur_offset,
+                                              n, &n, &file);
+        }
         if (ret < 0) {
             return ret;
         }
@@ -1565,26 +1571,8 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
             s->status = BLK_ZERO;
         } else if (ret & BDRV_BLOCK_DATA) {
             s->status = BLK_DATA;
-        } else if (!s->target_has_backing) {
-            /* Without a target backing file we must copy over the contents of
-             * the backing file as well. */
-            /* Check block status of the backing file chain to avoid
-             * needlessly reading zeroes and limiting the iteration to the
-             * buffer size */
-            ret = bdrv_get_block_status_above(blk_bs(s->src[src_cur]), NULL,
-                                              sector_num - src_cur_offset,
-                                              n, &n, &file);
-            if (ret < 0) {
-                return ret;
-            }
-
-            if (ret & BDRV_BLOCK_ZERO) {
-                s->status = BLK_ZERO;
-            } else {
-                s->status = BLK_DATA;
-            }
         } else {
-            s->status = BLK_BACKING_FILE;
+            s->status = s->target_has_backing ? BLK_BACKING_FILE : BLK_DATA;
         }
 
         s->sector_next_status = sector_num + n;
