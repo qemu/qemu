@@ -573,6 +573,22 @@ void bdrv_io_plug(BlockDriverState *bs);
 void bdrv_io_unplug(BlockDriverState *bs);
 
 /**
+ * bdrv_parent_drained_begin:
+ *
+ * Begin a quiesced section of all users of @bs. This is part of
+ * bdrv_drained_begin.
+ */
+void bdrv_parent_drained_begin(BlockDriverState *bs);
+
+/**
+ * bdrv_parent_drained_end:
+ *
+ * End a quiesced section of all users of @bs. This is part of
+ * bdrv_drained_end.
+ */
+void bdrv_parent_drained_end(BlockDriverState *bs);
+
+/**
  * bdrv_drained_begin:
  *
  * Begin a quiesced section for exclusive access to the BDS, by disabling

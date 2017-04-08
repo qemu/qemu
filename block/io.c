@@ -44,7 +44,7 @@ static void coroutine_fn bdrv_co_do_rw(void *opaque);
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int count, BdrvRequestFlags flags);
 
-static void bdrv_parent_drained_begin(BlockDriverState *bs)
+void bdrv_parent_drained_begin(BlockDriverState *bs)
 {
     BdrvChild *c;
 
@@ -55,7 +55,7 @@ static void bdrv_parent_drained_begin(BlockDriverState *bs)
     }
 }
 
-static void bdrv_parent_drained_end(BlockDriverState *bs)
+void bdrv_parent_drained_end(BlockDriverState *bs)
 {
     BdrvChild *c;
 
