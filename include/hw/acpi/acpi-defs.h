@@ -144,8 +144,8 @@ typedef struct AcpiTableHeader AcpiTableHeader;
     /* ARM-Specific Boot Flags (see below for individual flags) (ACPI 5.1) */ \
     uint16_t arm_boot_flags; \
     uint8_t minor_revision;  /* FADT Minor Revision (ACPI 5.1) */ \
-    uint64_t Xfacs;          /* 64-bit physical address of FACS */ \
-    uint64_t Xdsdt;          /* 64-bit physical address of DSDT */ \
+    uint64_t x_facs;          /* 64-bit physical address of FACS */ \
+    uint64_t x_dsdt;          /* 64-bit physical address of DSDT */ \
     /* 64-bit Extended Power Mgt 1a Event Reg Blk address */ \
     struct AcpiGenericAddress xpm1a_event_block; \
     /* 64-bit Extended Power Mgt 1b Event Reg Blk address */ \
