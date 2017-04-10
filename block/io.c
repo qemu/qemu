@@ -2278,16 +2278,17 @@ static void coroutine_fn bdrv_flush_co_entry(void *opaque)
 
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 {
-    int ret;
-
-    if (!bs || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs) ||
-        bdrv_is_sg(bs)) {
-        return 0;
-    }
+    int current_gen;
+    int ret = 0;
 
     bdrv_inc_in_flight(bs);
 
-    int current_gen = bs->write_gen;
+    if (!bs || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs) ||
+        bdrv_is_sg(bs)) {
+        goto early_exit;
+    }
+
+    current_gen = bs->write_gen;
 
     /* Wait until any previous flushes are completed */
     while (bs->active_flush_req) {
@@ -2370,6 +2371,7 @@ out:
     /* Return value is ignored - it's ok if wait queue is empty */
     qemu_co_queue_next(&bs->flush_queue);
 
+early_exit:
     bdrv_dec_in_flight(bs);
     return ret;
 }
