@@ -108,6 +108,7 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
     g_free(name);
     close_preserve_errno(dirfd);
     if (xattr_len < 0) {
+        g_free(orig_value);
         return -1;
     }
 
