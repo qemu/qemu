@@ -77,6 +77,32 @@ static S390CPUDef s390_cpu_defs[] = {
     CPUDEF_INIT(0x2965, 13, 2, 47, 0x08000000U, "z13s", "IBM z13s GA1"),
 };
 
+void s390_cpudef_featoff(uint8_t gen, uint8_t ec_ga, S390Feat feat)
+{
+    const S390CPUDef *def;
+
+    def = s390_find_cpu_def(0, gen, ec_ga, NULL);
+    clear_bit(feat, (unsigned long *)&def->default_feat);
+}
+
+void s390_cpudef_featoff_greater(uint8_t gen, uint8_t ec_ga, S390Feat feat)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
+        const S390CPUDef *def = &s390_cpu_defs[i];
+
+        if (def->gen < gen) {
+            continue;
+        }
+        if (def->gen == gen && def->ec_ga < ec_ga) {
+            continue;
+        }
+
+        clear_bit(feat, (unsigned long *)&def->default_feat);
+    }
+}
+
 uint32_t s390_get_hmfai(void)
 {
     static S390CPU *cpu;
