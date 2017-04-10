@@ -202,7 +202,7 @@ void qemu_tcg_configure(QemuOpts *opts, Error **errp)
             } else if (use_icount) {
                 error_setg(errp, "No MTTCG when icount is enabled");
             } else {
-#ifndef TARGET_SUPPORT_MTTCG
+#ifndef TARGET_SUPPORTS_MTTCG
                 error_report("Guest not yet converted to MTTCG - "
                              "you may get unexpected results");
 #endif
@@ -223,20 +223,51 @@ void qemu_tcg_configure(QemuOpts *opts, Error **errp)
     }
 }
 
+/* The current number of executed instructions is based on what we
+ * originally budgeted minus the current state of the decrementing
+ * icount counters in extra/u16.low.
+ */
+static int64_t cpu_get_icount_executed(CPUState *cpu)
+{
+    return cpu->icount_budget - (cpu->icount_decr.u16.low + cpu->icount_extra);
+}
+
+/*
+ * Update the global shared timer_state.qemu_icount to take into
+ * account executed instructions. This is done by the TCG vCPU
+ * thread so the main-loop can see time has moved forward.
+ */
+void cpu_update_icount(CPUState *cpu)
+{
+    int64_t executed = cpu_get_icount_executed(cpu);
+    cpu->icount_budget -= executed;
+
+#ifdef CONFIG_ATOMIC64
+    atomic_set__nocheck(&timers_state.qemu_icount,
+                        atomic_read__nocheck(&timers_state.qemu_icount) +
+                        executed);
+#else /* FIXME: we need 64bit atomics to do this safely */
+    timers_state.qemu_icount += executed;
+#endif
+}
+
 int64_t cpu_get_icount_raw(void)
 {
-    int64_t icount;
     CPUState *cpu = current_cpu;
 
-    icount = timers_state.qemu_icount;
-    if (cpu) {
+    if (cpu && cpu->running) {
         if (!cpu->can_do_io) {
             fprintf(stderr, "Bad icount read\n");
             exit(1);
         }
-        icount -= (cpu->icount_decr.u16.low + cpu->icount_extra);
+        /* Take into account what has run */
+        cpu_update_icount(cpu);
     }
-    return icount;
+#ifdef CONFIG_ATOMIC64
+    return atomic_read__nocheck(&timers_state.qemu_icount);
+#else /* FIXME: we need 64bit atomics to do this safely */
+    return timers_state.qemu_icount;
+#endif
 }
 
 /* Return the virtual CPU time, based on the instruction counter.  */
@@ -1179,6 +1210,41 @@ static void handle_icount_deadline(void)
     }
 }
 
+static void prepare_icount_for_run(CPUState *cpu)
+{
+    if (use_icount) {
+        int insns_left;
+
+        /* These should always be cleared by process_icount_data after
+         * each vCPU execution. However u16.high can be raised
+         * asynchronously by cpu_exit/cpu_interrupt/tcg_handle_interrupt
+         */
+        g_assert(cpu->icount_decr.u16.low == 0);
+        g_assert(cpu->icount_extra == 0);
+
+        cpu->icount_budget = tcg_get_icount_limit();
+        insns_left = MIN(0xffff, cpu->icount_budget);
+        cpu->icount_decr.u16.low = insns_left;
+        cpu->icount_extra = cpu->icount_budget - insns_left;
+    }
+}
+
+static void process_icount_data(CPUState *cpu)
+{
+    if (use_icount) {
+        /* Account for executed instructions */
+        cpu_update_icount(cpu);
+
+        /* Reset the counters */
+        cpu->icount_decr.u16.low = 0;
+        cpu->icount_extra = 0;
+        cpu->icount_budget = 0;
+
+        replay_account_executed_instructions();
+    }
+}
+
+
 static int tcg_cpu_exec(CPUState *cpu)
 {
     int ret;
@@ -1189,20 +1255,6 @@ static int tcg_cpu_exec(CPUState *cpu)
 #ifdef CONFIG_PROFILER
     ti = profile_getclock();
 #endif
-    if (use_icount) {
-        int64_t count;
-        int decr;
-        timers_state.qemu_icount -= (cpu->icount_decr.u16.low
-                                    + cpu->icount_extra);
-        cpu->icount_decr.u16.low = 0;
-        cpu->icount_extra = 0;
-        count = tcg_get_icount_limit();
-        timers_state.qemu_icount += count;
-        decr = (count > 0xffff) ? 0xffff : count;
-        count -= decr;
-        cpu->icount_decr.u16.low = decr;
-        cpu->icount_extra = count;
-    }
     qemu_mutex_unlock_iothread();
     cpu_exec_start(cpu);
     ret = cpu_exec(cpu);
@@ -1211,15 +1263,6 @@ static int tcg_cpu_exec(CPUState *cpu)
 #ifdef CONFIG_PROFILER
     tcg_time += profile_getclock() - ti;
 #endif
-    if (use_icount) {
-        /* Fold pending instructions back into the
-           instruction counter, and clear the interrupt flag.  */
-        timers_state.qemu_icount -= (cpu->icount_decr.u16.low
-                        + cpu->icount_extra);
-        cpu->icount_decr.u32 = 0;
-        cpu->icount_extra = 0;
-        replay_account_executed_instructions();
-    }
     return ret;
 }
 
@@ -1306,7 +1349,13 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
 
             if (cpu_can_run(cpu)) {
                 int r;
+
+                prepare_icount_for_run(cpu);
+
                 r = tcg_cpu_exec(cpu);
+
+                process_icount_data(cpu);
+
                 if (r == EXCP_DEBUG) {
                     cpu_handle_guest_debug(cpu);
                     break;
@@ -1392,6 +1441,8 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
 
+    g_assert(!use_icount);
+
     rcu_register_thread();
 
     qemu_mutex_lock_iothread();
@@ -1433,8 +1484,6 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
                 break;
             }
         }
-
-        handle_icount_deadline();
 
         atomic_mb_set(&cpu->exit_request, 0);
         qemu_tcg_wait_io_event(cpu);
