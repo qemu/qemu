@@ -2092,6 +2092,7 @@ static int iscsi_create(const char *filename, QemuOpts *opts, Error **errp)
     BlockDriverState *bs;
     IscsiLun *iscsilun = NULL;
     QDict *bs_options;
+    Error *local_err = NULL;
 
     bs = bdrv_new();
 
@@ -2102,8 +2103,13 @@ static int iscsi_create(const char *filename, QemuOpts *opts, Error **errp)
     iscsilun = bs->opaque;
 
     bs_options = qdict_new();
-    qdict_put(bs_options, "filename", qstring_from_str(filename));
-    ret = iscsi_open(bs, bs_options, 0, NULL);
+    iscsi_parse_filename(filename, bs_options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+    } else {
+        ret = iscsi_open(bs, bs_options, 0, NULL);
+    }
     QDECREF(bs_options);
 
     if (ret != 0) {
