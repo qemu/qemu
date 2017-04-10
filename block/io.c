@@ -616,7 +616,7 @@ static int bdrv_prwv_co(BdrvChild *child, int64_t offset,
         bdrv_rw_co_entry(&rwco);
     } else {
         co = qemu_coroutine_create(bdrv_rw_co_entry, &rwco);
-        qemu_coroutine_enter(co);
+        bdrv_coroutine_enter(child->bs, co);
         BDRV_POLL_WHILE(child->bs, rwco.ret == NOT_DONE);
     }
     return rwco.ret;
@@ -1880,7 +1880,7 @@ int64_t bdrv_get_block_status_above(BlockDriverState *bs,
     } else {
         co = qemu_coroutine_create(bdrv_get_block_status_above_co_entry,
                                    &data);
-        qemu_coroutine_enter(co);
+        bdrv_coroutine_enter(bs, co);
         BDRV_POLL_WHILE(bs, !data.done);
     }
     return data.ret;
@@ -2006,7 +2006,7 @@ bdrv_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
         };
         Coroutine *co = qemu_coroutine_create(bdrv_co_rw_vmstate_entry, &data);
 
-        qemu_coroutine_enter(co);
+        bdrv_coroutine_enter(bs, co);
         while (data.ret == -EINPROGRESS) {
             aio_poll(bdrv_get_aio_context(bs), true);
         }
@@ -2223,7 +2223,7 @@ static BlockAIOCB *bdrv_co_aio_prw_vector(BdrvChild *child,
     acb->is_write = is_write;
 
     co = qemu_coroutine_create(bdrv_co_do_rw, acb);
-    qemu_coroutine_enter(co);
+    bdrv_coroutine_enter(child->bs, co);
 
     bdrv_co_maybe_schedule_bh(acb);
     return &acb->common;
@@ -2254,7 +2254,7 @@ BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
     acb->req.error = -EINPROGRESS;
 
     co = qemu_coroutine_create(bdrv_aio_flush_co_entry, acb);
-    qemu_coroutine_enter(co);
+    bdrv_coroutine_enter(bs, co);
 
     bdrv_co_maybe_schedule_bh(acb);
     return &acb->common;
@@ -2387,7 +2387,7 @@ int bdrv_flush(BlockDriverState *bs)
         bdrv_flush_co_entry(&flush_co);
     } else {
         co = qemu_coroutine_create(bdrv_flush_co_entry, &flush_co);
-        qemu_coroutine_enter(co);
+        bdrv_coroutine_enter(bs, co);
         BDRV_POLL_WHILE(bs, flush_co.ret == NOT_DONE);
     }
 
@@ -2534,7 +2534,7 @@ int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int count)
         bdrv_pdiscard_co_entry(&rwco);
     } else {
         co = qemu_coroutine_create(bdrv_pdiscard_co_entry, &rwco);
-        qemu_coroutine_enter(co);
+        bdrv_coroutine_enter(bs, co);
         BDRV_POLL_WHILE(bs, rwco.ret == NOT_DONE);
     }
 
