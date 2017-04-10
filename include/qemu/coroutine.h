@@ -77,6 +77,11 @@ void qemu_coroutine_enter(Coroutine *coroutine);
 void qemu_coroutine_enter_if_inactive(Coroutine *co);
 
 /**
+ * Transfer control to a coroutine and associate it with ctx
+ */
+void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co);
+
+/**
  * Transfer control back to a coroutine's caller
  *
  * This function does not return until the coroutine is re-entered using
