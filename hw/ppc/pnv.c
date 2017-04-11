@@ -354,6 +354,39 @@ static void powernv_populate_serial(ISADevice *d, void *fdt, int lpc_off)
     _FDT((fdt_setprop_string(fdt, node, "device_type", "serial")));
 }
 
+static void powernv_populate_ipmi_bt(ISADevice *d, void *fdt, int lpc_off)
+{
+    const char compatible[] = "bt\0ipmi-bt";
+    uint32_t io_base;
+    uint32_t io_regs[] = {
+        cpu_to_be32(1),
+        0, /* 'io_base' retrieved from the 'ioport' property of 'isa-ipmi-bt' */
+        cpu_to_be32(3)
+    };
+    uint32_t irq;
+    char *name;
+    int node;
+
+    io_base = object_property_get_int(OBJECT(d), "ioport", &error_fatal);
+    io_regs[1] = cpu_to_be32(io_base);
+
+    irq = object_property_get_int(OBJECT(d), "irq", &error_fatal);
+
+    name = g_strdup_printf("%s@i%x", qdev_fw_name(DEVICE(d)), io_base);
+    node = fdt_add_subnode(fdt, lpc_off, name);
+    _FDT(node);
+    g_free(name);
+
+    fdt_setprop(fdt, node, "reg", io_regs, sizeof(io_regs));
+    fdt_setprop(fdt, node, "compatible", compatible, sizeof(compatible));
+
+    /* Mark it as reserved to avoid Linux trying to claim it */
+    _FDT((fdt_setprop_string(fdt, node, "status", "reserved")));
+    _FDT((fdt_setprop_cell(fdt, node, "interrupts", irq)));
+    _FDT((fdt_setprop_cell(fdt, node, "interrupt-parent",
+                           fdt_get_phandle(fdt, lpc_off))));
+}
+
 typedef struct ForeachPopulateArgs {
     void *fdt;
     int offset;
@@ -368,6 +401,8 @@ static int powernv_populate_isa_device(DeviceState *dev, void *opaque)
         powernv_populate_rtc(d, args->fdt, args->offset);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_ISA_SERIAL)) {
         powernv_populate_serial(d, args->fdt, args->offset);
+    } else if (object_dynamic_cast(OBJECT(dev), "isa-ipmi-bt")) {
+        powernv_populate_ipmi_bt(d, args->fdt, args->offset);
     } else {
         error_report("unknown isa device %s@i%x", qdev_fw_name(dev),
                      d->ioport_id);
