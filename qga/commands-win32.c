@@ -1344,7 +1344,7 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
                     vcpu = g_malloc0(sizeof *vcpu);
                     vcpu->logical_id = current++;
                     vcpu->online = true;
-                    vcpu->has_can_offline = false;
+                    vcpu->has_can_offline = true;
 
                     entry = g_malloc0(sizeof *entry);
                     entry->value = vcpu;
