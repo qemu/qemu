@@ -453,6 +453,11 @@ void aio_co_wake(struct Coroutine *co)
     smp_read_barrier_depends();
     ctx = atomic_read(&co->ctx);
 
+    aio_co_enter(ctx, co);
+}
+
+void aio_co_enter(AioContext *ctx, struct Coroutine *co)
+{
     if (ctx != qemu_get_current_aio_context()) {
         aio_co_schedule(ctx, co);
         return;
@@ -464,7 +469,7 @@ void aio_co_wake(struct Coroutine *co)
         QSIMPLEQ_INSERT_TAIL(&self->co_queue_wakeup, co, co_queue_next);
     } else {
         aio_context_acquire(ctx);
-        qemu_coroutine_enter(co);
+        qemu_aio_coroutine_enter(ctx, co);
         aio_context_release(ctx);
     }
 }

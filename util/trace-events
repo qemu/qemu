@@ -22,7 +22,7 @@ buffer_move(const char *buf, size_t len, const char *from) "%s: %zd bytes from %
 buffer_free(const char *buf, size_t len) "%s: capacity %zd"
 
 # util/qemu-coroutine.c
-qemu_coroutine_enter(void *from, void *to, void *opaque) "from %p to %p opaque %p"
+qemu_aio_coroutine_enter(void *ctx, void *from, void *to, void *opaque) "ctx %p from %p to %p opaque %p"
 qemu_coroutine_yield(void *from, void *to) "from %p to %p"
 qemu_coroutine_terminate(void *co) "self %p"
 

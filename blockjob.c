@@ -290,7 +290,7 @@ void block_job_start(BlockJob *job)
     job->pause_count--;
     job->busy = true;
     job->paused = false;
-    qemu_coroutine_enter(job->co);
+    bdrv_coroutine_enter(blk_bs(job->blk), job->co);
 }
 
 void block_job_ref(BlockJob *job)
@@ -532,7 +532,7 @@ void block_job_user_resume(BlockJob *job)
 void block_job_enter(BlockJob *job)
 {
     if (job->co && !job->busy) {
-        qemu_coroutine_enter(job->co);
+        bdrv_coroutine_enter(blk_bs(job->blk), job->co);
     }
 }
 

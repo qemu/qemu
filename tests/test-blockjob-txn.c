@@ -110,7 +110,6 @@ static BlockJob *test_block_job_start(unsigned int iterations,
     s->result = result;
     data->job = s;
     data->result = result;
-    block_job_start(&s->common);
     return &s->common;
 }
 
@@ -123,6 +122,7 @@ static void test_single_job(int expected)
     txn = block_job_txn_new();
     job = test_block_job_start(1, true, expected, &result);
     block_job_txn_add_job(txn, job);
+    block_job_start(job);
 
     if (expected == -ECANCELED) {
         block_job_cancel(job);
@@ -164,6 +164,8 @@ static void test_pair_jobs(int expected1, int expected2)
     block_job_txn_add_job(txn, job1);
     job2 = test_block_job_start(2, true, expected2, &result2);
     block_job_txn_add_job(txn, job2);
+    block_job_start(job1);
+    block_job_start(job2);
 
     if (expected1 == -ECANCELED) {
         block_job_cancel(job1);
@@ -223,6 +225,8 @@ static void test_pair_jobs_fail_cancel_race(void)
     block_job_txn_add_job(txn, job1);
     job2 = test_block_job_start(2, false, 0, &result2);
     block_job_txn_add_job(txn, job2);
+    block_job_start(job1);
+    block_job_start(job2);
 
     block_job_cancel(job1);
 
