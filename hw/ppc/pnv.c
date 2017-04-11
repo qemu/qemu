@@ -303,6 +303,26 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
     g_free(typename);
 }
 
+static void powernv_populate_rtc(ISADevice *d, void *fdt, int lpc_off)
+{
+    uint32_t io_base = d->ioport_id;
+    uint32_t io_regs[] = {
+        cpu_to_be32(1),
+        cpu_to_be32(io_base),
+        cpu_to_be32(2)
+    };
+    char *name;
+    int node;
+
+    name = g_strdup_printf("%s@i%x", qdev_fw_name(DEVICE(d)), io_base);
+    node = fdt_add_subnode(fdt, lpc_off, name);
+    _FDT(node);
+    g_free(name);
+
+    _FDT((fdt_setprop(fdt, node, "reg", io_regs, sizeof(io_regs))));
+    _FDT((fdt_setprop_string(fdt, node, "compatible", "pnpPNP,b00")));
+}
+
 typedef struct ForeachPopulateArgs {
     void *fdt;
     int offset;
@@ -310,6 +330,16 @@ typedef struct ForeachPopulateArgs {
 
 static int powernv_populate_isa_device(DeviceState *dev, void *opaque)
 {
+    ForeachPopulateArgs *args = opaque;
+    ISADevice *d = ISA_DEVICE(dev);
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_MC146818_RTC)) {
+        powernv_populate_rtc(d, args->fdt, args->offset);
+    } else {
+        error_report("unknown isa device %s@i%x", qdev_fw_name(dev),
+                     d->ioport_id);
+    }
+
     return 0;
 }
 
