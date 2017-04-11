@@ -323,6 +323,37 @@ static void powernv_populate_rtc(ISADevice *d, void *fdt, int lpc_off)
     _FDT((fdt_setprop_string(fdt, node, "compatible", "pnpPNP,b00")));
 }
 
+static void powernv_populate_serial(ISADevice *d, void *fdt, int lpc_off)
+{
+    const char compatible[] = "ns16550\0pnpPNP,501";
+    uint32_t io_base = d->ioport_id;
+    uint32_t io_regs[] = {
+        cpu_to_be32(1),
+        cpu_to_be32(io_base),
+        cpu_to_be32(8)
+    };
+    char *name;
+    int node;
+
+    name = g_strdup_printf("%s@i%x", qdev_fw_name(DEVICE(d)), io_base);
+    node = fdt_add_subnode(fdt, lpc_off, name);
+    _FDT(node);
+    g_free(name);
+
+    _FDT((fdt_setprop(fdt, node, "reg", io_regs, sizeof(io_regs))));
+    _FDT((fdt_setprop(fdt, node, "compatible", compatible,
+                      sizeof(compatible))));
+
+    _FDT((fdt_setprop_cell(fdt, node, "clock-frequency", 1843200)));
+    _FDT((fdt_setprop_cell(fdt, node, "current-speed", 115200)));
+    _FDT((fdt_setprop_cell(fdt, node, "interrupts", d->isairq[0])));
+    _FDT((fdt_setprop_cell(fdt, node, "interrupt-parent",
+                           fdt_get_phandle(fdt, lpc_off))));
+
+    /* This is needed by Linux */
+    _FDT((fdt_setprop_string(fdt, node, "device_type", "serial")));
+}
+
 typedef struct ForeachPopulateArgs {
     void *fdt;
     int offset;
@@ -335,6 +366,8 @@ static int powernv_populate_isa_device(DeviceState *dev, void *opaque)
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_MC146818_RTC)) {
         powernv_populate_rtc(d, args->fdt, args->offset);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_ISA_SERIAL)) {
+        powernv_populate_serial(d, args->fdt, args->offset);
     } else {
         error_report("unknown isa device %s@i%x", qdev_fw_name(dev),
                      d->ioport_id);
