@@ -346,36 +346,6 @@ static void ppc_powernv_reset(void)
     cpu_physical_memory_write(PNV_FDT_ADDR, fdt, fdt_totalsize(fdt));
 }
 
-/* If we don't use the built-in LPC interrupt deserializer, we need
- * to provide a set of qirqs for the ISA bus or things will go bad.
- *
- * Most machines using pre-Naples chips (without said deserializer)
- * have a CPLD that will collect the SerIRQ and shoot them as a
- * single level interrupt to the P8 chip. So let's setup a hook
- * for doing just that.
- */
-static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
-{
-    PnvMachineState *pnv = POWERNV_MACHINE(qdev_get_machine());
-    uint32_t old_state = pnv->cpld_irqstate;
-    PnvChip *chip = opaque;
-
-    if (level) {
-        pnv->cpld_irqstate |= 1u << n;
-    } else {
-        pnv->cpld_irqstate &= ~(1u << n);
-    }
-    if (pnv->cpld_irqstate != old_state) {
-        pnv_psi_irq_set(&chip->psi, PSIHB_IRQ_EXTERNAL,
-                        pnv->cpld_irqstate != 0);
-    }
-}
-
-static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
-{
-     /* XXX TODO */
-}
-
 static ISABus *pnv_isa_create(PnvChip *chip)
 {
     PnvLpcController *lpc = &chip->lpc;
@@ -390,16 +360,7 @@ static ISABus *pnv_isa_create(PnvChip *chip)
     isa_bus = isa_bus_new(NULL, &lpc->isa_mem, &lpc->isa_io,
                           &error_fatal);
 
-    /* Not all variants have a working serial irq decoder. If not,
-     * handling of LPC interrupts becomes a platform issue (some
-     * platforms have a CPLD to do it).
-     */
-    if (pcc->chip_type == PNV_CHIP_POWER8NVL) {
-        irqs = qemu_allocate_irqs(pnv_lpc_isa_irq_handler, chip, ISA_NUM_IRQS);
-    } else {
-        irqs = qemu_allocate_irqs(pnv_lpc_isa_irq_handler_cpld, chip,
-                                  ISA_NUM_IRQS);
-    }
+    irqs = pnv_lpc_isa_irq_create(lpc, pcc->chip_type, ISA_NUM_IRQS);
 
     isa_bus_irqs(isa_bus, irqs);
     return isa_bus;
@@ -698,6 +659,10 @@ static void pnv_chip_init(Object *obj)
     object_initialize(&chip->occ, sizeof(chip->occ), TYPE_PNV_OCC);
     object_property_add_child(obj, "occ", OBJECT(&chip->occ), NULL);
     object_property_add_const_link(OBJECT(&chip->occ), "psi",
+                                   OBJECT(&chip->psi), &error_abort);
+
+    /* The LPC controller needs PSI to generate interrupts */
+    object_property_add_const_link(OBJECT(&chip->lpc), "psi",
                                    OBJECT(&chip->psi), &error_abort);
 }
 
