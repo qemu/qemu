@@ -231,6 +231,9 @@ static void blk_delete(BlockBackend *blk)
     assert(!blk->refcnt);
     assert(!blk->name);
     assert(!blk->dev);
+    if (blk->public.throttle_state) {
+        blk_io_limits_disable(blk);
+    }
     if (blk->root) {
         blk_remove_bs(blk);
     }
