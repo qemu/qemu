@@ -303,6 +303,29 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
     g_free(typename);
 }
 
+typedef struct ForeachPopulateArgs {
+    void *fdt;
+    int offset;
+} ForeachPopulateArgs;
+
+static int powernv_populate_isa_device(DeviceState *dev, void *opaque)
+{
+    return 0;
+}
+
+static void powernv_populate_isa(ISABus *bus, void *fdt, int lpc_offset)
+{
+    ForeachPopulateArgs args = {
+        .fdt = fdt,
+        .offset = lpc_offset,
+    };
+
+    /* ISA devices are not necessarily parented to the ISA bus so we
+     * can not use object_child_foreach() */
+    qbus_walk_children(BUS(bus), powernv_populate_isa_device,
+                       NULL, NULL, NULL, &args);
+}
+
 static void *powernv_create_fdt(MachineState *machine)
 {
     const char plat_compat[] = "qemu,powernv\0ibm,powernv";
@@ -311,6 +334,7 @@ static void *powernv_create_fdt(MachineState *machine)
     char *buf;
     int off;
     int i;
+    int lpc_offset;
 
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create_empty_tree(fdt, FDT_MAX_SIZE)));
@@ -350,6 +374,10 @@ static void *powernv_create_fdt(MachineState *machine)
     for (i = 0; i < pnv->num_chips; i++) {
         powernv_populate_chip(pnv->chips[i], fdt);
     }
+
+    /* Populate ISA devices on chip 0 */
+    lpc_offset = pnv_chip_lpc_offset(pnv->chips[0], fdt);
+    powernv_populate_isa(pnv->isa_bus, fdt, lpc_offset);
     return fdt;
 }
 
