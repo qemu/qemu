@@ -255,6 +255,18 @@ static void powernv_populate_icp(PnvChip *chip, void *fdt, uint32_t pir,
     g_free(reg);
 }
 
+static int pnv_chip_lpc_offset(PnvChip *chip, void *fdt)
+{
+    char *name;
+    int offset;
+
+    name = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
+                           (uint64_t) PNV_XSCOM_BASE(chip), PNV_XSCOM_LPC_BASE);
+    offset = fdt_path_offset(fdt, name);
+    g_free(name);
+    return offset;
+}
+
 static void powernv_populate_chip(PnvChip *chip, void *fdt)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
@@ -263,6 +275,16 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
     int i;
 
     pnv_xscom_populate(chip, fdt, 0);
+
+    /* The default LPC bus of a multichip system is on chip 0. It's
+     * recognized by the firmware (skiboot) using a "primary"
+     * property.
+     */
+    if (chip->chip_id == 0x0) {
+        int lpc_offset = pnv_chip_lpc_offset(chip, fdt);
+
+        _FDT((fdt_setprop(fdt, lpc_offset, "primary", NULL, 0)));
+    }
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);

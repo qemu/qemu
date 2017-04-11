@@ -92,14 +92,6 @@ enum {
 #define LPC_HC_REGS_OPB_SIZE    0x00001000
 
 
-/*
- * TODO: the "primary" cell should only be added on chip 0. This is
- * how skiboot chooses the default LPC controller on multichip
- * systems.
- *
- * It would be easly done if we can change the populate() interface to
- * replace the PnvXScomInterface parameter by a PnvChip one
- */
 static int pnv_lpc_populate(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 {
     const char compat[] = "ibm,power8-lpc\0ibm,lpc";
@@ -119,7 +111,6 @@ static int pnv_lpc_populate(PnvXScomInterface *dev, void *fdt, int xscom_offset)
     _FDT((fdt_setprop(fdt, offset, "reg", reg, sizeof(reg))));
     _FDT((fdt_setprop_cell(fdt, offset, "#address-cells", 2)));
     _FDT((fdt_setprop_cell(fdt, offset, "#size-cells", 1)));
-    _FDT((fdt_setprop(fdt, offset, "primary", NULL, 0)));
     _FDT((fdt_setprop(fdt, offset, "compatible", compat, sizeof(compat))));
     return 0;
 }
