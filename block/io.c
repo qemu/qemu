@@ -1362,16 +1362,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     assert(!waited || !req->serialising);
     assert(req->overlap_offset <= offset);
     assert(offset + bytes <= req->overlap_offset + req->overlap_bytes);
-    /* FIXME: Block migration uses the BlockBackend of the guest device at a
-     *        point when it has not yet taken write permissions. This will be
-     *        fixed by a future patch, but for now we have to bypass this
-     *        assertion for block migration to work. */
-    // assert(child->perm & BLK_PERM_WRITE);
-    /* FIXME: Because of the above, we also cannot guarantee that all format
-     *        BDS take the BLK_PERM_RESIZE permission on their file BDS, since
-     *        they are not obligated to do so if they do not have any parent
-     *        that has taken the permission to write to them. */
-    // assert(end_sector <= bs->total_sectors || child->perm & BLK_PERM_RESIZE);
+    assert(child->perm & BLK_PERM_WRITE);
+    assert(end_sector <= bs->total_sectors || child->perm & BLK_PERM_RESIZE);
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, req);
 
