@@ -118,6 +118,8 @@ typedef struct PnvChipClass {
 #define POWERNV_MACHINE(obj) \
     OBJECT_CHECK(PnvMachineState, (obj), TYPE_POWERNV_MACHINE)
 
+typedef struct IPMIBmc IPMIBmc;
+
 typedef struct PnvMachineState {
     /*< private >*/
     MachineState parent_obj;
@@ -130,10 +132,17 @@ typedef struct PnvMachineState {
 
     ISABus       *isa_bus;
     uint32_t     cpld_irqstate;
+
+    IPMIBmc      *bmc;
 } PnvMachineState;
 
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL
+
+/*
+ * BMC helpers
+ */
+void pnv_bmc_populate_sensors(IPMIBmc *bmc, void *fdt);
 
 /*
  * POWER8 MMIO base addresses

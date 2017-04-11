@@ -35,6 +35,7 @@
 #include "qapi/visitor.h"
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
+#include "hw/ipmi/ipmi.h"
 
 #include "hw/ppc/xics.h"
 #include "hw/ppc/pnv_xscom.h"
@@ -476,15 +477,35 @@ static void *powernv_create_fdt(MachineState *machine)
     /* Populate ISA devices on chip 0 */
     lpc_offset = pnv_chip_lpc_offset(pnv->chips[0], fdt);
     powernv_populate_isa(pnv->isa_bus, fdt, lpc_offset);
+
+    if (pnv->bmc) {
+        pnv_bmc_populate_sensors(pnv->bmc, fdt);
+    }
+
     return fdt;
 }
 
 static void ppc_powernv_reset(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
+    PnvMachineState *pnv = POWERNV_MACHINE(machine);
     void *fdt;
+    Object *obj;
 
     qemu_devices_reset();
+
+    /* OpenPOWER systems have a BMC, which can be defined on the
+     * command line with:
+     *
+     *   -device ipmi-bmc-sim,id=bmc0
+     *
+     * This is the internal simulator but it could also be an external
+     * BMC.
+     */
+    obj = object_resolve_path_type("", TYPE_IPMI_BMC, NULL);
+    if (obj) {
+        pnv->bmc = IPMI_BMC(obj);
+    }
 
     fdt = powernv_create_fdt(machine);
 
