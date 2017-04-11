@@ -3274,7 +3274,11 @@ int bdrv_truncate(BdrvChild *child, int64_t offset)
     BlockDriver *drv = bs->drv;
     int ret;
 
-    assert(child->perm & BLK_PERM_RESIZE);
+    /* FIXME: Some format block drivers use this function instead of implicitly
+     *        growing their file by writing beyond its end.
+     *        See bdrv_aligned_pwritev() for an explanation why we currently
+     *        cannot assert this permission in that case. */
+    // assert(child->perm & BLK_PERM_RESIZE);
 
     if (!drv)
         return -ENOMEDIUM;
