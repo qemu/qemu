@@ -485,6 +485,15 @@ static void *powernv_create_fdt(MachineState *machine)
     return fdt;
 }
 
+static void pnv_powerdown_notify(Notifier *n, void *opaque)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(qdev_get_machine());
+
+    if (pnv->bmc) {
+        pnv_bmc_powerdown(pnv->bmc);
+    }
+}
+
 static void ppc_powernv_reset(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
@@ -638,6 +647,11 @@ static void ppc_powernv_init(MachineState *machine)
 
     /* Create an RTC ISA device too */
     rtc_init(pnv->isa_bus, 2000, NULL);
+
+    /* OpenPOWER systems use a IPMI SEL Event message to notify the
+     * host to powerdown */
+    pnv->powerdown_notifier.notify = pnv_powerdown_notify;
+    qemu_register_powerdown_notifier(&pnv->powerdown_notifier);
 }
 
 /*

@@ -32,6 +32,47 @@
 /* TODO: include definition in ipmi.h */
 #define IPMI_SDR_FULL_TYPE 1
 
+/*
+ * OEM SEL Event data packet sent by BMC in response of a Read Event
+ * Message Buffer command
+ */
+typedef struct OemSel {
+    /* SEL header */
+    uint8_t id[2];
+    uint8_t type;
+    uint8_t timestamp[4];
+    uint8_t manuf_id[3];
+
+    /* OEM SEL data (6 bytes) follows */
+    uint8_t netfun;
+    uint8_t cmd;
+    uint8_t data[4];
+} OemSel;
+
+#define SOFT_OFF        0x00
+#define SOFT_REBOOT     0x01
+
+static void pnv_gen_oem_sel(IPMIBmc *bmc, uint8_t reboot)
+{
+    /* IPMI SEL Event are 16 bytes long */
+    OemSel sel = {
+        .id        = { 0x55 , 0x55 },
+        .type      = 0xC0, /* OEM */
+        .manuf_id  = { 0x0, 0x0, 0x0 },
+        .timestamp = { 0x0, 0x0, 0x0, 0x0 },
+        .netfun    = 0x3A, /* IBM */
+        .cmd       = 0x04, /* AMI OEM SEL Power Notification */
+        .data      = { reboot, 0xFF, 0xFF, 0xFF },
+    };
+
+    ipmi_bmc_gen_event(bmc, (uint8_t *) &sel, 0 /* do not log the event */);
+}
+
+void pnv_bmc_powerdown(IPMIBmc *bmc)
+{
+    pnv_gen_oem_sel(bmc, SOFT_OFF);
+}
+
 void pnv_bmc_populate_sensors(IPMIBmc *bmc, void *fdt)
 {
     int offset;

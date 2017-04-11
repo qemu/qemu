@@ -134,6 +134,7 @@ typedef struct PnvMachineState {
     uint32_t     cpld_irqstate;
 
     IPMIBmc      *bmc;
+    Notifier     powerdown_notifier;
 } PnvMachineState;
 
 #define PNV_FDT_ADDR          0x01000000
@@ -143,6 +144,7 @@ typedef struct PnvMachineState {
  * BMC helpers
  */
 void pnv_bmc_populate_sensors(IPMIBmc *bmc, void *fdt);
+void pnv_bmc_powerdown(IPMIBmc *bmc);
 
 /*
  * POWER8 MMIO base addresses
