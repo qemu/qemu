@@ -116,7 +116,28 @@ class Analyzer(object):
     is invoked.
 
     If a method matching a trace event name exists, it is invoked to process
-    that trace record.  Otherwise the catchall() method is invoked."""
+    that trace record.  Otherwise the catchall() method is invoked.
+
+    Example:
+    The following method handles the runstate_set(int new_state) trace event::
+
+      def runstate_set(self, new_state):
+          ...
+
+    The method can also take a timestamp argument before the trace event
+    arguments::
+
+      def runstate_set(self, timestamp, new_state):
+          ...
+
+    Timestamps have the uint64_t type and are in nanoseconds.
+
+    The pid can be included in addition to the timestamp and is useful when
+    dealing with traces from multiple processes::
+
+      def runstate_set(self, timestamp, pid, new_state):
+          ...
+    """
 
     def begin(self):
         """Called at the start of the trace."""
