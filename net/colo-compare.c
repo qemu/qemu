@@ -372,10 +372,9 @@ static int colo_old_packet_check_one(Packet *pkt, int64_t *check_time)
     }
 }
 
-static void colo_old_packet_check_one_conn(void *opaque,
-                                           void *user_data)
+static int colo_old_packet_check_one_conn(Connection *conn,
+                                          void *user_data)
 {
-    Connection *conn = opaque;
     GList *result = NULL;
     int64_t check_time = REGULAR_PACKET_CHECK_MS;
 
@@ -386,7 +385,10 @@ static void colo_old_packet_check_one_conn(void *opaque,
     if (result) {
         /* do checkpoint will flush old packet */
         /* TODO: colo_notify_checkpoint();*/
+        return 0;
     }
+
+    return 1;
 }
 
 /*
@@ -398,7 +400,12 @@ static void colo_old_packet_check(void *opaque)
 {
     CompareState *s = opaque;
 
-    g_queue_foreach(&s->conn_list, colo_old_packet_check_one_conn, NULL);
+    /*
+     * If we find one old packet, stop finding job and notify
+     * COLO frame do checkpoint.
+     */
+    g_queue_find_custom(&s->conn_list, NULL,
+                        (GCompareFunc)colo_old_packet_check_one_conn);
 }
 
 /*
