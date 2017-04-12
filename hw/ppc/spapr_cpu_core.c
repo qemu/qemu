@@ -127,6 +127,7 @@ static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         spapr_cpu_destroy(cpu);
+        object_unparent(cpu->intc);
         cpu_remove_sync(cs);
         object_unparent(obj);
     }
