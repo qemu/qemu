@@ -389,14 +389,12 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     } else if (align) {
         error_setg(errp, "Invalid alignment");
         ret = -EINVAL;
-        goto fail_unref;
+        goto out;
     }
 
     ret = 0;
     goto out;
 
-fail_unref:
-    bdrv_unref_child(bs, bs->file);
 out:
     if (ret < 0) {
         g_free(s->config_file);
