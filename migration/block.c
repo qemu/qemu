@@ -885,6 +885,8 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     int64_t total_sectors = 0;
     int nr_sectors;
     int ret;
+    BlockDriverInfo bdi;
+    int cluster_size = BLOCK_SIZE;
 
     do {
         addr = qemu_get_be64(f);
@@ -919,6 +921,15 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                     error_report_err(local_err);
                     return -EINVAL;
                 }
+
+                ret = bdrv_get_info(blk_bs(blk), &bdi);
+                if (ret == 0 && bdi.cluster_size > 0 &&
+                    bdi.cluster_size <= BLOCK_SIZE &&
+                    BLOCK_SIZE % bdi.cluster_size == 0) {
+                    cluster_size = bdi.cluster_size;
+                } else {
+                    cluster_size = BLOCK_SIZE;
+                }
             }
 
             if (total_sectors - addr < BDRV_SECTORS_PER_DIRTY_CHUNK) {
@@ -932,10 +943,30 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                                         nr_sectors * BDRV_SECTOR_SIZE,
                                         BDRV_REQ_MAY_UNMAP);
             } else {
+                int i;
+                int64_t cur_addr;
+                uint8_t *cur_buf;
+
                 buf = g_malloc(BLOCK_SIZE);
                 qemu_get_buffer(f, buf, BLOCK_SIZE);
-                ret = blk_pwrite(blk, addr * BDRV_SECTOR_SIZE, buf,
-                                 nr_sectors * BDRV_SECTOR_SIZE, 0);
+                for (i = 0; i < BLOCK_SIZE / cluster_size; i++) {
+                    cur_addr = addr * BDRV_SECTOR_SIZE + i * cluster_size;
+                    cur_buf = buf + i * cluster_size;
+
+                    if ((!block_mig_state.zero_blocks ||
+                        cluster_size < BLOCK_SIZE) &&
+                        buffer_is_zero(cur_buf, cluster_size)) {
+                        ret = blk_pwrite_zeroes(blk, cur_addr,
+                                                cluster_size,
+                                                BDRV_REQ_MAY_UNMAP);
+                    } else {
+                        ret = blk_pwrite(blk, cur_addr, cur_buf,
+                                         cluster_size, 0);
+                    }
+                    if (ret < 0) {
+                        break;
+                    }
+                }
                 g_free(buf);
             }
 
