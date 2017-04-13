@@ -37,6 +37,7 @@ typedef enum {
     S390_FEAT_TYPE_KMO,
     S390_FEAT_TYPE_PCC,
     S390_FEAT_TYPE_PPNO,
+    S390_FEAT_TYPE_KMA,
 } S390FeatType;
 
 /* Definition of a CPU feature */
@@ -74,6 +75,9 @@ typedef enum {
     S390_FEAT_GROUP_MSA_EXT_3,
     S390_FEAT_GROUP_MSA_EXT_4,
     S390_FEAT_GROUP_MSA_EXT_5,
+    S390_FEAT_GROUP_MSA_EXT_6,
+    S390_FEAT_GROUP_MSA_EXT_7,
+    S390_FEAT_GROUP_MSA_EXT_8,
     S390_FEAT_GROUP_MAX,
 } S390FeatGroup;
 

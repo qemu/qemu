@@ -2447,6 +2447,9 @@ static int query_cpu_subfunc(S390FeatBitmap features)
     if (test_bit(S390_FEAT_MSA_EXT_5, features)) {
         s390_add_from_feat_block(features, S390_FEAT_TYPE_PPNO, prop.ppno);
     }
+    if (test_bit(S390_FEAT_MSA_EXT_8, features)) {
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_KMA, prop.kma);
+    }
     return 0;
 }
 
@@ -2499,6 +2502,10 @@ static int configure_cpu_subfunc(const S390FeatBitmap features)
     if (test_bit(S390_FEAT_MSA_EXT_5, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_PPNO, prop.ppno);
         prop.ppno[0] |= 0x80; /* query is always available */
+    }
+    if (test_bit(S390_FEAT_MSA_EXT_8, features)) {
+        s390_fill_feat_block(features, S390_FEAT_TYPE_KMA, prop.kma);
+        prop.kma[0] |= 0x80; /* query is always available */
     }
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
@@ -2636,6 +2643,9 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
     /* with cpu model support, CMM is only indicated if really available */
     if (kvm_s390_cmma_available()) {
         set_bit(S390_FEAT_CMM, model->features);
+    } else {
+        /* no cmm -> no cmm nt */
+        clear_bit(S390_FEAT_CMM_NT, model->features);
     }
 
     /* set zpci and aen facilities */

@@ -182,6 +182,33 @@
     S390_FEAT_MSA_EXT_5, \
     S390_FEAT_PPNO_SHA_512_DRNG
 
+#define S390_FEAT_GROUP_MSA_EXT_6 \
+    S390_FEAT_KIMD_SHA3_224, \
+    S390_FEAT_KIMD_SHA3_256, \
+    S390_FEAT_KIMD_SHA3_384, \
+    S390_FEAT_KIMD_SHA3_512, \
+    S390_FEAT_KIMD_SHAKE_128, \
+    S390_FEAT_KIMD_SHAKE_256, \
+    S390_FEAT_KLMD_SHA3_224, \
+    S390_FEAT_KLMD_SHA3_256, \
+    S390_FEAT_KLMD_SHA3_384, \
+    S390_FEAT_KLMD_SHA3_512, \
+    S390_FEAT_KLMD_SHAKE_128, \
+    S390_FEAT_KLMD_SHAKE_256
+
+#define S390_FEAT_GROUP_MSA_EXT_7 \
+    S390_FEAT_PRNO_TRNG_QRTCR, \
+    S390_FEAT_PRNO_TRNG
+
+#define S390_FEAT_GROUP_MSA_EXT_8 \
+    S390_FEAT_MSA_EXT_8, \
+    S390_FEAT_KMA_GCM_AES_128, \
+    S390_FEAT_KMA_GCM_AES_192, \
+    S390_FEAT_KMA_GCM_AES_256 , \
+    S390_FEAT_KMA_GCM_EAES_128, \
+    S390_FEAT_KMA_GCM_EAES_192, \
+    S390_FEAT_KMA_GCM_EAES_256
+
 /* cpu feature groups */
 static uint16_t group_PLO[] = {
     S390_FEAT_GROUP_PLO,
@@ -209,6 +236,15 @@ static uint16_t group_MSA_EXT_4[] = {
 };
 static uint16_t group_MSA_EXT_5[] = {
     S390_FEAT_GROUP_MSA_EXT_5,
+};
+static uint16_t group_MSA_EXT_6[] = {
+    S390_FEAT_GROUP_MSA_EXT_6,
+};
+static uint16_t group_MSA_EXT_7[] = {
+    S390_FEAT_GROUP_MSA_EXT_7,
+};
+static uint16_t group_MSA_EXT_8[] = {
+    S390_FEAT_GROUP_MSA_EXT_8,
 };
 
 /* Base features (in order of release)
@@ -548,6 +584,9 @@ static FeatGroupDefSpec FeatGroupDef[] = {
     FEAT_GROUP_INITIALIZER(MSA_EXT_3),
     FEAT_GROUP_INITIALIZER(MSA_EXT_4),
     FEAT_GROUP_INITIALIZER(MSA_EXT_5),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_6),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_7),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_8),
 };
 
 static void set_bits(uint64_t list[], BitSpec bits)
