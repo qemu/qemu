@@ -319,6 +319,9 @@ QEMU X.Y.Z monitor - type 'help' for more information
 Testing: -drive driver=file
 QEMU_PROG: -drive driver=file: The 'file' block driver requires a file name
 
+Testing: -drive driver=file,filename=
+QEMU_PROG: -drive driver=file,filename=: The 'file' block driver requires a file name
+
 Testing: -drive driver=nbd
 QEMU_PROG: -drive driver=nbd: NBD server address missing
 
