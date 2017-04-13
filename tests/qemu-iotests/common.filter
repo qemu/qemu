@@ -86,6 +86,13 @@ _filter_qmp()
         -e '    QMP_VERSION'
 }
 
+# readline makes HMP command strings so long that git complains
+_filter_hmp()
+{
+    sed -e $'s/^\\((qemu) \\)\\?.*\e\\[D/\\1/g' \
+        -e $'s/\e\\[K//g'
+}
+
 # replace block job offset
 _filter_block_job_offset()
 {

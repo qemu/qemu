@@ -59,7 +59,7 @@ function _timed_wait_for()
     do
         if [ -z "${silent}" ]; then
             echo "${resp}" | _filter_testdir | _filter_qemu \
-                           | _filter_qemu_io | _filter_qmp
+                           | _filter_qemu_io | _filter_qmp | _filter_hmp
         fi
         grep -q "${*}" < <(echo ${resp})
         if [ $? -eq 0 ]; then
@@ -217,7 +217,7 @@ function _cleanup_qemu()
 
         if [ -n "${wait}" ]; then
             cat <&${QEMU_OUT[$i]} | _filter_testdir | _filter_qemu \
-                                  | _filter_qemu_io | _filter_qmp
+                                  | _filter_qemu_io | _filter_qmp | _filter_hmp
         fi
         rm -f "${QEMU_FIFO_IN}_${i}" "${QEMU_FIFO_OUT}_${i}"
         eval "exec ${QEMU_IN[$i]}<&-"   # close file descriptors

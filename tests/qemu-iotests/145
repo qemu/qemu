@@ -43,7 +43,8 @@ _supported_proto generic
 _supported_os Linux
 
 _make_test_img 1M
-echo quit | $QEMU -nographic -hda "$TEST_IMG" -incoming 'exec:true' -snapshot -serial none -monitor stdio | _filter_qemu
+echo quit | $QEMU -nographic -hda "$TEST_IMG" -incoming 'exec:true' -snapshot -serial none -monitor stdio |
+    _filter_qemu | _filter_hmp
 
 # success, all done
 echo "*** done"

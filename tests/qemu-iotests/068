@@ -62,11 +62,11 @@ esac
 # Give qemu some time to boot before saving the VM state
 bash -c 'sleep 1; echo -e "savevm 0\nquit"' |\
     $QEMU $platform_parm -nographic -monitor stdio -serial none -hda "$TEST_IMG" |\
-    _filter_qemu
+    _filter_qemu | _filter_hmp
 # Now try to continue from that VM state (this should just work)
 echo quit |\
     $QEMU $platform_parm -nographic -monitor stdio -serial none -hda "$TEST_IMG" -loadvm 0 |\
-    _filter_qemu
+    _filter_qemu | _filter_hmp
 
 # success, all done
 echo "*** done"

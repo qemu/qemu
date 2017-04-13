@@ -60,7 +60,8 @@ function do_run_qemu()
 
 function run_qemu()
 {
-    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_generated_node_ids
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu |
+        _filter_generated_node_ids | _filter_hmp
 }
 
 size=128M
