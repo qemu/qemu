@@ -2069,6 +2069,7 @@ static int img_convert(int argc, char **argv)
             opts = qemu_opts_parse_noisily(&qemu_object_opts,
                                            optarg, true);
             if (!opts) {
+                ret = -1;
                 goto fail_getopt;
             }
             break;
@@ -2081,6 +2082,7 @@ static int img_convert(int argc, char **argv)
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
                           NULL, NULL)) {
+        ret = -1;
         goto fail_getopt;
     }
 
