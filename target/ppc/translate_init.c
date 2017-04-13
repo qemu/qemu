@@ -394,8 +394,14 @@ static void spr_write_sdr1 (DisasContext *ctx, int sprn, int gprn)
     gen_helper_store_sdr1(cpu_env, cpu_gpr[gprn]);
 }
 
-/* 64 bits PowerPC specific SPRs */
 #if defined(TARGET_PPC64)
+/* 64 bits PowerPC specific SPRs */
+/* PIDR */
+static void spr_write_pidr(DisasContext *ctx, int sprn, int gprn)
+{
+    gen_helper_store_pidr(cpu_env, cpu_gpr[gprn]);
+}
+
 static void spr_read_hior (DisasContext *ctx, int gprn, int sprn)
 {
     tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, excp_prefix));
@@ -8200,7 +8206,7 @@ static void gen_spr_power8_book4(CPUPPCState *env)
                      KVM_REG_PPC_ACOP, 0);
     spr_register_kvm(env, SPR_BOOKS_PID, "PID",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_generic, &spr_write_pidr,
                      KVM_REG_PPC_PID, 0);
     spr_register_kvm(env, SPR_WORT, "WORT",
                      SPR_NOACCESS, SPR_NOACCESS,
