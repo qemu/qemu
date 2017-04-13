@@ -1167,7 +1167,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
         filename = qdict_get_try_str(options, "filename");
     }
 
-    if (drv->bdrv_needs_filename && !filename) {
+    if (drv->bdrv_needs_filename && (!filename || !filename[0])) {
         error_setg(errp, "The '%s' block driver requires a file name",
                    drv->format_name);
         ret = -EINVAL;
