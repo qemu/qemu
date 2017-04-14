@@ -209,6 +209,7 @@ struct tcp_hdr {
 #define ETH_P_IPV6                (0x86dd)
 #define ETH_P_VLAN                (0x8100)
 #define ETH_P_DVLAN               (0x88a8)
+#define ETH_P_NCSI                (0x88f8)
 #define ETH_P_UNKNOWN             (0xffff)
 #define VLAN_VID_MASK             0x0fff
 #define IP_HEADER_VERSION_4       (4)

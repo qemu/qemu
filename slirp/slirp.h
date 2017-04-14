@@ -231,6 +231,9 @@ extern Slirp *slirp_instance;
 
 void if_start(Slirp *);
 
+/* ncsi.c */
+void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len);
+
 #ifndef _WIN32
 #include <netdb.h>
 #endif
