@@ -585,6 +585,7 @@ bool virtio_is_supported(SubChannelId schid)
         switch (vdev.senseid.cu_model) {
         case VIRTIO_ID_BLOCK:
         case VIRTIO_ID_SCSI:
+        case VIRTIO_ID_NET:
             return true;
         }
     }

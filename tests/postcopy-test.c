@@ -482,7 +482,7 @@ static void test_migrate(void)
         usleep(10 * 1000);
     } while (dest_byte_a == dest_byte_b);
 
-    qmp("{ 'execute' : 'stop'}");
+    qmp_discard_response("{ 'execute' : 'stop'}");
     /* With it stopped, check nothing changes */
     qtest_memread(to, start_address, &dest_byte_c, 1);
     sleep(1);

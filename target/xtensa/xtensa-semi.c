@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "exec/semihost.h"
 #include "qemu/log.h"
 
 enum {
@@ -261,28 +262,50 @@ void HELPER(simcall)(CPUXtensaState *env)
         break;
 
     case TARGET_SYS_argc:
-        regs[2] = 1;
+        regs[2] = semihosting_get_argc();
         regs[3] = 0;
         break;
 
     case TARGET_SYS_argv_sz:
-        regs[2] = 128;
-        regs[3] = 0;
+        {
+            int argc = semihosting_get_argc();
+            int sz = (argc + 1) * sizeof(uint32_t);
+            int i;
+
+            for (i = 0; i < argc; ++i) {
+                sz += 1 + strlen(semihosting_get_arg(i));
+            }
+            regs[2] = sz;
+            regs[3] = 0;
+        }
         break;
 
     case TARGET_SYS_argv:
         {
-            struct Argv {
-                uint32_t argptr[2];
-                char text[120];
-            } argv = {
-                {0, 0},
-                "test"
-            };
+            int argc = semihosting_get_argc();
+            int str_offset = (argc + 1) * sizeof(uint32_t);
+            int i;
+            uint32_t argptr;
 
-            argv.argptr[0] = tswap32(regs[3] + offsetof(struct Argv, text));
+            for (i = 0; i < argc; ++i) {
+                const char *str = semihosting_get_arg(i);
+                int str_size = strlen(str) + 1;
+
+                argptr = tswap32(regs[3] + str_offset);
+
+                cpu_memory_rw_debug(cs,
+                                    regs[3] + i * sizeof(uint32_t),
+                                    (uint8_t *)&argptr, sizeof(argptr), 1);
+                cpu_memory_rw_debug(cs,
+                                    regs[3] + str_offset,
+                                    (uint8_t *)str, str_size, 1);
+                str_offset += str_size;
+            }
+            argptr = 0;
             cpu_memory_rw_debug(cs,
-                                regs[3], (uint8_t *)&argv, sizeof(argv), 1);
+                                regs[3] + i * sizeof(uint32_t),
+                                (uint8_t *)&argptr, sizeof(argptr), 1);
+            regs[3] = 0;
         }
         break;
 

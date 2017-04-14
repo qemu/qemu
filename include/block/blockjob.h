@@ -169,13 +169,25 @@ BlockJob *block_job_get(const char *id);
 /**
  * block_job_add_bdrv:
  * @job: A block job
+ * @name: The name to assign to the new BdrvChild
  * @bs: A BlockDriverState that is involved in @job
+ * @perm, @shared_perm: Permissions to request on the node
  *
  * Add @bs to the list of BlockDriverState that are involved in
  * @job. This means that all operations will be blocked on @bs while
  * @job exists.
  */
-void block_job_add_bdrv(BlockJob *job, BlockDriverState *bs);
+int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
+                       uint64_t perm, uint64_t shared_perm, Error **errp);
+
+/**
+ * block_job_remove_all_bdrv:
+ * @job: The block job
+ *
+ * Remove all BlockDriverStates from the list of nodes that are involved in the
+ * job. This removes the blockers added with block_job_add_bdrv().
+ */
+void block_job_remove_all_bdrv(BlockJob *job);
 
 /**
  * block_job_set_speed:

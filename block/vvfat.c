@@ -1394,7 +1394,13 @@ static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
 	   return -1;
 	if (s->qcow) {
 	    int n;
-            if (bdrv_is_allocated(s->qcow->bs, sector_num, nb_sectors-i, &n)) {
+            int ret;
+            ret = bdrv_is_allocated(s->qcow->bs, sector_num,
+                                    nb_sectors - i, &n);
+            if (ret < 0) {
+                return ret;
+            }
+            if (ret) {
                 DLOG(fprintf(stderr, "sectors %d+%d allocated\n",
                              (int)sector_num, n));
                 if (bdrv_read(s->qcow, sector_num, buf + i * 0x200, n)) {
@@ -1668,7 +1674,8 @@ static inline uint32_t modified_fat_get(BDRVVVFATState* s,
     }
 }
 
-static inline int cluster_was_modified(BDRVVVFATState* s, uint32_t cluster_num)
+static inline bool cluster_was_modified(BDRVVVFATState *s,
+                                        uint32_t cluster_num)
 {
     int was_modified = 0;
     int i, dummy;
@@ -1683,7 +1690,13 @@ static inline int cluster_was_modified(BDRVVVFATState* s, uint32_t cluster_num)
                                          1, &dummy);
     }
 
-    return was_modified;
+    /*
+     * Note that this treats failures to learn allocation status the
+     * same as if an allocation has occurred.  It's as safe as
+     * anything else, given that a failure to learn allocation status
+     * will probably result in more failures.
+     */
+    return !!was_modified;
 }
 
 static const char* get_basename(const char* path)
@@ -1833,6 +1846,9 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
                     int res;
 
                     res = bdrv_is_allocated(s->qcow->bs, offset + i, 1, &dummy);
+                    if (res < 0) {
+                        return -1;
+                    }
                     if (!res) {
                         res = vvfat_read(s->bs, offset, s->cluster_buffer, 1);
                         if (res) {
@@ -2968,6 +2984,7 @@ static void write_target_close(BlockDriverState *bs) {
 
 static BlockDriver vvfat_write_target = {
     .format_name        = "vvfat_write_target",
+    .instance_size      = sizeof(void*),
     .bdrv_co_pwritev    = write_target_commit,
     .bdrv_close         = write_target_close,
 };
@@ -3036,13 +3053,12 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     unlink(s->qcow_filename);
 #endif
 
-    backing = bdrv_new();
-    bdrv_set_backing_hd(s->bs, backing);
-    bdrv_unref(backing);
+    backing = bdrv_new_open_driver(&vvfat_write_target, NULL, BDRV_O_ALLOW_RDWR,
+                                   &error_abort);
+    *(void**) backing->opaque = s;
 
-    s->bs->backing->bs->drv = &vvfat_write_target;
-    s->bs->backing->bs->opaque = g_new(void *, 1);
-    *(void**)s->bs->backing->bs->opaque = s;
+    bdrv_set_backing_hd(s->bs, backing, &error_abort);
+    bdrv_unref(backing);
 
     return 0;
 
@@ -3050,6 +3066,27 @@ err:
     g_free(s->qcow_filename);
     s->qcow_filename = NULL;
     return ret;
+}
+
+static void vvfat_child_perm(BlockDriverState *bs, BdrvChild *c,
+                             const BdrvChildRole *role,
+                             uint64_t perm, uint64_t shared,
+                             uint64_t *nperm, uint64_t *nshared)
+{
+    BDRVVVFATState *s = bs->opaque;
+
+    assert(c == s->qcow || role == &child_backing);
+
+    if (c == s->qcow) {
+        /* This is a private node, nobody should try to attach to it */
+        *nperm = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
+        *nshared = BLK_PERM_WRITE_UNCHANGED;
+    } else {
+        /* The backing file is there so 'commit' can use it. vvfat doesn't
+         * access it in any way. */
+        *nperm = 0;
+        *nshared = BLK_PERM_ALL;
+    }
 }
 
 static void vvfat_close(BlockDriverState *bs)
@@ -3077,6 +3114,7 @@ static BlockDriver bdrv_vvfat = {
     .bdrv_file_open         = vvfat_open,
     .bdrv_refresh_limits    = vvfat_refresh_limits,
     .bdrv_close             = vvfat_close,
+    .bdrv_child_perm        = vvfat_child_perm,
 
     .bdrv_co_preadv         = vvfat_co_preadv,
     .bdrv_co_pwritev        = vvfat_co_pwritev,

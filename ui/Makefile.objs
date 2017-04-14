@@ -41,11 +41,8 @@ endif
 endif
 
 gtk.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)
-gtk-egl.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS) $(OPENGL_CFLAGS)
-gtk-gl-area.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS) $(OPENGL_CFLAGS)
-shader.o-cflags += $(OPENGL_CFLAGS)
-console-gl.o-cflags += $(OPENGL_CFLAGS)
-egl-helpers.o-cflags += $(OPENGL_CFLAGS)
+gtk-egl.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)
+gtk-gl-area.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)
 
 gtk-egl.o-libs += $(OPENGL_LIBS)
 shader.o-libs += $(OPENGL_LIBS)

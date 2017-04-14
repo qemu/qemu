@@ -497,10 +497,19 @@ static QemuOptsList qemu_spice_opts = {
         },{
             .name = "seamless-migration",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "display",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "head",
+            .type = QEMU_OPT_NUMBER,
 #ifdef HAVE_SPICE_GL
         },{
             .name = "gl",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "rendernode",
+            .type = QEMU_OPT_STRING,
 #endif
         },
         { /* end of list */ }
@@ -833,7 +842,7 @@ void qemu_spice_init(void)
                          "incompatible with -spice port/tls-port");
             exit(1);
         }
-        if (egl_rendernode_init() != 0) {
+        if (egl_rendernode_init(qemu_opt_get(opts, "rendernode")) != 0) {
             error_report("Failed to initialize EGL render node for SPICE GL");
             exit(1);
         }

@@ -63,7 +63,7 @@ static int virtio_ccw_hcall_notify(const uint64_t *args)
     if (!sch || !css_subch_visible(sch)) {
         return -EINVAL;
     }
-    if (queue >= VIRTIO_CCW_QUEUE_MAX) {
+    if (queue >= VIRTIO_QUEUE_MAX) {
         return -EINVAL;
     }
     virtio_queue_notify(virtio_ccw_get_vdev(sch), queue);
@@ -116,7 +116,8 @@ static void ccw_init(MachineState *machine)
     /* get a BUS */
     css_bus = virtual_css_bus_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
-                      machine->initrd_filename, "s390-ccw.img", true);
+                      machine->initrd_filename, "s390-ccw.img",
+                      "s390-netboot.img", true);
     s390_flic_init();
 
     dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
@@ -336,7 +337,12 @@ static const TypeInfo ccw_machine_info = {
     type_init(ccw_machine_register_##suffix)
 
 #define CCW_COMPAT_2_8 \
-        HW_COMPAT_2_8
+        HW_COMPAT_2_8 \
+        {\
+            .driver   = TYPE_S390_FLIC_COMMON,\
+            .property = "adapter_routes_max_batch",\
+            .value    = "64",\
+        },
 
 #define CCW_COMPAT_2_7 \
         HW_COMPAT_2_7

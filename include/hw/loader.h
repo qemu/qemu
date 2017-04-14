@@ -65,7 +65,7 @@ int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz);
 #define ELF_LOAD_WRONG_ENDIAN -4
 const char *load_elf_strerror(int error);
 
-/** load_elf_as:
+/** load_elf_ram:
  * @filename: Path of ELF file
  * @translate_fn: optional function to translate load addresses
  * @translate_opaque: opaque data passed to @translate_fn
@@ -81,6 +81,7 @@ const char *load_elf_strerror(int error);
  *             words and 3 for within doublewords.
  * @as: The AddressSpace to load the ELF to. The value of address_space_memory
  *      is used if nothing is supplied here.
+ * @load_rom : Load ELF binary as ROM
  *
  * Load an ELF file's contents to the emulated system's address space.
  * Clients may optionally specify a callback to perform address
@@ -92,6 +93,16 @@ const char *load_elf_strerror(int error);
  * their particular values for @elf_machine are set.
  * If @elf_machine is EM_NONE then the machine type will be read from the
  * ELF header and no checks will be carried out against the machine type.
+ */
+int load_elf_ram(const char *filename,
+                 uint64_t (*translate_fn)(void *, uint64_t),
+                 void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
+                 uint64_t *highaddr, int big_endian, int elf_machine,
+                 int clear_lsb, int data_swab, AddressSpace *as,
+                 bool load_rom);
+
+/** load_elf_as:
+ * Same as load_elf_ram(), but always loads the elf as ROM
  */
 int load_elf_as(const char *filename,
                 uint64_t (*translate_fn)(void *, uint64_t),
@@ -164,6 +175,8 @@ int load_uimage(const char *filename, hwaddr *ep,
  */
 int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz);
 
+ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src, size_t srclen);
+
 ssize_t read_targphys(const char *name,
                       int fd, hwaddr dst_addr, size_t nbytes);
 void pstrcpy_targphys(const char *name,
@@ -213,5 +226,9 @@ void hmp_info_roms(Monitor *mon, const QDict *qdict);
 
 int rom_add_vga(const char *file);
 int rom_add_option(const char *file, int32_t bootindex);
+
+/* This is the usual maximum in uboot, so if a uImage overflows this, it would
+ * overflow on real hardware too. */
+#define UBOOT_MAX_GUNZIP_BYTES (64 << 20)
 
 #endif

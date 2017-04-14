@@ -29,7 +29,6 @@
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
 #include "sysemu/block-backend.h"
-#include "migration/migration.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -577,14 +576,6 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     dc = qdev_get_device_class(&driver, errp);
     if (!dc) {
         return NULL;
-    }
-
-    if (only_migratable) {
-        if (dc->vmsd->unmigratable) {
-            error_setg(errp, "Device %s is not migratable, but "
-                       "--only-migratable was specified", driver);
-            return NULL;
-        }
     }
 
     /* find bus */

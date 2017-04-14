@@ -25,17 +25,6 @@
 #
 # The <format-string> should be a sprintf()-compatible format string.
 
-# aio-posix.c
-run_poll_handlers_begin(void *ctx, int64_t max_ns) "ctx %p max_ns %"PRId64
-run_poll_handlers_end(void *ctx, bool progress) "ctx %p progress %d"
-poll_shrink(void *ctx, int64_t old, int64_t new) "ctx %p old %"PRId64" new %"PRId64
-poll_grow(void *ctx, int64_t old, int64_t new) "ctx %p old %"PRId64" new %"PRId64
-
-# thread-pool.c
-thread_pool_submit(void *pool, void *req, void *opaque) "pool %p req %p opaque %p"
-thread_pool_complete(void *pool, void *req, void *opaque, int ret) "pool %p req %p opaque %p ret %d"
-thread_pool_cancel(void *req, void *opaque) "req %p opaque %p"
-
 # ioport.c
 cpu_in(unsigned int addr, char size, unsigned int val) "addr %#x(%c) value %u"
 cpu_out(unsigned int addr, char size, unsigned int val) "addr %#x(%c) value %u"
@@ -76,7 +65,6 @@ xen_remap_bucket(uint64_t index) "index %#"PRIx64
 xen_map_cache_return(void* ptr) "%p"
 
 # monitor.c
-handle_qmp_command(void *mon, const char *cmd_name) "mon %p cmd_name \"%s\""
 monitor_protocol_event_handler(uint32_t event, void *qdict) "event=%d data=%p"
 monitor_protocol_event_emit(uint32_t event, void *data) "event=%d data=%p"
 monitor_protocol_event_queue(uint32_t event, void *qdict, uint64_t rate) "event=%d data=%p rate=%" PRId64

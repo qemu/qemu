@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
+#include "qemu/main-loop.h"
 
 #if !defined(CONFIG_USER_ONLY)
 void helper_mmu_read_debug(CPUNios2State *env, uint32_t rn)
@@ -35,7 +36,9 @@ void helper_mmu_write(CPUNios2State *env, uint32_t rn, uint32_t v)
 
 void helper_check_interrupts(CPUNios2State *env)
 {
+    qemu_mutex_lock_iothread();
     nios2_check_interrupts(env);
+    qemu_mutex_unlock_iothread();
 }
 #endif /* !CONFIG_USER_ONLY */
 

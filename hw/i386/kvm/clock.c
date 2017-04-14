@@ -22,6 +22,7 @@
 #include "kvm_i386.h"
 #include "hw/sysbus.h"
 #include "hw/kvm/clock.h"
+#include "qapi/error.h"
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
@@ -207,6 +208,11 @@ static void kvmclock_vm_state_change(void *opaque, int running,
 static void kvmclock_realize(DeviceState *dev, Error **errp)
 {
     KVMClockState *s = KVM_CLOCK(dev);
+
+    if (!kvm_enabled()) {
+        error_setg(errp, "kvmclock device requires KVM");
+        return;
+    }
 
     kvm_update_clock(s);
 

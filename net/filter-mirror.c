@@ -49,7 +49,7 @@ static int filter_mirror_send(CharBackend *chr_out,
 {
     int ret = 0;
     ssize_t size = 0;
-    uint32_t len =  0;
+    uint32_t len = 0;
     char *buf;
 
     size = iov_size(iov, iovcnt);
@@ -77,8 +77,9 @@ err:
     return ret < 0 ? ret : -EIO;
 }
 
-static void
-redirector_to_filter(NetFilterState *nf, const uint8_t *buf, int len)
+static void redirector_to_filter(NetFilterState *nf,
+                                 const uint8_t *buf,
+                                 int len)
 {
     struct iovec iov = {
         .iov_base = (void *)buf,

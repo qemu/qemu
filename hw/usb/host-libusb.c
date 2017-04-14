@@ -159,7 +159,10 @@ static void usb_host_attach_kernel(USBHostDevice *s);
 #define BULK_TIMEOUT         0        /* unlimited */
 #define INTR_TIMEOUT         0        /* unlimited */
 
-#if LIBUSBX_API_VERSION >= 0x01000103
+#ifndef LIBUSB_API_VERSION
+# define LIBUSB_API_VERSION LIBUSBX_API_VERSION
+#endif
+#if LIBUSB_API_VERSION >= 0x01000103
 # define HAVE_STREAMS 1
 #endif
 
@@ -269,7 +272,7 @@ static int usb_host_get_port(libusb_device *dev, char *port, size_t len)
     size_t off;
     int rc, i;
 
-#if LIBUSBX_API_VERSION >= 0x01000102
+#if LIBUSB_API_VERSION >= 0x01000102
     rc = libusb_get_port_numbers(dev, path, 7);
 #else
     rc = libusb_get_port_path(ctx, dev, path, 7);
@@ -1065,7 +1068,7 @@ static void usb_host_instance_init(Object *obj)
                                   &udev->qdev, NULL);
 }
 
-static void usb_host_handle_destroy(USBDevice *udev)
+static void usb_host_unrealize(USBDevice *udev, Error **errp)
 {
     USBHostDevice *s = USB_HOST_DEVICE(udev);
 
@@ -1568,7 +1571,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     uc->handle_data    = usb_host_handle_data;
     uc->handle_control = usb_host_handle_control;
     uc->handle_reset   = usb_host_handle_reset;
-    uc->handle_destroy = usb_host_handle_destroy;
+    uc->unrealize      = usb_host_unrealize;
     uc->flush_ep_queue = usb_host_flush_ep_queue;
     uc->alloc_streams  = usb_host_alloc_streams;
     uc->free_streams   = usb_host_free_streams;

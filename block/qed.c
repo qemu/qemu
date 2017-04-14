@@ -273,7 +273,19 @@ static CachedL2Table *qed_new_l2_table(BDRVQEDState *s)
     return l2_table;
 }
 
-static void qed_aio_next_io(void *opaque, int ret);
+static void qed_aio_next_io(QEDAIOCB *acb, int ret);
+
+static void qed_aio_start_io(QEDAIOCB *acb)
+{
+    qed_aio_next_io(acb, 0);
+}
+
+static void qed_aio_next_io_cb(void *opaque, int ret)
+{
+    QEDAIOCB *acb = opaque;
+
+    qed_aio_next_io(acb, ret);
+}
 
 static void qed_plug_allocating_write_reqs(BDRVQEDState *s)
 {
@@ -292,7 +304,7 @@ static void qed_unplug_allocating_write_reqs(BDRVQEDState *s)
 
     acb = QSIMPLEQ_FIRST(&s->allocating_write_reqs);
     if (acb) {
-        qed_aio_next_io(acb, 0);
+        qed_aio_start_io(acb);
     }
 }
 
@@ -333,10 +345,22 @@ static void qed_need_check_timer_cb(void *opaque)
 
     trace_qed_need_check_timer_cb(s);
 
+    qed_acquire(s);
     qed_plug_allocating_write_reqs(s);
 
     /* Ensure writes are on disk before clearing flag */
     bdrv_aio_flush(s->bs->file->bs, qed_clear_need_check, s);
+    qed_release(s);
+}
+
+void qed_acquire(BDRVQEDState *s)
+{
+    aio_context_acquire(bdrv_get_aio_context(s->bs));
+}
+
+void qed_release(BDRVQEDState *s)
+{
+    aio_context_release(bdrv_get_aio_context(s->bs));
 }
 
 static void qed_start_need_check_timer(BDRVQEDState *s)
@@ -391,8 +415,8 @@ static void bdrv_qed_drain(BlockDriverState *bs)
     }
 }
 
-static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
-                         Error **errp)
+static int bdrv_qed_do_open(BlockDriverState *bs, QDict *options, int flags,
+                            Error **errp)
 {
     BDRVQEDState *s = bs->opaque;
     QEDHeader le_header;
@@ -526,6 +550,18 @@ out:
     return ret;
 }
 
+static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
+{
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+                               false, errp);
+    if (!bs->file) {
+        return -EINVAL;
+    }
+
+    return bdrv_qed_do_open(bs, options, flags, errp);
+}
+
 static void bdrv_qed_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVQEDState *s = bs->opaque;
@@ -589,7 +625,8 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     }
 
     blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                       &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         return -EIO;
@@ -721,7 +758,7 @@ static void qed_is_allocated_cb(void *opaque, int ret, uint64_t offset, size_t l
     }
 
     if (cb->co) {
-        qemu_coroutine_enter(cb->co);
+        aio_co_wake(cb->co);
     }
 }
 
@@ -918,6 +955,7 @@ static void qed_update_l2_table(BDRVQEDState *s, QEDTable *table, int index,
 static void qed_aio_complete_bh(void *opaque)
 {
     QEDAIOCB *acb = opaque;
+    BDRVQEDState *s = acb_to_s(acb);
     BlockCompletionFunc *cb = acb->common.cb;
     void *user_opaque = acb->common.opaque;
     int ret = acb->bh_ret;
@@ -925,7 +963,9 @@ static void qed_aio_complete_bh(void *opaque)
     qemu_aio_unref(acb);
 
     /* Invoke callback */
+    qed_acquire(s);
     cb(user_opaque, ret);
+    qed_release(s);
 }
 
 static void qed_aio_complete(QEDAIOCB *acb, int ret)
@@ -959,7 +999,7 @@ static void qed_aio_complete(QEDAIOCB *acb, int ret)
         QSIMPLEQ_REMOVE_HEAD(&s->allocating_write_reqs, next);
         acb = QSIMPLEQ_FIRST(&s->allocating_write_reqs);
         if (acb) {
-            qed_aio_next_io(acb, 0);
+            qed_aio_start_io(acb);
         } else if (s->header.features & QED_F_NEED_CHECK) {
             qed_start_need_check_timer(s);
         }
@@ -984,7 +1024,7 @@ static void qed_commit_l2_update(void *opaque, int ret)
     acb->request.l2_table = qed_find_l2_cache_entry(&s->l2_cache, l2_offset);
     assert(acb->request.l2_table != NULL);
 
-    qed_aio_next_io(opaque, ret);
+    qed_aio_next_io(acb, ret);
 }
 
 /**
@@ -1032,11 +1072,11 @@ static void qed_aio_write_l2_update(QEDAIOCB *acb, int ret, uint64_t offset)
     if (need_alloc) {
         /* Write out the whole new L2 table */
         qed_write_l2_table(s, &acb->request, 0, s->table_nelems, true,
-                            qed_aio_write_l1_update, acb);
+                           qed_aio_write_l1_update, acb);
     } else {
         /* Write out only the updated part of the L2 table */
         qed_write_l2_table(s, &acb->request, index, acb->cur_nclusters, false,
-                            qed_aio_next_io, acb);
+                           qed_aio_next_io_cb, acb);
     }
     return;
 
@@ -1088,7 +1128,7 @@ static void qed_aio_write_main(void *opaque, int ret)
     }
 
     if (acb->find_cluster_ret == QED_CLUSTER_FOUND) {
-        next_fn = qed_aio_next_io;
+        next_fn = qed_aio_next_io_cb;
     } else {
         if (s->bs->backing) {
             next_fn = qed_aio_write_flush_before_l2_update;
@@ -1201,7 +1241,7 @@ static void qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
     if (acb->flags & QED_AIOCB_ZERO) {
         /* Skip ahead if the clusters are already zero */
         if (acb->find_cluster_ret == QED_CLUSTER_ZERO) {
-            qed_aio_next_io(acb, 0);
+            qed_aio_start_io(acb);
             return;
         }
 
@@ -1321,18 +1361,18 @@ static void qed_aio_read_data(void *opaque, int ret,
     /* Handle zero cluster and backing file reads */
     if (ret == QED_CLUSTER_ZERO) {
         qemu_iovec_memset(&acb->cur_qiov, 0, 0, acb->cur_qiov.size);
-        qed_aio_next_io(acb, 0);
+        qed_aio_start_io(acb);
         return;
     } else if (ret != QED_CLUSTER_FOUND) {
         qed_read_backing_file(s, acb->cur_pos, &acb->cur_qiov,
-                              &acb->backing_qiov, qed_aio_next_io, acb);
+                              &acb->backing_qiov, qed_aio_next_io_cb, acb);
         return;
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
     bdrv_aio_readv(bs->file, offset / BDRV_SECTOR_SIZE,
                    &acb->cur_qiov, acb->cur_qiov.size / BDRV_SECTOR_SIZE,
-                   qed_aio_next_io, acb);
+                   qed_aio_next_io_cb, acb);
     return;
 
 err:
@@ -1342,9 +1382,8 @@ err:
 /**
  * Begin next I/O or complete the request
  */
-static void qed_aio_next_io(void *opaque, int ret)
+static void qed_aio_next_io(QEDAIOCB *acb, int ret)
 {
-    QEDAIOCB *acb = opaque;
     BDRVQEDState *s = acb_to_s(acb);
     QEDFindClusterFunc *io_fn = (acb->flags & QED_AIOCB_WRITE) ?
                                 qed_aio_write_data : qed_aio_read_data;
@@ -1400,7 +1439,7 @@ static BlockAIOCB *qed_aio_setup(BlockDriverState *bs,
     qemu_iovec_init(&acb->cur_qiov, qiov->niov);
 
     /* Start request */
-    qed_aio_next_io(acb, 0);
+    qed_aio_start_io(acb);
     return &acb->common;
 }
 
@@ -1436,7 +1475,7 @@ static void coroutine_fn qed_co_pwrite_zeroes_cb(void *opaque, int ret)
     cb->done = true;
     cb->ret = ret;
     if (cb->co) {
-        qemu_coroutine_enter(cb->co);
+        aio_co_wake(cb->co);
     }
 }
 
@@ -1603,7 +1642,7 @@ static void bdrv_qed_invalidate_cache(BlockDriverState *bs, Error **errp)
     bdrv_qed_close(bs);
 
     memset(s, 0, sizeof(BDRVQEDState));
-    ret = bdrv_qed_open(bs, NULL, bs->open_flags, &local_err);
+    ret = bdrv_qed_do_open(bs, NULL, bs->open_flags, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         error_prepend(errp, "Could not reopen qed layer: ");
@@ -1666,6 +1705,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_open                = bdrv_qed_open,
     .bdrv_close               = bdrv_qed_close,
     .bdrv_reopen_prepare      = bdrv_qed_reopen_prepare,
+    .bdrv_child_perm          = bdrv_format_default_perms,
     .bdrv_create              = bdrv_qed_create,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = bdrv_qed_co_get_block_status,

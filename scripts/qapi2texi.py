@@ -9,7 +9,7 @@ import sys
 
 import qapi
 
-COMMAND_FMT = """
+MSG_FMT = """
 @deftypefn {type} {{}} {name}
 
 {body}
@@ -18,16 +18,7 @@ COMMAND_FMT = """
 
 """.format
 
-ENUM_FMT = """
-@deftp Enum {name}
-
-{body}
-
-@end deftp
-
-""".format
-
-STRUCT_FMT = """
+TYPE_FMT = """
 @deftp {{{type}}} {name}
 
 {body}
@@ -44,12 +35,12 @@ EXAMPLE_FMT = """@example
 
 def subst_strong(doc):
     """Replaces *foo* by @strong{foo}"""
-    return re.sub(r'\*([^*\n]+)\*', r'@emph{\1}', doc)
+    return re.sub(r'\*([^*\n]+)\*', r'@strong{\1}', doc)
 
 
 def subst_emph(doc):
     """Replaces _foo_ by @emph{foo}"""
-    return re.sub(r'\b_([^_\n]+)_\b', r' @emph{\1} ', doc)
+    return re.sub(r'\b_([^_\n]+)_\b', r'@emph{\1}', doc)
 
 
 def subst_vars(doc):
@@ -59,7 +50,7 @@ def subst_vars(doc):
 
 def subst_braces(doc):
     """Replaces {} with @{ @}"""
-    return doc.replace("{", "@{").replace("}", "@}")
+    return doc.replace('{', '@{').replace('}', '@}')
 
 
 def texi_example(doc):
@@ -88,10 +79,10 @@ def texi_format(doc):
     doc = subst_vars(doc)
     doc = subst_emph(doc)
     doc = subst_strong(doc)
-    inlist = ""
+    inlist = ''
     lastempty = False
     for line in doc.split('\n'):
-        empty = line == ""
+        empty = line == ''
 
         # FIXME: Doing this in a single if / elif chain is
         # problematic.  For instance, a line without markup terminates
@@ -101,160 +92,194 @@ def texi_format(doc):
         #
         # Make sure to update section "Documentation markup" in
         # docs/qapi-code-gen.txt when fixing this.
-        if line.startswith("| "):
+        if line.startswith('| '):
             line = EXAMPLE_FMT(code=line[2:])
-        elif line.startswith("= "):
-            line = "@section " + line[2:]
-        elif line.startswith("== "):
-            line = "@subsection " + line[3:]
+        elif line.startswith('= '):
+            line = '@section ' + line[2:]
+        elif line.startswith('== '):
+            line = '@subsection ' + line[3:]
         elif re.match(r'^([0-9]*\.) ', line):
             if not inlist:
-                lines.append("@enumerate")
-                inlist = "enumerate"
-            line = line[line.find(" ")+1:]
-            lines.append("@item")
+                lines.append('@enumerate')
+                inlist = 'enumerate'
+            line = line[line.find(' ')+1:]
+            lines.append('@item')
         elif re.match(r'^[*-] ', line):
             if not inlist:
-                lines.append("@itemize %s" % {'*': "@bullet",
-                                              '-': "@minus"}[line[0]])
-                inlist = "itemize"
-            lines.append("@item")
+                lines.append('@itemize %s' % {'*': '@bullet',
+                                              '-': '@minus'}[line[0]])
+                inlist = 'itemize'
+            lines.append('@item')
             line = line[2:]
         elif lastempty and inlist:
-            lines.append("@end %s\n" % inlist)
-            inlist = ""
+            lines.append('@end %s\n' % inlist)
+            inlist = ''
 
         lastempty = empty
         lines.append(line)
 
     if inlist:
-        lines.append("@end %s\n" % inlist)
-    return "\n".join(lines)
+        lines.append('@end %s\n' % inlist)
+    return '\n'.join(lines)
 
 
 def texi_body(doc):
-    """
-    Format the body of a symbol documentation:
-    - main body
-    - table of arguments
-    - followed by "Returns/Notes/Since/Example" sections
-    """
-    body = texi_format(str(doc.body)) + "\n"
-    if doc.args:
-        body += "@table @asis\n"
-        for arg, section in doc.args.iteritems():
-            desc = str(section)
-            opt = ''
-            if "#optional" in desc:
-                desc = desc.replace("#optional", "")
-                opt = ' (optional)'
-            body += "@item @code{'%s'}%s\n%s\n" % (arg, opt,
-                                                   texi_format(desc))
-        body += "@end table\n"
+    """Format the main documentation body"""
+    return texi_format(str(doc.body)) + '\n'
 
+
+def texi_enum_value(value):
+    """Format a table of members item for an enumeration value"""
+    return '@item @code{%s}\n' % value.name
+
+
+def texi_member(member, suffix=''):
+    """Format a table of members item for an object type member"""
+    typ = member.type.doc_type()
+    return '@item @code{%s%s%s}%s%s\n' % (
+        member.name,
+        ': ' if typ else '',
+        typ if typ else '',
+        ' (optional)' if member.optional else '',
+        suffix)
+
+
+def texi_members(doc, what, base, variants, member_func):
+    """Format the table of members"""
+    items = ''
+    for section in doc.args.itervalues():
+        # TODO Drop fallbacks when undocumented members are outlawed
+        if section.content:
+            desc = texi_format(str(section))
+        elif (variants and variants.tag_member == section.member
+              and not section.member.type.doc_type()):
+            values = section.member.type.member_names()
+            desc = 'One of ' + ', '.join(['@t{"%s"}' % v for v in values])
+        else:
+            desc = 'Not documented'
+        items += member_func(section.member) + desc + '\n'
+    if base:
+        items += '@item The members of @code{%s}\n' % base.doc_type()
+    if variants:
+        for v in variants.variants:
+            when = ' when @code{%s} is @t{"%s"}' % (
+                variants.tag_member.name, v.name)
+            if v.type.is_implicit():
+                assert not v.type.base and not v.type.variants
+                for m in v.type.local_members:
+                    items += member_func(m, when)
+            else:
+                items += '@item The members of @code{%s}%s\n' % (
+                    v.type.doc_type(), when)
+    if not items:
+        return ''
+    return '\n@b{%s:}\n@table @asis\n%s@end table\n' % (what, items)
+
+
+def texi_sections(doc):
+    """Format additional sections following arguments"""
+    body = ''
     for section in doc.sections:
         name, doc = (section.name, str(section))
         func = texi_format
-        if name.startswith("Example"):
+        if name.startswith('Example'):
             func = texi_example
 
         if name:
-            # FIXME the indentation produced by @quotation in .txt and
-            # .html output is confusing
-            body += "\n@quotation %s\n%s\n@end quotation" % \
-                    (name, func(doc))
-        else:
-            body += func(doc)
+            # prefer @b over @strong, so txt doesn't translate it to *Foo:*
+            body += '\n\n@b{%s:}\n' % name
 
+        body += func(doc)
     return body
 
 
-def texi_alternate(expr, doc):
-    """Format an alternate to texi"""
-    body = texi_body(doc)
-    return STRUCT_FMT(type="Alternate",
-                      name=doc.symbol,
-                      body=body)
+def texi_entity(doc, what, base=None, variants=None,
+                member_func=texi_member):
+    return (texi_body(doc)
+            + texi_members(doc, what, base, variants, member_func)
+            + texi_sections(doc))
 
 
-def texi_union(expr, doc):
-    """Format a union to texi"""
-    discriminator = expr.get("discriminator")
-    if discriminator:
-        union = "Flat Union"
-    else:
-        union = "Simple Union"
+class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
+    def __init__(self):
+        self.out = None
+        self.cur_doc = None
 
-    body = texi_body(doc)
-    return STRUCT_FMT(type=union,
-                      name=doc.symbol,
-                      body=body)
+    def visit_begin(self, schema):
+        self.out = ''
+
+    def visit_enum_type(self, name, info, values, prefix):
+        doc = self.cur_doc
+        if self.out:
+            self.out += '\n'
+        self.out += TYPE_FMT(type='Enum',
+                             name=doc.symbol,
+                             body=texi_entity(doc, 'Values',
+                                              member_func=texi_enum_value))
+
+    def visit_object_type(self, name, info, base, members, variants):
+        doc = self.cur_doc
+        if base and base.is_implicit():
+            base = None
+        if self.out:
+            self.out += '\n'
+        self.out += TYPE_FMT(type='Object',
+                             name=doc.symbol,
+                             body=texi_entity(doc, 'Members', base, variants))
+
+    def visit_alternate_type(self, name, info, variants):
+        doc = self.cur_doc
+        if self.out:
+            self.out += '\n'
+        self.out += TYPE_FMT(type='Alternate',
+                             name=doc.symbol,
+                             body=texi_entity(doc, 'Members'))
+
+    def visit_command(self, name, info, arg_type, ret_type,
+                      gen, success_response, boxed):
+        doc = self.cur_doc
+        if self.out:
+            self.out += '\n'
+        if boxed:
+            body = texi_body(doc)
+            body += '\n@b{Arguments:} the members of @code{%s}' % arg_type.name
+            body += texi_sections(doc)
+        else:
+            body = texi_entity(doc, 'Arguments')
+        self.out += MSG_FMT(type='Command',
+                            name=doc.symbol,
+                            body=body)
+
+    def visit_event(self, name, info, arg_type, boxed):
+        doc = self.cur_doc
+        if self.out:
+            self.out += '\n'
+        self.out += MSG_FMT(type='Event',
+                            name=doc.symbol,
+                            body=texi_entity(doc, 'Arguments'))
+
+    def symbol(self, doc, entity):
+        self.cur_doc = doc
+        entity.visit(self)
+        self.cur_doc = None
+
+    def freeform(self, doc):
+        assert not doc.args
+        if self.out:
+            self.out += '\n'
+        self.out += texi_body(doc) + texi_sections(doc)
 
 
-def texi_enum(expr, doc):
-    """Format an enum to texi"""
-    for i in expr['data']:
-        if i not in doc.args:
-            doc.args[i] = ''
-    body = texi_body(doc)
-    return ENUM_FMT(name=doc.symbol,
-                    body=body)
-
-
-def texi_struct(expr, doc):
-    """Format a struct to texi"""
-    body = texi_body(doc)
-    return STRUCT_FMT(type="Struct",
-                      name=doc.symbol,
-                      body=body)
-
-
-def texi_command(expr, doc):
-    """Format a command to texi"""
-    body = texi_body(doc)
-    return COMMAND_FMT(type="Command",
-                       name=doc.symbol,
-                       body=body)
-
-
-def texi_event(expr, doc):
-    """Format an event to texi"""
-    body = texi_body(doc)
-    return COMMAND_FMT(type="Event",
-                       name=doc.symbol,
-                       body=body)
-
-
-def texi_expr(expr, doc):
-    """Format an expr to texi"""
-    (kind, _) = expr.items()[0]
-
-    fmt = {"command": texi_command,
-           "struct": texi_struct,
-           "enum": texi_enum,
-           "union": texi_union,
-           "alternate": texi_alternate,
-           "event": texi_event}[kind]
-
-    return fmt(expr, doc)
-
-
-def texi(docs):
-    """Convert QAPI schema expressions to texi documentation"""
-    res = []
-    for doc in docs:
-        expr = doc.expr
-        if not expr:
-            res.append(texi_body(doc))
-            continue
-        try:
-            doc = texi_expr(expr, doc)
-            res.append(doc)
-        except:
-            print >>sys.stderr, "error at @%s" % doc.info
-            raise
-
-    return '\n'.join(res)
+def texi_schema(schema):
+    """Convert QAPI schema documentation to Texinfo"""
+    gen = QAPISchemaGenDocVisitor()
+    gen.visit_begin(schema)
+    for doc in schema.docs:
+        if doc.symbol:
+            gen.symbol(doc, schema.lookup_entity(doc.symbol))
+        else:
+            gen.freeform(doc)
+    return gen.out
 
 
 def main(argv):
@@ -264,8 +289,12 @@ def main(argv):
         sys.exit(1)
 
     schema = qapi.QAPISchema(argv[1])
-    print texi(schema.docs)
+    if not qapi.doc_required:
+        print >>sys.stderr, ("%s: need pragma 'doc-required' "
+                             "to generate documentation" % argv[0])
+        sys.exit(1)
+    print texi_schema(schema)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main(sys.argv)

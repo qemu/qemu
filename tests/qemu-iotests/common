@@ -156,7 +156,6 @@ check options
     -nbd                test nbd
     -ssh                test ssh
     -nfs                test nfs
-    -archipelago        test archipelago
     -luks               test luks
     -xdiff              graphical mode diff
     -nocache            use O_DIRECT on backing file
@@ -268,11 +267,6 @@ testlist options
 
         -nfs)
             IMGPROTO=nfs
-            xpand=false
-            ;;
-
-        -archipelago)
-            IMGPROTO=archipelago
             xpand=false
             ;;
 

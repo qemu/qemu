@@ -144,6 +144,7 @@ typedef struct BDRVRawState {
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
     bool use_linux_aio:1;
+    bool page_cache_inconsistent:1;
     bool has_fallocate;
     bool needs_alignment;
 } BDRVRawState;
@@ -219,28 +220,28 @@ static int probe_logical_blocksize(int fd, unsigned int *sector_size_p)
 {
     unsigned int sector_size;
     bool success = false;
+    int i;
 
     errno = ENOTSUP;
-
-    /* Try a few ioctls to get the right size */
+    static const unsigned long ioctl_list[] = {
 #ifdef BLKSSZGET
-    if (ioctl(fd, BLKSSZGET, &sector_size) >= 0) {
-        *sector_size_p = sector_size;
-        success = true;
-    }
+        BLKSSZGET,
 #endif
 #ifdef DKIOCGETBLOCKSIZE
-    if (ioctl(fd, DKIOCGETBLOCKSIZE, &sector_size) >= 0) {
-        *sector_size_p = sector_size;
-        success = true;
-    }
+        DKIOCGETBLOCKSIZE,
 #endif
 #ifdef DIOCGSECTORSIZE
-    if (ioctl(fd, DIOCGSECTORSIZE, &sector_size) >= 0) {
-        *sector_size_p = sector_size;
-        success = true;
-    }
+        DIOCGSECTORSIZE,
 #endif
+    };
+
+    /* Try a few ioctls to get the right size */
+    for (i = 0; i < (int)ARRAY_SIZE(ioctl_list); i++) {
+        if (ioctl(fd, ioctl_list[i], &sector_size) >= 0) {
+            *sector_size_p = sector_size;
+            success = true;
+        }
+    }
 
     return success ? 0 : -errno;
 }
@@ -668,6 +669,51 @@ static int hdev_get_max_transfer_length(BlockDriverState *bs, int fd)
 #endif
 }
 
+static int hdev_get_max_segments(const struct stat *st)
+{
+#ifdef CONFIG_LINUX
+    char buf[32];
+    const char *end;
+    char *sysfspath;
+    int ret;
+    int fd = -1;
+    long max_segments;
+
+    sysfspath = g_strdup_printf("/sys/dev/block/%u:%u/queue/max_segments",
+                                major(st->st_rdev), minor(st->st_rdev));
+    fd = open(sysfspath, O_RDONLY);
+    if (fd == -1) {
+        ret = -errno;
+        goto out;
+    }
+    do {
+        ret = read(fd, buf, sizeof(buf) - 1);
+    } while (ret == -1 && errno == EINTR);
+    if (ret < 0) {
+        ret = -errno;
+        goto out;
+    } else if (ret == 0) {
+        ret = -EIO;
+        goto out;
+    }
+    buf[ret] = 0;
+    /* The file is ended with '\n', pass 'end' to accept that. */
+    ret = qemu_strtol(buf, &end, 10, &max_segments);
+    if (ret == 0 && end && *end == '\n') {
+        ret = max_segments;
+    }
+
+out:
+    if (fd != -1) {
+        close(fd);
+    }
+    g_free(sysfspath);
+    return ret;
+#else
+    return -ENOTSUP;
+#endif
+}
+
 static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
@@ -678,6 +724,11 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
             int ret = hdev_get_max_transfer_length(bs, s->fd);
             if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
                 bs->bl.max_transfer = pow2floor(ret);
+            }
+            ret = hdev_get_max_segments(&st);
+            if (ret > 0) {
+                bs->bl.max_transfer = MIN(bs->bl.max_transfer,
+                                          ret * getpagesize());
             }
         }
     }
@@ -774,10 +825,31 @@ static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
 
 static ssize_t handle_aiocb_flush(RawPosixAIOData *aiocb)
 {
+    BDRVRawState *s = aiocb->bs->opaque;
     int ret;
+
+    if (s->page_cache_inconsistent) {
+        return -EIO;
+    }
 
     ret = qemu_fdatasync(aiocb->aio_fildes);
     if (ret == -1) {
+        /* There is no clear definition of the semantics of a failing fsync(),
+         * so we may have to assume the worst. The sad truth is that this
+         * assumption is correct for Linux. Some pages are now probably marked
+         * clean in the page cache even though they are inconsistent with the
+         * on-disk contents. The next fdatasync() call would succeed, but no
+         * further writeback attempt will be made. We can't get back to a state
+         * in which we know what is on disk (we would have to rewrite
+         * everything that was touched since the last fdatasync() at least), so
+         * make bdrv_flush() fail permanently. Given that the behaviour isn't
+         * really defined, I have little hope that other OSes are doing better.
+         *
+         * Obviously, this doesn't affect O_DIRECT, which bypasses the page
+         * cache. */
+        if ((s->open_flags & O_DIRECT) == 0) {
+            s->page_cache_inconsistent = true;
+        }
         return -errno;
     }
     return 0;
@@ -1591,18 +1663,17 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
 #endif
     }
 
-    if (ftruncate(fd, total_size) != 0) {
-        result = -errno;
-        error_setg_errno(errp, -result, "Could not resize file");
-        goto out_close;
-    }
-
     switch (prealloc) {
 #ifdef CONFIG_POSIX_FALLOCATE
     case PREALLOC_MODE_FALLOC:
-        /* posix_fallocate() doesn't set errno. */
+        /*
+         * Truncating before posix_fallocate() makes it about twice slower on
+         * file systems that do not support fallocate(), trying to check if a
+         * block is allocated before allocating it, so don't do that here.
+         */
         result = -posix_fallocate(fd, 0, total_size);
         if (result != 0) {
+            /* posix_fallocate() doesn't set errno. */
             error_setg_errno(errp, -result,
                              "Could not preallocate data for the new file");
         }
@@ -1610,6 +1681,17 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
 #endif
     case PREALLOC_MODE_FULL:
     {
+        /*
+         * Knowing the final size from the beginning could allow the file
+         * system driver to do less allocations and possibly avoid
+         * fragmentation of the file.
+         */
+        if (ftruncate(fd, total_size) != 0) {
+            result = -errno;
+            error_setg_errno(errp, -result, "Could not resize file");
+            goto out_close;
+        }
+
         int64_t num = 0, left = total_size;
         buf = g_malloc0(65536);
 
@@ -1636,6 +1718,10 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
         break;
     }
     case PREALLOC_MODE_OFF:
+        if (ftruncate(fd, total_size) != 0) {
+            result = -errno;
+            error_setg_errno(errp, -result, "Could not resize file");
+        }
         break;
     default:
         result = -EINVAL;
@@ -2107,6 +2193,12 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
 
 #if defined(__APPLE__) && defined(__MACH__)
+    /*
+     * Caution: while qdict_get_str() is fine, getting non-string types
+     * would require more care.  When @options come from -blockdev or
+     * blockdev_add, its members are typed according to the QAPI
+     * schema, but when they come from -drive, they're all QString.
+     */
     const char *filename = qdict_get_str(options, "filename");
     char bsd_path[MAXPATHLEN] = "";
     bool error_occurred = false;

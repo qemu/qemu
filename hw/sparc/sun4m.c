@@ -142,6 +142,9 @@ void cpu_check_irqs(CPUSPARCState *env)
 {
     CPUState *cs;
 
+    /* We should be holding the BQL before we mess with IRQs */
+    g_assert(qemu_mutex_iothread_locked());
+
     if (env->pil_in && (env->interrupt_index == 0 ||
                         (env->interrupt_index & ~15) == TT_EXTINT)) {
         unsigned int i;
@@ -988,11 +991,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 
     slavio_misc_init(hwdef->slavio_base, hwdef->aux1_base, hwdef->aux2_base,
                      slavio_irq[30], fdc_tc);
-
-    if (drive_get_max_bus(IF_SCSI) > 0) {
-        fprintf(stderr, "qemu: too many SCSI bus\n");
-        exit(1);
-    }
 
     esp_init(hwdef->esp_base, 2,
              espdma_memory_read, espdma_memory_write,

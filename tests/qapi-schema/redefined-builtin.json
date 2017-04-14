@@ -1,6 +1,2 @@
 # we reject types that duplicate builtin names
-
-##
-# @size:
-##
 { 'struct': 'size', 'data': { 'myint': 'size' } }

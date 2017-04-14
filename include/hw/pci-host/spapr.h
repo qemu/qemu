@@ -80,6 +80,8 @@ struct sPAPRPHBState {
 
     uint32_t numa_node;
 
+    bool pcie_ecs; /* Allow access to PCIe extended config space? */
+
     /* Fields for migration compatibility hacks */
     bool pre_2_8_migration;
     uint32_t mig_liobn;
@@ -106,7 +108,7 @@ static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
-    return xics_get_qirq(spapr->xics, phb->lsi_table[pin].irq);
+    return xics_get_qirq(XICS_FABRIC(spapr), phb->lsi_table[pin].irq);
 }
 
 PCIHostState *spapr_create_phb(sPAPRMachineState *spapr, int index);

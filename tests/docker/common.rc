@@ -29,7 +29,7 @@ build_qemu()
     config_opts="--enable-werror \
                  ${TARGET_LIST:+--target-list=${TARGET_LIST}} \
                  --prefix=$PWD/install \
-                 $EXTRA_CONFIGURE_OPTS \
+                 $QEMU_CONFIGURE_OPTS $EXTRA_CONFIGURE_OPTS \
                  $@"
     echo "Configure options:"
     echo $config_opts

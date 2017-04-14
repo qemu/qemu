@@ -39,28 +39,34 @@ static const CompatInfo compat_table[] = {
      */
     { /* POWER6, ISA2.05 */
         .pvr = CPU_POWERPC_LOGICAL_2_05,
-        .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_COMPAT_2_05
-               | PCR_TM_DIS | PCR_VSX_DIS,
+        .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 |
+               PCR_COMPAT_2_05 | PCR_TM_DIS | PCR_VSX_DIS,
         .pcr_level = PCR_COMPAT_2_05,
         .max_threads = 2,
     },
     { /* POWER7, ISA2.06 */
         .pvr = CPU_POWERPC_LOGICAL_2_06,
-        .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
+        .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
         .pcr_level = PCR_COMPAT_2_06,
         .max_threads = 4,
     },
     {
         .pvr = CPU_POWERPC_LOGICAL_2_06_PLUS,
-        .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
+        .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
         .pcr_level = PCR_COMPAT_2_06,
         .max_threads = 4,
     },
     { /* POWER8, ISA2.07 */
         .pvr = CPU_POWERPC_LOGICAL_2_07,
-        .pcr = PCR_COMPAT_2_07,
+        .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07,
         .pcr_level = PCR_COMPAT_2_07,
         .max_threads = 8,
+    },
+    { /* POWER9, ISA3.00 */
+        .pvr = CPU_POWERPC_LOGICAL_3_00,
+        .pcr = PCR_COMPAT_3_00,
+        .pcr_level = PCR_COMPAT_3_00,
+        .max_threads = 4,
     },
 };
 

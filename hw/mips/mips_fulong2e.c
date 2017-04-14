@@ -387,6 +387,7 @@ static void mips_fulong2e_machine_init(MachineClass *mc)
 {
     mc->desc = "Fulong 2e mini pc";
     mc->init = mips_fulong2e_init;
+    mc->block_default_type = IF_IDE;
 }
 
 DEFINE_MACHINE("fulong2e", mips_fulong2e_machine_init)

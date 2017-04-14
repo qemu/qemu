@@ -1215,6 +1215,7 @@ static void m25p80_realize(SSISlave *ss, Error **errp)
 {
     Flash *s = M25P80(ss);
     M25P80Class *mc = M25P80_GET_CLASS(s);
+    int ret;
 
     s->pi = mc->pi;
 
@@ -1222,6 +1223,13 @@ static void m25p80_realize(SSISlave *ss, Error **errp)
     s->dirty_page = -1;
 
     if (s->blk) {
+        uint64_t perm = BLK_PERM_CONSISTENT_READ |
+                        (blk_is_read_only(s->blk) ? 0 : BLK_PERM_WRITE);
+        ret = blk_set_perm(s->blk, perm, BLK_PERM_ALL, errp);
+        if (ret < 0) {
+            return;
+        }
+
         DB_PRINT_L(0, "Binding to IF_MTD drive\n");
         s->storage = blk_blockalign(s->blk, s->size);
 

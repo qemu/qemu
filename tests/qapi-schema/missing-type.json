@@ -1,6 +1,2 @@
 # we reject an expression with missing metatype
-
-##
-# @foo:
-##
 { 'data': { } }

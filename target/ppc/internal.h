@@ -133,6 +133,8 @@ EXTRACT_HELPER(UIMM4, 16, 4);
 EXTRACT_HELPER(NB, 11, 5);
 /* Shift count */
 EXTRACT_HELPER(SH, 11, 5);
+/* lwat/stwat/ldat/lwat */
+EXTRACT_HELPER(FC, 11, 5);
 /* Vector shift count */
 EXTRACT_HELPER(VSH, 6, 4);
 /* Mask start */
@@ -186,6 +188,7 @@ EXTRACT_HELPER(DCM, 10, 6)
 
 /* DFP Z23-form */
 EXTRACT_HELPER(RMC, 9, 2)
+EXTRACT_HELPER(Rrm, 16, 1)
 
 EXTRACT_HELPER_SPLIT(DQxT, 3, 1, 21, 5);
 EXTRACT_HELPER_SPLIT(xT, 0, 1, 21, 5);

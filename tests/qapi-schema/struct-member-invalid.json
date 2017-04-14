@@ -1,5 +1,2 @@
-##
-# @foo:
-##
 { 'struct': 'foo',
   'data': { 'a': false } }

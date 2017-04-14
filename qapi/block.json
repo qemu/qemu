@@ -163,11 +163,11 @@
 #
 # Ejects a device from a removable drive.
 #
-# @device:  #optional Block device name (deprecated, use @id instead)
+# @device:  Block device name (deprecated, use @id instead)
 #
-# @id:      #optional The name or QOM path of the guest device (since: 2.8)
+# @id:      The name or QOM path of the guest device (since: 2.8)
 #
-# @force:   #optional If true, eject regardless of whether the drive is locked.
+# @force:   If true, eject regardless of whether the drive is locked.
 #           If not specified, the default value is false.
 #
 # Returns:  Nothing on success
@@ -215,7 +215,7 @@
 # @device: The device name or node name of the node to be exported
 #
 # @writable: Whether clients should be able to write to the device via the
-#     NBD connection (default false). #optional
+#     NBD connection (default false).
 #
 # Returns: error if the device is already marked for export.
 #

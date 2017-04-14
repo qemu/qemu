@@ -240,6 +240,7 @@ static void GCC_FMT_ATTR(2, 3) qtest_sendf(CharBackend *chr,
     va_start(ap, fmt);
     buffer = g_strdup_vprintf(fmt, ap);
     qtest_send(chr, buffer);
+    g_free(buffer);
     va_end(ap);
 }
 
@@ -373,8 +374,8 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         uint64_t value;
 
         g_assert(words[1] && words[2]);
-        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
-        g_assert(qemu_strtoull(words[2], NULL, 0, &value) == 0);
+        g_assert(qemu_strtou64(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtou64(words[2], NULL, 0, &value) == 0);
 
         if (words[0][5] == 'b') {
             uint8_t data = value;
@@ -402,7 +403,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         uint64_t value = UINT64_C(-1);
 
         g_assert(words[1]);
-        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtou64(words[1], NULL, 0, &addr) == 0);
 
         if (words[0][4] == 'b') {
             uint8_t data;
@@ -428,8 +429,8 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         char *enc;
 
         g_assert(words[1] && words[2]);
-        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
-        g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
+        g_assert(qemu_strtou64(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtou64(words[2], NULL, 0, &len) == 0);
         /* We'd send garbage to libqtest if len is 0 */
         g_assert(len);
 
@@ -452,8 +453,8 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         gchar *b64_data;
 
         g_assert(words[1] && words[2]);
-        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
-        g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
+        g_assert(qemu_strtou64(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtou64(words[2], NULL, 0, &len) == 0);
 
         data = g_malloc(len);
         cpu_physical_memory_read(addr, data, len);
@@ -469,8 +470,8 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         size_t data_len;
 
         g_assert(words[1] && words[2] && words[3]);
-        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
-        g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
+        g_assert(qemu_strtou64(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtou64(words[2], NULL, 0, &len) == 0);
 
         data_len = strlen(words[3]);
         if (data_len < 3) {
@@ -498,8 +499,8 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         unsigned long pattern;
 
         g_assert(words[1] && words[2] && words[3]);
-        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
-        g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
+        g_assert(qemu_strtou64(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtou64(words[2], NULL, 0, &len) == 0);
         g_assert(qemu_strtoul(words[3], NULL, 0, &pattern) == 0);
 
         if (len) {
@@ -518,8 +519,8 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         gsize out_len;
 
         g_assert(words[1] && words[2] && words[3]);
-        g_assert(qemu_strtoull(words[1], NULL, 0, &addr) == 0);
-        g_assert(qemu_strtoull(words[2], NULL, 0, &len) == 0);
+        g_assert(qemu_strtou64(words[1], NULL, 0, &addr) == 0);
+        g_assert(qemu_strtou64(words[2], NULL, 0, &len) == 0);
 
         data_len = strlen(words[3]);
         if (data_len < 3) {
@@ -552,9 +553,9 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         unsigned long nargs, nret;
 
         g_assert(qemu_strtoul(words[2], NULL, 0, &nargs) == 0);
-        g_assert(qemu_strtoull(words[3], NULL, 0, &args) == 0);
+        g_assert(qemu_strtou64(words[3], NULL, 0, &args) == 0);
         g_assert(qemu_strtoul(words[4], NULL, 0, &nret) == 0);
-        g_assert(qemu_strtoull(words[5], NULL, 0, &ret) == 0);
+        g_assert(qemu_strtou64(words[5], NULL, 0, &ret) == 0);
         res = qtest_rtas_call(words[1], nargs, args, nret, ret);
 
         qtest_send_prefix(chr);
@@ -564,7 +565,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         int64_t ns;
 
         if (words[1]) {
-            g_assert(qemu_strtoll(words[1], NULL, 0, &ns) == 0);
+            g_assert(qemu_strtoi64(words[1], NULL, 0, &ns) == 0);
         } else {
             ns = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
         }
@@ -576,7 +577,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         int64_t ns;
 
         g_assert(words[1]);
-        g_assert(qemu_strtoll(words[1], NULL, 0, &ns) == 0);
+        g_assert(qemu_strtoi64(words[1], NULL, 0, &ns) == 0);
         qtest_clock_warp(ns);
         qtest_send_prefix(chr);
         qtest_sendf(chr, "OK %"PRIi64"\n",

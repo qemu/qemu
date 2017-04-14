@@ -44,16 +44,6 @@
 #include "hw/s390x/ipl.h"
 #include "cpu.h"
 
-//#define DEBUG_S390
-
-#ifdef DEBUG_S390
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
-
 #define MAX_BLK_DEVS                    10
 
 #define S390_TOD_CLOCK_VALUE_MISSING    0x00
@@ -75,6 +65,7 @@ void s390_init_ipl_dev(const char *kernel_filename,
                        const char *kernel_cmdline,
                        const char *initrd_filename,
                        const char *firmware,
+                       const char *netboot_fw,
                        bool enforce_bios)
 {
     Object *new = object_new(TYPE_S390_IPL);
@@ -88,6 +79,7 @@ void s390_init_ipl_dev(const char *kernel_filename,
     }
     qdev_prop_set_string(dev, "cmdline", kernel_cmdline);
     qdev_prop_set_string(dev, "firmware", firmware);
+    qdev_prop_set_string(dev, "netboot_fw", netboot_fw);
     qdev_prop_set_bit(dev, "enforce_bios", enforce_bios);
     object_property_add_child(qdev_get_machine(), TYPE_S390_IPL,
                               new, NULL);

@@ -11,6 +11,7 @@ struct qhc {
 void qusb_pci_init_one(QPCIBus *pcibus, struct qhc *hc,
                        uint32_t devfn, int bar);
 void uhci_port_test(struct qhc *hc, int port, uint16_t expect);
+void uhci_deinit(struct qhc *hc);
 
 void usb_test_hotplug(const char *bus_name, const int port,
                       void (*port_check)(void));

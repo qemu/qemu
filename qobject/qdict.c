@@ -178,20 +178,6 @@ size_t qdict_size(const QDict *qdict)
 }
 
 /**
- * qdict_get_obj(): Get a QObject of a specific type
- */
-static QObject *qdict_get_obj(const QDict *qdict, const char *key, QType type)
-{
-    QObject *obj;
-
-    obj = qdict_get(qdict, key);
-    assert(obj != NULL);
-    assert(qobject_type(obj) == type);
-
-    return obj;
-}
-
-/**
  * qdict_get_double(): Get an number mapped by 'key'
  *
  * This function assumes that 'key' exists and it stores a
@@ -241,25 +227,15 @@ bool qdict_get_bool(const QDict *qdict, const char *key)
 }
 
 /**
- * qdict_get_qlist(): Get the QList mapped by 'key'
- *
- * This function assumes that 'key' exists and it stores a
- * QList object.
- *
- * Return QList mapped by 'key'.
+ * qdict_get_qlist(): If @qdict maps @key to a QList, return it, else NULL.
  */
 QList *qdict_get_qlist(const QDict *qdict, const char *key)
 {
-    return qobject_to_qlist(qdict_get_obj(qdict, key, QTYPE_QLIST));
+    return qobject_to_qlist(qdict_get(qdict, key));
 }
 
 /**
- * qdict_get_qdict(): Get the QDict mapped by 'key'
- *
- * This function assumes that 'key' exists and it stores a
- * QDict object.
- *
- * Return QDict mapped by 'key'.
+ * qdict_get_qdict(): If @qdict maps @key to a QDict, return it, else NULL.
  */
 QDict *qdict_get_qdict(const QDict *qdict, const char *key)
 {
@@ -767,7 +743,7 @@ static int qdict_is_list(QDict *maybe_list, Error **errp)
     for (ent = qdict_first(maybe_list); ent != NULL;
          ent = qdict_next(maybe_list, ent)) {
 
-        if (qemu_strtoll(ent->key, NULL, 10, &val) == 0) {
+        if (qemu_strtoi64(ent->key, NULL, 10, &val) == 0) {
             if (is_list == -1) {
                 is_list = 1;
             } else if (!is_list) {

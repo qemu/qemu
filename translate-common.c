@@ -21,6 +21,7 @@
 #include "qemu-common.h"
 #include "qom/cpu.h"
 #include "sysemu/cpus.h"
+#include "qemu/main-loop.h"
 
 uintptr_t qemu_real_host_page_size;
 intptr_t qemu_real_host_page_mask;
@@ -30,6 +31,7 @@ intptr_t qemu_real_host_page_mask;
 static void tcg_handle_interrupt(CPUState *cpu, int mask)
 {
     int old_mask;
+    g_assert(qemu_mutex_iothread_locked());
 
     old_mask = cpu->interrupt_request;
     cpu->interrupt_request |= mask;
@@ -40,17 +42,13 @@ static void tcg_handle_interrupt(CPUState *cpu, int mask)
      */
     if (!qemu_cpu_is_self(cpu)) {
         qemu_cpu_kick(cpu);
-        return;
-    }
-
-    if (use_icount) {
-        cpu->icount_decr.u16.high = 0xffff;
-        if (!cpu->can_do_io
+    } else {
+        cpu->icount_decr.u16.high = -1;
+        if (use_icount &&
+            !cpu->can_do_io
             && (mask & ~old_mask) != 0) {
             cpu_abort(cpu, "Raised interrupt while not in I/O function");
         }
-    } else {
-        cpu->tcg_exit_req = 1;
     }
 }
 

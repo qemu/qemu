@@ -291,7 +291,7 @@ static int megasas_map_sgl(MegasasState *s, MegasasCmd *cmd, union mfi_sgl *sgl)
     if (cmd->iov_size > iov_size) {
         trace_megasas_iovec_overflow(cmd->index, iov_size, cmd->iov_size);
     } else if (cmd->iov_size < iov_size) {
-        trace_megasas_iovec_underflow(cmd->iov_size, iov_size, cmd->iov_size);
+        trace_megasas_iovec_underflow(cmd->index, iov_size, cmd->iov_size);
     }
     cmd->iov_offset = 0;
     return 0;
@@ -1924,8 +1924,8 @@ static int megasas_handle_abort(MegasasState *s, MegasasCmd *cmd)
         abort_ctx &= (uint64_t)0xFFFFFFFF;
     }
     if (abort_cmd->context != abort_ctx) {
-        trace_megasas_abort_invalid_context(cmd->index, abort_cmd->index,
-                                            abort_cmd->context);
+        trace_megasas_abort_invalid_context(cmd->index, abort_cmd->context,
+                                            abort_cmd->index);
         s->event_count++;
         return MFI_STAT_ABORT_NOT_POSSIBLE;
     }
@@ -2325,7 +2325,6 @@ static const struct SCSIBusInfo megasas_scsi_info = {
 
 static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
 {
-    DeviceState *d = DEVICE(dev);
     MegasasState *s = MEGASAS(dev);
     MegasasBaseClass *b = MEGASAS_DEVICE_GET_CLASS(s);
     uint8_t *pci_conf;
@@ -2426,9 +2425,6 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
 
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
                  &megasas_scsi_info, NULL);
-    if (!d->hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus, errp);
-    }
 }
 
 static Property megasas_properties_gen1[] = {

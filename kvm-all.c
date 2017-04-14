@@ -29,6 +29,7 @@
 #include "hw/s390x/adapter.h"
 #include "exec/gdbstub.h"
 #include "sysemu/kvm_int.h"
+#include "sysemu/cpus.h"
 #include "qemu/bswap.h"
 #include "exec/memory.h"
 #include "exec/ram_addr.h"
@@ -120,6 +121,7 @@ bool kvm_vm_attributes_allowed;
 bool kvm_direct_msi_allowed;
 bool kvm_ioeventfd_any_length_allowed;
 bool kvm_msi_use_devid;
+static bool kvm_immediate_exit;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -1619,6 +1621,7 @@ static int kvm_init(MachineState *ms)
         goto err;
     }
 
+    kvm_immediate_exit = kvm_check_extension(s, KVM_CAP_IMMEDIATE_EXIT);
     s->nr_slots = kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
 
     /* If unspecified, use the default value */
@@ -1893,6 +1896,61 @@ void kvm_cpu_synchronize_post_init(CPUState *cpu)
     run_on_cpu(cpu, do_kvm_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }
 
+#ifdef KVM_HAVE_MCE_INJECTION
+static __thread void *pending_sigbus_addr;
+static __thread int pending_sigbus_code;
+static __thread bool have_sigbus_pending;
+#endif
+
+static void kvm_cpu_kick(CPUState *cpu)
+{
+    atomic_set(&cpu->kvm_run->immediate_exit, 1);
+}
+
+static void kvm_cpu_kick_self(void)
+{
+    if (kvm_immediate_exit) {
+        kvm_cpu_kick(current_cpu);
+    } else {
+        qemu_cpu_kick_self();
+    }
+}
+
+static void kvm_eat_signals(CPUState *cpu)
+{
+    struct timespec ts = { 0, 0 };
+    siginfo_t siginfo;
+    sigset_t waitset;
+    sigset_t chkset;
+    int r;
+
+    if (kvm_immediate_exit) {
+        atomic_set(&cpu->kvm_run->immediate_exit, 0);
+        /* Write kvm_run->immediate_exit before the cpu->exit_request
+         * write in kvm_cpu_exec.
+         */
+        smp_wmb();
+        return;
+    }
+
+    sigemptyset(&waitset);
+    sigaddset(&waitset, SIG_IPI);
+
+    do {
+        r = sigtimedwait(&waitset, &siginfo, &ts);
+        if (r == -1 && !(errno == EAGAIN || errno == EINTR)) {
+            perror("sigtimedwait");
+            exit(1);
+        }
+
+        r = sigpending(&chkset);
+        if (r == -1) {
+            perror("sigpending");
+            exit(1);
+        }
+    } while (sigismember(&chkset, SIG_IPI));
+}
+
 int kvm_cpu_exec(CPUState *cpu)
 {
     struct kvm_run *run = cpu->kvm_run;
@@ -1901,7 +1959,7 @@ int kvm_cpu_exec(CPUState *cpu)
     DPRINTF("kvm_cpu_exec()\n");
 
     if (kvm_arch_process_async_events(cpu)) {
-        cpu->exit_request = 0;
+        atomic_set(&cpu->exit_request, 0);
         return EXCP_HLT;
     }
 
@@ -1916,23 +1974,39 @@ int kvm_cpu_exec(CPUState *cpu)
         }
 
         kvm_arch_pre_run(cpu, run);
-        if (cpu->exit_request) {
+        if (atomic_read(&cpu->exit_request)) {
             DPRINTF("interrupt exit requested\n");
             /*
              * KVM requires us to reenter the kernel after IO exits to complete
              * instruction emulation. This self-signal will ensure that we
              * leave ASAP again.
              */
-            qemu_cpu_kick_self();
+            kvm_cpu_kick_self();
         }
+
+        /* Read cpu->exit_request before KVM_RUN reads run->immediate_exit.
+         * Matching barrier in kvm_eat_signals.
+         */
+        smp_rmb();
 
         run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
 
         attrs = kvm_arch_post_run(cpu, run);
 
+#ifdef KVM_HAVE_MCE_INJECTION
+        if (unlikely(have_sigbus_pending)) {
+            qemu_mutex_lock_iothread();
+            kvm_arch_on_sigbus_vcpu(cpu, pending_sigbus_code,
+                                    pending_sigbus_addr);
+            have_sigbus_pending = false;
+            qemu_mutex_unlock_iothread();
+        }
+#endif
+
         if (run_ret < 0) {
             if (run_ret == -EINTR || run_ret == -EAGAIN) {
                 DPRINTF("io window exit\n");
+                kvm_eat_signals(cpu);
                 ret = EXCP_INTERRUPT;
                 break;
             }
@@ -2026,7 +2100,7 @@ int kvm_cpu_exec(CPUState *cpu)
         vm_stop(RUN_STATE_INTERNAL_ERROR);
     }
 
-    cpu->exit_request = 0;
+    atomic_set(&cpu->exit_request, 0);
     return ret;
 }
 
@@ -2372,15 +2446,11 @@ void kvm_remove_all_breakpoints(CPUState *cpu)
 }
 #endif /* !KVM_CAP_SET_GUEST_DEBUG */
 
-int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
+static int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 {
     KVMState *s = kvm_state;
     struct kvm_signal_mask *sigmask;
     int r;
-
-    if (!sigset) {
-        return kvm_vcpu_ioctl(cpu, KVM_SET_SIGNAL_MASK, NULL);
-    }
 
     sigmask = g_malloc(sizeof(*sigmask) + sizeof(*sigset));
 
@@ -2391,14 +2461,73 @@ int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 
     return r;
 }
-int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
+
+static void kvm_ipi_signal(int sig)
 {
-    return kvm_arch_on_sigbus_vcpu(cpu, code, addr);
+    if (current_cpu) {
+        assert(kvm_immediate_exit);
+        kvm_cpu_kick(current_cpu);
+    }
 }
 
+void kvm_init_cpu_signals(CPUState *cpu)
+{
+    int r;
+    sigset_t set;
+    struct sigaction sigact;
+
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = kvm_ipi_signal;
+    sigaction(SIG_IPI, &sigact, NULL);
+
+    pthread_sigmask(SIG_BLOCK, NULL, &set);
+#if defined KVM_HAVE_MCE_INJECTION
+    sigdelset(&set, SIGBUS);
+    pthread_sigmask(SIG_SETMASK, &set, NULL);
+#endif
+    sigdelset(&set, SIG_IPI);
+    if (kvm_immediate_exit) {
+        r = pthread_sigmask(SIG_SETMASK, &set, NULL);
+    } else {
+        r = kvm_set_signal_mask(cpu, &set);
+    }
+    if (r) {
+        fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
+        exit(1);
+    }
+}
+
+/* Called asynchronously in VCPU thread.  */
+int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
+{
+#ifdef KVM_HAVE_MCE_INJECTION
+    if (have_sigbus_pending) {
+        return 1;
+    }
+    have_sigbus_pending = true;
+    pending_sigbus_addr = addr;
+    pending_sigbus_code = code;
+    atomic_set(&cpu->exit_request, 1);
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+/* Called synchronously (via signalfd) in main thread.  */
 int kvm_on_sigbus(int code, void *addr)
 {
-    return kvm_arch_on_sigbus(code, addr);
+#ifdef KVM_HAVE_MCE_INJECTION
+    /* Action required MCE kills the process if SIGBUS is blocked.  Because
+     * that's what happens in the I/O thread, where we handle MCE via signalfd,
+     * we can only get action optional here.
+     */
+    assert(code != BUS_MCEERR_AR);
+    kvm_arch_on_sigbus_vcpu(first_cpu, code, addr);
+    return 0;
+#else
+    return 1;
+#endif
 }
 
 int kvm_create_device(KVMState *s, uint64_t type, bool test)

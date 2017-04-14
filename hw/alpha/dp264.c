@@ -177,6 +177,7 @@ static void clipper_machine_init(MachineClass *mc)
 {
     mc->desc = "Alpha DP264/CLIPPER";
     mc->init = clipper_init;
+    mc->block_default_type = IF_IDE;
     mc->max_cpus = 4;
     mc->is_default = 1;
 }

@@ -19,12 +19,14 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/memory.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
 #include "sysemu/kvm.h"
 #include "qemu/timer.h"
+#include "qemu/main-loop.h"
 #include "exec/address-spaces.h"
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
@@ -109,11 +111,13 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
 /* SCLP service call */
 uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
+    qemu_mutex_lock_iothread();
     int r = sclp_service_call(env, r1, r2);
     if (r < 0) {
         program_interrupt(env, -r, 4);
-        return 0;
+        r = 0;
     }
+    qemu_mutex_unlock_iothread();
     return r;
 }
 
@@ -548,61 +552,81 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
 void HELPER(xsch)(CPUS390XState *env, uint64_t r1)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    qemu_mutex_lock_iothread();
     ioinst_handle_xsch(cpu, r1);
+    qemu_mutex_unlock_iothread();
 }
 
 void HELPER(csch)(CPUS390XState *env, uint64_t r1)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    qemu_mutex_lock_iothread();
     ioinst_handle_csch(cpu, r1);
+    qemu_mutex_unlock_iothread();
 }
 
 void HELPER(hsch)(CPUS390XState *env, uint64_t r1)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    qemu_mutex_lock_iothread();
     ioinst_handle_hsch(cpu, r1);
+    qemu_mutex_unlock_iothread();
 }
 
 void HELPER(msch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    qemu_mutex_lock_iothread();
     ioinst_handle_msch(cpu, r1, inst >> 16);
+    qemu_mutex_unlock_iothread();
 }
 
 void HELPER(rchp)(CPUS390XState *env, uint64_t r1)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    qemu_mutex_lock_iothread();
     ioinst_handle_rchp(cpu, r1);
+    qemu_mutex_unlock_iothread();
 }
 
 void HELPER(rsch)(CPUS390XState *env, uint64_t r1)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    qemu_mutex_lock_iothread();
     ioinst_handle_rsch(cpu, r1);
+    qemu_mutex_unlock_iothread();
 }
 
 void HELPER(ssch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    qemu_mutex_lock_iothread();
     ioinst_handle_ssch(cpu, r1, inst >> 16);
+    qemu_mutex_unlock_iothread();
 }
 
 void HELPER(stsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    qemu_mutex_lock_iothread();
     ioinst_handle_stsch(cpu, r1, inst >> 16);
+    qemu_mutex_unlock_iothread();
 }
 
 void HELPER(tsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    qemu_mutex_lock_iothread();
     ioinst_handle_tsch(cpu, r1, inst >> 16);
+    qemu_mutex_unlock_iothread();
 }
 
 void HELPER(chsc)(CPUS390XState *env, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    qemu_mutex_lock_iothread();
     ioinst_handle_chsc(cpu, inst >> 16);
+    qemu_mutex_unlock_iothread();
 }
 #endif
 

@@ -24,6 +24,7 @@
 #include "qemu/cutils.h"
 #include "sysemu/block-backend.h"
 #include "qemu/bitmap.h"
+#include "qemu/error-report.h"
 
 #define BACKUP_CLUSTER_SIZE_DEFAULT (1 << 16)
 #define SLICE_TIME 100000000ULL /* ns */
@@ -64,7 +65,7 @@ static void coroutine_fn wait_for_overlapping_requests(BackupBlockJob *job,
         retry = false;
         QLIST_FOREACH(req, &job->inflight_reqs, list) {
             if (end > req->start && start < req->end) {
-                qemu_co_queue_wait(&req->wait_queue);
+                qemu_co_queue_wait(&req->wait_queue, NULL);
                 retry = true;
                 break;
             }
@@ -467,13 +468,14 @@ static void coroutine_fn backup_run(void *opaque)
         /* Both FULL and TOP SYNC_MODE's require copying.. */
         for (; start < end; start++) {
             bool error_is_read;
+            int alloced = 0;
+
             if (yield_and_check(job)) {
                 break;
             }
 
             if (job->sync_mode == MIRROR_SYNC_MODE_TOP) {
                 int i, n;
-                int alloced = 0;
 
                 /* Check to see if these blocks are already in the
                  * backing file. */
@@ -491,7 +493,7 @@ static void coroutine_fn backup_run(void *opaque)
                                 sectors_per_cluster - i, &n);
                     i += n;
 
-                    if (alloced == 1 || n == 0) {
+                    if (alloced || n == 0) {
                         break;
                     }
                 }
@@ -503,8 +505,13 @@ static void coroutine_fn backup_run(void *opaque)
                 }
             }
             /* FULL sync mode we copy the whole drive. */
-            ret = backup_do_cow(job, start * sectors_per_cluster,
-                                sectors_per_cluster, &error_is_read, false);
+            if (alloced < 0) {
+                ret = alloced;
+            } else {
+                ret = backup_do_cow(job, start * sectors_per_cluster,
+                                    sectors_per_cluster, &error_is_read,
+                                    false);
+            }
             if (ret < 0) {
                 /* Depending on error action, fail now or retry cluster */
                 BlockErrorAction action =
@@ -618,14 +625,24 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         goto error;
     }
 
-    job = block_job_create(job_id, &backup_job_driver, bs, speed,
-                           creation_flags, cb, opaque, errp);
+    /* job->common.len is fixed, so we can't allow resize */
+    job = block_job_create(job_id, &backup_job_driver, bs,
+                           BLK_PERM_CONSISTENT_READ,
+                           BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE |
+                           BLK_PERM_WRITE_UNCHANGED | BLK_PERM_GRAPH_MOD,
+                           speed, creation_flags, cb, opaque, errp);
     if (!job) {
         goto error;
     }
 
-    job->target = blk_new();
-    blk_insert_bs(job->target, target);
+    /* The target must match the source in size, so no resize here either */
+    job->target = blk_new(BLK_PERM_WRITE,
+                          BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE |
+                          BLK_PERM_WRITE_UNCHANGED | BLK_PERM_GRAPH_MOD);
+    ret = blk_insert_bs(job->target, target, errp);
+    if (ret < 0) {
+        goto error;
+    }
 
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;
@@ -638,7 +655,16 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
      * backup cluster size is smaller than the target cluster size. Even for
      * targets with a backing file, try to avoid COW if possible. */
     ret = bdrv_get_info(target, &bdi);
-    if (ret < 0 && !target->backing) {
+    if (ret == -ENOTSUP && !target->backing) {
+        /* Cluster size is not defined */
+        error_report("WARNING: The target block device doesn't provide "
+                     "information about the block size and it doesn't have a "
+                     "backing file. The default block size of %u bytes is "
+                     "used. If the actual block size of the target exceeds "
+                     "this default, the backup may be unusable",
+                     BACKUP_CLUSTER_SIZE_DEFAULT);
+        job->cluster_size = BACKUP_CLUSTER_SIZE_DEFAULT;
+    } else if (ret < 0 && !target->backing) {
         error_setg_errno(errp, -ret,
             "Couldn't determine the cluster size of the target image, "
             "which has no backing file");
@@ -652,7 +678,9 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         job->cluster_size = MAX(BACKUP_CLUSTER_SIZE_DEFAULT, bdi.cluster_size);
     }
 
-    block_job_add_bdrv(&job->common, target);
+    /* Required permissions are already taken with target's blk_new() */
+    block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
+                       &error_abort);
     job->common.len = len;
     block_job_txn_add_job(txn, &job->common);
 

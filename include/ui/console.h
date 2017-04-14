@@ -189,9 +189,6 @@ typedef struct DisplayChangeListenerOps {
                            int x, int y, int w, int h);
     void (*dpy_gfx_switch)(DisplayChangeListener *dcl,
                            struct DisplaySurface *new_surface);
-    void (*dpy_gfx_copy)(DisplayChangeListener *dcl,
-                         int src_x, int src_y,
-                         int dst_x, int dst_y, int w, int h);
     bool (*dpy_gfx_check_format)(DisplayChangeListener *dcl,
                                  pixman_format_code_t format);
 
@@ -215,10 +212,14 @@ typedef struct DisplayChangeListenerOps {
                                    QEMUGLContext ctx);
     QEMUGLContext (*dpy_gl_ctx_get_current)(DisplayChangeListener *dcl);
 
-    void (*dpy_gl_scanout)(DisplayChangeListener *dcl,
-                           uint32_t backing_id, bool backing_y_0_top,
-                           uint32_t backing_width, uint32_t backing_height,
-                           uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+    void (*dpy_gl_scanout_disable)(DisplayChangeListener *dcl);
+    void (*dpy_gl_scanout_texture)(DisplayChangeListener *dcl,
+                                   uint32_t backing_id,
+                                   bool backing_y_0_top,
+                                   uint32_t backing_width,
+                                   uint32_t backing_height,
+                                   uint32_t x, uint32_t y,
+                                   uint32_t w, uint32_t h);
     void (*dpy_gl_update)(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 
@@ -273,8 +274,6 @@ int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info);
 void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h);
 void dpy_gfx_replace_surface(QemuConsole *con,
                              DisplaySurface *surface);
-void dpy_gfx_copy(QemuConsole *con, int src_x, int src_y,
-                  int dst_x, int dst_y, int w, int h);
 void dpy_text_cursor(QemuConsole *con, int x, int y);
 void dpy_text_update(QemuConsole *con, int x, int y, int w, int h);
 void dpy_text_resize(QemuConsole *con, int w, int h);
@@ -284,10 +283,11 @@ bool dpy_cursor_define_supported(QemuConsole *con);
 bool dpy_gfx_check_format(QemuConsole *con,
                           pixman_format_code_t format);
 
-void dpy_gl_scanout(QemuConsole *con,
-                    uint32_t backing_id, bool backing_y_0_top,
-                    uint32_t backing_width, uint32_t backing_height,
-                    uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+void dpy_gl_scanout_disable(QemuConsole *con);
+void dpy_gl_scanout_texture(QemuConsole *con,
+                            uint32_t backing_id, bool backing_y_0_top,
+                            uint32_t backing_width, uint32_t backing_height,
+                            uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 void dpy_gl_update(QemuConsole *con,
                    uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 
@@ -406,8 +406,6 @@ void qemu_console_set_window_id(QemuConsole *con, int window_id);
 
 void console_select(unsigned int index);
 void qemu_console_resize(QemuConsole *con, int width, int height);
-void qemu_console_copy(QemuConsole *con, int src_x, int src_y,
-                       int dst_x, int dst_y, int w, int h);
 DisplaySurface *qemu_console_surface(QemuConsole *con);
 
 /* console-gl.c */

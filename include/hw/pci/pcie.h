@@ -63,6 +63,8 @@ typedef enum {
 struct PCIExpressDevice {
     /* Offset of express capability in config space */
     uint8_t exp_cap;
+    /* Offset of Power Management capability in config space */
+    uint8_t pm_cap;
 
     /* SLOT */
     bool hpev_notified; /* Logical AND of conditions for hot plug event.
@@ -95,6 +97,9 @@ uint8_t pcie_cap_flags_get_vector(PCIDevice *dev);
 
 void pcie_cap_deverr_init(PCIDevice *dev);
 void pcie_cap_deverr_reset(PCIDevice *dev);
+
+void pcie_cap_lnkctl_init(PCIDevice *dev);
+void pcie_cap_lnkctl_reset(PCIDevice *dev);
 
 void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot);
 void pcie_cap_slot_reset(PCIDevice *dev);

@@ -932,9 +932,7 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
             if (bytes == 0) {
                 /* Wait for the dependency to complete. We need to recheck
                  * the free/allocated clusters when we continue. */
-                qemu_co_mutex_unlock(&s->lock);
-                qemu_co_queue_wait(&old_alloc->dependent_requests);
-                qemu_co_mutex_lock(&s->lock);
+                qemu_co_queue_wait(&old_alloc->dependent_requests, &s->lock);
                 return -EAGAIN;
             }
         }
@@ -1521,12 +1519,10 @@ int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
 
     end_offset = offset + (nb_sectors << BDRV_SECTOR_BITS);
 
-    /* Round start up and end down */
-    offset = align_offset(offset, s->cluster_size);
-    end_offset = start_of_cluster(s, end_offset);
-
-    if (offset > end_offset) {
-        return 0;
+    /* The caller must cluster-align start; round end down except at EOF */
+    assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
+    if (end_offset != bs->total_sectors * BDRV_SECTOR_SIZE) {
+        end_offset = start_of_cluster(s, end_offset);
     }
 
     nb_clusters = size_to_clusters(s, end_offset - offset);

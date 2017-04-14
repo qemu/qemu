@@ -60,7 +60,7 @@ static int64_t blkreplay_getlength(BlockDriverState *bs)
 static void blkreplay_bh_cb(void *opaque)
 {
     Request *req = opaque;
-    qemu_coroutine_enter(req->co);
+    aio_co_wake(req->co);
     qemu_bh_delete(req->bh);
     g_free(req);
 }
@@ -137,6 +137,7 @@ static BlockDriver bdrv_blkreplay = {
 
     .bdrv_file_open         = blkreplay_open,
     .bdrv_close             = blkreplay_close,
+    .bdrv_child_perm        = bdrv_filter_default_perms,
     .bdrv_getlength         = blkreplay_getlength,
 
     .bdrv_co_preadv         = blkreplay_co_preadv,

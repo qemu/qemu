@@ -59,9 +59,15 @@ struct BlockBackend {
     bool iostatus_enabled;
     BlockDeviceIoStatus iostatus;
 
+    uint64_t perm;
+    uint64_t shared_perm;
+    bool disable_perm;
+
     bool allow_write_beyond_eof;
 
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
+
+    int quiesce_counter;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -77,6 +83,7 @@ static const AIOCBInfo block_backend_aiocb_info = {
 
 static void drive_info_del(DriveInfo *dinfo);
 static BlockBackend *bdrv_first_blk(BlockDriverState *bs);
+static char *blk_get_attached_dev_id(BlockBackend *blk);
 
 /* All BlockBackends */
 static QTAILQ_HEAD(, BlockBackend) block_backends =
@@ -99,6 +106,25 @@ static void blk_root_drained_end(BdrvChild *child);
 static void blk_root_change_media(BdrvChild *child, bool load);
 static void blk_root_resize(BdrvChild *child);
 
+static char *blk_root_get_parent_desc(BdrvChild *child)
+{
+    BlockBackend *blk = child->opaque;
+    char *dev_id;
+
+    if (blk->name) {
+        return g_strdup(blk->name);
+    }
+
+    dev_id = blk_get_attached_dev_id(blk);
+    if (*dev_id) {
+        return dev_id;
+    } else {
+        /* TODO Callback into the BB owner for something more detailed */
+        g_free(dev_id);
+        return g_strdup("a block device");
+    }
+}
+
 static const char *blk_root_get_name(BdrvChild *child)
 {
     return blk_name(child->opaque);
@@ -110,6 +136,7 @@ static const BdrvChildRole child_root = {
     .change_media       = blk_root_change_media,
     .resize             = blk_root_resize,
     .get_name           = blk_root_get_name,
+    .get_parent_desc    = blk_root_get_parent_desc,
 
     .drained_begin      = blk_root_drained_begin,
     .drained_end        = blk_root_drained_end,
@@ -117,15 +144,23 @@ static const BdrvChildRole child_root = {
 
 /*
  * Create a new BlockBackend with a reference count of one.
- * Store an error through @errp on failure, unless it's null.
+ *
+ * @perm is a bitmasks of BLK_PERM_* constants which describes the permissions
+ * to request for a block driver node that is attached to this BlockBackend.
+ * @shared_perm is a bitmask which describes which permissions may be granted
+ * to other users of the attached node.
+ * Both sets of permissions can be changed later using blk_set_perm().
+ *
  * Return the new BlockBackend on success, null on failure.
  */
-BlockBackend *blk_new(void)
+BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
 {
     BlockBackend *blk;
 
     blk = g_new0(BlockBackend, 1);
     blk->refcnt = 1;
+    blk->perm = perm;
+    blk->shared_perm = shared_perm;
     blk_set_enable_write_cache(blk, true);
 
     qemu_co_queue_init(&blk->public.throttled_reqs[0]);
@@ -155,15 +190,38 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
 {
     BlockBackend *blk;
     BlockDriverState *bs;
+    uint64_t perm;
 
-    blk = blk_new();
+    /* blk_new_open() is mainly used in .bdrv_create implementations and the
+     * tools where sharing isn't a concern because the BDS stays private, so we
+     * just request permission according to the flags.
+     *
+     * The exceptions are xen_disk and blockdev_init(); in these cases, the
+     * caller of blk_new_open() doesn't make use of the permissions, but they
+     * shouldn't hurt either. We can still share everything here because the
+     * guest devices will add their own blockers if they can't share. */
+    perm = BLK_PERM_CONSISTENT_READ;
+    if (flags & BDRV_O_RDWR) {
+        perm |= BLK_PERM_WRITE;
+    }
+    if (flags & BDRV_O_RESIZE) {
+        perm |= BLK_PERM_RESIZE;
+    }
+
+    blk = blk_new(perm, BLK_PERM_ALL);
     bs = bdrv_open(filename, reference, options, flags, errp);
     if (!bs) {
         blk_unref(blk);
         return NULL;
     }
 
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk);
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root,
+                                       perm, BLK_PERM_ALL, blk, errp);
+    if (!blk->root) {
+        bdrv_unref(bs);
+        blk_unref(blk);
+        return NULL;
+    }
 
     return blk;
 }
@@ -173,6 +231,9 @@ static void blk_delete(BlockBackend *blk)
     assert(!blk->refcnt);
     assert(!blk->name);
     assert(!blk->dev);
+    if (blk->public.throttle_state) {
+        blk_io_limits_disable(blk);
+    }
     if (blk->root) {
         blk_remove_bs(blk);
     }
@@ -495,15 +556,76 @@ void blk_remove_bs(BlockBackend *blk)
 /*
  * Associates a new BlockDriverState with @blk.
  */
-void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
+int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 {
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root,
+                                       blk->perm, blk->shared_perm, blk, errp);
+    if (blk->root == NULL) {
+        return -EPERM;
+    }
     bdrv_ref(bs);
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
     if (blk->public.throttle_state) {
         throttle_timers_attach_aio_context(
             &blk->public.throttle_timers, bdrv_get_aio_context(bs));
+    }
+
+    return 0;
+}
+
+/*
+ * Sets the permission bitmasks that the user of the BlockBackend needs.
+ */
+int blk_set_perm(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
+                 Error **errp)
+{
+    int ret;
+
+    if (blk->root && !blk->disable_perm) {
+        ret = bdrv_child_try_set_perm(blk->root, perm, shared_perm, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    blk->perm = perm;
+    blk->shared_perm = shared_perm;
+
+    return 0;
+}
+
+void blk_get_perm(BlockBackend *blk, uint64_t *perm, uint64_t *shared_perm)
+{
+    *perm = blk->perm;
+    *shared_perm = blk->shared_perm;
+}
+
+/*
+ * Notifies the user of all BlockBackends that migration has completed. qdev
+ * devices can tighten their permissions in response (specifically revoke
+ * shared write permissions that we needed for storage migration).
+ *
+ * If an error is returned, the VM cannot be allowed to be resumed.
+ */
+void blk_resume_after_migration(Error **errp)
+{
+    BlockBackend *blk;
+    Error *local_err = NULL;
+
+    for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
+        if (!blk->disable_perm) {
+            continue;
+        }
+
+        blk->disable_perm = false;
+
+        blk_set_perm(blk, blk->perm, blk->shared_perm, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            blk->disable_perm = true;
+            return;
+        }
     }
 }
 
@@ -512,10 +634,19 @@ static int blk_do_attach_dev(BlockBackend *blk, void *dev)
     if (blk->dev) {
         return -EBUSY;
     }
+
+    /* While migration is still incoming, we don't need to apply the
+     * permissions of guest device BlockBackends. We might still have a block
+     * job or NBD server writing to the image for storage migration. */
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        blk->disable_perm = true;
+    }
+
     blk_ref(blk);
     blk->dev = dev;
     blk->legacy_dev = false;
     blk_iostatus_reset(blk);
+
     return 0;
 }
 
@@ -553,6 +684,7 @@ void blk_detach_dev(BlockBackend *blk, void *dev)
     blk->dev_ops = NULL;
     blk->dev_opaque = NULL;
     blk->guest_block_size = 512;
+    blk_set_perm(blk, 0, BLK_PERM_ALL, &error_abort);
     blk_unref(blk);
 }
 
@@ -610,29 +742,44 @@ void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
                      void *opaque)
 {
     /* All drivers that use blk_set_dev_ops() are qdevified and we want to keep
-     * it that way, so we can assume blk->dev is a DeviceState if blk->dev_ops
-     * is set. */
+     * it that way, so we can assume blk->dev, if present, is a DeviceState if
+     * blk->dev_ops is set. Non-device users may use dev_ops without device. */
     assert(!blk->legacy_dev);
 
     blk->dev_ops = ops;
     blk->dev_opaque = opaque;
+
+    /* Are we currently quiesced? Should we enforce this right now? */
+    if (blk->quiesce_counter && ops->drained_begin) {
+        ops->drained_begin(opaque);
+    }
 }
 
 /*
  * Notify @blk's attached device model of media change.
- * If @load is true, notify of media load.
- * Else, notify of media eject.
+ *
+ * If @load is true, notify of media load. This action can fail, meaning that
+ * the medium cannot be loaded. @errp is set then.
+ *
+ * If @load is false, notify of media eject. This can never fail.
+ *
  * Also send DEVICE_TRAY_MOVED events as appropriate.
  */
-void blk_dev_change_media_cb(BlockBackend *blk, bool load)
+void blk_dev_change_media_cb(BlockBackend *blk, bool load, Error **errp)
 {
     if (blk->dev_ops && blk->dev_ops->change_media_cb) {
         bool tray_was_open, tray_is_open;
+        Error *local_err = NULL;
 
         assert(!blk->legacy_dev);
 
         tray_was_open = blk_dev_is_tray_open(blk);
-        blk->dev_ops->change_media_cb(blk->dev_opaque, load);
+        blk->dev_ops->change_media_cb(blk->dev_opaque, load, &local_err);
+        if (local_err) {
+            assert(load == true);
+            error_propagate(errp, local_err);
+            return;
+        }
         tray_is_open = blk_dev_is_tray_open(blk);
 
         if (tray_was_open != tray_is_open) {
@@ -646,7 +793,7 @@ void blk_dev_change_media_cb(BlockBackend *blk, bool load)
 
 static void blk_root_change_media(BdrvChild *child, bool load)
 {
-    blk_dev_change_media_cb(child->opaque, load);
+    blk_dev_change_media_cb(child->opaque, load, NULL);
 }
 
 /*
@@ -880,7 +1027,6 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
 {
     QEMUIOVector qiov;
     struct iovec iov;
-    Coroutine *co;
     BlkRwCo rwco;
 
     iov = (struct iovec) {
@@ -897,9 +1043,14 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
         .ret    = NOT_DONE,
     };
 
-    co = qemu_coroutine_create(co_entry, &rwco);
-    qemu_coroutine_enter(co);
-    BDRV_POLL_WHILE(blk_bs(blk), rwco.ret == NOT_DONE);
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        co_entry(&rwco);
+    } else {
+        Coroutine *co = qemu_coroutine_create(co_entry, &rwco);
+        bdrv_coroutine_enter(blk_bs(blk), co);
+        BDRV_POLL_WHILE(blk_bs(blk), rwco.ret == NOT_DONE);
+    }
 
     return rwco.ret;
 }
@@ -979,7 +1130,6 @@ static void blk_aio_complete(BlkAioEmAIOCB *acb)
 static void blk_aio_complete_bh(void *opaque)
 {
     BlkAioEmAIOCB *acb = opaque;
-
     assert(acb->has_returned);
     blk_aio_complete(acb);
 }
@@ -1005,7 +1155,7 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
     acb->has_returned = false;
 
     co = qemu_coroutine_create(co_entry, acb);
-    qemu_coroutine_enter(co);
+    bdrv_coroutine_enter(blk_bs(blk), co);
 
     acb->has_returned = true;
     if (acb->rwco.ret != NOT_DONE) {
@@ -1602,7 +1752,7 @@ int blk_truncate(BlockBackend *blk, int64_t offset)
         return -ENOMEDIUM;
     }
 
-    return bdrv_truncate(blk_bs(blk), offset);
+    return bdrv_truncate(blk->root, offset);
 }
 
 static void blk_pdiscard_entry(void *opaque)
@@ -1768,6 +1918,12 @@ static void blk_root_drained_begin(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
 
+    if (++blk->quiesce_counter == 1) {
+        if (blk->dev_ops && blk->dev_ops->drained_begin) {
+            blk->dev_ops->drained_begin(blk->dev_opaque);
+        }
+    }
+
     /* Note that blk->root may not be accessible here yet if we are just
      * attaching to a BlockDriverState that is drained. Use child instead. */
 
@@ -1779,7 +1935,14 @@ static void blk_root_drained_begin(BdrvChild *child)
 static void blk_root_drained_end(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
+    assert(blk->quiesce_counter);
 
     assert(blk->public.io_limits_disabled);
     --blk->public.io_limits_disabled;
+
+    if (--blk->quiesce_counter == 0) {
+        if (blk->dev_ops && blk->dev_ops->drained_end) {
+            blk->dev_ops->drained_end(blk->dev_opaque);
+        }
+    }
 }

@@ -539,14 +539,15 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
 
     /* Free all fids */
     while (s->fid_list) {
+        /* Get fid */
         fidp = s->fid_list;
-        s->fid_list = fidp->next;
+        fidp->ref++;
 
-        if (fidp->ref) {
-            fidp->clunked = 1;
-        } else {
-            free_fid(pdu, fidp);
-        }
+        /* Clunk fid */
+        s->fid_list = fidp->next;
+        fidp->clunked = 1;
+
+        put_fid(pdu, fidp);
     }
 }
 
@@ -1550,6 +1551,10 @@ static void coroutine_fn v9fs_lcreate(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
+    if (fidp->fid_type != P9_FID_NONE) {
+        err = -EINVAL;
+        goto out;
+    }
 
     flags = get_dotl_openflags(pdu->s, flags);
     err = v9fs_co_open2(pdu, fidp, &name, gid,
@@ -2153,6 +2158,10 @@ static void coroutine_fn v9fs_create(void *opaque)
         err = -EINVAL;
         goto out_nofid;
     }
+    if (fidp->fid_type != P9_FID_NONE) {
+        err = -EINVAL;
+        goto out;
+    }
     if (perm & P9_STAT_MODE_DIR) {
         err = v9fs_co_mkdir(pdu, fidp, &name, perm & 0777,
                             fidp->uid, -1, &stbuf);
@@ -2353,7 +2362,7 @@ static void coroutine_fn v9fs_flush(void *opaque)
     ssize_t err;
     int16_t tag;
     size_t offset = 7;
-    V9fsPDU *cancel_pdu;
+    V9fsPDU *cancel_pdu = NULL;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
@@ -2364,9 +2373,13 @@ static void coroutine_fn v9fs_flush(void *opaque)
     }
     trace_v9fs_flush(pdu->tag, pdu->id, tag);
 
-    QLIST_FOREACH(cancel_pdu, &s->active_list, next) {
-        if (cancel_pdu->tag == tag) {
-            break;
+    if (pdu->tag == tag) {
+        error_report("Warning: the guest sent a self-referencing 9P flush request");
+    } else {
+        QLIST_FOREACH(cancel_pdu, &s->active_list, next) {
+            if (cancel_pdu->tag == tag) {
+                break;
+            }
         }
     }
     if (cancel_pdu) {
@@ -2374,9 +2387,11 @@ static void coroutine_fn v9fs_flush(void *opaque)
         /*
          * Wait for pdu to complete.
          */
-        qemu_co_queue_wait(&cancel_pdu->complete);
-        cancel_pdu->cancelled = 0;
-        pdu_free(cancel_pdu);
+        qemu_co_queue_wait(&cancel_pdu->complete, NULL);
+        if (!qemu_co_queue_next(&cancel_pdu->complete)) {
+            cancel_pdu->cancelled = 0;
+            pdu_free(cancel_pdu);
+        }
     }
     pdu_complete(pdu, 7);
 }
@@ -3010,7 +3025,6 @@ out_nofid:
  */
 static void coroutine_fn v9fs_lock(void *opaque)
 {
-    int8_t status;
     V9fsFlock flock;
     size_t offset = 7;
     struct stat stbuf;
@@ -3018,7 +3032,6 @@ static void coroutine_fn v9fs_lock(void *opaque)
     int32_t fid, err = 0;
     V9fsPDU *pdu = opaque;
 
-    status = P9_LOCK_ERROR;
     v9fs_string_init(&flock.client_id);
     err = pdu_unmarshal(pdu, offset, "dbdqqds", &fid, &flock.type,
                         &flock.flags, &flock.start, &flock.length,
@@ -3044,15 +3057,15 @@ static void coroutine_fn v9fs_lock(void *opaque)
     if (err < 0) {
         goto out;
     }
-    status = P9_LOCK_SUCCESS;
+    err = pdu_marshal(pdu, offset, "b", P9_LOCK_SUCCESS);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
+    trace_v9fs_lock_return(pdu->tag, pdu->id, P9_LOCK_SUCCESS);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    err = pdu_marshal(pdu, offset, "b", status);
-    if (err > 0) {
-        err += offset;
-    }
-    trace_v9fs_lock_return(pdu->tag, pdu->id, status);
     pdu_complete(pdu, err);
     v9fs_string_free(&flock.client_id);
 }
@@ -3531,6 +3544,10 @@ int v9fs_device_realize_common(V9fsState *s, Error **errp)
         error_setg(errp, "share path %s is not a directory", fse->path);
         goto out;
     }
+
+    s->ctx.fst = &fse->fst;
+    fsdev_throttle_init(s->ctx.fst);
+
     v9fs_path_free(&path);
 
     rc = 0;
@@ -3551,6 +3568,7 @@ void v9fs_device_unrealize_common(V9fsState *s, Error **errp)
     if (s->ops->cleanup) {
         s->ops->cleanup(&s->ctx);
     }
+    fsdev_throttle_cleanup(s->ctx.fst);
     g_free(s->tag);
     g_free(s->ctx.fs_root);
 }

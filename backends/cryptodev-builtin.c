@@ -320,10 +320,12 @@ static int cryptodev_builtin_sym_operation(
 
     sess = builtin->sessions[op_info->session_id];
 
-    ret = qcrypto_cipher_setiv(sess->cipher, op_info->iv,
-                               op_info->iv_len, errp);
-    if (ret < 0) {
-        return -VIRTIO_CRYPTO_ERR;
+    if (op_info->iv_len > 0) {
+        ret = qcrypto_cipher_setiv(sess->cipher, op_info->iv,
+                                   op_info->iv_len, errp);
+        if (ret < 0) {
+            return -VIRTIO_CRYPTO_ERR;
+        }
     }
 
     if (sess->direction == VIRTIO_CRYPTO_OP_ENCRYPT) {
@@ -358,8 +360,6 @@ static void cryptodev_builtin_cleanup(
                     backend, i, 0, errp);
         }
     }
-
-    assert(queues == 1);
 
     for (i = 0; i < queues; i++) {
         cc = backend->conf.peers.ccs[i];

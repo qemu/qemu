@@ -593,9 +593,10 @@ static void test_groups(void)
     BlockBackend *blk1, *blk2, *blk3;
     BlockBackendPublic *blkp1, *blkp2, *blkp3;
 
-    blk1 = blk_new();
-    blk2 = blk_new();
-    blk3 = blk_new();
+    /* No actual I/O is performed on these devices */
+    blk1 = blk_new(0, BLK_PERM_ALL);
+    blk2 = blk_new(0, BLK_PERM_ALL);
+    blk3 = blk_new(0, BLK_PERM_ALL);
 
     blkp1 = blk_get_public(blk1);
     blkp2 = blk_get_public(blk2);

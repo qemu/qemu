@@ -318,6 +318,16 @@
     .itlb = ITLB(XCHAL_HAVE_SPANNING_WAY), \
     .dtlb = DTLB(XCHAL_HAVE_SPANNING_WAY)
 
+#ifndef XCHAL_SYSROM0_PADDR
+#define XCHAL_SYSROM0_PADDR 0xfe000000
+#define XCHAL_SYSROM0_SIZE  0x02000000
+#endif
+
+#ifndef XCHAL_SYSRAM0_PADDR
+#define XCHAL_SYSRAM0_PADDR 0x00000000
+#define XCHAL_SYSRAM0_SIZE  0x08000000
+#endif
+
 #elif XCHAL_HAVE_XLT_CACHEATTR || XCHAL_HAVE_MIMIC_CACHEATTR
 
 #define TLB_TEMPLATE { \
@@ -330,6 +340,28 @@
 #define TLB_SECTION \
     .itlb = TLB_TEMPLATE, \
     .dtlb = TLB_TEMPLATE
+
+#ifndef XCHAL_SYSROM0_PADDR
+#define XCHAL_SYSROM0_PADDR 0x60000000
+#define XCHAL_SYSROM0_SIZE  0x04000000
+#endif
+
+#ifndef XCHAL_SYSRAM0_PADDR
+#define XCHAL_SYSRAM0_PADDR 0x50000000
+#define XCHAL_SYSRAM0_SIZE  0x04000000
+#endif
+
+#else
+
+#ifndef XCHAL_SYSROM0_PADDR
+#define XCHAL_SYSROM0_PADDR 0x60000000
+#define XCHAL_SYSROM0_SIZE  0x04000000
+#endif
+
+#ifndef XCHAL_SYSRAM0_PADDR
+#define XCHAL_SYSRAM0_PADDR 0x50000000
+#define XCHAL_SYSRAM0_SIZE  0x04000000
+#endif
 
 #endif
 
@@ -362,6 +394,53 @@
         MEMCTL_ISNP | MEMCTL_DSNP | \
         (XCHAL_HAVE_LOOPS && XCHAL_LOOP_BUFFER_SIZE ? MEMCTL_IL0EN : 0)
 
+#define MEM_LOCATION(name, n) \
+    { \
+        .addr = XCHAL_ ## name ## n ## _PADDR, \
+        .size = XCHAL_ ## name ## n ## _SIZE, \
+    }
+
+#define MEM_SECTIONS(name) \
+    MEM_LOCATION(name, 0), \
+    MEM_LOCATION(name, 1), \
+    MEM_LOCATION(name, 2), \
+    MEM_LOCATION(name, 3)
+
+#define MEM_SECTION(name) \
+    .num = XCHAL_NUM_ ## name, \
+    .location = { \
+        MEM_SECTIONS(name) \
+    }
+
+#define SYSMEM_SECTION(name) \
+    .num = 1, \
+    .location = { \
+        { \
+            .addr = XCHAL_ ## name ## 0_PADDR, \
+            .size = XCHAL_ ## name ## 0_SIZE, \
+        } \
+    }
+
+#define LOCAL_MEMORIES_SECTION \
+    .instrom = { \
+        MEM_SECTION(INSTROM) \
+    }, \
+    .instram = { \
+        MEM_SECTION(INSTRAM) \
+    }, \
+    .datarom = { \
+        MEM_SECTION(DATAROM) \
+    }, \
+    .dataram = { \
+        MEM_SECTION(DATARAM) \
+    }, \
+    .sysrom = { \
+        SYSMEM_SECTION(SYSROM) \
+    }, \
+    .sysram = { \
+        SYSMEM_SECTION(SYSRAM) \
+    }
+
 #define CONFIG_SECTION \
     .configid = { \
         XCHAL_HW_CONFIGID0, \
@@ -377,6 +456,7 @@
     TLB_SECTION, \
     DEBUG_SECTION, \
     CACHE_SECTION, \
+    LOCAL_MEMORIES_SECTION, \
     CONFIG_SECTION
 
 
@@ -629,3 +709,83 @@
 
 
 #define XTHAL_TIMER_UNCONFIGURED 0
+
+#if XCHAL_NUM_INSTROM < 1
+#define XCHAL_INSTROM0_PADDR 0
+#define XCHAL_INSTROM0_SIZE 0
+#endif
+#if XCHAL_NUM_INSTROM < 2
+#define XCHAL_INSTROM1_PADDR 0
+#define XCHAL_INSTROM1_SIZE 0
+#endif
+#if XCHAL_NUM_INSTROM < 3
+#define XCHAL_INSTROM2_PADDR 0
+#define XCHAL_INSTROM2_SIZE 0
+#endif
+#if XCHAL_NUM_INSTROM < 4
+#define XCHAL_INSTROM3_PADDR 0
+#define XCHAL_INSTROM3_SIZE 0
+#endif
+#if XCHAL_NUM_INSTROM > MAX_NMEMORY
+#error XCHAL_NUM_INSTROM > MAX_NMEMORY
+#endif
+
+#if XCHAL_NUM_INSTRAM < 1
+#define XCHAL_INSTRAM0_PADDR 0
+#define XCHAL_INSTRAM0_SIZE 0
+#endif
+#if XCHAL_NUM_INSTRAM < 2
+#define XCHAL_INSTRAM1_PADDR 0
+#define XCHAL_INSTRAM1_SIZE 0
+#endif
+#if XCHAL_NUM_INSTRAM < 3
+#define XCHAL_INSTRAM2_PADDR 0
+#define XCHAL_INSTRAM2_SIZE 0
+#endif
+#if XCHAL_NUM_INSTRAM < 4
+#define XCHAL_INSTRAM3_PADDR 0
+#define XCHAL_INSTRAM3_SIZE 0
+#endif
+#if XCHAL_NUM_INSTRAM > MAX_NMEMORY
+#error XCHAL_NUM_INSTRAM > MAX_NMEMORY
+#endif
+
+#if XCHAL_NUM_DATAROM < 1
+#define XCHAL_DATAROM0_PADDR 0
+#define XCHAL_DATAROM0_SIZE 0
+#endif
+#if XCHAL_NUM_DATAROM < 2
+#define XCHAL_DATAROM1_PADDR 0
+#define XCHAL_DATAROM1_SIZE 0
+#endif
+#if XCHAL_NUM_DATAROM < 3
+#define XCHAL_DATAROM2_PADDR 0
+#define XCHAL_DATAROM2_SIZE 0
+#endif
+#if XCHAL_NUM_DATAROM < 4
+#define XCHAL_DATAROM3_PADDR 0
+#define XCHAL_DATAROM3_SIZE 0
+#endif
+#if XCHAL_NUM_DATAROM > MAX_NMEMORY
+#error XCHAL_NUM_DATAROM > MAX_NMEMORY
+#endif
+
+#if XCHAL_NUM_DATARAM < 1
+#define XCHAL_DATARAM0_PADDR 0
+#define XCHAL_DATARAM0_SIZE 0
+#endif
+#if XCHAL_NUM_DATARAM < 2
+#define XCHAL_DATARAM1_PADDR 0
+#define XCHAL_DATARAM1_SIZE 0
+#endif
+#if XCHAL_NUM_DATARAM < 3
+#define XCHAL_DATARAM2_PADDR 0
+#define XCHAL_DATARAM2_SIZE 0
+#endif
+#if XCHAL_NUM_DATARAM < 4
+#define XCHAL_DATARAM3_PADDR 0
+#define XCHAL_DATARAM3_SIZE 0
+#endif
+#if XCHAL_NUM_DATARAM > MAX_NMEMORY
+#error XCHAL_NUM_DATARAM > MAX_NMEMORY
+#endif

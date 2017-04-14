@@ -56,6 +56,10 @@ spapr_drc_realize_child(uint32_t index, char *childname) "drc: 0x%"PRIx32", chil
 spapr_drc_realize_complete(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_unrealize(uint32_t index) "drc: 0x%"PRIx32
 
+# hw/ppc/spapr_ovec.c
+spapr_ovec_parse_vector(int vector, int byte, uint16_t vec_len, uint8_t entry) "read guest vector %2d, byte %3d / %3d: 0x%.2x"
+spapr_ovec_populate_dt(int byte, uint16_t vec_len, uint8_t entry) "encoding guest vector byte %3d / %3d: 0x%.2x"
+
 # hw/ppc/spapr_rtas.c
 spapr_rtas_set_indicator_invalid(uint32_t index) "sensor index: 0x%"PRIx32
 spapr_rtas_set_indicator_not_supported(uint32_t index, uint32_t type) "sensor index: 0x%"PRIx32", type: %"PRIu32
@@ -85,3 +89,11 @@ rs6000mc_presence_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
 rs6000mc_size_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
 rs6000mc_size_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
 rs6000mc_parity_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+
+# hw/ppc/mac_newworld.c
+mac99_uninorth_write(uint64_t addr, uint64_t value) "addr=0x%" PRIx64 " val=0x%"PRIx64
+mac99_uninorth_read(uint64_t addr, uint64_t value) "addr=0x%" PRIx64 " val=0x%"PRIx64
+
+# hw/ppc/ppc4xx_pci.c
+ppc4xx_pci_map_irq(int32_t devfn, int irq_num, int slot) "devfn %x irq %d -> %d"
+ppc4xx_pci_set_irq(int irq_num) "PCI irq %d"

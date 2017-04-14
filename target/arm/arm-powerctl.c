@@ -14,6 +14,7 @@
 #include "internals.h"
 #include "arm-powerctl.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 
 #ifndef DEBUG_ARM_POWERCTL
@@ -48,11 +49,93 @@ CPUState *arm_get_cpu_by_id(uint64_t id)
     return NULL;
 }
 
+struct CpuOnInfo {
+    uint64_t entry;
+    uint64_t context_id;
+    uint32_t target_el;
+    bool target_aa64;
+};
+
+
+static void arm_set_cpu_on_async_work(CPUState *target_cpu_state,
+                                      run_on_cpu_data data)
+{
+    ARMCPU *target_cpu = ARM_CPU(target_cpu_state);
+    struct CpuOnInfo *info = (struct CpuOnInfo *) data.host_ptr;
+
+    /* Initialize the cpu we are turning on */
+    cpu_reset(target_cpu_state);
+    target_cpu_state->halted = 0;
+
+    if (info->target_aa64) {
+        if ((info->target_el < 3) && arm_feature(&target_cpu->env,
+                                                 ARM_FEATURE_EL3)) {
+            /*
+             * As target mode is AArch64, we need to set lower
+             * exception level (the requested level 2) to AArch64
+             */
+            target_cpu->env.cp15.scr_el3 |= SCR_RW;
+        }
+
+        if ((info->target_el < 2) && arm_feature(&target_cpu->env,
+                                                 ARM_FEATURE_EL2)) {
+            /*
+             * As target mode is AArch64, we need to set lower
+             * exception level (the requested level 1) to AArch64
+             */
+            target_cpu->env.cp15.hcr_el2 |= HCR_RW;
+        }
+
+        target_cpu->env.pstate = aarch64_pstate_mode(info->target_el, true);
+    } else {
+        /* We are requested to boot in AArch32 mode */
+        static const uint32_t mode_for_el[] = { 0,
+                                                ARM_CPU_MODE_SVC,
+                                                ARM_CPU_MODE_HYP,
+                                                ARM_CPU_MODE_SVC };
+
+        cpsr_write(&target_cpu->env, mode_for_el[info->target_el], CPSR_M,
+                   CPSRWriteRaw);
+    }
+
+    if (info->target_el == 3) {
+        /* Processor is in secure mode */
+        target_cpu->env.cp15.scr_el3 &= ~SCR_NS;
+    } else {
+        /* Processor is not in secure mode */
+        target_cpu->env.cp15.scr_el3 |= SCR_NS;
+    }
+
+    /* We check if the started CPU is now at the correct level */
+    assert(info->target_el == arm_current_el(&target_cpu->env));
+
+    if (info->target_aa64) {
+        target_cpu->env.xregs[0] = info->context_id;
+        target_cpu->env.thumb = false;
+    } else {
+        target_cpu->env.regs[0] = info->context_id;
+        target_cpu->env.thumb = info->entry & 1;
+        info->entry &= 0xfffffffe;
+    }
+
+    /* Start the new CPU at the requested address */
+    cpu_set_pc(target_cpu_state, info->entry);
+
+    g_free(info);
+
+    /* Finally set the power status */
+    assert(qemu_mutex_iothread_locked());
+    target_cpu->power_state = PSCI_ON;
+}
+
 int arm_set_cpu_on(uint64_t cpuid, uint64_t entry, uint64_t context_id,
                    uint32_t target_el, bool target_aa64)
 {
     CPUState *target_cpu_state;
     ARMCPU *target_cpu;
+    struct CpuOnInfo *info;
+
+    assert(qemu_mutex_iothread_locked());
 
     DPRINTF("cpu %" PRId64 " (EL %d, %s) @ 0x%" PRIx64 " with R0 = 0x%" PRIx64
             "\n", cpuid, target_el, target_aa64 ? "aarch64" : "aarch32", entry,
@@ -77,7 +160,7 @@ int arm_set_cpu_on(uint64_t cpuid, uint64_t entry, uint64_t context_id,
     }
 
     target_cpu = ARM_CPU(target_cpu_state);
-    if (!target_cpu->powered_off) {
+    if (target_cpu->power_state == PSCI_ON) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "[ARM]%s: CPU %" PRId64 " is already on\n",
                       __func__, cpuid);
@@ -109,73 +192,53 @@ int arm_set_cpu_on(uint64_t cpuid, uint64_t entry, uint64_t context_id,
         return QEMU_ARM_POWERCTL_INVALID_PARAM;
     }
 
-    /* Initialize the cpu we are turning on */
-    cpu_reset(target_cpu_state);
-    target_cpu->powered_off = false;
-    target_cpu_state->halted = 0;
-
-    if (target_aa64) {
-        if ((target_el < 3) && arm_feature(&target_cpu->env, ARM_FEATURE_EL3)) {
-            /*
-             * As target mode is AArch64, we need to set lower
-             * exception level (the requested level 2) to AArch64
-             */
-            target_cpu->env.cp15.scr_el3 |= SCR_RW;
-        }
-
-        if ((target_el < 2) && arm_feature(&target_cpu->env, ARM_FEATURE_EL2)) {
-            /*
-             * As target mode is AArch64, we need to set lower
-             * exception level (the requested level 1) to AArch64
-             */
-            target_cpu->env.cp15.hcr_el2 |= HCR_RW;
-        }
-
-        target_cpu->env.pstate = aarch64_pstate_mode(target_el, true);
-    } else {
-        /* We are requested to boot in AArch32 mode */
-        static uint32_t mode_for_el[] = { 0,
-                                          ARM_CPU_MODE_SVC,
-                                          ARM_CPU_MODE_HYP,
-                                          ARM_CPU_MODE_SVC };
-
-        cpsr_write(&target_cpu->env, mode_for_el[target_el], CPSR_M,
-                   CPSRWriteRaw);
+    /*
+     * If another CPU has powered the target on we are in the state
+     * ON_PENDING and additional attempts to power on the CPU should
+     * fail (see 6.6 Implementation CPU_ON/CPU_OFF races in the PSCI
+     * spec)
+     */
+    if (target_cpu->power_state == PSCI_ON_PENDING) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "[ARM]%s: CPU %" PRId64 " is already powering on\n",
+                      __func__, cpuid);
+        return QEMU_ARM_POWERCTL_ON_PENDING;
     }
 
-    if (target_el == 3) {
-        /* Processor is in secure mode */
-        target_cpu->env.cp15.scr_el3 &= ~SCR_NS;
-    } else {
-        /* Processor is not in secure mode */
-        target_cpu->env.cp15.scr_el3 |= SCR_NS;
-    }
+    /* To avoid racing with a CPU we are just kicking off we do the
+     * final bit of preparation for the work in the target CPUs
+     * context.
+     */
+    info = g_new(struct CpuOnInfo, 1);
+    info->entry = entry;
+    info->context_id = context_id;
+    info->target_el = target_el;
+    info->target_aa64 = target_aa64;
 
-    /* We check if the started CPU is now at the correct level */
-    assert(target_el == arm_current_el(&target_cpu->env));
-
-    if (target_aa64) {
-        target_cpu->env.xregs[0] = context_id;
-        target_cpu->env.thumb = false;
-    } else {
-        target_cpu->env.regs[0] = context_id;
-        target_cpu->env.thumb = entry & 1;
-        entry &= 0xfffffffe;
-    }
-
-    /* Start the new CPU at the requested address */
-    cpu_set_pc(target_cpu_state, entry);
-
-    qemu_cpu_kick(target_cpu_state);
+    async_run_on_cpu(target_cpu_state, arm_set_cpu_on_async_work,
+                     RUN_ON_CPU_HOST_PTR(info));
 
     /* We are good to go */
     return QEMU_ARM_POWERCTL_RET_SUCCESS;
+}
+
+static void arm_set_cpu_off_async_work(CPUState *target_cpu_state,
+                                       run_on_cpu_data data)
+{
+    ARMCPU *target_cpu = ARM_CPU(target_cpu_state);
+
+    assert(qemu_mutex_iothread_locked());
+    target_cpu->power_state = PSCI_OFF;
+    target_cpu_state->halted = 1;
+    target_cpu_state->exception_index = EXCP_HLT;
 }
 
 int arm_set_cpu_off(uint64_t cpuid)
 {
     CPUState *target_cpu_state;
     ARMCPU *target_cpu;
+
+    assert(qemu_mutex_iothread_locked());
 
     DPRINTF("cpu %" PRId64 "\n", cpuid);
 
@@ -185,26 +248,33 @@ int arm_set_cpu_off(uint64_t cpuid)
         return QEMU_ARM_POWERCTL_INVALID_PARAM;
     }
     target_cpu = ARM_CPU(target_cpu_state);
-    if (target_cpu->powered_off) {
+    if (target_cpu->power_state == PSCI_OFF) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "[ARM]%s: CPU %" PRId64 " is already off\n",
                       __func__, cpuid);
         return QEMU_ARM_POWERCTL_IS_OFF;
     }
 
-    target_cpu->powered_off = true;
-    target_cpu_state->halted = 1;
-    target_cpu_state->exception_index = EXCP_HLT;
-    cpu_loop_exit(target_cpu_state);
-    /* notreached */
+    /* Queue work to run under the target vCPUs context */
+    async_run_on_cpu(target_cpu_state, arm_set_cpu_off_async_work,
+                     RUN_ON_CPU_NULL);
 
     return QEMU_ARM_POWERCTL_RET_SUCCESS;
+}
+
+static void arm_reset_cpu_async_work(CPUState *target_cpu_state,
+                                     run_on_cpu_data data)
+{
+    /* Reset the cpu */
+    cpu_reset(target_cpu_state);
 }
 
 int arm_reset_cpu(uint64_t cpuid)
 {
     CPUState *target_cpu_state;
     ARMCPU *target_cpu;
+
+    assert(qemu_mutex_iothread_locked());
 
     DPRINTF("cpu %" PRId64 "\n", cpuid);
 
@@ -214,15 +284,17 @@ int arm_reset_cpu(uint64_t cpuid)
         return QEMU_ARM_POWERCTL_INVALID_PARAM;
     }
     target_cpu = ARM_CPU(target_cpu_state);
-    if (target_cpu->powered_off) {
+
+    if (target_cpu->power_state == PSCI_OFF) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "[ARM]%s: CPU %" PRId64 " is off\n",
                       __func__, cpuid);
         return QEMU_ARM_POWERCTL_IS_OFF;
     }
 
-    /* Reset the cpu */
-    cpu_reset(target_cpu_state);
+    /* Queue work to run under the target vCPUs context */
+    async_run_on_cpu(target_cpu_state, arm_reset_cpu_async_work,
+                     RUN_ON_CPU_NULL);
 
     return QEMU_ARM_POWERCTL_RET_SUCCESS;
 }

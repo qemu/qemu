@@ -35,6 +35,8 @@
 #include "hw/timer/sun4v-rtc.h"
 #include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
+#include "qemu/error-report.h"
+#include "sysemu/qtest.h"
 
 
 typedef struct NiagaraBoardState {
@@ -85,6 +87,17 @@ typedef struct NiagaraBoardState {
 #define NIAGARA_OBP_OFFSET  0x80000ULL
 #define PROM_SIZE_MAX       (4 * 1024 * 1024)
 
+static void add_rom_or_fail(const char *file, const hwaddr addr)
+{
+    /* XXX remove qtest_enabled() check once firmware files are
+     * in the qemu tree
+     */
+    if (!qtest_enabled() && rom_add_file_fixed(file, addr, -1)) {
+        error_report("Unable to load a firmware for -M niagara");
+        exit(1);
+    }
+
+}
 /* Niagara hardware initialisation */
 static void niagara_init(MachineState *machine)
 {
@@ -119,14 +132,13 @@ static void niagara_init(MachineState *machine)
                                          "sun4v.prom", PROM_SIZE_MAX);
     memory_region_add_subregion(sysmem, NIAGARA_PROM_BASE, &s->prom);
 
-    rom_add_file_fixed("nvram1", NIAGARA_NVRAM_BASE, -1);
-    rom_add_file_fixed("1up-md.bin", NIAGARA_MD_ROM_BASE, -1);
-    rom_add_file_fixed("1up-hv.bin", NIAGARA_HV_ROM_BASE, -1);
+    add_rom_or_fail("nvram1", NIAGARA_NVRAM_BASE);
+    add_rom_or_fail("1up-md.bin", NIAGARA_MD_ROM_BASE);
+    add_rom_or_fail("1up-hv.bin", NIAGARA_HV_ROM_BASE);
 
-    rom_add_file_fixed("reset.bin", NIAGARA_PROM_BASE, -1);
-    rom_add_file_fixed("q.bin", NIAGARA_PROM_BASE + NIAGARA_Q_OFFSET, -1);
-    rom_add_file_fixed("openboot.bin", NIAGARA_PROM_BASE + NIAGARA_OBP_OFFSET,
-                       -1);
+    add_rom_or_fail("reset.bin", NIAGARA_PROM_BASE);
+    add_rom_or_fail("q.bin", NIAGARA_PROM_BASE + NIAGARA_Q_OFFSET);
+    add_rom_or_fail("openboot.bin", NIAGARA_PROM_BASE + NIAGARA_OBP_OFFSET);
 
     /* the virtual ramdisk is kind of initrd, but it resides
        outside of the partition RAM */
@@ -146,9 +158,10 @@ static void niagara_init(MachineState *machine)
             exit(1);
         }
     }
-    serial_mm_init(sysmem, NIAGARA_UART_BASE, 0, NULL, 115200,
-                   serial_hds[0], DEVICE_BIG_ENDIAN);
-
+    if (serial_hds[0]) {
+        serial_mm_init(sysmem, NIAGARA_UART_BASE, 0, NULL, 115200,
+                       serial_hds[0], DEVICE_BIG_ENDIAN);
+    }
     empty_slot_init(NIAGARA_IOBBASE, NIAGARA_IOBSIZE);
     sun4v_rtc_init(NIAGARA_RTC_BASE);
 }

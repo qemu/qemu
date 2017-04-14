@@ -724,9 +724,15 @@ static void zipl_load_vscsi(void)
 
 void zipl_load(void)
 {
-    if (virtio_get_device()->is_cdrom) {
+    VDev *vdev = virtio_get_device();
+
+    if (vdev->is_cdrom) {
         ipl_iso_el_torito();
         panic("\n! Cannot IPL this ISO image !\n");
+    }
+
+    if (virtio_get_device_type() == VIRTIO_ID_NET) {
+        jump_to_IPL_code(vdev->netboot_start_addr);
     }
 
     ipl_scsi();

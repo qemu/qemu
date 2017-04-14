@@ -264,7 +264,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                               int must_swab, uint64_t *pentry,
                               uint64_t *lowaddr, uint64_t *highaddr,
                               int elf_machine, int clear_lsb, int data_swab,
-                              AddressSpace *as)
+                              AddressSpace *as, bool load_rom)
 {
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
@@ -403,10 +403,15 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                 *pentry = ehdr.e_entry - ph->p_vaddr + ph->p_paddr;
             }
 
-            snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
+            if (load_rom) {
+                snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
 
-            /* rom_add_elf_program() seize the ownership of 'data' */
-            rom_add_elf_program(label, data, file_size, mem_size, addr, as);
+                /* rom_add_elf_program() seize the ownership of 'data' */
+                rom_add_elf_program(label, data, file_size, mem_size, addr, as);
+            } else {
+                cpu_physical_memory_write(addr, data, file_size);
+                g_free(data);
+            }
 
             total_size += mem_size;
             if (addr < low)

@@ -127,7 +127,9 @@ void arm_handle_psci_call(ARMCPU *cpu)
                 break;
             }
             target_cpu = ARM_CPU(target_cpu_state);
-            ret = target_cpu->powered_off ? 1 : 0;
+
+            g_assert(qemu_mutex_iothread_locked());
+            ret = target_cpu->power_state;
             break;
         default:
             /* Everything above affinity level 0 is always on. */

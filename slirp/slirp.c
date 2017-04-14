@@ -198,7 +198,7 @@ static int get_dns_addr_resolv_conf(int af, void *pdns_addr, void *cached_addr,
 #ifdef DEBUG
             else {
                 char s[INET6_ADDRSTRLEN];
-                char *res = inet_ntop(af, tmp_addr, s, sizeof(s));
+                const char *res = inet_ntop(af, tmp_addr, s, sizeof(s));
                 if (!res) {
                     res = "(string conversion error)";
                 }

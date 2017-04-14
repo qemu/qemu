@@ -405,6 +405,9 @@ information. If used together with the "tcg" property, it adds a second
 "TCGv_env" argument that must point to the per-target global TCG register that
 points to the vCPU when guest code is executed (usually the "cpu_env" variable).
 
+The "tcg" and "vcpu" properties are currently only honored in the root
+./trace-events file.
+
 The following example events:
 
     foo(uint32_t a) "a=%x"

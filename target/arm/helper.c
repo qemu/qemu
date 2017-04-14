@@ -536,41 +536,33 @@ static void tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void tlbiall_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush(other_cs);
-    }
+    tlb_flush_all_cpus_synced(cs);
 }
 
 static void tlbiasid_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush(other_cs);
-    }
+    tlb_flush_all_cpus_synced(cs);
 }
 
 static void tlbimva_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_page(other_cs, value & TARGET_PAGE_MASK);
-    }
+    tlb_flush_page_all_cpus_synced(cs, value & TARGET_PAGE_MASK);
 }
 
 static void tlbimvaa_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_page(other_cs, value & TARGET_PAGE_MASK);
-    }
+    tlb_flush_page_all_cpus_synced(cs, value & TARGET_PAGE_MASK);
 }
 
 static void tlbiall_nsnh_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -578,19 +570,21 @@ static void tlbiall_nsnh_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     CPUState *cs = ENV_GET_CPU(env);
 
-    tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0,
-                        ARMMMUIdx_S2NS, -1);
+    tlb_flush_by_mmuidx(cs,
+                        (1 << ARMMMUIdx_S12NSE1) |
+                        (1 << ARMMMUIdx_S12NSE0) |
+                        (1 << ARMMMUIdx_S2NS));
 }
 
 static void tlbiall_nsnh_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                   uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
-                            ARMMMUIdx_S12NSE0, ARMMMUIdx_S2NS, -1);
-    }
+    tlb_flush_by_mmuidx_all_cpus_synced(cs,
+                                        (1 << ARMMMUIdx_S12NSE1) |
+                                        (1 << ARMMMUIdx_S12NSE0) |
+                                        (1 << ARMMMUIdx_S2NS));
 }
 
 static void tlbiipas2_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -611,13 +605,13 @@ static void tlbiipas2_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     pageaddr = sextract64(value << 12, 0, 40);
 
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S2NS, -1);
+    tlb_flush_page_by_mmuidx(cs, pageaddr, (1 << ARMMMUIdx_S2NS));
 }
 
 static void tlbiipas2_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t pageaddr;
 
     if (!arm_feature(env, ARM_FEATURE_EL2) || !(env->cp15.scr_el3 & SCR_NS)) {
@@ -626,9 +620,8 @@ static void tlbiipas2_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     pageaddr = sextract64(value << 12, 0, 40);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S2NS, -1);
-    }
+    tlb_flush_page_by_mmuidx_all_cpus_synced(cs, pageaddr,
+                                             (1 << ARMMMUIdx_S2NS));
 }
 
 static void tlbiall_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -636,17 +629,15 @@ static void tlbiall_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     CPUState *cs = ENV_GET_CPU(env);
 
-    tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1E2, -1);
+    tlb_flush_by_mmuidx(cs, (1 << ARMMMUIdx_S1E2));
 }
 
 static void tlbiall_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1E2, -1);
-    }
+    tlb_flush_by_mmuidx_all_cpus_synced(cs, (1 << ARMMMUIdx_S1E2));
 }
 
 static void tlbimva_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -655,18 +646,17 @@ static void tlbimva_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = ENV_GET_CPU(env);
     uint64_t pageaddr = value & ~MAKE_64BIT_MASK(0, 12);
 
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S1E2, -1);
+    tlb_flush_page_by_mmuidx(cs, pageaddr, (1 << ARMMMUIdx_S1E2));
 }
 
 static void tlbimva_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t pageaddr = value & ~MAKE_64BIT_MASK(0, 12);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S1E2, -1);
-    }
+    tlb_flush_page_by_mmuidx_all_cpus_synced(cs, pageaddr,
+                                             (1 << ARMMMUIdx_S1E2));
 }
 
 static const ARMCPRegInfo cp_reginfo[] = {
@@ -895,7 +885,7 @@ static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri,
      */
     int el = arm_current_el(env);
 
-    if (el == 0 && !env->cp15.c9_pmuserenr) {
+    if (el == 0 && !(env->cp15.c9_pmuserenr & 1)) {
         return CP_ACCESS_TRAP;
     }
     if (el < 2 && (env->cp15.mdcr_el2 & MDCR_TPM)
@@ -909,7 +899,66 @@ static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
+static CPAccessResult pmreg_access_xevcntr(CPUARMState *env,
+                                           const ARMCPRegInfo *ri,
+                                           bool isread)
+{
+    /* ER: event counter read trap control */
+    if (arm_feature(env, ARM_FEATURE_V8)
+        && arm_current_el(env) == 0
+        && (env->cp15.c9_pmuserenr & (1 << 3)) != 0
+        && isread) {
+        return CP_ACCESS_OK;
+    }
+
+    return pmreg_access(env, ri, isread);
+}
+
+static CPAccessResult pmreg_access_swinc(CPUARMState *env,
+                                         const ARMCPRegInfo *ri,
+                                         bool isread)
+{
+    /* SW: software increment write trap control */
+    if (arm_feature(env, ARM_FEATURE_V8)
+        && arm_current_el(env) == 0
+        && (env->cp15.c9_pmuserenr & (1 << 1)) != 0
+        && !isread) {
+        return CP_ACCESS_OK;
+    }
+
+    return pmreg_access(env, ri, isread);
+}
+
 #ifndef CONFIG_USER_ONLY
+
+static CPAccessResult pmreg_access_selr(CPUARMState *env,
+                                        const ARMCPRegInfo *ri,
+                                        bool isread)
+{
+    /* ER: event counter read trap control */
+    if (arm_feature(env, ARM_FEATURE_V8)
+        && arm_current_el(env) == 0
+        && (env->cp15.c9_pmuserenr & (1 << 3)) != 0) {
+        return CP_ACCESS_OK;
+    }
+
+    return pmreg_access(env, ri, isread);
+}
+
+static CPAccessResult pmreg_access_ccntr(CPUARMState *env,
+                                         const ARMCPRegInfo *ri,
+                                         bool isread)
+{
+    /* CR: cycle counter read trap control */
+    if (arm_feature(env, ARM_FEATURE_V8)
+        && arm_current_el(env) == 0
+        && (env->cp15.c9_pmuserenr & (1 << 2)) != 0
+        && isread) {
+        return CP_ACCESS_OK;
+    }
+
+    return pmreg_access(env, ri, isread);
+}
 
 static inline bool arm_ccnt_enabled(CPUARMState *env)
 {
@@ -1078,7 +1127,11 @@ static uint64_t pmxevtyper_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static void pmuserenr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
-    env->cp15.c9_pmuserenr = value & 1;
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        env->cp15.c9_pmuserenr = value & 0xf;
+    } else {
+        env->cp15.c9_pmuserenr = value & 1;
+    }
 }
 
 static void pmintenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -1222,25 +1275,25 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .raw_writefn = raw_write },
     /* Unimplemented so WI. */
     { .name = "PMSWINC", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 4,
-      .access = PL0_W, .accessfn = pmreg_access, .type = ARM_CP_NOP },
+      .access = PL0_W, .accessfn = pmreg_access_swinc, .type = ARM_CP_NOP },
 #ifndef CONFIG_USER_ONLY
     { .name = "PMSELR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 5,
       .access = PL0_RW, .type = ARM_CP_ALIAS,
       .fieldoffset = offsetoflow32(CPUARMState, cp15.c9_pmselr),
-      .accessfn = pmreg_access, .writefn = pmselr_write,
+      .accessfn = pmreg_access_selr, .writefn = pmselr_write,
       .raw_writefn = raw_write},
     { .name = "PMSELR_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 12, .opc2 = 5,
-      .access = PL0_RW, .accessfn = pmreg_access,
+      .access = PL0_RW, .accessfn = pmreg_access_selr,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmselr),
       .writefn = pmselr_write, .raw_writefn = raw_write, },
     { .name = "PMCCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 0,
       .access = PL0_RW, .resetvalue = 0, .type = ARM_CP_IO,
       .readfn = pmccntr_read, .writefn = pmccntr_write32,
-      .accessfn = pmreg_access },
+      .accessfn = pmreg_access_ccntr },
     { .name = "PMCCNTR_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 13, .opc2 = 0,
-      .access = PL0_RW, .accessfn = pmreg_access,
+      .access = PL0_RW, .accessfn = pmreg_access_ccntr,
       .type = ARM_CP_IO,
       .readfn = pmccntr_read, .writefn = pmccntr_write, },
 #endif
@@ -1261,7 +1314,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     /* Unimplemented, RAZ/WI. */
     { .name = "PMXEVCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 2,
       .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
-      .accessfn = pmreg_access },
+      .accessfn = pmreg_access_xevcntr },
     { .name = "PMUSERENR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 0,
       .access = PL0_R | PL1_RW, .accessfn = access_tpm,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmuserenr),
@@ -2542,8 +2595,10 @@ static void vttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     /* Accesses to VTTBR may change the VMID so we must flush the TLB.  */
     if (raw_read(env, ri) != value) {
-        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0,
-                            ARMMMUIdx_S2NS, -1);
+        tlb_flush_by_mmuidx(cs,
+                            (1 << ARMMMUIdx_S12NSE1) |
+                            (1 << ARMMMUIdx_S12NSE0) |
+                            (1 << ARMMMUIdx_S2NS));
         raw_write(env, ri, value);
     }
 }
@@ -2898,29 +2953,33 @@ static CPAccessResult aa64_cacheop_access(CPUARMState *env,
 static void tlbi_aa64_vmalle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                     uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = ENV_GET_CPU(env);
 
     if (arm_is_secure_below_el3(env)) {
-        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
+        tlb_flush_by_mmuidx(cs,
+                            (1 << ARMMMUIdx_S1SE1) |
+                            (1 << ARMMMUIdx_S1SE0));
     } else {
-        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0, -1);
+        tlb_flush_by_mmuidx(cs,
+                            (1 << ARMMMUIdx_S12NSE1) |
+                            (1 << ARMMMUIdx_S12NSE0));
     }
 }
 
 static void tlbi_aa64_vmalle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                       uint64_t value)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     bool sec = arm_is_secure_below_el3(env);
-    CPUState *other_cs;
 
-    CPU_FOREACH(other_cs) {
-        if (sec) {
-            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
-        } else {
-            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
-                                ARMMMUIdx_S12NSE0, -1);
-        }
+    if (sec) {
+        tlb_flush_by_mmuidx_all_cpus_synced(cs,
+                                            (1 << ARMMMUIdx_S1SE1) |
+                                            (1 << ARMMMUIdx_S1SE0));
+    } else {
+        tlb_flush_by_mmuidx_all_cpus_synced(cs,
+                                            (1 << ARMMMUIdx_S12NSE1) |
+                                            (1 << ARMMMUIdx_S12NSE0));
     }
 }
 
@@ -2935,13 +2994,19 @@ static void tlbi_aa64_alle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = CPU(cpu);
 
     if (arm_is_secure_below_el3(env)) {
-        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
+        tlb_flush_by_mmuidx(cs,
+                            (1 << ARMMMUIdx_S1SE1) |
+                            (1 << ARMMMUIdx_S1SE0));
     } else {
         if (arm_feature(env, ARM_FEATURE_EL2)) {
-            tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0,
-                                ARMMMUIdx_S2NS, -1);
+            tlb_flush_by_mmuidx(cs,
+                                (1 << ARMMMUIdx_S12NSE1) |
+                                (1 << ARMMMUIdx_S12NSE0) |
+                                (1 << ARMMMUIdx_S2NS));
         } else {
-            tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0, -1);
+            tlb_flush_by_mmuidx(cs,
+                                (1 << ARMMMUIdx_S12NSE1) |
+                                (1 << ARMMMUIdx_S12NSE0));
         }
     }
 }
@@ -2952,7 +3017,7 @@ static void tlbi_aa64_alle2_write(CPUARMState *env, const ARMCPRegInfo *ri,
     ARMCPU *cpu = arm_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
 
-    tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1E2, -1);
+    tlb_flush_by_mmuidx(cs, (1 << ARMMMUIdx_S1E2));
 }
 
 static void tlbi_aa64_alle3_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -2961,7 +3026,7 @@ static void tlbi_aa64_alle3_write(CPUARMState *env, const ARMCPRegInfo *ri,
     ARMCPU *cpu = arm_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
 
-    tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1E3, -1);
+    tlb_flush_by_mmuidx(cs, (1 << ARMMMUIdx_S1E3));
 }
 
 static void tlbi_aa64_alle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -2971,41 +3036,40 @@ static void tlbi_aa64_alle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * stage 2 translations, whereas most other scopes only invalidate
      * stage 1 translations.
      */
+    CPUState *cs = ENV_GET_CPU(env);
     bool sec = arm_is_secure_below_el3(env);
     bool has_el2 = arm_feature(env, ARM_FEATURE_EL2);
-    CPUState *other_cs;
 
-    CPU_FOREACH(other_cs) {
-        if (sec) {
-            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
-        } else if (has_el2) {
-            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
-                                ARMMMUIdx_S12NSE0, ARMMMUIdx_S2NS, -1);
-        } else {
-            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
-                                ARMMMUIdx_S12NSE0, -1);
-        }
+    if (sec) {
+        tlb_flush_by_mmuidx_all_cpus_synced(cs,
+                                            (1 << ARMMMUIdx_S1SE1) |
+                                            (1 << ARMMMUIdx_S1SE0));
+    } else if (has_el2) {
+        tlb_flush_by_mmuidx_all_cpus_synced(cs,
+                                            (1 << ARMMMUIdx_S12NSE1) |
+                                            (1 << ARMMMUIdx_S12NSE0) |
+                                            (1 << ARMMMUIdx_S2NS));
+    } else {
+          tlb_flush_by_mmuidx_all_cpus_synced(cs,
+                                              (1 << ARMMMUIdx_S12NSE1) |
+                                              (1 << ARMMMUIdx_S12NSE0));
     }
 }
 
 static void tlbi_aa64_alle2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                     uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1E2, -1);
-    }
+    tlb_flush_by_mmuidx_all_cpus_synced(cs, (1 << ARMMMUIdx_S1E2));
 }
 
 static void tlbi_aa64_alle3is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                     uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1E3, -1);
-    }
+    tlb_flush_by_mmuidx_all_cpus_synced(cs, (1 << ARMMMUIdx_S1E3));
 }
 
 static void tlbi_aa64_vae1_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -3021,11 +3085,13 @@ static void tlbi_aa64_vae1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
     if (arm_is_secure_below_el3(env)) {
-        tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S1SE1,
-                                 ARMMMUIdx_S1SE0, -1);
+        tlb_flush_page_by_mmuidx(cs, pageaddr,
+                                 (1 << ARMMMUIdx_S1SE1) |
+                                 (1 << ARMMMUIdx_S1SE0));
     } else {
-        tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S12NSE1,
-                                 ARMMMUIdx_S12NSE0, -1);
+        tlb_flush_page_by_mmuidx(cs, pageaddr,
+                                 (1 << ARMMMUIdx_S12NSE1) |
+                                 (1 << ARMMMUIdx_S12NSE0));
     }
 }
 
@@ -3040,7 +3106,7 @@ static void tlbi_aa64_vae2_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = CPU(cpu);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S1E2, -1);
+    tlb_flush_page_by_mmuidx(cs, pageaddr, (1 << ARMMMUIdx_S1E2));
 }
 
 static void tlbi_aa64_vae3_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -3054,47 +3120,46 @@ static void tlbi_aa64_vae3_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = CPU(cpu);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S1E3, -1);
+    tlb_flush_page_by_mmuidx(cs, pageaddr, (1 << ARMMMUIdx_S1E3));
 }
 
 static void tlbi_aa64_vae1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                    uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     bool sec = arm_is_secure_below_el3(env);
-    CPUState *other_cs;
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
-    CPU_FOREACH(other_cs) {
-        if (sec) {
-            tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S1SE1,
-                                     ARMMMUIdx_S1SE0, -1);
-        } else {
-            tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S12NSE1,
-                                     ARMMMUIdx_S12NSE0, -1);
-        }
+    if (sec) {
+        tlb_flush_page_by_mmuidx_all_cpus_synced(cs, pageaddr,
+                                                 (1 << ARMMMUIdx_S1SE1) |
+                                                 (1 << ARMMMUIdx_S1SE0));
+    } else {
+        tlb_flush_page_by_mmuidx_all_cpus_synced(cs, pageaddr,
+                                                 (1 << ARMMMUIdx_S12NSE1) |
+                                                 (1 << ARMMMUIdx_S12NSE0));
     }
 }
 
 static void tlbi_aa64_vae2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                    uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S1E2, -1);
-    }
+    tlb_flush_page_by_mmuidx_all_cpus_synced(cs, pageaddr,
+                                             (1 << ARMMMUIdx_S1E2));
 }
 
 static void tlbi_aa64_vae3is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                    uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S1E3, -1);
-    }
+    tlb_flush_page_by_mmuidx_all_cpus_synced(cs, pageaddr,
+                                             (1 << ARMMMUIdx_S1E3));
 }
 
 static void tlbi_aa64_ipas2e1_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -3116,13 +3181,13 @@ static void tlbi_aa64_ipas2e1_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     pageaddr = sextract64(value << 12, 0, 48);
 
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S2NS, -1);
+    tlb_flush_page_by_mmuidx(cs, pageaddr, (1 << ARMMMUIdx_S2NS));
 }
 
 static void tlbi_aa64_ipas2e1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                       uint64_t value)
 {
-    CPUState *other_cs;
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t pageaddr;
 
     if (!arm_feature(env, ARM_FEATURE_EL2) || !(env->cp15.scr_el3 & SCR_NS)) {
@@ -3131,9 +3196,8 @@ static void tlbi_aa64_ipas2e1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     pageaddr = sextract64(value << 12, 0, 48);
 
-    CPU_FOREACH(other_cs) {
-        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S2NS, -1);
-    }
+    tlb_flush_page_by_mmuidx_all_cpus_synced(cs, pageaddr,
+                                             (1 << ARMMMUIdx_S2NS));
 }
 
 static CPAccessResult aa64_zva_access(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -6001,22 +6065,165 @@ static void switch_v7m_sp(CPUARMState *env, bool new_spsel)
     }
 }
 
-static void do_v7m_exception_exit(CPUARMState *env)
+static uint32_t arm_v7m_load_vector(ARMCPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
+    CPUARMState *env = &cpu->env;
+    MemTxResult result;
+    hwaddr vec = env->v7m.vecbase + env->v7m.exception * 4;
+    uint32_t addr;
+
+    addr = address_space_ldl(cs->as, vec,
+                             MEMTXATTRS_UNSPECIFIED, &result);
+    if (result != MEMTX_OK) {
+        /* Architecturally this should cause a HardFault setting HSFR.VECTTBL,
+         * which would then be immediately followed by our failing to load
+         * the entry vector for that HardFault, which is a Lockup case.
+         * Since we don't model Lockup, we just report this guest error
+         * via cpu_abort().
+         */
+        cpu_abort(cs, "Failed to read from exception vector table "
+                  "entry %08x\n", (unsigned)vec);
+    }
+    return addr;
+}
+
+static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr)
+{
+    /* Do the "take the exception" parts of exception entry,
+     * but not the pushing of state to the stack. This is
+     * similar to the pseudocode ExceptionTaken() function.
+     */
+    CPUARMState *env = &cpu->env;
+    uint32_t addr;
+
+    armv7m_nvic_acknowledge_irq(env->nvic);
+    switch_v7m_sp(env, 0);
+    /* Clear IT bits */
+    env->condexec_bits = 0;
+    env->regs[14] = lr;
+    addr = arm_v7m_load_vector(cpu);
+    env->regs[15] = addr & 0xfffffffe;
+    env->thumb = addr & 1;
+}
+
+static void v7m_push_stack(ARMCPU *cpu)
+{
+    /* Do the "set up stack frame" part of exception entry,
+     * similar to pseudocode PushStack().
+     */
+    CPUARMState *env = &cpu->env;
+    uint32_t xpsr = xpsr_read(env);
+
+    /* Align stack pointer if the guest wants that */
+    if ((env->regs[13] & 4) && (env->v7m.ccr & R_V7M_CCR_STKALIGN_MASK)) {
+        env->regs[13] -= 4;
+        xpsr |= 0x200;
+    }
+    /* Switch to the handler mode.  */
+    v7m_push(env, xpsr);
+    v7m_push(env, env->regs[15]);
+    v7m_push(env, env->regs[14]);
+    v7m_push(env, env->regs[12]);
+    v7m_push(env, env->regs[3]);
+    v7m_push(env, env->regs[2]);
+    v7m_push(env, env->regs[1]);
+    v7m_push(env, env->regs[0]);
+}
+
+static void do_v7m_exception_exit(ARMCPU *cpu)
+{
+    CPUARMState *env = &cpu->env;
     uint32_t type;
     uint32_t xpsr;
+    bool ufault = false;
+    bool return_to_sp_process = false;
+    bool return_to_handler = false;
+    bool rettobase = false;
 
+    /* We can only get here from an EXCP_EXCEPTION_EXIT, and
+     * arm_v7m_do_unassigned_access() enforces the architectural rule
+     * that jumps to magic addresses don't have magic behaviour unless
+     * we're in Handler mode (compare pseudocode BXWritePC()).
+     */
+    assert(env->v7m.exception != 0);
+
+    /* In the spec pseudocode ExceptionReturn() is called directly
+     * from BXWritePC() and gets the full target PC value including
+     * bit zero. In QEMU's implementation we treat it as a normal
+     * jump-to-register (which is then caught later on), and so split
+     * the target value up between env->regs[15] and env->thumb in
+     * gen_bx(). Reconstitute it.
+     */
     type = env->regs[15];
+    if (env->thumb) {
+        type |= 1;
+    }
+
+    qemu_log_mask(CPU_LOG_INT, "Exception return: magic PC %" PRIx32
+                  " previous exception %d\n",
+                  type, env->v7m.exception);
+
+    if (extract32(type, 5, 23) != extract32(-1, 5, 23)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "M profile: zero high bits in exception "
+                      "exit PC value 0x%" PRIx32 " are UNPREDICTABLE\n", type);
+    }
+
     if (env->v7m.exception != ARMV7M_EXCP_NMI) {
         /* Auto-clear FAULTMASK on return from other than NMI */
         env->daif &= ~PSTATE_F;
     }
-    if (env->v7m.exception != 0) {
-        armv7m_nvic_complete_irq(env->nvic, env->v7m.exception);
+
+    switch (armv7m_nvic_complete_irq(env->nvic, env->v7m.exception)) {
+    case -1:
+        /* attempt to exit an exception that isn't active */
+        ufault = true;
+        break;
+    case 0:
+        /* still an irq active now */
+        break;
+    case 1:
+        /* we returned to base exception level, no nesting.
+         * (In the pseudocode this is written using "NestedActivation != 1"
+         * where we have 'rettobase == false'.)
+         */
+        rettobase = true;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    switch (type & 0xf) {
+    case 1: /* Return to Handler */
+        return_to_handler = true;
+        break;
+    case 13: /* Return to Thread using Process stack */
+        return_to_sp_process = true;
+        /* fall through */
+    case 9: /* Return to Thread using Main stack */
+        if (!rettobase &&
+            !(env->v7m.ccr & R_V7M_CCR_NONBASETHRDENA_MASK)) {
+            ufault = true;
+        }
+        break;
+    default:
+        ufault = true;
+    }
+
+    if (ufault) {
+        /* Bad exception return: instead of popping the exception
+         * stack, directly take a usage fault on the current stack.
+         */
+        env->v7m.cfsr |= R_V7M_CFSR_INVPC_MASK;
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
+        v7m_exception_taken(cpu, type | 0xf0000000);
+        qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
+                      "stackframe: failed exception return integrity check\n");
+        return;
     }
 
     /* Switch to the target stack.  */
-    switch_v7m_sp(env, (type & 4) != 0);
+    switch_v7m_sp(env, return_to_sp_process);
     /* Pop registers.  */
     env->regs[0] = v7m_pop(env);
     env->regs[1] = v7m_pop(env);
@@ -6040,11 +6247,24 @@ static void do_v7m_exception_exit(CPUARMState *env)
     /* Undo stack alignment.  */
     if (xpsr & 0x200)
         env->regs[13] |= 4;
-    /* ??? The exception return type specifies Thread/Handler mode.  However
-       this is also implied by the xPSR value. Not sure what to do
-       if there is a mismatch.  */
-    /* ??? Likewise for mismatches between the CONTROL register and the stack
-       pointer.  */
+
+    /* The restored xPSR exception field will be zero if we're
+     * resuming in Thread mode. If that doesn't match what the
+     * exception return type specified then this is a UsageFault.
+     */
+    if (return_to_handler == (env->v7m.exception == 0)) {
+        /* Take an INVPC UsageFault by pushing the stack again. */
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
+        env->v7m.cfsr |= R_V7M_CFSR_INVPC_MASK;
+        v7m_push_stack(cpu);
+        v7m_exception_taken(cpu, type | 0xf0000000);
+        qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on new stackframe: "
+                      "failed exception return integrity check\n");
+        return;
+    }
+
+    /* Otherwise, we have a successful exception exit. */
+    qemu_log_mask(CPU_LOG_INT, "...successful exception return\n");
 }
 
 static void arm_log_exception(int idx)
@@ -6062,37 +6282,11 @@ static void arm_log_exception(int idx)
     }
 }
 
-static uint32_t arm_v7m_load_vector(ARMCPU *cpu)
-
-{
-    CPUState *cs = CPU(cpu);
-    CPUARMState *env = &cpu->env;
-    MemTxResult result;
-    hwaddr vec = env->v7m.vecbase + env->v7m.exception * 4;
-    uint32_t addr;
-
-    addr = address_space_ldl(cs->as, vec,
-                             MEMTXATTRS_UNSPECIFIED, &result);
-    if (result != MEMTX_OK) {
-        /* Architecturally this should cause a HardFault setting HSFR.VECTTBL,
-         * which would then be immediately followed by our failing to load
-         * the entry vector for that HardFault, which is a Lockup case.
-         * Since we don't model Lockup, we just report this guest error
-         * via cpu_abort().
-         */
-        cpu_abort(cs, "Failed to read from exception vector table "
-                  "entry %08x\n", (unsigned)vec);
-    }
-    return addr;
-}
-
 void arm_v7m_cpu_do_interrupt(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    uint32_t xpsr = xpsr_read(env);
     uint32_t lr;
-    uint32_t addr;
 
     arm_log_exception(cs->exception_index);
 
@@ -6105,28 +6299,30 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
 
     /* For exceptions we just mark as pending on the NVIC, and let that
        handle it.  */
-    /* TODO: Need to escalate if the current priority is higher than the
-       one we're raising.  */
     switch (cs->exception_index) {
     case EXCP_UDEF:
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
         env->v7m.cfsr |= R_V7M_CFSR_UNDEFINSTR_MASK;
-        return;
+        break;
     case EXCP_NOCP:
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
         env->v7m.cfsr |= R_V7M_CFSR_NOCP_MASK;
-        return;
+        break;
+    case EXCP_INVSTATE:
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
+        env->v7m.cfsr |= R_V7M_CFSR_INVSTATE_MASK;
+        break;
     case EXCP_SWI:
         /* The PC already points to the next instruction.  */
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SVC);
-        return;
+        break;
     case EXCP_PREFETCH_ABORT:
     case EXCP_DATA_ABORT:
         /* TODO: if we implemented the MPU registers, this is where we
          * should set the MMFAR, etc from exception.fsr and exception.vaddress.
          */
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_MEM);
-        return;
+        break;
     case EXCP_BKPT:
         if (semihosting_enabled()) {
             int nr;
@@ -6141,39 +6337,20 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
             }
         }
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_DEBUG);
-        return;
+        break;
     case EXCP_IRQ:
-        env->v7m.exception = armv7m_nvic_acknowledge_irq(env->nvic);
         break;
     case EXCP_EXCEPTION_EXIT:
-        do_v7m_exception_exit(env);
+        do_v7m_exception_exit(cpu);
         return;
     default:
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
     }
 
-    /* Align stack pointer if the guest wants that */
-    if ((env->regs[13] & 4) && (env->v7m.ccr & R_V7M_CCR_STKALIGN_MASK)) {
-        env->regs[13] -= 4;
-        xpsr |= 0x200;
-    }
-    /* Switch to the handler mode.  */
-    v7m_push(env, xpsr);
-    v7m_push(env, env->regs[15]);
-    v7m_push(env, env->regs[14]);
-    v7m_push(env, env->regs[12]);
-    v7m_push(env, env->regs[3]);
-    v7m_push(env, env->regs[2]);
-    v7m_push(env, env->regs[1]);
-    v7m_push(env, env->regs[0]);
-    switch_v7m_sp(env, 0);
-    /* Clear IT bits */
-    env->condexec_bits = 0;
-    env->regs[14] = lr;
-    addr = arm_v7m_load_vector(cpu);
-    env->regs[15] = addr & 0xfffffffe;
-    env->thumb = addr & 1;
+    v7m_push_stack(cpu);
+    v7m_exception_taken(cpu, lr);
+    qemu_log_mask(CPU_LOG_INT, "... as %d\n", env->v7m.exception);
 }
 
 /* Function used to synchronize QEMU's AArch64 register set with AArch32
@@ -6743,7 +6920,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
                   new_el);
     if (qemu_loglevel_mask(CPU_LOG_INT)
         && !excp_is_internal(cs->exception_index)) {
-        qemu_log_mask(CPU_LOG_INT, "...with ESR %x/0x%" PRIx32 "\n",
+        qemu_log_mask(CPU_LOG_INT, "...with ESR 0x%x/0x%" PRIx32 "\n",
                       env->exception.syndrome >> ARM_EL_EC_SHIFT,
                       env->exception.syndrome);
     }
@@ -6768,6 +6945,12 @@ void arm_cpu_do_interrupt(CPUState *cs)
     } else {
         arm_cpu_do_interrupt_aarch32(cs);
     }
+
+    /* Hooks may change global state so BQL should be held, also the
+     * BQL needs to be held for any modification of
+     * cs->interrupt_request.
+     */
+    g_assert(qemu_mutex_iothread_locked());
 
     arm_call_el_change_hook(cpu);
 
@@ -8365,8 +8548,18 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
     }
 }
 
-void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
+void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
 {
+    /* We're passed bits [11..0] of the instruction; extract
+     * SYSm and the mask bits.
+     * Invalid combinations of SYSm and mask are UNPREDICTABLE;
+     * we choose to treat them as if the mask bits were valid.
+     * NB that the pseudocode 'mask' variable is bits [11..10],
+     * whereas ours is [11..8].
+     */
+    uint32_t mask = extract32(maskreg, 8, 4);
+    uint32_t reg = extract32(maskreg, 0, 8);
+
     if (arm_current_el(env) == 0 && reg > 7) {
         /* only xPSR sub-fields may be written by unprivileged */
         return;
@@ -8375,8 +8568,16 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
     switch (reg) {
     case 0 ... 7: /* xPSR sub-fields */
         /* only APSR is actually writable */
-        if (reg & 4) {
-            xpsr_write(env, val, 0xf8000000); /* APSR */
+        if (!(reg & 4)) {
+            uint32_t apsrmask = 0;
+
+            if (mask & 8) {
+                apsrmask |= 0xf8000000; /* APSR NZCVQ */
+            }
+            if ((mask & 4) && arm_feature(env, ARM_FEATURE_THUMB_DSP)) {
+                apsrmask |= 0x000f0000; /* APSR GE[3:0] */
+            }
+            xpsr_write(env, val, apsrmask);
         }
         break;
     case 8: /* MSP */

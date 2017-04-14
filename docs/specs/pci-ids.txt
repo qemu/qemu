@@ -61,6 +61,7 @@ PCI devices (other than virtio):
 1b36:0009  PCI Expander Bridge (-device pxb)
 1b36:000a  PCI-PCI bridge (multiseat)
 1b36:000b  PCIe Expander Bridge (-device pxb-pcie)
+1b36:000d  PCI xhci usb host adapter
 
 All these devices are documented in docs/specs.
 

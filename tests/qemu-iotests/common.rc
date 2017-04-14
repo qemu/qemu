@@ -70,8 +70,6 @@ if [ "$IMGOPTSSYNTAX" = "true" ]; then
     elif [ "$IMGPROTO" = "nfs" ]; then
         TEST_DIR="$DRIVER,file.driver=nfs,file.filename=nfs://127.0.0.1/$TEST_DIR"
         TEST_IMG=$TEST_DIR/t.$IMGFMT
-    elif [ "$IMGPROTO" = "archipelago" ]; then
-        TEST_IMG="$DRIVER,file.driver=archipelago,file.volume=:at.$IMGFMT"
     else
         TEST_IMG="$DRIVER,file.driver=$IMGPROTO,file.filename=$TEST_DIR/t.$IMGFMT"
     fi
@@ -87,8 +85,6 @@ else
     elif [ "$IMGPROTO" = "nfs" ]; then
         TEST_DIR="nfs://127.0.0.1/$TEST_DIR"
         TEST_IMG=$TEST_DIR/t.$IMGFMT
-    elif [ "$IMGPROTO" = "archipelago" ]; then
-        TEST_IMG="archipelago:at.$IMGFMT"
     else
         TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
     fi
@@ -172,7 +168,7 @@ _make_test_img()
 
     # Start an NBD server on the image file, which is what we'll be talking to
     if [ $IMGPROTO = "nbd" ]; then
-        eval "$QEMU_NBD -v -t -b 127.0.0.1 -p 10810 -f $IMGFMT  $TEST_IMG_FILE &"
+        eval "$QEMU_NBD -v -t -b 127.0.0.1 -p 10810 -f $IMGFMT  $TEST_IMG_FILE >/dev/null &"
         sleep 1 # FIXME: qemu-nbd needs to be listening before we continue
     fi
 }
@@ -213,10 +209,6 @@ _cleanup_test_img()
 
         rbd)
             rbd --no-progress rm "$TEST_DIR/t.$IMGFMT" > /dev/null
-            ;;
-
-        archipelago)
-            vlmc remove "at.$IMGFMT" > /dev/null
             ;;
 
         sheepdog)
@@ -377,6 +369,18 @@ _supported_proto()
     done
 
     _notrun "not suitable for this image protocol: $IMGPROTO"
+}
+
+# tests whether $IMGPROTO is specified as an unsupported image protocol for a test
+#
+_unsupported_proto()
+{
+    for f; do
+        if [ "$f" = "$IMGPROTO" ]; then
+            _notrun "not suitable for this image protocol: $IMGPROTO"
+            return
+        fi
+    done
 }
 
 # tests whether the host OS is one of the supported OSes for a test

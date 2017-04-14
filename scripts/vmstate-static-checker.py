@@ -85,6 +85,11 @@ def check_fields_match(name, s_field, d_field):
         'xio3130-express-upstream-port': ['br.dev', 'parent_obj.parent_obj',
                                           'br.dev.exp.aer_log',
                                           'parent_obj.parent_obj.exp.aer_log'],
+        'spapr_pci': ['dma_liobn[0]', 'mig_liobn',
+                      'mem_win_addr', 'mig_mem_win_addr',
+                      'mem_win_size', 'mig_mem_win_size',
+                      'io_win_addr', 'mig_io_win_addr',
+                      'io_win_size', 'mig_io_win_size'],
     }
 
     if not name in changed_names:

@@ -572,8 +572,7 @@ static uint64_t amdvi_mmio_read(void *opaque, hwaddr addr, unsigned size)
 
     uint64_t val = -1;
     if (addr + size > AMDVI_MMIO_SIZE) {
-        trace_amdvi_mmio_read("error: addr outside region: max ",
-                (uint64_t)AMDVI_MMIO_SIZE, addr, size);
+        trace_amdvi_mmio_read_invalid(AMDVI_MMIO_SIZE, addr, size);
         return (uint64_t)-1;
     }
 

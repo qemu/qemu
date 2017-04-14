@@ -1,0 +1,1 @@
+tests/qapi-schema/pragma-returns-whitelist-crap.json:3: Pragma returns-whitelist must be a list of strings

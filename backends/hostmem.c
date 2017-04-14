@@ -64,14 +64,6 @@ out:
     error_propagate(errp, local_err);
 }
 
-static uint16List **host_memory_append_node(uint16List **node,
-                                            unsigned long value)
-{
-     *node = g_malloc0(sizeof(**node));
-     (*node)->value = value;
-     return &(*node)->next;
-}
-
 static void
 host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
@@ -82,12 +74,13 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
     unsigned long value;
 
     value = find_first_bit(backend->host_nodes, MAX_NODES);
-
-    node = host_memory_append_node(node, value);
-
     if (value == MAX_NODES) {
-        goto out;
+        return;
     }
+
+    *node = g_malloc0(sizeof(**node));
+    (*node)->value = value;
+    node = &(*node)->next;
 
     do {
         value = find_next_bit(backend->host_nodes, MAX_NODES, value + 1);
@@ -95,10 +88,11 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
             break;
         }
 
-        node = host_memory_append_node(node, value);
+        *node = g_malloc0(sizeof(**node));
+        (*node)->value = value;
+        node = &(*node)->next;
     } while (true);
 
-out:
     visit_type_uint16List(v, name, &host_nodes, errp);
 }
 
@@ -224,7 +218,7 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
-        os_mem_prealloc(fd, ptr, sz, &local_err);
+        os_mem_prealloc(fd, ptr, sz, smp_cpus, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -328,7 +322,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
          */
         if (backend->prealloc) {
             os_mem_prealloc(memory_region_get_fd(&backend->mr), ptr, sz,
-                            &local_err);
+                            smp_cpus, &local_err);
             if (local_err) {
                 goto out;
             }

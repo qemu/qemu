@@ -95,8 +95,6 @@ struct NBDClient {
     CoMutex send_lock;
     Coroutine *send_coroutine;
 
-    bool can_read;
-
     QTAILQ_ENTRY(NBDClient) next;
     int nb_requests;
     bool closing;
@@ -104,9 +102,7 @@ struct NBDClient {
 
 /* That's all folks */
 
-static void nbd_set_handlers(NBDClient *client);
-static void nbd_unset_handlers(NBDClient *client);
-static void nbd_update_can_read(NBDClient *client);
+static void nbd_client_receive_next_request(NBDClient *client);
 
 static gboolean nbd_negotiate_continue(QIOChannel *ioc,
                                        GIOCondition condition,
@@ -785,7 +781,7 @@ void nbd_client_put(NBDClient *client)
          */
         assert(client->closing);
 
-        nbd_unset_handlers(client);
+        qio_channel_detach_aio_context(client->ioc);
         object_unref(OBJECT(client->sioc));
         object_unref(OBJECT(client->ioc));
         if (client->tlscreds) {
@@ -826,7 +822,6 @@ static NBDRequestData *nbd_request_get(NBDClient *client)
 
     assert(client->nb_requests <= MAX_NBD_REQUESTS - 1);
     client->nb_requests++;
-    nbd_update_can_read(client);
 
     req = g_new0(NBDRequestData, 1);
     nbd_client_get(client);
@@ -844,7 +839,8 @@ static void nbd_request_put(NBDRequestData *req)
     g_free(req);
 
     client->nb_requests--;
-    nbd_update_can_read(client);
+    nbd_client_receive_next_request(client);
+
     nbd_client_put(client);
 }
 
@@ -858,7 +854,13 @@ static void blk_aio_attached(AioContext *ctx, void *opaque)
     exp->ctx = ctx;
 
     QTAILQ_FOREACH(client, &exp->clients, next) {
-        nbd_set_handlers(client);
+        qio_channel_attach_aio_context(client->ioc, ctx);
+        if (client->recv_coroutine) {
+            aio_co_schedule(ctx, client->recv_coroutine);
+        }
+        if (client->send_coroutine) {
+            aio_co_schedule(ctx, client->send_coroutine);
+        }
     }
 }
 
@@ -870,7 +872,7 @@ static void blk_aio_detach(void *opaque)
     TRACE("Export %s: Detaching clients from AIO context %p\n", exp->name, exp->ctx);
 
     QTAILQ_FOREACH(client, &exp->clients, next) {
-        nbd_unset_handlers(client);
+        qio_channel_detach_aio_context(client->ioc);
     }
 
     exp->ctx = NULL;
@@ -889,9 +891,21 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
 {
     BlockBackend *blk;
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
+    uint64_t perm;
+    int ret;
 
-    blk = blk_new();
-    blk_insert_bs(blk, bs);
+    /* Don't allow resize while the NBD server is running, otherwise we don't
+     * care what happens with the node. */
+    perm = BLK_PERM_CONSISTENT_READ;
+    if ((nbdflags & NBD_FLAG_READ_ONLY) == 0) {
+        perm |= BLK_PERM_WRITE;
+    }
+    blk = blk_new(perm, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
+                        BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD);
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        goto fail;
+    }
     blk_set_enable_write_cache(blk, !writethrough);
 
     exp->refcount = 1;
@@ -1045,7 +1059,6 @@ static ssize_t nbd_co_send_reply(NBDRequestData *req, NBDReply *reply,
     g_assert(qemu_in_coroutine());
     qemu_co_mutex_lock(&client->send_lock);
     client->send_coroutine = qemu_coroutine_self();
-    nbd_set_handlers(client);
 
     if (!len) {
         rc = nbd_send_reply(client->ioc, reply);
@@ -1062,7 +1075,6 @@ static ssize_t nbd_co_send_reply(NBDRequestData *req, NBDReply *reply,
     }
 
     client->send_coroutine = NULL;
-    nbd_set_handlers(client);
     qemu_co_mutex_unlock(&client->send_lock);
     return rc;
 }
@@ -1079,9 +1091,7 @@ static ssize_t nbd_co_receive_request(NBDRequestData *req,
     ssize_t rc;
 
     g_assert(qemu_in_coroutine());
-    client->recv_coroutine = qemu_coroutine_self();
-    nbd_update_can_read(client);
-
+    assert(client->recv_coroutine == qemu_coroutine_self());
     rc = nbd_receive_request(client->ioc, request);
     if (rc < 0) {
         if (rc != -EAGAIN) {
@@ -1163,23 +1173,25 @@ static ssize_t nbd_co_receive_request(NBDRequestData *req,
 
 out:
     client->recv_coroutine = NULL;
-    nbd_update_can_read(client);
+    nbd_client_receive_next_request(client);
 
     return rc;
 }
 
-static void nbd_trip(void *opaque)
+/* Owns a reference to the NBDClient passed as opaque.  */
+static coroutine_fn void nbd_trip(void *opaque)
 {
     NBDClient *client = opaque;
     NBDExport *exp = client->exp;
     NBDRequestData *req;
-    NBDRequest request;
+    NBDRequest request = { 0 };    /* GCC thinks it can be used uninitialized */
     NBDReply reply;
     ssize_t ret;
     int flags;
 
     TRACE("Reading request.");
     if (client->closing) {
+        nbd_client_put(client);
         return;
     }
 
@@ -1338,60 +1350,21 @@ static void nbd_trip(void *opaque)
 
 done:
     nbd_request_put(req);
+    nbd_client_put(client);
     return;
 
 out:
     nbd_request_put(req);
     client_close(client);
+    nbd_client_put(client);
 }
 
-static void nbd_read(void *opaque)
+static void nbd_client_receive_next_request(NBDClient *client)
 {
-    NBDClient *client = opaque;
-
-    if (client->recv_coroutine) {
-        qemu_coroutine_enter(client->recv_coroutine);
-    } else {
-        qemu_coroutine_enter(qemu_coroutine_create(nbd_trip, client));
-    }
-}
-
-static void nbd_restart_write(void *opaque)
-{
-    NBDClient *client = opaque;
-
-    qemu_coroutine_enter(client->send_coroutine);
-}
-
-static void nbd_set_handlers(NBDClient *client)
-{
-    if (client->exp && client->exp->ctx) {
-        aio_set_fd_handler(client->exp->ctx, client->sioc->fd, true,
-                           client->can_read ? nbd_read : NULL,
-                           client->send_coroutine ? nbd_restart_write : NULL,
-                           NULL, client);
-    }
-}
-
-static void nbd_unset_handlers(NBDClient *client)
-{
-    if (client->exp && client->exp->ctx) {
-        aio_set_fd_handler(client->exp->ctx, client->sioc->fd, true, NULL,
-                           NULL, NULL, NULL);
-    }
-}
-
-static void nbd_update_can_read(NBDClient *client)
-{
-    bool can_read = client->recv_coroutine ||
-                    client->nb_requests < MAX_NBD_REQUESTS;
-
-    if (can_read != client->can_read) {
-        client->can_read = can_read;
-        nbd_set_handlers(client);
-
-        /* There is no need to invoke aio_notify(), since aio_set_fd_handler()
-         * in nbd_set_handlers() will have taken care of that */
+    if (!client->recv_coroutine && client->nb_requests < MAX_NBD_REQUESTS) {
+        nbd_client_get(client);
+        client->recv_coroutine = qemu_coroutine_create(nbd_trip, client);
+        aio_co_schedule(client->exp->ctx, client->recv_coroutine);
     }
 }
 
@@ -1409,11 +1382,13 @@ static coroutine_fn void nbd_co_client_start(void *opaque)
         goto out;
     }
     qemu_co_mutex_init(&client->send_lock);
-    nbd_set_handlers(client);
 
     if (exp) {
         QTAILQ_INSERT_TAIL(&exp->clients, client, next);
     }
+
+    nbd_client_receive_next_request(client);
+
 out:
     g_free(data);
 }
@@ -1439,7 +1414,6 @@ void nbd_client_new(NBDExport *exp,
     object_ref(OBJECT(client->sioc));
     client->ioc = QIO_CHANNEL(sioc);
     object_ref(OBJECT(client->ioc));
-    client->can_read = true;
     client->close = close_fn;
 
     data->client = client;

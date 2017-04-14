@@ -891,11 +891,13 @@ static void usb_uas_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_uas_handle_destroy(USBDevice *dev)
+static void usb_uas_unrealize(USBDevice *dev, Error **errp)
 {
     UASDevice *uas = USB_UAS(dev);
 
     qemu_bh_delete(uas->status_bh);
+
+    object_unref(OBJECT(&uas->bus));
 }
 
 static void usb_uas_realize(USBDevice *dev, Error **errp)
@@ -944,7 +946,7 @@ static void usb_uas_class_initfn(ObjectClass *klass, void *data)
     uc->handle_reset   = usb_uas_handle_reset;
     uc->handle_control = usb_uas_handle_control;
     uc->handle_data    = usb_uas_handle_data;
-    uc->handle_destroy = usb_uas_handle_destroy;
+    uc->unrealize      = usb_uas_unrealize;
     uc->attached_settable = true;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->fw_name = "storage";

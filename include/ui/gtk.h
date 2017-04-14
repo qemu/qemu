@@ -103,11 +103,14 @@ void gd_egl_switch(DisplayChangeListener *dcl,
                    DisplaySurface *surface);
 QEMUGLContext gd_egl_create_context(DisplayChangeListener *dcl,
                                     QEMUGLParams *params);
-void gd_egl_scanout(DisplayChangeListener *dcl,
-                    uint32_t backing_id, bool backing_y_0_top,
-                    uint32_t backing_width, uint32_t backing_height,
-                    uint32_t x, uint32_t y,
-                    uint32_t w, uint32_t h);
+void gd_egl_scanout_disable(DisplayChangeListener *dcl);
+void gd_egl_scanout_texture(DisplayChangeListener *dcl,
+                            uint32_t backing_id,
+                            bool backing_y_0_top,
+                            uint32_t backing_width,
+                            uint32_t backing_height,
+                            uint32_t x, uint32_t y,
+                            uint32_t w, uint32_t h);
 void gd_egl_scanout_flush(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 void gtk_egl_init(void);
@@ -126,11 +129,13 @@ QEMUGLContext gd_gl_area_create_context(DisplayChangeListener *dcl,
                                         QEMUGLParams *params);
 void gd_gl_area_destroy_context(DisplayChangeListener *dcl,
                                 QEMUGLContext ctx);
-void gd_gl_area_scanout(DisplayChangeListener *dcl,
-                        uint32_t backing_id, bool backing_y_0_top,
-                        uint32_t backing_width, uint32_t backing_height,
-                        uint32_t x, uint32_t y,
-                        uint32_t w, uint32_t h);
+void gd_gl_area_scanout_texture(DisplayChangeListener *dcl,
+                                uint32_t backing_id,
+                                bool backing_y_0_top,
+                                uint32_t backing_width,
+                                uint32_t backing_height,
+                                uint32_t x, uint32_t y,
+                                uint32_t w, uint32_t h);
 void gd_gl_area_scanout_flush(DisplayChangeListener *dcl,
                               uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 void gtk_gl_area_init(void);

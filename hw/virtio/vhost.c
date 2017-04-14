@@ -425,10 +425,8 @@ static inline void vhost_dev_log_resize(struct vhost_dev *dev, uint64_t size)
 static int vhost_dev_has_iommu(struct vhost_dev *dev)
 {
     VirtIODevice *vdev = dev->vdev;
-    AddressSpace *dma_as = vdev->dma_as;
 
-    return memory_region_is_iommu(dma_as->root) &&
-           virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
+    return virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
 }
 
 static void *vhost_memory_map(struct vhost_dev *dev, hwaddr addr,
@@ -715,6 +713,63 @@ static void vhost_region_del(MemoryListener *listener,
             --dev->n_mem_sections;
             memmove(&dev->mem_sections[i], &dev->mem_sections[i+1],
                     (dev->n_mem_sections - i) * sizeof(*dev->mem_sections));
+            break;
+        }
+    }
+}
+
+static void vhost_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
+{
+    struct vhost_iommu *iommu = container_of(n, struct vhost_iommu, n);
+    struct vhost_dev *hdev = iommu->hdev;
+    hwaddr iova = iotlb->iova + iommu->iommu_offset;
+
+    if (hdev->vhost_ops->vhost_invalidate_device_iotlb(hdev, iova,
+                                                       iotlb->addr_mask + 1)) {
+        error_report("Fail to invalidate device iotlb");
+    }
+}
+
+static void vhost_iommu_region_add(MemoryListener *listener,
+                                   MemoryRegionSection *section)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         iommu_listener);
+    struct vhost_iommu *iommu;
+
+    if (!memory_region_is_iommu(section->mr)) {
+        return;
+    }
+
+    iommu = g_malloc0(sizeof(*iommu));
+    iommu->n.notify = vhost_iommu_unmap_notify;
+    iommu->n.notifier_flags = IOMMU_NOTIFIER_UNMAP;
+    iommu->mr = section->mr;
+    iommu->iommu_offset = section->offset_within_address_space -
+                          section->offset_within_region;
+    iommu->hdev = dev;
+    memory_region_register_iommu_notifier(section->mr, &iommu->n);
+    QLIST_INSERT_HEAD(&dev->iommu_list, iommu, iommu_next);
+    /* TODO: can replay help performance here? */
+}
+
+static void vhost_iommu_region_del(MemoryListener *listener,
+                                   MemoryRegionSection *section)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         iommu_listener);
+    struct vhost_iommu *iommu;
+
+    if (!memory_region_is_iommu(section->mr)) {
+        return;
+    }
+
+    QLIST_FOREACH(iommu, &dev->iommu_list, iommu_next) {
+        if (iommu->mr == section->mr) {
+            memory_region_unregister_iommu_notifier(iommu->mr,
+                                                    &iommu->n);
+            QLIST_REMOVE(iommu, iommu_next);
+            g_free(iommu);
             break;
         }
     }
@@ -1161,17 +1216,6 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
     event_notifier_cleanup(&vq->masked_notifier);
 }
 
-static void vhost_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
-{
-    struct vhost_dev *hdev = container_of(n, struct vhost_dev, n);
-
-    if (hdev->vhost_ops->vhost_invalidate_device_iotlb(hdev,
-                                                       iotlb->iova,
-                                                       iotlb->addr_mask + 1)) {
-        error_report("Fail to invalidate device iotlb");
-    }
-}
-
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout)
 {
@@ -1244,8 +1288,10 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .priority = 10
     };
 
-    hdev->n.notify = vhost_iommu_unmap_notify;
-    hdev->n.notifier_flags = IOMMU_NOTIFIER_UNMAP;
+    hdev->iommu_listener = (MemoryListener) {
+        .region_add = vhost_iommu_region_add,
+        .region_del = vhost_iommu_region_del,
+    };
 
     if (hdev->migration_blocker == NULL) {
         if (!(hdev->features & (0x1ULL << VHOST_F_LOG_ALL))) {
@@ -1455,8 +1501,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
     }
 
     if (vhost_dev_has_iommu(hdev)) {
-        memory_region_register_iommu_notifier(vdev->dma_as->root,
-                                              &hdev->n);
+        memory_listener_register(&hdev->iommu_listener, vdev->dma_as);
     }
 
     r = hdev->vhost_ops->vhost_set_mem_table(hdev, hdev->mem);
@@ -1538,8 +1583,7 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
 
     if (vhost_dev_has_iommu(hdev)) {
         hdev->vhost_ops->vhost_set_iotlb_callback(hdev, false);
-        memory_region_unregister_iommu_notifier(vdev->dma_as->root,
-                                                &hdev->n);
+        memory_listener_unregister(&hdev->iommu_listener);
     }
     vhost_log_put(hdev, true);
     hdev->started = false;

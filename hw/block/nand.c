@@ -373,6 +373,8 @@ static void nand_realize(DeviceState *dev, Error **errp)
 {
     int pagesize;
     NANDFlashState *s = NAND(dev);
+    int ret;
+
 
     s->buswidth = nand_flash_ids[s->chip_id].width >> 3;
     s->size = nand_flash_ids[s->chip_id].size << 20;
@@ -405,6 +407,11 @@ static void nand_realize(DeviceState *dev, Error **errp)
     if (s->blk) {
         if (blk_is_read_only(s->blk)) {
             error_setg(errp, "Can't use a read-only drive");
+            return;
+        }
+        ret = blk_set_perm(s->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+                           BLK_PERM_ALL, errp);
+        if (ret < 0) {
             return;
         }
         if (blk_getlength(s->blk) >=

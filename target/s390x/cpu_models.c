@@ -346,7 +346,7 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
     }
 
     if (qdict) {
-        visitor = qobject_input_visitor_new(info->props, true);
+        visitor = qobject_input_visitor_new(info->props);
         visit_start_struct(visitor, NULL, NULL, 0, errp);
         if (*errp) {
             object_unref(obj);
@@ -660,7 +660,6 @@ static void check_compatibility(const S390CPUModel *max_model,
 
 static S390CPUModel *get_max_cpu_model(Error **errp)
 {
-#ifndef CONFIG_USER_ONLY
     static S390CPUModel max_model;
     static bool cached;
 
@@ -671,7 +670,7 @@ static S390CPUModel *get_max_cpu_model(Error **errp)
     if (kvm_enabled()) {
         kvm_s390_get_host_cpu_model(&max_model, errp);
     } else {
-        /* TCG enulates a z900 */
+        /* TCG emulates a z900 */
         max_model.def = &s390_cpu_defs[0];
         bitmap_copy(max_model.features, max_model.def->default_feat,
                     S390_FEAT_MAX);
@@ -680,7 +679,6 @@ static S390CPUModel *get_max_cpu_model(Error **errp)
         cached = true;
         return &max_model;
     }
-#endif
     return NULL;
 }
 

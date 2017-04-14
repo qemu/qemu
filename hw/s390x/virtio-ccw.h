@@ -22,6 +22,7 @@
 #endif
 #include "hw/virtio/virtio-balloon.h"
 #include "hw/virtio/virtio-rng.h"
+#include "hw/virtio/virtio-crypto.h"
 #include "hw/virtio/virtio-bus.h"
 #ifdef CONFIG_VHOST_VSOCK
 #include "hw/virtio/vhost-vsock.h"
@@ -94,6 +95,7 @@ struct VirtioCcwDevice {
     IndAddr *indicators2;
     IndAddr *summary_indicator;
     uint64_t ind_bit;
+    bool force_revision_1;
 };
 
 /* The maximum virtio revision we support. */
@@ -181,6 +183,17 @@ typedef struct VirtIORNGCcw {
     VirtioCcwDevice parent_obj;
     VirtIORNG vdev;
 } VirtIORNGCcw;
+
+/* virtio-crypto-ccw */
+
+#define TYPE_VIRTIO_CRYPTO_CCW "virtio-crypto-ccw"
+#define VIRTIO_CRYPTO_CCW(obj) \
+        OBJECT_CHECK(VirtIOCryptoCcw, (obj), TYPE_VIRTIO_CRYPTO_CCW)
+
+typedef struct VirtIOCryptoCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOCrypto vdev;
+} VirtIOCryptoCcw;
 
 VirtIODevice *virtio_ccw_get_vdev(SubchDev *sch);
 

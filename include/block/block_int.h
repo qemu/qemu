@@ -320,6 +320,59 @@ struct BlockDriver {
     void (*bdrv_del_child)(BlockDriverState *parent, BdrvChild *child,
                            Error **errp);
 
+    /**
+     * Informs the block driver that a permission change is intended. The
+     * driver checks whether the change is permissible and may take other
+     * preparations for the change (e.g. get file system locks). This operation
+     * is always followed either by a call to either .bdrv_set_perm or
+     * .bdrv_abort_perm_update.
+     *
+     * Checks whether the requested set of cumulative permissions in @perm
+     * can be granted for accessing @bs and whether no other users are using
+     * permissions other than those given in @shared (both arguments take
+     * BLK_PERM_* bitmasks).
+     *
+     * If both conditions are met, 0 is returned. Otherwise, -errno is returned
+     * and errp is set to an error describing the conflict.
+     */
+    int (*bdrv_check_perm)(BlockDriverState *bs, uint64_t perm,
+                           uint64_t shared, Error **errp);
+
+    /**
+     * Called to inform the driver that the set of cumulative set of used
+     * permissions for @bs has changed to @perm, and the set of sharable
+     * permission to @shared. The driver can use this to propagate changes to
+     * its children (i.e. request permissions only if a parent actually needs
+     * them).
+     *
+     * This function is only invoked after bdrv_check_perm(), so block drivers
+     * may rely on preparations made in their .bdrv_check_perm implementation.
+     */
+    void (*bdrv_set_perm)(BlockDriverState *bs, uint64_t perm, uint64_t shared);
+
+    /*
+     * Called to inform the driver that after a previous bdrv_check_perm()
+     * call, the permission update is not performed and any preparations made
+     * for it (e.g. taken file locks) need to be undone.
+     *
+     * This function can be called even for nodes that never saw a
+     * bdrv_check_perm() call. It is a no-op then.
+     */
+    void (*bdrv_abort_perm_update)(BlockDriverState *bs);
+
+    /**
+     * Returns in @nperm and @nshared the permissions that the driver for @bs
+     * needs on its child @c, based on the cumulative permissions requested by
+     * the parents in @parent_perm and @parent_shared.
+     *
+     * If @c is NULL, return the permissions for attaching a new child for the
+     * given @role.
+     */
+     void (*bdrv_child_perm)(BlockDriverState *bs, BdrvChild *c,
+                             const BdrvChildRole *role,
+                             uint64_t parent_perm, uint64_t parent_shared,
+                             uint64_t *nperm, uint64_t *nshared);
+
     QLIST_ENTRY(BlockDriver) list;
 };
 
@@ -388,6 +441,10 @@ typedef struct BdrvAioNotifier {
 } BdrvAioNotifier;
 
 struct BdrvChildRole {
+    /* If true, bdrv_replace_node() doesn't change the node this BdrvChild
+     * points to. */
+    bool stay_at_node;
+
     void (*inherit_options)(int *child_flags, QDict *child_options,
                             int parent_flags, QDict *parent_options);
 
@@ -399,6 +456,12 @@ struct BdrvChildRole {
      * name), or NULL if the parent can't provide a better name. */
     const char* (*get_name)(BdrvChild *child);
 
+    /* Returns a malloced string that describes the parent of the child for a
+     * human reader. This could be a node-name, BlockBackend name, qdev ID or
+     * QOM path of the device owning the BlockBackend, job type and ID etc. The
+     * caller is responsible for freeing the memory. */
+    char* (*get_parent_desc)(BdrvChild *child);
+
     /*
      * If this pair of functions is implemented, the parent doesn't issue new
      * requests after returning from .drained_begin() until .drained_end() is
@@ -409,16 +472,32 @@ struct BdrvChildRole {
      */
     void (*drained_begin)(BdrvChild *child);
     void (*drained_end)(BdrvChild *child);
+
+    void (*attach)(BdrvChild *child);
+    void (*detach)(BdrvChild *child);
 };
 
 extern const BdrvChildRole child_file;
 extern const BdrvChildRole child_format;
+extern const BdrvChildRole child_backing;
 
 struct BdrvChild {
     BlockDriverState *bs;
     char *name;
     const BdrvChildRole *role;
     void *opaque;
+
+    /**
+     * Granted permissions for operating on this BdrvChild (BLK_PERM_* bitmask)
+     */
+    uint64_t perm;
+
+    /**
+     * Permissions that can still be granted to other users of @bs while this
+     * BdrvChild is still attached to it. (BLK_PERM_* bitmask)
+     */
+    uint64_t shared_perm;
+
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
 };
@@ -430,22 +509,15 @@ struct BdrvChild {
  * copied as well.
  */
 struct BlockDriverState {
-    int64_t total_sectors; /* if we are reading a disk image, give its
-                              size in sectors */
+    /* Protected by big QEMU lock or read-only after opening.  No special
+     * locking needed during I/O...
+     */
     int open_flags; /* flags used to open the file, re-used for re-open */
     bool read_only; /* if true, the media is read only */
     bool encrypted; /* if true, the media is encrypted */
     bool valid_key; /* if true, a valid encryption key has been set */
     bool sg;        /* if true, the device is a /dev/sg* */
     bool probed;    /* if true, format was probed rather than specified */
-
-    int copy_on_read; /* if nonzero, copy read backing sectors into image.
-                         note this is a reference count */
-
-    CoQueue flush_queue;            /* Serializing flush queue */
-    bool active_flush_req;          /* Flush request in flight? */
-    unsigned int write_gen;         /* Current data generation */
-    unsigned int flushed_gen;       /* Flushed write generation */
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
@@ -468,18 +540,6 @@ struct BlockDriverState {
     BdrvChild *backing;
     BdrvChild *file;
 
-    /* Callback before write request is processed */
-    NotifierWithReturnList before_write_notifiers;
-
-    /* number of in-flight requests; overall and serialising */
-    unsigned int in_flight;
-    unsigned int serialising_in_flight;
-
-    bool wakeup;
-
-    /* Offset after the highest byte written to */
-    uint64_t wr_highest_offset;
-
     /* I/O Limits */
     BlockLimits bl;
 
@@ -497,10 +557,7 @@ struct BlockDriverState {
     QTAILQ_ENTRY(BlockDriverState) bs_list;
     /* element of the list of monitor-owned BDS */
     QTAILQ_ENTRY(BlockDriverState) monitor_list;
-    QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
     int refcnt;
-
-    QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
 
     /* operation blockers */
     QLIST_HEAD(, BdrvOpBlocker) op_blockers[BLOCK_OP_TYPE_MAX];
@@ -522,12 +579,48 @@ struct BlockDriverState {
     /* The error object in use for blocking operations on backing_hd */
     Error *backing_blocker;
 
+    /* Protected by AioContext lock */
+
+    /* If true, copy read backing sectors into image.  Can be >1 if more
+     * than one client has requested copy-on-read.
+     */
+    int copy_on_read;
+
+    /* If we are reading a disk image, give its size in sectors.
+     * Generally read-only; it is written to by load_vmstate and save_vmstate,
+     * but the block layer is quiescent during those.
+     */
+    int64_t total_sectors;
+
+    /* Callback before write request is processed */
+    NotifierWithReturnList before_write_notifiers;
+
+    /* number of in-flight requests; overall and serialising */
+    unsigned int in_flight;
+    unsigned int serialising_in_flight;
+
+    bool wakeup;
+
+    /* Offset after the highest byte written to */
+    uint64_t wr_highest_offset;
+
     /* threshold limit for writes, in bytes. "High water mark". */
     uint64_t write_threshold_offset;
     NotifierWithReturn write_threshold_notifier;
 
     /* counter for nested bdrv_io_plug */
     unsigned io_plugged;
+
+    QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
+    CoQueue flush_queue;                  /* Serializing flush queue */
+    bool active_flush_req;                /* Flush request in flight? */
+    unsigned int write_gen;               /* Current data generation */
+    unsigned int flushed_gen;             /* Flushed write generation */
+
+    QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
+
+    /* do we need to tell the quest if we have a volatile write cache? */
+    int enable_write_cache;
 
     int quiesce_counter;
 };
@@ -687,13 +780,16 @@ void stream_start(const char *job_id, BlockDriverState *bs,
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @on_error: The action to take upon error.
  * @backing_file_str: String to use as the backing file in @top's overlay
+ * @filter_node_name: The node name that should be assigned to the filter
+ * driver that the commit job inserts into the graph above @top. NULL means
+ * that a node name should be autogenerated.
  * @errp: Error object.
  *
  */
 void commit_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, BlockDriverState *top, int64_t speed,
                   BlockdevOnError on_error, const char *backing_file_str,
-                  Error **errp);
+                  const char *filter_node_name, Error **errp);
 /**
  * commit_active_start:
  * @job_id: The id of the newly-created job, or %NULL to use the
@@ -704,6 +800,9 @@ void commit_start(const char *job_id, BlockDriverState *bs,
  *                  See @BlockJobCreateFlags
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @on_error: The action to take upon error.
+ * @filter_node_name: The node name that should be assigned to the filter
+ * driver that the commit job inserts into the graph above @bs. NULL means that
+ * a node name should be autogenerated.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
  * @errp: Error object.
@@ -713,8 +812,9 @@ void commit_start(const char *job_id, BlockDriverState *bs,
 void commit_active_start(const char *job_id, BlockDriverState *bs,
                          BlockDriverState *base, int creation_flags,
                          int64_t speed, BlockdevOnError on_error,
-                         BlockCompletionFunc *cb,
-                         void *opaque, Error **errp, bool auto_complete);
+                         const char *filter_node_name,
+                         BlockCompletionFunc *cb, void *opaque, Error **errp,
+                         bool auto_complete);
 /*
  * mirror_start:
  * @job_id: The id of the newly-created job, or %NULL to use the
@@ -731,6 +831,9 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
  * @unmap: Whether to unmap target where source sectors only contain zeroes.
+ * @filter_node_name: The node name that should be assigned to the filter
+ * driver that the mirror job inserts into the graph above @bs. NULL means that
+ * a node name should be autogenerated.
  * @errp: Error object.
  *
  * Start a mirroring operation on @bs.  Clusters that are allocated
@@ -744,7 +847,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
-                  bool unmap, Error **errp);
+                  bool unmap, const char *filter_node_name, Error **errp);
 
 /*
  * backup_job_create:
@@ -782,11 +885,32 @@ void hmp_drive_add_node(Monitor *mon, const char *optstr);
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildRole *child_role,
-                                  void *opaque);
+                                  uint64_t perm, uint64_t shared_perm,
+                                  void *opaque, Error **errp);
 void bdrv_root_unref_child(BdrvChild *child);
 
+int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
+                            Error **errp);
+
+/* Default implementation for BlockDriver.bdrv_child_perm() that can be used by
+ * block filters: Forward CONSISTENT_READ, WRITE, WRITE_UNCHANGED and RESIZE to
+ * all children */
+void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
+                               const BdrvChildRole *role,
+                               uint64_t perm, uint64_t shared,
+                               uint64_t *nperm, uint64_t *nshared);
+
+/* Default implementation for BlockDriver.bdrv_child_perm() that can be used by
+ * (non-raw) image formats: Like above for bs->backing, but for bs->file it
+ * requires WRITE | RESIZE for read-write images, always requires
+ * CONSISTENT_READ and doesn't share WRITE. */
+void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
+                               const BdrvChildRole *role,
+                               uint64_t perm, uint64_t shared,
+                               uint64_t *nperm, uint64_t *nshared);
+
 const char *bdrv_get_parent_name(const BlockDriverState *bs);
-void blk_dev_change_media_cb(BlockBackend *blk, bool load);
+void blk_dev_change_media_cb(BlockBackend *blk, bool load, Error **errp);
 bool blk_dev_has_removable_media(BlockBackend *blk);
 bool blk_dev_has_tray(BlockBackend *blk);
 void blk_dev_eject_request(BlockBackend *blk, bool force);

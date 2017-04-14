@@ -152,7 +152,7 @@
 #
 # The options that apply to QCow/QCow2 AES-CBC encryption format
 #
-# @key-secret: #optional the ID of a QCryptoSecret object providing the
+# @key-secret: the ID of a QCryptoSecret object providing the
 #              decryption key. Mandatory except when probing image for
 #              metadata only.
 #
@@ -166,7 +166,7 @@
 #
 # The options that apply to LUKS encryption format
 #
-# @key-secret: #optional the ID of a QCryptoSecret object providing the
+# @key-secret: the ID of a QCryptoSecret object providing the
 #              decryption key. Mandatory except when probing image for
 #              metadata only.
 # Since: 2.6
@@ -180,17 +180,17 @@
 #
 # The options that apply to LUKS encryption format initialization
 #
-# @cipher-alg: #optional the cipher algorithm for data encryption
+# @cipher-alg: the cipher algorithm for data encryption
 #              Currently defaults to 'aes'.
-# @cipher-mode: #optional the cipher mode for data encryption
+# @cipher-mode: the cipher mode for data encryption
 #               Currently defaults to 'cbc'
-# @ivgen-alg: #optional the initialization vector generator
+# @ivgen-alg: the initialization vector generator
 #             Currently defaults to 'essiv'
-# @ivgen-hash-alg: #optional the initialization vector generator hash
+# @ivgen-hash-alg: the initialization vector generator hash
 #                  Currently defaults to 'sha256'
-# @hash-alg: #optional the master key hash algorithm
+# @hash-alg: the master key hash algorithm
 #            Currently defaults to 'sha256'
-# @iter-time: #optional number of milliseconds to spend in
+# @iter-time: number of milliseconds to spend in
 #             PBKDF passphrase processing. Currently defaults
 #             to 2000. (since 2.8)
 # Since: 2.6
@@ -257,8 +257,8 @@
 #
 # @active: whether the key slot is currently in use
 # @key-offset: offset to the key material in bytes
-# @iters: #optional number of PBKDF2 iterations for key material
-# @stripes: #optional number of stripes for splitting key material
+# @iters: number of PBKDF2 iterations for key material
+# @stripes: number of stripes for splitting key material
 #
 # Since: 2.7
 ##
@@ -277,7 +277,7 @@
 # @cipher-alg: the cipher algorithm for data encryption
 # @cipher-mode: the cipher mode for data encryption
 # @ivgen-alg: the initialization vector generator
-# @ivgen-hash-alg: #optional the initialization vector generator hash
+# @ivgen-hash-alg: the initialization vector generator hash
 # @hash-alg: the master key hash algorithm
 # @payload-offset: offset to the payload data in bytes
 # @master-key-iters: number of PBKDF2 iterations for key material

@@ -580,12 +580,10 @@ void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
     }
 }
 
-/* Note: currently only 32 bits of exit_code are used */
 void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1,
                 uintptr_t retaddr)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
-    uint32_t int_ctl;
 
     if (retaddr) {
         cpu_restore_state(cs, retaddr);
@@ -597,6 +595,19 @@ void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1,
                   x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
                                                    control.exit_info_2)),
                   env->eip);
+
+    cs->exception_index = EXCP_VMEXIT + exit_code;
+    env->error_code = exit_info_1;
+
+    /* remove any pending exception */
+    env->old_exception = -1;
+    cpu_loop_exit(cs);
+}
+
+void do_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
+{
+    CPUState *cs = CPU(x86_env_get_cpu(env));
+    uint32_t int_ctl;
 
     if (env->hflags & HF_INHIBIT_IRQ_MASK) {
         x86_stl_phys(cs,
@@ -759,13 +770,6 @@ void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1,
     /* If the host's rIP reloaded by #VMEXIT is outside the limit of the
        host's code segment or non-canonical (in the case of long mode), a
        #GP fault is delivered inside the host. */
-
-    /* remove any pending exception */
-    cs->exception_index = -1;
-    env->error_code = 0;
-    env->old_exception = -1;
-
-    cpu_loop_exit(cs);
 }
 
 #endif

@@ -488,8 +488,8 @@ int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu)
 {
     if (cap_has_mp_state) {
         struct kvm_mp_state mp_state = {
-            .mp_state =
-            cpu->powered_off ? KVM_MP_STATE_STOPPED : KVM_MP_STATE_RUNNABLE
+            .mp_state = (cpu->power_state == PSCI_OFF) ?
+            KVM_MP_STATE_STOPPED : KVM_MP_STATE_RUNNABLE
         };
         int ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MP_STATE, &mp_state);
         if (ret) {
@@ -515,7 +515,8 @@ int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu)
                     __func__, ret, strerror(-ret));
             abort();
         }
-        cpu->powered_off = (mp_state.mp_state == KVM_MP_STATE_STOPPED);
+        cpu->power_state = (mp_state.mp_state == KVM_MP_STATE_STOPPED) ?
+            PSCI_OFF : PSCI_ON;
     }
 
     return 0;
@@ -557,16 +558,6 @@ bool kvm_arch_stop_on_emulation_error(CPUState *cs)
 int kvm_arch_process_async_events(CPUState *cs)
 {
     return 0;
-}
-
-int kvm_arch_on_sigbus_vcpu(CPUState *cs, int code, void *addr)
-{
-    return 1;
-}
-
-int kvm_arch_on_sigbus(int code, void *addr)
-{
-    return 1;
 }
 
 /* The #ifdef protections are until 32bit headers are imported and can

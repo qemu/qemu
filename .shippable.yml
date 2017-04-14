@@ -1,0 +1,21 @@
+language: c
+env:
+  matrix:
+    - IMAGE=debian-armhf-cross
+      TARGET_LIST=arm-softmmu,arm-linux-user
+    - IMAGE=debian-arm64-cross
+      TARGET_LIST=aarch64-softmmu,aarch64-linux-user
+    - IMAGE=debian-s390x-cross
+      TARGET_LIST=s390x-softmmu,s390x-linux-user
+build:
+  pre_ci:
+    - make docker-image-${IMAGE}
+  pre_ci_boot:
+    image_name: qemu
+    image_tag: ${IMAGE}
+    pull: false
+    options: "-e HOME=/root"
+  ci:
+    - unset CC
+    - ./configure ${QEMU_CONFIGURE_OPTS} --target-list=${TARGET_LIST}
+    - make -j2

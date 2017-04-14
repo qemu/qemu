@@ -25,13 +25,11 @@ typedef struct NBDClientSession {
 
     CoMutex send_mutex;
     CoQueue free_sema;
-    Coroutine *send_coroutine;
+    Coroutine *read_reply_co;
     int in_flight;
 
     Coroutine *recv_coroutine[MAX_NBD_REQUESTS];
     NBDReply reply;
-
-    bool is_unix;
 } NBDClientSession;
 
 NBDClientSession *nbd_get_client_session(BlockDriverState *bs);

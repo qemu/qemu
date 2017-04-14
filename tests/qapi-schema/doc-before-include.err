@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-before-include.json:3: Documentation for 'foo' is not followed by the definition

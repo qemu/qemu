@@ -163,10 +163,10 @@
 #
 # @members: the object type's (non-variant) members, in no particular order.
 #
-# @tag: #optional the name of the member serving as type tag.
+# @tag: the name of the member serving as type tag.
 #       An element of @members with this name must exist.
 #
-# @variants: #optional variant members, i.e. additional members that
+# @variants: variant members, i.e. additional members that
 #            depend on the type tag's value.  Present exactly when
 #            @tag is present.  The variants are in no particular order,
 #            and may even differ from the order of the values of the
@@ -190,7 +190,7 @@
 #
 # @type: the name of the member's type.
 #
-# @default: #optional default when used as command parameter.
+# @default: default when used as command parameter.
 #           If absent, the parameter is mandatory.
 #           If present, the value must be null.  The parameter is
 #           optional, and behavior when it's missing is not specified

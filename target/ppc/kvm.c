@@ -28,7 +28,6 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
-#include "sysemu/numa.h"
 #include "kvm_ppc.h"
 #include "sysemu/cpus.h"
 #include "sysemu/device_tree.h"
@@ -43,8 +42,10 @@
 #include "trace.h"
 #include "exec/gdbstub.h"
 #include "exec/memattrs.h"
+#include "exec/ram_addr.h"
 #include "sysemu/hostmem.h"
 #include "qemu/cutils.h"
+#include "qemu/mmap-alloc.h"
 #if defined(TARGET_PPC64)
 #include "hw/ppc/spapr_cpu_core.h"
 #endif
@@ -282,8 +283,8 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
             info->flags |= KVM_PPC_1T_SEGMENTS;
         }
 
-        if (env->mmu_model == POWERPC_MMU_2_06 ||
-            env->mmu_model == POWERPC_MMU_2_07) {
+        if (POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_06 ||
+           POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_07) {
             info->slb_size = 32;
         } else {
             info->slb_size = 64;
@@ -297,8 +298,8 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
         i++;
 
         /* 64K on MMU 2.06 and later */
-        if (env->mmu_model == POWERPC_MMU_2_06 ||
-            env->mmu_model == POWERPC_MMU_2_07) {
+        if (POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_06 ||
+            POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_07) {
             info->sps[i].page_shift = 16;
             info->sps[i].slb_enc = 0x110;
             info->sps[i].enc[0].page_shift = 16;
@@ -329,106 +330,6 @@ static void kvm_get_smmu_info(PowerPCCPU *cpu, struct kvm_ppc_smmu_info *info)
     kvm_get_fallback_smmu_info(cpu, info);
 }
 
-static long gethugepagesize(const char *mem_path)
-{
-    struct statfs fs;
-    int ret;
-
-    do {
-        ret = statfs(mem_path, &fs);
-    } while (ret != 0 && errno == EINTR);
-
-    if (ret != 0) {
-        fprintf(stderr, "Couldn't statfs() memory path: %s\n",
-                strerror(errno));
-        exit(1);
-    }
-
-#define HUGETLBFS_MAGIC       0x958458f6
-
-    if (fs.f_type != HUGETLBFS_MAGIC) {
-        /* Explicit mempath, but it's ordinary pages */
-        return getpagesize();
-    }
-
-    /* It's hugepage, return the huge page size */
-    return fs.f_bsize;
-}
-
-/*
- * FIXME TOCTTOU: this iterates over memory backends' mem-path, which
- * may or may not name the same files / on the same filesystem now as
- * when we actually open and map them.  Iterate over the file
- * descriptors instead, and use qemu_fd_getpagesize().
- */
-static int find_max_supported_pagesize(Object *obj, void *opaque)
-{
-    char *mem_path;
-    long *hpsize_min = opaque;
-
-    if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
-        mem_path = object_property_get_str(obj, "mem-path", NULL);
-        if (mem_path) {
-            long hpsize = gethugepagesize(mem_path);
-            if (hpsize < *hpsize_min) {
-                *hpsize_min = hpsize;
-            }
-        } else {
-            *hpsize_min = getpagesize();
-        }
-    }
-
-    return 0;
-}
-
-static long getrampagesize(void)
-{
-    long hpsize = LONG_MAX;
-    long mainrampagesize;
-    Object *memdev_root;
-
-    if (mem_path) {
-        mainrampagesize = gethugepagesize(mem_path);
-    } else {
-        mainrampagesize = getpagesize();
-    }
-
-    /* it's possible we have memory-backend objects with
-     * hugepage-backed RAM. these may get mapped into system
-     * address space via -numa parameters or memory hotplug
-     * hooks. we want to take these into account, but we
-     * also want to make sure these supported hugepage
-     * sizes are applicable across the entire range of memory
-     * we may boot from, so we take the min across all
-     * backends, and assume normal pages in cases where a
-     * backend isn't backed by hugepages.
-     */
-    memdev_root = object_resolve_path("/objects", NULL);
-    if (memdev_root) {
-        object_child_foreach(memdev_root, find_max_supported_pagesize, &hpsize);
-    }
-    if (hpsize == LONG_MAX) {
-        /* No additional memory regions found ==> Report main RAM page size */
-        return mainrampagesize;
-    }
-
-    /* If NUMA is disabled or the NUMA nodes are not backed with a
-     * memory-backend, then there is at least one node using "normal" RAM,
-     * so if its page size is smaller we have got to report that size instead.
-     */
-    if (hpsize > mainrampagesize &&
-        (nb_numa_nodes == 0 || numa_info[0].node_memdev == NULL)) {
-        static bool warned;
-        if (!warned) {
-            error_report("Huge page support disabled (n/a for main memory).");
-            warned = true;
-        }
-        return mainrampagesize;
-    }
-
-    return hpsize;
-}
-
 static bool kvm_valid_page_size(uint32_t flags, long rampgsize, uint32_t shift)
 {
     if (!(flags & KVM_PPC_PAGE_SIZES_REAL)) {
@@ -438,12 +339,13 @@ static bool kvm_valid_page_size(uint32_t flags, long rampgsize, uint32_t shift)
     return (1ul << shift) <= rampgsize;
 }
 
+static long max_cpu_page_size;
+
 static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 {
     static struct kvm_ppc_smmu_info smmu_info;
     static bool has_smmu_info;
     CPUPPCState *env = &cpu->env;
-    long rampagesize;
     int iq, ik, jq, jk;
     bool has_64k_pages = false;
 
@@ -458,7 +360,9 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
         has_smmu_info = true;
     }
 
-    rampagesize = getrampagesize();
+    if (!max_cpu_page_size) {
+        max_cpu_page_size = qemu_getrampagesize();
+    }
 
     /* Convert to QEMU form */
     memset(&env->sps, 0, sizeof(env->sps));
@@ -478,14 +382,14 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
         struct ppc_one_seg_page_size *qsps = &env->sps.sps[iq];
         struct kvm_ppc_one_seg_page_size *ksps = &smmu_info.sps[ik];
 
-        if (!kvm_valid_page_size(smmu_info.flags, rampagesize,
+        if (!kvm_valid_page_size(smmu_info.flags, max_cpu_page_size,
                                  ksps->page_shift)) {
             continue;
         }
         qsps->page_shift = ksps->page_shift;
         qsps->slb_enc = ksps->slb_enc;
         for (jk = jq = 0; jk < KVM_PPC_PAGE_SIZES_MAX_SZ; jk++) {
-            if (!kvm_valid_page_size(smmu_info.flags, rampagesize,
+            if (!kvm_valid_page_size(smmu_info.flags, max_cpu_page_size,
                                      ksps->enc[jk].page_shift)) {
                 continue;
             }
@@ -510,10 +414,31 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
         env->mmu_model &= ~POWERPC_MMU_64K;
     }
 }
+
+bool kvmppc_is_mem_backend_page_size_ok(char *obj_path)
+{
+    Object *mem_obj = object_resolve_path(obj_path, NULL);
+    char *mempath = object_property_get_str(mem_obj, "mem-path", NULL);
+    long pagesize;
+
+    if (mempath) {
+        pagesize = qemu_mempath_getpagesize(mempath);
+    } else {
+        pagesize = getpagesize();
+    }
+
+    return pagesize >= max_cpu_page_size;
+}
+
 #else /* defined (TARGET_PPC64) */
 
 static inline void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 {
+}
+
+bool kvmppc_is_mem_backend_page_size_ok(char *obj_path)
+{
+    return true;
 }
 
 #endif /* !defined (TARGET_PPC64) */
@@ -1227,7 +1152,7 @@ static int kvmppc_get_books_sregs(PowerPCCPU *cpu)
         return ret;
     }
 
-    if (!env->external_htab) {
+    if (!cpu->vhyp) {
         ppc_store_sdr1(env, sregs.u.s.sdr1);
     }
 
@@ -2181,7 +2106,7 @@ uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
     /* Find the largest hardware supported page size that's less than
      * or equal to the (logical) backing page size of guest RAM */
     kvm_get_smmu_info(POWERPC_CPU(first_cpu), &info);
-    rampagesize = getrampagesize();
+    rampagesize = qemu_getrampagesize();
     best_page_shift = 0;
 
     for (i = 0; i < KVM_PPC_PAGE_SIZES_MAX_SZ; i++) {
@@ -2558,103 +2483,89 @@ bool kvm_arch_stop_on_emulation_error(CPUState *cpu)
     return true;
 }
 
-int kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
-{
-    return 1;
-}
-
-int kvm_arch_on_sigbus(int code, void *addr)
-{
-    return 1;
-}
-
 void kvm_arch_init_irq_routing(KVMState *s)
 {
 }
 
-struct kvm_get_htab_buf {
-    struct kvm_get_htab_header header;
-    /*
-     * We require one extra byte for read
-     */
-    target_ulong hpte[(HPTES_PER_GROUP * 2) + 1];
-};
-
-uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu, target_ulong pte_index)
+void kvmppc_read_hptes(ppc_hash_pte64_t *hptes, hwaddr ptex, int n)
 {
-    int htab_fd;
-    struct kvm_get_htab_fd ghf;
-    struct kvm_get_htab_buf  *hpte_buf;
+    struct kvm_get_htab_fd ghf = {
+        .flags = 0,
+        .start_index = ptex,
+    };
+    int fd, rc;
+    int i;
 
-    ghf.flags = 0;
-    ghf.start_index = pte_index;
-    htab_fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
-    if (htab_fd < 0) {
-        goto error_out;
+    fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
+    if (fd < 0) {
+        hw_error("kvmppc_read_hptes: Unable to open HPT fd");
     }
 
-    hpte_buf = g_malloc0(sizeof(*hpte_buf));
-    /*
-     * Read the hpte group
-     */
-    if (read(htab_fd, hpte_buf, sizeof(*hpte_buf)) < 0) {
-        goto out_close;
+    i = 0;
+    while (i < n) {
+        struct kvm_get_htab_header *hdr;
+        int m = n < HPTES_PER_GROUP ? n : HPTES_PER_GROUP;
+        char buf[sizeof(*hdr) + m * HASH_PTE_SIZE_64];
+
+        rc = read(fd, buf, sizeof(buf));
+        if (rc < 0) {
+            hw_error("kvmppc_read_hptes: Unable to read HPTEs");
+        }
+
+        hdr = (struct kvm_get_htab_header *)buf;
+        while ((i < n) && ((char *)hdr < (buf + rc))) {
+            int invalid = hdr->n_invalid;
+
+            if (hdr->index != (ptex + i)) {
+                hw_error("kvmppc_read_hptes: Unexpected HPTE index %"PRIu32
+                         " != (%"HWADDR_PRIu" + %d", hdr->index, ptex, i);
+            }
+
+            memcpy(hptes + i, hdr + 1, HASH_PTE_SIZE_64 * hdr->n_valid);
+            i += hdr->n_valid;
+
+            if ((n - i) < invalid) {
+                invalid = n - i;
+            }
+            memset(hptes + i, 0, invalid * HASH_PTE_SIZE_64);
+            i += hdr->n_invalid;
+
+            hdr = (struct kvm_get_htab_header *)
+                ((char *)(hdr + 1) + HASH_PTE_SIZE_64 * hdr->n_valid);
+        }
     }
 
-    close(htab_fd);
-    return (uint64_t)(uintptr_t) hpte_buf->hpte;
-
-out_close:
-    g_free(hpte_buf);
-    close(htab_fd);
-error_out:
-    return 0;
+    close(fd);
 }
 
-void kvmppc_hash64_free_pteg(uint64_t token)
+void kvmppc_write_hpte(hwaddr ptex, uint64_t pte0, uint64_t pte1)
 {
-    struct kvm_get_htab_buf *htab_buf;
-
-    htab_buf = container_of((void *)(uintptr_t) token, struct kvm_get_htab_buf,
-                            hpte);
-    g_free(htab_buf);
-    return;
-}
-
-void kvmppc_hash64_write_pte(CPUPPCState *env, target_ulong pte_index,
-                             target_ulong pte0, target_ulong pte1)
-{
-    int htab_fd;
+    int fd, rc;
     struct kvm_get_htab_fd ghf;
-    struct kvm_get_htab_buf hpte_buf;
+    struct {
+        struct kvm_get_htab_header hdr;
+        uint64_t pte0;
+        uint64_t pte1;
+    } buf;
 
     ghf.flags = 0;
     ghf.start_index = 0;     /* Ignored */
-    htab_fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
-    if (htab_fd < 0) {
-        goto error_out;
+    fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
+    if (fd < 0) {
+        hw_error("kvmppc_write_hpte: Unable to open HPT fd");
     }
 
-    hpte_buf.header.n_valid = 1;
-    hpte_buf.header.n_invalid = 0;
-    hpte_buf.header.index = pte_index;
-    hpte_buf.hpte[0] = pte0;
-    hpte_buf.hpte[1] = pte1;
-    /*
-     * Write the hpte entry.
-     * CAUTION: write() has the warn_unused_result attribute. Hence we
-     * need to check the return value, even though we do nothing.
-     */
-    if (write(htab_fd, &hpte_buf, sizeof(hpte_buf)) < 0) {
-        goto out_close;
+    buf.hdr.n_valid = 1;
+    buf.hdr.n_invalid = 0;
+    buf.hdr.index = ptex;
+    buf.pte0 = cpu_to_be64(pte0);
+    buf.pte1 = cpu_to_be64(pte1);
+
+    rc = write(fd, &buf, sizeof(buf));
+    if (rc != sizeof(buf)) {
+        hw_error("kvmppc_write_hpte: Unable to update KVM HPT");
     }
-
-out_close:
-    close(htab_fd);
-    return;
-
-error_out:
-    return;
+    close(fd);
 }
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,

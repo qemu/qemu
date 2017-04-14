@@ -1,0 +1,22 @@
+#
+# Docker s390 cross-compiler target
+#
+# This docker target is based on stretch (testing) as the stable build
+# doesn't have the cross compiler available.
+#
+FROM debian:testing-slim
+
+# Duplicate deb line as deb-src
+RUN cat /etc/apt/sources.list | sed "s/deb/deb-src/" >> /etc/apt/sources.list
+
+# Add the s390x architecture
+RUN dpkg --add-architecture s390x
+
+# Grab the updated list of packages
+RUN apt update && apt dist-upgrade -yy
+RUN apt install -yy build-essential clang
+RUN apt-get build-dep -yy -a s390x qemu || apt-get -f install
+RUN apt install -yy gcc-multilib-s390x-linux-gnu binutils-multiarch
+
+# Specify the cross prefix for this image (see tests/docker/common.rc)
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=s390x-linux-gnu-

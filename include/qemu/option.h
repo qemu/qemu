@@ -141,4 +141,7 @@ void qemu_opts_print_help(QemuOptsList *list);
 void qemu_opts_free(QemuOptsList *list);
 QemuOptsList *qemu_opts_append(QemuOptsList *dst, QemuOptsList *list);
 
+QDict *keyval_parse(const char *params, const char *implied_key,
+                    Error **errp);
+
 #endif

@@ -690,7 +690,7 @@ static void usb_hid_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_hid_handle_destroy(USBDevice *dev)
+static void usb_hid_unrealize(USBDevice *dev, Error **errp)
 {
     USBHIDState *us = USB_HID(dev);
 
@@ -785,7 +785,7 @@ static void usb_hid_class_initfn(ObjectClass *klass, void *data)
     uc->handle_reset   = usb_hid_handle_reset;
     uc->handle_control = usb_hid_handle_control;
     uc->handle_data    = usb_hid_handle_data;
-    uc->handle_destroy = usb_hid_handle_destroy;
+    uc->unrealize      = usb_hid_unrealize;
     uc->handle_attach  = usb_desc_attach;
 }
 

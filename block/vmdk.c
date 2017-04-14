@@ -943,6 +943,12 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     uint32_t magic;
     Error *local_err = NULL;
 
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+                               false, errp);
+    if (!bs->file) {
+        return -EINVAL;
+    }
+
     buf = vmdk_read_desc(bs->file, 0, errp);
     if (!buf) {
         return -EINVAL;
@@ -1697,7 +1703,8 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     }
 
     blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                       &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         ret = -EIO;
@@ -2065,7 +2072,8 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     new_blk = blk_new_open(filename, NULL, NULL,
-                           BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
+                           BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                           &local_err);
     if (new_blk == NULL) {
         error_propagate(errp, local_err);
         ret = -EIO;
@@ -2353,6 +2361,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_open                    = vmdk_open,
     .bdrv_check                   = vmdk_check,
     .bdrv_reopen_prepare          = vmdk_reopen_prepare,
+    .bdrv_child_perm              = bdrv_format_default_perms,
     .bdrv_co_preadv               = vmdk_co_preadv,
     .bdrv_co_pwritev              = vmdk_co_pwritev,
     .bdrv_co_pwritev_compressed   = vmdk_co_pwritev_compressed,

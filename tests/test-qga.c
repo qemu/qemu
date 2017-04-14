@@ -213,7 +213,7 @@ static void test_qga_invalid_args(gconstpointer fix)
     desc = qdict_get_try_str(error, "desc");
 
     g_assert_cmpstr(class, ==, "GenericError");
-    g_assert_cmpstr(desc, ==, "QMP input object member 'foo' is unexpected");
+    g_assert_cmpstr(desc, ==, "Parameter 'foo' is unexpected");
 
     QDECREF(ret);
 }
@@ -924,7 +924,9 @@ int main(int argc, char **argv)
     g_test_add_data_func("/qga/info", &fix, test_qga_info);
     g_test_add_data_func("/qga/network-get-interfaces", &fix,
                          test_qga_network_get_interfaces);
-    g_test_add_data_func("/qga/get-vcpus", &fix, test_qga_get_vcpus);
+    if (!access("/sys/devices/system/cpu/cpu0", F_OK)) {
+        g_test_add_data_func("/qga/get-vcpus", &fix, test_qga_get_vcpus);
+    }
     g_test_add_data_func("/qga/get-fsinfo", &fix, test_qga_get_fsinfo);
     g_test_add_data_func("/qga/get-memory-block-info", &fix,
                          test_qga_get_memory_block_info);

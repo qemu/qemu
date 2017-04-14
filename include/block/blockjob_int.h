@@ -119,6 +119,7 @@ struct BlockJobDriver {
  * generated automatically.
  * @job_type: The class object for the newly-created job.
  * @bs: The block
+ * @perm, @shared_perm: Permissions to request for @bs
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
@@ -134,7 +135,8 @@ struct BlockJobDriver {
  * called from a wrapper that is specific to the job type.
  */
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockDriverState *bs, int64_t speed, int flags,
+                       BlockDriverState *bs, uint64_t perm,
+                       uint64_t shared_perm, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp);
 
 /**

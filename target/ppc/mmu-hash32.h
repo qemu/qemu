@@ -44,6 +44,8 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, vaddr address, int rw,
 /*
  * Hash page table definitions
  */
+#define SDR_32_HTABORG         0xFFFF0000UL
+#define SDR_32_HTABMASK        0x000001FFUL
 
 #define HPTES_PER_GROUP         8
 #define HASH_PTE_SIZE_32        8
@@ -65,42 +67,46 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, vaddr address, int rw,
 #define HPTE32_R_WIMG           0x00000078
 #define HPTE32_R_PP             0x00000003
 
+static inline hwaddr ppc_hash32_hpt_base(PowerPCCPU *cpu)
+{
+    return cpu->env.spr[SPR_SDR1] & SDR_32_HTABORG;
+}
+
+static inline hwaddr ppc_hash32_hpt_mask(PowerPCCPU *cpu)
+{
+    return ((cpu->env.spr[SPR_SDR1] & SDR_32_HTABMASK) << 16) | 0xFFFF;
+}
+
 static inline target_ulong ppc_hash32_load_hpte0(PowerPCCPU *cpu,
                                                  hwaddr pte_offset)
 {
-    CPUPPCState *env = &cpu->env;
+    target_ulong base = ppc_hash32_hpt_base(cpu);
 
-    assert(!env->external_htab); /* Not supported on 32-bit for now */
-    return ldl_phys(CPU(cpu)->as, env->htab_base + pte_offset);
+    return ldl_phys(CPU(cpu)->as, base + pte_offset);
 }
 
 static inline target_ulong ppc_hash32_load_hpte1(PowerPCCPU *cpu,
                                                  hwaddr pte_offset)
 {
-    CPUPPCState *env = &cpu->env;
+    target_ulong base = ppc_hash32_hpt_base(cpu);
 
-    assert(!env->external_htab); /* Not supported on 32-bit for now */
-    return ldl_phys(CPU(cpu)->as,
-                    env->htab_base + pte_offset + HASH_PTE_SIZE_32 / 2);
+    return ldl_phys(CPU(cpu)->as, base + pte_offset + HASH_PTE_SIZE_32 / 2);
 }
 
 static inline void ppc_hash32_store_hpte0(PowerPCCPU *cpu,
                                           hwaddr pte_offset, target_ulong pte0)
 {
-    CPUPPCState *env = &cpu->env;
+    target_ulong base = ppc_hash32_hpt_base(cpu);
 
-    assert(!env->external_htab); /* Not supported on 32-bit for now */
-    stl_phys(CPU(cpu)->as, env->htab_base + pte_offset, pte0);
+    stl_phys(CPU(cpu)->as, base + pte_offset, pte0);
 }
 
 static inline void ppc_hash32_store_hpte1(PowerPCCPU *cpu,
                                           hwaddr pte_offset, target_ulong pte1)
 {
-    CPUPPCState *env = &cpu->env;
+    target_ulong base = ppc_hash32_hpt_base(cpu);
 
-    assert(!env->external_htab); /* Not supported on 32-bit for now */
-    stl_phys(CPU(cpu)->as,
-             env->htab_base + pte_offset + HASH_PTE_SIZE_32 / 2, pte1);
+    stl_phys(CPU(cpu)->as, base + pte_offset + HASH_PTE_SIZE_32 / 2, pte1);
 }
 
 typedef struct {

@@ -158,6 +158,7 @@ int qio_dns_resolver_lookup_sync(QIODNSResolver *resolver,
 
     case SOCKET_ADDRESS_KIND_UNIX:
     case SOCKET_ADDRESS_KIND_VSOCK:
+    case SOCKET_ADDRESS_KIND_FD:
         return qio_dns_resolver_lookup_sync_nop(resolver,
                                                 addr,
                                                 naddrs,
@@ -165,8 +166,7 @@ int qio_dns_resolver_lookup_sync(QIODNSResolver *resolver,
                                                 errp);
 
     default:
-        error_setg(errp, "Unknown socket address kind");
-        return -1;
+        abort();
     }
 }
 

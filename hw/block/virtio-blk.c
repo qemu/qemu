@@ -89,7 +89,9 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
 static void virtio_blk_rw_complete(void *opaque, int ret)
 {
     VirtIOBlockReq *next = opaque;
+    VirtIOBlock *s = next->dev;
 
+    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     while (next) {
         VirtIOBlockReq *req = next;
         next = req->mr_next;
@@ -122,21 +124,27 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
         block_acct_done(blk_get_stats(req->dev->blk), &req->acct);
         virtio_blk_free_request(req);
     }
+    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 static void virtio_blk_flush_complete(void *opaque, int ret)
 {
     VirtIOBlockReq *req = opaque;
+    VirtIOBlock *s = req->dev;
 
+    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     if (ret) {
         if (virtio_blk_handle_rw_error(req, -ret, 0)) {
-            return;
+            goto out;
         }
     }
 
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
     block_acct_done(blk_get_stats(req->dev->blk), &req->acct);
     virtio_blk_free_request(req);
+
+out:
+    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 #ifdef __linux__
@@ -150,7 +158,8 @@ static void virtio_blk_ioctl_complete(void *opaque, int status)
 {
     VirtIOBlockIoctlReq *ioctl_req = opaque;
     VirtIOBlockReq *req = ioctl_req->req;
-    VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
+    VirtIOBlock *s = req->dev;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
     struct virtio_scsi_inhdr *scsi;
     struct sg_io_hdr *hdr;
 
@@ -182,8 +191,10 @@ static void virtio_blk_ioctl_complete(void *opaque, int status)
     virtio_stl_p(vdev, &scsi->data_len, hdr->dxfer_len);
 
 out:
+    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     virtio_blk_req_complete(req, status);
     virtio_blk_free_request(req);
+    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
     g_free(ioctl_req);
 }
 
@@ -581,17 +592,20 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     return 0;
 }
 
-void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
+bool virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
 {
     VirtIOBlockReq *req;
     MultiReqBuffer mrb = {};
+    bool progress = false;
 
+    aio_context_acquire(blk_get_aio_context(s->blk));
     blk_io_plug(s->blk);
 
     do {
         virtio_queue_set_notification(vq, 0);
 
         while ((req = virtio_blk_get_request(s, vq))) {
+            progress = true;
             if (virtio_blk_handle_request(req, &mrb)) {
                 virtqueue_detach_element(req->vq, &req->elem, 0);
                 virtio_blk_free_request(req);
@@ -607,6 +621,13 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     }
 
     blk_io_unplug(s->blk);
+    aio_context_release(blk_get_aio_context(s->blk));
+    return progress;
+}
+
+static void virtio_blk_handle_output_do(VirtIOBlock *s, VirtQueue *vq)
+{
+    virtio_blk_handle_vq(s, vq);
 }
 
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
@@ -622,7 +643,7 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             return;
         }
     }
-    virtio_blk_handle_vq(s, vq);
+    virtio_blk_handle_output_do(s, vq);
 }
 
 static void virtio_blk_dma_restart_bh(void *opaque)
@@ -636,6 +657,7 @@ static void virtio_blk_dma_restart_bh(void *opaque)
 
     s->rq = NULL;
 
+    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     while (req) {
         VirtIOBlockReq *next = req->next;
         if (virtio_blk_handle_request(req, &mrb)) {
@@ -656,6 +678,7 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s->blk, &mrb);
     }
+    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 static void virtio_blk_dma_restart_cb(void *opaque, int running,
@@ -905,7 +928,13 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     }
 
     blkconf_serial(&conf->conf, &conf->serial);
-    blkconf_apply_backend_options(&conf->conf);
+    blkconf_apply_backend_options(&conf->conf,
+                                  blk_is_read_only(conf->conf.blk), true,
+                                  &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     s->original_wce = blk_enable_write_cache(conf->conf.blk);
     blkconf_geometry(&conf->conf, NULL, 65535, 255, 255, &err);
     if (err) {

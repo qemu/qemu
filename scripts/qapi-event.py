@@ -223,7 +223,7 @@ fdecl.write(mcgen('''
 ''',
                   prefix=prefix))
 
-event_enum_name = c_name(prefix + "QAPIEvent", protect=False)
+event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
 
 schema = QAPISchema(input_file)
 gen = QAPISchemaGenEventVisitor()

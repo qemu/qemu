@@ -713,7 +713,9 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	    (listen(s,1) < 0)) {
 		int tmperrno = errno; /* Don't clobber the real reason we failed */
 
-		close(s);
+                if (s >= 0) {
+                    closesocket(s);
+                }
 		sofree(so);
 		/* Restore the real errno */
 #ifdef _WIN32

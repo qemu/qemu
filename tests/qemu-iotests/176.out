@@ -1,0 +1,150 @@
+QA output created by 176
+
+=== Test pass 0 ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=2202010112
+Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd
+wrote 196608/196608 bytes at offset 2147287040
+192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 131072/131072 bytes at offset 2147352576
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 2147418112
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Image committed.
+read 196608/196608 bytes at offset 2147287040
+192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147287040
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147352576
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147418112
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          File
+0x7ffd0000      0x30000         TEST_DIR/t.IMGFMT.base
+Offset          Length          File
+0x7ffd0000      0x10000         TEST_DIR/t.IMGFMT.base
+0x7ffe0000      0x20000         TEST_DIR/t.IMGFMT.itmd
+0x83400000      0x200           TEST_DIR/t.IMGFMT.itmd
+Offset          Length          File
+0x7ffd0000      0x10000         TEST_DIR/t.IMGFMT.base
+0x7ffe0000      0x20000         TEST_DIR/t.IMGFMT.itmd
+0x83400000      0x200           TEST_DIR/t.IMGFMT.itmd
+
+=== Test pass 1 ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=2202010112
+Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd
+wrote 196608/196608 bytes at offset 2147287040
+192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 131072/131072 bytes at offset 2147352576
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 2147418112
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Image committed.
+read 196608/196608 bytes at offset 2147287040
+192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147287040
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147352576
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147418112
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          File
+0x7ffd0000      0x30000         TEST_DIR/t.IMGFMT.base
+Offset          Length          File
+0x7ffd0000      0x10000         TEST_DIR/t.IMGFMT.base
+0x7ffe0000      0x20000         TEST_DIR/t.IMGFMT.itmd
+0x83400000      0x200           TEST_DIR/t.IMGFMT.itmd
+Offset          Length          File
+0x7ffd0000      0x10000         TEST_DIR/t.IMGFMT.base
+0x7ffe0000      0x10000         TEST_DIR/t.IMGFMT.itmd
+0x7fff0000      0x10000         TEST_DIR/t.IMGFMT
+0x83400000      0x200           TEST_DIR/t.IMGFMT
+
+=== Test pass 2 ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=2202010112
+Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd
+wrote 196608/196608 bytes at offset 2147287040
+192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 131072/131072 bytes at offset 2147352576
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 2147418112
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Image committed.
+read 196608/196608 bytes at offset 2147287040
+192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147287040
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147352576
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147418112
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          File
+0x7ffd0000      0x30000         TEST_DIR/t.IMGFMT.base
+Offset          Length          File
+0x7ffd0000      0x10000         TEST_DIR/t.IMGFMT.base
+0x7ffe0000      0x20000         TEST_DIR/t.IMGFMT.itmd
+0x83400000      0x200           TEST_DIR/t.IMGFMT.itmd
+Offset          Length          File
+0x7ffd0000      0x10000         TEST_DIR/t.IMGFMT.base
+0x7ffe0000      0x10000         TEST_DIR/t.IMGFMT.itmd
+0x7fff0000      0x10000         TEST_DIR/t.IMGFMT
+0x83400000      0x200           TEST_DIR/t.IMGFMT
+
+=== Test pass 3 ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=2202010112
+Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd
+wrote 196608/196608 bytes at offset 2147287040
+192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 131072/131072 bytes at offset 2147352576
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 2147418112
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Image committed.
+read 65536/65536 bytes at offset 2147287040
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147352576
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 2147418112
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 2202009600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          File
+0x7ffd0000      0x30000         TEST_DIR/t.IMGFMT.base
+0x83400000      0x200           TEST_DIR/t.IMGFMT.base
+Offset          Length          File
+0x7ffd0000      0x10000         TEST_DIR/t.IMGFMT.base
+0x7ffe0000      0x20000         TEST_DIR/t.IMGFMT.itmd
+0x83400000      0x200           TEST_DIR/t.IMGFMT.base
+Offset          Length          File
+0x7ffd0000      0x10000         TEST_DIR/t.IMGFMT.base
+0x7ffe0000      0x10000         TEST_DIR/t.IMGFMT.itmd
+0x7fff0000      0x10000         TEST_DIR/t.IMGFMT
+0x83400000      0x200           TEST_DIR/t.IMGFMT
+*** done

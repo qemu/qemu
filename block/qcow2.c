@@ -814,8 +814,8 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
     return ret;
 }
 
-static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
-                      Error **errp)
+static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     unsigned int len, i;
@@ -1203,6 +1203,18 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     g_free(s->cluster_cache);
     qemu_vfree(s->cluster_data);
     return ret;
+}
+
+static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
+                      Error **errp)
+{
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+                               false, errp);
+    if (!bs->file) {
+        return -EINVAL;
+    }
+
+    return qcow2_do_open(bs, options, flags, errp);
 }
 
 static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
@@ -1785,7 +1797,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
     options = qdict_clone_shallow(bs->options);
 
     flags &= ~BDRV_O_INACTIVE;
-    ret = qcow2_open(bs, options, flags, &local_err);
+    ret = qcow2_do_open(bs, options, flags, &local_err);
     QDECREF(options);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -2190,7 +2202,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     }
 
     blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                       &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         return -EIO;
@@ -2254,7 +2267,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     options = qdict_new();
     qdict_put(options, "driver", qstring_from_str("qcow2"));
     blk = blk_new_open(filename, NULL, options,
-                       BDRV_O_RDWR | BDRV_O_NO_FLUSH, &local_err);
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_NO_FLUSH,
+                       &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         ret = -EIO;
@@ -2570,7 +2584,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
         cluster_offset = bdrv_getlength(bs->file->bs);
-        return bdrv_truncate(bs->file->bs, cluster_offset);
+        return bdrv_truncate(bs->file, cluster_offset);
     }
 
     buf = qemu_blockalign(bs, s->cluster_size);
@@ -2784,7 +2798,7 @@ static int make_completely_empty(BlockDriverState *bs)
         goto fail;
     }
 
-    ret = bdrv_truncate(bs->file->bs, (3 + l1_clusters) * s->cluster_size);
+    ret = bdrv_truncate(bs->file, (3 + l1_clusters) * s->cluster_size);
     if (ret < 0) {
         goto fail;
     }
@@ -3101,6 +3115,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     uint64_t cluster_size = s->cluster_size;
     bool encrypt;
     int refcount_bits = s->refcount_bits;
+    Error *local_err = NULL;
     int ret;
     QemuOptDesc *desc = opts->list->desc;
     Qcow2AmendHelperCBInfo helper_cb_info;
@@ -3250,7 +3265,16 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     }
 
     if (new_size) {
-        ret = bdrv_truncate(bs, new_size);
+        BlockBackend *blk = blk_new(BLK_PERM_RESIZE, BLK_PERM_ALL);
+        ret = blk_insert_bs(blk, bs, &local_err);
+        if (ret < 0) {
+            error_report_err(local_err);
+            blk_unref(blk);
+            return ret;
+        }
+
+        ret = blk_truncate(blk, new_size);
+        blk_unref(blk);
         if (ret < 0) {
             return ret;
         }
@@ -3387,6 +3411,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_reopen_commit   = qcow2_reopen_commit,
     .bdrv_reopen_abort    = qcow2_reopen_abort,
     .bdrv_join_options    = qcow2_join_options,
+    .bdrv_child_perm      = bdrv_format_default_perms,
     .bdrv_create        = qcow2_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = qcow2_co_get_block_status,

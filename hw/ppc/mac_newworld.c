@@ -72,6 +72,7 @@
 #include "exec/address-spaces.h"
 #include "hw/sysbus.h"
 #include "qemu/cutils.h"
+#include "trace.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
@@ -79,21 +80,11 @@
 #define CLOCKFREQ (266UL * 1000UL * 1000UL)
 #define BUSFREQ (100UL * 1000UL * 1000UL)
 
-/* debug UniNorth */
-//#define DEBUG_UNIN
-
-#ifdef DEBUG_UNIN
-#define UNIN_DPRINTF(fmt, ...)                                  \
-    do { printf("UNIN: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define UNIN_DPRINTF(fmt, ...)
-#endif
-
 /* UniN device */
 static void unin_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
-    UNIN_DPRINTF("write addr " TARGET_FMT_plx " val %"PRIx64"\n", addr, value);
+    trace_mac99_uninorth_write(addr, value);
     if (addr == 0x0) {
         *(int*)opaque = value;
     }
@@ -109,7 +100,7 @@ static uint64_t unin_read(void *opaque, hwaddr addr, unsigned size)
         value = *(int*)opaque;
     }
 
-    UNIN_DPRINTF("readl addr " TARGET_FMT_plx " val %x\n", addr, value);
+    trace_mac99_uninorth_read(addr, value);
 
     return value;
 }
@@ -518,6 +509,7 @@ static void core99_machine_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Mac99 based PowerMAC";
     mc->init = ppc_core99_init;
+    mc->block_default_type = IF_IDE;
     mc->max_cpus = MAX_CPUS;
     mc->default_boot_order = "cd";
     mc->kvm_type = core99_kvm_type;

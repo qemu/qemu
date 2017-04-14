@@ -1,6 +1,8 @@
 \input texinfo
 @setfilename qemu-qmp-ref.info
 
+@include version.texi
+
 @exampleindent 0
 @paragraphindent 0
 
@@ -63,7 +65,7 @@ along with this manual.  If not, see http://www.gnu.org/licenses/.
 @c for texi2pod:
 @c man begin DESCRIPTION
 
-@include qemu-qapi.texi
+@include qemu-qmp-qapi.texi
 
 @c man end
 

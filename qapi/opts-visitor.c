@@ -164,7 +164,7 @@ opts_check_struct(Visitor *v, Error **errp)
     GHashTableIter iter;
     GQueue *any;
 
-    if (ov->depth > 0) {
+    if (ov->depth > 1) {
         return;
     }
 
@@ -269,6 +269,16 @@ opts_next_list(Visitor *v, GenericList *tail, size_t size)
 
     tail->next = g_malloc0(size);
     return tail->next;
+}
+
+
+static void
+opts_check_list(Visitor *v, Error **errp)
+{
+    /*
+     * Unvisited list elements will be reported later when checking
+     * whether unvisited struct members remain.
+     */
 }
 
 
@@ -481,23 +491,20 @@ opts_type_size(Visitor *v, const char *name, uint64_t *obj, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
-    int64_t val;
-    char *endptr;
+    int err;
 
     opt = lookup_scalar(ov, name, errp);
     if (!opt) {
         return;
     }
 
-    val = qemu_strtosz_suffix(opt->str ? opt->str : "", &endptr,
-                         QEMU_STRTOSZ_DEFSUFFIX_B);
-    if (val < 0 || *endptr) {
+    err = qemu_strtosz(opt->str ? opt->str : "", NULL, obj);
+    if (err < 0) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
-                   "a size value representible as a non-negative int64");
+                   "a size value");
         return;
     }
 
-    *obj = val;
     processed(ov, name);
 }
 
@@ -531,6 +538,7 @@ opts_visitor_new(const QemuOpts *opts)
 {
     OptsVisitor *ov;
 
+    assert(opts);
     ov = g_malloc0(sizeof *ov);
 
     ov->visitor.type = VISITOR_INPUT;
@@ -541,6 +549,7 @@ opts_visitor_new(const QemuOpts *opts)
 
     ov->visitor.start_list = &opts_start_list;
     ov->visitor.next_list  = &opts_next_list;
+    ov->visitor.check_list = &opts_check_list;
     ov->visitor.end_list   = &opts_end_list;
 
     ov->visitor.type_int64  = &opts_type_int64;

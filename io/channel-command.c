@@ -328,6 +328,18 @@ static int qio_channel_command_close(QIOChannel *ioc,
 }
 
 
+static void qio_channel_command_set_aio_fd_handler(QIOChannel *ioc,
+                                                   AioContext *ctx,
+                                                   IOHandler *io_read,
+                                                   IOHandler *io_write,
+                                                   void *opaque)
+{
+    QIOChannelCommand *cioc = QIO_CHANNEL_COMMAND(ioc);
+    aio_set_fd_handler(ctx, cioc->readfd, false, io_read, NULL, NULL, opaque);
+    aio_set_fd_handler(ctx, cioc->writefd, false, NULL, io_write, NULL, opaque);
+}
+
+
 static GSource *qio_channel_command_create_watch(QIOChannel *ioc,
                                                  GIOCondition condition)
 {
@@ -349,6 +361,7 @@ static void qio_channel_command_class_init(ObjectClass *klass,
     ioc_klass->io_set_blocking = qio_channel_command_set_blocking;
     ioc_klass->io_close = qio_channel_command_close;
     ioc_klass->io_create_watch = qio_channel_command_create_watch;
+    ioc_klass->io_set_aio_fd_handler = qio_channel_command_set_aio_fd_handler;
 }
 
 static const TypeInfo qio_channel_command_info = {

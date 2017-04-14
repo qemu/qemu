@@ -1025,8 +1025,8 @@ void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    assert(qobject_type(data) == QTYPE_QDICT);
     qdict = qobject_to_qdict(data);
+    assert(qdict);
 
     devfn = (int)qdict_get_int(qdict, "devfn");
     monitor_printf(mon, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",

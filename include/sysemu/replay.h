@@ -152,6 +152,13 @@ void replay_unregister_net(ReplayNetState *rns);
 void replay_net_packet_event(ReplayNetState *rns, unsigned flags,
                              const struct iovec *iov, int iovcnt);
 
+/* Audio */
+
+/*! Saves/restores number of played samples of audio out operation. */
+void replay_audio_out(int *played);
+/*! Saves/restores recorded samples of audio in operation. */
+void replay_audio_in(int *recorded, void *samples, int *wpos, int size);
+
 /* VM state operations */
 
 /*! Called at the start of execution.

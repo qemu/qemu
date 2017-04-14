@@ -276,6 +276,7 @@ struct VDev {
     uint8_t scsi_dev_heads;
     bool scsi_device_selected;
     ScsiDevice selected_scsi_device;
+    uint64_t netboot_start_addr;
 };
 typedef struct VDev VDev;
 

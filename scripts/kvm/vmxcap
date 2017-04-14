@@ -27,9 +27,9 @@ MSR_IA32_VMX_VMFUNC = 0x491
 class msr(object):
     def __init__(self):
         try:
-            self.f = open('/dev/cpu/0/msr', 'r', 0)
+            self.f = open('/dev/cpu/0/msr', 'rb', 0)
         except:
-            self.f = open('/dev/msr0', 'r', 0)
+            self.f = open('/dev/msr0', 'rb', 0)
     def read(self, index, default = None):
         import struct
         self.f.seek(index)
@@ -49,7 +49,7 @@ class Control(object):
         val = m.read(nr, 0)
         return (val & 0xffffffff, val >> 32)
     def show(self):
-        print self.name
+        print(self.name)
         mbz, mb1 = self.read2(self.cap_msr)
         tmbz, tmb1 = 0, 0
         if self.true_cap_msr:
@@ -69,7 +69,7 @@ class Control(object):
                 s = 'forced'
             elif one and zero:
                 s = 'yes'
-            print '  %-40s %s' % (self.bits[bit], s)
+            print('  %-40s %s' % (self.bits[bit], s))
 
 class Misc(object):
     def __init__(self, name, bits, msr):
@@ -77,9 +77,9 @@ class Misc(object):
         self.bits = bits
         self.msr = msr
     def show(self):
-        print self.name
+        print(self.name)
         value = msr().read(self.msr, 0)
-        print '  Hex: 0x%x' % (value)
+        print('  Hex: 0x%x' % (value))
         def first_bit(key):
             if type(key) is tuple:
                 return key[0]
@@ -94,7 +94,7 @@ class Misc(object):
                 def fmt(x):
                     return { True: 'yes', False: 'no' }[x]
             v = (value >> lo) & ((1 << (hi - lo + 1)) - 1)
-            print '  %-40s %s' % (self.bits[bits], fmt(v))
+            print('  %-40s %s' % (self.bits[bits], fmt(v)))
 
 controls = [
     Misc(
@@ -170,9 +170,13 @@ controls = [
             12: 'Enable INVPCID',
             13: 'Enable VM functions',
             14: 'VMCS shadowing',
+            15: 'Enable ENCLS exiting',
             16: 'RDSEED exiting',
+            17: 'Enable PML',
             18: 'EPT-violation #VE',
+            19: 'Conceal non-root operation from PT',
             20: 'Enable XSAVES/XRSTORS',
+            22: 'Mode-based execute control (XS/XU)',
             25: 'TSC scaling',
             },
         cap_msr = MSR_IA32_VMX_PROCBASED_CTLS2,
@@ -190,6 +194,8 @@ controls = [
             20: 'Save IA32_EFER',
             21: 'Load IA32_EFER',
             22: 'Save VMX-preemption timer value',
+            23: 'Clear IA32_BNDCFGS',
+            24: 'Conceal VM exits from PT',
             },
         cap_msr = MSR_IA32_VMX_EXIT_CTLS,
         true_cap_msr = MSR_IA32_VMX_TRUE_EXIT_CTLS,
@@ -205,6 +211,8 @@ controls = [
             13: 'Load IA32_PERF_GLOBAL_CTRL',
             14: 'Load IA32_PAT',
             15: 'Load IA32_EFER',
+            16: 'Load IA32_BNDCFGS',
+            17: 'Conceal VM entries from PT',
             },
         cap_msr = MSR_IA32_VMX_ENTRY_CTLS,
         true_cap_msr = MSR_IA32_VMX_TRUE_ENTRY_CTLS,
@@ -223,6 +231,7 @@ controls = [
             (25,27): 'MSR-load/store count recommendation',
             28: 'IA32_SMM_MONITOR_CTL[2] can be set to 1',
             29: 'VMWRITE to VM-exit information fields',
+            30: 'Inject event with insn length=0',
             (32,63): 'MSEG revision identifier',
             },
         msr = MSR_IA32_VMX_MISC_CTLS,

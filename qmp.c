@@ -207,6 +207,12 @@ void qmp_cont(Error **errp)
         }
     }
 
+    blk_resume_after_migration(&local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         autostart = 1;
     } else {
@@ -675,7 +681,7 @@ void qmp_object_add(const char *type, const char *id,
         pdict = qdict_new();
     }
 
-    v = qobject_input_visitor_new(QOBJECT(pdict), true);
+    v = qobject_input_visitor_new(QOBJECT(pdict));
     obj = user_creatable_add_type(type, id, pdict, v, errp);
     visit_free(v);
     if (obj) {

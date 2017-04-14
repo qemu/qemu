@@ -4043,7 +4043,7 @@ print_insn (bfd_vma pc, disassemble_info *info)
 	    }
 	}
 
-      if (putop (dp->name, sizeflag) == 0)
+      if (dp->name != NULL && putop (dp->name, sizeflag) == 0)
         {
 	  for (i = 0; i < MAX_OPERANDS; ++i)
 	    {

@@ -42,6 +42,7 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
+#include "hw/acpi/vmgenid.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
 #include "sysemu/numa.h"
@@ -462,7 +463,7 @@ static void *acpi_set_bsel(PCIBus *bus, void *opaque)
 
         *bus_bsel = (*bsel_alloc)++;
         object_property_add_uint32_ptr(OBJECT(bus), ACPI_PCIHP_PROP_BSEL,
-                                       bus_bsel, NULL);
+                                       bus_bsel, &error_abort);
     }
 
     return bsel_alloc;
@@ -471,7 +472,7 @@ static void *acpi_set_bsel(PCIBus *bus, void *opaque)
 static void acpi_set_pci_info(void)
 {
     PCIBus *bus = find_i440fx(); /* TODO: Q35 support */
-    unsigned bsel_alloc = 0;
+    unsigned bsel_alloc = ACPI_PCIHP_BSEL_DEFAULT;
 
     if (bus) {
         /* Scan all PCI buses. Set property to enable acpi based hotplug. */
@@ -1803,7 +1804,7 @@ static Aml *build_q35_osc_method(void)
     Aml *else_ctx;
     Aml *method;
     Aml *a_cwd1 = aml_name("CDW1");
-    Aml *a_ctrl = aml_name("CTRL");
+    Aml *a_ctrl = aml_local(0);
 
     method = aml_method("_OSC", 4, AML_NOTSERIALIZED);
     aml_append(method, aml_create_dword_field(aml_arg(3), aml_int(0), "CDW1"));
@@ -1813,7 +1814,6 @@ static Aml *build_q35_osc_method(void)
     aml_append(if_ctx, aml_create_dword_field(aml_arg(3), aml_int(4), "CDW2"));
     aml_append(if_ctx, aml_create_dword_field(aml_arg(3), aml_int(8), "CDW3"));
 
-    aml_append(if_ctx, aml_store(aml_name("CDW2"), aml_name("SUPP")));
     aml_append(if_ctx, aml_store(aml_name("CDW3"), a_ctrl));
 
     /*
@@ -1898,8 +1898,6 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
         aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
         aml_append(dev, aml_name_decl("_UID", aml_int(1)));
-        aml_append(dev, aml_name_decl("SUPP", aml_int(0)));
-        aml_append(dev, aml_name_decl("CTRL", aml_int(0)));
         aml_append(dev, build_q35_osc_method());
         aml_append(sb_scope, dev);
         aml_append(dsdt, sb_scope);
@@ -1964,6 +1962,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             aml_append(dev, aml_name_decl("_UID", aml_int(bus_num)));
             aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
             aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
+            if (pci_bus_is_express(bus)) {
+                aml_append(dev, build_q35_osc_method());
+            }
 
             if (numa_node != NUMA_NODE_UNASSIGNED) {
                 aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
@@ -2610,6 +2611,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     size_t aml_len = 0;
     GArray *tables_blob = tables->table_data;
     AcpiSlicOem slic_oem = { .id = NULL, .table_id = NULL };
+    Object *vmgenid_dev;
 
     acpi_get_pm_info(&pm);
     acpi_get_misc_info(&misc);
@@ -2652,6 +2654,13 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 
     acpi_add_table(table_offsets, tables_blob);
     build_madt(tables_blob, tables->linker, pcms);
+
+    vmgenid_dev = find_vmgenid_dev();
+    if (vmgenid_dev) {
+        acpi_add_table(table_offsets, tables_blob);
+        vmgenid_build_acpi(VMGENID(vmgenid_dev), tables_blob,
+                           tables->vmgenid, tables->linker);
+    }
 
     if (misc.has_hpet) {
         acpi_add_table(table_offsets, tables_blob);
@@ -2823,6 +2832,7 @@ void acpi_setup(void)
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     AcpiBuildTables tables;
     AcpiBuildState *build_state;
+    Object *vmgenid_dev;
 
     if (!pcms->fw_cfg) {
         ACPI_BUILD_DPRINTF("No fw cfg. Bailing out.\n");
@@ -2858,6 +2868,12 @@ void acpi_setup(void)
 
     fw_cfg_add_file(pcms->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));
+
+    vmgenid_dev = find_vmgenid_dev();
+    if (vmgenid_dev) {
+        vmgenid_add_fw_cfg(VMGENID(vmgenid_dev), pcms->fw_cfg,
+                           tables.vmgenid);
+    }
 
     if (!pcmc->rsdp_in_ram) {
         /*

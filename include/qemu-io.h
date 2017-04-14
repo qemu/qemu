@@ -36,6 +36,7 @@ typedef struct cmdinfo {
     const char  *args;
     const char  *oneline;
     helpfunc_t  help;
+    uint64_t    perm;
 } cmdinfo_t;
 
 extern bool qemuio_misalign;

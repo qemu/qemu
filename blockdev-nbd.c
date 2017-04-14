@@ -124,6 +124,7 @@ void qmp_nbd_server_start(SocketAddress *addr,
             goto error;
         }
 
+        /* TODO SOCKET_ADDRESS_KIND_FD where fd has AF_INET or AF_INET6 */
         if (addr->type != SOCKET_ADDRESS_KIND_INET) {
             error_setg(errp, "TLS is only supported with IPv4/IPv6");
             goto error;

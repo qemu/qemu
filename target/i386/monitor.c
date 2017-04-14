@@ -210,6 +210,10 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
     CPUArchState *env;
 
     env = mon_get_cpu_env();
+    if (!env) {
+        monitor_printf(mon, "No CPU available\n");
+        return;
+    }
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
         monitor_printf(mon, "PG disabled\n");
@@ -529,6 +533,10 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
     CPUArchState *env;
 
     env = mon_get_cpu_env();
+    if (!env) {
+        monitor_printf(mon, "No CPU available\n");
+        return;
+    }
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
         monitor_printf(mon, "PG disabled\n");
@@ -624,7 +632,13 @@ const MonitorDef *target_monitor_defs(void)
 
 void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
 {
-    x86_cpu_dump_local_apic_state(mon_get_cpu(), (FILE *)mon, monitor_fprintf,
+    CPUState *cs = mon_get_cpu();
+
+    if (!cs) {
+        monitor_printf(mon, "No CPU available\n");
+        return;
+    }
+    x86_cpu_dump_local_apic_state(cs, (FILE *)mon, monitor_fprintf,
                                   CPU_DUMP_FPU);
 }
 

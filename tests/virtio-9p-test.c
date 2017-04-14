@@ -80,7 +80,7 @@ static void qvirtio_9p_pci_stop(QVirtIO9P *v9p)
 {
     qvirtqueue_cleanup(v9p->dev->bus, v9p->vq, v9p->qs->alloc);
     qvirtio_pci_device_disable(container_of(v9p->dev, QVirtioPCIDevice, vdev));
-    g_free(v9p->dev);
+    qvirtio_pci_device_free((QVirtioPCIDevice *)v9p->dev);
     qvirtio_9p_stop(v9p);
 }
 
@@ -256,8 +256,8 @@ static void v9fs_req_recv(P9Req *req, uint8_t id)
         qvirtio_wait_queue_isr(v9p->dev, v9p->vq, 1000 * 1000);
 
         v9fs_memread(req, &hdr, 7);
-        le32_to_cpus(&hdr.size);
-        le16_to_cpus(&hdr.tag);
+        hdr.size = ldl_le_p(&hdr.size);
+        hdr.tag = lduw_le_p(&hdr.tag);
         if (hdr.size >= 7) {
             break;
         }

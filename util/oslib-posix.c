@@ -55,6 +55,21 @@
 #include "qemu/error-report.h"
 #endif
 
+#define MAX_MEM_PREALLOC_THREAD_COUNT 16
+
+struct MemsetThread {
+    char *addr;
+    uint64_t numpages;
+    uint64_t hpagesize;
+    QemuThread pgthread;
+    sigjmp_buf env;
+};
+typedef struct MemsetThread MemsetThread;
+
+static MemsetThread *memset_thread;
+static int memset_num_threads;
+static bool memset_thread_failed;
+
 int qemu_get_thread_id(void)
 {
 #if defined(__linux__)
@@ -316,18 +331,107 @@ char *qemu_get_exec_dir(void)
     return g_strdup(exec_dir);
 }
 
-static sigjmp_buf sigjump;
-
 static void sigbus_handler(int signal)
 {
-    siglongjmp(sigjump, 1);
+    int i;
+    if (memset_thread) {
+        for (i = 0; i < memset_num_threads; i++) {
+            if (qemu_thread_is_self(&memset_thread[i].pgthread)) {
+                siglongjmp(memset_thread[i].env, 1);
+            }
+        }
+    }
 }
 
-void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
+static void *do_touch_pages(void *arg)
+{
+    MemsetThread *memset_args = (MemsetThread *)arg;
+    char *addr = memset_args->addr;
+    uint64_t numpages = memset_args->numpages;
+    uint64_t hpagesize = memset_args->hpagesize;
+    sigset_t set, oldset;
+    int i = 0;
+
+    /* unblock SIGBUS */
+    sigemptyset(&set);
+    sigaddset(&set, SIGBUS);
+    pthread_sigmask(SIG_UNBLOCK, &set, &oldset);
+
+    if (sigsetjmp(memset_args->env, 1)) {
+        memset_thread_failed = true;
+    } else {
+        for (i = 0; i < numpages; i++) {
+            /*
+             * Read & write back the same value, so we don't
+             * corrupt existing user/app data that might be
+             * stored.
+             *
+             * 'volatile' to stop compiler optimizing this away
+             * to a no-op
+             *
+             * TODO: get a better solution from kernel so we
+             * don't need to write at all so we don't cause
+             * wear on the storage backing the region...
+             */
+            *(volatile char *)addr = *addr;
+            addr += hpagesize;
+        }
+    }
+    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+    return NULL;
+}
+
+static inline int get_memset_num_threads(int smp_cpus)
+{
+    long host_procs = sysconf(_SC_NPROCESSORS_ONLN);
+    int ret = 1;
+
+    if (host_procs > 0) {
+        ret = MIN(MIN(host_procs, MAX_MEM_PREALLOC_THREAD_COUNT), smp_cpus);
+    }
+    /* In case sysconf() fails, we fall back to single threaded */
+    return ret;
+}
+
+static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
+                            int smp_cpus)
+{
+    uint64_t numpages_per_thread, size_per_thread;
+    char *addr = area;
+    int i = 0;
+
+    memset_thread_failed = false;
+    memset_num_threads = get_memset_num_threads(smp_cpus);
+    memset_thread = g_new0(MemsetThread, memset_num_threads);
+    numpages_per_thread = (numpages / memset_num_threads);
+    size_per_thread = (hpagesize * numpages_per_thread);
+    for (i = 0; i < memset_num_threads; i++) {
+        memset_thread[i].addr = addr;
+        memset_thread[i].numpages = (i == (memset_num_threads - 1)) ?
+                                    numpages : numpages_per_thread;
+        memset_thread[i].hpagesize = hpagesize;
+        qemu_thread_create(&memset_thread[i].pgthread, "touch_pages",
+                           do_touch_pages, &memset_thread[i],
+                           QEMU_THREAD_JOINABLE);
+        addr += size_per_thread;
+        numpages -= numpages_per_thread;
+    }
+    for (i = 0; i < memset_num_threads; i++) {
+        qemu_thread_join(&memset_thread[i].pgthread);
+    }
+    g_free(memset_thread);
+    memset_thread = NULL;
+
+    return memset_thread_failed;
+}
+
+void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
+                     Error **errp)
 {
     int ret;
     struct sigaction act, oldact;
-    sigset_t set, oldset;
+    size_t hpagesize = qemu_fd_getpagesize(fd);
+    size_t numpages = DIV_ROUND_UP(memory, hpagesize);
 
     memset(&act, 0, sizeof(act));
     act.sa_handler = &sigbus_handler;
@@ -340,23 +444,10 @@ void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
         return;
     }
 
-    /* unblock SIGBUS */
-    sigemptyset(&set);
-    sigaddset(&set, SIGBUS);
-    pthread_sigmask(SIG_UNBLOCK, &set, &oldset);
-
-    if (sigsetjmp(sigjump, 1)) {
+    /* touch pages simultaneously */
+    if (touch_all_pages(area, hpagesize, numpages, smp_cpus)) {
         error_setg(errp, "os_mem_prealloc: Insufficient free host memory "
             "pages available to allocate guest RAM\n");
-    } else {
-        int i;
-        size_t hpagesize = qemu_fd_getpagesize(fd);
-        size_t numpages = DIV_ROUND_UP(memory, hpagesize);
-
-        /* MAP_POPULATE silently ignores failures */
-        for (i = 0; i < numpages; i++) {
-            memset(area + (hpagesize * i), 0, 1);
-        }
     }
 
     ret = sigaction(SIGBUS, &oldact, NULL);
@@ -365,7 +456,6 @@ void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
         perror("os_mem_prealloc: failed to reinstall signal handler");
         exit(1);
     }
-    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 }
 
 
@@ -602,4 +692,35 @@ void qemu_free_stack(void *stack, size_t sz)
 #endif
 
     munmap(stack, sz);
+}
+
+void sigaction_invoke(struct sigaction *action,
+                      struct qemu_signalfd_siginfo *info)
+{
+    siginfo_t si = { 0 };
+    si.si_signo = info->ssi_signo;
+    si.si_errno = info->ssi_errno;
+    si.si_code = info->ssi_code;
+
+    /* Convert the minimal set of fields defined by POSIX.
+     * Positive si_code values are reserved for kernel-generated
+     * signals, where the valid siginfo fields are determined by
+     * the signal number.  But according to POSIX, it is unspecified
+     * whether SI_USER and SI_QUEUE have values less than or equal to
+     * zero.
+     */
+    if (info->ssi_code == SI_USER || info->ssi_code == SI_QUEUE ||
+        info->ssi_code <= 0) {
+        /* SIGTERM, etc.  */
+        si.si_pid = info->ssi_pid;
+        si.si_uid = info->ssi_uid;
+    } else if (info->ssi_signo == SIGILL || info->ssi_signo == SIGFPE ||
+               info->ssi_signo == SIGSEGV || info->ssi_signo == SIGBUS) {
+        si.si_addr = (void *)(uintptr_t)info->ssi_addr;
+    } else if (info->ssi_signo == SIGCHLD) {
+        si.si_pid = info->ssi_pid;
+        si.si_status = info->ssi_status;
+        si.si_uid = info->ssi_uid;
+    }
+    action->sa_sigaction(info->ssi_signo, &si, NULL);
 }

@@ -579,6 +579,7 @@ static void sun4u_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4u platform";
     mc->init = sun4u_init;
+    mc->block_default_type = IF_IDE;
     mc->max_cpus = 1; /* XXX for now */
     mc->is_default = 1;
     mc->default_boot_order = "c";
@@ -596,6 +597,7 @@ static void sun4v_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4v platform";
     mc->init = sun4v_init;
+    mc->block_default_type = IF_IDE;
     mc->max_cpus = 1; /* XXX for now */
     mc->default_boot_order = "c";
 }

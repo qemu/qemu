@@ -362,6 +362,7 @@ static void r2d_machine_init(MachineClass *mc)
 {
     mc->desc = "r2d-plus board";
     mc->init = r2d_init;
+    mc->block_default_type = IF_IDE;
 }
 
 DEFINE_MACHINE("r2d", r2d_machine_init)

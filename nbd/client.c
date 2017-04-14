@@ -94,7 +94,7 @@ static ssize_t drop_sync(QIOChannel *ioc, size_t size)
     char small[1024];
     char *buffer;
 
-    buffer = sizeof(small) < size ? small : g_malloc(MIN(65536, size));
+    buffer = sizeof(small) >= size ? small : g_malloc(MIN(65536, size));
     while (size > 0) {
         ssize_t count = read_sync(ioc, buffer, MIN(65536, size));
 
@@ -778,7 +778,7 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
     ssize_t ret;
 
     ret = read_sync(ioc, buf, sizeof(buf));
-    if (ret < 0) {
+    if (ret <= 0) {
         return ret;
     }
 
@@ -812,6 +812,6 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
         LOG("invalid magic (got 0x%" PRIx32 ")", magic);
         return -EINVAL;
     }
-    return 0;
+    return sizeof(buf);
 }
 

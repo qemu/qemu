@@ -1,0 +1,15 @@
+#
+# Docker arm64 cross-compiler target
+#
+# This docker target builds on the base debian image.
+#
+FROM qemu:debian
+
+# Add the foreign architecture we want and install dependencies
+RUN dpkg --add-architecture arm64
+RUN apt update
+RUN apt install -yy crossbuild-essential-arm64
+RUN apt-get build-dep -yy -a arm64 qemu
+
+# Specify the cross prefix for this image (see tests/docker/common.rc)
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=aarch64-linux-gnu-

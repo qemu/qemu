@@ -13,10 +13,12 @@
 #include "hw/boards.h"
 #include "qapi/error.h"
 #include "sysemu/cpus.h"
+#include "sysemu/kvm.h"
 #include "target/ppc/kvm_ppc.h"
 #include "hw/ppc/ppc.h"
 #include "target/ppc/mmu-hash64.h"
 #include "sysemu/numa.h"
+#include "qemu/error-report.h"
 
 static void spapr_cpu_reset(void *opaque)
 {
@@ -34,15 +36,26 @@ static void spapr_cpu_reset(void *opaque)
 
     env->spr[SPR_HIOR] = 0;
 
-    ppc_hash64_set_external_hpt(cpu, spapr->htab, spapr->htab_shift,
-                                &error_fatal);
+    /*
+     * This is a hack for the benefit of KVM PR - it abuses the SDR1
+     * slot in kvm_sregs to communicate the userspace address of the
+     * HPT
+     */
+    if (kvm_enabled()) {
+        env->spr[SPR_SDR1] = (target_ulong)(uintptr_t)spapr->htab
+            | (spapr->htab_shift - 18);
+        if (kvmppc_put_books_sregs(cpu) < 0) {
+            error_report("Unable to update SDR1 in KVM");
+            exit(1);
+        }
+    }
 }
 
 static void spapr_cpu_destroy(PowerPCCPU *cpu)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
-    xics_cpu_destroy(spapr->xics, cpu);
+    xics_cpu_destroy(XICS_FABRIC(spapr), cpu);
     qemu_unregister_reset(spapr_cpu_reset, cpu);
 }
 
@@ -50,15 +63,12 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
                            Error **errp)
 {
     CPUPPCState *env = &cpu->env;
-    CPUState *cs = CPU(cpu);
-    int i;
 
     /* Set time-base frequency to 512 MHz */
     cpu_ppc_tb_init(env, SPAPR_TIMEBASE_FREQ);
 
     /* Enable PAPR mode in TCG or KVM */
-    cpu_ppc_set_vhyp(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
-    cpu_ppc_set_papr(cpu);
+    cpu_ppc_set_papr(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
 
     if (cpu->max_compat) {
         Error *local_err = NULL;
@@ -70,13 +80,7 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
         }
     }
 
-    /* Set NUMA node for the added CPUs  */
-    i = numa_get_node_for_cpu(cs->cpu_index);
-    if (i < nb_numa_nodes) {
-            cs->numa_node = i;
-    }
-
-    xics_cpu_setup(spapr->xics, cpu);
+    xics_cpu_setup(XICS_FABRIC(spapr), cpu);
 
     qemu_register_reset(spapr_cpu_reset, cpu);
     spapr_cpu_reset(cpu);
@@ -109,13 +113,12 @@ char *spapr_get_cpu_core_type(const char *model)
     return core_type;
 }
 
-static void spapr_core_release(DeviceState *dev, void *opaque)
+static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)
 {
     sPAPRCPUCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(OBJECT(dev));
     const char *typename = object_class_get_name(scc->cpu_class);
     size_t size = object_type_get_instance_size(typename);
-    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     CPUCore *cc = CPU_CORE(dev);
     int i;
 
@@ -129,140 +132,7 @@ static void spapr_core_release(DeviceState *dev, void *opaque)
         cpu_remove_sync(cs);
         object_unparent(obj);
     }
-
-    spapr->cores[cc->core_id / smp_threads] = NULL;
-
     g_free(sc->threads);
-    object_unparent(OBJECT(dev));
-}
-
-void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                       Error **errp)
-{
-    CPUCore *cc = CPU_CORE(dev);
-    int smt = kvmppc_smt_threads();
-    int index = cc->core_id / smp_threads;
-    sPAPRDRConnector *drc =
-        spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, index * smt);
-    sPAPRDRConnectorClass *drck;
-    Error *local_err = NULL;
-
-    if (index == 0) {
-        error_setg(errp, "Boot CPU core may not be unplugged");
-        return;
-    }
-
-    g_assert(drc);
-
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    drck->detach(drc, dev, spapr_core_release, NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    spapr_hotplug_req_remove_by_index(drc);
-}
-
-void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                     Error **errp)
-{
-    sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
-    MachineClass *mc = MACHINE_GET_CLASS(spapr);
-    sPAPRCPUCore *core = SPAPR_CPU_CORE(OBJECT(dev));
-    CPUCore *cc = CPU_CORE(dev);
-    CPUState *cs = CPU(core->threads);
-    sPAPRDRConnector *drc;
-    Error *local_err = NULL;
-    void *fdt = NULL;
-    int fdt_offset = 0;
-    int index = cc->core_id / smp_threads;
-    int smt = kvmppc_smt_threads();
-
-    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, index * smt);
-    spapr->cores[index] = OBJECT(dev);
-
-    g_assert(drc || !mc->query_hotpluggable_cpus);
-
-    /*
-     * Setup CPU DT entries only for hotplugged CPUs. For boot time or
-     * coldplugged CPUs DT entries are setup in spapr_build_fdt().
-     */
-    if (dev->hotplugged) {
-        fdt = spapr_populate_hotplug_cpu_dt(cs, &fdt_offset, spapr);
-    }
-
-    if (drc) {
-        sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-        drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, &local_err);
-        if (local_err) {
-            g_free(fdt);
-            spapr->cores[index] = NULL;
-            error_propagate(errp, local_err);
-            return;
-        }
-    }
-
-    if (dev->hotplugged) {
-        /*
-         * Send hotplug notification interrupt to the guest only in case
-         * of hotplugged CPUs.
-         */
-        spapr_hotplug_req_add_by_index(drc);
-    } else {
-        /*
-         * Set the right DRC states for cold plugged CPU.
-         */
-        if (drc) {
-            sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-            drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_USABLE);
-            drck->set_isolation_state(drc, SPAPR_DR_ISOLATION_STATE_UNISOLATED);
-        }
-    }
-}
-
-void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                         Error **errp)
-{
-    MachineState *machine = MACHINE(OBJECT(hotplug_dev));
-    MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
-    sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
-    int spapr_max_cores = max_cpus / smp_threads;
-    int index;
-    Error *local_err = NULL;
-    CPUCore *cc = CPU_CORE(dev);
-    char *base_core_type = spapr_get_cpu_core_type(machine->cpu_model);
-    const char *type = object_get_typename(OBJECT(dev));
-
-    if (dev->hotplugged && !mc->query_hotpluggable_cpus) {
-        error_setg(&local_err, "CPU hotplug not supported for this machine");
-        goto out;
-    }
-
-    if (strcmp(base_core_type, type)) {
-        error_setg(&local_err, "CPU core type should be %s", base_core_type);
-        goto out;
-    }
-
-    if (cc->core_id % smp_threads) {
-        error_setg(&local_err, "invalid core id %d", cc->core_id);
-        goto out;
-    }
-
-    index = cc->core_id / smp_threads;
-    if (index < 0 || index >= spapr_max_cores) {
-        error_setg(&local_err, "core id %d out of range", cc->core_id);
-        goto out;
-    }
-
-    if (spapr->cores[index]) {
-        error_setg(&local_err, "core %d already populated", cc->core_id);
-        goto out;
-    }
-
-out:
-    g_free(base_core_type);
-    error_propagate(errp, local_err);
 }
 
 static void spapr_cpu_core_realize_child(Object *child, Error **errp)
@@ -293,11 +163,13 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     const char *typename = object_class_get_name(scc->cpu_class);
     size_t size = object_type_get_instance_size(typename);
     Error *local_err = NULL;
+    int core_node_id = numa_get_node_for_cpu(cc->core_id);;
     void *obj;
     int i, j;
 
     sc->threads = g_malloc0(size * cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
+        int node_id;
         char id[32];
         CPUState *cs;
 
@@ -306,6 +178,19 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         object_initialize(obj, size, typename);
         cs = CPU(obj);
         cs->cpu_index = cc->core_id + i;
+
+        /* Set NUMA node for the added CPUs  */
+        node_id = numa_get_node_for_cpu(cs->cpu_index);
+        if (node_id != core_node_id) {
+            error_setg(&local_err, "Invalid node-id=%d of thread[cpu-index: %d]"
+                " on CPU[core-id: %d, node-id: %d], node-id must be the same",
+                 node_id, cs->cpu_index, cc->core_id, core_node_id);
+            goto err;
+        }
+        if (node_id < nb_numa_nodes) {
+            cs->numa_node = node_id;
+        }
+
         snprintf(id, sizeof(id), "thread[%d]", i);
         object_property_add_child(OBJECT(sc), id, obj, &local_err);
         if (local_err) {
@@ -360,6 +245,9 @@ static const char *spapr_core_models[] = {
 
     /* POWER8NVL */
     "POWER8NVL_v1.0",
+
+    /* POWER9 */
+    "POWER9_v1.0",
 };
 
 void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
@@ -368,6 +256,7 @@ void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_CLASS(oc);
 
     dc->realize = spapr_cpu_core_realize;
+    dc->unrealize = spapr_cpu_core_unrealizefn;
     scc->cpu_class = cpu_class_by_name(TYPE_POWERPC_CPU, data);
     g_assert(scc->cpu_class);
 }

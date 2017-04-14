@@ -161,6 +161,11 @@ include/hw/hw.h.
 
 === More about versions ===
 
+Version numbers are intended for major incompatible changes to the
+migration of a device, and using them breaks backwards-migration
+compatibility; in general most changes can be made by adding Subsections
+(see below) or _TEST macros (see below) which won't break compatibility.
+
 You can see that there are several version fields:
 
 - version_id: the maximum version_id supported by VMState for that device.
@@ -174,6 +179,9 @@ So, VMState is able to read versions from minimum_version_id to
 version_id.  And the function load_state_old() (if present) is able to
 load state from minimum_version_id_old to minimum_version_id.  This
 function is deprecated and will be removed when no more users are left.
+
+Saving state will always create a section with the 'version_id' value
+and thus can't be loaded by any older QEMU.
 
 ===  Massaging functions ===
 
@@ -291,6 +299,56 @@ save/send this state when we are in the middle of a pio operation
 (that is what ide_drive_pio_state_needed() checks).  If DRQ_STAT is
 not enabled, the values on that fields are garbage and don't need to
 be sent.
+
+Using a condition function that checks a 'property' to determine whether
+to send a subsection allows backwards migration compatibility when
+new subsections are added.
+
+For example;
+   a) Add a new property using DEFINE_PROP_BOOL - e.g. support-foo and
+      default it to true.
+   b) Add an entry to the HW_COMPAT_ for the previous version
+      that sets the property to false.
+   c) Add a static bool  support_foo function that tests the property.
+   d) Add a subsection with a .needed set to the support_foo function
+   e) (potentially) Add a pre_load that sets up a default value for 'foo'
+      to be used if the subsection isn't loaded.
+
+Now that subsection will not be generated when using an older
+machine type and the migration stream will be accepted by older
+QEMU versions. pre-load functions can be used to initialise state
+on the newer version so that they default to suitable values
+when loading streams created by older QEMU versions that do not
+generate the subsection.
+
+In some cases subsections are added for data that had been accidentally
+omitted by earlier versions; if the missing data causes the migration
+process to succeed but the guest to behave badly then it may be better
+to send the subsection and cause the migration to explicitly fail
+with the unknown subsection error.   If the bad behaviour only happens
+with certain data values, making the subsection conditional on
+the data value (rather than the machine type) allows migrations to succeed
+in most cases.  In general the preference is to tie the subsection to
+the machine type, and allow reliable migrations, unless the behaviour
+from omission of the subsection is really bad.
+
+= Not sending existing elements =
+
+Sometimes members of the VMState are no longer needed;
+  removing them will break migration compatibility
+  making them version dependent and bumping the version will break backwards
+   migration compatibility.
+
+The best way is to:
+  a) Add a new property/compatibility/function in the same way for subsections
+    above.
+  b) replace the VMSTATE macro with the _TEST version of the macro, e.g.:
+     VMSTATE_UINT32(foo, barstruct)
+   becomes
+     VMSTATE_UINT32_TEST(foo, barstruct, pre_version_baz)
+
+  Sometime in the future when we no longer care about the ancient
+versions these can be killed off.
 
 = Return path =
 
@@ -482,3 +540,16 @@ request for a page that has already been sent is ignored.  Duplicate requests
 such as this can happen as a page is sent at about the same time the
 destination accesses it.
 
+=== Postcopy with hugepages ===
+
+Postcopy now works with hugetlbfs backed memory:
+  a) The linux kernel on the destination must support userfault on hugepages.
+  b) The huge-page configuration on the source and destination VMs must be
+     identical; i.e. RAMBlocks on both sides must use the same page size.
+  c) Note that -mem-path /dev/hugepages  will fall back to allocating normal
+     RAM if it doesn't have enough hugepages, triggering (b) to fail.
+     Using -mem-prealloc enforces the allocation using hugepages.
+  d) Care should be taken with the size of hugepage used; postcopy with 2MB
+     hugepages works well, however 1GB hugepages are likely to be problematic
+     since it takes ~1 second to transfer a 1GB hugepage across a 10Gbps link,
+     and until the full page is transferred the destination thread is blocked.

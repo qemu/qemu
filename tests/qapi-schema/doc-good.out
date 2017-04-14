@@ -1,0 +1,148 @@
+object Base
+    member base1: Enum optional=False
+enum Enum ['one', 'two']
+object Object
+    base Base
+    tag base1
+    case one: Variant1
+    case two: Variant2
+enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
+    prefix QTYPE
+object SugaredUnion
+    member type: SugaredUnionKind optional=False
+    tag type
+    case one: q_obj_Variant1-wrapper
+    case two: q_obj_Variant2-wrapper
+enum SugaredUnionKind ['one', 'two']
+object Variant1
+    member var1: str optional=False
+object Variant2
+command cmd q_obj_cmd-arg -> Object
+   gen=True success_response=True boxed=False
+command cmd-boxed Object -> None
+   gen=True success_response=True boxed=True
+object q_empty
+object q_obj_Variant1-wrapper
+    member data: Variant1 optional=False
+object q_obj_Variant2-wrapper
+    member data: Variant2 optional=False
+object q_obj_cmd-arg
+    member arg1: int optional=False
+    member arg2: str optional=True
+    member arg3: bool optional=False
+doc freeform
+    body=
+= Section
+
+== Subsection
+
+*strong* _with emphasis_
+@var {in braces}
+* List item one
+- Two, multiple
+lines
+
+3. Three
+Still in list
+
+Not in list
+- Second list
+Note: still in list
+
+Note: not in list
+1. Third list
+is numbered
+
+- another item
+
+| example
+| multiple lines
+
+Returns: the King
+Since: the first age
+Notes:
+
+1. Lorem ipsum dolor sit amet
+
+2. Ut enim ad minim veniam
+
+Duis aute irure dolor
+
+Example:
+
+-> in
+<- out
+Examples:
+- *verbatim*
+- {braces}
+doc symbol=Enum
+    body=
+== Produces *invalid* texinfo
+    arg=one
+The _one_ {and only}
+    arg=two
+
+    section=
+@two is undocumented
+doc symbol=Base
+    body=
+
+    arg=base1
+the first member
+doc symbol=Variant1
+    body=
+A paragraph
+
+Another paragraph (but no @var: line)
+    arg=var1
+
+doc symbol=Variant2
+    body=
+
+doc symbol=Object
+    body=
+
+doc symbol=SugaredUnion
+    body=
+
+    arg=type
+
+doc freeform
+    body=
+== Another subsection
+doc symbol=cmd
+    body=
+
+    arg=arg1
+the first argument
+    arg=arg2
+the second
+argument
+    arg=arg3
+
+    section=Note
+@arg3 is undocumented
+    section=Returns
+@Object
+    section=TODO
+frobnicate
+    section=Notes
+- Lorem ipsum dolor sit amet
+- Ut enim ad minim veniam
+
+Duis aute irure dolor
+    section=Example
+-> in
+<- out
+    section=Examples
+- *verbatim*
+- {braces}
+    section=Since
+2.10
+doc symbol=cmd-boxed
+    body=
+If you're bored enough to read this, go see a video of boxed cats
+    section=Example
+-> in
+
+<- out

@@ -291,11 +291,6 @@ typedef struct USBDeviceClass {
     void (*cancel_packet)(USBDevice *dev, USBPacket *p);
 
     /*
-     * Called when device is destroyed.
-     */
-    void (*handle_destroy)(USBDevice *dev);
-
-    /*
      * Attach the device
      */
     void (*handle_attach)(USBDevice *dev);

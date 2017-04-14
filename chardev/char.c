@@ -560,7 +560,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
     cc = CHARDEV_GET_CLASS(s);
     if (!opaque && !fd_can_read && !fd_read && !fd_event) {
         fe_open = 0;
-        remove_fd_in_watch(s);
+        remove_fd_in_watch(s, context);
     } else {
         fe_open = 1;
     }
@@ -652,6 +652,7 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     if (strcmp(filename, "null")    == 0 ||
         strcmp(filename, "pty")     == 0 ||
         strcmp(filename, "msmouse") == 0 ||
+        strcmp(filename, "wctablet") == 0 ||
         strcmp(filename, "braille") == 0 ||
         strcmp(filename, "testdev") == 0 ||
         strcmp(filename, "stdio")   == 0) {

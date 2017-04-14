@@ -21,7 +21,15 @@ def isnull(ptr):
     return ptr == gdb.Value(0).cast(ptr.type)
 
 def int128(p):
-    return int(p['lo']) + (int(p['hi']) << 64)
+    '''Read an Int128 type to a python integer.
+
+    QEMU can be built with native Int128 support so we need to detect
+    if the value is a structure or the native type.
+    '''
+    if p.type.code == gdb.TYPE_CODE_STRUCT:
+        return int(p['lo']) + (int(p['hi']) << 64)
+    else:
+        return int(("%s" % p), 16)
 
 class MtreeCommand(gdb.Command):
     '''Display the memory tree hierarchy'''
@@ -69,7 +77,7 @@ class MtreeCommand(gdb.Command):
             gdb.write('%s    alias: %s@%016x (@ %s)\n' %
                       ('  ' * level,
                        alias['name'].string(),
-                       ptr['alias_offset'],
+                       int(ptr['alias_offset']),
                        alias,
                        ),
                       gdb.STDOUT)

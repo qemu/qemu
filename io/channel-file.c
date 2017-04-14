@@ -186,6 +186,16 @@ static int qio_channel_file_close(QIOChannel *ioc,
 }
 
 
+static void qio_channel_file_set_aio_fd_handler(QIOChannel *ioc,
+                                                AioContext *ctx,
+                                                IOHandler *io_read,
+                                                IOHandler *io_write,
+                                                void *opaque)
+{
+    QIOChannelFile *fioc = QIO_CHANNEL_FILE(ioc);
+    aio_set_fd_handler(ctx, fioc->fd, false, io_read, io_write, NULL, opaque);
+}
+
 static GSource *qio_channel_file_create_watch(QIOChannel *ioc,
                                               GIOCondition condition)
 {
@@ -206,6 +216,7 @@ static void qio_channel_file_class_init(ObjectClass *klass,
     ioc_klass->io_seek = qio_channel_file_seek;
     ioc_klass->io_close = qio_channel_file_close;
     ioc_klass->io_create_watch = qio_channel_file_create_watch;
+    ioc_klass->io_set_aio_fd_handler = qio_channel_file_set_aio_fd_handler;
 }
 
 static const TypeInfo qio_channel_file_info = {

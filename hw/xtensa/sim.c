@@ -37,6 +37,27 @@
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 
+static void xtensa_create_memory_regions(const XtensaMemory *memory,
+                                         const char *name)
+{
+    unsigned i;
+    char *num_name = malloc(strlen(name) + sizeof(i) * 3 + 1);
+
+    for (i = 0; i < memory->num; ++i) {
+        MemoryRegion *m;
+
+        sprintf(num_name, "%s%u", name, i);
+        m = g_malloc(sizeof(*m));
+        memory_region_init_ram(m, NULL, num_name,
+                               memory->location[i].size,
+                               &error_fatal);
+        vmstate_register_ram_global(m);
+        memory_region_add_subregion(get_system_memory(),
+                                    memory->location[i].addr, m);
+    }
+    free(num_name);
+}
+
 static uint64_t translate_phys_addr(void *opaque, uint64_t addr)
 {
     XtensaCPU *cpu = opaque;
@@ -55,7 +76,6 @@ static void xtensa_sim_init(MachineState *machine)
 {
     XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
-    MemoryRegion *ram, *rom;
     ram_addr_t ram_size = machine->ram_size;
     const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
@@ -82,15 +102,17 @@ static void xtensa_sim_init(MachineState *machine)
         sim_reset(cpu);
     }
 
-    ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "xtensa.sram", ram_size, &error_fatal);
-    vmstate_register_ram_global(ram);
-    memory_region_add_subregion(get_system_memory(), 0, ram);
+    if (env) {
+        XtensaMemory sysram = env->config->sysram;
 
-    rom = g_malloc(sizeof(*rom));
-    memory_region_init_ram(rom, NULL, "xtensa.rom", 0x1000, &error_fatal);
-    vmstate_register_ram_global(rom);
-    memory_region_add_subregion(get_system_memory(), 0xfe000000, rom);
+        sysram.location[0].size = ram_size;
+        xtensa_create_memory_regions(&env->config->instrom, "xtensa.instrom");
+        xtensa_create_memory_regions(&env->config->instram, "xtensa.instram");
+        xtensa_create_memory_regions(&env->config->datarom, "xtensa.datarom");
+        xtensa_create_memory_regions(&env->config->dataram, "xtensa.dataram");
+        xtensa_create_memory_regions(&env->config->sysrom, "xtensa.sysrom");
+        xtensa_create_memory_regions(&sysram, "xtensa.sysram");
+    }
 
     if (kernel_filename) {
         uint64_t elf_entry;

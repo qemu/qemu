@@ -35,6 +35,8 @@
 #include "trace.h"
 #include "hw/s390x/css-bridge.h"
 
+#define NR_CLASSIC_INDICATOR_BITS 64
+
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtioCcwDevice *dev);
 
@@ -126,7 +128,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, VqInfoBlock *info,
     uint16_t num = info ? info->num : linfo->num;
     uint64_t desc = info ? info->desc : linfo->queue;
 
-    if (index >= VIRTIO_CCW_QUEUE_MAX) {
+    if (index >= VIRTIO_QUEUE_MAX) {
         return -EINVAL;
     }
 
@@ -162,7 +164,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, VqInfoBlock *info,
         virtio_queue_set_vector(vdev, index, index);
     }
     /* tell notify handler in case of config change */
-    vdev->config_vector = VIRTIO_CCW_QUEUE_MAX;
+    vdev->config_vector = VIRTIO_QUEUE_MAX;
     return 0;
 }
 
@@ -279,6 +281,15 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
     trace_virtio_ccw_interpret_ccw(sch->cssid, sch->ssid, sch->schid,
                                    ccw.cmd_code);
     check_len = !((ccw.flags & CCW_FLAG_SLI) && !(ccw.flags & CCW_FLAG_DC));
+
+    if (dev->force_revision_1 && dev->revision < 0 &&
+        ccw.cmd_code != CCW_CMD_SET_VIRTIO_REV) {
+        /*
+         * virtio-1 drivers must start with negotiating to a revision >= 1,
+         * so post a command reject for all other commands
+         */
+        return -ENOSYS;
+    }
 
     /* Look at the command. */
     switch (ccw.cmd_code) {
@@ -500,6 +511,11 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -ENOSYS;
             break;
         }
+        if (virtio_get_num_queues(vdev) > NR_CLASSIC_INDICATOR_BITS) {
+            /* More queues than indicator bits --> trigger a reject */
+            ret = -ENOSYS;
+            break;
+        }
         if (!ccw.cda) {
             ret = -EFAULT;
         } else {
@@ -549,7 +565,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                                     ccw.cda,
                                                     MEMTXATTRS_UNSPECIFIED,
                                                     NULL);
-            if (vq_config.index >= VIRTIO_CCW_QUEUE_MAX) {
+            if (vq_config.index >= VIRTIO_QUEUE_MAX) {
                 ret = -EINVAL;
                 break;
             }
@@ -638,7 +654,8 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
          * need to fetch it here. Nothing to do for now, though.
          */
         if (dev->revision >= 0 ||
-            revinfo.revision > virtio_ccw_rev_max(dev)) {
+            revinfo.revision > virtio_ccw_rev_max(dev) ||
+            (dev->force_revision_1 && !revinfo.revision)) {
             ret = -ENOSYS;
             break;
         }
@@ -667,6 +684,12 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     Error *err = NULL;
 
     if (!sch) {
+        return;
+    }
+    if (!virtio_ccw_rev_max(dev) && dev->force_revision_1) {
+        error_setg(&err, "Invalid value of property max_rev "
+                   "(is %d expected >= 1)", virtio_ccw_rev_max(dev));
+        error_propagate(errp, err);
         return;
     }
 
@@ -878,6 +901,24 @@ static void virtio_ccw_rng_realize(VirtioCcwDevice *ccw_dev, Error **errp)
                              NULL);
 }
 
+static void virtio_ccw_crypto_realize(VirtioCcwDevice *ccw_dev, Error **errp)
+{
+    VirtIOCryptoCcw *dev = VIRTIO_CRYPTO_CCW(ccw_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+    Error *err = NULL;
+
+    qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
+    object_property_set_bool(OBJECT(vdev), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    object_property_set_link(OBJECT(vdev),
+                             OBJECT(dev->vdev.conf.cryptodev), "cryptodev",
+                             NULL);
+}
+
 /* DeviceState to VirtioCcwDevice. Note: used on datapath,
  * be careful and test performance if you change this.
  */
@@ -919,11 +960,11 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
     uint64_t indicators;
 
     /* queue indicators + secondary indicators */
-    if (vector >= VIRTIO_CCW_QUEUE_MAX + 64) {
+    if (vector >= VIRTIO_QUEUE_MAX + 64) {
         return;
     }
 
-    if (vector < VIRTIO_CCW_QUEUE_MAX) {
+    if (vector < VIRTIO_QUEUE_MAX) {
         if (!dev->indicators) {
             return;
         }
@@ -1278,15 +1319,22 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
     CcwDevice *ccw_dev = CCW_DEVICE(d);
     SubchDev *sch = ccw_dev->sch;
     int n = virtio_get_num_queues(vdev);
+    S390FLICState *flic = s390_get_flic();
 
     if (!virtio_has_feature(vdev->host_features, VIRTIO_F_VERSION_1)) {
         dev->max_rev = 0;
     }
 
-    if (virtio_get_num_queues(vdev) > VIRTIO_CCW_QUEUE_MAX) {
+    if (virtio_get_num_queues(vdev) > VIRTIO_QUEUE_MAX) {
         error_setg(errp, "The number of virtqueues %d "
-                   "exceeds ccw limit %d", n,
-                   VIRTIO_CCW_QUEUE_MAX);
+                   "exceeds virtio limit %d", n,
+                   VIRTIO_QUEUE_MAX);
+        return;
+    }
+    if (virtio_get_num_queues(vdev) > flic->adapter_routes_max_batch) {
+        error_setg(errp, "The number of virtqueues %d "
+                   "exceeds flic adapter route limit %d", n,
+                   flic->adapter_routes_max_batch);
         return;
     }
 
@@ -1518,6 +1566,48 @@ static const TypeInfo virtio_ccw_rng = {
     .class_init    = virtio_ccw_rng_class_init,
 };
 
+static Property virtio_ccw_crypto_properties[] = {
+    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
+    DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
+                    VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_ccw_crypto_instance_init(Object *obj)
+{
+    VirtIOCryptoCcw *dev = VIRTIO_CRYPTO_CCW(obj);
+    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(obj);
+
+    ccw_dev->force_revision_1 = true;
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_CRYPTO);
+
+    object_property_add_alias(obj, "cryptodev", OBJECT(&dev->vdev),
+                              "cryptodev", &error_abort);
+}
+
+static void virtio_ccw_crypto_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
+
+    k->realize = virtio_ccw_crypto_realize;
+    k->exit = virtio_ccw_exit;
+    dc->reset = virtio_ccw_reset;
+    dc->props = virtio_ccw_crypto_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+}
+
+static const TypeInfo virtio_ccw_crypto = {
+    .name          = TYPE_VIRTIO_CRYPTO_CCW,
+    .parent        = TYPE_VIRTIO_CCW_DEVICE,
+    .instance_size = sizeof(VirtIOCryptoCcw),
+    .instance_init = virtio_ccw_crypto_instance_init,
+    .class_init    = virtio_ccw_crypto_class_init,
+};
+
 static void virtio_ccw_busdev_realize(DeviceState *dev, Error **errp)
 {
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
@@ -1720,6 +1810,7 @@ static void virtio_ccw_register(void)
 #ifdef CONFIG_VHOST_VSOCK
     type_register_static(&vhost_vsock_ccw_info);
 #endif
+    type_register_static(&virtio_ccw_crypto);
 }
 
 type_init(virtio_ccw_register)

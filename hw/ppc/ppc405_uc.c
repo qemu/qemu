@@ -1881,7 +1881,7 @@ static void ppc405cr_clk_setup (ppc405cr_cpc_t *cpc)
         D1 = (((cpc->pllmr >> 20) - 1) & 0xF) + 1; /* FBDV */
         D2 = 8 - ((cpc->pllmr >> 16) & 0x7); /* FWDVA */
         M = D0 * D1 * D2;
-        VCO_out = cpc->sysclk * M;
+        VCO_out = (uint64_t)cpc->sysclk * M;
         if (VCO_out < 400000000 || VCO_out > 800000000) {
             /* PLL cannot lock */
             cpc->pllmr &= ~0x80000000;
@@ -1892,7 +1892,7 @@ static void ppc405cr_clk_setup (ppc405cr_cpc_t *cpc)
         /* Bypass PLL */
     bypass_pll:
         M = D0;
-        PLL_out = cpc->sysclk * M;
+        PLL_out = (uint64_t)cpc->sysclk * M;
     }
     CPU_clk = PLL_out;
     if (cpc->cr1 & 0x00800000)
@@ -2242,7 +2242,7 @@ static void ppc405ep_compute_clocks (ppc405ep_cpc_t *cpc)
 #ifdef DEBUG_CLOCKS_LL
         printf("FWDA %01" PRIx32 " %d\n", (cpc->pllmr[1] >> 16) & 0x7, D);
 #endif
-        VCO_out = cpc->sysclk * M * D;
+        VCO_out = (uint64_t)cpc->sysclk * M * D;
         if (VCO_out < 500000000UL || VCO_out > 1000000000UL) {
             /* Error - unlock the PLL */
             printf("VCO out of range %" PRIu64 "\n", VCO_out);
