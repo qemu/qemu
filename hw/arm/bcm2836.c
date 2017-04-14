@@ -160,12 +160,6 @@ static void bcm2836_class_init(ObjectClass *oc, void *data)
 
     dc->props = bcm2836_props;
     dc->realize = bcm2836_realize;
-
-    /*
-     * Reason: creates an ARM CPU, thus use after free(), see
-     * arm_cpu_class_init()
-     */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo bcm2836_type_info = {
