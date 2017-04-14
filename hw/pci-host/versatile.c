@@ -380,19 +380,7 @@ static void pci_vpb_reset(DeviceState *d)
 
 static void pci_vpb_init(Object *obj)
 {
-    PCIHostState *h = PCI_HOST_BRIDGE(obj);
     PCIVPBState *s = PCI_VPB(obj);
-
-    memory_region_init(&s->pci_io_space, OBJECT(s), "pci_io", 1ULL << 32);
-    memory_region_init(&s->pci_mem_space, OBJECT(s), "pci_mem", 1ULL << 32);
-
-    pci_bus_new_inplace(&s->pci_bus, sizeof(s->pci_bus), DEVICE(obj), "pci",
-                        &s->pci_mem_space, &s->pci_io_space,
-                        PCI_DEVFN(11, 0), TYPE_PCI_BUS);
-    h->bus = &s->pci_bus;
-
-    object_initialize(&s->pci_dev, sizeof(s->pci_dev), TYPE_VERSATILE_PCI_HOST);
-    qdev_set_parent_bus(DEVICE(&s->pci_dev), BUS(&s->pci_bus));
 
     /* Window sizes for VersatilePB; realview_pci's init will override */
     s->mem_win_size[0] = 0x0c000000;
@@ -403,9 +391,21 @@ static void pci_vpb_init(Object *obj)
 static void pci_vpb_realize(DeviceState *dev, Error **errp)
 {
     PCIVPBState *s = PCI_VPB(dev);
+    PCIHostState *h = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     pci_map_irq_fn mapfn;
     int i;
+
+    memory_region_init(&s->pci_io_space, OBJECT(s), "pci_io", 1ULL << 32);
+    memory_region_init(&s->pci_mem_space, OBJECT(s), "pci_mem", 1ULL << 32);
+
+    pci_bus_new_inplace(&s->pci_bus, sizeof(s->pci_bus), dev, "pci",
+                        &s->pci_mem_space, &s->pci_io_space,
+                        PCI_DEVFN(11, 0), TYPE_PCI_BUS);
+    h->bus = &s->pci_bus;
+
+    object_initialize(&s->pci_dev, sizeof(s->pci_dev), TYPE_VERSATILE_PCI_HOST);
+    qdev_set_parent_bus(DEVICE(&s->pci_dev), BUS(&s->pci_bus));
 
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
@@ -503,8 +503,6 @@ static void pci_vpb_class_init(ObjectClass *klass, void *data)
     dc->reset = pci_vpb_reset;
     dc->vmsd = &pci_vpb_vmstate;
     dc->props = pci_vpb_properties;
-    /* Reason: object_unref() hangs */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo pci_vpb_info = {
@@ -526,19 +524,10 @@ static void pci_realview_init(Object *obj)
     s->mem_win_size[2] = 0x08000000;
 }
 
-static void pci_realview_class_init(ObjectClass *class, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(class);
-
-    /* Reason: object_unref() hangs */
-    dc->cannot_destroy_with_object_finalize_yet = true;
-}
-
 static const TypeInfo pci_realview_info = {
     .name          = "realview_pci",
     .parent        = TYPE_VERSATILE_PCI,
     .instance_init = pci_realview_init,
-    .class_init    = pci_realview_class_init,
 };
 
 static void versatile_pci_register_types(void)
