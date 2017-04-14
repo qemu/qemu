@@ -126,6 +126,7 @@
 #define FTGMAC100_TXDES0_CRC_ERR         (1 << 19)
 #define FTGMAC100_TXDES0_LTS             (1 << 28)
 #define FTGMAC100_TXDES0_FTS             (1 << 29)
+#define FTGMAC100_TXDES0_EDOTR_ASPEED    (1 << 30)
 #define FTGMAC100_TXDES0_TXDMA_OWN       (1 << 31)
 
 #define FTGMAC100_TXDES1_VLANTAG_CI(x)   ((x) & 0xffff)
@@ -154,6 +155,7 @@
 #define FTGMAC100_RXDES0_PAUSE_FRAME     (1 << 25)
 #define FTGMAC100_RXDES0_LRS             (1 << 28)
 #define FTGMAC100_RXDES0_FRS             (1 << 29)
+#define FTGMAC100_RXDES0_EDORR_ASPEED    (1 << 30)
 #define FTGMAC100_RXDES0_RXPKT_RDY       (1 << 31)
 
 #define FTGMAC100_RXDES1_VLANTAG_CI      0xffff
@@ -462,7 +464,7 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
         /* Write back the modified descriptor.  */
         ftgmac100_write_bd(&bd, addr);
         /* Advance to the next descriptor.  */
-        if (bd.des0 & FTGMAC100_TXDES0_EDOTR) {
+        if (bd.des0 & s->txdes0_edotr) {
             addr = tx_ring;
         } else {
             addr += sizeof(FTGMAC100Desc);
@@ -880,7 +882,7 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
             s->isr |= FTGMAC100_INT_RPKT_FIFO;
         }
         ftgmac100_write_bd(&bd, addr);
-        if (bd.des0 & FTGMAC100_RXDES0_EDORR) {
+        if (bd.des0 & s->rxdes0_edorr) {
             addr = s->rx_ring;
         } else {
             addr += sizeof(FTGMAC100Desc);
@@ -920,6 +922,14 @@ static void ftgmac100_realize(DeviceState *dev, Error **errp)
 {
     FTGMAC100State *s = FTGMAC100(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    if (s->aspeed) {
+        s->txdes0_edotr = FTGMAC100_TXDES0_EDOTR_ASPEED;
+        s->rxdes0_edorr = FTGMAC100_RXDES0_EDORR_ASPEED;
+    } else {
+        s->txdes0_edotr = FTGMAC100_TXDES0_EDOTR;
+        s->rxdes0_edorr = FTGMAC100_RXDES0_EDORR;
+    }
 
     memory_region_init_io(&s->iomem, OBJECT(dev), &ftgmac100_ops, s,
                           TYPE_FTGMAC100, 0x2000);
@@ -967,11 +977,14 @@ static const VMStateDescription vmstate_ftgmac100 = {
         VMSTATE_UINT32(phy_advertise, FTGMAC100State),
         VMSTATE_UINT32(phy_int, FTGMAC100State),
         VMSTATE_UINT32(phy_int_mask, FTGMAC100State),
+        VMSTATE_UINT32(txdes0_edotr, FTGMAC100State),
+        VMSTATE_UINT32(rxdes0_edorr, FTGMAC100State),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static Property ftgmac100_properties[] = {
+    DEFINE_PROP_BOOL("aspeed", FTGMAC100State, aspeed, false),
     DEFINE_NIC_PROPERTIES(FTGMAC100State, conf),
     DEFINE_PROP_END_OF_LIST(),
 };
