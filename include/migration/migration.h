@@ -153,10 +153,6 @@ void qemu_start_incoming_migration(const char *uri, Error **errp);
 
 uint64_t migrate_max_downtime(void);
 
-void rdma_start_outgoing_migration(void *opaque, const char *host_port, Error **errp);
-
-void rdma_start_incoming_migration(const char *host_port, Error **errp);
-
 void migrate_fd_error(MigrationState *s, const Error *error);
 
 void migrate_fd_connect(MigrationState *s);

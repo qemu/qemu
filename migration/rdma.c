@@ -17,6 +17,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/cutils.h"
+#include "rdma.h"
 #include "migration/migration.h"
 #include "qemu-file.h"
 #include "exec/cpu-common.h"
