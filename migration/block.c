@@ -27,6 +27,7 @@
 #include "migration/migration.h"
 #include "sysemu/blockdev.h"
 #include "migration/qemu-file.h"
+#include "migration/vmstate.h"
 #include "sysemu/block-backend.h"
 
 #define BLOCK_SIZE                       (1 << 20)

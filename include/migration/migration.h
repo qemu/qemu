@@ -18,7 +18,6 @@
 #include "qemu-common.h"
 #include "qemu/thread.h"
 #include "qemu/notify.h"
-#include "migration/vmstate.h"
 #include "io/channel.h"
 #include "qapi-types.h"
 #include "exec/cpu-common.h"

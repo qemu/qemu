@@ -21,6 +21,7 @@
 #include "migration/migration.h"
 #include "qemu-file-channel.h"
 #include "migration/qemu-file.h"
+#include "migration/vmstate.h"
 #include "sysemu/sysemu.h"
 #include "block/block.h"
 #include "qapi/qmp/qerror.h"
