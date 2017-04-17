@@ -27,8 +27,6 @@
 
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
-#include "io/channel.h"
-
 
 /* Read a chunk of data from a file at the given position.  The pos argument
  * can be ignored if the file is only be used for streaming.  The number of
@@ -119,8 +117,6 @@ typedef struct QEMUFileHooks {
 } QEMUFileHooks;
 
 QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops);
-QEMUFile *qemu_fopen_channel_input(QIOChannel *ioc);
-QEMUFile *qemu_fopen_channel_output(QIOChannel *ioc);
 void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
 int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);

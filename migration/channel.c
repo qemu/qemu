@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "channel.h"
 #include "migration/migration.h"
+#include "qemu-file-channel.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "io/channel-tls.h"

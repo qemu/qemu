@@ -27,6 +27,7 @@
 #include "qemu-common.h"
 #include "migration/migration.h"
 #include "migration/vmstate.h"
+#include "../migration/qemu-file-channel.h"
 #include "qemu/coroutine.h"
 #include "io/channel-file.h"
 

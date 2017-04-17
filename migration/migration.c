@@ -19,6 +19,7 @@
 #include "qemu/main-loop.h"
 #include "migration/blocker.h"
 #include "migration/migration.h"
+#include "qemu-file-channel.h"
 #include "migration/qemu-file.h"
 #include "sysemu/sysemu.h"
 #include "block/block.h"
