@@ -157,16 +157,9 @@ void migration_fd_process_incoming(QEMUFile *f);
 
 void qemu_start_incoming_migration(const char *uri, Error **errp);
 
-void migration_channel_process_incoming(MigrationState *s,
-                                        QIOChannel *ioc);
-
 void migration_tls_channel_process_incoming(MigrationState *s,
                                             QIOChannel *ioc,
                                             Error **errp);
-
-void migration_channel_connect(MigrationState *s,
-                               QIOChannel *ioc,
-                               const char *hostname);
 
 void migration_tls_channel_connect(MigrationState *s,
                                    QIOChannel *ioc,
