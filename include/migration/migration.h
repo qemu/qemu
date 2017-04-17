@@ -171,38 +171,6 @@ bool migration_in_postcopy(void);
 bool migration_in_postcopy_after_devices(MigrationState *);
 MigrationState *migrate_get_current(void);
 
-void migrate_compress_threads_create(void);
-void migrate_compress_threads_join(void);
-void migrate_decompress_threads_create(void);
-void migrate_decompress_threads_join(void);
-uint64_t ram_bytes_remaining(void);
-uint64_t ram_bytes_transferred(void);
-uint64_t ram_bytes_total(void);
-uint64_t ram_dirty_sync_count(void);
-uint64_t ram_dirty_pages_rate(void);
-uint64_t ram_postcopy_requests(void);
-void free_xbzrle_decoded_buf(void);
-
-void acct_update_position(QEMUFile *f, size_t size, bool zero);
-
-uint64_t dup_mig_pages_transferred(void);
-uint64_t norm_mig_pages_transferred(void);
-uint64_t xbzrle_mig_bytes_transferred(void);
-uint64_t xbzrle_mig_pages_transferred(void);
-uint64_t xbzrle_mig_pages_overflow(void);
-uint64_t xbzrle_mig_pages_cache_miss(void);
-double xbzrle_mig_cache_miss_rate(void);
-
-void ram_handle_compressed(void *host, uint8_t ch, uint64_t size);
-void ram_debug_dump_bitmap(unsigned long *todump, bool expected,
-                           unsigned long pages);
-/* For outgoing discard bitmap */
-int ram_postcopy_send_discard_bitmap(MigrationState *ms);
-/* For incoming postcopy discard */
-int ram_discard_range(const char *block_name, uint64_t start, size_t length);
-int ram_postcopy_incoming_init(MigrationIncomingState *mis);
-void ram_postcopy_migrated_memory_release(MigrationState *ms);
-
 bool migrate_release_ram(void);
 bool migrate_postcopy_ram(void);
 bool migrate_zero_blocks(void);
@@ -212,8 +180,6 @@ bool migrate_auto_converge(void);
 int migrate_use_xbzrle(void);
 int64_t migrate_xbzrle_cache_size(void);
 bool migrate_colo_enabled(void);
-
-int64_t xbzrle_cache_resize(int64_t new_size);
 
 bool migrate_use_block(void);
 bool migrate_use_block_incremental(void);
@@ -253,7 +219,6 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
                              ram_addr_t offset, size_t size,
                              uint64_t *bytes_sent);
 
-void ram_mig_init(void);
 void savevm_skip_section_footers(void);
 void register_global_state(void);
 void global_state_set_optional(void);
@@ -261,7 +226,4 @@ void savevm_skip_configuration(void);
 int global_state_store(void);
 void global_state_store_running(void);
 
-void migration_page_queue_free(void);
-int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len);
-uint64_t ram_pagesize_summary(void);
 #endif

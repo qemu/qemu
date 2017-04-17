@@ -24,6 +24,7 @@
 #include "qemu-file.h"
 #include "savevm.h"
 #include "postcopy-ram.h"
+#include "ram.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/balloon.h"
 #include "qemu/error-report.h"

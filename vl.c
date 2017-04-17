@@ -87,6 +87,7 @@ int main(int argc, char **argv)
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "migration/block.h"
+#include "migration/misc.h"
 #include "migration/snapshot.h"
 #include "sysemu/tpm.h"
 #include "sysemu/dma.h"

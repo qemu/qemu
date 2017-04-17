@@ -20,7 +20,7 @@
 #include "rdma.h"
 #include "migration/migration.h"
 #include "qemu-file.h"
-#include "exec/cpu-common.h"
+#include "ram.h"
 #include "qemu-file-channel.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
