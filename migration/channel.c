@@ -19,9 +19,10 @@
 #include "qapi/error.h"
 #include "io/channel-tls.h"
 
-void migration_channel_process_incoming(MigrationState *s,
-                                        QIOChannel *ioc)
+void migration_channel_process_incoming(QIOChannel *ioc)
 {
+    MigrationState *s = migrate_get_current();
+
     trace_migration_set_incoming_channel(
         ioc, object_get_typename(OBJECT(ioc)));
 
