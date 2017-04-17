@@ -22,7 +22,6 @@
 #include "qapi-types.h"
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
-#include "qom/object.h"
 
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
@@ -38,9 +37,6 @@
 #define QEMU_VM_CONFIGURATION        0x07
 #define QEMU_VM_COMMAND              0x08
 #define QEMU_VM_SECTION_FOOTER       0x7e
-
-/* for vl.c */
-extern int only_migratable;
 
 struct MigrationParams {
     bool blk;
@@ -252,8 +248,6 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms);
 int ram_discard_range(const char *block_name, uint64_t start, size_t length);
 int ram_postcopy_incoming_init(MigrationIncomingState *mis);
 void ram_postcopy_migrated_memory_release(MigrationState *ms);
-
-int check_migratable(Object *obj, Error **err);
 
 bool migrate_release_ram(void);
 bool migrate_postcopy_ram(void);

@@ -1067,4 +1067,6 @@ int64_t self_announce_delay(int round)
 
 void dump_vmstate_json_to_file(FILE *out_fp);
 
+bool vmstate_check_only_migratable(const VMStateDescription *vmsd);
+
 #endif

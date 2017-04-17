@@ -1,7 +1,6 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "migration/vmstate.h"
-#include "migration/migration.h"
 
 const VMStateDescription vmstate_dummy = {};
 
@@ -21,7 +20,7 @@ void vmstate_unregister(DeviceState *dev,
 {
 }
 
-int check_migratable(Object *obj, Error **err)
+bool vmstate_check_only_migratable(const VMStateDescription *vmsd)
 {
-    return 0;
+    return true;
 }
