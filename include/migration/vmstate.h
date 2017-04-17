@@ -27,9 +27,6 @@
 #ifndef QEMU_VMSTATE_H
 #define QEMU_VMSTATE_H
 
-#ifndef CONFIG_USER_ONLY
-#include "migration/qemu-file.h"
-#endif
 #include "migration/qjson.h"
 
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
