@@ -264,18 +264,23 @@ static int colo_packet_compare_tcp(Packet *spkt, Packet *ppkt)
         res = -1;
     }
 
-    if (res != 0 && trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
-        trace_colo_compare_pkt_info_src(inet_ntoa(ppkt->ip->ip_src),
-                                        ntohl(stcp->th_seq),
-                                        ntohl(stcp->th_ack),
-                                        res, stcp->th_flags,
-                                        spkt->size);
+    if (res && trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
+        char ip_src[20], ip_dst[20];
 
-        trace_colo_compare_pkt_info_dst(inet_ntoa(ppkt->ip->ip_dst),
-                                        ntohl(ptcp->th_seq),
-                                        ntohl(ptcp->th_ack),
-                                        res, ptcp->th_flags,
-                                        ppkt->size);
+        strcpy(ip_src, inet_ntoa(ppkt->ip->ip_src));
+        strcpy(ip_dst, inet_ntoa(ppkt->ip->ip_dst));
+
+        trace_colo_compare_tcp_info(ip_src,
+                                    ip_dst,
+                                    ntohl(ptcp->th_seq),
+                                    ntohl(stcp->th_seq),
+                                    ntohl(ptcp->th_ack),
+                                    ntohl(stcp->th_ack),
+                                    res,
+                                    ptcp->th_flags,
+                                    stcp->th_flags,
+                                    ppkt->size,
+                                    spkt->size);
 
         qemu_hexdump((char *)ppkt->data, stderr,
                      "colo-compare ppkt", ppkt->size);
