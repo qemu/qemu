@@ -77,7 +77,6 @@ void qemu_remove_machine_init_done_notifier(Notifier *notify);
 
 int save_vmstate(const char *name);
 int load_vmstate(const char *name);
-void hmp_info_snapshots(Monitor *mon, const QDict *qdict);
 
 void qemu_announce_self(void);
 
