@@ -1281,6 +1281,11 @@ void hmp_loadvm(Monitor *mon, const QDict *qdict)
     }
 }
 
+void hmp_savevm(Monitor *mon, const QDict *qdict)
+{
+    save_vmstate(qdict_get_try_str(qdict, "name"));
+}
+
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
 {
     qmp_migrate_cancel(NULL);

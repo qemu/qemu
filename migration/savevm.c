@@ -2171,11 +2171,6 @@ int save_vmstate(const char *name)
     return ret;
 }
 
-void hmp_savevm(Monitor *mon, const QDict *qdict)
-{
-    save_vmstate(qdict_get_try_str(qdict, "name"));
-}
-
 void qmp_xen_save_devices_state(const char *filename, Error **errp)
 {
     QEMUFile *f;
