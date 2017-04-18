@@ -1274,17 +1274,22 @@ void hmp_loadvm(Monitor *mon, const QDict *qdict)
 {
     int saved_vm_running  = runstate_is_running();
     const char *name = qdict_get_str(qdict, "name");
+    Error *err = NULL;
 
     vm_stop(RUN_STATE_RESTORE_VM);
 
-    if (load_vmstate(name) == 0 && saved_vm_running) {
+    if (load_vmstate(name, &err) == 0 && saved_vm_running) {
         vm_start();
     }
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_savevm(Monitor *mon, const QDict *qdict)
 {
-    save_vmstate(qdict_get_try_str(qdict, "name"));
+    Error *err = NULL;
+
+    save_vmstate(qdict_get_try_str(qdict, "name"), &err);
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_delvm(Monitor *mon, const QDict *qdict)
