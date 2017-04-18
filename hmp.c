@@ -1286,6 +1286,19 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
     save_vmstate(qdict_get_try_str(qdict, "name"));
 }
 
+void hmp_delvm(Monitor *mon, const QDict *qdict)
+{
+    BlockDriverState *bs;
+    Error *err;
+    const char *name = qdict_get_str(qdict, "name");
+
+    if (bdrv_all_delete_snapshot(name, &bs, &err) < 0) {
+        error_reportf_err(err,
+                          "Error while deleting snapshot on device '%s': ",
+                          bdrv_get_device_name(bs));
+    }
+}
+
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
 {
     qmp_migrate_cancel(NULL);
