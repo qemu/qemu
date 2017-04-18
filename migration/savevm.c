@@ -2070,7 +2070,7 @@ int qemu_loadvm_state(QEMUFile *f)
     return ret;
 }
 
-int save_vmstate(Monitor *mon, const char *name)
+int save_vmstate(const char *name)
 {
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
@@ -2084,8 +2084,8 @@ int save_vmstate(Monitor *mon, const char *name)
     AioContext *aio_context;
 
     if (!bdrv_all_can_snapshot(&bs)) {
-        monitor_printf(mon, "Device '%s' is writable but does not "
-                       "support snapshots.\n", bdrv_get_device_name(bs));
+        error_report("Device '%s' is writable but does not support snapshots",
+                     bdrv_get_device_name(bs));
         return ret;
     }
 
@@ -2102,7 +2102,7 @@ int save_vmstate(Monitor *mon, const char *name)
 
     bs = bdrv_all_find_vmstate_bs();
     if (bs == NULL) {
-        monitor_printf(mon, "No block device can accept snapshots\n");
+        error_report("No block device can accept snapshots");
         return ret;
     }
     aio_context = bdrv_get_aio_context(bs);
@@ -2111,7 +2111,7 @@ int save_vmstate(Monitor *mon, const char *name)
 
     ret = global_state_store();
     if (ret) {
-        monitor_printf(mon, "Error saving global state\n");
+        error_report("Error saving global state");
         return ret;
     }
     vm_stop(RUN_STATE_SAVE_VM);
@@ -2143,7 +2143,7 @@ int save_vmstate(Monitor *mon, const char *name)
     /* save the VM state */
     f = qemu_fopen_bdrv(bs, 1);
     if (!f) {
-        monitor_printf(mon, "Could not open VM state file\n");
+        error_report("Could not open VM state file");
         goto the_end;
     }
     ret = qemu_savevm_state(f, &local_err);
@@ -2156,8 +2156,8 @@ int save_vmstate(Monitor *mon, const char *name)
 
     ret = bdrv_all_create_snapshot(sn, bs, vm_state_size, &bs);
     if (ret < 0) {
-        monitor_printf(mon, "Error while creating snapshot on '%s'\n",
-                       bdrv_get_device_name(bs));
+        error_report("Error while creating snapshot on '%s'",
+                     bdrv_get_device_name(bs));
         goto the_end;
     }
 
@@ -2173,7 +2173,7 @@ int save_vmstate(Monitor *mon, const char *name)
 
 void hmp_savevm(Monitor *mon, const QDict *qdict)
 {
-    save_vmstate(mon, qdict_get_try_str(qdict, "name"));
+    save_vmstate(qdict_get_try_str(qdict, "name"));
 }
 
 void qmp_xen_save_devices_state(const char *filename, Error **errp)
@@ -2245,7 +2245,7 @@ int load_vmstate(const char *name)
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     if (!bdrv_all_can_snapshot(&bs)) {
-        error_report("Device '%s' is writable but does not support snapshots.",
+        error_report("Device '%s' is writable but does not support snapshots",
                      bdrv_get_device_name(bs));
         return -ENOTSUP;
     }
