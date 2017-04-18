@@ -27,7 +27,14 @@ echo "QA output created by $seq"
 here="$PWD"
 status=1	# failure is the default!
 
-trap "exit \$status" 0 1 2 3 15
+_cleanup()
+{
+    _cleanup_qemu
+    _cleanup_test_img
+    rm -f "$TEST_DIR/source.$IMGFMT"
+}
+
+trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # get standard environment, filters and checks
 . ./common.rc
@@ -73,8 +80,6 @@ _send_qemu_cmd $QEMU_HANDLE \
 
 wait=1 _cleanup_qemu
 
-_cleanup_test_img
-rm -f "$TEST_DIR/source.$IMGFMT"
 
 # success, all done
 echo '*** done'
