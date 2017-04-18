@@ -134,6 +134,7 @@ static void or1200_initfn(Object *obj)
 
     set_feature(cpu, OPENRISC_FEATURE_OB32S);
     set_feature(cpu, OPENRISC_FEATURE_OF32S);
+    set_feature(cpu, OPENRISC_FEATURE_EVBAR);
 }
 
 static void openrisc_any_initfn(Object *obj)
@@ -141,6 +142,7 @@ static void openrisc_any_initfn(Object *obj)
     OpenRISCCPU *cpu = OPENRISC_CPU(obj);
 
     set_feature(cpu, OPENRISC_FEATURE_OB32S);
+    set_feature(cpu, OPENRISC_FEATURE_EVBAR);
 }
 
 typedef struct OpenRISCCPUInfo {

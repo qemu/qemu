@@ -111,6 +111,11 @@ enum {
     CPUCFGR_OF32S = (1 << 7),
     CPUCFGR_OF64S = (1 << 8),
     CPUCFGR_OV64S = (1 << 9),
+    /* CPUCFGR_ND = (1 << 10), */
+    /* CPUCFGR_AVRP = (1 << 11), */
+    CPUCFGR_EVBARP = (1 << 12),
+    /* CPUCFGR_ISRP = (1 << 13), */
+    /* CPUCFGR_AECSRP = (1 << 14), */
 };
 
 /* DMMU configure register */
@@ -200,6 +205,7 @@ enum {
     OPENRISC_FEATURE_OF32S = (1 << 7),
     OPENRISC_FEATURE_OF64S = (1 << 8),
     OPENRISC_FEATURE_OV64S = (1 << 9),
+    OPENRISC_FEATURE_EVBAR = (1 << 12),
 };
 
 /* Tick Timer Mode Register */
@@ -289,6 +295,7 @@ typedef struct CPUOpenRISCState {
     uint32_t dmmucfgr;        /* DMMU configure register */
     uint32_t immucfgr;        /* IMMU configure register */
     uint32_t esr;             /* Exception supervisor register */
+    uint32_t evbar;           /* Exception vector base address register */
     uint32_t fpcsr;           /* Float register */
     float_status fp_status;
 

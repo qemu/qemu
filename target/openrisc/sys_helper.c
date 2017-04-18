@@ -39,6 +39,10 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
         env->vr = rb;
         break;
 
+    case TO_SPR(0, 11): /* EVBAR */
+        env->evbar = rb;
+        break;
+
     case TO_SPR(0, 16): /* NPC */
         cpu_restore_state(cs, GETPC());
         /* ??? Mirror or1ksim in not trashing delayed branch state
@@ -205,6 +209,9 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
 
     case TO_SPR(0, 4): /* IMMUCFGR */
         return env->immucfgr;
+
+    case TO_SPR(0, 11): /* EVBAR */
+        return env->evbar;
 
     case TO_SPR(0, 16): /* NPC (equals PC) */
         cpu_restore_state(cs, GETPC());
