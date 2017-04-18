@@ -1817,7 +1817,7 @@ S: Supported
 F: tests/image-fuzzer/
 
 Replication
-M: Wen Congyang <wency@cn.fujitsu.com>
+M: Wen Congyang <wencongyang2@huawei.com>
 M: Changlong Xie <xiecl.fnst@cn.fujitsu.com>
 S: Supported
 F: replication*
