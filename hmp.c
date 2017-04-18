@@ -19,6 +19,7 @@
 #include "net/eth.h"
 #include "sysemu/char.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/sysemu.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/timer.h"
@@ -1266,6 +1267,18 @@ void hmp_snapshot_delete_blkdev_internal(Monitor *mon, const QDict *qdict)
     qmp_blockdev_snapshot_delete_internal_sync(device, !!id, id,
                                                true, name, &err);
     hmp_handle_error(mon, &err);
+}
+
+void hmp_loadvm(Monitor *mon, const QDict *qdict)
+{
+    int saved_vm_running  = runstate_is_running();
+    const char *name = qdict_get_str(qdict, "name");
+
+    vm_stop(RUN_STATE_RESTORE_VM);
+
+    if (load_vmstate(name) == 0 && saved_vm_running) {
+        vm_start();
+    }
 }
 
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
