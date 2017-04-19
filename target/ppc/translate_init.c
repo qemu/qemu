@@ -1640,6 +1640,14 @@ static void spr_write_booke_pid (DisasContext *ctx, int sprn, int gprn)
 }
 #endif
 
+static void gen_spr_usprg3 (CPUPPCState *env)
+{
+    spr_register(env, SPR_USPRG3, "USPRG3",
+                 &spr_read_ureg, SPR_NOACCESS,
+                 &spr_read_ureg, SPR_NOACCESS,
+                 0x00000000);
+}
+
 static void gen_spr_usprgh (CPUPPCState *env)
 {
     spr_register(env, SPR_USPRG4, "USPRG4",
@@ -4914,6 +4922,7 @@ static void init_proc_e500 (CPUPPCState *env, int version)
             break;
     }
     gen_spr_BookE(env, ivor_mask);
+    gen_spr_usprg3(env);
     /* Processor identification */
     spr_register(env, SPR_BOOKE_PIR, "PIR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -8245,6 +8254,7 @@ static void init_proc_book3s_common(CPUPPCState *env)
 {
     gen_spr_ne_601(env);
     gen_tbl(env);
+    gen_spr_usprg3(env);
     gen_spr_book3s_altivec(env);
     gen_spr_book3s_pmu_sup(env);
     gen_spr_book3s_pmu_user(env);
