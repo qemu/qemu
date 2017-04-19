@@ -98,7 +98,7 @@ static GSourceFuncs io_watch_poll_funcs = {
     .finalize = io_watch_poll_finalize,
 };
 
-guint io_add_watch_poll(Chardev *chr,
+GSource *io_add_watch_poll(Chardev *chr,
                         QIOChannel *ioc,
                         IOCanReadHandler *fd_can_read,
                         QIOChannelFunc fd_read,
@@ -106,7 +106,6 @@ guint io_add_watch_poll(Chardev *chr,
                         GMainContext *context)
 {
     IOWatchPoll *iwp;
-    int tag;
     char *name;
 
     iwp = (IOWatchPoll *) g_source_new(&io_watch_poll_funcs,
@@ -122,20 +121,14 @@ guint io_add_watch_poll(Chardev *chr,
     g_source_set_name((GSource *)iwp, name);
     g_free(name);
 
-    tag = g_source_attach(&iwp->parent, context);
+    g_source_attach(&iwp->parent, context);
     g_source_unref(&iwp->parent);
-    return tag;
+    return (GSource *)iwp;
 }
 
-static void io_remove_watch_poll(guint tag, GMainContext *context)
+static void io_remove_watch_poll(GSource *source)
 {
-    GSource *source;
     IOWatchPoll *iwp;
-
-    g_return_if_fail(tag > 0);
-
-    source = g_main_context_find_source_by_id(context, tag);
-    g_return_if_fail(source != NULL);
 
     iwp = io_watch_poll_from_source(source);
     if (iwp->src) {
@@ -146,11 +139,11 @@ static void io_remove_watch_poll(guint tag, GMainContext *context)
     g_source_destroy(&iwp->parent);
 }
 
-void remove_fd_in_watch(Chardev *chr, GMainContext *context)
+void remove_fd_in_watch(Chardev *chr)
 {
-    if (chr->fd_in_tag) {
-        io_remove_watch_poll(chr->fd_in_tag, context);
-        chr->fd_in_tag = 0;
+    if (chr->gsource) {
+        io_remove_watch_poll(chr->gsource);
+        chr->gsource = NULL;
     }
 }
 

@@ -199,7 +199,7 @@ static void pty_chr_state(Chardev *chr, int connected)
             g_source_remove(s->open_tag);
             s->open_tag = 0;
         }
-        remove_fd_in_watch(chr, NULL);
+        remove_fd_in_watch(chr);
         s->connected = 0;
         /* (re-)connect poll interval for idle guests: once per second.
          * We check more frequently in case the guests sends data to
@@ -215,8 +215,8 @@ static void pty_chr_state(Chardev *chr, int connected)
             s->connected = 1;
             s->open_tag = g_idle_add(qemu_chr_be_generic_open_func, chr);
         }
-        if (!chr->fd_in_tag) {
-            chr->fd_in_tag = io_add_watch_poll(chr, s->ioc,
+        if (!chr->gsource) {
+            chr->gsource = io_add_watch_poll(chr, s->ioc,
                                                pty_chr_read_poll,
                                                pty_chr_read,
                                                chr, NULL);
