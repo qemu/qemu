@@ -1076,3 +1076,28 @@
 ##
 { 'command': 'guest-get-host-name',
   'returns': 'GuestHostName' }
+
+
+##
+# @GuestUser:
+# @user:       Username
+# @domain:     Logon domain (windows only)
+# @login-time: Time of login of this user on the computer. If multiple
+#              instances of the user are logged in, the earliest login time is
+#              reported. The value is in fractional seconds since epoch time.
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestUser',
+  'data': { 'user': 'str', 'login-time': 'number', '*domain': 'str' } }
+
+##
+# @guest-get-users:
+# Retrieves a list of currently active users on the VM.
+#
+# Returns: A unique list of users.
+#
+# Since: 2.10
+##
+{ 'command': 'guest-get-users',
+  'returns': ['GuestUser'] }

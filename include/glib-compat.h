@@ -217,6 +217,12 @@ static inline void g_hash_table_add(GHashTable *hash_table, gpointer key)
 {
     g_hash_table_replace(hash_table, key, key);
 }
+
+static inline gboolean g_hash_table_contains(GHashTable *hash_table,
+                                             gpointer key)
+{
+    return g_hash_table_lookup_extended(hash_table, key, NULL, NULL);
+}
 #endif
 
 #ifndef g_assert_true
