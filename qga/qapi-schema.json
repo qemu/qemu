@@ -1101,3 +1101,28 @@
 ##
 { 'command': 'guest-get-users',
   'returns': ['GuestUser'] }
+
+##
+# @GuestTimezone:
+#
+# @zone:    Timezone name. These values may differ depending on guest/OS and
+#           should only be used for informational purposes.
+# @offset:  Offset to UTC in seconds, negative numbers for time zones west of
+#           GMT, positive numbers for east
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestTimezone',
+  'data':   { '*zone': 'str', 'offset': 'int' } }
+
+##
+# @guest-get-timezone:
+#
+# Retrieves the timezone information from the guest.
+#
+# Returns: A GuestTimezone dictionary.
+#
+# Since: 2.10
+##
+{ 'command': 'guest-get-timezone',
+  'returns': 'GuestTimezone' }
