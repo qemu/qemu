@@ -296,6 +296,30 @@ static void gen_step_complete_exception(DisasContext *s)
     s->is_jmp = DISAS_EXC;
 }
 
+static void gen_singlestep_exception(DisasContext *s)
+{
+    /* Generate the right kind of exception for singlestep, which is
+     * either the architectural singlestep or EXCP_DEBUG for QEMU's
+     * gdb singlestepping.
+     */
+    if (s->ss_active) {
+        gen_step_complete_exception(s);
+    } else {
+        gen_exception_internal(EXCP_DEBUG);
+    }
+}
+
+static inline bool is_singlestepping(DisasContext *s)
+{
+    /* Return true if we are singlestepping either because of
+     * architectural singlestep or QEMU gdbstub singlestep. This does
+     * not include the command line '-singlestep' mode which is rather
+     * misnamed as it only means "one instruction per TB" and doesn't
+     * affect the code we generate.
+     */
+    return s->singlestep_enabled || s->ss_active;
+}
+
 static void gen_smul_dual(TCGv_i32 a, TCGv_i32 b)
 {
     TCGv_i32 tmp1 = tcg_temp_new_i32();
@@ -880,6 +904,21 @@ static const uint8_t table_logic_cc[16] = {
     1, /* mvn */
 };
 
+static inline void gen_set_condexec(DisasContext *s)
+{
+    if (s->condexec_mask) {
+        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        tcg_gen_movi_i32(tmp, val);
+        store_cpu_field(tmp, condexec_bits);
+    }
+}
+
+static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
+{
+    tcg_gen_movi_i32(cpu_R[15], val);
+}
+
 /* Set PC and Thumb state from an immediate address.  */
 static inline void gen_bx_im(DisasContext *s, uint32_t addr)
 {
@@ -904,6 +943,51 @@ static inline void gen_bx(DisasContext *s, TCGv_i32 var)
     store_cpu_field(var, thumb);
 }
 
+/* Set PC and Thumb state from var. var is marked as dead.
+ * For M-profile CPUs, include logic to detect exception-return
+ * branches and handle them. This is needed for Thumb POP/LDM to PC, LDR to PC,
+ * and BX reg, and no others, and happens only for code in Handler mode.
+ */
+static inline void gen_bx_excret(DisasContext *s, TCGv_i32 var)
+{
+    /* Generate the same code here as for a simple bx, but flag via
+     * s->is_jmp that we need to do the rest of the work later.
+     */
+    gen_bx(s, var);
+    if (s->v7m_handler_mode && arm_dc_feature(s, ARM_FEATURE_M)) {
+        s->is_jmp = DISAS_BX_EXCRET;
+    }
+}
+
+static inline void gen_bx_excret_final_code(DisasContext *s)
+{
+    /* Generate the code to finish possible exception return and end the TB */
+    TCGLabel *excret_label = gen_new_label();
+
+    /* Is the new PC value in the magic range indicating exception return? */
+    tcg_gen_brcondi_i32(TCG_COND_GEU, cpu_R[15], 0xff000000, excret_label);
+    /* No: end the TB as we would for a DISAS_JMP */
+    if (is_singlestepping(s)) {
+        gen_singlestep_exception(s);
+    } else {
+        tcg_gen_exit_tb(0);
+    }
+    gen_set_label(excret_label);
+    /* Yes: this is an exception return.
+     * At this point in runtime env->regs[15] and env->thumb will hold
+     * the exception-return magic number, which do_v7m_exception_exit()
+     * will read. Nothing else will be able to see those values because
+     * the cpu-exec main loop guarantees that we will always go straight
+     * from raising the exception to the exception-handling code.
+     *
+     * gen_ss_advance(s) does nothing on M profile currently but
+     * calling it is conceptually the right thing as we have executed
+     * this instruction (compare SWI, HVC, SMC handling).
+     */
+    gen_ss_advance(s);
+    gen_exception_internal(EXCP_EXCEPTION_EXIT);
+}
+
 /* Variant of store_reg which uses branch&exchange logic when storing
    to r15 in ARM architecture v7 and above. The source must be a temporary
    and will be marked as dead. */
@@ -923,7 +1007,7 @@ static inline void store_reg_bx(DisasContext *s, int reg, TCGv_i32 var)
 static inline void store_reg_from_load(DisasContext *s, int reg, TCGv_i32 var)
 {
     if (reg == 15 && ENABLE_ARCH_5) {
-        gen_bx(s, var);
+        gen_bx_excret(s, var);
     } else {
         store_reg(s, reg, var);
     }
@@ -1056,11 +1140,6 @@ DO_GEN_ST(8, MO_UB)
 DO_GEN_ST(16, MO_UW)
 DO_GEN_ST(32, MO_UL)
 
-static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
-{
-    tcg_gen_movi_i32(cpu_R[15], val);
-}
-
 static inline void gen_hvc(DisasContext *s, int imm16)
 {
     /* The pre HVC helper handles cases when HVC gets trapped
@@ -1092,17 +1171,6 @@ static inline void gen_smc(DisasContext *s)
     tcg_temp_free_i32(tmp);
     gen_set_pc_im(s, s->pc);
     s->is_jmp = DISAS_SMC;
-}
-
-static inline void
-gen_set_condexec (DisasContext *s)
-{
-    if (s->condexec_mask) {
-        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
-        TCGv_i32 tmp = tcg_temp_new_i32();
-        tcg_gen_movi_i32(tmp, val);
-        store_cpu_field(tmp, condexec_bits);
-    }
 }
 
 static void gen_exception_internal_insn(DisasContext *s, int offset, int excp)
@@ -4092,7 +4160,7 @@ static inline void gen_goto_tb(DisasContext *s, int n, target_ulong dest)
 
 static inline void gen_jmp (DisasContext *s, uint32_t dest)
 {
-    if (unlikely(s->singlestep_enabled || s->ss_active)) {
+    if (unlikely(is_singlestepping(s))) {
         /* An indirect jump so that we still trigger the debug exception.  */
         if (s->thumb)
             dest |= 1;
@@ -9858,7 +9926,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         tmp = tcg_temp_new_i32();
                         gen_aa32_ld32u(s, tmp, addr, get_mem_index(s));
                         if (i == 15) {
-                            gen_bx(s, tmp);
+                            gen_bx_excret(s, tmp);
                         } else if (i == rn) {
                             loaded_var = tmp;
                             loaded_base = 1;
@@ -9959,7 +10027,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             gen_arm_shift_reg(tmp, op, tmp2, logic_cc);
             if (logic_cc)
                 gen_logic_CC(tmp);
-            store_reg_bx(s, rd, tmp);
+            store_reg(s, rd, tmp);
             break;
         case 1: /* Sign/zero extend.  */
             op = (insn >> 20) & 7;
@@ -10485,7 +10553,12 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         }
                         break;
                     case 4: /* bxj */
-                        /* Trivial implementation equivalent to bx.  */
+                        /* Trivial implementation equivalent to bx.
+                         * This instruction doesn't exist at all for M-profile.
+                         */
+                        if (arm_dc_feature(s, ARM_FEATURE_M)) {
+                            goto illegal_op;
+                        }
                         tmp = load_reg(s, rn);
                         gen_bx(s, tmp);
                         break;
@@ -10885,7 +10958,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 goto illegal_op;
             }
             if (rs == 15) {
-                gen_bx(s, tmp);
+                gen_bx_excret(s, tmp);
             } else {
                 store_reg(s, rs, tmp);
             }
@@ -11075,9 +11148,11 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                     tmp2 = tcg_temp_new_i32();
                     tcg_gen_movi_i32(tmp2, val);
                     store_reg(s, 14, tmp2);
+                    gen_bx(s, tmp);
+                } else {
+                    /* Only BX works as exception-return, not BLX */
+                    gen_bx_excret(s, tmp);
                 }
-                /* already thumb, no need to check */
-                gen_bx(s, tmp);
                 break;
             }
             break;
@@ -11752,6 +11827,7 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
     dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
     dc->c15_cpar = ARM_TBFLAG_XSCALE_CPAR(tb->flags);
+    dc->v7m_handler_mode = ARM_TBFLAG_HANDLER(tb->flags);
     dc->cp_regs = cpu->cp_regs;
     dc->features = env->features;
 
@@ -11851,14 +11927,6 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             dc->is_jmp = DISAS_EXC;
             break;
         }
-#else
-        if (arm_dc_feature(dc, ARM_FEATURE_M)) {
-            /* Branches to the magic exception-return addresses should
-             * already have been caught via the arm_v7m_unassigned_access hook,
-             * and never get here.
-             */
-            assert(dc->pc < 0xfffffff0);
-        }
 #endif
 
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
@@ -11953,9 +12021,8 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             ((dc->pc >= next_page_start - 3) && insn_crosses_page(env, dc));
 
     } while (!dc->is_jmp && !tcg_op_buf_full() &&
-             !cs->singlestep_enabled &&
+             !is_singlestepping(dc) &&
              !singlestep &&
-             !dc->ss_active &&
              !end_of_page &&
              num_insns < max_insns);
 
@@ -11971,9 +12038,16 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
     /* At this stage dc->condjmp will only be set when the skipped
        instruction was a conditional branch or trap, and the PC has
        already been written.  */
-    if (unlikely(cs->singlestep_enabled || dc->ss_active)) {
+    gen_set_condexec(dc);
+    if (dc->is_jmp == DISAS_BX_EXCRET) {
+        /* Exception return branches need some special case code at the
+         * end of the TB, which is complex enough that it has to
+         * handle the single-step vs not and the condition-failed
+         * insn codepath itself.
+         */
+        gen_bx_excret_final_code(dc);
+    } else if (unlikely(is_singlestepping(dc))) {
         /* Unconditional and "condition passed" instruction codepath. */
-        gen_set_condexec(dc);
         switch (dc->is_jmp) {
         case DISAS_SWI:
             gen_ss_advance(dc);
@@ -11993,24 +12067,8 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             gen_set_pc_im(dc, dc->pc);
             /* fall through */
         default:
-            if (dc->ss_active) {
-                gen_step_complete_exception(dc);
-            } else {
-                /* FIXME: Single stepping a WFI insn will not halt
-                   the CPU.  */
-                gen_exception_internal(EXCP_DEBUG);
-            }
-        }
-        if (dc->condjmp) {
-            /* "Condition failed" instruction codepath. */
-            gen_set_label(dc->condlabel);
-            gen_set_condexec(dc);
-            gen_set_pc_im(dc, dc->pc);
-            if (dc->ss_active) {
-                gen_step_complete_exception(dc);
-            } else {
-                gen_exception_internal(EXCP_DEBUG);
-            }
+            /* FIXME: Single stepping a WFI insn will not halt the CPU. */
+            gen_singlestep_exception(dc);
         }
     } else {
         /* While branches must always occur at the end of an IT block,
@@ -12021,7 +12079,6 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             - Hardware watchpoints.
            Hardware breakpoints have already been handled and skip this code.
          */
-        gen_set_condexec(dc);
         switch(dc->is_jmp) {
         case DISAS_NEXT:
             gen_goto_tb(dc, 1, dc->pc);
@@ -12061,11 +12118,17 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             gen_exception(EXCP_SMC, syn_aa32_smc(), 3);
             break;
         }
-        if (dc->condjmp) {
-            gen_set_label(dc->condlabel);
-            gen_set_condexec(dc);
+    }
+
+    if (dc->condjmp) {
+        /* "Condition failed" instruction codepath for the branch/trap insn */
+        gen_set_label(dc->condlabel);
+        gen_set_condexec(dc);
+        if (unlikely(is_singlestepping(dc))) {
+            gen_set_pc_im(dc, dc->pc);
+            gen_singlestep_exception(dc);
+        } else {
             gen_goto_tb(dc, 1, dc->pc);
-            dc->condjmp = 0;
         }
     }
 

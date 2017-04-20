@@ -31,6 +31,7 @@ typedef struct DisasContext {
     bool vfp_enabled; /* FP enabled via FPSCR.EN */
     int vec_len;
     int vec_stride;
+    bool v7m_handler_mode;
     /* Immediate value in AArch32 SVC insn; must be set if is_jmp == DISAS_SWI
      * so that top level loop can generate correct syndrome information.
      */
@@ -134,6 +135,10 @@ static void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
 #define DISAS_HVC 8
 #define DISAS_SMC 9
 #define DISAS_YIELD 10
+/* M profile branch which might be an exception return (and so needs
+ * custom end-of-TB code)
+ */
+#define DISAS_BX_EXCRET 11
 
 #ifdef TARGET_AARCH64
 void a64_translate_init(void);
