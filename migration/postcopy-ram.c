@@ -21,7 +21,7 @@
 #include "qemu-common.h"
 #include "exec/target_page.h"
 #include "migration/migration.h"
-#include "migration/qemu-file.h"
+#include "qemu-file.h"
 #include "savevm.h"
 #include "postcopy-ram.h"
 #include "sysemu/sysemu.h"

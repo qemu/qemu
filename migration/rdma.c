@@ -18,7 +18,7 @@
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "migration/migration.h"
-#include "migration/qemu-file.h"
+#include "qemu-file.h"
 #include "exec/cpu-common.h"
 #include "qemu-file-channel.h"
 #include "qemu/error-report.h"

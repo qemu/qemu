@@ -24,7 +24,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu-file-channel.h"
-#include "migration/qemu-file.h"
+#include "exec/cpu-common.h"
+#include "qemu-file.h"
 #include "io/channel-socket.h"
 #include "qemu/iov.h"
 

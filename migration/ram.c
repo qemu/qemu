@@ -37,7 +37,7 @@
 #include "qemu/main-loop.h"
 #include "xbzrle.h"
 #include "migration/migration.h"
-#include "migration/qemu-file.h"
+#include "qemu-file.h"
 #include "migration/vmstate.h"
 #include "postcopy-ram.h"
 #include "exec/address-spaces.h"

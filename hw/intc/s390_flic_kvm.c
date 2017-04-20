@@ -17,7 +17,6 @@
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
-#include "migration/qemu-file.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/adapter.h"
 #include "trace.h"

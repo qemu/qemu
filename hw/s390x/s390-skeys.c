@@ -12,7 +12,6 @@
 #include "qemu/osdep.h"
 #include "hw/boards.h"
 #include "qmp-commands.h"
-#include "migration/qemu-file.h"
 #include "hw/s390x/storage-keys.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"

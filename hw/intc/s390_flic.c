@@ -13,7 +13,6 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"
-#include "migration/qemu-file.h"
 #include "hw/s390x/s390_flic.h"
 #include "trace.h"
 #include "hw/qdev.h"
