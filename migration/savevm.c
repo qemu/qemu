@@ -36,6 +36,7 @@
 #include "qemu/timer.h"
 #include "migration/migration.h"
 #include "qemu-file-channel.h"
+#include "savevm.h"
 #include "postcopy-ram.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
@@ -63,6 +64,26 @@ const unsigned int postcopy_ram_discard_version = 0;
 
 static bool skip_section_footers;
 
+/* Subcommands for QEMU_VM_COMMAND */
+enum qemu_vm_cmd {
+    MIG_CMD_INVALID = 0,   /* Must be 0 */
+    MIG_CMD_OPEN_RETURN_PATH,  /* Tell the dest to open the Return path */
+    MIG_CMD_PING,              /* Request a PONG on the RP */
+
+    MIG_CMD_POSTCOPY_ADVISE,       /* Prior to any page transfers, just
+                                      warn we might want to do PC */
+    MIG_CMD_POSTCOPY_LISTEN,       /* Start listening for incoming
+                                      pages as it's running. */
+    MIG_CMD_POSTCOPY_RUN,          /* Start execution */
+
+    MIG_CMD_POSTCOPY_RAM_DISCARD,  /* A list of pages to discard that
+                                      were previously sent during
+                                      precopy but are dirty. */
+    MIG_CMD_PACKAGED,          /* Send a wrapped stream within this stream */
+    MIG_CMD_MAX
+};
+
+#define MAX_VM_CMD_PACKAGED_SIZE (1ul << 24)
 static struct mig_cmd_args {
     ssize_t     len; /* -1 = variable */
     const char *name;
@@ -807,10 +828,10 @@ static void save_section_footer(QEMUFile *f, SaveStateEntry *se)
  * @len: Length of associated data
  * @data: Data associated with command.
  */
-void qemu_savevm_command_send(QEMUFile *f,
-                              enum qemu_vm_cmd command,
-                              uint16_t len,
-                              uint8_t *data)
+static void qemu_savevm_command_send(QEMUFile *f,
+                                     enum qemu_vm_cmd command,
+                                     uint16_t len,
+                                     uint8_t *data)
 {
     trace_savevm_command_send(command, len);
     qemu_put_byte(f, QEMU_VM_COMMAND);

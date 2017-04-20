@@ -19,6 +19,7 @@
 #include "qemu/main-loop.h"
 #include "migration/blocker.h"
 #include "migration/migration.h"
+#include "savevm.h"
 #include "qemu-file-channel.h"
 #include "migration/qemu-file.h"
 #include "migration/vmstate.h"
