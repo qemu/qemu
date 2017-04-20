@@ -26,7 +26,7 @@
 #include "qemu/sockets.h"
 #include "qemu/rcu.h"
 #include "migration/block.h"
-#include "migration/postcopy-ram.h"
+#include "postcopy-ram.h"
 #include "qemu/thread.h"
 #include "qmp-commands.h"
 #include "trace.h"

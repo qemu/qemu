@@ -36,7 +36,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "migration/migration.h"
-#include "migration/postcopy-ram.h"
+#include "postcopy-ram.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"

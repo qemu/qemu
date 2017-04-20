@@ -20,7 +20,7 @@
 
 #include "qemu-common.h"
 #include "migration/migration.h"
-#include "migration/postcopy-ram.h"
+#include "postcopy-ram.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/balloon.h"
 #include "qemu/error-report.h"
