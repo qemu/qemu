@@ -481,14 +481,17 @@ static int gem_can_receive(NetClientState *nc)
     }
 
     for (i = 0; i < s->num_priority_queues; i++) {
-        if (rx_desc_get_ownership(s->rx_desc[i]) == 1) {
-            if (s->can_rx_state != 2) {
-                s->can_rx_state = 2;
-                DB_PRINT("can't receive - busy buffer descriptor (q%d) 0x%x\n",
-                         i, s->rx_desc_addr[i]);
-             }
-            return 0;
+        if (rx_desc_get_ownership(s->rx_desc[i]) != 1) {
+            break;
         }
+    };
+
+    if (i == s->num_priority_queues) {
+        if (s->can_rx_state != 2) {
+            s->can_rx_state = 2;
+            DB_PRINT("can't receive - all the buffer descriptors are busy\n");
+        }
+        return 0;
     }
 
     if (s->can_rx_state != 0) {
