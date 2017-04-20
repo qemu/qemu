@@ -940,7 +940,7 @@ bool kvm_arm_handle_debug(CPUState *cs, struct kvm_debug_exit_arch *debug_exit)
              * single step at this point so something has gone wrong.
              */
             error_report("%s: guest single-step while debugging unsupported"
-                         " (%"PRIx64", %"PRIx32")\n",
+                         " (%"PRIx64", %"PRIx32")",
                          __func__, env->pc, debug_exit->hsr);
             return false;
         }
@@ -965,7 +965,7 @@ bool kvm_arm_handle_debug(CPUState *cs, struct kvm_debug_exit_arch *debug_exit)
         break;
     }
     default:
-        error_report("%s: unhandled debug exit (%"PRIx32", %"PRIx64")\n",
+        error_report("%s: unhandled debug exit (%"PRIx32", %"PRIx64")",
                      __func__, debug_exit->hsr, env->pc);
     }
 
