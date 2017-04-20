@@ -893,6 +893,21 @@ static const uint8_t table_logic_cc[16] = {
     1, /* mvn */
 };
 
+static inline void gen_set_condexec(DisasContext *s)
+{
+    if (s->condexec_mask) {
+        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        tcg_gen_movi_i32(tmp, val);
+        store_cpu_field(tmp, condexec_bits);
+    }
+}
+
+static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
+{
+    tcg_gen_movi_i32(cpu_R[15], val);
+}
+
 /* Set PC and Thumb state from an immediate address.  */
 static inline void gen_bx_im(DisasContext *s, uint32_t addr)
 {
@@ -1069,11 +1084,6 @@ DO_GEN_ST(8, MO_UB)
 DO_GEN_ST(16, MO_UW)
 DO_GEN_ST(32, MO_UL)
 
-static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
-{
-    tcg_gen_movi_i32(cpu_R[15], val);
-}
-
 static inline void gen_hvc(DisasContext *s, int imm16)
 {
     /* The pre HVC helper handles cases when HVC gets trapped
@@ -1105,17 +1115,6 @@ static inline void gen_smc(DisasContext *s)
     tcg_temp_free_i32(tmp);
     gen_set_pc_im(s, s->pc);
     s->is_jmp = DISAS_SMC;
-}
-
-static inline void
-gen_set_condexec (DisasContext *s)
-{
-    if (s->condexec_mask) {
-        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
-        TCGv_i32 tmp = tcg_temp_new_i32();
-        tcg_gen_movi_i32(tmp, val);
-        store_cpu_field(tmp, condexec_bits);
-    }
 }
 
 static void gen_exception_internal_insn(DisasContext *s, int offset, int excp)
