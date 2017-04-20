@@ -11988,9 +11988,9 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
     /* At this stage dc->condjmp will only be set when the skipped
        instruction was a conditional branch or trap, and the PC has
        already been written.  */
+    gen_set_condexec(dc);
     if (unlikely(cs->singlestep_enabled || dc->ss_active)) {
         /* Unconditional and "condition passed" instruction codepath. */
-        gen_set_condexec(dc);
         switch (dc->is_jmp) {
         case DISAS_SWI:
             gen_ss_advance(dc);
@@ -12013,13 +12013,6 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             /* FIXME: Single stepping a WFI insn will not halt the CPU. */
             gen_singlestep_exception(dc);
         }
-        if (dc->condjmp) {
-            /* "Condition failed" instruction codepath. */
-            gen_set_label(dc->condlabel);
-            gen_set_condexec(dc);
-            gen_set_pc_im(dc, dc->pc);
-            gen_singlestep_exception(dc);
-        }
     } else {
         /* While branches must always occur at the end of an IT block,
            there are a few other things that can cause us to terminate
@@ -12029,7 +12022,6 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             - Hardware watchpoints.
            Hardware breakpoints have already been handled and skip this code.
          */
-        gen_set_condexec(dc);
         switch(dc->is_jmp) {
         case DISAS_NEXT:
             gen_goto_tb(dc, 1, dc->pc);
@@ -12069,11 +12061,17 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             gen_exception(EXCP_SMC, syn_aa32_smc(), 3);
             break;
         }
-        if (dc->condjmp) {
-            gen_set_label(dc->condlabel);
-            gen_set_condexec(dc);
+    }
+
+    if (dc->condjmp) {
+        /* "Condition failed" instruction codepath for the branch/trap insn */
+        gen_set_label(dc->condlabel);
+        gen_set_condexec(dc);
+        if (unlikely(cs->singlestep_enabled || dc->ss_active)) {
+            gen_set_pc_im(dc, dc->pc);
+            gen_singlestep_exception(dc);
+        } else {
             gen_goto_tb(dc, 1, dc->pc);
-            dc->condjmp = 0;
         }
     }
 
