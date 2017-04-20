@@ -70,6 +70,8 @@ static const char * const excnames[] = {
     [EXCP_VIRQ] = "Virtual IRQ",
     [EXCP_VFIQ] = "Virtual FIQ",
     [EXCP_SEMIHOST] = "Semihosting call",
+    [EXCP_NOCP] = "v7M NOCP UsageFault",
+    [EXCP_INVSTATE] = "v7M INVSTATE UsageFault",
 };
 
 /* Scale factor for generic timers, ie number of ns per tick.
