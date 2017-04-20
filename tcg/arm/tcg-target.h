@@ -130,14 +130,7 @@ enum {
 
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
-#if QEMU_GNUC_PREREQ(4, 1)
     __builtin___clear_cache((char *) start, (char *) stop);
-#else
-    register uintptr_t _beg __asm("a1") = start;
-    register uintptr_t _end __asm("a2") = stop;
-    register uintptr_t _flg __asm("a3") = 0;
-    __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
-#endif
 }
 
 #endif

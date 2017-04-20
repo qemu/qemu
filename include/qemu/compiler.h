@@ -24,17 +24,9 @@
 
 #define QEMU_NORETURN __attribute__ ((__noreturn__))
 
-#if QEMU_GNUC_PREREQ(3, 4)
 #define QEMU_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-#else
-#define QEMU_WARN_UNUSED_RESULT
-#endif
 
-#if QEMU_GNUC_PREREQ(4, 0)
 #define QEMU_SENTINEL __attribute__((sentinel))
-#else
-#define QEMU_SENTINEL
-#endif
 
 #if QEMU_GNUC_PREREQ(4, 3)
 #define QEMU_ARTIFICIAL __attribute__((always_inline, artificial))

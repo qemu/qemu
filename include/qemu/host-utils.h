@@ -115,37 +115,7 @@ static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
  */
 static inline int clz32(uint32_t val)
 {
-#if QEMU_GNUC_PREREQ(3, 4)
     return val ? __builtin_clz(val) : 32;
-#else
-    /* Binary search for the leading one bit.  */
-    int cnt = 0;
-
-    if (!(val & 0xFFFF0000U)) {
-        cnt += 16;
-        val <<= 16;
-    }
-    if (!(val & 0xFF000000U)) {
-        cnt += 8;
-        val <<= 8;
-    }
-    if (!(val & 0xF0000000U)) {
-        cnt += 4;
-        val <<= 4;
-    }
-    if (!(val & 0xC0000000U)) {
-        cnt += 2;
-        val <<= 2;
-    }
-    if (!(val & 0x80000000U)) {
-        cnt++;
-        val <<= 1;
-    }
-    if (!(val & 0x80000000U)) {
-        cnt++;
-    }
-    return cnt;
-#endif
 }
 
 /**
@@ -168,19 +138,7 @@ static inline int clo32(uint32_t val)
  */
 static inline int clz64(uint64_t val)
 {
-#if QEMU_GNUC_PREREQ(3, 4)
     return val ? __builtin_clzll(val) : 64;
-#else
-    int cnt = 0;
-
-    if (!(val >> 32)) {
-        cnt += 32;
-    } else {
-        val >>= 32;
-    }
-
-    return cnt + clz32(val);
-#endif
 }
 
 /**
@@ -203,39 +161,7 @@ static inline int clo64(uint64_t val)
  */
 static inline int ctz32(uint32_t val)
 {
-#if QEMU_GNUC_PREREQ(3, 4)
     return val ? __builtin_ctz(val) : 32;
-#else
-    /* Binary search for the trailing one bit.  */
-    int cnt;
-
-    cnt = 0;
-    if (!(val & 0x0000FFFFUL)) {
-        cnt += 16;
-        val >>= 16;
-    }
-    if (!(val & 0x000000FFUL)) {
-        cnt += 8;
-        val >>= 8;
-    }
-    if (!(val & 0x0000000FUL)) {
-        cnt += 4;
-        val >>= 4;
-    }
-    if (!(val & 0x00000003UL)) {
-        cnt += 2;
-        val >>= 2;
-    }
-    if (!(val & 0x00000001UL)) {
-        cnt++;
-        val >>= 1;
-    }
-    if (!(val & 0x00000001UL)) {
-        cnt++;
-    }
-
-    return cnt;
-#endif
 }
 
 /**
@@ -258,19 +184,7 @@ static inline int cto32(uint32_t val)
  */
 static inline int ctz64(uint64_t val)
 {
-#if QEMU_GNUC_PREREQ(3, 4)
     return val ? __builtin_ctzll(val) : 64;
-#else
-    int cnt;
-
-    cnt = 0;
-    if (!((uint32_t)val)) {
-        cnt += 32;
-        val >>= 32;
-    }
-
-    return cnt + ctz32(val);
-#endif
 }
 
 /**
@@ -322,15 +236,7 @@ static inline int clrsb64(uint64_t val)
  */
 static inline int ctpop8(uint8_t val)
 {
-#if QEMU_GNUC_PREREQ(3, 4)
     return __builtin_popcount(val);
-#else
-    val = (val & 0x55) + ((val >> 1) & 0x55);
-    val = (val & 0x33) + ((val >> 2) & 0x33);
-    val = (val + (val >> 4)) & 0x0f;
-
-    return val;
-#endif
 }
 
 /**
@@ -339,16 +245,7 @@ static inline int ctpop8(uint8_t val)
  */
 static inline int ctpop16(uint16_t val)
 {
-#if QEMU_GNUC_PREREQ(3, 4)
     return __builtin_popcount(val);
-#else
-    val = (val & 0x5555) + ((val >> 1) & 0x5555);
-    val = (val & 0x3333) + ((val >> 2) & 0x3333);
-    val = (val + (val >> 4)) & 0x0f0f;
-    val = (val + (val >> 8)) & 0x00ff;
-
-    return val;
-#endif
 }
 
 /**
@@ -357,16 +254,7 @@ static inline int ctpop16(uint16_t val)
  */
 static inline int ctpop32(uint32_t val)
 {
-#if QEMU_GNUC_PREREQ(3, 4)
     return __builtin_popcount(val);
-#else
-    val = (val & 0x55555555) + ((val >> 1) & 0x55555555);
-    val = (val & 0x33333333) + ((val >> 2) & 0x33333333);
-    val = (val + (val >> 4)) & 0x0f0f0f0f;
-    val = (val * 0x01010101) >> 24;
-
-    return val;
-#endif
 }
 
 /**
@@ -375,16 +263,7 @@ static inline int ctpop32(uint32_t val)
  */
 static inline int ctpop64(uint64_t val)
 {
-#if QEMU_GNUC_PREREQ(3, 4)
     return __builtin_popcountll(val);
-#else
-    val = (val & 0x5555555555555555ULL) + ((val >> 1) & 0x5555555555555555ULL);
-    val = (val & 0x3333333333333333ULL) + ((val >> 2) & 0x3333333333333333ULL);
-    val = (val + (val >> 4)) & 0x0f0f0f0f0f0f0f0fULL;
-    val = (val * 0x0101010101010101ULL) >> 56;
-
-    return val;
-#endif
 }
 
 /**
