@@ -509,7 +509,18 @@ static void gem_update_int_status(CadenceGEMState *s)
 {
     int i;
 
-    if ((s->num_priority_queues == 1) && s->regs[GEM_ISR]) {
+    if (!s->regs[GEM_ISR]) {
+        /* ISR isn't set, clear all the interrupts */
+        for (i = 0; i < s->num_priority_queues; ++i) {
+            qemu_set_irq(s->irq[i], 0);
+        }
+        return;
+    }
+
+    /* If we get here we know s->regs[GEM_ISR] is set, so we don't need to
+     * check it again.
+     */
+    if (s->num_priority_queues == 1) {
         /* No priority queues, just trigger the interrupt */
         DB_PRINT("asserting int.\n");
         qemu_set_irq(s->irq[0], 1);
@@ -1274,7 +1285,6 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
 {
     CadenceGEMState *s;
     uint32_t retval;
-    int i;
     s = (CadenceGEMState *)opaque;
 
     offset >>= 2;
@@ -1285,9 +1295,7 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
     switch (offset) {
     case GEM_ISR:
         DB_PRINT("lowering irqs on ISR read\n");
-        for (i = 0; i < s->num_priority_queues; ++i) {
-            qemu_set_irq(s->irq[i], 0);
-        }
+        /* The interrupts get updated at the end of the function. */
         break;
     case GEM_PHYMNTNC:
         if (retval & GEM_PHYMNTNC_OP_R) {
