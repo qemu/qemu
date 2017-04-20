@@ -296,6 +296,19 @@ static void gen_step_complete_exception(DisasContext *s)
     s->is_jmp = DISAS_EXC;
 }
 
+static void gen_singlestep_exception(DisasContext *s)
+{
+    /* Generate the right kind of exception for singlestep, which is
+     * either the architectural singlestep or EXCP_DEBUG for QEMU's
+     * gdb singlestepping.
+     */
+    if (s->ss_active) {
+        gen_step_complete_exception(s);
+    } else {
+        gen_exception_internal(EXCP_DEBUG);
+    }
+}
+
 static void gen_smul_dual(TCGv_i32 a, TCGv_i32 b)
 {
     TCGv_i32 tmp1 = tcg_temp_new_i32();
@@ -11998,24 +12011,15 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             gen_set_pc_im(dc, dc->pc);
             /* fall through */
         default:
-            if (dc->ss_active) {
-                gen_step_complete_exception(dc);
-            } else {
-                /* FIXME: Single stepping a WFI insn will not halt
-                   the CPU.  */
-                gen_exception_internal(EXCP_DEBUG);
-            }
+            /* FIXME: Single stepping a WFI insn will not halt the CPU. */
+            gen_singlestep_exception(dc);
         }
         if (dc->condjmp) {
             /* "Condition failed" instruction codepath. */
             gen_set_label(dc->condlabel);
             gen_set_condexec(dc);
             gen_set_pc_im(dc, dc->pc);
-            if (dc->ss_active) {
-                gen_step_complete_exception(dc);
-            } else {
-                gen_exception_internal(EXCP_DEBUG);
-            }
+            gen_singlestep_exception(dc);
         }
     } else {
         /* While branches must always occur at the end of an IT block,
