@@ -304,33 +304,6 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 }
 
 #if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
-static void arm_v7m_unassigned_access(CPUState *cpu, hwaddr addr,
-                                      bool is_write, bool is_exec, int opaque,
-                                      unsigned size)
-{
-    ARMCPU *arm = ARM_CPU(cpu);
-    CPUARMState *env = &arm->env;
-
-    /* ARMv7-M interrupt return works by loading a magic value into the PC.
-     * On real hardware the load causes the return to occur.  The qemu
-     * implementation performs the jump normally, then does the exception
-     * return by throwing a special exception when when the CPU tries to
-     * execute code at the magic address.
-     */
-    if (env->v7m.exception != 0 && addr >= 0xfffffff0 && is_exec) {
-        cpu->exception_index = EXCP_EXCEPTION_EXIT;
-        cpu_loop_exit(cpu);
-    }
-
-    /* In real hardware an attempt to access parts of the address space
-     * with nothing there will usually cause an external abort.
-     * However our QEMU board models are often missing device models where
-     * the guest can boot anyway with the default read-as-zero/writes-ignored
-     * behaviour that you get without a QEMU unassigned_access hook.
-     * So just return here to retain that default behaviour.
-     */
-}
-
 static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);
@@ -338,17 +311,7 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     CPUARMState *env = &cpu->env;
     bool ret = false;
 
-    /* ARMv7-M interrupt return works by loading a magic value
-     * into the PC.  On real hardware the load causes the
-     * return to occur.  The qemu implementation performs the
-     * jump normally, then does the exception return when the
-     * CPU tries to execute code at the magic address.
-     * This will cause the magic PC value to be pushed to
-     * the stack if an interrupt occurred at the wrong time.
-     * We avoid this by disabling interrupts when
-     * pc contains a magic address.
-     *
-     * ARMv7-M interrupt masking works differently than -A or -R.
+    /* ARMv7-M interrupt masking works differently than -A or -R.
      * There is no FIQ/IRQ distinction. Instead of I and F bits
      * masking FIQ and IRQ interrupts, an exception is taken only
      * if it is higher priority than the current execution priority
@@ -356,8 +319,7 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
      * currently active exception).
      */
     if (interrupt_request & CPU_INTERRUPT_HARD
-        && (armv7m_nvic_can_take_pending_exception(env->nvic))
-        && (env->regs[15] < 0xfffffff0)) {
+        && (armv7m_nvic_can_take_pending_exception(env->nvic))) {
         cs->exception_index = EXCP_IRQ;
         cc->do_interrupt(cs);
         ret = true;
@@ -1091,7 +1053,6 @@ static void arm_v7m_class_init(ObjectClass *oc, void *data)
     cc->do_interrupt = arm_v7m_cpu_do_interrupt;
 #endif
 
-    cc->do_unassigned_access = arm_v7m_unassigned_access;
     cc->cpu_exec_interrupt = arm_v7m_cpu_exec_interrupt;
 }
 

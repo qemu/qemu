@@ -11927,14 +11927,6 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             dc->is_jmp = DISAS_EXC;
             break;
         }
-#else
-        if (arm_dc_feature(dc, ARM_FEATURE_M)) {
-            /* Branches to the magic exception-return addresses should
-             * already have been caught via the arm_v7m_unassigned_access hook,
-             * and never get here.
-             */
-            assert(dc->pc < 0xfffffff0);
-        }
 #endif
 
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
