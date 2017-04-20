@@ -300,6 +300,8 @@
 #define DESC_1_RX_SOF 0x00004000
 #define DESC_1_RX_EOF 0x00008000
 
+#define GEM_MODID_VALUE 0x00020118
+
 static inline unsigned tx_desc_get_buffer(unsigned *desc)
 {
     return desc[0];
@@ -1223,7 +1225,7 @@ static void gem_reset(DeviceState *d)
     s->regs[GEM_TXPAUSE] = 0x0000ffff;
     s->regs[GEM_TXPARTIALSF] = 0x000003ff;
     s->regs[GEM_RXPARTIALSF] = 0x000003ff;
-    s->regs[GEM_MODID] = 0x00020118;
+    s->regs[GEM_MODID] = s->revision;
     s->regs[GEM_DESCONF] = 0x02500111;
     s->regs[GEM_DESCONF2] = 0x2ab13fff;
     s->regs[GEM_DESCONF5] = 0x002f2145;
@@ -1519,6 +1521,8 @@ static const VMStateDescription vmstate_cadence_gem = {
 
 static Property gem_properties[] = {
     DEFINE_NIC_PROPERTIES(CadenceGEMState, conf),
+    DEFINE_PROP_UINT32("revision", CadenceGEMState, revision,
+                       GEM_MODID_VALUE),
     DEFINE_PROP_UINT8("num-priority-queues", CadenceGEMState,
                       num_priority_queues, 1),
     DEFINE_PROP_UINT8("num-type1-screeners", CadenceGEMState,
