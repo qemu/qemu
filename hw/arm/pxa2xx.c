@@ -755,19 +755,18 @@ static void pxa2xx_ssp_reset(DeviceState *d)
     s->rx_start = s->rx_level = 0;
 }
 
-static int pxa2xx_ssp_init(SysBusDevice *sbd)
+static void pxa2xx_ssp_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    PXA2xxSSPState *s = PXA2XX_SSP(dev);
-
+    DeviceState *dev = DEVICE(obj);
+    PXA2xxSSPState *s = PXA2XX_SSP(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     sysbus_init_irq(sbd, &s->irq);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &pxa2xx_ssp_ops, s,
+    memory_region_init_io(&s->iomem, obj, &pxa2xx_ssp_ops, s,
                           "pxa2xx-ssp", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
 
     s->bus = ssi_create_bus(dev, "ssi");
-    return 0;
 }
 
 /* Real-Time Clock */
@@ -2321,10 +2320,8 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
 
 static void pxa2xx_ssp_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    sdc->init = pxa2xx_ssp_init;
     dc->reset = pxa2xx_ssp_reset;
     dc->vmsd = &vmstate_pxa2xx_ssp;
 }
@@ -2333,6 +2330,7 @@ static const TypeInfo pxa2xx_ssp_info = {
     .name          = TYPE_PXA2XX_SSP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxSSPState),
+    .instance_init = pxa2xx_ssp_init,
     .class_init    = pxa2xx_ssp_class_init,
 };
 
