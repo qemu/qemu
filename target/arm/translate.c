@@ -11780,6 +11780,7 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
     dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
     dc->c15_cpar = ARM_TBFLAG_XSCALE_CPAR(tb->flags);
+    dc->v7m_handler_mode = ARM_TBFLAG_HANDLER(tb->flags);
     dc->cp_regs = cpu->cp_regs;
     dc->features = env->features;
 
