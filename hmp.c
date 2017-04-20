@@ -42,6 +42,7 @@
 #include "qemu/error-report.h"
 #include "exec/ramlist.h"
 #include "hw/intc/intc.h"
+#include "migration/snapshot.h"
 
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
@@ -1284,7 +1285,7 @@ void hmp_loadvm(Monitor *mon, const QDict *qdict)
 
     vm_stop(RUN_STATE_RESTORE_VM);
 
-    if (load_vmstate(name, &err) == 0 && saved_vm_running) {
+    if (load_snapshot(name, &err) == 0 && saved_vm_running) {
         vm_start();
     }
     hmp_handle_error(mon, &err);
@@ -1294,7 +1295,7 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
 
-    save_vmstate(qdict_get_try_str(qdict, "name"), &err);
+    save_snapshot(qdict_get_try_str(qdict, "name"), &err);
     hmp_handle_error(mon, &err);
 }
 
