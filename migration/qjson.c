@@ -25,7 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/qmp/qstring.h"
-#include "migration/qjson.h"
+#include "qjson.h"
 
 struct QJSON {
     QString *str;
