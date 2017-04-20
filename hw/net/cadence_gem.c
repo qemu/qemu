@@ -790,8 +790,8 @@ static void gem_get_rx_desc(CadenceGEMState *s, int q)
 {
     DB_PRINT("read descriptor 0x%x\n", (unsigned)s->rx_desc_addr[q]);
     /* read current descriptor */
-    cpu_physical_memory_read(s->rx_desc_addr[0],
-                             (uint8_t *)s->rx_desc[0], sizeof(s->rx_desc[0]));
+    cpu_physical_memory_read(s->rx_desc_addr[q],
+                             (uint8_t *)s->rx_desc[q], sizeof(s->rx_desc[q]));
 
     /* Descriptor owned by software ? */
     if (rx_desc_get_ownership(s->rx_desc[q]) == 1) {
