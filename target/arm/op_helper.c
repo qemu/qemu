@@ -130,7 +130,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
     if (unlikely(ret)) {
         ARMCPU *cpu = ARM_CPU(cs);
         CPUARMState *env = &cpu->env;
-        uint32_t syn, exc;
+        uint32_t syn, exc, fsc;
         unsigned int target_el;
         bool same_el;
 
@@ -145,19 +145,32 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
             env->cp15.hpfar_el2 = extract64(fi.s2addr, 12, 47) << 4;
         }
         same_el = arm_current_el(env) == target_el;
-        /* AArch64 syndrome does not have an LPAE bit */
-        syn = fsr & ~(1 << 9);
+
+        if (fsr & (1 << 9)) {
+            /* LPAE format fault status register : bottom 6 bits are
+             * status code in the same form as needed for syndrome
+             */
+            fsc = extract32(fsr, 0, 6);
+        } else {
+            /* Short format FSR : this fault will never actually be reported
+             * to an EL that uses a syndrome register. Check that here,
+             * and use a (currently) reserved FSR code in case the constructed
+             * syndrome does leak into the guest somehow.
+             */
+            assert(target_el != 2 && !arm_el_is_aa64(env, target_el));
+            fsc = 0x3f;
+        }
 
         /* For insn and data aborts we assume there is no instruction syndrome
          * information; this is always true for exceptions reported to EL1.
          */
         if (access_type == MMU_INST_FETCH) {
-            syn = syn_insn_abort(same_el, 0, fi.s1ptw, syn);
+            syn = syn_insn_abort(same_el, 0, fi.s1ptw, fsc);
             exc = EXCP_PREFETCH_ABORT;
         } else {
             syn = merge_syn_data_abort(env->exception.syndrome, target_el,
                                        same_el, fi.s1ptw,
-                                       access_type == MMU_DATA_STORE, syn);
+                                       access_type == MMU_DATA_STORE, fsc);
             if (access_type == MMU_DATA_STORE
                 && arm_feature(env, ARM_FEATURE_V6)) {
                 fsr |= (1 << 11);
