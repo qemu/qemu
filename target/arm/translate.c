@@ -943,6 +943,51 @@ static inline void gen_bx(DisasContext *s, TCGv_i32 var)
     store_cpu_field(var, thumb);
 }
 
+/* Set PC and Thumb state from var. var is marked as dead.
+ * For M-profile CPUs, include logic to detect exception-return
+ * branches and handle them. This is needed for Thumb POP/LDM to PC, LDR to PC,
+ * and BX reg, and no others, and happens only for code in Handler mode.
+ */
+static inline void gen_bx_excret(DisasContext *s, TCGv_i32 var)
+{
+    /* Generate the same code here as for a simple bx, but flag via
+     * s->is_jmp that we need to do the rest of the work later.
+     */
+    gen_bx(s, var);
+    if (s->v7m_handler_mode && arm_dc_feature(s, ARM_FEATURE_M)) {
+        s->is_jmp = DISAS_BX_EXCRET;
+    }
+}
+
+static inline void gen_bx_excret_final_code(DisasContext *s)
+{
+    /* Generate the code to finish possible exception return and end the TB */
+    TCGLabel *excret_label = gen_new_label();
+
+    /* Is the new PC value in the magic range indicating exception return? */
+    tcg_gen_brcondi_i32(TCG_COND_GEU, cpu_R[15], 0xff000000, excret_label);
+    /* No: end the TB as we would for a DISAS_JMP */
+    if (is_singlestepping(s)) {
+        gen_singlestep_exception(s);
+    } else {
+        tcg_gen_exit_tb(0);
+    }
+    gen_set_label(excret_label);
+    /* Yes: this is an exception return.
+     * At this point in runtime env->regs[15] and env->thumb will hold
+     * the exception-return magic number, which do_v7m_exception_exit()
+     * will read. Nothing else will be able to see those values because
+     * the cpu-exec main loop guarantees that we will always go straight
+     * from raising the exception to the exception-handling code.
+     *
+     * gen_ss_advance(s) does nothing on M profile currently but
+     * calling it is conceptually the right thing as we have executed
+     * this instruction (compare SWI, HVC, SMC handling).
+     */
+    gen_ss_advance(s);
+    gen_exception_internal(EXCP_EXCEPTION_EXIT);
+}
+
 /* Variant of store_reg which uses branch&exchange logic when storing
    to r15 in ARM architecture v7 and above. The source must be a temporary
    and will be marked as dead. */
@@ -962,7 +1007,7 @@ static inline void store_reg_bx(DisasContext *s, int reg, TCGv_i32 var)
 static inline void store_reg_from_load(DisasContext *s, int reg, TCGv_i32 var)
 {
     if (reg == 15 && ENABLE_ARCH_5) {
-        gen_bx(s, var);
+        gen_bx_excret(s, var);
     } else {
         store_reg(s, reg, var);
     }
@@ -9881,7 +9926,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         tmp = tcg_temp_new_i32();
                         gen_aa32_ld32u(s, tmp, addr, get_mem_index(s));
                         if (i == 15) {
-                            gen_bx(s, tmp);
+                            gen_bx_excret(s, tmp);
                         } else if (i == rn) {
                             loaded_var = tmp;
                             loaded_base = 1;
@@ -10913,7 +10958,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 goto illegal_op;
             }
             if (rs == 15) {
-                gen_bx(s, tmp);
+                gen_bx_excret(s, tmp);
             } else {
                 store_reg(s, rs, tmp);
             }
@@ -11103,9 +11148,11 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                     tmp2 = tcg_temp_new_i32();
                     tcg_gen_movi_i32(tmp2, val);
                     store_reg(s, 14, tmp2);
+                    gen_bx(s, tmp);
+                } else {
+                    /* Only BX works as exception-return, not BLX */
+                    gen_bx_excret(s, tmp);
                 }
-                /* already thumb, no need to check */
-                gen_bx(s, tmp);
                 break;
             }
             break;
@@ -12000,7 +12047,14 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
        instruction was a conditional branch or trap, and the PC has
        already been written.  */
     gen_set_condexec(dc);
-    if (unlikely(is_singlestepping(dc))) {
+    if (dc->is_jmp == DISAS_BX_EXCRET) {
+        /* Exception return branches need some special case code at the
+         * end of the TB, which is complex enough that it has to
+         * handle the single-step vs not and the condition-failed
+         * insn codepath itself.
+         */
+        gen_bx_excret_final_code(dc);
+    } else if (unlikely(is_singlestepping(dc))) {
         /* Unconditional and "condition passed" instruction codepath. */
         switch (dc->is_jmp) {
         case DISAS_SWI:

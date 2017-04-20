@@ -135,6 +135,10 @@ static void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
 #define DISAS_HVC 8
 #define DISAS_SMC 9
 #define DISAS_YIELD 10
+/* M profile branch which might be an exception return (and so needs
+ * custom end-of-TB code)
+ */
+#define DISAS_BX_EXCRET 11
 
 #ifdef TARGET_AARCH64
 void a64_translate_init(void);
