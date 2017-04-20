@@ -526,6 +526,38 @@ Dump 80 16 bit values at the start of the video memory.
 ETEXI
 
     {
+        .name       = "gpa2hva",
+        .args_type  = "addr:l",
+        .params     = "addr",
+        .help       = "print the host virtual address corresponding to a guest physical address",
+        .cmd        = hmp_gpa2hva,
+    },
+
+STEXI
+@item gpa2hva @var{addr}
+@findex gpa2hva
+Print the host virtual address at which the guest's physical address @var{addr}
+is mapped.
+ETEXI
+
+#ifdef CONFIG_LINUX
+    {
+        .name       = "gpa2hpa",
+        .args_type  = "addr:l",
+        .params     = "addr",
+        .help       = "print the host physical address corresponding to a guest physical address",
+        .cmd        = hmp_gpa2hpa,
+    },
+#endif
+
+STEXI
+@item gpa2hpa @var{addr}
+@findex gpa2hpa
+Print the host physical address at which the guest's physical address @var{addr}
+is mapped.
+ETEXI
+
+    {
         .name       = "p|print",
         .args_type  = "fmt:/,val:l",
         .params     = "/fmt expr",
