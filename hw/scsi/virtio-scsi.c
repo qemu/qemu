@@ -841,10 +841,11 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .load_request = virtio_scsi_load_request,
 };
 
-void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
+void virtio_scsi_common_realize(DeviceState *dev,
                                 VirtIOHandleOutput ctrl,
                                 VirtIOHandleOutput evt,
-                                VirtIOHandleOutput cmd)
+                                VirtIOHandleOutput cmd,
+                                Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSCSICommon *s = VIRTIO_SCSI_COMMON(dev);
@@ -878,9 +879,11 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
     Error *err = NULL;
 
-    virtio_scsi_common_realize(dev, &err, virtio_scsi_handle_ctrl,
+    virtio_scsi_common_realize(dev,
+                               virtio_scsi_handle_ctrl,
                                virtio_scsi_handle_event,
-                               virtio_scsi_handle_cmd);
+                               virtio_scsi_handle_cmd,
+                               &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
