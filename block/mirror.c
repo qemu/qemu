@@ -1112,10 +1112,11 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              BlockdevOnError on_target_error,
                              bool unmap,
                              BlockCompletionFunc *cb,
-                             void *opaque, Error **errp,
+                             void *opaque,
                              const BlockJobDriver *driver,
                              bool is_none_mode, BlockDriverState *base,
-                             bool auto_complete, const char *filter_node_name)
+                             bool auto_complete, const char *filter_node_name,
+                             Error **errp)
 {
     MirrorBlockJob *s;
     BlockDriverState *mirror_top_bs;
@@ -1280,9 +1281,9 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
     base = mode == MIRROR_SYNC_MODE_TOP ? backing_bs(bs) : NULL;
     mirror_start_job(job_id, bs, BLOCK_JOB_DEFAULT, target, replaces,
                      speed, granularity, buf_size, backing_mode,
-                     on_source_error, on_target_error, unmap, NULL, NULL, errp,
+                     on_source_error, on_target_error, unmap, NULL, NULL,
                      &mirror_job_driver, is_none_mode, base, false,
-                     filter_node_name);
+                     filter_node_name, errp);
 }
 
 void commit_active_start(const char *job_id, BlockDriverState *bs,
@@ -1303,9 +1304,9 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
 
     mirror_start_job(job_id, bs, creation_flags, base, NULL, speed, 0, 0,
                      MIRROR_LEAVE_BACKING_CHAIN,
-                     on_error, on_error, true, cb, opaque, &local_err,
+                     on_error, on_error, true, cb, opaque,
                      &commit_active_job_driver, false, base, auto_complete,
-                     filter_node_name);
+                     filter_node_name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error_restore_flags;
