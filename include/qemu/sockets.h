@@ -36,8 +36,9 @@ int inet_ai_family_from_address(InetSocketAddress *addr,
                                 Error **errp);
 InetSocketAddress *inet_parse(const char *str, Error **errp);
 int inet_connect(const char *str, Error **errp);
-int inet_connect_saddr(InetSocketAddress *saddr, Error **errp,
-                       NonBlockingConnectHandler *callback, void *opaque);
+int inet_connect_saddr(InetSocketAddress *saddr,
+                       NonBlockingConnectHandler *callback, void *opaque,
+                       Error **errp);
 
 NetworkAddressFamily inet_netfamily(int family);
 

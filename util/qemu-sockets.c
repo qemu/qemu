@@ -427,8 +427,9 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
  * function succeeds, callback will be called when the connection
  * completes, with the file descriptor on success, or -1 on error.
  */
-int inet_connect_saddr(InetSocketAddress *saddr, Error **errp,
-                       NonBlockingConnectHandler *callback, void *opaque)
+int inet_connect_saddr(InetSocketAddress *saddr,
+                       NonBlockingConnectHandler *callback, void *opaque,
+                       Error **errp)
 {
     Error *local_err = NULL;
     struct addrinfo *res, *e;
@@ -659,7 +660,7 @@ int inet_connect(const char *str, Error **errp)
 
     addr = inet_parse(str, errp);
     if (addr != NULL) {
-        sock = inet_connect_saddr(addr, errp, NULL, NULL);
+        sock = inet_connect_saddr(addr, NULL, NULL, errp);
         qapi_free_InetSocketAddress(addr);
     }
     return sock;
@@ -1081,7 +1082,7 @@ int socket_connect(SocketAddress *addr, NonBlockingConnectHandler *callback,
 
     switch (addr->type) {
     case SOCKET_ADDRESS_KIND_INET:
-        fd = inet_connect_saddr(addr->u.inet.data, errp, callback, opaque);
+        fd = inet_connect_saddr(addr->u.inet.data, callback, opaque, errp);
         break;
 
     case SOCKET_ADDRESS_KIND_UNIX:
