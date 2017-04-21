@@ -1104,9 +1104,7 @@ static void pc_new_cpu(const char *typename, int64_t apic_id, Error **errp)
     object_property_set_bool(cpu, true, "realized", &local_err);
 
     object_unref(cpu);
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
 }
 
 void pc_hot_add_cpu(const int64_t id, Error **errp)
