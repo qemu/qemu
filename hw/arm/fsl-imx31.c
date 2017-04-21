@@ -262,11 +262,6 @@ static void fsl_imx31_class_init(ObjectClass *oc, void *data)
 
     dc->realize = fsl_imx31_realize;
 
-    /*
-     * Reason: creates an ARM CPU, thus use after free(), see
-     * arm_cpu_class_init()
-     */
-    dc->cannot_destroy_with_object_finalize_yet = true;
     dc->desc = "i.MX31 SOC";
 }
 

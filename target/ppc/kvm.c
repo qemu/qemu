@@ -2245,14 +2245,8 @@ static void alter_insns(uint64_t *word, uint64_t flags, bool on)
     }
 }
 
-static void kvmppc_host_cpu_initfn(Object *obj)
-{
-    assert(kvm_enabled());
-}
-
 static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
     uint32_t vmx = kvmppc_get_vmx();
     uint32_t dfp = kvmppc_get_dfp();
@@ -2279,9 +2273,6 @@ static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
     if (icache_size != -1) {
         pcc->l1_icache_size = icache_size;
     }
-
-    /* Reason: kvmppc_host_cpu_initfn() dies when !kvm_enabled() */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 bool kvmppc_has_cap_epr(void)
@@ -2333,7 +2324,6 @@ static int kvm_ppc_register_host_cpu_type(void)
 {
     TypeInfo type_info = {
         .name = TYPE_HOST_POWERPC_CPU,
-        .instance_init = kvmppc_host_cpu_initfn,
         .class_init = kvmppc_host_cpu_class_init,
     };
     PowerPCCPUClass *pvr_pcc;
