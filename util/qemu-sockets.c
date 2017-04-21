@@ -911,8 +911,9 @@ err:
     return -1;
 }
 
-static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp,
-                              NonBlockingConnectHandler *callback, void *opaque)
+static int unix_connect_saddr(UnixSocketAddress *saddr,
+                              NonBlockingConnectHandler *callback, void *opaque,
+                              Error **errp)
 {
     struct sockaddr_un un;
     ConnectState *connect_state = NULL;
@@ -979,8 +980,9 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
     return -1;
 }
 
-static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp,
-                              NonBlockingConnectHandler *callback, void *opaque)
+static int unix_connect_saddr(UnixSocketAddress *saddr,
+                              NonBlockingConnectHandler *callback, void *opaque,
+                              Error **errp)
 {
     error_setg(errp, "unix sockets are not available on windows");
     errno = ENOTSUP;
@@ -1026,7 +1028,7 @@ int unix_connect(const char *path, Error **errp)
 
     saddr = g_new0(UnixSocketAddress, 1);
     saddr->path = g_strdup(path);
-    sock = unix_connect_saddr(saddr, errp, NULL, NULL);
+    sock = unix_connect_saddr(saddr, NULL, NULL, errp);
     qapi_free_UnixSocketAddress(saddr);
     return sock;
 }
@@ -1086,7 +1088,7 @@ int socket_connect(SocketAddress *addr, NonBlockingConnectHandler *callback,
         break;
 
     case SOCKET_ADDRESS_KIND_UNIX:
-        fd = unix_connect_saddr(addr->u.q_unix.data, errp, callback, opaque);
+        fd = unix_connect_saddr(addr->u.q_unix.data, callback, opaque, errp);
         break;
 
     case SOCKET_ADDRESS_KIND_FD:
