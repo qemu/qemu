@@ -67,7 +67,7 @@ int qemu_reset_requested_get(void);
 void qemu_system_killed(int signal, pid_t pid);
 void qemu_system_reset(bool report);
 void qemu_system_guest_panicked(GuestPanicInformation *info);
-size_t qemu_target_page_bits(void);
+size_t qemu_target_page_size(void);
 
 void qemu_add_exit_notifier(Notifier *notify);
 void qemu_remove_exit_notifier(Notifier *notify);

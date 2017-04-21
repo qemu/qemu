@@ -45,6 +45,8 @@ typedef struct VirtIORNG {
     QEMUTimer *rate_limit_timer;
     int64_t quota_remaining;
     bool activate_timer;
+
+    VMChangeStateEntry *vmstate;
 } VirtIORNG;
 
 #endif

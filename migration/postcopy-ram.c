@@ -123,7 +123,7 @@ bool postcopy_ram_supported_by_host(void)
     struct uffdio_range range_struct;
     uint64_t feature_mask;
 
-    if ((1ul << qemu_target_page_bits()) > pagesize) {
+    if (qemu_target_page_size() > pagesize) {
         error_report("Target page size bigger than host page size");
         goto out;
     }
@@ -213,8 +213,6 @@ out:
 static int init_range(const char *block_name, void *host_addr,
                       ram_addr_t offset, ram_addr_t length, void *opaque)
 {
-    MigrationIncomingState *mis = opaque;
-
     trace_postcopy_init_range(block_name, host_addr, offset, length);
 
     /*
@@ -223,7 +221,7 @@ static int init_range(const char *block_name, void *host_addr,
      * - we're going to get the copy from the source anyway.
      * (Precopy will just overwrite this data, so doesn't need the discard)
      */
-    if (ram_discard_range(mis, block_name, 0, length)) {
+    if (ram_discard_range(block_name, 0, length)) {
         return -1;
     }
 
@@ -271,7 +269,7 @@ static int cleanup_range(const char *block_name, void *host_addr,
  */
 int postcopy_ram_incoming_init(MigrationIncomingState *mis, size_t ram_pages)
 {
-    if (qemu_ram_foreach_block(init_range, mis)) {
+    if (qemu_ram_foreach_block(init_range, NULL)) {
         return -1;
     }
 
@@ -745,10 +743,10 @@ PostcopyDiscardState *postcopy_discard_send_init(MigrationState *ms,
 void postcopy_discard_send_range(MigrationState *ms, PostcopyDiscardState *pds,
                                 unsigned long start, unsigned long length)
 {
-    size_t tp_bits = qemu_target_page_bits();
+    size_t tp_size = qemu_target_page_size();
     /* Convert to byte offsets within the RAM block */
-    pds->start_list[pds->cur_entry] = (start - pds->offset) << tp_bits;
-    pds->length_list[pds->cur_entry] = length << tp_bits;
+    pds->start_list[pds->cur_entry] = (start - pds->offset) * tp_size;
+    pds->length_list[pds->cur_entry] = length * tp_size;
     trace_postcopy_discard_send_range(pds->ramblock_name, start, length);
     pds->cur_entry++;
     pds->nsentwords++;

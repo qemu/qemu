@@ -871,7 +871,7 @@ void qemu_savevm_send_postcopy_advise(QEMUFile *f)
 {
     uint64_t tmp[2];
     tmp[0] = cpu_to_be64(ram_pagesize_summary());
-    tmp[1] = cpu_to_be64(1ul << qemu_target_page_bits());
+    tmp[1] = cpu_to_be64(qemu_target_page_size());
 
     trace_qemu_savevm_send_postcopy_advise();
     qemu_savevm_command_send(f, MIG_CMD_POSTCOPY_ADVISE, 16, (uint8_t *)tmp);
@@ -1062,7 +1062,7 @@ int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
 static bool should_send_vmdesc(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
-    bool in_postcopy = migration_in_postcopy(migrate_get_current());
+    bool in_postcopy = migration_in_postcopy();
     return !machine->suppress_vmdesc && !in_postcopy;
 }
 
@@ -1111,7 +1111,7 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
     int vmdesc_len;
     SaveStateEntry *se;
     int ret;
-    bool in_postcopy = migration_in_postcopy(migrate_get_current());
+    bool in_postcopy = migration_in_postcopy();
 
     trace_savevm_state_complete_precopy();
 
@@ -1197,7 +1197,7 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
  * the result is split into the amount for units that can and
  * for units that can't do postcopy.
  */
-void qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size,
+void qemu_savevm_state_pending(QEMUFile *f, uint64_t threshold_size,
                                uint64_t *res_non_postcopiable,
                                uint64_t *res_postcopiable)
 {
@@ -1216,7 +1216,7 @@ void qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size,
                 continue;
             }
         }
-        se->ops->save_live_pending(f, se->opaque, max_size,
+        se->ops->save_live_pending(f, se->opaque, threshold_size,
                                    res_non_postcopiable, res_postcopiable);
     }
 }
@@ -1390,13 +1390,13 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis)
     }
 
     remote_tps = qemu_get_be64(mis->from_src_file);
-    if (remote_tps != (1ul << qemu_target_page_bits())) {
+    if (remote_tps != qemu_target_page_size()) {
         /*
          * Again, some differences could be dealt with, but for now keep it
          * simple.
          */
-        error_report("Postcopy needs matching target page sizes (s=%d d=%d)",
-                     (int)remote_tps, 1 << qemu_target_page_bits());
+        error_report("Postcopy needs matching target page sizes (s=%d d=%zd)",
+                     (int)remote_tps, qemu_target_page_size());
         return -1;
     }
 
@@ -1479,8 +1479,7 @@ static int loadvm_postcopy_ram_handle_discard(MigrationIncomingState *mis,
         block_length = qemu_get_be64(mis->from_src_file);
 
         len -= 16;
-        int ret = ram_discard_range(mis, ramid, start_addr,
-                                    block_length);
+        int ret = ram_discard_range(ramid, start_addr, block_length);
         if (ret) {
             return ret;
         }
