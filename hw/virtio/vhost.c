@@ -736,14 +736,20 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          iommu_listener);
     struct vhost_iommu *iommu;
+    Int128 end;
 
     if (!memory_region_is_iommu(section->mr)) {
         return;
     }
 
     iommu = g_malloc0(sizeof(*iommu));
-    iommu->n.notify = vhost_iommu_unmap_notify;
-    iommu->n.notifier_flags = IOMMU_NOTIFIER_UNMAP;
+    end = int128_add(int128_make64(section->offset_within_region),
+                     section->size);
+    end = int128_sub(end, int128_one());
+    iommu_notifier_init(&iommu->n, vhost_iommu_unmap_notify,
+                        IOMMU_NOTIFIER_UNMAP,
+                        section->offset_within_region,
+                        int128_get64(end));
     iommu->mr = section->mr;
     iommu->iommu_offset = section->offset_within_address_space -
                           section->offset_within_region;
@@ -765,7 +771,8 @@ static void vhost_iommu_region_del(MemoryListener *listener,
     }
 
     QLIST_FOREACH(iommu, &dev->iommu_list, iommu_next) {
-        if (iommu->mr == section->mr) {
+        if (iommu->mr == section->mr &&
+            iommu->n.start == section->offset_within_region) {
             memory_region_unregister_iommu_notifier(iommu->mr,
                                                     &iommu->n);
             QLIST_REMOVE(iommu, iommu_next);

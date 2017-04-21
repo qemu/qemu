@@ -595,6 +595,22 @@ static inline uint32_t vtd_get_agaw_from_context_entry(VTDContextEntry *ce)
     return 30 + (ce->hi & VTD_CONTEXT_ENTRY_AW) * 9;
 }
 
+static inline uint64_t vtd_iova_limit(VTDContextEntry *ce)
+{
+    uint32_t ce_agaw = vtd_get_agaw_from_context_entry(ce);
+    return 1ULL << MIN(ce_agaw, VTD_MGAW);
+}
+
+/* Return true if IOVA passes range check, otherwise false. */
+static inline bool vtd_iova_range_check(uint64_t iova, VTDContextEntry *ce)
+{
+    /*
+     * Check if @iova is above 2^X-1, where X is the minimum of MGAW
+     * in CAP_REG and AW in context-entry.
+     */
+    return !(iova & ~(vtd_iova_limit(ce) - 1));
+}
+
 static const uint64_t vtd_paging_entry_rsvd_field[] = {
     [0] = ~0ULL,
     /* For not large page */
@@ -630,13 +646,9 @@ static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
     uint32_t level = vtd_get_level_from_context_entry(ce);
     uint32_t offset;
     uint64_t slpte;
-    uint32_t ce_agaw = vtd_get_agaw_from_context_entry(ce);
     uint64_t access_right_check;
 
-    /* Check if @iova is above 2^X-1, where X is the minimum of MGAW
-     * in CAP_REG and AW in context-entry.
-     */
-    if (iova & ~((1ULL << MIN(ce_agaw, VTD_MGAW)) - 1)) {
+    if (!vtd_iova_range_check(iova, ce)) {
         VTD_DPRINTF(GENERAL, "error: iova 0x%"PRIx64 " exceeds limits", iova);
         return -VTD_FR_ADDR_BEYOND_MGAW;
     }
@@ -682,6 +694,135 @@ static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
         addr = vtd_get_slpte_addr(slpte);
         level--;
     }
+}
+
+typedef int (*vtd_page_walk_hook)(IOMMUTLBEntry *entry, void *private);
+
+/**
+ * vtd_page_walk_level - walk over specific level for IOVA range
+ *
+ * @addr: base GPA addr to start the walk
+ * @start: IOVA range start address
+ * @end: IOVA range end address (start <= addr < end)
+ * @hook_fn: hook func to be called when detected page
+ * @private: private data to be passed into hook func
+ * @read: whether parent level has read permission
+ * @write: whether parent level has write permission
+ * @notify_unmap: whether we should notify invalid entries
+ */
+static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
+                               uint64_t end, vtd_page_walk_hook hook_fn,
+                               void *private, uint32_t level,
+                               bool read, bool write, bool notify_unmap)
+{
+    bool read_cur, write_cur, entry_valid;
+    uint32_t offset;
+    uint64_t slpte;
+    uint64_t subpage_size, subpage_mask;
+    IOMMUTLBEntry entry;
+    uint64_t iova = start;
+    uint64_t iova_next;
+    int ret = 0;
+
+    trace_vtd_page_walk_level(addr, level, start, end);
+
+    subpage_size = 1ULL << vtd_slpt_level_shift(level);
+    subpage_mask = vtd_slpt_level_page_mask(level);
+
+    while (iova < end) {
+        iova_next = (iova & subpage_mask) + subpage_size;
+
+        offset = vtd_iova_level_offset(iova, level);
+        slpte = vtd_get_slpte(addr, offset);
+
+        if (slpte == (uint64_t)-1) {
+            trace_vtd_page_walk_skip_read(iova, iova_next);
+            goto next;
+        }
+
+        if (vtd_slpte_nonzero_rsvd(slpte, level)) {
+            trace_vtd_page_walk_skip_reserve(iova, iova_next);
+            goto next;
+        }
+
+        /* Permissions are stacked with parents' */
+        read_cur = read && (slpte & VTD_SL_R);
+        write_cur = write && (slpte & VTD_SL_W);
+
+        /*
+         * As long as we have either read/write permission, this is a
+         * valid entry. The rule works for both page entries and page
+         * table entries.
+         */
+        entry_valid = read_cur | write_cur;
+
+        if (vtd_is_last_slpte(slpte, level)) {
+            entry.target_as = &address_space_memory;
+            entry.iova = iova & subpage_mask;
+            /* NOTE: this is only meaningful if entry_valid == true */
+            entry.translated_addr = vtd_get_slpte_addr(slpte);
+            entry.addr_mask = ~subpage_mask;
+            entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
+            if (!entry_valid && !notify_unmap) {
+                trace_vtd_page_walk_skip_perm(iova, iova_next);
+                goto next;
+            }
+            trace_vtd_page_walk_one(level, entry.iova, entry.translated_addr,
+                                    entry.addr_mask, entry.perm);
+            if (hook_fn) {
+                ret = hook_fn(&entry, private);
+                if (ret < 0) {
+                    return ret;
+                }
+            }
+        } else {
+            if (!entry_valid) {
+                trace_vtd_page_walk_skip_perm(iova, iova_next);
+                goto next;
+            }
+            ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte), iova,
+                                      MIN(iova_next, end), hook_fn, private,
+                                      level - 1, read_cur, write_cur,
+                                      notify_unmap);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+
+next:
+        iova = iova_next;
+    }
+
+    return 0;
+}
+
+/**
+ * vtd_page_walk - walk specific IOVA range, and call the hook
+ *
+ * @ce: context entry to walk upon
+ * @start: IOVA address to start the walk
+ * @end: IOVA range end address (start <= addr < end)
+ * @hook_fn: the hook that to be called for each detected area
+ * @private: private data for the hook function
+ */
+static int vtd_page_walk(VTDContextEntry *ce, uint64_t start, uint64_t end,
+                         vtd_page_walk_hook hook_fn, void *private,
+                         bool notify_unmap)
+{
+    dma_addr_t addr = vtd_get_slpt_base_from_context(ce);
+    uint32_t level = vtd_get_level_from_context_entry(ce);
+
+    if (!vtd_iova_range_check(start, ce)) {
+        return -VTD_FR_ADDR_BEYOND_MGAW;
+    }
+
+    if (!vtd_iova_range_check(end, ce)) {
+        /* Fix end so that it reaches the maximum */
+        end = vtd_iova_limit(ce);
+    }
+
+    return vtd_page_walk_level(addr, start, end, hook_fn, private,
+                               level, true, true, notify_unmap);
 }
 
 /* Map a device to its corresponding domain (context-entry) */
@@ -898,6 +1039,15 @@ static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
                 s->intr_root, s->intr_size);
 }
 
+static void vtd_iommu_replay_all(IntelIOMMUState *s)
+{
+    IntelIOMMUNotifierNode *node;
+
+    QLIST_FOREACH(node, &s->notifiers_list, next) {
+        memory_region_iommu_replay_all(&node->vtd_as->iommu);
+    }
+}
+
 static void vtd_context_global_invalidate(IntelIOMMUState *s)
 {
     trace_vtd_inv_desc_cc_global();
@@ -905,6 +1055,14 @@ static void vtd_context_global_invalidate(IntelIOMMUState *s)
     if (s->context_cache_gen == VTD_CONTEXT_CACHE_GEN_MAX) {
         vtd_reset_context_cache(s);
     }
+    /*
+     * From VT-d spec 6.5.2.1, a global context entry invalidation
+     * should be followed by a IOTLB global invalidation, so we should
+     * be safe even without this. Hoewever, let's replay the region as
+     * well to be safer, and go back here when we need finer tunes for
+     * VT-d emulation codes.
+     */
+    vtd_iommu_replay_all(s);
 }
 
 
@@ -971,6 +1129,16 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                 trace_vtd_inv_desc_cc_device(bus_n, VTD_PCI_SLOT(devfn_it),
                                              VTD_PCI_FUNC(devfn_it));
                 vtd_as->context_cache_entry.context_cache_gen = 0;
+                /*
+                 * So a device is moving out of (or moving into) a
+                 * domain, a replay() suites here to notify all the
+                 * IOMMU_NOTIFIER_MAP registers about this change.
+                 * This won't bring bad even if we have no such
+                 * notifier registered - the IOMMU notification
+                 * framework will skip MAP notifications if that
+                 * happened.
+                 */
+                memory_region_iommu_replay_all(&vtd_as->iommu);
             }
         }
     }
@@ -1012,12 +1180,53 @@ static void vtd_iotlb_global_invalidate(IntelIOMMUState *s)
 {
     trace_vtd_iotlb_reset("global invalidation recved");
     vtd_reset_iotlb(s);
+    vtd_iommu_replay_all(s);
 }
 
 static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 {
+    IntelIOMMUNotifierNode *node;
+    VTDContextEntry ce;
+    VTDAddressSpace *vtd_as;
+
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_domain,
                                 &domain_id);
+
+    QLIST_FOREACH(node, &s->notifiers_list, next) {
+        vtd_as = node->vtd_as;
+        if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
+                                      vtd_as->devfn, &ce) &&
+            domain_id == VTD_CONTEXT_ENTRY_DID(ce.hi)) {
+            memory_region_iommu_replay_all(&vtd_as->iommu);
+        }
+    }
+}
+
+static int vtd_page_invalidate_notify_hook(IOMMUTLBEntry *entry,
+                                           void *private)
+{
+    memory_region_notify_iommu((MemoryRegion *)private, *entry);
+    return 0;
+}
+
+static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
+                                           uint16_t domain_id, hwaddr addr,
+                                           uint8_t am)
+{
+    IntelIOMMUNotifierNode *node;
+    VTDContextEntry ce;
+    int ret;
+
+    QLIST_FOREACH(node, &(s->notifiers_list), next) {
+        VTDAddressSpace *vtd_as = node->vtd_as;
+        ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
+                                       vtd_as->devfn, &ce);
+        if (!ret && domain_id == VTD_CONTEXT_ENTRY_DID(ce.hi)) {
+            vtd_page_walk(&ce, addr, addr + (1 << am) * VTD_PAGE_SIZE,
+                          vtd_page_invalidate_notify_hook,
+                          (void *)&vtd_as->iommu, true);
+        }
+    }
 }
 
 static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
@@ -1030,6 +1239,7 @@ static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
     info.addr = addr;
     info.mask = ~((1 << am) - 1);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
+    vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am);
 }
 
 /* Flush IOTLB
@@ -1151,9 +1361,49 @@ static void vtd_handle_gcmd_sirtp(IntelIOMMUState *s)
     vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_IRTPS);
 }
 
+static void vtd_switch_address_space(VTDAddressSpace *as)
+{
+    assert(as);
+
+    trace_vtd_switch_address_space(pci_bus_num(as->bus),
+                                   VTD_PCI_SLOT(as->devfn),
+                                   VTD_PCI_FUNC(as->devfn),
+                                   as->iommu_state->dmar_enabled);
+
+    /* Turn off first then on the other */
+    if (as->iommu_state->dmar_enabled) {
+        memory_region_set_enabled(&as->sys_alias, false);
+        memory_region_set_enabled(&as->iommu, true);
+    } else {
+        memory_region_set_enabled(&as->iommu, false);
+        memory_region_set_enabled(&as->sys_alias, true);
+    }
+}
+
+static void vtd_switch_address_space_all(IntelIOMMUState *s)
+{
+    GHashTableIter iter;
+    VTDBus *vtd_bus;
+    int i;
+
+    g_hash_table_iter_init(&iter, s->vtd_as_by_busptr);
+    while (g_hash_table_iter_next(&iter, NULL, (void **)&vtd_bus)) {
+        for (i = 0; i < X86_IOMMU_PCI_DEVFN_MAX; i++) {
+            if (!vtd_bus->dev_as[i]) {
+                continue;
+            }
+            vtd_switch_address_space(vtd_bus->dev_as[i]);
+        }
+    }
+}
+
 /* Handle Translation Enable/Disable */
 static void vtd_handle_gcmd_te(IntelIOMMUState *s, bool en)
 {
+    if (s->dmar_enabled == en) {
+        return;
+    }
+
     VTD_DPRINTF(CSR, "Translation Enable %s", (en ? "on" : "off"));
 
     if (en) {
@@ -1168,6 +1418,8 @@ static void vtd_handle_gcmd_te(IntelIOMMUState *s, bool en)
         /* Ok - report back to driver */
         vtd_set_clear_mask_long(s, DMAR_GSTS_REG, VTD_GSTS_TES, 0);
     }
+
+    vtd_switch_address_space_all(s);
 }
 
 /* Handle Interrupt Remap Enable/Disable */
@@ -1457,7 +1709,7 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
     entry.iova = addr;
     entry.perm = IOMMU_NONE;
     entry.translated_addr = 0;
-    memory_region_notify_iommu(entry.target_as->root, entry);
+    memory_region_notify_iommu(&vtd_dev_as->iommu, entry);
 
 done:
     return true;
@@ -2005,14 +2257,32 @@ static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
                                           IOMMUNotifierFlag new)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    IntelIOMMUNotifierNode *node = NULL;
+    IntelIOMMUNotifierNode *next_node = NULL;
 
-    if (new & IOMMU_NOTIFIER_MAP) {
-        error_report("Device at bus %s addr %02x.%d requires iommu "
-                     "notifier which is currently not supported by "
-                     "intel-iommu emulation",
-                     vtd_as->bus->qbus.name, PCI_SLOT(vtd_as->devfn),
-                     PCI_FUNC(vtd_as->devfn));
+    if (!s->caching_mode && new & IOMMU_NOTIFIER_MAP) {
+        error_report("We need to set cache_mode=1 for intel-iommu to enable "
+                     "device assignment with IOMMU protection.");
         exit(1);
+    }
+
+    if (old == IOMMU_NOTIFIER_NONE) {
+        node = g_malloc0(sizeof(*node));
+        node->vtd_as = vtd_as;
+        QLIST_INSERT_HEAD(&s->notifiers_list, node, next);
+        return;
+    }
+
+    /* update notifier node with new flags */
+    QLIST_FOREACH_SAFE(node, &s->notifiers_list, next, next_node) {
+        if (node->vtd_as == vtd_as) {
+            if (new == IOMMU_NOTIFIER_NONE) {
+                QLIST_REMOVE(node, next);
+                g_free(node);
+            }
+            return;
+        }
     }
 }
 
@@ -2389,17 +2659,148 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         vtd_dev_as->devfn = (uint8_t)devfn;
         vtd_dev_as->iommu_state = s;
         vtd_dev_as->context_cache_entry.context_cache_gen = 0;
+
+        /*
+         * Memory region relationships looks like (Address range shows
+         * only lower 32 bits to make it short in length...):
+         *
+         * |-----------------+-------------------+----------|
+         * | Name            | Address range     | Priority |
+         * |-----------------+-------------------+----------+
+         * | vtd_root        | 00000000-ffffffff |        0 |
+         * |  intel_iommu    | 00000000-ffffffff |        1 |
+         * |  vtd_sys_alias  | 00000000-ffffffff |        1 |
+         * |  intel_iommu_ir | fee00000-feefffff |       64 |
+         * |-----------------+-------------------+----------|
+         *
+         * We enable/disable DMAR by switching enablement for
+         * vtd_sys_alias and intel_iommu regions. IR region is always
+         * enabled.
+         */
         memory_region_init_iommu(&vtd_dev_as->iommu, OBJECT(s),
-                                 &s->iommu_ops, "intel_iommu", UINT64_MAX);
+                                 &s->iommu_ops, "intel_iommu_dmar",
+                                 UINT64_MAX);
+        memory_region_init_alias(&vtd_dev_as->sys_alias, OBJECT(s),
+                                 "vtd_sys_alias", get_system_memory(),
+                                 0, memory_region_size(get_system_memory()));
         memory_region_init_io(&vtd_dev_as->iommu_ir, OBJECT(s),
                               &vtd_mem_ir_ops, s, "intel_iommu_ir",
                               VTD_INTERRUPT_ADDR_SIZE);
-        memory_region_add_subregion(&vtd_dev_as->iommu, VTD_INTERRUPT_ADDR_FIRST,
-                                    &vtd_dev_as->iommu_ir);
-        address_space_init(&vtd_dev_as->as,
-                           &vtd_dev_as->iommu, name);
+        memory_region_init(&vtd_dev_as->root, OBJECT(s),
+                           "vtd_root", UINT64_MAX);
+        memory_region_add_subregion_overlap(&vtd_dev_as->root,
+                                            VTD_INTERRUPT_ADDR_FIRST,
+                                            &vtd_dev_as->iommu_ir, 64);
+        address_space_init(&vtd_dev_as->as, &vtd_dev_as->root, name);
+        memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
+                                            &vtd_dev_as->sys_alias, 1);
+        memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
+                                            &vtd_dev_as->iommu, 1);
+        vtd_switch_address_space(vtd_dev_as);
     }
     return vtd_dev_as;
+}
+
+/* Unmap the whole range in the notifier's scope. */
+static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
+{
+    IOMMUTLBEntry entry;
+    hwaddr size;
+    hwaddr start = n->start;
+    hwaddr end = n->end;
+
+    /*
+     * Note: all the codes in this function has a assumption that IOVA
+     * bits are no more than VTD_MGAW bits (which is restricted by
+     * VT-d spec), otherwise we need to consider overflow of 64 bits.
+     */
+
+    if (end > VTD_ADDRESS_SIZE) {
+        /*
+         * Don't need to unmap regions that is bigger than the whole
+         * VT-d supported address space size
+         */
+        end = VTD_ADDRESS_SIZE;
+    }
+
+    assert(start <= end);
+    size = end - start;
+
+    if (ctpop64(size) != 1) {
+        /*
+         * This size cannot format a correct mask. Let's enlarge it to
+         * suite the minimum available mask.
+         */
+        int n = 64 - clz64(size);
+        if (n > VTD_MGAW) {
+            /* should not happen, but in case it happens, limit it */
+            n = VTD_MGAW;
+        }
+        size = 1ULL << n;
+    }
+
+    entry.target_as = &address_space_memory;
+    /* Adjust iova for the size */
+    entry.iova = n->start & ~(size - 1);
+    /* This field is meaningless for unmap */
+    entry.translated_addr = 0;
+    entry.perm = IOMMU_NONE;
+    entry.addr_mask = size - 1;
+
+    trace_vtd_as_unmap_whole(pci_bus_num(as->bus),
+                             VTD_PCI_SLOT(as->devfn),
+                             VTD_PCI_FUNC(as->devfn),
+                             entry.iova, size);
+
+    memory_region_notify_one(n, &entry);
+}
+
+static void vtd_address_space_unmap_all(IntelIOMMUState *s)
+{
+    IntelIOMMUNotifierNode *node;
+    VTDAddressSpace *vtd_as;
+    IOMMUNotifier *n;
+
+    QLIST_FOREACH(node, &s->notifiers_list, next) {
+        vtd_as = node->vtd_as;
+        IOMMU_NOTIFIER_FOREACH(n, &vtd_as->iommu) {
+            vtd_address_space_unmap(vtd_as, n);
+        }
+    }
+}
+
+static int vtd_replay_hook(IOMMUTLBEntry *entry, void *private)
+{
+    memory_region_notify_one((IOMMUNotifier *)private, entry);
+    return 0;
+}
+
+static void vtd_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n)
+{
+    VTDAddressSpace *vtd_as = container_of(mr, VTDAddressSpace, iommu);
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    uint8_t bus_n = pci_bus_num(vtd_as->bus);
+    VTDContextEntry ce;
+
+    /*
+     * The replay can be triggered by either a invalidation or a newly
+     * created entry. No matter what, we release existing mappings
+     * (it means flushing caches for UNMAP-only registers).
+     */
+    vtd_address_space_unmap(vtd_as, n);
+
+    if (vtd_dev_to_context_entry(s, bus_n, vtd_as->devfn, &ce) == 0) {
+        trace_vtd_replay_ce_valid(bus_n, PCI_SLOT(vtd_as->devfn),
+                                  PCI_FUNC(vtd_as->devfn),
+                                  VTD_CONTEXT_ENTRY_DID(ce.hi),
+                                  ce.hi, ce.lo);
+        vtd_page_walk(&ce, 0, ~0ULL, vtd_replay_hook, (void *)n, false);
+    } else {
+        trace_vtd_replay_ce_invalid(bus_n, PCI_SLOT(vtd_as->devfn),
+                                    PCI_FUNC(vtd_as->devfn));
+    }
+
+    return;
 }
 
 /* Do the initialization. It will also be called when reset, so pay
@@ -2416,6 +2817,7 @@ static void vtd_init(IntelIOMMUState *s)
 
     s->iommu_ops.translate = vtd_iommu_translate;
     s->iommu_ops.notify_flag_changed = vtd_iommu_notify_flag_changed;
+    s->iommu_ops.replay = vtd_iommu_replay;
     s->root = 0;
     s->root_extended = false;
     s->dmar_enabled = false;
@@ -2511,6 +2913,11 @@ static void vtd_reset(DeviceState *dev)
 
     VTD_DPRINTF(GENERAL, "");
     vtd_init(s);
+
+    /*
+     * When device reset, throw away all mappings and external caches
+     */
+    vtd_address_space_unmap_all(s);
 }
 
 static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
@@ -2574,6 +2981,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    QLIST_INIT(&s->notifiers_list);
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
     memory_region_init_io(&s->csrmem, OBJECT(s), &vtd_mem_ops, s,
                           "intel_iommu", DMAR_REG_SIZE);

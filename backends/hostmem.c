@@ -45,7 +45,7 @@ host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
     Error *local_err = NULL;
     uint64_t value;
 
-    if (memory_region_size(&backend->mr)) {
+    if (host_memory_backend_mr_inited(backend)) {
         error_setg(&local_err, "cannot change property value");
         goto out;
     }
@@ -146,7 +146,7 @@ static void host_memory_backend_set_merge(Object *obj, bool value, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
 
-    if (!memory_region_size(&backend->mr)) {
+    if (!host_memory_backend_mr_inited(backend)) {
         backend->merge = value;
         return;
     }
@@ -172,7 +172,7 @@ static void host_memory_backend_set_dump(Object *obj, bool value, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
 
-    if (!memory_region_size(&backend->mr)) {
+    if (!host_memory_backend_mr_inited(backend)) {
         backend->dump = value;
         return;
     }
@@ -208,7 +208,7 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
         }
     }
 
-    if (!memory_region_size(&backend->mr)) {
+    if (!host_memory_backend_mr_inited(backend)) {
         backend->prealloc = value;
         return;
     }
@@ -237,10 +237,19 @@ static void host_memory_backend_init(Object *obj)
     backend->prealloc = mem_prealloc;
 }
 
+bool host_memory_backend_mr_inited(HostMemoryBackend *backend)
+{
+    /*
+     * NOTE: We forbid zero-length memory backend, so here zero means
+     * "we haven't inited the backend memory region yet".
+     */
+    return memory_region_size(&backend->mr) != 0;
+}
+
 MemoryRegion *
 host_memory_backend_get_memory(HostMemoryBackend *backend, Error **errp)
 {
-    return memory_region_size(&backend->mr) ? &backend->mr : NULL;
+    return host_memory_backend_mr_inited(backend) ? &backend->mr : NULL;
 }
 
 void host_memory_backend_set_mapped(HostMemoryBackend *backend, bool mapped)

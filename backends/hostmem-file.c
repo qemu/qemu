@@ -51,7 +51,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 #ifndef CONFIG_LINUX
     error_setg(errp, "-mem-path not supported on this host");
 #else
-    if (!memory_region_size(&backend->mr)) {
+    if (!host_memory_backend_mr_inited(backend)) {
         gchar *path;
         backend->force_prealloc = mem_prealloc;
         path = object_get_canonical_path(OBJECT(backend));
@@ -76,7 +76,7 @@ static void set_mem_path(Object *o, const char *str, Error **errp)
     HostMemoryBackend *backend = MEMORY_BACKEND(o);
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
 
-    if (memory_region_size(&backend->mr)) {
+    if (host_memory_backend_mr_inited(backend)) {
         error_setg(errp, "cannot change property value");
         return;
     }
@@ -96,7 +96,7 @@ static void file_memory_backend_set_share(Object *o, bool value, Error **errp)
     HostMemoryBackend *backend = MEMORY_BACKEND(o);
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
 
-    if (memory_region_size(&backend->mr)) {
+    if (host_memory_backend_mr_inited(backend)) {
         error_setg(errp, "cannot change property value");
         return;
     }
