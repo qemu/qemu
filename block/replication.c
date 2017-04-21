@@ -656,7 +656,7 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
         s->replication_state = BLOCK_REPLICATION_FAILOVER;
         commit_active_start(NULL, s->active_disk->bs, s->secondary_disk->bs,
                             BLOCK_JOB_INTERNAL, 0, BLOCKDEV_ON_ERROR_REPORT,
-                            NULL, replication_done, bs, errp, true);
+                            NULL, replication_done, bs, true, errp);
         break;
     default:
         aio_context_release(aio_context);

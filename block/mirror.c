@@ -1290,8 +1290,8 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
                          BlockDriverState *base, int creation_flags,
                          int64_t speed, BlockdevOnError on_error,
                          const char *filter_node_name,
-                         BlockCompletionFunc *cb, void *opaque, Error **errp,
-                         bool auto_complete)
+                         BlockCompletionFunc *cb, void *opaque,
+                         bool auto_complete, Error **errp)
 {
     int orig_base_flags;
     Error *local_err = NULL;

@@ -3142,7 +3142,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
         }
         commit_active_start(has_job_id ? job_id : NULL, bs, base_bs,
                             BLOCK_JOB_DEFAULT, speed, on_error,
-                            filter_node_name, NULL, NULL, &local_err, false);
+                            filter_node_name, NULL, NULL, false, &local_err);
     } else {
         BlockDriverState *overlay_bs = bdrv_find_overlay(bs, top_bs);
         if (bdrv_op_is_blocked(overlay_bs, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
