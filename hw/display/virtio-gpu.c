@@ -1151,8 +1151,8 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     virtio_init(VIRTIO_DEVICE(g), "virtio-gpu", VIRTIO_ID_GPU,
                 g->config_size);
 
-    g->req_state[0].width = 1024;
-    g->req_state[0].height = 768;
+    g->req_state[0].width = g->conf.xres;
+    g->req_state[0].height = g->conf.yres;
 
     if (virtio_gpu_virgl_enabled(g->conf)) {
         /* use larger control queue in 3d mode */
@@ -1272,6 +1272,8 @@ static Property virtio_gpu_properties[] = {
     DEFINE_PROP_BIT("stats", VirtIOGPU, conf.flags,
                     VIRTIO_GPU_FLAG_STATS_ENABLED, false),
 #endif
+    DEFINE_PROP_UINT32("xres", VirtIOGPU, conf.xres, 1024),
+    DEFINE_PROP_UINT32("yres", VirtIOGPU, conf.yres, 768),
     DEFINE_PROP_END_OF_LIST(),
 };
 

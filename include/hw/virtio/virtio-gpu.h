@@ -72,6 +72,8 @@ struct virtio_gpu_conf {
     uint64_t max_hostmem;
     uint32_t max_outputs;
     uint32_t flags;
+    uint32_t xres;
+    uint32_t yres;
 };
 
 struct virtio_gpu_ctrl_command {
