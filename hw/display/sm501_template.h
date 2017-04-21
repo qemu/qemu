@@ -92,29 +92,24 @@ static void glue(draw_line32_, PIXEL_NAME)(
 /**
  * Draw hardware cursor image on the given line.
  */
-static void glue(draw_hwc_line_, PIXEL_NAME)(SM501State *s, int crt,
-                 uint8_t *palette, int c_y, uint8_t *d, int width)
+static void glue(draw_hwc_line_, PIXEL_NAME)(uint8_t *d, const uint8_t *s,
+                 int width, const uint8_t *palette, int c_x, int c_y)
 {
-    int x, i;
-    uint8_t *pixval, bitset = 0;
-
-    /* get hardware cursor pattern */
-    uint32_t cursor_addr = get_hwc_address(s, crt);
-    assert(0 <= c_y && c_y < SM501_HWC_HEIGHT);
-    cursor_addr += SM501_HWC_WIDTH * c_y / 4;  /* 4 pixels per byte */
-    pixval = s->local_mem + cursor_addr;
+    int i;
+    uint8_t bitset = 0;
 
     /* get cursor position */
-    x = get_hwc_x(s, crt);
-    d += x * BPP;
+    assert(0 <= c_y && c_y < SM501_HWC_HEIGHT);
+    s += SM501_HWC_WIDTH * c_y / 4;  /* 4 pixels per byte */
+    d += c_x * BPP;
 
-    for (i = 0; i < SM501_HWC_WIDTH && x + i < width; i++) {
+    for (i = 0; i < SM501_HWC_WIDTH && c_x + i < width; i++) {
         uint8_t v;
 
         /* get pixel value */
         if (i % 4 == 0) {
-            bitset = ldub_p(pixval);
-            pixval++;
+            bitset = ldub_p(s);
+            s++;
         }
         v = bitset & 3;
         bitset >>= 2;
