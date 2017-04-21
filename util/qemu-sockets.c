@@ -1074,8 +1074,8 @@ fail:
     return NULL;
 }
 
-int socket_connect(SocketAddress *addr, Error **errp,
-                   NonBlockingConnectHandler *callback, void *opaque)
+int socket_connect(SocketAddress *addr, NonBlockingConnectHandler *callback,
+                   void *opaque, Error **errp)
 {
     int fd;
 

@@ -578,7 +578,7 @@ static int net_socket_connect_init(NetClientState *peer,
         goto err;
     }
 
-    fd = socket_connect(c->saddr, &local_error, net_socket_connected, c);
+    fd = socket_connect(c->saddr, net_socket_connected, c, &local_error);
     if (fd < 0) {
         goto err;
     }
