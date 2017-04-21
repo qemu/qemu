@@ -47,40 +47,40 @@ static void glue(draw_line8_, PIXEL_NAME)(
 {
     uint8_t v, r, g, b;
     do {
-	v = ldub_p(s);
-	r = (pal[v] >> 16) & 0xff;
-	g = (pal[v] >>  8) & 0xff;
-	b = (pal[v] >>  0) & 0xff;
-	((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
-	s ++;
-	d += BPP;
-    } while (-- width != 0);
+        v = ldub_p(s);
+        r = (pal[v] >> 16) & 0xff;
+        g = (pal[v] >>  8) & 0xff;
+        b = (pal[v] >>  0) & 0xff;
+        *(PIXEL_TYPE *)d = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
+        s++;
+        d += BPP;
+    } while (--width != 0);
 }
 
 static void glue(draw_line16_, PIXEL_NAME)(
-		 uint8_t *d, const uint8_t *s, int width, const uint32_t *pal)
+                 uint8_t *d, const uint8_t *s, int width, const uint32_t *pal)
 {
     uint16_t rgb565;
     uint8_t r, g, b;
 
     do {
-	rgb565 = lduw_p(s);
-	r = ((rgb565 >> 11) & 0x1f) << 3;
-	g = ((rgb565 >>  5) & 0x3f) << 2;
-	b = ((rgb565 >>  0) & 0x1f) << 3;
-	((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
-	s += 2;
-	d += BPP;
-    } while (-- width != 0);
+        rgb565 = lduw_p(s);
+        r = ((rgb565 >> 11) & 0x1f) << 3;
+        g = ((rgb565 >>  5) & 0x3f) << 2;
+        b = ((rgb565 >>  0) & 0x1f) << 3;
+        *(PIXEL_TYPE *)d = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
+        s += 2;
+        d += BPP;
+    } while (--width != 0);
 }
 
 static void glue(draw_line32_, PIXEL_NAME)(
-		 uint8_t *d, const uint8_t *s, int width, const uint32_t *pal)
+                 uint8_t *d, const uint8_t *s, int width, const uint32_t *pal)
 {
     uint8_t r, g, b;
 
     do {
-	ldub_p(s);
+        ldub_p(s);
 #if defined(TARGET_WORDS_BIGENDIAN)
         r = s[1];
         g = s[2];
@@ -90,17 +90,17 @@ static void glue(draw_line32_, PIXEL_NAME)(
         g = s[1];
         r = s[2];
 #endif
-	((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
-	s += 4;
-	d += BPP;
-    } while (-- width != 0);
+        *(PIXEL_TYPE *)d = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
+        s += 4;
+        d += BPP;
+    } while (--width != 0);
 }
 
 /**
  * Draw hardware cursor image on the given line.
  */
-static void glue(draw_hwc_line_, PIXEL_NAME)(SM501State * s, int crt,
-                         uint8_t * palette, int c_y, uint8_t *d, int width)
+static void glue(draw_hwc_line_, PIXEL_NAME)(SM501State *s, int crt,
+                 uint8_t *palette, int c_y, uint8_t *d, int width)
 {
     int x, i;
     uint8_t bitset = 0;
@@ -132,7 +132,7 @@ static void glue(draw_hwc_line_, PIXEL_NAME)(SM501State * s, int crt,
             uint8_t r = palette[v * 3 + 0];
             uint8_t g = palette[v * 3 + 1];
             uint8_t b = palette[v * 3 + 2];
-            ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
+            *(PIXEL_TYPE *)d = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
         }
         d += BPP;
     }
