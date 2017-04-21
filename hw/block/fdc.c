@@ -2521,8 +2521,8 @@ static void fdctrl_result_timer(void *opaque)
 }
 
 /* Init functions */
-static void fdctrl_connect_drives(FDCtrl *fdctrl, Error **errp,
-                                  DeviceState *fdc_dev)
+static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
+                                  Error **errp)
 {
     unsigned int i;
     FDrive *drive;
@@ -2675,7 +2675,7 @@ static void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl,
     }
 
     floppy_bus_create(fdctrl, &fdctrl->bus, dev);
-    fdctrl_connect_drives(fdctrl, errp, dev);
+    fdctrl_connect_drives(fdctrl, dev, errp);
 }
 
 static const MemoryRegionPortio fdc_portio_list[] = {
