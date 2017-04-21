@@ -196,18 +196,6 @@ enum {
     SR_SCE = (1 << 17),
 };
 
-/* OpenRISC Hardware Capabilities */
-enum {
-    OPENRISC_FEATURE_NSGF = (15 << 0),
-    OPENRISC_FEATURE_CGF = (1 << 4),
-    OPENRISC_FEATURE_OB32S = (1 << 5),
-    OPENRISC_FEATURE_OB64S = (1 << 6),
-    OPENRISC_FEATURE_OF32S = (1 << 7),
-    OPENRISC_FEATURE_OF64S = (1 << 8),
-    OPENRISC_FEATURE_OV64S = (1 << 9),
-    OPENRISC_FEATURE_EVBAR = (1 << 12),
-};
-
 /* Tick Timer Mode Register */
 enum {
     TTMR_TP = (0xfffffff),
@@ -292,7 +280,6 @@ typedef struct CPUOpenRISCState {
     uint32_t sr;              /* Supervisor register, without SR_{F,CY,OV} */
     uint32_t vr;              /* Version register */
     uint32_t upr;             /* Unit presence register */
-    uint32_t cpucfgr;         /* CPU configure register */
     uint32_t dmmucfgr;        /* DMMU configure register */
     uint32_t immucfgr;        /* IMMU configure register */
     uint32_t esr;             /* Exception supervisor register */
@@ -311,6 +298,8 @@ typedef struct CPUOpenRISCState {
     CPU_COMMON
 
     /* Fields from here on are preserved across CPU reset. */
+    uint32_t cpucfgr;         /* CPU configure register */
+
 #ifndef CONFIG_USER_ONLY
     CPUOpenRISCTLBContext * tlb;
 
@@ -337,7 +326,6 @@ typedef struct OpenRISCCPU {
 
     CPUOpenRISCState env;
 
-    uint32_t feature;       /* CPU Capabilities */
 } OpenRISCCPU;
 
 static inline OpenRISCCPU *openrisc_env_get_cpu(CPUOpenRISCState *env)
