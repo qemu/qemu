@@ -509,7 +509,7 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
 void bdrv_img_create(const char *filename, const char *fmt,
                      const char *base_filename, const char *base_fmt,
                      char *options, uint64_t img_size, int flags,
-                     Error **errp, bool quiet);
+                     bool quiet, Error **errp);
 
 /* Returns the alignment in bytes that is required so that no bounce buffer
  * is required throughout the stack */

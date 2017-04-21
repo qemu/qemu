@@ -516,7 +516,7 @@ static int img_create(int argc, char **argv)
     }
 
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
-                    options, img_size, 0, &local_err, quiet);
+                    options, img_size, 0, quiet, &local_err);
     if (local_err) {
         error_reportf_err(local_err, "%s: ", filename);
         goto fail;

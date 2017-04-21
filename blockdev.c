@@ -1728,7 +1728,7 @@ static void external_snapshot_prepare(BlkActionState *common,
             bdrv_img_create(new_image_file, format,
                             state->old_bs->filename,
                             state->old_bs->drv->format_name,
-                            NULL, size, flags, &local_err, false);
+                            NULL, size, flags, false, &local_err);
             if (local_err) {
                 error_propagate(errp, local_err);
                 return;
@@ -3237,10 +3237,10 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
         if (source) {
             bdrv_img_create(backup->target, backup->format, source->filename,
                             source->drv->format_name, NULL,
-                            size, flags, &local_err, false);
+                            size, flags, false, &local_err);
         } else {
             bdrv_img_create(backup->target, backup->format, NULL, NULL, NULL,
-                            size, flags, &local_err, false);
+                            size, flags, false, &local_err);
         }
     }
 
@@ -3531,7 +3531,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         /* create new image w/o backing file */
         assert(format);
         bdrv_img_create(arg->target, format,
-                        NULL, NULL, NULL, size, flags, &local_err, false);
+                        NULL, NULL, NULL, size, flags, false, &local_err);
     } else {
         switch (arg->mode) {
         case NEW_IMAGE_MODE_EXISTING:
@@ -3541,7 +3541,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
             bdrv_img_create(arg->target, format,
                             source->filename,
                             source->drv->format_name,
-                            NULL, size, flags, &local_err, false);
+                            NULL, size, flags, false, &local_err);
             break;
         default:
             abort();
