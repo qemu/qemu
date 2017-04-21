@@ -616,10 +616,9 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 dev->routes.adapter.ind_offset = ind_bit;
                 dev->routes.adapter.summary_offset = 7;
                 cpu_physical_memory_unmap(thinint, hw_len, 0, hw_len);
-                ret = css_register_io_adapter(CSS_IO_ADAPTER_VIRTIO,
-                                              dev->thinint_isc, true, false,
-                                              &dev->routes.adapter.adapter_id);
-                assert(ret == 0);
+                dev->routes.adapter.adapter_id = css_get_adapter_id(
+                                                 CSS_IO_ADAPTER_VIRTIO,
+                                                 dev->thinint_isc);
                 sch->thinint_active = ((dev->indicators != NULL) &&
                                        (dev->summary_indicator != NULL));
                 sch->curr_status.scsw.count = ccw.count - len;
@@ -680,7 +679,8 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
 {
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
-    SubchDev *sch = css_create_virtual_sch(ccw_dev->bus_id, errp);
+    CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
+    SubchDev *sch = css_create_virtual_sch(ccw_dev->devno, errp);
     Error *err = NULL;
 
     if (!sch) {
@@ -689,8 +689,7 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     if (!virtio_ccw_rev_max(dev) && dev->force_revision_1) {
         error_setg(&err, "Invalid value of property max_rev "
                    "(is %d expected >= 1)", virtio_ccw_rev_max(dev));
-        error_propagate(errp, err);
-        return;
+        goto out_err;
     }
 
     sch->driver_data = dev;
@@ -705,7 +704,7 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
 
     trace_virtio_ccw_new_device(
         sch->cssid, sch->ssid, sch->schid, sch->devno,
-        ccw_dev->bus_id.valid ? "user-configured" : "auto-configured");
+        ccw_dev->devno.valid ? "user-configured" : "auto-configured");
 
     if (!kvm_eventfds_enabled()) {
         dev->flags &= ~VIRTIO_CCW_FLAG_USE_IOEVENTFD;
@@ -713,13 +712,23 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
 
     if (k->realize) {
         k->realize(dev, &err);
+        if (err) {
+            goto out_err;
+        }
     }
+
+    ck->realize(ccw_dev, &err);
     if (err) {
-        error_propagate(errp, err);
-        css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
-        ccw_dev->sch = NULL;
-        g_free(sch);
+        goto out_err;
     }
+
+    return;
+
+out_err:
+    error_propagate(errp, err);
+    css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
+    ccw_dev->sch = NULL;
+    g_free(sch);
 }
 
 static int virtio_ccw_exit(VirtioCcwDevice *dev)
@@ -1261,12 +1270,17 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
     CcwDevice *ccw_dev = CCW_DEVICE(d);
+    CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
     SubchDev *s = ccw_dev->sch;
     VirtIODevice *vdev = virtio_ccw_get_vdev(s);
     int len;
 
     s->driver_data = dev;
     subch_device_load(s, f);
+    /* Re-fill subch_id after loading the subchannel states.*/
+    if (ck->refill_ids) {
+        ck->refill_ids(ccw_dev);
+    }
     len = qemu_get_be32(f);
     if (len != 0) {
         dev->indicators = get_indicator(qemu_get_be64(f), len);
@@ -1293,9 +1307,9 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
     dev->thinint_isc = qemu_get_byte(f);
     dev->revision = qemu_get_be32(f);
     if (s->thinint_active) {
-        return css_register_io_adapter(CSS_IO_ADAPTER_VIRTIO,
-                                       dev->thinint_isc, true, false,
-                                       &dev->routes.adapter.adapter_id);
+        dev->routes.adapter.adapter_id = css_get_adapter_id(
+                                         CSS_IO_ADAPTER_VIRTIO,
+                                         dev->thinint_isc);
     }
 
     return 0;
@@ -1354,7 +1368,6 @@ static void virtio_ccw_device_unplugged(DeviceState *d)
 /**************** Virtio-ccw Bus Device Descriptions *******************/
 
 static Property virtio_ccw_net_properties[] = {
-    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
@@ -1383,7 +1396,6 @@ static const TypeInfo virtio_ccw_net = {
 };
 
 static Property virtio_ccw_blk_properties[] = {
-    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
@@ -1412,7 +1424,6 @@ static const TypeInfo virtio_ccw_blk = {
 };
 
 static Property virtio_ccw_serial_properties[] = {
-    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
@@ -1441,7 +1452,6 @@ static const TypeInfo virtio_ccw_serial = {
 };
 
 static Property virtio_ccw_balloon_properties[] = {
-    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
@@ -1470,7 +1480,6 @@ static const TypeInfo virtio_ccw_balloon = {
 };
 
 static Property virtio_ccw_scsi_properties[] = {
-    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
@@ -1500,7 +1509,6 @@ static const TypeInfo virtio_ccw_scsi = {
 
 #ifdef CONFIG_VHOST_SCSI
 static Property vhost_ccw_scsi_properties[] = {
-    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
                        VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
@@ -1538,7 +1546,6 @@ static void virtio_ccw_rng_instance_init(Object *obj)
 }
 
 static Property virtio_ccw_rng_properties[] = {
-    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
@@ -1567,7 +1574,6 @@ static const TypeInfo virtio_ccw_rng = {
 };
 
 static Property virtio_ccw_crypto_properties[] = {
-    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
@@ -1694,7 +1700,6 @@ static const TypeInfo virtio_ccw_bus_info = {
 
 #ifdef CONFIG_VIRTFS
 static Property virtio_ccw_9p_properties[] = {
-    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
             VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
@@ -1743,7 +1748,6 @@ static const TypeInfo virtio_ccw_9p_info = {
 #ifdef CONFIG_VHOST_VSOCK
 
 static Property vhost_vsock_ccw_properties[] = {
-    DEFINE_PROP_CSS_DEV_ID("devno", VirtioCcwDevice, parent_obj.bus_id),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
                        VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),

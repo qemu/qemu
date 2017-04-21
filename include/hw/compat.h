@@ -1,6 +1,9 @@
 #ifndef HW_COMPAT_H
 #define HW_COMPAT_H
 
+#define HW_COMPAT_2_9 \
+    /* empty */
+
 #define HW_COMPAT_2_8 \
     {\
         .driver   = "fw_cfg_mem",\

@@ -20,14 +20,16 @@
 #include "qemu/error-report.h"
 #include "sysemu/hw_accel.h"
 
-/* #define DEBUG_S390PCI_INST */
-#ifdef DEBUG_S390PCI_INST
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, "s390pci-inst: " fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
+#ifndef DEBUG_S390PCI_INST
+#define DEBUG_S390PCI_INST  0
 #endif
+
+#define DPRINTF(fmt, ...)                                          \
+    do {                                                           \
+        if (DEBUG_S390PCI_INST) {                                  \
+            fprintf(stderr, "s390pci-inst: " fmt, ## __VA_ARGS__); \
+        }                                                          \
+    } while (0)
 
 static void s390_set_status_code(CPUS390XState *env,
                                  uint8_t r, uint64_t status_code)
@@ -731,12 +733,10 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
 static int reg_irqs(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib)
 {
     int ret, len;
+    uint8_t isc = FIB_DATA_ISC(ldl_p(&fib.data));
 
-    ret = css_register_io_adapter(S390_PCIPT_ADAPTER,
-                                  FIB_DATA_ISC(ldl_p(&fib.data)), true, false,
-                                  &pbdev->routes.adapter.adapter_id);
-    assert(ret == 0);
-
+    pbdev->routes.adapter.adapter_id = css_get_adapter_id(
+                                       CSS_IO_ADAPTER_PCI, isc);
     pbdev->summary_ind = get_indicator(ldq_p(&fib.aisb), sizeof(uint64_t));
     len = BITS_TO_LONGS(FIB_DATA_NOI(ldl_p(&fib.data))) * sizeof(unsigned long);
     pbdev->indicator = get_indicator(ldq_p(&fib.aibv), len);
@@ -755,7 +755,7 @@ static int reg_irqs(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib)
     pbdev->routes.adapter.summary_offset = FIB_DATA_AISBO(ldl_p(&fib.data));
     pbdev->routes.adapter.ind_addr = ldq_p(&fib.aibv);
     pbdev->routes.adapter.ind_offset = FIB_DATA_AIBVO(ldl_p(&fib.data));
-    pbdev->isc = FIB_DATA_ISC(ldl_p(&fib.data));
+    pbdev->isc = isc;
     pbdev->noi = FIB_DATA_NOI(ldl_p(&fib.data));
     pbdev->sum = FIB_DATA_SUM(ldl_p(&fib.data));
 

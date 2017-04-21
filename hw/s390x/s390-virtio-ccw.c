@@ -113,12 +113,13 @@ static void ccw_init(MachineState *machine)
     s390_sclp_init();
     s390_memory_init(machine->ram_size);
 
+    s390_flic_init();
+
     /* get a BUS */
     css_bus = virtual_css_bus_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
                       machine->initrd_filename, "s390-ccw.img",
                       "s390-netboot.img", true);
-    s390_flic_init();
 
     dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
     object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
@@ -336,6 +337,9 @@ static const TypeInfo ccw_machine_info = {
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
+#define CCW_COMPAT_2_9 \
+        HW_COMPAT_2_9
+
 #define CCW_COMPAT_2_8 \
         HW_COMPAT_2_8 \
         {\
@@ -402,14 +406,26 @@ static const TypeInfo ccw_machine_info = {
             .value    = "0",\
         },
 
+static void ccw_machine_2_10_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_2_10_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE(2_10, "2.10", true);
+
 static void ccw_machine_2_9_instance_options(MachineState *machine)
 {
+    ccw_machine_2_10_instance_options(machine);
 }
 
 static void ccw_machine_2_9_class_options(MachineClass *mc)
 {
+    ccw_machine_2_10_class_options(mc);
+    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_9);
 }
-DEFINE_CCW_MACHINE(2_9, "2.9", true);
+DEFINE_CCW_MACHINE(2_9, "2.9", false);
 
 static void ccw_machine_2_8_instance_options(MachineState *machine)
 {
