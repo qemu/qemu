@@ -918,6 +918,53 @@ void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
  */
 bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
                                         hwaddr size, unsigned client);
+
+/**
+ * memory_region_snapshot_and_clear_dirty: Get a snapshot of the dirty
+ *                                         bitmap and clear it.
+ *
+ * Creates a snapshot of the dirty bitmap, clears the dirty bitmap and
+ * returns the snapshot.  The snapshot can then be used to query dirty
+ * status, using memory_region_snapshot_get_dirty.  Unlike
+ * memory_region_test_and_clear_dirty this allows to query the same
+ * page multiple times, which is especially useful for display updates
+ * where the scanlines often are not page aligned.
+ *
+ * The dirty bitmap region which gets copyed into the snapshot (and
+ * cleared afterwards) can be larger than requested.  The boundaries
+ * are rounded up/down so complete bitmap longs (covering 64 pages on
+ * 64bit hosts) can be copied over into the bitmap snapshot.  Which
+ * isn't a problem for display updates as the extra pages are outside
+ * the visible area, and in case the visible area changes a full
+ * display redraw is due anyway.  Should other use cases for this
+ * function emerge we might have to revisit this implementation
+ * detail.
+ *
+ * Use g_free to release DirtyBitmapSnapshot.
+ *
+ * @mr: the memory region being queried.
+ * @addr: the address (relative to the start of the region) being queried.
+ * @size: the size of the range being queried.
+ * @client: the user of the logging information; typically %DIRTY_MEMORY_VGA.
+ */
+DirtyBitmapSnapshot *memory_region_snapshot_and_clear_dirty(MemoryRegion *mr,
+                                                            hwaddr addr,
+                                                            hwaddr size,
+                                                            unsigned client);
+
+/**
+ * memory_region_snapshot_get_dirty: Check whether a range of bytes is dirty
+ *                                   in the specified dirty bitmap snapshot.
+ *
+ * @mr: the memory region being queried.
+ * @snap: the dirty bitmap snapshot
+ * @addr: the address (relative to the start of the region) being queried.
+ * @size: the size of the range being queried.
+ */
+bool memory_region_snapshot_get_dirty(MemoryRegion *mr,
+                                      DirtyBitmapSnapshot *snap,
+                                      hwaddr addr, hwaddr size);
+
 /**
  * memory_region_sync_dirty_bitmap: Synchronize a region's dirty bitmap with
  *                                  any external TLBs (e.g. kvm)
