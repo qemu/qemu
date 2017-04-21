@@ -18,7 +18,7 @@
 #include "qemu-file.h"
 #include "savevm.h"
 #include "migration/colo.h"
-#include "migration/block.h"
+#include "block.h"
 #include "io/channel-buffer.h"
 #include "trace.h"
 #include "qemu/error-report.h"

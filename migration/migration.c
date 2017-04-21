@@ -34,7 +34,7 @@
 #include "qapi/util.h"
 #include "qemu/sockets.h"
 #include "qemu/rcu.h"
-#include "migration/block.h"
+#include "block.h"
 #include "postcopy-ram.h"
 #include "qemu/thread.h"
 #include "qmp-commands.h"

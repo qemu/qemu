@@ -18,4 +18,12 @@
 
 void ram_mig_init(void);
 
+/* migration/block.c */
+
+#ifdef CONFIG_LIVE_BLOCK_MIGRATION
+void blk_mig_init(void);
+#else
+static inline void blk_mig_init(void) {}
+#endif
+
 #endif
