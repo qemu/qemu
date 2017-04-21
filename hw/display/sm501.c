@@ -32,6 +32,7 @@
 #include "ui/console.h"
 #include "hw/devices.h"
 #include "hw/sysbus.h"
+#include "hw/pci/pci.h"
 #include "qemu/range.h"
 #include "ui/pixel_ops.h"
 #include "exec/address-spaces.h"
@@ -1547,9 +1548,73 @@ static const TypeInfo sm501_sysbus_info = {
     .class_init    = sm501_sysbus_class_init,
 };
 
+#define TYPE_PCI_SM501 "sm501"
+#define PCI_SM501(obj) OBJECT_CHECK(SM501PCIState, (obj), TYPE_PCI_SM501)
+
+typedef struct {
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+    SM501State state;
+    uint32_t vram_size;
+} SM501PCIState;
+
+static void sm501_realize_pci(PCIDevice *dev, Error **errp)
+{
+    SM501PCIState *s = PCI_SM501(dev);
+
+    sm501_init(&s->state, DEVICE(dev), s->vram_size);
+    if (get_local_mem_size(&s->state) != s->vram_size) {
+        error_setg(errp, "Invalid VRAM size, nearest valid size is %" PRIu32,
+                   get_local_mem_size(&s->state));
+        return;
+    }
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                     &s->state.local_mem_region);
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                     &s->state.mmio_region);
+}
+
+static Property sm501_pci_properties[] = {
+    DEFINE_PROP_UINT32("vram-size", SM501PCIState, vram_size, 64 * M_BYTE),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void sm501_reset_pci(DeviceState *dev)
+{
+    SM501PCIState *s = PCI_SM501(dev);
+    sm501_reset(&s->state);
+    /* Bits 2:0 of misc_control register is 001 for PCI */
+    s->state.misc_control |= 1;
+}
+
+static void sm501_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->realize = sm501_realize_pci;
+    k->vendor_id = PCI_VENDOR_ID_SILICON_MOTION;
+    k->device_id = PCI_DEVICE_ID_SM501;
+    k->class_id = PCI_CLASS_DISPLAY_OTHER;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
+    dc->desc = "SM501 Display Controller";
+    dc->props = sm501_pci_properties;
+    dc->reset = sm501_reset_pci;
+    dc->hotpluggable = false;
+}
+
+static const TypeInfo sm501_pci_info = {
+    .name          = TYPE_PCI_SM501,
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(SM501PCIState),
+    .class_init    = sm501_pci_class_init,
+};
+
 static void sm501_register_types(void)
 {
     type_register_static(&sm501_sysbus_info);
+    type_register_static(&sm501_pci_info);
 }
 
 type_init(sm501_register_types)

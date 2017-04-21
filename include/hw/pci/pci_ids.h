@@ -207,6 +207,9 @@
 
 #define PCI_VENDOR_ID_MARVELL            0x11ab
 
+#define PCI_VENDOR_ID_SILICON_MOTION     0x126f
+#define PCI_DEVICE_ID_SM501              0x0501
+
 #define PCI_VENDOR_ID_ENSONIQ            0x1274
 #define PCI_DEVICE_ID_ENSONIQ_ES1370     0x5000
 
