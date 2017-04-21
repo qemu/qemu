@@ -32,7 +32,6 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "qapi/visitor.h"
-#include "migration/vmstate.h"
 #include "exec/exec-all.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/hw.h"

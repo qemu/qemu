@@ -3,7 +3,6 @@
 
 #include "qemu-common.h"
 #include "exec/memory.h"
-#include "migration/vmstate.h"
 #include "hw/hotplug.h"
 #include "hw/pci/pci.h"
 
