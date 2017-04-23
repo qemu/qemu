@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "exception.h"
 
 #define TO_SPR(group, number) (((group) << 11) + (number))
 
@@ -140,6 +141,15 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
         break;
     case TO_SPR(5, 2):  /* MACHI */
         env->mac = deposit64(env->mac, 32, 32, rb);
+        break;
+    case TO_SPR(8, 0):  /* PMR */
+        env->pmr = rb;
+        if (env->pmr & PMR_DME || env->pmr & PMR_SME) {
+            cpu_restore_state(cs, GETPC());
+            env->pc += 4;
+            cs->halted = 1;
+            raise_exception(cpu, EXCP_HALTED);
+        }
         break;
     case TO_SPR(9, 0):  /* PICMR */
         env->picmr |= rb;
@@ -286,6 +296,9 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
     case TO_SPR(5, 2):  /* MACHI */
         return env->mac >> 32;
         break;
+
+    case TO_SPR(8, 0):  /* PMR */
+        return env->pmr;
 
     case TO_SPR(9, 0):  /* PICMR */
         return env->picmr;

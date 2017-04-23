@@ -140,6 +140,15 @@ enum {
     IMMUCFGR_HTR = (1 << 11),
 };
 
+/* Power management register */
+enum {
+    PMR_SDF = (15 << 0),
+    PMR_DME = (1 << 4),
+    PMR_SME = (1 << 5),
+    PMR_DCGE = (1 << 6),
+    PMR_SUME = (1 << 7),
+};
+
 /* Float point control status register */
 enum {
     FPCSR_FPEE = 1,
@@ -284,6 +293,7 @@ typedef struct CPUOpenRISCState {
     uint32_t immucfgr;        /* IMMU configure register */
     uint32_t esr;             /* Exception supervisor register */
     uint32_t evbar;           /* Exception vector base address register */
+    uint32_t pmr;             /* Power Management Register */
     uint32_t fpcsr;           /* Float register */
     float_status fp_status;
 
