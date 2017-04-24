@@ -144,18 +144,18 @@ static void prepare_imgs(void)
 
     /* Primary */
     bdrv_img_create(p_local_disk, "qcow2", NULL, NULL, NULL, IMG_SIZE,
-                    BDRV_O_RDWR, &local_err, true);
+                    BDRV_O_RDWR, true, &local_err);
     g_assert(!local_err);
 
     /* Secondary */
     bdrv_img_create(s_local_disk, "qcow2", NULL, NULL, NULL, IMG_SIZE,
-                    BDRV_O_RDWR, &local_err, true);
+                    BDRV_O_RDWR, true, &local_err);
     g_assert(!local_err);
     bdrv_img_create(s_active_disk, "qcow2", NULL, NULL, NULL, IMG_SIZE,
-                    BDRV_O_RDWR, &local_err, true);
+                    BDRV_O_RDWR, true, &local_err);
     g_assert(!local_err);
     bdrv_img_create(s_hidden_disk, "qcow2", NULL, NULL, NULL, IMG_SIZE,
-                    BDRV_O_RDWR, &local_err, true);
+                    BDRV_O_RDWR, true, &local_err);
     g_assert(!local_err);
 }
 

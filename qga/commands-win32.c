@@ -768,7 +768,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **errp)
     /* cannot risk guest agent blocking itself on a write in this state */
     ga_set_frozen(ga_state);
 
-    qga_vss_fsfreeze(&i, &local_err, true);
+    qga_vss_fsfreeze(&i, true, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error;
@@ -807,7 +807,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
         return 0;
     }
 
-    qga_vss_fsfreeze(&i, errp, false);
+    qga_vss_fsfreeze(&i, false, errp);
 
     ga_unset_frozen(ga_state);
     return i;

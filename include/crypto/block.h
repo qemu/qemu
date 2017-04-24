@@ -30,23 +30,23 @@ typedef struct QCryptoBlock QCryptoBlock;
  * and QCryptoBlockOpenOptions in qapi/crypto.json */
 
 typedef ssize_t (*QCryptoBlockReadFunc)(QCryptoBlock *block,
+                                        void *opaque,
                                         size_t offset,
                                         uint8_t *buf,
                                         size_t buflen,
-                                        Error **errp,
-                                        void *opaque);
+                                        Error **errp);
 
 typedef ssize_t (*QCryptoBlockInitFunc)(QCryptoBlock *block,
+                                        void *opaque,
                                         size_t headerlen,
-                                        Error **errp,
-                                        void *opaque);
+                                        Error **errp);
 
 typedef ssize_t (*QCryptoBlockWriteFunc)(QCryptoBlock *block,
+                                         void *opaque,
                                          size_t offset,
                                          const uint8_t *buf,
                                          size_t buflen,
-                                         Error **errp,
-                                         void *opaque);
+                                         Error **errp);
 
 /**
  * qcrypto_block_has_format:

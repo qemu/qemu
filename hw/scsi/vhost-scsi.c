@@ -233,9 +233,11 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    virtio_scsi_common_realize(dev, &err, vhost_dummy_handle_output,
+    virtio_scsi_common_realize(dev,
                                vhost_dummy_handle_output,
-                               vhost_dummy_handle_output);
+                               vhost_dummy_handle_output,
+                               vhost_dummy_handle_output,
+                               &err);
     if (err != NULL) {
         error_propagate(errp, err);
         goto close_fd;
