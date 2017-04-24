@@ -27,7 +27,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "hw/boards.h"
 #include "hw/hw.h"
 #include "hw/qdev.h"
@@ -288,7 +287,7 @@ static void configuration_pre_save(void *opaque)
 
     state->len = strlen(current_name);
     state->name = current_name;
-    state->target_page_bits = TARGET_PAGE_BITS;
+    state->target_page_bits = qemu_target_page_bits();
 }
 
 static int configuration_pre_load(void *opaque)
@@ -299,7 +298,7 @@ static int configuration_pre_load(void *opaque)
      * predates the variable-target-page-bits support and is using the
      * minimum possible value for this CPU.
      */
-    state->target_page_bits = TARGET_PAGE_BITS_MIN;
+    state->target_page_bits = qemu_target_page_bits_min();
     return 0;
 }
 
@@ -314,9 +313,9 @@ static int configuration_post_load(void *opaque, int version_id)
         return -EINVAL;
     }
 
-    if (state->target_page_bits != TARGET_PAGE_BITS) {
+    if (state->target_page_bits != qemu_target_page_bits()) {
         error_report("Received TARGET_PAGE_BITS is %d but local is %d",
-                     state->target_page_bits, TARGET_PAGE_BITS);
+                     state->target_page_bits, qemu_target_page_bits());
         return -EINVAL;
     }
 
@@ -332,7 +331,8 @@ static int configuration_post_load(void *opaque, int version_id)
  */
 static bool vmstate_target_page_bits_needed(void *opaque)
 {
-    return TARGET_PAGE_BITS > TARGET_PAGE_BITS_MIN;
+    return qemu_target_page_bits()
+        > qemu_target_page_bits_min();
 }
 
 static const VMStateDescription vmstate_target_page_bits = {
@@ -1138,7 +1138,7 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
     }
 
     vmdesc = qjson_new();
-    json_prop_int(vmdesc, "page_size", TARGET_PAGE_SIZE);
+    json_prop_int(vmdesc, "page_size", qemu_target_page_size());
     json_start_array(vmdesc, "devices");
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
 

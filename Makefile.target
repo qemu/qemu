@@ -146,7 +146,7 @@ obj-$(CONFIG_KVM) += kvm-all.o
 obj-y += memory.o cputlb.o
 obj-y += memory_mapping.o
 obj-y += dump.o
-obj-y += migration/ram.o migration/savevm.o
+obj-y += migration/ram.o
 LIBS := $(libs_softmmu) $(LIBS)
 
 # Hardware support
