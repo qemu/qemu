@@ -38,6 +38,7 @@
 #include "xbzrle.h"
 #include "ram.h"
 #include "migration/migration.h"
+#include "migration/register.h"
 #include "migration/misc.h"
 #include "qemu-file.h"
 #include "migration/vmstate.h"

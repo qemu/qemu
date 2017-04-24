@@ -26,6 +26,7 @@
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "chardev/char-fe.h"
+#include "migration/register.h"
 #include "slirp.h"
 #include "hw/hw.h"
 #include "qemu/cutils.h"
