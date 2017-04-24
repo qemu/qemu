@@ -26,7 +26,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "cpu.h"
 #include "qemu/error-report.h"
 #include "ui/console.h"
 #include "hw/sysbus.h"
@@ -114,8 +113,8 @@ static void cg3_update_display(void *opaque)
     for (y = 0; y < height; y++) {
         int update = s->full_update;
 
-        page = (y * width) & TARGET_PAGE_MASK;
-        update |= memory_region_get_dirty(&s->vram_mem, page, page + width,
+        page = y * width;
+        update |= memory_region_get_dirty(&s->vram_mem, page, width,
                                           DIRTY_MEMORY_VGA);
         if (update) {
             if (y_start < 0) {
@@ -148,8 +147,7 @@ static void cg3_update_display(void *opaque)
     }
     if (page_max >= page_min) {
         memory_region_reset_dirty(&s->vram_mem,
-                              page_min, page_max - page_min + TARGET_PAGE_SIZE,
-                              DIRTY_MEMORY_VGA);
+                              page_min, page_max - page_min, DIRTY_MEMORY_VGA);
     }
     /* vsync interrupt? */
     if (s->regs[0] & CG3_CR_ENABLE_INTS) {
@@ -305,8 +303,7 @@ static void cg3_realizefn(DeviceState *dev, Error **errp)
     vmstate_register_ram_global(&s->rom);
     fcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, CG3_ROM_FILE);
     if (fcode_filename) {
-        ret = load_image_targphys(fcode_filename, s->prom_addr,
-                                  FCODE_MAX_ROM_SIZE);
+        ret = load_image_mr(fcode_filename, &s->rom);
         g_free(fcode_filename);
         if (ret < 0 || ret > FCODE_MAX_ROM_SIZE) {
             error_report("cg3: could not load prom '%s'", CG3_ROM_FILE);
@@ -371,7 +368,6 @@ static Property cg3_properties[] = {
     DEFINE_PROP_UINT16("width",        CG3State, width,     -1),
     DEFINE_PROP_UINT16("height",       CG3State, height,    -1),
     DEFINE_PROP_UINT16("depth",        CG3State, depth,     -1),
-    DEFINE_PROP_UINT64("prom-addr",    CG3State, prom_addr, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
