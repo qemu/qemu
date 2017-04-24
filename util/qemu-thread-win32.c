@@ -19,6 +19,7 @@
 #include "qemu-common.h"
 #include "qemu/thread.h"
 #include "qemu/notify.h"
+#include "trace.h"
 #include <process.h>
 
 static bool name_threads;
@@ -55,6 +56,7 @@ void qemu_mutex_destroy(QemuMutex *mutex)
 void qemu_mutex_lock(QemuMutex *mutex)
 {
     AcquireSRWLockExclusive(&mutex->lock);
+    trace_qemu_mutex_locked(mutex);
 }
 
 int qemu_mutex_trylock(QemuMutex *mutex)
@@ -62,11 +64,16 @@ int qemu_mutex_trylock(QemuMutex *mutex)
     int owned;
 
     owned = TryAcquireSRWLockExclusive(&mutex->lock);
-    return !owned;
+    if (owned) {
+        trace_qemu_mutex_locked(mutex);
+        return 0;
+    }
+    return -EBUSY;
 }
 
 void qemu_mutex_unlock(QemuMutex *mutex)
 {
+    trace_qemu_mutex_unlocked(mutex);
     ReleaseSRWLockExclusive(&mutex->lock);
 }
 
@@ -118,7 +125,9 @@ void qemu_cond_broadcast(QemuCond *cond)
 
 void qemu_cond_wait(QemuCond *cond, QemuMutex *mutex)
 {
+    trace_qemu_mutex_unlocked(mutex);
     SleepConditionVariableSRW(&cond->var, &mutex->lock, INFINITE, 0);
+    trace_qemu_mutex_locked(mutex);
 }
 
 void qemu_sem_init(QemuSemaphore *sem, int init)

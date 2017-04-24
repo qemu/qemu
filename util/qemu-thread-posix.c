@@ -14,6 +14,7 @@
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
 #include "qemu/notify.h"
+#include "trace.h"
 
 static bool name_threads;
 
@@ -60,17 +61,30 @@ void qemu_mutex_lock(QemuMutex *mutex)
     err = pthread_mutex_lock(&mutex->lock);
     if (err)
         error_exit(err, __func__);
+
+    trace_qemu_mutex_locked(mutex);
 }
 
 int qemu_mutex_trylock(QemuMutex *mutex)
 {
-    return pthread_mutex_trylock(&mutex->lock);
+    int err;
+
+    err = pthread_mutex_trylock(&mutex->lock);
+    if (err == 0) {
+        trace_qemu_mutex_locked(mutex);
+        return 0;
+    }
+    if (err != EBUSY) {
+        error_exit(err, __func__);
+    }
+    return -EBUSY;
 }
 
 void qemu_mutex_unlock(QemuMutex *mutex)
 {
     int err;
 
+    trace_qemu_mutex_unlocked(mutex);
     err = pthread_mutex_unlock(&mutex->lock);
     if (err)
         error_exit(err, __func__);
@@ -130,7 +144,9 @@ void qemu_cond_wait(QemuCond *cond, QemuMutex *mutex)
 {
     int err;
 
+    trace_qemu_mutex_unlocked(mutex);
     err = pthread_cond_wait(&cond->cond, &mutex->lock);
+    trace_qemu_mutex_locked(mutex);
     if (err)
         error_exit(err, __func__);
 }
