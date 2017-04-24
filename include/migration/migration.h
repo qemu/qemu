@@ -22,18 +22,6 @@
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
 
-/* Messages sent on the return path from destination to source */
-enum mig_rp_message_type {
-    MIG_RP_MSG_INVALID = 0,  /* Must be 0 */
-    MIG_RP_MSG_SHUT,         /* sibling will not send any more RP messages */
-    MIG_RP_MSG_PONG,         /* Response to a PING; data (seq: be32 ) */
-
-    MIG_RP_MSG_REQ_PAGES_ID, /* data (start: be64, len: be32, id: string) */
-    MIG_RP_MSG_REQ_PAGES,    /* data (start: be64, len: be32) */
-
-    MIG_RP_MSG_MAX
-};
-
 /* State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
@@ -176,9 +164,6 @@ int migrate_decompress_threads(void);
 bool migrate_use_events(void);
 
 /* Sending on the return path - generic and then for each message type */
-void migrate_send_rp_message(MigrationIncomingState *mis,
-                             enum mig_rp_message_type message_type,
-                             uint16_t len, void *data);
 void migrate_send_rp_shut(MigrationIncomingState *mis,
                           uint32_t value);
 void migrate_send_rp_pong(MigrationIncomingState *mis,
