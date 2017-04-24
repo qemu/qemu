@@ -2138,14 +2138,14 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
     case MFI_SEQ:
         trace_megasas_mmio_writel("MFI_SEQ", val);
         /* Magic sequence to start ADP reset */
-        if (adp_reset_seq[s->adp_reset] == val) {
-            s->adp_reset++;
+        if (adp_reset_seq[s->adp_reset++] == val) {
+            if (s->adp_reset == 6) {
+                s->adp_reset = 0;
+                s->diag = MFI_DIAG_WRITE_ENABLE;
+            }
         } else {
             s->adp_reset = 0;
             s->diag = 0;
-        }
-        if (s->adp_reset == 6) {
-            s->diag = MFI_DIAG_WRITE_ENABLE;
         }
         break;
     case MFI_DIAG:
