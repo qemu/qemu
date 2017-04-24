@@ -22,7 +22,7 @@
 #include "qemu-common.h"
 #include "channel.h"
 #include "exec.h"
-#include "migration/migration.h"
+#include "migration.h"
 #include "io/channel-command.h"
 #include "trace.h"
 

@@ -19,7 +19,7 @@
 #include "qemu-common.h"
 #include "channel.h"
 #include "fd.h"
-#include "migration/migration.h"
+#include "migration.h"
 #include "monitor/monitor.h"
 #include "io/channel-util.h"
 #include "trace.h"

@@ -28,7 +28,7 @@
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 #include "qemu/coroutine.h"
-#include "migration/migration.h"
+#include "migration.h"
 #include "qemu-file.h"
 #include "trace.h"
 

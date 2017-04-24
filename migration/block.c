@@ -25,7 +25,7 @@
 #include "qemu/timer.h"
 #include "block.h"
 #include "migration/misc.h"
-#include "migration/migration.h"
+#include "migration.h"
 #include "migration/register.h"
 #include "sysemu/blockdev.h"
 #include "qemu-file.h"

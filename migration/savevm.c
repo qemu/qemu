@@ -34,7 +34,7 @@
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
-#include "migration/migration.h"
+#include "migration.h"
 #include "migration/snapshot.h"
 #include "migration/misc.h"
 #include "migration/register.h"
