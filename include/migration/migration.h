@@ -122,26 +122,16 @@ void migrate_set_state(int *state, int old_state, int new_state);
 
 void migration_fd_process_incoming(QEMUFile *f);
 
-void qemu_start_incoming_migration(const char *uri, Error **errp);
-
 uint64_t migrate_max_downtime(void);
 
 void migrate_fd_error(MigrationState *s, const Error *error);
 
 void migrate_fd_connect(MigrationState *s);
 
-void add_migration_state_change_notifier(Notifier *notify);
-void remove_migration_state_change_notifier(Notifier *notify);
 MigrationState *migrate_init(void);
 bool migration_is_blocked(Error **errp);
-bool migration_in_setup(MigrationState *);
-bool migration_is_idle(void);
-bool migration_has_finished(MigrationState *);
-bool migration_has_failed(MigrationState *);
 /* True if outgoing migration has entered postcopy phase */
 bool migration_in_postcopy(void);
-/* ...and after the device transmission */
-bool migration_in_postcopy_after_devices(MigrationState *);
 MigrationState *migrate_get_current(void);
 
 bool migrate_release_ram(void);
@@ -170,8 +160,5 @@ void migrate_send_rp_pong(MigrationIncomingState *mis,
                           uint32_t value);
 void migrate_send_rp_req_pages(MigrationIncomingState *mis, const char* rbname,
                               ram_addr_t start, size_t len);
-
-void savevm_skip_section_footers(void);
-void savevm_skip_configuration(void);
 
 #endif

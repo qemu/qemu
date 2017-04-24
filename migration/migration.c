@@ -24,6 +24,7 @@
 #include "rdma.h"
 #include "ram.h"
 #include "migration/global_state.h"
+#include "migration/misc.h"
 #include "migration/migration.h"
 #include "savevm.h"
 #include "qemu-file-channel.h"

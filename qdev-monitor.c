@@ -29,7 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
 #include "sysemu/block-backend.h"
-#include "migration/migration.h"
+#include "migration/misc.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
