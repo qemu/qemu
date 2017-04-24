@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 
 #include "qemu-common.h"
+#include "exec/target_page.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
 #include "postcopy-ram.h"

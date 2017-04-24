@@ -43,6 +43,7 @@
 #include "qemu/queue.h"
 #include "sysemu/cpus.h"
 #include "exec/memory.h"
+#include "exec/target_page.h"
 #include "qmp-commands.h"
 #include "trace.h"
 #include "qemu/bitops.h"
