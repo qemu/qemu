@@ -473,9 +473,9 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
      * then encrypted.
      */
     rv = readfunc(block,
-                  opaque,
                   slot->key_offset * QCRYPTO_BLOCK_LUKS_SECTOR_SIZE,
                   splitkey, splitkeylen,
+                  opaque,
                   errp);
     if (rv < 0) {
         goto cleanup;
@@ -676,9 +676,10 @@ qcrypto_block_luks_open(QCryptoBlock *block,
 
     /* Read the entire LUKS header, minus the key material from
      * the underlying device */
-    rv = readfunc(block, opaque, 0,
+    rv = readfunc(block, 0,
                   (uint8_t *)&luks->header,
                   sizeof(luks->header),
+                  opaque,
                   errp);
     if (rv < 0) {
         ret = rv;
@@ -1245,7 +1246,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
 
     /* Reserve header space to match payload offset */
-    initfunc(block, opaque, block->payload_offset, &local_err);
+    initfunc(block, block->payload_offset, opaque, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error;
@@ -1267,9 +1268,10 @@ qcrypto_block_luks_create(QCryptoBlock *block,
 
 
     /* Write out the partition header and key slot headers */
-    writefunc(block, opaque, 0,
+    writefunc(block, 0,
               (const uint8_t *)&luks->header,
               sizeof(luks->header),
+              opaque,
               &local_err);
 
     /* Delay checking local_err until we've byte-swapped */
@@ -1295,10 +1297,11 @@ qcrypto_block_luks_create(QCryptoBlock *block,
 
     /* Write out the master key material, starting at the
      * sector immediately following the partition header. */
-    if (writefunc(block, opaque,
+    if (writefunc(block,
                   luks->header.key_slots[0].key_offset *
                   QCRYPTO_BLOCK_LUKS_SECTOR_SIZE,
                   splitkey, splitkeylen,
+                  opaque,
                   errp) != splitkeylen) {
         goto error;
     }
