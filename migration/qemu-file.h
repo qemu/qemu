@@ -156,5 +156,22 @@ void qemu_file_set_blocking(QEMUFile *f, bool block);
 
 size_t qemu_get_counted_string(QEMUFile *f, char buf[256]);
 
+void ram_control_before_iterate(QEMUFile *f, uint64_t flags);
+void ram_control_after_iterate(QEMUFile *f, uint64_t flags);
+void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data);
+
+/* Whenever this is found in the data stream, the flags
+ * will be passed to ram_control_load_hook in the incoming-migration
+ * side. This lets before_ram_iterate/after_ram_iterate add
+ * transport-specific sections to the RAM migration data.
+ */
+#define RAM_SAVE_FLAG_HOOK     0x80
+
+#define RAM_SAVE_CONTROL_NOT_SUPP -1000
+#define RAM_SAVE_CONTROL_DELAYED  -2000
+
+size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
+                             ram_addr_t offset, size_t size,
+                             uint64_t *bytes_sent);
 
 #endif
