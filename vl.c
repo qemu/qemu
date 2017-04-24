@@ -88,6 +88,7 @@ int main(int argc, char **argv)
 #include "hw/block/block.h"
 #include "migration/misc.h"
 #include "migration/snapshot.h"
+#include "migration/global_state.h"
 #include "sysemu/tpm.h"
 #include "sysemu/dma.h"
 #include "hw/audio/soundhw.h"

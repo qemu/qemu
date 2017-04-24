@@ -38,6 +38,7 @@
 #include "migration/snapshot.h"
 #include "migration/misc.h"
 #include "migration/register.h"
+#include "migration/global_state.h"
 #include "ram.h"
 #include "qemu-file-channel.h"
 #include "qemu-file.h"

@@ -14,6 +14,7 @@
 #include "chardev/char.h"
 #include "sysemu/accel.h"
 #include "migration/migration.h"
+#include "migration/global_state.h"
 
 //#define DEBUG_XEN
 

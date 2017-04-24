@@ -172,10 +172,6 @@ void migrate_send_rp_req_pages(MigrationIncomingState *mis, const char* rbname,
                               ram_addr_t start, size_t len);
 
 void savevm_skip_section_footers(void);
-void register_global_state(void);
-void global_state_set_optional(void);
 void savevm_skip_configuration(void);
-int global_state_store(void);
-void global_state_store_running(void);
 
 #endif

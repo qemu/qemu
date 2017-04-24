@@ -39,6 +39,7 @@
 #include "sysemu/hw_accel.h"
 #include "kvm_ppc.h"
 #include "migration/migration.h"
+#include "migration/global_state.h"
 #include "migration/register.h"
 #include "mmu-hash64.h"
 #include "mmu-book3s-v3.h"
