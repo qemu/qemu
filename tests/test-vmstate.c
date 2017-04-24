@@ -30,6 +30,7 @@
 #include "migration/qemu-file-types.h"
 #include "../migration/qemu-file.h"
 #include "../migration/qemu-file-channel.h"
+#include "../migration/savevm.h"
 #include "qemu/coroutine.h"
 #include "io/channel-file.h"
 

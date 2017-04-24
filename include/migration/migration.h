@@ -22,21 +22,6 @@
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
 
-#define QEMU_VM_FILE_MAGIC           0x5145564d
-#define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
-#define QEMU_VM_FILE_VERSION         0x00000003
-
-#define QEMU_VM_EOF                  0x00
-#define QEMU_VM_SECTION_START        0x01
-#define QEMU_VM_SECTION_PART         0x02
-#define QEMU_VM_SECTION_END          0x03
-#define QEMU_VM_SECTION_FULL         0x04
-#define QEMU_VM_SUBSECTION           0x05
-#define QEMU_VM_VMDESCRIPTION        0x06
-#define QEMU_VM_CONFIGURATION        0x07
-#define QEMU_VM_COMMAND              0x08
-#define QEMU_VM_SECTION_FOOTER       0x7e
-
 /* Messages sent on the return path from destination to source */
 enum mig_rp_message_type {
     MIG_RP_MSG_INVALID = 0,  /* Must be 0 */
