@@ -1410,6 +1410,8 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
     static DisplaySurface *dummy;
     QemuConsole *con;
 
+    assert(!dcl->ds);
+
     if (dcl->ops->dpy_gl_ctx_create) {
         /* display has opengl support */
         assert(dcl->con);
@@ -1537,6 +1539,8 @@ void dpy_gfx_replace_surface(QemuConsole *con,
     DisplayState *s = con->ds;
     DisplaySurface *old_surface = con->surface;
     DisplayChangeListener *dcl;
+
+    assert(old_surface != surface);
 
     con->surface = surface;
     QLIST_FOREACH(dcl, &s->listeners, next) {
