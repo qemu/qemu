@@ -17,7 +17,6 @@
 #include "qapi/util.h"
 #include "migration/global_state.h"
 #include "migration/vmstate.h"
-#include "sysemu/sysemu.h"
 #include "trace.h"
 
 typedef struct {

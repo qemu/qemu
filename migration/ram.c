@@ -26,14 +26,12 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include <zlib.h>
 #include "qapi-event.h"
 #include "qemu/cutils.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
-#include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "xbzrle.h"
 #include "ram.h"
@@ -41,9 +39,7 @@
 #include "migration/register.h"
 #include "migration/misc.h"
 #include "qemu-file.h"
-#include "migration/vmstate.h"
 #include "postcopy-ram.h"
-#include "exec/address-spaces.h"
 #include "migration/page_cache.h"
 #include "qemu/error-report.h"
 #include "trace.h"
