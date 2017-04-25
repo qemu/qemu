@@ -202,7 +202,7 @@ pvscsi_ring_init_msg(PVSCSIRingInfo *m, PVSCSICmdDescSetupMsgRing *ri)
     uint32_t len_log2;
     uint32_t ring_size;
 
-    if (ri->numPages > PVSCSI_SETUP_MSG_RING_MAX_NUM_PAGES) {
+    if (!ri->numPages || ri->numPages > PVSCSI_SETUP_MSG_RING_MAX_NUM_PAGES) {
         return -1;
     }
     ring_size = ri->numPages * PVSCSI_MAX_NUM_MSG_ENTRIES_PER_PAGE;
