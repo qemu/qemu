@@ -28,11 +28,9 @@
 /* data types (need to be adjusted if neither a VC6 nor a C99 compatible compiler is used) */
 
 #if defined _WIN32 && defined _MSC_VER /* doesn't support other win32 compilers yet, do it yourself... */
- typedef unsigned short GUSword;
  typedef unsigned int GUSdword;
  typedef signed short GUSsample;
 #else
- typedef uint16_t GUSword;
  typedef uint32_t GUSdword;
  typedef int16_t GUSsample;
 #endif
