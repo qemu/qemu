@@ -170,7 +170,7 @@ static const uint32_t KSL_TABLE[8*16]=
 /* sustain lebel table (3db per step) */
 /* 0 - 15: 0, 3, 6, 9,12,15,18,21,24,27,30,33,36,39,42,93 (dB)*/
 #define SC(db) (db*((3/EG_STEP)*(1<<ENV_BITS)))+EG_DST
-static const INT32 SL_TABLE[16]={
+static const int32_t SL_TABLE[16]={
  SC( 0),SC( 1),SC( 2),SC(3 ),SC(4 ),SC(5 ),SC(6 ),SC( 7),
  SC( 8),SC( 9),SC(10),SC(11),SC(12),SC(13),SC(14),SC(31)
 };
@@ -180,18 +180,18 @@ static const INT32 SL_TABLE[16]={
 /* TotalLevel : 48 24 12  6  3 1.5 0.75 (dB) */
 /* TL_TABLE[ 0      to TL_MAX          ] : plus  section */
 /* TL_TABLE[ TL_MAX to TL_MAX+TL_MAX-1 ] : minus section */
-static INT32 *TL_TABLE;
+static int32_t *TL_TABLE;
 
 /* pointers to TL_TABLE with sinwave output offset */
-static INT32 **SIN_TABLE;
+static int32_t **SIN_TABLE;
 
 /* LFO table */
-static INT32 *AMS_TABLE;
-static INT32 *VIB_TABLE;
+static int32_t *AMS_TABLE;
+static int32_t *VIB_TABLE;
 
 /* envelope output curve table */
 /* attack + decay + OFF */
-static INT32 ENV_CURVE[2*EG_ENT+1];
+static int32_t ENV_CURVE[2*EG_ENT+1];
 
 /* multiple table */
 #define ML 2
@@ -203,7 +203,7 @@ static const uint32_t MUL_TABLE[16]= {
 #undef ML
 
 /* dummy attack / decay rate ( when rate == 0 ) */
-static INT32 RATE_0[16]=
+static int32_t RATE_0[16]=
 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 /* -------------------- static state --------------------- */
@@ -219,14 +219,14 @@ static OPL_CH *S_CH;
 static OPL_CH *E_CH;
 static OPL_SLOT *SLOT7_1, *SLOT7_2, *SLOT8_1, *SLOT8_2;
 
-static INT32 outd[1];
-static INT32 ams;
-static INT32 vib;
-static INT32 *ams_table;
-static INT32 *vib_table;
-static INT32 amsIncr;
-static INT32 vibIncr;
-static INT32 feedback2;		/* connect for SLOT 2 */
+static int32_t outd[1];
+static int32_t ams;
+static int32_t vib;
+static int32_t *ams_table;
+static int32_t *vib_table;
+static int32_t amsIncr;
+static int32_t vibIncr;
+static int32_t feedback2;		/* connect for SLOT 2 */
 
 /* log output level */
 #define LOG_ERR  3      /* ERROR       */
@@ -359,7 +359,7 @@ static inline uint32_t OPL_CALC_SLOT( OPL_SLOT *SLOT )
 /* set algorithm connection */
 static void set_algorithm( OPL_CH *CH)
 {
-	INT32 *carrier = &outd[0];
+	int32_t *carrier = &outd[0];
 	CH->connect1 = CH->CON ? carrier : &feedback2;
 	CH->connect2 = carrier;
 }
@@ -498,7 +498,7 @@ static inline void OPL_CALC_RH( OPL_CH *CH )
 {
 	uint32_t env_tam,env_sd,env_top,env_hh;
 	int whitenoise = (rand()&1)*(WHITE_NOISE_db/EG_STEP);
-	INT32 tone8;
+	int32_t tone8;
 
 	OPL_SLOT *SLOT;
 	int env_out;
@@ -616,20 +616,20 @@ static int OPLOpenTable( void )
 	double pom;
 
 	/* allocate dynamic tables */
-	if( (TL_TABLE = malloc(TL_MAX*2*sizeof(INT32))) == NULL)
+	if( (TL_TABLE = malloc(TL_MAX*2*sizeof(int32_t))) == NULL)
 		return 0;
-	if( (SIN_TABLE = malloc(SIN_ENT*4 *sizeof(INT32 *))) == NULL)
+	if( (SIN_TABLE = malloc(SIN_ENT*4 *sizeof(int32_t *))) == NULL)
 	{
 		free(TL_TABLE);
 		return 0;
 	}
-	if( (AMS_TABLE = malloc(AMS_ENT*2 *sizeof(INT32))) == NULL)
+	if( (AMS_TABLE = malloc(AMS_ENT*2 *sizeof(int32_t))) == NULL)
 	{
 		free(TL_TABLE);
 		free(SIN_TABLE);
 		return 0;
 	}
-	if( (VIB_TABLE = malloc(VIB_ENT*2 *sizeof(INT32))) == NULL)
+	if( (VIB_TABLE = malloc(VIB_ENT*2 *sizeof(int32_t))) == NULL)
 	{
 		free(TL_TABLE);
 		free(SIN_TABLE);
