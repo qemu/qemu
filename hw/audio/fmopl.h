@@ -4,7 +4,6 @@
 /* --- select emulation chips --- */
 #define BUILD_YM3812 (HAS_YM3812)
 //#define BUILD_YM3526 (HAS_YM3526)
-//#define BUILD_Y8950  (HAS_Y8950)
 
 /* --- system optimize --- */
 /* select bit size of output : 8 or 16 */
@@ -26,11 +25,6 @@ typedef INT16 OPLSAMPLE;
 #endif
 #if (OPL_OUTPUT_BIT==8)
 typedef unsigned char  OPLSAMPLE;
-#endif
-
-
-#if BUILD_Y8950
-#include "ymdeltat.h"
 #endif
 
 typedef void (*OPL_TIMERHANDLER)(int channel,double interval_Sec);
@@ -112,13 +106,6 @@ typedef struct fm_opl_f {
 	int	max_ch;			/* maximum channel                   */
 	/* Rhythm sention */
 	UINT8 rhythm;		/* Rhythm mode , key flag */
-#if BUILD_Y8950
-	/* Delta-T ADPCM unit (Y8950) */
-	YM_DELTAT *deltat;			/* DELTA-T ADPCM       */
-#endif
-	/* Keyboard / I/O interface unit (Y8950) */
-	UINT8 portDirection;
-	UINT8 portLatch;
 	OPL_PORTHANDLER_R porthandler_r;
 	OPL_PORTHANDLER_W porthandler_w;
 	int port_param;
@@ -150,16 +137,12 @@ typedef struct fm_opl_f {
 /* ---------- Generic interface section ---------- */
 #define OPL_TYPE_YM3526 (0)
 #define OPL_TYPE_YM3812 (OPL_TYPE_WAVESEL)
-#define OPL_TYPE_Y8950  (OPL_TYPE_ADPCM|OPL_TYPE_KEYBOARD|OPL_TYPE_IO)
 
 FM_OPL *OPLCreate(int type, int clock, int rate);
 void OPLDestroy(FM_OPL *OPL);
 void OPLSetTimerHandler(FM_OPL *OPL,OPL_TIMERHANDLER TimerHandler,int channelOffset);
 void OPLSetIRQHandler(FM_OPL *OPL,OPL_IRQHANDLER IRQHandler,int param);
 void OPLSetUpdateHandler(FM_OPL *OPL,OPL_UPDATEHANDLER UpdateHandler,int param);
-/* Y8950 port handlers */
-void OPLSetPortHandler(FM_OPL *OPL,OPL_PORTHANDLER_W PortHandler_w,OPL_PORTHANDLER_R PortHandler_r,int param);
-void OPLSetKeyboardHandler(FM_OPL *OPL,OPL_PORTHANDLER_W KeyboardHandler_w,OPL_PORTHANDLER_R KeyboardHandler_r,int param);
 
 void OPLResetChip(FM_OPL *OPL);
 int OPLWrite(FM_OPL *OPL,int a,int v);
@@ -168,7 +151,4 @@ int OPLTimerOver(FM_OPL *OPL,int c);
 
 /* YM3626/YM3812 local section */
 void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length);
-
-void Y8950UpdateOne(FM_OPL *OPL, INT16 *buffer, int length);
-
 #endif

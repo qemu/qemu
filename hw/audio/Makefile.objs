@@ -14,5 +14,3 @@ common-obj-$(CONFIG_PL041) += pl041.o lm4549.o
 common-obj-$(CONFIG_CS4231) += cs4231.o
 common-obj-$(CONFIG_MARVELL_88W8618) += marvell_88w8618.o
 common-obj-$(CONFIG_MILKYMIST) += milkymist-ac97.o
-
-$(obj)/adlib.o $(obj)/fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0

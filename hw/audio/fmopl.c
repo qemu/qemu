@@ -812,57 +812,6 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 				}
 			}
 			return;
-#if BUILD_Y8950
-		case 0x06:		/* Key Board OUT */
-			if(OPL->type&OPL_TYPE_KEYBOARD)
-			{
-				if(OPL->keyboardhandler_w)
-					OPL->keyboardhandler_w(OPL->keyboard_param,v);
-				else
-					LOG(LOG_WAR,("OPL:write unmapped KEYBOARD port\n"));
-			}
-			return;
-		case 0x07:	/* DELTA-T control : START,REC,MEMDATA,REPT,SPOFF,x,x,RST */
-			if(OPL->type&OPL_TYPE_ADPCM)
-				YM_DELTAT_ADPCM_Write(OPL->deltat,r-0x07,v);
-			return;
-		case 0x08:	/* MODE,DELTA-T : CSM,NOTESEL,x,x,smpl,da/ad,64k,rom */
-			OPL->mode = v;
-			v&=0x1f;	/* for DELTA-T unit */
-		case 0x09:		/* START ADD */
-		case 0x0a:
-		case 0x0b:		/* STOP ADD  */
-		case 0x0c:
-		case 0x0d:		/* PRESCALE   */
-		case 0x0e:
-		case 0x0f:		/* ADPCM data */
-		case 0x10: 		/* DELTA-N    */
-		case 0x11: 		/* DELTA-N    */
-		case 0x12: 		/* EG-CTRL    */
-			if(OPL->type&OPL_TYPE_ADPCM)
-				YM_DELTAT_ADPCM_Write(OPL->deltat,r-0x07,v);
-			return;
-#if 0
-		case 0x15:		/* DAC data    */
-		case 0x16:
-		case 0x17:		/* SHIFT    */
-			return;
-		case 0x18:		/* I/O CTRL (Direction) */
-			if(OPL->type&OPL_TYPE_IO)
-				OPL->portDirection = v&0x0f;
-			return;
-		case 0x19:		/* I/O DATA */
-			if(OPL->type&OPL_TYPE_IO)
-			{
-				OPL->portLatch = v;
-				if(OPL->porthandler_w)
-					OPL->porthandler_w(OPL->port_param,v&OPL->portDirection);
-			}
-			return;
-		case 0x1a:		/* PCM data */
-			return;
-#endif
-#endif
 		}
 		break;
 	case 0x20:	/* am,vib,ksr,eg type,mul */
@@ -1097,68 +1046,6 @@ void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 }
 #endif /* (BUILD_YM3812 || BUILD_YM3526) */
 
-#if BUILD_Y8950
-
-void Y8950UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
-{
-    int i;
-	int data;
-	OPLSAMPLE *buf = buffer;
-	UINT32 amsCnt  = OPL->amsCnt;
-	UINT32 vibCnt  = OPL->vibCnt;
-	UINT8 rhythm = OPL->rhythm&0x20;
-	OPL_CH *CH,*R_CH;
-	YM_DELTAT *DELTAT = OPL->deltat;
-
-	/* setup DELTA-T unit */
-	YM_DELTAT_DECODE_PRESET(DELTAT);
-
-	if( (void *)OPL != cur_chip ){
-		cur_chip = (void *)OPL;
-		/* channel pointers */
-		S_CH = OPL->P_CH;
-		E_CH = &S_CH[9];
-		/* rhythm slot */
-		SLOT7_1 = &S_CH[7].SLOT[SLOT1];
-		SLOT7_2 = &S_CH[7].SLOT[SLOT2];
-		SLOT8_1 = &S_CH[8].SLOT[SLOT1];
-		SLOT8_2 = &S_CH[8].SLOT[SLOT2];
-		/* LFO state */
-		amsIncr = OPL->amsIncr;
-		vibIncr = OPL->vibIncr;
-		ams_table = OPL->ams_table;
-		vib_table = OPL->vib_table;
-	}
-	R_CH = rhythm ? &S_CH[6] : E_CH;
-    for( i=0; i < length ; i++ )
-	{
-		/*            channel A         channel B         channel C      */
-		/* LFO */
-		ams = ams_table[(amsCnt+=amsIncr)>>AMS_SHIFT];
-		vib = vib_table[(vibCnt+=vibIncr)>>VIB_SHIFT];
-		outd[0] = 0;
-		/* deltaT ADPCM */
-		if( DELTAT->portstate )
-			YM_DELTAT_ADPCM_CALC(DELTAT);
-		/* FM part */
-		for(CH=S_CH ; CH < R_CH ; CH++)
-			OPL_CALC_CH(CH);
-		/* Rythn part */
-		if(rhythm)
-			OPL_CALC_RH(S_CH);
-		/* limit check */
-		data = Limit( outd[0] , OPL_MAXOUT, OPL_MINOUT );
-		/* store to sound buffer */
-		buf[i] = data >> OPL_OUTSB;
-	}
-	OPL->amsCnt = amsCnt;
-	OPL->vibCnt = vibCnt;
-	/* deltaT START flag */
-	if( !DELTAT->portstate )
-		OPL->status &= 0xfe;
-}
-#endif
-
 /* ---------- reset one of chip ---------- */
 void OPLResetChip(FM_OPL *OPL)
 {
@@ -1189,18 +1076,6 @@ void OPLResetChip(FM_OPL *OPL)
 			CH->SLOT[s].evs = 0;
 		}
 	}
-#if BUILD_Y8950
-	if(OPL->type&OPL_TYPE_ADPCM)
-	{
-		YM_DELTAT *DELTAT = OPL->deltat;
-
-		DELTAT->freqbase = OPL->freqbase;
-		DELTAT->output_pointer = outd;
-		DELTAT->portshift = 5;
-		DELTAT->output_range = DELTAT_MIXING_LEVEL<<TL_BITS;
-		YM_DELTAT_ADPCM_Reset(DELTAT,0);
-	}
-#endif
 }
 
 /* ----------  Create one of vietual YM3812 ----------       */
@@ -1216,9 +1091,6 @@ FM_OPL *OPLCreate(int type, int clock, int rate)
 	/* allocate OPL state space */
 	state_size  = sizeof(FM_OPL);
 	state_size += sizeof(OPL_CH)*max_ch;
-#if BUILD_Y8950
-	if(type&OPL_TYPE_ADPCM) state_size+= sizeof(YM_DELTAT);
-#endif
 	/* allocate memory block */
 	ptr = malloc(state_size);
 	if(ptr==NULL) return NULL;
@@ -1226,9 +1098,6 @@ FM_OPL *OPLCreate(int type, int clock, int rate)
 	memset(ptr,0,state_size);
 	OPL        = (FM_OPL *)ptr; ptr+=sizeof(FM_OPL);
 	OPL->P_CH  = (OPL_CH *)ptr; ptr+=sizeof(OPL_CH)*max_ch;
-#if BUILD_Y8950
-	if(type&OPL_TYPE_ADPCM) OPL->deltat = (YM_DELTAT *)ptr; ptr+=sizeof(YM_DELTAT);
-#endif
 	/* set channel state pointer */
 	OPL->type  = type;
 	OPL->clock = clock;
@@ -1290,21 +1159,6 @@ void OPLSetUpdateHandler(FM_OPL *OPL,OPL_UPDATEHANDLER UpdateHandler,int param)
 	OPL->UpdateHandler = UpdateHandler;
 	OPL->UpdateParam = param;
 }
-#if BUILD_Y8950
-void OPLSetPortHandler(FM_OPL *OPL,OPL_PORTHANDLER_W PortHandler_w,OPL_PORTHANDLER_R PortHandler_r,int param)
-{
-	OPL->porthandler_w = PortHandler_w;
-	OPL->porthandler_r = PortHandler_r;
-	OPL->port_param = param;
-}
-
-void OPLSetKeyboardHandler(FM_OPL *OPL,OPL_PORTHANDLER_W KeyboardHandler_w,OPL_PORTHANDLER_R KeyboardHandler_r,int param)
-{
-	OPL->keyboardhandler_w = KeyboardHandler_w;
-	OPL->keyboardhandler_r = KeyboardHandler_r;
-	OPL->keyboard_param = param;
-}
-#endif
 /* ---------- YM3812 I/O interface ---------- */
 int OPLWrite(FM_OPL *OPL,int a,int v)
 {
