@@ -248,7 +248,13 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             SCSIBus *bus = scsi_bus_from_device(sd);
             VirtIOSCSI *vdev = container_of(bus, VirtIOSCSI, bus);
             VirtIOSCSICcw *scsi_ccw = container_of(vdev, VirtIOSCSICcw, vdev);
-            CcwDevice *ccw_dev = CCW_DEVICE(scsi_ccw);
+            CcwDevice *ccw_dev;
+
+            ccw_dev = (CcwDevice *)object_dynamic_cast(OBJECT(scsi_ccw),
+                                                       TYPE_CCW_DEVICE);
+            if (!ccw_dev) {       /* It might be a PCI device instead */
+                return false;
+            }
 
             ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_QEMU_SCSI_LEN);
             ipl->iplb.blk0_len =
