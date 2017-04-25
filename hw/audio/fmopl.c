@@ -988,7 +988,7 @@ void YM3812UpdateOne(FM_OPL *OPL, int16_t *buffer, int length)
 {
     int i;
 	int data;
-	OPLSAMPLE *buf = buffer;
+	int16_t *buf = buffer;
 	uint32_t amsCnt  = OPL->amsCnt;
 	uint32_t  vibCnt  = OPL->vibCnt;
 	uint8_t rhythm = OPL->rhythm&0x20;

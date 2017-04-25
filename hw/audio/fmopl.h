@@ -3,17 +3,6 @@
 
 #include <stdint.h>
 
-/* --- system optimize --- */
-/* select bit size of output : 8 or 16 */
-#define OPL_OUTPUT_BIT 16
-
-#if (OPL_OUTPUT_BIT==16)
-typedef int16_t OPLSAMPLE;
-#endif
-#if (OPL_OUTPUT_BIT==8)
-typedef unsigned char  OPLSAMPLE;
-#endif
-
 typedef void (*OPL_TIMERHANDLER)(int channel,double interval_Sec);
 typedef void (*OPL_IRQHANDLER)(int param,int irq);
 typedef void (*OPL_UPDATEHANDLER)(int param,int min_interval_us);
