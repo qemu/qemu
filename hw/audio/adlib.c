@@ -265,7 +265,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     }
     glob_adlib = s;
 
-    s->opl = OPLCreate (OPL_TYPE_YM3812, 3579545, s->freq);
+    s->opl = OPLCreate (3579545, s->freq);
     if (!s->opl) {
         error_setg (errp, "OPLCreate %d failed", s->freq);
         return;

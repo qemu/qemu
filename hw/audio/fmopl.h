@@ -11,8 +11,6 @@ typedef unsigned char (*OPL_PORTHANDLER_R)(int param);
 
 /* !!!!! here is private section , do not access there member direct !!!!! */
 
-#define OPL_TYPE_WAVESEL   0x01  /* waveform select    */
-
 /* Saving is necessary for member of the 'R' mark for suspend/resume */
 /* ---------- OPL one of slot  ---------- */
 typedef struct fm_opl_slot {
@@ -62,7 +60,6 @@ typedef struct fm_opl_channel {
 
 /* OPL state */
 typedef struct fm_opl_f {
-	uint8_t type;			/* chip type                         */
 	int clock;			/* master clock  (Hz)                */
 	int rate;			/* sampling rate (Hz)                */
 	double freqbase;	/* frequency base                    */
@@ -108,9 +105,7 @@ typedef struct fm_opl_f {
 } FM_OPL;
 
 /* ---------- Generic interface section ---------- */
-#define OPL_TYPE_YM3812 (OPL_TYPE_WAVESEL)
-
-FM_OPL *OPLCreate(int type, int clock, int rate);
+FM_OPL *OPLCreate(int clock, int rate);
 void OPLDestroy(FM_OPL *OPL);
 void OPLSetTimerHandler(FM_OPL *OPL,OPL_TIMERHANDLER TimerHandler,int channelOffset);
 void OPLSetIRQHandler(FM_OPL *OPL,OPL_IRQHANDLER IRQHandler,int param);

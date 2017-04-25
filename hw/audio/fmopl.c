@@ -761,18 +761,15 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 		{
 		case 0x01:
 			/* wave selector enable */
-			if(OPL->type&OPL_TYPE_WAVESEL)
+			OPL->wavesel = v&0x20;
+                        if(!OPL->wavesel)
 			{
-				OPL->wavesel = v&0x20;
-				if(!OPL->wavesel)
+				/* preset compatible mode */
+				int c;
+				for(c=0;c<OPL->max_ch;c++)
 				{
-					/* preset compatible mode */
-					int c;
-					for(c=0;c<OPL->max_ch;c++)
-					{
-						OPL->P_CH[c].SLOT[SLOT1].wavetable = &SIN_TABLE[0];
-						OPL->P_CH[c].SLOT[SLOT2].wavetable = &SIN_TABLE[0];
-					}
+					OPL->P_CH[c].SLOT[SLOT1].wavetable = &SIN_TABLE[0];
+					OPL->P_CH[c].SLOT[SLOT2].wavetable = &SIN_TABLE[0];
 				}
 			}
 			return;
@@ -1076,7 +1073,7 @@ void OPLResetChip(FM_OPL *OPL)
 
 /* ----------  Create one of vietual YM3812 ----------       */
 /* 'rate'  is sampling rate and 'bufsiz' is the size of the  */
-FM_OPL *OPLCreate(int type, int clock, int rate)
+FM_OPL *OPLCreate(int clock, int rate)
 {
 	char *ptr;
 	FM_OPL *OPL;
@@ -1095,7 +1092,6 @@ FM_OPL *OPLCreate(int type, int clock, int rate)
 	OPL        = (FM_OPL *)ptr; ptr+=sizeof(FM_OPL);
 	OPL->P_CH  = (OPL_CH *)ptr; ptr+=sizeof(OPL_CH)*max_ch;
 	/* set channel state pointer */
-	OPL->type  = type;
 	OPL->clock = clock;
 	OPL->rate  = rate;
 	OPL->max_ch = max_ch;
