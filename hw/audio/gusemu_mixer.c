@@ -37,7 +37,7 @@ void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int
                    GUSsample *bufferpos)
 {
     /* note that byte registers are stored in the upper half of each voice register! */
-    GUSbyte        *gusptr;
+    uint8_t        *gusptr;
     int             Voice;
     GUSword        *voiceptr;
 
@@ -187,7 +187,7 @@ void gus_irqgen(GUSEmuState * state, unsigned int elapsed_time)
 /* time given in microseconds */
 {
     int             requestedIRQs = 0;
-    GUSbyte        *gusptr;
+    uint8_t        *gusptr;
     gusptr = state->gusdatapos;
     if (GUSregb(TimerDataReg2x9) & 1) /* start timer 1 (80us decrement rate) */
     {
