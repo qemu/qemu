@@ -10,12 +10,11 @@
 /* compiler dependence */
 #ifndef OSD_CPU_H
 #define OSD_CPU_H
-typedef signed short	INT16;   /* signed 16bit   */
 typedef signed int		INT32;   /* signed 32bit   */
 #endif
 
 #if (OPL_OUTPUT_BIT==16)
-typedef INT16 OPLSAMPLE;
+typedef int16_t OPLSAMPLE;
 #endif
 #if (OPL_OUTPUT_BIT==8)
 typedef unsigned char  OPLSAMPLE;
@@ -142,5 +141,5 @@ int OPLWrite(FM_OPL *OPL,int a,int v);
 unsigned char OPLRead(FM_OPL *OPL,int a);
 int OPLTimerOver(FM_OPL *OPL,int c);
 
-void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length);
+void YM3812UpdateOne(FM_OPL *OPL, int16_t *buffer, int length);
 #endif

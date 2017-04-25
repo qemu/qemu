@@ -984,7 +984,7 @@ static void OPL_UnLockTable(void)
 /*******************************************************************************/
 
 /* ---------- update one of chip ----------- */
-void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
+void YM3812UpdateOne(FM_OPL *OPL, int16_t *buffer, int length)
 {
     int i;
 	int data;
