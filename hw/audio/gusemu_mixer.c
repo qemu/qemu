@@ -27,10 +27,10 @@
 #include "gustate.h"
 
 #define GUSregb(position)  (*            (gusptr+(position)))
-#define GUSregw(position)  (*(GUSword *) (gusptr+(position)))
+#define GUSregw(position)  (*(uint16_t *) (gusptr+(position)))
 #define GUSregd(position)  (*(GUSdword *)(gusptr+(position)))
 
-#define GUSvoice(position) (*(GUSword *)(voiceptr+(position)))
+#define GUSvoice(position) (*(uint16_t *)(voiceptr+(position)))
 
 /* samples are always 16bit stereo (4 bytes each, first right then left interleaved) */
 void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int numsamples,
@@ -39,14 +39,14 @@ void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int
     /* note that byte registers are stored in the upper half of each voice register! */
     uint8_t        *gusptr;
     int             Voice;
-    GUSword        *voiceptr;
+    uint16_t       *voiceptr;
 
     unsigned int    count;
     for (count = 0; count < numsamples * 2; count++)
         *(bufferpos + count) = 0;       /* clear */
 
     gusptr = state->gusdatapos;
-    voiceptr = (GUSword *) gusptr;
+    voiceptr = (uint16_t *) gusptr;
     if (!(GUSregb(GUS4cReset) & 0x01))  /* reset flag active? */
         return;
 

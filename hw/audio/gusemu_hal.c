@@ -31,7 +31,7 @@
 #include "gusemu.h"
 
 #define GUSregb(position) (*            (gusptr+(position)))
-#define GUSregw(position) (*(GUSword *) (gusptr+(position)))
+#define GUSregw(position) (*(uint16_t *) (gusptr+(position)))
 #define GUSregd(position) (*(GUSdword *)(gusptr+(position)))
 
 /* size given in bytes */
@@ -173,7 +173,7 @@ unsigned int gus_read(GUSEmuState * state, int port, int size)
                 value_read = value_read >> 8;
             value_read &= 0xff;
         }
-        return (GUSword) value_read;
+        return (uint16_t) value_read;
     /* case 0x306:                                  */ /* Mixer/Version info */
         /*  return 0xff; */ /* Pre 3.6 boards, ICS mixer NOT present */
     case 0x307:                                     /* DRAMaccess */
@@ -318,15 +318,15 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
     case 0x304:
     case 0x305:
         {
-            GUSword         writedata = (GUSword) data;
-            GUSword         readmask = 0x0000;
+            uint16_t         writedata = (uint16_t) data;
+            uint16_t         readmask = 0x0000;
             if (size == 1)
             {
                 readmask = 0xff00;
                 writedata &= 0xff;
                 if ((port & 0xff0f) == 0x305)
                 {
-                    writedata = (GUSword) (writedata << 8);
+                    writedata = (uint16_t) (writedata << 8);
                     readmask = 0x00ff;
                 }
             }
@@ -353,7 +353,7 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
                         break;  /* reset flag active? */
                     offset = 2 * (GUSregb(FunkSelReg3x3) & 0x0f);
                     offset += (GUSregb(VoiceSelReg3x2) & 0x1f) << 5; /*  = Voice*32 + Funktion*2 */
-                    GUSregw(offset) = (GUSword) ((GUSregw(offset) & readmask) | writedata);
+                    GUSregw(offset) = (uint16_t) ((GUSregw(offset) & readmask) | writedata);
                 }
                 break;
                 /* voice unspecific functions */
@@ -521,7 +521,7 @@ void gus_dma_transferdata(GUSEmuState * state, char *dma_addr, unsigned int coun
         destaddr = (char *) state->himemaddr + offset; /* wavetable RAM address */
     }
 
-    GUSregw(GUS42DMAStart) += (GUSword)  (count >> 4);                           /* ToDo: add 16bit GUS page limit? */
+    GUSregw(GUS42DMAStart) += (uint16_t)  (count >> 4);                           /* ToDo: add 16bit GUS page limit? */
     GUSregb(GUS50DMAHigh)   = (uint8_t) ((count + GUSregb(GUS50DMAHigh)) & 0xf); /* ToDo: add 16bit GUS page limit? */
 
     if (GUSregb(GUS41DMACtrl) & 0x02)   /* direction, 0 := sysram->gusram */
