@@ -1036,7 +1036,7 @@ void YM3812UpdateOne(FM_OPL *OPL, int16_t *buffer, int length)
 }
 
 /* ---------- reset one of chip ---------- */
-void OPLResetChip(FM_OPL *OPL)
+static void OPLResetChip(FM_OPL *OPL)
 {
 	int c,s;
 	int i;
