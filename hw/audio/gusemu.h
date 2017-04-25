@@ -25,16 +25,6 @@
 #ifndef GUSEMU_H
 #define GUSEMU_H
 
-/* data types (need to be adjusted if neither a VC6 nor a C99 compatible compiler is used) */
-
-#if defined _WIN32 && defined _MSC_VER /* doesn't support other win32 compilers yet, do it yourself... */
- typedef unsigned int GUSdword;
- typedef signed short GUSsample;
-#else
- typedef uint32_t GUSdword;
- typedef int16_t GUSsample;
-#endif
-
 typedef struct _GUSEmuState
 {
  uint8_t *himemaddr; /* 1024*1024 bytes used for storing uploaded samples (+32 additional bytes for read padding) */
@@ -86,7 +76,7 @@ void gus_dma_transferdata(GUSEmuState *state, char *dma_addr, unsigned int count
 /* If the interrupts are asynchronous, it may be needed to use a separate thread mixing into a temporary */
 /* audio buffer in order to avoid quality loss caused by large numsamples and elapsed_time values. */
 
-void gus_mixvoices(GUSEmuState *state, unsigned int playback_freq, unsigned int numsamples, GUSsample *bufferpos);
+void gus_mixvoices(GUSEmuState *state, unsigned int playback_freq, unsigned int numsamples, int16_t *bufferpos);
 /* recommended range: 10 < numsamples < 100 */
 /* lower values may result in increased rounding error, higher values often cause audible timing delays */
 
