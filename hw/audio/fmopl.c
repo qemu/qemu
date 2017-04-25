@@ -1147,7 +1147,6 @@ int OPLWrite(FM_OPL *OPL,int a,int v)
 	}
 	else
 	{	/* data port */
-		if(OPL->UpdateHandler) OPL->UpdateHandler(OPL->UpdateParam,0);
 #ifdef OPL_OUTPUT_LOG
 	if(opl_dbg_fp)
 	{
@@ -1197,7 +1196,6 @@ int OPLTimerOver(FM_OPL *OPL,int c)
 		if( OPL->mode & 0x80 )
 		{	/* CSM mode total level latch and auto key on */
 			int ch;
-			if(OPL->UpdateHandler) OPL->UpdateHandler(OPL->UpdateParam,0);
 			for(ch=0;ch<9;ch++)
 				CSMKeyControll( &OPL->P_CH[ch] );
 		}

@@ -92,8 +92,6 @@ typedef struct fm_opl_f {
 	/* external event callback handler */
 	OPL_TIMERHANDLER  TimerHandler;		/* TIMER handler   */
 	int TimerParam;						/* TIMER parameter */
-	OPL_UPDATEHANDLER UpdateHandler;	/* stream update handler   */
-	int UpdateParam;					/* stream update parameter */
 } FM_OPL;
 
 /* ---------- Generic interface section ---------- */
