@@ -260,8 +260,6 @@ static inline void OPL_STATUS_SET(FM_OPL *OPL,int flag)
 		if(OPL->status & OPL->statusmask)
 		{	/* IRQ on */
 			OPL->status |= 0x80;
-			/* callback user interrupt handler (IRQ is OFF to ON) */
-			if(OPL->IRQHandler) (OPL->IRQHandler)(OPL->IRQParam,1);
 		}
 	}
 }
@@ -276,8 +274,6 @@ static inline void OPL_STATUS_RESET(FM_OPL *OPL,int flag)
 		if (!(OPL->status & OPL->statusmask) )
 		{
 			OPL->status &= 0x7f;
-			/* callback user interrupt handler (IRQ is ON to OFF) */
-			if(OPL->IRQHandler) (OPL->IRQHandler)(OPL->IRQParam,0);
 		}
 	}
 }
