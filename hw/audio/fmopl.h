@@ -4,10 +4,6 @@
 #include <stdint.h>
 
 typedef void (*OPL_TIMERHANDLER)(int channel,double interval_Sec);
-typedef void (*OPL_IRQHANDLER)(int param,int irq);
-typedef void (*OPL_UPDATEHANDLER)(int param,int min_interval_us);
-typedef void (*OPL_PORTHANDLER_W)(int param,unsigned char data);
-typedef unsigned char (*OPL_PORTHANDLER_R)(int param);
 
 /* !!!!! here is private section , do not access there member direct !!!!! */
 
