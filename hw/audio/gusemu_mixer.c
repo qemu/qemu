@@ -85,16 +85,16 @@ void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int
                 if (GUSvoice(wVSRControl) & 0x400)      /* 16bit */
                 {
                     int offset = ((CurrPos >> 9) & 0xc0000) + (((CurrPos >> 9) & 0x1ffff) << 1);
-                    GUSchar *adr;
-                    adr = (GUSchar *) state->himemaddr + offset;
+                    int8_t *adr;
+                    adr = (int8_t *) state->himemaddr + offset;
                     sample1 = (*adr & 0xff) + (*(adr + 1) * 256);
                     sample2 = (*(adr + 2) & 0xff) + (*(adr + 2 + 1) * 256);
                 }
                 else            /* 8bit */
                 {
                     int offset = (CurrPos >> 9) & 0xfffff;
-                    GUSchar *adr;
-                    adr = (GUSchar *) state->himemaddr + offset;
+                    int8_t *adr;
+                    adr = (int8_t *) state->himemaddr + offset;
                     sample1 = (*adr) * 256;
                     sample2 = (*(adr + 1)) * 256;
                 }
