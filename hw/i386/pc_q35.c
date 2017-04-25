@@ -335,6 +335,7 @@ static void pc_q35_2_6_machine_options(MachineClass *m)
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_2_7_machine_options(m);
     pcmc->legacy_cpu_hotplug = true;
+    pcmc->linuxboot_dma_enabled = false;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_6);
 }
 
