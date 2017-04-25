@@ -1141,11 +1141,7 @@ void OPLSetTimerHandler(FM_OPL *OPL,OPL_TIMERHANDLER TimerHandler,int channelOff
 	OPL->TimerHandler   = TimerHandler;
 	OPL->TimerParam = channelOffset;
 }
-void OPLSetUpdateHandler(FM_OPL *OPL,OPL_UPDATEHANDLER UpdateHandler,int param)
-{
-	OPL->UpdateHandler = UpdateHandler;
-	OPL->UpdateParam = param;
-}
+
 /* ---------- YM3812 I/O interface ---------- */
 int OPLWrite(FM_OPL *OPL,int a,int v)
 {
