@@ -76,12 +76,6 @@ typedef struct fm_opl_f {
 	int	max_ch;			/* maximum channel                   */
 	/* Rhythm sention */
 	uint8_t rhythm;		/* Rhythm mode , key flag */
-	OPL_PORTHANDLER_R porthandler_r;
-	OPL_PORTHANDLER_W porthandler_w;
-	int port_param;
-	OPL_PORTHANDLER_R keyboardhandler_r;
-	OPL_PORTHANDLER_W keyboardhandler_w;
-	int keyboard_param;
 	/* time tables */
 	int32_t AR_TABLE[75];	/* atttack rate tables */
 	int32_t DR_TABLE[75];	/* decay rate tables   */
