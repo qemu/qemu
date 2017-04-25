@@ -10,7 +10,6 @@
 /* compiler dependence */
 #ifndef OSD_CPU_H
 #define OSD_CPU_H
-typedef unsigned int	UINT32;  /* unsigned 32bit */
 typedef signed char		INT8;    /* signed  8bit   */
 typedef signed short	INT16;   /* signed 16bit   */
 typedef signed int		INT32;   /* signed 32bit   */
@@ -48,9 +47,9 @@ typedef struct fm_opl_slot {
 	INT32 *RR;		/* release rate    :&DR_TABLE[RR<<2]   */
 	uint8_t ksl;		/* keyscale level  :(shift down bits)  */
 	uint8_t ksr;		/* key scale rate  :kcode>>KSR         */
-	UINT32 mul;		/* multiple        :ML_TABLE[ML]       */
-	UINT32 Cnt;		/* frequency count :                   */
-	UINT32 Incr;	/* frequency step  :                   */
+	uint32_t mul;		/* multiple        :ML_TABLE[ML]       */
+	uint32_t Cnt;		/* frequency count :                   */
+	uint32_t Incr;	/* frequency step  :                   */
 	/* envelope generator state */
 	uint8_t eg_typ;	/* envelope type flag                  */
 	uint8_t evm;		/* envelope phase                      */
@@ -76,10 +75,10 @@ typedef struct fm_opl_channel {
 	INT32 *connect2;	/* slot2 output pointer                */
 	INT32 op1_out[2];	/* slot1 output for selfeedback        */
 	/* phase generator state */
-	UINT32  block_fnum;	/* block+fnum      :                   */
+	uint32_t  block_fnum;	/* block+fnum      :                   */
 	uint8_t kcode;		/* key code        : KeyScaleCode      */
-	UINT32  fc;			/* Freq. Increment base                */
-	UINT32  ksl_base;	/* KeyScaleLevel Base step             */
+	uint32_t  fc;			/* Freq. Increment base                */
+	uint32_t  ksl_base;	/* KeyScaleLevel Base step             */
 	uint8_t keyon;		/* key on/off flag                     */
 } OPL_CH;
 
@@ -93,7 +92,7 @@ typedef struct fm_opl_f {
 	uint8_t address;		/* address register                  */
 	uint8_t status;		/* status flag                       */
 	uint8_t statusmask;	/* status mask                       */
-	UINT32 mode;		/* Reg.08 : CSM , notesel,etc.       */
+	uint32_t mode;		/* Reg.08 : CSM , notesel,etc.       */
 	/* Timer */
 	int T[2];			/* timer counter                     */
 	uint8_t st[2];		/* timer enable                      */
@@ -111,7 +110,7 @@ typedef struct fm_opl_f {
 	/* time tables */
 	INT32 AR_TABLE[75];	/* atttack rate tables */
 	INT32 DR_TABLE[75];	/* decay rate tables   */
-	UINT32 FN_TABLE[1024];  /* fnumber -> increment counter */
+	uint32_t FN_TABLE[1024];  /* fnumber -> increment counter */
 	/* LFO */
 	INT32 *ams_table;
 	INT32 *vib_table;

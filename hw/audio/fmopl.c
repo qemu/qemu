@@ -122,7 +122,7 @@ static const int slot_array[32]=
 /* key scale level */
 /* table is 3dB/OCT , DV converts this in TL step at 6dB/OCT */
 #define DV (EG_STEP/2)
-static const UINT32 KSL_TABLE[8*16]=
+static const uint32_t KSL_TABLE[8*16]=
 {
 	/* OCT 0 */
 	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
@@ -195,7 +195,7 @@ static INT32 ENV_CURVE[2*EG_ENT+1];
 
 /* multiple table */
 #define ML 2
-static const UINT32 MUL_TABLE[16]= {
+static const uint32_t MUL_TABLE[16]= {
 /* 1/2, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15 */
    0.50*ML, 1.00*ML, 2.00*ML, 3.00*ML, 4.00*ML, 5.00*ML, 6.00*ML, 7.00*ML,
    8.00*ML, 9.00*ML,10.00*ML,10.00*ML,12.00*ML,12.00*ML,15.00*ML,15.00*ML
@@ -319,7 +319,7 @@ static inline void OPL_KEYOFF(OPL_SLOT *SLOT)
 
 /* ---------- calcrate Envelope Generator & Phase Generator ---------- */
 /* return : envelope output */
-static inline UINT32 OPL_CALC_SLOT( OPL_SLOT *SLOT )
+static inline uint32_t OPL_CALC_SLOT( OPL_SLOT *SLOT )
 {
 	/* calcrate envelope generator */
 	if( (SLOT->evc+=SLOT->evs) >= SLOT->eve )
@@ -451,7 +451,7 @@ static inline void set_sl_rr(FM_OPL *OPL,int slot,int v)
 /* ---------- calcrate one of channel ---------- */
 static inline void OPL_CALC_CH( OPL_CH *CH )
 {
-	UINT32 env_out;
+	uint32_t env_out;
 	OPL_SLOT *SLOT;
 
 	feedback2 = 0;
@@ -496,7 +496,7 @@ static inline void OPL_CALC_CH( OPL_CH *CH )
 #define WHITE_NOISE_db 6.0
 static inline void OPL_CALC_RH( OPL_CH *CH )
 {
-	UINT32 env_tam,env_sd,env_top,env_hh;
+	uint32_t env_tam,env_sd,env_top,env_hh;
 	int whitenoise = (rand()&1)*(WHITE_NOISE_db/EG_STEP);
 	INT32 tone8;
 
@@ -989,8 +989,8 @@ void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
     int i;
 	int data;
 	OPLSAMPLE *buf = buffer;
-	UINT32 amsCnt  = OPL->amsCnt;
-	UINT32 vibCnt  = OPL->vibCnt;
+	uint32_t amsCnt  = OPL->amsCnt;
+	uint32_t  vibCnt  = OPL->vibCnt;
 	uint8_t rhythm = OPL->rhythm&0x20;
 	OPL_CH *CH,*R_CH;
 
