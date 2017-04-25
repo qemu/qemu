@@ -194,6 +194,9 @@ int net_init_dump(const Netdev *netdev, const char *name,
 
     assert(peer);
 
+    error_report("'-net dump' is deprecated. "
+                 "Please use '-object filter-dump' instead.");
+
     if (dump->has_file) {
         file = dump->file;
     } else {
