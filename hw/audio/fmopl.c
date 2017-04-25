@@ -789,8 +789,8 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 			}
 			else
 			{	/* set IRQ mask ,timer enable*/
-				UINT8 st1 = v&1;
-				UINT8 st2 = (v>>1)&1;
+				uint8_t st1 = v&1;
+				uint8_t st2 = (v>>1)&1;
 				/* IRQRST,T1MSK,t2MSK,EOSMSK,BRMSK,x,ST2,ST1 */
 				OPL_STATUS_RESET(OPL,v&0x78);
 				OPL_STATUSMASK_SET(OPL,((~v)&0x78)|0x01);
@@ -838,7 +838,7 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 		case 0xbd:
 			/* amsep,vibdep,r,bd,sd,tom,tc,hh */
 			{
-			UINT8 rkey = OPL->rhythm^v;
+			uint8_t rkey = OPL->rhythm^v;
 			OPL->ams_table = &AMS_TABLE[v&0x80 ? AMS_ENT : 0];
 			OPL->vib_table = &VIB_TABLE[v&0x40 ? VIB_ENT : 0];
 			OPL->rhythm  = v&0x3f;
@@ -991,7 +991,7 @@ void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 	OPLSAMPLE *buf = buffer;
 	UINT32 amsCnt  = OPL->amsCnt;
 	UINT32 vibCnt  = OPL->vibCnt;
-	UINT8 rhythm = OPL->rhythm&0x20;
+	uint8_t rhythm = OPL->rhythm&0x20;
 	OPL_CH *CH,*R_CH;
 
 	if( (void *)OPL != cur_chip ){
