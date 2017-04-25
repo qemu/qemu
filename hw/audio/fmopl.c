@@ -1188,28 +1188,12 @@ unsigned char OPLRead(FM_OPL *OPL,int a)
 	switch(OPL->address)
 	{
 	case 0x05: /* KeyBoard IN */
-		if(OPL->type&OPL_TYPE_KEYBOARD)
-		{
-			if(OPL->keyboardhandler_r)
-				return OPL->keyboardhandler_r(OPL->keyboard_param);
-			else {
-				LOG(LOG_WAR,("OPL:read unmapped KEYBOARD port\n"));
-			}
-		}
 		return 0;
 #if 0
 	case 0x0f: /* ADPCM-DATA  */
 		return 0;
 #endif
 	case 0x19: /* I/O DATA    */
-		if(OPL->type&OPL_TYPE_IO)
-		{
-			if(OPL->porthandler_r)
-				return OPL->porthandler_r(OPL->port_param);
-			else {
-				LOG(LOG_WAR,("OPL:read unmapped I/O port\n"));
-			}
-		}
 		return 0;
 	case 0x1a: /* PCM-DATA    */
 		return 0;

@@ -12,9 +12,6 @@ typedef unsigned char (*OPL_PORTHANDLER_R)(int param);
 /* !!!!! here is private section , do not access there member direct !!!!! */
 
 #define OPL_TYPE_WAVESEL   0x01  /* waveform select    */
-#define OPL_TYPE_ADPCM     0x02  /* DELTA-T ADPCM unit */
-#define OPL_TYPE_KEYBOARD  0x04  /* keyboard interface */
-#define OPL_TYPE_IO        0x08  /* I/O port */
 
 /* Saving is necessary for member of the 'R' mark for suspend/resume */
 /* ---------- OPL one of slot  ---------- */
