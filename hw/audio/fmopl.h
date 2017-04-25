@@ -3,7 +3,6 @@
 
 /* --- select emulation chips --- */
 #define BUILD_YM3812 (HAS_YM3812)
-//#define BUILD_YM3526 (HAS_YM3526)
 
 /* --- system optimize --- */
 /* select bit size of output : 8 or 16 */
@@ -135,7 +134,6 @@ typedef struct fm_opl_f {
 } FM_OPL;
 
 /* ---------- Generic interface section ---------- */
-#define OPL_TYPE_YM3526 (0)
 #define OPL_TYPE_YM3812 (OPL_TYPE_WAVESEL)
 
 FM_OPL *OPLCreate(int type, int clock, int rate);

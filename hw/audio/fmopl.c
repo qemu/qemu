@@ -981,7 +981,7 @@ static void OPL_UnLockTable(void)
 	OPLCloseTable();
 }
 
-#if (BUILD_YM3812 || BUILD_YM3526)
+#if BUILD_YM3812
 /*******************************************************************************/
 /*		YM3812 local section                                                   */
 /*******************************************************************************/
@@ -1044,7 +1044,7 @@ void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 	}
 #endif
 }
-#endif /* (BUILD_YM3812 || BUILD_YM3526) */
+#endif /* BUILD_YM3812 */
 
 /* ---------- reset one of chip ---------- */
 void OPLResetChip(FM_OPL *OPL)
