@@ -870,6 +870,10 @@ void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
         }
         break;
 
+    case ETH_P_NCSI:
+        ncsi_input(slirp, pkt, pkt_len);
+        break;
+
     default:
         break;
     }
