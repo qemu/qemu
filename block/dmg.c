@@ -419,8 +419,12 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
+    ret = bdrv_set_read_only(bs, true, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
     block_module_load_one("dmg-bz2");
-    bs->read_only = true;
 
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;

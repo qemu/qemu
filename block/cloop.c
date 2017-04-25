@@ -72,7 +72,10 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
-    bs->read_only = true;
+    ret = bdrv_set_read_only(bs, true, errp);
+    if (ret < 0) {
+        return ret;
+    }
 
     /* read header */
     ret = bdrv_pread(bs->file, 128, &s->block_size, 4);

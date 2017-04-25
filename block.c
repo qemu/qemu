@@ -192,6 +192,43 @@ void path_combine(char *dest, int dest_size,
     }
 }
 
+bool bdrv_is_read_only(BlockDriverState *bs)
+{
+    return bs->read_only;
+}
+
+int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
+{
+    /* Do not set read_only if copy_on_read is enabled */
+    if (bs->copy_on_read && read_only) {
+        error_setg(errp, "Can't set node '%s' to r/o with copy-on-read enabled",
+                   bdrv_get_device_or_node_name(bs));
+        return -EINVAL;
+    }
+
+    /* Do not clear read_only if it is prohibited */
+    if (!read_only && !(bs->open_flags & BDRV_O_ALLOW_RDWR)) {
+        error_setg(errp, "Node '%s' is read only",
+                   bdrv_get_device_or_node_name(bs));
+        return -EPERM;
+    }
+
+    return 0;
+}
+
+int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
+{
+    int ret = 0;
+
+    ret = bdrv_can_set_read_only(bs, read_only, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    bs->read_only = read_only;
+    return 0;
+}
+
 void bdrv_get_full_backing_filename_from_filename(const char *backed,
                                                   const char *backing,
                                                   char *dest, size_t sz,
@@ -2752,6 +2789,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     BlockDriver *drv;
     QemuOpts *opts;
     const char *value;
+    bool read_only;
 
     assert(reopen_state != NULL);
     assert(reopen_state->bs->drv != NULL);
@@ -2780,12 +2818,13 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         qdict_put(reopen_state->options, "driver", qstring_from_str(value));
     }
 
-    /* if we are to stay read-only, do not allow permission change
-     * to r/w */
-    if (!(reopen_state->bs->open_flags & BDRV_O_ALLOW_RDWR) &&
-        reopen_state->flags & BDRV_O_RDWR) {
-        error_setg(errp, "Node '%s' is read only",
-                   bdrv_get_device_or_node_name(reopen_state->bs));
+    /* If we are to stay read-only, do not allow permission change
+     * to r/w. Attempting to set to r/w may fail if either BDRV_O_ALLOW_RDWR is
+     * not set, or if the BDS still has copy_on_read enabled */
+    read_only = !(reopen_state->flags & BDRV_O_RDWR);
+    ret = bdrv_can_set_read_only(reopen_state->bs, read_only, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         goto error;
     }
 
@@ -3353,11 +3392,6 @@ void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
     int64_t nb_sectors = bdrv_nb_sectors(bs);
 
     *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
-}
-
-bool bdrv_is_read_only(BlockDriverState *bs)
-{
-    return bs->read_only;
 }
 
 bool bdrv_is_sg(BlockDriverState *bs)

@@ -33,6 +33,7 @@ status=1	# failure is the default!
 
 _cleanup()
 {
+    _cleanup_qemu
     _cleanup_test_img
     rm -f "$TEST_DIR/nbd"
 }

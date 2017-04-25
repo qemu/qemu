@@ -157,6 +157,7 @@ check options
     -ssh                test ssh
     -nfs                test nfs
     -luks               test luks
+    -vxhs               test vxhs
     -xdiff              graphical mode diff
     -nocache            use O_DIRECT on backing file
     -misalign           misalign memory allocations
@@ -257,6 +258,11 @@ testlist options
 
         -nbd)
             IMGPROTO=nbd
+            xpand=false
+            ;;
+
+        -vxhs)
+            IMGPROTO=vxhs
             xpand=false
             ;;
 

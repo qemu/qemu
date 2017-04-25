@@ -2108,6 +2108,8 @@
 #
 # Drivers that are supported in block device operations.
 #
+# @vxhs: Since 2.10
+#
 # Since: 2.9
 ##
 { 'enum': 'BlockdevDriver',
@@ -2116,7 +2118,7 @@
             'host_device', 'http', 'https', 'iscsi', 'luks', 'nbd', 'nfs',
             'null-aio', 'null-co', 'parallels', 'qcow', 'qcow2', 'qed',
             'quorum', 'raw', 'rbd', 'replication', 'sheepdog', 'ssh',
-            'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
+            'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat', 'vxhs' ] }
 
 ##
 # @BlockdevOptionsFile:
@@ -2866,6 +2868,22 @@
   'data': { '*offset': 'int', '*size': 'int' } }
 
 ##
+# @BlockdevOptionsVxHS:
+#
+# Driver specific block device options for VxHS
+#
+# @vdisk-id:    UUID of VxHS volume
+# @server:      vxhs server IP, port
+# @tls-creds:   TLS credentials ID
+#
+# Since: 2.10
+##
+{ 'struct': 'BlockdevOptionsVxHS',
+  'data': { 'vdisk-id': 'str',
+            'server': 'InetSocketAddressBase',
+            '*tls-creds': 'str' } }
+
+##
 # @BlockdevOptions:
 #
 # Options for creating a block device.  Many options are available for all
@@ -2927,7 +2945,8 @@
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
-      'vvfat':      'BlockdevOptionsVVFAT'
+      'vvfat':      'BlockdevOptionsVVFAT',
+      'vxhs':       'BlockdevOptionsVxHS'
   } }
 
 ##

@@ -29,6 +29,7 @@ status=1	# failure is the default!
 
 _cleanup()
 {
+    _cleanup_qemu
     rm -f $TEST_IMG.src
 	_cleanup_test_img
 }
