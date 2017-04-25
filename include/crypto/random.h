@@ -40,5 +40,14 @@ int qcrypto_random_bytes(uint8_t *buf,
                          size_t buflen,
                          Error **errp);
 
+/**
+ * qcrypto_random_init:
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Initializes the handles used by qcrypto_random_bytes
+ *
+ * Returns 0 on success, -1 on error
+ */
+int qcrypto_random_init(Error **errp);
 
 #endif /* QCRYPTO_RANDOM_H */

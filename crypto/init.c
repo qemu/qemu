@@ -32,6 +32,8 @@
 #include <gcrypt.h>
 #endif
 
+#include "crypto/random.h"
+
 /* #define DEBUG_GNUTLS */
 
 /*
@@ -145,6 +147,10 @@ int qcrypto_init(Error **errp)
     }
     gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
 #endif
+
+    if (qcrypto_random_init(errp) < 0) {
+        return -1;
+    }
 
     return 0;
 }

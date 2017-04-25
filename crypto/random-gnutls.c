@@ -41,3 +41,6 @@ int qcrypto_random_bytes(uint8_t *buf,
 
     return 0;
 }
+
+
+int qcrypto_random_init(Error **errp G_GNUC_UNUSED) { return 0; }
