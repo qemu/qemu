@@ -1,9 +1,6 @@
 #ifndef FMOPL_H
 #define FMOPL_H
 
-/* --- select emulation chips --- */
-#define BUILD_YM3812 (HAS_YM3812)
-
 /* --- system optimize --- */
 /* select bit size of output : 8 or 16 */
 #define OPL_OUTPUT_BIT 16
@@ -147,6 +144,5 @@ int OPLWrite(FM_OPL *OPL,int a,int v);
 unsigned char OPLRead(FM_OPL *OPL,int a);
 int OPLTimerOver(FM_OPL *OPL,int c);
 
-/* YM3626/YM3812 local section */
 void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length);
 #endif

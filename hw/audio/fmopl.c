@@ -30,8 +30,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#define HAS_YM3812	1
-
 #include "qemu/osdep.h"
 #include <math.h>
 //#include "driver.h"		/* use M.A.M.E. */
@@ -981,7 +979,6 @@ static void OPL_UnLockTable(void)
 	OPLCloseTable();
 }
 
-#if BUILD_YM3812
 /*******************************************************************************/
 /*		YM3812 local section                                                   */
 /*******************************************************************************/
@@ -1044,7 +1041,6 @@ void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 	}
 #endif
 }
-#endif /* BUILD_YM3812 */
 
 /* ---------- reset one of chip ---------- */
 void OPLResetChip(FM_OPL *OPL)
