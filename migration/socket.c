@@ -25,32 +25,29 @@
 #include "trace.h"
 
 
-static SocketAddressLegacy *tcp_build_address(const char *host_port, Error **errp)
+static SocketAddress *tcp_build_address(const char *host_port, Error **errp)
 {
-    InetSocketAddress *iaddr = g_new(InetSocketAddress, 1);
-    SocketAddressLegacy *saddr;
+    SocketAddress *saddr;
 
-    if (inet_parse(iaddr, host_port, errp)) {
-        qapi_free_InetSocketAddress(iaddr);
+    saddr = g_new0(SocketAddress, 1);
+    saddr->type = SOCKET_ADDRESS_TYPE_INET;
+
+    if (inet_parse(&saddr->u.inet, host_port, errp)) {
+        qapi_free_SocketAddress(saddr);
         return NULL;
     }
-
-    saddr = g_new0(SocketAddressLegacy, 1);
-    saddr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
-    saddr->u.inet.data = iaddr;
 
     return saddr;
 }
 
 
-static SocketAddressLegacy *unix_build_address(const char *path)
+static SocketAddress *unix_build_address(const char *path)
 {
-    SocketAddressLegacy *saddr;
+    SocketAddress *saddr;
 
-    saddr = g_new0(SocketAddressLegacy, 1);
-    saddr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
-    saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
-    saddr->u.q_unix.data->path = g_strdup(path);
+    saddr = g_new0(SocketAddress, 1);
+    saddr->type = SOCKET_ADDRESS_TYPE_UNIX;
+    saddr->u.q_unix.path = g_strdup(path);
 
     return saddr;
 }
@@ -90,15 +87,15 @@ static void socket_outgoing_migration(QIOTask *task,
 }
 
 static void socket_start_outgoing_migration(MigrationState *s,
-                                            SocketAddressLegacy *saddr,
+                                            SocketAddress *saddr,
                                             Error **errp)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
     struct SocketConnectData *data = g_new0(struct SocketConnectData, 1);
 
     data->s = s;
-    if (saddr->type == SOCKET_ADDRESS_LEGACY_KIND_INET) {
-        data->hostname = g_strdup(saddr->u.inet.data->host);
+    if (saddr->type == SOCKET_ADDRESS_TYPE_INET) {
+        data->hostname = g_strdup(saddr->u.inet.host);
     }
 
     qio_channel_set_name(QIO_CHANNEL(sioc), "migration-socket-outgoing");
@@ -107,7 +104,7 @@ static void socket_start_outgoing_migration(MigrationState *s,
                                      socket_outgoing_migration,
                                      data,
                                      socket_connect_data_free);
-    qapi_free_SocketAddressLegacy(saddr);
+    qapi_free_SocketAddress(saddr);
 }
 
 void tcp_start_outgoing_migration(MigrationState *s,
@@ -115,7 +112,7 @@ void tcp_start_outgoing_migration(MigrationState *s,
                                   Error **errp)
 {
     Error *err = NULL;
-    SocketAddressLegacy *saddr = tcp_build_address(host_port, &err);
+    SocketAddress *saddr = tcp_build_address(host_port, &err);
     if (!err) {
         socket_start_outgoing_migration(s, saddr, &err);
     }
@@ -126,7 +123,7 @@ void unix_start_outgoing_migration(MigrationState *s,
                                    const char *path,
                                    Error **errp)
 {
-    SocketAddressLegacy *saddr = unix_build_address(path);
+    SocketAddress *saddr = unix_build_address(path);
     socket_start_outgoing_migration(s, saddr, errp);
 }
 
@@ -160,7 +157,7 @@ out:
 }
 
 
-static void socket_start_incoming_migration(SocketAddressLegacy *saddr,
+static void socket_start_incoming_migration(SocketAddress *saddr,
                                             Error **errp)
 {
     QIOChannelSocket *listen_ioc = qio_channel_socket_new();
@@ -170,7 +167,7 @@ static void socket_start_incoming_migration(SocketAddressLegacy *saddr,
 
     if (qio_channel_socket_listen_sync(listen_ioc, saddr, errp) < 0) {
         object_unref(OBJECT(listen_ioc));
-        qapi_free_SocketAddressLegacy(saddr);
+        qapi_free_SocketAddress(saddr);
         return;
     }
 
@@ -179,13 +176,13 @@ static void socket_start_incoming_migration(SocketAddressLegacy *saddr,
                           socket_accept_incoming_migration,
                           listen_ioc,
                           (GDestroyNotify)object_unref);
-    qapi_free_SocketAddressLegacy(saddr);
+    qapi_free_SocketAddress(saddr);
 }
 
 void tcp_start_incoming_migration(const char *host_port, Error **errp)
 {
     Error *err = NULL;
-    SocketAddressLegacy *saddr = tcp_build_address(host_port, &err);
+    SocketAddress *saddr = tcp_build_address(host_port, &err);
     if (!err) {
         socket_start_incoming_migration(saddr, &err);
     }
@@ -194,6 +191,6 @@ void tcp_start_incoming_migration(const char *host_port, Error **errp)
 
 void unix_start_incoming_migration(const char *path, Error **errp)
 {
-    SocketAddressLegacy *saddr = unix_build_address(path);
+    SocketAddress *saddr = unix_build_address(path);
     socket_start_incoming_migration(saddr, errp);
 }

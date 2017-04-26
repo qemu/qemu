@@ -378,7 +378,7 @@ struct BDRVSheepdogState {
     uint32_t cache_flags;
     bool discard_supported;
 
-    SocketAddressLegacy *addr;
+    SocketAddress *addr;
     int fd;
 
     CoMutex lock;
@@ -530,32 +530,29 @@ static void sd_aio_setup(SheepdogAIOCB *acb, BDRVSheepdogState *s,
     QLIST_INSERT_HEAD(&s->inflight_aiocb_head, acb, aiocb_siblings);
 }
 
-static SocketAddressLegacy *sd_socket_address(const char *path,
+static SocketAddress *sd_socket_address(const char *path,
                                         const char *host, const char *port)
 {
-    SocketAddressLegacy *addr = g_new0(SocketAddressLegacy, 1);
+    SocketAddress *addr = g_new0(SocketAddress, 1);
 
     if (path) {
-        addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
-        addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
-        addr->u.q_unix.data->path = g_strdup(path);
+        addr->type = SOCKET_ADDRESS_TYPE_UNIX;
+        addr->u.q_unix.path = g_strdup(path);
     } else {
-        addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
-        addr->u.inet.data = g_new0(InetSocketAddress, 1);
-        addr->u.inet.data->host = g_strdup(host ?: SD_DEFAULT_ADDR);
-        addr->u.inet.data->port = g_strdup(port ?: stringify(SD_DEFAULT_PORT));
+        addr->type = SOCKET_ADDRESS_TYPE_INET;
+        addr->u.inet.host = g_strdup(host ?: SD_DEFAULT_ADDR);
+        addr->u.inet.port = g_strdup(port ?: stringify(SD_DEFAULT_PORT));
     }
 
     return addr;
 }
 
-static SocketAddressLegacy *sd_server_config(QDict *options, Error **errp)
+static SocketAddress *sd_server_config(QDict *options, Error **errp)
 {
     QDict *server = NULL;
     QObject *crumpled_server = NULL;
     Visitor *iv = NULL;
-    SocketAddress *saddr_flat = NULL;
-    SocketAddressLegacy *saddr = NULL;
+    SocketAddress *saddr = NULL;
     Error *local_err = NULL;
 
     qdict_extract_subqdict(options, &server, "server.");
@@ -574,16 +571,13 @@ static SocketAddressLegacy *sd_server_config(QDict *options, Error **errp)
      * visitor expects the former.
      */
     iv = qobject_input_visitor_new(crumpled_server);
-    visit_type_SocketAddress(iv, NULL, &saddr_flat, &local_err);
+    visit_type_SocketAddress(iv, NULL, &saddr, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto done;
     }
 
-    saddr = socket_address_crumple(saddr_flat);
-
 done:
-    qapi_free_SocketAddress(saddr_flat);
     visit_free(iv);
     qobject_decref(crumpled_server);
     QDECREF(server);
@@ -597,7 +591,7 @@ static int connect_to_sdog(BDRVSheepdogState *s, Error **errp)
 
     fd = socket_connect(s->addr, NULL, NULL, errp);
 
-    if (s->addr->type == SOCKET_ADDRESS_LEGACY_KIND_INET && fd >= 0) {
+    if (s->addr->type == SOCKET_ADDRESS_TYPE_INET && fd >= 0) {
         int ret = socket_set_nodelay(fd);
         if (ret < 0) {
             error_report("%s", strerror(errno));
@@ -2149,7 +2143,7 @@ static void sd_close(BlockDriverState *bs)
     aio_set_fd_handler(bdrv_get_aio_context(bs), s->fd,
                        false, NULL, NULL, NULL, NULL);
     closesocket(s->fd);
-    qapi_free_SocketAddressLegacy(s->addr);
+    qapi_free_SocketAddress(s->addr);
 }
 
 static int64_t sd_getlength(BlockDriverState *bs)

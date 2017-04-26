@@ -203,7 +203,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
     case GA_CHANNEL_VSOCK_LISTEN: {
         if (fd < 0) {
             Error *local_err = NULL;
-            SocketAddressLegacy *addr;
+            SocketAddress *addr;
             char *addr_str;
 
             addr_str = g_strdup_printf("vsock:%s", path);
@@ -216,7 +216,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
             }
 
             fd = socket_listen(addr, &local_err);
-            qapi_free_SocketAddressLegacy(addr);
+            qapi_free_SocketAddress(addr);
             if (local_err != NULL) {
                 g_critical("%s", error_get_pretty(local_err));
                 error_free(local_err);

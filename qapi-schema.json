@@ -4126,7 +4126,11 @@
 #
 # Captures the address of a socket, which could also be a named file descriptor
 #
-# Note: This type is deprecated in favor of SocketAddress.
+# Note: This type is deprecated in favor of SocketAddress.  The
+# difference between SocketAddressLegacy and SocketAddress is that the
+# latter is a flat union rather than a simple union. Flat is nicer
+# because it avoids nesting on the wire, i.e. that form has fewer {}.
+
 #
 # Since: 1.3
 ##
@@ -4154,13 +4158,10 @@
 ##
 # @SocketAddress:
 #
-# Captures the address of a socket
+# Captures the address of a socket, which could also be a named file
+# descriptor
 #
 # @type:       Transport type
-#
-# This is just like SocketAddressLegacy, except it's a flat union rather
-# than a simple union.  Nicer because it avoids nesting on the wire,
-# i.e. this form has fewer {}.
 #
 # Since: 2.9
 ##

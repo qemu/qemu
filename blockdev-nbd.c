@@ -99,9 +99,8 @@ static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, Error **errp)
 }
 
 
-void qmp_nbd_server_start(SocketAddressLegacy *addr,
-                          bool has_tls_creds, const char *tls_creds,
-                          Error **errp)
+void nbd_server_start(SocketAddress *addr, const char *tls_creds,
+                      Error **errp)
 {
     if (nbd_server) {
         error_setg(errp, "NBD server already running");
@@ -118,14 +117,14 @@ void qmp_nbd_server_start(SocketAddressLegacy *addr,
         goto error;
     }
 
-    if (has_tls_creds) {
+    if (tls_creds) {
         nbd_server->tlscreds = nbd_get_tls_creds(tls_creds, errp);
         if (!nbd_server->tlscreds) {
             goto error;
         }
 
-        /* TODO SOCKET_ADDRESS_LEGACY_KIND_FD where fd has AF_INET or AF_INET6 */
-        if (addr->type != SOCKET_ADDRESS_LEGACY_KIND_INET) {
+        /* TODO SOCKET_ADDRESS_TYPE_FD where fd has AF_INET or AF_INET6 */
+        if (addr->type != SOCKET_ADDRESS_TYPE_INET) {
             error_setg(errp, "TLS is only supported with IPv4/IPv6");
             goto error;
         }
@@ -143,6 +142,16 @@ void qmp_nbd_server_start(SocketAddressLegacy *addr,
  error:
     nbd_server_free(nbd_server);
     nbd_server = NULL;
+}
+
+void qmp_nbd_server_start(SocketAddressLegacy *addr,
+                          bool has_tls_creds, const char *tls_creds,
+                          Error **errp)
+{
+    SocketAddress *addr_flat = socket_address_flatten(addr);
+
+    nbd_server_start(addr_flat, tls_creds, errp);
+    qapi_free_SocketAddress(addr_flat);
 }
 
 void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,

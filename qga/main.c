@@ -1379,7 +1379,7 @@ int main(int argc, char **argv)
         goto end;
     }
     if (socket_activation) {
-        SocketAddressLegacy *addr;
+        SocketAddress *addr;
 
         g_free(config->method);
         g_free(config->channel_path);
@@ -1388,13 +1388,13 @@ int main(int argc, char **argv)
 
         addr = socket_local_address(FIRST_SOCKET_ACTIVATION_FD, NULL);
         if (addr) {
-            if (addr->type == SOCKET_ADDRESS_LEGACY_KIND_UNIX) {
+            if (addr->type == SOCKET_ADDRESS_TYPE_UNIX) {
                 config->method = g_strdup("unix-listen");
-            } else if (addr->type == SOCKET_ADDRESS_LEGACY_KIND_VSOCK) {
+            } else if (addr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
                 config->method = g_strdup("vsock-listen");
             }
 
-            qapi_free_SocketAddressLegacy(addr);
+            qapi_free_SocketAddress(addr);
         }
 
         if (!config->method) {

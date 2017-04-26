@@ -57,7 +57,7 @@ static NBDExport *exp;
 static bool newproto;
 static int verbose;
 static char *srcpath;
-static SocketAddressLegacy *saddr;
+static SocketAddress *saddr;
 static int persistent = 0;
 static enum { RUNNING, TERMINATE, TERMINATING, TERMINATED } state;
 static int shared = 1;
@@ -387,21 +387,20 @@ static void nbd_update_server_watch(void)
 }
 
 
-static SocketAddressLegacy *nbd_build_socket_address(const char *sockpath,
+static SocketAddress *nbd_build_socket_address(const char *sockpath,
                                                const char *bindto,
                                                const char *port)
 {
-    SocketAddressLegacy *saddr;
+    SocketAddress *saddr;
 
-    saddr = g_new0(SocketAddressLegacy, 1);
+    saddr = g_new0(SocketAddress, 1);
     if (sockpath) {
-        saddr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
-        saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
-        saddr->u.q_unix.data->path = g_strdup(sockpath);
+        saddr->type = SOCKET_ADDRESS_TYPE_UNIX;
+        saddr->u.q_unix.path = g_strdup(sockpath);
     } else {
         InetSocketAddress *inet;
-        saddr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
-        inet = saddr->u.inet.data = g_new0(InetSocketAddress, 1);
+        saddr->type = SOCKET_ADDRESS_TYPE_INET;
+        inet = &saddr->u.inet;
         inet->host = g_strdup(bindto);
         if (port) {
             inet->port = g_strdup(port);

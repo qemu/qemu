@@ -27,7 +27,7 @@
 
 #define SOCKET_MAX_FDS 16
 
-SocketAddressLegacy *
+SocketAddress *
 qio_channel_socket_get_local_address(QIOChannelSocket *ioc,
                                      Error **errp)
 {
@@ -36,7 +36,7 @@ qio_channel_socket_get_local_address(QIOChannelSocket *ioc,
                                       errp);
 }
 
-SocketAddressLegacy *
+SocketAddress *
 qio_channel_socket_get_remote_address(QIOChannelSocket *ioc,
                                       Error **errp)
 {
@@ -134,7 +134,7 @@ qio_channel_socket_new_fd(int fd,
 
 
 int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
-                                    SocketAddressLegacy *addr,
+                                    SocketAddress *addr,
                                     Error **errp)
 {
     int fd;
@@ -160,7 +160,7 @@ static void qio_channel_socket_connect_worker(QIOTask *task,
                                               gpointer opaque)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
-    SocketAddressLegacy *addr = opaque;
+    SocketAddress *addr = opaque;
     Error *err = NULL;
 
     qio_channel_socket_connect_sync(ioc, addr, &err);
@@ -170,16 +170,16 @@ static void qio_channel_socket_connect_worker(QIOTask *task,
 
 
 void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
-                                      SocketAddressLegacy *addr,
+                                      SocketAddress *addr,
                                       QIOTaskFunc callback,
                                       gpointer opaque,
                                       GDestroyNotify destroy)
 {
     QIOTask *task = qio_task_new(
         OBJECT(ioc), callback, opaque, destroy);
-    SocketAddressLegacy *addrCopy;
+    SocketAddress *addrCopy;
 
-    addrCopy = QAPI_CLONE(SocketAddressLegacy, addr);
+    addrCopy = QAPI_CLONE(SocketAddress, addr);
 
     /* socket_connect() does a non-blocking connect(), but it
      * still blocks in DNS lookups, so we must use a thread */
@@ -187,12 +187,12 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
     qio_task_run_in_thread(task,
                            qio_channel_socket_connect_worker,
                            addrCopy,
-                           (GDestroyNotify)qapi_free_SocketAddressLegacy);
+                           (GDestroyNotify)qapi_free_SocketAddress);
 }
 
 
 int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
-                                   SocketAddressLegacy *addr,
+                                   SocketAddress *addr,
                                    Error **errp)
 {
     int fd;
@@ -219,7 +219,7 @@ static void qio_channel_socket_listen_worker(QIOTask *task,
                                              gpointer opaque)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
-    SocketAddressLegacy *addr = opaque;
+    SocketAddress *addr = opaque;
     Error *err = NULL;
 
     qio_channel_socket_listen_sync(ioc, addr, &err);
@@ -229,29 +229,29 @@ static void qio_channel_socket_listen_worker(QIOTask *task,
 
 
 void qio_channel_socket_listen_async(QIOChannelSocket *ioc,
-                                     SocketAddressLegacy *addr,
+                                     SocketAddress *addr,
                                      QIOTaskFunc callback,
                                      gpointer opaque,
                                      GDestroyNotify destroy)
 {
     QIOTask *task = qio_task_new(
         OBJECT(ioc), callback, opaque, destroy);
-    SocketAddressLegacy *addrCopy;
+    SocketAddress *addrCopy;
 
-    addrCopy = QAPI_CLONE(SocketAddressLegacy, addr);
+    addrCopy = QAPI_CLONE(SocketAddress, addr);
 
     /* socket_listen() blocks in DNS lookups, so we must use a thread */
     trace_qio_channel_socket_listen_async(ioc, addr);
     qio_task_run_in_thread(task,
                            qio_channel_socket_listen_worker,
                            addrCopy,
-                           (GDestroyNotify)qapi_free_SocketAddressLegacy);
+                           (GDestroyNotify)qapi_free_SocketAddress);
 }
 
 
 int qio_channel_socket_dgram_sync(QIOChannelSocket *ioc,
-                                  SocketAddressLegacy *localAddr,
-                                  SocketAddressLegacy *remoteAddr,
+                                  SocketAddress *localAddr,
+                                  SocketAddress *remoteAddr,
                                   Error **errp)
 {
     int fd;
@@ -274,16 +274,16 @@ int qio_channel_socket_dgram_sync(QIOChannelSocket *ioc,
 
 
 struct QIOChannelSocketDGramWorkerData {
-    SocketAddressLegacy *localAddr;
-    SocketAddressLegacy *remoteAddr;
+    SocketAddress *localAddr;
+    SocketAddress *remoteAddr;
 };
 
 
 static void qio_channel_socket_dgram_worker_free(gpointer opaque)
 {
     struct QIOChannelSocketDGramWorkerData *data = opaque;
-    qapi_free_SocketAddressLegacy(data->localAddr);
-    qapi_free_SocketAddressLegacy(data->remoteAddr);
+    qapi_free_SocketAddress(data->localAddr);
+    qapi_free_SocketAddress(data->remoteAddr);
     g_free(data);
 }
 
@@ -303,8 +303,8 @@ static void qio_channel_socket_dgram_worker(QIOTask *task,
 
 
 void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
-                                    SocketAddressLegacy *localAddr,
-                                    SocketAddressLegacy *remoteAddr,
+                                    SocketAddress *localAddr,
+                                    SocketAddress *remoteAddr,
                                     QIOTaskFunc callback,
                                     gpointer opaque,
                                     GDestroyNotify destroy)
@@ -314,8 +314,8 @@ void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
     struct QIOChannelSocketDGramWorkerData *data = g_new0(
         struct QIOChannelSocketDGramWorkerData, 1);
 
-    data->localAddr = QAPI_CLONE(SocketAddressLegacy, localAddr);
-    data->remoteAddr = QAPI_CLONE(SocketAddressLegacy, remoteAddr);
+    data->localAddr = QAPI_CLONE(SocketAddress, localAddr);
+    data->remoteAddr = QAPI_CLONE(SocketAddress, remoteAddr);
 
     trace_qio_channel_socket_dgram_async(ioc, localAddr, remoteAddr);
     qio_task_run_in_thread(task,

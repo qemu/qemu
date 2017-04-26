@@ -191,13 +191,17 @@ static void qmp_chardev_open_udp(Chardev *chr,
                                  Error **errp)
 {
     ChardevUdp *udp = backend->u.udp.data;
+    SocketAddress *local_addr = socket_address_flatten(udp->local);
+    SocketAddress *remote_addr = socket_address_flatten(udp->remote);
     QIOChannelSocket *sioc = qio_channel_socket_new();
     char *name;
     UdpChardev *s = UDP_CHARDEV(chr);
+    int ret;
 
-    if (qio_channel_socket_dgram_sync(sioc,
-                                      udp->local, udp->remote,
-                                      errp) < 0) {
+    ret = qio_channel_socket_dgram_sync(sioc, local_addr, remote_addr, errp);
+    qapi_free_SocketAddress(local_addr);
+    qapi_free_SocketAddress(remote_addr);
+    if (ret < 0) {
         object_unref(OBJECT(sioc));
         return;
     }
