@@ -2089,12 +2089,6 @@ static int img_convert(int argc, char **argv)
     }
 
 
-    if (s.src_num > 1 && out_baseimg) {
-        error_report("-B makes no sense when concatenating multiple input "
-                     "images");
-        goto fail_getopt;
-    }
-
     /* ret is still -EINVAL until here */
     ret = bdrv_parse_cache_mode(src_cache, &src_flags, &src_writethrough);
     if (ret < 0) {
@@ -2207,6 +2201,13 @@ static int img_convert(int argc, char **argv)
         out_baseimg = out_baseimg_param;
     }
     s.target_has_backing = (bool) out_baseimg;
+
+    if (s.src_num > 1 && out_baseimg) {
+        error_report("Having a backing file for the target makes no sense when "
+                     "concatenating multiple input images");
+        ret = -1;
+        goto out;
+    }
 
     /* Check if compression is supported */
     if (s.compressed) {
