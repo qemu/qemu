@@ -788,6 +788,7 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
     ram_addr_t offset = pss->page << TARGET_PAGE_BITS;
 
     p = block->host + offset;
+    trace_ram_save_page(block->idstr, (uint64_t)offset, p);
 
     /* In doubt sent page as normal */
     bytes_xmit = 0;
@@ -2550,6 +2551,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
+            trace_ram_load_loop(block->idstr, (uint64_t)addr, flags, host);
         }
 
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
