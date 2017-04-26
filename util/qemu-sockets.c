@@ -793,26 +793,25 @@ static int vsock_listen_saddr(VsockSocketAddress *vaddr,
     return slisten;
 }
 
-static VsockSocketAddress *vsock_parse(const char *str, Error **errp)
+static int vsock_parse(VsockSocketAddress *addr, const char *str,
+                       Error **errp)
 {
-    VsockSocketAddress *addr = NULL;
     char cid[33];
     char port[33];
     int n;
 
     if (sscanf(str, "%32[^:]:%32[^,]%n", cid, port, &n) != 2) {
         error_setg(errp, "error parsing address '%s'", str);
-        return NULL;
+        return -1;
     }
     if (str[n] != '\0') {
         error_setg(errp, "trailing characters in address '%s'", str);
-        return NULL;
+        return -1;
     }
 
-    addr = g_new0(VsockSocketAddress, 1);
     addr->cid = g_strdup(cid);
     addr->port = g_strdup(port);
-    return addr;
+    return 0;
 }
 #else
 static void vsock_unsupported(Error **errp)
@@ -835,10 +834,11 @@ static int vsock_listen_saddr(VsockSocketAddress *vaddr,
     return -1;
 }
 
-static VsockSocketAddress *vsock_parse(const char *str, Error **errp)
+static int vsock_parse(VsockSocketAddress *addr, const char *str,
+                        Error **errp)
 {
     vsock_unsupported(errp);
-    return NULL;
+    return -1;
 }
 #endif /* CONFIG_AF_VSOCK */
 
@@ -1060,8 +1060,8 @@ SocketAddress *socket_parse(const char *str, Error **errp)
         }
     } else if (strstart(str, "vsock:", NULL)) {
         addr->type = SOCKET_ADDRESS_KIND_VSOCK;
-        addr->u.vsock.data = vsock_parse(str + strlen("vsock:"), errp);
-        if (addr->u.vsock.data == NULL) {
+        addr->u.vsock.data = g_new(VsockSocketAddress, 1);
+        if (vsock_parse(addr->u.vsock.data, str + strlen("vsock:"), errp)) {
             goto fail;
         }
     } else {
