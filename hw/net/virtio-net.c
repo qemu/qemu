@@ -1522,9 +1522,12 @@ static void virtio_net_del_queue(VirtIONet *n, int index)
     if (q->tx_timer) {
         timer_del(q->tx_timer);
         timer_free(q->tx_timer);
+        q->tx_timer = NULL;
     } else {
         qemu_bh_delete(q->tx_bh);
+        q->tx_bh = NULL;
     }
+    q->tx_waiting = 0;
     virtio_del_queue(vdev, index * 2 + 1);
 }
 
