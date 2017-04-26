@@ -1003,7 +1003,11 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* delay slot */
     tcg_out_nop(s);
 
-    /* No epilogue required.  We issue ret + restore directly in the TB.  */
+    /* Epilogue for goto_ptr.  */
+    s->code_gen_epilogue = s->code_ptr;
+    tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
+    /* delay slot */
+    tcg_out_movi_imm13(s, TCG_REG_O0, 0);
 
 #ifdef CONFIG_SOFTMMU
     build_trampolines(s);
@@ -1288,6 +1292,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_nop(s);
         s->tb_jmp_reset_offset[a0] = tcg_current_code_size(s);
         break;
+    case INDEX_op_goto_ptr:
+        tcg_out_arithi(s, TCG_REG_G0, a0, 0, JMPL);
+        tcg_out_nop(s);
+        break;
     case INDEX_op_br:
         tcg_out_bpcc(s, COND_A, BPCC_PT, arg_label(a0));
         tcg_out_nop(s);
@@ -1513,6 +1521,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_br, { } },
+    { INDEX_op_goto_ptr, { "r" } },
 
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },
