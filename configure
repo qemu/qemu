@@ -1271,7 +1271,7 @@ for config in $mak_wilds; do
 done
 
 # Enumerate public trace backends for --help output
-trace_backend_list=$(echo $(grep -le '^PUBLIC = True$' scripts/tracetool/backend/*.py | sed -e 's/^.*\/\(.*\)\.py$/\1/'))
+trace_backend_list=$(echo $(grep -le '^PUBLIC = True$' "$source_path"/scripts/tracetool/backend/*.py | sed -e 's/^.*\/\(.*\)\.py$/\1/'))
 
 if test x"$show_help" = x"yes" ; then
 cat << EOF
