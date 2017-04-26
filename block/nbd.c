@@ -198,16 +198,16 @@ static void nbd_parse_filename(const char *filename, QDict *options,
         qdict_put_str(options, "server.type", "unix");
         qdict_put_str(options, "server.path", unixpath);
     } else {
-        InetSocketAddress *addr = NULL;
+        InetSocketAddress *addr = g_new(InetSocketAddress, 1);
 
-        addr = inet_parse(host_spec, errp);
-        if (!addr) {
-            goto out;
+        if (inet_parse(addr, host_spec, errp)) {
+            goto out_inet;
         }
 
         qdict_put_str(options, "server.type", "inet");
         qdict_put_str(options, "server.host", addr->host);
         qdict_put_str(options, "server.port", addr->port);
+    out_inet:
         qapi_free_InetSocketAddress(addr);
     }
 

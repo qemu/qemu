@@ -27,10 +27,11 @@
 
 static SocketAddress *tcp_build_address(const char *host_port, Error **errp)
 {
-    InetSocketAddress *iaddr = inet_parse(host_port, errp);
+    InetSocketAddress *iaddr = g_new(InetSocketAddress, 1);
     SocketAddress *saddr;
 
-    if (!iaddr) {
+    if (inet_parse(iaddr, host_port, errp)) {
+        qapi_free_InetSocketAddress(iaddr);
         return NULL;
     }
 

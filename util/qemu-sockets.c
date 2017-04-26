@@ -578,16 +578,15 @@ err:
 }
 
 /* compatibility wrapper */
-InetSocketAddress *inet_parse(const char *str, Error **errp)
+int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
 {
-    InetSocketAddress *addr;
     const char *optstr, *h;
     char host[65];
     char port[33];
     int to;
     int pos;
 
-    addr = g_new0(InetSocketAddress, 1);
+    memset(addr, 0, sizeof(*addr));
 
     /* parse address */
     if (str[0] == ':') {
@@ -595,20 +594,20 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
         host[0] = '\0';
         if (sscanf(str, ":%32[^,]%n", port, &pos) != 1) {
             error_setg(errp, "error parsing port in address '%s'", str);
-            goto fail;
+            return -1;
         }
     } else if (str[0] == '[') {
         /* IPv6 addr */
         if (sscanf(str, "[%64[^]]]:%32[^,]%n", host, port, &pos) != 2) {
             error_setg(errp, "error parsing IPv6 address '%s'", str);
-            goto fail;
+            return -1;
         }
         addr->ipv6 = addr->has_ipv6 = true;
     } else {
         /* hostname or IPv4 addr */
         if (sscanf(str, "%64[^:]:%32[^,]%n", host, port, &pos) != 2) {
             error_setg(errp, "error parsing address '%s'", str);
-            goto fail;
+            return -1;
         }
         if (host[strspn(host, "0123456789.")] == '\0') {
             addr->ipv4 = addr->has_ipv4 = true;
@@ -626,7 +625,7 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
         if (sscanf(h, "%d%n", &to, &pos) != 1 ||
             (h[pos] != '\0' && h[pos] != ',')) {
             error_setg(errp, "error parsing to= argument");
-            goto fail;
+            return -1;
         }
         addr->has_to = true;
         addr->to = to;
@@ -637,11 +636,7 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
     if (strstr(optstr, ",ipv6")) {
         addr->ipv6 = addr->has_ipv6 = true;
     }
-    return addr;
-
-fail:
-    qapi_free_InetSocketAddress(addr);
-    return NULL;
+    return 0;
 }
 
 
@@ -656,13 +651,12 @@ fail:
 int inet_connect(const char *str, Error **errp)
 {
     int sock = -1;
-    InetSocketAddress *addr;
+    InetSocketAddress *addr = g_new(InetSocketAddress, 1);
 
-    addr = inet_parse(str, errp);
-    if (addr != NULL) {
+    if (!inet_parse(addr, str, errp)) {
         sock = inet_connect_saddr(addr, NULL, NULL, errp);
-        qapi_free_InetSocketAddress(addr);
     }
+    qapi_free_InetSocketAddress(addr);
     return sock;
 }
 
@@ -1066,8 +1060,8 @@ SocketAddress *socket_parse(const char *str, Error **errp)
         }
     } else {
         addr->type = SOCKET_ADDRESS_KIND_INET;
-        addr->u.inet.data = inet_parse(str, errp);
-        if (addr->u.inet.data == NULL) {
+        addr->u.inet.data = g_new(InetSocketAddress, 1);
+        if (inet_parse(addr->u.inet.data, str, errp)) {
             goto fail;
         }
     }

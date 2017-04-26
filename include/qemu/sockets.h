@@ -34,7 +34,7 @@ typedef void NonBlockingConnectHandler(int fd, Error *err, void *opaque);
 
 int inet_ai_family_from_address(InetSocketAddress *addr,
                                 Error **errp);
-InetSocketAddress *inet_parse(const char *str, Error **errp);
+int inet_parse(InetSocketAddress *addr, const char *str, Error **errp);
 int inet_connect(const char *str, Error **errp);
 int inet_connect_saddr(InetSocketAddress *saddr,
                        NonBlockingConnectHandler *callback, void *opaque,
