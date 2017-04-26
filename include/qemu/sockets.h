@@ -121,17 +121,6 @@ SocketAddress *socket_remote_address(int fd, Error **errp);
 char *socket_address_to_string(struct SocketAddress *addr, Error **errp);
 
 /**
- * socket_address_crumple:
- * @addr_flat: the socket address to crumple
- *
- * Convert SocketAddress to SocketAddressLegacy.  Caller is responsible
- * for freeing with qapi_free_SocketAddressLegacy().
- *
- * Returns: the argument converted to SocketAddressLegacy.
- */
-SocketAddressLegacy *socket_address_crumple(SocketAddress *addr);
-
-/**
  * socket_address_flatten:
  * @addr: the socket address to flatten
  *
