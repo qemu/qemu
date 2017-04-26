@@ -1444,7 +1444,7 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BdrvChild *child,
     int ret = 0;
 
     head_padding_bytes = offset & (align - 1);
-    tail_padding_bytes = align - ((offset + bytes) & (align - 1));
+    tail_padding_bytes = (align - (offset + bytes)) & (align - 1);
 
 
     assert(flags & BDRV_REQ_ZERO_WRITE);
