@@ -119,6 +119,12 @@ static inline char *rpath(FsContext *ctx, const char *path)
 typedef struct V9fsPDU V9fsPDU;
 struct V9fsState;
 
+typedef struct {
+    uint32_t size_le;
+    uint8_t id;
+    uint16_t tag_le;
+} QEMU_PACKED P9MsgHeader;
+
 struct V9fsPDU
 {
     uint32_t size;

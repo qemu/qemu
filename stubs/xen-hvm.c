@@ -50,7 +50,7 @@ void xen_register_framebuffer(MemoryRegion *mr)
 {
 }
 
-void xen_modified_memory(ram_addr_t start, ram_addr_t length)
+void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
 {
 }
 

@@ -1997,30 +1997,65 @@ fi
 # xen probe
 
 if test "$xen" != "no" ; then
-  xen_libs="-lxenstore -lxenctrl -lxenguest"
-  xen_stable_libs="-lxenforeignmemory -lxengnttab -lxenevtchn"
+  # Check whether Xen library path is specified via --extra-ldflags to avoid
+  # overriding this setting with pkg-config output. If not, try pkg-config
+  # to obtain all needed flags.
 
-  # First we test whether Xen headers and libraries are available.
-  # If no, we are done and there is no Xen support.
-  # If yes, more tests are run to detect the Xen version.
+  if ! echo $EXTRA_LDFLAGS | grep tools/libxc > /dev/null && \
+     $pkg_config --exists xencontrol ; then
+    xen_ctrl_version="$(printf '%d%02d%02d' \
+      $($pkg_config --modversion xencontrol | sed 's/\./ /g') )"
+    xen=yes
+    xen_pc="xencontrol xenstore xenguest xenforeignmemory xengnttab"
+    xen_pc="$xen_pc xenevtchn xendevicemodel"
+    QEMU_CFLAGS="$QEMU_CFLAGS $($pkg_config --cflags $xen_pc)"
+    libs_softmmu="$($pkg_config --libs $xen_pc) $libs_softmmu"
+    LDFLAGS="$($pkg_config --libs $xen_pc) $LDFLAGS"
+  else
 
-  # Xen (any)
-  cat > $TMPC <<EOF
+    xen_libs="-lxenstore -lxenctrl -lxenguest"
+    xen_stable_libs="-lxencall -lxenforeignmemory -lxengnttab -lxenevtchn"
+
+    # First we test whether Xen headers and libraries are available.
+    # If no, we are done and there is no Xen support.
+    # If yes, more tests are run to detect the Xen version.
+
+    # Xen (any)
+    cat > $TMPC <<EOF
 #include <xenctrl.h>
 int main(void) {
   return 0;
 }
 EOF
-  if ! compile_prog "" "$xen_libs" ; then
-    # Xen not found
-    if test "$xen" = "yes" ; then
-      feature_not_found "xen" "Install xen devel"
-    fi
-    xen=no
+    if ! compile_prog "" "$xen_libs" ; then
+      # Xen not found
+      if test "$xen" = "yes" ; then
+        feature_not_found "xen" "Install xen devel"
+      fi
+      xen=no
 
-  # Xen unstable
-  elif
-      cat > $TMPC <<EOF &&
+    # Xen unstable
+    elif
+        cat > $TMPC <<EOF &&
+#undef XC_WANT_COMPAT_DEVICEMODEL_API
+#define __XEN_TOOLS__
+#include <xendevicemodel.h>
+int main(void) {
+  xendevicemodel_handle *xd;
+
+  xd = xendevicemodel_open(0, 0);
+  xendevicemodel_close(xd);
+
+  return 0;
+}
+EOF
+        compile_prog "" "$xen_libs -lxendevicemodel $xen_stable_libs"
+      then
+      xen_stable_libs="-lxendevicemodel $xen_stable_libs"
+      xen_ctrl_version=40900
+      xen=yes
+    elif
+        cat > $TMPC <<EOF &&
 /*
  * If we have stable libs the we don't want the libxc compat
  * layers, regardless of what CFLAGS we may have been given.
@@ -2070,12 +2105,12 @@ int main(void) {
   return 0;
 }
 EOF
-      compile_prog "" "$xen_libs $xen_stable_libs"
-    then
-    xen_ctrl_version=480
-    xen=yes
-  elif
-      cat > $TMPC <<EOF &&
+        compile_prog "" "$xen_libs $xen_stable_libs"
+      then
+      xen_ctrl_version=40800
+      xen=yes
+    elif
+        cat > $TMPC <<EOF &&
 /*
  * If we have stable libs the we don't want the libxc compat
  * layers, regardless of what CFLAGS we may have been given.
@@ -2121,12 +2156,12 @@ int main(void) {
   return 0;
 }
 EOF
-      compile_prog "" "$xen_libs $xen_stable_libs"
-    then
-    xen_ctrl_version=471
-    xen=yes
-  elif
-      cat > $TMPC <<EOF &&
+        compile_prog "" "$xen_libs $xen_stable_libs"
+      then
+      xen_ctrl_version=40701
+      xen=yes
+    elif
+        cat > $TMPC <<EOF &&
 #include <xenctrl.h>
 #include <stdint.h>
 int main(void) {
@@ -2136,14 +2171,14 @@ int main(void) {
   return 0;
 }
 EOF
-      compile_prog "" "$xen_libs"
-    then
-    xen_ctrl_version=470
-    xen=yes
+        compile_prog "" "$xen_libs"
+      then
+      xen_ctrl_version=40700
+      xen=yes
 
-  # Xen 4.6
-  elif
-      cat > $TMPC <<EOF &&
+    # Xen 4.6
+    elif
+        cat > $TMPC <<EOF &&
 #include <xenctrl.h>
 #include <xenstore.h>
 #include <stdint.h>
@@ -2164,14 +2199,14 @@ int main(void) {
   return 0;
 }
 EOF
-      compile_prog "" "$xen_libs"
-    then
-    xen_ctrl_version=460
-    xen=yes
+        compile_prog "" "$xen_libs"
+      then
+      xen_ctrl_version=40600
+      xen=yes
 
-  # Xen 4.5
-  elif
-      cat > $TMPC <<EOF &&
+    # Xen 4.5
+    elif
+        cat > $TMPC <<EOF &&
 #include <xenctrl.h>
 #include <xenstore.h>
 #include <stdint.h>
@@ -2191,13 +2226,13 @@ int main(void) {
   return 0;
 }
 EOF
-      compile_prog "" "$xen_libs"
-    then
-    xen_ctrl_version=450
-    xen=yes
+        compile_prog "" "$xen_libs"
+      then
+      xen_ctrl_version=40500
+      xen=yes
 
-  elif
-      cat > $TMPC <<EOF &&
+    elif
+        cat > $TMPC <<EOF &&
 #include <xenctrl.h>
 #include <xenstore.h>
 #include <stdint.h>
@@ -2216,24 +2251,25 @@ int main(void) {
   return 0;
 }
 EOF
-      compile_prog "" "$xen_libs"
-    then
-    xen_ctrl_version=420
-    xen=yes
+        compile_prog "" "$xen_libs"
+      then
+      xen_ctrl_version=40200
+      xen=yes
 
-  else
-    if test "$xen" = "yes" ; then
-      feature_not_found "xen (unsupported version)" \
-                        "Install a supported xen (xen 4.2 or newer)"
+    else
+      if test "$xen" = "yes" ; then
+        feature_not_found "xen (unsupported version)" \
+                          "Install a supported xen (xen 4.2 or newer)"
+      fi
+      xen=no
     fi
-    xen=no
-  fi
 
-  if test "$xen" = yes; then
-    if test $xen_ctrl_version -ge 471  ; then
-      libs_softmmu="$xen_stable_libs $libs_softmmu"
+    if test "$xen" = yes; then
+      if test $xen_ctrl_version -ge 40701  ; then
+        libs_softmmu="$xen_stable_libs $libs_softmmu"
+      fi
+      libs_softmmu="$xen_libs $libs_softmmu"
     fi
-    libs_softmmu="$xen_libs $libs_softmmu"
   fi
 fi
 

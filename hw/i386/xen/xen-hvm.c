@@ -22,7 +22,7 @@
 #include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "sysemu/xen-mapcache.h"
-#include "trace-root.h"
+#include "trace.h"
 #include "exec/address-spaces.h"
 
 #include <xen/hvm/ioreq.h>
@@ -125,8 +125,8 @@ int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 
 void xen_piix3_set_irq(void *opaque, int irq_num, int level)
 {
-    xc_hvm_set_pci_intx_level(xen_xc, xen_domid, 0, 0, irq_num >> 2,
-                              irq_num & 3, level);
+    xen_set_pci_intx_level(xen_domid, 0, 0, irq_num >> 2,
+                           irq_num & 3, level);
 }
 
 void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
@@ -141,7 +141,7 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
         }
         v &= 0xf;
         if (((address + i) >= 0x60) && ((address + i) <= 0x63)) {
-            xc_hvm_set_pci_link_route(xen_xc, xen_domid, address + i - 0x60, v);
+            xen_set_pci_link_route(xen_domid, address + i - 0x60, v);
         }
     }
 }
@@ -156,7 +156,7 @@ int xen_is_pirq_msi(uint32_t msi_data)
 
 void xen_hvm_inject_msi(uint64_t addr, uint32_t data)
 {
-    xc_hvm_inject_msi(xen_xc, xen_domid, addr, data);
+    xen_inject_msi(xen_domid, addr, data);
 }
 
 static void xen_suspend_notifier(Notifier *notifier, void *data)
@@ -168,7 +168,7 @@ static void xen_suspend_notifier(Notifier *notifier, void *data)
 
 static void xen_set_irq(void *opaque, int irq, int level)
 {
-    xc_hvm_set_isa_irq_level(xen_xc, xen_domid, irq, level);
+    xen_set_isa_irq_level(xen_domid, irq, level);
 }
 
 qemu_irq *xen_interrupt_controller_init(void)
@@ -454,10 +454,10 @@ static void xen_set_memory(struct MemoryListener *listener,
         return;
     } else {
         if (add) {
-            xen_map_memory_section(xen_xc, xen_domid, state->ioservid,
+            xen_map_memory_section(xen_domid, state->ioservid,
                                    section);
         } else {
-            xen_unmap_memory_section(xen_xc, xen_domid, state->ioservid,
+            xen_unmap_memory_section(xen_domid, state->ioservid,
                                      section);
         }
     }
@@ -481,10 +481,10 @@ static void xen_set_memory(struct MemoryListener *listener,
                                section->mr, section->offset_within_region);
         } else {
             mem_type = HVMMEM_ram_ro;
-            if (xc_hvm_set_mem_type(xen_xc, xen_domid, mem_type,
-                                    start_addr >> TARGET_PAGE_BITS,
-                                    size >> TARGET_PAGE_BITS)) {
-                DPRINTF("xc_hvm_set_mem_type error, addr: "TARGET_FMT_plx"\n",
+            if (xen_set_mem_type(xen_domid, mem_type,
+                                 start_addr >> TARGET_PAGE_BITS,
+                                 size >> TARGET_PAGE_BITS)) {
+                DPRINTF("xen_set_mem_type error, addr: "TARGET_FMT_plx"\n",
                         start_addr);
             }
         }
@@ -521,7 +521,7 @@ static void xen_io_add(MemoryListener *listener,
 
     memory_region_ref(mr);
 
-    xen_map_io_section(xen_xc, xen_domid, state->ioservid, section);
+    xen_map_io_section(xen_domid, state->ioservid, section);
 }
 
 static void xen_io_del(MemoryListener *listener,
@@ -534,7 +534,7 @@ static void xen_io_del(MemoryListener *listener,
         return;
     }
 
-    xen_unmap_io_section(xen_xc, xen_domid, state->ioservid, section);
+    xen_unmap_io_section(xen_domid, state->ioservid, section);
 
     memory_region_unref(mr);
 }
@@ -547,7 +547,7 @@ static void xen_device_realize(DeviceListener *listener,
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         PCIDevice *pci_dev = PCI_DEVICE(dev);
 
-        xen_map_pcidev(xen_xc, xen_domid, state->ioservid, pci_dev);
+        xen_map_pcidev(xen_domid, state->ioservid, pci_dev);
     }
 }
 
@@ -559,7 +559,7 @@ static void xen_device_unrealize(DeviceListener *listener,
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         PCIDevice *pci_dev = PCI_DEVICE(dev);
 
-        xen_unmap_pcidev(xen_xc, xen_domid, state->ioservid, pci_dev);
+        xen_unmap_pcidev(xen_domid, state->ioservid, pci_dev);
     }
 }
 
@@ -586,9 +586,8 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
         return;
     }
 
-    rc = xc_hvm_track_dirty_vram(xen_xc, xen_domid,
-                                 start_addr >> TARGET_PAGE_BITS, npages,
-                                 bitmap);
+    rc = xen_track_dirty_vram(xen_domid, start_addr >> TARGET_PAGE_BITS,
+                              npages, bitmap);
     if (rc < 0) {
 #ifndef ENODATA
 #define ENODATA  ENOENT
@@ -634,7 +633,7 @@ static void xen_log_stop(MemoryListener *listener, MemoryRegionSection *section,
     if (old & ~new & (1 << DIRTY_MEMORY_VGA)) {
         state->log_for_dirtybit = NULL;
         /* Disable dirty bit tracking */
-        xc_hvm_track_dirty_vram(xen_xc, xen_domid, 0, 0, NULL);
+        xen_track_dirty_vram(xen_domid, 0, 0, NULL);
     }
 }
 
@@ -1139,7 +1138,7 @@ static void xen_hvm_change_state_handler(void *opaque, int running,
         xen_main_loop_prepare(state);
     }
 
-    xen_set_ioreq_server_state(xen_xc, xen_domid,
+    xen_set_ioreq_server_state(xen_domid,
                                state->ioservid,
                                (rstate == RUN_STATE_RUNNING));
 }
@@ -1227,7 +1226,15 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
         goto err;
     }
 
-    xen_create_ioreq_server(xen_xc, xen_domid, &state->ioservid);
+    if (xen_domid_restrict) {
+        rc = xen_restrict(xen_domid);
+        if (rc < 0) {
+            error_report("failed to restrict: error %d", errno);
+            goto err;
+        }
+    }
+
+    xen_create_ioreq_server(xen_domid, &state->ioservid);
 
     state->exit.notify = xen_exit_notifier;
     qemu_add_exit_notifier(&state->exit);
@@ -1238,7 +1245,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     state->wakeup.notify = xen_wakeup_notifier;
     qemu_register_wakeup_notifier(&state->wakeup);
 
-    rc = xen_get_ioreq_server_info(xen_xc, xen_domid, state->ioservid,
+    rc = xen_get_ioreq_server_info(xen_domid, state->ioservid,
                                    &ioreq_pfn, &bufioreq_pfn,
                                    &bufioreq_evtchn);
     if (rc < 0) {
@@ -1288,7 +1295,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     /* Note: cpus is empty at this point in init */
     state->cpu_by_vcpu_id = g_malloc0(max_cpus * sizeof(CPUState *));
 
-    rc = xen_set_ioreq_server_state(xen_xc, xen_domid, state->ioservid, true);
+    rc = xen_set_ioreq_server_state(xen_domid, state->ioservid, true);
     if (rc < 0) {
         error_report("failed to enable ioreq server info: error %d handle=%p",
                      errno, xen_xc);
@@ -1391,7 +1398,7 @@ void xen_shutdown_fatal_error(const char *fmt, ...)
     qemu_system_shutdown_request();
 }
 
-void xen_modified_memory(ram_addr_t start, ram_addr_t length)
+void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
 {
     if (unlikely(xen_in_migration)) {
         int rc;
@@ -1403,7 +1410,7 @@ void xen_modified_memory(ram_addr_t start, ram_addr_t length)
         start_pfn = start >> TARGET_PAGE_BITS;
         nb_pages = ((start + length + TARGET_PAGE_SIZE - 1) >> TARGET_PAGE_BITS)
             - start_pfn;
-        rc = xc_hvm_modified_memory(xen_xc, xen_domid, start_pfn, nb_pages);
+        rc = xen_modified_memory(xen_domid, start_pfn, nb_pages);
         if (rc) {
             fprintf(stderr,
                     "%s failed for "RAM_ADDR_FMT" ("RAM_ADDR_FMT"): %i, %s\n",

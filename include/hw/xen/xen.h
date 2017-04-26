@@ -21,6 +21,7 @@ enum xen_mode {
 
 extern uint32_t xen_domid;
 extern enum xen_mode xen_mode;
+extern bool xen_domid_restrict;
 
 extern bool xen_allowed;
 
@@ -43,7 +44,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory);
 
 void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
                    struct MemoryRegion *mr, Error **errp);
-void xen_modified_memory(ram_addr_t start, ram_addr_t length);
+void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length);
 
 void xen_register_framebuffer(struct MemoryRegion *mr);
 

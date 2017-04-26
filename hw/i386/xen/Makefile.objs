@@ -1,1 +1,1 @@
-obj-y += xen_platform.o xen_apic.o xen_pvdevice.o
+obj-y += xen_platform.o xen_apic.o xen_pvdevice.o xen-hvm.o xen-mapcache.o

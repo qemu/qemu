@@ -14,8 +14,6 @@
     OBJECT_CHECK(XenDevice, (obj), TYPE_XENBACKEND)
 
 /* variables */
-extern xc_interface *xen_xc;
-extern xenforeignmemory_handle *xen_fmem;
 extern struct xs_handle *xenstore;
 extern const char *xen_protocol;
 extern DeviceState *xen_sysdev;
@@ -49,6 +47,9 @@ extern struct XenDevOps xen_console_ops;      /* xen_console.c     */
 extern struct XenDevOps xen_kbdmouse_ops;     /* xen_framebuffer.c */
 extern struct XenDevOps xen_framebuffer_ops;  /* xen_framebuffer.c */
 extern struct XenDevOps xen_blkdev_ops;       /* xen_disk.c        */
+#ifdef CONFIG_VIRTFS
+extern struct XenDevOps xen_9pfs_ops;       /* xen-9p-backend.c        */
+#endif
 extern struct XenDevOps xen_netdev_ops;       /* xen_nic.c         */
 #ifdef CONFIG_USB_LIBUSB
 extern struct XenDevOps xen_usb_ops;          /* xen-usb.c         */
