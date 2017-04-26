@@ -180,3 +180,16 @@ void *qapi_clone(const void *src, void (*visit_type)(Visitor *, const char *,
     visit_free(v);
     return dst;
 }
+
+void qapi_clone_members(void *dst, const void *src, size_t sz,
+                        void (*visit_type_members)(Visitor *, void *,
+                                                   Error **))
+{
+    Visitor *v;
+
+    v = qapi_clone_visitor_new();
+    memcpy(dst, src, sz);
+    to_qcv(v)->depth++;
+    visit_type_members(v, dst, &error_abort);
+    visit_free(v);
+}
