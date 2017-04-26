@@ -1932,6 +1932,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* Epilogue */
     tcg_debug_assert(tb_ret_addr == s->code_ptr);
+    s->code_gen_epilogue = tb_ret_addr;
 
     tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE+LR_OFFSET);
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
@@ -1985,6 +1986,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         s->code_ptr++;
 #endif
         s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
+        break;
+    case INDEX_op_goto_ptr:
+        tcg_out32(s, MTSPR | RS(args[0]) | CTR);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R3, 0);
+        tcg_out32(s, BCCTR | BO_ALWAYS);
         break;
     case INDEX_op_br:
         {
@@ -2555,6 +2561,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_br, { } },
+    { INDEX_op_goto_ptr, { "r" } },
 
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },
