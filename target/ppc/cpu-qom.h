@@ -197,6 +197,7 @@ typedef struct PowerPCCPUClass {
     int bfd_mach;
     uint32_t l1_dcache_size, l1_icache_size;
     const struct ppc_segment_page_sizes *sps;
+    struct ppc_radix_page_info *radix_page_info;
     void (*init_proc)(CPUPPCState *env);
     int  (*check_pow)(CPUPPCState *env);
     int (*handle_mmu_fault)(PowerPCCPU *cpu, vaddr eaddr, int rwx, int mmu_idx);

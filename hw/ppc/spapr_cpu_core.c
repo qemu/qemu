@@ -80,8 +80,6 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
         }
     }
 
-    xics_cpu_setup(XICS_FABRIC(spapr), cpu);
-
     qemu_register_reset(spapr_cpu_reset, cpu);
     spapr_cpu_reset(cpu);
 }
@@ -129,6 +127,7 @@ static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         spapr_cpu_destroy(cpu);
+        object_unparent(cpu->intc);
         cpu_remove_sync(cs);
         object_unparent(obj);
     }
@@ -141,18 +140,32 @@ static void spapr_cpu_core_realize_child(Object *child, Error **errp)
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     CPUState *cs = CPU(child);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
+    Object *obj;
+
+    obj = object_new(spapr->icp_type);
+    object_property_add_child(OBJECT(cpu), "icp", obj, NULL);
+    object_property_add_const_link(obj, "xics", OBJECT(spapr), &error_abort);
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     object_property_set_bool(child, true, "realized", &local_err);
     if (local_err) {
+        object_unparent(obj);
         error_propagate(errp, local_err);
         return;
     }
 
     spapr_cpu_init(spapr, cpu, &local_err);
     if (local_err) {
+        object_unparent(obj);
         error_propagate(errp, local_err);
         return;
     }
+
+    xics_cpu_setup(XICS_FABRIC(spapr), cpu, ICP(obj));
 }
 
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)

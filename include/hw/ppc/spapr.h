@@ -20,6 +20,18 @@ typedef struct sPAPREventSource sPAPREventSource;
 
 #define SPAPR_TIMEBASE_FREQ     512000000ULL
 
+#define TYPE_SPAPR_RTC "spapr-rtc"
+
+#define SPAPR_RTC(obj)                                  \
+    OBJECT_CHECK(sPAPRRTCState, (obj), TYPE_SPAPR_RTC)
+
+typedef struct sPAPRRTCState sPAPRRTCState;
+struct sPAPRRTCState {
+    /*< private >*/
+    DeviceState parent_obj;
+    int64_t ns_offset;
+};
+
 typedef struct sPAPRMachineClass sPAPRMachineClass;
 
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
@@ -58,7 +70,7 @@ struct sPAPRMachineState {
     QLIST_HEAD(, sPAPRPHBState) phbs;
     struct sPAPRNVRAM *nvram;
     ICSState *ics;
-    DeviceState *rtc;
+    sPAPRRTCState rtc;
 
     void *htab;
     uint32_t htab_shift;
@@ -77,6 +89,7 @@ struct sPAPRMachineState {
     sPAPROptionVector *ov5;         /* QEMU-supported option vectors */
     sPAPROptionVector *ov5_cas;     /* negotiated (via CAS) option vectors */
     bool cas_reboot;
+    bool cas_legacy_guest_workaround;
 
     Notifier epow_notifier;
     QTAILQ_HEAD(, sPAPREventLogEntry) pending_events;
@@ -95,8 +108,7 @@ struct sPAPRMachineState {
     char *kvm_type;
     MemoryHotplugState hotplug_memory;
 
-    uint32_t nr_servers;
-    ICPState *icps;
+    const char *icp_type;
 };
 
 #define H_SUCCESS         0
@@ -349,6 +361,9 @@ struct sPAPRMachineState {
 #define H_XIRR_X                0x2FC
 #define H_RANDOM                0x300
 #define H_SET_MODE              0x31C
+#define H_CLEAN_SLB             0x374
+#define H_INVALIDATE_PID        0x378
+#define H_REGISTER_PROC_TBL     0x37C
 #define H_SIGNAL_SYS_RESET      0x380
 #define MAX_HCALL_OPCODE        H_SIGNAL_SYS_RESET
 
@@ -593,6 +608,8 @@ void spapr_dt_events(sPAPRMachineState *sm, void *fdt);
 int spapr_h_cas_compose_response(sPAPRMachineState *sm,
                                  target_ulong addr, target_ulong size,
                                  sPAPROptionVector *ov5_updates);
+void close_htab_fd(sPAPRMachineState *spapr);
+void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn);
 void spapr_tce_table_enable(sPAPRTCETable *tcet,
                             uint32_t page_shift, uint64_t bus_offset,
@@ -629,11 +646,10 @@ struct sPAPRConfigureConnectorState {
 
 void spapr_ccs_reset_hook(void *opaque);
 
-#define TYPE_SPAPR_RTC "spapr-rtc"
-#define TYPE_SPAPR_RNG "spapr-rng"
+void spapr_rtc_read(sPAPRRTCState *rtc, struct tm *tm, uint32_t *ns);
+int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);
 
-void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns);
-int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset);
+#define TYPE_SPAPR_RNG "spapr-rng"
 
 int spapr_rng_populate_dt(void *fdt);
 

@@ -28,7 +28,7 @@
 #ifndef XICS_H
 #define XICS_H
 
-#include "hw/sysbus.h"
+#include "hw/qdev.h"
 
 #define XICS_IPI        0x2
 #define XICS_BUID       0x1
@@ -41,16 +41,21 @@
  */
 typedef struct ICPStateClass ICPStateClass;
 typedef struct ICPState ICPState;
+typedef struct PnvICPState PnvICPState;
 typedef struct ICSStateClass ICSStateClass;
 typedef struct ICSState ICSState;
 typedef struct ICSIRQState ICSIRQState;
 typedef struct XICSFabric XICSFabric;
+typedef struct PowerPCCPU PowerPCCPU;
 
 #define TYPE_ICP "icp"
 #define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
 
 #define TYPE_KVM_ICP "icp-kvm"
 #define KVM_ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_KVM_ICP)
+
+#define TYPE_PNV_ICP "pnv-icp"
+#define PNV_ICP(obj) OBJECT_CHECK(PnvICPState, (obj), TYPE_PNV_ICP)
 
 #define ICP_CLASS(klass) \
      OBJECT_CLASS_CHECK(ICPStateClass, (klass), TYPE_ICP)
@@ -60,6 +65,7 @@ typedef struct XICSFabric XICSFabric;
 struct ICPStateClass {
     DeviceClass parent_class;
 
+    void (*realize)(DeviceState *dev, Error **errp);
     void (*pre_save)(ICPState *s);
     int (*post_load)(ICPState *s, int version_id);
     void (*cpu_setup)(ICPState *icp, PowerPCCPU *cpu);
@@ -78,6 +84,13 @@ struct ICPState {
     bool cap_irq_xics_enabled;
 
     XICSFabric *xics;
+};
+
+struct PnvICPState {
+    ICPState parent_obj;
+
+    MemoryRegion mmio;
+    uint32_t links[3];
 };
 
 #define TYPE_ICS_BASE "ics-base"
@@ -168,12 +181,10 @@ void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle);
 
 qemu_irq xics_get_qirq(XICSFabric *xi, int irq);
 ICPState *xics_icp_get(XICSFabric *xi, int server);
-void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu);
+void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu, ICPState *icp);
 void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu);
 
 /* Internal XICS interfaces */
-int xics_get_cpu_index_by_dt_id(int cpu_dt_id);
-
 void icp_set_cppr(ICPState *icp, uint8_t cppr);
 void icp_set_mfrr(ICPState *icp, uint8_t mfrr);
 uint32_t icp_accept(ICPState *ss);

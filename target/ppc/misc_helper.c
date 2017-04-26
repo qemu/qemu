@@ -88,6 +88,14 @@ void helper_store_sdr1(CPUPPCState *env, target_ulong val)
     }
 }
 
+void helper_store_pidr(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    env->spr[SPR_BOOKS_PID] = val;
+    tlb_flush(CPU(cpu));
+}
+
 void helper_store_hid0_601(CPUPPCState *env, target_ulong val)
 {
     target_ulong hid0;

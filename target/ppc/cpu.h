@@ -943,6 +943,10 @@ struct ppc_segment_page_sizes {
     struct ppc_one_seg_page_size sps[PPC_PAGE_SIZES_MAX_SZ];
 };
 
+struct ppc_radix_page_info {
+    uint32_t count;
+    uint32_t entries[PPC_PAGE_SIZES_MAX_SZ];
+};
 
 /*****************************************************************************/
 /* The whole PowerPC CPU context */
@@ -1196,6 +1200,7 @@ struct PowerPCCPU {
     uint32_t max_compat;
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
+    Object *intc;
 
     /* Fields related to migration compatibility hacks */
     bool pre_2_8_migration;

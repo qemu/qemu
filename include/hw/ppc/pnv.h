@@ -22,6 +22,8 @@
 #include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "hw/ppc/pnv_lpc.h"
+#include "hw/ppc/pnv_psi.h"
+#include "hw/ppc/pnv_occ.h"
 
 #define TYPE_PNV_CHIP "powernv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -54,8 +56,11 @@ typedef struct PnvChip {
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
     AddressSpace xscom_as;
+    MemoryRegion icp_mmio;
 
     PnvLpcController lpc;
+    PnvPsi       psi;
+    PnvOCC       occ;
 } PnvChip;
 
 typedef struct PnvChipClass {
@@ -91,17 +96,29 @@ typedef struct PnvChipClass {
     OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER9)
 
 /*
- * This generates a HW chip id depending on an index:
+ * This generates a HW chip id depending on an index, as found on a
+ * two socket system with dual chip modules :
  *
  *    0x0, 0x1, 0x10, 0x11
  *
  * 4 chips should be the maximum
+ *
+ * TODO: use a machine property to define the chip ids
  */
 #define PNV_CHIP_HWID(i) ((((i) & 0x3e) << 3) | ((i) & 0x1))
+
+/*
+ * Converts back a HW chip id to an index. This is useful to calculate
+ * the MMIO addresses of some controllers which depend on the chip id.
+ */
+#define PNV_CHIP_INDEX(chip)                                    \
+    (((chip)->chip_id >> 2) * 2 + ((chip)->chip_id & 0x3))
 
 #define TYPE_POWERNV_MACHINE       MACHINE_TYPE_NAME("powernv")
 #define POWERNV_MACHINE(obj) \
     OBJECT_CHECK(PnvMachineState, (obj), TYPE_POWERNV_MACHINE)
+
+typedef struct IPMIBmc IPMIBmc;
 
 typedef struct PnvMachineState {
     /*< private >*/
@@ -114,10 +131,20 @@ typedef struct PnvMachineState {
     PnvChip      **chips;
 
     ISABus       *isa_bus;
+    uint32_t     cpld_irqstate;
+
+    IPMIBmc      *bmc;
+    Notifier     powerdown_notifier;
 } PnvMachineState;
 
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL
+
+/*
+ * BMC helpers
+ */
+void pnv_bmc_populate_sensors(IPMIBmc *bmc, void *fdt);
+void pnv_bmc_powerdown(IPMIBmc *bmc);
 
 /*
  * POWER8 MMIO base addresses
@@ -125,5 +152,33 @@ typedef struct PnvMachineState {
 #define PNV_XSCOM_SIZE        0x800000000ull
 #define PNV_XSCOM_BASE(chip)                                            \
     (chip->xscom_base + ((uint64_t)(chip)->chip_id) * PNV_XSCOM_SIZE)
+
+/*
+ * XSCOM 0x20109CA defines the ICP BAR:
+ *
+ * 0:29   : bits 14 to 43 of address to define 1 MB region.
+ * 30     : 1 to enable ICP to receive loads/stores against its BAR region
+ * 31:63  : Constant 0
+ *
+ * Usually defined as :
+ *
+ *      0xffffe00200000000 -> 0x0003ffff80000000
+ *      0xffffe00600000000 -> 0x0003ffff80100000
+ *      0xffffe02200000000 -> 0x0003ffff80800000
+ *      0xffffe02600000000 -> 0x0003ffff80900000
+ */
+#define PNV_ICP_SIZE         0x0000000000100000ull
+#define PNV_ICP_BASE(chip)                                              \
+    (0x0003ffff80000000ull + (uint64_t) PNV_CHIP_INDEX(chip) * PNV_ICP_SIZE)
+
+
+#define PNV_PSIHB_SIZE       0x0000000000100000ull
+#define PNV_PSIHB_BASE(chip) \
+    (0x0003fffe80000000ull + (uint64_t)PNV_CHIP_INDEX(chip) * PNV_PSIHB_SIZE)
+
+#define PNV_PSIHB_FSP_SIZE   0x0000000100000000ull
+#define PNV_PSIHB_FSP_BASE(chip) \
+    (0x0003ffe000000000ull + (uint64_t)PNV_CHIP_INDEX(chip) * \
+     PNV_PSIHB_FSP_SIZE)
 
 #endif /* _PPC_PNV_H */

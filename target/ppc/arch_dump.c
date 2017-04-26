@@ -50,7 +50,7 @@ struct PPCUserRegStruct {
 struct PPCElfPrstatus {
     char pad1[112];
     struct PPCUserRegStruct pr_reg;
-    reg_t pad2[4];
+    char pad2[40];
 } QEMU_PACKED;
 
 

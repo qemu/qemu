@@ -38,21 +38,10 @@
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
 
-int xics_get_cpu_index_by_dt_id(int cpu_dt_id)
-{
-    PowerPCCPU *cpu = ppc_get_vcpu_by_dt_id(cpu_dt_id);
-
-    if (cpu) {
-        return cpu->parent_obj.cpu_index;
-    }
-
-    return -1;
-}
-
 void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    ICPState *icp = xics_icp_get(xi, cs->cpu_index);
+    ICPState *icp = ICP(cpu->intc);
 
     assert(icp);
     assert(cs == icp->cs);
@@ -61,15 +50,15 @@ void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu)
     icp->cs = NULL;
 }
 
-void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu)
+void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu, ICPState *icp)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    ICPState *icp = xics_icp_get(xi, cs->cpu_index);
     ICPStateClass *icpc;
 
     assert(icp);
 
+    cpu->intc = OBJECT(icp);
     icp->cs = cs;
 
     icpc = ICP_GET_CLASS(icp);
@@ -348,6 +337,7 @@ static void icp_reset(void *dev)
 static void icp_realize(DeviceState *dev, Error **errp)
 {
     ICPState *icp = ICP(dev);
+    ICPStateClass *icpc = ICP_GET_CLASS(dev);
     Object *obj;
     Error *err = NULL;
 
@@ -359,6 +349,10 @@ static void icp_realize(DeviceState *dev, Error **errp)
     }
 
     icp->xics = XICS_FABRIC(obj);
+
+    if (icpc->realize) {
+        icpc->realize(dev, errp);
+    }
 
     qemu_register_reset(icp_reset, dev);
 }

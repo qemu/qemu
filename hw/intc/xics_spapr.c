@@ -43,20 +43,17 @@
 static target_ulong h_cppr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
-    CPUState *cs = CPU(cpu);
-    ICPState *icp = xics_icp_get(XICS_FABRIC(spapr), cs->cpu_index);
     target_ulong cppr = args[0];
 
-    icp_set_cppr(icp, cppr);
+    icp_set_cppr(ICP(cpu->intc), cppr);
     return H_SUCCESS;
 }
 
 static target_ulong h_ipi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                           target_ulong opcode, target_ulong *args)
 {
-    target_ulong server = xics_get_cpu_index_by_dt_id(args[0]);
     target_ulong mfrr = args[1];
-    ICPState *icp = xics_icp_get(XICS_FABRIC(spapr), server);
+    ICPState *icp = xics_icp_get(XICS_FABRIC(spapr), args[0]);
 
     if (!icp) {
         return H_PARAMETER;
@@ -69,9 +66,7 @@ static target_ulong h_ipi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_xirr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
-    CPUState *cs = CPU(cpu);
-    ICPState *icp = xics_icp_get(XICS_FABRIC(spapr), cs->cpu_index);
-    uint32_t xirr = icp_accept(icp);
+    uint32_t xirr = icp_accept(ICP(cpu->intc));
 
     args[0] = xirr;
     return H_SUCCESS;
@@ -80,9 +75,7 @@ static target_ulong h_xirr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_xirr_x(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                              target_ulong opcode, target_ulong *args)
 {
-    CPUState *cs = CPU(cpu);
-    ICPState *icp = xics_icp_get(XICS_FABRIC(spapr), cs->cpu_index);
-    uint32_t xirr = icp_accept(icp);
+    uint32_t xirr = icp_accept(ICP(cpu->intc));
 
     args[0] = xirr;
     args[1] = cpu_get_host_ticks();
@@ -92,21 +85,17 @@ static target_ulong h_xirr_x(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_eoi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                           target_ulong opcode, target_ulong *args)
 {
-    CPUState *cs = CPU(cpu);
-    ICPState *icp = xics_icp_get(XICS_FABRIC(spapr), cs->cpu_index);
     target_ulong xirr = args[0];
 
-    icp_eoi(icp, xirr);
+    icp_eoi(ICP(cpu->intc), xirr);
     return H_SUCCESS;
 }
 
 static target_ulong h_ipoll(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                             target_ulong opcode, target_ulong *args)
 {
-    CPUState *cs = CPU(cpu);
-    ICPState *icp = xics_icp_get(XICS_FABRIC(spapr), cs->cpu_index);
     uint32_t mfrr;
-    uint32_t xirr = icp_ipoll(icp, &mfrr);
+    uint32_t xirr = icp_ipoll(ICP(cpu->intc), &mfrr);
 
     args[0] = xirr;
     args[1] = mfrr;
@@ -132,7 +121,7 @@ static void rtas_set_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     }
 
     nr = rtas_ld(args, 0);
-    server = xics_get_cpu_index_by_dt_id(rtas_ld(args, 1));
+    server = rtas_ld(args, 1);
     priority = rtas_ld(args, 2);
 
     if (!ics_valid_irq(ics, nr) || !xics_icp_get(XICS_FABRIC(spapr), server)
