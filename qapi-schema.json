@@ -4126,7 +4126,7 @@
 #
 # Captures the address of a socket, which could also be a named file descriptor
 #
-# Note: This type is deprecated in favor of SocketAddressFlat.
+# Note: This type is deprecated in favor of SocketAddress.
 #
 # Since: 1.3
 ##
@@ -4138,9 +4138,9 @@
     'fd': 'String' } }
 
 ##
-# @SocketAddressFlatType:
+# @SocketAddressType:
 #
-# Available SocketAddressFlat types
+# Available SocketAddress types
 #
 # @inet:  Internet address
 #
@@ -4148,11 +4148,11 @@
 #
 # Since: 2.9
 ##
-{ 'enum': 'SocketAddressFlatType',
+{ 'enum': 'SocketAddressType',
   'data': [ 'inet', 'unix', 'vsock', 'fd' ] }
 
 ##
-# @SocketAddressFlat:
+# @SocketAddress:
 #
 # Captures the address of a socket
 #
@@ -4164,8 +4164,8 @@
 #
 # Since: 2.9
 ##
-{ 'union': 'SocketAddressFlat',
-  'base': { 'type': 'SocketAddressFlatType' },
+{ 'union': 'SocketAddress',
+  'base': { 'type': 'SocketAddressType' },
   'discriminator': 'type',
   'data': { 'inet': 'InetSocketAddress',
             'unix': 'UnixSocketAddress',

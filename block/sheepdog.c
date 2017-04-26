@@ -554,7 +554,7 @@ static SocketAddressLegacy *sd_server_config(QDict *options, Error **errp)
     QDict *server = NULL;
     QObject *crumpled_server = NULL;
     Visitor *iv = NULL;
-    SocketAddressFlat *saddr_flat = NULL;
+    SocketAddress *saddr_flat = NULL;
     SocketAddressLegacy *saddr = NULL;
     Error *local_err = NULL;
 
@@ -574,7 +574,7 @@ static SocketAddressLegacy *sd_server_config(QDict *options, Error **errp)
      * visitor expects the former.
      */
     iv = qobject_input_visitor_new(crumpled_server);
-    visit_type_SocketAddressFlat(iv, NULL, &saddr_flat, &local_err);
+    visit_type_SocketAddress(iv, NULL, &saddr_flat, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto done;
@@ -583,7 +583,7 @@ static SocketAddressLegacy *sd_server_config(QDict *options, Error **errp)
     saddr = socket_address_crumple(saddr_flat);
 
 done:
-    qapi_free_SocketAddressFlat(saddr_flat);
+    qapi_free_SocketAddress(saddr_flat);
     visit_free(iv);
     qobject_decref(crumpled_server);
     QDECREF(server);

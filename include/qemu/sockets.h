@@ -124,11 +124,11 @@ char *socket_address_to_string(struct SocketAddressLegacy *addr, Error **errp);
  * socket_address_crumple:
  * @addr_flat: the socket address to crumple
  *
- * Convert SocketAddressFlat to SocketAddressLegacy.  Caller is responsible
+ * Convert SocketAddress to SocketAddressLegacy.  Caller is responsible
  * for freeing with qapi_free_SocketAddressLegacy().
  *
  * Returns: the argument converted to SocketAddressLegacy.
  */
-SocketAddressLegacy *socket_address_crumple(SocketAddressFlat *addr_flat);
+SocketAddressLegacy *socket_address_crumple(SocketAddress *addr);
 
 #endif /* QEMU_SOCKETS_H */

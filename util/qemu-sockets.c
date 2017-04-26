@@ -1341,27 +1341,27 @@ char *socket_address_to_string(struct SocketAddressLegacy *addr, Error **errp)
     return buf;
 }
 
-SocketAddressLegacy *socket_address_crumple(SocketAddressFlat *addr_flat)
+SocketAddressLegacy *socket_address_crumple(SocketAddress *addr_flat)
 {
     SocketAddressLegacy *addr = g_new(SocketAddressLegacy, 1);
 
     switch (addr_flat->type) {
-    case SOCKET_ADDRESS_FLAT_TYPE_INET:
+    case SOCKET_ADDRESS_TYPE_INET:
         addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
         addr->u.inet.data = QAPI_CLONE(InetSocketAddress,
                                        &addr_flat->u.inet);
         break;
-    case SOCKET_ADDRESS_FLAT_TYPE_UNIX:
+    case SOCKET_ADDRESS_TYPE_UNIX:
         addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
         addr->u.q_unix.data = QAPI_CLONE(UnixSocketAddress,
                                          &addr_flat->u.q_unix);
         break;
-    case SOCKET_ADDRESS_FLAT_TYPE_VSOCK:
+    case SOCKET_ADDRESS_TYPE_VSOCK:
         addr->type = SOCKET_ADDRESS_LEGACY_KIND_VSOCK;
         addr->u.vsock.data = QAPI_CLONE(VsockSocketAddress,
                                         &addr_flat->u.vsock);
         break;
-    case SOCKET_ADDRESS_FLAT_TYPE_FD:
+    case SOCKET_ADDRESS_TYPE_FD:
         addr->type = SOCKET_ADDRESS_LEGACY_KIND_FD;
         addr->u.fd.data = QAPI_CLONE(String, &addr_flat->u.fd);
         break;
