@@ -91,7 +91,7 @@ qio_channel_socket_new_fd(int fd,
  * an error occurs.
  */
 int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
-                                    SocketAddress *addr,
+                                    SocketAddressLegacy *addr,
                                     Error **errp);
 
 /**
@@ -110,7 +110,7 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
  * as this function returns without waiting for completion.
  */
 void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
-                                      SocketAddress *addr,
+                                      SocketAddressLegacy *addr,
                                       QIOTaskFunc callback,
                                       gpointer opaque,
                                       GDestroyNotify destroy);
@@ -128,7 +128,7 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
  * an error occurs.
  */
 int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
-                                   SocketAddress *addr,
+                                   SocketAddressLegacy *addr,
                                    Error **errp);
 
 /**
@@ -147,7 +147,7 @@ int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
  * as this function returns without waiting for completion.
  */
 void qio_channel_socket_listen_async(QIOChannelSocket *ioc,
-                                     SocketAddress *addr,
+                                     SocketAddressLegacy *addr,
                                      QIOTaskFunc callback,
                                      gpointer opaque,
                                      GDestroyNotify destroy);
@@ -167,8 +167,8 @@ void qio_channel_socket_listen_async(QIOChannelSocket *ioc,
  * is established or an error occurs.
  */
 int qio_channel_socket_dgram_sync(QIOChannelSocket *ioc,
-                                  SocketAddress *localAddr,
-                                  SocketAddress *remoteAddr,
+                                  SocketAddressLegacy *localAddr,
+                                  SocketAddressLegacy *remoteAddr,
                                   Error **errp);
 
 /**
@@ -190,8 +190,8 @@ int qio_channel_socket_dgram_sync(QIOChannelSocket *ioc,
  * waiting for completion.
  */
 void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
-                                    SocketAddress *localAddr,
-                                    SocketAddress *remoteAddr,
+                                    SocketAddressLegacy *localAddr,
+                                    SocketAddressLegacy *remoteAddr,
                                     QIOTaskFunc callback,
                                     gpointer opaque,
                                     GDestroyNotify destroy);
@@ -205,12 +205,12 @@ void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
  * Get the string representation of the local socket
  * address. A pointer to the allocated address information
  * struct will be returned, which the caller is required to
- * release with a call qapi_free_SocketAddress when no
+ * release with a call qapi_free_SocketAddressLegacy() when no
  * longer required.
  *
  * Returns: 0 on success, -1 on error
  */
-SocketAddress *
+SocketAddressLegacy *
 qio_channel_socket_get_local_address(QIOChannelSocket *ioc,
                                      Error **errp);
 
@@ -222,12 +222,12 @@ qio_channel_socket_get_local_address(QIOChannelSocket *ioc,
  * Get the string representation of the local socket
  * address. A pointer to the allocated address information
  * struct will be returned, which the caller is required to
- * release with a call qapi_free_SocketAddress when no
+ * release with a call qapi_free_SocketAddressLegacy() when no
  * longer required.
  *
  * Returns: the socket address struct, or NULL on error
  */
-SocketAddress *
+SocketAddressLegacy *
 qio_channel_socket_get_remote_address(QIOChannelSocket *ioc,
                                       Error **errp);
 

@@ -99,7 +99,7 @@ static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, Error **errp)
 }
 
 
-void qmp_nbd_server_start(SocketAddress *addr,
+void qmp_nbd_server_start(SocketAddressLegacy *addr,
                           bool has_tls_creds, const char *tls_creds,
                           Error **errp)
 {
@@ -124,8 +124,8 @@ void qmp_nbd_server_start(SocketAddress *addr,
             goto error;
         }
 
-        /* TODO SOCKET_ADDRESS_KIND_FD where fd has AF_INET or AF_INET6 */
-        if (addr->type != SOCKET_ADDRESS_KIND_INET) {
+        /* TODO SOCKET_ADDRESS_LEGACY_KIND_FD where fd has AF_INET or AF_INET6 */
+        if (addr->type != SOCKET_ADDRESS_LEGACY_KIND_INET) {
             error_setg(errp, "TLS is only supported with IPv4/IPv6");
             goto error;
         }

@@ -1029,17 +1029,17 @@ int unix_connect(const char *path, Error **errp)
 }
 
 
-SocketAddress *socket_parse(const char *str, Error **errp)
+SocketAddressLegacy *socket_parse(const char *str, Error **errp)
 {
-    SocketAddress *addr;
+    SocketAddressLegacy *addr;
 
-    addr = g_new0(SocketAddress, 1);
+    addr = g_new0(SocketAddressLegacy, 1);
     if (strstart(str, "unix:", NULL)) {
         if (str[5] == '\0') {
             error_setg(errp, "invalid Unix socket address");
             goto fail;
         } else {
-            addr->type = SOCKET_ADDRESS_KIND_UNIX;
+            addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
             addr->u.q_unix.data = g_new(UnixSocketAddress, 1);
             addr->u.q_unix.data->path = g_strdup(str + 5);
         }
@@ -1048,18 +1048,18 @@ SocketAddress *socket_parse(const char *str, Error **errp)
             error_setg(errp, "invalid file descriptor address");
             goto fail;
         } else {
-            addr->type = SOCKET_ADDRESS_KIND_FD;
+            addr->type = SOCKET_ADDRESS_LEGACY_KIND_FD;
             addr->u.fd.data = g_new(String, 1);
             addr->u.fd.data->str = g_strdup(str + 3);
         }
     } else if (strstart(str, "vsock:", NULL)) {
-        addr->type = SOCKET_ADDRESS_KIND_VSOCK;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_VSOCK;
         addr->u.vsock.data = g_new(VsockSocketAddress, 1);
         if (vsock_parse(addr->u.vsock.data, str + strlen("vsock:"), errp)) {
             goto fail;
         }
     } else {
-        addr->type = SOCKET_ADDRESS_KIND_INET;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
         addr->u.inet.data = g_new(InetSocketAddress, 1);
         if (inet_parse(addr->u.inet.data, str, errp)) {
             goto fail;
@@ -1068,25 +1068,25 @@ SocketAddress *socket_parse(const char *str, Error **errp)
     return addr;
 
 fail:
-    qapi_free_SocketAddress(addr);
+    qapi_free_SocketAddressLegacy(addr);
     return NULL;
 }
 
-int socket_connect(SocketAddress *addr, NonBlockingConnectHandler *callback,
+int socket_connect(SocketAddressLegacy *addr, NonBlockingConnectHandler *callback,
                    void *opaque, Error **errp)
 {
     int fd;
 
     switch (addr->type) {
-    case SOCKET_ADDRESS_KIND_INET:
+    case SOCKET_ADDRESS_LEGACY_KIND_INET:
         fd = inet_connect_saddr(addr->u.inet.data, callback, opaque, errp);
         break;
 
-    case SOCKET_ADDRESS_KIND_UNIX:
+    case SOCKET_ADDRESS_LEGACY_KIND_UNIX:
         fd = unix_connect_saddr(addr->u.q_unix.data, callback, opaque, errp);
         break;
 
-    case SOCKET_ADDRESS_KIND_FD:
+    case SOCKET_ADDRESS_LEGACY_KIND_FD:
         fd = monitor_get_fd(cur_mon, addr->u.fd.data->str, errp);
         if (fd >= 0 && callback) {
             qemu_set_nonblock(fd);
@@ -1094,7 +1094,7 @@ int socket_connect(SocketAddress *addr, NonBlockingConnectHandler *callback,
         }
         break;
 
-    case SOCKET_ADDRESS_KIND_VSOCK:
+    case SOCKET_ADDRESS_LEGACY_KIND_VSOCK:
         fd = vsock_connect_saddr(addr->u.vsock.data, callback, opaque, errp);
         break;
 
@@ -1104,24 +1104,24 @@ int socket_connect(SocketAddress *addr, NonBlockingConnectHandler *callback,
     return fd;
 }
 
-int socket_listen(SocketAddress *addr, Error **errp)
+int socket_listen(SocketAddressLegacy *addr, Error **errp)
 {
     int fd;
 
     switch (addr->type) {
-    case SOCKET_ADDRESS_KIND_INET:
+    case SOCKET_ADDRESS_LEGACY_KIND_INET:
         fd = inet_listen_saddr(addr->u.inet.data, 0, false, errp);
         break;
 
-    case SOCKET_ADDRESS_KIND_UNIX:
+    case SOCKET_ADDRESS_LEGACY_KIND_UNIX:
         fd = unix_listen_saddr(addr->u.q_unix.data, false, errp);
         break;
 
-    case SOCKET_ADDRESS_KIND_FD:
+    case SOCKET_ADDRESS_LEGACY_KIND_FD:
         fd = monitor_get_fd(cur_mon, addr->u.fd.data->str, errp);
         break;
 
-    case SOCKET_ADDRESS_KIND_VSOCK:
+    case SOCKET_ADDRESS_LEGACY_KIND_VSOCK:
         fd = vsock_listen_saddr(addr->u.vsock.data, errp);
         break;
 
@@ -1133,11 +1133,11 @@ int socket_listen(SocketAddress *addr, Error **errp)
 
 void socket_listen_cleanup(int fd, Error **errp)
 {
-    SocketAddress *addr;
+    SocketAddressLegacy *addr;
 
     addr = socket_local_address(fd, errp);
 
-    if (addr->type == SOCKET_ADDRESS_KIND_UNIX
+    if (addr->type == SOCKET_ADDRESS_LEGACY_KIND_UNIX
         && addr->u.q_unix.data->path) {
         if (unlink(addr->u.q_unix.data->path) < 0 && errno != ENOENT) {
             error_setg_errno(errp, errno,
@@ -1146,19 +1146,19 @@ void socket_listen_cleanup(int fd, Error **errp)
         }
     }
 
-    qapi_free_SocketAddress(addr);
+    qapi_free_SocketAddressLegacy(addr);
 }
 
-int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
+int socket_dgram(SocketAddressLegacy *remote, SocketAddressLegacy *local, Error **errp)
 {
     int fd;
 
     /*
-     * TODO SOCKET_ADDRESS_KIND_FD when fd is AF_INET or AF_INET6
+     * TODO SOCKET_ADDRESS_LEGACY_KIND_FD when fd is AF_INET or AF_INET6
      * (although other address families can do SOCK_DGRAM, too)
      */
     switch (remote->type) {
-    case SOCKET_ADDRESS_KIND_INET:
+    case SOCKET_ADDRESS_LEGACY_KIND_INET:
         fd = inet_dgram_saddr(remote->u.inet.data,
                               local ? local->u.inet.data : NULL, errp);
         break;
@@ -1171,14 +1171,14 @@ int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
 }
 
 
-static SocketAddress *
+static SocketAddressLegacy *
 socket_sockaddr_to_address_inet(struct sockaddr_storage *sa,
                                 socklen_t salen,
                                 Error **errp)
 {
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
-    SocketAddress *addr;
+    SocketAddressLegacy *addr;
     InetSocketAddress *inet;
     int ret;
 
@@ -1192,8 +1192,8 @@ socket_sockaddr_to_address_inet(struct sockaddr_storage *sa,
         return NULL;
     }
 
-    addr = g_new0(SocketAddress, 1);
-    addr->type = SOCKET_ADDRESS_KIND_INET;
+    addr = g_new0(SocketAddressLegacy, 1);
+    addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
     inet = addr->u.inet.data = g_new0(InetSocketAddress, 1);
     inet->host = g_strdup(host);
     inet->port = g_strdup(serv);
@@ -1208,16 +1208,16 @@ socket_sockaddr_to_address_inet(struct sockaddr_storage *sa,
 
 
 #ifndef WIN32
-static SocketAddress *
+static SocketAddressLegacy *
 socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
                                 socklen_t salen,
                                 Error **errp)
 {
-    SocketAddress *addr;
+    SocketAddressLegacy *addr;
     struct sockaddr_un *su = (struct sockaddr_un *)sa;
 
-    addr = g_new0(SocketAddress, 1);
-    addr->type = SOCKET_ADDRESS_KIND_UNIX;
+    addr = g_new0(SocketAddressLegacy, 1);
+    addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
     addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
     if (su->sun_path[0]) {
         addr->u.q_unix.data->path = g_strndup(su->sun_path,
@@ -1229,17 +1229,17 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
 #endif /* WIN32 */
 
 #ifdef CONFIG_AF_VSOCK
-static SocketAddress *
+static SocketAddressLegacy *
 socket_sockaddr_to_address_vsock(struct sockaddr_storage *sa,
                                  socklen_t salen,
                                  Error **errp)
 {
-    SocketAddress *addr;
+    SocketAddressLegacy *addr;
     VsockSocketAddress *vaddr;
     struct sockaddr_vm *svm = (struct sockaddr_vm *)sa;
 
-    addr = g_new0(SocketAddress, 1);
-    addr->type = SOCKET_ADDRESS_KIND_VSOCK;
+    addr = g_new0(SocketAddressLegacy, 1);
+    addr->type = SOCKET_ADDRESS_LEGACY_KIND_VSOCK;
     addr->u.vsock.data = vaddr = g_new0(VsockSocketAddress, 1);
     vaddr->cid = g_strdup_printf("%u", svm->svm_cid);
     vaddr->port = g_strdup_printf("%u", svm->svm_port);
@@ -1248,7 +1248,7 @@ socket_sockaddr_to_address_vsock(struct sockaddr_storage *sa,
 }
 #endif /* CONFIG_AF_VSOCK */
 
-SocketAddress *
+SocketAddressLegacy *
 socket_sockaddr_to_address(struct sockaddr_storage *sa,
                            socklen_t salen,
                            Error **errp)
@@ -1277,7 +1277,7 @@ socket_sockaddr_to_address(struct sockaddr_storage *sa,
 }
 
 
-SocketAddress *socket_local_address(int fd, Error **errp)
+SocketAddressLegacy *socket_local_address(int fd, Error **errp)
 {
     struct sockaddr_storage ss;
     socklen_t sslen = sizeof(ss);
@@ -1292,7 +1292,7 @@ SocketAddress *socket_local_address(int fd, Error **errp)
 }
 
 
-SocketAddress *socket_remote_address(int fd, Error **errp)
+SocketAddressLegacy *socket_remote_address(int fd, Error **errp)
 {
     struct sockaddr_storage ss;
     socklen_t sslen = sizeof(ss);
@@ -1306,13 +1306,13 @@ SocketAddress *socket_remote_address(int fd, Error **errp)
     return socket_sockaddr_to_address(&ss, sslen, errp);
 }
 
-char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
+char *socket_address_to_string(struct SocketAddressLegacy *addr, Error **errp)
 {
     char *buf;
     InetSocketAddress *inet;
 
     switch (addr->type) {
-    case SOCKET_ADDRESS_KIND_INET:
+    case SOCKET_ADDRESS_LEGACY_KIND_INET:
         inet = addr->u.inet.data;
         if (strchr(inet->host, ':') == NULL) {
             buf = g_strdup_printf("%s:%s", inet->host, inet->port);
@@ -1321,15 +1321,15 @@ char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
         }
         break;
 
-    case SOCKET_ADDRESS_KIND_UNIX:
+    case SOCKET_ADDRESS_LEGACY_KIND_UNIX:
         buf = g_strdup(addr->u.q_unix.data->path);
         break;
 
-    case SOCKET_ADDRESS_KIND_FD:
+    case SOCKET_ADDRESS_LEGACY_KIND_FD:
         buf = g_strdup(addr->u.fd.data->str);
         break;
 
-    case SOCKET_ADDRESS_KIND_VSOCK:
+    case SOCKET_ADDRESS_LEGACY_KIND_VSOCK:
         buf = g_strdup_printf("%s:%s",
                               addr->u.vsock.data->cid,
                               addr->u.vsock.data->port);
@@ -1341,28 +1341,28 @@ char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
     return buf;
 }
 
-SocketAddress *socket_address_crumple(SocketAddressFlat *addr_flat)
+SocketAddressLegacy *socket_address_crumple(SocketAddressFlat *addr_flat)
 {
-    SocketAddress *addr = g_new(SocketAddress, 1);
+    SocketAddressLegacy *addr = g_new(SocketAddressLegacy, 1);
 
     switch (addr_flat->type) {
     case SOCKET_ADDRESS_FLAT_TYPE_INET:
-        addr->type = SOCKET_ADDRESS_KIND_INET;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
         addr->u.inet.data = QAPI_CLONE(InetSocketAddress,
                                        &addr_flat->u.inet);
         break;
     case SOCKET_ADDRESS_FLAT_TYPE_UNIX:
-        addr->type = SOCKET_ADDRESS_KIND_UNIX;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
         addr->u.q_unix.data = QAPI_CLONE(UnixSocketAddress,
                                          &addr_flat->u.q_unix);
         break;
     case SOCKET_ADDRESS_FLAT_TYPE_VSOCK:
-        addr->type = SOCKET_ADDRESS_KIND_VSOCK;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_VSOCK;
         addr->u.vsock.data = QAPI_CLONE(VsockSocketAddress,
                                         &addr_flat->u.vsock);
         break;
     case SOCKET_ADDRESS_FLAT_TYPE_FD:
-        addr->type = SOCKET_ADDRESS_KIND_FD;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_FD;
         addr->u.fd.data = QAPI_CLONE(String, &addr_flat->u.fd);
         break;
     default:

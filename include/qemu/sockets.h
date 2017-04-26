@@ -45,12 +45,12 @@ NetworkAddressFamily inet_netfamily(int family);
 int unix_listen(const char *path, char *ostr, int olen, Error **errp);
 int unix_connect(const char *path, Error **errp);
 
-SocketAddress *socket_parse(const char *str, Error **errp);
-int socket_connect(SocketAddress *addr, NonBlockingConnectHandler *callback,
+SocketAddressLegacy *socket_parse(const char *str, Error **errp);
+int socket_connect(SocketAddressLegacy *addr, NonBlockingConnectHandler *callback,
                    void *opaque, Error **errp);
-int socket_listen(SocketAddress *addr, Error **errp);
+int socket_listen(SocketAddressLegacy *addr, Error **errp);
 void socket_listen_cleanup(int fd, Error **errp);
-int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp);
+int socket_dgram(SocketAddressLegacy *remote, SocketAddressLegacy *local, Error **errp);
 
 /* Old, ipv4 only bits.  Don't use for new code. */
 int parse_host_port(struct sockaddr_in *saddr, const char *str);
@@ -65,12 +65,12 @@ int socket_init(void);
  * Get the string representation of the socket
  * address. A pointer to the allocated address information
  * struct will be returned, which the caller is required to
- * release with a call qapi_free_SocketAddress when no
+ * release with a call qapi_free_SocketAddressLegacy() when no
  * longer required.
  *
  * Returns: the socket address struct, or NULL on error
  */
-SocketAddress *
+SocketAddressLegacy *
 socket_sockaddr_to_address(struct sockaddr_storage *sa,
                            socklen_t salen,
                            Error **errp);
@@ -83,12 +83,12 @@ socket_sockaddr_to_address(struct sockaddr_storage *sa,
  * Get the string representation of the local socket
  * address. A pointer to the allocated address information
  * struct will be returned, which the caller is required to
- * release with a call qapi_free_SocketAddress when no
+ * release with a call qapi_free_SocketAddressLegacy() when no
  * longer required.
  *
  * Returns: the socket address struct, or NULL on error
  */
-SocketAddress *socket_local_address(int fd, Error **errp);
+SocketAddressLegacy *socket_local_address(int fd, Error **errp);
 
 /**
  * socket_remote_address:
@@ -98,12 +98,12 @@ SocketAddress *socket_local_address(int fd, Error **errp);
  * Get the string representation of the remote socket
  * address. A pointer to the allocated address information
  * struct will be returned, which the caller is required to
- * release with a call qapi_free_SocketAddress when no
+ * release with a call qapi_free_SocketAddressLegacy() when no
  * longer required.
  *
  * Returns: the socket address struct, or NULL on error
  */
-SocketAddress *socket_remote_address(int fd, Error **errp);
+SocketAddressLegacy *socket_remote_address(int fd, Error **errp);
 
 /**
  * socket_address_to_string:
@@ -118,17 +118,17 @@ SocketAddress *socket_remote_address(int fd, Error **errp);
  *
  * Returns: the socket address in string format, or NULL on error
  */
-char *socket_address_to_string(struct SocketAddress *addr, Error **errp);
+char *socket_address_to_string(struct SocketAddressLegacy *addr, Error **errp);
 
 /**
  * socket_address_crumple:
  * @addr_flat: the socket address to crumple
  *
- * Convert SocketAddressFlat to SocketAddress.  Caller is responsible
- * for freeing with qapi_free_SocketAddress().
+ * Convert SocketAddressFlat to SocketAddressLegacy.  Caller is responsible
+ * for freeing with qapi_free_SocketAddressLegacy().
  *
- * Returns: the argument converted to SocketAddress.
+ * Returns: the argument converted to SocketAddressLegacy.
  */
-SocketAddress *socket_address_crumple(SocketAddressFlat *addr_flat);
+SocketAddressLegacy *socket_address_crumple(SocketAddressFlat *addr_flat);
 
 #endif /* QEMU_SOCKETS_H */

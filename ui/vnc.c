@@ -108,12 +108,12 @@ static void vnc_set_share_mode(VncState *vs, VncShareMode mode)
 }
 
 
-static void vnc_init_basic_info(SocketAddress *addr,
+static void vnc_init_basic_info(SocketAddressLegacy *addr,
                                 VncBasicInfo *info,
                                 Error **errp)
 {
     switch (addr->type) {
-    case SOCKET_ADDRESS_KIND_INET:
+    case SOCKET_ADDRESS_LEGACY_KIND_INET:
         info->host = g_strdup(addr->u.inet.data->host);
         info->service = g_strdup(addr->u.inet.data->port);
         if (addr->u.inet.data->ipv6) {
@@ -123,16 +123,16 @@ static void vnc_init_basic_info(SocketAddress *addr,
         }
         break;
 
-    case SOCKET_ADDRESS_KIND_UNIX:
+    case SOCKET_ADDRESS_LEGACY_KIND_UNIX:
         info->host = g_strdup("");
         info->service = g_strdup(addr->u.q_unix.data->path);
         info->family = NETWORK_ADDRESS_FAMILY_UNIX;
         break;
 
-    case SOCKET_ADDRESS_KIND_VSOCK:
-    case SOCKET_ADDRESS_KIND_FD:
+    case SOCKET_ADDRESS_LEGACY_KIND_VSOCK:
+    case SOCKET_ADDRESS_LEGACY_KIND_FD:
         error_setg(errp, "Unsupported socket address type %s",
-                   SocketAddressKind_lookup[addr->type]);
+                   SocketAddressLegacyKind_lookup[addr->type]);
         break;
     default:
         abort();
@@ -145,7 +145,7 @@ static void vnc_init_basic_info_from_server_addr(QIOChannelSocket *ioc,
                                                  VncBasicInfo *info,
                                                  Error **errp)
 {
-    SocketAddress *addr = NULL;
+    SocketAddressLegacy *addr = NULL;
 
     if (!ioc) {
         error_setg(errp, "No listener socket available");
@@ -158,14 +158,14 @@ static void vnc_init_basic_info_from_server_addr(QIOChannelSocket *ioc,
     }
 
     vnc_init_basic_info(addr, info, errp);
-    qapi_free_SocketAddress(addr);
+    qapi_free_SocketAddressLegacy(addr);
 }
 
 static void vnc_init_basic_info_from_remote_addr(QIOChannelSocket *ioc,
                                                  VncBasicInfo *info,
                                                  Error **errp)
 {
-    SocketAddress *addr = NULL;
+    SocketAddressLegacy *addr = NULL;
 
     addr = qio_channel_socket_get_remote_address(ioc, errp);
     if (!addr) {
@@ -173,7 +173,7 @@ static void vnc_init_basic_info_from_remote_addr(QIOChannelSocket *ioc,
     }
 
     vnc_init_basic_info(addr, info, errp);
-    qapi_free_SocketAddress(addr);
+    qapi_free_SocketAddressLegacy(addr);
 }
 
 static const char *vnc_auth_name(VncDisplay *vd) {
@@ -377,7 +377,7 @@ VncInfo *qmp_query_vnc(Error **errp)
 {
     VncInfo *info = g_malloc0(sizeof(*info));
     VncDisplay *vd = vnc_display_find(NULL);
-    SocketAddress *addr = NULL;
+    SocketAddressLegacy *addr = NULL;
 
     if (vd == NULL || !vd->nlsock) {
         info->enabled = false;
@@ -398,7 +398,7 @@ VncInfo *qmp_query_vnc(Error **errp)
         }
 
         switch (addr->type) {
-        case SOCKET_ADDRESS_KIND_INET:
+        case SOCKET_ADDRESS_LEGACY_KIND_INET:
             info->host = g_strdup(addr->u.inet.data->host);
             info->service = g_strdup(addr->u.inet.data->port);
             if (addr->u.inet.data->ipv6) {
@@ -408,16 +408,16 @@ VncInfo *qmp_query_vnc(Error **errp)
             }
             break;
 
-        case SOCKET_ADDRESS_KIND_UNIX:
+        case SOCKET_ADDRESS_LEGACY_KIND_UNIX:
             info->host = g_strdup("");
             info->service = g_strdup(addr->u.q_unix.data->path);
             info->family = NETWORK_ADDRESS_FAMILY_UNIX;
             break;
 
-        case SOCKET_ADDRESS_KIND_VSOCK:
-        case SOCKET_ADDRESS_KIND_FD:
+        case SOCKET_ADDRESS_LEGACY_KIND_VSOCK:
+        case SOCKET_ADDRESS_LEGACY_KIND_FD:
             error_setg(errp, "Unsupported socket address type %s",
-                       SocketAddressKind_lookup[addr->type]);
+                       SocketAddressLegacyKind_lookup[addr->type]);
             goto out_error;
         default:
             abort();
@@ -431,11 +431,11 @@ VncInfo *qmp_query_vnc(Error **errp)
         info->auth = g_strdup(vnc_auth_name(vd));
     }
 
-    qapi_free_SocketAddress(addr);
+    qapi_free_SocketAddressLegacy(addr);
     return info;
 
 out_error:
-    qapi_free_SocketAddress(addr);
+    qapi_free_SocketAddressLegacy(addr);
     qapi_free_VncInfo(info);
     return NULL;
 }
@@ -455,7 +455,7 @@ static VncServerInfo2List *qmp_query_server_entry(QIOChannelSocket *ioc,
     VncServerInfo2List *list;
     VncServerInfo2 *info;
     Error *err = NULL;
-    SocketAddress *addr;
+    SocketAddressLegacy *addr;
 
     addr = qio_channel_socket_get_local_address(ioc, &err);
     if (!addr) {
@@ -465,7 +465,7 @@ static VncServerInfo2List *qmp_query_server_entry(QIOChannelSocket *ioc,
 
     info = g_new0(VncServerInfo2, 1);
     vnc_init_basic_info(addr, qapi_VncServerInfo2_base(info), &err);
-    qapi_free_SocketAddress(addr);
+    qapi_free_SocketAddressLegacy(addr);
     if (err) {
         qapi_free_VncServerInfo2(info);
         error_free(err);
@@ -3149,7 +3149,7 @@ int vnc_display_pw_expire(const char *id, time_t expires)
 
 static void vnc_display_print_local_addr(VncDisplay *vd)
 {
-    SocketAddress *addr;
+    SocketAddressLegacy *addr;
     Error *err = NULL;
 
     if (!vd->nlsock) {
@@ -3161,14 +3161,14 @@ static void vnc_display_print_local_addr(VncDisplay *vd)
         return;
     }
 
-    if (addr->type != SOCKET_ADDRESS_KIND_INET) {
-        qapi_free_SocketAddress(addr);
+    if (addr->type != SOCKET_ADDRESS_LEGACY_KIND_INET) {
+        qapi_free_SocketAddressLegacy(addr);
         return;
     }
     error_printf_unless_qmp("VNC server running on %s:%s\n",
                             addr->u.inet.data->host,
                             addr->u.inet.data->port);
-    qapi_free_SocketAddress(addr);
+    qapi_free_SocketAddressLegacy(addr);
 }
 
 static QemuOptsList qemu_vnc_opts = {
@@ -3414,16 +3414,16 @@ static int vnc_display_get_address(const char *addrstr,
                                    bool has_ipv6,
                                    bool ipv4,
                                    bool ipv6,
-                                   SocketAddress **retaddr,
+                                   SocketAddressLegacy **retaddr,
                                    Error **errp)
 {
     int ret = -1;
-    SocketAddress *addr = NULL;
+    SocketAddressLegacy *addr = NULL;
 
-    addr = g_new0(SocketAddress, 1);
+    addr = g_new0(SocketAddressLegacy, 1);
 
     if (strncmp(addrstr, "unix:", 5) == 0) {
-        addr->type = SOCKET_ADDRESS_KIND_UNIX;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
         addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
         addr->u.q_unix.data->path = g_strdup(addrstr + 5);
 
@@ -3461,7 +3461,7 @@ static int vnc_display_get_address(const char *addrstr,
             }
         }
 
-        addr->type = SOCKET_ADDRESS_KIND_INET;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
         inet = addr->u.inet.data = g_new0(InetSocketAddress, 1);
         if (addrstr[0] == '[' && addrstr[hostlen - 1] == ']') {
             inet->host = g_strndup(addrstr + 1, hostlen - 2);
@@ -3518,21 +3518,21 @@ static int vnc_display_get_address(const char *addrstr,
 
  cleanup:
     if (ret < 0) {
-        qapi_free_SocketAddress(addr);
+        qapi_free_SocketAddressLegacy(addr);
     }
     return ret;
 }
 
 static int vnc_display_get_addresses(QemuOpts *opts,
                                      bool reverse,
-                                     SocketAddress ***retsaddr,
+                                     SocketAddressLegacy ***retsaddr,
                                      size_t *retnsaddr,
-                                     SocketAddress ***retwsaddr,
+                                     SocketAddressLegacy ***retwsaddr,
                                      size_t *retnwsaddr,
                                      Error **errp)
 {
-    SocketAddress *saddr = NULL;
-    SocketAddress *wsaddr = NULL;
+    SocketAddressLegacy *saddr = NULL;
+    SocketAddressLegacy *wsaddr = NULL;
     QemuOptsIter addriter;
     const char *addr;
     int to = qemu_opt_get_number(opts, "to", 0);
@@ -3577,7 +3577,7 @@ static int vnc_display_get_addresses(QemuOpts *opts,
         if (displaynum == -1) {
             displaynum = rv;
         }
-        *retsaddr = g_renew(SocketAddress *, *retsaddr, *retnsaddr + 1);
+        *retsaddr = g_renew(SocketAddressLegacy *, *retsaddr, *retnsaddr + 1);
         (*retsaddr)[(*retnsaddr)++] = saddr;
     }
 
@@ -3601,8 +3601,8 @@ static int vnc_display_get_addresses(QemuOpts *opts,
          * address for websocket too
          */
         if (*retnsaddr == 1 &&
-            (*retsaddr)[0]->type == SOCKET_ADDRESS_KIND_INET &&
-            wsaddr->type == SOCKET_ADDRESS_KIND_INET &&
+            (*retsaddr)[0]->type == SOCKET_ADDRESS_LEGACY_KIND_INET &&
+            wsaddr->type == SOCKET_ADDRESS_LEGACY_KIND_INET &&
             g_str_equal(wsaddr->u.inet.data->host, "") &&
             !g_str_equal((*retsaddr)[0]->u.inet.data->host, "")) {
             g_free(wsaddr->u.inet.data->host);
@@ -3610,7 +3610,7 @@ static int vnc_display_get_addresses(QemuOpts *opts,
                 g_strdup((*retsaddr)[0]->u.inet.data->host);
         }
 
-        *retwsaddr = g_renew(SocketAddress *, *retwsaddr, *retnwsaddr + 1);
+        *retwsaddr = g_renew(SocketAddressLegacy *, *retwsaddr, *retnwsaddr + 1);
         (*retwsaddr)[(*retnwsaddr)++] = wsaddr;
     }
 
@@ -3618,11 +3618,11 @@ static int vnc_display_get_addresses(QemuOpts *opts,
  cleanup:
     if (ret < 0) {
         for (i = 0; i < *retnsaddr; i++) {
-            qapi_free_SocketAddress((*retsaddr)[i]);
+            qapi_free_SocketAddressLegacy((*retsaddr)[i]);
         }
         g_free(*retsaddr);
         for (i = 0; i < *retnwsaddr; i++) {
-            qapi_free_SocketAddress((*retwsaddr)[i]);
+            qapi_free_SocketAddressLegacy((*retwsaddr)[i]);
         }
         g_free(*retwsaddr);
         *retsaddr = *retwsaddr = NULL;
@@ -3632,9 +3632,9 @@ static int vnc_display_get_addresses(QemuOpts *opts,
 }
 
 static int vnc_display_connect(VncDisplay *vd,
-                               SocketAddress **saddr,
+                               SocketAddressLegacy **saddr,
                                size_t nsaddr,
-                               SocketAddress **wsaddr,
+                               SocketAddressLegacy **wsaddr,
                                size_t nwsaddr,
                                Error **errp)
 {
@@ -3648,8 +3648,8 @@ static int vnc_display_connect(VncDisplay *vd,
         error_setg(errp, "Expected a single address in reverse mode");
         return -1;
     }
-    /* TODO SOCKET_ADDRESS_KIND_FD when fd has AF_UNIX */
-    vd->is_unix = saddr[0]->type == SOCKET_ADDRESS_KIND_UNIX;
+    /* TODO SOCKET_ADDRESS_LEGACY_KIND_FD when fd has AF_UNIX */
+    vd->is_unix = saddr[0]->type == SOCKET_ADDRESS_LEGACY_KIND_UNIX;
     sioc = qio_channel_socket_new();
     qio_channel_set_name(QIO_CHANNEL(sioc), "vnc-reverse");
     if (qio_channel_socket_connect_sync(sioc, saddr[0], errp) < 0) {
@@ -3662,7 +3662,7 @@ static int vnc_display_connect(VncDisplay *vd,
 
 
 static int vnc_display_listen_addr(VncDisplay *vd,
-                                   SocketAddress *addr,
+                                   SocketAddressLegacy *addr,
                                    const char *name,
                                    QIOChannelSocket ***lsock,
                                    guint **lsock_tag,
@@ -3670,7 +3670,7 @@ static int vnc_display_listen_addr(VncDisplay *vd,
                                    Error **errp)
 {
     QIODNSResolver *resolver = qio_dns_resolver_get_instance();
-    SocketAddress **rawaddrs = NULL;
+    SocketAddressLegacy **rawaddrs = NULL;
     size_t nrawaddrs = 0;
     Error *listenerr = NULL;
     bool listening = false;
@@ -3700,7 +3700,7 @@ static int vnc_display_listen_addr(VncDisplay *vd,
     }
 
     for (i = 0; i < nrawaddrs; i++) {
-        qapi_free_SocketAddress(rawaddrs[i]);
+        qapi_free_SocketAddressLegacy(rawaddrs[i]);
     }
     g_free(rawaddrs);
 
@@ -3724,9 +3724,9 @@ static int vnc_display_listen_addr(VncDisplay *vd,
 
 
 static int vnc_display_listen(VncDisplay *vd,
-                              SocketAddress **saddr,
+                              SocketAddressLegacy **saddr,
                               size_t nsaddr,
-                              SocketAddress **wsaddr,
+                              SocketAddressLegacy **wsaddr,
                               size_t nwsaddr,
                               Error **errp)
 {
@@ -3761,7 +3761,7 @@ void vnc_display_open(const char *id, Error **errp)
 {
     VncDisplay *vd = vnc_display_find(id);
     QemuOpts *opts = qemu_opts_find(&qemu_vnc_opts, id);
-    SocketAddress **saddr = NULL, **wsaddr = NULL;
+    SocketAddressLegacy **saddr = NULL, **wsaddr = NULL;
     size_t nsaddr, nwsaddr;
     const char *share, *device_id;
     QemuConsole *con;
@@ -3997,10 +3997,10 @@ void vnc_display_open(const char *id, Error **errp)
 
  cleanup:
     for (i = 0; i < nsaddr; i++) {
-        qapi_free_SocketAddress(saddr[i]);
+        qapi_free_SocketAddressLegacy(saddr[i]);
     }
     for (i = 0; i < nwsaddr; i++) {
-        qapi_free_SocketAddress(wsaddr[i]);
+        qapi_free_SocketAddressLegacy(wsaddr[i]);
     }
     return;
 

@@ -40,15 +40,15 @@ typedef struct QIODNSResolverClass QIODNSResolverClass;
  * QIODNSResolver:
  *
  * The QIODNSResolver class provides a framework for doing
- * DNS resolution on SocketAddress objects, independently
+ * DNS resolution on SocketAddressLegacy objects, independently
  * of socket creation.
  *
  * <example>
  *   <title>Resolving addresses synchronously</title>
  *   <programlisting>
- *    int mylisten(SocketAddress *addr, Error **errp) {
+ *    int mylisten(SocketAddressLegacy *addr, Error **errp) {
  *      QIODNSResolver *resolver = qio_dns_resolver_get_instance();
- *      SocketAddress **rawaddrs = NULL;
+ *      SocketAddressLegacy **rawaddrs = NULL;
  *      size_t nrawaddrs = 0;
  *      Error *err = NULL;
  *      QIOChannel **socks = NULL;
@@ -69,7 +69,7 @@ typedef struct QIODNSResolverClass QIODNSResolverClass;
  *            socks = g_renew(QIOChannelSocket *, socks, nsocks + 1);
  *            socks[nsocks++] = sock;
  *         }
- *         qapi_free_SocketAddress(rawaddrs[i]);
+ *         qapi_free_SocketAddressLegacy(rawaddrs[i]);
  *      }
  *      g_free(rawaddrs);
  *
@@ -95,7 +95,7 @@ typedef struct QIODNSResolverClass QIODNSResolverClass;
  *      MyListenData *data = opaque;
  *      QIODNSResolver *resolver =
  *         QIO_DNS_RESOLVER(qio_task_get_source(task);
- *      SocketAddress **rawaddrs = NULL;
+ *      SocketAddressLegacy **rawaddrs = NULL;
  *      size_t nrawaddrs = 0;
  *      Error *err = NULL;
  *
@@ -116,7 +116,7 @@ typedef struct QIODNSResolverClass QIODNSResolverClass;
  *            socks = g_renew(QIOChannelSocket *, socks, nsocks + 1);
  *            socks[nsocks++] = sock;
  *         }
- *         qapi_free_SocketAddress(rawaddrs[i]);
+ *         qapi_free_SocketAddressLegacy(rawaddrs[i]);
  *      }
  *      g_free(rawaddrs);
  *
@@ -127,7 +127,7 @@ typedef struct QIODNSResolverClass QIODNSResolverClass;
  *      }
  *    }
  *
- *    void mylisten(SocketAddress *addr, MyListenData *data) {
+ *    void mylisten(SocketAddressLegacy *addr, MyListenData *data) {
  *      QIODNSResolver *resolver = qio_dns_resolver_get_instance();
  *      qio_dns_resolver_lookup_async(dns, addr,
  *                                    mylistenresult, data, NULL);
@@ -177,9 +177,9 @@ QIODNSResolver *qio_dns_resolver_get_instance(void);
  * Returns: 0 if resolution was successful, -1 on error
  */
 int qio_dns_resolver_lookup_sync(QIODNSResolver *resolver,
-                                 SocketAddress *addr,
+                                 SocketAddressLegacy *addr,
                                  size_t *naddrs,
-                                 SocketAddress ***addrs,
+                                 SocketAddressLegacy ***addrs,
                                  Error **errp);
 
 /**
@@ -201,7 +201,7 @@ int qio_dns_resolver_lookup_sync(QIODNSResolver *resolver,
  * of the caller will not be blocked.
  */
 void qio_dns_resolver_lookup_async(QIODNSResolver *resolver,
-                                   SocketAddress *addr,
+                                   SocketAddressLegacy *addr,
                                    QIOTaskFunc func,
                                    gpointer opaque,
                                    GDestroyNotify notify);
@@ -223,6 +223,6 @@ void qio_dns_resolver_lookup_async(QIODNSResolver *resolver,
 void qio_dns_resolver_lookup_result(QIODNSResolver *resolver,
                                     QIOTask *task,
                                     size_t *naddrs,
-                                    SocketAddress ***addrs);
+                                    SocketAddressLegacy ***addrs);
 
 #endif /* QIO_DNS_RESOLVER_H */

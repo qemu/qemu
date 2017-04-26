@@ -489,7 +489,7 @@ static int net_socket_listen_init(NetClientState *peer,
 {
     NetClientState *nc;
     NetSocketState *s;
-    SocketAddress *saddr;
+    SocketAddressLegacy *saddr;
     int ret;
     Error *local_error = NULL;
 
@@ -501,7 +501,7 @@ static int net_socket_listen_init(NetClientState *peer,
 
     ret = socket_listen(saddr, &local_error);
     if (ret < 0) {
-        qapi_free_SocketAddress(saddr);
+        qapi_free_SocketAddressLegacy(saddr);
         error_report_err(local_error);
         return -1;
     }
@@ -514,20 +514,20 @@ static int net_socket_listen_init(NetClientState *peer,
     net_socket_rs_init(&s->rs, net_socket_rs_finalize);
 
     qemu_set_fd_handler(s->listen_fd, net_socket_accept, NULL, s);
-    qapi_free_SocketAddress(saddr);
+    qapi_free_SocketAddressLegacy(saddr);
     return 0;
 }
 
 typedef struct {
     NetClientState *peer;
-    SocketAddress *saddr;
+    SocketAddressLegacy *saddr;
     char *model;
     char *name;
 } socket_connect_data;
 
 static void socket_connect_data_free(socket_connect_data *c)
 {
-    qapi_free_SocketAddress(c->saddr);
+    qapi_free_SocketAddressLegacy(c->saddr);
     g_free(c->model);
     g_free(c->name);
     g_free(c);

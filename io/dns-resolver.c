@@ -45,9 +45,9 @@ QIODNSResolver *qio_dns_resolver_get_instance(void)
 }
 
 static int qio_dns_resolver_lookup_sync_inet(QIODNSResolver *resolver,
-                                             SocketAddress *addr,
+                                             SocketAddressLegacy *addr,
                                              size_t *naddrs,
-                                             SocketAddress ***addrs,
+                                             SocketAddressLegacy ***addrs,
                                              Error **errp)
 {
     struct addrinfo ai, *res, *e;
@@ -97,14 +97,14 @@ static int qio_dns_resolver_lookup_sync_inet(QIODNSResolver *resolver,
         (*naddrs)++;
     }
 
-    *addrs = g_new0(SocketAddress *, *naddrs);
+    *addrs = g_new0(SocketAddressLegacy *, *naddrs);
 
     /* create socket + bind */
     for (i = 0, e = res; e != NULL; i++, e = e->ai_next) {
-        SocketAddress *newaddr = g_new0(SocketAddress, 1);
+        SocketAddressLegacy *newaddr = g_new0(SocketAddressLegacy, 1);
         InetSocketAddress *newiaddr = g_new0(InetSocketAddress, 1);
         newaddr->u.inet.data = newiaddr;
-        newaddr->type = SOCKET_ADDRESS_KIND_INET;
+        newaddr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
 
         getnameinfo((struct sockaddr *)e->ai_addr, e->ai_addrlen,
                     uaddr, INET6_ADDRSTRLEN, uport, 32,
@@ -129,36 +129,36 @@ static int qio_dns_resolver_lookup_sync_inet(QIODNSResolver *resolver,
 
 
 static int qio_dns_resolver_lookup_sync_nop(QIODNSResolver *resolver,
-                                            SocketAddress *addr,
+                                            SocketAddressLegacy *addr,
                                             size_t *naddrs,
-                                            SocketAddress ***addrs,
+                                            SocketAddressLegacy ***addrs,
                                             Error **errp)
 {
     *naddrs = 1;
-    *addrs = g_new0(SocketAddress *, 1);
-    (*addrs)[0] = QAPI_CLONE(SocketAddress, addr);
+    *addrs = g_new0(SocketAddressLegacy *, 1);
+    (*addrs)[0] = QAPI_CLONE(SocketAddressLegacy, addr);
 
     return 0;
 }
 
 
 int qio_dns_resolver_lookup_sync(QIODNSResolver *resolver,
-                                 SocketAddress *addr,
+                                 SocketAddressLegacy *addr,
                                  size_t *naddrs,
-                                 SocketAddress ***addrs,
+                                 SocketAddressLegacy ***addrs,
                                  Error **errp)
 {
     switch (addr->type) {
-    case SOCKET_ADDRESS_KIND_INET:
+    case SOCKET_ADDRESS_LEGACY_KIND_INET:
         return qio_dns_resolver_lookup_sync_inet(resolver,
                                                  addr,
                                                  naddrs,
                                                  addrs,
                                                  errp);
 
-    case SOCKET_ADDRESS_KIND_UNIX:
-    case SOCKET_ADDRESS_KIND_VSOCK:
-    case SOCKET_ADDRESS_KIND_FD:
+    case SOCKET_ADDRESS_LEGACY_KIND_UNIX:
+    case SOCKET_ADDRESS_LEGACY_KIND_VSOCK:
+    case SOCKET_ADDRESS_LEGACY_KIND_FD:
         return qio_dns_resolver_lookup_sync_nop(resolver,
                                                 addr,
                                                 naddrs,
@@ -172,8 +172,8 @@ int qio_dns_resolver_lookup_sync(QIODNSResolver *resolver,
 
 
 struct QIODNSResolverLookupData {
-    SocketAddress *addr;
-    SocketAddress **addrs;
+    SocketAddressLegacy *addr;
+    SocketAddressLegacy **addrs;
     size_t naddrs;
 };
 
@@ -183,9 +183,9 @@ static void qio_dns_resolver_lookup_data_free(gpointer opaque)
     struct QIODNSResolverLookupData *data = opaque;
     size_t i;
 
-    qapi_free_SocketAddress(data->addr);
+    qapi_free_SocketAddressLegacy(data->addr);
     for (i = 0; i < data->naddrs; i++) {
-        qapi_free_SocketAddress(data->addrs[i]);
+        qapi_free_SocketAddressLegacy(data->addrs[i]);
     }
 
     g_free(data->addrs);
@@ -216,7 +216,7 @@ static void qio_dns_resolver_lookup_worker(QIOTask *task,
 
 
 void qio_dns_resolver_lookup_async(QIODNSResolver *resolver,
-                                   SocketAddress *addr,
+                                   SocketAddressLegacy *addr,
                                    QIOTaskFunc func,
                                    gpointer opaque,
                                    GDestroyNotify notify)
@@ -225,7 +225,7 @@ void qio_dns_resolver_lookup_async(QIODNSResolver *resolver,
     struct QIODNSResolverLookupData *data =
         g_new0(struct QIODNSResolverLookupData, 1);
 
-    data->addr = QAPI_CLONE(SocketAddress, addr);
+    data->addr = QAPI_CLONE(SocketAddressLegacy, addr);
 
     task = qio_task_new(OBJECT(resolver), func, opaque, notify);
 
@@ -239,7 +239,7 @@ void qio_dns_resolver_lookup_async(QIODNSResolver *resolver,
 void qio_dns_resolver_lookup_result(QIODNSResolver *resolver,
                                     QIOTask *task,
                                     size_t *naddrs,
-                                    SocketAddress ***addrs)
+                                    SocketAddressLegacy ***addrs)
 {
     struct QIODNSResolverLookupData *data =
         qio_task_get_result_pointer(task);
@@ -252,9 +252,9 @@ void qio_dns_resolver_lookup_result(QIODNSResolver *resolver,
     }
 
     *naddrs = data->naddrs;
-    *addrs = g_new0(SocketAddress *, data->naddrs);
+    *addrs = g_new0(SocketAddressLegacy *, data->naddrs);
     for (i = 0; i < data->naddrs; i++) {
-        (*addrs)[i] = QAPI_CLONE(SocketAddress, data->addrs[i]);
+        (*addrs)[i] = QAPI_CLONE(SocketAddressLegacy, data->addrs[i]);
     }
 }
 

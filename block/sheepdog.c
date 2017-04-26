@@ -378,7 +378,7 @@ struct BDRVSheepdogState {
     uint32_t cache_flags;
     bool discard_supported;
 
-    SocketAddress *addr;
+    SocketAddressLegacy *addr;
     int fd;
 
     CoMutex lock;
@@ -530,17 +530,17 @@ static void sd_aio_setup(SheepdogAIOCB *acb, BDRVSheepdogState *s,
     QLIST_INSERT_HEAD(&s->inflight_aiocb_head, acb, aiocb_siblings);
 }
 
-static SocketAddress *sd_socket_address(const char *path,
+static SocketAddressLegacy *sd_socket_address(const char *path,
                                         const char *host, const char *port)
 {
-    SocketAddress *addr = g_new0(SocketAddress, 1);
+    SocketAddressLegacy *addr = g_new0(SocketAddressLegacy, 1);
 
     if (path) {
-        addr->type = SOCKET_ADDRESS_KIND_UNIX;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
         addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
         addr->u.q_unix.data->path = g_strdup(path);
     } else {
-        addr->type = SOCKET_ADDRESS_KIND_INET;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
         addr->u.inet.data = g_new0(InetSocketAddress, 1);
         addr->u.inet.data->host = g_strdup(host ?: SD_DEFAULT_ADDR);
         addr->u.inet.data->port = g_strdup(port ?: stringify(SD_DEFAULT_PORT));
@@ -549,13 +549,13 @@ static SocketAddress *sd_socket_address(const char *path,
     return addr;
 }
 
-static SocketAddress *sd_server_config(QDict *options, Error **errp)
+static SocketAddressLegacy *sd_server_config(QDict *options, Error **errp)
 {
     QDict *server = NULL;
     QObject *crumpled_server = NULL;
     Visitor *iv = NULL;
     SocketAddressFlat *saddr_flat = NULL;
-    SocketAddress *saddr = NULL;
+    SocketAddressLegacy *saddr = NULL;
     Error *local_err = NULL;
 
     qdict_extract_subqdict(options, &server, "server.");
@@ -597,7 +597,7 @@ static int connect_to_sdog(BDRVSheepdogState *s, Error **errp)
 
     fd = socket_connect(s->addr, NULL, NULL, errp);
 
-    if (s->addr->type == SOCKET_ADDRESS_KIND_INET && fd >= 0) {
+    if (s->addr->type == SOCKET_ADDRESS_LEGACY_KIND_INET && fd >= 0) {
         int ret = socket_set_nodelay(fd);
         if (ret < 0) {
             error_report("%s", strerror(errno));
@@ -2149,7 +2149,7 @@ static void sd_close(BlockDriverState *bs)
     aio_set_fd_handler(bdrv_get_aio_context(bs), s->fd,
                        false, NULL, NULL, NULL, NULL);
     closesocket(s->fd);
-    qapi_free_SocketAddress(s->addr);
+    qapi_free_SocketAddressLegacy(s->addr);
 }
 
 static int64_t sd_getlength(BlockDriverState *bs)

@@ -204,7 +204,7 @@
 # Since: 1.3.0
 ##
 { 'command': 'nbd-server-start',
-  'data': { 'addr': 'SocketAddress',
+  'data': { 'addr': 'SocketAddressLegacy',
             '*tls-creds': 'str'} }
 
 ##

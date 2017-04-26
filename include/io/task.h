@@ -166,7 +166,7 @@ typedef void (*QIOTaskWorker)(QIOTask *task,
  *                                       gpointer opaque)
  *    {
  *       QMyObject obj = QMY_OBJECT(qio_task_get_source(task));
- *       SocketAddress *addr = opaque;
+ *       SocketAddressLegacy *addr = opaque;
  *       Error *err = NULL;
  *
  *       obj->fd = socket_listen(addr, &err);
@@ -175,20 +175,20 @@ typedef void (*QIOTaskWorker)(QIOTask *task,
  *    }
  *
  *    void myobject_listen_async(QMyObject *obj,
- *                               SocketAddress *addr,
+ *                               SocketAddressLegacy *addr,
  *                               QIOTaskFunc *func,
  *                               gpointer opaque,
  *                               GDestroyNotify notify)
  *    {
  *      QIOTask *task;
- *      SocketAddress *addrCopy;
+ *      SocketAddressLegacy *addrCopy;
  *
- *      addrCopy = QAPI_CLONE(SocketAddress, addr);
+ *      addrCopy = QAPI_CLONE(SocketAddressLegacy, addr);
  *      task = qio_task_new(OBJECT(obj), func, opaque, notify);
  *
  *      qio_task_run_in_thread(task, myobject_listen_worker,
  *                             addrCopy,
- *                             qapi_free_SocketAddress);
+ *                             qapi_free_SocketAddressLegacy);
  *    }
  * </example>
  *

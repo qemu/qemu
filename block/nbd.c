@@ -309,7 +309,7 @@ NBDClientSession *nbd_get_client_session(BlockDriverState *bs)
 static QIOChannelSocket *nbd_establish_connection(SocketAddressFlat *saddr_flat,
                                                   Error **errp)
 {
-    SocketAddress *saddr = socket_address_crumple(saddr_flat);
+    SocketAddressLegacy *saddr = socket_address_crumple(saddr_flat);
     QIOChannelSocket *sioc;
     Error *local_err = NULL;
 
@@ -319,7 +319,7 @@ static QIOChannelSocket *nbd_establish_connection(SocketAddressFlat *saddr_flat,
     qio_channel_socket_connect_sync(sioc,
                                     saddr,
                                     &local_err);
-    qapi_free_SocketAddress(saddr);
+    qapi_free_SocketAddressLegacy(saddr);
     if (local_err) {
         object_unref(OBJECT(sioc));
         error_propagate(errp, local_err);
