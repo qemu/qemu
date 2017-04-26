@@ -1,4 +1,6 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
+
+use warnings;
 
 use File::Temp qw/ tempfile /;
 use Getopt::Long;

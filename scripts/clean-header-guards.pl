@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 #
 # Clean up include guards in headers
 #
@@ -28,6 +28,7 @@
 #   "cc -E -DGUARD_H -c -P -", and fed the test program on stdin.
 
 use strict;
+use warnings;
 use Getopt::Std;
 
 # Stuff we don't want to clean because we import it into our tree:
