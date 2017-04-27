@@ -229,6 +229,12 @@ static void ics_get_kvm_state(ICSState *ics)
                     | XICS_STATUS_REJECTED;
             }
         }
+        if (state & KVM_XICS_PRESENTED) {
+                irq->status |= XICS_STATUS_PRESENTED;
+        }
+        if (state & KVM_XICS_QUEUED) {
+                irq->status |= XICS_STATUS_QUEUED;
+        }
     }
 }
 
@@ -265,6 +271,12 @@ static int ics_set_kvm_state(ICSState *ics, int version_id)
             if (irq->status & XICS_STATUS_MASKED_PENDING) {
                 state |= KVM_XICS_PENDING;
             }
+        }
+        if (irq->status & XICS_STATUS_PRESENTED) {
+                state |= KVM_XICS_PRESENTED;
+        }
+        if (irq->status & XICS_STATUS_QUEUED) {
+                state |= KVM_XICS_QUEUED;
         }
 
         ret = ioctl(kernel_xics_fd, KVM_SET_DEVICE_ATTR, &attr);
