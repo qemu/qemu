@@ -47,7 +47,7 @@ static void qdict_put_obj_test(void)
     qdict = qdict_new();
 
     // key "" will have tdb hash 12345
-    qdict_put_obj(qdict, "", QOBJECT(qint_from_int(num)));
+    qdict_put(qdict, "", qint_from_int(num));
 
     g_assert(qdict_size(qdict) == 1);
     ent = QLIST_FIRST(&qdict->table[12345 % QDICT_BUCKET_MAX]);
@@ -66,8 +66,8 @@ static void qdict_destroy_simple_test(void)
     QDict *qdict;
 
     qdict = qdict_new();
-    qdict_put_obj(qdict, "num", QOBJECT(qint_from_int(0)));
-    qdict_put_obj(qdict, "str", QOBJECT(qstring_from_str("foo")));
+    qdict_put(qdict, "num", qint_from_int(0));
+    qdict_put(qdict, "str", qstring_from_str("foo"));
 
     QDECREF(qdict);
 }
@@ -297,16 +297,16 @@ static void qdict_flatten_test(void)
     qdict_put(dict1, "a", qint_from_int(0));
     qdict_put(dict1, "b", qint_from_int(1));
 
-    qlist_append_obj(list1, QOBJECT(qint_from_int(23)));
-    qlist_append_obj(list1, QOBJECT(qint_from_int(66)));
-    qlist_append_obj(list1, QOBJECT(dict1));
-    qlist_append_obj(list2, QOBJECT(qint_from_int(42)));
-    qlist_append_obj(list2, QOBJECT(list1));
+    qlist_append(list1, qint_from_int(23));
+    qlist_append(list1, qint_from_int(66));
+    qlist_append(list1, dict1);
+    qlist_append(list2, qint_from_int(42));
+    qlist_append(list2, list1);
 
     qdict_put(dict2, "c", qint_from_int(2));
     qdict_put(dict2, "d", qint_from_int(3));
-    qdict_put_obj(dict3, "e", QOBJECT(list2));
-    qdict_put_obj(dict3, "f", QOBJECT(dict2));
+    qdict_put(dict3, "e", list2);
+    qdict_put(dict3, "f", dict2);
     qdict_put(dict3, "g", qint_from_int(4));
 
     qdict_flatten(dict3);
