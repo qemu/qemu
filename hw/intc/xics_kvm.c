@@ -213,6 +213,7 @@ static void ics_get_kvm_state(ICSState *ics)
             irq->priority = irq->saved_priority;
         }
 
+        irq->status = 0;
         if (state & KVM_XICS_PENDING) {
             if (state & KVM_XICS_LEVEL_SENSITIVE) {
                 irq->status |= XICS_STATUS_ASSERTED;
