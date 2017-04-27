@@ -377,7 +377,7 @@ static void raw_parse_filename(const char *filename, QDict *options,
      * function call can be ignored. */
     strstart(filename, "file:", &filename);
 
-    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
+    qdict_put(options, "filename", qstring_from_str(filename));
 }
 
 static QemuOptsList raw_runtime_opts = {
@@ -2150,7 +2150,7 @@ static void hdev_parse_filename(const char *filename, QDict *options,
     /* The prefix is optional, just as for "file". */
     strstart(filename, "host_device:", &filename);
 
-    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
+    qdict_put(options, "filename", qstring_from_str(filename));
 }
 
 static bool hdev_is_sg(BlockDriverState *bs)
@@ -2449,7 +2449,7 @@ static void cdrom_parse_filename(const char *filename, QDict *options,
     /* The prefix is optional, just as for "file". */
     strstart(filename, "host_cdrom:", &filename);
 
-    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
+    qdict_put(options, "filename", qstring_from_str(filename));
 }
 #endif
 

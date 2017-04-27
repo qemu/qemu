@@ -288,13 +288,12 @@ static void blkverify_refresh_filename(BlockDriverState *bs, QDict *options)
         && s->test_file->bs->full_open_options)
     {
         QDict *opts = qdict_new();
-        qdict_put_obj(opts, "driver", QOBJECT(qstring_from_str("blkverify")));
+        qdict_put(opts, "driver", qstring_from_str("blkverify"));
 
         QINCREF(bs->file->bs->full_open_options);
-        qdict_put_obj(opts, "raw", QOBJECT(bs->file->bs->full_open_options));
+        qdict_put(opts, "raw", bs->file->bs->full_open_options);
         QINCREF(s->test_file->bs->full_open_options);
-        qdict_put_obj(opts, "test",
-                      QOBJECT(s->test_file->bs->full_open_options));
+        qdict_put(opts, "test", s->test_file->bs->full_open_options);
 
         bs->full_open_options = opts;
     }
