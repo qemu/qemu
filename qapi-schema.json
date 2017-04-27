@@ -5682,10 +5682,14 @@
 ##
 # @NumaOptionsType:
 #
+# @node: NUMA nodes configuration
+#
+# @dist: NUMA distance configuration (since 2.10)
+#
 # Since: 2.1
 ##
 { 'enum': 'NumaOptionsType',
-  'data': [ 'node' ] }
+  'data': [ 'node', 'dist' ] }
 
 ##
 # @NumaOptions:
@@ -5698,7 +5702,8 @@
   'base': { 'type': 'NumaOptionsType' },
   'discriminator': 'type',
   'data': {
-    'node': 'NumaNodeOptions' }}
+    'node': 'NumaNodeOptions',
+    'dist': 'NumaDistOptions' }}
 
 ##
 # @NumaNodeOptions:
@@ -5725,6 +5730,27 @@
    '*cpus':   ['uint16'],
    '*mem':    'size',
    '*memdev': 'str' }}
+
+##
+# @NumaDistOptions:
+#
+# Set the distance between 2 NUMA nodes.
+#
+# @src: source NUMA node.
+#
+# @dst: destination NUMA node.
+#
+# @val: NUMA distance from source node to destination node.
+#       When a node is unreachable from another node, set the distance
+#       between them to 255.
+#
+# Since: 2.10
+##
+{ 'struct': 'NumaDistOptions',
+  'data': {
+   'src': 'uint16',
+   'dst': 'uint16',
+   'val': 'uint8' }}
 
 ##
 # @HostMemPolicy:

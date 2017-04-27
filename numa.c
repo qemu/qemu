@@ -51,6 +51,7 @@ static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
                              * For all nodes, nodeid < max_numa_nodeid
                              */
 int nb_numa_nodes;
+bool have_numa_distance;
 NodeInfo numa_info[MAX_NODES];
 
 void numa_set_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node)
@@ -140,7 +141,7 @@ uint32_t numa_get_node(ram_addr_t addr, Error **errp)
     return -1;
 }
 
-static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
+static void parse_numa_node(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
 {
     uint16_t nodenr;
     uint16List *cpus = NULL;
@@ -212,6 +213,43 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
 }
 
+static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
+{
+    uint16_t src = dist->src;
+    uint16_t dst = dist->dst;
+    uint8_t val = dist->val;
+
+    if (src >= MAX_NODES || dst >= MAX_NODES) {
+        error_setg(errp,
+                   "Invalid node %" PRIu16
+                   ", max possible could be %" PRIu16,
+                   MAX(src, dst), MAX_NODES);
+        return;
+    }
+
+    if (!numa_info[src].present || !numa_info[dst].present) {
+        error_setg(errp, "Source/Destination NUMA node is missing. "
+                   "Please use '-numa node' option to declare it first.");
+        return;
+    }
+
+    if (val < NUMA_DISTANCE_MIN) {
+        error_setg(errp, "NUMA distance (%" PRIu8 ") is invalid, "
+                   "it shouldn't be less than %d.",
+                   val, NUMA_DISTANCE_MIN);
+        return;
+    }
+
+    if (src == dst && val != NUMA_DISTANCE_MIN) {
+        error_setg(errp, "Local distance of node %d should be %d.",
+                   src, NUMA_DISTANCE_MIN);
+        return;
+    }
+
+    numa_info[src].distance[dst] = val;
+    have_numa_distance = true;
+}
+
 static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 {
     NumaOptions *object = NULL;
@@ -229,11 +267,17 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 
     switch (object->type) {
     case NUMA_OPTIONS_TYPE_NODE:
-        numa_node_parse(&object->u.node, opts, &err);
+        parse_numa_node(&object->u.node, opts, &err);
         if (err) {
             goto end;
         }
         nb_numa_nodes++;
+        break;
+    case NUMA_OPTIONS_TYPE_DIST:
+        parse_numa_distance(&object->u.dist, &err);
+        if (err) {
+            goto end;
+        }
         break;
     default:
         abort();
@@ -292,6 +336,75 @@ static void validate_numa_cpus(void)
         g_free(msg);
     }
     g_free(seen_cpus);
+}
+
+/* If all node pair distances are symmetric, then only distances
+ * in one direction are enough. If there is even one asymmetric
+ * pair, though, then all distances must be provided. The
+ * distance from a node to itself is always NUMA_DISTANCE_MIN,
+ * so providing it is never necessary.
+ */
+static void validate_numa_distance(void)
+{
+    int src, dst;
+    bool is_asymmetrical = false;
+
+    for (src = 0; src < nb_numa_nodes; src++) {
+        for (dst = src; dst < nb_numa_nodes; dst++) {
+            if (numa_info[src].distance[dst] == 0 &&
+                numa_info[dst].distance[src] == 0) {
+                if (src != dst) {
+                    error_report("The distance between node %d and %d is "
+                                 "missing, at least one distance value "
+                                 "between each nodes should be provided.",
+                                 src, dst);
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+            if (numa_info[src].distance[dst] != 0 &&
+                numa_info[dst].distance[src] != 0 &&
+                numa_info[src].distance[dst] !=
+                numa_info[dst].distance[src]) {
+                is_asymmetrical = true;
+            }
+        }
+    }
+
+    if (is_asymmetrical) {
+        for (src = 0; src < nb_numa_nodes; src++) {
+            for (dst = 0; dst < nb_numa_nodes; dst++) {
+                if (src != dst && numa_info[src].distance[dst] == 0) {
+                    error_report("At least one asymmetrical pair of "
+                            "distances is given, please provide distances "
+                            "for both directions of all node pairs.");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+    }
+}
+
+static void complete_init_numa_distance(void)
+{
+    int src, dst;
+
+    /* Fixup NUMA distance by symmetric policy because if it is an
+     * asymmetric distance table, it should be a complete table and
+     * there would not be any missing distance except local node, which
+     * is verified by validate_numa_distance above.
+     */
+    for (src = 0; src < nb_numa_nodes; src++) {
+        for (dst = 0; dst < nb_numa_nodes; dst++) {
+            if (numa_info[src].distance[dst] == 0) {
+                if (src == dst) {
+                    numa_info[src].distance[dst] = NUMA_DISTANCE_MIN;
+                } else {
+                    numa_info[src].distance[dst] = numa_info[dst].distance[src];
+                }
+            }
+        }
+    }
 }
 
 void parse_numa_opts(MachineClass *mc)
@@ -390,6 +503,26 @@ void parse_numa_opts(MachineClass *mc)
         }
 
         validate_numa_cpus();
+
+        /* QEMU needs at least all unique node pair distances to build
+         * the whole NUMA distance table. QEMU treats the distance table
+         * as symmetric by default, i.e. distance A->B == distance B->A.
+         * Thus, QEMU is able to complete the distance table
+         * initialization even though only distance A->B is provided and
+         * distance B->A is not. QEMU knows the distance of a node to
+         * itself is always 10, so A->A distances may be omitted. When
+         * the distances of two nodes of a pair differ, i.e. distance
+         * A->B != distance B->A, then that means the distance table is
+         * asymmetric. In this case, the distances for both directions
+         * of all node pairs are required.
+         */
+        if (have_numa_distance) {
+            /* Validate enough NUMA distance information was provided. */
+            validate_numa_distance();
+
+            /* Validation succeeded, now fill in any missing distances. */
+            complete_init_numa_distance();
+        }
     } else {
         numa_set_mem_node_id(0, ram_size, 0);
     }

@@ -8,6 +8,7 @@
 #include "hw/boards.h"
 
 extern int nb_numa_nodes;   /* Number of NUMA nodes */
+extern bool have_numa_distance;
 
 struct numa_addr_range {
     ram_addr_t mem_start;
@@ -21,6 +22,7 @@ typedef struct node_info {
     struct HostMemoryBackend *node_memdev;
     bool present;
     QLIST_HEAD(, numa_addr_range) addr; /* List to store address ranges */
+    uint8_t distance[MAX_NODES];
 } NodeInfo;
 
 extern NodeInfo numa_info[MAX_NODES];
