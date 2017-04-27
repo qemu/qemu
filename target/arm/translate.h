@@ -139,6 +139,10 @@ static void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
  * custom end-of-TB code)
  */
 #define DISAS_BX_EXCRET 11
+/* For instructions which want an immediate exit to the main loop,
+ * as opposed to attempting to use lookup_and_goto_ptr.
+ */
+#define DISAS_EXIT 12
 
 #ifdef TARGET_AARCH64
 void a64_translate_init(void);
