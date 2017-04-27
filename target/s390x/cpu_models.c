@@ -376,12 +376,12 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
 
 static void qdict_add_disabled_feat(const char *name, void *opaque)
 {
-    qdict_put(opaque, name, qbool_from_bool(false));
+    qdict_put_bool(opaque, name, false);
 }
 
 static void qdict_add_enabled_feat(const char *name, void *opaque)
 {
-    qdict_put(opaque, name, qbool_from_bool(true));
+    qdict_put_bool(opaque, name, true);
 }
 
 /* convert S390CPUDef into a static CpuModelInfo */

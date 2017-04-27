@@ -79,7 +79,7 @@ static int nbd_parse_uri(const char *filename, QDict *options)
     p = uri->path ? uri->path : "/";
     p += strspn(p, "/");
     if (p[0]) {
-        qdict_put(options, "export", qstring_from_str(p));
+        qdict_put_str(options, "export", p);
     }
 
     qp = query_params_parse(uri->query);
@@ -94,9 +94,8 @@ static int nbd_parse_uri(const char *filename, QDict *options)
             ret = -EINVAL;
             goto out;
         }
-        qdict_put(options, "server.type", qstring_from_str("unix"));
-        qdict_put(options, "server.path",
-                  qstring_from_str(qp->p[0].value));
+        qdict_put_str(options, "server.type", "unix");
+        qdict_put_str(options, "server.path", qp->p[0].value);
     } else {
         QString *host;
         char *port_str;
@@ -115,11 +114,11 @@ static int nbd_parse_uri(const char *filename, QDict *options)
             host = qstring_from_str(uri->server);
         }
 
-        qdict_put(options, "server.type", qstring_from_str("inet"));
+        qdict_put_str(options, "server.type", "inet");
         qdict_put(options, "server.host", host);
 
         port_str = g_strdup_printf("%d", uri->port ?: NBD_DEFAULT_PORT);
-        qdict_put(options, "server.port", qstring_from_str(port_str));
+        qdict_put_str(options, "server.port", port_str);
         g_free(port_str);
     }
 
@@ -181,7 +180,7 @@ static void nbd_parse_filename(const char *filename, QDict *options,
         export_name[0] = 0; /* truncate 'file' */
         export_name += strlen(EN_OPTSTR);
 
-        qdict_put(options, "export", qstring_from_str(export_name));
+        qdict_put_str(options, "export", export_name);
     }
 
     /* extract the host_spec - fail if it's not nbd:... */
@@ -196,8 +195,8 @@ static void nbd_parse_filename(const char *filename, QDict *options,
 
     /* are we a UNIX or TCP socket? */
     if (strstart(host_spec, "unix:", &unixpath)) {
-        qdict_put(options, "server.type", qstring_from_str("unix"));
-        qdict_put(options, "server.path", qstring_from_str(unixpath));
+        qdict_put_str(options, "server.type", "unix");
+        qdict_put_str(options, "server.path", unixpath);
     } else {
         InetSocketAddress *addr = NULL;
 
@@ -206,9 +205,9 @@ static void nbd_parse_filename(const char *filename, QDict *options,
             goto out;
         }
 
-        qdict_put(options, "server.type", qstring_from_str("inet"));
-        qdict_put(options, "server.host", qstring_from_str(addr->host));
-        qdict_put(options, "server.port", qstring_from_str(addr->port));
+        qdict_put_str(options, "server.type", "inet");
+        qdict_put_str(options, "server.host", addr->host);
+        qdict_put_str(options, "server.port", addr->port);
         qapi_free_InetSocketAddress(addr);
     }
 
@@ -247,13 +246,13 @@ static bool nbd_process_legacy_socket_options(QDict *output_options,
             return false;
         }
 
-        qdict_put(output_options, "server.type", qstring_from_str("unix"));
-        qdict_put(output_options, "server.path", qstring_from_str(path));
+        qdict_put_str(output_options, "server.type", "unix");
+        qdict_put_str(output_options, "server.path", path);
     } else if (host) {
-        qdict_put(output_options, "server.type", qstring_from_str("inet"));
-        qdict_put(output_options, "server.host", qstring_from_str(host));
-        qdict_put(output_options, "server.port",
-                  qstring_from_str(port ?: stringify(NBD_DEFAULT_PORT)));
+        qdict_put_str(output_options, "server.type", "inet");
+        qdict_put_str(output_options, "server.host", host);
+        qdict_put_str(output_options, "server.port",
+                      port ?: stringify(NBD_DEFAULT_PORT));
     }
 
     return true;
@@ -528,7 +527,7 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
         path = s->saddr->u.q_unix.path;
     } /* else can't represent as pseudo-filename */
 
-    qdict_put(opts, "driver", qstring_from_str("nbd"));
+    qdict_put_str(opts, "driver", "nbd");
 
     if (path && s->export) {
         snprintf(bs->exact_filename, sizeof(bs->exact_filename),
@@ -551,10 +550,10 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
     qdict_put_obj(opts, "server", saddr_qdict);
 
     if (s->export) {
-        qdict_put(opts, "export", qstring_from_str(s->export));
+        qdict_put_str(opts, "export", s->export);
     }
     if (s->tlscredsid) {
-        qdict_put(opts, "tls-creds", qstring_from_str(s->tlscredsid));
+        qdict_put_str(opts, "tls-creds", s->tlscredsid);
     }
 
     qdict_flatten(opts);

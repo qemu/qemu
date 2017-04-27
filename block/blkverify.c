@@ -67,7 +67,7 @@ static void blkverify_parse_filename(const char *filename, QDict *options,
     if (!strstart(filename, "blkverify:", &filename)) {
         /* There was no prefix; therefore, all options have to be already
            present in the QDict (except for the filename) */
-        qdict_put(options, "x-image", qstring_from_str(filename));
+        qdict_put_str(options, "x-image", filename);
         return;
     }
 
@@ -84,7 +84,7 @@ static void blkverify_parse_filename(const char *filename, QDict *options,
 
     /* TODO Allow multi-level nesting and set file.filename here */
     filename = c + 1;
-    qdict_put(options, "x-image", qstring_from_str(filename));
+    qdict_put_str(options, "x-image", filename);
 }
 
 static QemuOptsList runtime_opts = {
@@ -288,7 +288,7 @@ static void blkverify_refresh_filename(BlockDriverState *bs, QDict *options)
         && s->test_file->bs->full_open_options)
     {
         QDict *opts = qdict_new();
-        qdict_put(opts, "driver", qstring_from_str("blkverify"));
+        qdict_put_str(opts, "driver", "blkverify");
 
         QINCREF(bs->file->bs->full_open_options);
         qdict_put(opts, "raw", bs->file->bs->full_open_options);

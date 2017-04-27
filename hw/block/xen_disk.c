@@ -1082,7 +1082,7 @@ static int blk_connect(struct XenDevice *xendev)
 
         if (strcmp(blkdev->fileproto, "<unset>")) {
             options = qdict_new();
-            qdict_put(options, "driver", qstring_from_str(blkdev->fileproto));
+            qdict_put_str(options, "driver", blkdev->fileproto);
         }
 
         /* setup via xenbus -> create new block driver instance */

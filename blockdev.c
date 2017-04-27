@@ -527,7 +527,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             error_setg(errp, "Cannot specify both 'driver' and 'format'");
             goto early_err;
         }
-        qdict_put(bs_opts, "driver", qstring_from_str(buf));
+        qdict_put_str(bs_opts, "driver", buf);
     }
 
     on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
@@ -903,10 +903,8 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         copy_on_read = false;
     }
 
-    qdict_put(bs_opts, BDRV_OPT_READ_ONLY,
-              qstring_from_str(read_only ? "on" : "off"));
-    qdict_put(bs_opts, "copy-on-read",
-              qstring_from_str(copy_on_read ? "on" :"off"));
+    qdict_put_str(bs_opts, BDRV_OPT_READ_ONLY, read_only ? "on" : "off");
+    qdict_put_str(bs_opts, "copy-on-read", copy_on_read ? "on" : "off");
 
     /* Controller type */
     value = qemu_opt_get(legacy_opts, "if");
@@ -1030,7 +1028,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             new_id = g_strdup_printf("%s%s%i", if_name[type],
                                      mediastr, unit_id);
         }
-        qdict_put(bs_opts, "id", qstring_from_str(new_id));
+        qdict_put_str(bs_opts, "id", new_id);
         g_free(new_id);
     }
 
@@ -1067,7 +1065,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             error_report("werror is not supported by this bus type");
             goto fail;
         }
-        qdict_put(bs_opts, "werror", qstring_from_str(werror));
+        qdict_put_str(bs_opts, "werror", werror);
     }
 
     rerror = qemu_opt_get(legacy_opts, "rerror");
@@ -1077,7 +1075,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             error_report("rerror is not supported by this bus type");
             goto fail;
         }
-        qdict_put(bs_opts, "rerror", qstring_from_str(rerror));
+        qdict_put_str(bs_opts, "rerror", rerror);
     }
 
     /* Actual block device init: Functionality shared with blockdev-add */
@@ -1737,10 +1735,9 @@ static void external_snapshot_prepare(BlkActionState *common,
 
         options = qdict_new();
         if (s->has_snapshot_node_name) {
-            qdict_put(options, "node-name",
-                      qstring_from_str(snapshot_node_name));
+            qdict_put_str(options, "node-name", snapshot_node_name);
         }
-        qdict_put(options, "driver", qstring_from_str(format));
+        qdict_put_str(options, "driver", format);
 
         flags |= BDRV_O_NO_BACKING;
     }
@@ -2579,11 +2576,10 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
 
     options = qdict_new();
     detect_zeroes = blk_get_detect_zeroes_from_root_state(blk);
-    qdict_put(options, "detect-zeroes",
-              qstring_from_str(detect_zeroes ? "on" : "off"));
+    qdict_put_str(options, "detect-zeroes", detect_zeroes ? "on" : "off");
 
     if (has_format) {
-        qdict_put(options, "driver", qstring_from_str(format));
+        qdict_put_str(options, "driver", format);
     }
 
     medium_bs = bdrv_open(filename, NULL, options, bdrv_flags, errp);
@@ -3232,7 +3228,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
 
     if (backup->format) {
         options = qdict_new();
-        qdict_put(options, "driver", qstring_from_str(backup->format));
+        qdict_put_str(options, "driver", backup->format);
     }
 
     target_bs = bdrv_open(backup->target, NULL, options, flags, errp);
@@ -3536,10 +3532,10 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 
     options = qdict_new();
     if (arg->has_node_name) {
-        qdict_put(options, "node-name", qstring_from_str(arg->node_name));
+        qdict_put_str(options, "node-name", arg->node_name);
     }
     if (format) {
-        qdict_put(options, "driver", qstring_from_str(format));
+        qdict_put_str(options, "driver", format);
     }
 
     /* Mirroring takes care of copy-on-write using the source's backing

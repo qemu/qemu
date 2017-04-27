@@ -281,7 +281,7 @@ static void raw_parse_filename(const char *filename, QDict *options,
      * function call can be ignored. */
     strstart(filename, "file:", &filename);
 
-    qdict_put(options, "filename", qstring_from_str(filename));
+    qdict_put_str(options, "filename", filename);
 }
 
 static QemuOptsList raw_runtime_opts = {
@@ -668,7 +668,7 @@ static void hdev_parse_filename(const char *filename, QDict *options,
     /* The prefix is optional, just as for "file". */
     strstart(filename, "host_device:", &filename);
 
-    qdict_put(options, "filename", qstring_from_str(filename));
+    qdict_put_str(options, "filename", filename);
 }
 
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,

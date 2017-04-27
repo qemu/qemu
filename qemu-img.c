@@ -313,7 +313,7 @@ static BlockBackend *img_open_file(const char *filename,
 
     if (fmt) {
         options = qdict_new();
-        qdict_put(options, "driver", qstring_from_str(fmt));
+        qdict_put_str(options, "driver", fmt);
     }
 
     blk = blk_new_open(filename, NULL, options, flags, &local_err);
@@ -3094,7 +3094,7 @@ static int img_rebase(int argc, char **argv)
 
         if (bs->backing_format[0] != '\0') {
             options = qdict_new();
-            qdict_put(options, "driver", qstring_from_str(bs->backing_format));
+            qdict_put_str(options, "driver", bs->backing_format);
         }
 
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
@@ -3111,7 +3111,7 @@ static int img_rebase(int argc, char **argv)
         if (out_baseimg[0]) {
             if (out_basefmt) {
                 options = qdict_new();
-                qdict_put(options, "driver", qstring_from_str(out_basefmt));
+                qdict_put_str(options, "driver", out_basefmt);
             } else {
                 options = NULL;
             }

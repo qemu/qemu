@@ -601,7 +601,7 @@ int main(int argc, char **argv)
         } else {
             if (format) {
                 opts = qdict_new();
-                qdict_put(opts, "driver", qstring_from_str(format));
+                qdict_put_str(opts, "driver", format);
             }
             if (openfile(argv[optind], flags, writethrough, opts)) {
                 exit(1);

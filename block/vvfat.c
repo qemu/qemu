@@ -1057,10 +1057,10 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
     }
 
     /* Fill in the options QDict */
-    qdict_put(options, "dir", qstring_from_str(filename));
-    qdict_put(options, "fat-type", qint_from_int(fat_type));
-    qdict_put(options, "floppy", qbool_from_bool(floppy));
-    qdict_put(options, "rw", qbool_from_bool(rw));
+    qdict_put_str(options, "dir", filename);
+    qdict_put_int(options, "fat-type", fat_type);
+    qdict_put_bool(options, "floppy", floppy);
+    qdict_put_bool(options, "rw", rw);
 }
 
 static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
@@ -3051,7 +3051,7 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     }
 
     options = qdict_new();
-    qdict_put(options, "write-target.driver", qstring_from_str("qcow"));
+    qdict_put_str(options, "write-target.driver", "qcow");
     s->qcow = bdrv_open_child(s->qcow_filename, options, "write-target", bs,
                               &child_vvfat_qcow, false, errp);
     QDECREF(options);
