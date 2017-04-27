@@ -2971,6 +2971,7 @@ static void gen_stswx(DisasContext *ctx)
 /* eieio */
 static void gen_eieio(DisasContext *ctx)
 {
+    tcg_gen_mb(TCG_MO_LD_ST | TCG_BAR_SC);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -3008,6 +3009,7 @@ static void gen_isync(DisasContext *ctx)
     if (!ctx->pr) {
         gen_check_tlb_flush(ctx, false);
     }
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
     gen_stop_exception(ctx);
 }
 
@@ -3028,6 +3030,7 @@ static void gen_##name(DisasContext *ctx)                            \
     tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, memop);                \
     tcg_gen_mov_tl(cpu_reserve, t0);                                 \
     tcg_gen_mov_tl(cpu_reserve_val, gpr);                            \
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);                           \
     tcg_temp_free(t0);                                               \
 }
 
@@ -3177,6 +3180,10 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
     tcg_gen_br(l2);
 
     gen_set_label(l1);
+
+    /* Address mismatch implies failure.  But we still need to provide the
+       memory barrier semantics of the instruction.  */
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
     tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
 
     gen_set_label(l2);
@@ -3308,6 +3315,7 @@ static void gen_sync(DisasContext *ctx)
     if (((l == 2) || !(ctx->insns_flags & PPC_64B)) && !ctx->pr) {
         gen_check_tlb_flush(ctx, true);
     }
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
 }
 
 /* wait */
