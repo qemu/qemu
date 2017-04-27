@@ -141,6 +141,7 @@ typedef struct DisasContext {
 } DisasContext;
 
 static void gen_eob(DisasContext *s);
+static void gen_jr(DisasContext *s, TCGv dest);
 static void gen_jmp(DisasContext *s, target_ulong eip);
 static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num);
 static void gen_op(DisasContext *s1, int op, TCGMemOp ot, int d);
@@ -2509,7 +2510,8 @@ static void gen_bnd_jmp(DisasContext *s)
    If INHIBIT, set HF_INHIBIT_IRQ_MASK if it isn't already set.
    If RECHECK_TF, emit a rechecking helper for #DB, ignoring the state of
    S->TF.  This is used by the syscall/sysret insns.  */
-static void gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf)
+static void
+do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, TCGv jr)
 {
     gen_update_cc_op(s);
 
@@ -2530,10 +2532,25 @@ static void gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf)
         tcg_gen_exit_tb(0);
     } else if (s->tf) {
         gen_helper_single_step(cpu_env);
+    } else if (!TCGV_IS_UNUSED(jr)) {
+        TCGv vaddr = tcg_temp_new();
+
+        tcg_gen_add_tl(vaddr, jr, cpu_seg_base[R_CS]);
+        tcg_gen_lookup_and_goto_ptr(vaddr);
+        tcg_temp_free(vaddr);
     } else {
         tcg_gen_exit_tb(0);
     }
     s->is_jmp = DISAS_TB_JUMP;
+}
+
+static inline void
+gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf)
+{
+    TCGv unused;
+
+    TCGV_UNUSED(unused);
+    do_gen_eob_worker(s, inhibit, recheck_tf, unused);
 }
 
 /* End of block.
@@ -2547,6 +2564,12 @@ static void gen_eob_inhibit_irq(DisasContext *s, bool inhibit)
 static void gen_eob(DisasContext *s)
 {
     gen_eob_worker(s, false, false);
+}
+
+/* Jump to register */
+static void gen_jr(DisasContext *s, TCGv dest)
+{
+    do_gen_eob_worker(s, false, false, dest);
 }
 
 /* generate a jump to eip. No segment change must happen before as a
