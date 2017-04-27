@@ -424,6 +424,11 @@ void tcg_prologue_init(TCGContext *s)
         qemu_log_unlock();
     }
 #endif
+
+    /* Assert that goto_ptr is implemented completely.  */
+    if (TCG_TARGET_HAS_goto_ptr) {
+        tcg_debug_assert(s->code_gen_epilogue != NULL);
+    }
 }
 
 void tcg_func_start(TCGContext *s)

@@ -699,6 +699,7 @@ struct TCGContext {
        extension that allows arithmetic on void*.  */
     int code_gen_max_blocks;
     void *code_gen_prologue;
+    void *code_gen_epilogue;
     void *code_gen_buffer;
     size_t code_gen_buffer_size;
     void *code_gen_ptr;
