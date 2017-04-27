@@ -471,6 +471,9 @@
 #                     number of sockets used for migration.  The
 #                     default value is 2 (since 2.11)
 #
+# @x-multifd-page-count: Number of pages sent together to a thread
+#                        The default value is 16 (since 2.11)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -478,7 +481,7 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
-           'x-multifd-channels'] }
+           'x-multifd-channels', 'x-multifd-page-count' ] }
 
 ##
 # @MigrateSetParameters:
@@ -539,6 +542,9 @@
 #                     number of sockets used for migration.  The
 #                     default value is 2 (since 2.11)
 #
+# @x-multifd-page-count: Number of pages sent together to a thread
+#                        The default value is 16 (since 2.11)
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -555,7 +561,8 @@
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
             '*block-incremental': 'bool',
-            '*x-multifd-channels': 'int' } }
+            '*x-multifd-channels': 'int',
+            '*x-multifd-page-count': 'int' } }
 
 ##
 # @migrate-set-parameters:
@@ -631,6 +638,9 @@
 #                     number of sockets used for migration.
 #                     The default value is 2 (since 2.11)
 #
+# @x-multifd-page-count: Number of pages sent together to a thread
+#                        The default value is 16 (since 2.11)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -645,7 +655,8 @@
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
             '*block-incremental': 'bool' ,
-            '*x-multifd-channels': 'int' } }
+            '*x-multifd-channels': 'int',
+            '*x-multifd-page-count': 'int' } }
 
 ##
 # @query-migrate-parameters:

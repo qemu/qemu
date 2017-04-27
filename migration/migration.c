@@ -78,6 +78,7 @@
  */
 #define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY 200
 #define DEFAULT_MIGRATE_MULTIFD_CHANNELS 2
+#define DEFAULT_MIGRATE_MULTIFD_PAGE_COUNT 16
 
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
@@ -484,6 +485,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->block_incremental = s->parameters.block_incremental;
     params->has_x_multifd_channels = true;
     params->x_multifd_channels = s->parameters.x_multifd_channels;
+    params->has_x_multifd_page_count = true;
+    params->x_multifd_page_count = s->parameters.x_multifd_page_count;
 
     return params;
 }
@@ -772,6 +775,14 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
                    "is invalid, it should be in the range of 1 to 255");
         return false;
     }
+    if (params->has_x_multifd_page_count &&
+            (params->x_multifd_page_count < 1 ||
+             params->x_multifd_page_count > 10000)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "multifd_page_count",
+                   "is invalid, it should be in the range of 1 to 10000");
+        return false;
+    }
 
     return true;
 }
@@ -892,6 +903,9 @@ static void migrate_params_apply(MigrateSetParameters *params)
     }
     if (params->has_x_multifd_channels) {
         s->parameters.x_multifd_channels = params->x_multifd_channels;
+    }
+    if (params->has_x_multifd_page_count) {
+        s->parameters.x_multifd_page_count = params->x_multifd_page_count;
     }
 }
 
@@ -1478,6 +1492,15 @@ int migrate_multifd_channels(void)
     s = migrate_get_current();
 
     return s->parameters.x_multifd_channels;
+}
+
+int migrate_multifd_page_count(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.x_multifd_page_count;
 }
 
 int migrate_use_xbzrle(void)
@@ -2248,6 +2271,9 @@ static Property migration_properties[] = {
     DEFINE_PROP_INT64("x-multifd-channels", MigrationState,
                       parameters.x_multifd_channels,
                       DEFAULT_MIGRATE_MULTIFD_CHANNELS),
+    DEFINE_PROP_INT64("x-multifd-page-count", MigrationState,
+                      parameters.x_multifd_page_count,
+                      DEFAULT_MIGRATE_MULTIFD_PAGE_COUNT),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -2306,6 +2332,7 @@ static void migration_instance_init(Object *obj)
     params->has_x_checkpoint_delay = true;
     params->has_block_incremental = true;
     params->has_x_multifd_channels = true;
+    params->has_x_multifd_page_count = true;
 }
 
 /*
