@@ -70,6 +70,9 @@ import json
 import ast
 import readline
 import sys
+import os
+import errno
+import atexit
 
 class QMPCompleter(list):
     def complete(self, text, state):
@@ -109,6 +112,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self._pretty = pretty
         self._transmode = False
         self._actions = list()
+        self._histfile = os.path.join(os.path.expanduser('~'),
+                                      '.qmp-shell_history')
 
     def __get_address(self, arg):
         """
@@ -132,11 +137,27 @@ class QMPShell(qmp.QEMUMonitorProtocol):
     def __completer_setup(self):
         self._completer = QMPCompleter()
         self._fill_completion()
+        readline.set_history_length(1024)
         readline.set_completer(self._completer.complete)
         readline.parse_and_bind("tab: complete")
         # XXX: default delimiters conflict with some command names (eg. query-),
         # clearing everything as it doesn't seem to matter
         readline.set_completer_delims('')
+        try:
+            readline.read_history_file(self._histfile)
+        except Exception as e:
+            if isinstance(e, IOError) and e.errno == errno.ENOENT:
+                # File not found. No problem.
+                pass
+            else:
+                print "Failed to read history '%s'; %s" % (self._histfile, e)
+        atexit.register(self.__save_history)
+
+    def __save_history(self):
+        try:
+            readline.write_history_file(self._histfile)
+        except Exception as e:
+            print "Failed to save history file '%s'; %s" % (self._histfile, e)
 
     def __parse_value(self, val):
         try:
