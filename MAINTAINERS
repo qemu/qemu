@@ -1395,6 +1395,7 @@ S: Supported
 F: qobject/
 F: include/qapi/qmp/
 X: include/qapi/qmp/dispatch.h
+F: scripts/coccinelle/qobject.cocci
 F: tests/check-qdict.c
 F: tests/check-qfloat.c
 F: tests/check-qint.c
