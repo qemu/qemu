@@ -32,9 +32,9 @@ static QList *qom_list_types(const char *implements, bool abstract)
     QList *ret;
     QDict *args = qdict_new();
 
-    qdict_put(args, "abstract", qbool_from_bool(abstract));
+    qdict_put_bool(args, "abstract", abstract);
     if (implements) {
-        qdict_put(args, "implements", qstring_from_str(implements));
+        qdict_put_str(args, "implements", implements);
     }
     resp = qmp("{'execute': 'qom-list-types',"
                " 'arguments': %p }", args);

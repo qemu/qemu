@@ -154,20 +154,20 @@ static void qemu_rbd_parse_filename(const char *filename, QDict *options,
         goto done;
     }
     qemu_rbd_unescape(found_str);
-    qdict_put(options, "pool", qstring_from_str(found_str));
+    qdict_put_str(options, "pool", found_str);
 
     if (strchr(p, '@')) {
         found_str = qemu_rbd_next_tok(p, '@', &p);
         qemu_rbd_unescape(found_str);
-        qdict_put(options, "image", qstring_from_str(found_str));
+        qdict_put_str(options, "image", found_str);
 
         found_str = qemu_rbd_next_tok(p, ':', &p);
         qemu_rbd_unescape(found_str);
-        qdict_put(options, "snapshot", qstring_from_str(found_str));
+        qdict_put_str(options, "snapshot", found_str);
     } else {
         found_str = qemu_rbd_next_tok(p, ':', &p);
         qemu_rbd_unescape(found_str);
-        qdict_put(options, "image", qstring_from_str(found_str));
+        qdict_put_str(options, "image", found_str);
     }
     if (!p) {
         goto done;
@@ -189,9 +189,9 @@ static void qemu_rbd_parse_filename(const char *filename, QDict *options,
         qemu_rbd_unescape(value);
 
         if (!strcmp(name, "conf")) {
-            qdict_put(options, "conf", qstring_from_str(value));
+            qdict_put_str(options, "conf", value);
         } else if (!strcmp(name, "id")) {
-            qdict_put(options, "user" , qstring_from_str(value));
+            qdict_put_str(options, "user", value);
         } else {
             /*
              * We pass these internally to qemu_rbd_set_keypairs(), so
@@ -204,8 +204,8 @@ static void qemu_rbd_parse_filename(const char *filename, QDict *options,
             if (!keypairs) {
                 keypairs = qlist_new();
             }
-            qlist_append(keypairs, qstring_from_str(name));
-            qlist_append(keypairs, qstring_from_str(value));
+            qlist_append_str(keypairs, name);
+            qlist_append_str(keypairs, value);
         }
     }
 

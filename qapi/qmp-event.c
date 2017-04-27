@@ -51,7 +51,7 @@ static void timestamp_put(QDict *qdict)
 QDict *qmp_event_build_dict(const char *event_name)
 {
     QDict *dict = qdict_new();
-    qdict_put(dict, "event", qstring_from_str(event_name));
+    qdict_put_str(dict, "event", event_name);
     timestamp_put(dict);
     return dict;
 }

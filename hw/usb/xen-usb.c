@@ -746,16 +746,16 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
     portname++;
 
     qdict = qdict_new();
-    qdict_put(qdict, "driver", qstring_from_str("usb-host"));
+    qdict_put_str(qdict, "driver", "usb-host");
     tmp = g_strdup_printf("%s.0", usbif->xendev.qdev.id);
-    qdict_put(qdict, "bus", qstring_from_str(tmp));
+    qdict_put_str(qdict, "bus", tmp);
     g_free(tmp);
     tmp = g_strdup_printf("%s-%u", usbif->xendev.qdev.id, port);
-    qdict_put(qdict, "id", qstring_from_str(tmp));
+    qdict_put_str(qdict, "id", tmp);
     g_free(tmp);
-    qdict_put(qdict, "port", qint_from_int(port));
-    qdict_put(qdict, "hostbus", qint_from_int(atoi(busid)));
-    qdict_put(qdict, "hostport", qstring_from_str(portname));
+    qdict_put_int(qdict, "port", port);
+    qdict_put_int(qdict, "hostbus", atoi(busid));
+    qdict_put_str(qdict, "hostport", portname);
     opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
     if (local_err) {
         goto err;

@@ -200,7 +200,7 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
 
         qdict_extract_subqdict(options, &file_options, "file.");
         QDECREF(file_options);
-        qdict_put(options, "file", qstring_from_str(bdrv_get_node_name(file)));
+        qdict_put_str(options, "file", bdrv_get_node_name(file));
 
         drv->bdrv_close(bs);
         bdrv_unref_child(bs, bs->file);

@@ -463,7 +463,7 @@ void qdict_set_default_str(QDict *dst, const char *key, const char *val)
         return;
     }
 
-    qdict_put(dst, key, qstring_from_str(val));
+    qdict_put_str(dst, key, val);
 }
 
 static void qdict_flatten_qdict(QDict *qdict, QDict *target,

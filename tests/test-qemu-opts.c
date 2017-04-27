@@ -299,7 +299,7 @@ static void test_qemu_opt_get_size(void)
     dict = qdict_new();
     g_assert(dict != NULL);
 
-    qdict_put(dict, "size1", qstring_from_str("10"));
+    qdict_put_str(dict, "size1", "10");
 
     qemu_opts_absorb_qdict(opts, dict, &error_abort);
     g_assert(error_abort == NULL);
@@ -309,7 +309,7 @@ static void test_qemu_opt_get_size(void)
     g_assert(opt == 10);
 
     /* reset value */
-    qdict_put(dict, "size1", qstring_from_str("15"));
+    qdict_put_str(dict, "size1", "15");
 
     qemu_opts_absorb_qdict(opts, dict, &error_abort);
     g_assert(error_abort == NULL);
