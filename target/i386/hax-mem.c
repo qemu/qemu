@@ -106,10 +106,10 @@ static void hax_update_mapping(uint64_t start_pa, uint32_t size,
                                uint64_t host_va, uint8_t flags)
 {
     uint64_t end_pa = start_pa + size;
-    uint32_t chunk_sz;
     HAXMapping *entry, *next;
 
     QTAILQ_FOREACH_SAFE(entry, &mappings, entry, next) {
+        uint32_t chunk_sz;
         if (start_pa >= entry->start_pa + entry->size) {
             continue;
         }
@@ -121,7 +121,16 @@ static void hax_update_mapping(uint64_t start_pa, uint32_t size,
             start_pa += chunk_sz;
             host_va += chunk_sz;
             size -= chunk_sz;
+        } else if (start_pa > entry->start_pa) {
+            /* split the existing chunk at start_pa */
+            chunk_sz = start_pa - entry->start_pa;
+            hax_insert_mapping_before(entry, entry->start_pa, chunk_sz,
+                                      entry->host_va, entry->flags);
+            entry->start_pa += chunk_sz;
+            entry->host_va += chunk_sz;
+            entry->size -= chunk_sz;
         }
+        /* now start_pa == entry->start_pa */
         chunk_sz = MIN(size, entry->size);
         if (chunk_sz) {
             bool nop = hax_mapping_is_opposite(entry, host_va, flags);
@@ -165,8 +174,14 @@ static void hax_process_section(MemoryRegionSection *section, uint8_t flags)
     unsigned int delta;
     uint64_t host_va;
 
-    /* We only care about RAM pages */
+    /* We only care about RAM and ROM regions */
     if (!memory_region_is_ram(mr)) {
+        if (memory_region_is_romd(mr)) {
+            /* HAXM kernel module does not support ROMD yet  */
+            fprintf(stderr, "%s: Warning: Ignoring ROMD region 0x%016" PRIx64
+                    "->0x%016" PRIx64 "\n", __func__, start_pa,
+                    start_pa + size);
+        }
         return;
     }
 
