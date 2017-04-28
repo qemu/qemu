@@ -426,7 +426,13 @@
 ##
 # @guest-fsfreeze-freeze:
 #
-# Sync and freeze all freezable, local guest filesystems
+# Sync and freeze all freezable, local guest filesystems. If this
+# command succeeded, you may call @guest-fsfreeze-thaw later to
+# unfreeze.
+#
+# Note: On Windows, the command is implemented with the help of a
+# Volume Shadow-copy Service DLL helper. The frozen state is limited
+# for up to 10 seconds by VSS.
 #
 # Returns: Number of file systems currently frozen. On error, all filesystems
 # will be thawed.
@@ -439,10 +445,12 @@
 ##
 # @guest-fsfreeze-freeze-list:
 #
-# Sync and freeze specified guest filesystems
+# Sync and freeze specified guest filesystems.
+# See also @guest-fsfreeze-freeze.
 #
 # @mountpoints: an array of mountpoints of filesystems to be frozen.
 #               If omitted, every mounted filesystem is frozen.
+#               Invalid mount points are ignored.
 #
 # Returns: Number of file systems currently frozen. On error, all filesystems
 # will be thawed.
@@ -1042,3 +1050,79 @@
   'data':    { 'path': 'str', '*arg': ['str'], '*env': ['str'],
                '*input-data': 'str', '*capture-output': 'bool' },
   'returns': 'GuestExec' }
+
+
+##
+# @GuestHostName:
+# @host-name: Fully qualified domain name of the guest OS
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestHostName',
+  'data':   { 'host-name': 'str' } }
+
+##
+# @guest-get-host-name:
+#
+# Return a name for the machine.
+#
+# The returned name is not necessarily a fully-qualified domain name, or even
+# present in DNS or some other name service at all. It need not even be unique
+# on your local network or site, but usually it is.
+#
+# Returns: the host name of the machine on success
+#
+# Since: 2.10
+##
+{ 'command': 'guest-get-host-name',
+  'returns': 'GuestHostName' }
+
+
+##
+# @GuestUser:
+# @user:       Username
+# @domain:     Logon domain (windows only)
+# @login-time: Time of login of this user on the computer. If multiple
+#              instances of the user are logged in, the earliest login time is
+#              reported. The value is in fractional seconds since epoch time.
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestUser',
+  'data': { 'user': 'str', 'login-time': 'number', '*domain': 'str' } }
+
+##
+# @guest-get-users:
+# Retrieves a list of currently active users on the VM.
+#
+# Returns: A unique list of users.
+#
+# Since: 2.10
+##
+{ 'command': 'guest-get-users',
+  'returns': ['GuestUser'] }
+
+##
+# @GuestTimezone:
+#
+# @zone:    Timezone name. These values may differ depending on guest/OS and
+#           should only be used for informational purposes.
+# @offset:  Offset to UTC in seconds, negative numbers for time zones west of
+#           GMT, positive numbers for east
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestTimezone',
+  'data':   { '*zone': 'str', 'offset': 'int' } }
+
+##
+# @guest-get-timezone:
+#
+# Retrieves the timezone information from the guest.
+#
+# Returns: A GuestTimezone dictionary.
+#
+# Since: 2.10
+##
+{ 'command': 'guest-get-timezone',
+  'returns': 'GuestTimezone' }

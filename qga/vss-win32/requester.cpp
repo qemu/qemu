@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "vss-common.h"
 #include "requester.h"
+#include "install.h"
 #include <inc/win2003/vswriter.h>
 #include <inc/win2003/vsbackup.h>
 
@@ -501,4 +502,5 @@ void requester_thaw(int *num_vols, ErrorSet *errset)
     requester_cleanup();
 
     CoUninitialize();
+    StopService();
 }
