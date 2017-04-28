@@ -48,8 +48,14 @@
 /***********************************************************/
 /* ram save/restore */
 
+/* RAM_SAVE_FLAG_ZERO used to be named RAM_SAVE_FLAG_COMPRESS, it
+ * worked for pages that where filled with the same char.  We switched
+ * it to only search for the zero value.  And to avoid confusion with
+ * RAM_SSAVE_FLAG_COMPRESS_PAGE just rename it.
+ */
+
 #define RAM_SAVE_FLAG_FULL     0x01 /* Obsolete, not used anymore */
-#define RAM_SAVE_FLAG_COMPRESS 0x02
+#define RAM_SAVE_FLAG_ZERO     0x02
 #define RAM_SAVE_FLAG_MEM_SIZE 0x04
 #define RAM_SAVE_FLAG_PAGE     0x08
 #define RAM_SAVE_FLAG_EOS      0x10
@@ -746,7 +752,7 @@ static int save_zero_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
     if (is_zero_range(p, TARGET_PAGE_SIZE)) {
         rs->zero_pages++;
         rs->bytes_transferred +=
-            save_page_header(rs, rs->f, block, offset | RAM_SAVE_FLAG_COMPRESS);
+            save_page_header(rs, rs->f, block, offset | RAM_SAVE_FLAG_ZERO);
         qemu_put_byte(rs->f, 0);
         rs->bytes_transferred += 1;
         pages = 1;
@@ -2406,7 +2412,7 @@ static int ram_load_postcopy(QEMUFile *f)
 
         trace_ram_load_postcopy_loop((uint64_t)addr, flags);
         place_needed = false;
-        if (flags & (RAM_SAVE_FLAG_COMPRESS | RAM_SAVE_FLAG_PAGE)) {
+        if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE)) {
             block = ram_block_from_stream(f, flags);
 
             host = host_from_ram_block_offset(block, addr);
@@ -2453,7 +2459,7 @@ static int ram_load_postcopy(QEMUFile *f)
         last_host = host;
 
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
-        case RAM_SAVE_FLAG_COMPRESS:
+        case RAM_SAVE_FLAG_ZERO:
             ch = qemu_get_byte(f);
             memset(page_buffer, ch, TARGET_PAGE_SIZE);
             if (ch) {
@@ -2542,7 +2548,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         flags = addr & ~TARGET_PAGE_MASK;
         addr &= TARGET_PAGE_MASK;
 
-        if (flags & (RAM_SAVE_FLAG_COMPRESS | RAM_SAVE_FLAG_PAGE |
+        if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE |
                      RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE)) {
             RAMBlock *block = ram_block_from_stream(f, flags);
 
@@ -2604,7 +2610,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             }
             break;
 
-        case RAM_SAVE_FLAG_COMPRESS:
+        case RAM_SAVE_FLAG_ZERO:
             ch = qemu_get_byte(f);
             ram_handle_compressed(host, ch, TARGET_PAGE_SIZE);
             break;
