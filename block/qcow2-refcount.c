@@ -1728,14 +1728,17 @@ static int check_refblocks(BlockDriverState *bs, BdrvCheckResult *res,
 
             if (fix & BDRV_FIX_ERRORS) {
                 int64_t new_nb_clusters;
+                Error *local_err = NULL;
 
                 if (offset > INT64_MAX - s->cluster_size) {
                     ret = -EINVAL;
                     goto resize_fail;
                 }
 
-                ret = bdrv_truncate(bs->file, offset + s->cluster_size);
+                ret = bdrv_truncate(bs->file, offset + s->cluster_size,
+                                    &local_err);
                 if (ret < 0) {
+                    error_report_err(local_err);
                     goto resize_fail;
                 }
                 size = bdrv_getlength(bs->file->bs);

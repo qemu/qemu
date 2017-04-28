@@ -1092,14 +1092,17 @@ static coroutine_fn int qemu_gluster_co_rw(BlockDriverState *bs,
     return acb.ret;
 }
 
-static int qemu_gluster_truncate(BlockDriverState *bs, int64_t offset)
+static int qemu_gluster_truncate(BlockDriverState *bs, int64_t offset,
+                                 Error **errp)
 {
     int ret;
     BDRVGlusterState *s = bs->opaque;
 
     ret = glfs_ftruncate(s->fd, offset);
     if (ret < 0) {
-        return -errno;
+        ret = -errno;
+        error_setg_errno(errp, -ret, "Failed to truncate file");
+        return ret;
     }
 
     return 0;

@@ -1746,13 +1746,14 @@ int blk_pwrite_compressed(BlockBackend *blk, int64_t offset, const void *buf,
                    BDRV_REQ_WRITE_COMPRESSED);
 }
 
-int blk_truncate(BlockBackend *blk, int64_t offset)
+int blk_truncate(BlockBackend *blk, int64_t offset, Error **errp)
 {
     if (!blk_is_available(blk)) {
+        error_setg(errp, "No medium inserted");
         return -ENOMEDIUM;
     }
 
-    return bdrv_truncate(blk->root, offset);
+    return bdrv_truncate(blk->root, offset, errp);
 }
 
 static void blk_pdiscard_entry(void *opaque)

@@ -764,10 +764,18 @@ static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)
     return (task.ret < 0 ? task.ret : st.st_blocks * 512);
 }
 
-static int nfs_file_truncate(BlockDriverState *bs, int64_t offset)
+static int nfs_file_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
 {
     NFSClient *client = bs->opaque;
-    return nfs_ftruncate(client->context, client->fh, offset);
+    int ret;
+
+    ret = nfs_ftruncate(client->context, client->fh, offset);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to truncate file");
+        return ret;
+    }
+
+    return 0;
 }
 
 /* Note that this will not re-establish a connection with the NFS server

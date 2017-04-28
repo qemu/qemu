@@ -2059,22 +2059,24 @@ static void iscsi_reopen_commit(BDRVReopenState *reopen_state)
     }
 }
 
-static int iscsi_truncate(BlockDriverState *bs, int64_t offset)
+static int iscsi_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
 {
     IscsiLun *iscsilun = bs->opaque;
     Error *local_err = NULL;
 
     if (iscsilun->type != TYPE_DISK) {
+        error_setg(errp, "Cannot resize non-disk iSCSI devices");
         return -ENOTSUP;
     }
 
     iscsi_readcapacity_sync(iscsilun, &local_err);
     if (local_err != NULL) {
-        error_free(local_err);
+        error_propagate(errp, local_err);
         return -EIO;
     }
 
     if (offset > iscsi_getlength(bs)) {
+        error_setg(errp, "Cannot grow iSCSI devices");
         return -EINVAL;
     }
 

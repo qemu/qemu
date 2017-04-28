@@ -1554,9 +1554,15 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 
     if (s->sector_next_status <= sector_num) {
         BlockDriverState *file;
-        ret = bdrv_get_block_status(blk_bs(s->src[src_cur]),
-                                    sector_num - src_cur_offset,
-                                    n, &n, &file);
+        if (s->target_has_backing) {
+            ret = bdrv_get_block_status(blk_bs(s->src[src_cur]),
+                                        sector_num - src_cur_offset,
+                                        n, &n, &file);
+        } else {
+            ret = bdrv_get_block_status_above(blk_bs(s->src[src_cur]), NULL,
+                                              sector_num - src_cur_offset,
+                                              n, &n, &file);
+        }
         if (ret < 0) {
             return ret;
         }
@@ -1565,26 +1571,8 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
             s->status = BLK_ZERO;
         } else if (ret & BDRV_BLOCK_DATA) {
             s->status = BLK_DATA;
-        } else if (!s->target_has_backing) {
-            /* Without a target backing file we must copy over the contents of
-             * the backing file as well. */
-            /* Check block status of the backing file chain to avoid
-             * needlessly reading zeroes and limiting the iteration to the
-             * buffer size */
-            ret = bdrv_get_block_status_above(blk_bs(s->src[src_cur]), NULL,
-                                              sector_num - src_cur_offset,
-                                              n, &n, &file);
-            if (ret < 0) {
-                return ret;
-            }
-
-            if (ret & BDRV_BLOCK_ZERO) {
-                s->status = BLK_ZERO;
-            } else {
-                s->status = BLK_DATA;
-            }
         } else {
-            s->status = BLK_BACKING_FILE;
+            s->status = s->target_has_backing ? BLK_BACKING_FILE : BLK_DATA;
         }
 
         s->sector_next_status = sector_num + n;
@@ -1661,6 +1649,8 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
 
     while (nb_sectors > 0) {
         int n = nb_sectors;
+        BdrvRequestFlags flags = s->compressed ? BDRV_REQ_WRITE_COMPRESSED : 0;
+
         switch (status) {
         case BLK_BACKING_FILE:
             /* If we have a backing file, leave clusters unallocated that are
@@ -1670,43 +1660,24 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
             break;
 
         case BLK_DATA:
-            /* We must always write compressed clusters as a whole, so don't
-             * try to find zeroed parts in the buffer. We can only save the
-             * write if the buffer is completely zeroed and we're allowed to
-             * keep the target sparse. */
-            if (s->compressed) {
-                if (s->has_zero_init && s->min_sparse &&
-                    buffer_is_zero(buf, n * BDRV_SECTOR_SIZE))
-                {
-                    assert(!s->target_has_backing);
-                    break;
-                }
-
-                iov.iov_base = buf;
-                iov.iov_len = n << BDRV_SECTOR_BITS;
-                qemu_iovec_init_external(&qiov, &iov, 1);
-
-                ret = blk_co_pwritev(s->target, sector_num << BDRV_SECTOR_BITS,
-                                     n << BDRV_SECTOR_BITS, &qiov,
-                                     BDRV_REQ_WRITE_COMPRESSED);
-                if (ret < 0) {
-                    return ret;
-                }
-                break;
-            }
-
-            /* If there is real non-zero data or we're told to keep the target
-             * fully allocated (-S 0), we must write it. Otherwise we can treat
-             * it as zero sectors. */
+            /* If we're told to keep the target fully allocated (-S 0) or there
+             * is real non-zero data, we must write it. Otherwise we can treat
+             * it as zero sectors.
+             * Compressed clusters need to be written as a whole, so in that
+             * case we can only save the write if the buffer is completely
+             * zeroed. */
             if (!s->min_sparse ||
-                is_allocated_sectors_min(buf, n, &n, s->min_sparse))
+                (!s->compressed &&
+                 is_allocated_sectors_min(buf, n, &n, s->min_sparse)) ||
+                (s->compressed &&
+                 !buffer_is_zero(buf, n * BDRV_SECTOR_SIZE)))
             {
                 iov.iov_base = buf;
                 iov.iov_len = n << BDRV_SECTOR_BITS;
                 qemu_iovec_init_external(&qiov, &iov, 1);
 
                 ret = blk_co_pwritev(s->target, sector_num << BDRV_SECTOR_BITS,
-                                     n << BDRV_SECTOR_BITS, &qiov, 0);
+                                     n << BDRV_SECTOR_BITS, &qiov, flags);
                 if (ret < 0) {
                     return ret;
                 }
@@ -1716,6 +1687,7 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
 
         case BLK_ZERO:
             if (s->has_zero_init) {
+                assert(!s->target_has_backing);
                 break;
             }
             ret = blk_co_pwrite_zeroes(s->target,
@@ -3464,20 +3436,11 @@ static int img_resize(int argc, char **argv)
         goto out;
     }
 
-    ret = blk_truncate(blk, total_size);
-    switch (ret) {
-    case 0:
+    ret = blk_truncate(blk, total_size, &err);
+    if (!ret) {
         qprintf(quiet, "Image resized.\n");
-        break;
-    case -ENOTSUP:
-        error_report("This image does not support resize");
-        break;
-    case -EACCES:
-        error_report("Image is read-only");
-        break;
-    default:
-        error_report("Error resizing image: %s", strerror(-ret));
-        break;
+    } else {
+        error_report_err(err);
     }
 out:
     blk_unref(blk);

@@ -635,7 +635,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     blk_set_allow_write_beyond_eof(blk, true);
 
     /* File must start empty and grow, check truncate is supported */
-    ret = blk_truncate(blk, 0);
+    ret = blk_truncate(blk, 0, errp);
     if (ret < 0) {
         goto out;
     }
@@ -1518,7 +1518,7 @@ static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
     return cb.ret;
 }
 
-static int bdrv_qed_truncate(BlockDriverState *bs, int64_t offset)
+static int bdrv_qed_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
 {
     BDRVQEDState *s = bs->opaque;
     uint64_t old_image_size;
@@ -1526,11 +1526,12 @@ static int bdrv_qed_truncate(BlockDriverState *bs, int64_t offset)
 
     if (!qed_is_image_size_valid(offset, s->header.cluster_size,
                                  s->header.table_size)) {
+        error_setg(errp, "Invalid image size specified");
         return -EINVAL;
     }
 
-    /* Shrinking is currently not supported */
     if ((uint64_t)offset < s->header.image_size) {
+        error_setg(errp, "Shrinking images is currently not supported");
         return -ENOTSUP;
     }
 
@@ -1539,6 +1540,7 @@ static int bdrv_qed_truncate(BlockDriverState *bs, int64_t offset)
     ret = qed_write_header_sync(s);
     if (ret < 0) {
         s->header.image_size = old_image_size;
+        error_setg_errno(errp, -ret, "Failed to update the image size");
     }
     return ret;
 }

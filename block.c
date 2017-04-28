@@ -3307,7 +3307,7 @@ exit:
 /**
  * Truncate file to 'offset' bytes (needed only for file protocols)
  */
-int bdrv_truncate(BdrvChild *child, int64_t offset)
+int bdrv_truncate(BdrvChild *child, int64_t offset, Error **errp)
 {
     BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
@@ -3315,14 +3315,22 @@ int bdrv_truncate(BdrvChild *child, int64_t offset)
 
     assert(child->perm & BLK_PERM_RESIZE);
 
-    if (!drv)
+    if (!drv) {
+        error_setg(errp, "No medium inserted");
         return -ENOMEDIUM;
-    if (!drv->bdrv_truncate)
+    }
+    if (!drv->bdrv_truncate) {
+        error_setg(errp, "Image format driver does not support resize");
         return -ENOTSUP;
-    if (bs->read_only)
+    }
+    if (bs->read_only) {
+        error_setg(errp, "Image is read-only");
         return -EACCES;
+    }
 
-    ret = drv->bdrv_truncate(bs, offset);
+    assert(!(bs->open_flags & BDRV_O_INACTIVE));
+
+    ret = drv->bdrv_truncate(bs, offset, errp);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
         bdrv_dirty_bitmap_truncate(bs);

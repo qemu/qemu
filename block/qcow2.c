@@ -2294,9 +2294,9 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     }
 
     /* Okay, now that we have a valid image, let's give it the right size */
-    ret = blk_truncate(blk, total_size);
+    ret = blk_truncate(blk, total_size, errp);
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "Could not resize image");
+        error_prepend(errp, "Could not resize image: ");
         goto out;
     }
 
@@ -2515,7 +2515,12 @@ static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
 
     if (!QEMU_IS_ALIGNED(offset | count, s->cluster_size)) {
         assert(count < s->cluster_size);
-        return -ENOTSUP;
+        /* Ignore partial clusters, except for the special case of the
+         * complete partial cluster at the end of an unaligned file */
+        if (!QEMU_IS_ALIGNED(offset, s->cluster_size) ||
+            offset + count != bs->total_sectors * BDRV_SECTOR_SIZE) {
+            return -ENOTSUP;
+        }
     }
 
     qemu_co_mutex_lock(&s->lock);
@@ -2525,32 +2530,33 @@ static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
     return ret;
 }
 
-static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
+static int qcow2_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t new_l1_size;
     int ret;
 
     if (offset & 511) {
-        error_report("The new size must be a multiple of 512");
+        error_setg(errp, "The new size must be a multiple of 512");
         return -EINVAL;
     }
 
     /* cannot proceed if image has snapshots */
     if (s->nb_snapshots) {
-        error_report("Can't resize an image which has snapshots");
+        error_setg(errp, "Can't resize an image which has snapshots");
         return -ENOTSUP;
     }
 
     /* shrinking is currently not supported */
     if (offset < bs->total_sectors * 512) {
-        error_report("qcow2 doesn't support shrinking images yet");
+        error_setg(errp, "qcow2 doesn't support shrinking images yet");
         return -ENOTSUP;
     }
 
     new_l1_size = size_to_l1(s, offset);
     ret = qcow2_grow_l1_table(bs, new_l1_size, true);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to grow the L1 table");
         return ret;
     }
 
@@ -2559,6 +2565,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
     ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, size),
                            &offset, sizeof(uint64_t));
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to update the image size");
         return ret;
     }
 
@@ -2584,7 +2591,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
         cluster_offset = bdrv_getlength(bs->file->bs);
-        return bdrv_truncate(bs->file, cluster_offset);
+        return bdrv_truncate(bs->file, cluster_offset, NULL);
     }
 
     buf = qemu_blockalign(bs, s->cluster_size);
@@ -2674,6 +2681,7 @@ fail:
 static int make_completely_empty(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
+    Error *local_err = NULL;
     int ret, l1_clusters;
     int64_t offset;
     uint64_t *new_reftable = NULL;
@@ -2798,8 +2806,10 @@ static int make_completely_empty(BlockDriverState *bs)
         goto fail;
     }
 
-    ret = bdrv_truncate(bs->file, (3 + l1_clusters) * s->cluster_size);
+    ret = bdrv_truncate(bs->file, (3 + l1_clusters) * s->cluster_size,
+                        &local_err);
     if (ret < 0) {
+        error_report_err(local_err);
         goto fail;
     }
 
@@ -3273,9 +3283,10 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             return ret;
         }
 
-        ret = blk_truncate(blk, new_size);
+        ret = blk_truncate(blk, new_size, &local_err);
         blk_unref(blk);
         if (ret < 0) {
+            error_report_err(local_err);
             return ret;
         }
     }
