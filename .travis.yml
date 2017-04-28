@@ -86,9 +86,6 @@ matrix:
     - env: CONFIG="--enable-trace-backends=ust"
            TEST_CMD=""
       compiler: gcc
-    - env: CONFIG="--with-coroutine=gthread"
-           TEST_CMD=""
-      compiler: gcc
     - env: CONFIG=""
       os: osx
       compiler: clang
@@ -191,7 +188,7 @@ matrix:
       compiler: none
       env:
         - COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
-        - CONFIG="--cc=gcc-5 --cxx=g++-5 --disable-pie --disable-linux-user --with-coroutine=gthread"
+        - CONFIG="--cc=gcc-5 --cxx=g++-5 --disable-pie --disable-linux-user"
         - TEST_CMD=""
       before_script:
         - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || cat config.log
