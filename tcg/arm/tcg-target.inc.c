@@ -329,11 +329,6 @@ static const uint8_t tcg_cond_to_arm_cond[] = {
     [TCG_COND_GTU] = COND_HI,
 };
 
-static inline void tcg_out_bx(TCGContext *s, int cond, int rn)
-{
-    tcg_out32(s, (cond << 28) | 0x012fff10 | rn);
-}
-
 static inline void tcg_out_b(TCGContext *s, int cond, int32_t offset)
 {
     tcg_out32(s, (cond << 28) | 0x0a000000 |
@@ -399,6 +394,18 @@ static inline void tcg_out_mov_reg(TCGContext *s, int cond, int rd, int rm)
     /* Simple reg-reg move, optimising out the 'do nothing' case */
     if (rd != rm) {
         tcg_out_dat_reg(s, cond, ARITH_MOV, rd, 0, rm, SHIFT_IMM_LSL(0));
+    }
+}
+
+static inline void tcg_out_bx(TCGContext *s, int cond, TCGReg rn)
+{
+    /* Unless the C portion of QEMU is compiled as thumb, we don't
+       actually need true BX semantics; merely a branch to an address
+       held in a register.  */
+    if (use_armv5t_instructions) {
+        tcg_out32(s, (cond << 28) | 0x012fff10 | rn);
+    } else {
+        tcg_out_mov_reg(s, cond, TCG_REG_PC, rn);
     }
 }
 
@@ -977,7 +984,7 @@ static inline void tcg_out_st8(TCGContext *s, int cond,
  * with the code buffer limited to 16MB we wouldn't need the long case.
  * But we also use it for the tail-call to the qemu_ld/st helpers, which does.
  */
-static inline void tcg_out_goto(TCGContext *s, int cond, tcg_insn_unit *addr)
+static void tcg_out_goto(TCGContext *s, int cond, tcg_insn_unit *addr)
 {
     intptr_t addri = (intptr_t)addr;
     ptrdiff_t disp = tcg_pcrel_diff(s, addr);
@@ -987,15 +994,9 @@ static inline void tcg_out_goto(TCGContext *s, int cond, tcg_insn_unit *addr)
         return;
     }
 
+    assert(use_armv5t_instructions || (addri & 1) == 0);
     tcg_out_movi32(s, cond, TCG_REG_TMP, addri);
-    if (use_armv5t_instructions) {
-        tcg_out_bx(s, cond, TCG_REG_TMP);
-    } else {
-        if (addri & 1) {
-            tcg_abort();
-        }
-        tcg_out_mov_reg(s, cond, TCG_REG_PC, TCG_REG_TMP);
-    }
+    tcg_out_bx(s, cond, TCG_REG_TMP);
 }
 
 /* The call case is mostly used for helpers - so it's not unreasonable
