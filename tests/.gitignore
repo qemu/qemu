@@ -40,6 +40,7 @@ test-crypto-tlssession-server/
 test-crypto-xts
 test-cutils
 test-hbitmap
+test-hmp
 test-int128
 test-iov
 test-io-channel-buffer
