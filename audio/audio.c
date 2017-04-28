@@ -2028,6 +2028,8 @@ void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque)
                     sw = sw1;
                 }
                 QLIST_REMOVE (cap, entries);
+                g_free (cap->hw.mix_buf);
+                g_free (cap->buf);
                 g_free (cap);
             }
             return;
