@@ -1655,8 +1655,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     switch (opc) {
     case INDEX_op_exit_tb:
-        tcg_out_movi32(s, COND_AL, TCG_REG_R0, args[0]);
-        tcg_out_goto(s, COND_AL, tb_ret_addr);
+        /* Reuse the zeroing that exists for goto_ptr.  */
+        a0 = args[0];
+        if (a0 == 0) {
+            tcg_out_goto(s, COND_AL, s->code_gen_epilogue);
+        } else {
+            tcg_out_movi32(s, COND_AL, TCG_REG_R0, args[0]);
+            tcg_out_goto(s, COND_AL, tb_ret_addr);
+        }
         break;
     case INDEX_op_goto_tb:
         if (s->tb_jmp_insn_offset) {
@@ -1670,6 +1676,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_R0, ptr & 0xfff);
         }
         s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
+        break;
+    case INDEX_op_goto_ptr:
+        tcg_out_bx(s, COND_AL, args[0]);
         break;
     case INDEX_op_br:
         tcg_out_goto_label(s, COND_AL, arg_label(args[0]));
@@ -1961,6 +1970,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_br, { } },
+    { INDEX_op_goto_ptr, { "r" } },
 
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },
@@ -2136,9 +2146,16 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
 
     tcg_out_bx(s, COND_AL, tcg_target_call_iarg_regs[1]);
-    tb_ret_addr = s->code_ptr;
 
-    /* Epilogue.  We branch here via tb_ret_addr.  */
+    /*
+     * Return path for goto_ptr. Set return value to 0, a-la exit_tb,
+     * and fall through to the rest of the epilogue.
+     */
+    s->code_gen_epilogue = s->code_ptr;
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R0, 0);
+
+    /* TB epilogue */
+    tb_ret_addr = s->code_ptr;
     tcg_out_dat_rI(s, COND_AL, ARITH_ADD, TCG_REG_CALL_STACK,
                    TCG_REG_CALL_STACK, stack_addend, 1);
 
