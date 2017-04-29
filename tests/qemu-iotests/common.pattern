@@ -18,7 +18,7 @@
 
 function do_is_allocated() {
     local start=$1
-    local size=$(( $2 / 512))
+    local size=$2
     local step=$3
     local count=$4
 

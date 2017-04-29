@@ -542,8 +542,8 @@ Testing conversion with -B TEST_DIR/t.IMGFMT.base
 
 Checking if backing clusters are allocated when they shouldn't
 
-0/128 sectors allocated at offset 1 MiB
-0/128 sectors allocated at offset 4.001 GiB
+0/65536 bytes allocated at offset 1 MiB
+0/65536 bytes allocated at offset 4.001 GiB
 Reading
 
 === IO: pattern 42
@@ -1086,8 +1086,8 @@ Testing conversion with -o backing_file=TEST_DIR/t.IMGFMT.base
 
 Checking if backing clusters are allocated when they shouldn't
 
-0/128 sectors allocated at offset 1 MiB
-0/128 sectors allocated at offset 4.001 GiB
+0/65536 bytes allocated at offset 1 MiB
+0/65536 bytes allocated at offset 4.001 GiB
 Reading
 
 === IO: pattern 42
