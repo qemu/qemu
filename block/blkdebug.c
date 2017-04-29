@@ -1,6 +1,7 @@
 /*
  * Block protocol for I/O error injection
  *
+ * Copyright (C) 2016-2017 Red Hat, Inc.
  * Copyright (c) 2010 Kevin Wolf <kwolf@redhat.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -382,6 +383,11 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
+    bs->supported_write_flags = BDRV_REQ_FUA &
+        bs->file->bs->supported_write_flags;
+    bs->supported_zero_flags = (BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP) &
+        bs->file->bs->supported_zero_flags;
+
     /* Set request alignment */
     align = qemu_opt_get_size(opts, "align", 0);
     if (align < INT_MAX && is_power_of_2(align)) {
@@ -494,6 +500,72 @@ static int blkdebug_co_flush(BlockDriverState *bs)
     return bdrv_co_flush(bs->file->bs);
 }
 
+static int coroutine_fn blkdebug_co_pwrite_zeroes(BlockDriverState *bs,
+                                                  int64_t offset, int count,
+                                                  BdrvRequestFlags flags)
+{
+    uint32_t align = MAX(bs->bl.request_alignment,
+                         bs->bl.pwrite_zeroes_alignment);
+    int err;
+
+    /* Only pass through requests that are larger than requested
+     * preferred alignment (so that we test the fallback to writes on
+     * unaligned portions), and check that the block layer never hands
+     * us anything unaligned that crosses an alignment boundary.  */
+    if (count < align) {
+        assert(QEMU_IS_ALIGNED(offset, align) ||
+               QEMU_IS_ALIGNED(offset + count, align) ||
+               DIV_ROUND_UP(offset, align) ==
+               DIV_ROUND_UP(offset + count, align));
+        return -ENOTSUP;
+    }
+    assert(QEMU_IS_ALIGNED(offset, align));
+    assert(QEMU_IS_ALIGNED(count, align));
+    if (bs->bl.max_pwrite_zeroes) {
+        assert(count <= bs->bl.max_pwrite_zeroes);
+    }
+
+    err = rule_check(bs, offset, count);
+    if (err) {
+        return err;
+    }
+
+    return bdrv_co_pwrite_zeroes(bs->file, offset, count, flags);
+}
+
+static int coroutine_fn blkdebug_co_pdiscard(BlockDriverState *bs,
+                                             int64_t offset, int count)
+{
+    uint32_t align = bs->bl.pdiscard_alignment;
+    int err;
+
+    /* Only pass through requests that are larger than requested
+     * minimum alignment, and ensure that unaligned requests do not
+     * cross optimum discard boundaries. */
+    if (count < bs->bl.request_alignment) {
+        assert(QEMU_IS_ALIGNED(offset, align) ||
+               QEMU_IS_ALIGNED(offset + count, align) ||
+               DIV_ROUND_UP(offset, align) ==
+               DIV_ROUND_UP(offset + count, align));
+        return -ENOTSUP;
+    }
+    assert(QEMU_IS_ALIGNED(offset, bs->bl.request_alignment));
+    assert(QEMU_IS_ALIGNED(count, bs->bl.request_alignment));
+    if (align && count >= align) {
+        assert(QEMU_IS_ALIGNED(offset, align));
+        assert(QEMU_IS_ALIGNED(count, align));
+    }
+    if (bs->bl.max_pdiscard) {
+        assert(count <= bs->bl.max_pdiscard);
+    }
+
+    err = rule_check(bs, offset, count);
+    if (err) {
+        return err;
+    }
+
+    return bdrv_co_pdiscard(bs->file->bs, offset, count);
+}
 
 static void blkdebug_close(BlockDriverState *bs)
 {
@@ -748,6 +820,8 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_co_preadv         = blkdebug_co_preadv,
     .bdrv_co_pwritev        = blkdebug_co_pwritev,
     .bdrv_co_flush_to_disk  = blkdebug_co_flush,
+    .bdrv_co_pwrite_zeroes  = blkdebug_co_pwrite_zeroes,
+    .bdrv_co_pdiscard       = blkdebug_co_pdiscard,
 
     .bdrv_debug_event           = blkdebug_debug_event,
     .bdrv_debug_breakpoint      = blkdebug_debug_breakpoint,
