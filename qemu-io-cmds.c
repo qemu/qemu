@@ -1868,7 +1868,7 @@ static int map_f(BlockBackend *blk, int argc, char **argv)
 {
     int64_t offset;
     int64_t nb_sectors, total_sectors;
-    char s1[64];
+    char s1[64], s2[64];
     int64_t num;
     int ret;
     const char *retstr;
@@ -1894,10 +1894,11 @@ static int map_f(BlockBackend *blk, int argc, char **argv)
         }
 
         retstr = ret ? "    allocated" : "not allocated";
-        cvtstr(offset << 9ULL, s1, sizeof(s1));
-        printf("[% 24" PRId64 "] % 8" PRId64 "/% 8" PRId64 " sectors %s "
-               "at offset %s (%d)\n",
-               offset << 9ULL, num, nb_sectors, retstr, s1, ret);
+        cvtstr(num << BDRV_SECTOR_BITS, s1, sizeof(s1));
+        cvtstr(offset << BDRV_SECTOR_BITS, s2, sizeof(s2));
+        printf("%s (0x%" PRIx64 ") bytes %s at offset %s (0x%" PRIx64 ")\n",
+               s1, num << BDRV_SECTOR_BITS, retstr,
+               s2, offset << BDRV_SECTOR_BITS);
 
         offset += num;
         nb_sectors -= num;

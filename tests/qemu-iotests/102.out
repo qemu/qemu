@@ -6,7 +6,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Image resized.
-[                       0]      128/     128 sectors     allocated at offset 0 bytes (1)
+64 KiB (0x10000) bytes     allocated at offset 0 bytes (0x0)
 Offset          Length          Mapped to       File
 
 === Testing map on an image file truncated outside of qemu ===
@@ -17,5 +17,5 @@ wrote 65536/65536 bytes at offset 0
 Image resized.
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) qemu-io drv0 map
-[                       0]      128/     128 sectors     allocated at offset 0 bytes (1)
+64 KiB (0x10000) bytes     allocated at offset 0 bytes (0x0)
 *** done
