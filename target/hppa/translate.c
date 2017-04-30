@@ -517,7 +517,7 @@ static void gen_goto_tb(DisasContext *ctx, int which,
         if (ctx->singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG);
         } else {
-            tcg_gen_exit_tb(0);
+            tcg_gen_lookup_and_goto_ptr(cpu_iaoq_f);
         }
     }
 }
@@ -1510,7 +1510,7 @@ static ExitStatus do_ibranch(DisasContext *ctx, TCGv dest,
     } else if (is_n && use_nullify_skip(ctx)) {
         /* The (conditional) branch, B, nullifies the next insn, N,
            and we're allowed to skip execution N (no single-step or
-           tracepoint in effect).  Since the exit_tb that we must use
+           tracepoint in effect).  Since the goto_ptr that we must use
            for the indirect branch consumes no special resources, we
            can (conditionally) skip B and continue execution.  */
         /* The use_nullify_skip test implies we have a known control path.  */
@@ -1527,7 +1527,7 @@ static ExitStatus do_ibranch(DisasContext *ctx, TCGv dest,
         if (link != 0) {
             tcg_gen_movi_tl(cpu_gr[link], ctx->iaoq_n);
         }
-        tcg_gen_exit_tb(0);
+        tcg_gen_lookup_and_goto_ptr(cpu_iaoq_f);
         return nullify_end(ctx, NO_EXIT);
     } else {
         cond_prep(&ctx->null_cond);
@@ -3885,7 +3885,7 @@ void gen_intermediate_code(CPUHPPAState *env, struct TranslationBlock *tb)
         if (ctx.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG);
         } else {
-            tcg_gen_exit_tb(0);
+            tcg_gen_lookup_and_goto_ptr(cpu_iaoq_f);
         }
         break;
     default:
