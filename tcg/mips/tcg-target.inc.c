@@ -2093,11 +2093,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                          args[3] + args[4] - 1, args[3]);
         break;
     case INDEX_op_extract_i32:
-        tcg_out_opc_bf(s, OPC_EXT, a0, a1, a2 + args[3] - 1, a2);
+        tcg_out_opc_bf(s, OPC_EXT, a0, a1, args[3] - 1, a2);
         break;
     case INDEX_op_extract_i64:
         tcg_out_opc_bf64(s, OPC_DEXT, OPC_DEXTM, OPC_DEXTU, a0, a1,
-                         a2 + args[3] - 1, a2);
+                         args[3] - 1, a2);
         break;
 
     case INDEX_op_brcond_i32:
