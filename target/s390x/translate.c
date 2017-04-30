@@ -608,11 +608,16 @@ static void gen_op_calc_cc(DisasContext *s)
     set_cc_static(s);
 }
 
-static int use_goto_tb(DisasContext *s, uint64_t dest)
+static bool use_exit_tb(DisasContext *s)
 {
-    if (unlikely(s->singlestep_enabled) ||
-        (s->tb->cflags & CF_LAST_IO) ||
-        (s->tb->flags & FLAG_MASK_PER)) {
+    return (s->singlestep_enabled ||
+            (s->tb->cflags & CF_LAST_IO) ||
+            (s->tb->flags & FLAG_MASK_PER));
+}
+
+static bool use_goto_tb(DisasContext *s, uint64_t dest)
+{
+    if (unlikely(use_exit_tb(s))) {
         return false;
     }
 #ifndef CONFIG_USER_ONLY
@@ -5461,8 +5466,10 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
         /* Exit the TB, either by raising a debug exception or by return.  */
         if (do_debug) {
             gen_exception(EXCP_DEBUG);
-        } else {
+        } else if (use_exit_tb(&dc)) {
             tcg_gen_exit_tb(0);
+        } else {
+            tcg_gen_lookup_and_goto_ptr(psw_addr);
         }
         break;
     default:
