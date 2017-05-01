@@ -80,6 +80,8 @@
 #define CLOCKFREQ (266UL * 1000UL * 1000UL)
 #define BUSFREQ (100UL * 1000UL * 1000UL)
 
+#define NDRV_VGA_FILENAME "qemu_vga.ndrv"
+
 /* UniN device */
 static void unin_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
@@ -160,7 +162,8 @@ static void ppc_core99_init(MachineState *machine)
     MACIOIDEState *macio_ide;
     BusState *adb_bus;
     MacIONVRAMState *nvr;
-    int bios_size;
+    int bios_size, ndrv_size;
+    uint8_t *ndrv_file;
     MemoryRegion *pic_mem, *escc_mem;
     MemoryRegion *escc_bar = g_new(MemoryRegion, 1);
     int ppc_boot_device;
@@ -493,6 +496,19 @@ static void ppc_core99_init(MachineState *machine)
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, CLOCKFREQ);
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_BUSFREQ, BUSFREQ);
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_NVRAM_ADDR, nvram_addr);
+
+    /* MacOS NDRV VGA driver */
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, NDRV_VGA_FILENAME);
+    if (filename) {
+        ndrv_size = get_image_size(filename);
+        if (ndrv_size != -1) {
+            ndrv_file = g_malloc(ndrv_size);
+            ndrv_size = load_image(filename, ndrv_file);
+
+            fw_cfg_add_file(fw_cfg, "ndrv/qemu_vga.ndrv", ndrv_file, ndrv_size);
+        }
+        g_free(filename);
+    }
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
