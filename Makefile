@@ -552,7 +552,8 @@ multiboot.bin linuxboot.bin linuxboot_dma.bin kvmvapic.bin \
 s390-ccw.img \
 spapr-rtas.bin slof.bin skiboot.lid \
 palcode-clipper \
-u-boot.e500
+u-boot.e500 \
+qemu_vga.ndrv
 else
 BLOBS=
 endif
