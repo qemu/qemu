@@ -1569,10 +1569,11 @@ static void _decode_opc(DisasContext * ctx)
 	else
 	    break;
     case 0x00ab:		/* synco */
-	if (ctx->features & SH_FEATURE_SH4A)
-	    return;
-	else
-	    break;
+        if (ctx->features & SH_FEATURE_SH4A) {
+            tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
+            return;
+        }
+        break;
     case 0x4024:		/* rotcl Rn */
 	{
 	    TCGv tmp = tcg_temp_new();
