@@ -305,13 +305,7 @@ static inline void gen_load_fpr64(TCGv_i64 t, int reg)
 
 static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 {
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_extrl_i64_i32(tmp, t);
-    tcg_gen_mov_i32(cpu_fregs[reg + 1], tmp);
-    tcg_gen_shri_i64(t, t, 32);
-    tcg_gen_extrl_i64_i32(tmp, t);
-    tcg_gen_mov_i32(cpu_fregs[reg], tmp);
-    tcg_temp_free_i32(tmp);
+    tcg_gen_extr_i64_i32(cpu_fregs[reg + 1], cpu_fregs[reg], t);
 }
 
 #define B3_0 (ctx->opcode & 0xf)
