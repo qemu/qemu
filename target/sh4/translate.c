@@ -204,12 +204,9 @@ static void gen_write_sr(TCGv src)
 {
     tcg_gen_andi_i32(cpu_sr, src,
                      ~((1u << SR_Q) | (1u << SR_M) | (1u << SR_T)));
-    tcg_gen_shri_i32(cpu_sr_q, src, SR_Q);
-    tcg_gen_andi_i32(cpu_sr_q, cpu_sr_q, 1);
-    tcg_gen_shri_i32(cpu_sr_m, src, SR_M);
-    tcg_gen_andi_i32(cpu_sr_m, cpu_sr_m, 1);
-    tcg_gen_shri_i32(cpu_sr_t, src, SR_T);
-    tcg_gen_andi_i32(cpu_sr_t, cpu_sr_t, 1);
+    tcg_gen_extract_i32(cpu_sr_q, src, SR_Q, 1);
+    tcg_gen_extract_i32(cpu_sr_m, src, SR_M, 1);
+    tcg_gen_extract_i32(cpu_sr_t, src, SR_T, 1);
 }
 
 static inline void gen_save_cpu_state(DisasContext *ctx, bool save_pc)
