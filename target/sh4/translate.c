@@ -1504,14 +1504,16 @@ static void _decode_opc(DisasContext * ctx)
     case 0x40a9:                /* movua.l @Rm,R0 */
         /* Load non-boundary-aligned data */
         if (ctx->features & SH_FEATURE_SH4A) {
-            tcg_gen_qemu_ld_i32(REG(0), REG(B11_8), ctx->memidx, MO_TEUL);
+            tcg_gen_qemu_ld_i32(REG(0), REG(B11_8), ctx->memidx,
+                                MO_TEUL | MO_UNALN);
             return;
         }
         break;
     case 0x40e9:                /* movua.l @Rm+,R0 */
         /* Load non-boundary-aligned data */
         if (ctx->features & SH_FEATURE_SH4A) {
-            tcg_gen_qemu_ld_i32(REG(0), REG(B11_8), ctx->memidx, MO_TEUL);
+            tcg_gen_qemu_ld_i32(REG(0), REG(B11_8), ctx->memidx,
+                                MO_TEUL | MO_UNALN);
             tcg_gen_addi_i32(REG(B11_8), REG(B11_8), 4);
             return;
         }

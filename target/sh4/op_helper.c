@@ -24,6 +24,22 @@
 
 #ifndef CONFIG_USER_ONLY
 
+void superh_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                    MMUAccessType access_type,
+                                    int mmu_idx, uintptr_t retaddr)
+{
+    switch (access_type) {
+    case MMU_INST_FETCH:
+    case MMU_DATA_LOAD:
+        cs->exception_index = 0x0e0;
+        break;
+    case MMU_DATA_STORE:
+        cs->exception_index = 0x100;
+        break;
+    }
+    cpu_loop_exit_restore(cs, retaddr);
+}
+
 void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
               int mmu_idx, uintptr_t retaddr)
 {

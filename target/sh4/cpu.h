@@ -24,6 +24,7 @@
 #include "cpu-qom.h"
 
 #define TARGET_LONG_BITS 32
+#define ALIGNED_ONLY
 
 /* CPU Subtypes */
 #define SH_CPU_SH7750  (1 << 0)
@@ -215,6 +216,9 @@ void superh_cpu_dump_state(CPUState *cpu, FILE *f,
 hwaddr superh_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int superh_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int superh_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+void superh_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
+                                    MMUAccessType access_type,
+                                    int mmu_idx, uintptr_t retaddr);
 
 void sh4_translate_init(void);
 SuperHCPU *cpu_sh4_init(const char *cpu_model);
