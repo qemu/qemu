@@ -53,6 +53,8 @@
 #define CLOCKFREQ 266000000UL
 #define BUSFREQ 66000000UL
 
+#define NDRV_VGA_FILENAME "qemu_vga.ndrv"
+
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
 {
@@ -99,7 +101,8 @@ static void ppc_heathrow_init(MachineState *machine)
     MACIOIDEState *macio_ide;
     DeviceState *dev;
     BusState *adb_bus;
-    int bios_size;
+    int bios_size, ndrv_size;
+    uint8_t *ndrv_file;
     MemoryRegion *pic_mem;
     MemoryRegion *escc_mem, *escc_bar = g_new(MemoryRegion, 1);
     uint16_t ppc_boot_device;
@@ -354,6 +357,19 @@ static void ppc_heathrow_init(MachineState *machine)
     /* Mac OS X requires a "known good" clock-frequency value; pass it one. */
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, CLOCKFREQ);
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_BUSFREQ, BUSFREQ);
+
+    /* MacOS NDRV VGA driver */
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, NDRV_VGA_FILENAME);
+    if (filename) {
+        ndrv_size = get_image_size(filename);
+        if (ndrv_size != -1) {
+            ndrv_file = g_malloc(ndrv_size);
+            ndrv_size = load_image(filename, ndrv_file);
+
+            fw_cfg_add_file(fw_cfg, "ndrv/qemu_vga.ndrv", ndrv_file, ndrv_size);
+        }
+        g_free(filename);
+    }
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
