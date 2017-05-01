@@ -1501,17 +1501,21 @@ static void _decode_opc(DisasContext * ctx)
         }
         ctx->has_movcal = 1;
 	return;
-    case 0x40a9:
-	/* MOVUA.L @Rm,R0 (Rm) -> R0
-	   Load non-boundary-aligned data */
-        tcg_gen_qemu_ld_i32(REG(0), REG(B11_8), ctx->memidx, MO_TEUL);
-	return;
-    case 0x40e9:
-	/* MOVUA.L @Rm+,R0   (Rm) -> R0, Rm + 4 -> Rm
-	   Load non-boundary-aligned data */
-        tcg_gen_qemu_ld_i32(REG(0), REG(B11_8), ctx->memidx, MO_TEUL);
-	tcg_gen_addi_i32(REG(B11_8), REG(B11_8), 4);
-	return;
+    case 0x40a9:                /* movua.l @Rm,R0 */
+        /* Load non-boundary-aligned data */
+        if (ctx->features & SH_FEATURE_SH4A) {
+            tcg_gen_qemu_ld_i32(REG(0), REG(B11_8), ctx->memidx, MO_TEUL);
+            return;
+        }
+        break;
+    case 0x40e9:                /* movua.l @Rm+,R0 */
+        /* Load non-boundary-aligned data */
+        if (ctx->features & SH_FEATURE_SH4A) {
+            tcg_gen_qemu_ld_i32(REG(0), REG(B11_8), ctx->memidx, MO_TEUL);
+            tcg_gen_addi_i32(REG(B11_8), REG(B11_8), 4);
+            return;
+        }
+        break;
     case 0x0029:		/* movt Rn */
         tcg_gen_mov_i32(REG(B11_8), cpu_sr_t);
 	return;
