@@ -279,6 +279,7 @@ static void gen_conditional_jump(DisasContext * ctx,
     gen_goto_tb(ctx, 0, ifnott);
     gen_set_label(l1);
     gen_goto_tb(ctx, 1, ift);
+    ctx->bstate = BS_BRANCH;
 }
 
 /* Delayed conditional jump (bt or bf) */
@@ -1158,9 +1159,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x8b00:		/* bf label */
 	CHECK_NOT_DELAY_SLOT
-	    gen_conditional_jump(ctx, ctx->pc + 2,
-				 ctx->pc + 4 + B7_0s * 2);
-	ctx->bstate = BS_BRANCH;
+        gen_conditional_jump(ctx, ctx->pc + 2, ctx->pc + 4 + B7_0s * 2);
 	return;
     case 0x8f00:		/* bf/s label */
 	CHECK_NOT_DELAY_SLOT
@@ -1170,9 +1169,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x8900:		/* bt label */
 	CHECK_NOT_DELAY_SLOT
-	    gen_conditional_jump(ctx, ctx->pc + 4 + B7_0s * 2,
-				 ctx->pc + 2);
-	ctx->bstate = BS_BRANCH;
+        gen_conditional_jump(ctx, ctx->pc + 4 + B7_0s * 2, ctx->pc + 2);
 	return;
     case 0x8d00:		/* bt/s label */
 	CHECK_NOT_DELAY_SLOT
