@@ -339,7 +339,7 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
     if (ctx->envflags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {     \
         tcg_gen_movi_i32(cpu_pc, ctx->pc);                           \
         gen_helper_raise_slot_illegal_instruction(cpu_env);          \
-        ctx->bstate = BS_BRANCH;                                     \
+        ctx->bstate = BS_EXCP;                                       \
         return;                                                      \
     }
 
@@ -351,7 +351,7 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
         } else {                                                     \
             gen_helper_raise_illegal_instruction(cpu_env);           \
         }                                                            \
-        ctx->bstate = BS_BRANCH;                                     \
+        ctx->bstate = BS_EXCP;                                       \
         return;                                                      \
     }
 
@@ -363,7 +363,7 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
         } else {                                                     \
             gen_helper_raise_fpu_disable(cpu_env);                   \
         }                                                            \
-        ctx->bstate = BS_BRANCH;                                     \
+        ctx->bstate = BS_EXCP;                                       \
         return;                                                      \
     }
 
@@ -1289,7 +1289,7 @@ static void _decode_opc(DisasContext * ctx)
 	    imm = tcg_const_i32(B7_0);
             gen_helper_trapa(cpu_env, imm);
 	    tcg_temp_free(imm);
-	    ctx->bstate = BS_BRANCH;
+            ctx->bstate = BS_EXCP;
 	}
 	return;
     case 0xc800:		/* tst #imm,R0 */
@@ -1798,7 +1798,7 @@ static void _decode_opc(DisasContext * ctx)
     } else {
         gen_helper_raise_illegal_instruction(cpu_env);
     }
-    ctx->bstate = BS_BRANCH;
+    ctx->bstate = BS_EXCP;
 }
 
 static void decode_opc(DisasContext * ctx)
@@ -1867,7 +1867,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
             /* We have hit a breakpoint - make sure PC is up-to-date */
             tcg_gen_movi_i32(cpu_pc, ctx.pc);
             gen_helper_debug(cpu_env);
-            ctx.bstate = BS_BRANCH;
+            ctx.bstate = BS_EXCP;
             /* The address covered by the breakpoint must be included in
                [tb->pc, tb->pc + tb->size) in order to for it to be
                properly cleared -- thus we increment the PC here so that
@@ -1911,9 +1911,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
             gen_goto_tb(&ctx, 0, ctx.pc);
             break;
         case BS_EXCP:
-            /* gen_op_interrupt_restart(); */
-            tcg_gen_exit_tb(0);
-            break;
+            /* fall through */
         case BS_BRANCH:
         default:
             break;
