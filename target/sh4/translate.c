@@ -72,7 +72,7 @@ static TCGv cpu_pr, cpu_fpscr, cpu_fpul, cpu_ldst;
 static TCGv cpu_fregs[32];
 
 /* internal register indexes */
-static TCGv cpu_flags, cpu_delayed_pc;
+static TCGv cpu_flags, cpu_delayed_pc, cpu_delayed_cond;
 
 #include "exec/gen-icount.h"
 
@@ -147,6 +147,10 @@ void sh4_translate_init(void)
     cpu_delayed_pc = tcg_global_mem_new_i32(cpu_env,
 					    offsetof(CPUSH4State, delayed_pc),
 					    "_delayed_pc_");
+    cpu_delayed_cond = tcg_global_mem_new_i32(cpu_env,
+                                              offsetof(CPUSH4State,
+                                                       delayed_cond),
+                                              "_delayed_cond_");
     cpu_ldst = tcg_global_mem_new_i32(cpu_env,
 				      offsetof(CPUSH4State, ldst), "_ldst_");
 
@@ -252,11 +256,12 @@ static void gen_jump(DisasContext * ctx)
 
 static inline void gen_branch_slot(uint32_t delayed_pc, int t)
 {
-    TCGLabel *label = gen_new_label();
     tcg_gen_movi_i32(cpu_delayed_pc, delayed_pc);
-    tcg_gen_brcondi_i32(t ? TCG_COND_EQ : TCG_COND_NE, cpu_sr_t, 0, label);
-    tcg_gen_ori_i32(cpu_flags, cpu_flags, DELAY_SLOT_TRUE);
-    gen_set_label(label);
+    if (t) {
+        tcg_gen_mov_i32(cpu_delayed_cond, cpu_sr_t);
+    } else {
+        tcg_gen_xori_i32(cpu_delayed_cond, cpu_sr_t, 1);
+    }
 }
 
 /* Immediate conditional jump (bt or bf) */
@@ -278,18 +283,17 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
 
     l1 = gen_new_label();
     ds = tcg_temp_new();
-    tcg_gen_andi_i32(ds, cpu_flags, DELAY_SLOT_TRUE);
+    tcg_gen_mov_i32(ds, cpu_delayed_cond);
+    tcg_gen_discard_i32(cpu_delayed_cond);
     tcg_gen_brcondi_i32(TCG_COND_NE, ds, 0, l1);
     gen_goto_tb(ctx, 1, ctx->pc + 2);
     gen_set_label(l1);
-    tcg_gen_andi_i32(cpu_flags, cpu_flags, ~DELAY_SLOT_TRUE);
     gen_jump(ctx);
 }
 
 static inline void gen_store_flags(uint32_t flags)
 {
-    tcg_gen_andi_i32(cpu_flags, cpu_flags, DELAY_SLOT_TRUE);
-    tcg_gen_ori_i32(cpu_flags, cpu_flags, flags);
+    tcg_gen_movi_i32(cpu_flags, flags);
 }
 
 static inline void gen_load_fpr64(TCGv_i64 t, int reg)

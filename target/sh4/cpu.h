@@ -92,13 +92,6 @@
 
 #define DELAY_SLOT             (1 << 0)
 #define DELAY_SLOT_CONDITIONAL (1 << 1)
-#define DELAY_SLOT_TRUE        (1 << 2)
-/* The dynamic value of the DELAY_SLOT_TRUE flag determines whether the jump
- * after the delay slot should be taken or not. It is calculated from SR_T.
- *
- * It is unclear if it is permitted to modify the SR_T flag in a delay slot.
- * The use of DELAY_SLOT_TRUE flag makes us accept such SR_T modification.
- */
 
 typedef struct tlb_t {
     uint32_t vpn;		/* virtual page number */
@@ -148,7 +141,8 @@ typedef struct CPUSH4State {
     uint32_t sgr;		/* saved global register 15 */
     uint32_t dbr;		/* debug base register */
     uint32_t pc;		/* program counter */
-    uint32_t delayed_pc;	/* target of delayed jump */
+    uint32_t delayed_pc;        /* target of delayed branch */
+    uint32_t delayed_cond;      /* condition of delayed branch */
     uint32_t mach;		/* multiply and accumulate high */
     uint32_t macl;		/* multiply and accumulate low */
     uint32_t pr;		/* procedure register */

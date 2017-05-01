@@ -168,7 +168,7 @@ void superh_cpu_do_interrupt(CPUState *cs)
         /* Branch instruction should be executed again before delay slot. */
 	env->spc -= 2;
 	/* Clear flags for exception/interrupt routine. */
-	env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL | DELAY_SLOT_TRUE);
+        env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
     }
 
     if (do_exp) {
