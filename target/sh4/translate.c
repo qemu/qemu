@@ -1901,8 +1901,9 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     } else {
 	switch (ctx.bstate) {
         case BS_STOP:
-            /* gen_op_interrupt_restart(); */
-            /* fall through */
+            tcg_gen_movi_i32(cpu_pc, ctx.pc);
+            tcg_gen_exit_tb(0);
+            break;
         case BS_NONE:
             if (ctx.envflags) {
                 gen_store_flags(ctx.envflags);
