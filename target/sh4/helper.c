@@ -170,8 +170,6 @@ void superh_cpu_do_interrupt(CPUState *cs)
 	/* Clear flags for exception/interrupt routine. */
 	env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL | DELAY_SLOT_TRUE);
     }
-    if (env->flags & DELAY_SLOT_CLEARME)
-        env->flags = 0;
 
     if (do_exp) {
         env->expevt = cs->exception_index;

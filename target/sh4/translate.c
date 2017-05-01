@@ -1804,15 +1804,9 @@ static void decode_opc(DisasContext * ctx)
     _decode_opc(ctx);
 
     if (old_flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
-        if (ctx->envflags & DELAY_SLOT_CLEARME) {
-            gen_store_flags(0);
-        } else {
-	    /* go out of the delay slot */
-            uint32_t new_flags = ctx->envflags;
-	    new_flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
-	    gen_store_flags(new_flags);
-        }
-        ctx->envflags = 0;
+        /* go out of the delay slot */
+        ctx->envflags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+        gen_store_flags(ctx->envflags);
         ctx->bstate = BS_BRANCH;
         if (old_flags & DELAY_SLOT_CONDITIONAL) {
 	    gen_delayed_conditional_jump(ctx);
@@ -1840,8 +1834,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     pc_start = tb->pc;
     ctx.pc = pc_start;
     ctx.tbflags = (uint32_t)tb->flags;
-    ctx.envflags = tb->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL |
-                                DELAY_SLOT_CLEARME);
+    ctx.envflags = tb->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
     ctx.bstate = BS_NONE;
     ctx.memidx = (ctx.tbflags & (1u << SR_MD)) == 0 ? 1 : 0;
     /* We don't know if the delayed pc came from a dynamic or static branch,
@@ -1908,7 +1901,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
             /* fall through */
         case BS_NONE:
             if (ctx.envflags) {
-                gen_store_flags(ctx.envflags | DELAY_SLOT_CLEARME);
+                gen_store_flags(ctx.envflags);
 	    }
             gen_goto_tb(&ctx, 0, ctx.pc);
             break;
