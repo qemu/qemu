@@ -113,7 +113,7 @@ static void cg3_update_display(void *opaque)
     for (y = 0; y < height; y++) {
         int update = s->full_update;
 
-        page = y * width;
+        page = (ram_addr_t)y * width;
         update |= memory_region_get_dirty(&s->vram_mem, page, width,
                                           DIRTY_MEMORY_VGA);
         if (update) {
