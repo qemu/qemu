@@ -800,6 +800,7 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
      * the parent. */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_FORCE_SHARE);
 
     /* Inherit the read-only option from the parent if it's not set */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
@@ -908,6 +909,7 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
      * which is only applied on the top level (BlockBackend) */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_FORCE_SHARE);
 
     /* backing files always opened read-only */
     qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "on");
@@ -1150,6 +1152,11 @@ QemuOptsList bdrv_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "discard operation (ignore/off, unmap/on)",
         },
+        {
+            .name = BDRV_OPT_FORCE_SHARE,
+            .type = QEMU_OPT_BOOL,
+            .help = "always accept other writers (default: off)",
+        },
         { /* end of list */ }
     },
 };
@@ -1188,6 +1195,16 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     driver_name = qemu_opt_get(opts, "driver");
     drv = bdrv_find_format(driver_name);
     assert(drv != NULL);
+
+    bs->force_share = qemu_opt_get_bool(opts, BDRV_OPT_FORCE_SHARE, false);
+
+    if (bs->force_share && (bs->open_flags & BDRV_O_RDWR)) {
+        error_setg(errp,
+                   BDRV_OPT_FORCE_SHARE
+                   "=on can only be used with read-only images");
+        ret = -EINVAL;
+        goto fail_opts;
+    }
 
     if (file != NULL) {
         filename = blk_bs(file)->filename;

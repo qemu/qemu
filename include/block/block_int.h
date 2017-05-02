@@ -518,6 +518,7 @@ struct BlockDriverState {
     bool valid_key; /* if true, a valid encryption key has been set */
     bool sg;        /* if true, the device is a /dev/sg* */
     bool probed;    /* if true, format was probed rather than specified */
+    bool force_share; /* if true, always allow all shared permissions */
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;

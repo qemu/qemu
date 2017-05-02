@@ -2898,6 +2898,8 @@
 #                 (default: false)
 # @detect-zeroes: detect and optimize zero writes (Since 2.1)
 #                 (default: off)
+# @force-share:   force share all permission on added nodes.
+#                 Requires read-only=true. (Since 2.10)
 #
 # Remaining options are determined by the block driver.
 #
@@ -2909,6 +2911,7 @@
             '*discard': 'BlockdevDiscardOptions',
             '*cache': 'BlockdevCacheOptions',
             '*read-only': 'bool',
+            '*force-share': 'bool',
             '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
   'discriminator': 'driver',
   'data': {
