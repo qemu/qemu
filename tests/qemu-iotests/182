@@ -1,0 +1,68 @@
+#!/bin/bash
+#
+# Test image locking for POSIX locks
+#
+# Copyright 2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=famz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+size=32M
+
+_make_test_img $size
+
+echo "Starting QEMU"
+_launch_qemu -drive file=$TEST_IMG,if=none,id=drive0,file.locking=on \
+    -device virtio-blk-pci,drive=drive0
+
+echo
+echo "Starting a second QEMU using the same image should fail"
+echo 'quit' | $QEMU -monitor stdio \
+    -drive file=$TEST_IMG,if=none,id=drive0,file.locking=on \
+    -device virtio-blk-pci,drive=drive0 2>&1 | _filter_testdir 2>&1 |
+    _filter_qemu |
+    sed -e '/falling back to POSIX file/d' \
+        -e '/locks can be lost unexpectedly/d'
+
+_cleanup_qemu
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
