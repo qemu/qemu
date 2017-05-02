@@ -344,6 +344,11 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    if (qdict_get_try_bool(options, "locking", false)) {
+        error_setg(errp, "locking=on is not supported on Windows");
+        goto fail;
+    }
+
     filename = qemu_opt_get(opts, "filename");
 
     use_aio = get_aio_option(opts, flags, &local_err);
