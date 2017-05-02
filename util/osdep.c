@@ -140,6 +140,54 @@ static int qemu_parse_fdset(const char *param)
 {
     return qemu_parse_fd(param);
 }
+
+static int qemu_lock_fcntl(int fd, int64_t start, int64_t len, int fl_type)
+{
+#ifdef F_OFD_SETLK
+    int ret;
+    struct flock fl = {
+        .l_whence = SEEK_SET,
+        .l_start  = start,
+        .l_len    = len,
+        .l_type   = fl_type,
+    };
+    ret = fcntl(fd, F_OFD_SETLK, &fl);
+    return ret == -1 ? -errno : 0;
+#else
+    return -ENOTSUP;
+#endif
+}
+
+int qemu_lock_fd(int fd, int64_t start, int64_t len, bool exclusive)
+{
+    return qemu_lock_fcntl(fd, start, len, exclusive ? F_WRLCK : F_RDLCK);
+}
+
+int qemu_unlock_fd(int fd, int64_t start, int64_t len)
+{
+    return qemu_lock_fcntl(fd, start, len, F_UNLCK);
+}
+
+int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
+{
+#ifdef F_OFD_SETLK
+    int ret;
+    struct flock fl = {
+        .l_whence = SEEK_SET,
+        .l_start  = start,
+        .l_len    = len,
+        .l_type   = exclusive ? F_WRLCK : F_RDLCK,
+    };
+    ret = fcntl(fd, F_OFD_GETLK, &fl);
+    if (ret == -1) {
+        return -errno;
+    } else {
+        return fl.l_type == F_UNLCK ? 0 : -EAGAIN;
+    }
+#else
+    return -ENOTSUP;
+#endif
+}
 #endif
 
 /*
