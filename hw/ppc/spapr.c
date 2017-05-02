@@ -3242,6 +3242,7 @@ static void spapr_machine_2_9_class_options(MachineClass *mc)
 {
     spapr_machine_2_10_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_9);
+    mc->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
 }
 
 DEFINE_SPAPR_MACHINE(2_9, "2.9", false);

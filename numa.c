@@ -407,6 +407,42 @@ static void complete_init_numa_distance(void)
     }
 }
 
+void numa_legacy_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
+                                 int nb_nodes, ram_addr_t size)
+{
+    int i;
+    uint64_t usedmem = 0;
+
+    /* Align each node according to the alignment
+     * requirements of the machine class
+     */
+
+    for (i = 0; i < nb_nodes - 1; i++) {
+        nodes[i].node_mem = (size / nb_nodes) &
+                            ~((1 << mc->numa_mem_align_shift) - 1);
+        usedmem += nodes[i].node_mem;
+    }
+    nodes[i].node_mem = size - usedmem;
+}
+
+void numa_default_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
+                                  int nb_nodes, ram_addr_t size)
+{
+    int i;
+    uint64_t usedmem = 0, node_mem;
+    uint64_t granularity = size / nb_nodes;
+    uint64_t propagate = 0;
+
+    for (i = 0; i < nb_nodes - 1; i++) {
+        node_mem = (granularity + propagate) &
+                   ~((1 << mc->numa_mem_align_shift) - 1);
+        propagate = granularity + propagate - node_mem;
+        nodes[i].node_mem = node_mem;
+        usedmem += node_mem;
+    }
+    nodes[i].node_mem = size - usedmem;
+}
+
 void parse_numa_opts(MachineClass *mc)
 {
     int i;
@@ -449,17 +485,8 @@ void parse_numa_opts(MachineClass *mc)
             }
         }
         if (i == nb_numa_nodes) {
-            uint64_t usedmem = 0;
-
-            /* Align each node according to the alignment
-             * requirements of the machine class
-             */
-            for (i = 0; i < nb_numa_nodes - 1; i++) {
-                numa_info[i].node_mem = (ram_size / nb_numa_nodes) &
-                                        ~((1 << mc->numa_mem_align_shift) - 1);
-                usedmem += numa_info[i].node_mem;
-            }
-            numa_info[i].node_mem = ram_size - usedmem;
+            assert(mc->numa_auto_assign_ram);
+            mc->numa_auto_assign_ram(mc, numa_info, nb_numa_nodes, ram_size);
         }
 
         numa_total = 0;

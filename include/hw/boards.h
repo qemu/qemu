@@ -136,6 +136,8 @@ struct MachineClass {
     int minimum_page_bits;
     bool has_hotpluggable_cpus;
     int numa_mem_align_shift;
+    void (*numa_auto_assign_ram)(MachineClass *mc, NodeInfo *nodes,
+                                 int nb_nodes, ram_addr_t size);
 
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);

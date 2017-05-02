@@ -17,6 +17,7 @@
 #include "qapi/visitor.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/numa.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
 
@@ -400,6 +401,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
      * On Linux, each node's border has to be 8MB aligned
      */
     mc->numa_mem_align_shift = 23;
+    mc->numa_auto_assign_ram = numa_default_auto_assign_ram;
 
     object_class_property_add_str(oc, "accel",
         machine_get_accel, machine_set_accel, &error_abort);
