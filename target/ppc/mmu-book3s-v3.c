@@ -22,15 +22,13 @@
 #include "cpu.h"
 #include "mmu-hash64.h"
 #include "mmu-book3s-v3.h"
-#include "qemu/error-report.h"
+#include "mmu-radix64.h"
 
 int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                               int mmu_idx)
 {
     if (ppc64_radix_guest(cpu)) { /* Guest uses radix */
-        /* TODO - Unsupported */
-        error_report("Guest Radix Support Unimplemented");
-        exit(1);
+        return ppc_radix64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);
     } else { /* Guest uses hash */
         return ppc_hash64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);
     }

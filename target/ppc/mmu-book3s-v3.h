@@ -25,6 +25,11 @@
 /* Partition Table Entry Fields */
 #define PATBE1_GR 0x8000000000000000
 
+/* Process Table Entry */
+struct prtb_entry {
+    uint64_t prtbe0, prtbe1;
+};
+
 #ifdef TARGET_PPC64
 
 static inline bool ppc64_use_proc_tbl(PowerPCCPU *cpu)

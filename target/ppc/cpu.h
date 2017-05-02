@@ -482,6 +482,8 @@ struct ppc_slb_t {
 #define DSISR_ISSTORE            0x02000000
 /* Not permitted by virtual page class key protection */
 #define DSISR_AMR                0x00200000
+/* Unsupported Radix Tree Configuration */
+#define DSISR_R_BADCONFIG        0x00080000
 
 /* SRR1 error code fields */
 
