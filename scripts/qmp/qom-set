@@ -61,4 +61,4 @@ else:
 srv = QEMUMonitorProtocol(socket_path)
 srv.connect()
 
-print srv.command('qom-set', path=path, property=prop, value=sys.argv[2])
+print srv.command('qom-set', path=path, property=prop, value=value)
