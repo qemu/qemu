@@ -218,6 +218,7 @@ struct DisasContext {
     bool vsx_enabled;
     bool spe_enabled;
     bool tm_enabled;
+    bool gtse;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
     uint64_t insns_flags;
@@ -4538,7 +4539,12 @@ static void gen_tlbie(DisasContext *ctx)
     GEN_PRIV;
 #else
     TCGv_i32 t1;
-    CHK_HV;
+
+    if (ctx->gtse) {
+        CHK_SV; /* If gtse is set then tblie is supervisor privileged */
+    } else {
+        CHK_HV; /* Else hypervisor privileged */
+    }
 
     if (NARROW_MODE(ctx)) {
         TCGv t0 = tcg_temp_new();
@@ -7252,6 +7258,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         ctx.tm_enabled = false;
     }
 #endif
+    ctx.gtse = !!(env->spr[SPR_LPCR] & LPCR_GTSE);
     if ((env->flags & POWERPC_FLAG_SE) && msr_se)
         ctx.singlestep_enabled = CPU_SINGLE_STEP;
     else
