@@ -70,7 +70,7 @@ static int tftp_session_allocate(Slirp *slirp, struct sockaddr_storage *srcsas,
 
  found:
   memset(spt, 0, sizeof(*spt));
-  spt->client_addr = *srcsas;
+  memcpy(&spt->client_addr, srcsas, sockaddr_size(srcsas));
   spt->fd = -1;
   spt->block_size = 512;
   spt->client_port = tp->udp.uh_sport;

@@ -15,6 +15,12 @@
  * Our socket structure
  */
 
+union slirp_sockaddr {
+    struct sockaddr_storage ss;
+    struct sockaddr_in sin;
+    struct sockaddr_in6 sin6;
+};
+
 struct socket {
   struct socket *so_next,*so_prev;      /* For a linked list of sockets */
 
@@ -30,23 +36,15 @@ struct socket {
 				    * PING reply's */
   struct tcpiphdr *so_ti;	   /* Pointer to the original ti within
 				    * so_mconn, for non-blocking connections */
-  int so_urgc;
-  union {   /* foreign host */
-      struct sockaddr_storage ss;
-      struct sockaddr_in sin;
-      struct sockaddr_in6 sin6;
-  } fhost;
+  uint32_t      so_urgc;
+  union slirp_sockaddr fhost;      /* Foreign host */
 #define so_faddr fhost.sin.sin_addr
 #define so_fport fhost.sin.sin_port
 #define so_faddr6 fhost.sin6.sin6_addr
 #define so_fport6 fhost.sin6.sin6_port
 #define so_ffamily fhost.ss.ss_family
 
-  union {   /* local host */
-      struct sockaddr_storage ss;
-      struct sockaddr_in sin;
-      struct sockaddr_in6 sin6;
-  } lhost;
+  union slirp_sockaddr lhost;      /* Local host */
 #define so_laddr lhost.sin.sin_addr
 #define so_lport lhost.sin.sin_port
 #define so_laddr6 lhost.sin6.sin6_addr
@@ -56,8 +54,8 @@ struct socket {
   uint8_t	so_iptos;	/* Type of service */
   uint8_t	so_emu;		/* Is the socket emulated? */
 
-  u_char	so_type;		/* Type of socket, UDP or TCP */
-  int	so_state;		/* internal state flags SS_*, below */
+  uint8_t       so_type;        /* Type of socket, UDP or TCP */
+  int32_t       so_state;       /* internal state flags SS_*, below */
 
   struct 	tcpcb *so_tcpcb;	/* pointer to TCP protocol control block */
   u_int	so_expire;		/* When the socket will expire */
