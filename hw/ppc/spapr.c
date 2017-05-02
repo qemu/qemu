@@ -855,6 +855,8 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
  * option vector 5: */
 static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
 {
+    PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
+
     char val[2 * 3] = {
         24, 0x00, /* Hash/Radix, filled in below. */
         25, 0x00, /* Hash options: Segment Tables == no, GTSE == no. */
@@ -870,8 +872,13 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
             val[1] = 0x00; /* Hash */
         }
     } else {
-        /* TODO: TCG case, hash */
-        val[1] = 0x00;
+        if (first_ppc_cpu->env.mmu_model & POWERPC_MMU_V3) {
+            /* V3 MMU supports both hash and radix (with dynamic switching) */
+            val[1] = 0xC0;
+        } else {
+            /* Otherwise we can only do hash */
+            val[1] = 0x00;
+        }
     }
     _FDT(fdt_setprop(fdt, chosen, "ibm,arch-vec-5-platform-support",
                      val, sizeof(val)));
@@ -2101,8 +2108,8 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     spapr_ovec_set(spapr->ov5, OV5_FORM1_AFFINITY);
-    if (kvmppc_has_cap_mmu_radix()) {
-        /* KVM always allows GTSE with radix... */
+    if (!kvm_enabled() || kvmppc_has_cap_mmu_radix()) {
+        /* KVM and TCG always allow GTSE with radix... */
         spapr_ovec_set(spapr->ov5, OV5_MMU_RADIX_GTSE);
     }
     /* ... but not with hash (currently). */
