@@ -45,7 +45,7 @@ _cleanup()
         rm -f "${TEST_DIR}/${i}-${snapshot_virt0}"
         rm -f "${TEST_DIR}/${i}-${snapshot_virt1}"
     done
-    rm -f "${TEST_IMG}.1" "${TEST_IMG}.2"
+    rm -f "${TEST_IMG}" "${TEST_IMG}.1" "${TEST_IMG}.2" "${TEST_IMG}.base"
 
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
@@ -87,24 +87,26 @@ function create_group_snapshot()
 }
 
 # ${1}: unique identifier for the snapshot filename
-# ${2}: true: open backing images; false: don't open them (default)
+# ${2}: extra_params to the blockdev-add command
+# ${3}: filename
+function do_blockdev_add()
+{
+    cmd="{ 'execute': 'blockdev-add', 'arguments':
+           { 'driver': 'qcow2', 'node-name': 'snap_${1}', ${2}
+             'file':
+             { 'driver': 'file', 'filename': '${3}',
+               'node-name': 'file_${1}' } } }"
+    _send_qemu_cmd $h "${cmd}" "return"
+}
+
+# ${1}: unique identifier for the snapshot filename
 function add_snapshot_image()
 {
-    if [ "${2}" = "true" ]; then
-        extra_params=""
-    else
-        extra_params="'backing': '', "
-    fi
     base_image="${TEST_DIR}/$((${1}-1))-${snapshot_virt0}"
     snapshot_file="${TEST_DIR}/${1}-${snapshot_virt0}"
     _make_test_img -b "${base_image}" "$size"
     mv "${TEST_IMG}" "${snapshot_file}"
-    cmd="{ 'execute': 'blockdev-add', 'arguments':
-           { 'driver': 'qcow2', 'node-name': 'snap_${1}', ${extra_params}
-             'file':
-             { 'driver': 'file', 'filename': '${snapshot_file}',
-               'node-name': 'file_${1}' } } }"
-    _send_qemu_cmd $h "${cmd}" "return"
+    do_blockdev_add "$1" "'backing': '', " "${snapshot_file}"
 }
 
 # ${1}: unique identifier for the snapshot filename
@@ -222,7 +224,10 @@ echo === Invalid command - snapshot node has a backing image ===
 echo
 
 SNAPSHOTS=$((${SNAPSHOTS}+1))
-add_snapshot_image ${SNAPSHOTS} true
+
+TEST_IMG="$TEST_IMG.base" _make_test_img "$size"
+_make_test_img -b "${TEST_IMG}.base" "$size"
+do_blockdev_add ${SNAPSHOTS} "" "${TEST_IMG}"
 blockdev_snapshot ${SNAPSHOTS} error
 
 echo
