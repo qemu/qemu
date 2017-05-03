@@ -1511,7 +1511,8 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
                 break;
 
             case QCOW2_CLUSTER_ZERO:
-                if (!full_discard) {
+                /* Preallocated zero clusters should be discarded in any case */
+                if (!full_discard && (old_l2_entry & L2E_OFFSET_MASK) == 0) {
                     continue;
                 }
                 break;
