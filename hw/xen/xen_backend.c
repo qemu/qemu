@@ -619,10 +619,7 @@ static void xendev_class_init(ObjectClass *klass, void *data)
 
     dc->props = xendev_properties;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    /*
-     * FIXME: Set only because we are not sure yet if this device
-     * will be outside the q35 sysbus whitelist.
-     */
+    /* xen-backend devices can be plugged/unplugged dynamically */
     dc->user_creatable = true;
 }
 
