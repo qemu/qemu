@@ -80,7 +80,7 @@ static void altera_iic_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     /* Reason: needs to be wired up, e.g. by nios2_10m50_ghrd_init() */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
     dc->realize = altera_iic_realize;
 }
 

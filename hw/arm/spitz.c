@@ -1076,7 +1076,7 @@ static void sl_nand_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_sl_nand_info;
     dc->props = sl_nand_properties;
     /* Reason: init() method uses drive_get() */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo sl_nand_info = {

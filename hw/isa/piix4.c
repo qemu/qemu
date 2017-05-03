@@ -123,7 +123,7 @@ static void piix4_class_init(ObjectClass *klass, void *data)
      * Reason: part of PIIX4 southbridge, needs to be wired up,
      * e.g. by mips_malta_init()
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
     dc->hotpluggable = false;
 }
 

@@ -364,7 +364,7 @@ static void raven_class_init(ObjectClass *klass, void *data)
      * Reason: PCI-facing part of the host bridge, not usable without
      * the host-facing part, which can't be device_add'ed, yet.
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo raven_info = {

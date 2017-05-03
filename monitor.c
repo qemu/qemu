@@ -3254,7 +3254,7 @@ void device_add_completion(ReadLineState *rs, int nb_args, const char *str)
                                              TYPE_DEVICE);
         name = object_class_get_name(OBJECT_CLASS(dc));
 
-        if (!dc->cannot_instantiate_with_device_add_yet
+        if (dc->user_creatable
             && !strncmp(name, str, len)) {
             readline_add_completion(rs, name);
         }

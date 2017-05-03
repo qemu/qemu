@@ -805,7 +805,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
      * Reason: part of ICH9 southbridge, needs to be wired up by
      * pc_q35_init()
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
     hc->plug = ich9_pm_device_plug_cb;
     hc->unplug_request = ich9_pm_device_unplug_request_cb;
     hc->unplug = ich9_pm_device_unplug_cb;
