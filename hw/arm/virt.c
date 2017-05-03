@@ -1194,6 +1194,29 @@ void virt_machine_done(Notifier *notifier, void *data)
     virt_build_smbios(vms);
 }
 
+static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
+{
+    uint8_t clustersz = ARM_DEFAULT_CPUS_PER_CLUSTER;
+    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+
+    if (!vmc->disallow_affinity_adjustment) {
+        /* Adjust MPIDR like 64-bit KVM hosts, which incorporate the
+         * GIC's target-list limitations. 32-bit KVM hosts currently
+         * always create clusters of 4 CPUs, but that is expected to
+         * change when they gain support for gicv3. When KVM is enabled
+         * it will override the changes we make here, therefore our
+         * purposes are to make TCG consistent (with 64-bit KVM hosts)
+         * and to improve SGI efficiency.
+         */
+        if (vms->gic_version == 3) {
+            clustersz = GICV3_TARGETLIST_BITS;
+        } else {
+            clustersz = GIC_TARGETLIST_BITS;
+        }
+    }
+    return arm_cpu_mp_affinity(idx, clustersz);
+}
+
 static void machvirt_init(MachineState *machine)
 {
     VirtMachineState *vms = VIRT_MACHINE(machine);
@@ -1210,7 +1233,6 @@ static void machvirt_init(MachineState *machine)
     CPUClass *cc;
     Error *err = NULL;
     bool firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
-    uint8_t clustersz;
 
     if (!cpu_model) {
         cpu_model = "cortex-a15";
@@ -1263,10 +1285,8 @@ static void machvirt_init(MachineState *machine)
      */
     if (vms->gic_version == 3) {
         virt_max_cpus = vms->memmap[VIRT_GIC_REDIST].size / 0x20000;
-        clustersz = GICV3_TARGETLIST_BITS;
     } else {
         virt_max_cpus = GIC_NCPU;
-        clustersz = GIC_TARGETLIST_BITS;
     }
 
     if (max_cpus > virt_max_cpus) {
@@ -1326,20 +1346,9 @@ static void machvirt_init(MachineState *machine)
 
     for (n = 0; n < smp_cpus; n++) {
         Object *cpuobj = object_new(typename);
-        if (!vmc->disallow_affinity_adjustment) {
-            /* Adjust MPIDR like 64-bit KVM hosts, which incorporate the
-             * GIC's target-list limitations. 32-bit KVM hosts currently
-             * always create clusters of 4 CPUs, but that is expected to
-             * change when they gain support for gicv3. When KVM is enabled
-             * it will override the changes we make here, therefore our
-             * purposes are to make TCG consistent (with 64-bit KVM hosts)
-             * and to improve SGI efficiency.
-             */
-            uint8_t aff1 = n / clustersz;
-            uint8_t aff0 = n % clustersz;
-            object_property_set_int(cpuobj, (aff1 << ARM_AFF1_SHIFT) | aff0,
-                                    "mp-affinity", NULL);
-        }
+
+        object_property_set_int(cpuobj, virt_cpu_mp_affinity(vms, n),
+                                "mp-affinity", NULL);
 
         if (!vms->secure) {
             object_property_set_bool(cpuobj, false, "has_el3", NULL);
