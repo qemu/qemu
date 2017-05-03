@@ -2139,7 +2139,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
          * too, as long as the bulk is allocated here). Therefore, using
          * floating point arithmetic is fine. */
         int64_t meta_size = 0;
-        uint64_t nreftablee, nrefblocke, nl1e, nl2e;
+        uint64_t nreftablee, nrefblocke, nl1e, nl2e, refblock_count;
         int64_t aligned_total_size = align_offset(total_size, cluster_size);
         int refblock_bits, refblock_size;
         /* refcount entry size in bytes */
@@ -2182,11 +2182,12 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         nrefblocke = (aligned_total_size + meta_size + cluster_size)
                    / (cluster_size - rces - rces * sizeof(uint64_t)
                                                  / cluster_size);
-        meta_size += DIV_ROUND_UP(nrefblocke, refblock_size) * cluster_size;
+        refblock_count = DIV_ROUND_UP(nrefblocke, refblock_size);
+        meta_size += refblock_count * cluster_size;
 
         /* total size of refcount tables */
-        nreftablee = nrefblocke / refblock_size;
-        nreftablee = align_offset(nreftablee, cluster_size / sizeof(uint64_t));
+        nreftablee = align_offset(refblock_count,
+                                  cluster_size / sizeof(uint64_t));
         meta_size += nreftablee * sizeof(uint64_t);
 
         qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
