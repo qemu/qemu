@@ -1349,6 +1349,7 @@ static void machvirt_init(MachineState *machine)
     possible_cpus = mc->possible_cpu_arch_ids(machine);
     for (n = 0; n < possible_cpus->len; n++) {
         Object *cpuobj;
+        CPUState *cs;
 
         if (n >= smp_cpus) {
             break;
@@ -1357,6 +1358,9 @@ static void machvirt_init(MachineState *machine)
         cpuobj = object_new(typename);
         object_property_set_int(cpuobj, possible_cpus->cpus[n].arch_id,
                                 "mp-affinity", NULL);
+
+        cs = CPU(cpuobj);
+        cs->cpu_index = n;
 
         if (!vms->secure) {
             object_property_set_bool(cpuobj, false, "has_el3", NULL);
