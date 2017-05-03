@@ -771,6 +771,11 @@ static void hpet_device_class_init(ObjectClass *klass, void *data)
     dc->reset = hpet_reset;
     dc->vmsd = &vmstate_hpet;
     dc->props = hpet_device_properties;
+    /*
+     * FIXME: Set only because we are not sure yet if this device
+     * will be outside the q35 sysbus whitelist.
+     */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo hpet_device_info = {

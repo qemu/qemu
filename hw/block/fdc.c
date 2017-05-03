@@ -2880,6 +2880,11 @@ static void sysbus_fdc_class_init(ObjectClass *klass, void *data)
 
     dc->props = sysbus_fdc_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    /*
+     * FIXME: Set only because we are not sure yet if this device
+     * will be outside the q35 sysbus whitelist.
+     */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo sysbus_fdc_info = {
@@ -2906,6 +2911,11 @@ static void sun4m_fdc_class_init(ObjectClass *klass, void *data)
 
     dc->props = sun4m_fdc_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    /*
+     * FIXME: Set only because we are not sure yet if this device
+     * will be outside the q35 sysbus whitelist.
+     */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo sun4m_fdc_info = {

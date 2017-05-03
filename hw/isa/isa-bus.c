@@ -221,6 +221,11 @@ static void isabus_bridge_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "isa";
+    /*
+     * FIXME: Set only because we are not sure yet if this device
+     * will be outside the q35 sysbus whitelist.
+     */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo isabus_bridge_info = {
