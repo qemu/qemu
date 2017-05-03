@@ -366,7 +366,7 @@ static void unin_main_pci_host_class_init(ObjectClass *klass, void *data)
      * PCI-facing part of the host bridge, not usable without the
      * host-facing part, which can't be device_add'ed, yet.
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo unin_main_pci_host_info = {
@@ -390,7 +390,7 @@ static void u3_agp_pci_host_class_init(ObjectClass *klass, void *data)
      * PCI-facing part of the host bridge, not usable without the
      * host-facing part, which can't be device_add'ed, yet.
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo u3_agp_pci_host_info = {
@@ -414,7 +414,7 @@ static void unin_agp_pci_host_class_init(ObjectClass *klass, void *data)
      * PCI-facing part of the host bridge, not usable without the
      * host-facing part, which can't be device_add'ed, yet.
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo unin_agp_pci_host_info = {
@@ -438,7 +438,7 @@ static void unin_internal_pci_host_class_init(ObjectClass *klass, void *data)
      * PCI-facing part of the host bridge, not usable without the
      * host-facing part, which can't be device_add'ed, yet.
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo unin_internal_pci_host_info = {

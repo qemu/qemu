@@ -449,7 +449,7 @@ static void cpu_class_init(ObjectClass *klass, void *data)
      * Reason: CPUs still need special care by board code: wiring up
      * IRQs, adding reset handlers, halting non-first CPUs, ...
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo cpu_type_info = {

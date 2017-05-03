@@ -691,7 +691,7 @@ static void pci_piix3_class_init(ObjectClass *klass, void *data)
      * Reason: part of PIIX3 southbridge, needs to be wired up by
      * pc_piix.c's pc_init1()
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo piix3_pci_type_info = {
@@ -745,7 +745,7 @@ static void i440fx_class_init(ObjectClass *klass, void *data)
      * PCI-facing part of the host bridge, not usable without the
      * host-facing part, which can't be device_add'ed, yet.
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
     dc->hotpluggable   = false;
 }
 
@@ -874,7 +874,7 @@ static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
     dc->fw_name = "pci";
     dc->props = i440fx_props;
     /* Reason: needs to be wired up by pc_init1 */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo i440fx_pcihost_info = {

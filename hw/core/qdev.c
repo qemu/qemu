@@ -1159,6 +1159,7 @@ static void device_class_init(ObjectClass *class, void *data)
      * should override it in their class_init()
      */
     dc->hotpluggable = true;
+    dc->user_creatable = true;
 }
 
 void device_reset(DeviceState *dev)

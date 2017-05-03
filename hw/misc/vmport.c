@@ -163,7 +163,7 @@ static void vmport_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = vmport_realizefn;
     /* Reason: realize sets global port_state */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo vmport_info = {

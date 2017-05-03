@@ -4066,7 +4066,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->cpu_exec_enter = x86_cpu_exec_enter;
     cc->cpu_exec_exit = x86_cpu_exec_exit;
 
-    dc->cannot_instantiate_with_device_add_yet = false;
+    dc->user_creatable = true;
 }
 
 static const TypeInfo x86_cpu_type_info = {

@@ -494,7 +494,7 @@ static void via_class_init(ObjectClass *klass, void *data)
      * Reason: part of VIA VT82C686 southbridge, needs to be wired up,
      * e.g. by mips_fulong2e_init()
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo via_info = {

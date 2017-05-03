@@ -91,7 +91,7 @@ static void or_irq_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_or_irq;
 
     /* Reason: Needs to be wired up to work, e.g. see stm32f205_soc.c */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo or_irq_type_info = {

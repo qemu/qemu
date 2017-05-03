@@ -123,7 +123,7 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     sc->read_data = eeprom_read_data;
     dc->props = smbus_eeprom_properties;
     /* Reason: pointer property "data" */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo smbus_eeprom_info = {

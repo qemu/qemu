@@ -103,16 +103,17 @@ typedef struct DeviceClass {
     Property *props;
 
     /*
-     * Shall we hide this device model from -device / device_add?
+     * Can this device be instantiated with -device / device_add?
      * All devices should support instantiation with device_add, and
      * this flag should not exist.  But we're not there, yet.  Some
      * devices fail to instantiate with cryptic error messages.
      * Others instantiate, but don't work.  Exposing users to such
-     * behavior would be cruel; this flag serves to protect them.  It
-     * should never be set without a comment explaining why it is set.
+     * behavior would be cruel; clearing this flag will protect them.
+     * It should never be cleared without a comment explaining why it
+     * is cleared.
      * TODO remove once we're there
      */
-    bool cannot_instantiate_with_device_add_yet;
+    bool user_creatable;
     /*
      * Does this device model survive object_unref(object_new(TNAME))?
      * All device models should, and this flag shouldn't exist.  Some

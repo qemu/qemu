@@ -134,12 +134,12 @@ extern PropertyInfo qdev_prop_arraylen;
  *   device_add, so add code like this:
  *   |* Reason: pointer property "NAME-OF-YOUR-PROP" *|
  *   DeviceClass *dc = DEVICE_CLASS(class);
- *   dc->cannot_instantiate_with_device_add_yet = true;
+ *   dc->user_creatable = false;
  *
  * - If the property may safely remain null, document it like this:
  *   |*
  *    * Note: pointer property "interrupt_vector" may remain null, thus
- *    * no need for dc->cannot_instantiate_with_device_add_yet = true;
+ *    * no need for dc->user_creatable = false;
  *    *|
  */
 #define DEFINE_PROP_PTR(_n, _s, _f)             \

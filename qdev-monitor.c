@@ -113,7 +113,7 @@ static void qdev_print_devinfo(DeviceClass *dc)
     if (dc->desc) {
         error_printf(", desc \"%s\"", dc->desc);
     }
-    if (dc->cannot_instantiate_with_device_add_yet) {
+    if (!dc->user_creatable) {
         error_printf(", no-user");
     }
     error_printf("\n");
@@ -155,7 +155,7 @@ static void qdev_print_devinfos(bool show_no_user)
                  ? !test_bit(i, dc->categories)
                  : !bitmap_empty(dc->categories, DEVICE_CATEGORY_MAX))
                 || (!show_no_user
-                    && dc->cannot_instantiate_with_device_add_yet)) {
+                    && !dc->user_creatable)) {
                 continue;
             }
             if (!cat_printed) {
@@ -240,7 +240,7 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
     }
 
     dc = DEVICE_CLASS(oc);
-    if (dc->cannot_instantiate_with_device_add_yet ||
+    if (!dc->user_creatable ||
         (qdev_hotplug && !dc->hotpluggable)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
                    "pluggable device type");
