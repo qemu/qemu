@@ -748,7 +748,7 @@ Other options:
   --help => show this help information
 
 Default options:
-  [--email --nogit --git-fallback --m --n --l --multiline -pattern-depth=0
+  [--email --nogit --git-fallback --m --n --l --multiline --pattern-depth=0
    --remove-duplicates --rolestats]
 
 Notes:
