@@ -227,13 +227,13 @@ static void jazz_led_invalidate_display(void *opaque)
 static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
 {
     LedState *s = opaque;
-    char buf[2];
+    char buf[3];
 
     dpy_text_cursor(s->con, -1, -1);
     qemu_console_resize(s->con, 2, 1);
 
     /* TODO: draw the segments */
-    snprintf(buf, 2, "%02hhx\n", s->segments);
+    snprintf(buf, 3, "%02hhx", s->segments);
     console_write_ch(chardata++, ATTR2CHTYPE(buf[0], QEMU_COLOR_BLUE,
                                              QEMU_COLOR_BLACK, 1));
     console_write_ch(chardata++, ATTR2CHTYPE(buf[1], QEMU_COLOR_BLUE,
