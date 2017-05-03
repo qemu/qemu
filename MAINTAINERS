@@ -1546,6 +1546,18 @@ F: net/colo*
 F: net/filter-rewriter.c
 F: net/filter-mirror.c
 
+Record/replay
+M: Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>
+R: Paolo Bonzini <pbonzini@redhat.com>
+W: http://wiki.qemu.org/Features/record-replay
+S: Supported
+F: replay/*
+F: block/blkreplay.c
+F: net/filter-replay.c
+F: include/sysemu/replay.h
+F: docs/replay.txt
+F: stubs/replay.c
+
 Usermode Emulation
 ------------------
 Overall
