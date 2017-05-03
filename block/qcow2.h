@@ -322,6 +322,9 @@ typedef struct QCowL2Meta
     /** Number of newly allocated clusters */
     int nb_clusters;
 
+    /** Do not free the old clusters */
+    bool keep_old_clusters;
+
     /**
      * Requests that overlap with this allocation and wait to be restarted
      * when the allocating request has completed.
