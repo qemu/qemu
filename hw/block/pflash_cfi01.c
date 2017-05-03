@@ -927,11 +927,6 @@ static void pflash_cfi01_class_init(ObjectClass *klass, void *data)
     dc->props = pflash_cfi01_properties;
     dc->vmsd = &vmstate_pflash;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    /*
-     * FIXME: Set only because we are not sure yet if this device
-     * will be outside the q35 sysbus whitelist.
-     */
-    dc->user_creatable = true;
 }
 
 
