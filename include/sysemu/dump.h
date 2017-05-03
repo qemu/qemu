@@ -157,6 +157,7 @@ typedef struct DumpState {
     uint32_t sh_info;
     bool have_section;
     bool resume;
+    bool detached;
     ssize_t note_size;
     hwaddr memory_offset;
     int fd;

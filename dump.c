@@ -77,7 +77,13 @@ static int dump_cleanup(DumpState *s)
     memory_mapping_list_free(&s->list);
     close(s->fd);
     if (s->resume) {
+        if (s->detached) {
+            qemu_mutex_lock_iothread();
+        }
         vm_start();
+        if (s->detached) {
+            qemu_mutex_unlock_iothread();
+        }
     }
 
     return 0;
@@ -1804,6 +1810,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
 
     if (detach_p) {
         /* detached dump */
+        s->detached = true;
         qemu_thread_create(&s->dump_thread, "dump_thread", dump_thread,
                            s, QEMU_THREAD_DETACHED);
     } else {
