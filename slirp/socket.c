@@ -100,6 +100,9 @@ sofree(struct socket *so)
   if(so->so_next && so->so_prev)
     remque(so);  /* crashes if so is not in a queue */
 
+  if (so->so_tcpcb) {
+      free(so->so_tcpcb);
+  }
   free(so);
 }
 
