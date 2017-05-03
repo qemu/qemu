@@ -337,6 +337,7 @@ void memory_mapping_filter(MemoryMappingList *list, int64_t begin,
         if (cur->phys_addr >= begin + length ||
             cur->phys_addr + cur->length <= begin) {
             QTAILQ_REMOVE(&list->head, cur, next);
+            g_free(cur);
             list->num--;
             continue;
         }
