@@ -2625,8 +2625,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         if (!(~vdev->host.domain || ~vdev->host.bus ||
               ~vdev->host.slot || ~vdev->host.function)) {
             error_setg(errp, "No provided host device");
-            error_append_hint(errp, "Use -vfio-pci,host=DDDD:BB:DD.F "
-                              "or -vfio-pci,sysfsdev=PATH_TO_DEVICE\n");
+            error_append_hint(errp, "Use -device vfio-pci,host=DDDD:BB:DD.F "
+                              "or -device vfio-pci,sysfsdev=PATH_TO_DEVICE\n");
             return;
         }
         vdev->vbasedev.sysfsdev =
