@@ -2813,11 +2813,15 @@
 #               "name1=content1; name2=content2;" as explained by
 #               CURLOPT_COOKIE(3). Defaults to no cookies.
 #
+# @cookie-secret: ID of a QCryptoSecret object providing the cookie data in a
+#                 secure way. See @cookie for the format. (since 2.10)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsCurlHttp',
   'base': 'BlockdevOptionsCurlBase',
-  'data': { '*cookie': 'str' } }
+  'data': { '*cookie': 'str',
+            '*cookie-secret': 'str'} }
 
 ##
 # @BlockdevOptionsCurlHttps:
@@ -2832,12 +2836,16 @@
 # @sslverify:   Whether to verify the SSL certificate's validity (defaults to
 #               true)
 #
+# @cookie-secret: ID of a QCryptoSecret object providing the cookie data in a
+#                 secure way. See @cookie for the format. (since 2.10)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsCurlHttps',
   'base': 'BlockdevOptionsCurlBase',
   'data': { '*cookie': 'str',
-            '*sslverify': 'bool' } }
+            '*sslverify': 'bool',
+            '*cookie-secret': 'str'} }
 
 ##
 # @BlockdevOptionsCurlFtp:

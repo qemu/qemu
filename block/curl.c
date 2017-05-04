@@ -85,6 +85,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_BLOCK_OPT_SSLVERIFY "sslverify"
 #define CURL_BLOCK_OPT_TIMEOUT "timeout"
 #define CURL_BLOCK_OPT_COOKIE    "cookie"
+#define CURL_BLOCK_OPT_COOKIE_SECRET "cookie-secret"
 #define CURL_BLOCK_OPT_USERNAME "username"
 #define CURL_BLOCK_OPT_PASSWORD_SECRET "password-secret"
 #define CURL_BLOCK_OPT_PROXY_USERNAME "proxy-username"
@@ -624,6 +625,11 @@ static QemuOptsList runtime_opts = {
             .help = "Pass the cookie or list of cookies with each request"
         },
         {
+            .name = CURL_BLOCK_OPT_COOKIE_SECRET,
+            .type = QEMU_OPT_STRING,
+            .help = "ID of secret used as cookie passed with each request"
+        },
+        {
             .name = CURL_BLOCK_OPT_USERNAME,
             .type = QEMU_OPT_STRING,
             .help = "Username for HTTP auth"
@@ -657,6 +663,7 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     const char *file;
     const char *cookie;
+    const char *cookie_secret;
     double d;
     const char *secretid;
     const char *protocol_delimiter;
@@ -693,7 +700,22 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     s->sslverify = qemu_opt_get_bool(opts, CURL_BLOCK_OPT_SSLVERIFY, true);
 
     cookie = qemu_opt_get(opts, CURL_BLOCK_OPT_COOKIE);
-    s->cookie = g_strdup(cookie);
+    cookie_secret = qemu_opt_get(opts, CURL_BLOCK_OPT_COOKIE_SECRET);
+
+    if (cookie && cookie_secret) {
+        error_setg(errp,
+                   "curl driver cannot handle both cookie and cookie secret");
+        goto out_noclean;
+    }
+
+    if (cookie_secret) {
+        s->cookie = qcrypto_secret_lookup_as_utf8(cookie_secret, errp);
+        if (!s->cookie) {
+            goto out_noclean;
+        }
+    } else {
+        s->cookie = g_strdup(cookie);
+    }
 
     file = qemu_opt_get(opts, CURL_BLOCK_OPT_URL);
     if (file == NULL) {
