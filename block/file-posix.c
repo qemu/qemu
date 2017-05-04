@@ -2190,35 +2190,6 @@ static void raw_abort_perm_update(BlockDriverState *bs)
     raw_handle_perm_lock(bs, RAW_PL_ABORT, 0, 0, NULL);
 }
 
-static int raw_inactivate(BlockDriverState *bs)
-{
-    int ret;
-    uint64_t perm = 0;
-    uint64_t shared = BLK_PERM_ALL;
-
-    ret = raw_handle_perm_lock(bs, RAW_PL_PREPARE, perm, shared, NULL);
-    if (ret) {
-        return ret;
-    }
-    raw_handle_perm_lock(bs, RAW_PL_COMMIT, perm, shared, NULL);
-    return 0;
-}
-
-
-static void raw_invalidate_cache(BlockDriverState *bs, Error **errp)
-{
-    BDRVRawState *s = bs->opaque;
-    int ret;
-
-    assert(!(bdrv_get_flags(bs) & BDRV_O_INACTIVE));
-    ret = raw_handle_perm_lock(bs, RAW_PL_PREPARE, s->perm, s->shared_perm,
-                               errp);
-    if (ret) {
-        return;
-    }
-    raw_handle_perm_lock(bs, RAW_PL_COMMIT, s->perm, s->shared_perm, NULL);
-}
-
 BlockDriver bdrv_file = {
     .format_name = "file",
     .protocol_name = "file",
@@ -2249,8 +2220,6 @@ BlockDriver bdrv_file = {
     .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
-    .bdrv_inactivate = raw_inactivate,
-    .bdrv_invalidate_cache = raw_invalidate_cache,
     .bdrv_check_perm = raw_check_perm,
     .bdrv_set_perm   = raw_set_perm,
     .bdrv_abort_perm_update = raw_abort_perm_update,
@@ -2712,8 +2681,6 @@ static BlockDriver bdrv_host_device = {
     .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
-    .bdrv_inactivate = raw_inactivate,
-    .bdrv_invalidate_cache = raw_invalidate_cache,
     .bdrv_check_perm = raw_check_perm,
     .bdrv_set_perm   = raw_set_perm,
     .bdrv_abort_perm_update = raw_abort_perm_update,
