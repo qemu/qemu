@@ -156,6 +156,30 @@ static void blk_root_activate(BdrvChild *child, Error **errp)
     }
 }
 
+static int blk_root_inactivate(BdrvChild *child)
+{
+    BlockBackend *blk = child->opaque;
+
+    if (blk->disable_perm) {
+        return 0;
+    }
+
+    /* Only inactivate BlockBackends for guest devices (which are inactive at
+     * this point because the VM is stopped) and unattached monitor-owned
+     * BlockBackends. If there is still any other user like a block job, then
+     * we simply can't inactivate the image. */
+    if (!blk->dev && !blk->name[0]) {
+        return -EPERM;
+    }
+
+    blk->disable_perm = true;
+    if (blk->root) {
+        bdrv_child_try_set_perm(blk->root, 0, BLK_PERM_ALL, &error_abort);
+    }
+
+    return 0;
+}
+
 static const BdrvChildRole child_root = {
     .inherit_options    = blk_root_inherit_options,
 
@@ -168,6 +192,7 @@ static const BdrvChildRole child_root = {
     .drained_end        = blk_root_drained_end,
 
     .activate           = blk_root_activate,
+    .inactivate         = blk_root_inactivate,
 };
 
 /*

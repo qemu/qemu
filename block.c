@@ -4019,7 +4019,7 @@ void bdrv_invalidate_cache_all(Error **errp)
 static int bdrv_inactivate_recurse(BlockDriverState *bs,
                                    bool setting_flag)
 {
-    BdrvChild *child;
+    BdrvChild *child, *parent;
     int ret;
 
     if (!setting_flag && bs->drv->bdrv_inactivate) {
@@ -4038,6 +4038,16 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs,
 
     if (setting_flag) {
         bs->open_flags |= BDRV_O_INACTIVE;
+
+        QLIST_FOREACH(parent, &bs->parents, next_parent) {
+            if (parent->role->inactivate) {
+                ret = parent->role->inactivate(parent);
+                if (ret < 0) {
+                    bs->open_flags &= ~BDRV_O_INACTIVE;
+                    return ret;
+                }
+            }
+        }
     }
     return 0;
 }
