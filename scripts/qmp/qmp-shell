@@ -396,7 +396,11 @@ def die(msg):
 def fail_cmdline(option=None):
     if option:
         sys.stderr.write('ERROR: bad command-line option \'%s\'\n' % option)
-    sys.stderr.write('qemu-shell [ -v ] [ -p ] [ -H ] [ -N ] < UNIX socket path> | < TCP address:port >\n')
+    sys.stderr.write('qmp-shell [ -v ] [ -p ] [ -H ] [ -N ] < UNIX socket path> | < TCP address:port >\n')
+    sys.stderr.write('    -v     Verbose (echo command sent and received)\n')
+    sys.stderr.write('    -p     Pretty-print JSON\n')
+    sys.stderr.write('    -H     Use HMP interface\n')
+    sys.stderr.write('    -N     Skip negotiate (for qemu-ga)\n')
     sys.exit(1)
 
 def main():
