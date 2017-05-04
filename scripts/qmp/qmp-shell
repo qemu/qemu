@@ -286,6 +286,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
     def show_banner(self, msg='Welcome to the QMP low-level shell!'):
         print msg
+        if not self._greeting:
+            print 'Connected'
+            return
         version = self._greeting['QMP']['version']['qemu']
         print 'Connected to QEMU %d.%d.%d\n' % (version['major'],version['minor'],version['micro'])
 
