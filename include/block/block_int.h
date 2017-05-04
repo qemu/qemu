@@ -473,6 +473,11 @@ struct BdrvChildRole {
     void (*drained_begin)(BdrvChild *child);
     void (*drained_end)(BdrvChild *child);
 
+    /* Notifies the parent that the child has been activated (e.g. when
+     * migration is completing) and it can start requesting permissions and
+     * doing I/O on it. */
+    void (*activate)(BdrvChild *child, Error **errp);
+
     void (*attach)(BdrvChild *child);
     void (*detach)(BdrvChild *child);
 };

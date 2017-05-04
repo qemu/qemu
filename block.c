@@ -3949,7 +3949,7 @@ void bdrv_init_with_whitelist(void)
 
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
-    BdrvChild *child;
+    BdrvChild *child, *parent;
     Error *local_err = NULL;
     int ret;
 
@@ -3984,6 +3984,16 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
         bs->open_flags |= BDRV_O_INACTIVE;
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
         return;
+    }
+
+    QLIST_FOREACH(parent, &bs->parents, next_parent) {
+        if (parent->role->activate) {
+            parent->role->activate(parent, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
+        }
     }
 }
 

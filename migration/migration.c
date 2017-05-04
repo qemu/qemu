@@ -341,9 +341,6 @@ static void process_incoming_migration_bh(void *opaque)
     /* Make sure all file formats flush their mutable metadata.
      * If we get an error here, just don't restart the VM yet. */
     bdrv_invalidate_cache_all(&local_err);
-    if (!local_err) {
-        blk_resume_after_migration(&local_err);
-    }
     if (local_err) {
         error_report_err(local_err);
         local_err = NULL;

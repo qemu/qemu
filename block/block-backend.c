@@ -130,6 +130,32 @@ static const char *blk_root_get_name(BdrvChild *child)
     return blk_name(child->opaque);
 }
 
+/*
+ * Notifies the user of the BlockBackend that migration has completed. qdev
+ * devices can tighten their permissions in response (specifically revoke
+ * shared write permissions that we needed for storage migration).
+ *
+ * If an error is returned, the VM cannot be allowed to be resumed.
+ */
+static void blk_root_activate(BdrvChild *child, Error **errp)
+{
+    BlockBackend *blk = child->opaque;
+    Error *local_err = NULL;
+
+    if (!blk->disable_perm) {
+        return;
+    }
+
+    blk->disable_perm = false;
+
+    blk_set_perm(blk, blk->perm, blk->shared_perm, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        blk->disable_perm = true;
+        return;
+    }
+}
+
 static const BdrvChildRole child_root = {
     .inherit_options    = blk_root_inherit_options,
 
@@ -140,6 +166,8 @@ static const BdrvChildRole child_root = {
 
     .drained_begin      = blk_root_drained_begin,
     .drained_end        = blk_root_drained_end,
+
+    .activate           = blk_root_activate,
 };
 
 /*
@@ -599,34 +627,6 @@ void blk_get_perm(BlockBackend *blk, uint64_t *perm, uint64_t *shared_perm)
 {
     *perm = blk->perm;
     *shared_perm = blk->shared_perm;
-}
-
-/*
- * Notifies the user of all BlockBackends that migration has completed. qdev
- * devices can tighten their permissions in response (specifically revoke
- * shared write permissions that we needed for storage migration).
- *
- * If an error is returned, the VM cannot be allowed to be resumed.
- */
-void blk_resume_after_migration(Error **errp)
-{
-    BlockBackend *blk;
-    Error *local_err = NULL;
-
-    for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
-        if (!blk->disable_perm) {
-            continue;
-        }
-
-        blk->disable_perm = false;
-
-        blk_set_perm(blk, blk->perm, blk->shared_perm, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            blk->disable_perm = true;
-            return;
-        }
-    }
 }
 
 static int blk_do_attach_dev(BlockBackend *blk, void *dev)
