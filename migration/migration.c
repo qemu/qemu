@@ -338,20 +338,14 @@ static void process_incoming_migration_bh(void *opaque)
     Error *local_err = NULL;
     MigrationIncomingState *mis = opaque;
 
-    /* Make sure all file formats flush their mutable metadata */
+    /* Make sure all file formats flush their mutable metadata.
+     * If we get an error here, just don't restart the VM yet. */
     bdrv_invalidate_cache_all(&local_err);
-    if (local_err) {
-        migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                          MIGRATION_STATUS_FAILED);
-        error_report_err(local_err);
-        migrate_decompress_threads_join();
-        exit(EXIT_FAILURE);
+    if (!local_err) {
+        blk_resume_after_migration(&local_err);
     }
-
-    /* If we get an error here, just don't restart the VM yet. */
-    blk_resume_after_migration(&local_err);
     if (local_err) {
-        error_free(local_err);
+        error_report_err(local_err);
         local_err = NULL;
         autostart = false;
     }
