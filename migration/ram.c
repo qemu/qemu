@@ -1184,10 +1184,9 @@ static bool get_queued_page(RAMState *rs, PageSearchStatus *pss)
  * be some left.  in case that there is any page left, we drop it.
  *
  */
-void migration_page_queue_free(void)
+static void migration_page_queue_free(RAMState *rs)
 {
     struct RAMSrcPageRequest *mspr, *next_mspr;
-    RAMState *rs = &ram_state;
     /* This queue generally should be empty - but in the case of a failed
      * migration might have some droppings in.
      */
@@ -1437,6 +1436,7 @@ void free_xbzrle_decoded_buf(void)
 
 static void ram_migration_cleanup(void *opaque)
 {
+    RAMState *rs = opaque;
     RAMBlock *block;
 
     /* caller have hold iothread lock or is in a bh, so there is
@@ -1462,6 +1462,7 @@ static void ram_migration_cleanup(void *opaque)
         XBZRLE.current_buf = NULL;
     }
     XBZRLE_cache_unlock();
+    migration_page_queue_free(rs);
 }
 
 static void ram_state_reset(RAMState *rs)

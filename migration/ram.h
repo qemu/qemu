@@ -53,7 +53,6 @@ void migrate_decompress_threads_create(void);
 void migrate_decompress_threads_join(void);
 
 uint64_t ram_pagesize_summary(void);
-void migration_page_queue_free(void);
 int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len);
 void acct_update_position(QEMUFile *f, size_t size, bool zero);
 void free_xbzrle_decoded_buf(void);
