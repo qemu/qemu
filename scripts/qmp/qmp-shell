@@ -277,8 +277,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self._print(resp)
         return True
 
-    def connect(self):
-        self._greeting = qmp.QEMUMonitorProtocol.connect(self)
+    def connect(self, negotiate):
+        self._greeting = qmp.QEMUMonitorProtocol.connect(self, negotiate)
         self.__completer_setup()
 
     def show_banner(self, msg='Welcome to the QMP low-level shell!'):
@@ -390,7 +390,7 @@ def die(msg):
 def fail_cmdline(option=None):
     if option:
         sys.stderr.write('ERROR: bad command-line option \'%s\'\n' % option)
-    sys.stderr.write('qemu-shell [ -v ] [ -p ] [ -H ] < UNIX socket path> | < TCP address:port >\n')
+    sys.stderr.write('qemu-shell [ -v ] [ -p ] [ -H ] [ -N ] < UNIX socket path> | < TCP address:port >\n')
     sys.exit(1)
 
 def main():
@@ -399,6 +399,7 @@ def main():
     hmp = False
     pretty = False
     verbose = False
+    negotiate = True
 
     try:
         for arg in sys.argv[1:]:
@@ -408,6 +409,8 @@ def main():
                 hmp = True
             elif arg == "-p":
                 pretty = True
+            elif arg == "-N":
+                negotiate = False
             elif arg == "-v":
                 verbose = True
             else:
@@ -425,7 +428,7 @@ def main():
         die('bad port number in command-line')
 
     try:
-        qemu.connect()
+        qemu.connect(negotiate)
     except qmp.QMPConnectError:
         die('Didn\'t get QMP greeting message')
     except qmp.QMPCapabilitiesError:
