@@ -389,14 +389,12 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     } else if (align) {
         error_setg(errp, "Invalid alignment");
         ret = -EINVAL;
-        goto fail_unref;
+        goto out;
     }
 
     ret = 0;
     goto out;
 
-fail_unref:
-    bdrv_unref_child(bs, bs->file);
 out:
     if (ret < 0) {
         g_free(s->config_file);
@@ -661,9 +659,9 @@ static int64_t blkdebug_getlength(BlockDriverState *bs)
     return bdrv_getlength(bs->file->bs);
 }
 
-static int blkdebug_truncate(BlockDriverState *bs, int64_t offset)
+static int blkdebug_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
 {
-    return bdrv_truncate(bs->file, offset);
+    return bdrv_truncate(bs->file, offset, errp);
 }
 
 static void blkdebug_refresh_filename(BlockDriverState *bs, QDict *options)

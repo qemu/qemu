@@ -2930,26 +2930,7 @@ void qmp_block_resize(bool has_device, const char *device,
     /* complete all in-flight operations before resizing the device */
     bdrv_drain_all();
 
-    ret = blk_truncate(blk, size);
-    switch (ret) {
-    case 0:
-        break;
-    case -ENOMEDIUM:
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
-        break;
-    case -ENOTSUP:
-        error_setg(errp, QERR_UNSUPPORTED);
-        break;
-    case -EACCES:
-        error_setg(errp, "Device '%s' is read only", device);
-        break;
-    case -EBUSY:
-        error_setg(errp, QERR_DEVICE_IN_USE, device);
-        break;
-    default:
-        error_setg_errno(errp, -ret, "Could not resize");
-        break;
-    }
+    ret = blk_truncate(blk, size, errp);
 
 out:
     blk_unref(blk);

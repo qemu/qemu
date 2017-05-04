@@ -832,9 +832,9 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     if (image_type == VDI_TYPE_STATIC) {
-        ret = blk_truncate(blk, offset + blocks * block_size);
+        ret = blk_truncate(blk, offset + blocks * block_size, errp);
         if (ret < 0) {
-            error_setg(errp, "Failed to statically allocate %s", filename);
+            error_prepend(errp, "Failed to statically allocate %s", filename);
             goto exit;
         }
     }

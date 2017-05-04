@@ -470,7 +470,7 @@ Event: cluster_alloc; errno: 28; imm: off; once: off; write -b
 write failed: No space left on device
 No errors were found on the image.
 
-=== Refcout table growth tests ===
+=== Refcount table growth tests ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
 

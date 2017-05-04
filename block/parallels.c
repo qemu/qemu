@@ -223,7 +223,8 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
                                      space << BDRV_SECTOR_BITS, 0);
         } else {
             ret = bdrv_truncate(bs->file,
-                                (s->data_end + space) << BDRV_SECTOR_BITS);
+                                (s->data_end + space) << BDRV_SECTOR_BITS,
+                                NULL);
         }
         if (ret < 0) {
             return ret;
@@ -456,8 +457,10 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
                 size - res->image_end_offset);
         res->leaks += count;
         if (fix & BDRV_FIX_LEAKS) {
-            ret = bdrv_truncate(bs->file, res->image_end_offset);
+            Error *local_err = NULL;
+            ret = bdrv_truncate(bs->file, res->image_end_offset, &local_err);
             if (ret < 0) {
+                error_report_err(local_err);
                 res->check_errors++;
                 return ret;
             }
@@ -504,7 +507,7 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
 
     blk_set_allow_write_beyond_eof(file, true);
 
-    ret = blk_truncate(file, 0);
+    ret = blk_truncate(file, 0, errp);
     if (ret < 0) {
         goto exit;
     }
@@ -696,7 +699,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (!(flags & BDRV_O_RESIZE) || !bdrv_has_zero_init(bs->file->bs) ||
-            bdrv_truncate(bs->file, bdrv_getlength(bs->file->bs)) != 0) {
+            bdrv_truncate(bs->file, bdrv_getlength(bs->file->bs), NULL) != 0) {
         s->prealloc_mode = PRL_PREALLOC_MODE_FALLOCATE;
     }
 
@@ -739,7 +742,7 @@ static void parallels_close(BlockDriverState *bs)
     }
 
     if (bs->open_flags & BDRV_O_RDWR) {
-        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS);
+        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS, NULL);
     }
 
     g_free(s->bat_dirty_bmap);

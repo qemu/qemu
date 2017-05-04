@@ -7,23 +7,23 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/
 
 Testing: -drive file=TEST_DIR/t.qcow2,cache=none
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) quit
 
 Testing: -drive file=TEST_DIR/t.qcow2,cache=directsync
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) quit
 
 Testing: -drive file=TEST_DIR/t.qcow2,cache=writeback
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) quit
 
 Testing: -drive file=TEST_DIR/t.qcow2,cache=writethrough
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) quit
 
 Testing: -drive file=TEST_DIR/t.qcow2,cache=unsafe
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) quit
 
 Testing: -drive file=TEST_DIR/t.qcow2,cache=invalid_value
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,cache=invalid_value: invalid cache option

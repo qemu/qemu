@@ -916,13 +916,14 @@ static int64_t qemu_rbd_getlength(BlockDriverState *bs)
     return info.size;
 }
 
-static int qemu_rbd_truncate(BlockDriverState *bs, int64_t offset)
+static int qemu_rbd_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
 {
     BDRVRBDState *s = bs->opaque;
     int r;
 
     r = rbd_resize(s->image, offset);
     if (r < 0) {
+        error_setg_errno(errp, -r, "Failed to resize file");
         return r;
     }
 

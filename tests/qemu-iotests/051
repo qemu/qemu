@@ -60,7 +60,8 @@ function do_run_qemu()
 
 function run_qemu()
 {
-    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_generated_node_ids
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu |
+        _filter_generated_node_ids | _filter_hmp
 }
 
 size=128M
@@ -231,6 +232,7 @@ echo === Leaving out required options ===
 echo
 
 run_qemu -drive driver=file
+run_qemu -drive driver=file,filename=
 run_qemu -drive driver=nbd
 run_qemu -drive driver=raw
 run_qemu -drive file.driver=file

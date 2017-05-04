@@ -119,7 +119,7 @@ done
 
 
 echo
-echo === Refcout table growth tests ===
+echo === Refcount table growth tests ===
 echo
 CLUSTER_SIZE=512
 

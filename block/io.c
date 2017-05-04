@@ -1362,16 +1362,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     assert(!waited || !req->serialising);
     assert(req->overlap_offset <= offset);
     assert(offset + bytes <= req->overlap_offset + req->overlap_bytes);
-    /* FIXME: Block migration uses the BlockBackend of the guest device at a
-     *        point when it has not yet taken write permissions. This will be
-     *        fixed by a future patch, but for now we have to bypass this
-     *        assertion for block migration to work. */
-    // assert(child->perm & BLK_PERM_WRITE);
-    /* FIXME: Because of the above, we also cannot guarantee that all format
-     *        BDS take the BLK_PERM_RESIZE permission on their file BDS, since
-     *        they are not obligated to do so if they do not have any parent
-     *        that has taken the permission to write to them. */
-    // assert(end_sector <= bs->total_sectors || child->perm & BLK_PERM_RESIZE);
+    assert(child->perm & BLK_PERM_WRITE);
+    assert(end_sector <= bs->total_sectors || child->perm & BLK_PERM_RESIZE);
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, req);
 
@@ -1452,7 +1444,7 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BdrvChild *child,
     int ret = 0;
 
     head_padding_bytes = offset & (align - 1);
-    tail_padding_bytes = align - ((offset + bytes) & (align - 1));
+    tail_padding_bytes = (align - (offset + bytes)) & (align - 1);
 
 
     assert(flags & BDRV_REQ_ZERO_WRITE);
@@ -2308,7 +2300,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 
     bdrv_inc_in_flight(bs);
 
-    if (!bs || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs) ||
+    if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs) ||
         bdrv_is_sg(bs)) {
         goto early_exit;
     }

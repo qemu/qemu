@@ -86,10 +86,23 @@ _filter_qmp()
         -e '    QMP_VERSION'
 }
 
+# readline makes HMP command strings so long that git complains
+_filter_hmp()
+{
+    sed -e $'s/^\\((qemu) \\)\\?.*\e\\[D/\\1/g' \
+        -e $'s/\e\\[K//g'
+}
+
 # replace block job offset
 _filter_block_job_offset()
 {
     sed -e 's/, "offset": [0-9]\+,/, "offset": OFFSET,/'
+}
+
+# replace block job len
+_filter_block_job_len()
+{
+    sed -e 's/, "len": [0-9]\+,/, "len": LEN,/g'
 }
 
 # replace driver-specific options in the "Formatting..." line

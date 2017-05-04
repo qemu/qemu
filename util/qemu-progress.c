@@ -88,6 +88,9 @@ static void progress_dummy_init(void)
     action.sa_handler = sigusr_print;
     action.sa_flags = 0;
     sigaction(SIGUSR1, &action, NULL);
+#ifdef SIGINFO
+    sigaction(SIGINFO, &action, NULL);
+#endif
 
     /*
      * SIGUSR1 is SIG_IPI and gets blocked in qemu_init_main_loop(). In the
