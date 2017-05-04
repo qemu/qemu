@@ -192,9 +192,18 @@ void path_combine(char *dest, int dest_size,
     }
 }
 
+/* Returns whether the image file is opened as read-only. Note that this can
+ * return false and writing to the image file is still not possible because the
+ * image is inactivated. */
 bool bdrv_is_read_only(BlockDriverState *bs)
 {
     return bs->read_only;
+}
+
+/* Returns whether the image file can be written to right now */
+bool bdrv_is_writable(BlockDriverState *bs)
+{
+    return !bdrv_is_read_only(bs) && !(bs->open_flags & BDRV_O_INACTIVE);
 }
 
 int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
@@ -1510,7 +1519,7 @@ static int bdrv_check_perm(BlockDriverState *bs, uint64_t cumulative_perms,
 
     /* Write permissions never work with read-only images */
     if ((cumulative_perms & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) &&
-        bdrv_is_read_only(bs))
+        !bdrv_is_writable(bs))
     {
         error_setg(errp, "Block node is read-only");
         return -EPERM;
@@ -1795,7 +1804,7 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
         bdrv_filter_default_perms(bs, c, role, perm, shared, &perm, &shared);
 
         /* Format drivers may touch metadata even if the guest doesn't write */
-        if (!bdrv_is_read_only(bs)) {
+        if (bdrv_is_writable(bs)) {
             perm |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
         }
 
@@ -1819,6 +1828,10 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
 
         shared |= BLK_PERM_CONSISTENT_READ | BLK_PERM_GRAPH_MOD |
                   BLK_PERM_WRITE_UNCHANGED;
+    }
+
+    if (bs->open_flags & BDRV_O_INACTIVE) {
+        shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
     }
 
     *nperm = perm;
@@ -3960,6 +3973,7 @@ void bdrv_init_with_whitelist(void)
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BdrvChild *child, *parent;
+    uint64_t perm, shared_perm;
     Error *local_err = NULL;
     int ret;
 
@@ -3995,6 +4009,16 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
         return;
     }
+
+    /* Update permissions, they may differ for inactive nodes */
+    bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
+    ret = bdrv_check_perm(bs, perm, shared_perm, NULL, &local_err);
+    if (ret < 0) {
+        bs->open_flags |= BDRV_O_INACTIVE;
+        error_propagate(errp, local_err);
+        return;
+    }
+    bdrv_set_perm(bs, perm, shared_perm);
 
     QLIST_FOREACH(parent, &bs->parents, next_parent) {
         if (parent->role->activate) {
@@ -4040,6 +4064,8 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs,
     }
 
     if (setting_flag) {
+        uint64_t perm, shared_perm;
+
         bs->open_flags |= BDRV_O_INACTIVE;
 
         QLIST_FOREACH(parent, &bs->parents, next_parent) {
@@ -4051,6 +4077,11 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs,
                 }
             }
         }
+
+        /* Update permissions, they may differ for inactive nodes */
+        bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
+        bdrv_check_perm(bs, perm, shared_perm, NULL, &error_abort);
+        bdrv_set_perm(bs, perm, shared_perm);
     }
 
     QLIST_FOREACH(child, &bs->children, next) {
