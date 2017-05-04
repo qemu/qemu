@@ -3727,26 +3727,21 @@ int main(int argc, char **argv, char **envp)
                 qdev_prop_register_global(&kvm_pit_lost_tick_policy);
                 break;
             }
-            case QEMU_OPTION_accel:
+            case QEMU_OPTION_accel: {
+                QemuOpts *accel_opts;
+
                 accel_opts = qemu_opts_parse_noisily(qemu_find_opts("accel"),
                                                      optarg, true);
                 optarg = qemu_opt_get(accel_opts, "accel");
-
-                olist = qemu_find_opts("machine");
-                if (strcmp("kvm", optarg) == 0) {
-                    qemu_opts_parse_noisily(olist, "accel=kvm", false);
-                } else if (strcmp("xen", optarg) == 0) {
-                    qemu_opts_parse_noisily(olist, "accel=xen", false);
-                } else if (strcmp("tcg", optarg) == 0) {
-                    qemu_opts_parse_noisily(olist, "accel=tcg", false);
-                } else {
-                    if (!is_help_option(optarg)) {
-                        error_printf("Unknown accelerator: %s", optarg);
-                    }
-                    error_printf("Supported accelerators: kvm, xen, tcg\n");
+                if (!optarg || is_help_option(optarg)) {
+                    error_printf("Possible accelerators: kvm, xen, hax, tcg\n");
                     exit(1);
                 }
+                accel_opts = qemu_opts_create(qemu_find_opts("machine"), NULL,
+                                              false, &error_abort);
+                qemu_opt_set(accel_opts, "accel", optarg, &error_abort);
                 break;
+            }
             case QEMU_OPTION_usb:
                 olist = qemu_find_opts("machine");
                 qemu_opts_parse_noisily(olist, "usb=on", false);
