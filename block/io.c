@@ -1711,15 +1711,16 @@ typedef struct BdrvCoGetBlockStatusData {
  * Drivers not implementing the functionality are assumed to not support
  * backing files, hence all their sectors are reported as allocated.
  *
- * If 'sector_num' is beyond the end of the disk image the return value is 0
- * and 'pnum' is set to 0.
+ * If 'sector_num' is beyond the end of the disk image the return value is
+ * BDRV_BLOCK_EOF and 'pnum' is set to 0.
  *
  * 'pnum' is set to the number of sectors (including and immediately following
  * the specified sector) that are known to be in the same
  * allocated/unallocated state.
  *
  * 'nb_sectors' is the max value 'pnum' should be set to.  If nb_sectors goes
- * beyond the end of the disk image it will be clamped.
+ * beyond the end of the disk image it will be clamped; if 'pnum' is set to
+ * the end of the image, then the returned value will include BDRV_BLOCK_EOF.
  *
  * If returned value is positive and BDRV_BLOCK_OFFSET_VALID bit is set, 'file'
  * points to the BDS which the sector range is allocated in.
@@ -1740,7 +1741,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 
     if (sector_num >= total_sectors) {
         *pnum = 0;
-        return 0;
+        return BDRV_BLOCK_EOF;
     }
 
     n = total_sectors - sector_num;
@@ -1751,6 +1752,9 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
     if (!bs->drv->bdrv_co_get_block_status) {
         *pnum = nb_sectors;
         ret = BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED;
+        if (sector_num + nb_sectors == total_sectors) {
+            ret |= BDRV_BLOCK_EOF;
+        }
         if (bs->drv->protocol_name) {
             ret |= BDRV_BLOCK_OFFSET_VALID | (sector_num * BDRV_SECTOR_SIZE);
         }
@@ -1814,6 +1818,9 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 
 out:
     bdrv_dec_in_flight(bs);
+    if (ret >= 0 && sector_num + *pnum == total_sectors) {
+        ret |= BDRV_BLOCK_EOF;
+    }
     return ret;
 }
 
