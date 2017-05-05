@@ -126,7 +126,7 @@ docker-run: docker-qemu-src
 			"  COPYING $(EXECUTABLE) to $(IMAGE)"))
 	$(call quiet-command,						\
 		$(SRC_PATH)/tests/docker/docker.py run 			\
-			-t 						\
+			$(if $(NOUSER),,-u $(shell id -u)) -t 		\
 			$(if $V,,--rm) 					\
 			$(if $(DEBUG),-i,--net=none) 			\
 			-e TARGET_LIST=$(TARGET_LIST) 			\
