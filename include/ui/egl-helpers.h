@@ -21,7 +21,7 @@ int egl_get_fd_for_texture(uint32_t tex_id, EGLint *stride, EGLint *fourcc);
 
 EGLSurface qemu_egl_init_surface_x11(EGLContext ectx, Window win);
 
-int qemu_egl_init_dpy(EGLNativeDisplayType dpy, bool gles, bool debug);
+int qemu_egl_init_dpy(EGLNativeDisplayType dpy);
 EGLContext qemu_egl_init_ctx(void);
 
 #endif /* EGL_HELPERS_H */

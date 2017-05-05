@@ -26,18 +26,6 @@ EGLConfig qemu_egl_config;
 
 /* ---------------------------------------------------------------------- */
 
-static bool egl_gles;
-static int egl_debug;
-
-#define egl_dbg(_x ...)                          \
-    do {                                         \
-        if (egl_debug) {                         \
-            fprintf(stderr, "egl: " _x);         \
-        }                                        \
-    } while (0);
-
-/* ---------------------------------------------------------------------- */
-
 #ifdef CONFIG_OPENGL_DMABUF
 
 int qemu_egl_rn_fd;
@@ -105,7 +93,7 @@ int egl_rendernode_init(const char *rendernode)
         goto err;
     }
 
-    qemu_egl_init_dpy((EGLNativeDisplayType)qemu_egl_rn_gbm_dev, false, false);
+    qemu_egl_init_dpy((EGLNativeDisplayType)qemu_egl_rn_gbm_dev);
 
     if (!epoxy_has_egl_extension(qemu_egl_display,
                                  "EGL_KHR_surfaceless_context")) {
@@ -171,8 +159,6 @@ EGLSurface qemu_egl_init_surface_x11(EGLContext ectx, Window win)
     EGLSurface esurface;
     EGLBoolean b;
 
-    egl_dbg("eglCreateWindowSurface (x11 win id 0x%lx) ...\n",
-            (unsigned long) win);
     esurface = eglCreateWindowSurface(qemu_egl_display,
                                       qemu_egl_config,
                                       (EGLNativeWindowType)win, NULL);
@@ -242,7 +228,7 @@ static EGLDisplay qemu_egl_get_display(void *native)
     return dpy;
 }
 
-int qemu_egl_init_dpy(EGLNativeDisplayType dpy, bool gles, bool debug)
+int qemu_egl_init_dpy(EGLNativeDisplayType dpy)
 {
     static const EGLint conf_att_gl[] = {
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
@@ -253,56 +239,34 @@ int qemu_egl_init_dpy(EGLNativeDisplayType dpy, bool gles, bool debug)
         EGL_ALPHA_SIZE, 0,
         EGL_NONE,
     };
-    static const EGLint conf_att_gles[] = {
-        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-        EGL_RED_SIZE,   5,
-        EGL_GREEN_SIZE, 5,
-        EGL_BLUE_SIZE,  5,
-        EGL_ALPHA_SIZE, 0,
-        EGL_NONE,
-    };
     EGLint major, minor;
     EGLBoolean b;
     EGLint n;
 
-    if (debug) {
-        egl_debug = 1;
-        setenv("EGL_LOG_LEVEL", "debug", true);
-        setenv("LIBGL_DEBUG", "verbose", true);
-    }
-
-    egl_dbg("qemu_egl_get_display (dpy %p) ...\n", dpy);
     qemu_egl_display = qemu_egl_get_display(dpy);
     if (qemu_egl_display == EGL_NO_DISPLAY) {
         error_report("egl: eglGetDisplay failed");
         return -1;
     }
 
-    egl_dbg("eglInitialize ...\n");
     b = eglInitialize(qemu_egl_display, &major, &minor);
     if (b == EGL_FALSE) {
         error_report("egl: eglInitialize failed");
         return -1;
     }
 
-    egl_dbg("eglBindAPI ...\n");
-    b = eglBindAPI(gles ? EGL_OPENGL_ES_API : EGL_OPENGL_API);
+    b = eglBindAPI(EGL_OPENGL_API);
     if (b == EGL_FALSE) {
         error_report("egl: eglBindAPI failed");
         return -1;
     }
 
-    egl_dbg("eglChooseConfig ...\n");
-    b = eglChooseConfig(qemu_egl_display,
-                        gles ? conf_att_gles : conf_att_gl,
+    b = eglChooseConfig(qemu_egl_display, conf_att_gl,
                         &qemu_egl_config, 1, &n);
     if (b == EGL_FALSE || n != 1) {
         error_report("egl: eglChooseConfig failed");
         return -1;
     }
-
-    egl_gles = gles;
     return 0;
 }
 
@@ -311,17 +275,11 @@ EGLContext qemu_egl_init_ctx(void)
     static const EGLint ctx_att_gl[] = {
         EGL_NONE
     };
-    static const EGLint ctx_att_gles[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 2,
-        EGL_NONE
-    };
-
     EGLContext ectx;
     EGLBoolean b;
 
-    egl_dbg("eglCreateContext ...\n");
     ectx = eglCreateContext(qemu_egl_display, qemu_egl_config, EGL_NO_CONTEXT,
-                            egl_gles ? ctx_att_gles : ctx_att_gl);
+                            ctx_att_gl);
     if (ectx == EGL_NO_CONTEXT) {
         error_report("egl: eglCreateContext failed");
         return NULL;
