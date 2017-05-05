@@ -60,12 +60,21 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     env->sr |= SR_SM;
     env->sr &= ~SR_IEE;
     env->sr &= ~SR_TEE;
+    env->pmr &= ~PMR_DME;
+    env->pmr &= ~PMR_SME;
     env->tlb->cpu_openrisc_map_address_data = &cpu_openrisc_get_phys_nommu;
     env->tlb->cpu_openrisc_map_address_code = &cpu_openrisc_get_phys_nommu;
     env->lock_addr = -1;
 
     if (cs->exception_index > 0 && cs->exception_index < EXCP_NR) {
-        env->pc = (cs->exception_index << 8);
+        hwaddr vect_pc = cs->exception_index << 8;
+        if (env->cpucfgr & CPUCFGR_EVBARP) {
+            vect_pc |= env->evbar;
+        }
+        if (env->sr & SR_EPH) {
+            vect_pc |= 0xf0000000;
+        }
+        env->pc = vect_pc;
     } else {
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
     }

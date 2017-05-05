@@ -107,7 +107,8 @@ void openrisc_translate_init(void)
                                      "mac");
     for (i = 0; i < 32; i++) {
         cpu_R[i] = tcg_global_mem_new(cpu_env,
-                                      offsetof(CPUOpenRISCState, gpr[i]),
+                                      offsetof(CPUOpenRISCState,
+                                               shadow_gpr[0][i]),
                                       regnames[i]);
     }
     cpu_R0 = cpu_R[0];
@@ -1662,7 +1663,7 @@ void openrisc_cpu_dump_state(CPUState *cs, FILE *f,
 
     cpu_fprintf(f, "PC=%08x\n", env->pc);
     for (i = 0; i < 32; ++i) {
-        cpu_fprintf(f, "R%02d=%08x%c", i, env->gpr[i],
+        cpu_fprintf(f, "R%02d=%08x%c", i, cpu_get_gpr(env, i),
                     (i % 4) == 3 ? '\n' : ' ');
     }
 }

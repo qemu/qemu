@@ -4411,7 +4411,7 @@ static void setup_sigcontext(struct target_sigcontext *sc,
                              CPUOpenRISCState *regs,
                              unsigned long mask)
 {
-    unsigned long usp = regs->gpr[1];
+    unsigned long usp = cpu_get_gpr(regs, 1);
 
     /* copy the regs. they are first in sc so we can use sc directly */
 
@@ -4436,7 +4436,7 @@ static inline abi_ulong get_sigframe(struct target_sigaction *ka,
                                      CPUOpenRISCState *regs,
                                      size_t frame_size)
 {
-    unsigned long sp = regs->gpr[1];
+    unsigned long sp = cpu_get_gpr(regs, 1);
     int onsigstack = on_sig_stack(sp);
 
     /* redzone */
@@ -4489,7 +4489,8 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     __put_user(0, &frame->uc.tuc_link);
     __put_user(target_sigaltstack_used.ss_sp,
                &frame->uc.tuc_stack.ss_sp);
-    __put_user(sas_ss_flags(env->gpr[1]), &frame->uc.tuc_stack.ss_flags);
+    __put_user(sas_ss_flags(cpu_get_gpr(env, 1)),
+               &frame->uc.tuc_stack.ss_flags);
     __put_user(target_sigaltstack_used.ss_size,
                &frame->uc.tuc_stack.ss_size);
     setup_sigcontext(&frame->sc, env, set->sig[0]);
@@ -4512,13 +4513,13 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     /* Set up registers for signal handler */
     env->pc = (unsigned long)ka->_sa_handler; /* what we enter NOW */
-    env->gpr[9] = (unsigned long)return_ip;     /* what we enter LATER */
-    env->gpr[3] = (unsigned long)sig;           /* arg 1: signo */
-    env->gpr[4] = (unsigned long)&frame->info;  /* arg 2: (siginfo_t*) */
-    env->gpr[5] = (unsigned long)&frame->uc;    /* arg 3: ucontext */
+    cpu_set_gpr(env, 9, (unsigned long)return_ip);     /* what we enter LATER */
+    cpu_set_gpr(env, 3, (unsigned long)sig);           /* arg 1: signo */
+    cpu_set_gpr(env, 4, (unsigned long)&frame->info);  /* arg 2: (siginfo_t*) */
+    cpu_set_gpr(env, 5, (unsigned long)&frame->uc);    /* arg 3: ucontext */
 
     /* actually move the usp to reflect the stacked frame */
-    env->gpr[1] = (unsigned long)frame;
+    cpu_set_gpr(env, 1, (unsigned long)frame);
 
     return;
 
