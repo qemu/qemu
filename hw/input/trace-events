@@ -24,6 +24,7 @@ milkymist_softusb_pulse_irq(void) "Pulse IRQ"
 
 # hw/input/hid.c
 hid_kbd_queue_full(void) "queue full"
+hid_kbd_queue_empty(void) "queue empty"
 
 # hw/input/virtio
 virtio_input_queue_full(void) "queue full"

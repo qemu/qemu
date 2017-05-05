@@ -41,6 +41,8 @@ static QTAILQ_HEAD(QemuInputEventQueueHead, QemuInputEventQueue) kbd_queue =
     QTAILQ_HEAD_INITIALIZER(kbd_queue);
 static QEMUTimer *kbd_timer;
 static uint32_t kbd_default_delay_ms = 10;
+static uint32_t queue_count;
+static uint32_t queue_limit = 1024;
 
 QemuInputHandlerState *qemu_input_handler_register(DeviceState *dev,
                                                    QemuInputHandler *handler)
@@ -268,6 +270,7 @@ static void qemu_input_queue_process(void *opaque)
             break;
         }
         QTAILQ_REMOVE(queue, item, node);
+        queue_count--;
         g_free(item);
     }
 }
@@ -282,6 +285,7 @@ static void qemu_input_queue_delay(struct QemuInputEventQueueHead *queue,
     item->delay_ms = delay_ms;
     item->timer = timer;
     QTAILQ_INSERT_TAIL(queue, item, node);
+    queue_count++;
 
     if (start_timer) {
         timer_mod(item->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL)
@@ -298,6 +302,7 @@ static void qemu_input_queue_event(struct QemuInputEventQueueHead *queue,
     item->src = src;
     item->evt = evt;
     QTAILQ_INSERT_TAIL(queue, item, node);
+    queue_count++;
 }
 
 static void qemu_input_queue_sync(struct QemuInputEventQueueHead *queue)
@@ -306,6 +311,7 @@ static void qemu_input_queue_sync(struct QemuInputEventQueueHead *queue)
 
     item->type = QEMU_INPUT_QUEUE_SYNC;
     QTAILQ_INSERT_TAIL(queue, item, node);
+    queue_count++;
 }
 
 void qemu_input_event_send_impl(QemuConsole *src, InputEvent *evt)
@@ -381,7 +387,7 @@ void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
         qemu_input_event_send(src, evt);
         qemu_input_event_sync();
         qapi_free_InputEvent(evt);
-    } else {
+    } else if (queue_count < queue_limit) {
         qemu_input_queue_event(&kbd_queue, src, evt);
         qemu_input_queue_sync(&kbd_queue);
     }
@@ -405,12 +411,18 @@ void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
 
 void qemu_input_event_send_key_delay(uint32_t delay_ms)
 {
+    if (!runstate_is_running() && !runstate_check(RUN_STATE_SUSPENDED)) {
+        return;
+    }
+
     if (!kbd_timer) {
         kbd_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, qemu_input_queue_process,
                                  &kbd_queue);
     }
-    qemu_input_queue_delay(&kbd_queue, kbd_timer,
-                           delay_ms ? delay_ms : kbd_default_delay_ms);
+    if (queue_count < queue_limit) {
+        qemu_input_queue_delay(&kbd_queue, kbd_timer,
+                               delay_ms ? delay_ms : kbd_default_delay_ms);
+    }
 }
 
 InputEvent *qemu_input_event_new_btn(InputButton btn, bool down)

@@ -256,6 +256,10 @@ static void hid_keyboard_process_keycode(HIDState *hs)
     slot = hs->head & QUEUE_MASK; QUEUE_INCR(hs->head); hs->n--;
     keycode = hs->kbd.keycodes[slot];
 
+    if (!hs->n) {
+        trace_hid_kbd_queue_empty();
+    }
+
     key = keycode & 0x7f;
     index = key | ((hs->kbd.modifiers & (1 << 8)) >> 1);
     hid_code = hid_usage_keys[index];
