@@ -183,15 +183,21 @@ static block_number_t load_eckd_segments(block_number_t blk, uint64_t *address)
 static void run_eckd_boot_script(block_number_t mbr_block_nr)
 {
     int i;
+    unsigned int loadparm = get_loadparm_index();
     block_number_t block_nr;
     uint64_t address;
-    ScsiMbr *scsi_mbr = (void *)sec;
+    ScsiMbr *bte = (void *)sec; /* Eckd bootmap table entry */
     BootMapScript *bms = (void *)sec;
+
+    debug_print_int("loadparm", loadparm);
+    IPL_assert(loadparm < 31, "loadparm value greater than"
+               " maximum number of boot entries allowed");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(mbr_block_nr, sec, "Cannot read MBR");
 
-    block_nr = eckd_block_num((void *)&(scsi_mbr->blockptr));
+    block_nr = eckd_block_num((void *)&(bte->blockptr[loadparm]));
+    IPL_assert(block_nr != -1, "No Boot Map");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(block_nr, sec, "Cannot read Boot Map Script");
@@ -444,7 +450,8 @@ static void ipl_scsi(void)
     uint8_t *ns, *ns_end;
     int program_table_entries = 0;
     const int pte_len = sizeof(ScsiBlockPtr);
-    ScsiBlockPtr *prog_table_entry;
+    ScsiBlockPtr *prog_table_entry = NULL;
+    unsigned int loadparm = get_loadparm_index();
 
     /* Grab the MBR */
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -458,15 +465,16 @@ static void ipl_scsi(void)
     debug_print_int("MBR Version", mbr->version_id);
     IPL_check(mbr->version_id == 1,
               "Unknown MBR layout version, assuming version 1");
-    debug_print_int("program table", mbr->blockptr.blockno);
-    IPL_assert(mbr->blockptr.blockno, "No Program Table");
+    debug_print_int("program table", mbr->blockptr[0].blockno);
+    IPL_assert(mbr->blockptr[0].blockno, "No Program Table");
 
     /* Parse the program table */
-    read_block(mbr->blockptr.blockno, sec,
+    read_block(mbr->blockptr[0].blockno, sec,
                "Error reading Program Table");
 
     IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic in PT");
 
+    debug_print_int("loadparm index", loadparm);
     ns_end = sec + virtio_get_block_size();
     for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns += pte_len) {
         prog_table_entry = (ScsiBlockPtr *)ns;
@@ -475,15 +483,14 @@ static void ipl_scsi(void)
         }
 
         program_table_entries++;
+        if (program_table_entries == loadparm + 1) {
+            break; /* selected entry found */
+        }
     }
 
     debug_print_int("program table entries", program_table_entries);
 
     IPL_assert(program_table_entries != 0, "Empty Program Table");
-
-    /* Run the default entry */
-
-    prog_table_entry = (ScsiBlockPtr *)(sec + pte_len);
 
     zipl_run(prog_table_entry); /* no return */
 }
@@ -648,6 +655,7 @@ static IsoBcSection *find_iso_bc_entry(void)
     IsoBcEntry *e = (IsoBcEntry *)sec;
     uint32_t offset = find_iso_bc();
     int i;
+    unsigned int loadparm = get_loadparm_index();
 
     if (!offset) {
         return NULL;
@@ -668,7 +676,11 @@ static IsoBcSection *find_iso_bc_entry(void)
     for (i = 1; i < ISO_BC_ENTRY_PER_SECTOR; i++) {
         if (e[i].id == ISO_BC_BOOTABLE_SECTION) {
             if (is_iso_bc_entry_compatible(&e[i].body.sect)) {
-                return &e[i].body.sect;
+                if (loadparm <= 1) {
+                    /* found, default, or unspecified */
+                    return &e[i].body.sect;
+                }
+                loadparm--;
             }
         }
     }

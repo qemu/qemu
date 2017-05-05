@@ -274,6 +274,36 @@ bool cpu_model_allowed(void)
     return true;
 }
 
+static char *machine_get_loadparm(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return g_memdup(ms->loadparm, sizeof(ms->loadparm));
+}
+
+static void machine_set_loadparm(Object *obj, const char *val, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+    int i;
+
+    for (i = 0; i < sizeof(ms->loadparm) && val[i]; i++) {
+        uint8_t c = toupper(val[i]); /* mimic HMC */
+
+        if (('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || (c == '.') ||
+            (c == ' ')) {
+            ms->loadparm[i] = c;
+        } else {
+            error_setg(errp, "LOADPARM: invalid character '%c' (ASCII 0x%02x)",
+                       c, c);
+            return;
+        }
+    }
+
+    for (; i < sizeof(ms->loadparm); i++) {
+        ms->loadparm[i] = ' '; /* pad right with spaces */
+    }
+}
+
 static inline void s390_machine_initfn(Object *obj)
 {
     object_property_add_bool(obj, "aes-key-wrap",
@@ -291,6 +321,13 @@ static inline void s390_machine_initfn(Object *obj)
             "enable/disable DEA key wrapping using the CPACF wrapping key",
             NULL);
     object_property_set_bool(obj, true, "dea-key-wrap", NULL);
+    object_property_add_str(obj, "loadparm",
+            machine_get_loadparm, machine_set_loadparm, NULL);
+    object_property_set_description(obj, "loadparm",
+            "Up to 8 chars in set of [A-Za-z0-9. ] (lower case chars converted"
+            " to upper case) to pass to machine loader, boot manager,"
+            " and guest kernel",
+            NULL);
 }
 
 static const TypeInfo ccw_machine_info = {

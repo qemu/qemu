@@ -80,3 +80,15 @@ void sclp_print(const char *str)
 
     sclp_service_call(SCLP_CMD_WRITE_EVENT_DATA, sccb);
 }
+
+void sclp_get_loadparm_ascii(char *loadparm)
+{
+
+    ReadInfo *sccb = (void *)_sccb;
+
+    memset((char *)_sccb, 0, sizeof(ReadInfo));
+    sccb->h.length = sizeof(ReadInfo);
+    if (!sclp_service_call(SCLP_CMDW_READ_SCP_INFO, sccb)) {
+        ebcdic_to_ascii((char *) sccb->loadparm, loadparm, 8);
+    }
+}

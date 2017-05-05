@@ -70,7 +70,7 @@ typedef struct ScsiMbr {
     uint8_t magic[4];
     uint32_t version_id;
     uint8_t reserved[8];
-    ScsiBlockPtr blockptr;
+    ScsiBlockPtr blockptr[];
 } __attribute__ ((packed)) ScsiMbr;
 
 #define ZIPL_MAGIC              "zIPL"
@@ -263,28 +263,6 @@ typedef enum {
 } ECKD_IPL_mode_t;
 
 /* utility code below */
-
-static const unsigned char ebc2asc[256] =
-      /* 0123456789abcdef0123456789abcdef */
-        "................................" /* 1F */
-        "................................" /* 3F */
-        " ...........<(+|&.........!$*);." /* 5F first.chr.here.is.real.space */
-        "-/.........,%_>?.........`:#@'=\""/* 7F */
-        ".abcdefghi.......jklmnopqr......" /* 9F */
-        "..stuvwxyz......................" /* BF */
-        ".ABCDEFGHI.......JKLMNOPQR......" /* DF */
-        "..STUVWXYZ......0123456789......";/* FF */
-
-static inline void ebcdic_to_ascii(const char *src,
-                                   char *dst,
-                                   unsigned int size)
-{
-    unsigned int i;
-    for (i = 0; i < size; i++) {
-        unsigned c = src[i];
-        dst[i] = ebc2asc[c];
-    }
-}
 
 static inline void print_volser(const void *volser)
 {
