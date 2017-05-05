@@ -93,7 +93,7 @@ int egl_rendernode_init(const char *rendernode)
         goto err;
     }
 
-    qemu_egl_init_dpy((EGLNativeDisplayType)qemu_egl_rn_gbm_dev);
+    qemu_egl_init_dpy_mesa((EGLNativeDisplayType)qemu_egl_rn_gbm_dev);
 
     if (!epoxy_has_egl_extension(qemu_egl_display,
                                  "EGL_KHR_surfaceless_context")) {
@@ -206,20 +206,19 @@ EGLSurface qemu_egl_init_surface_x11(EGLContext ectx, Window win)
  * platform extensions (EGL_KHR_platform_gbm and friends) yet it doesn't seem
  * like mesa will be able to advertise these (even though it can do EGL 1.5).
  */
-static EGLDisplay qemu_egl_get_display(void *native)
+static EGLDisplay qemu_egl_get_display(EGLNativeDisplayType native,
+                                       EGLenum platform)
 {
     EGLDisplay dpy = EGL_NO_DISPLAY;
 
-#ifdef EGL_MESA_platform_gbm
     /* In practise any EGL 1.5 implementation would support the EXT extension */
     if (epoxy_has_egl_extension(NULL, "EGL_EXT_platform_base")) {
         PFNEGLGETPLATFORMDISPLAYEXTPROC getPlatformDisplayEXT =
             (void *) eglGetProcAddress("eglGetPlatformDisplayEXT");
-        if (getPlatformDisplayEXT) {
-            dpy = getPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, native, NULL);
+        if (getPlatformDisplayEXT && platform != 0) {
+            dpy = getPlatformDisplayEXT(platform, native, NULL);
         }
     }
-#endif
 
     if (dpy == EGL_NO_DISPLAY) {
         /* fallback */
@@ -228,7 +227,8 @@ static EGLDisplay qemu_egl_get_display(void *native)
     return dpy;
 }
 
-int qemu_egl_init_dpy(EGLNativeDisplayType dpy)
+static int qemu_egl_init_dpy(EGLNativeDisplayType dpy,
+                             EGLenum platform)
 {
     static const EGLint conf_att_gl[] = {
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
@@ -243,7 +243,7 @@ int qemu_egl_init_dpy(EGLNativeDisplayType dpy)
     EGLBoolean b;
     EGLint n;
 
-    qemu_egl_display = qemu_egl_get_display(dpy);
+    qemu_egl_display = qemu_egl_get_display(dpy, platform);
     if (qemu_egl_display == EGL_NO_DISPLAY) {
         error_report("egl: eglGetDisplay failed");
         return -1;
@@ -268,6 +268,24 @@ int qemu_egl_init_dpy(EGLNativeDisplayType dpy)
         return -1;
     }
     return 0;
+}
+
+int qemu_egl_init_dpy_x11(EGLNativeDisplayType dpy)
+{
+#ifdef EGL_KHR_platform_x11
+    return qemu_egl_init_dpy(dpy, EGL_PLATFORM_X11_KHR);
+#else
+    return qemu_egl_init_dpy(dpy, 0);
+#endif
+}
+
+int qemu_egl_init_dpy_mesa(EGLNativeDisplayType dpy)
+{
+#ifdef EGL_MESA_platform_gbm
+    return qemu_egl_init_dpy(dpy, EGL_PLATFORM_GBM_MESA);
+#else
+    return qemu_egl_init_dpy(dpy, 0);
+#endif
 }
 
 EGLContext qemu_egl_init_ctx(void)

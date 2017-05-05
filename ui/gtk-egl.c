@@ -246,7 +246,7 @@ void gtk_egl_init(void)
     GdkDisplay *gdk_display = gdk_display_get_default();
     Display *x11_display = gdk_x11_display_get_xdisplay(gdk_display);
 
-    if (qemu_egl_init_dpy(x11_display) < 0) {
+    if (qemu_egl_init_dpy_x11(x11_display) < 0) {
         return;
     }
 
