@@ -491,7 +491,7 @@ static gboolean _test_server_free(TestServer *server)
     Chardev *chr = qemu_chr_fe_get_driver(&server->chr);
 
     qemu_chr_fe_deinit(&server->chr);
-    qemu_chr_delete(chr);
+    object_unparent(OBJECT(chr));
 
     for (i = 0; i < server->fds_num; i++) {
         close(server->fds[i]);

@@ -114,7 +114,7 @@ static void mux_print_help(Chardev *chr)
     }
 }
 
-void mux_chr_send_event(MuxChardev *d, int mux_nr, int event)
+static void mux_chr_send_event(MuxChardev *d, int mux_nr, int event)
 {
     CharBackend *be = d->backends[mux_nr];
 
@@ -222,9 +222,9 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
 
 bool muxes_realized;
 
-static void mux_chr_event(void *opaque, int event)
+void mux_chr_send_all_event(Chardev *chr, int event)
 {
-    MuxChardev *d = MUX_CHARDEV(opaque);
+    MuxChardev *d = MUX_CHARDEV(chr);
     int i;
 
     if (!muxes_realized) {
@@ -235,6 +235,11 @@ static void mux_chr_event(void *opaque, int event)
     for (i = 0; i < d->mux_cnt; i++) {
         mux_chr_send_event(d, i, event);
     }
+}
+
+static void mux_chr_event(void *opaque, int event)
+{
+    mux_chr_send_all_event(CHARDEV(opaque), event);
 }
 
 static GSource *mux_chr_add_watch(Chardev *s, GIOCondition cond)

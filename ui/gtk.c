@@ -1868,7 +1868,7 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), vc->tab_item,
                              gtk_label_new(vc->label));
 
-    qemu_chr_be_generic_open(vc->vte.chr);
+    qemu_chr_be_event(vc->vte.chr, CHR_EVENT_OPENED);
 
     return group;
 }

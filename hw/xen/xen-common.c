@@ -38,7 +38,7 @@ static int store_dev_info(int domid, Chardev *cs, const char *string)
     int ret = -1;
 
     /* Only continue if we're talking to a pty. */
-    if (strncmp(cs->filename, "pty:", 4)) {
+    if (!CHARDEV_IS_PTY(cs)) {
         return 0;
     }
     pts = cs->filename + 4;

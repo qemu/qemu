@@ -2076,7 +2076,7 @@ static void text_console_do_init(Chardev *chr, DisplayState *ds)
         s->t_attrib = s->t_attrib_default;
     }
 
-    qemu_chr_be_generic_open(chr);
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
 static void vc_chr_open(Chardev *chr,

@@ -385,6 +385,15 @@ static char *SocketAddress_to_str(const char *prefix, SocketAddress *addr,
     }
 }
 
+static void update_disconnected_filename(SocketChardev *s)
+{
+    Chardev *chr = CHARDEV(s);
+
+    g_free(chr->filename);
+    chr->filename = SocketAddress_to_str("disconnected:", s->addr,
+                                         s->is_listen, s->is_telnet);
+}
+
 static void tcp_chr_disconnect(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
@@ -399,8 +408,7 @@ static void tcp_chr_disconnect(Chardev *chr)
         s->listen_tag = qio_channel_add_watch(
             QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
     }
-    chr->filename = SocketAddress_to_str("disconnected:", s->addr,
-                                         s->is_listen, s->is_telnet);
+    update_disconnected_filename(s);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
     if (s->reconnect_time) {
         qemu_chr_socket_restart_timer(chr);
@@ -508,7 +516,7 @@ static void tcp_chr_connect(void *opaque)
                                            tcp_chr_read,
                                            chr, NULL);
     }
-    qemu_chr_be_generic_open(chr);
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
 static void tcp_chr_update_read_handler(Chardev *chr,
@@ -908,8 +916,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     /* be isn't opened until we get a connection */
     *be_opened = false;
 
-    chr->filename = SocketAddress_to_str("disconnected:",
-                                         addr, is_listen, is_telnet);
+    update_disconnected_filename(s);
 
     if (is_listen) {
         if (is_telnet || is_tn3270) {
@@ -937,6 +944,11 @@ static void qmp_chardev_open_socket(Chardev *chr,
             if (qio_channel_socket_listen_sync(sioc, s->addr, errp) < 0) {
                 goto error;
             }
+
+            qapi_free_SocketAddress(s->addr);
+            s->addr = socket_local_address(sioc->fd, errp);
+            update_disconnected_filename(s);
+
             s->listen_ioc = sioc;
             if (is_waitconnect &&
                 qemu_chr_wait_connected(chr, errp) < 0) {
@@ -1033,6 +1045,23 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->addr = addr;
 }
 
+static void
+char_socket_get_addr(Object *obj, Visitor *v, const char *name,
+                     void *opaque, Error **errp)
+{
+    SocketChardev *s = SOCKET_CHARDEV(obj);
+
+    visit_type_SocketAddress(v, name, &s->addr, errp);
+}
+
+static bool
+char_socket_get_connected(Object *obj, Error **errp)
+{
+    SocketChardev *s = SOCKET_CHARDEV(obj);
+
+    return s->connected;
+}
+
 static void char_socket_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -1048,6 +1077,13 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
     cc->chr_add_client = tcp_chr_add_client;
     cc->chr_add_watch = tcp_chr_add_watch;
     cc->chr_update_read_handler = tcp_chr_update_read_handler;
+
+    object_class_property_add(oc, "addr", "SocketAddress",
+                              char_socket_get_addr, NULL,
+                              NULL, NULL, &error_abort);
+
+    object_class_property_add_bool(oc, "connected", char_socket_get_connected,
+                                   NULL, &error_abort);
 }
 
 static const TypeInfo char_socket_type_info = {
