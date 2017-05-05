@@ -70,7 +70,7 @@ static void hda_codec_dev_realize(DeviceState *qdev, Error **errp)
     }
 }
 
-static int hda_codec_dev_exit(DeviceState *qdev)
+static void hda_codec_dev_unrealize(DeviceState *qdev, Error **errp)
 {
     HDACodecDevice *dev = HDA_CODEC_DEVICE(qdev);
     HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
@@ -78,7 +78,6 @@ static int hda_codec_dev_exit(DeviceState *qdev)
     if (cdc->exit) {
         cdc->exit(dev);
     }
-    return 0;
 }
 
 HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
@@ -1318,7 +1317,7 @@ static void hda_codec_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->realize = hda_codec_dev_realize;
-    k->exit = hda_codec_dev_exit;
+    k->unrealize = hda_codec_dev_unrealize;
     set_bit(DEVICE_CATEGORY_SOUND, k->categories);
     k->bus_type = TYPE_HDA_BUS;
     k->props = hda_props;

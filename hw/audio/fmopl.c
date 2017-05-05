@@ -30,19 +30,13 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#define HAS_YM3812	1
-
 #include "qemu/osdep.h"
 #include <math.h>
 //#include "driver.h"		/* use M.A.M.E. */
 #include "fmopl.h"
-
+#include "qemu/osdep.h"
 #ifndef PI
 #define PI 3.14159265358979323846
-#endif
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
 /* -------------------- for debug --------------------- */
@@ -124,7 +118,7 @@ static const int slot_array[32]=
 /* key scale level */
 /* table is 3dB/OCT , DV converts this in TL step at 6dB/OCT */
 #define DV (EG_STEP/2)
-static const UINT32 KSL_TABLE[8*16]=
+static const uint32_t KSL_TABLE[8*16]=
 {
 	/* OCT 0 */
 	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
@@ -172,7 +166,7 @@ static const UINT32 KSL_TABLE[8*16]=
 /* sustain lebel table (3db per step) */
 /* 0 - 15: 0, 3, 6, 9,12,15,18,21,24,27,30,33,36,39,42,93 (dB)*/
 #define SC(db) (db*((3/EG_STEP)*(1<<ENV_BITS)))+EG_DST
-static const INT32 SL_TABLE[16]={
+static const int32_t SL_TABLE[16]={
  SC( 0),SC( 1),SC( 2),SC(3 ),SC(4 ),SC(5 ),SC(6 ),SC( 7),
  SC( 8),SC( 9),SC(10),SC(11),SC(12),SC(13),SC(14),SC(31)
 };
@@ -182,22 +176,22 @@ static const INT32 SL_TABLE[16]={
 /* TotalLevel : 48 24 12  6  3 1.5 0.75 (dB) */
 /* TL_TABLE[ 0      to TL_MAX          ] : plus  section */
 /* TL_TABLE[ TL_MAX to TL_MAX+TL_MAX-1 ] : minus section */
-static INT32 *TL_TABLE;
+static int32_t *TL_TABLE;
 
 /* pointers to TL_TABLE with sinwave output offset */
-static INT32 **SIN_TABLE;
+static int32_t **SIN_TABLE;
 
 /* LFO table */
-static INT32 *AMS_TABLE;
-static INT32 *VIB_TABLE;
+static int32_t *AMS_TABLE;
+static int32_t *VIB_TABLE;
 
 /* envelope output curve table */
 /* attack + decay + OFF */
-static INT32 ENV_CURVE[2*EG_ENT+1];
+static int32_t ENV_CURVE[2*EG_ENT+1];
 
 /* multiple table */
 #define ML 2
-static const UINT32 MUL_TABLE[16]= {
+static const uint32_t MUL_TABLE[16]= {
 /* 1/2, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15 */
    0.50*ML, 1.00*ML, 2.00*ML, 3.00*ML, 4.00*ML, 5.00*ML, 6.00*ML, 7.00*ML,
    8.00*ML, 9.00*ML,10.00*ML,10.00*ML,12.00*ML,12.00*ML,15.00*ML,15.00*ML
@@ -205,7 +199,7 @@ static const UINT32 MUL_TABLE[16]= {
 #undef ML
 
 /* dummy attack / decay rate ( when rate == 0 ) */
-static INT32 RATE_0[16]=
+static int32_t RATE_0[16]=
 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 /* -------------------- static state --------------------- */
@@ -221,14 +215,14 @@ static OPL_CH *S_CH;
 static OPL_CH *E_CH;
 static OPL_SLOT *SLOT7_1, *SLOT7_2, *SLOT8_1, *SLOT8_2;
 
-static INT32 outd[1];
-static INT32 ams;
-static INT32 vib;
-static INT32 *ams_table;
-static INT32 *vib_table;
-static INT32 amsIncr;
-static INT32 vibIncr;
-static INT32 feedback2;		/* connect for SLOT 2 */
+static int32_t outd[1];
+static int32_t ams;
+static int32_t vib;
+static int32_t *ams_table;
+static int32_t *vib_table;
+static int32_t amsIncr;
+static int32_t vibIncr;
+static int32_t feedback2;		/* connect for SLOT 2 */
 
 /* log output level */
 #define LOG_ERR  3      /* ERROR       */
@@ -262,8 +256,6 @@ static inline void OPL_STATUS_SET(FM_OPL *OPL,int flag)
 		if(OPL->status & OPL->statusmask)
 		{	/* IRQ on */
 			OPL->status |= 0x80;
-			/* callback user interrupt handler (IRQ is OFF to ON) */
-			if(OPL->IRQHandler) (OPL->IRQHandler)(OPL->IRQParam,1);
 		}
 	}
 }
@@ -278,8 +270,6 @@ static inline void OPL_STATUS_RESET(FM_OPL *OPL,int flag)
 		if (!(OPL->status & OPL->statusmask) )
 		{
 			OPL->status &= 0x7f;
-			/* callback user interrupt handler (IRQ is ON to OFF) */
-			if(OPL->IRQHandler) (OPL->IRQHandler)(OPL->IRQParam,0);
 		}
 	}
 }
@@ -321,7 +311,7 @@ static inline void OPL_KEYOFF(OPL_SLOT *SLOT)
 
 /* ---------- calcrate Envelope Generator & Phase Generator ---------- */
 /* return : envelope output */
-static inline UINT32 OPL_CALC_SLOT( OPL_SLOT *SLOT )
+static inline uint32_t OPL_CALC_SLOT( OPL_SLOT *SLOT )
 {
 	/* calcrate envelope generator */
 	if( (SLOT->evc+=SLOT->evs) >= SLOT->eve )
@@ -361,7 +351,7 @@ static inline UINT32 OPL_CALC_SLOT( OPL_SLOT *SLOT )
 /* set algorithm connection */
 static void set_algorithm( OPL_CH *CH)
 {
-	INT32 *carrier = &outd[0];
+	int32_t *carrier = &outd[0];
 	CH->connect1 = CH->CON ? carrier : &feedback2;
 	CH->connect2 = carrier;
 }
@@ -453,7 +443,7 @@ static inline void set_sl_rr(FM_OPL *OPL,int slot,int v)
 /* ---------- calcrate one of channel ---------- */
 static inline void OPL_CALC_CH( OPL_CH *CH )
 {
-	UINT32 env_out;
+	uint32_t env_out;
 	OPL_SLOT *SLOT;
 
 	feedback2 = 0;
@@ -498,9 +488,9 @@ static inline void OPL_CALC_CH( OPL_CH *CH )
 #define WHITE_NOISE_db 6.0
 static inline void OPL_CALC_RH( OPL_CH *CH )
 {
-	UINT32 env_tam,env_sd,env_top,env_hh;
+	uint32_t env_tam,env_sd,env_top,env_hh;
 	int whitenoise = (rand()&1)*(WHITE_NOISE_db/EG_STEP);
-	INT32 tone8;
+	int32_t tone8;
 
 	OPL_SLOT *SLOT;
 	int env_out;
@@ -618,20 +608,20 @@ static int OPLOpenTable( void )
 	double pom;
 
 	/* allocate dynamic tables */
-	if( (TL_TABLE = malloc(TL_MAX*2*sizeof(INT32))) == NULL)
+	if( (TL_TABLE = malloc(TL_MAX*2*sizeof(int32_t))) == NULL)
 		return 0;
-	if( (SIN_TABLE = malloc(SIN_ENT*4 *sizeof(INT32 *))) == NULL)
+	if( (SIN_TABLE = malloc(SIN_ENT*4 *sizeof(int32_t *))) == NULL)
 	{
 		free(TL_TABLE);
 		return 0;
 	}
-	if( (AMS_TABLE = malloc(AMS_ENT*2 *sizeof(INT32))) == NULL)
+	if( (AMS_TABLE = malloc(AMS_ENT*2 *sizeof(int32_t))) == NULL)
 	{
 		free(TL_TABLE);
 		free(SIN_TABLE);
 		return 0;
 	}
-	if( (VIB_TABLE = malloc(VIB_ENT*2 *sizeof(INT32))) == NULL)
+	if( (VIB_TABLE = malloc(VIB_ENT*2 *sizeof(int32_t))) == NULL)
 	{
 		free(TL_TABLE);
 		free(SIN_TABLE);
@@ -763,18 +753,15 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 		{
 		case 0x01:
 			/* wave selector enable */
-			if(OPL->type&OPL_TYPE_WAVESEL)
+			OPL->wavesel = v&0x20;
+                        if(!OPL->wavesel)
 			{
-				OPL->wavesel = v&0x20;
-				if(!OPL->wavesel)
+				/* preset compatible mode */
+				int c;
+				for(c=0;c<OPL->max_ch;c++)
 				{
-					/* preset compatible mode */
-					int c;
-					for(c=0;c<OPL->max_ch;c++)
-					{
-						OPL->P_CH[c].SLOT[SLOT1].wavetable = &SIN_TABLE[0];
-						OPL->P_CH[c].SLOT[SLOT2].wavetable = &SIN_TABLE[0];
-					}
+					OPL->P_CH[c].SLOT[SLOT1].wavetable = &SIN_TABLE[0];
+					OPL->P_CH[c].SLOT[SLOT2].wavetable = &SIN_TABLE[0];
 				}
 			}
 			return;
@@ -791,8 +778,8 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 			}
 			else
 			{	/* set IRQ mask ,timer enable*/
-				UINT8 st1 = v&1;
-				UINT8 st2 = (v>>1)&1;
+				uint8_t st1 = v&1;
+				uint8_t st2 = (v>>1)&1;
 				/* IRQRST,T1MSK,t2MSK,EOSMSK,BRMSK,x,ST2,ST1 */
 				OPL_STATUS_RESET(OPL,v&0x78);
 				OPL_STATUSMASK_SET(OPL,((~v)&0x78)|0x01);
@@ -812,57 +799,6 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 				}
 			}
 			return;
-#if BUILD_Y8950
-		case 0x06:		/* Key Board OUT */
-			if(OPL->type&OPL_TYPE_KEYBOARD)
-			{
-				if(OPL->keyboardhandler_w)
-					OPL->keyboardhandler_w(OPL->keyboard_param,v);
-				else
-					LOG(LOG_WAR,("OPL:write unmapped KEYBOARD port\n"));
-			}
-			return;
-		case 0x07:	/* DELTA-T control : START,REC,MEMDATA,REPT,SPOFF,x,x,RST */
-			if(OPL->type&OPL_TYPE_ADPCM)
-				YM_DELTAT_ADPCM_Write(OPL->deltat,r-0x07,v);
-			return;
-		case 0x08:	/* MODE,DELTA-T : CSM,NOTESEL,x,x,smpl,da/ad,64k,rom */
-			OPL->mode = v;
-			v&=0x1f;	/* for DELTA-T unit */
-		case 0x09:		/* START ADD */
-		case 0x0a:
-		case 0x0b:		/* STOP ADD  */
-		case 0x0c:
-		case 0x0d:		/* PRESCALE   */
-		case 0x0e:
-		case 0x0f:		/* ADPCM data */
-		case 0x10: 		/* DELTA-N    */
-		case 0x11: 		/* DELTA-N    */
-		case 0x12: 		/* EG-CTRL    */
-			if(OPL->type&OPL_TYPE_ADPCM)
-				YM_DELTAT_ADPCM_Write(OPL->deltat,r-0x07,v);
-			return;
-#if 0
-		case 0x15:		/* DAC data    */
-		case 0x16:
-		case 0x17:		/* SHIFT    */
-			return;
-		case 0x18:		/* I/O CTRL (Direction) */
-			if(OPL->type&OPL_TYPE_IO)
-				OPL->portDirection = v&0x0f;
-			return;
-		case 0x19:		/* I/O DATA */
-			if(OPL->type&OPL_TYPE_IO)
-			{
-				OPL->portLatch = v;
-				if(OPL->porthandler_w)
-					OPL->porthandler_w(OPL->port_param,v&OPL->portDirection);
-			}
-			return;
-		case 0x1a:		/* PCM data */
-			return;
-#endif
-#endif
 		}
 		break;
 	case 0x20:	/* am,vib,ksr,eg type,mul */
@@ -891,7 +827,7 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 		case 0xbd:
 			/* amsep,vibdep,r,bd,sd,tom,tc,hh */
 			{
-			UINT8 rkey = OPL->rhythm^v;
+			uint8_t rkey = OPL->rhythm^v;
 			OPL->ams_table = &AMS_TABLE[v&0x80 ? AMS_ENT : 0];
 			OPL->vib_table = &VIB_TABLE[v&0x40 ? VIB_ENT : 0];
 			OPL->rhythm  = v&0x3f;
@@ -1032,20 +968,19 @@ static void OPL_UnLockTable(void)
 	OPLCloseTable();
 }
 
-#if (BUILD_YM3812 || BUILD_YM3526)
 /*******************************************************************************/
 /*		YM3812 local section                                                   */
 /*******************************************************************************/
 
 /* ---------- update one of chip ----------- */
-void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
+void YM3812UpdateOne(FM_OPL *OPL, int16_t *buffer, int length)
 {
     int i;
 	int data;
-	OPLSAMPLE *buf = buffer;
-	UINT32 amsCnt  = OPL->amsCnt;
-	UINT32 vibCnt  = OPL->vibCnt;
-	UINT8 rhythm = OPL->rhythm&0x20;
+	int16_t *buf = buffer;
+	uint32_t amsCnt  = OPL->amsCnt;
+	uint32_t  vibCnt  = OPL->vibCnt;
+	uint8_t rhythm = OPL->rhythm&0x20;
 	OPL_CH *CH,*R_CH;
 
 	if( (void *)OPL != cur_chip ){
@@ -1095,72 +1030,9 @@ void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 	}
 #endif
 }
-#endif /* (BUILD_YM3812 || BUILD_YM3526) */
-
-#if BUILD_Y8950
-
-void Y8950UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
-{
-    int i;
-	int data;
-	OPLSAMPLE *buf = buffer;
-	UINT32 amsCnt  = OPL->amsCnt;
-	UINT32 vibCnt  = OPL->vibCnt;
-	UINT8 rhythm = OPL->rhythm&0x20;
-	OPL_CH *CH,*R_CH;
-	YM_DELTAT *DELTAT = OPL->deltat;
-
-	/* setup DELTA-T unit */
-	YM_DELTAT_DECODE_PRESET(DELTAT);
-
-	if( (void *)OPL != cur_chip ){
-		cur_chip = (void *)OPL;
-		/* channel pointers */
-		S_CH = OPL->P_CH;
-		E_CH = &S_CH[9];
-		/* rhythm slot */
-		SLOT7_1 = &S_CH[7].SLOT[SLOT1];
-		SLOT7_2 = &S_CH[7].SLOT[SLOT2];
-		SLOT8_1 = &S_CH[8].SLOT[SLOT1];
-		SLOT8_2 = &S_CH[8].SLOT[SLOT2];
-		/* LFO state */
-		amsIncr = OPL->amsIncr;
-		vibIncr = OPL->vibIncr;
-		ams_table = OPL->ams_table;
-		vib_table = OPL->vib_table;
-	}
-	R_CH = rhythm ? &S_CH[6] : E_CH;
-    for( i=0; i < length ; i++ )
-	{
-		/*            channel A         channel B         channel C      */
-		/* LFO */
-		ams = ams_table[(amsCnt+=amsIncr)>>AMS_SHIFT];
-		vib = vib_table[(vibCnt+=vibIncr)>>VIB_SHIFT];
-		outd[0] = 0;
-		/* deltaT ADPCM */
-		if( DELTAT->portstate )
-			YM_DELTAT_ADPCM_CALC(DELTAT);
-		/* FM part */
-		for(CH=S_CH ; CH < R_CH ; CH++)
-			OPL_CALC_CH(CH);
-		/* Rythn part */
-		if(rhythm)
-			OPL_CALC_RH(S_CH);
-		/* limit check */
-		data = Limit( outd[0] , OPL_MAXOUT, OPL_MINOUT );
-		/* store to sound buffer */
-		buf[i] = data >> OPL_OUTSB;
-	}
-	OPL->amsCnt = amsCnt;
-	OPL->vibCnt = vibCnt;
-	/* deltaT START flag */
-	if( !DELTAT->portstate )
-		OPL->status &= 0xfe;
-}
-#endif
 
 /* ---------- reset one of chip ---------- */
-void OPLResetChip(FM_OPL *OPL)
+static void OPLResetChip(FM_OPL *OPL)
 {
 	int c,s;
 	int i;
@@ -1189,23 +1061,11 @@ void OPLResetChip(FM_OPL *OPL)
 			CH->SLOT[s].evs = 0;
 		}
 	}
-#if BUILD_Y8950
-	if(OPL->type&OPL_TYPE_ADPCM)
-	{
-		YM_DELTAT *DELTAT = OPL->deltat;
-
-		DELTAT->freqbase = OPL->freqbase;
-		DELTAT->output_pointer = outd;
-		DELTAT->portshift = 5;
-		DELTAT->output_range = DELTAT_MIXING_LEVEL<<TL_BITS;
-		YM_DELTAT_ADPCM_Reset(DELTAT,0);
-	}
-#endif
 }
 
 /* ----------  Create one of vietual YM3812 ----------       */
 /* 'rate'  is sampling rate and 'bufsiz' is the size of the  */
-FM_OPL *OPLCreate(int type, int clock, int rate)
+FM_OPL *OPLCreate(int clock, int rate)
 {
 	char *ptr;
 	FM_OPL *OPL;
@@ -1216,9 +1076,6 @@ FM_OPL *OPLCreate(int type, int clock, int rate)
 	/* allocate OPL state space */
 	state_size  = sizeof(FM_OPL);
 	state_size += sizeof(OPL_CH)*max_ch;
-#if BUILD_Y8950
-	if(type&OPL_TYPE_ADPCM) state_size+= sizeof(YM_DELTAT);
-#endif
 	/* allocate memory block */
 	ptr = malloc(state_size);
 	if(ptr==NULL) return NULL;
@@ -1226,11 +1083,7 @@ FM_OPL *OPLCreate(int type, int clock, int rate)
 	memset(ptr,0,state_size);
 	OPL        = (FM_OPL *)ptr; ptr+=sizeof(FM_OPL);
 	OPL->P_CH  = (OPL_CH *)ptr; ptr+=sizeof(OPL_CH)*max_ch;
-#if BUILD_Y8950
-	if(type&OPL_TYPE_ADPCM) OPL->deltat = (YM_DELTAT *)ptr; ptr+=sizeof(YM_DELTAT);
-#endif
 	/* set channel state pointer */
-	OPL->type  = type;
 	OPL->clock = clock;
 	OPL->rate  = rate;
 	OPL->max_ch = max_ch;
@@ -1280,31 +1133,7 @@ void OPLSetTimerHandler(FM_OPL *OPL,OPL_TIMERHANDLER TimerHandler,int channelOff
 	OPL->TimerHandler   = TimerHandler;
 	OPL->TimerParam = channelOffset;
 }
-void OPLSetIRQHandler(FM_OPL *OPL,OPL_IRQHANDLER IRQHandler,int param)
-{
-	OPL->IRQHandler     = IRQHandler;
-	OPL->IRQParam = param;
-}
-void OPLSetUpdateHandler(FM_OPL *OPL,OPL_UPDATEHANDLER UpdateHandler,int param)
-{
-	OPL->UpdateHandler = UpdateHandler;
-	OPL->UpdateParam = param;
-}
-#if BUILD_Y8950
-void OPLSetPortHandler(FM_OPL *OPL,OPL_PORTHANDLER_W PortHandler_w,OPL_PORTHANDLER_R PortHandler_r,int param)
-{
-	OPL->porthandler_w = PortHandler_w;
-	OPL->porthandler_r = PortHandler_r;
-	OPL->port_param = param;
-}
 
-void OPLSetKeyboardHandler(FM_OPL *OPL,OPL_PORTHANDLER_W KeyboardHandler_w,OPL_PORTHANDLER_R KeyboardHandler_r,int param)
-{
-	OPL->keyboardhandler_w = KeyboardHandler_w;
-	OPL->keyboardhandler_r = KeyboardHandler_r;
-	OPL->keyboard_param = param;
-}
-#endif
 /* ---------- YM3812 I/O interface ---------- */
 int OPLWrite(FM_OPL *OPL,int a,int v)
 {
@@ -1314,7 +1143,6 @@ int OPLWrite(FM_OPL *OPL,int a,int v)
 	}
 	else
 	{	/* data port */
-		if(OPL->UpdateHandler) OPL->UpdateHandler(OPL->UpdateParam,0);
 #ifdef OPL_OUTPUT_LOG
 	if(opl_dbg_fp)
 	{
@@ -1338,28 +1166,12 @@ unsigned char OPLRead(FM_OPL *OPL,int a)
 	switch(OPL->address)
 	{
 	case 0x05: /* KeyBoard IN */
-		if(OPL->type&OPL_TYPE_KEYBOARD)
-		{
-			if(OPL->keyboardhandler_r)
-				return OPL->keyboardhandler_r(OPL->keyboard_param);
-			else {
-				LOG(LOG_WAR,("OPL:read unmapped KEYBOARD port\n"));
-			}
-		}
 		return 0;
 #if 0
 	case 0x0f: /* ADPCM-DATA  */
 		return 0;
 #endif
 	case 0x19: /* I/O DATA    */
-		if(OPL->type&OPL_TYPE_IO)
-		{
-			if(OPL->porthandler_r)
-				return OPL->porthandler_r(OPL->port_param);
-			else {
-				LOG(LOG_WAR,("OPL:read unmapped I/O port\n"));
-			}
-		}
 		return 0;
 	case 0x1a: /* PCM-DATA    */
 		return 0;
@@ -1380,7 +1192,6 @@ int OPLTimerOver(FM_OPL *OPL,int c)
 		if( OPL->mode & 0x80 )
 		{	/* CSM mode total level latch and auto key on */
 			int ch;
-			if(OPL->UpdateHandler) OPL->UpdateHandler(OPL->UpdateParam,0);
 			for(ch=0;ch<9;ch++)
 				CSMKeyControll( &OPL->P_CH[ch] );
 		}

@@ -88,6 +88,7 @@ static void wav_capture_destroy (void *opaque)
     WAVState *wav = opaque;
 
     AUD_del_capture (wav->cap, wav);
+    g_free (wav);
 }
 
 static void wav_capture_info (void *opaque)

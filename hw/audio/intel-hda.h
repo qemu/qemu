@@ -38,7 +38,7 @@ typedef struct HDACodecDeviceClass
     DeviceClass parent_class;
 
     int (*init)(HDACodecDevice *dev);
-    int (*exit)(HDACodecDevice *dev);
+    void (*exit)(HDACodecDevice *dev);
     void (*command)(HDACodecDevice *dev, uint32_t nid, uint32_t data);
     void (*stream)(HDACodecDevice *dev, uint32_t stnr, bool running, bool output);
 } HDACodecDeviceClass;

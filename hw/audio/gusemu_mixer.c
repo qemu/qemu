@@ -27,26 +27,26 @@
 #include "gustate.h"
 
 #define GUSregb(position)  (*            (gusptr+(position)))
-#define GUSregw(position)  (*(GUSword *) (gusptr+(position)))
-#define GUSregd(position)  (*(GUSdword *)(gusptr+(position)))
+#define GUSregw(position)  (*(uint16_t *) (gusptr+(position)))
+#define GUSregd(position)  (*(uint16_t *)(gusptr+(position)))
 
-#define GUSvoice(position) (*(GUSword *)(voiceptr+(position)))
+#define GUSvoice(position) (*(uint16_t *)(voiceptr+(position)))
 
 /* samples are always 16bit stereo (4 bytes each, first right then left interleaved) */
 void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int numsamples,
-                   GUSsample *bufferpos)
+                   int16_t *bufferpos)
 {
     /* note that byte registers are stored in the upper half of each voice register! */
-    GUSbyte        *gusptr;
+    uint8_t        *gusptr;
     int             Voice;
-    GUSword        *voiceptr;
+    uint16_t       *voiceptr;
 
     unsigned int    count;
     for (count = 0; count < numsamples * 2; count++)
         *(bufferpos + count) = 0;       /* clear */
 
     gusptr = state->gusdatapos;
-    voiceptr = (GUSword *) gusptr;
+    voiceptr = (uint16_t *) gusptr;
     if (!(GUSregb(GUS4cReset) & 0x01))  /* reset flag active? */
         return;
 
@@ -85,16 +85,16 @@ void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int
                 if (GUSvoice(wVSRControl) & 0x400)      /* 16bit */
                 {
                     int offset = ((CurrPos >> 9) & 0xc0000) + (((CurrPos >> 9) & 0x1ffff) << 1);
-                    GUSchar *adr;
-                    adr = (GUSchar *) state->himemaddr + offset;
+                    int8_t *adr;
+                    adr = (int8_t *) state->himemaddr + offset;
                     sample1 = (*adr & 0xff) + (*(adr + 1) * 256);
                     sample2 = (*(adr + 2) & 0xff) + (*(adr + 2 + 1) * 256);
                 }
                 else            /* 8bit */
                 {
                     int offset = (CurrPos >> 9) & 0xfffff;
-                    GUSchar *adr;
-                    adr = (GUSchar *) state->himemaddr + offset;
+                    int8_t *adr;
+                    adr = (int8_t *) state->himemaddr + offset;
                     sample1 = (*adr) * 256;
                     sample2 = (*(adr + 1)) * 256;
                 }
@@ -171,8 +171,8 @@ void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int
                 }
 
                 /* mix samples into buffer */
-                *(bufferpos + 2 * sample)     += (GUSsample) ((sample1 * PanningPos) >> 4);        /* right */
-                *(bufferpos + 2 * sample + 1) += (GUSsample) ((sample1 * (15 - PanningPos)) >> 4); /* left */
+                *(bufferpos + 2 * sample)     += (int16_t) ((sample1 * PanningPos) >> 4);        /* right */
+                *(bufferpos + 2 * sample + 1) += (int16_t) ((sample1 * (15 - PanningPos)) >> 4); /* left */
             }
             /* write back voice and volume */
             GUSvoice(wVSRCurrVol)   = Volume32 / 32;
@@ -187,7 +187,7 @@ void gus_irqgen(GUSEmuState * state, unsigned int elapsed_time)
 /* time given in microseconds */
 {
     int             requestedIRQs = 0;
-    GUSbyte        *gusptr;
+    uint8_t        *gusptr;
     gusptr = state->gusdatapos;
     if (GUSregb(TimerDataReg2x9) & 1) /* start timer 1 (80us decrement rate) */
     {

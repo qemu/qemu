@@ -31,15 +31,15 @@
 #include "gusemu.h"
 
 #define GUSregb(position) (*            (gusptr+(position)))
-#define GUSregw(position) (*(GUSword *) (gusptr+(position)))
-#define GUSregd(position) (*(GUSdword *)(gusptr+(position)))
+#define GUSregw(position) (*(uint16_t *) (gusptr+(position)))
+#define GUSregd(position) (*(uint16_t *)(gusptr+(position)))
 
 /* size given in bytes */
 unsigned int gus_read(GUSEmuState * state, int port, int size)
 {
     int             value_read = 0;
 
-    GUSbyte        *gusptr;
+    uint8_t        *gusptr;
     gusptr = state->gusdatapos;
     GUSregd(portaccesses)++;
 
@@ -125,7 +125,7 @@ unsigned int gus_read(GUSEmuState * state, int port, int size)
                 if (!GUSregb(IRQStatReg2x6))
                     GUS_irqclear(state, state->gusirq);
             }
-            return (GUSbyte) value_read;
+            return (uint8_t) value_read;
             /* DramDMAmemPosReg */
             /* case 0x42: value_read=GUSregw(GUS42DMAStart); break;*/
             /* 43h+44h write only */
@@ -173,12 +173,12 @@ unsigned int gus_read(GUSEmuState * state, int port, int size)
                 value_read = value_read >> 8;
             value_read &= 0xff;
         }
-        return (GUSword) value_read;
+        return (uint16_t) value_read;
     /* case 0x306:                                  */ /* Mixer/Version info */
         /*  return 0xff; */ /* Pre 3.6 boards, ICS mixer NOT present */
     case 0x307:                                     /* DRAMaccess */
         {
-            GUSbyte        *adr;
+            uint8_t        *adr;
             adr = state->himemaddr + (GUSregd(GUSDRAMPOS24bit) & 0xfffff);
             return *adr;
         }
@@ -189,14 +189,14 @@ unsigned int gus_read(GUSEmuState * state, int port, int size)
 
 void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
 {
-    GUSbyte        *gusptr;
+    uint8_t        *gusptr;
     gusptr = state->gusdatapos;
     GUSregd(portaccesses)++;
 
     switch (port & 0xff0f)
     {
     case 0x200:                 /* MixerCtrlReg */
-        GUSregb(MixerCtrlReg2x0) = (GUSbyte) data;
+        GUSregb(MixerCtrlReg2x0) = (uint8_t) data;
         break;
     case 0x206:                 /* IRQstatReg / SB2x6IRQ */
         if (GUSregb(GUS45TimerCtrl) & 0x20) /* SB IRQ enabled? -> set 2x6IRQ bit */
@@ -208,7 +208,7 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
         break;
     case 0x308:                /* AdLib 388h */
     case 0x208:                /* AdLibCommandReg */
-        GUSregb(AdLibCommand2xA) = (GUSbyte) data;
+        GUSregb(AdLibCommand2xA) = (uint8_t) data;
         break;
     case 0x309:                /* AdLib 389h */
     case 0x209:                /* AdLibDataReg */
@@ -217,11 +217,11 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
             if (data & 0x80)
                 GUSregb(TimerStatus2x8) &= 0x1f; /* AdLib IRQ reset? -> clear maskable adl. timer int regs */
             else
-                GUSregb(TimerDataReg2x9) = (GUSbyte) data;
+                GUSregb(TimerDataReg2x9) = (uint8_t) data;
         }
         else
         {
-            GUSregb(AdLibData2x9) = (GUSbyte) data;
+            GUSregb(AdLibData2x9) = (uint8_t) data;
             if (GUSregb(GUS45TimerCtrl) & 0x02)
             {
                 GUSregb(TimerStatus2x8) |= 0x01;
@@ -231,16 +231,16 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
         }
         break;
     case 0x20A:
-        GUSregb(AdLibStatus2x8) = (GUSbyte) data;
+        GUSregb(AdLibStatus2x8) = (uint8_t) data;
         break;                 /* AdLibStatus2x8 */
     case 0x20B:                /* GUS hidden registers */
         switch (GUSregb(RegCtrl_2xF) & 0x7)
         {
         case 0:
             if (GUSregb(MixerCtrlReg2x0) & 0x40)
-                GUSregb(IRQ_2xB) = (GUSbyte) data; /* control register select bit */
+                GUSregb(IRQ_2xB) = (uint8_t) data; /* control register select bit */
             else
-                GUSregb(DMA_2xB) = (GUSbyte) data;
+                GUSregb(DMA_2xB) = (uint8_t) data;
             break;
             /* case 1-4: general purpose emulation regs */
         case 5:                                    /* clear stat reg 2xF */
@@ -249,7 +249,7 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
                 GUS_irqclear(state, state->gusirq);
             break;
         case 6:                                    /* Jumper reg (Joystick/MIDI enable) */
-            GUSregb(Jumper_2xB) = (GUSbyte) data;
+            GUSregb(Jumper_2xB) = (uint8_t) data;
             break;
         default:;
         }
@@ -262,20 +262,20 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
             GUS_irqrequest(state, state->gusirq, 1);
         }
     case 0x20D:                /* SB2xCd no IRQ */
-        GUSregb(SB2xCd) = (GUSbyte) data;
+        GUSregb(SB2xCd) = (uint8_t) data;
         break;
     case 0x20E:                /* SB2xE */
-        GUSregb(SB2xE) = (GUSbyte) data;
+        GUSregb(SB2xE) = (uint8_t) data;
         break;
     case 0x20F:
-        GUSregb(RegCtrl_2xF) = (GUSbyte) data;
+        GUSregb(RegCtrl_2xF) = (uint8_t) data;
         break;                 /* CtrlReg2xF */
     case 0x302:                /* VoiceSelReg */
-        GUSregb(VoiceSelReg3x2) = (GUSbyte) data;
+        GUSregb(VoiceSelReg3x2) = (uint8_t) data;
         break;
     case 0x303:                /* FunkSelReg */
-        GUSregb(FunkSelReg3x3) = (GUSbyte) data;
-        if ((GUSbyte) data == 0x8f) /* set irqstatreg, get voicereg and clear IRQ */
+        GUSregb(FunkSelReg3x3) = (uint8_t) data;
+        if ((uint8_t) data == 0x8f) /* set irqstatreg, get voicereg and clear IRQ */
         {
             int             voice;
             if (GUSregd(voicewavetableirq)) /* WavetableIRQ */
@@ -318,15 +318,15 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
     case 0x304:
     case 0x305:
         {
-            GUSword         writedata = (GUSword) data;
-            GUSword         readmask = 0x0000;
+            uint16_t         writedata = (uint16_t) data;
+            uint16_t         readmask = 0x0000;
             if (size == 1)
             {
                 readmask = 0xff00;
                 writedata &= 0xff;
                 if ((port & 0xff0f) == 0x305)
                 {
-                    writedata = (GUSword) (writedata << 8);
+                    writedata = (uint16_t) (writedata << 8);
                     readmask = 0x00ff;
                 }
             }
@@ -353,17 +353,17 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
                         break;  /* reset flag active? */
                     offset = 2 * (GUSregb(FunkSelReg3x3) & 0x0f);
                     offset += (GUSregb(VoiceSelReg3x2) & 0x1f) << 5; /*  = Voice*32 + Funktion*2 */
-                    GUSregw(offset) = (GUSword) ((GUSregw(offset) & readmask) | writedata);
+                    GUSregw(offset) = (uint16_t) ((GUSregw(offset) & readmask) | writedata);
                 }
                 break;
                 /* voice unspecific functions */
             case 0x0e:         /* NumVoices */
-                GUSregb(NumVoices) = (GUSbyte) data;
+                GUSregb(NumVoices) = (uint8_t) data;
                 break;
             /* case 0x0f:      */ /* read only */
                 /* common functions */
             case 0x41:         /* DramDMAContrReg */
-                GUSregb(GUS41DMACtrl) = (GUSbyte) data;
+                GUSregb(GUS41DMACtrl) = (uint8_t) data;
                 if (data & 0x01)
                     GUS_dmarequest(state);
                 break;
@@ -380,7 +380,7 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
                     (GUSregd(GUSDRAMPOS24bit) & 0xffff) | ((data & 0x0f) << 16);
                 break;
             case 0x45:         /* TCtrlReg */
-                GUSregb(GUS45TimerCtrl) = (GUSbyte) data;
+                GUSregb(GUS45TimerCtrl) = (uint8_t) data;
                 if (!(data & 0x20))
                     GUSregb(TimerStatus2x8) &= 0xe7;    /* sb IRQ dis? -> clear 2x8/2xC sb IRQ flags */
                 if (!(data & 0x02))
@@ -434,18 +434,18 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
                     GUS_irqclear(state, state->gusirq);
                 break;
             case 0x46:          /* Counter1 */
-                GUSregb(GUS46Counter1) = (GUSbyte) data;
+                GUSregb(GUS46Counter1) = (uint8_t) data;
                 break;
             case 0x47:          /* Counter2 */
-                GUSregb(GUS47Counter2) = (GUSbyte) data;
+                GUSregb(GUS47Counter2) = (uint8_t) data;
                 break;
             /* case 0x48:       */ /* sampling freq reg not emulated (same as interwave) */
             case 0x49:          /* SampCtrlReg */
-                GUSregb(GUS49SampCtrl) = (GUSbyte) data;
+                GUSregb(GUS49SampCtrl) = (uint8_t) data;
                 break;
             /* case 0x4b:       */ /* joystick trim not emulated */
             case 0x4c:          /* GUSreset */
-                GUSregb(GUS4cReset) = (GUSbyte) data;
+                GUSregb(GUS4cReset) = (uint8_t) data;
                 if (!(GUSregb(GUS4cReset) & 1)) /* reset... */
                 {
                     GUSregd(voicewavetableirq) = 0;
@@ -471,9 +471,9 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
         break;
     case 0x307:                /* DRAMaccess */
         {
-            GUSbyte        *adr;
+            uint8_t        *adr;
             adr = state->himemaddr + (GUSregd(GUSDRAMPOS24bit) & 0xfffff);
-            *adr = (GUSbyte) data;
+            *adr = (uint8_t) data;
         }
         break;
     }
@@ -510,7 +510,7 @@ void gus_dma_transferdata(GUSEmuState * state, char *dma_addr, unsigned int coun
     char           *srcaddr;
     char           *destaddr;
     char            msbmask = 0;
-    GUSbyte        *gusptr;
+    uint8_t        *gusptr;
     gusptr = state->gusdatapos;
 
     srcaddr = dma_addr; /* system memory address */
@@ -521,8 +521,8 @@ void gus_dma_transferdata(GUSEmuState * state, char *dma_addr, unsigned int coun
         destaddr = (char *) state->himemaddr + offset; /* wavetable RAM address */
     }
 
-    GUSregw(GUS42DMAStart) += (GUSword)  (count >> 4);                           /* ToDo: add 16bit GUS page limit? */
-    GUSregb(GUS50DMAHigh)   = (GUSbyte) ((count + GUSregb(GUS50DMAHigh)) & 0xf); /* ToDo: add 16bit GUS page limit? */
+    GUSregw(GUS42DMAStart) += (uint16_t)  (count >> 4);                           /* ToDo: add 16bit GUS page limit? */
+    GUSregb(GUS50DMAHigh)   = (uint8_t) ((count + GUSregb(GUS50DMAHigh)) & 0xf); /* ToDo: add 16bit GUS page limit? */
 
     if (GUSregb(GUS41DMACtrl) & 0x02)   /* direction, 0 := sysram->gusram */
     {
