@@ -39,6 +39,14 @@ struct RAMBlock {
     QLIST_HEAD(, RAMBlockNotifier) ramblock_notifiers;
     int fd;
     size_t page_size;
+    /* dirty bitmap used during migration */
+    unsigned long *bmap;
+    /* bitmap of pages that haven't been sent even once
+     * only maintained and used in postcopy at the moment
+     * where it's used to send the dirtymap at the start
+     * of the postcopy phase
+     */
+    unsigned long *unsentmap;
 };
 
 static inline bool offset_in_ramblock(RAMBlock *b, ram_addr_t offset)
@@ -360,16 +368,15 @@ static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
 
 
 static inline
-uint64_t cpu_physical_memory_sync_dirty_bitmap(unsigned long *dest,
-                                               RAMBlock *rb,
+uint64_t cpu_physical_memory_sync_dirty_bitmap(RAMBlock *rb,
                                                ram_addr_t start,
                                                ram_addr_t length,
                                                uint64_t *real_dirty_pages)
 {
     ram_addr_t addr;
-    start = rb->offset + start;
     unsigned long page = BIT_WORD(start >> TARGET_PAGE_BITS);
     uint64_t num_dirty = 0;
+    unsigned long *dest = rb->bmap;
 
     /* start address is aligned at the start of a word? */
     if (((page * BITS_PER_LONG) << TARGET_PAGE_BITS) == start) {

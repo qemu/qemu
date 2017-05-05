@@ -43,12 +43,9 @@ int postcopy_ram_prepare_discard(MigrationIncomingState *mis);
 
 /*
  * Called at the start of each RAMBlock by the bitmap code.
- * 'offset' is the bitmap offset of the named RAMBlock in the migration
- * bitmap.
  * Returns a new PDS
  */
 PostcopyDiscardState *postcopy_discard_send_init(MigrationState *ms,
-                                                 unsigned long offset,
                                                  const char *name);
 
 /*

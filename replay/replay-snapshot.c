@@ -64,7 +64,7 @@ void replay_vmstate_init(void)
 {
     if (replay_snapshot) {
         if (replay_mode == REPLAY_MODE_RECORD) {
-            if (save_vmstate(cur_mon, replay_snapshot) != 0) {
+            if (save_vmstate(replay_snapshot) != 0) {
                 error_report("Could not create snapshot for icount record");
                 exit(1);
             }

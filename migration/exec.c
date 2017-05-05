@@ -32,7 +32,7 @@ void exec_start_outgoing_migration(MigrationState *s, const char *command, Error
 
     trace_migration_exec_outgoing(command);
     ioc = QIO_CHANNEL(qio_channel_command_new_spawn(argv,
-                                                    O_WRONLY,
+                                                    O_RDWR,
                                                     errp));
     if (!ioc) {
         return;
@@ -59,7 +59,7 @@ void exec_start_incoming_migration(const char *command, Error **errp)
 
     trace_migration_exec_incoming(command);
     ioc = QIO_CHANNEL(qio_channel_command_new_spawn(argv,
-                                                    O_RDONLY,
+                                                    O_RDWR,
                                                     errp));
     if (!ioc) {
         return;
