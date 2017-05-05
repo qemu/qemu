@@ -296,6 +296,7 @@ int qemu_egl_init_dpy_mesa(EGLNativeDisplayType dpy)
 EGLContext qemu_egl_init_ctx(void)
 {
     static const EGLint ctx_att_gl[] = {
+        EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
         EGL_NONE
     };
     EGLContext ectx;
