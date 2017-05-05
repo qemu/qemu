@@ -7,6 +7,14 @@
 #include "qemu/bitmap.h"
 #include "qom/object.h"
 
+#define IAC_EOR 239
+#define IAC_SE 240
+#define IAC_NOP 241
+#define IAC_BREAK 243
+#define IAC_IP 244
+#define IAC_SB 250
+#define IAC 255
+
 /* character device */
 
 typedef enum {

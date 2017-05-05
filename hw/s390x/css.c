@@ -576,6 +576,9 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
             s->dstat = SCSW_DSTAT_CHANNEL_END | SCSW_DSTAT_DEVICE_END;
             s->cpa = sch->channel_prog + 8;
             break;
+        case -EIO:
+            /* I/O errors, status depends on specific devices */
+            break;
         case -ENOSYS:
             /* unsupported command, generate unit check (command reject) */
             s->ctrl &= ~SCSW_ACTL_START_PEND;
@@ -1300,6 +1303,27 @@ bool css_schid_final(int m, uint8_t cssid, uint8_t ssid, uint16_t schid)
     set = channel_subsys.css[real_cssid]->sch_set[ssid];
     return schid > find_last_bit(set->schids_used,
                                  (MAX_SCHID + 1) / sizeof(unsigned long));
+}
+
+unsigned int css_find_free_chpid(uint8_t cssid)
+{
+    CssImage *css = channel_subsys.css[cssid];
+    unsigned int chpid;
+
+    if (!css) {
+        return MAX_CHPID + 1;
+    }
+
+    for (chpid = 0; chpid <= MAX_CHPID; chpid++) {
+        /* skip reserved chpid */
+        if (chpid == VIRTIO_CCW_CHPID) {
+            continue;
+        }
+        if (!css->chpids[chpid].in_use) {
+            return chpid;
+        }
+    }
+    return MAX_CHPID + 1;
 }
 
 static int css_add_virtual_chpid(uint8_t cssid, uint8_t chpid, uint8_t type)

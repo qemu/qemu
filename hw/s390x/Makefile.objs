@@ -7,6 +7,7 @@ obj-y += sclpcpu.o
 obj-y += ipl.o
 obj-y += css.o
 obj-y += s390-virtio-ccw.o
+obj-y += 3270-ccw.o
 obj-y += virtio-ccw.o
 obj-y += css-bridge.o
 obj-y += ccw-device.o

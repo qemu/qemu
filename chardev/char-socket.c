@@ -55,6 +55,7 @@ typedef struct {
     SocketAddress *addr;
     bool is_listen;
     bool is_telnet;
+    bool is_tn3270;
 
     guint reconnect_timer;
     int64_t reconnect_time;
@@ -141,19 +142,25 @@ static int tcp_chr_read_poll(void *opaque)
     return s->max_size;
 }
 
-#define IAC 255
-#define IAC_BREAK 243
 static void tcp_chr_process_IAC_bytes(Chardev *chr,
                                       SocketChardev *s,
                                       uint8_t *buf, int *size)
 {
-    /* Handle any telnet client's basic IAC options to satisfy char by
-     * char mode with no echo.  All IAC options will be removed from
-     * the buf and the do_telnetopt variable will be used to track the
-     * state of the width of the IAC information.
+    /* Handle any telnet or tn3270 client's basic IAC options.
+     * For telnet options, it satisfies char by char mode with no echo.
+     * For tn3270 options, it satisfies binary mode with EOR.
+     * All IAC options will be removed from the buf and the do_opt
+     * pointer will be used to track the state of the width of the
+     * IAC information.
      *
-     * IAC commands come in sets of 3 bytes with the exception of the
-     * "IAC BREAK" command and the double IAC.
+     * RFC854: "All TELNET commands consist of at least a two byte sequence.
+     * The commands dealing with option negotiation are three byte sequences,
+     * the third byte being the code for the option referenced."
+     * "IAC BREAK", "IAC IP", "IAC NOP" and the double IAC are two bytes.
+     * "IAC SB", "IAC SE" and "IAC EOR" are saved to split up data boundary
+     * for tn3270.
+     * NOP, Break and Interrupt Process(IP) might be encountered during a TN3270
+     * session, and NOP and IP need to be done later.
      */
 
     int i;
@@ -173,6 +180,18 @@ static void tcp_chr_process_IAC_bytes(Chardev *chr,
                     && s->do_telnetopt == 2) {
                     /* Handle IAC break commands by sending a serial break */
                     qemu_chr_be_event(chr, CHR_EVENT_BREAK);
+                    s->do_telnetopt++;
+                } else if (s->is_tn3270 && ((unsigned char)buf[i] == IAC_EOR
+                           || (unsigned char)buf[i] == IAC_SB
+                           || (unsigned char)buf[i] == IAC_SE)
+                           && s->do_telnetopt == 2) {
+                    buf[j++] = IAC;
+                    buf[j++] = buf[i];
+                    s->do_telnetopt++;
+                } else if (s->is_tn3270 && ((unsigned char)buf[i] == IAC_IP
+                           || (unsigned char)buf[i] == IAC_NOP)
+                           && s->do_telnetopt == 2) {
+                    /* TODO: IP and NOP need to be implemented later. */
                     s->do_telnetopt++;
                 }
                 s->do_telnetopt++;
@@ -512,7 +531,7 @@ static void tcp_chr_update_read_handler(Chardev *chr,
 
 typedef struct {
     Chardev *chr;
-    char buf[12];
+    char buf[21];
     size_t buflen;
 } TCPChardevTelnetInit;
 
@@ -550,9 +569,6 @@ static void tcp_chr_telnet_init(Chardev *chr)
     TCPChardevTelnetInit *init = g_new0(TCPChardevTelnetInit, 1);
     size_t n = 0;
 
-    init->chr = chr;
-    init->buflen = 12;
-
 #define IACSET(x, a, b, c)                      \
     do {                                        \
         x[n++] = a;                             \
@@ -560,12 +576,26 @@ static void tcp_chr_telnet_init(Chardev *chr)
         x[n++] = c;                             \
     } while (0)
 
-    /* Prep the telnet negotion to put telnet in binary,
-     * no echo, single char mode */
-    IACSET(init->buf, 0xff, 0xfb, 0x01);  /* IAC WILL ECHO */
-    IACSET(init->buf, 0xff, 0xfb, 0x03);  /* IAC WILL Suppress go ahead */
-    IACSET(init->buf, 0xff, 0xfb, 0x00);  /* IAC WILL Binary */
-    IACSET(init->buf, 0xff, 0xfd, 0x00);  /* IAC DO Binary */
+    init->chr = chr;
+    if (!s->is_tn3270) {
+        init->buflen = 12;
+        /* Prep the telnet negotion to put telnet in binary,
+         * no echo, single char mode */
+        IACSET(init->buf, 0xff, 0xfb, 0x01);  /* IAC WILL ECHO */
+        IACSET(init->buf, 0xff, 0xfb, 0x03);  /* IAC WILL Suppress go ahead */
+        IACSET(init->buf, 0xff, 0xfb, 0x00);  /* IAC WILL Binary */
+        IACSET(init->buf, 0xff, 0xfd, 0x00);  /* IAC DO Binary */
+    } else {
+        init->buflen = 21;
+        /* Prep the TN3270 negotion based on RFC1576 */
+        IACSET(init->buf, 0xff, 0xfd, 0x19);  /* IAC DO EOR */
+        IACSET(init->buf, 0xff, 0xfb, 0x19);  /* IAC WILL EOR */
+        IACSET(init->buf, 0xff, 0xfd, 0x00);  /* IAC DO BINARY */
+        IACSET(init->buf, 0xff, 0xfb, 0x00);  /* IAC WILL BINARY */
+        IACSET(init->buf, 0xff, 0xfd, 0x18);  /* IAC DO TERMINAL TYPE */
+        IACSET(init->buf, 0xff, 0xfa, 0x18);  /* IAC SB TERMINAL TYPE */
+        IACSET(init->buf, 0x01, 0xff, 0xf0);  /* SEND IAC SE */
+    }
 
 #undef IACSET
 
@@ -585,7 +615,8 @@ static void tcp_chr_tls_handshake(QIOTask *task,
     if (qio_task_propagate_error(task, NULL)) {
         tcp_chr_disconnect(chr);
     } else {
-        if (s->do_telnetopt) {
+        /* tn3270 does not support TLS yet */
+        if (s->do_telnetopt && !s->is_tn3270) {
             tcp_chr_telnet_init(chr);
         } else {
             tcp_chr_connect(chr);
@@ -824,12 +855,14 @@ static void qmp_chardev_open_socket(Chardev *chr,
     bool do_nodelay     = sock->has_nodelay ? sock->nodelay : false;
     bool is_listen      = sock->has_server  ? sock->server  : true;
     bool is_telnet      = sock->has_telnet  ? sock->telnet  : false;
+    bool is_tn3270      = sock->has_tn3270  ? sock->tn3270  : false;
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
     QIOChannelSocket *sioc = NULL;
 
     s->is_listen = is_listen;
     s->is_telnet = is_telnet;
+    s->is_tn3270 = is_tn3270;
     s->do_nodelay = do_nodelay;
     if (sock->tls_creds) {
         Object *creds;
@@ -879,7 +912,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
                                          addr, is_listen, is_telnet);
 
     if (is_listen) {
-        if (is_telnet) {
+        if (is_telnet || is_tn3270) {
             s->do_telnetopt = 1;
         }
     } else if (reconnect > 0) {
@@ -933,6 +966,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     bool is_listen      = qemu_opt_get_bool(opts, "server", false);
     bool is_waitconnect = is_listen && qemu_opt_get_bool(opts, "wait", true);
     bool is_telnet      = qemu_opt_get_bool(opts, "telnet", false);
+    bool is_tn3270      = qemu_opt_get_bool(opts, "tn3270", false);
     bool do_nodelay     = !qemu_opt_get_bool(opts, "delay", true);
     int64_t reconnect   = qemu_opt_get_number(opts, "reconnect", 0);
     const char *path = qemu_opt_get(opts, "path");
@@ -968,6 +1002,8 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->server = is_listen;
     sock->has_telnet = true;
     sock->telnet = is_telnet;
+    sock->has_tn3270 = true;
+    sock->tn3270 = is_tn3270;
     sock->has_wait = true;
     sock->wait = is_waitconnect;
     sock->has_reconnect = true;
