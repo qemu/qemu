@@ -1556,8 +1556,8 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
     }
 
     if (vs->absolute) {
-        qemu_input_queue_abs(con, INPUT_AXIS_X, x, width);
-        qemu_input_queue_abs(con, INPUT_AXIS_Y, y, height);
+        qemu_input_queue_abs(con, INPUT_AXIS_X, x, 0, width);
+        qemu_input_queue_abs(con, INPUT_AXIS_Y, y, 0, height);
     } else if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE)) {
         qemu_input_queue_rel(con, INPUT_AXIS_X, x - 0x7FFF);
         qemu_input_queue_rel(con, INPUT_AXIS_Y, y - 0x7FFF);

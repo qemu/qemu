@@ -166,6 +166,11 @@ void qmp_input_send_event(bool has_device, const char *device,
     qemu_input_event_sync();
 }
 
+static int qemu_input_transform_invert_abs_value(int value)
+{
+  return (int64_t)INPUT_EVENT_ABS_MAX - value + INPUT_EVENT_ABS_MIN;
+}
+
 static void qemu_input_transform_abs_rotate(InputEvent *evt)
 {
     InputMoveEvent *move = evt->u.abs.data;
@@ -175,16 +180,16 @@ static void qemu_input_transform_abs_rotate(InputEvent *evt)
             move->axis = INPUT_AXIS_Y;
         } else if (move->axis == INPUT_AXIS_Y) {
             move->axis = INPUT_AXIS_X;
-            move->value = INPUT_EVENT_ABS_SIZE - 1 - move->value;
+            move->value = qemu_input_transform_invert_abs_value(move->value);
         }
         break;
     case 180:
-        move->value = INPUT_EVENT_ABS_SIZE - 1 - move->value;
+        move->value = qemu_input_transform_invert_abs_value(move->value);
         break;
     case 270:
         if (move->axis == INPUT_AXIS_X) {
             move->axis = INPUT_AXIS_Y;
-            move->value = INPUT_EVENT_ABS_SIZE - 1 - move->value;
+            move->value = qemu_input_transform_invert_abs_value(move->value);
         } else if (move->axis == INPUT_AXIS_Y) {
             move->axis = INPUT_AXIS_X;
         }
@@ -467,12 +472,17 @@ bool qemu_input_is_absolute(void)
     return (s != NULL) && (s->handler->mask & INPUT_EVENT_MASK_ABS);
 }
 
-int qemu_input_scale_axis(int value, int size_in, int size_out)
+int qemu_input_scale_axis(int value,
+                          int min_in, int max_in,
+                          int min_out, int max_out)
 {
-    if (size_in < 2) {
-        return size_out / 2;
+    int64_t range_in = (int64_t)max_in - min_in;
+    int64_t range_out = (int64_t)max_out - min_out;
+
+    if (range_in < 1) {
+        return min_out + range_out / 2;
     }
-    return (int64_t)value * (size_out - 1) / (size_in - 1);
+    return ((int64_t)value - min_in) * range_out / range_in + min_out;
 }
 
 InputEvent *qemu_input_event_new_move(InputEventKind kind,
@@ -496,10 +506,13 @@ void qemu_input_queue_rel(QemuConsole *src, InputAxis axis, int value)
     qapi_free_InputEvent(evt);
 }
 
-void qemu_input_queue_abs(QemuConsole *src, InputAxis axis, int value, int size)
+void qemu_input_queue_abs(QemuConsole *src, InputAxis axis, int value,
+                          int min_in, int max_in)
 {
     InputEvent *evt;
-    int scaled = qemu_input_scale_axis(value, size, INPUT_EVENT_ABS_SIZE);
+    int scaled = qemu_input_scale_axis(value, min_in, max_in,
+                                       INPUT_EVENT_ABS_MIN,
+                                       INPUT_EVENT_ABS_MAX);
     evt = qemu_input_event_new_move(INPUT_EVENT_KIND_ABS, axis, scaled);
     qemu_input_event_send(src, evt);
     qapi_free_InputEvent(evt);
