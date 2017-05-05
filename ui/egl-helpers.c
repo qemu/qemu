@@ -80,6 +80,7 @@ static int qemu_egl_rendernode_open(const char *rendernode)
 int egl_rendernode_init(const char *rendernode)
 {
     qemu_egl_rn_fd = -1;
+    int rc;
 
     qemu_egl_rn_fd = qemu_egl_rendernode_open(rendernode);
     if (qemu_egl_rn_fd == -1) {
@@ -93,7 +94,11 @@ int egl_rendernode_init(const char *rendernode)
         goto err;
     }
 
-    qemu_egl_init_dpy_mesa((EGLNativeDisplayType)qemu_egl_rn_gbm_dev);
+    rc = qemu_egl_init_dpy_mesa((EGLNativeDisplayType)qemu_egl_rn_gbm_dev);
+    if (rc != 0) {
+        /* qemu_egl_init_dpy_mesa reports error */
+        goto err;
+    }
 
     if (!epoxy_has_egl_extension(qemu_egl_display,
                                  "EGL_KHR_surfaceless_context")) {
