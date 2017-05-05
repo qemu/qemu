@@ -41,7 +41,7 @@ static bool ufd_version_check(void)
     struct uffdio_api api_struct;
     uint64_t ioctl_mask;
 
-    int ufd = ufd = syscall(__NR_userfaultfd, O_CLOEXEC);
+    int ufd = syscall(__NR_userfaultfd, O_CLOEXEC);
 
     if (ufd == -1) {
         g_test_message("Skipping test: userfaultfd not available");
