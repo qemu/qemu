@@ -1559,11 +1559,10 @@ int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
 
     end_offset = offset + (nb_sectors << BDRV_SECTOR_BITS);
 
-    /* The caller must cluster-align start; round end down except at EOF */
+    /* Caller must pass aligned values, except at image end */
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
-    if (end_offset != bs->total_sectors * BDRV_SECTOR_SIZE) {
-        end_offset = start_of_cluster(s, end_offset);
-    }
+    assert(QEMU_IS_ALIGNED(end_offset, s->cluster_size) ||
+           end_offset == bs->total_sectors << BDRV_SECTOR_BITS);
 
     nb_clusters = size_to_clusters(s, end_offset - offset);
 
@@ -1646,8 +1645,16 @@ int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors,
                         int flags)
 {
     BDRVQcow2State *s = bs->opaque;
+    uint64_t end_offset;
     uint64_t nb_clusters;
     int ret;
+
+    end_offset = offset + (nb_sectors << BDRV_SECTOR_BITS);
+
+    /* Caller must pass aligned values, except at image end */
+    assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
+    assert(QEMU_IS_ALIGNED(end_offset, s->cluster_size) ||
+           end_offset == bs->total_sectors << BDRV_SECTOR_BITS);
 
     /* The zero flag is only supported by version 3 and newer */
     if (s->qcow_version < 3) {
