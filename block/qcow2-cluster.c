@@ -1549,34 +1549,36 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
     return nb_clusters;
 }
 
-int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
-    int nb_sectors, enum qcow2_discard_type type, bool full_discard)
+int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
+                          uint64_t bytes, enum qcow2_discard_type type,
+                          bool full_discard)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t end_offset;
+    uint64_t end_offset = offset + bytes;
     uint64_t nb_clusters;
+    int64_t cleared;
     int ret;
-
-    end_offset = offset + (nb_sectors << BDRV_SECTOR_BITS);
 
     /* Caller must pass aligned values, except at image end */
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
     assert(QEMU_IS_ALIGNED(end_offset, s->cluster_size) ||
            end_offset == bs->total_sectors << BDRV_SECTOR_BITS);
 
-    nb_clusters = size_to_clusters(s, end_offset - offset);
+    nb_clusters = size_to_clusters(s, bytes);
 
     s->cache_discards = true;
 
     /* Each L2 table is handled by its own loop iteration */
     while (nb_clusters > 0) {
-        ret = discard_single_l2(bs, offset, nb_clusters, type, full_discard);
-        if (ret < 0) {
+        cleared = discard_single_l2(bs, offset, nb_clusters, type,
+                                    full_discard);
+        if (cleared < 0) {
+            ret = cleared;
             goto fail;
         }
 
-        nb_clusters -= ret;
-        offset += (ret * s->cluster_size);
+        nb_clusters -= cleared;
+        offset += (cleared * s->cluster_size);
     }
 
     ret = 0;
@@ -1641,15 +1643,14 @@ static int zero_single_l2(BlockDriverState *bs, uint64_t offset,
     return nb_clusters;
 }
 
-int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors,
-                        int flags)
+int qcow2_cluster_zeroize(BlockDriverState *bs, uint64_t offset,
+                          uint64_t bytes, int flags)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t end_offset;
+    uint64_t end_offset = offset + bytes;
     uint64_t nb_clusters;
+    int64_t cleared;
     int ret;
-
-    end_offset = offset + (nb_sectors << BDRV_SECTOR_BITS);
 
     /* Caller must pass aligned values, except at image end */
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
@@ -1662,18 +1663,19 @@ int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors,
     }
 
     /* Each L2 table is handled by its own loop iteration */
-    nb_clusters = size_to_clusters(s, nb_sectors << BDRV_SECTOR_BITS);
+    nb_clusters = size_to_clusters(s, bytes);
 
     s->cache_discards = true;
 
     while (nb_clusters > 0) {
-        ret = zero_single_l2(bs, offset, nb_clusters, flags);
-        if (ret < 0) {
+        cleared = zero_single_l2(bs, offset, nb_clusters, flags);
+        if (cleared < 0) {
+            ret = cleared;
             goto fail;
         }
 
-        nb_clusters -= ret;
-        offset += (ret * s->cluster_size);
+        nb_clusters -= cleared;
+        offset += (cleared * s->cluster_size);
     }
 
     ret = 0;
