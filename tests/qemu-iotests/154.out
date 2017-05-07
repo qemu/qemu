@@ -282,4 +282,132 @@ read 1024/1024 bytes at offset 76800
 { "start": 69632, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 73728, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 77824, "length": 134139904, "depth": 1, "zero": true, "data": false}]
+
+== unaligned image tail cluster, no allocation needed ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776
+wrote 512/512 bytes at offset 134217728
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134219776, "depth": 0, "zero": true, "data": false}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776
+wrote 512/512 bytes at offset 134219264
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134219776, "depth": 0, "zero": true, "data": false}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776
+wrote 1024/1024 bytes at offset 134218240
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134219776, "depth": 0, "zero": true, "data": false}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776
+wrote 2048/2048 bytes at offset 134217728
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134219776, "depth": 0, "zero": true, "data": false}]
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134218752
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 512/512 bytes at offset 134217728
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134217728, "depth": 1, "zero": true, "data": false},
+{ "start": 134217728, "length": 2048, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 512/512 bytes at offset 134219264
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134217728, "depth": 1, "zero": true, "data": false},
+{ "start": 134217728, "length": 2048, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 1024/1024 bytes at offset 134218240
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134217728, "depth": 1, "zero": true, "data": false},
+{ "start": 134217728, "length": 2048, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 2048/2048 bytes at offset 134217728
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134217728, "depth": 1, "zero": true, "data": false},
+{ "start": 134217728, "length": 2048, "depth": 0, "zero": true, "data": false}]
+wrote 512/512 bytes at offset 134217728
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 512/512 bytes at offset 134217728
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134217728, "depth": 1, "zero": true, "data": false},
+{ "start": 134217728, "length": 2048, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 512/512 bytes at offset 134219264
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134217728, "depth": 1, "zero": true, "data": false},
+{ "start": 134217728, "length": 2048, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 1024/1024 bytes at offset 134218240
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134217728, "depth": 1, "zero": true, "data": false},
+{ "start": 134217728, "length": 2048, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 2048/2048 bytes at offset 134217728
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2048/2048 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134217728, "depth": 1, "zero": true, "data": false},
+{ "start": 134217728, "length": 2048, "depth": 0, "zero": true, "data": false}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134218752
+wrote 1024/1024 bytes at offset 134217728
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 134218240
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 134217728
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 134218240
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+1024/1024 bytes allocated at offset 128 MiB
+[{ "start": 0, "length": 134217728, "depth": 0, "zero": true, "data": false},
+{ "start": 134217728, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+wrote 1024/1024 bytes at offset 134217728
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+1024/1024 bytes allocated at offset 128 MiB
+read 1024/1024 bytes at offset 134217728
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 134217728, "depth": 0, "zero": true, "data": false},
+{ "start": 134217728, "length": 1024, "depth": 0, "zero": true, "data": false, "offset": OFFSET}]
+
+== unaligned image tail cluster, allocation required ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134218752
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 512/512 bytes at offset 134217728
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 134218752
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 134217728
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1536/1536 bytes at offset 134218240
+1.500 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 134217728, "depth": 1, "zero": true, "data": false},
+{ "start": 134217728, "length": 2048, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134218752
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134219776 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 512/512 bytes at offset 134218240
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 134217728
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 134217728
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 134218240
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 134218752
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 134219264
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 134217728
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 134218240
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 134218752
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 134217728, "depth": 1, "zero": true, "data": false},
+{ "start": 134217728, "length": 2048, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
 *** done
