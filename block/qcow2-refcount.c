@@ -1059,9 +1059,9 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     int64_t l1_table_offset, int l1_size, int addend)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t *l1_table, *l2_table, l2_offset, offset, l1_size2, refcount;
+    uint64_t *l1_table, *l2_table, l2_offset, entry, l1_size2, refcount;
     bool l1_allocated = false;
-    int64_t old_offset, old_l2_offset;
+    int64_t old_entry, old_l2_offset;
     int i, j, l1_modified = 0, nb_csectors;
     int ret;
 
@@ -1089,15 +1089,16 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
             goto fail;
         }
 
-        for(i = 0;i < l1_size; i++)
+        for (i = 0; i < l1_size; i++) {
             be64_to_cpus(&l1_table[i]);
+        }
     } else {
         assert(l1_size == s->l1_size);
         l1_table = s->l1_table;
         l1_allocated = false;
     }
 
-    for(i = 0; i < l1_size; i++) {
+    for (i = 0; i < l1_size; i++) {
         l2_offset = l1_table[i];
         if (l2_offset) {
             old_l2_offset = l2_offset;
@@ -1117,20 +1118,22 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                 goto fail;
             }
 
-            for(j = 0; j < s->l2_size; j++) {
+            for (j = 0; j < s->l2_size; j++) {
                 uint64_t cluster_index;
+                uint64_t offset;
 
-                offset = be64_to_cpu(l2_table[j]);
-                old_offset = offset;
-                offset &= ~QCOW_OFLAG_COPIED;
+                entry = be64_to_cpu(l2_table[j]);
+                old_entry = entry;
+                entry &= ~QCOW_OFLAG_COPIED;
+                offset = entry & L2E_OFFSET_MASK;
 
-                switch (qcow2_get_cluster_type(offset)) {
+                switch (qcow2_get_cluster_type(entry)) {
                     case QCOW2_CLUSTER_COMPRESSED:
-                        nb_csectors = ((offset >> s->csize_shift) &
+                        nb_csectors = ((entry >> s->csize_shift) &
                                        s->csize_mask) + 1;
                         if (addend != 0) {
                             ret = update_refcount(bs,
-                                (offset & s->cluster_offset_mask) & ~511,
+                                (entry & s->cluster_offset_mask) & ~511,
                                 nb_csectors * 512, abs(addend), addend < 0,
                                 QCOW2_DISCARD_SNAPSHOT);
                             if (ret < 0) {
@@ -1143,18 +1146,17 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
 
                     case QCOW2_CLUSTER_NORMAL:
                     case QCOW2_CLUSTER_ZERO:
-                        if (offset_into_cluster(s, offset & L2E_OFFSET_MASK)) {
+                        if (offset_into_cluster(s, offset)) {
                             qcow2_signal_corruption(bs, true, -1, -1, "Data "
-                                                    "cluster offset %#llx "
-                                                    "unaligned (L2 offset: %#"
+                                                    "cluster offset %#" PRIx64
+                                                    " unaligned (L2 offset: %#"
                                                     PRIx64 ", L2 index: %#x)",
-                                                    offset & L2E_OFFSET_MASK,
-                                                    l2_offset, j);
+                                                    offset, l2_offset, j);
                             ret = -EIO;
                             goto fail;
                         }
 
-                        cluster_index = (offset & L2E_OFFSET_MASK) >> s->cluster_bits;
+                        cluster_index = offset >> s->cluster_bits;
                         if (!cluster_index) {
                             /* unallocated */
                             refcount = 0;
@@ -1184,14 +1186,14 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                 }
 
                 if (refcount == 1) {
-                    offset |= QCOW_OFLAG_COPIED;
+                    entry |= QCOW_OFLAG_COPIED;
                 }
-                if (offset != old_offset) {
+                if (entry != old_entry) {
                     if (addend > 0) {
                         qcow2_cache_set_dependency(bs, s->l2_table_cache,
                             s->refcount_block_cache);
                     }
-                    l2_table[j] = cpu_to_be64(offset);
+                    l2_table[j] = cpu_to_be64(entry);
                     qcow2_cache_entry_mark_dirty(bs, s->l2_table_cache,
                                                  l2_table);
                 }
