@@ -112,7 +112,7 @@ read 3145728/3145728 bytes at offset 0
 3 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 63963136/63963136 bytes at offset 3145728
 61 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-[{ "start": 0, "length": 67108864, "depth": 0, "zero": false, "data": true, "offset": 327680}]
+[{ "start": 0, "length": 67108864, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
 
 convert -c -S 0:
 read 3145728/3145728 bytes at offset 0
@@ -134,7 +134,7 @@ read 30408704/30408704 bytes at offset 3145728
 29 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 33554432/33554432 bytes at offset 33554432
 32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-[{ "start": 0, "length": 67108864, "depth": 0, "zero": false, "data": true, "offset": 327680}]
+[{ "start": 0, "length": 67108864, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
 
 convert -c -S 0 with source backing file:
 read 3145728/3145728 bytes at offset 0
@@ -152,7 +152,7 @@ read 30408704/30408704 bytes at offset 3145728
 29 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 33554432/33554432 bytes at offset 33554432
 32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-[{ "start": 0, "length": 67108864, "depth": 0, "zero": false, "data": true, "offset": 327680}]
+[{ "start": 0, "length": 67108864, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
 
 convert -c -S 0 -B ...
 read 3145728/3145728 bytes at offset 0
@@ -176,11 +176,11 @@ wrote 1024/1024 bytes at offset 17408
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 convert -S 4k
-[{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": 8192},
+[{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 1024, "length": 7168, "depth": 0, "zero": true, "data": false},
-{ "start": 8192, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": 9216},
+{ "start": 8192, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 9216, "length": 8192, "depth": 0, "zero": true, "data": false},
-{ "start": 17408, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": 10240},
+{ "start": 17408, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 18432, "length": 67090432, "depth": 0, "zero": true, "data": false}]
 
 convert -c -S 4k
@@ -192,9 +192,9 @@ convert -c -S 4k
 { "start": 18432, "length": 67090432, "depth": 0, "zero": true, "data": false}]
 
 convert -S 8k
-[{ "start": 0, "length": 9216, "depth": 0, "zero": false, "data": true, "offset": 8192},
+[{ "start": 0, "length": 9216, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 9216, "length": 8192, "depth": 0, "zero": true, "data": false},
-{ "start": 17408, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": 17408},
+{ "start": 17408, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 18432, "length": 67090432, "depth": 0, "zero": true, "data": false}]
 
 convert -c -S 8k
