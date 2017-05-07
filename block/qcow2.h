@@ -351,9 +351,10 @@ typedef struct QCowL2Meta
 
 typedef enum QCow2ClusterType {
     QCOW2_CLUSTER_UNALLOCATED,
+    QCOW2_CLUSTER_ZERO_PLAIN,
+    QCOW2_CLUSTER_ZERO_ALLOC,
     QCOW2_CLUSTER_NORMAL,
     QCOW2_CLUSTER_COMPRESSED,
-    QCOW2_CLUSTER_ZERO
 } QCow2ClusterType;
 
 typedef enum QCow2MetadataOverlap {
@@ -448,7 +449,10 @@ static inline QCow2ClusterType qcow2_get_cluster_type(uint64_t l2_entry)
     if (l2_entry & QCOW_OFLAG_COMPRESSED) {
         return QCOW2_CLUSTER_COMPRESSED;
     } else if (l2_entry & QCOW_OFLAG_ZERO) {
-        return QCOW2_CLUSTER_ZERO;
+        if (l2_entry & L2E_OFFSET_MASK) {
+            return QCOW2_CLUSTER_ZERO_ALLOC;
+        }
+        return QCOW2_CLUSTER_ZERO_PLAIN;
     } else if (!(l2_entry & L2E_OFFSET_MASK)) {
         return QCOW2_CLUSTER_UNALLOCATED;
     } else {

@@ -1028,18 +1028,17 @@ void qcow2_free_any_clusters(BlockDriverState *bs, uint64_t l2_entry,
         }
         break;
     case QCOW2_CLUSTER_NORMAL:
-    case QCOW2_CLUSTER_ZERO:
-        if (l2_entry & L2E_OFFSET_MASK) {
-            if (offset_into_cluster(s, l2_entry & L2E_OFFSET_MASK)) {
-                qcow2_signal_corruption(bs, false, -1, -1,
-                                        "Cannot free unaligned cluster %#llx",
-                                        l2_entry & L2E_OFFSET_MASK);
-            } else {
-                qcow2_free_clusters(bs, l2_entry & L2E_OFFSET_MASK,
-                                    nb_clusters << s->cluster_bits, type);
-            }
+    case QCOW2_CLUSTER_ZERO_ALLOC:
+        if (offset_into_cluster(s, l2_entry & L2E_OFFSET_MASK)) {
+            qcow2_signal_corruption(bs, false, -1, -1,
+                                    "Cannot free unaligned cluster %#llx",
+                                    l2_entry & L2E_OFFSET_MASK);
+        } else {
+            qcow2_free_clusters(bs, l2_entry & L2E_OFFSET_MASK,
+                                nb_clusters << s->cluster_bits, type);
         }
         break;
+    case QCOW2_CLUSTER_ZERO_PLAIN:
     case QCOW2_CLUSTER_UNALLOCATED:
         break;
     default:
@@ -1145,10 +1144,10 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                     break;
 
                 case QCOW2_CLUSTER_NORMAL:
-                case QCOW2_CLUSTER_ZERO:
+                case QCOW2_CLUSTER_ZERO_ALLOC:
                     if (offset_into_cluster(s, offset)) {
-                        qcow2_signal_corruption(bs, true, -1, -1, "Data "
-                                                "cluster offset %#" PRIx64
+                        qcow2_signal_corruption(bs, true, -1, -1, "Cluster "
+                                                "allocation offset %#" PRIx64
                                                 " unaligned (L2 offset: %#"
                                                 PRIx64 ", L2 index: %#x)",
                                                 offset, l2_offset, j);
@@ -1157,11 +1156,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                     }
 
                     cluster_index = offset >> s->cluster_bits;
-                    if (!cluster_index) {
-                        /* unallocated */
-                        refcount = 0;
-                        break;
-                    }
+                    assert(cluster_index);
                     if (addend != 0) {
                         ret = qcow2_update_cluster_refcount(bs,
                                     cluster_index, abs(addend), addend < 0,
@@ -1177,6 +1172,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                     }
                     break;
 
+                case QCOW2_CLUSTER_ZERO_PLAIN:
                 case QCOW2_CLUSTER_UNALLOCATED:
                     refcount = 0;
                     break;
@@ -1443,12 +1439,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             }
             break;
 
-        case QCOW2_CLUSTER_ZERO:
-            if ((l2_entry & L2E_OFFSET_MASK) == 0) {
-                break;
-            }
-            /* fall through */
-
+        case QCOW2_CLUSTER_ZERO_ALLOC:
         case QCOW2_CLUSTER_NORMAL:
         {
             uint64_t offset = l2_entry & L2E_OFFSET_MASK;
@@ -1478,6 +1469,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             break;
         }
 
+        case QCOW2_CLUSTER_ZERO_PLAIN:
         case QCOW2_CLUSTER_UNALLOCATED:
             break;
 
@@ -1642,8 +1634,8 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
             uint64_t data_offset = l2_entry & L2E_OFFSET_MASK;
             QCow2ClusterType cluster_type = qcow2_get_cluster_type(l2_entry);
 
-            if ((cluster_type == QCOW2_CLUSTER_NORMAL) ||
-                ((cluster_type == QCOW2_CLUSTER_ZERO) && (data_offset != 0))) {
+            if (cluster_type == QCOW2_CLUSTER_NORMAL ||
+                cluster_type == QCOW2_CLUSTER_ZERO_ALLOC) {
                 ret = qcow2_get_refcount(bs,
                                          data_offset >> s->cluster_bits,
                                          &refcount);

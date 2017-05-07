@@ -321,8 +321,7 @@ static int count_contiguous_clusters(int nb_clusters, int cluster_size,
     /* must be allocated */
     first_cluster_type = qcow2_get_cluster_type(first_entry);
     assert(first_cluster_type == QCOW2_CLUSTER_NORMAL ||
-           (first_cluster_type == QCOW2_CLUSTER_ZERO &&
-            (first_entry & L2E_OFFSET_MASK) != 0));
+           first_cluster_type == QCOW2_CLUSTER_ZERO_ALLOC);
 
     for (i = 0; i < nb_clusters; i++) {
         uint64_t l2_entry = be64_to_cpu(l2_table[i]) & mask;
@@ -344,13 +343,13 @@ static int count_contiguous_clusters_unallocated(int nb_clusters,
 {
     int i;
 
-    assert(wanted_type == QCOW2_CLUSTER_ZERO ||
+    assert(wanted_type == QCOW2_CLUSTER_ZERO_PLAIN ||
            wanted_type == QCOW2_CLUSTER_UNALLOCATED);
     for (i = 0; i < nb_clusters; i++) {
         uint64_t entry = be64_to_cpu(l2_table[i]);
         QCow2ClusterType type = qcow2_get_cluster_type(entry);
 
-        if (type != wanted_type || entry & L2E_OFFSET_MASK) {
+        if (type != wanted_type) {
             break;
         }
     }
@@ -559,55 +558,36 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     assert(nb_clusters <= INT_MAX);
 
     type = qcow2_get_cluster_type(*cluster_offset);
+    if (s->qcow_version < 3 && (type == QCOW2_CLUSTER_ZERO_PLAIN ||
+                                type == QCOW2_CLUSTER_ZERO_ALLOC)) {
+        qcow2_signal_corruption(bs, true, -1, -1, "Zero cluster entry found"
+                                " in pre-v3 image (L2 offset: %#" PRIx64
+                                ", L2 index: %#x)", l2_offset, l2_index);
+        ret = -EIO;
+        goto fail;
+    }
     switch (type) {
     case QCOW2_CLUSTER_COMPRESSED:
         /* Compressed clusters can only be processed one by one */
         c = 1;
         *cluster_offset &= L2E_COMPRESSED_OFFSET_SIZE_MASK;
         break;
-    case QCOW2_CLUSTER_ZERO:
-        if (s->qcow_version < 3) {
-            qcow2_signal_corruption(bs, true, -1, -1, "Zero cluster entry found"
-                                    " in pre-v3 image (L2 offset: %#" PRIx64
-                                    ", L2 index: %#x)", l2_offset, l2_index);
-            ret = -EIO;
-            goto fail;
-        }
-        /* Distinguish between pure zero clusters and pre-allocated ones */
-        if (*cluster_offset & L2E_OFFSET_MASK) {
-            c = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                                          &l2_table[l2_index], QCOW_OFLAG_ZERO);
-            *cluster_offset &= L2E_OFFSET_MASK;
-            if (offset_into_cluster(s, *cluster_offset)) {
-                qcow2_signal_corruption(bs, true, -1, -1,
-                                        "Preallocated zero cluster offset %#"
-                                        PRIx64 " unaligned (L2 offset: %#"
-                                        PRIx64 ", L2 index: %#x)",
-                                        *cluster_offset, l2_offset, l2_index);
-                ret = -EIO;
-                goto fail;
-            }
-        } else {
-            c = count_contiguous_clusters_unallocated(nb_clusters,
-                                                      &l2_table[l2_index],
-                                                      QCOW2_CLUSTER_ZERO);
-            *cluster_offset = 0;
-        }
-        break;
+    case QCOW2_CLUSTER_ZERO_PLAIN:
     case QCOW2_CLUSTER_UNALLOCATED:
         /* how many empty clusters ? */
         c = count_contiguous_clusters_unallocated(nb_clusters,
-                                                  &l2_table[l2_index],
-                                                  QCOW2_CLUSTER_UNALLOCATED);
+                                                  &l2_table[l2_index], type);
         *cluster_offset = 0;
         break;
+    case QCOW2_CLUSTER_ZERO_ALLOC:
     case QCOW2_CLUSTER_NORMAL:
         /* how many allocated clusters ? */
         c = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], QCOW_OFLAG_ZERO);
+                                      &l2_table[l2_index], QCOW_OFLAG_ZERO);
         *cluster_offset &= L2E_OFFSET_MASK;
         if (offset_into_cluster(s, *cluster_offset)) {
-            qcow2_signal_corruption(bs, true, -1, -1, "Data cluster offset %#"
+            qcow2_signal_corruption(bs, true, -1, -1,
+                                    "Cluster allocation offset %#"
                                     PRIx64 " unaligned (L2 offset: %#" PRIx64
                                     ", L2 index: %#x)", *cluster_offset,
                                     l2_offset, l2_index);
@@ -902,7 +882,8 @@ static int count_cow_clusters(BDRVQcow2State *s, int nb_clusters,
             break;
         case QCOW2_CLUSTER_UNALLOCATED:
         case QCOW2_CLUSTER_COMPRESSED:
-        case QCOW2_CLUSTER_ZERO:
+        case QCOW2_CLUSTER_ZERO_PLAIN:
+        case QCOW2_CLUSTER_ZERO_ALLOC:
             break;
         default:
             abort();
@@ -1203,8 +1184,8 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
      * wrong with our code. */
     assert(nb_clusters > 0);
 
-    if (qcow2_get_cluster_type(entry) == QCOW2_CLUSTER_ZERO &&
-        (entry & L2E_OFFSET_MASK) != 0 && (entry & QCOW_OFLAG_COPIED) &&
+    if (qcow2_get_cluster_type(entry) == QCOW2_CLUSTER_ZERO_ALLOC &&
+        (entry & QCOW_OFLAG_COPIED) &&
         (!*host_offset ||
          start_of_cluster(s, *host_offset) == (entry & L2E_OFFSET_MASK)))
     {
@@ -1536,13 +1517,13 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
             }
             break;
 
-        case QCOW2_CLUSTER_ZERO:
-            /* Preallocated zero clusters should be discarded in any case */
-            if (!full_discard && (old_l2_entry & L2E_OFFSET_MASK) == 0) {
+        case QCOW2_CLUSTER_ZERO_PLAIN:
+            if (!full_discard) {
                 continue;
             }
             break;
 
+        case QCOW2_CLUSTER_ZERO_ALLOC:
         case QCOW2_CLUSTER_NORMAL:
         case QCOW2_CLUSTER_COMPRESSED:
             break;
@@ -1759,13 +1740,13 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
             uint64_t l2_entry = be64_to_cpu(l2_table[j]);
             int64_t offset = l2_entry & L2E_OFFSET_MASK;
             QCow2ClusterType cluster_type = qcow2_get_cluster_type(l2_entry);
-            bool preallocated = offset != 0;
 
-            if (cluster_type != QCOW2_CLUSTER_ZERO) {
+            if (cluster_type != QCOW2_CLUSTER_ZERO_PLAIN &&
+                cluster_type != QCOW2_CLUSTER_ZERO_ALLOC) {
                 continue;
             }
 
-            if (!preallocated) {
+            if (cluster_type == QCOW2_CLUSTER_ZERO_PLAIN) {
                 if (!bs->backing) {
                     /* not backed; therefore we can simply deallocate the
                      * cluster */
@@ -1800,7 +1781,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                                         "%#" PRIx64 " unaligned (L2 offset: %#"
                                         PRIx64 ", L2 index: %#x)", offset,
                                         l2_offset, j);
-                if (!preallocated) {
+                if (cluster_type == QCOW2_CLUSTER_ZERO_PLAIN) {
                     qcow2_free_clusters(bs, offset, s->cluster_size,
                                         QCOW2_DISCARD_ALWAYS);
                 }
@@ -1810,7 +1791,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
 
             ret = qcow2_pre_write_overlap_check(bs, 0, offset, s->cluster_size);
             if (ret < 0) {
-                if (!preallocated) {
+                if (cluster_type == QCOW2_CLUSTER_ZERO_PLAIN) {
                     qcow2_free_clusters(bs, offset, s->cluster_size,
                                         QCOW2_DISCARD_ALWAYS);
                 }
@@ -1819,7 +1800,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
 
             ret = bdrv_pwrite_zeroes(bs->file, offset, s->cluster_size, 0);
             if (ret < 0) {
-                if (!preallocated) {
+                if (cluster_type == QCOW2_CLUSTER_ZERO_PLAIN) {
                     qcow2_free_clusters(bs, offset, s->cluster_size,
                                         QCOW2_DISCARD_ALWAYS);
                 }
