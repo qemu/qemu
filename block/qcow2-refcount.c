@@ -1128,61 +1128,61 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                 offset = entry & L2E_OFFSET_MASK;
 
                 switch (qcow2_get_cluster_type(entry)) {
-                    case QCOW2_CLUSTER_COMPRESSED:
-                        nb_csectors = ((entry >> s->csize_shift) &
-                                       s->csize_mask) + 1;
-                        if (addend != 0) {
-                            ret = update_refcount(bs,
+                case QCOW2_CLUSTER_COMPRESSED:
+                    nb_csectors = ((entry >> s->csize_shift) &
+                                   s->csize_mask) + 1;
+                    if (addend != 0) {
+                        ret = update_refcount(bs,
                                 (entry & s->cluster_offset_mask) & ~511,
                                 nb_csectors * 512, abs(addend), addend < 0,
                                 QCOW2_DISCARD_SNAPSHOT);
-                            if (ret < 0) {
-                                goto fail;
-                            }
-                        }
-                        /* compressed clusters are never modified */
-                        refcount = 2;
-                        break;
-
-                    case QCOW2_CLUSTER_NORMAL:
-                    case QCOW2_CLUSTER_ZERO:
-                        if (offset_into_cluster(s, offset)) {
-                            qcow2_signal_corruption(bs, true, -1, -1, "Data "
-                                                    "cluster offset %#" PRIx64
-                                                    " unaligned (L2 offset: %#"
-                                                    PRIx64 ", L2 index: %#x)",
-                                                    offset, l2_offset, j);
-                            ret = -EIO;
-                            goto fail;
-                        }
-
-                        cluster_index = offset >> s->cluster_bits;
-                        if (!cluster_index) {
-                            /* unallocated */
-                            refcount = 0;
-                            break;
-                        }
-                        if (addend != 0) {
-                            ret = qcow2_update_cluster_refcount(bs,
-                                    cluster_index, abs(addend), addend < 0,
-                                    QCOW2_DISCARD_SNAPSHOT);
-                            if (ret < 0) {
-                                goto fail;
-                            }
-                        }
-
-                        ret = qcow2_get_refcount(bs, cluster_index, &refcount);
                         if (ret < 0) {
                             goto fail;
                         }
-                        break;
+                    }
+                    /* compressed clusters are never modified */
+                    refcount = 2;
+                    break;
 
-                    case QCOW2_CLUSTER_UNALLOCATED:
+                case QCOW2_CLUSTER_NORMAL:
+                case QCOW2_CLUSTER_ZERO:
+                    if (offset_into_cluster(s, offset)) {
+                        qcow2_signal_corruption(bs, true, -1, -1, "Data "
+                                                "cluster offset %#" PRIx64
+                                                " unaligned (L2 offset: %#"
+                                                PRIx64 ", L2 index: %#x)",
+                                                offset, l2_offset, j);
+                        ret = -EIO;
+                        goto fail;
+                    }
+
+                    cluster_index = offset >> s->cluster_bits;
+                    if (!cluster_index) {
+                        /* unallocated */
                         refcount = 0;
                         break;
+                    }
+                    if (addend != 0) {
+                        ret = qcow2_update_cluster_refcount(bs,
+                                    cluster_index, abs(addend), addend < 0,
+                                    QCOW2_DISCARD_SNAPSHOT);
+                        if (ret < 0) {
+                            goto fail;
+                        }
+                    }
 
-                    default:
-                        abort();
+                    ret = qcow2_get_refcount(bs, cluster_index, &refcount);
+                    if (ret < 0) {
+                        goto fail;
+                    }
+                    break;
+
+                case QCOW2_CLUSTER_UNALLOCATED:
+                    refcount = 0;
+                    break;
+
+                default:
+                    abort();
                 }
 
                 if (refcount == 1) {

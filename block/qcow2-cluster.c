@@ -1504,25 +1504,25 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
          * but rather fall through to the backing file.
          */
         switch (qcow2_get_cluster_type(old_l2_entry)) {
-            case QCOW2_CLUSTER_UNALLOCATED:
-                if (full_discard || !bs->backing) {
-                    continue;
-                }
-                break;
+        case QCOW2_CLUSTER_UNALLOCATED:
+            if (full_discard || !bs->backing) {
+                continue;
+            }
+            break;
 
-            case QCOW2_CLUSTER_ZERO:
-                /* Preallocated zero clusters should be discarded in any case */
-                if (!full_discard && (old_l2_entry & L2E_OFFSET_MASK) == 0) {
-                    continue;
-                }
-                break;
+        case QCOW2_CLUSTER_ZERO:
+            /* Preallocated zero clusters should be discarded in any case */
+            if (!full_discard && (old_l2_entry & L2E_OFFSET_MASK) == 0) {
+                continue;
+            }
+            break;
 
-            case QCOW2_CLUSTER_NORMAL:
-            case QCOW2_CLUSTER_COMPRESSED:
-                break;
+        case QCOW2_CLUSTER_NORMAL:
+        case QCOW2_CLUSTER_COMPRESSED:
+            break;
 
-            default:
-                abort();
+        default:
+            abort();
         }
 
         /* First remove L2 entries */
