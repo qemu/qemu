@@ -334,16 +334,23 @@ static int count_contiguous_clusters(int nb_clusters, int cluster_size,
 	return i;
 }
 
-static int count_contiguous_clusters_by_type(int nb_clusters,
-                                             uint64_t *l2_table,
-                                             int wanted_type)
+/*
+ * Checks how many consecutive unallocated clusters in a given L2
+ * table have the same cluster type.
+ */
+static int count_contiguous_clusters_unallocated(int nb_clusters,
+                                                 uint64_t *l2_table,
+                                                 int wanted_type)
 {
     int i;
 
+    assert(wanted_type == QCOW2_CLUSTER_ZERO ||
+           wanted_type == QCOW2_CLUSTER_UNALLOCATED);
     for (i = 0; i < nb_clusters; i++) {
-        int type = qcow2_get_cluster_type(be64_to_cpu(l2_table[i]));
+        uint64_t entry = be64_to_cpu(l2_table[i]);
+        int type = qcow2_get_cluster_type(entry);
 
-        if (type != wanted_type) {
+        if (type != wanted_type || entry & L2E_OFFSET_MASK) {
             break;
         }
     }
@@ -565,14 +572,32 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
             ret = -EIO;
             goto fail;
         }
-        c = count_contiguous_clusters_by_type(nb_clusters, &l2_table[l2_index],
-                                              QCOW2_CLUSTER_ZERO);
-        *cluster_offset = 0;
+        /* Distinguish between pure zero clusters and pre-allocated ones */
+        if (*cluster_offset & L2E_OFFSET_MASK) {
+            c = count_contiguous_clusters(nb_clusters, s->cluster_size,
+                                          &l2_table[l2_index], QCOW_OFLAG_ZERO);
+            *cluster_offset &= L2E_OFFSET_MASK;
+            if (offset_into_cluster(s, *cluster_offset)) {
+                qcow2_signal_corruption(bs, true, -1, -1,
+                                        "Preallocated zero cluster offset %#"
+                                        PRIx64 " unaligned (L2 offset: %#"
+                                        PRIx64 ", L2 index: %#x)",
+                                        *cluster_offset, l2_offset, l2_index);
+                ret = -EIO;
+                goto fail;
+            }
+        } else {
+            c = count_contiguous_clusters_unallocated(nb_clusters,
+                                                      &l2_table[l2_index],
+                                                      QCOW2_CLUSTER_ZERO);
+            *cluster_offset = 0;
+        }
         break;
     case QCOW2_CLUSTER_UNALLOCATED:
         /* how many empty clusters ? */
-        c = count_contiguous_clusters_by_type(nb_clusters, &l2_table[l2_index],
-                                              QCOW2_CLUSTER_UNALLOCATED);
+        c = count_contiguous_clusters_unallocated(nb_clusters,
+                                                  &l2_table[l2_index],
+                                                  QCOW2_CLUSTER_UNALLOCATED);
         *cluster_offset = 0;
         break;
     case QCOW2_CLUSTER_NORMAL:
