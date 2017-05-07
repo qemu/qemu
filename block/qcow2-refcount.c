@@ -1640,7 +1640,7 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
         for (j = 0; j < s->l2_size; j++) {
             uint64_t l2_entry = be64_to_cpu(l2_table[j]);
             uint64_t data_offset = l2_entry & L2E_OFFSET_MASK;
-            int cluster_type = qcow2_get_cluster_type(l2_entry);
+            QCow2ClusterType cluster_type = qcow2_get_cluster_type(l2_entry);
 
             if ((cluster_type == QCOW2_CLUSTER_NORMAL) ||
                 ((cluster_type == QCOW2_CLUSTER_ZERO) && (data_offset != 0))) {

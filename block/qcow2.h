@@ -349,12 +349,12 @@ typedef struct QCowL2Meta
     QLIST_ENTRY(QCowL2Meta) next_in_flight;
 } QCowL2Meta;
 
-enum {
+typedef enum QCow2ClusterType {
     QCOW2_CLUSTER_UNALLOCATED,
     QCOW2_CLUSTER_NORMAL,
     QCOW2_CLUSTER_COMPRESSED,
     QCOW2_CLUSTER_ZERO
-};
+} QCow2ClusterType;
 
 typedef enum QCow2MetadataOverlap {
     QCOW2_OL_MAIN_HEADER_BITNR    = 0,
@@ -443,7 +443,7 @@ static inline uint64_t qcow2_max_refcount_clusters(BDRVQcow2State *s)
     return QCOW_MAX_REFTABLE_SIZE >> s->cluster_bits;
 }
 
-static inline int qcow2_get_cluster_type(uint64_t l2_entry)
+static inline QCow2ClusterType qcow2_get_cluster_type(uint64_t l2_entry)
 {
     if (l2_entry & QCOW_OFLAG_COMPRESSED) {
         return QCOW2_CLUSTER_COMPRESSED;
