@@ -346,7 +346,7 @@ static void tcp_chr_free_connection(Chardev *chr)
     }
 
     tcp_set_msgfds(chr, NULL, 0);
-    remove_fd_in_watch(chr, NULL);
+    remove_fd_in_watch(chr);
     object_unref(OBJECT(s->sioc));
     s->sioc = NULL;
     object_unref(OBJECT(s->ioc));
@@ -511,7 +511,7 @@ static void tcp_chr_connect(void *opaque)
 
     s->connected = 1;
     if (s->ioc) {
-        chr->fd_in_tag = io_add_watch_poll(chr, s->ioc,
+        chr->gsource = io_add_watch_poll(chr, s->ioc,
                                            tcp_chr_read_poll,
                                            tcp_chr_read,
                                            chr, NULL);
@@ -528,9 +528,9 @@ static void tcp_chr_update_read_handler(Chardev *chr,
         return;
     }
 
-    remove_fd_in_watch(chr, NULL);
+    remove_fd_in_watch(chr);
     if (s->ioc) {
-        chr->fd_in_tag = io_add_watch_poll(chr, s->ioc,
+        chr->gsource = io_add_watch_poll(chr, s->ioc,
                                            tcp_chr_read_poll,
                                            tcp_chr_read, chr,
                                            context);

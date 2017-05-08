@@ -4853,6 +4853,20 @@ EOF
 fi
 
 ##########################################
+# check for _Static_assert()
+
+have_static_assert=no
+cat > $TMPC << EOF
+_Static_assert(1, "success");
+int main(void) {
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+    have_static_assert=yes
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -5848,6 +5862,10 @@ if test "$have_sysmacros" = "yes" ; then
   echo "CONFIG_SYSMACROS=y" >> $config_host_mak
 fi
 
+if test "$have_static_assert" = "yes" ; then
+  echo "CONFIG_STATIC_ASSERT=y" >> $config_host_mak
+fi
+
 # Hold two types of flag:
 #   CONFIG_THREAD_SETNAME_BYTHREAD  - we've got a way of setting the name on
 #                                     a thread we have a handle to
@@ -6023,9 +6041,11 @@ TARGET_ABI_DIR=""
 
 case "$target_name" in
   i386)
+    gdb_xml_files="i386-32bit-core.xml"
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
+    gdb_xml_files="i386-64bit-core.xml"
   ;;
   alpha)
     mttcg="yes"

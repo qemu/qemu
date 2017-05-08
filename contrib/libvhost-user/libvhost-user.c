@@ -81,7 +81,7 @@ vu_panic(VuDev *dev, const char *msg, ...)
     va_list ap;
 
     va_start(ap, msg);
-    (void)vasprintf(&buf, msg, ap);
+    buf = g_strdup_vprintf(msg, ap);
     va_end(ap);
 
     dev->broken = true;

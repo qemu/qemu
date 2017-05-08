@@ -90,7 +90,7 @@ static gboolean udp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     ret = qio_channel_read(
         s->ioc, (char *)s->buf, sizeof(s->buf), NULL);
     if (ret <= 0) {
-        remove_fd_in_watch(chr, NULL);
+        remove_fd_in_watch(chr);
         return FALSE;
     }
     s->bufcnt = ret;
@@ -105,9 +105,9 @@ static void udp_chr_update_read_handler(Chardev *chr,
 {
     UdpChardev *s = UDP_CHARDEV(chr);
 
-    remove_fd_in_watch(chr, NULL);
+    remove_fd_in_watch(chr);
     if (s->ioc) {
-        chr->fd_in_tag = io_add_watch_poll(chr, s->ioc,
+        chr->gsource = io_add_watch_poll(chr, s->ioc,
                                            udp_chr_read_poll,
                                            udp_chr_read, chr,
                                            context);
@@ -119,7 +119,7 @@ static void char_udp_finalize(Object *obj)
     Chardev *chr = CHARDEV(obj);
     UdpChardev *s = UDP_CHARDEV(obj);
 
-    remove_fd_in_watch(chr, NULL);
+    remove_fd_in_watch(chr);
     if (s->ioc) {
         object_unref(OBJECT(s->ioc));
     }

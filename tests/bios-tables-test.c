@@ -29,7 +29,7 @@ typedef struct {
     uint32_t rsdp_addr;
     AcpiRsdpDescriptor rsdp_table;
     AcpiRsdtDescriptorRev1 rsdt_table;
-    AcpiFadtDescriptorRev1 fadt_table;
+    AcpiFadtDescriptorRev3 fadt_table;
     AcpiFacsDescriptorRev1 facs_table;
     uint32_t *rsdt_tables_addr;
     int rsdt_tables_nr;
@@ -126,7 +126,7 @@ static void test_acpi_rsdt_table(test_data *data)
 
 static void test_acpi_fadt_table(test_data *data)
 {
-    AcpiFadtDescriptorRev1 *fadt_table = &data->fadt_table;
+    AcpiFadtDescriptorRev3 *fadt_table = &data->fadt_table;
     uint32_t addr;
 
     /* FADT table comes first */
@@ -168,10 +168,23 @@ static void test_acpi_fadt_table(test_data *data)
     ACPI_READ_FIELD(fadt_table->day_alrm, addr);
     ACPI_READ_FIELD(fadt_table->mon_alrm, addr);
     ACPI_READ_FIELD(fadt_table->century, addr);
-    ACPI_READ_FIELD(fadt_table->reserved4, addr);
-    ACPI_READ_FIELD(fadt_table->reserved4a, addr);
-    ACPI_READ_FIELD(fadt_table->reserved4b, addr);
+    ACPI_READ_FIELD(fadt_table->boot_flags, addr);
+    ACPI_READ_FIELD(fadt_table->reserved, addr);
     ACPI_READ_FIELD(fadt_table->flags, addr);
+    ACPI_READ_GENERIC_ADDRESS(fadt_table->reset_register, addr);
+    ACPI_READ_FIELD(fadt_table->reset_value, addr);
+    ACPI_READ_FIELD(fadt_table->arm_boot_flags, addr);
+    ACPI_READ_FIELD(fadt_table->minor_revision, addr);
+    ACPI_READ_FIELD(fadt_table->Xfacs, addr);
+    ACPI_READ_FIELD(fadt_table->Xdsdt, addr);
+    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1a_event_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1b_event_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1a_control_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1b_control_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm2_control_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm_timer_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(fadt_table->xgpe0_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(fadt_table->xgpe1_block, addr);
 
     ACPI_ASSERT_CMP(fadt_table->signature, "FACP");
     g_assert(!acpi_calc_checksum((uint8_t *)fadt_table, fadt_table->length));

@@ -55,3 +55,7 @@ lockcnt_futex_wait_prepare(const void *lockcnt, int expected, int new) "lockcnt 
 lockcnt_futex_wait(const void *lockcnt, int val) "lockcnt %p waiting on %d"
 lockcnt_futex_wait_resume(const void *lockcnt, int new) "lockcnt %p after wait: %d"
 lockcnt_futex_wake(const void *lockcnt) "lockcnt %p waking up one waiter"
+
+# util/qemu-thread-posix.c
+qemu_mutex_locked(void *lock) "locked mutex %p"
+qemu_mutex_unlocked(void *lock) "unlocked mutex %p"

@@ -2571,6 +2571,27 @@ sub process {
 		if ($line =~ /\bbzero\(/) {
 			ERROR("use memset() instead of bzero()\n" . $herecurr);
 		}
+		my $non_exit_glib_asserts = qr{g_assert_cmpstr|
+						g_assert_cmpint|
+						g_assert_cmpuint|
+						g_assert_cmphex|
+						g_assert_cmpfloat|
+						g_assert_true|
+						g_assert_false|
+						g_assert_nonnull|
+						g_assert_null|
+						g_assert_no_error|
+						g_assert_error|
+						g_test_assert_expected_messages|
+						g_test_trap_assert_passed|
+						g_test_trap_assert_stdout|
+						g_test_trap_assert_stdout_unmatched|
+						g_test_trap_assert_stderr|
+						g_test_trap_assert_stderr_unmatched}x;
+		if ($realfile !~ /^tests\// &&
+			$line =~ /\b(?:$non_exit_glib_asserts)\(/) {
+			ERROR("Use g_assert or g_assert_not_reached\n". $herecurr);
+		}
 	}
 
 	# If we have no input at all, then there is nothing to report on
