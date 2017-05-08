@@ -182,15 +182,13 @@ The appropriate DEVNAME depends on the machine type.  For type "pc":
 
   This lets you control I/O ports and IRQs.
 
-* -usbdevice serial:vendorid=VID,productid=PRID becomes
-  -device usb-serial,vendorid=VID,productid=PRID
+* -usbdevice serial::chardev becomes -device usb-serial,chardev=dev.
 
 * -usbdevice braille doesn't support LEGACY-CHARDEV syntax.  It always
   uses "braille".  With -device, this useful default is gone, so you
   have to use something like
 
-  -device usb-braille,chardev=braille,vendorid=VID,productid=PRID
-  -chardev braille,id=braille
+  -device usb-braille,chardev=braille -chardev braille,id=braille
 
 * -virtioconsole becomes
   -device virtio-serial-pci,class=C,vectors=V,ioeventfd=IOEVENTFD,max_ports=N
