@@ -304,6 +304,19 @@ static void block_job_completed_single(BlockJob *job)
     block_job_unref(job);
 }
 
+static void block_job_cancel_async(BlockJob *job)
+{
+    if (job->iostatus != BLOCK_DEVICE_IO_STATUS_OK) {
+        block_job_iostatus_reset(job);
+    }
+    if (job->user_paused) {
+        /* Do not call block_job_enter here, the caller will handle it.  */
+        job->user_paused = false;
+        job->pause_count--;
+    }
+    job->cancelled = true;
+}
+
 static void block_job_completed_txn_abort(BlockJob *job)
 {
     AioContext *ctx;
@@ -328,7 +341,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
              * them; this job, however, may or may not be cancelled, depending
              * on the caller, so leave it. */
             if (other_job != job) {
-                other_job->cancelled = true;
+                block_job_cancel_async(other_job);
             }
             continue;
         }
@@ -411,8 +424,8 @@ bool block_job_user_paused(BlockJob *job)
 void block_job_user_resume(BlockJob *job)
 {
     if (job && job->user_paused && job->pause_count > 0) {
-        job->user_paused = false;
         block_job_iostatus_reset(job);
+        job->user_paused = false;
         block_job_resume(job);
     }
 }
@@ -420,8 +433,7 @@ void block_job_user_resume(BlockJob *job)
 void block_job_cancel(BlockJob *job)
 {
     if (block_job_started(job)) {
-        job->cancelled = true;
-        block_job_iostatus_reset(job);
+        block_job_cancel_async(job);
         block_job_enter(job);
     } else {
         block_job_completed(job, -ECANCELED);
@@ -765,6 +777,10 @@ void block_job_yield(BlockJob *job)
 
 void block_job_iostatus_reset(BlockJob *job)
 {
+    if (job->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
+        return;
+    }
+    assert(job->user_paused && job->pause_count > 0);
     job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
 }
 
