@@ -28,7 +28,7 @@
 #include "qom/object.h"
 #include "hw/isa/isa.h"
 #include "hw/pci/pci.h"
-#include "hw/audio/audio.h"
+#include "hw/audio/soundhw.h"
 
 struct soundhw {
     const char *name;
