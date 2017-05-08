@@ -1157,6 +1157,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 #ifndef CONFIG_USER_ONLY
     /* Privileged PAL code */
     if (palcode < 0x40 && (ctx->tb->flags & TB_FLAGS_USER_MODE) == 0) {
+        TCGv tmp;
         switch (palcode) {
         case 0x01:
             /* CFLUSH */
@@ -1182,10 +1183,8 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
                            offsetof(CPUAlphaState, sysval));
             break;
 
-        case 0x35: {
+        case 0x35:
             /* SWPIPL */
-            TCGv tmp;
-
             /* Note that we already know we're in kernel mode, so we know
                that PS only contains the 3 IPL bits.  */
             tcg_gen_ld8u_i64(ctx->ir[IR_V0], cpu_env,
@@ -1197,7 +1196,6 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, ps));
             tcg_temp_free(tmp);
             break;
-        }
 
         case 0x36:
             /* RDPS */
@@ -1219,6 +1217,14 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             tcg_gen_ld32s_i64(ctx->ir[IR_V0], cpu_env,
                 -offsetof(AlphaCPU, env) + offsetof(CPUState, cpu_index));
             break;
+
+        case 0x3E:
+            /* WTINT */
+            tmp = tcg_const_i64(1);
+            tcg_gen_st32_i64(tmp, cpu_env, -offsetof(AlphaCPU, env) +
+                                           offsetof(CPUState, halted));
+            tcg_gen_movi_i64(ctx->ir[IR_V0], 0);
+            return gen_excp(ctx, EXCP_HALTED, 0);
 
         default:
             palcode &= 0x3f;
@@ -1369,7 +1375,7 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
         tmp = tcg_const_i64(1);
         tcg_gen_st32_i64(tmp, cpu_env, -offsetof(AlphaCPU, env) +
                                        offsetof(CPUState, halted));
-        return gen_excp(ctx, EXCP_HLT, 0);
+        return gen_excp(ctx, EXCP_HALTED, 0);
 
     case 252:
         /* HALT */
