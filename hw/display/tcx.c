@@ -145,7 +145,6 @@ static void update_palette_entries(TCXState *s, int start, int end)
         } else {
             s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
         }
-        break;
     }
     tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
 }
