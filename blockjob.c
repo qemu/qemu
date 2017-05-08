@@ -55,36 +55,6 @@ struct BlockJobTxn {
 
 static QLIST_HEAD(, BlockJob) block_jobs = QLIST_HEAD_INITIALIZER(block_jobs);
 
-static char *child_job_get_parent_desc(BdrvChild *c)
-{
-    BlockJob *job = c->opaque;
-    return g_strdup_printf("%s job '%s'",
-                           BlockJobType_lookup[job->driver->job_type],
-                           job->id);
-}
-
-static const BdrvChildRole child_job = {
-    .get_parent_desc    = child_job_get_parent_desc,
-    .stay_at_node       = true,
-};
-
-static void block_job_drained_begin(void *opaque)
-{
-    BlockJob *job = opaque;
-    block_job_pause(job);
-}
-
-static void block_job_drained_end(void *opaque)
-{
-    BlockJob *job = opaque;
-    block_job_resume(job);
-}
-
-static const BlockDevOps block_job_dev_ops = {
-    .drained_begin = block_job_drained_begin,
-    .drained_end = block_job_drained_end,
-};
-
 BlockJob *block_job_next(BlockJob *job)
 {
     if (!job) {
@@ -104,6 +74,21 @@ BlockJob *block_job_get(const char *id)
     }
 
     return NULL;
+}
+
+static void block_job_pause(BlockJob *job)
+{
+    job->pause_count++;
+}
+
+static void block_job_resume(BlockJob *job)
+{
+    assert(job->pause_count > 0);
+    job->pause_count--;
+    if (job->pause_count) {
+        return;
+    }
+    block_job_enter(job);
 }
 
 static void block_job_ref(BlockJob *job)
@@ -170,6 +155,36 @@ static void block_job_detach_aio_context(void *opaque)
 
     block_job_unref(job);
 }
+
+static char *child_job_get_parent_desc(BdrvChild *c)
+{
+    BlockJob *job = c->opaque;
+    return g_strdup_printf("%s job '%s'",
+                           BlockJobType_lookup[job->driver->job_type],
+                           job->id);
+}
+
+static const BdrvChildRole child_job = {
+    .get_parent_desc    = child_job_get_parent_desc,
+    .stay_at_node       = true,
+};
+
+static void block_job_drained_begin(void *opaque)
+{
+    BlockJob *job = opaque;
+    block_job_pause(job);
+}
+
+static void block_job_drained_end(void *opaque)
+{
+    BlockJob *job = opaque;
+    block_job_resume(job);
+}
+
+static const BlockDevOps block_job_dev_ops = {
+    .drained_begin = block_job_drained_begin,
+    .drained_end = block_job_drained_end,
+};
 
 void block_job_remove_all_bdrv(BlockJob *job)
 {
@@ -471,11 +486,6 @@ void block_job_complete(BlockJob *job, Error **errp)
     job->driver->complete(job, errp);
 }
 
-void block_job_pause(BlockJob *job)
-{
-    job->pause_count++;
-}
-
 void block_job_user_pause(BlockJob *job)
 {
     job->user_paused = true;
@@ -518,16 +528,6 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
     if (job->driver->resume) {
         job->driver->resume(job);
     }
-}
-
-void block_job_resume(BlockJob *job)
-{
-    assert(job->pause_count > 0);
-    job->pause_count--;
-    if (job->pause_count) {
-        return;
-    }
-    block_job_enter(job);
 }
 
 void block_job_user_resume(BlockJob *job)
@@ -721,6 +721,30 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
                                         !!msg,
                                         msg,
                                         &error_abort);
+}
+
+void block_job_pause_all(void)
+{
+    BlockJob *job = NULL;
+    while ((job = block_job_next(job))) {
+        AioContext *aio_context = blk_get_aio_context(job->blk);
+
+        aio_context_acquire(aio_context);
+        block_job_pause(job);
+        aio_context_release(aio_context);
+    }
+}
+
+void block_job_resume_all(void)
+{
+    BlockJob *job = NULL;
+    while ((job = block_job_next(job))) {
+        AioContext *aio_context = blk_get_aio_context(job->blk);
+
+        aio_context_acquire(aio_context);
+        block_job_resume(job);
+        aio_context_release(aio_context);
+    }
 }
 
 void block_job_event_ready(BlockJob *job)
