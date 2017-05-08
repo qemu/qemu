@@ -36,6 +36,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/ppc.h"
 #include "hw/boards.h"
+#include "hw/audio/audio.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "hw/ide.h"

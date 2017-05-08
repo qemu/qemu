@@ -7,4 +7,7 @@ void isa_register_soundhw(const char *name, const char *descr,
 void pci_register_soundhw(const char *name, const char *descr,
                           int (*init_pci)(PCIBus *bus));
 
+void audio_init(void);
+void select_soundhw(const char *optarg);
+
 #endif
