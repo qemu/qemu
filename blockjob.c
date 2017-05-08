@@ -555,9 +555,6 @@ bool block_job_is_cancelled(BlockJob *job)
 void block_job_iostatus_reset(BlockJob *job)
 {
     job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
-    if (job->driver->iostatus_reset) {
-        job->driver->iostatus_reset(job);
-    }
 }
 
 static int block_job_finish_sync(BlockJob *job,

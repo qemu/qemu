@@ -44,9 +44,6 @@ struct BlockJobDriver {
     /** Optional callback for job types that support setting a speed limit */
     void (*set_speed)(BlockJob *job, int64_t speed, Error **errp);
 
-    /** Optional callback for job types that need to forward I/O status reset */
-    void (*iostatus_reset)(BlockJob *job);
-
     /** Mandatory: Entrypoint for the Coroutine. */
     CoroutineEntry *start;
 
