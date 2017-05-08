@@ -480,7 +480,7 @@ static bool block_job_should_pause(BlockJob *job)
 
 bool block_job_user_paused(BlockJob *job)
 {
-    return job ? job->user_paused : 0;
+    return job->user_paused;
 }
 
 void coroutine_fn block_job_pause_point(BlockJob *job)
