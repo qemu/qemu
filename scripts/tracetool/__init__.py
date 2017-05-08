@@ -191,6 +191,10 @@ class Event(object):
         self.event_trans = event_trans
         self.event_exec = event_exec
 
+        if len(args) > 10:
+            raise ValueError("Event '%s' has more than maximum permitted "
+                             "argument count" % name)
+
         if orig is None:
             self.original = weakref.ref(self)
         else:
