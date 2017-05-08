@@ -106,6 +106,32 @@ BlockJob *block_job_get(const char *id)
     return NULL;
 }
 
+static void block_job_ref(BlockJob *job)
+{
+    ++job->refcnt;
+}
+
+static void block_job_attached_aio_context(AioContext *new_context,
+                                           void *opaque);
+static void block_job_detach_aio_context(void *opaque);
+
+static void block_job_unref(BlockJob *job)
+{
+    if (--job->refcnt == 0) {
+        BlockDriverState *bs = blk_bs(job->blk);
+        bs->job = NULL;
+        block_job_remove_all_bdrv(job);
+        blk_remove_aio_context_notifier(job->blk,
+                                        block_job_attached_aio_context,
+                                        block_job_detach_aio_context, job);
+        blk_unref(job->blk);
+        error_free(job->blocker);
+        g_free(job->id);
+        QLIST_REMOVE(job, job_list);
+        g_free(job);
+    }
+}
+
 static void block_job_attached_aio_context(AioContext *new_context,
                                            void *opaque)
 {
@@ -293,26 +319,9 @@ void block_job_start(BlockJob *job)
     bdrv_coroutine_enter(blk_bs(job->blk), job->co);
 }
 
-void block_job_ref(BlockJob *job)
+void block_job_early_fail(BlockJob *job)
 {
-    ++job->refcnt;
-}
-
-void block_job_unref(BlockJob *job)
-{
-    if (--job->refcnt == 0) {
-        BlockDriverState *bs = blk_bs(job->blk);
-        bs->job = NULL;
-        block_job_remove_all_bdrv(job);
-        blk_remove_aio_context_notifier(job->blk,
-                                        block_job_attached_aio_context,
-                                        block_job_detach_aio_context, job);
-        blk_unref(job->blk);
-        error_free(job->blocker);
-        g_free(job->id);
-        QLIST_REMOVE(job, job_list);
-        g_free(job);
-    }
+    block_job_unref(job);
 }
 
 static void block_job_completed_single(BlockJob *job)

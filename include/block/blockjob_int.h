@@ -156,21 +156,12 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
 void block_job_yield(BlockJob *job);
 
 /**
- * block_job_ref:
+ * block_job_early_fail:
  * @bs: The block device.
  *
- * Grab a reference to the block job. Should be paired with block_job_unref.
+ * The block job could not be started, free it.
  */
-void block_job_ref(BlockJob *job);
-
-/**
- * block_job_unref:
- * @bs: The block device.
- *
- * Release reference to the block job and release resources if it is the last
- * reference.
- */
-void block_job_unref(BlockJob *job);
+void block_job_early_fail(BlockJob *job);
 
 /**
  * block_job_completed:

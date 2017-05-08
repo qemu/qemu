@@ -426,7 +426,7 @@ fail:
     if (commit_top_bs) {
         bdrv_set_backing_hd(overlay_bs, top, &error_abort);
     }
-    block_job_unref(&s->common);
+    block_job_early_fail(&s->common);
 }
 
 

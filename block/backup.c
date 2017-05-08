@@ -692,7 +692,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     }
     if (job) {
         backup_clean(&job->common);
-        block_job_unref(&job->common);
+        block_job_early_fail(&job->common);
     }
 
     return NULL;
