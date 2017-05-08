@@ -783,7 +783,7 @@ static void ibm_40p_init(MachineState *machine)
                        &cmos_checksum);
 
     /* initialize audio subsystem */
-    audio_init();
+    soundhw_init();
 
     /* add some more devices */
     if (defaults_enabled()) {

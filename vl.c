@@ -4575,7 +4575,7 @@ int main(int argc, char **argv, char **envp)
 
     realtime_init();
 
-    audio_init();
+    soundhw_init();
 
     if (hax_enabled()) {
         hax_sync_vcpus();
