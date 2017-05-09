@@ -69,8 +69,6 @@
 /* 0x80 is reserved in migration.h start with 0x100 next */
 #define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
 
-static uint8_t *ZERO_TARGET_PAGE;
-
 static inline bool is_zero_range(uint8_t *p, uint64_t size)
 {
     return buffer_is_zero(p, size);
@@ -86,6 +84,8 @@ static struct {
     /* Cache for XBZRLE, Protected by lock. */
     PageCache *cache;
     QemuMutex lock;
+    /* it will store a page full of zeros */
+    uint8_t *zero_target_page;
 } XBZRLE;
 
 /* buffer used for XBZRLE decoding */
@@ -512,7 +512,7 @@ static void xbzrle_cache_zero_page(RAMState *rs, ram_addr_t current_addr)
 
     /* We don't care if this fails to allocate a new cache page
      * as long as it updated an old one */
-    cache_insert(XBZRLE.cache, current_addr, ZERO_TARGET_PAGE,
+    cache_insert(XBZRLE.cache, current_addr, XBZRLE.zero_target_page,
                  rs->bitmap_sync_count);
 }
 
@@ -1456,10 +1456,11 @@ static void ram_migration_cleanup(void *opaque)
         cache_fini(XBZRLE.cache);
         g_free(XBZRLE.encoded_buf);
         g_free(XBZRLE.current_buf);
-        g_free(ZERO_TARGET_PAGE);
+        g_free(XBZRLE.zero_target_page);
         XBZRLE.cache = NULL;
         XBZRLE.encoded_buf = NULL;
         XBZRLE.current_buf = NULL;
+        XBZRLE.zero_target_page = NULL;
     }
     XBZRLE_cache_unlock();
     migration_page_queue_free(rs);
@@ -1880,7 +1881,7 @@ static int ram_state_init(RAMState *rs)
 
     if (migrate_use_xbzrle()) {
         XBZRLE_cache_lock();
-        ZERO_TARGET_PAGE = g_malloc0(TARGET_PAGE_SIZE);
+        XBZRLE.zero_target_page = g_malloc0(TARGET_PAGE_SIZE);
         XBZRLE.cache = cache_init(migrate_xbzrle_cache_size() /
                                   TARGET_PAGE_SIZE,
                                   TARGET_PAGE_SIZE);
