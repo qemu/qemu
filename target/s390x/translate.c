@@ -3406,6 +3406,7 @@ static ExitStatus op_sigp(DisasContext *s, DisasOps *o)
     check_privileged(s);
     potential_page_fault(s);
     gen_helper_sigp(cc_op, cpu_env, o->in2, r1, o->in1);
+    set_cc_static(s);
     tcg_temp_free_i32(r1);
     return NO_EXIT;
 }
