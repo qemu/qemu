@@ -332,12 +332,14 @@ static int xen_9pfs_connect(struct XenDevice *xendev)
         str = g_strdup_printf("ring-ref%u", i);
         if (xenstore_read_fe_int(&xen_9pdev->xendev, str,
                                  &xen_9pdev->rings[i].ref) == -1) {
+            g_free(str);
             goto out;
         }
         g_free(str);
         str = g_strdup_printf("event-channel-%u", i);
         if (xenstore_read_fe_int(&xen_9pdev->xendev, str,
                                  &xen_9pdev->rings[i].evtchn) == -1) {
+            g_free(str);
             goto out;
         }
         g_free(str);
