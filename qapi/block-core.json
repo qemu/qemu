@@ -449,7 +449,8 @@
 #
 # @io-status: @BlockDeviceIoStatus. Only present if the device
 #             supports it and the VM is configured to stop on errors
-#             (supported device models: virtio-blk, ide, scsi-disk)
+#             (supported device models: virtio-blk, IDE, SCSI except
+#             scsi-generic)
 #
 # @inserted: @BlockDeviceInfo describing the device if media is
 #            present
