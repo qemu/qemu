@@ -380,7 +380,7 @@ static int xen_9pfs_connect(struct XenDevice *xendev)
         if (xen_9pdev->rings[i].evtchndev == NULL) {
             goto out;
         }
-        fcntl(xenevtchn_fd(xen_9pdev->rings[i].evtchndev), F_SETFD, FD_CLOEXEC);
+        qemu_set_cloexec(xenevtchn_fd(xen_9pdev->rings[i].evtchndev));
         xen_9pdev->rings[i].local_port = xenevtchn_bind_interdomain
                                             (xen_9pdev->rings[i].evtchndev,
                                              xendev->dom,
