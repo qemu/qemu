@@ -22,6 +22,7 @@
 #include "hw/xen/xen.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
+#include "trace.h"
 
 #define MSIX_CAP_LENGTH 12
 
@@ -130,10 +131,14 @@ static void msix_handle_mask_update(PCIDevice *dev, int vector, bool was_masked)
     }
 }
 
+static bool msix_masked(PCIDevice *dev)
+{
+    return dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] & MSIX_MASKALL_MASK;
+}
+
 static void msix_update_function_masked(PCIDevice *dev)
 {
-    dev->msix_function_masked = !msix_enabled(dev) ||
-        (dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] & MSIX_MASKALL_MASK);
+    dev->msix_function_masked = !msix_enabled(dev) || msix_masked(dev);
 }
 
 /* Handle MSI-X capability config write. */
@@ -147,6 +152,8 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
     if (!msix_present(dev) || !range_covers_byte(addr, len, enable_pos)) {
         return;
     }
+
+    trace_msix_write_config(dev->name, msix_enabled(dev), msix_masked(dev));
 
     was_masked = dev->msix_function_masked;
     msix_update_function_masked(dev);
