@@ -219,7 +219,7 @@ static void spapr_populate_pa_features(CPUPPCState *env, void *fdt, int offset,
         /* 16: Vector */
         0x00, 0x00, 0x00, 0x00, 0x80, 0x00, /* 12 - 17 */
         /* 18: Vec. Scalar, 20: Vec. XOR, 22: HTM */
-        0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 18 - 23 */
+        0x80, 0x00, 0x80, 0x00, 0x00, 0x00, /* 18 - 23 */
         /* 24: Ext. Dec, 26: 64 bit ftrs, 28: PM ftrs */
         0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 24 - 29 */
         /* 30: MMR, 32: LE atomic, 34: EBB + ext EBB */
