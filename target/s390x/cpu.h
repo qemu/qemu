@@ -1078,6 +1078,9 @@ struct sysib_322 {
 #define SIGP_MODE_Z_ARCH_TRANS_ALL_PSW 1
 #define SIGP_MODE_Z_ARCH_TRANS_CUR_PSW 2
 
+/* SIGP order code mask corresponding to bit positions 56-63 */
+#define SIGP_ORDER_MASK 0x000000ff
+
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags, bool exc);

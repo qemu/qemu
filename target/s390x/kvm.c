@@ -1764,8 +1764,6 @@ static int sigp_set_architecture(S390CPU *cpu, uint32_t param,
     return SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-#define SIGP_ORDER_MASK 0x000000ff
-
 static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     CPUS390XState *env = &cpu->env;
