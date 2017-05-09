@@ -1630,7 +1630,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     if (!full_update) {
         vga_sync_dirty_bitmap(s);
         snap = memory_region_snapshot_and_clear_dirty(&s->vram, addr1,
-                                                      bwidth * height,
+                                                      line_offset * height,
                                                       DIRTY_MEMORY_VGA);
     }
 
