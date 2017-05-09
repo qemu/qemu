@@ -1518,6 +1518,21 @@ static ExitStatus op_bc(DisasContext *s, DisasOps *o)
     int imm = is_imm ? get_field(s->fields, i2) : 0;
     DisasCompare c;
 
+    /* BCR with R2 = 0 causes no branching */
+    if (have_field(s->fields, r2) && get_field(s->fields, r2) == 0) {
+        if (m1 == 14) {
+            /* Perform serialization */
+            /* FIXME: check for fast-BCR-serialization facility */
+            tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
+        }
+        if (m1 == 15) {
+            /* Perform serialization */
+            /* FIXME: perform checkpoint-synchronisation */
+            tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
+        }
+        return NO_EXIT;
+    }
+
     disas_jcc(s, &c, m1);
     return help_branch(s, &c, is_imm, imm, o->in2);
 }
