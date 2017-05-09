@@ -4122,13 +4122,19 @@
     'port': 'str' } }
 
 ##
-# @SocketAddress:
+# @SocketAddressLegacy:
 #
 # Captures the address of a socket, which could also be a named file descriptor
 #
+# Note: This type is deprecated in favor of SocketAddress.  The
+# difference between SocketAddressLegacy and SocketAddress is that the
+# latter is a flat union rather than a simple union. Flat is nicer
+# because it avoids nesting on the wire, i.e. that form has fewer {}.
+
+#
 # Since: 1.3
 ##
-{ 'union': 'SocketAddress',
+{ 'union': 'SocketAddressLegacy',
   'data': {
     'inet': 'InetSocketAddress',
     'unix': 'UnixSocketAddress',
@@ -4136,9 +4142,9 @@
     'fd': 'String' } }
 
 ##
-# @SocketAddressFlatType:
+# @SocketAddressType:
 #
-# Available SocketAddressFlat types
+# Available SocketAddress types
 #
 # @inet:  Internet address
 #
@@ -4146,24 +4152,21 @@
 #
 # Since: 2.9
 ##
-{ 'enum': 'SocketAddressFlatType',
+{ 'enum': 'SocketAddressType',
   'data': [ 'inet', 'unix', 'vsock', 'fd' ] }
 
 ##
-# @SocketAddressFlat:
+# @SocketAddress:
 #
-# Captures the address of a socket
+# Captures the address of a socket, which could also be a named file
+# descriptor
 #
 # @type:       Transport type
 #
-# This is just like SocketAddress, except it's a flat union rather
-# than a simple union.  Nicer because it avoids nesting on the wire,
-# i.e. this form has fewer {}.
-#
 # Since: 2.9
 ##
-{ 'union': 'SocketAddressFlat',
-  'base': { 'type': 'SocketAddressFlatType' },
+{ 'union': 'SocketAddress',
+  'base': { 'type': 'SocketAddressType' },
   'discriminator': 'type',
   'data': { 'inet': 'InetSocketAddress',
             'unix': 'UnixSocketAddress',
@@ -4886,7 +4889,7 @@
 #
 # Since: 1.4
 ##
-{ 'struct': 'ChardevSocket', 'data': { 'addr'       : 'SocketAddress',
+{ 'struct': 'ChardevSocket', 'data': { 'addr'       : 'SocketAddressLegacy',
                                      '*tls-creds'  : 'str',
                                      '*server'    : 'bool',
                                      '*wait'      : 'bool',
@@ -4906,8 +4909,8 @@
 #
 # Since: 1.5
 ##
-{ 'struct': 'ChardevUdp', 'data': { 'remote' : 'SocketAddress',
-                                  '*local' : 'SocketAddress' },
+{ 'struct': 'ChardevUdp', 'data': { 'remote' : 'SocketAddressLegacy',
+                                  '*local' : 'SocketAddressLegacy' },
   'base': 'ChardevCommon' }
 
 ##

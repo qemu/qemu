@@ -548,7 +548,7 @@ static void curl_clean_state(CURLState *s)
 static void curl_parse_filename(const char *filename, QDict *options,
                                 Error **errp)
 {
-    qdict_put(options, CURL_BLOCK_OPT_URL, qstring_from_str(filename));
+    qdict_put_str(options, CURL_BLOCK_OPT_URL, filename);
 }
 
 static void curl_detach_aio_context(BlockDriverState *bs)

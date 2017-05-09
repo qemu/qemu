@@ -395,13 +395,12 @@ static SocketAddress *nbd_build_socket_address(const char *sockpath,
 
     saddr = g_new0(SocketAddress, 1);
     if (sockpath) {
-        saddr->type = SOCKET_ADDRESS_KIND_UNIX;
-        saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
-        saddr->u.q_unix.data->path = g_strdup(sockpath);
+        saddr->type = SOCKET_ADDRESS_TYPE_UNIX;
+        saddr->u.q_unix.path = g_strdup(sockpath);
     } else {
         InetSocketAddress *inet;
-        saddr->type = SOCKET_ADDRESS_KIND_INET;
-        inet = saddr->u.inet.data = g_new0(InetSocketAddress, 1);
+        saddr->type = SOCKET_ADDRESS_TYPE_INET;
+        inet = &saddr->u.inet;
         inet->host = g_strdup(bindto);
         if (port) {
             inet->port = g_strdup(port);
@@ -959,7 +958,7 @@ int main(int argc, char **argv)
     } else {
         if (fmt) {
             options = qdict_new();
-            qdict_put(options, "driver", qstring_from_str(fmt));
+            qdict_put_str(options, "driver", fmt);
         }
         blk = blk_new_open(srcpath, NULL, options, flags, &local_err);
     }

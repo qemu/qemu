@@ -628,6 +628,7 @@ static void test_keyval_visit_alternate(void)
     visit_type_AltNumStr(v, "a", &ans, &error_abort);
     g_assert_cmpint(ans->type, ==, QTYPE_QSTRING);
     g_assert_cmpstr(ans->u.s, ==, "1");
+    qapi_free_AltNumStr(ans);
     visit_type_AltNumInt(v, "a", &ani, &err);
     error_free_or_abort(&err);
     visit_end_struct(v, NULL);
@@ -651,9 +652,12 @@ static void test_keyval_visit_any(void)
     g_assert(qlist);
     qstr = qobject_to_qstring(qlist_pop(qlist));
     g_assert_cmpstr(qstring_get_str(qstr), ==, "null");
+    QDECREF(qstr);
     qstr = qobject_to_qstring(qlist_pop(qlist));
     g_assert_cmpstr(qstring_get_str(qstr), ==, "1");
     g_assert(qlist_empty(qlist));
+    QDECREF(qstr);
+    qobject_decref(any);
     visit_check_struct(v, &error_abort);
     visit_end_struct(v, NULL);
     visit_free(v);

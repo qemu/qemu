@@ -1388,9 +1388,9 @@ int main(int argc, char **argv)
 
         addr = socket_local_address(FIRST_SOCKET_ACTIVATION_FD, NULL);
         if (addr) {
-            if (addr->type == SOCKET_ADDRESS_KIND_UNIX) {
+            if (addr->type == SOCKET_ADDRESS_TYPE_UNIX) {
                 config->method = g_strdup("unix-listen");
-            } else if (addr->type == SOCKET_ADDRESS_KIND_VSOCK) {
+            } else if (addr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
                 config->method = g_strdup("vsock-listen");
             }
 

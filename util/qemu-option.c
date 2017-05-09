@@ -1054,17 +1054,15 @@ void qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
 QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
 {
     QemuOpt *opt;
-    QObject *val;
 
     if (!qdict) {
         qdict = qdict_new();
     }
     if (opts->id) {
-        qdict_put(qdict, "id", qstring_from_str(opts->id));
+        qdict_put_str(qdict, "id", opts->id);
     }
     QTAILQ_FOREACH(opt, &opts->head, next) {
-        val = QOBJECT(qstring_from_str(opt->str));
-        qdict_put_obj(qdict, opt->name, val);
+        qdict_put_str(qdict, opt->name, opt->str);
     }
     return qdict;
 }

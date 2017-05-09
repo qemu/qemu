@@ -113,26 +113,26 @@ static void vnc_init_basic_info(SocketAddress *addr,
                                 Error **errp)
 {
     switch (addr->type) {
-    case SOCKET_ADDRESS_KIND_INET:
-        info->host = g_strdup(addr->u.inet.data->host);
-        info->service = g_strdup(addr->u.inet.data->port);
-        if (addr->u.inet.data->ipv6) {
+    case SOCKET_ADDRESS_TYPE_INET:
+        info->host = g_strdup(addr->u.inet.host);
+        info->service = g_strdup(addr->u.inet.port);
+        if (addr->u.inet.ipv6) {
             info->family = NETWORK_ADDRESS_FAMILY_IPV6;
         } else {
             info->family = NETWORK_ADDRESS_FAMILY_IPV4;
         }
         break;
 
-    case SOCKET_ADDRESS_KIND_UNIX:
+    case SOCKET_ADDRESS_TYPE_UNIX:
         info->host = g_strdup("");
-        info->service = g_strdup(addr->u.q_unix.data->path);
+        info->service = g_strdup(addr->u.q_unix.path);
         info->family = NETWORK_ADDRESS_FAMILY_UNIX;
         break;
 
-    case SOCKET_ADDRESS_KIND_VSOCK:
-    case SOCKET_ADDRESS_KIND_FD:
+    case SOCKET_ADDRESS_TYPE_VSOCK:
+    case SOCKET_ADDRESS_TYPE_FD:
         error_setg(errp, "Unsupported socket address type %s",
-                   SocketAddressKind_lookup[addr->type]);
+                   SocketAddressType_lookup[addr->type]);
         break;
     default:
         abort();
@@ -398,26 +398,26 @@ VncInfo *qmp_query_vnc(Error **errp)
         }
 
         switch (addr->type) {
-        case SOCKET_ADDRESS_KIND_INET:
-            info->host = g_strdup(addr->u.inet.data->host);
-            info->service = g_strdup(addr->u.inet.data->port);
-            if (addr->u.inet.data->ipv6) {
+        case SOCKET_ADDRESS_TYPE_INET:
+            info->host = g_strdup(addr->u.inet.host);
+            info->service = g_strdup(addr->u.inet.port);
+            if (addr->u.inet.ipv6) {
                 info->family = NETWORK_ADDRESS_FAMILY_IPV6;
             } else {
                 info->family = NETWORK_ADDRESS_FAMILY_IPV4;
             }
             break;
 
-        case SOCKET_ADDRESS_KIND_UNIX:
+        case SOCKET_ADDRESS_TYPE_UNIX:
             info->host = g_strdup("");
-            info->service = g_strdup(addr->u.q_unix.data->path);
+            info->service = g_strdup(addr->u.q_unix.path);
             info->family = NETWORK_ADDRESS_FAMILY_UNIX;
             break;
 
-        case SOCKET_ADDRESS_KIND_VSOCK:
-        case SOCKET_ADDRESS_KIND_FD:
+        case SOCKET_ADDRESS_TYPE_VSOCK:
+        case SOCKET_ADDRESS_TYPE_FD:
             error_setg(errp, "Unsupported socket address type %s",
-                       SocketAddressKind_lookup[addr->type]);
+                       SocketAddressType_lookup[addr->type]);
             goto out_error;
         default:
             abort();
@@ -3161,13 +3161,13 @@ static void vnc_display_print_local_addr(VncDisplay *vd)
         return;
     }
 
-    if (addr->type != SOCKET_ADDRESS_KIND_INET) {
+    if (addr->type != SOCKET_ADDRESS_TYPE_INET) {
         qapi_free_SocketAddress(addr);
         return;
     }
     error_printf_unless_qmp("VNC server running on %s:%s\n",
-                            addr->u.inet.data->host,
-                            addr->u.inet.data->port);
+                            addr->u.inet.host,
+                            addr->u.inet.port);
     qapi_free_SocketAddress(addr);
 }
 
@@ -3423,9 +3423,8 @@ static int vnc_display_get_address(const char *addrstr,
     addr = g_new0(SocketAddress, 1);
 
     if (strncmp(addrstr, "unix:", 5) == 0) {
-        addr->type = SOCKET_ADDRESS_KIND_UNIX;
-        addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
-        addr->u.q_unix.data->path = g_strdup(addrstr + 5);
+        addr->type = SOCKET_ADDRESS_TYPE_UNIX;
+        addr->u.q_unix.path = g_strdup(addrstr + 5);
 
         if (websocket) {
             error_setg(errp, "UNIX sockets not supported with websock");
@@ -3461,8 +3460,8 @@ static int vnc_display_get_address(const char *addrstr,
             }
         }
 
-        addr->type = SOCKET_ADDRESS_KIND_INET;
-        inet = addr->u.inet.data = g_new0(InetSocketAddress, 1);
+        addr->type = SOCKET_ADDRESS_TYPE_INET;
+        inet = &addr->u.inet;
         if (addrstr[0] == '[' && addrstr[hostlen - 1] == ']') {
             inet->host = g_strndup(addrstr + 1, hostlen - 2);
         } else {
@@ -3601,13 +3600,12 @@ static int vnc_display_get_addresses(QemuOpts *opts,
          * address for websocket too
          */
         if (*retnsaddr == 1 &&
-            (*retsaddr)[0]->type == SOCKET_ADDRESS_KIND_INET &&
-            wsaddr->type == SOCKET_ADDRESS_KIND_INET &&
-            g_str_equal(wsaddr->u.inet.data->host, "") &&
-            !g_str_equal((*retsaddr)[0]->u.inet.data->host, "")) {
-            g_free(wsaddr->u.inet.data->host);
-            wsaddr->u.inet.data->host =
-                g_strdup((*retsaddr)[0]->u.inet.data->host);
+            (*retsaddr)[0]->type == SOCKET_ADDRESS_TYPE_INET &&
+            wsaddr->type == SOCKET_ADDRESS_TYPE_INET &&
+            g_str_equal(wsaddr->u.inet.host, "") &&
+            !g_str_equal((*retsaddr)[0]->u.inet.host, "")) {
+            g_free(wsaddr->u.inet.host);
+            wsaddr->u.inet.host = g_strdup((*retsaddr)[0]->u.inet.host);
         }
 
         *retwsaddr = g_renew(SocketAddress *, *retwsaddr, *retnwsaddr + 1);
@@ -3648,8 +3646,8 @@ static int vnc_display_connect(VncDisplay *vd,
         error_setg(errp, "Expected a single address in reverse mode");
         return -1;
     }
-    /* TODO SOCKET_ADDRESS_KIND_FD when fd has AF_UNIX */
-    vd->is_unix = saddr[0]->type == SOCKET_ADDRESS_KIND_UNIX;
+    /* TODO SOCKET_ADDRESS_TYPE_FD when fd has AF_UNIX */
+    vd->is_unix = saddr[0]->type == SOCKET_ADDRESS_TYPE_UNIX;
     sioc = qio_channel_socket_new();
     qio_channel_set_name(QIO_CHANNEL(sioc), "vnc-reverse");
     if (qio_channel_socket_connect_sync(sioc, saddr[0], errp) < 0) {

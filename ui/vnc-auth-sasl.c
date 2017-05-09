@@ -510,12 +510,11 @@ vnc_socket_ip_addr_string(QIOChannelSocket *ioc,
         return NULL;
     }
 
-    if (addr->type != SOCKET_ADDRESS_KIND_INET) {
+    if (addr->type != SOCKET_ADDRESS_TYPE_INET) {
         error_setg(errp, "Not an inet socket type");
         return NULL;
     }
-    ret = g_strdup_printf("%s;%s", addr->u.inet.data->host,
-                          addr->u.inet.data->port);
+    ret = g_strdup_printf("%s;%s", addr->u.inet.host, addr->u.inet.port);
     qapi_free_SocketAddress(addr);
     return ret;
 }

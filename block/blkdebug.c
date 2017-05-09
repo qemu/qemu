@@ -301,7 +301,7 @@ static void blkdebug_parse_filename(const char *filename, QDict *options,
     if (!strstart(filename, "blkdebug:", &filename)) {
         /* There was no prefix; therefore, all options have to be already
            present in the QDict (except for the filename) */
-        qdict_put(options, "x-image", qstring_from_str(filename));
+        qdict_put_str(options, "x-image", filename);
         return;
     }
 
@@ -320,7 +320,7 @@ static void blkdebug_parse_filename(const char *filename, QDict *options,
 
     /* TODO Allow multi-level nesting and set file.filename here */
     filename = c + 1;
-    qdict_put(options, "x-image", qstring_from_str(filename));
+    qdict_put_str(options, "x-image", filename);
 }
 
 static QemuOptsList runtime_opts = {
@@ -693,10 +693,10 @@ static void blkdebug_refresh_filename(BlockDriverState *bs, QDict *options)
     }
 
     opts = qdict_new();
-    qdict_put_obj(opts, "driver", QOBJECT(qstring_from_str("blkdebug")));
+    qdict_put_str(opts, "driver", "blkdebug");
 
     QINCREF(bs->file->bs->full_open_options);
-    qdict_put_obj(opts, "image", QOBJECT(bs->file->bs->full_open_options));
+    qdict_put(opts, "image", bs->file->bs->full_open_options);
 
     for (e = qdict_first(options); e; e = qdict_next(options, e)) {
         if (strcmp(qdict_entry_key(e), "x-image")) {

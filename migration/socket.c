@@ -27,16 +27,15 @@
 
 static SocketAddress *tcp_build_address(const char *host_port, Error **errp)
 {
-    InetSocketAddress *iaddr = inet_parse(host_port, errp);
     SocketAddress *saddr;
 
-    if (!iaddr) {
+    saddr = g_new0(SocketAddress, 1);
+    saddr->type = SOCKET_ADDRESS_TYPE_INET;
+
+    if (inet_parse(&saddr->u.inet, host_port, errp)) {
+        qapi_free_SocketAddress(saddr);
         return NULL;
     }
-
-    saddr = g_new0(SocketAddress, 1);
-    saddr->type = SOCKET_ADDRESS_KIND_INET;
-    saddr->u.inet.data = iaddr;
 
     return saddr;
 }
@@ -47,9 +46,8 @@ static SocketAddress *unix_build_address(const char *path)
     SocketAddress *saddr;
 
     saddr = g_new0(SocketAddress, 1);
-    saddr->type = SOCKET_ADDRESS_KIND_UNIX;
-    saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
-    saddr->u.q_unix.data->path = g_strdup(path);
+    saddr->type = SOCKET_ADDRESS_TYPE_UNIX;
+    saddr->u.q_unix.path = g_strdup(path);
 
     return saddr;
 }
@@ -96,8 +94,8 @@ static void socket_start_outgoing_migration(MigrationState *s,
     struct SocketConnectData *data = g_new0(struct SocketConnectData, 1);
 
     data->s = s;
-    if (saddr->type == SOCKET_ADDRESS_KIND_INET) {
-        data->hostname = g_strdup(saddr->u.inet.data->host);
+    if (saddr->type == SOCKET_ADDRESS_TYPE_INET) {
+        data->hostname = g_strdup(saddr->u.inet.host);
     }
 
     qio_channel_set_name(QIO_CHANNEL(sioc), "migration-socket-outgoing");

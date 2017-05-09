@@ -55,6 +55,17 @@ static QObjectInputVisitor *to_qiv(Visitor *v)
     return container_of(v, QObjectInputVisitor, visitor);
 }
 
+/*
+ * Find the full name of something @qiv is currently visiting.
+ * @qiv is visiting something named @name in the stack of containers
+ * @qiv->stack.
+ * If @n is zero, return its full name.
+ * If @n is positive, return the full name of the @n-th container
+ * counting from the top.  The stack of containers must have at least
+ * @n elements.
+ * The returned string is valid until the next full_name_nth(@v) or
+ * destruction of @v.
+ */
 static const char *full_name_nth(QObjectInputVisitor *qiv, const char *name,
                                  int n)
 {
@@ -280,6 +291,15 @@ static void qobject_input_start_struct(Visitor *v, const char *name, void **obj,
     }
 }
 
+static void qobject_input_end_struct(Visitor *v, void **obj)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    StackObject *tos = QSLIST_FIRST(&qiv->stack);
+
+    assert(qobject_type(tos->obj) == QTYPE_QDICT && tos->h);
+    qobject_input_pop(v, obj);
+}
+
 
 static void qobject_input_start_list(Visitor *v, const char *name,
                                      GenericList **list, size_t size,
@@ -335,6 +355,14 @@ static void qobject_input_check_list(Visitor *v, Error **errp)
     }
 }
 
+static void qobject_input_end_list(Visitor *v, void **obj)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    StackObject *tos = QSLIST_FIRST(&qiv->stack);
+
+    assert(qobject_type(tos->obj) == QTYPE_QLIST && !tos->h);
+    qobject_input_pop(v, obj);
+}
 
 static void qobject_input_start_alternate(Visitor *v, const char *name,
                                           GenericAlternate **obj, size_t size,
@@ -634,11 +662,11 @@ static QObjectInputVisitor *qobject_input_visitor_base_new(QObject *obj)
     v->visitor.type = VISITOR_INPUT;
     v->visitor.start_struct = qobject_input_start_struct;
     v->visitor.check_struct = qobject_input_check_struct;
-    v->visitor.end_struct = qobject_input_pop;
+    v->visitor.end_struct = qobject_input_end_struct;
     v->visitor.start_list = qobject_input_start_list;
     v->visitor.next_list = qobject_input_next_list;
     v->visitor.check_list = qobject_input_check_list;
-    v->visitor.end_list = qobject_input_pop;
+    v->visitor.end_list = qobject_input_end_list;
     v->visitor.start_alternate = qobject_input_start_alternate;
     v->visitor.optional = qobject_input_optional;
     v->visitor.free = qobject_input_free;

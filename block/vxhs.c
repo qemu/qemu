@@ -182,15 +182,15 @@ static int vxhs_parse_uri(const char *filename, QDict *options)
         return -EINVAL;
     }
 
-    qdict_put(options, VXHS_OPT_SERVER".host", qstring_from_str(uri->server));
+    qdict_put_str(options, VXHS_OPT_SERVER ".host", uri->server);
 
     if (uri->port) {
         port = g_strdup_printf("%d", uri->port);
-        qdict_put(options, VXHS_OPT_SERVER".port", qstring_from_str(port));
+        qdict_put_str(options, VXHS_OPT_SERVER ".port", port);
         g_free(port);
     }
 
-    qdict_put(options, "vdisk-id", qstring_from_str(uri->path));
+    qdict_put_str(options, "vdisk-id", uri->path);
 
     trace_vxhs_parse_uri_hostinfo(uri->server, uri->port);
     uri_free(uri);

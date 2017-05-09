@@ -205,7 +205,7 @@ void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
  * Get the string representation of the local socket
  * address. A pointer to the allocated address information
  * struct will be returned, which the caller is required to
- * release with a call qapi_free_SocketAddress when no
+ * release with a call qapi_free_SocketAddress() when no
  * longer required.
  *
  * Returns: 0 on success, -1 on error
@@ -222,7 +222,7 @@ qio_channel_socket_get_local_address(QIOChannelSocket *ioc,
  * Get the string representation of the local socket
  * address. A pointer to the allocated address information
  * struct will be returned, which the caller is required to
- * release with a call qapi_free_SocketAddress when no
+ * release with a call qapi_free_SocketAddress() when no
  * longer required.
  *
  * Returns: the socket address struct, or NULL on error

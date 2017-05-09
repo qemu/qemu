@@ -164,4 +164,7 @@ void nbd_client_new(NBDExport *exp,
 void nbd_client_get(NBDClient *client);
 void nbd_client_put(NBDClient *client);
 
+void nbd_server_start(SocketAddress *addr, const char *tls_creds,
+                      Error **errp);
+
 #endif

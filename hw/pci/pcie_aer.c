@@ -44,6 +44,13 @@
 #define PCI_ERR_SRC_COR_OFFS    0
 #define PCI_ERR_SRC_UNCOR_OFFS  2
 
+typedef struct PCIEErrorDetails {
+    const char *id;
+    const char *root_bus;
+    int bus;
+    int devfn;
+} PCIEErrorDetails;
+
 /* From 6.2.7 Error Listing and Rules. Table 6-2, 6-3 and 6-4 */
 static uint32_t pcie_aer_uncor_default_severity(uint32_t status)
 {
@@ -369,7 +376,7 @@ static void pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
  *
  * Walk up the bus tree from the device, propagate the error message.
  */
-void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
+static void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
 {
     uint8_t type;
 
@@ -624,7 +631,7 @@ static bool pcie_aer_inject_uncor_error(PCIEAERInject *inj, bool is_fatal)
  * Figure 6-2: Flowchart Showing Sequence of Device Error Signaling and Logging
  *             Operations
  */
-int pcie_aer_inject_error(PCIDevice *dev, const PCIEAERErr *err)
+static int pcie_aer_inject_error(PCIDevice *dev, const PCIEAERErr *err)
 {
     uint8_t *aer_cap = NULL;
     uint16_t devctl = 0;
@@ -942,8 +949,14 @@ static int pcie_aer_parse_error_string(const char *error_name,
     return -EINVAL;
 }
 
+/*
+ * Inject an error described by @qdict.
+ * On success, set @details to show where error was sent.
+ * Return negative errno if injection failed and a message was emitted.
+ */
 static int do_pcie_aer_inject_error(Monitor *mon,
-                                    const QDict *qdict, QObject **ret_data)
+                                    const QDict *qdict,
+                                    PCIEErrorDetails *details)
 {
     const char *id = qdict_get_str(qdict, "id");
     const char *error_name;
@@ -1005,33 +1018,28 @@ static int do_pcie_aer_inject_error(Monitor *mon,
     err.prefix[3] = qdict_get_try_int(qdict, "prefix3", 0);
 
     ret = pcie_aer_inject_error(dev, &err);
-    *ret_data = qobject_from_jsonf("{'id': %s, "
-                                   "'root_bus': %s, 'bus': %d, 'devfn': %d, "
-                                   "'ret': %d}",
-                                   id, pci_root_bus_path(dev),
-                                   pci_bus_num(dev->bus), dev->devfn,
-                                   ret);
-    assert(*ret_data);
+    if (ret < 0) {
+        monitor_printf(mon, "failed to inject error: %s\n",
+                       strerror(-ret));
+        return ret;
+    }
+    details->id = id;
+    details->root_bus = pci_root_bus_path(dev);
+    details->bus = pci_bus_num(dev->bus);
+    details->devfn = dev->devfn;
 
     return 0;
 }
 
 void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
 {
-    QObject *data;
-    int devfn;
+    PCIEErrorDetails data;
 
     if (do_pcie_aer_inject_error(mon, qdict, &data) < 0) {
         return;
     }
 
-    qdict = qobject_to_qdict(data);
-    assert(qdict);
-
-    devfn = (int)qdict_get_int(qdict, "devfn");
     monitor_printf(mon, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",
-                   qdict_get_str(qdict, "id"),
-                   qdict_get_str(qdict, "root_bus"),
-                   (int) qdict_get_int(qdict, "bus"),
-                   PCI_SLOT(devfn), PCI_FUNC(devfn));
+                   data.id, data.root_bus, data.bus,
+                   PCI_SLOT(data.devfn), PCI_FUNC(data.devfn));
 }

@@ -446,6 +446,14 @@ void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
     va_list ap_copy;
     QObject *qobj;
 
+    /* qobject_from_jsonv() silently eats leading 0xff as invalid
+     * JSON, but we want to test sending them over the wire to force
+     * resyncs */
+    if (*fmt == '\377') {
+        socket_send(fd, fmt, 1);
+        fmt++;
+    }
+
     /* Going through qobject ensures we escape strings properly.
      * This seemingly unnecessary copy is required in case va_list
      * is an array type.

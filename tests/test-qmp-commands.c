@@ -94,7 +94,7 @@ static void test_dispatch_cmd(void)
     QDict *req = qdict_new();
     QObject *resp;
 
-    qdict_put_obj(req, "execute", QOBJECT(qstring_from_str("user_def_cmd")));
+    qdict_put_str(req, "execute", "user_def_cmd");
 
     resp = qmp_dispatch(&qmp_commands, QOBJECT(req));
     assert(resp != NULL);
@@ -111,7 +111,7 @@ static void test_dispatch_cmd_failure(void)
     QDict *args = qdict_new();
     QObject *resp;
 
-    qdict_put_obj(req, "execute", QOBJECT(qstring_from_str("user_def_cmd2")));
+    qdict_put_str(req, "execute", "user_def_cmd2");
 
     resp = qmp_dispatch(&qmp_commands, QOBJECT(req));
     assert(resp != NULL);
@@ -122,10 +122,10 @@ static void test_dispatch_cmd_failure(void)
 
     /* check that with extra arguments it throws an error */
     req = qdict_new();
-    qdict_put(args, "a", qint_from_int(66));
+    qdict_put_int(args, "a", 66);
     qdict_put(req, "arguments", args);
 
-    qdict_put_obj(req, "execute", QOBJECT(qstring_from_str("user_def_cmd")));
+    qdict_put_str(req, "execute", "user_def_cmd");
 
     resp = qmp_dispatch(&qmp_commands, QOBJECT(req));
     assert(resp != NULL);
@@ -164,14 +164,14 @@ static void test_dispatch_cmd_io(void)
     QDict *ret_dict_dict2, *ret_dict_dict2_userdef;
     QInt *ret3;
 
-    qdict_put_obj(ud1a, "integer", QOBJECT(qint_from_int(42)));
-    qdict_put_obj(ud1a, "string", QOBJECT(qstring_from_str("hello")));
-    qdict_put_obj(ud1b, "integer", QOBJECT(qint_from_int(422)));
-    qdict_put_obj(ud1b, "string", QOBJECT(qstring_from_str("hello2")));
-    qdict_put_obj(args, "ud1a", QOBJECT(ud1a));
-    qdict_put_obj(args, "ud1b", QOBJECT(ud1b));
-    qdict_put_obj(req, "arguments", QOBJECT(args));
-    qdict_put_obj(req, "execute", QOBJECT(qstring_from_str("user_def_cmd2")));
+    qdict_put_int(ud1a, "integer", 42);
+    qdict_put_str(ud1a, "string", "hello");
+    qdict_put_int(ud1b, "integer", 422);
+    qdict_put_str(ud1b, "string", "hello2");
+    qdict_put(args, "ud1a", ud1a);
+    qdict_put(args, "ud1b", ud1b);
+    qdict_put(req, "arguments", args);
+    qdict_put_str(req, "execute", "user_def_cmd2");
 
     ret = qobject_to_qdict(test_qmp_dispatch(req));
 
@@ -190,9 +190,9 @@ static void test_dispatch_cmd_io(void)
     assert(!strcmp(qdict_get_str(ret_dict_dict2, "string"), "blah4"));
     QDECREF(ret);
 
-    qdict_put(args3, "a", qint_from_int(66));
+    qdict_put_int(args3, "a", 66);
     qdict_put(req, "arguments", args3);
-    qdict_put(req, "execute", qstring_from_str("guest-get-time"));
+    qdict_put_str(req, "execute", "guest-get-time");
 
     ret3 = qobject_to_qint(test_qmp_dispatch(req));
     assert(qint_get_int(ret3) == 66);
@@ -244,7 +244,7 @@ static void test_dealloc_partial(void)
         Visitor *v;
 
         ud2_dict = qdict_new();
-        qdict_put_obj(ud2_dict, "string0", QOBJECT(qstring_from_str(text)));
+        qdict_put_str(ud2_dict, "string0", text);
 
         v = qobject_input_visitor_new(QOBJECT(ud2_dict));
         visit_type_UserDefTwo(v, NULL, &ud2, &err);

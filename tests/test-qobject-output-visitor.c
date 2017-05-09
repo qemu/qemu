@@ -343,9 +343,9 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
 
     visitor_reset(data);
     qdict = qdict_new();
-    qdict_put(qdict, "integer", qint_from_int(-42));
-    qdict_put(qdict, "boolean", qbool_from_bool(true));
-    qdict_put(qdict, "string", qstring_from_str("foo"));
+    qdict_put_int(qdict, "integer", -42);
+    qdict_put_bool(qdict, "boolean", true);
+    qdict_put_str(qdict, "string", "foo");
     qobj = QOBJECT(qdict);
     visit_type_any(data->ov, NULL, &qobj, &error_abort);
     qobject_decref(qobj);

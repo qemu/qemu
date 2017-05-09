@@ -360,26 +360,26 @@ static char *SocketAddress_to_str(const char *prefix, SocketAddress *addr,
                                   bool is_listen, bool is_telnet)
 {
     switch (addr->type) {
-    case SOCKET_ADDRESS_KIND_INET:
+    case SOCKET_ADDRESS_TYPE_INET:
         return g_strdup_printf("%s%s:%s:%s%s", prefix,
                                is_telnet ? "telnet" : "tcp",
-                               addr->u.inet.data->host,
-                               addr->u.inet.data->port,
+                               addr->u.inet.host,
+                               addr->u.inet.port,
                                is_listen ? ",server" : "");
         break;
-    case SOCKET_ADDRESS_KIND_UNIX:
+    case SOCKET_ADDRESS_TYPE_UNIX:
         return g_strdup_printf("%sunix:%s%s", prefix,
-                               addr->u.q_unix.data->path,
+                               addr->u.q_unix.path,
                                is_listen ? ",server" : "");
         break;
-    case SOCKET_ADDRESS_KIND_FD:
-        return g_strdup_printf("%sfd:%s%s", prefix, addr->u.fd.data->str,
+    case SOCKET_ADDRESS_TYPE_FD:
+        return g_strdup_printf("%sfd:%s%s", prefix, addr->u.fd.str,
                                is_listen ? ",server" : "");
         break;
-    case SOCKET_ADDRESS_KIND_VSOCK:
+    case SOCKET_ADDRESS_TYPE_VSOCK:
         return g_strdup_printf("%svsock:%s:%s", prefix,
-                               addr->u.vsock.data->cid,
-                               addr->u.vsock.data->port);
+                               addr->u.vsock.cid,
+                               addr->u.vsock.port);
     default:
         abort();
     }
@@ -648,7 +648,7 @@ static void tcp_chr_tls_init(Chardev *chr)
     } else {
         tioc = qio_channel_tls_new_client(
             s->ioc, s->tls_creds,
-            s->addr->u.inet.data->host,
+            s->addr->u.inet.host,
             &err);
     }
     if (tioc == NULL) {
@@ -859,7 +859,6 @@ static void qmp_chardev_open_socket(Chardev *chr,
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     ChardevSocket *sock = backend->u.socket.data;
-    SocketAddress *addr = sock->addr;
     bool do_nodelay     = sock->has_nodelay ? sock->nodelay : false;
     bool is_listen      = sock->has_server  ? sock->server  : true;
     bool is_telnet      = sock->has_telnet  ? sock->telnet  : false;
@@ -867,6 +866,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
     QIOChannelSocket *sioc = NULL;
+    SocketAddress *addr;
 
     s->is_listen = is_listen;
     s->is_telnet = is_telnet;
@@ -905,11 +905,11 @@ static void qmp_chardev_open_socket(Chardev *chr,
         }
     }
 
-    s->addr = QAPI_CLONE(SocketAddress, sock->addr);
+    s->addr = addr = socket_address_flatten(sock->addr);
 
     qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
     /* TODO SOCKET_ADDRESS_FD where fd has AF_UNIX */
-    if (addr->type == SOCKET_ADDRESS_KIND_UNIX) {
+    if (addr->type == SOCKET_ADDRESS_TYPE_UNIX) {
         qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_FD_PASS);
     }
 
@@ -985,7 +985,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     const char *host = qemu_opt_get(opts, "host");
     const char *port = qemu_opt_get(opts, "port");
     const char *tls_creds = qemu_opt_get(opts, "tls-creds");
-    SocketAddress *addr;
+    SocketAddressLegacy *addr;
     ChardevSocket *sock;
 
     backend->type = CHARDEV_BACKEND_KIND_SOCKET;
@@ -1022,14 +1022,14 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->reconnect = reconnect;
     sock->tls_creds = g_strdup(tls_creds);
 
-    addr = g_new0(SocketAddress, 1);
+    addr = g_new0(SocketAddressLegacy, 1);
     if (path) {
         UnixSocketAddress *q_unix;
-        addr->type = SOCKET_ADDRESS_KIND_UNIX;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
         q_unix = addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
         q_unix->path = g_strdup(path);
     } else {
-        addr->type = SOCKET_ADDRESS_KIND_INET;
+        addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
         addr->u.inet.data = g_new(InetSocketAddress, 1);
         *addr->u.inet.data = (InetSocketAddress) {
             .host = g_strdup(host),

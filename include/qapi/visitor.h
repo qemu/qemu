@@ -63,8 +63,10 @@
  * The @name parameter of visit_type_FOO() describes the relation
  * between this QAPI value and its parent container.  When visiting
  * the root of a tree, @name is ignored; when visiting a member of an
- * object, @name is the key associated with the value; and when
- * visiting a member of a list, @name is NULL.
+ * object, @name is the key associated with the value; when visiting a
+ * member of a list, @name is NULL; and when visiting the member of an
+ * alternate, @name should equal the name used for visiting the
+ * alternate.
  *
  * The visit_type_FOO() functions expect a non-null @obj argument;
  * they allocate *@obj during input visits, leave it unchanged on

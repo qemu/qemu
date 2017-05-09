@@ -34,7 +34,7 @@ typedef void NonBlockingConnectHandler(int fd, Error *err, void *opaque);
 
 int inet_ai_family_from_address(InetSocketAddress *addr,
                                 Error **errp);
-InetSocketAddress *inet_parse(const char *str, Error **errp);
+int inet_parse(InetSocketAddress *addr, const char *str, Error **errp);
 int inet_connect(const char *str, Error **errp);
 int inet_connect_saddr(InetSocketAddress *saddr,
                        NonBlockingConnectHandler *callback, void *opaque,
@@ -65,7 +65,7 @@ int socket_init(void);
  * Get the string representation of the socket
  * address. A pointer to the allocated address information
  * struct will be returned, which the caller is required to
- * release with a call qapi_free_SocketAddress when no
+ * release with a call qapi_free_SocketAddress() when no
  * longer required.
  *
  * Returns: the socket address struct, or NULL on error
@@ -83,7 +83,7 @@ socket_sockaddr_to_address(struct sockaddr_storage *sa,
  * Get the string representation of the local socket
  * address. A pointer to the allocated address information
  * struct will be returned, which the caller is required to
- * release with a call qapi_free_SocketAddress when no
+ * release with a call qapi_free_SocketAddress() when no
  * longer required.
  *
  * Returns: the socket address struct, or NULL on error
@@ -98,7 +98,7 @@ SocketAddress *socket_local_address(int fd, Error **errp);
  * Get the string representation of the remote socket
  * address. A pointer to the allocated address information
  * struct will be returned, which the caller is required to
- * release with a call qapi_free_SocketAddress when no
+ * release with a call qapi_free_SocketAddress() when no
  * longer required.
  *
  * Returns: the socket address struct, or NULL on error
@@ -121,14 +121,14 @@ SocketAddress *socket_remote_address(int fd, Error **errp);
 char *socket_address_to_string(struct SocketAddress *addr, Error **errp);
 
 /**
- * socket_address_crumple:
- * @addr_flat: the socket address to crumple
+ * socket_address_flatten:
+ * @addr: the socket address to flatten
  *
- * Convert SocketAddressFlat to SocketAddress.  Caller is responsible
+ * Convert SocketAddressLegacy to SocketAddress.  Caller is responsible
  * for freeing with qapi_free_SocketAddress().
  *
  * Returns: the argument converted to SocketAddress.
  */
-SocketAddress *socket_address_crumple(SocketAddressFlat *addr_flat);
+SocketAddress *socket_address_flatten(SocketAddressLegacy *addr);
 
 #endif /* QEMU_SOCKETS_H */

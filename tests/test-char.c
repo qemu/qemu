@@ -291,7 +291,7 @@ static void char_socket_test(void)
     Chardev *chr = qemu_chr_new("server", "tcp:127.0.0.1:0,server,nowait");
     Chardev *chr_client;
     QObject *addr;
-    QDict *qdict, *data;
+    QDict *qdict;
     const char *port;
     SocketIdleData d = { .chr = chr };
     CharBackend be;
@@ -306,8 +306,7 @@ static void char_socket_test(void)
 
     addr = object_property_get_qobject(OBJECT(chr), "addr", &error_abort);
     qdict = qobject_to_qdict(addr);
-    data = qdict_get_qdict(qdict, "data");
-    port = qdict_get_str(data, "port");
+    port = qdict_get_str(qdict, "port");
     tmp = g_strdup_printf("tcp:127.0.0.1:%s", port);
     QDECREF(qdict);
 
