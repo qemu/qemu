@@ -338,7 +338,7 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
 {
     int cpu;
     int addr_cells = 1;
-    unsigned int i;
+    const MachineState *ms = MACHINE(vms);
 
     /*
      * From Documentation/devicetree/bindings/arm/cpus.txt
@@ -369,6 +369,7 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
     for (cpu = vms->smp_cpus - 1; cpu >= 0; cpu--) {
         char *nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
+        CPUState *cs = CPU(armcpu);
 
         qemu_fdt_add_subnode(vms->fdt, nodename);
         qemu_fdt_setprop_string(vms->fdt, nodename, "device_type", "cpu");
@@ -389,9 +390,9 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
                                   armcpu->mp_affinity);
         }
 
-        i = numa_get_node_for_cpu(cpu);
-        if (i < nb_numa_nodes) {
-            qemu_fdt_setprop_cell(vms->fdt, nodename, "numa-node-id", i);
+        if (ms->possible_cpus->cpus[cs->cpu_index].props.has_node_id) {
+            qemu_fdt_setprop_cell(vms->fdt, nodename, "numa-node-id",
+                ms->possible_cpus->cpus[cs->cpu_index].props.node_id);
         }
 
         g_free(nodename);
@@ -1363,8 +1364,8 @@ static void machvirt_init(MachineState *machine)
         cs = CPU(cpuobj);
         cs->cpu_index = n;
 
-        node_id = numa_get_node_for_cpu(cs->cpu_index);
-        if (node_id == nb_numa_nodes) {
+        node_id = possible_cpus->cpus[cs->cpu_index].props.node_id;
+        if (!possible_cpus->cpus[cs->cpu_index].props.has_node_id) {
             /* by default CPUState::numa_node was 0 if it's not set via CLI
              * keep it this way for now but in future we probably should
              * refuse to start up with incomplete numa mapping */
