@@ -337,16 +337,6 @@ static void validate_numa_cpus(void)
         bitmap_or(seen_cpus, seen_cpus,
                   numa_info[i].node_cpu, max_cpus);
     }
-
-    if (!bitmap_full(seen_cpus, max_cpus)) {
-        char *msg;
-        bitmap_complement(seen_cpus, seen_cpus, max_cpus);
-        msg = enumerate_cpus(seen_cpus, max_cpus);
-        error_report("warning: CPU(s) not present in any NUMA nodes: %s", msg);
-        error_report("warning: All CPU(s) up to maxcpus should be described "
-                     "in NUMA config");
-        g_free(msg);
-    }
     g_free(seen_cpus);
 }
 
