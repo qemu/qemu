@@ -154,7 +154,7 @@ static bool scsi_read_10(VDev *vdev,
     VirtioCmd read_10[] = {
         { &req, sizeof(req), VRING_DESC_F_NEXT },
         { &resp, sizeof(resp), VRING_DESC_F_WRITE | VRING_DESC_F_NEXT },
-        { data, data_size * f, VRING_DESC_F_WRITE },
+        { data, data_size, VRING_DESC_F_WRITE },
     };
 
     debug_print_int("read_10  sector", sector);
