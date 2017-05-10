@@ -503,7 +503,6 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
 
         /* build Processor object for each processor */
         for (i = 0; i < arch_ids->len; i++) {
-            int j;
             Aml *dev;
             Aml *uid = aml_int(i);
             GArray *madt_buf = g_array_new(0, 1, 1);
@@ -557,9 +556,9 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
              * as a result _PXM is required for all CPUs which might
              * be hot-plugged. For simplicity, add it for all CPUs.
              */
-            j = numa_get_node_for_cpu(i);
-            if (j < nb_numa_nodes) {
-                aml_append(dev, aml_name_decl("_PXM", aml_int(j)));
+            if (arch_ids->cpus[i].props.has_node_id) {
+                aml_append(dev, aml_name_decl("_PXM",
+                           aml_int(arch_ids->cpus[i].props.node_id)));
             }
 
             aml_append(cpus_dev, dev);
