@@ -2380,6 +2380,17 @@ static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
 
 #if defined(TARGET_PPC64)
     pcc->radix_page_info = kvm_get_radix_page_info();
+
+    if ((pcc->pvr & 0xffffff00) == CPU_POWERPC_POWER9_DD1) {
+        /*
+         * POWER9 DD1 has some bugs which make it not really ISA 3.00
+         * compliant.  More importantly, advertising ISA 3.00
+         * architected mode may prevent guests from activating
+         * necessary DD1 workarounds.
+         */
+        pcc->pcr_supported &= ~(PCR_COMPAT_3_00 | PCR_COMPAT_2_07
+                                | PCR_COMPAT_2_06 | PCR_COMPAT_2_05);
+    }
 #endif /* defined(TARGET_PPC64) */
 }
 
