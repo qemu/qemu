@@ -178,7 +178,6 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
                        cpus->value, max_cpus);
             return;
         }
-        bitmap_set(numa_info[nodenr].node_cpu, cpus->value, 1);
         props = mc->cpu_index_to_instance_props(ms, cpus->value);
         props.node_id = nodenr;
         props.has_node_id = true;
@@ -305,41 +304,6 @@ end:
     return 0;
 }
 
-static char *enumerate_cpus(unsigned long *cpus, int max_cpus)
-{
-    int cpu;
-    bool first = true;
-    GString *s = g_string_new(NULL);
-
-    for (cpu = find_first_bit(cpus, max_cpus);
-        cpu < max_cpus;
-        cpu = find_next_bit(cpus, max_cpus, cpu + 1)) {
-        g_string_append_printf(s, "%s%d", first ? "" : " ", cpu);
-        first = false;
-    }
-    return g_string_free(s, FALSE);
-}
-
-static void validate_numa_cpus(void)
-{
-    int i;
-    unsigned long *seen_cpus = bitmap_new(max_cpus);
-
-    for (i = 0; i < nb_numa_nodes; i++) {
-        if (bitmap_intersects(seen_cpus, numa_info[i].node_cpu, max_cpus)) {
-            bitmap_and(seen_cpus, seen_cpus,
-                       numa_info[i].node_cpu, max_cpus);
-            error_report("CPU(s) present in multiple NUMA nodes: %s",
-                         enumerate_cpus(seen_cpus, max_cpus));
-            g_free(seen_cpus);
-            exit(EXIT_FAILURE);
-        }
-        bitmap_or(seen_cpus, seen_cpus,
-                  numa_info[i].node_cpu, max_cpus);
-    }
-    g_free(seen_cpus);
-}
-
 /* If all node pair distances are symmetric, then only distances
  * in one direction are enough. If there is even one asymmetric
  * pair, though, then all distances must be provided. The
@@ -451,10 +415,6 @@ void parse_numa_opts(MachineState *ms)
     const CPUArchIdList *possible_cpus;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
-    for (i = 0; i < MAX_NODES; i++) {
-        numa_info[i].node_cpu = bitmap_new(max_cpus);
-    }
-
     if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
         exit(1);
     }
@@ -531,12 +491,9 @@ void parse_numa_opts(MachineState *ms)
                 props = mc->cpu_index_to_instance_props(ms, i);
                 props.has_node_id = true;
 
-                set_bit(i, numa_info[props.node_id].node_cpu);
                 machine_set_cpu_numa_node(ms, &props, &error_fatal);
             }
         }
-
-        validate_numa_cpus();
 
         /* QEMU needs at least all unique node pair distances to build
          * the whole NUMA distance table. QEMU treats the distance table
