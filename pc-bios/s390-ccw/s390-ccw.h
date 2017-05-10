@@ -42,6 +42,13 @@ typedef unsigned long long __u64;
 #ifndef NULL
 #define NULL    0
 #endif
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+#ifndef MIN_NON_ZERO
+#define MIN_NON_ZERO(a, b) ((a) == 0 ? (b) : \
+                            ((b) == 0 ? (a) : (MIN(a, b))))
+#endif
 
 #include "cio.h"
 #include "iplb.h"
