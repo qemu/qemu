@@ -1,36 +1,44 @@
-# If you want to use the non-TLS socket, then you *must* include
-# the GSSAPI or DIGEST-MD5 mechanisms, because they are the only
-# ones that can offer session encryption as well as authentication.
+# If you want to use VNC remotely without TLS, then you *must*
+# pick a mechanism which provides session encryption as well
+# as authentication.
 #
-# If you're only using TLS, then you can turn on any mechanisms
+# If you are only using TLS, then you can turn on any mechanisms
 # you like for authentication, because TLS provides the encryption
 #
-# Default to a simple username+password mechanism
-# NB digest-md5 is no longer considered secure by current standards
-mech_list: digest-md5
-
-# Before you can use GSSAPI, you need a service principle on the
-# KDC server for libvirt, and that to be exported to the keytab
-# file listed below
-#mech_list: gssapi
+# If you are only using UNIX sockets then encryption is not
+# required at all.
 #
-# You can also list many mechanisms at once, then the user can choose
-# by adding  '?auth=sasl.gssapi' to their libvirt URI, eg
-#   qemu+tcp://hostname/system?auth=sasl.gssapi
-#mech_list: digest-md5 gssapi
+# NB, previously DIGEST-MD5 was set as the default mechanism for
+# QEMU VNC. Per RFC 6331 this is vulnerable to many serious security
+# flaws as should no longer be used. Thus GSSAPI is now the default.
+#
+# To use GSSAPI requires that a QEMU service principal is
+# added to the Kerberos server for each host running QEMU.
+# This principal needs to be exported to the keytab file listed below
+mech_list: gssapi
+
+# If using TLS with VNC, or a UNIX socket only, it is possible to
+# enable plugins which don't provide session encryption. The
+# 'scram-sha-1' plugin allows plain username/password authentication
+# to be performed
+#
+#mech_list: scram-sha-1
+
+# You can also list many mechanisms at once, and the VNC server will
+# negotiate which to use by considering the list enabled on the VNC
+# client.
+#mech_list: scram-sha-1 gssapi
 
 # Some older builds of MIT kerberos on Linux ignore this option &
 # instead need KRB5_KTNAME env var.
 # For modern Linux, and other OS, this should be sufficient
 #
-# There is no default value here, uncomment if you need this
-#keytab: /etc/qemu/krb5.tab
+# This file needs to be populated with the service principal that
+# was created on the Kerberos v5 server. If switching to a non-gssapi
+# mechanism this can be commented out.
+keytab: /etc/qemu/krb5.tab
 
-# If using digest-md5 for username/passwds, then this is the file
+# If using scram-sha-1 for username/passwds, then this is the file
 # containing the passwds. Use 'saslpasswd2 -a qemu [username]'
 # to add entries, and 'sasldblistusers2 -f [sasldb_path]' to browse it
-sasldb_path: /etc/qemu/passwd.db
-
-
-auxprop_plugin: sasldb
-
+#sasldb_path: /etc/qemu/passwd.db

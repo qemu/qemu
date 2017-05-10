@@ -56,10 +56,10 @@ static int block_crypto_probe_generic(QCryptoBlockFormat format,
 
 
 static ssize_t block_crypto_read_func(QCryptoBlock *block,
-                                      void *opaque,
                                       size_t offset,
                                       uint8_t *buf,
                                       size_t buflen,
+                                      void *opaque,
                                       Error **errp)
 {
     BlockDriverState *bs = opaque;
@@ -83,10 +83,10 @@ struct BlockCryptoCreateData {
 
 
 static ssize_t block_crypto_write_func(QCryptoBlock *block,
-                                       void *opaque,
                                        size_t offset,
                                        const uint8_t *buf,
                                        size_t buflen,
+                                       void *opaque,
                                        Error **errp)
 {
     struct BlockCryptoCreateData *data = opaque;
@@ -102,8 +102,8 @@ static ssize_t block_crypto_write_func(QCryptoBlock *block,
 
 
 static ssize_t block_crypto_init_func(QCryptoBlock *block,
-                                      void *opaque,
                                       size_t headerlen,
+                                      void *opaque,
                                       Error **errp)
 {
     struct BlockCryptoCreateData *data = opaque;

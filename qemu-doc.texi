@@ -1732,37 +1732,45 @@ SASL service config /etc/sasl2/qemu.conf. If running QEMU as an
 unprivileged user, an environment variable SASL_CONF_PATH can be used
 to make it search alternate locations for the service config.
 
-The default configuration might contain
+If the TLS option is enabled for VNC, then it will provide session encryption,
+otherwise the SASL mechanism will have to provide encryption. In the latter
+case the list of possible plugins that can be used is drastically reduced. In
+fact only the GSSAPI SASL mechanism provides an acceptable level of security
+by modern standards. Previous versions of QEMU referred to the DIGEST-MD5
+mechanism, however, it has multiple serious flaws described in detail in
+RFC 6331 and thus should never be used any more. The SCRAM-SHA-1 mechanism
+provides a simple username/password auth facility similar to DIGEST-MD5, but
+does not support session encryption, so can only be used in combination with
+TLS.
 
-@example
-mech_list: digest-md5
-sasldb_path: /etc/qemu/passwd.db
-@end example
-
-This says to use the 'Digest MD5' mechanism, which is similar to the HTTP
-Digest-MD5 mechanism. The list of valid usernames & passwords is maintained
-in the /etc/qemu/passwd.db file, and can be updated using the saslpasswd2
-command. While this mechanism is easy to configure and use, it is not
-considered secure by modern standards, so only suitable for developers /
-ad-hoc testing.
-
-A more serious deployment might use Kerberos, which is done with the 'gssapi'
-mechanism
+When not using TLS the recommended configuration is
 
 @example
 mech_list: gssapi
 keytab: /etc/qemu/krb5.tab
 @end example
 
-For this to work the administrator of your KDC must generate a Kerberos
-principal for the server, with a name of  'qemu/somehost.example.com@@EXAMPLE.COM'
-replacing 'somehost.example.com' with the fully qualified host name of the
-machine running QEMU, and 'EXAMPLE.COM' with the Kerberos Realm.
+This says to use the 'GSSAPI' mechanism with the Kerberos v5 protocol, with
+the server principal stored in /etc/qemu/krb5.tab. For this to work the
+administrator of your KDC must generate a Kerberos principal for the server,
+with a name of 'qemu/somehost.example.com@@EXAMPLE.COM' replacing
+'somehost.example.com' with the fully qualified host name of the machine
+running QEMU, and 'EXAMPLE.COM' with the Kerberos Realm.
 
-Other configurations will be left as an exercise for the reader. It should
-be noted that only Digest-MD5 and GSSAPI provides a SSF layer for data
-encryption. For all other mechanisms, VNC should always be configured to
-use TLS and x509 certificates to protect security credentials from snooping.
+When using TLS, if username+password authentication is desired, then a
+reasonable configuration is
+
+@example
+mech_list: scram-sha-1
+sasldb_path: /etc/qemu/passwd.db
+@end example
+
+The saslpasswd2 program can be used to populate the passwd.db file with
+accounts.
+
+Other SASL configurations will be left as an exercise for the reader. Note that
+all mechanisms except GSSAPI, should be combined with use of TLS to ensure a
+secure data channel.
 
 @node gdb_usage
 @section GDB usage
