@@ -112,7 +112,6 @@ static uint64_t get_guest_rtc_ns(RTCState *s)
         guest_clock - s->last_update + s->offset;
 }
 
-#ifdef TARGET_I386
 static void rtc_coalesced_timer_update(RTCState *s)
 {
     if (s->irq_coalesced == 0) {
@@ -126,6 +125,7 @@ static void rtc_coalesced_timer_update(RTCState *s)
     }
 }
 
+#ifdef TARGET_I386
 static void rtc_coalesced_timer(void *opaque)
 {
     RTCState *s = opaque;
@@ -198,7 +198,6 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
             assert(lost_clock >= 0);
         }
 
-#ifdef TARGET_I386
         /*
          * s->irq_coalesced can change for two reasons:
          *
@@ -227,9 +226,7 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
                           s->irq_coalesced, old_period, s->period);
                 rtc_coalesced_timer_update(s);
             }
-        } else
-#endif
-        {
+        } else {
            /*
              * no way to compensate the interrupt if LOST_TICK_POLICY_SLEW
              * is not used, we should make the time progress anyway.
@@ -244,9 +241,7 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
                                          RTC_CLOCK_RATE) + 1;
         timer_mod(s->periodic_timer, s->next_periodic_time);
     } else {
-#ifdef TARGET_I386
         s->irq_coalesced = 0;
-#endif
         timer_del(s->periodic_timer);
     }
 }
@@ -835,13 +830,11 @@ static int rtc_post_load(void *opaque, int version_id)
         }
     }
 
-#ifdef TARGET_I386
     if (version_id >= 2) {
         if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
             rtc_coalesced_timer_update(s);
         }
     }
-#endif
     return 0;
 }
 
@@ -898,11 +891,10 @@ static void rtc_notify_clock_reset(Notifier *notifier, void *data)
     rtc_set_date_from_host(ISA_DEVICE(s));
     periodic_timer_update(s, now, 0);
     check_update_timer(s);
-#ifdef TARGET_I386
+
     if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
         rtc_coalesced_timer_update(s);
     }
-#endif
 }
 
 /* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
@@ -923,12 +915,10 @@ static void rtc_reset(void *opaque)
 
     qemu_irq_lower(s->irq);
 
-#ifdef TARGET_I386
     if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
         s->irq_coalesced = 0;
         s->irq_reinject_on_ack_count = 0;		
     }
-#endif
 }
 
 static const MemoryRegionOps cmos_ops = {
