@@ -141,10 +141,12 @@ uint32_t numa_get_node(ram_addr_t addr, Error **errp)
     return -1;
 }
 
-static void parse_numa_node(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
+static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
+                            QemuOpts *opts, Error **errp)
 {
     uint16_t nodenr;
     uint16List *cpus = NULL;
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
 
     if (node->has_nodeid) {
         nodenr = node->nodeid;
@@ -163,6 +165,10 @@ static void parse_numa_node(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
         return;
     }
 
+    if (!mc->cpu_index_to_instance_props) {
+        error_report("NUMA is not supported by this machine-type");
+        exit(1);
+    }
     for (cpus = node->cpus; cpus; cpus = cpus->next) {
         if (cpus->value >= max_cpus) {
             error_setg(errp,
@@ -253,6 +259,7 @@ static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
 static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 {
     NumaOptions *object = NULL;
+    MachineState *ms = opaque;
     Error *err = NULL;
 
     {
@@ -267,7 +274,7 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 
     switch (object->type) {
     case NUMA_OPTIONS_TYPE_NODE:
-        parse_numa_node(&object->u.node, opts, &err);
+        parse_numa_node(ms, &object->u.node, opts, &err);
         if (err) {
             goto end;
         }
@@ -452,7 +459,7 @@ void parse_numa_opts(MachineState *ms)
         numa_info[i].node_cpu = bitmap_new(max_cpus);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, NULL, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
         exit(1);
     }
 
