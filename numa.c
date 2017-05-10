@@ -290,6 +290,21 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
             goto end;
         }
         break;
+    case NUMA_OPTIONS_TYPE_CPU:
+        if (!object->u.cpu.has_node_id) {
+            error_setg(&err, "Missing mandatory node-id property");
+            goto end;
+        }
+        if (!numa_info[object->u.cpu.node_id].present) {
+            error_setg(&err, "Invalid node-id=%" PRId64 ", NUMA node must be "
+                "defined with -numa node,nodeid=ID before it's used with "
+                "-numa cpu,node-id=ID", object->u.cpu.node_id);
+            goto end;
+        }
+
+        machine_set_cpu_numa_node(ms, qapi_NumaCpuOptions_base(&object->u.cpu),
+                                  &err);
+        break;
     default:
         abort();
     }
