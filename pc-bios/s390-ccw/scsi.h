@@ -28,9 +28,11 @@
 
 /* SCSI Inquiry Types */
 #define SCSI_INQUIRY_STANDARD                   0x00U
+#define SCSI_INQUIRY_EVPD                       0x01U
 
 /* SCSI Inquiry Pages */
 #define SCSI_INQUIRY_STANDARD_NONE              0x00U
+#define SCSI_INQUIRY_EVPD_SUPPORTED_PAGES       0x00U
 
 union ScsiLun {
     uint64_t v64;        /* numeric shortcut                             */
@@ -76,6 +78,14 @@ struct ScsiInquiryStd {
     /* byte N                                                           */
 }  __attribute__((packed));
 typedef struct ScsiInquiryStd ScsiInquiryStd;
+
+struct ScsiInquiryEvpdPages {
+    uint8_t peripheral_qdt; /* b0, use (b0 & 0x1f) to get SCSI_INQ_RDT  */
+    uint8_t page_code;      /* b1                                       */
+    uint16_t page_length;   /* b2..b3 length = N-3                      */
+    uint8_t byte[28];       /* b4..bN Supported EVPD pages (N=31 here)  */
+}  __attribute__((packed));
+typedef struct ScsiInquiryEvpdPages ScsiInquiryEvpdPages;
 
 struct ScsiCdbInquiry {
     uint8_t command;     /* b0, == 0x12         */

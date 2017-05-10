@@ -19,6 +19,7 @@ static VirtioScsiCmdReq req;
 static VirtioScsiCmdResp resp;
 
 static uint8_t scsi_inquiry_std_response[256];
+static ScsiInquiryEvpdPages scsi_inquiry_evpd_pages_response;
 
 static inline void vs_assert(bool term, const char **msgs)
 {
@@ -319,6 +320,8 @@ void virtio_scsi_setup(VDev *vdev)
     int retry_test_unit_ready = 3;
     uint8_t data[256];
     uint32_t data_size = sizeof(data);
+    ScsiInquiryEvpdPages *evpd = &scsi_inquiry_evpd_pages_response;
+    int i;
 
     vdev->scsi_device = &default_scsi_device;
     virtio_scsi_locate_device(vdev);
@@ -361,6 +364,20 @@ void virtio_scsi_setup(VDev *vdev)
         sclp_print("SCSI CD-ROM detected.\n");
         vdev->is_cdrom = true;
         vdev->scsi_block_size = VIRTIO_ISO_BLOCK_SIZE;
+    }
+
+    if (!scsi_inquiry(vdev,
+                      SCSI_INQUIRY_EVPD,
+                      SCSI_INQUIRY_EVPD_SUPPORTED_PAGES,
+                      evpd,
+                      sizeof(*evpd))) {
+        virtio_scsi_verify_response(&resp, "virtio-scsi:setup:supported_pages");
+    }
+
+    debug_print_int("EVPD length", evpd->page_length);
+
+    for (i = 0; i <= evpd->page_length; i++) {
+        debug_print_int("supported EVPD page", evpd->byte[i]);
     }
 
     if (!scsi_read_capacity(vdev, data, data_size)) {
