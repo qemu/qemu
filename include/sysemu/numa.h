@@ -26,7 +26,7 @@ struct node_info {
 };
 
 extern NodeInfo numa_info[MAX_NODES];
-void parse_numa_opts(MachineClass *mc);
+void parse_numa_opts(MachineState *ms);
 void numa_post_machine_init(void);
 void query_numa_node_mem(uint64_t node_mem[]);
 extern QemuOptsList qemu_numa_opts;

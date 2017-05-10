@@ -443,9 +443,10 @@ void numa_default_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
     nodes[i].node_mem = size - usedmem;
 }
 
-void parse_numa_opts(MachineClass *mc)
+void parse_numa_opts(MachineState *ms)
 {
     int i;
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
 
     for (i = 0; i < MAX_NODES; i++) {
         numa_info[i].node_cpu = bitmap_new(max_cpus);
@@ -511,21 +512,18 @@ void parse_numa_opts(MachineClass *mc)
                 break;
             }
         }
-        /* Historically VCPUs were assigned in round-robin order to NUMA
-         * nodes. However it causes issues with guest not handling it nice
-         * in case where cores/threads from a multicore CPU appear on
-         * different nodes. So allow boards to override default distribution
-         * rule grouping VCPUs by socket so that VCPUs from the same socket
-         * would be on the same node.
-         */
+
+        /* assign CPUs to nodes using board provided default mapping */
+        if (!mc->cpu_index_to_instance_props) {
+            error_report("default CPUs to NUMA node mapping isn't supported");
+            exit(1);
+        }
         if (i == nb_numa_nodes) {
             for (i = 0; i < max_cpus; i++) {
-                unsigned node_id = i % nb_numa_nodes;
-                if (mc->cpu_index_to_socket_id) {
-                    node_id = mc->cpu_index_to_socket_id(i) % nb_numa_nodes;
-                }
+                CpuInstanceProperties props;
+                props = mc->cpu_index_to_instance_props(ms, i);
 
-                set_bit(i, numa_info[node_id].node_cpu);
+                set_bit(i, numa_info[props.node_id].node_cpu);
             }
         }
 
