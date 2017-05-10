@@ -20,6 +20,7 @@ static VirtioScsiCmdResp resp;
 
 static uint8_t scsi_inquiry_std_response[256];
 static ScsiInquiryEvpdPages scsi_inquiry_evpd_pages_response;
+static ScsiInquiryEvpdBl scsi_inquiry_evpd_bl_response;
 
 static inline void vs_assert(bool term, const char **msgs)
 {
@@ -262,9 +263,11 @@ int virtio_scsi_read_many(VDev *vdev,
     int sector_count;
     int f = vdev->blk_factor;
     unsigned int data_size;
+    unsigned int max_transfer = MIN_NON_ZERO(vdev->config.scsi.max_sectors,
+                                             vdev->max_transfer);
 
     do {
-        sector_count = MIN_NON_ZERO(sec_num, vdev->config.scsi.max_sectors);
+        sector_count = MIN_NON_ZERO(sec_num, max_transfer);
         data_size = sector_count * virtio_get_block_size() * f;
         if (!scsi_read_10(vdev, sector * f, sector_count * f, load_addr,
                           data_size)) {
@@ -321,6 +324,7 @@ void virtio_scsi_setup(VDev *vdev)
     uint8_t data[256];
     uint32_t data_size = sizeof(data);
     ScsiInquiryEvpdPages *evpd = &scsi_inquiry_evpd_pages_response;
+    ScsiInquiryEvpdBl *evpd_bl = &scsi_inquiry_evpd_bl_response;
     int i;
 
     vdev->scsi_device = &default_scsi_device;
@@ -378,6 +382,21 @@ void virtio_scsi_setup(VDev *vdev)
 
     for (i = 0; i <= evpd->page_length; i++) {
         debug_print_int("supported EVPD page", evpd->byte[i]);
+
+        if (evpd->byte[i] != SCSI_INQUIRY_EVPD_BLOCK_LIMITS) {
+            continue;
+        }
+
+        if (!scsi_inquiry(vdev,
+                          SCSI_INQUIRY_EVPD,
+                          SCSI_INQUIRY_EVPD_BLOCK_LIMITS,
+                          evpd_bl,
+                          sizeof(*evpd_bl))) {
+            virtio_scsi_verify_response(&resp, "virtio-scsi:setup:blocklimits");
+        }
+
+        debug_print_int("max transfer", evpd_bl->max_transfer);
+        vdev->max_transfer = evpd_bl->max_transfer;
     }
 
     if (!scsi_read_capacity(vdev, data, data_size)) {
