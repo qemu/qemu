@@ -2424,18 +2424,6 @@ bool kvmppc_has_cap_mmu_hash_v3(void)
     return cap_mmu_hash_v3;
 }
 
-static PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)
-{
-    ObjectClass *oc = OBJECT_CLASS(pcc);
-
-    while (oc && !object_class_is_abstract(oc)) {
-        oc = object_class_get_parent(oc);
-    }
-    assert(oc);
-
-    return POWERPC_CPU_CLASS(oc);
-}
-
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
 {
     uint32_t host_pvr = mfpvr();

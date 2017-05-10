@@ -10285,6 +10285,18 @@ PowerPCCPU *cpu_ppc_init(const char *cpu_model)
     return POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU, cpu_model));
 }
 
+PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)
+{
+    ObjectClass *oc = OBJECT_CLASS(pcc);
+
+    while (oc && !object_class_is_abstract(oc)) {
+        oc = object_class_get_parent(oc);
+    }
+    assert(oc);
+
+    return POWERPC_CPU_CLASS(oc);
+}
+
 /* Sort by PVR, ordering special case "host" last. */
 static gint ppc_cpu_list_compare(gconstpointer a, gconstpointer b)
 {
@@ -10316,6 +10328,7 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     ObjectClass *oc = data;
     CPUListState *s = user_data;
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+    DeviceClass *family = DEVICE_CLASS(ppc_cpu_get_family_class(pcc));
     const char *typename = object_class_get_name(oc);
     char *name;
     int i;
@@ -10338,8 +10351,18 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
         if (alias_oc != oc) {
             continue;
         }
-        (*s->cpu_fprintf)(s->file, "PowerPC %-16s (alias for %s)\n",
-                          alias->alias, name);
+        /*
+         * If running with KVM, we might update the family alias later, so
+         * avoid printing the wrong alias here and use "preferred" instead
+         */
+        if (strcmp(alias->alias, family->desc) == 0) {
+            (*s->cpu_fprintf)(s->file,
+                              "PowerPC %-16s (alias for preferred %s CPU)\n",
+                              alias->alias, family->desc);
+        } else {
+            (*s->cpu_fprintf)(s->file, "PowerPC %-16s (alias for %s)\n",
+                              alias->alias, name);
+        }
     }
     g_free(name);
 }
