@@ -174,7 +174,7 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
     }
 
     if (node->has_mem && node->has_memdev) {
-        error_setg(errp, "qemu: cannot specify both mem= and memdev=");
+        error_setg(errp, "cannot specify both mem= and memdev=");
         return;
     }
 
@@ -182,7 +182,7 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
         have_memdevs = node->has_memdev;
     }
     if (node->has_memdev != have_memdevs) {
-        error_setg(errp, "qemu: memdev option must be specified for either "
+        error_setg(errp, "memdev option must be specified for either "
                    "all or no nodes");
         return;
     }

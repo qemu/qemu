@@ -42,9 +42,7 @@ static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
 
 static void virtio_blk_free_request(VirtIOBlockReq *req)
 {
-    if (req) {
-        g_free(req);
-    }
+    g_free(req);
 }
 
 static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)

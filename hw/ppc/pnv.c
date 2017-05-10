@@ -610,7 +610,7 @@ static void ppc_powernv_init(MachineState *machine)
     /* Create the processor chips */
     chip_typename = g_strdup_printf(TYPE_PNV_CHIP "-%s", machine->cpu_model);
     if (!object_class_by_name(chip_typename)) {
-        error_report("qemu: invalid CPU model '%s' for %s machine",
+        error_report("invalid CPU model '%s' for %s machine",
                      machine->cpu_model, MACHINE_GET_CLASS(machine)->name);
         exit(1);
     }

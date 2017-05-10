@@ -50,7 +50,7 @@ static void tricore_load_kernel(CPUTriCoreState *env)
                            NULL, 0,
                            EM_TRICORE, 1, 0);
     if (kernel_size <= 0) {
-        error_report("qemu: no kernel file '%s'",
+        error_report("no kernel file '%s'",
                 tricoretb_binfo.kernel_filename);
         exit(1);
     }
