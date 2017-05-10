@@ -26,6 +26,12 @@
 #define SCSI_SENSE_KEY_NO_SENSE                 0
 #define SCSI_SENSE_KEY_UNIT_ATTENTION           6
 
+/* SCSI Inquiry Types */
+#define SCSI_INQUIRY_STANDARD                   0x00U
+
+/* SCSI Inquiry Pages */
+#define SCSI_INQUIRY_STANDARD_NONE              0x00U
+
 union ScsiLun {
     uint64_t v64;        /* numeric shortcut                             */
     uint8_t  v8[8];      /* generic 8 bytes representation               */

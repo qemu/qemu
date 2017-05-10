@@ -89,10 +89,13 @@ static void vs_run(const char *title, VirtioCmd *cmd, VDev *vdev,
 
 /* SCSI protocol implementation routines */
 
-static bool scsi_inquiry(VDev *vdev, void *data, uint32_t data_size)
+static bool scsi_inquiry(VDev *vdev, uint8_t evpd, uint8_t page,
+                         void *data, uint32_t data_size)
 {
     ScsiCdbInquiry cdb = {
         .command = 0x12,
+        .b1 = evpd,
+        .b2 = page,
         .alloc_len = data_size < 65535 ? data_size : 65535,
     };
     VirtioCmd inquiry[] = {
@@ -346,7 +349,10 @@ void virtio_scsi_setup(VDev *vdev)
     }
 
     /* read and cache SCSI INQUIRY response */
-    if (!scsi_inquiry(vdev, scsi_inquiry_std_response,
+    if (!scsi_inquiry(vdev,
+                      SCSI_INQUIRY_STANDARD,
+                      SCSI_INQUIRY_STANDARD_NONE,
+                      scsi_inquiry_std_response,
                       sizeof(scsi_inquiry_std_response))) {
         virtio_scsi_verify_response(&resp, "virtio-scsi:setup:inquiry");
     }
