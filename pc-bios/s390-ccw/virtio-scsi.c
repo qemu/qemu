@@ -399,6 +399,15 @@ void virtio_scsi_setup(VDev *vdev)
         vdev->max_transfer = evpd_bl->max_transfer;
     }
 
+    /*
+     * The host sg driver will often be unhappy with particularly large
+     * I/Os that exceed the block iovec limits.  Let's enforce something
+     * reasonable, despite what the device configuration tells us.
+     */
+
+    vdev->max_transfer = MIN_NON_ZERO(VIRTIO_SCSI_MAX_SECTORS,
+                                      vdev->max_transfer);
+
     if (!scsi_read_capacity(vdev, data, data_size)) {
         virtio_scsi_verify_response(&resp, "virtio-scsi:setup:read_capacity");
     }
