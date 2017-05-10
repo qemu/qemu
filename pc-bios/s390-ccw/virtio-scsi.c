@@ -142,14 +142,13 @@ static bool scsi_report_luns(VDev *vdev, void *data, uint32_t data_size)
 }
 
 static bool scsi_read_10(VDev *vdev,
-                         ulong sector, int sectors, void *data)
+                         ulong sector, int sectors, void *data,
+                         unsigned int data_size)
 {
-    int f = vdev->blk_factor;
-    unsigned int data_size = sectors * virtio_get_block_size() * f;
     ScsiCdbRead10 cdb = {
         .command = 0x28,
-        .lba = sector * f,
-        .xfer_length = sectors * f,
+        .lba = sector,
+        .xfer_length = sectors,
     };
     VirtioCmd read_10[] = {
         { &req, sizeof(req), VRING_DESC_F_NEXT },
@@ -255,7 +254,10 @@ static void virtio_scsi_locate_device(VDev *vdev)
 int virtio_scsi_read_many(VDev *vdev,
                           ulong sector, void *load_addr, int sec_num)
 {
-    if (!scsi_read_10(vdev, sector, sec_num, load_addr)) {
+    int f = vdev->blk_factor;
+    unsigned int data_size = sec_num * virtio_get_block_size() * f;
+
+    if (!scsi_read_10(vdev, sector * f, sec_num * f, load_addr, data_size)) {
         virtio_scsi_verify_response(&resp, "virtio-scsi:read_many");
     }
 
