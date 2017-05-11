@@ -1385,7 +1385,7 @@ static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
         *file = bs->file->bs;
         status |= BDRV_BLOCK_OFFSET_VALID | cluster_offset;
     }
-    if (ret == QCOW2_CLUSTER_ZERO) {
+    if (ret == QCOW2_CLUSTER_ZERO_PLAIN || ret == QCOW2_CLUSTER_ZERO_ALLOC) {
         status |= BDRV_BLOCK_ZERO;
     } else if (ret != QCOW2_CLUSTER_UNALLOCATED) {
         status |= BDRV_BLOCK_DATA;
@@ -1482,7 +1482,8 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
             }
             break;
 
-        case QCOW2_CLUSTER_ZERO:
+        case QCOW2_CLUSTER_ZERO_PLAIN:
+        case QCOW2_CLUSTER_ZERO_ALLOC:
             qemu_iovec_memset(&hd_qiov, 0, 0, cur_bytes);
             break;
 
@@ -2450,6 +2451,10 @@ static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
     BlockDriverState *file;
     int64_t res;
 
+    if (start + count > bs->total_sectors) {
+        count = bs->total_sectors - start;
+    }
+
     if (!count) {
         return true;
     }
@@ -2468,6 +2473,9 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
     uint32_t tail = (offset + count) % s->cluster_size;
 
     trace_qcow2_pwrite_zeroes_start_req(qemu_coroutine_self(), offset, count);
+    if (offset + count == bs->total_sectors * BDRV_SECTOR_SIZE) {
+        tail = 0;
+    }
 
     if (head || tail) {
         int64_t cl_start = (offset - head) >> BDRV_SECTOR_BITS;
@@ -2491,7 +2499,9 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
         count = s->cluster_size;
         nr = s->cluster_size;
         ret = qcow2_get_cluster_offset(bs, offset, &nr, &off);
-        if (ret != QCOW2_CLUSTER_UNALLOCATED && ret != QCOW2_CLUSTER_ZERO) {
+        if (ret != QCOW2_CLUSTER_UNALLOCATED &&
+            ret != QCOW2_CLUSTER_ZERO_PLAIN &&
+            ret != QCOW2_CLUSTER_ZERO_ALLOC) {
             qemu_co_mutex_unlock(&s->lock);
             return -ENOTSUP;
         }
@@ -2502,7 +2512,7 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
     trace_qcow2_pwrite_zeroes(qemu_coroutine_self(), offset, count);
 
     /* Whatever is left can use real zero clusters */
-    ret = qcow2_zero_clusters(bs, offset, count >> BDRV_SECTOR_BITS, flags);
+    ret = qcow2_cluster_zeroize(bs, offset, count, flags);
     qemu_co_mutex_unlock(&s->lock);
 
     return ret;
@@ -2525,8 +2535,8 @@ static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
     }
 
     qemu_co_mutex_lock(&s->lock);
-    ret = qcow2_discard_clusters(bs, offset, count >> BDRV_SECTOR_BITS,
-                                 QCOW2_DISCARD_REQUEST, false);
+    ret = qcow2_cluster_discard(bs, offset, count, QCOW2_DISCARD_REQUEST,
+                                false);
     qemu_co_mutex_unlock(&s->lock);
     return ret;
 }
@@ -2833,9 +2843,8 @@ fail:
 static int qcow2_make_empty(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t start_sector;
-    int sector_step = (QEMU_ALIGN_DOWN(INT_MAX, s->cluster_size) /
-                       BDRV_SECTOR_SIZE);
+    uint64_t offset, end_offset;
+    int step = QEMU_ALIGN_DOWN(INT_MAX, s->cluster_size);
     int l1_clusters, ret = 0;
 
     l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / sizeof(uint64_t));
@@ -2852,18 +2861,15 @@ static int qcow2_make_empty(BlockDriverState *bs)
 
     /* This fallback code simply discards every active cluster; this is slow,
      * but works in all cases */
-    for (start_sector = 0; start_sector < bs->total_sectors;
-         start_sector += sector_step)
-    {
+    end_offset = bs->total_sectors * BDRV_SECTOR_SIZE;
+    for (offset = 0; offset < end_offset; offset += step) {
         /* As this function is generally used after committing an external
          * snapshot, QCOW2_DISCARD_SNAPSHOT seems appropriate. Also, the
          * default action for this kind of discard is to pass the discard,
          * which will ideally result in an actually smaller image file, as
          * is probably desired. */
-        ret = qcow2_discard_clusters(bs, start_sector * BDRV_SECTOR_SIZE,
-                                     MIN(sector_step,
-                                         bs->total_sectors - start_sector),
-                                     QCOW2_DISCARD_SNAPSHOT, true);
+        ret = qcow2_cluster_discard(bs, offset, MIN(step, end_offset - offset),
+                                    QCOW2_DISCARD_SNAPSHOT, true);
         if (ret < 0) {
             break;
         }
