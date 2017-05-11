@@ -1790,9 +1790,6 @@ static void xhci_stall_ep(XHCITransfer *xfer)
     }
 }
 
-static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer,
-                       XHCIEPContext *epctx);
-
 static int xhci_setup_packet(XHCITransfer *xfer)
 {
     USBEndpoint *ep;
@@ -1806,7 +1803,7 @@ static int xhci_setup_packet(XHCITransfer *xfer)
         ep = xhci_epid_to_usbep(xfer->epctx);
         if (!ep) {
             DPRINTF("xhci: slot %d has no device\n",
-                    xfer->slotid);
+                    xfer->epctx->slotid);
             return -1;
         }
     }
@@ -1980,7 +1977,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
 {
     uint64_t mfindex;
 
-    DPRINTF("xhci_submit(slotid=%d,epid=%d)\n", xfer->slotid, xfer->epid);
+    DPRINTF("xhci_submit(slotid=%d,epid=%d)\n", epctx->slotid, epctx->epid);
 
     xfer->in_xfer = epctx->type>>2;
 
