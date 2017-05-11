@@ -1625,6 +1625,15 @@ static inline MemTxAttrs cpu_get_mem_attrs(CPUX86State *env)
     return ((MemTxAttrs) { .secure = (env->hflags & HF_SMM_MASK) != 0 });
 }
 
+static inline int32_t x86_get_a20_mask(CPUX86State *env)
+{
+    if (env->hflags & HF_SMM_MASK) {
+        return -1;
+    } else {
+        return env->a20_mask;
+    }
+}
+
 /* fpu_helper.c */
 void cpu_set_mxcsr(CPUX86State *env, uint32_t val);
 void cpu_set_fpuc(CPUX86State *env, uint16_t val);
