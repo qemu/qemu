@@ -3222,7 +3222,6 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
 
     if (s->refcount_bits != refcount_bits) {
         int refcount_order = ctz32(refcount_bits);
-        Error *local_error = NULL;
 
         if (new_version < 3 && refcount_bits != 16) {
             error_report("Different refcount widths than 16 bits require "
@@ -3234,9 +3233,9 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
         helper_cb_info.current_operation = QCOW2_CHANGING_REFCOUNT_ORDER;
         ret = qcow2_change_refcount_order(bs, refcount_order,
                                           &qcow2_amend_helper_cb,
-                                          &helper_cb_info, &local_error);
+                                          &helper_cb_info, &local_err);
         if (ret < 0) {
-            error_report_err(local_error);
+            error_report_err(local_err);
             return ret;
         }
     }
