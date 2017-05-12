@@ -63,6 +63,7 @@ bool kvmppc_has_cap_mmu_hash_v3(void);
 int kvmppc_enable_hwrng(void);
 int kvmppc_put_books_sregs(PowerPCCPU *cpu);
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void);
+void kvmppc_check_papr_resize_hpt(Error **errp);
 
 bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path);
 
@@ -297,6 +298,10 @@ static inline PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
     return NULL;
 }
 
+static inline void kvmppc_check_papr_resize_hpt(Error **errp)
+{
+    return;
+}
 #endif
 
 #ifndef CONFIG_KVM

@@ -42,6 +42,13 @@ typedef struct sPAPRMachineClass sPAPRMachineClass;
 #define SPAPR_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(sPAPRMachineClass, klass, TYPE_SPAPR_MACHINE)
 
+typedef enum {
+    SPAPR_RESIZE_HPT_DEFAULT = 0,
+    SPAPR_RESIZE_HPT_DISABLED,
+    SPAPR_RESIZE_HPT_ENABLED,
+    SPAPR_RESIZE_HPT_REQUIRED,
+} sPAPRResizeHPT;
+
 /**
  * sPAPRMachineClass:
  */
@@ -58,6 +65,7 @@ struct sPAPRMachineClass {
                           uint64_t *buid, hwaddr *pio, 
                           hwaddr *mmio32, hwaddr *mmio64,
                           unsigned n_dma, uint32_t *liobns, Error **errp);
+    sPAPRResizeHPT resize_hpt_default;
 };
 
 /**
@@ -73,6 +81,7 @@ struct sPAPRMachineState {
     ICSState *ics;
     sPAPRRTCState rtc;
 
+    sPAPRResizeHPT resize_hpt;
     void *htab;
     uint32_t htab_shift;
     uint64_t patb_entry; /* Process tbl registed in H_REGISTER_PROCESS_TABLE */
@@ -367,6 +376,8 @@ struct sPAPRMachineState {
 #define H_XIRR_X                0x2FC
 #define H_RANDOM                0x300
 #define H_SET_MODE              0x31C
+#define H_RESIZE_HPT_PREPARE    0x36C
+#define H_RESIZE_HPT_COMMIT     0x370
 #define H_CLEAN_SLB             0x374
 #define H_INVALIDATE_PID        0x378
 #define H_REGISTER_PROC_TBL     0x37C

@@ -354,6 +354,38 @@ static target_ulong h_read(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_resize_hpt_prepare(PowerPCCPU *cpu,
+                                         sPAPRMachineState *spapr,
+                                         target_ulong opcode,
+                                         target_ulong *args)
+{
+    target_ulong flags = args[0];
+    target_ulong shift = args[1];
+
+    if (spapr->resize_hpt == SPAPR_RESIZE_HPT_DISABLED) {
+        return H_AUTHORITY;
+    }
+
+    trace_spapr_h_resize_hpt_prepare(flags, shift);
+    return H_HARDWARE;
+}
+
+static target_ulong h_resize_hpt_commit(PowerPCCPU *cpu,
+                                        sPAPRMachineState *spapr,
+                                        target_ulong opcode,
+                                        target_ulong *args)
+{
+    target_ulong flags = args[0];
+    target_ulong shift = args[1];
+
+    if (spapr->resize_hpt == SPAPR_RESIZE_HPT_DISABLED) {
+        return H_AUTHORITY;
+    }
+
+    trace_spapr_h_resize_hpt_commit(flags, shift);
+    return H_HARDWARE;
+}
+
 static target_ulong h_set_sprg0(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                 target_ulong opcode, target_ulong *args)
 {
@@ -1245,6 +1277,10 @@ static void hypercall_register_types(void)
 
     /* hcall-bulk */
     spapr_register_hypercall(H_BULK_REMOVE, h_bulk_remove);
+
+    /* hcall-hpt-resize */
+    spapr_register_hypercall(H_RESIZE_HPT_PREPARE, h_resize_hpt_prepare);
+    spapr_register_hypercall(H_RESIZE_HPT_COMMIT, h_resize_hpt_commit);
 
     /* hcall-splpar */
     spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);

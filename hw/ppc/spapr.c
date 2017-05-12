@@ -874,6 +874,11 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
     if (!kvm_enabled() || kvmppc_spapr_use_multitce()) {
         add_str(hypertas, "hcall-multi-tce");
     }
+
+    if (spapr->resize_hpt != SPAPR_RESIZE_HPT_DISABLED) {
+        add_str(hypertas, "hcall-hpt-resize");
+    }
+
     _FDT(fdt_setprop(fdt, rtas, "ibm,hypertas-functions",
                      hypertas->str, hypertas->len));
     g_string_free(hypertas, TRUE);
@@ -2148,11 +2153,40 @@ static void ppc_spapr_init(MachineState *machine)
     hwaddr node0_size = spapr_node0_size();
     long load_limit, fw_size;
     char *filename;
+    Error *resize_hpt_err = NULL;
 
     msi_nonbroken = true;
 
     QLIST_INIT(&spapr->phbs);
     QTAILQ_INIT(&spapr->pending_dimm_unplugs);
+
+    /* Check HPT resizing availability */
+    kvmppc_check_papr_resize_hpt(&resize_hpt_err);
+    if (spapr->resize_hpt == SPAPR_RESIZE_HPT_DEFAULT) {
+        /*
+         * If the user explicitly requested a mode we should either
+         * supply it, or fail completely (which we do below).  But if
+         * it's not set explicitly, we reset our mode to something
+         * that works
+         */
+        if (resize_hpt_err) {
+            spapr->resize_hpt = SPAPR_RESIZE_HPT_DISABLED;
+            error_free(resize_hpt_err);
+            resize_hpt_err = NULL;
+        } else {
+            spapr->resize_hpt = smc->resize_hpt_default;
+        }
+    }
+
+    assert(spapr->resize_hpt != SPAPR_RESIZE_HPT_DEFAULT);
+
+    if ((spapr->resize_hpt != SPAPR_RESIZE_HPT_DISABLED) && resize_hpt_err) {
+        /*
+         * User requested HPT resize, but this host can't supply it.  Bail out
+         */
+        error_report_err(resize_hpt_err);
+        exit(1);
+    }
 
     /* Allocate RMA if necessary */
     rma_alloc_size = kvmppc_alloc_rma(&rma);
@@ -2579,6 +2613,40 @@ static void spapr_set_modern_hotplug_events(Object *obj, bool value,
     spapr->use_hotplug_event_source = value;
 }
 
+static char *spapr_get_resize_hpt(Object *obj, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    switch (spapr->resize_hpt) {
+    case SPAPR_RESIZE_HPT_DEFAULT:
+        return g_strdup("default");
+    case SPAPR_RESIZE_HPT_DISABLED:
+        return g_strdup("disabled");
+    case SPAPR_RESIZE_HPT_ENABLED:
+        return g_strdup("enabled");
+    case SPAPR_RESIZE_HPT_REQUIRED:
+        return g_strdup("required");
+    }
+    g_assert_not_reached();
+}
+
+static void spapr_set_resize_hpt(Object *obj, const char *value, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    if (strcmp(value, "default") == 0) {
+        spapr->resize_hpt = SPAPR_RESIZE_HPT_DEFAULT;
+    } else if (strcmp(value, "disabled") == 0) {
+        spapr->resize_hpt = SPAPR_RESIZE_HPT_DISABLED;
+    } else if (strcmp(value, "enabled") == 0) {
+        spapr->resize_hpt = SPAPR_RESIZE_HPT_ENABLED;
+    } else if (strcmp(value, "required") == 0) {
+        spapr->resize_hpt = SPAPR_RESIZE_HPT_REQUIRED;
+    } else {
+        error_setg(errp, "Bad value for \"resize-hpt\" property");
+    }
+}
+
 static void spapr_machine_initfn(Object *obj)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
@@ -2603,6 +2671,12 @@ static void spapr_machine_initfn(Object *obj)
     ppc_compat_add_property(obj, "max-cpu-compat", &spapr->max_compat_pvr,
                             "Maximum permitted CPU compatibility mode",
                             &error_fatal);
+
+    object_property_add_str(obj, "resize-hpt",
+                            spapr_get_resize_hpt, spapr_set_resize_hpt, NULL);
+    object_property_set_description(obj, "resize-hpt",
+                                    "Resizing of the Hash Page Table (enabled, disabled, required)",
+                                    NULL);
 }
 
 static void spapr_machine_finalizefn(Object *obj)
@@ -3361,6 +3435,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     smc->dr_lmb_enabled = true;
     smc->tcg_default_cpu = "POWER8";
     mc->has_hotpluggable_cpus = true;
+    smc->resize_hpt_default = SPAPR_RESIZE_HPT_DISABLED;
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
     smc->phb_placement = spapr_phb_placement;

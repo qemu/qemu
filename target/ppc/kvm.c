@@ -22,6 +22,7 @@
 #include <linux/kvm.h>
 
 #include "qemu-common.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "cpu.h"
 #include "cpu-models.h"
@@ -2708,4 +2709,16 @@ int kvmppc_enable_hwrng(void)
     }
 
     return kvmppc_enable_hcall(kvm_state, H_RANDOM);
+}
+
+void kvmppc_check_papr_resize_hpt(Error **errp)
+{
+    if (!kvm_enabled()) {
+        return;
+    }
+
+    /* TODO: Check for resize-capable KVM implementations */
+
+    error_setg(errp,
+               "Hash page table resizing not available with this KVM version");
 }
