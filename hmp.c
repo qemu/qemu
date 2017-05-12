@@ -39,6 +39,7 @@
 #include "qemu-io.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+#include "exec/ramlist.h"
 #include "hw/intc/intc.h"
 
 #ifdef CONFIG_SPICE
@@ -2736,6 +2737,11 @@ void hmp_info_dump(Monitor *mon, const QDict *qdict)
     }
 
     qapi_free_DumpQueryResult(result);
+}
+
+void hmp_info_ramblock(Monitor *mon, const QDict *qdict)
+{
+    ram_block_dump(mon);
 }
 
 void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
