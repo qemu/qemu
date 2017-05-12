@@ -50,6 +50,7 @@
 #include "qmp-commands.h"
 #include "block/trace.h"
 #include "sysemu/arch_init.h"
+#include "sysemu/qtest.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
 #include "qemu/throttle-options.h"
@@ -798,6 +799,9 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     const char *filename;
     Error *local_err = NULL;
     int i;
+    const char *deprecated[] = {
+        "serial", "trans", "secs", "heads", "cyls", "addr"
+    };
 
     /* Change legacy command line options into QMP ones */
     static const struct {
@@ -879,6 +883,16 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         fprintf(stderr, "qemu-kvm: boot=on|off is deprecated and will be "
                 "ignored. Future versions will reject this parameter. Please "
                 "update your scripts.\n");
+    }
+
+    /* Other deprecated options */
+    if (!qtest_enabled()) {
+        for (i = 0; i < ARRAY_SIZE(deprecated); i++) {
+            if (qemu_opt_get(legacy_opts, deprecated[i]) != NULL) {
+                error_report("'%s' is deprecated, please use the corresponding "
+                             "option of '-device' instead", deprecated[i]);
+            }
+        }
     }
 
     /* Media type */
