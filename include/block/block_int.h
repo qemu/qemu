@@ -165,6 +165,13 @@ struct BlockDriver {
         int64_t offset, int count, BdrvRequestFlags flags);
     int coroutine_fn (*bdrv_co_pdiscard)(BlockDriverState *bs,
         int64_t offset, int count);
+
+    /*
+     * Building block for bdrv_block_status[_above]. The driver should
+     * answer only according to the current layer, and should not
+     * set BDRV_BLOCK_ALLOCATED, but may set BDRV_BLOCK_RAW.  See block.h
+     * for the meaning of _DATA, _ZERO, and _OFFSET_VALID.
+     */
     int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum,
         BlockDriverState **file);
@@ -473,6 +480,12 @@ struct BdrvChildRole {
     void (*drained_begin)(BdrvChild *child);
     void (*drained_end)(BdrvChild *child);
 
+    /* Notifies the parent that the child has been activated/inactivated (e.g.
+     * when migration is completing) and it can start/stop requesting
+     * permissions and doing I/O on it. */
+    void (*activate)(BdrvChild *child, Error **errp);
+    int (*inactivate)(BdrvChild *child);
+
     void (*attach)(BdrvChild *child);
     void (*detach)(BdrvChild *child);
 };
@@ -518,6 +531,7 @@ struct BlockDriverState {
     bool valid_key; /* if true, a valid encryption key has been set */
     bool sg;        /* if true, the device is a /dev/sg* */
     bool probed;    /* if true, format was probed rather than specified */
+    bool force_share; /* if true, always allow all shared permissions */
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;

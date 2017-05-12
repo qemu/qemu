@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
     const char *cmd = "-device piix3-usb-uhci,id=uhci,addr=1d.0"
-                      " -drive id=drive0,if=none,file=/dev/null,format=raw"
+                      " -drive id=drive0,if=none,file=null-co://,format=raw"
                       " -device usb-tablet,bus=uhci.0,port=1";
     int ret;
 

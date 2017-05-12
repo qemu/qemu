@@ -179,7 +179,8 @@ static BlockBackend *start_primary(void)
     char *cmdline;
 
     cmdline = g_strdup_printf("driver=replication,mode=primary,node-name=xxx,"
-                              "file.driver=qcow2,file.file.filename=%s"
+                              "file.driver=qcow2,file.file.filename=%s,"
+                              "file.file.locking=off"
                               , p_local_disk);
     opts = qemu_opts_parse_noisily(&qemu_drive_opts, cmdline, false);
     g_free(cmdline);
@@ -310,7 +311,9 @@ static BlockBackend *start_secondary(void)
     Error *local_err = NULL;
 
     /* add s_local_disk and forge S_LOCAL_DISK_ID */
-    cmdline = g_strdup_printf("file.filename=%s,driver=qcow2", s_local_disk);
+    cmdline = g_strdup_printf("file.filename=%s,driver=qcow2,"
+                              "file.locking=off",
+                              s_local_disk);
     opts = qemu_opts_parse_noisily(&qemu_drive_opts, cmdline, false);
     g_free(cmdline);
 
@@ -331,8 +334,10 @@ static BlockBackend *start_secondary(void)
     /* add S_(ACTIVE/HIDDEN)_DISK and forge S_ID */
     cmdline = g_strdup_printf("driver=replication,mode=secondary,top-id=%s,"
                               "file.driver=qcow2,file.file.filename=%s,"
+                              "file.file.locking=off,"
                               "file.backing.driver=qcow2,"
                               "file.backing.file.filename=%s,"
+                              "file.backing.file.locking=off,"
                               "file.backing.backing=%s"
                               , S_ID, s_active_disk, s_hidden_disk
                               , S_LOCAL_DISK_ID);

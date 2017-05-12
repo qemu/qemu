@@ -2,7 +2,7 @@
 #
 # qcow2 specific bdrv_pwrite_zeroes tests with backing files (complements 034)
 #
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2016-2017 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,7 +42,10 @@ _supported_proto file
 _supported_os Linux
 
 CLUSTER_SIZE=4k
-size=128M
+size=$((128 * 1024 * 1024))
+
+# This test requires zero clusters, added in v3 images
+_unsupported_imgopts compat=0.10
 
 echo
 echo == backing file contains zeros ==
@@ -297,6 +300,159 @@ $QEMU_IO -c "read -P 0 66k 7k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "read -P 0x11 73k 2k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "read -P 0 75k 1k" "$TEST_IMG" | _filter_qemu_io
 
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == unaligned image tail cluster, no allocation needed ==
+
+# With no backing file, write to all or part of unallocated partial cluster
+# will mark the cluster as zero, but does not allocate.
+# Re-create the image each time to get back to unallocated clusters.
+
+# Write at the front: sector-wise, the request is: 128m... | 00 -- -- --
+_make_test_img $((size + 2048))
+$QEMU_IO -c "write -z $size 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Write at the back: sector-wise, the request is: 128m... | -- -- -- 00
+_make_test_img $((size + 2048))
+$QEMU_IO -c "write -z $((size + 1536)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Write at middle: sector-wise, the request is: 128m... | -- 00 00 --
+_make_test_img $((size + 2048))
+$QEMU_IO -c "write -z $((size + 512)) 1024" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Write entire cluster: sector-wise, the request is: 128m... | 00 00 00 00
+_make_test_img $((size + 2048))
+$QEMU_IO -c "write -z $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Repeat with backing file holding unallocated cluster.
+# TODO: Note that this forces an allocation, because we aren't yet able to
+# quickly detect that reads beyond EOF of the backing file are always zero
+CLUSTER_SIZE=2048 TEST_IMG="$TEST_IMG.base" _make_test_img $((size + 1024))
+
+# Write at the front: sector-wise, the request is:
+# backing: 128m... | -- --
+# active:  128m... | 00 -- -- --
+_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+$QEMU_IO -c "write -z $size 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Write at the back: sector-wise, the request is:
+# backing: 128m... | -- --
+# active:  128m... | -- -- -- 00
+_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+$QEMU_IO -c "write -z $((size + 1536)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Write at middle: sector-wise, the request is:
+# backing: 128m... | -- --
+# active:  128m... | -- 00 00 --
+_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+$QEMU_IO -c "write -z $((size + 512)) 1024" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Write entire cluster: sector-wise, the request is:
+# backing: 128m... | -- --
+# active:  128m... | 00 00 00 00
+_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+$QEMU_IO -c "write -z $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Repeat with backing file holding zero'd cluster
+# TODO: Note that this forces an allocation, because we aren't yet able to
+# quickly detect that reads beyond EOF of the backing file are always zero
+$QEMU_IO -c "write -z $size 512" "$TEST_IMG.base" | _filter_qemu_io
+
+# Write at the front: sector-wise, the request is:
+# backing: 128m... | 00 00
+# active:  128m... | 00 -- -- --
+_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+$QEMU_IO -c "write -z $size 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Write at the back: sector-wise, the request is:
+# backing: 128m... | 00 00
+# active:  128m... | -- -- -- 00
+_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+$QEMU_IO -c "write -z $((size + 1536)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Write at middle: sector-wise, the request is:
+# backing: 128m... | 00 00
+# active:  128m... | -- 00 00 --
+_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+$QEMU_IO -c "write -z $((size + 512)) 1024" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Write entire cluster: sector-wise, the request is:
+# backing: 128m... | 00 00
+# active:  128m... | 00 00 00 00
+_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+$QEMU_IO -c "write -z $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# A preallocated cluster maintains its allocation, whether it stays as
+# data due to a partial write:
+# Convert 128m... | XX XX => ... | XX 00
+_make_test_img $((size + 1024))
+$QEMU_IO -c "write -P 1 $((size)) 1024" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -z $((size + 512)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 1 $((size)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 $((size + 512)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 1024" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# or because it is the entire cluster and can use the zero flag:
+# Convert 128m... | XX XX => ... | 00 00
+$QEMU_IO -c "write -z $((size)) 1024" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc $size 1024" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 $size 1024" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == unaligned image tail cluster, allocation required ==
+
+# Write beyond backing file must COW
+# Backing file: 128m... | XX --
+# Active layer: 128m... | -- -- 00 --
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $((size + 1024))
+_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+$QEMU_IO -c "write -P 1 $((size)) 512" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z $((size + 1024)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 1 $((size)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 $((size + 512)) 1536" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# Writes at boundaries of (partial) cluster must not lose mid-cluster data
+# Backing file: 128m: ... | -- XX
+# Active layer: 128m: ... | 00 -- -- 00
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $((size + 1024))
+_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+$QEMU_IO -c "write -P 1 $((size + 512)) 512" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z $((size)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 $((size)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 1 $((size + 512)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 $((size + 1024)) 1024" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -z $((size + 1536)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 $((size)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 1 $((size + 512)) 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 $((size + 1024)) 1024" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 # success, all done

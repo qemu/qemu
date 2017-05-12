@@ -227,6 +227,29 @@ static uint16_t nvme_flush(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     return NVME_NO_COMPLETE;
 }
 
+static uint16_t nvme_write_zeros(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
+    NvmeRequest *req)
+{
+    NvmeRwCmd *rw = (NvmeRwCmd *)cmd;
+    const uint8_t lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
+    const uint8_t data_shift = ns->id_ns.lbaf[lba_index].ds;
+    uint64_t slba = le64_to_cpu(rw->slba);
+    uint32_t nlb  = le16_to_cpu(rw->nlb) + 1;
+    uint64_t aio_slba = slba << (data_shift - BDRV_SECTOR_BITS);
+    uint32_t aio_nlb = nlb << (data_shift - BDRV_SECTOR_BITS);
+
+    if (slba + nlb > ns->id_ns.nsze) {
+        return NVME_LBA_RANGE | NVME_DNR;
+    }
+
+    req->has_sg = false;
+    block_acct_start(blk_get_stats(n->conf.blk), &req->acct, 0,
+                     BLOCK_ACCT_WRITE);
+    req->aiocb = blk_aio_pwrite_zeroes(n->conf.blk, aio_slba, aio_nlb,
+                                        BDRV_REQ_MAY_UNMAP, nvme_rw_cb, req);
+    return NVME_NO_COMPLETE;
+}
+
 static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     NvmeRequest *req)
 {
@@ -279,6 +302,8 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     switch (cmd->opcode) {
     case NVME_CMD_FLUSH:
         return nvme_flush(n, ns, cmd, req);
+    case NVME_CMD_WRITE_ZEROS:
+        return nvme_write_zeros(n, ns, cmd, req);
     case NVME_CMD_WRITE:
     case NVME_CMD_READ:
         return nvme_rw(n, ns, cmd, req);
@@ -895,6 +920,7 @@ static int nvme_init(PCIDevice *pci_dev)
     id->sqes = (0x6 << 4) | 0x6;
     id->cqes = (0x4 << 4) | 0x4;
     id->nn = cpu_to_le32(n->num_namespaces);
+    id->oncs = cpu_to_le16(NVME_ONCS_WRITE_ZEROS);
     id->psd[0].mp = cpu_to_le16(0x9c4);
     id->psd[0].enlat = cpu_to_le32(0x10);
     id->psd[0].exlat = cpu_to_le32(0x4);

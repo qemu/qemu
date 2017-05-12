@@ -1,0 +1,233 @@
+#!/bin/bash
+#
+# Test image locking
+#
+# Copyright 2016, 2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=famz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f "${TEST_IMG}.base"
+    rm -f "${TEST_IMG}.convert"
+    rm -f "${TEST_IMG}.a"
+    rm -f "${TEST_IMG}.b"
+    rm -f "${TEST_IMG}.lnk"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+size=32M
+
+_check_ofd()
+{
+    _make_test_img $size >/dev/null
+    if $QEMU_IMG_PROG info --image-opts "driver=file,locking=on,filename=$TEST_IMG" 2>&1 |
+        grep -q 'falling back to POSIX file'; then
+        return 1
+    else
+        return 0
+    fi
+}
+
+_check_ofd || _notrun "OFD lock not available"
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+_run_cmd()
+{
+    echo
+    (echo "$@"; "$@" 2>&1 1>/dev/null) | _filter_testdir
+}
+
+function _do_run_qemu()
+{
+    (
+        if ! test -t 0; then
+            while read cmd; do
+                echo $cmd
+            done
+        fi
+        echo quit
+    ) | $QEMU -nographic -monitor stdio -serial none "$@" 1>/dev/null
+}
+
+function _run_qemu_with_images()
+{
+    _do_run_qemu \
+        $(for i in $@; do echo "-drive if=none,file=$i"; done) 2>&1 \
+        | _filter_testdir | _filter_qemu
+}
+
+echo "== readonly=off,force-share=on should be rejected =="
+_run_qemu_with_images null-co://,readonly=off,force-share=on
+
+for opts1 in "" "read-only=on" "read-only=on,force-share=on"; do
+    echo
+    echo "== Creating base image =="
+    TEST_IMG="${TEST_IMG}.base" _make_test_img $size
+
+    echo
+    echo "== Creating test image =="
+    $QEMU_IMG create -f $IMGFMT "${TEST_IMG}" -b ${TEST_IMG}.base | _filter_img_create
+
+    echo
+    echo "== Launching QEMU, opts: '$opts1' =="
+    _launch_qemu -drive file="${TEST_IMG}",if=none,$opts1
+    h=$QEMU_HANDLE
+
+    for opts2 in "" "read-only=on" "read-only=on,force-share=on"; do
+        echo
+        echo "== Launching another QEMU, opts: '$opts2' =="
+        echo "quit" | \
+            $QEMU -nographic -monitor stdio \
+            -drive file="${TEST_IMG}",if=none,$opts2 2>&1 1>/dev/null | \
+            _filter_testdir | _filter_qemu
+    done
+
+    for L in "" "-U"; do
+
+        echo
+        echo "== Running utility commands $L =="
+        _run_cmd $QEMU_IO $L -c "read 0 512" "${TEST_IMG}"
+        _run_cmd $QEMU_IO $L -r -c "read 0 512" "${TEST_IMG}"
+        _run_cmd $QEMU_IO -c "open $L ${TEST_IMG}" -c "read 0 512"
+        _run_cmd $QEMU_IO -c "open -r $L ${TEST_IMG}" -c "read 0 512"
+        _run_cmd $QEMU_IMG info        $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG check       $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG compare     $L "${TEST_IMG}" "${TEST_IMG}"
+        _run_cmd $QEMU_IMG map         $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG amend -o "" $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG commit      $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG resize      $L "${TEST_IMG}" $size
+        _run_cmd $QEMU_IMG rebase      $L "${TEST_IMG}" -b "${TEST_IMG}.base"
+        _run_cmd $QEMU_IMG snapshot -l $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG convert     $L "${TEST_IMG}" "${TEST_IMG}.convert"
+        _run_cmd $QEMU_IMG dd          $L if="${TEST_IMG}" of="${TEST_IMG}.convert" bs=512 count=1
+        _run_cmd $QEMU_IMG bench       $L -c 1 "${TEST_IMG}"
+        _run_cmd $QEMU_IMG bench       $L -w -c 1 "${TEST_IMG}"
+    done
+    _send_qemu_cmd $h "{ 'execute': 'quit', }" ""
+    echo
+    echo "Round done"
+    _cleanup_qemu
+done
+
+for opt1 in $test_opts; do
+    for opt2 in $test_opts; do
+        echo
+        echo "== Two devices with the same image ($opt1 - $opt2) =="
+        _run_qemu_with_images "${TEST_IMG},$opt1" "${TEST_IMG},$opt2"
+    done
+done
+
+echo "== Creating ${TEST_IMG}.[abc] ==" | _filter_testdir
+(
+    $QEMU_IMG create -f qcow2 "${TEST_IMG}.a" -b "${TEST_IMG}"
+    $QEMU_IMG create -f qcow2 "${TEST_IMG}.b" -b "${TEST_IMG}"
+    $QEMU_IMG create -f qcow2 "${TEST_IMG}.c" -b "${TEST_IMG}.b"
+) | _filter_img_create
+
+echo
+echo "== Two devices sharing the same file in backing chain =="
+_run_qemu_with_images "${TEST_IMG}.a" "${TEST_IMG}.b"
+_run_qemu_with_images "${TEST_IMG}.a" "${TEST_IMG}.c"
+
+echo
+echo "== Backing image also as an active device =="
+_run_qemu_with_images "${TEST_IMG}.a" "${TEST_IMG}"
+
+echo
+echo "== Backing image also as an active device (ro) =="
+_run_qemu_with_images "${TEST_IMG}.a" "${TEST_IMG},readonly=on"
+
+echo
+echo "== Symbolic link =="
+rm -f "${TEST_IMG}.lnk" &>/dev/null
+ln -s ${TEST_IMG} "${TEST_IMG}.lnk" || echo "Failed to create link"
+_run_qemu_with_images "${TEST_IMG}.lnk" "${TEST_IMG}"
+
+echo
+echo "== Closing an image should unlock it =="
+_launch_qemu
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'qmp_capabilities' }" \
+    'return'
+
+echo "Adding drive"
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_add 0 if=none,id=d0,file=${TEST_IMG}' } }" \
+    ""
+
+_run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
+
+echo "Closing drive"
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_del d0' } }" \
+    ""
+
+_run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
+
+echo "Adding two and closing one"
+for d in d0 d1; do
+    _send_qemu_cmd $QEMU_HANDLE \
+        "{ 'execute': 'human-monitor-command',
+           'arguments': { 'command-line': 'drive_add 0 if=none,id=$d,file=${TEST_IMG},readonly=on' } }" \
+        ""
+done
+
+_run_cmd $QEMU_IMG info "${TEST_IMG}"
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_del d0' } }" \
+    ""
+
+_run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
+
+echo "Closing the other"
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_del d1' } }" \
+    ""
+
+_run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
+
+_cleanup_qemu
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

@@ -2923,10 +2923,9 @@ void qmp_block_resize(bool has_device, const char *device,
         goto out;
     }
 
-    /* complete all in-flight operations before resizing the device */
-    bdrv_drain_all();
-
+    bdrv_drained_begin(bs);
     ret = blk_truncate(blk, size, errp);
+    bdrv_drained_end(bs);
 
 out:
     blk_unref(blk);
@@ -3151,6 +3150,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
     Error *local_err = NULL;
     int flags;
     int64_t size;
+    bool set_backing_hd = false;
 
     if (!backup->has_speed) {
         backup->speed = 0;
@@ -3201,6 +3201,8 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
     }
     if (backup->sync == MIRROR_SYNC_MODE_NONE) {
         source = bs;
+        flags |= BDRV_O_NO_BACKING;
+        set_backing_hd = true;
     }
 
     size = bdrv_getlength(bs);
@@ -3227,7 +3229,9 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
     }
 
     if (backup->format) {
-        options = qdict_new();
+        if (!options) {
+            options = qdict_new();
+        }
         qdict_put_str(options, "driver", backup->format);
     }
 
@@ -3237,6 +3241,14 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
     }
 
     bdrv_set_aio_context(target_bs, aio_context);
+
+    if (set_backing_hd) {
+        bdrv_set_backing_hd(target_bs, source, &local_err);
+        if (local_err) {
+            bdrv_unref(target_bs);
+            goto out;
+        }
+    }
 
     if (backup->has_bitmap) {
         bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);

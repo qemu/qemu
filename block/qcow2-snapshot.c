@@ -440,10 +440,9 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
 
     /* The VM state isn't needed any more in the active L1 table; in fact, it
      * hurts by causing expensive COW for the next snapshot. */
-    qcow2_discard_clusters(bs, qcow2_vm_state_offset(s),
-                           align_offset(sn->vm_state_size, s->cluster_size)
-                                >> BDRV_SECTOR_BITS,
-                           QCOW2_DISCARD_NEVER, false);
+    qcow2_cluster_discard(bs, qcow2_vm_state_offset(s),
+                          align_offset(sn->vm_state_size, s->cluster_size),
+                          QCOW2_DISCARD_NEVER, false);
 
 #ifdef DEBUG_ALLOC
     {

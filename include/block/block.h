@@ -109,6 +109,7 @@ typedef struct HDGeometry {
 #define BDRV_OPT_CACHE_NO_FLUSH "cache.no-flush"
 #define BDRV_OPT_READ_ONLY      "read-only"
 #define BDRV_OPT_DISCARD        "discard"
+#define BDRV_OPT_FORCE_SHARE    "force-share"
 
 
 #define BDRV_SECTOR_BITS   9
@@ -120,29 +121,32 @@ typedef struct HDGeometry {
 #define BDRV_REQUEST_MAX_BYTES (BDRV_REQUEST_MAX_SECTORS << BDRV_SECTOR_BITS)
 
 /*
- * Allocation status flags
- * BDRV_BLOCK_DATA: data is read from a file returned by bdrv_get_block_status.
- * BDRV_BLOCK_ZERO: sectors read as zero
- * BDRV_BLOCK_OFFSET_VALID: sector stored as raw data in a file returned by
- *                          bdrv_get_block_status.
+ * Allocation status flags for bdrv_get_block_status() and friends.
+ *
+ * Public flags:
+ * BDRV_BLOCK_DATA: allocation for data at offset is tied to this layer
+ * BDRV_BLOCK_ZERO: offset reads as zero
+ * BDRV_BLOCK_OFFSET_VALID: an associated offset exists for accessing raw data
  * BDRV_BLOCK_ALLOCATED: the content of the block is determined by this
- *                       layer (as opposed to the backing file)
- * BDRV_BLOCK_RAW: used internally to indicate that the request
- *                 was answered by the raw driver and that one
- *                 should look in bs->file directly.
+ *                       layer (short for DATA || ZERO), set by block layer
  *
- * If BDRV_BLOCK_OFFSET_VALID is set, bits 9-62 represent the offset in
- * bs->file where sector data can be read from as raw data.
+ * Internal flag:
+ * BDRV_BLOCK_RAW: used internally to indicate that the request was
+ *                 answered by a passthrough driver such as raw and that the
+ *                 block layer should recompute the answer from bs->file.
  *
- * DATA == 0 && ZERO == 0 means that data is read from backing_hd if present.
+ * If BDRV_BLOCK_OFFSET_VALID is set, bits 9-62 (BDRV_BLOCK_OFFSET_MASK)
+ * represent the offset in the returned BDS that is allocated for the
+ * corresponding raw data; however, whether that offset actually contains
+ * data also depends on BDRV_BLOCK_DATA and BDRV_BLOCK_ZERO, as follows:
  *
  * DATA ZERO OFFSET_VALID
- *  t    t        t       sectors read as zero, bs->file is zero at offset
- *  t    f        t       sectors read as valid from bs->file at offset
- *  f    t        t       sectors preallocated, read as zero, bs->file not
+ *  t    t        t       sectors read as zero, returned file is zero at offset
+ *  t    f        t       sectors read as valid from file at offset
+ *  f    t        t       sectors preallocated, read as zero, returned file not
  *                        necessarily zero at offset
  *  f    f        t       sectors preallocated but read from backing_hd,
- *                        bs->file contains garbage at offset
+ *                        returned file contains garbage at offset
  *  t    t        f       sectors preallocated, read as zero, unknown offset
  *  t    f        f       sectors read from unknown file or offset
  *  f    t        f       not allocated or unknown offset, read as zero
@@ -223,6 +227,8 @@ enum {
 
     BLK_PERM_ALL                = 0x1f,
 };
+
+char *bdrv_perm_names(uint64_t perm);
 
 /* disk I/O throttling */
 void bdrv_init(void);
@@ -366,8 +372,6 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp);
 void bdrv_invalidate_cache_all(Error **errp);
 int bdrv_inactivate_all(void);
 
-void blk_resume_after_migration(Error **errp);
-
 /* Ensure contents are flushed to disk.  */
 int bdrv_flush(BlockDriverState *bs);
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs);
@@ -434,6 +438,7 @@ int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
                             int64_t sector_num, int nb_sectors, int *pnum);
 
 bool bdrv_is_read_only(BlockDriverState *bs);
+bool bdrv_is_writable(BlockDriverState *bs);
 int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only, Error **errp);
 int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp);
 bool bdrv_is_sg(BlockDriverState *bs);

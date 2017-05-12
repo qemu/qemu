@@ -154,6 +154,7 @@
 149 rw auto sudo
 150 rw auto quick
 152 rw auto quick
+153 rw auto quick
 154 rw auto backing quick
 155 rw auto
 156 rw auto quick
@@ -169,4 +170,7 @@
 174 auto
 175 auto quick
 176 rw auto backing
+177 rw auto quick
+179 rw auto quick
 181 rw auto migration
+182 rw auto quick

@@ -152,10 +152,12 @@ _filter_img_info()
         -e "/log_size: [0-9]\\+/d"
 }
 
-# filter out offsets and file names from qemu-img map
+# filter out offsets and file names from qemu-img map; good for both
+# human and json output
 _filter_qemu_img_map()
 {
     sed -e 's/\([0-9a-fx]* *[0-9a-fx]* *\)[0-9a-fx]* */\1/g' \
+        -e 's/"offset": [0-9]\+/"offset": OFFSET/g' \
         -e 's/Mapped to *//' | _filter_testdir | _filter_imgfmt
 }
 

@@ -1,6 +1,7 @@
 /*
  * Block protocol for I/O error injection
  *
+ * Copyright (C) 2016-2017 Red Hat, Inc.
  * Copyright (c) 2010 Kevin Wolf <kwolf@redhat.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -37,7 +38,12 @@
 typedef struct BDRVBlkdebugState {
     int state;
     int new_state;
-    int align;
+    uint64_t align;
+    uint64_t max_transfer;
+    uint64_t opt_write_zero;
+    uint64_t max_write_zero;
+    uint64_t opt_discard;
+    uint64_t max_discard;
 
     /* For blkdebug_refresh_filename() */
     char *config_file;
@@ -342,6 +348,31 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_SIZE,
             .help = "Required alignment in bytes",
         },
+        {
+            .name = "max-transfer",
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum transfer size in bytes",
+        },
+        {
+            .name = "opt-write-zero",
+            .type = QEMU_OPT_SIZE,
+            .help = "Optimum write zero alignment in bytes",
+        },
+        {
+            .name = "max-write-zero",
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum write zero size in bytes",
+        },
+        {
+            .name = "opt-discard",
+            .type = QEMU_OPT_SIZE,
+            .help = "Optimum discard alignment in bytes",
+        },
+        {
+            .name = "max-discard",
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum discard size in bytes",
+        },
         { /* end of list */ }
     },
 };
@@ -352,8 +383,8 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVBlkdebugState *s = bs->opaque;
     QemuOpts *opts;
     Error *local_err = NULL;
-    uint64_t align;
     int ret;
+    uint64_t align;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -382,19 +413,69 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
-    /* Set request alignment */
-    align = qemu_opt_get_size(opts, "align", 0);
-    if (align < INT_MAX && is_power_of_2(align)) {
-        s->align = align;
-    } else if (align) {
-        error_setg(errp, "Invalid alignment");
-        ret = -EINVAL;
+    bs->supported_write_flags = BDRV_REQ_FUA &
+        bs->file->bs->supported_write_flags;
+    bs->supported_zero_flags = (BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP) &
+        bs->file->bs->supported_zero_flags;
+    ret = -EINVAL;
+
+    /* Set alignment overrides */
+    s->align = qemu_opt_get_size(opts, "align", 0);
+    if (s->align && (s->align >= INT_MAX || !is_power_of_2(s->align))) {
+        error_setg(errp, "Cannot meet constraints with align %" PRIu64,
+                   s->align);
+        goto out;
+    }
+    align = MAX(s->align, bs->file->bs->bl.request_alignment);
+
+    s->max_transfer = qemu_opt_get_size(opts, "max-transfer", 0);
+    if (s->max_transfer &&
+        (s->max_transfer >= INT_MAX ||
+         !QEMU_IS_ALIGNED(s->max_transfer, align))) {
+        error_setg(errp, "Cannot meet constraints with max-transfer %" PRIu64,
+                   s->max_transfer);
+        goto out;
+    }
+
+    s->opt_write_zero = qemu_opt_get_size(opts, "opt-write-zero", 0);
+    if (s->opt_write_zero &&
+        (s->opt_write_zero >= INT_MAX ||
+         !QEMU_IS_ALIGNED(s->opt_write_zero, align))) {
+        error_setg(errp, "Cannot meet constraints with opt-write-zero %" PRIu64,
+                   s->opt_write_zero);
+        goto out;
+    }
+
+    s->max_write_zero = qemu_opt_get_size(opts, "max-write-zero", 0);
+    if (s->max_write_zero &&
+        (s->max_write_zero >= INT_MAX ||
+         !QEMU_IS_ALIGNED(s->max_write_zero,
+                          MAX(s->opt_write_zero, align)))) {
+        error_setg(errp, "Cannot meet constraints with max-write-zero %" PRIu64,
+                   s->max_write_zero);
+        goto out;
+    }
+
+    s->opt_discard = qemu_opt_get_size(opts, "opt-discard", 0);
+    if (s->opt_discard &&
+        (s->opt_discard >= INT_MAX ||
+         !QEMU_IS_ALIGNED(s->opt_discard, align))) {
+        error_setg(errp, "Cannot meet constraints with opt-discard %" PRIu64,
+                   s->opt_discard);
+        goto out;
+    }
+
+    s->max_discard = qemu_opt_get_size(opts, "max-discard", 0);
+    if (s->max_discard &&
+        (s->max_discard >= INT_MAX ||
+         !QEMU_IS_ALIGNED(s->max_discard,
+                          MAX(s->opt_discard, align)))) {
+        error_setg(errp, "Cannot meet constraints with max-discard %" PRIu64,
+                   s->max_discard);
         goto out;
     }
 
     ret = 0;
-    goto out;
-
 out:
     if (ret < 0) {
         g_free(s->config_file);
@@ -403,11 +484,30 @@ out:
     return ret;
 }
 
-static int inject_error(BlockDriverState *bs, BlkdebugRule *rule)
+static int rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes)
 {
     BDRVBlkdebugState *s = bs->opaque;
-    int error = rule->options.inject.error;
-    bool immediately = rule->options.inject.immediately;
+    BlkdebugRule *rule = NULL;
+    int error;
+    bool immediately;
+
+    QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
+        uint64_t inject_offset = rule->options.inject.offset;
+
+        if (inject_offset == -1 ||
+            (bytes && inject_offset >= offset &&
+             inject_offset < offset + bytes))
+        {
+            break;
+        }
+    }
+
+    if (!rule || !rule->options.inject.error) {
+        return 0;
+    }
+
+    immediately = rule->options.inject.immediately;
+    error = rule->options.inject.error;
 
     if (rule->options.inject.once) {
         QSIMPLEQ_REMOVE(&s->active_rules, rule, BlkdebugRule, active_next);
@@ -426,21 +526,18 @@ static int coroutine_fn
 blkdebug_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
                    QEMUIOVector *qiov, int flags)
 {
-    BDRVBlkdebugState *s = bs->opaque;
-    BlkdebugRule *rule = NULL;
+    int err;
 
-    QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
-        uint64_t inject_offset = rule->options.inject.offset;
-
-        if (inject_offset == -1 ||
-            (inject_offset >= offset && inject_offset < offset + bytes))
-        {
-            break;
-        }
+    /* Sanity check block layer guarantees */
+    assert(QEMU_IS_ALIGNED(offset, bs->bl.request_alignment));
+    assert(QEMU_IS_ALIGNED(bytes, bs->bl.request_alignment));
+    if (bs->bl.max_transfer) {
+        assert(bytes <= bs->bl.max_transfer);
     }
 
-    if (rule && rule->options.inject.error) {
-        return inject_error(bs, rule);
+    err = rule_check(bs, offset, bytes);
+    if (err) {
+        return err;
     }
 
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
@@ -450,21 +547,18 @@ static int coroutine_fn
 blkdebug_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
                     QEMUIOVector *qiov, int flags)
 {
-    BDRVBlkdebugState *s = bs->opaque;
-    BlkdebugRule *rule = NULL;
+    int err;
 
-    QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
-        uint64_t inject_offset = rule->options.inject.offset;
-
-        if (inject_offset == -1 ||
-            (inject_offset >= offset && inject_offset < offset + bytes))
-        {
-            break;
-        }
+    /* Sanity check block layer guarantees */
+    assert(QEMU_IS_ALIGNED(offset, bs->bl.request_alignment));
+    assert(QEMU_IS_ALIGNED(bytes, bs->bl.request_alignment));
+    if (bs->bl.max_transfer) {
+        assert(bytes <= bs->bl.max_transfer);
     }
 
-    if (rule && rule->options.inject.error) {
-        return inject_error(bs, rule);
+    err = rule_check(bs, offset, bytes);
+    if (err) {
+        return err;
     }
 
     return bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
@@ -472,22 +566,81 @@ blkdebug_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
 
 static int blkdebug_co_flush(BlockDriverState *bs)
 {
-    BDRVBlkdebugState *s = bs->opaque;
-    BlkdebugRule *rule = NULL;
+    int err = rule_check(bs, 0, 0);
 
-    QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
-        if (rule->options.inject.offset == -1) {
-            break;
-        }
-    }
-
-    if (rule && rule->options.inject.error) {
-        return inject_error(bs, rule);
+    if (err) {
+        return err;
     }
 
     return bdrv_co_flush(bs->file->bs);
 }
 
+static int coroutine_fn blkdebug_co_pwrite_zeroes(BlockDriverState *bs,
+                                                  int64_t offset, int count,
+                                                  BdrvRequestFlags flags)
+{
+    uint32_t align = MAX(bs->bl.request_alignment,
+                         bs->bl.pwrite_zeroes_alignment);
+    int err;
+
+    /* Only pass through requests that are larger than requested
+     * preferred alignment (so that we test the fallback to writes on
+     * unaligned portions), and check that the block layer never hands
+     * us anything unaligned that crosses an alignment boundary.  */
+    if (count < align) {
+        assert(QEMU_IS_ALIGNED(offset, align) ||
+               QEMU_IS_ALIGNED(offset + count, align) ||
+               DIV_ROUND_UP(offset, align) ==
+               DIV_ROUND_UP(offset + count, align));
+        return -ENOTSUP;
+    }
+    assert(QEMU_IS_ALIGNED(offset, align));
+    assert(QEMU_IS_ALIGNED(count, align));
+    if (bs->bl.max_pwrite_zeroes) {
+        assert(count <= bs->bl.max_pwrite_zeroes);
+    }
+
+    err = rule_check(bs, offset, count);
+    if (err) {
+        return err;
+    }
+
+    return bdrv_co_pwrite_zeroes(bs->file, offset, count, flags);
+}
+
+static int coroutine_fn blkdebug_co_pdiscard(BlockDriverState *bs,
+                                             int64_t offset, int count)
+{
+    uint32_t align = bs->bl.pdiscard_alignment;
+    int err;
+
+    /* Only pass through requests that are larger than requested
+     * minimum alignment, and ensure that unaligned requests do not
+     * cross optimum discard boundaries. */
+    if (count < bs->bl.request_alignment) {
+        assert(QEMU_IS_ALIGNED(offset, align) ||
+               QEMU_IS_ALIGNED(offset + count, align) ||
+               DIV_ROUND_UP(offset, align) ==
+               DIV_ROUND_UP(offset + count, align));
+        return -ENOTSUP;
+    }
+    assert(QEMU_IS_ALIGNED(offset, bs->bl.request_alignment));
+    assert(QEMU_IS_ALIGNED(count, bs->bl.request_alignment));
+    if (align && count >= align) {
+        assert(QEMU_IS_ALIGNED(offset, align));
+        assert(QEMU_IS_ALIGNED(count, align));
+    }
+    if (bs->bl.max_pdiscard) {
+        assert(count <= bs->bl.max_pdiscard);
+    }
+
+    err = rule_check(bs, offset, count);
+    if (err) {
+        return err;
+    }
+
+    return bdrv_co_pdiscard(bs->file->bs, offset, count);
+}
 
 static void blkdebug_close(BlockDriverState *bs)
 {
@@ -715,6 +868,21 @@ static void blkdebug_refresh_limits(BlockDriverState *bs, Error **errp)
     if (s->align) {
         bs->bl.request_alignment = s->align;
     }
+    if (s->max_transfer) {
+        bs->bl.max_transfer = s->max_transfer;
+    }
+    if (s->opt_write_zero) {
+        bs->bl.pwrite_zeroes_alignment = s->opt_write_zero;
+    }
+    if (s->max_write_zero) {
+        bs->bl.max_pwrite_zeroes = s->max_write_zero;
+    }
+    if (s->opt_discard) {
+        bs->bl.pdiscard_alignment = s->opt_discard;
+    }
+    if (s->max_discard) {
+        bs->bl.max_pdiscard = s->max_discard;
+    }
 }
 
 static int blkdebug_reopen_prepare(BDRVReopenState *reopen_state,
@@ -742,6 +910,8 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_co_preadv         = blkdebug_co_preadv,
     .bdrv_co_pwritev        = blkdebug_co_pwritev,
     .bdrv_co_flush_to_disk  = blkdebug_co_flush,
+    .bdrv_co_pwrite_zeroes  = blkdebug_co_pwrite_zeroes,
+    .bdrv_co_pdiscard       = blkdebug_co_pdiscard,
 
     .bdrv_debug_event           = blkdebug_debug_event,
     .bdrv_debug_breakpoint      = blkdebug_debug_breakpoint,
