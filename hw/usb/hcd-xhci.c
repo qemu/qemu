@@ -50,7 +50,7 @@
 /* Very pessimistic, let's hope it's enough for all cases */
 #define EV_QUEUE (((3 * 24) + 16) * MAXSLOTS)
 
-#define TRB_LINK_LIMIT  4
+#define TRB_LINK_LIMIT  32
 #define COMMAND_LIMIT   256
 #define TRANSFER_LIMIT  256
 
