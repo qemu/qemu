@@ -166,6 +166,7 @@ void HELPER(simcall)(CPUXtensaState *env)
             uint32_t fd = regs[3];
             uint32_t vaddr = regs[4];
             uint32_t len = regs[5];
+            uint32_t len_done = 0;
 
             while (len > 0) {
                 hwaddr paddr = cpu_get_phys_page_debug(cs, vaddr);
@@ -174,24 +175,38 @@ void HELPER(simcall)(CPUXtensaState *env)
                 uint32_t io_sz = page_left < len ? page_left : len;
                 hwaddr sz = io_sz;
                 void *buf = cpu_physical_memory_map(paddr, &sz, !is_write);
+                uint32_t io_done;
+                bool error = false;
 
                 if (buf) {
                     vaddr += io_sz;
                     len -= io_sz;
-                    regs[2] = is_write ?
+                    io_done = is_write ?
                         write(fd, buf, io_sz) :
                         read(fd, buf, io_sz);
                     regs[3] = errno_h2g(errno);
-                    cpu_physical_memory_unmap(buf, sz, !is_write, sz);
-                    if (regs[2] == -1) {
-                        break;
+                    if (io_done == -1) {
+                        error = true;
+                        io_done = 0;
                     }
+                    cpu_physical_memory_unmap(buf, sz, !is_write, io_done);
                 } else {
-                    regs[2] = -1;
+                    error = true;
                     regs[3] = TARGET_EINVAL;
                     break;
                 }
+                if (error) {
+                    if (!len_done) {
+                        len_done = -1;
+                    }
+                    break;
+                }
+                len_done += io_done;
+                if (io_done < io_sz) {
+                    break;
+                }
             }
+            regs[2] = len_done;
         }
         break;
 
