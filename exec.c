@@ -978,7 +978,7 @@ static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
     if (block && addr - block->offset < block->max_length) {
         return block;
     }
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         if (addr - block->offset < block->max_length) {
             goto found;
         }
@@ -1578,12 +1578,12 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
         return 0;
     }
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         ram_addr_t end, next = RAM_ADDR_MAX;
 
         end = block->offset + block->max_length;
 
-        QLIST_FOREACH_RCU(next_block, &ram_list.blocks, next) {
+        RAMBLOCK_FOREACH(next_block) {
             if (next_block->offset >= end) {
                 next = MIN(next, next_block->offset);
             }
@@ -1609,7 +1609,7 @@ unsigned long last_ram_page(void)
     ram_addr_t last = 0;
 
     rcu_read_lock();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         last = MAX(last, block->offset + block->max_length);
     }
     rcu_read_unlock();
@@ -1659,7 +1659,7 @@ void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
     pstrcat(new_block->idstr, sizeof(new_block->idstr), name);
 
     rcu_read_lock();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         if (block != new_block &&
             !strcmp(block->idstr, new_block->idstr)) {
             fprintf(stderr, "RAMBlock \"%s\" already registered, abort!\n",
@@ -1693,7 +1693,7 @@ size_t qemu_ram_pagesize_largest(void)
     RAMBlock *block;
     size_t largest = 0;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         largest = MAX(largest, qemu_ram_pagesize(block));
     }
 
@@ -1839,7 +1839,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
      * QLIST (which has an RCU-friendly variant) does not have insertion at
      * tail, so save the last element in last_block.
      */
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         last_block = block;
         if (block->max_length < new_block->max_length) {
             break;
@@ -2021,7 +2021,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
     int flags;
     void *area, *vaddr;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         offset = addr - block->offset;
         if (offset < block->max_length) {
             vaddr = ramblock_ptr(block, offset);
@@ -2167,7 +2167,7 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
         goto found;
     }
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         /* This case append when the block is not mapped. */
         if (block->host == NULL) {
             continue;
@@ -2200,7 +2200,7 @@ RAMBlock *qemu_ram_block_by_name(const char *name)
 {
     RAMBlock *block;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         if (!strcmp(name, block->idstr)) {
             return block;
         }
@@ -3424,7 +3424,7 @@ int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
     int ret = 0;
 
     rcu_read_lock();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         ret = func(block->idstr, block->host, block->offset,
                    block->used_length, opaque);
         if (ret) {
