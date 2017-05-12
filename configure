@@ -1334,7 +1334,7 @@ Advanced options (experts only):
   --oss-lib                path to OSS library
   --cpu=CPU                Build for host CPU [$cpu]
   --with-coroutine=BACKEND coroutine backend. Supported options:
-                           gthread, ucontext, sigaltstack, windows
+                           ucontext, sigaltstack, windows
   --enable-gcov            enable test coverage analysis with gcov
   --gcov=GCOV              use specified gcov [$gcov_tool]
   --disable-blobs          disable installing provided firmware blobs
@@ -4418,10 +4418,8 @@ fi
 # check and set a backend for coroutine
 
 # We prefer ucontext, but it's not always possible. The fallback
-# is sigcontext. gthread is not selectable except explicitly, because
-# it is not functional enough to run QEMU proper. (It is occasionally
-# useful for debugging purposes.)  On Windows the only valid backend
-# is the Windows-specific one.
+# is sigcontext. On Windows the only valid backend is the Windows
+# specific one.
 
 ucontext_works=no
 if test "$darwin" != "yes"; then
@@ -4460,7 +4458,7 @@ else
       feature_not_found "ucontext"
     fi
     ;;
-  gthread|sigaltstack)
+  sigaltstack)
     if test "$mingw32" = "yes"; then
       error_exit "only the 'windows' coroutine backend is valid for Windows"
     fi
@@ -4472,14 +4470,7 @@ else
 fi
 
 if test "$coroutine_pool" = ""; then
-  if test "$coroutine" = "gthread"; then
-    coroutine_pool=no
-  else
-    coroutine_pool=yes
-  fi
-fi
-if test "$coroutine" = "gthread" -a "$coroutine_pool" = "yes"; then
-  error_exit "'gthread' coroutine backend does not support pool (use --disable-coroutine-pool)"
+  coroutine_pool=yes
 fi
 
 if test "$debug_stack_usage" = "yes"; then
