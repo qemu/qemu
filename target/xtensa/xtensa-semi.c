@@ -173,7 +173,7 @@ void HELPER(simcall)(CPUXtensaState *env)
                     TARGET_PAGE_SIZE - (vaddr & (TARGET_PAGE_SIZE - 1));
                 uint32_t io_sz = page_left < len ? page_left : len;
                 hwaddr sz = io_sz;
-                void *buf = cpu_physical_memory_map(paddr, &sz, is_write);
+                void *buf = cpu_physical_memory_map(paddr, &sz, !is_write);
 
                 if (buf) {
                     vaddr += io_sz;
@@ -182,7 +182,7 @@ void HELPER(simcall)(CPUXtensaState *env)
                         write(fd, buf, io_sz) :
                         read(fd, buf, io_sz);
                     regs[3] = errno_h2g(errno);
-                    cpu_physical_memory_unmap(buf, sz, is_write, sz);
+                    cpu_physical_memory_unmap(buf, sz, !is_write, sz);
                     if (regs[2] == -1) {
                         break;
                     }
