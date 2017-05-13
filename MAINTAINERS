@@ -354,6 +354,12 @@ L: qemu-devel@nongnu.org
 S: Maintained
 F: *posix*
 
+NETBSD
+L: qemu-devel@nongnu.org
+M: Kamil Rytarowski <kamil@netbsd.org>
+S: Maintained
+K: (?i)NetBSD
+
 W32, W64
 L: qemu-devel@nongnu.org
 M: Stefan Weil <sw@weilnetz.de>
