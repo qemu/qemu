@@ -22,8 +22,9 @@ enum ReplayEvents {
     EVENT_EXCEPTION,
     /* for async events */
     EVENT_ASYNC,
-    /* for shutdown request */
+    /* for shutdown requests, range allows recovery of ShutdownCause */
     EVENT_SHUTDOWN,
+    EVENT_SHUTDOWN_LAST = EVENT_SHUTDOWN + SHUTDOWN_CAUSE__MAX,
     /* for character device write event */
     EVENT_CHAR_WRITE,
     /* for character device read all event */
