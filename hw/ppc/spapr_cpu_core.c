@@ -147,25 +147,25 @@ static void spapr_cpu_core_realize_child(Object *child, Error **errp)
     object_property_add_const_link(obj, "xics", OBJECT(spapr), &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
-        error_propagate(errp, local_err);
-        return;
+        goto error;
     }
 
     object_property_set_bool(child, true, "realized", &local_err);
     if (local_err) {
-        object_unparent(obj);
-        error_propagate(errp, local_err);
-        return;
+        goto error;
     }
 
     spapr_cpu_init(spapr, cpu, &local_err);
     if (local_err) {
-        object_unparent(obj);
-        error_propagate(errp, local_err);
-        return;
+        goto error;
     }
 
     xics_cpu_setup(XICS_FABRIC(spapr), cpu, ICP(obj));
+    return;
+
+error:
+    object_unparent(obj);
+    error_propagate(errp, local_err);
 }
 
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
