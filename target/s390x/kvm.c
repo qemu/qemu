@@ -1927,7 +1927,7 @@ static int handle_intercept(S390CPU *cpu)
             cpu_synchronize_state(cs);
             if (s390_cpu_halt(cpu) == 0) {
                 if (is_special_wait_psw(cs)) {
-                    qemu_system_shutdown_request();
+                    qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
                 } else {
                     qemu_system_guest_panicked(NULL);
                 }
@@ -1936,7 +1936,7 @@ static int handle_intercept(S390CPU *cpu)
             break;
         case ICPT_CPU_STOP:
             if (s390_cpu_set_state(CPU_STATE_STOPPED, cpu) == 0) {
-                qemu_system_shutdown_request();
+                qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
             }
             if (cpu->env.sigp_order == SIGP_STOP_STORE_STATUS) {
                 kvm_s390_store_status(cpu, KVM_S390_STORE_STATUS_DEF_ADDR,

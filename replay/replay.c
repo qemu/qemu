@@ -51,8 +51,8 @@ bool replay_next_event_is(int event)
         switch (replay_state.data_kind) {
         case EVENT_SHUTDOWN ... EVENT_SHUTDOWN_LAST:
             replay_finish_event();
-            /* TODO - pass replay_state.data_kind - EVENT_SHUTDOWN as cause */
-            qemu_system_shutdown_request();
+            qemu_system_shutdown_request(replay_state.data_kind -
+                                         EVENT_SHUTDOWN);
             break;
         default:
             /* clock, time_t, checkpoint and other events */

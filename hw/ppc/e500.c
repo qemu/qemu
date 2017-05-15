@@ -774,7 +774,7 @@ static qemu_irq *ppce500_init_mpic(MachineState *machine, PPCE500Params *params,
 static void ppce500_power_off(void *opaque, int line, int on)
 {
     if (on) {
-        qemu_system_shutdown_request();
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
     }
 }
 

@@ -100,7 +100,7 @@ static void lx60_fpga_write(void *opaque, hwaddr addr,
 
     case 0x10: /*board reset*/
         if (val == 0xdead) {
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         }
         break;
     }

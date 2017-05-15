@@ -1162,7 +1162,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     spapr_ovec_cleanup(ov5_updates);
 
     if (spapr->cas_reboot) {
-        qemu_system_reset_request();
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
     } else {
         /* If ppc_spapr_reset() did not set up a HPT but one is necessary
          * (because the guest isn't going to use radix) then set it up here. */

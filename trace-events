@@ -38,7 +38,7 @@ vm_state_notify(int running, int reason) "running %d reason %d"
 load_file(const char *name, const char *path) "name %s location %s"
 runstate_set(int new_state) "new state %d"
 system_wakeup_request(int reason) "reason=%d"
-qemu_system_shutdown_request(void) ""
+qemu_system_shutdown_request(int reason) "reason=%d"
 qemu_system_powerdown_request(void) ""
 
 # spice-qemu-char.c

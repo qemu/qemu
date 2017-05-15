@@ -540,14 +540,14 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
         /* Guest state changed, currently only for shutdown */
         case HAX_EXIT_STATECHANGE:
             fprintf(stdout, "VCPU shutdown request\n");
-            qemu_system_shutdown_request();
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
             hax_vcpu_sync_state(env, 0);
             ret = 1;
             break;
         case HAX_EXIT_UNKNOWN_VMEXIT:
             fprintf(stderr, "Unknown VMX exit %x from guest\n",
                     ht->_exit_reason);
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             hax_vcpu_sync_state(env, 0);
             cpu_dump_state(cpu, stderr, fprintf, 0);
             ret = -1;
@@ -578,7 +578,7 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
             break;
         default:
             fprintf(stderr, "Unknown exit %x from HAX\n", ht->_exit_status);
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             hax_vcpu_sync_state(env, 0);
             cpu_dump_state(cpu, stderr, fprintf, 0);
             ret = 1;

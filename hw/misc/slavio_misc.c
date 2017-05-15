@@ -258,7 +258,7 @@ static void slavio_aux2_mem_writeb(void *opaque, hwaddr addr,
         val &= AUX2_PWROFF;
     s->aux2 = val;
     if (val & AUX2_PWROFF)
-        qemu_system_shutdown_request();
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
     slavio_misc_update_irq(s);
 }
 
@@ -338,7 +338,7 @@ static void slavio_sysctrl_mem_writel(void *opaque, hwaddr addr,
     case 0:
         if (val & SYS_RESET) {
             s->sysctrl = SYS_RESETSTAT;
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         }
         break;
     default:

@@ -1197,7 +1197,7 @@ static
 void do_sys_reset(void *opaque, int n, int level)
 {
     if (level) {
-        qemu_system_reset_request();
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
     }
 }
 

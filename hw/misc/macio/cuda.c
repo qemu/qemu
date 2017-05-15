@@ -612,7 +612,7 @@ static bool cuda_cmd_powerdown(CUDAState *s,
         return false;
     }
 
-    qemu_system_shutdown_request();
+    qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
     return true;
 }
 
@@ -624,7 +624,7 @@ static bool cuda_cmd_reset_system(CUDAState *s,
         return false;
     }
 
-    qemu_system_reset_request();
+    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
     return true;
 }
 

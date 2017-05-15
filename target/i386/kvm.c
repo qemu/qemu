@@ -2930,7 +2930,7 @@ int kvm_arch_process_async_events(CPUState *cs)
 
         if (env->exception_injected == EXCP08_DBLE) {
             /* this means triple fault */
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             cs->exit_request = 1;
             return 0;
         }

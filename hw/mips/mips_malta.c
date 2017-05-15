@@ -470,7 +470,7 @@ static void malta_fpga_write(void *opaque, hwaddr addr,
     /* SOFTRES Register */
     case 0x00500:
         if (val == 0x42)
-            qemu_system_reset_request ();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         break;
 
     /* BRKRES Register */

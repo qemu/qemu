@@ -561,7 +561,7 @@ static void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val)
         uint16_t sus_typ = (val >> 10) & 7;
         switch(sus_typ) {
         case 0: /* soft power off */
-            qemu_system_shutdown_request();
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
             break;
         case 1:
             qemu_system_suspend_request();
@@ -569,7 +569,7 @@ static void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val)
         default:
             if (sus_typ == ar->pm1.cnt.s4_val) { /* S4 request */
                 qapi_event_send_suspend_disk(&error_abort);
-                qemu_system_shutdown_request();
+                qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
             }
             break;
         }

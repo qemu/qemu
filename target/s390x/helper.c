@@ -266,7 +266,7 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
         S390CPU *cpu = s390_env_get_cpu(env);
         if (s390_cpu_halt(cpu) == 0) {
 #ifndef CONFIG_USER_ONLY
-            qemu_system_shutdown_request();
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
 #endif
         }
     }

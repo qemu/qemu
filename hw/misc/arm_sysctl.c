@@ -351,13 +351,13 @@ static bool vexpress_cfgctrl_write(arm_sysctl_state *s, unsigned int dcc,
         break;
     case SYS_CFG_SHUTDOWN:
         if (site == SYS_CFG_SITE_MB && device == 0) {
-            qemu_system_shutdown_request();
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
             return true;
         }
         break;
     case SYS_CFG_REBOOT:
         if (site == SYS_CFG_SITE_MB && device == 0) {
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             return true;
         }
         break;
@@ -429,7 +429,7 @@ static void arm_sysctl_write(void *opaque, hwaddr offset,
             if (s->lockval == LOCK_VALUE) {
                 s->resetlevel = val;
                 if (val & 0x100) {
-                    qemu_system_reset_request();
+                    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
                 }
             }
             break;
@@ -438,7 +438,7 @@ static void arm_sysctl_write(void *opaque, hwaddr offset,
             if (s->lockval == LOCK_VALUE) {
                 s->resetlevel = val;
                 if (val & 0x04) {
-                    qemu_system_reset_request();
+                    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
                 }
             }
             break;
