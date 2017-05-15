@@ -206,26 +206,26 @@ static void print_siginfo(const target_siginfo_t *tinfo)
 
     switch (si_type) {
     case QEMU_SI_KILL:
-        gemu_log(", si_pid = %u, si_uid = %u",
+        gemu_log(", si_pid=%u, si_uid=%u",
                  (unsigned int)tinfo->_sifields._kill._pid,
                  (unsigned int)tinfo->_sifields._kill._uid);
         break;
     case QEMU_SI_TIMER:
-        gemu_log(", si_timer1 = %u, si_timer2 = %u",
+        gemu_log(", si_timer1=%u, si_timer2=%u",
                  tinfo->_sifields._timer._timer1,
                  tinfo->_sifields._timer._timer2);
         break;
     case QEMU_SI_POLL:
-        gemu_log(", si_band = %d, si_fd = %d",
+        gemu_log(", si_band=%d, si_fd=%d",
                  tinfo->_sifields._sigpoll._band,
                  tinfo->_sifields._sigpoll._fd);
         break;
     case QEMU_SI_FAULT:
-        gemu_log(", si_addr = ");
+        gemu_log(", si_addr=");
         print_pointer(tinfo->_sifields._sigfault._addr, 1);
         break;
     case QEMU_SI_CHLD:
-        gemu_log(", si_pid = %u, si_uid = %u, si_status = %d"
+        gemu_log(", si_pid=%u, si_uid=%u, si_status=%d"
                  ", si_utime=" TARGET_ABI_FMT_ld
                  ", si_stime=" TARGET_ABI_FMT_ld,
                  (unsigned int)(tinfo->_sifields._sigchld._pid),
@@ -235,7 +235,7 @@ static void print_siginfo(const target_siginfo_t *tinfo)
                  tinfo->_sifields._sigchld._stime);
         break;
     case QEMU_SI_RT:
-        gemu_log(", si_pid = %u, si_uid = %u, si_sigval = " TARGET_ABI_FMT_ld,
+        gemu_log(", si_pid=%u, si_uid=%u, si_sigval=" TARGET_ABI_FMT_ld,
                  (unsigned int)tinfo->_sifields._rt._pid,
                  (unsigned int)tinfo->_sifields._rt._uid,
                  tinfo->_sifields._rt._sigval.sival_ptr);
