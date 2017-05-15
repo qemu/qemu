@@ -94,7 +94,8 @@ static void cg3_update_display(void *opaque)
     uint32_t dval;
     int x, y, y_start;
     unsigned int width, height;
-    ram_addr_t page, page_min, page_max;
+    ram_addr_t page;
+    DirtyBitmapSnapshot *snap = NULL;
 
     if (surface_bits_per_pixel(surface) != 32) {
         return;
@@ -103,28 +104,31 @@ static void cg3_update_display(void *opaque)
     height = s->height;
 
     y_start = -1;
-    page_min = -1;
-    page_max = 0;
-    page = 0;
     pix = memory_region_get_ram_ptr(&s->vram_mem);
     data = (uint32_t *)surface_data(surface);
 
-    memory_region_sync_dirty_bitmap(&s->vram_mem);
+    if (!s->full_update) {
+        memory_region_sync_dirty_bitmap(&s->vram_mem);
+        snap = memory_region_snapshot_and_clear_dirty(&s->vram_mem, 0x0,
+                                              memory_region_size(&s->vram_mem),
+                                              DIRTY_MEMORY_VGA);
+    }
+
     for (y = 0; y < height; y++) {
-        int update = s->full_update;
+        int update;
 
         page = (ram_addr_t)y * width;
-        update |= memory_region_get_dirty(&s->vram_mem, page, width,
-                                          DIRTY_MEMORY_VGA);
+
+        if (s->full_update) {
+            update = 1;
+        } else {
+            update = memory_region_snapshot_get_dirty(&s->vram_mem, snap, page,
+                                                      width);
+        }
+
         if (update) {
             if (y_start < 0) {
                 y_start = y;
-            }
-            if (page < page_min) {
-                page_min = page;
-            }
-            if (page > page_max) {
-                page_max = page;
             }
 
             for (x = 0; x < width; x++) {
@@ -134,7 +138,7 @@ static void cg3_update_display(void *opaque)
             }
         } else {
             if (y_start >= 0) {
-                dpy_gfx_update(s->con, 0, y_start, s->width, y - y_start);
+                dpy_gfx_update(s->con, 0, y_start, width, y - y_start);
                 y_start = -1;
             }
             pix += width;
@@ -143,17 +147,14 @@ static void cg3_update_display(void *opaque)
     }
     s->full_update = 0;
     if (y_start >= 0) {
-        dpy_gfx_update(s->con, 0, y_start, s->width, y - y_start);
-    }
-    if (page_max >= page_min) {
-        memory_region_reset_dirty(&s->vram_mem,
-                              page_min, page_max - page_min, DIRTY_MEMORY_VGA);
+        dpy_gfx_update(s->con, 0, y_start, width, y - y_start);
     }
     /* vsync interrupt? */
     if (s->regs[0] & CG3_CR_ENABLE_INTS) {
         s->regs[1] |= CG3_SR_PENDING_INT;
         qemu_irq_raise(s->irq);
     }
+    g_free(snap);
 }
 
 static void cg3_invalidate_display(void *opaque)

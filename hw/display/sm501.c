@@ -1414,6 +1414,7 @@ static void sm501_update_display(void *opaque)
 {
     SM501State *s = (SM501State *)opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
+    DirtyBitmapSnapshot *snap;
     int y, c_x = 0, c_y = 0;
     int crt = (s->dc_crt_control & SM501_DC_CRT_CONTROL_SEL) ? 1 : 0;
     int width = get_width(s, crt);
@@ -1425,9 +1426,7 @@ static void sm501_update_display(void *opaque)
     draw_hwc_line_func *draw_hwc_line = NULL;
     int full_update = 0;
     int y_start = -1;
-    ram_addr_t page_min = ~0l;
-    ram_addr_t page_max = 0l;
-    ram_addr_t offset;
+    ram_addr_t offset = 0;
     uint32_t *palette;
     uint8_t hwc_palette[3 * 3];
     uint8_t *hwc_src = NULL;
@@ -1479,17 +1478,17 @@ static void sm501_update_display(void *opaque)
 
     /* draw each line according to conditions */
     memory_region_sync_dirty_bitmap(&s->local_mem_region);
+    snap = memory_region_snapshot_and_clear_dirty(&s->local_mem_region,
+              offset, width * height * src_bpp, DIRTY_MEMORY_VGA);
     for (y = 0, offset = 0; y < height; y++, offset += width * src_bpp) {
         int update, update_hwc;
-        ram_addr_t page0 = offset;
-        ram_addr_t page1 = offset + width * src_bpp - 1;
 
         /* check if hardware cursor is enabled and we're within its range */
         update_hwc = draw_hwc_line && c_y <= y && y < c_y + SM501_HWC_HEIGHT;
         update = full_update || update_hwc;
         /* check dirty flags for each line */
-        update |= memory_region_get_dirty(&s->local_mem_region, page0,
-                                          page1 - page0, DIRTY_MEMORY_VGA);
+        update |= memory_region_snapshot_get_dirty(&s->local_mem_region, snap,
+                                                   offset, width * src_bpp);
 
         /* draw line and change status */
         if (update) {
@@ -1507,12 +1506,6 @@ static void sm501_update_display(void *opaque)
             if (y_start < 0) {
                 y_start = y;
             }
-            if (page0 < page_min) {
-                page_min = page0;
-            }
-            if (page1 > page_max) {
-                page_max = page1;
-            }
         } else {
             if (y_start >= 0) {
                 /* flush to display */
@@ -1521,17 +1514,11 @@ static void sm501_update_display(void *opaque)
             }
         }
     }
+    g_free(snap);
 
     /* complete flush to display */
     if (y_start >= 0) {
         dpy_gfx_update(s->con, 0, y_start, width, y - y_start);
-    }
-
-    /* clear dirty flags */
-    if (page_min != ~0l) {
-        memory_region_reset_dirty(&s->local_mem_region,
-                                  page_min, page_max + TARGET_PAGE_SIZE,
-                                  DIRTY_MEMORY_VGA);
     }
 }
 
