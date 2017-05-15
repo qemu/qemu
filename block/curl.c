@@ -282,6 +282,7 @@ read_end:
     return size * nmemb;
 }
 
+/* Called with s->mutex held.  */
 static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
                          CURLAIOCB *acb)
 {
@@ -454,6 +455,7 @@ static void curl_multi_timeout_do(void *arg)
 #endif
 }
 
+/* Called with s->mutex held.  */
 static CURLState *curl_init_state(BlockDriverState *bs, BDRVCURLState *s)
 {
     CURLState *state = NULL;
@@ -472,7 +474,9 @@ static CURLState *curl_init_state(BlockDriverState *bs, BDRVCURLState *s)
             break;
         }
         if (!state) {
+            qemu_mutex_unlock(&s->mutex);
             aio_poll(bdrv_get_aio_context(bs), true);
+            qemu_mutex_lock(&s->mutex);
         }
     } while(!state);
 
@@ -535,6 +539,7 @@ static CURLState *curl_init_state(BlockDriverState *bs, BDRVCURLState *s)
     return state;
 }
 
+/* Called with s->mutex held.  */
 static void curl_clean_state(CURLState *s)
 {
     int j;
@@ -566,6 +571,7 @@ static void curl_detach_aio_context(BlockDriverState *bs)
     BDRVCURLState *s = bs->opaque;
     int i;
 
+    qemu_mutex_lock(&s->mutex);
     for (i = 0; i < CURL_NUM_STATES; i++) {
         if (s->states[i].in_use) {
             curl_clean_state(&s->states[i]);
@@ -581,6 +587,7 @@ static void curl_detach_aio_context(BlockDriverState *bs)
         curl_multi_cleanup(s->multi);
         s->multi = NULL;
     }
+    qemu_mutex_unlock(&s->mutex);
 
     timer_del(&s->timer);
 }
@@ -684,6 +691,7 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
         return -EROFS;
     }
 
+    qemu_mutex_init(&s->mutex);
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (local_err) {
@@ -769,7 +777,9 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     DPRINTF("CURL: Opening %s\n", file);
     s->aio_context = bdrv_get_aio_context(bs);
     s->url = g_strdup(file);
+    qemu_mutex_lock(&s->mutex);
     state = curl_init_state(bs, s);
+    qemu_mutex_unlock(&s->mutex);
     if (!state)
         goto out_noclean;
 
@@ -813,11 +823,12 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     }
     DPRINTF("CURL: Size = %zd\n", s->len);
 
+    qemu_mutex_lock(&s->mutex);
     curl_clean_state(state);
+    qemu_mutex_unlock(&s->mutex);
     curl_easy_cleanup(state->curl);
     state->curl = NULL;
 
-    qemu_mutex_init(&s->mutex);
     curl_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
     qemu_opts_del(opts);
@@ -828,6 +839,7 @@ out:
     curl_easy_cleanup(state->curl);
     state->curl = NULL;
 out_noclean:
+    qemu_mutex_destroy(&s->mutex);
     g_free(s->cookie);
     g_free(s->url);
     qemu_opts_del(opts);
