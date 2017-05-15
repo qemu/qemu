@@ -208,6 +208,7 @@ static void usb_hub_wakeup(USBPort *port1)
     USBHubPort *port = &s->ports[port1->index];
 
     if (port->wPortStatus & PORT_STAT_SUSPEND) {
+        port->wPortStatus &= ~PORT_STAT_SUSPEND;
         port->wPortChange |= PORT_STAT_C_SUSPEND;
         usb_wakeup(s->intr, 0);
     }
