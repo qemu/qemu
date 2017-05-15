@@ -1338,11 +1338,13 @@ char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
 
 SocketAddress *socket_address_flatten(SocketAddressLegacy *addr_legacy)
 {
-    SocketAddress *addr = g_new(SocketAddress, 1);
+    SocketAddress *addr;
 
     if (!addr_legacy) {
         return NULL;
     }
+
+    addr = g_new(SocketAddress, 1);
 
     switch (addr_legacy->type) {
     case SOCKET_ADDRESS_LEGACY_KIND_INET:
