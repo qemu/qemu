@@ -2238,7 +2238,7 @@ static void ehci_frame_timer(void *opaque)
     int need_timer = 0;
     int64_t expire_time, t_now;
     uint64_t ns_elapsed;
-    int uframes, skipped_uframes;
+    uint64_t uframes, skipped_uframes;
     int i;
 
     t_now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
