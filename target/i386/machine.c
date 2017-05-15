@@ -136,177 +136,47 @@ static const VMStateDescription vmstate_mtrr_var = {
 #define VMSTATE_MTRR_VARS(_field, _state, _n, _v)                    \
     VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_mtrr_var, MTRRVar)
 
-static int put_fpreg_error(QEMUFile *f, void *opaque, size_t size,
-                           VMStateField *field, QJSON *vmdesc)
+typedef struct x86_FPReg_tmp {
+    FPReg *parent;
+    uint64_t tmp_mant;
+    uint16_t tmp_exp;
+} x86_FPReg_tmp;
+
+static void fpreg_pre_save(void *opaque)
 {
-    fprintf(stderr, "call put_fpreg() with invalid arguments\n");
-    exit(0);
-    return 0;
-}
+    x86_FPReg_tmp *tmp = opaque;
 
-/* XXX: add that in a FPU generic layer */
-union x86_longdouble {
-    uint64_t mant;
-    uint16_t exp;
-};
-
-#define MANTD1(fp)	(fp & ((1LL << 52) - 1))
-#define EXPBIAS1 1023
-#define EXPD1(fp)	((fp >> 52) & 0x7FF)
-#define SIGND1(fp)	((fp >> 32) & 0x80000000)
-
-static void fp64_to_fp80(union x86_longdouble *p, uint64_t temp)
-{
-    int e;
-    /* mantissa */
-    p->mant = (MANTD1(temp) << 11) | (1LL << 63);
-    /* exponent + sign */
-    e = EXPD1(temp) - EXPBIAS1 + 16383;
-    e |= SIGND1(temp) >> 16;
-    p->exp = e;
-}
-
-static int get_fpreg(QEMUFile *f, void *opaque, size_t size,
-                     VMStateField *field)
-{
-    FPReg *fp_reg = opaque;
-    uint64_t mant;
-    uint16_t exp;
-
-    qemu_get_be64s(f, &mant);
-    qemu_get_be16s(f, &exp);
-    fp_reg->d = cpu_set_fp80(mant, exp);
-    return 0;
-}
-
-static int put_fpreg(QEMUFile *f, void *opaque, size_t size,
-                     VMStateField *field, QJSON *vmdesc)
-{
-    FPReg *fp_reg = opaque;
-    uint64_t mant;
-    uint16_t exp;
     /* we save the real CPU data (in case of MMX usage only 'mant'
        contains the MMX register */
-    cpu_get_fp80(&mant, &exp, fp_reg->d);
-    qemu_put_be64s(f, &mant);
-    qemu_put_be16s(f, &exp);
+    cpu_get_fp80(&tmp->tmp_mant, &tmp->tmp_exp, tmp->parent->d);
+}
 
+static int fpreg_post_load(void *opaque, int version)
+{
+    x86_FPReg_tmp *tmp = opaque;
+
+    tmp->parent->d = cpu_set_fp80(tmp->tmp_mant, tmp->tmp_exp);
     return 0;
 }
 
-static const VMStateInfo vmstate_fpreg = {
+static const VMStateDescription vmstate_fpreg_tmp = {
+    .name = "fpreg_tmp",
+    .post_load = fpreg_post_load,
+    .pre_save  = fpreg_pre_save,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(tmp_mant, x86_FPReg_tmp),
+        VMSTATE_UINT16(tmp_exp, x86_FPReg_tmp),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_fpreg = {
     .name = "fpreg",
-    .get  = get_fpreg,
-    .put  = put_fpreg,
+    .fields = (VMStateField[]) {
+        VMSTATE_WITH_TMP(FPReg, x86_FPReg_tmp, vmstate_fpreg_tmp),
+        VMSTATE_END_OF_LIST()
+    }
 };
-
-static int get_fpreg_1_mmx(QEMUFile *f, void *opaque, size_t size,
-                           VMStateField *field)
-{
-    union x86_longdouble *p = opaque;
-    uint64_t mant;
-
-    qemu_get_be64s(f, &mant);
-    p->mant = mant;
-    p->exp = 0xffff;
-    return 0;
-}
-
-static const VMStateInfo vmstate_fpreg_1_mmx = {
-    .name = "fpreg_1_mmx",
-    .get  = get_fpreg_1_mmx,
-    .put  = put_fpreg_error,
-};
-
-static int get_fpreg_1_no_mmx(QEMUFile *f, void *opaque, size_t size,
-                              VMStateField *field)
-{
-    union x86_longdouble *p = opaque;
-    uint64_t mant;
-
-    qemu_get_be64s(f, &mant);
-    fp64_to_fp80(p, mant);
-    return 0;
-}
-
-static const VMStateInfo vmstate_fpreg_1_no_mmx = {
-    .name = "fpreg_1_no_mmx",
-    .get  = get_fpreg_1_no_mmx,
-    .put  = put_fpreg_error,
-};
-
-static bool fpregs_is_0(void *opaque, int version_id)
-{
-    X86CPU *cpu = opaque;
-    CPUX86State *env = &cpu->env;
-
-    return (env->fpregs_format_vmstate == 0);
-}
-
-static bool fpregs_is_1_mmx(void *opaque, int version_id)
-{
-    X86CPU *cpu = opaque;
-    CPUX86State *env = &cpu->env;
-    int guess_mmx;
-
-    guess_mmx = ((env->fptag_vmstate == 0xff) &&
-                 (env->fpus_vmstate & 0x3800) == 0);
-    return (guess_mmx && (env->fpregs_format_vmstate == 1));
-}
-
-static bool fpregs_is_1_no_mmx(void *opaque, int version_id)
-{
-    X86CPU *cpu = opaque;
-    CPUX86State *env = &cpu->env;
-    int guess_mmx;
-
-    guess_mmx = ((env->fptag_vmstate == 0xff) &&
-                 (env->fpus_vmstate & 0x3800) == 0);
-    return (!guess_mmx && (env->fpregs_format_vmstate == 1));
-}
-
-#define VMSTATE_FP_REGS(_field, _state, _n)                               \
-    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_0, vmstate_fpreg, FPReg), \
-    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_1_mmx, vmstate_fpreg_1_mmx, FPReg), \
-    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_1_no_mmx, vmstate_fpreg_1_no_mmx, FPReg)
-
-static bool version_is_5(void *opaque, int version_id)
-{
-    return version_id == 5;
-}
-
-#ifdef TARGET_X86_64
-static bool less_than_7(void *opaque, int version_id)
-{
-    return version_id < 7;
-}
-
-static int get_uint64_as_uint32(QEMUFile *f, void *pv, size_t size,
-                                VMStateField *field)
-{
-    uint64_t *v = pv;
-    *v = qemu_get_be32(f);
-    return 0;
-}
-
-static int put_uint64_as_uint32(QEMUFile *f, void *pv, size_t size,
-                                VMStateField *field, QJSON *vmdesc)
-{
-    uint64_t *v = pv;
-    qemu_put_be32(f, *v);
-
-    return 0;
-}
-
-static const VMStateInfo vmstate_hack_uint64_as_uint32 = {
-    .name = "uint64_as_uint32",
-    .get  = get_uint64_as_uint32,
-    .put  = put_uint64_as_uint32,
-};
-
-#define VMSTATE_HACK_UINT32(_f, _s, _t)                                  \
-    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_hack_uint64_as_uint32, uint64_t)
-#endif
 
 static void cpu_pre_save(void *opaque)
 {
@@ -356,6 +226,10 @@ static int cpu_post_load(void *opaque, int version_id)
         return -EINVAL;
     }
 
+    if (env->fpregs_format_vmstate) {
+        error_report("Unsupported old non-softfloat CPU state");
+        return -EINVAL;
+    }
     /*
      * Real mode guest segments register DPL should be zero.
      * Older KVM version were setting it wrongly.
@@ -930,7 +804,7 @@ static const VMStateDescription vmstate_mcg_ext_ctl = {
 VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
-    .minimum_version_id = 3,
+    .minimum_version_id = 11,
     .pre_save = cpu_pre_save,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
@@ -943,7 +817,8 @@ VMStateDescription vmstate_x86_cpu = {
         VMSTATE_UINT16(env.fpus_vmstate, X86CPU),
         VMSTATE_UINT16(env.fptag_vmstate, X86CPU),
         VMSTATE_UINT16(env.fpregs_format_vmstate, X86CPU),
-        VMSTATE_FP_REGS(env.fpregs, X86CPU, 8),
+
+        VMSTATE_STRUCT_ARRAY(env.fpregs, X86CPU, 8, 0, vmstate_fpreg, FPReg),
 
         VMSTATE_SEGMENT_ARRAY(env.segs, X86CPU, 6),
         VMSTATE_SEGMENT(env.ldt, X86CPU),
@@ -952,16 +827,8 @@ VMStateDescription vmstate_x86_cpu = {
         VMSTATE_SEGMENT(env.idt, X86CPU),
 
         VMSTATE_UINT32(env.sysenter_cs, X86CPU),
-#ifdef TARGET_X86_64
-        /* Hack: In v7 size changed from 32 to 64 bits on x86_64 */
-        VMSTATE_HACK_UINT32(env.sysenter_esp, X86CPU, less_than_7),
-        VMSTATE_HACK_UINT32(env.sysenter_eip, X86CPU, less_than_7),
-        VMSTATE_UINTTL_V(env.sysenter_esp, X86CPU, 7),
-        VMSTATE_UINTTL_V(env.sysenter_eip, X86CPU, 7),
-#else
         VMSTATE_UINTTL(env.sysenter_esp, X86CPU),
         VMSTATE_UINTTL(env.sysenter_eip, X86CPU),
-#endif
 
         VMSTATE_UINTTL(env.cr[0], X86CPU),
         VMSTATE_UINTTL(env.cr[2], X86CPU),
@@ -982,46 +849,45 @@ VMStateDescription vmstate_x86_cpu = {
         VMSTATE_UINT64(env.fmask, X86CPU),
         VMSTATE_UINT64(env.kernelgsbase, X86CPU),
 #endif
-        VMSTATE_UINT32_V(env.smbase, X86CPU, 4),
+        VMSTATE_UINT32(env.smbase, X86CPU),
 
-        VMSTATE_UINT64_V(env.pat, X86CPU, 5),
-        VMSTATE_UINT32_V(env.hflags2, X86CPU, 5),
+        VMSTATE_UINT64(env.pat, X86CPU),
+        VMSTATE_UINT32(env.hflags2, X86CPU),
 
-        VMSTATE_UINT32_TEST(parent_obj.halted, X86CPU, version_is_5),
-        VMSTATE_UINT64_V(env.vm_hsave, X86CPU, 5),
-        VMSTATE_UINT64_V(env.vm_vmcb, X86CPU, 5),
-        VMSTATE_UINT64_V(env.tsc_offset, X86CPU, 5),
-        VMSTATE_UINT64_V(env.intercept, X86CPU, 5),
-        VMSTATE_UINT16_V(env.intercept_cr_read, X86CPU, 5),
-        VMSTATE_UINT16_V(env.intercept_cr_write, X86CPU, 5),
-        VMSTATE_UINT16_V(env.intercept_dr_read, X86CPU, 5),
-        VMSTATE_UINT16_V(env.intercept_dr_write, X86CPU, 5),
-        VMSTATE_UINT32_V(env.intercept_exceptions, X86CPU, 5),
-        VMSTATE_UINT8_V(env.v_tpr, X86CPU, 5),
+        VMSTATE_UINT64(env.vm_hsave, X86CPU),
+        VMSTATE_UINT64(env.vm_vmcb, X86CPU),
+        VMSTATE_UINT64(env.tsc_offset, X86CPU),
+        VMSTATE_UINT64(env.intercept, X86CPU),
+        VMSTATE_UINT16(env.intercept_cr_read, X86CPU),
+        VMSTATE_UINT16(env.intercept_cr_write, X86CPU),
+        VMSTATE_UINT16(env.intercept_dr_read, X86CPU),
+        VMSTATE_UINT16(env.intercept_dr_write, X86CPU),
+        VMSTATE_UINT32(env.intercept_exceptions, X86CPU),
+        VMSTATE_UINT8(env.v_tpr, X86CPU),
         /* MTRRs */
-        VMSTATE_UINT64_ARRAY_V(env.mtrr_fixed, X86CPU, 11, 8),
-        VMSTATE_UINT64_V(env.mtrr_deftype, X86CPU, 8),
+        VMSTATE_UINT64_ARRAY(env.mtrr_fixed, X86CPU, 11),
+        VMSTATE_UINT64(env.mtrr_deftype, X86CPU),
         VMSTATE_MTRR_VARS(env.mtrr_var, X86CPU, MSR_MTRRcap_VCNT, 8),
         /* KVM-related states */
-        VMSTATE_INT32_V(env.interrupt_injected, X86CPU, 9),
-        VMSTATE_UINT32_V(env.mp_state, X86CPU, 9),
-        VMSTATE_UINT64_V(env.tsc, X86CPU, 9),
-        VMSTATE_INT32_V(env.exception_injected, X86CPU, 11),
-        VMSTATE_UINT8_V(env.soft_interrupt, X86CPU, 11),
-        VMSTATE_UINT8_V(env.nmi_injected, X86CPU, 11),
-        VMSTATE_UINT8_V(env.nmi_pending, X86CPU, 11),
-        VMSTATE_UINT8_V(env.has_error_code, X86CPU, 11),
-        VMSTATE_UINT32_V(env.sipi_vector, X86CPU, 11),
+        VMSTATE_INT32(env.interrupt_injected, X86CPU),
+        VMSTATE_UINT32(env.mp_state, X86CPU),
+        VMSTATE_UINT64(env.tsc, X86CPU),
+        VMSTATE_INT32(env.exception_injected, X86CPU),
+        VMSTATE_UINT8(env.soft_interrupt, X86CPU),
+        VMSTATE_UINT8(env.nmi_injected, X86CPU),
+        VMSTATE_UINT8(env.nmi_pending, X86CPU),
+        VMSTATE_UINT8(env.has_error_code, X86CPU),
+        VMSTATE_UINT32(env.sipi_vector, X86CPU),
         /* MCE */
-        VMSTATE_UINT64_V(env.mcg_cap, X86CPU, 10),
-        VMSTATE_UINT64_V(env.mcg_status, X86CPU, 10),
-        VMSTATE_UINT64_V(env.mcg_ctl, X86CPU, 10),
-        VMSTATE_UINT64_ARRAY_V(env.mce_banks, X86CPU, MCE_BANKS_DEF * 4, 10),
+        VMSTATE_UINT64(env.mcg_cap, X86CPU),
+        VMSTATE_UINT64(env.mcg_status, X86CPU),
+        VMSTATE_UINT64(env.mcg_ctl, X86CPU),
+        VMSTATE_UINT64_ARRAY(env.mce_banks, X86CPU, MCE_BANKS_DEF * 4),
         /* rdtscp */
-        VMSTATE_UINT64_V(env.tsc_aux, X86CPU, 11),
+        VMSTATE_UINT64(env.tsc_aux, X86CPU),
         /* KVM pvclock msr */
-        VMSTATE_UINT64_V(env.system_time_msr, X86CPU, 11),
-        VMSTATE_UINT64_V(env.wall_clock_msr, X86CPU, 11),
+        VMSTATE_UINT64(env.system_time_msr, X86CPU),
+        VMSTATE_UINT64(env.wall_clock_msr, X86CPU),
         /* XSAVE related fields */
         VMSTATE_UINT64_V(env.xcr0, X86CPU, 12),
         VMSTATE_UINT64_V(env.xstate_bv, X86CPU, 12),

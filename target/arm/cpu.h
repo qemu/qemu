@@ -710,6 +710,8 @@ static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
     return container_of(env, ARMCPU, env);
 }
 
+uint64_t arm_cpu_mp_affinity(int idx, uint8_t clustersz);
+
 #define ENV_GET_CPU(e) CPU(arm_env_get_cpu(e))
 
 #define ENV_OFFSET offsetof(ARMCPU, env)

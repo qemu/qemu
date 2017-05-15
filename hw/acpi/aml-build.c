@@ -24,6 +24,7 @@
 #include "hw/acpi/aml-build.h"
 #include "qemu/bswap.h"
 #include "qemu/bitops.h"
+#include "sysemu/numa.h"
 
 static GArray *build_alloc_array(void)
 {
@@ -1608,4 +1609,29 @@ void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
     numamem->flags = cpu_to_le32(flags);
     numamem->base_addr = cpu_to_le64(base);
     numamem->range_length = cpu_to_le64(len);
+}
+
+/*
+ * ACPI spec 5.2.17 System Locality Distance Information Table
+ * (Revision 2.0 or later)
+ */
+void build_slit(GArray *table_data, BIOSLinker *linker)
+{
+    int slit_start, i, j;
+    slit_start = table_data->len;
+
+    acpi_data_push(table_data, sizeof(AcpiTableHeader));
+
+    build_append_int_noprefix(table_data, nb_numa_nodes, 8);
+    for (i = 0; i < nb_numa_nodes; i++) {
+        for (j = 0; j < nb_numa_nodes; j++) {
+            assert(numa_info[i].distance[j]);
+            build_append_int_noprefix(table_data, numa_info[i].distance[j], 1);
+        }
+    }
+
+    build_header(linker, table_data,
+                 (void *)(table_data->data + slit_start),
+                 "SLIT",
+                 table_data->len - slit_start, 1, NULL, NULL);
 }

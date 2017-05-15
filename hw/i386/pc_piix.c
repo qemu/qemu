@@ -54,6 +54,7 @@
 #endif
 #include "migration/migration.h"
 #include "kvm_i386.h"
+#include "sysemu/numa.h"
 
 #define MAX_IDE_BUS 2
 
@@ -442,6 +443,7 @@ static void pc_i440fx_2_9_machine_options(MachineClass *m)
     pc_i440fx_machine_options(m);
     m->alias = "pc";
     m->is_default = 1;
+    m->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
 }
 
 DEFINE_I440FX_MACHINE(v2_9, "pc-i440fx-2.9", NULL,

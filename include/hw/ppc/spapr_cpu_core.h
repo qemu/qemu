@@ -27,6 +27,7 @@ typedef struct sPAPRCPUCore {
 
     /*< public >*/
     void *threads;
+    int node_id;
 } sPAPRCPUCore;
 
 typedef struct sPAPRCPUCoreClass {

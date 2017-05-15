@@ -47,6 +47,7 @@
 #include "hw/usb.h"
 #include "qemu/error-report.h"
 #include "migration/migration.h"
+#include "sysemu/numa.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
@@ -305,6 +306,7 @@ static void pc_q35_2_9_machine_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
     m->alias = "q35";
+    m->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
 }
 
 DEFINE_Q35_MACHINE(v2_9, "pc-q35-2.9", NULL,
