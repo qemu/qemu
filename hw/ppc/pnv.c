@@ -511,7 +511,7 @@ static void ppc_powernv_reset(void)
      * This is the internal simulator but it could also be an external
      * BMC.
      */
-    obj = object_resolve_path_type("", TYPE_IPMI_BMC, NULL);
+    obj = object_resolve_path_type("", "ipmi-bmc-sim", NULL);
     if (obj) {
         pnv->bmc = IPMI_BMC(obj);
     }

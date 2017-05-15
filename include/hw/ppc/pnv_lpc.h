@@ -19,11 +19,11 @@
 #ifndef _PPC_PNV_LPC_H
 #define _PPC_PNV_LPC_H
 
+#include "hw/ppc/pnv_psi.h"
+
 #define TYPE_PNV_LPC "pnv-lpc"
 #define PNV_LPC(obj) \
      OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV_LPC)
-
-typedef struct PnvPsi PnvPsi;
 
 typedef struct PnvLpcController {
     DeviceState parent;

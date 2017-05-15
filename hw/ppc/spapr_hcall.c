@@ -936,7 +936,7 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
                                              target_ulong opcode,
                                              target_ulong *args)
 {
-    CPUPPCState *env = &cpu->env;
+    CPUState *cs;
     target_ulong flags = args[0];
     target_ulong proc_tbl = args[1];
     target_ulong page_size = args[2];
@@ -992,16 +992,12 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
     spapr_check_setup_free_hpt(spapr, spapr->patb_entry, cproc);
 
     spapr->patb_entry = cproc; /* Save new process table */
-    if ((flags & FLAG_RADIX) || (flags & FLAG_HASH_PROC_TBL)) {
-        /* Use Process TBL */
-        env->spr[SPR_LPCR] |= LPCR_UPRT;
-    } else {
-        env->spr[SPR_LPCR] &= ~LPCR_UPRT;
-    }
-    if (flags & FLAG_GTSE) { /* Partition Uses Guest Translation Shootdwn */
-        env->spr[SPR_LPCR] |= LPCR_GTSE;
-    } else {
-        env->spr[SPR_LPCR] &= ~LPCR_GTSE;
+
+    /* Update the UPRT and GTSE bits in the LPCR for all cpus */
+    CPU_FOREACH(cs) {
+        set_spr(cs, SPR_LPCR, LPCR_UPRT | LPCR_GTSE,
+                ((flags & (FLAG_RADIX | FLAG_HASH_PROC_TBL)) ? LPCR_UPRT : 0) |
+                ((flags & FLAG_GTSE) ? LPCR_GTSE : 0));
     }
 
     if (kvm_enabled()) {

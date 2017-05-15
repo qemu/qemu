@@ -47,3 +47,6 @@
   (OpenPower Abstraction Layer) firmware for OpenPOWER systems. It can
   run an hypervisor OS or simply a host OS on the "baremetal"
   platform, also known as the PowerNV (Non-Virtualized) platform.
+
+- QemuMacDrivers (https://github.com/ozbenh/QemuMacDrivers) is a project to
+  provide virtualised drivers for PPC MacOS guests.

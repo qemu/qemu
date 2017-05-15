@@ -29,6 +29,7 @@
 #define XICS_H
 
 #include "hw/qdev.h"
+#include "target/ppc/cpu-qom.h"
 
 #define XICS_IPI        0x2
 #define XICS_BUID       0x1
@@ -46,7 +47,6 @@ typedef struct ICSStateClass ICSStateClass;
 typedef struct ICSState ICSState;
 typedef struct ICSIRQState ICSIRQState;
 typedef struct XICSFabric XICSFabric;
-typedef struct PowerPCCPU PowerPCCPU;
 
 #define TYPE_ICP "icp"
 #define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
@@ -144,6 +144,8 @@ struct ICSIRQState {
 #define XICS_STATUS_SENT               0x2
 #define XICS_STATUS_REJECTED           0x4
 #define XICS_STATUS_MASKED_PENDING     0x8
+#define XICS_STATUS_PRESENTED          0x10
+#define XICS_STATUS_QUEUED             0x20
     uint8_t status;
 /* (flags & XICS_FLAGS_IRQ_MASK) == 0 means the interrupt is not allocated */
 #define XICS_FLAGS_IRQ_LSI             0x1

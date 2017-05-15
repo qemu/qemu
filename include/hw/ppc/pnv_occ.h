@@ -19,10 +19,10 @@
 #ifndef _PPC_PNV_OCC_H
 #define _PPC_PNV_OCC_H
 
+#include "hw/ppc/pnv_psi.h"
+
 #define TYPE_PNV_OCC "pnv-occ"
 #define PNV_OCC(obj) OBJECT_CHECK(PnvOCC, (obj), TYPE_PNV_OCC)
-
-typedef struct PnvPsi PnvPsi;
 
 typedef struct PnvOCC {
     DeviceState xd;

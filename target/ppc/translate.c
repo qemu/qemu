@@ -73,6 +73,7 @@ static TCGv cpu_cfar;
 #endif
 static TCGv cpu_xer, cpu_so, cpu_ov, cpu_ca, cpu_ov32, cpu_ca32;
 static TCGv cpu_reserve;
+static TCGv cpu_reserve_val;
 static TCGv cpu_fpscr;
 static TCGv_i32 cpu_access_type;
 
@@ -181,6 +182,9 @@ void ppc_translate_init(void)
     cpu_reserve = tcg_global_mem_new(cpu_env,
                                      offsetof(CPUPPCState, reserve_addr),
                                      "reserve_addr");
+    cpu_reserve_val = tcg_global_mem_new(cpu_env,
+                                     offsetof(CPUPPCState, reserve_val),
+                                     "reserve_val");
 
     cpu_fpscr = tcg_global_mem_new(cpu_env,
                                    offsetof(CPUPPCState, fpscr), "fpscr");
@@ -214,6 +218,7 @@ struct DisasContext {
     bool vsx_enabled;
     bool spe_enabled;
     bool tm_enabled;
+    bool gtse;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
     uint64_t insns_flags;
@@ -2967,6 +2972,7 @@ static void gen_stswx(DisasContext *ctx)
 /* eieio */
 static void gen_eieio(DisasContext *ctx)
 {
+    tcg_gen_mb(TCG_MO_LD_ST | TCG_BAR_SC);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -3004,6 +3010,7 @@ static void gen_isync(DisasContext *ctx)
     if (!ctx->pr) {
         gen_check_tlb_flush(ctx, false);
     }
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
     gen_stop_exception(ctx);
 }
 
@@ -3023,7 +3030,8 @@ static void gen_##name(DisasContext *ctx)                            \
     }                                                                \
     tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, memop);                \
     tcg_gen_mov_tl(cpu_reserve, t0);                                 \
-    tcg_gen_st_tl(gpr, cpu_env, offsetof(CPUPPCState, reserve_val)); \
+    tcg_gen_mov_tl(cpu_reserve_val, gpr);                            \
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);                           \
     tcg_temp_free(t0);                                               \
 }
 
@@ -3155,14 +3163,31 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
 static void gen_conditional_store(DisasContext *ctx, TCGv EA,
                                   int reg, int memop)
 {
-    TCGLabel *l1;
+    TCGLabel *l1 = gen_new_label();
+    TCGLabel *l2 = gen_new_label();
+    TCGv t0;
 
-    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
-    l1 = gen_new_label();
     tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, l1);
-    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], CRF_EQ);
-    tcg_gen_qemu_st_tl(cpu_gpr[reg], EA, ctx->mem_idx, memop);
+
+    t0 = tcg_temp_new();
+    tcg_gen_atomic_cmpxchg_tl(t0, cpu_reserve, cpu_reserve_val,
+                              cpu_gpr[reg], ctx->mem_idx,
+                              DEF_MEMOP(memop) | MO_ALIGN);
+    tcg_gen_setcond_tl(TCG_COND_EQ, t0, t0, cpu_reserve_val);
+    tcg_gen_shli_tl(t0, t0, CRF_EQ_BIT);
+    tcg_gen_or_tl(t0, t0, cpu_so);
+    tcg_gen_trunc_tl_i32(cpu_crf[0], t0);
+    tcg_temp_free(t0);
+    tcg_gen_br(l2);
+
     gen_set_label(l1);
+
+    /* Address mismatch implies failure.  But we still need to provide the
+       memory barrier semantics of the instruction.  */
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
+
+    gen_set_label(l2);
     tcg_gen_movi_tl(cpu_reserve, -1);
 }
 #endif
@@ -3291,6 +3316,7 @@ static void gen_sync(DisasContext *ctx)
     if (((l == 2) || !(ctx->insns_flags & PPC_64B)) && !ctx->pr) {
         gen_check_tlb_flush(ctx, true);
     }
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
 }
 
 /* wait */
@@ -4513,7 +4539,12 @@ static void gen_tlbie(DisasContext *ctx)
     GEN_PRIV;
 #else
     TCGv_i32 t1;
-    CHK_HV;
+
+    if (ctx->gtse) {
+        CHK_SV; /* If gtse is set then tblie is supervisor privileged */
+    } else {
+        CHK_HV; /* Else hypervisor privileged */
+    }
 
     if (NARROW_MODE(ctx)) {
         TCGv t0 = tcg_temp_new();
@@ -6547,6 +6578,8 @@ GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA),
  * different ISA versions */
 GEN_HANDLER(tlbiel, 0x1F, 0x12, 0x08, 0x001F0001, PPC_MEM_TLBIE),
 GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x001F0001, PPC_MEM_TLBIE),
+GEN_HANDLER_E(tlbiel, 0x1F, 0x12, 0x08, 0x00100001, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(tlbie, 0x1F, 0x12, 0x09, 0x00100001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM_TLBSYNC),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(slbia, 0x1F, 0x12, 0x0F, 0x031FFC01, PPC_SLBI),
@@ -7227,6 +7260,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         ctx.tm_enabled = false;
     }
 #endif
+    ctx.gtse = !!(env->spr[SPR_LPCR] & LPCR_GTSE);
     if ((env->flags & POWERPC_FLAG_SE) && msr_se)
         ctx.singlestep_enabled = CPU_SINGLE_STEP;
     else

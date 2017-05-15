@@ -34,3 +34,6 @@
 [submodule "roms/skiboot"]
 	path = roms/skiboot
 	url = git://git.qemu.org/skiboot.git
+[submodule "roms/QemuMacDrivers"]
+	path = roms/QemuMacDrivers
+	url = git://git.qemu.org/QemuMacDrivers.git

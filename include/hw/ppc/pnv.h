@@ -21,6 +21,7 @@
 
 #include "hw/boards.h"
 #include "hw/sysbus.h"
+#include "hw/ipmi/ipmi.h"
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
@@ -117,8 +118,6 @@ typedef struct PnvChipClass {
 #define TYPE_POWERNV_MACHINE       MACHINE_TYPE_NAME("powernv")
 #define POWERNV_MACHINE(obj) \
     OBJECT_CHECK(PnvMachineState, (obj), TYPE_POWERNV_MACHINE)
-
-typedef struct IPMIBmc IPMIBmc;
 
 typedef struct PnvMachineState {
     /*< private >*/

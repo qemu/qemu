@@ -8960,7 +8960,7 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
                        PPC_FLOAT_EXT |
                        PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_MEM_TLBSYNC |
                        PPC_64B | PPC_64BX | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI |
                        PPC_POPCNTB | PPC_POPCNTWD |
@@ -10285,6 +10285,18 @@ PowerPCCPU *cpu_ppc_init(const char *cpu_model)
     return POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU, cpu_model));
 }
 
+PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)
+{
+    ObjectClass *oc = OBJECT_CLASS(pcc);
+
+    while (oc && !object_class_is_abstract(oc)) {
+        oc = object_class_get_parent(oc);
+    }
+    assert(oc);
+
+    return POWERPC_CPU_CLASS(oc);
+}
+
 /* Sort by PVR, ordering special case "host" last. */
 static gint ppc_cpu_list_compare(gconstpointer a, gconstpointer b)
 {
@@ -10316,6 +10328,7 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     ObjectClass *oc = data;
     CPUListState *s = user_data;
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+    DeviceClass *family = DEVICE_CLASS(ppc_cpu_get_family_class(pcc));
     const char *typename = object_class_get_name(oc);
     char *name;
     int i;
@@ -10338,8 +10351,18 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
         if (alias_oc != oc) {
             continue;
         }
-        (*s->cpu_fprintf)(s->file, "PowerPC %-16s (alias for %s)\n",
-                          alias->alias, name);
+        /*
+         * If running with KVM, we might update the family alias later, so
+         * avoid printing the wrong alias here and use "preferred" instead
+         */
+        if (strcmp(alias->alias, family->desc) == 0) {
+            (*s->cpu_fprintf)(s->file,
+                              "PowerPC %-16s (alias for preferred %s CPU)\n",
+                              alias->alias, family->desc);
+        } else {
+            (*s->cpu_fprintf)(s->file, "PowerPC %-16s (alias for %s)\n",
+                              alias->alias, name);
+        }
     }
     g_free(name);
 }
@@ -10434,14 +10457,6 @@ static bool ppc_cpu_has_work(CPUState *cs)
     CPUPPCState *env = &cpu->env;
 
     return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
-}
-
-static void ppc_cpu_exec_enter(CPUState *cs)
-{
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    CPUPPCState *env = &cpu->env;
-
-    env->reserve_addr = -1;
 }
 
 /* CPUClass::reset() */
@@ -10660,7 +10675,6 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = ppc_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_ppc_cpu;
 #endif
-    cc->cpu_exec_enter = ppc_cpu_exec_enter;
 #if defined(CONFIG_SOFTMMU)
     cc->write_elf64_note = ppc64_cpu_write_elf64_note;
     cc->write_elf32_note = ppc32_cpu_write_elf32_note;
