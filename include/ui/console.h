@@ -527,4 +527,7 @@ static inline void early_gtk_display_init(int opengl)
 }
 #endif
 
+/* egl-headless.c */
+void egl_headless_init(void);
+
 #endif

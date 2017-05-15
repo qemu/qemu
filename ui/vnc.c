@@ -1556,8 +1556,8 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
     }
 
     if (vs->absolute) {
-        qemu_input_queue_abs(con, INPUT_AXIS_X, x, width);
-        qemu_input_queue_abs(con, INPUT_AXIS_Y, y, height);
+        qemu_input_queue_abs(con, INPUT_AXIS_X, x, 0, width);
+        qemu_input_queue_abs(con, INPUT_AXIS_Y, y, 0, height);
     } else if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE)) {
         qemu_input_queue_rel(con, INPUT_AXIS_X, x - 0x7FFF);
         qemu_input_queue_rel(con, INPUT_AXIS_Y, y - 0x7FFF);
@@ -2061,15 +2061,15 @@ static void set_pixel_format(VncState *vs, int bits_per_pixel,
     }
 
     vs->client_pf.rmax = red_max ? red_max : 0xFF;
-    vs->client_pf.rbits = hweight_long(red_max);
+    vs->client_pf.rbits = ctpopl(red_max);
     vs->client_pf.rshift = red_shift;
     vs->client_pf.rmask = red_max << red_shift;
     vs->client_pf.gmax = green_max ? green_max : 0xFF;
-    vs->client_pf.gbits = hweight_long(green_max);
+    vs->client_pf.gbits = ctpopl(green_max);
     vs->client_pf.gshift = green_shift;
     vs->client_pf.gmask = green_max << green_shift;
     vs->client_pf.bmax = blue_max ? blue_max : 0xFF;
-    vs->client_pf.bbits = hweight_long(blue_max);
+    vs->client_pf.bbits = ctpopl(blue_max);
     vs->client_pf.bshift = blue_shift;
     vs->client_pf.bmask = blue_max << blue_shift;
     vs->client_pf.bits_per_pixel = bits_per_pixel;

@@ -201,16 +201,6 @@ static inline unsigned long find_first_zero_bit(const unsigned long *addr,
     return find_next_zero_bit(addr, size, 0);
 }
 
-static inline unsigned long hweight_long(unsigned long w)
-{
-    unsigned long count;
-
-    for (count = 0; w; w >>= 1) {
-        count += w & 1;
-    }
-    return count;
-}
-
 /**
  * rol8 - rotate an 8-bit value left
  * @word: value to rotate
