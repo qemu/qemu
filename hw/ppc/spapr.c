@@ -101,21 +101,26 @@ static ICSState *spapr_ics_create(sPAPRMachineState *spapr,
                                   const char *type_ics,
                                   int nr_irqs, Error **errp)
 {
-    Error *err = NULL, *local_err = NULL;
+    Error *local_err = NULL;
     Object *obj;
 
     obj = object_new(type_ics);
-    object_property_add_child(OBJECT(spapr), "ics", obj, NULL);
+    object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
     object_property_add_const_link(obj, "xics", OBJECT(spapr), &error_abort);
-    object_property_set_int(obj, nr_irqs, "nr-irqs", &err);
+    object_property_set_int(obj, nr_irqs, "nr-irqs", &local_err);
+    if (local_err) {
+        goto error;
+    }
     object_property_set_bool(obj, true, "realized", &local_err);
-    error_propagate(&err, local_err);
-    if (err) {
-        error_propagate(errp, err);
-        return NULL;
+    if (local_err) {
+        goto error;
     }
 
     return ICS_SIMPLE(obj);
+
+error:
+    error_propagate(errp, local_err);
+    return NULL;
 }
 
 static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
