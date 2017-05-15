@@ -1089,11 +1089,14 @@ static void cpu_handle_ioreq(void *opaque)
          * causes Xen to powerdown the domain.
          */
         if (runstate_is_running()) {
+            ShutdownCause request;
+
             if (qemu_shutdown_requested_get()) {
                 destroy_hvm_domain(false);
             }
-            if (qemu_reset_requested_get()) {
-                qemu_system_reset(VMRESET_REPORT);
+            request = qemu_reset_requested_get();
+            if (request) {
+                qemu_system_reset(request);
                 destroy_hvm_domain(true);
             }
         }

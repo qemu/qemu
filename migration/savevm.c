@@ -2285,7 +2285,7 @@ int load_vmstate(const char *name, Error **errp)
         return -EINVAL;
     }
 
-    qemu_system_reset(VMRESET_SILENT);
+    qemu_system_reset(SHUTDOWN_CAUSE_NONE);
     mis->from_src_file = f;
 
     aio_context_acquire(aio_context);
