@@ -8621,17 +8621,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_ssetmask /* not on alpha */
     case TARGET_NR_ssetmask:
         {
-            sigset_t set, oset, cur_set;
+            sigset_t set, oset;
             abi_ulong target_set = arg1;
-            /* We only have one word of the new mask so we must read
-             * the rest of it with do_sigprocmask() and OR in this word.
-             * We are guaranteed that a do_sigprocmask() that only queries
-             * the signal mask will not fail.
-             */
-            ret = do_sigprocmask(0, NULL, &cur_set);
-            assert(!ret);
             target_to_host_old_sigset(&set, &target_set);
-            sigorset(&set, &set, &cur_set);
             ret = do_sigprocmask(SIG_SETMASK, &set, &oset);
             if (!ret) {
                 host_to_target_old_sigset(&target_set, &oset);
