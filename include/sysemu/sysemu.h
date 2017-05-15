@@ -49,6 +49,11 @@ typedef enum ShutdownCause {
     SHUTDOWN_CAUSE__MAX,
 } ShutdownCause;
 
+static inline bool shutdown_caused_by_guest(ShutdownCause cause)
+{
+    return cause >= SHUTDOWN_CAUSE_GUEST_SHUTDOWN;
+}
+
 void vm_start(void);
 int vm_prepare_start(void);
 int vm_stop(RunState state);

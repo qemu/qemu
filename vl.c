@@ -1705,8 +1705,8 @@ void qemu_system_reset(ShutdownCause reason)
         qemu_devices_reset();
     }
     if (reason) {
-        /* TODO update event based on reason */
-        qapi_event_send_reset(&error_abort);
+        qapi_event_send_reset(shutdown_caused_by_guest(reason),
+                              &error_abort);
     }
     cpu_synchronize_all_post_reset();
 }
@@ -1863,8 +1863,8 @@ static bool main_loop_should_exit(void)
     request = qemu_shutdown_requested();
     if (request) {
         qemu_kill_report();
-        /* TODO update event based on request */
-        qapi_event_send_shutdown(&error_abort);
+        qapi_event_send_shutdown(shutdown_caused_by_guest(request),
+                                 &error_abort);
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
