@@ -290,7 +290,7 @@
 { TARGET_NR_getegid32, "getegid32" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_geteuid
-{ TARGET_NR_geteuid, "geteuid" , NULL, NULL, NULL },
+{ TARGET_NR_geteuid, "geteuid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_geteuid32
 { TARGET_NR_geteuid32, "geteuid32" , NULL, NULL, NULL },
@@ -338,7 +338,7 @@
 { TARGET_NR_getpmsg, "getpmsg" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getppid
-{ TARGET_NR_getppid, "getppid" , NULL, NULL, NULL },
+{ TARGET_NR_getppid, "getppid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getpriority
 { TARGET_NR_getpriority, "getpriority", "%s(%#x,%#x)", NULL, NULL },
@@ -381,13 +381,13 @@
   NULL, NULL },
 #endif
 #ifdef TARGET_NR_gettid
-{ TARGET_NR_gettid, "gettid" , NULL, NULL, NULL },
+{ TARGET_NR_gettid, "gettid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_gettimeofday
 { TARGET_NR_gettimeofday, "gettimeofday" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getuid
-{ TARGET_NR_getuid, "getuid" , NULL, NULL, NULL },
+{ TARGET_NR_getuid, "getuid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getuid32
 { TARGET_NR_getuid32, "getuid32" , NULL, NULL, NULL },
