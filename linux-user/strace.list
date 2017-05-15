@@ -1155,7 +1155,7 @@
 { TARGET_NR_rt_sigprocmask, "rt_sigprocmask" , NULL, print_rt_sigprocmask, NULL },
 #endif
 #ifdef TARGET_NR_rt_sigqueueinfo
-{ TARGET_NR_rt_sigqueueinfo, "rt_sigqueueinfo" , NULL, NULL, NULL },
+{ TARGET_NR_rt_sigqueueinfo, "rt_sigqueueinfo" , NULL, print_rt_sigqueueinfo, NULL },
 #endif
 #ifdef TARGET_NR_rt_sigreturn
 { TARGET_NR_rt_sigreturn, "rt_sigreturn" , NULL, NULL, NULL },
@@ -1498,7 +1498,7 @@
 { TARGET_NR_tee, "tee" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_tgkill
-{ TARGET_NR_tgkill, "tgkill" , NULL, NULL, NULL },
+{ TARGET_NR_tgkill, "tgkill" , NULL, print_tgkill, NULL },
 #endif
 #ifdef TARGET_NR_time
 { TARGET_NR_time, "time" , NULL, NULL, NULL },
@@ -1534,7 +1534,7 @@
 { TARGET_NR_times, "times" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_tkill
-{ TARGET_NR_tkill, "tkill" , NULL, NULL, NULL },
+{ TARGET_NR_tkill, "tkill" , NULL, print_tkill, NULL },
 #endif
 #ifdef TARGET_NR_truncate
 { TARGET_NR_truncate, "truncate" , NULL, NULL, NULL },
