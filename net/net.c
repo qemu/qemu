@@ -45,6 +45,7 @@
 #include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
 
@@ -1149,6 +1150,12 @@ void hmp_host_net_add(Monitor *mon, const QDict *qdict)
     const char *opts_str = qdict_get_try_str(qdict, "opts");
     Error *local_err = NULL;
     QemuOpts *opts;
+    static bool warned;
+
+    if (!warned && !qtest_enabled()) {
+        error_report("host_net_add is deprecated, use netdev_add instead");
+        warned = true;
+    }
 
     if (!net_host_check_device(device)) {
         monitor_printf(mon, "invalid host network device %s\n", device);
@@ -1175,6 +1182,12 @@ void hmp_host_net_remove(Monitor *mon, const QDict *qdict)
     NetClientState *nc;
     int vlan_id = qdict_get_int(qdict, "vlan_id");
     const char *device = qdict_get_str(qdict, "device");
+    static bool warned;
+
+    if (!warned && !qtest_enabled()) {
+        error_report("host_net_remove is deprecated, use netdev_del instead");
+        warned = true;
+    }
 
     nc = net_hub_find_client_by_name(vlan_id, device);
     if (!nc) {
