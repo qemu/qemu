@@ -139,7 +139,7 @@ static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
     }
 
     if (!spapr->ics) {
-        xics_spapr_init(spapr, errp);
+        xics_spapr_init(spapr);
         spapr->icp_type = TYPE_ICP;
         spapr->ics = spapr_ics_create(spapr, TYPE_ICS_SIMPLE, nr_irqs, errp);
     }
