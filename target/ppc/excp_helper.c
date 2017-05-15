@@ -995,6 +995,9 @@ static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
      */
     cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 
+    /* Reset the reservation */
+    env->reserve_addr = -1;
+
     /* Context synchronizing: check if TCG TLB needs flush */
     check_tlb_flush(env, false);
 }
