@@ -8868,7 +8868,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 goto efault;
             }
             target_to_host_siginfo(&uinfo, p);
-            unlock_user(p, arg1, 0);
+            unlock_user(p, arg3, 0);
             ret = get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
         }
         break;
