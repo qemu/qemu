@@ -76,10 +76,6 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_TIMEOUT_DEFAULT 5
 #define CURL_TIMEOUT_MAX 10000
 
-#define FIND_RET_NONE   0
-#define FIND_RET_OK     1
-#define FIND_RET_WAIT   2
-
 #define CURL_BLOCK_OPT_URL       "url"
 #define CURL_BLOCK_OPT_READAHEAD "readahead"
 #define CURL_BLOCK_OPT_SSLVERIFY "sslverify"
@@ -94,11 +90,12 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 struct BDRVCURLState;
 
 typedef struct CURLAIOCB {
-    BlockAIOCB common;
+    Coroutine *co;
     QEMUIOVector *qiov;
 
     uint64_t offset;
     uint64_t bytes;
+    int ret;
 
     size_t start;
     size_t end;
@@ -269,11 +266,11 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
                                   request_length - offset);
             }
 
-            qemu_mutex_unlock(&s->s->mutex);
-            acb->common.cb(acb->common.opaque, 0);
-            qemu_mutex_lock(&s->s->mutex);
-            qemu_aio_unref(acb);
+            acb->ret = 0;
             s->acb[i] = NULL;
+            qemu_mutex_unlock(&s->s->mutex);
+            aio_co_wake(acb->co);
+            qemu_mutex_lock(&s->s->mutex);
         }
     }
 
@@ -283,8 +280,8 @@ read_end:
 }
 
 /* Called with s->mutex held.  */
-static int curl_find_buf(BDRVCURLState *s, uint64_t start, uint64_t len,
-                         CURLAIOCB *acb)
+static bool curl_find_buf(BDRVCURLState *s, uint64_t start, uint64_t len,
+                          CURLAIOCB *acb)
 {
     int i;
     uint64_t end = start + len;
@@ -313,7 +310,8 @@ static int curl_find_buf(BDRVCURLState *s, uint64_t start, uint64_t len,
             if (clamped_len < len) {
                 qemu_iovec_memset(acb->qiov, clamped_len, 0, len - clamped_len);
             }
-            return FIND_RET_OK;
+            acb->ret = 0;
+            return true;
         }
 
         // Wait for unfinished chunks
@@ -331,13 +329,13 @@ static int curl_find_buf(BDRVCURLState *s, uint64_t start, uint64_t len,
             for (j=0; j<CURL_NUM_ACB; j++) {
                 if (!state->acb[j]) {
                     state->acb[j] = acb;
-                    return FIND_RET_WAIT;
+                    return true;
                 }
             }
         }
     }
 
-    return FIND_RET_NONE;
+    return false;
 }
 
 /* Called with s->mutex held.  */
@@ -382,11 +380,11 @@ static void curl_multi_check_completion(BDRVCURLState *s)
                         continue;
                     }
 
-                    qemu_mutex_unlock(&s->mutex);
-                    acb->common.cb(acb->common.opaque, -EIO);
-                    qemu_mutex_lock(&s->mutex);
-                    qemu_aio_unref(acb);
+                    acb->ret = -EIO;
                     state->acb[i] = NULL;
+                    qemu_mutex_unlock(&s->mutex);
+                    aio_co_wake(acb->co);
+                    qemu_mutex_lock(&s->mutex);
                 }
             }
 
@@ -844,19 +842,11 @@ out_noclean:
     return -EINVAL;
 }
 
-static const AIOCBInfo curl_aiocb_info = {
-    .aiocb_size         = sizeof(CURLAIOCB),
-};
-
-
-static void curl_readv_bh_cb(void *p)
+static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
 {
     CURLState *state;
     int running;
-    int ret = -EINPROGRESS;
 
-    CURLAIOCB *acb = p;
-    BlockDriverState *bs = acb->common.bs;
     BDRVCURLState *s = bs->opaque;
 
     uint64_t start = acb->offset;
@@ -866,14 +856,8 @@ static void curl_readv_bh_cb(void *p)
 
     // In case we have the requested data already (e.g. read-ahead),
     // we can just call the callback and be done.
-    switch (curl_find_buf(s, start, acb->bytes, acb)) {
-        case FIND_RET_OK:
-            ret = 0;
-            goto out;
-        case FIND_RET_WAIT:
-            goto out;
-        default:
-            break;
+    if (curl_find_buf(s, start, acb->bytes, acb)) {
+        goto out;
     }
 
     // No cache found, so let's start a new request
@@ -889,7 +873,7 @@ static void curl_readv_bh_cb(void *p)
 
     if (curl_init_state(s, state) < 0) {
         curl_clean_state(state);
-        ret = -EIO;
+        acb->ret = -EIO;
         goto out;
     }
 
@@ -904,7 +888,7 @@ static void curl_readv_bh_cb(void *p)
     state->orig_buf = g_try_malloc(state->buf_len);
     if (state->buf_len && state->orig_buf == NULL) {
         curl_clean_state(state);
-        ret = -ENOMEM;
+        acb->ret = -ENOMEM;
         goto out;
     }
     state->acb[0] = acb;
@@ -921,26 +905,24 @@ static void curl_readv_bh_cb(void *p)
 
 out:
     qemu_mutex_unlock(&s->mutex);
-    if (ret != -EINPROGRESS) {
-        acb->common.cb(acb->common.opaque, ret);
-        qemu_aio_unref(acb);
-    }
 }
 
-static BlockAIOCB *curl_aio_readv(BlockDriverState *bs,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockCompletionFunc *cb, void *opaque)
+static int coroutine_fn curl_co_preadv(BlockDriverState *bs,
+        uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
-    CURLAIOCB *acb;
+    CURLAIOCB acb = {
+        .co = qemu_coroutine_self(),
+        .ret = -EINPROGRESS,
+        .qiov = qiov,
+        .offset = offset,
+        .bytes = bytes
+    };
 
-    acb = qemu_aio_get(&curl_aiocb_info, bs, cb, opaque);
-
-    acb->qiov = qiov;
-    acb->offset = sector_num * BDRV_SECTOR_SIZE;
-    acb->bytes = nb_sectors * BDRV_SECTOR_SIZE;
-
-    aio_bh_schedule_oneshot(bdrv_get_aio_context(bs), curl_readv_bh_cb, acb);
-    return &acb->common;
+    curl_setup_preadv(bs, &acb);
+    while (acb.ret == -EINPROGRESS) {
+        qemu_coroutine_yield();
+    }
+    return acb.ret;
 }
 
 static void curl_close(BlockDriverState *bs)
@@ -971,7 +953,7 @@ static BlockDriver bdrv_http = {
     .bdrv_close                 = curl_close,
     .bdrv_getlength             = curl_getlength,
 
-    .bdrv_aio_readv             = curl_aio_readv,
+    .bdrv_co_preadv             = curl_co_preadv,
 
     .bdrv_detach_aio_context    = curl_detach_aio_context,
     .bdrv_attach_aio_context    = curl_attach_aio_context,
@@ -987,7 +969,7 @@ static BlockDriver bdrv_https = {
     .bdrv_close                 = curl_close,
     .bdrv_getlength             = curl_getlength,
 
-    .bdrv_aio_readv             = curl_aio_readv,
+    .bdrv_co_preadv             = curl_co_preadv,
 
     .bdrv_detach_aio_context    = curl_detach_aio_context,
     .bdrv_attach_aio_context    = curl_attach_aio_context,
@@ -1003,7 +985,7 @@ static BlockDriver bdrv_ftp = {
     .bdrv_close                 = curl_close,
     .bdrv_getlength             = curl_getlength,
 
-    .bdrv_aio_readv             = curl_aio_readv,
+    .bdrv_co_preadv             = curl_co_preadv,
 
     .bdrv_detach_aio_context    = curl_detach_aio_context,
     .bdrv_attach_aio_context    = curl_attach_aio_context,
@@ -1019,7 +1001,7 @@ static BlockDriver bdrv_ftps = {
     .bdrv_close                 = curl_close,
     .bdrv_getlength             = curl_getlength,
 
-    .bdrv_aio_readv             = curl_aio_readv,
+    .bdrv_co_preadv             = curl_co_preadv,
 
     .bdrv_detach_aio_context    = curl_detach_aio_context,
     .bdrv_attach_aio_context    = curl_attach_aio_context,
