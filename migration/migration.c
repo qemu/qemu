@@ -547,6 +547,11 @@ MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
 
     caps = NULL; /* silence compiler warning */
     for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
+#ifndef CONFIG_LIVE_BLOCK_MIGRATION
+        if (i == MIGRATION_CAPABILITY_BLOCK) {
+            continue;
+        }
+#endif
         if (i == MIGRATION_CAPABILITY_X_COLO && !colo_supported()) {
             continue;
         }
@@ -763,6 +768,15 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     }
 
     for (cap = params; cap; cap = cap->next) {
+#ifndef CONFIG_LIVE_BLOCK_MIGRATION
+        if (cap->value->capability == MIGRATION_CAPABILITY_BLOCK
+            && cap->value->state) {
+            error_setg(errp, "QEMU compiled without old-style (blk/-b, inc/-i) "
+                       "block migration");
+            error_append_hint(errp, "Use drive_mirror+NBD instead.\n");
+            continue;
+        }
+#endif
         if (cap->value->capability == MIGRATION_CAPABILITY_X_COLO) {
             if (!colo_supported()) {
                 error_setg(errp, "COLO is not currently supported, please"
