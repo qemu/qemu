@@ -76,7 +76,7 @@ static int openfile(char *name, int flags, bool writethrough, bool force_share,
             QDECREF(opts);
             return 1;
         }
-        qdict_put(opts, BDRV_OPT_FORCE_SHARE, qbool_from_bool(true));
+        qdict_put_bool(opts, BDRV_OPT_FORCE_SHARE, true);
     }
     qemuio_blk = blk_new_open(name, NULL, opts, flags, &local_err);
     if (!qemuio_blk) {

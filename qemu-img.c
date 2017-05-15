@@ -296,7 +296,7 @@ static BlockBackend *img_open_opts(const char *optstr,
             error_report("--force-share/-U conflicts with image options");
             return NULL;
         }
-        qdict_put(options, BDRV_OPT_FORCE_SHARE, qbool_from_bool(true));
+        qdict_put_bool(options, BDRV_OPT_FORCE_SHARE, true);
     }
     blk = blk_new_open(NULL, NULL, options, flags, &local_err);
     if (!blk) {
@@ -326,7 +326,7 @@ static BlockBackend *img_open_file(const char *filename,
     }
 
     if (force_share) {
-        qdict_put(options, BDRV_OPT_FORCE_SHARE, qbool_from_bool(true));
+        qdict_put_bool(options, BDRV_OPT_FORCE_SHARE, true);
     }
     blk = blk_new_open(filename, NULL, options, flags, &local_err);
     if (!blk) {
@@ -3156,8 +3156,7 @@ static int img_rebase(int argc, char **argv)
             if (!options) {
                 options = qdict_new();
             }
-            qdict_put(options, BDRV_OPT_FORCE_SHARE,
-                      qbool_from_bool(true));
+            qdict_put_bool(options, BDRV_OPT_FORCE_SHARE, true);
         }
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
         blk_old_backing = blk_new_open(backing_name, NULL,
