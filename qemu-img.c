@@ -295,6 +295,7 @@ static BlockBackend *img_open_opts(const char *optstr,
         if (qdict_haskey(options, BDRV_OPT_FORCE_SHARE)
             && !qdict_get_bool(options, BDRV_OPT_FORCE_SHARE)) {
             error_report("--force-share/-U conflicts with image options");
+            QDECREF(options);
             return NULL;
         }
         qdict_put(options, BDRV_OPT_FORCE_SHARE, qbool_from_bool(true));
