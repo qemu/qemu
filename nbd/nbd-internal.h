@@ -100,7 +100,8 @@
  * qio_channel_readv() returns 0. So, there are no needs to call read_sync_eof
  * iteratively.
  */
-static inline ssize_t read_sync_eof(QIOChannel *ioc, void *buffer, size_t size)
+static inline ssize_t read_sync_eof(QIOChannel *ioc, void *buffer, size_t size,
+                                    Error **errp)
 {
     struct iovec iov = { .iov_base = buffer, .iov_len = size };
     /* Sockets are kept in blocking mode in the negotiation phase.  After
@@ -108,18 +109,20 @@ static inline ssize_t read_sync_eof(QIOChannel *ioc, void *buffer, size_t size)
      * our request/reply.  Synchronization is done with recv_coroutine, so
      * that this is coroutine-safe.
      */
-    return nbd_wr_syncv(ioc, &iov, 1, size, true, NULL);
+    return nbd_wr_syncv(ioc, &iov, 1, size, true, errp);
 }
 
 /* read_sync
  * Reads @size bytes from @ioc. Returns 0 on success.
  */
-static inline int read_sync(QIOChannel *ioc, void *buffer, size_t size)
+static inline int read_sync(QIOChannel *ioc, void *buffer, size_t size,
+                            Error **errp)
 {
-    ssize_t ret = read_sync_eof(ioc, buffer, size);
+    ssize_t ret = read_sync_eof(ioc, buffer, size, errp);
 
     if (ret >= 0 && ret != size) {
         ret = -EINVAL;
+        error_setg(errp, "End of file");
     }
 
     return ret < 0 ? ret : 0;
@@ -128,11 +131,12 @@ static inline int read_sync(QIOChannel *ioc, void *buffer, size_t size)
 /* write_sync
  * Writes @size bytes to @ioc. Returns 0 on success.
  */
-static inline int write_sync(QIOChannel *ioc, const void *buffer, size_t size)
+static inline int write_sync(QIOChannel *ioc, const void *buffer, size_t size,
+                             Error **errp)
 {
     struct iovec iov = { .iov_base = (void *) buffer, .iov_len = size };
 
-    ssize_t ret = nbd_wr_syncv(ioc, &iov, 1, size, false, NULL);
+    ssize_t ret = nbd_wr_syncv(ioc, &iov, 1, size, false, errp);
 
     assert(ret < 0 || ret == size);
 
