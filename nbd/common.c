@@ -20,6 +20,10 @@
 #include "qapi/error.h"
 #include "nbd-internal.h"
 
+/* nbd_wr_syncv
+ * The function may be called from coroutine or from non-coroutine context.
+ * When called from non-coroutine context @ioc must be in blocking mode.
+ */
 ssize_t nbd_wr_syncv(QIOChannel *ioc,
                      struct iovec *iov,
                      size_t niov,
@@ -42,11 +46,8 @@ ssize_t nbd_wr_syncv(QIOChannel *ioc,
             len = qio_channel_writev(ioc, local_iov, nlocal_iov, &local_err);
         }
         if (len == QIO_CHANNEL_ERR_BLOCK) {
-            if (qemu_in_coroutine()) {
-                qio_channel_yield(ioc, do_read ? G_IO_IN : G_IO_OUT);
-            } else {
-                return -EAGAIN;
-            }
+            assert(qemu_in_coroutine());
+            qio_channel_yield(ioc, do_read ? G_IO_IN : G_IO_OUT);
             continue;
         }
         if (len < 0) {
