@@ -136,7 +136,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
         rc = nbd_send_request(s->ioc, request);
         if (rc >= 0) {
             ret = nbd_wr_syncv(s->ioc, qiov->iov, qiov->niov, request->len,
-                               false);
+                               false, NULL);
             if (ret != request->len) {
                 rc = -EIO;
             }
@@ -165,7 +165,7 @@ static void nbd_co_receive_reply(NBDClientSession *s,
     } else {
         if (qiov && reply->error == 0) {
             ret = nbd_wr_syncv(s->ioc, qiov->iov, qiov->niov, request->len,
-                               true);
+                               true, NULL);
             if (ret != request->len) {
                 reply->error = EIO;
             }

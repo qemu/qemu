@@ -108,7 +108,7 @@ static inline ssize_t read_sync_eof(QIOChannel *ioc, void *buffer, size_t size)
      * our request/reply.  Synchronization is done with recv_coroutine, so
      * that this is coroutine-safe.
      */
-    return nbd_wr_syncv(ioc, &iov, 1, size, true);
+    return nbd_wr_syncv(ioc, &iov, 1, size, true, NULL);
 }
 
 /* read_sync
@@ -132,7 +132,7 @@ static inline int write_sync(QIOChannel *ioc, const void *buffer, size_t size)
 {
     struct iovec iov = { .iov_base = (void *) buffer, .iov_len = size };
 
-    ssize_t ret = nbd_wr_syncv(ioc, &iov, 1, size, false);
+    ssize_t ret = nbd_wr_syncv(ioc, &iov, 1, size, false, NULL);
 
     assert(ret < 0 || ret == size);
 

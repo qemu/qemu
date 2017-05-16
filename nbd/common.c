@@ -28,10 +28,10 @@ ssize_t nbd_wr_syncv(QIOChannel *ioc,
                      struct iovec *iov,
                      size_t niov,
                      size_t length,
-                     bool do_read)
+                     bool do_read,
+                     Error **errp)
 {
     ssize_t done = 0;
-    Error *local_err = NULL;
     struct iovec *local_iov = g_new(struct iovec, niov);
     struct iovec *local_iov_head = local_iov;
     unsigned int nlocal_iov = niov;
@@ -41,19 +41,17 @@ ssize_t nbd_wr_syncv(QIOChannel *ioc,
     while (nlocal_iov > 0) {
         ssize_t len;
         if (do_read) {
-            len = qio_channel_readv(ioc, local_iov, nlocal_iov, &local_err);
+            len = qio_channel_readv(ioc, local_iov, nlocal_iov, errp);
         } else {
-            len = qio_channel_writev(ioc, local_iov, nlocal_iov, &local_err);
+            len = qio_channel_writev(ioc, local_iov, nlocal_iov, errp);
         }
         if (len == QIO_CHANNEL_ERR_BLOCK) {
+            /* errp should not be set */
             assert(qemu_in_coroutine());
             qio_channel_yield(ioc, do_read ? G_IO_IN : G_IO_OUT);
             continue;
         }
         if (len < 0) {
-            TRACE("I/O error: %s", error_get_pretty(local_err));
-            error_free(local_err);
-            /* XXX handle Error objects */
             done = -EIO;
             goto cleanup;
         }
