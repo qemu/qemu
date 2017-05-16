@@ -112,7 +112,7 @@ static gboolean nbd_negotiate_continue(QIOChannel *ioc,
     return TRUE;
 }
 
-static ssize_t nbd_negotiate_read(QIOChannel *ioc, void *buffer, size_t size)
+static int nbd_negotiate_read(QIOChannel *ioc, void *buffer, size_t size)
 {
     ssize_t ret;
     guint watch;
@@ -130,8 +130,7 @@ static ssize_t nbd_negotiate_read(QIOChannel *ioc, void *buffer, size_t size)
 
 }
 
-static ssize_t nbd_negotiate_write(QIOChannel *ioc, const void *buffer,
-                                   size_t size)
+static int nbd_negotiate_write(QIOChannel *ioc, const void *buffer, size_t size)
 {
     ssize_t ret;
     guint watch;
@@ -148,24 +147,24 @@ static ssize_t nbd_negotiate_write(QIOChannel *ioc, const void *buffer,
     return ret;
 }
 
-static ssize_t nbd_negotiate_drop_sync(QIOChannel *ioc, size_t size)
+static int nbd_negotiate_drop_sync(QIOChannel *ioc, size_t size)
 {
-    ssize_t ret, dropped = size;
+    ssize_t ret;
     uint8_t *buffer = g_malloc(MIN(65536, size));
 
     while (size > 0) {
-        ret = nbd_negotiate_read(ioc, buffer, MIN(65536, size));
+        size_t count = MIN(65536, size);
+        ret = nbd_negotiate_read(ioc, buffer, count);
         if (ret < 0) {
             g_free(buffer);
             return ret;
         }
 
-        assert(ret <= size);
-        size -= ret;
+        size -= count;
     }
 
     g_free(buffer);
-    return dropped;
+    return 0;
 }
 
 /* Basic flow for negotiation
@@ -206,22 +205,22 @@ static int nbd_negotiate_send_rep_len(QIOChannel *ioc, uint32_t type,
           type, opt, len);
 
     magic = cpu_to_be64(NBD_REP_MAGIC);
-    if (nbd_negotiate_write(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
+    if (nbd_negotiate_write(ioc, &magic, sizeof(magic)) < 0) {
         LOG("write failed (rep magic)");
         return -EINVAL;
     }
     opt = cpu_to_be32(opt);
-    if (nbd_negotiate_write(ioc, &opt, sizeof(opt)) != sizeof(opt)) {
+    if (nbd_negotiate_write(ioc, &opt, sizeof(opt)) < 0) {
         LOG("write failed (rep opt)");
         return -EINVAL;
     }
     type = cpu_to_be32(type);
-    if (nbd_negotiate_write(ioc, &type, sizeof(type)) != sizeof(type)) {
+    if (nbd_negotiate_write(ioc, &type, sizeof(type)) < 0) {
         LOG("write failed (rep type)");
         return -EINVAL;
     }
     len = cpu_to_be32(len);
-    if (nbd_negotiate_write(ioc, &len, sizeof(len)) != sizeof(len)) {
+    if (nbd_negotiate_write(ioc, &len, sizeof(len)) < 0) {
         LOG("write failed (rep data length)");
         return -EINVAL;
     }
@@ -256,7 +255,7 @@ nbd_negotiate_send_rep_err(QIOChannel *ioc, uint32_t type,
     if (ret < 0) {
         goto out;
     }
-    if (nbd_negotiate_write(ioc, msg, len) != len) {
+    if (nbd_negotiate_write(ioc, msg, len) < 0) {
         LOG("write failed (error message)");
         ret = -EIO;
     } else {
@@ -287,15 +286,15 @@ static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp)
     }
 
     len = cpu_to_be32(name_len);
-    if (nbd_negotiate_write(ioc, &len, sizeof(len)) != sizeof(len)) {
+    if (nbd_negotiate_write(ioc, &len, sizeof(len)) < 0) {
         LOG("write failed (name length)");
         return -EINVAL;
     }
-    if (nbd_negotiate_write(ioc, name, name_len) != name_len) {
+    if (nbd_negotiate_write(ioc, name, name_len) < 0) {
         LOG("write failed (name buffer)");
         return -EINVAL;
     }
-    if (nbd_negotiate_write(ioc, desc, desc_len) != desc_len) {
+    if (nbd_negotiate_write(ioc, desc, desc_len) < 0) {
         LOG("write failed (description buffer)");
         return -EINVAL;
     }
@@ -309,7 +308,7 @@ static int nbd_negotiate_handle_list(NBDClient *client, uint32_t length)
     NBDExport *exp;
 
     if (length) {
-        if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
+        if (nbd_negotiate_drop_sync(client->ioc, length) < 0) {
             return -EIO;
         }
         return nbd_negotiate_send_rep_err(client->ioc,
@@ -340,7 +339,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length)
         LOG("Bad length received");
         goto fail;
     }
-    if (nbd_negotiate_read(client->ioc, name, length) != length) {
+    if (nbd_negotiate_read(client->ioc, name, length) < 0) {
         LOG("read failed");
         goto fail;
     }
@@ -373,7 +372,7 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
     TRACE("Setting up TLS");
     ioc = client->ioc;
     if (length) {
-        if (nbd_negotiate_drop_sync(ioc, length) != length) {
+        if (nbd_negotiate_drop_sync(ioc, length) < 0) {
             return NULL;
         }
         nbd_negotiate_send_rep_err(ioc, NBD_REP_ERR_INVALID, NBD_OPT_STARTTLS,
@@ -437,8 +436,7 @@ static int nbd_negotiate_options(NBDClient *client)
         ...           Rest of request
     */
 
-    if (nbd_negotiate_read(client->ioc, &flags, sizeof(flags)) !=
-        sizeof(flags)) {
+    if (nbd_negotiate_read(client->ioc, &flags, sizeof(flags)) < 0) {
         LOG("read failed");
         return -EIO;
     }
@@ -464,8 +462,7 @@ static int nbd_negotiate_options(NBDClient *client)
         uint32_t clientflags, length;
         uint64_t magic;
 
-        if (nbd_negotiate_read(client->ioc, &magic, sizeof(magic)) !=
-            sizeof(magic)) {
+        if (nbd_negotiate_read(client->ioc, &magic, sizeof(magic)) < 0) {
             LOG("read failed");
             return -EINVAL;
         }
@@ -476,14 +473,14 @@ static int nbd_negotiate_options(NBDClient *client)
         }
 
         if (nbd_negotiate_read(client->ioc, &clientflags,
-                               sizeof(clientflags)) != sizeof(clientflags)) {
+                               sizeof(clientflags)) < 0)
+        {
             LOG("read failed");
             return -EINVAL;
         }
         clientflags = be32_to_cpu(clientflags);
 
-        if (nbd_negotiate_read(client->ioc, &length, sizeof(length)) !=
-            sizeof(length)) {
+        if (nbd_negotiate_read(client->ioc, &length, sizeof(length)) < 0) {
             LOG("read failed");
             return -EINVAL;
         }
@@ -513,7 +510,7 @@ static int nbd_negotiate_options(NBDClient *client)
                 return -EINVAL;
 
             default:
-                if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
+                if (nbd_negotiate_drop_sync(client->ioc, length) < 0) {
                     return -EIO;
                 }
                 ret = nbd_negotiate_send_rep_err(client->ioc,
@@ -551,7 +548,7 @@ static int nbd_negotiate_options(NBDClient *client)
                 return nbd_negotiate_handle_export_name(client, length);
 
             case NBD_OPT_STARTTLS:
-                if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
+                if (nbd_negotiate_drop_sync(client->ioc, length) < 0) {
                     return -EIO;
                 }
                 if (client->tlscreds) {
@@ -570,7 +567,7 @@ static int nbd_negotiate_options(NBDClient *client)
                 }
                 break;
             default:
-                if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
+                if (nbd_negotiate_drop_sync(client->ioc, length) < 0) {
                     return -EIO;
                 }
                 ret = nbd_negotiate_send_rep_err(client->ioc,
@@ -659,12 +656,12 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
             TRACE("TLS cannot be enabled with oldstyle protocol");
             goto fail;
         }
-        if (nbd_negotiate_write(client->ioc, buf, sizeof(buf)) != sizeof(buf)) {
+        if (nbd_negotiate_write(client->ioc, buf, sizeof(buf)) < 0) {
             LOG("write failed");
             goto fail;
         }
     } else {
-        if (nbd_negotiate_write(client->ioc, buf, 18) != 18) {
+        if (nbd_negotiate_write(client->ioc, buf, 18) < 0) {
             LOG("write failed");
             goto fail;
         }
@@ -679,7 +676,7 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
         stq_be_p(buf + 18, client->exp->size);
         stw_be_p(buf + 26, client->exp->nbdflags | myflags);
         len = client->no_zeroes ? 10 : sizeof(buf) - 18;
-        if (nbd_negotiate_write(client->ioc, buf + 18, len) != len) {
+        if (nbd_negotiate_write(client->ioc, buf + 18, len) < 0) {
             LOG("write failed");
             goto fail;
         }
@@ -700,11 +697,6 @@ static ssize_t nbd_receive_request(QIOChannel *ioc, NBDRequest *request)
     ret = read_sync(ioc, buf, sizeof(buf));
     if (ret < 0) {
         return ret;
-    }
-
-    if (ret != sizeof(buf)) {
-        LOG("read failed");
-        return -EINVAL;
     }
 
     /* Request
@@ -737,7 +729,6 @@ static ssize_t nbd_receive_request(QIOChannel *ioc, NBDRequest *request)
 static ssize_t nbd_send_reply(QIOChannel *ioc, NBDReply *reply)
 {
     uint8_t buf[NBD_REPLY_SIZE];
-    ssize_t ret;
 
     reply->error = system_errno_to_nbd_errno(reply->error);
 
@@ -754,16 +745,7 @@ static ssize_t nbd_send_reply(QIOChannel *ioc, NBDReply *reply)
     stl_be_p(buf + 4, reply->error);
     stq_be_p(buf + 8, reply->handle);
 
-    ret = write_sync(ioc, buf, sizeof(buf));
-    if (ret < 0) {
-        return ret;
-    }
-
-    if (ret != sizeof(buf)) {
-        LOG("writing to socket failed");
-        return -EINVAL;
-    }
-    return 0;
+    return write_sync(ioc, buf, sizeof(buf));
 }
 
 #define MAX_NBD_REQUESTS 16
@@ -1067,7 +1049,7 @@ static ssize_t nbd_co_send_reply(NBDRequestData *req, NBDReply *reply,
         rc = nbd_send_reply(client->ioc, reply);
         if (rc >= 0) {
             ret = write_sync(client->ioc, req->data, len);
-            if (ret != len) {
+            if (ret < 0) {
                 rc = -EIO;
             }
         }
@@ -1141,7 +1123,7 @@ static ssize_t nbd_co_receive_request(NBDRequestData *req,
     if (request->type == NBD_CMD_WRITE) {
         TRACE("Reading %" PRIu32 " byte(s)", request->len);
 
-        if (read_sync(client->ioc, req->data, request->len) != request->len) {
+        if (read_sync(client->ioc, req->data, request->len) < 0) {
             LOG("reading from socket failed");
             rc = -EIO;
             goto out;

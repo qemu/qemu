@@ -94,7 +94,13 @@
 #define NBD_ENOSPC     28
 #define NBD_ESHUTDOWN  108
 
-static inline ssize_t read_sync(QIOChannel *ioc, void *buffer, size_t size)
+/* read_sync_eof
+ * Tries to read @size bytes from @ioc. Returns number of bytes actually read.
+ * May return a value >= 0 and < size only on EOF, i.e. when iteratively called
+ * qio_channel_readv() returns 0. So, there are no needs to call read_sync_eof
+ * iteratively.
+ */
+static inline ssize_t read_sync_eof(QIOChannel *ioc, void *buffer, size_t size)
 {
     struct iovec iov = { .iov_base = buffer, .iov_len = size };
     /* Sockets are kept in blocking mode in the negotiation phase.  After
@@ -105,12 +111,32 @@ static inline ssize_t read_sync(QIOChannel *ioc, void *buffer, size_t size)
     return nbd_wr_syncv(ioc, &iov, 1, size, true);
 }
 
-static inline ssize_t write_sync(QIOChannel *ioc, const void *buffer,
-                                 size_t size)
+/* read_sync
+ * Reads @size bytes from @ioc. Returns 0 on success.
+ */
+static inline int read_sync(QIOChannel *ioc, void *buffer, size_t size)
+{
+    ssize_t ret = read_sync_eof(ioc, buffer, size);
+
+    if (ret >= 0 && ret != size) {
+        ret = -EINVAL;
+    }
+
+    return ret < 0 ? ret : 0;
+}
+
+/* write_sync
+ * Writes @size bytes to @ioc. Returns 0 on success.
+ */
+static inline int write_sync(QIOChannel *ioc, const void *buffer, size_t size)
 {
     struct iovec iov = { .iov_base = (void *) buffer, .iov_len = size };
 
-    return nbd_wr_syncv(ioc, &iov, 1, size, false);
+    ssize_t ret = nbd_wr_syncv(ioc, &iov, 1, size, false);
+
+    assert(ret < 0 || ret == size);
+
+    return ret < 0 ? ret : 0;
 }
 
 struct NBDTLSHandshakeData {
