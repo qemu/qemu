@@ -91,9 +91,10 @@
 #define FPSCR_RM_NEAREST       (0 << 0)
 #define FPSCR_RM_ZERO          (1 << 0)
 
-#define DELAY_SLOT_MASK        0x3
+#define DELAY_SLOT_MASK        0x7
 #define DELAY_SLOT             (1 << 0)
 #define DELAY_SLOT_CONDITIONAL (1 << 1)
+#define DELAY_SLOT_RTE         (1 << 2)
 
 typedef struct tlb_t {
     uint32_t vpn;		/* virtual page number */
@@ -264,7 +265,13 @@ void cpu_load_tlb(CPUSH4State * env);
 #define MMU_USER_IDX 1
 static inline int cpu_mmu_index (CPUSH4State *env, bool ifetch)
 {
-    return (env->sr & (1u << SR_MD)) == 0 ? 1 : 0;
+    /* The instruction in a RTE delay slot is fetched in privileged
+       mode, but executed in user mode.  */
+    if (ifetch && (env->flags & DELAY_SLOT_RTE)) {
+        return 0;
+    } else {
+        return (env->sr & (1u << SR_MD)) == 0 ? 1 : 0;
+    }
 }
 
 #include "exec/cpu-all.h"
@@ -381,7 +388,7 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = (env->flags & DELAY_SLOT_MASK)                    /* Bits  0- 1 */
+    *flags = (env->flags & DELAY_SLOT_MASK)                    /* Bits  0- 2 */
             | (env->fpscr & (FPSCR_FR | FPSCR_SZ | FPSCR_PR))  /* Bits 19-21 */
             | (env->sr & ((1u << SR_MD) | (1u << SR_RB)))      /* Bits 29-30 */
             | (env->sr & (1u << SR_FD))                        /* Bit 15 */

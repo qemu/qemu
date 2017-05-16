@@ -185,6 +185,9 @@ void superh_cpu_dump_state(CPUState *cs, FILE *f,
     } else if (env->flags & DELAY_SLOT_CONDITIONAL) {
 	cpu_fprintf(f, "in conditional delay slot (delayed_pc=0x%08x)\n",
 		    env->delayed_pc);
+    } else if (env->flags & DELAY_SLOT_RTE) {
+        cpu_fprintf(f, "in rte delay slot (delayed_pc=0x%08x)\n",
+                    env->delayed_pc);
     }
 }
 
@@ -427,8 +430,9 @@ static void _decode_opc(DisasContext * ctx)
 	CHECK_NOT_DELAY_SLOT
         gen_write_sr(cpu_ssr);
 	tcg_gen_mov_i32(cpu_delayed_pc, cpu_spc);
-        ctx->envflags |= DELAY_SLOT;
+        ctx->envflags |= DELAY_SLOT_RTE;
 	ctx->delayed_pc = (uint32_t) - 1;
+        ctx->bstate = BS_STOP;
 	return;
     case 0x0058:		/* sets */
         tcg_gen_ori_i32(cpu_sr, cpu_sr, (1u << SR_S));
@@ -1804,7 +1808,7 @@ static void decode_opc(DisasContext * ctx)
         ctx->bstate = BS_BRANCH;
         if (old_flags & DELAY_SLOT_CONDITIONAL) {
 	    gen_delayed_conditional_jump(ctx);
-        } else if (old_flags & DELAY_SLOT) {
+        } else {
             gen_jump(ctx);
 	}
 
