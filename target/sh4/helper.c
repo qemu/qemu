@@ -871,8 +871,16 @@ int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 bool superh_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     if (interrupt_request & CPU_INTERRUPT_HARD) {
-        superh_cpu_do_interrupt(cs);
-        return true;
+        SuperHCPU *cpu = SUPERH_CPU(cs);
+        CPUSH4State *env = &cpu->env;
+
+        /* Delay slots are indivisible, ignore interrupts */
+        if (env->flags & DELAY_SLOT_MASK) {
+            return false;
+        } else {
+            superh_cpu_do_interrupt(cs);
+            return true;
+        }
     }
     return false;
 }
