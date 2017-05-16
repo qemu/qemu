@@ -24,6 +24,7 @@
 #include "cpu-qom.h"
 
 #define TARGET_LONG_BITS 32
+#define ALIGNED_ONLY
 
 /* CPU Subtypes */
 #define SH_CPU_SH7750  (1 << 0)
@@ -92,14 +93,6 @@
 
 #define DELAY_SLOT             (1 << 0)
 #define DELAY_SLOT_CONDITIONAL (1 << 1)
-#define DELAY_SLOT_TRUE        (1 << 2)
-#define DELAY_SLOT_CLEARME     (1 << 3)
-/* The dynamic value of the DELAY_SLOT_TRUE flag determines whether the jump
- * after the delay slot should be taken or not. It is calculated from SR_T.
- *
- * It is unclear if it is permitted to modify the SR_T flag in a delay slot.
- * The use of DELAY_SLOT_TRUE flag makes us accept such SR_T modification.
- */
 
 typedef struct tlb_t {
     uint32_t vpn;		/* virtual page number */
@@ -149,7 +142,8 @@ typedef struct CPUSH4State {
     uint32_t sgr;		/* saved global register 15 */
     uint32_t dbr;		/* debug base register */
     uint32_t pc;		/* program counter */
-    uint32_t delayed_pc;	/* target of delayed jump */
+    uint32_t delayed_pc;        /* target of delayed branch */
+    uint32_t delayed_cond;      /* condition of delayed branch */
     uint32_t mach;		/* multiply and accumulate high */
     uint32_t macl;		/* multiply and accumulate low */
     uint32_t pr;		/* procedure register */
@@ -222,6 +216,9 @@ void superh_cpu_dump_state(CPUState *cpu, FILE *f,
 hwaddr superh_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int superh_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int superh_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+void superh_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
+                                    MMUAccessType access_type,
+                                    int mmu_idx, uintptr_t retaddr);
 
 void sh4_translate_init(void);
 SuperHCPU *cpu_sh4_init(const char *cpu_model);
@@ -383,8 +380,7 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = (env->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL
-                    | DELAY_SLOT_TRUE | DELAY_SLOT_CLEARME))   /* Bits  0- 3 */
+    *flags = (env->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) /* Bits 0-1 */
             | (env->fpscr & (FPSCR_FR | FPSCR_SZ | FPSCR_PR))  /* Bits 19-21 */
             | (env->sr & ((1u << SR_MD) | (1u << SR_RB)))      /* Bits 29-30 */
             | (env->sr & (1u << SR_FD))                        /* Bit 15 */

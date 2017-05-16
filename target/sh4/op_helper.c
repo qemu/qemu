@@ -24,6 +24,22 @@
 
 #ifndef CONFIG_USER_ONLY
 
+void superh_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                    MMUAccessType access_type,
+                                    int mmu_idx, uintptr_t retaddr)
+{
+    switch (access_type) {
+    case MMU_INST_FETCH:
+    case MMU_DATA_LOAD:
+        cs->exception_index = 0x0e0;
+        break;
+    case MMU_DATA_STORE:
+        cs->exception_index = 0x100;
+        break;
+    }
+    cpu_loop_exit_restore(cs, retaddr);
+}
+
 void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
               int mmu_idx, uintptr_t retaddr)
 {
@@ -32,10 +48,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
     ret = superh_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
     if (ret) {
         /* now we have a real cpu fault */
-        if (retaddr) {
-            cpu_restore_state(cs, retaddr);
-        }
-        cpu_loop_exit(cs);
+        cpu_loop_exit_restore(cs, retaddr);
     }
 }
 
@@ -59,10 +72,7 @@ static inline void QEMU_NORETURN raise_exception(CPUSH4State *env, int index,
     CPUState *cs = CPU(sh_env_get_cpu(env));
 
     cs->exception_index = index;
-    if (retaddr) {
-        cpu_restore_state(cs, retaddr);
-    }
-    cpu_loop_exit(cs);
+    cpu_loop_exit_restore(cs, retaddr);
 }
 
 void helper_raise_illegal_instruction(CPUSH4State *env)
