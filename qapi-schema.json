@@ -3035,8 +3035,6 @@
 # @name: the type name found in the search
 #
 # Since: 1.1
-#
-# Notes: This command is experimental and may change syntax in future releases.
 ##
 { 'struct': 'ObjectTypeInfo',
   'data': { 'name': 'str' } }
