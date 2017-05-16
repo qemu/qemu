@@ -718,4 +718,20 @@ void s390x_cpu_debug_excp_handler(CPUState *cs)
         cpu_loop_exit_noexc(cs);
     }
 }
+
+/* Unaligned accesses are only diagnosed with MO_ALIGN.  At the moment,
+   this is only for the atomic operations, for which we want to raise a
+   specification exception.  */
+void s390x_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                   MMUAccessType access_type,
+                                   int mmu_idx, uintptr_t retaddr)
+{
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
+
+    if (retaddr) {
+        cpu_restore_state(cs, retaddr);
+    }
+    program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER);
+}
 #endif /* CONFIG_USER_ONLY */

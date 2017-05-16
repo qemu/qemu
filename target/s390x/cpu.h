@@ -480,6 +480,9 @@ int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 
 #ifndef CONFIG_USER_ONLY
 void do_restart_interrupt(CPUS390XState *env);
+void s390x_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                   MMUAccessType access_type,
+                                   int mmu_idx, uintptr_t retaddr);
 
 static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb,
                                        uint8_t *ar)
@@ -1074,6 +1077,9 @@ struct sysib_322 {
 #define SIGP_MODE_ESA_S390 0
 #define SIGP_MODE_Z_ARCH_TRANS_ALL_PSW 1
 #define SIGP_MODE_Z_ARCH_TRANS_CUR_PSW 2
+
+/* SIGP order code mask corresponding to bit positions 56-63 */
+#define SIGP_ORDER_MASK 0x000000ff
 
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
