@@ -29,6 +29,7 @@
 #include "monitor/qdev.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/util.h"
 #include "qapi-visit.h"
@@ -1524,8 +1525,9 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
 {
     const char *param = qdict_get_str(qdict, "parameter");
     const char *valuestr = qdict_get_str(qdict, "value");
+    Visitor *v = string_input_visitor_new(valuestr);
     uint64_t valuebw = 0;
-    long valueint = 0;
+    int64_t valueint = 0;
     Error *err = NULL;
     bool use_int_value = false;
     int i, ret;
@@ -1583,9 +1585,8 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
             }
 
             if (use_int_value) {
-                if (qemu_strtol(valuestr, NULL, 10, &valueint) < 0) {
-                    error_setg(&err, "Unable to parse '%s' as an int",
-                               valuestr);
+                visit_type_int(v, param, &valueint, &err);
+                if (err) {
                     goto cleanup;
                 }
                 /* Set all integers; only one has_FOO will be set, and
@@ -1609,6 +1610,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     }
 
  cleanup:
+    visit_free(v);
     if (err) {
         error_report_err(err);
     }
