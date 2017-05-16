@@ -413,7 +413,84 @@ out:
     return r;
 }
 
+typedef struct KVMS390FLICStateMigTmp {
+    KVMS390FLICState *parent;
+    uint8_t simm;
+    uint8_t nimm;
+} KVMS390FLICStateMigTmp;
+
+static void kvm_flic_ais_pre_save(void *opaque)
+{
+    KVMS390FLICStateMigTmp *tmp = opaque;
+    KVMS390FLICState *flic = tmp->parent;
+    struct kvm_s390_ais_all ais;
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_FLIC_AISM_ALL,
+        .addr = (uint64_t)&ais,
+        .attr = sizeof(ais),
+    };
+
+    if (ioctl(flic->fd, KVM_GET_DEVICE_ATTR, &attr)) {
+        error_report("Failed to retrieve kvm flic ais states");
+        return;
+    }
+
+    tmp->simm = ais.simm;
+    tmp->nimm = ais.nimm;
+}
+
+static int kvm_flic_ais_post_load(void *opaque, int version_id)
+{
+    KVMS390FLICStateMigTmp *tmp = opaque;
+    KVMS390FLICState *flic = tmp->parent;
+    struct kvm_s390_ais_all ais = {
+        .simm = tmp->simm,
+        .nimm = tmp->nimm,
+    };
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_FLIC_AISM_ALL,
+        .addr = (uint64_t)&ais,
+    };
+
+    /* This can happen when the user mis-configures its guests in an
+     * incompatible fashion or without a CPU model. For example using
+     * qemu with -cpu host (which is not migration safe) and do a
+     * migration from a host that has AIS to a host that has no AIS.
+     * In that case the target system will reject the migration here.
+     */
+    if (!ais_needed(flic)) {
+        return -ENOSYS;
+    }
+
+    return ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr) ? -errno : 0;
+}
+
+static const VMStateDescription kvm_s390_flic_ais_tmp = {
+    .name = "s390-flic-ais-tmp",
+    .pre_save = kvm_flic_ais_pre_save,
+    .post_load = kvm_flic_ais_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(simm, KVMS390FLICStateMigTmp),
+        VMSTATE_UINT8(nimm, KVMS390FLICStateMigTmp),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription kvm_s390_flic_vmstate_ais = {
+    .name = "s390-flic/ais",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ais_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_WITH_TMP(KVMS390FLICState, KVMS390FLICStateMigTmp,
+                         kvm_s390_flic_ais_tmp),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription kvm_s390_flic_vmstate = {
+    /* should have been like kvm-s390-flic,
+     * can't change without breaking compat */
     .name = "s390-flic",
     .version_id = FLIC_SAVEVM_VERSION,
     .minimum_version_id = FLIC_SAVEVM_VERSION,
@@ -428,6 +505,10 @@ static const VMStateDescription kvm_s390_flic_vmstate = {
             .flags = VMS_SINGLE,
         },
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &kvm_s390_flic_vmstate_ais,
+        NULL
     }
 };
 

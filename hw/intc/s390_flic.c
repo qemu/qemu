@@ -134,12 +134,32 @@ static void qemu_s390_flic_reset(DeviceState *dev)
     flic->nimm = 0;
 }
 
+bool ais_needed(void *opaque)
+{
+    S390FLICState *s = opaque;
+
+    return s->ais_supported;
+}
+
+static const VMStateDescription qemu_s390_flic_vmstate = {
+    .name = "qemu-s390-flic",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ais_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(simm, QEMUS390FLICState),
+        VMSTATE_UINT8(nimm, QEMUS390FLICState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
 
     dc->reset = qemu_s390_flic_reset;
+    dc->vmsd = &qemu_s390_flic_vmstate;
     fsc->register_io_adapter = qemu_s390_register_io_adapter;
     fsc->io_adapter_map = qemu_s390_io_adapter_map;
     fsc->add_adapter_routes = qemu_s390_add_adapter_routes;

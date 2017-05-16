@@ -89,6 +89,7 @@ typedef struct QEMUS390FLICState {
 void s390_flic_init(void);
 
 S390FLICState *s390_get_flic(void);
+bool ais_needed(void *opaque);
 
 #ifdef CONFIG_KVM
 DeviceState *s390_flic_kvm_create(void);
