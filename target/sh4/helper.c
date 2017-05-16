@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/log.h"
+#include "sysemu/sysemu.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/sh4/sh_intc.h"
@@ -92,7 +93,14 @@ void superh_cpu_do_interrupt(CPUState *cs)
 
     if (env->sr & (1u << SR_BL)) {
         if (do_exp && cs->exception_index != 0x1e0) {
-            cs->exception_index = 0x000; /* masked exception -> reset */
+            /* In theory a masked exception generates a reset exception,
+               which in turn jumps to the reset vector. However this only
+               works when using a bootloader. When using a kernel and an
+               initrd, they need to be reloaded and the program counter
+               should be loaded with the kernel entry point.
+               qemu_system_reset_request takes care of that.  */
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+            return;
         }
         if (do_irq && !env->in_sleep) {
             return; /* masked */
