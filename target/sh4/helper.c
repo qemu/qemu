@@ -420,7 +420,7 @@ static int get_physical_address(CPUSH4State * env, target_ulong * physical,
         if (!(env->sr & (1u << SR_MD))
 	    && (address < 0xe0000000 || address >= 0xe4000000)) {
 	    /* Unauthorized access in user mode (only store queues are available) */
-	    fprintf(stderr, "Unauthorized access\n");
+            qemu_log_mask(LOG_GUEST_ERROR, "Unauthorized access\n");
 	    if (rw == 0)
 		return MMU_DADDR_ERROR_READ;
 	    else if (rw == 1)
