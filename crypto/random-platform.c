@@ -23,7 +23,7 @@
 #include "crypto/random.h"
 
 #ifdef _WIN32
-#include <Wincrypt.h>
+#include <wincrypt.h>
 static HCRYPTPROV hCryptProv;
 #else
 static int fd; /* a file handle to either /dev/urandom or /dev/random */
