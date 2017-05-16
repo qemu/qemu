@@ -91,6 +91,7 @@
 #define FPSCR_RM_NEAREST       (0 << 0)
 #define FPSCR_RM_ZERO          (1 << 0)
 
+#define DELAY_SLOT_MASK        0x3
 #define DELAY_SLOT             (1 << 0)
 #define DELAY_SLOT_CONDITIONAL (1 << 1)
 
@@ -380,7 +381,7 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = (env->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) /* Bits 0-1 */
+    *flags = (env->flags & DELAY_SLOT_MASK)                    /* Bits  0- 1 */
             | (env->fpscr & (FPSCR_FR | FPSCR_SZ | FPSCR_PR))  /* Bits 19-21 */
             | (env->sr & ((1u << SR_MD) | (1u << SR_RB)))      /* Bits 29-30 */
             | (env->sr & (1u << SR_FD))                        /* Bit 15 */

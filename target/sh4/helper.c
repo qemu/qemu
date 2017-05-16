@@ -172,11 +172,11 @@ void superh_cpu_do_interrupt(CPUState *cs)
     env->sgr = env->gregs[15];
     env->sr |= (1u << SR_BL) | (1u << SR_MD) | (1u << SR_RB);
 
-    if (env->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
+    if (env->flags & DELAY_SLOT_MASK) {
         /* Branch instruction should be executed again before delay slot. */
 	env->spc -= 2;
 	/* Clear flags for exception/interrupt routine. */
-        env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+        env->flags &= ~DELAY_SLOT_MASK;
     }
 
     if (do_exp) {
