@@ -618,15 +618,11 @@ int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
             error_setg(errp, "error parsing IPv6 address '%s'", str);
             return -1;
         }
-        addr->ipv6 = addr->has_ipv6 = true;
     } else {
         /* hostname or IPv4 addr */
         if (sscanf(str, "%64[^:]:%32[^,]%n", host, port, &pos) != 2) {
             error_setg(errp, "error parsing address '%s'", str);
             return -1;
-        }
-        if (host[strspn(host, "0123456789.")] == '\0') {
-            addr->ipv4 = addr->has_ipv4 = true;
         }
     }
 
