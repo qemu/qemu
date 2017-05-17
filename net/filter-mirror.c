@@ -194,12 +194,6 @@ static void filter_mirror_setup(NetFilterState *nf, Error **errp)
     MirrorState *s = FILTER_MIRROR(nf);
     Chardev *chr;
 
-    if (!s->outdev) {
-        error_setg(errp, "filter mirror needs 'outdev' "
-                   "property set");
-        return;
-    }
-
     chr = qemu_chr_find(s->outdev);
     if (chr == NULL) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
