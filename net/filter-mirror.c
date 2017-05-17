@@ -43,9 +43,9 @@ typedef struct MirrorState {
     SocketReadState rs;
 } MirrorState;
 
-static int filter_mirror_send(CharBackend *chr_out,
-                              const struct iovec *iov,
-                              int iovcnt)
+static int filter_send(CharBackend *chr_out,
+                       const struct iovec *iov,
+                       int iovcnt)
 {
     int ret = 0;
     ssize_t size = 0;
@@ -141,9 +141,9 @@ static ssize_t filter_mirror_receive_iov(NetFilterState *nf,
     MirrorState *s = FILTER_MIRROR(nf);
     int ret;
 
-    ret = filter_mirror_send(&s->chr_out, iov, iovcnt);
+    ret = filter_send(&s->chr_out, iov, iovcnt);
     if (ret) {
-        error_report("filter_mirror_send failed(%s)", strerror(-ret));
+        error_report("filter mirror send failed(%s)", strerror(-ret));
     }
 
     /*
@@ -164,9 +164,9 @@ static ssize_t filter_redirector_receive_iov(NetFilterState *nf,
     int ret;
 
     if (qemu_chr_fe_get_driver(&s->chr_out)) {
-        ret = filter_mirror_send(&s->chr_out, iov, iovcnt);
+        ret = filter_send(&s->chr_out, iov, iovcnt);
         if (ret) {
-            error_report("filter_mirror_send failed(%s)", strerror(-ret));
+            error_report("filter redirector send failed(%s)", strerror(-ret));
         }
         return iov_size(iov, iovcnt);
     } else {
@@ -286,8 +286,9 @@ static char *filter_redirector_get_indev(Object *obj, Error **errp)
     return g_strdup(s->indev);
 }
 
-static void
-filter_redirector_set_indev(Object *obj, const char *value, Error **errp)
+static void filter_redirector_set_indev(Object *obj,
+                                        const char *value,
+                                        Error **errp)
 {
     MirrorState *s = FILTER_REDIRECTOR(obj);
 
@@ -302,8 +303,9 @@ static char *filter_mirror_get_outdev(Object *obj, Error **errp)
     return g_strdup(s->outdev);
 }
 
-static void
-filter_mirror_set_outdev(Object *obj, const char *value, Error **errp)
+static void filter_mirror_set_outdev(Object *obj,
+                                     const char *value,
+                                     Error **errp)
 {
     MirrorState *s = FILTER_MIRROR(obj);
 
@@ -323,8 +325,9 @@ static char *filter_redirector_get_outdev(Object *obj, Error **errp)
     return g_strdup(s->outdev);
 }
 
-static void
-filter_redirector_set_outdev(Object *obj, const char *value, Error **errp)
+static void filter_redirector_set_outdev(Object *obj,
+                                         const char *value,
+                                         Error **errp)
 {
     MirrorState *s = FILTER_REDIRECTOR(obj);
 
