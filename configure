@@ -2015,7 +2015,7 @@ if test "$xen" != "no" ; then
   else
 
     xen_libs="-lxenstore -lxenctrl -lxenguest"
-    xen_stable_libs="-lxencall -lxenforeignmemory -lxengnttab -lxenevtchn"
+    xen_stable_libs="-lxenforeignmemory -lxengnttab -lxenevtchn"
 
     # First we test whether Xen headers and libraries are available.
     # If no, we are done and there is no Xen support.

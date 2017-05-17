@@ -17,7 +17,7 @@ typedef hwaddr (*phys_offset_to_gaddr_t)(hwaddr start_addr,
 void xen_map_cache_init(phys_offset_to_gaddr_t f,
                         void *opaque);
 uint8_t *xen_map_cache(hwaddr phys_addr, hwaddr size,
-                       uint8_t lock);
+                       uint8_t lock, bool dma);
 ram_addr_t xen_ram_addr_from_mapcache(void *ptr);
 void xen_invalidate_map_cache_entry(uint8_t *buffer);
 void xen_invalidate_map_cache(void);
@@ -31,7 +31,8 @@ static inline void xen_map_cache_init(phys_offset_to_gaddr_t f,
 
 static inline uint8_t *xen_map_cache(hwaddr phys_addr,
                                      hwaddr size,
-                                     uint8_t lock)
+                                     uint8_t lock,
+                                     bool dma)
 {
     abort();
 }
