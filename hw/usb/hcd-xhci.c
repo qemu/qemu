@@ -29,6 +29,8 @@
 #include "trace.h"
 #include "qapi/error.h"
 
+#include "hcd-xhci.h"
+
 //#define DEBUG_XHCI
 //#define DEBUG_DATA
 
@@ -39,16 +41,6 @@
 #endif
 #define FIXME(_msg) do { fprintf(stderr, "FIXME %s:%d %s\n", \
                                  __func__, __LINE__, _msg); abort(); } while (0)
-
-#define MAXPORTS_2 15
-#define MAXPORTS_3 15
-
-#define MAXPORTS (MAXPORTS_2+MAXPORTS_3)
-#define MAXSLOTS 64
-#define MAXINTRS 16
-
-/* Very pessimistic, let's hope it's enough for all cases */
-#define EV_QUEUE (((3 * 24) + 16) * MAXSLOTS)
 
 #define TRB_LINK_LIMIT  32
 #define COMMAND_LIMIT   256
@@ -164,83 +156,7 @@ enum {
     PLS_RESUME          = 15,
 };
 
-typedef enum TRBType {
-    TRB_RESERVED = 0,
-    TR_NORMAL,
-    TR_SETUP,
-    TR_DATA,
-    TR_STATUS,
-    TR_ISOCH,
-    TR_LINK,
-    TR_EVDATA,
-    TR_NOOP,
-    CR_ENABLE_SLOT,
-    CR_DISABLE_SLOT,
-    CR_ADDRESS_DEVICE,
-    CR_CONFIGURE_ENDPOINT,
-    CR_EVALUATE_CONTEXT,
-    CR_RESET_ENDPOINT,
-    CR_STOP_ENDPOINT,
-    CR_SET_TR_DEQUEUE,
-    CR_RESET_DEVICE,
-    CR_FORCE_EVENT,
-    CR_NEGOTIATE_BW,
-    CR_SET_LATENCY_TOLERANCE,
-    CR_GET_PORT_BANDWIDTH,
-    CR_FORCE_HEADER,
-    CR_NOOP,
-    ER_TRANSFER = 32,
-    ER_COMMAND_COMPLETE,
-    ER_PORT_STATUS_CHANGE,
-    ER_BANDWIDTH_REQUEST,
-    ER_DOORBELL,
-    ER_HOST_CONTROLLER,
-    ER_DEVICE_NOTIFICATION,
-    ER_MFINDEX_WRAP,
-    /* vendor specific bits */
-    CR_VENDOR_NEC_FIRMWARE_REVISION  = 49,
-    CR_VENDOR_NEC_CHALLENGE_RESPONSE = 50,
-} TRBType;
-
 #define CR_LINK TR_LINK
-
-typedef enum TRBCCode {
-    CC_INVALID = 0,
-    CC_SUCCESS,
-    CC_DATA_BUFFER_ERROR,
-    CC_BABBLE_DETECTED,
-    CC_USB_TRANSACTION_ERROR,
-    CC_TRB_ERROR,
-    CC_STALL_ERROR,
-    CC_RESOURCE_ERROR,
-    CC_BANDWIDTH_ERROR,
-    CC_NO_SLOTS_ERROR,
-    CC_INVALID_STREAM_TYPE_ERROR,
-    CC_SLOT_NOT_ENABLED_ERROR,
-    CC_EP_NOT_ENABLED_ERROR,
-    CC_SHORT_PACKET,
-    CC_RING_UNDERRUN,
-    CC_RING_OVERRUN,
-    CC_VF_ER_FULL,
-    CC_PARAMETER_ERROR,
-    CC_BANDWIDTH_OVERRUN,
-    CC_CONTEXT_STATE_ERROR,
-    CC_NO_PING_RESPONSE_ERROR,
-    CC_EVENT_RING_FULL_ERROR,
-    CC_INCOMPATIBLE_DEVICE_ERROR,
-    CC_MISSED_SERVICE_ERROR,
-    CC_COMMAND_RING_STOPPED,
-    CC_COMMAND_ABORTED,
-    CC_STOPPED,
-    CC_STOPPED_LENGTH_INVALID,
-    CC_MAX_EXIT_LATENCY_TOO_LARGE_ERROR = 29,
-    CC_ISOCH_BUFFER_OVERRUN = 31,
-    CC_EVENT_LOST_ERROR,
-    CC_UNDEFINED_ERROR,
-    CC_INVALID_STREAM_ID_ERROR,
-    CC_SECONDARY_BANDWIDTH_ERROR,
-    CC_SPLIT_TRANSACTION_ERROR
-} TRBCCode;
 
 #define TRB_C               (1<<0)
 #define TRB_TYPE_SHIFT          10
@@ -301,10 +217,6 @@ typedef enum TRBCCode {
 #define SLOT_CONTEXT_ENTRIES_MASK 0x1f
 #define SLOT_CONTEXT_ENTRIES_SHIFT 27
 
-typedef struct XHCIState XHCIState;
-typedef struct XHCIStreamContext XHCIStreamContext;
-typedef struct XHCIEPContext XHCIEPContext;
-
 #define get_field(data, field)                  \
     (((data) >> field##_SHIFT) & field##_MASK)
 
@@ -325,21 +237,6 @@ typedef enum EPType {
     ET_BULK_IN,
     ET_INTR_IN,
 } EPType;
-
-typedef struct XHCIRing {
-    dma_addr_t dequeue;
-    bool ccs;
-} XHCIRing;
-
-typedef struct XHCIPort {
-    XHCIState *xhci;
-    uint32_t portsc;
-    uint32_t portnr;
-    USBPort  *uport;
-    uint32_t speedmask;
-    char name[16];
-    MemoryRegion mem;
-} XHCIPort;
 
 typedef struct XHCITransfer {
     XHCIEPContext *epctx;
@@ -402,113 +299,12 @@ struct XHCIEPContext {
     QEMUTimer *kick_timer;
 };
 
-typedef struct XHCISlot {
-    bool enabled;
-    bool addressed;
-    dma_addr_t ctx;
-    USBPort *uport;
-    XHCIEPContext * eps[31];
-} XHCISlot;
-
-typedef struct XHCIEvent {
-    TRBType type;
-    TRBCCode ccode;
-    uint64_t ptr;
-    uint32_t length;
-    uint32_t flags;
-    uint8_t slotid;
-    uint8_t epid;
-} XHCIEvent;
-
-typedef struct XHCIInterrupter {
-    uint32_t iman;
-    uint32_t imod;
-    uint32_t erstsz;
-    uint32_t erstba_low;
-    uint32_t erstba_high;
-    uint32_t erdp_low;
-    uint32_t erdp_high;
-
-    bool msix_used, er_pcs;
-
-    dma_addr_t er_start;
-    uint32_t er_size;
-    unsigned int er_ep_idx;
-
-    /* kept for live migration compat only */
-    bool er_full_unused;
-    XHCIEvent ev_buffer[EV_QUEUE];
-    unsigned int ev_buffer_put;
-    unsigned int ev_buffer_get;
-
-} XHCIInterrupter;
-
-struct XHCIState {
-    /*< private >*/
-    PCIDevice parent_obj;
-    /*< public >*/
-
-    USBBus bus;
-    MemoryRegion mem;
-    MemoryRegion mem_cap;
-    MemoryRegion mem_oper;
-    MemoryRegion mem_runtime;
-    MemoryRegion mem_doorbell;
-
-    /* properties */
-    uint32_t numports_2;
-    uint32_t numports_3;
-    uint32_t numintrs;
-    uint32_t numslots;
-    uint32_t flags;
-    uint32_t max_pstreams_mask;
-    OnOffAuto msi;
-    OnOffAuto msix;
-
-    /* Operational Registers */
-    uint32_t usbcmd;
-    uint32_t usbsts;
-    uint32_t dnctrl;
-    uint32_t crcr_low;
-    uint32_t crcr_high;
-    uint32_t dcbaap_low;
-    uint32_t dcbaap_high;
-    uint32_t config;
-
-    USBPort  uports[MAX(MAXPORTS_2, MAXPORTS_3)];
-    XHCIPort ports[MAXPORTS];
-    XHCISlot slots[MAXSLOTS];
-    uint32_t numports;
-
-    /* Runtime Registers */
-    int64_t mfindex_start;
-    QEMUTimer *mfwrap_timer;
-    XHCIInterrupter intr[MAXINTRS];
-
-    XHCIRing cmd_ring;
-
-    bool nec_quirks;
-};
-
-#define TYPE_XHCI "base-xhci"
-#define TYPE_NEC_XHCI "nec-usb-xhci"
-#define TYPE_QEMU_XHCI "qemu-xhci"
-
-#define XHCI(obj) \
-    OBJECT_CHECK(XHCIState, (obj), TYPE_XHCI)
-
 typedef struct XHCIEvRingSeg {
     uint32_t addr_low;
     uint32_t addr_high;
     uint32_t size;
     uint32_t rsvd;
 } XHCIEvRingSeg;
-
-enum xhci_flags {
-    XHCI_FLAG_SS_FIRST = 1,
-    XHCI_FLAG_FORCE_PCIE_ENDCAP,
-    XHCI_FLAG_ENABLE_STREAMS,
-};
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
                          unsigned int epid, unsigned int streamid);
@@ -3843,18 +3639,6 @@ static const VMStateDescription vmstate_xhci = {
     }
 };
 
-static Property nec_xhci_properties[] = {
-    DEFINE_PROP_ON_OFF_AUTO("msi", XHCIState, msi, ON_OFF_AUTO_AUTO),
-    DEFINE_PROP_ON_OFF_AUTO("msix", XHCIState, msix, ON_OFF_AUTO_AUTO),
-    DEFINE_PROP_BIT("superspeed-ports-first",
-                    XHCIState, flags, XHCI_FLAG_SS_FIRST, true),
-    DEFINE_PROP_BIT("force-pcie-endcap", XHCIState, flags,
-                    XHCI_FLAG_FORCE_PCIE_ENDCAP, false),
-    DEFINE_PROP_UINT32("intrs", XHCIState, numintrs, MAXINTRS),
-    DEFINE_PROP_UINT32("slots", XHCIState, numslots, MAXSLOTS),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static Property xhci_properties[] = {
     DEFINE_PROP_BIT("streams", XHCIState, flags,
                     XHCI_FLAG_ENABLE_STREAMS, true),
@@ -3884,23 +3668,6 @@ static const TypeInfo xhci_info = {
     .instance_size = sizeof(XHCIState),
     .class_init    = xhci_class_init,
     .abstract      = true,
-};
-
-static void nec_xhci_class_init(ObjectClass *klass, void *data)
-{
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->props       = nec_xhci_properties;
-    k->vendor_id    = PCI_VENDOR_ID_NEC;
-    k->device_id    = PCI_DEVICE_ID_NEC_UPD720200;
-    k->revision     = 0x03;
-}
-
-static const TypeInfo nec_xhci_info = {
-    .name          = TYPE_NEC_XHCI,
-    .parent        = TYPE_XHCI,
-    .class_init    = nec_xhci_class_init,
 };
 
 static void qemu_xhci_class_init(ObjectClass *klass, void *data)
@@ -3933,7 +3700,6 @@ static const TypeInfo qemu_xhci_info = {
 static void xhci_register_types(void)
 {
     type_register_static(&xhci_info);
-    type_register_static(&nec_xhci_info);
     type_register_static(&qemu_xhci_info);
 }
 
