@@ -610,6 +610,7 @@ int spapr_h_cas_compose_response(sPAPRMachineState *sm,
                                  sPAPROptionVector *ov5_updates);
 void close_htab_fd(sPAPRMachineState *spapr);
 void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr);
+void spapr_free_hpt(sPAPRMachineState *spapr);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn);
 void spapr_tce_table_enable(sPAPRTCETable *tcet,
                             uint32_t page_shift, uint64_t bus_offset,

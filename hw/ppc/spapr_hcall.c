@@ -913,10 +913,7 @@ static void spapr_check_setup_free_hpt(sPAPRMachineState *spapr,
         /* We assume RADIX, so this catches all the "Do Nothing" cases */
     } else if (!(patbe_old & PATBE1_GR)) {
         /* HASH->RADIX : Free HPT */
-        g_free(spapr->htab);
-        spapr->htab = NULL;
-        spapr->htab_shift = 0;
-        close_htab_fd(spapr);
+        spapr_free_hpt(spapr);
     } else if (!(patbe_new & PATBE1_GR)) {
         /* RADIX->HASH || NOTHING->HASH : Allocate HPT */
         spapr_setup_hpt_and_vrma(spapr);

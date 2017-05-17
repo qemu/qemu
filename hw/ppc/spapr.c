@@ -1227,16 +1227,21 @@ static int spapr_hpt_shift_for_ramsize(uint64_t ramsize)
     return shift;
 }
 
+void spapr_free_hpt(sPAPRMachineState *spapr)
+{
+    g_free(spapr->htab);
+    spapr->htab = NULL;
+    spapr->htab_shift = 0;
+    close_htab_fd(spapr);
+}
+
 static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
                                  Error **errp)
 {
     long rc;
 
     /* Clean up any HPT info from a previous boot */
-    g_free(spapr->htab);
-    spapr->htab = NULL;
-    spapr->htab_shift = 0;
-    close_htab_fd(spapr);
+    spapr_free_hpt(spapr);
 
     rc = kvmppc_reset_htab(shift);
     if (rc < 0) {
