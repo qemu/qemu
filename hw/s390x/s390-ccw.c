@@ -18,6 +18,17 @@
 #include "hw/s390x/css-bridge.h"
 #include "hw/s390x/s390-ccw.h"
 
+int s390_ccw_cmd_request(ORB *orb, SCSW *scsw, void *data)
+{
+    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(data);
+
+    if (cdc->handle_request) {
+        return cdc->handle_request(orb, scsw, data);
+    } else {
+        return -ENOSYS;
+    }
+}
+
 static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
                                   char *sysfsdev,
                                   Error **errp)
@@ -72,6 +83,7 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
         goto out_mdevid_free;
     }
     sch->driver_data = cdev;
+    sch->do_subchannel_work = do_subchannel_work_passthrough;
 
     ccw_dev->sch = sch;
     ret = css_sch_build_schib(sch, &cdev->hostid);

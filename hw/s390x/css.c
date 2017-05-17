@@ -524,7 +524,7 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
     return ret;
 }
 
-static void sch_handle_start_func(SubchDev *sch, ORB *orb)
+static void sch_handle_start_func_virtual(SubchDev *sch, ORB *orb)
 {
 
     PMCW *p = &sch->curr_status.pmcw;
@@ -626,13 +626,58 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
 
 }
 
+static int sch_handle_start_func_passthrough(SubchDev *sch, ORB *orb)
+{
+
+    PMCW *p = &sch->curr_status.pmcw;
+    SCSW *s = &sch->curr_status.scsw;
+    int ret;
+
+    if (!(s->ctrl & SCSW_ACTL_SUSP)) {
+        assert(orb != NULL);
+        p->intparm = orb->intparm;
+    }
+
+    /*
+     * Only support prefetch enable mode.
+     * Only support 64bit addressing idal.
+     */
+    if (!(orb->ctrl0 & ORB_CTRL0_MASK_PFCH) ||
+        !(orb->ctrl0 & ORB_CTRL0_MASK_C64)) {
+        return -EINVAL;
+    }
+
+    ret = s390_ccw_cmd_request(orb, s, sch->driver_data);
+    switch (ret) {
+    /* Currently we don't update control block and just return the cc code. */
+    case 0:
+        break;
+    case -EBUSY:
+        break;
+    case -ENODEV:
+        break;
+    case -EACCES:
+        /* Let's reflect an inaccessible host device by cc 3. */
+        ret = -ENODEV;
+        break;
+    default:
+       /*
+        * All other return codes will trigger a program check,
+        * or set cc to 1.
+        */
+       break;
+    };
+
+    return ret;
+}
+
 /*
  * On real machines, this would run asynchronously to the main vcpus.
  * We might want to make some parts of the ssch handling (interpreting
  * read/writes) asynchronous later on if we start supporting more than
  * our current very simple devices.
  */
-static void do_subchannel_work(SubchDev *sch, ORB *orb)
+int do_subchannel_work_virtual(SubchDev *sch, ORB *orb)
 {
 
     SCSW *s = &sch->curr_status.scsw;
@@ -643,12 +688,45 @@ static void do_subchannel_work(SubchDev *sch, ORB *orb)
         sch_handle_halt_func(sch);
     } else if (s->ctrl & SCSW_FCTL_START_FUNC) {
         /* Triggered by both ssch and rsch. */
-        sch_handle_start_func(sch, orb);
+        sch_handle_start_func_virtual(sch, orb);
     } else {
         /* Cannot happen. */
-        return;
+        return 0;
     }
     css_inject_io_interrupt(sch);
+    return 0;
+}
+
+int do_subchannel_work_passthrough(SubchDev *sch, ORB *orb)
+{
+    int ret;
+    SCSW *s = &sch->curr_status.scsw;
+
+    if (s->ctrl & SCSW_FCTL_CLEAR_FUNC) {
+        /* TODO: Clear handling */
+        sch_handle_clear_func(sch);
+        ret = 0;
+    } else if (s->ctrl & SCSW_FCTL_HALT_FUNC) {
+        /* TODO: Halt handling */
+        sch_handle_halt_func(sch);
+        ret = 0;
+    } else if (s->ctrl & SCSW_FCTL_START_FUNC) {
+        ret = sch_handle_start_func_passthrough(sch, orb);
+    } else {
+        /* Cannot happen. */
+        return -ENODEV;
+    }
+
+    return ret;
+}
+
+static int do_subchannel_work(SubchDev *sch, ORB *orb)
+{
+    if (sch->do_subchannel_work) {
+        return sch->do_subchannel_work(sch, orb);
+    } else {
+        return -EINVAL;
+    }
 }
 
 static void copy_pmcw_to_guest(PMCW *dest, const PMCW *src)
@@ -967,8 +1045,7 @@ int css_do_ssch(SubchDev *sch, ORB *orb)
     s->ctrl |= (SCSW_FCTL_START_FUNC | SCSW_ACTL_START_PEND);
     s->flags &= ~SCSW_FLAGS_MASK_PNO;
 
-    do_subchannel_work(sch, orb);
-    ret = 0;
+    ret = do_subchannel_work(sch, orb);
 
 out:
     return ret;

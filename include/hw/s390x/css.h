@@ -91,6 +91,7 @@ struct SubchDev {
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);
     void (*disable_cb)(SubchDev *);
+    int (*do_subchannel_work) (SubchDev *, ORB *);
     SenseId id;
     void *driver_data;
 };
@@ -148,6 +149,9 @@ void css_generate_chp_crws(uint8_t cssid, uint8_t chpid);
 void css_generate_css_crws(uint8_t cssid);
 void css_clear_sei_pending(void);
 void css_adapter_interrupt(uint8_t isc);
+int s390_ccw_cmd_request(ORB *orb, SCSW *scsw, void *data);
+int do_subchannel_work_virtual(SubchDev *sub, ORB *orb);
+int do_subchannel_work_passthrough(SubchDev *sub, ORB *orb);
 
 typedef enum {
     CSS_IO_ADAPTER_VIRTIO = 0,
