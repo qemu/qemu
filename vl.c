@@ -2129,7 +2129,7 @@ static DisplayType select_display(const char *p)
             exit(1);
         }
     } else if (strstart(p, "egl-headless", &opts)) {
-#ifdef CONFIG_OPENGL
+#ifdef CONFIG_OPENGL_DMABUF
         request_opengl = 1;
         display_opengl = 1;
         display = DT_EGL;
@@ -4668,7 +4668,7 @@ int main(int argc, char **argv, char **envp)
         qemu_spice_display_init();
     }
 
-#ifdef CONFIG_OPENGL
+#ifdef CONFIG_OPENGL_DMABUF
     if (display_type == DT_EGL) {
         egl_headless_init();
     }
