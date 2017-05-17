@@ -259,7 +259,7 @@ uint16_t css_build_subchannel_id(SubchDev *sch)
     return css_do_build_subchannel_id(sch->cssid, sch->ssid);
 }
 
-static void css_inject_io_interrupt(SubchDev *sch)
+void css_inject_io_interrupt(SubchDev *sch)
 {
     uint8_t isc = (sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ISC) >> 11;
 
@@ -671,7 +671,7 @@ static void copy_pmcw_to_guest(PMCW *dest, const PMCW *src)
     dest->chars = cpu_to_be32(src->chars);
 }
 
-static void copy_scsw_to_guest(SCSW *dest, const SCSW *src)
+void copy_scsw_to_guest(SCSW *dest, const SCSW *src)
 {
     dest->flags = cpu_to_be16(src->flags);
     dest->ctrl = cpu_to_be16(src->ctrl);

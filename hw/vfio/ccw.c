@@ -47,6 +47,36 @@ struct VFIODeviceOps vfio_ccw_ops = {
     .vfio_compute_needs_reset = vfio_ccw_compute_needs_reset,
 };
 
+static int vfio_ccw_handle_request(ORB *orb, SCSW *scsw, void *data)
+{
+    S390CCWDevice *cdev = data;
+    VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
+    struct ccw_io_region *region = vcdev->io_region;
+    int ret;
+
+    QEMU_BUILD_BUG_ON(sizeof(region->orb_area) != sizeof(ORB));
+    QEMU_BUILD_BUG_ON(sizeof(region->scsw_area) != sizeof(SCSW));
+    QEMU_BUILD_BUG_ON(sizeof(region->irb_area) != sizeof(IRB));
+
+    memset(region, 0, sizeof(*region));
+
+    memcpy(region->orb_area, orb, sizeof(ORB));
+    memcpy(region->scsw_area, scsw, sizeof(SCSW));
+
+again:
+    ret = pwrite(vcdev->vdev.fd, region,
+                 vcdev->io_region_size, vcdev->io_region_offset);
+    if (ret != vcdev->io_region_size) {
+        if (errno == EAGAIN) {
+            goto again;
+        }
+        error_report("vfio-ccw: wirte I/O region failed with errno=%d", errno);
+        return -errno;
+    }
+
+    return region->ret_code;
+}
+
 static void vfio_ccw_reset(DeviceState *dev)
 {
     CcwDevice *ccw_dev = DO_UPCAST(CcwDevice, parent_obj, dev);
@@ -59,10 +89,62 @@ static void vfio_ccw_reset(DeviceState *dev)
 static void vfio_ccw_io_notifier_handler(void *opaque)
 {
     VFIOCCWDevice *vcdev = opaque;
+    struct ccw_io_region *region = vcdev->io_region;
+    S390CCWDevice *cdev = S390_CCW_DEVICE(vcdev);
+    CcwDevice *ccw_dev = CCW_DEVICE(cdev);
+    SubchDev *sch = ccw_dev->sch;
+    SCSW *s = &sch->curr_status.scsw;
+    IRB irb;
+    int size;
 
     if (!event_notifier_test_and_clear(&vcdev->io_notifier)) {
         return;
     }
+
+    size = pread(vcdev->vdev.fd, region, vcdev->io_region_size,
+                 vcdev->io_region_offset);
+    if (size == -1) {
+        switch (errno) {
+        case ENODEV:
+            /* Generate a deferred cc 3 condition. */
+            s->flags |= SCSW_FLAGS_MASK_CC;
+            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
+            s->ctrl |= (SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND);
+            goto read_err;
+        case EFAULT:
+            /* Memory problem, generate channel data check. */
+            s->ctrl &= ~SCSW_ACTL_START_PEND;
+            s->cstat = SCSW_CSTAT_DATA_CHECK;
+            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
+            s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
+                       SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+            goto read_err;
+        default:
+            /* Error, generate channel program check. */
+            s->ctrl &= ~SCSW_ACTL_START_PEND;
+            s->cstat = SCSW_CSTAT_PROG_CHECK;
+            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
+            s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
+                       SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+            goto read_err;
+        }
+    } else if (size != vcdev->io_region_size) {
+        /* Information transfer error, generate channel-control check. */
+        s->ctrl &= ~SCSW_ACTL_START_PEND;
+        s->cstat = SCSW_CSTAT_CHN_CTRL_CHK;
+        s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
+        s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
+                   SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+        goto read_err;
+    }
+
+    memcpy(&irb, region->irb_area, sizeof(IRB));
+
+    /* Update control block via irb. */
+    copy_scsw_to_guest(s, &irb.scsw);
+
+read_err:
+    css_inject_io_interrupt(sch);
 }
 
 static void vfio_ccw_register_io_notifier(VFIOCCWDevice *vcdev, Error **errp)
@@ -318,6 +400,7 @@ static const VMStateDescription vfio_ccw_vmstate = {
 static void vfio_ccw_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_CLASS(klass);
 
     dc->props = vfio_ccw_properties;
     dc->vmsd = &vfio_ccw_vmstate;
@@ -325,6 +408,8 @@ static void vfio_ccw_class_init(ObjectClass *klass, void *data)
     dc->realize = vfio_ccw_realize;
     dc->unrealize = vfio_ccw_unrealize;
     dc->reset = vfio_ccw_reset;
+
+    cdc->handle_request = vfio_ccw_handle_request;
 }
 
 static const TypeInfo vfio_ccw_info = {

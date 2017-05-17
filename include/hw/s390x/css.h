@@ -137,6 +137,8 @@ void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type);
 int css_sch_build_schib(SubchDev *sch, CssDevId *dev_id);
 unsigned int css_find_free_chpid(uint8_t cssid);
 uint16_t css_build_subchannel_id(SubchDev *sch);
+void copy_scsw_to_guest(SCSW *dest, const SCSW *src);
+void css_inject_io_interrupt(SubchDev *sch);
 void css_reset(void);
 void css_reset_sch(SubchDev *sch);
 void css_queue_crw(uint8_t rsc, uint8_t erc, int chain, uint16_t rsid);
