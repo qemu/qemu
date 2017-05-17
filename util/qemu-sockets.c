@@ -104,17 +104,16 @@ NetworkAddressFamily inet_netfamily(int family)
  *   f     t       PF_INET6
  *   t     -       PF_INET
  *   t     f       PF_INET
- *   t     t       PF_INET6
+ *   t     t       PF_INET6/PF_UNSPEC
  *
  * NB, this matrix is only about getting the necessary results
  * from getaddrinfo(). Some of the cases require further work
  * after reading results from getaddrinfo in order to fully
- * apply the logic the end user wants. eg with the last case
- * ipv4=t + ipv6=t + PF_INET6, getaddrinfo alone can only
- * guarantee the ipv6=t part of the request - we need more
- * checks to provide ipv4=t part of the guarantee. This is
- * outside scope of this method and not currently handled by
- * callers at all.
+ * apply the logic the end user wants.
+ *
+ * In the first and last cases, we must set IPV6_V6ONLY=0
+ * when binding, to allow a single listener to potentially
+ * accept both IPv4+6 addresses.
  */
 int inet_ai_family_from_address(InetSocketAddress *addr,
                                 Error **errp)
@@ -123,6 +122,23 @@ int inet_ai_family_from_address(InetSocketAddress *addr,
         !addr->ipv6 && !addr->ipv4) {
         error_setg(errp, "Cannot disable IPv4 and IPv6 at same time");
         return PF_UNSPEC;
+    }
+    if ((addr->has_ipv6 && addr->ipv6) && (addr->has_ipv4 && addr->ipv4)) {
+        /*
+         * Some backends can only do a single listener. In that case
+         * we want empty hostname to resolve to "::" and then use the
+         * flag IPV6_V6ONLY==0 to get both protocols on 1 socket. This
+         * doesn't work for addresses other than "", so they're just
+         * inevitably broken until multiple listeners can be used,
+         * and thus we honour getaddrinfo automatic protocol detection
+         * Once all backends do multi-listener, remove the PF_INET6
+         * branch entirely.
+         */
+        if (!addr->host || g_str_equal(addr->host, "")) {
+            return PF_INET6;
+        } else {
+            return PF_UNSPEC;
+        }
     }
     if ((addr->has_ipv6 && addr->ipv6) || (addr->has_ipv4 && !addr->ipv4)) {
         return PF_INET6;
@@ -213,8 +229,14 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
         port_max = saddr->has_to ? saddr->to + port_offset : port_min;
         for (p = port_min; p <= port_max; p++) {
 #ifdef IPV6_V6ONLY
-            /* listen on both ipv4 and ipv6 */
-            int v6only = 0;
+            /*
+             * Deals with first & last cases in matrix in comment
+             * for inet_ai_family_from_address().
+             */
+            int v6only =
+                ((!saddr->has_ipv4 && !saddr->has_ipv6) ||
+                 (saddr->has_ipv4 && saddr->ipv4 &&
+                  saddr->has_ipv6 && saddr->ipv6)) ? 0 : 1;
 #endif
             inet_setport(e, p);
 #ifdef IPV6_V6ONLY
