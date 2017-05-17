@@ -1,6 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qbool.h"
@@ -76,6 +77,90 @@ static void add_cpuid_test(const char *name, const char *cmdline,
     args->property = property;
     args->expected_value = expected_value;
     qtest_add_data_func(name, args, test_cpuid_prop);
+}
+
+
+/* Parameters to a add_feature_test() test case */
+typedef struct FeatureTestArgs {
+    /* cmdline to start QEMU */
+    const char *cmdline;
+    /*
+     * cpuid-input-eax and cpuid-input-ecx values to look for,
+     * in "feature-words" and "filtered-features" properties.
+     */
+    uint32_t in_eax, in_ecx;
+    /* The register name to look for, in the X86CPUFeatureWordInfo array */
+    const char *reg;
+    /* The bit to check in X86CPUFeatureWordInfo.features */
+    int bitnr;
+    /* The expected value for the bit in (X86CPUFeatureWordInfo.features) */
+    bool expected_value;
+} FeatureTestArgs;
+
+/* Get the value for a feature word in a X86CPUFeatureWordInfo list */
+static uint32_t get_feature_word(QList *features, uint32_t eax, uint32_t ecx,
+                                 const char *reg)
+{
+    const QListEntry *e;
+
+    for (e = qlist_first(features); e; e = qlist_next(e)) {
+        QDict *w = qobject_to_qdict(qlist_entry_obj(e));
+        const char *rreg = qdict_get_str(w, "cpuid-register");
+        uint32_t reax = qdict_get_int(w, "cpuid-input-eax");
+        bool has_ecx = qdict_haskey(w, "cpuid-input-ecx");
+        uint32_t recx = 0;
+
+        if (has_ecx) {
+            recx = qdict_get_int(w, "cpuid-input-ecx");
+        }
+        if (eax == reax && (!has_ecx || ecx == recx) && !strcmp(rreg, reg)) {
+            return qint_get_int(qobject_to_qint(qdict_get(w, "features")));
+        }
+    }
+    return 0;
+}
+
+static void test_feature_flag(const void *data)
+{
+    const FeatureTestArgs *args = data;
+    char *path;
+    QList *present, *filtered;
+    uint32_t value;
+
+    qtest_start(args->cmdline);
+    path = get_cpu0_qom_path();
+    present = qobject_to_qlist(qom_get(path, "feature-words"));
+    filtered = qobject_to_qlist(qom_get(path, "filtered-features"));
+    value = get_feature_word(present, args->in_eax, args->in_ecx, args->reg);
+    value |= get_feature_word(filtered, args->in_eax, args->in_ecx, args->reg);
+    qtest_end();
+
+    g_assert(!!(value & (1U << args->bitnr)) == args->expected_value);
+
+    QDECREF(present);
+    QDECREF(filtered);
+    g_free(path);
+}
+
+/*
+ * Add test case to ensure that a given feature flag is set in
+ * either "feature-words" or "filtered-features", when running QEMU
+ * using cmdline
+ */
+static FeatureTestArgs *add_feature_test(const char *name, const char *cmdline,
+                                         uint32_t eax, uint32_t ecx,
+                                         const char *reg, int bitnr,
+                                         bool expected_value)
+{
+    FeatureTestArgs *args = g_new0(FeatureTestArgs, 1);
+    args->cmdline = cmdline;
+    args->in_eax = eax;
+    args->in_ecx = ecx;
+    args->reg = reg;
+    args->bitnr = bitnr;
+    args->expected_value = expected_value;
+    qtest_add_data_func(name, args, test_feature_flag);
+    return args;
 }
 
 #ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
@@ -228,6 +313,32 @@ int main(int argc, char **argv)
     add_cpuid_test("x86/cpuid/auto-xlevel2/pc-2.7",
                    "-machine pc-i440fx-2.7 -cpu 486,+xstore",
                    "xlevel2", 0);
+
+    /* Test feature parsing */
+    add_feature_test("x86/cpuid/features/plus",
+                     "-cpu 486,+arat",
+                     6, 0, "EAX", 2, true);
+    add_feature_test("x86/cpuid/features/minus",
+                     "-cpu pentium,-mmx",
+                     1, 0, "EDX", 23, false);
+    add_feature_test("x86/cpuid/features/on",
+                     "-cpu 486,arat=on",
+                     6, 0, "EAX", 2, true);
+    add_feature_test("x86/cpuid/features/off",
+                     "-cpu pentium,mmx=off",
+                     1, 0, "EDX", 23, false);
+    add_feature_test("x86/cpuid/features/max-plus-invtsc",
+                     "-cpu max,+invtsc",
+                     0x80000007, 0, "EDX", 8, true);
+    add_feature_test("x86/cpuid/features/max-invtsc-on",
+                     "-cpu max,invtsc=on",
+                     0x80000007, 0, "EDX", 8, true);
+    add_feature_test("x86/cpuid/features/max-minus-mmx",
+                     "-cpu max,-mmx",
+                     1, 0, "EDX", 23, false);
+    add_feature_test("x86/cpuid/features/max-invtsc-on,mmx=off",
+                     "-cpu max,mmx=off",
+                     1, 0, "EDX", 23, false);
 
     return g_test_run();
 }

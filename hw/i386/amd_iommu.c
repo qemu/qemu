@@ -1186,6 +1186,8 @@ static void amdvi_class_init(ObjectClass *klass, void* data)
     dc->vmsd = &vmstate_amdvi;
     dc->hotpluggable = false;
     dc_class->realize = amdvi_realize;
+    /* Supported by the pc-q35-* machine types */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo amdvi = {

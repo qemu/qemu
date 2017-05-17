@@ -223,7 +223,7 @@ static void pcspk_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_spk;
     dc->props = pcspk_properties;
     /* Reason: realize sets global pcspk_state */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo pcspk_info = {

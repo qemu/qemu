@@ -773,7 +773,7 @@ static void omap_gpio_class_init(ObjectClass *klass, void *data)
     dc->reset = omap_gpif_reset;
     dc->props = omap_gpio_properties;
     /* Reason: pointer property "clk" */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo omap_gpio_info = {
@@ -804,7 +804,7 @@ static void omap2_gpio_class_init(ObjectClass *klass, void *data)
     dc->reset = omap2_gpif_reset;
     dc->props = omap2_gpio_properties;
     /* Reason: pointer properties "iclk", "fclk0", ..., "fclk5" */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo omap2_gpio_info = {

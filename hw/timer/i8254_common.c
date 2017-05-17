@@ -287,7 +287,7 @@ static void pit_common_class_init(ObjectClass *klass, void *data)
      * wired to the HPET, and because of that, some wiring is always
      * done by board code.
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo pit_common_type = {

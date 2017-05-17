@@ -144,7 +144,7 @@ static void pic_common_class_init(ObjectClass *klass, void *data)
      * wiring of the slave to the master is hard-coded in device model
      * code.
      */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo pic_common_type = {

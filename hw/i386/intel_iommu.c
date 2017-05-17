@@ -3009,6 +3009,8 @@ static void vtd_class_init(ObjectClass *klass, void *data)
     dc->hotpluggable = false;
     x86_class->realize = vtd_realize;
     x86_class->int_remap = vtd_int_remap;
+    /* Supported by the pc-q35-* machine types */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo vtd_info = {

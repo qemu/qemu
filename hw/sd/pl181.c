@@ -515,7 +515,7 @@ static void pl181_class_init(ObjectClass *klass, void *data)
     k->vmsd = &vmstate_pl181;
     k->reset = pl181_reset;
     /* Reason: init() method uses drive_get_next() */
-    k->cannot_instantiate_with_device_add_yet = true;
+    k->user_creatable = false;
     k->realize = pl181_realize;
 }
 
