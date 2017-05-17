@@ -95,6 +95,24 @@ struct SubchDev {
     void *driver_data;
 };
 
+/*
+ * Identify a device within the channel subsystem.
+ * Note that this can be used to identify either the subchannel or
+ * the attached I/O device, as there's always one I/O device per
+ * subchannel.
+ */
+typedef struct CssDevId {
+    uint8_t cssid;
+    uint8_t ssid;
+    uint16_t devid;
+    bool valid;
+} CssDevId;
+
+extern PropertyInfo css_devid_propinfo;
+
+#define DEFINE_PROP_CSS_DEV_ID(_n, _s, _f) \
+    DEFINE_PROP(_n, _s, _f, css_devid_propinfo, CssDevId)
+
 typedef struct IndAddr {
     hwaddr addr;
     uint64_t map;
@@ -116,6 +134,7 @@ bool css_devno_used(uint8_t cssid, uint8_t ssid, uint16_t devno);
 void css_subch_assign(uint8_t cssid, uint8_t ssid, uint16_t schid,
                       uint16_t devno, SubchDev *sch);
 void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type);
+int css_sch_build_schib(SubchDev *sch, CssDevId *dev_id);
 unsigned int css_find_free_chpid(uint8_t cssid);
 uint16_t css_build_subchannel_id(SubchDev *sch);
 void css_reset(void);
@@ -164,23 +183,6 @@ int css_do_rsch(SubchDev *sch);
 int css_do_rchp(uint8_t cssid, uint8_t chpid);
 bool css_present(uint8_t cssid);
 #endif
-/*
- * Identify a device within the channel subsystem.
- * Note that this can be used to identify either the subchannel or
- * the attached I/O device, as there's always one I/O device per
- * subchannel.
- */
-typedef struct CssDevId {
-    uint8_t cssid;
-    uint8_t ssid;
-    uint16_t devid;
-    bool valid;
-} CssDevId;
-
-extern PropertyInfo css_devid_propinfo;
-
-#define DEFINE_PROP_CSS_DEV_ID(_n, _s, _f) \
-    DEFINE_PROP(_n, _s, _f, css_devid_propinfo, CssDevId)
 
 extern PropertyInfo css_devid_ro_propinfo;
 

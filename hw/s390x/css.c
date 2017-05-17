@@ -13,6 +13,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/qdev.h"
+#include "qemu/error-report.h"
 #include "qemu/bitops.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
@@ -1326,7 +1327,8 @@ unsigned int css_find_free_chpid(uint8_t cssid)
     return MAX_CHPID + 1;
 }
 
-static int css_add_virtual_chpid(uint8_t cssid, uint8_t chpid, uint8_t type)
+static int css_add_chpid(uint8_t cssid, uint8_t chpid, uint8_t type,
+                         bool is_virt)
 {
     CssImage *css;
 
@@ -1340,7 +1342,7 @@ static int css_add_virtual_chpid(uint8_t cssid, uint8_t chpid, uint8_t type)
     }
     css->chpids[chpid].in_use = 1;
     css->chpids[chpid].type = type;
-    css->chpids[chpid].is_virtual = 1;
+    css->chpids[chpid].is_virtual = is_virt;
 
     css_generate_chp_crws(cssid, chpid);
 
@@ -1364,7 +1366,7 @@ void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type)
     p->pam = 0x80;
     p->chpid[0] = chpid;
     if (!css->chpids[chpid].in_use) {
-        css_add_virtual_chpid(sch->cssid, chpid, type);
+        css_add_chpid(sch->cssid, chpid, type, true);
     }
 
     memset(s, 0, sizeof(SCSW));
@@ -1977,4 +1979,148 @@ SubchDev *css_create_virtual_sch(CssDevId bus_id, Error **errp)
     sch->schid = schid;
     css_subch_assign(sch->cssid, sch->ssid, schid, sch->devno, sch);
     return sch;
+}
+
+static int css_sch_get_chpids(SubchDev *sch, CssDevId *dev_id)
+{
+    char *fid_path;
+    FILE *fd;
+    uint32_t chpid[8];
+    int i;
+    PMCW *p = &sch->curr_status.pmcw;
+
+    fid_path = g_strdup_printf("/sys/bus/css/devices/%x.%x.%04x/chpids",
+                               dev_id->cssid, dev_id->ssid, dev_id->devid);
+    fd = fopen(fid_path, "r");
+    if (fd == NULL) {
+        error_report("%s: open %s failed", __func__, fid_path);
+        g_free(fid_path);
+        return -EINVAL;
+    }
+
+    if (fscanf(fd, "%x %x %x %x %x %x %x %x",
+        &chpid[0], &chpid[1], &chpid[2], &chpid[3],
+        &chpid[4], &chpid[5], &chpid[6], &chpid[7]) != 8) {
+        fclose(fd);
+        g_free(fid_path);
+        return -EINVAL;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(p->chpid); i++) {
+        p->chpid[i] = chpid[i];
+    }
+
+    fclose(fd);
+    g_free(fid_path);
+
+    return 0;
+}
+
+static int css_sch_get_path_masks(SubchDev *sch, CssDevId *dev_id)
+{
+    char *fid_path;
+    FILE *fd;
+    uint32_t pim, pam, pom;
+    PMCW *p = &sch->curr_status.pmcw;
+
+    fid_path = g_strdup_printf("/sys/bus/css/devices/%x.%x.%04x/pimpampom",
+                               dev_id->cssid, dev_id->ssid, dev_id->devid);
+    fd = fopen(fid_path, "r");
+    if (fd == NULL) {
+        error_report("%s: open %s failed", __func__, fid_path);
+        g_free(fid_path);
+        return -EINVAL;
+    }
+
+    if (fscanf(fd, "%x %x %x", &pim, &pam, &pom) != 3) {
+        fclose(fd);
+        g_free(fid_path);
+        return -EINVAL;
+    }
+
+    p->pim = pim;
+    p->pam = pam;
+    p->pom = pom;
+    fclose(fd);
+    g_free(fid_path);
+
+    return 0;
+}
+
+static int css_sch_get_chpid_type(uint8_t chpid, uint32_t *type,
+                                  CssDevId *dev_id)
+{
+    char *fid_path;
+    FILE *fd;
+
+    fid_path = g_strdup_printf("/sys/devices/css%x/chp0.%02x/type",
+                               dev_id->cssid, chpid);
+    fd = fopen(fid_path, "r");
+    if (fd == NULL) {
+        error_report("%s: open %s failed", __func__, fid_path);
+        g_free(fid_path);
+        return -EINVAL;
+    }
+
+    if (fscanf(fd, "%x", type) != 1) {
+        fclose(fd);
+        g_free(fid_path);
+        return -EINVAL;
+    }
+
+    fclose(fd);
+    g_free(fid_path);
+
+    return 0;
+}
+
+/*
+ * We currently retrieve the real device information from sysfs to build the
+ * guest subchannel information block without considering the migration feature.
+ * We need to revisit this problem when we want to add migration support.
+ */
+int css_sch_build_schib(SubchDev *sch, CssDevId *dev_id)
+{
+    CssImage *css = channel_subsys.css[sch->cssid];
+    PMCW *p = &sch->curr_status.pmcw;
+    SCSW *s = &sch->curr_status.scsw;
+    uint32_t type;
+    int i, ret;
+
+    assert(css != NULL);
+    memset(p, 0, sizeof(PMCW));
+    p->flags |= PMCW_FLAGS_MASK_DNV;
+    /* We are dealing with I/O subchannels only. */
+    p->devno = sch->devno;
+
+    /* Grab path mask from sysfs. */
+    ret = css_sch_get_path_masks(sch, dev_id);
+    if (ret) {
+        return ret;
+    }
+
+    /* Grab chpids from sysfs. */
+    ret = css_sch_get_chpids(sch, dev_id);
+    if (ret) {
+        return ret;
+    }
+
+   /* Build chpid type. */
+    for (i = 0; i < ARRAY_SIZE(p->chpid); i++) {
+        if (p->chpid[i] && !css->chpids[p->chpid[i]].in_use) {
+            ret = css_sch_get_chpid_type(p->chpid[i], &type, dev_id);
+            if (ret) {
+                return ret;
+            }
+            css_add_chpid(sch->cssid, p->chpid[i], type, false);
+        }
+    }
+
+    memset(s, 0, sizeof(SCSW));
+    sch->curr_status.mba = 0;
+    for (i = 0; i < ARRAY_SIZE(sch->curr_status.mda); i++) {
+        sch->curr_status.mda[i] = 0;
+    }
+
+    return 0;
 }
