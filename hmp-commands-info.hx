@@ -788,6 +788,20 @@ Display the latest dump status.
 ETEXI
 
     {
+        .name       = "ramblock",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Display system ramblock information",
+        .cmd        = hmp_info_ramblock,
+    },
+
+STEXI
+@item info ramblock
+@findex ramblock
+Dump all the ramblocks of the system.
+ETEXI
+
+    {
         .name       = "hotpluggable-cpus",
         .args_type  = "",
         .params     = "",

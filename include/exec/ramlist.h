@@ -4,6 +4,7 @@
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "qemu/rcu.h"
+#include "qemu/rcu_queue.h"
 
 typedef struct RAMBlockNotifier RAMBlockNotifier;
 
@@ -54,6 +55,10 @@ typedef struct RAMList {
 } RAMList;
 extern RAMList ram_list;
 
+/* Should be holding either ram_list.mutex, or the RCU lock. */
+#define  RAMBLOCK_FOREACH(block)  \
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next)
+
 void qemu_mutex_lock_ramlist(void);
 void qemu_mutex_unlock_ramlist(void);
 
@@ -68,5 +73,6 @@ void ram_block_notifier_remove(RAMBlockNotifier *n);
 void ram_block_notify_add(void *host, size_t size);
 void ram_block_notify_remove(void *host, size_t size);
 
+void ram_block_dump(Monitor *mon);
 
 #endif /* RAMLIST_H */
