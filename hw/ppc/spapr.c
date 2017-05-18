@@ -2725,6 +2725,7 @@ static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     CPUCore *cc = CPU_CORE(dev);
     CPUArchId *core_slot = spapr_find_cpu_slot(ms, cc->core_id, NULL);
 
+    assert(core_slot);
     core_slot->cpu = NULL;
     object_unparent(OBJECT(dev));
 }
