@@ -204,7 +204,7 @@ static void altera_timer_reset(DeviceState *dev)
 
     ptimer_stop(t->ptimer);
     ptimer_set_limit(t->ptimer, 0xffffffff, 1);
-    memset(t->regs, 0, ARRAY_SIZE(t->regs));
+    memset(t->regs, 0, sizeof(t->regs));
 }
 
 static Property altera_timer_properties[] = {
