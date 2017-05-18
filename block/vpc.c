@@ -28,7 +28,7 @@
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 #include "qemu/bswap.h"
 #include "qemu/uuid.h"
 

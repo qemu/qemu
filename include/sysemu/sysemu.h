@@ -15,7 +15,7 @@
 /* vl.c */
 
 extern const char *bios_name;
-
+extern int only_migratable;
 extern const char *qemu_name;
 extern QemuUUID qemu_uuid;
 extern bool qemu_uuid_set;
@@ -75,8 +75,8 @@ void qemu_remove_exit_notifier(Notifier *notify);
 void qemu_add_machine_init_done_notifier(Notifier *notify);
 void qemu_remove_machine_init_done_notifier(Notifier *notify);
 
-int save_vmstate(const char *name);
-int load_vmstate(const char *name);
+int save_vmstate(const char *name, Error **errp);
+int load_vmstate(const char *name, Error **errp);
 
 void qemu_announce_self(void);
 

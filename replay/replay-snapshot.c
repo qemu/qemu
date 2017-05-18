@@ -62,14 +62,18 @@ void replay_vmstate_register(void)
 
 void replay_vmstate_init(void)
 {
+    Error *err = NULL;
+
     if (replay_snapshot) {
         if (replay_mode == REPLAY_MODE_RECORD) {
-            if (save_vmstate(replay_snapshot) != 0) {
+            if (save_vmstate(replay_snapshot, &err) != 0) {
+                error_report_err(err);
                 error_report("Could not create snapshot for icount record");
                 exit(1);
             }
         } else if (replay_mode == REPLAY_MODE_PLAY) {
-            if (load_vmstate(replay_snapshot) != 0) {
+            if (load_vmstate(replay_snapshot, &err) != 0) {
+                error_report_err(err);
                 error_report("Could not load snapshot for icount replay");
                 exit(1);
             }

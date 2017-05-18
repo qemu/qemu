@@ -17,6 +17,7 @@
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "migration/blocker.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
 #include "sysemu/sysemu.h"
@@ -76,13 +77,6 @@ static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
 static bool deferred_incoming;
-
-/*
- * Current state of incoming postcopy; note this is not part of
- * MigrationIncomingState since it's state is used during cleanup
- * at the end as MIS is being freed.
- */
-static PostcopyState incoming_postcopy_state;
 
 /* When we add fault tolerance, we could have several
    migrations at once.  For now we don't need to add
@@ -1149,21 +1143,6 @@ void migrate_del_blocker(Error *reason)
     migration_blockers = g_slist_remove(migration_blockers, reason);
 }
 
-int check_migratable(Object *obj, Error **err)
-{
-    DeviceClass *dc = DEVICE_GET_CLASS(obj);
-    if (only_migratable && dc->vmsd) {
-        if (dc->vmsd->unmigratable) {
-            error_setg(err, "Device %s is not migratable, but "
-                       "--only-migratable was specified",
-                       object_get_typename(obj));
-            return -1;
-        }
-    }
-
-    return 0;
-}
-
 void qmp_migrate_incoming(const char *uri, Error **errp)
 {
     Error *local_err = NULL;
@@ -2095,16 +2074,5 @@ void migrate_fd_connect(MigrationState *s)
     qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
                        QEMU_THREAD_JOINABLE);
     s->migration_thread_running = true;
-}
-
-PostcopyState  postcopy_state_get(void)
-{
-    return atomic_mb_read(&incoming_postcopy_state);
-}
-
-/* Set the state and return the old state */
-PostcopyState postcopy_state_set(PostcopyState new_state)
-{
-    return atomic_xchg(&incoming_postcopy_state, new_state);
 }
 

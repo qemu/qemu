@@ -24,7 +24,7 @@
 #include "qemu/crc32c.h"
 #include "qemu/bswap.h"
 #include "block/vhdx.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 #include "qemu/uuid.h"
 
 /* Options for VHDX creation */

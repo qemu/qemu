@@ -2069,7 +2069,7 @@ int qemu_loadvm_state(QEMUFile *f)
     return ret;
 }
 
-int save_vmstate(const char *name)
+int save_vmstate(const char *name, Error **errp)
 {
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
@@ -2079,29 +2079,27 @@ int save_vmstate(const char *name)
     uint64_t vm_state_size;
     qemu_timeval tv;
     struct tm tm;
-    Error *local_err = NULL;
     AioContext *aio_context;
 
     if (!bdrv_all_can_snapshot(&bs)) {
-        error_report("Device '%s' is writable but does not support snapshots",
-                     bdrv_get_device_name(bs));
+        error_setg(errp, "Device '%s' is writable but does not support "
+                   "snapshots", bdrv_get_device_name(bs));
         return ret;
     }
 
     /* Delete old snapshots of the same name */
     if (name) {
-        ret = bdrv_all_delete_snapshot(name, &bs1, &local_err);
+        ret = bdrv_all_delete_snapshot(name, &bs1, errp);
         if (ret < 0) {
-            error_reportf_err(local_err,
-                              "Error while deleting snapshot on device '%s': ",
-                              bdrv_get_device_name(bs1));
+            error_prepend(errp, "Error while deleting snapshot on device "
+                          "'%s': ", bdrv_get_device_name(bs1));
             return ret;
         }
     }
 
     bs = bdrv_all_find_vmstate_bs();
     if (bs == NULL) {
-        error_report("No block device can accept snapshots");
+        error_setg(errp, "No block device can accept snapshots");
         return ret;
     }
     aio_context = bdrv_get_aio_context(bs);
@@ -2110,7 +2108,7 @@ int save_vmstate(const char *name)
 
     ret = global_state_store();
     if (ret) {
-        error_report("Error saving global state");
+        error_setg(errp, "Error saving global state");
         return ret;
     }
     vm_stop(RUN_STATE_SAVE_VM);
@@ -2142,21 +2140,20 @@ int save_vmstate(const char *name)
     /* save the VM state */
     f = qemu_fopen_bdrv(bs, 1);
     if (!f) {
-        error_report("Could not open VM state file");
+        error_setg(errp, "Could not open VM state file");
         goto the_end;
     }
-    ret = qemu_savevm_state(f, &local_err);
+    ret = qemu_savevm_state(f, errp);
     vm_state_size = qemu_ftell(f);
     qemu_fclose(f);
     if (ret < 0) {
-        error_report_err(local_err);
         goto the_end;
     }
 
     ret = bdrv_all_create_snapshot(sn, bs, vm_state_size, &bs);
     if (ret < 0) {
-        error_report("Error while creating snapshot on '%s'",
-                     bdrv_get_device_name(bs));
+        error_setg(errp, "Error while creating snapshot on '%s'",
+                   bdrv_get_device_name(bs));
         goto the_end;
     }
 
@@ -2229,7 +2226,7 @@ void qmp_xen_load_devices_state(const char *filename, Error **errp)
     migration_incoming_state_destroy();
 }
 
-int load_vmstate(const char *name)
+int load_vmstate(const char *name, Error **errp)
 {
     BlockDriverState *bs, *bs_vm_state;
     QEMUSnapshotInfo sn;
@@ -2239,20 +2236,22 @@ int load_vmstate(const char *name)
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     if (!bdrv_all_can_snapshot(&bs)) {
-        error_report("Device '%s' is writable but does not support snapshots",
-                     bdrv_get_device_name(bs));
+        error_setg(errp,
+                   "Device '%s' is writable but does not support snapshots",
+                   bdrv_get_device_name(bs));
         return -ENOTSUP;
     }
     ret = bdrv_all_find_snapshot(name, &bs);
     if (ret < 0) {
-        error_report("Device '%s' does not have the requested snapshot '%s'",
-                     bdrv_get_device_name(bs), name);
+        error_setg(errp,
+                   "Device '%s' does not have the requested snapshot '%s'",
+                   bdrv_get_device_name(bs), name);
         return ret;
     }
 
     bs_vm_state = bdrv_all_find_vmstate_bs();
     if (!bs_vm_state) {
-        error_report("No block device supports snapshots");
+        error_setg(errp, "No block device supports snapshots");
         return -ENOTSUP;
     }
     aio_context = bdrv_get_aio_context(bs_vm_state);
@@ -2264,8 +2263,8 @@ int load_vmstate(const char *name)
     if (ret < 0) {
         return ret;
     } else if (sn.vm_state_size == 0) {
-        error_report("This is a disk-only snapshot. Revert to it offline "
-            "using qemu-img.");
+        error_setg(errp, "This is a disk-only snapshot. Revert to it "
+                   " offline using qemu-img");
         return -EINVAL;
     }
 
@@ -2274,7 +2273,7 @@ int load_vmstate(const char *name)
 
     ret = bdrv_all_goto_snapshot(name, &bs);
     if (ret < 0) {
-        error_report("Error %d while activating snapshot '%s' on '%s'",
+        error_setg(errp, "Error %d while activating snapshot '%s' on '%s'",
                      ret, name, bdrv_get_device_name(bs));
         return ret;
     }
@@ -2282,7 +2281,7 @@ int load_vmstate(const char *name)
     /* restore the VM state */
     f = qemu_fopen_bdrv(bs_vm_state, 0);
     if (!f) {
-        error_report("Could not open VM state file");
+        error_setg(errp, "Could not open VM state file");
         return -EINVAL;
     }
 
@@ -2296,7 +2295,7 @@ int load_vmstate(const char *name)
 
     migration_incoming_state_destroy();
     if (ret < 0) {
-        error_report("Error %d while loading VM state", ret);
+        error_setg(errp, "Error %d while loading VM state", ret);
         return ret;
     }
 
@@ -2317,4 +2316,14 @@ void vmstate_unregister_ram(MemoryRegion *mr, DeviceState *dev)
 void vmstate_register_ram_global(MemoryRegion *mr)
 {
     vmstate_register_ram(mr, NULL);
+}
+
+bool vmstate_check_only_migratable(const VMStateDescription *vmsd)
+{
+    /* check needed if --only-migratable is specified */
+    if (!only_migratable) {
+        return true;
+    }
+
+    return !(vmsd && vmsd->unmigratable);
 }

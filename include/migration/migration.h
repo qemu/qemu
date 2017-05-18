@@ -22,7 +22,6 @@
 #include "qapi-types.h"
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
-#include "qom/object.h"
 
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
@@ -38,9 +37,6 @@
 #define QEMU_VM_CONFIGURATION        0x07
 #define QEMU_VM_COMMAND              0x08
 #define QEMU_VM_SECTION_FOOTER       0x7e
-
-/* for vl.c */
-extern int only_migratable;
 
 struct MigrationParams {
     bool blk;
@@ -60,28 +56,6 @@ enum mig_rp_message_type {
 };
 
 typedef QLIST_HEAD(, LoadStateEntry) LoadStateEntry_Head;
-
-/* The current postcopy state is read/set by postcopy_state_get/set
- * which update it atomically.
- * The state is updated as postcopy messages are received, and
- * in general only one thread should be writing to the state at any one
- * time, initially the main thread and then the listen thread;
- * Corner cases are where either thread finishes early and/or errors.
- * The state is checked as messages are received to ensure that
- * the source is sending us messages in the correct order.
- * The state is also used by the RAM reception code to know if it
- * has to place pages atomically, and the cleanup code at the end of
- * the main thread to know if it has to delay cleanup until the end
- * of postcopy.
- */
-typedef enum {
-    POSTCOPY_INCOMING_NONE = 0,  /* Initial state - no postcopy */
-    POSTCOPY_INCOMING_ADVISE,
-    POSTCOPY_INCOMING_DISCARD,
-    POSTCOPY_INCOMING_LISTENING,
-    POSTCOPY_INCOMING_RUNNING,
-    POSTCOPY_INCOMING_END
-} PostcopyState;
 
 /* State for the incoming migration */
 struct MigrationIncomingState {
@@ -275,26 +249,6 @@ int ram_discard_range(const char *block_name, uint64_t start, size_t length);
 int ram_postcopy_incoming_init(MigrationIncomingState *mis);
 void ram_postcopy_migrated_memory_release(MigrationState *ms);
 
-/**
- * @migrate_add_blocker - prevent migration from proceeding
- *
- * @reason - an error to be returned whenever migration is attempted
- *
- * @errp - [out] The reason (if any) we cannot block migration right now.
- *
- * @returns - 0 on success, -EBUSY/-EACCES on failure, with errp set.
- */
-int migrate_add_blocker(Error *reason, Error **errp);
-
-/**
- * @migrate_del_blocker - remove a blocking error from migration
- *
- * @reason - the error blocking migration
- */
-void migrate_del_blocker(Error *reason);
-
-int check_migratable(Object *obj, Error **err);
-
 bool migrate_release_ram(void);
 bool migrate_postcopy_ram(void);
 bool migrate_zero_blocks(void);
@@ -357,8 +311,4 @@ void global_state_store_running(void);
 void migration_page_queue_free(void);
 int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len);
 uint64_t ram_pagesize_summary(void);
-
-PostcopyState postcopy_state_get(void);
-/* Set the state and return the old state */
-PostcopyState postcopy_state_set(PostcopyState new_state);
 #endif

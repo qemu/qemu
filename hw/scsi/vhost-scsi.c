@@ -21,7 +21,7 @@
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "monitor/monitor.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 #include "hw/virtio/vhost-scsi.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-scsi.h"

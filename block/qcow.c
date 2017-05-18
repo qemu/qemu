@@ -32,7 +32,7 @@
 #include <zlib.h>
 #include "qapi/qmp/qerror.h"
 #include "crypto/cipher.h"
-#include "migration/migration.h"
+#include "migration/blocker.h"
 
 /**************************************************************/
 /* QEMU COW block driver with compression and encryption support */
