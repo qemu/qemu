@@ -175,8 +175,8 @@ static void test_acpi_fadt_table(test_data *data)
     ACPI_READ_FIELD(fadt_table->reset_value, addr);
     ACPI_READ_FIELD(fadt_table->arm_boot_flags, addr);
     ACPI_READ_FIELD(fadt_table->minor_revision, addr);
-    ACPI_READ_FIELD(fadt_table->Xfacs, addr);
-    ACPI_READ_FIELD(fadt_table->Xdsdt, addr);
+    ACPI_READ_FIELD(fadt_table->x_facs, addr);
+    ACPI_READ_FIELD(fadt_table->x_dsdt, addr);
     ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1a_event_block, addr);
     ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1b_event_block, addr);
     ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1a_control_block, addr);

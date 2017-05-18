@@ -81,8 +81,8 @@ typedef struct AcpiRsdpDescriptor AcpiRsdpDescriptor;
     uint32_t asl_compiler_revision;  /* ASL compiler revision number */
 
 
-struct AcpiTableHeader         /* ACPI common table header */
-{
+/* ACPI common table header */
+struct AcpiTableHeader {
     ACPI_TABLE_HEADER_DEF
 } QEMU_PACKED;
 typedef struct AcpiTableHeader AcpiTableHeader;
@@ -144,8 +144,8 @@ typedef struct AcpiTableHeader AcpiTableHeader;
     /* ARM-Specific Boot Flags (see below for individual flags) (ACPI 5.1) */ \
     uint16_t arm_boot_flags; \
     uint8_t minor_revision;  /* FADT Minor Revision (ACPI 5.1) */ \
-    uint64_t Xfacs;          /* 64-bit physical address of FACS */ \
-    uint64_t Xdsdt;          /* 64-bit physical address of DSDT */ \
+    uint64_t x_facs;          /* 64-bit physical address of FACS */ \
+    uint64_t x_dsdt;          /* 64-bit physical address of DSDT */ \
     /* 64-bit Extended Power Mgt 1a Event Reg Blk address */ \
     struct AcpiGenericAddress xpm1a_event_block; \
     /* 64-bit Extended Power Mgt 1b Event Reg Blk address */ \
@@ -224,8 +224,7 @@ typedef struct AcpiSerialPortConsoleRedirection
 /*
  * ACPI 1.0 Root System Description Table (RSDT)
  */
-struct AcpiRsdtDescriptorRev1
-{
+struct AcpiRsdtDescriptorRev1 {
     ACPI_TABLE_HEADER_DEF       /* ACPI common table header */
     uint32_t table_offset_entry[0];  /* Array of pointers to other */
     /* ACPI tables */
@@ -233,10 +232,19 @@ struct AcpiRsdtDescriptorRev1
 typedef struct AcpiRsdtDescriptorRev1 AcpiRsdtDescriptorRev1;
 
 /*
+ * ACPI 2.0 eXtended System Description Table (XSDT)
+ */
+struct AcpiXsdtDescriptorRev2 {
+    ACPI_TABLE_HEADER_DEF       /* ACPI common table header */
+    uint64_t table_offset_entry[0];  /* Array of pointers to other */
+    /* ACPI tables */
+} QEMU_PACKED;
+typedef struct AcpiXsdtDescriptorRev2 AcpiXsdtDescriptorRev2;
+
+/*
  * ACPI 1.0 Firmware ACPI Control Structure (FACS)
  */
-struct AcpiFacsDescriptorRev1
-{
+struct AcpiFacsDescriptorRev1 {
     uint32_t signature;           /* ACPI Signature */
     uint32_t length;                 /* Length of structure, in bytes */
     uint32_t hardware_signature;     /* Hardware configuration signature */
@@ -262,8 +270,7 @@ typedef struct AcpiFacsDescriptorRev1 AcpiFacsDescriptorRev1;
 
 /* Master MADT */
 
-struct AcpiMultipleApicTable
-{
+struct AcpiMultipleApicTable {
     ACPI_TABLE_HEADER_DEF     /* ACPI common table header */
     uint32_t local_apic_address;     /* Physical address of local APIC */
     uint32_t flags;
@@ -299,8 +306,7 @@ typedef struct AcpiMultipleApicTable AcpiMultipleApicTable;
 
 /* Sub-structures for MADT */
 
-struct AcpiMadtProcessorApic
-{
+struct AcpiMadtProcessorApic {
     ACPI_SUB_HEADER_DEF
     uint8_t  processor_id;           /* ACPI processor id */
     uint8_t  local_apic_id;          /* Processor's local APIC id */
@@ -308,8 +314,7 @@ struct AcpiMadtProcessorApic
 } QEMU_PACKED;
 typedef struct AcpiMadtProcessorApic AcpiMadtProcessorApic;
 
-struct AcpiMadtIoApic
-{
+struct AcpiMadtIoApic {
     ACPI_SUB_HEADER_DEF
     uint8_t  io_apic_id;             /* I/O APIC ID */
     uint8_t  reserved;               /* Reserved - must be zero */
@@ -462,8 +467,7 @@ typedef struct Acpi20Hpet Acpi20Hpet;
  * SRAT (NUMA topology description) table
  */
 
-struct AcpiSystemResourceAffinityTable
-{
+struct AcpiSystemResourceAffinityTable {
     ACPI_TABLE_HEADER_DEF
     uint32_t    reserved1;
     uint32_t    reserved2[2];
@@ -475,8 +479,7 @@ typedef struct AcpiSystemResourceAffinityTable AcpiSystemResourceAffinityTable;
 #define ACPI_SRAT_PROCESSOR_x2APIC   2
 #define ACPI_SRAT_PROCESSOR_GICC     3
 
-struct AcpiSratProcessorAffinity
-{
+struct AcpiSratProcessorAffinity {
     ACPI_SUB_HEADER_DEF
     uint8_t     proximity_lo;
     uint8_t     local_apic_id;
@@ -498,8 +501,7 @@ struct AcpiSratProcessorX2ApicAffinity {
 } QEMU_PACKED;
 typedef struct AcpiSratProcessorX2ApicAffinity AcpiSratProcessorX2ApicAffinity;
 
-struct AcpiSratMemoryAffinity
-{
+struct AcpiSratMemoryAffinity {
     ACPI_SUB_HEADER_DEF
     uint32_t    proximity;
     uint16_t    reserved1;
@@ -511,8 +513,7 @@ struct AcpiSratMemoryAffinity
 } QEMU_PACKED;
 typedef struct AcpiSratMemoryAffinity AcpiSratMemoryAffinity;
 
-struct AcpiSratProcessorGiccAffinity
-{
+struct AcpiSratProcessorGiccAffinity {
     ACPI_SUB_HEADER_DEF
     uint32_t    proximity;
     uint32_t    acpi_processor_uid;
