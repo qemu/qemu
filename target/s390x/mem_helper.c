@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "exec/address-spaces.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
@@ -971,6 +972,33 @@ void HELPER(stctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
             break;
         }
     }
+}
+
+uint32_t HELPER(testblock)(CPUS390XState *env, uint64_t real_addr)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+    uint64_t abs_addr;
+    int i;
+
+    real_addr = fix_address(env, real_addr);
+    abs_addr = mmu_real2abs(env, real_addr) & TARGET_PAGE_MASK;
+    if (!address_space_access_valid(&address_space_memory, abs_addr,
+                                    TARGET_PAGE_SIZE, true)) {
+        program_interrupt(env, PGM_ADDRESSING, 4);
+        return 1;
+    }
+
+    /* Check low-address protection */
+    if ((env->cregs[0] & CR0_LOWPROT) && real_addr < 0x2000) {
+        program_interrupt(env, PGM_PROTECTION, 4);
+        return 1;
+    }
+
+    for (i = 0; i < TARGET_PAGE_SIZE; i += 8) {
+        stq_phys(cs->as, abs_addr + i, 0);
+    }
+
+    return 0;
 }
 
 uint32_t HELPER(tprot)(uint64_t a1, uint64_t a2)

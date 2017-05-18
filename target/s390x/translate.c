@@ -4062,6 +4062,16 @@ static ExitStatus op_tcxb(DisasContext *s, DisasOps *o)
 }
 
 #ifndef CONFIG_USER_ONLY
+
+static ExitStatus op_testblock(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_testblock(cc_op, cpu_env, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_tprot(DisasContext *s, DisasOps *o)
 {
     potential_page_fault(s);
@@ -4069,6 +4079,7 @@ static ExitStatus op_tprot(DisasContext *s, DisasOps *o)
     set_cc_static(s);
     return NO_EXIT;
 }
+
 #endif
 
 static ExitStatus op_tr(DisasContext *s, DisasOps *o)
