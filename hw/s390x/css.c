@@ -14,6 +14,7 @@
 #include "qapi/visitor.h"
 #include "hw/qdev.h"
 #include "qemu/bitops.h"
+#include "qemu/error-report.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
 #include "hw/s390x/ioinst.h"
@@ -1676,13 +1677,26 @@ void subch_device_save(SubchDev *s, QEMUFile *f)
 int subch_device_load(SubchDev *s, QEMUFile *f)
 {
     SubchDev *old_s;
+    Error *err = NULL;
     uint16_t old_schid = s->schid;
+    uint16_t old_devno = s->devno;
     int i;
 
     s->cssid = qemu_get_byte(f);
     s->ssid = qemu_get_byte(f);
     s->schid = qemu_get_be16(f);
     s->devno = qemu_get_be16(f);
+    if (s->devno != old_devno) {
+        /* Only possible if machine < 2.7 (no css_dev_path) */
+
+        error_setg(&err, "%x != %x", old_devno,  s->devno);
+        error_append_hint(&err, "Devno mismatch, tried to load wrong section!"
+                          " Likely reason: some sequences of plug and unplug"
+                          " can break migration for machine versions prior to"
+                          " 2.7 (known design flaw).\n");
+        error_report_err(err);
+        return -EINVAL;
+    }
     /* Re-assign subch. */
     if (old_schid != s->schid) {
         old_s = channel_subsys.css[s->cssid]->sch_set[s->ssid]->sch[old_schid];

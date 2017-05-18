@@ -1264,9 +1264,13 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
     SubchDev *s = ccw_dev->sch;
     VirtIODevice *vdev = virtio_ccw_get_vdev(s);
     int len;
+    int ret;
 
     s->driver_data = dev;
-    subch_device_load(s, f);
+    ret = subch_device_load(s, f);
+    if (ret) {
+        return ret;
+    }
     len = qemu_get_be32(f);
     if (len != 0) {
         dev->indicators = get_indicator(qemu_get_be64(f), len);
