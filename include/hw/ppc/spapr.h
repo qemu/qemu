@@ -598,7 +598,6 @@ sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn);
 
 struct sPAPREventLogEntry {
     int log_type;
-    bool exception;
     void *data;
     QTAILQ_ENTRY(sPAPREventLogEntry) next;
 };
