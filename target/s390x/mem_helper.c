@@ -268,16 +268,16 @@ uint32_t HELPER(clc)(CPUS390XState *env, uint32_t l, uint64_t s1, uint64_t s2)
 uint32_t HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
                      uint64_t addr)
 {
-    uint8_t r, d;
-    uint32_t cc;
+    uintptr_t ra = GETPC();
+    uint32_t cc = 0;
 
     HELPER_LOG("%s: r1 0x%x mask 0x%x addr 0x%" PRIx64 "\n", __func__, r1,
                mask, addr);
-    cc = 0;
+
     while (mask) {
         if (mask & 8) {
-            d = cpu_ldub_data(env, addr);
-            r = (r1 & 0xff000000UL) >> 24;
+            uint8_t d = cpu_ldub_data_ra(env, addr, ra);
+            uint8_t r = extract32(r1, 24, 8);
             HELPER_LOG("mask 0x%x %02x/%02x (0x%" PRIx64 ") ", mask, r, d,
                        addr);
             if (r < d) {
@@ -292,6 +292,7 @@ uint32_t HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
         mask = (mask << 1) & 0xf;
         r1 <<= 8;
     }
+
     HELPER_LOG("\n");
     return cc;
 }
