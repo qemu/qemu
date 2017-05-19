@@ -624,7 +624,7 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
 
     mr = &iommu->iommu_mr;
     while (start < end) {
-        entry = mr->iommu_ops->translate(mr, start, 0);
+        entry = mr->iommu_ops->translate(mr, start, IOMMU_NONE);
 
         if (!entry.translated_addr) {
             pbdev->state = ZPCI_FS_ERROR;

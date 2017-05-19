@@ -111,7 +111,7 @@ static void spapr_tce_free_table(uint64_t *table, int fd, uint32_t nb_table)
 
 /* Called from RCU critical section */
 static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr,
-                                               bool is_write)
+                                               IOMMUAccessFlags flag)
 {
     sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
     uint64_t tce;

@@ -988,7 +988,7 @@ static inline bool amdvi_is_interrupt_addr(hwaddr addr)
 }
 
 static IOMMUTLBEntry amdvi_translate(MemoryRegion *iommu, hwaddr addr,
-                                     bool is_write)
+                                     IOMMUAccessFlags flag)
 {
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
     AMDVIState *s = as->iommu_state;
@@ -1017,7 +1017,7 @@ static IOMMUTLBEntry amdvi_translate(MemoryRegion *iommu, hwaddr addr,
         return ret;
     }
 
-    amdvi_do_translate(as, addr, is_write, &ret);
+    amdvi_do_translate(as, addr, flag & IOMMU_WO, &ret);
     trace_amdvi_translation_result(as->bus_num, PCI_SLOT(as->devfn),
             PCI_FUNC(as->devfn), addr, ret.translated_addr);
     return ret;
