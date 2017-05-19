@@ -980,12 +980,12 @@ STEXI
 ETEXI
 
 DEF("usb", 0, QEMU_OPTION_usb,
-    "-usb            enable the USB driver (will be the default soon)\n",
+    "-usb            enable the USB driver (if it is not used by default yet)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -usb
 @findex -usb
-Enable the USB driver (will be the default soon)
+Enable the USB driver (if it is not used by default yet).
 ETEXI
 
 DEF("usbdevice", HAS_ARG, QEMU_OPTION_usbdevice,
@@ -995,7 +995,8 @@ STEXI
 
 @item -usbdevice @var{devname}
 @findex -usbdevice
-Add the USB device @var{devname}. @xref{usb_devices}.
+Add the USB device @var{devname}. Note that this option is deprecated,
+please use @code{-device usb-...} instead. @xref{usb_devices}.
 
 @table @option
 
@@ -1373,7 +1374,7 @@ output such as guest graphics, guest console, and the QEMU monitor in a
 window. With this option, you can have QEMU listen on VNC display
 @var{display} and redirect the VGA display over the VNC session. It is
 very useful to enable the usb tablet device when using this option
-(option @option{-usbdevice tablet}). When using the VNC display, you
+(option @option{-device usb-tablet}). When using the VNC display, you
 must use the @option{-k} parameter to set the keyboard layout if you are
 not using en-us. Valid syntax for the @var{display} is
 
