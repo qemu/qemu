@@ -36,6 +36,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/ppc.h"
 #include "hw/boards.h"
+#include "hw/audio/soundhw.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "hw/ide.h"
@@ -782,7 +783,7 @@ static void ibm_40p_init(MachineState *machine)
                        &cmos_checksum);
 
     /* initialize audio subsystem */
-    audio_init();
+    soundhw_init();
 
     /* add some more devices */
     if (defaults_enabled()) {

@@ -89,6 +89,7 @@ int main(int argc, char **argv)
 #include "migration/block.h"
 #include "sysemu/tpm.h"
 #include "sysemu/dma.h"
+#include "hw/audio/soundhw.h"
 #include "audio/audio.h"
 #include "migration/migration.h"
 #include "sysemu/cpus.h"
@@ -4574,7 +4575,7 @@ int main(int argc, char **argv, char **envp)
 
     realtime_init();
 
-    audio_init();
+    soundhw_init();
 
     if (hax_enabled()) {
         hax_sync_vcpus();
