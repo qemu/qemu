@@ -327,6 +327,7 @@ static inline uint64_t get_address_31fix(CPUS390XState *env, int reg)
 uint64_t HELPER(srst)(CPUS390XState *env, uint64_t r0, uint64_t end,
                       uint64_t str)
 {
+    uintptr_t ra = GETPC();
     uint32_t len;
     uint8_t v, c = r0;
 
@@ -344,7 +345,7 @@ uint64_t HELPER(srst)(CPUS390XState *env, uint64_t r0, uint64_t end,
             env->cc_op = 2;
             return end;
         }
-        v = cpu_ldub_data(env, str + len);
+        v = cpu_ldub_data_ra(env, str + len, ra);
         if (v == c) {
             /* Character found.  Set R1 to the location; R2 is unmodified.  */
             env->cc_op = 1;
