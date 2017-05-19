@@ -600,6 +600,26 @@ static inline uint32_t vtd_ce_get_type(VTDContextEntry *ce)
     return ce->lo & VTD_CONTEXT_ENTRY_TT;
 }
 
+/* Return true if check passed, otherwise false */
+static inline bool vtd_ce_type_check(X86IOMMUState *x86_iommu,
+                                     VTDContextEntry *ce)
+{
+    switch (vtd_ce_get_type(ce)) {
+    case VTD_CONTEXT_TT_MULTI_LEVEL:
+        /* Always supported */
+        break;
+    case VTD_CONTEXT_TT_DEV_IOTLB:
+        if (!x86_iommu->dt_supported) {
+            return false;
+        }
+        break;
+    default:
+        /* Unknwon type */
+        return false;
+    }
+    return true;
+}
+
 static inline uint64_t vtd_iova_limit(VTDContextEntry *ce)
 {
     uint32_t ce_agaw = vtd_ce_get_agaw(ce);
@@ -836,6 +856,7 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
 {
     VTDRootEntry re;
     int ret_fr;
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
     ret_fr = vtd_get_root_entry(s, bus_num, &re);
     if (ret_fr) {
@@ -846,7 +867,9 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
         /* Not error - it's okay we don't have root entry. */
         trace_vtd_re_not_present(bus_num);
         return -VTD_FR_ROOT_ENTRY_P;
-    } else if (re.rsvd || (re.val & VTD_ROOT_ENTRY_RSVD)) {
+    }
+
+    if (re.rsvd || (re.val & VTD_ROOT_ENTRY_RSVD)) {
         trace_vtd_re_invalid(re.rsvd, re.val);
         return -VTD_FR_ROOT_ENTRY_RSVD;
     }
@@ -860,26 +883,26 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
         /* Not error - it's okay we don't have context entry. */
         trace_vtd_ce_not_present(bus_num, devfn);
         return -VTD_FR_CONTEXT_ENTRY_P;
-    } else if ((ce->hi & VTD_CONTEXT_ENTRY_RSVD_HI) ||
-               (ce->lo & VTD_CONTEXT_ENTRY_RSVD_LO)) {
+    }
+
+    if ((ce->hi & VTD_CONTEXT_ENTRY_RSVD_HI) ||
+        (ce->lo & VTD_CONTEXT_ENTRY_RSVD_LO)) {
         trace_vtd_ce_invalid(ce->hi, ce->lo);
         return -VTD_FR_CONTEXT_ENTRY_RSVD;
     }
+
     /* Check if the programming of context-entry is valid */
     if (!vtd_is_level_supported(s, vtd_ce_get_level(ce))) {
         trace_vtd_ce_invalid(ce->hi, ce->lo);
         return -VTD_FR_CONTEXT_ENTRY_INV;
-    } else {
-        switch (vtd_ce_get_type(ce)) {
-        case VTD_CONTEXT_TT_MULTI_LEVEL:
-            /* fall through */
-        case VTD_CONTEXT_TT_DEV_IOTLB:
-            break;
-        default:
-            trace_vtd_ce_invalid(ce->hi, ce->lo);
-            return -VTD_FR_CONTEXT_ENTRY_INV;
-        }
     }
+
+    /* Do translation type check */
+    if (!vtd_ce_type_check(x86_iommu, ce)) {
+        trace_vtd_ce_invalid(ce->hi, ce->lo);
+        return -VTD_FR_CONTEXT_ENTRY_INV;
+    }
+
     return 0;
 }
 
