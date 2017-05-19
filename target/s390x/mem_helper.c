@@ -595,12 +595,12 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
 uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
                        uint32_t r3)
 {
+    uintptr_t ra = GETPC();
     uint64_t destlen = env->regs[r1 + 1];
     uint64_t dest = get_address_31fix(env, r1);
     uint64_t srclen = env->regs[r3 + 1];
     uint64_t src = get_address_31fix(env, r3);
     uint8_t pad = a2 & 0xff;
-    uint8_t v1 = 0, v2 = 0;
     uint32_t cc = 0;
 
     if (!(destlen || srclen)) {
@@ -612,8 +612,8 @@ uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     }
 
     for (; destlen || srclen; src++, dest++, destlen--, srclen--) {
-        v1 = srclen ? cpu_ldub_data(env, src) : pad;
-        v2 = destlen ? cpu_ldub_data(env, dest) : pad;
+        uint8_t v1 = srclen ? cpu_ldub_data_ra(env, src, ra) : pad;
+        uint8_t v2 = destlen ? cpu_ldub_data_ra(env, dest, ra) : pad;
         if (v1 != v2) {
             cc = (v1 < v2) ? 1 : 2;
             break;
