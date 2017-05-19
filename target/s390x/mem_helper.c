@@ -436,86 +436,6 @@ static uint32_t helper_icm(CPUS390XState *env, uint32_t r1, uint64_t address,
     return cc;
 }
 
-/* execute instruction
-   this instruction executes an insn modified with the contents of r1
-   it does not change the executed instruction in memory
-   it does not change the program counter
-   in other words: tricky...
-   currently implemented by interpreting the cases it is most commonly used in
-*/
-uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
-                    uint64_t addr, uint64_t ret)
-{
-    S390CPU *cpu = s390_env_get_cpu(env);
-    uint16_t insn = cpu_lduw_code(env, addr);
-
-    HELPER_LOG("%s: v1 0x%lx addr 0x%lx insn 0x%x\n", __func__, v1, addr,
-               insn);
-    if ((insn & 0xf0ff) == 0xd000) {
-        uint32_t l, insn2, b1, b2, d1, d2;
-
-        l = v1 & 0xff;
-        insn2 = cpu_ldl_code(env, addr + 2);
-        b1 = (insn2 >> 28) & 0xf;
-        b2 = (insn2 >> 12) & 0xf;
-        d1 = (insn2 >> 16) & 0xfff;
-        d2 = insn2 & 0xfff;
-        switch (insn & 0xf00) {
-        case 0x200:
-            helper_mvc(env, l, get_address(env, 0, b1, d1),
-                       get_address(env, 0, b2, d2));
-            break;
-        case 0x400:
-            cc = helper_nc(env, l, get_address(env, 0, b1, d1),
-                            get_address(env, 0, b2, d2));
-            break;
-        case 0x500:
-            cc = helper_clc(env, l, get_address(env, 0, b1, d1),
-                            get_address(env, 0, b2, d2));
-            break;
-        case 0x600:
-            cc = helper_oc(env, l, get_address(env, 0, b1, d1),
-                            get_address(env, 0, b2, d2));
-            break;
-        case 0x700:
-            cc = helper_xc(env, l, get_address(env, 0, b1, d1),
-                           get_address(env, 0, b2, d2));
-            break;
-        case 0xc00:
-            helper_tr(env, l, get_address(env, 0, b1, d1),
-                      get_address(env, 0, b2, d2));
-            break;
-        case 0xd00:
-            cc = helper_trt(env, l, get_address(env, 0, b1, d1),
-                            get_address(env, 0, b2, d2));
-            break;
-        default:
-            goto abort;
-        }
-    } else if ((insn & 0xff00) == 0x0a00) {
-        /* supervisor call */
-        HELPER_LOG("%s: svc %ld via execute\n", __func__, (insn | v1) & 0xff);
-        env->psw.addr = ret - 4;
-        env->int_svc_code = (insn | v1) & 0xff;
-        env->int_svc_ilen = 4;
-        helper_exception(env, EXCP_SVC);
-    } else if ((insn & 0xff00) == 0xbf00) {
-        uint32_t insn2, r1, r3, b2, d2;
-
-        insn2 = cpu_ldl_code(env, addr + 2);
-        r1 = (insn2 >> 20) & 0xf;
-        r3 = (insn2 >> 16) & 0xf;
-        b2 = (insn2 >> 12) & 0xf;
-        d2 = insn2 & 0xfff;
-        cc = helper_icm(env, r1, get_address(env, 0, b2, d2), r3);
-    } else {
-    abort:
-        cpu_abort(CPU(cpu), "EXECUTE on instruction prefix 0x%x not implemented\n",
-                  insn);
-    }
-    return cc;
-}
-
 /* load access registers r1 to r3 from memory at a2 */
 void HELPER(lam)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
@@ -1262,3 +1182,84 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
     return ret;
 }
 #endif
+
+/* execute instruction
+   this instruction executes an insn modified with the contents of r1
+   it does not change the executed instruction in memory
+   it does not change the program counter
+   in other words: tricky...
+   currently implemented by interpreting the cases it is most commonly used.
+*/
+uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
+                    uint64_t addr, uint64_t ret)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    uint16_t insn = cpu_lduw_code(env, addr);
+
+    HELPER_LOG("%s: v1 0x%lx addr 0x%lx insn 0x%x\n", __func__, v1, addr,
+               insn);
+    if ((insn & 0xf0ff) == 0xd000) {
+        uint32_t l, insn2, b1, b2, d1, d2;
+
+        l = v1 & 0xff;
+        insn2 = cpu_ldl_code(env, addr + 2);
+        b1 = (insn2 >> 28) & 0xf;
+        b2 = (insn2 >> 12) & 0xf;
+        d1 = (insn2 >> 16) & 0xfff;
+        d2 = insn2 & 0xfff;
+        switch (insn & 0xf00) {
+        case 0x200:
+            helper_mvc(env, l, get_address(env, 0, b1, d1),
+                       get_address(env, 0, b2, d2));
+            break;
+        case 0x400:
+            cc = helper_nc(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
+            break;
+        case 0x500:
+            cc = helper_clc(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
+            break;
+        case 0x600:
+            cc = helper_oc(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
+            break;
+        case 0x700:
+            cc = helper_xc(env, l, get_address(env, 0, b1, d1),
+                           get_address(env, 0, b2, d2));
+            break;
+        case 0xc00:
+            helper_tr(env, l, get_address(env, 0, b1, d1),
+                      get_address(env, 0, b2, d2));
+            break;
+        case 0xd00:
+            cc = helper_trt(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
+            break;
+        default:
+            goto abort;
+        }
+    } else if ((insn & 0xff00) == 0x0a00) {
+        /* supervisor call */
+        HELPER_LOG("%s: svc %ld via execute\n", __func__, (insn | v1) & 0xff);
+        env->psw.addr = ret - 4;
+        env->int_svc_code = (insn | v1) & 0xff;
+        env->int_svc_ilen = 4;
+        helper_exception(env, EXCP_SVC);
+    } else if ((insn & 0xff00) == 0xbf00) {
+        uint32_t insn2, r1, r3, b2, d2;
+
+        insn2 = cpu_ldl_code(env, addr + 2);
+        r1 = (insn2 >> 20) & 0xf;
+        r3 = (insn2 >> 16) & 0xf;
+        b2 = (insn2 >> 12) & 0xf;
+        d2 = insn2 & 0xfff;
+        cc = helper_icm(env, r1, get_address(env, 0, b2, d2), r3);
+    } else {
+    abort:
+        cpu_abort(CPU(cpu),
+                  "EXECUTE on instruction prefix 0x%x not implemented\n",
+                  insn);
+    }
+    return cc;
+}
