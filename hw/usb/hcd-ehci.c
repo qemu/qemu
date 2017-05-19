@@ -2232,7 +2232,7 @@ static void ehci_update_frindex(EHCIState *ehci, int uframes)
     ehci->frindex = (ehci->frindex + uframes) % 0x4000;
 }
 
-static void ehci_frame_timer(void *opaque)
+static void ehci_work_bh(void *opaque)
 {
     EHCIState *ehci = opaque;
     int need_timer = 0;
@@ -2322,6 +2322,13 @@ static void ehci_frame_timer(void *opaque)
         }
         timer_mod(ehci->frame_timer, expire_time);
     }
+}
+
+static void ehci_work_timer(void *opaque)
+{
+    EHCIState *ehci = opaque;
+
+    qemu_bh_schedule(ehci->async_bh);
 }
 
 static const MemoryRegionOps ehci_mmio_caps_ops = {
@@ -2478,8 +2485,8 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
         s->ports[i].dev = 0;
     }
 
-    s->frame_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ehci_frame_timer, s);
-    s->async_bh = qemu_bh_new(ehci_frame_timer, s);
+    s->frame_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ehci_work_timer, s);
+    s->async_bh = qemu_bh_new(ehci_work_bh, s);
     s->device = dev;
 
     s->vmstate = qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
