@@ -1010,7 +1010,7 @@ out:
     entry->iova = addr & page_mask;
     entry->translated_addr = vtd_get_slpte_addr(slpte) & page_mask;
     entry->addr_mask = ~page_mask;
-    entry->perm = (writes ? 2 : 0) + (reads ? 1 : 0);
+    entry->perm = IOMMU_ACCESS_FLAG(reads, writes);
 }
 
 static void vtd_root_table_setup(IntelIOMMUState *s)
