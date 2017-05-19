@@ -91,7 +91,7 @@ static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
 }
 
 static void fast_memmove(CPUS390XState *env, uint64_t dest, uint64_t src,
-                         uint32_t l)
+                         uint32_t l, uintptr_t ra)
 {
     int mmu_idx = cpu_mmu_index(env, false);
 
@@ -110,7 +110,7 @@ static void fast_memmove(CPUS390XState *env, uint64_t dest, uint64_t src,
             /* We failed to get access to one or both whole pages. The next
                read or write access will likely fill the QEMU TLB for the
                next iteration.  */
-            cpu_stb_data(env, dest, cpu_ldub_data(env, src));
+            cpu_stb_data_ra(env, dest, cpu_ldub_data_ra(env, src, ra), ra);
             src++;
             dest++;
             l--;
@@ -200,30 +200,36 @@ uint32_t HELPER(oc)(CPUS390XState *env, uint32_t l, uint64_t dest,
 }
 
 /* memmove */
-void HELPER(mvc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
+static void do_helper_mvc(CPUS390XState *env, uint32_t l, uint64_t dest,
+                          uint64_t src, uintptr_t ra)
 {
-    int i = 0;
+    uint32_t i;
 
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
                __func__, l, dest, src);
 
     /* mvc with source pointing to the byte after the destination is the
        same as memset with the first source byte */
-    if (dest == (src + 1)) {
-        fast_memset(env, dest, cpu_ldub_data(env, src), l + 1, 0);
+    if (dest == src + 1) {
+        fast_memset(env, dest, cpu_ldub_data_ra(env, src, ra), l + 1, ra);
         return;
     }
 
     /* mvc and memmove do not behave the same when areas overlap! */
-    if ((dest < src) || (src + l < dest)) {
-        fast_memmove(env, dest, src, l + 1);
+    if (dest < src || src + l < dest) {
+        fast_memmove(env, dest, src, l + 1, ra);
         return;
     }
 
     /* slow version with byte accesses which always work */
     for (i = 0; i <= l; i++) {
-        cpu_stb_data(env, dest + i, cpu_ldub_data(env, src + i));
+        cpu_stb_data_ra(env, dest + i, cpu_ldub_data_ra(env, src + i, ra), ra);
     }
+}
+
+void HELPER(mvc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
+{
+    do_helper_mvc(env, l, dest, src, GETPC());
 }
 
 /* compare unsigned byte arrays */
@@ -388,7 +394,7 @@ void HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
 {
     /* XXX missing r0 handling */
     env->cc_op = 0;
-    fast_memmove(env, r1, r2, TARGET_PAGE_SIZE);
+    fast_memmove(env, r1, r2, TARGET_PAGE_SIZE, 0);
 }
 
 /* string copy (c is string terminator) */
@@ -1223,8 +1229,8 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
         d2 = insn2 & 0xfff;
         switch (insn & 0xf00) {
         case 0x200:
-            helper_mvc(env, l, get_address(env, 0, b1, d1),
-                       get_address(env, 0, b2, d2));
+            do_helper_mvc(env, l, get_address(env, 0, b1, d1),
+                          get_address(env, 0, b2, d2), 0);
             break;
         case 0x400:
             cc = do_helper_nc(env, l, get_address(env, 0, b1, d1),
