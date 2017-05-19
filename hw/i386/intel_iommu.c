@@ -613,6 +613,11 @@ static inline bool vtd_ce_type_check(X86IOMMUState *x86_iommu,
             return false;
         }
         break;
+    case VTD_CONTEXT_TT_PASS_THROUGH:
+        if (!x86_iommu->pt_supported) {
+            return false;
+        }
+        break;
     default:
         /* Unknwon type */
         return false;
@@ -658,6 +663,29 @@ static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
     } else {
         return slpte & vtd_paging_entry_rsvd_field[level];
     }
+}
+
+/* Find the VTD address space associated with a given bus number */
+static VTDBus *vtd_find_as_from_bus_num(IntelIOMMUState *s, uint8_t bus_num)
+{
+    VTDBus *vtd_bus = s->vtd_as_by_bus_num[bus_num];
+    if (!vtd_bus) {
+        /*
+         * Iterate over the registered buses to find the one which
+         * currently hold this bus number, and update the bus_num
+         * lookup table:
+         */
+        GHashTableIter iter;
+
+        g_hash_table_iter_init(&iter, s->vtd_as_by_busptr);
+        while (g_hash_table_iter_next(&iter, NULL, (void **)&vtd_bus)) {
+            if (pci_bus_num(vtd_bus->bus) == bus_num) {
+                s->vtd_as_by_bus_num[bus_num] = vtd_bus;
+                return vtd_bus;
+            }
+        }
+    }
+    return vtd_bus;
 }
 
 /* Given the @iova, get relevant @slptep. @slpte_level will be the last level
@@ -906,6 +934,91 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
     return 0;
 }
 
+/*
+ * Fetch translation type for specific device. Returns <0 if error
+ * happens, otherwise return the shifted type to check against
+ * VTD_CONTEXT_TT_*.
+ */
+static int vtd_dev_get_trans_type(VTDAddressSpace *as)
+{
+    IntelIOMMUState *s;
+    VTDContextEntry ce;
+    int ret;
+
+    s = as->iommu_state;
+
+    ret = vtd_dev_to_context_entry(s, pci_bus_num(as->bus),
+                                   as->devfn, &ce);
+    if (ret) {
+        return ret;
+    }
+
+    return vtd_ce_get_type(&ce);
+}
+
+static bool vtd_dev_pt_enabled(VTDAddressSpace *as)
+{
+    int ret;
+
+    assert(as);
+
+    ret = vtd_dev_get_trans_type(as);
+    if (ret < 0) {
+        /*
+         * Possibly failed to parse the context entry for some reason
+         * (e.g., during init, or any guest configuration errors on
+         * context entries). We should assume PT not enabled for
+         * safety.
+         */
+        return false;
+    }
+
+    return ret == VTD_CONTEXT_TT_PASS_THROUGH;
+}
+
+/* Return whether the device is using IOMMU translation. */
+static bool vtd_switch_address_space(VTDAddressSpace *as)
+{
+    bool use_iommu;
+
+    assert(as);
+
+    use_iommu = as->iommu_state->dmar_enabled & !vtd_dev_pt_enabled(as);
+
+    trace_vtd_switch_address_space(pci_bus_num(as->bus),
+                                   VTD_PCI_SLOT(as->devfn),
+                                   VTD_PCI_FUNC(as->devfn),
+                                   use_iommu);
+
+    /* Turn off first then on the other */
+    if (use_iommu) {
+        memory_region_set_enabled(&as->sys_alias, false);
+        memory_region_set_enabled(&as->iommu, true);
+    } else {
+        memory_region_set_enabled(&as->iommu, false);
+        memory_region_set_enabled(&as->sys_alias, true);
+    }
+
+    return use_iommu;
+}
+
+static void vtd_switch_address_space_all(IntelIOMMUState *s)
+{
+    GHashTableIter iter;
+    VTDBus *vtd_bus;
+    int i;
+
+    g_hash_table_iter_init(&iter, s->vtd_as_by_busptr);
+    while (g_hash_table_iter_next(&iter, NULL, (void **)&vtd_bus)) {
+        for (i = 0; i < X86_IOMMU_PCI_DEVFN_MAX; i++) {
+            if (!vtd_bus->dev_as[i]) {
+                continue;
+            }
+            vtd_switch_address_space(vtd_bus->dev_as[i]);
+        }
+    }
+}
+
 static inline uint16_t vtd_make_source_id(uint8_t bus_num, uint8_t devfn)
 {
     return ((bus_num & 0xffUL) << 8) | (devfn & 0xffUL);
@@ -941,6 +1054,31 @@ static inline bool vtd_is_qualified_fault(VTDFaultReason fault)
 static inline bool vtd_is_interrupt_addr(hwaddr addr)
 {
     return VTD_INTERRUPT_ADDR_FIRST <= addr && addr <= VTD_INTERRUPT_ADDR_LAST;
+}
+
+static void vtd_pt_enable_fast_path(IntelIOMMUState *s, uint16_t source_id)
+{
+    VTDBus *vtd_bus;
+    VTDAddressSpace *vtd_as;
+    bool success = false;
+
+    vtd_bus = vtd_find_as_from_bus_num(s, VTD_SID_TO_BUS(source_id));
+    if (!vtd_bus) {
+        goto out;
+    }
+
+    vtd_as = vtd_bus->dev_as[VTD_SID_TO_DEVFN(source_id)];
+    if (!vtd_as) {
+        goto out;
+    }
+
+    if (vtd_switch_address_space(vtd_as) == false) {
+        /* We switched off IOMMU region successfully. */
+        success = true;
+    }
+
+out:
+    trace_vtd_pt_enable_fast_path(source_id, success);
 }
 
 /* Map dev to context-entry then do a paging-structures walk to do a iommu
@@ -1014,6 +1152,30 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         cc_entry->context_cache_gen = s->context_cache_gen;
     }
 
+    /*
+     * We don't need to translate for pass-through context entries.
+     * Also, let's ignore IOTLB caching as well for PT devices.
+     */
+    if (vtd_ce_get_type(&ce) == VTD_CONTEXT_TT_PASS_THROUGH) {
+        entry->translated_addr = entry->iova;
+        entry->addr_mask = VTD_PAGE_SIZE - 1;
+        entry->perm = IOMMU_RW;
+        trace_vtd_translate_pt(source_id, entry->iova);
+
+        /*
+         * When this happens, it means firstly caching-mode is not
+         * enabled, and this is the first passthrough translation for
+         * the device. Let's enable the fast path for passthrough.
+         *
+         * When passthrough is disabled again for the device, we can
+         * capture it via the context entry invalidation, then the
+         * IOMMU region can be swapped back.
+         */
+        vtd_pt_enable_fast_path(s, source_id);
+
+        return;
+    }
+
     ret_fr = vtd_iova_to_slpte(&ce, addr, is_write, &slpte, &level,
                                &reads, &writes);
     if (ret_fr) {
@@ -1083,6 +1245,7 @@ static void vtd_context_global_invalidate(IntelIOMMUState *s)
     if (s->context_cache_gen == VTD_CONTEXT_CACHE_GEN_MAX) {
         vtd_reset_context_cache(s);
     }
+    vtd_switch_address_space_all(s);
     /*
      * From VT-d spec 6.5.2.1, a global context entry invalidation
      * should be followed by a IOTLB global invalidation, so we should
@@ -1091,29 +1254,6 @@ static void vtd_context_global_invalidate(IntelIOMMUState *s)
      * VT-d emulation codes.
      */
     vtd_iommu_replay_all(s);
-}
-
-
-/* Find the VTD address space currently associated with a given bus number,
- */
-static VTDBus *vtd_find_as_from_bus_num(IntelIOMMUState *s, uint8_t bus_num)
-{
-    VTDBus *vtd_bus = s->vtd_as_by_bus_num[bus_num];
-    if (!vtd_bus) {
-        /* Iterate over the registered buses to find the one
-         * which currently hold this bus number, and update the bus_num lookup table:
-         */
-        GHashTableIter iter;
-
-        g_hash_table_iter_init(&iter, s->vtd_as_by_busptr);
-        while (g_hash_table_iter_next (&iter, NULL, (void**)&vtd_bus)) {
-            if (pci_bus_num(vtd_bus->bus) == bus_num) {
-                s->vtd_as_by_bus_num[bus_num] = vtd_bus;
-                return vtd_bus;
-            }
-        }
-    }
-    return vtd_bus;
 }
 
 /* Do a context-cache device-selective invalidation.
@@ -1157,6 +1297,11 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                 trace_vtd_inv_desc_cc_device(bus_n, VTD_PCI_SLOT(devfn_it),
                                              VTD_PCI_FUNC(devfn_it));
                 vtd_as->context_cache_entry.context_cache_gen = 0;
+                /*
+                 * Do switch address space when needed, in case if the
+                 * device passthrough bit is switched.
+                 */
+                vtd_switch_address_space(vtd_as);
                 /*
                  * So a device is moving out of (or moving into) a
                  * domain, a replay() suites here to notify all the
@@ -1387,42 +1532,6 @@ static void vtd_handle_gcmd_sirtp(IntelIOMMUState *s)
     vtd_interrupt_remap_table_setup(s);
     /* Ok - report back to driver */
     vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_IRTPS);
-}
-
-static void vtd_switch_address_space(VTDAddressSpace *as)
-{
-    assert(as);
-
-    trace_vtd_switch_address_space(pci_bus_num(as->bus),
-                                   VTD_PCI_SLOT(as->devfn),
-                                   VTD_PCI_FUNC(as->devfn),
-                                   as->iommu_state->dmar_enabled);
-
-    /* Turn off first then on the other */
-    if (as->iommu_state->dmar_enabled) {
-        memory_region_set_enabled(&as->sys_alias, false);
-        memory_region_set_enabled(&as->iommu, true);
-    } else {
-        memory_region_set_enabled(&as->iommu, false);
-        memory_region_set_enabled(&as->sys_alias, true);
-    }
-}
-
-static void vtd_switch_address_space_all(IntelIOMMUState *s)
-{
-    GHashTableIter iter;
-    VTDBus *vtd_bus;
-    int i;
-
-    g_hash_table_iter_init(&iter, s->vtd_as_by_busptr);
-    while (g_hash_table_iter_next(&iter, NULL, (void **)&vtd_bus)) {
-        for (i = 0; i < X86_IOMMU_PCI_DEVFN_MAX; i++) {
-            if (!vtd_bus->dev_as[i]) {
-                continue;
-            }
-            vtd_switch_address_space(vtd_bus->dev_as[i]);
-        }
-    }
 }
 
 /* Handle Translation Enable/Disable */
@@ -2870,6 +2979,10 @@ static void vtd_init(IntelIOMMUState *s)
 
     if (x86_iommu->dt_supported) {
         s->ecap |= VTD_ECAP_DT;
+    }
+
+    if (x86_iommu->pt_supported) {
+        s->ecap |= VTD_ECAP_PT;
     }
 
     if (s->caching_mode) {
