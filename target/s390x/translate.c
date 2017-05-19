@@ -2928,7 +2928,6 @@ static ExitStatus op_mvpg(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_mvst(DisasContext *s, DisasOps *o)
 {
-    potential_page_fault(s);
     gen_helper_mvst(o->in1, cpu_env, regs[0], o->in1, o->in2);
     set_cc_static(s);
     return_low128(o->in2);
