@@ -744,9 +744,11 @@ void HELPER(tr)(CPUS390XState *env, uint32_t len, uint64_t array,
 uint64_t HELPER(tre)(CPUS390XState *env, uint64_t array,
                      uint64_t len, uint64_t trans)
 {
+    uintptr_t ra = GETPC();
     uint8_t end = env->regs[0] & 0xff;
     uint64_t l = len;
     uint64_t i;
+    uint32_t cc = 0;
 
     if (!(env->psw.mask & PSW_MASK_64)) {
         array &= 0x7fffffff;
@@ -757,25 +759,24 @@ uint64_t HELPER(tre)(CPUS390XState *env, uint64_t array,
        amount of work we're willing to do.  For now, let's cap at 8k.  */
     if (l > 0x2000) {
         l = 0x2000;
-        env->cc_op = 3;
-    } else {
-        env->cc_op = 0;
+        cc = 3;
     }
 
     for (i = 0; i < l; i++) {
         uint8_t byte, new_byte;
 
-        byte = cpu_ldub_data(env, array + i);
+        byte = cpu_ldub_data_ra(env, array + i, ra);
 
         if (byte == end) {
-            env->cc_op = 1;
+            cc = 1;
             break;
         }
 
-        new_byte = cpu_ldub_data(env, trans + byte);
-        cpu_stb_data(env, array + i, new_byte);
+        new_byte = cpu_ldub_data_ra(env, trans + byte, ra);
+        cpu_stb_data_ra(env, array + i, new_byte, ra);
     }
 
+    env->cc_op = cc;
     env->retxl = len - i;
     return array + i;
 }

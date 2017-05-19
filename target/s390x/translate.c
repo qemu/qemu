@@ -4078,7 +4078,6 @@ static ExitStatus op_tr(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_tre(DisasContext *s, DisasOps *o)
 {
-    potential_page_fault(s);
     gen_helper_tre(o->out, cpu_env, o->out, o->out2, o->in2);
     return_low128(o->out2);
     set_cc_static(s);
