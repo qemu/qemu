@@ -398,11 +398,12 @@ uint64_t HELPER(clst)(CPUS390XState *env, uint64_t c, uint64_t s1, uint64_t s2)
 }
 
 /* move page */
-void HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
+uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
 {
-    /* XXX missing r0 handling */
-    env->cc_op = 0;
-    fast_memmove(env, r1, r2, TARGET_PAGE_SIZE, 0);
+    /* ??? missing r0 handling, which includes access keys, but more
+       importantly optional suppression of the exception!  */
+    fast_memmove(env, r1, r2, TARGET_PAGE_SIZE, GETPC());
+    return 0; /* data moved */
 }
 
 /* string copy (c is string terminator) */

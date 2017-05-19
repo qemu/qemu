@@ -2921,8 +2921,7 @@ static ExitStatus op_mvcs(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_mvpg(DisasContext *s, DisasOps *o)
 {
-    potential_page_fault(s);
-    gen_helper_mvpg(cpu_env, regs[0], o->in1, o->in2);
+    gen_helper_mvpg(cc_op, cpu_env, regs[0], o->in1, o->in2);
     set_cc_static(s);
     return NO_EXIT;
 }
