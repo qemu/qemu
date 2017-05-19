@@ -512,7 +512,7 @@ static int vtd_get_root_entry(IntelIOMMUState *s, uint8_t index,
     return 0;
 }
 
-static inline bool vtd_context_entry_present(VTDContextEntry *context)
+static inline bool vtd_ce_present(VTDContextEntry *context)
 {
     return context->lo & VTD_CONTEXT_ENTRY_P;
 }
@@ -533,7 +533,7 @@ static int vtd_get_context_entry_from_root(VTDRootEntry *root, uint8_t index,
     return 0;
 }
 
-static inline dma_addr_t vtd_get_slpt_base_from_context(VTDContextEntry *ce)
+static inline dma_addr_t vtd_ce_get_slpt_base(VTDContextEntry *ce)
 {
     return ce->lo & VTD_CONTEXT_ENTRY_SLPTPTR;
 }
@@ -585,19 +585,19 @@ static inline bool vtd_is_level_supported(IntelIOMMUState *s, uint32_t level)
 /* Get the page-table level that hardware should use for the second-level
  * page-table walk from the Address Width field of context-entry.
  */
-static inline uint32_t vtd_get_level_from_context_entry(VTDContextEntry *ce)
+static inline uint32_t vtd_ce_get_level(VTDContextEntry *ce)
 {
     return 2 + (ce->hi & VTD_CONTEXT_ENTRY_AW);
 }
 
-static inline uint32_t vtd_get_agaw_from_context_entry(VTDContextEntry *ce)
+static inline uint32_t vtd_ce_get_agaw(VTDContextEntry *ce)
 {
     return 30 + (ce->hi & VTD_CONTEXT_ENTRY_AW) * 9;
 }
 
 static inline uint64_t vtd_iova_limit(VTDContextEntry *ce)
 {
-    uint32_t ce_agaw = vtd_get_agaw_from_context_entry(ce);
+    uint32_t ce_agaw = vtd_ce_get_agaw(ce);
     return 1ULL << MIN(ce_agaw, VTD_MGAW);
 }
 
@@ -642,8 +642,8 @@ static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
                              uint64_t *slptep, uint32_t *slpte_level,
                              bool *reads, bool *writes)
 {
-    dma_addr_t addr = vtd_get_slpt_base_from_context(ce);
-    uint32_t level = vtd_get_level_from_context_entry(ce);
+    dma_addr_t addr = vtd_ce_get_slpt_base(ce);
+    uint32_t level = vtd_ce_get_level(ce);
     uint32_t offset;
     uint64_t slpte;
     uint64_t access_right_check;
@@ -664,7 +664,7 @@ static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
             VTD_DPRINTF(GENERAL, "error: fail to access second-level paging "
                         "entry at level %"PRIu32 " for iova 0x%"PRIx64,
                         level, iova);
-            if (level == vtd_get_level_from_context_entry(ce)) {
+            if (level == vtd_ce_get_level(ce)) {
                 /* Invalid programming of context-entry */
                 return -VTD_FR_CONTEXT_ENTRY_INV;
             } else {
@@ -809,8 +809,8 @@ static int vtd_page_walk(VTDContextEntry *ce, uint64_t start, uint64_t end,
                          vtd_page_walk_hook hook_fn, void *private,
                          bool notify_unmap)
 {
-    dma_addr_t addr = vtd_get_slpt_base_from_context(ce);
-    uint32_t level = vtd_get_level_from_context_entry(ce);
+    dma_addr_t addr = vtd_ce_get_slpt_base(ce);
+    uint32_t level = vtd_ce_get_level(ce);
 
     if (!vtd_iova_range_check(start, ce)) {
         return -VTD_FR_ADDR_BEYOND_MGAW;
@@ -851,7 +851,7 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
         return ret_fr;
     }
 
-    if (!vtd_context_entry_present(ce)) {
+    if (!vtd_ce_present(ce)) {
         /* Not error - it's okay we don't have context entry. */
         trace_vtd_ce_not_present(bus_num, devfn);
         return -VTD_FR_CONTEXT_ENTRY_P;
@@ -861,7 +861,7 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
         return -VTD_FR_CONTEXT_ENTRY_RSVD;
     }
     /* Check if the programming of context-entry is valid */
-    if (!vtd_is_level_supported(s, vtd_get_level_from_context_entry(ce))) {
+    if (!vtd_is_level_supported(s, vtd_ce_get_level(ce))) {
         trace_vtd_ce_invalid(ce->hi, ce->lo);
         return -VTD_FR_CONTEXT_ENTRY_INV;
     } else {
