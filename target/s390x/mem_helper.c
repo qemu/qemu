@@ -233,30 +233,35 @@ void HELPER(mvc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
 }
 
 /* compare unsigned byte arrays */
-uint32_t HELPER(clc)(CPUS390XState *env, uint32_t l, uint64_t s1, uint64_t s2)
+static uint32_t do_helper_clc(CPUS390XState *env, uint32_t l, uint64_t s1,
+                              uint64_t s2, uintptr_t ra)
 {
-    int i;
-    unsigned char x, y;
-    uint32_t cc;
+    uint32_t i;
+    uint32_t cc = 0;
 
     HELPER_LOG("%s l %d s1 %" PRIx64 " s2 %" PRIx64 "\n",
                __func__, l, s1, s2);
+
     for (i = 0; i <= l; i++) {
-        x = cpu_ldub_data(env, s1 + i);
-        y = cpu_ldub_data(env, s2 + i);
+        uint8_t x = cpu_ldub_data_ra(env, s1 + i, ra);
+        uint8_t y = cpu_ldub_data_ra(env, s2 + i, ra);
         HELPER_LOG("%02x (%c)/%02x (%c) ", x, x, y, y);
         if (x < y) {
             cc = 1;
-            goto done;
+            break;
         } else if (x > y) {
             cc = 2;
-            goto done;
+            break;
         }
     }
-    cc = 0;
- done:
+
     HELPER_LOG("\n");
     return cc;
+}
+
+uint32_t HELPER(clc)(CPUS390XState *env, uint32_t l, uint64_t s1, uint64_t s2)
+{
+    return do_helper_clc(env, l, s1, s2, GETPC());
 }
 
 /* compare logical under mask */
@@ -1237,8 +1242,8 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
                               get_address(env, 0, b2, d2), 0);
             break;
         case 0x500:
-            cc = helper_clc(env, l, get_address(env, 0, b1, d1),
-                            get_address(env, 0, b2, d2));
+            cc = do_helper_clc(env, l, get_address(env, 0, b1, d1),
+                               get_address(env, 0, b2, d2), 0);
             break;
         case 0x600:
             cc = do_helper_oc(env, l, get_address(env, 0, b1, d1),

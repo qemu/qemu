@@ -1906,7 +1906,6 @@ static ExitStatus op_clc(DisasContext *s, DisasOps *o)
         tcg_gen_qemu_ld64(cc_dst, o->in2, get_mem_index(s));
         break;
     default:
-        potential_page_fault(s);
         vl = tcg_const_i32(l);
         gen_helper_clc(cc_op, cpu_env, vl, o->addr1, o->in2);
         tcg_temp_free_i32(vl);
