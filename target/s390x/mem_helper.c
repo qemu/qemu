@@ -723,17 +723,22 @@ void HELPER(unpk)(CPUS390XState *env, uint32_t len, uint64_t dest,
     }
 }
 
+static void do_helper_tr(CPUS390XState *env, uint32_t len, uint64_t array,
+                         uint64_t trans, uintptr_t ra)
+{
+    uint32_t i;
+
+    for (i = 0; i <= len; i++) {
+        uint8_t byte = cpu_ldub_data_ra(env, array + i, ra);
+        uint8_t new_byte = cpu_ldub_data_ra(env, trans + byte, ra);
+        cpu_stb_data_ra(env, array + i, new_byte, ra);
+    }
+}
+
 void HELPER(tr)(CPUS390XState *env, uint32_t len, uint64_t array,
                 uint64_t trans)
 {
-    int i;
-
-    for (i = 0; i <= len; i++) {
-        uint8_t byte = cpu_ldub_data(env, array + i);
-        uint8_t new_byte = cpu_ldub_data(env, trans + byte);
-
-        cpu_stb_data(env, array + i, new_byte);
-    }
+    return do_helper_tr(env, len, array, trans, GETPC());
 }
 
 uint64_t HELPER(tre)(CPUS390XState *env, uint64_t array,
@@ -1265,9 +1270,9 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
                               get_address(env, 0, b2, d2), 0);
             break;
         case 0xc00:
-            helper_tr(env, l, get_address(env, 0, b1, d1),
-                      get_address(env, 0, b2, d2));
-            break;
+            do_helper_tr(env, l, get_address(env, 0, b1, d1),
+                         get_address(env, 0, b2, d2), 0);
+            return cc;
         case 0xd00:
             cc = helper_trt(env, l, get_address(env, 0, b1, d1),
                             get_address(env, 0, b2, d2));
