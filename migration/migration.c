@@ -19,7 +19,9 @@
 #include "qemu/main-loop.h"
 #include "migration/blocker.h"
 #include "migration/migration.h"
+#include "qemu-file-channel.h"
 #include "migration/qemu-file.h"
+#include "migration/vmstate.h"
 #include "sysemu/sysemu.h"
 #include "block/block.h"
 #include "qapi/qmp/qerror.h"
@@ -35,6 +37,7 @@
 #include "qom/cpu.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "exec/target_page.h"
 #include "io/channel-buffer.h"
 #include "io/channel-tls.h"
 #include "migration/colo.h"
@@ -444,56 +447,6 @@ void migration_fd_process_incoming(QEMUFile *f)
     qemu_coroutine_enter(co);
 }
 
-
-void migration_channel_process_incoming(MigrationState *s,
-                                        QIOChannel *ioc)
-{
-    trace_migration_set_incoming_channel(
-        ioc, object_get_typename(OBJECT(ioc)));
-
-    if (s->parameters.tls_creds &&
-        *s->parameters.tls_creds &&
-        !object_dynamic_cast(OBJECT(ioc),
-                             TYPE_QIO_CHANNEL_TLS)) {
-        Error *local_err = NULL;
-        migration_tls_channel_process_incoming(s, ioc, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-        }
-    } else {
-        QEMUFile *f = qemu_fopen_channel_input(ioc);
-        migration_fd_process_incoming(f);
-    }
-}
-
-
-void migration_channel_connect(MigrationState *s,
-                               QIOChannel *ioc,
-                               const char *hostname)
-{
-    trace_migration_set_outgoing_channel(
-        ioc, object_get_typename(OBJECT(ioc)), hostname);
-
-    if (s->parameters.tls_creds &&
-        *s->parameters.tls_creds &&
-        !object_dynamic_cast(OBJECT(ioc),
-                             TYPE_QIO_CHANNEL_TLS)) {
-        Error *local_err = NULL;
-        migration_tls_channel_connect(s, ioc, hostname, &local_err);
-        if (local_err) {
-            migrate_fd_error(s, local_err);
-            error_free(local_err);
-        }
-    } else {
-        QEMUFile *f = qemu_fopen_channel_output(ioc);
-
-        s->to_dst_file = f;
-
-        migrate_fd_connect(s);
-    }
-}
-
-
 /*
  * Send a message on the return channel back to the source
  * of the migration.
@@ -547,6 +500,11 @@ MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
 
     caps = NULL; /* silence compiler warning */
     for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
+#ifndef CONFIG_LIVE_BLOCK_MIGRATION
+        if (i == MIGRATION_CAPABILITY_BLOCK) {
+            continue;
+        }
+#endif
         if (i == MIGRATION_CAPABILITY_X_COLO && !colo_supported()) {
             continue;
         }
@@ -592,6 +550,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->downtime_limit = s->parameters.downtime_limit;
     params->has_x_checkpoint_delay = true;
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
+    params->has_block_incremental = true;
+    params->block_incremental = s->parameters.block_incremental;
 
     return params;
 }
@@ -761,6 +721,15 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     }
 
     for (cap = params; cap; cap = cap->next) {
+#ifndef CONFIG_LIVE_BLOCK_MIGRATION
+        if (cap->value->capability == MIGRATION_CAPABILITY_BLOCK
+            && cap->value->state) {
+            error_setg(errp, "QEMU compiled without old-style (blk/-b, inc/-i) "
+                       "block migration");
+            error_append_hint(errp, "Use drive_mirror+NBD instead.\n");
+            continue;
+        }
+#endif
         if (cap->value->capability == MIGRATION_CAPABILITY_X_COLO) {
             if (!colo_supported()) {
                 error_setg(errp, "COLO is not currently supported, please"
@@ -900,6 +869,9 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
             colo_checkpoint_notify(s);
         }
     }
+    if (params->has_block_incremental) {
+        s->parameters.block_incremental = params->block_incremental;
+    }
 }
 
 
@@ -935,6 +907,33 @@ void migrate_set_state(int *state, int old_state, int new_state)
     }
 }
 
+void migrate_set_block_enabled(bool value, Error **errp)
+{
+    MigrationCapabilityStatusList *cap;
+
+    cap = g_new0(MigrationCapabilityStatusList, 1);
+    cap->value = g_new0(MigrationCapabilityStatus, 1);
+    cap->value->capability = MIGRATION_CAPABILITY_BLOCK;
+    cap->value->state = value;
+    qmp_migrate_set_capabilities(cap, errp);
+    qapi_free_MigrationCapabilityStatusList(cap);
+}
+
+static void migrate_set_block_incremental(MigrationState *s, bool value)
+{
+    s->parameters.block_incremental = value;
+}
+
+static void block_cleanup_parameters(MigrationState *s)
+{
+    if (s->must_remove_block_options) {
+        /* setting to false can never fail */
+        migrate_set_block_enabled(false, &error_abort);
+        migrate_set_block_incremental(s, false);
+        s->must_remove_block_options = false;
+    }
+}
+
 static void migrate_fd_cleanup(void *opaque)
 {
     MigrationState *s = opaque;
@@ -967,6 +966,7 @@ static void migrate_fd_cleanup(void *opaque)
     }
 
     notifier_list_notify(&migration_state_notifiers, s);
+    block_cleanup_parameters(s);
 }
 
 void migrate_fd_error(MigrationState *s, const Error *error)
@@ -979,6 +979,7 @@ void migrate_fd_error(MigrationState *s, const Error *error)
         s->error = error_copy(error);
     }
     notifier_list_notify(&migration_state_notifiers, s);
+    block_cleanup_parameters(s);
 }
 
 static void migrate_fd_cancel(MigrationState *s)
@@ -1020,6 +1021,7 @@ static void migrate_fd_cancel(MigrationState *s)
             s->block_inactive = false;
         }
     }
+    block_cleanup_parameters(s);
 }
 
 void add_migration_state_change_notifier(Notifier *notify)
@@ -1083,7 +1085,7 @@ bool migration_is_idle(void)
     return false;
 }
 
-MigrationState *migrate_init(const MigrationParams *params)
+MigrationState *migrate_init(void)
 {
     MigrationState *s = migrate_get_current();
 
@@ -1097,7 +1099,6 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->cleanup_bh = 0;
     s->to_dst_file = NULL;
     s->state = MIGRATION_STATUS_NONE;
-    s->params = *params;
     s->rp_state.from_dst_file = NULL;
     s->rp_state.error = false;
     s->mbps = 0.0;
@@ -1186,11 +1187,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 {
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
-    MigrationParams params;
     const char *p;
-
-    params.blk = has_blk && blk;
-    params.shared = has_inc && inc;
 
     if (migration_is_setup_or_active(s->state) ||
         s->state == MIGRATION_STATUS_CANCELLING ||
@@ -1207,7 +1204,25 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         return;
     }
 
-    s = migrate_init(&params);
+    if ((has_blk && blk) || (has_inc && inc)) {
+        if (migrate_use_block() || migrate_use_block_incremental()) {
+            error_setg(errp, "Command options are incompatible with "
+                       "current migration capabilities");
+            return;
+        }
+        migrate_set_block_enabled(true, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+        s->must_remove_block_options = true;
+    }
+
+    if (has_inc && inc) {
+        migrate_set_block_incremental(s, true);
+    }
+
+    s = migrate_init();
 
     if (strstart(uri, "tcp:", &p)) {
         tcp_start_outgoing_migration(s, p, &local_err);
@@ -1402,6 +1417,24 @@ int64_t migrate_xbzrle_cache_size(void)
     s = migrate_get_current();
 
     return s->xbzrle_cache_size;
+}
+
+bool migrate_use_block(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK];
+}
+
+bool migrate_use_block_incremental(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.block_incremental;
 }
 
 /* migration thread support */
@@ -1913,7 +1946,7 @@ static void *migration_thread(void *opaque)
         qemu_savevm_send_postcopy_advise(s->to_dst_file);
     }
 
-    qemu_savevm_state_begin(s->to_dst_file, &s->params);
+    qemu_savevm_state_begin(s->to_dst_file);
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
     migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,

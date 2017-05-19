@@ -26,6 +26,8 @@
 #include "migration/block.h"
 #include "migration/migration.h"
 #include "sysemu/blockdev.h"
+#include "migration/qemu-file.h"
+#include "migration/vmstate.h"
 #include "sysemu/block-backend.h"
 
 #define BLOCK_SIZE                       (1 << 20)
@@ -94,9 +96,6 @@ typedef struct BlkMigBlock {
 } BlkMigBlock;
 
 typedef struct BlkMigState {
-    /* Written during setup phase.  Can be read without a lock.  */
-    int blk_enable;
-    int shared_base;
     QSIMPLEQ_HEAD(bmds_list, BlkMigDevState) bmds_list;
     int64_t total_sector_sum;
     bool zero_blocks;
@@ -425,7 +424,7 @@ static int init_blk_migration(QEMUFile *f)
         bmds->bulk_completed = 0;
         bmds->total_sectors = sectors;
         bmds->completed_sectors = 0;
-        bmds->shared_base = block_mig_state.shared_base;
+        bmds->shared_base = migrate_use_block_incremental();
 
         assert(i < num_bs);
         bmds_bs[i].bmds = bmds;
@@ -994,22 +993,12 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void block_set_params(const MigrationParams *params, void *opaque)
-{
-    block_mig_state.blk_enable = params->blk;
-    block_mig_state.shared_base = params->shared;
-
-    /* shared base means that blk_enable = 1 */
-    block_mig_state.blk_enable |= params->shared;
-}
-
 static bool block_is_active(void *opaque)
 {
-    return block_mig_state.blk_enable == 1;
+    return migrate_use_block();
 }
 
 static SaveVMHandlers savevm_block_handlers = {
-    .set_params = block_set_params,
     .save_live_setup = block_save_setup,
     .save_live_iterate = block_save_iterate,
     .save_live_complete_precopy = block_save_complete,

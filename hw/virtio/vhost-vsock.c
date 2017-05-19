@@ -17,7 +17,6 @@
 #include "qapi/error.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
-#include "migration/migration.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/vhost-vsock.h"
 #include "qemu/iov.h"

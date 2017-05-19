@@ -14,10 +14,34 @@
 #ifndef MIGRATION_BLOCK_H
 #define MIGRATION_BLOCK_H
 
+#ifdef CONFIG_LIVE_BLOCK_MIGRATION
 void blk_mig_init(void);
 int blk_mig_active(void);
 uint64_t blk_mig_bytes_transferred(void);
 uint64_t blk_mig_bytes_remaining(void);
 uint64_t blk_mig_bytes_total(void);
 
+#else
+static inline void blk_mig_init(void) { }
+static inline int blk_mig_active(void)
+{
+    return false;
+}
+static inline uint64_t blk_mig_bytes_transferred(void)
+{
+    return 0;
+}
+
+static inline uint64_t blk_mig_bytes_remaining(void)
+{
+    return 0;
+}
+
+static inline uint64_t blk_mig_bytes_total(void)
+{
+    return 0;
+}
+#endif /* CONFIG_LIVE_BLOCK_MIGRATION */
+
+void migrate_set_block_enabled(bool value, Error **errp);
 #endif /* MIGRATION_BLOCK_H */

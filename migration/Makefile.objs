@@ -1,7 +1,7 @@
 common-obj-y += migration.o socket.o fd.o exec.o
-common-obj-y += tls.o
+common-obj-y += tls.o channel.o savevm.o
 common-obj-y += colo-comm.o colo.o colo-failover.o
-common-obj-y += vmstate.o page_cache.o
+common-obj-y += vmstate.o vmstate-types.o page_cache.o
 common-obj-y += qemu-file.o
 common-obj-y += qemu-file-channel.o
 common-obj-y += xbzrle.o postcopy-ram.o
@@ -9,5 +9,5 @@ common-obj-y += qjson.o
 
 common-obj-$(CONFIG_RDMA) += rdma.o
 
-common-obj-y += block.o
+common-obj-$(CONFIG_LIVE_BLOCK_MIGRATION) += block.o
 

@@ -17,6 +17,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
+#include "channel.h"
 #include "migration/migration.h"
 #include "monitor/monitor.h"
 #include "io/channel-util.h"

@@ -17,7 +17,6 @@
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
-#include "migration/migration.h"
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>

@@ -18,7 +18,7 @@
 #include "qemu-common.h"
 #include "qemu/thread.h"
 #include "qemu/notify.h"
-#include "migration/vmstate.h"
+#include "io/channel.h"
 #include "qapi-types.h"
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
@@ -37,11 +37,6 @@
 #define QEMU_VM_CONFIGURATION        0x07
 #define QEMU_VM_COMMAND              0x08
 #define QEMU_VM_SECTION_FOOTER       0x7e
-
-struct MigrationParams {
-    bool blk;
-    bool shared;
-};
 
 /* Messages sent on the return path from destination to source */
 enum mig_rp_message_type {
@@ -110,12 +105,10 @@ struct MigrationState
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
 
-    /* New style params from 'migrate-set-parameters' */
+    /* params from 'migrate-set-parameters' */
     MigrationParameters parameters;
 
     int state;
-    /* Old style params from 'migrate' command */
-    MigrationParams params;
 
     /* State related to return path */
     struct {
@@ -153,6 +146,9 @@ struct MigrationState
 
     /* The last error that occurred */
     Error *error;
+    /* Do we have to clean up -b/-i from old migrate parameters */
+    /* This feature is deprecated and will be removed */
+    bool must_remove_block_options;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
@@ -161,16 +157,9 @@ void migration_fd_process_incoming(QEMUFile *f);
 
 void qemu_start_incoming_migration(const char *uri, Error **errp);
 
-void migration_channel_process_incoming(MigrationState *s,
-                                        QIOChannel *ioc);
-
 void migration_tls_channel_process_incoming(MigrationState *s,
                                             QIOChannel *ioc,
                                             Error **errp);
-
-void migration_channel_connect(MigrationState *s,
-                               QIOChannel *ioc,
-                               const char *hostname);
 
 void migration_tls_channel_connect(MigrationState *s,
                                    QIOChannel *ioc,
@@ -205,7 +194,7 @@ void migrate_fd_connect(MigrationState *s);
 
 void add_migration_state_change_notifier(Notifier *notify);
 void remove_migration_state_change_notifier(Notifier *notify);
-MigrationState *migrate_init(const MigrationParams *params);
+MigrationState *migrate_init(void);
 bool migration_is_blocked(Error **errp);
 bool migration_in_setup(MigrationState *);
 bool migration_is_idle(void);
@@ -255,15 +244,14 @@ bool migrate_zero_blocks(void);
 
 bool migrate_auto_converge(void);
 
-int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
-                         uint8_t *dst, int dlen);
-int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen);
-
 int migrate_use_xbzrle(void);
 int64_t migrate_xbzrle_cache_size(void);
 bool migrate_colo_enabled(void);
 
 int64_t xbzrle_cache_resize(int64_t new_size);
+
+bool migrate_use_block(void);
+bool migrate_use_block_incremental(void);
 
 bool migrate_use_compression(void);
 int migrate_compress_level(void);

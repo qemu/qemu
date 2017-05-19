@@ -27,7 +27,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "hw/boards.h"
 #include "hw/hw.h"
 #include "hw/qdev.h"
@@ -36,12 +35,14 @@
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "migration/migration.h"
+#include "qemu-file-channel.h"
 #include "postcopy-ram.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "sysemu/cpus.h"
 #include "exec/memory.h"
+#include "exec/target_page.h"
 #include "qmp-commands.h"
 #include "trace.h"
 #include "qemu/bitops.h"
@@ -286,7 +287,7 @@ static void configuration_pre_save(void *opaque)
 
     state->len = strlen(current_name);
     state->name = current_name;
-    state->target_page_bits = TARGET_PAGE_BITS;
+    state->target_page_bits = qemu_target_page_bits();
 }
 
 static int configuration_pre_load(void *opaque)
@@ -297,7 +298,7 @@ static int configuration_pre_load(void *opaque)
      * predates the variable-target-page-bits support and is using the
      * minimum possible value for this CPU.
      */
-    state->target_page_bits = TARGET_PAGE_BITS_MIN;
+    state->target_page_bits = qemu_target_page_bits_min();
     return 0;
 }
 
@@ -312,9 +313,9 @@ static int configuration_post_load(void *opaque, int version_id)
         return -EINVAL;
     }
 
-    if (state->target_page_bits != TARGET_PAGE_BITS) {
+    if (state->target_page_bits != qemu_target_page_bits()) {
         error_report("Received TARGET_PAGE_BITS is %d but local is %d",
-                     state->target_page_bits, TARGET_PAGE_BITS);
+                     state->target_page_bits, qemu_target_page_bits());
         return -EINVAL;
     }
 
@@ -330,7 +331,8 @@ static int configuration_post_load(void *opaque, int version_id)
  */
 static bool vmstate_target_page_bits_needed(void *opaque)
 {
-    return TARGET_PAGE_BITS > TARGET_PAGE_BITS_MIN;
+    return qemu_target_page_bits()
+        > qemu_target_page_bits_min();
 }
 
 static const VMStateDescription vmstate_target_page_bits = {
@@ -966,20 +968,12 @@ void qemu_savevm_state_header(QEMUFile *f)
 
 }
 
-void qemu_savevm_state_begin(QEMUFile *f,
-                             const MigrationParams *params)
+void qemu_savevm_state_begin(QEMUFile *f)
 {
     SaveStateEntry *se;
     int ret;
 
     trace_savevm_state_begin();
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (!se->ops || !se->ops->set_params) {
-            continue;
-        }
-        se->ops->set_params(params, se->opaque);
-    }
-
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops || !se->ops->save_live_setup) {
             continue;
@@ -1144,7 +1138,7 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
     }
 
     vmdesc = qjson_new();
-    json_prop_int(vmdesc, "page_size", TARGET_PAGE_SIZE);
+    json_prop_int(vmdesc, "page_size", qemu_target_page_size());
     json_start_array(vmdesc, "devices");
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
 
@@ -1232,11 +1226,7 @@ void qemu_savevm_state_cleanup(void)
 static int qemu_savevm_state(QEMUFile *f, Error **errp)
 {
     int ret;
-    MigrationParams params = {
-        .blk = 0,
-        .shared = 0
-    };
-    MigrationState *ms = migrate_init(&params);
+    MigrationState *ms = migrate_init();
     MigrationStatus status;
     ms->to_dst_file = f;
 
@@ -1245,9 +1235,15 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         goto done;
     }
 
+    if (migrate_use_block()) {
+        error_setg(errp, "Block migration and snapshots are incompatible");
+        ret = -EINVAL;
+        goto done;
+    }
+
     qemu_mutex_unlock_iothread();
     qemu_savevm_state_header(f);
-    qemu_savevm_state_begin(f, &params);
+    qemu_savevm_state_begin(f);
     qemu_mutex_lock_iothread();
 
     while (qemu_file_get_error(f) == 0) {

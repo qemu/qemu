@@ -67,7 +67,6 @@ int qemu_reset_requested_get(void);
 void qemu_system_killed(int signal, pid_t pid);
 void qemu_system_reset(bool report);
 void qemu_system_guest_panicked(GuestPanicInformation *info);
-size_t qemu_target_page_size(void);
 
 void qemu_add_exit_notifier(Notifier *notify);
 void qemu_remove_exit_notifier(Notifier *notify);
@@ -102,8 +101,7 @@ enum qemu_vm_cmd {
 #define MAX_VM_CMD_PACKAGED_SIZE (1ul << 24)
 
 bool qemu_savevm_state_blocked(Error **errp);
-void qemu_savevm_state_begin(QEMUFile *f,
-                             const MigrationParams *params);
+void qemu_savevm_state_begin(QEMUFile *f);
 void qemu_savevm_state_header(QEMUFile *f);
 int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy);
 void qemu_savevm_state_cleanup(void);

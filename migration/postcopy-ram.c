@@ -19,7 +19,9 @@
 #include "qemu/osdep.h"
 
 #include "qemu-common.h"
+#include "exec/target_page.h"
 #include "migration/migration.h"
+#include "migration/qemu-file.h"
 #include "postcopy-ram.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/balloon.h"
@@ -96,12 +98,22 @@ static bool ufd_version_check(int ufd)
 
 /* Callback from postcopy_ram_supported_by_host block iterator.
  */
-static int test_range_shared(const char *block_name, void *host_addr,
+static int test_ramblock_postcopiable(const char *block_name, void *host_addr,
                              ram_addr_t offset, ram_addr_t length, void *opaque)
 {
-    if (qemu_ram_is_shared(qemu_ram_block_by_name(block_name))) {
+    RAMBlock *rb = qemu_ram_block_by_name(block_name);
+    size_t pagesize = qemu_ram_pagesize(rb);
+
+    if (qemu_ram_is_shared(rb)) {
         error_report("Postcopy on shared RAM (%s) is not yet supported",
                      block_name);
+        return 1;
+    }
+
+    if (length % pagesize) {
+        error_report("Postcopy requires RAM blocks to be a page size multiple,"
+                     " block %s is 0x" RAM_ADDR_FMT " bytes with a "
+                     "page size of 0x%zx", block_name, length, pagesize);
         return 1;
     }
     return 0;
@@ -140,7 +152,7 @@ bool postcopy_ram_supported_by_host(void)
     }
 
     /* We don't support postcopy with shared RAM yet */
-    if (qemu_ram_foreach_block(test_range_shared, NULL)) {
+    if (qemu_ram_foreach_block(test_ramblock_postcopiable, NULL)) {
         goto out;
     }
 
