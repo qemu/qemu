@@ -435,37 +435,6 @@ uint64_t HELPER(mvst)(CPUS390XState *env, uint64_t c, uint64_t d, uint64_t s)
     return d + len;
 }
 
-static uint32_t helper_icm(CPUS390XState *env, uint32_t r1, uint64_t address,
-                           uint32_t mask)
-{
-    int pos = 24; /* top of the lower half of r1 */
-    uint64_t rmask = 0xff000000ULL;
-    uint8_t val = 0;
-    int ccd = 0;
-    uint32_t cc = 0;
-
-    while (mask) {
-        if (mask & 8) {
-            env->regs[r1] &= ~rmask;
-            val = cpu_ldub_data(env, address);
-            if ((val & 0x80) && !ccd) {
-                cc = 1;
-            }
-            ccd = 1;
-            if (val && cc == 0) {
-                cc = 2;
-            }
-            env->regs[r1] |= (uint64_t)val << pos;
-            address++;
-        }
-        mask = (mask << 1) & 0xf;
-        pos -= 8;
-        rmask >>= 8;
-    }
-
-    return cc;
-}
-
 /* load access registers r1 to r3 from memory at a2 */
 void HELPER(lam)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
@@ -1222,19 +1191,17 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
 }
 #endif
 
-/* execute instruction
-   this instruction executes an insn modified with the contents of r1
-   it does not change the executed instruction in memory
-   it does not change the program counter
-   in other words: tricky...
-   currently implemented by interpreting the cases it is most commonly used.
+/* Execute instruction.  This instruction executes an insn modified with
+   the contents of r1.  It does not change the executed instruction in memory;
+   it does not change the program counter.
+
+   Perform this by recording the modified instruction in env->ex_value.
+   This will be noticed by cpu_get_tb_cpu_state and thus tb translation.
 */
 void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
     uint64_t insn = cpu_lduw_code(env, addr);
     uint8_t opc = insn >> 8;
-    uint32_t cc;
 
     /* Or in the contents of R1[56:63].  */
     insn |= r1 & 0xff;
@@ -1254,72 +1221,9 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
         g_assert_not_reached();
     }
 
-    HELPER_LOG("%s: addr 0x%lx insn 0x%" PRIx64 "\n", __func__, addr, insn);
-
-    if ((opc & 0xf0) == 0xd0) {
-        uint32_t l, b1, b2, d1, d2;
-
-        l = extract64(insn, 48, 8);
-        b1 = extract64(insn, 44, 4);
-        b2 = extract64(insn, 28, 4);
-        d1 = extract64(insn, 32, 12);
-        d2 = extract64(insn, 16, 12);
-
-        cc = env->cc_op;
-        switch (opc & 0xf) {
-        case 0x2:
-            do_helper_mvc(env, l, get_address(env, 0, b1, d1),
-                          get_address(env, 0, b2, d2), 0);
-            break;
-        case 0x4:
-            cc = do_helper_nc(env, l, get_address(env, 0, b1, d1),
-                              get_address(env, 0, b2, d2), 0);
-            break;
-        case 0x5:
-            cc = do_helper_clc(env, l, get_address(env, 0, b1, d1),
-                               get_address(env, 0, b2, d2), 0);
-            break;
-        case 0x6:
-            cc = do_helper_oc(env, l, get_address(env, 0, b1, d1),
-                              get_address(env, 0, b2, d2), 0);
-            break;
-        case 0x7:
-            cc = do_helper_xc(env, l, get_address(env, 0, b1, d1),
-                              get_address(env, 0, b2, d2), 0);
-            break;
-        case 0xc:
-            do_helper_tr(env, l, get_address(env, 0, b1, d1),
-                         get_address(env, 0, b2, d2), 0);
-            break;
-        case 0xd:
-            cc = do_helper_trt(env, l, get_address(env, 0, b1, d1),
-                               get_address(env, 0, b2, d2), 0);
-            break;
-        default:
-            goto abort;
-        }
-    } else if (opc == 0x0a) {
-        /* supervisor call */
-        env->int_svc_code = extract64(insn, 48, 8);
-        env->int_svc_ilen = ilen;
-        helper_exception(env, EXCP_SVC);
-        g_assert_not_reached();
-    } else if (opc == 0xbf) {
-        uint32_t r1, r3, b2, d2;
-
-        r1 = extract64(insn, 52, 4);
-        r3 = extract64(insn, 48, 4);
-        b2 = extract64(insn, 44, 4);
-        d2 = extract64(insn, 32, 12);
-        cc = helper_icm(env, r1, get_address(env, 0, b2, d2), r3);
-    } else {
- abort:
-        cpu_abort(CPU(cpu),
-                  "EXECUTE on instruction prefix 0x%x not implemented\n",
-                  opc);
-        g_assert_not_reached();
-    }
-
-    env->cc_op = cc;
-    env->psw.addr += ilen;
+    /* Record the insn we want to execute as well as the ilen to use
+       during the execution of the target insn.  This will also ensure
+       that ex_value is non-zero, which flags that we are in a state
+       that requires such execution.  */
+    env->ex_value = insn | ilen;
 }

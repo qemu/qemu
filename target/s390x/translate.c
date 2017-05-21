@@ -57,6 +57,7 @@ struct DisasContext {
     struct TranslationBlock *tb;
     const DisasInsn *insn;
     DisasFields *fields;
+    uint64_t ex_value;
     uint64_t pc, next_pc;
     uint32_t ilen;
     enum cc_op cc_op;
@@ -2191,23 +2192,18 @@ static ExitStatus op_epsw(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_ex(DisasContext *s, DisasOps *o)
 {
-    /* ??? Perhaps a better way to implement EXECUTE is to set a bit in
-       tb->flags, (ab)use the tb->cs_base field as the address of
-       the template in memory, and grab 8 bits of tb->flags/cflags for
-       the contents of the register.  We would then recognize all this
-       in gen_intermediate_code_internal, generating code for exactly
-       one instruction.  This new TB then gets executed normally.
-
-       On the other hand, this seems to be mostly used for modifying
-       MVC inside of memcpy, which needs a helper call anyway.  So
-       perhaps this doesn't bear thinking about any further.  */
-
     int r1 = get_field(s->fields, r1);
     TCGv_i32 ilen;
     TCGv_i64 v1;
 
+    /* Nested EXECUTE is not allowed.  */
+    if (unlikely(s->ex_value)) {
+        gen_program_exception(s, PGM_EXECUTE);
+        return EXIT_NORETURN;
+    }
+
     update_psw_addr(s);
-    gen_op_calc_cc(s);
+    update_cc_op(s);
 
     if (r1 == 0) {
         v1 = tcg_const_i64(0);
@@ -5195,25 +5191,36 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     int op, op2, ilen;
     const DisasInsn *info;
 
-    insn = ld_code2(env, pc);
-    op = (insn >> 8) & 0xff;
-    ilen = get_ilen(op);
+    if (unlikely(s->ex_value)) {
+        /* Drop the EX data now, so that it's clear on exception paths.  */
+        TCGv_i64 zero = tcg_const_i64(0);
+        tcg_gen_st_i64(zero, cpu_env, offsetof(CPUS390XState, ex_value));
+        tcg_temp_free_i64(zero);
+
+        /* Extract the values saved by EXECUTE.  */
+        insn = s->ex_value & 0xffffffffffff0000ull;
+        ilen = s->ex_value & 0xf;
+        op = insn >> 56;
+    } else {
+        insn = ld_code2(env, pc);
+        op = (insn >> 8) & 0xff;
+        ilen = get_ilen(op);
+        switch (ilen) {
+        case 2:
+            insn = insn << 48;
+            break;
+        case 4:
+            insn = ld_code4(env, pc) << 32;
+            break;
+        case 6:
+            insn = (insn << 48) | (ld_code4(env, pc + 2) << 16);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
     s->next_pc = s->pc + ilen;
     s->ilen = ilen;
-
-    switch (ilen) {
-    case 2:
-        insn = insn << 48;
-        break;
-    case 4:
-        insn = ld_code4(env, pc) << 32;
-        break;
-    case 6:
-        insn = (insn << 48) | (ld_code4(env, pc + 2) << 16);
-        break;
-    default:
-        abort();
-    }
 
     /* We can't actually determine the insn format until we've looked up
        the full insn opcode.  Which we can't do without locating the
@@ -5430,6 +5437,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
     dc.tb = tb;
     dc.pc = pc_start;
     dc.cc_op = CC_OP_DYNAMIC;
+    dc.ex_value = tb->cs_base;
     do_debug = dc.singlestep_enabled = cs->singlestep_enabled;
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -5476,7 +5484,8 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
                 || tcg_op_buf_full()
                 || num_insns >= max_insns
                 || singlestep
-                || cs->singlestep_enabled)) {
+                || cs->singlestep_enabled
+                || dc.ex_value)) {
             status = EXIT_PC_STALE;
         }
     } while (status == NO_EXIT);
@@ -5520,9 +5529,14 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
         qemu_log_lock();
-        qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, dc.pc - pc_start, 1);
-        qemu_log("\n");
+        if (unlikely(dc.ex_value)) {
+            /* ??? Unfortunately log_target_disas can't use host memory.  */
+            qemu_log("IN: EXECUTE %016" PRIx64 "\n", dc.ex_value);
+        } else {
+            qemu_log("IN: %s\n", lookup_symbol(pc_start));
+            log_target_disas(cs, pc_start, dc.pc - pc_start, 1);
+            qemu_log("\n");
+        }
         qemu_log_unlock();
     }
 #endif

@@ -34,6 +34,7 @@ static int cpu_post_load(void *opaque, int version_id)
 
     return 0;
 }
+
 static void cpu_pre_save(void *opaque)
 {
     S390CPU *cpu = opaque;
@@ -156,6 +157,23 @@ const VMStateDescription vmstate_riccb = {
     }
 };
 
+static bool exval_needed(void *opaque)
+{
+    S390CPU *cpu = opaque;
+    return cpu->env.ex_value != 0;
+}
+
+const VMStateDescription vmstate_exval = {
+    .name = "cpu/exval",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = exval_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.ex_value, S390CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_s390_cpu = {
     .name = "cpu",
     .post_load = cpu_post_load,
@@ -188,6 +206,7 @@ const VMStateDescription vmstate_s390_cpu = {
         &vmstate_fpu,
         &vmstate_vregs,
         &vmstate_riccb,
+        &vmstate_exval,
         NULL
     },
 };

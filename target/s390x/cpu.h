@@ -107,6 +107,8 @@ typedef struct CPUS390XState {
     uint64_t cc_dst;
     uint64_t cc_vr;
 
+    uint64_t ex_value;
+
     uint64_t __excp_addr;
     uint64_t psa;
 
@@ -393,7 +395,7 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->psw.addr;
-    *cs_base = 0;
+    *cs_base = env->ex_value;
     *flags = ((env->psw.mask >> 32) & ~FLAG_MASK_CC) |
              ((env->psw.mask & PSW_MASK_32) ? FLAG_MASK_32 : 0);
 }
