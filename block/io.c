@@ -2023,9 +2023,7 @@ bdrv_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
         Coroutine *co = qemu_coroutine_create(bdrv_co_rw_vmstate_entry, &data);
 
         bdrv_coroutine_enter(bs, co);
-        while (data.ret == -EINPROGRESS) {
-            aio_poll(bdrv_get_aio_context(bs), true);
-        }
+        BDRV_POLL_WHILE(bs, data.ret == -EINPROGRESS);
         return data.ret;
     }
 }
