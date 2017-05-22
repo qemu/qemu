@@ -278,11 +278,17 @@ static void test_visitor_in_number_str_keyval(TestInputVisitorData *data,
 {
     double res = 0, value = 3.14;
     Visitor *v;
+    Error *err = NULL;
 
     v = visitor_input_test_init_full(data, true, "\"3.14\"");
 
     visit_type_number(v, NULL, &res, &error_abort);
     g_assert_cmpfloat(res, ==, value);
+
+    v = visitor_input_test_init_full(data, true, "\"inf\"");
+
+    visit_type_number(v, NULL, &res, &err);
+    error_free_or_abort(&err);
 }
 
 static void test_visitor_in_number_str_fail(TestInputVisitorData *data,
