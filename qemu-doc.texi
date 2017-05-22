@@ -34,6 +34,7 @@
 * Introduction::
 * QEMU PC System emulator::
 * QEMU System emulator for non PC targets::
+* QEMU Guest Agent::
 * QEMU User space emulator::
 * Implementation notes::
 * License::
@@ -396,7 +397,6 @@ snapshots.
 * vm_snapshots::              VM snapshots
 * qemu_img_invocation::       qemu-img Invocation
 * qemu_nbd_invocation::       qemu-nbd Invocation
-* qemu_ga_invocation::        qemu-ga Invocation
 * disk_images_formats::       Disk image file formats
 * host_drives::               Using host drives
 * disk_images_fat_images::    Virtual FAT disk images
@@ -489,11 +489,6 @@ state is not saved or restored properly (in particular USB).
 @subsection @code{qemu-nbd} Invocation
 
 @include qemu-nbd.texi
-
-@node qemu_ga_invocation
-@subsection @code{qemu-ga} Invocation
-
-@include qemu-ga.texi
 
 @node disk_images_formats
 @subsection Disk image file formats
@@ -2685,6 +2680,12 @@ Note that this allows guest direct access to the host filesystem,
 so should only be used with trusted guest OS.
 
 @end table
+
+@node QEMU Guest Agent
+@chapter QEMU Guest Agent invocation
+
+@include qemu-ga.texi
+
 @node QEMU User space emulator
 @chapter QEMU User space emulator
 
