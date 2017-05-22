@@ -682,6 +682,9 @@ int get_tmp_filename(char *filename, int size);
 BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
                             const char *filename);
 
+void bdrv_parse_filename_strip_prefix(const char *filename, const char *prefix,
+                                      QDict *options);
+
 
 /**
  * bdrv_add_before_write_notifier:
