@@ -727,6 +727,12 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
     i = mapping->info.dir.first_dir_index =
             first_cluster == 0 ? 0 : s->directory.next;
 
+    if (first_cluster != 0) {
+        /* create the top entries of a subdirectory */
+        (void)create_short_and_long_name(s, i, ".", 1);
+        (void)create_short_and_long_name(s, i, "..", 1);
+    }
+
     /* actually read the directory, and allocate the mappings */
     while((entry=readdir(dir))) {
         unsigned int length=strlen(dirname)+2+strlen(entry->d_name);
@@ -748,8 +754,11 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
         }
 
         /* create directory entry for this file */
-        direntry=create_short_and_long_name(s, i, entry->d_name,
-                is_dot || is_dotdot);
+        if (!is_dot && !is_dotdot) {
+            direntry = create_short_and_long_name(s, i, entry->d_name, 0);
+        } else {
+            direntry = array_get(&(s->directory), is_dot ? i : i + 1);
+        }
         direntry->attributes=(S_ISDIR(st.st_mode)?0x10:0x20);
         direntry->reserved[0]=direntry->reserved[1]=0;
         direntry->ctime=fat_datetime(st.st_ctime,1);
