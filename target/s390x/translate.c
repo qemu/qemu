@@ -4047,7 +4047,6 @@ static ExitStatus op_tcxb(DisasContext *s, DisasOps *o)
 static ExitStatus op_testblock(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_testblock(cc_op, cpu_env, o->in2);
     set_cc_static(s);
     return NO_EXIT;
