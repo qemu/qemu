@@ -424,28 +424,19 @@ static void init_mbr(BDRVVVFATState *s, int cyls, int heads, int secs)
 
 /* direntry functions */
 
-/* dest is assumed to hold 258 bytes, and pads with 0xffff up to next multiple of 26 */
-static inline int short2long_name(char* dest,const char* src)
+static direntry_t *create_long_filename(BDRVVVFATState *s, const char *filename)
 {
-    int i;
-    int len;
-    for(i=0;i<129 && src[i];i++) {
-        dest[2*i]=src[i];
-        dest[2*i+1]=0;
-    }
-    len=2*i;
-    dest[2*i]=dest[2*i+1]=0;
-    for(i=2*i+2;(i%26);i++)
-        dest[i]=0xff;
-    return len;
-}
+    int number_of_entries, i;
+    glong length;
+    direntry_t *entry;
 
-static inline direntry_t* create_long_filename(BDRVVVFATState* s,const char* filename)
-{
-    char buffer[258];
-    int length=short2long_name(buffer,filename),
-        number_of_entries=(length+25)/26,i;
-    direntry_t* entry;
+    gunichar2 *longname = g_utf8_to_utf16(filename, -1, NULL, &length, NULL);
+    if (!longname) {
+        fprintf(stderr, "vvfat: invalid UTF-8 name: %s\n", filename);
+        return NULL;
+    }
+
+    number_of_entries = (length * 2 + 25) / 26;
 
     for(i=0;i<number_of_entries;i++) {
         entry=array_get_next(&(s->directory));
@@ -460,8 +451,15 @@ static inline direntry_t* create_long_filename(BDRVVVFATState* s,const char* fil
         else if(offset<22) offset=14+offset-10;
         else offset=28+offset-22;
         entry=array_get(&(s->directory),s->directory.next-1-(i/26));
-        entry->name[offset]=buffer[i];
+        if (i >= 2 * length + 2) {
+            entry->name[offset] = 0xff;
+        } else if (i % 2 == 0) {
+            entry->name[offset] = longname[i / 2] & 0xff;
+        } else {
+            entry->name[offset] = longname[i / 2] >> 8;
+        }
     }
+    g_free(longname);
     return array_get(&(s->directory),s->directory.next-number_of_entries);
 }
 
