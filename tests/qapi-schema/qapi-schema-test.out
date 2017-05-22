@@ -22,10 +22,10 @@ alternate AltNumInt
     tag type
     case n: number
     case i: int
-alternate AltNumStr
+alternate AltStrObj
     tag type
-    case n: number
     case s: str
+    case o: TestStruct
 event EVENT_A None
    boxed=False
 event EVENT_B None

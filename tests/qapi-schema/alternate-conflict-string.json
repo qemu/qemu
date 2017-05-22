@@ -1,6 +1,4 @@
-# we reject alternates with multiple string-like branches
-{ 'enum': 'Enum',
-  'data': [ 'hello', 'world' ] }
+# alternate branches of 'str' type conflict with all scalar types
 { 'alternate': 'Alt',
   'data': { 'one': 'str',
-            'two': 'Enum' } }
+            'two': 'int' } }
