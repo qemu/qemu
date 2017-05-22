@@ -1208,17 +1208,17 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
     uint32_t cc = 0;
-    int old_exc = cs->exception_index;
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
     uint64_t ret;
-    int flags;
+    int old_exc, flags;
 
     /* XXX incomplete - has more corner cases */
     if (!(env->psw.mask & PSW_MASK_64) && (addr >> 32)) {
+        cpu_restore_state(cs, GETPC());
         program_interrupt(env, PGM_SPECIAL_OP, 2);
     }
 
-    cs->exception_index = old_exc;
+    old_exc = cs->exception_index;
     if (mmu_translate(env, addr, 0, asc, &ret, &flags, true)) {
         cc = 3;
     }

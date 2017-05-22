@@ -2565,7 +2565,6 @@ static ExitStatus op_lctlg(DisasContext *s, DisasOps *o)
 static ExitStatus op_lra(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_lra(o->out, cpu_env, o->in2);
     set_cc_static(s);
     return NO_EXIT;
