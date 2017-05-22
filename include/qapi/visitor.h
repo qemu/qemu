@@ -607,6 +607,10 @@ void visit_type_number(Visitor *v, const char *name, double *obj,
  * @obj must be non-NULL.  Input visitors set *@obj to the value;
  * other visitors will leave *@obj unchanged.  *@obj must be non-NULL
  * for output visitors.
+ *
+ * Note that some kinds of input can't express arbitrary QObject.
+ * E.g. the visitor returned by qobject_input_visitor_new_keyval()
+ * can't create numbers or booleans, only strings.
  */
 void visit_type_any(Visitor *v, const char *name, QObject **obj, Error **errp);
 
