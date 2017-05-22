@@ -589,6 +589,10 @@ static direntry_t *create_short_filename(BDRVVVFATState *s,
         }
     }
 
+    if (entry->name[0] == 0xe5) {
+        entry->name[0] = 0x05;
+    }
+
     /* numeric-tail generation */
     for (j = 0; j < 8; j++) {
         if (entry->name[j] == ' ') {
@@ -709,8 +713,6 @@ static inline void init_fat(BDRVVVFATState* s)
 
 }
 
-/* TODO: in create_short_filename, 0xe5->0x05 is not yet handled! */
-/* TODO: in parse_short_filename, 0x05->0xe5 is not yet handled! */
 static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
         unsigned int directory_start, const char* filename, int is_dot)
 {
@@ -1743,6 +1745,9 @@ static int parse_short_name(BDRVVVFATState* s,
     } else
         lfn->name[i + j + 1] = '\0';
 
+    if (lfn->name[0] == 0x05) {
+        lfn->name[0] = 0xe5;
+    }
     lfn->len = strlen((char*)lfn->name);
 
     return 0;
