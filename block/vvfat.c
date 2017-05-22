@@ -515,6 +515,80 @@ static void set_begin_of_direntry(direntry_t* direntry, uint32_t begin)
     direntry->begin_hi = cpu_to_le16((begin >> 16) & 0xffff);
 }
 
+static uint8_t to_valid_short_char(gunichar c)
+{
+    c = g_unichar_toupper(c);
+    if ((c >= '0' && c <= '9') ||
+        (c >= 'A' && c <= 'Z') ||
+        strchr("$%'-_@~`!(){}^#&", c) != 0) {
+        return c;
+    } else {
+        return 0;
+    }
+}
+
+static direntry_t *create_short_filename(BDRVVVFATState *s,
+                                         const char *filename)
+{
+    int j = 0;
+    direntry_t *entry = array_get_next(&(s->directory));
+    const gchar *p, *last_dot = NULL;
+    gunichar c;
+    bool lossy_conversion = false;
+
+    if (!entry) {
+        return NULL;
+    }
+    memset(entry->name, 0x20, sizeof(entry->name));
+
+    /* copy filename and search last dot */
+    for (p = filename; ; p = g_utf8_next_char(p)) {
+        c = g_utf8_get_char(p);
+        if (c == '\0') {
+            break;
+        } else if (c == '.') {
+            if (j == 0) {
+                /* '.' at start of filename */
+                lossy_conversion = true;
+            } else {
+                if (last_dot) {
+                    lossy_conversion = true;
+                }
+                last_dot = p;
+            }
+        } else if (!last_dot) {
+            /* first part of the name; copy it */
+            uint8_t v = to_valid_short_char(c);
+            if (j < 8 && v) {
+                entry->name[j++] = v;
+            } else {
+                lossy_conversion = true;
+            }
+        }
+    }
+
+    /* copy extension (if any) */
+    if (last_dot) {
+        j = 0;
+        for (p = g_utf8_next_char(last_dot); ; p = g_utf8_next_char(p)) {
+            c = g_utf8_get_char(p);
+            if (c == '\0') {
+                break;
+            } else {
+                /* extension; copy it */
+                uint8_t v = to_valid_short_char(c);
+                if (j < 3 && v) {
+                    entry->name[8 + (j++)] = v;
+                } else {
+                    lossy_conversion = true;
+                }
+            }
+        }
+    }
+    (void)lossy_conversion;
+    return entry;
+}
+
 /* fat functions */
 
 static inline uint8_t fat_chksum(const direntry_t* entry)
@@ -613,7 +687,7 @@ static inline void init_fat(BDRVVVFATState* s)
 static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
         unsigned int directory_start, const char* filename, int is_dot)
 {
-    int i,j,long_index=s->directory.next;
+    int long_index = s->directory.next;
     direntry_t* entry = NULL;
     direntry_t* entry_long = NULL;
 
@@ -625,33 +699,7 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
     }
 
     entry_long=create_long_filename(s,filename);
-
-    i = strlen(filename);
-    for(j = i - 1; j>0  && filename[j]!='.';j--);
-    if (j > 0)
-        i = (j > 8 ? 8 : j);
-    else if (i > 8)
-        i = 8;
-
-    entry=array_get_next(&(s->directory));
-    memset(entry->name, 0x20, sizeof(entry->name));
-    memcpy(entry->name, filename, i);
-
-    if (j > 0) {
-        for (i = 0; i < 3 && filename[j + 1 + i]; i++) {
-            entry->name[8 + i] = filename[j + 1 + i];
-        }
-    }
-
-    /* upcase & remove unwanted characters */
-    for(i=10;i>=0;i--) {
-        if(i==10 || i==7) for(;i>0 && entry->name[i]==' ';i--);
-        if(entry->name[i]<=' ' || entry->name[i]>0x7f
-                || strchr(".*?<>|\":/\\[];,+='",entry->name[i]))
-            entry->name[i]='_';
-        else if(entry->name[i]>='a' && entry->name[i]<='z')
-            entry->name[i]+='A'-'a';
-    }
+    entry = create_short_filename(s, filename);
 
     /* mangle duplicates */
     while(1) {
