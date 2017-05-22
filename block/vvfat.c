@@ -286,8 +286,7 @@ typedef struct mapping_t {
     union {
         /* offset is
          * - the offset in the file (in clusters) for a file, or
-         * - the next cluster of the directory for a directory, and
-         * - the address of the buffer for a faked entry
+         * - the next cluster of the directory for a directory
          */
         struct {
             uint32_t offset;
@@ -300,9 +299,13 @@ typedef struct mapping_t {
     /* path contains the full path, i.e. it always starts with s->path */
     char* path;
 
-    enum { MODE_UNDEFINED = 0, MODE_NORMAL = 1, MODE_MODIFIED = 2,
-        MODE_DIRECTORY = 4, MODE_FAKED = 8,
-        MODE_DELETED = 16, MODE_RENAMED = 32 } mode;
+    enum {
+        MODE_UNDEFINED = 0,
+        MODE_NORMAL = 1,
+        MODE_MODIFIED = 2,
+        MODE_DIRECTORY = 4,
+        MODE_DELETED = 8,
+    } mode;
     int read_only;
 } mapping_t;
 
