@@ -970,7 +970,6 @@ uint32_t HELPER(testblock)(CPUS390XState *env, uint64_t real_addr)
 uint32_t HELPER(tprot)(uint64_t a1, uint64_t a2)
 {
     /* XXX implement */
-
     return 0;
 }
 
