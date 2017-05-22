@@ -168,7 +168,7 @@ static int blk_root_inactivate(BdrvChild *child)
      * this point because the VM is stopped) and unattached monitor-owned
      * BlockBackends. If there is still any other user like a block job, then
      * we simply can't inactivate the image. */
-    if (!blk->dev && !blk->name[0]) {
+    if (!blk->dev && !blk_name(blk)[0]) {
         return -EPERM;
     }
 
