@@ -403,9 +403,9 @@ static void init_mbr(BDRVVVFATState *s, int cyls, int heads, int secs)
     /* FAT12/FAT16/FAT32 */
     /* DOS uses different types when partition is LBA,
        probably to prevent older versions from using CHS on them */
-    partition->fs_type= s->fat_type==12 ? 0x1:
-                        s->fat_type==16 ? (lba?0xe:0x06):
-                         /*fat_tyoe==32*/ (lba?0xc:0x0b);
+    partition->fs_type = s->fat_type == 12 ? 0x1 :
+                         s->fat_type == 16 ? (lba ? 0xe : 0x06) :
+                       /*s->fat_type == 32*/ (lba ? 0xc : 0x0b);
 
     real_mbr->magic[0]=0x55; real_mbr->magic[1]=0xaa;
 }
@@ -805,7 +805,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
                 (ROOT_ENTRIES - cur) * sizeof(direntry_t));
     }
 
-     /* reget the mapping, since s->mapping was possibly realloc()ed */
+    /* re-get the mapping, since s->mapping was possibly realloc()ed */
     mapping = array_get(&(s->mapping), mapping_index);
     first_cluster += (s->directory.next - mapping->info.dir.first_dir_index)
         * 0x20 / s->cluster_size;
