@@ -163,11 +163,16 @@ void path_combine(char *dest, int dest_size,
     if (path_is_absolute(filename)) {
         pstrcpy(dest, dest_size, filename);
     } else {
-        p = strchr(base_path, ':');
-        if (p)
-            p++;
-        else
-            p = base_path;
+        const char *protocol_stripped = NULL;
+
+        if (path_has_protocol(base_path)) {
+            protocol_stripped = strchr(base_path, ':');
+            if (protocol_stripped) {
+                protocol_stripped++;
+            }
+        }
+        p = protocol_stripped ?: base_path;
+
         p1 = strrchr(base_path, '/');
 #ifdef _WIN32
         {
