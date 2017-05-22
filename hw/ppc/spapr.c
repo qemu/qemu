@@ -2655,7 +2655,8 @@ static void spapr_pending_dimm_unplugs_remove(sPAPRMachineState *spapr,
     g_free(dimm_state);
 }
 
-static void spapr_lmb_release(DeviceState *dev, void *opaque)
+/* Callback to be called during DRC release. */
+void spapr_lmb_release(DeviceState *dev)
 {
     HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(dev);
     sPAPRMachineState *spapr = SPAPR_MACHINE(hotplug_ctrl);
@@ -2720,7 +2721,7 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
         g_assert(drc);
 
         drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-        drck->detach(drc, dev, spapr_lmb_release, NULL, errp);
+        drck->detach(drc, dev, errp);
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
 
@@ -2767,7 +2768,8 @@ static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     object_unparent(OBJECT(dev));
 }
 
-static void spapr_core_release(DeviceState *dev, void *opaque)
+/* Callback to be called during DRC release. */
+void spapr_core_release(DeviceState *dev)
 {
     HotplugHandler *hotplug_ctrl;
 
@@ -2800,7 +2802,7 @@ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
     g_assert(drc);
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    drck->detach(drc, dev, spapr_core_release, NULL, &local_err);
+    drck->detach(drc, dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

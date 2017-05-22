@@ -20,6 +20,7 @@
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "hw/ppc/spapr.h" /* for RTAS return codes */
+#include "hw/pci-host/spapr.h" /* spapr_phb_remove_pci_device_cb callback */
 #include "trace.h"
 
 #define DRC_CONTAINER_PATH "/dr-connector"
@@ -99,8 +100,7 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
         if (drc->awaiting_release) {
             if (drc->configured) {
                 trace_spapr_drc_set_isolation_state_finalizing(get_index(drc));
-                drck->detach(drc, DEVICE(drc->dev), drc->detach_cb,
-                             drc->detach_cb_opaque, NULL);
+                drck->detach(drc, DEVICE(drc->dev), NULL);
             } else {
                 trace_spapr_drc_set_isolation_state_deferring(get_index(drc));
             }
@@ -153,8 +153,7 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
         if (drc->awaiting_release &&
             drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
             trace_spapr_drc_set_allocation_state_finalizing(get_index(drc));
-            drck->detach(drc, DEVICE(drc->dev), drc->detach_cb,
-                         drc->detach_cb_opaque, NULL);
+            drck->detach(drc, DEVICE(drc->dev), NULL);
         } else if (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) {
             drc->awaiting_allocation = false;
         }
@@ -404,14 +403,9 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                              NULL, 0, NULL);
 }
 
-static void detach(sPAPRDRConnector *drc, DeviceState *d,
-                   spapr_drc_detach_cb *detach_cb,
-                   void *detach_cb_opaque, Error **errp)
+static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
 {
     trace_spapr_drc_detach(get_index(drc));
-
-    drc->detach_cb = detach_cb;
-    drc->detach_cb_opaque = detach_cb_opaque;
 
     /* if we've signalled device presence to the guest, or if the guest
      * has gone ahead and configured the device (via manually-executed
@@ -456,8 +450,21 @@ static void detach(sPAPRDRConnector *drc, DeviceState *d,
 
     drc->indicator_state = SPAPR_DR_INDICATOR_STATE_INACTIVE;
 
-    if (drc->detach_cb) {
-        drc->detach_cb(drc->dev, drc->detach_cb_opaque);
+    /* Calling release callbacks based on drc->type. */
+    switch (drc->type) {
+    case SPAPR_DR_CONNECTOR_TYPE_CPU:
+        spapr_core_release(drc->dev);
+        break;
+    case SPAPR_DR_CONNECTOR_TYPE_PCI:
+        spapr_phb_remove_pci_device_cb(drc->dev);
+        break;
+    case SPAPR_DR_CONNECTOR_TYPE_LMB:
+        spapr_lmb_release(drc->dev);
+        break;
+    case SPAPR_DR_CONNECTOR_TYPE_PHB:
+    case SPAPR_DR_CONNECTOR_TYPE_VIO:
+    default:
+        g_assert(false);
     }
 
     drc->awaiting_release = false;
@@ -467,8 +474,6 @@ static void detach(sPAPRDRConnector *drc, DeviceState *d,
     drc->fdt_start_offset = 0;
     object_property_del(OBJECT(drc), "device", NULL);
     drc->dev = NULL;
-    drc->detach_cb = NULL;
-    drc->detach_cb_opaque = NULL;
 }
 
 static bool release_pending(sPAPRDRConnector *drc)
@@ -498,8 +503,7 @@ static void reset(DeviceState *d)
          * force removal if we are
          */
         if (drc->awaiting_release) {
-            drck->detach(drc, DEVICE(drc->dev), drc->detach_cb,
-                         drc->detach_cb_opaque, NULL);
+            drck->detach(drc, DEVICE(drc->dev), NULL);
         }
 
         /* non-PCI devices may be awaiting a transition to UNUSABLE */

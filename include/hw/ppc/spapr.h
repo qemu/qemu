@@ -642,6 +642,10 @@ void spapr_hotplug_req_remove_by_count_indexed(sPAPRDRConnectorType drc_type,
 void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
                                     sPAPRMachineState *spapr);
 
+/* CPU and LMB DRC release callbacks. */
+void spapr_core_release(DeviceState *dev);
+void spapr_lmb_release(DeviceState *dev);
+
 /* rtas-configure-connector state */
 struct sPAPRConfigureConnectorState {
     uint32_t drc_index;
