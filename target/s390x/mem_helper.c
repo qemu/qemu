@@ -781,25 +781,29 @@ uint64_t HELPER(tre)(CPUS390XState *env, uint64_t array,
     return array + i;
 }
 
-uint32_t HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
-                     uint64_t trans)
+static uint32_t do_helper_trt(CPUS390XState *env, uint32_t len, uint64_t array,
+                              uint64_t trans, uintptr_t ra)
 {
-    uint32_t cc = 0;
-    int i;
+    uint32_t i;
 
     for (i = 0; i <= len; i++) {
-        uint8_t byte = cpu_ldub_data(env, array + i);
-        uint8_t sbyte = cpu_ldub_data(env, trans + byte);
+        uint8_t byte = cpu_ldub_data_ra(env, array + i, ra);
+        uint8_t sbyte = cpu_ldub_data_ra(env, trans + byte, ra);
 
         if (sbyte != 0) {
             env->regs[1] = array + i;
-            env->regs[2] = (env->regs[2] & ~0xff) | sbyte;
-            cc = (i == len) ? 2 : 1;
-            break;
+            env->regs[2] = deposit64(env->regs[2], 0, 8, sbyte);
+            return (i == len) ? 2 : 1;
         }
     }
 
-    return cc;
+    return 0;
+}
+
+uint32_t HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
+                     uint64_t trans)
+{
+    return do_helper_trt(env, len, array, trans, GETPC());
 }
 
 void HELPER(cdsg)(CPUS390XState *env, uint64_t addr,
@@ -1275,8 +1279,8 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
                          get_address(env, 0, b2, d2), 0);
             return cc;
         case 0xd00:
-            cc = helper_trt(env, l, get_address(env, 0, b1, d1),
-                            get_address(env, 0, b2, d2));
+            cc = do_helper_trt(env, l, get_address(env, 0, b1, d1),
+                               get_address(env, 0, b2, d2), 0);
             break;
         default:
             goto abort;
