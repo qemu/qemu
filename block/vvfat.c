@@ -528,13 +528,15 @@ static uint8_t to_valid_short_char(gunichar c)
 }
 
 static direntry_t *create_short_filename(BDRVVVFATState *s,
-                                         const char *filename)
+                                         const char *filename,
+                                         unsigned int directory_start)
 {
-    int j = 0;
+    int i, j = 0;
     direntry_t *entry = array_get_next(&(s->directory));
     const gchar *p, *last_dot = NULL;
     gunichar c;
     bool lossy_conversion = false;
+    char tail[11];
 
     if (!entry) {
         return NULL;
@@ -585,8 +587,32 @@ static direntry_t *create_short_filename(BDRVVVFATState *s,
             }
         }
     }
-    (void)lossy_conversion;
-    return entry;
+
+    /* numeric-tail generation */
+    for (j = 0; j < 8; j++) {
+        if (entry->name[j] == ' ') {
+            break;
+        }
+    }
+    for (i = lossy_conversion ? 1 : 0; i < 999999; i++) {
+        direntry_t *entry1;
+        if (i > 0) {
+            int len = sprintf(tail, "~%d", i);
+            memcpy(entry->name + MIN(j, 8 - len), tail, len);
+        }
+        for (entry1 = array_get(&(s->directory), directory_start);
+             entry1 < entry; entry1++) {
+            if (!is_long_name(entry1) &&
+                !memcmp(entry1->name, entry->name, 11)) {
+                break; /* found dupe */
+            }
+        }
+        if (entry1 == entry) {
+            /* no dupe found */
+            return entry;
+        }
+    }
+    return NULL;
 }
 
 /* fat functions */
@@ -699,36 +725,7 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
     }
 
     entry_long=create_long_filename(s,filename);
-    entry = create_short_filename(s, filename);
-
-    /* mangle duplicates */
-    while(1) {
-        direntry_t* entry1=array_get(&(s->directory),directory_start);
-        int j;
-
-        for(;entry1<entry;entry1++)
-            if(!is_long_name(entry1) && !memcmp(entry1->name,entry->name,11))
-                break; /* found dupe */
-        if(entry1==entry) /* no dupe found */
-            break;
-
-        /* use all 8 characters of name */
-        if(entry->name[7]==' ') {
-            int j;
-            for(j=6;j>0 && entry->name[j]==' ';j--)
-                entry->name[j]='~';
-        }
-
-        /* increment number */
-        for(j=7;j>0 && entry->name[j]=='9';j--)
-            entry->name[j]='0';
-        if(j>0) {
-            if(entry->name[j]<'0' || entry->name[j]>'9')
-                entry->name[j]='0';
-            else
-                entry->name[j]++;
-        }
-    }
+    entry = create_short_filename(s, filename, directory_start);
 
     /* calculate checksum; propagate to long name */
     if(entry_long) {
