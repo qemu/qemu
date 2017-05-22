@@ -1023,7 +1023,7 @@ static int init_directories(BDRVVVFATState* s,
     bootsector->jump[0]=0xeb;
     bootsector->jump[1]=0x3e;
     bootsector->jump[2]=0x90;
-    memcpy(bootsector->name,"QEMU    ",8);
+    memcpy(bootsector->name, "MSWIN4.1", 8);
     bootsector->sector_size=cpu_to_le16(0x200);
     bootsector->sectors_per_cluster=s->sectors_per_cluster;
     bootsector->reserved_sectors=cpu_to_le16(1);
